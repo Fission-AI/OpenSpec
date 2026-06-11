@@ -12,26 +12,26 @@ fix round.
 
 | # | Finding | Status |
 |---|---------|--------|
-| G1 | The recommended `~/openspec/<id>` layout makes `$HOME` a "nearest" root: any `openspec/` DIRECTORY counts in the walk, so every lifecycle command under the home tree silently lands planning files in `$HOME/openspec/changes/` and the registered-store hint never fires. | open |
-| G2 | `status`/`instructions` `--json` thrown errors emit NO JSON document (plus a stray blank line on stdout); part of the broader JSON-failure-contract family. | open |
+| G1 | The recommended `~/openspec/<id>` layout makes `$HOME` a "nearest" root: any `openspec/` DIRECTORY counts in the walk, so every lifecycle command under the home tree silently lands planning files in `$HOME/openspec/changes/` and the registered-store hint never fires. | **fixed** (37ad867; live re-verified) |
+| G2 | `status`/`instructions` `--json` thrown errors emit NO JSON document (plus a stray blank line on stdout); part of the broader JSON-failure-contract family. | **fixed** (37ad867; live re-verified) |
 
 ## P2 (13)
 
 | # | Finding | Status |
 |---|---------|--------|
-| G3 | The JSON failure contract family: `show`/`validate` unknown item, `list` (no failurePayload AND the changes-dir throw), `store <unknown subcommand>`, all exit 1 with zero JSON on stdout; agent-contract.md currently claims this fixed. | open |
-| G4 | `doctor`/`context` miss the shared `--store-path` rejection seam (Commander unknown-option instead of the typed `store_path_not_supported`). | open |
-| G5 | doctor's unguarded `gitOriginUrl(root.path)` walks UP: a non-repo store nested in another checkout reports the enclosing repo's origin + spurious `store_remote_divergence` (live-reproduced; violates operations.ts's own documented guard). | open |
-| G6 | Stale registry lock = permanent `store_registry_busy` with a fix that can never work; Ctrl-C during `store remove` (which holds the lock across a recursive rm) orphans it; doctor is blind to it; EACCES also misreported as busy. | open |
-| G7 | Config-only roots: `new change` creates the change but never completes the shape (the scaffold guard fires only when `openspec/` is wholly absent) — doctor immediately calls the root the tool just wrote to unhealthy. | open |
-| G8 | Prompt-injection surface: target `remote` strings, referenced-store spec ids (raw directory names), and Purpose summaries render verbatim into `<referenced_stores>`/instruction output — newlines/control chars from a hostile clone can forge instruction lines. | open |
-| G9 | Five more accepted specs REQUIRE deleted behavior (artifact-graph, schema-resolution, change-creation P2; cli-update, openspec-conventions P3) — the L2 excision covered only cli-config/cli-artifact-workflow. | open |
-| G10 | Generated workflow skills still instruct agents to parse `planningHome` from status JSON surfaces that changed (archive-change template). | open |
-| G11 | The generated zsh completion script is syntactically invalid — the `--store` description's apostrophe ("you've") breaks zsh quoting (completeness critic, live). | open |
-| G12 | `store remove` deletes the store folder BEFORE the registry write commits — a failed commit leaves a phantom registration pointing at deleted files. | open |
-| G13 | Setup's prepare/execute split: directory policy (non-empty, nested-git) is asserted only at prepare; the interactive confirm gap is unbounded, and the rollback's `kind === 'missing'` branch recursively deletes content setup never created (live-reproduced both sides). | open |
-| G14 | Orphaned fresh `.git` after a failed initial commit (cleanup nested under `createdPaths.length > 0`); a rerun then registers a commitless store — the exact empty-clone state the slice exists to prevent. | open |
-| G15 | Registry rollback race: `commitStoreRegistration`'s catch deletes store metadata outside the lock and can delete metadata a concurrently committed registration depends on (live-reproduced; P3→P2 borderline, queued with G12/G13). | open |
+| G3 | The JSON failure contract family: `show`/`validate` unknown item, `list` (no failurePayload AND the changes-dir throw), `store <unknown subcommand>`, all exit 1 with zero JSON on stdout; agent-contract.md currently claims this fixed. | **fixed** (37ad867; live re-verified) |
+| G4 | `doctor`/`context` miss the shared `--store-path` rejection seam (Commander unknown-option instead of the typed `store_path_not_supported`). | **fixed** (37ad867; live re-verified) |
+| G5 | doctor's unguarded `gitOriginUrl(root.path)` walks UP: a non-repo store nested in another checkout reports the enclosing repo's origin + spurious `store_remote_divergence` (live-reproduced; violates operations.ts's own documented guard). | **fixed** (37ad867; live re-verified) |
+| G6 | Stale registry lock = permanent `store_registry_busy` with a fix that can never work; Ctrl-C during `store remove` (which holds the lock across a recursive rm) orphans it; doctor is blind to it; EACCES also misreported as busy. | **fixed** (37ad867; live re-verified) |
+| G7 | Config-only roots: `new change` creates the change but never completes the shape (the scaffold guard fires only when `openspec/` is wholly absent) — doctor immediately calls the root the tool just wrote to unhealthy. | **fixed** (37ad867; live re-verified) |
+| G8 | Prompt-injection surface: target `remote` strings, referenced-store spec ids (raw directory names), and Purpose summaries render verbatim into `<referenced_stores>`/instruction output — newlines/control chars from a hostile clone can forge instruction lines. | **fixed** (37ad867; live re-verified) |
+| G9 | Five more accepted specs REQUIRE deleted behavior (artifact-graph, schema-resolution, change-creation P2; cli-update, openspec-conventions P3) — the L2 excision covered only cli-config/cli-artifact-workflow. | **fixed** (37ad867; live re-verified) |
+| G10 | Generated workflow skills still instruct agents to parse `planningHome` from status JSON surfaces that changed (archive-change template). | **fixed** (37ad867; live re-verified) |
+| G11 | The generated zsh completion script is syntactically invalid — the `--store` description's apostrophe ("you've") breaks zsh quoting (completeness critic, live). | **fixed** (37ad867; live re-verified) |
+| G12 | `store remove` deletes the store folder BEFORE the registry write commits — a failed commit leaves a phantom registration pointing at deleted files. | **fixed** (37ad867; live re-verified) |
+| G13 | Setup's prepare/execute split: directory policy (non-empty, nested-git) is asserted only at prepare; the interactive confirm gap is unbounded, and the rollback's `kind === 'missing'` branch recursively deletes content setup never created (live-reproduced both sides). | **fixed** (37ad867; live re-verified) |
+| G14 | Orphaned fresh `.git` after a failed initial commit (cleanup nested under `createdPaths.length > 0`); a rerun then registers a commitless store — the exact empty-clone state the slice exists to prevent. | **fixed** (37ad867; live re-verified) |
+| G15 | Registry rollback race: `commitStoreRegistration`'s catch deletes store metadata outside the lock and can delete metadata a concurrently committed registration depends on (live-reproduced; P3→P2 borderline, queued with G12/G13). | **fixed** (37ad867; live re-verified) |
 
 ## P3 (taken-cheap vs recorded)
 
@@ -69,5 +69,9 @@ describing the store model (L1 — public concept docs rewrite).
   pass (3 cross-finding violations of the code's own documented
   invariants) + 6 gap-sweep finds — all triaged above.
 
-The gauntlet box ticks only when every P1/P2 above is fixed and
-re-verified.
+All 15 P1/P2 findings were fixed in commit 37ad867 and re-verified by
+live probes (the JSON contract codes, the --store-path seam, the
+stale-lock steal, the config-only scaffold completion, the phantom-root
+regression test) plus the full suite (97 files, 1717 tests). The
+queued-cheap P3 set landed in the same commit; the recorded-for-report
+items appear in the release-readiness report's known gaps.

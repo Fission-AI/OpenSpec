@@ -1143,9 +1143,14 @@ Progress:
   shape + 100+ diagnostic codes verified against emitting code, 14
   consistency findings recorded, one gauntlet-grade); src net LOC is
   **−4,478** vs origin/main.
-- [ ] Whole-delta review gauntlet over `origin/main...HEAD` passed with no
-  open P1/P2 findings.
-- [ ] Release-readiness report committed.
+- [x] Whole-delta review gauntlet over `origin/main...HEAD` passed with no
+  open P1/P2 findings. Four mechanisms (`capstone/gauntlet.md`); the 2
+  P1 + 13 P2 findings all fixed (37ad867) and live re-verified; full
+  suite green (97 files, 1,717 tests); all 36 accepted specs validate.
+- [x] Release-readiness report committed
+  (`capstone/release-readiness.md`) — the five-minute story, all audit
+  results, the autonomous-decision ledger, known gaps mapped to Later
+  Ideas. No open P1/P2 findings.
 - [ ] Merged to `main`.
 
 Why it matters:
@@ -1427,6 +1432,25 @@ is working:
   a deliberate fourth partial edit, and the spec's byte-stable clause
   now allows the new removal-coverage tests. The reworded constraint
   string gets its first-ever pin in the new test.
+- 2026-06-11: Capstone (6.1) COMPLETE. The whole-delta gauntlet ran
+  four mechanisms (/code-review at max effort with all 12 verified
+  candidates confirmed, a 32-agent adversarial Workflow with six
+  lenses and refute-style verification, a codex whole-delta review,
+  and a completeness critic); the consolidated 2 P1 + 13 P2 findings
+  were all fixed in one round (37ad867) and re-verified live - the
+  highest-impact being the ~/openspec layout turning $HOME into a
+  phantom nearest root (the walk now requires a qualifying openspec/),
+  the --json failure contract (every failure path now emits exactly
+  one status document), prompt-render sanitization of cloned content,
+  and three store-lifecycle TOCTOU/ordering hazards. Decided
+  autonomously (review me): planningHome was RESTORED to status JSON
+  rather than rewriting eleven generated-skill references - it is a
+  published agent contract, which reverses the planned
+  PlanningHomeSummary dead-code collapse; store remove now commits the
+  registry removal before deleting files. The release-readiness report
+  is committed (capstone/release-readiness.md) with zero open P1/P2
+  findings; every queue item's boxes are ticked except Merged to main,
+  per the run's standing instruction.
 - 2026-06-11: Capstone (6.1) technical audits done
   (`capstone/technical-audits.md`). Single-resolver invariant HOLDS
   (one precedence implementation; nine entry points through it; one
