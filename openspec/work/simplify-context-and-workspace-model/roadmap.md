@@ -135,10 +135,10 @@ Next incomplete item:
   cross-section id uniqueness enforced at write time, and `--store`
   never resolves a repo id — it rejects with a typed hint. Missing,
   duplicate, or invalid mappings fail clearly; the map is local
-  settings, never shared planning state. Spec written and reviewed
-  (`slices/repo-map/`); plan is next. (3.1–3.4 are implemented and
-  reviewed; the 5.1 first tranche is done; the Phase 5 remainder runs
-  after 4.1.)
+  settings, never shared planning state. Spec and plan written and
+  reviewed (`slices/repo-map/`); implementation is next. (3.1–3.4 are
+  implemented and reviewed; the 5.1 first tranche is done; the Phase 5
+  remainder runs after 4.1.)
 
 ## Phase 0. Make The Active Direction Easy To Find
 
@@ -1388,6 +1388,20 @@ is working:
   a deliberate fourth partial edit, and the spec's byte-stable clause
   now allows the new removal-coverage tests. The reworded constraint
   string gets its first-ever pin in the new test.
+- 2026-06-11: Wrote the repo-map plan (3.5, two checkpoints) and
+  folded two plan reviews (both approve-with-fixes): the cross-section
+  conflict check must live inside `assertNoRegisteredStoreConflict`
+  itself — it has FOUR call sites including three operations
+  preflights, and hooking only the write helper would let `store
+  setup` scaffold files before failing (an early-reject pin is now
+  planned); `getRepoPath` reconciled as a dumb id-keyed lookup after
+  one read, with `repo unregister` as its 3.5 caller (the enrichment
+  uses `listRepoEntries` on its own single read — recorded deviation
+  from the spec's wording); test mappings added for store list/doctor
+  against a both-sections registry, the empty-list verbatim contract,
+  `repo_not_found`, the mixed-registry positive resolution, the
+  directory-untouched unregister assert, and both-surfaces enrichment;
+  two code-map anchors corrected.
 - 2026-06-11: Wrote the repo-map slice spec (3.5) and folded two
   adversarial reviews (both approve-with-fixes, converging). The P1: a
   schema-only `repos:` addition would pass round-trip tests while the
