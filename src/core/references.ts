@@ -211,6 +211,19 @@ export interface AssembleReferenceIndexInput {
   references: DeclarationEntry[];
   resolvedRoot: ResolvedOpenSpecRoot;
   globalDataDir?: string;
+  /**
+   * Health mode (3.6): false skips the spec-file reads AND the byte
+   * budget — entries carry no `specs`/`fetch` keys at all, and the
+   * content-only truncation diagnostic can never appear.
+   */
+  includeSpecs?: boolean;
+  /**
+   * Pre-read registry entries (3.6): `[]` = registry empty or absent,
+   * `null` = unreadable, undefined = read internally as before.
+   * (Mirrors the internal post-read variable — never inject a raw
+   * read result: a healthy-absent registry reads as null.)
+   */
+  registryEntries?: ReturnType<typeof listStoreRegistryEntries> | null;
 }
 
 /**
@@ -228,14 +241,19 @@ export async function assembleReferenceIndex(
 
   // null means the registry itself was unreadable (corrupt file).
   let registryEntries: ReturnType<typeof listStoreRegistryEntries> | null;
-  try {
-    const registry = await readStoreRegistryState(
-      input.globalDataDir ? { globalDataDir: input.globalDataDir } : {}
-    );
-    registryEntries = registry ? listStoreRegistryEntries(registry) : [];
-  } catch {
-    registryEntries = null;
+  if (input.registryEntries !== undefined) {
+    registryEntries = input.registryEntries;
+  } else {
+    try {
+      const registry = await readStoreRegistryState(
+        input.globalDataDir ? { globalDataDir: input.globalDataDir } : {}
+      );
+      registryEntries = registry ? listStoreRegistryEntries(registry) : [];
+    } catch {
+      registryEntries = null;
+    }
   }
+  const includeSpecs = input.includeSpecs !== false;
 
   const resolvedRootPath = FileSystemUtils.canonicalizeExistingPath(input.resolvedRoot.path);
   const entries: ReferenceIndexEntry[] = [];
@@ -316,6 +334,12 @@ export async function assembleReferenceIndex(
 
     if (inspection.canonicalRoot === resolvedRootPath) {
       continue; // Self-reference by path: silently omitted.
+    }
+
+    if (!includeSpecs) {
+      // Health mode: resolution facts only — no content, no budget.
+      entries.push({ store_id: id, root: inspection.canonicalRoot, status: [] });
+      continue;
     }
 
     const specs = await collectSpecEntries(inspection.canonicalRoot);

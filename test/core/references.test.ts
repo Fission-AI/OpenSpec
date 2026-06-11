@@ -211,6 +211,46 @@ describe('reference index assembly', () => {
     }
   });
 
+  it('skips spec content, fetch recipes, and the budget in health mode (3.6)', async () => {
+    const storeRoot = await registerStore('team-context');
+    // A corpus that would trip the 50KB budget with content included.
+    for (let i = 0; i < 60; i++) {
+      writeSpec(storeRoot, `spec-${i}`, `## Purpose\n\n${'x'.repeat(1200)}\n`);
+    }
+
+    const entries = await assembleReferenceIndex({
+      references: [{ id: 'team-context' }],
+      resolvedRoot: appRoot(),
+      globalDataDir,
+      includeSpecs: false,
+    });
+
+    expect(entries).toEqual([{ store_id: 'team-context', root: expect.any(String), status: [] }]);
+    expect('specs' in entries[0]).toBe(false);
+    expect('fetch' in entries[0]).toBe(false);
+    expect(entries[0].status).toEqual([]); // no reference_index_truncated, ever
+  });
+
+  it('uses injected registry entries with the [] vs null semantics (3.6)', async () => {
+    // Injected []: empty registry, references degrade to unresolved.
+    const empty = await assembleReferenceIndex({
+      references: [{ id: 'team-context' }],
+      resolvedRoot: appRoot(),
+      globalDataDir,
+      registryEntries: [],
+    });
+    expect(empty[0].status[0].code).toBe('reference_unresolved');
+
+    // Injected null: unreadable registry.
+    const unreadable = await assembleReferenceIndex({
+      references: [{ id: 'team-context' }],
+      resolvedRoot: appRoot(),
+      globalDataDir,
+      registryEntries: null,
+    });
+    expect(unreadable[0].status[0].code).toBe('reference_registry_unreadable');
+  });
+
   it('keeps registry-independent checks first under a corrupt registry', async () => {
     const registryDir = path.join(globalDataDir, 'stores');
     fs.mkdirSync(registryDir, { recursive: true });
