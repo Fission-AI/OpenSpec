@@ -293,7 +293,7 @@ rules:
         fs.writeFileSync(path.join(configDir, 'config.yaml'), body);
       }
 
-      it('keeps string entries deduplicated and order-preserving, including invalid grammar', () => {
+      it('keeps entries deduplicated and order-preserving, including invalid grammar', () => {
         writeConfig(
           'schema: spec-driven\nreferences:\n  - team-context\n  - team-context\n  - "BAD ID"\n  - other-context\n  - 7\n'
         );
@@ -301,10 +301,40 @@ rules:
         const config = readProjectConfig(tempDir);
 
         // Grammar validation is the index assembler's job; the parser
-        // keeps raw strings so bad ids surface as diagnostics.
-        expect(config?.references).toEqual(['team-context', 'BAD ID', 'other-context']);
+        // keeps raw ids so bad ids surface as diagnostics.
+        expect(config?.references).toEqual([
+          { id: 'team-context' },
+          { id: 'BAD ID' },
+          { id: 'other-context' },
+        ]);
         expect(consoleWarnSpy).toHaveBeenCalledWith(
-          expect.stringContaining("Some 'references' entries are not strings")
+          expect.stringContaining("Some 'references' entries are invalid")
+        );
+      });
+
+      it('normalizes map entries and fills remotes across duplicates (3.3)', () => {
+        writeConfig(
+          'schema: spec-driven\nreferences:\n' +
+            '  - team-context\n' +
+            '  - { id: team-context, remote: https://192.0.2.1/team.git }\n' +
+            '  - { id: team-context, remote: https://192.0.2.2/other.git }\n' +
+            '  - { id: upstream-context }\n' +
+            '  - { remote: https://192.0.2.3/no-id.git }\n' +
+            '  - { id: bad-remote-context, remote: 7 }\n'
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        // One entry per id, first position kept; the FIRST remote seen
+        // fills a missing one and is never overridden. A map without an
+        // id drops; a non-string remote drops while the id is kept.
+        expect(config?.references).toEqual([
+          { id: 'team-context', remote: 'https://192.0.2.1/team.git' },
+          { id: 'upstream-context' },
+          { id: 'bad-remote-context' },
+        ]);
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Some 'references' entries are invalid")
         );
       });
 

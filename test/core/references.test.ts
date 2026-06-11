@@ -78,7 +78,11 @@ describe('reference index assembly', () => {
   }
 
   async function assemble(references: string[], resolvedRoot = appRoot()) {
-    return assembleReferenceIndex({ references, resolvedRoot, globalDataDir });
+    return assembleReferenceIndex({
+      references: references.map((id) => ({ id })),
+      resolvedRoot,
+      globalDataDir,
+    });
   }
 
   it('indexes a resolved store with first-Purpose-line summaries and the fetch recipe', async () => {
@@ -128,6 +132,28 @@ describe('reference index assembly', () => {
     );
   });
 
+  it('renders a verbatim clone fix when the declaration carries a remote (3.3)', async () => {
+    const checkout = path.join(os.homedir(), 'openspec', 'missing-context');
+    const entries = await assembleReferenceIndex({
+      references: [{ id: 'missing-context', remote: 'https://192.0.2.1/team.git' }],
+      resolvedRoot: appRoot(),
+      globalDataDir,
+    });
+
+    expect(entries[0].status[0].fix).toBe(
+      `git clone https://192.0.2.1/team.git ${checkout} && openspec store register ${checkout} --id missing-context`
+    );
+
+    // An invalid id wins over any declared remote.
+    const invalid = await assembleReferenceIndex({
+      references: [{ id: 'BAD ID', remote: 'https://192.0.2.1/team.git' }],
+      resolvedRoot: appRoot(),
+      globalDataDir,
+    });
+    expect(invalid[0].status[0].code).toBe('reference_invalid_id');
+    expect(invalid[0].status[0].fix).not.toContain('git clone');
+  });
+
   it('degrades an invalid id to reference_invalid_id', async () => {
     const entries = await assemble(['BAD ID']);
 
@@ -174,7 +200,7 @@ describe('reference index assembly', () => {
     const root = mkdir('self-store');
     createOpenSpecRoot(root);
     const entries = await assembleReferenceIndex({
-      references: ['BAD ID', 'self-store'],
+      references: [{ id: 'BAD ID' }, { id: 'self-store' }],
       resolvedRoot: {
         path: root,
         source: 'store',
@@ -196,7 +222,7 @@ describe('reference index assembly', () => {
     writeSpec(storeRoot, 'anything', '## Purpose\n\nA spec.\n');
 
     const byId = await assembleReferenceIndex({
-      references: ['self-context'],
+      references: [{ id: 'self-context' }],
       resolvedRoot: {
         path: storeRoot,
         source: 'store',
@@ -209,7 +235,7 @@ describe('reference index assembly', () => {
     expect(byId).toEqual([]);
 
     const byPath = await assembleReferenceIndex({
-      references: ['self-context'],
+      references: [{ id: 'self-context' }],
       resolvedRoot: {
         path: storeRoot,
         source: 'nearest',

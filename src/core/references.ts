@@ -9,6 +9,7 @@
  * degrade to `warning` diagnostics instead of failing generation.
  */
 import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
 import * as path from 'node:path';
 
 import { makeStoreDiagnostic, type StoreDiagnostic } from './store/errors.js';
@@ -21,7 +22,7 @@ import { getStoreRootForBackend } from './store/registry.js';
 import { inspectRegisteredStore, type ResolvedOpenSpecRoot } from './root-selection.js';
 import { getSpecIds } from '../utils/item-discovery.js';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { MAX_CONTEXT_SIZE } from './project-config.js';
+import { MAX_CONTEXT_SIZE, type ReferenceDeclaration } from './project-config.js';
 
 export interface ReferenceSpecEntry {
   id: string;
@@ -48,7 +49,13 @@ function warning(code: string, message: string, fix: string): StoreDiagnostic {
   return makeStoreDiagnostic('warning', code, message, { target: 'references', fix });
 }
 
-function registerFix(id: string): string {
+function registerFix(id: string, remote?: string): string {
+  if (remote) {
+    // Verbatim-pasteable: absolute home path because tilde never
+    // expands outside a shell and agent JSON consumers execute argv.
+    const checkout = path.join(os.homedir(), 'openspec', id);
+    return `git clone ${remote} ${checkout} && openspec store register ${checkout} --id ${id}`;
+  }
   return `Get a checkout from a teammate and run: openspec store register <path> --id ${id}`;
 }
 
@@ -188,7 +195,7 @@ function renderedByteSize(entries: ReferenceIndexEntry[]): number {
 }
 
 export interface AssembleReferenceIndexInput {
-  references: string[];
+  references: ReferenceDeclaration[];
   resolvedRoot: ResolvedOpenSpecRoot;
   globalDataDir?: string;
 }
@@ -201,8 +208,8 @@ export interface AssembleReferenceIndexInput {
 export async function assembleReferenceIndex(
   input: AssembleReferenceIndexInput
 ): Promise<ReferenceIndexEntry[]> {
-  const ids = input.references;
-  if (ids.length === 0) {
+  const declarations = input.references;
+  if (declarations.length === 0) {
     return [];
   }
 
@@ -220,10 +227,11 @@ export async function assembleReferenceIndex(
   const resolvedRootPath = FileSystemUtils.canonicalizeExistingPath(input.resolvedRoot.path);
   const entries: ReferenceIndexEntry[] = [];
 
-  for (const id of ids) {
+  for (const { id, remote } of declarations) {
     // Registry-independent checks come first: an invalid id is an
     // invalid id (and a self-reference is omittable) even when the
-    // registry is corrupt.
+    // registry is corrupt. The declared remote is only consulted after
+    // the id passes grammar.
     if (!isValidStoreId(id)) {
       entries.push({
         store_id: id,
@@ -264,7 +272,7 @@ export async function assembleReferenceIndex(
           warning(
             'reference_unresolved',
             `Referenced store '${id}' is not registered on this machine.`,
-            registerFix(id)
+            registerFix(id, remote)
           ),
         ],
       });

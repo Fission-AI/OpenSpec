@@ -262,6 +262,83 @@ describe('store canonical remote (3.3)', () => {
     });
   });
 
+  describe('onboarding end to end', () => {
+    it('executes the printed clone fix verbatim and continues to a resolved index', async () => {
+      // A scratch HOME keeps the rendered <home>/openspec/<id> checkout
+      // path inside the temp dir for both the fix text and the CLI.
+      const scratchHome = path.join(tempDir, 'home');
+      fs.mkdirSync(scratchHome, { recursive: true });
+      const e2eEnv = { ...env, HOME: scratchHome };
+
+      // The "remote": a local bare-ish git repo holding a healthy store.
+      const originWorktree = path.join(tempDir, 'origin-worktree');
+      createHealthyOpenSpecRoot(originWorktree);
+      // Anchor every directory a healthy clone needs (the same job
+      // store setup's anchor files do).
+      fs.writeFileSync(path.join(originWorktree, 'openspec', 'specs', '.gitkeep'), '');
+      fs.writeFileSync(path.join(originWorktree, 'openspec', 'changes', 'archive', '.gitkeep'), '');
+      fs.mkdirSync(path.join(originWorktree, '.openspec-store'), { recursive: true });
+      fs.writeFileSync(
+        path.join(originWorktree, '.openspec-store', 'store.yaml'),
+        'version: 1\nid: team-context\n'
+      );
+      git(originWorktree, 'init');
+      git(originWorktree, 'add', '-A');
+      git(originWorktree, 'commit', '-m', 'init');
+
+      // The app repo declares the reference with the clone source.
+      const appRepo = path.join(tempDir, 'app-repo');
+      fs.mkdirSync(path.join(appRepo, 'openspec'), { recursive: true });
+      fs.writeFileSync(
+        path.join(appRepo, 'openspec', 'config.yaml'),
+        'schema: spec-driven\nreferences:\n' +
+          `  - { id: team-context, remote: ${originWorktree} }\n`
+      );
+      fs.mkdirSync(path.join(appRepo, 'openspec', 'specs'), { recursive: true });
+      fs.mkdirSync(path.join(appRepo, 'openspec', 'changes', 'archive'), { recursive: true });
+
+      const created = await runCLI(['new', 'change', 'onboard-check', '--json'], {
+        cwd: appRepo,
+        env: e2eEnv,
+      });
+      expect(created.exitCode).toBe(0);
+
+      // First run degrades with the clone-source fix.
+      const degraded = await runCLI(
+        ['instructions', 'proposal', '--change', 'onboard-check', '--json'],
+        { cwd: appRepo, env: e2eEnv }
+      );
+      const entry = parseJson(degraded).references[0];
+      expect(entry.status[0].code).toBe('reference_unresolved');
+      const fix: string = entry.status[0].fix;
+      const expectedCheckout = path.join(scratchHome, 'openspec', 'team-context');
+      expect(fix).toBe(
+        `git clone ${originWorktree} ${expectedCheckout} && openspec store register ${expectedCheckout} --id team-context`
+      );
+
+      // Execute the printed commands verbatim: split the shell '&&',
+      // run the git half directly and the openspec half via the CLI.
+      const [cloneCmd, registerCmd] = fix.split(' && ');
+      const cloneArgs = cloneCmd.split(' ').slice(1);
+      execFileSync('git', cloneArgs, { env: { ...process.env, ...e2eEnv } });
+      const registerArgs = registerCmd.split(' ').slice(1);
+      const registered = await runCLI([...registerArgs, '--json'], {
+        cwd: appRepo,
+        env: e2eEnv,
+      });
+      expect(registered.exitCode).toBe(0);
+
+      // The rerun resolves the index from the fresh checkout.
+      const resolved = await runCLI(
+        ['instructions', 'proposal', '--change', 'onboard-check', '--json'],
+        { cwd: appRepo, env: e2eEnv }
+      );
+      const resolvedEntry = parseJson(resolved).references[0];
+      expect(resolvedEntry.status).toEqual([]);
+      expect(resolvedEntry.root).toBe(fs.realpathSync.native(expectedCheckout));
+    });
+  });
+
   describe('doctor and resolution', () => {
     it('surfaces both remotes, prefers canonical in human output, no new diagnostics', async () => {
       const canonical = 'https://192.0.2.9/canonical.git';

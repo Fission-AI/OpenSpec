@@ -274,6 +274,26 @@ From then on, `openspec instructions` output in that repo (both the per-artifact
 
 References are read-only context. They never change where commands act: work stays in the repo's own root, and writing to a referenced store remains an explicit `--store` action. A reference that cannot be resolved (for example, a store not registered on this machine) degrades to a warning in the index with the exact fix, and instructions still generate.
 
+### Recording where a store is cloned from
+
+A store can record its canonical clone source in its committed identity file, so onboarding never dead-ends at "register the store":
+
+```bash
+openspec store setup team-context --path ~/openspec/team-context \
+  --remote git@github.com:acme/team-context.git
+```
+
+The remote lands in `.openspec-store/store.yaml` inside the initial commit, so every clone is born knowing it. For an existing store, edit `store.yaml` by hand and commit. `store doctor` shows the recorded remote (and the checkout's observed Git origin); setup/register sharing guidance names it; and register records the checkout's origin in the machine-local registry.
+
+A reference declaration can carry the clone source too, so a teammate who doesn't have the store yet gets a complete, pasteable fix (`git clone <remote> <path> && openspec store register <path> --id <id>`):
+
+```yaml
+references:
+  - { id: team-context, remote: "git@github.com:acme/team-context.git" }
+```
+
+Recording a remote is not sync: OpenSpec never clones, pulls, or pushes on its own.
+
 ### Declaring a default store
 
 A repo whose planning is fully externalized — no local `openspec/specs/` or `openspec/changes/` — can declare its store once instead of passing `--store` on every command:

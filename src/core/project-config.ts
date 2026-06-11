@@ -40,13 +40,18 @@ export const ProjectConfigSchema = z.object({
     .describe('Per-artifact rules, keyed by artifact ID'),
 
   // Optional: stores this root's work draws on (read-only upstream context).
-  // Entries are kept as raw strings; id-grammar validation happens in the
-  // reference index assembler so bad ids surface as diagnostics, not
-  // silent parse-time drops.
+  // Entries are id strings or {id, remote} maps; id-grammar validation
+  // happens in the reference index assembler so bad ids surface as
+  // diagnostics, not silent parse-time drops.
   references: z
-    .array(z.string())
+    .array(
+      z.union([
+        z.string(),
+        z.object({ id: z.string(), remote: z.string().optional() }),
+      ])
+    )
     .optional()
-    .describe('Store ids whose specs are indexed as read-only context'),
+    .describe('Stores whose specs are indexed as read-only context'),
 
   // Optional: the declared default store. Only consulted by root
   // resolution when this openspec/ directory is config-only (no specs/
@@ -57,7 +62,16 @@ export const ProjectConfigSchema = z.object({
     .describe('Store id used as the OpenSpec root when no local planning shape exists'),
 });
 
-export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
+/** Normalized in-memory shape of a references entry (slice 3.3). */
+export interface ReferenceDeclaration {
+  id: string;
+  /** Clone source for the unresolved-reference fix. */
+  remote?: string;
+}
+
+export type ProjectConfig = Omit<z.infer<typeof ProjectConfigSchema>, 'references'> & {
+  references?: ReferenceDeclaration[];
+};
 
 export const MAX_CONTEXT_SIZE = 50 * 1024; // 50KB hard limit, shared with the references index
 
@@ -165,30 +179,50 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
       }
     }
 
-    // Parse references field: keep string entries (deduplicated,
-    // order-preserving), drop non-strings like other resilient fields.
+    // Parse references field: string entries or {id, remote} maps,
+    // normalized to ReferenceDeclaration[]. Dedup keys on id and keeps
+    // the first position; the first entry carrying a remote supplies it
+    // (a later duplicate fills a missing remote, never overrides).
+    // Invalid entries drop with a warning like other resilient fields.
     if (raw.references !== undefined) {
       if (Array.isArray(raw.references)) {
-        const seen = new Set<string>();
-        const references: string[] = [];
-        let droppedNonString = false;
+        const byId = new Map<string, ReferenceDeclaration>();
+        let droppedInvalid = false;
 
         for (const entry of raw.references) {
+          let declaration: ReferenceDeclaration | null = null;
           if (typeof entry === 'string') {
-            if (!seen.has(entry)) {
-              seen.add(entry);
-              references.push(entry);
+            declaration = { id: entry };
+          } else if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+            const candidate = entry as Record<string, unknown>;
+            if (typeof candidate.id === 'string') {
+              declaration = { id: candidate.id };
+              if (typeof candidate.remote === 'string' && candidate.remote.length > 0) {
+                declaration.remote = candidate.remote;
+              } else if (candidate.remote !== undefined) {
+                droppedInvalid = true; // non-string remote dropped, id kept
+              }
             }
-          } else {
-            droppedNonString = true;
+          }
+
+          if (!declaration) {
+            droppedInvalid = true;
+            continue;
+          }
+
+          const existing = byId.get(declaration.id);
+          if (!existing) {
+            byId.set(declaration.id, declaration);
+          } else if (existing.remote === undefined && declaration.remote !== undefined) {
+            existing.remote = declaration.remote;
           }
         }
 
-        if (droppedNonString) {
-          console.warn(`Some 'references' entries are not strings, ignoring them`);
+        if (droppedInvalid) {
+          console.warn(`Some 'references' entries are invalid, ignoring them`);
         }
-        if (references.length > 0) {
-          config.references = references;
+        if (byId.size > 0) {
+          config.references = [...byId.values()];
         }
       } else {
         console.warn(`Invalid 'references' field in config (must be an array of store ids)`);
