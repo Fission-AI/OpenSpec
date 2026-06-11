@@ -127,8 +127,10 @@ Next incomplete item:
   In plain English: the legacy beta command groups stop existing — 1.4
   already stopped guidance from advertising them, and the locked 5.1
   criteria say delete, don't hide. This is the small command-group
-  deletion slice sequenced "soon after 1.4"; the opening machinery itself
-  dies later when 4.1 replaces it. Spec not yet written.
+  deletion slice sequenced "soon after 1.4"; the workspace state model
+  and the workspace-planning mode die later when 4.1 replaces opening.
+  Spec written and reviewed
+  (`slices/delete-legacy-command-groups/spec.md`); plan is next.
 
 ## Phase 0. Make The Active Direction Easy To Find
 
@@ -991,9 +993,14 @@ Progress:
   routing around dead code) and adds a hidden/visible distinction to
   protect nobody. Sequence: guidance surfaces die in slice 1.4 (planned),
   the `workspace` and `initiative` command groups become their own small
-  deletion slice soon after 1.4, and the opening machinery dies when 4.1
-  replaces it. The inviolable carve-out stays: never auto-delete user data
-  files. "Hide now, delete later" is rejected because later never comes.
+  deletion slice soon after 1.4, and the workspace **state model** plus
+  the `workspace-planning` mode die when 4.1 replaces opening
+  (zero-consumer opening helpers go with the command groups — keeping
+  unreachable files would be hiding, which these criteria reject; wording
+  narrowed 2026-06-11 during the deletion-slice spec, recorded as a
+  reviewable autonomous decision). The inviolable carve-out stays: never
+  auto-delete user data files. "Hide now, delete later" is rejected
+  because later never comes.
 - [ ] Cleanup plan written.
 - [ ] Cleanup done.
 - [ ] Tests or review checks pass.
@@ -1291,6 +1298,37 @@ is working:
   deleted, SKILL.md and artifact-placement reworked) lands on disk for
   local agents but cannot appear in commits; L8 keeps ownership of the
   final disposition (ignored local skill vs generated vs checked-in).
+- 2026-06-11: Wrote the delete-legacy-command-groups slice spec (the
+  Phase 5 command-group deletion) and folded two parallel adversarial
+  reviews (subagent: reject, three P1s; codex CLI: reject, one P1) —
+  every finding verified against code and folded: the `config` command's
+  workspace-profile integration (which even executes `npx openspec
+  workspace update`) is now in scope as the second included behavior
+  change; `src/core/store/binding.ts` is kept (the planning-home
+  carve-out depends on it through `workspace/foundation.ts`), with a
+  recorded dead-export carve-out ledger owned by 4.1; partial test edits
+  are named (`registry.test.ts`, `config-profile.test.ts`,
+  `foundation.test.ts`); `docs/concepts.md` loses its whole Coordination
+  Workspaces section; the "Use initiatives…" status constraint rewords
+  to read-only compatibility language; 39 diagnostic codes pinned for
+  the deletion ledger.
+- 2026-06-11: Decided autonomously (review me): narrowed the locked 5.1
+  sequencing wording — "opening machinery dies in 4.1" now reads "the
+  workspace state model and workspace-planning mode die in 4.1". The
+  zero-consumer opening helpers (`openers.ts`, `open-surface.ts`) are
+  deleted with the command groups, because once `workspace open` is gone
+  nothing can reach them and keeping them would be exactly the
+  hidden-not-deleted state the locked criteria reject. 4.1 builds new
+  assembly; it does not need the dead launchers.
+- 2026-06-11: Decided autonomously (review me): orphan deletion is
+  transitive in the command-group deletion slice — the five
+  command-consumed core workspace modules, the whole
+  `src/core/collections/` tree, the `config` command's
+  workspace-profile integration, and the orphaned `path-env` test
+  helper go with the groups; `docs/workspaces-beta/` and the cli.md /
+  concepts.md legacy sections are deleted rather than updated
+  (superseding the 1.4 decision that parked the beta docs for the
+  Phase 5 remainder).
 - 2026-06-11: Implemented slice 1.4 in four green checkpoints on
   `codex/store-root-parity`: (1) the total mechanical rename — command
   group `context-store` → `store`, 45 diagnostic codes, dotted targets,
