@@ -136,9 +136,10 @@ Next incomplete item:
   declarations agents read, not machinery. The 3.3 standing constraint
   applies: target declarations do NOT go into `store.yaml` (the strict
   schema makes any new field there a cross-version protocol change) —
-  the store's `openspec/config.yaml` is the natural home. Spec not yet
-  written. (3.1–3.3 are implemented and reviewed; the 5.1 first
-  tranche is done; the Phase 5 remainder runs after 4.1.)
+  the store's `openspec/config.yaml` is the natural home. Spec written
+  and reviewed (`slices/store-targets/`); plan is next. (3.1–3.3 are
+  implemented and reviewed; the 5.1 first tranche is done; the Phase 5
+  remainder runs after 4.1.)
 
 ## Phase 0. Make The Active Direction Easy To Find
 
@@ -1382,6 +1383,32 @@ is working:
   a deliberate fourth partial edit, and the spec's byte-stable clause
   now allows the new removal-coverage tests. The reworded constraint
   string gets its first-ever pin in the new test.
+- 2026-06-11: Wrote the store-targets slice spec (3.4) and folded two
+  adversarial reviews (both approve-with-fixes, converging): the apply
+  surface loads change metadata inside `generateApplyInstructions`, so
+  targets assembly for apply runs inside with store targets passed via
+  the options bag (the spec's original wiring claim was wrong for that
+  surface); empty change-level `targets: []` is treated as undeclared;
+  the JSON shape carries `status` (always present, `[]` when clean) so
+  agents see degradation diagnostics; narrowed ids inherit the store
+  declaration's remote; the change-level grammar cliff is owned
+  explicitly (a bad id fails metadata reads everywhere, like any
+  metadata error); `KebabIdentifierSchema` is the named validator (not
+  `affected_areas`, which has no grammar); a neutral shared kebab
+  predicate replaces store-flavored naming at both config call sites;
+  declared-root/pointer sessions covered; pointer-dir targets recorded
+  as silently inert (3.6 surfaces that wrong turn); the inert-scenario
+  GIVEN narrowed to well-formed lists.
+- 2026-06-11: Decided autonomously (review me): 3.4 puts `targets:` in
+  the root's `openspec/config.yaml` with the references entry shape
+  via one shared declaration-list parser; per-change narrowing is a
+  plain string array in `.openspec.yaml` that REPLACES the store list;
+  the display surface is instructions output (`{source, repos,
+  status}` + `<target_repos>`/`### Target Repos` blocks, no byte
+  budget); degradation codes `target_not_declared` and
+  `target_invalid_id` with envelope target 'targets'; no new commands;
+  targets never resolve (3.5 owns resolution, 3.6 health, 4.1
+  assembly).
 - 2026-06-11: Implemented slice 3.3 (store canonical remote) in two
   checkpoints plus a review-fix round: the optional `remote` in
   `store.yaml` (strict schema retained; `setup --remote` writes it
