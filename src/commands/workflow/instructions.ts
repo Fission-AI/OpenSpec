@@ -25,7 +25,15 @@ import {
   withStoreFlag,
   toPlanningHome,
   toRootOutput,
+  type ResolvedOpenSpecRoot,
 } from '../../core/root-selection.js';
+import {
+  assembleReferenceIndex,
+  renderReferencedStoresBlock,
+  renderReferencedStoresSection,
+  type ReferenceIndexEntry,
+} from '../../core/references.js';
+import { readProjectConfig, type ProjectConfig } from '../../core/project-config.js';
 import {
   validateChangeExists,
   validateSchemaExists,
@@ -56,6 +64,30 @@ export interface ApplyInstructionsOptions {
 // -----------------------------------------------------------------------------
 // Artifact Instructions Command
 // -----------------------------------------------------------------------------
+
+/**
+ * Reads the resolved root's config once and assembles the referenced-store
+ * index when references are declared. Shared by both instruction surfaces.
+ */
+async function loadConfigAndReferences(root: ResolvedOpenSpecRoot): Promise<{
+  projectConfig: ProjectConfig | null;
+  references: ReferenceIndexEntry[] | undefined;
+}> {
+  let projectConfig: ProjectConfig | null = null;
+  try {
+    projectConfig = readProjectConfig(root.path);
+  } catch {
+    // No config (or unreadable config) means no references either.
+  }
+
+  const declared = projectConfig?.references ?? [];
+  const references =
+    declared.length > 0
+      ? await assembleReferenceIndex({ references: declared, resolvedRoot: root })
+      : undefined;
+
+  return { projectConfig, references };
+}
 
 export async function instructionsCommand(
   artifactId: string | undefined,
@@ -108,7 +140,11 @@ export async function instructionsCommand(
       );
     }
 
-    const instructions = generateInstructions(context, artifactId, projectRoot);
+    const { projectConfig, references } = await loadConfigAndReferences(root);
+    const instructions = generateInstructions(context, artifactId, projectRoot, {
+      projectConfig,
+      ...(references !== undefined ? { references } : {}),
+    });
     const isBlocked = instructions.dependencies.some((d) => !d.done);
 
     spinner?.stop();
@@ -174,6 +210,12 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
     console.log('<!-- This is background information for you. Do NOT include this in your output. -->');
     console.log(context);
     console.log('</project_context>');
+    console.log();
+  }
+
+  // Referenced-store index (read-only upstream context)
+  if (instructions.references && instructions.references.length > 0) {
+    console.log(renderReferencedStoresBlock(instructions.references));
     console.log();
   }
 
@@ -283,7 +325,8 @@ export async function generateApplyInstructions(
   projectRoot: string,
   changeName: string,
   schemaName?: string,
-  planningHome: PlanningHome = resolveCurrentPlanningHomeSync({ startPath: projectRoot })
+  planningHome: PlanningHome = resolveCurrentPlanningHomeSync({ startPath: projectRoot }),
+  references?: ReferenceIndexEntry[]
 ): Promise<ApplyInstructions> {
   // loadChangeContext will auto-detect schema from metadata if not provided
   const context = loadChangeContext(projectRoot, changeName, schemaName, {
@@ -377,6 +420,7 @@ export async function generateApplyInstructions(
     state,
     missingArtifacts: missingArtifacts.length > 0 ? missingArtifacts : undefined,
     instruction,
+    ...(references !== undefined ? { references } : {}),
   };
 }
 
@@ -405,11 +449,13 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
     }
 
     // generateApplyInstructions uses loadChangeContext which auto-detects schema
+    const { references } = await loadConfigAndReferences(root);
     const instructions = await generateApplyInstructions(
       projectRoot,
       changeName,
       options.schema,
-      planningHome
+      planningHome,
+      references
     );
 
     spinner?.stop();
@@ -435,6 +481,11 @@ export function printApplyInstructionsText(instructions: ApplyInstructions): voi
     console.log(`Initiative: ${initiative.store}/${initiative.id}`);
   }
   console.log();
+
+  if (instructions.references && instructions.references.length > 0) {
+    console.log(renderReferencedStoresSection(instructions.references));
+    console.log();
+  }
 
   // Warning for blocked state
   if (state === 'blocked' && missingArtifacts) {

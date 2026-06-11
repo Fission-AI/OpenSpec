@@ -260,6 +260,20 @@ openspec store doctor [id] [--json]
 
 Doctor is diagnostic-only; it reports missing roots, metadata mismatches, and invalid local registry state without modifying the store.
 
+### Referencing stores from a project
+
+A project repo can declare which stores its work draws on in `openspec/config.yaml`:
+
+```yaml
+schema: spec-driven
+references:
+  - team-context
+```
+
+From then on, `openspec instructions` output in that repo (both the per-artifact and `apply` surfaces, JSON and human modes) carries an index of each referenced store's specs — spec ids, a one-line summary from each spec's Purpose section, and the fetch command (`openspec show <spec-id> --type spec --store <id>`). The index is built live from the registered checkout on every run; spec content is never copied into the output.
+
+References are read-only context. They never change where commands act: work stays in the repo's own root, and writing to a referenced store remains an explicit `--store` action. A reference that cannot be resolved (for example, a store not registered on this machine) degrades to a warning in the index with the exact fix, and instructions still generate.
+
 ---
 
 ## Browsing Commands

@@ -15,7 +15,8 @@ import {
   type AffectedAreasSummary,
   type PlanningHomeSummary,
 } from '../change-status-policy.js';
-import { readProjectConfig, validateConfigRules } from '../project-config.js';
+import { readProjectConfig, validateConfigRules, type ProjectConfig } from '../project-config.js';
+import type { ReferenceIndexEntry } from '../references.js';
 import type { PlanningHome } from '../planning-home.js';
 import type { ChangeMetadata, InitiativeLink } from '../change-metadata/index.js';
 import type { Artifact, CompletedSet } from './types.js';
@@ -95,6 +96,8 @@ export interface ArtifactInstructions {
   context: string | undefined;
   /** Artifact-specific rules from config (constraints for AI, not to be included in output) */
   rules: string[] | undefined;
+  /** Referenced-store index (read-only upstream context; omitted when no references are declared) */
+  references?: ReferenceIndexEntry[];
   /** Template content (structure to follow - this IS the output format) */
   template: string;
   /** Dependencies with completion status and paths */
@@ -268,10 +271,18 @@ export function loadChangeContext(
  * @returns Enriched artifact instructions
  * @throws Error if artifact not found
  */
+export interface GenerateInstructionsOptions {
+  /** Pre-read project config; suppresses the internal read (no double read). */
+  projectConfig?: ProjectConfig | null;
+  /** Referenced-store index assembled at the command boundary. */
+  references?: ReferenceIndexEntry[];
+}
+
 export function generateInstructions(
   context: ChangeContext,
   artifactId: string,
-  projectRoot?: string
+  projectRoot?: string,
+  options: GenerateInstructionsOptions = {}
 ): ArtifactInstructions {
   const artifact = context.graph.getArtifact(artifactId);
   if (!artifact) {
@@ -285,9 +296,9 @@ export function generateInstructions(
   // Use projectRoot from context if not explicitly provided
   const effectiveProjectRoot = projectRoot ?? context.projectRoot;
 
-  // Try to read project config for context and rules
-  let projectConfig = null;
-  if (effectiveProjectRoot) {
+  // Use the pre-read config when provided; otherwise read it here.
+  let projectConfig = options.projectConfig ?? null;
+  if (options.projectConfig === undefined && effectiveProjectRoot) {
     try {
       projectConfig = readProjectConfig(effectiveProjectRoot);
     } catch {
@@ -332,6 +343,7 @@ export function generateInstructions(
     instruction: artifact.instruction,
     context: configContext,
     rules: configRules,
+    ...(options.references !== undefined ? { references: options.references } : {}),
     template: templateContent,
     dependencies,
     unlocks,
