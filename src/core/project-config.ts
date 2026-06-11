@@ -376,6 +376,13 @@ function resolveConfigFilePath(projectRoot: string): string | null {
   return existsSync(ymlPath) ? ymlPath : null;
 }
 
+/** Human rendering of a malformed pointer reason, shared by every surface. */
+export function storePointerProblem(reason: 'unparseable' | 'non_string'): string {
+  return reason === 'unparseable'
+    ? 'the config file could not be read as YAML'
+    : 'the store key must be a single store id string';
+}
+
 export interface OpenSpecDirClassification {
   /** True when openspec/specs or openspec/changes exists as a directory. */
   hasPlanningShape: boolean;

@@ -109,10 +109,11 @@ an item are status steps for that numbered work item.
   Fully absorbed: 2.1 shipped inside slice 1.2, 2.2 folded into slice 1.4,
   and 2.3 folded into item 4.1. No independent work remains here.
 - [ ] **Phase 3. Say how roots relate: references and targets.**
-  3.1 (references) is implemented and tested: a repo's config declares
-  the stores its work draws on, and instructions output carries a live
-  index of their specs with fetch recipes. 3.2 (declared-store
-  fallback) is next; targets and the local repo map follow.
+  3.1 (references) and 3.2 (declared-store fallback) are implemented
+  and tested: a repo's config declares the stores its work draws on
+  (live spec index in instructions), and a rootless repo declares its
+  store once and runs every command without `--store`. 3.3 (canonical
+  remotes) is next; targets and the local repo map follow.
 - [ ] **Phase 4. Assemble the working context.**
   Not started. Rebuilds opening around assembled context; absorbs old 2.3.
 - [ ] **Phase 5. Remove old surfaces only when they confuse the simple path.**
@@ -125,18 +126,15 @@ an item are status steps for that numbered work item.
 
 Next incomplete item:
 
-- [ ] **3.2 Fall back to a declared store when no local root exists.**
-  In plain English: a repo whose planning is fully externalized (no
-  local `openspec/` planning shape) declares its store once and runs
-  normal commands without `--store` on every invocation. The locked
-  decisions apply: the declaration lives in `openspec/config.yaml` (a
-  config-only `openspec/` dir), fallback never override, root detection
-  stays a stat-only walk with two extra directory stats, and the
-  both-shapes warning fires in resolution (recorded amendment of the
-  "doctor" wording). Spec and plan written and reviewed
-  (`slices/declared-store-fallback/`); implementation is next. (3.1 is
-  implemented and reviewed; the 5.1 first tranche is done; the Phase 5
-  remainder runs after 4.1.)
+- [ ] **3.3 Record a canonical remote in store identity.**
+  In plain English: clone an app repo that references a store you don't
+  have yet, and be told where to clone the store from. An optional
+  canonical remote lands in `.openspec-store/store.yaml` (the shared,
+  committed home), populated at setup/register when known; doctor
+  surfaces it, and unresolved-reference and register guidance use it.
+  Recording a remote is not sync — no clone/pull/push behavior. Spec
+  not yet written. (3.1 and 3.2 are implemented and reviewed; the 5.1
+  first tranche is done; the Phase 5 remainder runs after 4.1.)
 
 ## Phase 0. Make The Active Direction Easy To Find
 
@@ -752,12 +750,19 @@ How the user or agent knows it worked:
 
 ### 3.2 Fall Back To A Declared Store When No Local Root Exists
 
+Slice: `slices/declared-store-fallback/spec.md`
+
 Progress:
 
-- [ ] Spec written.
-- [ ] Plan written.
-- [ ] Implementation done.
-- [ ] Tests pass.
+- [x] Spec written.
+- [x] Plan written.
+- [x] Implementation done (the resolver pointer branch with source
+  `declared`, the store-selected predicate across all eight consumers,
+  the init pointer guard with ancestor walk, the both-shapes warning;
+  three-mechanism post-implementation review and a simplify pass
+  folded).
+- [x] Tests pass (full suite green, 89 files / 1656 tests; resolver
+  unit matrix plus the externalized-planning e2e journey).
 - [ ] Merged to `main`.
 
 What the user can do:
@@ -1365,6 +1370,27 @@ is working:
   a deliberate fourth partial edit, and the spec's byte-stable clause
   now allows the new removal-coverage tests. The reworded constraint
   string gets its first-ever pin in the new test.
+- 2026-06-11: Implemented slice 3.2 (declared-store fallback) in two
+  checkpoints plus a review-fix round: the `store:` pointer in
+  `openspec/config.yaml`, the resolver classification (directory-typed
+  shape stats; warning-silent pointer read; `invalid_store_pointer`
+  with unparseable/non-string reasons; the declaration-origin rewrap;
+  `source: "declared"`), the `isStoreSelectedRoot` predicate across
+  all eight consumers, the both-shapes stderr warning, and the init
+  pointer guard (refuses malformed pointers and pointer-repo
+  subdirectories, anchored before any mutation). Three review
+  mechanisms found one real regression — empty/comments-only configs
+  briefly classified malformed, which would have stranded the
+  documented comment-out conversion path — fixed with regression tests
+  alongside the shared `classifyOpenSpecDir` (resolver and init can
+  never disagree), the shared config probe, and the consolidated
+  snapshot test helper. A simplify pass made the predicate a type
+  guard and single-sourced the malformed-reason strings. Full suite
+  green (89 files, 1656 tests); the e2e journey proves the full
+  lifecycle in a pointer repo with no `--store` anywhere, composing
+  with 3.1's references through the declared root. Process note: one
+  review-fix commit landed on a detached HEAD (an agent moved HEAD
+  during the fan-out) and was fast-forwarded back onto the branch.
 - 2026-06-11: Wrote the declared-store-fallback plan (3.2, two
   checkpoints) and folded two plan reviews (both approve-with-fixes):
   an EIGHTH `source === 'store'` check surfaced

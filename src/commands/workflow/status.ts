@@ -104,7 +104,7 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
     });
     const status = formatChangeStatus(
       context,
-      isStoreSelectedRoot(root) && root.storeId ? { storeId: root.storeId } : {}
+      isStoreSelectedRoot(root) ? { storeId: root.storeId } : {}
     );
 
     spinner?.stop();

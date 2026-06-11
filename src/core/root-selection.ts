@@ -33,7 +33,7 @@ import {
 import { getStoreRootForBackend } from './store/registry.js';
 import { inspectOpenSpecRoot } from './openspec-root.js';
 import { findRepoPlanningRootSync, type PlanningHome } from './planning-home.js';
-import { classifyOpenSpecDir } from './project-config.js';
+import { classifyOpenSpecDir, storePointerProblem } from './project-config.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 
 export type OpenSpecRootSource = 'store' | 'declared' | 'nearest' | 'implicit';
@@ -281,10 +281,7 @@ async function resolveNearestOrDeclaredRoot(
   }
 
   if (pointer.malformed) {
-    const problem =
-      pointer.malformed === 'unparseable'
-        ? 'the config file could not be read as YAML'
-        : 'the store key must be a single store id string';
+    const problem = storePointerProblem(pointer.malformed);
     throw new RootSelectionError(
       `Invalid store declaration in ${pointer.filePath}: ${problem}.`,
       'invalid_store_pointer',
@@ -402,7 +399,9 @@ export function toRootOutput(root: ResolvedOpenSpecRoot): RootOutput {
  * Cross-root behavior (absolute paths, --store hints, suppressed
  * noun-form suggestions) keys on this, never on `source` directly.
  */
-export function isStoreSelectedRoot(root: ResolvedOpenSpecRoot): boolean {
+export function isStoreSelectedRoot(
+  root: ResolvedOpenSpecRoot
+): root is ResolvedOpenSpecRoot & { storeId: string } {
   return root.storeId !== undefined;
 }
 
@@ -411,7 +410,7 @@ export function isStoreSelectedRoot(root: ResolvedOpenSpecRoot): boolean {
  * raw-Markdown and agent-consumed stdout payloads stay clean.
  */
 export function emitStoreRootBanner(root: ResolvedOpenSpecRoot): void {
-  if (isStoreSelectedRoot(root) && root.storeId) {
+  if (isStoreSelectedRoot(root)) {
     console.error(`Using OpenSpec root: ${root.storeId} (${root.path})`);
   }
 }
@@ -421,7 +420,7 @@ export function emitStoreRootBanner(root: ResolvedOpenSpecRoot): void {
  * paste verbatim must carry `--store <id>` when a store was selected.
  */
 export function withStoreFlag(root: ResolvedOpenSpecRoot, command: string): string {
-  return isStoreSelectedRoot(root) && root.storeId
+  return isStoreSelectedRoot(root)
     ? `${command} --store ${root.storeId}`
     : command;
 }
