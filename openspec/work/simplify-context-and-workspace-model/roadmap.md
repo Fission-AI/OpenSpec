@@ -1203,7 +1203,7 @@ repo map and `openspec context` remain unchanged and independent.
 
 Progress:
 
-- [ ] Research done and spec written.
+- [x] Research done and spec written.
 - [ ] Plan written.
 - [ ] Implementation done.
 - [ ] Tests pass.
@@ -2245,6 +2245,50 @@ is working:
   verbs for collections (no per-collection groups, ever), "workspace"
   permanently retired, lifecycle stays in skills/schemas. To be
   implemented as a follow-up slice under the standard discipline.
+- 2026-06-12: Ran the 7.1 research checkpoint and committed
+  `slices/personal-worksets/research.md`: the `f858c19^` opener
+  archaeology (the implicit two-style split, the PATH/PATHEXT scan,
+  cross-spawn handoff mechanics, the not-to-inherit ledger), the
+  current-tree idioms (registry lock/atomic-write, the pure
+  `.code-workspace` builder, `@inquirer` house rules, JSON contracts,
+  the recoverable fake-executable test helpers), and live verification
+  of all four built-in tools' flag spellings and hazards (the cursor
+  shim's `agent` first-arg hijack; both agent CLIs read a positional
+  as a starter prompt).
+- 2026-06-12: Wrote the personal-worksets slice spec (7.1) and folded
+  two adversarial reviews (subagent: approve-with-fixes, every
+  citation verified; codex: reject — converging). The P1: the draft's
+  attach-dirs argv skipped the primary member and leaned on `cwd`,
+  contradicting the locked "one attach flag per member" — argv now
+  carries an attach pair for every member (primary included,
+  single-member shapes pinned). Also folded: the no-tool open path
+  (interactive prompt / typed `workset_tool_required`), the
+  stale-saved-tool rule (`tool` parses as a plain string; unknown ids
+  surface at open with the manual fallback), the signal exit contract
+  (`128 + n`, no banner), the hand-edit parse contract (absolute
+  paths, non-empty members, label rules, duplicates), pinned JSON
+  envelopes for all four subcommands including the `open --json`
+  typed rejection and the `command:*` handler, derived-file lock
+  semantics with ENOENT-tolerant remove, the teammate/arbitrary-
+  composition scenario, the win32 availability matrix, and the
+  opener-config touchpoints (hand-edit-only at v1; `config set`
+  rejects unknown keys; malformed-config degradation recorded).
+- 2026-06-12: Decided autonomously (review me): the 7.1 spec's open
+  shapes — the group is `workset create/list/open/remove` (no edit at
+  v1; recompose or hand-edit); saved views live in one machine-local
+  `<dataDir>/worksets/worksets.yaml` on the store-registry idiom with
+  the generated `<name>.code-workspace` files beside it, regenerated
+  on every open (deleting `worksets/` removes every trace); workset
+  names use the one kebab grammar in their own namespace; opener
+  config is an `openers` key in global `config.json` (hand-edit-only
+  at v1) merged over built-ins per-field; `open` carries no `--json`
+  mode (typed one-document rejection instead — stdio-inherit handoff
+  cannot compose with the JSON contract); child exit codes and
+  signals propagate honestly (`code` / `128+n`, no banner);
+  `writeFileAtomically` and the lock loop extract to a shared
+  `src/core/file-state.ts` now that they have two call sites; agent
+  guidance does not teach worksets at v1 (human convenience; template
+  parity pins stay untouched).
 - 2026-06-12: Continued owner design review replaced the change-anchored
   workset direction with roadmap item 7.1 (briefly numbered 4.2 the
   same day; moved to its own Phase 7), personal worksets: a purely

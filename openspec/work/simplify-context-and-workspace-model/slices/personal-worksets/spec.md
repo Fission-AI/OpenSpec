@@ -64,13 +64,27 @@ membership truth. No member folder ever contains workset residue.
 
    Members are ordered; **the first member is the primary**: it is the
    `cwd` for attach-dirs opens and the first folder in the generated
-   workspace file. Paths are stored absolute. Member `name` defaults
-   to the path basename at compose time and is stored explicitly (it
-   labels the `.code-workspace` folder); duplicate names within a
-   workset are rejected at parse and compose time. The whole feature's
-   state lives under `<globalDataDir>/worksets/` — deleting that one
-   directory deletes every saved view and generated file, satisfying
-   the "loses nothing you cannot recompose" bar.
+   workspace file. Member `name` defaults to the path basename at
+   compose time and is stored explicitly (it labels the
+   `.code-workspace` folder). The hand-edit parse contract (the file
+   is hand-editable; review round): member paths must be absolute
+   (a relative path would float with process cwd — reject as
+   `invalid_workset_file`); `members` must be non-empty; member
+   labels must be non-empty, contain no path separators, and not be
+   `.`/`..` (otherwise free-form — they are display labels, not ids),
+   with duplicates within a workset rejected; `tool` is
+   schema-validated as a plain string only, never against the merged
+   opener table (deleting a config row must not brick the file —
+   an unknown tool surfaces at open time, decision 10). Missing
+   member *directories* are not a parse error; they are open-time
+   skips. Concurrency (review round): `open` performs its read and
+   the derived-file write under the worksets lock, releasing it
+   before spawning; `remove` deletes the entry and cleans up the
+   derived file under the same lock, tolerating an absent file
+   (ENOENT is fine — a never-opened workset has none). The whole
+   feature's state lives under `<globalDataDir>/worksets/` — deleting
+   that one directory deletes every saved view and generated file,
+   satisfying the "loses nothing you cannot recompose" bar.
 3. **Workset names use the one kebab grammar** (`isKebabId` /
    `KEBAB_ID_DESCRIPTION`, `src/core/id.ts`). Worksets are their own
    namespace in their own file: no cross-checks against store/repo ids
@@ -111,17 +125,32 @@ membership truth. No member folder ever contains workset residue.
    silently ignored. (The git difftool/mergetool pattern: a tool
    renaming its attach flag is a one-line local fix, e.g.
    `"claude": { "attach_flag": "--dir" }`; adding zed is
-   `"zed": { "style": "workspace-file" }`.)
+   `"zed": { "style": "workspace-file" }`.) Config touchpoints
+   (review round): opener config is **hand-edit-only at v1** —
+   `config edit` opens the file; `config set openers.… ` is rejected
+   by the known-keys check without `--allow-unknown`
+   (`src/core/config-schema.ts:38-67`) and `config reset --all`
+   deletes opener rows, so no workset fix string points at
+   `config set`. A config file that fails JSON parsing already warns
+   on stderr and yields defaults (`src/core/global-config.ts:147-153`);
+   workset commands then see built-ins only — recorded as accepted
+   degradation with the existing warning as the signal (the strict
+   per-row failure in this decision applies to a *parseable* file).
 6. **Launch shapes** (pinned; verified against live CLIs in
    `research.md`):
    - workspace-file: argv exactly `[<abs path to <name>.code-workspace>]`,
      `cwd` = primary member. The single absolute-path argv also
      defuses the cursor shim's `agent` first-arg hijack.
-   - attach-dirs: argv = `[...args, ...rest.flatMap(m => [attachFlag,
-     m.path])]` — pre-args first, then one `attachFlag` + path pair
-     per member **after the first**; `cwd` = primary member. **No
-     trailing positional, ever** (locked: no starter prompt; both
-     agent CLIs read a positional as one).
+   - attach-dirs: argv = `[...args, ...existingMembers.flatMap(m =>
+     [attachFlag, m.path])]` — pre-args first, then one `attachFlag` +
+     path pair per member, **the primary included** (the locked FR2
+     text is "one attach flag per member"; review-round P1 — the
+     draft skipped the primary and leaned on `cwd` alone); `cwd` =
+     primary member. A single-member workset therefore launches
+     `claude --add-dir <primary>` /
+     `codex --sandbox workspace-write --add-dir <primary>` with
+     `cwd` = that member. **No trailing positional, ever** (locked:
+     no starter prompt; both agent CLIs read a positional as one).
    - Spawn via `cross-spawn` (already a pinned dependency,
      `package.json:77`) with `shell: false`, `stdio: 'inherit'`,
      env inherited, not detached — the `f858c19^` shape. No signal
@@ -133,36 +162,60 @@ membership truth. No member folder ever contains workset residue.
 7. **Exit codes propagate honestly** (fixing the `f858c19^` lossiness):
    a launched tool's nonzero exit becomes the command's exit code with
    no error banner — for a terminal handoff the session *is* the
-   command. Spawn errors (ENOENT etc.) are real failures:
+   command. A signal-terminated child (`close(null, signal)` — the
+   Ctrl-C-in-session case) exits `128 + signal number` (130 for
+   SIGINT), also with no banner (review round; the old code turned
+   this into an error). Spawn errors (ENOENT etc.) are real failures:
    `workset_launch_failed` plus the manual fallback. Prompt
    cancellation keeps the house convention (`Cancelled.`, exit 130).
-8. **`workset open` takes no `--json`** (recorded as a deliberate
-   surface gap): an open hands the terminal to the child
+8. **`workset open` does not support `--json`** (recorded as a
+   deliberate surface gap): an open hands the terminal to the child
    (`stdio: 'inherit'`), which cannot compose with the
    exactly-one-JSON-document contract — the old code's
    ignore-stdio-then-report-after-exit shape blocked for the whole
    agent session and hardcoded `launch: succeeded`; nobody was served.
-   `create`, `list`, and `remove` carry `--json` with the standard
-   null-shape failure payloads. Open failures print the human
-   `Error:`/`Fix:` shape (open is human-only by construction).
+   But an agent probing `open --json` must not get a raw Commander
+   error (review round): `open` accepts the flag only to reject it
+   with exactly one JSON document `{ status: [<diagnostic>] }`, code
+   `workset_open_json_unsupported`, exit 1, whose fix names
+   `workset list --json` for inspection. `create`, `list`, and
+   `remove` carry `--json`. JSON envelopes, pinned (every success
+   carries `status` — no parallel envelope styles): create
+   `{ workset: { name, tool?, members }, status: [] }` /
+   `{ workset: null, status: [d] }`; list
+   `{ worksets: [...], status: [] }`; remove
+   `{ removed: { name }, status: [] }` /
+   `{ removed: null, status: [d] }`. The group gets the `command:*`
+   unknown-subcommand handler keeping the one-JSON-document contract
+   (code `unknown_workset_subcommand`, the store pattern). Open
+   failures print the human `Error:`/`Fix:` shape.
 9. **The open kind is stated plainly before launch** (FR2.1): editors
    print "Opening <name> in <label> (a window opens; this command
    returns)"; agents print "Handing this terminal to <label> for
    <name> (the session ends when you exit)". One line, then launch.
-10. **Fallback is the failure path** (FR2.4): when the preferred or
-    requested tool is not on PATH, or the spawn fails, the error names
-    the tool and is followed by "Open manually:" with the regenerated
-    `.code-workspace` path and the member list — for every tool and
-    both styles (the old code showed the file only for `code`). When
-    a saved `tool` is unavailable but other tools are installed, the
-    fix also names them.
-11. **Missing members degrade, absent worksets fail**: a member path
-    missing at open is skipped with a one-line note and excluded from
-    the generated file and attach flags; if the *primary* is missing,
-    the next existing member becomes cwd for that open (noted in the
-    same line style). If no member path exists, open fails
+10. **Fallback is the failure path** (FR2.4): on *every*
+    cannot-drive-or-launch failure — the tool is not on PATH
+    (`workset_tool_unavailable`), the saved or requested id is
+    unknown to the merged table (`workset_tool_unknown`, which also
+    covers a saved `tool:` whose config row was later removed —
+    review round), or the spawn fails (`workset_launch_failed`) —
+    the error names the tool and is followed by "Open manually:"
+    with the regenerated `.code-workspace` path and the member list,
+    for every tool and both styles (the old code showed the file
+    only for `code`). When other known tools are installed, the fix
+    is a pasteable command naming one
+    (`openspec workset open <name> --tool <id>`).
+11. **Missing members degrade, absent worksets fail**: the open-time
+    filter is "exists **and is a directory**" (a member path that
+    now points at a file is skipped too — review round); skipped
+    members get a one-line note and are excluded from the generated
+    file and attach flags; if the *primary* is excluded, the next
+    surviving member becomes cwd for that open (noted in the same
+    line style). If no member survives, open fails
     (`workset_no_members_available`). `open`/`remove` of an unknown
-    name → `workset_not_found` listing saved names in the fix.
+    name → `workset_not_found` listing saved names in the fix — or,
+    with zero saved worksets, naming
+    `openspec workset create` instead.
 12. **Diagnostic code family** (all new, `workset_*`-prefixed, the
     shared severity/code/message/fix envelope): `workset_not_found`,
     `workset_exists`, `invalid_workset_name`, `invalid_workset_file`
@@ -172,8 +225,12 @@ membership truth. No member folder ever contains workset residue.
     (non-interactive create without `--member`),
     `workset_tool_unknown` (not a built-in or configured id; fix names
     known ids), `workset_tool_unavailable` (known but not on PATH),
+    `workset_tool_required` (non-interactive open with no saved tool
+    and no `--tool`; fix is a pasteable
+    `openspec workset open <name> --tool <id>`),
     `invalid_opener_config`, `workset_launch_failed`,
-    `workset_no_members_available`, `workset_create_cancelled`,
+    `workset_no_members_available`, `workset_open_json_unsupported`,
+    `unknown_workset_subcommand`, `workset_create_cancelled`,
     `workset_remove_cancelled`, `workset_remove_confirmation_required`
     (non-interactive remove without `--yes`). Target convention:
     `workset.<facet>` (e.g. `workset.name`, `workset.member`,
@@ -188,13 +245,19 @@ membership truth. No member folder ever contains workset residue.
     **available** tools only, FR2.2; when none of the known tools is
     installed the step is skipped with a note and no `tool` is saved).
     Then save, confirm-to-open (default yes; declining prints the
-    `openspec workset open <name>` line). Non-interactive:
+    `openspec workset open <name>` line; the offer is skipped when no
+    tool was saved). `create <name>` with the name given skips the
+    name prompt — the step echoes the validated name and the `[n/3]`
+    numbering holds (the store-setup precedent). Non-interactive:
     `--member <path>` / `--member <name>=<path>` (repeatable, ordered,
     first is primary) and optional `--tool <id>` (validated against
     the merged table but not against PATH — a saved preference may
     name a tool installed elsewhere; only `open` requires
-    availability). `remove` prints the workset and asks `confirm`;
-    non-interactive requires `--yes`.
+    availability). **Open with no tool resolved** (no saved `tool`,
+    no `--tool` — review round): interactive opens prompt with the
+    same available-tools select; non-interactive opens fail
+    `workset_tool_required`. `remove` prints the workset and asks
+    `confirm`; non-interactive requires `--yes`.
 14. **Module homes** (dependency direction: core never imports
     commands): `src/core/worksets.ts` (schema, paths, parse/serialize,
     lock + atomic update, with/without rebuilds),
@@ -207,7 +270,21 @@ membership truth. No member folder ever contains workset residue.
     mirroring `buildCodeWorkspaceJson`'s conventions (that function
     keeps its `WorkingSet` signature and its one caller — recorded:
     a shared generalization needs two call sites that actually share
-    a shape, and these don't).
+    a shape, and these don't). The lock and atomic-write *mechanics*,
+    by contrast, now have two real call sites (review round): extract
+    `writeFileAtomically` and the lock-acquire loop into a shared
+    `src/core/file-state.ts`, parameterized by the busy-error
+    factory, with store foundation delegating behavior-identically
+    (its existing tests pin that). The availability scan sharpens the
+    old mechanics for injectability (review round): delimiter and
+    join are platform-keyed (`path.win32`/`path.posix` per the
+    `getGlobalDataDir` precedent) rather than host-bound; commands
+    containing a separator stat directly; a `command` already ending
+    in an executable extension matches as-is — and the scan agrees
+    with what cross-spawn resolves at spawn time. Module-size
+    expectation: if `commands/workset.ts` approaches the ~600-line
+    bar, the prompt flows split into `workset-prompts.ts` (the old
+    code's `setup-prompts.ts` seam).
 
 ## User Experience
 
@@ -228,7 +305,7 @@ Added 'web-app' (/Users/dev/src/web-app)
 ? Open this workset with: Claude Code
   (offered: VS Code, Cursor, Claude Code — codex not found on PATH)
 
-Saved workset 'platform' (3 members) to your machine.
+Saved workset 'platform' (2 members) to your machine.
 ? Open it now in Claude Code? Yes
 
 Handing this terminal to Claude Code for 'platform' (the session ends when you exit).
@@ -253,7 +330,7 @@ Handing this terminal to Claude Code for 'platform' (the session ends when you e
 
 $ openspec workset open platform --tool cursor
 Error: Cursor ('cursor') is not on PATH.
-Fix: Install 'cursor', pass --tool with an installed tool (code, claude), or open manually.
+Fix: Install 'cursor' or run: openspec workset open platform --tool code
 Open manually:
   Workspace file: /Users/dev/.local/share/openspec/worksets/platform.code-workspace
   Members:
@@ -312,18 +389,27 @@ In scope:
   (already pinned at 7.0.6).
 - **Docs**: a "Personal worksets" section in `docs/cli.md` (command
   table rows + a short concept paragraph; "workset" vocabulary only).
+- **Shared mechanics** (`src/core/file-state.ts`): `writeFileAtomically`
+  and the lock-acquire loop extracted from store foundation
+  (parameterized busy-error factory; store behavior byte-identical,
+  pinned by its existing tests).
 - **Tests**: unit — worksets storage (parse/serialize/lock/rebuilds/
-  corrupt-file diagnostics, duplicate member names), openers (merge
-  semantics, availability with injected env/platform, argv builder
-  per style including the no-positional pin and codex pre-args);
-  command — compose non-interactive (+JSON shapes), list, remove,
-  open via fake executables on PATH (resurrect
-  `test/helpers/path-env.ts` and the `createFakeExecutable`
-  recorder from `f858c19^`) asserting exact argv, cwd, exit-code
-  propagation, missing-member skip, fallback output, `--tool`
-  override; e2e — the compose→list→open→remove journey with isolated
-  XDG state; an isolation assert that member folders are
-  byte-untouched end to end.
+  corrupt-file diagnostics, the hand-edit contract: relative paths,
+  empty members, duplicate/path-bearing labels, unknown-tool-parses),
+  openers (merge semantics; availability with injected env/platform
+  including the win32 matrix — `PATHEXT` default, a custom `Path`
+  key, `command: "tool.cmd"`; argv builder per style including the
+  attach-pair-per-member pin, single-member shapes, the
+  no-positional pin, and codex pre-args); command — compose
+  non-interactive (+JSON shapes), list, remove, open via fake
+  executables on PATH (resurrect `test/helpers/path-env.ts` and the
+  `createFakeExecutable` recorder from `f858c19^`) asserting exact
+  argv, cwd, exit-code and signal propagation, missing-member skip,
+  fallback output, `--tool` override, the `open --json` typed
+  rejection, and the `command:*` unknown-subcommand JSON document;
+  e2e — the compose→list→open→remove journey with isolated XDG
+  state; an isolation assert that member folders are byte-untouched
+  end to end.
 
 Out of scope (pinned):
 
@@ -389,9 +475,10 @@ Out of scope (pinned):
 - **WHEN** `openspec workset list` runs
 - **THEN** each name appears with its preferred tool and members
   (name + absolute path); `--json` emits
-  `{ worksets: [{ name, tool?, members }] }` sorted by name
+  `{ worksets: [{ name, tool?, members }], status: [] }` sorted by
+  name (every success envelope carries `status`)
 - **AND** with no worksets, human output says so plainly and names the
-  create command; JSON emits `{ worksets: [] }`
+  create command; JSON emits `{ worksets: [], status: [] }`
 
 #### Scenario: Removing a view is safe and explicit
 
@@ -401,10 +488,13 @@ Out of scope (pinned):
   is confirmed (non-interactive requires `--yes`, else
   `workset_remove_confirmation_required`)
 - **THEN** the entry leaves `worksets.yaml` and the generated
-  `platform.code-workspace` is deleted
+  `platform.code-workspace` is deleted; `--json` emits
+  `{ removed: { name }, status: [] }`
+- **AND** removing a never-opened workset (no generated file) succeeds
+  identically — derived-file cleanup tolerates ENOENT
 - **AND** every member folder is byte-untouched
 - **AND** removing an unknown name fails with `workset_not_found`
-  listing saved names
+  listing saved names (or naming the create command when none exist)
 
 #### Scenario: Corrupt state fails clearly, never destructively
 
@@ -412,6 +502,23 @@ Out of scope (pinned):
 - **WHEN** any workset command runs
 - **THEN** it fails with `invalid_workset_file` naming the file with a
   "Repair or remove <path>." fix; nothing is auto-deleted or rewritten
+- **AND** the hand-edit contract holds (decision 2): a relative member
+  path, an empty `members` list, a duplicate or path-bearing member
+  label each fail the same way — while an unknown `tool:` string
+  parses fine and only surfaces at open (`workset_tool_unknown`,
+  with the manual fallback)
+
+#### Scenario: Composition is personal and arbitrary
+
+- **GIVEN** two isolated global data dirs (two users) and one shared
+  planning-root checkout
+- **WHEN** each composes a different workset over that root — one
+  adding an unrelated plain folder (no OpenSpec anything), one a
+  single-member workset
+- **THEN** each list shows only its own views; neither machine's
+  commands see or affect the other's state, and the shared checkout
+  is byte-untouched by both (FR1.2: any folders, any number, no
+  relationship to declarations or teammates required)
 
 ### FR2 — Open The View In Your Tool
 
@@ -434,16 +541,20 @@ Out of scope (pinned):
 
 - **GIVEN** fake `claude` and `codex` on PATH
 - **WHEN** `open platform` runs with each
-- **THEN** claude's recorded launch is
-  cwd = primary, argv exactly
-  `['--add-dir', <member2>, '--add-dir', <member3>]`; codex's is
-  `['--sandbox', 'workspace-write', '--add-dir', <member2>,
-  '--add-dir', <member3>]`
+- **THEN** claude's recorded launch is cwd = primary, argv exactly
+  `['--add-dir', <primary>, '--add-dir', <member2>, '--add-dir',
+  <member3>]` — one attach pair per member, the primary included;
+  codex's is the same list prefixed by
+  `['--sandbox', 'workspace-write']`
+- **AND** a single-member workset launches
+  `['--add-dir', <primary>]` (codex: after its pre-args) with
+  cwd = that member
 - **AND** argv contains no positional argument anywhere (the no-prompt
   pin), and the pre-launch line states the session kind (ends when
   you exit)
 - **AND** when the fake tool exits 7, the command's exit code is 7
-  with no error banner
+  with no error banner; when it dies by SIGINT, the exit code is 130
+  with no banner
 
 #### Scenario: The saved preference is overridable per open
 
@@ -453,6 +564,12 @@ Out of scope (pinned):
   (the preference still says claude)
 - **AND** `--tool` with an id that is neither built-in nor configured
   fails with `workset_tool_unknown` naming the known ids
+- **AND** opening a workset saved with no `tool` and no `--tool`
+  prompts over available tools when interactive, and fails
+  `workset_tool_required` (pasteable `--tool` fix) when
+  non-interactive
+- **AND** `open --json` is rejected with exactly one JSON document
+  (`workset_open_json_unsupported`), never a raw flag error
 
 #### Scenario: Adding and adjusting tools is config, not code
 
