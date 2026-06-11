@@ -154,11 +154,6 @@ describe('command completion registry', () => {
     function walk(command: Command, parentPath: string): void {
       for (const child of command.commands) {
         const commandPath = parentPath ? `${parentPath} ${child.name()}` : child.name();
-        // The legacy initiative group keeps its own store-id selector
-        // until the deletion slice removes the group.
-        if (commandPath.startsWith('initiative')) {
-          continue;
-        }
         const storeOption = child.options.find((option) => option.long === '--store');
         if (storeOption) {
           seen.push(commandPath);

@@ -1,0 +1,90 @@
+# Deletion Ledger: Legacy Command Groups
+
+Generated 2026-06-11 by diffing
+`rg -o "(workspace|initiative)_[a-z_]+" src/**/*.ts | sort -u` between the
+pre-deletion commit (`ef45d5d`) and the deletion commit. For the
+capstone's agent-contract inventory and dead-code sweep.
+
+## Surviving tokens (deliberate)
+
+- `initiative_option_removed` — the `new change --initiative` rejection,
+  locked in slice 1.2. Lives in `src/commands/workflow/new-change.ts`.
+- `workspace_skills` — a global-config/persisted-state data field, not a
+  diagnostic code; part of the state model that dies in 4.1.
+
+## Removed diagnostic codes (emitted only by deleted command paths)
+
+Initiative group:
+
+- initiative_already_exists
+- initiative_ambiguous
+- initiative_collection_invalid
+- initiative_collections_invalid
+- initiative_collections_partially_invalid
+- initiative_discovery_failed
+- initiative_error
+- initiative_id_required
+- initiative_invalid
+- initiative_lookup_incomplete
+- initiative_not_found
+- initiative_summary_required
+- initiative_title_required
+
+Workspace group:
+
+- workspace_already_exists
+- workspace_context_bind_required
+- workspace_context_conflict
+- workspace_create_failed
+- workspace_error
+- workspace_initiative_missing
+- workspace_initiative_selection_ambiguous
+- workspace_initiative_unavailable
+- workspace_local_state_invalid
+- workspace_name_collision
+- workspace_no_available_openers
+- workspace_not_found
+- workspace_not_in_known_views
+- workspace_open_change_unsupported
+- workspace_open_link_skipped
+- workspace_open_prepare_only_unsupported
+- workspace_opener_conflict
+- workspace_opener_launch_failed
+- workspace_opener_unavailable
+- workspace_opener_unset
+- workspace_root_missing
+- workspace_selection_ambiguous
+- workspace_selection_conflict
+- workspace_skills_out_of_sync
+- workspace_state_invalid
+- workspace_store_unavailable
+- invalid_workspace_setup_tools (sweep fragment `workspace_setup_tools`)
+- invalid_workspace_update_tools (sweep fragment `workspace_update_tools`)
+
+(`workspace_open_store_without_initiative` was already deleted by rider 1
+of slice 1.4 and is recorded in that slice's history.)
+
+## Removed non-code tokens (zod paths, JSON keys, target fragments)
+
+- initiative_id, initiative_reference (selector/zod field names)
+- workspace_name, workspace_agent, workspace_opener (option/zod field
+  names in the deleted command layer)
+
+## Dead-export carve-outs (kept, owner: 4.1)
+
+Exports inside kept modules whose last consumer died with this slice.
+Kept because they belong to the workspace state model that 4.1 replaces;
+the capstone's dead-code sweep should treat them as recorded carve-outs,
+not misses:
+
+- `findWorkspaceRoot`, `isWorkspaceRoot` —
+  `src/core/workspace/state-io.ts`
+- `resolveStoreBinding`, `createPathStoreBinding`,
+  `createRegisteredStoreBinding` — `src/core/store/binding.ts`
+- `resolveCurrentPlanningHomeSync`'s workspace branch —
+  `src/core/planning-home.ts` (CLI-unreachable since slice 1.2's
+  resolver demotion; library behavior pinned by
+  `test/core/planning-home.test.ts`)
+- `buildActionContext`'s workspace-planning branch —
+  `src/core/change-status-policy.ts` (same; pinned by
+  `test/commands/legacy-groups-removed.test.ts`)

@@ -22,11 +22,6 @@ import {
 import { CORE_WORKFLOWS, ALL_WORKFLOWS, getProfileWorkflows } from '../core/profiles.js';
 import { OPENSPEC_DIR_NAME } from '../core/config.js';
 import { hasProjectConfigDrift } from '../core/profile-sync-drift.js';
-import {
-  findWorkspaceRoot,
-  hasWorkspaceSkillProfileDrift,
-  readOptionalWorkspaceViewState,
-} from '../core/workspace/index.js';
 
 type ProfileAction = 'both' | 'delivery' | 'workflows' | 'keep';
 
@@ -44,11 +39,6 @@ interface ProfileStateDiff {
 interface WorkflowPromptMeta {
   name: string;
   description: string;
-}
-
-interface WorkspaceConfigProfileContext {
-  root: string;
-  commandCwd: string;
 }
 
 const WORKFLOW_PROMPT_META: Record<string, WorkflowPromptMeta> = {
@@ -196,20 +186,6 @@ export function diffProfileState(before: ProfileState, after: ProfileState): Pro
   };
 }
 
-async function resolveWorkspaceConfigProfileContext(
-  cwd = process.cwd()
-): Promise<WorkspaceConfigProfileContext | null> {
-  const workspaceRoot = await findWorkspaceRoot(cwd);
-  if (!workspaceRoot) {
-    return null;
-  }
-
-  return {
-    root: workspaceRoot,
-    commandCwd: cwd,
-  };
-}
-
 function maybeWarnProjectConfigDrift(
   projectDir: string,
   state: ProfileState,
@@ -225,38 +201,14 @@ function maybeWarnProjectConfigDrift(
   console.log(colorize('Warning: Global config is not applied to this project. Run `openspec update` to sync.'));
 }
 
-async function maybeWarnConfigDrift(
+function maybeWarnConfigDrift(
   state: ProfileState,
   colorize: (message: string) => string
-): Promise<void> {
-  const workspaceContext = await resolveWorkspaceConfigProfileContext();
-  if (workspaceContext) {
-    let viewState = null;
-    try {
-      viewState = await readOptionalWorkspaceViewState(workspaceContext.root);
-    } catch {
-      return;
-    }
-
-    if (hasWorkspaceSkillProfileDrift(viewState)) {
-      console.log(
-        colorize(
-          'Warning: Workspace-local agent skills are out of sync with the active global profile. Run `openspec workspace update` to sync.'
-        )
-      );
-    }
-    return;
-  }
-
+): void {
   maybeWarnProjectConfigDrift(process.cwd(), state, colorize);
 }
 
-function printConfigProfileApplyGuidance(workspaceContext: WorkspaceConfigProfileContext | null): void {
-  if (workspaceContext) {
-    console.log('Config updated. Run `openspec workspace update` to apply it to workspace-local skills.');
-    return;
-  }
-
+function printConfigProfileApplyGuidance(): void {
   console.log('Config updated. Run `openspec update` in your projects to apply.');
 }
 
@@ -520,8 +472,7 @@ export function registerConfigCommand(program: Command): void {
         config.workflows = [...CORE_WORKFLOWS];
         // Preserve delivery setting
         saveGlobalConfig(config);
-        const workspaceContext = await resolveWorkspaceConfigProfileContext();
-        printConfigProfileApplyGuidance(workspaceContext);
+        printConfigProfileApplyGuidance();
         return;
       }
 
@@ -671,31 +622,6 @@ export function registerConfigCommand(program: Command): void {
         config.workflows = nextState.workflows;
         saveGlobalConfig(config);
 
-        const workspaceContext = await resolveWorkspaceConfigProfileContext();
-        if (workspaceContext) {
-          const applyNow = await confirm({
-            message: 'Apply changes to this workspace now?',
-            default: true,
-          });
-
-          if (applyNow) {
-            try {
-              execSync('npx openspec workspace update', {
-                stdio: 'inherit',
-                cwd: workspaceContext.commandCwd,
-              });
-              console.log('Run `openspec workspace update` in your other workspaces to apply.');
-            } catch {
-              console.error('`openspec workspace update` failed. Please run it manually to apply the profile changes.');
-              process.exitCode = 1;
-            }
-            return;
-          }
-
-          printConfigProfileApplyGuidance(workspaceContext);
-          return;
-        }
-
         // Check if inside an OpenSpec project
         const projectDir = process.cwd();
         const openspecDir = path.join(projectDir, OPENSPEC_DIR_NAME);
@@ -717,7 +643,7 @@ export function registerConfigCommand(program: Command): void {
           }
         }
 
-        printConfigProfileApplyGuidance(null);
+        printConfigProfileApplyGuidance();
       } catch (error) {
         if (isPromptCancellationError(error)) {
           console.log('Config profile cancelled.');

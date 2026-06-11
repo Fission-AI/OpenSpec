@@ -18,10 +18,7 @@ import { CompletionCommand } from '../commands/completion.js';
 import { FeedbackCommand } from '../commands/feedback.js';
 import { registerConfigCommand } from '../commands/config.js';
 import { registerSchemaCommand } from '../commands/schema.js';
-import { registerWorkspaceCommand } from '../commands/workspace.js';
 import { registerStoreCommand } from '../commands/store.js';
-import { registerInitiativeCommand } from '../commands/initiative.js';
-import { findWorkspaceRoot } from '../core/workspace/index.js';
 import {
   statusCommand,
   instructionsCommand,
@@ -197,18 +194,6 @@ program
     try {
       const resolvedPath = path.resolve(targetPath);
       const updateCommand = new UpdateCommand({ force: options?.force });
-      if (await hasRepoLocalOpenSpecProject(resolvedPath)) {
-        await updateCommand.execute(resolvedPath);
-        return;
-      }
-
-      const workspaceRoot = await findWorkspaceRoot(resolvedPath);
-      if (workspaceRoot) {
-        throw new Error(
-          'OpenSpec workspace detected. Run `openspec workspace update` to refresh workspace-local guidance and skills.'
-        );
-      }
-
       await updateCommand.execute(resolvedPath);
     } catch (error) {
       console.log(); // Empty line for spacing
@@ -346,9 +331,7 @@ program
 registerSpecCommand(program);
 registerConfigCommand(program);
 registerSchemaCommand(program);
-registerWorkspaceCommand(program);
 registerStoreCommand(program);
-registerInitiativeCommand(program);
 
 // Top-level validate command
 program

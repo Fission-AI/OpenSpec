@@ -258,16 +258,28 @@ Out of scope:
 
 ### The Survivors Still Work
 
-#### Scenario: Planning-Home Mode Is Untouched
+#### Scenario: Planning-Home Behavior Is Byte-Stable
+
+Ground truth discovered during implementation: `workspace-planning`
+mode has been **unreachable from the CLI since slice 1.2** — every
+supported command derives its planning home via `toPlanningHome`, which
+hardcodes `kind: 'repo'` (`src/core/root-selection.ts:320-327`), and the
+one remaining `resolveCurrentPlanningHomeSync` reference is a default
+parameter whose only caller always overrides it. The carve-out this
+slice preserves is the planning-home **library** contract, which 4.1
+owns:
 
 - **GIVEN** a directory carrying pre-existing workspace view state
-- **WHEN** `status --json` resolves its planning home
-- **THEN** `actionContext.mode` still reports `workspace-planning`
-  exactly as before this slice, the constraints carry the reworded
-  read-only initiative-context language, and the template guards still
-  match the mode value
-- **AND** this is pinned by a new explicit test (no existing test
-  asserts the mode today — found during plan review)
+- **WHEN** `status --json` runs there
+- **THEN** it reports `repo-local`, exactly as it did before this slice
+  (the 1.2 demotion already made the workspace branch CLI-unreachable)
+- **AND** the planning-home library still resolves the view state to
+  `kind: 'workspace'` (existing `planning-home.test.ts` coverage) and
+  `buildActionContext` still maps that to `workspace-planning` with the
+  reworded read-only initiative-context constraint (pinned by a new
+  unit test)
+- **AND** the five template guards stay byte-identical (they quote the
+  library contract that 4.1 deletes)
 
 #### Scenario: Legacy Initiative Links Still Display
 

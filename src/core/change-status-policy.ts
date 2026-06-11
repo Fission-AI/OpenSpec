@@ -96,7 +96,7 @@ export function buildActionContext(input: ActionContextInput): ActionContext {
       requiresAffectedAreaSelection: true,
       constraints: [
         'Treat workspace-local planning artifacts as compatibility context for this local view.',
-        'Use initiatives for durable coordination when initiative context exists.',
+        'Treat existing initiative context as read-only coordination context.',
         'Treat linked repos and folders as context until an explicit edit root is selected.',
         'Do not make implementation edits without an explicit allowed edit root.',
       ],

@@ -8,7 +8,6 @@ import {
   getGlobalDataDir,
   createPathStoreBinding,
   createRegisteredStoreBinding,
-  mountInitiativesCollection,
   prepareStoreCleanup,
   prepareStoreSetup,
   readStoreMetadataState,
@@ -610,16 +609,5 @@ describe('store registry facade', () => {
     const registry = await readStoreRegistryState({ globalDataDir: tempDir });
     expectSameExistingPath(registry?.stores['team-context'].backend.local_path ?? '', storeRoot);
     expect(fs.existsSync(getStoreMetadataPath(storeRoot))).toBe(true);
-  });
-
-  it('mounts the initiatives collection for a resolved store root', async () => {
-    const storeRoot = mkdir('acme-context');
-    const initiatives = mountInitiativesCollection(storeRoot);
-
-    expect(initiatives.collectionId).toBe('initiatives');
-    expect(initiatives.mountRoot).toBe(path.join(storeRoot, 'initiatives'));
-    expect(initiatives.toStorePath('launch-billing-flow/initiative.yaml')).toBe(
-      'initiatives/launch-billing-flow/initiative.yaml'
-    );
   });
 });

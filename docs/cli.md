@@ -7,8 +7,7 @@ The OpenSpec CLI (`openspec`) provides terminal commands for project setup, vali
 | Category | Commands | Purpose |
 |----------|----------|---------|
 | **Setup** | `init`, `update` | Initialize and update OpenSpec in your project |
-| **Workspaces (legacy beta)** | `workspace setup`, `workspace list`, `workspace ls`, `workspace link`, `workspace relink`, `workspace doctor`, `workspace update`, `workspace open` | Legacy beta local views over linked repos or folders, slated for removal |
-| **Stores (standalone OpenSpec repos)** | `store setup`, `store register`, `store unregister`, `store remove`, `store list`, `store doctor`, `initiative create`, `initiative show`, `initiative list` | Manage stores — standalone OpenSpec repos you've registered — plus legacy beta initiative commands |
+| **Stores (standalone OpenSpec repos)** | `store setup`, `store register`, `store unregister`, `store remove`, `store list`, `store doctor` | Manage stores — standalone OpenSpec repos you've registered |
 | **Browsing** | `list`, `view`, `show` | Explore changes and specs |
 | **Validation** | `validate` | Check changes and specs for issues |
 | **Lifecycle** | `archive` | Finalize completed changes |
@@ -48,20 +47,12 @@ These commands support `--json` output for programmatic use by AI agents and scr
 | `openspec instructions` | Get next steps | `--json` for agent instructions |
 | `openspec templates` | Find template paths | `--json` for path resolution |
 | `openspec schemas` | List available schemas | `--json` for schema discovery |
-| `openspec workspace setup --no-interactive` | Create a workspace with explicit inputs | `--json` for structured setup output |
-| `openspec workspace list` | Browse known workspaces | `--json` for typed workspace objects |
-| `openspec workspace link` | Link a repo or folder | `--json` for structured link output |
-| `openspec workspace relink` | Repair a linked path | `--json` for structured link output |
-| `openspec workspace doctor` | Check one workspace | `--json` for structured status output |
-| `openspec workspace update` | Refresh workspace-local guidance and agent skills | `--tools` selects agents; profile selects workflows |
 | `openspec store setup <id>` | Create and register a local store | `--json` with explicit inputs for structured setup output |
 | `openspec store register <path>` | Register an existing store | `--json` for structured registration output |
 | `openspec store unregister <id>` | Forget a local store registration | `--json` for structured cleanup output |
 | `openspec store remove <id>` | Delete a registered local store folder | `--yes --json` for non-interactive deletion |
 | `openspec store list` | Browse registered stores | `--json` for structured registrations |
 | `openspec store doctor` | Check local store setup | `--json` for structured diagnostics |
-| `openspec initiative list` | Browse shared initiatives | `--json` for structured initiative records |
-| `openspec initiative show <id>` | Resolve an initiative | `--json` for canonical paths and metadata |
 | `openspec new change <id>` | Create repo-local change scaffolding | `--json`, plus `--store <id>` to use a registered store as the OpenSpec root |
 
 ---
@@ -176,178 +167,6 @@ openspec update
 
 ---
 
-## Workspace Commands
-
-Workspace commands are a legacy beta surface, slated for removal; do not build new workflows on them. External automation, integrations, and long-lived workflows should treat command behavior, state files, and JSON output as evolving.
-
-Coordination workspaces are machine-local views over linked repos or folders. Workspace visibility is not change commitment: link the repos or folders OpenSpec should know about, then create changes when you are ready to plan specific work.
-
-### `openspec workspace setup`
-
-Create a workspace in the standard OpenSpec workspace location and link at least one existing repo or folder.
-
-```bash
-openspec workspace setup [options]
-```
-
-**Options:**
-
-| Option | Description |
-|--------|-------------|
-| `--name <name>` | Workspace name. Names must be kebab-case |
-| `--link <path>` | Link an existing repo or folder and infer the link name from the folder name |
-| `--link <name>=<path>` | Link an existing repo or folder with an explicit link name |
-| `--opener <id>` | Store a preferred opener during non-interactive setup: `codex-cli`, `claude`, `github-copilot`, or `editor` |
-| `--tools <tools>` | Install workspace-local OpenSpec skills for agents. Use `all`, `none`, or comma-separated tool IDs |
-| `--no-interactive` | Disable prompts; requires `--name` and at least one `--link` |
-| `--json` | Output JSON; requires `--no-interactive` |
-
-**Examples:**
-
-```bash
-openspec workspace setup
-openspec workspace setup --no-interactive --name platform --link /repos/api --link web=/repos/web
-openspec workspace setup --no-interactive --name platform --link /repos/api --opener codex-cli
-openspec workspace setup --no-interactive --name platform --link /repos/api --tools codex,claude
-openspec workspace setup --no-interactive --json --name checkout --link /repos/platform/apps/checkout
-```
-
-Interactive setup asks for a preferred opener and can install workspace-local OpenSpec skills for selected agents. Non-interactive setup stores a preferred opener only when `--opener` is provided; otherwise `workspace open` prompts later in interactive terminals when a supported opener is available, or asks scripts to pass `--agent <tool>` or `--editor`.
-
-Workspace skill installation is skills-only in this beta slice: even if global delivery is `commands` or `both`, workspace setup writes agent skill folders in the workspace root and does not create slash command files. The active global profile chooses which workflow skills are installed; `--tools` chooses which agents receive them. If `--tools` is omitted in non-interactive setup, no skills are installed and `workspace update --tools <ids>` can add them later.
-
-### `openspec workspace list`
-
-List known OpenSpec workspaces from the local registry.
-
-```bash
-openspec workspace list [--json]
-openspec workspace ls [--json]
-```
-
-The list shows each workspace location and linked repos or folders. Stale registry records are reported but not changed.
-
-### `openspec workspace link`
-
-Record an existing repo or folder for one workspace.
-
-```bash
-openspec workspace link [name] <path> [options]
-```
-
-**Options:**
-
-| Option | Description |
-|--------|-------------|
-| `--workspace <name>` | Select a known workspace from the local registry |
-| `--json` | Output JSON |
-| `--no-interactive` | Disable workspace picker prompts |
-
-**Examples:**
-
-```bash
-openspec workspace link /repos/api
-openspec workspace link api-service /repos/api
-openspec workspace link --workspace platform /repos/platform/apps/checkout
-```
-
-The path must already exist. Relative paths are resolved against the command's current directory before OpenSpec stores the verified absolute path in machine-local workspace state. Linked paths can be full repos, packages, services, apps, or folders without repo-local `openspec/` state.
-
-### `openspec workspace relink`
-
-Repair or change the local path for an existing link.
-
-```bash
-openspec workspace relink <name> <path> [options]
-```
-
-The path must already exist. Relink updates only the machine-local path for the stable link name.
-
-### `openspec workspace doctor`
-
-Check what one workspace can resolve on the current machine.
-
-```bash
-openspec workspace doctor [options]
-```
-
-Doctor shows the workspace location, linked repos or folders, missing paths, repo-local specs paths when present, and suggested fixes. JSON output also includes the workspace planning path for compatibility. It reports issues only; it does not repair them automatically.
-
-Commands that need one workspace use the current workspace when run from inside a workspace folder or subdirectory. From elsewhere, pass `--workspace <name>`, select from the picker in an interactive terminal, or rely on the only known workspace when exactly one exists. In `--json` or `--no-interactive` mode, ambiguous selection fails with a structured status error and suggests `--workspace <name>`.
-
-JSON responses use typed objects plus `status` arrays. Primary data lives in `workspace`, `workspaces`, or `link`; warnings and errors live in `status`.
-
-### `openspec workspace update`
-
-Refresh workspace-local OpenSpec guidance and agent skills.
-
-```bash
-openspec workspace update [name] [options]
-```
-
-**Options:**
-
-| Option | Description |
-|--------|-------------|
-| `--workspace <name>` | Select a known workspace from the local registry |
-| `--tools <tools>` | Select agents for workspace skills. Use `all`, `none`, or comma-separated tool IDs |
-| `--json` | Output JSON |
-| `--no-interactive` | Disable workspace picker prompts |
-
-**Examples:**
-
-```bash
-openspec workspace update
-openspec workspace update platform
-openspec workspace update --workspace platform --tools codex,claude
-openspec workspace update --workspace platform --tools none
-```
-
-`workspace update` refreshes the generated workspace guidance block and local open surface. For agent skills, it reuses the stored workspace skill agent selection when `--tools` is omitted. Passing `--tools` replaces that stored selection. It refreshes only OpenSpec-managed workflow skill directories in the workspace root, removes deselected managed workflow skills, and leaves linked repos and folders untouched.
-
-Running `openspec update` from inside a workspace does not update workspace-local files. Use `openspec workspace update` when you want workspace-local guidance and skills refreshed, and run `openspec update` inside repo-local projects when you want repo-owned tool files updated.
-
-### `openspec workspace open`
-
-Open a workspace working set through the stored preferred opener, a one-session agent override, or VS Code editor mode.
-
-```bash
-openspec workspace open [name] [options]
-```
-
-**Options:**
-
-| Option | Description |
-|--------|-------------|
-| `--workspace <name>` | Alias for the positional workspace name |
-| `--initiative <id>` | Open an initiative as a local workspace view. Accepts `<id>` or `<store>/<id>` |
-| `--agent <tool>` | One-session agent override: `codex-cli`, `claude`, or `github-copilot` |
-| `--editor` | Open the maintained VS Code workspace file as a normal editor workspace |
-| `--no-interactive` | Disable workspace and opener picker prompts |
-
-**Examples:**
-
-```bash
-openspec workspace open
-openspec workspace open platform
-openspec workspace open platform --agent github-copilot
-openspec workspace open --agent codex-cli
-openspec workspace open --editor
-openspec workspace open --initiative platform/billing-launch
-```
-
-`workspace open` uses the current workspace when run inside one, auto-selects the only known workspace when run elsewhere, and asks the user to choose when multiple workspaces are known. `--agent` and `--editor` do not change the stored preferred opener. Passing both opener overrides is an error; choose either `--agent <tool>` or `--editor`.
-
-When `--initiative` is used, OpenSpec prepares or selects a private local workspace view for that initiative. Use the `<store>/<id>` form when the initiative id alone is ambiguous across registered stores.
-
-OpenSpec maintains `<workspace-name>.code-workspace` at the workspace root for VS Code editor and GitHub Copilot-in-VS-Code opens. That file is machine-local workspace view state.
-
-The maintained VS Code workspace lists valid linked repos or folders first, then initiative context when attached, then the OpenSpec workspace files. VS Code displays those entries as a multi-root workspace.
-
-Root workspace open makes linked repos or folders visible for exploration and context. Implementation edits should start only after an explicit user request and a normal OpenSpec implementation workflow.
-
----
-
 ## Stores (standalone OpenSpec repos)
 
 A store is a standalone OpenSpec repo you've registered on this machine — for example a planning repo or a contracts repo. Registering a store lets normal commands (`list`, `show`, `status`, `validate`, `new change`, `archive`, ...) act in it from anywhere by passing `--store <id>`.
@@ -440,54 +259,6 @@ openspec store doctor [id] [--json]
 ```
 
 Doctor is diagnostic-only; it reports missing roots, metadata mismatches, and invalid local registry state without modifying the store.
-
-### `openspec initiative create`
-
-Initiative commands are a legacy beta surface, slated for removal; do not build new workflows on them.
-
-Create an initiative in a store.
-
-```bash
-openspec initiative create <id> --title <title> --summary <summary> [options]
-```
-
-**Options:**
-
-| Option | Description |
-|--------|-------------|
-| `--store <id>` | Store id from the local store registry |
-| `--store-path <path>` | Existing local store root |
-| `--title <title>` | Initiative title |
-| `--summary <summary>` | Initiative summary |
-| `--json` | Output JSON |
-
-### `openspec initiative list`
-
-List initiatives. Without a selector, this searches all registered stores and reports partial-read warnings in `status`.
-
-```bash
-openspec initiative list [options]
-openspec initiative ls [options]
-```
-
-**Options:**
-
-| Option | Description |
-|--------|-------------|
-| `--store <id>` | List one registered store |
-| `--store-path <path>` | List one existing local store root |
-| `--json` | Output JSON |
-
-### `openspec initiative show`
-
-Resolve an initiative and print its canonical location.
-
-```bash
-openspec initiative show <id> [options]
-openspec initiative show <store>/<id> [options]
-```
-
-Without `--store`, OpenSpec searches registered stores. If the same initiative id exists in multiple stores, pass `--store <id>` or use the `<store>/<id>` form.
 
 ---
 
@@ -1175,9 +946,9 @@ openspec config profile core
 - Keep current settings (exit)
 
 If you keep current settings, no changes are written and no update prompt is shown.
-If there are no config changes but the current project or workspace files are out of sync with your global profile/delivery, OpenSpec will show a warning and suggest `openspec update` for repo-local projects or `openspec workspace update` for workspace-local guidance and skills.
+If there are no config changes but the current project files are out of sync with your global profile/delivery, OpenSpec will show a warning and suggest `openspec update`.
 Pressing `Ctrl+C` also cancels the flow cleanly (no stack trace) and exits with code `130`.
-In the workflow checklist, `[x]` means the workflow is selected in global config. To apply those selections to project files, run `openspec update` (or choose `Apply changes to this project now?` when prompted inside a project). From inside a workspace, use `openspec workspace update` to refresh workspace-local guidance and skills; this remains skills-only for generated agent workflow files and does not generate workspace slash commands.
+In the workflow checklist, `[x]` means the workflow is selected in global config. To apply those selections to project files, run `openspec update` (or choose `Apply changes to this project now?` when prompted inside a project).
 
 **Interactive examples:**
 
