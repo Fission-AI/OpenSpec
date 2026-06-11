@@ -15,13 +15,9 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..
 // present, skipped when a checkout does not carry it.
 const SWEEP_ROOTS = ['src', 'test', 'docs', 'scripts', '.codex'];
 
-// Built by concatenation so this file never matches itself.
-const FORBIDDEN_TOKENS = [
-  'context' + '-store',
-  'context' + '_store',
-  'context' + 'store',
-  'context' + ' store',
-];
+// Built by concatenation so this file never matches itself; the optional
+// separator class covers the hyphen, underscore, fused, and spaced forms.
+const FORBIDDEN_PATTERN = new RegExp('context' + '[-_ ]?store', 'i');
 
 const TEXT_EXTENSIONS = new Set([
   '.ts',
@@ -63,14 +59,10 @@ describe('vocabulary sweep', () => {
       for (const filePath of walkFiles(rootPath)) {
         const lines = fs.readFileSync(filePath, 'utf-8').split('\n');
         lines.forEach((line, index) => {
-          const lowered = line.toLowerCase();
-          for (const token of FORBIDDEN_TOKENS) {
-            if (lowered.includes(token)) {
-              offenders.push(
-                `${path.relative(REPO_ROOT, filePath)}:${index + 1}: ${line.trim()}`
-              );
-              break;
-            }
+          if (FORBIDDEN_PATTERN.test(line)) {
+            offenders.push(
+              `${path.relative(REPO_ROOT, filePath)}:${index + 1}: ${line.trim()}`
+            );
           }
         });
       }

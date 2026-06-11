@@ -115,22 +115,24 @@ an item are status steps for that numbered work item.
 - [ ] **Phase 4. Assemble the working context.**
   Not started. Rebuilds opening around assembled context; absorbs old 2.3.
 - [ ] **Phase 5. Remove old surfaces only when they confuse the simple path.**
-  Criteria agreed (delete, sequenced); not started.
+  Criteria agreed (delete, sequenced). First tranche done: the
+  `workspace` and `initiative` command groups are deleted (−12.9k net
+  lines). The remainder runs after 4.1.
 - [ ] **Phase 6. Prove the whole, ready for first users.**
   The final acceptance capstone: persona journeys, usability and technical
   audits, whole-delta review, release-readiness report. Runs last.
 
 Next incomplete item:
 
-- [ ] **5.1 (first tranche): delete the `workspace` and `initiative`
-  command groups.**
-  In plain English: the legacy beta command groups stop existing — 1.4
-  already stopped guidance from advertising them, and the locked 5.1
-  criteria say delete, don't hide. This is the small command-group
-  deletion slice sequenced "soon after 1.4"; the workspace state model
-  and the workspace-planning mode die later when 4.1 replaces opening.
-  Spec written and reviewed
-  (`slices/delete-legacy-command-groups/spec.md`); plan is next.
+- [ ] **3.1 Let a project repo reference the stores its work draws on.**
+  In plain English: high-level requirements live in the team's planning
+  repo (a store); an agent working in the app repo reads them from there
+  and cites them, without the human naming the store every session and
+  without commands being redirected there. The locked Phase 3 decisions
+  apply (index-not-inline; declarations in `openspec/config.yaml`;
+  relationships are location, declaration, or citation). Spec not yet
+  written. (The 5.1 first tranche — the command-group deletion — is
+  implemented and reviewed; the Phase 5 remainder runs after 4.1.)
 
 ## Phase 0. Make The Active Direction Easy To Find
 
@@ -1004,8 +1006,14 @@ Progress:
 - [x] Cleanup plan written (first tranche: the command-group deletion
   slice, `slices/delete-legacy-command-groups/`; spec and plan both
   through two adversarial review rounds).
-- [ ] Cleanup done.
-- [ ] Tests or review checks pass.
+- [ ] Cleanup done. First tranche complete 2026-06-11: the `workspace`
+  and `initiative` command groups and everything only they consumed are
+  deleted (−12,903 net lines), with the deletion ledger committed. The
+  remainder (the fate of `schemas/workspace-planning/`, obsolete beta
+  change folders under `openspec/changes/`, and the L2 accepted-spec
+  decision) runs after 4.1 per the queue.
+- [ ] Tests or review checks pass. First tranche green (85 files, 1616
+  tests; three-mechanism post-implementation review, no open P1/P2).
 - [ ] Merged to `main`.
 
 What the user can do:
@@ -1345,6 +1353,34 @@ is working:
   a deliberate fourth partial edit, and the spec's byte-stable clause
   now allows the new removal-coverage tests. The reworded constraint
   string gets its first-ever pin in the new test.
+- 2026-06-11: Implemented the delete-legacy-command-groups slice (the
+  Phase 5 first tranche) in one commit: the `workspace` and `initiative`
+  command groups, the five orphaned core workspace modules, the whole
+  collections tree, the completions entries, the config command's
+  workspace-profile integration, the update command's workspace
+  detection, and every doc that documented only them — net **−12,903
+  lines** (+324/−13,227), with seven new removal-coverage tests, a
+  sweep pin on the surviving token allowlist, and `deletion-ledger.md`
+  (41 removed diagnostic codes; dead-export carve-outs owned by 4.1).
+  Side benefit: every CLI invocation loads ~25 fewer modules. Three
+  post-implementation review mechanisms found no P1s; all P2/P3 fixes
+  and a simplify pass landed (dead helper deleted, redundant fixtures
+  removed, byte-identity test hardened with directory markers and an
+  asserted update spawn, project-apply accept path regained coverage).
+  Full suite green (85 files, 1616 tests).
+- 2026-06-11: Decided autonomously (review me): ground truth uncovered
+  during the deletion — `actionContext.mode: "workspace-planning"` has
+  been **unreachable from the CLI since slice 1.2**, whose resolver
+  rework routes every supported command through `toPlanningHome`
+  (hardcoded `kind: 'repo'`). The deletion spec's planning-home scenario
+  was corrected to pin the byte-stable `repo-local` CLI behavior plus
+  the library contract (`buildActionContext` unit pin); the template
+  guards stay as text quoting a contract that only the library can
+  still produce, and 4.1 deletes both. Also recorded: the accepted spec
+  library (`openspec/specs/cli-config`, `workspace-*`,
+  `cli-artifact-workflow`) still REQUIREs deleted behavior — that is
+  parked Later Idea L2, surfaced in the deletion ledger as a capstone
+  known-gap.
 - 2026-06-11: Implemented slice 1.4 in four green checkpoints on
   `codex/store-root-parity`: (1) the total mechanical rename — command
   group `context-store` → `store`, 45 diagnostic codes, dotted targets,

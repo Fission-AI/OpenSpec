@@ -99,21 +99,11 @@ describe('legacy command groups are removed', () => {
       path.join(initiativeDir, 'initiative.yaml'),
       'version: 1\nid: billing-launch\ntitle: Billing Launch\n'
     );
-    fs.mkdirSync(path.join(storeRoot, '.openspec-store'), { recursive: true });
-    fs.writeFileSync(
-      path.join(storeRoot, '.openspec-store', 'store.yaml'),
-      'version: 1\nid: team-context\n'
-    );
     await registerStore({ id: 'team-context', localPath: storeRoot, globalDataDir });
 
     // An unrelated store, so `store remove` runs without touching the first.
     const otherRoot = path.join(tempDir, 'other-context');
     createHealthyOpenSpecRoot(otherRoot);
-    fs.mkdirSync(path.join(otherRoot, '.openspec-store'), { recursive: true });
-    fs.writeFileSync(
-      path.join(otherRoot, '.openspec-store', 'store.yaml'),
-      'version: 1\nid: other-context\n'
-    );
     await registerStore({ id: 'other-context', localPath: otherRoot, globalDataDir });
 
     // Leftover workspace view state in a project dir.
