@@ -2028,3 +2028,19 @@ is working:
   `--store`-description tests were added; the dogfood pins
   `openspec init --tools claude --profile core`. Spec updated in the
   same round for docs scope and sweep-root consistency.
+- 2026-06-12: User-directed (owner review of the 4.1 autonomous
+  decisions; full direction in `workset-direction.md`): the 4.1 surface
+  renames `openspec context` → `openspec workset`, anchored on the work
+  item (`workset <change>`; bare form keeps the root union) with
+  change-named `.code-workspace` files as the durable, reopenable views;
+  a launch consumer joins scope because emitted paths do not cross agent
+  sandbox boundaries (the working set must shape the session boundary —
+  workspace file for IDE agents, boundary flags for CLI launch); the
+  3.5 `repo` command group dissolves into a single plumbing command
+  (`openspec map`), with point-of-need prompts and diagnostic fix
+  strings as the primary fill paths and machine tokens kept as shipped;
+  no workspace-style grouping registry returns. Grammar guardrails
+  recorded: noun groups only for closed-set product objects, generic
+  verbs for collections (no per-collection groups, ever), "workspace"
+  permanently retired, lifecycle stays in skills/schemas. To be
+  implemented as a follow-up slice under the standard discipline.
