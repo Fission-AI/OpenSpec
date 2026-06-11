@@ -177,6 +177,31 @@ describe('reference index assembly', () => {
     }
   });
 
+  it('keeps registry-independent checks first under a corrupt registry', async () => {
+    const registryDir = path.join(globalDataDir, 'stores');
+    fs.mkdirSync(registryDir, { recursive: true });
+    fs.writeFileSync(path.join(registryDir, 'registry.yaml'), ':[ not yaml');
+
+    const root = mkdir('self-store');
+    createOpenSpecRoot(root);
+    const entries = await assembleReferenceIndex({
+      references: ['BAD ID', 'self-store'],
+      resolvedRoot: {
+        path: root,
+        source: 'store',
+        storeId: 'self-store',
+        changesDir: path.join(root, 'openspec', 'changes'),
+        defaultSchema: 'spec-driven',
+      } as ResolvedOpenSpecRoot,
+      globalDataDir,
+    });
+
+    // Invalid grammar is invalid regardless of the registry; a
+    // by-id self-reference stays silently omitted.
+    expect(entries).toHaveLength(1);
+    expect(entries[0].status[0].code).toBe('reference_invalid_id');
+  });
+
   it('omits self-references silently, by id and by path', async () => {
     const storeRoot = await registerStore('self-context');
     writeSpec(storeRoot, 'anything', '## Purpose\n\nA spec.\n');
@@ -232,7 +257,15 @@ describe('reference index assembly', () => {
         fix: expect.stringContaining('openspec list --specs --store huge-context'),
       })
     );
-    expect(renderReferencedStoresBlock(entries).length).toBeLessThan(60 * 1024);
+
+    // The budget holds against the real rendering, in bytes; only the
+    // truncation warning's own lines are exempt.
+    const rendered = renderReferencedStoresBlock(entries);
+    const exempt =
+      Buffer.byteLength(`  Note: ${entry.status[0].message}\n  Fix: ${entry.status[0].fix}\n`);
+    expect(Buffer.byteLength(rendered, 'utf-8')).toBeLessThanOrEqual(50 * 1024 + exempt);
+    // The rendered block states the truncation, not just an orphan fix.
+    expect(rendered).toContain('Note: Referenced store \'huge-context\' index truncated');
   });
 
   it('renders the XML block and markdown section consistently', async () => {
@@ -273,5 +306,20 @@ describe('extractFirstPurposeLine', () => {
 
   it('matches the heading case-insensitively at any level', () => {
     expect(extractFirstPurposeLine('### purpose\nIt works.\n')).toBe('It works.');
+  });
+
+  it('ignores headings inside fenced code blocks', () => {
+    expect(
+      extractFirstPurposeLine(
+        '```markdown\n## Purpose\nTemplate text.\n```\n\n## Purpose\n\nReal summary.\n'
+      )
+    ).toBe('Real summary.');
+    expect(
+      extractFirstPurposeLine('```md\n## Purpose\n## Requirements\n```\n\n## Purpose\n\nStill found.\n')
+    ).toBe('Still found.');
+  });
+
+  it('accepts CommonMark closing hashes', () => {
+    expect(extractFirstPurposeLine('## Purpose ##\n\nClosed heading.\n')).toBe('Closed heading.');
   });
 });

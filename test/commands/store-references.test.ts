@@ -126,6 +126,24 @@ describe('store references in instructions (3.1)', () => {
     expect('references' in parseJson(result)).toBe(false);
   });
 
+  it('omits the references field when the only declaration is a self-reference', async () => {
+    // A store whose config copy-pasted its own id: the omitted-not-empty
+    // contract must hold so field presence stays a reliable signal.
+    fs.writeFileSync(
+      path.join(storeRoot, 'openspec', 'config.yaml'),
+      'schema: spec-driven\nreferences:\n  - team-context\n'
+    );
+    await createChange(appRepo, 'self-ref-change', ['--store', 'team-context']);
+
+    const result = await runCLI(
+      ['instructions', 'proposal', '--change', 'self-ref-change', '--store', 'team-context', '--json'],
+      { cwd: appRepo, env }
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect('references' in parseJson(result)).toBe(false);
+  });
+
   it('reads the resolved root config for --store sessions (symmetric declarations)', async () => {
     // The store declares its own upstream reference; the cwd declares a
     // different one. With --store, the index must be the store's.

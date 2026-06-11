@@ -73,20 +73,18 @@ async function loadConfigAndReferences(root: ResolvedOpenSpecRoot): Promise<{
   projectConfig: ProjectConfig | null;
   references: ReferenceIndexEntry[] | undefined;
 }> {
-  let projectConfig: ProjectConfig | null = null;
-  try {
-    projectConfig = readProjectConfig(root.path);
-  } catch {
-    // No config (or unreadable config) means no references either.
-  }
+  // readProjectConfig never throws: missing/unparseable configs are null.
+  const projectConfig = readProjectConfig(root.path);
 
   const declared = projectConfig?.references ?? [];
-  const references =
+  const index =
     declared.length > 0
       ? await assembleReferenceIndex({ references: declared, resolvedRoot: root })
-      : undefined;
+      : [];
 
-  return { projectConfig, references };
+  // Omitted, not empty: an index emptied by self-reference omission must
+  // look identical to an undeclared one in JSON.
+  return { projectConfig, references: index.length > 0 ? index : undefined };
 }
 
 export async function instructionsCommand(
@@ -321,13 +319,20 @@ function parseTasksFile(content: string): TaskItem[] {
  * Schema-aware: reads apply phase configuration from schema to determine
  * required artifacts, tracking file, and instruction.
  */
+export interface GenerateApplyInstructionsOptions {
+  planningHome?: PlanningHome;
+  references?: ReferenceIndexEntry[];
+}
+
 export async function generateApplyInstructions(
   projectRoot: string,
   changeName: string,
   schemaName?: string,
-  planningHome: PlanningHome = resolveCurrentPlanningHomeSync({ startPath: projectRoot }),
-  references?: ReferenceIndexEntry[]
+  options: GenerateApplyInstructionsOptions = {}
 ): Promise<ApplyInstructions> {
+  const planningHome =
+    options.planningHome ?? resolveCurrentPlanningHomeSync({ startPath: projectRoot });
+  const references = options.references;
   // loadChangeContext will auto-detect schema from metadata if not provided
   const context = loadChangeContext(projectRoot, changeName, schemaName, {
     changeDir: getChangeDir(planningHome, changeName),
@@ -450,13 +455,10 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
 
     // generateApplyInstructions uses loadChangeContext which auto-detects schema
     const { references } = await loadConfigAndReferences(root);
-    const instructions = await generateApplyInstructions(
-      projectRoot,
-      changeName,
-      options.schema,
+    const instructions = await generateApplyInstructions(projectRoot, changeName, options.schema, {
       planningHome,
-      references
-    );
+      references,
+    });
 
     spinner?.stop();
 

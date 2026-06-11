@@ -179,7 +179,7 @@ async function resolveStoreRoot(
 
   switch (inspection.kind) {
     case 'metadata_error':
-      fromStoreError(inspection.error);
+      return fromStoreError(inspection.error);
     case 'metadata_missing':
       // The doctor pointer lives in the message because human-mode command
       // wrappers print only the message, not the fix field.
@@ -202,6 +202,12 @@ async function resolveStoreRoot(
       );
     case 'ok':
       return makeRoot(inspection.canonicalRoot, 'store', id);
+    default: {
+      // Exhaustiveness guard: a new inspection kind must be handled
+      // here explicitly, not fall through to an undefined root.
+      const unhandled: never = inspection;
+      throw new Error(`Unhandled store inspection kind: ${JSON.stringify(unhandled)}`);
+    }
   }
 }
 

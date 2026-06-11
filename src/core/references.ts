@@ -36,16 +36,14 @@ export interface ReferenceIndexEntry {
 }
 
 /**
- * Shares the spirit of the 50KB project-context cap: the rendered index
- * is prompt material. Measured against the larger (XML) rendering.
+ * Shares the 50KB project-context cap: the rendered index is prompt
+ * material. Measured in UTF-8 bytes against the XML rendering (the
+ * larger of the two), entries and diagnostics included; only the
+ * truncation warning itself is exempt (no oscillation).
  */
 const MAX_RENDERED_INDEX_SIZE = 50 * 1024;
 
-function warning(
-  code: string,
-  message: string,
-  fix: string
-): StoreDiagnostic {
+function warning(code: string, message: string, fix: string): StoreDiagnostic {
   return makeStoreDiagnostic('warning', code, message, { target: 'references', fix });
 }
 
@@ -56,19 +54,31 @@ function registerFix(id: string): string {
 /**
  * Tolerant first-Purpose-line extraction. parseSpec() throws on specs
  * without Purpose/Requirements sections; the index must never fail on an
- * imperfect upstream spec, so this scans for the heading directly.
+ * imperfect upstream spec, so this scans for the heading directly —
+ * fence-aware, so `## Purpose` inside a code block never matches, and
+ * tolerant of CommonMark closing hashes (`## Purpose ##`).
  */
 export function extractFirstPurposeLine(markdown: string): string {
   const lines = markdown.split('\n');
   let inPurpose = false;
+  let inFence = false;
 
   for (const line of lines) {
+    if (/^\s*(```|~~~)/.test(line)) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence) {
+      continue;
+    }
+
     const heading = line.match(/^(#{1,6})\s+(.*)$/);
     if (heading) {
       if (inPurpose) {
         return '';
       }
-      inPurpose = heading[2].trim().toLowerCase() === 'purpose';
+      const title = heading[2].replace(/\s+#+\s*$/, '').trim();
+      inPurpose = title.toLowerCase() === 'purpose';
       continue;
     }
     if (inPurpose && line.trim().length > 0) {
@@ -81,23 +91,22 @@ export function extractFirstPurposeLine(markdown: string): string {
 
 async function collectSpecEntries(referencedRoot: string): Promise<ReferenceSpecEntry[]> {
   const specIds = await getSpecIds(referencedRoot);
-  const entries: ReferenceSpecEntry[] = [];
 
-  for (const specId of specIds) {
-    let summary = '';
-    try {
-      const content = await fs.readFile(
-        path.join(referencedRoot, 'openspec', 'specs', specId, 'spec.md'),
-        'utf-8'
-      );
-      summary = extractFirstPurposeLine(content);
-    } catch {
-      // Unreadable spec file: index the id with an empty summary.
-    }
-    entries.push({ id: specId, summary });
-  }
-
-  return entries;
+  return Promise.all(
+    specIds.map(async (specId) => {
+      let summary = '';
+      try {
+        const content = await fs.readFile(
+          path.join(referencedRoot, 'openspec', 'specs', specId, 'spec.md'),
+          'utf-8'
+        );
+        summary = extractFirstPurposeLine(content);
+      } catch {
+        // Unreadable spec file: index the id with an empty summary.
+      }
+      return { id: specId, summary };
+    })
+  );
 }
 
 function fetchRecipe(storeId: string): string {
@@ -153,18 +162,28 @@ function renderEntryLines(entry: ReferenceIndexEntry): string[] {
     if (entry.fetch) {
       lines.push(`  Fetch: ${entry.fetch}`);
     }
+    // Diagnostics on a resolved entry (e.g. truncation) render message
+    // AND fix — an orphan fix line would hide that the list is partial.
+    for (const diagnostic of entry.status) {
+      lines.push(`  Note: ${diagnostic.message}`);
+      if (diagnostic.fix) {
+        lines.push(`  Fix: ${diagnostic.fix}`);
+      }
+    }
   } else {
-    const problem = entry.status[0];
-    lines.push(`Store ${entry.store_id}: ${problem?.message ?? 'unavailable.'}`);
-  }
-
-  for (const diagnostic of entry.status) {
-    if (diagnostic.fix) {
-      lines.push(`  Fix: ${diagnostic.fix}`);
+    for (const diagnostic of entry.status) {
+      lines.push(`Store ${entry.store_id}: ${diagnostic.message}`);
+      if (diagnostic.fix) {
+        lines.push(`  Fix: ${diagnostic.fix}`);
+      }
     }
   }
 
   return lines;
+}
+
+function renderedByteSize(entries: ReferenceIndexEntry[]): number {
+  return Buffer.byteLength(renderReferencedStoresBlock(entries), 'utf-8');
 }
 
 export interface AssembleReferenceIndexInput {
@@ -199,23 +218,11 @@ export async function assembleReferenceIndex(
 
   const resolvedRootPath = canonicalize(input.resolvedRoot.path);
   const entries: ReferenceIndexEntry[] = [];
-  let renderedSize = renderReferencedStoresBlock([]).length;
 
   for (const id of ids) {
-    if (registryUnreadable) {
-      entries.push({
-        store_id: id,
-        status: [
-          warning(
-            'reference_registry_unreadable',
-            `Referenced store '${id}' cannot be checked: the store registry is unreadable.`,
-            'Run: openspec store doctor'
-          ),
-        ],
-      });
-      continue;
-    }
-
+    // Registry-independent checks come first: an invalid id is an
+    // invalid id (and a self-reference is omittable) even when the
+    // registry is corrupt.
     if (!isValidStoreId(id)) {
       entries.push({
         store_id: id,
@@ -234,6 +241,20 @@ export async function assembleReferenceIndex(
       continue; // Self-reference: meaningless, silently omitted.
     }
 
+    if (registryUnreadable) {
+      entries.push({
+        store_id: id,
+        status: [
+          warning(
+            'reference_registry_unreadable',
+            `Referenced store '${id}' cannot be checked: the store registry is unreadable.`,
+            'Run: openspec store doctor'
+          ),
+        ],
+      });
+      continue;
+    }
+
     const registryEntry = registryEntries?.find((candidate) => candidate.id === id);
     if (!registryEntry) {
       entries.push({
@@ -249,8 +270,13 @@ export async function assembleReferenceIndex(
       continue;
     }
 
-    const storeRoot = getStoreRootForBackend(registryEntry.backend);
-    const inspection = await inspectRegisteredStore(id, storeRoot);
+    let inspection;
+    try {
+      const storeRoot = getStoreRootForBackend(registryEntry.backend);
+      inspection = await inspectRegisteredStore(id, storeRoot);
+    } catch (error) {
+      inspection = { kind: 'inspection_error' as const, error };
+    }
 
     if (inspection.kind !== 'ok') {
       entries.push({
@@ -279,46 +305,34 @@ export async function assembleReferenceIndex(
       status: [],
     };
 
-    // Budget: stop appending spec lines once the next one would exceed
-    // the cap; the truncation warning itself is exempt (no oscillation).
-    const baseSize = renderedSize + renderEntryBaseSize(entry);
-    let size = baseSize;
-    const kept: ReferenceSpecEntry[] = [];
-    let truncated = false;
-    for (const spec of specs) {
-      const lineSize = specLine(spec).length + 1;
-      if (size + lineSize > MAX_RENDERED_INDEX_SIZE) {
-        truncated = true;
-        break;
+    // Budget the real rendering: keep the longest spec-list prefix whose
+    // full rendered index stays under the cap. The truncation warning
+    // itself is exempt (added after the size decision — no oscillation).
+    entries.push(entry);
+    if (renderedByteSize(entries) > MAX_RENDERED_INDEX_SIZE) {
+      let low = 0;
+      let high = specs.length;
+      while (low < high) {
+        const mid = Math.ceil((low + high) / 2);
+        entry.specs = specs.slice(0, mid);
+        if (renderedByteSize(entries) > MAX_RENDERED_INDEX_SIZE) {
+          high = mid - 1;
+        } else {
+          low = mid;
+        }
       }
-      kept.push(spec);
-      size += lineSize;
-    }
-
-    if (truncated) {
-      entry.specs = kept;
+      entry.specs = specs.slice(0, low);
       entry.status.push(
         warning(
           'reference_index_truncated',
-          `Referenced store '${id}' index truncated at the 50KB budget (${kept.length} of ${specs.length} specs listed).`,
+          `Referenced store '${id}' index truncated at the 50KB budget (${low} of ${specs.length} specs listed).`,
           `List the rest directly: openspec list --specs --store ${id}`
         )
       );
     }
-
-    renderedSize = size;
-    entries.push(entry);
   }
 
   return entries;
-}
-
-function renderEntryBaseSize(entry: ReferenceIndexEntry): number {
-  return (
-    `Store ${entry.store_id} (${entry.root}):`.length +
-    (entry.fetch ? `  Fetch: ${entry.fetch}`.length : 0) +
-    2
-  );
 }
 
 function canonicalize(candidate: string): string {
