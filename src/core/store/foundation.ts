@@ -270,6 +270,18 @@ export function parseStoreRegistryState(content: string): StoreRegistryState {
   assertValidStoreIds(Object.keys(result.data.stores), 'store id');
   if (result.data.repos) {
     assertValidStoreIds(Object.keys(result.data.repos), 'repo id');
+    // Cross-section uniqueness holds at parse time too: a hand-edited
+    // registry with one id in both sections must fail clearly, not
+    // resolve ambiguously.
+    const overlap = Object.keys(result.data.repos).filter(
+      (id) => result.data.stores[id] !== undefined
+    );
+    if (overlap.length > 0) {
+      throw invalidStoreStateError(
+        'store registry state',
+        `ids registered in both sections: ${overlap.join(', ')} (store and repo ids share one namespace)`
+      );
+    }
   }
 
   return {

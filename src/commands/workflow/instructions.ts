@@ -95,17 +95,19 @@ async function loadRootConfigContext(root: ResolvedOpenSpecRoot): Promise<{
     resolveConfigFilePath(root.path) ?? path.join(root.path, 'openspec', 'config.yaml');
 
   // One additional registry read builds the local repo map for targets
-  // path enrichment; a corrupt registry yields all-bare entries (3.6
-  // owns surfacing that).
+  // path enrichment. Unconditional: change-level narrowing can declare
+  // targets the store config does not, and this read is the only one
+  // that can serve both surfaces. A corrupt registry yields all-bare
+  // entries (3.6 owns surfacing that).
   let repoPaths: Map<string, string> | undefined;
-  if (projectConfig?.targets?.length) {
-    try {
-      const registry = await readStoreRegistryState();
-      const entries = listRepoEntries(registry);
-      repoPaths = new Map(entries.map((entry) => [entry.id, entry.path]));
-    } catch {
-      repoPaths = undefined;
-    }
+  try {
+    const registry = await readStoreRegistryState();
+    const entries = listRepoEntries(registry);
+    repoPaths = entries.length > 0
+      ? new Map(entries.map((entry) => [entry.id, entry.path]))
+      : undefined;
+  } catch {
+    repoPaths = undefined;
   }
 
   const declared = projectConfig?.references ?? [];

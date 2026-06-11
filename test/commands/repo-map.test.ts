@@ -178,6 +178,7 @@ describe('repo map commands and surfaces (3.5)', () => {
       const status = parseJson(flagged).status[0];
       expect(status.code).toBe('store_id_is_repo');
       expect(status.message).toContain(repoDir);
+      expect(status.message).toContain('cd into the repo');
       expect(status.fix).toContain('team-context');
 
       // Positive control: the mixed registry still resolves stores.
@@ -286,6 +287,34 @@ describe('repo map commands and surfaces (3.5)', () => {
       expect(human.stdout).toContain(
         `  - web-app → ${webDir} (clone: https://192.0.2.1/web.git)`
       );
+    });
+
+    it('enriches change-only targets when the store declares none', async () => {
+      const storeRoot = await makeStore('plain-context');
+      const created = await runCLI(
+        ['new', 'change', 'change-only', '--json', '--store', 'plain-context'],
+        { cwd: tempDir, env }
+      );
+      expect(created.exitCode).toBe(0);
+
+      const apiDir = mkdir('src/api-server');
+      await runCLI(['repo', 'register', apiDir, '--json'], { cwd: tempDir, env });
+
+      const metadataPath = path.join(
+        storeRoot, 'openspec', 'changes', 'change-only', '.openspec.yaml'
+      );
+      fs.writeFileSync(
+        metadataPath,
+        fs.readFileSync(metadataPath, 'utf-8') + 'targets:\n  - api-server\n'
+      );
+
+      const result = await runCLI(
+        ['instructions', 'proposal', '--change', 'change-only', '--store', 'plain-context', '--json'],
+        { cwd: tempDir, env }
+      );
+      const targets = JSON.parse(result.stdout).targets;
+      expect(targets.source).toBe('change');
+      expect(targets.repos[0]).toEqual({ id: 'api-server', path: apiDir });
     });
 
     it('stays byte-identical with no repos mapped', async () => {

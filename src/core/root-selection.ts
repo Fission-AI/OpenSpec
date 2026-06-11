@@ -160,8 +160,10 @@ async function resolveStoreRoot(
     // make that an error loop).
     const repoPath = registry?.repos?.[id]?.local_path;
     if (repoPath !== undefined) {
+      // The action lives in the message because human-mode command
+      // wrappers print only the message, not the fix field.
       throw new RootSelectionError(
-        `Id '${id}' names a target repo (${repoPath}), not a store. Stores hold OpenSpec work; target repos are mapped code checkouts.`,
+        `Id '${id}' names a target repo (${repoPath}), not a store. Stores hold OpenSpec work; target repos are mapped code checkouts. Pass a store id instead, or cd into the repo to work there.`,
         'store_id_is_repo',
         {
           target: 'store.id',

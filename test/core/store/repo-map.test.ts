@@ -62,6 +62,14 @@ describe('repo map (3.5)', () => {
       expect(serializeStoreRegistryState(parsed)).toBe(withRepos);
     });
 
+    it('rejects a hand-edited registry with one id in both sections', () => {
+      expect(() =>
+        parseStoreRegistryState(
+          'version: 1\nstores:\n  api:\n    backend:\n      type: git\n      local_path: /a\nrepos:\n  api:\n    local_path: /b\n'
+        )
+      ).toThrow(/both sections/);
+    });
+
     it('rejects unknown keys and invalid repo ids', () => {
       expect(() => parseStoreRegistryState('version: 1\nstores: {}\nextra: true\n')).toThrow();
       expect(() =>
@@ -148,6 +156,37 @@ describe('repo map (3.5)', () => {
       await expect(
         registerRepo({ id: 'second-id', path: repoDir, globalDataDir })
       ).rejects.toMatchObject({ diagnostic: { code: 'repo_path_conflict' } });
+    });
+
+    it('the library API enforces its own invariants (typed input errors)', async () => {
+      await expect(
+        registerRepo({ id: 'Bad_Id', path: tempDir, globalDataDir })
+      ).rejects.toMatchObject({ diagnostic: { code: 'invalid_repo_id' } });
+      await expect(
+        registerRepo({ id: 'fine-id', path: path.join(tempDir, 'nope'), globalDataDir })
+      ).rejects.toMatchObject({ diagnostic: { code: 'repo_path_missing' } });
+      const filePath = path.join(tempDir, 'file.txt');
+      fs.writeFileSync(filePath, 'x');
+      await expect(
+        registerRepo({ id: 'fine-id', path: filePath, globalDataDir })
+      ).rejects.toMatchObject({ diagnostic: { code: 'repo_path_not_directory' } });
+      await expect(unregisterRepo('Bad_Id', { globalDataDir })).rejects.toMatchObject({
+        diagnostic: { code: 'invalid_repo_id' },
+      });
+    });
+
+    it('no-op reruns never rewrite the registry file', async () => {
+      const repoDir = mkdir('src/api-server');
+      await registerRepo({ id: 'api-server', path: repoDir, globalDataDir });
+      const registryPath = path.join(globalDataDir, 'stores', 'registry.yaml');
+      const before = fs.statSync(registryPath).mtimeMs;
+      const content = fs.readFileSync(registryPath, 'utf-8');
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      const rerun = await registerRepo({ id: 'api-server', path: repoDir, globalDataDir });
+      expect(rerun.alreadyRegistered).toBe(true);
+      expect(fs.statSync(registryPath).mtimeMs).toBe(before);
+      expect(fs.readFileSync(registryPath, 'utf-8')).toBe(content);
     });
 
     it('unregister of an unknown repo fails repo_not_found', async () => {

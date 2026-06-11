@@ -310,6 +310,16 @@ A change that only concerns some of them can narrow the set in its own `.openspe
 
 Targets are declarations, not machinery: they never affect where commands act, nothing clones or syncs, and an unrecognized narrowed id degrades to a warning with a fix rather than failing.
 
+### Declaring a default store
+
+A repo whose planning is fully externalized — no local `openspec/specs/` or `openspec/changes/` — can declare its store once instead of passing `--store` on every command:
+
+```yaml
+# openspec/config.yaml (the only file under openspec/)
+store: team-context
+```
+
+Normal commands then resolve to the declared store automatically; the root banner and JSON `root` block report `source: "declared"` with the store id, and printed hints still carry `--store <id>`. The declaration is a fallback, never an override: explicit `--store` always wins, and a directory with real planning folders ignores the pointer (with a warning). To convert a pointer repo into a local OpenSpec root, remove the `store:` line and run `openspec init` — init refuses to scaffold while the declaration is present.
 ## Repo map (local checkout paths)
 
 Shared work names target repos by id; each developer maps those ids to local checkouts once. The map is local machine settings — never shared planning state, never committed:
@@ -322,18 +332,6 @@ openspec repo unregister api-server            # forgets the mapping; never touc
 ```
 
 Once mapped, `openspec instructions` shows where each target lives on this machine (`- api-server → /Users/dev/src/api-server`). Store and repo ids share one namespace: registering either kind under an id (or path) the other holds fails with a typed conflict, and `--store <repo-id>` rejects with a hint instead of a generic unknown-store error.
-
-
-### Declaring a default store
-
-A repo whose planning is fully externalized — no local `openspec/specs/` or `openspec/changes/` — can declare its store once instead of passing `--store` on every command:
-
-```yaml
-# openspec/config.yaml (the only file under openspec/)
-store: team-context
-```
-
-Normal commands then resolve to the declared store automatically; the root banner and JSON `root` block report `source: "declared"` with the store id, and printed hints still carry `--store <id>`. The declaration is a fallback, never an override: explicit `--store` always wins, and a directory with real planning folders ignores the pointer (with a warning). To convert a pointer repo into a local OpenSpec root, remove the `store:` line and run `openspec init` — init refuses to scaffold while the declaration is present.
 
 ---
 

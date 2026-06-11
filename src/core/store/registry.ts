@@ -17,7 +17,10 @@ import {
   type StoreRegistryState,
 } from './foundation.js';
 import { StoreError } from './errors.js';
+import * as fsSync from 'node:fs';
+import * as path from 'node:path';
 import { FileSystemUtils } from '../../utils/file-system.js';
+import { isKebabId } from '../id.js';
 
 export interface RegisterStoreInput extends StorePathOptions {
   id: string;
@@ -466,16 +469,67 @@ export async function getRepoPath(
   }
 }
 
+function validateRepoIdOrThrow(id: string): string {
+  if (!isKebabId(id)) {
+    throw new StoreError(
+      `Repo id '${id}' must be kebab-case with lowercase letters, numbers, and single hyphen separators.`,
+      'invalid_repo_id',
+      {
+        target: 'repo.id',
+        fix: 'Use kebab-case with lowercase letters, numbers, and single hyphen separators.',
+      }
+    );
+  }
+  return id;
+}
+
+function assertRepoPathIsDirectory(candidate: string): void {
+  let stat;
+  try {
+    stat = fsSync.statSync(candidate);
+  } catch {
+    throw new StoreError(`Repo path does not exist: ${candidate}`, 'repo_path_missing', {
+      target: 'repo.root',
+      fix: 'Pass the path of an existing checkout.',
+    });
+  }
+  if (!stat.isDirectory()) {
+    throw new StoreError(`Repo path is not a directory: ${candidate}`, 'repo_path_not_directory', {
+      target: 'repo.root',
+      fix: 'Pass an existing checkout directory.',
+    });
+  }
+}
+
 export async function registerRepo(input: RegisterRepoInput): Promise<RegisterRepoResult> {
+  // The library API enforces its own invariants: a 4.1 caller must get
+  // typed input errors, not serialize-time registry-corruption noise.
+  // Path first: pointing at a missing path or a file is the more
+  // fundamental mistake than an (often folder-derived) id.
+  assertRepoPathIsDirectory(path.resolve(input.path));
+  validateRepoIdOrThrow(input.id);
   const canonicalPath = FileSystemUtils.canonicalizeExistingPath(input.path);
   const options = input.globalDataDir ? { globalDataDir: input.globalDataDir } : {};
 
+  // No-op reruns never take the write lock (the store-side
+  // commitStoreRegistration contract); the updater re-checks under the
+  // lock for the race.
+  const current = await readStoreRegistryState(options).catch(() => null);
+  const existing = current?.repos?.[input.id];
+  if (
+    existing &&
+    normalizePathForComparison(existing.local_path) ===
+      normalizePathForComparison(canonicalPath)
+  ) {
+    return { id: input.id, path: existing.local_path, registered: false, alreadyRegistered: true };
+  }
+
   let alreadyRegistered = false;
   await updateStoreRegistryState((registry) => {
-    const existing = registry?.repos?.[input.id];
+    const raceExisting = registry?.repos?.[input.id];
     if (
-      existing &&
-      normalizePathForComparison(existing.local_path) ===
+      raceExisting &&
+      normalizePathForComparison(raceExisting.local_path) ===
         normalizePathForComparison(canonicalPath)
     ) {
       alreadyRegistered = true;
@@ -509,6 +563,7 @@ export async function unregisterRepo(
   id: string,
   options: { globalDataDir?: string } = {}
 ): Promise<RepoMapEntry> {
+  validateRepoIdOrThrow(id);
   let removed: RepoMapEntry | null = null;
   await updateStoreRegistryState((registry) => {
     const entry = registry?.repos?.[id];

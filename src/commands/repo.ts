@@ -3,12 +3,10 @@
  * checkout paths. Local machine settings, never shared planning state.
  * Mapping a repo never clones, syncs, or enforces edit boundaries.
  */
-import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Command } from 'commander';
 
 import {
-  getRepoPath,
   listRepoEntries,
   registerRepo,
   unregisterRepo,
@@ -18,7 +16,6 @@ import {
   readStoreRegistryState,
 } from '../core/store/foundation.js';
 import { StoreError, type StoreDiagnostic } from '../core/store/errors.js';
-import { isKebabId } from '../core/id.js';
 import { COMMAND_REGISTRY } from '../core/completions/command-registry.js';
 
 interface RepoOutput {
@@ -26,13 +23,21 @@ interface RepoOutput {
   path: string;
 }
 
-interface RepoMutationOutput {
+interface RepoRegisterOutput {
   repo: RepoOutput | null;
   registry: {
     path: string;
-    registered?: boolean;
-    already_registered?: boolean;
-    removed?: boolean;
+    registered: boolean;
+    already_registered: boolean;
+  } | null;
+  status: StoreDiagnostic[];
+}
+
+interface RepoUnregisterOutput {
+  repo: RepoOutput | null;
+  registry: {
+    path: string;
+    removed: boolean;
   } | null;
   status: StoreDiagnostic[];
 }
@@ -71,22 +76,6 @@ function handleFailure(json: boolean | undefined, payload: object, error: unknow
   process.exitCode = 1;
 }
 
-function validateRepoId(id: string, fromDefault: boolean): string {
-  if (!isKebabId(id)) {
-    throw new StoreError(
-      `Repo id '${id}' must be kebab-case with lowercase letters, numbers, and single hyphen separators.`,
-      'invalid_repo_id',
-      {
-        target: 'repo.id',
-        fix: fromDefault
-          ? 'Pass --id <kebab-case-id> to choose an id different from the folder name.'
-          : 'Use kebab-case with lowercase letters, numbers, and single hyphen separators.',
-      }
-    );
-  }
-  return id;
-}
-
 interface RepoRegisterOptions {
   id?: string;
   json?: boolean;
@@ -96,27 +85,27 @@ class RepoCommand {
   async register(inputPath: string, options: RepoRegisterOptions = {}): Promise<void> {
     try {
       const resolvedPath = path.resolve(inputPath);
-      if (!fs.existsSync(resolvedPath)) {
-        throw new StoreError(`Repo path does not exist: ${resolvedPath}`, 'repo_path_missing', {
-          target: 'repo.root',
-          fix: 'Pass the path of an existing checkout.',
-        });
-      }
-      if (!fs.statSync(resolvedPath).isDirectory()) {
-        throw new StoreError(
-          `Repo path is not a directory: ${resolvedPath}`,
-          'repo_path_not_directory',
-          { target: 'repo.root', fix: 'Pass an existing checkout directory.' }
-        );
+      const id = options.id ?? path.basename(resolvedPath);
+      let result;
+      try {
+        result = await registerRepo({ id, path: resolvedPath });
+      } catch (error) {
+        // The user didn't choose a default folder-name id: when that is
+        // what failed grammar, the fix names --id.
+        if (
+          options.id === undefined &&
+          error instanceof StoreError &&
+          error.diagnostic.code === 'invalid_repo_id'
+        ) {
+          throw new StoreError(error.message, 'invalid_repo_id', {
+            target: 'repo.id',
+            fix: 'Pass --id <kebab-case-id> to choose an id different from the folder name.',
+          });
+        }
+        throw error;
       }
 
-      const id = validateRepoId(
-        options.id ?? path.basename(resolvedPath),
-        options.id === undefined
-      );
-      const result = await registerRepo({ id, path: resolvedPath });
-
-      const payload: RepoMutationOutput = {
+      const payload: RepoRegisterOutput = {
         repo: { id: result.id, path: result.path },
         registry: {
           path: getStoreRegistryPath(),
@@ -139,13 +128,10 @@ class RepoCommand {
 
   async unregister(id: string, options: { json?: boolean } = {}): Promise<void> {
     try {
-      // getRepoPath is the id-level accessor (4.1's entry point too);
-      // unregisterRepo re-validates under the registry lock.
-      const knownPath = await getRepoPath(id);
       const removed = await unregisterRepo(id);
 
-      const payload: RepoMutationOutput = {
-        repo: { id: removed.id, path: knownPath ?? removed.path },
+      const payload: RepoUnregisterOutput = {
+        repo: { id: removed.id, path: removed.path },
         registry: { path: getStoreRegistryPath(), removed: true },
         status: [],
       };
