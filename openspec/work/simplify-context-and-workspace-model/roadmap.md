@@ -114,7 +114,10 @@ an item are status steps for that numbered work item.
   map, and the `openspec doctor` relationship-health roll-up are all
   implemented and tested on the working branch.
 - [ ] **Phase 4. Assemble the working context.**
-  Not started. Rebuilds opening around assembled context; absorbs old 2.3.
+  4.1 is implemented and tested (`openspec context`, the workspace
+  opening machinery deleted; absorbed old 2.3). 4.2 (personal worksets:
+  compose, keep, and open a local working view) is specified at the FR
+  level and awaits its research/spec/implementation run.
 - [ ] **Phase 5. Remove old surfaces only when they confuse the simple path.**
   Criteria agreed (delete, sequenced). First tranche done: the
   `workspace` and `initiative` command groups are deleted (−12.9k net
@@ -125,17 +128,17 @@ an item are status steps for that numbered work item.
 
 Next incomplete item:
 
-- [ ] **6.1 Final acceptance capstone.**
-  In plain English: prove the whole is ready for first users — the
-  four persona journeys run cold, the usability audits (error catalog,
-  vocabulary sweep incl. docs, time-to-first-success), the technical
-  audits (single-resolver invariant, dependency direction, dead code
-  incl. every recorded carve-over, module sizes, agent-contract
-  inventory, net LOC delta), the whole-delta review gauntlet over
-  `origin/main...HEAD`, and the release-readiness report committed
-  with no open P1/P2 findings. Everything else in the queue is done
-  (1.4, the deletion slice + remainder, 3.1–3.6, 4.1 — all ticked
-  through Tests pass; merge to `main` deferred throughout).
+- [ ] **4.2 Personal worksets.**
+  In plain English: let a user compose a personal, local working view
+  (a planning root plus whatever folders they choose), keep it under a
+  name on their machine, and reopen it in their tool of choice — VS
+  Code/Cursor as a multi-folder window, Claude Code/codex as a session
+  with every member accessible. Functional requirements and locked
+  decisions are in the 4.2 section; the slice starts with a research
+  pass (storage shape, opener config, launch mechanics — old code at
+  `f858c19^` is the evidence base). The original 2026-06-11 queue
+  (1.4, the deletion slices, 3.1–3.6, 4.1, the 6.1 capstone) is
+  complete through Tests pass; merge to `main` stays deferred.
 
 ## Phase 0. Make The Active Direction Easy To Find
 
@@ -1038,6 +1041,73 @@ about what this user likes open together. Declarations/targets may later
 *suggest* members during composition; they are not load-bearing. The
 repo map and `openspec context` remain unchanged and independent.
 
+Progress:
+
+- [ ] Research done and spec written.
+- [ ] Plan written.
+- [ ] Implementation done.
+- [ ] Tests pass.
+- [ ] Merged to `main`.
+
+What the user can do:
+
+- Group the folders they work on together — a store checkout plus some
+  repos — under a name, in one short guided flow, with nothing to set
+  up beforehand.
+- Reopen that grouping any time, by name, in their preferred tool, or
+  a different tool for a single open.
+- List and remove their saved views; nothing they do here touches any
+  member folder or any shared state.
+
+Why it matters:
+
+- Multi-root work has a daily "get everything open again" cost; this
+  removes it without reintroducing managed workspace state.
+- Agent sessions launched from a workset get real access to every
+  member (attach flags / sandbox roots), which a printed brief alone
+  cannot grant.
+
+What changes in commands or files:
+
+- A new `workset` command group (compose/list/open/remove shapes to be
+  settled in spec) and a machine-local saved-views file in the global
+  data dir, following the registry's lock/atomic-write idiom.
+- An opener table (built-ins: `code`, `cursor`, `claude`, `codex`)
+  with user-extensible local config per the two-style pattern in FR2.
+- No changes to `openspec context`, the repo map, project config
+  parsing, or any committed file format.
+
+How the user or agent knows it worked:
+
+- A first-time user composes and opens a view in under a minute, and
+  the same name reopens it tomorrow.
+- An agent opened from a workset can read and edit every member folder
+  without asking where things are.
+- Deleting all workset state loses nothing the user cannot recompose
+  in a minute; no member folder ever contains workset residue.
+
+Decisions locked (2026-06-12, owner-directed):
+
+- Local-only, manual composition; never committed, shared, or derived.
+- **No starter prompt on agent opens** — reusing a grouping implies
+  nothing about intent; sessions open clean with directories attached.
+- Tools-as-config via exactly two launch styles (`workspace-file`,
+  `attach-dirs`); no per-tool code paths.
+- No `--print`/dry-run mode; fallback info lives in the failure path.
+- Desktop apps unsupported until they expose a real launch interface.
+- The retired noun "workspace" stays retired; the feature noun is
+  "workset".
+
+Research needed before the spec (the slice's first checkpoint):
+
+- Saved-views file shape and exact location; name validation rules.
+- Opener config: file location, schema, override/merge semantics with
+  built-ins; verify the `cursor` CLI shim's `.code-workspace` handling.
+- Terminal-handoff details for agent opens (signal handling, exit-code
+  propagation, `--json` interplay) — crib from `f858c19^` mechanics:
+  cross-spawn, stdio inherit, shell false, PATH/PATHEXT availability.
+- Compose-flow prompt design against the house `@inquirer` idiom.
+
 Functional requirements (user perspective):
 
 **FR1 — Compose and keep a personal working view.**
@@ -1083,10 +1153,11 @@ Scenario: Removing a view is safe
 3. Supporting a new tool is configuration, not code. Every tool is an
    instance of one of two launch styles — `workspace-file` (invoke
    with the generated `.code-workspace`) or `attach-dirs` (executable
-   + optional pre-args + one attach flag per member + optional starter
-   prompt) — and users can add tools or adjust parameters (command,
-   attach flag) in local config, so a tool renaming its flag is a
-   one-line local fix. (The git difftool/mergetool pattern.)
+   + optional pre-args + one attach flag per member; no prompt is
+   passed — agent sessions open clean) — and users can add tools or
+   adjust parameters (command, attach flag) in local config, so a tool
+   renaming its flag is a one-line local fix. (The git
+   difftool/mergetool pattern.)
 4. When a tool cannot be driven (desktop apps, for now) or a launch
    fails, the user is shown the generated workspace file and the
    member folders so they can open manually — never a bare error.
@@ -1105,7 +1176,8 @@ Scenario: Editor open returns, agent open takes over
   Then a window opens with all members and the prompt returns
   When the user opens "platform" in Claude Code
   Then a Claude session starts in this terminal with every member
-       granted as a working directory, and ends when they exit it
+       granted as a working directory, no prompt pre-filled, and ends
+       when they exit it
 
 Scenario: Adding a new editor without a release
   Given the user adds `zed: { style: workspace-file }` to local config
@@ -2154,3 +2226,13 @@ is working:
   verbs for collections (no per-collection groups, ever), "workspace"
   permanently retired, lifecycle stays in skills/schemas. To be
   implemented as a follow-up slice under the standard discipline.
+- 2026-06-12: Continued owner design review replaced the change-anchored
+  workset direction with roadmap item 4.2, personal worksets: a purely
+  local, manually composed, named working view, opened via a two-style
+  extensible opener table (`workspace-file` / `attach-dirs`); FR1
+  (compose and keep) and FR2 (open in your tool) recorded with locked
+  decisions — no starter prompt on agent opens, no `--print` mode,
+  desktop apps deferred, "workspace" stays retired. The 4.2 section
+  carries the research checklist; the runbook gained the 4.2 follow-up
+  run invocation. `openspec context` and the repo map are explicitly
+  untouched by 4.2.

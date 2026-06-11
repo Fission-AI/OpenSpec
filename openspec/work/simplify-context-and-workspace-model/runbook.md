@@ -30,6 +30,28 @@ phases run as multi-agent Workflows; the `/code-review` and `/simplify`
 skills and the codex CLI provide independent review machinery — these skills
 run from the main loop, never from inside workflow agents.
 
+## Follow-up run: 4.2 personal worksets (added 2026-06-12)
+
+The original queue is complete. Item 4.2 runs as its own goal, from a
+fresh session on `codex/store-root-parity`:
+
+```text
+/goal 4.2 COMPLETE: roadmap item 4.2 (personal worksets) in
+openspec/work/simplify-context-and-workspace-model/roadmap.md has all
+of its progress boxes ticked except "Merged to main", the full pnpm
+test suite passes, and all work is committed on
+codex/store-root-parity. Work per the runbook's per-slice discipline
+with the slice folder slices/personal-worksets/; the 4.2 section's
+functional requirements, locked decisions, and research checklist are
+the requirements baseline and are owner-directed — do not relitigate
+them. Start with the research checkpoint (the old launch mechanics at
+f858c19^ are the evidence base). One coherent unit per turn, never
+waiting for the user; or stop after 80 turns.
+```
+
+4.2 is a build slice: full review discipline (the deletion-slice trim
+does not apply). All other sections of this runbook apply unchanged.
+
 ## Re-anchor (every turn)
 
 1. Read `roadmap.md` — Progress At A Glance, the next-incomplete-item
