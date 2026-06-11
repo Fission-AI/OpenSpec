@@ -133,8 +133,9 @@ Next incomplete item:
   committed home), populated at setup/register when known; doctor
   surfaces it, and unresolved-reference and register guidance use it.
   Recording a remote is not sync — no clone/pull/push behavior. Spec
-  not yet written. (3.1 and 3.2 are implemented and reviewed; the 5.1
-  first tranche is done; the Phase 5 remainder runs after 4.1.)
+  written and reviewed (`slices/store-canonical-remote/`); plan is
+  next. (3.1 and 3.2 are implemented and reviewed; the 5.1 first
+  tranche is done; the Phase 5 remainder runs after 4.1.)
 
 ## Phase 0. Make The Active Direction Easy To Find
 
@@ -1370,6 +1371,35 @@ is working:
   a deliberate fourth partial edit, and the spec's byte-stable clause
   now allows the new removal-coverage tests. The reworded constraint
   string gets its first-ever pin in the new test.
+- 2026-06-11: Wrote the store-canonical-remote slice spec (3.3) and
+  folded two adversarial reviews (subagent: approve-with-fixes with a
+  P1; codex: reject — converging). The P1: a setup rerun would have
+  silently erased the registry's observed remote because only register
+  probed the origin while `storeBackendsMatch` compares remotes; the
+  fix probes in both flows, preserving the 1.3 rerun-no-op contract.
+  Also folded: register's contract restated precisely (never commits,
+  never modifies an EXISTING store.yaml — the confirmed-conversion
+  path still creates `{version, id}` identity, without a remote); the
+  strict-schema compatibility claim corrected to its real one-way form
+  (old CLIs reject remote-bearing store.yaml; recorded as a standing
+  constraint that 3.4 must not add store.yaml fields without a version
+  bump or strictness revisit); mixed-shape references dedup defined
+  (normalize to `{id, remote?}[]`, dedup by id, first remote wins);
+  the clone fix made pasteable verbatim via the `~/openspec/<id>`
+  convention; `setup --remote` against an existing store.yaml fails
+  with the hand-edit fix instead of silently ignoring the flag; the
+  doctor UX example redrawn from the real layout; the no-network
+  clause made testable (TEST-NET URL pin).
+- 2026-06-11: Decided autonomously (review me): 3.3 keeps two remotes
+  in two homes — team-authored canonical in committed `store.yaml`
+  (written only by `setup --remote` or hand-editing), observed origin
+  machine-local in the registry (probed read-only at setup/register,
+  refreshed by re-register, live-probed for display; the persisted
+  copy is 3.6 groundwork). The unresolved-reference clone source rides
+  the reference declaration (`{id, remote}` map entries) because no
+  local store state exists for an unregistered store. Resolved index
+  entries gain no remote field; `StoreOutput` stays unchanged (doctor
+  is the inspection surface); no new diagnostic codes.
 - 2026-06-11: Implemented slice 3.2 (declared-store fallback) in two
   checkpoints plus a review-fix round: the `store:` pointer in
   `openspec/config.yaml`, the resolver classification (directory-typed
