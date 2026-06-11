@@ -2,7 +2,7 @@ import * as nodeFs from 'node:fs';
 import * as path from 'node:path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { z } from 'zod';
-import { isKebabId } from '../id.js';
+import { isKebabId, KEBAB_ID_DESCRIPTION } from '../id.js';
 
 import { getGlobalDataDir } from '../global-config.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
@@ -250,7 +250,7 @@ function assertValidStoreIds(ids: string[], label: string): void {
     if (!isKebabId(id)) {
       throw invalidStoreStateError(
         label,
-        `'${id}': must be kebab-case with lowercase letters, numbers, and single hyphen separators`
+        `'${id}': ${KEBAB_ID_DESCRIPTION}`
       );
     }
   }

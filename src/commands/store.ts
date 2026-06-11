@@ -1,4 +1,5 @@
 import * as os from 'node:os';
+import { asStatus, printJson } from './shared-output.js';
 import * as path from 'node:path';
 import { Command } from 'commander';
 
@@ -116,9 +117,7 @@ interface StoreDoctorOutput {
   status: StoreDiagnostic[];
 }
 
-function printJson(payload: unknown): void {
-  console.log(JSON.stringify(payload, null, 2));
-}
+
 
 function asErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -218,19 +217,7 @@ function toDoctorOutput(result: StoreDoctorResult): StoreDoctorOutput {
   };
 }
 
-function asStatus(error: unknown): StoreDiagnostic {
-  if (error instanceof StoreError) {
-    return error.diagnostic;
-  }
 
-  const message = asErrorMessage(error);
-
-  return {
-    severity: 'error',
-    code: 'store_error',
-    message,
-  };
-}
 
 function isPromptCancellationError(error: unknown): boolean {
   return (
@@ -691,7 +678,7 @@ class StoreCommand {
       return;
     }
 
-    const status = asStatus(error);
+    const status = asStatus(error, 'store_error');
     if (json) {
       printJson(appendStatus(payload, status));
       process.exitCode = 1;

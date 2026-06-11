@@ -109,12 +109,10 @@ an item are status steps for that numbered work item.
   Fully absorbed: 2.1 shipped inside slice 1.2, 2.2 folded into slice 1.4,
   and 2.3 folded into item 4.1. No independent work remains here.
 - [ ] **Phase 3. Say how roots relate: references and targets.**
-  3.1–3.4 are implemented and tested: a repo declares the stores its
-  work draws on, a rootless repo declares its store once, onboarding
-  no longer dead-ends (canonical remotes + verbatim clone fixes), and
-  stores declare the target repos their work is about with per-change
-  narrowing. 3.5 (the local repo map) is next; relationship health
-  follows.
+  3.1–3.5 are implemented and tested: references, the declared-store
+  fallback, canonical remotes, target declarations, and the local repo
+  map (typed registry sections, the repo command group, path-enriched
+  targets). 3.6 (relationship health) closes the phase.
 - [ ] **Phase 4. Assemble the working context.**
   Not started. Rebuilds opening around assembled context; absorbs old 2.3.
 - [ ] **Phase 5. Remove old surfaces only when they confuse the simple path.**
@@ -127,18 +125,16 @@ an item are status steps for that numbered work item.
 
 Next incomplete item:
 
-- [ ] **3.5 Map target repo names to local checkout paths.**
-  In plain English: shared work names target repos by id; each
-  developer tells OpenSpec once where those repos live on this
-  machine. The locked decision applies: the machine-local registry
-  becomes one file with typed sections (`stores:` and `repos:`),
-  cross-section id uniqueness enforced at write time, and `--store`
-  never resolves a repo id — it rejects with a typed hint. Missing,
-  duplicate, or invalid mappings fail clearly; the map is local
-  settings, never shared planning state. Spec and plan written and
-  reviewed (`slices/repo-map/`); implementation is next. (3.1–3.4 are
-  implemented and reviewed; the 5.1 first tranche is done; the Phase 5
-  remainder runs after 4.1.)
+- [ ] **3.6 Report relationship health.**
+  In plain English: ask OpenSpec whether the roots this work relates
+  to — referenced stores and target repos — are actually reachable on
+  this machine, in one place, read-only. The groundwork is all laid:
+  reference diagnostics (3.1), the both-shapes/pointer warnings
+  (3.2), canonical vs observed remotes (3.3), target declarations
+  (3.4), and the repo map with its silence-by-design unmapped/corrupt
+  cases (3.5) all deferred their roll-up here. Spec not yet written.
+  (3.1–3.5 are implemented and reviewed; the 5.1 first tranche is
+  done; the Phase 5 remainder runs after 4.1.)
 
 ## Phase 0. Make The Active Direction Easy To Find
 
@@ -882,12 +878,19 @@ How the user or agent knows it worked:
 
 ### 3.5 Map Target Repo Names To Local Checkout Paths
 
+Slice: `slices/repo-map/spec.md`
+
 Progress:
 
-- [ ] Spec written.
-- [ ] Plan written.
-- [ ] Implementation done.
-- [ ] Tests pass.
+- [x] Spec written.
+- [x] Plan written.
+- [x] Implementation done (typed registry sections with pinned
+  preservation; the repo command group with pinned JSON contracts;
+  cross-section id+path uniqueness at write AND parse time; the
+  `store_id_is_repo` typed rejection; targets path enrichment incl.
+  change-only narrowing; three-mechanism review and a simplify pass
+  folded).
+- [x] Tests pass (full suite green, 94 files / 1718 tests).
 - [ ] Merged to `main`.
 
 What the user can do:
@@ -1388,6 +1391,26 @@ is working:
   a deliberate fourth partial edit, and the spec's byte-stable clause
   now allows the new removal-coverage tests. The reworded constraint
   string gets its first-ever pin in the new test.
+- 2026-06-11: Implemented slice 3.5 (repo map) in two checkpoints plus
+  a review-fix round: typed registry sections with the preservation
+  matrix pinned (the spec-review P1); the repo command group
+  (register/unregister/list, pinned JSON, folder-name default ids with
+  the --id rewrap); cross-section id+path uniqueness inside the shared
+  conflict asserts (early-reject pinned: store setup with a
+  repo-claimed id creates nothing) AND at parse time (a hand-edited
+  both-sections id fails clearly); `store_id_is_repo` before both
+  unknown-store branches with the non-looping zero-stores fix; targets
+  path enrichment with the unconditional repo-map read (the review
+  round's converged P2: change-only narrowing enriches too); the
+  library API hardened (path-then-id typed input errors; no-op reruns
+  never take the write lock). Simplify extracted the shared
+  commands/shared-output failure plumbing (third copy collapsed),
+  hoisted the same-mapping predicate, and single-sourced the kebab
+  grammar wording (KEBAB_ID_DESCRIPTION). Recorded: getRepoPath stays
+  exported as 4.1 groundwork (unit-tested, no production caller — the
+  3.3 persisted-remote precedent); the registry-state builder
+  quadruplication judged mirror-territory and left. Full suite green
+  (94 files, 1718 tests).
 - 2026-06-11: Wrote the repo-map plan (3.5, two checkpoints) and
   folded two plan reviews (both approve-with-fixes): the cross-section
   conflict check must live inside `assertNoRegisteredStoreConflict`

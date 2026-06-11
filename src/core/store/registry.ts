@@ -20,7 +20,7 @@ import { StoreError } from './errors.js';
 import * as fsSync from 'node:fs';
 import * as path from 'node:path';
 import { FileSystemUtils } from '../../utils/file-system.js';
-import { isKebabId } from '../id.js';
+import { isKebabId, KEBAB_ID_DESCRIPTION } from '../id.js';
 
 export interface RegisterStoreInput extends StorePathOptions {
   id: string;
@@ -472,7 +472,7 @@ export async function getRepoPath(
 function validateRepoIdOrThrow(id: string): string {
   if (!isKebabId(id)) {
     throw new StoreError(
-      `Repo id '${id}' must be kebab-case with lowercase letters, numbers, and single hyphen separators.`,
+      `Repo id '${id}' ${KEBAB_ID_DESCRIPTION}.`,
       'invalid_repo_id',
       {
         target: 'repo.id',
@@ -509,6 +509,9 @@ export async function registerRepo(input: RegisterRepoInput): Promise<RegisterRe
   assertRepoPathIsDirectory(path.resolve(input.path));
   validateRepoIdOrThrow(input.id);
   const canonicalPath = FileSystemUtils.canonicalizeExistingPath(input.path);
+  const targetPath = normalizePathForComparison(canonicalPath);
+  const isSameMapping = (entry: { local_path: string } | undefined): boolean =>
+    entry !== undefined && normalizePathForComparison(entry.local_path) === targetPath;
   const options = input.globalDataDir ? { globalDataDir: input.globalDataDir } : {};
 
   // No-op reruns never take the write lock (the store-side
@@ -516,22 +519,13 @@ export async function registerRepo(input: RegisterRepoInput): Promise<RegisterRe
   // lock for the race.
   const current = await readStoreRegistryState(options).catch(() => null);
   const existing = current?.repos?.[input.id];
-  if (
-    existing &&
-    normalizePathForComparison(existing.local_path) ===
-      normalizePathForComparison(canonicalPath)
-  ) {
-    return { id: input.id, path: existing.local_path, registered: false, alreadyRegistered: true };
+  if (isSameMapping(existing)) {
+    return { id: input.id, path: existing!.local_path, registered: false, alreadyRegistered: true };
   }
 
   let alreadyRegistered = false;
   await updateStoreRegistryState((registry) => {
-    const raceExisting = registry?.repos?.[input.id];
-    if (
-      raceExisting &&
-      normalizePathForComparison(raceExisting.local_path) ===
-        normalizePathForComparison(canonicalPath)
-    ) {
+    if (isSameMapping(registry?.repos?.[input.id])) {
       alreadyRegistered = true;
       return registry ?? { version: 1, stores: {} };
     }

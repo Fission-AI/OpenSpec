@@ -4,7 +4,6 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 
 import { getGlobalDataDir, registerStore } from '../../src/core/index.js';
-import { registerRepo } from '../../src/core/store/registry.js';
 import { runCLI, type RunCLIResult } from '../helpers/run-cli.js';
 import { createOpenSpecRoot } from '../helpers/openspec-fixtures.js';
 import { snapshotDirectory as snapshot } from '../helpers/fs-snapshot.js';

@@ -16,6 +16,7 @@ import {
   readStoreRegistryState,
 } from '../core/store/foundation.js';
 import { StoreError, type StoreDiagnostic } from '../core/store/errors.js';
+import { emitFailure, printJson } from './shared-output.js';
 import { COMMAND_REGISTRY } from '../core/completions/command-registry.js';
 
 interface RepoOutput {
@@ -45,35 +46,6 @@ interface RepoUnregisterOutput {
 interface RepoListOutput {
   repos: RepoOutput[];
   status: StoreDiagnostic[];
-}
-
-function printJson(payload: unknown): void {
-  console.log(JSON.stringify(payload, null, 2));
-}
-
-function asStatus(error: unknown): StoreDiagnostic {
-  if (error instanceof StoreError) {
-    return error.diagnostic;
-  }
-  return {
-    severity: 'error',
-    code: 'repo_error',
-    message: error instanceof Error ? error.message : String(error),
-  };
-}
-
-function handleFailure(json: boolean | undefined, payload: object, error: unknown): void {
-  const status = asStatus(error);
-  if (json) {
-    printJson({ ...payload, status: [status] });
-    process.exitCode = 1;
-    return;
-  }
-  console.error(`Error: ${status.message}`);
-  if (status.fix) {
-    console.error(`Fix: ${status.fix}`);
-  }
-  process.exitCode = 1;
 }
 
 interface RepoRegisterOptions {
@@ -122,7 +94,7 @@ class RepoCommand {
       console.log(`Repo ${result.alreadyRegistered ? 'already registered' : 'registered'}: ${result.id}`);
       console.log(`Location: ${result.path}`);
     } catch (error) {
-      handleFailure(options.json, { repo: null, registry: null }, error);
+      emitFailure(options.json, { repo: null, registry: null }, error, 'repo_error');
     }
   }
 
@@ -143,7 +115,7 @@ class RepoCommand {
       console.log(`Repo unregistered: ${removed.id}`);
       console.log(`Location (untouched): ${removed.path}`);
     } catch (error) {
-      handleFailure(options.json, { repo: null, registry: null }, error);
+      emitFailure(options.json, { repo: null, registry: null }, error, 'repo_error');
     }
   }
 
@@ -169,7 +141,7 @@ class RepoCommand {
         console.log(`${entry.id}  ${entry.path}`);
       }
     } catch (error) {
-      handleFailure(options.json, { repos: [] }, error);
+      emitFailure(options.json, { repos: [] }, error, 'repo_error');
     }
   }
 }

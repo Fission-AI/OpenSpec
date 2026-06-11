@@ -1,0 +1,42 @@
+/**
+ * Shared JSON/failure output plumbing for command groups whose errors
+ * carry the StoreDiagnostic envelope. One definition of the failure
+ * contract: exit code 1, Error:/Fix: lines in human mode, a status
+ * array in JSON mode.
+ */
+import { StoreError, type StoreDiagnostic } from '../core/store/errors.js';
+
+export function printJson(payload: unknown): void {
+  console.log(JSON.stringify(payload, null, 2));
+}
+
+export function asStatus(error: unknown, fallbackCode: string): StoreDiagnostic {
+  if (error instanceof StoreError) {
+    return error.diagnostic;
+  }
+  return {
+    severity: 'error',
+    code: fallbackCode,
+    message: error instanceof Error ? error.message : String(error),
+  };
+}
+
+export function emitFailure(
+  json: boolean | undefined,
+  payload: Record<string, unknown>,
+  error: unknown,
+  fallbackCode: string
+): void {
+  const status = asStatus(error, fallbackCode);
+  if (json) {
+    const prior = Array.isArray(payload.status) ? payload.status : [];
+    printJson({ ...payload, status: [...prior, status] });
+    process.exitCode = 1;
+    return;
+  }
+  console.error(`Error: ${status.message}`);
+  if (status.fix) {
+    console.error(`Fix: ${status.fix}`);
+  }
+  process.exitCode = 1;
+}
