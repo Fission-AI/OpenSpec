@@ -38,19 +38,44 @@ fresh session on `codex/store-root-parity`:
 ```text
 /goal 7.1 COMPLETE: roadmap item 7.1 (personal worksets) in
 openspec/work/simplify-context-and-workspace-model/roadmap.md has all
-of its progress boxes ticked except "Merged to main", the full pnpm
-test suite passes, and all work is committed on
-codex/store-root-parity. Work per the runbook's per-slice discipline
-with the slice folder slices/personal-worksets/; the 7.1 section's
-functional requirements, locked decisions, and research checklist are
-the requirements baseline and are owner-directed — do not relitigate
-them. Start with the research checkpoint (the old launch mechanics at
-f858c19^ are the evidence base). One coherent unit per turn, never
-waiting for the user; or stop after 80 turns.
+of its progress boxes ticked except "Merged to main" — including the
+capstone dogfood and the pushed-branch box — the full pnpm test suite
+passes, all work is committed on codex/store-root-parity, and the
+branch is pushed to origin with code-review comments addressed. Work
+per the runbook's per-slice discipline with the slice folder
+slices/personal-worksets/; the 7.1 section's functional requirements,
+locked decisions, and research checklist are the requirements baseline
+and are owner-directed — do not relitigate them. Start with the
+research checkpoint (the old launch mechanics at f858c19^ are the
+evidence base). One coherent unit per turn, never waiting for the
+user; or stop after 80 turns.
 ```
 
 7.1 is a build slice: full review discipline (the deletion-slice trim
-does not apply). All other sections of this runbook apply unchanged.
+does not apply). Two run-specific amendments (owner-directed,
+2026-06-12):
+
+- **Push allowed for this run — the working branch only.** After the
+  post-implementation review fixes land, and again at bookkeeping,
+  push `codex/store-root-parity` to origin. Then check PR #1190 for
+  code-review comments touching the slice and address each one (fix
+  it, or record a reply-with-rationale in the changelog). Merging to
+  or pushing `main` remains forbidden; the Hard boundaries section's
+  "never push at all" is superseded by this paragraph for this run
+  only.
+- **7.1 capstone — after the simplify pass, before bookkeeping.**
+  Prove the feature end to end from the user's seat, headlessly: in a
+  scratch environment with isolated XDG state and fake `code` /
+  `cursor` / `claude` / `codex` executables on PATH, walk
+  compose → list → open for both launch styles, verifying the
+  generated `.code-workspace` contents and the exact launch argv per
+  tool (including the no-prompt rule for agent opens). Then a
+  cold-start UX walk: a fresh headless agent given only `--help`
+  output and no insider knowledge must reach an opened workset.
+  Record the transcript in the slice folder, fix what it surfaces,
+  re-run the full suite, and tick the capstone box.
+
+All other sections of this runbook apply unchanged.
 
 ## Re-anchor (every turn)
 

@@ -1207,6 +1207,9 @@ Progress:
 - [ ] Plan written.
 - [ ] Implementation done.
 - [ ] Tests pass.
+- [ ] Capstone dogfood passes (end-to-end UX run; transcript in the
+  slice folder).
+- [ ] Branch pushed; code-review comments addressed.
 - [ ] Merged to `main`.
 
 What the user can do:
