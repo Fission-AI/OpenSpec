@@ -1,5 +1,15 @@
 # User-Directed Follow-Up: Workset Correction (post-capstone review)
 
+> **Superseded in part (2026-06-12, later the same day):** continued
+> design review landed on a different model — worksets are purely
+> LOCAL, personal, manually composed named views (see roadmap item
+> 4.2, which is authoritative). The change-anchored `workset <change>`
+> form (§1), the dissolution of the `repo` group (§3), and the
+> declaration-derived accretion flows are superseded; `openspec
+> context` and the repo map remain unchanged. Sections 2 (session
+> boundary / launch consumers), 4 (no shared grouping registry — now
+> "not a *shared* one"), and 5 (grammar guardrails) still stand.
+
 Date: 2026-06-12. Source: owner design review of the 4.1 autonomous
 decisions (the `Decided autonomously (review me)` loop closing as
 intended). This supersedes the 4.1 naming/scoping decisions; it does not

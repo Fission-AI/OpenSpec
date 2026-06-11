@@ -968,6 +968,8 @@ Phase checklist:
 
 - [x] **4.1** Assemble the working context from declared relationships.
   (Merge to `main` pending.)
+- [ ] **4.2** Personal worksets: compose, keep, and open a local working
+  view.
 
 ### 4.1 Assemble The Working Context From Declared Relationships
 
@@ -1022,6 +1024,61 @@ How the user or agent knows it worked:
 - The durable files remain normal OpenSpec artifacts.
 - The result does not imply clone, pull, push, sync, branch, worktree,
   dashboard, or edit-boundary enforcement.
+
+### 4.2 Personal Worksets: Compose, Keep, And Open A Local Working View
+
+User-directed follow-up (owner design review, 2026-06-12; supersedes the
+change-anchored direction in `workset-direction.md` where they differ). A
+workset is a purely local, personal, named working view: the user composes
+it manually (a planning root plus whatever folders they choose), keeps it
+on their machine, reopens it by name, and launches it into their tool of
+choice. It is not committed, not shared, not derived from declarations,
+and never a membership truth — it makes no claims about the work, only
+about what this user likes open together. Declarations/targets may later
+*suggest* members during composition; they are not load-bearing. The
+repo map and `openspec context` remain unchanged and independent.
+
+Functional requirements (user perspective; FR2+ to be drafted one at a
+time):
+
+**FR1 — Compose and keep a personal working view.**
+
+1. When a user regularly works across a planning repo and some code
+   repos together, they can compose that grouping by pointing at
+   folders, name it, and have it kept — one short guided flow, nothing
+   to set up beforehand.
+2. The composition is entirely the user's choice: any folders, any
+   number, no requirement that they relate to declarations, teammates,
+   or anything else.
+3. The saved view is private to the user's machine — never committed,
+   never shared, never written into any member folder.
+4. Listing views shows each name with its members at a glance.
+5. Removing a view deletes only the saved view, never a member folder.
+
+```gherkin
+Scenario: First working view in under a minute
+  Given a user works on a store plus web-app and api-server together
+  When they create a workset, point at the three folders, and name it
+  Then it is saved on their machine and offered to open immediately
+  And nothing was created or changed inside any member folder
+
+Scenario: Composition is personal
+  Given a teammate works on the same store with different repos
+  When each composes their own workset
+  Then neither sees, affects, or needs the other's
+
+Scenario: Removing a view is safe
+  When a user deletes a workset
+  Then only the saved view is gone; member folders are untouched
+```
+
+Evidence base: the deleted `workspace` feature's guided setup, opener
+availability sorting, graceful missing-path skips, and per-tool launch
+recipes were its good bones (recoverable at `f858c19^`); its registry
+indirection, managed directories, initiative binding, skills state, and
+repair subcommands are explicitly not inherited. Current code provides
+the `.code-workspace` builder (pure), the XDG storage idiom, and the
+prompt library.
 
 ## Phase 5. Remove Old Surfaces Only When They Confuse The Simple Path
 
