@@ -130,9 +130,10 @@ Next incomplete item:
   and cites them, without the human naming the store every session and
   without commands being redirected there. The locked Phase 3 decisions
   apply (index-not-inline; declarations in `openspec/config.yaml`;
-  relationships are location, declaration, or citation). Spec not yet
-  written. (The 5.1 first tranche — the command-group deletion — is
-  implemented and reviewed; the Phase 5 remainder runs after 4.1.)
+  relationships are location, declaration, or citation). Spec written
+  and reviewed (`slices/store-references/`); plan is next. (The 5.1
+  first tranche — the command-group deletion — is implemented and
+  reviewed; the Phase 5 remainder runs after 4.1.)
 
 ## Phase 0. Make The Active Direction Easy To Find
 
@@ -680,6 +681,7 @@ Decisions locked on 2026-06-11:
 Phase checklist:
 
 - [ ] **3.1** Let a project repo reference the stores its work draws on.
+  Spec written and reviewed (`slices/store-references/`); plan is next.
 - [ ] **3.2** Fall back to a declared store when no local root exists.
 - [ ] **3.3** Record a canonical remote in store identity.
 - [ ] **3.4** Let a store declare its target project repos.
@@ -1353,6 +1355,24 @@ is working:
   a deliberate fourth partial edit, and the spec's byte-stable clause
   now allows the new removal-coverage tests. The reworded constraint
   string gets its first-ever pin in the new test.
+- 2026-06-11: Wrote the store-references slice spec (3.1) and folded
+  two adversarial review rounds (subagent: approve-with-fixes with two
+  grounding P1s — `parseSpec()` throws on imperfect specs so summaries
+  extract tolerantly, and the apply human surface exists so the index
+  lives in both surfaces and both modes; codex: approve-with-fixes —
+  the assembler is async at the command boundary and passed into the
+  sync generators, the rendered index shares the 50KB context budget
+  with order-preserving truncation, and registry corruption degrades
+  to `reference_registry_unreadable`). Decided autonomously (review
+  me): five warning diagnostic codes (unresolved/invalid-id/
+  root-unhealthy/registry-unreadable/index-truncated) that degrade
+  instructions instead of failing them; the parse-raw/
+  validate-in-assembler split; the one-level no-recursion rule;
+  symmetric declarations (the resolved root's config, store or repo);
+  self-references silently omitted; summaries from the first Purpose
+  line with bare-id rendering when absent; zero-spec stores index as
+  empty entries; no workflow-template changes; the docs home is a new
+  "Referencing stores from a project" subsection in docs/cli.md.
 - 2026-06-11: Implemented the delete-legacy-command-groups slice (the
   Phase 5 first tranche) in one commit: the `workspace` and `initiative`
   command groups, the five orphaned core workspace modules, the whole
