@@ -67,7 +67,11 @@ function registerFix(id: string, remote?: string): string {
     // The checkout is quoted (homedirs may contain spaces); the remote
     // is unquoted but gated by isShellSafeRemote above.
     const checkout = path.join(os.homedir(), 'openspec', id);
-    return `git clone -- ${remote} '${checkout}' && openspec store register '${checkout}' --id ${id}`;
+    // The fix renders on the machine that will paste it: POSIX shells
+    // get single quotes; cmd/PowerShell treat single quotes as literal
+    // characters, so win32 gets double quotes (valid everywhere).
+    const quoted = process.platform === 'win32' ? `"${checkout}"` : `'${checkout}'`;
+    return `git clone -- ${remote} ${quoted} && openspec store register ${quoted} --id ${id}`;
   }
   return `Get a checkout from a teammate and run: openspec store register <path> --id ${id}`;
 }
@@ -80,7 +84,7 @@ function registerFix(id: string, remote?: string): string {
  * tolerant of CommonMark closing hashes (`## Purpose ##`).
  */
 export function extractFirstPurposeLine(markdown: string): string {
-  const lines = markdown.split('\n');
+  const lines = markdown.split(/\r?\n/);
   let inPurpose = false;
   let fenceMarker: string | null = null;
 

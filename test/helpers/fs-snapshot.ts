@@ -9,14 +9,19 @@ import * as path from 'node:path';
 export function snapshotDirectory(root: string): Map<string, string> {
   const snapshot = new Map<string, string>();
 
+  // Keys are POSIX-normalized so assertions like has('openspec/...')
+  // behave identically on Windows (test/AGENTS.md).
+  const relKey = (fullPath: string): string =>
+    path.relative(root, fullPath).split(path.sep).join('/');
+
   const walk = (dir: string): void => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const fullPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        snapshot.set(`${path.relative(root, fullPath)}/`, '');
+        snapshot.set(`${relKey(fullPath)}/`, '');
         walk(fullPath);
       } else if (entry.isFile()) {
-        snapshot.set(path.relative(root, fullPath), fs.readFileSync(fullPath, 'utf-8'));
+        snapshot.set(relKey(fullPath), fs.readFileSync(fullPath, 'utf-8'));
       }
     }
   };

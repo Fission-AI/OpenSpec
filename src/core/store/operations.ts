@@ -300,7 +300,7 @@ async function assertSetupPathIsNotNestedInGitRepo(
   );
 }
 
-function expandUserPath(inputPath: string): string {
+export function expandUserPath(inputPath: string): string {
   const trimmed = inputPath.trim();
   if (trimmed === '~') return os.homedir();
   if (trimmed.startsWith('~/') || trimmed.startsWith('~\\')) {
@@ -956,7 +956,7 @@ export async function removeStore(
         `The registration was removed, but deleting ${removed.storeRoot} failed (${(error as Error).message}).`,
         {
           target: 'store.root',
-          fix: `Delete the folder manually: rm -rf ${removed.storeRoot}`,
+          fix: `Delete the folder manually: ${removed.storeRoot}`,
         }
       ));
     }

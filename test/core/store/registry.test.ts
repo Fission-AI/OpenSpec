@@ -539,7 +539,7 @@ describe('store registry facade', () => {
       expect.objectContaining({
         severity: 'warning',
         code: 'store_files_left_on_disk',
-        fix: expect.stringContaining('rm -rf'),
+        fix: expect.stringContaining('Delete the folder manually:'),
       })
     );
     const registry = await readStoreRegistryState({ globalDataDir: tempDir });

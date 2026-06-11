@@ -122,7 +122,7 @@ describe('store canonical remote (3.3)', () => {
       expect(result.exitCode).toBe(1);
       const status = parseJson(result).status;
       expect(status[0].code).toBe('store_remote_requires_hand_edit');
-      expect(status[0].fix).toContain('.openspec-store/store.yaml');
+      expect(status[0].fix).toContain(path.join('.openspec-store', 'store.yaml'));
       expect(fs.readFileSync(path.join(storeRoot, '.openspec-store', 'store.yaml'), 'utf-8')).toBe(
         before
       );
@@ -344,7 +344,8 @@ describe('store canonical remote (3.3)', () => {
       // path inside the temp dir for both the fix text and the CLI.
       const scratchHome = path.join(tempDir, 'home');
       fs.mkdirSync(scratchHome, { recursive: true });
-      const e2eEnv = { ...env, HOME: scratchHome };
+      // os.homedir() reads USERPROFILE on win32, HOME elsewhere.
+      const e2eEnv = { ...env, HOME: scratchHome, USERPROFILE: scratchHome };
 
       // The "remote": a local bare-ish git repo holding a healthy store.
       const originWorktree = path.join(tempDir, 'origin-worktree');
@@ -362,13 +363,16 @@ describe('store canonical remote (3.3)', () => {
       git(originWorktree, 'add', '-A');
       git(originWorktree, 'commit', '-m', 'init');
 
-      // The app repo declares the reference with the clone source.
+      // The app repo declares the reference with the clone source. The
+      // forward-slash spelling keeps the remote shell-safe on Windows
+      // (backslashes fail isShellSafeRemote); git accepts it anywhere.
+      const originRemote = originWorktree.split(path.sep).join('/');
       const appRepo = path.join(tempDir, 'app-repo');
       fs.mkdirSync(path.join(appRepo, 'openspec'), { recursive: true });
       fs.writeFileSync(
         path.join(appRepo, 'openspec', 'config.yaml'),
         'schema: spec-driven\nreferences:\n' +
-          `  - { id: team-context, remote: ${originWorktree} }\n`
+          `  - { id: team-context, remote: ${originRemote} }\n`
       );
       fs.mkdirSync(path.join(appRepo, 'openspec', 'specs'), { recursive: true });
       fs.mkdirSync(path.join(appRepo, 'openspec', 'changes', 'archive'), { recursive: true });
@@ -388,23 +392,23 @@ describe('store canonical remote (3.3)', () => {
       expect(entry.status[0].code).toBe('reference_unresolved');
       const fix: string = entry.status[0].fix;
       const expectedCheckout = path.join(scratchHome, 'openspec', 'team-context');
+      // The quote style is platform-deliberate: POSIX single quotes,
+      // win32 double quotes (cmd/PowerShell treat ' as literal).
+      const q = process.platform === 'win32' ? '"' : "'";
       expect(fix).toBe(
-        `git clone -- ${originWorktree} '${expectedCheckout}' && openspec store register '${expectedCheckout}' --id team-context`
+        `git clone -- ${originRemote} ${q}${expectedCheckout}${q} && openspec store register ${q}${expectedCheckout}${q} --id team-context`
       );
 
-      // Execute the printed commands verbatim: split the shell '&&',
-      // apply the shell's single-quote removal, run the git half
-      // directly and the openspec half via the CLI.
-      const unquote = (arg: string): string =>
-        arg.startsWith("'") && arg.endsWith("'") ? arg.slice(1, -1) : arg;
-      const [cloneCmd, registerCmd] = fix.split(' && ');
-      const cloneArgs = cloneCmd.split(' ').slice(1).map(unquote);
-      execFileSync('git', cloneArgs, { env: { ...process.env, ...e2eEnv } });
-      const registerArgs = registerCmd.split(' ').slice(1).map(unquote);
-      const registered = await runCLI([...registerArgs, '--json'], {
-        cwd: appRepo,
-        env: e2eEnv,
+      // Execute the fix's two commands with the values the shape pin
+      // just verified - argv arrays, no shell re-tokenization (paths
+      // with spaces would break a naive split(' ')).
+      execFileSync('git', ['clone', '--', originRemote, expectedCheckout], {
+        env: { ...process.env, ...e2eEnv },
       });
+      const registered = await runCLI(
+        ['store', 'register', expectedCheckout, '--id', 'team-context', '--json'],
+        { cwd: appRepo, env: e2eEnv }
+      );
       expect(registered.exitCode).toBe(0);
 
       // The rerun resolves the index from the fresh checkout.

@@ -196,8 +196,12 @@ describe('store references in instructions (3.1)', () => {
       expect(status.exitCode).toBe(0);
       const payload = parseJson(status);
       // Normalize the only legitimately differing content (the repo path).
+      // The needle must match the JSON-escaped spelling (backslashes are
+      // doubled in serialized Windows paths).
       const normalize = (value: unknown) =>
-        JSON.stringify(value).split(fs.realpathSync.native(repo)).join('<root>');
+        JSON.stringify(value)
+          .split(JSON.stringify(fs.realpathSync.native(repo)).slice(1, -1))
+          .join('<root>');
       outputs[label] = [
         normalize(payload.artifacts),
         normalize(payload.actionContext),

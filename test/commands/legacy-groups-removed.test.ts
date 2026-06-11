@@ -36,10 +36,10 @@ describe('legacy command groups are removed', () => {
         if (entry.isDirectory()) {
           // Record directories too, so a command deleting an empty
           // subdirectory cannot pass the byte-identity check.
-          snapshot.set(`${path.relative(root, fullPath)}/`, '');
+          snapshot.set(`${path.relative(root, fullPath).split(path.sep).join('/')}/`, '');
           walk(fullPath);
         } else if (entry.isFile()) {
-          snapshot.set(path.relative(root, fullPath), fs.readFileSync(fullPath, 'utf-8'));
+          snapshot.set(path.relative(root, fullPath).split(path.sep).join('/'), fs.readFileSync(fullPath, 'utf-8'));
         }
       }
     }

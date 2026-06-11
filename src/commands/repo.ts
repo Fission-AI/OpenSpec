@@ -4,6 +4,7 @@
  * Mapping a repo never clones, syncs, or enforces edit boundaries.
  */
 import * as path from 'node:path';
+import { expandUserPath } from '../core/store/operations.js';
 import { Command } from 'commander';
 
 import {
@@ -56,7 +57,7 @@ interface RepoRegisterOptions {
 class RepoCommand {
   async register(inputPath: string, options: RepoRegisterOptions = {}): Promise<void> {
     try {
-      const resolvedPath = path.resolve(inputPath);
+      const resolvedPath = path.resolve(expandUserPath(inputPath));
       const id = options.id ?? path.basename(resolvedPath);
       let result;
       try {

@@ -66,7 +66,7 @@ async function snapshotDirectory(root: string): Promise<Map<string, string>> {
     const entries = await fs.readdir(current, { withFileTypes: true });
     for (const entry of entries) {
       const absolute = path.join(current, entry.name);
-      const relative = path.relative(root, absolute);
+      const relative = path.relative(root, absolute).split(path.sep).join('/');
       if (entry.isDirectory()) {
         snapshot.set(`${relative}/`, '');
         await walk(absolute);

@@ -79,7 +79,9 @@ function normalizePathForComparison(targetPath: string): string {
   try {
     return FileSystemUtils.canonicalizeExistingPath(targetPath);
   } catch {
-    return targetPath;
+    // Nonexistent (e.g. stale) paths still deserve a resolved compare;
+    // aligns with the operations.ts sibling fallback.
+    return path.resolve(targetPath);
   }
 }
 
