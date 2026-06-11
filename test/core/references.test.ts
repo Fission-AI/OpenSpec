@@ -140,8 +140,11 @@ describe('reference index assembly', () => {
       globalDataDir,
     });
 
+    // Quote style is platform-deliberate: POSIX single quotes; win32
+    // double quotes (cmd/PowerShell treat single quotes as literal).
+    const q = process.platform === 'win32' ? '"' : "'";
     expect(entries[0].status[0].fix).toBe(
-      `git clone -- https://192.0.2.1/team.git '${checkout}' && openspec store register '${checkout}' --id missing-context`
+      `git clone -- https://192.0.2.1/team.git ${q}${checkout}${q} && openspec store register ${q}${checkout}${q} --id missing-context`
     );
 
     // An invalid id wins over any declared remote.
