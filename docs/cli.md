@@ -294,6 +294,21 @@ references:
 
 Recording a remote is not sync: OpenSpec never clones, pulls, or pushes on its own.
 
+### Declaring target repos
+
+A planning repo can say, once, which code repos its work is about:
+
+```yaml
+# the store's openspec/config.yaml
+targets:
+  - api-server
+  - { id: web-app, remote: "git@github.com:acme/web-app.git" }
+```
+
+A change that only concerns some of them can narrow the set in its own `.openspec.yaml` with a plain `targets:` list. `openspec instructions` output then carries the effective set (with provenance: store default or change narrowing) so agents know which repos the work concerns. Targets name repos; `affected_areas` names free-form areas or domains within them — don't use the two interchangeably.
+
+Targets are declarations, not machinery: they never affect where commands act, nothing clones or syncs, and an unrecognized narrowed id degrades to a warning with a fix rather than failing.
+
 ### Declaring a default store
 
 A repo whose planning is fully externalized — no local `openspec/specs/` or `openspec/changes/` — can declare its store once instead of passing `--store` on every command:

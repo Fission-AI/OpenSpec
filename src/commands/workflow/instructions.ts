@@ -33,7 +33,17 @@ import {
   renderReferencedStoresSection,
   type ReferenceIndexEntry,
 } from '../../core/references.js';
-import { readProjectConfig, type ProjectConfig } from '../../core/project-config.js';
+import {
+  assembleTargets,
+  renderTargetReposBlock,
+  renderTargetReposSection,
+} from '../../core/targets.js';
+import {
+  readProjectConfig,
+  resolveConfigFilePath,
+  type ProjectConfig,
+  type ReferenceDeclaration,
+} from '../../core/project-config.js';
 import {
   validateChangeExists,
   validateSchemaExists,
@@ -72,9 +82,12 @@ export interface ApplyInstructionsOptions {
 async function loadConfigAndReferences(root: ResolvedOpenSpecRoot): Promise<{
   projectConfig: ProjectConfig | null;
   references: ReferenceIndexEntry[] | undefined;
+  configPath: string;
 }> {
   // readProjectConfig never throws: missing/unparseable configs are null.
   const projectConfig = readProjectConfig(root.path);
+  const configPath =
+    resolveConfigFilePath(root.path) ?? path.join(root.path, 'openspec', 'config.yaml');
 
   const declared = projectConfig?.references ?? [];
   const index =
@@ -84,7 +97,7 @@ async function loadConfigAndReferences(root: ResolvedOpenSpecRoot): Promise<{
 
   // Omitted, not empty: an index emptied by self-reference omission must
   // look identical to an undeclared one in JSON.
-  return { projectConfig, references: index.length > 0 ? index : undefined };
+  return { projectConfig, references: index.length > 0 ? index : undefined, configPath };
 }
 
 export async function instructionsCommand(
@@ -138,10 +151,17 @@ export async function instructionsCommand(
       );
     }
 
-    const { projectConfig, references } = await loadConfigAndReferences(root);
+    const { projectConfig, references, configPath } = await loadConfigAndReferences(root);
+    const targets = assembleTargets({
+      storeTargets: projectConfig?.targets,
+      changeTargets: context.metadata?.targets,
+      storeConfigPath: configPath,
+      changeMetadataPath: path.join(context.changeDir, '.openspec.yaml'),
+    });
     const instructions = generateInstructions(context, artifactId, projectRoot, {
       projectConfig,
       references,
+      ...(targets ? { targets } : {}),
     });
     const isBlocked = instructions.dependencies.some((d) => !d.done);
 
@@ -214,6 +234,12 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
   // Referenced-store index (read-only upstream context)
   if (instructions.references && instructions.references.length > 0) {
     console.log(renderReferencedStoresBlock(instructions.references));
+    console.log();
+  }
+
+  // Effective target repos (declarations, not machinery)
+  if (instructions.targets) {
+    console.log(renderTargetReposBlock(instructions.targets));
     console.log();
   }
 
@@ -317,6 +343,11 @@ function parseTasksFile(content: string): TaskItem[] {
 export interface GenerateApplyInstructionsOptions {
   planningHome?: PlanningHome;
   references?: ReferenceIndexEntry[];
+  /** Store-level target declarations (assembly happens inside, where
+   * the change metadata is in hand). */
+  storeTargets?: ReferenceDeclaration[];
+  /** Absolute path of the config file actually read (for fix text). */
+  storeConfigPath?: string;
 }
 
 /**
@@ -339,6 +370,12 @@ export async function generateApplyInstructions(
     planningHome,
   });
   const changeDir = context.changeDir;
+  const targets = assembleTargets({
+    storeTargets: options.storeTargets,
+    changeTargets: context.metadata?.targets,
+    storeConfigPath: options.storeConfigPath,
+    changeMetadataPath: path.join(changeDir, '.openspec.yaml'),
+  });
 
   // Get the full schema to access the apply phase configuration
   const schema = resolveSchema(context.schemaName, projectRoot);
@@ -419,6 +456,7 @@ export async function generateApplyInstructions(
     changeDir,
     schemaName: context.schemaName,
     ...(context.initiative ? { initiative: context.initiative } : {}),
+    ...(targets ? { targets } : {}),
     contextFiles,
     progress: { total, complete, remaining },
     tasks,
@@ -454,10 +492,12 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
     }
 
     // generateApplyInstructions uses loadChangeContext which auto-detects schema
-    const { references } = await loadConfigAndReferences(root);
+    const { projectConfig, references, configPath } = await loadConfigAndReferences(root);
     const instructions = await generateApplyInstructions(projectRoot, changeName, options.schema, {
       planningHome,
       references,
+      ...(projectConfig?.targets ? { storeTargets: projectConfig.targets } : {}),
+      storeConfigPath: configPath,
     });
 
     spinner?.stop();
@@ -486,6 +526,12 @@ export function printApplyInstructionsText(instructions: ApplyInstructions): voi
 
   if (instructions.references && instructions.references.length > 0) {
     console.log(renderReferencedStoresSection(instructions.references));
+    console.log();
+  }
+
+  // Effective target repos (declarations, not machinery)
+  if (instructions.targets) {
+    console.log(renderTargetReposSection(instructions.targets));
     console.log();
   }
 

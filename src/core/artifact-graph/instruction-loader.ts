@@ -17,6 +17,7 @@ import {
 } from '../change-status-policy.js';
 import { readProjectConfig, validateConfigRules, type ProjectConfig } from '../project-config.js';
 import type { ReferenceIndexEntry } from '../references.js';
+import type { EffectiveTargets } from '../targets.js';
 import type { PlanningHome } from '../planning-home.js';
 import type { ChangeMetadata, InitiativeLink } from '../change-metadata/index.js';
 import type { Artifact, CompletedSet } from './types.js';
@@ -98,6 +99,8 @@ export interface ArtifactInstructions {
   rules: string[] | undefined;
   /** Referenced-store index (read-only upstream context; omitted when no references are declared) */
   references?: ReferenceIndexEntry[];
+  /** Effective target repos (slice 3.4): declarations, not machinery. */
+  targets?: EffectiveTargets;
   /** Template content (structure to follow - this IS the output format) */
   template: string;
   /** Dependencies with completion status and paths */
@@ -276,6 +279,7 @@ export interface GenerateInstructionsOptions {
   projectConfig?: ProjectConfig | null;
   /** Referenced-store index assembled at the command boundary. */
   references?: ReferenceIndexEntry[];
+  targets?: EffectiveTargets;
 }
 
 export function generateInstructions(
@@ -344,6 +348,7 @@ export function generateInstructions(
     context: configContext,
     rules: configRules,
     ...(options.references !== undefined ? { references: options.references } : {}),
+    ...(options.targets !== undefined ? { targets: options.targets } : {}),
     template: templateContent,
     dependencies,
     unlocks,

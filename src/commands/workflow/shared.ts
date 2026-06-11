@@ -11,6 +11,7 @@ import * as fs from 'fs';
 import { getSchemaDir, listSchemas } from '../../core/artifact-graph/index.js';
 import type { InitiativeLink } from '../../core/change-metadata/index.js';
 import type { ReferenceIndexEntry } from '../../core/references.js';
+import type { EffectiveTargets } from '../../core/targets.js';
 import { isRootSelectionError } from '../../core/root-selection.js';
 import { validateChangeName } from '../../utils/change-utils.js';
 
@@ -49,6 +50,8 @@ export interface ApplyInstructions {
   instruction: string;
   /** Referenced-store index (read-only upstream context; omitted when none declared) */
   references?: ReferenceIndexEntry[];
+  /** Effective target repos (slice 3.4): declarations, not machinery. */
+  targets?: EffectiveTargets;
 }
 
 // -----------------------------------------------------------------------------

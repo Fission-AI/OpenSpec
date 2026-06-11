@@ -420,7 +420,7 @@ export function readStorePointer(projectRoot: string): StorePointerRead {
 }
 
 /** Shared .yaml/.yml probe used by readProjectConfig and readStorePointer. */
-function resolveConfigFilePath(projectRoot: string): string | null {
+export function resolveConfigFilePath(projectRoot: string): string | null {
   const yamlPath = path.join(projectRoot, 'openspec', 'config.yaml');
   if (existsSync(yamlPath)) {
     return yamlPath;
