@@ -1134,9 +1134,15 @@ Progress:
   vocabulary clean except one legacy initiative JSON passthrough
   (queued); TTFS measured live at 2 commands / 2 concepts with every
   step printing the next command.
-- [ ] Technical audits done (single-resolver invariant, dependency
+- [x] Technical audits done (single-resolver invariant, dependency
   direction, dead code, module sizes, agent-contract inventory, net LOC
-  delta reported).
+  delta reported). Results: `capstone/technical-audits.md` — both
+  invariants HOLD with zero violations; dead code yields five P3s
+  (queued) and no P2s; module sizes bounded (largest 1,160 lines); the
+  agent contract is documented in `docs/agent-contract.md` (every JSON
+  shape + 100+ diagnostic codes verified against emitting code, 14
+  consistency findings recorded, one gauntlet-grade); src net LOC is
+  **−4,478** vs origin/main.
 - [ ] Whole-delta review gauntlet over `origin/main...HEAD` passed with no
   open P1/P2 findings.
 - [ ] Release-readiness report committed.
@@ -1421,6 +1427,26 @@ is working:
   a deliberate fourth partial edit, and the spec's byte-stable clause
   now allows the new removal-coverage tests. The reworded constraint
   string gets its first-ever pin in the new test.
+- 2026-06-11: Capstone (6.1) technical audits done
+  (`capstone/technical-audits.md`). Single-resolver invariant HOLDS
+  (one precedence implementation; nine entry points through it; one
+  latent unreachable fallback queued for deletion). Dependency
+  direction HOLDS (zero core→commands/cli imports). Dead-code sweep:
+  no P2s; five P3s queued (the unreachable apply fallback +
+  resolveCurrentPlanningHomeSync, test-only resolveRegisteredStore
+  with its stale --store-path fix text, the zero-consumer references
+  barrel line, the PlanningHomeSummary identity wrapper, the parseJson
+  test-helper x11); notes recorded (mkdir copies, the checkout-path
+  prose convention, ext:: threat-model comment, sanctioned test-only
+  exports). Module sizes bounded. docs/agent-contract.md committed:
+  the full agent contract verified against emitting code with 14
+  consistency findings — one gauntlet-grade P2 (several --json
+  failure paths in validate/show/status/instructions print stderr
+  only, no JSON document) queued for the gauntlet fix round; key-casing
+  and envelope-unification findings recorded as known gaps (published
+  JSON renames are product decisions). Net LOC vs origin/main: src
+  −4,478 (deletions outweigh the rebuild), test −325; gross insertions
+  dominated by openspec/work planning artifacts.
 - 2026-06-11: Capstone (6.1) usability audits done
   (`capstone/usability-audits.md`). The error-catalog walk covered 55
   wrong turns live (human + JSON): 46 pass against the
