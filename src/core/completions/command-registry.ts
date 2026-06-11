@@ -287,6 +287,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             name: 'path',
             description: 'Directory to use for the store',
             takesValue: true,
+            completionType: 'path',
           },
           {
             name: 'init-git',
@@ -379,6 +380,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         name: 'code-workspace',
         description: 'Also write a VS Code workspace file for the set',
         takesValue: true,
+        completionType: 'path',
       },
       {
         name: 'force',
