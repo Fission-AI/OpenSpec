@@ -1038,8 +1038,7 @@ about what this user likes open together. Declarations/targets may later
 *suggest* members during composition; they are not load-bearing. The
 repo map and `openspec context` remain unchanged and independent.
 
-Functional requirements (user perspective; FR2+ to be drafted one at a
-time):
+Functional requirements (user perspective):
 
 **FR1 — Compose and keep a personal working view.**
 
@@ -1072,12 +1071,66 @@ Scenario: Removing a view is safe
   Then only the saved view is gone; member folders are untouched
 ```
 
+**FR2 — Open the view in your tool.**
+
+1. Opening a workset launches the chosen tool with every member
+   attached and accessible. The open kind is stated plainly: editors
+   (VS Code, Cursor) open a window and return; CLI agents (Claude
+   Code, codex) take over this terminal as a session that ends when
+   they exit.
+2. Only tools actually installed are offered; the preference saved at
+   composition is overridable per open without changing it.
+3. Supporting a new tool is configuration, not code. Every tool is an
+   instance of one of two launch styles — `workspace-file` (invoke
+   with the generated `.code-workspace`) or `attach-dirs` (executable
+   + optional pre-args + one attach flag per member + optional starter
+   prompt) — and users can add tools or adjust parameters (command,
+   attach flag) in local config, so a tool renaming its flag is a
+   one-line local fix. (The git difftool/mergetool pattern.)
+4. When a tool cannot be driven (desktop apps, for now) or a launch
+   fails, the user is shown the generated workspace file and the
+   member folders so they can open manually — never a bare error.
+   (Considered and dropped: a `--print` dry-run flag; the fallback
+   information lives in the failure path instead.)
+5. A member folder missing at open time is skipped with a one-line
+   note; the rest of the view opens.
+
+Built-in opener table at v1: `code`, `cursor` (workspace-file style);
+`claude`, `codex` (attach-dirs style; codex carries
+`--sandbox workspace-write` pre-args). Availability via PATH scan.
+
+```gherkin
+Scenario: Editor open returns, agent open takes over
+  When the user opens "platform" in VS Code
+  Then a window opens with all members and the prompt returns
+  When the user opens "platform" in Claude Code
+  Then a Claude session starts in this terminal with every member
+       granted as a working directory, and ends when they exit it
+
+Scenario: Adding a new editor without a release
+  Given the user adds `zed: { style: workspace-file }` to local config
+  When they open a workset in zed
+  Then it launches with the generated workspace file
+
+Scenario: Flag drift is a local fix
+  Given a CLI agent renamed its attach flag
+  When the user overrides that tool's attach_flag in local config
+  Then opens work again immediately
+
+Scenario: Launch failure never strands
+  When a launch fails or the tool has no launch interface
+  Then the user sees the workspace file path and member folders to
+       open manually
+```
+
 Evidence base: the deleted `workspace` feature's guided setup, opener
 availability sorting, graceful missing-path skips, and per-tool launch
-recipes were its good bones (recoverable at `f858c19^`); its registry
-indirection, managed directories, initiative binding, skills state, and
-repair subcommands are explicitly not inherited. Current code provides
-the `.code-workspace` builder (pure), the XDG storage idiom, and the
+recipes were its good bones (recoverable at `f858c19^`; launch
+mechanics: cross-spawn, stdio inherit for agent handoff, shell false,
+PATH/PATHEXT availability scan); its registry indirection, managed
+directories, initiative binding, skills state, and repair subcommands
+are explicitly not inherited. Current code provides the
+`.code-workspace` builder (pure), the XDG storage idiom, and the
 prompt library.
 
 ## Phase 5. Remove Old Surfaces Only When They Confuse The Simple Path
