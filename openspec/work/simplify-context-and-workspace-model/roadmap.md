@@ -109,11 +109,13 @@ an item are status steps for that numbered work item.
   Fully absorbed: 2.1 shipped inside slice 1.2, 2.2 folded into slice 1.4,
   and 2.3 folded into item 4.1. No independent work remains here.
 - [ ] **Phase 3. Say how roots relate: references and targets.**
-  3.1 (references) and 3.2 (declared-store fallback) are implemented
-  and tested: a repo's config declares the stores its work draws on
-  (live spec index in instructions), and a rootless repo declares its
-  store once and runs every command without `--store`. 3.3 (canonical
-  remotes) is next; targets and the local repo map follow.
+  3.1 (references), 3.2 (declared-store fallback), and 3.3 (canonical
+  remotes) are implemented and tested: a repo declares the stores its
+  work draws on, a rootless repo declares its store once, and
+  onboarding no longer dead-ends — stores record where they are cloned
+  from and unresolved references print a verbatim clone fix. 3.4
+  (targets) is next; the local repo map and relationship health
+  follow.
 - [ ] **Phase 4. Assemble the working context.**
   Not started. Rebuilds opening around assembled context; absorbs old 2.3.
 - [ ] **Phase 5. Remove old surfaces only when they confuse the simple path.**
@@ -126,17 +128,17 @@ an item are status steps for that numbered work item.
 
 Next incomplete item:
 
-- [ ] **3.3 Record a canonical remote in store identity.**
-  In plain English: clone an app repo that references a store you don't
-  have yet, and be told where to clone the store from. An optional
-  canonical remote lands in `.openspec-store/store.yaml` (the shared,
-  committed home), populated at setup/register when known; doctor
-  surfaces it, and unresolved-reference and register guidance use it.
-  Recording a remote is not sync — no clone/pull/push behavior. Spec
-  and plan written and reviewed (`slices/store-canonical-remote/`);
-  implementation is next. (3.1 and 3.2 are implemented and reviewed;
-  the 5.1 first tranche is done; the Phase 5 remainder runs after
-  4.1.)
+- [ ] **3.4 Let a store declare its target project repos.**
+  In plain English: a planning repo says, once, which code repos its
+  work is about — store-level defaults in the store's config, optional
+  per-change narrowing as ordinary metadata. No clone/sync/branch/
+  worktree implications and no edit-boundary enforcement; targets are
+  declarations agents read, not machinery. The 3.3 standing constraint
+  applies: target declarations do NOT go into `store.yaml` (the strict
+  schema makes any new field there a cross-version protocol change) —
+  the store's `openspec/config.yaml` is the natural home. Spec not yet
+  written. (3.1–3.3 are implemented and reviewed; the 5.1 first
+  tranche is done; the Phase 5 remainder runs after 4.1.)
 
 ## Phase 0. Make The Active Direction Easy To Find
 
@@ -795,12 +797,20 @@ How the user or agent knows it worked:
 
 ### 3.3 Record A Canonical Remote In Store Identity
 
+Slice: `slices/store-canonical-remote/spec.md`
+
 Progress:
 
-- [ ] Spec written.
-- [ ] Plan written.
-- [ ] Implementation done.
-- [ ] Tests pass.
+- [x] Spec written.
+- [x] Plan written.
+- [x] Implementation done (the optional `remote` in store.yaml via
+  `setup --remote`; observed origins recorded machine-locally at
+  setup/register with rerun-safe refresh reporting; doctor and sharing
+  surfaces; `{id, remote}` reference declarations with shell-safe
+  verbatim clone fixes; three-mechanism review and a simplify pass
+  folded).
+- [x] Tests pass (full suite green, 90 files / 1678 tests; the e2e
+  onboarding journey executes the printed fix verbatim).
 - [ ] Merged to `main`.
 
 What the user can do:
@@ -1372,6 +1382,30 @@ is working:
   a deliberate fourth partial edit, and the spec's byte-stable clause
   now allows the new removal-coverage tests. The reworded constraint
   string gets its first-ever pin in the new test.
+- 2026-06-11: Implemented slice 3.3 (store canonical remote) in two
+  checkpoints plus a review-fix round: the optional `remote` in
+  `store.yaml` (strict schema retained; `setup --remote` writes it
+  before the initial commit, refuses empty values and existing
+  identity files); observed origins probed read-only into the
+  machine-local registry at setup (both backend-resolution sites) and
+  register, with rerun-safe reporting (a same-checkout origin backfill
+  refreshes the entry but reports `already_registered`); doctor's
+  `metadata.remote` + `git.origin_url`; the sharing chain canonical →
+  observed → today's wording; `{id, remote}` reference declarations
+  normalized with fill-if-absent dedup; and the unresolved-reference
+  fix as a verbatim-pasteable absolute-path clone command. The review
+  round caught and fixed: the nested-repo origin leak (git -C walks
+  up — probes now guard with an at-root check), shell-quoting and
+  flag/metacharacter injection in the rendered clone fix (shell-inert
+  allowlist with teammate-wording fallback), the execute-phase TOCTOU
+  on --remote, and the rerun-reporting break. Simplify extracted the
+  duplicated hand-edit thrower and restructured registration around a
+  normalized `sameCheckout` predicate (fixing a symlinked-path
+  reporting edge). Capstone notes recorded: the `~/openspec/<id>`
+  convention lives in one computed + five prose sites; the remote
+  allowlist admits git's `ext::` transport (team-committed configs
+  only — harden to recognized URL shapes if remotes ever arrive from
+  less-trusted sources). Full suite green (90 files, 1678 tests).
 - 2026-06-11: Wrote the store-canonical-remote plan (3.3, two
   checkpoints) and folded two plan reviews (both approve-with-fixes):
   the clone fix renders ABSOLUTE home paths (`~` never expands outside

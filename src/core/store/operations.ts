@@ -395,6 +395,18 @@ function mutationPayload(
 }
 
 
+
+function remoteRequiresHandEditError(id: string, storeRoot: string): StoreError {
+  return new StoreError(
+    `Store '${id}' already has an identity file; --remote cannot change it.`,
+    'store_remote_requires_hand_edit',
+    {
+      target: 'store.metadata',
+      fix: `Edit ${getStoreMetadataPath(storeRoot)} and commit it.`,
+    }
+  );
+}
+
 /**
  * Backend config carrying the observed origin. Guarded by an at-root
  * repository check: `git -C` discovers repositories by walking UP the
@@ -463,14 +475,7 @@ async function prepareSetupPlan(
       if (input.remote !== undefined) {
         // Silent acceptance is the forbidden outcome: the identity file
         // already exists, so --remote cannot reach the committed shape.
-        throw new StoreError(
-          `Store '${id}' already has an identity file; --remote cannot change it.`,
-          'store_remote_requires_hand_edit',
-          {
-            target: 'store.metadata',
-            fix: `Edit ${getStoreMetadataPath(storeRoot)} and commit it.`,
-          }
-        );
+        throw remoteRequiresHandEditError(id, storeRoot);
       }
     } else {
       const openspecRoot = await inspectOpenSpecRoot(storeRoot);
@@ -585,14 +590,7 @@ export async function setupPreparedStore(
     if (existingMetadata && prepared.remote !== undefined) {
       // Re-assert the prepare-phase refusal: metadata that materialized
       // between prepare and execute must not silently swallow --remote.
-      throw new StoreError(
-        `Store '${id}' already has an identity file; --remote cannot change it.`,
-        'store_remote_requires_hand_edit',
-        {
-          target: 'store.metadata',
-          fix: `Edit ${getStoreMetadataPath(storeRoot)} and commit it.`,
-        }
-      );
+      throw remoteRequiresHandEditError(id, storeRoot);
     }
     if (!existingMetadata) {
       const metadataDir = getStoreMetadataDir(storeRoot);
