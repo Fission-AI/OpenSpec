@@ -2,9 +2,38 @@
 
 This change is the continuity layer for reimplementing workspace support across multiple sessions and branches.
 
-Root entry point for fresh agents: `WORKSPACE_REIMPLEMENTATION_START_HERE.md`.
+## Current Status
 
-The user journey we are implementing is:
+This roadmap is historical and has been reframed by
+`openspec/initiatives/context-store-and-initiatives/`. Fresh agents should use
+the initiative direction as product authority and this roadmap as reference for
+POC lessons and preserved local-view behavior.
+
+Keep:
+
+- workspace setup, link, relink, list, open, update, and doctor
+- linked repos and folders as local planning context
+- workspace-local skills as local agent guidance
+- the POC as research material only
+
+Supersede:
+
+- workspace as the durable shared planning home
+- workspace-level planning artifacts as the canonical cross-repo plan
+- workspace change planning as the long-term source of truth
+
+Defer:
+
+- workspace apply, verify, and archive as first-class lifecycle commands
+- branch/worktree orchestration, strong cross-repo validation, and dependency
+  graph enforcement
+
+Do not pick up the next unfinished flat sibling change from this roadmap unless
+a later initiative-linked repo-change design explicitly reactivates it.
+
+Root entry point for fresh agents: `START_HERE.md`.
+
+The user journey this historical roadmap was implementing is:
 
 ```text
 create workspace
@@ -21,13 +50,13 @@ The POC branch is reference material only:
 workspace-poc @ 79a45ac043f414e63d13e08b9da83b135cb20a39
 ```
 
-Use it to understand behavior, tests, and lessons learned. Do not merge it or preserve its architecture by default. The full source direction document from that branch is copied at the repository root as `WORKSPACE_REIMPLEMENTATION_DIRECTION.md`.
+Use it to understand behavior, tests, and lessons learned. Do not merge it or preserve its architecture by default. The full source direction document from that branch is captured in `HISTORICAL_DIRECTION.md`.
 
 Fresh agents should read `POC_REFERENCE_GUIDE.md` before implementing any slice. That guide explains how to inspect the pinned POC commit, which files to read for each slice, and what findings to bring back into the OpenSpec artifacts.
 
-## Change Order
+## Historical Change Order
 
-Implement the flat sibling changes in this order:
+The original flat sibling changes were:
 
 1. `workspace-foundation`
 2. `workspace-create-and-register-repos`
@@ -37,7 +66,7 @@ Implement the flat sibling changes in this order:
 6. `workspace-apply-repo-slice`
 7. `workspace-verify-and-archive`
 
-OpenSpec currently discovers active changes as immediate directories under `openspec/changes/`, and change names are kebab-case identifiers. Keep these changes as flat siblings until formal change-stacking metadata is available.
+OpenSpec currently discovers active changes as immediate directories under `openspec/changes/`, and change names are kebab-case identifiers. These changes remain useful reference artifacts, but they are no longer a direct implementation queue.
 
 ## Dependency Notes
 
@@ -47,26 +76,30 @@ OpenSpec currently discovers active changes as immediate directories under `open
 
 `workspace-open-agent-context` gives the agent the workspace location, linked repos or folders, active changes, and selected change scope.
 
-`workspace-change-planning` creates the workspace-level planning commitment and identifies target repo slices.
+`workspace-change-planning` created the beta workspace-level planning commitment and identified target repo slices. Under the initiative direction, this model is legacy or transitional rather than the durable shared plan.
 
 `workspace-agent-guidance` makes workspace-local workflow skills use the planning model deliberately: inspect linked context, seed workspace changes with goal and known affected areas, and preserve linked repos as read-only planning context until apply selects an edit root.
 
-`workspace-apply-repo-slice` treats apply as implementation of one selected repo slice, not materialization of workspace planning files.
+`workspace-apply-repo-slice` is deferred until initiative-linked repo-local changes define the implementation handoff.
 
-`workspace-verify-and-archive` makes cross-repo progress visible and separates partial repo completion from final workspace completion.
+`workspace-verify-and-archive` is deferred until initiative status and linked repo-local change lifecycle exist.
 
 ## Session Handoff Prompt
 
 Use this prompt at the start of future implementation sessions:
 
 ```text
-Continue the workspace reimplementation roadmap. Read
-openspec/changes/workspace-reimplementation-roadmap/README.md and
-openspec/changes/workspace-reimplementation-roadmap/POC_REFERENCE_GUIDE.md
-first, then pick up the next unfinished flat sibling change in order. Use
-workspace-poc at 79a45ac043f414e63d13e08b9da83b135cb20a39 as reference
-material only. Preserve intended behavior, but reimplement cleanly from the
-current base. Before editing, summarize the POC findings for the slice.
+Continue the context-store-and-initiatives direction. Read
+openspec/initiatives/context-store-and-initiatives/direction.md and
+openspec/initiatives/context-store-and-initiatives/roadmap.md first. Use
+openspec/changes/workspace-reimplementation-roadmap/START_HERE.md,
+openspec/changes/workspace-reimplementation-roadmap/README.md,
+openspec/changes/workspace-reimplementation-roadmap/HISTORICAL_DIRECTION.md,
+openspec/changes/workspace-reimplementation-roadmap/POC_REFERENCE_GUIDE.md, and
+workspace-poc at 79a45ac043f414e63d13e08b9da83b135cb20a39 as historical
+reference material only. Preserve useful local-view workspace behavior, but do
+not implement workspace apply, verify, or archive until initiative-linked
+repo-local changes exist.
 ```
 
 ## Branching Guidance

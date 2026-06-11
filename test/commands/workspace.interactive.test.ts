@@ -5,10 +5,16 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 
 import {
+  createInitiative,
+  mountInitiativesCollection,
+  registerContextStore,
+} from '../../src/core/index.js';
+import {
   getManagedWorkspaceRoot,
-  getWorkspaceLocalStatePath,
-  parseWorkspaceLocalState,
+  getWorkspaceViewStatePath,
+  parseWorkspaceViewState,
 } from '../../src/core/workspace/index.js';
+import { prependProcessPathEnv, setProcessPathEnv } from '../helpers/path-env.js';
 
 const searchableMultiSelectMock = vi.hoisted(() => vi.fn(async () => []));
 
@@ -101,14 +107,33 @@ describe('workspace command interactive flows', () => {
   }
 
   function expectedExistingPath(existingPath: string): string {
-    return process.platform === 'win32' ? fs.realpathSync.native(existingPath) : existingPath;
+    return fs.realpathSync.native(existingPath);
   }
 
-  function readLocalState(workspaceName: string) {
+  function readWorkspaceState(workspaceName: string) {
     const workspaceRoot = getManagedWorkspaceRoot(workspaceName);
-    return parseWorkspaceLocalState(
-      fs.readFileSync(getWorkspaceLocalStatePath(workspaceRoot), 'utf-8')
-    );
+    return parseWorkspaceViewState(fs.readFileSync(getWorkspaceViewStatePath(workspaceRoot), 'utf-8'));
+  }
+
+  async function setupInitiative(storeId = 'team-context', initiativeId = 'agent-trace-hooks') {
+    const storeRoot = mkdir(`stores/${storeId}`);
+    await registerContextStore({
+      id: storeId,
+      localPath: storeRoot,
+    });
+    await createInitiative({
+      collection: mountInitiativesCollection(storeRoot),
+      id: initiativeId,
+      title: 'Agent Trace Hooks',
+      summary: 'Explore lightweight capture of agent trace events.',
+    });
+
+    return {
+      storeId,
+      storeRoot,
+      initiativeId,
+      initiativeRoot: path.join(storeRoot, 'initiatives', initiativeId),
+    };
   }
 
   it('asks for the workspace name first and validates kebab-case before asking for links', async () => {
@@ -156,7 +181,7 @@ describe('workspace command interactive flows', () => {
         ]),
       })
     );
-    expect(readLocalState('platform').paths).toEqual({ api: expectedApi });
+    expect(readWorkspaceState('platform').links).toEqual({ api: expectedApi });
   });
 
   it('handles prompt cancellation without printing the raw SIGINT error', async () => {
@@ -180,7 +205,7 @@ describe('workspace command interactive flows', () => {
     const codePath = path.join(binDir, process.platform === 'win32' ? 'code.cmd' : 'code');
     fs.writeFileSync(codePath, '');
     fs.chmodSync(codePath, 0o755);
-    process.env.PATH = binDir;
+    setProcessPathEnv(binDir);
     const { input, confirm, select } = await getPromptMocks();
 
     input.mockImplementation(async (options: { message: string }) => {
@@ -204,7 +229,7 @@ describe('workspace command interactive flows', () => {
           'editor',
           'github-copilot',
         ]);
-        expect(options.choices?.find((choice) => choice.value === 'codex')?.name).toContain(
+        expect(options.choices?.find((choice) => choice.value === 'codex-cli')?.name).toContain(
           'codex not found on PATH'
         );
         return 'github-copilot';
@@ -217,7 +242,7 @@ describe('workspace command interactive flows', () => {
 
     expect(process.exitCode).toBeUndefined();
     expect(confirm).not.toHaveBeenCalled();
-    expect(readLocalState('platform').preferred_opener).toEqual({
+    expect(readWorkspaceState('platform').preferred_opener).toEqual({
       kind: 'agent',
       id: 'github-copilot',
     });
@@ -229,7 +254,7 @@ describe('workspace command interactive flows', () => {
     const codexPath = path.join(binDir, process.platform === 'win32' ? 'codex.cmd' : 'codex');
     fs.writeFileSync(codexPath, '');
     fs.chmodSync(codexPath, 0o755);
-    process.env.PATH = binDir;
+    setProcessPathEnv(binDir);
     const { input, select } = await getPromptMocks();
 
     input.mockImplementation(async (options: { message: string }) => {
@@ -249,7 +274,7 @@ describe('workspace command interactive flows', () => {
       }
 
       if (options.message === 'Preferred opener:') {
-        return 'codex';
+        return 'codex-cli';
       }
 
       throw new Error(`Unexpected select prompt: ${options.message}`);
@@ -268,7 +293,7 @@ describe('workspace command interactive flows', () => {
 
     expect(process.exitCode).toBeUndefined();
     expect(searchableMultiSelectMock).toHaveBeenCalledTimes(1);
-    expect(readLocalState('platform').workspace_skills).toEqual(
+    expect(readWorkspaceState('platform').workspace_skills).toEqual(
       expect.objectContaining({
         selected_agents: ['codex', 'claude'],
         last_applied_workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive'],
@@ -321,7 +346,7 @@ describe('workspace command interactive flows', () => {
     expect(consoleLogSpy).toHaveBeenCalledWith(
       `Link name 'api' is already linked to ${expectedFirstApi}.`
     );
-    expect(readLocalState('platform').paths).toEqual({
+    expect(readWorkspaceState('platform').links).toEqual({
       api: expectedFirstApi,
       'api-archive': expectedSecondApi,
     });
@@ -360,7 +385,7 @@ describe('workspace command interactive flows', () => {
       'Link name:',
     ]);
     expect(confirm).not.toHaveBeenCalled();
-    expect(readLocalState('platform').paths).toEqual({
+    expect(readWorkspaceState('platform').links).toEqual({
       root: expectedLinkedRoot,
     });
   });
@@ -407,8 +432,7 @@ describe('workspace command interactive flows', () => {
       process.platform === 'win32' ? '@echo off\r\nexit /B 0\r\n' : '#!/bin/sh\nexit 0\n'
     );
     fs.chmodSync(codePath, 0o755);
-    const pathKey = Object.keys(process.env).find((key) => key.toLowerCase() === 'path') ?? 'PATH';
-    process.env[pathKey] = `${binDir}${path.delimiter}${process.env[pathKey] ?? ''}`;
+    prependProcessPathEnv(binDir);
     const { select } = await getPromptMocks();
 
     await runWorkspaceCommand(['setup', '--no-interactive', '--name', 'platform', '--link', `api=${api}`]);
@@ -429,13 +453,13 @@ describe('workspace command interactive flows', () => {
       expect.arrayContaining(['editor', 'github-copilot'])
     );
     expect(consoleLogSpy).toHaveBeenCalledWith('Opening workspace: platform');
-    expect(readLocalState('platform').preferred_opener).toBeUndefined();
+    expect(readWorkspaceState('platform').preferred_opener).toBeUndefined();
   });
 
   it('fails workspace open without prompting when no opener is available', async () => {
     const api = mkdir('repos/api');
     const { select } = await getPromptMocks();
-    process.env.PATH = '';
+    setProcessPathEnv('');
 
     await runWorkspaceCommand(['setup', '--no-interactive', '--name', 'platform', '--link', `api=${api}`]);
     consoleErrorSpy.mockClear();
@@ -459,7 +483,7 @@ describe('workspace command interactive flows', () => {
       process.platform === 'win32' ? '@echo off\r\nexit /B 0\r\n' : '#!/bin/sh\nexit 0\n'
     );
     fs.chmodSync(codePath, 0o755);
-    process.env.PATH = `${binDir}${path.delimiter}${process.env.PATH ?? ''}`;
+    prependProcessPathEnv(binDir);
     const { select } = await getPromptMocks();
 
     await runWorkspaceCommand([
@@ -494,5 +518,179 @@ describe('workspace command interactive flows', () => {
       })
     );
     expect(consoleLogSpy).toHaveBeenCalledWith('Opening workspace: checkout-web');
+  });
+
+  it('shows initiatives in the bare workspace open picker and creates a local view', async () => {
+    const initiative = await setupInitiative();
+    const api = mkdir('repos/api');
+    const expectedApi = expectedExistingPath(api);
+    const binDir = mkdir('bin');
+    const codePath = path.join(binDir, process.platform === 'win32' ? 'code.cmd' : 'code');
+    fs.writeFileSync(
+      codePath,
+      process.platform === 'win32' ? '@echo off\r\nexit /B 0\r\n' : '#!/bin/sh\nexit 0\n'
+    );
+    fs.chmodSync(codePath, 0o755);
+    prependProcessPathEnv(binDir);
+    const { input, select } = await getPromptMocks();
+    let continuePromptCount = 0;
+
+    input.mockImplementation(async (options: { message: string }) => {
+      if (options.message === 'Repo or folder path:') {
+        return api;
+      }
+
+      throw new Error(`Unexpected input prompt: ${options.message}`);
+    });
+
+    select.mockImplementation(async (options: { message: string; choices?: Array<{ name: string; value: unknown }> }) => {
+      if (options.message === 'Select workspace or initiative:') {
+        const choice = options.choices?.find((candidate) =>
+          candidate.name.includes('Initiative: team-context/agent-trace-hooks')
+        );
+        if (!choice) {
+          throw new Error('Expected initiative choice to be present');
+        }
+        expect(choice?.name).toContain('create local workspace view');
+        return choice.value;
+      }
+
+      if (options.message === 'Continue') {
+        continuePromptCount += 1;
+        return continuePromptCount === 1 ? 'add' : 'finish';
+      }
+
+      throw new Error(`Unexpected select prompt: ${options.message}`);
+    });
+
+    await runWorkspaceCommand(['open', '--editor']);
+
+    expect(process.exitCode).toBeUndefined();
+    expect(select).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'Select workspace or initiative:',
+        choices: expect.arrayContaining([
+          expect.objectContaining({
+            name: expect.stringContaining('Initiative: team-context/agent-trace-hooks'),
+            value: expect.objectContaining({
+              kind: 'initiative',
+              initiative: expect.objectContaining({
+                store: 'team-context',
+                id: 'agent-trace-hooks',
+              }),
+            }),
+          }),
+        ]),
+      })
+    );
+    expect(consoleLogSpy).toHaveBeenCalledWith('Opening workspace: agent-trace-hooks');
+    expect(consoleLogSpy).toHaveBeenCalledWith('Initiative: team-context/agent-trace-hooks');
+    const workspaceState = readWorkspaceState('agent-trace-hooks');
+    expect(workspaceState.context).toEqual({
+      kind: 'initiative',
+      store: {
+        id: initiative.storeId,
+        selector: {
+          kind: 'registry',
+          id: initiative.storeId,
+        },
+      },
+      initiative: {
+        id: initiative.initiativeId,
+      },
+    });
+    expect(workspaceState.links).toEqual({ api: expectedApi });
+  });
+
+  it('can create an initiative workspace view without linked repos from the picker', async () => {
+    const initiative = await setupInitiative('team-context', 'context-only-launch');
+    const binDir = mkdir('bin');
+    const codePath = path.join(binDir, process.platform === 'win32' ? 'code.cmd' : 'code');
+    fs.writeFileSync(
+      codePath,
+      process.platform === 'win32' ? '@echo off\r\nexit /B 0\r\n' : '#!/bin/sh\nexit 0\n'
+    );
+    fs.chmodSync(codePath, 0o755);
+    prependProcessPathEnv(binDir);
+    const { input, select } = await getPromptMocks();
+
+    select.mockImplementation(async (options: { message: string; choices?: Array<{ name: string; value: unknown }> }) => {
+      if (options.message === 'Select workspace or initiative:') {
+        const choice = options.choices?.find((candidate) =>
+          candidate.name.includes('Initiative: team-context/context-only-launch')
+        );
+        if (!choice) {
+          throw new Error('Expected initiative choice to be present');
+        }
+        return choice.value;
+      }
+
+      if (options.message === 'Continue') {
+        expect(options.choices).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              name: 'Create without linked repos',
+              value: 'finish',
+            }),
+            expect.objectContaining({
+              name: 'Add a repo or folder',
+              value: 'add',
+            }),
+          ])
+        );
+        return 'finish';
+      }
+
+      throw new Error(`Unexpected select prompt: ${options.message}`);
+    });
+
+    await runWorkspaceCommand(['open', '--editor']);
+
+    expect(process.exitCode).toBeUndefined();
+    expect(input).not.toHaveBeenCalled();
+    expect(consoleLogSpy).toHaveBeenCalledWith('Opening workspace: context-only-launch');
+    const workspaceState = readWorkspaceState('context-only-launch');
+    expect(workspaceState.context).toEqual({
+      kind: 'initiative',
+      store: {
+        id: initiative.storeId,
+        selector: {
+          kind: 'registry',
+          id: initiative.storeId,
+        },
+      },
+      initiative: {
+        id: initiative.initiativeId,
+      },
+    });
+    expect(workspaceState.links).toEqual({});
+  });
+
+  it('does not prompt for initiative workspace links when JSON output is requested', async () => {
+    const initiative = await setupInitiative('team-context', 'json-launch');
+    const binDir = mkdir('bin');
+    const codePath = path.join(binDir, process.platform === 'win32' ? 'code.cmd' : 'code');
+    fs.writeFileSync(
+      codePath,
+      process.platform === 'win32' ? '@echo off\r\nexit /B 0\r\n' : '#!/bin/sh\nexit 0\n'
+    );
+    fs.chmodSync(codePath, 0o755);
+    prependProcessPathEnv(binDir);
+    const { input, select } = await getPromptMocks();
+
+    await runWorkspaceCommand([
+      'open',
+      '--initiative',
+      initiative.initiativeId,
+      '--store',
+      initiative.storeId,
+      '--editor',
+      '--json',
+    ]);
+
+    expect(process.exitCode).toBeUndefined();
+    expect(input).not.toHaveBeenCalled();
+    expect(select).not.toHaveBeenCalled();
+    expect(readWorkspaceState('json-launch').links).toEqual({});
   });
 });

@@ -6,8 +6,18 @@ import { detectCompleted } from './state.js';
 import { resolveArtifactOutputs } from './outputs.js';
 import { readChangeMetadata, resolveSchemaForChange } from '../../utils/change-metadata.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
+import {
+  buildActionContext,
+  buildNextSteps,
+  summarizeAffectedAreas,
+  summarizePlanningHome,
+  type ActionContext,
+  type AffectedAreasSummary,
+  type PlanningHomeSummary,
+} from '../change-status-policy.js';
 import { readProjectConfig, validateConfigRules } from '../project-config.js';
 import type { PlanningHome } from '../planning-home.js';
+import type { ChangeMetadata, InitiativeLink } from '../change-metadata/index.js';
 import type { Artifact, CompletedSet } from './types.js';
 
 // Session-level cache for validation warnings (avoid repeating same warnings)
@@ -44,6 +54,10 @@ export interface ChangeContext {
   projectRoot: string;
   /** Resolved planning home for this change */
   planningHome?: PlanningHome;
+  /** Parsed change metadata, when present */
+  metadata?: ChangeMetadata;
+  /** Stored initiative link, when this change is linked to shared context */
+  initiative?: InitiativeLink;
 }
 
 export interface LoadChangeContextOptions {
@@ -65,6 +79,8 @@ export interface ArtifactInstructions {
   changeDir: string;
   /** Resolved planning home for this change */
   planningHome?: PlanningHomeSummary;
+  /** Stored initiative link, when this change is linked to shared context */
+  initiative?: InitiativeLink;
   /** Output path pattern (e.g., "proposal.md") */
   outputPath: string;
   /** Absolute output path or glob pattern resolved under the change directory */
@@ -125,6 +141,8 @@ export interface ChangeStatus {
   schemaName: string;
   /** Resolved planning home for this change */
   planningHome?: PlanningHomeSummary;
+  /** Stored initiative link, when this change is linked to shared context */
+  initiative?: InitiativeLink;
   /** Full path to the change root */
   changeRoot: string;
   /** Absolute artifact path details keyed by artifact ID */
@@ -147,30 +165,6 @@ export interface ArtifactPathSummary {
   outputPath: string;
   resolvedOutputPath: string;
   existingOutputPaths: string[];
-}
-
-export interface PlanningHomeSummary {
-  kind: 'repo' | 'workspace';
-  root: string;
-  changesDir: string;
-  defaultSchema: string;
-  workspaceName?: string;
-}
-
-export interface AffectedAreasSummary {
-  known: string[];
-  unresolved: boolean;
-  invalid: string[];
-}
-
-export interface ActionContext {
-  mode: 'repo-local' | 'workspace-planning';
-  sourceOfTruth: 'repo' | 'workspace';
-  planningArtifacts: string[];
-  linkedContext: Array<{ name: string }>;
-  allowedEditRoots: string[];
-  requiresAffectedAreaSelection: boolean;
-  constraints: string[];
 }
 
 /**
@@ -240,8 +234,10 @@ export function loadChangeContext(
     options.changeDir ?? path.join(projectRoot, 'openspec', 'changes', changeName)
   );
 
-  // Resolve schema: explicit > metadata > default
-  const resolvedSchemaName = resolveSchemaForChange(changeDir, schemaName, projectRoot);
+  const metadata = readChangeMetadata(changeDir, projectRoot) ?? undefined;
+  const resolvedSchemaName = resolveSchemaForChange(changeDir, schemaName, projectRoot, {
+    metadata: metadata ?? null,
+  });
 
   const schema = resolveSchema(resolvedSchemaName, projectRoot);
   const graph = ArtifactGraph.fromSchema(schema);
@@ -255,6 +251,8 @@ export function loadChangeContext(
     changeDir,
     projectRoot,
     ...(options.planningHome ? { planningHome: options.planningHome } : {}),
+    ...(metadata ? { metadata } : {}),
+    ...(metadata?.initiative ? { initiative: metadata.initiative } : {}),
   };
 }
 
@@ -328,6 +326,7 @@ export function generateInstructions(
     schemaName: context.schemaName,
     changeDir: context.changeDir,
     planningHome: summarizePlanningHome(context.planningHome),
+    ...(context.initiative ? { initiative: context.initiative } : {}),
     outputPath: artifact.generates,
     resolvedOutputPath: path.join(context.changeDir, artifact.generates),
     existingOutputPaths: resolveArtifactOutputs(context.changeDir, artifact.generates),
@@ -373,110 +372,6 @@ function getUnlockedArtifacts(graph: ArtifactGraph, artifactId: string): string[
   }
 
   return unlocks.sort();
-}
-
-function summarizePlanningHome(planningHome: PlanningHome | undefined): PlanningHomeSummary | undefined {
-  if (!planningHome) {
-    return undefined;
-  }
-
-  return {
-    kind: planningHome.kind,
-    root: planningHome.root,
-    changesDir: planningHome.changesDir,
-    defaultSchema: planningHome.defaultSchema,
-    ...(planningHome.workspace ? { workspaceName: planningHome.workspace.name } : {}),
-  };
-}
-
-function getWorkspaceSpecAreaSegments(context: ChangeContext): string[] {
-  if (context.planningHome?.kind !== 'workspace') {
-    return [];
-  }
-
-  const specArtifact = context.graph.getArtifact('specs');
-  if (!specArtifact) {
-    return [];
-  }
-
-  return resolveArtifactOutputs(context.changeDir, specArtifact.generates)
-    .map((outputPath) => path.relative(path.join(context.changeDir, 'specs'), outputPath))
-    .filter((relativePath) => relativePath.length > 0 && !relativePath.startsWith('..'))
-    .map((relativePath) => relativePath.split(path.sep)[0])
-    .filter((areaName) => areaName.length > 0);
-}
-
-function getAffectedAreasSummary(context: ChangeContext): AffectedAreasSummary | undefined {
-  if (context.planningHome?.kind !== 'workspace') {
-    return undefined;
-  }
-
-  const metadata = readChangeMetadata(context.changeDir, context.projectRoot);
-  const known = Array.from(
-    new Set([...(metadata?.affected_areas ?? []), ...getWorkspaceSpecAreaSegments(context)])
-  ).sort((a, b) => a.localeCompare(b));
-  const validAreas = new Set(context.planningHome.workspace?.links ?? []);
-  const invalid = known.filter((areaName) => validAreas.size > 0 && !validAreas.has(areaName));
-
-  return {
-    known,
-    unresolved: known.length === 0,
-    invalid,
-  };
-}
-
-function buildActionContext(context: ChangeContext, artifactIds: string[]): ActionContext {
-  if (context.planningHome?.kind === 'workspace') {
-    return {
-      mode: 'workspace-planning',
-      sourceOfTruth: 'workspace',
-      planningArtifacts: artifactIds,
-      linkedContext: (context.planningHome.workspace?.links ?? []).map((name) => ({ name })),
-      allowedEditRoots: [],
-      requiresAffectedAreaSelection: true,
-      constraints: [
-        'Use workspace-level planning artifacts as the source of truth.',
-        'Treat linked repos and folders as exploration context until an affected area is selected.',
-        'Do not make implementation edits without an explicit allowed edit root.',
-      ],
-    };
-  }
-
-  return {
-    mode: 'repo-local',
-    sourceOfTruth: 'repo',
-    planningArtifacts: artifactIds,
-    linkedContext: [],
-    allowedEditRoots: [context.projectRoot],
-    requiresAffectedAreaSelection: false,
-    constraints: ['Repo-local change artifacts and implementation edits are scoped to this project.'],
-  };
-}
-
-function buildNextSteps(
-  context: ChangeContext,
-  artifactStatuses: ArtifactStatus[],
-  affectedAreas: AffectedAreasSummary | undefined
-): string[] {
-  const readyArtifact = artifactStatuses.find((artifact) => artifact.status === 'ready');
-  const steps: string[] = [];
-
-  if (readyArtifact) {
-    steps.push(
-      `Run openspec instructions ${readyArtifact.id} --change "${context.changeName}" --json before writing that artifact.`
-    );
-  } else if (context.graph.isComplete(context.completed)) {
-    steps.push('All planning artifacts are complete; review tasks before implementation.');
-  }
-
-  if (context.planningHome?.kind === 'workspace') {
-    if (affectedAreas?.unresolved) {
-      steps.push('Identify affected areas in workspace specs or coordination tasks as planning continues.');
-    }
-    steps.push('Select an affected area and allowed edit root before implementation edits.');
-  }
-
-  return steps;
 }
 
 /**
@@ -530,19 +425,35 @@ export function formatChangeStatus(context: ChangeContext): ChangeStatus {
   const buildOrder = context.graph.getBuildOrder();
   const orderMap = new Map(buildOrder.map((id, idx) => [id, idx]));
   artifactStatuses.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
-  const affectedAreas = getAffectedAreasSummary(context);
+  const affectedAreas = summarizeAffectedAreas({
+    planningHome: context.planningHome,
+    metadata: context.metadata,
+  });
+  const isComplete = context.graph.isComplete(context.completed);
+  const artifactIds = artifactStatuses.map((artifact) => artifact.id);
 
   return {
     changeName: context.changeName,
     schemaName: context.schemaName,
     planningHome: summarizePlanningHome(context.planningHome),
+    ...(context.initiative ? { initiative: context.initiative } : {}),
     changeRoot: context.changeDir,
     artifactPaths,
     affectedAreas,
-    isComplete: context.graph.isComplete(context.completed),
+    isComplete,
     applyRequires,
-    nextSteps: buildNextSteps(context, artifactStatuses, affectedAreas),
-    actionContext: buildActionContext(context, artifactStatuses.map((artifact) => artifact.id)),
+    nextSteps: buildNextSteps({
+      changeName: context.changeName,
+      planningHome: context.planningHome,
+      artifactStatuses,
+      affectedAreas,
+      allArtifactsComplete: isComplete,
+    }),
+    actionContext: buildActionContext({
+      planningHome: context.planningHome,
+      projectRoot: context.projectRoot,
+      artifactIds,
+    }),
     artifacts: artifactStatuses,
   };
 }

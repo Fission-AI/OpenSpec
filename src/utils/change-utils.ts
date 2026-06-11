@@ -2,7 +2,7 @@ import path from 'path';
 import { FileSystemUtils } from './file-system.js';
 import { writeChangeMetadata, validateSchemaName } from './change-metadata.js';
 import { readProjectConfig } from '../core/project-config.js';
-import type { ChangeMetadata } from '../core/artifact-graph/types.js';
+import type { ChangeMetadata } from '../core/change-metadata/index.js';
 
 const DEFAULT_SCHEMA = 'spec-driven';
 
@@ -17,7 +17,7 @@ export interface CreateChangeOptions {
   /** Directory that should contain the change directories */
   changesDir?: string;
   /** Additional metadata to persist in the change's .openspec.yaml */
-  metadata?: Partial<Pick<ChangeMetadata, 'goal' | 'affected_areas'>>;
+  metadata?: Partial<Pick<ChangeMetadata, 'goal' | 'affected_areas' | 'initiative'>>;
 }
 
 /**
