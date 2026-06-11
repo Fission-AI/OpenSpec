@@ -15,6 +15,7 @@ import { crushAdapter } from '../../../src/core/command-generation/adapters/crus
 import { cursorAdapter } from '../../../src/core/command-generation/adapters/cursor.js';
 import { factoryAdapter } from '../../../src/core/command-generation/adapters/factory.js';
 import { geminiAdapter } from '../../../src/core/command-generation/adapters/gemini.js';
+import { hermesAdapter } from '../../../src/core/command-generation/adapters/hermes.js';
 import { githubCopilotAdapter } from '../../../src/core/command-generation/adapters/github-copilot.js';
 import { iflowAdapter } from '../../../src/core/command-generation/adapters/iflow.js';
 import { kilocodeAdapter } from '../../../src/core/command-generation/adapters/kilocode.js';
@@ -445,6 +446,33 @@ describe('command-generation/adapters', () => {
     });
   });
 
+  describe('hermesAdapter', () => {
+    it('should have correct toolId', () => {
+      expect(hermesAdapter.toolId).toBe('hermes');
+    });
+
+    it('should generate correct file path', () => {
+      const filePath = hermesAdapter.getFilePath('explore');
+      expect(filePath).toBe(path.join('.hermes', 'commands', 'opsx', 'explore.md'));
+    });
+
+    it('should generate correct file paths for different commands', () => {
+      expect(hermesAdapter.getFilePath('new')).toBe(path.join('.hermes', 'commands', 'opsx', 'new.md'));
+      expect(hermesAdapter.getFilePath('bulk-archive')).toBe(path.join('.hermes', 'commands', 'opsx', 'bulk-archive.md'));
+    });
+
+    it('should format file with name, description, category, and tags', () => {
+      const output = hermesAdapter.formatFile(sampleContent);
+      expect(output).toContain('---\n');
+      expect(output).toContain('name: OpenSpec Explore');
+      expect(output).toContain('description: Enter explore mode for thinking');
+      expect(output).toContain('category: Workflow');
+      expect(output).toContain('tags: [workflow, explore, experimental]');
+      expect(output).toContain('---\n\n');
+      expect(output).toContain('This is the command body.');
+    });
+  });
+
   describe('githubCopilotAdapter', () => {
     it('should have correct toolId', () => {
       expect(githubCopilotAdapter.toolId).toBe('github-copilot');
@@ -650,7 +678,7 @@ describe('command-generation/adapters', () => {
         description: 'Line 1\nLine 2',
       };
       const output = piAdapter.formatFile(contentWithNewline);
-      expect(output).toContain('description: "Line 1\\nLine 2"');
+      expect(output).toContain('description: "Line 1\nLine 2"');
     });
   });
 
@@ -694,11 +722,11 @@ describe('command-generation/adapters', () => {
     it('All adapters use path.join for paths', () => {
       // Verify all adapters produce valid paths
       const adapters = [
-        amazonQAdapter, antigravityAdapter, auggieAdapter, bobAdapter, clineAdapter,
-        codexAdapter, codebuddyAdapter, continueAdapter, costrictAdapter,
-        crushAdapter, factoryAdapter, geminiAdapter, githubCopilotAdapter,
-        iflowAdapter, kilocodeAdapter, opencodeAdapter, piAdapter, qoderAdapter,
-        qwenAdapter, roocodeAdapter
+        amazonQAdapter, antigravityAdapter, auggieAdapter, bobAdapter, claudeAdapter,
+        clineAdapter, codexAdapter, codebuddyAdapter, continueAdapter, costrictAdapter,
+        crushAdapter, cursorAdapter, factoryAdapter, geminiAdapter, hermesAdapter,
+        githubCopilotAdapter, iflowAdapter, kilocodeAdapter, opencodeAdapter, piAdapter,
+        qoderAdapter, qwenAdapter, roocodeAdapter, windsurfAdapter
       ];
       for (const adapter of adapters) {
         const filePath = adapter.getFilePath('test');
