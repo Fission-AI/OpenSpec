@@ -133,8 +133,8 @@ Next incomplete item:
   config-only `openspec/` dir), fallback never override, root detection
   stays a stat-only walk with two extra directory stats, and the
   both-shapes warning fires in resolution (recorded amendment of the
-  "doctor" wording). Spec written and reviewed
-  (`slices/declared-store-fallback/`); plan is next. (3.1 is
+  "doctor" wording). Spec and plan written and reviewed
+  (`slices/declared-store-fallback/`); implementation is next. (3.1 is
   implemented and reviewed; the 5.1 first tranche is done; the Phase 5
   remainder runs after 4.1.)
 
@@ -1365,6 +1365,21 @@ is working:
   a deliberate fourth partial edit, and the spec's byte-stable clause
   now allows the new removal-coverage tests. The reworded constraint
   string gets its first-ever pin in the new test.
+- 2026-06-11: Wrote the declared-store-fallback plan (3.2, two
+  checkpoints) and folded two plan reviews (both approve-with-fixes):
+  an EIGHTH `source === 'store'` check surfaced
+  (`show.ts:160` `printNonInteractiveHint`) — the spec's seven-site
+  inventory is amended; the init guard moves to immediately after
+  `validate()` (legacy cleanup and the global-config migration write
+  run before `createDirectoryStructure`, so the original anchor would
+  have violated "creates nothing"); the declaration-origin prefix is a
+  call-site rewrap preserving codes and an unprefixed fix field (the
+  template-prefix idea missed the `fromStoreError` pass-throughs); the
+  targeted config read is a shared exported helper so init does not
+  duplicate it; the test matrix gained all five prefixed taxonomy
+  codes, the no-write malformed-pointer assertion, deterministic
+  byte-identity commands, and positive assertions for the config-only
+  no-pointer case.
 - 2026-06-11: Wrote the declared-store-fallback slice spec (3.2) and
   folded two adversarial reviews (subagent: approve-with-fixes with a
   P1; codex: reject with two P1s — converging). The biggest catch: the

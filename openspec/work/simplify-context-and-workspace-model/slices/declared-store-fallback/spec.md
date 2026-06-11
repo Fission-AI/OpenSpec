@@ -61,11 +61,13 @@ local root exists) → today's error with the stores hint.
    its `source` — enforced by one predicate.** "Store-selected" means
    `root.storeId` is set; every consumer currently keyed on
    `source === 'store'` switches to that predicate: the banner and
-   `withStoreFlag` (`root-selection.ts:338,348`), new-change's absolute
-   path display (`new-change.ts:76-79`), status's `storeId` threading
-   (`status.ts:105-107`), validate/show noun-form suggestion
-   suppression (`validate.ts:134-141`, `show.ts:136-144`), and
-   archive's absolute cross-root display paths (`archive.ts:444-447`).
+   `withStoreFlag` (`root-selection.ts:339,349`), new-change's absolute
+   path display (`new-change.ts:77`), status's `storeId` threading
+   (`status.ts:106`), validate/show noun-form suggestion suppression —
+   both show branches, including `printNonInteractiveHint`
+   (`validate.ts:136`, `show.ts:138`, `show.ts:160` — the eighth check,
+   found in plan review), and archive's absolute cross-root display
+   paths (`archive.ts:446`).
    Resolution runs the same `resolveStoreRoot` pipeline via an optional
    `declaredOrigin` parameter; errors keep their codes and gain a true
    prefix: "Declared in <abs path to the actual config file read>: " +
