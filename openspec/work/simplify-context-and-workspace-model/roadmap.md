@@ -134,9 +134,10 @@ Next incomplete item:
   into the assembled context surface and rebuilds opening around it,
   absorbing old 2.3 and deleting the workspace state model +
   workspace-planning mode per the deletion ledger's 4.1-owner
-  carve-outs. Spec not yet written. (Phase 3 is complete on the
-  branch; the 5.1 first tranche is done; the Phase 5 remainder runs
-  after 4.1.)
+  carve-outs. Spec written and reviewed
+  (`slices/assemble-working-context/`); plan is next. (Phase 3 is
+  complete on the branch; the 5.1 first tranche is done; the Phase 5
+  remainder runs after 4.1.)
 
 ## Phase 0. Make The Active Direction Easy To Find
 
@@ -1399,6 +1400,35 @@ is working:
   a deliberate fourth partial edit, and the spec's byte-stable clause
   now allows the new removal-coverage tests. The reworded constraint
   string gets its first-ever pin in the new test.
+- 2026-06-11: Wrote the assemble-working-context slice spec (4.1) and
+  folded two adversarial reviews (both approve-with-fixes, converging,
+  one P1 pair). The deletion-grounding P1s: `binding.ts` dies WHOLE —
+  5.1 kept it only because workspace/foundation imported it, so with
+  workspace/ gone the entire ~300-line module (plus its registry.test
+  binding tests and barrel line) would be exactly the hidden-not-
+  deleted state the 5.1 criteria reject; and the five workflow-template
+  workspace-planning guards that 5.1 explicitly deeded to 4.1 ("they
+  quote the library contract that 4.1 deletes") are now in the
+  deletion list with their parity-hash and .codex churn named. Also
+  folded: the change-status-policy cascade enumerated
+  (summarizeAffectedAreas et al.); the doctor/context shared data
+  gather made mandatory with doctor-only inputs staying doctor-side
+  (context recorded as deliberately silent on wrong turns); the
+  member-mapping table pinned (available = path AND empty status;
+  stale paths and invalid ids are not-available; registry-unreadable
+  bare members); code-workspace write semantics pinned
+  (code_workspace_exists + --force, no implicit mkdir, stderr
+  confirmation under --json); `getRepoPath` deleted rather than
+  re-hidden (its recorded consumers evaporated); fetchRecipe exported
+  for one recipe source; the naming paragraph recorded (context vs
+  view vs open; project-context disambiguation).
+- 2026-06-11: Decided autonomously (review me): 4.1's surface is a new
+  top-level `openspec context` (JSON agent brief / human listing /
+  --code-workspace file emitter with --force); assembly is
+  presentation over inspectRelationships through a shared command-layer
+  gather; opening is REPLACED by emitted artifacts — no open verb, no
+  editor launching; the deletions follow the ledger carve-outs widened
+  to whole-module deaths where the keep-rationale collapsed.
 - 2026-06-11: Implemented slice 3.6 (relationship health) in two
   checkpoints plus a review-fix round, completing Phase 3: the
   health-mode assembler options (`includeSpecs: false` skipping spec
