@@ -1001,7 +1001,9 @@ Progress:
   reviewable autonomous decision). The inviolable carve-out stays: never
   auto-delete user data files. "Hide now, delete later" is rejected
   because later never comes.
-- [ ] Cleanup plan written.
+- [x] Cleanup plan written (first tranche: the command-group deletion
+  slice, `slices/delete-legacy-command-groups/`; spec and plan both
+  through two adversarial review rounds).
 - [ ] Cleanup done.
 - [ ] Tests or review checks pass.
 - [ ] Merged to `main`.
@@ -1329,6 +1331,20 @@ is working:
   concepts.md legacy sections are deleted rather than updated
   (superseding the 1.4 decision that parked the beta docs for the
   Phase 5 remainder).
+- 2026-06-11: Wrote the delete-legacy-command-groups plan (five
+  deletion waves, one commit, grep-before-delete discipline) and folded
+  two parallel plan reviews (subagent: approve-with-fixes; codex:
+  reject) — all verified and folded: two acceptance scenarios had no
+  implementing test (the planning-home mode pin — nothing in the suite
+  asserts `actionContext.mode` today — and the docs pointer grep gate),
+  `docs/cli.md` had dead-command references outside every cited range
+  (agent-table rows 51-56, the Stores summary cell, config-section
+  lines 1178/1180), the config map gained the interface and core-preset
+  call sites (49-52, 523-524) with the full test ranges (134-172,
+  422-516), the parity test's initiative carve-out removal is named as
+  a deliberate fourth partial edit, and the spec's byte-stable clause
+  now allows the new removal-coverage tests. The reworded constraint
+  string gets its first-ever pin in the new test.
 - 2026-06-11: Implemented slice 1.4 in four green checkpoints on
   `codex/store-root-parity`: (1) the total mechanical rename — command
   group `context-store` → `store`, 45 diagnostic codes, dotted targets,

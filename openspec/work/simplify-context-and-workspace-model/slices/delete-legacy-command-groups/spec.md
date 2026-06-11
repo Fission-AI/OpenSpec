@@ -261,9 +261,13 @@ Out of scope:
 #### Scenario: Planning-Home Mode Is Untouched
 
 - **GIVEN** a directory carrying pre-existing workspace view state
-- **WHEN** `status` resolves its planning home
+- **WHEN** `status --json` resolves its planning home
 - **THEN** `actionContext.mode` still reports `workspace-planning`
-  exactly as before this slice, and the template guards still match it
+  exactly as before this slice, the constraints carry the reworded
+  read-only initiative-context language, and the template guards still
+  match the mode value
+- **AND** this is pinned by a new explicit test (no existing test
+  asserts the mode today — found during plan review)
 
 #### Scenario: Legacy Initiative Links Still Display
 
@@ -300,11 +304,17 @@ Out of scope:
 - **WHEN** the full suite runs after the deletion
 - **THEN** every kept test passes unchanged — store group, root
   selection, the 1.3 two-checkout journey, the 1.4 vocabulary sweep and
-  guards, `change-initiative-link`, planning-home, legacy-state, and the
-  binding tests in `test/core/store/registry.test.ts`
-- **AND** the only test diffs are whole-file deletions plus the three
-  named partial edits (`config-profile.test.ts` workspace-flow removal,
-  `registry.test.ts` initiatives-collection removal,
-  `foundation.test.ts` deleted-module portions)
+  guards, `change-initiative-link` (unchanged — new assertions about the
+  legacy display live in the new test file, never here), planning-home,
+  legacy-state, and the binding tests in
+  `test/core/store/registry.test.ts`
+- **AND** the only test diffs are whole-file deletions, the named
+  partial edits (`config-profile.test.ts` workspace-profile coverage
+  including its helper and the core-preset case, ~134-172 and 422-516;
+  `registry.test.ts` initiatives-collection removal;
+  `foundation.test.ts` deleted-module portions;
+  `command-registry.test.ts` removal of the now-obsolete initiative
+  carve-out in the `--store` description walk), and the **additions**:
+  the new removal-coverage test file and the planning-home mode pin
 - **AND** the net LOC delta of the slice is reported in the changelog
   (expected on the order of −13k lines including tests)
