@@ -64,8 +64,6 @@ export interface DeclarationEntry {
   remote?: string;
 }
 
-
-
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema> & {
   references?: DeclarationEntry[];
   targets?: DeclarationEntry[];

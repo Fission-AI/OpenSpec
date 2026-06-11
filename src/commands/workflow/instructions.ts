@@ -157,7 +157,7 @@ export async function instructionsCommand(
     const instructions = generateInstructions(context, artifactId, projectRoot, {
       projectConfig,
       references,
-      ...(projectConfig?.targets ? { storeTargets: projectConfig.targets } : {}),
+      storeTargets: projectConfig?.targets,
       storeConfigPath: configPath,
     });
     const isBlocked = instructions.dependencies.some((d) => !d.done);
@@ -493,7 +493,7 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
     const instructions = await generateApplyInstructions(projectRoot, changeName, options.schema, {
       planningHome,
       references,
-      ...(projectConfig?.targets ? { storeTargets: projectConfig.targets } : {}),
+      storeTargets: projectConfig?.targets,
       storeConfigPath: configPath,
     });
 

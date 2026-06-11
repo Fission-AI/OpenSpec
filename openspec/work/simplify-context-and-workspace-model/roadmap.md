@@ -109,13 +109,12 @@ an item are status steps for that numbered work item.
   Fully absorbed: 2.1 shipped inside slice 1.2, 2.2 folded into slice 1.4,
   and 2.3 folded into item 4.1. No independent work remains here.
 - [ ] **Phase 3. Say how roots relate: references and targets.**
-  3.1 (references), 3.2 (declared-store fallback), and 3.3 (canonical
-  remotes) are implemented and tested: a repo declares the stores its
-  work draws on, a rootless repo declares its store once, and
-  onboarding no longer dead-ends — stores record where they are cloned
-  from and unresolved references print a verbatim clone fix. 3.4
-  (targets) is next; the local repo map and relationship health
-  follow.
+  3.1–3.4 are implemented and tested: a repo declares the stores its
+  work draws on, a rootless repo declares its store once, onboarding
+  no longer dead-ends (canonical remotes + verbatim clone fixes), and
+  stores declare the target repos their work is about with per-change
+  narrowing. 3.5 (the local repo map) is next; relationship health
+  follows.
 - [ ] **Phase 4. Assemble the working context.**
   Not started. Rebuilds opening around assembled context; absorbs old 2.3.
 - [ ] **Phase 5. Remove old surfaces only when they confuse the simple path.**
@@ -128,18 +127,17 @@ an item are status steps for that numbered work item.
 
 Next incomplete item:
 
-- [ ] **3.4 Let a store declare its target project repos.**
-  In plain English: a planning repo says, once, which code repos its
-  work is about — store-level defaults in the store's config, optional
-  per-change narrowing as ordinary metadata. No clone/sync/branch/
-  worktree implications and no edit-boundary enforcement; targets are
-  declarations agents read, not machinery. The 3.3 standing constraint
-  applies: target declarations do NOT go into `store.yaml` (the strict
-  schema makes any new field there a cross-version protocol change) —
-  the store's `openspec/config.yaml` is the natural home. Spec and
-  plan written and reviewed (`slices/store-targets/`); implementation
-  is next. (3.1–3.3 are implemented and reviewed; the 5.1 first
-  tranche is done; the Phase 5 remainder runs after 4.1.)
+- [ ] **3.5 Map target repo names to local checkout paths.**
+  In plain English: shared work names target repos by id; each
+  developer tells OpenSpec once where those repos live on this
+  machine. The locked decision applies: the machine-local registry
+  becomes one file with typed sections (`stores:` and `repos:`),
+  cross-section id uniqueness enforced at write time, and `--store`
+  never resolves a repo id — it rejects with a typed hint. Missing,
+  duplicate, or invalid mappings fail clearly; the map is local
+  settings, never shared planning state. Spec not yet written.
+  (3.1–3.4 are implemented and reviewed; the 5.1 first tranche is
+  done; the Phase 5 remainder runs after 4.1.)
 
 ## Phase 0. Make The Active Direction Easy To Find
 
@@ -841,12 +839,18 @@ How the user or agent knows it worked:
 
 ### 3.4 Let A Store Declare Its Target Project Repos
 
+Slice: `slices/store-targets/spec.md`
+
 Progress:
 
-- [ ] Spec written.
-- [ ] Plan written.
-- [ ] Implementation done.
-- [ ] Tests pass.
+- [x] Spec written.
+- [x] Plan written.
+- [x] Implementation done (`targets:` in the root's config via the
+  shared declaration parser; per-change narrowing as ordinary metadata
+  with the kebab grammar's single source of truth; effective targets
+  with provenance and degradation warnings on both instruction
+  surfaces; three-mechanism review and a simplify pass folded).
+- [x] Tests pass (full suite green, 92 files / 1696 tests).
 - [ ] Merged to `main`.
 
 What the user can do:
@@ -1383,6 +1387,25 @@ is working:
   a deliberate fourth partial edit, and the spec's byte-stable clause
   now allows the new removal-coverage tests. The reworded constraint
   string gets its first-ever pin in the new test.
+- 2026-06-11: Implemented slice 3.4 (store targets) in two checkpoints
+  plus a review-fix round: `targets:` in the root's config through the
+  shared `parseDeclarationList` (references behavior byte-identical);
+  per-change narrowing as kebab-validated ordinary metadata
+  (`isKebabId` is now the grammar's single source — `validateStoreId`
+  delegates); the pure `src/core/targets.ts` assembly (narrowing
+  replaces with remote inheritance, set semantics, degradation codes
+  `target_invalid_id`/`target_not_declared`) and renderers; both
+  instruction surfaces carry `{source, repos, status}` with provenance
+  through ONE wiring shape (raw declarations in, assembly inside the
+  generator where change metadata lives — the review round unified an
+  accidental asymmetry a second caller would have tripped on). Also
+  from review: change-level duplicates dedup, the targets warning
+  names repo ids, `DeclarationEntry` replaces the references-flavored
+  type name, the loader falls back to the self-read config's targets,
+  and the spec's severity-cliff wording was amended to the real blast
+  radius. Recorded: the workspace kebab-regex copy dies with 4.1; an
+  `id.ts` home for the grammar is 3.5's natural move when repo ids
+  become resolvable. Full suite green (92 files, 1696 tests).
 - 2026-06-11: Wrote the store-targets plan (3.4, two checkpoints) and
   folded two plan reviews (both approve-with-fixes): the artifact
   human rendering anchored to `printInstructionsText` (the original

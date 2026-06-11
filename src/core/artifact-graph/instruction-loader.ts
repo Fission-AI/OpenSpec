@@ -341,7 +341,9 @@ export function generateInstructions(
   const configRules = rulesForArtifact && rulesForArtifact.length > 0 ? rulesForArtifact : undefined;
 
   const targets = assembleTargets({
-    storeTargets: options.storeTargets,
+    // Fall back to the (possibly self-read) config's targets so library
+    // callers that omit the option agree with the CLI wiring.
+    storeTargets: options.storeTargets ?? projectConfig?.targets,
     changeTargets: context.metadata?.targets,
     storeConfigPath: options.storeConfigPath,
     changeMetadataPath: path.join(context.changeDir, METADATA_FILENAME),
