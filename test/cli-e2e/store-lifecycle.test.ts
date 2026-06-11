@@ -249,6 +249,7 @@ describe('standalone store lifecycle journey', () => {
       has_commits: true,
       has_uncommitted_changes: false,
       has_remote: false,
+      origin_url: null,
     });
     expect(store.status).toEqual([]);
 

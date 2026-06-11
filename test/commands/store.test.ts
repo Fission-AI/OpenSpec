@@ -960,6 +960,7 @@ describe('store command', () => {
       has_commits: false,
       has_uncommitted_changes: true,
       has_remote: false,
+      origin_url: null,
     });
     expect(byId['missing-context'].status[0]).toEqual(
       expect.objectContaining({

@@ -243,6 +243,7 @@ describe('command completion registry', () => {
       'path',
       'init-git',
       'no-init-git',
+      'remote',
       'json',
     ]);
 

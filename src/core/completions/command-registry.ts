@@ -272,6 +272,11 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             name: 'no-init-git',
             description: 'Skip Git repository initialization',
           },
+          {
+            name: 'remote',
+            description: 'Canonical clone source recorded in store.yaml',
+            takesValue: true,
+          },
           COMMON_FLAGS.json,
         ],
       },

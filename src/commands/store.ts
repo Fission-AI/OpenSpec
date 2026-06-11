@@ -31,6 +31,7 @@ interface StoreSetupOptions {
   path?: string;
   initGit?: boolean;
   json?: boolean;
+  remote?: string;
 }
 
 interface StoreRegisterOptions {
@@ -105,6 +106,7 @@ interface StoreDoctorStoreOutput extends StoreOutput {
     has_commits: boolean | null;
     has_uncommitted_changes: boolean | null;
     has_remote: boolean | null;
+    origin_url: string | null;
   };
   status: StoreDiagnostic[];
 }
@@ -203,6 +205,7 @@ function toDoctorStoreOutput(store: StoreInspection): StoreDoctorStoreOutput {
       has_commits: store.git.hasCommits,
       has_uncommitted_changes: store.git.hasUncommittedChanges,
       has_remote: store.git.hasRemote,
+      origin_url: store.git.originUrl,
     },
     status: store.diagnostics,
   };
@@ -316,6 +319,7 @@ async function resolveSetupInput(
   return {
     id: resolvedId,
     path: options.path ?? promptedPath,
+    ...(options.remote !== undefined ? { remote: options.remote } : {}),
   };
 }
 
@@ -415,7 +419,11 @@ async function confirmRegisterConversion(error: unknown): Promise<void> {
   }
 }
 
-function printMutationHuman(title: string, payload: StoreMutationOutput): void {
+function printMutationHuman(
+  title: string,
+  payload: StoreMutationOutput,
+  remotes?: { canonical?: string; observed?: string }
+): void {
   if (!payload.store || !payload.registry || !payload.git) {
     return;
   }
@@ -431,7 +439,12 @@ function printMutationHuman(title: string, payload: StoreMutationOutput): void {
   console.log('Next: run normal OpenSpec commands against this store, for example:');
   console.log(`  openspec new change <change-id> --store ${payload.store.id}`);
   if (payload.git.is_repository) {
-    console.log('Share this store by committing and pushing it like any Git repo.');
+    const shareRemote = remotes?.canonical ?? remotes?.observed;
+    console.log(
+      shareRemote
+        ? `Share it: teammates clone ${shareRemote} and run openspec store register <path>.`
+        : 'Share this store by committing and pushing it like any Git repo.'
+    );
   }
 }
 
@@ -510,6 +523,10 @@ function printDoctorHuman(payload: StoreDoctorOutput): void {
     console.log(`  Location: ${store.root}`);
     console.log(`  OpenSpec root: ${formatOpenSpecRootHuman(store)}`);
     console.log(`  Metadata: ${formatMetadataHuman(store)}`);
+    const remoteLine = store.metadata.remote ?? store.git.origin_url;
+    if (remoteLine) {
+      console.log(`  Remote: ${remoteLine}`);
+    }
     console.log(`  Git: ${formatDoctorGitHuman(store)}`);
 
     if (store.status.length === 0) {
@@ -536,16 +553,15 @@ class StoreCommand {
       if (!options.json && isInteractive()) {
         await confirmSetup(prepared, initGit);
       }
-      const payload = toMutationOutput(await setupPreparedStore(prepared, {
-        initGit,
-      }));
+      const result = await setupPreparedStore(prepared, { initGit });
+      const payload = toMutationOutput(result);
 
       if (options.json) {
         printJson(payload);
         return;
       }
 
-      printMutationHuman('Store ready', payload);
+      printMutationHuman('Store ready', payload, result.remotes);
     } catch (error) {
       this.handleFailure(
         options.json,
@@ -584,7 +600,7 @@ class StoreCommand {
         return;
       }
 
-      printMutationHuman('Store registered', payload);
+      printMutationHuman('Store registered', payload, result.remotes);
     } catch (error) {
       this.handleFailure(
         options.json,
@@ -705,6 +721,7 @@ export function registerStoreCommand(program: Command): void {
     .option('--path <path>', 'Folder where the store should live (for example ~/openspec/<id>)')
     .option('--init-git', 'Initialize a Git repository with an initial commit (default)')
     .option('--no-init-git', 'Skip every Git action: no init, no initial commit')
+    .option('--remote <url>', 'Canonical clone source recorded in store.yaml')
     .option('--json', 'Output as JSON')
     .action(async (id: string | undefined, options: StoreSetupOptions) => {
       await storeCommand.setup(id, options);

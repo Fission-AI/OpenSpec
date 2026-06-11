@@ -38,6 +38,7 @@ import {
   gitHasCommits,
   gitHasRemote,
   gitHasUncommittedChanges,
+  gitOriginUrl,
   initGitRepository,
   isGitRepositoryAtRoot,
 } from './git.js';
@@ -63,6 +64,11 @@ export interface StoreInfo {
 
 export interface StoreMutationResult {
   store: StoreInfo;
+  /** Clone-source knowledge for human sharing guidance; never in JSON. */
+  remotes?: {
+    canonical?: string;
+    observed?: string;
+  };
   registryCommit: {
     path: string;
     registered: boolean;
@@ -106,12 +112,16 @@ export interface StoreInspection extends StoreInfo {
     present: boolean | null;
     valid: boolean | null;
     id?: string;
+    /** Canonical clone source from store.yaml; null when absent. */
+    remote: string | null;
   };
   git: {
     isRepository: boolean | null;
     hasCommits: boolean | null;
     hasUncommittedChanges: boolean | null;
     hasRemote: boolean | null;
+    /** Observed origin URL, live-probed; null when none. */
+    originUrl: string | null;
   };
   diagnostics: StoreDiagnostic[];
 }
@@ -121,6 +131,8 @@ export interface SetupStoreInput {
   path?: string;
   initGit?: boolean;
   allowInsideGitRepository?: boolean;
+  /** Canonical clone source written into store.yaml (slice 3.3). */
+  remote?: string;
 }
 
 export interface RegisterExistingStoreInput {
@@ -143,6 +155,7 @@ export interface PreparedStoreSetup {
   rootKind: Extract<PathKind, 'missing' | 'directory'>;
   backend?: StoreGitBackendConfig;
   registry: StoreRegistryState | null;
+  remote?: string;
 }
 
 interface StoreSetupPlan {
@@ -356,7 +369,8 @@ function mutationPayload(
   git: { isRepository: boolean; initialized: boolean; committed: boolean },
   createdFiles: string[],
   registry: { registered: boolean; alreadyRegistered: boolean },
-  diagnostics: StoreDiagnostic[] = []
+  diagnostics: StoreDiagnostic[] = [],
+  remotes?: { canonical?: string; observed?: string }
 ): StoreMutationResult {
   return {
     store: {
@@ -364,6 +378,7 @@ function mutationPayload(
       root: storeRoot,
       metadataPath: getStoreMetadataPath(storeRoot),
     },
+    ...(remotes && (remotes.canonical || remotes.observed) ? { remotes } : {}),
     registryCommit: {
       path: getStoreRegistryPath(),
       registered: registry.registered,
@@ -380,9 +395,15 @@ function mutationPayload(
 }
 
 async function prepareSetupPlan(
-  input: Pick<SetupStoreInput, 'id' | 'path' | 'allowInsideGitRepository'>
+  input: Pick<SetupStoreInput, 'id' | 'path' | 'allowInsideGitRepository' | 'remote'>
 ): Promise<StoreSetupPlan> {
   const id = validateStoreId(input.id ?? '');
+  if (input.remote !== undefined && input.remote.length === 0) {
+    throw new StoreError('Store remote must not be empty when provided.', 'store_remote_empty', {
+      target: 'store.metadata',
+      fix: 'Pass a clone URL: --remote <url>.',
+    });
+  }
   const storeRoot = resolveSetupRoot(id, input.path);
   const kind = await pathKind(storeRoot);
 
@@ -420,6 +441,18 @@ async function prepareSetupPlan(
           }
         );
       }
+      if (input.remote !== undefined) {
+        // Silent acceptance is the forbidden outcome: the identity file
+        // already exists, so --remote cannot reach the committed shape.
+        throw new StoreError(
+          `Store '${id}' already has an identity file; --remote cannot change it.`,
+          'store_remote_requires_hand_edit',
+          {
+            target: 'store.metadata',
+            fix: `Edit ${getStoreMetadataPath(storeRoot)} and commit it.`,
+          }
+        );
+      }
     } else {
       const openspecRoot = await inspectOpenSpecRoot(storeRoot);
       const safeFreshDirectory = await isDirectoryEmpty(storeRoot) || await isGitOnlyDirectory(storeRoot);
@@ -435,7 +468,11 @@ async function prepareSetupPlan(
       }
     }
 
-    backend = await resolveGitStoreBackendConfig({ localPath: storeRoot });
+    const origin = await gitOriginUrl(storeRoot);
+    backend = await resolveGitStoreBackendConfig({
+      localPath: storeRoot,
+      ...(origin ? { remote: origin } : {}),
+    });
   }
 
   const registry = await readStoreRegistryState();
@@ -468,7 +505,7 @@ export function resolveSetupGitEnabled(
 }
 
 export async function prepareStoreSetup(
-  input: Pick<SetupStoreInput, 'id' | 'path' | 'allowInsideGitRepository'>
+  input: Pick<SetupStoreInput, 'id' | 'path' | 'allowInsideGitRepository' | 'remote'>
 ): Promise<PreparedStoreSetup> {
   const plan = await prepareSetupPlan(input);
 
@@ -478,6 +515,7 @@ export async function prepareStoreSetup(
     rootKind: plan.kind,
     registry: plan.registry,
     ...(plan.backend ? { backend: plan.backend } : {}),
+    ...(input.remote !== undefined ? { remote: input.remote } : {}),
   };
 }
 
@@ -523,7 +561,13 @@ export async function setupPreparedStore(
     });
     createdFiles.push(...root.createdArtifacts);
     createdPaths = root.createdPaths;
-    backend ??= await resolveGitStoreBackendConfig({ localPath: storeRoot });
+    if (!backend) {
+      const origin = await gitOriginUrl(storeRoot);
+      backend = await resolveGitStoreBackendConfig({
+        localPath: storeRoot,
+        ...(origin ? { remote: origin } : {}),
+      });
+    }
     assertNoRegisteredStoreConflict(registry, id, backend);
 
     // The identity file is written before the initial commit so clones carry
@@ -532,7 +576,11 @@ export async function setupPreparedStore(
     if (!existingMetadata) {
       const metadataDir = getStoreMetadataDir(storeRoot);
       const metadataDirMissing = (await pathKind(metadataDir)) === 'missing';
-      await writeStoreMetadataState(storeRoot, { version: 1, id });
+      await writeStoreMetadataState(storeRoot, {
+        version: 1,
+        id,
+        ...(prepared.remote !== undefined ? { remote: prepared.remote } : {}),
+      });
       if (metadataDirMissing) {
         createdPaths.push(createdPath('.openspec-store/', metadataDir, 'directory'));
       }
@@ -571,6 +619,7 @@ export async function setupPreparedStore(
       ? [alreadyRegisteredDiagnostic(id)]
       : [];
 
+    const canonical = prepared.remote ?? existingMetadata?.remote;
     return mutationPayload(id, registered.storeRoot, {
       isRepository,
       initialized: gitInitialized,
@@ -578,7 +627,10 @@ export async function setupPreparedStore(
     }, createdFiles, {
       registered: registered.registryUpdated,
       alreadyRegistered: registered.alreadyRegistered,
-    }, diagnostics);
+    }, diagnostics, {
+      ...(canonical ? { canonical } : {}),
+      ...(backend.remote ? { observed: backend.remote } : {}),
+    });
   } catch (error) {
     // Once the initial commit landed in a (possibly user-owned) repository,
     // the files are durable state; deleting them would orphan the commit.
@@ -699,7 +751,11 @@ export async function registerExistingStore(
     );
   }
 
-  const backend = await resolveGitStoreBackendConfig({ localPath: storeRoot });
+  const origin = await gitOriginUrl(storeRoot);
+  const backend = await resolveGitStoreBackendConfig({
+    localPath: storeRoot,
+    ...(origin ? { remote: origin } : {}),
+  });
   const registry = await readStoreRegistryState();
   assertNoRegisteredStoreConflict(registry, id, backend);
   const createdFiles: string[] = [];
@@ -725,7 +781,10 @@ export async function registerExistingStore(
   }, createdFiles, {
     registered: registered.registryUpdated,
     alreadyRegistered: registered.alreadyRegistered,
-  }, diagnostics);
+  }, diagnostics, {
+    ...(metadata?.remote ? { canonical: metadata.remote } : {}),
+    ...(origin ? { observed: origin } : {}),
+  });
 }
 
 function cleanupStoreOutput(id: string, storeRoot: string): StoreInfo {
@@ -909,12 +968,14 @@ async function inspectStore(entry: {
   let metadata: StoreInspection['metadata'] = {
     present: null,
     valid: null,
+    remote: null,
   };
   let git: StoreInspection['git'] = {
     isRepository: null,
     hasCommits: null,
     hasUncommittedChanges: null,
     hasRemote: null,
+    originUrl: null,
   };
   let openspecRoot: OpenSpecRootInspection = await inspectOpenSpecRoot(root);
 
@@ -945,7 +1006,7 @@ async function inspectStore(entry: {
     try {
       const parsed = await readOptionalStoreMetadataState(root);
       if (!parsed) {
-        metadata = { present: false, valid: false };
+        metadata = { present: false, valid: false, remote: null };
         diagnostics.push(makeStoreDiagnostic(
           'error',
           'store_metadata_missing',
@@ -956,7 +1017,7 @@ async function inspectStore(entry: {
           }
         ));
       } else if (parsed.id !== entry.id) {
-        metadata = { present: true, valid: false, id: parsed.id };
+        metadata = { present: true, valid: false, id: parsed.id, remote: null };
         diagnostics.push(makeStoreDiagnostic(
           'error',
           'store_metadata_id_mismatch',
@@ -967,10 +1028,15 @@ async function inspectStore(entry: {
           }
         ));
       } else {
-        metadata = { present: true, valid: true, id: parsed.id };
+        metadata = {
+          present: true,
+          valid: true,
+          id: parsed.id,
+          remote: parsed.remote ?? null,
+        };
       }
     } catch (error) {
-      metadata = { present: true, valid: false };
+      metadata = { present: true, valid: false, remote: null };
       diagnostics.push(doctorStatusForError(
         error,
         'store_metadata_invalid',
@@ -985,6 +1051,7 @@ async function inspectStore(entry: {
       hasCommits: null,
       hasUncommittedChanges: null,
       hasRemote: null,
+      originUrl: null,
     };
 
     // Read-only Git facts; doctor reports and never repairs.
@@ -992,6 +1059,7 @@ async function inspectStore(entry: {
       git.hasCommits = await gitHasCommits(root);
       git.hasUncommittedChanges = await gitHasUncommittedChanges(root);
       git.hasRemote = await gitHasRemote(root);
+      git.originUrl = await gitOriginUrl(root);
 
       if (git.hasCommits === false) {
         diagnostics.push(makeStoreDiagnostic(

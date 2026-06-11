@@ -159,6 +159,16 @@ export async function gitHasRemote(storeRoot: string): Promise<boolean | null> {
   return stdout === null ? null : stdout.trim().length > 0;
 }
 
+/**
+ * The configured origin URL, read from local Git config only — never a
+ * network touch. Null when there is no repository or no origin.
+ */
+export async function gitOriginUrl(storeRoot: string): Promise<string | null> {
+  const stdout = await gitProbe(storeRoot, ['remote', 'get-url', 'origin']);
+  const url = stdout?.trim();
+  return url ? url : null;
+}
+
 export async function gitDirectoryHasTrackedFiles(
   storeRoot: string,
   relativeDir: string

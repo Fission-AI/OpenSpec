@@ -44,6 +44,8 @@ export interface StoreRegistryEntry {
 export interface StoreMetadataState {
   version: 1;
   id: string;
+  /** Canonical clone source, team-authored. Optional (slice 3.3). */
+  remote?: string;
 }
 
 export interface ResolveGitStoreBackendInput {
@@ -184,6 +186,7 @@ const RegistryStateSchema = z.object({
 const MetadataStateSchema = z.object({
   version: z.literal(1),
   id: z.string(),
+  remote: nonEmptyOptionalString(),
 }).strict();
 
 function formatZodIssues(error: z.ZodError): string {
@@ -278,6 +281,7 @@ export function parseStoreMetadataState(content: string): StoreMetadataState {
   return {
     version: 1,
     id: result.data.id,
+    ...(result.data.remote !== undefined ? { remote: result.data.remote } : {}),
   };
 }
 
@@ -314,6 +318,7 @@ export function serializeStoreMetadataState(state: StoreMetadataState): string {
   return stringifyYaml({
     version: 1,
     id: result.data.id,
+    ...(result.data.remote !== undefined ? { remote: result.data.remote } : {}),
   });
 }
 
