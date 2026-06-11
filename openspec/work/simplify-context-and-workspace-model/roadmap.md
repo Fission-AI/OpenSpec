@@ -133,9 +133,10 @@ Next incomplete item:
   committed home), populated at setup/register when known; doctor
   surfaces it, and unresolved-reference and register guidance use it.
   Recording a remote is not sync — no clone/pull/push behavior. Spec
-  written and reviewed (`slices/store-canonical-remote/`); plan is
-  next. (3.1 and 3.2 are implemented and reviewed; the 5.1 first
-  tranche is done; the Phase 5 remainder runs after 4.1.)
+  and plan written and reviewed (`slices/store-canonical-remote/`);
+  implementation is next. (3.1 and 3.2 are implemented and reviewed;
+  the 5.1 first tranche is done; the Phase 5 remainder runs after
+  4.1.)
 
 ## Phase 0. Make The Active Direction Easy To Find
 
@@ -1371,6 +1372,24 @@ is working:
   a deliberate fourth partial edit, and the spec's byte-stable clause
   now allows the new removal-coverage tests. The reworded constraint
   string gets its first-ever pin in the new test.
+- 2026-06-11: Wrote the store-canonical-remote plan (3.3, two
+  checkpoints) and folded two plan reviews (both approve-with-fixes):
+  the clone fix renders ABSOLUTE home paths (`~` never expands outside
+  a shell and agent JSON consumers execute argv directly — the spec's
+  `~/openspec/<id>` form is amended); setup's origin probe must reach
+  BOTH backend-resolution sites (`prepareSetupPlan` and
+  `setupPreparedStore`) or the rerun path re-introduces the erasure
+  P1, and it stays at call sites rather than inside
+  `resolveGitStoreBackendConfig` (hot read paths); the
+  sharing-guidance mechanism is concrete (`StoreMutationResult` gains
+  canonical/observed remotes, dropped from JSON, rendered by
+  `printMutationHuman` canonical → observed → today's wording); the
+  spec's setup-JSON contradiction resolved in favor of the unchanged
+  `StoreOutput` shape; `getOriginUrl` trims probe output; the
+  `--remote`-vs-existing refusal moves into `prepareStoreSetup` before
+  any prompt or write; dedup pins the fill-if-absent duplicate case;
+  registry persistence anchors corrected; TEST-NET fixtures use
+  `git remote add`, never clone.
 - 2026-06-11: Wrote the store-canonical-remote slice spec (3.3) and
   folded two adversarial reviews (subagent: approve-with-fixes with a
   P1; codex: reject — converging). The P1: a setup rerun would have

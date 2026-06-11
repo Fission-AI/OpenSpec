@@ -67,8 +67,10 @@ clones, pulls, pushes, or branches.
    (a later duplicate never overrides, matching the 3.1
    first-occurrence rule). When the remote is known,
    `reference_unresolved`'s fix becomes pasteable verbatim using the
-   existing default-path convention (operations.ts:308):
-   `git clone <remote> ~/openspec/<id> && openspec store register ~/openspec/<id> --id <id>`;
+   default-path convention rendered ABSOLUTE
+   (`<home>/openspec/<id>` via `os.homedir()` — `~` does not expand
+   outside a shell, and agent JSON consumers execute argv directly):
+   `git clone <remote> /home/me/openspec/<id> && openspec store register /home/me/openspec/<id> --id <id>`;
    without it, the current teammate-checkout fix stands. Resolved index
    entries do NOT gain a remote field — once registered, the `--store`
    fetch recipe suffices.
@@ -124,7 +126,7 @@ dead-end:
 ```text
 <referenced_stores>
 Store team-context: not registered on this machine.
-  Fix: git clone git@github.com:acme/team-context.git ~/openspec/team-context && openspec store register ~/openspec/team-context --id team-context
+  Fix: git clone git@github.com:acme/team-context.git /Users/dev/openspec/team-context && openspec store register /Users/dev/openspec/team-context --id team-context
 </referenced_stores>
 ```
 
@@ -159,8 +161,9 @@ In scope:
   the initial commit; rejected when empty; FAILS with the hand-edit fix
   when `store.yaml` already exists; setup also probes the origin for
   its registry entry (consistency with register, rerun no-op
-  preserved); JSON output's `store` block includes the canonical
-  remote.
+  preserved). JSON stays the shared `StoreOutput` shape — decision 5
+  wins; doctor is the inspection surface (plan review resolved the
+  earlier contradiction here).
 - **Register**: read-only probe `git remote get-url origin` (new
   function in `src/core/store/git.ts` beside the existing probes);
   observed origin recorded in the registry entry's `remote` field;
@@ -174,9 +177,12 @@ In scope:
   (parser keeps the 3.1 raw-and-resilient style: map entries without a
   string `id` are dropped with a warning; `remote` kept when a
   non-empty string; normalized in-memory shape `{id, remote?}[]`;
-  dedup by `id`, order-preserving, first remote wins); the assembler
-  threads the declared remote into `reference_unresolved`'s fix
-  (`git clone <remote> ~/openspec/<id> && openspec store register ~/openspec/<id> --id <id>`).
+  dedup by `id`, order-preserving; the first entry carrying a remote
+  supplies it, i.e. a later duplicate fills a missing remote but never
+  overrides one); the assembler threads the declared remote into
+  `reference_unresolved`'s fix
+  (`git clone <remote> <home>/openspec/<id> && openspec store register <home>/openspec/<id> --id <id>`,
+  the home directory rendered absolute).
 - **Sharing guidance**: the setup/register next-steps sharing line
   names the canonical remote when recorded, else the observed origin.
 - **Docs**: the `docs/cli.md` store section documents `--remote`, the
@@ -288,7 +294,8 @@ Out of scope:
   registration
 - **WHEN** instructions run
 - **THEN** the `reference_unresolved` fix is
-  `git clone <url> ~/openspec/team-context && openspec store register ~/openspec/team-context --id team-context`
+  `git clone <url> <home>/openspec/team-context && openspec store register <home>/openspec/team-context --id team-context`
+  with `<home>` rendered as the absolute home directory
 - **AND** a plain-string reference keeps today's fix
 - **AND** both reference entry shapes index identically once the store
   is registered
