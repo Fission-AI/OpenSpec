@@ -1205,8 +1205,8 @@ Progress:
 
 - [x] Research done and spec written.
 - [x] Plan written.
-- [ ] Implementation done.
-- [ ] Tests pass.
+- [x] Implementation done.
+- [x] Tests pass.
 - [ ] Capstone dogfood passes (end-to-end UX run; transcript in the
   slice folder).
 - [ ] Branch pushed; code-review comments addressed.
@@ -2289,6 +2289,30 @@ is working:
   `src/core/file-state.ts` now that they have two call sites; agent
   guidance does not teach worksets at v1 (human convenience; template
   parity pins stay untouched).
+- 2026-06-12: Implemented slice 7.1 in two checkpoints. CP1 (e8bf29b):
+  `src/core/file-state.ts` extracts the lock/atomic-write mechanics
+  from store foundation with caller-owned error factories (the store
+  shapes pinned byte-identical by new tests — the suite had never
+  covered the lock); `src/core/worksets.ts` (the saved-views file on
+  the registry idiom, hand-edit parse contract, `withWorksetsLock`,
+  the `.code-workspace` builder); `src/core/openers.ts` (the locked
+  built-in table, per-field config merge, the PATH/PATHEXT scan with
+  an injectable stat seam, the pure two-style argv builder). CP2
+  (d6fb613): the `workset` command group (guided create, list, open
+  with regenerate-before-tool-resolution and honest exit/signal
+  propagation and the every-failure manual fallback, remove with
+  lock-scoped ENOENT-tolerant derived cleanup), registration +
+  completions, the docs/cli.md section, the resurrected fake-tool
+  test machinery, 34 command tests, and the two e2e journeys
+  (no-footprint with context/doctor byte-identity; two-machine
+  teammate isolation). Full suite green (101 files, 1795 tests).
+  Decided autonomously (review me): `workset_name_required` was added
+  for non-interactive create without a name (the spec family had no
+  missing-name code; mirrors `store_setup_id_required`); the
+  `--no-interactive` flag is not declared (parity with the store
+  group: the gate is `--json`/env/TTY); fake-tool tests pin a fully
+  controlled PATH after a first run launched the machine's real
+  cursor.
 - 2026-06-12: Wrote the personal-worksets plan (7.1, two checkpoints:
   core storage/openers with the file-state extraction, then the
   command group with fakes-on-PATH tests) and folded two plan reviews
