@@ -146,7 +146,12 @@ Order: leaves first, compiler-verified after each tranche.
 - **Parity churn is deliberate twice** (template guards in CP1,
   guidance in CP2) — update hashes from the test diff, never loosen.
 - **No new diagnostic codes except `context_file_exists`** (the one
-  write needs the one refusal).
+  write needs the one refusal). Implementation amendment: the
+  missing-parent-directory failure also got a typed code
+  (`context_output_dir_missing`) — the spec pinned only "fails with a
+  clear error" with no code, and a typed code serves JSON consumers
+  better than the generic fallback; recorded here rather than left as
+  silent drift.
 - **Vocabulary**: 'working context' in user-facing strings; never
   'workspace' — enforced by manual review + the Done-Definition grep
   (the sweep bans only the compound and `workspace_*` tokens, not the

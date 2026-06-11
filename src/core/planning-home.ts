@@ -62,18 +62,6 @@ export function findRepoPlanningRootSync(startPath = process.cwd()): string | nu
   );
 }
 
-function isWindowsLikePath(candidatePath: string): boolean {
-  return /^[A-Za-z]:[\\/]/.test(candidatePath) || candidatePath.startsWith('\\\\');
-}
-
-function relativePlanningPath(fromPath: string, toPath: string): string {
-  if (isWindowsLikePath(fromPath) || isWindowsLikePath(toPath)) {
-    return path.win32.relative(path.win32.normalize(fromPath), path.win32.normalize(toPath));
-  }
-
-  return path.posix.relative(fromPath.replace(/\\/g, '/'), toPath.replace(/\\/g, '/'));
-}
-
 function repoPlanningHome(repoRoot: string): PlanningHome {
   return {
     kind: 'repo',
@@ -106,7 +94,6 @@ export function getChangeDir(planningHome: PlanningHome, changeName: string): st
 }
 
 export function formatChangeLocation(planningHome: PlanningHome, changeName: string): string {
-  const changeDir = getChangeDir(planningHome, changeName);
-  const relative = relativePlanningPath(planningHome.root, changeDir);
-  return relative.length > 0 ? relative : changeDir;
+  // Repo homes always nest changesDir under the root.
+  return path.relative(planningHome.root, getChangeDir(planningHome, changeName));
 }

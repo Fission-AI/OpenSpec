@@ -25,7 +25,7 @@ import { StoreError } from '../core/store/errors.js';
 import { COMMAND_REGISTRY } from '../core/completions/command-registry.js';
 import { COMMON_FLAGS } from '../core/completions/shared-flags.js';
 import { emitFailure, printJson } from './shared-output.js';
-import { gatherRelationshipData } from './shared-gather.js';
+import { gatherRelationshipData, missingDeclaredRepoPaths } from './shared-gather.js';
 
 const FAILURE_PAYLOAD = { root: null, members: [] };
 
@@ -34,17 +34,9 @@ async function gatherWorkingSet(
 ): Promise<{ workingSet: WorkingSet; declaredReferenceCount: number }> {
   const data = await gatherRelationshipData(root);
 
-  // A mapped path that no longer exists must not be presented as
-  // available (and never written into an editor view) — "reported, not
-  // guessed". Stat only the declared targets.
-  let missingRepoPaths: Set<string> | undefined;
-  if (data.effectiveTargets) {
-    missingRepoPaths = new Set(
-      data.effectiveTargets.repos
-        .filter((entry) => entry.path !== undefined && !fs.existsSync(entry.path))
-        .map((entry) => entry.id)
-    );
-  }
+  // A stale mapping must never present as available (nor be written
+  // into an editor view) — "reported, not guessed".
+  const missingRepoPaths = missingDeclaredRepoPaths(data.effectiveTargets);
 
   // Reuse the 3.6 composition for member classification (unmapped,
   // stale, invalid); the doctor-only wrong-turn detections and store

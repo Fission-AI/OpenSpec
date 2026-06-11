@@ -17,7 +17,7 @@ import {
   resolveConfigFilePath,
 } from '../core/project-config.js';
 import { findRepoPlanningRootSync } from '../core/planning-home.js';
-import { gatherRelationshipData } from './shared-gather.js';
+import { gatherRelationshipData, missingDeclaredRepoPaths } from './shared-gather.js';
 import {
   inspectRelationships,
   type InspectRelationshipsInput,
@@ -26,7 +26,6 @@ import {
 import { COMMAND_REGISTRY } from '../core/completions/command-registry.js';
 import { COMMON_FLAGS } from '../core/completions/shared-flags.js';
 import { emitFailure, printJson } from './shared-output.js';
-import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 const FAILURE_PAYLOAD = { root: null, store: null, references: [], targets: [] };
@@ -77,13 +76,9 @@ async function gatherHealth(
 
   // Target checkout health (the lock's fourth category): a mapped path
   // that no longer exists is a stale mapping, not a healthy target.
-  // Stat only the DECLARED targets, not every registered repo.
-  if (repoPaths && effectiveTargets) {
-    input.missingRepoPaths = new Set(
-      effectiveTargets.repos
-        .filter((entry) => entry.path !== undefined && !fs.existsSync(entry.path))
-        .map((entry) => entry.id)
-    );
+  const missingRepoPaths = missingDeclaredRepoPaths(effectiveTargets);
+  if (missingRepoPaths) {
+    input.missingRepoPaths = missingRepoPaths;
   }
 
   // The 3.2 both-shapes wrong turn, structured — including a malformed

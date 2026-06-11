@@ -74,7 +74,7 @@ describe('vocabulary sweep', () => {
   it('keeps the deleted workspace/initiative token surface from regrowing', () => {
     // The command-group deletion slice's ledger records exactly these
     // survivors; a new (workspace|initiative)_ token in src/ must be a
-    // the expected next edit here (update the ledger with it).
+    // deliberate decision recorded in the ledger, not drift.
     const allowed = new Set(['initiative_option_removed']);
     const found = new Set<string>();
     const pattern = /(workspace|initiative)_[a-z_]+/g;

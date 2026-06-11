@@ -125,19 +125,17 @@ an item are status steps for that numbered work item.
 
 Next incomplete item:
 
-- [ ] **4.1 Assemble the working context.**
-  In plain English: give me — or my agent — everything this work
-  relates to in one working set: the OpenSpec root, the stores it
-  references, and the project repos it targets. Phase 3 built every
-  ingredient (the reference index, target declarations with local
-  paths, `getRepoPath`, `inspectRelationships`); 4.1 composes them
-  into the assembled context surface and rebuilds opening around it,
-  absorbing old 2.3 and deleting the workspace state model +
-  workspace-planning mode per the deletion ledger's 4.1-owner
-  carve-outs. Spec and plan written and reviewed
-  (`slices/assemble-working-context/`); implementation is next.
-  (Phase 3 is complete on the branch; the 5.1 first tranche is done;
-  the Phase 5 remainder runs after 4.1.)
+- [ ] **The Phase 5 remainder (close out 5.1).**
+  In plain English: with 4.1 done, decide the fate of everything the
+  5.1 first tranche deferred until after the rebuild: the
+  `schemas/workspace-planning/` schema directory (no src code names it
+  any more), the obsolete beta change folders under
+  `openspec/changes/`, and the parked L2 question (what happens to the
+  accepted workspace-era specs — `cli-config`, `workspace-open`,
+  `workspace-foundation`, `cli-artifact-workflow` — that REQUIRE
+  deleted behavior). Each gets a decide-delete-or-record treatment in
+  one slice-scale unit; then the 5.1 roadmap boxes tick fully. After
+  that, only the 6.1 capstone remains.
 
 ## Phase 0. Make The Active Direction Easy To Find
 
@@ -968,7 +966,8 @@ targets.
 
 Phase checklist:
 
-- [ ] **4.1** Assemble the working context from declared relationships.
+- [x] **4.1** Assemble the working context from declared relationships.
+  (Merge to `main` pending.)
 
 ### 4.1 Assemble The Working Context From Declared Relationships
 
@@ -977,12 +976,17 @@ machinery has initiative selection hardcoded into its state model across
 roughly 5,500 lines, and this slice rebuilds opening around assembled
 context, so de-initiative-ing the old path first would be wasted motion.
 
+Slice: `slices/assemble-working-context/spec.md`
+
 Progress:
 
-- [ ] Spec written.
-- [ ] Plan written.
-- [ ] Implementation done.
-- [ ] Tests pass.
+- [x] Spec written.
+- [x] Plan written.
+- [x] Implementation done (CP1 deleted the workspace machinery —
+  27 files, −2,196 lines; CP2 added `openspec context` with the JSON
+  agent brief, human listing, and `--code-workspace` emitter;
+  three-mechanism review and a simplify pass folded).
+- [x] Tests pass (full suite green, 96 files / 1714 tests).
 - [ ] Merged to `main`.
 
 What the user can do:
@@ -1400,6 +1404,32 @@ is working:
   a deliberate fourth partial edit, and the spec's byte-stable clause
   now allows the new removal-coverage tests. The reworded constraint
   string gets its first-ever pin in the new test.
+- 2026-06-11: Implemented slice 4.1 in two checkpoints plus a
+  review-fix round and a simplify pass, completing Phase 4. CP1
+  executed the deletion ledger's carve-outs widened to whole-module
+  deaths (src/core/workspace, store/binding.ts, getRepoPath, the
+  policy cascade, the ten template guards with the parity test flipped
+  to a no-residue assertion): 27 files, −2,196 lines. CP2 added
+  `openspec context` — the JSON agent brief, the human working-set
+  listing, and the --code-workspace emitter (available members only,
+  typed context_file_exists refusal) — as presentation over the 3.6
+  composition through a new shared command gather (doctor refactored
+  onto it, behavior-identical). The review round (spec-compliance +
+  /code-review + codex, no P1s) fixed the --json write-failure
+  stdout contamination (the write now precedes the brief; exactly one
+  JSON document), the self-reference honesty gap, the
+  position-fragile registry-diagnostic coupling (now selected by
+  code), dead policy params, leftover binding imports, and added the
+  working-set unit matrix. Simplify extracted the shared stale-path
+  sweep into shared-gather, deleted the dead Windows-path machinery
+  and a stale workspace-kind test, and recorded the
+  context_output_dir_missing plan amendment. Recorded for the
+  capstone: the resolver's both-shapes stderr warning fires for every
+  command (per-command suppression would fragment the one-resolver
+  contract); PlanningHomeSummary is now field-identical to
+  PlanningHome (deliberate JSON insulation or collapse — capstone
+  judges); the npm export surface shrank (workspace/binding/
+  getRepoPath gone from dist) — fine pre-release.
 - 2026-06-11: Wrote the assemble-working-context plan (4.1, two
   checkpoints: deletions leaves-first, then assembly) and folded two
   plan reviews (both approve-with-fixes). The catch that mattered: the
