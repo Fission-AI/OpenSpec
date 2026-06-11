@@ -134,10 +134,10 @@ Next incomplete item:
   into the assembled context surface and rebuilds opening around it,
   absorbing old 2.3 and deleting the workspace state model +
   workspace-planning mode per the deletion ledger's 4.1-owner
-  carve-outs. Spec written and reviewed
-  (`slices/assemble-working-context/`); plan is next. (Phase 3 is
-  complete on the branch; the 5.1 first tranche is done; the Phase 5
-  remainder runs after 4.1.)
+  carve-outs. Spec and plan written and reviewed
+  (`slices/assemble-working-context/`); implementation is next.
+  (Phase 3 is complete on the branch; the 5.1 first tranche is done;
+  the Phase 5 remainder runs after 4.1.)
 
 ## Phase 0. Make The Active Direction Easy To Find
 
@@ -1400,6 +1400,23 @@ is working:
   a deliberate fourth partial edit, and the spec's byte-stable clause
   now allows the new removal-coverage tests. The reworded constraint
   string gets its first-ever pin in the new test.
+- 2026-06-11: Wrote the assemble-working-context plan (4.1, two
+  checkpoints: deletions leaves-first, then assembly) and folded two
+  plan reviews (both approve-with-fixes). The catch that mattered: the
+  spec's own `code_workspace_exists` diagnostic name collides with the
+  vocabulary sweep's `workspace_*` token ban — amended to
+  `context_file_exists` (the `--code-workspace` flag is hyphen-safe).
+  Also folded: the parity test's workspace-planning guard assertion
+  flips to an absence assertion (it currently pins the guards EXIST);
+  the change-status-policy tranche names `ChangeStatus.affectedAreas`
+  and the artifact-graph barrel re-export; the doctor-extraction claim
+  weakened to behavior-identical (the e2e asserts fields, not bytes);
+  the unresolved-members-on-stderr e2e mapped; the sweep guardrail
+  reworded to manual-grep honesty; stale hedges resolved (the
+  workspace test files named; the binding tests are two its, not a
+  block). Both reviewers verified the deletion order dependency-safe
+  (planning-home drops its workspace import before workspace/ dies;
+  binding dies after workspace/foundation) and every anchor accurate.
 - 2026-06-11: Wrote the assemble-working-context slice spec (4.1) and
   folded two adversarial reviews (both approve-with-fixes, converging,
   one P1 pair). The deletion-grounding P1s: `binding.ts` dies WHOLE —

@@ -77,7 +77,10 @@ since 1.2 — is deleted per the recorded ledger carve-outs (the absorbed
    (`ref:<id>`), then AVAILABLE targets (`repo:<id>`). Unavailable
    members are omitted from the file and reported on stderr. Write
    semantics, pinned: an existing path refuses with exit 1 and a typed
-   `code_workspace_exists` diagnostic whose fix names `--force`;
+   `context_file_exists` diagnostic whose fix names `--force`
+   (implementation amendment: the draft's `code_workspace_exists`
+   would trip the vocabulary sweep's `workspace_*` token ban — the
+   flag name `--code-workspace` is safe, hyphenated);
    `--force` overwrites; a missing parent directory fails with a clear
    error (NO implicit mkdir — the requested file is the only write);
    with `--json`, the brief stays pure on stdout and the write
@@ -255,7 +258,7 @@ Out of scope:
   only, named `<root>`, `ref:<id>`, `repo:<id>`, in that order
 - **AND** unresolved members are reported on stderr, not written
 - **AND** rerunning without `--force` refuses with exit 1 and the
-  typed `code_workspace_exists` fix naming `--force`; with `--force`
+  typed `context_file_exists` fix naming `--force`; with `--force`
   it overwrites
 - **AND** a missing parent directory fails clearly with no mkdir
 - **AND** with `--json`, stdout stays the pure brief and the write
