@@ -376,6 +376,26 @@ describe('config profile interactive flow', () => {
     });
   });
 
+  it('confirmed project apply should run openspec update in the project', async () => {
+    const { saveGlobalConfig, getGlobalConfig } = await import('../../src/core/global-config.js');
+    const { select, confirm } = await getPromptMocks();
+
+    saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both', workflows: ['propose', 'explore', 'apply', 'sync', 'archive'] });
+    fs.mkdirSync(path.join(tempDir, 'openspec'), { recursive: true });
+
+    select.mockResolvedValueOnce('delivery');
+    select.mockResolvedValueOnce('skills');
+    confirm.mockResolvedValueOnce(true);
+
+    await runConfigCommand(['profile']);
+
+    expect(getGlobalConfig().delivery).toBe('skills');
+    expect(execSync).toHaveBeenCalledWith('npx openspec update', {
+      stdio: 'inherit',
+      cwd: fs.realpathSync(tempDir),
+    });
+  });
+
   it('core preset should preserve delivery setting', async () => {
     const { saveGlobalConfig, getGlobalConfig } = await import('../../src/core/global-config.js');
     const { select, checkbox, confirm } = await getPromptMocks();

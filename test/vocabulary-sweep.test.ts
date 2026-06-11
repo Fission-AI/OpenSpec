@@ -78,4 +78,23 @@ describe('vocabulary sweep', () => {
 
     expect(offenders, `retired vocabulary found:\n${offenders.join('\n')}`).toEqual([]);
   });
+
+  it('keeps the deleted workspace/initiative token surface from regrowing', () => {
+    // The command-group deletion slice's ledger records exactly these
+    // survivors; a new (workspace|initiative)_ token in src/ must be a
+    // deliberate decision, not drift. 4.1 deleting workspace_skills is
+    // the expected next edit here (update the ledger with it).
+    const allowed = new Set(['initiative_option_removed', 'workspace_skills']);
+    const found = new Set<string>();
+    const pattern = /(workspace|initiative)_[a-z_]+/g;
+
+    for (const filePath of walkFiles(path.join(REPO_ROOT, 'src'))) {
+      const content = fs.readFileSync(filePath, 'utf-8');
+      for (const match of content.matchAll(pattern)) {
+        found.add(match[0]);
+      }
+    }
+
+    expect([...found].filter((token) => !allowed.has(token)).sort()).toEqual([]);
+  });
 });

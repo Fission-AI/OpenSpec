@@ -201,13 +201,6 @@ function maybeWarnProjectConfigDrift(
   console.log(colorize('Warning: Global config is not applied to this project. Run `openspec update` to sync.'));
 }
 
-function maybeWarnConfigDrift(
-  state: ProfileState,
-  colorize: (message: string) => string
-): void {
-  maybeWarnProjectConfigDrift(process.cwd(), state, colorize);
-}
-
 function printConfigProfileApplyGuidance(): void {
   console.log('Config updated. Run `openspec update` in your projects to apply.');
 }
@@ -532,7 +525,7 @@ export function registerConfigCommand(program: Command): void {
 
         if (action === 'keep') {
           console.log('No config changes.');
-          await maybeWarnConfigDrift(currentState, chalk.yellow);
+          maybeWarnProjectConfigDrift(process.cwd(), currentState, chalk.yellow);
           return;
         }
 
@@ -607,7 +600,7 @@ export function registerConfigCommand(program: Command): void {
         const diff = diffProfileState(currentState, nextState);
         if (!diff.hasChanges) {
           console.log('No config changes.');
-          await maybeWarnConfigDrift(nextState, chalk.yellow);
+          maybeWarnProjectConfigDrift(process.cwd(), nextState, chalk.yellow);
           return;
         }
 

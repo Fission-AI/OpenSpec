@@ -35,6 +35,9 @@ describe('legacy command groups are removed', () => {
       for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
         const fullPath = path.join(dir, entry.name);
         if (entry.isDirectory()) {
+          // Record directories too, so a command deleting an empty
+          // subdirectory cannot pass the byte-identity check.
+          snapshot.set(`${path.relative(root, fullPath)}/`, '');
           walk(fullPath);
         } else if (entry.isFile()) {
           snapshot.set(path.relative(root, fullPath), fs.readFileSync(fullPath, 'utf-8'));
@@ -46,6 +49,10 @@ describe('legacy command groups are removed', () => {
     return snapshot;
   }
 
+  // Frozen legacy bytes, written by the now-deleted workspace commands.
+  // Deliberately NOT the production writer: the pin is that pre-existing
+  // on-disk state still behaves, independent of serializer drift (the
+  // writer itself dies in 4.1).
   function writeWorkspaceViewFixture(dir: string): void {
     const metadataDir = path.join(dir, '.openspec-workspace');
     fs.mkdirSync(metadataDir, { recursive: true });
@@ -125,7 +132,9 @@ describe('legacy command groups are removed', () => {
         env,
       })).exitCode
     ).toBe(0);
-    await runCLI(['update'], { cwd: projectDir, env });
+    // update exits 1 here (no project) — asserted so a future auto-init
+    // behavior cannot silently start writing into this fixture.
+    expect((await runCLI(['update'], { cwd: projectDir, env })).exitCode).toBe(1);
     expect(
       (await runCLI(['new', 'change', 'survival-check', '--store', 'team-context', '--json'], {
         cwd: projectDir,

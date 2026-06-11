@@ -88,3 +88,22 @@ not misses:
 - `buildActionContext`'s workspace-planning branch —
   `src/core/change-status-policy.ts` (same; pinned by
   `test/commands/legacy-groups-removed.test.ts`)
+- `readOptionalWorkspaceViewState`, `isWorkspaceRoot`,
+  `writeWorkspaceViewState`, `workspaceChangesDirExists` —
+  `src/core/workspace/state-io.ts` (production consumers died with the
+  commands; only planning-home's read path and tests remain)
+
+## Accepted collateral and known follow-ups
+
+- **Minor error-fidelity change in `openspec update`**: pre-deletion, an
+  unreadable `openspec/` entry (EACCES) surfaced the raw fs error via
+  the deleted detection helper; the unconditional path now reports the
+  standard no-project error. Accepted as part of decision 2a's behavior
+  change.
+- **The accepted spec library still describes deleted behavior**:
+  `openspec/specs/cli-config`, `workspace-open`, `workspace-foundation`,
+  and `cli-artifact-workflow` specs REQUIRE workspace/initiative flows
+  that no longer exist. This is the roadmap's parked Later Idea **L2**
+  ("Decide how accepted workspace-planning specs should change once
+  behavior has changed") — deliberately not resolved by this slice; the
+  capstone should surface it under known gaps.
