@@ -10,6 +10,7 @@ The OpenSpec CLI (`openspec`) provides terminal commands for project setup, vali
 | **Stores (standalone OpenSpec repos)** | `store setup`, `store register`, `store unregister`, `store remove`, `store list`, `store doctor` | Manage stores — standalone OpenSpec repos you've registered |
 | **Repo map** | `repo register`, `repo unregister`, `repo list` | Map target repo ids to local checkout paths on this machine |
 | **Health** | `doctor` | Report relationship health for the resolved root |
+| **Working context** | `context` | Assemble the working set (root + referenced stores + target repos) |
 | **Browsing** | `list`, `view`, `show` | Explore changes and specs |
 | **Validation** | `validate` | Check changes and specs for issues |
 | **Lifecycle** | `archive` | Finalize completed changes |
@@ -344,6 +345,18 @@ openspec doctor [--store <id>] [--json]
 ```
 
 The report separates root health, store metadata health (including a note when the recorded remote and the checkout's origin diverge), reference health (the same diagnostics instructions show, with clone fixes for unresolved references), and target health (unmapped repos get the `repo register` fix). Health findings of any severity exit 0 — agents read the `status` arrays; only command failures (no root, unknown store) exit 1. Doctor never clones, syncs, or repairs.
+
+## Working context (the assembled set)
+
+Everything this work relates to, in one working set: the OpenSpec root, the stores it references, and the project repos it targets.
+
+```bash
+openspec context [--store <id>] [--json] [--code-workspace <path> [--force]]
+```
+
+The JSON brief is agent-consumable (each available referenced store carries its fetch recipe; unresolved members carry the same fixes instructions and doctor show). `--code-workspace` additionally writes a VS Code workspace file containing the root plus the available members (`ref:<id>`, `repo:<id>` folders) — the one write this command performs, refused without `--force` if the file exists. Unavailable members are reported, never guessed at.
+
+"Working context" is the assembled set; the `context:` field in `openspec/config.yaml` is project background injected into instructions — two different things. `openspec doctor` answers whether the set is healthy; `openspec context` answers what the set is.
 
 ---
 

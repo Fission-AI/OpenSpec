@@ -21,6 +21,7 @@ import { registerSchemaCommand } from '../commands/schema.js';
 import { registerStoreCommand } from '../commands/store.js';
 import { registerRepoCommand } from '../commands/repo.js';
 import { registerDoctorCommand } from '../commands/doctor.js';
+import { registerContextCommand } from '../commands/context.js';
 import {
   statusCommand,
   instructionsCommand,
@@ -319,6 +320,7 @@ registerSchemaCommand(program);
 registerStoreCommand(program);
 registerRepoCommand(program);
 registerDoctorCommand(program);
+registerContextCommand(program);
 
 // Top-level validate command
 program

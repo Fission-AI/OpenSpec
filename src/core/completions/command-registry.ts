@@ -346,6 +346,23 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     ],
   },
   {
+    name: 'context',
+    description: 'Print the working context for the resolved OpenSpec root',
+    flags: [
+      COMMON_FLAGS.json,
+      COMMON_FLAGS.store,
+      {
+        name: 'code-workspace',
+        description: 'Also write a VS Code workspace file for the set',
+        takesValue: true,
+      },
+      {
+        name: 'force',
+        description: 'Overwrite an existing --code-workspace file',
+      },
+    ],
+  },
+  {
     name: 'doctor',
     description: 'Report relationship health for the resolved OpenSpec root',
     flags: [

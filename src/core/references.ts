@@ -130,7 +130,7 @@ async function collectSpecEntries(referencedRoot: string): Promise<ReferenceSpec
   );
 }
 
-function fetchRecipe(storeId: string): string {
+export function fetchRecipe(storeId: string): string {
   return `openspec show <spec-id> --type spec --store ${storeId}`;
 }
 

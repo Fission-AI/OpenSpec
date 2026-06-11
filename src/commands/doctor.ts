@@ -10,17 +10,14 @@ import {
   type ResolvedOpenSpecRoot,
 } from '../core/root-selection.js';
 import { readOptionalStoreMetadataState } from '../core/store/foundation.js';
-import { readRegistrySnapshot } from '../core/store/registry.js';
 import { gitOriginUrl } from '../core/store/git.js';
-import { inspectOpenSpecRoot } from '../core/openspec-root.js';
 import {
   classifyOpenSpecDir,
   readProjectConfig,
   resolveConfigFilePath,
 } from '../core/project-config.js';
 import { findRepoPlanningRootSync } from '../core/planning-home.js';
-import { assembleReferenceIndex } from '../core/references.js';
-import { assembleTargets } from '../core/targets.js';
+import { gatherRelationshipData } from './shared-gather.js';
 import {
   inspectRelationships,
   type InspectRelationshipsInput,
@@ -37,31 +34,18 @@ const FAILURE_PAYLOAD = { root: null, store: null, references: [], targets: [] }
 async function gatherHealth(
   root: ResolvedOpenSpecRoot
 ): Promise<{ health: RelationshipHealth; declaredReferenceCount: number }> {
-  // One registry read feeds references, targets, and the unreadable
-  // signal coherently (the torn-snapshot invariant lives in the helper).
-  const snapshot = await readRegistrySnapshot();
-  const registryEntries = snapshot.entries;
-  const repoPaths = snapshot.repoPaths;
-  const registryUnreadable = snapshot.unreadable;
-
-  const projectConfig = readProjectConfig(root.path);
-  const storeConfigPath =
-    resolveConfigFilePath(root.path) ?? path.join(root.path, 'openspec', 'config.yaml');
-
-  const referenceEntries = await assembleReferenceIndex({
-    references: projectConfig?.references ?? [],
-    resolvedRoot: root,
-    includeSpecs: false,
-    registryEntries,
-  });
-
-  const effectiveTargets = assembleTargets({
-    storeTargets: projectConfig?.targets,
+  const data = await gatherRelationshipData(root);
+  const {
+    registrySnapshot,
+    projectConfig,
     storeConfigPath,
-    ...(repoPaths ? { repoPaths } : {}),
-  });
-
-  const rootInspection = await inspectOpenSpecRoot(root.path);
+    referenceEntries,
+    effectiveTargets,
+    storeTargets,
+    rootInspection,
+  } = data;
+  const repoPaths = registrySnapshot.repoPaths;
+  const registryUnreadable = registrySnapshot.unreadable;
 
   const input: InspectRelationshipsInput = {
     root,
@@ -69,7 +53,7 @@ async function gatherHealth(
     rootStatus: rootInspection.diagnostics,
     referenceEntries,
     effectiveTargets,
-    storeTargets: projectConfig?.targets,
+    storeTargets,
     registryUnreadable,
     storeConfigPath,
   };
