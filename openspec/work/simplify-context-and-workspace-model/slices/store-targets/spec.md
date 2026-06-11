@@ -45,9 +45,12 @@ commands act.
    parser's only-set-when-non-empty behavior). Ids must pass the kebab
    grammar, validated with the file's existing `KebabIdentifierSchema`
    (schema.ts:3-11; `affected_areas` carries no grammar and is not the
-   precedent). A grammar-invalid change-level id fails metadata reads
-   EVERYWHERE (show, validate, archive, instructions) like any other
-   metadata error — a deliberate severity cliff this spec owns. An id
+   precedent). A grammar-invalid change-level id fails every command
+   that READS the metadata (instructions and status — show, validate,
+   and archive never load `.openspec.yaml` today), exactly like an
+   invalid initiative link — a deliberate severity cliff this spec
+   owns (implementation amendment: the original draft overstated the
+   blast radius as "everywhere"). An id
    outside the store's declared set is legal but flagged (decision 4)
    — the store list is the vocabulary, not a cage. A narrowed id
    inherits the store declaration's remote when one exists (the remote

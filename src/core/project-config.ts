@@ -41,7 +41,7 @@ export const ProjectConfigSchema = z.object({
 
   // Note: the `references` field (id strings or {id, remote} maps) is
   // deliberately absent here — readProjectConfig parses and normalizes
-  // it by hand (see ReferenceDeclaration below); a schema entry nothing
+  // it by hand (see DeclarationEntry below); a schema entry nothing
   // parses would only drift from the real behavior.
 
   // Optional: the declared default store. Only consulted by root
@@ -53,22 +53,28 @@ export const ProjectConfigSchema = z.object({
     .describe('Store id used as the OpenSpec root when no local planning shape exists'),
 });
 
-/** Normalized in-memory shape of a references entry (slice 3.3). */
-export interface ReferenceDeclaration {
+/**
+ * Normalized in-memory shape of a declaration-list entry: a store id
+ * (`references:`, slice 3.1/3.3) or a target repo id (`targets:`,
+ * slice 3.4), optionally with a clone source.
+ */
+export interface DeclarationEntry {
   id: string;
-  /** Clone source for the unresolved-reference fix. */
+  /** Clone source rendered into onboarding fixes. */
   remote?: string;
 }
 
+
+
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema> & {
-  references?: ReferenceDeclaration[];
-  targets?: ReferenceDeclaration[];
+  references?: DeclarationEntry[];
+  targets?: DeclarationEntry[];
 };
 
 /**
  * Shared parser for declaration-list config fields (`references:`,
  * `targets:`): string entries or {id, remote} maps, normalized to
- * ReferenceDeclaration[]. Dedup keys on id and keeps the first
+ * DeclarationEntry[]. Dedup keys on id and keeps the first
  * position; the first entry carrying a remote supplies it (a later
  * duplicate fills a missing remote, never overrides). Invalid entries
  * drop with a warning like other resilient fields; returns undefined
@@ -76,22 +82,23 @@ export type ProjectConfig = z.infer<typeof ProjectConfigSchema> & {
  */
 function parseDeclarationList(
   raw: unknown,
-  fieldName: string
-): ReferenceDeclaration[] | undefined {
+  fieldName: 'references' | 'targets'
+): DeclarationEntry[] | undefined {
+  const idNoun = fieldName === 'targets' ? 'repo ids' : 'store ids';
   if (raw === undefined) {
     return undefined;
   }
   if (!Array.isArray(raw)) {
-    console.warn(`Invalid '${fieldName}' field in config (must be an array of store ids)`);
+    console.warn(`Invalid '${fieldName}' field in config (must be an array of ${idNoun})`);
     return undefined;
   }
 
-  const byId = new Map<string, ReferenceDeclaration>();
+  const byId = new Map<string, DeclarationEntry>();
   let droppedEntries = false;
   let droppedRemotes = false;
 
   for (const entry of raw) {
-    let declaration: ReferenceDeclaration | null = null;
+    let declaration: DeclarationEntry | null = null;
     if (typeof entry === 'string') {
       declaration = { id: entry };
     } else if (entry && typeof entry === 'object' && !Array.isArray(entry)) {

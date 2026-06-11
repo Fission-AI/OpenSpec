@@ -22,7 +22,7 @@ import { getStoreRootForBackend } from './store/registry.js';
 import { inspectRegisteredStore, type ResolvedOpenSpecRoot } from './root-selection.js';
 import { getSpecIds } from '../utils/item-discovery.js';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { MAX_CONTEXT_SIZE, type ReferenceDeclaration } from './project-config.js';
+import { MAX_CONTEXT_SIZE, type DeclarationEntry } from './project-config.js';
 
 export interface ReferenceSpecEntry {
   id: string;
@@ -208,7 +208,7 @@ function renderedByteSize(entries: ReferenceIndexEntry[]): number {
 }
 
 export interface AssembleReferenceIndexInput {
-  references: ReferenceDeclaration[];
+  references: DeclarationEntry[];
   resolvedRoot: ResolvedOpenSpecRoot;
   globalDataDir?: string;
 }

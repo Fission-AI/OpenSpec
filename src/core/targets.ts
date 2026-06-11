@@ -10,18 +10,18 @@
  */
 import { makeStoreDiagnostic, type StoreDiagnostic } from './store/errors.js';
 import { isKebabId } from './change-metadata/schema.js';
-import type { ReferenceDeclaration } from './project-config.js';
+import type { DeclarationEntry } from './project-config.js';
 
 export interface EffectiveTargets {
   /** Where the effective list came from. */
   source: 'store' | 'change';
-  repos: ReferenceDeclaration[];
+  repos: DeclarationEntry[];
   /** Always present; `[]` when clean. */
   status: StoreDiagnostic[];
 }
 
 export interface AssembleTargetsInput {
-  storeTargets?: ReferenceDeclaration[];
+  storeTargets?: DeclarationEntry[];
   changeTargets?: string[];
   /** Absolute path of the config file actually read (for fix text). */
   storeConfigPath?: string;
@@ -48,7 +48,7 @@ export function assembleTargets(input: AssembleTargetsInput): EffectiveTargets |
   }
 
   const status: StoreDiagnostic[] = [];
-  const declared = new Map<string, ReferenceDeclaration>();
+  const declared = new Map<string, DeclarationEntry>();
   for (const target of storeTargets) {
     if (!isKebabId(target.id)) {
       status.push(
@@ -71,8 +71,13 @@ export function assembleTargets(input: AssembleTargetsInput): EffectiveTargets |
   // the matching store declaration (the remote belongs to the repo
   // declaration, not the provenance). Change-level grammar is enforced
   // by the metadata schema before this runs.
-  const repos: ReferenceDeclaration[] = [];
+  const repos: DeclarationEntry[] = [];
+  const seen = new Set<string>();
   for (const id of changeTargets) {
+    if (seen.has(id)) {
+      continue; // The effective list is a set: first occurrence wins.
+    }
+    seen.add(id);
     const storeDeclaration = declared.get(id);
     if (storeDeclaration) {
       repos.push(storeDeclaration);

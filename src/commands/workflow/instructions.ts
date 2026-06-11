@@ -38,11 +38,12 @@ import {
   renderTargetReposBlock,
   renderTargetReposSection,
 } from '../../core/targets.js';
+import { METADATA_FILENAME } from '../../utils/change-metadata.js';
 import {
   readProjectConfig,
   resolveConfigFilePath,
   type ProjectConfig,
-  type ReferenceDeclaration,
+  type DeclarationEntry,
 } from '../../core/project-config.js';
 import {
   validateChangeExists,
@@ -76,10 +77,11 @@ export interface ApplyInstructionsOptions {
 // -----------------------------------------------------------------------------
 
 /**
- * Reads the resolved root's config once and assembles the referenced-store
- * index when references are declared. Shared by both instruction surfaces.
+ * Reads the resolved root's config once, assembles the referenced-store
+ * index when references are declared, and resolves the config path for
+ * fix text. Shared by both instruction surfaces.
  */
-async function loadConfigAndReferences(root: ResolvedOpenSpecRoot): Promise<{
+async function loadRootConfigContext(root: ResolvedOpenSpecRoot): Promise<{
   projectConfig: ProjectConfig | null;
   references: ReferenceIndexEntry[] | undefined;
   configPath: string;
@@ -151,17 +153,12 @@ export async function instructionsCommand(
       );
     }
 
-    const { projectConfig, references, configPath } = await loadConfigAndReferences(root);
-    const targets = assembleTargets({
-      storeTargets: projectConfig?.targets,
-      changeTargets: context.metadata?.targets,
-      storeConfigPath: configPath,
-      changeMetadataPath: path.join(context.changeDir, '.openspec.yaml'),
-    });
+    const { projectConfig, references, configPath } = await loadRootConfigContext(root);
     const instructions = generateInstructions(context, artifactId, projectRoot, {
       projectConfig,
       references,
-      ...(targets ? { targets } : {}),
+      ...(projectConfig?.targets ? { storeTargets: projectConfig.targets } : {}),
+      storeConfigPath: configPath,
     });
     const isBlocked = instructions.dependencies.some((d) => !d.done);
 
@@ -345,7 +342,7 @@ export interface GenerateApplyInstructionsOptions {
   references?: ReferenceIndexEntry[];
   /** Store-level target declarations (assembly happens inside, where
    * the change metadata is in hand). */
-  storeTargets?: ReferenceDeclaration[];
+  storeTargets?: DeclarationEntry[];
   /** Absolute path of the config file actually read (for fix text). */
   storeConfigPath?: string;
 }
@@ -374,7 +371,7 @@ export async function generateApplyInstructions(
     storeTargets: options.storeTargets,
     changeTargets: context.metadata?.targets,
     storeConfigPath: options.storeConfigPath,
-    changeMetadataPath: path.join(changeDir, '.openspec.yaml'),
+    changeMetadataPath: path.join(changeDir, METADATA_FILENAME),
   });
 
   // Get the full schema to access the apply phase configuration
@@ -492,7 +489,7 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
     }
 
     // generateApplyInstructions uses loadChangeContext which auto-detects schema
-    const { projectConfig, references, configPath } = await loadConfigAndReferences(root);
+    const { projectConfig, references, configPath } = await loadRootConfigContext(root);
     const instructions = await generateApplyInstructions(projectRoot, changeName, options.schema, {
       planningHome,
       references,

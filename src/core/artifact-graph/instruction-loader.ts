@@ -17,7 +17,9 @@ import {
 } from '../change-status-policy.js';
 import { readProjectConfig, validateConfigRules, type ProjectConfig } from '../project-config.js';
 import type { ReferenceIndexEntry } from '../references.js';
-import type { EffectiveTargets } from '../targets.js';
+import { assembleTargets, type EffectiveTargets } from '../targets.js';
+import type { DeclarationEntry } from '../project-config.js';
+import { METADATA_FILENAME } from '../../utils/change-metadata.js';
 import type { PlanningHome } from '../planning-home.js';
 import type { ChangeMetadata, InitiativeLink } from '../change-metadata/index.js';
 import type { Artifact, CompletedSet } from './types.js';
@@ -279,7 +281,12 @@ export interface GenerateInstructionsOptions {
   projectConfig?: ProjectConfig | null;
   /** Referenced-store index assembled at the command boundary. */
   references?: ReferenceIndexEntry[];
-  targets?: EffectiveTargets;
+  /** Store-level target declarations; effective-target assembly happens
+   * here, where the change metadata is in hand (same shape as the apply
+   * surface — the two must never drift). */
+  storeTargets?: DeclarationEntry[];
+  /** Absolute path of the config file actually read (for fix text). */
+  storeConfigPath?: string;
 }
 
 export function generateInstructions(
@@ -333,6 +340,13 @@ export function generateInstructions(
   const rulesForArtifact = projectConfig?.rules?.[artifactId];
   const configRules = rulesForArtifact && rulesForArtifact.length > 0 ? rulesForArtifact : undefined;
 
+  const targets = assembleTargets({
+    storeTargets: options.storeTargets,
+    changeTargets: context.metadata?.targets,
+    storeConfigPath: options.storeConfigPath,
+    changeMetadataPath: path.join(context.changeDir, METADATA_FILENAME),
+  });
+
   return {
     changeName: context.changeName,
     artifactId: artifact.id,
@@ -348,7 +362,7 @@ export function generateInstructions(
     context: configContext,
     rules: configRules,
     ...(options.references !== undefined ? { references: options.references } : {}),
-    ...(options.targets !== undefined ? { targets: options.targets } : {}),
+    ...(targets ? { targets } : {}),
     template: templateContent,
     dependencies,
     unlocks,
