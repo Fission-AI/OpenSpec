@@ -7,16 +7,10 @@ import { Command } from 'commander';
 
 import {
   resolveRootForCommand,
-  toRootOutput,
   type ResolvedOpenSpecRoot,
 } from '../core/root-selection.js';
-import {
-  listStoreRegistryEntries,
-  readOptionalStoreMetadataState,
-  readStoreRegistryState,
-  type StoreRegistryState,
-} from '../core/store/foundation.js';
-import { listRepoEntries } from '../core/store/registry.js';
+import { readOptionalStoreMetadataState } from '../core/store/foundation.js';
+import { readRegistrySnapshot } from '../core/store/registry.js';
 import { gitOriginUrl } from '../core/store/git.js';
 import { inspectOpenSpecRoot } from '../core/openspec-root.js';
 import {
@@ -34,7 +28,7 @@ import {
 } from '../core/relationship-health.js';
 import { COMMAND_REGISTRY } from '../core/completions/command-registry.js';
 import { COMMON_FLAGS } from '../core/completions/shared-flags.js';
-import { printJson } from './shared-output.js';
+import { emitFailure, printJson } from './shared-output.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -44,20 +38,11 @@ async function gatherHealth(
   root: ResolvedOpenSpecRoot
 ): Promise<{ health: RelationshipHealth; declaredReferenceCount: number }> {
   // One registry read feeds references, targets, and the unreadable
-  // signal coherently. Success-null = absent = empty; throw = unreadable.
-  let registry: StoreRegistryState | null = null;
-  let registryUnreadable = false;
-  try {
-    registry = await readStoreRegistryState();
-  } catch {
-    registryUnreadable = true;
-  }
-  let registryEntries: ReturnType<typeof listStoreRegistryEntries> | null = null;
-  let repoPaths: Map<string, string> | undefined;
-  if (!registryUnreadable) {
-    registryEntries = registry ? listStoreRegistryEntries(registry) : [];
-    repoPaths = new Map(listRepoEntries(registry).map((entry) => [entry.id, entry.path]));
-  }
+  // signal coherently (the torn-snapshot invariant lives in the helper).
+  const snapshot = await readRegistrySnapshot();
+  const registryEntries = snapshot.entries;
+  const repoPaths = snapshot.repoPaths;
+  const registryUnreadable = snapshot.unreadable;
 
   const projectConfig = readProjectConfig(root.path);
   const storeConfigPath =
@@ -108,11 +93,12 @@ async function gatherHealth(
 
   // Target checkout health (the lock's fourth category): a mapped path
   // that no longer exists is a stale mapping, not a healthy target.
-  if (repoPaths && repoPaths.size > 0) {
+  // Stat only the DECLARED targets, not every registered repo.
+  if (repoPaths && effectiveTargets) {
     input.missingRepoPaths = new Set(
-      [...repoPaths.entries()]
-        .filter(([, repoPath]) => !fs.existsSync(repoPath))
-        .map(([id]) => id)
+      effectiveTargets.repos
+        .filter((entry) => entry.path !== undefined && !fs.existsSync(entry.path))
+        .map((entry) => entry.id)
     );
   }
 
@@ -261,12 +247,7 @@ export function registerDoctorCommand(program: Command): void {
         }
         printHumanHealth(health, declaredReferenceCount);
       } catch (error) {
-        console.error(`Error: ${(error as Error).message}`);
-        const fix = (error as { diagnostic?: { fix?: string } }).diagnostic?.fix;
-        if (fix) {
-          console.error(`Fix: ${fix}`);
-        }
-        process.exitCode = 1;
+        emitFailure(options.json, FAILURE_PAYLOAD, error, 'doctor_failed');
       }
     });
 }

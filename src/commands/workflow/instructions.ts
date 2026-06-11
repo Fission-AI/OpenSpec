@@ -39,11 +39,7 @@ import {
   renderTargetReposSection,
 } from '../../core/targets.js';
 import { METADATA_FILENAME } from '../../utils/change-metadata.js';
-import {
-  listStoreRegistryEntries,
-  readStoreRegistryState,
-} from '../../core/store/foundation.js';
-import { listRepoEntries } from '../../core/store/registry.js';
+import { readRegistrySnapshot } from '../../core/store/registry.js';
 import {
   readProjectConfig,
   resolveConfigFilePath,
@@ -97,24 +93,15 @@ async function loadRootConfigContext(root: ResolvedOpenSpecRoot): Promise<{
   const configPath =
     resolveConfigFilePath(root.path) ?? path.join(root.path, 'openspec', 'config.yaml');
 
-  // One registry read serves the repo map AND the reference index (the
-  // 3.6 injection point) so one JSON output never carries a torn
-  // snapshot. Unconditional: change-level narrowing can declare targets
-  // the store config does not. A corrupt registry yields all-bare
-  // entries (doctor owns surfacing that).
-  let repoPaths: Map<string, string> | undefined;
-  let registryEntries: ReturnType<typeof listStoreRegistryEntries> | null;
-  try {
-    const registry = await readStoreRegistryState();
-    registryEntries = registry ? listStoreRegistryEntries(registry) : [];
-    const entries = listRepoEntries(registry);
-    repoPaths = entries.length > 0
-      ? new Map(entries.map((entry) => [entry.id, entry.path]))
-      : undefined;
-  } catch {
-    registryEntries = null;
-    repoPaths = undefined;
-  }
+  // One registry read serves the repo map AND the reference index so
+  // one JSON output never carries a torn snapshot. Unconditional:
+  // change-level narrowing can declare targets the store config does
+  // not. A corrupt registry yields all-bare entries (doctor owns
+  // surfacing that).
+  const snapshot = await readRegistrySnapshot();
+  const registryEntries = snapshot.entries;
+  const repoPaths =
+    snapshot.repoPaths && snapshot.repoPaths.size > 0 ? snapshot.repoPaths : undefined;
 
   const declared = projectConfig?.references ?? [];
   const index =

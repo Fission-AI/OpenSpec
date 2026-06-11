@@ -108,11 +108,11 @@ an item are status steps for that numbered work item.
 - [x] **Phase 2. Stop putting new work through initiatives.**
   Fully absorbed: 2.1 shipped inside slice 1.2, 2.2 folded into slice 1.4,
   and 2.3 folded into item 4.1. No independent work remains here.
-- [ ] **Phase 3. Say how roots relate: references and targets.**
-  3.1–3.5 are implemented and tested: references, the declared-store
-  fallback, canonical remotes, target declarations, and the local repo
-  map (typed registry sections, the repo command group, path-enriched
-  targets). 3.6 (relationship health) closes the phase.
+- [x] **Phase 3. Say how roots relate: references and targets.**
+  Complete (merge to `main` pending): references, the declared-store
+  fallback, canonical remotes, target declarations, the local repo
+  map, and the `openspec doctor` relationship-health roll-up are all
+  implemented and tested on the working branch.
 - [ ] **Phase 4. Assemble the working context.**
   Not started. Rebuilds opening around assembled context; absorbs old 2.3.
 - [ ] **Phase 5. Remove old surfaces only when they confuse the simple path.**
@@ -125,17 +125,18 @@ an item are status steps for that numbered work item.
 
 Next incomplete item:
 
-- [ ] **3.6 Report relationship health.**
-  In plain English: ask OpenSpec whether the roots this work relates
-  to — referenced stores and target repos — are actually reachable on
-  this machine, in one place, read-only. The groundwork is all laid:
-  reference diagnostics (3.1), the both-shapes/pointer warnings
-  (3.2), canonical vs observed remotes (3.3), target declarations
-  (3.4), and the repo map with its silence-by-design unmapped/corrupt
-  cases (3.5) all deferred their roll-up here. Spec and plan written
-  and reviewed (`slices/relationship-health/`); implementation is
-  next. (3.1–3.5 are implemented and reviewed; the 5.1 first tranche
-  is done; the Phase 5 remainder runs after 4.1.)
+- [ ] **4.1 Assemble the working context.**
+  In plain English: give me — or my agent — everything this work
+  relates to in one working set: the OpenSpec root, the stores it
+  references, and the project repos it targets. Phase 3 built every
+  ingredient (the reference index, target declarations with local
+  paths, `getRepoPath`, `inspectRelationships`); 4.1 composes them
+  into the assembled context surface and rebuilds opening around it,
+  absorbing old 2.3 and deleting the workspace state model +
+  workspace-planning mode per the deletion ledger's 4.1-owner
+  carve-outs. Spec not yet written. (Phase 3 is complete on the
+  branch; the 5.1 first tranche is done; the Phase 5 remainder runs
+  after 4.1.)
 
 ## Phase 0. Make The Active Direction Easy To Find
 
@@ -916,12 +917,18 @@ How the user or agent knows it worked:
 
 ### 3.6 Report Relationship Health
 
+Slice: `slices/relationship-health/spec.md`
+
 Progress:
 
-- [ ] Spec written.
-- [ ] Plan written.
-- [ ] Implementation done.
-- [ ] Tests pass.
+- [x] Spec written.
+- [x] Plan written.
+- [x] Implementation done (the root-scoped `openspec doctor` — pure
+  composition over the Phase 3 assemblers; every recorded deferral
+  landed; health-mode assembler options; the torn-snapshot
+  readRegistrySnapshot invariant; three-mechanism review and a
+  simplify pass folded).
+- [x] Tests pass (full suite green, 96 files / 1739 tests).
 - [ ] Merged to `main`.
 
 What the user can do:
@@ -1392,6 +1399,29 @@ is working:
   a deliberate fourth partial edit, and the spec's byte-stable clause
   now allows the new removal-coverage tests. The reworded constraint
   string gets its first-ever pin in the new test.
+- 2026-06-11: Implemented slice 3.6 (relationship health) in two
+  checkpoints plus a review-fix round, completing Phase 3: the
+  health-mode assembler options (`includeSpecs: false` skipping spec
+  reads and the byte budget; `registryEntries` injection with []/null
+  semantics), the pure `inspectRelationships` composition, and the
+  root-scoped `openspec doctor` (normal resolution with the additive
+  `allowImplicitRoot` pass-through; one registry read; every recorded
+  Phase 3 deferral landed — both-shapes and malformed pointers
+  structured, inert pointer declarations, unmapped AND stale-path
+  targets, remote divergence info, registry-unreadable suppression;
+  health findings exit 0, command failures exit 1 with the null-shape
+  payload). The review round fixed the human-mode stack-trace P1,
+  added target_path_missing (the lock's checkout health now stats
+  mapped paths), the honest self-reference empty-line, and unified
+  instructions' registry read through the new injection point.
+  Simplify extracted `readRegistrySnapshot` (the torn-snapshot
+  invariant in one place), routed doctor's catch through emitFailure
+  (fixing a --json inconsistency), taught shared asStatus to
+  duck-type the diagnostic envelope, and reused storePointerProblem.
+  Recorded: corrupt store.yaml on store-backed roots stays an exit-1
+  resolution failure (one-resolver invariant); the test-helper
+  parseJson copies (now 10) go to the capstone sweep. Full suite
+  green (96 files, 1739 tests).
 - 2026-06-11: Wrote the relationship-health plan (3.6, two
   checkpoints) and folded two plan reviews (subagent:
   approve-with-fixes with a P1; codex: reject with two P1s —

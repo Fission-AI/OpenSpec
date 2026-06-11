@@ -457,6 +457,34 @@ export function listRepoEntries(registry: StoreRegistryState | null): RepoMapEnt
  * The stored canonical path for a repo id: one registry read, then a
  * dumb id-keyed lookup. Null on miss or unreadable registry.
  */
+export interface RegistrySnapshot {
+  /** null = the registry is unreadable; [] = empty or absent. */
+  entries: StoreRegistryEntry[] | null;
+  /** Repo-id → canonical path map; undefined when unreadable. */
+  repoPaths: Map<string, string> | undefined;
+  unreadable: boolean;
+}
+
+/**
+ * One registry read serving every consumer in a command (the 3.6
+ * torn-snapshot invariant: reference entries and repo paths in one
+ * output must come from one read).
+ */
+export async function readRegistrySnapshot(
+  options: { globalDataDir?: string } = {}
+): Promise<RegistrySnapshot> {
+  try {
+    const registry = await readStoreRegistryState(options);
+    return {
+      entries: registry ? listStoreRegistryEntries(registry) : [],
+      repoPaths: new Map(listRepoEntries(registry).map((entry) => [entry.id, entry.path])),
+      unreadable: false,
+    };
+  } catch {
+    return { entries: null, repoPaths: undefined, unreadable: true };
+  }
+}
+
 export async function getRepoPath(
   id: string,
   options: { globalDataDir?: string } = {}

@@ -14,6 +14,12 @@ export function asStatus(error: unknown, fallbackCode: string): StoreDiagnostic 
   if (error instanceof StoreError) {
     return error.diagnostic;
   }
+  // RootSelectionError (and siblings) carry the same envelope without
+  // sharing a class hierarchy; duck-type the diagnostic once, here.
+  const diagnostic = (error as { diagnostic?: StoreDiagnostic }).diagnostic;
+  if (diagnostic && typeof diagnostic.code === 'string') {
+    return diagnostic;
+  }
   return {
     severity: 'error',
     code: fallbackCode,

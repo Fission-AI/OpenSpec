@@ -11,7 +11,7 @@ import { makeStoreDiagnostic, type StoreDiagnostic } from './store/errors.js';
 import { isKebabId } from './id.js';
 import type { ReferenceIndexEntry } from './references.js';
 import type { EffectiveTargets, TargetRepoEntry } from './targets.js';
-import type { DeclarationEntry } from './project-config.js';
+import { storePointerProblem, type DeclarationEntry } from './project-config.js';
 import { toRootOutput, type ResolvedOpenSpecRoot } from './root-selection.js';
 
 export interface RelationshipHealth {
@@ -98,11 +98,7 @@ export function inspectRelationships(input: InspectRelationshipsInput): Relation
     status.push(
       warning(
         'root_pointer_invalid',
-        `${input.malformedPointer.filePath} declares a store: pointer that cannot be used (${
-          input.malformedPointer.reason === 'unparseable'
-            ? 'the config file could not be read as YAML'
-            : 'the store key must be a single store id string'
-        }).`,
+        `${input.malformedPointer.filePath} declares a store: pointer that cannot be used (${storePointerProblem(input.malformedPointer.reason)}).`,
         `Fix or remove the store: line in ${input.malformedPointer.filePath}.`
       )
     );
