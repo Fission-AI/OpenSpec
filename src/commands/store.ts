@@ -692,11 +692,12 @@ class StoreCommand {
 
 export function registerStoreCommand(program: Command): void {
   const storeCommand = new StoreCommand();
-  const store = program
-    .command('store')
-    .description(
-      'Create and manage stores - standalone OpenSpec repos you register on this machine'
-    );
+  // One source for the locked group one-liner: the completions registry
+  // entry, which shell completion scripts also consume.
+  const storeGroupDescription =
+    COMMAND_REGISTRY.find((entry) => entry.name === 'store')?.description ??
+    'Create and manage stores - standalone OpenSpec repos you register on this machine';
+  const store = program.command('store').description(storeGroupDescription);
 
   store
     .command('setup [id]')
@@ -774,9 +775,8 @@ export function registerStoreCommand(program: Command): void {
   store.on('command:*', (operands: string[], unknown: string[]) => {
     // Flag values are indistinguishable from operands without a full
     // parse, so the verbatim echo only applies to plain-operand input.
-    const hasFlagLikeToken =
-      unknown.length > 0 || operands.some((operand) => operand.startsWith('-'));
     const attempted = operands.filter((operand) => !operand.startsWith('-'));
+    const hasFlagLikeToken = unknown.length > 0 || attempted.length !== operands.length;
     let example = 'openspec new change <change-id> --store <id>';
     if (!hasFlagLikeToken && attempted.length > 0 && lifecycleRedirects.has(attempted[0])) {
       if (attempted[0] === 'new') {

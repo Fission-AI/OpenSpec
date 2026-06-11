@@ -27,7 +27,12 @@ import {
   getSyncSpecsSkillTemplate,
   getVerifyChangeSkillTemplate,
 } from '../../../src/core/templates/skill-templates.js';
-import { generateSkillContent } from '../../../src/core/shared/skill-generation.js';
+import {
+  generateSkillContent,
+  getCommandContents,
+  getSkillTemplates,
+} from '../../../src/core/shared/skill-generation.js';
+import { STORE_SELECTION_GUIDANCE } from '../../../src/core/templates/workflows/store-selection.js';
 
 const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getExploreSkillTemplate: 'a75fe741c0278576d32ddf8c072aa64bf1eaf632306f2a7cfd2e099e96f517cb',
@@ -151,42 +156,23 @@ describe('skill templates split parity', () => {
     expect(actualHashes).toEqual(EXPECTED_GENERATED_SKILL_CONTENT_HASHES);
   });
 
-  it('teaches store selection in every generated skill', () => {
-    for (const [dirName, createTemplate] of GENERATED_SKILL_FACTORIES) {
-      const content = generateSkillContent(createTemplate(), 'PARITY-BASELINE');
-
-      expect(content, dirName).toContain('**Store selection:**');
-      expect(content, dirName).toContain('openspec store list --json');
-      expect(content, dirName).toContain('--store <id>');
+  // Iterating the production registries (not a local list) means a newly
+  // added workflow is covered automatically; the full-constant containment
+  // check fails if any template's interpolation drifts.
+  it('teaches store selection in every deployed skill template', () => {
+    for (const { template, dirName } of getSkillTemplates()) {
+      const content = generateSkillContent(template, 'PARITY-BASELINE');
+      expect(content, dirName).toContain(STORE_SELECTION_GUIDANCE);
     }
   });
 
-  it('teaches store selection in every opsx command template', () => {
-    // The opsx command templates ship through a different pipeline than
-    // generateSkillContent; check their bodies directly. Feedback has no
-    // store-capable command and intentionally carries no store teaching.
-    const commandFactories: Array<[string, () => { content: string }]> = [
-      ['opsx:explore', getOpsxExploreCommandTemplate],
-      ['opsx:new', getOpsxNewCommandTemplate],
-      ['opsx:continue', getOpsxContinueCommandTemplate],
-      ['opsx:apply', getOpsxApplyCommandTemplate],
-      ['opsx:ff', getOpsxFfCommandTemplate],
-      ['opsx:sync', getOpsxSyncCommandTemplate],
-      ['opsx:archive', getOpsxArchiveCommandTemplate],
-      ['opsx:bulk-archive', getOpsxBulkArchiveCommandTemplate],
-      ['opsx:verify', getOpsxVerifyCommandTemplate],
-      ['opsx:onboard', getOpsxOnboardCommandTemplate],
-      ['opsx:propose', getOpsxProposeCommandTemplate],
-    ];
-
-    for (const [name, createTemplate] of commandFactories) {
-      const { content } = createTemplate();
-
-      expect(content, name).toContain('**Store selection:**');
-      expect(content, name).toContain('openspec store list --json');
-      expect(content, name).toContain('--store <id>');
+  it('teaches store selection in every deployed opsx command template', () => {
+    for (const entry of getCommandContents()) {
+      expect(entry.body, entry.id).toContain(STORE_SELECTION_GUIDANCE);
     }
 
+    // Feedback has no store-capable command and intentionally carries no
+    // store teaching; it ships outside both registries.
     expect(getFeedbackSkillTemplate().instructions).not.toContain('**Store selection:**');
   });
 

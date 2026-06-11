@@ -1068,9 +1068,11 @@ describe('store command', () => {
     expect(mismatchFreeStatus.fix).toContain('Use --id free-context');
   });
 
+  // Built by concatenation so the vocabulary sweep never matches this file.
+  const RETIRED_GROUP = 'context' + '-store';
+  const OLD_DATA_DIR_NAME = `${RETIRED_GROUP}s`;
+
   describe('committed format and data dir guards', () => {
-    // Built by concatenation so the vocabulary sweep never matches this file.
-    const OLD_DATA_DIR_NAME = 'context' + '-stores';
 
     it('pins the committed store metadata literals and the stores data dir', async () => {
       const storeRoot = mkdir('pin-context');
@@ -1179,22 +1181,18 @@ describe('store command', () => {
     });
 
     it('keeps no alias for the retired group name', async () => {
-      // Built by concatenation so the vocabulary sweep never matches this file.
-      const retiredGroup = 'context' + '-store';
-      const result = await runCLI([retiredGroup, 'list'], { cwd: tempDir, env });
+      const result = await runCLI([RETIRED_GROUP, 'list'], { cwd: tempDir, env });
 
       expect(result.exitCode).toBe(1);
-      expect(result.stderr).toContain(`unknown command '${retiredGroup}'`);
+      expect(result.stderr).toContain(`unknown command '${RETIRED_GROUP}'`);
     });
 
     it('lists store in --help with the locked one-liner and no retired group', async () => {
-      const retiredGroup = 'context' + '-store';
       const result = await runCLI(['--help'], { cwd: tempDir, env });
 
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('store');
       expect(result.stdout).toContain('Create and manage stores - standalone');
-      expect(result.stdout).not.toContain(retiredGroup);
+      expect(result.stdout).not.toContain(RETIRED_GROUP);
     });
   });
 

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { Command } from 'commander';
 
 import { COMMAND_REGISTRY } from '../../../src/core/completions/command-registry.js';
+import { COMMON_FLAGS } from '../../../src/core/completions/shared-flags.js';
+import { STORE_SELECTION_GUIDANCE } from '../../../src/core/templates/workflows/store-selection.js';
 import { getCommandPath, program } from '../../../src/cli/index.js';
 import type {
   CommandDefinition,
@@ -145,8 +147,7 @@ describe('command completion registry', () => {
     assertRegistryParity(program, COMMAND_REGISTRY);
   });
 
-  it('uses one --store description on every lifecycle command', async () => {
-    const { COMMON_FLAGS } = await import('../../../src/core/completions/shared-flags.js');
+  it('uses one --store description on every lifecycle command', () => {
     const expected = COMMON_FLAGS.store.description;
     const seen: string[] = [];
 
@@ -168,7 +169,24 @@ describe('command completion registry', () => {
     }
 
     walk(program, '');
-    expect(seen.length).toBeGreaterThanOrEqual(7);
+    expect(seen.sort()).toEqual([
+      'archive',
+      'instructions',
+      'list',
+      'new change',
+      'show',
+      'status',
+      'validate',
+    ]);
+
+    // The store-selection guidance interpolated into every generated skill
+    // enumerates exactly these commands; drift here means agents are taught
+    // a stale flag surface.
+    for (const commandPath of seen) {
+      expect(STORE_SELECTION_GUIDANCE, `guidance names ${commandPath}`).toContain(
+        `\`${commandPath}\``
+      );
+    }
   });
 
   it('tracks store subcommands under the store: telemetry path', () => {
