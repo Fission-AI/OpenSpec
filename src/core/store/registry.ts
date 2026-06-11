@@ -20,7 +20,7 @@ import { StoreError } from './errors.js';
 import * as fsSync from 'node:fs';
 import * as path from 'node:path';
 import { FileSystemUtils } from '../../utils/file-system.js';
-import { isKebabId, KEBAB_ID_DESCRIPTION } from '../id.js';
+import { isKebabId, KEBAB_ID_DESCRIPTION, KEBAB_ID_FIX } from '../id.js';
 
 export interface RegisterStoreInput extends StorePathOptions {
   id: string;
@@ -502,7 +502,7 @@ function validateRepoIdOrThrow(id: string): string {
       'invalid_repo_id',
       {
         target: 'repo.id',
-        fix: 'Use kebab-case with lowercase letters, numbers, and single hyphen separators.',
+        fix: KEBAB_ID_FIX,
       }
     );
   }

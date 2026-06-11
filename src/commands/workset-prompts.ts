@@ -18,11 +18,12 @@ import {
   type Workset,
   type WorksetMember,
 } from '../core/worksets.js';
+import { asErrorMessage } from './shared-output.js';
 import {
-  asErrorMessage,
+  assertKnownTool,
   finalizeWorkset,
+  formatMemberRows,
   resolveMemberFlags,
-  toolUnknownError,
 } from './workset-input.js';
 
 export interface ComposeInput {
@@ -57,14 +58,23 @@ export async function composeInteractively(
     });
   }
 
+  // Flag-provided pieces are validated before any prompting, so a
+  // bad flag or tool cannot discard a finished wizard walk.
+  if (input.tool !== undefined) {
+    assertKnownTool(input.tool, table);
+  }
+
   console.log('');
   console.log(
     '[2/3] Add member folders (the first one is the primary - sessions start there)'
   );
-  // Flag-provided members are resolved AND validated before any
-  // prompting, so a bad flag cannot discard a finished wizard walk.
   const members: WorksetMember[] = await resolveMemberFlags(input.memberFlags);
-  finalizeWorksetMembersPreview(name, members, input.tool, table);
+  if (members.length > 0) {
+    finalizeWorkset(name, members, input.tool, table);
+    for (const member of members) {
+      console.log(`  Added '${member.name}' (${member.path})`);
+    }
+  }
 
   while (true) {
     if (members.length > 0) {
@@ -139,36 +149,6 @@ export async function composeInteractively(
   return finalizeWorkset(name, members, tool, table);
 }
 
-/**
- * Early validation of flag-provided pieces (duplicates, unknown tool)
- * before the wizard spends the user's time.
- */
-function finalizeWorksetMembersPreview(
-  name: string,
-  members: WorksetMember[],
-  tool: string | undefined,
-  table: OpenerDefinition[]
-): void {
-  if (members.length > 0) {
-    finalizeWorkset(name, members, tool, table);
-    for (const member of members) {
-      console.log(`  Added '${member.name}' (${member.path})`);
-    }
-  } else if (tool !== undefined) {
-    // No members yet, but a bad --tool should still fail up front.
-    finalizeWorksetToolCheck(tool, table);
-  }
-}
-
-function finalizeWorksetToolCheck(
-  tool: string,
-  table: OpenerDefinition[]
-): void {
-  if (!table.some((opener) => opener.id === tool)) {
-    throw toolUnknownError(tool, table);
-  }
-}
-
 export async function promptToolFromChoices(
   available: OpenerChoice[]
 ): Promise<string> {
@@ -197,11 +177,8 @@ export async function confirmRemoveInteractively(
   const { confirm } = await import('@inquirer/prompts');
 
   console.log(`Workset '${workset.name}':`);
-  const width = Math.max(
-    ...workset.members.map((member) => member.name.length)
-  );
-  for (const member of workset.members) {
-    console.log(`  ${member.name.padEnd(width)}  ${member.path}`);
+  for (const row of formatMemberRows(workset.members)) {
+    console.log(`  ${row}`);
   }
 
   return confirm({

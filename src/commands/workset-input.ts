@@ -21,11 +21,7 @@ import {
   type WorksetMember,
 } from '../core/worksets.js';
 
-export function asErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
-export function memberInvalidError(problem: string): StoreError {
+function memberInvalidError(problem: string): StoreError {
   return new StoreError(
     `Invalid workset member: ${problem}.`,
     'workset_member_invalid',
@@ -37,7 +33,7 @@ export function memberInvalidError(problem: string): StoreError {
 }
 
 /** `--member <path>` or `--member <name>=<path>` (the first `=` splits). */
-export async function resolveMemberFlag(raw: string): Promise<WorksetMember> {
+async function resolveMemberFlag(raw: string): Promise<WorksetMember> {
   const separator = raw.indexOf('=');
   const label = separator > 0 ? raw.slice(0, separator) : undefined;
   const rawPath = separator > 0 ? raw.slice(separator + 1) : raw;
@@ -75,6 +71,16 @@ export async function resolveMemberFlags(
   return members;
 }
 
+/** One spelling of "this tool id must exist in the merged table". */
+export function assertKnownTool(
+  tool: string,
+  table: OpenerDefinition[]
+): void {
+  if (findOpener(table, tool) === null) {
+    throw toolUnknownError(tool, table);
+  }
+}
+
 /** Final assembly shared by both compose paths: one validation rule. */
 export function finalizeWorkset(
   name: string,
@@ -87,8 +93,8 @@ export function finalizeWorkset(
     throw memberInvalidError(problem);
   }
 
-  if (tool !== undefined && findOpener(table, tool) === null) {
-    throw toolUnknownError(tool, table);
+  if (tool !== undefined) {
+    assertKnownTool(tool, table);
   }
 
   return {
@@ -96,6 +102,15 @@ export function finalizeWorkset(
     ...(tool !== undefined ? { tool } : {}),
     members,
   };
+}
+
+/** The aligned `<name>  <path>` rows used by list, remove, and the
+ * open fallback; callers pick the stream and indent. */
+export function formatMemberRows(members: WorksetMember[]): string[] {
+  const width = Math.max(...members.map((member) => member.name.length));
+  return members.map(
+    (member) => `${member.name.padEnd(width)}  ${member.path}`
+  );
 }
 
 export function toolUnknownError(

@@ -43,14 +43,15 @@ import {
 import { StoreError, type StoreDiagnostic } from '../core/store/errors.js';
 import { isInteractive } from '../utils/interactive.js';
 import {
+  asErrorMessage,
   emitFailure,
   isPromptCancellationError,
   printJson,
 } from './shared-output.js';
 import {
-  asErrorMessage,
   finalizeWorkset,
   firstInstalledAlternative,
+  formatMemberRows,
   noToolInstalledError,
   resolveMemberFlags,
   toolUnavailableError,
@@ -302,11 +303,8 @@ class WorksetCommand {
             ? `  (opens in ${findOpener(table, workset.tool)?.label ?? workset.tool})`
             : '';
         console.log(`${workset.name}${toolLabel}`);
-        const width = Math.max(
-          ...workset.members.map((member) => member.name.length)
-        );
-        for (const member of workset.members) {
-          console.log(`  ${member.name.padEnd(width)}  ${member.path}`);
+        for (const row of formatMemberRows(workset.members)) {
+          console.log(`  ${row}`);
         }
       }
     } catch (error) {
@@ -384,9 +382,18 @@ class WorksetCommand {
 
       const table = readOpenerTable();
 
-      let toolId = options.tool ?? prepared.workset.tool;
-      let availabilityVerified = false;
-      if (toolId === undefined) {
+      const toolId = options.tool ?? prepared.workset.tool;
+      let opener: OpenerDefinition;
+      if (toolId !== undefined) {
+        const found = findOpener(table, toolId);
+        if (found === null) {
+          throw toolUnknownError(toolId, table);
+        }
+        if (!isOpenerCommandAvailable(found.command)) {
+          throw toolUnavailableError(found, table, name);
+        }
+        opener = found;
+      } else {
         if (!isInteractive()) {
           throw new StoreError(
             `Workset '${name}' has no saved tool.`,
@@ -398,24 +405,18 @@ class WorksetCommand {
           );
         }
 
+        // The prompt offers only available openers, so the selection
+        // needs no second scan.
         const available = listOpenerChoices(table).filter(
           (choice) => choice.available
         );
         if (available.length === 0) {
           throw noToolInstalledError(table, name);
         }
-
-        toolId = await promptToolFromChoices(available);
-        availabilityVerified = true;
-      }
-
-      const opener = findOpener(table, toolId);
-      if (opener === null) {
-        throw toolUnknownError(toolId, table);
-      }
-
-      if (!availabilityVerified && !isOpenerCommandAvailable(opener.command)) {
-        throw toolUnavailableError(opener, table, name);
+        const selectedId = await promptToolFromChoices(available);
+        opener = available.find(
+          (choice) => choice.opener.id === selectedId
+        )!.opener;
       }
 
       const launch = buildLaunchCommand(opener, {
@@ -472,11 +473,8 @@ class WorksetCommand {
         console.error('Open manually:');
         console.error(`  Workspace file: ${prepared.codeWorkspacePath}`);
         console.error('  Members:');
-        const width = Math.max(
-          ...prepared.surviving.map((member) => member.name.length)
-        );
-        for (const member of prepared.surviving) {
-          console.error(`    ${member.name.padEnd(width)}  ${member.path}`);
+        for (const row of formatMemberRows(prepared.surviving)) {
+          console.error(`    ${row}`);
         }
       }
     }
@@ -484,13 +482,16 @@ class WorksetCommand {
 
   async remove(name: string, options: WorksetRemoveOptions = {}): Promise<void> {
     try {
-      const state = await readWorksetsState();
-      const workset = getWorkset(state, name);
-      if (workset === null) {
-        throw worksetNotFoundError(name, state);
-      }
-
       if (!options.yes) {
+        // The pre-read serves the not-found priority and the confirm
+        // display; the --yes path skips it (removeWorkset re-checks
+        // under the lock anyway).
+        const state = await readWorksetsState();
+        const workset = getWorkset(state, name);
+        if (workset === null) {
+          throw worksetNotFoundError(name, state);
+        }
+
         if (options.json || !isInteractive()) {
           throw new StoreError(
             'Pass --yes to remove a workset non-interactively.',
@@ -541,12 +542,8 @@ export function registerWorksetCommand(program: Command): void {
   const workset = program.command('workset').description(groupDescription);
   // Parsed at the group level so `openspec workset --json` keeps the
   // one-JSON-document contract instead of a raw Commander error. The
-  // parent option matches anywhere, so each action merges it back in.
+  // parent option matches anywhere; actions read optsWithGlobals().
   workset.addOption(new Option('--json', 'Output as JSON').hideHelp());
-  const withGroupJson = <T extends { json?: boolean }>(options: T): T => ({
-    ...options,
-    json: options.json || Boolean(workset.opts().json),
-  });
 
   workset
     .command('create [name]')
@@ -559,8 +556,8 @@ export function registerWorksetCommand(program: Command): void {
     )
     .option('--tool <id>', 'Preferred tool to open this workset with')
     .option('--json', 'Output as JSON')
-    .action(async (name: string | undefined, options: WorksetCreateOptions) => {
-      await worksetCommand.create(name, withGroupJson(options));
+    .action(async (name: string | undefined, _options: WorksetCreateOptions, command: Command) => {
+      await worksetCommand.create(name, command.optsWithGlobals());
     });
 
   workset
@@ -568,8 +565,8 @@ export function registerWorksetCommand(program: Command): void {
     .alias('ls')
     .description('Show saved worksets with their members')
     .option('--json', 'Output as JSON')
-    .action(async (options: { json?: boolean }) => {
-      await worksetCommand.list(withGroupJson(options));
+    .action(async (_options: { json?: boolean }, command: Command) => {
+      await worksetCommand.list(command.optsWithGlobals());
     });
 
   workset
@@ -582,8 +579,8 @@ export function registerWorksetCommand(program: Command): void {
       // advertise a mode that only rejects.
       new Option('--json', 'Not supported for open').hideHelp()
     )
-    .action(async (name: string, options: WorksetOpenOptions) => {
-      await worksetCommand.open(name, withGroupJson(options));
+    .action(async (name: string, _options: WorksetOpenOptions, command: Command) => {
+      await worksetCommand.open(name, command.optsWithGlobals());
     });
 
   workset
@@ -591,8 +588,8 @@ export function registerWorksetCommand(program: Command): void {
     .description('Delete a saved workset (member folders are never touched)')
     .option('--yes', 'Confirm removal non-interactively')
     .option('--json', 'Output as JSON')
-    .action(async (name: string, options: WorksetRemoveOptions) => {
-      await worksetCommand.remove(name, withGroupJson(options));
+    .action(async (name: string, _options: WorksetRemoveOptions, command: Command) => {
+      await worksetCommand.remove(name, command.optsWithGlobals());
     });
 
   const subcommandsLine = workset.commands

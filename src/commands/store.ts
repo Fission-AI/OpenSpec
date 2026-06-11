@@ -1,5 +1,5 @@
 import * as os from 'node:os';
-import { emitFailure, printJson } from './shared-output.js';
+import { asErrorMessage, emitFailure, printJson } from './shared-output.js';
 import * as path from 'node:path';
 import { Command } from 'commander';
 
@@ -119,9 +119,6 @@ interface StoreDoctorOutput {
 
 
 
-function asErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
 
 
 function toStoreOutput(store: StoreInfo): StoreOutput {

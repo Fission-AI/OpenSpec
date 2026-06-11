@@ -2289,6 +2289,32 @@ is working:
   `src/core/file-state.ts` now that they have two call sites; agent
   guidance does not teach worksets at v1 (human convenience; template
   parity pins stay untouched).
+- 2026-06-12: Ran the 7.1 /simplify pass (four parallel cleanup
+  agents: reuse, simplification, efficiency, altitude) and applied
+  the converged fixes: the two textually-parallel lock-error
+  factories collapsed into a data-parameterized
+  `makeLockErrorFactory` in file-state (the altitude verdict — the
+  fix strings document the lock's own stale-steal/creation behavior,
+  so the templates belong with the mechanism; store shapes stay
+  byte-identical under their pins); the hand-rolled group-option
+  merge replaced by Commander's built-in `optsWithGlobals()`; the
+  prompt module's preview-helper ladder flattened with one
+  `assertKnownTool` spelling; `asErrorMessage` hoisted to
+  shared-output (store's private copy deleted, `asStatus` reuses it);
+  the member-row renderer deduped across list/fallback/remove-confirm
+  (`formatMemberRows`); open's `availabilityVerified` flag replaced
+  by per-branch opener resolution (deleting an unreachable branch and
+  the prompt path's redundant PATH re-scan); `serializeWorksetsState`
+  emits the schema-validated entries directly; a `toWorkset` helper
+  deduped the entry conversion; remove's `--yes` path skips the
+  duplicate pre-read; `KEBAB_ID_FIX` adopted at the two remaining
+  literal sites; dead exports unexported; the pathIsDirectory-vs-
+  FileSystemUtils choice documented in place. Skipped with notes:
+  converging the store group's `command:*` fallback onto the
+  group-action pattern (cross-slice; queued for the next store
+  touch), threading the create→open table/scan hints (low value,
+  adds coupling), and the predating change-metadata kebab literal.
+  Full suite green (101 files, 1799 tests).
 - 2026-06-12: Ran the 7.1 post-implementation review — three parallel
   mechanisms (spec-compliance agent: compliant-with-fixes, all locked
   decisions hold; /code-review at high effort via a seven-angle

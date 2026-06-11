@@ -1,15 +1,16 @@
 import * as nodeFs from 'node:fs';
 import * as path from 'node:path';
 import { FileSystemUtils } from '../utils/file-system.js';
+import { StoreError } from './store/errors.js';
 
 const fs = nodeFs.promises;
 
 /**
  * Shared machine-local state-file mechanics (extracted from the store
- * registry in slice 7.1, its second consumer). The error surface stays
- * with each caller: the lock reports failures through an injected
- * factory so every state file keeps its own diagnostic codes and fix
- * strings.
+ * registry in slice 7.1, its second consumer). Callers own the
+ * diagnostic data (code, target, wording); the factory owns the
+ * shared mechanics - the fix strings describe the lock's own
+ * behavior (stale-steal, creation), so their templates live here.
  */
 
 export type FileLockErrorKind = 'create-failed' | 'timeout';
@@ -23,6 +24,39 @@ export interface FileLockErrorInfo {
 export interface FileLockOptions {
   lockPath: string;
   errorFor: (kind: FileLockErrorKind, info: FileLockErrorInfo) => Error;
+}
+
+export interface LockErrorData {
+  /** Noun phrase for the create-failed message, e.g. "the registry lock file". */
+  createSubject: string;
+  /** The full timeout message, e.g. "Store registry is busy." */
+  busyMessage: string;
+  code: string;
+  target: string;
+}
+
+/** One template for lock diagnostics; callers supply the data. */
+export function makeLockErrorFactory(
+  data: LockErrorData
+): (kind: FileLockErrorKind, info: FileLockErrorInfo) => StoreError {
+  return (kind, info) => {
+    if (kind === 'create-failed') {
+      // A permission or filesystem problem, not contention - say so.
+      return new StoreError(
+        `Cannot create ${data.createSubject} ${info.lockPath} (${(info.cause as NodeJS.ErrnoException)?.code ?? info.cause}).`,
+        data.code,
+        {
+          target: data.target,
+          fix: `Check permissions on ${path.dirname(info.lockPath)}.`,
+        }
+      );
+    }
+
+    return new StoreError(data.busyMessage, data.code, {
+      target: data.target,
+      fix: `Retry shortly; if this persists, delete the stale lock file ${info.lockPath}.`,
+    });
+  };
 }
 
 const STALE_LOCK_THRESHOLD_MS = 30_000;
@@ -46,6 +80,10 @@ export async function pathIsFile(filePath: string): Promise<boolean> {
   }
 }
 
+// Deliberately not FileSystemUtils.directoryExists: that variant
+// debug-logs non-ENOENT failures, which is noise inside prompt
+// validators, and pathIsFile has no FileSystemUtils equivalent - the
+// silent symmetric pair lives here.
 export async function pathIsDirectory(dirPath: string): Promise<boolean> {
   try {
     return (await fs.stat(dirPath)).isDirectory();

@@ -7,6 +7,7 @@ import { getGlobalDataDir } from './global-config.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import {
   acquireFileLock,
+  makeLockErrorFactory,
   pathIsFile,
   releaseFileLock,
   writeFileAtomically,
@@ -207,21 +208,14 @@ export function serializeWorksetsState(
     throw invalidWorksetsFileError(formatZodIssues(result.error), options);
   }
 
+  // The strict schema already guarantees the entry shape; the sort is
+  // the only real work here.
   return stringifyYaml({
     version: 1,
     worksets: Object.fromEntries(
-      Object.entries(result.data.worksets)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([name, entry]) => [
-          name,
-          {
-            ...(entry.tool !== undefined ? { tool: entry.tool } : {}),
-            members: entry.members.map((member) => ({
-              name: member.name,
-              path: member.path,
-            })),
-          },
-        ])
+      Object.entries(result.data.worksets).sort(([a], [b]) =>
+        a.localeCompare(b)
+      )
     ),
   });
 }
@@ -239,26 +233,12 @@ export async function readWorksetsState(
   return parseWorksetsState(await fs.readFile(filePath, 'utf-8'), options);
 }
 
-function worksetsLockError(
-  kind: 'create-failed' | 'timeout',
-  info: { lockPath: string; cause?: unknown }
-): StoreError {
-  if (kind === 'create-failed') {
-    return new StoreError(
-      `Cannot create the worksets lock file ${info.lockPath} (${(info.cause as NodeJS.ErrnoException)?.code ?? info.cause}).`,
-      'workset_file_busy',
-      {
-        target: 'workset.file',
-        fix: `Check permissions on ${path.dirname(info.lockPath)}.`,
-      }
-    );
-  }
-
-  return new StoreError('The worksets file is busy.', 'workset_file_busy', {
-    target: 'workset.file',
-    fix: `Retry shortly; if this persists, delete the stale lock file ${info.lockPath}.`,
-  });
-}
+const worksetsLockError = makeLockErrorFactory({
+  createSubject: 'the worksets lock file',
+  busyMessage: 'The worksets file is busy.',
+  code: 'workset_file_busy',
+  target: 'workset.file',
+});
 
 export async function updateWorksetsState(
   updater: (state: WorksetsState) => WorksetsState | Promise<WorksetsState>,
@@ -376,27 +356,26 @@ export async function removeWorkset(
   }, options);
 }
 
-export function listWorksets(state: WorksetsState): Workset[] {
-  return Object.entries(state.worksets)
-    .map(([name, entry]) => ({
-      name,
-      ...(entry.tool !== undefined ? { tool: entry.tool } : {}),
-      members: entry.members,
-    }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-}
-
-export function getWorkset(state: WorksetsState, name: string): Workset | null {
-  const entry = state.worksets[name];
-  if (entry === undefined) {
-    return null;
-  }
-
+function toWorkset(
+  name: string,
+  entry: WorksetsState['worksets'][string]
+): Workset {
   return {
     name,
     ...(entry.tool !== undefined ? { tool: entry.tool } : {}),
     members: entry.members,
   };
+}
+
+export function listWorksets(state: WorksetsState): Workset[] {
+  return Object.entries(state.worksets)
+    .map(([name, entry]) => toWorkset(name, entry))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export function getWorkset(state: WorksetsState, name: string): Workset | null {
+  const entry = state.worksets[name];
+  return entry === undefined ? null : toWorkset(name, entry);
 }
 
 /**

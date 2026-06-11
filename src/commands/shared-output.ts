@@ -10,6 +10,10 @@ export function printJson(payload: unknown): void {
   console.log(JSON.stringify(payload, null, 2));
 }
 
+export function asErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 /**
  * @inquirer prompts reject with ExitPromptError on Ctrl-C; commands
  * translate that to `Cancelled.` + exit 130 (third caller extracted
@@ -36,7 +40,7 @@ export function asStatus(error: unknown, fallbackCode: string): StoreDiagnostic 
   return {
     severity: 'error',
     code: fallbackCode,
-    message: error instanceof Error ? error.message : String(error),
+    message: asErrorMessage(error),
   };
 }
 

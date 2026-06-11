@@ -14,6 +14,7 @@ import { FileSystemUtils } from '../../utils/file-system.js';
 import {
   acquireFileLock,
   isNodeErrorCode,
+  makeLockErrorFactory,
   pathIsDirectory,
   pathIsFile,
   releaseFileLock,
@@ -105,7 +106,7 @@ export function validateStoreId(id: string): string {
 
   if (!isKebabId(id)) {
     throw new StoreError(
-      'Store id must be kebab-case with lowercase letters, numbers, and single hyphen separators',
+      `Store id ${KEBAB_ID_DESCRIPTION}`,
       'invalid_store_id',
       {
         target: 'store.id',
@@ -347,27 +348,12 @@ export async function writeStoreRegistryState(
   );
 }
 
-function storeRegistryLockError(
-  kind: 'create-failed' | 'timeout',
-  info: { lockPath: string; cause?: unknown }
-): StoreError {
-  if (kind === 'create-failed') {
-    // A permission or filesystem problem, not contention - say so.
-    return new StoreError(
-      `Cannot create the registry lock file ${info.lockPath} (${(info.cause as NodeJS.ErrnoException)?.code ?? info.cause}).`,
-      'store_registry_busy',
-      {
-        target: 'store.registry',
-        fix: `Check permissions on ${path.dirname(info.lockPath)}.`,
-      }
-    );
-  }
-
-  return new StoreError('Store registry is busy.', 'store_registry_busy', {
-    target: 'store.registry',
-    fix: `Retry shortly; if this persists, delete the stale lock file ${info.lockPath}.`,
-  });
-}
+const storeRegistryLockError = makeLockErrorFactory({
+  createSubject: 'the registry lock file',
+  busyMessage: 'Store registry is busy.',
+  code: 'store_registry_busy',
+  target: 'store.registry',
+});
 
 export async function updateStoreRegistryState(
   updater: (
