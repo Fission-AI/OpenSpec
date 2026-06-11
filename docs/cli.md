@@ -9,6 +9,7 @@ The OpenSpec CLI (`openspec`) provides terminal commands for project setup, vali
 | **Setup** | `init`, `update` | Initialize and update OpenSpec in your project |
 | **Stores (standalone OpenSpec repos)** | `store setup`, `store register`, `store unregister`, `store remove`, `store list`, `store doctor` | Manage stores — standalone OpenSpec repos you've registered |
 | **Repo map** | `repo register`, `repo unregister`, `repo list` | Map target repo ids to local checkout paths on this machine |
+| **Health** | `doctor` | Report relationship health for the resolved root |
 | **Browsing** | `list`, `view`, `show` | Explore changes and specs |
 | **Validation** | `validate` | Check changes and specs for issues |
 | **Lifecycle** | `archive` | Finalize completed changes |
@@ -333,6 +334,16 @@ openspec repo unregister api-server            # forgets the mapping; never touc
 ```
 
 Once mapped, `openspec instructions` shows where each target lives on this machine (`- api-server → /Users/dev/src/api-server`). Store and repo ids share one namespace: registering either kind under an id (or path) the other holds fails with a typed conflict, and `--store <repo-id>` rejects with a hint instead of a generic unknown-store error.
+
+## Doctor (relationship health)
+
+One read-only question, one place: are the roots this work relates to — the OpenSpec root, the stores it references, and the target repos it names — available on this machine?
+
+```bash
+openspec doctor [--store <id>] [--json]
+```
+
+The report separates root health, store metadata health (including a note when the recorded remote and the checkout's origin diverge), reference health (the same diagnostics instructions show, with clone fixes for unresolved references), and target health (unmapped repos get the `repo register` fix). Health findings of any severity exit 0 — agents read the `status` arrays; only command failures (no root, unknown store) exit 1. Doctor never clones, syncs, or repairs.
 
 ---
 

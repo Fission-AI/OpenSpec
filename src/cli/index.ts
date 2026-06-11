@@ -20,6 +20,7 @@ import { registerConfigCommand } from '../commands/config.js';
 import { registerSchemaCommand } from '../commands/schema.js';
 import { registerStoreCommand } from '../commands/store.js';
 import { registerRepoCommand } from '../commands/repo.js';
+import { registerDoctorCommand } from '../commands/doctor.js';
 import {
   statusCommand,
   instructionsCommand,
@@ -317,6 +318,7 @@ registerConfigCommand(program);
 registerSchemaCommand(program);
 registerStoreCommand(program);
 registerRepoCommand(program);
+registerDoctorCommand(program);
 
 // Top-level validate command
 program

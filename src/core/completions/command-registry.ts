@@ -346,6 +346,14 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     ],
   },
   {
+    name: 'doctor',
+    description: 'Report relationship health for the resolved OpenSpec root',
+    flags: [
+      COMMON_FLAGS.json,
+      COMMON_FLAGS.store,
+    ],
+  },
+  {
     name: 'repo',
     description: 'Map target repo ids to local checkout paths on this machine',
     flags: [],

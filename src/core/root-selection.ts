@@ -468,12 +468,20 @@ export function toPlanningHome(root: ResolvedOpenSpecRoot): PlanningHome {
  */
 export async function resolveRootForCommand(
   selector: StoreSelectorOptions,
-  output: { json?: boolean; failurePayload?: Record<string, unknown> } = {}
+  output: {
+    json?: boolean;
+    failurePayload?: Record<string, unknown>;
+    /** Diagnostic commands inspect what exists; they never scaffold. */
+    allowImplicitRoot?: boolean;
+  } = {}
 ): Promise<ResolvedOpenSpecRoot | null> {
   try {
     const root = await resolveOpenSpecRoot({
       ...(selector.store !== undefined ? { store: selector.store } : {}),
       ...(selector.storePath !== undefined ? { storePath: selector.storePath } : {}),
+      ...(output.allowImplicitRoot !== undefined
+        ? { allowImplicitRoot: output.allowImplicitRoot }
+        : {}),
     });
 
     // Emitted at resolution time so the banner survives command failures
