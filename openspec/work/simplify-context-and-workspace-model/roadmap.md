@@ -135,9 +135,10 @@ Next incomplete item:
   cross-section id uniqueness enforced at write time, and `--store`
   never resolves a repo id — it rejects with a typed hint. Missing,
   duplicate, or invalid mappings fail clearly; the map is local
-  settings, never shared planning state. Spec not yet written.
-  (3.1–3.4 are implemented and reviewed; the 5.1 first tranche is
-  done; the Phase 5 remainder runs after 4.1.)
+  settings, never shared planning state. Spec written and reviewed
+  (`slices/repo-map/`); plan is next. (3.1–3.4 are implemented and
+  reviewed; the 5.1 first tranche is done; the Phase 5 remainder runs
+  after 4.1.)
 
 ## Phase 0. Make The Active Direction Easy To Find
 
@@ -1387,6 +1388,33 @@ is working:
   a deliberate fourth partial edit, and the spec's byte-stable clause
   now allows the new removal-coverage tests. The reworded constraint
   string gets its first-ever pin in the new test.
+- 2026-06-11: Wrote the repo-map slice spec (3.5) and folded two
+  adversarial reviews (both approve-with-fixes, converging). The P1: a
+  schema-only `repos:` addition would pass round-trip tests while the
+  four registry state-rebuild sites (`parseStoreRegistryState`,
+  `serializeStoreRegistryState`, `withRegisteredStore`,
+  `withoutRegisteredStore`) silently erased every repo mapping on the
+  next store write — preservation is now a pinned scenario naming the
+  sites. Also folded: the repo check precedes BOTH unknown-store
+  branches (the zero-stores fix must not suggest claiming the repo's
+  id — the 1.3 no-error-loops lock); cross-section uniqueness covers
+  PATHS as well as ids (one checkout, one role; four claimant codes
+  with a recorded naming convention, `repo_path_conflict` within the
+  section); `invalid_repo_id` with repo wording and a `--id` hint when
+  the default folder name fails grammar; the kebab predicate moves to
+  its neutral `src/core/id.ts` home (the 3.4-recorded intention);
+  JSON contracts pinned for all three commands; the one-additional-
+  registry-read wiring stated honestly (the references assembler does
+  not expose its read); `TargetRepoEntry` keeps `path` off the shared
+  declaration type; the Unicode arrow recorded as deliberate; corrupt-
+  registry silence recorded as design.
+- 2026-06-11: Decided autonomously (review me): 3.5 ships a minimal
+  `repo` command group (register/unregister/list — no setup, doctor,
+  or remove); the registry stays version 1 with an optional strict
+  `repos:` section (machine-local one-way story accepted); targets
+  enrichment is the resolution surface plus one `getRepoPath` library
+  accessor for 4.1; unmapped and corrupt-registry cases stay silent
+  by design (3.6 owns health).
 - 2026-06-11: Implemented slice 3.4 (store targets) in two checkpoints
   plus a review-fix round: `targets:` in the root's config through the
   shared `parseDeclarationList` (references behavior byte-identical);
