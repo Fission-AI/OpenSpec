@@ -230,8 +230,12 @@ membership truth. No member folder ever contains workset residue.
     `openspec workset open <name> --tool <id>`),
     `invalid_opener_config`, `workset_launch_failed`,
     `workset_no_members_available`, `workset_open_json_unsupported`,
-    `unknown_workset_subcommand`, `workset_create_cancelled`,
-    `workset_remove_cancelled`, `workset_remove_confirmation_required`
+    `unknown_workset_subcommand`,
+    `workset_remove_cancelled` (a declined remove confirm — create
+    has no abort-confirm: declining its open-now offer is a success
+    path, and Ctrl-C anywhere uses the untyped `Cancelled.`/130
+    helper per the store precedent; plan round),
+    `workset_remove_confirmation_required`
     (non-interactive remove without `--yes`). Target convention:
     `workset.<facet>` (e.g. `workset.name`, `workset.member`,
     `workset.tool`, `workset.file`, `openers.config`).

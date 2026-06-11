@@ -1204,7 +1204,7 @@ repo map and `openspec context` remain unchanged and independent.
 Progress:
 
 - [x] Research done and spec written.
-- [ ] Plan written.
+- [x] Plan written.
 - [ ] Implementation done.
 - [ ] Tests pass.
 - [ ] Capstone dogfood passes (end-to-end UX run; transcript in the
@@ -2289,6 +2289,32 @@ is working:
   `src/core/file-state.ts` now that they have two call sites; agent
   guidance does not teach worksets at v1 (human convenience; template
   parity pins stay untouched).
+- 2026-06-12: Wrote the personal-worksets plan (7.1, two checkpoints:
+  core storage/openers with the file-state extraction, then the
+  command group with fakes-on-PATH tests) and folded two plan reviews
+  (subagent: approve-with-fixes — "one of the cleanest code maps
+  audited", three anchors drifted 2-3 lines; codex: reject —
+  converging). The shared P1: the open flow checked tool availability
+  BEFORE regenerating the `.code-workspace`, so the
+  unknown/unavailable-tool fallback could name a nonexistent file —
+  reordered to regenerate under the lock first, with the fallback
+  test now asserting file existence and currency. Also folded: the
+  false "foundation tests pin the extraction" claim corrected
+  (nothing in the suite covers the lock/atomic mechanics — CP1 adds
+  the two store busy-error byte-shape pins itself), the
+  `withWorksetsLock` read-without-write primitive open needs, the
+  real error-factory sites (`create-failed`/`timeout`; stale-steal is
+  silent), the cross-spawn `createRequire` import shape (ESM package,
+  no types), the Commander `--member` collector (repeated options
+  keep only the last value by default), launch mechanics fake
+  executables cannot reach moved to injectable-spawn units
+  (SIGINT-130, spawn-error → `workset_launch_failed`), interactive
+  cancellation covered in-process via a stubbed gate + mocked
+  prompts with the remaining interactive-only lines enumerated to
+  the capstone, the win32 fixture trap (injectable stat seam), the
+  lock-release→spawn TOCTOU recorded as accepted, and the spec's
+  d12 amended in the same round (`workset_create_cancelled` dropped —
+  create has no abort-confirm, so the code had no firing site).
 - 2026-06-12: Continued owner design review replaced the change-anchored
   workset direction with roadmap item 7.1 (briefly numbered 4.2 the
   same day; moved to its own Phase 7), personal worksets: a purely
