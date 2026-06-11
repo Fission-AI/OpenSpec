@@ -124,14 +124,46 @@ export class ValidateCommand {
     const type = opts.typeOverride ?? (isChange ? 'change' : isSpec ? 'spec' : undefined);
 
     if (!type) {
-      console.error(`Unknown item '${itemName}'`);
       const suggestions = nearestMatches(itemName, [...changes, ...specs]);
-      if (suggestions.length) console.error(`Did you mean: ${suggestions.join(', ')}?`);
+      const message = suggestions.length
+        ? `Unknown item '${itemName}'. Did you mean: ${suggestions.join(', ')}?`
+        : `Unknown item '${itemName}'.`;
+      if (opts.json) {
+        console.log(
+          JSON.stringify(
+            { status: [{ severity: 'error', code: 'unknown_item', message }] },
+            null,
+            2
+          )
+        );
+      } else {
+        console.error(message);
+      }
       process.exitCode = 1;
       return;
     }
 
     if (!opts.typeOverride && isChange && isSpec) {
+      if (opts.json) {
+        console.log(
+          JSON.stringify(
+            {
+              status: [
+                {
+                  severity: 'error',
+                  code: 'ambiguous_item',
+                  message: `Ambiguous item '${itemName}' matches both a change and a spec.`,
+                  fix: 'Pass --type change|spec.',
+                },
+              ],
+            },
+            null,
+            2
+          )
+        );
+        process.exitCode = 1;
+        return;
+      }
       console.error(`Ambiguous item '${itemName}' matches both a change and a spec.`);
       // The noun-form commands are cwd-based and cannot reach a selected store.
       if (isStoreSelectedRoot(root)) {

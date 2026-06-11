@@ -308,11 +308,13 @@ describe('reference index assembly', () => {
 
   it('truncates at the 50KB budget with an order-preserving keep and a warning', async () => {
     const storeRoot = await registerStore('huge-context');
+    // Summaries cap at ~300 rendered chars (sanitizeInline), so the
+    // 50KB budget is tripped by COUNT: 250 specs x ~310 bytes.
     const longSummary = 'x'.repeat(5000);
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 250; i++) {
       writeSpec(
         storeRoot,
-        `spec-${String(i).padStart(2, '0')}`,
+        `spec-${String(i).padStart(3, '0')}`,
         `## Purpose\n\n${longSummary}\n`
       );
     }
@@ -321,9 +323,9 @@ describe('reference index assembly', () => {
     const entry = entries[0];
 
     expect(entry.specs!.length).toBeGreaterThan(0);
-    expect(entry.specs!.length).toBeLessThan(15);
+    expect(entry.specs!.length).toBeLessThan(250);
     expect(entry.specs!.map((spec) => spec.id)).toEqual(
-      entry.specs!.map((_, i) => `spec-${String(i).padStart(2, '0')}`)
+      entry.specs!.map((_, i) => `spec-${String(i).padStart(3, '0')}`)
     );
     expect(entry.status[0]).toEqual(
       expect.objectContaining({

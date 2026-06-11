@@ -1172,13 +1172,17 @@ describe('store command', () => {
       expect(result.stderr).not.toContain('core');
     });
 
-    it('prints the same hint on stderr for --json invocations', async () => {
+    it('emits one JSON status document for --json invocations', async () => {
       const result = await runCLI(['store', 'bogus', '--json'], { cwd: tempDir, env });
 
       expect(result.exitCode).toBe(1);
-      expect(result.stderr).toContain("unknown command 'bogus' for 'openspec store'");
-      expect(result.stderr).toContain('openspec new change <change-id> --store <id>');
-      expect(result.stdout).toBe('');
+      const payload = JSON.parse(result.stdout);
+      expect(payload.status[0]).toEqual(
+        expect.objectContaining({
+          code: 'unknown_store_subcommand',
+          message: expect.stringContaining("Unknown command 'bogus'"),
+        })
+      );
     });
 
     it('keeps no alias for the retired group name', async () => {

@@ -780,6 +780,25 @@ export function registerStoreCommand(program: Command): void {
     // Flag values are indistinguishable from operands without a full
     // parse, so the verbatim echo only applies to plain-operand input.
     const attempted = operands.filter((operand) => !operand.startsWith('-'));
+    // The agent contract: --json failures emit one JSON document.
+    if (operands.includes('--json') || unknown.includes('--json')) {
+      const message =
+        attempted.length > 0
+          ? `Unknown command '${attempted[0]}' for 'openspec store'. Store subcommands: ${storeSubcommandsLine}.`
+          : `Missing subcommand for 'openspec store'. Store subcommands: ${storeSubcommandsLine}.`;
+      printJson({
+        status: [
+          {
+            severity: 'error',
+            code: 'unknown_store_subcommand',
+            message,
+            fix: 'Run a store subcommand, or use the lifecycle command with --store <id>.',
+          },
+        ],
+      });
+      process.exitCode = 1;
+      return;
+    }
     const hasFlagLikeToken = unknown.length > 0 || attempted.length !== operands.length;
     let example = 'openspec new change <change-id> --store <id>';
     if (!hasFlagLikeToken && attempted.length > 0 && lifecycleRedirects.has(attempted[0])) {

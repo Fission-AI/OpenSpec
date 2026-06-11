@@ -82,14 +82,20 @@ function registerFix(id: string, remote?: string): string {
 export function extractFirstPurposeLine(markdown: string): string {
   const lines = markdown.split('\n');
   let inPurpose = false;
-  let inFence = false;
+  let fenceMarker: string | null = null;
 
   for (const line of lines) {
-    if (/^\s*(```|~~~)/.test(line)) {
-      inFence = !inFence;
+    // CommonMark: a fence closes only with its own marker kind.
+    const fence = line.match(/^\s*(```|~~~)/);
+    if (fence) {
+      if (fenceMarker === null) {
+        fenceMarker = fence[1];
+      } else if (fence[1] === fenceMarker) {
+        fenceMarker = null;
+      }
       continue;
     }
-    if (inFence) {
+    if (fenceMarker !== null) {
       continue;
     }
 
@@ -121,7 +127,7 @@ async function collectSpecEntries(referencedRoot: string): Promise<ReferenceSpec
           path.join(referencedRoot, 'openspec', 'specs', specId, 'spec.md'),
           'utf-8'
         );
-        summary = extractFirstPurposeLine(content);
+        summary = sanitizeInline(extractFirstPurposeLine(content));
       } catch {
         // Unreadable spec file: index the id with an empty summary.
       }
@@ -135,7 +141,10 @@ export function fetchRecipe(storeId: string): string {
 }
 
 function specLine(spec: ReferenceSpecEntry): string {
-  return spec.summary ? `  - ${spec.id}: ${spec.summary}` : `  - ${spec.id}`;
+  // Ids are raw directory names from cloned content; summaries are
+  // sanitized at index time (collectSpecEntries).
+  const id = sanitizeInline(spec.id, 100);
+  return spec.summary ? `  - ${id}: ${spec.summary}` : `  - ${id}`;
 }
 
 /**
@@ -170,6 +179,18 @@ export function renderReferencedStoresSection(entries: ReferenceIndexEntry[]): s
   }
 
   return lines.join('\n');
+}
+
+/**
+ * Strings rendered into agent guidance can come from cloned content
+ * (spec directory names, Purpose lines, config-declared remotes). One
+ * line in, one line out: control characters and newlines must never
+ * let hostile content forge instruction lines (slice 6.1 hardening).
+ */
+export function sanitizeInline(value: string, maxLength = 300): string {
+  // eslint-disable-next-line no-control-regex
+  const flattened = value.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim();
+  return flattened.length > maxLength ? `${flattened.slice(0, maxLength)}…` : flattened;
 }
 
 function renderEntryLines(entry: ReferenceIndexEntry): string[] {

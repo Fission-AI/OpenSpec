@@ -100,7 +100,7 @@ openspec init [path] [options]
 
 `--profile custom` uses whatever workflows are currently selected in global config (`openspec config profile`).
 
-**Supported tool IDs (`--tools`):** `amazon-q`, `antigravity`, `auggie`, `bob`, `claude`, `cline`, `codex`, `forgecode`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `opencode`, `pi`, `qoder`, `lingma`, `qwen`, `roocode`, `trae`, `windsurf`
+**Supported tool IDs (`--tools`):** `amazon-q`, `antigravity`, `auggie`, `bob`, `claude`, `cline`, `codex`, `forgecode`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `opencode`, `pi`, `qoder`, `lingma`, `qwen`, `roocode`, `trae`, `vibe`, `windsurf`
 
 **Examples:**
 
@@ -189,6 +189,7 @@ openspec store setup [id] [options]
 | Option | Description |
 |--------|-------------|
 | `--path <path>` | Folder where the store should live (for example `~/openspec/<id>`) |
+| `--remote <url>` | Record the canonical remote in the new store's `store.yaml` |
 | `--init-git` | Initialize a Git repository with an initial commit (default) |
 | `--no-init-git` | Skip every Git action: no init, no initial commit |
 | `--json` | Output JSON |
@@ -308,7 +309,7 @@ targets:
   - { id: web-app, remote: "git@github.com:acme/web-app.git" }
 ```
 
-A change that only concerns some of them can narrow the set in its own `.openspec.yaml` with a plain `targets:` list. `openspec instructions` output then carries the effective set (with provenance: store default or change narrowing) so agents know which repos the work concerns. Targets name repos; `affected_areas` names free-form areas or domains within them — don't use the two interchangeably.
+A change that only concerns some of them can narrow the set in its own `.openspec.yaml` with a plain `targets:` list. `openspec instructions` output then carries the effective set (with provenance: store default or change narrowing) so agents know which repos the work concerns. Targets name repos. (Legacy `affected_areas` metadata from old changes is still read but no longer authored by any command — use `targets:` for repo declarations.)
 
 Targets are declarations, not machinery: they never affect where commands act, nothing clones or syncs, and an unrecognized narrowed id degrades to a warning with a fix rather than failing. `openspec doctor` reports target health in one place.
 
@@ -395,9 +396,8 @@ openspec list --json
 **Output (text):**
 
 ```
-Active changes:
-  add-dark-mode     UI theme switching support
-  fix-login-bug     Session timeout handling
+Changes:
+  add-dark-mode     No tasks      just now
 ```
 
 ---

@@ -7,7 +7,7 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
 
 import {
   resolveRootForCommand,
@@ -186,19 +186,23 @@ export function registerContextCommand(program: Command): void {
     .command('context')
     .description(description)
     .option('--store <id>', COMMON_FLAGS.store.description)
+    .addOption(
+      new Option('--store-path <path>', 'Removed; register the store and use --store').hideHelp()
+    )
     .option('--json', 'Output the agent brief as JSON')
     .option('--code-workspace <path>', 'Also write a VS Code workspace file for the set')
     .option('--force', 'Overwrite an existing --code-workspace file')
     .action(
       async (options: {
         store?: string;
+        storePath?: string;
         json?: boolean;
         codeWorkspace?: string;
         force?: boolean;
       }) => {
         try {
           const root = await resolveRootForCommand(
-            { store: options.store },
+            { store: options.store, storePath: options.storePath },
             { json: options.json, failurePayload: FAILURE_PAYLOAD, allowImplicitRoot: false }
           );
           if (!root) {

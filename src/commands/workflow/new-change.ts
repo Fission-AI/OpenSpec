@@ -74,10 +74,12 @@ function printCreatedChangeHuman(
   payload: NewChangeOutput,
   root: ResolvedOpenSpecRoot
 ): void {
+  // A relative path is only honest when the root is where the user
+  // stands; a distant ancestor root gets the absolute path.
   const location =
-    isStoreSelectedRoot(root)
-      ? payload.change.path
-      : formatChangeLocation(toPlanningHome(root), payload.change.id);
+    !isStoreSelectedRoot(root) && root.path === process.cwd()
+      ? formatChangeLocation(toPlanningHome(root), payload.change.id)
+      : payload.change.path;
   console.log(`Created change '${payload.change.id}' at ${location}/`);
   console.log(`Schema: ${payload.change.schema}`);
   console.log(`Next: ${withStoreFlag(root, `openspec status --change ${payload.change.id}`)}`);

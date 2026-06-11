@@ -9,7 +9,7 @@
  */
 import { makeStoreDiagnostic, type StoreDiagnostic } from './store/errors.js';
 import { isKebabId } from './id.js';
-import type { ReferenceIndexEntry } from './references.js';
+import { sanitizeInline, type ReferenceIndexEntry } from './references.js';
 import type { EffectiveTargets, TargetRepoEntry } from './targets.js';
 import { storePointerProblem, type DeclarationEntry } from './project-config.js';
 import { toRootOutput, type ResolvedOpenSpecRoot } from './root-selection.js';
@@ -175,7 +175,7 @@ export function inspectRelationships(input: InspectRelationshipsInput): Relation
         makeStoreDiagnostic(
           'info',
           'store_remote_divergence',
-          `The store.yaml remote (${input.storeFacts.canonicalRemote}) differs from the checkout's origin (${input.storeFacts.originUrl}).`,
+          `The store.yaml remote (${sanitizeInline(input.storeFacts.canonicalRemote, 200)}) differs from the checkout's origin (${sanitizeInline(input.storeFacts.originUrl, 200)}).`,
           { target: 'store.metadata' }
         )
       );

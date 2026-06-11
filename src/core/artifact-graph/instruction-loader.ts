@@ -141,6 +141,9 @@ export interface ChangeStatus {
   changeName: string;
   /** Schema name */
   schemaName: string;
+  /** Planning home facts (generated skills derive the archive dir
+   * from planningHome.changesDir - a published agent contract). */
+  planningHome?: PlanningHomeSummary;
   /** Full path to the change root */
   changeRoot: string;
   /** Absolute artifact path details keyed by artifact ID */
@@ -456,6 +459,7 @@ export function formatChangeStatus(
   return {
     changeName: context.changeName,
     schemaName: context.schemaName,
+    planningHome: summarizePlanningHome(context.planningHome),
     changeRoot: context.changeDir,
     artifactPaths,
     isComplete,

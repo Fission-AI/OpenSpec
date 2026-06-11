@@ -552,6 +552,22 @@ export async function setupPreparedStore(
   };
   const { id, storeRoot, kind, registry } = plan;
   let { backend } = plan;
+
+  // The prepare/execute split can span an unbounded interactive
+  // confirmation. Re-assert the prepare-time directory facts: if the
+  // path appeared in the gap, the plan (and its rollback policy) no
+  // longer describes reality - refuse and let a rerun re-prepare.
+  if (kind === 'missing' && (await fs.access(storeRoot).then(() => true, () => false))) {
+    throw new StoreError(
+      `The path ${storeRoot} was created while setup was waiting for confirmation.`,
+      'store_setup_path_changed',
+      {
+        target: 'store.root',
+        fix: 'Rerun openspec store setup to re-evaluate the directory.',
+      }
+    );
+  }
+
   const createdFiles: string[] = [];
   let createdPaths: CreatedPathLedgerEntry[] = [];
   let gitInitialized = false;
@@ -660,15 +676,18 @@ export async function setupPreparedStore(
 
     if (createdPaths.length > 0) {
       await rollbackCreatedPaths(createdPaths);
-      if (gitInitialized) {
-        await fs.rm(path.join(storeRoot, '.git'), { recursive: true, force: true }).catch(() => undefined);
-      }
-      if (kind === 'missing') {
-        // Non-recursive: never delete content this operation did not create.
-        await fs.rmdir(storeRoot).catch(() => undefined);
-      }
-    } else if (kind === 'missing') {
-      await fs.rm(storeRoot, { recursive: true, force: true }).catch(() => undefined);
+    }
+    // G14: a half-made .git is never durable state pre-commit - clean it
+    // up regardless of whether the ledger recorded other creations, or a
+    // rerun registers a commitless store.
+    if (gitInitialized) {
+      await fs.rm(path.join(storeRoot, '.git'), { recursive: true, force: true }).catch(() => undefined);
+    }
+    if (kind === 'missing') {
+      // Non-recursive both ways: never delete content this operation did
+      // not create (the execute-time re-check guarantees kind is accurate,
+      // but rmdir is the belt to that suspender).
+      await fs.rmdir(storeRoot).catch(() => undefined);
     }
 
     throw error;
@@ -903,28 +922,45 @@ export async function removeStore(
   const diagnostics: StoreDiagnostic[] = [];
   let deleted = false;
 
+  // Order matters: the registry entry goes first, the files second. A
+  // failed file deletion leaves recoverable orphan files; the reverse
+  // order would leave a phantom registration pointing at nothing.
+  let rootMissing = false;
   const removed = await unregisterStoreRegistration({
     id,
     expectedBackend: target.backend,
     globalDataDir: target.globalDataDir,
     beforeCommit: async (entry) => {
       const safeTarget = await assertSafeToDeleteStoreRoot(entry.storeRoot, id);
-      if (!safeTarget.exists) {
-        diagnostics.push(makeStoreDiagnostic(
-          'warning',
-          'store_root_missing',
-          'Store files were already missing.',
-          {
-            target: 'store.root',
-          }
-        ));
-        return;
-      }
-
-      await fs.rm(entry.storeRoot, { recursive: true, force: true });
-      deleted = true;
+      rootMissing = !safeTarget.exists;
     },
   });
+
+  if (rootMissing) {
+    diagnostics.push(makeStoreDiagnostic(
+      'warning',
+      'store_root_missing',
+      'Store files were already missing.',
+      {
+        target: 'store.root',
+      }
+    ));
+  } else {
+    try {
+      await fs.rm(removed.storeRoot, { recursive: true, force: true });
+      deleted = true;
+    } catch (error) {
+      diagnostics.push(makeStoreDiagnostic(
+        'warning',
+        'store_files_left_on_disk',
+        `The registration was removed, but deleting ${removed.storeRoot} failed (${(error as Error).message}).`,
+        {
+          target: 'store.root',
+          fix: `Delete the folder manually: rm -rf ${removed.storeRoot}`,
+        }
+      ));
+    }
+  }
 
   return {
     store: cleanupStoreOutput(removed.id, removed.storeRoot),

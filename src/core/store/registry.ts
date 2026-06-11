@@ -381,8 +381,16 @@ export async function commitStoreRegistration(
     }
   } catch (error) {
     if (metadataCreated) {
-      await fs.rm(getStoreMetadataPath(storeRoot), { force: true });
-      await fs.rmdir(getStoreMetadataDir(storeRoot)).catch(() => undefined);
+      // A concurrent registration may have read our metadata as
+      // pre-existing and committed against it - never delete metadata a
+      // committed registry entry depends on.
+      const current = await readStoreRegistryState({
+        globalDataDir: input.globalDataDir,
+      }).catch(() => null);
+      if (!current?.stores[id]) {
+        await fs.rm(getStoreMetadataPath(storeRoot), { force: true });
+        await fs.rmdir(getStoreMetadataDir(storeRoot)).catch(() => undefined);
+      }
     }
 
     throw error;

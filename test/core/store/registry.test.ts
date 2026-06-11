@@ -492,7 +492,7 @@ describe('store registry facade', () => {
     });
   });
 
-  it('keeps the registry entry when prepared remove fails to delete files', async () => {
+  it('removes the registration first and degrades a failed file deletion to a warning', async () => {
     const storeRoot = mkdir('team-context');
     await writeStoreMetadataState(storeRoot, { version: 1, id: 'team-context' });
     await writeStoreRegistryState(
@@ -513,18 +513,37 @@ describe('store registry facade', () => {
       id: 'team-context',
       globalDataDir: tempDir,
     });
+    const realRm = fs.promises.rm.bind(fs.promises);
     const rmSpy = vi
       .spyOn(fs.promises, 'rm')
-      .mockRejectedValueOnce(new Error('simulated delete failure'));
+      .mockImplementation(async (target, options) => {
+        // Only the store-root deletion fails; lock cleanup is real.
+        if (String(target) === storeRoot) {
+          throw new Error('simulated delete failure');
+        }
+        return realRm(target as Parameters<typeof realRm>[0], options);
+      });
 
+    // Capstone ordering contract: the registry entry is removed FIRST;
+    // a failed file deletion degrades to a warning (orphan files are
+    // recoverable, a phantom registration is not).
+    let result;
     try {
-      await expect(removeStore(prepared)).rejects.toThrow(/simulated delete failure/u);
+      result = await removeStore(prepared);
     } finally {
       rmSpy.mockRestore();
     }
 
+    expect(result.files.deleted).toBe(false);
+    expect(result.diagnostics[0]).toEqual(
+      expect.objectContaining({
+        severity: 'warning',
+        code: 'store_files_left_on_disk',
+        fix: expect.stringContaining('rm -rf'),
+      })
+    );
     const registry = await readStoreRegistryState({ globalDataDir: tempDir });
-    expectSameExistingPath(registry?.stores['team-context'].backend.local_path ?? '', storeRoot);
+    expect(registry?.stores['team-context']).toBeUndefined();
     expect(fs.existsSync(getStoreMetadataPath(storeRoot))).toBe(true);
   });
 });

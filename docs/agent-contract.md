@@ -54,7 +54,7 @@ Change: `{ "id", "title", "deltaCount", "deltas": [...], "root" }`. Spec: `{ "id
 `{ "items": [ { "id", "type": "change"|"spec", "valid", "issues": [ { "level", "path", "message", "line"?, "column"? } ], "durationMs" } ], "summary": { "totals": {items,passed,failed}, "byType": {...} }, "version": "1.0", "root" }`. Exit 1 when any item fails.
 
 ### 4.4 `status --json`
-`{ "changeName", "schemaName", "changeRoot", "artifactPaths": { "<id>": {outputPath, resolvedOutputPath, existingOutputPaths} }, "nextSteps": ["..."], "actionContext": { "mode": "repo-local", "sourceOfTruth": "repo", "planningArtifacts", "linkedContext", "allowedEditRoots", "requiresAffectedAreaSelection", "constraints" }, "isComplete", "applyRequires", "artifacts": [ {id, outputPath, status: "done"|"ready"|"blocked", missingDeps?} ], "root" }`. No active changes: `{ "changes": [], "message", "root" }`, exit 0.
+`{ "changeName", "schemaName", "planningHome"?: { "kind", "root", "changesDir", "defaultSchema" }, "changeRoot", "artifactPaths": { "<id>": {outputPath, resolvedOutputPath, existingOutputPaths} }, "nextSteps": ["..."], "actionContext": { "mode": "repo-local", "sourceOfTruth": "repo", "planningArtifacts", "linkedContext", "allowedEditRoots", "requiresAffectedAreaSelection", "constraints" }, "isComplete", "applyRequires", "artifacts": [ {id, outputPath, status: "done"|"ready"|"blocked", missingDeps?} ], "root" }`. No active changes: `{ "changes": [], "message", "root" }`, exit 0.
 
 ### 4.5 `instructions <artifact> --json`
 `{ "changeName", "artifactId", "schemaName", "changeDir", "planningHome"?, "outputPath", "resolvedOutputPath", "existingOutputPaths", "description", "instruction"?, "context"?, "rules"?, "references"?: ReferenceIndexEntry[], "targets"?: EffectiveTargets, "template", "dependencies": [{id,done,path,description}], "unlocks", "root" }`.
@@ -138,7 +138,7 @@ register: `{ "repo": {id, path}, "registry": {path, registered, already_register
 
 Recorded by the capstone audit; published-key renames are product decisions deferred past this release:
 
-1. In `--json` mode, unknown/ambiguous-item paths in `validate`/`show` and thrown errors in `status`/`instructions` print stderr only and exit 1 without a JSON document. (Fixed in the capstone gauntlet round — every `--json` failure now emits a status document.)
+1. ~~In `--json` mode, several failure paths printed stderr only with no JSON document.~~ Fixed in the capstone gauntlet round: `show`/`validate` unknown and ambiguous items emit `{status:[{code: unknown_item | ambiguous_item, ...}]}`; thrown errors in `status`/`instructions`/`list`/`show`/`validate` route through the JSON-aware failure helper (the command's null-shape + `status`); `store <unknown subcommand> --json` emits `{status:[{code: unknown_store_subcommand}]}`; `list` carries its `{changes|specs: [], root: null}` null-shape on resolution failures.
 2. `store_root_missing` is emitted with two severities (warning in remove, error in store doctor) — context-dependent, documented above.
 3. `target_invalid_id` carries `target: "targets"` from instructions surfaces and `target: "relationships"` from doctor/context.
 4. snake_case (store family) vs camelCase (workflow family) key casing; `root.store_id` is snake_case everywhere.

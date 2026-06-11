@@ -98,7 +98,7 @@ export class ListCommand {
 
       if (changeDirs.length === 0) {
         if (json) {
-          console.log(JSON.stringify({ changes: [], ...(root ? { root } : {}) }));
+          console.log(JSON.stringify({ changes: [], ...(root ? { root } : {}) }, null, 2));
         } else {
           console.log('No active changes found.');
         }

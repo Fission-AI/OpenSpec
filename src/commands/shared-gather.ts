@@ -78,7 +78,16 @@ export function missingDeclaredRepoPaths(
   }
   return new Set(
     effectiveTargets.repos
-      .filter((entry) => entry.path !== undefined && !fs.existsSync(entry.path))
+      .filter((entry) => {
+        if (entry.path === undefined) {
+          return false;
+        }
+        try {
+          return !fs.statSync(entry.path).isDirectory();
+        } catch {
+          return true;
+        }
+      })
       .map((entry) => entry.id)
   );
 }

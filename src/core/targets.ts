@@ -8,6 +8,7 @@
  * machinery: nothing here touches the registry or filesystem, and
  * targets never affect where commands act.
  */
+import { sanitizeInline } from './references.js';
 import { makeStoreDiagnostic, type StoreDiagnostic } from './store/errors.js';
 import { isKebabId } from './id.js';
 import type { DeclarationEntry } from './project-config.js';
@@ -122,7 +123,7 @@ function renderEntryLines(effective: EffectiveTargets): string[] {
       line += ` \u2192 ${repo.path}`;
     }
     if (repo.remote) {
-      line += ` (clone: ${repo.remote})`;
+      line += ` (clone: ${sanitizeInline(repo.remote, 200)})`;
     }
     lines.push(line);
   }

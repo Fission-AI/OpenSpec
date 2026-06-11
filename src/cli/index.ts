@@ -1,3 +1,4 @@
+import { asStatus } from '../commands/shared-output.js';
 import { Command, Option } from 'commander';
 import { createRequire } from 'module';
 import ora from 'ora';
@@ -52,13 +53,30 @@ function hiddenStorePathOption(): Option {
   ).hideHelp();
 }
 
-function failWithError(error: unknown): void {
+function failWithError(
+  error: unknown,
+  json?: { enabled: boolean | undefined; payload?: Record<string, unknown>; fallbackCode?: string }
+): void {
+  // The agent contract: every --json failure leaves exactly one JSON
+  // document on stdout (the command's null-shape plus a status array).
+  if (json?.enabled) {
+    console.log(
+      JSON.stringify(
+        { ...(json.payload ?? {}), status: [asStatus(error, json.fallbackCode ?? 'command_error')] },
+        null,
+        2
+      )
+    );
+    process.exitCode = 1;
+    return;
+  }
   ora().fail(`Error: ${(error as Error).message}`);
   // Resolution and store errors carry a pasteable fix - never drop it.
   const fix = (error as { diagnostic?: { fix?: string } }).diagnostic?.fix;
   if (fix) {
     console.error(`Fix: ${fix}`);
   }
+  process.exitCode = process.exitCode ?? 1;
 }
 
 const program = new Command();
@@ -154,7 +172,6 @@ program
       });
       await initCommand.execute(targetPath);
     } catch (error) {
-      console.log(); // Empty line for spacing
       failWithError(error);
       process.exit(1);
     }
@@ -176,7 +193,6 @@ program
       });
       await initCommand.execute('.');
     } catch (error) {
-      console.log();
       failWithError(error);
       process.exit(1);
     }
@@ -191,7 +207,6 @@ program
       const updateCommand = new UpdateCommand({ force: options?.force });
       await updateCommand.execute(targetPath);
     } catch (error) {
-      console.log(); // Empty line for spacing
       failWithError(error);
       process.exit(1);
     }
@@ -208,7 +223,10 @@ program
   .addOption(hiddenStorePathOption())
   .action(async (options?: { specs?: boolean; changes?: boolean; sort?: string; json?: boolean; store?: string; storePath?: string }) => {
     try {
-      const root = await resolveRootForCommand(options ?? {}, { json: options?.json });
+      const root = await resolveRootForCommand(options ?? {}, {
+        json: options?.json,
+        failurePayload: options?.specs ? { specs: [], root: null } : { changes: [], root: null },
+      });
       if (!root) {
         return;
       }
@@ -221,8 +239,11 @@ program
         ...(options?.json ? { root: toRootOutput(root) } : {}),
       });
     } catch (error) {
-      console.log(); // Empty line for spacing
-      failWithError(error);
+      failWithError(error, {
+        enabled: options?.json,
+        payload: options?.specs ? { specs: [], root: null } : { changes: [], root: null },
+        fallbackCode: 'list_error',
+      });
       process.exit(1);
     }
   });
@@ -235,7 +256,6 @@ program
       const viewCommand = new ViewCommand();
       await viewCommand.execute('.');
     } catch (error) {
-      console.log(); // Empty line for spacing
       failWithError(error);
       process.exit(1);
     }
@@ -317,7 +337,6 @@ program
       const archiveCommand = new ArchiveCommand();
       await archiveCommand.execute(changeName, options);
     } catch (error) {
-      console.log(); // Empty line for spacing
       failWithError(error);
       process.exit(1);
     }
@@ -350,8 +369,7 @@ program
       const validateCommand = new ValidateCommand();
       await validateCommand.execute(itemName, options);
     } catch (error) {
-      console.log();
-      failWithError(error);
+      failWithError(error, { enabled: options?.json, fallbackCode: 'validate_error' });
       process.exit(1);
     }
   });
@@ -381,8 +399,7 @@ program
       const showCommand = new ShowCommand();
       await showCommand.execute(itemName, options ?? {});
     } catch (error) {
-      console.log();
-      failWithError(error);
+      failWithError(error, { enabled: options?.json, fallbackCode: 'show_error' });
       process.exit(1);
     }
   });
@@ -397,7 +414,6 @@ program
       const feedbackCommand = new FeedbackCommand();
       await feedbackCommand.execute(message, options);
     } catch (error) {
-      console.log();
       failWithError(error);
       process.exit(1);
     }
@@ -416,7 +432,6 @@ completionCmd
       const completionCommand = new CompletionCommand();
       await completionCommand.generate({ shell });
     } catch (error) {
-      console.log();
       failWithError(error);
       process.exit(1);
     }
@@ -431,7 +446,6 @@ completionCmd
       const completionCommand = new CompletionCommand();
       await completionCommand.install({ shell, verbose: options?.verbose });
     } catch (error) {
-      console.log();
       failWithError(error);
       process.exit(1);
     }
@@ -446,7 +460,6 @@ completionCmd
       const completionCommand = new CompletionCommand();
       await completionCommand.uninstall({ shell, yes: options?.yes });
     } catch (error) {
-      console.log();
       failWithError(error);
       process.exit(1);
     }
@@ -483,8 +496,7 @@ program
     try {
       await statusCommand(options);
     } catch (error) {
-      console.log();
-      failWithError(error);
+      failWithError(error, { enabled: options.json, fallbackCode: 'change_error' });
       process.exit(1);
     }
   });
@@ -507,8 +519,7 @@ program
         await instructionsCommand(artifactId, options);
       }
     } catch (error) {
-      console.log();
-      failWithError(error);
+      failWithError(error, { enabled: options.json, fallbackCode: 'change_error' });
       process.exit(1);
     }
   });
@@ -523,7 +534,6 @@ program
     try {
       await templatesCommand(options);
     } catch (error) {
-      console.log();
       failWithError(error);
       process.exit(1);
     }
@@ -538,7 +548,6 @@ program
     try {
       await schemasCommand(options);
     } catch (error) {
-      console.log();
       failWithError(error);
       process.exit(1);
     }
@@ -564,7 +573,6 @@ newCmd
     try {
       await newChangeCommand(name, options);
     } catch (error) {
-      console.log();
       failWithError(error);
       process.exit(1);
     }

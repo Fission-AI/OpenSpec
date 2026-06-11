@@ -3,14 +3,14 @@
  * report. Read-only — it answers "are the roots this work relates to
  * available on this machine?" and never clones, syncs, or repairs.
  */
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
 
 import {
   resolveRootForCommand,
   type ResolvedOpenSpecRoot,
 } from '../core/root-selection.js';
 import { readOptionalStoreMetadataState } from '../core/store/foundation.js';
-import { gitOriginUrl } from '../core/store/git.js';
+import { gitOriginUrl, isGitRepositoryAtRoot } from '../core/store/git.js';
 import {
   classifyOpenSpecDir,
   readProjectConfig,
@@ -64,7 +64,9 @@ async function gatherHealth(
   // failure, not a health finding).
   if (root.storeId) {
     const metadata = await readOptionalStoreMetadataState(root.path).catch(() => null);
-    const originUrl = await gitOriginUrl(root.path);
+    // git -C walks UP the tree: probing a non-repo store nested inside
+    // another repo would record the ENCLOSING repo's origin.
+    const originUrl = (await isGitRepositoryAtRoot(root.path)) ? await gitOriginUrl(root.path) : null;
     input.storeFacts = {
       id: root.storeId,
       metadataPresent: metadata !== null,
@@ -207,11 +209,14 @@ export function registerDoctorCommand(program: Command): void {
     .command('doctor')
     .description(description)
     .option('--store <id>', COMMON_FLAGS.store.description)
+    .addOption(
+      new Option('--store-path <path>', 'Removed; register the store and use --store').hideHelp()
+    )
     .option('--json', 'Output as JSON')
-    .action(async (options: { store?: string; json?: boolean }) => {
+    .action(async (options: { store?: string; storePath?: string; json?: boolean }) => {
       try {
         const root = await resolveRootForCommand(
-          { store: options.store },
+          { store: options.store, storePath: options.storePath },
           { json: options.json, failurePayload: FAILURE_PAYLOAD, allowImplicitRoot: false }
         );
         if (!root) {

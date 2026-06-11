@@ -473,4 +473,20 @@ describe('resolveOpenSpecRoot', () => {
       expect(error.message).toContain(path.join(dir, 'openspec', 'config.yml'));
     });
   });
+
+  it('skips openspec/ directories that are neither planning-shaped nor configured (the ~/openspec layout)', async () => {
+    // The recommended store layout: $HOME/openspec/<store>. $HOME must
+    // NOT become a nearest root for everything under the home tree.
+    const fakeHome = path.join(tempDir, 'fake-home');
+    fs.mkdirSync(path.join(fakeHome, 'openspec', 'team-context'), { recursive: true });
+    const scratch = path.join(fakeHome, 'projects', 'scratch');
+    fs.mkdirSync(scratch, { recursive: true });
+
+    // No qualifying root anywhere: the registered-store hint fires (the
+    // exact guidance the phantom $HOME root used to shadow).
+    await expect(resolveOpenSpecRoot({ startPath: scratch })).rejects.toMatchObject({
+      diagnostic: expect.objectContaining({ code: 'no_root_with_registered_stores' }),
+    });
+  });
+
 });

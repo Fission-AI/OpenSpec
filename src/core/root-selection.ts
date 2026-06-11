@@ -286,6 +286,29 @@ export async function inspectRegisteredStore(
  * pointer resolves the declared store; without one, it stays a root
  * (today's behavior for freshly initialized minimal roots).
  */
+/**
+ * The nearest-root walk, qualified: an `openspec/` DIRECTORY alone is
+ * not a root — it must carry a planning shape or a config file.
+ * Without this, the recommended `~/openspec/<id>` store layout would
+ * make $HOME a phantom root that captures every command under the
+ * home tree.
+ */
+function findQualifyingRootSync(startPath: string): string | null {
+  let candidate = findRepoPlanningRootSync(startPath);
+  while (candidate) {
+    const { hasPlanningShape, pointer } = classifyOpenSpecDir(candidate);
+    if (hasPlanningShape || pointer.filePath) {
+      return candidate;
+    }
+    const parent = path.dirname(candidate);
+    if (parent === candidate) {
+      return null;
+    }
+    candidate = findRepoPlanningRootSync(parent);
+  }
+  return null;
+}
+
 async function resolveNearestOrDeclaredRoot(
   nearestRoot: string,
   globalDataDir?: string
@@ -330,7 +353,9 @@ async function resolveNearestOrDeclaredRoot(
       const declarationFix =
         error.diagnostic.code === 'unknown_store'
           ? `Register the store (openspec store register <path> --id ${pointer.value}) or edit ${pointer.filePath} to name a registered store.`
-          : error.diagnostic.fix;
+          : error.diagnostic.code === 'store_id_is_repo'
+            ? `Edit ${pointer.filePath}: '${pointer.value}' is a target repo id, not a store id.`
+            : error.diagnostic.fix;
       throw new RootSelectionError(
         `Declared in ${pointer.filePath}: ${error.message}`,
         error.diagnostic.code,
@@ -363,7 +388,7 @@ export async function resolveOpenSpecRoot(
   }
 
   const startPath = options.startPath ?? process.cwd();
-  const nearestRoot = findRepoPlanningRootSync(startPath);
+  const nearestRoot = findQualifyingRootSync(startPath);
   if (nearestRoot) {
     return resolveNearestOrDeclaredRoot(nearestRoot, options.globalDataDir);
   }

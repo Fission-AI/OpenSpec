@@ -409,6 +409,8 @@ async function sleep(milliseconds: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
+const STALE_LOCK_THRESHOLD_MS = 30_000;
+
 async function acquireStoreRegistryLock(
   options: StorePathOptions
 ): Promise<nodeFs.promises.FileHandle> {
@@ -421,10 +423,34 @@ async function acquireStoreRegistryLock(
     try {
       return await fs.open(lockPath, 'wx');
     } catch (error) {
-      if (!isNodeErrorCode(error, 'EEXIST') || Date.now() >= deadline) {
+      if (!isNodeErrorCode(error, 'EEXIST')) {
+        // A permission or filesystem problem, not contention - say so.
+        throw new StoreError(
+          `Cannot create the registry lock file ${lockPath} (${(error as NodeJS.ErrnoException).code ?? error}).`,
+          'store_registry_busy',
+          {
+            target: 'store.registry',
+            fix: `Check permissions on ${path.dirname(lockPath)}.`,
+          }
+        );
+      }
+
+      // A crashed process leaves the lock behind forever; registry
+      // writes are sub-second, so an old lock is an orphan - steal it.
+      try {
+        const lockStat = await fs.stat(lockPath);
+        if (Date.now() - lockStat.mtimeMs > STALE_LOCK_THRESHOLD_MS) {
+          await fs.rm(lockPath, { force: true });
+          continue;
+        }
+      } catch {
+        continue; // The holder released between open and stat - retry.
+      }
+
+      if (Date.now() >= deadline) {
         throw new StoreError('Store registry is busy.', 'store_registry_busy', {
           target: 'store.registry',
-          fix: 'Retry the command after the current registry update finishes.',
+          fix: `Retry shortly; if this persists, delete the stale lock file ${lockPath}.`,
         });
       }
 
