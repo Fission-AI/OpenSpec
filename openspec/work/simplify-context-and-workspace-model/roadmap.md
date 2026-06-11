@@ -125,24 +125,17 @@ an item are status steps for that numbered work item.
   The final acceptance capstone: persona journeys, usability and technical
   audits, whole-delta review, release-readiness report. Runs last.
 - [ ] **Phase 7. Keep and open personal worksets.**
-  User-directed follow-up (2026-06-12): a purely local, manually
-  composed, named working view, opened in the user's tool of choice.
-  Specified at the FR level in 7.1; awaits its research/spec/
-  implementation run.
+  Complete (merge to `main` pending): the `workset` command group
+  (compose/list/open/remove), the two-style opener table with local
+  config, the capstone dogfood transcript, and the pushed branch with
+  review comments addressed — all on the working branch.
 
 Next incomplete item:
 
-- [ ] **7.1 Personal worksets.**
-  In plain English: let a user compose a personal, local working view
-  (a planning root plus whatever folders they choose), keep it under a
-  name on their machine, and reopen it in their tool of choice — VS
-  Code/Cursor as a multi-folder window, Claude Code/codex as a session
-  with every member accessible. Functional requirements and locked
-  decisions are in the 7.1 section; the slice starts with a research
-  pass (storage shape, opener config, launch mechanics — old code at
-  `f858c19^` is the evidence base). The original 2026-06-11 queue
-  (1.4, the deletion slices, 3.1–3.6, 4.1, the 6.1 capstone) is
-  complete through Tests pass; merge to `main` stays deferred.
+- (none) — every roadmap item is complete through its last
+  pre-merge box. The only open boxes across the roadmap are the
+  per-item "Merged to `main`" boxes, which close together when the
+  branch lands (PR #1190).
 
 ## Phase 0. Make The Active Direction Easy To Find
 
@@ -1209,7 +1202,7 @@ Progress:
 - [x] Tests pass.
 - [x] Capstone dogfood passes (end-to-end UX run; transcript in the
   slice folder).
-- [ ] Branch pushed; code-review comments addressed.
+- [x] Branch pushed; code-review comments addressed.
 - [ ] Merged to `main`.
 
 What the user can do:
@@ -2439,3 +2432,14 @@ is working:
   carries the research checklist; the runbook gained the 7.1 follow-up
   run invocation. `openspec context` and the repo map are explicitly
   untouched by 7.1.
+- 2026-06-12: Closed the 7.1 pushed-branch box. The branch is pushed
+  through the capstone commit. PR #1190 review-comment disposition:
+  the two slice-touching comments that arrived mid-run were fixed and
+  pushed by the run itself (the Windows-compatibility pass and the
+  platform-aware clone-fix pin); the three remaining open inline
+  comments predate the run and touch nothing in the slice (spinner
+  early-return quick-wins in `workflow/instructions.ts` and
+  `workflow/status.ts`, and a keyboard-accessibility note on the
+  slice-1.2 decision-review HTML artifact) — parked for a cleanup
+  pass rather than expanded into 7.1 scope. 7.1 is complete through
+  every pre-merge box.
