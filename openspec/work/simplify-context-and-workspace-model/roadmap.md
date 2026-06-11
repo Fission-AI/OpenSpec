@@ -132,9 +132,10 @@ Next incomplete item:
   reference diagnostics (3.1), the both-shapes/pointer warnings
   (3.2), canonical vs observed remotes (3.3), target declarations
   (3.4), and the repo map with its silence-by-design unmapped/corrupt
-  cases (3.5) all deferred their roll-up here. Spec not yet written.
-  (3.1–3.5 are implemented and reviewed; the 5.1 first tranche is
-  done; the Phase 5 remainder runs after 4.1.)
+  cases (3.5) all deferred their roll-up here. Spec written and
+  reviewed (`slices/relationship-health/`); plan is next. (3.1–3.5 are
+  implemented and reviewed; the 5.1 first tranche is done; the Phase 5
+  remainder runs after 4.1.)
 
 ## Phase 0. Make The Active Direction Easy To Find
 
@@ -1391,6 +1392,36 @@ is working:
   a deliberate fourth partial edit, and the spec's byte-stable clause
   now allows the new removal-coverage tests. The reworded constraint
   string gets its first-ever pin in the new test.
+- 2026-06-11: Wrote the relationship-health slice spec (3.6) and
+  folded two adversarial reviews (both approve-with-fixes, two P1s
+  each, converging). The P1s: the exit-code rule cited a `store
+  doctor` contract that does not exist (store doctor exits 0 even on
+  error-severity health entries; the spec now mirrors the REAL
+  contract — health findings exit 0, only command failures exit 1);
+  and the JSON shape dropped the lock's separate store-metadata
+  category plus the 3.4-recorded inert-pointer deferral (the shape
+  gains a `store` section and `pointer_declarations_inert`). Also
+  folded: a real `includeSpecs: false` assembler mode (post-stripping
+  would pay the spec-file I/O and could leak the content-only
+  truncation diagnostic into a health report); the assembler accepts a
+  pre-read registry state so doctor's one read feeds everything
+  coherently; `target_unmapped` suppressed under an unreadable
+  registry (its register fix would be wrong); grammar-invalid targets
+  synthesize bare entries so doctor never loses them; the both-shapes
+  detection mechanism named (command-side classifyOpenSpecDir, stderr
+  duplication accepted and recorded); the guidance-pin consequence
+  scoped (doctor takes --store, so STORE_SELECTION_GUIDANCE and the
+  skill-template parity pins change deliberately); empty-vs-unreadable
+  registry and --store-repo-id scenarios added; the healthy scenario
+  split from the none-declared rendering.
+- 2026-06-11: Decided autonomously (review me): 3.6's surface is a new
+  top-level root-scoped `openspec doctor` (store doctor is
+  machine-scoped and cannot see a project repo's references; status is
+  change-scoped); it is pure presentation over the existing assemblers
+  — no new health machinery; targets health is store-level only
+  (per-change narrowing stays on instructions); doctor never
+  scaffolds (allowImplicitRoot false); remote divergence is severity
+  info in the store section.
 - 2026-06-11: Implemented slice 3.5 (repo map) in two checkpoints plus
   a review-fix round: typed registry sections with the preservation
   matrix pinned (the spec-review P1); the repo command group
