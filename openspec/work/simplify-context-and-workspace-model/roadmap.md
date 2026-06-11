@@ -130,10 +130,10 @@ Next incomplete item:
   and cites them, without the human naming the store every session and
   without commands being redirected there. The locked Phase 3 decisions
   apply (index-not-inline; declarations in `openspec/config.yaml`;
-  relationships are location, declaration, or citation). Spec written
-  and reviewed (`slices/store-references/`); plan is next. (The 5.1
-  first tranche — the command-group deletion — is implemented and
-  reviewed; the Phase 5 remainder runs after 4.1.)
+  relationships are location, declaration, or citation). Spec and plan
+  written and reviewed (`slices/store-references/`); implementation is
+  next. (The 5.1 first tranche — the command-group deletion — is
+  implemented and reviewed; the Phase 5 remainder runs after 4.1.)
 
 ## Phase 0. Make The Active Direction Easy To Find
 
@@ -681,7 +681,8 @@ Decisions locked on 2026-06-11:
 Phase checklist:
 
 - [ ] **3.1** Let a project repo reference the stores its work draws on.
-  Spec written and reviewed (`slices/store-references/`); plan is next.
+  Spec and plan written and reviewed (`slices/store-references/`);
+  implementation is next.
 - [ ] **3.2** Fall back to a declared store when no local root exists.
 - [ ] **3.3** Record a canonical remote in store identity.
 - [ ] **3.4** Let a store declare its target project repos.
@@ -1355,6 +1356,18 @@ is working:
   a deliberate fourth partial edit, and the spec's byte-stable clause
   now allows the new removal-coverage tests. The reworded constraint
   string gets its first-ever pin in the new test.
+- 2026-06-11: Wrote the store-references plan (3.1, two checkpoints)
+  and folded two parallel plan reviews (both approve-with-fixes): pure
+  renderers live in core beside the assembler so the 50KB budget
+  measures the real output (truncation stops before the cap with the
+  warning line exempt); the `inspectRegisteredStore` extraction cut is
+  pinned narrow (metadata/health stages only — registry lookup stays in
+  `resolveStoreRoot`, whose seven error codes stay byte-identical);
+  config is read once in the command layer and suppresses the
+  generator's internal read; the Purpose-line scanner is self-contained
+  (the markdown parser's section methods are protected); and the test
+  matrix gained the symmetric `--store`, boundary byte-identity,
+  no-recursion, nothing-frozen, and not-inlined assertions.
 - 2026-06-11: Wrote the store-references slice spec (3.1) and folded
   two adversarial review rounds (subagent: approve-with-fixes with two
   grounding P1s — `parseSpec()` throws on imperfect specs so summaries
