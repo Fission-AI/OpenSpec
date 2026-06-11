@@ -1207,7 +1207,7 @@ Progress:
 - [x] Plan written.
 - [x] Implementation done.
 - [x] Tests pass.
-- [ ] Capstone dogfood passes (end-to-end UX run; transcript in the
+- [x] Capstone dogfood passes (end-to-end UX run; transcript in the
   slice folder).
 - [ ] Branch pushed; code-review comments addressed.
 - [ ] Merged to `main`.
@@ -2289,6 +2289,26 @@ is working:
   `src/core/file-state.ts` now that they have two call sites; agent
   guidance does not teach worksets at v1 (human convenience; template
   parity pins stay untouched).
+- 2026-06-12: Ran the 7.1 capstone dogfood
+  (`slices/personal-worksets/capstone-dogfood.md`). Scripted walk in a
+  scratch env (isolated XDG, fake code/cursor/claude/codex on a
+  controlled PATH, built CLI): compose→list→open for both styles with
+  exact argv verified from the launch log — code got exactly the
+  generated workspace file, claude/codex got one --add-dir pair per
+  member with the primary included and codex's sandbox pre-args, no
+  positional anywhere; the unknown-tool strand test printed the
+  manual fallback; the missing-member skip, safe remove, and
+  byte-untouched member folders all held. The interactive wizard ran
+  from a real pty via expect (name → `.` default member → tool
+  select → open-now declined → reopen line; a stdin-EOF run
+  exercised Cancelled./130 live). Cold start: a fresh headless codex
+  session with no insider knowledge — told only that "the openspec
+  CLI can keep a named view of folders" — reached an opened workset
+  from `--help` alone (group discovery, subcommand help, repeatable
+  --member compose, open; launch log and saved yaml verified). No
+  product findings; the one defect surfaced was in the dogfood's own
+  first fake-tool shim. Full suite re-run green (101 files, 1799
+  tests); capstone box ticked.
 - 2026-06-12: Ran the 7.1 /simplify pass (four parallel cleanup
   agents: reuse, simplification, efficiency, altitude) and applied
   the converged fixes: the two textually-parallel lock-error
