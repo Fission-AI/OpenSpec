@@ -154,6 +154,25 @@ async function resolveStoreRoot(
   const entry = entries.find((candidate) => candidate.id === id);
 
   if (!entry) {
+    // Typed sections (3.5): a repo id is never a store id. This check
+    // precedes both unknown-id branches so the zero-stores fix cannot
+    // suggest claiming the repo's id (the cross-section conflict would
+    // make that an error loop).
+    const repoPath = registry?.repos?.[id]?.local_path;
+    if (repoPath !== undefined) {
+      throw new RootSelectionError(
+        `Id '${id}' names a target repo (${repoPath}), not a store. Stores hold OpenSpec work; target repos are mapped code checkouts.`,
+        'store_id_is_repo',
+        {
+          target: 'store.id',
+          fix:
+            entries.length > 0
+              ? `Pass a store id (registered: ${entries.map((candidate) => candidate.id).join(', ')}), or cd into the repo to work there.`
+              : 'Run openspec store setup <different-id> to create a store, or cd into the repo to work there.',
+        }
+      );
+    }
+
     if (entries.length === 0) {
       throw new RootSelectionError(
         `Unknown store '${id}'. No stores are registered.`,

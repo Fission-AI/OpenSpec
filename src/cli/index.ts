@@ -19,6 +19,7 @@ import { FeedbackCommand } from '../commands/feedback.js';
 import { registerConfigCommand } from '../commands/config.js';
 import { registerSchemaCommand } from '../commands/schema.js';
 import { registerStoreCommand } from '../commands/store.js';
+import { registerRepoCommand } from '../commands/repo.js';
 import {
   statusCommand,
   instructionsCommand,
@@ -315,6 +316,7 @@ registerSpecCommand(program);
 registerConfigCommand(program);
 registerSchemaCommand(program);
 registerStoreCommand(program);
+registerRepoCommand(program);
 
 // Top-level validate command
 program

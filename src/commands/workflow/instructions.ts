@@ -39,6 +39,8 @@ import {
   renderTargetReposSection,
 } from '../../core/targets.js';
 import { METADATA_FILENAME } from '../../utils/change-metadata.js';
+import { readStoreRegistryState } from '../../core/store/foundation.js';
+import { listRepoEntries } from '../../core/store/registry.js';
 import {
   readProjectConfig,
   resolveConfigFilePath,
@@ -85,11 +87,26 @@ async function loadRootConfigContext(root: ResolvedOpenSpecRoot): Promise<{
   projectConfig: ProjectConfig | null;
   references: ReferenceIndexEntry[] | undefined;
   configPath: string;
+  repoPaths: Map<string, string> | undefined;
 }> {
   // readProjectConfig never throws: missing/unparseable configs are null.
   const projectConfig = readProjectConfig(root.path);
   const configPath =
     resolveConfigFilePath(root.path) ?? path.join(root.path, 'openspec', 'config.yaml');
+
+  // One additional registry read builds the local repo map for targets
+  // path enrichment; a corrupt registry yields all-bare entries (3.6
+  // owns surfacing that).
+  let repoPaths: Map<string, string> | undefined;
+  if (projectConfig?.targets?.length) {
+    try {
+      const registry = await readStoreRegistryState();
+      const entries = listRepoEntries(registry);
+      repoPaths = new Map(entries.map((entry) => [entry.id, entry.path]));
+    } catch {
+      repoPaths = undefined;
+    }
+  }
 
   const declared = projectConfig?.references ?? [];
   const index =
@@ -99,7 +116,12 @@ async function loadRootConfigContext(root: ResolvedOpenSpecRoot): Promise<{
 
   // Omitted, not empty: an index emptied by self-reference omission must
   // look identical to an undeclared one in JSON.
-  return { projectConfig, references: index.length > 0 ? index : undefined, configPath };
+  return {
+    projectConfig,
+    references: index.length > 0 ? index : undefined,
+    configPath,
+    repoPaths,
+  };
 }
 
 export async function instructionsCommand(
@@ -153,12 +175,14 @@ export async function instructionsCommand(
       );
     }
 
-    const { projectConfig, references, configPath } = await loadRootConfigContext(root);
+    const { projectConfig, references, configPath, repoPaths } =
+      await loadRootConfigContext(root);
     const instructions = generateInstructions(context, artifactId, projectRoot, {
       projectConfig,
       references,
       storeTargets: projectConfig?.targets,
       storeConfigPath: configPath,
+      repoPaths,
     });
     const isBlocked = instructions.dependencies.some((d) => !d.done);
 
@@ -345,6 +369,8 @@ export interface GenerateApplyInstructionsOptions {
   storeTargets?: DeclarationEntry[];
   /** Absolute path of the config file actually read (for fix text). */
   storeConfigPath?: string;
+  /** Local repo map for targets path enrichment (3.5). */
+  repoPaths?: Map<string, string>;
 }
 
 /**
@@ -372,6 +398,7 @@ export async function generateApplyInstructions(
     changeTargets: context.metadata?.targets,
     storeConfigPath: options.storeConfigPath,
     changeMetadataPath: path.join(changeDir, METADATA_FILENAME),
+    ...(options.repoPaths ? { repoPaths: options.repoPaths } : {}),
   });
 
   // Get the full schema to access the apply phase configuration
@@ -489,12 +516,14 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
     }
 
     // generateApplyInstructions uses loadChangeContext which auto-detects schema
-    const { projectConfig, references, configPath } = await loadRootConfigContext(root);
+    const { projectConfig, references, configPath, repoPaths } =
+      await loadRootConfigContext(root);
     const instructions = await generateApplyInstructions(projectRoot, changeName, options.schema, {
       planningHome,
       references,
       storeTargets: projectConfig?.targets,
       storeConfigPath: configPath,
+      repoPaths,
     });
 
     spinner?.stop();

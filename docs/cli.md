@@ -8,6 +8,7 @@ The OpenSpec CLI (`openspec`) provides terminal commands for project setup, vali
 |----------|----------|---------|
 | **Setup** | `init`, `update` | Initialize and update OpenSpec in your project |
 | **Stores (standalone OpenSpec repos)** | `store setup`, `store register`, `store unregister`, `store remove`, `store list`, `store doctor` | Manage stores — standalone OpenSpec repos you've registered |
+| **Repo map** | `repo register`, `repo unregister`, `repo list` | Map target repo ids to local checkout paths on this machine |
 | **Browsing** | `list`, `view`, `show` | Explore changes and specs |
 | **Validation** | `validate` | Check changes and specs for issues |
 | **Lifecycle** | `archive` | Finalize completed changes |
@@ -308,6 +309,20 @@ targets:
 A change that only concerns some of them can narrow the set in its own `.openspec.yaml` with a plain `targets:` list. `openspec instructions` output then carries the effective set (with provenance: store default or change narrowing) so agents know which repos the work concerns. Targets name repos; `affected_areas` names free-form areas or domains within them — don't use the two interchangeably.
 
 Targets are declarations, not machinery: they never affect where commands act, nothing clones or syncs, and an unrecognized narrowed id degrades to a warning with a fix rather than failing.
+
+## Repo map (local checkout paths)
+
+Shared work names target repos by id; each developer maps those ids to local checkouts once. The map is local machine settings — never shared planning state, never committed:
+
+```bash
+openspec repo register ~/src/api-server        # id defaults to the folder name
+openspec repo register ~/work/checkout --id api-server
+openspec repo list                             # id → path (or --json)
+openspec repo unregister api-server            # forgets the mapping; never touches the checkout
+```
+
+Once mapped, `openspec instructions` shows where each target lives on this machine (`- api-server → /Users/dev/src/api-server`). Store and repo ids share one namespace: registering either kind under an id (or path) the other holds fails with a typed conflict, and `--store <repo-id>` rejects with a hint instead of a generic unknown-store error.
+
 
 ### Declaring a default store
 

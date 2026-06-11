@@ -12,10 +12,16 @@ import { makeStoreDiagnostic, type StoreDiagnostic } from './store/errors.js';
 import { isKebabId } from './id.js';
 import type { DeclarationEntry } from './project-config.js';
 
+/** A targets entry, optionally resolved to a local checkout (3.5). */
+export type TargetRepoEntry = DeclarationEntry & {
+  /** Local checkout path when the machine's repo map resolves the id. */
+  path?: string;
+};
+
 export interface EffectiveTargets {
   /** Where the effective list came from. */
   source: 'store' | 'change';
-  repos: DeclarationEntry[];
+  repos: TargetRepoEntry[];
   /** Always present; `[]` when clean. */
   status: StoreDiagnostic[];
 }
@@ -23,6 +29,8 @@ export interface EffectiveTargets {
 export interface AssembleTargetsInput {
   storeTargets?: DeclarationEntry[];
   changeTargets?: string[];
+  /** Local repo map (id → canonical path) for path enrichment. */
+  repoPaths?: Map<string, string>;
   /** Absolute path of the config file actually read (for fix text). */
   storeConfigPath?: string;
   /** Absolute path of the change's metadata file (for fix text). */
@@ -63,15 +71,20 @@ export function assembleTargets(input: AssembleTargetsInput): EffectiveTargets |
     declared.set(target.id, target);
   }
 
+  const withPath = (entry: DeclarationEntry): TargetRepoEntry => {
+    const localPath = input.repoPaths?.get(entry.id);
+    return localPath ? { ...entry, path: localPath } : entry;
+  };
+
   if (changeTargets.length === 0) {
-    return { source: 'store', repos: [...declared.values()], status };
+    return { source: 'store', repos: [...declared.values()].map(withPath), status };
   }
 
   // Narrowing: change ids replace the store list; remotes inherit from
   // the matching store declaration (the remote belongs to the repo
   // declaration, not the provenance). Change-level grammar is enforced
   // by the metadata schema before this runs.
-  const repos: DeclarationEntry[] = [];
+  const repos: TargetRepoEntry[] = [];
   const seen = new Set<string>();
   for (const id of changeTargets) {
     if (seen.has(id)) {
@@ -80,10 +93,10 @@ export function assembleTargets(input: AssembleTargetsInput): EffectiveTargets |
     seen.add(id);
     const storeDeclaration = declared.get(id);
     if (storeDeclaration) {
-      repos.push(storeDeclaration);
+      repos.push(withPath(storeDeclaration));
       continue;
     }
-    repos.push({ id });
+    repos.push(withPath({ id }));
     status.push(
       warning(
         'target_not_declared',
@@ -104,7 +117,14 @@ const PROVENANCE_LINE: Record<EffectiveTargets['source'], string> = {
 function renderEntryLines(effective: EffectiveTargets): string[] {
   const lines: string[] = [PROVENANCE_LINE[effective.source]];
   for (const repo of effective.repos) {
-    lines.push(repo.remote ? `  - ${repo.id} (clone: ${repo.remote})` : `  - ${repo.id}`);
+    let line = `  - ${repo.id}`;
+    if (repo.path) {
+      line += ` \u2192 ${repo.path}`;
+    }
+    if (repo.remote) {
+      line += ` (clone: ${repo.remote})`;
+    }
+    lines.push(line);
   }
   for (const diagnostic of effective.status) {
     lines.push(`  Note: ${diagnostic.message}`);

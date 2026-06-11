@@ -287,6 +287,8 @@ export interface GenerateInstructionsOptions {
   storeTargets?: DeclarationEntry[];
   /** Absolute path of the config file actually read (for fix text). */
   storeConfigPath?: string;
+  /** Local repo map for targets path enrichment (3.5). */
+  repoPaths?: Map<string, string>;
 }
 
 export function generateInstructions(
@@ -347,6 +349,7 @@ export function generateInstructions(
     changeTargets: context.metadata?.targets,
     storeConfigPath: options.storeConfigPath,
     changeMetadataPath: path.join(context.changeDir, METADATA_FILENAME),
+    ...(options.repoPaths ? { repoPaths: options.repoPaths } : {}),
   });
 
   return {
