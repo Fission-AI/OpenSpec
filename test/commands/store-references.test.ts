@@ -5,6 +5,7 @@ import * as path from 'node:path';
 
 import { getGlobalDataDir, registerStore } from '../../src/core/index.js';
 import { runCLI, type RunCLIResult } from '../helpers/run-cli.js';
+import { createOpenSpecRoot, writeSpec } from '../helpers/openspec-fixtures.js';
 
 describe('store references in instructions (3.1)', () => {
   let tempDir: string;
@@ -39,18 +40,6 @@ describe('store references in instructions (3.1)', () => {
   afterEach(() => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
-
-  function createOpenSpecRoot(rootDir: string): void {
-    fs.mkdirSync(path.join(rootDir, 'openspec', 'specs'), { recursive: true });
-    fs.mkdirSync(path.join(rootDir, 'openspec', 'changes', 'archive'), { recursive: true });
-    fs.writeFileSync(path.join(rootDir, 'openspec', 'config.yaml'), 'schema: spec-driven\n');
-  }
-
-  function writeSpec(rootDir: string, specId: string, body: string): void {
-    const specDir = path.join(rootDir, 'openspec', 'specs', specId);
-    fs.mkdirSync(specDir, { recursive: true });
-    fs.writeFileSync(path.join(specDir, 'spec.md'), body);
-  }
 
   function parseJson(result: RunCLIResult): any {
     return JSON.parse(result.stdout);

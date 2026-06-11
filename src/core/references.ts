@@ -21,6 +21,7 @@ import { getStoreRootForBackend } from './store/registry.js';
 import { inspectRegisteredStore, type ResolvedOpenSpecRoot } from './root-selection.js';
 import { getSpecIds } from '../utils/item-discovery.js';
 import { FileSystemUtils } from '../utils/file-system.js';
+import { MAX_CONTEXT_SIZE } from './project-config.js';
 
 export interface ReferenceSpecEntry {
   id: string;
@@ -36,12 +37,12 @@ export interface ReferenceIndexEntry {
 }
 
 /**
- * Shares the 50KB project-context cap: the rendered index is prompt
- * material. Measured in UTF-8 bytes against the XML rendering (the
- * larger of the two), entries and diagnostics included; only the
- * truncation warning itself is exempt (no oscillation).
+ * Shares the project-context cap: the rendered index is prompt material.
+ * Measured in UTF-8 bytes against the XML rendering (the larger of the
+ * two), entries and diagnostics included; only the truncation warning
+ * itself is exempt (no oscillation).
  */
-const MAX_RENDERED_INDEX_SIZE = 50 * 1024;
+const MAX_RENDERED_INDEX_SIZE = MAX_CONTEXT_SIZE;
 
 function warning(code: string, message: string, fix: string): StoreDiagnostic {
   return makeStoreDiagnostic('warning', code, message, { target: 'references', fix });
@@ -205,18 +206,18 @@ export async function assembleReferenceIndex(
     return [];
   }
 
-  let registryEntries: ReturnType<typeof listStoreRegistryEntries> | null = null;
-  let registryUnreadable = false;
+  // null means the registry itself was unreadable (corrupt file).
+  let registryEntries: ReturnType<typeof listStoreRegistryEntries> | null;
   try {
     const registry = await readStoreRegistryState(
       input.globalDataDir ? { globalDataDir: input.globalDataDir } : {}
     );
     registryEntries = registry ? listStoreRegistryEntries(registry) : [];
   } catch {
-    registryUnreadable = true;
+    registryEntries = null;
   }
 
-  const resolvedRootPath = canonicalize(input.resolvedRoot.path);
+  const resolvedRootPath = FileSystemUtils.canonicalizeExistingPath(input.resolvedRoot.path);
   const entries: ReferenceIndexEntry[] = [];
 
   for (const id of ids) {
@@ -241,7 +242,7 @@ export async function assembleReferenceIndex(
       continue; // Self-reference: meaningless, silently omitted.
     }
 
-    if (registryUnreadable) {
+    if (registryEntries === null) {
       entries.push({
         store_id: id,
         status: [
@@ -255,7 +256,7 @@ export async function assembleReferenceIndex(
       continue;
     }
 
-    const registryEntry = registryEntries?.find((candidate) => candidate.id === id);
+    const registryEntry = registryEntries.find((candidate) => candidate.id === id);
     if (!registryEntry) {
       entries.push({
         store_id: id,
@@ -333,12 +334,4 @@ export async function assembleReferenceIndex(
   }
 
   return entries;
-}
-
-function canonicalize(candidate: string): string {
-  try {
-    return FileSystemUtils.canonicalizeExistingPath(candidate);
-  } catch {
-    return candidate;
-  }
 }

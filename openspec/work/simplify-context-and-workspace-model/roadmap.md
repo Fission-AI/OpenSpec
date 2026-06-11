@@ -109,9 +109,10 @@ an item are status steps for that numbered work item.
   Fully absorbed: 2.1 shipped inside slice 1.2, 2.2 folded into slice 1.4,
   and 2.3 folded into item 4.1. No independent work remains here.
 - [ ] **Phase 3. Say how roots relate: references and targets.**
-  Not started. References (a project repo draws on stores; headline
-  PM/architect-to-dev layering use case) come before targets and the local
-  repo map.
+  3.1 (references) is implemented and tested: a repo's config declares
+  the stores its work draws on, and instructions output carries a live
+  index of their specs with fetch recipes. 3.2 (declared-store
+  fallback) is next; targets and the local repo map follow.
 - [ ] **Phase 4. Assemble the working context.**
   Not started. Rebuilds opening around assembled context; absorbs old 2.3.
 - [ ] **Phase 5. Remove old surfaces only when they confuse the simple path.**
@@ -124,16 +125,16 @@ an item are status steps for that numbered work item.
 
 Next incomplete item:
 
-- [ ] **3.1 Let a project repo reference the stores its work draws on.**
-  In plain English: high-level requirements live in the team's planning
-  repo (a store); an agent working in the app repo reads them from there
-  and cites them, without the human naming the store every session and
-  without commands being redirected there. The locked Phase 3 decisions
-  apply (index-not-inline; declarations in `openspec/config.yaml`;
-  relationships are location, declaration, or citation). Spec and plan
-  written and reviewed (`slices/store-references/`); implementation is
-  next. (The 5.1 first tranche — the command-group deletion — is
-  implemented and reviewed; the Phase 5 remainder runs after 4.1.)
+- [ ] **3.2 Fall back to a declared store when no local root exists.**
+  In plain English: a repo whose planning is fully externalized (no
+  local `openspec/`) declares its store once and runs normal commands
+  without `--store` on every invocation. The locked decisions apply:
+  the declaration lives in `openspec/config.yaml` (a config-only
+  `openspec/` dir — no `specs/` or `changes/`), fallback never
+  override, root detection stays a stat-only walk with two extra
+  stats, and doctor warns when a root has both planning shape and a
+  pointer. Spec not yet written. (3.1 is implemented and reviewed; the
+  5.1 first tranche is done; the Phase 5 remainder runs after 4.1.)
 
 ## Phase 0. Make The Active Direction Easy To Find
 
@@ -691,12 +692,18 @@ Phase checklist:
 
 ### 3.1 Let A Project Repo Reference The Stores Its Work Draws On
 
+Slice: `slices/store-references/spec.md`
+
 Progress:
 
-- [ ] Spec written.
-- [ ] Plan written.
-- [ ] Implementation done.
-- [ ] Tests pass.
+- [x] Spec written.
+- [x] Plan written.
+- [x] Implementation done (config field, the index assembler with five
+  warning codes and the shared 50KB budget, both instruction surfaces
+  in both modes, docs subsection; three-mechanism post-implementation
+  review and a simplify pass folded).
+- [x] Tests pass (full suite green, 88 files / 1641 tests; unit,
+  surface, and e2e layered-flow coverage).
 - [ ] Merged to `main`.
 
 Plain-English version:
@@ -1356,6 +1363,26 @@ is working:
   a deliberate fourth partial edit, and the spec's byte-stable clause
   now allows the new removal-coverage tests. The reworded constraint
   string gets its first-ever pin in the new test.
+- 2026-06-11: Implemented slice 3.1 (store references) in two
+  checkpoints plus a review-fix round: `references:` in
+  `openspec/config.yaml` (raw-string parsing), the
+  `src/core/references.ts` assembler (one registry read, the narrow
+  `inspectRegisteredStore` extraction shared with `resolveStoreRoot`,
+  fence-aware first-Purpose-line summaries, five warning codes, the
+  50KB budget shared with the context cap and measured against the
+  real rendering in UTF-8 bytes), and the index wired into both
+  instruction surfaces in both modes with an omitted-not-empty JSON
+  contract. Three post-implementation review mechanisms found no P1s;
+  the six converged findings (fence-poisoned summaries, the
+  empty-vs-omitted contract, the orphan truncation fix line, budget
+  under-counting, corrupt-registry branch ordering, a throwing
+  inspection path) were fixed with regression tests, and a simplify
+  pass consolidated the new test fixtures into
+  `test/helpers/openspec-fixtures.ts`, deleted a dead defensive
+  wrapper, and single-sourced the 50KB cap. Full suite green
+  (88 files, 1641 tests); the e2e layered-flow test proves the
+  PM-to-dev journey against the built binary including the verbatim
+  fetch.
 - 2026-06-11: Wrote the store-references plan (3.1, two checkpoints)
   and folded two parallel plan reviews (both approve-with-fixes): pure
   renderers live in core beside the assembler so the 50KB budget

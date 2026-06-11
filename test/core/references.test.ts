@@ -15,6 +15,7 @@ import {
   writeStoreRegistryState,
 } from '../../src/core/store/foundation.js';
 import type { ResolvedOpenSpecRoot } from '../../src/core/root-selection.js';
+import { createOpenSpecRoot, writeSpec } from '../helpers/openspec-fixtures.js';
 
 describe('reference index assembly', () => {
   let tempDir: string;
@@ -33,18 +34,6 @@ describe('reference index assembly', () => {
     const dir = path.join(tempDir, relativePath);
     fs.mkdirSync(dir, { recursive: true });
     return dir;
-  }
-
-  function createOpenSpecRoot(rootDir: string): void {
-    fs.mkdirSync(path.join(rootDir, 'openspec', 'specs'), { recursive: true });
-    fs.mkdirSync(path.join(rootDir, 'openspec', 'changes', 'archive'), { recursive: true });
-    fs.writeFileSync(path.join(rootDir, 'openspec', 'config.yaml'), 'schema: spec-driven\n');
-  }
-
-  function writeSpec(storeRoot: string, specId: string, body: string): void {
-    const specDir = path.join(storeRoot, 'openspec', 'specs', specId);
-    fs.mkdirSync(specDir, { recursive: true });
-    fs.writeFileSync(path.join(specDir, 'spec.md'), body);
   }
 
   async function registerStore(

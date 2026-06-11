@@ -141,7 +141,7 @@ export async function instructionsCommand(
     const { projectConfig, references } = await loadConfigAndReferences(root);
     const instructions = generateInstructions(context, artifactId, projectRoot, {
       projectConfig,
-      ...(references !== undefined ? { references } : {}),
+      references,
     });
     const isBlocked = instructions.dependencies.some((d) => !d.done);
 
@@ -314,16 +314,16 @@ function parseTasksFile(content: string): TaskItem[] {
   return tasks;
 }
 
-/**
- * Generates apply instructions for implementing tasks from a change.
- * Schema-aware: reads apply phase configuration from schema to determine
- * required artifacts, tracking file, and instruction.
- */
 export interface GenerateApplyInstructionsOptions {
   planningHome?: PlanningHome;
   references?: ReferenceIndexEntry[];
 }
 
+/**
+ * Generates apply instructions for implementing tasks from a change.
+ * Schema-aware: reads apply phase configuration from schema to determine
+ * required artifacts, tracking file, and instruction.
+ */
 export async function generateApplyInstructions(
   projectRoot: string,
   changeName: string,

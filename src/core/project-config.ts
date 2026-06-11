@@ -51,7 +51,7 @@ export const ProjectConfigSchema = z.object({
 
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
 
-const MAX_CONTEXT_SIZE = 50 * 1024; // 50KB hard limit
+export const MAX_CONTEXT_SIZE = 50 * 1024; // 50KB hard limit, shared with the references index
 
 /**
  * Read and parse openspec/config.yaml from project root.
