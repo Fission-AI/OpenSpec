@@ -132,10 +132,10 @@ Next incomplete item:
   reference diagnostics (3.1), the both-shapes/pointer warnings
   (3.2), canonical vs observed remotes (3.3), target declarations
   (3.4), and the repo map with its silence-by-design unmapped/corrupt
-  cases (3.5) all deferred their roll-up here. Spec written and
-  reviewed (`slices/relationship-health/`); plan is next. (3.1–3.5 are
-  implemented and reviewed; the 5.1 first tranche is done; the Phase 5
-  remainder runs after 4.1.)
+  cases (3.5) all deferred their roll-up here. Spec and plan written
+  and reviewed (`slices/relationship-health/`); implementation is
+  next. (3.1–3.5 are implemented and reviewed; the 5.1 first tranche
+  is done; the Phase 5 remainder runs after 4.1.)
 
 ## Phase 0. Make The Active Direction Easy To Find
 
@@ -1392,6 +1392,28 @@ is working:
   a deliberate fourth partial edit, and the spec's byte-stable clause
   now allows the new removal-coverage tests. The reworded constraint
   string gets its first-ever pin in the new test.
+- 2026-06-11: Wrote the relationship-health plan (3.6, two
+  checkpoints) and folded two plan reviews (subagent:
+  approve-with-fixes with a P1; codex: reject with two P1s —
+  converging). The P1s: the registry-injection option would have
+  inverted the established null semantics (readStoreRegistryState
+  returns null for a healthy-ABSENT registry and throws for a corrupt
+  one — a naive null-for-unreadable injection would mark every fresh
+  machine unreadable; the option is now `registryEntries: [] | null`
+  mirroring the assembler's post-read variable); `resolveRootForCommand`
+  forwards only store/storePath, so `allowImplicitRoot` must be an
+  additive pass-through; and the targets assembly omitted
+  `storeConfigPath` while the invalid-id synthesis would have required
+  parsing ids out of message strings (the inspector now receives the
+  raw declarations and recovers ids with isKebabId). Also folded: the
+  inert-pointer re-walk named explicitly (the resolved declared root
+  is the STORE — `findRepoPlanningRootSync(process.cwd())` finds the
+  pointer dir, with a subdirectory e2e); the human-rendering
+  contradiction resolved (the spec transcript's three headings are
+  authoritative; JSON keeps the four-key separation); the
+  truncation-never and pass-through pins mapped; the failure payload
+  drops its dead status key; null-targets normalization owned by the
+  inspector; field-absence (not emptiness) pinned.
 - 2026-06-11: Wrote the relationship-health slice spec (3.6) and
   folded two adversarial reviews (both approve-with-fixes, two P1s
   each, converging). The P1s: the exit-code rule cited a `store
