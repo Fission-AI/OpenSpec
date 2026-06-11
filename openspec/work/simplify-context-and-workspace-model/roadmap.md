@@ -127,14 +127,16 @@ Next incomplete item:
 
 - [ ] **3.2 Fall back to a declared store when no local root exists.**
   In plain English: a repo whose planning is fully externalized (no
-  local `openspec/`) declares its store once and runs normal commands
-  without `--store` on every invocation. The locked decisions apply:
-  the declaration lives in `openspec/config.yaml` (a config-only
-  `openspec/` dir — no `specs/` or `changes/`), fallback never
-  override, root detection stays a stat-only walk with two extra
-  stats, and doctor warns when a root has both planning shape and a
-  pointer. Spec not yet written. (3.1 is implemented and reviewed; the
-  5.1 first tranche is done; the Phase 5 remainder runs after 4.1.)
+  local `openspec/` planning shape) declares its store once and runs
+  normal commands without `--store` on every invocation. The locked
+  decisions apply: the declaration lives in `openspec/config.yaml` (a
+  config-only `openspec/` dir), fallback never override, root detection
+  stays a stat-only walk with two extra directory stats, and the
+  both-shapes warning fires in resolution (recorded amendment of the
+  "doctor" wording). Spec written and reviewed
+  (`slices/declared-store-fallback/`); plan is next. (3.1 is
+  implemented and reviewed; the 5.1 first tranche is done; the Phase 5
+  remainder runs after 4.1.)
 
 ## Phase 0. Make The Active Direction Easy To Find
 
@@ -1363,6 +1365,30 @@ is working:
   a deliberate fourth partial edit, and the spec's byte-stable clause
   now allows the new removal-coverage tests. The reworded constraint
   string gets its first-ever pin in the new test.
+- 2026-06-11: Wrote the declared-store-fallback slice spec (3.2) and
+  folded two adversarial reviews (subagent: approve-with-fixes with a
+  P1; codex: reject with two P1s — converging). The biggest catch: the
+  spec's own UX example used a relative path while its core decision
+  requires declared roots to behave exactly like `--store` roots; the
+  fix is one store-selected predicate (`storeId` set) adopted by all
+  seven `source === 'store'` consumers (banner, hints, new-change
+  display, status threading, validate/show suggestion suppression,
+  archive's absolute cross-root paths). Also folded: `openspec init`
+  refuses to scaffold a pointer directory (conversion requires
+  removing the `store:` line first); malformed pointers fail with
+  `invalid_store_pointer` instead of silently flipping the write
+  target; pointer resolution is one hop; the resolver's config read is
+  warning-silent; the two shape stats require directories; the
+  declaration-origin error is a true prefix via a `declaredOrigin`
+  parameter on the shared pipeline (no fork).
+- 2026-06-11: Decided autonomously (review me): amended the locked 3.2
+  wording "doctor warns when a root has both planning shape and a
+  pointer" — no project-level doctor command exists, so the warning
+  lives in resolution stderr (once per invocation, both modes), and
+  3.6 owns the structured health surface. Also decided: a config-only
+  directory with no `store:` key keeps today's root behavior (freshly
+  initialized minimal roots keep working); hint continuity appends
+  `--store <id>` for declared roots so pasted hints work from any cwd.
 - 2026-06-11: Implemented slice 3.1 (store references) in two
   checkpoints plus a review-fix round: `references:` in
   `openspec/config.yaml` (raw-string parsing), the
