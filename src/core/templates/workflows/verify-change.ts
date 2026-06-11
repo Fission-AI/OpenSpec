@@ -38,8 +38,6 @@ ${STORE_SELECTION_GUIDANCE}
    - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context
    - Which artifacts exist for this change
 
-   If status reports \`actionContext.mode: "workspace-planning"\`, explain that full workspace implementation verification is not supported in this slice and STOP. Do not infer repo-local implementation ownership or edit linked repos.
-
 3. **Get planning context and load artifacts**
 
    \`\`\`bash
@@ -211,8 +209,6 @@ ${STORE_SELECTION_GUIDANCE}
    - \`schemaName\`: The workflow being used (e.g., "spec-driven")
    - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context
    - Which artifacts exist for this change
-
-   If status reports \`actionContext.mode: "workspace-planning"\`, explain that full workspace implementation verification is not supported in this slice and STOP. Do not infer repo-local implementation ownership or edit linked repos.
 
 3. **Get planning context and load artifacts**
 

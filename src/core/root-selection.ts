@@ -448,7 +448,7 @@ export function withStoreFlag(root: ResolvedOpenSpecRoot, command: string): stri
 
 /**
  * Compatibility bridge for workflow code that still expects a PlanningHome.
- * Normal commands never produce `kind: 'workspace'`.
+ * The planning home is always repo-shaped.
  */
 export function toPlanningHome(root: ResolvedOpenSpecRoot): PlanningHome {
   return {

@@ -485,18 +485,6 @@ export async function readRegistrySnapshot(
   }
 }
 
-export async function getRepoPath(
-  id: string,
-  options: { globalDataDir?: string } = {}
-): Promise<string | null> {
-  try {
-    const registry = await readStoreRegistryState(options);
-    return registry?.repos?.[id]?.local_path ?? null;
-  } catch {
-    return null;
-  }
-}
-
 function validateRepoIdOrThrow(id: string): string {
   if (!isKebabId(id)) {
     throw new StoreError(

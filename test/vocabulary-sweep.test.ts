@@ -76,7 +76,7 @@ describe('vocabulary sweep', () => {
     // survivors; a new (workspace|initiative)_ token in src/ must be a
     // deliberate decision, not drift. 4.1 deleting workspace_skills is
     // the expected next edit here (update the ledger with it).
-    const allowed = new Set(['initiative_option_removed', 'workspace_skills']);
+    const allowed = new Set(['initiative_option_removed', ]);
     const found = new Set<string>();
     const pattern = /(workspace|initiative)_[a-z_]+/g;
 

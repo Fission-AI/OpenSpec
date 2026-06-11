@@ -44,8 +44,6 @@ ${STORE_SELECTION_GUIDANCE}
       - Parse \`schemaName\`, \`artifacts\`, \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`
       - Note which artifacts are \`done\` vs other states
 
-      If any selected change reports \`actionContext.mode: "workspace-planning"\`, explain that workspace bulk archive is not supported in this slice and STOP before syncing specs or moving changes. Do not fall back to repo-local paths or edit linked repos.
-
    b. **Task completion** - Read \`artifactPaths.tasks.existingOutputPaths\` from status JSON
       - Count \`- [ ]\` (incomplete) vs \`- [x]\` (complete)
       - If no tasks file exists, note as "No tasks"
@@ -294,8 +292,6 @@ ${STORE_SELECTION_GUIDANCE}
    a. **Artifact status** - Run \`openspec status --change "<name>" --json\`
       - Parse \`schemaName\`, \`artifacts\`, \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`
       - Note which artifacts are \`done\` vs other states
-
-      If any selected change reports \`actionContext.mode: "workspace-planning"\`, explain that workspace bulk archive is not supported in this slice and STOP before syncing specs or moving changes. Do not fall back to repo-local paths or edit linked repos.
 
    b. **Task completion** - Read \`artifactPaths.tasks.existingOutputPaths\` from status JSON
       - Count \`- [ ]\` (incomplete) vs \`- [x]\` (complete)

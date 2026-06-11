@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-import { buildActionContext } from '../../src/core/change-status-policy.js';
+import { } from '../../src/core/change-status-policy.js';
 import { getGlobalDataDir, registerStore } from '../../src/core/index.js';
 import { runCLI } from '../helpers/run-cli.js';
 import { createHealthyOpenSpecRoot } from '../helpers/store-git.js';
@@ -182,23 +182,4 @@ describe('legacy command groups are removed', () => {
     expect(JSON.parse(result.stdout).actionContext.mode).toBe('repo-local');
   });
 
-  it('keeps the workspace-planning library contract with the reworded constraint', () => {
-    const context = buildActionContext({
-      planningHome: {
-        kind: 'workspace',
-        root: tempDir,
-        changesDir: path.join(tempDir, 'changes'),
-        defaultSchema: 'workspace-planning',
-        workspace: { name: 'platform', links: [] },
-      },
-      projectRoot: tempDir,
-      artifactIds: [],
-    });
-
-    expect(context.mode).toBe('workspace-planning');
-    expect(context.constraints).toContain(
-      'Treat existing initiative context as read-only coordination context.'
-    );
-    expect(context.constraints.join(' ')).not.toContain('Use initiatives');
-  });
 });

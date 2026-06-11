@@ -9,7 +9,6 @@ import {
   readStoreRegistryState,
 } from '../../../src/core/store/foundation.js';
 import {
-  getRepoPath,
   listRepoEntries,
   registerRepo,
   registerStore,
@@ -198,16 +197,6 @@ describe('repo map (3.5)', () => {
   });
 
   describe('lookups', () => {
-    it('getRepoPath returns the stored canonical path, null on miss or corrupt registry', async () => {
-      const repoDir = mkdir('src/api-server');
-      await registerRepo({ id: 'api-server', path: repoDir, globalDataDir });
-
-      expect(await getRepoPath('api-server', { globalDataDir })).toBe(repoDir);
-      expect(await getRepoPath('ghost', { globalDataDir })).toBeNull();
-
-      fs.writeFileSync(path.join(globalDataDir, 'stores', 'registry.yaml'), ':[ broken');
-      expect(await getRepoPath('api-server', { globalDataDir })).toBeNull();
-    });
 
     it('listRepoEntries sorts by id', async () => {
       await registerRepo({ id: 'web-app', path: mkdir('src/web'), globalDataDir });

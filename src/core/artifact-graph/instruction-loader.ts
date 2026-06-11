@@ -9,10 +9,8 @@ import { FileSystemUtils } from '../../utils/file-system.js';
 import {
   buildActionContext,
   buildNextSteps,
-  summarizeAffectedAreas,
   summarizePlanningHome,
   type ActionContext,
-  type AffectedAreasSummary,
   type PlanningHomeSummary,
 } from '../change-status-policy.js';
 import { readProjectConfig, validateConfigRules, type ProjectConfig } from '../project-config.js';
@@ -153,8 +151,6 @@ export interface ChangeStatus {
   changeRoot: string;
   /** Absolute artifact path details keyed by artifact ID */
   artifactPaths: Record<string, ArtifactPathSummary>;
-  /** Workspace affected-area summary, when available */
-  affectedAreas?: AffectedAreasSummary;
   /** Plain-language next steps for users and agents */
   nextSteps: string[];
   /** Machine-readable action constraints for agents */
@@ -462,10 +458,6 @@ export function formatChangeStatus(
   const buildOrder = context.graph.getBuildOrder();
   const orderMap = new Map(buildOrder.map((id, idx) => [id, idx]));
   artifactStatuses.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
-  const affectedAreas = summarizeAffectedAreas({
-    planningHome: context.planningHome,
-    metadata: context.metadata,
-  });
   const isComplete = context.graph.isComplete(context.completed);
   const artifactIds = artifactStatuses.map((artifact) => artifact.id);
 
@@ -475,14 +467,12 @@ export function formatChangeStatus(
     ...(context.initiative ? { initiative: context.initiative } : {}),
     changeRoot: context.changeDir,
     artifactPaths,
-    affectedAreas,
     isComplete,
     applyRequires,
     nextSteps: buildNextSteps({
       changeName: context.changeName,
       planningHome: context.planningHome,
       artifactStatuses,
-      affectedAreas,
       allArtifactsComplete: isComplete,
       ...(options.storeId ? { storeId: options.storeId } : {}),
     }),

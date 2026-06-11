@@ -36,8 +36,6 @@ ${STORE_SELECTION_GUIDANCE}
    openspec status --change "<name>" --json
    \`\`\`
 
-   If status reports \`actionContext.mode: "workspace-planning"\`, explain that workspace spec sync is not supported in this slice and STOP. Do not fall back to repo-local paths or edit linked repos.
-
 3. **Find delta specs**
 
    Use \`artifactPaths.specs.existingOutputPaths\` from the status JSON as the list of delta spec files.
@@ -185,8 +183,6 @@ ${STORE_SELECTION_GUIDANCE}
    \`\`\`bash
    openspec status --change "<name>" --json
    \`\`\`
-
-   If status reports \`actionContext.mode: "workspace-planning"\`, explain that workspace spec sync is not supported in this slice and STOP. Do not fall back to repo-local paths or edit linked repos.
 
 3. **Find delta specs**
 

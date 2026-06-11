@@ -70,12 +70,16 @@ of slice 1.4 and is recorded in that slice's history.)
 - workspace_name, workspace_agent, workspace_opener (option/zod field
   names in the deleted command layer)
 
-## Dead-export carve-outs (kept, owner: 4.1)
+## Dead-export carve-outs (EXECUTED by 4.1 on 2026-06-11)
 
 Exports inside kept modules whose last consumer died with this slice.
-Kept because they belong to the workspace state model that 4.1 replaces;
-the capstone's dead-code sweep should treat them as recorded carve-outs,
-not misses:
+They belonged to the workspace state model that 4.1 replaced; 4.1
+deleted every entry below, WIDENED to whole-module deaths where the
+keep-rationale collapsed (`src/core/workspace/` whole, `binding.ts`
+whole, `getRepoPath`, the five template guards, the planning-home and
+change-status-policy workspace branches, the library pins that froze
+them, and the `workspace_skills` vocabulary-allowlist entry). The
+historical list:
 
 - `findWorkspaceRoot`, `isWorkspaceRoot` —
   `src/core/workspace/state-io.ts`
