@@ -11,6 +11,7 @@ import ora from 'ora';
 import * as fs from 'fs';
 import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
+import { readStorePointer } from './project-config.js';
 import { transformToHyphenCommands } from '../utils/command-references.js';
 import {
   AI_TOOLS,
@@ -109,6 +110,24 @@ export class InitCommand {
 
     // Validation happens silently in the background
     const extendMode = await this.validate(projectPath, openspecPath);
+
+    // Pointer guard (slice 3.2): a config-only openspec/ with a store:
+    // declaration is externalized planning, not a root to extend.
+    // Refuse before legacy cleanup, migration, or prompts touch anything.
+    if (extendMode) {
+      const hasPlanningShape =
+        (await FileSystemUtils.directoryExists(path.join(openspecPath, 'specs'))) ||
+        (await FileSystemUtils.directoryExists(path.join(openspecPath, 'changes')));
+      if (!hasPlanningShape) {
+        const pointer = readStorePointer(projectPath);
+        if (pointer.value !== undefined) {
+          throw new Error(
+            `This repo's planning is externalized to store '${pointer.value}' (${pointer.filePath}). ` +
+              `Remove the store: line first to convert this repo to a local OpenSpec root.`
+          );
+        }
+      }
+    }
 
     // Check for legacy artifacts and handle cleanup
     await this.handleLegacyCleanup(projectPath, extendMode);
