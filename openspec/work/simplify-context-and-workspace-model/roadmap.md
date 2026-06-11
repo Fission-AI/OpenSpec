@@ -114,10 +114,9 @@ an item are status steps for that numbered work item.
   map, and the `openspec doctor` relationship-health roll-up are all
   implemented and tested on the working branch.
 - [ ] **Phase 4. Assemble the working context.**
-  4.1 is implemented and tested (`openspec context`, the workspace
-  opening machinery deleted; absorbed old 2.3). 4.2 (personal worksets:
-  compose, keep, and open a local working view) is specified at the FR
-  level and awaits its research/spec/implementation run.
+  Complete (merge to `main` pending): `openspec context` ships the
+  assembled working set; the old workspace opening machinery is
+  deleted (absorbed old 2.3).
 - [ ] **Phase 5. Remove old surfaces only when they confuse the simple path.**
   Criteria agreed (delete, sequenced). First tranche done: the
   `workspace` and `initiative` command groups are deleted (−12.9k net
@@ -125,16 +124,21 @@ an item are status steps for that numbered work item.
 - [ ] **Phase 6. Prove the whole, ready for first users.**
   The final acceptance capstone: persona journeys, usability and technical
   audits, whole-delta review, release-readiness report. Runs last.
+- [ ] **Phase 7. Keep and open personal worksets.**
+  User-directed follow-up (2026-06-12): a purely local, manually
+  composed, named working view, opened in the user's tool of choice.
+  Specified at the FR level in 7.1; awaits its research/spec/
+  implementation run.
 
 Next incomplete item:
 
-- [ ] **4.2 Personal worksets.**
+- [ ] **7.1 Personal worksets.**
   In plain English: let a user compose a personal, local working view
   (a planning root plus whatever folders they choose), keep it under a
   name on their machine, and reopen it in their tool of choice — VS
   Code/Cursor as a multi-folder window, Claude Code/codex as a session
   with every member accessible. Functional requirements and locked
-  decisions are in the 4.2 section; the slice starts with a research
+  decisions are in the 7.1 section; the slice starts with a research
   pass (storage shape, opener config, launch mechanics — old code at
   `f858c19^` is the evidence base). The original 2026-06-11 queue
   (1.4, the deletion slices, 3.1–3.6, 4.1, the 6.1 capstone) is
@@ -971,8 +975,6 @@ Phase checklist:
 
 - [x] **4.1** Assemble the working context from declared relationships.
   (Merge to `main` pending.)
-- [ ] **4.2** Personal worksets: compose, keep, and open a local working
-  view.
 
 ### 4.1 Assemble The Working Context From Declared Relationships
 
@@ -1028,7 +1030,165 @@ How the user or agent knows it worked:
 - The result does not imply clone, pull, push, sync, branch, worktree,
   dashboard, or edit-boundary enforcement.
 
-### 4.2 Personal Worksets: Compose, Keep, And Open A Local Working View
+## Phase 5. Remove Old Surfaces Only When They Confuse The Simple Path
+
+The user-facing goal of this phase:
+
+```text
+Remove or hide old beta surfaces only when they make the simple path harder to
+use or understand.
+```
+
+Phase checklist:
+
+- [x] **5.1** Remove or hide old workspace and initiative paths when they block or
+  confuse the simple path. (Merge to `main` pending.)
+
+### 5.1 Remove Or Hide Old Workspace And Initiative Paths
+
+Progress:
+
+- [x] Criteria agreed (2026-06-11): **delete, don't hide — sequenced.**
+  With zero users, hiding keeps every cost (rot, grep noise, refactors
+  routing around dead code) and adds a hidden/visible distinction to
+  protect nobody. Sequence: guidance surfaces die in slice 1.4 (planned),
+  the `workspace` and `initiative` command groups become their own small
+  deletion slice soon after 1.4, and the workspace **state model** plus
+  the `workspace-planning` mode die when 4.1 replaces opening
+  (zero-consumer opening helpers go with the command groups — keeping
+  unreachable files would be hiding, which these criteria reject; wording
+  narrowed 2026-06-11 during the deletion-slice spec, recorded as a
+  reviewable autonomous decision). The inviolable carve-out stays: never
+  auto-delete user data files. "Hide now, delete later" is rejected
+  because later never comes.
+- [x] Cleanup plan written (first tranche: the command-group deletion
+  slice, `slices/delete-legacy-command-groups/`; spec and plan both
+  through two adversarial review rounds).
+- [x] Cleanup done. First tranche complete 2026-06-11: the `workspace`
+  and `initiative` command groups and everything only they consumed are
+  deleted (−12,903 net lines), with the deletion ledger committed. The
+  remainder executed 2026-06-11 after 4.1
+  (`slices/delete-legacy-command-groups/remainder.md`):
+  `schemas/workspace-planning/` deleted (it was still advertised by
+  `openspec schemas`); the four `workspace-*` beta change folders
+  deleted (unimplemented relics — archiving would assert completion);
+  L2 decided — the four wholly-workspace accepted specs deleted
+  (capability gone = spec gone), the workspace requirements excised
+  from `cli-config` and `cli-artifact-workflow` (bounded, not a
+  rewrite), incidental mentions elsewhere recorded for the capstone
+  vocabulary audit.
+- [x] Tests or review checks pass. First tranche green (85 files, 1616
+  tests; three-mechanism review, no open P1/P2). Remainder green
+  (96 files, 1714 tests; all 36 accepted specs validate).
+- [ ] Merged to `main`.
+
+What the user can do:
+
+- Follow the simple OpenSpec root path without being distracted by obsolete beta
+  workflows.
+
+Why it matters:
+
+- Cleanup is useful only when it reduces confusion or removes a blocker.
+- It should not become a broad compatibility project or docs rewrite.
+
+What changes in commands or files:
+
+- Obsolete no-delta workspace changes can be deleted, archived, or moved out of
+  the active queue.
+- Workspace-planning and initiative-collection code, docs, specs, and generated
+  guidance can be removed or moved out of the main path where they mislead
+  users or agents.
+- Existing user data is not deleted automatically.
+
+How the user or agent knows it worked:
+
+- The active roadmap and generated guidance point to the simple path.
+- Old surfaces no longer look like required workflow.
+
+## Phase 6. Prove The Whole, Ready For First Users
+
+The user-facing goal of this phase:
+
+```text
+A person with zero context can start using this today: every persona
+journey works cold, every error leads somewhere, and the codebase ended
+leaner than it started.
+```
+
+Phase checklist:
+
+- [ ] **6.1** Final acceptance capstone.
+
+### 6.1 Final Acceptance Capstone
+
+The slices prove themselves; this proves the product — the sum of all
+phases, reviewed and exercised as one thing. Full checklist in
+`runbook.md` ("Final acceptance capstone").
+
+Progress:
+
+- [x] Persona journeys pass (fresh team, layered PM-to-dev, externalized
+  planning, cold-start agent with no insider knowledge). Results:
+  `capstone/journeys.md` — journeys 1–3 as standing e2e
+  (store-lifecycle + capstone-journeys test files), journey 4 as a
+  live headless codex dogfood that assembled the full store/pointer/
+  targets/repo-map topology from `--help` alone.
+- [x] Usability audits done (error catalog, vocabulary sweep including
+  `docs/cli.md`, time-to-first-success documented). Results:
+  `capstone/usability-audits.md` — 55 wrong turns walked (46 pass; the
+  9 failures are queued for the capstone fix round before the report);
+  vocabulary clean except one legacy initiative JSON passthrough
+  (queued); TTFS measured live at 2 commands / 2 concepts with every
+  step printing the next command.
+- [x] Technical audits done (single-resolver invariant, dependency
+  direction, dead code, module sizes, agent-contract inventory, net LOC
+  delta reported). Results: `capstone/technical-audits.md` — both
+  invariants HOLD with zero violations; dead code yields five P3s
+  (queued) and no P2s; module sizes bounded (largest 1,160 lines); the
+  agent contract is documented in `docs/agent-contract.md` (every JSON
+  shape + 100+ diagnostic codes verified against emitting code, 14
+  consistency findings recorded, one gauntlet-grade); src net LOC is
+  **−4,478** vs origin/main.
+- [x] Whole-delta review gauntlet over `origin/main...HEAD` passed with no
+  open P1/P2 findings. Four mechanisms (`capstone/gauntlet.md`); the 2
+  P1 + 13 P2 findings all fixed (37ad867) and live re-verified; full
+  suite green (97 files, 1,717 tests); all 36 accepted specs validate.
+- [x] Release-readiness report committed
+  (`capstone/release-readiness.md`) — the five-minute story, all audit
+  results, the autonomous-decision ledger, known gaps mapped to Later
+  Ideas. No open P1/P2 findings.
+- [ ] Merged to `main`.
+
+Why it matters:
+
+- Each slice was reviewed against its own base; nobody has reviewed or
+  exercised the sum. Cross-slice inconsistencies, vocabulary drift, and
+  cold-start failures live exactly there.
+- "Could start using it straight away with no issues" is a product claim
+  that checkboxes cannot make; only journeys and audits can.
+
+How the user or agent knows it worked:
+
+- All four journeys run green as tests or headless dogfoods.
+- The release-readiness report reads as a credible first-user story, with
+  known gaps mapped to Later Ideas rather than discovered by users.
+
+## Phase 7. Keep And Open Personal Worksets
+
+The user-facing goal of this phase:
+
+```text
+Let me keep my own named view of the folders I work on together, and
+open them all with one command in the tool I choose.
+```
+
+Phase checklist:
+
+- [ ] **7.1** Personal worksets: compose, keep, and open a local working
+  view.
+
+### 7.1 Personal Worksets: Compose, Keep, And Open A Local Working View
 
 User-directed follow-up (owner design review, 2026-06-12; supersedes the
 change-anchored direction in `workset-direction.md` where they differ). A
@@ -1204,150 +1364,6 @@ directories, initiative binding, skills state, and repair subcommands
 are explicitly not inherited. Current code provides the
 `.code-workspace` builder (pure), the XDG storage idiom, and the
 prompt library.
-
-## Phase 5. Remove Old Surfaces Only When They Confuse The Simple Path
-
-The user-facing goal of this phase:
-
-```text
-Remove or hide old beta surfaces only when they make the simple path harder to
-use or understand.
-```
-
-Phase checklist:
-
-- [x] **5.1** Remove or hide old workspace and initiative paths when they block or
-  confuse the simple path. (Merge to `main` pending.)
-
-### 5.1 Remove Or Hide Old Workspace And Initiative Paths
-
-Progress:
-
-- [x] Criteria agreed (2026-06-11): **delete, don't hide — sequenced.**
-  With zero users, hiding keeps every cost (rot, grep noise, refactors
-  routing around dead code) and adds a hidden/visible distinction to
-  protect nobody. Sequence: guidance surfaces die in slice 1.4 (planned),
-  the `workspace` and `initiative` command groups become their own small
-  deletion slice soon after 1.4, and the workspace **state model** plus
-  the `workspace-planning` mode die when 4.1 replaces opening
-  (zero-consumer opening helpers go with the command groups — keeping
-  unreachable files would be hiding, which these criteria reject; wording
-  narrowed 2026-06-11 during the deletion-slice spec, recorded as a
-  reviewable autonomous decision). The inviolable carve-out stays: never
-  auto-delete user data files. "Hide now, delete later" is rejected
-  because later never comes.
-- [x] Cleanup plan written (first tranche: the command-group deletion
-  slice, `slices/delete-legacy-command-groups/`; spec and plan both
-  through two adversarial review rounds).
-- [x] Cleanup done. First tranche complete 2026-06-11: the `workspace`
-  and `initiative` command groups and everything only they consumed are
-  deleted (−12,903 net lines), with the deletion ledger committed. The
-  remainder executed 2026-06-11 after 4.1
-  (`slices/delete-legacy-command-groups/remainder.md`):
-  `schemas/workspace-planning/` deleted (it was still advertised by
-  `openspec schemas`); the four `workspace-*` beta change folders
-  deleted (unimplemented relics — archiving would assert completion);
-  L2 decided — the four wholly-workspace accepted specs deleted
-  (capability gone = spec gone), the workspace requirements excised
-  from `cli-config` and `cli-artifact-workflow` (bounded, not a
-  rewrite), incidental mentions elsewhere recorded for the capstone
-  vocabulary audit.
-- [x] Tests or review checks pass. First tranche green (85 files, 1616
-  tests; three-mechanism review, no open P1/P2). Remainder green
-  (96 files, 1714 tests; all 36 accepted specs validate).
-- [ ] Merged to `main`.
-
-What the user can do:
-
-- Follow the simple OpenSpec root path without being distracted by obsolete beta
-  workflows.
-
-Why it matters:
-
-- Cleanup is useful only when it reduces confusion or removes a blocker.
-- It should not become a broad compatibility project or docs rewrite.
-
-What changes in commands or files:
-
-- Obsolete no-delta workspace changes can be deleted, archived, or moved out of
-  the active queue.
-- Workspace-planning and initiative-collection code, docs, specs, and generated
-  guidance can be removed or moved out of the main path where they mislead
-  users or agents.
-- Existing user data is not deleted automatically.
-
-How the user or agent knows it worked:
-
-- The active roadmap and generated guidance point to the simple path.
-- Old surfaces no longer look like required workflow.
-
-## Phase 6. Prove The Whole, Ready For First Users
-
-The user-facing goal of this phase:
-
-```text
-A person with zero context can start using this today: every persona
-journey works cold, every error leads somewhere, and the codebase ended
-leaner than it started.
-```
-
-Phase checklist:
-
-- [ ] **6.1** Final acceptance capstone.
-
-### 6.1 Final Acceptance Capstone
-
-The slices prove themselves; this proves the product — the sum of all
-phases, reviewed and exercised as one thing. Full checklist in
-`runbook.md` ("Final acceptance capstone").
-
-Progress:
-
-- [x] Persona journeys pass (fresh team, layered PM-to-dev, externalized
-  planning, cold-start agent with no insider knowledge). Results:
-  `capstone/journeys.md` — journeys 1–3 as standing e2e
-  (store-lifecycle + capstone-journeys test files), journey 4 as a
-  live headless codex dogfood that assembled the full store/pointer/
-  targets/repo-map topology from `--help` alone.
-- [x] Usability audits done (error catalog, vocabulary sweep including
-  `docs/cli.md`, time-to-first-success documented). Results:
-  `capstone/usability-audits.md` — 55 wrong turns walked (46 pass; the
-  9 failures are queued for the capstone fix round before the report);
-  vocabulary clean except one legacy initiative JSON passthrough
-  (queued); TTFS measured live at 2 commands / 2 concepts with every
-  step printing the next command.
-- [x] Technical audits done (single-resolver invariant, dependency
-  direction, dead code, module sizes, agent-contract inventory, net LOC
-  delta reported). Results: `capstone/technical-audits.md` — both
-  invariants HOLD with zero violations; dead code yields five P3s
-  (queued) and no P2s; module sizes bounded (largest 1,160 lines); the
-  agent contract is documented in `docs/agent-contract.md` (every JSON
-  shape + 100+ diagnostic codes verified against emitting code, 14
-  consistency findings recorded, one gauntlet-grade); src net LOC is
-  **−4,478** vs origin/main.
-- [x] Whole-delta review gauntlet over `origin/main...HEAD` passed with no
-  open P1/P2 findings. Four mechanisms (`capstone/gauntlet.md`); the 2
-  P1 + 13 P2 findings all fixed (37ad867) and live re-verified; full
-  suite green (97 files, 1,717 tests); all 36 accepted specs validate.
-- [x] Release-readiness report committed
-  (`capstone/release-readiness.md`) — the five-minute story, all audit
-  results, the autonomous-decision ledger, known gaps mapped to Later
-  Ideas. No open P1/P2 findings.
-- [ ] Merged to `main`.
-
-Why it matters:
-
-- Each slice was reviewed against its own base; nobody has reviewed or
-  exercised the sum. Cross-slice inconsistencies, vocabulary drift, and
-  cold-start failures live exactly there.
-- "Could start using it straight away with no issues" is a product claim
-  that checkboxes cannot make; only journeys and audits can.
-
-How the user or agent knows it worked:
-
-- All four journeys run green as tests or headless dogfoods.
-- The release-readiness report reads as a credible first-user story, with
-  known gaps mapped to Later Ideas rather than discovered by users.
 
 ## Later Ideas
 
@@ -2227,12 +2243,13 @@ is working:
   permanently retired, lifecycle stays in skills/schemas. To be
   implemented as a follow-up slice under the standard discipline.
 - 2026-06-12: Continued owner design review replaced the change-anchored
-  workset direction with roadmap item 4.2, personal worksets: a purely
+  workset direction with roadmap item 7.1 (briefly numbered 4.2 the
+  same day; moved to its own Phase 7), personal worksets: a purely
   local, manually composed, named working view, opened via a two-style
   extensible opener table (`workspace-file` / `attach-dirs`); FR1
   (compose and keep) and FR2 (open in your tool) recorded with locked
   decisions — no starter prompt on agent opens, no `--print` mode,
-  desktop apps deferred, "workspace" stays retired. The 4.2 section
-  carries the research checklist; the runbook gained the 4.2 follow-up
+  desktop apps deferred, "workspace" stays retired. The 7.1 section
+  carries the research checklist; the runbook gained the 7.1 follow-up
   run invocation. `openspec context` and the repo map are explicitly
-  untouched by 4.2.
+  untouched by 7.1.
