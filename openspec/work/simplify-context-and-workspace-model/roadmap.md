@@ -136,10 +136,10 @@ Next incomplete item:
   declarations agents read, not machinery. The 3.3 standing constraint
   applies: target declarations do NOT go into `store.yaml` (the strict
   schema makes any new field there a cross-version protocol change) —
-  the store's `openspec/config.yaml` is the natural home. Spec written
-  and reviewed (`slices/store-targets/`); plan is next. (3.1–3.3 are
-  implemented and reviewed; the 5.1 first tranche is done; the Phase 5
-  remainder runs after 4.1.)
+  the store's `openspec/config.yaml` is the natural home. Spec and
+  plan written and reviewed (`slices/store-targets/`); implementation
+  is next. (3.1–3.3 are implemented and reviewed; the 5.1 first
+  tranche is done; the Phase 5 remainder runs after 4.1.)
 
 ## Phase 0. Make The Active Direction Easy To Find
 
@@ -1383,6 +1383,20 @@ is working:
   a deliberate fourth partial edit, and the spec's byte-stable clause
   now allows the new removal-coverage tests. The reworded constraint
   string gets its first-ever pin in the new test.
+- 2026-06-11: Wrote the store-targets plan (3.4, two checkpoints) and
+  folded two plan reviews (both approve-with-fixes): the artifact
+  human rendering anchored to `printInstructionsText` (the original
+  anchor named instruction-loader, which renders nothing); the
+  `--store <target-repo-id>` unknown-store pin and root-resolution
+  byte-identity added to the test matrix; `validateStoreId` delegates
+  its grammar test to the new neutral `isKebabId` so exactly one kebab
+  regex remains (the spec's one-source-of-truth claim was otherwise
+  unimplemented); `KebabIdentifierSchema` is a label factory, so the
+  schema usage carries the label call; the apply options bag carries
+  the resolved config path (the fix text needs the real .yaml/.yml
+  file and the resolver is private); inline expected strings replace
+  the snapshot wording (the repo has no snapshot files); the e2e gains
+  a second non-narrowed change and exit-0 asserts on warning cases.
 - 2026-06-11: Wrote the store-targets slice spec (3.4) and folded two
   adversarial reviews (both approve-with-fixes, converging): the apply
   surface loads change metadata inside `generateApplyInstructions`, so
