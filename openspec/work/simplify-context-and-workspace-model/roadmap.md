@@ -125,17 +125,17 @@ an item are status steps for that numbered work item.
 
 Next incomplete item:
 
-- [ ] **The Phase 5 remainder (close out 5.1).**
-  In plain English: with 4.1 done, decide the fate of everything the
-  5.1 first tranche deferred until after the rebuild: the
-  `schemas/workspace-planning/` schema directory (no src code names it
-  any more), the obsolete beta change folders under
-  `openspec/changes/`, and the parked L2 question (what happens to the
-  accepted workspace-era specs — `cli-config`, `workspace-open`,
-  `workspace-foundation`, `cli-artifact-workflow` — that REQUIRE
-  deleted behavior). Each gets a decide-delete-or-record treatment in
-  one slice-scale unit; then the 5.1 roadmap boxes tick fully. After
-  that, only the 6.1 capstone remains.
+- [ ] **6.1 Final acceptance capstone.**
+  In plain English: prove the whole is ready for first users — the
+  four persona journeys run cold, the usability audits (error catalog,
+  vocabulary sweep incl. docs, time-to-first-success), the technical
+  audits (single-resolver invariant, dependency direction, dead code
+  incl. every recorded carve-over, module sizes, agent-contract
+  inventory, net LOC delta), the whole-delta review gauntlet over
+  `origin/main...HEAD`, and the release-readiness report committed
+  with no open P1/P2 findings. Everything else in the queue is done
+  (1.4, the deletion slice + remainder, 3.1–3.6, 4.1 — all ticked
+  through Tests pass; merge to `main` deferred throughout).
 
 ## Phase 0. Make The Active Direction Easy To Find
 
@@ -1034,8 +1034,8 @@ use or understand.
 
 Phase checklist:
 
-- [ ] **5.1** Remove or hide old workspace and initiative paths when they block or
-  confuse the simple path.
+- [x] **5.1** Remove or hide old workspace and initiative paths when they block or
+  confuse the simple path. (Merge to `main` pending.)
 
 ### 5.1 Remove Or Hide Old Workspace And Initiative Paths
 
@@ -1057,14 +1057,22 @@ Progress:
 - [x] Cleanup plan written (first tranche: the command-group deletion
   slice, `slices/delete-legacy-command-groups/`; spec and plan both
   through two adversarial review rounds).
-- [ ] Cleanup done. First tranche complete 2026-06-11: the `workspace`
+- [x] Cleanup done. First tranche complete 2026-06-11: the `workspace`
   and `initiative` command groups and everything only they consumed are
   deleted (−12,903 net lines), with the deletion ledger committed. The
-  remainder (the fate of `schemas/workspace-planning/`, obsolete beta
-  change folders under `openspec/changes/`, and the L2 accepted-spec
-  decision) runs after 4.1 per the queue.
-- [ ] Tests or review checks pass. First tranche green (85 files, 1616
-  tests; three-mechanism post-implementation review, no open P1/P2).
+  remainder executed 2026-06-11 after 4.1
+  (`slices/delete-legacy-command-groups/remainder.md`):
+  `schemas/workspace-planning/` deleted (it was still advertised by
+  `openspec schemas`); the four `workspace-*` beta change folders
+  deleted (unimplemented relics — archiving would assert completion);
+  L2 decided — the four wholly-workspace accepted specs deleted
+  (capability gone = spec gone), the workspace requirements excised
+  from `cli-config` and `cli-artifact-workflow` (bounded, not a
+  rewrite), incidental mentions elsewhere recorded for the capstone
+  vocabulary audit.
+- [x] Tests or review checks pass. First tranche green (85 files, 1616
+  tests; three-mechanism review, no open P1/P2). Remainder green
+  (96 files, 1714 tests; all 36 accepted specs validate).
 - [ ] Merged to `main`.
 
 What the user can do:
@@ -1404,6 +1412,24 @@ is working:
   a deliberate fourth partial edit, and the spec's byte-stable clause
   now allows the new removal-coverage tests. The reworded constraint
   string gets its first-ever pin in the new test.
+- 2026-06-11: Executed the Phase 5 remainder, closing out 5.1
+  (decision record: `slices/delete-legacy-command-groups/
+  remainder.md`). Deleted `schemas/workspace-planning/` (no src code
+  named it after 4.1, but `openspec schemas` still ADVERTISED it — a
+  shipped invitation into a dead workflow); deleted the four
+  `workspace-*` beta change folders (unimplemented planning relics —
+  archiving would have asserted completion); decided L2: the four
+  wholly-workspace accepted specs (workspace-open,
+  workspace-foundation, workspace-change-planning, workspace-links)
+  deleted — an accepted-spec library that REQUIRES the impossible is
+  worse than one with a gap — and the workspace requirements excised
+  from cli-config (the profile-apply prompt flow) and
+  cli-artifact-workflow (the setup-commands and schema-instructions
+  requirements plus eight workspace-scoped scenarios), bounded
+  deliberately short of the broad docs rewrite the roadmap forbids.
+  Incidental workspace mentions in five other specs recorded as
+  capstone vocabulary-audit input. All 36 remaining accepted specs
+  validate; full suite green untouched (1714 tests).
 - 2026-06-11: Implemented slice 4.1 in two checkpoints plus a
   review-fix round and a simplify pass, completing Phase 4. CP1
   executed the deletion ledger's carve-outs widened to whole-module
