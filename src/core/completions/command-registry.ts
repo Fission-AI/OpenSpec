@@ -371,6 +371,70 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     ],
   },
   {
+    name: 'workset',
+    description: 'Compose, keep, and open personal working views (purely local)',
+    flags: [],
+    subcommands: [
+      {
+        name: 'create',
+        description: 'Compose and save a named working view of folders you choose',
+        acceptsPositional: true,
+        positionals: [{ name: 'name', optional: true }],
+        flags: [
+          {
+            name: 'member',
+            description:
+              'Member folder as <path> or <name>=<path>; repeatable, first is the primary',
+            takesValue: true,
+          },
+          {
+            name: 'tool',
+            description: 'Preferred tool to open this workset with',
+            takesValue: true,
+          },
+          COMMON_FLAGS.json,
+        ],
+      },
+      {
+        name: 'list',
+        description: 'Show saved worksets with their members',
+        flags: [COMMON_FLAGS.json],
+      },
+      {
+        name: 'ls',
+        description: 'Show saved worksets with their members',
+        flags: [COMMON_FLAGS.json],
+      },
+      {
+        name: 'open',
+        description:
+          'Open a saved workset in your tool (editor window or agent session)',
+        acceptsPositional: true,
+        positionals: [{ name: 'name' }],
+        flags: [
+          {
+            name: 'tool',
+            description: 'Open with this tool just this once',
+            takesValue: true,
+          },
+        ],
+      },
+      {
+        name: 'remove',
+        description: 'Delete a saved workset (member folders are never touched)',
+        acceptsPositional: true,
+        positionals: [{ name: 'name' }],
+        flags: [
+          {
+            name: 'yes',
+            description: 'Confirm removal non-interactively',
+          },
+          COMMON_FLAGS.json,
+        ],
+      },
+    ],
+  },
+  {
     name: 'repo',
     description: 'Map target repo ids to local checkout paths on this machine',
     flags: [],

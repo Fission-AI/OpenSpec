@@ -1,5 +1,5 @@
 import * as os from 'node:os';
-import { asStatus, printJson } from './shared-output.js';
+import { asStatus, printJson, isPromptCancellationError } from './shared-output.js';
 import * as path from 'node:path';
 import { Command } from 'commander';
 
@@ -219,12 +219,6 @@ function toDoctorOutput(result: StoreDoctorResult): StoreDoctorOutput {
 
 
 
-function isPromptCancellationError(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    (error.name === 'ExitPromptError' || error.message.includes('force closed the prompt with SIGINT'))
-  );
-}
 
 
 function formatPathForHuman(targetPath: string): string {

@@ -10,6 +10,19 @@ export function printJson(payload: unknown): void {
   console.log(JSON.stringify(payload, null, 2));
 }
 
+/**
+ * @inquirer prompts reject with ExitPromptError on Ctrl-C; commands
+ * translate that to `Cancelled.` + exit 130 (third caller extracted
+ * this here in slice 7.1).
+ */
+export function isPromptCancellationError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.name === 'ExitPromptError' ||
+      error.message.includes('force closed the prompt with SIGINT'))
+  );
+}
+
 export function asStatus(error: unknown, fallbackCode: string): StoreDiagnostic {
   if (error instanceof StoreError) {
     return error.diagnostic;

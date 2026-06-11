@@ -11,6 +11,7 @@ The OpenSpec CLI (`openspec`) provides terminal commands for project setup, vali
 | **Repo map** | `repo register`, `repo unregister`, `repo list` | Map target repo ids to local checkout paths on this machine |
 | **Health** | `doctor` | Report relationship health for the resolved root |
 | **Working context** | `context` | Assemble the working set (root + referenced stores + target repos) |
+| **Personal worksets** | `workset create`, `workset list`, `workset open`, `workset remove` | Keep and open personal, local working views in your tool |
 | **Browsing** | `list`, `view`, `show` | Explore changes and specs |
 | **Validation** | `validate` | Check changes and specs for issues |
 | **Lifecycle** | `archive` | Finalize completed changes |
@@ -33,6 +34,7 @@ These commands are interactive and designed for terminal use:
 |---------|---------|
 | `openspec init` | Initialize project (interactive prompts) |
 | `openspec view` | Interactive dashboard |
+| `openspec workset open <name>` | Open a saved workset (editor window or terminal agent session) |
 | `openspec config edit` | Open config in editor |
 | `openspec feedback` | Submit feedback via GitHub |
 | `openspec completion install` | Install shell completions |
@@ -57,6 +59,9 @@ These commands support `--json` output for programmatic use by AI agents and scr
 | `openspec store list` | Browse registered stores | `--json` for structured registrations |
 | `openspec store doctor` | Check local store setup | `--json` for structured diagnostics |
 | `openspec new change <id>` | Create repo-local change scaffolding | `--json`, plus `--store <id>` to use a registered store as the OpenSpec root |
+| `openspec workset create [name]` | Compose a personal working view | `--member <path> --json` for non-interactive composition |
+| `openspec workset list` | Browse saved worksets | `--json` for structured views |
+| `openspec workset remove <name>` | Delete a saved view | `--yes --json` for non-interactive removal |
 
 ---
 
@@ -358,6 +363,32 @@ openspec context [--store <id>] [--json] [--code-workspace <path> [--force]]
 The JSON brief is agent-consumable (each available referenced store carries its fetch recipe; unresolved members carry the same fixes instructions and doctor show). `--code-workspace` additionally writes a VS Code workspace file containing the root plus the available members (`ref:<id>`, `repo:<id>` folders) — the one write this command performs, refused without `--force` if the file exists. Unavailable members are reported, never guessed at.
 
 "Working context" is the assembled set; the `context:` field in `openspec/config.yaml` is project background injected into instructions — two different things. `openspec doctor` answers whether the set is healthy; `openspec context` answers what the set is.
+
+## Personal worksets
+
+A workset is a personal, named view of the folders you work on together — a planning root plus whatever else you choose — kept on your machine and reopened by name in your tool. It is purely local: never committed, never shared, never derived from declarations, and removing one never touches a member folder.
+
+```bash
+openspec workset create [name] [--member <path> | --member <name>=<path>]... [--tool <id>] [--json]
+openspec workset list [--json]
+openspec workset open <name> [--tool <id>]
+openspec workset remove <name> [--yes] [--json]
+```
+
+`create` runs a short guided flow (or takes `--member` flags non-interactively; the first member is the primary — sessions start there). `open` launches the chosen tool: editors (VS Code, Cursor) open a window with every member and return; CLI agents (Claude Code, codex) take over this terminal as a session with every member attached and no prompt pre-filled, ending when you exit. A member folder missing at open time is skipped with a note; the rest opens. The saved tool preference is overridable per open with `--tool`.
+
+Supporting a new tool is configuration, not code. Every tool is one of two launch styles — `workspace-file` (launched with the generated `.code-workspace`) or `attach-dirs` (one attach flag per member) — and the `openers` key in the global `config.json` (open it with `openspec config edit`) adds tools or adjusts built-ins per field:
+
+```json
+{
+  "openers": {
+    "zed": { "style": "workspace-file" },
+    "claude": { "attach_flag": "--dir" }
+  }
+}
+```
+
+All workset state lives under the global data dir's `worksets/` folder (the saved views plus the generated `<name>.code-workspace` files, regenerated on every open); deleting that folder removes every trace.
 
 ---
 
