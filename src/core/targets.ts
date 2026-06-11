@@ -9,7 +9,7 @@
  * targets never affect where commands act.
  */
 import { makeStoreDiagnostic, type StoreDiagnostic } from './store/errors.js';
-import { isKebabId } from './change-metadata/schema.js';
+import { isKebabId } from './id.js';
 import type { DeclarationEntry } from './project-config.js';
 
 export interface EffectiveTargets {

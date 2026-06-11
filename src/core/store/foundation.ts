@@ -2,7 +2,7 @@ import * as nodeFs from 'node:fs';
 import * as path from 'node:path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { z } from 'zod';
-import { isKebabId } from '../change-metadata/schema.js';
+import { isKebabId } from '../id.js';
 
 import { getGlobalDataDir } from '../global-config.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
@@ -35,6 +35,8 @@ export interface StoreRegistryEntryState {
 export interface StoreRegistryState {
   version: 1;
   stores: Record<string, StoreRegistryEntryState>;
+  /** Target repo id → local checkout mapping (slice 3.5). */
+  repos?: Record<string, { local_path: string }>;
 }
 
 export interface StoreRegistryEntry {
@@ -179,9 +181,16 @@ const RegistryEntrySchema = z.object({
   backend: GitBackendConfigSchema,
 }).strict();
 
+const RepoEntrySchema = z.object({
+  local_path: z.string().min(1),
+}).strict();
+
 const RegistryStateSchema = z.object({
   version: z.literal(1),
   stores: z.record(z.string(), RegistryEntrySchema),
+  // Typed sections (slice 3.5): target repo mappings live beside store
+  // registrations in one machine-local file.
+  repos: z.record(z.string(), RepoEntrySchema).optional(),
 }).strict();
 
 const MetadataStateSchema = z.object({
@@ -238,11 +247,11 @@ function parseYamlObject(content: string, label: string): unknown {
 
 function assertValidStoreIds(ids: string[], label: string): void {
   for (const id of ids) {
-    try {
-      validateStoreId(id);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      throw invalidStoreStateError(label, `'${id}': ${message}`);
+    if (!isKebabId(id)) {
+      throw invalidStoreStateError(
+        label,
+        `'${id}': must be kebab-case with lowercase letters, numbers, and single hyphen separators`
+      );
     }
   }
 }
@@ -259,10 +268,14 @@ export function parseStoreRegistryState(content: string): StoreRegistryState {
   }
 
   assertValidStoreIds(Object.keys(result.data.stores), 'store id');
+  if (result.data.repos) {
+    assertValidStoreIds(Object.keys(result.data.repos), 'repo id');
+  }
 
   return {
     version: 1,
     stores: result.data.stores,
+    ...(result.data.repos !== undefined ? { repos: result.data.repos } : {}),
   };
 }
 
@@ -297,10 +310,16 @@ export function serializeStoreRegistryState(state: StoreRegistryState): string {
   }
 
   assertValidStoreIds(Object.keys(result.data.stores), 'store id');
+  if (result.data.repos) {
+    assertValidStoreIds(Object.keys(result.data.repos), 'repo id');
+  }
 
+  // Omitted-when-absent: a repos-less registry serializes byte-identically
+  // to the pre-3.5 format.
   return stringifyYaml({
     version: 1,
     stores: result.data.stores,
+    ...(result.data.repos !== undefined ? { repos: result.data.repos } : {}),
   });
 }
 

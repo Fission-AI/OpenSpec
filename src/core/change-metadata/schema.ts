@@ -1,14 +1,7 @@
 import { z } from 'zod';
+import { isKebabId } from '../id.js';
 
-/**
- * The one kebab id grammar (Phase 3 lock: one id namespace). Store ids,
- * repo ids, change ids, and initiative ids all share it.
- */
-const KEBAB_ID_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
-
-export function isKebabId(value: string): boolean {
-  return KEBAB_ID_REGEX.test(value);
-}
+export { isKebabId } from '../id.js';
 
 const KebabIdentifierSchema = (label: string): z.ZodString =>
   z.string().superRefine((value, ctx) => {
