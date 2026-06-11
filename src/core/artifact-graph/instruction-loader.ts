@@ -471,13 +471,11 @@ export function formatChangeStatus(
     applyRequires,
     nextSteps: buildNextSteps({
       changeName: context.changeName,
-      planningHome: context.planningHome,
       artifactStatuses,
       allArtifactsComplete: isComplete,
       ...(options.storeId ? { storeId: options.storeId } : {}),
     }),
     actionContext: buildActionContext({
-      planningHome: context.planningHome,
       projectRoot: context.projectRoot,
       artifactIds,
     }),

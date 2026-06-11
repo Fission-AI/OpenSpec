@@ -39,8 +39,10 @@ export interface AssembleWorkingSetInput {
   /** Target entries with doctor-grade per-entry status (4.1 reuses the
    * 3.6 composition: unmapped/stale/invalid already classified). */
   targets: HealthTargetEntry[];
-  registryUnreadable: boolean;
-  registryUnreadableDiagnostic?: StoreDiagnostic;
+  /** The composition's top-level status; the working set keeps only
+   * the registry-unreadable degradation (selected by code, never by
+   * position). */
+  topLevelStatus?: StoreDiagnostic[];
 }
 
 /** AVAILABLE = path present AND per-entry status empty. */
@@ -73,10 +75,9 @@ export function assembleWorkingSet(input: AssembleWorkingSetInput): WorkingSet {
     });
   }
 
-  const status: StoreDiagnostic[] = [];
-  if (input.registryUnreadable && input.registryUnreadableDiagnostic) {
-    status.push(input.registryUnreadableDiagnostic);
-  }
+  const status = (input.topLevelStatus ?? []).filter(
+    (entry) => entry.code === 'relationship_registry_unreadable'
+  );
 
   return {
     root: { ...toRootOutput(input.root), role: 'openspec_root' },

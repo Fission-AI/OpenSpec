@@ -9,8 +9,6 @@ capstone's agent-contract inventory and dead-code sweep.
 
 - `initiative_option_removed` — the `new change --initiative` rejection,
   locked in slice 1.2. Lives in `src/commands/workflow/new-change.ts`.
-- `workspace_skills` — a global-config/persisted-state data field, not a
-  diagnostic code; part of the state model that dies in 4.1.
 
 ## Removed diagnostic codes (emitted only by deleted command paths)
 

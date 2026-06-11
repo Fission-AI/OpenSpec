@@ -41,7 +41,6 @@ describe('planning home paths', () => {
   });
 
 
-
   it('resolves repo-local projects with foreign workspace.yaml as repo planning homes', () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-planning-home-'));
     tempDirs.push(tempDir);

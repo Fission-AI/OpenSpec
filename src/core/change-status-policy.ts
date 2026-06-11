@@ -24,7 +24,6 @@ export interface ChangeStatusPolicyArtifact {
 
 export interface ChangeNextStepsInput {
   changeName: string;
-  planningHome?: PlanningHome;
   artifactStatuses: ChangeStatusPolicyArtifact[];
   allArtifactsComplete: boolean;
   /** Selected store id; next-step commands must carry it. */
@@ -32,7 +31,6 @@ export interface ChangeNextStepsInput {
 }
 
 export interface ActionContextInput {
-  planningHome?: PlanningHome;
   projectRoot: string;
   artifactIds: string[];
 }

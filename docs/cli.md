@@ -344,7 +344,7 @@ One read-only question, one place: are the roots this work relates to — the Op
 openspec doctor [--store <id>] [--json]
 ```
 
-The report separates root health, store metadata health (including a note when the recorded remote and the checkout's origin diverge), reference health (the same diagnostics instructions show, with clone fixes for unresolved references), and target health (unmapped repos get the `repo register` fix). Health findings of any severity exit 0 — agents read the `status` arrays; only command failures (no root, unknown store) exit 1. Doctor never clones, syncs, or repairs.
+The report separates root health, store metadata health (including a note when the recorded remote and the checkout's origin diverge), reference health (the same diagnostics instructions show, with clone fixes for unresolved references), and target health (unmapped repos get the `repo register` fix). Health findings of any severity exit 0 — agents read the `status` arrays; only command failures (no root, unknown store) exit 1. Doctor never clones, syncs, or repairs. To get the assembled set itself rather than its health, use `openspec context`.
 
 ## Working context (the assembled set)
 

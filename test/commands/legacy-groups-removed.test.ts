@@ -3,7 +3,6 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-import { } from '../../src/core/change-status-policy.js';
 import { getGlobalDataDir, registerStore } from '../../src/core/index.js';
 import { runCLI } from '../helpers/run-cli.js';
 import { createHealthyOpenSpecRoot } from '../helpers/store-git.js';

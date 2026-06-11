@@ -117,6 +117,16 @@ describe('openspec context (4.1)', () => {
     expect(parseJson(declared).members).toHaveLength(4);
   });
 
+  it('distinguishes self-reference omission from nothing declared', async () => {
+    fs.writeFileSync(
+      path.join(storeRoot, 'openspec', 'config.yaml'),
+      'schema: spec-driven\nreferences:\n  - team-context\n'
+    );
+    const human = await runCLI(['context', '--store', 'team-context'], { cwd: tempDir, env });
+    expect(human.stdout).toContain('Declared references all resolve to this root');
+    expect(human.stdout).not.toContain('No references or targets declared');
+  });
+
   it('says so plainly when nothing is declared', async () => {
     fs.writeFileSync(path.join(storeRoot, 'openspec', 'config.yaml'), 'schema: spec-driven\n');
     const human = await runCLI(['context', '--store', 'team-context'], { cwd: tempDir, env });
@@ -137,7 +147,7 @@ describe('openspec context (4.1)', () => {
       { cwd: tempDir, env }
     );
     expect(fresh.exitCode).toBe(0);
-    expect(fresh.stderr).toContain('2 members not available');
+    expect(fresh.stderr).toContain('not available: design-system, web-app');
     const file = JSON.parse(fs.readFileSync(outPath, 'utf-8'));
     expect(file.folders).toEqual([
       { name: 'team-context', path: storeRoot },
@@ -180,6 +190,24 @@ describe('openspec context (4.1)', () => {
     expect(jsonMode.exitCode).toBe(0);
     expect(() => JSON.parse(jsonMode.stdout)).not.toThrow();
     expect(jsonMode.stderr).toContain(`Wrote ${jsonOut}`);
+
+    // JSON mode write FAILURE: exactly one JSON document on stdout (the
+    // failure payload), never the brief plus a second payload.
+    const jsonRefused = await runCLI(
+      ['context', '--json', '--store', 'team-context', '--code-workspace', jsonOut],
+      { cwd: tempDir, env }
+    );
+    expect(jsonRefused.exitCode).toBe(1);
+    const failurePayload = JSON.parse(jsonRefused.stdout);
+    expect(failurePayload.root).toBeNull();
+    expect(failurePayload.status[0].code).toBe('context_file_exists');
+
+    const jsonBadDir = await runCLI(
+      ['context', '--json', '--store', 'team-context', '--code-workspace', nested],
+      { cwd: tempDir, env }
+    );
+    expect(jsonBadDir.exitCode).toBe(1);
+    expect(JSON.parse(jsonBadDir.stdout).status[0].code).toBe('context_output_dir_missing');
   });
 
   it('excludes stale mapped paths from the editor view', async () => {

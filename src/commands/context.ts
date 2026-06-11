@@ -29,7 +29,9 @@ import { gatherRelationshipData } from './shared-gather.js';
 
 const FAILURE_PAYLOAD = { root: null, members: [] };
 
-async function gatherWorkingSet(root: ResolvedOpenSpecRoot): Promise<WorkingSet> {
+async function gatherWorkingSet(
+  root: ResolvedOpenSpecRoot
+): Promise<{ workingSet: WorkingSet; declaredReferenceCount: number }> {
   const data = await gatherRelationshipData(root);
 
   // A mapped path that no longer exists must not be presented as
@@ -59,20 +61,22 @@ async function gatherWorkingSet(root: ResolvedOpenSpecRoot): Promise<WorkingSet>
     storeConfigPath: data.storeConfigPath,
   });
 
-  return assembleWorkingSet({
-    root,
-    referenceEntries: data.referenceEntries,
-    targets: health.targets,
-    registryUnreadable: data.registrySnapshot.unreadable,
-    ...(health.status[0] ? { registryUnreadableDiagnostic: health.status[0] } : {}),
-  });
+  return {
+    workingSet: assembleWorkingSet({
+      root,
+      referenceEntries: data.referenceEntries,
+      targets: health.targets,
+      topLevelStatus: health.status,
+    }),
+    declaredReferenceCount: data.projectConfig?.references?.length ?? 0,
+  };
 }
 
 function memberLine(member: WorkingSetMember): string {
   return `  ${member.id}  ${member.path}`;
 }
 
-function printHumanWorkingSet(workingSet: WorkingSet): void {
+function printHumanWorkingSet(workingSet: WorkingSet, declaredReferenceCount: number): void {
   const rootLabel = workingSet.root.store_id ?? path.basename(workingSet.root.path);
   console.log(`Working context for ${rootLabel} (${workingSet.root.path})`);
   console.log('');
@@ -108,7 +112,13 @@ function printHumanWorkingSet(workingSet: WorkingSet): void {
 
   if (workingSet.members.length === 0) {
     console.log('');
-    console.log('No references or targets declared; the working set is this root alone.');
+    // Self-references are silently omitted from the index; an
+    // emptied-by-omission set must not claim nothing was declared.
+    console.log(
+      declaredReferenceCount > 0
+        ? 'Declared references all resolve to this root; the working set is this root alone.'
+        : 'No references or targets declared; the working set is this root alone.'
+    );
   }
 
   if (unavailable.length > 0 || workingSet.status.length > 0) {
@@ -163,12 +173,14 @@ function writeCodeWorkspace(
   const rootName = workingSet.root.store_id ?? path.basename(workingSet.root.path);
   fs.writeFileSync(resolved, buildCodeWorkspaceJson(workingSet, rootName));
 
-  const written = 1 + workingSet.members.filter(isAvailableMember).length;
-  const skipped = workingSet.members.length - (written - 1);
+  const available = workingSet.members.filter(isAvailableMember).length;
+  const skipped = workingSet.members
+    .filter((member) => !isAvailableMember(member))
+    .map((member) => member.id);
   const summary =
-    skipped > 0
-      ? `Wrote ${resolved} (${written} folders; ${skipped} member${skipped === 1 ? '' : 's'} not available, see above)`
-      : `Wrote ${resolved} (${written} folders)`;
+    skipped.length > 0
+      ? `Wrote ${resolved} (${available + 1} folders; not available: ${skipped.join(', ')})`
+      : `Wrote ${resolved} (${available + 1} folders)`;
   // stderr keeps JSON stdout pure; for humans it reads inline.
   console.error(summary);
 }
@@ -201,16 +213,20 @@ export function registerContextCommand(program: Command): void {
             return;
           }
 
-          const workingSet = await gatherWorkingSet(root);
+          const { workingSet, declaredReferenceCount } = await gatherWorkingSet(root);
 
           if (options.json) {
+            // The write runs FIRST: a write failure must leave stdout
+            // holding exactly one JSON document (the failure payload).
+            if (options.codeWorkspace) {
+              writeCodeWorkspace(workingSet, options.codeWorkspace, options.force === true);
+            }
             printJson(workingSet);
           } else {
-            printHumanWorkingSet(workingSet);
-          }
-
-          if (options.codeWorkspace) {
-            writeCodeWorkspace(workingSet, options.codeWorkspace, options.force === true);
+            printHumanWorkingSet(workingSet, declaredReferenceCount);
+            if (options.codeWorkspace) {
+              writeCodeWorkspace(workingSet, options.codeWorkspace, options.force === true);
+            }
           }
         } catch (error) {
           emitFailure(options.json, FAILURE_PAYLOAD, error, 'context_failed');
