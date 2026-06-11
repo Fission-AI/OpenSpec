@@ -1121,8 +1121,12 @@ phases, reviewed and exercised as one thing. Full checklist in
 
 Progress:
 
-- [ ] Persona journeys pass (fresh team, layered PM-to-dev, externalized
-  planning, cold-start agent with no insider knowledge).
+- [x] Persona journeys pass (fresh team, layered PM-to-dev, externalized
+  planning, cold-start agent with no insider knowledge). Results:
+  `capstone/journeys.md` — journeys 1–3 as standing e2e
+  (store-lifecycle + capstone-journeys test files), journey 4 as a
+  live headless codex dogfood that assembled the full store/pointer/
+  targets/repo-map topology from `--help` alone.
 - [ ] Usability audits done (error catalog, vocabulary sweep including
   `docs/cli.md`, time-to-first-success documented).
 - [ ] Technical audits done (single-resolver invariant, dependency
@@ -1412,6 +1416,17 @@ is working:
   a deliberate fourth partial edit, and the spec's byte-stable clause
   now allows the new removal-coverage tests. The reworded constraint
   string gets its first-ever pin in the new test.
+- 2026-06-11: Capstone (6.1) persona journeys all pass
+  (`capstone/journeys.md`). Journeys 2 and 3 added as standing e2e
+  (`test/cli-e2e/capstone-journeys.test.ts`): the layered flow
+  (config-driven discovery, fetch-recipe citation, design in the app
+  repo's own root, store read-only) and externalized planning (full
+  lifecycle from a pointer repo, zero --store flags, no planning state
+  growth). Journey 4 ran as a live cold-start dogfood: a fresh codex
+  session with no insider knowledge built the entire intended topology
+  (store setup, targets declaration, pointer config, repo mapping,
+  doctor/context/validate self-verification) from --help output and
+  generated guidance alone.
 - 2026-06-11: Executed the Phase 5 remainder, closing out 5.1
   (decision record: `slices/delete-legacy-command-groups/
   remainder.md`). Deleted `schemas/workspace-planning/` (no src code
