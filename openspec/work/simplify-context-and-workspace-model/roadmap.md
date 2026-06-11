@@ -100,10 +100,11 @@ an item are status steps for that numbered work item.
   Old beta plans were marked as history, and this `/work` roadmap became the
   active direction.
 - [ ] **Phase 1. Make a standalone OpenSpec repo useful.**
-  Slices 1.1, 1.2, and 1.3 are implemented with passing tests on the working
-  branch; merge to `main` remains. Slice 1.4 (one guidance pass: stores in,
-  initiatives out, absorbing old 2.2) is in progress: spec and plan written
-  and reviewed; implementation is next.
+  Slices 1.1–1.4 are implemented with passing tests on the working branch;
+  only merge to `main` remains. The noun is "store" everywhere (CLI group,
+  machine tokens, guidance, docs), and a headless agent completes a
+  store-scoped change from one plain prompt (dogfood transcript in the 1.4
+  slice folder).
 - [x] **Phase 2. Stop putting new work through initiatives.**
   Fully absorbed: 2.1 shipped inside slice 1.2, 2.2 folded into slice 1.4,
   and 2.3 folded into item 4.1. No independent work remains here.
@@ -121,15 +122,13 @@ an item are status steps for that numbered work item.
 
 Next incomplete item:
 
-- [ ] **1.4 One guidance pass: stores in, initiatives out.**
-  In plain English: an agent prompted in a project repo can discover the
-  registered standalone OpenSpec repo and use `--store` without the human
-  spelling out flags, and guidance stops advertising initiatives and
-  workspaces. Terminology is decided (the noun is "store"); the rename pass
-  lands first. Spec and plan written and reviewed
-  (`slices/store-rename-and-guidance/`); implementation is next. (Slices
-  1.1–1.3 are implemented and tested on the working branch; their "Merged
-  to `main`" boxes stay open by design and do not gate this.)
+- [ ] **5.1 (first tranche): delete the `workspace` and `initiative`
+  command groups.**
+  In plain English: the legacy beta command groups stop existing — 1.4
+  already stopped guidance from advertising them, and the locked 5.1
+  criteria say delete, don't hide. This is the small command-group
+  deletion slice sequenced "soon after 1.4"; the opening machinery itself
+  dies later when 4.1 replaces it. Spec not yet written.
 
 ## Phase 0. Make The Active Direction Easy To Find
 
@@ -466,8 +465,12 @@ Slice: `slices/store-rename-and-guidance/spec.md`
   collides with target project repos in Phase 3.
 - [x] Spec written.
 - [x] Plan written.
-- [ ] Implementation done.
-- [ ] Tests pass.
+- [x] Implementation done (four checkpoints on `codex/store-root-parity`:
+  mechanical rename, the two riders, guidance regeneration, guards and
+  the dogfood proof; post-implementation review and simplify rounds
+  folded).
+- [x] Tests pass (full suite green, 95 files / 1745 tests; vocabulary
+  sweep, format pins, and the headless dogfood transcript committed).
 - [ ] Merged to `main`.
 
 Plain-English version:
@@ -1288,6 +1291,30 @@ is working:
   deleted, SKILL.md and artifact-placement reworked) lands on disk for
   local agents but cannot appear in commits; L8 keeps ownership of the
   final disposition (ignored local skill vs generated vs checked-in).
+- 2026-06-11: Implemented slice 1.4 in four green checkpoints on
+  `codex/store-root-parity`: (1) the total mechanical rename — command
+  group `context-store` → `store`, 45 diagnostic codes, dotted targets,
+  JSON keys, data dir `stores/`, internal modules and symbols, every
+  help/error/hint string; (2) the two riders — `workspace open` lost its
+  legacy store selectors (persisted path-bound views still reopen), and
+  the store group gained an unknown-subcommand hint that owns the
+  Commander error path; (3) guidance regeneration via a three-stream
+  fan-out — store-selection teaching in all workflow templates, docs
+  accuracy pass (cli.md, concepts.md, workspaces-beta with `--path`
+  correctness fixes, all invocations smoke-run), legacy-beta labels;
+  (4) guards and proof — vocabulary sweep-as-test, committed-format
+  pins, old-data-dir negative fixtures, `--store` description equality,
+  telemetry path, and the headless dogfood (one plain prompt → agent
+  discovered the store via `--help` + `store list` and created the
+  change with `--store`; transcript committed). Post-implementation
+  review ran three parallel mechanisms (spec-compliance: compliant, all
+  16 scenarios pass; /code-review high: 10 verified findings; codex CLI:
+  approve-with-fixes); both P2s fixed (the hint builder's invalid
+  suggestions; guidance over-claiming the flag surface and reaching the
+  storeless feedback workflow) plus the cheap P3s, then a simplify pass
+  made the presence guards registry-driven and tied the guidance's
+  taught command list to the live flag surface. Full suite green
+  (95 files, 1745 tests).
 - 2026-06-11: Wrote the store-rename-and-guidance plan (four green
   checkpoints: mechanical rename, riders, guidance regeneration with a
   three-stream fan-out, sweep/guards/dogfood) and folded two parallel
