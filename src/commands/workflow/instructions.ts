@@ -201,7 +201,6 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
     changeName,
     schemaName,
     changeDir,
-    initiative,
     resolvedOutputPath,
     description,
     instruction,
@@ -215,11 +214,6 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
   // Opening tag
   console.log(`<artifact id="${artifactId}" change="${changeName}" schema="${schemaName}">`);
   console.log();
-
-  if (initiative) {
-    console.log(`<initiative store="${initiative.store}" id="${initiative.id}" />`);
-    console.log();
-  }
 
   // Warning for blocked artifacts
   if (isBlocked) {
@@ -474,7 +468,6 @@ export async function generateApplyInstructions(
     changeName,
     changeDir,
     schemaName: context.schemaName,
-    ...(context.initiative ? { initiative: context.initiative } : {}),
     ...(targets ? { targets } : {}),
     contextFiles,
     progress: { total, complete, remaining },
@@ -536,13 +529,10 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
 }
 
 export function printApplyInstructionsText(instructions: ApplyInstructions): void {
-  const { changeName, schemaName, initiative, contextFiles, progress, tasks, state, missingArtifacts, instruction } = instructions;
+  const { changeName, schemaName, contextFiles, progress, tasks, state, missingArtifacts, instruction } = instructions;
 
   console.log(`## Apply: ${changeName}`);
   console.log(`Schema: ${schemaName}`);
-  if (initiative) {
-    console.log(`Initiative: ${initiative.store}/${initiative.id}`);
-  }
   console.log();
 
   if (instructions.references && instructions.references.length > 0) {

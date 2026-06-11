@@ -19,6 +19,18 @@ import {
   type SpecUpdate,
 } from './specs-apply.js';
 
+async function listActiveChangeNames(changesDir: string): Promise<string[]> {
+  try {
+    const entries = await fs.readdir(changesDir, { withFileTypes: true });
+    return entries
+      .filter((entry) => entry.isDirectory() && entry.name !== 'archive')
+      .map((entry) => entry.name)
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
 export interface ArchiveOptions {
   yes?: boolean;
   skipSpecs?: boolean;
@@ -213,7 +225,13 @@ export class ArchiveCommand {
         throw new Error(`Change '${changeName}' not found.`);
       }
     } catch {
-      throw new ArchiveBlockedError('archive_change_not_found', `Change '${changeName}' not found.`);
+      const available = await listActiveChangeNames(changesDir);
+      throw new ArchiveBlockedError(
+        'archive_change_not_found',
+        available.length > 0
+          ? `Change '${changeName}' not found. Available changes: ${available.join(', ')}`
+          : `Change '${changeName}' not found. No active changes exist in this root.`
+      );
     }
 
     const skipValidation = options.validate === false || options.noValidate === true;

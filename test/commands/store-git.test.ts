@@ -292,6 +292,7 @@ describe('store git lifecycle', () => {
     const registerStatus = parseJson(register).status[0];
     expect(registerStatus.code).toBe('store_register_root_unhealthy');
     expect(registerStatus.message).toContain('no commits');
-    expect(registerStatus.fix).toContain('Commit and push the origin store');
+    expect(registerStatus.fix).toContain('commit and push the origin store');
+    expect(registerStatus.fix).toContain('openspec repo register');
   });
 });

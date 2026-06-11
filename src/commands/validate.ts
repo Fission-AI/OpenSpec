@@ -308,6 +308,13 @@ export class ValidateCommand {
         else console.error(`✗ ${res.type}/${res.id}`);
       }
       console.log(`Totals: ${summary.totals.passed} passed, ${summary.totals.failed} failed (${summary.totals.items} items)`);
+      const firstFailure = results.find((res) => !res.valid);
+      if (firstFailure) {
+        const storeFlag = isStoreSelectedRoot(root) ? ` --store ${root.storeId}` : '';
+        console.log(
+          `Details: openspec validate ${firstFailure.id} --type ${firstFailure.type}${storeFlag}`
+        );
+      }
     }
 
     process.exitCode = failed > 0 ? 1 : 0;

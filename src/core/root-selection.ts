@@ -324,14 +324,19 @@ async function resolveNearestOrDeclaredRoot(
     return await resolveStoreRoot(pointer.value, globalDataDir, 'declared');
   } catch (error) {
     if (error instanceof RootSelectionError) {
-      // Rewrap with the declaration origin; code, target, and the
-      // pasteable fix stay untouched.
+      // Rewrap with the declaration origin. The unknown-store fix is
+      // reshaped for the actual mistake: the user declared a pointer,
+      // they did not pass --store.
+      const declarationFix =
+        error.diagnostic.code === 'unknown_store'
+          ? `Register the store (openspec store register <path> --id ${pointer.value}) or edit ${pointer.filePath} to name a registered store.`
+          : error.diagnostic.fix;
       throw new RootSelectionError(
         `Declared in ${pointer.filePath}: ${error.message}`,
         error.diagnostic.code,
         {
           ...(error.diagnostic.target ? { target: error.diagnostic.target } : {}),
-          ...(error.diagnostic.fix ? { fix: error.diagnostic.fix } : {}),
+          ...(declarationFix ? { fix: declarationFix } : {}),
         }
       );
     }

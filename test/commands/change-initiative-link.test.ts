@@ -73,7 +73,9 @@ describe('legacy repo-local change initiative metadata', () => {
     });
     expect(status.exitCode).toBe(0);
     const statusJson = parseJson(status);
-    expect(statusJson.initiative).toEqual({ store: 'platform', id: 'billing-launch' });
+    // The legacy link is parsed (user data tolerated) but no longer
+    // re-emitted on any user-facing surface (capstone vocabulary fix).
+    expect('initiative' in statusJson).toBe(false);
 
     const list = await runCLI(['list', '--json'], { cwd: tempDir, env });
     expect(list.exitCode).toBe(0);

@@ -19,7 +19,7 @@ import { assembleTargets, type EffectiveTargets } from '../targets.js';
 import type { DeclarationEntry } from '../project-config.js';
 import { METADATA_FILENAME } from '../../utils/change-metadata.js';
 import type { PlanningHome } from '../planning-home.js';
-import type { ChangeMetadata, InitiativeLink } from '../change-metadata/index.js';
+import type { ChangeMetadata } from '../change-metadata/index.js';
 import type { Artifact, CompletedSet } from './types.js';
 
 // Session-level cache for validation warnings (avoid repeating same warnings)
@@ -58,8 +58,6 @@ export interface ChangeContext {
   planningHome?: PlanningHome;
   /** Parsed change metadata, when present */
   metadata?: ChangeMetadata;
-  /** Stored initiative link, when this change is linked to shared context */
-  initiative?: InitiativeLink;
 }
 
 export interface LoadChangeContextOptions {
@@ -81,8 +79,6 @@ export interface ArtifactInstructions {
   changeDir: string;
   /** Resolved planning home for this change */
   planningHome?: PlanningHomeSummary;
-  /** Stored initiative link, when this change is linked to shared context */
-  initiative?: InitiativeLink;
   /** Output path pattern (e.g., "proposal.md") */
   outputPath: string;
   /** Absolute output path or glob pattern resolved under the change directory */
@@ -145,8 +141,6 @@ export interface ChangeStatus {
   changeName: string;
   /** Schema name */
   schemaName: string;
-  /** Stored initiative link, when this change is linked to shared context */
-  initiative?: InitiativeLink;
   /** Full path to the change root */
   changeRoot: string;
   /** Absolute artifact path details keyed by artifact ID */
@@ -254,7 +248,6 @@ export function loadChangeContext(
     projectRoot,
     ...(options.planningHome ? { planningHome: options.planningHome } : {}),
     ...(metadata ? { metadata } : {}),
-    ...(metadata?.initiative ? { initiative: metadata.initiative } : {}),
   };
 }
 
@@ -354,7 +347,6 @@ export function generateInstructions(
     schemaName: context.schemaName,
     changeDir: context.changeDir,
     planningHome: summarizePlanningHome(context.planningHome),
-    ...(context.initiative ? { initiative: context.initiative } : {}),
     outputPath: artifact.generates,
     resolvedOutputPath: path.join(context.changeDir, artifact.generates),
     existingOutputPaths: resolveArtifactOutputs(context.changeDir, artifact.generates),
@@ -464,7 +456,6 @@ export function formatChangeStatus(
   return {
     changeName: context.changeName,
     schemaName: context.schemaName,
-    ...(context.initiative ? { initiative: context.initiative } : {}),
     changeRoot: context.changeDir,
     artifactPaths,
     isComplete,

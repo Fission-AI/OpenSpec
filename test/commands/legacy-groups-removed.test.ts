@@ -141,7 +141,7 @@ describe('legacy command groups are removed', () => {
     expect(snapshotDirectory(path.join(projectDir, '.openspec-workspace'))).toEqual(viewBefore);
   });
 
-  it('still displays legacy initiative metadata on old changes', async () => {
+  it('tolerates legacy initiative metadata without re-emitting it', async () => {
     const projectDir = path.join(tempDir, 'legacy-project');
     createHealthyOpenSpecRoot(projectDir);
     const changeDir = path.join(projectDir, 'openspec', 'changes', 'legacy-change');
@@ -159,7 +159,7 @@ describe('legacy command groups are removed', () => {
     });
 
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain('Initiative: team-context/billing-launch');
+    expect(result.stdout).not.toContain('Initiative:');
   });
 
   it('reports repo-local in a view dir, exactly as before this slice', async () => {

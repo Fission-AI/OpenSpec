@@ -52,6 +52,15 @@ function hiddenStorePathOption(): Option {
   ).hideHelp();
 }
 
+function failWithError(error: unknown): void {
+  ora().fail(`Error: ${(error as Error).message}`);
+  // Resolution and store errors carry a pasteable fix - never drop it.
+  const fix = (error as { diagnostic?: { fix?: string } }).diagnostic?.fix;
+  if (fix) {
+    console.error(`Fix: ${fix}`);
+  }
+}
+
 const program = new Command();
 const require = createRequire(import.meta.url);
 const { version } = require('../../package.json');
@@ -146,7 +155,7 @@ program
       await initCommand.execute(targetPath);
     } catch (error) {
       console.log(); // Empty line for spacing
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error);
       process.exit(1);
     }
   });
@@ -168,7 +177,7 @@ program
       await initCommand.execute('.');
     } catch (error) {
       console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error);
       process.exit(1);
     }
   });
@@ -183,7 +192,7 @@ program
       await updateCommand.execute(targetPath);
     } catch (error) {
       console.log(); // Empty line for spacing
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error);
       process.exit(1);
     }
   });
@@ -213,7 +222,7 @@ program
       });
     } catch (error) {
       console.log(); // Empty line for spacing
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error);
       process.exit(1);
     }
   });
@@ -227,7 +236,7 @@ program
       await viewCommand.execute('.');
     } catch (error) {
       console.log(); // Empty line for spacing
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error);
       process.exit(1);
     }
   });
@@ -309,7 +318,7 @@ program
       await archiveCommand.execute(changeName, options);
     } catch (error) {
       console.log(); // Empty line for spacing
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error);
       process.exit(1);
     }
   });
@@ -342,7 +351,7 @@ program
       await validateCommand.execute(itemName, options);
     } catch (error) {
       console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error);
       process.exit(1);
     }
   });
@@ -373,7 +382,7 @@ program
       await showCommand.execute(itemName, options ?? {});
     } catch (error) {
       console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error);
       process.exit(1);
     }
   });
@@ -389,7 +398,7 @@ program
       await feedbackCommand.execute(message, options);
     } catch (error) {
       console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error);
       process.exit(1);
     }
   });
@@ -408,7 +417,7 @@ completionCmd
       await completionCommand.generate({ shell });
     } catch (error) {
       console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error);
       process.exit(1);
     }
   });
@@ -423,7 +432,7 @@ completionCmd
       await completionCommand.install({ shell, verbose: options?.verbose });
     } catch (error) {
       console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error);
       process.exit(1);
     }
   });
@@ -438,7 +447,7 @@ completionCmd
       await completionCommand.uninstall({ shell, yes: options?.yes });
     } catch (error) {
       console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error);
       process.exit(1);
     }
   });
@@ -475,7 +484,7 @@ program
       await statusCommand(options);
     } catch (error) {
       console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error);
       process.exit(1);
     }
   });
@@ -499,7 +508,7 @@ program
       }
     } catch (error) {
       console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error);
       process.exit(1);
     }
   });
@@ -515,7 +524,7 @@ program
       await templatesCommand(options);
     } catch (error) {
       console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error);
       process.exit(1);
     }
   });
@@ -530,7 +539,7 @@ program
       await schemasCommand(options);
     } catch (error) {
       console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error);
       process.exit(1);
     }
   });
@@ -556,7 +565,7 @@ newCmd
       await newChangeCommand(name, options);
     } catch (error) {
       console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error);
       process.exit(1);
     }
   });

@@ -157,8 +157,22 @@ export async function createChange(
     throw new Error(`Change '${name}' already exists at ${changeDir}`);
   }
 
+  // Creating the first change in a directory may scaffold the root
+  // itself. Never leave a half-root behind that doctor immediately
+  // calls unhealthy: complete the shape (specs/, archive/, config).
+  const openspecDir = path.join(projectRoot, 'openspec');
+  const scaffoldingRoot = !(await FileSystemUtils.directoryExists(openspecDir));
+
   // Create the directory (including parent directories if needed)
   await FileSystemUtils.createDirectory(changeDir);
+  if (scaffoldingRoot) {
+    await FileSystemUtils.createDirectory(path.join(openspecDir, 'specs'));
+    await FileSystemUtils.createDirectory(path.join(openspecDir, 'changes', 'archive'));
+    const configPath = path.join(openspecDir, 'config.yaml');
+    if (!(await FileSystemUtils.fileExists(configPath))) {
+      await FileSystemUtils.writeFile(configPath, `schema: ${schemaName}\n`);
+    }
+  }
 
   // Write metadata file with schema and creation date
   const today = new Date().toISOString().split('T')[0];

@@ -260,16 +260,24 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
       if (typeof raw.store === 'string') {
         config.store = raw.store;
       } else {
-        console.warn(`Invalid 'store' field in config (must be a store id string)`);
+        console.warn(
+          `Warning: ignoring invalid store: field in ${configPathForWarnings(projectRoot)} (must be a single store id string).`
+        );
       }
     }
 
     // Return partial config even if some fields failed
     return Object.keys(config).length > 0 ? (config as ProjectConfig) : null;
   } catch (error) {
-    console.warn(`Failed to parse openspec/config.yaml:`, error);
+    console.warn(
+      `Warning: could not parse ${configPathForWarnings(projectRoot)} (${error instanceof Error ? error.message.split('\n')[0] : String(error)}); ignoring it.`
+    );
     return null;
   }
+}
+
+function configPathForWarnings(projectRoot: string): string {
+  return resolveConfigFilePath(projectRoot) ?? path.join(projectRoot, 'openspec', 'config.yaml');
 }
 
 /**

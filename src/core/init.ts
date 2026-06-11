@@ -634,10 +634,6 @@ export class InitCommand {
       return 'exists';
     }
 
-    // In non-interactive mode without --force, skip config creation
-    if (!this.canPromptInteractively() && !this.force) {
-      return 'skipped';
-    }
 
     try {
       const yamlContent = serializeConfig({ schema: DEFAULT_SCHEMA });

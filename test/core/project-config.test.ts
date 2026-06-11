@@ -257,9 +257,13 @@ rules:
 
         expect(config).toBeNull();
         expect(consoleWarnSpy).toHaveBeenCalledWith(
-          expect.stringContaining('Failed to parse openspec/config.yaml'),
-          expect.anything()
+          expect.stringContaining('could not parse')
         );
+        // The warning names the file and never dumps a stack trace.
+        const warned = consoleWarnSpy.mock.calls.at(-1)?.[0] as string;
+        expect(warned).toContain('config.yaml');
+        expect(warned).not.toContain('node_modules');
+        expect(warned.split('\n')).toHaveLength(1);
       });
 
       it('should warn when config is not a YAML object', () => {

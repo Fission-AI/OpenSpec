@@ -224,7 +224,7 @@ function storeStateDiagnostic(label: string): {
   return {
     code: 'invalid_store_registry',
     target: 'store.registry',
-    fix: 'Repair or remove the store registry file.',
+    fix: `Repair or remove ${getStoreRegistryPath({})}.`,
   };
 }
 
