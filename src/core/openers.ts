@@ -4,6 +4,7 @@ import * as os from 'node:os';
 import { z } from 'zod';
 
 import { StoreError } from './store/errors.js';
+import { formatZodIssues } from './zod-issues.js';
 import type { WorksetMember } from './worksets.js';
 
 /**
@@ -98,27 +99,27 @@ function invalidOpenerConfigError(message: string, configPath: string): StoreErr
  * label default to the id). Malformed rows fail typed - never
  * silently ignored.
  */
+function cloneOpener(opener: OpenerDefinition): OpenerDefinition {
+  return { ...opener, args: [...opener.args] };
+}
+
 export function mergeOpenerTable(
   rawOpeners: unknown,
   configPath: string
 ): OpenerDefinition[] {
   if (rawOpeners === undefined || rawOpeners === null) {
-    return [...BUILTIN_OPENERS];
+    return BUILTIN_OPENERS.map(cloneOpener);
   }
 
   const result = OpenersConfigSchema.safeParse(rawOpeners);
   if (!result.success) {
-    const issues = result.error.issues
-      .map((issue) => {
-        const location =
-          issue.path.length > 0 ? issue.path.join('.') : 'openers';
-        return `${location}: ${issue.message}`;
-      })
-      .join('; ');
-    throw invalidOpenerConfigError(issues, configPath);
+    throw invalidOpenerConfigError(
+      formatZodIssues(result.error, 'openers'),
+      configPath
+    );
   }
 
-  const table = [...BUILTIN_OPENERS];
+  const table = BUILTIN_OPENERS.map(cloneOpener);
   for (const [id, row] of Object.entries(result.data)) {
     const builtinIndex = table.findIndex((opener) => opener.id === id);
 
@@ -229,19 +230,16 @@ export function isOpenerCommandAvailable(
     (extension) =>
       extension.length > 0 && lowerCommand.endsWith(extension.toLowerCase())
   );
+  // One suffix policy: a command already carrying a known executable
+  // extension matches as-is and never gets a second extension appended
+  // - agreeing with spawn-time resolution.
+  const suffixes = carriesKnownExtension ? [''] : extensions;
 
   if (/[\\/]/u.test(command)) {
-    if (isExecutable(command)) {
-      return true;
-    }
-
-    if (carriesKnownExtension) {
-      return false;
-    }
-
-    return extensions.some(
-      (extension) => extension.length > 0 && isExecutable(command + extension)
-    );
+    // Direct paths additionally match bare even on win32 (the spawn
+    // call receives the literal path).
+    const directSuffixes = Array.from(new Set(['', ...suffixes]));
+    return directSuffixes.some((suffix) => isExecutable(command + suffix));
   }
 
   for (const directory of getPathValue(env).split(pathModule.delimiter)) {
@@ -249,14 +247,12 @@ export function isOpenerCommandAvailable(
       continue;
     }
 
-    if (carriesKnownExtension && isExecutable(pathModule.join(directory, command))) {
+    if (
+      suffixes.some((suffix) =>
+        isExecutable(pathModule.join(directory, command + suffix))
+      )
+    ) {
       return true;
-    }
-
-    for (const extension of extensions) {
-      if (isExecutable(pathModule.join(directory, command + extension))) {
-        return true;
-      }
     }
   }
 
@@ -322,6 +318,15 @@ export function buildLaunchCommand(
 ): LaunchCommand {
   if (input.members.length === 0) {
     throw new Error('buildLaunchCommand requires at least one member.');
+  }
+
+  // The no-hijack and no-positional guarantees lean on absolute paths
+  // (the child resolves relative argv against its own cwd) - keep the
+  // invariant local instead of three modules away.
+  if (!path.isAbsolute(input.codeWorkspacePath)) {
+    throw new Error(
+      `buildLaunchCommand requires an absolute workspace-file path (got '${input.codeWorkspacePath}').`
+    );
   }
 
   const cwd = input.members[0].path;

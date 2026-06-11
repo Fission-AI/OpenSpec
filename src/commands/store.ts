@@ -1,5 +1,5 @@
 import * as os from 'node:os';
-import { asStatus, printJson, isPromptCancellationError } from './shared-output.js';
+import { emitFailure, printJson } from './shared-output.js';
 import * as path from 'node:path';
 import { Command } from 'commander';
 
@@ -123,15 +123,6 @@ function asErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function appendStatus<T extends { status: StoreDiagnostic[] }>(
-  payload: T,
-  status: StoreDiagnostic
-): T {
-  return {
-    ...payload,
-    status: [...payload.status, status],
-  };
-}
 
 function toStoreOutput(store: StoreInfo): StoreOutput {
   return {
@@ -666,24 +657,7 @@ class StoreCommand {
     payload: T,
     error: unknown
   ): void {
-    if (!json && isPromptCancellationError(error)) {
-      console.error('Cancelled.');
-      process.exitCode = 130;
-      return;
-    }
-
-    const status = asStatus(error, 'store_error');
-    if (json) {
-      printJson(appendStatus(payload, status));
-      process.exitCode = 1;
-      return;
-    }
-
-    console.error(`Error: ${status.message}`);
-    if (status.fix) {
-      console.error(`Fix: ${status.fix}`);
-    }
-    process.exitCode = 1;
+    emitFailure(json, payload, error, 'store_error');
   }
 }
 

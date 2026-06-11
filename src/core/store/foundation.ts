@@ -2,15 +2,24 @@ import * as nodeFs from 'node:fs';
 import * as path from 'node:path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { z } from 'zod';
-import { isKebabId, KEBAB_ID_DESCRIPTION } from '../id.js';
+import {
+  folderStyleNameProblem,
+  isKebabId,
+  KEBAB_ID_DESCRIPTION,
+  KEBAB_ID_FIX,
+} from '../id.js';
 
 import { getGlobalDataDir } from '../global-config.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import {
   acquireFileLock,
+  isNodeErrorCode,
+  pathIsDirectory,
+  pathIsFile,
   releaseFileLock,
   writeFileAtomically,
 } from '../file-state.js';
+import { formatZodIssues } from '../zod-issues.js';
 import { StoreError } from './errors.js';
 
 const fs = nodeFs.promises;
@@ -85,34 +94,13 @@ export function getStoreMetadataPath(storeRoot: string): string {
   );
 }
 
-function validateFolderStyleName(name: string, label: string): string {
-  if (name.length === 0) {
-    throw new Error(`${label} must not be empty`);
-  }
-
-  if (name === '.' || name === '..') {
-    throw new Error(`${label} must not be '${name}'`);
-  }
-
-  if (/[\\/]/u.test(name)) {
-    throw new Error(`${label} must not contain path separators`);
-  }
-
-  return name;
-}
-
 export function validateStoreId(id: string): string {
-  try {
-    validateFolderStyleName(id, 'Store id');
-  } catch (error) {
-    throw new StoreError(
-      error instanceof Error ? error.message : String(error),
-      'invalid_store_id',
-      {
-        target: 'store.id',
-        fix: 'Use kebab-case with lowercase letters, numbers, and single hyphen separators.',
-      }
-    );
+  const folderProblem = folderStyleNameProblem(id, 'Store id');
+  if (folderProblem !== null) {
+    throw new StoreError(folderProblem, 'invalid_store_id', {
+      target: 'store.id',
+      fix: KEBAB_ID_FIX,
+    });
   }
 
   if (!isKebabId(id)) {
@@ -121,7 +109,7 @@ export function validateStoreId(id: string): string {
       'invalid_store_id',
       {
         target: 'store.id',
-        fix: 'Use kebab-case with lowercase letters, numbers, and single hyphen separators.',
+        fix: KEBAB_ID_FIX,
       }
     );
   }
@@ -138,33 +126,8 @@ export function isValidStoreId(id: string): boolean {
   }
 }
 
-async function pathIsFile(filePath: string): Promise<boolean> {
-  try {
-    return (await fs.stat(filePath)).isFile();
-  } catch {
-    return false;
-  }
-}
-
-async function pathIsDirectory(dirPath: string): Promise<boolean> {
-  try {
-    return (await fs.stat(dirPath)).isDirectory();
-  } catch {
-    return false;
-  }
-}
-
 function isFileNotFoundError(error: unknown): boolean {
   return isNodeErrorCode(error, 'ENOENT');
-}
-
-function isNodeErrorCode(error: unknown, code: string): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as NodeJS.ErrnoException).code === code
-  );
 }
 
 function normalizeExistingPathForStorage(existingPath: string): string {
@@ -203,15 +166,6 @@ const MetadataStateSchema = z.object({
   id: z.string(),
   remote: nonEmptyOptionalString(),
 }).strict();
-
-function formatZodIssues(error: z.ZodError): string {
-  return error.issues
-    .map((issue) => {
-      const location = issue.path.length > 0 ? issue.path.join('.') : 'root';
-      return `${location}: ${issue.message}`;
-    })
-    .join('; ');
-}
 
 function storeStateDiagnostic(label: string): {
   code: string;

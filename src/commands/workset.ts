@@ -6,9 +6,7 @@
  * editors get the generated .code-workspace; CLI agents take over this
  * terminal with every member attached and no starter prompt.
  */
-import * as nodeFs from 'node:fs';
 import * as os from 'node:os';
-import * as path from 'node:path';
 import { createRequire } from 'node:module';
 import type { spawn as nodeSpawn } from 'node:child_process';
 import { Command, Option } from 'commander';
@@ -18,14 +16,12 @@ import {
   getWorkset,
   getWorksetCodeWorkspacePath,
   listWorksets,
-  memberLabelProblem,
-  memberListProblem,
   readWorksetsState,
+  removeWorkset,
   updateWorksetsState,
   validateWorksetName,
   withWorkset,
   withWorksetsLock,
-  withoutWorkset,
   worksetNotFoundError,
   type Workset,
   type WorksetMember,
@@ -39,26 +35,45 @@ import {
   type LaunchCommand,
   type OpenerDefinition,
 } from '../core/openers.js';
-import { writeFileAtomically } from '../core/file-state.js';
+import { pathIsDirectory, writeFileAtomically } from '../core/file-state.js';
 import {
   getGlobalConfig,
   getGlobalConfigPath,
 } from '../core/global-config.js';
-import { expandUserPath } from '../core/store/operations.js';
 import { StoreError, type StoreDiagnostic } from '../core/store/errors.js';
 import { isInteractive } from '../utils/interactive.js';
 import {
-  asStatus,
+  emitFailure,
   isPromptCancellationError,
   printJson,
 } from './shared-output.js';
+import {
+  asErrorMessage,
+  finalizeWorkset,
+  firstInstalledAlternative,
+  noToolInstalledError,
+  resolveMemberFlags,
+  toolUnavailableError,
+  toolUnknownError,
+} from './workset-input.js';
+import {
+  composeInteractively,
+  confirmRemoveInteractively,
+  promptOpenNow,
+  promptToolFromChoices,
+} from './workset-prompts.js';
 import { COMMAND_REGISTRY } from '../core/completions/command-registry.js';
 
-const require = createRequire(import.meta.url);
-// cross-spawn ships no types; it is API-compatible with node's spawn.
-const crossSpawn = require('cross-spawn') as typeof nodeSpawn;
-
-const fs = nodeFs.promises;
+// cross-spawn is CJS with no types and only `workset open` needs it -
+// loaded lazily so every other CLI invocation skips its module graph.
+let cachedSpawn: typeof nodeSpawn | undefined;
+function defaultSpawn(): typeof nodeSpawn {
+  if (cachedSpawn === undefined) {
+    const require = createRequire(import.meta.url);
+    cachedSpawn = require('cross-spawn') as typeof nodeSpawn;
+  }
+  return cachedSpawn;
+}
 
 interface WorksetCreateOptions {
   member?: string[];
@@ -76,61 +91,8 @@ interface WorksetRemoveOptions {
   json?: boolean;
 }
 
-interface WorksetOutput {
-  name: string;
-  tool?: string;
-  members: WorksetMember[];
-}
-
-function toWorksetOutput(workset: Workset): WorksetOutput {
-  return {
-    name: workset.name,
-    ...(workset.tool !== undefined ? { tool: workset.tool } : {}),
-    members: workset.members,
-  };
-}
-
-function asErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
-function memberInvalidError(problem: string): StoreError {
-  return new StoreError(`Invalid workset member: ${problem}.`, 'workset_member_invalid', {
-    target: 'workset.member',
-    fix: 'Pass --member <path> with an existing folder, or --member <name>=<path> to label it.',
-  });
-}
-
-async function pathIsDirectory(candidate: string): Promise<boolean> {
-  try {
-    return (await fs.stat(candidate)).isDirectory();
-  } catch {
-    return false;
-  }
-}
-
-/** `--member <path>` or `--member <name>=<path>` (first `=` splits). */
-async function resolveMemberFlag(raw: string): Promise<WorksetMember> {
-  const separator = raw.indexOf('=');
-  const label = separator > 0 ? raw.slice(0, separator) : undefined;
-  const rawPath = separator > 0 ? raw.slice(separator + 1) : raw;
-
-  if (rawPath.length === 0) {
-    throw memberInvalidError(`'${raw}' has no path`);
-  }
-
-  const resolvedPath = path.resolve(expandUserPath(rawPath));
-  if (!(await pathIsDirectory(resolvedPath))) {
-    throw memberInvalidError(`'${rawPath}' is not an existing folder`);
-  }
-
-  const name = label ?? path.basename(resolvedPath);
-  const labelProblem = memberLabelProblem(name);
-  if (labelProblem !== null) {
-    throw memberInvalidError(labelProblem);
-  }
-
-  return { name, path: resolvedPath };
+function readOpenerTable(): OpenerDefinition[] {
+  return mergeOpenerTable(getGlobalConfig().openers, getGlobalConfigPath());
 }
 
 interface LaunchResult {
@@ -146,35 +108,57 @@ export interface LaunchOptions {
  * Spawns the opener with this terminal's stdio. Resolves with the
  * child's exit facts (never rejects for a nonzero exit - for a
  * terminal handoff, the session is the command); rejects with
- * workset_launch_failed only when the spawn itself fails.
+ * workset_launch_failed only when the spawn itself fails. While the
+ * child runs, SIGINT/SIGTERM are ignored in this parent: the terminal
+ * delivers Ctrl-C to the child, and the parent must survive to report
+ * the child's real exit facts (the 128+n contract).
  */
 export function launchOpenerCommand(
   command: LaunchCommand,
   options: LaunchOptions = {}
 ): Promise<LaunchResult> {
-  const spawnFn = options.spawnFn ?? crossSpawn;
+  const spawnFn = options.spawnFn ?? defaultSpawn();
 
   return new Promise((resolve, reject) => {
-    const child = spawnFn(command.executable, command.args, {
-      cwd: command.cwd,
-      stdio: 'inherit',
-      shell: false,
-    });
+    const launchFailure = (error: unknown): StoreError =>
+      new StoreError(
+        `Could not launch ${command.label}: ${asErrorMessage(error)}`,
+        'workset_launch_failed',
+        {
+          target: 'workset.tool',
+          fix: `Check that '${command.executable}' runs from this terminal, or pass --tool with another installed tool.`,
+        }
+      );
+
+    let child: ReturnType<typeof spawnFn>;
+    try {
+      child = spawnFn(command.executable, command.args, {
+        cwd: command.cwd,
+        stdio: 'inherit',
+        shell: false,
+      });
+    } catch (error) {
+      // Some spawn failures throw synchronously (platform-dependent);
+      // they are the same launch failure.
+      reject(launchFailure(error));
+      return;
+    }
+
+    const ignoreSignal = (): void => undefined;
+    process.on('SIGINT', ignoreSignal);
+    process.on('SIGTERM', ignoreSignal);
+    const cleanup = (): void => {
+      process.removeListener('SIGINT', ignoreSignal);
+      process.removeListener('SIGTERM', ignoreSignal);
+    };
 
     child.on('error', (error) => {
-      reject(
-        new StoreError(
-          `Could not launch ${command.label}: ${asErrorMessage(error)}`,
-          'workset_launch_failed',
-          {
-            target: 'workset.tool',
-            fix: `Check that '${command.executable}' runs from this terminal, or pass --tool with another installed tool.`,
-          }
-        )
-      );
+      cleanup();
+      reject(launchFailure(error));
     });
 
     child.on('close', (code, signal) => {
+      cleanup();
       resolve({ code, signal });
     });
   });
@@ -191,57 +175,11 @@ export function exitCodeForLaunch(result: LaunchResult): number {
   return result.code ?? 0;
 }
 
-interface OpenFallback {
+interface PreparedOpen {
+  workset: Workset;
+  surviving: WorksetMember[];
+  skipped: WorksetMember[];
   codeWorkspacePath: string;
-  members: WorksetMember[];
-}
-
-const FALLBACK_CODES = new Set([
-  'workset_tool_unknown',
-  'workset_tool_unavailable',
-  'workset_launch_failed',
-]);
-
-function toolUnknownError(
-  toolId: string,
-  table: OpenerDefinition[]
-): StoreError {
-  const knownIds = table.map((opener) => opener.id).join(', ');
-  return new StoreError(
-    `Unknown tool '${toolId}'.`,
-    'workset_tool_unknown',
-    {
-      target: 'workset.tool',
-      fix: `Known tools: ${knownIds}. Add new tools under "openers" in ${getGlobalConfigPath()}.`,
-    }
-  );
-}
-
-function toolUnavailableError(
-  opener: OpenerDefinition,
-  table: OpenerDefinition[],
-  worksetName: string,
-  scan?: { env?: NodeJS.ProcessEnv; platform?: NodeJS.Platform }
-): StoreError {
-  const installedIds = table
-    .filter(
-      (candidate) =>
-        candidate.id !== opener.id &&
-        isOpenerCommandAvailable(candidate.command, scan)
-    )
-    .map((candidate) => candidate.id);
-
-  return new StoreError(
-    `${opener.label} ('${opener.command}') is not on PATH.`,
-    'workset_tool_unavailable',
-    {
-      target: 'workset.tool',
-      fix:
-        installedIds.length > 0
-          ? `Install '${opener.command}' or run: openspec workset open ${worksetName} --tool ${installedIds[0]}`
-          : `Install '${opener.command}', then rerun: openspec workset open ${worksetName}`,
-    }
-  );
 }
 
 class WorksetCommand {
@@ -251,22 +189,24 @@ class WorksetCommand {
   ): Promise<void> {
     try {
       const interactive = !options.json && isInteractive();
-      const table = mergeOpenerTable(
-        getGlobalConfig().openers,
-        getGlobalConfigPath()
-      );
 
       let workset: Workset;
+      let table: OpenerDefinition[] | undefined;
       if (interactive) {
-        workset = await this.composeInteractively(name, options, table);
+        table = readOpenerTable();
+        workset = await composeInteractively(
+          name,
+          { memberFlags: options.member ?? [], tool: options.tool },
+          table
+        );
       } else {
-        workset = await this.composeFromFlags(name, options, table);
+        workset = await this.composeFromFlags(name, options);
       }
 
       await updateWorksetsState((state) => withWorkset(state, workset));
 
       if (options.json) {
-        printJson({ workset: toWorksetOutput(workset), status: [] });
+        printJson({ workset, status: [] });
         return;
       }
 
@@ -275,12 +215,18 @@ class WorksetCommand {
         `Saved workset '${workset.name}' (${workset.members.length} member${workset.members.length === 1 ? '' : 's'}) to your machine.`
       );
 
-      if (interactive && workset.tool !== undefined) {
-        const { confirm } = await import('@inquirer/prompts');
-        const openNow = await confirm({
-          message: `Open it now in ${findOpener(table, workset.tool)?.label ?? workset.tool}?`,
-          default: true,
-        });
+      if (interactive && workset.tool !== undefined && table !== undefined) {
+        const label = findOpener(table, workset.tool)?.label ?? workset.tool;
+        let openNow = false;
+        try {
+          openNow = await promptOpenNow(label);
+        } catch (error) {
+          // The workset is already durably saved: Ctrl-C here declines
+          // the offer, it does not cancel the create.
+          if (!isPromptCancellationError(error)) {
+            throw error;
+          }
+        }
 
         if (openNow) {
           console.log('');
@@ -289,16 +235,17 @@ class WorksetCommand {
         }
       }
 
-      console.log(`Open it any time with: openspec workset open ${workset.name}`);
+      console.log(
+        `Open it any time with: openspec workset open ${workset.name}`
+      );
     } catch (error) {
-      this.handleFailure(options.json, { workset: null, status: [] }, error);
+      emitFailure(options.json, { workset: null, status: [] }, error, 'workset_error');
     }
   }
 
   private async composeFromFlags(
     name: string | undefined,
-    options: WorksetCreateOptions,
-    table: OpenerDefinition[]
+    options: WorksetCreateOptions
   ): Promise<Workset> {
     if (!name) {
       throw new StoreError('Pass a workset name.', 'workset_name_required', {
@@ -321,154 +268,11 @@ class WorksetCommand {
       );
     }
 
-    const members: WorksetMember[] = [];
-    for (const flag of memberFlags) {
-      members.push(await resolveMemberFlag(flag));
-    }
-
-    const problem = memberListProblem(members);
-    if (problem !== null) {
-      throw memberInvalidError(problem);
-    }
-
-    if (options.tool !== undefined && findOpener(table, options.tool) === null) {
-      throw toolUnknownError(options.tool, table);
-    }
-
-    return {
-      name,
-      ...(options.tool !== undefined ? { tool: options.tool } : {}),
-      members,
-    };
-  }
-
-  private async composeInteractively(
-    givenName: string | undefined,
-    options: WorksetCreateOptions,
-    table: OpenerDefinition[]
-  ): Promise<Workset> {
-    const { input, select } = await import('@inquirer/prompts');
-
-    console.log('[1/3] Name the workset');
-    let name: string;
-    if (givenName !== undefined) {
-      name = validateWorksetName(givenName);
-      console.log(`  Workset name: ${name}`);
-    } else {
-      name = await input({
-        message: 'Workset name:',
-        required: true,
-        validate(value: string) {
-          try {
-            validateWorksetName(value);
-            return true;
-          } catch (error) {
-            return asErrorMessage(error);
-          }
-        },
-      });
-    }
-
-    console.log('');
-    console.log(
-      '[2/3] Add member folders (the first one is the primary - sessions start there)'
-    );
-    const members: WorksetMember[] = [];
-    if (options.member !== undefined) {
-      for (const flag of options.member) {
-        members.push(await resolveMemberFlag(flag));
-      }
-    }
-
-    while (true) {
-      if (members.length > 0) {
-        const next = await select({
-          message: 'Add another folder or finish:',
-          choices: [
-            { name: 'Finish', value: 'finish' },
-            { name: 'Add another folder', value: 'add' },
-          ],
-          default: 'finish',
-        });
-        if (next === 'finish') {
-          break;
-        }
-      }
-
-      const rawPath = await input({
-        message: 'Folder path:',
-        ...(members.length === 0 ? { default: '.', prefill: 'editable' } : {}),
-        required: true,
-        async validate(value: string) {
-          const resolved = path.resolve(expandUserPath(value));
-          if (!(await pathIsDirectory(resolved))) {
-            return `'${value}' is not an existing folder`;
-          }
-          return true;
-        },
-      });
-
-      const resolvedPath = path.resolve(expandUserPath(rawPath));
-      let label = path.basename(resolvedPath);
-      const collision = members.some((member) => member.name === label);
-      if (memberLabelProblem(label) !== null || collision) {
-        label = await input({
-          message: `Name this member (the folder label):`,
-          required: true,
-          validate(value: string) {
-            const problem = memberLabelProblem(value);
-            if (problem !== null) {
-              return problem;
-            }
-            if (members.some((member) => member.name === value)) {
-              return `duplicate member name '${value}'`;
-            }
-            return true;
-          },
-        });
-      }
-
-      members.push({ name: label, path: resolvedPath });
-      console.log(`  Added '${label}' (${resolvedPath})`);
-    }
-
-    const problem = memberListProblem(members);
-    if (problem !== null) {
-      throw memberInvalidError(problem);
-    }
-
-    console.log('');
-    console.log('[3/3] Choose your tool');
-    let tool = options.tool;
-    if (tool !== undefined && findOpener(table, tool) === null) {
-      throw toolUnknownError(tool, table);
-    }
-    if (tool === undefined) {
-      const choices = listOpenerChoices(table);
-      const available = choices.filter((choice) => choice.available);
-      if (available.length === 0) {
-        console.log(
-          '  None of the known tools is on PATH; not saving a preference.'
-        );
-        console.log(
-          `  (Known tools: ${choices.map((choice) => `${choice.opener.id} ${choice.note ?? ''}`.trim()).join(', ')})`
-        );
-      } else {
-        tool = await select({
-          message: 'Open this workset with:',
-          choices: available.map((choice) => ({
-            name: choice.opener.label,
-            value: choice.opener.id,
-          })),
-        });
-      }
-    }
-
-    return {
-      name,
-      ...(tool !== undefined ? { tool } : {}),
-      members,
-    };
+    const members = await resolveMemberFlags(memberFlags);
+    // The opener table is read only when a tool is actually named - a
+    // tool-less scripted create must not fail on unrelated config rows.
+    const table = options.tool !== undefined ? readOpenerTable() : [];
+    return finalizeWorkset(name, members, options.tool, table);
   }
 
   async list(options: { json?: boolean } = {}): Promise<void> {
@@ -477,7 +281,7 @@ class WorksetCommand {
       const worksets = listWorksets(state);
 
       if (options.json) {
-        printJson({ worksets: worksets.map(toWorksetOutput), status: [] });
+        printJson({ worksets, status: [] });
         return;
       }
 
@@ -488,10 +292,10 @@ class WorksetCommand {
         return;
       }
 
-      const table = mergeOpenerTable(
-        getGlobalConfig().openers,
-        getGlobalConfigPath()
-      );
+      // The table is consulted only to render tool labels.
+      const table = worksets.some((workset) => workset.tool !== undefined)
+        ? readOpenerTable()
+        : [];
       for (const workset of worksets) {
         const toolLabel =
           workset.tool !== undefined
@@ -506,12 +310,12 @@ class WorksetCommand {
         }
       }
     } catch (error) {
-      this.handleFailure(options.json, { worksets: [], status: [] }, error);
+      emitFailure(options.json, { worksets: [], status: [] }, error, 'workset_error');
     }
   }
 
   async open(name: string, options: WorksetOpenOptions = {}): Promise<void> {
-    let fallback: OpenFallback | undefined;
+    let prepared: PreparedOpen | undefined;
 
     try {
       if (options.json) {
@@ -527,21 +331,24 @@ class WorksetCommand {
 
       // Regenerate the derived file FIRST (under the lock), so every
       // cannot-drive failure below can name an existing, current file.
-      const prepared = await withWorksetsLock(async (state) => {
+      prepared = await withWorksetsLock(async (state): Promise<PreparedOpen> => {
         const workset = getWorkset(state, name);
         if (workset === null) {
           throw worksetNotFoundError(name, state);
         }
 
-        const surviving: WorksetMember[] = [];
-        const skipped: WorksetMember[] = [];
-        for (const member of workset.members) {
-          if (await pathIsDirectory(member.path)) {
-            surviving.push(member);
-          } else {
-            skipped.push(member);
-          }
-        }
+        const checks = await Promise.all(
+          workset.members.map(async (member) => ({
+            member,
+            exists: await pathIsDirectory(member.path),
+          }))
+        );
+        const surviving = checks
+          .filter((check) => check.exists)
+          .map((check) => check.member);
+        const skipped = checks
+          .filter((check) => !check.exists)
+          .map((check) => check.member);
 
         if (surviving.length === 0) {
           throw new StoreError(
@@ -563,23 +370,22 @@ class WorksetCommand {
         return { workset, surviving, skipped, codeWorkspacePath };
       });
 
-      fallback = {
-        codeWorkspacePath: prepared.codeWorkspacePath,
-        members: prepared.workset.members,
-      };
-
       for (const member of prepared.skipped) {
         console.error(
           `Skipped '${member.name}' (${member.path} is not available).`
         );
       }
+      if (prepared.workset.members[0] !== prepared.surviving[0]) {
+        const primary = prepared.surviving[0];
+        console.error(
+          `Using '${primary.name}' (${primary.path}) as the primary for this open.`
+        );
+      }
 
-      const table = mergeOpenerTable(
-        getGlobalConfig().openers,
-        getGlobalConfigPath()
-      );
+      const table = readOpenerTable();
 
       let toolId = options.tool ?? prepared.workset.tool;
+      let availabilityVerified = false;
       if (toolId === undefined) {
         if (!isInteractive()) {
           throw new StoreError(
@@ -596,17 +402,11 @@ class WorksetCommand {
           (choice) => choice.available
         );
         if (available.length === 0) {
-          throw toolUnavailableError(table[0], table, name);
+          throw noToolInstalledError(table, name);
         }
 
-        const { select } = await import('@inquirer/prompts');
-        toolId = await select({
-          message: 'Open with:',
-          choices: available.map((choice) => ({
-            name: choice.opener.label,
-            value: choice.opener.id,
-          })),
-        });
+        toolId = await promptToolFromChoices(available);
+        availabilityVerified = true;
       }
 
       const opener = findOpener(table, toolId);
@@ -614,7 +414,7 @@ class WorksetCommand {
         throw toolUnknownError(toolId, table);
       }
 
-      if (!isOpenerCommandAvailable(opener.command)) {
+      if (!availabilityVerified && !isOpenerCommandAvailable(opener.command)) {
         throw toolUnavailableError(opener, table, name);
       }
 
@@ -633,29 +433,49 @@ class WorksetCommand {
         );
       }
 
-      const result = await launchOpenerCommand(launch);
+      let result: LaunchResult;
+      try {
+        result = await launchOpenerCommand(launch);
+      } catch (error) {
+        // Make the launch-failure fix pasteable when an alternative is
+        // installed (the launcher itself does not know the table).
+        if (
+          error instanceof StoreError &&
+          error.diagnostic.code === 'workset_launch_failed'
+        ) {
+          const alternative = firstInstalledAlternative(table, opener.id);
+          if (alternative !== null) {
+            throw new StoreError(error.message, 'workset_launch_failed', {
+              target: 'workset.tool',
+              fix: `Run: openspec workset open ${name} --tool ${alternative}`,
+            });
+          }
+        }
+        throw error;
+      }
+
       const exitCode = exitCodeForLaunch(result);
       if (exitCode !== 0) {
         process.exitCode = exitCode;
       }
     } catch (error) {
-      this.handleFailure(options.json, { status: [] }, error);
+      emitFailure(options.json, { status: [] }, error, 'workset_error');
 
-      // Never strand the user: the failure path carries the manual
-      // route for every cannot-drive-or-launch error.
+      // Never strand the user: once the derived file is regenerated,
+      // every failure (except a prompt cancellation) carries the
+      // manual route - the file path plus the members it contains.
       if (
         !options.json &&
-        fallback !== undefined &&
-        error instanceof StoreError &&
-        FALLBACK_CODES.has(error.diagnostic.code)
+        prepared !== undefined &&
+        !isPromptCancellationError(error)
       ) {
         console.error('Open manually:');
-        console.error(`  Workspace file: ${fallback.codeWorkspacePath}`);
+        console.error(`  Workspace file: ${prepared.codeWorkspacePath}`);
         console.error('  Members:');
         const width = Math.max(
-          ...fallback.members.map((member) => member.name.length)
+          ...prepared.surviving.map((member) => member.name.length)
         );
-        for (const member of fallback.members) {
+        for (const member of prepared.surviving) {
           console.error(`    ${member.name.padEnd(width)}  ${member.path}`);
         }
       }
@@ -682,12 +502,7 @@ class WorksetCommand {
           );
         }
 
-        const { confirm } = await import('@inquirer/prompts');
-        const confirmed = await confirm({
-          message: `Remove workset '${name}'? (member folders are never touched)`,
-          default: false,
-        });
-
+        const confirmed = await confirmRemoveInteractively(workset);
         if (!confirmed) {
           throw new StoreError(
             'Workset remove cancelled.',
@@ -700,13 +515,7 @@ class WorksetCommand {
         }
       }
 
-      await updateWorksetsState(async (current) => {
-        const updated = withoutWorkset(current, name);
-        // Derived-file cleanup rides the same lock; a never-opened
-        // workset has no file - ENOENT is fine.
-        await fs.rm(getWorksetCodeWorkspacePath(name), { force: true });
-        return updated;
-      });
+      await removeWorkset(name);
 
       if (options.json) {
         printJson({ removed: { name }, status: [] });
@@ -715,34 +524,8 @@ class WorksetCommand {
 
       console.log(`Removed workset '${name}'. Member folders were not touched.`);
     } catch (error) {
-      this.handleFailure(options.json, { removed: null, status: [] }, error);
+      emitFailure(options.json, { removed: null, status: [] }, error, 'workset_error');
     }
-  }
-
-  private handleFailure(
-    json: boolean | undefined,
-    payload: Record<string, unknown>,
-    error: unknown
-  ): void {
-    if (!json && isPromptCancellationError(error)) {
-      console.error('Cancelled.');
-      process.exitCode = 130;
-      return;
-    }
-
-    const status = asStatus(error, 'workset_error');
-    if (json) {
-      const prior = Array.isArray(payload.status) ? payload.status : [];
-      printJson({ ...payload, status: [...prior, status] });
-      process.exitCode = 1;
-      return;
-    }
-
-    console.error(`Error: ${status.message}`);
-    if (status.fix) {
-      console.error(`Fix: ${status.fix}`);
-    }
-    process.exitCode = 1;
   }
 }
 
@@ -756,6 +539,14 @@ export function registerWorksetCommand(program: Command): void {
     COMMAND_REGISTRY.find((entry) => entry.name === 'workset')?.description ??
     'Compose, keep, and open personal working views (purely local)';
   const workset = program.command('workset').description(groupDescription);
+  // Parsed at the group level so `openspec workset --json` keeps the
+  // one-JSON-document contract instead of a raw Commander error. The
+  // parent option matches anywhere, so each action merges it back in.
+  workset.addOption(new Option('--json', 'Output as JSON').hideHelp());
+  const withGroupJson = <T extends { json?: boolean }>(options: T): T => ({
+    ...options,
+    json: options.json || Boolean(workset.opts().json),
+  });
 
   workset
     .command('create [name]')
@@ -769,7 +560,7 @@ export function registerWorksetCommand(program: Command): void {
     .option('--tool <id>', 'Preferred tool to open this workset with')
     .option('--json', 'Output as JSON')
     .action(async (name: string | undefined, options: WorksetCreateOptions) => {
-      await worksetCommand.create(name, options);
+      await worksetCommand.create(name, withGroupJson(options));
     });
 
   workset
@@ -778,7 +569,7 @@ export function registerWorksetCommand(program: Command): void {
     .description('Show saved worksets with their members')
     .option('--json', 'Output as JSON')
     .action(async (options: { json?: boolean }) => {
-      await worksetCommand.list(options);
+      await worksetCommand.list(withGroupJson(options));
     });
 
   workset
@@ -792,7 +583,7 @@ export function registerWorksetCommand(program: Command): void {
       new Option('--json', 'Not supported for open').hideHelp()
     )
     .action(async (name: string, options: WorksetOpenOptions) => {
-      await worksetCommand.open(name, options);
+      await worksetCommand.open(name, withGroupJson(options));
     });
 
   workset
@@ -801,7 +592,7 @@ export function registerWorksetCommand(program: Command): void {
     .option('--yes', 'Confirm removal non-interactively')
     .option('--json', 'Output as JSON')
     .action(async (name: string, options: WorksetRemoveOptions) => {
-      await worksetCommand.remove(name, options);
+      await worksetCommand.remove(name, withGroupJson(options));
     });
 
   const subcommandsLine = workset.commands
@@ -812,13 +603,21 @@ export function registerWorksetCommand(program: Command): void {
         : subcommand.name();
     })
     .join(', ');
-  workset.on('command:*', (operands: string[], unknown: string[]) => {
-    const attempted = operands.filter((operand) => !operand.startsWith('-'));
+
+  // One handler owns missing AND unknown subcommands: known
+  // subcommands dispatch above; everything else lands in this action
+  // (allowExcessArguments routes the unknown operand here), keeping
+  // the one-JSON-document contract for `--json` probes.
+  workset.allowExcessArguments(true);
+  workset.action(() => {
+    const attempted = workset.args.filter(
+      (operand) => !operand.startsWith('-')
+    );
     const message =
       attempted.length > 0
         ? `Unknown command '${attempted[0]}' for 'openspec workset'. Workset subcommands: ${subcommandsLine}.`
         : `Missing subcommand for 'openspec workset'. Workset subcommands: ${subcommandsLine}.`;
-    if (operands.includes('--json') || unknown.includes('--json')) {
+    if (workset.opts().json) {
       printJson({
         status: [
           {
@@ -829,10 +628,9 @@ export function registerWorksetCommand(program: Command): void {
           } satisfies StoreDiagnostic,
         ],
       });
-      process.exitCode = 1;
-      return;
+    } else {
+      console.error(`Error: ${message}`);
     }
-    console.error(`Error: ${message}`);
     process.exitCode = 1;
   });
 }

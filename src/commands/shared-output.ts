@@ -46,6 +46,14 @@ export function emitFailure(
   error: unknown,
   fallbackCode: string
 ): void {
+  // Ctrl-C in a prompt is the user's choice, not an error: every
+  // command group gets the Cancelled./130 convention through here.
+  if (!json && isPromptCancellationError(error)) {
+    console.error('Cancelled.');
+    process.exitCode = 130;
+    return;
+  }
+
   const status = asStatus(error, fallbackCode);
   if (json) {
     const prior = Array.isArray(payload.status) ? payload.status : [];

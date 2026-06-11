@@ -451,13 +451,17 @@ describe('openspec workset (7.1)', () => {
         { name: 'api', path: memberC },
       ]);
 
-      // Primary missing: the next surviving member becomes cwd.
+      // Primary missing: the next surviving member becomes cwd, and
+      // the reassignment is noted in the skip-line style.
       fs.rmSync(memberA, { recursive: true, force: true });
       const second = await runCLI(['workset', 'open', 'platform'], {
         cwd: tempDir,
         env: envWithFakeTools(env, [fakeClaude]),
       });
       expect(second.exitCode).toBe(0);
+      expect(second.stderr).toContain(
+        `Using 'api' (${memberC}) as the primary for this open.`
+      );
       expect(fs.realpathSync.native(readLaunchLog(fakeClaude.logPath).cwd)).toBe(
         memberC
       );
@@ -607,16 +611,20 @@ describe('openspec workset (7.1)', () => {
     it('rejects an invalid style naming the two valid ones', async () => {
       writeOpenersConfig({ vim: { style: 'tabs' } });
 
-      const result = await runCLI(['workset', 'list'], { cwd: tempDir, env });
+      // The table is read only where it is consulted: a tool-less
+      // scripted create must not fail on an unrelated config row...
+      const toolLess = await createPlatform();
+      expect(toolLess.exitCode).toBe(0);
 
-      // list resolves tool labels through the merged table only when
-      // worksets exist; create always reads it.
-      const createResult = await createPlatform();
-      expect(createResult.exitCode).toBe(1);
-      const payload = parseJson(createResult);
+      // ...while naming a tool reads it and fails typed.
+      const withTool = await runCLI(
+        ['workset', 'create', 'tooled', '--member', memberA, '--tool', 'claude', '--json'],
+        { cwd: tempDir, env }
+      );
+      expect(withTool.exitCode).toBe(1);
+      const payload = parseJson(withTool);
       expect(payload.status[0].code).toBe('invalid_opener_config');
       expect(payload.status[0].fix).toContain("'workspace-file' or 'attach-dirs'");
-      void result;
     });
   });
 
@@ -637,6 +645,15 @@ describe('openspec workset (7.1)', () => {
         expect(status.code).toBe('invalid_workset_file');
         expect(status.fix).toBe(`Repair or remove ${filePath}.`);
       }
+
+      // open is human-only; it fails the same way on its stderr leg.
+      const open = await runCLI(['workset', 'open', 'x'], {
+        cwd: tempDir,
+        env,
+      });
+      expect(open.exitCode).toBe(1);
+      expect(open.stderr).toContain('Invalid worksets file');
+
       expect(fs.readFileSync(filePath, 'utf-8')).toBe('{broken');
     });
 
@@ -654,6 +671,44 @@ describe('openspec workset (7.1)', () => {
       expect(human.exitCode).toBe(1);
       expect(human.stderr).toContain("Unknown command 'bogus'");
       expect(human.stderr).toContain('create, list (ls), open, remove');
+    });
+
+    it('a bare group invocation keeps the contract too (--json and human)', async () => {
+      const json = await runCLI(['workset', '--json'], { cwd: tempDir, env });
+      expect(json.exitCode).toBe(1);
+      const payload = parseJson(json);
+      expect(payload.status[0].code).toBe('unknown_workset_subcommand');
+      expect(payload.status[0].message).toContain('Missing subcommand');
+
+      const human = await runCLI(['workset'], { cwd: tempDir, env });
+      expect(human.exitCode).toBe(1);
+      expect(human.stderr).toContain('Missing subcommand');
+    });
+
+    it('a launch failure carries a pasteable alternative and the manual route', async () => {
+      await createPlatform(['--tool', 'claude']);
+      // A fake claude that PASSES the PATH scan but fails to execute
+      // (no shebang, not an executable image -> spawn error event).
+      const binDir = path.join(tempDir, 'fake-broken-bin');
+      fs.mkdirSync(binDir, { recursive: true });
+      const broken = path.join(binDir, 'claude');
+      fs.writeFileSync(broken, 'not an executable\n');
+      fs.chmodSync(broken, 0o755);
+      const fakeCode = createFakeTool(tempDir, 'code');
+      const launchEnv = envWithFakeTools(env, [fakeCode]);
+      launchEnv.PATH = `${binDir}${path.delimiter}${launchEnv.PATH}`;
+
+      const result = await runCLI(['workset', 'open', 'platform'], {
+        cwd: tempDir,
+        env: launchEnv,
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain('Could not launch Claude Code');
+      expect(result.stderr).toContain(
+        'Fix: Run: openspec workset open platform --tool code'
+      );
+      expect(result.stderr).toContain('Open manually:');
     });
   });
 });
@@ -733,6 +788,10 @@ describe('interactive compose cancellation (in-process)', () => {
     process.env.XDG_CONFIG_HOME = path.join(tempDir, 'config');
     delete process.env.CI;
     delete process.env.OPEN_SPEC_INTERACTIVE;
+    // Deterministic tool availability for the wizard's [3/3] step:
+    // exactly one fake claude on PATH, regardless of the host machine.
+    const fakeClaude = createFakeTool(tempDir, 'claude');
+    process.env.PATH = `${fakeClaude.binDir}${path.delimiter}${path.dirname(process.execPath)}`;
 
     const descriptor = Object.getOwnPropertyDescriptor(process.stdin, 'isTTY');
     Object.defineProperty(process.stdin, 'isTTY', {
@@ -835,6 +894,78 @@ describe('interactive compose cancellation (in-process)', () => {
         path.join(process.env.XDG_DATA_HOME!, 'openspec', 'worksets', 'worksets.yaml')
       )
     ).toBe(false);
+  });
+
+  it('the guided flow saves; declining open-now prints the reopen line', async () => {
+    const memberDir = path.join(tempDir, 'repo');
+    fs.mkdirSync(memberDir);
+    let inputCalls = 0;
+
+    await runCreate({
+      input: vi.fn(async () => {
+        inputCalls += 1;
+        return inputCalls === 1 ? 'platform' : memberDir;
+      }),
+      select: vi.fn(async (config: { message: string }) => {
+        if (config.message.includes('Add another')) return 'finish';
+        return 'claude';
+      }),
+      confirm: vi.fn(async () => false),
+    });
+
+    expect(process.exitCode === undefined || process.exitCode === 0).toBe(
+      true
+    );
+    const yamlPath = path.join(
+      process.env.XDG_DATA_HOME!,
+      'openspec',
+      'worksets',
+      'worksets.yaml'
+    );
+    expect(fs.readFileSync(yamlPath, 'utf-8')).toContain('platform');
+    expect(fs.readFileSync(yamlPath, 'utf-8')).toContain('tool: claude');
+    expect(logSpy).toHaveBeenCalledWith(
+      'Open it any time with: openspec workset open platform'
+    );
+  });
+
+  it('Ctrl-C at the post-save open-now offer is NOT a cancelled create', async () => {
+    const memberDir = path.join(tempDir, 'repo');
+    fs.mkdirSync(memberDir);
+    let inputCalls = 0;
+
+    await runCreate({
+      input: vi.fn(async () => {
+        inputCalls += 1;
+        return inputCalls === 1 ? 'platform' : memberDir;
+      }),
+      select: vi.fn(async (config: { message: string }) => {
+        if (config.message.includes('Add another')) return 'finish';
+        return 'claude';
+      }),
+      confirm: vi.fn(async () => {
+        throw exitPromptError();
+      }),
+    });
+
+    // The workset is durably saved; declining-by-Ctrl-C is success.
+    expect(process.exitCode === undefined || process.exitCode === 0).toBe(
+      true
+    );
+    expect(errorSpy).not.toHaveBeenCalledWith('Cancelled.');
+    expect(logSpy).toHaveBeenCalledWith(
+      'Open it any time with: openspec workset open platform'
+    );
+    expect(
+      fs.existsSync(
+        path.join(
+          process.env.XDG_DATA_HOME!,
+          'openspec',
+          'worksets',
+          'worksets.yaml'
+        )
+      )
+    ).toBe(true);
   });
 
   it('a declined remove confirm is the typed workset_remove_cancelled', async () => {

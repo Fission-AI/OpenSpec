@@ -7,11 +7,18 @@ import { getGlobalDataDir } from './global-config.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import {
   acquireFileLock,
+  pathIsFile,
   releaseFileLock,
   writeFileAtomically,
 } from './file-state.js';
 import { StoreError } from './store/errors.js';
-import { isKebabId, KEBAB_ID_DESCRIPTION } from './id.js';
+import {
+  folderStyleNameProblem,
+  isKebabId,
+  KEBAB_ID_DESCRIPTION,
+  KEBAB_ID_FIX,
+} from './id.js';
+import { formatZodIssues } from './zod-issues.js';
 
 const fs = nodeFs.promises;
 
@@ -80,7 +87,7 @@ export function validateWorksetName(name: string): string {
       'invalid_workset_name',
       {
         target: 'workset.name',
-        fix: 'Use kebab-case with lowercase letters, numbers, and single hyphen separators.',
+        fix: KEBAB_ID_FIX,
       }
     );
   }
@@ -119,19 +126,7 @@ export function memberListProblem(members: WorksetMember[]): string | null {
 }
 
 export function memberLabelProblem(label: string): string | null {
-  if (label.length === 0) {
-    return 'member name must not be empty';
-  }
-
-  if (label === '.' || label === '..') {
-    return `member name must not be '${label}'`;
-  }
-
-  if (/[\\/]/u.test(label)) {
-    return `member name '${label}' must not contain path separators`;
-  }
-
-  return null;
+  return folderStyleNameProblem(label, 'member name');
 }
 
 const WorksetMemberSchema = z
@@ -154,15 +149,6 @@ const WorksetsStateSchema = z
     worksets: z.record(z.string(), WorksetEntrySchema),
   })
   .strict();
-
-function formatZodIssues(error: z.ZodError): string {
-  return error.issues
-    .map((issue) => {
-      const location = issue.path.length > 0 ? issue.path.join('.') : 'root';
-      return `${location}: ${issue.message}`;
-    })
-    .join('; ');
-}
 
 function invalidWorksetsFileError(
   message: string,
@@ -238,14 +224,6 @@ export function serializeWorksetsState(
         ])
     ),
   });
-}
-
-async function pathIsFile(filePath: string): Promise<boolean> {
-  try {
-    return (await fs.stat(filePath)).isFile();
-  } catch {
-    return false;
-  }
 }
 
 /** Absent file reads as the empty state; a corrupt file throws. */
@@ -376,6 +354,26 @@ export function withoutWorkset(
   const remaining = { ...state.worksets };
   delete remaining[name];
   return { version: 1, worksets: remaining };
+}
+
+/**
+ * Removes a saved workset and its derived .code-workspace under one
+ * lock. The derived-file cleanup runs AFTER the durable write (a
+ * failed write must not have already destroyed the artifact); a
+ * never-opened workset has no file - ENOENT is fine.
+ */
+export async function removeWorkset(
+  name: string,
+  options: WorksetPathOptions = {}
+): Promise<void> {
+  await withWorksetsLock(async (state) => {
+    const next = withoutWorkset(state, name);
+    await writeFileAtomically(
+      getWorksetsFilePath(options),
+      serializeWorksetsState(next, options)
+    );
+    await fs.rm(getWorksetCodeWorkspacePath(name, options), { force: true });
+  }, options);
 }
 
 export function listWorksets(state: WorksetsState): Workset[] {

@@ -29,13 +29,29 @@ const STALE_LOCK_THRESHOLD_MS = 30_000;
 const LOCK_DEADLINE_MS = 5000;
 const LOCK_POLL_MS = 25;
 
-function isNodeErrorCode(error: unknown, code: string): boolean {
+export function isNodeErrorCode(error: unknown, code: string): boolean {
   return (
     typeof error === 'object' &&
     error !== null &&
     'code' in error &&
     (error as NodeJS.ErrnoException).code === code
   );
+}
+
+export async function pathIsFile(filePath: string): Promise<boolean> {
+  try {
+    return (await fs.stat(filePath)).isFile();
+  } catch {
+    return false;
+  }
+}
+
+export async function pathIsDirectory(dirPath: string): Promise<boolean> {
+  try {
+    return (await fs.stat(dirPath)).isDirectory();
+  } catch {
+    return false;
+  }
 }
 
 async function sleep(milliseconds: number): Promise<void> {
@@ -80,21 +96,25 @@ export async function acquireFileLock(
 
       // A crashed process leaves the lock behind forever; state-file
       // writes are sub-second, so an old lock is an orphan - steal it.
+      let staleStolen = false;
       try {
         const lockStat = await fs.stat(lockPath);
         if (Date.now() - lockStat.mtimeMs > STALE_LOCK_THRESHOLD_MS) {
           await fs.rm(lockPath, { force: true });
-          continue;
+          staleStolen = true;
         }
       } catch {
-        continue; // The holder released between open and stat - retry.
+        // The holder released between open and stat - retry, but stay
+        // bounded: a persistently failing stat (EPERM, delete-pending)
+        // must hit the deadline instead of spinning forever.
       }
 
-      if (Date.now() >= deadline) {
-        throw errorFor('timeout', { lockPath });
+      if (!staleStolen) {
+        if (Date.now() >= deadline) {
+          throw errorFor('timeout', { lockPath });
+        }
+        await sleep(LOCK_POLL_MS);
       }
-
-      await sleep(LOCK_POLL_MS);
     }
   }
 }

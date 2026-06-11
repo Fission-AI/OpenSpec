@@ -202,7 +202,7 @@ describe('openers core', () => {
       expect(seen).toEqual(['C:\\bin\\tool.WSF', 'C:\\bin\\tool.LNK']);
     });
 
-    it('matches a command already carrying a known extension as-is', () => {
+    it('matches a command already carrying a known extension as-is, never doubled', () => {
       const seen: string[] = [];
       const available = isOpenerCommandAvailable('tool.cmd', {
         env: { PATH: 'C:\\bin' },
@@ -214,7 +214,20 @@ describe('openers core', () => {
       });
 
       expect(available).toBe(true);
-      expect(seen[0]).toBe('C:\\bin\\tool.cmd');
+      // Exactly the bare candidate - no tool.cmd.COM/.EXE doubling
+      // (the scan must agree with spawn-time resolution).
+      expect(seen).toEqual(['C:\\bin\\tool.cmd']);
+
+      const negative: string[] = [];
+      isOpenerCommandAvailable('tool.cmd', {
+        env: { PATH: 'C:\\bin' },
+        platform: 'win32',
+        isExecutableFile: (candidate) => {
+          negative.push(candidate);
+          return false;
+        },
+      });
+      expect(negative).toEqual(['C:\\bin\\tool.cmd']);
     });
 
     it('sorts choices available-first preserving table order', () => {

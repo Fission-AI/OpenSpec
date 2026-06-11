@@ -2289,6 +2289,49 @@ is working:
   `src/core/file-state.ts` now that they have two call sites; agent
   guidance does not teach worksets at v1 (human convenience; template
   parity pins stay untouched).
+- 2026-06-12: Ran the 7.1 post-implementation review — three parallel
+  mechanisms (spec-compliance agent: compliant-with-fixes, all locked
+  decisions hold; /code-review at high effort via a seven-angle
+  finder fan-out; codex 5.5 high: approve-with-fixes) — and fixed
+  every converged P2 plus the cheap P3s in one round. No P1s
+  anywhere. Behavioral fixes: the open fallback rule is structural
+  (every post-regeneration failure except prompt cancellation carries
+  "Open manually:" with the surviving members — the curated code set
+  had already drifted past invalid_opener_config and
+  workset_tool_required); the primary-reassignment note is printed;
+  zero-installed-tools interactive opens say so instead of
+  misreporting the table's first row; launch failures get a pasteable
+  --tool alternative; Ctrl-C at the post-save open-now offer declines
+  the offer instead of reporting a saved create as cancelled; the
+  parent ignores SIGINT/SIGTERM while a launched tool runs (the 128+n
+  contract was unreachable for tty Ctrl-C — the parent died first);
+  synchronous spawn throws map to workset_launch_failed; the
+  tool.cmd PATHEXT double-append is gone (the scan agrees with
+  spawn-time resolution); the bare `workset --json` probe keeps the
+  one-JSON-document contract via a group-level option + action
+  handler; the shared lock's stat-failure path is deadline-bounded
+  (was a pre-existing store busy-spin hazard); remove's derived-file
+  cleanup now follows the durable write; flag members validate
+  before the wizard spends the user's time; cross-spawn loads lazily
+  (~6ms off every CLI invocation, measured). Structure: the command
+  layer split into workset.ts / workset-prompts.ts / workset-input.ts
+  (the 838-line module had crossed the lean bar); formatZodIssues,
+  folderStyleNameProblem, KEBAB_ID_FIX, pathIsFile/pathIsDirectory/
+  isNodeErrorCode each have one shared home; the prompt-cancellation
+  branch lifted into emitFailure with store's private copy collapsed.
+  Tests: the guided-flow success path, post-save-cancel, bare-group
+  probes, the launch-failure (ENOEXEC garbage executable), corrupt
+  open leg, and the win32 as-is matrix added; the in-process
+  interactive tests pin a controlled PATH (they silently depended on
+  the host's installed tools), and withPrependedPathEnv prefers the
+  base env's PATH key (a win32 duplicate-key hazard). Spec amended in
+  the same round (d2, d6, d8, d10-d14: the shipped contracts).
+  Recorded for /simplify: the two lock-error factories are
+  textually parallel (data-parameterizable); StoreError as the
+  envelope class for non-store domains is an accepted altitude
+  tradeoff (asStatus duck-types the envelope; a neutral
+  DiagnosticError rename is capstone-scale, not slice-scale). Full
+  suite green (101 files, 1799 tests).
 - 2026-06-12: Implemented slice 7.1 in two checkpoints. CP1 (e8bf29b):
   `src/core/file-state.ts` extracts the lock/atomic-write mechanics
   from store foundation with caller-owned error factories (the store

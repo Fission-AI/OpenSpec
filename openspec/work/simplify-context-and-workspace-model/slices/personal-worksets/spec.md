@@ -85,6 +85,9 @@ membership truth. No member folder ever contains workset residue.
    feature's state lives under `<globalDataDir>/worksets/` — deleting
    that one directory deletes every saved view and generated file,
    satisfying the "loses nothing you cannot recompose" bar.
+   Remove's derived-file cleanup runs *after* the durable state write
+   (review round: a failed write must not have already destroyed the
+   artifact), still under the one lock.
 3. **Workset names use the one kebab grammar** (`isKebabId` /
    `KEBAB_ID_DESCRIPTION`, `src/core/id.ts`). Worksets are their own
    namespace in their own file: no cross-checks against store/repo ids
@@ -152,10 +155,15 @@ membership truth. No member folder ever contains workset residue.
      `cwd` = that member. **No trailing positional, ever** (locked:
      no starter prompt; both agent CLIs read a positional as one).
    - Spawn via `cross-spawn` (already a pinned dependency,
-     `package.json:77`) with `shell: false`, `stdio: 'inherit'`,
-     env inherited, not detached — the `f858c19^` shape. No signal
-     plumbing: with stdio inherited the terminal delivers Ctrl-C to
-     the child; the parent awaits close.
+     `package.json:77`; loaded lazily so non-open commands skip its
+     module graph — review round) with `shell: false`,
+     `stdio: 'inherit'`, env inherited, not detached — the `f858c19^`
+     shape. While the child runs, the parent ignores SIGINT/SIGTERM
+     (review round): the terminal delivers Ctrl-C to the child, and
+     the parent must survive to report the child's real exit facts —
+     otherwise the 128+n contract is unreachable for tty-generated
+     signals. Synchronous spawn throws are the same launch failure as
+     the async error event.
    - codex's pre-args apply always (not only when extra members
      exist) — simpler than the old conditional, and a one-member
      codex open still wants `workspace-write`.
@@ -185,33 +193,44 @@ membership truth. No member folder ever contains workset residue.
    `{ workset: null, status: [d] }`; list
    `{ worksets: [...], status: [] }`; remove
    `{ removed: { name }, status: [] }` /
-   `{ removed: null, status: [d] }`. The group gets the `command:*`
-   unknown-subcommand handler keeping the one-JSON-document contract
-   (code `unknown_workset_subcommand`, the store pattern). Open
+   `{ removed: null, status: [d] }`. Missing and unknown subcommands
+   share one group-action handler (code `unknown_workset_subcommand`)
+   keeping the one-JSON-document contract — including the bare
+   `openspec workset --json` probe, which the store group's
+   `command:*` pattern alone cannot catch (review round: the group
+   parses a hidden `--json` so Commander never owns the error). Open
    failures print the human `Error:`/`Fix:` shape.
 9. **The open kind is stated plainly before launch** (FR2.1): editors
    print "Opening <name> in <label> (a window opens; this command
    returns)"; agents print "Handing this terminal to <label> for
    <name> (the session ends when you exit)". One line, then launch.
-10. **Fallback is the failure path** (FR2.4): on *every*
-    cannot-drive-or-launch failure — the tool is not on PATH
-    (`workset_tool_unavailable`), the saved or requested id is
-    unknown to the merged table (`workset_tool_unknown`, which also
-    covers a saved `tool:` whose config row was later removed —
-    review round), or the spawn fails (`workset_launch_failed`) —
-    the error names the tool and is followed by "Open manually:"
-    with the regenerated `.code-workspace` path and the member list,
-    for every tool and both styles (the old code showed the file
-    only for `code`). When other known tools are installed, the fix
-    is a pasteable command naming one
-    (`openspec workset open <name> --tool <id>`).
+10. **Fallback is the failure path** (FR2.4), and the rule is
+    structural, not a code list (review round — a curated code set
+    had already drifted): once the derived file is regenerated,
+    *every* open failure except a prompt cancellation — tool not on
+    PATH (`workset_tool_unavailable`), unknown id
+    (`workset_tool_unknown`, covering a saved `tool:` whose config
+    row was later removed), spawn failure (`workset_launch_failed`),
+    a malformed opener config (`invalid_opener_config`), or the
+    non-interactive no-tool case (`workset_tool_required`) — is
+    followed by "Open manually:" with the regenerated
+    `.code-workspace` path and the **surviving** members it actually
+    contains (skipped members already got their own notes). When
+    other known tools are installed, the fix is a pasteable command
+    naming the first one
+    (`openspec workset open <name> --tool <id>`) — including on
+    launch failure (the command rewrites the launcher's generic fix
+    from the merged table). Interactive opens where *nothing* is
+    installed say so plainly ("None of the known tools is on PATH.")
+    instead of misreporting the table's first row.
 11. **Missing members degrade, absent worksets fail**: the open-time
     filter is "exists **and is a directory**" (a member path that
     now points at a file is skipped too — review round); skipped
     members get a one-line note and are excluded from the generated
     file and attach flags; if the *primary* is excluded, the next
-    surviving member becomes cwd for that open (noted in the same
-    line style). If no member survives, open fails
+    surviving member becomes cwd for that open, announced in the
+    skip-line style — `Using '<name>' (<path>) as the primary for
+    this open.` If no member survives, open fails
     (`workset_no_members_available`). `open`/`remove` of an unknown
     name → `workset_not_found` listing saved names in the fix — or,
     with zero saved worksets, naming
@@ -223,6 +242,9 @@ membership truth. No member folder ever contains workset residue.
     `workset_member_invalid` (compose-time: path missing or not a
     directory; also duplicate member names), `workset_members_required`
     (non-interactive create without `--member`),
+    `workset_name_required` (non-interactive create without a name —
+    added during implementation, mirroring `store_setup_id_required`;
+    folded into this family in the review round),
     `workset_tool_unknown` (not a built-in or configured id; fix names
     known ids), `workset_tool_unavailable` (known but not on PATH),
     `workset_tool_required` (non-interactive open with no saved tool
@@ -250,9 +272,21 @@ membership truth. No member folder ever contains workset residue.
     installed the step is skipped with a note and no `tool` is saved).
     Then save, confirm-to-open (default yes; declining prints the
     `openspec workset open <name>` line; the offer is skipped when no
-    tool was saved). `create <name>` with the name given skips the
+    tool was saved; **Ctrl-C at this offer declines it** — the
+    workset is already durably saved, so the create reports success
+    with the reopen line, never `Cancelled.` — review round).
+    Flag-provided members are resolved and validated *before* any
+    prompting, so a bad flag cannot discard a finished wizard walk
+    (review round). `create <name>` with the name given skips the
     name prompt — the step echoes the validated name and the `[n/3]`
-    numbering holds (the store-setup precedent). Non-interactive:
+    numbering holds (the store-setup precedent). The opener table is
+    read only where it is consulted (review round): create reads it
+    when interactive or when `--tool` is named — a tool-less scripted
+    create never fails on an unrelated config row; list reads it only
+    to render human-mode labels. A bare `--member` path containing
+    `=` is read as `<name>=<path>` at the first `=` — the labeled
+    form is the escape for such paths (recorded limitation).
+    Non-interactive:
     `--member <path>` / `--member <name>=<path>` (repeatable, ordered,
     first is primary) and optional `--tool <id>` (validated against
     the merged table but not against PATH — a saved preference may
@@ -285,10 +319,20 @@ membership truth. No member folder ever contains workset residue.
     `getGlobalDataDir` precedent) rather than host-bound; commands
     containing a separator stat directly; a `command` already ending
     in an executable extension matches as-is — and the scan agrees
-    with what cross-spawn resolves at spawn time. Module-size
-    expectation: if `commands/workset.ts` approaches the ~600-line
-    bar, the prompt flows split into `workset-prompts.ts` (the old
-    code's `setup-prompts.ts` seam).
+    with what cross-spawn resolves at spawn time. The command layer
+    is three modules (review round — the single file crossed the
+    ~600-line bar): `workset.ts` (the command class, launch,
+    registration), `workset-prompts.ts` (the interactive flows), and
+    `workset-input.ts` (member-flag resolution and the error builders
+    shared by both). Other shared homes from the review round:
+    `formatZodIssues` in `src/core/zod-issues.ts`,
+    `folderStyleNameProblem`/`KEBAB_ID_FIX` in `src/core/id.ts`,
+    `pathIsFile`/`pathIsDirectory`/`isNodeErrorCode` exported from
+    `src/core/file-state.ts`, and the prompt-cancellation branch
+    lifted into shared-output's `emitFailure` (the store group's
+    private copy collapsed onto it). The lock's stat-failure path is
+    deadline-bounded (review round: a persistently failing stat must
+    time out, not busy-spin).
 
 ## User Experience
 
