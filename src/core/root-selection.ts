@@ -175,31 +175,67 @@ async function resolveStoreRoot(
   }
 
   const storeRoot = getStoreRootForBackend(entry.backend);
+  const inspection = await inspectRegisteredStore(id, storeRoot);
 
+  switch (inspection.kind) {
+    case 'metadata_error':
+      fromStoreError(inspection.error);
+    case 'metadata_missing':
+      // The doctor pointer lives in the message because human-mode command
+      // wrappers print only the message, not the fix field.
+      throw new RootSelectionError(
+        `Store '${id}' is missing identity metadata at ${inspection.metadataPath}. ${doctorFix(id)}`,
+        'store_identity_mismatch',
+        { target: 'store.metadata', fix: doctorFix(id) }
+      );
+    case 'metadata_id_mismatch':
+      throw new RootSelectionError(
+        `Store '${id}' metadata id '${inspection.actualId}' does not match its registered id. ${doctorFix(id)}`,
+        'store_identity_mismatch',
+        { target: 'store.metadata', fix: doctorFix(id) }
+      );
+    case 'unhealthy_root':
+      throw new RootSelectionError(
+        `Store '${id}' does not have a healthy OpenSpec root at ${storeRoot}: ${inspection.problems} ${doctorFix(id)}`,
+        'unhealthy_store_root',
+        { target: 'openspec.root', fix: doctorFix(id) }
+      );
+    case 'ok':
+      return makeRoot(inspection.canonicalRoot, 'store', id);
+  }
+}
+
+/**
+ * The metadata-identity and root-health stages of registered-store
+ * resolution, as a non-throwing result. `resolveStoreRoot` maps each
+ * failure kind to its established error; the reference index assembler
+ * maps them to warnings. One shared inspection path — never fork it.
+ */
+export type RegisteredStoreInspection =
+  | { kind: 'ok'; canonicalRoot: string }
+  | { kind: 'metadata_error'; error: unknown }
+  | { kind: 'metadata_missing'; metadataPath: string }
+  | { kind: 'metadata_id_mismatch'; actualId: string }
+  | { kind: 'unhealthy_root'; problems: string };
+
+export async function inspectRegisteredStore(
+  id: string,
+  storeRoot: string
+): Promise<RegisteredStoreInspection> {
   // Identity (metadata) failures win before root-health diagnostics.
   let metadata;
   try {
     metadata = await readOptionalStoreMetadataState(storeRoot);
   } catch (error) {
-    fromStoreError(error);
+    return { kind: 'metadata_error', error };
   }
 
   if (!metadata) {
-    // The doctor pointer lives in the message because human-mode command
-    // wrappers print only the message, not the fix field.
-    throw new RootSelectionError(
-      `Store '${id}' is missing identity metadata at ${getStoreMetadataPath(storeRoot)}. ${doctorFix(id)}`,
-      'store_identity_mismatch',
-      { target: 'store.metadata', fix: doctorFix(id) }
-    );
+    return { kind: 'metadata_missing', metadataPath: getStoreMetadataPath(storeRoot) };
   }
 
   if (metadata.id !== id) {
-    throw new RootSelectionError(
-      `Store '${id}' metadata id '${metadata.id}' does not match its registered id. ${doctorFix(id)}`,
-      'store_identity_mismatch',
-      { target: 'store.metadata', fix: doctorFix(id) }
-    );
+    return { kind: 'metadata_id_mismatch', actualId: metadata.id };
   }
 
   const inspection = await inspectOpenSpecRoot(storeRoot);
@@ -207,14 +243,10 @@ async function resolveStoreRoot(
     const problems =
       inspection.diagnostics.map((diagnostic) => diagnostic.message).join(' ') ||
       'OpenSpec root is missing or incomplete.';
-    throw new RootSelectionError(
-      `Store '${id}' does not have a healthy OpenSpec root at ${storeRoot}: ${problems} ${doctorFix(id)}`,
-      'unhealthy_store_root',
-      { target: 'openspec.root', fix: doctorFix(id) }
-    );
+    return { kind: 'unhealthy_root', problems };
   }
 
-  return makeRoot(FileSystemUtils.canonicalizeExistingPath(storeRoot), 'store', id);
+  return { kind: 'ok', canonicalRoot: FileSystemUtils.canonicalizeExistingPath(storeRoot) };
 }
 
 export async function resolveOpenSpecRoot(

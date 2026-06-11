@@ -286,6 +286,40 @@ rules:
       });
     });
 
+    describe('references parsing', () => {
+      function writeConfig(body: string): void {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(path.join(configDir, 'config.yaml'), body);
+      }
+
+      it('keeps string entries deduplicated and order-preserving, including invalid grammar', () => {
+        writeConfig(
+          'schema: spec-driven\nreferences:\n  - team-context\n  - team-context\n  - "BAD ID"\n  - other-context\n  - 7\n'
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        // Grammar validation is the index assembler's job; the parser
+        // keeps raw strings so bad ids surface as diagnostics.
+        expect(config?.references).toEqual(['team-context', 'BAD ID', 'other-context']);
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Some 'references' entries are not strings")
+        );
+      });
+
+      it('omits the field when absent or empty and warns on non-arrays', () => {
+        writeConfig('schema: spec-driven\n');
+        expect(readProjectConfig(tempDir)?.references).toBeUndefined();
+
+        writeConfig('schema: spec-driven\nreferences: not-an-array\n');
+        expect(readProjectConfig(tempDir)?.references).toBeUndefined();
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid 'references' field")
+        );
+      });
+    });
+
     describe('context size limit enforcement', () => {
       it('should accept context under 50KB limit', () => {
         const configDir = path.join(tempDir, 'openspec');

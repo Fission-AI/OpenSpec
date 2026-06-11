@@ -13,6 +13,7 @@ export {
 } from './global-config.js';
 
 export * from './workspace/index.js';
+export * from './references.js';
 export * from './store/index.js';
 export * from './planning-home.js';
 export * from './openspec-root.js';

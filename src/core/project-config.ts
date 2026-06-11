@@ -38,6 +38,15 @@ export const ProjectConfigSchema = z.object({
     )
     .optional()
     .describe('Per-artifact rules, keyed by artifact ID'),
+
+  // Optional: stores this root's work draws on (read-only upstream context).
+  // Entries are kept as raw strings; id-grammar validation happens in the
+  // reference index assembler so bad ids surface as diagnostics, not
+  // silent parse-time drops.
+  references: z
+    .array(z.string())
+    .optional()
+    .describe('Store ids whose specs are indexed as read-only context'),
 });
 
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
@@ -149,6 +158,36 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
         }
       } else {
         console.warn(`Invalid 'rules' field in config (must be object)`);
+      }
+    }
+
+    // Parse references field: keep string entries (deduplicated,
+    // order-preserving), drop non-strings like other resilient fields.
+    if (raw.references !== undefined) {
+      if (Array.isArray(raw.references)) {
+        const seen = new Set<string>();
+        const references: string[] = [];
+        let droppedNonString = false;
+
+        for (const entry of raw.references) {
+          if (typeof entry === 'string') {
+            if (!seen.has(entry)) {
+              seen.add(entry);
+              references.push(entry);
+            }
+          } else {
+            droppedNonString = true;
+          }
+        }
+
+        if (droppedNonString) {
+          console.warn(`Some 'references' entries are not strings, ignoring them`);
+        }
+        if (references.length > 0) {
+          config.references = references;
+        }
+      } else {
+        console.warn(`Invalid 'references' field in config (must be an array of store ids)`);
       }
     }
 
