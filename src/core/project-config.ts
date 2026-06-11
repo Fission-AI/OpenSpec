@@ -47,6 +47,14 @@ export const ProjectConfigSchema = z.object({
     .array(z.string())
     .optional()
     .describe('Store ids whose specs are indexed as read-only context'),
+
+  // Optional: the declared default store. Only consulted by root
+  // resolution when this openspec/ directory is config-only (no specs/
+  // or changes/); a fallback, never an override.
+  store: z
+    .string()
+    .optional()
+    .describe('Store id used as the OpenSpec root when no local planning shape exists'),
 });
 
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
@@ -191,6 +199,17 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
       }
     }
 
+    // Parse store pointer field: a string, or dropped with a warning.
+    // (Root resolution does NOT use this parse — it uses readStorePointer
+    // below, which errors on malformed pointers instead of dropping.)
+    if (raw.store !== undefined) {
+      if (typeof raw.store === 'string') {
+        config.store = raw.store;
+      } else {
+        console.warn(`Invalid 'store' field in config (must be a store id string)`);
+      }
+    }
+
     // Return partial config even if some fields failed
     return Object.keys(config).length > 0 ? (config as ProjectConfig) : null;
   } catch (error) {
@@ -300,4 +319,51 @@ export function suggestSchemas(
   message += `\nFix: Edit openspec/config.yaml and change 'schema: ${invalidSchemaName}' to a valid schema name`;
 
   return message;
+}
+
+// -----------------------------------------------------------------------------
+// Store pointer (declared default store)
+// -----------------------------------------------------------------------------
+
+export interface StorePointerRead {
+  /** The declared store id, when present and a string. */
+  value?: string;
+  /** True when the config is unparseable or the store key is non-string. */
+  malformed: boolean;
+  /** Absolute path of the config file actually read, or null when none exists. */
+  filePath: string | null;
+}
+
+/**
+ * Warning-silent targeted read of the `store:` pointer. Used by root
+ * resolution (which must not re-emit the resilient parser's field
+ * warnings) and by `openspec init`'s pointer guard. Unlike
+ * `readProjectConfig`, a malformed value is REPORTED, not dropped —
+ * a dropped pointer would silently flip where work lands.
+ */
+export function readStorePointer(projectRoot: string): StorePointerRead {
+  let configPath = path.join(projectRoot, 'openspec', 'config.yaml');
+  if (!existsSync(configPath)) {
+    configPath = path.join(projectRoot, 'openspec', 'config.yml');
+    if (!existsSync(configPath)) {
+      return { malformed: false, filePath: null };
+    }
+  }
+
+  try {
+    const raw = parseYaml(readFileSync(configPath, 'utf-8'));
+    if (!raw || typeof raw !== 'object') {
+      return { malformed: true, filePath: configPath };
+    }
+    const value = (raw as Record<string, unknown>).store;
+    if (value === undefined) {
+      return { malformed: false, filePath: configPath };
+    }
+    if (typeof value === 'string') {
+      return { value, malformed: false, filePath: configPath };
+    }
+    return { malformed: true, filePath: configPath };
+  } catch {
+    return { malformed: true, filePath: configPath };
+  }
 }

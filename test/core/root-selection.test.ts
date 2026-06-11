@@ -269,4 +269,184 @@ describe('resolveOpenSpecRoot', () => {
     expect(root.source).toBe('store');
     expect(root.path).toBe(storeRoot);
   });
+
+  describe('declared store fallback (3.2)', () => {
+    function createPointerDir(relativePath: string, configBody: string): string {
+      const dir = mkdir(relativePath);
+      fs.mkdirSync(path.join(dir, 'openspec'), { recursive: true });
+      fs.writeFileSync(path.join(dir, 'openspec', 'config.yaml'), configBody);
+      return dir;
+    }
+
+    it('resolves a config-only pointer to the declared store', async () => {
+      const storeRoot = await registerStore('team-context');
+      const pointerDir = createPointerDir('app-repo', 'store: team-context\n');
+
+      const root = await resolveOpenSpecRoot({ startPath: pointerDir, globalDataDir });
+
+      expect(root.source).toBe('declared');
+      expect(root.storeId).toBe('team-context');
+      expect(root.path).toBe(storeRoot);
+      // The pointer dir is untouched.
+      expect(fs.existsSync(path.join(pointerDir, 'openspec', 'specs'))).toBe(false);
+      expect(fs.existsSync(path.join(pointerDir, 'openspec', 'changes'))).toBe(false);
+    });
+
+    it('lets explicit --store beat the pointer with source store', async () => {
+      await registerStore('team-context');
+      const otherRoot = await registerStore('other-context');
+      const pointerDir = createPointerDir('app-repo', 'store: team-context\n');
+
+      const root = await resolveOpenSpecRoot({
+        startPath: pointerDir,
+        store: 'other-context',
+        globalDataDir,
+      });
+
+      expect(root.source).toBe('store');
+      expect(root.path).toBe(otherRoot);
+    });
+
+    it('never overrides a real root and warns once about the ignored pointer', async () => {
+      await registerStore('team-context');
+      const repo = mkdir('real-repo');
+      createOpenSpecRoot(repo);
+      fs.writeFileSync(
+        path.join(repo, 'openspec', 'config.yaml'),
+        'schema: spec-driven\nstore: team-context\n'
+      );
+
+      const warnings: string[] = [];
+      const original = console.error;
+      console.error = (message: string) => warnings.push(String(message));
+      try {
+        const root = await resolveOpenSpecRoot({ startPath: repo, globalDataDir });
+        expect(root.source).toBe('nearest');
+        expect(root.path).toBe(repo);
+        expect(root.storeId).toBeUndefined();
+      } finally {
+        console.error = original;
+      }
+
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain("declares store 'team-context'");
+      expect(warnings[0]).toContain('the declaration is ignored');
+    });
+
+    it('keeps config-only directories without a pointer as plain roots', async () => {
+      await registerStore('team-context');
+      const dir = createPointerDir('plain-config-only', 'schema: spec-driven\n');
+
+      const warnings: string[] = [];
+      const original = console.error;
+      console.error = (message: string) => warnings.push(String(message));
+      try {
+        const root = await resolveOpenSpecRoot({ startPath: dir, globalDataDir });
+        expect(root.source).toBe('nearest');
+        expect(root.path).toBe(dir);
+      } finally {
+        console.error = original;
+      }
+      expect(warnings).toEqual([]);
+    });
+
+    it('errors on malformed pointers instead of falling through to local writes', async () => {
+      const nonString = createPointerDir('bad-type', 'store: [a, b]\n');
+      const error = await expectRootSelectionError(
+        resolveOpenSpecRoot({ startPath: nonString, globalDataDir }),
+        'invalid_store_pointer'
+      );
+      expect(error.message).toContain(path.join(nonString, 'openspec', 'config.yaml'));
+      expect(fs.existsSync(path.join(nonString, 'openspec', 'changes'))).toBe(false);
+
+      const unparseable = createPointerDir('bad-yaml', ':[ not yaml');
+      await expectRootSelectionError(
+        resolveOpenSpecRoot({ startPath: unparseable, globalDataDir }),
+        'invalid_store_pointer'
+      );
+    });
+
+    it('prefixes every taxonomy error with the declaration origin, fix unprefixed', async () => {
+      const cases: Array<[string, string, () => Promise<unknown>]> = [];
+
+      const unknownDir = createPointerDir('unknown-pointer', 'store: ghost-context\n');
+      await registerStore('team-context');
+      cases.push([
+        'unknown_store',
+        path.join(unknownDir, 'openspec', 'config.yaml'),
+        () => resolveOpenSpecRoot({ startPath: unknownDir, globalDataDir }),
+      ]);
+
+      const invalidDir = createPointerDir('invalid-pointer', 'store: "BAD ID"\n');
+      cases.push([
+        'invalid_store_id',
+        path.join(invalidDir, 'openspec', 'config.yaml'),
+        () => resolveOpenSpecRoot({ startPath: invalidDir, globalDataDir }),
+      ]);
+
+      await registerStore('hollow-context', { healthyRoot: false });
+      const unhealthyDir = createPointerDir('unhealthy-pointer', 'store: hollow-context\n');
+      cases.push([
+        'unhealthy_store_root',
+        path.join(unhealthyDir, 'openspec', 'config.yaml'),
+        () => resolveOpenSpecRoot({ startPath: unhealthyDir, globalDataDir }),
+      ]);
+
+      await registerStore('mismatched-context', { metadataId: 'someone-else' });
+      const mismatchDir = createPointerDir('mismatch-pointer', 'store: mismatched-context\n');
+      cases.push([
+        'store_identity_mismatch',
+        path.join(mismatchDir, 'openspec', 'config.yaml'),
+        () => resolveOpenSpecRoot({ startPath: mismatchDir, globalDataDir }),
+      ]);
+
+      for (const [code, origin, run] of cases) {
+        const error = await expectRootSelectionError(run(), code);
+        expect(error.message).toContain(`Declared in ${origin}: `);
+        expect(error.diagnostic.fix).not.toContain('Declared in');
+      }
+    });
+
+    it('prefixes no_registered_stores when nothing is registered', async () => {
+      const pointerDir = createPointerDir('lonely-pointer', 'store: team-context\n');
+
+      const error = await expectRootSelectionError(
+        resolveOpenSpecRoot({ startPath: pointerDir, globalDataDir }),
+        'no_registered_stores'
+      );
+      expect(error.message).toContain('Declared in ');
+    });
+
+    it('resolves one hop only - a store with its own pointer is the destination', async () => {
+      const storeRoot = await registerStore('team-context');
+      fs.writeFileSync(
+        path.join(storeRoot, 'openspec', 'config.yaml'),
+        'schema: spec-driven\nstore: somewhere-else\n'
+      );
+      const pointerDir = createPointerDir('app-repo', 'store: team-context\n');
+
+      const warnings: string[] = [];
+      const original = console.error;
+      console.error = (message: string) => warnings.push(String(message));
+      try {
+        const root = await resolveOpenSpecRoot({ startPath: pointerDir, globalDataDir });
+        expect(root.path).toBe(storeRoot);
+        expect(root.storeId).toBe('team-context');
+      } finally {
+        console.error = original;
+      }
+    });
+
+    it('names a .yml origin when that file was read', async () => {
+      const dir = mkdir('yml-pointer');
+      fs.mkdirSync(path.join(dir, 'openspec'), { recursive: true });
+      fs.writeFileSync(path.join(dir, 'openspec', 'config.yml'), 'store: ghost\n');
+
+      const error = await expectRootSelectionError(
+        resolveOpenSpecRoot({ startPath: dir, globalDataDir }),
+        'no_registered_stores'
+      );
+      expect(error.message).toContain(path.join(dir, 'openspec', 'config.yml'));
+    });
+  });
 });

@@ -10,6 +10,7 @@ import {
   toRootOutput,
   withStoreFlag,
   type ResolvedOpenSpecRoot,
+  isStoreSelectedRoot,
 } from './root-selection.js';
 import {
   findSpecUpdates,
@@ -443,7 +444,7 @@ export class ArchiveCommand {
             await writeUpdatedSpec(p.update, p.rebuilt, p.counts, {
               silent: json,
               // Cross-root paths must be absolute when a store is selected.
-              ...(root.source === 'store' ? { displayPath: p.update.target } : {}),
+              ...(isStoreSelectedRoot(root) ? { displayPath: p.update.target } : {}),
             });
             writeTotals.added += p.counts.added;
             writeTotals.modified += p.counts.modified;

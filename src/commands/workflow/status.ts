@@ -12,6 +12,7 @@ import {
   toPlanningHome,
   toRootOutput,
   withStoreFlag,
+  isStoreSelectedRoot,
 } from '../../core/root-selection.js';
 import {
   loadChangeContext,
@@ -103,7 +104,7 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
     });
     const status = formatChangeStatus(
       context,
-      root.source === 'store' && root.storeId ? { storeId: root.storeId } : {}
+      isStoreSelectedRoot(root) && root.storeId ? { storeId: root.storeId } : {}
     );
 
     spinner?.stop();

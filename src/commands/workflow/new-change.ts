@@ -19,6 +19,7 @@ import {
   withStoreFlag,
   type ResolvedOpenSpecRoot,
   type RootOutput,
+  isStoreSelectedRoot,
 } from '../../core/root-selection.js';
 import { printJson, statusFromError, validateSchemaExists } from './shared.js';
 
@@ -74,7 +75,7 @@ function printCreatedChangeHuman(
   root: ResolvedOpenSpecRoot
 ): void {
   const location =
-    root.source === 'store'
+    isStoreSelectedRoot(root)
       ? payload.change.path
       : formatChangeLocation(toPlanningHome(root), payload.change.id);
   console.log(`Created change '${payload.change.id}' at ${location}/`);

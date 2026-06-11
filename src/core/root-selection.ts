@@ -32,9 +32,10 @@ import {
 import { getStoreRootForBackend } from './store/registry.js';
 import { inspectOpenSpecRoot } from './openspec-root.js';
 import { findRepoPlanningRootSync, type PlanningHome } from './planning-home.js';
+import { readStorePointer } from './project-config.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 
-export type OpenSpecRootSource = 'store' | 'nearest' | 'implicit';
+export type OpenSpecRootSource = 'store' | 'declared' | 'nearest' | 'implicit';
 
 export interface StoreSelectorOptions {
   store?: string;
@@ -133,7 +134,8 @@ function canonicalDirectory(startPath: string): string {
 
 async function resolveStoreRoot(
   id: string,
-  globalDataDir?: string
+  globalDataDir?: string,
+  source: OpenSpecRootSource = 'store'
 ): Promise<ResolvedOpenSpecRoot> {
   try {
     validateStoreId(id);
@@ -201,7 +203,7 @@ async function resolveStoreRoot(
         { target: 'openspec.root', fix: doctorFix(id) }
       );
     case 'ok':
-      return makeRoot(inspection.canonicalRoot, 'store', id);
+      return makeRoot(inspection.canonicalRoot, source, id);
     default: {
       // Exhaustiveness guard: a new inspection kind must be handled
       // here explicitly, not fall through to an undefined root.
@@ -255,6 +257,75 @@ export async function inspectRegisteredStore(
   return { kind: 'ok', canonicalRoot: FileSystemUtils.canonicalizeExistingPath(storeRoot) };
 }
 
+function isDirectory(candidatePath: string): boolean {
+  try {
+    return fs.statSync(candidatePath).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Classifies the nearest `openspec/` directory (slice 3.2): a planning
+ * shape (specs/ or changes/ directories) is a real root and wins —
+ * fallback never override. A config-only directory with a `store:`
+ * pointer resolves the declared store; without one, it stays a root
+ * (today's behavior for freshly initialized minimal roots).
+ */
+async function resolveNearestOrDeclaredRoot(
+  nearestRoot: string,
+  globalDataDir?: string
+): Promise<ResolvedOpenSpecRoot> {
+  const openspecDir = path.join(nearestRoot, 'openspec');
+  const hasPlanningShape =
+    isDirectory(path.join(openspecDir, 'specs')) ||
+    isDirectory(path.join(openspecDir, 'changes'));
+
+  const pointer = readStorePointer(nearestRoot);
+
+  if (hasPlanningShape) {
+    if (pointer.value !== undefined) {
+      console.error(
+        `Warning: ${pointer.filePath} declares store '${pointer.value}', but this directory is a real OpenSpec root; the declaration is ignored.`
+      );
+    }
+    return makeRoot(nearestRoot, 'nearest');
+  }
+
+  if (pointer.malformed) {
+    throw new RootSelectionError(
+      `Invalid store declaration in ${pointer.filePath}: the store key must be a single store id string.`,
+      'invalid_store_pointer',
+      {
+        target: 'store.pointer',
+        fix: `Edit ${pointer.filePath} so the store key is a registered store id, or remove it.`,
+      }
+    );
+  }
+
+  if (pointer.value === undefined) {
+    return makeRoot(nearestRoot, 'nearest');
+  }
+
+  try {
+    return await resolveStoreRoot(pointer.value, globalDataDir, 'declared');
+  } catch (error) {
+    if (error instanceof RootSelectionError) {
+      // Rewrap with the declaration origin; code, target, and the
+      // pasteable fix stay untouched.
+      throw new RootSelectionError(
+        `Declared in ${pointer.filePath}: ${error.message}`,
+        error.diagnostic.code,
+        {
+          ...(error.diagnostic.target ? { target: error.diagnostic.target } : {}),
+          ...(error.diagnostic.fix ? { fix: error.diagnostic.fix } : {}),
+        }
+      );
+    }
+    throw error;
+  }
+}
+
 export async function resolveOpenSpecRoot(
   options: ResolveOpenSpecRootOptions = {}
 ): Promise<ResolvedOpenSpecRoot> {
@@ -276,7 +347,7 @@ export async function resolveOpenSpecRoot(
   const startPath = options.startPath ?? process.cwd();
   const nearestRoot = findRepoPlanningRootSync(startPath);
   if (nearestRoot) {
-    return makeRoot(nearestRoot, 'nearest');
+    return resolveNearestOrDeclaredRoot(nearestRoot, options.globalDataDir);
   }
 
   let registry;
@@ -332,11 +403,20 @@ export function toRootOutput(root: ResolvedOpenSpecRoot): RootOutput {
 }
 
 /**
+ * A store-selected root — explicit `--store` or the declared fallback.
+ * Cross-root behavior (absolute paths, --store hints, suppressed
+ * noun-form suggestions) keys on this, never on `source` directly.
+ */
+export function isStoreSelectedRoot(root: ResolvedOpenSpecRoot): boolean {
+  return root.storeId !== undefined;
+}
+
+/**
  * Human-mode verification signal for a selected store. Written to stderr so
  * raw-Markdown and agent-consumed stdout payloads stay clean.
  */
 export function emitStoreRootBanner(root: ResolvedOpenSpecRoot): void {
-  if (root.source === 'store' && root.storeId) {
+  if (isStoreSelectedRoot(root) && root.storeId) {
     console.error(`Using OpenSpec root: ${root.storeId} (${root.path})`);
   }
 }
@@ -346,7 +426,7 @@ export function emitStoreRootBanner(root: ResolvedOpenSpecRoot): void {
  * paste verbatim must carry `--store <id>` when a store was selected.
  */
 export function withStoreFlag(root: ResolvedOpenSpecRoot, command: string): string {
-  return root.source === 'store' && root.storeId
+  return isStoreSelectedRoot(root) && root.storeId
     ? `${command} --store ${root.storeId}`
     : command;
 }

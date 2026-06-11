@@ -6,6 +6,7 @@ import {
   toRootOutput,
   withStoreFlag,
   type ResolvedOpenSpecRoot,
+  isStoreSelectedRoot,
 } from '../core/root-selection.js';
 import { isInteractive, resolveNoInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds, getSpecIds } from '../utils/item-discovery.js';
@@ -133,7 +134,7 @@ export class ValidateCommand {
     if (!opts.typeOverride && isChange && isSpec) {
       console.error(`Ambiguous item '${itemName}' matches both a change and a spec.`);
       // The noun-form commands are cwd-based and cannot reach a selected store.
-      if (root.source === 'store') {
+      if (isStoreSelectedRoot(root)) {
         console.error('Pass --type change|spec.');
       } else {
         console.error('Pass --type change|spec, or use: openspec change validate / openspec spec validate');
