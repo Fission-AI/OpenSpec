@@ -1127,8 +1127,13 @@ Progress:
   (store-lifecycle + capstone-journeys test files), journey 4 as a
   live headless codex dogfood that assembled the full store/pointer/
   targets/repo-map topology from `--help` alone.
-- [ ] Usability audits done (error catalog, vocabulary sweep including
-  `docs/cli.md`, time-to-first-success documented).
+- [x] Usability audits done (error catalog, vocabulary sweep including
+  `docs/cli.md`, time-to-first-success documented). Results:
+  `capstone/usability-audits.md` — 55 wrong turns walked (46 pass; the
+  9 failures are queued for the capstone fix round before the report);
+  vocabulary clean except one legacy initiative JSON passthrough
+  (queued); TTFS measured live at 2 commands / 2 concepts with every
+  step printing the next command.
 - [ ] Technical audits done (single-resolver invariant, dependency
   direction, dead code, module sizes, agent-contract inventory, net LOC
   delta reported).
@@ -1416,6 +1421,20 @@ is working:
   a deliberate fourth partial edit, and the spec's byte-stable clause
   now allows the new removal-coverage tests. The reworded constraint
   string gets its first-ever pin in the new test.
+- 2026-06-11: Capstone (6.1) usability audits done
+  (`capstone/usability-audits.md`). The error-catalog walk covered 55
+  wrong turns live (human + JSON): 46 pass against the
+  actionable/store-carrying/honest bar; 9 fail (1 P1 - a raw
+  YAMLParseError stack trace for unparseable configs on real roots;
+  4 P2 - the corrupt-registry fix never names the file, instructions
+  drops its Fix line, validate summaries offer no drill-down, and
+  implicit-root scaffolding creates roots doctor calls unhealthy;
+  4 P3). All queued for the capstone fix round - the report cannot
+  commit with open P1/P2s. Vocabulary sweep: docs and src clean except
+  ChangeStatus.initiative re-emitting stored legacy links on status
+  JSON (queued; schema parse tolerance stays - user data). TTFS: 2
+  commands, 2 concepts, measured live; every step prints the next
+  command.
 - 2026-06-11: Capstone (6.1) persona journeys all pass
   (`capstone/journeys.md`). Journeys 2 and 3 added as standing e2e
   (`test/cli-e2e/capstone-journeys.test.ts`): the layered flow
