@@ -262,6 +262,82 @@ describe('store canonical remote (3.3)', () => {
     });
   });
 
+  describe('rerun and refresh reporting', () => {
+    it('keeps setup reruns as no-ops that preserve the observed remote', async () => {
+      // Build a store whose checkout has an origin, register it via
+      // setup, then rerun setup: the registry remote must survive and
+      // the rerun must report already_registered.
+      const storeRoot = path.join(tempDir, 'rerun-context');
+      createHealthyOpenSpecRoot(storeRoot);
+      git(storeRoot, 'init');
+      git(storeRoot, 'remote', 'add', 'origin', TEST_NET_URL);
+      git(storeRoot, 'add', '-A');
+      git(storeRoot, 'commit', '-m', 'init');
+
+      const first = await runCLI(
+        ['store', 'setup', 'rerun-context', '--path', storeRoot, '--json'],
+        { cwd: tempDir, env }
+      );
+      expect(first.exitCode).toBe(0);
+      expect(await registryRemote('rerun-context')).toBe(TEST_NET_URL);
+
+      const rerun = await runCLI(
+        ['store', 'setup', 'rerun-context', '--path', storeRoot, '--json'],
+        { cwd: tempDir, env }
+      );
+      expect(rerun.exitCode).toBe(0);
+      expect(parseJson(rerun).registry.already_registered).toBe(true);
+      expect(await registryRemote('rerun-context')).toBe(TEST_NET_URL);
+    });
+
+    it('reports already_registered when a later origin merely backfills the record', async () => {
+      // Register before any origin exists, follow the product's own
+      // sharing guidance (add a remote), rerun: the entry refreshes but
+      // the user still sees a rerun, not a fresh registration.
+      const storeRoot = path.join(tempDir, 'backfill-context');
+      await runCLI(['store', 'setup', 'backfill-context', '--path', storeRoot, '--json'], {
+        cwd: tempDir,
+        env,
+      });
+      expect(await registryRemote('backfill-context')).toBeUndefined();
+
+      git(storeRoot, 'remote', 'add', 'origin', TEST_NET_URL);
+      const rerun = await runCLI(
+        ['store', 'setup', 'backfill-context', '--path', storeRoot, '--json'],
+        { cwd: tempDir, env }
+      );
+      expect(rerun.exitCode).toBe(0);
+      expect(parseJson(rerun).registry.already_registered).toBe(true);
+      expect(await registryRemote('backfill-context')).toBe(TEST_NET_URL);
+    });
+
+    it('never records an enclosing repo origin for a non-repo store folder', async () => {
+      // git -C walks up: a store folder nested in another repo must not
+      // inherit that repo's origin into the registry.
+      const outerRepo = path.join(tempDir, 'monorepo');
+      fs.mkdirSync(outerRepo, { recursive: true });
+      git(outerRepo, 'init');
+      git(outerRepo, 'remote', 'add', 'origin', 'https://192.0.2.7/monorepo.git');
+
+      const storeRoot = path.join(outerRepo, 'team-specs');
+      createHealthyOpenSpecRoot(storeRoot);
+      fs.mkdirSync(path.join(storeRoot, '.openspec-store'), { recursive: true });
+      fs.writeFileSync(
+        path.join(storeRoot, '.openspec-store', 'store.yaml'),
+        'version: 1\nid: team-specs\n'
+      );
+
+      const result = await runCLI(['store', 'register', storeRoot, '--json'], {
+        cwd: tempDir,
+        env,
+      });
+      expect(result.exitCode).toBe(0);
+      expect(await registryRemote('team-specs')).toBeUndefined();
+      const human = await runCLI(['store', 'register', storeRoot], { cwd: tempDir, env });
+      expect(human.stdout).not.toContain('192.0.2.7');
+    });
+  });
+
   describe('onboarding end to end', () => {
     it('executes the printed clone fix verbatim and continues to a resolved index', async () => {
       // A scratch HOME keeps the rendered <home>/openspec/<id> checkout
@@ -313,15 +389,18 @@ describe('store canonical remote (3.3)', () => {
       const fix: string = entry.status[0].fix;
       const expectedCheckout = path.join(scratchHome, 'openspec', 'team-context');
       expect(fix).toBe(
-        `git clone ${originWorktree} ${expectedCheckout} && openspec store register ${expectedCheckout} --id team-context`
+        `git clone -- ${originWorktree} '${expectedCheckout}' && openspec store register '${expectedCheckout}' --id team-context`
       );
 
       // Execute the printed commands verbatim: split the shell '&&',
-      // run the git half directly and the openspec half via the CLI.
+      // apply the shell's single-quote removal, run the git half
+      // directly and the openspec half via the CLI.
+      const unquote = (arg: string): string =>
+        arg.startsWith("'") && arg.endsWith("'") ? arg.slice(1, -1) : arg;
       const [cloneCmd, registerCmd] = fix.split(' && ');
-      const cloneArgs = cloneCmd.split(' ').slice(1);
+      const cloneArgs = cloneCmd.split(' ').slice(1).map(unquote);
       execFileSync('git', cloneArgs, { env: { ...process.env, ...e2eEnv } });
-      const registerArgs = registerCmd.split(' ').slice(1);
+      const registerArgs = registerCmd.split(' ').slice(1).map(unquote);
       const registered = await runCLI([...registerArgs, '--json'], {
         cwd: appRepo,
         env: e2eEnv,

@@ -39,19 +39,10 @@ export const ProjectConfigSchema = z.object({
     .optional()
     .describe('Per-artifact rules, keyed by artifact ID'),
 
-  // Optional: stores this root's work draws on (read-only upstream context).
-  // Entries are id strings or {id, remote} maps; id-grammar validation
-  // happens in the reference index assembler so bad ids surface as
-  // diagnostics, not silent parse-time drops.
-  references: z
-    .array(
-      z.union([
-        z.string(),
-        z.object({ id: z.string(), remote: z.string().optional() }),
-      ])
-    )
-    .optional()
-    .describe('Stores whose specs are indexed as read-only context'),
+  // Note: the `references` field (id strings or {id, remote} maps) is
+  // deliberately absent here — readProjectConfig parses and normalizes
+  // it by hand (see ReferenceDeclaration below); a schema entry nothing
+  // parses would only drift from the real behavior.
 
   // Optional: the declared default store. Only consulted by root
   // resolution when this openspec/ directory is config-only (no specs/
@@ -69,7 +60,7 @@ export interface ReferenceDeclaration {
   remote?: string;
 }
 
-export type ProjectConfig = Omit<z.infer<typeof ProjectConfigSchema>, 'references'> & {
+export type ProjectConfig = z.infer<typeof ProjectConfigSchema> & {
   references?: ReferenceDeclaration[];
 };
 
@@ -187,7 +178,8 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
     if (raw.references !== undefined) {
       if (Array.isArray(raw.references)) {
         const byId = new Map<string, ReferenceDeclaration>();
-        let droppedInvalid = false;
+        let droppedEntries = false;
+        let droppedRemotes = false;
 
         for (const entry of raw.references) {
           let declaration: ReferenceDeclaration | null = null;
@@ -200,13 +192,13 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
               if (typeof candidate.remote === 'string' && candidate.remote.length > 0) {
                 declaration.remote = candidate.remote;
               } else if (candidate.remote !== undefined) {
-                droppedInvalid = true; // non-string remote dropped, id kept
+                droppedRemotes = true; // remote dropped, id kept
               }
             }
           }
 
           if (!declaration) {
-            droppedInvalid = true;
+            droppedEntries = true;
             continue;
           }
 
@@ -218,8 +210,13 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
           }
         }
 
-        if (droppedInvalid) {
+        if (droppedEntries) {
           console.warn(`Some 'references' entries are invalid, ignoring them`);
+        }
+        if (droppedRemotes) {
+          console.warn(
+            `Some 'references' remotes are not non-empty strings; the ids are kept without a clone source`
+          );
         }
         if (byId.size > 0) {
           config.references = [...byId.values()];

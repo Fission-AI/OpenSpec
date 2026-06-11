@@ -49,12 +49,25 @@ function warning(code: string, message: string, fix: string): StoreDiagnostic {
   return makeStoreDiagnostic('warning', code, message, { target: 'references', fix });
 }
 
+/**
+ * A remote is rendered into the pasteable clone command only when it is
+ * shell-inert: no whitespace, quotes, or metacharacters, and not
+ * flag-like (a config-supplied `--upload-pack=...` must never reach a
+ * command agents execute verbatim). Anything else falls back to the
+ * teammate-checkout wording.
+ */
+function isShellSafeRemote(remote: string): boolean {
+  return /^[A-Za-z0-9@:/._~+-]+$/.test(remote) && !remote.startsWith('-');
+}
+
 function registerFix(id: string, remote?: string): string {
-  if (remote) {
+  if (remote && isShellSafeRemote(remote)) {
     // Verbatim-pasteable: absolute home path because tilde never
     // expands outside a shell and agent JSON consumers execute argv.
+    // The checkout is quoted (homedirs may contain spaces); the remote
+    // is unquoted but gated by isShellSafeRemote above.
     const checkout = path.join(os.homedir(), 'openspec', id);
-    return `git clone ${remote} ${checkout} && openspec store register ${checkout} --id ${id}`;
+    return `git clone -- ${remote} '${checkout}' && openspec store register '${checkout}' --id ${id}`;
   }
   return `Get a checkout from a teammate and run: openspec store register <path> --id ${id}`;
 }

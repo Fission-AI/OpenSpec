@@ -470,7 +470,7 @@ export async function resolveGitStoreBackendConfig(
   }
 
   if (input.remote !== undefined && input.remote.length === 0) {
-    throw new Error('Store remote must not be empty when provided.');
+    throw new Error('Store backend remote must not be empty when provided.');
   }
 
   if (input.branch !== undefined && input.branch.length === 0) {

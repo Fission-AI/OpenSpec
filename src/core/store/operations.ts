@@ -394,6 +394,25 @@ function mutationPayload(
   };
 }
 
+
+/**
+ * Backend config carrying the observed origin. Guarded by an at-root
+ * repository check: `git -C` discovers repositories by walking UP the
+ * tree, so probing a non-repo store folder nested inside another repo
+ * would record the ENCLOSING repo's origin.
+ */
+async function resolveBackendWithObservedOrigin(
+  storeRoot: string
+): Promise<StoreGitBackendConfig> {
+  const origin = (await isGitRepositoryAtRoot(storeRoot))
+    ? await gitOriginUrl(storeRoot)
+    : null;
+  return resolveGitStoreBackendConfig({
+    localPath: storeRoot,
+    ...(origin ? { remote: origin } : {}),
+  });
+}
+
 async function prepareSetupPlan(
   input: Pick<SetupStoreInput, 'id' | 'path' | 'allowInsideGitRepository' | 'remote'>
 ): Promise<StoreSetupPlan> {
@@ -468,11 +487,7 @@ async function prepareSetupPlan(
       }
     }
 
-    const origin = await gitOriginUrl(storeRoot);
-    backend = await resolveGitStoreBackendConfig({
-      localPath: storeRoot,
-      ...(origin ? { remote: origin } : {}),
-    });
+    backend = await resolveBackendWithObservedOrigin(storeRoot);
   }
 
   const registry = await readStoreRegistryState();
@@ -561,18 +576,24 @@ export async function setupPreparedStore(
     });
     createdFiles.push(...root.createdArtifacts);
     createdPaths = root.createdPaths;
-    if (!backend) {
-      const origin = await gitOriginUrl(storeRoot);
-      backend = await resolveGitStoreBackendConfig({
-        localPath: storeRoot,
-        ...(origin ? { remote: origin } : {}),
-      });
-    }
+    backend ??= await resolveBackendWithObservedOrigin(storeRoot);
     assertNoRegisteredStoreConflict(registry, id, backend);
 
     // The identity file is written before the initial commit so clones carry
     // it; without it, register falls back to the conversion prompt.
     const existingMetadata = await readStoreMetadataForOperation(storeRoot);
+    if (existingMetadata && prepared.remote !== undefined) {
+      // Re-assert the prepare-phase refusal: metadata that materialized
+      // between prepare and execute must not silently swallow --remote.
+      throw new StoreError(
+        `Store '${id}' already has an identity file; --remote cannot change it.`,
+        'store_remote_requires_hand_edit',
+        {
+          target: 'store.metadata',
+          fix: `Edit ${getStoreMetadataPath(storeRoot)} and commit it.`,
+        }
+      );
+    }
     if (!existingMetadata) {
       const metadataDir = getStoreMetadataDir(storeRoot);
       const metadataDirMissing = (await pathKind(metadataDir)) === 'missing';
@@ -751,11 +772,7 @@ export async function registerExistingStore(
     );
   }
 
-  const origin = await gitOriginUrl(storeRoot);
-  const backend = await resolveGitStoreBackendConfig({
-    localPath: storeRoot,
-    ...(origin ? { remote: origin } : {}),
-  });
+  const backend = await resolveBackendWithObservedOrigin(storeRoot);
   const registry = await readStoreRegistryState();
   assertNoRegisteredStoreConflict(registry, id, backend);
   const createdFiles: string[] = [];
@@ -783,7 +800,7 @@ export async function registerExistingStore(
     alreadyRegistered: registered.alreadyRegistered,
   }, diagnostics, {
     ...(metadata?.remote ? { canonical: metadata.remote } : {}),
-    ...(origin ? { observed: origin } : {}),
+    ...(backend.remote ? { observed: backend.remote } : {}),
   });
 }
 

