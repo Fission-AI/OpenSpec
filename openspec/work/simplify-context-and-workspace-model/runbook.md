@@ -97,6 +97,15 @@ exact model id with `codex exec --help`/config on first use and then reuse
 it). Give codex the commit range or artifact paths and ask for findings with
 severity and file:line evidence.
 
+Deletion-slice review profile (Phase 5 remainder only): spec review keeps
+the full dual shape (subagent + codex); plan review runs the adversarial
+subagent alone, no codex; post-implementation review runs the
+spec-compliance agent and `/code-review` at high effort, no per-slice
+codex. Rationale: deletion slices are mechanical, their review-fix rounds
+have been the smallest of the run, and the 6.1 whole-delta codex review
+re-covers every deleted line anyway. Build slices (4.1) keep the full
+discipline.
+
 Slice-specific acceptance:
 
 - **1.4**: after implementation, run the dogfood proof headlessly — in a
