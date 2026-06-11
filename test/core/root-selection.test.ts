@@ -357,13 +357,37 @@ describe('resolveOpenSpecRoot', () => {
         'invalid_store_pointer'
       );
       expect(error.message).toContain(path.join(nonString, 'openspec', 'config.yaml'));
+      expect(error.message).toContain('the store key must be a single store id string');
       expect(fs.existsSync(path.join(nonString, 'openspec', 'changes'))).toBe(false);
 
-      const unparseable = createPointerDir('bad-yaml', ':[ not yaml');
-      await expectRootSelectionError(
+      const unparseable = createPointerDir('bad-yaml', 'store: [unclosed');
+      const yamlError = await expectRootSelectionError(
         resolveOpenSpecRoot({ startPath: unparseable, globalDataDir }),
         'invalid_store_pointer'
       );
+      // The unparseable case names the real problem, not a phantom key.
+      expect(yamlError.message).toContain('could not be read as YAML');
+      expect(yamlError.diagnostic.fix).toContain('Fix the YAML syntax');
+
+      // A config that parses to a non-mapping scalar has no pointer at
+      // all: plain root, no error (readProjectConfig owns that warning).
+      const scalar = createPointerDir('scalar-config', 'just a string');
+      const scalarRoot = await resolveOpenSpecRoot({ startPath: scalar, globalDataDir });
+      expect(scalarRoot.source).toBe('nearest');
+    });
+
+    it('treats empty and comments-only configs as plain roots, not malformed pointers', async () => {
+      // The documented conversion path comments the line out; that must
+      // not strand every command behind invalid_store_pointer.
+      const empty = createPointerDir('empty-config', '');
+      const emptyRoot = await resolveOpenSpecRoot({ startPath: empty, globalDataDir });
+      expect(emptyRoot.source).toBe('nearest');
+      expect(emptyRoot.path).toBe(empty);
+
+      const commented = createPointerDir('commented-config', '# store: team-context\n');
+      const commentedRoot = await resolveOpenSpecRoot({ startPath: commented, globalDataDir });
+      expect(commentedRoot.source).toBe('nearest');
+      expect(commentedRoot.path).toBe(commented);
     });
 
     it('prefixes every taxonomy error with the declaration origin, fix unprefixed', async () => {

@@ -15,7 +15,8 @@
  * resolver-specific failures use the normal-command codes below
  * (`unknown_store`, `no_registered_stores`, `store_identity_mismatch`,
  * `unhealthy_store_root`, `store_path_not_supported`,
- * `no_root_with_registered_stores`, `no_openspec_root`).
+ * `invalid_store_pointer`, `no_root_with_registered_stores`,
+ * `no_openspec_root`).
  */
 
 import * as fs from 'node:fs';
@@ -32,7 +33,7 @@ import {
 import { getStoreRootForBackend } from './store/registry.js';
 import { inspectOpenSpecRoot } from './openspec-root.js';
 import { findRepoPlanningRootSync, type PlanningHome } from './planning-home.js';
-import { readStorePointer } from './project-config.js';
+import { classifyOpenSpecDir } from './project-config.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 
 export type OpenSpecRootSource = 'store' | 'declared' | 'nearest' | 'implicit';
@@ -257,14 +258,6 @@ export async function inspectRegisteredStore(
   return { kind: 'ok', canonicalRoot: FileSystemUtils.canonicalizeExistingPath(storeRoot) };
 }
 
-function isDirectory(candidatePath: string): boolean {
-  try {
-    return fs.statSync(candidatePath).isDirectory();
-  } catch {
-    return false;
-  }
-}
-
 /**
  * Classifies the nearest `openspec/` directory (slice 3.2): a planning
  * shape (specs/ or changes/ directories) is a real root and wins —
@@ -276,12 +269,7 @@ async function resolveNearestOrDeclaredRoot(
   nearestRoot: string,
   globalDataDir?: string
 ): Promise<ResolvedOpenSpecRoot> {
-  const openspecDir = path.join(nearestRoot, 'openspec');
-  const hasPlanningShape =
-    isDirectory(path.join(openspecDir, 'specs')) ||
-    isDirectory(path.join(openspecDir, 'changes'));
-
-  const pointer = readStorePointer(nearestRoot);
+  const { hasPlanningShape, pointer } = classifyOpenSpecDir(nearestRoot);
 
   if (hasPlanningShape) {
     if (pointer.value !== undefined) {
@@ -293,12 +281,19 @@ async function resolveNearestOrDeclaredRoot(
   }
 
   if (pointer.malformed) {
+    const problem =
+      pointer.malformed === 'unparseable'
+        ? 'the config file could not be read as YAML'
+        : 'the store key must be a single store id string';
     throw new RootSelectionError(
-      `Invalid store declaration in ${pointer.filePath}: the store key must be a single store id string.`,
+      `Invalid store declaration in ${pointer.filePath}: ${problem}.`,
       'invalid_store_pointer',
       {
         target: 'store.pointer',
-        fix: `Edit ${pointer.filePath} so the store key is a registered store id, or remove it.`,
+        fix:
+          pointer.malformed === 'unparseable'
+            ? `Fix the YAML syntax in ${pointer.filePath}.`
+            : `Edit ${pointer.filePath} so the store key is a registered store id, or remove it.`,
       }
     );
   }

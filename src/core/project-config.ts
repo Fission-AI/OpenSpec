@@ -81,13 +81,9 @@ export const MAX_CONTEXT_SIZE = 50 * 1024; // 50KB hard limit, shared with the r
  * @returns Parsed config or null if file doesn't exist
  */
 export function readProjectConfig(projectRoot: string): ProjectConfig | null {
-  // Try both .yaml and .yml, prefer .yaml
-  let configPath = path.join(projectRoot, 'openspec', 'config.yaml');
-  if (!existsSync(configPath)) {
-    configPath = path.join(projectRoot, 'openspec', 'config.yml');
-    if (!existsSync(configPath)) {
-      return null; // No config is OK
-    }
+  const configPath = resolveConfigFilePath(projectRoot);
+  if (configPath === null) {
+    return null; // No config is OK
   }
 
   try {
@@ -328,8 +324,10 @@ export function suggestSchemas(
 export interface StorePointerRead {
   /** The declared store id, when present and a string. */
   value?: string;
-  /** True when the config is unparseable or the store key is non-string. */
-  malformed: boolean;
+  /** Set when the pointer cannot be trusted: the config file could not be
+   * read as YAML, or the store key is present but not a string. An empty
+   * or comments-only config is NOT malformed - it simply has no pointer. */
+  malformed?: 'unparseable' | 'non_string';
   /** Absolute path of the config file actually read, or null when none exists. */
   filePath: string | null;
 }
@@ -342,28 +340,65 @@ export interface StorePointerRead {
  * a dropped pointer would silently flip where work lands.
  */
 export function readStorePointer(projectRoot: string): StorePointerRead {
-  let configPath = path.join(projectRoot, 'openspec', 'config.yaml');
-  if (!existsSync(configPath)) {
-    configPath = path.join(projectRoot, 'openspec', 'config.yml');
-    if (!existsSync(configPath)) {
-      return { malformed: false, filePath: null };
-    }
+  const configPath = resolveConfigFilePath(projectRoot);
+  if (configPath === null) {
+    return { filePath: null };
   }
 
   try {
     const raw = parseYaml(readFileSync(configPath, 'utf-8'));
-    if (!raw || typeof raw !== 'object') {
-      return { malformed: true, filePath: configPath };
+    // Empty, comments-only, or non-mapping configs carry no pointer;
+    // they are imperfect, not malformed (readProjectConfig owns the
+    // field warnings for those).
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      return { filePath: configPath };
     }
     const value = (raw as Record<string, unknown>).store;
     if (value === undefined) {
-      return { malformed: false, filePath: configPath };
+      return { filePath: configPath };
     }
     if (typeof value === 'string') {
-      return { value, malformed: false, filePath: configPath };
+      return { value, filePath: configPath };
     }
-    return { malformed: true, filePath: configPath };
+    return { malformed: 'non_string', filePath: configPath };
   } catch {
-    return { malformed: true, filePath: configPath };
+    return { malformed: 'unparseable', filePath: configPath };
+  }
+}
+
+/** Shared .yaml/.yml probe used by readProjectConfig and readStorePointer. */
+function resolveConfigFilePath(projectRoot: string): string | null {
+  const yamlPath = path.join(projectRoot, 'openspec', 'config.yaml');
+  if (existsSync(yamlPath)) {
+    return yamlPath;
+  }
+  const ymlPath = path.join(projectRoot, 'openspec', 'config.yml');
+  return existsSync(ymlPath) ? ymlPath : null;
+}
+
+export interface OpenSpecDirClassification {
+  /** True when openspec/specs or openspec/changes exists as a directory. */
+  hasPlanningShape: boolean;
+  pointer: StorePointerRead;
+}
+
+/**
+ * One classification for "real root vs config-only pointer dir", shared
+ * by root resolution and the init pointer guard so they can never
+ * disagree (slice 3.2).
+ */
+export function classifyOpenSpecDir(projectRoot: string): OpenSpecDirClassification {
+  const openspecDir = path.join(projectRoot, 'openspec');
+  const hasPlanningShape =
+    isDirectorySync(path.join(openspecDir, 'specs')) ||
+    isDirectorySync(path.join(openspecDir, 'changes'));
+  return { hasPlanningShape, pointer: readStorePointer(projectRoot) };
+}
+
+function isDirectorySync(candidatePath: string): boolean {
+  try {
+    return statSync(candidatePath).isDirectory();
+  } catch {
+    return false;
   }
 }

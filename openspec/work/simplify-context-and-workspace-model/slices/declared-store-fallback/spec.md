@@ -83,11 +83,14 @@ local root exists) → today's error with the stores hint.
 5. **The both-shapes warning lives in resolution, on stderr** (the
    recorded amendment of the locked "doctor" wording). When the nearest
    root has planning shape AND a `store:` pointer, commands emit
-   exactly one stderr warning per invocation — "openspec/config.yaml
-   declares store 'x', but this directory is a real OpenSpec root; the
-   declaration is ignored." — in both human and JSON modes (stderr
-   keeps stdout payloads clean). `references:` in the same config keeps
-   working; only the `store:` pointer is ignored.
+   exactly one stderr warning per invocation — "Warning: <absolute
+   config path> declares store 'x', but this directory is a real
+   OpenSpec root; the declaration is ignored." (implementation
+   amendment: the absolute path replaces the spec draft's relative
+   `openspec/config.yaml`, per the absolute-paths quality bar) — in
+   both human and JSON modes (stderr keeps stdout payloads clean).
+   `references:` in the same config keeps working; only the `store:`
+   pointer is ignored.
 6. **The pointer directory is never scaffolded by normal commands; only
    `openspec init` may convert it, deliberately.** No lifecycle command
    creates `specs/` or `changes/` inside a config-only pointer

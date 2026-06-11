@@ -5,6 +5,7 @@ import * as path from 'node:path';
 
 import { getGlobalDataDir, registerStore } from '../../src/core/index.js';
 import { runCLI, type RunCLIResult } from '../helpers/run-cli.js';
+import { snapshotDirectory as snapshot } from '../helpers/fs-snapshot.js';
 import { createOpenSpecRoot, writeSpec } from '../helpers/openspec-fixtures.js';
 
 describe('store references in instructions (3.1)', () => {
@@ -259,20 +260,4 @@ describe('store references in instructions (3.1)', () => {
     expect(snapshot(storeRoot)).toEqual(storeBefore);
   });
 
-  function snapshot(root: string): Map<string, string> {
-    const result = new Map<string, string>();
-    const walk = (dir: string): void => {
-      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-        const fullPath = path.join(dir, entry.name);
-        if (entry.isDirectory()) {
-          result.set(`${path.relative(root, fullPath)}/`, '');
-          walk(fullPath);
-        } else if (entry.isFile()) {
-          result.set(path.relative(root, fullPath), fs.readFileSync(fullPath, 'utf-8'));
-        }
-      }
-    };
-    walk(root);
-    return result;
-  }
 });

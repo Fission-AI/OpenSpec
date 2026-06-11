@@ -11,7 +11,8 @@ import ora from 'ora';
 import * as fs from 'fs';
 import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { readStorePointer } from './project-config.js';
+import { classifyOpenSpecDir } from './project-config.js';
+import { findRepoPlanningRootSync } from './planning-home.js';
 import { transformToHyphenCommands } from '../utils/command-references.js';
 import {
   AI_TOOLS,
@@ -112,14 +113,22 @@ export class InitCommand {
     const extendMode = await this.validate(projectPath, openspecPath);
 
     // Pointer guard (slice 3.2): a config-only openspec/ with a store:
-    // declaration is externalized planning, not a root to extend.
+    // declaration is externalized planning, not a root to extend — and a
+    // subdirectory of such a repo must not silently grow a nested root.
     // Refuse before legacy cleanup, migration, or prompts touch anything.
-    if (extendMode) {
-      const hasPlanningShape =
-        (await FileSystemUtils.directoryExists(path.join(openspecPath, 'specs'))) ||
-        (await FileSystemUtils.directoryExists(path.join(openspecPath, 'changes')));
+    const guardRoot = extendMode ? projectPath : findRepoPlanningRootSync(projectPath);
+    if (guardRoot) {
+      const { hasPlanningShape, pointer } = classifyOpenSpecDir(guardRoot);
       if (!hasPlanningShape) {
-        const pointer = readStorePointer(projectPath);
+        if (pointer.malformed) {
+          throw new Error(
+            `The store declaration in ${pointer.filePath} is invalid (` +
+              (pointer.malformed === 'unparseable'
+                ? 'the config file could not be read as YAML'
+                : 'the store key must be a single store id string') +
+              `). Fix or remove the store: line before running openspec init.`
+          );
+        }
         if (pointer.value !== undefined) {
           throw new Error(
             `This repo's planning is externalized to store '${pointer.value}' (${pointer.filePath}). ` +

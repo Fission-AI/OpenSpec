@@ -5,6 +5,7 @@ import * as path from 'node:path';
 
 import { getGlobalDataDir, registerStore } from '../../src/core/index.js';
 import { runCLI, type RunCLIResult } from '../helpers/run-cli.js';
+import { snapshotDirectory as snapshot } from '../helpers/fs-snapshot.js';
 import { createOpenSpecRoot, writeSpec } from '../helpers/openspec-fixtures.js';
 
 describe('declared store fallback (3.2)', () => {
@@ -44,22 +45,6 @@ describe('declared store fallback (3.2)', () => {
     return JSON.parse(result.stdout);
   }
 
-  function snapshot(root: string): Map<string, string> {
-    const result = new Map<string, string>();
-    const walk = (dir: string): void => {
-      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-        const fullPath = path.join(dir, entry.name);
-        if (entry.isDirectory()) {
-          result.set(`${path.relative(root, fullPath)}/`, '');
-          walk(fullPath);
-        } else if (entry.isFile()) {
-          result.set(path.relative(root, fullPath), fs.readFileSync(fullPath, 'utf-8'));
-        }
-      }
-    };
-    walk(root);
-    return result;
-  }
 
   it('runs the externalized-planning journey without --store anywhere', async () => {
     const pointerBefore = snapshot(pointerRepo);
@@ -183,6 +168,31 @@ describe('declared store fallback (3.2)', () => {
     expect(converted.exitCode).toBe(0);
     expect(fs.existsSync(path.join(pointerRepo, 'openspec', 'specs'))).toBe(true);
     expect(fs.existsSync(path.join(pointerRepo, 'openspec', 'changes'))).toBe(true);
+  });
+
+  it('refuses init for malformed pointers and from pointer-repo subdirectories', async () => {
+    // A broken declaration must not be buried under a scaffold.
+    fs.writeFileSync(
+      path.join(pointerRepo, 'openspec', 'config.yaml'),
+      'store: [team-context]\n'
+    );
+    const malformed = await runCLI(['init', '.'], { cwd: pointerRepo, env });
+    expect(malformed.exitCode).toBe(1);
+    expect(malformed.stderr).toContain('Fix or remove the store: line');
+    expect(fs.existsSync(path.join(pointerRepo, 'openspec', 'specs'))).toBe(false);
+
+    // And a subdirectory of a pointer repo must not grow a nested root
+    // that silently diverts work away from the declared store.
+    fs.writeFileSync(
+      path.join(pointerRepo, 'openspec', 'config.yaml'),
+      'store: team-context\n'
+    );
+    const subdir = path.join(pointerRepo, 'packages', 'api');
+    fs.mkdirSync(subdir, { recursive: true });
+    const nested = await runCLI(['init', '.'], { cwd: subdir, env });
+    expect(nested.exitCode).toBe(1);
+    expect(nested.stderr).toContain("externalized to store 'team-context'");
+    expect(fs.existsSync(path.join(subdir, 'openspec'))).toBe(false);
   });
 
   it('keeps real-root stdout byte-identical when a pointer is present, with one warning', async () => {
