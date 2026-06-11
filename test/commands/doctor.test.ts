@@ -250,6 +250,59 @@ describe('openspec doctor (3.6)', () => {
     expect(parseJson(noRoot).root).toBeNull();
   });
 
+  it('prints taxonomy errors in human mode instead of stack traces', async () => {
+    const bare = mkdir('bare-dir-human');
+    const result = await runCLI(['doctor'], { cwd: bare, env });
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain('Error: No OpenSpec root found');
+    expect(result.stderr).not.toContain('at ');
+  });
+
+  it('flags stale repo mappings as target_path_missing', async () => {
+    const repoDir = mkdir('src/api-server');
+    await runCLI(['repo', 'register', repoDir, '--json'], { cwd: tempDir, env });
+    fs.writeFileSync(
+      path.join(storeRoot, 'openspec', 'config.yaml'),
+      'schema: spec-driven\ntargets:\n  - api-server\n'
+    );
+    fs.rmSync(repoDir, { recursive: true });
+
+    const result = await runCLI(['doctor', '--json', '--store', 'team-context'], {
+      cwd: tempDir,
+      env,
+    });
+    expect(result.exitCode).toBe(0);
+    const target = JSON.parse(result.stdout).targets[0];
+    expect(target.status[0]).toEqual(
+      expect.objectContaining({
+        code: 'target_path_missing',
+        fix: 'Run: openspec repo unregister api-server, then re-register the current checkout.',
+      })
+    );
+  });
+
+  it('distinguishes self-reference omission from none declared', async () => {
+    fs.writeFileSync(
+      path.join(storeRoot, 'openspec', 'config.yaml'),
+      'schema: spec-driven\nreferences:\n  - team-context\n'
+    );
+    const result = await runCLI(['doctor', '--store', 'team-context'], { cwd: tempDir, env });
+    expect(result.stdout).toContain('(declared references all resolve to this root)');
+    expect(result.stdout).not.toContain('References\n  (none declared)');
+  });
+
+  it('surfaces a malformed pointer on a real root', async () => {
+    fs.writeFileSync(
+      path.join(storeRoot, 'openspec', 'config.yaml'),
+      'schema: spec-driven\nstore: [broken]\n'
+    );
+    const result = await runCLI(['doctor', '--json'], { cwd: storeRoot, env });
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout).status[0]).toEqual(
+      expect.objectContaining({ code: 'root_pointer_invalid' })
+    );
+  });
+
   it('is read-only and changes nothing elsewhere', async () => {
     fs.writeFileSync(
       path.join(storeRoot, 'openspec', 'config.yaml'),

@@ -7,6 +7,7 @@ import { Command } from 'commander';
 
 import {
   resolveRootForCommand,
+  toRootOutput,
   type ResolvedOpenSpecRoot,
 } from '../core/root-selection.js';
 import {
@@ -34,11 +35,14 @@ import {
 import { COMMAND_REGISTRY } from '../core/completions/command-registry.js';
 import { COMMON_FLAGS } from '../core/completions/shared-flags.js';
 import { printJson } from './shared-output.js';
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 const FAILURE_PAYLOAD = { root: null, store: null, references: [], targets: [] };
 
-async function gatherHealth(root: ResolvedOpenSpecRoot): Promise<RelationshipHealth> {
+async function gatherHealth(
+  root: ResolvedOpenSpecRoot
+): Promise<{ health: RelationshipHealth; declaredReferenceCount: number }> {
   // One registry read feeds references, targets, and the unreadable
   // signal coherently. Success-null = absent = empty; throw = unreadable.
   let registry: StoreRegistryState | null = null;
@@ -48,14 +52,12 @@ async function gatherHealth(root: ResolvedOpenSpecRoot): Promise<RelationshipHea
   } catch {
     registryUnreadable = true;
   }
-  const registryEntries = registryUnreadable
-    ? null
-    : registry
-      ? listStoreRegistryEntries(registry)
-      : [];
-  const repoPaths = registryUnreadable
-    ? undefined
-    : new Map(listRepoEntries(registry).map((entry) => [entry.id, entry.path]));
+  let registryEntries: ReturnType<typeof listStoreRegistryEntries> | null = null;
+  let repoPaths: Map<string, string> | undefined;
+  if (!registryUnreadable) {
+    registryEntries = registry ? listStoreRegistryEntries(registry) : [];
+    repoPaths = new Map(listRepoEntries(registry).map((entry) => [entry.id, entry.path]));
+  }
 
   const projectConfig = readProjectConfig(root.path);
   const storeConfigPath =
@@ -84,9 +86,14 @@ async function gatherHealth(root: ResolvedOpenSpecRoot): Promise<RelationshipHea
     effectiveTargets,
     storeTargets: projectConfig?.targets,
     registryUnreadable,
+    storeConfigPath,
   };
 
   // Store facts for store-backed roots (explicit --store or declared).
+  // Missing/invalid metadata never reaches here: store resolution
+  // verifies identity first and fails with the existing taxonomy
+  // (recorded amendment - corrupt store.yaml is an exit-1 resolution
+  // failure, not a health finding).
   if (root.storeId) {
     const metadata = await readOptionalStoreMetadataState(root.path).catch(() => null);
     const originUrl = await gitOriginUrl(root.path);
@@ -99,11 +106,27 @@ async function gatherHealth(root: ResolvedOpenSpecRoot): Promise<RelationshipHea
     };
   }
 
-  // The 3.2 both-shapes wrong turn, structured.
+  // Target checkout health (the lock's fourth category): a mapped path
+  // that no longer exists is a stale mapping, not a healthy target.
+  if (repoPaths && repoPaths.size > 0) {
+    input.missingRepoPaths = new Set(
+      [...repoPaths.entries()]
+        .filter(([, repoPath]) => !fs.existsSync(repoPath))
+        .map(([id]) => id)
+    );
+  }
+
+  // The 3.2 both-shapes wrong turn, structured — including a malformed
+  // pointer value, which the resolver is silent about on planning-shaped
+  // roots.
   if (root.source === 'nearest') {
     const { hasPlanningShape, pointer } = classifyOpenSpecDir(root.path);
-    if (hasPlanningShape && pointer.value !== undefined && pointer.filePath) {
-      input.bothShapesPointer = { value: pointer.value, filePath: pointer.filePath };
+    if (hasPlanningShape && pointer.filePath) {
+      if (pointer.value !== undefined) {
+        input.bothShapesPointer = { value: pointer.value, filePath: pointer.filePath };
+      } else if (pointer.malformed) {
+        input.malformedPointer = { filePath: pointer.filePath, reason: pointer.malformed };
+      }
     }
   }
 
@@ -125,10 +148,49 @@ async function gatherHealth(root: ResolvedOpenSpecRoot): Promise<RelationshipHea
     }
   }
 
-  return inspectRelationships(input);
+  return {
+    health: inspectRelationships(input),
+    declaredReferenceCount: projectConfig?.references?.length ?? 0,
+  };
 }
 
-function printHumanHealth(health: RelationshipHealth): void {
+function printDiagnosticLines(prefix: string, status: { message: string; fix?: string }[]): void {
+  for (const entry of status) {
+    console.log(`${prefix}- ${entry.message}`);
+    if (entry.fix) {
+      console.log(`${prefix}  Fix: ${entry.fix}`);
+    }
+  }
+}
+
+function printEntrySection<T extends { status: { message: string; fix?: string }[] }>(
+  title: string,
+  entries: T[],
+  emptyLine: string,
+  okLine: (entry: T) => string,
+  idOf: (entry: T) => string
+): void {
+  console.log('');
+  console.log(title);
+  if (entries.length === 0) {
+    console.log(`  ${emptyLine}`);
+    return;
+  }
+  for (const entry of entries) {
+    if (entry.status.length === 0) {
+      console.log(`  - ${okLine(entry)}`);
+      continue;
+    }
+    for (const diagnostic of entry.status) {
+      console.log(`  - ${idOf(entry)}: ${diagnostic.message}`);
+      if (diagnostic.fix) {
+        console.log(`    Fix: ${diagnostic.fix}`);
+      }
+    }
+  }
+}
+
+function printHumanHealth(health: RelationshipHealth, declaredReferenceCount: number): void {
   console.log('Doctor');
   console.log('');
   console.log('Root');
@@ -138,50 +200,29 @@ function printHumanHealth(health: RelationshipHealth): void {
     const metadataNote = health.store.metadata.valid ? 'metadata ok' : 'metadata invalid';
     console.log(`  Store: ${health.store.id} (${metadataNote})`);
   }
-  for (const sectionStatus of [health.root.status, health.store?.status ?? []]) {
-    for (const entry of sectionStatus) {
-      console.log(`  - ${entry.message}`);
-      if (entry.fix) {
-        console.log(`    Fix: ${entry.fix}`);
-      }
-    }
-  }
+  printDiagnosticLines('  ', [...health.root.status, ...(health.store?.status ?? [])]);
 
-  console.log('');
-  console.log('References');
-  if (health.references.length === 0) {
-    console.log('  (none declared)');
-  }
-  for (const entry of health.references) {
-    if (entry.status.length === 0) {
-      console.log(`  - ${entry.store_id}: ok${entry.root ? ` (${entry.root})` : ''}`);
-      continue;
-    }
-    for (const diagnostic of entry.status) {
-      console.log(`  - ${entry.store_id}: ${diagnostic.message}`);
-      if (diagnostic.fix) {
-        console.log(`    Fix: ${diagnostic.fix}`);
-      }
-    }
-  }
+  // "(none declared)" must never lie: self-references are omitted from
+  // the index, so an emptied-by-omission list gets its own line.
+  const referencesEmptyLine =
+    health.references.length === 0 && declaredReferenceCount > 0
+      ? '(declared references all resolve to this root)'
+      : '(none declared)';
+  printEntrySection(
+    'References',
+    health.references,
+    referencesEmptyLine,
+    (entry) => `${entry.store_id}: ok${entry.root ? ` (${entry.root})` : ''}`,
+    (entry) => entry.store_id
+  );
 
-  console.log('');
-  console.log('Targets');
-  if (health.targets.length === 0) {
-    console.log('  (none declared)');
-  }
-  for (const entry of health.targets) {
-    if (entry.status.length === 0) {
-      console.log(`  - ${entry.id}: ${entry.path ? `mapped (${entry.path})` : 'declared'}`);
-      continue;
-    }
-    for (const diagnostic of entry.status) {
-      console.log(`  - ${entry.id}: ${diagnostic.message}`);
-      if (diagnostic.fix) {
-        console.log(`    Fix: ${diagnostic.fix}`);
-      }
-    }
-  }
+  printEntrySection(
+    'Targets',
+    health.targets,
+    '(none declared)',
+    (entry) => `${entry.id}: ${entry.path ? `mapped (${entry.path})` : 'declared'}`,
+    (entry) => entry.id
+  );
 
   for (const entry of health.status) {
     console.log('');
@@ -203,20 +244,29 @@ export function registerDoctorCommand(program: Command): void {
     .option('--store <id>', COMMON_FLAGS.store.description)
     .option('--json', 'Output as JSON')
     .action(async (options: { store?: string; json?: boolean }) => {
-      const root = await resolveRootForCommand(
-        { store: options.store },
-        { json: options.json, failurePayload: FAILURE_PAYLOAD, allowImplicitRoot: false }
-      );
-      if (!root) {
-        return;
-      }
+      try {
+        const root = await resolveRootForCommand(
+          { store: options.store },
+          { json: options.json, failurePayload: FAILURE_PAYLOAD, allowImplicitRoot: false }
+        );
+        if (!root) {
+          return;
+        }
 
-      const health = await gatherHealth(root);
+        const { health, declaredReferenceCount } = await gatherHealth(root);
 
-      if (options.json) {
-        printJson(health);
-        return;
+        if (options.json) {
+          printJson(health);
+          return;
+        }
+        printHumanHealth(health, declaredReferenceCount);
+      } catch (error) {
+        console.error(`Error: ${(error as Error).message}`);
+        const fix = (error as { diagnostic?: { fix?: string } }).diagnostic?.fix;
+        if (fix) {
+          console.error(`Fix: ${fix}`);
+        }
+        process.exitCode = 1;
       }
-      printHumanHealth(health);
     });
 }

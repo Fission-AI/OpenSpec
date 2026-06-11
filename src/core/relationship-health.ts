@@ -12,7 +12,7 @@ import { isKebabId } from './id.js';
 import type { ReferenceIndexEntry } from './references.js';
 import type { EffectiveTargets, TargetRepoEntry } from './targets.js';
 import type { DeclarationEntry } from './project-config.js';
-import type { ResolvedOpenSpecRoot } from './root-selection.js';
+import { toRootOutput, type ResolvedOpenSpecRoot } from './root-selection.js';
 
 export interface RelationshipHealth {
   root: {
@@ -57,8 +57,14 @@ export interface InspectRelationshipsInput {
   registryUnreadable: boolean;
   /** A real root whose config also declares a store: pointer (3.2). */
   bothShapesPointer?: { value: string; filePath: string };
+  /** A real root whose store: pointer value is malformed (3.2). */
+  malformedPointer?: { filePath: string; reason: 'unparseable' | 'non_string' };
   /** Declarations in a pointer directory's own config (3.4 deferral). */
   inertPointerDeclarations?: { filePath: string; fields: string[] };
+  /** Mapped target ids whose checkout path no longer exists. */
+  missingRepoPaths?: Set<string>;
+  /** The config file actually read (for fix text). */
+  storeConfigPath?: string;
 }
 
 function warning(code: string, message: string, fix: string): StoreDiagnostic {
@@ -84,6 +90,20 @@ export function inspectRelationships(input: InspectRelationshipsInput): Relation
         'root_pointer_ignored',
         `${input.bothShapesPointer.filePath} declares store '${input.bothShapesPointer.value}', but this directory is a real OpenSpec root; the declaration is ignored.`,
         `Remove the store: line from ${input.bothShapesPointer.filePath}, or move the planning files into the store.`
+      )
+    );
+  }
+
+  if (input.malformedPointer) {
+    status.push(
+      warning(
+        'root_pointer_invalid',
+        `${input.malformedPointer.filePath} declares a store: pointer that cannot be used (${
+          input.malformedPointer.reason === 'unparseable'
+            ? 'the config file could not be read as YAML'
+            : 'the store key must be a single store id string'
+        }).`,
+        `Fix or remove the store: line in ${input.malformedPointer.filePath}.`
       )
     );
   }
@@ -116,6 +136,19 @@ export function inspectRelationships(input: InspectRelationshipsInput): Relation
       });
       continue;
     }
+    if (entry.path !== undefined && input.missingRepoPaths?.has(entry.id)) {
+      targets.push({
+        ...entry,
+        status: [
+          warning(
+            'target_path_missing',
+            `Target repo '${entry.id}' is mapped to ${entry.path}, but that path no longer exists.`,
+            `Run: openspec repo unregister ${entry.id}, then re-register the current checkout.`
+          ),
+        ],
+      });
+      continue;
+    }
     targets.push({ ...entry, status: [] });
   }
   for (const declaration of input.storeTargets ?? []) {
@@ -126,7 +159,7 @@ export function inspectRelationships(input: InspectRelationshipsInput): Relation
           warning(
             'target_invalid_id',
             `Target '${declaration.id}' is not a valid repo id.`,
-            'Use kebab-case repo ids in the targets list.'
+            `Use kebab-case repo ids in the targets list in ${input.storeConfigPath ?? 'openspec/config.yaml'}.`
           ),
         ],
       });
@@ -167,9 +200,7 @@ export function inspectRelationships(input: InspectRelationshipsInput): Relation
 
   return {
     root: {
-      path: input.root.path,
-      source: input.root.source,
-      ...(input.root.storeId ? { store_id: input.root.storeId } : {}),
+      ...toRootOutput(input.root),
       healthy: input.rootHealthy,
       status: input.rootStatus ?? [],
     },

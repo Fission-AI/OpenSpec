@@ -274,7 +274,7 @@ references:
 
 From then on, `openspec instructions` output in that repo (both the per-artifact and `apply` surfaces, JSON and human modes) carries an index of each referenced store's specs — spec ids, a one-line summary from each spec's Purpose section, and the fetch command (`openspec show <spec-id> --type spec --store <id>`). The index is built live from the registered checkout on every run; spec content is never copied into the output.
 
-References are read-only context. They never change where commands act: work stays in the repo's own root, and writing to a referenced store remains an explicit `--store` action. A reference that cannot be resolved (for example, a store not registered on this machine) degrades to a warning in the index with the exact fix, and instructions still generate.
+References are read-only context. They never change where commands act: work stays in the repo's own root, and writing to a referenced store remains an explicit `--store` action. A reference that cannot be resolved (for example, a store not registered on this machine) degrades to a warning in the index with the exact fix, and instructions still generate. `openspec doctor` reports reference health in one place.
 
 ### Recording where a store is cloned from
 
@@ -309,7 +309,7 @@ targets:
 
 A change that only concerns some of them can narrow the set in its own `.openspec.yaml` with a plain `targets:` list. `openspec instructions` output then carries the effective set (with provenance: store default or change narrowing) so agents know which repos the work concerns. Targets name repos; `affected_areas` names free-form areas or domains within them — don't use the two interchangeably.
 
-Targets are declarations, not machinery: they never affect where commands act, nothing clones or syncs, and an unrecognized narrowed id degrades to a warning with a fix rather than failing.
+Targets are declarations, not machinery: they never affect where commands act, nothing clones or syncs, and an unrecognized narrowed id degrades to a warning with a fix rather than failing. `openspec doctor` reports target health in one place.
 
 ### Declaring a default store
 
@@ -333,7 +333,7 @@ openspec repo list                             # id → path (or --json)
 openspec repo unregister api-server            # forgets the mapping; never touches the checkout
 ```
 
-Once mapped, `openspec instructions` shows where each target lives on this machine (`- api-server → /Users/dev/src/api-server`). Store and repo ids share one namespace: registering either kind under an id (or path) the other holds fails with a typed conflict, and `--store <repo-id>` rejects with a hint instead of a generic unknown-store error.
+Once mapped, `openspec instructions` shows where each target lives on this machine (`- api-server → /Users/dev/src/api-server`). Store and repo ids share one namespace: registering either kind under an id (or path) the other holds fails with a typed conflict, and `--store <repo-id>` rejects with a hint instead of a generic unknown-store error. `openspec doctor` reports unmapped and stale mappings in one place.
 
 ## Doctor (relationship health)
 

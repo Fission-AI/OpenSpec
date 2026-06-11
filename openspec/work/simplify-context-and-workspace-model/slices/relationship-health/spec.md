@@ -88,7 +88,12 @@ branches, or repairs.
    CODE mirrors `store doctor` exactly: health findings of ANY
    severity exit 0 (agents read `status`); only command failures (no
    root, unknown store, `store_id_is_repo`, corrupt registry at
-   resolution) exit 1 via the normal failure path with
+   resolution, and — implementation amendment — corrupt/missing
+   store.yaml on a store-backed root, which store resolution rejects
+   before doctor runs; forking a doctor-only resolution path would
+   break the one-resolver invariant, so the store section's
+   metadata facts are always-valid for resolvable roots) exit 1 via
+   the normal failure path with
    `{root: null, store: null, references: [], targets: [],
    status: [diagnostic]}`. (The spec draft claimed errors exit 1
    "matching store doctor" — store doctor in fact exits 0 on

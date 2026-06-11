@@ -39,7 +39,10 @@ import {
   renderTargetReposSection,
 } from '../../core/targets.js';
 import { METADATA_FILENAME } from '../../utils/change-metadata.js';
-import { readStoreRegistryState } from '../../core/store/foundation.js';
+import {
+  listStoreRegistryEntries,
+  readStoreRegistryState,
+} from '../../core/store/foundation.js';
 import { listRepoEntries } from '../../core/store/registry.js';
 import {
   readProjectConfig,
@@ -94,26 +97,29 @@ async function loadRootConfigContext(root: ResolvedOpenSpecRoot): Promise<{
   const configPath =
     resolveConfigFilePath(root.path) ?? path.join(root.path, 'openspec', 'config.yaml');
 
-  // One additional registry read builds the local repo map for targets
-  // path enrichment. Unconditional: change-level narrowing can declare
-  // targets the store config does not, and this read is the only one
-  // that can serve both surfaces. A corrupt registry yields all-bare
-  // entries (3.6 owns surfacing that).
+  // One registry read serves the repo map AND the reference index (the
+  // 3.6 injection point) so one JSON output never carries a torn
+  // snapshot. Unconditional: change-level narrowing can declare targets
+  // the store config does not. A corrupt registry yields all-bare
+  // entries (doctor owns surfacing that).
   let repoPaths: Map<string, string> | undefined;
+  let registryEntries: ReturnType<typeof listStoreRegistryEntries> | null;
   try {
     const registry = await readStoreRegistryState();
+    registryEntries = registry ? listStoreRegistryEntries(registry) : [];
     const entries = listRepoEntries(registry);
     repoPaths = entries.length > 0
       ? new Map(entries.map((entry) => [entry.id, entry.path]))
       : undefined;
   } catch {
+    registryEntries = null;
     repoPaths = undefined;
   }
 
   const declared = projectConfig?.references ?? [];
   const index =
     declared.length > 0
-      ? await assembleReferenceIndex({ references: declared, resolvedRoot: root })
+      ? await assembleReferenceIndex({ references: declared, resolvedRoot: root, registryEntries })
       : [];
 
   // Omitted, not empty: an index emptied by self-reference omission must
