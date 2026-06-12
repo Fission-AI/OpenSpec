@@ -738,7 +738,7 @@ describe('command-generation/adapters', () => {
         ...sampleContent,
         description: 'Fix: regression in "auth" feature',
       };
-      const output = bobAdapter.formatFile(contentWithSpecialChars);
+      const output = codeassistantAdapter.formatFile(contentWithSpecialChars);
       expect(output).toContain('description: "Fix: regression in \\"auth\\" feature"');
     });
   });
