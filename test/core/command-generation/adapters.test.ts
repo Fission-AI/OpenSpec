@@ -732,5 +732,14 @@ describe('command-generation/adapters', () => {
       expect(output).toContain('---\n\n');
       expect(output).toContain('This is the command body.\n\nWith multiple lines.');
     });
+
+    it('should escape YAML special characters in description', () => {
+      const contentWithSpecialChars: CommandContent = {
+        ...sampleContent,
+        description: 'Fix: regression in "auth" feature',
+      };
+      const output = bobAdapter.formatFile(contentWithSpecialChars);
+      expect(output).toContain('description: "Fix: regression in \\"auth\\" feature"');
+    });
   });
 });
