@@ -17,7 +17,7 @@ function escapeYamlValue(value: string): string {
   const needsQuoting = /[:\n\r#{}[\],&*!|>'"%@`]|^\s|\s$/.test(value);
   if (needsQuoting) {
     // Use double quotes and escape internal double quotes and backslashes
-    const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
+    const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
     return `"${escaped}"`;
   }
   return value;
@@ -26,7 +26,7 @@ function escapeYamlValue(value: string): string {
 /**
  * SourceCraft Code Assistant adapter for command generation.
  * File path: .codeassistant/commands/opsx-<id>.md
- * Format: Markdown header with description
+ * Format: YAML frontmatter with description
  */
 export const codeassistantAdapter: ToolCommandAdapter = {
   toolId: 'codeassistant',

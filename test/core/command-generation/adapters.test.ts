@@ -741,5 +741,14 @@ describe('command-generation/adapters', () => {
       const output = codeassistantAdapter.formatFile(contentWithSpecialChars);
       expect(output).toContain('description: "Fix: regression in \\"auth\\" feature"');
     });
+
+    it('should escape carriage return in description', () => {
+      const contentWithCR: CommandContent = {
+        ...sampleContent,
+        description: 'Line 1\rLine 2',
+      };
+      const output = codeassistantAdapter.formatFile(contentWithCR);
+      expect(output).toContain('description: "Line 1\\rLine 2"');
+    });
   });
 });
