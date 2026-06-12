@@ -232,6 +232,10 @@ describe('config profile command', () => {
 
     // Simulate custom selection that differs from core
     const selectedWorkflows = ['explore', 'new', 'apply', 'ff', 'verify'];
+    const { ALL_WORKFLOWS } = await import('../../src/core/profiles.js');
+    const isAllMatch =
+      selectedWorkflows.length === ALL_WORKFLOWS.length &&
+      ALL_WORKFLOWS.every((w: string) => selectedWorkflows.includes(w));
     const isCoreMatch =
       selectedWorkflows.length === CORE_WORKFLOWS.length &&
       CORE_WORKFLOWS.every((w: string) => selectedWorkflows.includes(w));
@@ -240,7 +244,7 @@ describe('config profile command', () => {
 
     saveGlobalConfig({
       featureFlags: {},
-      profile: isCoreMatch ? 'core' : 'custom',
+      profile: isAllMatch ? 'all' : isCoreMatch ? 'core' : 'custom',
       delivery: 'both',
       workflows: selectedWorkflows,
     });
@@ -267,6 +271,7 @@ describe('config profile command', () => {
     expect(validateConfig({ featureFlags: {}, profile: 'core', delivery: 'both' }).success).toBe(true);
     expect(validateConfig({ featureFlags: {}, profile: 'custom', delivery: 'skills' }).success).toBe(true);
     expect(validateConfig({ featureFlags: {}, profile: 'custom', delivery: 'commands', workflows: ['explore'] }).success).toBe(true);
+    expect(validateConfig({ featureFlags: {}, profile: 'all', delivery: 'both' }).success).toBe(true);
   });
 
   it('config schema should reject invalid profile values', async () => {

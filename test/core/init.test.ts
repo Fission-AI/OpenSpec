@@ -536,6 +536,23 @@ describe('InitCommand - profile and detection features', () => {
     expect(await fileExists(newChangeSkill)).toBe(false);
   });
 
+  it('should use --profile all to install all workflows', async () => {
+    saveGlobalConfig({
+      featureFlags: {},
+      profile: 'core',
+      delivery: 'both',
+    });
+
+    const initCommand = new InitCommand({ tools: 'claude', force: true, profile: 'all' });
+    await initCommand.execute(testDir);
+
+    const proposeSkill = path.join(testDir, '.claude', 'skills', 'openspec-propose', 'SKILL.md');
+    expect(await fileExists(proposeSkill)).toBe(true);
+
+    const onboardSkill = path.join(testDir, '.claude', 'skills', 'openspec-onboard', 'SKILL.md');
+    expect(await fileExists(onboardSkill)).toBe(true);
+  });
+
   it('should reject invalid --profile values', async () => {
     const initCommand = new InitCommand({
       tools: 'claude',

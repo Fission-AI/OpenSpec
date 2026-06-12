@@ -287,6 +287,21 @@ describe('global-config', () => {
         expect(loadedConfig.workflows).toEqual(['propose']);
       });
 
+      it('should round-trip all profile correctly', () => {
+        process.env.XDG_CONFIG_HOME = tempDir;
+        const originalConfig = {
+          featureFlags: {},
+          profile: 'all' as Profile,
+          delivery: 'both' as Delivery,
+        };
+
+        saveGlobalConfig(originalConfig);
+        const loadedConfig = getGlobalConfig();
+
+        expect(loadedConfig.profile).toBe('all');
+        expect(loadedConfig.delivery).toBe('both');
+      });
+
       it('should default workflows to undefined when not in config', () => {
         process.env.XDG_CONFIG_HOME = tempDir;
         const configDir = path.join(tempDir, 'openspec');

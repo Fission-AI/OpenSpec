@@ -45,12 +45,12 @@ Typical flow:
 /opsx:propose ──► /opsx:apply ──► /opsx:sync ──► /opsx:archive
 ```
 
-### Expanded/Full Workflow (custom selection)
+### Expanded/Full Workflow (all or custom profile)
 
 If you want explicit scaffold-and-build commands (`/opsx:new`, `/opsx:continue`, `/opsx:ff`, `/opsx:verify`, `/opsx:bulk-archive`, `/opsx:onboard`), enable them with:
 
 ```bash
-openspec config profile
+openspec config profile all
 openspec update
 ```
 

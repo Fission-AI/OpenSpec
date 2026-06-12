@@ -6,10 +6,10 @@
  */
 
 import type { AIToolOption } from './config.js';
-import { getGlobalConfig, getGlobalConfigPath, saveGlobalConfig, type Delivery } from './global-config.js';
+import { getGlobalConfig, getGlobalConfigPath, saveGlobalConfig, type Delivery, type Profile } from './global-config.js';
 import { CommandAdapterRegistry } from './command-generation/index.js';
 import { WORKFLOW_TO_SKILL_DIR } from './profile-sync-drift.js';
-import { ALL_WORKFLOWS } from './profiles.js';
+import { ALL_WORKFLOWS, getProfileWorkflows } from './profiles.js';
 import path from 'path';
 import * as fs from 'fs';
 
@@ -84,7 +84,8 @@ function inferDelivery(artifacts: InstalledWorkflowArtifacts): Delivery {
  * Performs one-time migration if the global config does not yet have a profile field.
  * Called by both init and update before profile resolution.
  *
- * - If no profile field exists and workflows are installed: sets profile to 'custom'
+ * - If no profile field exists and all workflows are installed: sets profile to 'all'.
+ * - If no profile field exists and some workflows are installed: sets profile to 'custom'
  *   with the detected workflows, preserving the user's existing setup.
  * - If no profile field exists and no workflows are installed: no-op (defaults apply).
  * - If profile field already exists: no-op.
@@ -118,14 +119,25 @@ export function migrateIfNeeded(projectPath: string, tools: AIToolOption[]): voi
     return;
   }
 
-  // Migrate: set profile to custom with detected workflows
-  config.profile = 'custom';
-  config.workflows = installedWorkflows;
+  // Migrate: choose profile based on detected workflows
+  const allWorkflowSet = new Set<string>(ALL_WORKFLOWS);
+  const isAllWorkflows = installedWorkflows.length === ALL_WORKFLOWS.length &&
+    installedWorkflows.every((w) => allWorkflowSet.has(w));
+
+  let migratedProfile: Profile;
+  if (isAllWorkflows) {
+    migratedProfile = 'all';
+  } else {
+    migratedProfile = 'custom';
+  }
+
+  config.profile = migratedProfile;
+  config.workflows = [...getProfileWorkflows(migratedProfile, installedWorkflows)];
   if (rawConfig.delivery === undefined) {
     config.delivery = inferDelivery(artifacts);
   }
   saveGlobalConfig(config);
 
-  console.log(`Migrated: custom profile with ${installedWorkflows.length} workflows`);
+  console.log(`Migrated: ${migratedProfile} profile with ${installedWorkflows.length} workflows`);
   console.log("New in this version: /opsx:propose. Try 'openspec config profile core' for the streamlined experience.");
 }

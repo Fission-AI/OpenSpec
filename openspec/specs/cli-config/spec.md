@@ -176,7 +176,7 @@ The `openspec config profile` command SHALL provide an action-first interactive 
 - **WHEN** user runs `openspec config profile` in an interactive terminal
 - **THEN** display a current-state header with:
   - current delivery value
-  - workflow count with profile label (core or custom)
+  - workflow count with profile label (core, custom, or all)
 
 #### Scenario: Action-first menu offers skippable paths
 

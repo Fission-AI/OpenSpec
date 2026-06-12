@@ -80,6 +80,17 @@ describe('deriveProfileFromWorkflowSelection', () => {
     const { deriveProfileFromWorkflowSelection } = await import('../../src/commands/config.js');
     expect(deriveProfileFromWorkflowSelection(['archive', 'sync', 'apply', 'explore', 'propose'])).toBe('core');
   });
+
+  it('returns all when selection has exactly all workflows', async () => {
+    const { deriveProfileFromWorkflowSelection } = await import('../../src/commands/config.js');
+    const { ALL_WORKFLOWS } = await import('../../src/core/profiles.js');
+    expect(deriveProfileFromWorkflowSelection([...ALL_WORKFLOWS])).toBe('all');
+  });
+
+  it('returns all when selection has all workflows in different order', async () => {
+    const { deriveProfileFromWorkflowSelection } = await import('../../src/commands/config.js');
+    expect(deriveProfileFromWorkflowSelection(['onboard', 'verify', 'bulk-archive', 'archive', 'sync', 'ff', 'apply', 'continue', 'new', 'explore', 'propose'])).toBe('all');
+  });
 });
 
 describe('config profile interactive flow', () => {
@@ -495,6 +506,31 @@ describe('config profile interactive flow', () => {
     expect(select).not.toHaveBeenCalled();
     expect(checkbox).not.toHaveBeenCalled();
     expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it('all preset should install all workflows and preserve delivery setting', async () => {
+    const { saveGlobalConfig, getGlobalConfig } = await import('../../src/core/global-config.js');
+    const { ALL_WORKFLOWS } = await import('../../src/core/profiles.js');
+    const { select, checkbox, confirm } = await getPromptMocks();
+
+    saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'commands', workflows: ['propose', 'explore', 'apply', 'sync', 'archive'] });
+
+    await runConfigCommand(['profile', 'all']);
+
+    const config = getGlobalConfig();
+    expect(config.profile).toBe('all');
+    expect(config.delivery).toBe('commands');
+    expect(config.workflows).toEqual([...ALL_WORKFLOWS]);
+    expect(select).not.toHaveBeenCalled();
+    expect(checkbox).not.toHaveBeenCalled();
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it('unknown preset should show error and list available presets', async () => {
+    await runConfigCommand(['profile', 'unknown']);
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Unknown profile preset "unknown"'));
+    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Available presets: core, all'));
   });
 
   it('core preset inside a workspace should stay non-interactive and print workspace update guidance', async () => {

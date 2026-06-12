@@ -37,6 +37,7 @@ export type CoreWorkflowId = (typeof CORE_WORKFLOWS)[number];
  * Resolves which workflows should be active for a given profile configuration.
  *
  * - 'core' profile always returns CORE_WORKFLOWS
+ * - 'all' profile always returns ALL_WORKFLOWS
  * - 'custom' profile returns the provided customWorkflows, or empty array if not provided
  */
 export function getProfileWorkflows(
@@ -45,6 +46,9 @@ export function getProfileWorkflows(
 ): readonly string[] {
   if (profile === 'custom') {
     return customWorkflows ?? [];
+  }
+  if (profile === 'all') {
+    return ALL_WORKFLOWS;
   }
   return CORE_WORKFLOWS;
 }

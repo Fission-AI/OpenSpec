@@ -103,7 +103,7 @@ openspec init [path] [options]
 |--------|-------------|
 | `--tools <list>` | Configure AI tools non-interactively. Use `all`, `none`, or comma-separated list |
 | `--force` | Auto-cleanup legacy files without prompting |
-| `--profile <profile>` | Override global profile for this init run (`core` or `custom`) |
+| `--profile <profile>` | Override global profile for this init run (`core`, `custom`, or `all`) |
 
 `--profile custom` uses whatever workflows are currently selected in global config (`openspec config profile`).
 
@@ -1189,6 +1189,9 @@ openspec config profile
 
 # Fast preset: switch workflows to core (keeps delivery mode)
 openspec config profile core
+
+# Fast preset: install all workflows (keeps delivery mode)
+openspec config profile all
 ```
 
 `openspec config profile` starts with a current-state summary, then lets you choose:

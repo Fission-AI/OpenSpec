@@ -16,7 +16,7 @@ For workflow patterns and when to use each command, see [Workflows](workflows.md
 | `/opsx:sync` | Merge delta specs into main specs |
 | `/opsx:archive` | Archive a completed change |
 
-### Expanded Workflow Commands (custom workflow selection)
+### Expanded Workflow Commands (`custom` or `all` profile)
 
 | Command | Purpose |
 |---------|---------|
@@ -27,7 +27,7 @@ For workflow patterns and when to use each command, see [Workflows](workflows.md
 | `/opsx:bulk-archive` | Archive multiple changes at once |
 | `/opsx:onboard` | Guided tutorial through the complete workflow |
 
-The default global profile is `core`. To enable expanded workflow commands, run `openspec config profile`, select workflows, then run `openspec update` in your project.
+The default global profile is `core`. To enable all expanded workflow commands, run `openspec config profile all` and then `openspec update`. To pick a custom subset, run `openspec config profile` (interactive), select workflows, then `openspec update`.
 
 ---
 
