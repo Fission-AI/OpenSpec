@@ -27,6 +27,12 @@ describe('command-generation/registry', () => {
       expect(adapter?.toolId).toBe('junie');
     });
 
+    it('should return Trae adapter for "trae"', () => {
+      const adapter = CommandAdapterRegistry.get('trae');
+      expect(adapter).toBeDefined();
+      expect(adapter?.toolId).toBe('trae');
+    });
+
     it('should return undefined for unregistered tool', () => {
       const adapter = CommandAdapterRegistry.get('unknown-tool');
       expect(adapter).toBeUndefined();
@@ -52,6 +58,7 @@ describe('command-generation/registry', () => {
       expect(toolIds).toContain('claude');
       expect(toolIds).toContain('cursor');
       expect(toolIds).toContain('windsurf');
+      expect(toolIds).toContain('trae');
     });
   });
 
@@ -61,6 +68,7 @@ describe('command-generation/registry', () => {
       expect(CommandAdapterRegistry.has('cursor')).toBe(true);
       expect(CommandAdapterRegistry.has('windsurf')).toBe(true);
       expect(CommandAdapterRegistry.has('junie')).toBe(true);
+      expect(CommandAdapterRegistry.has('trae')).toBe(true);
     });
 
     it('should return false for unregistered tools', () => {
