@@ -61,10 +61,11 @@ export function transformToSkillReferences(text: string): string {
 /**
  * Selects the command-reference transformer for a skill generation target.
  *
- * Tools where the command filename doubles as the command name (opencode, pi)
- * always use hyphen-based command references. Otherwise, skills-only delivery
- * uses skill references so generated skills never point at commands that were
- * not generated. All other cases keep the default `/opsx:*` references.
+ * Skills-only delivery always uses skill references — for every tool — so
+ * generated skills never point at commands that were not generated. When
+ * commands are generated, tools where the command filename doubles as the
+ * command name (opencode, pi) use hyphen-based command references. All other
+ * cases keep the default `/opsx:*` references.
  *
  * @param toolId - The AI tool identifier (e.g. 'claude', 'opencode', 'pi')
  * @param delivery - The configured delivery mode
@@ -74,11 +75,11 @@ export function getTransformerForTool(
   toolId: string,
   delivery: 'both' | 'skills' | 'commands'
 ): ((text: string) => string) | undefined {
-  if (toolId === 'opencode' || toolId === 'pi') {
-    return transformToHyphenCommands;
-  }
   if (delivery === 'skills') {
     return transformToSkillReferences;
+  }
+  if (toolId === 'opencode' || toolId === 'pi') {
+    return transformToHyphenCommands;
   }
   return undefined;
 }

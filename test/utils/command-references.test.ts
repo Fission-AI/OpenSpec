@@ -166,19 +166,22 @@ Then /openspec-apply-change to implement`;
 });
 
 describe('getTransformerForTool', () => {
-  it('selects hyphen commands for opencode and pi regardless of delivery', () => {
-    expect(getTransformerForTool('opencode', 'both')).toBe(transformToHyphenCommands);
-    expect(getTransformerForTool('opencode', 'skills')).toBe(transformToHyphenCommands);
-    expect(getTransformerForTool('pi', 'both')).toBe(transformToHyphenCommands);
-    expect(getTransformerForTool('pi', 'skills')).toBe(transformToHyphenCommands);
-  });
-
-  it('selects skill references for skills-only delivery', () => {
+  it('selects skill references for skills-only delivery for every tool', () => {
     expect(getTransformerForTool('claude', 'skills')).toBe(transformToSkillReferences);
     expect(getTransformerForTool('codex', 'skills')).toBe(transformToSkillReferences);
+    // opencode/pi must not fall back to hyphen commands when no commands are generated
+    expect(getTransformerForTool('opencode', 'skills')).toBe(transformToSkillReferences);
+    expect(getTransformerForTool('pi', 'skills')).toBe(transformToSkillReferences);
   });
 
-  it('selects no transformer when commands are generated', () => {
+  it('selects hyphen commands for opencode and pi when commands are generated', () => {
+    expect(getTransformerForTool('opencode', 'both')).toBe(transformToHyphenCommands);
+    expect(getTransformerForTool('opencode', 'commands')).toBe(transformToHyphenCommands);
+    expect(getTransformerForTool('pi', 'both')).toBe(transformToHyphenCommands);
+    expect(getTransformerForTool('pi', 'commands')).toBe(transformToHyphenCommands);
+  });
+
+  it('selects no transformer for other tools when commands are generated', () => {
     expect(getTransformerForTool('claude', 'both')).toBeUndefined();
     expect(getTransformerForTool('claude', 'commands')).toBeUndefined();
   });
