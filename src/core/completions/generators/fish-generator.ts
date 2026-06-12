@@ -15,17 +15,15 @@ export class FishGenerator implements CompletionGenerator {
    * @returns Fish completion script as a string
    */
   generate(commands: CommandDefinition[]): string {
-    // Build top-level commands using push() for loop clarity
     const topLevelLines: string[] = [];
     for (const cmd of commands) {
       topLevelLines.push(`# ${cmd.name} command`);
       topLevelLines.push(
-        `complete -c openspec -n '__fish_openspec_no_subcommand' -a '${cmd.name}' -d '${this.escapeDescription(cmd.description)}'`
+        `complete -c openspec -n '__fish_openspec_no_subcommand' -f -a '${cmd.name}' -d '${this.escapeDescription(cmd.description)}'`
       );
     }
     const topLevelCommands = topLevelLines.join('\n');
 
-    // Build command-specific completions using push() for loop clarity
     const commandCompletionLines: string[] = [];
     for (const cmd of commands) {
       commandCompletionLines.push(...this.generateCommandCompletions(cmd));
@@ -33,13 +31,9 @@ export class FishGenerator implements CompletionGenerator {
     }
     const commandCompletions = commandCompletionLines.join('\n');
 
-    // Static helper functions from template
     const helperFunctions = FISH_STATIC_HELPERS;
-
-    // Dynamic completion helpers from template
     const dynamicHelpers = FISH_DYNAMIC_HELPERS;
 
-    // Assemble final script with template literal
     return `# Fish completion script for OpenSpec CLI
 # Auto-generated - do not edit manually
 
@@ -56,42 +50,63 @@ ${commandCompletions}`;
   private generateCommandCompletions(cmd: CommandDefinition): string[] {
     const lines: string[] = [];
 
-    // If command has subcommands
     if (cmd.subcommands && cmd.subcommands.length > 0) {
-      // Add subcommand completions
       for (const subcmd of cmd.subcommands) {
         lines.push(
-          `complete -c openspec -n '__fish_openspec_using_subcommand ${cmd.name}; and not __fish_openspec_using_subcommand ${subcmd.name}' -a '${subcmd.name}' -d '${this.escapeDescription(subcmd.description)}'`
+          `complete -c openspec -n '__fish_openspec_using_subcommand ${cmd.name}; and not __fish_openspec_using_subcommand ${subcmd.name}' -f -a '${subcmd.name}' -d '${this.escapeDescription(subcmd.description)}'`
         );
       }
       lines.push('');
 
-      // Add flags for parent command
       for (const flag of cmd.flags) {
         lines.push(...this.generateFlagCompletion(flag, `__fish_openspec_using_subcommand ${cmd.name}`));
       }
 
-      // Add completions for each subcommand
       for (const subcmd of cmd.subcommands) {
         lines.push(`# ${cmd.name} ${subcmd.name} flags`);
         for (const flag of subcmd.flags) {
-          lines.push(...this.generateFlagCompletion(flag, `__fish_openspec_using_subcommand ${cmd.name}; and __fish_openspec_using_subcommand ${subcmd.name}`));
+          lines.push(
+            ...this.generateFlagCompletion(
+              flag,
+              `__fish_openspec_using_subcommand ${cmd.name}; and __fish_openspec_using_subcommand ${subcmd.name}`
+            )
+          );
         }
 
-        // Add positional completions for subcommand
-        if (subcmd.acceptsPositional) {
-          lines.push(...this.generatePositionalCompletion(subcmd.positionalType, `__fish_openspec_using_subcommand ${cmd.name}; and __fish_openspec_using_subcommand ${subcmd.name}`));
+        if (subcmd.positionals?.length) {
+          lines.push(
+            ...this.generateIndexedPositionalCompletions(
+              subcmd.positionals,
+              `__fish_openspec_using_subcommand ${cmd.name}; and __fish_openspec_using_subcommand ${subcmd.name}`,
+              this.collectValueFlags(cmd.flags, subcmd.flags),
+              2
+            )
+          );
+        } else if (subcmd.acceptsPositional) {
+          lines.push(
+            ...this.generatePositionalCompletion(
+              subcmd.positionalType,
+              `__fish_openspec_using_subcommand ${cmd.name}; and __fish_openspec_using_subcommand ${subcmd.name}`
+            )
+          );
         }
       }
     } else {
-      // Command without subcommands
       lines.push(`# ${cmd.name} flags`);
       for (const flag of cmd.flags) {
         lines.push(...this.generateFlagCompletion(flag, `__fish_openspec_using_subcommand ${cmd.name}`));
       }
 
-      // Add positional completions
-      if (cmd.acceptsPositional) {
+      if (cmd.positionals?.length) {
+        lines.push(
+          ...this.generateIndexedPositionalCompletions(
+            cmd.positionals,
+            `__fish_openspec_using_subcommand ${cmd.name}`,
+            this.collectValueFlags(cmd.flags),
+            1
+          )
+        );
+      } else if (cmd.acceptsPositional) {
         lines.push(...this.generatePositionalCompletion(cmd.positionalType, `__fish_openspec_using_subcommand ${cmd.name}`));
       }
     }
@@ -104,44 +119,23 @@ ${commandCompletions}`;
    */
   private generateFlagCompletion(flag: FlagDefinition, condition: string): string[] {
     const lines: string[] = [];
-    const longFlag = `--${flag.name}`;
-    const shortFlag = flag.short ? `-${flag.short}` : undefined;
+    const description = this.escapeDescription(flag.description);
+    const shortFlag = flag.short ? `-s ${flag.short} ` : '';
+    const flagOptions = `${shortFlag}-l ${flag.name}`;
+    const fileFallback = flag.completionType === 'path' ? '-r' : '-r -f';
 
     if (flag.takesValue && flag.values) {
-      // Flag with enum values
       for (const value of flag.values) {
-        if (shortFlag) {
-          lines.push(
-            `complete -c openspec -n '${condition}' -s ${flag.short} -l ${flag.name} -a '${value}' -d '${this.escapeDescription(flag.description)}'`
-          );
-        } else {
-          lines.push(
-            `complete -c openspec -n '${condition}' -l ${flag.name} -a '${value}' -d '${this.escapeDescription(flag.description)}'`
-          );
-        }
+        lines.push(
+          `complete -c openspec -n '${condition}' ${flagOptions} -f -a '${value}' -d '${description}'`
+        );
       }
     } else if (flag.takesValue) {
-      // Flag that takes a value but no specific values defined
-      if (shortFlag) {
-        lines.push(
-          `complete -c openspec -n '${condition}' -s ${flag.short} -l ${flag.name} -r -d '${this.escapeDescription(flag.description)}'`
-        );
-      } else {
-        lines.push(
-          `complete -c openspec -n '${condition}' -l ${flag.name} -r -d '${this.escapeDescription(flag.description)}'`
-        );
-      }
+      lines.push(
+        `complete -c openspec -n '${condition}' ${flagOptions} ${fileFallback} -d '${description}'`
+      );
     } else {
-      // Boolean flag
-      if (shortFlag) {
-        lines.push(
-          `complete -c openspec -n '${condition}' -s ${flag.short} -l ${flag.name} -d '${this.escapeDescription(flag.description)}'`
-        );
-      } else {
-        lines.push(
-          `complete -c openspec -n '${condition}' -l ${flag.name} -d '${this.escapeDescription(flag.description)}'`
-        );
-      }
+      lines.push(`complete -c openspec -n '${condition}' ${flagOptions} -f -d '${description}'`);
     }
 
     return lines;
@@ -170,22 +164,66 @@ ${commandCompletions}`;
         lines.push(`complete -c openspec -n '${condition}' -a 'zsh bash fish powershell' -f`);
         break;
       case 'path':
-        // Fish automatically completes files, no need to specify
+        // Emit the rule without -f so Fish can offer filesystem completions.
+        lines.push(`complete -c openspec -n '${condition}'`);
+        break;
+      default:
+        lines.push(`complete -c openspec -n '${condition}' -f`);
         break;
     }
 
     return lines;
   }
 
+  /**
+   * Generate indexed positional completions.
+   */
+  private generateIndexedPositionalCompletions(
+    positionals: NonNullable<CommandDefinition['positionals']>,
+    condition: string,
+    valueFlags: string[],
+    depth: number
+  ): string[] {
+    const lines: string[] = [];
+
+    for (const [index, positional] of positionals.entries()) {
+      const indexCondition = `${condition}; and __fish_openspec_positional_index ${index} ${depth}${valueFlags.length ? ` ${valueFlags.join(' ')}` : ''}`;
+      lines.push(...this.generatePositionalCompletion(positional.type, indexCondition));
+    }
+
+    return lines;
+  }
+
+  /**
+   * Collect the long and short names for flags that consume the next token.
+   */
+  private collectValueFlags(...flagGroups: FlagDefinition[][]): string[] {
+    const flags = new Set<string>();
+
+    for (const group of flagGroups) {
+      for (const flag of group) {
+        if (!flag.takesValue) {
+          continue;
+        }
+
+        flags.add(`--${flag.name}`);
+        if (flag.short) {
+          flags.add(`-${flag.short}`);
+        }
+      }
+    }
+
+    return [...flags];
+  }
 
   /**
    * Escape description text for Fish
    */
   private escapeDescription(description: string): string {
     return description
-      .replace(/\\/g, '\\\\')  // Backslashes first
-      .replace(/'/g, "\\'")    // Single quotes
-      .replace(/\$/g, '\\$')   // Dollar signs (prevents $())
-      .replace(/`/g, '\\`');   // Backticks
+      .replace(/\\/g, '\\\\') // Backslashes first
+      .replace(/'/g, "\\'") // Single quotes
+      .replace(/\$/g, '\\$') // Dollar signs (prevents $())
+      .replace(/`/g, '\\`'); // Backticks
   }
 }

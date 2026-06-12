@@ -245,6 +245,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             name: 'store-path',
             description: 'Existing local context store root for --initiative',
             takesValue: true,
+            completionType: 'path',
           },
           {
             name: 'schema',
@@ -282,6 +283,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             name: 'store-path',
             description: 'Existing local context store root for --initiative',
             takesValue: true,
+            completionType: 'path',
           },
           COMMON_FLAGS.json,
         ],
@@ -430,6 +432,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             name: 'store-path',
             description: 'Existing local context store root for --initiative',
             takesValue: true,
+            completionType: 'path',
           },
           {
             name: 'agent',
@@ -471,6 +474,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             name: 'path',
             description: 'Directory to use for the context store',
             takesValue: true,
+            completionType: 'path',
           },
           {
             name: 'init-git',
@@ -564,6 +568,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             name: 'store-path',
             description: 'Existing local context store root',
             takesValue: true,
+            completionType: 'path',
           },
           {
             name: 'title',
@@ -593,6 +598,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             name: 'store-path',
             description: 'Existing local context store root',
             takesValue: true,
+            completionType: 'path',
           },
           COMMON_FLAGS.json,
         ],
@@ -610,6 +616,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             name: 'store-path',
             description: 'Existing local context store root',
             takesValue: true,
+            completionType: 'path',
           },
           COMMON_FLAGS.json,
         ],
@@ -627,6 +634,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             name: 'store-path',
             description: 'Existing local context store root',
             takesValue: true,
+            completionType: 'path',
           },
           COMMON_FLAGS.json,
         ],
