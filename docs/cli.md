@@ -177,6 +177,8 @@ openspec update
 
 ## Stores (standalone OpenSpec repos)
 
+> **Beta.** Stores and the features built on them (references, targets, working context, worksets) are new; command names, flags, file formats, and JSON output may change shape between releases. For the problem-first walkthrough, see the [stores guide](stores-beta/user-guide.md).
+
 A store is a standalone OpenSpec repo you've registered on this machine — for example a planning repo or a contracts repo. Registering a store lets normal commands (`list`, `show`, `status`, `validate`, `new change`, `archive`, ...) act in it from anywhere by passing `--store <id>`.
 
 ### `openspec store setup`
