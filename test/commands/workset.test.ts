@@ -687,13 +687,22 @@ describe('openspec workset (7.1)', () => {
 
     it('a launch failure carries a pasteable alternative and the manual route', async () => {
       await createPlatform(['--tool', 'claude']);
-      // A fake claude that PASSES the PATH scan but fails to execute
-      // (no shebang, not an executable image -> spawn error event).
+      // A fake claude that PASSES the PATH scan but fails to spawn.
+      // The shebang must point at a missing interpreter: that fails
+      // ENOENT -> spawn 'error' event on every POSIX libc, whereas a
+      // shebang-less text file dies ENOEXEC, which glibc's execvp
+      // silently retries via /bin/sh - the child then *runs* and exits
+      // 127 instead of erroring. The garbage .exe is the win32 analog
+      // (passes the PATHEXT scan, fails CreateProcess as a bad image).
       const binDir = path.join(tempDir, 'fake-broken-bin');
       fs.mkdirSync(binDir, { recursive: true });
       const broken = path.join(binDir, 'claude');
-      fs.writeFileSync(broken, 'not an executable\n');
+      fs.writeFileSync(
+        broken,
+        `#!${path.join(binDir, 'no-such-interpreter')}\n`
+      );
       fs.chmodSync(broken, 0o755);
+      fs.writeFileSync(path.join(binDir, 'claude.exe'), 'not a real image\n');
       const fakeCode = createFakeTool(tempDir, 'code');
       const launchEnv = envWithFakeTools(env, [fakeCode]);
       launchEnv.PATH = `${binDir}${path.delimiter}${launchEnv.PATH}`;
