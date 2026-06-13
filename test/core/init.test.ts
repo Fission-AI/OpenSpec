@@ -168,7 +168,7 @@ describe('InitCommand', () => {
       expect(await fileExists(skillFile)).toBe(true);
     });
 
-    it('should support Kimi CLI as an adapterless skills-only tool', async () => {
+    it('should support Kimi Code as an adapterless skills-only tool', async () => {
       saveGlobalConfig({
         featureFlags: {},
         profile: 'core',
@@ -178,10 +178,10 @@ describe('InitCommand', () => {
       const initCommand = new InitCommand({ tools: 'kimi', force: true });
       await initCommand.execute(testDir);
 
-      const skillFile = path.join(testDir, '.kimi', 'skills', 'openspec-explore', 'SKILL.md');
+      const skillFile = path.join(testDir, '.kimi-code', 'skills', 'openspec-explore', 'SKILL.md');
       expect(await fileExists(skillFile)).toBe(true);
 
-      const commandsDir = path.join(testDir, '.kimi', 'commands');
+      const commandsDir = path.join(testDir, '.kimi-code', 'commands');
       expect(await directoryExists(commandsDir)).toBe(false);
 
       const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
