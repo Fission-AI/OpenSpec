@@ -163,5 +163,38 @@ describe('available-tools', () => {
       expect(vibeTool?.name).toBe('Mistral Vibe');
       expect(vibeTool?.skillsDir).toBe('.vibe');
     });
+
+    it('should detect ZCode when .zcode directory exists', async () => {
+      await fs.mkdir(path.join(testDir, '.zcode'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const zcode = tools.find((t) => t.value === 'zcode');
+      expect(zcode).toBeDefined();
+      expect(zcode?.name).toBe('ZCode');
+      expect(zcode?.skillsDir).toBe('.zcode');
+    });
+
+    it('should not detect ZCode from a bare .agents directory', async () => {
+      // .agents is a generic directory used by many agent frameworks; a bare
+      // .agents must not trigger ZCode detection (mirrors the Copilot bare-.github rule).
+      await fs.mkdir(path.join(testDir, '.agents'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((t) => t.value)).not.toContain('zcode');
+    });
+
+    it('should detect ZCode from .zcode even when .agents is also present', async () => {
+      // A co-located .agents must not suppress real ZCode detection via .zcode
+      await fs.mkdir(path.join(testDir, '.zcode'), { recursive: true });
+      await fs.mkdir(path.join(testDir, '.agents'), { recursive: true });
+
+      const zcodeTools = getAvailableTools(testDir).filter((t) => t.value === 'zcode');
+      expect(zcodeTools).toHaveLength(1);
+    });
+
+    it('should not detect ZCode when .zcode is absent', async () => {
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((t) => t.value)).not.toContain('zcode');
+    });
   });
 });
