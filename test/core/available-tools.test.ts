@@ -7,13 +7,19 @@ import { getAvailableTools } from '../../src/core/available-tools.js';
 
 describe('available-tools', () => {
   let testDir: string;
+  let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(async () => {
     testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
     await fs.mkdir(testDir, { recursive: true });
+    originalEnv = { ...process.env };
+    const fakeHome = path.join(testDir, 'home');
+    process.env.HOME = fakeHome;
+    process.env.USERPROFILE = fakeHome;
   });
 
   afterEach(async () => {
+    process.env = originalEnv;
     await fs.rm(testDir, { recursive: true, force: true });
   });
 
@@ -162,6 +168,33 @@ describe('available-tools', () => {
       expect(vibeTool).toBeDefined();
       expect(vibeTool?.name).toBe('Mistral Vibe');
       expect(vibeTool?.skillsDir).toBe('.vibe');
+    });
+
+    it('should detect MiniMax Code when OpenSpec skills exist in the global user-home target', async () => {
+      const skillFile = path.join(testDir, 'home', '.minimax', 'skills', 'openspec-explore', 'SKILL.md');
+      await fs.mkdir(path.dirname(skillFile), { recursive: true });
+      await fs.writeFile(skillFile, 'content');
+
+      const tools = getAvailableTools(testDir);
+      const minimax = tools.find((tool) => tool.value === 'minimax-code');
+
+      expect(minimax).toMatchObject({
+        name: 'MiniMax Code',
+        value: 'minimax-code',
+        globalSkillsDir: '.minimax',
+      });
+    });
+
+    it('should not detect MiniMax Code from repo-local .minimax or .mavis directories', async () => {
+      await fs.mkdir(path.join(testDir, '.minimax', 'skills', 'openspec-explore'), { recursive: true });
+      await fs.writeFile(
+        path.join(testDir, '.minimax', 'skills', 'openspec-explore', 'SKILL.md'),
+        'content'
+      );
+      await fs.mkdir(path.join(testDir, '.mavis', 'skills', 'openspec-explore'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((tool) => tool.value)).not.toContain('minimax-code');
     });
   });
 });

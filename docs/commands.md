@@ -619,6 +619,7 @@ Different AI tools use slightly different command syntax. Use the format that ma
 | Windsurf | `/opsx-propose`, `/opsx-apply` |
 | Copilot (IDE) | `/opsx-propose`, `/opsx-apply` |
 | Kimi CLI | Skill-based invocations such as `/skill:openspec-propose`, `/skill:openspec-apply-change` (no generated `opsx-*` command files) |
+| MiniMax Code | Skill-based invocations from `~/.minimax/skills`, such as `openspec-propose` or `openspec-apply-change` depending on the MiniMax Code skill picker UI (no generated `opsx-*` command files) |
 | Trae | Skill-based invocations such as `/openspec-propose`, `/openspec-apply-change` (no generated `opsx-*` command files) |
 
 The intent is the same across tools, but how commands are surfaced can differ by integration.
@@ -684,6 +685,7 @@ The AI tool doesn't recognize OpenSpec commands.
 - Ensure OpenSpec is initialized: `openspec init`
 - Regenerate skills: `openspec update`
 - Check that `.claude/skills/` directory exists (for Claude Code)
+- Check that `~/.minimax/skills/openspec-*/SKILL.md` exists for MiniMax Code
 - Restart your AI tool to pick up new skills
 
 ### Artifacts not generating properly

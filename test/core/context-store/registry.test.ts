@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
-import * as os from 'node:os';
 import * as path from 'node:path';
 
 import {
@@ -23,12 +22,13 @@ import {
   writeContextStoreMetadataState,
   writeContextStoreRegistryState,
 } from '../../../src/core/index.js';
+import { mkdtempOutsideGit } from '../../helpers/temp-dir.js';
 
 describe('context store registry facade', () => {
   let tempDir: string;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-context-store-registry-'));
+    tempDir = mkdtempOutsideGit('openspec-context-store-registry-');
   });
 
   afterEach(() => {

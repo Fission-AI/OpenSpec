@@ -7,6 +7,11 @@
 import path from 'path';
 import * as fs from 'fs';
 import { AI_TOOLS } from '../config.js';
+import {
+  getSkillCapableTools,
+  resolveToolSkillsDir,
+  toolSupportsSkills,
+} from './skill-paths.js';
 
 /**
  * Names of skill directories created by openspec init.
@@ -75,10 +80,10 @@ export interface ToolVersionStatus {
 }
 
 /**
- * Gets the list of tools with skillsDir configured.
+ * Gets the list of tools with skill generation configured.
  */
 export function getToolsWithSkillsDir(): string[] {
-  return AI_TOOLS.filter((t) => t.skillsDir).map((t) => t.value);
+  return getSkillCapableTools().map((t) => t.value);
 }
 
 /**
@@ -86,11 +91,11 @@ export function getToolsWithSkillsDir(): string[] {
  */
 export function getToolSkillStatus(projectRoot: string, toolId: string): ToolSkillStatus {
   const tool = AI_TOOLS.find((t) => t.value === toolId);
-  if (!tool?.skillsDir) {
+  if (!tool || !toolSupportsSkills(tool)) {
     return { configured: false, fullyConfigured: false, skillCount: 0 };
   }
 
-  const skillsDir = path.join(projectRoot, tool.skillsDir, 'skills');
+  const skillsDir = resolveToolSkillsDir(projectRoot, tool);
   let skillCount = 0;
 
   for (const skillName of SKILL_NAMES) {
@@ -112,7 +117,7 @@ export function getToolSkillStatus(projectRoot: string, toolId: string): ToolSki
  */
 export function getToolStates(projectRoot: string): Map<string, ToolSkillStatus> {
   const states = new Map<string, ToolSkillStatus>();
-  const toolIds = AI_TOOLS.filter((t) => t.skillsDir).map((t) => t.value);
+  const toolIds = getToolsWithSkillsDir();
 
   for (const toolId of toolIds) {
     states.set(toolId, getToolSkillStatus(projectRoot, toolId));
@@ -163,7 +168,7 @@ export function getToolVersionStatus(
   currentVersion: string
 ): ToolVersionStatus {
   const tool = AI_TOOLS.find((t) => t.value === toolId);
-  if (!tool?.skillsDir) {
+  if (!tool || !toolSupportsSkills(tool)) {
     return {
       toolId,
       toolName: toolId,
@@ -173,7 +178,7 @@ export function getToolVersionStatus(
     };
   }
 
-  const skillsDir = path.join(projectRoot, tool.skillsDir, 'skills');
+  const skillsDir = resolveToolSkillsDir(projectRoot, tool);
   let generatedByVersion: string | null = null;
 
   // Find the first skill file that exists and read its version
@@ -202,7 +207,7 @@ export function getToolVersionStatus(
  */
 export function getConfiguredTools(projectRoot: string): string[] {
   return AI_TOOLS
-    .filter((t) => t.skillsDir && getToolSkillStatus(projectRoot, t.value).configured)
+    .filter((t) => toolSupportsSkills(t) && getToolSkillStatus(projectRoot, t.value).configured)
     .map((t) => t.value);
 }
 

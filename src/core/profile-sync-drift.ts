@@ -5,6 +5,11 @@ import type { Delivery } from './global-config.js';
 import { ALL_WORKFLOWS } from './profiles.js';
 import { CommandAdapterRegistry } from './command-generation/index.js';
 import { COMMAND_IDS, getConfiguredTools } from './shared/index.js';
+import {
+  hasGlobalSkillTarget,
+  resolveToolSkillsDir,
+  toolSupportsSkills,
+} from './shared/skill-paths.js';
 
 type WorkflowId = (typeof ALL_WORKFLOWS)[number];
 
@@ -56,6 +61,8 @@ export function toolHasAnyConfiguredCommand(projectPath: string, toolId: string)
 export function getCommandConfiguredTools(projectPath: string): string[] {
   return AI_TOOLS
     .filter((tool) => {
+      if (!toolSupportsSkills(tool)) return false;
+      if (hasGlobalSkillTarget(tool)) return false;
       if (!tool.skillsDir) return false;
       const toolDir = path.join(projectPath, tool.skillsDir);
       try {
@@ -92,11 +99,11 @@ export function hasToolProfileOrDeliveryDrift(
   delivery: Delivery
 ): boolean {
   const tool = AI_TOOLS.find((t) => t.value === toolId);
-  if (!tool?.skillsDir) return false;
+  if (!tool || !toolSupportsSkills(tool)) return false;
 
   const knownDesiredWorkflows = toKnownWorkflows(desiredWorkflows);
   const desiredWorkflowSet = new Set<WorkflowId>(knownDesiredWorkflows);
-  const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
+  const skillsDir = resolveToolSkillsDir(projectPath, tool);
   const adapter = CommandAdapterRegistry.get(toolId);
   const shouldGenerateSkills = delivery !== 'commands';
   const shouldGenerateCommands = delivery !== 'skills';
@@ -119,7 +126,7 @@ export function hasToolProfileOrDeliveryDrift(
         return true;
       }
     }
-  } else {
+  } else if (!hasGlobalSkillTarget(tool)) {
     for (const workflow of ALL_WORKFLOWS) {
       const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
       const skillDir = path.join(skillsDir, dirName);
@@ -181,10 +188,10 @@ function getInstalledWorkflowsForTool(
   options: { includeSkills: boolean; includeCommands: boolean }
 ): WorkflowId[] {
   const tool = AI_TOOLS.find((t) => t.value === toolId);
-  if (!tool?.skillsDir) return [];
+  if (!tool || !toolSupportsSkills(tool)) return [];
 
   const installed = new Set<WorkflowId>();
-  const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
+  const skillsDir = resolveToolSkillsDir(projectPath, tool);
 
   if (options.includeSkills) {
     for (const workflow of ALL_WORKFLOWS) {

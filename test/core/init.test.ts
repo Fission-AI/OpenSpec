@@ -36,6 +36,9 @@ describe('InitCommand', () => {
     configTempDir = path.join(os.tmpdir(), `openspec-config-init-${Date.now()}`);
     await fs.mkdir(configTempDir, { recursive: true });
     process.env.XDG_CONFIG_HOME = configTempDir;
+    const fakeHome = path.join(testDir, 'home');
+    process.env.HOME = fakeHome;
+    process.env.USERPROFILE = fakeHome;
 
     // Mock console.log to suppress output during tests
     vi.spyOn(console, 'log').mockImplementation(() => { });
@@ -190,6 +193,51 @@ describe('InitCommand', () => {
           (entry) => entry.includes('Commands skipped for: kimi') && entry.includes('(no adapter)'),
         ),
       ).toBe(true);
+    });
+
+    it('should install MiniMax Code skills into the user-home global target', async () => {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'both',
+      });
+
+      const initCommand = new InitCommand({ tools: 'minimax-code', force: true });
+      await initCommand.execute(testDir);
+
+      const skillFile = path.join(testDir, 'home', '.minimax', 'skills', 'openspec-explore', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
+      expect(await directoryExists(path.join(testDir, '.minimax'))).toBe(false);
+      expect(await directoryExists(path.join(testDir, '.mavis'))).toBe(false);
+
+      const minimaxCommandsDir = path.join(testDir, '.minimax', 'commands');
+      expect(await directoryExists(minimaxCommandsDir)).toBe(false);
+
+      const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+      expect(
+        logCalls.some(
+          (entry) => entry.includes('Commands skipped for: minimax-code') && entry.includes('(no adapter)'),
+        ),
+      ).toBe(true);
+    });
+
+    it('should leave MiniMax Code global skills intact for commands-only delivery', async () => {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'commands',
+      });
+
+      const skillFile = path.join(testDir, 'home', '.minimax', 'skills', 'openspec-explore', 'SKILL.md');
+      await fs.mkdir(path.dirname(skillFile), { recursive: true });
+      await fs.writeFile(skillFile, 'user-home skill');
+
+      const initCommand = new InitCommand({ tools: 'minimax-code', force: true });
+      await initCommand.execute(testDir);
+
+      expect(await fs.readFile(skillFile, 'utf-8')).toBe('user-home skill');
+      expect(await directoryExists(path.join(testDir, '.minimax'))).toBe(false);
+      expect(await directoryExists(path.join(testDir, '.mavis'))).toBe(false);
     });
 
     it('should create skills for multiple tools at once', async () => {
@@ -500,6 +548,9 @@ describe('InitCommand - profile and detection features', () => {
     configTempDir = path.join(os.tmpdir(), `openspec-config-test-${Date.now()}`);
     await fs.mkdir(configTempDir, { recursive: true });
     process.env.XDG_CONFIG_HOME = configTempDir;
+    const fakeHome = path.join(testDir, 'home');
+    process.env.HOME = fakeHome;
+    process.env.USERPROFILE = fakeHome;
     vi.spyOn(console, 'log').mockImplementation(() => {});
     confirmMock.mockReset();
     confirmMock.mockResolvedValue(true);

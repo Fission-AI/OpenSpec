@@ -15,6 +15,7 @@ export interface AIToolOption {
   available: boolean;
   successLabel?: string;
   skillsDir?: string; // e.g., '.claude' - /skills suffix per Agent Skills spec
+  globalSkillsDir?: string; // e.g., '.minimax' - /skills suffix per Agent Skills spec, resolved from the user's home directory
   detectionPaths?: string[]; // Override skillsDir for auto-detection; any path existing triggers detection
 }
 
@@ -41,6 +42,7 @@ export const AI_TOOLS: AIToolOption[] = [
   { name: 'Kimi CLI', value: 'kimi', available: true, successLabel: 'Kimi CLI', skillsDir: '.kimi' },
   { name: 'Kiro', value: 'kiro', available: true, successLabel: 'Kiro', skillsDir: '.kiro' },
   { name: 'Lingma', value: 'lingma', available: true, successLabel: 'Lingma', skillsDir: '.lingma' },
+  { name: 'MiniMax Code', value: 'minimax-code', available: true, successLabel: 'MiniMax Code', globalSkillsDir: '.minimax' },
   { name: 'Mistral Vibe', value: 'vibe', available: true, successLabel: 'Mistral Vibe', skillsDir: '.vibe' },
   { name: 'OpenCode', value: 'opencode', available: true, successLabel: 'OpenCode', skillsDir: '.opencode' },
   { name: 'Pi', value: 'pi', available: true, successLabel: 'Pi', skillsDir: '.pi' },

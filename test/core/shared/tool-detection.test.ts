@@ -16,13 +16,19 @@ import {
 
 describe('tool-detection', () => {
   let testDir: string;
+  let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(async () => {
     testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
     await fs.mkdir(testDir, { recursive: true });
+    originalEnv = { ...process.env };
+    const fakeHome = path.join(testDir, 'home');
+    process.env.HOME = fakeHome;
+    process.env.USERPROFILE = fakeHome;
   });
 
   afterEach(async () => {
+    process.env = originalEnv;
     await fs.rm(testDir, { recursive: true, force: true });
   });
 
@@ -49,6 +55,7 @@ describe('tool-detection', () => {
       expect(tools).toContain('claude');
       expect(tools).toContain('cursor');
       expect(tools).toContain('windsurf');
+      expect(tools).toContain('minimax-code');
       expect(tools.length).toBeGreaterThan(0);
     });
   });
@@ -90,6 +97,28 @@ describe('tool-detection', () => {
       expect(status.configured).toBe(true);
       expect(status.fullyConfigured).toBe(true);
       expect(status.skillCount).toBe(SKILL_NAMES.length);
+    });
+
+    it('should detect MiniMax Code skills from the user-home global target', async () => {
+      const skillDir = path.join(testDir, 'home', '.minimax', 'skills', 'openspec-explore');
+      await fs.mkdir(skillDir, { recursive: true });
+      await fs.writeFile(path.join(skillDir, 'SKILL.md'), 'test content');
+
+      const status = getToolSkillStatus(testDir, 'minimax-code');
+      expect(status.configured).toBe(true);
+      expect(status.fullyConfigured).toBe(false);
+      expect(status.skillCount).toBe(1);
+    });
+
+    it('should not detect MiniMax Code from repo-local .minimax or .mavis directories', async () => {
+      const repoLocalSkillDir = path.join(testDir, '.minimax', 'skills', 'openspec-explore');
+      await fs.mkdir(repoLocalSkillDir, { recursive: true });
+      await fs.writeFile(path.join(repoLocalSkillDir, 'SKILL.md'), 'test content');
+      await fs.mkdir(path.join(testDir, '.mavis', 'skills', 'openspec-explore'), { recursive: true });
+
+      const status = getToolSkillStatus(testDir, 'minimax-code');
+      expect(status.configured).toBe(false);
+      expect(getConfiguredTools(testDir)).not.toContain('minimax-code');
     });
   });
 
@@ -266,6 +295,21 @@ Content here
       const status = getToolVersionStatus(testDir, 'claude', '0.23.0');
       expect(status.toolId).toBe('claude');
       expect(status.toolName).toBe('Claude Code');
+    });
+
+    it('should read MiniMax Code generatedBy metadata from the global skill target', async () => {
+      const skillDir = path.join(testDir, 'home', '.minimax', 'skills', 'openspec-explore');
+      await fs.mkdir(skillDir, { recursive: true });
+      await fs.writeFile(path.join(skillDir, 'SKILL.md'), `---
+metadata:
+  generatedBy: "0.22.0"
+---
+`);
+
+      const status = getToolVersionStatus(testDir, 'minimax-code', '0.23.0');
+      expect(status.configured).toBe(true);
+      expect(status.generatedByVersion).toBe('0.22.0');
+      expect(status.needsUpdate).toBe(true);
     });
   });
 

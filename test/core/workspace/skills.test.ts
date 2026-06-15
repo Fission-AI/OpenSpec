@@ -5,11 +5,14 @@ import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  generateWorkspaceAgentSkills,
   getWorkspaceSkillDirectory,
   getWorkspaceSkillToolIds,
   hasWorkspaceSkillProfileDrift,
   parseWorkspaceSkillToolsValue,
+  updateWorkspaceAgentSkills,
 } from '../../../src/core/workspace/skills.js';
+import { saveGlobalConfig } from '../../../src/core/global-config.js';
 import { CORE_WORKFLOWS } from '../../../src/core/profiles.js';
 
 function withDefaultGlobalConfig<T>(callback: () => T): T {
@@ -35,6 +38,7 @@ describe('workspace skill helpers', () => {
     expect(parseWorkspaceSkillToolsValue('all')).toEqual(getWorkspaceSkillToolIds());
     expect(parseWorkspaceSkillToolsValue('none')).toEqual([]);
     expect(parseWorkspaceSkillToolsValue('Codex, claude,codex')).toEqual(['codex', 'claude']);
+    expect(parseWorkspaceSkillToolsValue('minimax-code')).toEqual(['minimax-code']);
   });
 
   it('rejects invalid or mixed workspace --tools values', () => {
@@ -52,6 +56,30 @@ describe('workspace skill helpers', () => {
     );
   });
 
+  it('builds MiniMax Code workspace skill paths from the user home', () => {
+    const previousHome = process.env.HOME;
+    const previousUserProfile = process.env.USERPROFILE;
+    process.env.HOME = '/home/alex';
+    process.env.USERPROFILE = '/home/alex';
+
+    try {
+      expect(getWorkspaceSkillDirectory('/repos/platform-workspace', 'minimax-code')).toBe(
+        '/home/alex/.minimax/skills'
+      );
+    } finally {
+      if (previousHome === undefined) {
+        delete process.env.HOME;
+      } else {
+        process.env.HOME = previousHome;
+      }
+      if (previousUserProfile === undefined) {
+        delete process.env.USERPROFILE;
+      } else {
+        process.env.USERPROFILE = previousUserProfile;
+      }
+    }
+  });
+
   it('does not report profile drift when workflow IDs match in a different order', () => {
     withDefaultGlobalConfig(() => {
       expect(
@@ -65,5 +93,84 @@ describe('workspace skill helpers', () => {
         })
       ).toBe(false);
     });
+  });
+
+  it('generates MiniMax Code workspace skills in the user-home global target', async () => {
+    const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-workspace-root-'));
+    const homeRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-minimax-home-'));
+    const configHome = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-workspace-config-'));
+    const previousEnv = { ...process.env };
+
+    process.env.HOME = homeRoot;
+    process.env.USERPROFILE = homeRoot;
+    process.env.XDG_CONFIG_HOME = configHome;
+
+    try {
+      saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+
+      const report = await generateWorkspaceAgentSkills(workspaceRoot, ['minimax-code']);
+      const skillFile = path.join(homeRoot, '.minimax', 'skills', 'openspec-explore', 'SKILL.md');
+
+      expect(report.generated).toHaveLength(1);
+      expect(report.generated[0].skills_path).toBe(path.join(homeRoot, '.minimax', 'skills'));
+      expect(fs.existsSync(skillFile)).toBe(true);
+      expect(fs.existsSync(path.join(workspaceRoot, '.minimax'))).toBe(false);
+      expect(fs.existsSync(path.join(workspaceRoot, '.mavis'))).toBe(false);
+    } finally {
+      process.env = previousEnv;
+      fs.rmSync(workspaceRoot, { recursive: true, force: true });
+      fs.rmSync(homeRoot, { recursive: true, force: true });
+      fs.rmSync(configHome, { recursive: true, force: true });
+    }
+  });
+
+  it('removes MiniMax Code openspec workflow skill directories by name during workspace update', async () => {
+    const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-workspace-root-'));
+    const homeRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-minimax-home-'));
+    const configHome = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-workspace-config-'));
+    const previousEnv = { ...process.env };
+
+    process.env.HOME = homeRoot;
+    process.env.USERPROFILE = homeRoot;
+    process.env.XDG_CONFIG_HOME = configHome;
+
+    try {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'custom',
+        delivery: 'both',
+        workflows: ['explore'],
+      });
+
+      const skillsDir = path.join(homeRoot, '.minimax', 'skills');
+      const extraSkill = path.join(skillsDir, 'openspec-new-change', 'SKILL.md');
+      const customSkill = path.join(skillsDir, 'my-custom-skill', 'SKILL.md');
+      await fs.promises.mkdir(path.dirname(extraSkill), { recursive: true });
+      await fs.promises.writeFile(extraSkill, 'user edited without generated metadata');
+      await fs.promises.mkdir(path.dirname(customSkill), { recursive: true });
+      await fs.promises.writeFile(customSkill, 'custom content');
+
+      const report = await updateWorkspaceAgentSkills(
+        workspaceRoot,
+        ['minimax-code'],
+        {
+          selected_agents: ['minimax-code'],
+          last_applied_profile: 'custom',
+          last_applied_delivery: 'both',
+          last_applied_workflow_ids: ['explore', 'new'],
+        }
+      );
+
+      expect(report.refreshed).toHaveLength(1);
+      expect(fs.existsSync(extraSkill)).toBe(false);
+      expect(fs.existsSync(customSkill)).toBe(true);
+      expect(fs.existsSync(path.join(workspaceRoot, '.minimax'))).toBe(false);
+      expect(fs.existsSync(path.join(workspaceRoot, '.mavis'))).toBe(false);
+    } finally {
+      process.env = previousEnv;
+      fs.rmSync(workspaceRoot, { recursive: true, force: true });
+      fs.rmSync(homeRoot, { recursive: true, force: true });
+      fs.rmSync(configHome, { recursive: true, force: true });
+    }
   });
 });
