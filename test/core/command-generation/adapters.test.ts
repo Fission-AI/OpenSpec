@@ -3,6 +3,7 @@ import os from 'os';
 import path from 'path';
 import { amazonQAdapter } from '../../../src/core/command-generation/adapters/amazon-q.js';
 import { antigravityAdapter } from '../../../src/core/command-generation/adapters/antigravity.js';
+import { atomcodeAdapter } from '../../../src/core/command-generation/adapters/atomcode.js';
 import { auggieAdapter } from '../../../src/core/command-generation/adapters/auggie.js';
 import { bobAdapter } from '../../../src/core/command-generation/adapters/bob.js';
 import { claudeAdapter } from '../../../src/core/command-generation/adapters/claude.js';
@@ -161,6 +162,49 @@ describe('command-generation/adapters', () => {
       expect(output).toContain('description: Enter explore mode for thinking');
       expect(output).toContain('---\n\n');
       expect(output).toContain('This is the command body.');
+    });
+  });
+
+  describe('atomcodeAdapter', () => {
+    it('should have correct toolId', () => {
+      expect(atomcodeAdapter.toolId).toBe('atomcode');
+    });
+
+    it('should generate correct file path', () => {
+      const filePath = atomcodeAdapter.getFilePath('explore');
+      expect(filePath).toBe(path.join('.atomcode', 'commands', 'opsx-explore.md'));
+    });
+
+    it('should generate correct file paths for different commands', () => {
+      expect(atomcodeAdapter.getFilePath('new')).toBe(path.join('.atomcode', 'commands', 'opsx-new.md'));
+      expect(atomcodeAdapter.getFilePath('bulk-archive')).toBe(path.join('.atomcode', 'commands', 'opsx-bulk-archive.md'));
+    });
+
+    it('should format file with description frontmatter', () => {
+      const output = atomcodeAdapter.formatFile(sampleContent);
+      expect(output).toContain('---\n');
+      expect(output).toContain('description: Enter explore mode for thinking');
+      expect(output).toContain('---\n\n');
+      expect(output).toContain('This is the command body.');
+    });
+
+    it('should not include name, category, or tags', () => {
+      const output = atomcodeAdapter.formatFile(sampleContent);
+      expect(output).not.toContain('name:');
+      expect(output).not.toContain('category:');
+      expect(output).not.toContain('tags:');
+    });
+
+    it('should transform command references from colon to hyphen format', () => {
+      const contentWithRefs: CommandContent = {
+        ...sampleContent,
+        body: 'Run /opsx:apply to implement. Then /opsx:archive when done.',
+      };
+
+      const output = atomcodeAdapter.formatFile(contentWithRefs);
+      expect(output).toContain('/opsx-apply');
+      expect(output).toContain('/opsx-archive');
+      expect(output).not.toContain('/opsx:apply');
     });
   });
 
@@ -694,7 +738,7 @@ describe('command-generation/adapters', () => {
     it('All adapters use path.join for paths', () => {
       // Verify all adapters produce valid paths
       const adapters = [
-        amazonQAdapter, antigravityAdapter, auggieAdapter, bobAdapter, clineAdapter,
+        amazonQAdapter, antigravityAdapter, atomcodeAdapter, auggieAdapter, bobAdapter, clineAdapter,
         codexAdapter, codebuddyAdapter, continueAdapter, costrictAdapter,
         crushAdapter, factoryAdapter, geminiAdapter, githubCopilotAdapter,
         iflowAdapter, kilocodeAdapter, opencodeAdapter, piAdapter, qoderAdapter,
