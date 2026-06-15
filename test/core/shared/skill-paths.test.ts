@@ -6,6 +6,7 @@ import {
   resolveToolSkillsDir,
   toolSupportsSkills,
 } from '../../../src/core/shared/skill-paths.js';
+import { FileSystemUtils } from '../../../src/utils/file-system.js';
 
 describe('skill-paths', () => {
   it('treats tools with project-local or global skill targets as skill-capable', () => {
@@ -20,7 +21,9 @@ describe('skill-paths', () => {
     expect(claude && toolSupportsSkills(claude)).toBe(true);
     if (!claude || !toolSupportsSkills(claude)) return;
 
-    expect(resolveToolSkillsDir('/repo/app', claude)).toBe('/repo/app/.claude/skills');
+    expect(resolveToolSkillsDir('/repo/app', claude)).toBe(
+      FileSystemUtils.joinPath('/repo/app', '.claude', 'skills')
+    );
   });
 
   it('resolves MiniMax Code to a user-home global skills target', () => {
@@ -29,7 +32,7 @@ describe('skill-paths', () => {
     if (!minimax || !toolSupportsSkills(minimax)) return;
 
     expect(resolveToolSkillsDir('/repo/app', minimax, { homeDir: '/home/alex' })).toBe(
-      '/home/alex/.minimax/skills'
+      FileSystemUtils.joinPath('/home/alex', '.minimax', 'skills')
     );
   });
 

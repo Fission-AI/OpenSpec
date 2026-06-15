@@ -151,6 +151,10 @@ describe('InitCommand', () => {
         const cmdFile = path.join(testDir, '.claude', 'commands', cmdName);
         expect(await fileExists(cmdFile)).toBe(false);
       }
+
+      const commandDir = path.join(testDir, '.claude', 'commands', 'opsx');
+      const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+      expect(logCalls.some((entry) => entry.includes('commands in') && entry.includes(commandDir))).toBe(true);
     });
 
     it('should create skills in Cursor skills directory', async () => {
@@ -219,6 +223,7 @@ describe('InitCommand', () => {
           (entry) => entry.includes('Commands skipped for: minimax-code') && entry.includes('(no adapter)'),
         ),
       ).toBe(true);
+      expect(logCalls.some((entry) => entry.includes('commands in') && entry.includes('.minimax'))).toBe(false);
     });
 
     it('should leave MiniMax Code global skills intact for commands-only delivery', async () => {

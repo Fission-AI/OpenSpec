@@ -664,15 +664,34 @@ export class InitCommand {
       const profile: Profile = (this.profileOverride as Profile) ?? globalConfig.profile ?? 'core';
       const delivery: Delivery = globalConfig.delivery ?? 'both';
       const workflows = getProfileWorkflows(profile, globalConfig.workflows);
-      const toolDirs = [...new Set(successfulTools.map((t) => t.skillsPath))].join(', ');
-      const skillCount = delivery !== 'commands' ? getSkillTemplates(workflows).length : 0;
-      const commandCount = delivery !== 'skills' ? getCommandContents(workflows).length : 0;
-      if (skillCount > 0 && commandCount > 0) {
-        console.log(`${skillCount} skills and ${commandCount} commands in ${toolDirs}/`);
-      } else if (skillCount > 0) {
-        console.log(`${skillCount} skills in ${toolDirs}/`);
-      } else if (commandCount > 0) {
-        console.log(`${commandCount} commands in ${toolDirs}/`);
+      const skillTemplates = getSkillTemplates(workflows);
+      const commandContents = getCommandContents(workflows);
+      const skillDirs = [...new Set(successfulTools.map((t) => t.skillsPath))];
+      const skillCount = delivery !== 'commands' ? skillTemplates.length : 0;
+
+      if (skillCount > 0) {
+          console.log(`${skillCount} skills in ${skillDirs.map((dir) => `${dir}/`).join(', ')}`);
+      }
+
+      const generatedCommandTools = delivery !== 'skills'
+        ? successfulTools
+          .map((tool) => ({ tool, adapter: CommandAdapterRegistry.get(tool.value) }))
+          .filter((entry): entry is { tool: ValidatedInitTool; adapter: NonNullable<typeof entry.adapter> } => Boolean(entry.adapter))
+        : [];
+      const commandDirs = [
+        ...new Set(
+          generatedCommandTools.flatMap(({ adapter }) =>
+            commandContents.map((content) => {
+              const commandPath = adapter.getFilePath(content.id);
+              return path.dirname(path.isAbsolute(commandPath) ? commandPath : path.join(projectPath, commandPath));
+            })
+          )
+        ),
+      ];
+      const commandCount = generatedCommandTools.length * commandContents.length;
+
+      if (commandCount > 0) {
+        console.log(`${commandCount} commands in ${commandDirs.map((dir) => `${dir}/`).join(', ')}`);
       }
     }
 

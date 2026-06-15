@@ -59,12 +59,13 @@ describe('workspace skill helpers', () => {
   it('builds MiniMax Code workspace skill paths from the user home', () => {
     const previousHome = process.env.HOME;
     const previousUserProfile = process.env.USERPROFILE;
-    process.env.HOME = '/home/alex';
-    process.env.USERPROFILE = '/home/alex';
+    const fakeHome = path.join(os.tmpdir(), 'openspec-home-alex');
+    process.env.HOME = fakeHome;
+    process.env.USERPROFILE = fakeHome;
 
     try {
       expect(getWorkspaceSkillDirectory('/repos/platform-workspace', 'minimax-code')).toBe(
-        '/home/alex/.minimax/skills'
+        path.join(fakeHome, '.minimax', 'skills')
       );
     } finally {
       if (previousHome === undefined) {
