@@ -39,13 +39,19 @@ function setupCoreCommands(projectDir: string): void {
 
 describe('profile sync drift detection', () => {
   let tempDir: string;
+  let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(() => {
     tempDir = path.join(os.tmpdir(), `openspec-profile-sync-drift-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     fs.mkdirSync(path.join(tempDir, 'openspec'), { recursive: true });
+    originalEnv = { ...process.env };
+    const fakeHome = path.join(tempDir, 'home');
+    process.env.HOME = fakeHome;
+    process.env.USERPROFILE = fakeHome;
   });
 
   afterEach(() => {
+    process.env = originalEnv;
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 

@@ -186,6 +186,9 @@ describe('config profile interactive flow', () => {
     originalExitCode = process.exitCode;
 
     process.env.XDG_CONFIG_HOME = tempDir;
+    const fakeHome = path.join(tempDir, 'home');
+    process.env.HOME = fakeHome;
+    process.env.USERPROFILE = fakeHome;
     process.chdir(tempDir);
     (process.stdout as NodeJS.WriteStream & { isTTY?: boolean }).isTTY = true;
     process.exitCode = undefined;

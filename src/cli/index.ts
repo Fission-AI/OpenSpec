@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { promises as fs } from 'fs';
 import { AI_TOOLS, OPENSPEC_DIR_NAME } from '../core/config.js';
+import { toolSupportsSkills } from '../core/shared/index.js';
 import { UpdateCommand } from '../core/update.js';
 import { ListCommand } from '../core/list.js';
 import { ArchiveCommand } from '../core/archive.js';
@@ -94,7 +95,7 @@ program.hook('postAction', async () => {
   await shutdown();
 });
 
-const availableToolIds = AI_TOOLS.filter((tool) => tool.skillsDir).map((tool) => tool.value);
+const availableToolIds = AI_TOOLS.filter(toolSupportsSkills).map((tool) => tool.value);
 const toolsOptionDescription = `Configure AI tools non-interactively. Use "all", "none", or a comma-separated list of: ${availableToolIds.join(', ')}`;
 
 async function hasRepoLocalOpenSpecProject(projectPath: string): Promise<boolean> {

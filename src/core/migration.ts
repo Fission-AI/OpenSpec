@@ -12,6 +12,7 @@ import { WORKFLOW_TO_SKILL_DIR } from './profile-sync-drift.js';
 import { ALL_WORKFLOWS } from './profiles.js';
 import path from 'path';
 import * as fs from 'fs';
+import { resolveToolSkillsDir, toolSupportsSkills } from './shared/skill-paths.js';
 
 interface InstalledWorkflowArtifacts {
   workflows: string[];
@@ -28,8 +29,8 @@ function scanInstalledWorkflowArtifacts(
   let hasCommands = false;
 
   for (const tool of tools) {
-    if (!tool.skillsDir) continue;
-    const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
+    if (!toolSupportsSkills(tool)) continue;
+    const skillsDir = resolveToolSkillsDir(projectPath, tool);
 
     for (const workflowId of ALL_WORKFLOWS) {
       const skillDirName = WORKFLOW_TO_SKILL_DIR[workflowId];

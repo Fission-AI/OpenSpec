@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Command } from 'commander';
 import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
-import * as os from 'node:os';
 import * as path from 'node:path';
 
 import {
@@ -14,6 +13,7 @@ import {
   writeContextStoreMetadataState,
   writeContextStoreRegistryState,
 } from '../../src/core/index.js';
+import { mkdtempOutsideGit } from '../helpers/temp-dir.js';
 import { runCLI, type RunCLIResult } from '../helpers/run-cli.js';
 
 vi.mock('@inquirer/prompts', () => ({
@@ -43,6 +43,7 @@ describe('context-store command', () => {
   let tempDir: string;
   let dataHome: string;
   let configHome: string;
+  let homeDir: string;
   let globalDataDir: string;
   let env: NodeJS.ProcessEnv;
   let originalEnv: NodeJS.ProcessEnv;
@@ -55,12 +56,17 @@ describe('context-store command', () => {
   beforeEach(() => {
     vi.resetModules();
 
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-context-store-command-'));
+    tempDir = mkdtempOutsideGit('openspec-context-store-command-');
     dataHome = path.join(tempDir, 'data');
     configHome = path.join(tempDir, 'config');
+    homeDir = path.join(tempDir, 'home');
     env = {
       XDG_DATA_HOME: dataHome,
       XDG_CONFIG_HOME: configHome,
+      HOME: homeDir,
+      USERPROFILE: homeDir,
+      APPDATA: path.join(homeDir, 'AppData', 'Roaming'),
+      LOCALAPPDATA: path.join(homeDir, 'AppData', 'Local'),
       OPEN_SPEC_INTERACTIVE: '0',
       OPENSPEC_TELEMETRY: '0',
     };
@@ -147,9 +153,7 @@ describe('context-store command', () => {
   it('runs guided setup when no args are passed in an interactive terminal', async () => {
     process.env = {
       ...process.env,
-      XDG_DATA_HOME: dataHome,
-      XDG_CONFIG_HOME: configHome,
-      OPENSPEC_TELEMETRY: '0',
+      ...env,
     };
     delete process.env.OPEN_SPEC_INTERACTIVE;
     delete process.env.CI;
@@ -251,9 +255,7 @@ describe('context-store command', () => {
   it('requires confirmation before interactive setup uses a path inside an existing Git repo', async () => {
     process.env = {
       ...process.env,
-      XDG_DATA_HOME: dataHome,
-      XDG_CONFIG_HOME: configHome,
-      OPENSPEC_TELEMETRY: '0',
+      ...env,
     };
     delete process.env.OPEN_SPEC_INTERACTIVE;
     delete process.env.CI;
@@ -306,9 +308,7 @@ describe('context-store command', () => {
   it('does not prompt before setup validation fails', async () => {
     process.env = {
       ...process.env,
-      XDG_DATA_HOME: dataHome,
-      XDG_CONFIG_HOME: configHome,
-      OPENSPEC_TELEMETRY: '0',
+      ...env,
     };
     delete process.env.OPEN_SPEC_INTERACTIVE;
     delete process.env.CI;
@@ -662,9 +662,7 @@ describe('context-store command', () => {
   it('prompts for Git initialization in interactive setup', async () => {
     process.env = {
       ...process.env,
-      XDG_DATA_HOME: dataHome,
-      XDG_CONFIG_HOME: configHome,
-      OPENSPEC_TELEMETRY: '0',
+      ...env,
     };
     delete process.env.OPEN_SPEC_INTERACTIVE;
     delete process.env.CI;

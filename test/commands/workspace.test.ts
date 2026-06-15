@@ -31,15 +31,21 @@ describe('workspace command', () => {
   let tempDir: string;
   let dataHome: string;
   let configHome: string;
+  let homeDir: string;
   let env: NodeJS.ProcessEnv;
 
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-workspace-command-'));
     dataHome = path.join(tempDir, 'data');
     configHome = path.join(tempDir, 'config');
+    homeDir = path.join(tempDir, 'home');
     env = {
       XDG_DATA_HOME: dataHome,
       XDG_CONFIG_HOME: configHome,
+      HOME: homeDir,
+      USERPROFILE: homeDir,
+      APPDATA: path.join(homeDir, 'AppData', 'Roaming'),
+      LOCALAPPDATA: path.join(homeDir, 'AppData', 'Local'),
       OPEN_SPEC_INTERACTIVE: '0',
       OPENSPEC_TELEMETRY: '0',
     };

@@ -41,11 +41,16 @@ function resetMockConfig() {
 describe('UpdateCommand', () => {
   let testDir: string;
   let updateCommand: UpdateCommand;
+  let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(async () => {
     // Create a temporary test directory
     testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
     await fs.mkdir(testDir, { recursive: true });
+    originalEnv = { ...process.env };
+    const fakeHome = path.join(testDir, 'home');
+    process.env.HOME = fakeHome;
+    process.env.USERPROFILE = fakeHome;
 
     // Create openspec directory
     const openspecDir = path.join(testDir, 'openspec');
@@ -63,6 +68,7 @@ describe('UpdateCommand', () => {
   afterEach(async () => {
     // Restore all mocks after each test
     vi.restoreAllMocks();
+    process.env = originalEnv;
 
     // Clean up test directory
     await fs.rm(testDir, { recursive: true, force: true });
@@ -189,6 +195,26 @@ Old instructions content
         const exists = await FileSystemUtils.fileExists(skillFile);
         expect(exists).toBe(false);
       }
+    });
+
+    it('should update MiniMax Code skills from the user-home global target', async () => {
+      const skillsDir = path.join(testDir, 'home', '.minimax', 'skills');
+      const exploreSkill = path.join(skillsDir, 'openspec-explore', 'SKILL.md');
+      await fs.mkdir(path.dirname(exploreSkill), { recursive: true });
+      await fs.writeFile(exploreSkill, 'old content');
+      await fs.mkdir(path.join(skillsDir, 'my-custom-skill'), { recursive: true });
+      await fs.writeFile(path.join(skillsDir, 'my-custom-skill', 'SKILL.md'), 'custom content');
+
+      await updateCommand.execute(testDir);
+
+      const updatedSkill = await fs.readFile(exploreSkill, 'utf-8');
+      expect(updatedSkill).toContain('name: openspec-explore');
+      expect(updatedSkill).not.toContain('old content');
+      expect(await FileSystemUtils.fileExists(
+        path.join(skillsDir, 'my-custom-skill', 'SKILL.md')
+      )).toBe(true);
+      expect(await FileSystemUtils.fileExists(path.join(testDir, '.minimax'))).toBe(false);
+      expect(await FileSystemUtils.fileExists(path.join(testDir, '.mavis'))).toBe(false);
     });
   });
 
@@ -1536,6 +1562,24 @@ More user content after markers.
       expect(await FileSystemUtils.fileExists(
         path.join(skillsDir, 'openspec-explore', 'SKILL.md')
       )).toBe(false);
+    });
+
+    it('should preserve MiniMax Code global skills in commands-only delivery', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'commands',
+      });
+
+      const skillFile = path.join(testDir, 'home', '.minimax', 'skills', 'openspec-explore', 'SKILL.md');
+      await fs.mkdir(path.dirname(skillFile), { recursive: true });
+      await fs.writeFile(skillFile, 'old global minimax skill');
+
+      await updateCommand.execute(testDir);
+
+      expect(await fs.readFile(skillFile, 'utf-8')).toBe('old global minimax skill');
+      expect(await FileSystemUtils.fileExists(path.join(testDir, '.minimax'))).toBe(false);
+      expect(await FileSystemUtils.fileExists(path.join(testDir, '.mavis'))).toBe(false);
     });
 
     it('should apply config sync when templates are up to date', async () => {

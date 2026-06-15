@@ -107,7 +107,7 @@ openspec init [path] [options]
 
 `--profile custom` uses whatever workflows are currently selected in global config (`openspec config profile`).
 
-**Supported tool IDs (`--tools`):** `amazon-q`, `antigravity`, `auggie`, `bob`, `claude`, `cline`, `codex`, `forgecode`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `opencode`, `pi`, `qoder`, `lingma`, `qwen`, `roocode`, `trae`, `windsurf`
+**Supported tool IDs (`--tools`):** `amazon-q`, `antigravity`, `auggie`, `bob`, `claude`, `cline`, `codex`, `forgecode`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `lingma`, `minimax-code`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `vibe`, `windsurf`
 
 **Examples:**
 
@@ -120,6 +120,9 @@ openspec init ./my-project
 
 # Non-interactive: configure for Claude and Cursor
 openspec init --tools claude,cursor
+
+# Non-interactive: configure MiniMax Code global skills
+openspec init --tools minimax-code
 
 # Configure for all supported tools
 openspec init --tools all
@@ -142,8 +145,11 @@ openspec/
 .claude/skills/         # Claude Code skills (if claude selected)
 .cursor/skills/         # Cursor skills (if cursor selected)
 .cursor/commands/       # Cursor OPSX commands (if delivery includes commands)
+~/.minimax/skills/      # MiniMax Code skills (if minimax-code selected)
 ... (other tool configs)
 ```
+
+MiniMax Code uses a fixed user-home target: OpenSpec writes its skills to `~/.minimax/skills/` and detects existing OpenSpec MiniMax Code setup from that directory. It does not create project-local `.minimax` or `.mavis` directories. When delivery is `commands`, MiniMax Code command generation is skipped because no command adapter exists, and existing global MiniMax Code skills are left untouched.
 
 ---
 
@@ -215,7 +221,7 @@ openspec workspace setup --no-interactive --json --name checkout --link /repos/p
 
 Interactive setup asks for a preferred opener and can install workspace-local OpenSpec skills for selected agents. Non-interactive setup stores a preferred opener only when `--opener` is provided; otherwise `workspace open` prompts later in interactive terminals when a supported opener is available, or asks scripts to pass `--agent <tool>` or `--editor`.
 
-Workspace skill installation is skills-only in this beta slice: even if global delivery is `commands` or `both`, workspace setup writes agent skill folders in the workspace root and does not create slash command files. The active global profile chooses which workflow skills are installed; `--tools` chooses which agents receive them. If `--tools` is omitted in non-interactive setup, no skills are installed and `workspace update --tools <ids>` can add them later.
+Workspace skill installation is skills-only in this beta slice: even if global delivery is `commands` or `both`, workspace setup writes agent skill folders and does not create slash command files. Project-local tools are written in the workspace root; MiniMax Code is written to `~/.minimax/skills/`. The active global profile chooses which workflow skills are installed; `--tools` chooses which agents receive them. If `--tools` is omitted in non-interactive setup, no skills are installed and `workspace update --tools <ids>` can add them later.
 
 ### `openspec workspace list`
 
@@ -304,7 +310,7 @@ openspec workspace update --workspace platform --tools codex,claude
 openspec workspace update --workspace platform --tools none
 ```
 
-`workspace update` refreshes the generated workspace guidance block and local open surface. For agent skills, it reuses the stored workspace skill agent selection when `--tools` is omitted. Passing `--tools` replaces that stored selection. It refreshes only OpenSpec-managed workflow skill directories in the workspace root, removes deselected managed workflow skills, and leaves linked repos and folders untouched.
+`workspace update` refreshes the generated workspace guidance block and local open surface. For agent skills, it reuses the stored workspace skill agent selection when `--tools` is omitted. Passing `--tools` replaces that stored selection. It refreshes only OpenSpec-managed workflow skill directories in the resolved skill target, removes deselected managed workflow skills, and leaves linked repos and folders untouched. MiniMax Code workspace skills use `~/.minimax/skills/` and never create workspace-local `.minimax` or `.mavis` fallback directories.
 
 Running `openspec update` from inside a workspace does not update workspace-local files. Use `openspec workspace update` when you want workspace-local guidance and skills refreshed, and run `openspec update` inside repo-local projects when you want repo-owned tool files updated.
 

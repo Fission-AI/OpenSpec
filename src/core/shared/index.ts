@@ -28,3 +28,12 @@ export {
   getCommandContents,
   generateSkillContent,
 } from './skill-generation.js';
+
+export {
+  type SkillCapableTool,
+  toolSupportsSkills,
+  getSkillCapableTools,
+  getSkillCapableToolIds,
+  hasGlobalSkillTarget,
+  resolveToolSkillsDir,
+} from './skill-paths.js';

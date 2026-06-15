@@ -23,6 +23,9 @@ import {
   getCommandContents,
   generateSkillContent,
   getToolsWithSkillsDir,
+  hasGlobalSkillTarget,
+  resolveToolSkillsDir,
+  toolSupportsSkills,
   type ToolVersionStatus,
 } from './shared/index.js';
 import {
@@ -183,12 +186,12 @@ export class UpdateCommand {
 
     for (const toolId of toolsToUpdate) {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
-      if (!tool?.skillsDir) continue;
+      if (!tool || !toolSupportsSkills(tool)) continue;
 
       const spinner = ora(`Updating ${tool.name}...`).start();
 
       try {
-        const skillsDir = path.join(resolvedProjectPath, tool.skillsDir, 'skills');
+        const skillsDir = resolveToolSkillsDir(resolvedProjectPath, tool);
 
         // Generate skill files if delivery includes skills
         if (shouldGenerateSkills) {
@@ -206,7 +209,7 @@ export class UpdateCommand {
         }
 
         // Delete skill directories if delivery is commands-only
-        if (!shouldGenerateSkills) {
+        if (!shouldGenerateSkills && !hasGlobalSkillTarget(tool)) {
           removedSkillCount += await this.removeSkillDirs(skillsDir);
         }
 
@@ -677,12 +680,12 @@ export class UpdateCommand {
 
     for (const toolId of selectedTools) {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
-      if (!tool?.skillsDir) continue;
+      if (!tool || !toolSupportsSkills(tool)) continue;
 
       const spinner = ora(`Setting up ${tool.name}...`).start();
 
       try {
-        const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
+        const skillsDir = resolveToolSkillsDir(projectPath, tool);
 
         // Create skill files when delivery includes skills
         if (shouldGenerateSkills) {

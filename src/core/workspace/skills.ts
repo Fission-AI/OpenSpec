@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 
 import { FileSystemUtils } from '../../utils/file-system.js';
 import { transformToHyphenCommands } from '../../utils/command-references.js';
-import { AI_TOOLS, type AIToolOption } from '../config.js';
+import { AI_TOOLS } from '../config.js';
 import { getGlobalConfig, type Delivery, type Profile } from '../global-config.js';
 import { getProfileWorkflows } from '../profiles.js';
 import {
@@ -12,6 +12,10 @@ import {
   getToolSkillStatus,
   getToolsWithSkillsDir,
   extractGeneratedByVersion,
+  hasGlobalSkillTarget,
+  resolveToolSkillsDir,
+  toolSupportsSkills,
+  type SkillCapableTool,
 } from '../shared/index.js';
 import type { WorkspaceSkillState } from './foundation.js';
 
@@ -65,7 +69,7 @@ interface WorkspaceSkillProfileContext {
   deliveryNotice: string | null;
 }
 
-type WorkspaceSkillCapableTool = AIToolOption & { skillsDir: string };
+type WorkspaceSkillCapableTool = SkillCapableTool;
 
 function resolveWorkspaceSkillProfileContext(): WorkspaceSkillProfileContext {
   const globalConfig = getGlobalConfig();
@@ -153,7 +157,7 @@ function makeBaseWorkspaceSkillReport(
 }
 
 export function getWorkspaceSkillCapableTools(): WorkspaceSkillCapableTool[] {
-  return AI_TOOLS.filter((tool) => Boolean(tool.skillsDir)) as WorkspaceSkillCapableTool[];
+  return AI_TOOLS.filter(toolSupportsSkills);
 }
 
 export function getWorkspaceSkillToolIds(): string[] {
@@ -241,7 +245,7 @@ function getWorkspaceSkillDirectoryForTool(
   workspaceRoot: string,
   tool: WorkspaceSkillCapableTool
 ): string {
-  return FileSystemUtils.joinPath(workspaceRoot, tool.skillsDir, 'skills');
+  return resolveToolSkillsDir(workspaceRoot, tool);
 }
 
 export function getWorkspaceSkillDirectory(workspaceRoot: string, toolId: string): string {
@@ -274,7 +278,15 @@ async function pathExists(targetPath: string): Promise<boolean> {
   }
 }
 
-function isOpenSpecManagedSkillDir(skillDir: string): boolean {
+function isOpenSpecManagedSkillDir(
+  tool: WorkspaceSkillCapableTool,
+  dirName: string,
+  skillDir: string
+): boolean {
+  if (hasGlobalSkillTarget(tool) && dirName.startsWith('openspec-')) {
+    return true;
+  }
+
   const skillFile = FileSystemUtils.joinPath(skillDir, 'SKILL.md');
   return extractGeneratedByVersion(skillFile) !== null;
 }
@@ -299,7 +311,7 @@ async function removeManagedWorkflowSkillDirs(
       continue;
     }
 
-    if (!isOpenSpecManagedSkillDir(skillDir)) {
+    if (!isOpenSpecManagedSkillDir(tool, dirName, skillDir)) {
       continue;
     }
 
