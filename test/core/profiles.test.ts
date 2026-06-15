@@ -44,6 +44,16 @@ describe('profiles', () => {
       expect(result).toEqual(CORE_WORKFLOWS);
     });
 
+    it('should return all workflows for all profile', () => {
+      const result = getProfileWorkflows('all');
+      expect(result).toEqual(ALL_WORKFLOWS);
+    });
+
+    it('should return all workflows for all profile even if customWorkflows provided', () => {
+      const result = getProfileWorkflows('all', ['explore']);
+      expect(result).toEqual(ALL_WORKFLOWS);
+    });
+
     it('should return custom workflows for custom profile', () => {
       const customWorkflows = ['explore', 'new', 'apply', 'ff'];
       const result = getProfileWorkflows('custom', customWorkflows);

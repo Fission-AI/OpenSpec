@@ -135,6 +135,31 @@ describe('migration', () => {
     expect(fs.existsSync(getGlobalConfigPath())).toBe(false);
   });
 
+  it('migrates to all profile when all workflows are installed', async () => {
+    const allDirNames = [
+      'openspec-propose',
+      'openspec-explore',
+      'openspec-new-change',
+      'openspec-continue-change',
+      'openspec-apply-change',
+      'openspec-ff-change',
+      'openspec-sync-specs',
+      'openspec-archive-change',
+      'openspec-bulk-archive-change',
+      'openspec-verify-change',
+      'openspec-onboard',
+    ];
+    for (const dirName of allDirNames) {
+      await writeSkill(projectDir, dirName);
+    }
+
+    migrateIfNeeded(projectDir, [ensureClaudeTool()]);
+
+    const config = readRawConfig();
+    expect(config.profile).toBe('all');
+    expect(config.delivery).toBe('skills');
+  });
+
   it('ignores unknown custom skill and command files when scanning workflows', async () => {
     await writeSkill(projectDir, 'my-custom-skill');
     const customCommandPath = path.join(projectDir, '.claude', 'commands', 'opsx', 'my-custom.md');

@@ -8,7 +8,7 @@ export const GLOBAL_CONFIG_FILE_NAME = 'config.json';
 export const GLOBAL_DATA_DIR_NAME = 'openspec';
 
 // TypeScript types
-export type Profile = 'core' | 'custom';
+export type Profile = 'core' | 'custom' | 'all';
 export type Delivery = 'both' | 'skills' | 'commands';
 
 // TypeScript interfaces

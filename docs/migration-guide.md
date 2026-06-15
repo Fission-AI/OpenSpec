@@ -85,7 +85,7 @@ Don't worry about getting it perfect. We're still learning what works best here,
 Both `openspec init` and `openspec update` detect legacy files and guide you through the same cleanup process. Use whichever fits your situation:
 
 - New installs default to profile `core` (`propose`, `explore`, `apply`, `sync`, `archive`).
-- Migrated installs preserve your previously installed workflows by writing a `custom` profile when needed.
+- Migrated installs preserve your previously installed workflows: if all 11 workflows are installed, you'll get the `all` profile; otherwise a `custom` profile with your detected workflows.
 
 ### Using `openspec init`
 
@@ -289,7 +289,7 @@ Command availability is profile-dependent:
 | `/opsx:apply` | Implement tasks from tasks.md |
 | `/opsx:archive` | Finalize and archive the change |
 
-**Expanded workflow (custom selection):**
+**Expanded workflow (all or custom profile):**
 
 | Command | Purpose |
 |---------|---------|

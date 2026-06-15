@@ -12,13 +12,13 @@ OpenSpec helps you and your AI coding assistant agree on what to build before an
 /opsx:propose ──► /opsx:apply ──► /opsx:sync ──► /opsx:archive
 ```
 
-**Expanded path (custom workflow selection):**
+**Expanded path (all or custom profile):**
 
 ```text
 /opsx:new ──► /opsx:ff or /opsx:continue ──► /opsx:apply ──► /opsx:verify ──► /opsx:archive
 ```
 
-The default global profile is `core`, which includes `propose`, `explore`, `apply`, `sync`, and `archive`. You can enable the expanded workflow commands with `openspec config profile` and then `openspec update`.
+The default global profile is `core`, which includes `propose`, `explore`, `apply`, `sync`, and `archive`. You can enable all expanded workflow commands with `openspec config profile all`, or pick a custom subset with `openspec config profile`, then `openspec update`.
 
 ## What OpenSpec Creates
 

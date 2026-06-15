@@ -124,6 +124,10 @@ export function deriveProfileFromWorkflowSelection(selectedWorkflows: string[]):
   const isCoreMatch =
     selectedWorkflows.length === CORE_WORKFLOWS.length &&
     CORE_WORKFLOWS.every((w) => selectedWorkflows.includes(w));
+  const isAllMatch =
+    selectedWorkflows.length === ALL_WORKFLOWS.length &&
+    ALL_WORKFLOWS.every((w) => selectedWorkflows.includes(w));
+  if (isAllMatch) return 'all';
   return isCoreMatch ? 'core' : 'custom';
 }
 
@@ -318,6 +322,8 @@ export function registerConfigCommand(program: Command): void {
         console.log(`  delivery: ${config.delivery} ${deliverySource}`);
         if (config.profile === 'core') {
           console.log(`  workflows: ${CORE_WORKFLOWS.join(', ')} (from core profile)`);
+        } else if (config.profile === 'all') {
+          console.log(`  workflows: ${ALL_WORKFLOWS.join(', ')} (from all profile)`);
         } else if (config.workflows && config.workflows.length > 0) {
           console.log(`  workflows: ${config.workflows.join(', ')} (explicit)`);
         } else {
@@ -525,15 +531,25 @@ export function registerConfigCommand(program: Command): void {
         return;
       }
 
+      if (preset === 'all') {
+        const config = getGlobalConfig();
+        config.profile = 'all';
+        config.workflows = [...ALL_WORKFLOWS];
+        saveGlobalConfig(config);
+        const workspaceContext = await resolveWorkspaceConfigProfileContext();
+        printConfigProfileApplyGuidance(workspaceContext);
+        return;
+      }
+
       if (preset) {
-        console.error(`Error: Unknown profile preset "${preset}". Available presets: core`);
+        console.error(`Error: Unknown profile preset "${preset}". Available presets: core, all`);
         process.exitCode = 1;
         return;
       }
 
       // Non-interactive check
       if (!process.stdout.isTTY) {
-        console.error('Interactive mode required. Use `openspec config profile core` or set config via environment/flags.');
+        console.error('Interactive mode required. Use `openspec config profile core`, `openspec config profile all`, or set config via environment/flags.');
         process.exitCode = 1;
         return;
       }
