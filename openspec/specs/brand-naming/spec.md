@@ -1,7 +1,8 @@
 # brand-naming Specification
 
 ## Purpose
-TBD - created by archiving change complete-clearspec-rebrand. Update Purpose after archive.
+This specification defines the naming and branding rules that distinguish ClearSpec from upstream OpenSpec. It ensures every artifact ClearSpec generates or owns — the change-management home directory, slash-command titles, skill authorship, global config/data directories, managed-block markers, change-metadata filenames, and workspace/context-store directories — uses ClearSpec-specific identifiers, so that ClearSpec can be installed and operated alongside a separate OpenSpec installation without either tool reading, altering, or depending on the other's files.
+
 ## Requirements
 ### Requirement: Generated change-management home is named clearspec
 

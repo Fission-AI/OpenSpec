@@ -15,6 +15,7 @@ import { transformToHyphenCommands } from '../utils/command-references.js';
 import {
   AI_TOOLS,
   CLEARSPEC_DIR_NAME,
+  CLEARSPEC_PROJECT_FOLDERS,
   AIToolOption,
 } from './config.js';
 import { PALETTE } from './styles/palette.js';
@@ -460,6 +461,7 @@ export class InitCommand {
         path.join(clearspecPath, 'specs'),
         path.join(clearspecPath, 'changes'),
         path.join(clearspecPath, 'changes', 'archive'),
+        ...CLEARSPEC_PROJECT_FOLDERS.map((folder) => path.join(clearspecPath, folder)),
       ];
 
       for (const dir of directories) {
@@ -475,6 +477,7 @@ export class InitCommand {
       path.join(clearspecPath, 'specs'),
       path.join(clearspecPath, 'changes'),
       path.join(clearspecPath, 'changes', 'archive'),
+      ...CLEARSPEC_PROJECT_FOLDERS.map((folder) => path.join(clearspecPath, folder)),
     ];
 
     for (const dir of directories) {
