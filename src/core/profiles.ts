@@ -22,6 +22,7 @@ export const ALL_WORKFLOWS = [
   'new',
   'continue',
   'apply',
+  'brief',
   'ff',
   'sync',
   'archive',
