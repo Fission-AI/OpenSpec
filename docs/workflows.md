@@ -74,7 +74,7 @@ Explore creates no artifacts and writes no code. It's a free, no-stakes conversa
 
 ### Expanded/Full Workflow (custom selection)
 
-If you want explicit scaffold-and-build commands (`/opsx:new`, `/opsx:continue`, `/opsx:ff`, `/opsx:verify`, `/opsx:bulk-archive`, `/opsx:onboard`), enable them with:
+If you want explicit scaffold-and-build or review commands (`/opsx:new`, `/opsx:continue`, `/opsx:ff`, `/opsx:brief`, `/opsx:verify`, `/opsx:bulk-archive`, `/opsx:onboard`), enable them with:
 
 ```bash
 openspec config profile
@@ -466,6 +466,7 @@ For full command details and options, see [Commands](commands.md).
 | `/opsx:new` | Start a change scaffold | Expanded mode, explicit artifact control |
 | `/opsx:continue` | Create next artifact | Expanded mode, step-by-step artifact creation |
 | `/opsx:ff` | Create all planning artifacts | Expanded mode, clear scope |
+| `/opsx:brief` | Generate HTML review brief | Expanded mode, before implementation |
 | `/opsx:apply` | Implement tasks | Ready to write code |
 | `/opsx:verify` | Validate implementation | Expanded mode, before archiving |
 | `/opsx:sync` | Merge delta specs | Expanded mode, optional |

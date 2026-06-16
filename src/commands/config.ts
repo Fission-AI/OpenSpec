@@ -63,6 +63,10 @@ const WORKFLOW_PROMPT_META: Record<string, WorkflowPromptMeta> = {
     name: 'Apply tasks',
     description: 'Implement tasks from the current change',
   },
+  brief: {
+    name: 'Brief change',
+    description: 'Generate a one-page HTML review brief',
+  },
   ff: {
     name: 'Fast-forward',
     description: 'Run a faster implementation workflow',

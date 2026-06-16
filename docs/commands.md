@@ -24,6 +24,7 @@ For workflow patterns and when to use each command, see [Workflows](workflows.md
 | `/opsx:new` | Start a new change scaffold |
 | `/opsx:continue` | Create the next artifact based on dependencies |
 | `/opsx:ff` | Fast-forward: create all planning artifacts at once |
+| `/opsx:brief` | Generate a one-page HTML review brief for a change |
 | `/opsx:verify` | Validate implementation matches artifacts |
 | `/opsx:bulk-archive` | Archive multiple changes at once |
 | `/opsx:onboard` | Guided tutorial through the complete workflow |
@@ -364,6 +365,44 @@ AI:  Reading add-dark-mode artifacts...
 - It won't create missing artifacts - that's `/opsx:continue`
 - If the change was already implemented, follow up with `/opsx:apply` so the code matches the revised plan
 - If your revision changes the *intent* of the change, start fresh with a new change instead (see [When to Update vs. Start Fresh](opsx.md#when-to-update-vs-start-fresh))
+
+---
+
+### `/opsx:brief`
+
+Generate a one-page HTML brief that helps you review a change before implementation. This command is part of the expanded workflow set (not included in the default `core` profile).
+
+**Syntax:**
+```
+/opsx:brief [change-name]
+```
+
+**Arguments:**
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `change-name` | No | Which change to summarize (inferred from context if not provided) |
+
+**What it does:**
+- Reads OpenSpec status and apply context for the change
+- Reads available artifacts from `contextFiles` (`proposal`, `specs`, `design`, `tasks`, and schema-specific artifacts)
+- Synthesizes a concise HTML review surface with source attribution
+- Writes `openspec/changes/<change-name>/brief.html`
+- Best-effort opens the generated HTML file in your browser
+
+**Important:**
+- The brief is not the source of truth; the original artifacts remain authoritative
+- Missing or ambiguous information is called out instead of invented
+- Opening the file is best-effort; if it fails, the generated path is printed
+
+**Example:**
+```
+You: /opsx:brief add-dark-mode
+
+AI:  Generated brief for add-dark-mode:
+     openspec/changes/add-dark-mode/brief.html
+
+     Opened in browser.
+```
 
 ---
 

@@ -65,7 +65,7 @@ openspec init
 
 This creates skills in `.claude/skills/` (or equivalent) that AI coding assistants auto-detect.
 
-By default, OpenSpec uses the `core` workflow profile (`propose`, `explore`, `apply`, `sync`, `archive`). If you want the expanded workflow commands (`new`, `continue`, `ff`, `verify`, `bulk-archive`, `onboard`), configure them with `openspec config profile` and apply with `openspec update`.
+By default, OpenSpec uses the `core` workflow profile (`propose`, `explore`, `apply`, `sync`, `archive`). If you want the expanded workflow commands (`new`, `continue`, `ff`, `brief`, `verify`, `bulk-archive`, `onboard`), configure them with `openspec config profile` and apply with `openspec update`.
 
 During setup, you'll be prompted to create a **project config** (`openspec/config.yaml`). This is optional but recommended.
 
@@ -162,6 +162,7 @@ rules:
 | `/opsx:new` | Start a new change scaffold (expanded workflow) |
 | `/opsx:continue` | Create the next artifact (expanded workflow) |
 | `/opsx:ff` | Fast-forward planning artifacts (expanded workflow) |
+| `/opsx:brief` | Generate a one-page HTML review brief (expanded workflow) |
 | `/opsx:apply` | Implement tasks, updating artifacts as needed |
 | `/opsx:update` | Revise a change's planning artifacts and keep them coherent |
 | `/opsx:verify` | Validate implementation against artifacts (expanded workflow) |
@@ -202,6 +203,12 @@ Shows what's ready to create based on dependencies, then creates one artifact. U
 /opsx:ff add-dark-mode
 ```
 Creates all planning artifacts at once. Use when you have a clear picture of what you're building.
+
+### Review before implementation
+```
+/opsx:brief add-dark-mode
+```
+Reads the change artifacts and writes `brief.html` in the change directory. Use this optional workflow when you want a concise review surface before applying tasks. The original artifacts remain the source of truth.
 
 ### Implement (the fluid part)
 ```
