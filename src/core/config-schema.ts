@@ -175,6 +175,34 @@ export function coerceValue(value: string, forceString: boolean = false): string
 }
 
 /**
+ * Coerce a config value using the destination key path when structured values
+ * are only valid for specific known keys.
+ */
+export function coerceConfigValue(
+  path: string,
+  value: string,
+  forceString: boolean = false
+): string | number | boolean | unknown[] {
+  if (forceString) {
+    return value;
+  }
+
+  if (path === 'workflows') {
+    try {
+      const parsed: unknown = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    } catch {
+      // Fall through to scalar coercion so schema validation produces the
+      // same user-facing error path as other invalid config values.
+    }
+  }
+
+  return coerceValue(value, forceString);
+}
+
+/**
  * Format a value for YAML-like display.
  *
  * @param value - The value to format

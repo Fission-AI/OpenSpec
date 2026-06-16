@@ -2,12 +2,22 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import { Command } from 'commander';
+
+async function runConfigCommand(args: string[]): Promise<void> {
+  const { registerConfigCommand } = await import('../../src/commands/config.js');
+  const program = new Command();
+  registerConfigCommand(program);
+  await program.parseAsync(['node', 'openspec', 'config', ...args]);
+}
 
 describe('config command integration', () => {
   // These tests use real file system operations with XDG_CONFIG_HOME override
   let tempDir: string;
   let originalEnv: NodeJS.ProcessEnv;
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+  let consoleLogSpy: ReturnType<typeof vi.spyOn>;
+  let originalExitCode: number | undefined;
 
   beforeEach(() => {
     // Create unique temp directory for each test
@@ -20,6 +30,9 @@ describe('config command integration', () => {
 
     // Spy on console.error
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    originalExitCode = process.exitCode;
+    process.exitCode = undefined;
   });
 
   afterEach(() => {
@@ -31,6 +44,8 @@ describe('config command integration', () => {
 
     // Restore spies
     consoleErrorSpy.mockRestore();
+    consoleLogSpy.mockRestore();
+    process.exitCode = originalExitCode;
 
     // Reset module cache to pick up new XDG_CONFIG_HOME
     vi.resetModules();
@@ -88,6 +103,38 @@ describe('config command integration', () => {
     // Should return defaults
     expect(config.featureFlags).toEqual({});
     expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Invalid JSON'));
+  });
+
+  it('should set workflows from a JSON array value', async () => {
+    await runConfigCommand(['set', 'profile', 'custom']);
+    await runConfigCommand(['set', 'workflows', '["new","ff","apply","archive"]']);
+
+    const { getGlobalConfig } = await import('../../src/core/global-config.js');
+    const config = getGlobalConfig();
+
+    expect(process.exitCode).toBeUndefined();
+    expect(config.profile).toBe('custom');
+    expect(config.workflows).toEqual(['new', 'ff', 'apply', 'archive']);
+    expect(consoleLogSpy).toHaveBeenCalledWith('Set workflows = ["new","ff","apply","archive"]');
+  });
+
+  it('should reject invalid workflows values without saving', async () => {
+    const { getGlobalConfig, saveGlobalConfig } = await import('../../src/core/global-config.js');
+    saveGlobalConfig({
+      featureFlags: {},
+      profile: 'custom',
+      delivery: 'both',
+      workflows: ['explore'],
+    });
+
+    await runConfigCommand(['set', 'workflows', 'not-json']);
+
+    const config = getGlobalConfig();
+    expect(process.exitCode).toBe(1);
+    expect(config.workflows).toEqual(['explore']);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Error: Invalid configuration - workflows:')
+    );
   });
 });
 

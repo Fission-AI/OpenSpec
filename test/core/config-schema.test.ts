@@ -5,6 +5,7 @@ import {
   setNestedValue,
   deleteNestedValue,
   coerceValue,
+  coerceConfigValue,
   formatValueYaml,
   validateConfig,
   GlobalConfigSchema,
@@ -179,6 +180,35 @@ describe('config-schema', () => {
     });
   });
 
+  describe('coerceConfigValue', () => {
+    it('should coerce workflows JSON arrays to arrays', () => {
+      expect(coerceConfigValue('workflows', '["new","ff","apply","archive"]')).toEqual([
+        'new',
+        'ff',
+        'apply',
+        'archive',
+      ]);
+    });
+
+    it('should leave invalid workflows JSON for schema validation', () => {
+      expect(coerceConfigValue('workflows', 'not-json')).toBe('not-json');
+    });
+
+    it('should leave non-array workflows JSON for schema validation', () => {
+      expect(coerceConfigValue('workflows', '{"new":true}')).toBe('{"new":true}');
+    });
+
+    it('should preserve force string behavior for workflows', () => {
+      expect(coerceConfigValue('workflows', '["new"]', true)).toBe('["new"]');
+    });
+
+    it('should preserve scalar coercion for other keys', () => {
+      expect(coerceConfigValue('featureFlags.test', 'true')).toBe(true);
+      expect(coerceConfigValue('someFutureKey', '42')).toBe(42);
+      expect(coerceConfigValue('profile', 'custom')).toBe('custom');
+    });
+  });
+
   describe('formatValueYaml', () => {
     it('should format null as "null"', () => {
       expect(formatValueYaml(null)).toBe('null');
@@ -317,6 +347,16 @@ describe('config-schema', () => {
       const result = validateConfig(config);
       expect(result.success).toBe(true);
       expect((config.featureFlags as Record<string, unknown>).experimental).toBe(false);
+    });
+
+    it('should accept setting workflows from a JSON array', () => {
+      const config: Record<string, unknown> = { featureFlags: {}, profile: 'custom' };
+      const value = coerceConfigValue('workflows', '["new","ff","apply","archive"]');
+      setNestedValue(config, 'workflows', value);
+
+      const result = validateConfig(config);
+      expect(result.success).toBe(true);
+      expect(config.workflows).toEqual(['new', 'ff', 'apply', 'archive']);
     });
   });
 

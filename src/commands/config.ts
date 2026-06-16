@@ -13,7 +13,7 @@ import {
   getNestedValue,
   setNestedValue,
   deleteNestedValue,
-  coerceValue,
+  coerceConfigValue,
   formatValueYaml,
   validateConfigKeyPath,
   validateConfig,
@@ -365,7 +365,7 @@ export function registerConfigCommand(program: Command): void {
       }
 
       const config = getGlobalConfig() as Record<string, unknown>;
-      const coercedValue = coerceValue(value, options.string || false);
+      const coercedValue = coerceConfigValue(key, value, options.string || false);
 
       // Create a copy to validate before saving
       const newConfig = JSON.parse(JSON.stringify(config));
@@ -384,7 +384,7 @@ export function registerConfigCommand(program: Command): void {
       saveGlobalConfig(config as GlobalConfig);
 
       const displayValue =
-        typeof coercedValue === 'string' ? `"${coercedValue}"` : String(coercedValue);
+        typeof coercedValue === 'string' ? `"${coercedValue}"` : JSON.stringify(coercedValue);
       console.log(`Set ${key} = ${displayValue}`);
     });
 
