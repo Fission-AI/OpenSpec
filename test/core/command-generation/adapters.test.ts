@@ -239,6 +239,16 @@ describe('command-generation/adapters', () => {
       expect(output).toContain('description: "Line 1\\nLine 2"');
     });
 
+    it('should escape carriage returns in description', () => {
+      const contentWithCarriageReturn: CommandContent = {
+        ...sampleContent,
+        description: 'Line 1\rLine 2',
+      };
+      const output = bobAdapter.formatFile(contentWithCarriageReturn);
+      expect(output).toContain('description: "Line 1\\rLine 2"');
+      expect(output).not.toContain('Line 1\rLine 2');
+    });
+
     it('should handle empty description', () => {
       const contentEmptyDesc: CommandContent = {
         ...sampleContent,
@@ -651,6 +661,16 @@ describe('command-generation/adapters', () => {
       };
       const output = piAdapter.formatFile(contentWithNewline);
       expect(output).toContain('description: "Line 1\\nLine 2"');
+    });
+
+    it('should escape carriage returns in description', () => {
+      const contentWithCarriageReturn: CommandContent = {
+        ...sampleContent,
+        description: 'Line 1\rLine 2',
+      };
+      const output = piAdapter.formatFile(contentWithCarriageReturn);
+      expect(output).toContain('description: "Line 1\\rLine 2"');
+      expect(output).not.toContain('Line 1\rLine 2');
     });
   });
 
