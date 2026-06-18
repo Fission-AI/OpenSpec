@@ -3,6 +3,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
 import { InitCommand } from '../../src/core/init.js';
+import { CLEARSPEC_PROJECT_FOLDERS } from '../../src/core/config.js';
 import { saveGlobalConfig, getGlobalConfig } from '../../src/core/global-config.js';
 
 const { confirmMock, showWelcomeScreenMock, searchableMultiSelectMock } = vi.hoisted(() => ({
@@ -63,6 +64,11 @@ describe('InitCommand', () => {
       expect(await directoryExists(path.join(clearspecPath, 'specs'))).toBe(true);
       expect(await directoryExists(path.join(clearspecPath, 'changes'))).toBe(true);
       expect(await directoryExists(path.join(clearspecPath, 'changes', 'archive'))).toBe(true);
+
+      // Project folders for larger-scale projects
+      for (const folder of CLEARSPEC_PROJECT_FOLDERS) {
+        expect(await directoryExists(path.join(clearspecPath, folder))).toBe(true);
+      }
     });
 
     it('should create config.yaml with default schema', async () => {
@@ -228,6 +234,11 @@ describe('InitCommand', () => {
       const clearspecPath = path.join(testDir, 'clearspec');
       expect(await directoryExists(clearspecPath)).toBe(true);
 
+      // Project folders are created regardless of tool selection
+      for (const folder of CLEARSPEC_PROJECT_FOLDERS) {
+        expect(await directoryExists(path.join(clearspecPath, folder))).toBe(true);
+      }
+
       // No tool-specific directories should be created
       const claudeSkillsDir = path.join(testDir, '.claude', 'skills');
       expect(await directoryExists(claudeSkillsDir)).toBe(false);
@@ -298,6 +309,34 @@ describe('InitCommand', () => {
 
       expect(await fileExists(claudeSkill)).toBe(true);
       expect(await fileExists(cursorSkill)).toBe(true);
+    });
+
+    it('should create project folders in extend mode', async () => {
+      // Simulate an existing ClearSpec project to trigger extend mode
+      const clearspecPath = path.join(testDir, 'clearspec');
+      await fs.mkdir(clearspecPath, { recursive: true });
+
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+      await initCommand.execute(testDir);
+
+      for (const folder of CLEARSPEC_PROJECT_FOLDERS) {
+        expect(await directoryExists(path.join(clearspecPath, folder))).toBe(true);
+      }
+    });
+
+    it('should preserve existing project folder content in extend mode', async () => {
+      // Pre-create a project folder with content, then re-run init
+      const clearspecPath = path.join(testDir, 'clearspec');
+      const requirementsDir = path.join(clearspecPath, CLEARSPEC_PROJECT_FOLDERS[0]);
+      await fs.mkdir(requirementsDir, { recursive: true });
+      const existingFile = path.join(requirementsDir, 'existing.md');
+      await fs.writeFile(existingFile, '# Existing requirement\n');
+
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+      await initCommand.execute(testDir);
+
+      expect(await fileExists(existingFile)).toBe(true);
+      expect(await fs.readFile(existingFile, 'utf-8')).toBe('# Existing requirement\n');
     });
 
     it('should refresh skills on re-run for the same tool', async () => {
