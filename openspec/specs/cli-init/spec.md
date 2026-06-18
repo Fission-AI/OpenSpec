@@ -32,23 +32,23 @@ clearspec/
 ├── specs/
 ├── changes/
 │   └── archive/
-├── project-requirements/
-├── code-repositories/
-├── additional-context/
-└── project-specifications/
+├── requirements/
+├── context/
+├── code/
+└── spec-packs/
 ```
 
 #### Scenario: Creating project folders in extend mode
 
 - **GIVEN** a `clearspec/` directory already exists
 - **WHEN** `clearspec init` is executed and enters extend mode
-- **THEN** ensure `project-requirements/`, `code-repositories/`, `additional-context/`, and `project-specifications/` exist under `clearspec/`
+- **THEN** ensure `requirements/`, `context/`, `code/`, and `spec-packs/` exist under `clearspec/`
 - **AND** preserve any content already present in those folders
 
 #### Scenario: Creating project folders regardless of tool selection
 
 - **WHEN** `clearspec init` is run with `--tools none`
-- **THEN** create the `clearspec/` base structure including `project-requirements/`, `code-repositories/`, `additional-context/`, and `project-specifications/`
+- **THEN** create the `clearspec/` base structure including `requirements/`, `context/`, `code/`, and `spec-packs/`
 - **AND** skip skill and command generation
 
 #### Scenario: Cross-platform folder paths

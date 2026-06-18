@@ -3,10 +3,10 @@ export const CLEARSPEC_DIR_NAME = 'clearspec';
 // Top-level project folders scaffolded under the clearspec/ directory during init.
 // These hold upstream inputs and finished outputs for larger-scale projects.
 export const CLEARSPEC_PROJECT_FOLDERS = [
-  'project-requirements',
-  'code-repositories',
-  'additional-context',
-  'project-specifications',
+  'requirements',
+  'context',
+  'code',
+  'spec-packs',
 ] as const;
 
 export const CLEARSPEC_MARKERS = {

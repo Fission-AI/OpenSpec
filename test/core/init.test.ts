@@ -327,7 +327,7 @@ describe('InitCommand', () => {
     it('should preserve existing project folder content in extend mode', async () => {
       // Pre-create a project folder with content, then re-run init
       const clearspecPath = path.join(testDir, 'clearspec');
-      const requirementsDir = path.join(clearspecPath, 'project-requirements');
+      const requirementsDir = path.join(clearspecPath, CLEARSPEC_PROJECT_FOLDERS[0]);
       await fs.mkdir(requirementsDir, { recursive: true });
       const existingFile = path.join(requirementsDir, 'existing.md');
       await fs.writeFile(existingFile, '# Existing requirement\n');
