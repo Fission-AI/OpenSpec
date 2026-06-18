@@ -1,6 +1,32 @@
 schema: spec-driven
 
 context: |
+  Project identity:
+  - ClearSpec is a fork of OpenSpec, reworked for large-scale project delivery
+  - Where OpenSpec produces individual change proposals, ClearSpec produces "specification-packs"
+    (spec-packs): verifiable, well-scoped slices of work that each represent a phase of work
+    needed to deliver a larger whole
+  - The goal is to take a large project and break it into bite-sized, measurable, testable
+    pieces of work that can be scheduled and delivered incrementally
+  - When reasoning about features, frame them in terms of producing or refining spec-packs
+
+  ClearSpec methodology — three phases of discovery and iteration:
+  1. Verify Project Readiness
+     - Assess the quality and completeness of the "Project Requirements", made up of:
+       Product Requirements, UX Designs and Requirements, and Engineering Requirements
+     - Surface gaps before any context building or spec-ifying begins
+  2. Build Context (given a complete set of Project Requirements, build and configure context on):
+     - Assumptions and Risks
+     - Existing Domain Knowledge (architecture, documentation, etc.)
+     - Access to information and Resources
+     - Downstream consumers
+     - Dependencies
+     - Existing code (mapped against the Project Requirements via tooling and/or process)
+  3. Spec-ifying
+     - Using all gathered context, crawl the code of the services the changes span
+     - Split the work into bite-sized, measurable, and testable pieces
+     - Produce spec-packs that can be scheduled to deliver the wider piece of work
+
   Tech stack: TypeScript, Node.js (≥20.19.0), ESM modules
   Package manager: pnpm
   CLI framework: Commander.js
