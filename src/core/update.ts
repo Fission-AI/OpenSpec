@@ -13,6 +13,8 @@ import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
 import {
   getSkillInstructionTransformer,
+  getSkillReferencePrefix,
+  WORKFLOW_TO_SKILL_REFERENCE,
 } from '../utils/command-references.js';
 import { AI_TOOLS, OPENSPEC_DIR_NAME } from './config.js';
 import {
@@ -53,6 +55,13 @@ import {
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
 const OLD_CORE_WORKFLOWS = ['propose', 'explore', 'apply', 'archive'] as const;
+
+function formatSkillReference(workflowId: string, tools: Array<{ value: string }>): string {
+  const skillName = WORKFLOW_TO_SKILL_REFERENCE[workflowId];
+  const prefixedTool = tools.find((tool) => getSkillReferencePrefix(tool.value));
+  const prefix = prefixedTool ? getSkillReferencePrefix(prefixedTool.value) : '';
+  return skillName ? `${prefix}${skillName}` : workflowId;
+}
 
 /**
  * Options for the update command.
@@ -270,13 +279,7 @@ export class UpdateCommand {
 
     // 12. Show onboarding message for newly configured tools from legacy upgrade
     if (newlyConfiguredTools.length > 0) {
-      console.log();
-      console.log(chalk.bold('Getting started:'));
-      console.log('  /opsx:new       Start a new change');
-      console.log('  /opsx:continue  Create the next artifact');
-      console.log('  /opsx:apply     Implement tasks');
-      console.log();
-      console.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
+      this.displayLegacyUpgradeGettingStarted(newlyConfiguredTools, desiredWorkflows);
     }
 
     const configuredAndNewTools = [...new Set([...configuredTools, ...newlyConfiguredTools])];
@@ -307,6 +310,41 @@ export class UpdateCommand {
     console.log(chalk.dim(`  Tools: ${toolNames.join(', ')}`));
     console.log();
     console.log(chalk.dim('Use --force to refresh files anyway.'));
+  }
+
+  private displayLegacyUpgradeGettingStarted(
+    toolIds: string[],
+    desiredWorkflows: readonly (typeof ALL_WORKFLOWS)[number][]
+  ): void {
+    const tools = toolIds
+      .map((toolId) => AI_TOOLS.find((tool) => tool.value === toolId))
+      .filter((tool): tool is NonNullable<typeof tool> => tool != null);
+    const hasCommandCapableTool = tools.some((tool) => CommandAdapterRegistry.has(tool.value));
+
+    console.log();
+    console.log(chalk.bold('Getting started:'));
+
+    if (hasCommandCapableTool) {
+      console.log('  /opsx:new       Start a new change');
+      console.log('  /opsx:continue  Create the next artifact');
+      console.log('  /opsx:apply     Implement tasks');
+    } else {
+      const workflowSet = new Set(desiredWorkflows);
+      if (workflowSet.has('propose')) {
+        console.log(`  ${formatSkillReference('propose', tools)}  Start a new change`);
+      } else if (workflowSet.has('new')) {
+        console.log(`  ${formatSkillReference('new', tools)}  Start a new change`);
+      }
+      if (workflowSet.has('continue')) {
+        console.log(`  ${formatSkillReference('continue', tools)}  Create the next artifact`);
+      }
+      if (workflowSet.has('apply')) {
+        console.log(`  ${formatSkillReference('apply', tools)}  Implement tasks`);
+      }
+    }
+
+    console.log();
+    console.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
   }
 
   /**

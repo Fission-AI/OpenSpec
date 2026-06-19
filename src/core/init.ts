@@ -49,6 +49,7 @@ import { getGlobalConfig, type Delivery, type Profile } from './global-config.js
 import { getProfileWorkflows, CORE_WORKFLOWS, ALL_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
 import { migrateIfNeeded } from './migration.js';
+import { WORKFLOW_TO_SKILL_DIR } from './profile-sync-drift.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
