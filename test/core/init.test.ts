@@ -180,16 +180,47 @@ describe('InitCommand', () => {
 
       const skillFile = path.join(testDir, '.kimi', 'skills', 'openspec-explore', 'SKILL.md');
       expect(await fileExists(skillFile)).toBe(true);
+      const proposeSkillFile = path.join(testDir, '.kimi', 'skills', 'openspec-propose', 'SKILL.md');
+      const proposeSkill = await fs.readFile(proposeSkillFile, 'utf-8');
+      expect(proposeSkill).not.toContain('/opsx:');
+      expect(proposeSkill).toContain('/skill:openspec-apply-change');
 
       const commandsDir = path.join(testDir, '.kimi', 'commands');
       expect(await directoryExists(commandsDir)).toBe(false);
 
       const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+      expect(logCalls.some((entry) => entry.includes('skills in .kimi/'))).toBe(true);
+      expect(logCalls.some((entry) => entry.includes('skills and') && entry.includes('commands in .kimi/'))).toBe(false);
+      expect(logCalls.some((entry) => entry.includes('/skill:openspec-propose "your idea"'))).toBe(true);
       expect(
         logCalls.some(
           (entry) => entry.includes('Commands skipped for: kimi') && entry.includes('(no adapter)'),
         ),
       ).toBe(true);
+    });
+
+    it('should avoid slash-command references for Vibe adapterless skills', async () => {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'both',
+      });
+
+      const initCommand = new InitCommand({ tools: 'vibe', force: true });
+      await initCommand.execute(testDir);
+
+      const proposeSkillFile = path.join(testDir, '.vibe', 'skills', 'openspec-propose', 'SKILL.md');
+      const proposeSkill = await fs.readFile(proposeSkillFile, 'utf-8');
+      expect(proposeSkill).not.toContain('/opsx:');
+      expect(proposeSkill).toContain('openspec-apply-change');
+
+      const commandsDir = path.join(testDir, '.vibe', 'commands');
+      expect(await directoryExists(commandsDir)).toBe(false);
+
+      const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+      expect(logCalls.some((entry) => entry.includes('skills in .vibe/'))).toBe(true);
+      expect(logCalls.some((entry) => entry.includes('skills and') && entry.includes('commands in .vibe/'))).toBe(false);
+      expect(logCalls.some((entry) => entry.includes('openspec-propose skill for "your idea"'))).toBe(true);
     });
 
     it('should create skills for multiple tools at once', async () => {

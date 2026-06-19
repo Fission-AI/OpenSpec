@@ -11,7 +11,11 @@ import ora from 'ora';
 import * as fs from 'fs';
 import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { transformToHyphenCommands } from '../utils/command-references.js';
+import {
+  getSkillInstructionTransformer,
+  getSkillReferencePrefix,
+  WORKFLOW_TO_SKILL_REFERENCE,
+} from '../utils/command-references.js';
 import { AI_TOOLS, OPENSPEC_DIR_NAME } from './config.js';
 import {
   generateCommands,
@@ -51,6 +55,13 @@ import {
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
 const OLD_CORE_WORKFLOWS = ['propose', 'explore', 'apply', 'archive'] as const;
+
+function formatSkillReference(workflowId: string, tools: Array<{ value: string }>): string {
+  const skillName = WORKFLOW_TO_SKILL_REFERENCE[workflowId];
+  const prefixedTool = tools.find((tool) => getSkillReferencePrefix(tool.value));
+  const prefix = prefixedTool ? getSkillReferencePrefix(prefixedTool.value) : '';
+  return skillName ? `${prefix}${skillName}` : workflowId;
+}
 
 /**
  * Options for the update command.
@@ -195,9 +206,9 @@ export class UpdateCommand {
           for (const { template, dirName } of skillTemplates) {
             const skillDir = path.join(skillsDir, dirName);
             const skillFile = path.join(skillDir, 'SKILL.md');
+            const hasCommandAdapter = CommandAdapterRegistry.has(tool.value);
 
-            // Use hyphen-based command references for OpenCode
-            const transformer = (tool.value === 'opencode' || tool.value === 'pi') ? transformToHyphenCommands : undefined;
+            const transformer = getSkillInstructionTransformer(tool.value, hasCommandAdapter);
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
@@ -268,13 +279,7 @@ export class UpdateCommand {
 
     // 12. Show onboarding message for newly configured tools from legacy upgrade
     if (newlyConfiguredTools.length > 0) {
-      console.log();
-      console.log(chalk.bold('Getting started:'));
-      console.log('  /opsx:new       Start a new change');
-      console.log('  /opsx:continue  Create the next artifact');
-      console.log('  /opsx:apply     Implement tasks');
-      console.log();
-      console.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
+      this.displayLegacyUpgradeGettingStarted(newlyConfiguredTools, desiredWorkflows);
     }
 
     const configuredAndNewTools = [...new Set([...configuredTools, ...newlyConfiguredTools])];
@@ -305,6 +310,50 @@ export class UpdateCommand {
     console.log(chalk.dim(`  Tools: ${toolNames.join(', ')}`));
     console.log();
     console.log(chalk.dim('Use --force to refresh files anyway.'));
+  }
+
+  private displayLegacyUpgradeGettingStarted(
+    toolIds: string[],
+    desiredWorkflows: readonly (typeof ALL_WORKFLOWS)[number][]
+  ): void {
+    const tools = toolIds
+      .map((toolId) => AI_TOOLS.find((tool) => tool.value === toolId))
+      .filter((tool): tool is NonNullable<typeof tool> => tool != null);
+    const commandCapableTools = tools.filter((tool) => CommandAdapterRegistry.has(tool.value));
+    const skillOnlyTools = tools.filter((tool) => !CommandAdapterRegistry.has(tool.value));
+    const workflowSet = new Set(desiredWorkflows);
+
+    console.log();
+    console.log(chalk.bold('Getting started:'));
+
+    if (commandCapableTools.length > 0) {
+      if (skillOnlyTools.length > 0) {
+        console.log(chalk.dim('  Slash commands:'));
+      }
+      console.log('  /opsx:new       Start a new change');
+      console.log('  /opsx:continue  Create the next artifact');
+      console.log('  /opsx:apply     Implement tasks');
+    }
+
+    for (const tool of skillOnlyTools) {
+      if (commandCapableTools.length > 0 || skillOnlyTools.length > 1) {
+        console.log(chalk.dim(`  ${tool.name} skills:`));
+      }
+      if (workflowSet.has('propose')) {
+        console.log(`  ${formatSkillReference('propose', [tool])}  Start a new change`);
+      } else if (workflowSet.has('new')) {
+        console.log(`  ${formatSkillReference('new', [tool])}  Start a new change`);
+      }
+      if (workflowSet.has('continue')) {
+        console.log(`  ${formatSkillReference('continue', [tool])}  Create the next artifact`);
+      }
+      if (workflowSet.has('apply')) {
+        console.log(`  ${formatSkillReference('apply', [tool])}  Implement tasks`);
+      }
+    }
+
+    console.log();
+    console.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
   }
 
   /**
@@ -689,9 +738,9 @@ export class UpdateCommand {
           for (const { template, dirName } of skillTemplates) {
             const skillDir = path.join(skillsDir, dirName);
             const skillFile = path.join(skillDir, 'SKILL.md');
+            const hasCommandAdapter = CommandAdapterRegistry.has(tool.value);
 
-            // Use hyphen-based command references for OpenCode
-            const transformer = (tool.value === 'opencode' || tool.value === 'pi') ? transformToHyphenCommands : undefined;
+            const transformer = getSkillInstructionTransformer(tool.value, hasCommandAdapter);
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
