@@ -1186,6 +1186,39 @@ More user content after markers.
       consoleSpy.mockRestore();
     });
 
+    it('should split mixed legacy-upgraded command and skill-only guidance', async () => {
+      await fs.mkdir(path.join(testDir, '.claude', 'commands', 'openspec'), { recursive: true });
+      await fs.writeFile(
+        path.join(testDir, '.claude', 'commands', 'openspec', 'proposal.md'),
+        'content'
+      );
+
+      await fs.mkdir(path.join(testDir, '.cursor', 'commands'), { recursive: true });
+      await fs.writeFile(
+        path.join(testDir, '.cursor', 'commands', 'openspec-proposal.md'),
+        'content'
+      );
+
+      const { CommandAdapterRegistry } = await import('../../src/core/command-generation/index.js');
+      vi.spyOn(CommandAdapterRegistry, 'has').mockImplementation((toolId) => toolId === 'claude');
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      const forceUpdateCommand = new UpdateCommand({ force: true });
+      await forceUpdateCommand.execute(testDir);
+
+      const calls = consoleSpy.mock.calls.map(call =>
+        call.map(arg => String(arg)).join(' ')
+      );
+      expect(calls.some(call => call.includes('Getting started'))).toBe(true);
+      expect(calls.some(call => call.includes('Slash commands'))).toBe(true);
+      expect(calls.some(call => call.includes('  /opsx:new'))).toBe(true);
+      expect(calls.some(call => call.includes('Cursor skills'))).toBe(true);
+      expect(calls.some(call => call.includes('openspec-propose') && call.includes('Start a new change'))).toBe(true);
+      expect(calls.some(call => call.includes('openspec-apply-change') && call.includes('Implement tasks'))).toBe(true);
+
+      consoleSpy.mockRestore();
+    });
+
     it('should upgrade multiple legacy tools with --force', async () => {
       // Create legacy command directories for Claude and Cursor
       await fs.mkdir(path.join(testDir, '.claude', 'commands', 'openspec'), { recursive: true });

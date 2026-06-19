@@ -319,27 +319,36 @@ export class UpdateCommand {
     const tools = toolIds
       .map((toolId) => AI_TOOLS.find((tool) => tool.value === toolId))
       .filter((tool): tool is NonNullable<typeof tool> => tool != null);
-    const hasCommandCapableTool = tools.some((tool) => CommandAdapterRegistry.has(tool.value));
+    const commandCapableTools = tools.filter((tool) => CommandAdapterRegistry.has(tool.value));
+    const skillOnlyTools = tools.filter((tool) => !CommandAdapterRegistry.has(tool.value));
+    const workflowSet = new Set(desiredWorkflows);
 
     console.log();
     console.log(chalk.bold('Getting started:'));
 
-    if (hasCommandCapableTool) {
+    if (commandCapableTools.length > 0) {
+      if (skillOnlyTools.length > 0) {
+        console.log(chalk.dim('  Slash commands:'));
+      }
       console.log('  /opsx:new       Start a new change');
       console.log('  /opsx:continue  Create the next artifact');
       console.log('  /opsx:apply     Implement tasks');
-    } else {
-      const workflowSet = new Set(desiredWorkflows);
+    }
+
+    for (const tool of skillOnlyTools) {
+      if (commandCapableTools.length > 0 || skillOnlyTools.length > 1) {
+        console.log(chalk.dim(`  ${tool.name} skills:`));
+      }
       if (workflowSet.has('propose')) {
-        console.log(`  ${formatSkillReference('propose', tools)}  Start a new change`);
+        console.log(`  ${formatSkillReference('propose', [tool])}  Start a new change`);
       } else if (workflowSet.has('new')) {
-        console.log(`  ${formatSkillReference('new', tools)}  Start a new change`);
+        console.log(`  ${formatSkillReference('new', [tool])}  Start a new change`);
       }
       if (workflowSet.has('continue')) {
-        console.log(`  ${formatSkillReference('continue', tools)}  Create the next artifact`);
+        console.log(`  ${formatSkillReference('continue', [tool])}  Create the next artifact`);
       }
       if (workflowSet.has('apply')) {
-        console.log(`  ${formatSkillReference('apply', tools)}  Implement tasks`);
+        console.log(`  ${formatSkillReference('apply', [tool])}  Implement tasks`);
       }
     }
 
