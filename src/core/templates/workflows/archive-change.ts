@@ -60,6 +60,8 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
 
    **If delta specs exist:**
    - Compare each delta spec with its corresponding main spec at \`openspec/specs/<capability>/spec.md\`
+   - If the main spec does not exist, treat the delta as an unsynced greenfield capability and create a new main spec from ADDED requirements during sync
+   - Do not treat a missing main spec as already synced or skip it because no existing capability was found
    - Determine what changes would be applied (adds, modifications, removals, renames)
    - Show a combined summary before prompting
 
@@ -178,6 +180,8 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
 
    **If delta specs exist:**
    - Compare each delta spec with its corresponding main spec at \`openspec/specs/<capability>/spec.md\`
+   - If the main spec does not exist, treat the delta as an unsynced greenfield capability and create a new main spec from ADDED requirements during sync
+   - Do not treat a missing main spec as already synced or skip it because no existing capability was found
    - Determine what changes would be applied (adds, modifications, removals, renames)
    - Show a combined summary before prompting
 
