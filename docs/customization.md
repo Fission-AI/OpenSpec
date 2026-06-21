@@ -346,7 +346,7 @@ Community schemas are not vendored into OpenSpec core — they live in their own
 | Schema | Maintainer | Repository | Description |
 |--------|-----------|-----------|-------------|
 | `superpowers-bridge` | @JiangWay | [JiangWay/openspec-schemas](https://github.com/JiangWay/openspec-schemas/tree/main/superpowers-bridge) | Integrates OpenSpec's artifact governance with [obra/superpowers](https://github.com/obra/superpowers) execution skills (brainstorming, writing-plans, TDD via subagents, code review, finishing). Adds an evidence-first `retrospective` artifact filling a gap Superpowers does not natively cover. |
-| `spec-driven-with-beads` | @yoinks-yoinks | [yoinks-yoinks/openspec-schemas](https://github.com/yoinks-yoinks/openspec-schemas/tree/main/openspec/schemas/spec-driven-with-beads) | Uses [Beads](https://github.com/gastownhall/beads) (`bd`) as the task execution backend. The `tasks` phase seeds Beads issues via `bd create` + `bd dep add`; the `apply` phase drives work through `bd ready`/`bd update --claim`/`bd close` instead of tracking a flat markdown checklist. |
+| `spec-driven-with-beads` | @mehmood-baryalai | [mehmood-baryalai/openspec-schemas](https://github.com/mehmood-baryalai/openspec-schemas/tree/main/openspec/schemas/spec-driven-with-beads) | Uses [Beads](https://github.com/gastownhall/beads) (`bd`) as the task execution backend. The `tasks` phase seeds Beads issues via `bd create` + `bd dep add`; the `apply` phase drives work through `bd ready`/`bd update --claim`/`bd close` instead of tracking a flat markdown checklist. |
 
 > Want to contribute a community schema? Open an issue with a link to your repository, or submit a PR adding a row to this table.
 
