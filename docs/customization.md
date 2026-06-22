@@ -354,3 +354,4 @@ Community schemas are not vendored into OpenSpec core — they live in their own
 ## See Also
 
 - [CLI Reference: Schema Commands](cli.md#schema-commands) - Full command documentation
+- [Plugins & the marketplace](plugins.md) - Extend OpenSpec with external engines like OpenLore
