@@ -42,6 +42,7 @@ import {
   type ToolSkillStatus,
 } from './shared/index.js';
 import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
+import { collectContributedSkills, installContributedSkills } from './plugins/contribution.js';
 import { getProfileWorkflows, CORE_WORKFLOWS, ALL_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
 import { migrateIfNeeded } from './migration.js';
@@ -521,6 +522,9 @@ export class InitCommand {
     const skillTemplates = shouldGenerateSkills ? getSkillTemplates(workflows) : [];
     const commandContents = shouldGenerateCommands ? getCommandContents(workflows) : [];
 
+    // Skills contributed by active plugins are installed alongside core skills.
+    const contributedSkills = shouldGenerateSkills ? collectContributedSkills(projectPath) : [];
+
     // Process each tool
     for (const tool of tools) {
       const spinner = ora(`Setting up ${tool.name}...`).start();
@@ -544,6 +548,9 @@ export class InitCommand {
             // Write the skill file
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
+
+          // Install plugin-contributed skills into the same tool skills directory.
+          installContributedSkills(skillsDir, contributedSkills);
         }
         if (!shouldGenerateSkills) {
           const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');

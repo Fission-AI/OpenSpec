@@ -36,8 +36,14 @@ async function prepareProjectWithPlugin(): Promise<string> {
         openspecCompat: '>=1.0.0',
         summary: 'A demo delegated engine',
         commands: [{ name: 'hello', summary: 'say hello' }],
+        skills: [{ dir: 'demo-orient', source: 'skills/demo-orient' }],
       },
     })
+  );
+  await fs.mkdir(path.join(pluginDir, 'skills', 'demo-orient'), { recursive: true });
+  await fs.writeFile(
+    path.join(pluginDir, 'skills', 'demo-orient', 'SKILL.md'),
+    '# demo-orient\nContributed by demo-engine.\n'
   );
   await fs.writeFile(
     path.join(pluginDir, 'cli.js'),
@@ -110,5 +116,12 @@ describe('openspec plugin e2e', () => {
     expect(result.exitCode).toBe(0);
     const parsed = JSON.parse(result.stdout);
     expect(parsed.plugins.some((p: { id: string }) => p.id === 'openlore')).toBe(true);
+  });
+
+  it('init installs a plugin-contributed skill into the selected tool', async () => {
+    const result = await runCLI(['init', '--tools', 'claude'], { cwd: projectDir, env });
+    expect(result.exitCode).toBe(0);
+    const skillPath = path.join(projectDir, '.claude', 'skills', 'demo-orient', 'SKILL.md');
+    expect(await fs.readFile(skillPath, 'utf-8')).toContain('Contributed by demo-engine');
   });
 });

@@ -26,6 +26,12 @@ import {
   type ToolVersionStatus,
 } from './shared/index.js';
 import {
+  collectContributedSkills,
+  collectKnownPluginSkillDirs,
+  installContributedSkills,
+  removeContributedSkill,
+} from './plugins/contribution.js';
+import {
   detectLegacyArtifacts,
   cleanupLegacyArtifacts,
   formatCleanupSummary,
@@ -172,6 +178,12 @@ export class UpdateCommand {
     const skillTemplates = shouldGenerateSkills ? getSkillTemplates(desiredWorkflows) : [];
     const commandContents = shouldGenerateCommands ? getCommandContents(desiredWorkflows) : [];
 
+    // Plugin-contributed skills: active ones are (re)installed; skills belonging to
+    // disabled/incompatible plugins are cleaned up. Tracked by name, never pattern.
+    const contributedSkills = collectContributedSkills(resolvedProjectPath);
+    const activeContributedDirs = new Set(contributedSkills.map((s) => s.dirName));
+    const knownContributedDirs = collectKnownPluginSkillDirs(resolvedProjectPath);
+
     // 10. Update tools (all if force, otherwise only those needing update)
     const toolsToUpdate = this.force ? configuredTools : [...toolsToUpdateSet];
     const updatedTools: string[] = [];
@@ -203,11 +215,23 @@ export class UpdateCommand {
           }
 
           removedDeselectedSkillCount += await this.removeUnselectedSkillDirs(skillsDir, desiredWorkflows);
+
+          // Install active plugin-contributed skills; remove those for disabled plugins.
+          installContributedSkills(skillsDir, contributedSkills);
+          for (const dirName of knownContributedDirs) {
+            if (!activeContributedDirs.has(dirName)) {
+              removeContributedSkill(skillsDir, dirName);
+            }
+          }
         }
 
         // Delete skill directories if delivery is commands-only
         if (!shouldGenerateSkills) {
           removedSkillCount += await this.removeSkillDirs(skillsDir);
+          // Commands-only delivery: remove all known plugin-contributed skills too.
+          for (const dirName of knownContributedDirs) {
+            removeContributedSkill(skillsDir, dirName);
+          }
         }
 
         // Generate commands if delivery includes commands
