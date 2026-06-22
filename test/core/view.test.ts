@@ -125,5 +125,29 @@ describe('ViewCommand', () => {
       'gamma-change'
     ]);
   });
-});
 
+  it('counts nested tasks files when rendering change progress', async () => {
+    const changesDir = path.join(tempDir, 'openspec', 'changes');
+    const changeDir = path.join(changesDir, 'layered-change');
+    await fs.mkdir(path.join(changeDir, 'backend'), { recursive: true });
+    await fs.mkdir(path.join(changeDir, 'frontend'), { recursive: true });
+
+    await fs.writeFile(
+      path.join(changeDir, 'backend', 'tasks.md'),
+      '- [x] Add backend endpoint\n- [ ] Add backend tests\n'
+    );
+    await fs.writeFile(
+      path.join(changeDir, 'frontend', 'tasks.md'),
+      '- [ ] Wire frontend view\n'
+    );
+
+    const viewCommand = new ViewCommand();
+    await viewCommand.execute(tempDir);
+
+    const output = logOutput.map(stripAnsi).join('\n');
+
+    expect(output).toContain('Active Changes');
+    expect(output).toContain('Task Progress: 1/3 (33% complete)');
+    expect(output).toContain('◉ layered-change');
+  });
+});

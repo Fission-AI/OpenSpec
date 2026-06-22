@@ -25,13 +25,35 @@ export function countTasksFromContent(content: string): TaskProgress {
 }
 
 export async function getTaskProgressForChange(changesDir: string, changeName: string): Promise<TaskProgress> {
-  const tasksPath = path.join(changesDir, changeName, 'tasks.md');
+  const changeDir = path.join(changesDir, changeName);
   try {
-    const content = await fs.readFile(tasksPath, 'utf-8');
-    return countTasksFromContent(content);
+    const taskFiles = await findTaskFiles(changeDir);
+    const progress = { total: 0, completed: 0 };
+    for (const taskFile of taskFiles) {
+      const content = await fs.readFile(taskFile, 'utf-8');
+      const fileProgress = countTasksFromContent(content);
+      progress.total += fileProgress.total;
+      progress.completed += fileProgress.completed;
+    }
+    return progress;
   } catch {
     return { total: 0, completed: 0 };
   }
+}
+
+async function findTaskFiles(dir: string): Promise<string[]> {
+  const taskFiles: string[] = [];
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const entryPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      taskFiles.push(...await findTaskFiles(entryPath));
+    }
+    else if (entry.isFile() && entry.name === 'tasks.md') {
+      taskFiles.push(entryPath);
+    }
+  }
+  return taskFiles.sort();
 }
 
 export function formatTaskStatus(progress: TaskProgress): string {
@@ -39,5 +61,4 @@ export function formatTaskStatus(progress: TaskProgress): string {
   if (progress.completed === progress.total) return '✓ Complete';
   return `${progress.completed}/${progress.total} tasks`;
 }
-
 
