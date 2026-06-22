@@ -190,7 +190,13 @@ export class UpdateCommand {
     if (this.force) {
       console.log(`Force updating ${configuredTools.length} tool(s): ${configuredTools.join(', ')}`);
     } else {
-      this.displayUpdatePlan([...toolsToUpdateSet], statusByTool, toolsUpToDate);
+      this.displayUpdatePlan(
+        [...toolsToUpdateSet],
+        statusByTool,
+        toolsUpToDate,
+        new Set(toolsNeedingConfigSync),
+        new Set(toolsNeedingPluginSync)
+      );
     }
     console.log();
 
@@ -352,7 +358,9 @@ export class UpdateCommand {
   private displayUpdatePlan(
     toolsToUpdate: string[],
     statusByTool: Map<string, ToolVersionStatus>,
-    upToDate: ToolVersionStatus[]
+    upToDate: ToolVersionStatus[],
+    configSyncTools: Set<string> = new Set(),
+    pluginSyncTools: Set<string> = new Set()
   ): void {
     const updates = toolsToUpdate.map((toolId) => {
       const status = statusByTool.get(toolId);
@@ -360,7 +368,10 @@ export class UpdateCommand {
         const fromVersion = status.generatedByVersion ?? 'unknown';
         return `${status.toolId} (${fromVersion} → ${OPENSPEC_VERSION})`;
       }
-      return `${toolId} (config sync)`;
+      const reasons: string[] = [];
+      if (configSyncTools.has(toolId)) reasons.push('config sync');
+      if (pluginSyncTools.has(toolId)) reasons.push('plugin skills');
+      return `${toolId} (${reasons.join(' + ') || 'sync'})`;
     });
 
     console.log(`Updating ${toolsToUpdate.length} tool(s): ${updates.join(', ')}`);

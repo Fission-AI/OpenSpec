@@ -173,16 +173,17 @@ describe('openspec plugin e2e', () => {
     const base = await fs.mkdtemp(path.join(tmpdir(), 'openspec-plugin-update-'));
     tempRoots.push(base);
     const proj = path.join(base, 'project');
+    const configPath = path.join(proj, 'openspec', 'config.yaml');
     await fs.mkdir(path.join(proj, 'openspec'), { recursive: true });
-    await fs.writeFile(path.join(proj, 'openspec', 'config.yaml'), 'schema: spec-driven\n');
+    await fs.writeFile(configPath, 'schema: spec-driven\n');
     const upEnv = isolatedEnv(base);
 
     const init = await runCLI(['init', '--tools', 'claude'], { cwd: proj, env: upEnv });
-    expect(init.exitCode).toBe(0);
+    expect(init.exitCode, `init failed:\n${init.stdout}\n${init.stderr}`).toBe(0);
     const skillPath = path.join(proj, '.claude', 'skills', 'demo-orient', 'SKILL.md');
     expect(await fileExists(skillPath)).toBe(false); // no plugin yet
 
-    // Now install the plugin (with a contributed skill) and update — core is current.
+    // Add the plugin (with a contributed skill) AFTER core tools are current.
     const pluginDir = path.join(proj, 'node_modules', 'demo-engine');
     await fs.mkdir(path.join(pluginDir, 'skills', 'demo-orient'), { recursive: true });
     await fs.writeFile(
@@ -207,17 +208,32 @@ describe('openspec plugin e2e', () => {
     );
     await fs.writeFile(path.join(pluginDir, 'cli.js'), '#!/usr/bin/env node\n');
 
+    // Enable explicitly (project tier) so activation is deterministic and not
+    // dependent on auto-detect resolution timing.
+    await fs.writeFile(configPath, 'schema: spec-driven\nplugins:\n  enabled:\n    - demo-engine\n');
+
+    // Detection sanity check, kept separate from the install assertion so a future
+    // failure pinpoints whether resolution or installation broke.
+    const list = await runCLI(['plugin', 'list', '--json'], { cwd: proj, env: upEnv });
+    const listed = JSON.parse(list.stdout).plugins.find((p: { id: string }) => p.id === 'demo-engine');
+    expect(listed, `plugin not detected. plugin list:\n${list.stdout}\n${list.stderr}`).toBeDefined();
+    expect(listed.status).toBe('enabled');
+
+    // update with core tools already current must still install the plugin skill.
     const up1 = await runCLI(['update'], { cwd: proj, env: upEnv });
-    expect(up1.exitCode).toBe(0);
-    expect(await fileExists(skillPath)).toBe(true); // installed despite core being current
+    expect(up1.exitCode, `update failed:\n${up1.stdout}\n${up1.stderr}`).toBe(0);
+    expect(
+      await fileExists(skillPath),
+      `update did not install demo-orient.\nstdout:\n${up1.stdout}\nstderr:\n${up1.stderr}`
+    ).toBe(true);
 
     // Disable the plugin (autoDetect off, not enabled) and update — skill is cleaned up.
-    await fs.writeFile(
-      path.join(proj, 'openspec', 'config.yaml'),
-      'schema: spec-driven\nplugins:\n  autoDetect: false\n'
-    );
+    await fs.writeFile(configPath, 'schema: spec-driven\nplugins:\n  autoDetect: false\n');
     const up2 = await runCLI(['update'], { cwd: proj, env: upEnv });
-    expect(up2.exitCode).toBe(0);
-    expect(await fileExists(skillPath)).toBe(false); // removed when no longer active
+    expect(up2.exitCode, `second update failed:\n${up2.stdout}\n${up2.stderr}`).toBe(0);
+    expect(
+      await fileExists(skillPath),
+      `update did not remove demo-orient.\nstdout:\n${up2.stdout}\nstderr:\n${up2.stderr}`
+    ).toBe(false);
   });
 });
