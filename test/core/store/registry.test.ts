@@ -357,6 +357,17 @@ describe('store registry facade', () => {
       resolveRegisteredStore({ id: 'missing-context', globalDataDir: tempDir })
     ).rejects.toThrow(/No store registry found/u);
 
+    // The no-registry fix must not point at --store-path, a flag this PR
+    // deliberately rejects everywhere else.
+    await expect(
+      resolveRegisteredStore({ id: 'missing-context', globalDataDir: tempDir })
+    ).rejects.toMatchObject({
+      diagnostic: {
+        code: 'no_store_registry',
+        fix: expect.not.stringContaining('--store-path'),
+      },
+    });
+
     const missingMetadataRoot = mkdir('missing-metadata');
     const mismatchedRoot = mkdir('mismatched');
     await writeStoreMetadataState(mismatchedRoot, { version: 1, id: 'other-context' });

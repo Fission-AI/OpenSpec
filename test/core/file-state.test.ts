@@ -28,6 +28,11 @@ describe('file-state', () => {
     return new Error(`${kind}:${info.lockPath}`);
   }
 
+  // posix-only: these induce a lock-create failure via chmod(0o555), which
+  // win32 ignores for directories, so the lock would succeed instead of
+  // rejecting. The production error shapes are platform-agnostic.
+  const itPosix = it.skipIf(process.platform === 'win32');
+
   describe('writeFileAtomically', () => {
     it('writes content and creates parent directories', async () => {
       const target = path.join(tempDir, 'nested', 'state.yaml');
@@ -71,7 +76,7 @@ describe('file-state', () => {
       await releaseFileLock(lock, lockPath);
     });
 
-    it('reports lock-create failures through the injected factory', async () => {
+    itPosix('reports lock-create failures through the injected factory', async () => {
       // A directory at the lock path makes open(wx) fail with a
       // non-EEXIST-style conflict on every platform... except that a
       // directory yields EEXIST too; use an unwritable parent instead.
@@ -124,7 +129,7 @@ describe('file-state', () => {
       }
     }, 15_000);
 
-    it('reports lock-create failure with the permissions fix', async () => {
+    itPosix('reports lock-create failure with the permissions fix', async () => {
       const globalDataDir = path.join(tempDir, 'data');
       const storesDir = path.join(globalDataDir, 'stores');
       const registryPath = path.join(storesDir, 'registry.yaml');

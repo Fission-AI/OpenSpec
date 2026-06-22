@@ -16,7 +16,9 @@ describe('declared store fallback (3.2)', () => {
   let pointerRepo: string;
 
   beforeEach(async () => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-declared-'));
+    tempDir = fs.realpathSync.native(
+      fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-declared-'))
+    );
     env = {
       XDG_DATA_HOME: path.join(tempDir, 'data'),
       XDG_CONFIG_HOME: path.join(tempDir, 'config'),
@@ -38,7 +40,9 @@ describe('declared store fallback (3.2)', () => {
   });
 
   afterEach(() => {
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    // Windows can hold a brief handle on a just-exited spawned CLI; retry
+    // the recursive remove so EBUSY during teardown does not flake the run.
+    fs.rmSync(tempDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   });
 
   function parseJson(result: RunCLIResult): any {
@@ -118,7 +122,9 @@ describe('declared store fallback (3.2)', () => {
 
     // The pointer repo is byte-identical: no specs/, no changes/, nothing.
     expect(snapshot(pointerRepo)).toEqual(pointerBefore);
-  });
+    // Heaviest test in the file (8 CLI subprocess spawns); the 10s default
+    // is tight on slow Windows runners.
+  }, 60_000);
 
   it('composes with 3.1: the declared root surfaces the store own references', async () => {
     const upstreamRoot = path.join(tempDir, 'upstream-context');

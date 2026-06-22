@@ -20,13 +20,25 @@ import { createOpenSpecRoot, writeSpec } from '../helpers/openspec-fixtures.js';
 describe('reference index assembly', () => {
   let tempDir: string;
   let globalDataDir: string;
+  let savedXdgDataHome: string | undefined;
 
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-references-'));
     globalDataDir = path.join(tempDir, 'data', 'openspec');
+    // Backstop: store calls below thread `globalDataDir`, but if a future
+    // edit forgets one, the path resolver falls back to XDG_DATA_HOME and
+    // then to the real ~/.local/share/openspec. Pin XDG at the temp dir so
+    // a missed arg can never pollute the developer's home registry.
+    savedXdgDataHome = process.env.XDG_DATA_HOME;
+    process.env.XDG_DATA_HOME = path.join(tempDir, 'xdg');
   });
 
   afterEach(() => {
+    if (savedXdgDataHome === undefined) {
+      delete process.env.XDG_DATA_HOME;
+    } else {
+      process.env.XDG_DATA_HOME = savedXdgDataHome;
+    }
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
