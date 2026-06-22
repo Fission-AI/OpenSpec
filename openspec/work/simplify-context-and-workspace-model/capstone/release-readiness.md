@@ -23,31 +23,30 @@ every step's output prints the exact next command. From there the
 lifecycle is `status` → `instructions` per artifact → `archive`, each
 carrying `--store` in its own hints. Your code repos connect with one
 line (`store: team-plans` in `openspec/config.yaml`) after which the
-lifecycle works from inside them with zero flags; stores can declare
-`references:` (read-only upstream context with fetch recipes) and
-`targets:` (the repos the work is about, mapped to local checkouts via
-`openspec repo register`). `openspec doctor` answers "is my setup
-healthy"; `openspec context` answers "what is my working set" — and
-can emit a `.code-workspace` file. Everything has `--json` with a
-documented agent contract (`docs/agent-contract.md`).
+lifecycle works from inside them with zero flags; project roots can
+declare `references:` for read-only upstream context with fetch recipes.
+`openspec doctor` answers "is my setup healthy"; `openspec context`
+answers "what OpenSpec roots are related by declarations"; and personal
+worksets open the planning repo plus whichever code folders the user
+chooses. Everything has `--json` with a documented agent contract
+(`docs/agent-contract.md`).
 
-This story is not aspirational: journey 4 ran it cold — a headless
-agent with no insider knowledge, a vague prompt, and `--help` output
-assembled the full topology (store, pointer, targets, repo map) and
-self-verified with doctor/context/validate.
+This story is not aspirational: journey 4 ran the store/pointer path cold,
+and the later workset dogfood opened a planning store next to code folders
+through explicit `--member` composition. The code-repo relationship
+abstraction is now recorded as a removed experiment, not current product proof.
 
 ## What this roadmap shipped (the sum)
 
 - **One root model.** A single resolution precedence (explicit
   `--store` → nearest qualifying root → declared pointer →
   hint/implicit) implemented exactly once and verified hold across all
-  nine command entry points. Stores are standalone OpenSpec repos in a
-  typed local registry; store and repo ids share one kebab namespace
-  with bidirectional collision errors.
-- **Declared relationships, no machinery.** `references:` and
-  `targets:` are declarations; nothing clones, syncs, or enforces
-  edit boundaries. Unresolvable pieces degrade to warnings with
-  pasteable fixes.
+  command entry points. Stores are standalone OpenSpec repos in a typed
+  local registry.
+- **Declared references, no machinery.** `references:` are read-only
+  context declarations; nothing clones, syncs, or enforces edit
+  boundaries. Unresolvable references degrade to warnings with pasteable
+  fixes.
 - **Two read-only composition surfaces.** `doctor` (relationship
   health, four separated categories, findings exit 0) and `context`
   (the working set as agent brief / human listing / editor view).
@@ -82,8 +81,8 @@ Every `Decided autonomously (review me)` entry lives in the roadmap
 changelog (18 marked entries plus per-slice recorded amendments). The
 ones that shape the product:
 
-1. The store registry gained a typed `repos:` section (3.5) sharing the
-   store id namespace.
+1. The earlier code-repo relationship experiment is superseded and removed;
+   keep only the research note for a future multi-repo coordination design.
 2. Declared-pointer roots resolve through the same store resolver as
    `--store` (3.2); corrupt store metadata stays a resolution failure —
    no doctor-only resolution fork (3.6 amendment).

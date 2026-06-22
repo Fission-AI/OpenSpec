@@ -25,7 +25,7 @@ written, so no guidance bakes in a name that is about to change.
 2. **Command group renames `context-store` → `store`.** Subcommand names
    (`setup`, `register`, `unregister`, `remove`, `list`/`ls`, `doctor`) are
    unchanged. The `--store` flag stays. The rejected runner-up
-   (`openspec repo`/`--repo`) is not revisited.
+   (using the repo noun) is not revisited.
 3. **Machine tokens rename in the same pass:** `context_store`-bearing
    diagnostic codes and JSON keys → `store` forms, and the machine-local
    data directory `context-stores/` → `stores/`.
@@ -307,7 +307,7 @@ Out of scope:
   changes, no removal of the initiative group's own selectors.
 - Migration or reading of the old `context-stores/` data directory.
 - Changes to `.openspec-store/store.yaml` or registry content shapes.
-- References, fallback stores, targets (Phase 3); `view`/opening
+- References and fallback stores (Phase 3); `view`/opening
   (Phase 4).
 - Deleting `docs/workspaces-beta/` (Phase 5 remainder) and the public
   concept-docs rewrite (L1) beyond the accuracy pass above.
@@ -434,7 +434,7 @@ Out of scope:
   commands
 - **THEN** the skill teaches discovering stores with
   `openspec store list --json` and carrying `--store <id>` on every
-  command when the work targets a store
+  command when the work selects a store
 - **AND** no generated skill mentions `initiative` or presents workspace
   flows as normal steps
 - **AND** the workspace-planning guards remain in the five templates that

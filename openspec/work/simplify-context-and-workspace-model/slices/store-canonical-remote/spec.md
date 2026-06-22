@@ -215,7 +215,7 @@ Out of scope:
   proves insufficient).
 - Conflict handling between canonical and observed remotes (doctor
   shows both; 3.6 may add a health note).
-- Targets, the local repo map (3.4/3.5), relationship health (3.6).
+- Relationship health (3.6).
 
 ## Acceptance Criteria
 

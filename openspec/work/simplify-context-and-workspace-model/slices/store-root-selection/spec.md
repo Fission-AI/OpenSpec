@@ -111,8 +111,8 @@ Out of scope:
 
 - `--store-path` or any path-addressed selection (deferred).
 - A default or sticky store per project repo, env vars, or any durable
-  app-repo-to-store binding (revisit with Phase 3 local repo mapping).
-- Target repo declarations or local repo mapping (Phase 3).
+  app-repo-to-store binding.
+- Code-repo relationship declarations or local mapping.
 - Opening views or workspace opening behavior (Phase 4).
 - Clone, pull, push, sync, branch, worktree, dashboard, apply, verify, or
   archive orchestration.

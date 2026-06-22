@@ -322,7 +322,7 @@ OS-portable per the 1.3 precedent.
   injectable) — `readOpenerConfig` unit tests therefore test the pure
   merge directly and route file-reading coverage through the CLI
   layer's XDG env; the `GlobalConfig` interface gains an `openers?`
-  member (the schema is already `.passthrough()`). Diagnostic targets
+  member (the schema is already `.passthrough()`). Diagnostic fields
   follow spec d12's `workset.<facet>` convention.
 - **Vocabulary**: all new strings say "workset"; the only
   `workspace`-bearing token is the `.code-workspace` filename/flag
@@ -337,7 +337,7 @@ OS-portable per the 1.3 precedent.
 - Both checkpoints committed; full suite green at each.
 - Every spec acceptance scenario has an implementing test (or is the
   capstone's recorded responsibility: the interactive wizard walk).
-- No changes to `openspec context`, doctor, repo map, project config
-  parsing, or committed formats (e2e independence asserts prove it).
+- No changes to `openspec context`, doctor, project config parsing, or
+  committed formats (e2e independence asserts prove it).
 - Roadmap "Plan written" box ticked with changelog entries; spec kept
   consistent with anything the plan round amended.

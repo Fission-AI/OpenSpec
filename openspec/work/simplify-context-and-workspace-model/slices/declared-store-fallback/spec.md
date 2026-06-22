@@ -174,8 +174,7 @@ Out of scope:
 - References behavior (3.1, shipped) beyond the natural composition:
   the declared root's `references:` work exactly as for any resolved
   root.
-- Remotes (3.3), targets and the repo map (3.4/3.5), the structured
-  health surface (3.6), assembly (4.1).
+- Remotes (3.3), the structured health surface (3.6), assembly (4.1).
 - Any change to explicit `--store` behavior, the stores-hint error, or
   the implicit-root scaffold for directories without `openspec/`.
 - Multi-store pointers, per-command pointer overrides, or pointer

@@ -37,10 +37,10 @@ The simpler product story should become:
 4. A project repo with its own OpenSpec root can reference standalone OpenSpec
    repos its work draws on, such as high-level requirements from PMs and
    architects, without those repos taking over where commands act.
-5. Work can say which project repos it targets.
-6. The local machine can map those target repos to local checkout paths.
-7. An optional assembled context can bring the OpenSpec repo, referenced
-   repos, and target repos together for an agent session or editor.
+5. Personal worksets can open a planning repo alongside whichever code repos
+   the user explicitly chooses for this machine.
+6. The assembled OpenSpec context can show the root plus referenced stores; it
+   does not infer implementation repos from declarations.
 
 The product should not require users or agents to understand initiatives,
 workspace-owned planning, or collection state as the main model.
@@ -57,12 +57,9 @@ workspace-owned planning, or collection state as the main model.
   thin `.openspec-store/store.yaml` identity file, but the real planning work
   lives in normal files under `openspec/`. (Renamed from the beta noun
   "context store" on 2026-06-11; the CLI group rename lands in slice 1.4.)
-- **Target project repo**: a code repo that the OpenSpec work is about.
 - **Reference store**: a standalone OpenSpec repo that a project repo's work
   draws on for context (for example PM/architect requirements). A reference
   never changes where commands act; it is read as context.
-- **Local repo map**: local machine settings that say where target project repos
-  are checked out.
 - **View**: a local convenience for opening the OpenSpec repo and project repos
   together. It is not the source of truth.
 
@@ -108,11 +105,12 @@ an item are status steps for that numbered work item.
 - [x] **Phase 2. Stop putting new work through initiatives.**
   Fully absorbed: 2.1 shipped inside slice 1.2, 2.2 folded into slice 1.4,
   and 2.3 folded into item 4.1. No independent work remains here.
-- [x] **Phase 3. Say how roots relate: references and targets.**
+- [x] **Phase 3. Say how roots relate: references.**
   Complete (merge to `main` pending): references, the declared-store
-  fallback, canonical remotes, target declarations, the local repo
-  map, and the `openspec doctor` relationship-health roll-up are all
-  implemented and tested on the working branch.
+  fallback, canonical remotes, and the `openspec doctor`
+  relationship-health roll-up are implemented and tested on the working
+  branch. The code-repo declaration/map experiment was removed on
+  2026-06-19.
 - [ ] **Phase 4. Assemble the working context.**
   Complete (merge to `main` pending): `openspec context` ships the
   assembled working set; the old workspace opening machinery is
@@ -205,8 +203,8 @@ What the user or agent needs:
 
 What changed:
 
-- Local guidance was reframed around OpenSpec roots, artifact placement, target
-  project repos, and local repo mapping.
+- Local guidance was reframed around OpenSpec roots, artifact placement, and
+  explicit implementation ownership.
 - Beta shared-context guidance was described as old, non-default history.
 
 How we know it worked:
@@ -467,9 +465,8 @@ Slice: `slices/store-rename-and-guidance/spec.md`
   (`.openspec-store/store.yaml`, registry shape) stay. "Planning repo" and
   "contracts repo" are prose examples of what a store is for, never product
   nouns. "Context" is retired from this concept (freed for Phase 4).
-  Runner-up considered and rejected: `openspec repo`/`--repo`, because
-  agents' `--repo` prior means the code repo being operated on, which
-  collides with target project repos in Phase 3.
+  Runner-up considered and rejected: reusing the repo noun, because agents
+  already hear that as the code checkout being operated on.
 - [x] Spec written.
 - [x] Plan written.
 - [x] Implementation done (four checkpoints on `codex/store-root-parity`:
@@ -622,33 +619,30 @@ Progress:
 
 - [x] Folded into roadmap item 4.1; see the 4.1 section.
 
-## Phase 3. Say How Roots Relate: References And Targets
+## Phase 3. Say How Roots Relate: References
 
 The user-facing goal of this phase:
 
 ```text
-This project repo's work draws on these planning repos, and this OpenSpec
-work targets these project repos.
+This project repo's work draws on these planning repos.
 ```
 
-Two directions, one idea — declared relationships between roots:
+One declared relationship between roots:
 
 - A project repo can **reference** the standalone OpenSpec repos its work
   draws on (PMs and architects keep high-level requirements and design in a
   store; devs create lower-level design and tasks in the app repo's own
   OpenSpec root, with the store as cited context).
-- A store can declare which project repos its work **targets**, and the local
-  machine maps those targets to checkouts.
 
 Root resolution precedence is fixed and stated once: explicit `--store` wins,
 then the nearest local `openspec/` root, then (only when no local root
 exists) a declared default store, then today's error with a hint. A declared
-store never overrides a local root, and references never change where
-commands act.
+store never overrides a local root, and references never change where commands
+act.
 
-The reference items come first because they run on machinery that already
-exists (the store registry resolves ids to paths); the target items need the
-new local repo map.
+The earlier code-repo relationship direction was removed on 2026-06-19 because
+the mental model was unclear and the current workset UX solves the observed
+"open planning plus code" need through explicit local composition.
 
 Decisions locked on 2026-06-11:
 
@@ -666,15 +660,9 @@ Decisions locked on 2026-06-11:
   both planning shape and a pointer (pointer ignored per precedence). A
   top-level marker file was rejected: `.openspec.yaml` is already taken as
   per-change metadata, and a dot-only filename collision is an agent hazard.
-- **One id namespace, typed sections (3.4, 3.5).** The machine-local
-  registry becomes one file with typed sections (`stores:` and `repos:`),
-  cross-section id uniqueness enforced at write time, and the existing
-  kebab id grammar applies to every id kind before any `targets:` list is
-  committed. `--store` never resolves a target-repo id; it rejects with a
-  typed hint.
 - **Relationships are location, declaration, or citation — never managed
   artifact links.** Where work lives is a relationship (`--store` is root
-  selection, not a link); roots declare references/targets once at the
+  selection, not a link); roots declare references once at the
   collection level; artifact-to-artifact derivation ("derives from
   team-context/billing") is prose citation that agents follow via the
   reference machinery. No per-change edge objects (see Rules We Should Not
@@ -687,9 +675,9 @@ Phase checklist:
   implementation is next.
 - [ ] **3.2** Fall back to a declared store when no local root exists.
 - [ ] **3.3** Record a canonical remote in store identity.
-- [ ] **3.4** Let a store declare its target project repos.
-- [ ] **3.5** Map target repo names to local checkout paths.
-- [ ] **3.6** Report relationship health.
+- [x] **3.4 / 3.5 removed.** The code-repo relationship experiment was deleted
+  before the beta behavior hardened.
+- [ ] **3.6** Report relationship health for roots and references.
 
 ### 3.1 Let A Project Repo Reference The Stores Its Work Draws On
 
@@ -835,84 +823,34 @@ How the user or agent knows it worked:
 - A registered store's remote is visible in doctor output.
 - Guidance for an unregistered referenced store names the clone source.
 
-### 3.4 Let A Store Declare Its Target Project Repos
+### 3.4 / 3.5 Removed: Code-Repo Relationship Experiment
 
-Slice: `slices/store-targets/spec.md`
-
-Progress:
-
-- [x] Spec written.
-- [x] Plan written.
-- [x] Implementation done (`targets:` in the root's config via the
-  shared declaration parser; per-change narrowing as ordinary metadata
-  with the kebab grammar's single source of truth; effective targets
-  with provenance and degradation warnings on both instruction
-  surfaces; three-mechanism review and a simplify pass folded).
-- [x] Tests pass (full suite green, 92 files / 1696 tests).
-- [ ] Merged to `main`.
-
-What the user can do:
-
-- Declare once, at the store level, which project repos this planning repo is
-  about; optionally narrow per change.
-
-Why it matters:
-
-- A standalone OpenSpec repo is separate from the code repos, and users and
-  agents need to know which code repos the work is about.
-- Most stores target a stable set of repos; per-change declaration would be
-  repetitive ceremony, so store-level defaults are the primary shape and
-  per-change narrowing is the exception.
-
-What changes in commands or files:
-
-- A target declaration shape in the store's config, plus optional per-change
-  narrowing as ordinary metadata.
-- Do not imply automatic clone, sync, branch, worktree, or edit-boundary
-  enforcement.
-
-How the user or agent knows it worked:
-
-- Given a store, OpenSpec can list the target repo ids its work is about.
-- A change can narrow its targets, and the narrowing is visible in normal
-  OpenSpec files or metadata.
-
-### 3.5 Map Target Repo Names To Local Checkout Paths
-
-Slice: `slices/repo-map/spec.md`
+The dedicated experiment slices were deleted on 2026-06-19.
 
 Progress:
 
-- [x] Spec written.
-- [x] Plan written.
-- [x] Implementation done (typed registry sections with pinned
-  preservation; the repo command group with pinned JSON contracts;
-  cross-section id+path uniqueness at write AND parse time; the
-  `store_id_is_repo` typed rejection; targets path enrichment incl.
-  change-only narrowing; three-mechanism review and a simplify pass
-  folded).
-- [x] Tests pass (full suite green, 94 files / 1718 tests).
-- [ ] Merged to `main`.
-
-What the user can do:
-
-- Tell OpenSpec where each target project repo lives on this machine.
+- [x] Original experiments implemented.
+- [x] Removed on 2026-06-19 before they became expected user behavior.
 
 Why it matters:
 
-- Shared OpenSpec work can name a target repo, but each developer may have that
-  repo checked out in a different local path.
+- The abstraction asked users to maintain a committed declaration plus a
+  machine-local map before the product had a crisp scenario for it.
+- Real dogfood opened the planning store plus code repo with manual workset
+  members, which solves the current user need without a second relationship
+  model.
 
 What changes in commands or files:
 
-- Add local machine settings that map target repo ids to local checkout paths.
-- Keep the map local; it is not shared planning state.
-- Missing, duplicate, or invalid mappings fail clearly.
+- Remove the old command group, registry section, config/metadata parsing,
+  instruction/doctor/context output, and related diagnostics/tests.
+- Keep a small note that multi-repo coordination may need a future design once
+  the user model is clearer.
 
 How the user or agent knows it worked:
 
-- Given a target repo id, OpenSpec can resolve the local checkout path.
-- If the path is missing or ambiguous, the error tells the user what to fix.
+- `openspec --help`, instructions, doctor, context, docs, and the agent
+  contract no longer teach or emit code-repo declaration/map fields.
 
 ### 3.6 Report Relationship Health
 
@@ -933,24 +871,23 @@ Progress:
 What the user can do:
 
 - Ask OpenSpec whether the roots this work relates to — referenced stores and
-  target project repos — are available on the current machine.
+  the resolved OpenSpec root — are available on the current machine.
 
 Why it matters:
 
 - Agents need to know whether they can read the referenced context and
-  inspect or edit the relevant code repos.
+  trust the resolved OpenSpec root.
 - This should be diagnostic only; it should not clone or sync anything.
 
 What changes in commands or files:
 
-- Doctor or status output reports reference resolvability and target repo
-  mapping health.
+- Doctor output reports root, store, and reference health.
 - The report clearly separates OpenSpec root health, store metadata health,
-  reference health, and target checkout health.
+  reference health, and top-level relationship warnings.
 
 How the user or agent knows it worked:
 
-- Missing target repo mappings and unresolvable references are easy to see.
+- Unresolvable references are easy to see.
 - The output does not attempt clone, pull, push, sync, branch, or worktree
   behavior.
 
@@ -960,8 +897,7 @@ The user-facing goal of this phase:
 
 ```text
 Give me — or my agent — everything this work relates to in one working set:
-the OpenSpec root, the stores it references, and the project repos it
-targets.
+the OpenSpec root and the stores it references.
 ```
 
 Phase checklist:
@@ -992,14 +928,15 @@ Progress:
 What the user can do:
 
 - From any root, get the full working set its declarations describe: the
-  OpenSpec root itself, its referenced stores, and its mapped target repos.
+  OpenSpec root itself and its referenced stores.
 - Consume that set as an editor view (for example a code-workspace file) or
   as an agent session brief — opening in an editor is one consumer of
   assembly, not the feature itself.
 
 Why it matters:
 
-- Users usually need the plan, its upstream context, and the code together.
+- Users need the plan and its upstream context together; code folders are added
+  explicitly through personal worksets.
 - Assembly is a local convenience computed from Phase 3's declared
   relationships, not a new planning system; the primary interface is an agent
   session, so the assembled set must be agent-consumable, not only
@@ -1009,15 +946,14 @@ What changes in commands or files:
 
 - Replace or rebuild workspace opening around assembled context (this is
   where old item 2.3's initiative decoupling actually happens).
-- Use the selected OpenSpec root as the durable planning source of truth, the
-  reference declarations for upstream stores, and the local repo map for
-  target checkouts.
+- Use the selected OpenSpec root as the durable planning source of truth and
+  reference declarations for upstream stores.
 - Do not create workspace-owned planning state.
 
 How the user or agent knows it worked:
 
-- The assembled set contains the OpenSpec root, resolvable referenced stores,
-  and mapped target repos, with unresolvable pieces reported, not guessed.
+- The assembled set contains the OpenSpec root and resolvable referenced
+  stores, with unresolvable references reported, not guessed.
 - Assembly does not create or require initiative planning state.
 - The durable files remain normal OpenSpec artifacts.
 - The result does not imply clone, pull, push, sync, branch, worktree,
@@ -1125,8 +1061,8 @@ Progress:
   planning, cold-start agent with no insider knowledge). Results:
   `capstone/journeys.md` — journeys 1–3 as standing e2e
   (store-lifecycle + capstone-journeys test files), journey 4 as a
-  live headless codex dogfood that assembled the full store/pointer/
-  targets/repo-map topology from `--help` alone.
+  live headless codex dogfood that assembled the store/pointer flow from
+  `--help` alone.
 - [x] Usability audits done (error catalog, vocabulary sweep including
   `docs/cli.md`, time-to-first-success documented). Results:
   `capstone/usability-audits.md` — 55 wrong turns walked (46 pass; the
@@ -1190,9 +1126,10 @@ it manually (a planning root plus whatever folders they choose), keeps it
 on their machine, reopens it by name, and launches it into their tool of
 choice. It is not committed, not shared, not derived from declarations,
 and never a membership truth — it makes no claims about the work, only
-about what this user likes open together. Declarations/targets may later
-*suggest* members during composition; they are not load-bearing. The
-repo map and `openspec context` remain unchanged and independent.
+about what this user likes open together. A future multi-repo
+coordination design may suggest members during composition, but there is
+no code-repo relationship machinery in the current product path. `openspec
+context` remains focused on OpenSpec roots and references.
 
 Progress:
 
@@ -1230,8 +1167,8 @@ What changes in commands or files:
   data dir, following the registry's lock/atomic-write idiom.
 - An opener table (built-ins: `code`, `cursor`, `claude`, `codex`)
   with user-extensible local config per the two-style pattern in FR2.
-- No changes to `openspec context`, the repo map, project config
-  parsing, or any committed file format.
+- No changes to `openspec context`, project config parsing, or any committed
+  file format.
 
 How the user or agent knows it worked:
 
@@ -1369,7 +1306,8 @@ is working:
 - **L1** Rewrite public concept docs after behavior is solid.
 - **L2** Decide how accepted workspace-planning specs should change once behavior has
   changed.
-- **L3** Add richer cross-repo context and doctoring after target repo mapping works.
+- **L3** Revisit richer multi-repo coordination only after real usage shows a
+  clear user model.
 - **L4** Consider first-class `work/` only after the baseline and standalone repo flow
   are solid.
 - **L5** Revisit whether `changes/` should evolve into change-shaped work under
@@ -1407,13 +1345,12 @@ is working:
   history.
 - 2026-06-09: Marked old workspace reimplementation artifacts obsolete or
   pending deletion review.
-- 2026-06-09: Reframed checked-in `use-openspec` guidance around OpenSpec roots,
-  artifact placement, and target project repos instead of beta shared-context
-  framing.
+- 2026-06-09: Reframed checked-in `use-openspec` guidance around OpenSpec roots
+  and artifact placement instead of beta shared-context framing.
 - 2026-06-09: Deferred public concept docs until the simplified model is more
   solid.
-- 2026-06-09: Reordered the roadmap around standalone OpenSpec repos, target
-  repo mapping, and local views.
+- 2026-06-09: Reordered the roadmap around standalone OpenSpec repos and local
+  views.
 - 2026-06-09: Added the store-root-parity slice spec.
 - 2026-06-10: Rewrote this roadmap in user-facing language so each slice says
   what the user can do, why it matters, what changes, and how success is
@@ -1481,11 +1418,9 @@ is working:
   terminology decision promoted from L7. Folded old item 2.3 into item 4.1
   (initiative selection is hardcoded into ~5,500 lines of opening machinery
   that 4.1 rebuilds). Phase 2 now carries no independent work.
-- 2026-06-11: Rewrote Phase 3 around relationships in both directions —
-  references first (3.1 repo references stores, 3.2 declared-store fallback,
-  3.3 canonical remote in store identity), then targets (3.4 store-level
-  target declarations with per-change narrowing, 3.5 local repo map, 3.6
-  relationship health). Reframed Phase 4 as context assembly, with editor
+- 2026-06-11: Rewrote Phase 3 around relationships: references first (3.1 repo
+  references stores, 3.2 declared-store fallback, 3.3 canonical remote in store
+  identity), then relationship health. Reframed Phase 4 as context assembly, with editor
   opening as one consumer and an agent session brief as another. Added two
   guardrails: references are repo-level config, never per-change lifecycle
   links, and one change lives in one root. Updated goal.md with the layered
@@ -1502,8 +1437,8 @@ is working:
 - 2026-06-11: Locked the open decisions after parallel product-level and
   staff-engineer analyses. Naming: the noun is "store" with the
   `context-store` → `store` group rename and machine-token rename landing
-  first in slice 1.4 (`--store` stays; `openspec repo`/`--repo` rejected for
-  the target-project-repo collision). Phase 3: index-not-inline injection,
+  first in slice 1.4 (`--store` stays; the repo noun was rejected for code
+  checkout ambiguity). Phase 3: index-not-inline injection,
   declarations in `openspec/config.yaml`, one typed id namespace, and the
   relationship altitude rule (location, declaration, or citation — never
   managed per-artifact links, which is what initiative links were). Phase 5
@@ -1526,7 +1461,7 @@ is working:
   rename contradicted the locked machine-token decision, left
   paste-broken hints, and kept a second live `--store` meaning — so the
   spec now states one rule: the token rename is total and mechanical
-  everywhere (codes, JSON keys, dotted targets, hints, docs — legacy
+  everywhere (codes, JSON keys, dotted diagnostic fields, hints, docs — legacy
   groups included), the prose rewrite is surgical (enumerated guidance
   surfaces only), and behavior changes are exactly the two riders. Also
   folded: the corrected token inventory (45 codes pinned by sweep, plus
@@ -1686,10 +1621,9 @@ is working:
   repo's own root, store read-only) and externalized planning (full
   lifecycle from a pointer repo, zero --store flags, no planning state
   growth). Journey 4 ran as a live cold-start dogfood: a fresh codex
-  session with no insider knowledge built the entire intended topology
-  (store setup, targets declaration, pointer config, repo mapping,
-  doctor/context/validate self-verification) from --help output and
-  generated guidance alone.
+  session with no insider knowledge built the store setup and pointer flow
+  from --help output and generated guidance alone; later review removed the
+  code-repo declaration/map portion of that experiment.
 - 2026-06-11: Executed the Phase 5 remainder, closing out 5.1
   (decision record: `slices/delete-legacy-command-groups/
   remainder.md`). Deleted `schemas/workspace-planning/` (no src code
@@ -1781,200 +1715,16 @@ is working:
   editor launching; the deletions follow the ledger carve-outs widened
   to whole-module deaths where the keep-rationale collapsed.
 - 2026-06-11: Implemented slice 3.6 (relationship health) in two
-  checkpoints plus a review-fix round, completing Phase 3: the
-  health-mode assembler options (`includeSpecs: false` skipping spec
-  reads and the byte budget; `registryEntries` injection with []/null
-  semantics), the pure `inspectRelationships` composition, and the
-  root-scoped `openspec doctor` (normal resolution with the additive
-  `allowImplicitRoot` pass-through; one registry read; every recorded
-  Phase 3 deferral landed — both-shapes and malformed pointers
-  structured, inert pointer declarations, unmapped AND stale-path
-  targets, remote divergence info, registry-unreadable suppression;
-  health findings exit 0, command failures exit 1 with the null-shape
-  payload). The review round fixed the human-mode stack-trace P1,
-  added target_path_missing (the lock's checkout health now stats
-  mapped paths), the honest self-reference empty-line, and unified
-  instructions' registry read through the new injection point.
-  Simplify extracted `readRegistrySnapshot` (the torn-snapshot
-  invariant in one place), routed doctor's catch through emitFailure
-  (fixing a --json inconsistency), taught shared asStatus to
-  duck-type the diagnostic envelope, and reused storePointerProblem.
-  Recorded: corrupt store.yaml on store-backed roots stays an exit-1
-  resolution failure (one-resolver invariant); the test-helper
-  parseJson copies (now 10) go to the capstone sweep. Full suite
-  green (96 files, 1739 tests).
-- 2026-06-11: Wrote the relationship-health plan (3.6, two
-  checkpoints) and folded two plan reviews (subagent:
-  approve-with-fixes with a P1; codex: reject with two P1s —
-  converging). The P1s: the registry-injection option would have
-  inverted the established null semantics (readStoreRegistryState
-  returns null for a healthy-ABSENT registry and throws for a corrupt
-  one — a naive null-for-unreadable injection would mark every fresh
-  machine unreadable; the option is now `registryEntries: [] | null`
-  mirroring the assembler's post-read variable); `resolveRootForCommand`
-  forwards only store/storePath, so `allowImplicitRoot` must be an
-  additive pass-through; and the targets assembly omitted
-  `storeConfigPath` while the invalid-id synthesis would have required
-  parsing ids out of message strings (the inspector now receives the
-  raw declarations and recovers ids with isKebabId). Also folded: the
-  inert-pointer re-walk named explicitly (the resolved declared root
-  is the STORE — `findRepoPlanningRootSync(process.cwd())` finds the
-  pointer dir, with a subdirectory e2e); the human-rendering
-  contradiction resolved (the spec transcript's three headings are
-  authoritative; JSON keeps the four-key separation); the
-  truncation-never and pass-through pins mapped; the failure payload
-  drops its dead status key; null-targets normalization owned by the
-  inspector; field-absence (not emptiness) pinned.
-- 2026-06-11: Wrote the relationship-health slice spec (3.6) and
-  folded two adversarial reviews (both approve-with-fixes, two P1s
-  each, converging). The P1s: the exit-code rule cited a `store
-  doctor` contract that does not exist (store doctor exits 0 even on
-  error-severity health entries; the spec now mirrors the REAL
-  contract — health findings exit 0, only command failures exit 1);
-  and the JSON shape dropped the lock's separate store-metadata
-  category plus the 3.4-recorded inert-pointer deferral (the shape
-  gains a `store` section and `pointer_declarations_inert`). Also
-  folded: a real `includeSpecs: false` assembler mode (post-stripping
-  would pay the spec-file I/O and could leak the content-only
-  truncation diagnostic into a health report); the assembler accepts a
-  pre-read registry state so doctor's one read feeds everything
-  coherently; `target_unmapped` suppressed under an unreadable
-  registry (its register fix would be wrong); grammar-invalid targets
-  synthesize bare entries so doctor never loses them; the both-shapes
-  detection mechanism named (command-side classifyOpenSpecDir, stderr
-  duplication accepted and recorded); the guidance-pin consequence
-  scoped (doctor takes --store, so STORE_SELECTION_GUIDANCE and the
-  skill-template parity pins change deliberately); empty-vs-unreadable
-  registry and --store-repo-id scenarios added; the healthy scenario
-  split from the none-declared rendering.
-- 2026-06-11: Decided autonomously (review me): 3.6's surface is a new
-  top-level root-scoped `openspec doctor` (store doctor is
-  machine-scoped and cannot see a project repo's references; status is
-  change-scoped); it is pure presentation over the existing assemblers
-  — no new health machinery; targets health is store-level only
-  (per-change narrowing stays on instructions); doctor never
-  scaffolds (allowImplicitRoot false); remote divergence is severity
-  info in the store section.
-- 2026-06-11: Implemented slice 3.5 (repo map) in two checkpoints plus
-  a review-fix round: typed registry sections with the preservation
-  matrix pinned (the spec-review P1); the repo command group
-  (register/unregister/list, pinned JSON, folder-name default ids with
-  the --id rewrap); cross-section id+path uniqueness inside the shared
-  conflict asserts (early-reject pinned: store setup with a
-  repo-claimed id creates nothing) AND at parse time (a hand-edited
-  both-sections id fails clearly); `store_id_is_repo` before both
-  unknown-store branches with the non-looping zero-stores fix; targets
-  path enrichment with the unconditional repo-map read (the review
-  round's converged P2: change-only narrowing enriches too); the
-  library API hardened (path-then-id typed input errors; no-op reruns
-  never take the write lock). Simplify extracted the shared
-  commands/shared-output failure plumbing (third copy collapsed),
-  hoisted the same-mapping predicate, and single-sourced the kebab
-  grammar wording (KEBAB_ID_DESCRIPTION). Recorded: getRepoPath stays
-  exported as 4.1 groundwork (unit-tested, no production caller — the
-  3.3 persisted-remote precedent); the registry-state builder
-  quadruplication judged mirror-territory and left. Full suite green
-  (94 files, 1718 tests).
-- 2026-06-11: Wrote the repo-map plan (3.5, two checkpoints) and
-  folded two plan reviews (both approve-with-fixes): the cross-section
-  conflict check must live inside `assertNoRegisteredStoreConflict`
-  itself — it has FOUR call sites including three operations
-  preflights, and hooking only the write helper would let `store
-  setup` scaffold files before failing (an early-reject pin is now
-  planned); `getRepoPath` reconciled as a dumb id-keyed lookup after
-  one read, with `repo unregister` as its 3.5 caller (the enrichment
-  uses `listRepoEntries` on its own single read — recorded deviation
-  from the spec's wording); test mappings added for store list/doctor
-  against a both-sections registry, the empty-list verbatim contract,
-  `repo_not_found`, the mixed-registry positive resolution, the
-  directory-untouched unregister assert, and both-surfaces enrichment;
-  two code-map anchors corrected.
-- 2026-06-11: Wrote the repo-map slice spec (3.5) and folded two
-  adversarial reviews (both approve-with-fixes, converging). The P1: a
-  schema-only `repos:` addition would pass round-trip tests while the
-  four registry state-rebuild sites (`parseStoreRegistryState`,
-  `serializeStoreRegistryState`, `withRegisteredStore`,
-  `withoutRegisteredStore`) silently erased every repo mapping on the
-  next store write — preservation is now a pinned scenario naming the
-  sites. Also folded: the repo check precedes BOTH unknown-store
-  branches (the zero-stores fix must not suggest claiming the repo's
-  id — the 1.3 no-error-loops lock); cross-section uniqueness covers
-  PATHS as well as ids (one checkout, one role; four claimant codes
-  with a recorded naming convention, `repo_path_conflict` within the
-  section); `invalid_repo_id` with repo wording and a `--id` hint when
-  the default folder name fails grammar; the kebab predicate moves to
-  its neutral `src/core/id.ts` home (the 3.4-recorded intention);
-  JSON contracts pinned for all three commands; the one-additional-
-  registry-read wiring stated honestly (the references assembler does
-  not expose its read); `TargetRepoEntry` keeps `path` off the shared
-  declaration type; the Unicode arrow recorded as deliberate; corrupt-
-  registry silence recorded as design.
-- 2026-06-11: Decided autonomously (review me): 3.5 ships a minimal
-  `repo` command group (register/unregister/list — no setup, doctor,
-  or remove); the registry stays version 1 with an optional strict
-  `repos:` section (machine-local one-way story accepted); targets
-  enrichment is the resolution surface plus one `getRepoPath` library
-  accessor for 4.1; unmapped and corrupt-registry cases stay silent
-  by design (3.6 owns health).
-- 2026-06-11: Implemented slice 3.4 (store targets) in two checkpoints
-  plus a review-fix round: `targets:` in the root's config through the
-  shared `parseDeclarationList` (references behavior byte-identical);
-  per-change narrowing as kebab-validated ordinary metadata
-  (`isKebabId` is now the grammar's single source — `validateStoreId`
-  delegates); the pure `src/core/targets.ts` assembly (narrowing
-  replaces with remote inheritance, set semantics, degradation codes
-  `target_invalid_id`/`target_not_declared`) and renderers; both
-  instruction surfaces carry `{source, repos, status}` with provenance
-  through ONE wiring shape (raw declarations in, assembly inside the
-  generator where change metadata lives — the review round unified an
-  accidental asymmetry a second caller would have tripped on). Also
-  from review: change-level duplicates dedup, the targets warning
-  names repo ids, `DeclarationEntry` replaces the references-flavored
-  type name, the loader falls back to the self-read config's targets,
-  and the spec's severity-cliff wording was amended to the real blast
-  radius. Recorded: the workspace kebab-regex copy dies with 4.1; an
-  `id.ts` home for the grammar is 3.5's natural move when repo ids
-  become resolvable. Full suite green (92 files, 1696 tests).
-- 2026-06-11: Wrote the store-targets plan (3.4, two checkpoints) and
-  folded two plan reviews (both approve-with-fixes): the artifact
-  human rendering anchored to `printInstructionsText` (the original
-  anchor named instruction-loader, which renders nothing); the
-  `--store <target-repo-id>` unknown-store pin and root-resolution
-  byte-identity added to the test matrix; `validateStoreId` delegates
-  its grammar test to the new neutral `isKebabId` so exactly one kebab
-  regex remains (the spec's one-source-of-truth claim was otherwise
-  unimplemented); `KebabIdentifierSchema` is a label factory, so the
-  schema usage carries the label call; the apply options bag carries
-  the resolved config path (the fix text needs the real .yaml/.yml
-  file and the resolver is private); inline expected strings replace
-  the snapshot wording (the repo has no snapshot files); the e2e gains
-  a second non-narrowed change and exit-0 asserts on warning cases.
-- 2026-06-11: Wrote the store-targets slice spec (3.4) and folded two
-  adversarial reviews (both approve-with-fixes, converging): the apply
-  surface loads change metadata inside `generateApplyInstructions`, so
-  targets assembly for apply runs inside with store targets passed via
-  the options bag (the spec's original wiring claim was wrong for that
-  surface); empty change-level `targets: []` is treated as undeclared;
-  the JSON shape carries `status` (always present, `[]` when clean) so
-  agents see degradation diagnostics; narrowed ids inherit the store
-  declaration's remote; the change-level grammar cliff is owned
-  explicitly (a bad id fails metadata reads everywhere, like any
-  metadata error); `KebabIdentifierSchema` is the named validator (not
-  `affected_areas`, which has no grammar); a neutral shared kebab
-  predicate replaces store-flavored naming at both config call sites;
-  declared-root/pointer sessions covered; pointer-dir targets recorded
-  as silently inert (3.6 surfaces that wrong turn); the inert-scenario
-  GIVEN narrowed to well-formed lists.
-- 2026-06-11: Decided autonomously (review me): 3.4 puts `targets:` in
-  the root's `openspec/config.yaml` with the references entry shape
-  via one shared declaration-list parser; per-change narrowing is a
-  plain string array in `.openspec.yaml` that REPLACES the store list;
-  the display surface is instructions output (`{source, repos,
-  status}` + `<target_repos>`/`### Target Repos` blocks, no byte
-  budget); degradation codes `target_not_declared` and
-  `target_invalid_id` with envelope target 'targets'; no new commands;
-  targets never resolve (3.5 owns resolution, 3.6 health, 4.1
-  assembly).
+  checkpoints plus a review-fix round, completing the reference-health shape:
+  health-mode reference indexing, pure `inspectRelationships` composition, and
+  root-scoped `openspec doctor`. Later review removed the code-repo
+  declaration/map health branch.
+- 2026-06-11: Wrote and implemented the 3.4/3.5 code-repo
+  declaration/map experiments. On 2026-06-19 product review concluded the
+  model was premature; the command group, registry section, instruction
+  output, doctor/context surfaces, tests, and dedicated slice files were
+  deleted. Legacy registry data is tolerated only so old beta machines do not
+  break on read.
 - 2026-06-11: Implemented slice 3.3 (store canonical remote) in two
   checkpoints plus a review-fix round: the optional `remote` in
   `store.yaml` (strict schema retained; `setup --remote` writes it
@@ -2186,7 +1936,8 @@ is working:
   known-gap.
 - 2026-06-11: Implemented slice 1.4 in four green checkpoints on
   `codex/store-root-parity`: (1) the total mechanical rename — command
-  group `context-store` → `store`, 45 diagnostic codes, dotted targets,
+  group `context-store` → `store`, 45 diagnostic codes, dotted diagnostic
+  fields,
   JSON keys, data dir `stores/`, internal modules and symbols, every
   help/error/hint string; (2) the two riders — `workspace open` lost its
   legacy store selectors (persisted path-bound views still reopen), and
@@ -2430,8 +2181,7 @@ is working:
   decisions — no starter prompt on agent opens, no `--print` mode,
   desktop apps deferred, "workspace" stays retired. The 7.1 section
   carries the research checklist; the runbook gained the 7.1 follow-up
-  run invocation. `openspec context` and the repo map are explicitly
-  untouched by 7.1.
+  run invocation. `openspec context` is explicitly independent of 7.1.
 - 2026-06-12: Closed the 7.1 pushed-branch box. The branch is pushed
   through the capstone commit. PR #1190 review-comment disposition:
   the two slice-touching comments that arrived mid-run were fixed and

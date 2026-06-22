@@ -39,19 +39,16 @@ isolated XDG state, and ONLY the vague prompt "set up planning in a
 separate repo for this project... discover how it works from its
 --help output." No insider knowledge.
 
-The agent produced the full intended topology unprompted:
+The agent produced the then-intended topology unprompted:
 
 - `openspec store setup billing-app-planning` → a standalone planning
   repo with specs/changes/config/store metadata, its own git history;
-- `targets: [billing-app]` declared in the STORE config (the right
-  side);
 - the pointer `store: billing-app-planning` written into the project
   repo's `openspec/config.yaml`;
-- `openspec repo register` mapping `billing-app` to its checkout;
 - self-verified with `openspec doctor`, `openspec context`, and
   `openspec validate --all --store billing-app-planning`.
 
 Independently verified after the run: `openspec context --json` from
-inside `billing-app` resolves the declared root and lists the mapped
-target with empty status. The guidance surfaces are sufficient for a
-zero-context agent to assemble the model the roadmap intends.
+inside `billing-app` resolves the declared root. Later review removed the
+code-repo relationship portion; the retained proof here is the store setup and
+pointer flow.

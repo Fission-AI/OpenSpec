@@ -211,9 +211,8 @@ Out of scope:
 
 - The fallback `store:` pointer for rootless repos (3.2).
 - Canonical remotes in store identity and clone-source hints (3.3).
-- Targets and the local repo map (3.4, 3.5); relationship health in
-  doctor (3.6) — instructions-inline diagnostics are this slice's only
-  health surface.
+- Later relationship health in doctor (3.6) — instructions-inline diagnostics
+  are this slice's only health surface.
 - Any change to root resolution, the `--store` flag, or write paths.
 - Inlining spec content, caching the index, or citation enforcement.
 - `context:` field changes; docs rewrites beyond `docs/cli.md`'s

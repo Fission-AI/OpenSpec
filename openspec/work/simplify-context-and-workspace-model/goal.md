@@ -24,14 +24,16 @@ A human should be able to say:
 
 ```text
 OpenSpec can live in this project repo or in its own Git repo.
-This work targets these repos.
 This project repo's work draws on these planning repos.
-This local machine maps those target repos to these checkouts.
+I can keep a personal workset for the planning repo and the code repos I want
+open together.
 ```
 
 Agents and commands should be able to assemble the relevant OpenSpec root and
-target project repos without asking users to understand context-store,
-workspace, collection, and repo-local modes as separate product systems.
+referenced planning repos without asking users to understand context-store,
+workspace, collection, and repo-local modes as separate product systems. Code
+repos enter the experience through explicit user direction or personal
+worksets, not through a committed declaration plus local map.
 
 ## Product Direction
 
@@ -43,8 +45,10 @@ workspace, collection, and repo-local modes as separate product systems.
   requirements and design can live in a standalone repo while a project repo
   keeps its own OpenSpec root for implementation-level work, drawing on the
   standalone repo as declared context.
-- Treat target repos as declared targets, not as mandatory lifecycle roots.
-- Reduce workspace behavior to local repo mapping and optional focused views.
+- Keep implementation repo selection explicit until a clearer product model
+  exists; do not introduce a committed code-repo declaration plus local mapping
+  abstraction as the default path.
+- Reduce workspace behavior to personal, manually composed focused views.
 - Treat the future `work/` layout as a later evolution, not a prerequisite for
   making standalone OpenSpec repos useful.
 
@@ -66,7 +70,7 @@ workspace, collection, and repo-local modes as separate product systems.
 - The old context-store and workspace initiative becomes useful transition
   history rather than the active product queue.
 - The next product slices are about preserving the baseline, clarifying
-  placement, supporting standalone OpenSpec repos, and resolving target project
-  repos.
+  placement, supporting standalone OpenSpec repos, references, and personal
+  worksets.
 - The roadmap avoids making future `/work` support block the simpler standalone
   OpenSpec repo path.

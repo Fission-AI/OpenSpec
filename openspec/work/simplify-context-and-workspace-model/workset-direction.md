@@ -1,14 +1,11 @@
 # User-Directed Follow-Up: Workset Correction (post-capstone review)
 
-> **Superseded in part (2026-06-12, later the same day):** continued
-> design review landed on a different model — worksets are purely
-> LOCAL, personal, manually composed named views (see roadmap item
-> 4.2, which is authoritative). The change-anchored `workset <change>`
-> form (§1), the dissolution of the `repo` group (§3), and the
-> declaration-derived accretion flows are superseded; `openspec
-> context` and the repo map remain unchanged. Sections 2 (session
-> boundary / launch consumers), 4 (no shared grouping registry — now
-> "not a *shared* one"), and 5 (grammar guardrails) still stand.
+> **Superseded (2026-06-19):** continued product review removed the
+> code-repo declaration and map command group entirely. Worksets are
+> purely LOCAL, personal, manually composed named views (see roadmap item
+> 7.1, which is authoritative). Code repos enter a session because the user
+> names folders in a workset or gives an explicit path, not because OpenSpec
+> derives them from declarations.
 
 Date: 2026-06-12. Source: owner design review of the 4.1 autonomous
 decisions (the `Decided autonomously (review me)` loop closing as
@@ -56,29 +53,15 @@ only prints paths is the degraded mode. Therefore:
 - Route 3 (brief-only) remains valid: exact paths let an agent make a
   precise access request a human can approve once.
 
-## 3. The `repo` command group dissolves into one plumbing command
+## 3. The code-repo relationship path is removed, not renamed
 
-- The registry's repos/codebases section stays exactly as shipped (the
-  machine-local name→path map is required by every route above).
-- The user-facing `repo register/unregister/list` group is replaced by a
-  single low-profile command:
-  `openspec map` (list) / `openspec map <name> <path>` (set) /
-  `openspec map <name> --forget` (remove). Plumbing tier in help; never
-  taught as a primary workflow.
-- Primary interfaces for filling the map: point-of-need prompts
-  (interactive `workset`/`doctor`: locate-or-clone when a declared
-  codebase is missing) and verbatim fix strings in diagnostics (the
-  agent/headless path). Mapping accretes at first contact with the code;
-  declarations accrete when a change first names a codebase (offer to
-  declare, with remote). Store setup declares nothing.
-- Auto-fill is welcome but bounded: clone-through-fix writes the map as a
-  byproduct; origin observation may fill **blank** entries only — never
-  silently overwrite an existing mapping. Entries carry provenance
-  (observed vs manual) so doctor can explain itself.
-- Machine tokens (`targets:`, `target_*`, registry `repos:`) stay as
-  shipped — zero-cost option. A `codebase_*` token rename is optional
-  later cleanup, not part of this correction. Human-facing prose uses
-  plain language ("the repos this change is about").
+- The old code-repo relationship command group and registry section are removed
+  from the product path.
+- Primary interfaces for bringing code repos into the workspace are explicit:
+  user-provided paths, current working directory, and manually composed
+  worksets.
+- Keep a small note for the future multi-repo coordination scenario, but do
+  not preserve machine tokens or diagnostics before the user model is clear.
 
 ## 4. No workspace-style grouping registry
 

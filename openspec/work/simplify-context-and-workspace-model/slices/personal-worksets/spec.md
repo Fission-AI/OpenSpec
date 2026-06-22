@@ -14,8 +14,7 @@ membership truth. No member folder ever contains workset residue.
 ## Locked Decisions (roadmap, owner-directed — not relitigated here)
 
 1. **Local-only, manual composition**; never committed, shared, or
-   derived. Declarations/targets are not load-bearing (they may later
-   *suggest* members; not in this slice).
+   derived. Declarations are not load-bearing for membership.
 2. **No starter prompt on agent opens** — sessions open clean with
    directories attached.
 3. **Tools-as-config via exactly two launch styles**
@@ -28,8 +27,8 @@ membership truth. No member folder ever contains workset residue.
 7. **Built-in opener table at v1**: `code`, `cursor` (workspace-file);
    `claude`, `codex` (attach-dirs; codex carries
    `--sandbox workspace-write` pre-args). Availability via PATH scan.
-8. **No changes** to `openspec context`, the repo map, project config
-   parsing, or any committed file format.
+8. **No changes** to `openspec context`, project config parsing, or any
+   committed file format.
 
 ## Decisions This Spec Makes (autonomous, recorded in the changelog)
 
@@ -461,8 +460,8 @@ In scope:
 
 Out of scope (pinned):
 
-- Any change to `openspec context`, `openspec doctor`, the repo map,
-  `targets:`/`references:` parsing, or any committed file format.
+- Any change to `openspec context`, `openspec doctor`, reference parsing, or
+  any committed file format.
 - Declaration-derived member suggestions (recorded as a later idea in
   the roadmap item).
 - Desktop apps; terminal multiplexers; session managers; windows/tabs
@@ -656,13 +655,12 @@ Out of scope (pinned):
 
 #### Scenario: Independence and isolation hold
 
-- **GIVEN** a project repo with references/targets and a registered
-  store, plus a saved workset
+- **GIVEN** a project repo with references and a registered store, plus a
+  saved workset
 - **WHEN** the full compose→list→open→remove journey runs (e2e,
   isolated XDG state, fake tools)
-- **THEN** `openspec context`, `openspec doctor`, and the store/repo
-  registries behave byte-identically before and after (worksets never
-  touch them)
+- **THEN** `openspec context`, `openspec doctor`, and the store registry behave
+  byte-identically before and after (worksets never touch them)
 - **AND** all workset state lives under `<globalDataDir>/worksets/`;
   deleting that directory removes every trace
 - **AND** member folders are byte-untouched across the whole journey

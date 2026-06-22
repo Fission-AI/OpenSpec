@@ -44,7 +44,7 @@ What the agent needs:
 
 - A generated skill that says how to discover stores
   (`openspec store list --json`) and to carry `--store <id>` on every
-  command when work targets a store.
+  command when work selects a store.
 - Errors and hints that paste-and-run, even on the legacy surfaces that
   survive until the next slice.
 
@@ -58,7 +58,8 @@ How we know it worked:
 ## Goals
 
 - Rename the `context-store` group to `store` (subcommands unchanged), the
-  machine tokens (45 diagnostic codes, dotted `context_store.*` targets,
+  machine tokens (45 diagnostic codes, dotted `context_store.*` diagnostic
+  fields,
   JSON keys, data dir `context-stores/` → `stores/`), and the internal
   identifiers (module dir, command file, symbols, test files).
 - Land the two riders: `workspace open` loses `--store`/`--store-path`;
@@ -98,7 +99,7 @@ How we know it worked:
     (209), `invalid_context_store_registry` (216),
     `context_store_registry_busy` (392).
   - `operations.ts` (~1077 lines) — setup/register/doctor operations,
-    ~20 codes, `context_store.*` dotted targets, "context store" prose in
+    ~20 codes, `context_store.*` dotted diagnostic fields, "context store" prose in
     errors.
   - `registry.ts` — `context_store_id_conflict` (100),
     `context_store_path_conflict` (111), `context_store_not_found`
@@ -120,8 +121,8 @@ How we know it worked:
 ### Other live surfaces (token substitution per the rename rule)
 
 - `src/core/root-selection.ts` — "context store" error prose (156, 166,
-  258) and `context_store.*` dotted targets (159–228).
-- `src/core/openspec-root.ts` — dotted targets (110, 119).
+  258) and `context_store.*` dotted diagnostic fields (159–228).
+- `src/core/openspec-root.ts` — dotted diagnostic fields (110, 119).
 - `src/core/change-metadata/schema.ts:14` — "Context store id" message.
 - `src/core/collections/runtime.ts:282` — prose.
 - `src/core/collections/initiatives/resolution.ts` — codes
@@ -239,7 +240,7 @@ imports; fanning out would only create merge pain on shared files):
    `context_store` → `store` form (sweep-driven, not list-driven; 45
    today including `invalid_*`, `no_*`, plural `context_stores_*`, and
    `workspace_context_store_unavailable`); dotted `context_store.*`
-   targets → `store.*`; JSON keys `context_store`/`context_stores` →
+   diagnostic fields → `store.*`; JSON keys `context_store`/`context_stores` →
    `store`/`stores` everywhere they appear, initiative and workspace
    output included.
 5. Command registration rename (`store` group, subcommands untouched) and

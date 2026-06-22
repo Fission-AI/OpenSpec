@@ -94,8 +94,9 @@ How the user knows it worked:
 
 - Do not add `--store-path` selection.
 - Do not add a sticky/default store for a project repo.
-- Do not add target repo declarations, local repo mapping, views, clone, pull,
-  push, sync, branch, worktree, dashboard, apply, verify, or orchestration.
+- Do not add code-repo relationship declarations, local mapping, views, clone,
+  pull, push, sync, branch, worktree, dashboard, apply, verify, or
+  orchestration.
 - Do not delete initiative commands broadly or migrate legacy initiative data.
 - Do not change deprecated noun-form commands such as `openspec change show` or
   `openspec spec show`; they remain cwd-based and do not gain `--store`.

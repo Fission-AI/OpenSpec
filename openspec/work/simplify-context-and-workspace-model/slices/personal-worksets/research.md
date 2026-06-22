@@ -45,11 +45,9 @@ sibling slot in the same data dir.
   `foundation.ts:211-237`).
 
 **Implication**: a separate `worksets.yaml` (not a new section in the
-store registry) matches the feature's independence claims — the roadmap
-pins "no changes to … the repo map" and worksets are not a Phase 3
-relationship, so they should not share the typed-sections file whose
-cross-section uniqueness rules exist for stores/repos. Separate file,
-same idiom. Deleting all workset state = deleting one file, which
+store registry) matches the feature's independence claims — worksets are not a
+declared relationship, so they should not share the store registry. Separate
+file, same idiom. Deleting all workset state = deleting one file, which
 satisfies "deleting all workset state loses nothing."
 
 **What the old workspace registry did wrong** (not inherited): it mapped

@@ -207,7 +207,7 @@ Out of scope:
   decision 2 (`openspec update` detection-block removal; `config`
   workspace-profile integration removal) and the constraint-string
   rewording in decision 5.
-- The store feature, references, targets (Phase 3).
+- The store feature and references (Phase 3).
 
 ## Acceptance Criteria
 
