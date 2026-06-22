@@ -5,6 +5,7 @@
 - [x] 1.3 Instruct agents to read `status --json`, `instructions apply --json`, and all `contextFiles`
 - [x] 1.4 Require a static local `brief.html` output with source attribution and no external assets
 - [x] 1.5 Include best-effort OS opener behavior with graceful fallback
+- [x] 1.6 Add fidelity guardrails for source artifact coverage, inferred impacts, task grouping, and project-neutral HTML output
 
 ## 2. Generation Integration
 

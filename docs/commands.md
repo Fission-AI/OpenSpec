@@ -391,7 +391,9 @@ Generate a one-page HTML brief that helps you review a change before implementat
 
 **Important:**
 - The brief is not the source of truth; the original artifacts remain authoritative
+- The source artifact index includes every file path returned by the CLI context
 - Missing or ambiguous information is called out instead of invented
+- Generated HTML is standalone: no external fonts, CDN assets, network resources, unrelated branding, or agent-specific labels
 - Opening the file is best-effort; if it fails, the generated path is printed
 
 **Example:**

@@ -210,6 +210,8 @@ Creates all planning artifacts at once. Use when you have a clear picture of wha
 ```
 Reads the change artifacts and writes `brief.html` in the change directory. Use this optional workflow when you want a concise review surface before applying tasks. The original artifacts remain the source of truth.
 
+The generated brief is standalone local HTML. It should not depend on remote fonts, CDN assets, network resources, unrelated branding, or agent-specific labels, and it should show source attribution for substantive claims.
+
 ### Implement (the fluid part)
 ```
 /opsx:apply
