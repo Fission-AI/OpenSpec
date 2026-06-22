@@ -876,6 +876,69 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     ],
   },
   {
+    name: 'plugin',
+    description: 'Manage OpenSpec plugins (marketplace engines)',
+    flags: [],
+    subcommands: [
+      {
+        name: 'list',
+        description: 'List installed plugins and their status',
+        flags: [COMMON_FLAGS.json],
+      },
+      {
+        name: 'info',
+        description: 'Show details for a plugin (installed and/or registry)',
+        acceptsPositional: true,
+        positionals: [{ name: 'id' }],
+        flags: [COMMON_FLAGS.json],
+      },
+      {
+        name: 'add',
+        description: 'Enable a plugin in this project (and print install guidance if missing)',
+        acceptsPositional: true,
+        positionals: [{ name: 'id' }],
+        flags: [
+          {
+            name: 'force',
+            description: 'Enable even if the plugin is incompatible with this OpenSpec version',
+          },
+          {
+            name: 'install',
+            description: 'Install the package via npm before enabling',
+          },
+        ],
+      },
+      {
+        name: 'remove',
+        description: 'Disable a plugin in this project (does not uninstall the package)',
+        acceptsPositional: true,
+        positionals: [{ name: 'id' }],
+        flags: [],
+      },
+      {
+        name: 'enable',
+        description: 'Enable a plugin in this project',
+        acceptsPositional: true,
+        positionals: [{ name: 'id' }],
+        flags: [],
+      },
+      {
+        name: 'disable',
+        description: 'Disable a plugin in this project',
+        acceptsPositional: true,
+        positionals: [{ name: 'id' }],
+        flags: [],
+      },
+      {
+        name: 'search',
+        description: 'Discover plugins from the curated registry',
+        acceptsPositional: true,
+        positionals: [{ name: 'query', optional: true }],
+        flags: [COMMON_FLAGS.json],
+      },
+    ],
+  },
+  {
     name: 'schema',
     description: 'Manage workflow schemas',
     flags: [],
