@@ -14,7 +14,6 @@ describe('openspec context (4.1)', () => {
   let env: NodeJS.ProcessEnv;
   let storeRoot: string;
   let upstream: string;
-  let apiDir: string;
 
   beforeEach(async () => {
     tempDir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-context-')));
@@ -34,15 +33,10 @@ describe('openspec context (4.1)', () => {
     createOpenSpecRoot(upstream);
     await registerStore({ id: 'upstream-context', localPath: upstream, globalDataDir });
 
-    apiDir = path.join(tempDir, 'src/api-server');
-    fs.mkdirSync(apiDir, { recursive: true });
-    await runCLI(['repo', 'register', apiDir, '--json'], { cwd: tempDir, env });
-
     fs.writeFileSync(
       path.join(storeRoot, 'openspec', 'config.yaml'),
       'schema: spec-driven\n' +
-        'references:\n  - upstream-context\n  - { id: design-system, remote: https://192.0.2.1/ds.git }\n' +
-        'targets:\n  - api-server\n  - web-app\n'
+        'references:\n  - upstream-context\n  - { id: design-system, remote: https://192.0.2.1/ds.git }\n'
     );
   });
 
@@ -85,12 +79,6 @@ describe('openspec context (4.1)', () => {
           }),
         ],
       },
-      { role: 'target_repo', id: 'api-server', path: apiDir, status: [] },
-      {
-        role: 'target_repo',
-        id: 'web-app',
-        status: [expect.objectContaining({ code: 'target_unmapped' })],
-      },
     ]);
     expect(workingSet.status).toEqual([]);
 
@@ -99,10 +87,8 @@ describe('openspec context (4.1)', () => {
     expect(human.stdout).toContain(`Working context for team-context (${storeRoot})`);
     expect(human.stdout).toContain(`  upstream-context  ${upstream}`);
     expect(human.stdout).toContain('Fetch: openspec show <spec-id> --type spec --store upstream-context');
-    expect(human.stdout).toContain(`  api-server  ${apiDir}`);
     expect(human.stdout).toContain('Not available on this machine');
     expect(human.stdout).toContain('Fix: git clone --');
-    expect(human.stdout).toContain('Fix: Run: openspec repo register <path> --id web-app');
 
     // Nearest-root session.
     const nearest = await runCLI(['context', '--json'], { cwd: storeRoot, env });
@@ -114,7 +100,7 @@ describe('openspec context (4.1)', () => {
     fs.writeFileSync(path.join(pointerRepo, 'openspec', 'config.yaml'), 'store: team-context\n');
     const declared = await runCLI(['context', '--json'], { cwd: pointerRepo, env });
     expect(parseJson(declared).root.source).toBe('declared');
-    expect(parseJson(declared).members).toHaveLength(4);
+    expect(parseJson(declared).members).toHaveLength(2);
   });
 
   it('distinguishes self-reference omission from nothing declared', async () => {
@@ -124,7 +110,7 @@ describe('openspec context (4.1)', () => {
     );
     const human = await runCLI(['context', '--store', 'team-context'], { cwd: tempDir, env });
     expect(human.stdout).toContain('Declared references all resolve to this root');
-    expect(human.stdout).not.toContain('No references or targets declared');
+    expect(human.stdout).not.toContain('No references declared');
   });
 
   it('says so plainly when nothing is declared', async () => {
@@ -147,12 +133,11 @@ describe('openspec context (4.1)', () => {
       { cwd: tempDir, env }
     );
     expect(fresh.exitCode).toBe(0);
-    expect(fresh.stderr).toContain('not available: design-system, web-app');
+    expect(fresh.stderr).toContain('not available: design-system');
     const file = JSON.parse(fs.readFileSync(outPath, 'utf-8'));
     expect(file.folders).toEqual([
       { name: 'team-context', path: storeRoot },
       { name: 'ref:upstream-context', path: upstream },
-      { name: 'repo:api-server', path: apiDir },
     ]);
 
     // Exists without --force: typed refusal, exit 1.
@@ -208,23 +193,6 @@ describe('openspec context (4.1)', () => {
     );
     expect(jsonBadDir.exitCode).toBe(1);
     expect(JSON.parse(jsonBadDir.stdout).status[0].code).toBe('context_output_dir_missing');
-  });
-
-  it('excludes stale mapped paths from the editor view', async () => {
-    fs.rmSync(apiDir, { recursive: true });
-    const outPath = path.join(tempDir, 'stale.code-workspace');
-    const result = await runCLI(
-      ['context', '--json', '--store', 'team-context', '--code-workspace', outPath],
-      { cwd: tempDir, env }
-    );
-    expect(result.exitCode).toBe(0);
-    const member = parseJson(result).members.find((entry: any) => entry.id === 'api-server');
-    expect(member.status[0].code).toBe('target_path_missing');
-    const file = JSON.parse(fs.readFileSync(outPath, 'utf-8'));
-    expect(file.folders.map((f: any) => f.name)).toEqual([
-      'team-context',
-      'ref:upstream-context',
-    ]);
   });
 
   it('is read-only except the requested file and fails with the null shape', async () => {

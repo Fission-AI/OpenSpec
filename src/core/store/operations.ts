@@ -748,7 +748,7 @@ export async function registerExistingStore(
       {
         target: 'openspec.root',
         fix: isEmptyCloneSuspect
-          ? 'If this is a store clone: commit and push the origin store, pull it into this clone, then rerun register. If this is a code repo you target, run openspec repo register instead.'
+          ? 'If this is a store clone: commit and push the origin store, pull it into this clone, then rerun register.'
           : 'Run openspec store setup for a new store, or point register at a checkout whose openspec/ files are present.',
       }
     );

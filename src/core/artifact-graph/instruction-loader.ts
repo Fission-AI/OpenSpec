@@ -15,9 +15,6 @@ import {
 } from '../change-status-policy.js';
 import { readProjectConfig, validateConfigRules, type ProjectConfig } from '../project-config.js';
 import type { ReferenceIndexEntry } from '../references.js';
-import { assembleTargets, type EffectiveTargets } from '../targets.js';
-import type { DeclarationEntry } from '../project-config.js';
-import { METADATA_FILENAME } from '../../utils/change-metadata.js';
 import type { PlanningHome } from '../planning-home.js';
 import type { ChangeMetadata } from '../change-metadata/index.js';
 import type { Artifact, CompletedSet } from './types.js';
@@ -95,8 +92,6 @@ export interface ArtifactInstructions {
   rules: string[] | undefined;
   /** Referenced-store index (read-only upstream context; omitted when no references are declared) */
   references?: ReferenceIndexEntry[];
-  /** Effective target repos (slice 3.4): declarations, not machinery. */
-  targets?: EffectiveTargets;
   /** Template content (structure to follow - this IS the output format) */
   template: string;
   /** Dependencies with completion status and paths */
@@ -273,14 +268,6 @@ export interface GenerateInstructionsOptions {
   projectConfig?: ProjectConfig | null;
   /** Referenced-store index assembled at the command boundary. */
   references?: ReferenceIndexEntry[];
-  /** Store-level target declarations; effective-target assembly happens
-   * here, where the change metadata is in hand (same shape as the apply
-   * surface — the two must never drift). */
-  storeTargets?: DeclarationEntry[];
-  /** Absolute path of the config file actually read (for fix text). */
-  storeConfigPath?: string;
-  /** Local repo map for targets path enrichment (3.5). */
-  repoPaths?: Map<string, string>;
 }
 
 export function generateInstructions(
@@ -334,16 +321,6 @@ export function generateInstructions(
   const rulesForArtifact = projectConfig?.rules?.[artifactId];
   const configRules = rulesForArtifact && rulesForArtifact.length > 0 ? rulesForArtifact : undefined;
 
-  const targets = assembleTargets({
-    // Fall back to the (possibly self-read) config's targets so library
-    // callers that omit the option agree with the CLI wiring.
-    storeTargets: options.storeTargets ?? projectConfig?.targets,
-    changeTargets: context.metadata?.targets,
-    storeConfigPath: options.storeConfigPath,
-    changeMetadataPath: path.join(context.changeDir, METADATA_FILENAME),
-    ...(options.repoPaths ? { repoPaths: options.repoPaths } : {}),
-  });
-
   return {
     changeName: context.changeName,
     artifactId: artifact.id,
@@ -358,7 +335,6 @@ export function generateInstructions(
     context: configContext,
     rules: configRules,
     ...(options.references !== undefined ? { references: options.references } : {}),
-    ...(targets ? { targets } : {}),
     template: templateContent,
     dependencies,
     unlocks,

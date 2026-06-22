@@ -1,6 +1,6 @@
 # Stores: Plan in Its Own Repo
 
-> **Beta.** Stores, references, targets, working context, and worksets are
+> **Beta.** Stores, references, working context, and worksets are
 > new. Command names, flags, file formats, and JSON output may still change
 > shape between releases. Every walkthrough below was run against the
 > current build, but re-read this guide after upgrading.
@@ -151,8 +151,8 @@ wins, and if the repo grows real planning folders of its own, those win
 ## Story: requirements that cross team lines
 
 A platform team owns the requirements. Product teams build against them,
-in their own repos, with their own designs. Two declarations describe
-that — without moving anyone's work.
+in their own repos, with their own designs. A reference describes that
+relationship without moving anyone's work.
 
 ```
    platform-reqs (store)                 api-server (code repo)
@@ -162,10 +162,10 @@ that — without moving anyone's work.
    │   payments/spec.md       │ reads    │   references:            │
    │   auth/spec.md           │          │     - platform-reqs      │
    │                          │          │ openspec/specs/          │
-   │ openspec/config.yaml     │────────▶ │   (their own designs)    │
-   │   targets:               │ is about │ openspec/changes/        │
-   │     - api-server         │          │   (their own work)       │
-   │     - web-app            │          └──────────────────────────┘
+   │ openspec/changes/        │          │   (their own designs)    │
+   │   platform work          │          │ openspec/changes/        │
+   │                          │          │   (their own work)       │
+   │                          │          └──────────────────────────┘
    └──────────────────────────┘
 ```
 
@@ -193,35 +193,22 @@ references:
   - { id: platform-reqs, remote: "git@github.com:acme/platform-reqs.git" }
 ```
 
-**The platform team declares what its work is about** in the store's
-`openspec/config.yaml`:
-
-```yaml
-targets:
-  - api-server
-  - web-app
-```
-
-Targets name the repos the planning concerns. They are pure declaration:
-nothing is cloned, fenced, or enforced. A single change can narrow the set
-in its own `.openspec.yaml` when it only concerns some of them.
-
-**Each person maps names to their machine, once.** Shared files name repos
-by id; where a repo is checked out differs per person. The repo map is
-local machine settings, never committed:
+**When you want the plan and code open together, make a workset.** This is
+personal and explicit: each person chooses the folders they actually work
+with on their machine. Nothing about those local checkout paths is
+committed to the shared planning repo.
 
 ```bash
-openspec repo register ~/src/api-server          # id defaults to folder name
-openspec repo list
+openspec workset create platform \
+  --member ~/openspec/platform-reqs \
+  --member ~/src/api-server \
+  --member ~/src/web-app
 ```
-
-Store ids and repo ids share one namespace, so a typo'd
-`--store api-server` tells you it's a repo, not a generic "unknown store."
 
 ## Two questions you can always ask
 
-**"Is my setup healthy?"** — `openspec doctor` checks everything the
-current root relates to, read-only, with a pasteable fix per finding:
+**"Is my setup healthy?"** — `openspec doctor` checks the current root and
+its referenced stores, read-only, with a pasteable fix per finding:
 
 ```
 Doctor
@@ -235,12 +222,10 @@ References
   - design-system: Referenced store 'design-system' is not registered on this machine.
     Fix: git clone -- git@github.com:acme/design-system.git '/Users/you/openspec/design-system' && openspec store register '/Users/you/openspec/design-system' --id design-system
 
-Targets
-  - api-server: mapped (/Users/you/src/api-server)
 ```
 
 **"What am I working with?"** — `openspec context` assembles the working
-set: the root, the stores it references, and the repos it targets.
+set from OpenSpec declarations: the root and the stores it references.
 
 ```
 Working context for api-server (/Users/you/src/api-server)
@@ -274,22 +259,19 @@ command in your tool of choice.
 ```bash
 openspec workset create platform \
   --member ~/openspec/team-plans --member ~/src/api-server \
-  --tool claude
+  --tool code
 openspec workset list
 ```
 
 ```
-platform  (opens in Claude Code)
+platform  (opens in VS Code)
   team-plans  /Users/you/openspec/team-plans
   api-server  /Users/you/src/api-server
 ```
 
 `openspec workset open platform` then launches the saved tool: editors
-(VS Code, Cursor) open one window with every member and return; terminal
-agents (Claude Code, codex) take over your terminal with every member
-attached and no prompt pre-filled, ending when you exit. The first member
-is the primary — sessions start there. Override the tool any time with
-`--tool <id>`.
+(VS Code, Cursor) open one window with every member and return. The first
+member is the primary. Override the tool any time with `--tool <id>`.
 
 Worksets are deliberately *not* shared state. They live on your machine,
 are never committed, and make no claims about the work — they only record
@@ -329,8 +311,8 @@ tells you which case you're in.
 - **Some commands stay where they are.** `view`, `templates`, `schemas`,
   and the deprecated noun forms (`openspec change show`, ...) act on the
   current directory only — no `--store`.
-- **Per-machine state is per-machine.** The store registry, the repo map,
-  and worksets are local settings. Nothing about your machine's layout is
+- **Per-machine state is per-machine.** The store registry and worksets
+  are local settings. Nothing about your machine's layout is
   ever committed to shared planning.
 - **Two launch styles for worksets.** A tool that can't be launched with a
   workspace file or per-folder attach flags can't be added as an opener.
@@ -345,7 +327,7 @@ tells you which case you're in.
 |---|---|---|
 | A store's planning | `<store>/openspec/` (specs, changes) | Yes — commit and push it |
 | A store's identity | `<store>/.openspec-store/store.yaml` | Yes — committed with the store |
-| The store registry and repo map | `<data dir>/openspec/stores/registry.yaml` | No — this machine only |
+| The store registry | `<data dir>/openspec/stores/registry.yaml` | No — this machine only |
 | Worksets | `<data dir>/openspec/worksets/` | No — this machine only |
 
 `<data dir>` is `~/.local/share/openspec` on macOS and Linux (or
@@ -355,5 +337,5 @@ Windows.
 ## Reference
 
 Exact flags and JSON shapes for every command on this page:
-[CLI reference](../cli.md) (Stores, Repo map, Doctor, Working context,
-Personal worksets) and the [agent contract](../agent-contract.md).
+[CLI reference](../cli.md) (Stores, Doctor, Working context, Personal
+worksets) and the [agent contract](../agent-contract.md).

@@ -316,7 +316,7 @@ rules:
         );
       });
 
-      it('parses targets identically to references through the shared parser (3.4)', () => {
+      it('ignores legacy targets declarations', () => {
         writeConfig(
           'schema: spec-driven\n' +
             'references:\n  - team-context\n  - { id: team-context, remote: https://192.0.2.1/a.git }\n  - 7\n' +
@@ -328,10 +328,8 @@ rules:
         expect(config?.references).toEqual([
           { id: 'team-context', remote: 'https://192.0.2.1/a.git' },
         ]);
-        expect(config?.targets).toEqual([
-          { id: 'api-server', remote: 'https://192.0.2.1/b.git' },
-        ]);
-        expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect('targets' in (config ?? {})).toBe(false);
+        expect(consoleWarnSpy).not.toHaveBeenCalledWith(
           expect.stringContaining("Some 'targets' entries are invalid")
         );
       });

@@ -6,7 +6,7 @@ Machine-readable surfaces of the `openspec` CLI, verified against `src/` (capsto
 
 - **One JSON document per invocation.** In `--json` mode, stdout carries exactly one JSON document (2-space pretty-printed). Human prose, spinners, and the store banner go to stderr.
 - **Store banner.** In human mode, a store-selected root prints `Using OpenSpec root: <id> (<path>)` to stderr. Never printed in JSON mode.
-- **Key casing is surface-dependent** (see Known inconsistencies): store/repo/doctor/context payloads use `snake_case`; workflow payloads (`status`, `instructions`, `new change`, `validate`, `list`) use `camelCase`, except the embedded `root` object, which always uses `store_id`.
+- **Key casing is surface-dependent** (see Known inconsistencies): store/doctor/context payloads use `snake_case`; workflow payloads (`status`, `instructions`, `new change`, `validate`, `list`) use `camelCase`, except the embedded `root` object, which always uses `store_id`.
 - **Optional keys are omitted, not null**, in most payloads (e.g. `root.store_id`, `member.path`). Exceptions that use explicit `null` are called out per shape (store doctor `git.*`, failure payloads).
 
 ## 2. The diagnostic envelope
@@ -57,14 +57,12 @@ Change: `{ "id", "title", "deltaCount", "deltas": [...], "root" }`. Spec: `{ "id
 `{ "changeName", "schemaName", "planningHome"?: { "kind", "root", "changesDir", "defaultSchema" }, "changeRoot", "artifactPaths": { "<id>": {outputPath, resolvedOutputPath, existingOutputPaths} }, "nextSteps": ["..."], "actionContext": { "mode": "repo-local", "sourceOfTruth": "repo", "planningArtifacts", "linkedContext", "allowedEditRoots", "requiresAffectedAreaSelection", "constraints" }, "isComplete", "applyRequires", "artifacts": [ {id, outputPath, status: "done"|"ready"|"blocked", missingDeps?} ], "root" }`. No active changes: `{ "changes": [], "message", "root" }`, exit 0.
 
 ### 4.5 `instructions <artifact> --json`
-`{ "changeName", "artifactId", "schemaName", "changeDir", "planningHome"?, "outputPath", "resolvedOutputPath", "existingOutputPaths", "description", "instruction"?, "context"?, "rules"?, "references"?: ReferenceIndexEntry[], "targets"?: EffectiveTargets, "template", "dependencies": [{id,done,path,description}], "unlocks", "root" }`.
+`{ "changeName", "artifactId", "schemaName", "changeDir", "planningHome"?, "outputPath", "resolvedOutputPath", "existingOutputPaths", "description", "instruction"?, "context"?, "rules"?, "references"?: ReferenceIndexEntry[], "template", "dependencies": [{id,done,path,description}], "unlocks", "root" }`.
 
 `ReferenceIndexEntry`: `{ "store_id", "root"?, "specs"?: [{id,summary}], "fetch"?, "status": [] }` — resolved entries carry root/specs/fetch; unresolved carry store_id + warning status. Index capped at 50KB (`reference_index_truncated`).
 
-`EffectiveTargets`: `{ "source": "store"|"change", "repos": [ { "id", "remote"?, "path"? } ], "status": [] }`.
-
 ### 4.6 `instructions apply --json`
-`{ "changeName", "changeDir", "schemaName", "targets"?, "contextFiles": { "<artifactId>": ["/abs", ...] }, "progress": {total,complete,remaining}, "tasks": [{id,description,done}], "state": "blocked"|"all_done"|"ready", "missingArtifacts"?, "instruction", "references"?, "root" }`.
+`{ "changeName", "changeDir", "schemaName", "contextFiles": { "<artifactId>": ["/abs", ...] }, "progress": {total,complete,remaining}, "tasks": [{id,description,done}], "state": "blocked"|"all_done"|"ready", "missingArtifacts"?, "instruction", "references"?, "root" }`.
 
 ### 4.7 `new change <name> --json`
 Success: `{ "change": { "id", "path", "metadataPath", "schema" }, "root" }`. Failure: `{ "change": null, "status": [d] }`, exit 1.
@@ -73,18 +71,15 @@ Success: `{ "change": { "id", "path", "metadataPath", "schema" }, "root" }`. Fai
 Success: `{ "archive": { "change", "archivedAs": "YYYY-MM-DD-name", "path", "specsUpdated", "totals"? }, "root" }`. Failure: `{ "archive": null, "root"?, "status": [d] }`, exit 1. JSON mode is strictly non-interactive: every prompt point becomes an `archive_*` code.
 
 ### 4.9 `doctor --json`
-`{ "root": { "path", "source", "store_id"?, "healthy", "status": [] }, "store": { "id", "metadata": {present,valid,remote?}, "origin_url"?, "status": [] } | null, "references": [...], "targets": [ {id, remote?, path?, "status": []} ], "status": [] }`. Health findings of any severity exit 0. Failure payload: `{ "root": null, "store": null, "references": [], "targets": [], "status": [d] }`, exit 1.
+`{ "root": { "path", "source", "store_id"?, "healthy", "status": [] }, "store": { "id", "metadata": {present,valid,remote?}, "origin_url"?, "status": [] } | null, "references": [...], "status": [] }`. Health findings of any severity exit 0. Failure payload: `{ "root": null, "store": null, "references": [], "status": [d] }`, exit 1.
 
 ### 4.10 `context --json`
-`{ "root": { "path", "source", "store_id"?, "role": "openspec_root" }, "members": [ { "role": "referenced_store"|"target_repo", "id", "path"?, "remote"?, "fetch"?, "status": [] } ], "status": [] }`. AVAILABLE = path present AND status empty. `--code-workspace <path>` writes `{folders:[{name,path}]}` (available members only, `ref:`/`repo:` prefixes); in JSON mode the write runs before printing so stdout holds exactly one document even on write failure. Failure: `{ "root": null, "members": [], "status": [d] }`, exit 1.
+`{ "root": { "path", "source", "store_id"?, "role": "openspec_root" }, "members": [ { "role": "referenced_store", "id", "path"?, "remote"?, "fetch"?, "status": [] } ], "status": [] }`. AVAILABLE = path present AND status empty. `--code-workspace <path>` writes `{folders:[{name,path}]}` (available referenced stores only, `ref:` prefixes); in JSON mode the write runs before printing so stdout holds exactly one document even on write failure. Failure: `{ "root": null, "members": [], "status": [d] }`, exit 1.
 
 ### 4.11 `store ... --json`
 setup/register: `{ "store": {id, root, metadata_path?}, "registry": {path, registered, already_registered}, "git": {is_repository, initialized, committed}, "created_files": [], "status": [] }`. unregister/remove: `{ "store", "registry": {path, removed}, "files": {deleted, deleted_path, left_on_disk}, "status": [] }`. list: `{ "stores": [{id, root}], "status": [] }`. doctor: `{ "stores": [ { id, root, metadata_path?, openspec_root: {...healthy, status}, metadata: {present, valid, id?, remote}, git: {is_repository, has_commits, has_uncommitted_changes, has_remote, origin_url}, status } ], "status": [] }` (`null` = unknown/not probed). Health findings exit 0; failures exit 1 with the matching null-shape. Prompt cancellation exits 130.
 
-### 4.12 `repo ... --json`
-register: `{ "repo": {id, path}, "registry": {path, registered, already_registered}, "status": [] }`. unregister: `{ "repo", "registry": {path, removed}, "status": [] }`. list: `{ "repos": [{id, path}], "status": [] }` (sorted). Failures: null-shapes with `status: [d]`, exit 1.
-
-### 4.13 `schemas --json` / `templates --json`
+### 4.12 `schemas --json` / `templates --json`
 `schemas`: bare array `[ {name, description, artifacts, source} ]`. `templates`: keyed object `{ "<artifactId>": {path, source} }`. Both cwd-based, no root/status keys.
 
 ## 5. Exit-code contract
@@ -99,13 +94,13 @@ register: `{ "repo": {id, path}, "registry": {path, registered, already_register
 ## 6. Diagnostic code catalog
 
 ### Resolution
-`no_openspec_root`, `no_root_with_registered_stores`, `no_registered_stores`, `unknown_store`, `store_id_is_repo`, `store_identity_mismatch`, `unhealthy_store_root`, `store_path_not_supported`, `invalid_store_pointer`, `initiative_option_removed`, `areas_option_removed`; pass-through: `invalid_store_id`, `invalid_store_registry`, `invalid_store_metadata`.
+`no_openspec_root`, `no_root_with_registered_stores`, `no_registered_stores`, `unknown_store`, `store_identity_mismatch`, `unhealthy_store_root`, `store_path_not_supported`, `invalid_store_pointer`, `initiative_option_removed`, `areas_option_removed`; pass-through: `invalid_store_id`, `invalid_store_registry`, `invalid_store_metadata`.
 
 ### OpenSpec-root health (error, no fix)
 `openspec_store_root_missing`, `openspec_root_missing`, `openspec_config_missing`, `openspec_specs_missing`, `openspec_changes_missing`, `openspec_archive_missing`, plus `_not_directory` variants of each.
 
 ### Store registry/identity/state
-`invalid_store_id`, `invalid_store_registry`, `invalid_store_metadata`, `store_registry_busy`, `store_not_found`, `no_store_registry`, `store_registry_changed`, `store_metadata_missing`, `store_metadata_id_mismatch`, `store_metadata_invalid`, `store_id_conflict`, `store_path_conflict`, `store_id_claimed_by_repo`, `store_path_claimed_by_repo`, `store_already_registered` (info).
+`invalid_store_id`, `invalid_store_registry`, `invalid_store_metadata`, `store_registry_busy`, `store_not_found`, `no_store_registry`, `store_registry_changed`, `store_metadata_missing`, `store_metadata_id_mismatch`, `store_metadata_invalid`, `store_id_conflict`, `store_path_conflict`, `store_already_registered` (info).
 
 ### Store setup/register/remove
 `store_setup_id_required`, `store_setup_path_required`, `store_setup_path_not_directory`, `store_setup_inside_git_repo`, `store_setup_non_empty_directory`, `store_setup_cancelled`, `store_path_required`, `store_path_missing`, `store_path_not_directory`, `store_register_root_unhealthy`, `store_register_identity_confirmation_required`, `store_register_cancelled`, `store_remote_empty`, `store_remote_requires_hand_edit`, `store_remove_confirmation_required`, `store_remove_cancelled`, `store_remove_path_not_directory`, `store_remove_metadata_missing`, `store_root_missing` (warning in remove, error in doctor), `store_root_not_directory`.
@@ -113,14 +108,8 @@ register: `{ "repo": {id, path}, "registry": {path, registered, already_register
 ### Store git
 `store_git_init_failed`, `store_git_identity_missing`, `store_git_commit_failed`, `store_git_no_commits` (warning), `store_clone_fragile_directories` (warning), `store_remote_divergence` (info, doctor).
 
-### Repo map
-`invalid_repo_id`, `repo_path_missing`, `repo_path_not_directory`, `repo_id_claimed_by_store`, `repo_path_claimed_by_store`, `repo_id_conflict`, `repo_path_conflict`, `repo_not_found`.
-
 ### References (warning)
 `reference_invalid_id`, `reference_registry_unreadable`, `reference_unresolved`, `reference_root_unhealthy`, `reference_index_truncated`.
-
-### Targets (warning)
-`target_invalid_id`, `target_not_declared`, `target_unmapped`, `target_path_missing`.
 
 ### Relationships (warning; doctor; context keeps only the registry one)
 `relationship_registry_unreadable`, `root_pointer_ignored`, `root_pointer_invalid`, `pointer_declarations_inert`.
@@ -132,7 +121,7 @@ register: `{ "repo": {id, path}, "registry": {path, registered, already_register
 `context_file_exists`, `context_output_dir_missing`.
 
 ### Fallbacks
-`doctor_failed`, `context_failed`, `store_error`, `repo_error`, `change_error`, `archive_error`.
+`doctor_failed`, `context_failed`, `store_error`, `change_error`, `archive_error`.
 
 ## Known inconsistencies
 
@@ -140,10 +129,9 @@ Recorded by the capstone audit; published-key renames are product decisions defe
 
 1. ~~In `--json` mode, several failure paths printed stderr only with no JSON document.~~ Fixed in the capstone gauntlet round: `show`/`validate` unknown and ambiguous items emit `{status:[{code: unknown_item | ambiguous_item, ...}]}`; thrown errors in `status`/`instructions`/`list`/`show`/`validate` route through the JSON-aware failure helper (the command's null-shape + `status`); `store <unknown subcommand> --json` emits `{status:[{code: unknown_store_subcommand}]}`; `list` carries its `{changes|specs: [], root: null}` null-shape on resolution failures.
 2. `store_root_missing` is emitted with two severities (warning in remove, error in store doctor) — context-dependent, documented above.
-3. `target_invalid_id` carries `target: "targets"` from instructions surfaces and `target: "relationships"` from doctor/context.
-4. snake_case (store family) vs camelCase (workflow family) key casing; `root.store_id` is snake_case everywhere.
-5. Four parallel envelope type declarations exist in src; archive diagnostics never carry `target`.
-6. `list --json` reuses the `status` key as a string enum per change.
-7. Only `validate` output carries a `version` field.
-8. `schemas`/`templates` ignore root selection (cwd-based, no `--store`).
-9. Deprecated noun forms (`change`/`spec` subcommands) emit unenveloped payloads without `root`/`status`.
+3. snake_case (store family) vs camelCase (workflow family) key casing; `root.store_id` is snake_case everywhere.
+4. Four parallel envelope type declarations exist in src; archive diagnostics never carry `target`.
+5. `list --json` reuses the `status` key as a string enum per change.
+6. Only `validate` output carries a `version` field.
+7. `schemas`/`templates` ignore root selection (cwd-based, no `--store`).
+8. Deprecated noun forms (`change`/`spec` subcommands) emit unenveloped payloads without `root`/`status`.

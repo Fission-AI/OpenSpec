@@ -33,9 +33,6 @@ export const ChangeMetadataSchema = z.object({
   goal: z.string().min(1).optional(),
   affected_areas: z.array(z.string().min(1)).optional(),
   initiative: InitiativeLinkSchema.optional(),
-  // The code repos this change is about (slice 3.4): narrows the
-  // store-level targets declaration. Ordinary metadata, no machinery.
-  targets: z.array(KebabIdentifierSchema('Target id')).optional(),
 });
 
 export type ChangeMetadata = z.infer<typeof ChangeMetadataSchema>;

@@ -50,8 +50,6 @@ export interface StoreRegistryEntryState {
 export interface StoreRegistryState {
   version: 1;
   stores: Record<string, StoreRegistryEntryState>;
-  /** Target repo id → local checkout mapping (slice 3.5). */
-  repos?: Record<string, { local_path: string }>;
 }
 
 export interface StoreRegistryEntry {
@@ -150,16 +148,12 @@ const RegistryEntrySchema = z.object({
   backend: GitBackendConfigSchema,
 }).strict();
 
-const RepoEntrySchema = z.object({
-  local_path: z.string().min(1),
-}).strict();
-
 const RegistryStateSchema = z.object({
   version: z.literal(1),
   stores: z.record(z.string(), RegistryEntrySchema),
-  // Typed sections (slice 3.5): target repo mappings live beside store
-  // registrations in one machine-local file.
-  repos: z.record(z.string(), RepoEntrySchema).optional(),
+  // Legacy code-checkout map data is tolerated on read and dropped on
+  // the next write.
+  repos: z.unknown().optional(),
 }).strict();
 
 const MetadataStateSchema = z.object({
@@ -228,26 +222,10 @@ export function parseStoreRegistryState(content: string): StoreRegistryState {
   }
 
   assertValidStoreIds(Object.keys(result.data.stores), 'store id');
-  if (result.data.repos) {
-    assertValidStoreIds(Object.keys(result.data.repos), 'repo id');
-    // Cross-section uniqueness holds at parse time too: a hand-edited
-    // registry with one id in both sections must fail clearly, not
-    // resolve ambiguously.
-    const overlap = Object.keys(result.data.repos).filter(
-      (id) => result.data.stores[id] !== undefined
-    );
-    if (overlap.length > 0) {
-      throw invalidStoreStateError(
-        'store registry state',
-        `ids registered in both sections: ${overlap.join(', ')} (store and repo ids share one namespace)`
-      );
-    }
-  }
 
   return {
     version: 1,
     stores: result.data.stores,
-    ...(result.data.repos !== undefined ? { repos: result.data.repos } : {}),
   };
 }
 
@@ -282,16 +260,10 @@ export function serializeStoreRegistryState(state: StoreRegistryState): string {
   }
 
   assertValidStoreIds(Object.keys(result.data.stores), 'store id');
-  if (result.data.repos) {
-    assertValidStoreIds(Object.keys(result.data.repos), 'repo id');
-  }
 
-  // Omitted-when-absent: a repos-less registry serializes byte-identically
-  // to the pre-3.5 format.
   return stringifyYaml({
     version: 1,
     stores: result.data.stores,
-    ...(result.data.repos !== undefined ? { repos: result.data.repos } : {}),
   });
 }
 

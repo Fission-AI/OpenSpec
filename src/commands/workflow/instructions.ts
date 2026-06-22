@@ -33,19 +33,8 @@ import {
   renderReferencedStoresSection,
   type ReferenceIndexEntry,
 } from '../../core/references.js';
-import {
-  assembleTargets,
-  renderTargetReposBlock,
-  renderTargetReposSection,
-} from '../../core/targets.js';
-import { METADATA_FILENAME } from '../../utils/change-metadata.js';
 import { readRegistrySnapshot } from '../../core/store/registry.js';
-import {
-  readProjectConfig,
-  resolveConfigFilePath,
-  type ProjectConfig,
-  type DeclarationEntry,
-} from '../../core/project-config.js';
+import { readProjectConfig, type ProjectConfig } from '../../core/project-config.js';
 import {
   validateChangeExists,
   validateSchemaExists,
@@ -85,23 +74,14 @@ export interface ApplyInstructionsOptions {
 async function loadRootConfigContext(root: ResolvedOpenSpecRoot): Promise<{
   projectConfig: ProjectConfig | null;
   references: ReferenceIndexEntry[] | undefined;
-  configPath: string;
-  repoPaths: Map<string, string> | undefined;
 }> {
   // readProjectConfig never throws: missing/unparseable configs are null.
   const projectConfig = readProjectConfig(root.path);
-  const configPath =
-    resolveConfigFilePath(root.path) ?? path.join(root.path, 'openspec', 'config.yaml');
 
-  // One registry read serves the repo map AND the reference index so
-  // one JSON output never carries a torn snapshot. Unconditional:
-  // change-level narrowing can declare targets the store config does
-  // not. A corrupt registry yields all-bare entries (doctor owns
-  // surfacing that).
+  // One registry read serves every relationship consumer in this
+  // output so it never carries a torn snapshot.
   const snapshot = await readRegistrySnapshot();
   const registryEntries = snapshot.entries;
-  const repoPaths =
-    snapshot.repoPaths && snapshot.repoPaths.size > 0 ? snapshot.repoPaths : undefined;
 
   const declared = projectConfig?.references ?? [];
   const index =
@@ -114,8 +94,6 @@ async function loadRootConfigContext(root: ResolvedOpenSpecRoot): Promise<{
   return {
     projectConfig,
     references: index.length > 0 ? index : undefined,
-    configPath,
-    repoPaths,
   };
 }
 
@@ -170,14 +148,10 @@ export async function instructionsCommand(
       );
     }
 
-    const { projectConfig, references, configPath, repoPaths } =
-      await loadRootConfigContext(root);
+    const { projectConfig, references } = await loadRootConfigContext(root);
     const instructions = generateInstructions(context, artifactId, projectRoot, {
       projectConfig,
       references,
-      storeTargets: projectConfig?.targets,
-      storeConfigPath: configPath,
-      repoPaths,
     });
     const isBlocked = instructions.dependencies.some((d) => !d.done);
 
@@ -244,12 +218,6 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
   // Referenced-store index (read-only upstream context)
   if (instructions.references && instructions.references.length > 0) {
     console.log(renderReferencedStoresBlock(instructions.references));
-    console.log();
-  }
-
-  // Effective target repos (declarations, not machinery)
-  if (instructions.targets) {
-    console.log(renderTargetReposBlock(instructions.targets));
     console.log();
   }
 
@@ -353,13 +321,6 @@ function parseTasksFile(content: string): TaskItem[] {
 export interface GenerateApplyInstructionsOptions {
   planningHome?: PlanningHome;
   references?: ReferenceIndexEntry[];
-  /** Store-level target declarations (assembly happens inside, where
-   * the change metadata is in hand). */
-  storeTargets?: DeclarationEntry[];
-  /** Absolute path of the config file actually read (for fix text). */
-  storeConfigPath?: string;
-  /** Local repo map for targets path enrichment (3.5). */
-  repoPaths?: Map<string, string>;
 }
 
 /**
@@ -382,13 +343,6 @@ export async function generateApplyInstructions(
     planningHome,
   });
   const changeDir = context.changeDir;
-  const targets = assembleTargets({
-    storeTargets: options.storeTargets,
-    changeTargets: context.metadata?.targets,
-    storeConfigPath: options.storeConfigPath,
-    changeMetadataPath: path.join(changeDir, METADATA_FILENAME),
-    ...(options.repoPaths ? { repoPaths: options.repoPaths } : {}),
-  });
 
   // Get the full schema to access the apply phase configuration
   const schema = resolveSchema(context.schemaName, projectRoot);
@@ -468,7 +422,6 @@ export async function generateApplyInstructions(
     changeName,
     changeDir,
     schemaName: context.schemaName,
-    ...(targets ? { targets } : {}),
     contextFiles,
     progress: { total, complete, remaining },
     tasks,
@@ -504,14 +457,10 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
     }
 
     // generateApplyInstructions uses loadChangeContext which auto-detects schema
-    const { projectConfig, references, configPath, repoPaths } =
-      await loadRootConfigContext(root);
+    const { references } = await loadRootConfigContext(root);
     const instructions = await generateApplyInstructions(projectRoot, changeName, options.schema, {
       planningHome,
       references,
-      storeTargets: projectConfig?.targets,
-      storeConfigPath: configPath,
-      repoPaths,
     });
 
     spinner?.stop();
@@ -537,12 +486,6 @@ export function printApplyInstructionsText(instructions: ApplyInstructions): voi
 
   if (instructions.references && instructions.references.length > 0) {
     console.log(renderReferencedStoresSection(instructions.references));
-    console.log();
-  }
-
-  // Effective target repos (declarations, not machinery)
-  if (instructions.targets) {
-    console.log(renderTargetReposSection(instructions.targets));
     console.log();
   }
 

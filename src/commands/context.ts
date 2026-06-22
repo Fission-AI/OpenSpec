@@ -25,7 +25,7 @@ import { StoreError } from '../core/store/errors.js';
 import { COMMAND_REGISTRY } from '../core/completions/command-registry.js';
 import { COMMON_FLAGS } from '../core/completions/shared-flags.js';
 import { emitFailure, printJson } from './shared-output.js';
-import { gatherRelationshipData, missingDeclaredRepoPaths } from './shared-gather.js';
+import { gatherRelationshipData } from './shared-gather.js';
 
 const FAILURE_PAYLOAD = { root: null, members: [] };
 
@@ -34,30 +34,21 @@ async function gatherWorkingSet(
 ): Promise<{ workingSet: WorkingSet; declaredReferenceCount: number }> {
   const data = await gatherRelationshipData(root);
 
-  // A stale mapping must never present as available (nor be written
-  // into an editor view) — "reported, not guessed".
-  const missingRepoPaths = missingDeclaredRepoPaths(data.effectiveTargets);
-
-  // Reuse the 3.6 composition for member classification (unmapped,
-  // stale, invalid); the doctor-only wrong-turn detections and store
-  // facts are deliberately absent — doctor is the health surface.
+  // Reuse the 3.6 composition for member classification; the
+  // doctor-only wrong-turn detections and store facts are deliberately
+  // absent — doctor is the health surface.
   const health = inspectRelationships({
     root,
     rootHealthy: data.rootInspection.healthy,
     rootStatus: data.rootInspection.diagnostics,
     referenceEntries: data.referenceEntries,
-    effectiveTargets: data.effectiveTargets,
-    storeTargets: data.storeTargets,
     registryUnreadable: data.registrySnapshot.unreadable,
-    ...(missingRepoPaths ? { missingRepoPaths } : {}),
-    storeConfigPath: data.storeConfigPath,
   });
 
   return {
     workingSet: assembleWorkingSet({
       root,
       referenceEntries: data.referenceEntries,
-      targets: health.targets,
       topLevelStatus: health.status,
     }),
     declaredReferenceCount: data.projectConfig?.references?.length ?? 0,
@@ -78,9 +69,6 @@ function printHumanWorkingSet(workingSet: WorkingSet, declaredReferenceCount: nu
   const availableStores = workingSet.members.filter(
     (member) => member.role === 'referenced_store' && isAvailableMember(member)
   );
-  const availableRepos = workingSet.members.filter(
-    (member) => member.role === 'target_repo' && isAvailableMember(member)
-  );
   const unavailable = workingSet.members.filter((member) => !isAvailableMember(member));
 
   if (availableStores.length > 0) {
@@ -94,14 +82,6 @@ function printHumanWorkingSet(workingSet: WorkingSet, declaredReferenceCount: nu
     }
   }
 
-  if (availableRepos.length > 0) {
-    console.log('');
-    console.log('Target repos');
-    for (const member of availableRepos) {
-      console.log(memberLine(member));
-    }
-  }
-
   if (workingSet.members.length === 0) {
     console.log('');
     // Self-references are silently omitted from the index; an
@@ -109,7 +89,7 @@ function printHumanWorkingSet(workingSet: WorkingSet, declaredReferenceCount: nu
     console.log(
       declaredReferenceCount > 0
         ? 'Declared references all resolve to this root; the working set is this root alone.'
-        : 'No references or targets declared; the working set is this root alone.'
+        : 'No references declared; the working set is this root alone.'
     );
   }
 

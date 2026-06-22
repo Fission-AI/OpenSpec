@@ -435,39 +435,6 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     ],
   },
   {
-    name: 'repo',
-    description: 'Map target repo ids to local checkout paths on this machine',
-    flags: [],
-    subcommands: [
-      {
-        name: 'register',
-        description: 'Map a target repo id to an existing local checkout',
-        acceptsPositional: true,
-        positionals: [{ name: 'path', type: 'path' }],
-        flags: [
-          {
-            name: 'id',
-            description: 'Repo id (defaults to the folder name)',
-            takesValue: true,
-          },
-          COMMON_FLAGS.json,
-        ],
-      },
-      {
-        name: 'unregister',
-        description: 'Forget a repo mapping (never touches the checkout)',
-        acceptsPositional: true,
-        positionals: [{ name: 'id' }],
-        flags: [COMMON_FLAGS.json],
-      },
-      {
-        name: 'list',
-        description: 'Show mapped repo ids and their local paths',
-        flags: [COMMON_FLAGS.json],
-      },
-    ],
-  },
-  {
     name: 'feedback',
     description: 'Submit feedback about OpenSpec',
     acceptsPositional: true,

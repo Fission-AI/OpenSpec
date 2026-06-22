@@ -8,9 +8,8 @@ The OpenSpec CLI (`openspec`) provides terminal commands for project setup, vali
 |----------|----------|---------|
 | **Setup** | `init`, `update` | Initialize and update OpenSpec in your project |
 | **Stores (standalone OpenSpec repos)** | `store setup`, `store register`, `store unregister`, `store remove`, `store list`, `store doctor` | Manage stores — standalone OpenSpec repos you've registered |
-| **Repo map** | `repo register`, `repo unregister`, `repo list` | Map target repo ids to local checkout paths on this machine |
 | **Health** | `doctor` | Report relationship health for the resolved root |
-| **Working context** | `context` | Assemble the working set (root + referenced stores + target repos) |
+| **Working context** | `context` | Assemble the working set (root + referenced stores) |
 | **Personal worksets** | `workset create`, `workset list`, `workset open`, `workset remove` | Keep and open personal, local working views in your tool |
 | **Browsing** | `list`, `view`, `show` | Explore changes and specs |
 | **Validation** | `validate` | Check changes and specs for issues |
@@ -177,7 +176,7 @@ openspec update
 
 ## Stores (standalone OpenSpec repos)
 
-> **Beta.** Stores and the features built on them (references, targets, working context, worksets) are new; command names, flags, file formats, and JSON output may change shape between releases. For the problem-first walkthrough, see the [stores guide](stores-beta/user-guide.md).
+> **Beta.** Stores and the features built on them (references, working context, worksets) are new; command names, flags, file formats, and JSON output may change shape between releases. For the problem-first walkthrough, see the [stores guide](stores-beta/user-guide.md).
 
 A store is a standalone OpenSpec repo you've registered on this machine — for example a planning repo or a contracts repo. Registering a store lets normal commands (`list`, `show`, `status`, `validate`, `new change`, `archive`, ...) act in it from anywhere by passing `--store <id>`.
 
@@ -305,21 +304,6 @@ references:
 
 Recording a remote is not sync: OpenSpec never clones, pulls, or pushes on its own.
 
-### Declaring target repos
-
-A planning repo can say, once, which code repos its work is about:
-
-```yaml
-# the store's openspec/config.yaml
-targets:
-  - api-server
-  - { id: web-app, remote: "git@github.com:acme/web-app.git" }
-```
-
-A change that only concerns some of them can narrow the set in its own `.openspec.yaml` with a plain `targets:` list. `openspec instructions` output then carries the effective set (with provenance: store default or change narrowing) so agents know which repos the work concerns. Targets name repos. (Legacy `affected_areas` metadata from old changes is still read but no longer authored by any command — use `targets:` for repo declarations.)
-
-Targets are declarations, not machinery: they never affect where commands act, nothing clones or syncs, and an unrecognized narrowed id degrades to a warning with a fix rather than failing. `openspec doctor` reports target health in one place.
-
 ### Declaring a default store
 
 A repo whose planning is fully externalized — no local `openspec/specs/` or `openspec/changes/` — can declare its store once instead of passing `--store` on every command:
@@ -331,38 +315,25 @@ store: team-context
 
 Normal commands then resolve to the declared store automatically; the root banner and JSON `root` block report `source: "declared"` with the store id, and printed hints still carry `--store <id>`. The declaration is a fallback, never an override: explicit `--store` always wins, and a directory with real planning folders ignores the pointer (with a warning). To convert a pointer repo into a local OpenSpec root, remove the `store:` line and run `openspec init` — init refuses to scaffold while the declaration is present.
 
-## Repo map (local checkout paths)
-
-Shared work names target repos by id; each developer maps those ids to local checkouts once. The map is local machine settings — never shared planning state, never committed:
-
-```bash
-openspec repo register ~/src/api-server        # id defaults to the folder name
-openspec repo register ~/work/checkout --id api-server
-openspec repo list                             # id → path (or --json)
-openspec repo unregister api-server            # forgets the mapping; never touches the checkout
-```
-
-Once mapped, `openspec instructions` shows where each target lives on this machine (`- api-server → /Users/dev/src/api-server`). Store and repo ids share one namespace: registering either kind under an id (or path) the other holds fails with a typed conflict, and `--store <repo-id>` rejects with a hint instead of a generic unknown-store error. `openspec doctor` reports unmapped and stale mappings in one place.
-
 ## Doctor (relationship health)
 
-One read-only question, one place: are the roots this work relates to — the OpenSpec root, the stores it references, and the target repos it names — available on this machine?
+One read-only question, one place: is the OpenSpec root healthy, and are the stores it references available on this machine?
 
 ```bash
 openspec doctor [--store <id>] [--json]
 ```
 
-The report separates root health, store metadata health (including a note when the recorded remote and the checkout's origin diverge), reference health (the same diagnostics instructions show, with clone fixes for unresolved references), and target health (unmapped repos get the `repo register` fix). Health findings of any severity exit 0 — agents read the `status` arrays; only command failures (no root, unknown store) exit 1. Doctor never clones, syncs, or repairs. To get the assembled set itself rather than its health, use `openspec context`.
+The report separates root health, store metadata health (including a note when the recorded remote and the checkout's origin diverge), and reference health (the same diagnostics instructions show, with clone fixes for unresolved references). Health findings of any severity exit 0 — agents read the `status` arrays; only command failures (no root, unknown store) exit 1. Doctor never clones, syncs, or repairs. To get the assembled set itself rather than its health, use `openspec context`.
 
 ## Working context (the assembled set)
 
-Everything this work relates to, in one working set: the OpenSpec root, the stores it references, and the project repos it targets.
+Everything this work relates to through OpenSpec declarations, in one working set: the OpenSpec root and the stores it references.
 
 ```bash
 openspec context [--store <id>] [--json] [--code-workspace <path> [--force]]
 ```
 
-The JSON brief is agent-consumable (each available referenced store carries its fetch recipe; unresolved members carry the same fixes instructions and doctor show). `--code-workspace` additionally writes a VS Code workspace file containing the root plus the available members (`ref:<id>`, `repo:<id>` folders) — the one write this command performs, refused without `--force` if the file exists. Unavailable members are reported, never guessed at.
+The JSON brief is agent-consumable (each available referenced store carries its fetch recipe; unresolved members carry the same fixes instructions and doctor show). `--code-workspace` additionally writes a VS Code workspace file containing the root plus the available referenced stores (`ref:<id>` folders) — the one write this command performs, refused without `--force` if the file exists. Unavailable members are reported, never guessed at.
 
 "Working context" is the assembled set; the `context:` field in `openspec/config.yaml` is project background injected into instructions — two different things. `openspec doctor` answers whether the set is healthy; `openspec context` answers what the set is.
 

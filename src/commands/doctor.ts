@@ -17,7 +17,7 @@ import {
   resolveConfigFilePath,
 } from '../core/project-config.js';
 import { findRepoPlanningRootSync } from '../core/planning-home.js';
-import { gatherRelationshipData, missingDeclaredRepoPaths } from './shared-gather.js';
+import { gatherRelationshipData } from './shared-gather.js';
 import {
   inspectRelationships,
   type InspectRelationshipsInput,
@@ -28,7 +28,7 @@ import { COMMON_FLAGS } from '../core/completions/shared-flags.js';
 import { emitFailure, printJson } from './shared-output.js';
 import * as path from 'node:path';
 
-const FAILURE_PAYLOAD = { root: null, store: null, references: [], targets: [] };
+const FAILURE_PAYLOAD = { root: null, store: null, references: [] };
 
 async function gatherHealth(
   root: ResolvedOpenSpecRoot
@@ -37,13 +37,9 @@ async function gatherHealth(
   const {
     registrySnapshot,
     projectConfig,
-    storeConfigPath,
     referenceEntries,
-    effectiveTargets,
-    storeTargets,
     rootInspection,
   } = data;
-  const repoPaths = registrySnapshot.repoPaths;
   const registryUnreadable = registrySnapshot.unreadable;
 
   const input: InspectRelationshipsInput = {
@@ -51,10 +47,7 @@ async function gatherHealth(
     rootHealthy: rootInspection.healthy,
     rootStatus: rootInspection.diagnostics,
     referenceEntries,
-    effectiveTargets,
-    storeTargets,
     registryUnreadable,
-    storeConfigPath,
   };
 
   // Store facts for store-backed roots (explicit --store or declared).
@@ -74,13 +67,6 @@ async function gatherHealth(
       ...(metadata?.remote ? { canonicalRemote: metadata.remote } : {}),
       ...(originUrl ? { originUrl } : {}),
     };
-  }
-
-  // Target checkout health (the lock's fourth category): a mapped path
-  // that no longer exists is a stale mapping, not a healthy target.
-  const missingRepoPaths = missingDeclaredRepoPaths(effectiveTargets);
-  if (missingRepoPaths) {
-    input.missingRepoPaths = missingRepoPaths;
   }
 
   // The 3.2 both-shapes wrong turn, structured — including a malformed
@@ -104,7 +90,6 @@ async function gatherHealth(
     if (pointerRoot) {
       const pointerConfig = readProjectConfig(pointerRoot);
       const fields: string[] = [];
-      if (pointerConfig?.targets?.length) fields.push('targets');
       if (pointerConfig?.references?.length) fields.push('references');
       if (fields.length > 0) {
         const filePath =
@@ -181,14 +166,6 @@ function printHumanHealth(health: RelationshipHealth, declaredReferenceCount: nu
     referencesEmptyLine,
     (entry) => `${entry.store_id}: ok${entry.root ? ` (${entry.root})` : ''}`,
     (entry) => entry.store_id
-  );
-
-  printEntrySection(
-    'Targets',
-    health.targets,
-    '(none declared)',
-    (entry) => `${entry.id}: ${entry.path ? `mapped (${entry.path})` : 'declared'}`,
-    (entry) => entry.id
   );
 
   for (const entry of health.status) {

@@ -53,11 +53,7 @@ export const ProjectConfigSchema = z.object({
     .describe('Store id used as the OpenSpec root when no local planning shape exists'),
 });
 
-/**
- * Normalized in-memory shape of a declaration-list entry: a store id
- * (`references:`, slice 3.1/3.3) or a target repo id (`targets:`,
- * slice 3.4), optionally with a clone source.
- */
+/** Normalized in-memory shape of a referenced store declaration. */
 export interface DeclarationEntry {
   id: string;
   /** Clone source rendered into onboarding fixes. */
@@ -66,28 +62,24 @@ export interface DeclarationEntry {
 
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema> & {
   references?: DeclarationEntry[];
-  targets?: DeclarationEntry[];
 };
 
 /**
- * Shared parser for declaration-list config fields (`references:`,
- * `targets:`): string entries or {id, remote} maps, normalized to
- * DeclarationEntry[]. Dedup keys on id and keeps the first
- * position; the first entry carrying a remote supplies it (a later
- * duplicate fills a missing remote, never overrides). Invalid entries
- * drop with a warning like other resilient fields; returns undefined
- * when the field is absent or normalizes to empty.
+ * Parser for `references:` declarations: string entries or
+ * {id, remote} maps, normalized to DeclarationEntry[]. Dedup keys on
+ * id and keeps the first position; the first entry carrying a remote
+ * supplies it (a later duplicate fills a missing remote, never
+ * overrides). Invalid entries drop with a warning like other resilient
+ * fields; returns undefined when the field is absent or normalizes to
+ * empty.
  */
-function parseDeclarationList(
-  raw: unknown,
-  fieldName: 'references' | 'targets'
-): DeclarationEntry[] | undefined {
-  const idNoun = fieldName === 'targets' ? 'repo ids' : 'store ids';
+function parseDeclarationList(raw: unknown): DeclarationEntry[] | undefined {
+  const fieldName = 'references';
   if (raw === undefined) {
     return undefined;
   }
   if (!Array.isArray(raw)) {
-    console.warn(`Invalid '${fieldName}' field in config (must be an array of ${idNoun})`);
+    console.warn(`Invalid '${fieldName}' field in config (must be an array of store ids)`);
     return undefined;
   }
 
@@ -241,16 +233,9 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
       }
     }
 
-    // Parse the declaration-list fields (references since 3.1/3.3,
-    // targets since 3.4) through one shared parser so both normalize
-    // identically.
-    const references = parseDeclarationList(raw.references, 'references');
+    const references = parseDeclarationList(raw.references);
     if (references) {
       config.references = references;
-    }
-    const targets = parseDeclarationList(raw.targets, 'targets');
-    if (targets) {
-      config.targets = targets;
     }
 
     // Parse store pointer field: a string, or dropped with a warning.

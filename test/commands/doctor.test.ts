@@ -44,16 +44,14 @@ describe('openspec doctor (3.6)', () => {
   }
 
   it('reports ok everywhere for a healthy store-backed root, all session shapes', async () => {
-    // A resolvable reference + a mapped target.
+    // A resolvable reference.
     const upstream = path.join(tempDir, 'upstream-context');
     createOpenSpecRoot(upstream);
     writeSpec(upstream, 'rules', '## Purpose\n\nRules.\n');
     await registerStore({ id: 'upstream-context', localPath: upstream, globalDataDir });
-    const apiDir = mkdir('src/api-server');
-    await runCLI(['repo', 'register', apiDir, '--json'], { cwd: tempDir, env });
     fs.writeFileSync(
       path.join(storeRoot, 'openspec', 'config.yaml'),
-      'schema: spec-driven\nreferences:\n  - upstream-context\ntargets:\n  - api-server\n'
+      'schema: spec-driven\nreferences:\n  - upstream-context\n'
     );
 
     // Explicit --store session.
@@ -79,7 +77,6 @@ describe('openspec doctor (3.6)', () => {
       { store_id: 'upstream-context', root: upstream, status: [] },
     ]);
     expect('specs' in health.references[0]).toBe(false);
-    expect(health.targets).toEqual([{ id: 'api-server', path: apiDir, status: [] }]);
     expect(health.status).toEqual([]);
 
     // Banner on stderr in human mode; sections in the transcript voice.
@@ -89,7 +86,6 @@ describe('openspec doctor (3.6)', () => {
     expect(human.stdout).toContain('Root');
     expect(human.stdout).toContain('  Store: team-context (metadata ok)');
     expect(human.stdout).toContain(`  - upstream-context: ok (${upstream})`);
-    expect(human.stdout).toContain(`  - api-server: mapped (${apiDir})`);
 
     // Nearest-root session.
     const nearest = await runCLI(['doctor', '--json'], { cwd: storeRoot, env });
@@ -108,21 +104,18 @@ describe('openspec doctor (3.6)', () => {
     const result = await runCLI(['doctor', '--store', 'team-context'], { cwd: tempDir, env });
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain('References\n  (none declared)');
-    expect(result.stdout).toContain('Targets\n  (none declared)');
     const json = await runCLI(['doctor', '--json', '--store', 'team-context'], {
       cwd: tempDir,
       env,
     });
     expect(parseJson(json).references).toEqual([]);
-    expect(parseJson(json).targets).toEqual([]);
   });
 
   it('shows broken relationships with pasteable fixes at exit 0', async () => {
     fs.writeFileSync(
       path.join(storeRoot, 'openspec', 'config.yaml'),
       'schema: spec-driven\n' +
-        'references:\n  - { id: design-system, remote: https://192.0.2.1/ds.git }\n' +
-        'targets:\n  - web-app\n'
+        'references:\n  - { id: design-system, remote: https://192.0.2.1/ds.git }\n'
     );
 
     const result = await runCLI(['doctor', '--json', '--store', 'team-context'], {
@@ -137,26 +130,18 @@ describe('openspec doctor (3.6)', () => {
         fix: expect.stringContaining('git clone -- https://192.0.2.1/ds.git'),
       })
     );
-    expect(health.targets[0].status[0]).toEqual(
-      expect.objectContaining({
-        code: 'target_unmapped',
-        fix: 'Run: openspec repo register <path> --id web-app',
-      })
-    );
 
     const human = await runCLI(['doctor', '--store', 'team-context'], { cwd: tempDir, env });
     expect(human.stdout).toContain('Fix: git clone --');
-    expect(human.stdout).toContain('Fix: Run: openspec repo register <path> --id web-app');
   });
 
   it('distinguishes an empty registry from an unreadable one', async () => {
     fs.writeFileSync(
       path.join(storeRoot, 'openspec', 'config.yaml'),
-      'schema: spec-driven\nreferences:\n  - ghost-context\ntargets:\n  - web-app\n'
+      'schema: spec-driven\nreferences:\n  - ghost-context\n'
     );
 
-    // Corrupt registry: top-level cause + per-reference blast radius +
-    // bare targets (no wrong register fix).
+    // Corrupt registry: top-level cause + per-reference blast radius.
     const registryPath = path.join(globalDataDir, 'stores', 'registry.yaml');
     const original = fs.readFileSync(registryPath, 'utf-8');
     fs.writeFileSync(registryPath, ':[ broken');
@@ -164,16 +149,14 @@ describe('openspec doctor (3.6)', () => {
     const corruptHealth = parseJson(corrupt);
     expect(corruptHealth.status[0].code).toBe('relationship_registry_unreadable');
     expect(corruptHealth.references[0].status[0].code).toBe('reference_registry_unreadable');
-    expect(corruptHealth.targets).toEqual([{ id: 'web-app', status: [] }]);
     fs.writeFileSync(registryPath, original);
 
-    // Empty-but-readable registry: unresolved references, unmapped targets.
+    // Empty-but-readable registry: unresolved references.
     fs.rmSync(registryPath);
     const empty = await runCLI(['doctor', '--json'], { cwd: storeRoot, env });
     const emptyHealth = parseJson(empty);
     expect(emptyHealth.status).toEqual([]);
     expect(emptyHealth.references[0].status[0].code).toBe('reference_unresolved');
-    expect(emptyHealth.targets[0].status[0].code).toBe('target_unmapped');
   });
 
   it('surfaces both-shapes and inert-pointer wrong turns', async () => {
@@ -193,7 +176,7 @@ describe('openspec doctor (3.6)', () => {
     fs.mkdirSync(path.join(pointerRepo, 'openspec'), { recursive: true });
     fs.writeFileSync(
       path.join(pointerRepo, 'openspec', 'config.yaml'),
-      'store: team-context\ntargets:\n  - wrong-repo\n'
+      'store: team-context\nreferences:\n  - wrong-context\n'
     );
     const subdir = mkdir('app-repo/packages/api');
     const inert = await runCLI(['doctor', '--json'], { cwd: subdir, env });
@@ -201,7 +184,7 @@ describe('openspec doctor (3.6)', () => {
       (item: any) => item.code === 'pointer_declarations_inert'
     );
     expect(entry).toBeDefined();
-    expect(entry.message).toContain('targets');
+    expect(entry.message).toContain('references');
   });
 
   it('notes remote divergence as info in the store section', async () => {
@@ -229,20 +212,16 @@ describe('openspec doctor (3.6)', () => {
   });
 
   it('fails with the null-shape payload on command failures', async () => {
-    const repoDir = mkdir('src/api-server');
-    await runCLI(['repo', 'register', repoDir, '--json'], { cwd: tempDir, env });
-
-    const asRepo = await runCLI(['doctor', '--json', '--store', 'api-server'], {
+    const unknown = await runCLI(['doctor', '--json', '--store', 'missing-store'], {
       cwd: tempDir,
       env,
     });
-    expect(asRepo.exitCode).toBe(1);
-    const payload = parseJson(asRepo);
+    expect(unknown.exitCode).toBe(1);
+    const payload = parseJson(unknown);
     expect(payload.root).toBeNull();
     expect(payload.store).toBeNull();
     expect(payload.references).toEqual([]);
-    expect(payload.targets).toEqual([]);
-    expect(payload.status[0].code).toBe('store_id_is_repo');
+    expect(payload.status[0].code).toBe('unknown_store');
 
     const bare = mkdir('bare-dir');
     const noRoot = await runCLI(['doctor', '--json'], { cwd: bare, env });
@@ -256,29 +235,6 @@ describe('openspec doctor (3.6)', () => {
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain('Error: No OpenSpec root found');
     expect(result.stderr).not.toContain('at ');
-  });
-
-  it('flags stale repo mappings as target_path_missing', async () => {
-    const repoDir = mkdir('src/api-server');
-    await runCLI(['repo', 'register', repoDir, '--json'], { cwd: tempDir, env });
-    fs.writeFileSync(
-      path.join(storeRoot, 'openspec', 'config.yaml'),
-      'schema: spec-driven\ntargets:\n  - api-server\n'
-    );
-    fs.rmSync(repoDir, { recursive: true });
-
-    const result = await runCLI(['doctor', '--json', '--store', 'team-context'], {
-      cwd: tempDir,
-      env,
-    });
-    expect(result.exitCode).toBe(0);
-    const target = JSON.parse(result.stdout).targets[0];
-    expect(target.status[0]).toEqual(
-      expect.objectContaining({
-        code: 'target_path_missing',
-        fix: 'Run: openspec repo unregister api-server, then re-register the current checkout.',
-      })
-    );
   });
 
   it('distinguishes self-reference omission from none declared', async () => {
@@ -304,10 +260,7 @@ describe('openspec doctor (3.6)', () => {
   });
 
   it('is read-only and changes nothing elsewhere', async () => {
-    fs.writeFileSync(
-      path.join(storeRoot, 'openspec', 'config.yaml'),
-      'schema: spec-driven\ntargets:\n  - web-app\n'
-    );
+    fs.writeFileSync(path.join(storeRoot, 'openspec', 'config.yaml'), 'schema: spec-driven\n');
     const rootBefore = snapshot(storeRoot);
     const dataBefore = snapshot(path.join(tempDir, 'data'));
 

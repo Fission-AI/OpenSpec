@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import { inspectRelationships } from '../../src/core/relationship-health.js';
-import { assembleTargets } from '../../src/core/targets.js';
 import type { ResolvedOpenSpecRoot } from '../../src/core/root-selection.js';
 
 const root = {
@@ -19,13 +18,12 @@ function baseInput() {
     root,
     rootHealthy: true,
     referenceEntries: [],
-    effectiveTargets: null,
     registryUnreadable: false,
   };
 }
 
 describe('relationship health composition (3.6)', () => {
-  it('reports a clean four-section shape with null targets normalized to empty', () => {
+  it('reports a clean relationship shape', () => {
     const health = inspectRelationships(baseInput());
 
     expect(health).toEqual({
@@ -38,60 +36,18 @@ describe('relationship health composition (3.6)', () => {
       },
       store: null,
       references: [],
-      targets: [],
       status: [],
     });
   });
 
-  it('marks unmapped targets with the register fix', () => {
-    const health = inspectRelationships({
-      ...baseInput(),
-      effectiveTargets: assembleTargets({
-        storeTargets: [{ id: 'api-server' }, { id: 'web-app' }],
-        repoPaths: new Map([['api-server', '/src/api']]),
-      }),
-    });
-
-    expect(health.targets).toEqual([
-      { id: 'api-server', path: '/src/api', status: [] },
-      {
-        id: 'web-app',
-        status: [
-          expect.objectContaining({
-            severity: 'warning',
-            code: 'target_unmapped',
-            fix: 'Run: openspec repo register <path> --id web-app',
-          }),
-        ],
-      },
-    ]);
-  });
-
-  it('suppresses target_unmapped under an unreadable registry', () => {
+  it('reports registry unreadable without inventing relationship entries', () => {
     const health = inspectRelationships({
       ...baseInput(),
       registryUnreadable: true,
-      effectiveTargets: assembleTargets({ storeTargets: [{ id: 'web-app' }] }),
     });
 
     expect(health.status[0]).toEqual(
       expect.objectContaining({ code: 'relationship_registry_unreadable' })
-    );
-    expect(health.targets).toEqual([{ id: 'web-app', status: [] }]);
-  });
-
-  it('synthesizes bare entries for grammar-invalid declared targets', () => {
-    const health = inspectRelationships({
-      ...baseInput(),
-      storeTargets: [{ id: 'API Server' }, { id: 'web-app' }],
-      effectiveTargets: assembleTargets({
-        storeTargets: [{ id: 'API Server' }, { id: 'web-app' }],
-      }),
-    });
-
-    const invalid = health.targets.find((entry) => entry.id === 'API Server');
-    expect(invalid?.status[0]).toEqual(
-      expect.objectContaining({ code: 'target_invalid_id' })
     );
   });
 
@@ -101,7 +57,7 @@ describe('relationship health composition (3.6)', () => {
       bothShapesPointer: { value: 'team-context', filePath: '/repo/openspec/config.yaml' },
       inertPointerDeclarations: {
         filePath: '/app/openspec/config.yaml',
-        fields: ['targets', 'references'],
+        fields: ['references'],
       },
     });
 
@@ -109,7 +65,7 @@ describe('relationship health composition (3.6)', () => {
       'root_pointer_ignored',
       'pointer_declarations_inert',
     ]);
-    expect(health.status[1].message).toContain('targets and references');
+    expect(health.status[1].message).toContain('references');
   });
 
   it('notes remote divergence as info in the store section', () => {

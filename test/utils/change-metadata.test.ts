@@ -13,24 +13,6 @@ import {
 import { ChangeMetadataSchema } from '../../src/core/change-metadata/index.js';
 
 describe('ChangeMetadataSchema', () => {
-  it('accepts kebab target ids and rejects grammar violations (3.4)', () => {
-    expect(
-      ChangeMetadataSchema.safeParse({ schema: 'spec-driven', targets: ['api-server'] }).success
-    ).toBe(true);
-    expect(
-      ChangeMetadataSchema.safeParse({ schema: 'spec-driven', targets: [] }).success
-    ).toBe(true);
-
-    const bad = ChangeMetadataSchema.safeParse({
-      schema: 'spec-driven',
-      targets: ['API_Server'],
-    });
-    expect(bad.success).toBe(false);
-    if (!bad.success) {
-      expect(JSON.stringify(bad.error.issues)).toContain('Target id must be kebab-case');
-    }
-  });
-
   describe('valid metadata', () => {
     it('should accept valid schema with created date', () => {
       const result = ChangeMetadataSchema.safeParse({

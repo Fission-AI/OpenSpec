@@ -1,17 +1,16 @@
 /**
  * Working-set assembly (slice 4.1): the full set a root's declarations
- * describe — the OpenSpec root, its referenced stores, and its mapped
- * target repos — as an agent-consumable brief. A local convenience
+ * describe — the OpenSpec root and its referenced stores — as an
+ * agent-consumable brief. A local convenience
  * computed from declared relationships, never a planning system; no
  * clone/sync/launch machinery. Unresolvable members are reported, not
  * guessed.
  */
 import type { StoreDiagnostic } from './store/errors.js';
 import { fetchRecipe, type ReferenceIndexEntry } from './references.js';
-import type { HealthTargetEntry } from './relationship-health.js';
 import { toRootOutput, type ResolvedOpenSpecRoot } from './root-selection.js';
 
-export type WorkingSetRole = 'referenced_store' | 'target_repo';
+export type WorkingSetRole = 'referenced_store';
 
 export interface WorkingSetMember {
   role: WorkingSetRole;
@@ -36,9 +35,6 @@ export interface WorkingSet {
 export interface AssembleWorkingSetInput {
   root: ResolvedOpenSpecRoot;
   referenceEntries: ReferenceIndexEntry[];
-  /** Target entries with doctor-grade per-entry status (4.1 reuses the
-   * 3.6 composition: unmapped/stale/invalid already classified). */
-  targets: HealthTargetEntry[];
   /** The composition's top-level status; the working set keeps only
    * the registry-unreadable degradation (selected by code, never by
    * position). */
@@ -61,16 +57,6 @@ export function assembleWorkingSet(input: AssembleWorkingSetInput): WorkingSet {
       ...(entry.root !== undefined && entry.status.length === 0
         ? { fetch: fetchRecipe(entry.store_id) }
         : {}),
-      status: entry.status,
-    });
-  }
-
-  for (const entry of input.targets) {
-    members.push({
-      role: 'target_repo',
-      id: entry.id,
-      ...(entry.path !== undefined ? { path: entry.path } : {}),
-      ...(entry.remote !== undefined ? { remote: entry.remote } : {}),
       status: entry.status,
     });
   }
@@ -99,8 +85,7 @@ export function buildCodeWorkspaceJson(workingSet: WorkingSet, rootName: string)
     if (!isAvailableMember(member)) {
       continue;
     }
-    const prefix = member.role === 'referenced_store' ? 'ref' : 'repo';
-    folders.push({ name: `${prefix}:${member.id}`, path: member.path! });
+    folders.push({ name: `ref:${member.id}`, path: member.path! });
   }
 
   return JSON.stringify({ folders }, null, 2) + '\n';

@@ -17,10 +17,8 @@ import {
   type StoreRegistryState,
 } from './foundation.js';
 import { StoreError } from './errors.js';
-import * as fsSync from 'node:fs';
 import * as path from 'node:path';
 import { FileSystemUtils } from '../../utils/file-system.js';
-import { isKebabId, KEBAB_ID_DESCRIPTION, KEBAB_ID_FIX } from '../id.js';
 
 export interface RegisterStoreInput extends StorePathOptions {
   id: string;
@@ -121,90 +119,6 @@ export function assertNoRegisteredStoreConflict(
       );
     }
   }
-
-  // Cross-section uniqueness (slice 3.5): one checkout has one role,
-  // and store/repo ids share one namespace.
-  for (const [repoId, repo] of Object.entries(registry?.repos ?? {})) {
-    if (repoId === id) {
-      throw new StoreError(
-        `Id '${id}' is already registered as a target repo (${repo.local_path}). Store and repo ids share one namespace.`,
-        'store_id_claimed_by_repo',
-        {
-          target: 'store.id',
-          fix: `Choose a different store id, or run openspec repo unregister ${id} first.`,
-        }
-      );
-    }
-    if (normalizePathForComparison(repo.local_path) === nextPath) {
-      throw new StoreError(
-        `Path is already registered as target repo '${repoId}'. One checkout has one role.`,
-        'store_path_claimed_by_repo',
-        {
-          target: 'store.root',
-          fix: `Run openspec repo unregister ${repoId} first, or choose a different path.`,
-        }
-      );
-    }
-  }
-}
-
-/** Cross-section + in-section conflict checks for repo writes (3.5). */
-function assertNoRegisteredRepoConflict(
-  registry: StoreRegistryState | null,
-  id: string,
-  canonicalPath: string
-): void {
-  const nextPath = normalizePathForComparison(canonicalPath);
-
-  for (const entry of listStoreRegistryEntries(registry ?? { version: 1, stores: {} })) {
-    if (entry.id === id) {
-      throw new StoreError(
-        `Id '${id}' is already registered as a store (${getStoreRootForBackend(entry.backend)}). Store and repo ids share one namespace.`,
-        'repo_id_claimed_by_store',
-        {
-          target: 'repo.id',
-          fix: `Choose a different repo id, or run openspec store unregister ${id} first.`,
-        }
-      );
-    }
-    if (normalizePathForComparison(getStoreRootForBackend(entry.backend)) === nextPath) {
-      throw new StoreError(
-        `Path is already registered as store '${entry.id}'. One checkout has one role.`,
-        'repo_path_claimed_by_store',
-        {
-          target: 'repo.root',
-          fix: `Run openspec store unregister ${entry.id} first, or choose a different path.`,
-        }
-      );
-    }
-  }
-
-  for (const [repoId, repo] of Object.entries(registry?.repos ?? {})) {
-    const repoPath = normalizePathForComparison(repo.local_path);
-    if (repoId === id && repoPath === nextPath) {
-      continue; // Same id + same path: the caller treats it as a rerun.
-    }
-    if (repoId === id) {
-      throw new StoreError(
-        `Repo '${id}' is already registered at ${repo.local_path}. One checkout per repo id is supported on this machine.`,
-        'repo_id_conflict',
-        {
-          target: 'repo.id',
-          fix: `Use the existing registration, or run openspec repo unregister ${id} first to switch this id to a different checkout.`,
-        }
-      );
-    }
-    if (repoPath === nextPath) {
-      throw new StoreError(
-        `Repo path is already registered as '${repoId}'.`,
-        'repo_path_conflict',
-        {
-          target: 'repo.root',
-          fix: `Use the existing '${repoId}' registration or choose a different path.`,
-        }
-      );
-    }
-  }
 }
 
 function withRegisteredStore(
@@ -226,7 +140,6 @@ function withRegisteredStore(
     stores: Object.fromEntries(
       Object.entries(stores).sort(([leftId], [rightId]) => leftId.localeCompare(rightId))
     ),
-    ...(registry?.repos !== undefined ? { repos: registry.repos } : {}),
   };
 }
 
@@ -302,7 +215,6 @@ function withoutRegisteredStore(
       stores: Object.fromEntries(
         Object.entries(stores).sort(([leftId], [rightId]) => leftId.localeCompare(rightId))
       ),
-      ...(registry?.repos !== undefined ? { repos: registry.repos } : {}),
     },
   };
 }
@@ -435,50 +347,14 @@ export async function registerStore(
   };
 }
 
-
-// -----------------------------------------------------------------------------
-// Target repo map (slice 3.5)
-// -----------------------------------------------------------------------------
-
-export interface RepoMapEntry {
-  id: string;
-  path: string;
-}
-
-export interface RegisterRepoInput {
-  id: string;
-  path: string;
-  globalDataDir?: string;
-}
-
-export interface RegisterRepoResult extends RepoMapEntry {
-  registered: boolean;
-  alreadyRegistered: boolean;
-}
-
-/** Pure state → entries, sorted by id. */
-export function listRepoEntries(registry: StoreRegistryState | null): RepoMapEntry[] {
-  return Object.entries(registry?.repos ?? {})
-    .map(([id, entry]) => ({ id, path: entry.local_path }))
-    .sort((left, right) => left.id.localeCompare(right.id));
-}
-
-/**
- * The stored canonical path for a repo id: one registry read, then a
- * dumb id-keyed lookup. Null on miss or unreadable registry.
- */
 export interface RegistrySnapshot {
   /** null = the registry is unreadable; [] = empty or absent. */
   entries: StoreRegistryEntry[] | null;
-  /** Repo-id → canonical path map; undefined when unreadable. */
-  repoPaths: Map<string, string> | undefined;
   unreadable: boolean;
 }
 
 /**
- * One registry read serving every consumer in a command (the 3.6
- * torn-snapshot invariant: reference entries and repo paths in one
- * output must come from one read).
+ * One registry read serving every consumer in a command.
  */
 export async function readRegistrySnapshot(
   options: { globalDataDir?: string } = {}
@@ -487,124 +363,11 @@ export async function readRegistrySnapshot(
     const registry = await readStoreRegistryState(options);
     return {
       entries: registry ? listStoreRegistryEntries(registry) : [],
-      repoPaths: new Map(listRepoEntries(registry).map((entry) => [entry.id, entry.path])),
       unreadable: false,
     };
   } catch {
-    return { entries: null, repoPaths: undefined, unreadable: true };
+    return { entries: null, unreadable: true };
   }
-}
-
-function validateRepoIdOrThrow(id: string): string {
-  if (!isKebabId(id)) {
-    throw new StoreError(
-      `Repo id '${id}' ${KEBAB_ID_DESCRIPTION}.`,
-      'invalid_repo_id',
-      {
-        target: 'repo.id',
-        fix: KEBAB_ID_FIX,
-      }
-    );
-  }
-  return id;
-}
-
-function assertRepoPathIsDirectory(candidate: string): void {
-  let stat;
-  try {
-    stat = fsSync.statSync(candidate);
-  } catch {
-    throw new StoreError(`Repo path does not exist: ${candidate}`, 'repo_path_missing', {
-      target: 'repo.root',
-      fix: 'Pass the path of an existing checkout.',
-    });
-  }
-  if (!stat.isDirectory()) {
-    throw new StoreError(`Repo path is not a directory: ${candidate}`, 'repo_path_not_directory', {
-      target: 'repo.root',
-      fix: 'Pass an existing checkout directory.',
-    });
-  }
-}
-
-export async function registerRepo(input: RegisterRepoInput): Promise<RegisterRepoResult> {
-  // The library API enforces its own invariants: a 4.1 caller must get
-  // typed input errors, not serialize-time registry-corruption noise.
-  // Path first: pointing at a missing path or a file is the more
-  // fundamental mistake than an (often folder-derived) id.
-  assertRepoPathIsDirectory(path.resolve(input.path));
-  validateRepoIdOrThrow(input.id);
-  const canonicalPath = FileSystemUtils.canonicalizeExistingPath(input.path);
-  const targetPath = normalizePathForComparison(canonicalPath);
-  const isSameMapping = (entry: { local_path: string } | undefined): boolean =>
-    entry !== undefined && normalizePathForComparison(entry.local_path) === targetPath;
-  const options = input.globalDataDir ? { globalDataDir: input.globalDataDir } : {};
-
-  // No-op reruns never take the write lock (the store-side
-  // commitStoreRegistration contract); the updater re-checks under the
-  // lock for the race.
-  const current = await readStoreRegistryState(options).catch(() => null);
-  const existing = current?.repos?.[input.id];
-  if (isSameMapping(existing)) {
-    return { id: input.id, path: existing!.local_path, registered: false, alreadyRegistered: true };
-  }
-
-  let alreadyRegistered = false;
-  await updateStoreRegistryState((registry) => {
-    if (isSameMapping(registry?.repos?.[input.id])) {
-      alreadyRegistered = true;
-      return registry ?? { version: 1, stores: {} };
-    }
-
-    assertNoRegisteredRepoConflict(registry, input.id, canonicalPath);
-
-    const repos = {
-      ...(registry?.repos ?? {}),
-      [input.id]: { local_path: canonicalPath },
-    };
-    return {
-      version: 1,
-      stores: registry?.stores ?? {},
-      repos: Object.fromEntries(
-        Object.entries(repos).sort(([leftId], [rightId]) => leftId.localeCompare(rightId))
-      ),
-    };
-  }, options);
-
-  return {
-    id: input.id,
-    path: canonicalPath,
-    registered: !alreadyRegistered,
-    alreadyRegistered,
-  };
-}
-
-export async function unregisterRepo(
-  id: string,
-  options: { globalDataDir?: string } = {}
-): Promise<RepoMapEntry> {
-  validateRepoIdOrThrow(id);
-  let removed: RepoMapEntry | null = null;
-  await updateStoreRegistryState((registry) => {
-    const entry = registry?.repos?.[id];
-    if (!entry) {
-      throw new StoreError(`No repo registered with id '${id}'.`, 'repo_not_found', {
-        target: 'repo.id',
-        fix: 'Run openspec repo list to see registered repos.',
-      });
-    }
-    removed = { id, path: entry.local_path };
-
-    const repos = { ...(registry?.repos ?? {}) };
-    delete repos[id];
-    return {
-      version: 1,
-      stores: registry?.stores ?? {},
-      ...(Object.keys(repos).length > 0 ? { repos } : {}),
-    };
-  }, options);
-
-  return removed!;
 }
 
 export async function listRegisteredStores(
@@ -682,7 +445,7 @@ export async function resolveRegisteredStore(
   if (!registry) {
     throw new StoreError('No store registry found', 'no_store_registry', {
       target: 'store.id',
-      fix: 'Register a store before using --store, or pass --store-path <path>.',
+      fix: 'Register a store with openspec store register <path>, then select it with --store <id>.',
     });
   }
 
