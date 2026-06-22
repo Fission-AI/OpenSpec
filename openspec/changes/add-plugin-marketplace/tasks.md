@@ -3,7 +3,7 @@
 - [x] 1.1 Define the manifest zod schema in `src/core/plugins/manifest.ts` (`manifestVersion`, `id`, `namespace`, `bin`/`binArgs`, `openspecCompat`, `displayName`, `summary`, `commands[]`, `skills[]`, command templates, `workflows[]`, `ownsConfigKeys[]`) with `.passthrough()` for forward compatibility
 - [x] 1.2 Implement manifest loading from a package's `package.json` `"openspec"` key, falling back to a sibling `openspec.plugin.json`
 - [x] 1.3 Implement validation with actionable, field-level error messages; invalid manifests disable the plugin instead of throwing
-- [x] 1.4 Reserve and reject namespaces that collide with core top-level commands; derive the reserved set from the registered command list rather than a duplicated literal. Current names: archive, change, completion, config, context-store, experimental (hidden), feedback, help, init, initiative, instructions, list, new, schema, schemas, set, show, spec, status, templates, update, validate, view, workspace, plugin, and the hidden `__complete`
+- [x] 1.4 Reserve and reject namespaces that collide with core top-level commands. The reserved set is derived at runtime from every registered top-level command (Commander's `program.commands`), so it always reflects the actual CLI — including `plugin` itself once registered and hidden commands (`experimental`, `__complete`). The enumerated names are illustrative, not a hand-maintained source of truth. As of this change the registered top-level commands are: archive, change, completion, config, context-store, experimental, feedback, help, init, initiative, instructions, list, new, plugin, schema, schemas, set, show, spec, status, templates, update, validate, view, workspace, `__complete`
 - [x] 1.5 Unit tests: valid manifest (both forms), invalid/missing fields, reserved-namespace rejection, unknown-field passthrough
 
 ## 2. Plugin Resolution
@@ -38,7 +38,7 @@
 ## 5. Plugin Contribution to AI Tools
 
 - [x] 5.1 Implement `src/core/plugins/contribution.ts`: collect skill/command/workflow templates declared by enabled plugins from their resolved package
-- [x] 5.2 Extend `getSkillTemplates`/`getCommandTemplates` in `src/core/shared/skill-generation.ts` to merge plugin-contributed templates with core templates (composing with `unify-template-generation-pipeline`)
+- [x] 5.2 Merge plugin-contributed skills with core skills in the install path. Interim approach (implemented): a standalone `collectContributedSkills`/`installContributedSkills` module that `init`/`update` call alongside the existing `getSkillTemplates` flow — it does not depend on any new exports. Note: `unify-template-generation-pipeline` is a separate **in-flight** change, not an existing function in `src/core/shared/skill-generation.ts`; when it lands, fold this contribution step into the unified pipeline rather than calling it separately
 - [x] 5.3 Track contributed artifacts by explicit, plugin-namespaced names for safe cleanup (no pattern matching)
 - [x] 5.4 Validate contributed templates (well-formed skill/command files) and skip with a warning on failure rather than aborting init/update
 - [x] 5.5 Unit tests: merge correctness, name tracking, malformed-template skip, delivery-mode interaction (`both`/`skills`/`commands`)
@@ -48,7 +48,7 @@
 - [x] 6.1 Implement `src/commands/plugin.ts` with `registerPluginCommand(program)`
 - [x] 6.2 `openspec plugin list` — resolved plugins with id, namespace, version, source tier, enabled/compat status (`--json`)
 - [x] 6.3 `openspec plugin info <id>` — manifest + registry details for one plugin (`--json`)
-- [x] 6.4 `openspec plugin add <id|npm-name>` — enable in config, install contributed skills/commands; print install command (or run behind `--install`); refuse incompatible unless `--force`; trust notice for non-registry packages
+- [x] 6.4 `openspec plugin add <id|npm-name>` — enable in config, install contributed skills/commands; when the package is not yet installed, print the npm install instruction (e.g. `npm install --save-dev openlore`) by default and run it only with `--install`; refuse incompatible unless `--force`; trust notice for non-registry packages
 - [x] 6.5 `openspec plugin remove <id>` — disable and clean up only that plugin's managed artifacts
 - [x] 6.6 `openspec plugin enable|disable <id>` — toggle without uninstalling the package
 - [x] 6.7 `openspec plugin search [query]` — read the curated registry index
@@ -58,7 +58,7 @@
 ## 7. Marketplace Registry
 
 - [x] 7.1 Add `schemas/plugins/registry.json` with `registryVersion` and a listings array (id, npm, namespace, `openspecCompat`, summary, homepage)
-- [x] 7.2 Implement `src/core/plugins/registry.ts` loader with version checking and graceful handling of unknown formats
+- [x] 7.2 Implement `src/core/plugins/registry.ts` loader with version checking. Unknown-format behavior is fail-closed: if `registryVersion` is greater than the supported version (or missing/malformed), reject the entire load with an actionable `RegistryError` naming the unsupported version — never partially parse or silently ignore entries
 - [x] 7.3 Add the **OpenLore** inaugural listing (npm `openlore`, namespace `lore`, compat range, summary, homepage)
 - [x] 7.4 Include `registry.json` in the package `files` allowlist in `package.json`
 - [x] 7.5 Unit tests: load/parse, unknown-version rejection, search filtering, OpenLore entry present and well-formed

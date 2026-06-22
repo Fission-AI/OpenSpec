@@ -10,7 +10,7 @@ Each active, compatible plugin SHALL be surfaced as exactly one reserved top-lev
 #### Scenario: Namespace registered
 - **WHEN** a compatible plugin declares namespace `lore`
 - **THEN** `openspec lore` SHALL be available as a top-level command
-- **AND** all of the plugin's subcommands SHALL be addressed as `openspec lore <subcommand>`
+- **AND** all the plugin's subcommands SHALL be addressed as `openspec lore <subcommand>`
 
 #### Scenario: No bare top-level verbs
 - **WHEN** a plugin is registered

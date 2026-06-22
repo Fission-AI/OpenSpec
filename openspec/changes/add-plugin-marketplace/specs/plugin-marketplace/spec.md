@@ -29,17 +29,3 @@ The registry SHALL include OpenLore as the first marketplace plugin.
 #### Scenario: OpenLore add guidance
 - **WHEN** a user runs `openspec plugin add openlore`
 - **THEN** OpenSpec SHALL resolve OpenLore's install instructions and compatibility from the registry entry
-
-### Requirement: Code-first onboarding path via OpenLore
-OpenSpec documentation SHALL present OpenLore as the supported path for generating initial specs from an existing codebase, with OpenSpec evolving them thereafter.
-
-#### Scenario: Existing project onboarding documented
-- **WHEN** a user reads the existing-projects onboarding guidance
-- **THEN** it SHALL describe using OpenLore to generate initial specs and OpenSpec to validate and evolve them
-
-### Requirement: Registry submission guidance
-OpenSpec documentation SHALL describe how a plugin author submits a listing to the curated registry.
-
-#### Scenario: Author wants to be listed
-- **WHEN** a plugin author reads the marketplace documentation
-- **THEN** it SHALL explain the manifest requirements and the submission process for a registry entry

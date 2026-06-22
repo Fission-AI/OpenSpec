@@ -60,6 +60,7 @@ This proposal deliberately scopes plugins as **out-of-process delegated engines 
 - `plugin-contribution`: Plugin-contributed skills/commands/workflows merged into the install pipeline and tracked for safe cleanup.
 - `cli-plugin`: The `openspec plugin` command group for plugin lifecycle and discovery.
 - `plugin-marketplace`: The curated registry index, discovery semantics, and the inaugural OpenLore listing.
+- `plugin-docs`: Documentation obligations — code-first OpenLore onboarding, plugin authoring/manifest reference, and registry submission guidance (kept separate from the registry mechanics).
 
 ### Modified Capabilities
 
