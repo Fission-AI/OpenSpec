@@ -167,7 +167,7 @@ Test harness:
    - `readOpenerConfig()` — reads the global config file's `openers`
      key (via `getGlobalConfig`; malformed file already degrades with
      the existing stderr warning).
-   - `isExecutableAvailable(command, {env, platform})` + 
+   - `isExecutableAvailable(command, {env, platform})` +
      `listOpenerChoices(table, opts)` — the `f858c19^` scan with the
      d14 sharpenings.
    - `buildLaunchCommand(opener, { members, codeWorkspacePath })` —

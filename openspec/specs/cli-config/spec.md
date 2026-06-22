@@ -262,4 +262,3 @@ The config command SHALL reserve the `--scope` flag for future extensibility.
 - **WHEN** user executes `openspec config --scope project <subcommand>`
 - **THEN** display error message: "Project-local config is not yet implemented"
 - **AND** exit with code 1
-

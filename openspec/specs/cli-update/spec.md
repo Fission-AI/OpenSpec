@@ -165,4 +165,3 @@ The archive slash command template SHALL support optional change ID arguments fo
 - **THEN** include the `$ARGUMENTS` placeholder in the frontmatter
 - **AND** wrap it in a clear structure like `<ChangeId>\n  $ARGUMENTS\n</ChangeId>` to indicate the expected argument
 - **AND** include validation steps in the template body to check if the change ID is valid
-

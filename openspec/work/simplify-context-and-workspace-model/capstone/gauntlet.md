@@ -72,6 +72,6 @@ describing the store model (L1 — public concept docs rewrite).
 All 15 P1/P2 findings were fixed in commit 37ad867 and re-verified by
 live probes (the JSON contract codes, the --store-path seam, the
 stale-lock steal, the config-only scaffold completion, the phantom-root
-regression test) plus the full suite (97 files, 1717 tests). The
+regression test) plus the full suite (97 files, 1,761 tests). The
 queued-cheap P3 set landed in the same commit; the recorded-for-report
 items appear in the release-readiness report's known gaps.

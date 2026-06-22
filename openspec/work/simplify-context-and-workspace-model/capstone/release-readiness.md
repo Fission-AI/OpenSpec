@@ -52,8 +52,9 @@ abstraction is now recorded as a removed experiment, not current product proof.
   (the working set as agent brief / human listing / editor view).
 - **The old model deleted, not hidden.** The workspace/initiative
   command groups, state model, schema, accepted specs, and template
-  guidance are gone (−12,903 lines in the first tranche; src is net
-  **−4,478** lines vs `origin/main` across the whole delta).
+  guidance are gone (−12,903 lines in the first tranche; at the current
+  PR head, `src/` remains net **−3,189** lines vs `origin/main` across
+  the whole delta).
 
 ## Audit results (full records in this folder)
 
@@ -62,8 +63,9 @@ abstraction is now recorded as a removed experiment, not current product proof.
   (new e2e, zero `--store` flags), cold-start agent (live headless
   dogfood).
 - **Usability** (`usability-audits.md`): 55-wrong-turn error catalog
-  (all failures fixed); vocabulary sweep clean across src, docs, and
-  generated guidance; time-to-first-success measured live at 2
+  (all failures fixed); vocabulary sweep clean across live sweep roots
+  and generated guidance, with planning-history artifacts excluded by
+  design; time-to-first-success measured live at 2
   commands / 2 concepts.
 - **Technical** (`technical-audits.md`): single-resolver and
   dependency-direction invariants HOLD; module sizes bounded; the
@@ -73,7 +75,7 @@ abstraction is now recorded as a removed experiment, not current product proof.
   (/code-review max, a 32-agent adversarial Workflow, codex,
   completeness critic); 2 P1 + 13 P2 findings, **all fixed in 37ad867
   and live re-verified**, plus the cheap P3 set. Final suite: 97
-  files, 1,717 tests green; all 36 accepted specs validate.
+  files, 1,761 tests green; all 36 accepted specs validate.
 
 ## The autonomous-decision ledger
 

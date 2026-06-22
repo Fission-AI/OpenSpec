@@ -169,4 +169,3 @@ The system SHALL continue to work with existing changes that do not have project
 #### Scenario: Existing change with config added later
 - **WHEN** config file is added to project with existing changes
 - **THEN** existing changes continue to use their bound schema from `.openspec.yaml`
-

@@ -39,12 +39,15 @@ the fixes).
 
 ## Vocabulary sweep (including docs/cli.md)
 
-- `context store` compound: zero hits anywhere (enforced by
-  `test/vocabulary-sweep.test.ts`).
-- `workspace`: zero user-facing residue. Remaining src hits are the
-  `.code-workspace` FILE FORMAT name (the VS Code convention — correct
-  usage), the `context_file_exists` code, and historical comments.
-  Generated templates pinned residue-free by the parity test.
+- Retired `context store` forms: zero hits in the enforced live sweep
+  roots (`src`, `test`, `docs`, `scripts`, and local `.codex` guidance
+  when present). Planning-history artifacts under `openspec/` are
+  intentionally outside that sweep.
+- `workspace`: no deleted command-model token growth. Remaining live
+  hits are intentional: the `.code-workspace` file format name (the VS
+  Code convention), `workspace-file` opener style, compatibility tests,
+  and historical comments. Generated templates remain pinned
+  residue-free by the parity test.
 - `initiative`: one genuine finding — `ChangeStatus.initiative`
   (instruction-loader) still passes a stored legacy initiative link
   through to status JSON. Reading legacy metadata is user-data
@@ -52,7 +55,9 @@ the fixes).
   residue. Queued in the fix round: drop the passthrough, keep the
   schema parse tolerance. The `initiative_option_removed` rejection
   string is deliberate (the ledger's recorded survivor).
-- `docs/cli.md` and README: clean on all three families.
+- `docs/cli.md` and README: clean for retired `context store` forms and
+  old command-model terms; live `.code-workspace` wording remains by
+  design.
 
 ## Time-to-first-success: 2 commands, 2 concepts
 

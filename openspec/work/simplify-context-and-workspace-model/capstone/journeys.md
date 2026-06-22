@@ -9,7 +9,7 @@ through the rename and deletions): machine A creates a store via
 `store setup` (committed, clonable), works a change through archive
 from a pointer project repo, the project repo stays byte-identical;
 machine B clones, registers without ceremony, reads promoted specs.
-Green in every full-suite run (part of the 1714).
+Green in every full-suite run (now part of the 1,761-test suite).
 
 ## Journey 2 — Layered PM-to-dev flow: PASS (new e2e)
 

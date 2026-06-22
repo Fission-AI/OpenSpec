@@ -312,4 +312,3 @@ Generated workflow skills SHALL use OpenSpec CLI output as the source of truth f
 - **WHEN** a generated workflow skill is about to create or update an artifact
 - **THEN** it SHALL instruct the agent to run `openspec instructions <artifact> --change <id> --json`
 - **AND** it SHALL write to the resolved artifact path returned by the command
-

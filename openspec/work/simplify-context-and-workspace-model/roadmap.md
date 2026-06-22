@@ -922,7 +922,8 @@ Progress:
   27 files, −2,196 lines; CP2 added `openspec context` with the JSON
   agent brief, human listing, and `--code-workspace` emitter;
   three-mechanism review and a simplify pass folded).
-- [x] Tests pass (full suite green, 96 files / 1714 tests).
+- [x] Tests pass (checkpoint suite green; current PR head is green at
+  97 files / 1,761 tests).
 - [ ] Merged to `main`.
 
 What the user can do:
@@ -1006,9 +1007,10 @@ Progress:
   from `cli-config` and `cli-artifact-workflow` (bounded, not a
   rewrite), incidental mentions elsewhere recorded for the capstone
   vocabulary audit.
-- [x] Tests or review checks pass. First tranche green (85 files, 1616
-  tests; three-mechanism review, no open P1/P2). Remainder green
-  (96 files, 1714 tests; all 36 accepted specs validate).
+- [x] Tests or review checks pass. First tranche green (85 files, 1,616
+  tests; three-mechanism review, no open P1/P2). Remainder green at its
+  checkpoint; current PR head is green at 97 files / 1,761 tests and all
+  36 accepted specs validate.
 - [ ] Merged to `main`.
 
 What the user can do:
@@ -1074,15 +1076,15 @@ Progress:
   direction, dead code, module sizes, agent-contract inventory, net LOC
   delta reported). Results: `capstone/technical-audits.md` — both
   invariants HOLD with zero violations; dead code yields five P3s
-  (queued) and no P2s; module sizes bounded (largest 1,160 lines); the
+  (queued) and no P2s; module sizes bounded (largest 1,196 lines); the
   agent contract is documented in `docs/agent-contract.md` (every JSON
   shape + 100+ diagnostic codes verified against emitting code, 14
-  consistency findings recorded, one gauntlet-grade); src net LOC is
-  **−4,478** vs origin/main.
+  consistency findings recorded, one gauntlet-grade); current PR-head
+  src net LOC is **−3,189** vs origin/main.
 - [x] Whole-delta review gauntlet over `origin/main...HEAD` passed with no
   open P1/P2 findings. Four mechanisms (`capstone/gauntlet.md`); the 2
   P1 + 13 P2 findings all fixed (37ad867) and live re-verified; full
-  suite green (97 files, 1,717 tests); all 36 accepted specs validate.
+  suite green (97 files, 1,761 tests); all 36 accepted specs validate.
 - [x] Release-readiness report committed
   (`capstone/release-readiness.md`) — the five-minute story, all audit
   results, the autonomous-decision ledger, known gaps mapped to Later
@@ -1597,9 +1599,9 @@ is working:
   failure paths in validate/show/status/instructions print stderr
   only, no JSON document) queued for the gauntlet fix round; key-casing
   and envelope-unification findings recorded as known gaps (published
-  JSON renames are product decisions). Net LOC vs origin/main: src
-  −4,478 (deletions outweigh the rebuild), test −325; gross insertions
-  dominated by openspec/work planning artifacts.
+  JSON renames are product decisions). Current PR-head net LOC vs
+  origin/main: src −3,189 (deletions outweigh the rebuild), test +956;
+  gross insertions dominated by openspec/work planning artifacts.
 - 2026-06-11: Capstone (6.1) usability audits done
   (`capstone/usability-audits.md`). The error-catalog walk covered 55
   wrong turns live (human + JSON): 46 pass against the
@@ -1641,7 +1643,7 @@ is working:
   deliberately short of the broad docs rewrite the roadmap forbids.
   Incidental workspace mentions in five other specs recorded as
   capstone vocabulary-audit input. All 36 remaining accepted specs
-  validate; full suite green untouched (1714 tests).
+  validate; the current PR-head full suite is green at 1,761 tests.
 - 2026-06-11: Implemented slice 4.1 in two checkpoints plus a
   review-fix round and a simplify pass, completing Phase 4. CP1
   executed the deletion ledger's carve-outs widened to whole-module

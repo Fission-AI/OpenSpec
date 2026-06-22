@@ -244,4 +244,3 @@ OpenSpec CLI design SHALL use verbs as top-level commands with nouns provided as
 - **WHEN** item names are ambiguous between changes and specs
 - **THEN** `openspec show` and `openspec validate` SHALL accept `--type spec|change`
 - **AND** the help text SHALL document this clearly
-
