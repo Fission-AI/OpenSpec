@@ -32,6 +32,18 @@ Disabling or removing a plugin SHALL remove only that plugin's managed artifacts
 - **THEN** OpenSpec SHALL remove only the artifacts it installed for that plugin
 - **AND** SHALL NOT remove core artifacts or user-authored files
 
+### Requirement: Contributed paths are constrained to prevent traversal
+Plugin-contributed skill paths SHALL be confined to safe locations: an install directory name SHALL be a single path segment, and a source path SHALL stay inside the plugin package. OpenSpec SHALL reject traversal at manifest validation and SHALL re-check containment before every copy or delete.
+
+#### Scenario: Manifest declares a traversing skill path
+- **WHEN** a manifest declares a skill `dir` containing a path separator or `..`, or a `source` that is absolute or contains `..`
+- **THEN** OpenSpec SHALL treat the manifest as invalid
+
+#### Scenario: Containment enforced at filesystem operations
+- **WHEN** OpenSpec installs or removes a contributed skill
+- **THEN** it SHALL resolve the target and verify it is inside the tool skills directory (for installs/removals) and inside the plugin package (for sources)
+- **AND** SHALL skip any operation whose resolved target escapes those boundaries
+
 ### Requirement: Resilient handling of malformed contributions
 A malformed contributed template SHALL NOT abort initialization or update.
 

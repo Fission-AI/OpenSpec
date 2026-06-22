@@ -41,6 +41,7 @@
 - [x] 5.2 Merge plugin-contributed skills with core skills in the install path. Interim approach (implemented): a standalone `collectContributedSkills`/`installContributedSkills` module that `init`/`update` call alongside the existing `getSkillTemplates` flow — it does not depend on any new exports. Note: `unify-template-generation-pipeline` is a separate **in-flight** change, not an existing function in `src/core/shared/skill-generation.ts`; when it lands, fold this contribution step into the unified pipeline rather than calling it separately
 - [x] 5.3 Track contributed artifacts by explicit, plugin-namespaced names for safe cleanup (no pattern matching)
 - [x] 5.4 Validate contributed templates (well-formed skill/command files) and skip with a warning on failure rather than aborting init/update
+- [x] 5.6 Path-safety: validate `skills[].dir` as a single safe segment and `skills[].source` as a relative in-package path at manifest validation; re-enforce containment (resolved target inside the tool skills dir / plugin package) before every copy and delete. Regression tests for `../`, absolute, nested, and Windows-separator paths
 - [x] 5.5 Unit tests: merge correctness, name tracking, malformed-template skip, delivery-mode interaction (`both`/`skills`/`commands`)
 
 ## 6. CLI: `openspec plugin` Command Group

@@ -30,15 +30,61 @@ export const RESERVED_NAMESPACES: readonly string[] = [
 
 const NAMESPACE_PATTERN = /^[a-z][a-z0-9-]*$/;
 
+// A contributed skill install directory must be a single safe path segment —
+// no separators, no "." / "..", no leading dot — so it cannot escape the tool
+// skills directory.
+const SAFE_DIR_NAME = /^[A-Za-z0-9_][A-Za-z0-9._-]*$/;
+
+/** True when `name` is a single, safe directory segment (no traversal). */
+export function isSafeSkillDirName(name: string): boolean {
+  return (
+    name !== '.' &&
+    name !== '..' &&
+    !name.includes('/') &&
+    !name.includes('\\') &&
+    SAFE_DIR_NAME.test(name)
+  );
+}
+
+/**
+ * True when `source` is a relative path that stays inside the plugin package:
+ * not absolute (POSIX or Windows), no drive letter, and no `..` segment.
+ */
+export function isSafeSkillSource(source: string): boolean {
+  if (source.trim() === '') return false;
+  if (path.isAbsolute(source)) return false;
+  if (source.startsWith('/') || source.startsWith('\\')) return false;
+  if (/^[A-Za-z]:/.test(source)) return false; // Windows drive (C:...)
+  const segments = source.split(/[\\/]+/);
+  return !segments.some((segment) => segment === '..');
+}
+
 const CommandDescriptorSchema = z.object({
   name: z.string().min(1),
   summary: z.string().optional(),
 });
 
-const SkillContributionSchema = z.object({
-  dir: z.string().min(1),
-  source: z.string().min(1),
-});
+const SkillContributionSchema = z
+  .object({
+    dir: z.string().min(1),
+    source: z.string().min(1),
+  })
+  .superRefine((value, ctx) => {
+    if (!isSafeSkillDirName(value.dir)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['dir'],
+        message: `skill "dir" must be a single safe directory name (no path separators, "." or "..")`,
+      });
+    }
+    if (!isSafeSkillSource(value.source)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['source'],
+        message: `skill "source" must be a relative path inside the package (no absolute paths or "..")`,
+      });
+    }
+  });
 
 /**
  * Zod schema for a plugin manifest. Uses `.passthrough()` so unknown fields from

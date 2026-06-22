@@ -6,6 +6,8 @@ import {
   validateManifest,
   loadManifestFromRoot,
   packageDeclaresPlugin,
+  isSafeSkillDirName,
+  isSafeSkillSource,
   RESERVED_NAMESPACES,
 } from '../../../src/core/plugins/manifest.js';
 
@@ -65,6 +67,53 @@ describe('plugins/manifest validateManifest', () => {
     expect(RESERVED_NAMESPACES).toContain('init');
     expect(RESERVED_NAMESPACES).toContain('spec');
     expect(RESERVED_NAMESPACES).toContain('plugin');
+  });
+
+  it('accepts a safe skill contribution', () => {
+    const result = validateManifest({
+      ...validManifest,
+      skills: [{ dir: 'demo-orient', source: 'skills/demo-orient' }],
+    });
+    expect(result.valid).toBe(true);
+  });
+
+  it.each([
+    ['traversal dir', { dir: '../evil', source: 'skills/x' }],
+    ['separator in dir', { dir: 'a/b', source: 'skills/x' }],
+    ['backslash in dir', { dir: 'a\\b', source: 'skills/x' }],
+    ['dot dir', { dir: '..', source: 'skills/x' }],
+    ['absolute source', { dir: 'good', source: '/etc/passwd' }],
+    ['traversal source', { dir: 'good', source: '../../secrets' }],
+    ['backslash traversal source', { dir: 'good', source: '..\\..\\secrets' }],
+    ['windows drive source', { dir: 'good', source: 'C:\\Windows' }],
+    ['leading-slash source', { dir: 'good', source: '/abs' }],
+  ])('rejects unsafe skill path: %s', (_label, skill) => {
+    const result = validateManifest({ ...validManifest, skills: [skill] });
+    expect(result.valid).toBe(false);
+  });
+});
+
+describe('plugins/manifest safe-path helpers', () => {
+  it('isSafeSkillDirName accepts single safe segments', () => {
+    expect(isSafeSkillDirName('demo-orient')).toBe(true);
+    expect(isSafeSkillDirName('a_b.c')).toBe(true);
+  });
+
+  it('isSafeSkillDirName rejects traversal and separators', () => {
+    for (const bad of ['..', '.', '../x', 'a/b', 'a\\b', '', '.hidden']) {
+      expect(isSafeSkillDirName(bad)).toBe(false);
+    }
+  });
+
+  it('isSafeSkillSource accepts relative in-package paths', () => {
+    expect(isSafeSkillSource('skills/demo')).toBe(true);
+    expect(isSafeSkillSource('a/b/c')).toBe(true);
+  });
+
+  it('isSafeSkillSource rejects absolute and traversal', () => {
+    for (const bad of ['/etc', '../x', 'a/../b', 'C:\\x', '\\unc', '']) {
+      expect(isSafeSkillSource(bad)).toBe(false);
+    }
   });
 });
 

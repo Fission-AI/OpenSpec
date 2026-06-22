@@ -11,6 +11,17 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { resolvePlugins, activePlugins } from './resolver.js';
+import { isSafeSkillDirName, isSafeSkillSource } from './manifest.js';
+
+/**
+ * True when `child` resolves to a location strictly inside `parent`.
+ * Defense-in-depth: even though manifests are validated, every filesystem
+ * operation re-checks containment so a crafted path can never escape.
+ */
+function isPathInside(parent: string, child: string): boolean {
+  const rel = path.relative(path.resolve(parent), path.resolve(child));
+  return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
+}
 
 export interface ContributedSkill {
   pluginId: string;
@@ -31,7 +42,20 @@ export function collectContributedSkills(projectRoot: string): ContributedSkill[
 
   for (const plugin of plugins) {
     for (const skill of plugin.manifest.skills ?? []) {
-      const sourceDir = path.join(plugin.packageRoot, skill.source);
+      // Defense-in-depth: reject traversal even if a manifest bypassed validation.
+      if (!isSafeSkillDirName(skill.dir) || !isSafeSkillSource(skill.source)) {
+        console.warn(
+          `Warning: plugin "${plugin.id}" declares an unsafe skill path ("${skill.dir}" / "${skill.source}"); skipping.`
+        );
+        continue;
+      }
+      const sourceDir = path.resolve(plugin.packageRoot, skill.source);
+      if (!isPathInside(plugin.packageRoot, sourceDir)) {
+        console.warn(
+          `Warning: plugin "${plugin.id}" skill source escapes its package; skipping.`
+        );
+        continue;
+      }
       const skillFile = path.join(sourceDir, 'SKILL.md');
       if (!fs.existsSync(skillFile)) {
         console.warn(
@@ -55,7 +79,10 @@ export function collectKnownPluginSkillDirs(projectRoot: string): string[] {
   const names = new Set<string>();
   for (const plugin of resolvePlugins(projectRoot).plugins) {
     for (const skill of plugin.manifest.skills ?? []) {
-      names.add(skill.dir);
+      // Only ever track safe single-segment names — these feed directory removal.
+      if (isSafeSkillDirName(skill.dir)) {
+        names.add(skill.dir);
+      }
     }
   }
   return [...names];
@@ -71,7 +98,9 @@ export function installContributedSkills(
 ): string[] {
   const installed: string[] = [];
   for (const skill of skills) {
-    const dest = path.join(toolSkillsDir, skill.dirName);
+    if (!isSafeSkillDirName(skill.dirName)) continue;
+    const dest = path.resolve(toolSkillsDir, skill.dirName);
+    if (!isPathInside(toolSkillsDir, dest)) continue;
     try {
       fs.rmSync(dest, { recursive: true, force: true });
       fs.cpSync(skill.sourceDir, dest, { recursive: true });
@@ -90,7 +119,11 @@ export function installContributedSkills(
  * Only the named, plugin-owned directory is touched.
  */
 export function removeContributedSkill(toolSkillsDir: string, dirName: string): boolean {
-  const dest = path.join(toolSkillsDir, dirName);
+  // Never delete based on a name that isn't a single safe segment, and re-check
+  // containment so a crafted name can never target a path outside the skills dir.
+  if (!isSafeSkillDirName(dirName)) return false;
+  const dest = path.resolve(toolSkillsDir, dirName);
+  if (!isPathInside(toolSkillsDir, dest)) return false;
   if (fs.existsSync(dest)) {
     fs.rmSync(dest, { recursive: true, force: true });
     return true;
