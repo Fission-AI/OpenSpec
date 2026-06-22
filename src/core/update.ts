@@ -713,6 +713,9 @@ export class UpdateCommand {
     const shouldGenerateCommands = delivery !== 'skills';
     const skillTemplates = shouldGenerateSkills ? getSkillTemplates(desiredWorkflows) : [];
     const commandContents = shouldGenerateCommands ? getCommandContents(desiredWorkflows) : [];
+    // Plugin-contributed skills land for newly-configured legacy tools in the same
+    // run, not just on the next update.
+    const legacyContributedSkills = shouldGenerateSkills ? collectContributedSkills(projectPath) : [];
 
     for (const toolId of selectedTools) {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
@@ -734,6 +737,9 @@ export class UpdateCommand {
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
+
+          // Install active plugin-contributed skills for this legacy tool too.
+          installContributedSkills(skillsDir, legacyContributedSkills);
         }
 
         // Create commands when delivery includes commands
