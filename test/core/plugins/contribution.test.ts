@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import {
   collectContributedSkills,
-  collectKnownPluginSkillDirs,
+  collectKnownPluginSkillRefs,
   hasContributionDrift,
   installContributedSkills,
   removeContributedSkill,
@@ -113,10 +113,10 @@ describe('plugins/contribution', () => {
     fs.mkdirSync(path.join(toolSkillsDir, 'openspec-explore'), { recursive: true });
     fs.writeFileSync(path.join(toolSkillsDir, 'openspec-explore', 'SKILL.md'), '#');
 
-    expect(removeContributedSkill(toolSkillsDir, 'good-orient')).toBe(true);
+    expect(removeContributedSkill(toolSkillsDir, 'good-orient', 'good-engine')).toBe(true);
     expect(fs.existsSync(path.join(toolSkillsDir, 'good-orient'))).toBe(false);
     // Unowned dir of the same shape must not be removed even if asked by name.
-    expect(removeContributedSkill(toolSkillsDir, 'openspec-explore')).toBe(false);
+    expect(removeContributedSkill(toolSkillsDir, 'openspec-explore', 'good-engine')).toBe(false);
     expect(fs.existsSync(path.join(toolSkillsDir, 'openspec-explore'))).toBe(true);
   });
 
@@ -184,8 +184,8 @@ describe('plugins/contribution', () => {
     const sentinel = path.join(projectRoot, '.claude', 'KEEP.md');
     fs.writeFileSync(sentinel, 'do not delete');
 
-    expect(removeContributedSkill(toolSkillsDir, '../KEEP.md')).toBe(false);
-    expect(removeContributedSkill(toolSkillsDir, '..\\KEEP.md')).toBe(false);
+    expect(removeContributedSkill(toolSkillsDir, '../KEEP.md', 'evil')).toBe(false);
+    expect(removeContributedSkill(toolSkillsDir, '..\\KEEP.md', 'evil')).toBe(false);
     expect(fs.existsSync(sentinel)).toBe(true);
   });
 
@@ -196,7 +196,10 @@ describe('plugins/contribution', () => {
       skillDir: 'good-orient',
       withSkillFile: true,
     });
-    expect(collectKnownPluginSkillDirs(projectRoot)).toContain('good-orient');
+    expect(collectKnownPluginSkillRefs(projectRoot)).toContainEqual({
+      dirName: 'good-orient',
+      pluginId: 'good-engine',
+    });
   });
 
   it('detects drift: active skill not yet installed, and inactive owned skill present', () => {
@@ -209,7 +212,7 @@ describe('plugins/contribution', () => {
     const toolSkillsDir = path.join(projectRoot, '.claude', 'skills');
     fs.mkdirSync(toolSkillsDir, { recursive: true });
     const contributed = collectContributedSkills(projectRoot);
-    const known = collectKnownPluginSkillDirs(projectRoot);
+    const known = collectKnownPluginSkillRefs(projectRoot);
 
     // Active skill not installed yet -> drift.
     expect(hasContributionDrift(toolSkillsDir, contributed, known, true)).toBe(true);
@@ -225,6 +228,38 @@ describe('plugins/contribution', () => {
     expect(hasContributionDrift(toolSkillsDir, [], known, false)).toBe(true);
   });
 
+  it('binds ownership to the plugin: a second plugin cannot clobber the first', () => {
+    const toolSkillsDir = path.join(projectRoot, '.claude', 'skills');
+    fs.mkdirSync(toolSkillsDir, { recursive: true });
+    const srcA = path.join(tempDir, 'pkgA', 'skills', 'shared');
+    const srcB = path.join(tempDir, 'pkgB', 'skills', 'shared');
+    fs.mkdirSync(srcA, { recursive: true });
+    fs.mkdirSync(srcB, { recursive: true });
+    fs.writeFileSync(path.join(srcA, 'SKILL.md'), 'FROM-A');
+    fs.writeFileSync(path.join(srcB, 'SKILL.md'), 'FROM-B');
+
+    // Plugin A installs "shared".
+    expect(
+      installContributedSkills(toolSkillsDir, [
+        { pluginId: 'A', version: '1.0.0', packageRoot: path.join(tempDir, 'pkgA'), dirName: 'shared', sourceDir: srcA },
+      ])
+    ).toEqual(['shared']);
+
+    // Plugin B with the same dirName is refused; A's content is intact.
+    expect(
+      installContributedSkills(toolSkillsDir, [
+        { pluginId: 'B', version: '1.0.0', packageRoot: path.join(tempDir, 'pkgB'), dirName: 'shared', sourceDir: srcB },
+      ])
+    ).toEqual([]);
+    expect(fs.readFileSync(path.join(toolSkillsDir, 'shared', 'SKILL.md'), 'utf-8')).toBe('FROM-A');
+
+    // B cannot remove A's directory; A can.
+    expect(removeContributedSkill(toolSkillsDir, 'shared', 'B')).toBe(false);
+    expect(fs.existsSync(path.join(toolSkillsDir, 'shared'))).toBe(true);
+    expect(removeContributedSkill(toolSkillsDir, 'shared', 'A')).toBe(true);
+    expect(fs.existsSync(path.join(toolSkillsDir, 'shared'))).toBe(false);
+  });
+
   it('detects drift when the plugin version changes (upgrade refresh)', () => {
     const toolSkillsDir = path.join(projectRoot, '.claude', 'skills');
     fs.mkdirSync(toolSkillsDir, { recursive: true });
@@ -234,12 +269,13 @@ describe('plugins/contribution', () => {
     const src = path.join(projectRoot, 'node_modules', 'p', 'skills', 'p-orient');
     fs.mkdirSync(src, { recursive: true });
     fs.writeFileSync(path.join(src, 'SKILL.md'), '#');
+    const refs = [{ dirName: 'p-orient', pluginId: 'p' }];
     const v1 = [{ ...base[0], version: '1.0.0', sourceDir: src }];
     installContributedSkills(toolSkillsDir, v1);
-    expect(hasContributionDrift(toolSkillsDir, v1, ['p-orient'], true)).toBe(false);
+    expect(hasContributionDrift(toolSkillsDir, v1, refs, true)).toBe(false);
 
     // Same dir, new plugin version -> drift (needs refresh).
     const v2 = [{ ...base[0], version: '2.0.0', sourceDir: src }];
-    expect(hasContributionDrift(toolSkillsDir, v2, ['p-orient'], true)).toBe(true);
+    expect(hasContributionDrift(toolSkillsDir, v2, refs, true)).toBe(true);
   });
 });

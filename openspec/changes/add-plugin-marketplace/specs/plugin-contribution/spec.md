@@ -32,10 +32,11 @@ Disabling or removing a plugin SHALL remove only that plugin's managed artifacts
 - **THEN** OpenSpec SHALL remove only the artifacts it installed for that plugin
 - **AND** SHALL NOT remove core artifacts or user-authored files
 
-#### Scenario: Name collision with an unowned directory
-- **WHEN** a plugin's contributed skill directory name matches an existing core or user directory that OpenSpec did not install
+#### Scenario: Name collision with a directory owned by something else
+- **WHEN** a plugin's contributed skill directory name matches an existing directory that OpenSpec did not install for that same plugin (a core skill, a user directory, or another plugin's skill)
 - **THEN** OpenSpec SHALL NOT overwrite or delete that directory
-- **AND** SHALL skip the contribution rather than clobber unowned files
+- **AND** SHALL skip the contribution rather than clobber it
+- **AND** removal SHALL only affect a directory whose ownership marker names the requesting plugin
 
 ### Requirement: Contributed paths are constrained to prevent traversal
 Plugin-contributed skill paths SHALL be confined to safe locations: an install directory name SHALL be a single path segment, and a source path SHALL stay inside the plugin package. OpenSpec SHALL reject traversal at manifest validation and SHALL re-check containment before every copy or delete.

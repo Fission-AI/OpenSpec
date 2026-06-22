@@ -27,7 +27,7 @@ import {
 } from './shared/index.js';
 import {
   collectContributedSkills,
-  collectKnownPluginSkillDirs,
+  collectKnownPluginSkillRefs,
   hasContributionDrift,
   installContributedSkills,
   removeContributedSkill,
@@ -144,8 +144,8 @@ export class UpdateCommand {
     // enabling/disabling a plugin is treated as pending work even when core tool
     // assets are already current. Tracked by name, never pattern.
     const contributedSkills = collectContributedSkills(resolvedProjectPath);
-    const activeContributedDirs = new Set(contributedSkills.map((s) => s.dirName));
-    const knownContributedDirs = collectKnownPluginSkillDirs(resolvedProjectPath);
+    const activePluginIds = new Set(contributedSkills.map((s) => s.pluginId));
+    const knownSkillRefs = collectKnownPluginSkillRefs(resolvedProjectPath);
 
     // 7. Smart update detection
     const toolsNeedingVersionUpdate = toolStatuses
@@ -164,7 +164,7 @@ export class UpdateCommand {
       return hasContributionDrift(
         skillsDir,
         contributedSkills,
-        knownContributedDirs,
+        knownSkillRefs,
         shouldGenerateSkills
       );
     });
@@ -230,11 +230,12 @@ export class UpdateCommand {
 
           removedDeselectedSkillCount += await this.removeUnselectedSkillDirs(skillsDir, desiredWorkflows);
 
-          // Install active plugin-contributed skills; remove those for disabled plugins.
+          // Install active plugin-contributed skills; remove those for plugins that
+          // are no longer active, matching the dir's ownership marker to the plugin.
           installContributedSkills(skillsDir, contributedSkills);
-          for (const dirName of knownContributedDirs) {
-            if (!activeContributedDirs.has(dirName)) {
-              removeContributedSkill(skillsDir, dirName);
+          for (const ref of knownSkillRefs) {
+            if (!activePluginIds.has(ref.pluginId)) {
+              removeContributedSkill(skillsDir, ref.dirName, ref.pluginId);
             }
           }
         }
@@ -243,8 +244,8 @@ export class UpdateCommand {
         if (!shouldGenerateSkills) {
           removedSkillCount += await this.removeSkillDirs(skillsDir);
           // Commands-only delivery: remove all known plugin-contributed skills too.
-          for (const dirName of knownContributedDirs) {
-            removeContributedSkill(skillsDir, dirName);
+          for (const ref of knownSkillRefs) {
+            removeContributedSkill(skillsDir, ref.dirName, ref.pluginId);
           }
         }
 
