@@ -25,9 +25,11 @@ interface Version {
 
 function parseVersion(input: string): Version | null {
   const cleaned = input.trim().replace(/^v/, '').split('-')[0].split('+')[0];
+  if (cleaned === '') return null;
   const parts = cleaned.split('.');
-  if (parts.length === 0 || parts.length > 3) return null;
-  const nums = parts.map((p) => (p === 'x' || p === 'X' || p === '*' ? 0 : Number(p)));
+  // Reject empty segments ("1.", "1..2") so malformed versions fail closed.
+  if (parts.length === 0 || parts.length > 3 || parts.some((p) => p.trim() === '')) return null;
+  const nums = parts.map((p) => Number(p));
   if (nums.some((n) => !Number.isInteger(n) || n < 0)) return null;
   return { major: nums[0] ?? 0, minor: nums[1] ?? 0, patch: nums[2] ?? 0 };
 }

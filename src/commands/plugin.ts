@@ -192,10 +192,25 @@ async function addPlugin(
       const res = crossSpawn.sync('npm', ['install', '--save-dev', npmName], { stdio: 'inherit' });
       if (res.status !== 0) throw new Error(`Failed to install ${npmName}.`);
       clearPluginResolutionCache();
-      // Re-resolve to pick up the freshly installed plugin id.
-      const after = resolvePlugins(projectRoot).plugins.find((p) => p.namespace === registryEntry?.namespace || p.id === idOrNpm);
-      const enableId = after?.id ?? registryEntry?.id ?? idOrNpm;
-      reportEnable(projectRoot, enableId);
+      // Re-resolve and only enable a genuinely-discovered, compatible manifest —
+      // never fall back to the registry/raw name (could be a non-plugin package).
+      const after = resolvePlugins(projectRoot).plugins.find(
+        (p) =>
+          p.id === registryEntry?.id ||
+          p.namespace === registryEntry?.namespace ||
+          p.id === idOrNpm
+      );
+      if (!after) {
+        throw new Error(
+          `Installed ${npmName}, but no OpenSpec plugin manifest was discovered in it.`
+        );
+      }
+      if (!after.compatible && !options.force) {
+        throw new Error(
+          `${after.id} requires OpenSpec ${after.manifest.openspecCompat} (current ${getOpenSpecVersion()}). Re-run with --force to enable anyway.`
+        );
+      }
+      reportEnable(projectRoot, after.id);
       return;
     }
 

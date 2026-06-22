@@ -83,7 +83,7 @@ describe('plugins/contribution', () => {
     expect(dirs).not.toContain('bad-orient');
   });
 
-  it('installs a contributed skill into a tool skills dir', () => {
+  it('installs a contributed skill into a tool skills dir and marks ownership', () => {
     writePluginWithSkill(projectRoot, 'good-engine', {
       id: 'good-engine',
       namespace: 'good',
@@ -94,37 +94,89 @@ describe('plugins/contribution', () => {
     const installed = installContributedSkills(toolSkillsDir, collectContributedSkills(projectRoot));
     expect(installed).toEqual(['good-orient']);
     expect(fs.existsSync(path.join(toolSkillsDir, 'good-orient', 'SKILL.md'))).toBe(true);
+    // Ownership marker written so cleanup can tell our dirs from core/user dirs.
+    expect(fs.existsSync(path.join(toolSkillsDir, 'good-orient', '.openspec-plugin-skill.json'))).toBe(true);
   });
 
-  it('removes only the named contributed skill', () => {
+  it('removes a plugin-owned skill but not unowned (core/user) directories', () => {
     const toolSkillsDir = path.join(projectRoot, '.claude', 'skills');
-    fs.mkdirSync(path.join(toolSkillsDir, 'good-orient'), { recursive: true });
-    fs.writeFileSync(path.join(toolSkillsDir, 'good-orient', 'SKILL.md'), '#');
+    // Install a real plugin skill (gets the ownership marker).
+    writePluginWithSkill(projectRoot, 'good-engine', {
+      id: 'good-engine',
+      namespace: 'good',
+      skillDir: 'good-orient',
+      withSkillFile: true,
+    });
+    installContributedSkills(toolSkillsDir, collectContributedSkills(projectRoot));
+    // A core/user skill dir WITHOUT the marker.
     fs.mkdirSync(path.join(toolSkillsDir, 'openspec-explore'), { recursive: true });
+    fs.writeFileSync(path.join(toolSkillsDir, 'openspec-explore', 'SKILL.md'), '#');
 
     expect(removeContributedSkill(toolSkillsDir, 'good-orient')).toBe(true);
     expect(fs.existsSync(path.join(toolSkillsDir, 'good-orient'))).toBe(false);
-    // Unrelated core skill left untouched.
+    // Unowned dir of the same shape must not be removed even if asked by name.
+    expect(removeContributedSkill(toolSkillsDir, 'openspec-explore')).toBe(false);
     expect(fs.existsSync(path.join(toolSkillsDir, 'openspec-explore'))).toBe(true);
   });
 
-  it('refuses to install a skill whose dirName escapes the tool dir', () => {
+  it('does not overwrite an existing non-plugin directory on name collision', () => {
+    const toolSkillsDir = path.join(projectRoot, '.claude', 'skills');
+    // Pre-existing core/user dir with no ownership marker.
+    fs.mkdirSync(path.join(toolSkillsDir, 'good-orient'), { recursive: true });
+    fs.writeFileSync(path.join(toolSkillsDir, 'good-orient', 'SKILL.md'), 'CORE');
+
+    writePluginWithSkill(projectRoot, 'good-engine', {
+      id: 'good-engine',
+      namespace: 'good',
+      skillDir: 'good-orient',
+      withSkillFile: true,
+    });
+    const installed = installContributedSkills(toolSkillsDir, collectContributedSkills(projectRoot));
+    expect(installed).toEqual([]); // refused
+    expect(fs.readFileSync(path.join(toolSkillsDir, 'good-orient', 'SKILL.md'), 'utf-8')).toBe('CORE');
+  });
+
+  it('refuses to install a skill whose dirName escapes the tool dir (POSIX and Windows separators)', () => {
     const toolSkillsDir = path.join(projectRoot, '.claude', 'skills');
     fs.mkdirSync(toolSkillsDir, { recursive: true });
-    // A source that exists, but a malicious install dirName.
-    const src = path.join(tempDir, 'src-skill');
+    const pkg = path.join(tempDir, 'pkg');
+    const src = path.join(pkg, 'skills', 'x');
     fs.mkdirSync(src, { recursive: true });
     fs.writeFileSync(path.join(src, 'SKILL.md'), '#');
 
-    const installed = installContributedSkills(toolSkillsDir, [
-      { pluginId: 'evil', dirName: '../../escaped', sourceDir: src },
-    ]);
-    expect(installed).toEqual([]);
+    expect(
+      installContributedSkills(toolSkillsDir, [
+        { pluginId: 'evil', packageRoot: pkg, dirName: '../../escaped', sourceDir: src },
+      ])
+    ).toEqual([]);
+    expect(
+      installContributedSkills(toolSkillsDir, [
+        { pluginId: 'evil', packageRoot: pkg, dirName: '..\\..\\escaped', sourceDir: src },
+      ])
+    ).toEqual([]);
     expect(fs.existsSync(path.join(projectRoot, '.claude', 'escaped'))).toBe(false);
     expect(fs.existsSync(path.join(tempDir, 'escaped'))).toBe(false);
   });
 
-  it('refuses to remove a path that escapes the tool dir', () => {
+  it('refuses to install when the source escapes the plugin package', () => {
+    const toolSkillsDir = path.join(projectRoot, '.claude', 'skills');
+    fs.mkdirSync(toolSkillsDir, { recursive: true });
+    const pkg = path.join(tempDir, 'pkg');
+    fs.mkdirSync(pkg, { recursive: true });
+    // Source outside the declared package root.
+    const outside = path.join(tempDir, 'outside-skill');
+    fs.mkdirSync(outside, { recursive: true });
+    fs.writeFileSync(path.join(outside, 'SKILL.md'), '#');
+
+    expect(
+      installContributedSkills(toolSkillsDir, [
+        { pluginId: 'evil', packageRoot: pkg, dirName: 'good', sourceDir: outside },
+      ])
+    ).toEqual([]);
+    expect(fs.existsSync(path.join(toolSkillsDir, 'good'))).toBe(false);
+  });
+
+  it('refuses to remove a path that escapes the tool dir (POSIX and Windows separators)', () => {
     const toolSkillsDir = path.join(projectRoot, '.claude', 'skills');
     fs.mkdirSync(toolSkillsDir, { recursive: true });
     // Sentinel outside the skills dir that must not be deleted.
@@ -132,6 +184,7 @@ describe('plugins/contribution', () => {
     fs.writeFileSync(sentinel, 'do not delete');
 
     expect(removeContributedSkill(toolSkillsDir, '../KEEP.md')).toBe(false);
+    expect(removeContributedSkill(toolSkillsDir, '..\\KEEP.md')).toBe(false);
     expect(fs.existsSync(sentinel)).toBe(true);
   });
 

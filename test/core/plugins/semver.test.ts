@@ -53,4 +53,11 @@ describe('plugins/semver satisfies', () => {
   it('returns false on unparseable version', () => {
     expect(satisfies('not-a-version', '>=1.0.0')).toBe(false);
   });
+
+  it('fails closed on empty/malformed version segments', () => {
+    expect(satisfies('1.', '>=1.0.0')).toBe(false);
+    expect(satisfies('1..2', '>=1.0.0')).toBe(false);
+    expect(satisfies('', '>=1.0.0')).toBe(false);
+    expect(satisfies('1.4.1', '>=1.')).toBe(false); // malformed comparand
+  });
 });

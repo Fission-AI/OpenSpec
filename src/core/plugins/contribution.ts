@@ -6,12 +6,22 @@
  * using the same delivery pipeline. Contributed artifacts are tracked by their
  * plugin-namespaced directory name so they can be removed safely; malformed
  * contributions are skipped with a warning rather than aborting init/update.
+ *
+ * Filesystem safety (defense-in-depth):
+ *  - skill `dir`/`source` are validated as safe at manifest load AND re-checked here;
+ *  - source containment is re-verified (via realpath) immediately before each copy;
+ *  - an ownership marker is written into every installed skill dir, and a directory
+ *    is only overwritten/removed when it carries OpenSpec's marker — so a plugin can
+ *    never clobber a core skill or an unrelated user directory via a colliding name.
  */
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { resolvePlugins, activePlugins } from './resolver.js';
 import { isSafeSkillDirName, isSafeSkillSource } from './manifest.js';
+
+/** Marker file written into every plugin-installed skill directory. */
+const OWNERSHIP_MARKER = '.openspec-plugin-skill.json';
 
 /**
  * True when `child` resolves to a location strictly inside `parent`.
@@ -23,8 +33,24 @@ function isPathInside(parent: string, child: string): boolean {
   return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
 }
 
+/** Real (symlink-resolved) path, or null if it does not exist. */
+function realpathOrNull(p: string): string | null {
+  try {
+    return fs.realpathSync.native(p);
+  } catch {
+    return null;
+  }
+}
+
+/** True when `dir` exists and was installed by OpenSpec for a plugin. */
+function isOwnedSkillDir(dir: string): boolean {
+  return fs.existsSync(path.join(dir, OWNERSHIP_MARKER));
+}
+
 export interface ContributedSkill {
   pluginId: string;
+  /** Absolute plugin package root, used to re-check source containment at copy time. */
+  packageRoot: string;
   /** Directory name the skill is installed as. */
   dirName: string;
   /** Absolute path to the skill source directory within the plugin package. */
@@ -63,7 +89,12 @@ export function collectContributedSkills(projectRoot: string): ContributedSkill[
         );
         continue;
       }
-      skills.push({ pluginId: plugin.id, dirName: skill.dir, sourceDir });
+      skills.push({
+        pluginId: plugin.id,
+        packageRoot: plugin.packageRoot,
+        dirName: skill.dir,
+        sourceDir,
+      });
     }
   }
 
@@ -99,11 +130,35 @@ export function installContributedSkills(
   const installed: string[] = [];
   for (const skill of skills) {
     if (!isSafeSkillDirName(skill.dirName)) continue;
+
     const dest = path.resolve(toolSkillsDir, skill.dirName);
     if (!isPathInside(toolSkillsDir, dest)) continue;
+
+    // Re-verify the source stays inside the plugin package, resolving symlinks,
+    // immediately before copying (guards against a swapped source after collection).
+    const realPackageRoot = realpathOrNull(skill.packageRoot);
+    const realSource = realpathOrNull(skill.sourceDir);
+    if (!realPackageRoot || !realSource || !isPathInside(realPackageRoot, realSource)) {
+      console.warn(`Warning: plugin skill "${skill.dirName}" source is not inside its package; skipping.`);
+      continue;
+    }
+    if (!fs.existsSync(path.join(realSource, 'SKILL.md'))) continue;
+
+    // Ownership: never overwrite a directory we did not install (core skill or user dir).
+    if (fs.existsSync(dest) && !isOwnedSkillDir(dest)) {
+      console.warn(
+        `Warning: plugin skill "${skill.dirName}" collides with an existing non-plugin directory; skipping to avoid overwriting it.`
+      );
+      continue;
+    }
+
     try {
       fs.rmSync(dest, { recursive: true, force: true });
-      fs.cpSync(skill.sourceDir, dest, { recursive: true });
+      fs.cpSync(realSource, dest, { recursive: true });
+      fs.writeFileSync(
+        path.join(dest, OWNERSHIP_MARKER),
+        JSON.stringify({ plugin: skill.pluginId, managedBy: 'openspec' }) + '\n'
+      );
       installed.push(skill.dirName);
     } catch (error) {
       console.warn(
@@ -115,8 +170,9 @@ export function installContributedSkills(
 }
 
 /**
- * Remove a contributed skill directory by name. Returns true if it existed.
- * Only the named, plugin-owned directory is touched.
+ * Remove a contributed skill directory by name. Returns true if it was removed.
+ * Only a directory OpenSpec installed (carrying the ownership marker) is touched —
+ * a colliding name pointing at a core skill or user directory is left intact.
  */
 export function removeContributedSkill(toolSkillsDir: string, dirName: string): boolean {
   // Never delete based on a name that isn't a single safe segment, and re-check
@@ -124,9 +180,8 @@ export function removeContributedSkill(toolSkillsDir: string, dirName: string): 
   if (!isSafeSkillDirName(dirName)) return false;
   const dest = path.resolve(toolSkillsDir, dirName);
   if (!isPathInside(toolSkillsDir, dest)) return false;
-  if (fs.existsSync(dest)) {
-    fs.rmSync(dest, { recursive: true, force: true });
-    return true;
-  }
-  return false;
+  if (!fs.existsSync(dest)) return false;
+  if (!isOwnedSkillDir(dest)) return false; // not ours — do not delete
+  fs.rmSync(dest, { recursive: true, force: true });
+  return true;
 }
