@@ -8,6 +8,7 @@ import { pathIsDirectory } from '../core/file-state.js';
 import {
   findOpener,
   isOpenerCommandAvailable,
+  isOpenerEnabled,
   type OpenerDefinition,
   type OpenerScanOptions,
 } from '../core/openers.js';
@@ -117,7 +118,10 @@ export function toolUnknownError(
   toolId: string,
   table: OpenerDefinition[]
 ): StoreError {
-  const knownIds = table.map((opener) => opener.id).join(', ');
+  const knownIds = table
+    .filter((opener) => isOpenerEnabled(opener))
+    .map((opener) => opener.id)
+    .join(', ');
   return new StoreError(`Unknown tool '${toolId}'.`, 'workset_tool_unknown', {
     target: 'workset.tool',
     fix: `Known tools: ${knownIds}. Add new tools under "openers" in ${getGlobalConfigPath()}.`,
@@ -134,6 +138,7 @@ export function firstInstalledAlternative(
     table.find(
       (candidate) =>
         candidate.id !== excludeId &&
+        isOpenerEnabled(candidate) &&
         isOpenerCommandAvailable(candidate.command, scan)
     )?.id ?? null
   );
@@ -165,7 +170,10 @@ export function noToolInstalledError(
   table: OpenerDefinition[],
   worksetName: string
 ): StoreError {
-  const commands = table.map((opener) => opener.command).join(', ');
+  const commands = table
+    .filter((opener) => isOpenerEnabled(opener))
+    .map((opener) => opener.command)
+    .join(', ');
   return new StoreError(
     'None of the known tools is on PATH.',
     'workset_tool_unavailable',

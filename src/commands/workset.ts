@@ -30,6 +30,7 @@ import {
   buildLaunchCommand,
   findOpener,
   isOpenerCommandAvailable,
+  isOpenerEnabled,
   listOpenerChoices,
   mergeOpenerTable,
   type LaunchCommand,
@@ -94,6 +95,20 @@ interface WorksetRemoveOptions {
 
 function readOpenerTable(): OpenerDefinition[] {
   return mergeOpenerTable(getGlobalConfig().openers, getGlobalConfigPath());
+}
+
+function worksetCliOpenerDisabledError(
+  opener: OpenerDefinition,
+  name: string
+): StoreError {
+  return new StoreError(
+    `Opening a workset in ${opener.label} is temporarily disabled while CLI-agent opening is reworked. Worksets open in an IDE for now.`,
+    'workset_cli_opener_disabled',
+    {
+      target: 'workset.tool',
+      fix: `Open in VS Code or Cursor: openspec workset open ${name} --tool code`,
+    }
+  );
 }
 
 interface LaunchResult {
@@ -273,6 +288,12 @@ class WorksetCommand {
     // The opener table is read only when a tool is actually named - a
     // tool-less scripted create must not fail on unrelated config rows.
     const table = options.tool !== undefined ? readOpenerTable() : [];
+    if (options.tool !== undefined) {
+      const chosen = findOpener(table, options.tool);
+      if (chosen !== null && !isOpenerEnabled(chosen)) {
+        throw worksetCliOpenerDisabledError(chosen, name);
+      }
+    }
     return finalizeWorkset(name, members, options.tool, table);
   }
 
@@ -388,6 +409,9 @@ class WorksetCommand {
         const found = findOpener(table, toolId);
         if (found === null) {
           throw toolUnknownError(toolId, table);
+        }
+        if (!isOpenerEnabled(found)) {
+          throw worksetCliOpenerDisabledError(found, name);
         }
         if (!isOpenerCommandAvailable(found.command)) {
           throw toolUnavailableError(found, table, name);

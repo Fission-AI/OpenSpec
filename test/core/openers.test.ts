@@ -105,10 +105,14 @@ describe('openers core', () => {
     let tempDir: string;
 
     beforeEach(() => {
+      // listOpenerChoices hides CLI-agent (attach-dirs) tools by default;
+      // this suite asserts the full table, so enable them.
+      process.env.OPENSPEC_ENABLE_CLI_AGENT_OPENERS = '1';
       tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-openers-'));
     });
 
     afterEach(() => {
+      delete process.env.OPENSPEC_ENABLE_CLI_AGENT_OPENERS;
       fs.rmSync(tempDir, { recursive: true, force: true });
     });
 
@@ -119,7 +123,13 @@ describe('openers core', () => {
       return filePath;
     }
 
-    it('finds an executable on the posix PATH', () => {
+    // posix-only: these exercise the real execute bit and the ':'-delimited
+    // PATH against a real temp dir. On win32 chmod is a no-op and the temp
+    // path's drive-letter colon shatters posix PATH splitting; win32
+    // availability is covered by the injected-seam cases below.
+    const itPosix = it.skipIf(process.platform === 'win32');
+
+    itPosix('finds an executable on the posix PATH', () => {
       makeExecutable('faketool');
 
       expect(
@@ -136,7 +146,7 @@ describe('openers core', () => {
       ).toBe(false);
     });
 
-    it('honors the case-insensitive Path key', () => {
+    itPosix('honors the case-insensitive Path key', () => {
       makeExecutable('faketool');
 
       expect(
@@ -147,7 +157,7 @@ describe('openers core', () => {
       ).toBe(true);
     });
 
-    it('requires the execute bit on posix', () => {
+    itPosix('requires the execute bit on posix', () => {
       const filePath = path.join(tempDir, 'notexec');
       fs.writeFileSync(filePath, 'data');
       fs.chmodSync(filePath, 0o644);
@@ -230,7 +240,7 @@ describe('openers core', () => {
       expect(negative).toEqual(['C:\\bin\\tool.cmd']);
     });
 
-    it('sorts choices available-first preserving table order', () => {
+    itPosix('sorts choices available-first preserving table order', () => {
       makeExecutable('claude');
       makeExecutable('codex');
 

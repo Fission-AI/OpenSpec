@@ -30,6 +30,7 @@ describe('workset journey (7.1 e2e)', () => {
   let scratchFolder: string;
 
   beforeEach(async () => {
+    process.env.OPENSPEC_ENABLE_CLI_AGENT_OPENERS = '1';
     tempDir = fs.realpathSync.native(
       fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-workset-e2e-'))
     );
@@ -64,7 +65,10 @@ describe('workset journey (7.1 e2e)', () => {
   });
 
   afterEach(() => {
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    delete process.env.OPENSPEC_ENABLE_CLI_AGENT_OPENERS;
+    // Windows can hold a brief handle on a just-exited spawned CLI/opener;
+    // retry the recursive remove so EBUSY during teardown does not flake.
+    fs.rmSync(tempDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   });
 
   function parseJson(result: RunCLIResult): any {
@@ -188,7 +192,8 @@ describe('workset journey (7.1 e2e)', () => {
       env,
     });
     expect(parseJson(listAfterDelete)).toEqual({ worksets: [], status: [] });
-  });
+    // ~10 CLI subprocess spawns; the 10s default is tight on slow Windows runners.
+  }, 60_000);
 
   it('composition is personal: two machines over the same checkout never meet', async () => {
     const teammateEnv: NodeJS.ProcessEnv = {
@@ -249,5 +254,5 @@ describe('workset journey (7.1 e2e)', () => {
       ).worksets
     ).toHaveLength(1);
     expect(snapshot(storeRoot)).toEqual(checkoutBefore);
-  });
+  }, 60_000);
 });

@@ -32,6 +32,23 @@ export interface OpenerDefinition {
 
 const DEFAULT_ATTACH_FLAG = '--add-dir';
 
+/**
+ * Temporary kill-switch (2026-06): worksets open only in IDE-style
+ * ('workspace-file') tools while the CLI-agent ('attach-dirs') open flow
+ * is reworked. The agents (Claude Code, codex) launch in a single primary
+ * cwd rather than a true combined multi-root view, which makes "where does
+ * my change land?" ambiguous. Default off; set
+ * OPENSPEC_ENABLE_CLI_AGENT_OPENERS=1 to restore them (internal rollback seam).
+ */
+export function isCliAgentOpenersEnabled(): boolean {
+  return process.env.OPENSPEC_ENABLE_CLI_AGENT_OPENERS === '1';
+}
+
+/** Whether a tool can be opened right now (CLI-agent styles are gated). */
+export function isOpenerEnabled(opener: OpenerDefinition): boolean {
+  return isCliAgentOpenersEnabled() || opener.style !== 'attach-dirs';
+}
+
 export const BUILTIN_OPENERS: readonly OpenerDefinition[] = [
   {
     id: 'code',
@@ -272,6 +289,7 @@ export function listOpenerChoices(
   options: OpenerScanOptions = {}
 ): OpenerChoice[] {
   return table
+    .filter((opener) => isOpenerEnabled(opener))
     .map((opener) => {
       const available = isOpenerCommandAvailable(opener.command, options);
       return {

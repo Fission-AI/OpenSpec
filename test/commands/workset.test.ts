@@ -26,6 +26,10 @@ describe('openspec workset (7.1)', () => {
   let memberC: string;
 
   beforeEach(() => {
+    // These suites assert the CLI-agent (attach-dirs) open behavior, which
+    // is gated off by default; enable it for the legacy coverage. The
+    // disabled-by-default path is covered in its own describe below.
+    process.env.OPENSPEC_ENABLE_CLI_AGENT_OPENERS = '1';
     tempDir = fs.realpathSync.native(
       fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-workset-'))
     );
@@ -51,6 +55,7 @@ describe('openspec workset (7.1)', () => {
   });
 
   afterEach(() => {
+    delete process.env.OPENSPEC_ENABLE_CLI_AGENT_OPENERS;
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
@@ -87,6 +92,42 @@ describe('openspec workset (7.1)', () => {
       JSON.stringify({ openers }, null, 2)
     );
   }
+
+  describe('CLI-agent openers are disabled by default', () => {
+    beforeEach(() => {
+      delete process.env.OPENSPEC_ENABLE_CLI_AGENT_OPENERS;
+    });
+
+    it('refuses to open a workset in a CLI agent, pointing at an IDE', async () => {
+      await createPlatform();
+      const result = await runCLI(
+        ['workset', 'open', 'platform', '--tool', 'claude'],
+        { cwd: tempDir, env }
+      );
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain('temporarily disabled');
+      expect(result.stderr).toContain('--tool code');
+    });
+
+    it('refuses to save a CLI agent as a workset tool', async () => {
+      const result = await runCLI(
+        ['workset', 'create', 'cli-x', '--member', memberA, '--tool', 'codex'],
+        { cwd: tempDir, env }
+      );
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain('temporarily disabled');
+    });
+
+    it('never presents a CLI agent as a known tool', async () => {
+      await createPlatform();
+      const result = await runCLI(
+        ['workset', 'open', 'platform', '--tool', 'nope'],
+        { cwd: tempDir, env }
+      );
+      expect(result.stderr).toContain('Known tools: code, cursor');
+      expect(result.stderr).not.toMatch(/claude|codex/);
+    });
+  });
 
   describe('create', () => {
     it('saves an ordered workset and emits the JSON envelope', async () => {
@@ -797,6 +838,7 @@ describe('interactive compose cancellation (in-process)', () => {
     process.env.XDG_CONFIG_HOME = path.join(tempDir, 'config');
     delete process.env.CI;
     delete process.env.OPEN_SPEC_INTERACTIVE;
+    process.env.OPENSPEC_ENABLE_CLI_AGENT_OPENERS = '1';
     // Deterministic tool availability for the wizard's [3/3] step:
     // exactly one fake claude on PATH, regardless of the host machine.
     const fakeClaude = createFakeTool(tempDir, 'claude');
