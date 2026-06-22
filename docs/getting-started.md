@@ -1,6 +1,27 @@
 # Getting Started
 
-This guide explains how OpenSpec works after you've installed and initialized it. For installation instructions, see the [main README](../README.md#quick-start).
+This guide explains how OpenSpec works after you've installed and initialized it. For installation instructions, see the [main README](../README.md#quick-start) or the [Installation guide](installation.md). New to the whole docs set? The [documentation home](README.md) maps everything.
+
+> **Where do I type these commands?** Two places, and mixing them up is the most common early stumble.
+>
+> - `openspec ...` commands (like `openspec init`) run in your **terminal**.
+> - `/opsx:...` commands (like `/opsx:propose`) run in your **AI assistant's chat**, the same box where you'd ask it to write code.
+>
+> There's no separate "interactive mode" to start. You just type the slash command in chat and your assistant takes it from there. Full explanation: [How Commands Work](how-commands-work.md).
+
+## Your First Five Minutes
+
+The whole loop, with each step labeled by where it happens:
+
+```text
+TERMINAL   $ npm install -g @fission-ai/openspec@latest
+TERMINAL   $ cd your-project && openspec init
+AI CHAT      /opsx:propose add-dark-mode      (AI drafts the plan; you review it)
+AI CHAT      /opsx:apply                      (AI builds it)
+AI CHAT      /opsx:archive                    (specs updated, change filed away)
+```
+
+Two terminal steps to set up, then you live in chat. The rest of this guide unpacks what each step does and what you'll see.
 
 ## How It Works
 
@@ -247,7 +268,10 @@ openspec view
 
 ## Next Steps
 
+- [Core Concepts at a Glance](overview.md) - The whole mental model on one page
+- [Examples & Recipes](examples.md) - Real changes, start to finish
 - [Workflows](workflows.md) - Common patterns and when to use each command
 - [Commands](commands.md) - Full reference for all slash commands
 - [Concepts](concepts.md) - Deeper understanding of specs, changes, and schemas
 - [Customization](customization.md) - Make OpenSpec work your way
+- [FAQ](faq.md) and [Troubleshooting](troubleshooting.md) - When you get stuck
