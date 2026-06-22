@@ -34,11 +34,18 @@ Alternative considered: add `openspec brief`. That would either be a weak determ
 
 The requested review surface is browser-readable HTML. A second `brief.md` output would create synchronization questions without being needed for the MVP.
 
+### Decision: Keep generated HTML self-contained and project-neutral
+
+The workflow should instruct agents to use inline CSS and system fonts only. It should not pull Google Fonts, CDN assets, remote images, or any other network resources into `brief.html`.
+
+The generated page should also avoid unrelated product names, project names, footers, and agent-specific implementation labels unless those details come from the source artifacts. This keeps the workflow portable across OpenSpec users and prevents local helper templates from leaking repo- or harness-specific branding into official output.
+
 ## Risks / Trade-offs
 
 - [Risk] Agent-generated summaries can be inaccurate. -> Mitigation: require source attribution, require missing information to be called out, and state that original artifacts remain authoritative.
 - [Risk] `open` behavior is platform-specific. -> Mitigation: document best-effort opener commands and treat opener failure as non-fatal.
 - [Risk] Adding a workflow id can affect profile drift detection and generated command cleanup. -> Mitigation: update workflow maps and targeted tests around profile, generation, and tool detection.
+- [Risk] Local or agent-specific brief templates can leak unrelated branding or external assets. -> Mitigation: require standalone, project-neutral HTML and explicitly forbid remote fonts, CDN links, network assets, unrelated footers, and harness-specific labels unless sourced from artifacts.
 
 ## Migration Plan
 

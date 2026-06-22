@@ -8,7 +8,8 @@ The workflow needs an optional agent-generated review surface that summarizes th
 
 - Add an optional `/opsx:brief` workflow that produces a one-page HTML brief for an existing change.
 - The workflow reads the change status and apply context from the OpenSpec CLI, then reads the artifact files listed in `contextFiles`.
-- The agent synthesizes a concise human-readable brief with source attribution, risks, questions, implementation order, and verification plan.
+- The agent synthesizes a concise human-readable brief with source attribution, full source artifact coverage, risks, questions, implementation order, and verification plan.
+- The generated HTML is standalone and generic to the OpenSpec change: no external fonts, CDN links, network assets, unrelated branding, or agent-specific implementation labels.
 - The workflow writes `brief.html` inside the change directory and best-effort opens it with the host OS.
 - The workflow is selectable through the custom profile but is not included in the default `core` profile.
 

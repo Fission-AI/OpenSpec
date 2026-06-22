@@ -57,6 +57,17 @@ describe('skill-generation', () => {
       expect(uniqueIds.size).toBe(templates.length);
     });
 
+    it('should keep brief output standalone and project-neutral', () => {
+      const brief = getSkillTemplates().find(t => t.workflowId === 'brief');
+
+      expect(brief?.template.instructions).toContain('contextFiles');
+      expect(brief?.template.instructions).toContain('Source artifact index');
+      expect(brief?.template.instructions).toContain('no external JavaScript, CSS, fonts, images, CDN links, or network resources');
+      expect(brief?.template.instructions).toContain('use system fonts only');
+      expect(brief?.template.instructions).toContain('do not include unrelated product names, project names, footers, or branding');
+      expect(brief?.template.instructions).toContain('mark inferred impacts as "Inference"');
+    });
+
     it('should filter by workflow IDs when provided', () => {
       const filtered = getSkillTemplates(['propose', 'explore', 'apply', 'archive']);
       expect(filtered).toHaveLength(4);

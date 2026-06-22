@@ -59,6 +59,12 @@ ${STORE_SELECTION_GUIDANCE}
 
    Create a concise, human-readable review surface. The brief should help a user understand the change in about 3 minutes without reading every artifact.
 
+   Before writing HTML, build a short internal outline from the artifacts:
+   - Source artifact index: every file path returned in \`contextFiles\`, grouped by artifact ID
+   - Delta spec coverage: every spec file from \`contextFiles.specs\`
+   - Task coverage: task groups aligned with the numbered headings in the tasks artifact; if tasks are summarized, say so
+   - Impact list: affected modules or file areas stated by the artifacts; mark inferred impacts as "Inference"
+
    Include these sections:
    - What this change does
    - Explicit non-goals
@@ -73,8 +79,11 @@ ${STORE_SELECTION_GUIDANCE}
    **Accuracy rules**
    - The original OpenSpec artifacts remain the source of truth. The brief is only a review surface.
    - Every substantive claim must include source attribution such as \`Source: proposal.md\`, \`Source: design.md\`, \`Source: specs/<capability>/spec.md\`, or \`Source: tasks.md\`.
+   - The source artifact index must include every file path returned in \`contextFiles\`; do not silently drop delta specs or schema-specific artifacts.
    - If a section is not specified by the source artifacts, write "Not specified in source artifacts" instead of inventing content.
    - Separate direct source facts from your inference. Label inference as "Inference".
+   - Do not turn non-goals into fallback plans or implied future work unless the source artifacts explicitly say so.
+   - Do not add affected files, modules, user-visible behavior, risks, or questions unless they are sourced or clearly labeled as inference.
    - Keep the page concise. Prefer short bullets and compact tables over long prose.
 
 6. **Write static HTML**
@@ -86,8 +95,11 @@ ${STORE_SELECTION_GUIDANCE}
 
    The HTML must be:
    - standalone static HTML
-   - no external JavaScript, CSS, fonts, images, or network resources
+   - no external JavaScript, CSS, fonts, images, CDN links, or network resources
+   - use system fonts only; do not import Google Fonts or other remote fonts
    - professional and readable in a browser
+   - generic to the current OpenSpec change; do not include unrelated product names, project names, footers, or branding unless they appear in the source artifacts
+   - agent-agnostic; do not hardcode tool-specific paths or labels such as \`.codex\`, \`.agents\`, Claude, Codex, or any harness-specific implementation detail unless the source artifacts explicitly mention them
    - safe for artifact text: escape \`&\`, \`<\`, \`>\`, \`"\`, and \`'\` if you include source excerpts or user-provided content
 
    Use inline \`<style>\` only. Do not create additional files.

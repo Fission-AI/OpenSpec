@@ -31,6 +31,15 @@ The brief workflow SHALL synthesize content from existing OpenSpec artifacts wit
 - **WHEN** the brief states a claim derived from an artifact
 - **THEN** the brief SHALL include source attribution to the relevant artifact path or artifact id
 
+#### Scenario: Source artifact coverage
+- **WHEN** generating the source artifact index
+- **THEN** the brief SHALL include every file path returned in `contextFiles`
+- **AND** SHALL NOT silently omit delta spec files or schema-specific artifacts
+
+#### Scenario: Inferred impacts
+- **WHEN** the brief includes affected modules, file areas, behavior changes, risks, or questions not explicitly stated by artifacts
+- **THEN** the brief SHALL label them as inference
+
 ### Requirement: HTML Brief Content
 The generated brief SHALL be concise, readable, and review-oriented.
 
@@ -50,7 +59,13 @@ The generated brief SHALL be concise, readable, and review-oriented.
 #### Scenario: Static local HTML
 - **WHEN** writing `brief.html`
 - **THEN** the file SHALL be standalone static HTML
-- **AND** SHALL NOT depend on external JavaScript, CSS, fonts, or network resources
+- **AND** SHALL NOT depend on external JavaScript, CSS, fonts, CDN links, images, or network resources
+- **AND** SHALL use system fonts instead of remote fonts
+
+#### Scenario: Generic OpenSpec output
+- **WHEN** writing `brief.html`
+- **THEN** the file SHALL NOT include unrelated product names, project names, footers, or branding unless present in the source artifacts
+- **AND** SHALL NOT include agent- or harness-specific paths or labels unless present in the source artifacts
 
 ### Requirement: Optional Workflow Installation
 The brief workflow SHALL be available for custom profile selection but not installed by the default core profile.
