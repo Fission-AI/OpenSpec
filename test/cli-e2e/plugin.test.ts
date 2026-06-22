@@ -167,4 +167,57 @@ describe('openspec plugin e2e', () => {
     const skillPath = path.join(projectDir, '.claude', 'skills', 'demo-orient', 'SKILL.md');
     expect(await fs.readFile(skillPath, 'utf-8')).toContain('Contributed by demo-engine');
   });
+
+  it('update installs then cleans plugin skills even when core tools are current', async () => {
+    // Fresh project, initialized WITHOUT the plugin so core tool assets are current.
+    const base = await fs.mkdtemp(path.join(tmpdir(), 'openspec-plugin-update-'));
+    tempRoots.push(base);
+    const proj = path.join(base, 'project');
+    await fs.mkdir(path.join(proj, 'openspec'), { recursive: true });
+    await fs.writeFile(path.join(proj, 'openspec', 'config.yaml'), 'schema: spec-driven\n');
+    const upEnv = isolatedEnv(base);
+
+    const init = await runCLI(['init', '--tools', 'claude'], { cwd: proj, env: upEnv });
+    expect(init.exitCode).toBe(0);
+    const skillPath = path.join(proj, '.claude', 'skills', 'demo-orient', 'SKILL.md');
+    expect(await fileExists(skillPath)).toBe(false); // no plugin yet
+
+    // Now install the plugin (with a contributed skill) and update — core is current.
+    const pluginDir = path.join(proj, 'node_modules', 'demo-engine');
+    await fs.mkdir(path.join(pluginDir, 'skills', 'demo-orient'), { recursive: true });
+    await fs.writeFile(
+      path.join(pluginDir, 'skills', 'demo-orient', 'SKILL.md'),
+      '# demo-orient\nContributed by demo-engine.\n'
+    );
+    await fs.writeFile(
+      path.join(pluginDir, 'package.json'),
+      JSON.stringify({
+        name: 'demo-engine',
+        version: '0.4.0',
+        bin: 'cli.js',
+        openspec: {
+          manifestVersion: 1,
+          id: 'demo-engine',
+          namespace: 'demo',
+          bin: 'cli.js',
+          openspecCompat: '>=1.0.0',
+          skills: [{ dir: 'demo-orient', source: 'skills/demo-orient' }],
+        },
+      })
+    );
+    await fs.writeFile(path.join(pluginDir, 'cli.js'), '#!/usr/bin/env node\n');
+
+    const up1 = await runCLI(['update'], { cwd: proj, env: upEnv });
+    expect(up1.exitCode).toBe(0);
+    expect(await fileExists(skillPath)).toBe(true); // installed despite core being current
+
+    // Disable the plugin (autoDetect off, not enabled) and update — skill is cleaned up.
+    await fs.writeFile(
+      path.join(proj, 'openspec', 'config.yaml'),
+      'schema: spec-driven\nplugins:\n  autoDetect: false\n'
+    );
+    const up2 = await runCLI(['update'], { cwd: proj, env: upEnv });
+    expect(up2.exitCode).toBe(0);
+    expect(await fileExists(skillPath)).toBe(false); // removed when no longer active
+  });
 });

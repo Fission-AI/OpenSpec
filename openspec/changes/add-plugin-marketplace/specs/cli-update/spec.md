@@ -11,6 +11,11 @@
 - **WHEN** an enabled plugin version contributes a new skill since the last sync
 - **THEN** `openspec update` SHALL install the new artifact
 
+#### Scenario: Plugin change while core tool assets are current
+- **WHEN** a plugin is enabled or disabled but the configured tools' core assets are already up to date
+- **THEN** `openspec update` SHALL still detect the pending plugin contribution change
+- **AND** SHALL install or remove the affected plugin-managed skills rather than reporting "up to date" and skipping them
+
 ### Requirement: Drift detection and cleanup for plugins
 `openspec update` SHALL detect plugin artifact drift and clean up artifacts for plugins no longer enabled.
 

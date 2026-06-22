@@ -5,6 +5,7 @@ import * as os from 'node:os';
 import {
   collectContributedSkills,
   collectKnownPluginSkillDirs,
+  hasContributionDrift,
   installContributedSkills,
   removeContributedSkill,
 } from '../../../src/core/plugins/contribution.js';
@@ -196,5 +197,31 @@ describe('plugins/contribution', () => {
       withSkillFile: true,
     });
     expect(collectKnownPluginSkillDirs(projectRoot)).toContain('good-orient');
+  });
+
+  it('detects drift: active skill not yet installed, and inactive owned skill present', () => {
+    writePluginWithSkill(projectRoot, 'good-engine', {
+      id: 'good-engine',
+      namespace: 'good',
+      skillDir: 'good-orient',
+      withSkillFile: true,
+    });
+    const toolSkillsDir = path.join(projectRoot, '.claude', 'skills');
+    fs.mkdirSync(toolSkillsDir, { recursive: true });
+    const contributed = collectContributedSkills(projectRoot);
+    const known = collectKnownPluginSkillDirs(projectRoot);
+
+    // Active skill not installed yet -> drift.
+    expect(hasContributionDrift(toolSkillsDir, contributed, known, true)).toBe(true);
+
+    // After install -> no drift.
+    installContributedSkills(toolSkillsDir, contributed);
+    expect(hasContributionDrift(toolSkillsDir, contributed, known, true)).toBe(false);
+
+    // If the plugin becomes inactive but its owned dir remains -> drift (needs cleanup).
+    expect(hasContributionDrift(toolSkillsDir, [], known, true)).toBe(true);
+
+    // Commands-only delivery with an owned dir present -> drift (needs removal).
+    expect(hasContributionDrift(toolSkillsDir, [], known, false)).toBe(true);
   });
 });

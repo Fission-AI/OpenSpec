@@ -120,6 +120,32 @@ export function collectKnownPluginSkillDirs(projectRoot: string): string[] {
 }
 
 /**
+ * Whether a tool's skills directory is out of sync with the active plugin set:
+ * an active contributed skill is missing, or an OpenSpec-owned skill dir belongs
+ * to a plugin that is no longer active and should be removed. Used by `update` to
+ * decide that plugin work is pending even when core tool assets are current.
+ */
+export function hasContributionDrift(
+  toolSkillsDir: string,
+  contributedSkills: ContributedSkill[],
+  knownContributedDirs: string[],
+  shouldGenerateSkills: boolean
+): boolean {
+  if (!shouldGenerateSkills) {
+    // Commands-only delivery: any owned contributed dir still present needs removal.
+    return knownContributedDirs.some((d) => isOwnedSkillDir(path.join(toolSkillsDir, d)));
+  }
+  const activeDirs = new Set(contributedSkills.map((s) => s.dirName));
+  const missingActive = contributedSkills.some(
+    (s) => !fs.existsSync(path.join(toolSkillsDir, s.dirName, 'SKILL.md'))
+  );
+  const staleInactive = knownContributedDirs.some(
+    (d) => !activeDirs.has(d) && isOwnedSkillDir(path.join(toolSkillsDir, d))
+  );
+  return missingActive || staleInactive;
+}
+
+/**
  * Install contributed skills into a tool's skills directory.
  * Returns the directory names successfully installed.
  */

@@ -28,6 +28,7 @@ import {
 import {
   collectContributedSkills,
   collectKnownPluginSkillDirs,
+  hasContributionDrift,
   installContributedSkills,
   removeContributedSkill,
 } from './plugins/contribution.js';
@@ -139,6 +140,13 @@ export class UpdateCommand {
     });
     const statusByTool = new Map(toolStatuses.map((status) => [status.toolId, status] as const));
 
+    // Plugin-contributed skills: collected before the up-to-date short-circuit so
+    // enabling/disabling a plugin is treated as pending work even when core tool
+    // assets are already current. Tracked by name, never pattern.
+    const contributedSkills = collectContributedSkills(resolvedProjectPath);
+    const activeContributedDirs = new Set(contributedSkills.map((s) => s.dirName));
+    const knownContributedDirs = collectKnownPluginSkillDirs(resolvedProjectPath);
+
     // 7. Smart update detection
     const toolsNeedingVersionUpdate = toolStatuses
       .filter((s) => s.needsUpdate)
@@ -149,9 +157,21 @@ export class UpdateCommand {
       delivery,
       configuredTools
     );
+    const toolsNeedingPluginSync = configuredTools.filter((toolId) => {
+      const tool = AI_TOOLS.find((t) => t.value === toolId);
+      if (!tool?.skillsDir) return false;
+      const skillsDir = path.join(resolvedProjectPath, tool.skillsDir, 'skills');
+      return hasContributionDrift(
+        skillsDir,
+        contributedSkills,
+        knownContributedDirs,
+        shouldGenerateSkills
+      );
+    });
     const toolsToUpdateSet = new Set<string>([
       ...toolsNeedingVersionUpdate,
       ...toolsNeedingConfigSync,
+      ...toolsNeedingPluginSync,
     ]);
     const toolsUpToDate = toolStatuses.filter((s) => !toolsToUpdateSet.has(s.toolId));
 
@@ -177,12 +197,6 @@ export class UpdateCommand {
     // 9. Determine what to generate based on delivery
     const skillTemplates = shouldGenerateSkills ? getSkillTemplates(desiredWorkflows) : [];
     const commandContents = shouldGenerateCommands ? getCommandContents(desiredWorkflows) : [];
-
-    // Plugin-contributed skills: active ones are (re)installed; skills belonging to
-    // disabled/incompatible plugins are cleaned up. Tracked by name, never pattern.
-    const contributedSkills = collectContributedSkills(resolvedProjectPath);
-    const activeContributedDirs = new Set(contributedSkills.map((s) => s.dirName));
-    const knownContributedDirs = collectKnownPluginSkillDirs(resolvedProjectPath);
 
     // 10. Update tools (all if force, otherwise only those needing update)
     const toolsToUpdate = this.force ? configuredTools : [...toolsToUpdateSet];
