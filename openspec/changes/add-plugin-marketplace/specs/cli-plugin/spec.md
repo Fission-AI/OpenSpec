@@ -52,6 +52,10 @@ The CLI SHALL provide `openspec plugin add <id>` to enable a plugin and install 
 - **THEN** the command SHALL print the install command by default
 - **AND** SHALL run the install only when `--install` is provided
 
+#### Scenario: Enabling preserves existing config
+- **WHEN** `openspec plugin add <id>` records enablement in `openspec/config.yaml`
+- **THEN** it SHALL preserve all existing configuration keys, including unknown third-party blocks such as `openlore`
+
 ### Requirement: Disable or remove a plugin
 The CLI SHALL provide `openspec plugin remove <id>`, `openspec plugin disable <id>`, and `openspec plugin enable <id>`.
 

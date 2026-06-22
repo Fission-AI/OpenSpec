@@ -44,9 +44,9 @@ Add a verb-first `openspec plugin` command group: `list`, `info`, `add`, `remove
 
 Ship a curated **registry index** (a versioned JSON document, distributed with the package and refreshable) describing approved plugins: id, npm package, OpenSpec compat range, summary, homepage, and namespace. `openspec plugin search` and `openspec plugin info` read this index for discovery; `openspec plugin add <id>` uses it to resolve install instructions. **OpenLore is the inaugural entry.** This change adds the registry, the discovery commands, the OpenLore listing, an integration fixture proving an external engine registers and delegates correctly, and the documentation that frames OpenLore as "generate initial specs from existing code; OpenSpec evolves them."
 
-### 7. Persist plugin preferences in global config
+### 7. Persist plugin choices in project and global config
 
-Extend global config with an optional `plugins` block (enabled plugin ids, registry settings, and auto-detect on/off), validated through the existing schema with forward-compatible passthrough so older/newer configs keep loading.
+Record which plugins a project uses in the project `openspec/config.yaml` (`plugins.enabled`), so enablement is committed and shared by the team and drives project-tier resolution. Keep user-level preferences (auto-detect default, registry settings, and any user/global-tier plugins) in global config. Reads tolerate older configs unchanged; crucially, **writes preserve unrelated and unknown keys** — including third-party blocks such as the `openlore` metadata OpenLore already writes into `config.yaml` — so enabling a plugin never clobbers existing configuration. (The project config schema is not passthrough today, so this preservation is an explicit contract, not a free side effect.)
 
 This proposal deliberately scopes plugins as **out-of-process delegated engines plus static template contribution**. In-process command injection, runtime lifecycle hooks (#682-style archive hooks), and a hosted registry backend are explicitly out of scope and noted as future work, so the first version stays small and safe.
 
@@ -63,9 +63,11 @@ This proposal deliberately scopes plugins as **out-of-process delegated engines 
 
 ### Modified Capabilities
 
-- `global-config`: Persist a `plugins` preference block (enabled ids, registry, auto-detect) with schema-evolution-safe defaults.
+- `config-loading`: Recognize a project `plugins` block in `openspec/config.yaml`, parse it resiliently, and round-trip it without dropping unrelated or unknown keys.
+- `global-config`: Persist user-level plugin preferences (auto-detect default, registry settings, user/global-tier plugins) with schema-evolution-safe defaults.
 - `cli-init`: Detect installed plugins, optionally enable them, and install contributed skills/commands during initialization.
 - `cli-update`: Refresh plugin-contributed skills/commands alongside core artifacts, with drift detection and safe cleanup.
+- `cli-completion`: Surface enabled plugin namespaces and their declared subcommands in shell completions.
 - `telemetry`: Track delegated plugin command invocations by namespace only, without capturing plugin arguments.
 
 ## Impact
@@ -78,7 +80,8 @@ This proposal deliberately scopes plugins as **out-of-process delegated engines 
 - `src/core/plugins/registry.ts` (new) + `schemas/plugins/registry.json` (new) — curated marketplace index + loader
 - `src/core/plugins/contribution.ts` (new) — merge plugin templates into generation
 - `src/core/shared/skill-generation.ts` — accept plugin-contributed skill/command templates
-- `src/core/config-schema.ts`, `src/core/global-config.ts` — add `plugins` config block + validation
+- `src/core/config-schema.ts`, `src/core/global-config.ts` — add user-level `plugins` config block + validation
+- `src/core/project-config.ts` — recognize a project `plugins` block in `ProjectConfigSchema` and write it non-destructively (preserve unknown keys such as `openlore`)
 - `src/core/init.ts`, `src/core/update.ts` — plugin detection, contributed-artifact install/sync/cleanup
 - `src/telemetry/index.ts` — track delegated plugin command namespaces
 - `src/core/completions/*` — surface plugin namespaces/subcommands in completions

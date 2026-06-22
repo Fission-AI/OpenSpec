@@ -3,7 +3,7 @@
 - [ ] 1.1 Define the manifest zod schema in `src/core/plugins/manifest.ts` (`manifestVersion`, `id`, `namespace`, `bin`/`binArgs`, `openspecCompat`, `displayName`, `summary`, `commands[]`, `skills[]`, command templates, `workflows[]`, `ownsConfigKeys[]`) with `.passthrough()` for forward compatibility
 - [ ] 1.2 Implement manifest loading from a package's `package.json` `"openspec"` key, falling back to a sibling `openspec.plugin.json`
 - [ ] 1.3 Implement validation with actionable, field-level error messages; invalid manifests disable the plugin instead of throwing
-- [ ] 1.4 Reserve and reject namespaces that collide with core top-level commands (init, update, list, view, change, archive, validate, show, feedback, completion, status, instructions, templates, schemas, new, set, config, schema, workspace, context-store, initiative, plugin)
+- [ ] 1.4 Reserve and reject namespaces that collide with core top-level commands; derive the reserved set from the registered command list rather than a duplicated literal. Current names: archive, change, completion, config, context-store, experimental (hidden), feedback, help, init, initiative, instructions, list, new, schema, schemas, set, show, spec, status, templates, update, validate, view, workspace, plugin, and the hidden `__complete`
 - [ ] 1.5 Unit tests: valid manifest (both forms), invalid/missing fields, reserved-namespace rejection, unknown-field passthrough
 
 ## 2. Plugin Resolution
@@ -26,12 +26,14 @@
 - [ ] 3.6 Wire `registerPlugins(program)` into `src/cli/index.ts` after core command registration
 - [ ] 3.7 Unit/integration tests: successful delegation, argument pass-through, exit-code propagation, missing-bin error, incompatible namespace not registered
 
-## 4. Global Config
+## 4. Config (Project + Global)
 
-- [ ] 4.1 Add an optional `plugins` block to `GlobalConfigSchema` (`enabled: string[]`, `autoDetect: boolean` default true, `registry` settings) in `src/core/config-schema.ts`
-- [ ] 4.2 Add `plugins` to `KNOWN_TOP_LEVEL_KEYS` and config key-path validation
-- [ ] 4.3 Ensure schema evolution: configs without `plugins` load unchanged; no plugins means today's behavior
-- [ ] 4.4 Unit tests: default config, enable/disable persistence, passthrough of unknown plugin keys, legacy config without `plugins`
+- [ ] 4.1 Add an optional `plugins` block to the project `ProjectConfigSchema` in `src/core/project-config.ts` (`enabled: string[]`, optional `autoDetect`); this is the team-shared, committed source of project-tier enablement
+- [ ] 4.2 Implement non-destructive writes to `openspec/config.yaml`: enabling/disabling a plugin SHALL preserve `schema`/`context`/`rules` and unknown third-party keys (e.g. `openlore`)
+- [ ] 4.3 Add an optional user-level `plugins` block to `GlobalConfigSchema` (`autoDetect: boolean` default true, `registry` settings, optional user/global-tier plugins) in `src/core/config-schema.ts`
+- [ ] 4.4 Add `plugins` to `KNOWN_TOP_LEVEL_KEYS` and config key-path validation for global config
+- [ ] 4.5 Ensure schema evolution: project and global configs without `plugins` load unchanged; no plugins means today's behavior
+- [ ] 4.6 Unit tests: project plugins parse/absent/malformed, non-destructive round-trip preserving an `openlore` block, global default `autoDetect`, passthrough of unknown global plugin keys, legacy configs without `plugins`
 
 ## 5. Plugin Contribution to AI Tools
 
