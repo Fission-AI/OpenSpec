@@ -723,9 +723,6 @@ export function registerStoreCommand(program: Command): void {
       await storeCommand.doctor(id, options);
     });
 
-  // Registering a command:* listener suppresses Commander's default
-  // unknown-command error, so this handler owns the entire message and
-  // the exit path (same text for human and --json invocations).
   const lifecycleRedirects = new Set(
     COMMAND_REGISTRY.filter(
       (entry) =>
@@ -741,12 +738,24 @@ export function registerStoreCommand(program: Command): void {
       return aliases.length > 0 ? `${subcommand.name()} (${aliases.join(', ')})` : subcommand.name();
     })
     .join(', ');
-  store.on('command:*', (operands: string[], unknown: string[]) => {
+  // One group action owns missing AND unknown subcommands. Known
+  // subcommands dispatch above; everything else — including a bare
+  // `store --json` with no operand — lands here, so the handler owns the
+  // entire message and exit path (same text for human and --json). The
+  // permissive flags route unknown operands/options here instead of
+  // letting Commander emit a raw error before the action runs. We detect
+  // `--json` in the residual args rather than declaring a group option,
+  // which would otherwise shadow each subcommand's own `--json` flag.
+  store.allowExcessArguments(true);
+  store.allowUnknownOption(true);
+  store.action(() => {
+    const operands = store.args;
     // Flag values are indistinguishable from operands without a full
     // parse, so the verbatim echo only applies to plain-operand input.
     const attempted = operands.filter((operand) => !operand.startsWith('-'));
+    const hasFlagLikeToken = operands.some((operand) => operand.startsWith('-'));
     // The agent contract: --json failures emit one JSON document.
-    if (operands.includes('--json') || unknown.includes('--json')) {
+    if (operands.includes('--json')) {
       const message =
         attempted.length > 0
           ? `Unknown command '${attempted[0]}' for 'openspec store'. Store subcommands: ${storeSubcommandsLine}.`
@@ -764,7 +773,6 @@ export function registerStoreCommand(program: Command): void {
       process.exitCode = 1;
       return;
     }
-    const hasFlagLikeToken = unknown.length > 0 || attempted.length !== operands.length;
     let example = 'openspec new change <change-id> --store <id>';
     if (!hasFlagLikeToken && attempted.length > 0 && lifecycleRedirects.has(attempted[0])) {
       if (attempted[0] === 'new') {

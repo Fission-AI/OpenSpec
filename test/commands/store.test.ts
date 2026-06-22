@@ -1185,6 +1185,19 @@ describe('store command', () => {
       );
     });
 
+    it('emits one JSON status document for a bare store --json (no subcommand)', async () => {
+      const result = await runCLI(['store', '--json'], { cwd: tempDir, env });
+
+      expect(result.exitCode).toBe(1);
+      const payload = JSON.parse(result.stdout);
+      expect(payload.status[0]).toEqual(
+        expect.objectContaining({
+          code: 'unknown_store_subcommand',
+          message: expect.stringContaining('Missing subcommand'),
+        })
+      );
+    });
+
     it('keeps no alias for the retired group name', async () => {
       const result = await runCLI([RETIRED_GROUP, 'list'], { cwd: tempDir, env });
 
