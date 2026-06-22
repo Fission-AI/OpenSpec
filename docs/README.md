@@ -19,6 +19,8 @@ That second one matters more than it looks. OpenSpec has two halves: a command l
 
 **I have a problem but not a plan.** This is the common case, and it has a dedicated answer: [Explore First](explore.md). Use `/opsx:explore` to think it through with the AI before committing to anything.
 
+**I have a big existing codebase.** You don't document all of it. [Using OpenSpec in an Existing Project](existing-projects.md) shows how to start on real, brownfield code without boiling the ocean.
+
 **I just want to get it working.** [Install](installation.md), run `openspec init`, then read [How Commands Work](how-commands-work.md) so your first slash command lands in the right place.
 
 **I learn by example.** The [Examples & Recipes](examples.md) page walks through real changes start to finish: a small feature, a bug fix, a refactor, an exploration.
@@ -47,6 +49,8 @@ That second one matters more than it looks. OpenSpec has two halves: a command l
 |-----|-------------------|
 | [Workflows](workflows.md) | Common patterns and when to reach for each command |
 | [Examples & Recipes](examples.md) | Full walkthroughs of real changes, copy-pasteable |
+| [Using OpenSpec in an Existing Project](existing-projects.md) | Adopting OpenSpec on a large brownfield codebase |
+| [Editing & Iterating on a Change](editing-changes.md) | Update artifacts, go back, reconcile manual edits |
 | [Commands](commands.md) | Reference for every `/opsx:*` slash command |
 | [CLI](cli.md) | Reference for every `openspec` terminal command |
 

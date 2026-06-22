@@ -16,6 +16,10 @@ Because AI assistants are confident even when they're wrong. When the requiremen
 
 No. Use it where agreement matters, which is most non-trivial work. For a one-character typo fix, the ceremony probably isn't worth it, and that's fine.
 
+### Can I use it on a big existing codebase, or only new projects?
+
+Existing codebases are the main event. OpenSpec is brownfield-first: you do not document your whole app up front. You write specs only for what each change touches, and your specs fill in over time around the work you actually do. There's a dedicated guide: [Using OpenSpec in an Existing Project](existing-projects.md).
+
 ### Is it tied to one AI tool?
 
 No. OpenSpec works with 25+ assistants, including Claude Code, Cursor, Windsurf, GitHub Copilot, Gemini CLI, Codex, and more. The full list and per-tool details are in [Supported Tools](supported-tools.md).
@@ -68,9 +72,25 @@ A profile decides which slash commands get installed. **Core** (the default) giv
 
 Usually not. Sync merges a change's delta specs into your main specs, and `/opsx:archive` will offer to do it for you. Run sync manually only when you want the specs merged before archiving, for example on a long-running change. See [Commands](commands.md#opsxsync).
 
+### How do I edit a proposal, spec, or task after I've started?
+
+Just edit the file. Every artifact is plain Markdown in `openspec/changes/<name>/`, and there's no locked phase or special edit mode. Change it by hand, or ask your AI to revise it ("update the design to use a queue"), then keep going. The AI always works from the current file contents. Full guide: [Editing & Iterating on a Change](editing-changes.md).
+
+### Can I go back and change the plan after implementing some of it?
+
+Yes, at any time. The workflow is fluid, so review and editing aren't phases you get locked out of. Edit the artifact, then continue. If you want a structured check that the code still matches the plan, run `/opsx:verify`. See [Editing & Iterating on a Change](editing-changes.md#how-do-i-go-back-to-review-after-implementing).
+
+### I edited the code by hand. How do I reconcile it with the spec?
+
+Bring them back in sync before you archive, since archiving makes your specs the record of truth. If the code is now correct, update the delta spec to match what you shipped; if the spec is correct, keep building until the code agrees. `/opsx:verify` surfaces the mismatches. See [Editing & Iterating on a Change](editing-changes.md#i-edited-the-code-by-hand-how-do-i-reconcile-that-with-openspec).
+
 ### When should I update an existing change versus start a new one?
 
 Update when it's the same work, refined. Start fresh when the intent fundamentally changed or the scope exploded into different work. There's a decision flowchart and examples in [Workflows](workflows.md#when-to-update-vs-start-fresh).
+
+### What if my session runs out of context, or requirements change mid-implementation?
+
+This is where specs earn their keep. Because the plan lives in files (not only in chat history), you can clear your context, start a fresh AI session, and pick up with `/opsx:apply`; it reads the artifacts and resumes from the first unchecked task. If requirements change, edit the artifacts to match the new reality and continue. Keeping a clean context window also produces better results; clear it before implementation.
 
 ### Should I commit the `openspec/` folder to git?
 
@@ -117,6 +137,10 @@ It collects anonymous usage stats: command names and version only. No arguments,
 ### How do I upgrade?
 
 Two steps. Upgrade the package (`npm install -g @fission-ai/openspec@latest`), then run `openspec update` inside each project to refresh the generated skills and commands.
+
+### How do I uninstall OpenSpec?
+
+There's no uninstall command, because it's just a global package plus files in your project. Remove the package (`npm uninstall -g @fission-ai/openspec`), and optionally delete the `openspec/` directory and the generated tool files. Step-by-step, including what's safe to keep, is in [Installation: Uninstalling](installation.md#uninstalling).
 
 ## Getting help
 

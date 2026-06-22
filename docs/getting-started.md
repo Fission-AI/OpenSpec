@@ -275,6 +275,8 @@ openspec view
 ## Next Steps
 
 - [Explore First](explore.md) - Use `/opsx:explore` to think through an idea before you commit
+- [Using OpenSpec in an Existing Project](existing-projects.md) - Start on a large brownfield codebase
+- [Editing & Iterating on a Change](editing-changes.md) - Update artifacts, go back, reconcile manual edits
 - [Core Concepts at a Glance](overview.md) - The whole mental model on one page
 - [Examples & Recipes](examples.md) - Real changes, start to finish
 - [Workflows](workflows.md) - Common patterns and when to use each command
