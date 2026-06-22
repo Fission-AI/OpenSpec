@@ -224,4 +224,22 @@ describe('plugins/contribution', () => {
     // Commands-only delivery with an owned dir present -> drift (needs removal).
     expect(hasContributionDrift(toolSkillsDir, [], known, false)).toBe(true);
   });
+
+  it('detects drift when the plugin version changes (upgrade refresh)', () => {
+    const toolSkillsDir = path.join(projectRoot, '.claude', 'skills');
+    fs.mkdirSync(toolSkillsDir, { recursive: true });
+    const base = [{ pluginId: 'p', packageRoot: projectRoot, dirName: 'p-orient', sourceDir: '' }];
+
+    // Install at v1 by writing a real source then installing.
+    const src = path.join(projectRoot, 'node_modules', 'p', 'skills', 'p-orient');
+    fs.mkdirSync(src, { recursive: true });
+    fs.writeFileSync(path.join(src, 'SKILL.md'), '#');
+    const v1 = [{ ...base[0], version: '1.0.0', sourceDir: src }];
+    installContributedSkills(toolSkillsDir, v1);
+    expect(hasContributionDrift(toolSkillsDir, v1, ['p-orient'], true)).toBe(false);
+
+    // Same dir, new plugin version -> drift (needs refresh).
+    const v2 = [{ ...base[0], version: '2.0.0', sourceDir: src }];
+    expect(hasContributionDrift(toolSkillsDir, v2, ['p-orient'], true)).toBe(true);
+  });
 });

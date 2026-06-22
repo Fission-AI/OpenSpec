@@ -42,13 +42,32 @@ function realpathOrNull(p: string): string | null {
   }
 }
 
+interface SkillMarker {
+  plugin: string;
+  version?: string;
+  managedBy: string;
+}
+
+/** Read the ownership marker for an installed skill dir, or null if not ours. */
+function readSkillMarker(dir: string): SkillMarker | null {
+  try {
+    const raw = fs.readFileSync(path.join(dir, OWNERSHIP_MARKER), 'utf-8');
+    const parsed = JSON.parse(raw);
+    return parsed && parsed.managedBy === 'openspec' ? (parsed as SkillMarker) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** True when `dir` exists and was installed by OpenSpec for a plugin. */
 function isOwnedSkillDir(dir: string): boolean {
-  return fs.existsSync(path.join(dir, OWNERSHIP_MARKER));
+  return readSkillMarker(dir) !== null;
 }
 
 export interface ContributedSkill {
   pluginId: string;
+  /** Plugin package version, recorded in the marker so upgrades trigger a refresh. */
+  version?: string;
   /** Absolute plugin package root, used to re-check source containment at copy time. */
   packageRoot: string;
   /** Directory name the skill is installed as. */
@@ -91,6 +110,7 @@ export function collectContributedSkills(projectRoot: string): ContributedSkill[
       }
       skills.push({
         pluginId: plugin.id,
+        version: plugin.version,
         packageRoot: plugin.packageRoot,
         dirName: skill.dir,
         sourceDir,
@@ -136,13 +156,18 @@ export function hasContributionDrift(
     return knownContributedDirs.some((d) => isOwnedSkillDir(path.join(toolSkillsDir, d)));
   }
   const activeDirs = new Set(contributedSkills.map((s) => s.dirName));
-  const missingActive = contributedSkills.some(
-    (s) => !fs.existsSync(path.join(toolSkillsDir, s.dirName, 'SKILL.md'))
-  );
+  // An active skill drifts when its SKILL.md is missing, or when the installed
+  // marker version differs from the current plugin version (plugin was upgraded).
+  const staleActive = contributedSkills.some((s) => {
+    const dir = path.join(toolSkillsDir, s.dirName);
+    if (!fs.existsSync(path.join(dir, 'SKILL.md'))) return true;
+    const marker = readSkillMarker(dir);
+    return !marker || marker.version !== s.version;
+  });
   const staleInactive = knownContributedDirs.some(
     (d) => !activeDirs.has(d) && isOwnedSkillDir(path.join(toolSkillsDir, d))
   );
-  return missingActive || staleInactive;
+  return staleActive || staleInactive;
 }
 
 /**
@@ -183,7 +208,7 @@ export function installContributedSkills(
       fs.cpSync(realSource, dest, { recursive: true });
       fs.writeFileSync(
         path.join(dest, OWNERSHIP_MARKER),
-        JSON.stringify({ plugin: skill.pluginId, managedBy: 'openspec' }) + '\n'
+        JSON.stringify({ plugin: skill.pluginId, version: skill.version, managedBy: 'openspec' }) + '\n'
       );
       installed.push(skill.dirName);
     } catch (error) {
