@@ -195,8 +195,7 @@ async function addPlugin(
       // Re-resolve to pick up the freshly installed plugin id.
       const after = resolvePlugins(projectRoot).plugins.find((p) => p.namespace === registryEntry?.namespace || p.id === idOrNpm);
       const enableId = after?.id ?? registryEntry?.id ?? idOrNpm;
-      enableProjectPlugin(projectRoot, enableId);
-      console.log(`Enabled "${enableId}". Run "openspec plugin list" to verify.`);
+      reportEnable(projectRoot, enableId);
       return;
     }
 
@@ -219,10 +218,26 @@ async function addPlugin(
     );
   }
 
-  enableProjectPlugin(projectRoot, installed.id);
-  clearPluginResolutionCache();
-  console.log(`Enabled "${installed.id}" (namespace "${installed.namespace}").`);
+  reportEnable(projectRoot, installed.id);
   console.log(`Run "openspec ${installed.namespace} --help" to see its commands.`);
+}
+
+/**
+ * Enable a plugin in project config and report honestly whether the write
+ * succeeded. When there is no config.yaml to edit, the plugin still works via
+ * auto-detect, but enablement cannot be pinned — say so rather than claim success.
+ */
+function reportEnable(projectRoot: string, id: string): void {
+  const wrote = enableProjectPlugin(projectRoot, id);
+  clearPluginResolutionCache();
+  if (wrote) {
+    console.log(`Enabled "${id}" in openspec/config.yaml.`);
+  } else {
+    console.log(
+      `No openspec/config.yaml found to record "${id}". It is still active via auto-detect; ` +
+        `create openspec/config.yaml to pin it explicitly under plugins.enabled.`
+    );
+  }
 }
 
 function removePlugin(id: string): void {
@@ -241,13 +256,16 @@ function removePlugin(id: string): void {
 function setEnabled(id: string, enabled: boolean): void {
   const projectRoot = ensureOpenSpecProject();
   if (enabled) {
-    enableProjectPlugin(projectRoot, id);
-    console.log(`Enabled "${id}".`);
+    reportEnable(projectRoot, id);
   } else {
-    disableProjectPlugin(projectRoot, id);
-    console.log(`Disabled "${id}".`);
+    const wrote = disableProjectPlugin(projectRoot, id);
+    clearPluginResolutionCache();
+    console.log(
+      wrote
+        ? `Disabled "${id}" in openspec/config.yaml.`
+        : `No openspec/config.yaml found; nothing to disable for "${id}".`
+    );
   }
-  clearPluginResolutionCache();
 }
 
 function searchPlugins(query: string | undefined, json?: boolean): void {

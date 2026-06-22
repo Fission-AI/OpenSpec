@@ -6,6 +6,15 @@ import { runCLI } from '../helpers/run-cli.js';
 
 const tempRoots: string[] = [];
 
+async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Build a temp project containing an OpenSpec dir and a fixture plugin installed
  * under node_modules with a manifest and a stub executable.
@@ -116,6 +125,40 @@ describe('openspec plugin e2e', () => {
     expect(result.exitCode).toBe(0);
     const parsed = JSON.parse(result.stdout);
     expect(parsed.plugins.some((p: { id: string }) => p.id === 'openlore')).toBe(true);
+  });
+
+  it('reports honestly when there is no config.yaml to record enablement', async () => {
+    // Fresh project: openspec/ dir present but no config.yaml, plus the plugin.
+    const base = await fs.mkdtemp(path.join(tmpdir(), 'openspec-plugin-noconfig-'));
+    tempRoots.push(base);
+    const proj = path.join(base, 'project');
+    await fs.mkdir(path.join(proj, 'openspec'), { recursive: true });
+    const pluginDir = path.join(proj, 'node_modules', 'demo-engine');
+    await fs.mkdir(pluginDir, { recursive: true });
+    await fs.writeFile(
+      path.join(pluginDir, 'package.json'),
+      JSON.stringify({
+        name: 'demo-engine',
+        version: '0.4.0',
+        bin: 'cli.js',
+        openspec: {
+          manifestVersion: 1,
+          id: 'demo-engine',
+          namespace: 'demo',
+          bin: 'cli.js',
+          openspecCompat: '>=1.0.0',
+        },
+      })
+    );
+    await fs.writeFile(path.join(pluginDir, 'cli.js'), '#!/usr/bin/env node\n');
+
+    const result = await runCLI(['plugin', 'add', 'demo-engine'], {
+      cwd: proj,
+      env: isolatedEnv(base),
+    });
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toMatch(/No openspec\/config\.yaml found/);
+    expect(await fileExists(path.join(proj, 'openspec', 'config.yaml'))).toBe(false);
   });
 
   it('init installs a plugin-contributed skill into the selected tool', async () => {
