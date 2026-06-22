@@ -4,6 +4,8 @@ Real changes, start to finish. Each recipe shows the commands you'd type and wha
 
 A reminder before you start: slash commands like `/opsx:propose` go in your **AI assistant's chat**, and `openspec` commands go in your **terminal**. If that's new, read [How Commands Work](how-commands-work.md) first. In the transcripts below, `You:` and `AI:` are the chat, and lines starting with `$` are the terminal.
 
+> **Not sure what you're building yet?** Most of these recipes are sharper if you start with `/opsx:explore` to think it through first. [Recipe 3](#recipe-3-exploring-before-you-commit) shows it in action, and the [Explore First](explore.md) guide makes the full case.
+
 ## Recipe 1: A small feature, the fast path
 
 **When to use it:** you know what you want, and it's a contained piece of work. This is the most common recipe.
@@ -206,6 +208,7 @@ These are read-and-inspect tools. The proposing and building still happen throug
 
 ## Where to go next
 
+- [Explore First](explore.md): the recommended way to start when you're unsure
 - [Workflows](workflows.md): the patterns above, with decision guidance on when to use each
 - [Commands](commands.md): every slash command in detail
 - [Getting Started](getting-started.md): the canonical first-change walkthrough

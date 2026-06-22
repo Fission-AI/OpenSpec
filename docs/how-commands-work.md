@@ -110,11 +110,13 @@ Quick checks, fastest first:
 
 By default, OpenSpec installs the **core** set of slash commands:
 
+- `/opsx:explore`: think through an idea with the AI before committing to a change (great first step when you're unsure)
 - `/opsx:propose`: create a change and draft all its planning artifacts in one step
-- `/opsx:explore`: think through an idea before committing to a change
 - `/opsx:apply`: build the change by working through its task list
 - `/opsx:sync`: merge a change's spec updates into your main specs (usually automatic)
 - `/opsx:archive`: finish a change and file it away
+
+A good default rhythm: `explore` when you're figuring out what to do, then `propose`, `apply`, `archive`. The [Explore First](explore.md) guide explains why that opening step pays off.
 
 There's also an **expanded** set for people who want finer control (`/opsx:new`, `/opsx:continue`, `/opsx:ff`, `/opsx:verify`, `/opsx:bulk-archive`, `/opsx:onboard`). You turn it on with `openspec config profile`, then apply it with `openspec update`.
 
@@ -131,6 +133,9 @@ TERMINAL   $ npm install -g @fission-ai/openspec@latest
 TERMINAL   $ cd your-project
 TERMINAL   $ openspec init
               (installs slash commands into your AI tool)
+
+AI CHAT      /opsx:explore
+              (optional: think the idea through with the AI first)
 
 AI CHAT      /opsx:propose add-dark-mode
               (AI drafts proposal, specs, design, tasks)

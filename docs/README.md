@@ -11,9 +11,13 @@ If you read nothing else, read these two pages:
 
 That second one matters more than it looks. OpenSpec has two halves: a command line tool you run in your terminal, and slash commands you give to your AI assistant. Knowing which is which saves you the most common moment of confusion.
 
+> **The best habit to build first: when you're not sure what to build, start with `/opsx:explore`.** It's a no-stakes thinking partner that reads your code, weighs options, and sharpens a fuzzy idea into a concrete plan before any artifact or code exists. The [Explore First](explore.md) guide makes the case.
+
 ## Pick your path
 
 **I'm brand new.** Start with [Getting Started](getting-started.md), then skim the [Core Concepts at a Glance](overview.md). When something feels mysterious, the [FAQ](faq.md) and [Glossary](glossary.md) are nearby.
+
+**I have a problem but not a plan.** This is the common case, and it has a dedicated answer: [Explore First](explore.md). Use `/opsx:explore` to think it through with the AI before committing to anything.
 
 **I just want to get it working.** [Install](installation.md), run `openspec init`, then read [How Commands Work](how-commands-work.md) so your first slash command lands in the right place.
 
@@ -32,6 +36,7 @@ That second one matters more than it looks. OpenSpec has two halves: a command l
 | Doc | What it gives you |
 |-----|-------------------|
 | [Getting Started](getting-started.md) | Install, initialize, and run your first change end to end |
+| [Explore First](explore.md) | Use `/opsx:explore` to think through an idea before you commit |
 | [How Commands Work](how-commands-work.md) | Where slash commands run, what "interactive mode" means, terminal vs chat |
 | [Core Concepts at a Glance](overview.md) | The whole mental model on one page: specs, changes, deltas, archive |
 | [Installation](installation.md) | npm, pnpm, yarn, bun, Nix, and how to verify it worked |
@@ -81,12 +86,13 @@ That second one matters more than it looks. OpenSpec has two halves: a command l
 ```text
 1. Install        npm install -g @fission-ai/openspec@latest
 2. Initialize     cd your-project && openspec init
-3. Propose        (in your AI chat)  /opsx:propose add-dark-mode
-4. Build          (in your AI chat)  /opsx:apply
-5. Archive        (in your AI chat)  /opsx:archive
+3. Explore        (in your AI chat)  /opsx:explore           ← optional, but a great habit
+4. Propose        (in your AI chat)  /opsx:propose add-dark-mode
+5. Build          (in your AI chat)  /opsx:apply
+6. Archive        (in your AI chat)  /opsx:archive
 ```
 
-Steps 1 and 2 happen in your terminal. Steps 3 through 5 happen in your AI assistant's chat. That split is the one thing worth memorizing, and [How Commands Work](how-commands-work.md) explains exactly why.
+Steps 1 and 2 happen in your terminal. The rest happen in your AI assistant's chat. That split is the one thing worth memorizing, and [How Commands Work](how-commands-work.md) explains exactly why. Step 3 is optional, but starting with `/opsx:explore` when you're unsure is the habit most worth forming.
 
 ## Where else to get help
 

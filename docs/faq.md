@@ -44,13 +44,17 @@ Both are files OpenSpec writes so your assistant can run the workflow. Skills (`
 
 ## The workflow
 
+### Where should I start if I'm not sure what to build?
+
+With `/opsx:explore`. It's a no-stakes thinking partner that reads your codebase, lays out options, and turns a fuzzy problem into a concrete plan, all before any change or code exists. It's in the default profile, so it's always available. When the plan is clear, it hands off to `/opsx:propose`. This is the single best habit to form, because it stops an eager AI from confidently building the wrong thing. See [Explore First](explore.md).
+
 ### What's the simplest possible flow?
 
 ```text
-/opsx:propose <what you want>    then    /opsx:apply    then    /opsx:archive
+/opsx:explore (optional)   then   /opsx:propose <what you want>   then   /opsx:apply   then   /opsx:archive
 ```
 
-Propose drafts the plan, apply builds it, archive files it away. That's the whole loop.
+Explore to think it through, propose to draft the plan, apply to build it, archive to file it away. Skip explore when you already know exactly what you want.
 
 ### What's the difference between `/opsx:propose` and `/opsx:new`?
 
