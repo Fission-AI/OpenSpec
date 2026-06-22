@@ -1,5 +1,6 @@
 import { COMMON_FLAGS } from './shared-flags.js';
 import type { CommandDefinition } from './types.js';
+import { resolvePlugins, activePlugins } from '../plugins/resolver.js';
 export const COMMAND_REGISTRY: CommandDefinition[] = [
   {
     name: 'init',
@@ -1022,3 +1023,30 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     ],
   },
 ];
+
+/**
+ * The command registry augmented with active plugin namespaces (and their
+ * declared subcommands) for completion generation. Incompatible or disabled
+ * plugins are excluded. Falls back to the static registry on any resolution
+ * error so completion never breaks.
+ */
+export function getCommandRegistryWithPlugins(
+  projectRoot: string = process.cwd()
+): CommandDefinition[] {
+  try {
+    const plugins = activePlugins(resolvePlugins(projectRoot));
+    const pluginDefs: CommandDefinition[] = plugins.map((p) => ({
+      name: p.namespace,
+      description: `[plugin] ${p.manifest.summary ?? p.manifest.displayName ?? p.id}`,
+      flags: [],
+      subcommands: (p.manifest.commands ?? []).map((c) => ({
+        name: c.name,
+        description: c.summary ?? `${p.namespace} ${c.name}`,
+        flags: [],
+      })),
+    }));
+    return [...COMMAND_REGISTRY, ...pluginDefs];
+  } catch {
+    return COMMAND_REGISTRY;
+  }
+}
