@@ -20,6 +20,9 @@ import { registerSchemaCommand } from '../commands/schema.js';
 import { registerWorkspaceCommand } from '../commands/workspace.js';
 import { registerContextStoreCommand } from '../commands/context-store.js';
 import { registerInitiativeCommand } from '../commands/initiative.js';
+import { registerPluginCommand } from '../commands/plugin.js';
+import { registerPlugins, delegateToPlugin } from '../core/plugins/runtime.js';
+import { resolvePlugins, activePlugins } from '../core/plugins/resolver.js';
 import { findWorkspaceRoot } from '../core/workspace/index.js';
 import {
   statusCommand,
@@ -323,6 +326,15 @@ registerSchemaCommand(program);
 registerWorkspaceCommand(program);
 registerContextStoreCommand(program);
 registerInitiativeCommand(program);
+registerPluginCommand(program);
+
+// Surface installed plugins as namespaced commands (for help/completion). Guarded
+// so a plugin resolution problem can never break core OpenSpec commands.
+try {
+  registerPlugins(program);
+} catch {
+  // Resolution errors are reported via `openspec plugin list`, not here.
+}
 
 // Top-level validate command
 program
@@ -574,7 +586,53 @@ setCmd
 export { program };
 
 export function runCli(argv = process.argv): void {
+  // Plugin namespace invocations are delegated verbatim to the plugin executable
+  // before Commander parses argv (so `--help` and unknown flags pass through
+  // untouched). Telemetry records the namespace only, never plugin arguments.
+  const delegation = findPluginDelegation(argv);
+  if (delegation) {
+    void runDelegatedPlugin(delegation.plugin, delegation.args, delegation.namespace);
+    return;
+  }
   program.parse(argv);
+}
+
+function findPluginDelegation(
+  argv: string[]
+): { namespace: string; plugin: ReturnType<typeof activePlugins>[number]; args: string[] } | null {
+  try {
+    const rest = argv.slice(2);
+    const tokenIndex = rest.findIndex((token) => !token.startsWith('-'));
+    if (tokenIndex === -1) return null;
+
+    const namespace = rest[tokenIndex];
+    const plugin = activePlugins(resolvePlugins(process.cwd())).find(
+      (p) => p.namespace === namespace
+    );
+    if (!plugin) return null;
+    return { namespace, plugin, args: rest.slice(tokenIndex + 1) };
+  } catch {
+    return null;
+  }
+}
+
+async function runDelegatedPlugin(
+  plugin: ReturnType<typeof activePlugins>[number],
+  args: string[],
+  namespace: string
+): Promise<void> {
+  try {
+    await maybeShowTelemetryNotice();
+    await trackCommand(namespace, version);
+  } catch {
+    // Telemetry must never block plugin execution.
+  }
+  process.exitCode = delegateToPlugin(plugin, args);
+  try {
+    await shutdown();
+  } catch {
+    // ignore telemetry shutdown failures
+  }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

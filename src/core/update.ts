@@ -26,6 +26,13 @@ import {
   type ToolVersionStatus,
 } from './shared/index.js';
 import {
+  collectContributedSkills,
+  collectKnownPluginSkillRefs,
+  hasContributionDrift,
+  installContributedSkills,
+  removeContributedSkill,
+} from './plugins/contribution.js';
+import {
   detectLegacyArtifacts,
   cleanupLegacyArtifacts,
   formatCleanupSummary,
@@ -133,6 +140,13 @@ export class UpdateCommand {
     });
     const statusByTool = new Map(toolStatuses.map((status) => [status.toolId, status] as const));
 
+    // Plugin-contributed skills: collected before the up-to-date short-circuit so
+    // enabling/disabling a plugin is treated as pending work even when core tool
+    // assets are already current. Tracked by name, never pattern.
+    const contributedSkills = collectContributedSkills(resolvedProjectPath);
+    const activePluginIds = new Set(contributedSkills.map((s) => s.pluginId));
+    const knownSkillRefs = collectKnownPluginSkillRefs(resolvedProjectPath);
+
     // 7. Smart update detection
     const toolsNeedingVersionUpdate = toolStatuses
       .filter((s) => s.needsUpdate)
@@ -143,9 +157,21 @@ export class UpdateCommand {
       delivery,
       configuredTools
     );
+    const toolsNeedingPluginSync = configuredTools.filter((toolId) => {
+      const tool = AI_TOOLS.find((t) => t.value === toolId);
+      if (!tool?.skillsDir) return false;
+      const skillsDir = path.join(resolvedProjectPath, tool.skillsDir, 'skills');
+      return hasContributionDrift(
+        skillsDir,
+        contributedSkills,
+        knownSkillRefs,
+        shouldGenerateSkills
+      );
+    });
     const toolsToUpdateSet = new Set<string>([
       ...toolsNeedingVersionUpdate,
       ...toolsNeedingConfigSync,
+      ...toolsNeedingPluginSync,
     ]);
     const toolsUpToDate = toolStatuses.filter((s) => !toolsToUpdateSet.has(s.toolId));
 
@@ -164,7 +190,13 @@ export class UpdateCommand {
     if (this.force) {
       console.log(`Force updating ${configuredTools.length} tool(s): ${configuredTools.join(', ')}`);
     } else {
-      this.displayUpdatePlan([...toolsToUpdateSet], statusByTool, toolsUpToDate);
+      this.displayUpdatePlan(
+        [...toolsToUpdateSet],
+        statusByTool,
+        toolsUpToDate,
+        new Set(toolsNeedingConfigSync),
+        new Set(toolsNeedingPluginSync)
+      );
     }
     console.log();
 
@@ -203,11 +235,24 @@ export class UpdateCommand {
           }
 
           removedDeselectedSkillCount += await this.removeUnselectedSkillDirs(skillsDir, desiredWorkflows);
+
+          // Install active plugin-contributed skills; remove those for plugins that
+          // are no longer active, matching the dir's ownership marker to the plugin.
+          installContributedSkills(skillsDir, contributedSkills);
+          for (const ref of knownSkillRefs) {
+            if (!activePluginIds.has(ref.pluginId)) {
+              removeContributedSkill(skillsDir, ref.dirName, ref.pluginId);
+            }
+          }
         }
 
         // Delete skill directories if delivery is commands-only
         if (!shouldGenerateSkills) {
           removedSkillCount += await this.removeSkillDirs(skillsDir);
+          // Commands-only delivery: remove all known plugin-contributed skills too.
+          for (const ref of knownSkillRefs) {
+            removeContributedSkill(skillsDir, ref.dirName, ref.pluginId);
+          }
         }
 
         // Generate commands if delivery includes commands
@@ -313,7 +358,9 @@ export class UpdateCommand {
   private displayUpdatePlan(
     toolsToUpdate: string[],
     statusByTool: Map<string, ToolVersionStatus>,
-    upToDate: ToolVersionStatus[]
+    upToDate: ToolVersionStatus[],
+    configSyncTools: Set<string> = new Set(),
+    pluginSyncTools: Set<string> = new Set()
   ): void {
     const updates = toolsToUpdate.map((toolId) => {
       const status = statusByTool.get(toolId);
@@ -321,7 +368,10 @@ export class UpdateCommand {
         const fromVersion = status.generatedByVersion ?? 'unknown';
         return `${status.toolId} (${fromVersion} → ${OPENSPEC_VERSION})`;
       }
-      return `${toolId} (config sync)`;
+      const reasons: string[] = [];
+      if (configSyncTools.has(toolId)) reasons.push('config sync');
+      if (pluginSyncTools.has(toolId)) reasons.push('plugin skills');
+      return `${toolId} (${reasons.join(' + ') || 'sync'})`;
     });
 
     console.log(`Updating ${toolsToUpdate.length} tool(s): ${updates.join(', ')}`);
@@ -674,6 +724,9 @@ export class UpdateCommand {
     const shouldGenerateCommands = delivery !== 'skills';
     const skillTemplates = shouldGenerateSkills ? getSkillTemplates(desiredWorkflows) : [];
     const commandContents = shouldGenerateCommands ? getCommandContents(desiredWorkflows) : [];
+    // Plugin-contributed skills land for newly-configured legacy tools in the same
+    // run, not just on the next update.
+    const legacyContributedSkills = shouldGenerateSkills ? collectContributedSkills(projectPath) : [];
 
     for (const toolId of selectedTools) {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
@@ -695,6 +748,9 @@ export class UpdateCommand {
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
+
+          // Install active plugin-contributed skills for this legacy tool too.
+          installContributedSkills(skillsDir, legacyContributedSkills);
         }
 
         // Create commands when delivery includes commands

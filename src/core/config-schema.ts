@@ -21,6 +21,14 @@ export const GlobalConfigSchema = z
     workflows: z
       .array(z.string())
       .optional(),
+    plugins: z
+      .object({
+        autoDetect: z.boolean().optional(),
+        registry: z.string().optional(),
+        enabled: z.array(z.string()).optional(),
+      })
+      .passthrough()
+      .optional(),
   })
   .passthrough();
 
@@ -35,7 +43,7 @@ export const DEFAULT_CONFIG: GlobalConfigType = {
   delivery: 'both',
 };
 
-const KNOWN_TOP_LEVEL_KEYS = new Set([...Object.keys(DEFAULT_CONFIG), 'workflows']);
+const KNOWN_TOP_LEVEL_KEYS = new Set([...Object.keys(DEFAULT_CONFIG), 'workflows', 'plugins']);
 
 /**
  * Validate a config key path for CLI set operations.
@@ -56,6 +64,13 @@ export function validateConfigKeyPath(path: string): { valid: boolean; reason?: 
   if (rootKey === 'featureFlags') {
     if (rawKeys.length > 2) {
       return { valid: false, reason: 'featureFlags values are booleans and do not support nested keys' };
+    }
+    return { valid: true };
+  }
+
+  if (rootKey === 'plugins') {
+    if (rawKeys.length > 2) {
+      return { valid: false, reason: 'plugins supports a single level of nested keys (e.g. plugins.autoDetect)' };
     }
     return { valid: true };
   }

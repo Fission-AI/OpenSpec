@@ -1,5 +1,6 @@
 import { COMMON_FLAGS } from './shared-flags.js';
 import type { CommandDefinition } from './types.js';
+import { resolvePlugins, activePlugins } from '../plugins/resolver.js';
 export const COMMAND_REGISTRY: CommandDefinition[] = [
   {
     name: 'init',
@@ -876,6 +877,69 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     ],
   },
   {
+    name: 'plugin',
+    description: 'Manage OpenSpec plugins (marketplace engines)',
+    flags: [],
+    subcommands: [
+      {
+        name: 'list',
+        description: 'List installed plugins and their status',
+        flags: [COMMON_FLAGS.json],
+      },
+      {
+        name: 'info',
+        description: 'Show details for a plugin (installed and/or registry)',
+        acceptsPositional: true,
+        positionals: [{ name: 'id' }],
+        flags: [COMMON_FLAGS.json],
+      },
+      {
+        name: 'add',
+        description: 'Enable a plugin in this project (and print install guidance if missing)',
+        acceptsPositional: true,
+        positionals: [{ name: 'id' }],
+        flags: [
+          {
+            name: 'force',
+            description: 'Enable even if the plugin is incompatible with this OpenSpec version',
+          },
+          {
+            name: 'install',
+            description: 'Install the package via npm before enabling',
+          },
+        ],
+      },
+      {
+        name: 'remove',
+        description: 'Disable a plugin in this project (does not uninstall the package)',
+        acceptsPositional: true,
+        positionals: [{ name: 'id' }],
+        flags: [],
+      },
+      {
+        name: 'enable',
+        description: 'Enable a plugin in this project',
+        acceptsPositional: true,
+        positionals: [{ name: 'id' }],
+        flags: [],
+      },
+      {
+        name: 'disable',
+        description: 'Disable a plugin in this project',
+        acceptsPositional: true,
+        positionals: [{ name: 'id' }],
+        flags: [],
+      },
+      {
+        name: 'search',
+        description: 'Discover plugins from the curated registry',
+        acceptsPositional: true,
+        positionals: [{ name: 'query', optional: true }],
+        flags: [COMMON_FLAGS.json],
+      },
+    ],
+  },
+  {
     name: 'schema',
     description: 'Manage workflow schemas',
     flags: [],
@@ -959,3 +1023,30 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     ],
   },
 ];
+
+/**
+ * The command registry augmented with active plugin namespaces (and their
+ * declared subcommands) for completion generation. Incompatible or disabled
+ * plugins are excluded. Falls back to the static registry on any resolution
+ * error so completion never breaks.
+ */
+export function getCommandRegistryWithPlugins(
+  projectRoot: string = process.cwd()
+): CommandDefinition[] {
+  try {
+    const plugins = activePlugins(resolvePlugins(projectRoot));
+    const pluginDefs: CommandDefinition[] = plugins.map((p) => ({
+      name: p.namespace,
+      description: `[plugin] ${p.manifest.summary ?? p.manifest.displayName ?? p.id}`,
+      flags: [],
+      subcommands: (p.manifest.commands ?? []).map((c) => ({
+        name: c.name,
+        description: c.summary ?? `${p.namespace} ${c.name}`,
+        flags: [],
+      })),
+    }));
+    return [...COMMAND_REGISTRY, ...pluginDefs];
+  } catch {
+    return COMMAND_REGISTRY;
+  }
+}

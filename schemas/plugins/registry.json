@@ -1,0 +1,13 @@
+{
+  "registryVersion": 1,
+  "plugins": [
+    {
+      "id": "openlore",
+      "npm": "openlore",
+      "namespace": "lore",
+      "openspecCompat": ">=1.0.0",
+      "summary": "Reverse-engineer OpenSpec specifications from an existing codebase, then keep code and specs in sync. Generate initial specs with OpenLore; evolve them with OpenSpec.",
+      "homepage": "https://github.com/clay-good/OpenLore"
+    }
+  ]
+}

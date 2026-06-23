@@ -11,12 +11,24 @@ export const GLOBAL_DATA_DIR_NAME = 'openspec';
 export type Profile = 'core' | 'custom';
 export type Delivery = 'both' | 'skills' | 'commands';
 
+/** User-level plugin preferences (enablement that travels with a repo lives in
+ * the project openspec/config.yaml, not here). */
+export interface PluginPreferences {
+  /** Auto-detect installed plugin packages by their manifest. Defaults to true. */
+  autoDetect?: boolean;
+  /** Override path to a custom registry index. */
+  registry?: string;
+  /** Plugins enabled at the user/global tier. */
+  enabled?: string[];
+}
+
 // TypeScript interfaces
 export interface GlobalConfig {
   featureFlags?: Record<string, boolean>;
   profile?: Profile;
   delivery?: Delivery;
   workflows?: string[];
+  plugins?: PluginPreferences;
 }
 
 const DEFAULT_CONFIG: GlobalConfig = {

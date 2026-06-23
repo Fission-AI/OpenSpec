@@ -112,7 +112,8 @@ If you want the expanded workflow (`/opsx:new`, `/opsx:continue`, `/opsx:ff`, `/
 → **[Supported Tools](docs/supported-tools.md)**: tool integrations & install paths<br>
 → **[Concepts](docs/concepts.md)**: how it all fits<br>
 → **[Multi-Language](docs/multi-language.md)**: multi-language support<br>
-→ **[Customization](docs/customization.md)**: make it yours
+→ **[Customization](docs/customization.md)**: make it yours<br>
+→ **[Plugins](docs/plugins.md)**: extend OpenSpec with marketplace engines (e.g. OpenLore)
 
 
 ## Community schemas
