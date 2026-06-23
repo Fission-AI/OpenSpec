@@ -80,4 +80,38 @@ describe('plugins/runtime delegateToPlugin bin containment', () => {
     expect(fs.existsSync(sentinel)).toBe(false);
     expect(err.mock.calls.flat().join(' ')).toMatch(/outside its package/);
   });
+
+  it('refuses a package-local symlink whose target escapes the package', () => {
+    // `bin` is lexically safe ("cli.js") and lexically inside the package, but the
+    // file is a symlink pointing at a script outside the package root.
+    const link = path.join(packageRoot, 'cli.js');
+    try {
+      fs.symlinkSync(path.join(tempDir, 'outside.js'), link);
+    } catch {
+      // Platforms without symlink permission (rare in CI) can't exercise this.
+      return;
+    }
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const code = delegateToPlugin(pluginWithBin(packageRoot, 'cli.js'), []);
+    expect(code).toBe(1);
+    expect(fs.existsSync(sentinel)).toBe(false);
+    expect(err.mock.calls.flat().join(' ')).toMatch(/resolves outside its package/);
+  });
+
+  it('launches a package-local symlink whose target stays inside the package', () => {
+    // A symlink is fine as long as it resolves to a file within the package.
+    fs.writeFileSync(
+      path.join(packageRoot, 'real-cli.js'),
+      `require('node:fs').writeFileSync(${JSON.stringify(path.join(packageRoot, 'ran.txt'))}, 'x');\n`
+    );
+    const link = path.join(packageRoot, 'cli.js');
+    try {
+      fs.symlinkSync(path.join(packageRoot, 'real-cli.js'), link);
+    } catch {
+      return;
+    }
+    const code = delegateToPlugin(pluginWithBin(packageRoot, 'cli.js'), []);
+    expect(code).toBe(0);
+    expect(fs.existsSync(path.join(packageRoot, 'ran.txt'))).toBe(true);
+  });
 });

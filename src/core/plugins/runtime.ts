@@ -14,6 +14,7 @@
  */
 
 import * as path from 'node:path';
+import * as fs from 'node:fs';
 import { spawnSync as nodeSpawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import type { Command } from 'commander';
@@ -25,6 +26,15 @@ import { isSafeBin } from './manifest.js';
 function isPathInside(parent: string, child: string): boolean {
   const rel = path.relative(path.resolve(parent), path.resolve(child));
   return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
+}
+
+/** Real (symlink-resolved) path, or null if it does not exist. */
+function realpathOrNull(p: string): string | null {
+  try {
+    return fs.realpathSync.native(p);
+  } catch {
+    return null;
+  }
 }
 
 // cross-spawn ships no types; cast to node's spawnSync signature (repo pattern).
@@ -44,8 +54,21 @@ function resolveLauncher(plugin: ResolvedPlugin): { command: string; baseArgs: s
         `Plugin "${plugin.id}" declares an executable ("${manifest.bin}") outside its package`
       );
     }
-    // Run the plugin's JS entrypoint with the current Node — avoids shell/.cmd shims.
-    return { command: process.execPath, baseArgs: [binPath] };
+    // Lexical checks stop `..`/absolute escapes but not a package-local symlink
+    // that points outside the package. Resolve symlinks on both the package root
+    // and the bin, and require the real bin to stay inside the real root before
+    // spawning. realpath also confirms the entrypoint actually exists.
+    const realRoot = realpathOrNull(packageRoot);
+    const realBin = realpathOrNull(binPath);
+    if (!realRoot || !realBin || !isPathInside(realRoot, realBin)) {
+      throw new Error(
+        `Plugin "${plugin.id}" executable ("${manifest.bin}") resolves outside its package`
+      );
+    }
+    // Run the plugin's JS entrypoint with the current Node — avoids shell/.cmd
+    // shims. Launch the symlink-resolved path so the spawned file is exactly the
+    // one we verified is contained (closes the symlink-swap TOCTOU window).
+    return { command: process.execPath, baseArgs: [realBin] };
   }
   if (manifest.binArgs && manifest.binArgs.length > 0) {
     return { command: manifest.binArgs[0], baseArgs: manifest.binArgs.slice(1) };
