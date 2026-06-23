@@ -59,8 +59,10 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
    Use \`artifactPaths.specs.existingOutputPaths\` from status JSON to check for delta specs. If none exist, proceed without sync prompt.
 
    **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at \`openspec/specs/<capability>/spec.md\`
-   - Determine what changes would be applied (adds, modifications, removals, renames)
+   - Locate each corresponding main spec at \`openspec/specs/<capability>/spec.md\`
+   - Treat a missing main spec as "changes needed" because sync must create it from the delta spec before archive
+   - For existing main specs, compare each delta spec with its corresponding main spec
+   - Determine what changes would be applied (new specs to create, adds, modifications, removals, renames)
    - Show a combined summary before prompting
 
    **Prompt options:**
@@ -177,8 +179,10 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
    Use \`artifactPaths.specs.existingOutputPaths\` from status JSON to check for delta specs. If none exist, proceed without sync prompt.
 
    **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at \`openspec/specs/<capability>/spec.md\`
-   - Determine what changes would be applied (adds, modifications, removals, renames)
+   - Locate each corresponding main spec at \`openspec/specs/<capability>/spec.md\`
+   - Treat a missing main spec as "changes needed" because sync must create it from the delta spec before archive
+   - For existing main specs, compare each delta spec with its corresponding main spec
+   - Determine what changes would be applied (new specs to create, adds, modifications, removals, renames)
    - Show a combined summary before prompting
 
    **Prompt options:**
