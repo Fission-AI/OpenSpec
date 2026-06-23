@@ -163,5 +163,16 @@ describe('available-tools', () => {
       expect(vibeTool?.name).toBe('Mistral Vibe');
       expect(vibeTool?.skillsDir).toBe('.vibe');
     });
+
+    it('should detect ZCode when .zcode directory exists', async () => {
+      await fs.mkdir(path.join(testDir, '.zcode'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const zcodeTool = tools.find((t) => t.value === 'zcode');
+
+      expect(zcodeTool).toBeDefined();
+      expect(zcodeTool?.name).toBe('ZCode');
+      expect(zcodeTool?.skillsDir).toBe('.zcode');
+    });
   });
 });

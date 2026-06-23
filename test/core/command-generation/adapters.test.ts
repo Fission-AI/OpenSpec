@@ -24,6 +24,7 @@ import { qoderAdapter } from '../../../src/core/command-generation/adapters/qode
 import { qwenAdapter } from '../../../src/core/command-generation/adapters/qwen.js';
 import { roocodeAdapter } from '../../../src/core/command-generation/adapters/roocode.js';
 import { windsurfAdapter } from '../../../src/core/command-generation/adapters/windsurf.js';
+import { zcodeAdapter } from '../../../src/core/command-generation/adapters/zcode.js';
 import type { CommandContent } from '../../../src/core/command-generation/types.js';
 
 describe('command-generation/adapters', () => {
@@ -116,6 +117,28 @@ describe('command-generation/adapters', () => {
     it('should format file similar to Claude format', () => {
       const output = windsurfAdapter.formatFile(sampleContent);
 
+      expect(output).toContain('---\n');
+      expect(output).toContain('name: OpenSpec Explore');
+      expect(output).toContain('description: Enter explore mode for thinking');
+      expect(output).toContain('category: Workflow');
+      expect(output).toContain('tags: [workflow, explore, experimental]');
+      expect(output).toContain('---\n\n');
+      expect(output).toContain('This is the command body.');
+    });
+  });
+
+  describe('zcodeAdapter', () => {
+    it('should have correct toolId', () => {
+      expect(zcodeAdapter.toolId).toBe('zcode');
+    });
+
+    it('should generate correct file path with nested opsx folder', () => {
+      const filePath = zcodeAdapter.getFilePath('explore');
+      expect(filePath).toBe(path.join('.zcode', 'commands', 'opsx', 'explore.md'));
+    });
+
+    it('should format file with name, description, category, and tags', () => {
+      const output = zcodeAdapter.formatFile(sampleContent);
       expect(output).toContain('---\n');
       expect(output).toContain('name: OpenSpec Explore');
       expect(output).toContain('description: Enter explore mode for thinking');
@@ -698,7 +721,7 @@ describe('command-generation/adapters', () => {
         codexAdapter, codebuddyAdapter, continueAdapter, costrictAdapter,
         crushAdapter, factoryAdapter, geminiAdapter, githubCopilotAdapter,
         iflowAdapter, kilocodeAdapter, opencodeAdapter, piAdapter, qoderAdapter,
-        qwenAdapter, roocodeAdapter
+        qwenAdapter, roocodeAdapter, zcodeAdapter
       ];
       for (const adapter of adapters) {
         const filePath = adapter.getFilePath('test');
