@@ -4,6 +4,7 @@ import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progre
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { MarkdownParser } from './parsers/markdown-parser.js';
+import type { RootOutput } from './root-selection.js';
 
 interface ChangeInfo {
   name: string;
@@ -15,6 +16,7 @@ interface ChangeInfo {
 interface ListOptions {
   sort?: 'recent' | 'name';
   json?: boolean;
+  root?: RootOutput;
 }
 
 /**
@@ -76,7 +78,7 @@ function formatRelativeTime(date: Date): string {
 
 export class ListCommand {
   async execute(targetPath: string = '.', mode: 'changes' | 'specs' = 'changes', options: ListOptions = {}): Promise<void> {
-    const { sort = 'recent', json = false } = options;
+    const { sort = 'recent', json = false, root } = options;
 
     if (mode === 'changes') {
       const changesDir = path.join(targetPath, 'openspec', 'changes');
@@ -96,7 +98,7 @@ export class ListCommand {
 
       if (changeDirs.length === 0) {
         if (json) {
-          console.log(JSON.stringify({ changes: [] }));
+          console.log(JSON.stringify({ changes: [], ...(root ? { root } : {}) }, null, 2));
         } else {
           console.log('No active changes found.');
         }
@@ -134,7 +136,7 @@ export class ListCommand {
           lastModified: c.lastModified.toISOString(),
           status: c.totalTasks === 0 ? 'no-tasks' : c.completedTasks === c.totalTasks ? 'complete' : 'in-progress'
         }));
-        console.log(JSON.stringify({ changes: jsonOutput }, null, 2));
+        console.log(JSON.stringify({ changes: jsonOutput, ...(root ? { root } : {}) }, null, 2));
         return;
       }
 
@@ -156,14 +158,22 @@ export class ListCommand {
     try {
       await fs.access(specsDir);
     } catch {
-      console.log('No specs found.');
+      if (json) {
+        console.log(JSON.stringify({ specs: [], ...(root ? { root } : {}) }, null, 2));
+      } else {
+        console.log('No specs found.');
+      }
       return;
     }
 
     const entries = await fs.readdir(specsDir, { withFileTypes: true });
     const specDirs = entries.filter(e => e.isDirectory()).map(e => e.name);
     if (specDirs.length === 0) {
-      console.log('No specs found.');
+      if (json) {
+        console.log(JSON.stringify({ specs: [], ...(root ? { root } : {}) }, null, 2));
+      } else {
+        console.log('No specs found.');
+      }
       return;
     }
 
@@ -183,6 +193,12 @@ export class ListCommand {
     }
 
     specs.sort((a, b) => a.id.localeCompare(b.id));
+
+    if (json) {
+      console.log(JSON.stringify({ specs, ...(root ? { root } : {}) }, null, 2));
+      return;
+    }
+
     console.log('Specs:');
     const padding = '  ';
     const nameWidth = Math.max(...specs.map(s => s.id.length));
