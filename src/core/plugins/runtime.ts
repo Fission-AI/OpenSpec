@@ -19,6 +19,13 @@ import { createRequire } from 'node:module';
 import type { Command } from 'commander';
 import type { ResolvedPlugin } from './types.js';
 import { resolvePlugins, activePlugins } from './resolver.js';
+import { isSafeBin } from './manifest.js';
+
+/** True when `child` resolves to a location strictly inside `parent`. */
+function isPathInside(parent: string, child: string): boolean {
+  const rel = path.relative(path.resolve(parent), path.resolve(child));
+  return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
+}
 
 // cross-spawn ships no types; cast to node's spawnSync signature (repo pattern).
 const require = createRequire(import.meta.url);
@@ -28,8 +35,17 @@ const crossSpawn = require('cross-spawn') as { sync: typeof nodeSpawnSync };
 function resolveLauncher(plugin: ResolvedPlugin): { command: string; baseArgs: string[] } {
   const { manifest, packageRoot } = plugin;
   if (manifest.bin) {
+    // Defense-in-depth: manifest validation already rejects an unsafe `bin`, but
+    // re-check containment here before spawning so a crafted path (absolute, `..`,
+    // or a Windows drive/backslash) can never launch a binary outside the package.
+    const binPath = path.resolve(packageRoot, manifest.bin);
+    if (!isSafeBin(manifest.bin) || !isPathInside(packageRoot, binPath)) {
+      throw new Error(
+        `Plugin "${plugin.id}" declares an executable ("${manifest.bin}") outside its package`
+      );
+    }
     // Run the plugin's JS entrypoint with the current Node — avoids shell/.cmd shims.
-    return { command: process.execPath, baseArgs: [path.join(packageRoot, manifest.bin)] };
+    return { command: process.execPath, baseArgs: [binPath] };
   }
   if (manifest.binArgs && manifest.binArgs.length > 0) {
     return { command: manifest.binArgs[0], baseArgs: manifest.binArgs.slice(1) };
@@ -43,7 +59,14 @@ function resolveLauncher(plugin: ResolvedPlugin): { command: string; baseArgs: s
  * Inherits stdio so the plugin owns the terminal session.
  */
 export function delegateToPlugin(plugin: ResolvedPlugin, args: string[]): number {
-  const { command, baseArgs } = resolveLauncher(plugin);
+  let command: string;
+  let baseArgs: string[];
+  try {
+    ({ command, baseArgs } = resolveLauncher(plugin));
+  } catch (error) {
+    console.error(`Error launching plugin "${plugin.id}": ${(error as Error).message}`);
+    return 1;
+  }
   const result = crossSpawn.sync(command, [...baseArgs, ...args], {
     stdio: 'inherit',
     cwd: process.cwd(),

@@ -8,6 +8,7 @@ import {
   packageDeclaresPlugin,
   isSafeSkillDirName,
   isSafeSkillSource,
+  isSafeBin,
   RESERVED_NAMESPACES,
 } from '../../../src/core/plugins/manifest.js';
 
@@ -44,6 +45,23 @@ describe('plugins/manifest validateManifest', () => {
     const result = validateManifest({ ...validManifest, namespace: 'init' });
     expect(result.valid).toBe(false);
     expect(result.errors.join(' ')).toMatch(/reserved/);
+  });
+
+  it('accepts a safe relative bin', () => {
+    expect(validateManifest({ ...validManifest, bin: 'cli.js' }).valid).toBe(true);
+    expect(validateManifest({ ...validManifest, bin: 'dist/cli.js' }).valid).toBe(true);
+  });
+
+  it.each([
+    ['parent traversal', '../somewhere/runner.js'],
+    ['posix absolute', '/usr/local/bin/runner.js'],
+    ['windows drive', 'C:\\runner.js'],
+    ['windows unc/backslash root', '\\\\evil\\runner.js'],
+    ['embedded traversal', 'dist/../../runner.js'],
+  ])('rejects an unsafe bin: %s', (_label, bin) => {
+    const result = validateManifest({ ...validManifest, bin });
+    expect(result.valid).toBe(false);
+    expect(result.errors.join(' ')).toMatch(/bin/i);
   });
 
   it('rejects an invalid namespace format', () => {
@@ -113,6 +131,17 @@ describe('plugins/manifest safe-path helpers', () => {
   it('isSafeSkillSource rejects absolute and traversal', () => {
     for (const bad of ['/etc', '../x', 'a/../b', 'C:\\x', '\\unc', '']) {
       expect(isSafeSkillSource(bad)).toBe(false);
+    }
+  });
+
+  it('isSafeBin accepts in-package relative paths', () => {
+    expect(isSafeBin('cli.js')).toBe(true);
+    expect(isSafeBin('dist/cli.js')).toBe(true);
+  });
+
+  it('isSafeBin rejects absolute, drive, and traversal paths', () => {
+    for (const bad of ['../runner.js', '/usr/bin/runner', 'C:\\runner.js', '\\\\unc\\x', 'a/../../b', '']) {
+      expect(isSafeBin(bad)).toBe(false);
     }
   });
 });

@@ -59,6 +59,18 @@ export function isSafeSkillSource(source: string): boolean {
   return !segments.some((segment) => segment === '..');
 }
 
+/**
+ * True when `bin` is a relative executable path that stays inside the plugin
+ * package — the same containment rules as a skill source (no absolute path, no
+ * Windows drive letter, no leading separator, no `..` segment). A plugin must
+ * not be able to point `bin` at a launcher outside its own package, since the
+ * runtime joins it onto the package root and spawns it. The runtime re-checks
+ * containment immediately before spawning as defense-in-depth.
+ */
+export function isSafeBin(bin: string): boolean {
+  return isSafeSkillSource(bin);
+}
+
 const CommandDescriptorSchema = z.object({
   name: z.string().min(1),
   summary: z.string().optional(),
@@ -109,8 +121,23 @@ export const PluginManifestSchema = z
     ownsConfigKeys: z.array(z.string()).optional(),
   })
   .passthrough()
-  .refine((m) => m.bin !== undefined || m.binArgs !== undefined, {
-    message: 'manifest must declare an executable via "bin" or "binArgs"',
+  .superRefine((m, ctx) => {
+    if (m.bin === undefined && m.binArgs === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'manifest must declare an executable via "bin" or "binArgs"',
+      });
+    }
+    // `bin` is joined onto the package root and spawned, so it must stay inside
+    // the package. `binArgs` is an explicit external command (e.g. ["npx", ...])
+    // and is intentionally not containment-checked.
+    if (m.bin !== undefined && !isSafeBin(m.bin)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['bin'],
+        message: `bin must be a relative path inside the package (no absolute paths, drive letters, or "..")`,
+      });
+    }
   });
 
 export interface ManifestValidationResult {
