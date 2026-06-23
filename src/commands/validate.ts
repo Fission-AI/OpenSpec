@@ -1,6 +1,13 @@
 import ora from 'ora';
 import path from 'path';
 import { Validator } from '../core/validation/validator.js';
+import {
+  resolveRootForCommand,
+  toRootOutput,
+  withStoreFlag,
+  type ResolvedOpenSpecRoot,
+  isStoreSelectedRoot,
+} from '../core/root-selection.js';
 import { isInteractive, resolveNoInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds, getSpecIds } from '../utils/item-discovery.js';
 import { nearestMatches } from '../utils/match.js';
@@ -17,6 +24,8 @@ interface ExecuteOptions {
   noInteractive?: boolean;
   interactive?: boolean; // Commander sets this to false when --no-interactive is used
   concurrency?: string;
+  store?: string;
+  storePath?: string;
 }
 
 interface BulkItemResult {
@@ -29,11 +38,16 @@ interface BulkItemResult {
 
 export class ValidateCommand {
   async execute(itemName: string | undefined, options: ExecuteOptions = {}): Promise<void> {
+    const root = await resolveRootForCommand(options, { json: options.json });
+    if (!root) {
+      return;
+    }
+
     const interactive = isInteractive(options);
 
     // Handle bulk flags first
     if (options.all || options.changes || options.specs) {
-      await this.runBulkValidation({
+      await this.runBulkValidation(root, {
         changes: !!options.all || !!options.changes,
         specs: !!options.all || !!options.specs,
       }, { strict: !!options.strict, json: !!options.json, concurrency: options.concurrency, noInteractive: resolveNoInteractive(options) });
@@ -43,17 +57,17 @@ export class ValidateCommand {
     // No item and no flags
     if (!itemName) {
       if (interactive) {
-        await this.runInteractiveSelector({ strict: !!options.strict, json: !!options.json, concurrency: options.concurrency });
+        await this.runInteractiveSelector(root, { strict: !!options.strict, json: !!options.json, concurrency: options.concurrency });
         return;
       }
-      this.printNonInteractiveHint();
+      this.printNonInteractiveHint(root);
       process.exitCode = 1;
       return;
     }
 
     // Direct item validation with type detection or override
     const typeOverride = this.normalizeType(options.type);
-    await this.validateDirectItem(itemName, { typeOverride, strict: !!options.strict, json: !!options.json });
+    await this.validateDirectItem(root, itemName, { typeOverride, strict: !!options.strict, json: !!options.json });
   }
 
   private normalizeType(value?: string): ItemType | undefined {
@@ -63,7 +77,7 @@ export class ValidateCommand {
     return undefined;
   }
 
-  private async runInteractiveSelector(opts: { strict: boolean; json: boolean; concurrency?: string }): Promise<void> {
+  private async runInteractiveSelector(root: ResolvedOpenSpecRoot, opts: { strict: boolean; json: boolean; concurrency?: string }): Promise<void> {
     const { select } = await import('@inquirer/prompts');
     const choice = await select({
       message: 'What would you like to validate?',
@@ -75,12 +89,12 @@ export class ValidateCommand {
       ],
     });
 
-    if (choice === 'all') return this.runBulkValidation({ changes: true, specs: true }, opts);
-    if (choice === 'changes') return this.runBulkValidation({ changes: true, specs: false }, opts);
-    if (choice === 'specs') return this.runBulkValidation({ changes: false, specs: true }, opts);
+    if (choice === 'all') return this.runBulkValidation(root, { changes: true, specs: true }, opts);
+    if (choice === 'changes') return this.runBulkValidation(root, { changes: true, specs: false }, opts);
+    if (choice === 'specs') return this.runBulkValidation(root, { changes: false, specs: true }, opts);
 
     // one
-    const [changes, specs] = await Promise.all([getActiveChangeIds(), getSpecIds()]);
+    const [changes, specs] = await Promise.all([getActiveChangeIds(root.path), getSpecIds(root.path)]);
     const items: { name: string; value: { type: ItemType; id: string } }[] = [];
     items.push(...changes.map(id => ({ name: `change/${id}`, value: { type: 'change' as const, id } })));
     items.push(...specs.map(id => ({ name: `spec/${id}`, value: { type: 'spec' as const, id } })));
@@ -90,66 +104,103 @@ export class ValidateCommand {
       return;
     }
     const picked = await select<{ type: ItemType; id: string }>({ message: 'Pick an item', choices: items });
-    await this.validateByType(picked.type, picked.id, opts);
+    await this.validateByType(root, picked.type, picked.id, opts);
   }
 
-  private printNonInteractiveHint(): void {
+  private printNonInteractiveHint(root: ResolvedOpenSpecRoot): void {
     console.error('Nothing to validate. Try one of:');
-    console.error('  openspec validate --all');
-    console.error('  openspec validate --changes');
-    console.error('  openspec validate --specs');
-    console.error('  openspec validate <item-name>');
+    console.error(`  ${withStoreFlag(root, 'openspec validate --all')}`);
+    console.error(`  ${withStoreFlag(root, 'openspec validate --changes')}`);
+    console.error(`  ${withStoreFlag(root, 'openspec validate --specs')}`);
+    console.error(`  ${withStoreFlag(root, 'openspec validate <item-name>')}`);
     console.error('Or run in an interactive terminal.');
   }
 
-  private async validateDirectItem(itemName: string, opts: { typeOverride?: ItemType; strict: boolean; json: boolean }): Promise<void> {
-    const [changes, specs] = await Promise.all([getActiveChangeIds(), getSpecIds()]);
+  private async validateDirectItem(root: ResolvedOpenSpecRoot, itemName: string, opts: { typeOverride?: ItemType; strict: boolean; json: boolean }): Promise<void> {
+    const [changes, specs] = await Promise.all([getActiveChangeIds(root.path), getSpecIds(root.path)]);
     const isChange = changes.includes(itemName);
     const isSpec = specs.includes(itemName);
 
     const type = opts.typeOverride ?? (isChange ? 'change' : isSpec ? 'spec' : undefined);
 
     if (!type) {
-      console.error(`Unknown item '${itemName}'`);
       const suggestions = nearestMatches(itemName, [...changes, ...specs]);
-      if (suggestions.length) console.error(`Did you mean: ${suggestions.join(', ')}?`);
+      const message = suggestions.length
+        ? `Unknown item '${itemName}'. Did you mean: ${suggestions.join(', ')}?`
+        : `Unknown item '${itemName}'.`;
+      if (opts.json) {
+        console.log(
+          JSON.stringify(
+            { status: [{ severity: 'error', code: 'unknown_item', message }] },
+            null,
+            2
+          )
+        );
+      } else {
+        console.error(message);
+      }
       process.exitCode = 1;
       return;
     }
 
     if (!opts.typeOverride && isChange && isSpec) {
+      if (opts.json) {
+        console.log(
+          JSON.stringify(
+            {
+              status: [
+                {
+                  severity: 'error',
+                  code: 'ambiguous_item',
+                  message: `Ambiguous item '${itemName}' matches both a change and a spec.`,
+                  fix: 'Pass --type change|spec.',
+                },
+              ],
+            },
+            null,
+            2
+          )
+        );
+        process.exitCode = 1;
+        return;
+      }
       console.error(`Ambiguous item '${itemName}' matches both a change and a spec.`);
-      console.error('Pass --type change|spec, or use: openspec change validate / openspec spec validate');
+      // The noun-form commands are cwd-based and cannot reach a selected store.
+      if (isStoreSelectedRoot(root)) {
+        console.error('Pass --type change|spec.');
+      } else {
+        console.error('Pass --type change|spec, or use: openspec change validate / openspec spec validate');
+      }
       process.exitCode = 1;
       return;
     }
 
-    await this.validateByType(type, itemName, opts);
+    await this.validateByType(root, type, itemName, opts);
   }
 
-  private async validateByType(type: ItemType, id: string, opts: { strict: boolean; json: boolean }): Promise<void> {
+  private async validateByType(root: ResolvedOpenSpecRoot, type: ItemType, id: string, opts: { strict: boolean; json: boolean }): Promise<void> {
     const validator = new Validator(opts.strict);
     if (type === 'change') {
-      const changeDir = path.join(process.cwd(), 'openspec', 'changes', id);
+      const changeDir = path.join(root.changesDir, id);
       const start = Date.now();
       const report = await validator.validateChangeDeltaSpecs(changeDir);
       const durationMs = Date.now() - start;
-      this.printReport('change', id, report, durationMs, opts.json);
+      this.printReport('change', id, report, durationMs, opts.json, root);
       // Non-zero exit if invalid (keeps enriched output test semantics)
       process.exitCode = report.valid ? 0 : 1;
       return;
     }
-    const file = path.join(process.cwd(), 'openspec', 'specs', id, 'spec.md');
+    const file = path.join(root.specsDir, id, 'spec.md');
     const start = Date.now();
     const report = await validator.validateSpec(file);
     const durationMs = Date.now() - start;
-    this.printReport('spec', id, report, durationMs, opts.json);
+    this.printReport('spec', id, report, durationMs, opts.json, root);
     process.exitCode = report.valid ? 0 : 1;
   }
 
-  private printReport(type: ItemType, id: string, report: { valid: boolean; issues: any[] }, durationMs: number, json: boolean): void {
+  private printReport(type: ItemType, id: string, report: { valid: boolean; issues: any[] }, durationMs: number, json: boolean, root: ResolvedOpenSpecRoot): void {
     if (json) {
-      const out = { items: [{ id, type, valid: report.valid, issues: report.issues, durationMs }], summary: { totals: { items: 1, passed: report.valid ? 1 : 0, failed: report.valid ? 0 : 1 }, byType: { [type]: { items: 1, passed: report.valid ? 1 : 0, failed: report.valid ? 0 : 1 } } }, version: '1.0' };
+      const out = { items: [{ id, type, valid: report.valid, issues: report.issues, durationMs }], summary: { totals: { items: 1, passed: report.valid ? 1 : 0, failed: report.valid ? 0 : 1 }, byType: { [type]: { items: 1, passed: report.valid ? 1 : 0, failed: report.valid ? 0 : 1 } } }, version: '1.0', root: toRootOutput(root) };
       console.log(JSON.stringify(out, null, 2));
       return;
     }
@@ -162,16 +213,16 @@ export class ValidateCommand {
         const prefix = issue.level === 'ERROR' ? '✗' : issue.level === 'WARNING' ? '⚠' : 'ℹ';
         console.error(`${prefix} [${label}] ${issue.path}: ${issue.message}`);
       }
-      this.printNextSteps(type);
+      this.printNextSteps(type, id, root);
     }
   }
 
-  private printNextSteps(type: ItemType): void {
+  private printNextSteps(type: ItemType, id: string, root: ResolvedOpenSpecRoot): void {
     const bullets: string[] = [];
     if (type === 'change') {
       bullets.push('- Ensure change has deltas in specs/: use headers ## ADDED/MODIFIED/REMOVED/RENAMED Requirements');
       bullets.push('- Each requirement MUST include at least one #### Scenario: block');
-      bullets.push('- Debug parsed deltas: openspec change show <id> --json --deltas-only');
+      bullets.push(`- Debug parsed deltas: ${withStoreFlag(root, `openspec show ${id} --json --deltas-only`)}`);
     } else {
       bullets.push('- Ensure spec includes ## Purpose and ## Requirements sections');
       bullets.push('- Each requirement MUST include at least one #### Scenario: block');
@@ -181,11 +232,11 @@ export class ValidateCommand {
     bullets.forEach(b => console.error(`  ${b}`));
   }
 
-  private async runBulkValidation(scope: { changes: boolean; specs: boolean }, opts: { strict: boolean; json: boolean; concurrency?: string; noInteractive?: boolean }): Promise<void> {
+  private async runBulkValidation(root: ResolvedOpenSpecRoot, scope: { changes: boolean; specs: boolean }, opts: { strict: boolean; json: boolean; concurrency?: string; noInteractive?: boolean }): Promise<void> {
     const spinner = !opts.json && !opts.noInteractive ? ora('Validating...').start() : undefined;
     const [changeIds, specIds] = await Promise.all([
-      scope.changes ? getActiveChangeIds() : Promise.resolve<string[]>([]),
-      scope.specs ? getSpecIds() : Promise.resolve<string[]>([]),
+      scope.changes ? getActiveChangeIds(root.path) : Promise.resolve<string[]>([]),
+      scope.specs ? getSpecIds(root.path) : Promise.resolve<string[]>([]),
     ]);
 
     const DEFAULT_CONCURRENCY = 6;
@@ -197,7 +248,7 @@ export class ValidateCommand {
     for (const id of changeIds) {
       queue.push(async () => {
         const start = Date.now();
-        const changeDir = path.join(process.cwd(), 'openspec', 'changes', id);
+        const changeDir = path.join(root.changesDir, id);
         const report = await validator.validateChangeDeltaSpecs(changeDir);
         const durationMs = Date.now() - start;
         return { id, type: 'change' as const, valid: report.valid, issues: report.issues, durationMs };
@@ -206,7 +257,7 @@ export class ValidateCommand {
     for (const id of specIds) {
       queue.push(async () => {
         const start = Date.now();
-        const file = path.join(process.cwd(), 'openspec', 'specs', id, 'spec.md');
+        const file = path.join(root.specsDir, id, 'spec.md');
         const report = await validator.validateSpec(file);
         const durationMs = Date.now() - start;
         return { id, type: 'spec' as const, valid: report.valid, issues: report.issues, durationMs };
@@ -225,7 +276,7 @@ export class ValidateCommand {
       } as const;
 
       if (opts.json) {
-        const out = { items: [] as BulkItemResult[], summary, version: '1.0' };
+        const out = { items: [] as BulkItemResult[], summary, version: '1.0', root: toRootOutput(root) };
         console.log(JSON.stringify(out, null, 2));
       } else {
         console.log('No items found to validate.');
@@ -281,7 +332,7 @@ export class ValidateCommand {
     } as const;
 
     if (opts.json) {
-      const out = { items: results, summary, version: '1.0' };
+      const out = { items: results, summary, version: '1.0', root: toRootOutput(root) };
       console.log(JSON.stringify(out, null, 2));
     } else {
       for (const res of results) {
@@ -289,6 +340,13 @@ export class ValidateCommand {
         else console.error(`✗ ${res.type}/${res.id}`);
       }
       console.log(`Totals: ${summary.totals.passed} passed, ${summary.totals.failed} failed (${summary.totals.items} items)`);
+      const firstFailure = results.find((res) => !res.valid);
+      if (firstFailure) {
+        const storeFlag = isStoreSelectedRoot(root) ? ` --store ${root.storeId}` : '';
+        console.log(
+          `Details: openspec validate ${firstFailure.id} --type ${firstFailure.type}${storeFlag}`
+        );
+      }
     }
 
     process.exitCode = failed > 0 ? 1 : 0;
