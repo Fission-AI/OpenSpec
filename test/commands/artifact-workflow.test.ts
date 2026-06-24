@@ -434,7 +434,7 @@ describe('artifact-workflow CLI commands', () => {
     });
 
     it('shows blocked state when required artifacts are missing', async () => {
-      // Only create proposal - missing specs and tasks (required by spec-driven apply block)
+      // Only create proposal - missing tasks (required by spec-driven apply block)
       await createTestChange('blocked-apply', ['proposal']);
 
       const result = await runCLI(['instructions', 'apply', '--change', 'blocked-apply'], {
@@ -442,22 +442,21 @@ describe('artifact-workflow CLI commands', () => {
       });
       expect(result.exitCode).toBe(1);
       expect(result.stdout).toContain('Blocked');
-      expect(result.stdout).toContain('Missing artifacts: specs, tasks');
+      expect(result.stdout).toContain('Missing artifacts: tasks');
     });
 
-    it('blocks apply when tasks exist but delta specs are missing', async () => {
+    it('does not block apply when tasks exist but delta specs are missing', async () => {
       await createTestChange('missing-specs-apply', ['proposal', 'design', 'tasks']);
 
       const result = await runCLI(
         ['instructions', 'apply', '--change', 'missing-specs-apply', '--json'],
         { cwd: tempDir }
       );
-      expect(result.exitCode).toBe(1);
+      expect(result.exitCode).toBe(0);
 
       const json = JSON.parse(result.stdout);
-      expect(json.state).toBe('blocked');
-      expect(json.missingArtifacts).toEqual(['specs']);
-      expect(json.instruction).toContain('Delta specs must exist');
+      expect(json.state).toBe('ready');
+      expect(json.missingArtifacts).toBeUndefined();
     });
 
     it('outputs JSON for apply instructions', async () => {
@@ -583,7 +582,7 @@ apply:
     });
 
     it('spec-driven schema uses apply block configuration', async () => {
-      // Verify that spec-driven schema uses its apply block (requires: [specs, tasks])
+      // Verify that spec-driven schema uses its apply block (requires: [tasks])
       await createTestChange('apply-config-test', ['proposal', 'design', 'specs', 'tasks']);
 
       const result = await runCLI(
