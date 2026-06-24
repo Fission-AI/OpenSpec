@@ -118,7 +118,7 @@ By default, OpenSpec installs the **core** set of slash commands:
 
 A good default rhythm: `explore` when you're figuring out what to do, then `propose`, `apply`, `archive`. The [Explore First](explore.md) guide explains why that opening step pays off.
 
-There's also an **expanded** set for people who want finer control (`/opsx:new`, `/opsx:continue`, `/opsx:ff`, `/opsx:verify`, `/opsx:bulk-archive`, `/opsx:onboard`). You turn it on with `openspec config profile`, then apply it with `openspec update`.
+There's also an **expanded** set for people who want finer control (`/opsx:new`, `/opsx:continue`, `/opsx:ff`, `/opsx:verify`, `/opsx:review`, `/opsx:bulk-archive`, `/opsx:onboard`). You turn it on with `openspec config profile`, then apply it with `openspec update`.
 
 New to all of this? `/opsx:onboard` (in the expanded set) walks you through a complete change on your own codebase, narrating each step. It's the friendliest possible introduction.
 

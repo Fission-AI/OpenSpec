@@ -83,6 +83,10 @@ const WORKFLOW_PROMPT_META: Record<string, WorkflowPromptMeta> = {
     name: 'Verify change',
     description: 'Run verification checks against a change',
   },
+  review: {
+    name: 'Review implementation',
+    description: 'Read-only review of code against the change plan',
+  },
   onboard: {
     name: 'Onboard',
     description: 'Guided onboarding flow for OpenSpec',
