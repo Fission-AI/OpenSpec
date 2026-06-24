@@ -350,6 +350,7 @@ describe('workspace command', () => {
   it('updates stored workspace skills from the current workspace and clears profile drift', async () => {
     const api = mkdir('repos/api');
     const linkedEntriesBefore = fs.readdirSync(api).sort();
+    const codexHome = path.join(tempDir, 'profile-sync-codex-home');
     writeGlobalConfig({
       profile: 'custom',
       delivery: 'commands',
@@ -383,7 +384,10 @@ describe('workspace command', () => {
 
     const update = await runCLI(['workspace', 'update', '--json'], {
       cwd: workspaceRoot,
-      env,
+      env: {
+        ...env,
+        CODEX_HOME: codexHome,
+      },
     });
     expect(update.exitCode).toBe(0);
     const payload = parseJson(update);
@@ -395,8 +399,8 @@ describe('workspace command', () => {
         delivery: 'commands',
         workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive'],
         selected_agents: ['codex'],
-        skills_only: true,
-        delivery_notice: expect.stringContaining('skills only'),
+        skills_only: false,
+        delivery_notice: null,
         refreshed: [
           expect.objectContaining({
             tool_id: 'codex',
@@ -410,6 +414,14 @@ describe('workspace command', () => {
             workflow_ids: ['verify'],
           }),
         ],
+        commands_generated: [
+          expect.objectContaining({
+            tool_id: 'codex',
+            workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive'],
+          }),
+        ],
+        commands_refreshed: [],
+        commands_failed: [],
         failed: [],
       })
     );
@@ -420,6 +432,25 @@ describe('workspace command', () => {
     expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'openspec-verify-change'))).toBe(false);
     expect(fs.existsSync(path.join(customSkillDir, 'README.md'))).toBe(true);
     expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'prompts'))).toBe(false);
+    expect(fs.existsSync(path.join(codexHome, 'prompts', 'opsx-propose.md'))).toBe(true);
+    expect(fs.existsSync(path.join(codexHome, 'prompts', 'opsx-explore.md'))).toBe(true);
+    expect(fs.existsSync(path.join(codexHome, 'prompts', 'opsx-apply.md'))).toBe(true);
+    expect(fs.existsSync(path.join(codexHome, 'prompts', 'opsx-sync.md'))).toBe(true);
+    expect(fs.existsSync(path.join(codexHome, 'prompts', 'opsx-archive.md'))).toBe(true);
+    expect(fs.existsSync(path.join(codexHome, 'prompts', 'opsx-verify.md'))).toBe(false);
+    fs.writeFileSync(path.join(codexHome, 'prompts', 'opsx-verify.md'), 'stale verify command\n');
+    fs.writeFileSync(path.join(codexHome, 'prompts', 'user-note.md'), 'user command\n');
+
+    const secondUpdate = await runCLI(['workspace', 'update', '--json'], {
+      cwd: workspaceRoot,
+      env: {
+        ...env,
+        CODEX_HOME: codexHome,
+      },
+    });
+    expect(secondUpdate.exitCode).toBe(0);
+    expect(fs.existsSync(path.join(codexHome, 'prompts', 'opsx-verify.md'))).toBe(false);
+    expect(fs.existsSync(path.join(codexHome, 'prompts', 'user-note.md'))).toBe(true);
     expect(fs.readdirSync(api).sort()).toEqual(linkedEntriesBefore);
     expect(fs.existsSync(path.join(api, '.codex'))).toBe(false);
     expect(readWorkspaceState(workspaceRoot).workspace_skills).toEqual(

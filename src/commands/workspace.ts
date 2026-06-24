@@ -319,6 +319,12 @@ function formatWorkspaceSkillRemovedResult(result: { name: string; workflow_ids?
   return `${result.name} (${workflowLabel} removed)`;
 }
 
+function formatWorkspaceCommandAgentResult(result: { name: string; workflow_ids?: string[] }): string {
+  const workflowCount = result.workflow_ids?.length ?? 0;
+  const workflowLabel = workflowCount === 1 ? '1 workflow' : `${workflowCount} workflows`;
+  return `${result.name} (${workflowLabel})`;
+}
+
 function printWorkspaceSkillReportHuman(report: WorkspaceSkillInstallationReport): void {
   console.log('Agent skills:');
   console.log(`  Profile: ${report.profile}`);
@@ -357,13 +363,35 @@ function printWorkspaceSkillReportHuman(report: WorkspaceSkillInstallationReport
     );
   }
 
+  if (report.commands_generated.length > 0) {
+    console.log(`  Commands generated: ${report.commands_generated.map(formatWorkspaceCommandAgentResult).join(', ')}`);
+  }
+
+  if (report.commands_refreshed.length > 0) {
+    console.log(`  Commands refreshed: ${report.commands_refreshed.map(formatWorkspaceCommandAgentResult).join(', ')}`);
+  }
+
+  if (report.commands_skipped.length > 0) {
+    for (const skipped of report.commands_skipped) {
+      console.log(`  Commands skipped: ${skipped.name}: ${skipped.message}`);
+    }
+  }
+
+  if (report.commands_failed.length > 0) {
+    console.log(
+      chalk.red(
+        `  Commands failed: ${report.commands_failed.map((failure) => `${failure.name} (${failure.error})`).join(', ')}`
+      )
+    );
+  }
+
   if (report.delivery_notice) {
     console.log(chalk.dim(`  ${report.delivery_notice}`));
   }
 }
 
 function hasWorkspaceSkillFailures(report: WorkspaceSkillInstallationReport): boolean {
-  return report.failed.length > 0;
+  return report.failed.length > 0 || report.commands_failed.length > 0;
 }
 
 function setWorkspaceSkillFailureExitCode(report: WorkspaceSkillInstallationReport): void {

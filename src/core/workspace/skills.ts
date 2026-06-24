@@ -1,13 +1,19 @@
 import * as nodeFs from 'node:fs';
 import { createRequire } from 'node:module';
+import path from 'node:path';
 
 import { FileSystemUtils } from '../../utils/file-system.js';
 import { transformToHyphenCommands } from '../../utils/command-references.js';
 import { AI_TOOLS, type AIToolOption } from '../config.js';
 import { getGlobalConfig, type Delivery, type Profile } from '../global-config.js';
-import { getProfileWorkflows } from '../profiles.js';
+import { ALL_WORKFLOWS, getProfileWorkflows } from '../profiles.js';
+import {
+  generateCommands,
+  CommandAdapterRegistry,
+} from '../command-generation/index.js';
 import {
   generateSkillContent,
+  getCommandContents,
   getSkillTemplates,
   getToolSkillStatus,
   getToolsWithSkillsDir,
@@ -43,12 +49,32 @@ export interface WorkspaceSkillFailedResult {
   error: string;
 }
 
+export interface WorkspaceCommandAgentResult {
+  tool_id: string;
+  name: string;
+  commands_path: string;
+  workflow_ids: string[];
+}
+
+export interface WorkspaceCommandSkippedResult {
+  tool_id: string;
+  name: string;
+  reason: string;
+  message: string;
+}
+
+export interface WorkspaceCommandFailedResult {
+  tool_id: string;
+  name: string;
+  error: string;
+}
+
 export interface WorkspaceSkillInstallationReport {
   profile: Profile;
   delivery: Delivery;
   workflow_ids: string[];
   selected_agents: string[];
-  skills_only: true;
+  skills_only: boolean;
   delivery_notice: string | null;
   generated: WorkspaceSkillAgentResult[];
   added: WorkspaceSkillAgentResult[];
@@ -56,6 +82,10 @@ export interface WorkspaceSkillInstallationReport {
   removed: WorkspaceSkillRemovedResult[];
   skipped: WorkspaceSkillSkippedResult[];
   failed: WorkspaceSkillFailedResult[];
+  commands_generated: WorkspaceCommandAgentResult[];
+  commands_refreshed: WorkspaceCommandAgentResult[];
+  commands_skipped: WorkspaceCommandSkippedResult[];
+  commands_failed: WorkspaceCommandFailedResult[];
 }
 
 interface WorkspaceSkillProfileContext {
@@ -63,17 +93,26 @@ interface WorkspaceSkillProfileContext {
   delivery: Delivery;
   workflowIds: string[];
   deliveryNotice: string | null;
+  commandGenerationEnabled: boolean;
+}
+
+interface ResolveWorkspaceSkillProfileContextOptions {
+  deliveryOverride?: Delivery;
+  commandGenerationEnabled?: boolean;
 }
 
 type WorkspaceSkillCapableTool = AIToolOption & { skillsDir: string };
 
-function resolveWorkspaceSkillProfileContext(): WorkspaceSkillProfileContext {
+function resolveWorkspaceSkillProfileContext(
+  options: ResolveWorkspaceSkillProfileContextOptions = {}
+): WorkspaceSkillProfileContext {
   const globalConfig = getGlobalConfig();
   const profile = globalConfig.profile ?? 'core';
-  const delivery = globalConfig.delivery ?? 'both';
+  const delivery = options.deliveryOverride ?? globalConfig.delivery ?? 'both';
   const workflowIds = [...getProfileWorkflows(profile, globalConfig.workflows)];
+  const commandGenerationEnabled = options.commandGenerationEnabled ?? false;
   const deliveryNotice =
-    delivery === 'skills'
+    delivery === 'skills' || commandGenerationEnabled
       ? null
       : 'Workspace setup installs skills only; workspace command generation is not part of this slice.';
 
@@ -82,6 +121,7 @@ function resolveWorkspaceSkillProfileContext(): WorkspaceSkillProfileContext {
     delivery,
     workflowIds,
     deliveryNotice,
+    commandGenerationEnabled,
   };
 }
 
@@ -127,7 +167,6 @@ export function hasWorkspaceSkillProfileDrift(
 
   return (
     workspaceSkills.last_applied_profile !== current.profile ||
-    workspaceSkills.last_applied_delivery !== current.delivery ||
     !arraysEqual(workspaceSkills.last_applied_workflow_ids, current.workflow_ids)
   );
 }
@@ -141,7 +180,7 @@ function makeBaseWorkspaceSkillReport(
     delivery: profileContext.delivery,
     workflow_ids: profileContext.workflowIds,
     selected_agents: selectedAgentIds,
-    skills_only: true,
+    skills_only: profileContext.delivery === 'skills' || !profileContext.commandGenerationEnabled,
     delivery_notice: profileContext.deliveryNotice,
     generated: [],
     added: [],
@@ -149,6 +188,10 @@ function makeBaseWorkspaceSkillReport(
     removed: [],
     skipped: [],
     failed: [],
+    commands_generated: [],
+    commands_refreshed: [],
+    commands_skipped: [],
+    commands_failed: [],
   };
 }
 
@@ -261,6 +304,31 @@ function makeAgentResult(
   };
 }
 
+function resolveWorkspaceCommandFilePath(workspaceRoot: string, commandPath: string): string {
+  return path.isAbsolute(commandPath)
+    ? commandPath
+    : FileSystemUtils.joinPath(workspaceRoot, commandPath);
+}
+
+function makeCommandAgentResult(
+  workspaceRoot: string,
+  tool: WorkspaceSkillCapableTool,
+  workflowIds: string[]
+): WorkspaceCommandAgentResult {
+  const adapter = CommandAdapterRegistry.get(tool.value);
+  const sampleWorkflowId = workflowIds[0] ?? 'propose';
+  const commandPath = adapter
+    ? resolveWorkspaceCommandFilePath(workspaceRoot, adapter.getFilePath(sampleWorkflowId))
+    : workspaceRoot;
+
+  return {
+    tool_id: tool.value,
+    name: tool.name,
+    commands_path: path.dirname(commandPath),
+    workflow_ids: workflowIds,
+  };
+}
+
 function getManagedWorkspaceSkillEntries(): Array<{ workflowId: string; dirName: string }> {
   return getSkillTemplates().map(({ workflowId, dirName }) => ({ workflowId, dirName }));
 }
@@ -315,6 +383,42 @@ async function removeManagedWorkflowSkillDirs(
     ...makeAgentResult(workspaceRoot, tool, removedWorkflowIds),
     reason,
   };
+}
+
+async function removeManagedWorkflowCommandFiles(
+  workspaceRoot: string,
+  tool: WorkspaceSkillCapableTool,
+  desiredWorkflowIds: readonly string[]
+): Promise<number> {
+  const adapter = CommandAdapterRegistry.get(tool.value);
+  if (!adapter) {
+    return 0;
+  }
+
+  const desiredSet = new Set(desiredWorkflowIds);
+  let removed = 0;
+
+  for (const workflowId of ALL_WORKFLOWS) {
+    if (desiredSet.has(workflowId)) {
+      continue;
+    }
+
+    const commandFile = resolveWorkspaceCommandFilePath(
+      workspaceRoot,
+      adapter.getFilePath(workflowId)
+    );
+
+    try {
+      if (nodeFs.existsSync(commandFile)) {
+        await fs.unlink(commandFile);
+        removed++;
+      }
+    } catch {
+      // Keep update best-effort, matching repo-local command cleanup behavior.
+    }
+  }
+
+  return removed;
 }
 
 export async function generateWorkspaceAgentSkills(
@@ -385,7 +489,10 @@ export async function updateWorkspaceAgentSkills(
   selectedAgentIds: string[],
   previousSkillState?: WorkspaceSkillState
 ): Promise<WorkspaceSkillInstallationReport> {
-  const profileContext = resolveWorkspaceSkillProfileContext();
+  const profileContext = resolveWorkspaceSkillProfileContext({
+    deliveryOverride: previousSkillState?.last_applied_delivery,
+    commandGenerationEnabled: true,
+  });
   const report = makeBaseWorkspaceSkillReport(selectedAgentIds, profileContext);
   const previousSelectedAgentIds = previousSkillState?.selected_agents ?? [];
   const previousSelectedSet = new Set(previousSelectedAgentIds);
@@ -408,6 +515,9 @@ export async function updateWorkspaceAgentSkills(
       );
       if (removed) {
         report.removed.push(removed);
+      }
+      if (profileContext.delivery !== 'skills') {
+        await removeManagedWorkflowCommandFiles(workspaceRoot, tool, []);
       }
     } catch (error) {
       report.failed.push({
@@ -442,6 +552,9 @@ export async function updateWorkspaceAgentSkills(
         );
         if (removed) {
           report.removed.push(removed);
+        }
+        if (profileContext.delivery !== 'skills') {
+          await removeManagedWorkflowCommandFiles(workspaceRoot, tool, []);
         }
       } catch (error) {
         report.failed.push({
@@ -483,6 +596,13 @@ export async function updateWorkspaceAgentSkills(
       if (removed) {
         report.removed.push(removed);
       }
+      if (profileContext.delivery !== 'skills') {
+        await removeManagedWorkflowCommandFiles(
+          workspaceRoot,
+          tool,
+          profileContext.workflowIds
+        );
+      }
 
       const result = makeAgentResult(workspaceRoot, tool, profileContext.workflowIds);
       if (previousSelectedSet.has(toolId)) {
@@ -496,6 +616,50 @@ export async function updateWorkspaceAgentSkills(
         name: tool.name,
         error: error instanceof Error ? error.message : String(error),
       });
+    }
+  }
+
+  if (profileContext.delivery !== 'skills' && profileContext.workflowIds.length > 0) {
+    const commandContents = getCommandContents(profileContext.workflowIds);
+
+    for (const toolId of selectedAgentIds) {
+      const tool = getWorkspaceSkillTool(toolId);
+      const adapter = CommandAdapterRegistry.get(tool.value);
+
+      if (!adapter) {
+        report.commands_skipped.push({
+          tool_id: tool.value,
+          name: tool.name,
+          reason: 'commands_not_supported',
+          message: `${tool.name} does not support OpenSpec command generation.`,
+        });
+        continue;
+      }
+
+      try {
+        const generatedCommands = generateCommands(commandContents, adapter);
+        const hadExistingCommand = generatedCommands.some((command) =>
+          nodeFs.existsSync(resolveWorkspaceCommandFilePath(workspaceRoot, command.path))
+        );
+
+        for (const command of generatedCommands) {
+          const commandFile = resolveWorkspaceCommandFilePath(workspaceRoot, command.path);
+          await FileSystemUtils.writeFile(commandFile, command.fileContent);
+        }
+
+        const result = makeCommandAgentResult(workspaceRoot, tool, profileContext.workflowIds);
+        if (hadExistingCommand) {
+          report.commands_refreshed.push(result);
+        } else {
+          report.commands_generated.push(result);
+        }
+      } catch (error) {
+        report.commands_failed.push({
+          tool_id: tool.value,
+          name: tool.name,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
   }
 

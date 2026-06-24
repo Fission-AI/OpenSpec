@@ -9,8 +9,10 @@ import {
   getWorkspaceSkillToolIds,
   hasWorkspaceSkillProfileDrift,
   parseWorkspaceSkillToolsValue,
+  updateWorkspaceAgentSkills,
 } from '../../../src/core/workspace/skills.js';
 import { CORE_WORKFLOWS } from '../../../src/core/profiles.js';
+import { saveGlobalConfig } from '../../../src/core/global-config.js';
 
 function withDefaultGlobalConfig<T>(callback: () => T): T {
   const previousConfigHome = process.env.XDG_CONFIG_HOME;
@@ -65,5 +67,59 @@ describe('workspace skill helpers', () => {
         })
       ).toBe(false);
     });
+  });
+
+  it('generates workspace commands when the stored delivery includes commands', async () => {
+    const previousConfigHome = process.env.XDG_CONFIG_HOME;
+    const configHome = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-workspace-commands-config-'));
+    const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-workspace-commands-'));
+
+    process.env.XDG_CONFIG_HOME = configHome;
+
+    try {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'custom',
+        delivery: 'skills',
+        workflows: ['apply'],
+      });
+
+      const report = await updateWorkspaceAgentSkills(
+        workspaceRoot,
+        ['claude'],
+        {
+          selected_agents: ['claude'],
+          last_applied_profile: 'custom',
+          last_applied_delivery: 'both',
+          last_applied_workflow_ids: ['apply'],
+        }
+      );
+
+      expect(report).toEqual(
+        expect.objectContaining({
+          delivery: 'both',
+          skills_only: false,
+          delivery_notice: null,
+          commands_generated: [
+            expect.objectContaining({
+              tool_id: 'claude',
+              workflow_ids: ['apply'],
+            }),
+          ],
+          commands_failed: [],
+        })
+      );
+      expect(
+        fs.existsSync(path.join(workspaceRoot, '.claude', 'commands', 'opsx', 'apply.md'))
+      ).toBe(true);
+    } finally {
+      if (previousConfigHome === undefined) {
+        delete process.env.XDG_CONFIG_HOME;
+      } else {
+        process.env.XDG_CONFIG_HOME = previousConfigHome;
+      }
+      fs.rmSync(configHome, { recursive: true, force: true });
+      fs.rmSync(workspaceRoot, { recursive: true, force: true });
+    }
   });
 });
