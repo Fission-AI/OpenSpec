@@ -209,6 +209,9 @@ export class PowerShellInstaller {
         ].join('\n');
 
         const newContent = profileContent + openspecBlock;
+        if (!(await FileSystemUtils.canWriteFile(profilePath))) {
+          throw new Error(`Path is not writable: ${profilePath}`);
+        }
         await this.writeProfileFile(profilePath, newContent, fileEncoding, fileBom);
         anyConfigured = true;
       } catch (error) {
@@ -271,6 +274,9 @@ export class PowerShellInstaller {
         // Clean up extra newlines
         const newContent = (beforeBlock.trimEnd() + '\n' + afterBlock.trimStart()).trim() + '\n';
 
+        if (!(await FileSystemUtils.canWriteFile(profilePath))) {
+          throw new Error(`Path is not writable: ${profilePath}`);
+        }
         await this.writeProfileFile(profilePath, newContent, fileEncoding, fileBom);
         anyRemoved = true;
       } catch (error) {
@@ -312,6 +318,10 @@ export class PowerShellInstaller {
       } catch (error: any) {
         // File doesn't exist or can't be read, proceed with installation
         console.debug(`Unable to read existing completion file at ${targetPath}: ${error.message}`);
+      }
+
+      if (!(await FileSystemUtils.canWriteFile(targetPath))) {
+        throw new Error(`Path is not writable: ${targetPath}`);
       }
 
       // Ensure the directory exists
@@ -400,6 +410,11 @@ export class PowerShellInstaller {
           success: false,
           message: 'Completion script is not installed',
         };
+      }
+
+      const targetDir = path.dirname(targetPath);
+      if (!(await FileSystemUtils.canWriteFile(targetPath)) || !(await FileSystemUtils.canWriteFile(targetDir))) {
+        throw new Error(`Path is not writable: ${targetPath}`);
       }
 
       // Remove the completion script
