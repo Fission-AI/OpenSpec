@@ -11,6 +11,14 @@ describe('PowerShellInstaller', () => {
   let originalPlatform: NodeJS.Platform;
   let originalEnv: NodeJS.ProcessEnv;
 
+  const restoreEnvValue = (key: string, value: string | undefined): void => {
+    if (value === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
+  };
+
   beforeEach(async () => {
     testHomeDir = path.join(os.tmpdir(), `openspec-powershell-test-${randomUUID()}`);
     await fs.mkdir(testHomeDir, { recursive: true });
@@ -259,7 +267,7 @@ describe('PowerShellInstaller', () => {
     });
 
     it.skipIf(process.platform === 'win32')('should not create profile directory when parent is not writable', async () => {
-      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      const originalNoAutoConfig = process.env.OPENSPEC_NO_AUTO_CONFIG;
       const restrictedHome = path.join(testHomeDir, 'restricted-home');
       await fs.mkdir(restrictedHome);
       await fs.chmod(restrictedHome, 0o555);
@@ -268,8 +276,10 @@ describe('PowerShellInstaller', () => {
 
       let result = true;
       try {
+        delete process.env.OPENSPEC_NO_AUTO_CONFIG;
         result = await restrictedInstaller.configureProfile(mockScriptPath);
       } finally {
+        restoreEnvValue('OPENSPEC_NO_AUTO_CONFIG', originalNoAutoConfig);
         await fs.chmod(restrictedHome, 0o755);
       }
 
@@ -788,15 +798,17 @@ Register-ArgumentCompleter -CommandName openspec -ScriptBlock $openspecCompleter
     });
 
     it.skipIf(process.platform === 'win32')('should uninstall read-only completion script when parent directory is writable', async () => {
-      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
-      await installer.install(mockCompletionScript);
+      const originalNoAutoConfig = process.env.OPENSPEC_NO_AUTO_CONFIG;
       const targetPath = installer.getInstallationPath();
-      await fs.chmod(targetPath, 0o444);
-
       let result: Awaited<ReturnType<PowerShellInstaller['uninstall']>> | undefined;
+
       try {
+        delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+        await installer.install(mockCompletionScript);
+        await fs.chmod(targetPath, 0o444);
         result = await installer.uninstall();
       } finally {
+        restoreEnvValue('OPENSPEC_NO_AUTO_CONFIG', originalNoAutoConfig);
         await fs.chmod(targetPath, 0o644).catch(() => undefined);
       }
 

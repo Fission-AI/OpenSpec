@@ -166,6 +166,7 @@ describe('BashInstaller', () => {
 
       expect(result?.success).toBe(false);
       expect(result?.message).toContain('Failed to install');
+      expect(result?.message).toContain(`Path is not writable: ${targetPath}`);
     });
 
     it('should detect already-installed completion with identical content', async () => {
