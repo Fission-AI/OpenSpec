@@ -17,6 +17,8 @@ export interface GlobalConfig {
   profile?: Profile;
   delivery?: Delivery;
   workflows?: string[];
+  /** Workset opener rows (slice 7.1); hand-edited, validated on use. */
+  openers?: unknown;
 }
 
 const DEFAULT_CONFIG: GlobalConfig = {

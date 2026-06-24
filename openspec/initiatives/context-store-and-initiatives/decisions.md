@@ -202,3 +202,24 @@ Implications:
 - Emit advisory edit boundaries only; do not enforce write restrictions.
 - Continue to open known existing local paths only. Do not clone, branch, create
   worktrees, use submodules, or infer local repos in Item 10.
+
+## 2026-05-30: Defer Hardcoded Agent Handoff Guidance
+
+Decision: Skip Item 13, agent handoff output and delivery polish, as an
+implementation item for now.
+
+Why: The underlying beta pain is real: users and agents need better receipts
+after setup, initiative creation, workspace opening, and repo-local change
+creation. However, fixed "Next for your agent" guidance assumes a linear
+workflow path and may not fit dynamic agentic work, where the agent should
+inspect current state and choose the next move.
+
+Implications:
+
+- Do not implement hardcoded next-step blocks yet.
+- Preserve Item 13 as research context for a future receipt or affordance model.
+- Prefer future output that reports what exists, where it lives, and what
+  actions are available, rather than prescribing one next command.
+- Deterministic receipt improvements such as direct `created_paths` fields may
+  be split into a smaller implementation slice if they remain clearly useful.
+- Delivery terminology concerns may be handled separately from handoff output.

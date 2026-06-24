@@ -15,7 +15,26 @@ import {
   resolveArtifactOutputs,
   type ArtifactInstructions,
 } from '../../core/artifact-graph/index.js';
-import { getChangeDir, resolveCurrentPlanningHomeSync } from '../../core/planning-home.js';
+import {
+  getChangeDir,
+  resolveCurrentPlanningHomeSync,
+  type PlanningHome,
+} from '../../core/planning-home.js';
+import {
+  resolveRootForCommand,
+  withStoreFlag,
+  toPlanningHome,
+  toRootOutput,
+  type ResolvedOpenSpecRoot,
+} from '../../core/root-selection.js';
+import {
+  assembleReferenceIndex,
+  renderReferencedStoresBlock,
+  renderReferencedStoresSection,
+  type ReferenceIndexEntry,
+} from '../../core/references.js';
+import { readRegistrySnapshot } from '../../core/store/registry.js';
+import { readProjectConfig, type ProjectConfig } from '../../core/project-config.js';
 import {
   validateChangeExists,
   validateSchemaExists,
@@ -30,12 +49,16 @@ import {
 export interface InstructionsOptions {
   change?: string;
   schema?: string;
+  store?: string;
+  storePath?: string;
   json?: boolean;
 }
 
 export interface ApplyInstructionsOptions {
   change?: string;
   schema?: string;
+  store?: string;
+  storePath?: string;
   json?: boolean;
 }
 
@@ -43,19 +66,57 @@ export interface ApplyInstructionsOptions {
 // Artifact Instructions Command
 // -----------------------------------------------------------------------------
 
+/**
+ * Reads the resolved root's config once, assembles the referenced-store
+ * index when references are declared, and resolves the config path for
+ * fix text. Shared by both instruction surfaces.
+ */
+async function loadRootConfigContext(root: ResolvedOpenSpecRoot): Promise<{
+  projectConfig: ProjectConfig | null;
+  references: ReferenceIndexEntry[] | undefined;
+}> {
+  // readProjectConfig never throws: missing/unparseable configs are null.
+  const projectConfig = readProjectConfig(root.path);
+
+  // One registry read serves every relationship consumer in this
+  // output so it never carries a torn snapshot.
+  const snapshot = await readRegistrySnapshot();
+  const registryEntries = snapshot.entries;
+
+  const declared = projectConfig?.references ?? [];
+  const index =
+    declared.length > 0
+      ? await assembleReferenceIndex({ references: declared, resolvedRoot: root, registryEntries })
+      : [];
+
+  // Omitted, not empty: an index emptied by self-reference omission must
+  // look identical to an undeclared one in JSON.
+  return {
+    projectConfig,
+    references: index.length > 0 ? index : undefined,
+  };
+}
+
 export async function instructionsCommand(
   artifactId: string | undefined,
   options: InstructionsOptions
 ): Promise<void> {
+  // Resolve (and banner) before the spinner starts so stderr stays readable.
+  const root = await resolveRootForCommand(options, { json: options.json });
+  if (!root) {
+    return;
+  }
+
   const spinner = options.json ? undefined : ora('Generating instructions...').start();
 
   try {
-    const planningHome = resolveCurrentPlanningHomeSync();
-    const projectRoot = planningHome.root;
+    const planningHome = toPlanningHome(root);
+    const projectRoot = root.path;
     const changeName = await validateChangeExists(
       options.change,
       projectRoot,
-      planningHome.changesDir
+      root.changesDir,
+      { newChangeHint: withStoreFlag(root, 'openspec new change <name>') }
     );
 
     // Validate schema if explicitly provided
@@ -87,13 +148,17 @@ export async function instructionsCommand(
       );
     }
 
-    const instructions = generateInstructions(context, artifactId, projectRoot);
+    const { projectConfig, references } = await loadRootConfigContext(root);
+    const instructions = generateInstructions(context, artifactId, projectRoot, {
+      projectConfig,
+      references,
+    });
     const isBlocked = instructions.dependencies.some((d) => !d.done);
 
     spinner?.stop();
 
     if (options.json) {
-      console.log(JSON.stringify(instructions, null, 2));
+      console.log(JSON.stringify({ ...instructions, root: toRootOutput(root) }, null, 2));
       return;
     }
 
@@ -110,7 +175,6 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
     changeName,
     schemaName,
     changeDir,
-    initiative,
     resolvedOutputPath,
     description,
     instruction,
@@ -124,11 +188,6 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
   // Opening tag
   console.log(`<artifact id="${artifactId}" change="${changeName}" schema="${schemaName}">`);
   console.log();
-
-  if (initiative) {
-    console.log(`<initiative store="${initiative.store}" id="${initiative.id}" />`);
-    console.log();
-  }
 
   // Warning for blocked artifacts
   if (isBlocked) {
@@ -153,6 +212,12 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
     console.log('<!-- This is background information for you. Do NOT include this in your output. -->');
     console.log(context);
     console.log('</project_context>');
+    console.log();
+  }
+
+  // Referenced-store index (read-only upstream context)
+  if (instructions.references && instructions.references.length > 0) {
+    console.log(renderReferencedStoresBlock(instructions.references));
     console.log();
   }
 
@@ -253,6 +318,11 @@ function parseTasksFile(content: string): TaskItem[] {
   return tasks;
 }
 
+export interface GenerateApplyInstructionsOptions {
+  planningHome?: PlanningHome;
+  references?: ReferenceIndexEntry[];
+}
+
 /**
  * Generates apply instructions for implementing tasks from a change.
  * Schema-aware: reads apply phase configuration from schema to determine
@@ -262,8 +332,11 @@ export async function generateApplyInstructions(
   projectRoot: string,
   changeName: string,
   schemaName?: string,
-  planningHome = resolveCurrentPlanningHomeSync({ startPath: projectRoot })
+  options: GenerateApplyInstructionsOptions = {}
 ): Promise<ApplyInstructions> {
+  const planningHome =
+    options.planningHome ?? resolveCurrentPlanningHomeSync({ startPath: projectRoot });
+  const references = options.references;
   // loadChangeContext will auto-detect schema from metadata if not provided
   const context = loadChangeContext(projectRoot, changeName, schemaName, {
     changeDir: getChangeDir(planningHome, changeName),
@@ -349,26 +422,33 @@ export async function generateApplyInstructions(
     changeName,
     changeDir,
     schemaName: context.schemaName,
-    ...(context.initiative ? { initiative: context.initiative } : {}),
     contextFiles,
     progress: { total, complete, remaining },
     tasks,
     state,
     missingArtifacts: missingArtifacts.length > 0 ? missingArtifacts : undefined,
     instruction,
+    ...(references !== undefined ? { references } : {}),
   };
 }
 
 export async function applyInstructionsCommand(options: ApplyInstructionsOptions): Promise<void> {
+  // Resolve (and banner) before the spinner starts so stderr stays readable.
+  const root = await resolveRootForCommand(options, { json: options.json });
+  if (!root) {
+    return;
+  }
+
   const spinner = options.json ? undefined : ora('Generating apply instructions...').start();
 
   try {
-    const planningHome = resolveCurrentPlanningHomeSync();
-    const projectRoot = planningHome.root;
+    const planningHome = toPlanningHome(root);
+    const projectRoot = root.path;
     const changeName = await validateChangeExists(
       options.change,
       projectRoot,
-      planningHome.changesDir
+      root.changesDir,
+      { newChangeHint: withStoreFlag(root, 'openspec new change <name>') }
     );
 
     // Validate schema if explicitly provided
@@ -377,17 +457,16 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
     }
 
     // generateApplyInstructions uses loadChangeContext which auto-detects schema
-    const instructions = await generateApplyInstructions(
-      projectRoot,
-      changeName,
-      options.schema,
-      planningHome
-    );
+    const { references } = await loadRootConfigContext(root);
+    const instructions = await generateApplyInstructions(projectRoot, changeName, options.schema, {
+      planningHome,
+      references,
+    });
 
     spinner?.stop();
 
     if (options.json) {
-      console.log(JSON.stringify(instructions, null, 2));
+      console.log(JSON.stringify({ ...instructions, root: toRootOutput(root) }, null, 2));
       return;
     }
 
@@ -399,14 +478,16 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
 }
 
 export function printApplyInstructionsText(instructions: ApplyInstructions): void {
-  const { changeName, schemaName, initiative, contextFiles, progress, tasks, state, missingArtifacts, instruction } = instructions;
+  const { changeName, schemaName, contextFiles, progress, tasks, state, missingArtifacts, instruction } = instructions;
 
   console.log(`## Apply: ${changeName}`);
   console.log(`Schema: ${schemaName}`);
-  if (initiative) {
-    console.log(`Initiative: ${initiative.store}/${initiative.id}`);
-  }
   console.log();
+
+  if (instructions.references && instructions.references.length > 0) {
+    console.log(renderReferencedStoresSection(instructions.references));
+    console.log();
+  }
 
   // Warning for blocked state
   if (state === 'blocked' && missingArtifacts) {
