@@ -15,34 +15,45 @@ describe('ArchiveCommand', () => {
   let tempDir: string;
   let archiveCommand: ArchiveCommand;
   const originalConsoleLog = console.log;
+  const originalXdgDataHome = process.env.XDG_DATA_HOME;
 
   beforeEach(async () => {
     // Create temp directory
     tempDir = path.join(os.tmpdir(), `openspec-archive-test-${Date.now()}`);
     await fs.mkdir(tempDir, { recursive: true });
-    
+
     // Change to temp directory
     process.chdir(tempDir);
-    
+
+    // Isolate root resolution from any real store registry on the
+    // host machine so no-root behavior stays the implicit-root path.
+    process.env.XDG_DATA_HOME = path.join(tempDir, 'xdg-data');
+
     // Create OpenSpec structure
     const openspecDir = path.join(tempDir, 'openspec');
     await fs.mkdir(path.join(openspecDir, 'changes'), { recursive: true });
     await fs.mkdir(path.join(openspecDir, 'specs'), { recursive: true });
     await fs.mkdir(path.join(openspecDir, 'changes', 'archive'), { recursive: true });
-    
+
     // Suppress console.log during tests
     console.log = vi.fn();
-    
+
     archiveCommand = new ArchiveCommand();
   });
 
   afterEach(async () => {
     // Restore console.log
     console.log = originalConsoleLog;
-    
+
+    if (originalXdgDataHome === undefined) {
+      delete process.env.XDG_DATA_HOME;
+    } else {
+      process.env.XDG_DATA_HOME = originalXdgDataHome;
+    }
+
     // Clear mocks
     vi.clearAllMocks();
-    
+
     // Clean up temp directory
     try {
       await fs.rm(tempDir, { recursive: true, force: true });
