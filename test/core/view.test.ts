@@ -125,5 +125,31 @@ describe('ViewCommand', () => {
       'gamma-change'
     ]);
   });
+
+  it('uses nested tasks.md files when classifying change progress', async () => {
+    const changesDir = path.join(tempDir, 'openspec', 'changes');
+    const changeDir = path.join(changesDir, 'layered-change');
+    await fs.mkdir(path.join(changeDir, 'backend'), { recursive: true });
+    await fs.mkdir(path.join(changeDir, 'frontend'), { recursive: true });
+    await fs.writeFile(
+      path.join(changeDir, 'backend', 'tasks.md'),
+      '- [x] Backend task\n- [ ] Backend follow-up\n'
+    );
+    await fs.writeFile(
+      path.join(changeDir, 'frontend', 'tasks.md'),
+      '- [ ] Frontend task\n'
+    );
+
+    const viewCommand = new ViewCommand();
+    await viewCommand.execute(tempDir);
+
+    const output = logOutput.map(stripAnsi).join('\n');
+    expect(output).toContain('Active Changes');
+    expect(output).toContain('layered-change');
+    expect(output).toContain('33%');
+
+    const draftSection = output.split('Draft Changes')[1]?.split('Active Changes')[0] ?? '';
+    expect(draftSection).not.toContain('layered-change');
+  });
 });
 
