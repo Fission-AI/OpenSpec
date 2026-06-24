@@ -120,7 +120,11 @@ export async function acquireFileLock(
   options: FileLockOptions
 ): Promise<nodeFs.promises.FileHandle> {
   const { lockPath, errorFor } = options;
-  await FileSystemUtils.createDirectory(path.dirname(lockPath));
+  const lockDir = path.dirname(lockPath);
+  await FileSystemUtils.createDirectory(lockDir);
+  if (!(await FileSystemUtils.canWriteFile(lockDir))) {
+    throw errorFor('create-failed', { lockPath, cause: 'EACCES' });
+  }
   const deadline = Date.now() + LOCK_DEADLINE_MS;
 
   while (true) {
