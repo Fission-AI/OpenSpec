@@ -82,8 +82,8 @@ That second one matters more than it looks. OpenSpec has two halves: a command l
 
 | Doc | What it gives you |
 |-----|-------------------|
-| [Workspaces: User Guide](workspaces-beta/user-guide.md) | The smallest useful path for multi-repo coordination |
-| [Workspaces: Agent Playbook](workspaces-beta/agent-cli-playbook.md) | How agents drive workspace and context-store commands |
+| [Stores: User Guide](stores-beta/user-guide.md) | Plan in its own repo when your work spans repos or teams |
+| [Agent Contract](agent-contract.md) | The machine-readable CLI surfaces agents drive |
 
 ## The thirty-second version
 

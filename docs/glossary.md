@@ -74,15 +74,15 @@ Terms are grouped by topic, then alphabetized within each group.
 
 ## Coordination across repos (beta)
 
-These terms apply only if you're using OpenSpec's multi-repo workspace features, which are in beta. Most users can ignore them. See the [Workspaces User Guide](workspaces-beta/user-guide.md).
+These terms apply only if your planning spans more than one repo. They're in beta. Most users can ignore them. See the [Stores User Guide](stores-beta/user-guide.md).
 
-**Workspace.** A machine-local view that ties together several linked repos or folders so you can coordinate work that spans them. It is not a repo and doesn't hold specs itself.
+**Store.** A standalone repo whose whole job is planning. It has the same `openspec/` shape you already know (specs and changes) plus a small identity file. You register it on your machine once, by name, and then any OpenSpec command can work in it from anywhere.
 
-**Link.** A stable name (like `api` or `web`) that a workspace maps to a local repo or folder path.
+**Reference.** A declaration, in a code repo's `openspec/config.yaml`, of a store that repo draws on. References are read-only: the repo keeps its own root, and `openspec instructions` gains an index of the referenced store's specs, each with the exact command to fetch it.
 
-**Context store.** A durable, usually Git-backed folder that holds shared context across repos. Registered locally so OpenSpec can find it.
+**Working context.** What `openspec context` assembles for the current repo: its OpenSpec root plus every store it references, each with how to fetch it. The answer to "what am I working with?"
 
-**Initiative.** Shared coordination context that lives inside a context store. Repo-local changes can link to an initiative without copying the shared plan into every repo.
+**Workset.** A personal, machine-local set of folders you open together (a store alongside the code repos you work on). Created explicitly with `openspec workset create`; nothing about those local paths is committed to the shared planning repo.
 
 ## See also
 

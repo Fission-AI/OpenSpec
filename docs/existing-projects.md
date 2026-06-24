@@ -116,7 +116,7 @@ Pick whatever makes a newcomer nod. You can refine later. See [Concepts: Specs](
 
 For a monorepo, the simplest model is one `openspec/` directory at the repo root, with domains that map to your packages or services. That covers most teams.
 
-If your work genuinely spans **multiple repositories** (or several packages you treat as separate), OpenSpec has a beta **coordination workspace** feature: a machine-local view that links several repos or folders so you can plan across them. It's beta, so treat its commands and state as evolving. Start with the [Workspaces User Guide](workspaces-beta/user-guide.md), and see [Concepts: Coordination Workspaces](concepts.md#coordination-workspaces) for the mental model.
+If your work genuinely spans **multiple repositories** (or several packages you treat as separate), OpenSpec has a beta **stores** feature: planning lives in its own standalone repo that any of your code repos can reference, so the plan does not have to live inside one repo's `openspec/` folder. It's beta, so treat its commands and state as evolving. Start with the [Stores User Guide](stores-beta/user-guide.md) for the mental model and the smallest useful path.
 
 ## A few honest cautions
 
