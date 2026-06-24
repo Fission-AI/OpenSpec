@@ -1,18 +1,30 @@
 # Context Store And Initiatives Tasks
 
-This tracks roadmap execution for the initiative. Roadmap items live in
-`roadmap.md`; detailed working notes live under `work-items/`.
+Status: historical beta progress snapshot.
 
-## Current Beta Priority
+This file preserves the task state from the old context-store and workspace
+initiative. It is not the active implementation queue for current
+simplification work.
 
-After the manual beta pass, prioritize the things a fresh user hits while
+For current direction, start with:
+
+1. `openspec/work/simplify-context-and-workspace-model/goal.md`
+2. `openspec/work/simplify-context-and-workspace-model/roadmap.md`
+
+Historical roadmap items live in `roadmap.md`; detailed working notes live
+under `work-items/`.
+
+## Historical Beta Priority Snapshot
+
+At the time, the manual beta pass prioritized the things a fresh user hit while
 getting started before deeper model work:
 
 1. Finish Item 11 observations enough to keep implementation grounded.
 2. Item 12: no-argument context-store setup, path safety, and
    cleanup.
-3. Item 13: "Next for your agent" output, direct JSON paths,
-   and baseline guidance/delivery polish.
+3. Skip Item 13 as an implementation item for now. Preserve the findings, but
+   do not hardcode linear "next step" guidance until the agent handoff shape is
+   better understood.
 4. Item 14: update the beta guide so it matches the improved first-run flow.
 5. Item 15: context-store project roots and sparse schema-led
    initiatives.
@@ -199,14 +211,15 @@ Work item: `work-items/12-context-store-first-run-and-cleanup-ux/`
 
 Work item: `work-items/13-agent-handoff-output-and-delivery-polish/`
 
-- [ ] Decide which commands should print "Next for your agent" handoff guidance.
-- [ ] Add direct created-path JSON fields where agents currently have to
-  reconstruct artifact paths.
-- [ ] Clarify commands-oriented delivery so workflow slash commands are separate
-  from baseline OpenSpec guidance.
-- [ ] Warn when a selected tool cannot receive workflow slash commands.
-- [ ] Update docs, generated agent guidance, and tests for the polished handoff
-  and delivery output.
+Status: deferred. Do not implement fixed "Next for your agent" output from this
+item yet.
+
+- [ ] Revisit the handoff model after Item 14/15 clarify the beta guide and
+  sparse initiative flow.
+- [ ] If needed, split deterministic receipt improvements such as direct
+  `created_paths` into a smaller future implementation slice.
+- [ ] Avoid prescribing one linear workflow path; future handoff output should
+  report state, paths, and possible affordances that agents can compose.
 
 ## 14. Workspaces Beta Guide Split
 

@@ -72,6 +72,8 @@ AI:  Created openspec/changes/add-dark-mode/
 
 ### `/opsx:explore`
 
+> **Start here when you're unsure.** Explore is a no-stakes thinking partner: it reads your codebase, compares options, and sharpens a fuzzy idea into a concrete plan before any change exists. It ships in the default profile. For the full case and more examples, see the [Explore First](explore.md) guide.
+
 Think through ideas, investigate problems, and clarify requirements before committing to a change.
 
 **Syntax:**

@@ -5,6 +5,7 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
+import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
 export function getOpsxProposeSkillTemplate(): SkillTemplate {
   return {
@@ -20,6 +21,8 @@ I'll create a change with artifacts:
 When ready to implement, run /opsx:apply
 
 ---
+
+${STORE_SELECTION_GUIDANCE}
 
 **Input**: The user's request should include a change name (kebab-case) OR a description of what they want to build.
 
@@ -132,6 +135,8 @@ I'll create a change with artifacts:
 When ready to implement, run /opsx:apply
 
 ---
+
+${STORE_SELECTION_GUIDANCE}
 
 **Input**: The argument after \`/opsx:propose\` is the change name (kebab-case), OR a description of what the user wants to build.
 

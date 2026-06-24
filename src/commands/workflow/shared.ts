@@ -9,12 +9,21 @@ import chalk from 'chalk';
 import path from 'path';
 import * as fs from 'fs';
 import { getSchemaDir, listSchemas } from '../../core/artifact-graph/index.js';
-import type { InitiativeLink } from '../../core/change-metadata/index.js';
+import type { ReferenceIndexEntry } from '../../core/references.js';
+import { isRootSelectionError } from '../../core/root-selection.js';
 import { validateChangeName } from '../../utils/change-utils.js';
 
 // -----------------------------------------------------------------------------
 // Types
 // -----------------------------------------------------------------------------
+
+export interface ChangeCommandStatus {
+  severity: 'error' | 'warning';
+  code: string;
+  message: string;
+  target?: string;
+  fix?: string;
+}
 
 export interface TaskItem {
   id: string;
@@ -26,7 +35,6 @@ export interface ApplyInstructions {
   changeName: string;
   changeDir: string;
   schemaName: string;
-  initiative?: InitiativeLink;
   contextFiles: Record<string, string[]>;
   progress: {
     total: number;
@@ -37,6 +45,8 @@ export interface ApplyInstructions {
   state: 'blocked' | 'all_done' | 'ready';
   missingArtifacts?: string[];
   instruction: string;
+  /** Referenced-store index (read-only upstream context; omitted when none declared) */
+  references?: ReferenceIndexEntry[];
 }
 
 // -----------------------------------------------------------------------------
@@ -48,6 +58,22 @@ export const DEFAULT_SCHEMA = 'spec-driven';
 // -----------------------------------------------------------------------------
 // Utility Functions
 // -----------------------------------------------------------------------------
+
+export function printJson(payload: unknown): void {
+  console.log(JSON.stringify(payload, null, 2));
+}
+
+export function statusFromError(error: unknown): ChangeCommandStatus {
+  if (isRootSelectionError(error)) {
+    return { ...error.diagnostic };
+  }
+
+  return {
+    severity: 'error',
+    code: 'change_error',
+    message: error instanceof Error ? error.message : String(error),
+  };
+}
 
 /**
  * Checks if color output is disabled via NO_COLOR env or --no-color flag.
@@ -115,12 +141,17 @@ export async function getAvailableChanges(
 export async function validateChangeExists(
   changeName: string | undefined,
   projectRoot: string,
-  changesDir = path.join(projectRoot, 'openspec', 'changes')
+  changesDir = path.join(projectRoot, 'openspec', 'changes'),
+  hints: { newChangeHint?: string } = {}
 ): Promise<string> {
+  // Hints must stay pasteable: callers with a selected store pass a
+  // store-carrying hint so following it lands in the same root.
+  const newChangeHint = hints.newChangeHint ?? 'openspec new change <name>';
+
   if (!changeName) {
     const available = await getAvailableChanges(projectRoot, changesDir);
     if (available.length === 0) {
-      throw new Error('No changes found. Create one with: openspec new change <name>');
+      throw new Error(`No changes found. Create one with: ${newChangeHint}`);
     }
     throw new Error(
       `Missing required option --change. Available changes:\n  ${available.join('\n  ')}`
@@ -141,7 +172,7 @@ export async function validateChangeExists(
     const available = await getAvailableChanges(projectRoot, changesDir);
     if (available.length === 0) {
       throw new Error(
-        `Change '${changeName}' not found. No changes exist. Create one with: openspec new change <name>`
+        `Change '${changeName}' not found. No changes exist. Create one with: ${newChangeHint}`
       );
     }
     throw new Error(
