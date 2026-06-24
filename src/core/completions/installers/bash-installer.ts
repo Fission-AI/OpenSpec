@@ -240,6 +240,10 @@ export class BashInstaller {
         console.debug(`Unable to read existing completion file at ${targetPath}: ${error.message}`);
       }
 
+      if (!(await FileSystemUtils.canWriteFile(targetPath))) {
+        throw new Error(`Path is not writable: ${targetPath}`);
+      }
+
       // Ensure the directory exists
       const targetDir = path.dirname(targetPath);
       await fs.mkdir(targetDir, { recursive: true });

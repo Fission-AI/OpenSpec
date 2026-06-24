@@ -19,7 +19,4 @@ export type { SchemasOptions } from './schemas.js';
 export { newChangeCommand } from './new-change.js';
 export type { NewChangeOptions } from './new-change.js';
 
-export { setChangeCommand } from './set-change.js';
-export type { SetChangeOptions } from './set-change.js';
-
 export { DEFAULT_SCHEMA } from './shared.js';
