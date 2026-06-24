@@ -141,8 +141,8 @@ export class FishInstaller {
       }
 
       const targetDir = path.dirname(targetPath);
-      if (!(await FileSystemUtils.canWriteFile(targetPath)) || !(await FileSystemUtils.canWriteFile(targetDir))) {
-        throw new Error(`Path is not writable: ${targetPath}`);
+      if (!(await FileSystemUtils.canWriteFile(targetDir))) {
+        throw new Error(`Path is not writable: ${targetDir}`);
       }
 
       // Remove the completion script

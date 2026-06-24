@@ -170,9 +170,23 @@ export class PowerShellInstaller {
 
     for (const profilePath of profilePaths) {
       try {
-        // Create profile file if it doesn't exist
         const profileDir = path.dirname(profilePath);
-        await fs.mkdir(profileDir, { recursive: true });
+        let profileExists = false;
+        try {
+          await fs.access(profilePath);
+          profileExists = true;
+        } catch (err: any) {
+          if (err?.code !== 'ENOENT') {
+            throw err;
+          }
+        }
+
+        if (!profileExists) {
+          if (!(await FileSystemUtils.canWriteFile(profilePath))) {
+            throw new Error(`Path is not writable: ${profilePath}`);
+          }
+          await fs.mkdir(profileDir, { recursive: true });
+        }
 
         let profileContent = '';
         let fileEncoding: BufferEncoding = 'utf-8';
@@ -413,8 +427,8 @@ export class PowerShellInstaller {
       }
 
       const targetDir = path.dirname(targetPath);
-      if (!(await FileSystemUtils.canWriteFile(targetPath)) || !(await FileSystemUtils.canWriteFile(targetDir))) {
-        throw new Error(`Path is not writable: ${targetPath}`);
+      if (!(await FileSystemUtils.canWriteFile(targetDir))) {
+        throw new Error(`Path is not writable: ${targetDir}`);
       }
 
       // Remove the completion script

@@ -8,6 +8,10 @@ function hasOwnerGroupOrOtherWriteBit(stats: nodeFs.Stats): boolean {
   return (stats.mode & 0o222) !== 0;
 }
 
+function hasOwnerGroupOrOtherExecuteBit(stats: nodeFs.Stats): boolean {
+  return (stats.mode & 0o111) !== 0;
+}
+
 async function hasWritableModeAndAccess(targetPath: string): Promise<boolean> {
   try {
     const stats = await fs.stat(targetPath);
@@ -20,8 +24,14 @@ async function hasWritableModeAndAccess(targetPath: string): Promise<boolean> {
     if (process.platform !== 'win32' && !hasOwnerGroupOrOtherWriteBit(stats)) {
       return false;
     }
+    if (process.platform !== 'win32' && stats.isDirectory() && !hasOwnerGroupOrOtherExecuteBit(stats)) {
+      return false;
+    }
 
-    await fs.access(targetPath, fsConstants.W_OK);
+    const accessMode = stats.isDirectory()
+      ? fsConstants.W_OK | fsConstants.X_OK
+      : fsConstants.W_OK;
+    await fs.access(targetPath, accessMode);
     return true;
   } catch {
     return false;

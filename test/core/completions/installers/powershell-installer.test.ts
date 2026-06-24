@@ -257,6 +257,26 @@ describe('PowerShellInstaller', () => {
 
       expect(result).toBe(false);
     });
+
+    it.skipIf(process.platform === 'win32')('should not create profile directory when parent is not writable', async () => {
+      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      const restrictedHome = path.join(testHomeDir, 'restricted-home');
+      await fs.mkdir(restrictedHome);
+      await fs.chmod(restrictedHome, 0o555);
+      const restrictedInstaller = new PowerShellInstaller(restrictedHome);
+      const profileDir = path.dirname(restrictedInstaller.getProfilePath());
+
+      let result = true;
+      try {
+        result = await restrictedInstaller.configureProfile(mockScriptPath);
+      } finally {
+        await fs.chmod(restrictedHome, 0o755);
+      }
+
+      const profileDirExists = await fs.access(profileDir).then(() => true).catch(() => false);
+      expect(result).toBe(false);
+      expect(profileDirExists).toBe(false);
+    });
   });
 
   describe('removeProfileConfig', () => {
@@ -765,6 +785,24 @@ Register-ArgumentCompleter -CommandName openspec -ScriptBlock $openspecCompleter
 
       expect(result.success).toBe(true);
       expect(result.message).toBe('Completion script uninstalled successfully');
+    });
+
+    it.skipIf(process.platform === 'win32')('should uninstall read-only completion script when parent directory is writable', async () => {
+      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      await installer.install(mockCompletionScript);
+      const targetPath = installer.getInstallationPath();
+      await fs.chmod(targetPath, 0o444);
+
+      let result: Awaited<ReturnType<PowerShellInstaller['uninstall']>> | undefined;
+      try {
+        result = await installer.uninstall();
+      } finally {
+        await fs.chmod(targetPath, 0o644).catch(() => undefined);
+      }
+
+      const scriptExists = await fs.access(targetPath).then(() => true).catch(() => false);
+      expect(result?.success).toBe(true);
+      expect(scriptExists).toBe(false);
     });
 
     it('should handle both script and config removal', async () => {
