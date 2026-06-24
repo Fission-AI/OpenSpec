@@ -151,6 +151,24 @@ describe('BashInstaller', () => {
       expect(result.message).toContain('Failed to install');
     });
 
+    it.skipIf(process.platform === 'win32')('should return failure when completion directory is not writable', async () => {
+      const targetPath = await installer.getInstallationPath();
+      const targetDir = path.dirname(targetPath);
+      await fs.mkdir(targetDir, { recursive: true });
+      await fs.chmod(targetDir, 0o555);
+
+      let result: Awaited<ReturnType<BashInstaller['install']>> | undefined;
+      try {
+        result = await installer.install(testScript);
+      } finally {
+        await fs.chmod(targetDir, 0o755);
+      }
+
+      expect(result?.success).toBe(false);
+      expect(result?.message).toContain('Failed to install');
+      expect(result?.message).toContain(`Path is not writable: ${targetPath}`);
+    });
+
     it('should detect already-installed completion with identical content', async () => {
       // First installation
       const firstResult = await installer.install(testScript);
