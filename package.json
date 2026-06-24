@@ -63,15 +63,15 @@
     "@changesets/changelog-github": "^0.5.2",
     "@changesets/cli": "^2.27.7",
     "@types/node": "^24.2.0",
-    "@vitest/ui": "^3.2.4",
+    "@vitest/ui": "^3.2.6",
     "eslint": "^9.39.2",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.50.1",
-    "vitest": "^3.2.4"
+    "typescript-eslint": "^8.62.0",
+    "vitest": "^3.2.6"
   },
   "dependencies": {
-    "@inquirer/core": "^10.2.2",
-    "@inquirer/prompts": "^7.8.0",
+    "@inquirer/core": "^10.3.2",
+    "@inquirer/prompts": "^7.10.1",
     "chalk": "^5.5.0",
     "commander": "^14.0.0",
     "cross-spawn": "7.0.6",
