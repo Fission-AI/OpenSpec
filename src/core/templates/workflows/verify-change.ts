@@ -42,20 +42,13 @@ export function getVerifyChangeSkillTemplate(): SkillTemplate {
 
    This returns the change directory and \`contextFiles\` (artifact ID -> array of concrete file paths). Read all available artifacts from \`contextFiles\`.
 
-4. **Check for schema-level verify definition**
+4. **Verification execution — plugin overlay takes precedence**
 
-   From the status JSON, check the \`schemaName\`. Read the schema's YAML to see if it defines a \`verify\` phase with steps.
+   If a plugin overlay appended after these base steps defines how to execute verification
+   (e.g. a workflow fan-out), **follow that overlay and skip the default procedure in steps 5+**.
+   Check the end of this document for such a section before running the default.
 
-   **If the schema defines verify steps** (e.g., \`verify.steps\` in schema.yaml):
-   - Skip the default Completeness/Correctness/Coherence verification below
-   - Execute the schema-defined steps in order
-   - For each step: show progress, execute according to \`method\` (gate/free), report result
-   - Plugin hooks for \`verify.pre\` / \`verify.post\` will be triggered via skill overlays if defined
-   - After all steps pass, report success and suggest \`/opsx:archive\`
-   - **IMPORTANT**: When schema verify steps are present, STOP HERE — do not proceed to the default verification below
-
-   **If no schema verify definition exists:**
-   - Continue with the default three-dimension verification below
+   If no such overlay is present, continue with the default three-dimension verification below.
 
 5. **Initialize verification report structure** (default — only when no schema verify steps)
 
@@ -181,8 +174,7 @@ Use clear markdown with:
 - Grouped lists for issues (CRITICAL/WARNING/SUGGESTION)
 - Code references in format: \`file.ts:123\`
 - Specific, actionable recommendations
-- No vague suggestions like "consider reviewing"
-- If schema defines verify gates, run \`openspec run start/complete --phase verify\` to enforce them`,
+- No vague suggestions like "consider reviewing"`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
@@ -227,20 +219,13 @@ export function getOpsxVerifyCommandTemplate(): CommandTemplate {
 
    This returns the change directory and \`contextFiles\` (artifact ID -> array of concrete file paths). Read all available artifacts from \`contextFiles\`.
 
-4. **Check for schema-level verify definition**
+4. **Verification execution — plugin overlay takes precedence**
 
-   From the status JSON, check the \`schemaName\`. Read the schema's YAML to see if it defines a \`verify\` phase with steps.
+   If a plugin overlay appended after these base steps defines how to execute verification
+   (e.g. a workflow fan-out), **follow that overlay and skip the default procedure in steps 5+**.
+   Check the end of this document for such a section before running the default.
 
-   **If the schema defines verify steps** (e.g., \`verify.steps\` in schema.yaml):
-   - Skip the default Completeness/Correctness/Coherence verification below
-   - Execute the schema-defined steps in order
-   - For each step: show progress, execute according to \`method\` (gate/free), report result
-   - Plugin hooks for \`verify.pre\` / \`verify.post\` will be triggered via skill overlays if defined
-   - After all steps pass, report success and suggest \`/opsx:archive\`
-   - **IMPORTANT**: When schema verify steps are present, STOP HERE — do not proceed to the default verification below
-
-   **If no schema verify definition exists:**
-   - Continue with the default three-dimension verification below
+   If no such overlay is present, continue with the default three-dimension verification below.
 
 5. **Initialize verification report structure** (default — only when no schema verify steps)
 
@@ -366,7 +351,6 @@ Use clear markdown with:
 - Grouped lists for issues (CRITICAL/WARNING/SUGGESTION)
 - Code references in format: \`file.ts:123\`
 - Specific, actionable recommendations
-- No vague suggestions like "consider reviewing"
-- If schema defines verify gates, run \`openspec run start/complete --phase verify\` to enforce them`
+- No vague suggestions like "consider reviewing"`
   };
 }
