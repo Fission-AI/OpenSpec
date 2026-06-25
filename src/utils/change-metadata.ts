@@ -182,16 +182,14 @@ export function resolveSchemaForChange(
   }
 
   // 2. Use injected metadata when provided, otherwise read from .openspec.yaml.
-  try {
-    const metadata =
-      options.metadata !== undefined
-        ? options.metadata
-        : readChangeMetadata(changeDir, projectRoot);
-    if (metadata?.schema) {
-      return metadata.schema;
-    }
-  } catch {
-    // If metadata read fails, continue to next option
+  // Let ChangeMetadataError propagate when metadata exists but is invalid (matches
+  // upstream v1.4.1 + the resolveSchemaForChange "cannot be read" contract).
+  const metadata =
+    options.metadata !== undefined
+      ? options.metadata
+      : readChangeMetadata(changeDir, projectRoot);
+  if (metadata?.schema) {
+    return metadata.schema;
   }
 
   // 3. Try reading from project config when metadata is absent.

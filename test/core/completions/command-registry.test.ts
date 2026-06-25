@@ -159,6 +159,7 @@ describe('command completion registry', () => {
       'store',
       'store-path',
       'schema',
+      'class',
       'json',
     ]);
 

@@ -184,6 +184,18 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         takesValue: true,
       },
       COMMON_FLAGS.json,
+      {
+        name: 'subagents',
+        description: 'Use subagent orchestration mode (mutually exclusive with --teams and --sequential)',
+      },
+      {
+        name: 'teams',
+        description: 'Use team orchestration mode (mutually exclusive with --subagents and --sequential)',
+      },
+      {
+        name: 'sequential',
+        description: 'Use sequential orchestration mode (mutually exclusive with --teams and --subagents)',
+      },
     ],
   },
   {
@@ -249,6 +261,11 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
           {
             name: 'schema',
             description: 'Workflow schema to use',
+            takesValue: true,
+          },
+          {
+            name: 'class',
+            description: 'Change class for gate profile routing: feature, single-cap, infra, hotfix (default: feature)',
             takesValue: true,
           },
           COMMON_FLAGS.json,
@@ -954,6 +971,148 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             name: 'force',
             description: 'Overwrite existing schema',
           },
+        ],
+      },
+    ],
+  },
+  {
+    name: 'gate',
+    description: 'Quality gate operations',
+    flags: [],
+    subcommands: [
+      {
+        name: 'check',
+        description: 'Run quality gate checks for a change',
+        flags: [
+          {
+            name: 'change',
+            description: 'Change name',
+            takesValue: true,
+          },
+          {
+            name: 'phase',
+            description: 'Gate phase: pre or post',
+            takesValue: true,
+          },
+          COMMON_FLAGS.json,
+        ],
+      },
+      {
+        name: 'resolve',
+        description: 'Resolve a pending gate with PASS or FAIL result',
+        flags: [
+          {
+            name: 'change',
+            description: 'Change name',
+            takesValue: true,
+          },
+          {
+            name: 'id',
+            description: 'Gate ID to resolve',
+            takesValue: true,
+          },
+          {
+            name: 'result',
+            description: 'PASS or FAIL',
+            takesValue: true,
+          },
+          {
+            name: 'details',
+            description: 'Optional JSON details',
+            takesValue: true,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    name: 'run',
+    description: 'Pipeline runner for phase execution',
+    flags: [],
+    subcommands: [
+      {
+        name: 'start',
+        description: 'Start a pipeline phase: execute pre-hooks and pre-gates',
+        flags: [
+          {
+            name: 'change',
+            description: 'Change name',
+            takesValue: true,
+          },
+          {
+            name: 'phase',
+            description: 'Phase: propose, apply, verify, or archive',
+            takesValue: true,
+          },
+          {
+            name: 'session',
+            description: 'Session ID (auto-generated if not provided)',
+            takesValue: true,
+          },
+          COMMON_FLAGS.json,
+        ],
+      },
+      {
+        name: 'complete',
+        description: 'Complete a pipeline phase: execute post-gates and post-hooks',
+        flags: [
+          {
+            name: 'change',
+            description: 'Change name',
+            takesValue: true,
+          },
+          {
+            name: 'phase',
+            description: 'Phase: propose, apply, verify, or archive',
+            takesValue: true,
+          },
+          {
+            name: 'gate-profile',
+            description: 'Override gate profile: feature, single-cap, infra, hotfix',
+            takesValue: true,
+          },
+          COMMON_FLAGS.json,
+        ],
+      },
+    ],
+  },
+  {
+    name: 'waiver',
+    description: 'Manage gate waivers',
+    flags: [],
+    subcommands: [
+      {
+        name: 'list',
+        description: 'List all active waivers across changes',
+        flags: [
+          COMMON_FLAGS.json,
+          {
+            name: 'all',
+            description: 'Include expired waivers',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    name: 'plugin',
+    description: 'Manage OpenSpec plugins',
+    flags: [],
+    subcommands: [
+      {
+        name: 'list',
+        description: 'List available and loaded plugins',
+        flags: [
+          COMMON_FLAGS.json,
+        ],
+      },
+      {
+        name: 'info',
+        description: 'Show detailed plugin information',
+        acceptsPositional: true,
+        positionals: [{ name: 'name' }],
+        flags: [
+          COMMON_FLAGS.json,
         ],
       },
     ],

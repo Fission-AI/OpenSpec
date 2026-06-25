@@ -193,29 +193,6 @@ The repo-local `openspec update` command SHALL not silently treat a workspace pl
 - **THEN** OpenSpec SHALL preserve repo-local update behavior for the target path
 - **AND** it SHALL not run workspace update behavior
 
-## Edge Cases
-
-### Error Handling
-
-The command SHALL handle edge cases gracefully.
-
-#### Scenario: File permission errors
-
-- **WHEN** file write fails
-- **THEN** let the error bubble up naturally with file path
-
-#### Scenario: Missing AI tool files
-
-- **WHEN** an AI tool configuration file doesn't exist
-- **THEN** skip updating that file
-- **AND** do not create it
-
-#### Scenario: Custom directory names
-
-- **WHEN** considering custom directory names
-- **THEN** not supported in this change
-- **AND** the default directory name `openspec` SHALL be used
-
 ### Requirement: Plugin overlay injection during update
 
 The update command SHALL load active plugins and apply skill overlays to generated skill and command content during `openspec update`.
@@ -253,3 +230,26 @@ The update process SHALL be:
 - Simple and fast (no version checking)
 - Predictable (same result every time)
 - Self-contained (no network required)
+
+## Edge Cases
+
+### Error Handling
+
+The command SHALL handle edge cases gracefully.
+
+#### Scenario: File permission errors
+
+- **WHEN** file write fails
+- **THEN** let the error bubble up naturally with file path
+
+#### Scenario: Missing AI tool files
+
+- **WHEN** an AI tool configuration file doesn't exist
+- **THEN** skip updating that file
+- **AND** do not create it
+
+#### Scenario: Custom directory names
+
+- **WHEN** considering custom directory names
+- **THEN** not supported in this change
+- **AND** the default directory name `openspec` SHALL be used
