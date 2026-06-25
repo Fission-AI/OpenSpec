@@ -438,7 +438,12 @@ describe('workspace command', () => {
     expect(fs.existsSync(path.join(codexHome, 'prompts', 'opsx-sync.md'))).toBe(true);
     expect(fs.existsSync(path.join(codexHome, 'prompts', 'opsx-archive.md'))).toBe(true);
     expect(fs.existsSync(path.join(codexHome, 'prompts', 'opsx-verify.md'))).toBe(false);
+    expect(fs.existsSync(path.join(codexHome, 'prompts', 'opsx-onboard.md'))).toBe(false);
     fs.writeFileSync(path.join(codexHome, 'prompts', 'opsx-verify.md'), 'stale verify command\n');
+    fs.writeFileSync(
+      path.join(codexHome, 'prompts', 'opsx-onboard.md'),
+      '<!-- OpenSpec managed command 1.4.1 -->\nstale onboard command\n'
+    );
     fs.writeFileSync(path.join(codexHome, 'prompts', 'user-note.md'), 'user command\n');
 
     const secondUpdate = await runCLI(['workspace', 'update', '--json'], {
@@ -449,7 +454,10 @@ describe('workspace command', () => {
       },
     });
     expect(secondUpdate.exitCode).toBe(0);
-    expect(fs.existsSync(path.join(codexHome, 'prompts', 'opsx-verify.md'))).toBe(false);
+    expect(fs.readFileSync(path.join(codexHome, 'prompts', 'opsx-verify.md'), 'utf-8')).toBe(
+      'stale verify command\n'
+    );
+    expect(fs.existsSync(path.join(codexHome, 'prompts', 'opsx-onboard.md'))).toBe(false);
     expect(fs.existsSync(path.join(codexHome, 'prompts', 'user-note.md'))).toBe(true);
     expect(fs.readdirSync(api).sort()).toEqual(linkedEntriesBefore);
     expect(fs.existsSync(path.join(api, '.codex'))).toBe(false);
@@ -470,6 +478,45 @@ describe('workspace command', () => {
     expect(parseJson(clean).workspace.status).not.toContainEqual(
       expect.objectContaining({
         code: 'workspace_skills_out_of_sync',
+      })
+    );
+  });
+
+  it('does not overwrite unmanaged workspace command files', async () => {
+    const api = mkdir('repos/api');
+    const codexHome = path.join(tempDir, 'unmanaged-command-codex-home');
+    writeGlobalConfig({
+      profile: 'custom',
+      delivery: 'commands',
+      workflows: ['apply'],
+    });
+    const setup = await setupWorkspace('unmanaged-command', [`api=${api}`], ['--tools', 'codex']);
+    const workspaceRoot = setup.workspace.root;
+    const commandFile = path.join(codexHome, 'prompts', 'opsx-apply.md');
+    fs.mkdirSync(path.dirname(commandFile), { recursive: true });
+    fs.writeFileSync(commandFile, 'user-owned apply command\n');
+
+    const update = await runCLI(['workspace', 'update', '--json'], {
+      cwd: workspaceRoot,
+      env: {
+        ...env,
+        CODEX_HOME: codexHome,
+      },
+    });
+
+    expect(update.exitCode).toBe(1);
+    expect(parseJson(update).workspace_skills.commands_failed).toEqual([
+      expect.objectContaining({
+        tool_id: 'codex',
+        error: expect.stringContaining('Refusing to overwrite unmanaged command file'),
+      }),
+    ]);
+    expect(fs.readFileSync(commandFile, 'utf-8')).toBe('user-owned apply command\n');
+    expect(readWorkspaceState(workspaceRoot).workspace_skills).toEqual(
+      expect.objectContaining({
+        selected_agents: ['codex'],
+        last_applied_profile: 'custom',
+        last_applied_workflow_ids: ['apply'],
       })
     );
   });

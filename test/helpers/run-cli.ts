@@ -1,5 +1,5 @@
 import { spawn } from 'child_process';
-import { existsSync } from 'fs';
+import { existsSync, readdirSync, statSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -8,6 +8,7 @@ const __dirname = path.dirname(__filename);
 
 const projectRoot = path.resolve(__dirname, '..', '..');
 const cliEntry = path.join(projectRoot, 'dist', 'cli', 'index.js');
+const cliSourceRoots = ['src', 'bin'];
 
 let buildPromise: Promise<void> | undefined;
 
@@ -53,8 +54,45 @@ function runCommand(command: string, args: string[], options: RunCommandOptions 
   });
 }
 
+function getNewestMtimeMs(targetPath: string): number {
+  if (!existsSync(targetPath)) {
+    return 0;
+  }
+
+  const stat = statSync(targetPath);
+  if (!stat.isDirectory()) {
+    return stat.mtimeMs;
+  }
+
+  let newest = stat.mtimeMs;
+  for (const entry of readdirSync(targetPath, { withFileTypes: true })) {
+    if (entry.name === 'node_modules' || entry.name === 'dist') {
+      continue;
+    }
+    newest = Math.max(newest, getNewestMtimeMs(path.join(targetPath, entry.name)));
+  }
+
+  return newest;
+}
+
+function isCliBuildFresh(): boolean {
+  if (!existsSync(cliEntry)) {
+    return false;
+  }
+
+  const cliBuildTime = statSync(cliEntry).mtimeMs;
+  const newestSourceTime = Math.max(
+    ...cliSourceRoots.map((sourceRoot) => getNewestMtimeMs(path.join(projectRoot, sourceRoot))),
+    getNewestMtimeMs(path.join(projectRoot, 'package.json')),
+    getNewestMtimeMs(path.join(projectRoot, 'tsconfig.json')),
+    getNewestMtimeMs(path.join(projectRoot, 'build.js'))
+  );
+
+  return cliBuildTime >= newestSourceTime;
+}
+
 export async function ensureCliBuilt() {
-  if (existsSync(cliEntry)) {
+  if (isCliBuildFresh()) {
     return;
   }
 

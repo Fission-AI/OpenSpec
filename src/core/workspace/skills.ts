@@ -24,6 +24,7 @@ import type { WorkspaceSkillState } from './foundation.js';
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../../package.json');
 const fs = nodeFs.promises;
+const MANAGED_COMMAND_MARKER = 'OpenSpec managed command';
 
 export interface WorkspaceSkillAgentResult {
   tool_id: string;
@@ -310,6 +311,67 @@ function resolveWorkspaceCommandFilePath(workspaceRoot: string, commandPath: str
     : FileSystemUtils.joinPath(workspaceRoot, commandPath);
 }
 
+function normalizeCommandContent(content: string): string {
+  return content.replace(/\r\n/g, '\n');
+}
+
+function markWorkspaceCommandContent(commandPath: string, content: string): string {
+  if (content.includes(MANAGED_COMMAND_MARKER)) {
+    return content;
+  }
+
+  const yamlFrontmatterMatch = content.match(/^---\r?\n/);
+  if (yamlFrontmatterMatch) {
+    return content.replace(
+      /^---(\r?\n)/,
+      `---$1# ${MANAGED_COMMAND_MARKER} ${OPENSPEC_VERSION}$1`
+    );
+  }
+
+  if (commandPath.endsWith('.toml')) {
+    return `# ${MANAGED_COMMAND_MARKER} ${OPENSPEC_VERSION}\n${content}`;
+  }
+
+  return `<!-- ${MANAGED_COMMAND_MARKER} ${OPENSPEC_VERSION} -->\n${content}`;
+}
+
+function isOpenSpecManagedCommandContent(content: string): boolean {
+  return content.includes(MANAGED_COMMAND_MARKER);
+}
+
+function matchesGeneratedCommandContent(content: string, expectedContent: string | undefined): boolean {
+  return expectedContent !== undefined &&
+    normalizeCommandContent(content) === normalizeCommandContent(expectedContent);
+}
+
+async function isOpenSpecManagedCommandFile(
+  commandFile: string,
+  expectedContent?: string
+): Promise<boolean> {
+  try {
+    const content = await fs.readFile(commandFile, 'utf-8');
+    return isOpenSpecManagedCommandContent(content) ||
+      matchesGeneratedCommandContent(content, expectedContent);
+  } catch {
+    return false;
+  }
+}
+
+async function assertCanWriteWorkspaceCommandFile(
+  commandFile: string,
+  expectedContent: string
+): Promise<boolean> {
+  if (!nodeFs.existsSync(commandFile)) {
+    return false;
+  }
+
+  if (!(await isOpenSpecManagedCommandFile(commandFile, expectedContent))) {
+    throw new Error(`Refusing to overwrite unmanaged command file: ${commandFile}`);
+  }
+
+  return true;
+}
+
 function makeCommandAgentResult(
   workspaceRoot: string,
   tool: WorkspaceSkillCapableTool,
@@ -396,6 +458,9 @@ async function removeManagedWorkflowCommandFiles(
   }
 
   const desiredSet = new Set(desiredWorkflowIds);
+  const commandContentsById = new Map(
+    getCommandContents(ALL_WORKFLOWS).map((content) => [content.id, content])
+  );
   let removed = 0;
 
   for (const workflowId of ALL_WORKFLOWS) {
@@ -407,9 +472,14 @@ async function removeManagedWorkflowCommandFiles(
       workspaceRoot,
       adapter.getFilePath(workflowId)
     );
+    const commandContent = commandContentsById.get(workflowId);
+    const expectedContent = commandContent ? adapter.formatFile(commandContent) : undefined;
 
     try {
-      if (nodeFs.existsSync(commandFile)) {
+      if (
+        nodeFs.existsSync(commandFile) &&
+        await isOpenSpecManagedCommandFile(commandFile, expectedContent)
+      ) {
         await fs.unlink(commandFile);
         removed++;
       }
@@ -638,13 +708,21 @@ export async function updateWorkspaceAgentSkills(
 
       try {
         const generatedCommands = generateCommands(commandContents, adapter);
-        const hadExistingCommand = generatedCommands.some((command) =>
-          nodeFs.existsSync(resolveWorkspaceCommandFilePath(workspaceRoot, command.path))
-        );
+        let hadExistingCommand = false;
 
         for (const command of generatedCommands) {
           const commandFile = resolveWorkspaceCommandFilePath(workspaceRoot, command.path);
-          await FileSystemUtils.writeFile(commandFile, command.fileContent);
+          hadExistingCommand =
+            (await assertCanWriteWorkspaceCommandFile(commandFile, command.fileContent)) ||
+            hadExistingCommand;
+        }
+
+        for (const command of generatedCommands) {
+          const commandFile = resolveWorkspaceCommandFilePath(workspaceRoot, command.path);
+          await FileSystemUtils.writeFile(
+            commandFile,
+            markWorkspaceCommandContent(command.path, command.fileContent)
+          );
         }
 
         const result = makeCommandAgentResult(workspaceRoot, tool, profileContext.workflowIds);

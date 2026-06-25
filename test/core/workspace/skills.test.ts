@@ -112,6 +112,58 @@ describe('workspace skill helpers', () => {
       expect(
         fs.existsSync(path.join(workspaceRoot, '.claude', 'commands', 'opsx', 'apply.md'))
       ).toBe(true);
+      expect(
+        fs.readFileSync(path.join(workspaceRoot, '.claude', 'commands', 'opsx', 'apply.md'), 'utf-8')
+      ).toContain('OpenSpec managed command');
+    } finally {
+      if (previousConfigHome === undefined) {
+        delete process.env.XDG_CONFIG_HOME;
+      } else {
+        process.env.XDG_CONFIG_HOME = previousConfigHome;
+      }
+      fs.rmSync(configHome, { recursive: true, force: true });
+      fs.rmSync(workspaceRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('refuses to overwrite unmanaged workspace commands', async () => {
+    const previousConfigHome = process.env.XDG_CONFIG_HOME;
+    const configHome = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-workspace-command-conflict-config-'));
+    const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-workspace-command-conflict-'));
+
+    process.env.XDG_CONFIG_HOME = configHome;
+
+    try {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'custom',
+        delivery: 'commands',
+        workflows: ['apply'],
+      });
+      const commandFile = path.join(workspaceRoot, '.claude', 'commands', 'opsx', 'apply.md');
+      fs.mkdirSync(path.dirname(commandFile), { recursive: true });
+      fs.writeFileSync(commandFile, 'user-owned command\n');
+
+      const report = await updateWorkspaceAgentSkills(
+        workspaceRoot,
+        ['claude'],
+        {
+          selected_agents: ['claude'],
+          last_applied_profile: 'custom',
+          last_applied_delivery: 'commands',
+          last_applied_workflow_ids: ['apply'],
+        }
+      );
+
+      expect(report.commands_generated).toEqual([]);
+      expect(report.commands_refreshed).toEqual([]);
+      expect(report.commands_failed).toEqual([
+        expect.objectContaining({
+          tool_id: 'claude',
+          error: expect.stringContaining('Refusing to overwrite unmanaged command file'),
+        }),
+      ]);
+      expect(fs.readFileSync(commandFile, 'utf-8')).toBe('user-owned command\n');
     } finally {
       if (previousConfigHome === undefined) {
         delete process.env.XDG_CONFIG_HOME;
