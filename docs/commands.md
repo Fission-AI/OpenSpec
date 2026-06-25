@@ -373,7 +373,7 @@ AI:  Reading add-dark-mode artifacts...
 Generate a one-page HTML brief that helps you review a change before implementation. This command is part of the expanded workflow set (not included in the default `core` profile).
 
 **Syntax:**
-```
+```text
 /opsx:brief [change-name]
 ```
 
@@ -397,7 +397,7 @@ Generate a one-page HTML brief that helps you review a change before implementat
 - Opening the file is best-effort; if it fails, the generated path is printed
 
 **Example:**
-```
+```text
 You: /opsx:brief add-dark-mode
 
 AI:  Generated brief for add-dark-mode:
