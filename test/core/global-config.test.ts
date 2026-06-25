@@ -6,6 +6,7 @@ import * as os from 'node:os';
 import {
   getGlobalConfigDir,
   getGlobalConfigPath,
+  getGlobalDataDir,
   getGlobalConfig,
   saveGlobalConfig,
   GLOBAL_CONFIG_DIR_NAME,
@@ -92,6 +93,44 @@ describe('global-config', () => {
       const result = getGlobalConfigPath();
 
       expect(result).toBe(path.join(tempDir, 'openspec', 'config.json'));
+    });
+  });
+
+  describe('getGlobalDataDir', () => {
+    it('should use POSIX separators for Unix-like platform overrides', () => {
+      expect(
+        getGlobalDataDir({
+          env: {},
+          platform: 'linux',
+          homedir: '/home/tabish',
+        })
+      ).toBe('/home/tabish/.local/share/openspec');
+
+      expect(
+        getGlobalDataDir({
+          env: { XDG_DATA_HOME: '/var/data' },
+          platform: 'darwin',
+          homedir: '/Users/tabish',
+        })
+      ).toBe('/var/data/openspec');
+    });
+
+    it('should use Windows separators for native Windows platform overrides', () => {
+      expect(
+        getGlobalDataDir({
+          env: {},
+          platform: 'win32',
+          homedir: 'C:\\Users\\Tabish',
+        })
+      ).toBe('C:\\Users\\Tabish\\AppData\\Local\\openspec');
+
+      expect(
+        getGlobalDataDir({
+          env: { LOCALAPPDATA: 'D:\\Users\\Tabish\\AppData\\Local' },
+          platform: 'win32',
+          homedir: 'C:\\Users\\Tabish',
+        })
+      ).toBe('D:\\Users\\Tabish\\AppData\\Local\\openspec');
     });
   });
 

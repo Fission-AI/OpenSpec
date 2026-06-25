@@ -42,10 +42,6 @@ Our philosophy:
   Follow <a href="https://x.com/0xTab">@0xTab on X</a> for updates · Join the <a href="https://discord.gg/YctCnvvshC">OpenSpec Discord</a> for help and questions.
 </p>
 
-### Teams
-
-Using OpenSpec in a team? [Email here](mailto:teams@openspec.dev) for access to our Slack channel.
-
 <!-- TODO: Add GIF demo of /opsx:propose → /opsx:archive workflow -->
 
 ## See it in action
@@ -100,7 +96,7 @@ openspec init
 
 Now tell your AI: `/opsx:propose <what-you-want-to-build>`
 
-If you want the expanded workflow (`/opsx:new`, `/opsx:continue`, `/opsx:ff`, `/opsx:verify`, `/opsx:sync`, `/opsx:bulk-archive`, `/opsx:onboard`), select it with `openspec config profile` and apply with `openspec update`.
+If you want the expanded workflow (`/opsx:new`, `/opsx:continue`, `/opsx:ff`, `/opsx:verify`, `/opsx:bulk-archive`, `/opsx:onboard`), select it with `openspec config profile` and apply with `openspec update`.
 
 > [!NOTE]
 > Not sure if your tool is supported? [View the full list](docs/supported-tools.md) – we support 25+ tools and growing.
@@ -117,6 +113,13 @@ If you want the expanded workflow (`/opsx:new`, `/opsx:continue`, `/opsx:ff`, `/
 → **[Concepts](docs/concepts.md)**: how it all fits<br>
 → **[Multi-Language](docs/multi-language.md)**: multi-language support<br>
 → **[Customization](docs/customization.md)**: make it yours
+
+
+## Community schemas
+
+Third-party schema bundles distributed via standalone repositories — these provide opinionated workflows that integrate OpenSpec with other tools, similar to how [github/spec-kit's community extension catalog](https://github.com/github/spec-kit/tree/main/extensions) handles tool integrations.
+
+→ **[Browse the catalog](docs/customization.md#community-schemas)** in the customization docs.
 
 
 ## Why OpenSpec?

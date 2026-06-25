@@ -8,7 +8,7 @@ OPSX replaces the old phase-locked workflow with a fluid, action-based approach.
 
 | Aspect | Legacy | OPSX |
 |--------|--------|------|
-| **Commands** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` | Default: `/opsx:propose`, `/opsx:apply`, `/opsx:archive` (expanded workflow commands optional) |
+| **Commands** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` | Default: `/opsx:propose`, `/opsx:apply`, `/opsx:sync`, `/opsx:archive` (expanded workflow commands optional) |
 | **Workflow** | Create all artifacts at once | Create incrementally or all at once—your choice |
 | **Going back** | Awkward phase gates | Natural—update any artifact anytime |
 | **Customization** | Fixed structure | Schema-driven, fully hackable |
@@ -84,7 +84,7 @@ Don't worry about getting it perfect. We're still learning what works best here,
 
 Both `openspec init` and `openspec update` detect legacy files and guide you through the same cleanup process. Use whichever fits your situation:
 
-- New installs default to profile `core` (`propose`, `explore`, `apply`, `archive`).
+- New installs default to profile `core` (`propose`, `explore`, `apply`, `sync`, `archive`).
 - Migrated installs preserve your previously installed workflows by writing a `custom` profile when needed.
 
 ### Using `openspec init`
@@ -561,6 +561,7 @@ project/
 │       ├── openspec-propose/     # default core profile
 │       ├── openspec-explore/
 │       ├── openspec-apply-change/
+│       ├── openspec-sync-specs/
 │       └── ...                   # expanded profile adds new/continue/ff/etc.
 ├── CLAUDE.md                     # OpenSpec markers removed, your content preserved
 └── AGENTS.md                     # OpenSpec markers removed, your content preserved

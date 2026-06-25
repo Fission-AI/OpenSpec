@@ -15,18 +15,21 @@ export function isGlobPattern(pattern: string): boolean {
  * Returns absolute file paths. Glob matches are sorted for deterministic output.
  */
 export function resolveArtifactOutputs(changeDir: string, generates: string): string[] {
-  const fullPattern = path.join(changeDir, generates);
-
   if (!isGlobPattern(generates)) {
+    const fullPath = path.join(changeDir, generates);
     try {
-      return fs.statSync(fullPattern).isFile() ? [fullPattern] : [];
+      return fs.statSync(fullPath).isFile()
+        ? [FileSystemUtils.canonicalizeExistingPath(fullPath)]
+        : [];
     } catch {
       return [];
     }
   }
 
-  const normalizedPattern = FileSystemUtils.toPosixPath(fullPattern);
-  const matches = fg.sync(normalizedPattern, { onlyFiles: true }).map((match) => path.normalize(match));
+  const normalizedPattern = FileSystemUtils.toPosixPath(generates);
+  const matches = fg
+    .sync(normalizedPattern, { cwd: changeDir, onlyFiles: true, absolute: true })
+    .map((match) => FileSystemUtils.canonicalizeExistingPath(path.normalize(match)));
 
   return Array.from(new Set(matches)).sort();
 }

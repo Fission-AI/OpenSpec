@@ -6,6 +6,8 @@ The explore workflow is part of the core loop (`propose`, `explore`, `apply`, `a
 
 Currently, explore references `/opsx:new` and `/opsx:ff` which are being replaced with `/opsx:propose`. But beyond just updating references, there are deeper UX questions about how explore should work.
 
+This exploration is also affected by the emerging workspace direction: for larger cross-team or cross-repo work, OpenSpec may need to treat the **initiative** as the first-class planning object and repo-local changes as execution artifacts. That means explore may sometimes be seeding an initiative, not just a single change.
+
 ## Open Questions
 
 ### Exploration Artifacts
@@ -17,6 +19,7 @@ Currently, explore references `/opsx:new` and `/opsx:ff` which are being replace
 2. **Where should exploration files live?**
    - `openspec/explorations/<name>.md`?
    - `openspec/changes/<change>/explorations/`?
+   - `.openspec-workspace/initiatives/<initiative>/explorations/` for coordinated work?
    - Somewhere else?
 
 3. **What should the format be?**
@@ -30,15 +33,17 @@ Currently, explore references `/opsx:new` and `/opsx:ff` which are being replace
    - e.g., exploring auth approaches separately from UI approaches
    - How would these relate to each other?
 
-5. **How do explorations relate to changes?**
+5. **How do explorations relate to changes or initiatives?**
    - Before change exists: standalone exploration
-   - After change exists: exploration linked to change?
+   - After repo-local change exists: exploration linked to change?
+   - For coordinated work: exploration linked to initiative first, then optionally referenced by repo-local changes?
 
 ### Lifecycle & Transitions
 
 6. **What happens before a change proposal exists?**
    - Exploration is standalone
    - When ready, user runs `/opsx:propose`
+   - For coordinated work, should exploration context seed an initiative first?
    - Should exploration context automatically seed the proposal?
 
 7. **What happens after a change proposal exists?**
@@ -90,11 +95,19 @@ Currently, explore references `/opsx:new` and `/opsx:ff` which are being replace
 - **Pro:** Clear relationship to changes
 - **Con:** Where do pre-change explorations go?
 
+### Approach E: Initiative-First Explorations for Coordinated Work
+- Local work can stay standalone or change-linked
+- Coordinated work saves exploration notes under an initiative in the coordination workspace
+- Repo-local changes can reference the shared exploration when execution starts
+- **Pro:** Matches the emerging split between shared planning and repo-local execution
+- **Con:** Adds another context where exploration artifacts may live
+
 ## Next Steps
 
 - [ ] User research: How do people actually use explore today?
 - [ ] Prototype: Try saving explorations and see if propose benefits
 - [ ] Decide: Pick an approach based on findings
+- [ ] Reconcile explore UX with initiative-first coordinated planning
 - [ ] Implement: Update explore workflow accordingly
 
 ## Related

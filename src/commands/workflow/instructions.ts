@@ -21,7 +21,6 @@ import {
   type TaskItem,
   type ApplyInstructions,
 } from './shared.js';
-import { getChangesDir } from '../../utils/change-utils.js';
 import { buildTaskGroups, enrichGroupsWithDomains, resolveOrchestration } from '../../core/orchestration/index.js';
 import type { OrchestrationHints } from '../../core/orchestration/types.js';
 import { loadPlugins } from '../../core/plugin/loader.js';
@@ -281,7 +280,7 @@ export async function generateApplyInstructions(
 ): Promise<ApplyInstructions> {
   // loadChangeContext will auto-detect schema from metadata if not provided
   const context = loadChangeContext(projectRoot, changeName, schemaName);
-  const changeDir = path.join(getChangesDir(projectRoot), changeName);
+  const changeDir = context.changeDir;
 
   // Get the full schema to access the apply phase configuration
   const schema = resolveSchema(context.schemaName, projectRoot);

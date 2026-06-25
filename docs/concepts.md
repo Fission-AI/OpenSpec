@@ -49,6 +49,92 @@ OpenSpec organizes your work into two main areas:
 
 This separation is key. You can work on multiple changes in parallel without conflicts. You can review a change before it affects the main specs. And when you archive a change, its deltas merge cleanly into the source of truth.
 
+## Coordination Workspaces
+
+Workspace support is in beta. The concepts below describe the direction and foundation currently being implemented; commands and workflows may change, and some workspace commands may not be available in the current stable release yet.
+
+Repo-local OpenSpec projects are the right default when one repo owns the planning, implementation, and archive flow. Some work spans several repos or folders. For that case, an OpenSpec coordination workspace is the durable planning home.
+
+The workspace mental model is:
+
+```text
+workspace = where related cross-repo changes live
+link      = a stable name for a repo or folder the workspace can plan against
+change    = one feature, fix, project, or other planned piece of work
+```
+
+A workspace has a different shape from a repo-local project:
+
+```text
+workspace-root/
+├── changes/                       # Workspace-level planning
+└── .openspec-workspace/
+    ├── workspace.yaml             # Shared workspace identity and link names
+    └── local.yaml                 # This machine's local paths
+```
+
+Repo-local OpenSpec state keeps the existing shape:
+
+```text
+repo-root/
+└── openspec/
+    ├── specs/
+    └── changes/
+```
+
+That distinction matters. The workspace root is a coordination surface for planning across linked repos or folders. Each repo's `openspec/` directory remains the home for repo-owned specs, repo-local changes, and implementation planning. Users do not need to run repo-local `openspec init` inside a workspace root.
+
+Stable link names are how workspace planning refers to repos and folders. The shared workspace state keeps names such as `api`, `web`, or `checkout`; each machine maps those names to its own local paths in `.openspec-workspace/local.yaml`.
+
+```yaml
+# .openspec-workspace/workspace.yaml
+version: 1
+name: platform
+links:
+  api: {}
+  web: {}
+```
+
+```yaml
+# .openspec-workspace/local.yaml
+version: 1
+paths:
+  api: /repos/api
+  web: /repos/web
+```
+
+OpenSpec-created workspaces exclude `.openspec-workspace/local.yaml` from portable collaboration state by default. `.openspec-workspace/workspace.yaml` remains portable because it stores the workspace name and stable link names, not one user's absolute checkout paths.
+
+Linked paths can be full repos, folders inside a large monorepo, or other existing folders. They do not need repo-local `openspec/` state before they can participate in workspace planning. Later implementation, verify, or archive workflows may require more repo readiness, but planning visibility starts with the link.
+
+```text
+multi-repo:
+  api      -> /repos/api
+  web      -> /repos/web
+
+large monorepo:
+  billing  -> /repos/platform/services/billing
+  checkout -> /repos/platform/apps/checkout
+```
+
+Managed workspaces live under the standard OpenSpec data directory:
+
+```text
+getGlobalDataDir()/workspaces
+```
+
+That means `$XDG_DATA_HOME/openspec/workspaces` when `XDG_DATA_HOME` is set, `~/.local/share/openspec/workspaces` on Unix-style fallback, and `%LOCALAPPDATA%\openspec\workspaces` on native Windows fallback. Native Windows shells, PowerShell, and WSL2 each keep the path strings for the runtime running OpenSpec. This foundation does not translate between `D:\repo`, `/mnt/d/repo`, and UNC WSL paths.
+
+OpenSpec also keeps a machine-local registry at:
+
+```text
+getGlobalDataDir()/workspaces/registry.yaml
+```
+
+The registry maps workspace names to workspace roots so later global commands can list or select known workspaces from anywhere. It is only an index. Each workspace folder remains authoritative for its own `.openspec-workspace/workspace.yaml` and `.openspec-workspace/local.yaml`, so stale registry entries can be reported and repaired without redefining the workspace itself.
+
+This foundation intentionally stops before the full workspace workflow. Creation, link and relink commands, agent launch, workspace proposal creation, repo-slice apply, verify, and archive behavior are later slices built on this storage and naming contract.
+
 ## Specs
 
 Specs describe your system's behavior using structured requirements and scenarios.

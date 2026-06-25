@@ -3,10 +3,13 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
 import { runCLI } from '../helpers/run-cli.js';
+import { FileSystemUtils } from '../../src/utils/file-system.js';
 
 describe('artifact-workflow CLI commands', () => {
   let tempDir: string;
   let changesDir: string;
+
+  const canonical = (targetPath: string): string => FileSystemUtils.canonicalizeExistingPath(targetPath);
 
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-artifact-workflow-'));
@@ -411,10 +414,8 @@ describe('artifact-workflow CLI commands', () => {
       expect(result.stderr).toBe('');
 
       const json = JSON.parse(result.stdout);
-      const expectedProposalPath = await fs.realpath(path.join(changesDir, 'json-apply', 'proposal.md'));
-      const expectedSpecPath = await fs.realpath(
-        path.join(changesDir, 'json-apply', 'specs', 'test-spec.md')
-      );
+      const expectedProposalPath = canonical(path.join(changesDir, 'json-apply', 'proposal.md'));
+      const expectedSpecPath = canonical(path.join(changesDir, 'json-apply', 'specs', 'test-spec.md'));
       expect(json.changeName).toBe('json-apply');
       expect(json.schemaName).toBe('spec-driven');
       expect(json.state).toBe('ready');
@@ -472,7 +473,7 @@ apply:
       );
       expect(applyResult.exitCode).toBe(0);
       const applyJson = JSON.parse(applyResult.stdout);
-      const resolvedSpecPath = await fs.realpath(specPath);
+      const resolvedSpecPath = canonical(specPath);
       expect(applyJson.state).toBe('ready');
       expect(applyJson.missingArtifacts).toBeUndefined();
       expect(applyJson.contextFiles).toEqual({

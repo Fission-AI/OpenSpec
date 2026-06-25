@@ -82,12 +82,13 @@ describe('InitCommand', () => {
 
       await initCommand.execute(testDir);
 
-      // Core profile: propose, explore, apply, verify, archive
+      // Core profile: propose, explore, apply, verify, sync, archive
       const coreSkillNames = [
         'openspec-propose',
         'openspec-explore',
         'openspec-apply-change',
         'openspec-verify-change',
+        'openspec-sync-specs',
         'openspec-archive-change',
       ];
 
@@ -106,7 +107,6 @@ describe('InitCommand', () => {
         'openspec-new-change',
         'openspec-continue-change',
         'openspec-ff-change',
-        'openspec-sync-specs',
         'openspec-bulk-archive-change',
       ];
 
@@ -121,12 +121,13 @@ describe('InitCommand', () => {
 
       await initCommand.execute(testDir);
 
-      // Core profile: propose, explore, apply, verify, archive
+      // Core profile: propose, explore, apply, verify, sync, archive
       const coreCommandNames = [
         'opsx/propose.md',
         'opsx/explore.md',
         'opsx/apply.md',
         'opsx/verify.md',
+        'opsx/sync.md',
         'opsx/archive.md',
       ];
 
@@ -140,7 +141,6 @@ describe('InitCommand', () => {
         'opsx/new.md',
         'opsx/continue.md',
         'opsx/ff.md',
-        'opsx/sync.md',
         'opsx/bulk-archive.md',
       ];
 
@@ -166,6 +166,30 @@ describe('InitCommand', () => {
 
       const skillFile = path.join(testDir, '.windsurf', 'skills', 'openspec-explore', 'SKILL.md');
       expect(await fileExists(skillFile)).toBe(true);
+    });
+
+    it('should support Kimi CLI as an adapterless skills-only tool', async () => {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'both',
+      });
+
+      const initCommand = new InitCommand({ tools: 'kimi', force: true });
+      await initCommand.execute(testDir);
+
+      const skillFile = path.join(testDir, '.kimi', 'skills', 'openspec-explore', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
+
+      const commandsDir = path.join(testDir, '.kimi', 'commands');
+      expect(await directoryExists(commandsDir)).toBe(false);
+
+      const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+      expect(
+        logCalls.some(
+          (entry) => entry.includes('Commands skipped for: kimi') && entry.includes('(no adapter)'),
+        ),
+      ).toBe(true);
     });
 
     it('should create skills for multiple tools at once', async () => {
