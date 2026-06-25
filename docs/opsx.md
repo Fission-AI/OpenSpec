@@ -204,7 +204,7 @@ Shows what's ready to create based on dependencies, then creates one artifact. U
 Creates all planning artifacts at once. Use when you have a clear picture of what you're building.
 
 ### Review before implementation
-```
+```text
 /opsx:brief add-dark-mode
 ```
 Reads the change artifacts and writes `brief.html` in the change directory. Use this optional workflow when you want a concise review surface before applying tasks. The original artifacts remain the source of truth.
