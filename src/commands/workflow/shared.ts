@@ -12,6 +12,7 @@ import { getSchemaDir, listSchemas } from '../../core/artifact-graph/index.js';
 import { getLoadedPlugins } from '../../core/plugin/context.js';
 import { validateChangeName, getChangesDir } from '../../utils/change-utils.js';
 import type { OrchestrationHints } from '../../core/orchestration/types.js';
+import type { InitiativeLink } from '../../core/change-metadata/index.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -27,6 +28,7 @@ export interface ApplyInstructions {
   changeName: string;
   changeDir: string;
   schemaName: string;
+  initiative?: InitiativeLink;
   contextFiles: Record<string, string[]>;
   progress: {
     total: number;
@@ -125,8 +127,13 @@ export function getStatusIndicator(status: 'done' | 'ready' | 'blocked'): string
  * Returns the list of available change directory names under openspec/changes/.
  * Excludes the archive directory and hidden directories.
  */
-export async function getAvailableChanges(projectRoot: string): Promise<string[]> {
-  const changesPath = getChangesDir(projectRoot);
+export async function getAvailableChanges(
+  projectRoot: string,
+  // Fork: default to getChangesDir() so config.yaml changesDir (vault) is respected;
+  // upstream v1.4.1 added the explicit changesDir parameter for caller overrides.
+  changesDir = getChangesDir(projectRoot)
+): Promise<string[]> {
+  const changesPath = changesDir;
   try {
     const entries = await fs.promises.readdir(changesPath, { withFileTypes: true });
     return entries
@@ -144,10 +151,13 @@ export async function getAvailableChanges(projectRoot: string): Promise<string[]
  */
 export async function validateChangeExists(
   changeName: string | undefined,
-  projectRoot: string
+  projectRoot: string,
+  // Fork: default to getChangesDir() so config.yaml changesDir (vault) is respected;
+  // upstream v1.4.1 added the explicit changesDir parameter for caller overrides.
+  changesDir = getChangesDir(projectRoot)
 ): Promise<string> {
   if (!changeName) {
-    const available = await getAvailableChanges(projectRoot);
+    const available = await getAvailableChanges(projectRoot, changesDir);
     if (available.length === 0) {
       throw new Error('No changes found. Create one with: openspec new change <name>');
     }
@@ -162,12 +172,14 @@ export async function validateChangeExists(
     throw new Error(`Invalid change name '${changeName}': ${nameValidation.error}`);
   }
 
-  // Check directory existence directly (use getChangesDir to respect config.yaml changesDir)
-  const changePath = path.join(getChangesDir(projectRoot), changeName);
+  // Check directory existence directly.
+  // changesDir defaults to getChangesDir(projectRoot) (fork: respects config.yaml changesDir);
+  // upstream v1.4.1 made it an overridable parameter.
+  const changePath = path.join(changesDir, changeName);
   const exists = fs.existsSync(changePath) && fs.statSync(changePath).isDirectory();
 
   if (!exists) {
-    const available = await getAvailableChanges(projectRoot);
+    const available = await getAvailableChanges(projectRoot, changesDir);
     if (available.length === 0) {
       throw new Error(
         `Change '${changeName}' not found. No changes exist. Create one with: openspec new change <name>`

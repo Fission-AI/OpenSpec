@@ -166,7 +166,36 @@ The archive slash command template SHALL support optional change ID arguments fo
 - **AND** wrap it in a clear structure like `<ChangeId>\n  $ARGUMENTS\n</ChangeId>` to indicate the expected argument
 - **AND** include validation steps in the template body to check if the change ID is valid
 
-### Requirement: Error Handling
+### Requirement: Repo update stays separate from workspace planning homes
+The repo-local `openspec update` command SHALL not silently treat a workspace planning home as a repo-local OpenSpec project.
+
+#### Scenario: Running update from a workspace root
+- **GIVEN** the command runs from an OpenSpec workspace root
+- **WHEN** the user runs `openspec update`
+- **THEN** OpenSpec SHALL not generate repo-local project files in the workspace root
+- **AND** it SHALL tell the user to run `openspec workspace update`
+
+#### Scenario: Running update from inside a workspace planning directory
+- **GIVEN** the command runs from a subdirectory of an OpenSpec workspace planning home
+- **WHEN** the user runs `openspec update`
+- **THEN** OpenSpec SHALL not run repo-local update behavior
+- **AND** it SHALL tell the user to run `openspec workspace update`
+
+#### Scenario: Running update from a repo-local project
+- **GIVEN** the command runs from inside a repo-local OpenSpec project
+- **WHEN** the user runs `openspec update`
+- **THEN** OpenSpec SHALL preserve existing repo-local update behavior
+
+#### Scenario: Updating a repo-local project nested below a workspace folder
+- **GIVEN** the target path contains repo-local OpenSpec state
+- **AND** an ancestor is an OpenSpec workspace root
+- **WHEN** the user runs `openspec update <path>`
+- **THEN** OpenSpec SHALL preserve repo-local update behavior for the target path
+- **AND** it SHALL not run workspace update behavior
+
+## Edge Cases
+
+### Error Handling
 
 The command SHALL handle edge cases gracefully.
 

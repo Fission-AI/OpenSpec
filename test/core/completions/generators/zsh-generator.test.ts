@@ -268,6 +268,50 @@ describe('ZshGenerator', () => {
       expect(script).toContain("'*:path:_files'");
     });
 
+    it('should handle positional arguments for schema names', () => {
+      const commands: CommandDefinition[] = [
+        {
+          name: 'schema',
+          description: 'Manage schemas',
+          acceptsPositional: true,
+          positionalType: 'schema-name',
+          flags: [],
+        },
+      ];
+
+      const script = generator.generate(commands);
+
+      expect(script).toContain("'*: :_openspec_complete_schemas'");
+      expect(script).toContain('_openspec_complete_schemas()');
+    });
+
+    it('should emit optional indexed positional arguments with double-colon syntax', () => {
+      const commands: CommandDefinition[] = [
+        {
+          name: 'workspace',
+          description: 'Manage workspaces',
+          flags: [],
+          subcommands: [
+            {
+              name: 'link',
+              description: 'Link a folder',
+              acceptsPositional: true,
+              positionals: [
+                { name: 'name-or-path', type: 'path', optional: true },
+                { name: 'path', type: 'path' },
+              ],
+              flags: [],
+            },
+          ],
+        },
+      ];
+
+      const script = generator.generate(commands);
+
+      expect(script).toContain("'1::name-or-path:_files'");
+      expect(script).toContain("'2:path:_files'");
+    });
+
     it('should escape special characters in descriptions', () => {
       const commands: CommandDefinition[] = [
         {

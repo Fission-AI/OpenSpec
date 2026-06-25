@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as yaml from 'yaml';
-import { ChangeMetadataSchema, type ChangeMetadata } from '../core/artifact-graph/types.js';
+import { ChangeMetadataSchema, type ChangeMetadata } from '../core/change-metadata/index.js';
 import { listSchemas } from '../core/artifact-graph/resolver.js';
 import { getLoadedPlugins } from '../core/plugin/context.js';
 import { readProjectConfig } from '../core/project-config.js';
@@ -149,6 +149,10 @@ export function readChangeMetadata(
   return parseResult.data;
 }
 
+export interface ResolveSchemaForChangeOptions {
+  metadata?: ChangeMetadata | null;
+}
+
 /**
  * Resolves the schema for a change, with explicit override taking precedence.
  *
@@ -165,19 +169,24 @@ export function readChangeMetadata(
 export function resolveSchemaForChange(
   changeDir: string,
   explicitSchema?: string,
-  projectRoot?: string
+  projectRootOverride?: string,
+  options: ResolveSchemaForChangeOptions = {}
 ): string {
-  // Use provided projectRoot, or derive from changeDir (works when changesDir is under projectRoot)
-  const resolvedProjectRoot = projectRoot ?? path.resolve(changeDir, '../../..');
+  // Use provided projectRoot override, or derive from changeDir
+  // (changeDir is typically projectRoot/openspec/changes/change-name).
+  const projectRoot = projectRootOverride ?? path.resolve(changeDir, '../../..');
 
   // 1. Explicit override wins
   if (explicitSchema) {
     return explicitSchema;
   }
 
-  // 2. Try reading from metadata
+  // 2. Use injected metadata when provided, otherwise read from .openspec.yaml.
   try {
-    const metadata = readChangeMetadata(changeDir, resolvedProjectRoot);
+    const metadata =
+      options.metadata !== undefined
+        ? options.metadata
+        : readChangeMetadata(changeDir, projectRoot);
     if (metadata?.schema) {
       return metadata.schema;
     }
@@ -185,9 +194,9 @@ export function resolveSchemaForChange(
     // If metadata read fails, continue to next option
   }
 
-  // 3. Try reading from project config
+  // 3. Try reading from project config when metadata is absent.
   try {
-    const config = readProjectConfig(resolvedProjectRoot);
+    const config = readProjectConfig(projectRoot);
     if (config?.schema) {
       return config.schema;
     }

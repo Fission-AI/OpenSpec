@@ -2,8 +2,9 @@ import { Command } from 'commander';
 import { createRequire } from 'module';
 import ora from 'ora';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { promises as fs } from 'fs';
-import { AI_TOOLS } from '../core/config.js';
+import { AI_TOOLS, OPENSPEC_DIR_NAME } from '../core/config.js';
 import { UpdateCommand } from '../core/update.js';
 import { ListCommand } from '../core/list.js';
 import { ArchiveCommand } from '../core/archive.js';
@@ -22,6 +23,10 @@ import { loadPlugins } from '../core/plugin/loader.js';
 import { validateAllPluginConfigs } from '../core/plugin/config-validator.js';
 import { GateCommand } from '../commands/gate.js';
 import { RunCommand } from '../commands/run.js';
+import { registerWorkspaceCommand } from '../commands/workspace.js';
+import { registerContextStoreCommand } from '../commands/context-store.js';
+import { registerInitiativeCommand } from '../commands/initiative.js';
+import { findWorkspaceRoot } from '../core/workspace/index.js';
 import {
   statusCommand,
   instructionsCommand,
@@ -29,12 +34,14 @@ import {
   templatesCommand,
   schemasCommand,
   newChangeCommand,
+  setChangeCommand,
   DEFAULT_SCHEMA,
   type StatusOptions,
   type InstructionsOptions,
   type TemplatesOptions,
   type SchemasOptions,
   type NewChangeOptions,
+  type SetChangeOptions,
 } from '../commands/workflow/index.js';
 import { maybeShowTelemetryNotice, trackCommand, shutdown } from '../telemetry/index.js';
 
@@ -95,6 +102,22 @@ program.hook('postAction', async () => {
 
 const availableToolIds = AI_TOOLS.filter((tool) => tool.skillsDir).map((tool) => tool.value);
 const toolsOptionDescription = `Configure AI tools non-interactively. Use "all", "none", or a comma-separated list of: ${availableToolIds.join(', ')}`;
+
+async function hasRepoLocalOpenSpecProject(projectPath: string): Promise<boolean> {
+  try {
+    const stats = await fs.stat(path.join(projectPath, OPENSPEC_DIR_NAME));
+    return stats.isDirectory();
+  } catch (error) {
+    const code =
+      typeof error === 'object' && error !== null && 'code' in error
+        ? (error as { code?: unknown }).code
+        : undefined;
+    if (code !== 'ENOENT' && code !== 'ENOTDIR') {
+      throw error;
+    }
+    return false;
+  }
+}
 
 program
   .command('init [path]')
@@ -167,6 +190,18 @@ program
     try {
       const resolvedPath = path.resolve(targetPath);
       const updateCommand = new UpdateCommand({ force: options?.force });
+      if (await hasRepoLocalOpenSpecProject(resolvedPath)) {
+        await updateCommand.execute(resolvedPath);
+        return;
+      }
+
+      const workspaceRoot = await findWorkspaceRoot(resolvedPath);
+      if (workspaceRoot) {
+        throw new Error(
+          'OpenSpec workspace detected. Run `openspec workspace update` to refresh workspace-local guidance and skills.'
+        );
+      }
+
       await updateCommand.execute(resolvedPath);
     } catch (error) {
       console.log(); // Empty line for spacing
@@ -312,6 +347,9 @@ registerSpecCommand(program);
 registerConfigCommand(program);
 registerSchemaCommand(program);
 registerPluginCommand(program);
+registerWorkspaceCommand(program);
+registerContextStoreCommand(program);
+registerInitiativeCommand(program);
 
 // Top-level validate command
 program
@@ -536,8 +574,14 @@ newCmd
   .command('change <name>')
   .description('Create a new change directory')
   .option('--description <text>', 'Description to add to README.md')
+  .option('--goal <text>', 'Workspace product goal to store with the change')
+  .option('--areas <names>', 'Comma-separated affected workspace link names')
+  .option('--initiative <id>', 'Link the repo-local change to an initiative')
+  .option('--store <id>', 'Context store id for --initiative')
+  .option('--store-path <path>', 'Existing local context store root for --initiative')
   .option('--schema <name>', `Workflow schema to use (default: ${DEFAULT_SCHEMA})`)
   .option('--class <class>', 'Change class for gate profile routing: feature, single-cap, infra, hotfix (default: feature)')
+  .option('--json', 'Output as JSON')
   .action(async (name: string, options: NewChangeOptions) => {
     try {
       await newChangeCommand(name, options);
@@ -548,6 +592,25 @@ newCmd
     }
   });
 
+// Set command group
+const setCmd = program.command('set').description('Set checked-in OpenSpec metadata');
+
+setCmd
+  .command('change <name>')
+  .description('Set repo-local change metadata')
+  .option('--initiative <id>', 'Link the repo-local change to an initiative')
+  .option('--store <id>', 'Context store id for --initiative')
+  .option('--store-path <path>', 'Existing local context store root for --initiative')
+  .option('--json', 'Output as JSON')
+  .action(async (name: string, options: SetChangeOptions) => {
+    try {
+      await setChangeCommand(name, options);
+    } catch (error) {
+      console.log();
+      ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
 
 // Gate command group
 const gateCmd = program.command('gate').description('Quality gate operations');
@@ -667,4 +730,12 @@ waiverCmd
     }
   });
 
-program.parse();
+export { program };
+
+export function runCli(argv = process.argv): void {
+  program.parse(argv);
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  runCli();
+}

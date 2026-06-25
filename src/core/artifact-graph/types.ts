@@ -118,29 +118,14 @@ export type SchemaYaml = z.infer<typeof SchemaYamlSchema>;
 export type SchemaParallelGroup = z.infer<typeof SchemaParallelGroupSchema>;
 export type PhaseOrchestration = z.infer<typeof PhaseOrchestrationSchema>;
 
-// Per-change metadata schema
-// Note: schema field is validated at parse time against available schemas
-// using a lazy import to avoid circular dependencies
+// Fork-only: change-class taxonomy for the run/gate/pipeline subsystem.
+// Imported from here by runner.ts, run.ts, new-change.ts, and change-utils.ts.
+// NOTE: upstream v1.4.1 relocated the canonical ChangeMetadataSchema/ChangeMetadata
+// into src/core/change-metadata/schema.ts, so they are intentionally no longer
+// re-declared in this file. The fork's `class` field for gate-profile routing
+// lives on that canonical schema, not here.
 export const VALID_CHANGE_CLASSES = ['feature', 'single-cap', 'infra', 'hotfix'] as const;
 export type ChangeClass = typeof VALID_CHANGE_CLASSES[number];
-
-export const ChangeMetadataSchema = z.object({
-  // Required: which workflow schema this change uses
-  schema: z.string().min(1, { message: 'schema is required' }),
-
-  // Optional: creation timestamp (ISO date string)
-  created: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, {
-      message: 'created must be YYYY-MM-DD format',
-    })
-    .optional(),
-
-  // Optional: change class for gate profile routing (default: feature)
-  class: z.enum(VALID_CHANGE_CLASSES).optional(),
-});
-
-export type ChangeMetadata = z.infer<typeof ChangeMetadataSchema>;
 
 // Runtime state types (not Zod - internal only)
 
@@ -151,4 +136,3 @@ export type CompletedSet = Set<string>;
 export interface BlockedArtifacts {
   [artifactId: string]: string[];
 }
-

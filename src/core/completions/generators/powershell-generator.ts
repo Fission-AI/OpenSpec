@@ -1,4 +1,9 @@
-import { CompletionGenerator, CommandDefinition, FlagDefinition } from '../types.js';
+import {
+  CompletionGenerator,
+  CommandDefinition,
+  FlagDefinition,
+  PositionalDefinition,
+} from '../types.js';
 import { POWERSHELL_DYNAMIC_HELPERS } from '../templates/powershell-templates.js';
 
 /**
@@ -123,14 +128,14 @@ Register-ArgumentCompleter -CommandName openspec -ScriptBlock $openspecCompleter
 
       for (const subcmd of cmd.subcommands) {
         lines.push(`${indent}    "${subcmd.name}" {`);
-        lines.push(...this.generateArgumentCompletion(subcmd, indent + '        '));
+        lines.push(...this.generateArgumentCompletion(subcmd, indent + '        ', 3));
         lines.push(`${indent}    }`);
       }
 
       lines.push(`${indent}}`);
     } else {
       // No subcommands
-      lines.push(...this.generateArgumentCompletion(cmd, indent));
+      lines.push(...this.generateArgumentCompletion(cmd, indent, 2));
     }
 
     return lines;
@@ -139,7 +144,11 @@ Register-ArgumentCompleter -CommandName openspec -ScriptBlock $openspecCompleter
   /**
    * Generate argument completion (flags and positional)
    */
-  private generateArgumentCompletion(cmd: CommandDefinition, indent: string): string[] {
+  private generateArgumentCompletion(
+    cmd: CommandDefinition,
+    indent: string,
+    firstPositionalTokenIndex: number
+  ): string[] {
     const lines: string[] = [];
 
     // Flag completion
@@ -167,11 +176,83 @@ Register-ArgumentCompleter -CommandName openspec -ScriptBlock $openspecCompleter
     }
 
     // Positional completion
-    if (cmd.acceptsPositional) {
+    if (cmd.positionals && cmd.positionals.length > 0) {
+      lines.push(...this.generateIndexedPositionalCompletion(
+        cmd.positionals,
+        cmd.flags,
+        firstPositionalTokenIndex,
+        indent
+      ));
+    } else if (cmd.acceptsPositional) {
       lines.push(...this.generatePositionalCompletion(cmd.positionalType, indent));
     }
 
     return lines;
+  }
+
+  private generateIndexedPositionalCompletion(
+    positionals: PositionalDefinition[],
+    flags: FlagDefinition[],
+    firstPositionalTokenIndex: number,
+    indent: string
+  ): string[] {
+    const lines: string[] = [];
+    const valueFlags = this.generateValueFlags(flags);
+
+    if (valueFlags.length > 0) {
+      const flagList = valueFlags.map((flag) => `"${flag}"`).join(', ');
+      lines.push(`${indent}if (@(${flagList}) -contains $tokens[$commandCount - 2]) { return }`);
+      lines.push('');
+    }
+
+    lines.push(`${indent}$positionalIndex = 0`);
+    lines.push(`${indent}$skipNext = $false`);
+    lines.push(`${indent}for ($i = ${firstPositionalTokenIndex}; $i -lt ($commandCount - 1); $i++) {`);
+    lines.push(`${indent}    if ($skipNext) {`);
+    lines.push(`${indent}        $skipNext = $false`);
+    lines.push(`${indent}        continue`);
+    lines.push(`${indent}    }`);
+    lines.push(`${indent}    $token = $tokens[$i]`);
+
+    if (valueFlags.length > 0) {
+      const flagList = valueFlags.map((flag) => `"${flag}"`).join(', ');
+      lines.push(`${indent}    if (@(${flagList}) -contains $token) {`);
+      lines.push(`${indent}        $skipNext = $true`);
+      lines.push(`${indent}        continue`);
+      lines.push(`${indent}    }`);
+      lines.push(`${indent}    if ($token -match "^(${valueFlags.map((flag) => this.escapeRegex(flag)).join('|')})=.*") { continue }`);
+    }
+
+    lines.push(`${indent}    if ($token -like "-*") { continue }`);
+    lines.push(`${indent}    $positionalIndex++`);
+    lines.push(`${indent}}`);
+    lines.push('');
+    lines.push(`${indent}switch ($positionalIndex) {`);
+
+    for (const [index, positional] of positionals.entries()) {
+      const completion = this.generatePositionalCompletion(positional.type, indent + '    ');
+      if (completion.length === 0) continue;
+      lines.push(`${indent}    ${index} {`);
+      lines.push(...completion);
+      lines.push(`${indent}    }`);
+    }
+
+    lines.push(`${indent}}`);
+
+    return lines;
+  }
+
+  private generateValueFlags(flags: FlagDefinition[]): string[] {
+    return flags
+      .filter((flag) => flag.takesValue)
+      .flatMap((flag) => [
+        `--${flag.name}`,
+        ...(flag.short ? [`-${flag.short}`] : []),
+      ]);
+  }
+
+  private escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   /**
@@ -195,6 +276,11 @@ Register-ArgumentCompleter -CommandName openspec -ScriptBlock $openspecCompleter
         lines.push(`${indent}$items = @(Get-OpenSpecChanges) + @(Get-OpenSpecSpecs)`);
         lines.push(`${indent}$items | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {`);
         lines.push(`${indent}    [System.Management.Automation.CompletionResult]::new($_, $_, "ParameterValue", $_)`);
+        lines.push(`${indent}}`);
+        break;
+      case 'schema-name':
+        lines.push(`${indent}Get-OpenSpecSchemas | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {`);
+        lines.push(`${indent}    [System.Management.Automation.CompletionResult]::new($_, $_, "ParameterValue", "Schema: $_")`);
         lines.push(`${indent}}`);
         break;
       case 'shell':

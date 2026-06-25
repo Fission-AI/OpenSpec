@@ -2,7 +2,6 @@
 
 ## Purpose
 Define project-local schema resolution behavior, including precedence order (project-local, then user override, then package built-in) and backward-compatible fallback when `projectRoot` is not provided.
-
 ## Requirements
 ### Requirement: Project-local schema resolution
 
@@ -93,14 +92,14 @@ The `openspec schemas` command SHALL display the source of each schema.
 
 ### Requirement: Use config schema as default for new changes
 
-The system SHALL use the schema field from `openspec/config.yaml` as the default when creating new changes without explicit `--schema` flag.
+The system SHALL use the schema field from `openspec/config.yaml` as the default when creating new changes without explicit `--schema` flag and no planning-home default applies.
 
 #### Scenario: Create change without --schema flag and config exists
-- **WHEN** user runs `openspec new change foo` and config contains `schema: "tdd"`
+- **WHEN** user runs `openspec new change foo`, no planning-home default applies, and config contains `schema: "tdd"`
 - **THEN** system creates change with schema "tdd"
 
 #### Scenario: Create change without --schema flag and no config
-- **WHEN** user runs `openspec new change foo` and no config file exists
+- **WHEN** user runs `openspec new change foo`, no planning-home default applies, and no config file exists
 - **THEN** system creates change with default schema "spec-driven"
 
 #### Scenario: Create change with explicit --schema flag
@@ -109,7 +108,7 @@ The system SHALL use the schema field from `openspec/config.yaml` as the default
 
 ### Requirement: Resolve schema with updated precedence order
 
-The system SHALL resolve the schema for a change using the following precedence order: CLI flag, change metadata, project config, hardcoded default.
+The system SHALL resolve the schema for a change using the following precedence order: CLI flag, change metadata, planning-home default, project config, hardcoded default.
 
 #### Scenario: CLI flag is provided
 - **WHEN** user runs command with `--schema custom`
@@ -119,12 +118,16 @@ The system SHALL resolve the schema for a change using the following precedence 
 - **WHEN** change has `.openspec.yaml` with `schema: bound` and config has `schema: tdd`
 - **THEN** system uses "bound" from change metadata
 
+#### Scenario: Planning home default overrides project config
+- **WHEN** no CLI flag or change metadata, the planning home provides default schema `workspace-planning`, and config has `schema: tdd`
+- **THEN** system uses "workspace-planning" from the planning home default
+
 #### Scenario: Only project config specifies schema
-- **WHEN** no CLI flag or change metadata, but config has `schema: tdd`
+- **WHEN** no CLI flag, change metadata, or planning-home default exists, but config has `schema: tdd`
 - **THEN** system uses "tdd" from project config
 
 #### Scenario: No schema specified anywhere
-- **WHEN** no CLI flag, change metadata, or project config
+- **WHEN** no CLI flag, change metadata, planning-home default, or project config
 - **THEN** system uses hardcoded default "spec-driven"
 
 ### Requirement: Support project-local schema names in config
@@ -170,3 +173,29 @@ The system SHALL continue to work with existing changes that do not have project
 #### Scenario: Existing change with config added later
 - **WHEN** config file is added to project with existing changes
 - **THEN** existing changes continue to use their bound schema from `.openspec.yaml`
+
+### Requirement: Workspace planning schema resolution
+Schema resolution SHALL support the built-in workspace planning schema.
+
+#### Scenario: Listing workspace planning schema
+- **WHEN** a user runs `openspec schemas`
+- **THEN** the output SHALL include `workspace-planning`
+- **AND** it SHALL identify it as a package-provided schema unless overridden by a higher-precedence schema
+
+#### Scenario: Resolving workspace planning schema by name
+- **WHEN** a workflow command requests schema `workspace-planning`
+- **THEN** schema resolution SHALL resolve it using the normal project, user, then package precedence order
+
+#### Scenario: Workspace default schema for new changes
+- **GIVEN** the command creates a change in a workspace planning home
+- **AND** the user did not pass an explicit `--schema`
+- **AND** no change metadata schema applies to the new change
+- **WHEN** OpenSpec resolves the schema for the new change
+- **THEN** it SHALL use the planning-home default schema `workspace-planning`
+- **AND** it SHALL use that planning-home default before any project or global config schema value
+
+#### Scenario: Explicit schema override for workspace change
+- **GIVEN** the command creates a change in a workspace planning home
+- **WHEN** the user passes an explicit `--schema <name>`
+- **THEN** OpenSpec SHALL use the explicitly requested schema
+- **AND** it SHALL validate that schema using normal schema resolution

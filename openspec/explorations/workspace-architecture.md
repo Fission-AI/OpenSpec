@@ -77,7 +77,7 @@ We researched how similar tools handle config layering:
 | **ESLint (flat)** | Single root config | *Deliberately killed cascading* - "complexity exploded exponentially" |
 | **Turborepo** | Root + package extends | Per-package `turbo.json` with `extends: ["//"]` for overrides |
 | **Nx** | Integrated vs Package-based | Two modes - shared root OR per-package. Hard to migrate from integrated. |
-| **pnpm** | Workspace root defines scope | `pnpm-workspace.yaml` at root. Dependencies can be shared or per-package |
+| **pnpm** | Workspace file defines package scope | `pnpm-workspace.yaml` at the package-set root. Dependencies can be shared or per-package |
 | **Claude Code** | Global + Project | `~/.claude/` for global, `.claude/` per-project. No workspace tracking. |
 | **Kiro** | Distributed per-root | Each folder has `.kiro/`. Aggregated display, no inheritance. |
 

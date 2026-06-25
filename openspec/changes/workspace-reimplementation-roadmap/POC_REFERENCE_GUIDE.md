@@ -2,9 +2,16 @@
 
 This guide is for a fresh agent starting a new session with no prior context about the workspace POC.
 
-Root entry point: `WORKSPACE_REIMPLEMENTATION_START_HERE.md`.
+Root entry point: `START_HERE.md`.
 
-The goal is not to continue the POC. The goal is to use it as research material before reimplementing workspace support cleanly from the current base.
+The goal is not to continue the POC. The goal is to use it as research material
+before preserving or replacing specific behavior from the current base.
+
+Current product authority lives in
+`openspec/initiatives/context-store-and-initiatives/`. Under that direction,
+workspace setup/open/update/doctor behavior remains useful local-view
+infrastructure. Workspace-level apply, verify, and archive research is deferred
+until initiative-linked repo-local changes exist.
 
 ## Reference Point
 
@@ -115,7 +122,7 @@ Put durable findings in the relevant OpenSpec proposal or design artifact. Do no
 
 Focus on:
 
-- workspace root shape
+- workspace folder shape
 - metadata directory naming
 - local versus committed state
 - stable workspace name semantics
