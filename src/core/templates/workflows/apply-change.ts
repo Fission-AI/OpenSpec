@@ -65,9 +65,13 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
    - Remaining tasks overview
    - Dynamic instruction from CLI
 
-6. **Implement tasks (loop until done or blocked)**
+6. **Implement tasks** — plugin overlay takes precedence
 
-   For each pending task:
+   If a plugin overlay appended after these base steps defines orchestration (e.g. a workflow
+   fan-out), **follow that overlay instead of this inline loop**. Check the end of this document
+   for such a section first.
+
+   If no such overlay is present, loop until done or blocked — for each pending task:
    - Show which task is being worked on
    - Make the code changes required
    - Keep changes minimal and focused
@@ -222,9 +226,13 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
    - Remaining tasks overview
    - Dynamic instruction from CLI
 
-6. **Implement tasks (loop until done or blocked)**
+6. **Implement tasks** — plugin overlay takes precedence
 
-   For each pending task:
+   If a plugin overlay appended after these base steps defines orchestration (e.g. a workflow
+   fan-out), **follow that overlay instead of this inline loop**. Check the end of this document
+   for such a section first.
+
+   If no such overlay is present, loop until done or blocked — for each pending task:
    - Show which task is being worked on
    - Make the code changes required
    - Keep changes minimal and focused
