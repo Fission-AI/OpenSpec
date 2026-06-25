@@ -118,19 +118,44 @@ export interface ChangeStatus {
 }
 
 /**
- * Loads a template from a schema's templates directory.
+ * Determines whether a schema `template` value is a reference to a template file
+ * (e.g. "proposal.md", "specs/spec.md") rather than inline template content.
+ *
+ * Schemas may define `template` either as a filename resolved under the schema's
+ * `templates/` directory, or as inline content (a YAML literal block). A filename
+ * is a single-line string shaped like a relative path with an extension; anything
+ * multi-line or not path-shaped (e.g. starting with "## ") is treated as inline.
+ */
+function isTemplateFileReference(template: string): boolean {
+  if (template.includes('\n')) {
+    return false;
+  }
+  return /^[\w.\-/]+\.[A-Za-z0-9]+$/.test(template.trim());
+}
+
+/**
+ * Loads a template from a schema's templates directory, or returns inline content.
+ *
+ * The schema `template` field supports two forms:
+ * 1. A filename (e.g. "proposal.md") resolved under `schemas/<name>/templates/`.
+ * 2. Inline template content (a YAML literal block), returned as-is.
  *
  * @param schemaName - Schema name (e.g., "spec-driven")
- * @param templatePath - Relative path within the templates directory (e.g., "proposal.md")
+ * @param templatePath - Template filename or inline template content
  * @param projectRoot - Optional project root for project-local schema resolution
  * @returns The template content
- * @throws TemplateLoadError if the template cannot be loaded
+ * @throws TemplateLoadError if a referenced template file cannot be loaded
  */
 export function loadTemplate(
   schemaName: string,
   templatePath: string,
   projectRoot?: string
 ): string {
+  // Inline template content (multi-line or not filename-shaped) is used verbatim.
+  if (!isTemplateFileReference(templatePath)) {
+    return templatePath;
+  }
+
   const loadedPlugins = projectRoot ? getLoadedPlugins(projectRoot) : undefined;
   const schemaDir = getSchemaDir(schemaName, projectRoot, loadedPlugins);
   if (!schemaDir) {

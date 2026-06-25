@@ -41,6 +41,28 @@ describe('instruction-loader', () => {
         expect((err as TemplateLoadError).templatePath).toContain('nonexistent.md');
       }
     });
+
+    it('should return inline (multi-line) template content verbatim', () => {
+      // Schemas may define `template` as inline content (a YAML literal block)
+      // rather than a filename — e.g. the odoo-trivial schema's memo artifact.
+      const inline = '## Memo\n\n<!-- What changed, why, which files affected -->\n';
+      const template = loadTemplate('spec-driven', inline);
+
+      expect(template).toBe(inline);
+    });
+
+    it('should treat a non-filename single-line string as inline content', () => {
+      const inline = '## Heading only';
+      expect(loadTemplate('spec-driven', inline)).toBe(inline);
+    });
+
+    it('should still resolve filename-shaped templates from disk', () => {
+      // A path-shaped string must be loaded from the templates dir, and a
+      // missing file must still raise (typos are not silently treated as inline).
+      expect(() => loadTemplate('spec-driven', 'nested/missing.md')).toThrow(
+        TemplateLoadError
+      );
+    });
   });
 
   describe('loadChangeContext', () => {
