@@ -208,10 +208,10 @@ describe('InitCommand', () => {
       const commandsDir = path.join(testDir, '.codeartsdoer', 'commands');
       expect(await directoryExists(commandsDir)).toBe(false);
 
-      const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
-      expect(logCalls.some((entry) => entry.includes('Created: CodeArts'))).toBe(true);
+      const codeArtsLogCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+      expect(codeArtsLogCalls.some((entry) => entry.includes('Created: CodeArts'))).toBe(true);
       expect(
-        logCalls.some(
+        codeArtsLogCalls.some(
           (entry) => entry.includes('Commands skipped for: codeartsagent') && entry.includes('(no adapter)'),
         ),
       ).toBe(true);
