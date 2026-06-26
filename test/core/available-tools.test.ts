@@ -163,5 +163,24 @@ describe('available-tools', () => {
       expect(vibeTool?.name).toBe('Mistral Vibe');
       expect(vibeTool?.skillsDir).toBe('.vibe');
     });
+
+    it('should detect CodeArts when .codeartsdoer directory exists', async () => {
+      await fs.mkdir(path.join(testDir, '.codeartsdoer'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const codeArtsTool = tools.find((t) => t.value === 'codeartsagent');
+      expect(codeArtsTool).toMatchObject({
+        name: 'CodeArts',
+        value: 'codeartsagent',
+        available: true,
+        skillsDir: '.codeartsdoer',
+      });
+    });
+
+    it('should not detect CodeArts when .codeartsdoer directory does not exist', () => {
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).not.toContain('codeartsagent');
+    });
   });
 });

@@ -25,6 +25,7 @@ export const AI_TOOLS: AIToolOption[] = [
   { name: 'Bob Shell', value: 'bob', available: true, successLabel: 'Bob Shell', skillsDir: '.bob' },
   { name: 'Claude Code', value: 'claude', available: true, successLabel: 'Claude Code', skillsDir: '.claude' },
   { name: 'Cline', value: 'cline', available: true, successLabel: 'Cline', skillsDir: '.cline' },
+  { name: 'CodeArts', value: 'codeartsagent', available: true, successLabel: 'CodeArts', skillsDir: '.codeartsdoer' },
   { name: 'Codex', value: 'codex', available: true, successLabel: 'Codex', skillsDir: '.codex' },
   { name: 'ForgeCode', value: 'forgecode', available: true, successLabel: 'ForgeCode', skillsDir: '.forge' },
   { name: 'CodeBuddy Code (CLI)', value: 'codebuddy', available: true, successLabel: 'CodeBuddy Code', skillsDir: '.codebuddy' },
