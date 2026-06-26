@@ -59,7 +59,13 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
    Use \`artifactPaths.specs.existingOutputPaths\` from status JSON to check for delta specs. If none exist, proceed without sync prompt.
 
    **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at \`openspec/specs/<capability>/spec.md\`
+   - For each delta spec, check whether its corresponding main spec exists at \`openspec/specs/<capability>/spec.md\`
+   - If the corresponding main spec exists, compare the delta spec with that main spec
+   - If the corresponding main spec does not exist, assess by delta operation:
+     - ADDED requirements -> include in sync as creation of a new main spec
+     - MODIFIED / RENAMED requirements -> warn that they are not allowed without an existing main spec and stop before archiving
+     - REMOVED requirements -> warn that they have no target main spec and do not require sync
+   - Do not treat a missing main spec as "already synced" or "no sync needed"
    - Determine what changes would be applied (adds, modifications, removals, renames)
    - Show a combined summary before prompting
 
@@ -177,7 +183,13 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
    Use \`artifactPaths.specs.existingOutputPaths\` from status JSON to check for delta specs. If none exist, proceed without sync prompt.
 
    **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at \`openspec/specs/<capability>/spec.md\`
+   - For each delta spec, check whether its corresponding main spec exists at \`openspec/specs/<capability>/spec.md\`
+   - If the corresponding main spec exists, compare the delta spec with that main spec
+   - If the corresponding main spec does not exist, assess by delta operation:
+     - ADDED requirements -> include in sync as creation of a new main spec
+     - MODIFIED / RENAMED requirements -> warn that they are not allowed without an existing main spec and stop before archiving
+     - REMOVED requirements -> warn that they have no target main spec and do not require sync
+   - Do not treat a missing main spec as "already synced" or "no sync needed"
    - Determine what changes would be applied (adds, modifications, removals, renames)
    - Show a combined summary before prompting
 
