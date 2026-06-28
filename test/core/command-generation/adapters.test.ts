@@ -576,17 +576,25 @@ describe('command-generation/adapters', () => {
       expect(qwenAdapter.toolId).toBe('qwen');
     });
 
-    it('should generate correct file path with .toml extension', () => {
+    it('should generate correct file path with .md extension', () => {
       const filePath = qwenAdapter.getFilePath('explore');
-      expect(filePath).toBe(path.join('.qwen', 'commands', 'opsx-explore.toml'));
+      expect(filePath).toBe(path.join('.qwen', 'commands', 'opsx-explore.md'));
     });
 
-    it('should format file in TOML format', () => {
+    it('should format file with description frontmatter', () => {
       const output = qwenAdapter.formatFile(sampleContent);
-      expect(output).toContain('description = "Enter explore mode for thinking"');
-      expect(output).toContain('prompt = """');
+      expect(output).toContain('---\n');
+      expect(output).toContain('description: Enter explore mode for thinking');
+      expect(output).toContain('---\n\n');
       expect(output).toContain('This is the command body.');
-      expect(output).toContain('"""');
+    });
+
+    it('should escape special YAML characters in description', () => {
+      const output = qwenAdapter.formatFile({
+        ...sampleContent,
+        description: 'Review: plan & apply "changes"',
+      });
+      expect(output).toContain('description: "Review: plan & apply \\"changes\\""');
     });
   });
 

@@ -327,6 +327,24 @@ ${OPENSPEC_MARKERS.end}`);
       expect(result.files).toContain('.qwen/commands/openspec-proposal.toml');
     });
 
+    it('should detect deprecated opsx TOML commands for Qwen', async () => {
+      const dirPath = path.join(testDir, '.qwen', 'commands');
+      await fs.mkdir(dirPath, { recursive: true });
+      await fs.writeFile(path.join(dirPath, 'opsx-explore.toml'), 'content');
+
+      const result = await detectLegacySlashCommands(testDir);
+      expect(result.files).toContain('.qwen/commands/opsx-explore.toml');
+    });
+
+    it('should not detect new Markdown commands for Qwen as legacy', async () => {
+      const dirPath = path.join(testDir, '.qwen', 'commands');
+      await fs.mkdir(dirPath, { recursive: true });
+      await fs.writeFile(path.join(dirPath, 'opsx-explore.md'), 'content');
+
+      const result = await detectLegacySlashCommands(testDir);
+      expect(result.files).not.toContain('.qwen/commands/opsx-explore.md');
+    });
+
     it('should detect Continue prompt files', async () => {
       const dirPath = path.join(testDir, '.continue', 'prompts');
       await fs.mkdir(dirPath, { recursive: true });
