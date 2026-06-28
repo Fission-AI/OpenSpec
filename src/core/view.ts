@@ -3,6 +3,7 @@ import * as path from 'path';
 import chalk from 'chalk';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
 import { MarkdownParser } from './parsers/markdown-parser.js';
+import { loadChangeContext, formatChangeStatus } from './artifact-graph/index.js';
 
 export class ViewCommand {
   async execute(targetPath: string = '.'): Promise<void> {
@@ -46,6 +47,11 @@ export class ViewCommand {
         console.log(
           `  ${chalk.yellow('◉')} ${chalk.bold(change.name.padEnd(30))} ${progressBar} ${chalk.dim(`${percentage}%`)}`
         );
+
+        if (change.workflowStatus) {
+          const { schema, artifacts } = change.workflowStatus;
+          console.log(`    ${chalk.dim(`└─ [${schema}] ${artifacts}`)}`);
+        }
       });
     }
 
@@ -80,17 +86,26 @@ export class ViewCommand {
 
   private async getChangesData(openspecDir: string): Promise<{
     draft: Array<{ name: string }>;
-    active: Array<{ name: string; progress: { total: number; completed: number } }>;
+    active: Array<{
+      name: string;
+      progress: { total: number; completed: number };
+      workflowStatus?: { schema: string; artifacts: string } | null;
+    }>;
     completed: Array<{ name: string }>;
   }> {
     const changesDir = path.join(openspecDir, 'changes');
+    const projectRoot = path.dirname(openspecDir);
 
     if (!fs.existsSync(changesDir)) {
       return { draft: [], active: [], completed: [] };
     }
 
     const draft: Array<{ name: string }> = [];
-    const active: Array<{ name: string; progress: { total: number; completed: number } }> = [];
+    const active: Array<{
+      name: string;
+      progress: { total: number; completed: number };
+      workflowStatus?: { schema: string; artifacts: string } | null;
+    }> = [];
     const completed: Array<{ name: string }> = [];
 
     const entries = fs.readdirSync(changesDir, { withFileTypes: true });
@@ -107,7 +122,19 @@ export class ViewCommand {
           completed.push({ name: entry.name });
         } else {
           // Has tasks but not all complete
-          active.push({ name: entry.name, progress });
+          // Try to load workflow status
+          let workflowStatus: { schema: string; artifacts: string } | null = null;
+          try {
+            const context = loadChangeContext(projectRoot, entry.name);
+            const status = formatChangeStatus(context);
+            workflowStatus = {
+              schema: status.schemaName,
+              artifacts: this.formatWorkflowArtifacts(status.artifacts),
+            };
+          } catch (e) {
+            // Change doesn't have valid workflow metadata, skip workflow status
+          }
+          active.push({ name: entry.name, progress, workflowStatus });
         }
       }
     }
@@ -206,14 +233,35 @@ export class ViewCommand {
 
   private createProgressBar(completed: number, total: number, width: number = 20): string {
     if (total === 0) return chalk.dim('─'.repeat(width));
-    
+
     const percentage = completed / total;
     const filled = Math.round(percentage * width);
     const empty = width - filled;
-    
+
     const filledBar = chalk.green('█'.repeat(filled));
     const emptyBar = chalk.dim('░'.repeat(empty));
-    
+
     return `[${filledBar}${emptyBar}]`;
+  }
+
+  /**
+   * Formats workflow artifact status into a compact string.
+   * Examples:
+   * - "proposal ✓ specs → design tasks"
+   * - "proposal ✓ specs ✓ design → tasks"
+   * - "proposal → specs design tasks"
+   */
+  private formatWorkflowArtifacts(artifacts: Array<{ id: string; status: 'done' | 'ready' | 'blocked' }>): string {
+    return artifacts
+      .map((artifact) => {
+        if (artifact.status === 'done') {
+          return `${artifact.id}${chalk.green('✓')}`;
+        } else if (artifact.status === 'ready') {
+          return `${artifact.id}${chalk.cyan('→')}`;
+        } else {
+          return artifact.id;
+        }
+      })
+      .join(' ');
   }
 }
