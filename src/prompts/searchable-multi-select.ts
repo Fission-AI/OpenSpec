@@ -213,6 +213,17 @@ async function createSearchableMultiSelect(): Promise<
  * - Enter to confirm selections
  */
 export async function searchableMultiSelect(config: Config): Promise<string[]> {
+  // Fix: Ensure stdin is in the correct state BEFORE creating the prompt
+  // This fixes the issue where arrow keys don't work until Enter is pressed first.
+  // The root cause is that welcome-screen's waitForEnter() pauses stdin before this prompt starts.
+  const stdin = process.stdin;
+  if (stdin.isTTY) {
+    if (!stdin.isRaw) {
+      stdin.setRawMode(true);
+    }
+    stdin.resume();
+  }
+
   const prompt = await createSearchableMultiSelect();
   return prompt(config);
 }
