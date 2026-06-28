@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import ora from 'ora';
-import { stringify as stringifyYaml } from 'yaml';
+import { stringify as stringifyYaml, parseDocument } from 'yaml';
 import {
   getSchemaDir,
   getProjectSchemasDir,
@@ -625,10 +625,10 @@ export function registerSchemaCommand(program: Command): void {
         // Update name in schema.yaml
         const destSchemaPath = path.join(destinationDir, 'schema.yaml');
         const schemaContent = fs.readFileSync(destSchemaPath, 'utf-8');
-        const schema = parseSchema(schemaContent);
-        schema.name = destinationName;
 
-        fs.writeFileSync(destSchemaPath, stringifyYaml(schema));
+        const doc = parseDocument(schemaContent);
+        doc.set('name', destinationName);
+        fs.writeFileSync(destSchemaPath, doc.toString());
 
         if (spinner) spinner.succeed(`Forked '${source}' to '${destinationName}'`);
 
