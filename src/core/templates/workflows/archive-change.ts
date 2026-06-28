@@ -64,6 +64,12 @@ ${STORE_SELECTION_GUIDANCE}
    - Determine what changes would be applied (adds, modifications, removals, renames)
    - Show a combined summary before prompting
 
+   **If a corresponding main spec does not exist yet:**
+   - Treat \`ADDED\` requirements as sync work that will create a new main spec
+   - Treat \`MODIFIED\` or \`RENAMED\` requirements as blocking errors because they cannot apply to a new spec
+   - Treat \`REMOVED\` requirements as ignored with a warning
+   - Do not skip sync just because the target main spec is missing
+
    **Prompt options:**
    - If changes needed: "Sync now (recommended)", "Archive without syncing"
    - If already synced: "Archive now", "Sync anyway", "Cancel"
@@ -181,6 +187,12 @@ ${STORE_SELECTION_GUIDANCE}
    - Compare each delta spec with its corresponding main spec at \`openspec/specs/<capability>/spec.md\`
    - Determine what changes would be applied (adds, modifications, removals, renames)
    - Show a combined summary before prompting
+
+   **If a corresponding main spec does not exist yet:**
+   - Treat \`ADDED\` requirements as sync work that will create a new main spec
+   - Treat \`MODIFIED\` or \`RENAMED\` requirements as blocking errors because they cannot apply to a new spec
+   - Treat \`REMOVED\` requirements as ignored with a warning
+   - Do not skip sync just because the target main spec is missing
 
    **Prompt options:**
    - If changes needed: "Sync now (recommended)", "Archive without syncing"

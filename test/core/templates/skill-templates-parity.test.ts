@@ -47,11 +47,11 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getOpsxContinueCommandTemplate: '418108b417107a87019d4020b26c105792d2ef0110fe6920445e255889216716',
   getOpsxApplyCommandTemplate: 'daeb507206707169de73c828e199648dde5732cbc17791ef2a027adffd028574',
   getOpsxFfCommandTemplate: '36973ae0dd00ab169fbaaa42bf565f97e1bc97cf63ae7c07307734cc1ca8c1fd',
-  getArchiveChangeSkillTemplate: 'c511a1c943bcfc5f9f3833b8c0ff284b22d34864a08f5f553cec471ee485d38f',
+  getArchiveChangeSkillTemplate: 'b8a86884d935d93596a10e767b75e77bc2d2810aad1b8692e3af24f356e1ab50',
   getBulkArchiveChangeSkillTemplate: '0f635913757ae3d1609e111f4a8f699443ca47cbaaf8a1b21eb652f7b96a1d13',
   getOpsxSyncCommandTemplate: '86cf706886d0f18069e2cfa16948b7357028fd348210efb58588c88c416d8622',
   getVerifyChangeSkillTemplate: 'd718c79aad649223a73fdb11036c93fb3842ac5a780f4934d50bfa03c9692683',
-  getOpsxArchiveCommandTemplate: '6985bddb310cb45b6b50350bfcebe31bf67146135ca0084c94930920280970a4',
+  getOpsxArchiveCommandTemplate: '328152dccff7855af3617bdfcaf492e7f7853fb88fc901f07536f915b258397b',
   getOpsxOnboardCommandTemplate: '0673f34a0f81fd173bcfb8c3ac83e2b1c617f7b7564e24e5298d3bd5665a05a9',
   getOpsxBulkArchiveCommandTemplate: '9f444fc7b27a5b788077b5e3aa4f61af45aa8c8004ac8d899d204fa362ff89b7',
   getOpsxVerifyCommandTemplate: '011509480a20a60342c993906f0f9280c0e9ba5d019d335bdc1ef4d53213a5a8',
@@ -67,7 +67,7 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-apply-change': '54cffa61274c6a499d2b3775e9f6db29255fd8e5ad99d7352c1e3bbe2edb45ed',
   'openspec-ff-change': 'cbb7844c130bd188319ff2b3f0c0320243b5ae5b588a0f816cd4e29408f25676',
   'openspec-sync-specs': 'a81fd87f5e871874eab72e57c10a1949fde46d1d07d95f8ea3bc1a52b4e78c43',
-  'openspec-archive-change': '833290ade47ddaed7f5e523d07437c7cef2497340021e944096bce449e290c22',
+  'openspec-archive-change': '2ee8735d5db600341823815723feab4d3c96ab3400a74d2cb2c89f1ef44d6dc6',
   'openspec-bulk-archive-change': '244b195e53d3f010a99892c1922c800fd8f02e7745d0f34ec18b5fe9b5548706',
   'openspec-verify-change': '97d1eed5b900788706c28339e27c1d2d9c548626316253f43ebd00d8d52d02d6',
   'openspec-onboard': 'd136b6ab7134d6bceeca73bc2f6037624506587e8df99059f77fe88874256ed1',
@@ -189,6 +189,18 @@ describe('skill templates split parity', () => {
       const content = generateSkillContent(createTemplate(), 'PARITY-BASELINE');
       expect(content, dirName).not.toContain('workspace-planning');
       expect(content, dirName).not.toContain('Workspace guard');
+    }
+  });
+
+  it('teaches archive workflows how to assess delta specs for missing main specs', () => {
+    const skillInstructions = getArchiveChangeSkillTemplate().instructions;
+    const commandContent = getOpsxArchiveCommandTemplate().content;
+
+    for (const content of [skillInstructions, commandContent]) {
+      expect(content).toContain('If a corresponding main spec does not exist yet');
+      expect(content).toContain('ADDED` requirements as sync work that will create a new main spec');
+      expect(content).toContain('MODIFIED` or `RENAMED` requirements as blocking errors');
+      expect(content).toContain('Do not skip sync just because the target main spec is missing');
     }
   });
 });
