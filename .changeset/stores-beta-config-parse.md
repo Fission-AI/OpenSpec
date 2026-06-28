@@ -9,5 +9,3 @@
 ### Bug Fixes
 
 - **Config parsing** — Configuration values wrapped in JSON containers are now parsed correctly.
-</content>
-</invoke>
