@@ -25,6 +25,9 @@ artifacts:
       implementation details belong in design.md.
 
       This is the foundation - specs, design, and tasks all build on this.
+
+      In prose paragraphs, write each sentence on its own line and never wrap a sentence across multiple lines.
+      This keeps diffs clean and reviewable.
     requires: []
 
   - id: specs
@@ -79,6 +82,9 @@ artifacts:
       ```
 
       Specs should be testable - each scenario is a potential test case.
+
+      In prose paragraphs, write each sentence on its own line and never wrap a sentence across multiple lines.
+      This keeps diffs clean and reviewable.
     requires:
       - proposal
 
@@ -107,6 +113,9 @@ artifacts:
       Reference the proposal for motivation and specs for requirements.
 
       Good design docs explain the "why" behind technical decisions.
+
+      In prose paragraphs, write each sentence on its own line and never wrap a sentence across multiple lines.
+      This keeps diffs clean and reviewable.
     requires:
       - proposal
 
@@ -141,6 +150,9 @@ artifacts:
 
       Reference specs for what needs to be built, design for how to build it.
       Each task should be verifiable - you know when it's done.
+
+      In prose paragraphs, write each sentence on its own line and never wrap a sentence across multiple lines.
+      This keeps diffs clean and reviewable.
     requires:
       - specs
       - design
