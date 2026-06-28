@@ -69,9 +69,11 @@ ${STORE_SELECTION_GUIDANCE}
    - Treat \`MODIFIED\` or \`RENAMED\` requirements as blocking errors because they cannot apply to a new spec
    - Treat \`REMOVED\` requirements as ignored with a warning
    - Do not skip sync just because the target main spec is missing
+   - If any blocking errors are present, do not offer "Archive without syncing" and do not proceed to archive until the delta spec is corrected
 
    **Prompt options:**
    - If changes needed: "Sync now (recommended)", "Archive without syncing"
+   - If blocking errors exist: show the blocking errors and stop
    - If already synced: "Archive now", "Sync anyway", "Cancel"
 
    If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
@@ -193,9 +195,11 @@ ${STORE_SELECTION_GUIDANCE}
    - Treat \`MODIFIED\` or \`RENAMED\` requirements as blocking errors because they cannot apply to a new spec
    - Treat \`REMOVED\` requirements as ignored with a warning
    - Do not skip sync just because the target main spec is missing
+   - If any blocking errors are present, do not offer "Archive without syncing" and do not proceed to archive until the delta spec is corrected
 
    **Prompt options:**
    - If changes needed: "Sync now (recommended)", "Archive without syncing"
+   - If blocking errors exist: show the blocking errors and stop
    - If already synced: "Archive now", "Sync anyway", "Cancel"
 
    If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
