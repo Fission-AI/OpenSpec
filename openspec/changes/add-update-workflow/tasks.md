@@ -1,6 +1,6 @@
 # Tasks: `/opsx:update` — graph-driven artifact update
 
-> Sequenced so each layer is independently testable: deterministic graph/digest primitives → CLI surface → skill → docs/cleanup. The deterministic spine (sections 1–3) ships the primary targeted flow; the optional digest ledger (section 7) is separable and gated on scope (see design Open Questions). Cross-platform (`path.join`, newline-normalized digests) and Windows CI are called out where relevant, per `openspec/config.yaml`.
+> Sequenced so each layer is independently testable: deterministic graph/digest primitives → drift baseline → CLI surface → skill → docs/verification. Cross-platform (`path.join`, newline-normalized digests) and Windows CI are called out where relevant, per `openspec/config.yaml`. The digest ledger (section 7) is in scope (design Decision 3); it degrades gracefully to `unknown` for changes without a recorded baseline.
 
 ## 1. Artifact graph: reverse traversal (deterministic)
 
@@ -18,13 +18,14 @@
 
 - [ ] 3.1 Extend `formatChangeStatus` (instruction-loader.ts, the `ArtifactStatus` objects ~397-426) to add `requires`, `dependents`, and `digest` per artifact; the existing build-order sort (line 429) already yields revisit order.
 - [ ] 3.2 Add `impact?: string` to `StatusOptions` and the `--impact <artifact>` option (`src/commands/workflow/status.ts`, registered at `src/cli/index.ts:488`); when set, output the ordered downstream set with each artifact's resolved paths, digest, and existence/status (so consumers can tell which exist to revise vs. which would need creating); error on unknown artifact id.
+- [ ] 3.3a Add per-artifact `drift` (`drifted`/`clean`/`unknown` + changed-upstream ids) to status JSON, comparing current upstream digests to the recorded baseline (section 7). Add `--record <artifact>` to write/refresh that baseline.
 - [ ] 3.3 Keep default (non-`--json`, non-`--impact`) human-readable output byte-for-byte unchanged; add a regression test asserting this.
 - [ ] 3.4 Tests: JSON edge fields, per-artifact digest present/stable, `--impact` ordering + determinism (repeat-run equality), `--impact` leaf (empty), `--impact` unknown-id error. Verify on Windows CI.
 
 ## 4. The `/opsx:update` skill (thin wrapper over the deterministic spine)
 
 - [ ] 4.1 Create `src/core/templates/workflows/update-change.ts` with `getUpdateChangeSkillTemplate()` (skill) and `getOpsxUpdateCommandTemplate()` (command), mirroring `continue-change.ts` structure.
-- [ ] 4.2 Instruction body: select change (infer/prompt via `openspec list --json`) → read `openspec status --change <id> --json` → branch into targeted vs audit mode → obtain the impact set/order from `--impact` (never compute it) → propose/confirm/apply/re-check, reading ids/paths/edges/digests from JSON only. Audit mode additionally performs the cross-artifact semantic review of #783 (scope contradictions, spec gaps, duplication) that the deterministic signals cannot detect.
+- [ ] 4.2 Instruction body: select change (infer/prompt via `openspec list --json`) → read `openspec status --change <id> --json` → branch into targeted vs audit mode → obtain the impact set/order from `--impact` (never compute it) → propose/confirm/apply/`--record`/re-check, reading ids/paths/edges/digests/drift from JSON only. Targeted entry is baseline-aware: with a baseline, default to the drifted set and confirm; without one, ask which artifact changed. Audit mode additionally performs the cross-artifact semantic review of #783 (scope contradictions, spec gaps, duplication) that the deterministic signals cannot detect.
 - [ ] 4.3 Encode the guardrails explicitly: (a) planning artifacts only — never edit code, hand off to `/opsx:apply`; (b) graph-driven — no literal `proposal`/`specs`/`design`/`tasks` branching; ids and order come from the CLI; (c) audit without a baseline does not guess — it uses structural facts and asks; (d) revise only existing downstream artifacts — defer not-yet-created ones to `/opsx:continue`.
 - [ ] 4.4 Encode the intent-change guard: recommend `/opsx:new` when the revision changes intent (reference the "Update vs. Start Fresh" heuristic).
 - [ ] 4.5 Register the skill/command and add it to the expanded-workflow profile alongside `continue`/`ff`/`verify`.
@@ -43,9 +44,9 @@
 - [ ] 6.3 Full validation: `openspec validate add-update-workflow --strict` passes; `openspec status --change add-update-workflow` shows all artifacts complete.
 - [ ] 6.4 Run the suite on macOS, Linux, and Windows CI.
 
-## 7. (Optional, separable) Deterministic drift baseline — the digest ledger
+## 7. Deterministic drift baseline — the digest ledger
 
-> Only if scoped in (design Open Question 2). Powers unattended audit; the targeted flow above does not need it.
+> In scope (design Decision 3). Powers unattended/audit drift; consumed by 3.3a's drift signal and 4.x's record-after-edit.
 
 - [ ] 7.1 Extend `ChangeMetadataSchema` (`src/core/change-metadata/schema.ts`) with an optional per-artifact map of recorded **direct** upstream digests.
 - [ ] 7.2 Record the baseline deterministically: on artifact (re)generation in `propose`/`continue`/`ff` and after each confirmed `/opsx:update` edit, write the current direct-upstream digests for the affected artifact ("reconciled").

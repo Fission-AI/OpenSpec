@@ -98,3 +98,9 @@ The `/opsx:update` skill SHALL propose each artifact revision and apply it only 
 
 - **WHEN** the requested revision changes the intent of the change rather than refining it (per the "Update vs. Start Fresh" heuristic)
 - **THEN** the skill recommends starting a new change (`/opsx:new`) instead of mutating the existing proposal into different work
+
+#### Scenario: Records the drift baseline after an applied edit
+
+- **WHEN** the skill has applied and confirmed a revision to an artifact
+- **THEN** it records that artifact's drift baseline via the CLI (`openspec status --record`)
+- **AND** subsequent audits report that artifact as no longer drifted until an upstream changes again
