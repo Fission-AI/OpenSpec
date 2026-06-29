@@ -115,8 +115,10 @@ export class UpdateCommand {
 
     // 5. Find configured tools
     const configuredTools = getConfiguredToolsForProfileSync(resolvedProjectPath);
+    const configuredAndNewTools = [...new Set([...configuredTools, ...newlyConfiguredTools])];
 
     if (configuredTools.length === 0 && newlyConfiguredTools.length === 0) {
+      await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
       console.log(chalk.yellow('No configured tools found.'));
       console.log(chalk.dim('Run "openspec init" to set up tools.'));
       return;
@@ -153,7 +155,7 @@ export class UpdateCommand {
     if (!this.force && toolsToUpdateSet.size === 0) {
       // All tools are up to date
       this.displayUpToDateMessage(toolStatuses);
-      await this.syncCopilotCloudFiles(resolvedProjectPath, [...new Set([...configuredTools, ...newlyConfiguredTools])]);
+      await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
 
       // Still check for new tool directories and extra workflows
       this.detectNewTools(resolvedProjectPath, configuredTools);
@@ -279,7 +281,6 @@ export class UpdateCommand {
       console.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
     }
 
-    const configuredAndNewTools = [...new Set([...configuredTools, ...newlyConfiguredTools])];
     await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
 
     // 13. Detect new tool directories not currently configured

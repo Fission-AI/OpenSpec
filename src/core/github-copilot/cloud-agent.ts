@@ -145,6 +145,11 @@ export const COPILOT_CLOUD_FILES = {
   agent: path.join('.github', 'agents', 'openspec.agent.md'),
 } as const;
 
+const COPILOT_CLOUD_FILE_CONTENTS: Record<(typeof COPILOT_CLOUD_FILES)[keyof typeof COPILOT_CLOUD_FILES], string> = {
+  [COPILOT_CLOUD_FILES.setupSteps]: generateCopilotSetupSteps(),
+  [COPILOT_CLOUD_FILES.agent]: generateCopilotAgentFile(),
+};
+
 /**
  * Write copilot cloud agent files to the project directory.
  * Only writes if the files don't already exist (to avoid overwriting user customizations).
@@ -189,6 +194,11 @@ export async function removeCopilotCloudFiles(projectPath: string): Promise<numb
   for (const relPath of Object.values(COPILOT_CLOUD_FILES)) {
     const fullPath = path.join(projectPath, relPath);
     if (await FileSystemUtils.fileExists(fullPath)) {
+      const content = await FileSystemUtils.readFile(fullPath);
+      if (content !== COPILOT_CLOUD_FILE_CONTENTS[relPath]) {
+        continue;
+      }
+
       const fs = await import('fs');
       await fs.promises.unlink(fullPath);
       removed++;

@@ -92,6 +92,20 @@ describe('UpdateCommand', () => {
 
       consoleSpy.mockRestore();
     });
+
+    it('should remove generated Copilot cloud files when no tools are configured', async () => {
+      const initCommand = new InitCommand({ tools: 'github-copilot', force: true });
+      await initCommand.execute(testDir);
+      await fs.rm(path.join(testDir, '.github', 'skills'), { recursive: true, force: true });
+      await fs.rm(path.join(testDir, '.github', 'prompts'), { recursive: true, force: true });
+
+      await updateCommand.execute(testDir);
+
+      await expect(fs.stat(path.join(testDir, '.github', 'workflows', 'copilot-setup-steps.yml')))
+        .rejects.toMatchObject({ code: 'ENOENT' });
+      await expect(fs.stat(path.join(testDir, '.github', 'agents', 'openspec.agent.md')))
+        .rejects.toMatchObject({ code: 'ENOENT' });
+    });
   });
 
   describe('skill updates', () => {

@@ -54,6 +54,9 @@ describe('GitHub Copilot Cloud Agent', () => {
       expect(content).toContain('description:');
       expect(content).toContain('tools:');
       expect(content).toContain('execute');
+      expect(content).toContain('read');
+      expect(content).toContain('search');
+      expect(content).toContain('edit');
       expect(content).toContain('# OpenSpec Agent');
       expect(content).toContain('openspec list');
       expect(content).toContain('openspec validate');
@@ -62,8 +65,8 @@ describe('GitHub Copilot Cloud Agent', () => {
 
   describe('COPILOT_CLOUD_FILES', () => {
     it('has correct file paths', () => {
-      expect(COPILOT_CLOUD_FILES.setupSteps).toContain('copilot-setup-steps.yml');
-      expect(COPILOT_CLOUD_FILES.agent).toContain('openspec.agent.md');
+      expect(COPILOT_CLOUD_FILES.setupSteps).toBe(path.join('.github', 'workflows', 'copilot-setup-steps.yml'));
+      expect(COPILOT_CLOUD_FILES.agent).toBe(path.join('.github', 'agents', 'openspec.agent.md'));
     });
   });
 
@@ -111,14 +114,29 @@ describe('GitHub Copilot Cloud Agent', () => {
     it('removes only existing cloud files and returns the removal count', async () => {
       const setupStepsPath = path.join(tempDir, COPILOT_CLOUD_FILES.setupSteps);
       const agentPath = path.join(tempDir, COPILOT_CLOUD_FILES.agent);
-      await fs.mkdir(path.dirname(setupStepsPath), { recursive: true });
-      await fs.writeFile(setupStepsPath, 'custom setup');
+      await writeCopilotCloudFiles(tempDir);
+      await fs.rm(agentPath, { force: true });
 
       const removed = await removeCopilotCloudFiles(tempDir);
 
       expect(removed).toBe(1);
       await expect(fs.stat(setupStepsPath)).rejects.toMatchObject({ code: 'ENOENT' });
       await expect(fs.stat(agentPath)).rejects.toMatchObject({ code: 'ENOENT' });
+    });
+
+    it('keeps customized cloud files', async () => {
+      const setupStepsPath = path.join(tempDir, COPILOT_CLOUD_FILES.setupSteps);
+      const agentPath = path.join(tempDir, COPILOT_CLOUD_FILES.agent);
+      await fs.mkdir(path.dirname(setupStepsPath), { recursive: true });
+      await fs.mkdir(path.dirname(agentPath), { recursive: true });
+      await fs.writeFile(setupStepsPath, 'custom setup');
+      await fs.writeFile(agentPath, 'custom agent');
+
+      const removed = await removeCopilotCloudFiles(tempDir);
+
+      expect(removed).toBe(0);
+      await expect(fs.readFile(setupStepsPath, 'utf8')).resolves.toBe('custom setup');
+      await expect(fs.readFile(agentPath, 'utf8')).resolves.toBe('custom agent');
     });
   });
 });
