@@ -1,30 +1,36 @@
-## 1. Shared requirement-body extraction (#361, #312 hazard)
+## 1. Tier 1 — shared body extraction (#361, #418, #312)
 
-- [ ] 1.1 Add a shared `extractRequirementBody(lines, fenceMask, startIndex)` helper in `src/core/parsers/` that returns the full requirement body: all lines after the header up to the first `#### Scenario:` header detected on a **non-fence-masked** line, skipping fence-masked lines and `**metadata**:` lines.
-- [ ] 1.2 Rewrite `MarkdownParser.parseRequirements` to use the helper (replacing the first-line-only `firstLine` logic) and to consult `codeFenceLineMask` so a `#` inside a fenced block no longer truncates the body.
-- [ ] 1.3 Rewrite `Validator.extractRequirementText` to delegate to the same helper, returning the full body rather than the first substantial line.
-- [ ] 1.4 Run `SHALL`/`MUST` detection over the full captured body in both paths.
+- [ ] 1.1 Add a shared `extractRequirementBody(lines, fenceMask, startIndex)` helper in `src/core/parsers/` that returns the full body: all lines after the header up to the first `#### Scenario:` header on a non-fence-masked line, skipping fence-masked lines and `**metadata**:` lines.
+- [ ] 1.2 Rewrite `MarkdownParser.parseRequirements` to use the helper (replacing first-line-only logic), consulting `codeFenceLineMask` so a `#` inside a fence no longer truncates the body, and skipping metadata lines (parity with the delta path).
+- [ ] 1.3 Rewrite `Validator.extractRequirementText` to delegate to the same helper, returning the full body.
+- [ ] 1.4 Run `SHALL`/`MUST` detection over the full body in both paths.
 
-## 2. Canonical requirement recognition + parity (#498)
+## 2. Tier 1 — single normative-keyword predicate
 
-- [ ] 2.1 Export `REQUIREMENT_HEADER_REGEX` from `requirement-blocks.ts` (or a shared `isRequirementHeader` predicate).
-- [ ] 2.2 In `MarkdownParser.parseRequirements`, recognize a level-3 child as a requirement only when its header matches that canonical predicate; ignore other level-3 headers. Confirm `## REMOVED`/`## RENAMED` parsing (separate functions) is unaffected.
-- [ ] 2.3 Confirm `openspec validate <change>`, `openspec validate <spec>`, and `openspec archive` now recognize the same set of requirements (no phantom-requirement warnings for non-`Requirement:` headers).
+- [ ] 2.1 Replace the substring check in `src/core/schemas/base.schema.ts` (`text.includes('SHALL')`) with the shared `containsShallOrMust` (`/\b(SHALL|MUST)\b/`) so the Zod refine and the delta path agree.
 
-## 3. Single normative-keyword predicate
+## 3. Tier 2 — canonical requirement recognition (#498)
 
-- [ ] 3.1 Replace the substring check in `src/core/schemas/base.schema.ts` (`text.includes('SHALL')`) with the shared `containsShallOrMust` (`/\b(SHALL|MUST)\b/`), so the Zod refine and the delta path agree.
+- [ ] 3.1 Export `REQUIREMENT_HEADER_REGEX` from `requirement-blocks.ts` (or a shared `isRequirementHeader` predicate).
+- [ ] 3.2 In `MarkdownParser.parseRequirements`, recognize a level-3 child as a requirement only when it matches that canonical predicate; confirm `## REMOVED`/`## RENAMED` parsing is unaffected.
+- [ ] 3.3 Confirm `validate <change>`, `validate <spec>`, and `archive` recognize the same requirement set (no phantom-requirement warnings).
 
-## 4. Tests
+## 4. Update existing tests (encode the corrected behavior)
 
-- [ ] 4.1 Regression (#361, delta path): a `SHALL` wrapped onto body line 2 passes `validate <change> --strict`.
-- [ ] 4.2 Regression (#361, spec path): the same wrapped `SHALL` passes `validate <spec> --strict`.
-- [ ] 4.3 Regression (#312 hazard): a requirement body containing a fenced code block with `#`-comment lines captures the full body, parses scenarios, and keeps the correct requirement count.
-- [ ] 4.4 Regression (#498): a spec/change with a stray `### Documentation Requirements` divider produces no phantom-requirement issue from `validate <change>`, `validate <spec>`, or `archive`.
-- [ ] 4.5 Parity test: `validate <change>`, `validate <spec>`, and `archive` agree (same recognized requirements, same pass/fail) over the #361/#498/#312 fixtures.
-- [ ] 4.6 Guard: legitimate single-line requirements are byte-for-byte unchanged in display text and counts; predicate change does not alter results for existing valid specs.
-- [ ] 4.7 Cross-platform: fixtures and assertions use `path.join()`; multi-line capture verified for LF and CRLF inputs.
+- [ ] 4.1 `markdown-parser.test.ts:331` (*first non-empty content line*) → assert `req.text` is the full joined body (Tier 1).
+- [ ] 4.2 `markdown-parser.test.ts:258` (*nested sections*) → use `### Requirement: …` headers (Tier 2).
+- [ ] 4.3 `markdown-parser.test.ts:310` (*heading fallback*) → use `### Requirement: …` header (Tier 2).
+- [ ] 4.4 Confirm the fence tests (`:106`, `:139`) still pass unchanged.
 
-## 5. Release
+## 5. Regression + parity tests
 
-- [ ] 5.1 Add a changeset describing the parser-fidelity fixes (Fixes #361, #498; hardens #312) and the `view`/`show` count note.
+- [ ] 5.1 (#361, both paths) `SHALL` wrapped onto body line 2 passes `validate <change>` and `validate <spec>`.
+- [ ] 5.2 (#418, spec path) metadata lines before the prose pass `validate <spec>`; delta path stays green.
+- [ ] 5.3 (#312) fenced code block before the prose line captures the real body; requirement count and scenarios are correct.
+- [ ] 5.4 (#498) a stray `### Documentation Requirements` divider yields no phantom-requirement issue from `validate <change>`, `validate <spec>`, or `archive`.
+- [ ] 5.5 Parity: the three commands agree (same recognized requirements, same pass/fail) over the fixtures above.
+- [ ] 5.6 Guard: legitimate single-line requirements unchanged; existing in-repo specs still validate; LF/CRLF covered.
+
+## 6. Release
+
+- [ ] 6.1 Add a changeset: Fixes #361, #418, #312; Tier 2 fixes #498. Include the Tier 2 migration note (non-conventional `### <text>` requirement headers are no longer recognized; use `### Requirement: <name>`).

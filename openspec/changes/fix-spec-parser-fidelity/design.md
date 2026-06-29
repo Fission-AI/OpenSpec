@@ -2,67 +2,93 @@
 
 ## Verified call graph (against `main`)
 
-Two requirement extractors exist, reached by different commands:
+| Extractor | Recognition rule | Body capture | Metadata skip | `SHALL`/`MUST` check | Reached by |
+|-----------|------------------|--------------|---------------|----------------------|------------|
+| `Validator.extractRequirementText` (+ `countScenarios`) | canonical `REQUIREMENT_HEADER_REGEX` `/^###\s*Requirement:\s*(.+)$/i` | first substantial line only | **yes** (`/^\*\*[^*]+\*\*:/`) | `containsShallOrMust` → `/\b(SHALL\|MUST)\b/` | `validate <change>` |
+| `MarkdownParser.parseRequirements` → `req.text` | **every** level-3 child | first non-empty line only | **no** | `RequirementSchema.refine` → `text.includes('SHALL')` | `validate <spec>`; `archive` (proposal + rebuilt-spec checks) |
 
-| Extractor | Recognition rule | `SHALL`/`MUST` check | Reached by |
-|-----------|------------------|----------------------|------------|
-| `Validator.extractRequirementText` (+ `countScenarios`) over delta blocks | canonical `REQUIREMENT_HEADER_REGEX` `/^###\s*Requirement:\s*(.+)$/i` (via `parseRequirementBlocksFromSection`) | `containsShallOrMust` → `/\b(SHALL\|MUST)\b/` | `openspec validate <change>` (`validateChangeDeltaSpecs`) |
-| `MarkdownParser.parseRequirements` → `req.text` | **every** level-3 child of the Requirements/ADDED section | `RequirementSchema.refine` → `text.includes('SHALL')` | `openspec validate <spec>` (`validateSpec`), `openspec archive` (`validateChange` on proposal.md **and** `validateSpecContent` on the rebuilt spec) |
+`ChangeParser extends MarkdownParser` and calls `this.parseRequirements`, so it is the same extractor — there is no third implementation. `specs-apply` (the archive rebuild) parses with `parseRequirementBlocksFromSection`, i.e. the canonical rule, so rebuilt main specs are already clean.
 
-`ChangeParser extends MarkdownParser` and calls `this.parseRequirements(...)`, so it is the *same* extractor — there is no third implementation. `specs-apply` (the archive rebuild) parses with `parseRequirementBlocksFromSection`, i.e. the *canonical* rule, so rebuilt main specs are already clean.
+The table is the whole story: the two extractors differ in **four** columns (capture, metadata, recognition, predicate). Each difference is a reproduced bug.
 
-Both extractors share two defects: **(a)** they capture only the first body line, and **(b)** they recognize requirements by different rules. That combination produces the bugs.
-
-## Root causes (each reproduced; outputs in proposal.md)
+## Root causes (each reproduced)
 
 ### 1. Single-line body capture (#361)
 
-`extractRequirementText` returns the first substantial line and stops (`return trimmed`). `parseRequirements` selects `directContent.split('\n').find(l => l.trim())` — also the first non-empty line. A normative keyword on body line 2 is never seen. Confirmed false-negative on **both** the delta path and the main-spec path.
+Both extractors return the first line and stop. A keyword on body line 2 is never seen.
 
-### 2. Divergent requirement recognition (#498)
+```
+### Requirement: Realtime quest updates
+Quest-related operations (creation, claiming, completion, approval, denial)
+SHALL propagate to all family members' dashboards in real-time.
+```
+- `validate <change> --strict` → `✗ ADDED "Realtime quest updates" must contain SHALL or MUST`
+- `validate <spec> --strict` → `✗ requirements.0.text: Requirement must contain SHALL or MUST keyword`
 
-`parseRequirements` treats every level-3 child as a requirement, including dividers like `### Documentation Requirements`. The delta-block parser only ever sees canonical `### Requirement:` blocks. So:
+### 2. Metadata before description, spec path only (#418)
 
-- `openspec validate <change>` → passes (divider is not a requirement).
-- `openspec archive` → `validateChange(proposal.md)` counts the divider as a phantom requirement → non-blocking `Proposal warnings in proposal.md` for a "requirement" the author never wrote.
-- `openspec validate <spec>` (main spec with the same divider) → the phantom surfaces as a **blocking** error.
+```
+### Requirement: File Serving
+**ID**: REQ-FILE-001
+**Priority**: P1
 
-The archive does **not** hard-fail here, because `specs-apply` filters to canonical headers when rebuilding, so `validateSpecContent(rebuilt)` passes and the write succeeds. The bug is the inconsistent, confusing signal across commands, not data loss.
+The system MUST serve static files from the root directory.
+```
+- `validate <change>` → **valid** (delta extractor skips metadata)
+- `validate <spec>` → `✗ requirements.0.text: ...`; captured `req.text` = `**ID**: REQ-FILE-001`
 
-### 3. Fence-mask not consulted in the body loop (#312, regression hazard)
+The delta extractor was already taught to skip metadata; the spec extractor was not. Unifying them fixes #418 and prevents the next such drift.
 
-The original #312 is fixed: `codeFenceLineMask` makes `parseSections` skip fenced lines, so requirement counts are correct today (verified). But the body loop in `parseRequirements` breaks on `line.trim().startsWith('#')` without consulting the mask. Harmless now (only the first line is used), but fix #1 captures the full body, at which point a fenced `#` line would truncate it — reintroducing #312. The new extractor must be fence-aware.
+### 3. Fenced block before the prose corrupts text (#312)
+
+```
+### Requirement: Config example then rule
+```bash
+# example config
+export TOKEN=abc
+```
+The system SHALL load the token from the environment.
+```
+- `validate <spec>` and `validate <change>` both → `✗ ... must contain SHALL or MUST`; captured `req.text` = `` ```bash ``
+
+The body loop breaks on `line.trim().startsWith('#')` (the `#` comment inside the fence) without consulting `codeFenceLineMask`. The original #312 (requirement counts) is already fixed at the section level; this is a distinct, still-live manifestation in the body extractor.
+
+### 4. Divergent requirement recognition (#498)
+
+`parseRequirements` treats every level-3 header as a requirement; the delta parser only canonical `### Requirement:`. A stray `### Documentation Requirements` divider → passes `validate <change>`, but `archive` emits non-blocking phantom `Proposal warnings in proposal.md`, and `validate <spec>` emits a blocking error. Archive does not hard-fail because `specs-apply` filters when rebuilding; the bug is the inconsistent signal.
 
 ## Approach
 
-**One shared extractor.** A single helper takes the requirement block's lines plus the fence mask and returns the full body: all lines from after the header to the first `#### Scenario:` header (the scenario boundary is detected only on **non-fenced** lines), skipping fence-masked lines and `**metadata**:` lines, joined preserving readable text. Both `Validator.extractRequirementText` and `MarkdownParser.parseRequirements` delegate to it, so they cannot drift again.
+**One shared extractor.** A single helper takes the requirement block's lines plus the fence mask and returns the full body: all lines from after the header to the first `#### Scenario:` header detected on a **non-fenced** line, skipping fence-masked lines and `**metadata**:` lines. Both `extractRequirementText` and `parseRequirements` delegate to it. `SHALL`/`MUST` detection runs over the full body via one predicate (`containsShallOrMust`), replacing the substring/word-boundary split.
 
-**Canonical recognition.** `parseRequirements` filters level-3 children through the exported `REQUIREMENT_HEADER_REGEX` (case-insensitive), identical to the delta parser and `specs-apply`. `## REMOVED`/`## RENAMED` requirements are parsed by separate functions (`parseRemovedNames`, `parseRenamedPairs`) and are unaffected.
+This is fence-aware **skip-and-join**, which is why the existing fence tests still pass: in `markdown-parser.test.ts:106`/`:139` the `SHALL` line comes first and the fenced markdown block after it, so skipping fenced lines leaves `text` exactly equal to the `SHALL` line — the asserted value. The case that breaks today (#312) is the inverse: fence *before* the prose, which no test covers.
 
-**One keyword predicate.** The shared extractor exposes one `containsShallOrMust` used by the Zod refine and the delta path, replacing the substring/word-boundary split.
+**Canonical recognition (Tier 2).** `parseRequirements` filters level-3 children through the exported `REQUIREMENT_HEADER_REGEX`. `## REMOVED`/`## RENAMED` are parsed by separate functions (`parseRemovedNames`, `parseRenamedPairs`) and are unaffected.
 
-**Parity guarantee.** Because every command recognizes requirements by the same rule and detects keywords over the same full body, `validate` (change and spec) and `archive` agree on which requirements exist and whether each is well-formed. A parity test asserts this over the bug fixtures.
+## Existing test contract this change touches
 
-## Edge cases the implementation and tests must cover
+`test/core/parsers/markdown-parser.test.ts` (15 tests, all green on `main`) encodes the current — buggy — behavior in three places:
 
-- **Display vs. detection.** `req.text` feeds display and the `MAX_REQUIREMENT_TEXT_LENGTH` INFO check. Capturing the full body must not spuriously trip length INFO for legitimately multi-line requirements (the INFO is non-blocking, but tests assert single-line output/counts are byte-for-byte unchanged).
-- **Metadata-only body.** A requirement with only `**ID**:`-style lines before its scenarios still yields no normative keyword → still correctly flagged.
-- **Fenced scenario-looking lines.** A `#### Scenario:` or `#`-comment line *inside* a fenced block in the body must not end body capture or fabricate a scenario boundary.
-- **Line endings.** Capture operates on `normalizeContent`-normalized text (LF/CRLF/CR), consistent with the existing "Parser SHALL handle cross-platform line endings" requirement.
-- **Fence variants.** ` ``` ` and `~~~`, fences of length ≥3, and leading-whitespace fences are all masked (existing `buildCodeFenceMask` behavior); the body extractor relies on that mask rather than re-detecting fences.
-- **No reclassification of valid specs.** Verified: zero non-`Requirement:` level-3 headers exist under Requirements in the repo's own specs, so the recognition change is behavior-preserving for all valid specs and CI fixtures.
+- `:331` *extract requirement text from first non-empty content line* — asserts `req.text` is only the first of two body lines. **Tier 1** changes `req.text` to the full body; this test is updated to assert the joined body. (Its premise is the #361 bug.)
+- `:258` *handle nested sections correctly* — fixtures use bare `### The system SHALL …` headers and assert two requirements. **Tier 2** recognition makes bare headers non-requirements; updated to use `### Requirement: …`.
+- `:310` *use requirement heading as fallback when no content is provided* — bare header. **Tier 2**; updated similarly.
+
+Tier 1 alone updates only `:331`. Tier 2 additionally updates `:258` and `:310`. No other tests are affected; the fence tests (`:106`, `:139`) are preserved.
 
 ## Alternatives considered
 
-- *Patch each extractor separately.* Rejected — duplicated logic is exactly how the paths drifted; a shared extractor is the durable fix.
-- *Make `archive`/`validate <spec>` warn-only on phantom headers.* Rejected — it adds a second validation surface and keeps semantics divergent instead of removing the divergence.
-- *Treat a stray level-3 header as an error everywhere.* Rejected for this change — it would newly fail specs that today pass `validate <change>`; aligning on the canonical rule (divider is not a requirement) is the least-surprising, backward-compatible choice. A separate lint for stray headers could be proposed later.
+- **Patch each extractor separately.** Rejected — duplicated logic is exactly how they drifted (metadata skip in one, not the other).
+- **Tier 2 as a separate opt-in lint instead of tightening recognition.** Keep `parseRequirements` permissive but add a warning when a level-3 header under Requirements is not `### Requirement:`. This avoids the behavior change and keeps bare-header support, but leaves `validate <change>` and `validate <spec>` recognizing different requirement *sets*, so it does not fully close #498. Offered as the conservative option; the proposal recommends tightening because all in-repo specs and the convention already require `### Requirement:`.
+- **Treat a stray level-3 header as a hard error everywhere.** Rejected — newly fails specs that pass `validate <change>` today; tightening-to-convention is the least-surprising consistent rule.
 
-## Out of scope: #559 (folder name vs. title)
+## Edge cases for tests
 
-Investigated and deferred. The reproduction transcript shows the agent reading `changes/<id>/proposal.md` (unqualified) and getting `ENOENT`, then succeeding at `openspec/changes/<id>/proposal.md` — a missing-`openspec/`-prefix path resolution, not a demonstrated folder-vs-title divergence. Folding a speculative fix into a parser-fidelity change would blur its scope. Recommend a separate change once the intended behavior (warn on mismatch? canonicalize unqualified paths?) is confirmed with the reporter.
+- Display vs. detection: `req.text` becomes the full body; assert single-line requirements are unchanged and the `MAX_REQUIREMENT_TEXT_LENGTH` INFO (non-blocking) is not spuriously tripped for legitimate multi-line bodies.
+- Metadata-only body (no prose) still correctly flags missing `SHALL`/`MUST`.
+- Fenced `#### Scenario:`-looking or `#`-comment lines in the body do not end capture or fabricate a scenario.
+- LF/CRLF/CR via `normalizeContent`; `~~~` and length-≥3 / leading-whitespace fences via existing `buildCodeFenceMask`.
+- Guard: zero non-conventional level-3 headers under Requirements in `openspec/specs/` — Tier 2 is behavior-preserving for all in-repo specs.
 
-## Risks
+## Out of scope: #559
 
-- **Behavioral change to `view`/`show` counts.** Filtering non-`Requirement:` headers changes counts only for specs that violate the convention; none exist in-repo. Mitigation: guard test over repo specs; changelog note.
-- **Full-body text in downstream display.** Mitigation: keep display text concise (first line) while running detection over the full body, or document the widened `text`; tests pin single-line behavior.
+Deferred — transcript shows an unqualified `changes/<id>/...` path (missing `openspec/` prefix), not a demonstrated folder-vs-title mismatch. Recommend a separate change once intended behavior is confirmed.
