@@ -32,6 +32,12 @@ The `/opsx:update` skill SHALL determine which artifacts are related, in what or
 - **THEN** the skill obtains that artifact's downstream dependents and their revisit order from the CLI (`openspec status --impact <artifact> --json`)
 - **AND** it reviews each downstream artifact against its now-changed upstreams, in that order
 
+#### Scenario: Does not compute the file list or order itself
+
+- **WHEN** the skill needs to know which artifacts are affected and in what order
+- **THEN** it uses the set and order returned by the CLI
+- **AND** it does not enumerate, order, or filter artifacts by its own logic or by assumed artifact names
+
 #### Scenario: Works for a custom schema
 
 - **WHEN** the active change uses a custom schema whose artifact ids are not `proposal`/`specs`/`design`/`tasks`
@@ -46,17 +52,23 @@ The `/opsx:update` skill SHALL determine which artifacts are related, in what or
 
 ### Requirement: Cohesive Audit Mode
 
-The `/opsx:update` skill SHALL support an audit mode that reviews a whole change for artifacts that are stale or incoherent relative to their upstream dependencies and offers to fix them.
+The `/opsx:update` skill SHALL support an audit mode that reviews a whole change for artifacts that have drifted from or are incoherent with their upstream dependencies and offers to fix them, using the deterministic signals the CLI provides rather than its own heuristics.
 
-#### Scenario: Audit reports stale edges
+#### Scenario: Audit reports drifted artifacts when a baseline exists
 
-- **WHEN** the user invokes `/opsx:update` in audit mode (no specific target artifact)
-- **THEN** the skill reads the per-artifact staleness signal from `openspec status --json`
-- **AND** it presents the stale artifacts and the upstreams they are stale against, in revisit order
+- **WHEN** the user invokes `/opsx:update` in audit mode and a recorded digest baseline exists
+- **THEN** the skill uses the CLI's drift report (current upstream digest vs. recorded baseline) to identify which downstream artifacts to review
+- **AND** it presents them in revisit order
+
+#### Scenario: Audit falls back to structural facts without a baseline
+
+- **WHEN** no digest baseline has been recorded for the change
+- **THEN** the skill does not guess at staleness
+- **AND** it surfaces the deterministic structural facts the CLI reports (e.g. a declared capability without a spec, an empty or missing output) and asks the user how to proceed
 
 #### Scenario: Audit offers per-artifact fixes
 
-- **WHEN** audit mode finds one or more stale or incoherent artifacts
+- **WHEN** audit mode identifies one or more artifacts to revise
 - **THEN** the skill proposes a concrete revision for each, in revisit order
 - **AND** it applies a revision only after the user confirms it
 

@@ -15,20 +15,24 @@ The system SHALL include each artifact's dependency edges in the `openspec statu
 - **WHEN** the change uses a custom schema with non-default artifact ids
 - **THEN** the `requires` and `dependents` edges in the status output use that schema's artifact ids
 
-### Requirement: Status Includes Staleness Signal
+### Requirement: Status Includes Content Digest
 
-The system SHALL include a per-artifact staleness signal in the `openspec status --json` output.
+The system SHALL include a deterministic per-artifact content digest in the `openspec status --json` output, so consumers can detect content changes reproducibly without relying on filesystem timestamps.
 
-#### Scenario: Stale artifact flagged in JSON
+#### Scenario: Present artifact reports a digest
 
-- **WHEN** an artifact's output is older than an upstream it transitively requires
-- **THEN** that artifact's status JSON includes `stale: true`
-- **AND** includes `staleAgainst` listing the upstream artifact ids it is stale against
+- **WHEN** the user runs `openspec status --change <id> --json` and an artifact's output exists
+- **THEN** that artifact's status JSON includes a `digest` derived from its output content
 
-#### Scenario: Fresh artifact reports not stale
+#### Scenario: Digest is stable across runs
 
-- **WHEN** an artifact is newer than all of its dependencies
-- **THEN** its status JSON includes `stale: false` and an empty `staleAgainst`
+- **WHEN** `openspec status --change <id> --json` is run twice without the artifact's content changing
+- **THEN** the artifact's `digest` is identical between runs
+
+#### Scenario: Missing output reports no digest
+
+- **WHEN** an artifact's output does not exist
+- **THEN** the artifact's status JSON omits `digest` (or reports it as null)
 
 ### Requirement: Downstream Impact Query
 
@@ -37,8 +41,13 @@ The system SHALL provide an impact selector on the status command that returns t
 #### Scenario: Impact returns ordered downstream set
 
 - **WHEN** the user runs `openspec status --change <id> --impact <artifact> --json`
-- **THEN** the output lists the transitive downstream dependents of `<artifact>` in topological order
-- **AND** the listed artifacts include their resolved output paths so a consumer can read and rewrite them
+- **THEN** the output lists the transitive downstream dependents of `<artifact>` in topological (build) order
+- **AND** the listed artifacts include their resolved output paths and content digests so a consumer can read and rewrite them
+
+#### Scenario: Impact ordering is deterministic
+
+- **WHEN** the impact query is run repeatedly for the same change and artifact
+- **THEN** the downstream set and its order are identical every time
 
 #### Scenario: Impact on a leaf artifact
 

@@ -43,32 +43,32 @@ The system SHALL compute the transitive set of artifacts that depend on a given 
 - **WHEN** getDownstream("A") is called
 - **THEN** the result does not include A
 
-### Requirement: Artifact Staleness Detection
+### Requirement: Artifact Content Digest
 
-The system SHALL detect whether an artifact is stale relative to its dependencies by comparing filesystem modification times along the schema's `requires` edges. An artifact is stale when its output was last modified before the most recently modified output among the artifacts it transitively requires.
+The system SHALL compute a deterministic content digest for an artifact from the bytes of its output file(s), such that the same content yields the same digest on every run and on every platform. The digest SHALL normalize line endings before hashing so that otherwise-identical content produces an identical digest regardless of CRLF or LF encoding.
 
-#### Scenario: Upstream modified after downstream
+#### Scenario: Identical content yields identical digest
 
-- **WHEN** an upstream dependency's output was modified more recently than an artifact that (transitively) requires it
-- **THEN** the artifact is reported as stale
-- **AND** the upstream is listed among the artifacts it is stale against
+- **WHEN** an artifact's output content is unchanged between two computations
+- **THEN** the digest is identical
 
-#### Scenario: Artifact newer than all upstreams
+#### Scenario: Changed content yields a different digest
 
-- **WHEN** an artifact's output was modified more recently than every artifact it requires
-- **THEN** the artifact is not reported as stale
+- **WHEN** an artifact's output content changes
+- **THEN** the digest changes
 
-#### Scenario: Glob output uses newest matching file
+#### Scenario: Line endings do not affect the digest
+
+- **WHEN** the same content is encoded with CRLF on one platform and LF on another
+- **THEN** the digest is identical on both
+
+#### Scenario: Glob output digests all matching files deterministically
 
 - **WHEN** an artifact generates a glob pattern (e.g. `specs/**/*.md`) with multiple files
-- **THEN** staleness uses the most recently modified matching file as the artifact's modification time
+- **THEN** the digest is computed over the matching files in a deterministic order
+- **AND** the digest is stable across runs
 
-#### Scenario: Missing output is not stale
+#### Scenario: Missing output has no digest
 
 - **WHEN** an artifact's output does not exist on disk
-- **THEN** the artifact is reported as not present rather than stale
-
-#### Scenario: Root artifact is never stale
-
-- **WHEN** an artifact has no dependencies
-- **THEN** it is never reported as stale
+- **THEN** no digest is reported for that artifact
