@@ -63,4 +63,4 @@
 
 ## 7. Release
 
-- [ ] 7.1 Changeset describing the behavior change (archive now blocks total/partial/format spec drops for schemas with a `specs` artifact; archive skill uses the CLI; `--skip-specs` for intentional spec-less changes)
+- [x] 7.1 Changeset describing the behavior change (archive now blocks total/partial/format spec drops for schemas with a `specs` artifact; archive skill uses the CLI; `--skip-specs` for intentional spec-less changes)
