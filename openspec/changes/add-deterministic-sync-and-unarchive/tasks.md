@@ -1,6 +1,6 @@
 # Tasks: deterministic spec tooling — `sync` (forward) + `unarchive` (reverse) + `format` (canonical)
 
-> Phased so the keystone ships first and each phase is independently testable and shippable. Phase 1 (engine + baseline + shared canonicalizer) and Phase 2 (`sync` + `--check`) deliver the deterministic, model-free drift path; Phase 2A (`format`) reuses the canonicalizer from Phase 1; Phase 3 (`unarchive`) and Phase 4 (idempotency) build on the same baseline; Phase 5 (skills) removes the model from the merge; Phase 6 (integration) is the staged hook/CI follow-up. Cross-platform concerns (`path.join`, Windows `moveDirectory`, newline-normalized digests) are called out per [openspec/config.yaml](../../config.yaml).
+> Phased so the keystone ships first and each phase is independently testable and shippable. Phase 1 (engine + baseline + shared canonicalizer) and Phase 2 (`sync` + `--check`) deliver the deterministic, model-free drift path; Phase 2A (`format`) reuses the canonicalizer from Phase 1, and Phase 2B (`diff`) reuses the provenance from Phase 1–2; Phase 3 (`unarchive`) and Phase 4 (idempotency) build on the same baseline; Phase 5 (skills) removes the model from the merge; Phase 6 (integration) is the staged hook/CI follow-up. Cross-platform concerns (`path.join`, Windows `moveDirectory`, newline-normalized digests) are called out per [openspec/config.yaml](../../config.yaml).
 
 ## 1. The engine: deterministic, byte-stable merge + applied-delta baseline
 
@@ -33,6 +33,15 @@
 - [ ] 2A.5 Incremental: reuse the digest skip (Decision 13) so `--check` only re-reads changed files; skip never changes the verdict.
 - [ ] 2A.6 Tests: determinism (same input → same bytes; CRLF/LF; Windows); idempotency (`format(format(x))==format(x)`); **behavior-preserving** (`parse-before==parse-after`; requirement/scenario order and prose unchanged); **shared-canonicalizer invariant** — `sync`/`archive` output passes `format --check`; `--check` exit codes; `--json` shape.
 
+## 2B. `openspec diff` — spec-aware diff driver (consumes provenance)
+
+- [ ] 2B.1 Create `src/core/diff.ts` `DiffCommand` (human + `--json`, `--base <ref>`): render requirement-level spec/delta changes; resolve provenance from the applied-delta baseline and rationale from the originating change's `proposal.md`.
+- [ ] 2B.2 Annotate each changed requirement with originating change + rationale reference; when a change is unattributable (no provenance, e.g. pre-baseline), show it honestly without inventing rationale.
+- [ ] 2B.3 Deterministic rendering: pure function of git diff + provenance + proposal text; byte-identical across runs/platforms; no inference.
+- [ ] 2B.4 Git diff driver integration: provide the renderer in a form usable as a git `diff`/`textconv` driver, plus a documented opt-in `.gitattributes` snippet for spec paths. Never modify the user's git config automatically.
+- [ ] 2B.5 Register `diff [target]` in [src/cli/index.ts](../../../src/cli/index.ts) (`--base`, `--json`). No skill (pure code).
+- [ ] 2B.6 Tests: deterministic output (repeat/CRLF/Windows); annotation resolves from proposal + provenance; unattributable change shown without invented rationale; no git-config mutation without opt-in; `--json` shape.
+
 ## 3. `openspec unarchive` (reverse, built on the baseline)
 
 - [ ] 3.1 Create `src/core/unarchive.ts` `UnarchiveCommand` (human + `--json`, blocked-error → diagnostic).
@@ -62,12 +71,11 @@
 
 - [ ] 6.1 Document the CI drift-gate pattern (`openspec sync --check` as a plain binary, no model/API keys) in `docs/`; provide a copy-paste job snippet. (Wiring the actual workflow file is the owner's call.)
 - [ ] 6.2 Document the pre-commit hook pattern (`sync --check` to detect, `sync --fix` to auto-remediate before `git commit --amend`), eslint-`--fix` style. (Choosing husky/lefthook/native is a separable follow-up; none exists in the repo today.)
-- [ ] 6.3 Document the **spec-aware git diff driver** follow-up (design Decision 12): a diff driver for spec files that follows the recorded provenance to splice each change's rationale inline. Out of scope to build here; capture the provenance shape it would consume so the follow-up is unblocked.
-- [ ] 6.4 Document the **spec linter/formatter** follow-up (design Decision 13): note that this PR makes synced/archived spec output canonical and byte-stable, and scope a separable authoring-side formatter + organization lint adjacent to `openspec-conventions`/`validate`. Out of scope to build here.
+- [ ] 6.3 Document the **opt-in git diff driver** registration for `openspec diff` (the `.gitattributes` snippet for spec/delta paths), making clear OpenSpec never alters git config without consent (design Decision 15).
 
 ## 7. Docs & supersession
 
-- [ ] 7.1 `docs/opsx.md` + CLI docs: add `/opsx:unarchive`; update `/opsx:sync` to note CLI delegation + determinism; document `openspec sync` and `openspec format` with `--check`/`--fix` (and that `format` needs no agent/skill).
+- [ ] 7.1 `docs/opsx.md` + CLI docs: add `/opsx:unarchive`; update `/opsx:sync` to note CLI delegation + determinism; document `openspec sync`, `openspec format`, and `openspec diff` with their flags (and that `format`/`diff` need no agent/skill).
 - [ ] 7.2 Note the `specs/` = shipped-reality invariant and why `archive` is retained (design Decision 5), so the "why not just remove archive" question has a documented answer.
 
 ## 8. End-to-end verification
@@ -77,5 +85,6 @@
 - [ ] 8.3 E2E stacked drift: change A MODIFIES req X and is archived; a second change re-MODIFIES X and is archived; `unarchive A` refuses spec reversal; `unarchive A --keep-specs` succeeds untouched.
 - [ ] 8.4 E2E no-crumbs: sync, revise the delta, re-sync → `specs/` reflects only the current delta.
 - [ ] 8.4a E2E formatter: mangle a spec's whitespace → `format --check` fails → `format` fixes it → `--check` passes; and `sync`/`archive` output passes `format --check` unchanged (shared-canonicalizer invariant).
+- [ ] 8.4b E2E diff: edit a change's delta and proposal → `openspec diff <change>` shows the requirement change annotated with the proposal's rationale; a synced spec change is annotated with the originating change via provenance; a pre-baseline edit is shown without invented rationale.
 - [ ] 8.5 Validation: `openspec validate add-deterministic-sync-and-unarchive --strict` passes; `openspec status` shows artifacts complete.
 - [ ] 8.6 Run the suite on macOS, Linux, and Windows CI.

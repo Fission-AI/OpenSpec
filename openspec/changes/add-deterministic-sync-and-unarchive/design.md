@@ -1,4 +1,4 @@
-# Design: deterministic spec tooling — `sync` (forward), `unarchive` (reverse), `format` (canonical)
+# Design: deterministic spec tooling — `sync` (forward), `unarchive` (reverse), `format` (canonical), `diff` (review)
 
 ## Context
 
@@ -17,6 +17,7 @@ This design covers that primitive and the commands built on it. It supersedes th
 - Per-edit provenance and a delta↔spec correspondence check, within the delta model (Decision 12).
 - Hash-optimized incremental checking: `--check` re-checks only specs whose digest changed, without changing any verdict (Decision 13).
 - A deterministic, behavior-preserving spec formatter (`openspec format` + `--check`) sharing one canonicalizer with the merge engine (Decision 14).
+- A deterministic spec-aware diff (`openspec diff`, opt-in git diff driver) that splices provenance + rationale inline, reusing existing artifacts (Decision 15).
 - Skills delegate the merge to the CLI; the agent never performs it.
 - Backward compatible with changes archived (and specs synced) before this feature.
 
@@ -26,6 +27,8 @@ This design covers that primitive and the commands built on it. It supersedes th
 - Building the spec-aware git diff driver (Decision 12 — provenance data is in scope; the diff driver is a deferred follow-up).
 - Inference-based "align spec to implementation" / code-vs-spec checking — that needs a model and is the `verify` direction (#880), not the deterministic `format` (Decision 14).
 - Reducing the committed artifact set (commit-only-the-spec) — a separate product question served by schema flexibility (Decision 13).
+- A separate "semantic delta" / reasoning-log database — unnecessary; `openspec diff` renders from the existing proposal + provenance (Decision 15).
+- Semantic/AI summarization in the diff — `diff` mechanically splices recorded reasoning; model-based review is the `verify` direction (Decision 15).
 - Wiring a specific hook runner or CI job into this repo (primitives in scope; config staged — Decision 4).
 - A scenario-granular "smart" merge (Decision 8 — the conventions mandate whole-requirement deltas; whole-block apply is the correct, deterministic semantics).
 - Bulk `sync`/`unarchive`, archive-folder prefix scheme, lifecycle timestamps — out of scope, accommodated.
@@ -119,7 +122,7 @@ Building three mechanisms would invite three drift bugs. Building one — the pr
 
 **Decision.** Record **provenance** as part of the applied-delta baseline: when the engine writes a spec change, it records which change and which delta operation produced it. Expose it (e.g. `openspec sync --explain` / a provenance entry). Use it for a deterministic **delta↔spec correspondence** check in `sync --check`: every committed `specs/` edit for a change must trace to one of its delta operations (no orphan edits), and every delta operation must have landed (no unapplied deltas). The prose "why" is not re-authored — provenance links each spec edit to its change, whose `proposal.md` already holds the rationale.
 
-**Deferred (delineated follow-up): the spec-aware git diff driver.** A `git diff` driver for spec files that follows the provenance link and splices the change's rationale inline is a genuinely useful, separable feature. This PR delivers the **data** (provenance in the baseline) and the **check** (correspondence); the **presentation** (diff driver, custom textconv/diff attributes) is a follow-up — the same primitives-in-scope / wiring-staged split as the CI hook (Decision 4). Building a diff driver into a sync/unarchive PR would overscope it.
+**In scope (Decision 15): the spec-aware diff driver.** The presentation side — a `git diff` driver for spec files that follows the provenance link and splices the change's rationale inline — is now folded in rather than deferred, because it consumes exactly the provenance this PR already records and needs no new data store. See Decision 15.
 
 **Why this is the right slice.** Provenance falls out of the merge for free (the engine already knows exactly what it applied), and correspondence reuses the baseline. Together they answer the discussion's consistency lint *within the delta model* (deltas are the source; specs are generated) rather than inverting it (specs as source, deltas as sidecar log) — which would reintroduce the edit-in-place problems of Decision 11.
 
@@ -148,6 +151,22 @@ Building three mechanisms would invite three drift bugs. Building one — the pr
 **What it is NOT.** Not `validate`: `validate` judges *semantic* validity (a requirement has a scenario, headers resolve), `format` judges *canonical form* (is it laid out canonically). They compose — `format` then `validate`. Not the inference-based "align spec to implementation" the discussion also mentioned: checking that *code* matches the spec needs a model and is the `verify` direction ([#880](https://github.com/Fission-AI/OpenSpec/issues/880)), explicitly out of scope here. `format` is pure text canonicalization, so it needs no agent and no `/opsx:format` skill — you run the binary (or the hook runs it).
 
 **Why now, not later.** Folding it in means one canonicalizer is specified and tested once and reused by `sync`, `archive`, and `format`, guaranteeing they cannot diverge. Deferring it would risk a future formatter that disagrees with the merge engine's output — the exact drift this PR exists to kill.
+
+## Decision 15 — The spec-aware diff driver (`openspec diff`), in scope
+
+**Context.** The discussion's review workflow: "review primarily becomes reading the spec deltas (in git)" with "a spec-aware diff driver that splices the reasoning log inline so reviewers see what changed and why together," and the related idea of a sidecar database of "semantic deltas as log entries."
+
+**Decision.** Add `openspec diff [target] [--base <ref>]` — a deterministic, pure-code renderer that shows requirement-level spec changes with each change's provenance and rationale spliced inline. It is usable standalone and, opt-in, as a **git diff driver** (registered in `.gitattributes`) so `git diff` over spec/delta paths renders the annotated view.
+
+**Key insight — OpenSpec already has the "log"; no new store.** The discussion reached for a separate database of semantic deltas plus a reasoning log. But OpenSpec already keeps both halves: the *why* lives in the change's `proposal.md`, and the *what/where* lives in the applied-delta provenance this PR records. The diff driver simply joins them. So we explicitly **reject building a sidecar reasoning database** (Decision 11's edit-in-place family) and instead render from artifacts that already exist — less to maintain, nothing to keep in sync.
+
+**Deterministic and honest.** Rendering is a pure function of the git diff + recorded provenance + proposal text — byte-identical across runs and platforms, no inference. When a change cannot be attributed (a pre-baseline edit with no provenance), the diff says so rather than inventing a rationale. It does **not** judge review quality or summarize semantically (that would need a model); it mechanically splices recorded reasoning. Git config is never modified without explicit opt-in.
+
+**Why in scope now.** It is the presentation layer of the provenance this PR already produces, and it completes the discussion's review vision deterministically. Like the formatter (Decision 14), it reuses primitives this PR establishes rather than introducing new ones.
+
+## Scope completeness
+
+With `diff` folded in, this proposal now covers **every deterministic, in-scope idea** the discussion raised: the merge engine and applied-delta baseline (forward `sync`, reverse `unarchive`, the `archive` baseline), idempotent crumb-free re-merge, model-free `--check` drift gating, early conflict detection, provenance + delta↔spec correspondence, incremental checking, the canonical formatter, and the spec-aware diff driver. The ideas it deliberately leaves out are documented with reasons: editing specs in place / dropping the delta layer / committing only the spec (Decisions 5, 11, 13), inference-based code-vs-spec verification (Decision 14, the `verify` direction), and the *wiring* of a specific hook runner or CI job (Decision 4, a repo-policy choice). Subsequent sessions should therefore shift from **expansion** to **sequencing and refinement** for owner review — confirming the open decisions (e.g. `--keep-specs` vs `--skip-specs`, the `/opsx:sync` behavior change) and the phase order — rather than adding surface.
 
 ## Risks / trade-offs
 
