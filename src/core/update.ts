@@ -153,6 +153,7 @@ export class UpdateCommand {
     if (!this.force && toolsToUpdateSet.size === 0) {
       // All tools are up to date
       this.displayUpToDateMessage(toolStatuses);
+      await this.syncCopilotCloudFiles(resolvedProjectPath, [...new Set([...configuredTools, ...newlyConfiguredTools])]);
 
       // Still check for new tool directories and extra workflows
       this.detectNewTools(resolvedProjectPath, configuredTools);
@@ -246,25 +247,6 @@ export class UpdateCommand {
       }
     }
 
-    // Generate GitHub Copilot coding agent cloud files if github-copilot is being updated
-    if (includesGitHubCopilot(toolsToUpdate)) {
-      try {
-        await writeCopilotCloudFiles(resolvedProjectPath);
-      } catch {
-        // Non-fatal
-      }
-    } else if (!includesGitHubCopilot(configuredTools)) {
-      // github-copilot is not configured at all — clean up cloud agent files if they exist
-      try {
-        const removed = await removeCopilotCloudFiles(resolvedProjectPath);
-        if (removed > 0) {
-          console.log(chalk.dim(`Removed: ${removed} Copilot cloud agent file(s) (github-copilot not configured)`));
-        }
-      } catch {
-        // Non-fatal
-      }
-    }
-
     // 11. Summary
     console.log();
     if (updatedTools.length > 0) {
@@ -298,6 +280,7 @@ export class UpdateCommand {
     }
 
     const configuredAndNewTools = [...new Set([...configuredTools, ...newlyConfiguredTools])];
+    await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
 
     // 13. Detect new tool directories not currently configured
     this.detectNewTools(resolvedProjectPath, configuredAndNewTools);
@@ -314,6 +297,22 @@ export class UpdateCommand {
 
     console.log();
     console.log(chalk.dim('Restart your IDE for changes to take effect.'));
+  }
+
+  private async syncCopilotCloudFiles(projectPath: string, configuredTools: string[]): Promise<void> {
+    try {
+      if (includesGitHubCopilot(configuredTools)) {
+        await writeCopilotCloudFiles(projectPath);
+        return;
+      }
+
+      const removed = await removeCopilotCloudFiles(projectPath);
+      if (removed > 0) {
+        console.log(chalk.dim(`Removed: ${removed} Copilot cloud agent file(s) (github-copilot not configured)`));
+      }
+    } catch {
+      // Non-fatal: cloud agent support should not block update.
+    }
   }
 
   /**

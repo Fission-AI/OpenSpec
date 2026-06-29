@@ -67,12 +67,15 @@ export function generateCopilotAgentFile(): string {
 name: OpenSpec
 description: "Manages OpenSpec changes, specs, and workflows using the OpenSpec CLI. Use this agent for proposing changes, exploring ideas, validating artifacts, checking status, and archiving completed work."
 tools:
-  - "terminal"
+  - "execute"
+  - "read"
+  - "search"
+  - "edit"
 ---
 
 # OpenSpec Agent
 
-You are a specialized agent for managing OpenSpec workflows. You have access to the \`openspec\` CLI which is pre-installed in the development environment via \`copilot-setup-steps.yml\`.
+You are a specialized agent for managing OpenSpec workflows. You have access to the \`openspec\` CLI through shell commands, pre-installed in the development environment via \`copilot-setup-steps.yml\`.
 
 ## What is OpenSpec?
 
@@ -87,8 +90,8 @@ OpenSpec is a structured change management system for codebases. It organizes wo
 | \`openspec list [--json]\` | List all changes and specs |
 | \`openspec show <item> [--json]\` | View a specific change or spec |
 | \`openspec validate [--all] [--json]\` | Validate changes and specs for issues |
-| \`openspec status [--json]\` | Show artifact progress for active changes |
-| \`openspec instructions [--json]\` | Get next-step instructions for a change |
+| \`openspec status [--change <name>] [--json]\` | Show artifact progress for a change |
+| \`openspec instructions [artifact] [--change <name>] [--json]\` | Get next-step instructions for a change |
 | \`openspec templates [--json]\` | List available templates |
 | \`openspec schemas [--json]\` | List available workflow schemas |
 | \`openspec archive <change>\` | Archive a completed change |

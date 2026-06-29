@@ -608,6 +608,21 @@ Old instructions content
       consoleSpy.mockRestore();
     });
 
+    it('should create GitHub Copilot cloud files when github-copilot is up to date', async () => {
+      const initCommand = new InitCommand({ tools: 'github-copilot', force: true });
+      await initCommand.execute(testDir);
+
+      const setupStepsPath = path.join(testDir, '.github', 'workflows', 'copilot-setup-steps.yml');
+      const agentPath = path.join(testDir, '.github', 'agents', 'openspec.agent.md');
+      await fs.rm(setupStepsPath, { force: true });
+      await fs.rm(agentPath, { force: true });
+
+      await updateCommand.execute(testDir);
+
+      await expect(fs.readFile(setupStepsPath, 'utf8')).resolves.toContain('copilot-setup-steps:');
+      await expect(fs.readFile(agentPath, 'utf8')).resolves.toContain('# OpenSpec Agent');
+    });
+
     it('should detect update needed when generatedBy is missing', async () => {
       // Set up a configured tool without generatedBy
       const skillsDir = path.join(testDir, '.claude', 'skills');
