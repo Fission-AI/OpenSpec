@@ -27,6 +27,12 @@ describe('command-generation/registry', () => {
       expect(adapter?.toolId).toBe('junie');
     });
 
+    it('should return ZCode adapter for "zcode"', () => {
+      const adapter = CommandAdapterRegistry.get('zcode');
+      expect(adapter).toBeDefined();
+      expect(adapter?.toolId).toBe('zcode');
+    });
+
     it('should return undefined for unregistered tool', () => {
       const adapter = CommandAdapterRegistry.get('unknown-tool');
       expect(adapter).toBeUndefined();
@@ -52,6 +58,7 @@ describe('command-generation/registry', () => {
       expect(toolIds).toContain('claude');
       expect(toolIds).toContain('cursor');
       expect(toolIds).toContain('windsurf');
+      expect(toolIds).toContain('zcode');
     });
   });
 
@@ -61,6 +68,7 @@ describe('command-generation/registry', () => {
       expect(CommandAdapterRegistry.has('cursor')).toBe(true);
       expect(CommandAdapterRegistry.has('windsurf')).toBe(true);
       expect(CommandAdapterRegistry.has('junie')).toBe(true);
+      expect(CommandAdapterRegistry.has('zcode')).toBe(true);
     });
 
     it('should return false for unregistered tools', () => {
@@ -78,6 +86,7 @@ describe('command-generation/registry', () => {
       expect(claudeAdapter?.getFilePath('test')).toContain('.claude');
       expect(cursorAdapter?.getFilePath('test')).toContain('.cursor');
       expect(windsurfAdapter?.getFilePath('test')).toContain('.windsurf');
+      expect(CommandAdapterRegistry.get('zcode')?.getFilePath('test')).toContain('.zcode');
     });
 
     it('registered adapters should have working formatFile', () => {

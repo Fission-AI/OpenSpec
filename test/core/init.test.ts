@@ -168,6 +168,22 @@ describe('InitCommand', () => {
       expect(await fileExists(skillFile)).toBe(true);
     });
 
+    it('should create ZCode skills and commands', async () => {
+      const initCommand = new InitCommand({ tools: 'zcode', force: true });
+
+      await initCommand.execute(testDir);
+
+      const skillFile = path.join(testDir, '.zcode', 'skills', 'openspec-explore', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
+
+      const commandFile = path.join(testDir, '.zcode', 'commands', 'opsx', 'explore.md');
+      expect(await fileExists(commandFile)).toBe(true);
+
+      const commandContent = await fs.readFile(commandFile, 'utf-8');
+      expect(commandContent).toContain('name: OPSX: Explore');
+      expect(commandContent).toContain('description: Enter explore mode');
+    });
+
     it('should support Kimi CLI as an adapterless skills-only tool', async () => {
       saveGlobalConfig({
         featureFlags: {},
