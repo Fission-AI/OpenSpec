@@ -1,14 +1,15 @@
 ## ADDED Requirements
 
-### Requirement: Archive rebuilt-spec validation SHALL match validate semantics
-The rebuilt-spec validation performed during `openspec archive` SHALL recognize requirements using the same rules as `openspec validate`. A change that passes `openspec validate --strict` SHALL NOT newly fail validation at archive time due to requirement-recognition differences between the delta-block parser and the full-spec parser.
+### Requirement: Archive requirement-recognition SHALL match validate
+The requirement validation performed during `openspec archive` SHALL recognize requirements using the same canonical `### Requirement:` rule as `openspec validate`. Archive SHALL NOT report requirement-recognition issues (for example phantom `must contain SHALL or MUST` or `must have at least one scenario` warnings) for level-3 headers that `openspec validate` does not treat as requirements.
 
-#### Scenario: Stray non-requirement header does not block archive
-- **GIVEN** a change whose spec deltas pass `openspec validate --strict` and whose Requirements section contains a stray level-3 header that is not a `### Requirement:` header
+#### Scenario: Stray non-requirement header produces no phantom warning at archive
+- **GIVEN** a change whose spec deltas pass `openspec validate <change-id> --strict` and whose Requirements/ADDED section contains a stray level-3 header that is not a `### Requirement:` header
 - **WHEN** running `openspec archive <change-id>`
-- **THEN** the rebuilt-spec validation SHALL NOT treat the stray header as a phantom requirement and SHALL NOT report `must contain SHALL or MUST` or `must have at least one scenario` for it
+- **THEN** the `Proposal warnings in proposal.md` output SHALL NOT include phantom requirement warnings derived from the stray header
+- **AND** the archive SHALL succeed as it does today
 
-#### Scenario: Genuinely invalid spec still fails consistently
+#### Scenario: Genuinely invalid requirement fails consistently across commands
 - **GIVEN** a change whose spec contains a real `### Requirement:` block with no `SHALL`/`MUST` and no scenario
-- **WHEN** running both `openspec validate <change-id> --strict` and `openspec archive <change-id>`
-- **THEN** both commands SHALL report the same requirement as invalid
+- **WHEN** running `openspec validate <change-id> --strict` and `openspec archive <change-id>`
+- **THEN** both commands SHALL report the same requirement as invalid using consistent messaging
