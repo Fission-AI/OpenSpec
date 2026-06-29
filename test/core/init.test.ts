@@ -168,6 +168,34 @@ describe('InitCommand', () => {
       expect(await fileExists(skillFile)).toBe(true);
     });
 
+    it('should generate ZCode skills and commands under .zcode without creating .agents', async () => {
+      const initCommand = new InitCommand({ tools: 'zcode', force: true });
+
+      await initCommand.execute(testDir);
+
+      // Core profile skills land under .zcode/skills
+      const exploreSkill = path.join(testDir, '.zcode', 'skills', 'openspec-explore', 'SKILL.md');
+      const proposeSkill = path.join(testDir, '.zcode', 'skills', 'openspec-propose', 'SKILL.md');
+      expect(await fileExists(exploreSkill)).toBe(true);
+      expect(await fileExists(proposeSkill)).toBe(true);
+
+      // Core profile commands land under .zcode/commands/opsx
+      const exploreCmd = path.join(testDir, '.zcode', 'commands', 'opsx', 'explore.md');
+      const proposeCmd = path.join(testDir, '.zcode', 'commands', 'opsx', 'propose.md');
+      expect(await fileExists(exploreCmd)).toBe(true);
+      expect(await fileExists(proposeCmd)).toBe(true);
+
+      const cmdContent = await fs.readFile(exploreCmd, 'utf-8');
+      expect(cmdContent).toContain('---');
+      expect(cmdContent).toContain('name:');
+      expect(cmdContent).toContain('description:');
+      expect(cmdContent).toContain('category:');
+      expect(cmdContent).toContain('tags:');
+
+      // .agents is a detection-only root and must never be created during generation
+      expect(await directoryExists(path.join(testDir, '.agents'))).toBe(false);
+    });
+
     it('should support Kimi CLI as an adapterless skills-only tool', async () => {
       saveGlobalConfig({
         featureFlags: {},
