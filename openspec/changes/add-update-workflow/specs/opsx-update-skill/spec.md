@@ -16,6 +16,12 @@ The system SHALL provide a `/opsx:update` workflow skill that revises a change's
 - **THEN** the skill updates that artifact and only its already-existing downstream dependents
 - **AND** it does NOT create any artifact that does not yet exist (that remains the job of `/opsx:continue`/`/opsx:propose`)
 
+#### Scenario: Absent downstream artifacts are deferred to continue
+
+- **WHEN** the impact set includes downstream artifacts that have not been created yet
+- **THEN** the skill revises only the downstream artifacts that currently exist
+- **AND** it notes the not-yet-created downstream artifacts and points the user to `/opsx:continue` to create them
+
 #### Scenario: Update stays within the plan
 
 - **WHEN** revising artifacts would imply changes to implementation code
@@ -64,7 +70,7 @@ The `/opsx:update` skill SHALL support an audit mode that reviews a whole change
 
 - **WHEN** no digest baseline has been recorded for the change
 - **THEN** the skill does not guess at staleness
-- **AND** it surfaces the deterministic structural facts the CLI reports (e.g. a declared capability without a spec, an empty or missing output) and asks the user how to proceed
+- **AND** it surfaces the deterministic structural facts the CLI reports (an artifact whose output is missing or empty, or one still blocked/incomplete) and asks the user how to proceed
 
 #### Scenario: Audit offers per-artifact fixes
 

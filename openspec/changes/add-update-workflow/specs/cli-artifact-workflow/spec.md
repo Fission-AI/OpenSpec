@@ -49,6 +49,12 @@ The system SHALL provide an impact selector on the status command that returns t
 - **WHEN** the impact query is run repeatedly for the same change and artifact
 - **THEN** the downstream set and its order are identical every time
 
+#### Scenario: Impact entries indicate which downstream artifacts exist
+
+- **WHEN** some transitive downstream artifacts have not been created yet
+- **THEN** each impact entry reports its status (e.g. done vs. not-yet-created)
+- **AND** a consumer can tell which downstream artifacts exist to revise versus which would need to be created
+
 #### Scenario: Impact on a leaf artifact
 
 - **WHEN** the impact selector targets an artifact with no dependents

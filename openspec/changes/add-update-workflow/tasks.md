@@ -17,7 +17,7 @@
 ## 3. CLI: surface edges, digest, and impact on `status`
 
 - [ ] 3.1 Extend `formatChangeStatus` (instruction-loader.ts, the `ArtifactStatus` objects ~397-426) to add `requires`, `dependents`, and `digest` per artifact; the existing build-order sort (line 429) already yields revisit order.
-- [ ] 3.2 Add `impact?: string` to `StatusOptions` and the `--impact <artifact>` option (`src/commands/workflow/status.ts`, registered at `src/cli/index.ts:488`); when set, output the ordered downstream set with each artifact's resolved paths + digest; error on unknown artifact id.
+- [ ] 3.2 Add `impact?: string` to `StatusOptions` and the `--impact <artifact>` option (`src/commands/workflow/status.ts`, registered at `src/cli/index.ts:488`); when set, output the ordered downstream set with each artifact's resolved paths, digest, and existence/status (so consumers can tell which exist to revise vs. which would need creating); error on unknown artifact id.
 - [ ] 3.3 Keep default (non-`--json`, non-`--impact`) human-readable output byte-for-byte unchanged; add a regression test asserting this.
 - [ ] 3.4 Tests: JSON edge fields, per-artifact digest present/stable, `--impact` ordering + determinism (repeat-run equality), `--impact` leaf (empty), `--impact` unknown-id error. Verify on Windows CI.
 
@@ -25,7 +25,7 @@
 
 - [ ] 4.1 Create `src/core/templates/workflows/update-change.ts` with `getUpdateChangeSkillTemplate()` (skill) and `getOpsxUpdateCommandTemplate()` (command), mirroring `continue-change.ts` structure.
 - [ ] 4.2 Instruction body: select change (infer/prompt via `openspec list --json`) → read `openspec status --change <id> --json` → branch into targeted vs audit mode → obtain the impact set/order from `--impact` (never compute it) → propose/confirm/apply/re-check, reading ids/paths/edges/digests from JSON only.
-- [ ] 4.3 Encode the guardrails explicitly: (a) planning artifacts only — never edit code, hand off to `/opsx:apply`; (b) graph-driven — no literal `proposal`/`specs`/`design`/`tasks` branching; ids and order come from the CLI; (c) audit without a baseline does not guess — it uses structural facts and asks.
+- [ ] 4.3 Encode the guardrails explicitly: (a) planning artifacts only — never edit code, hand off to `/opsx:apply`; (b) graph-driven — no literal `proposal`/`specs`/`design`/`tasks` branching; ids and order come from the CLI; (c) audit without a baseline does not guess — it uses structural facts and asks; (d) revise only existing downstream artifacts — defer not-yet-created ones to `/opsx:continue`.
 - [ ] 4.4 Encode the intent-change guard: recommend `/opsx:new` when the revision changes intent (reference the "Update vs. Start Fresh" heuristic).
 - [ ] 4.5 Register the skill/command and add it to the expanded-workflow profile alongside `continue`/`ff`/`verify`.
 - [ ] 4.6 Test: template generation snapshot; assert the template contains NO hardcoded artifact-name branching and NO self-computed ordering (it must read ids/order from JSON) — the anti-#777 guard.
@@ -47,7 +47,7 @@
 
 > Only if scoped in (design Open Question 2). Powers unattended audit; the targeted flow above does not need it.
 
-- [ ] 7.1 Extend `ChangeMetadataSchema` (`src/core/change-metadata/schema.ts`) with an optional per-artifact map of recorded upstream digests.
-- [ ] 7.2 Record the baseline deterministically: on artifact (re)generation in `propose`/`continue`/`ff` and after each confirmed `/opsx:update` edit, write the current upstream digests for the affected artifact.
-- [ ] 7.3 CLI drift report: an artifact is drifted iff a current upstream digest differs from its recorded baseline; no baseline → `unknown` (never a false positive).
-- [ ] 7.4 Tests: record→no-drift; modify upstream→drift on exactly the dependents; absent baseline→`unknown`; ledger round-trips through metadata read/write.
+- [ ] 7.1 Extend `ChangeMetadataSchema` (`src/core/change-metadata/schema.ts`) with an optional per-artifact map of recorded **direct** upstream digests.
+- [ ] 7.2 Record the baseline deterministically: on artifact (re)generation in `propose`/`continue`/`ff` and after each confirmed `/opsx:update` edit, write the current direct-upstream digests for the affected artifact ("reconciled").
+- [ ] 7.3 CLI drift report: an artifact is drifted iff a current direct-upstream digest differs from its recorded baseline; no baseline → `unknown` (never a false positive). Verify transitive drift emerges hop-by-hop: changing `proposal` drifts `specs`; reconciling `specs` then drifts `tasks`.
+- [ ] 7.4 Tests: record→no-drift; modify upstream→drift on exactly the direct dependents; hop-by-hop transitive drift; absent baseline→`unknown`; ledger round-trips through metadata read/write.
