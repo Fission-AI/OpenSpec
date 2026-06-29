@@ -725,8 +725,12 @@ export class InitCommand {
     const globalCfg = getGlobalConfig();
     const activeProfile: Profile = (this.profileOverride as Profile) ?? globalCfg.profile ?? 'core';
     const activeWorkflows = [...getProfileWorkflows(activeProfile, globalCfg.workflows)];
+    const hasConfiguredTools = results.createdTools.length > 0 || results.refreshedTools.length > 0;
     console.log();
-    if (activeWorkflows.includes('propose')) {
+    if (!hasConfiguredTools) {
+      console.log('OpenSpec structure created, but no agent integrations were installed.');
+      console.log('  Install integrations later with: openspec init --tools <tool>');
+    } else if (activeWorkflows.includes('propose')) {
       console.log(chalk.bold('Getting started:'));
       console.log('  Start your first change: /opsx:propose "your idea"');
     } else if (activeWorkflows.includes('new')) {

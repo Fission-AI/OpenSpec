@@ -231,6 +231,11 @@ describe('InitCommand', () => {
       // No tool-specific directories should be created
       const claudeSkillsDir = path.join(testDir, '.claude', 'skills');
       expect(await directoryExists(claudeSkillsDir)).toBe(false);
+
+      const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+      expect(logCalls.some((entry) => entry.includes('no agent integrations were installed'))).toBe(true);
+      expect(logCalls.some((entry) => entry.includes('openspec init --tools <tool>'))).toBe(true);
+      expect(logCalls.some((entry) => entry.includes('/opsx:propose'))).toBe(false);
     });
 
     it('should throw error for invalid tool names', async () => {
