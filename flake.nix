@@ -55,6 +55,7 @@
             };
 
             nativeBuildInputs = with pkgs; [
+              installShellFiles
               nodejs_20
               npmHooks.npmInstallHook
               pnpmConfigHook
@@ -67,6 +68,16 @@
               pnpm run build
 
               runHook postBuild
+            '';
+
+            postInstall = lib.optionalString (pkgs.stdenvNoCC.buildPlatform.canExecute pkgs.stdenvNoCC.hostPlatform) ''
+              # disable telemetry so that the notice does not break the completion scripts
+              export OPENSPEC_TELEMETRY=0
+
+              installShellCompletion --cmd openspec \
+                --bash <($out/bin/openspec completion generate bash) \
+                --fish <($out/bin/openspec completion generate fish) \
+                --zsh <($out/bin/openspec completion generate zsh)
             '';
 
             dontNpmPrune = true;
