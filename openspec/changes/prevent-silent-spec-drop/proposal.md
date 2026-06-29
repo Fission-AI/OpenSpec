@@ -79,7 +79,7 @@ All references verified against `Fission-AI/OpenSpec` on 2026-06-29 (states curr
 
 Closes (the silent-drop family — total, partial, format, greenfield, the CLI-bypass, and the loop):
 
-- [#1212](https://github.com/Fission-AI/OpenSpec/issues/1212) — spec-driven fast-path silently produces stale specs (canonical)
+- [#1212](https://github.com/Fission-AI/OpenSpec/issues/1212) — spec-driven fast-path silently produces stale specs (canonical). Both of #1212's requested safeguards now fire and are proven by the end-to-end regression `test/cli-e2e/issue-1212-spec-drop.test.ts`: `opsx:apply` blocks (exit 1) for a spec-driven change with no delta specs, `opsx:archive` refuses to move/sync anything, and `validate --archived` detects already-archived drift.
 - [#1260](https://github.com/Fission-AI/OpenSpec/issues/1260) — No specs generated after `/opsx:propose`
 - [#1222](https://github.com/Fission-AI/OpenSpec/issues/1222) — Main spec never created for the first change in a greenfield project
 - [#1264](https://github.com/Fission-AI/OpenSpec/issues/1264) — Archive should handle an empty main spec instead of skipping sync
@@ -90,7 +90,7 @@ Closes (the silent-drop family — total, partial, format, greenfield, the CLI-b
 
 Supersedes (open PRs — partial or prompt-only fixes for the same failures):
 
-- [#1250](https://github.com/Fission-AI/OpenSpec/pull/1250) — apply exit-1 + `apply.requires:[specs,tasks]`; its reviewer explicitly deferred the archive guard to a follow-up — this is that follow-up. Incorporated here.
+- [#1250](https://github.com/Fission-AI/OpenSpec/pull/1250) — this PR contains **all** of #1250's changes (`apply.requires: [specs, tasks]`, apply exits 1 when blocked, and the spec-driven "Delta specs must exist…" hint) **plus** the archive guard its reviewer explicitly deferred. The exact #1250 behaviors are asserted in `test/cli-e2e/issue-1212-spec-drop.test.ts`. Fully superseded.
 - [#1271](https://github.com/Fission-AI/OpenSpec/pull/1271), [#1241](https://github.com/Fission-AI/OpenSpec/pull/1241), [#1233](https://github.com/Fission-AI/OpenSpec/pull/1233) — prompt-only archive/greenfield guidance, replaced by an enforceable CLI check. (Prior attempt [#1268](https://github.com/Fission-AI/OpenSpec/pull/1268) was already closed unmerged — noted, not superseded.)
 
 ## Related, addressed-in-part

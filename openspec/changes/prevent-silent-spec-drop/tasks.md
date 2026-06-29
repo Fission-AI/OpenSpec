@@ -60,6 +60,7 @@
 - [x] 6.13 Capability deletion/rename: change with only `## REMOVED Requirements` under the existing folder → coverage passes; whole-capability deletion → requires explicit `--skip-specs`
 - [x] 6.14 Archived-drift audit: archived change with an un-synced declared capability → flagged; pre-contract archive → not falsely flagged
 - [x] 6.15 Extraction determinism fixtures; cross-platform `path.join()`
+- [x] 6.16 E2E regression `test/cli-e2e/issue-1212-spec-drop.test.ts`: reproduces #1212 (apply blocks, archive refuses, audit detects) and asserts #1250 behaviors (apply exit 1 + spec-driven hint) against the real CLI
 
 ## 7. Release
 
