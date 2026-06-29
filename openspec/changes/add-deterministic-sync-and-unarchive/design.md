@@ -15,6 +15,7 @@ This design covers that primitive and the commands built on it. It supersedes th
 - Code-only drift detection (`sync --check`) usable by CI and a pre-commit hook — no model, no API keys.
 - Early, deterministic conflict detection (delta-vs-base and cross-change) at commit/PR time, not at archive (Decision 11).
 - Per-edit provenance and a delta↔spec correspondence check, within the delta model (Decision 12).
+- Hash-optimized incremental checking: `--check` re-checks only specs whose digest changed, without changing any verdict (Decision 13).
 - Skills delegate the merge to the CLI; the agent never performs it.
 - Backward compatible with changes archived (and specs synced) before this feature.
 
@@ -22,6 +23,7 @@ This design covers that primitive and the commands built on it. It supersedes th
 - Removing or replacing the `archive` lifecycle boundary, or editing `specs/` in place instead of via deltas (Decisions 5, 11).
 - Folding the spec merge into `apply` (Decision 5).
 - Building the spec-aware git diff driver (Decision 12 — provenance data is in scope; the diff driver is a deferred follow-up).
+- Building a spec linter/formatter or reducing the committed artifact set (Decision 13 — output specs are made canonical here; an authoring formatter and the artifact-model question are separable).
 - Wiring a specific hook runner or CI job into this repo (primitives in scope; config staged — Decision 4).
 - A scenario-granular "smart" merge (Decision 8 — the conventions mandate whole-requirement deltas; whole-block apply is the correct, deterministic semantics).
 - Bulk `sync`/`unarchive`, archive-folder prefix scheme, lifecycle timestamps — out of scope, accommodated.
@@ -118,6 +120,20 @@ Building three mechanisms would invite three drift bugs. Building one — the pr
 **Deferred (delineated follow-up): the spec-aware git diff driver.** A `git diff` driver for spec files that follows the provenance link and splices the change's rationale inline is a genuinely useful, separable feature. This PR delivers the **data** (provenance in the baseline) and the **check** (correspondence); the **presentation** (diff driver, custom textconv/diff attributes) is a follow-up — the same primitives-in-scope / wiring-staged split as the CI hook (Decision 4). Building a diff driver into a sync/unarchive PR would overscope it.
 
 **Why this is the right slice.** Provenance falls out of the merge for free (the engine already knows exactly what it applied), and correspondence reuses the baseline. Together they answer the discussion's consistency lint *within the delta model* (deltas are the source; specs are generated) rather than inverting it (specs as source, deltas as sidecar log) — which would reintroduce the edit-in-place problems of Decision 11.
+
+## Decision 13 — Spec-as-source-of-truth, incremental checking, and the spec linter
+
+**Context.** The discussion's end-state wish: treat *the spec* as the single source of truth ("new source code"), iterate on it directly, let tools "align the spec to implementation like a linter/formatter would," using "hashes to optimize when checks are needed," and reduce what gets committed to just the spec — treating proposal/design/tasks as "artifacts of an individual's workflow, not the product to commit." The framework's job becomes "how the spec looks and reads and is organized/formatted."
+
+**Decision.** Adopt the one part that is squarely in this PR's scope — **hash-optimized incremental checking** — and explicitly position the rest (spec linter/formatter; reduced artifact set) as adjacent, not folded in.
+
+**Adopt: incremental checking.** The applied-delta baseline already carries a per-spec digest. So `sync --check` (and the CI/pre-commit gate) can skip any spec whose content digest is unchanged since it was last reconciled, and re-check only what changed — exactly "use hashes to optimize when checks are needed." The correctness invariant: a skip is allowed *only* on an exact digest match against a recorded baseline; a mismatch, a missing baseline, or an unknown digest scheme forces a full check. So incremental mode is an optimization that can never change a verdict versus a full check — important for a gate. This makes the gate cheap enough to run on every commit even in a repo with hundreds of specs.
+
+**Reaffirm (with nuance): deltas + planning artifacts stay.** The wish to commit "only the spec" and treat design/tasks as disposable runs against the reason those artifacts exist: in OpenSpec they *are* the reviewable, resumable product — the agreement about behavior *before* code, and the context a fresh session (or a reader six months later) needs. The delta layer is, again, what keeps *proposed* separate from *shipped* and lets parallel changes stay isolated and individually reversible (Decisions 5, 11). The valid kernel — that not every change needs the full artifact set — is real but is already served *outside this PR* by schema flexibility (a change can run a minimal, spec-only schema); this PR neither needs nor changes that. Recorded here so the "just commit the spec" question has a documented answer.
+
+**Defer (delineated follow-up): the spec linter/formatter.** "How the spec looks, reads, and is organized" — a formatter (prettier-for-specs) and structural/organization lint — is a genuine, separable direction adjacent to `openspec-conventions` and `openspec validate`. This PR already contributes the half that belongs to the merge engine: its output specs are **canonical and byte-stable** (deterministic recomposition, newline normalization), so synced/archived specs have one well-defined form. A formatter for *authoring* input (deltas and hand-edited specs), and richer organization lint, are future work — not built here, to avoid overscoping an engine PR into an authoring-experience PR.
+
+**Why this split.** Incremental checking is a pure consequence of the digest this PR already records — high value, near-zero added surface. The formatter and the artifact-model questions are larger, separable products; folding them in would blur a focused engine PR. Adopt the kernel, document the boundary.
 
 ## Risks / trade-offs
 

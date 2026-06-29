@@ -185,3 +185,28 @@ Sync SHALL surface conflicts deterministically and early — at commit or PR tim
 
 - **WHEN** a change's deltas apply cleanly to the current base and no other active change targets the same requirements
 - **THEN** the conflict check passes
+
+### Requirement: Incremental Checking
+
+The check operation MAY use the recorded baseline digests to skip specs whose content is unchanged since they were last reconciled, so that checking cost scales with what changed rather than with repository size. A skip SHALL be permitted only when it cannot change the result versus a full check.
+
+#### Scenario: Unchanged spec is skipped
+
+- **WHEN** `--check` runs and a spec's current content digest matches the digest recorded in the baseline
+- **THEN** the command may skip re-checking that spec
+- **AND** the overall result is identical to checking it fully
+
+#### Scenario: Changed spec is re-checked
+
+- **WHEN** a spec's current content digest does not match the recorded baseline digest
+- **THEN** the command performs the full check for that spec
+
+#### Scenario: Missing or unknown baseline forces a full check
+
+- **WHEN** no baseline digest is recorded for a spec, or the recorded digest uses an unrecognized scheme
+- **THEN** the command performs the full check for that spec rather than skipping it
+
+#### Scenario: Incremental result equals full result
+
+- **WHEN** the same change is checked incrementally and with all skips disabled
+- **THEN** both runs reach the same pass or fail verdict

@@ -20,6 +20,8 @@
 - [ ] 2.6 Delta↔spec correspondence in `--check`: fail on an orphan spec edit (attributable to the change but matching no delta op) and on an unapplied delta (delta op not reflected in `specs/`); pass when both directions hold. (design Decision 12)
 - [ ] 2.7 Cross-change conflict detection in `--check` (design Decision 11): (a) delta-vs-base — a MODIFIED/REMOVED/RENAMED-from header absent from the current base (surfaces #1112 early); (b) cross-change — two active changes targeting the same requirement; report specifics, non-zero exit, no writes. Coordinate the cross-change check with [add-change-stacking-awareness](../add-change-stacking-awareness/proposal.md).
 - [ ] 2.8 Tests: provenance recorded + `--explain` mapping; orphan-edit and unapplied-delta both fail `--check`; delta-vs-base conflict fails with the right requirement; two active changes on one requirement flagged; clean case passes.
+- [ ] 2.9 Incremental checking (design Decision 13): `--check` skips a spec whose current digest matches the recorded baseline; re-checks on mismatch; forces a full check when the baseline is missing or its scheme is unrecognized. Add an escape hatch to disable skips (e.g. `--no-incremental`) for the equivalence test.
+- [ ] 2.10 Tests: unchanged spec skipped; changed spec re-checked; missing/unknown-scheme baseline → full check; **incremental verdict == full verdict** on the same input (the correctness invariant); a touched spec in a large fixture is the only one re-checked.
 
 ## 3. `openspec unarchive` (reverse, built on the baseline)
 
@@ -51,6 +53,7 @@
 - [ ] 6.1 Document the CI drift-gate pattern (`openspec sync --check` as a plain binary, no model/API keys) in `docs/`; provide a copy-paste job snippet. (Wiring the actual workflow file is the owner's call.)
 - [ ] 6.2 Document the pre-commit hook pattern (`sync --check` to detect, `sync --fix` to auto-remediate before `git commit --amend`), eslint-`--fix` style. (Choosing husky/lefthook/native is a separable follow-up; none exists in the repo today.)
 - [ ] 6.3 Document the **spec-aware git diff driver** follow-up (design Decision 12): a diff driver for spec files that follows the recorded provenance to splice each change's rationale inline. Out of scope to build here; capture the provenance shape it would consume so the follow-up is unblocked.
+- [ ] 6.4 Document the **spec linter/formatter** follow-up (design Decision 13): note that this PR makes synced/archived spec output canonical and byte-stable, and scope a separable authoring-side formatter + organization lint adjacent to `openspec-conventions`/`validate`. Out of scope to build here.
 
 ## 7. Docs & supersession
 
