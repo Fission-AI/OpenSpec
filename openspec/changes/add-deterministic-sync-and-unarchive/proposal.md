@@ -18,7 +18,7 @@ Verified against `Fission-AI/OpenSpec` at `main` (`546224e`, #1248) on 2026-06-2
 
 - **reverse** is a byte-exact restore of the pre-image (deterministic for every op, including REMOVED/MODIFIED) → `unarchive`;
 - **idempotent re-merge** is "reverse the old delta via the baseline, apply the new" → crumb-free `sync`;
-- **drift detection** is "current `specs/` digest ≠ baseline digest" (samholmes' "track the hash of the changes/ state applied to the spec") → a code-only gate for CI and a `sync --fix` pre-commit hook (the eslint-`--fix` analogy both arrived at).
+- **drift detection** is "current `specs/` digest ≠ baseline digest" (the discussion's "track the hash of the changes/ state applied to the spec") → a code-only gate for CI and a `sync --fix` pre-commit hook (the eslint-`--fix` analogy the discussion arrived at).
 
 Frozen into the archived folder, that baseline *is* the unarchive reversal snapshot. One primitive, three payoffs.
 
@@ -32,19 +32,23 @@ Design principle the whole thread converges on, and the one this project is alre
    - default / `--fix`: write `specs/` to the regenerated result (idempotent — re-running is a no-op; revising the delta regenerates with no crumbs);
    - `--check`: read-only; exit non-zero if the change's deltas are not cleanly appliable, or (when `specs/` has been synced) if committed `specs/` ≠ the regenerated output. This is the **codegen/IaC-style drift gate CI runs as a plain binary, no model, no API keys** — and the auto-fixer a `pre-commit` hook can call.
 
+   `--check` also surfaces conflicts **early** — at commit/PR time instead of at archive: a delta that no longer applies to the current base, or two active changes targeting the same requirement. This is the discussion's "force conflict resolution immediately rather than at a later merge step," delivered without abandoning the delta model (design Decision 11). And the engine records **provenance** — which change and delta op produced each spec edit — so every line in `specs/` traces to a delta, enabling a deterministic delta↔spec correspondence check (orphan edit / unapplied delta → fail) and a future spec-aware diff driver (design Decision 12).
+
 3. **REVERSE COMMAND — `openspec unarchive [change-name]` (`cli-unarchive` NEW).** The deterministic inverse of archive: resolve the archived folder (prefix-tolerant, never auto-picking among ambiguous matches), reverse the spec merge from the baseline under a **drift guard** (refuse rather than clobber a requirement a later change has since touched), move the folder back to `changes/<name>/`, **atomically** ("Abort. No files were changed."). `--keep-specs` restores the folder without touching `specs/` (the always-safe escape hatch, mirror of archive's `--skip-specs`). Changes archived before this feature have no baseline and degrade gracefully — reverse the self-invertible half (ADDED/RENAMED), refuse to guess the rest.
 
 4. **NO MODEL IN THE MERGE — skills delegate to the CLI (`specs-sync-skill` MODIFIED; `opsx-unarchive-skill` NEW).** `/opsx:sync` stops doing agent-driven edits and **invokes `openspec sync`**; the new `/opsx:unarchive` invokes `openspec unarchive`. The deterministic work lives in TypeScript; skills only select, confirm, and render. This is the direction [#863](https://github.com/Fission-AI/OpenSpec/issues/863)/[#799](https://github.com/Fission-AI/OpenSpec/issues/799)/[#656](https://github.com/Fission-AI/OpenSpec/issues/656) ask for, and it removes the [#1246](https://github.com/Fission-AI/OpenSpec/issues/1246) "intelligent merge drops scenarios" failure mode by construction.
 
 ### What this deliberately does *not* change
 
-samholmes proposed removing `archive` entirely — keep every change in its dated archive location for its whole life and fold the spec merge into `apply`. **Rejected, with the maintainer's reasoning, and it shapes the design:** `specs/` only ever describes *shipped* reality. Folding the merge into `apply` would let proposed-but-unmerged (or abandoned) changes pollute the source of truth and let parallel changes step on each other's specs before any land. So the archive boundary stays; what changes is that the merge across it becomes deterministic and reversible. The determinism is what makes the boundary cheap to cross in both directions, which is the real fix for the "awkward final step." (Full treatment in [design.md](./design.md) Decision 5.)
+The discussion proposed removing `archive` entirely — keep every change in its dated archive location for its whole life and fold the spec merge into `apply`. **Rejected, with the maintainer's reasoning, and it shapes the design:** `specs/` only ever describes *shipped* reality. Folding the merge into `apply` would let proposed-but-unmerged (or abandoned) changes pollute the source of truth and let parallel changes step on each other's specs before any land. So the archive boundary stays; what changes is that the merge across it becomes deterministic and reversible. The determinism is what makes the boundary cheap to cross in both directions, which is the real fix for the "awkward final step." (Full treatment in [design.md](./design.md) Decision 5.)
+
+The discussion also raised the deeper question — *are deltas just simulating, above git, what git already does?* — and the matching proposal to **edit `specs/` in place** (the git diff *is* the delta) with a sidecar reasoning log. **Also rejected, and likewise constructive:** the delta layer is precisely what a raw git diff cannot give — clean isolation of *proposed* from *shipped*, so `specs/` stays canonical while several in-flight changes remain independently reviewable until each lands (it is also what makes reversing a single change, i.e. `unarchive`, possible). But its sharpest argument — that editing the spec first forces conflict resolution *now* rather than at merge — is valid, so we **take that goal**: `sync --check` moves conflict detection early (design Decision 11), and provenance + correspondence give the "reasoning travels with the change, every edit is accounted for" property *within* the delta model rather than by inverting it (design Decision 12).
 
 ## Capabilities
 
 ### New Capabilities
 
-- `cli-sync`: the deterministic, idempotent spec-merge engine exposed as `openspec sync [change]` — `--fix`/default writes `specs/` from the change's deltas (byte-identical for the same delta + base; re-running is a no-op; a revised delta regenerates with no crumbs), `--check` is a read-only, model-free drift gate for CI and pre-commit hooks. Records a per-change applied-delta baseline (pre-image + digest) that also powers reverse and drift detection. The same engine `archive` uses internally.
+- `cli-sync`: the deterministic, idempotent spec-merge engine exposed as `openspec sync [change]` — `--fix`/default writes `specs/` from the change's deltas (byte-identical for the same delta + base; re-running is a no-op; a revised delta regenerates with no crumbs), `--check` is a read-only, model-free gate for CI and pre-commit hooks that also surfaces conflicts early (delta-vs-base, and two active changes targeting one requirement) and verifies delta↔spec correspondence. Records a per-change applied-delta baseline (pre-image + digest + provenance) that powers reverse, drift detection, and tracing each spec edit to its delta. The same engine `archive` uses internally.
 - `cli-unarchive`: `openspec unarchive [change-name]` — the deterministic inverse of archive. Resolves an archived change (prefix-tolerant, never auto-picking ambiguous matches), reverses the spec merge from the baseline under a drift guard, moves the folder back, atomically. `--keep-specs` restores the folder without touching `specs/`; pre-baseline archives degrade gracefully.
 - `opsx-unarchive-skill`: a `/opsx:unarchive` workflow skill that delegates to `openspec unarchive` for all deterministic work (selection, confirmation, rendering only). Expanded profile; no cross-skill dependency.
 
@@ -77,8 +81,8 @@ Delivers (the Discord conclusions):
 
 - **Deterministic, code-only sync path** *("the right fix is a deterministic, code-only openspec sync/archive path that CI can run as a plain binary… I'll fold this into the unarchive PR")* → `openspec sync` + `--check`.
 - **`openspec unarchive` / `/opsx:unarchive`** that "moves the folder back and reverses the spec merge," including the hard case where the archive is buried in a multi-file commit.
-- **Idempotent, crumb-free regeneration** and the **`sync --fix` pre-commit hook** *(samholmes' "sync is a lint step… eslint --fix", Clay's "sync acts as the auto-fixer")*.
-- **Hash-tracked drift** *(samholmes' "track the hash of the changes/ state applied to the spec")* → the baseline digest.
+- **Idempotent, crumb-free regeneration** and the **`sync --fix` pre-commit hook** *(the discussion's "sync is a lint step… eslint --fix" / "sync acts as the auto-fixer")*.
+- **Hash-tracked drift** *(the discussion's "track the hash of the changes/ state applied to the spec")* → the baseline digest.
 
 Directly fixes / strengthens:
 
@@ -94,9 +98,15 @@ Delineated from adjacent work (coordinate, don't collide):
 - [add-change-stacking-awareness](../add-change-stacking-awareness/proposal.md) — planning-time archive ordering. Unarchive's drift guard and sync's idempotency are the runtime spec-layer counterpart; the two compose.
 - [#704](https://github.com/Fission-AI/OpenSpec/issues/704)/[#682](https://github.com/Fission-AI/OpenSpec/issues/682) (archive hooks), [#709](https://github.com/Fission-AI/OpenSpec/issues/709) (`git mv`) — symmetric `unarchive` hook points and a shared `moveDirectory()` make a future switch cover both directions.
 
+Deferred follow-ups (enabled by this PR, not built here):
+
+- **Spec-aware git diff driver** — a diff driver for spec files that follows the recorded provenance to splice each change's rationale inline, so reviewers see *what changed and why together* (the discussion's idea). This PR ships the data (provenance) and the correspondence check; the diff driver is a separable follow-up (design Decision 12).
+- **CI drift gate + pre-commit `sync --fix` hook** — the CLI primitives (`--check`/`--fix`) are in scope; wiring a hook runner (none exists in the repo) or a CI job is staged (design Decision 4).
+
 Considered and rejected (documented in design):
 
-- **Remove `archive`; fold the merge into `apply`; edit changes in place in dated dirs** (samholmes' proposal). Rejected to preserve the invariant that `specs/` describes only shipped reality (design Decision 5).
+- **Remove `archive`; fold the merge into `apply`** (raised in the discussion). Rejected to preserve the invariant that `specs/` describes only shipped reality (design Decision 5).
+- **Edit `specs/` in place; treat the git diff as the delta; keep semantic deltas in a sidecar log** (raised in the discussion). Rejected because the delta layer is what isolates *proposed* from *shipped* and makes parallel changes and single-change reverse possible; its valid kernel (early conflict resolution, reasoning-with-the-change) is adopted via `sync --check` conflict detection and provenance/correspondence instead (design Decisions 11–12).
 
 Related, out of scope (referenced, not closed):
 

@@ -125,6 +125,63 @@ The sync command SHALL support `--json` for non-interactive use, emitting machin
 
 #### Scenario: JSON blocked path
 
-- **WHEN** `openspec sync <name> --json` cannot proceed (no change, deltas not appliable, or drift under `--check`)
+- **WHEN** `openspec sync <name> --json` cannot proceed (no change, deltas not appliable, conflict, or drift under `--check`)
 - **THEN** it emits a machine-readable diagnostic with a stable code
 - **AND** exits with a non-zero status code
+
+### Requirement: Change Provenance
+
+When sync applies a change's deltas to `openspec/specs/`, it SHALL record, for each resulting spec change, which change and which delta operation produced it, so that any spec content can be traced back to its source delta.
+
+#### Scenario: Provenance recorded on apply
+
+- **WHEN** sync applies a delta operation (ADDED/MODIFIED/REMOVED/RENAMED) that changes a spec
+- **THEN** it records, with the applied-delta baseline, the originating change name and the delta operation that produced that spec change
+
+#### Scenario: Explainability
+
+- **WHEN** the user runs sync with an explain option (for example `openspec sync <name> --explain` or `--json`)
+- **THEN** the output associates each affected requirement with the change and delta operation that produced it
+- **AND** it does not re-author rationale prose (the change's `proposal.md` remains the source of the "why")
+
+### Requirement: Delta–Spec Correspondence
+
+In `--check` mode, sync SHALL verify a two-way correspondence between a change's deltas and the committed `openspec/specs/` content: every spec change attributable to the change traces to one of its delta operations, and every delta operation has landed in the specs.
+
+#### Scenario: Orphan spec edit detected
+
+- **WHEN** `--check` finds a change to `openspec/specs/` attributable to the change that does not correspond to any of its delta operations
+- **THEN** the command reports the unexplained spec change
+- **AND** it exits with a non-zero status code and modifies no files
+
+#### Scenario: Unapplied delta detected
+
+- **WHEN** `--check` finds a delta operation that has not been reflected in `openspec/specs/`
+- **THEN** the command reports the unapplied delta
+- **AND** it exits with a non-zero status code and modifies no files
+
+#### Scenario: Correspondence holds
+
+- **WHEN** every spec change traces to a delta operation and every delta operation has landed
+- **THEN** the correspondence check passes
+
+### Requirement: Cross-Change Conflict Detection
+
+Sync SHALL surface conflicts deterministically and early — at commit or PR time rather than only at archive — including when a change's deltas no longer apply to the current base specs and when two active changes target the same requirement.
+
+#### Scenario: Delta no longer applies to the current base
+
+- **WHEN** `--check` runs and a change's MODIFIED, REMOVED, or RENAMED-from header is absent from the current base spec (for example, the base moved since the delta was authored)
+- **THEN** the command reports the conflict with the specific requirement
+- **AND** it exits with a non-zero status code and modifies no files
+
+#### Scenario: Two active changes target the same requirement
+
+- **WHEN** `--check` runs across active changes and more than one active change modifies, removes, or renames the same requirement
+- **THEN** the command reports the overlapping changes and requirement as a potential conflict to resolve before archiving
+- **AND** it exits with a non-zero status code
+
+#### Scenario: No conflicts
+
+- **WHEN** a change's deltas apply cleanly to the current base and no other active change targets the same requirements
+- **THEN** the conflict check passes

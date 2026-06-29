@@ -16,6 +16,10 @@
 - [ ] 2.2 `--check`: read-only; exit non-zero when deltas are not cleanly appliable to the base, or (when `specs/` was synced) when committed `specs/` ≠ regenerated output. Never writes `specs/`. Support `--all`/`--changes` style fan-out for CI (or document the loop).
 - [ ] 2.3 Register `sync [change]` in [src/cli/index.ts](../../../src/cli/index.ts) (`--check`, `--fix`, `--json`, `--store`, hidden store-path), mirroring archive (326-343).
 - [ ] 2.4 Tests: write produces deterministic `specs/`; `--check` clean vs drifted exit codes; `--check` never mutates; unknown/ambiguous change diagnostics; JSON shape on success and each blocked path.
+- [ ] 2.5 Provenance: record, with the baseline, the originating change + delta operation for each applied spec change; add an `--explain` (and JSON) output that maps each affected requirement to its source delta. Do not re-author rationale (link to the change's `proposal.md`). (design Decision 12)
+- [ ] 2.6 Delta↔spec correspondence in `--check`: fail on an orphan spec edit (attributable to the change but matching no delta op) and on an unapplied delta (delta op not reflected in `specs/`); pass when both directions hold. (design Decision 12)
+- [ ] 2.7 Cross-change conflict detection in `--check` (design Decision 11): (a) delta-vs-base — a MODIFIED/REMOVED/RENAMED-from header absent from the current base (surfaces #1112 early); (b) cross-change — two active changes targeting the same requirement; report specifics, non-zero exit, no writes. Coordinate the cross-change check with [add-change-stacking-awareness](../add-change-stacking-awareness/proposal.md).
+- [ ] 2.8 Tests: provenance recorded + `--explain` mapping; orphan-edit and unapplied-delta both fail `--check`; delta-vs-base conflict fails with the right requirement; two active changes on one requirement flagged; clean case passes.
 
 ## 3. `openspec unarchive` (reverse, built on the baseline)
 
@@ -46,6 +50,7 @@
 
 - [ ] 6.1 Document the CI drift-gate pattern (`openspec sync --check` as a plain binary, no model/API keys) in `docs/`; provide a copy-paste job snippet. (Wiring the actual workflow file is the owner's call.)
 - [ ] 6.2 Document the pre-commit hook pattern (`sync --check` to detect, `sync --fix` to auto-remediate before `git commit --amend`), eslint-`--fix` style. (Choosing husky/lefthook/native is a separable follow-up; none exists in the repo today.)
+- [ ] 6.3 Document the **spec-aware git diff driver** follow-up (design Decision 12): a diff driver for spec files that follows the recorded provenance to splice each change's rationale inline. Out of scope to build here; capture the provenance shape it would consume so the follow-up is unblocked.
 
 ## 7. Docs & supersession
 

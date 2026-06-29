@@ -2,7 +2,7 @@
 
 ## Context
 
-OpenSpec's spec merge (delta → `specs/`) is reached two ways today: deterministically but only *inside* `openspec archive` (fused to the folder move), or by an AI agent in `/opsx:sync` that "directly edits main specs." The standalone deterministic apply (`applySpecs()`, [src/core/specs-apply.ts:391](../../../src/core/specs-apply.ts)) has zero callers. The Discord thread (samholmes ↔ Clay, 2026-06) worked from "add unarchive" to a single root cause: **the merge must be deterministic, idempotent, and reversible pure code, exposed as commands** — then unarchive, a code-only CI drift gate, a `sync --fix` pre-commit hook, and crumb-free re-merge all fall out of one primitive.
+OpenSpec's spec merge (delta → `specs/`) is reached two ways today: deterministically but only *inside* `openspec archive` (fused to the folder move), or by an AI agent in `/opsx:sync` that "directly edits main specs." The standalone deterministic apply (`applySpecs()`, [src/core/specs-apply.ts:391](../../../src/core/specs-apply.ts)) has zero callers. The design discussion (2026-06) worked from "add unarchive" to a single root cause: **the merge must be deterministic, idempotent, and reversible pure code, exposed as commands** — then unarchive, a code-only CI drift gate, a `sync --fix` pre-commit hook, and crumb-free re-merge all fall out of one primitive.
 
 This design covers that primitive and the commands built on it. It supersedes the earlier "unarchive + separable CI companion" framing of this PR: the deterministic engine is no longer a companion, it is the spine.
 
@@ -13,12 +13,15 @@ This design covers that primitive and the commands built on it. It supersedes th
 - Idempotent: re-running `sync` is a no-op; revising a delta regenerates `specs/` with no crumbs.
 - Reversible: `unarchive` restores `specs/` exactly and moves the folder back, atomically.
 - Code-only drift detection (`sync --check`) usable by CI and a pre-commit hook — no model, no API keys.
+- Early, deterministic conflict detection (delta-vs-base and cross-change) at commit/PR time, not at archive (Decision 11).
+- Per-edit provenance and a delta↔spec correspondence check, within the delta model (Decision 12).
 - Skills delegate the merge to the CLI; the agent never performs it.
 - Backward compatible with changes archived (and specs synced) before this feature.
 
 **Non-Goals**
-- Removing or replacing the `archive` lifecycle boundary (Decision 5).
+- Removing or replacing the `archive` lifecycle boundary, or editing `specs/` in place instead of via deltas (Decisions 5, 11).
 - Folding the spec merge into `apply` (Decision 5).
+- Building the spec-aware git diff driver (Decision 12 — provenance data is in scope; the diff driver is a deferred follow-up).
 - Wiring a specific hook runner or CI job into this repo (primitives in scope; config staged — Decision 4).
 - A scenario-granular "smart" merge (Decision 8 — the conventions mandate whole-requirement deltas; whole-block apply is the correct, deterministic semantics).
 - Bulk `sync`/`unarchive`, archive-folder prefix scheme, lifecycle timestamps — out of scope, accommodated.
@@ -30,7 +33,7 @@ This design covers that primitive and the commands built on it. It supersedes th
 **Why one primitive.** The three asks in the thread are the same computation viewed three ways:
 - **Reverse** (`unarchive`) = restore the pre-image. Deterministic for *every* op, including the REMOVED/MODIFIED ones the delta alone cannot invert.
 - **Idempotent re-merge** (`sync` after a delta revision) = `specs_new = apply(delta_new, base)` where `base = current specs with delta_old reversed` (via the pre-image). This is the "no leftover crumbs" guarantee — the prior revision's contribution is removed, not layered over.
-- **Drift** (`sync --check`, the hook, CI) = current `specs/` digest ≠ baseline digest. This is samholmes' "track the hash of the changes/ state applied to the spec," made precise.
+- **Drift** (`sync --check`, the hook, CI) = current `specs/` digest ≠ baseline digest. This is the discussion's "track the hash of the changes/ state applied to the spec," made precise.
 
 Building three mechanisms would invite three drift bugs. Building one — the pre-image + digest — and deriving the rest is why this is the spine.
 
@@ -63,7 +66,7 @@ Building three mechanisms would invite three drift bugs. Building one — the pr
 
 ## Decision 5 — Keep the `archive` boundary; reject folding the merge into `apply`
 
-**Decision.** The lifecycle boundary stays: `specs/` is written at `sync`/`archive`, and `archive` remains the "fold finished change into shipped specs, then move the folder" step. Reject samholmes' proposal to remove `archive`, keep every change in a dated archive dir for its whole life, and make `apply` do both code and spec application.
+**Decision.** The lifecycle boundary stays: `specs/` is written at `sync`/`archive`, and `archive` remains the "fold finished change into shipped specs, then move the folder" step. Reject the proposal to remove `archive`, keep every change in a dated archive dir for its whole life, and make `apply` do both code and spec application.
 
 **Why.** The invariant that pays for OpenSpec's value is **`specs/` describes only shipped reality**. Folding the merge into `apply` would (a) pollute the source of truth with proposed-but-unmerged or abandoned changes, and (b) let parallel changes overwrite each other's specs before any lands. The thread's own resolution: the awkwardness of the "final archive step" is not the boundary's fault, it is the *non-determinism* of crossing it. Make the crossing deterministic and reversible (Decisions 1–3) and the boundary becomes cheap in both directions — which is the actual fix. This is why determinism, not deletion, is the spine of this PR.
 
@@ -95,6 +98,26 @@ Building three mechanisms would invite three drift bugs. Building one — the pr
 
 - **Move**: reuse `moveDirectory()`/`copyDirRecursive()` ([src/core/archive.ts:96-128](../../../src/core/archive.ts)) and their Windows fallbacks ([#605](https://github.com/Fission-AI/OpenSpec/pull/605)). A future `git mv` ([#709](https://github.com/Fission-AI/OpenSpec/issues/709)) covers both directions through this one helper.
 - **Metadata**: archive persists no `archived` timestamp today (only the folder-name prefix). If [#1245](https://github.com/Fission-AI/OpenSpec/issues/1245) lands one, `unarchive` should null it on restore — noted, not built.
+
+## Decision 11 — Keep deltas; don't edit specs in place — and get early conflict resolution anyway
+
+**Context.** The discussion pushed a deeper question than "remove archive": *are we simulating deltas above git when git already stores deltas?* The proposed alternative: edit `specs/` in place (the git diff **is** the delta), drop the delta folder, and keep the "why" in a sidecar reasoning log; `sync` becomes a lint that checks spec-edits against log entries. Its sharpest argument is about **timing**: if in-flight changes are deltas applied at archive, conflicts surface late, at merge; editing the spec first "forces conflict resolution immediately."
+
+**Decision.** Keep the delta layer; do **not** make in-flight edits directly to `specs/`. But **adopt the timing argument's goal** by moving conflict detection earlier with `sync --check` (Decision 12).
+
+**Why keep deltas.** The delta layer is exactly what a raw git diff cannot give you: a clean separation between **proposed** and **shipped**. `specs/` always describes reality; multiple in-flight changes stay isolated and independently reviewable until each lands. Edit-in-place collapses that — proposed-but-unmerged or abandoned edits sit in the source of truth, and N parallel changes mutate the same files, so the only place conflicts can be resolved is one big merge at the end. The delta model makes each change a self-contained, reviewable unit and is what makes `unarchive` (reverse one change) and isolation-preserving parallelism *possible at all*. Git stores byte deltas; OpenSpec's deltas are behavioral agreements one level up — they answer *why* and *what-should-be* before code exists, which a diff cannot.
+
+**The synthesis — adopt the valid kernel.** The timing concern is real and we take it: rather than discovering at archive that a delta no longer applies (or that two changes touched the same requirement), `sync --check` surfaces those conflicts at commit/PR time, deterministically, as a plain binary (Decision 12, "Cross-Change Conflict Detection"). So we get "resolve conflicts immediately" **without** sacrificing proposed-vs-shipped isolation. This is the same shape as Decision 5: adopt the goal, reject the mechanism that would break the invariant.
+
+## Decision 12 — Provenance, delta↔spec correspondence, and the spec-aware diff driver (deferred)
+
+**Context.** The discussion also wanted the "why" to travel with the "what": a reasoning log spliced inline so a reviewer sees *what changed and why together* ("git as the delta store plus a spec-aware diff driver that splices the reasoning log inline"), and a consistency lint where a spec change with no log entry — or a log entry with no spec change — fails.
+
+**Decision.** Record **provenance** as part of the applied-delta baseline: when the engine writes a spec change, it records which change and which delta operation produced it. Expose it (e.g. `openspec sync --explain` / a provenance entry). Use it for a deterministic **delta↔spec correspondence** check in `sync --check`: every committed `specs/` edit for a change must trace to one of its delta operations (no orphan edits), and every delta operation must have landed (no unapplied deltas). The prose "why" is not re-authored — provenance links each spec edit to its change, whose `proposal.md` already holds the rationale.
+
+**Deferred (delineated follow-up): the spec-aware git diff driver.** A `git diff` driver for spec files that follows the provenance link and splices the change's rationale inline is a genuinely useful, separable feature. This PR delivers the **data** (provenance in the baseline) and the **check** (correspondence); the **presentation** (diff driver, custom textconv/diff attributes) is a follow-up — the same primitives-in-scope / wiring-staged split as the CI hook (Decision 4). Building a diff driver into a sync/unarchive PR would overscope it.
+
+**Why this is the right slice.** Provenance falls out of the merge for free (the engine already knows exactly what it applied), and correspondence reuses the baseline. Together they answer the discussion's consistency lint *within the delta model* (deltas are the source; specs are generated) rather than inverting it (specs as source, deltas as sidecar log) — which would reintroduce the edit-in-place problems of Decision 11.
 
 ## Risks / trade-offs
 
