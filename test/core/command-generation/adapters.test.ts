@@ -18,8 +18,8 @@ import { geminiAdapter } from '../../../src/core/command-generation/adapters/gem
 import { githubCopilotAdapter } from '../../../src/core/command-generation/adapters/github-copilot.js';
 import { iflowAdapter } from '../../../src/core/command-generation/adapters/iflow.js';
 import { kilocodeAdapter } from '../../../src/core/command-generation/adapters/kilocode.js';
-import { opencodeAdapter } from '../../../src/core/command-generation/adapters/opencode.js';
 import { ohMyPiAdapter } from '../../../src/core/command-generation/adapters/oh-my-pi.js';
+import { opencodeAdapter } from '../../../src/core/command-generation/adapters/opencode.js';
 import { piAdapter } from '../../../src/core/command-generation/adapters/pi.js';
 import { qoderAdapter } from '../../../src/core/command-generation/adapters/qoder.js';
 import { qwenAdapter } from '../../../src/core/command-generation/adapters/qwen.js';
