@@ -55,39 +55,20 @@ ${STORE_SELECTION_GUIDANCE}
 
    **If no tasks file exists:** Proceed without task-related warning.
 
-4. **Assess delta spec sync state**
+4. **Archive via the \`openspec archive\` CLI**
 
-   Use \`artifactPaths.specs.existingOutputPaths\` from status JSON to check for delta specs. If none exist, proceed without sync prompt.
-
-   **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at \`openspec/specs/<capability>/spec.md\`
-   - Determine what changes would be applied (adds, modifications, removals, renames)
-   - Show a combined summary before prompting
-
-   **Prompt options:**
-   - If changes needed: "Sync now (recommended)", "Archive without syncing"
-   - If already synced: "Archive now", "Sync anyway", "Cancel"
-
-   If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
-
-5. **Perform the archive**
-
-   Create an \`archive\` directory under \`planningHome.changesDir\` if it doesn't exist:
+   Run the archive through the CLI — it deterministically validates the change, syncs delta specs into \`openspec/specs/\`, and moves the change to the archive folder. Do NOT assess sync state yourself, move files, or merge specs by hand:
    \`\`\`bash
-   mkdir -p "<planningHome.changesDir>/archive"
+   openspec archive "<name>" --json --yes
    \`\`\`
 
-   Generate target name using current date: \`YYYY-MM-DD-<change-name>\`
+   - **On success**: the JSON result includes \`archivedAs\`, \`path\`, and \`specsUpdated\` (with add/modify/remove/rename totals when specs were synced). Use these for the summary.
+   - **On a block** (non-zero exit with a \`status\` diagnostic): the change was NOT archived and nothing was moved. Surface the diagnostic, fix the cause, then re-run \`openspec archive\`:
+     - Missing or partial delta specs, or a spec written as a full spec (\`## Purpose\`/\`## Requirements\`) instead of a delta (\`## ADDED/MODIFIED/REMOVED/RENAMED Requirements\`): create or fix the delta spec at \`changes/<name>/specs/<capability>/spec.md\`.
+     - Incomplete tasks: complete them, or re-run only if the user confirms.
+   - Do NOT bypass a validation block with \`--skip-specs\` or \`--no-validate\`. Use \`--skip-specs\` only when the user explicitly confirms the change has no specs to sync. Trust the CLI's exit status; never self-certify that specs are synced.
 
-   **Check if target already exists:**
-   - If yes: Fail with error, suggest renaming existing archive or using different date
-   - If no: Move \`changeRoot\` to the archive directory
-
-   \`\`\`bash
-   mv "<changeRoot>" "<planningHome.changesDir>/archive/YYYY-MM-DD-<name>"
-   \`\`\`
-
-6. **Display summary**
+5. **Display summary**
 
    Show archive completion summary including:
    - Change name
@@ -115,8 +96,8 @@ All artifacts complete. All tasks complete.
 - Don't block archive on warnings - just inform and confirm
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
 - Show clear summary of what happened
-- If sync is requested, use openspec-sync-specs approach (agent-driven)
-- If delta specs exist, always run the sync assessment and show the combined summary before prompting`,
+- Archive only via \`openspec archive\`; never move the change with \`mv\` or merge specs yourself
+- Never bypass a validation block with \`--skip-specs\`/\`--no-validate\`; on a block, fix the delta spec and re-run \`openspec archive\``,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
@@ -173,39 +154,20 @@ ${STORE_SELECTION_GUIDANCE}
 
    **If no tasks file exists:** Proceed without task-related warning.
 
-4. **Assess delta spec sync state**
+4. **Archive via the \`openspec archive\` CLI**
 
-   Use \`artifactPaths.specs.existingOutputPaths\` from status JSON to check for delta specs. If none exist, proceed without sync prompt.
-
-   **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at \`openspec/specs/<capability>/spec.md\`
-   - Determine what changes would be applied (adds, modifications, removals, renames)
-   - Show a combined summary before prompting
-
-   **Prompt options:**
-   - If changes needed: "Sync now (recommended)", "Archive without syncing"
-   - If already synced: "Archive now", "Sync anyway", "Cancel"
-
-   If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
-
-5. **Perform the archive**
-
-   Create an \`archive\` directory under \`planningHome.changesDir\` if it doesn't exist:
+   Run the archive through the CLI — it deterministically validates the change, syncs delta specs into \`openspec/specs/\`, and moves the change to the archive folder. Do NOT assess sync state yourself, move files, or merge specs by hand:
    \`\`\`bash
-   mkdir -p "<planningHome.changesDir>/archive"
+   openspec archive "<name>" --json --yes
    \`\`\`
 
-   Generate target name using current date: \`YYYY-MM-DD-<change-name>\`
+   - **On success**: the JSON result includes \`archivedAs\`, \`path\`, and \`specsUpdated\` (with add/modify/remove/rename totals when specs were synced). Use these for the summary.
+   - **On a block** (non-zero exit with a \`status\` diagnostic): the change was NOT archived and nothing was moved. Surface the diagnostic, fix the cause, then re-run \`openspec archive\`:
+     - Missing or partial delta specs, or a spec written as a full spec (\`## Purpose\`/\`## Requirements\`) instead of a delta (\`## ADDED/MODIFIED/REMOVED/RENAMED Requirements\`): create or fix the delta spec at \`changes/<name>/specs/<capability>/spec.md\`.
+     - Incomplete tasks: complete them, or re-run only if the user confirms.
+   - Do NOT bypass a validation block with \`--skip-specs\` or \`--no-validate\`. Use \`--skip-specs\` only when the user explicitly confirms the change has no specs to sync. Trust the CLI's exit status; never self-certify that specs are synced.
 
-   **Check if target already exists:**
-   - If yes: Fail with error, suggest renaming existing archive or using different date
-   - If no: Move \`changeRoot\` to the archive directory
-
-   \`\`\`bash
-   mv "<changeRoot>" "<planningHome.changesDir>/archive/YYYY-MM-DD-<name>"
-   \`\`\`
-
-6. **Display summary**
+5. **Display summary**
 
    Show archive completion summary including:
    - Change name
@@ -280,7 +242,7 @@ Target archive directory already exists.
 - Don't block archive on warnings - just inform and confirm
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
 - Show clear summary of what happened
-- If sync is requested, use the Skill tool to invoke \`openspec-sync-specs\` (agent-driven)
-- If delta specs exist, always run the sync assessment and show the combined summary before prompting`
+- Archive only via \`openspec archive\`; never move the change with \`mv\` or merge specs yourself
+- Never bypass a validation block with \`--skip-specs\`/\`--no-validate\`; on a block, fix the delta spec and re-run \`openspec archive\``
   };
 }

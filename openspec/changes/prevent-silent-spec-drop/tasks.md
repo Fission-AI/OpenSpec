@@ -22,14 +22,14 @@
 
 ## 2. Fix the loop at the source
 
-- [ ] 2.1 Harden `src/core/templates/workflows/propose.ts` and `ff-change.ts`: define loop termination as "every `apply.requires` artifact has status `done`" (read live from `openspec status`), so the loop cannot stop at `tasks.md` while `specs` is absent. The apply gate is non-transitive — the schema change (`apply.requires: [specs, tasks]`) is the deterministic lever; do NOT add `design` (it stays optional, by design)
-- [ ] 2.2 Verify the apply skill's existing `state: blocked` handler (`apply-change.ts:52`) now fires for missing specs via the schema gate; confirm a `design`-less change still passes apply (conditional-design preserved); adjust wording if needed
+- [x] 2.1 Harden `src/core/templates/workflows/propose.ts` and `ff-change.ts`: define loop termination as "every `apply.requires` artifact has status `done`" (read live from `openspec status`), so the loop cannot stop at `tasks.md` while `specs` is absent. The apply gate is non-transitive — the schema change (`apply.requires: [specs, tasks]`) is the deterministic lever; do NOT add `design` (it stays optional, by design)
+- [x] 2.2 Verify the apply skill's existing `state: blocked` handler (`apply-change.ts:52`) now fires for missing specs via the schema gate; confirm a `design`-less change still passes apply (conditional-design preserved); adjust wording if needed
 
 ## 3. Keystone — archive skill calls the CLI (test heavily)
 
-- [ ] 3.1 Rework ALL archive templates — both `getArchiveChangeSkillTemplate` and `getOpsxArchiveCommandTemplate` in `archive-change.ts`, and both templates in `bulk-archive-change.ts` — replacing the agent-judged "assess sync state" step and the raw `mkdir`+`mv` with a single `openspec archive --json` invocation (`--yes` to suppress prompts; never `--skip-specs` or `--no-validate`)
-- [ ] 3.2 Handle the structured result: success summary (specs synced, totals, path) from the CLI output; on `ArchiveBlockedError`, surface the diagnostic and guide the user to create/fix the delta spec, then re-run and trust the exit; never self-certify
-- [ ] 3.3 Ensure `--skip-specs`/`--no-validate` are only ever used on explicit user intent, never to bypass a block
+- [x] 3.1 Rework ALL archive templates — both `getArchiveChangeSkillTemplate` and `getOpsxArchiveCommandTemplate` in `archive-change.ts`, and both templates in `bulk-archive-change.ts` — replacing the agent-judged "assess sync state" step and the raw `mkdir`+`mv` with a single `openspec archive --json` invocation (`--yes` to suppress prompts; never `--skip-specs` or `--no-validate`)
+- [x] 3.2 Handle the structured result: success summary (specs synced, totals, path) from the CLI output; on `ArchiveBlockedError`, surface the diagnostic and guide the user to create/fix the delta spec, then re-run and trust the exit; never self-certify
+- [x] 3.3 Ensure `--skip-specs`/`--no-validate` are only ever used on explicit user intent, never to bypass a block
 - [ ] 3.4 Add a template-parity assertion for EACH of the four templates that it invokes `openspec archive` and contains no raw `mv`
 
 ## 4. Recovery audit (detection, not regeneration)
