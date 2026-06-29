@@ -1,0 +1,86 @@
+## Why
+
+A spec-driven change can finish the whole workflow — propose, implement, archive — while **silently leaving `openspec/specs/` stale**, with no error and no recovery path. It is the most-reported correctness defect in the tracker.
+
+The root fault is singular: **correctness-critical decisions live in agent prompts, not deterministic CLI logic.** The propose/ff loop stops at `applyRequires` (which excludes `specs`); the archive skill bypasses `openspec archive` (raw `mv` + agent-judged sync); and archive gates its own validation on `if (hasDeltaSpecs)` — skipping the check exactly when specs are missing. That hides three silent drop modes: **total** (no `specs/`), **partial** (declares `a,b,c`, ships only `a`), and **format** (a full `## Purpose` spec where a `## ADDED Requirements` delta belongs). The fix must not over-correct: schemas that legitimately produce no deltas (#997) must stay valid.
+
+Full analysis, reproductions, and decisions are in [`design.md`](./design.md).
+
+## What Changes
+
+One deterministic definition of change completeness, enforced in the **CLI**, with the **skills reduced to thin wrappers that call the CLI** instead of judging. Ordered by leverage:
+
+1. **PRIMARY — fix the loop deterministically.** `spec-driven` `apply.requires: [specs, tasks]` (the fix #1212's author and #1250's reviewer both endorse). The apply gate is a **non-transitive** presence check — it checks only the artifacts named in `apply.requires`, not their transitive `requires` — which is exactly why a change with `tasks.md` but no `specs/` reads as *ready* today (only `tasks` is checked). Naming `specs` directly fixes it, and the apply skill's *existing* blocked-state handler (`apply-change.ts:52`) finally fires. `design` is deliberately left out of `apply.requires`, so "skip design for simple changes" keeps working — by design, not accident. The propose/ff skill is hardened narrowly: define loop termination as "every `apply.requires` artifact is `done`" so it can't stop at `tasks.md` while `specs` is absent. The schema change is the deterministic guarantee. (Incorporates #1250.)
+
+2. **KEYSTONE — the archive skill calls `openspec archive`.** Rework `opsx-archive-skill` to delegate archiving and spec sync to the CLI (`openspec archive --json`), which validates, merges deltas, and blocks deterministically. Remove the agent-judged "assess sync state / proceed without sync" and the raw `mv` — from **all** archive surfaces: both templates in `archive-change.ts` (the `openspec-archive-change` skill *and* the `/opsx:archive` command) and both in `bulk-archive-change.ts`; leaving any one on `mv` keeps the bypass alive. On a block, the skill surfaces the structured error and helps the user create/fix the delta spec — it never bypasses with `--skip-specs` *or* `--no-validate`, and it trusts the CLI's exit rather than self-certifying. This makes every CLI guarantee below actually reachable by agents. (#656, #863)
+
+3. **CLI gate — `validate` and `archive` share one schema-aware delta gate.** Replace archive's `if (hasDeltaSpecs)` gate with `!options.skipSpecs`, running delta validation + capability coverage, and apply the **same** gate to `openspec validate` (which today runs `validateChangeDeltaSpecs` unconditionally). This blocks all three drop modes (total via `CHANGE_NO_DELTAS`; partial via coverage; format via the existing "No delta sections found" error) in both commands. The requirement applies via one shared predicate `schemaProducesDeltaSpecs(schema)` — true only when the schema graph **produces delta specs** — so a proposal-only schema passes both `validate` and `archive`, while a spec-driven change with no specs fails both (#997). Without gating `validate` too, the two commands would disagree again — exactly the seam this change closes.
+
+4. **Partial-drop coverage (deterministic).** A new validator rule parses the proposal's `## Capabilities` and requires every declared capability to have a `specs/<id>/spec.md` *present*; delta well-formedness (including the format-drop case) is enforced by the existing delta validation. One-directional, schema-aware, surfaced in `validate`, CI, and `archive`.
+
+5. **Apply enforcement (earlier guardrail).** `openspec instructions apply` exits non-zero when blocked. (Incorporates #1250.)
+
+6. **Recovery — make existing drift detectable.** A deterministic audit (`openspec validate --changes` plus a check for archived changes whose declared capabilities never reached `openspec/specs/`) so teams who already accumulated silent drift (#1212's "no recovery path") can find it. Regenerating lost spec *content* from a finished implementation is inherently agent-assisted and is explicitly out of scope; detection + guidance is in scope.
+
+7. **Clarity (coherence, not enforcement).** Correct the delta-vs-full-spec confusion in the specs artifact instruction and archive skill so agents and users stop conflating "a `spec.md` exists / tasks are done" with "specs are synced." (#426, #194, #164, Discord)
+
+The deterministic CLI checks (3–5) are the guarantee; the skill/schema/docs changes (1, 2, 7) make the happy path work and remove agent judgment from the critical paths. The keystone (2) is what makes (3–5) reachable at all.
+
+## Capabilities
+
+### Modified Capabilities
+
+- `opsx-archive-skill`: The archive skill delegates archiving and spec sync to the `openspec archive` CLI (deterministic validation + delta merge) instead of judging sync state and moving files itself; on a validation block it guides the user to fix the delta spec rather than bypassing.
+- `cli-archive`: Archive validation runs delta-spec validation and declared-capability coverage consistently with `openspec validate` unless `--skip-specs`, applies only to schemas whose graph includes a `specs` artifact, and blocks total, partial, and non-delta-format spec drops.
+- `cli-validate`: Delta-spec validation (the at-least-one-delta `CHANGE_NO_DELTAS` rule) and declared-capability coverage become deterministic and schema-aware — they apply only when the schema produces delta specs, so a proposal-only schema with no specs passes `validate` while a spec-driven change with no specs still fails; every declared capability must have a delta spec present or validation fails with a precise per-capability error.
+- `cli-artifact-workflow`: `openspec instructions apply` exits non-zero when the apply phase is blocked, and the `spec-driven` apply gate requires `specs`.
+
+## Impact
+
+- `src/core/templates/workflows/archive-change.ts` (**both** `getArchiveChangeSkillTemplate` and `getOpsxArchiveCommandTemplate`) + `src/core/templates/workflows/bulk-archive-change.ts` (both templates) + `openspec/specs/opsx-archive-skill` — every archive surface calls `openspec archive --json`; remove agent-side `mv` and judgment-based sync; handle `ArchiveBlockedError`; never use `--skip-specs`/`--no-validate`.
+- `src/core/templates/workflows/{propose,ff-change}.ts` — loop termination = "every `apply.requires` artifact is `done`" (so it can't stop at `tasks.md` while `specs` is absent).
+- `src/core/archive.ts` — replace `if (hasDeltaSpecs)` with `if (!options.skipSpecs && schemaProducesDeltaSpecs(schema))`; run delta + coverage validation; reuse the existing `ArchiveBlockedError`/exit path.
+- `src/core/parsers/change-parser.ts` — deterministic `extractDeclaredCapabilities(proposalMarkdown)` (heading + bold-label forms; malformed-id warning).
+- `src/core/validation/validator.ts` — `validateChangeCapabilityCoverage(changeDir)`; schema-aware; the archived-drift audit.
+- `src/commands/validate.ts` — schema-aware delta gate + coverage in single + bulk, with `schemaProducesDeltaSpecs` **memoized per schema name** (not per change); audit surface.
+- `src/commands/workflow/instructions.ts` — non-zero exit on blocked apply.
+- `schemas/spec-driven/schema.yaml` — `apply.requires: [specs, tasks]`; tighten the **proposal** artifact instruction to mandate the `## Capabilities` heading shape; tighten the **specs** artifact instruction (delta-vs-full-spec).
+- `src/core/templates/workflows/{apply-change,sync-specs}.ts` — delta-vs-full-spec clarity (template-only; `openspec-sync-specs`/`/opsx:sync` survives, intentionally still agent-driven for sync-without-archive).
+- A **project-local proposal-only fixture schema** (no `specs` artifact) for the #997 tests, since the only built-in schema (`spec-driven`) produces delta specs.
+- Tests for every mode below.
+
+## Issues addressed
+
+All references verified against `Fission-AI/OpenSpec` on 2026-06-29 (states current; #1250 confirmed **not merged**, so `main` still has `apply.requires: [tasks]`).
+
+Closes (the silent-drop family — total, partial, format, greenfield, the CLI-bypass, and the loop):
+
+- [#1212](https://github.com/Fission-AI/OpenSpec/issues/1212) — spec-driven fast-path silently produces stale specs (canonical). Both of #1212's requested safeguards now fire and are proven by the end-to-end regression `test/cli-e2e/issue-1212-spec-drop.test.ts`: `opsx:apply` blocks (exit 1) for a spec-driven change with no delta specs, `opsx:archive` refuses to move/sync anything, and `validate --archived` detects already-archived drift.
+- [#1260](https://github.com/Fission-AI/OpenSpec/issues/1260) — No specs generated after `/opsx:propose`
+- [#1222](https://github.com/Fission-AI/OpenSpec/issues/1222) — Main spec never created for the first change in a greenfield project
+- [#1264](https://github.com/Fission-AI/OpenSpec/issues/1264) — Archive should handle an empty main spec instead of skipping sync
+- [#799](https://github.com/Fission-AI/OpenSpec/issues/799) — After `/opsx-archive` succeeds, sync is not executed
+- [#656](https://github.com/Fission-AI/OpenSpec/issues/656) — Why archive relies on the LLM to merge specs vs. the CLI (answered by routing archive through `openspec archive`)
+- [#863](https://github.com/Fission-AI/OpenSpec/issues/863) — `/opsx:archive` skill doesn't invoke the `openspec archive` CLI
+- [#913](https://github.com/Fission-AI/OpenSpec/issues/913) — `/opsx-archive` offers "Sync now" needing the uninstalled `openspec-sync-specs` skill; eliminated because archive now syncs via the CLI, with no separate skill
+
+Supersedes (open PRs — partial or prompt-only fixes for the same failures):
+
+- [#1250](https://github.com/Fission-AI/OpenSpec/pull/1250) — this PR contains **all** of #1250's changes (`apply.requires: [specs, tasks]`, apply exits 1 when blocked, and the spec-driven "Delta specs must exist…" hint) **plus** the archive guard its reviewer explicitly deferred. The exact #1250 behaviors are asserted in `test/cli-e2e/issue-1212-spec-drop.test.ts`. Fully superseded.
+- [#1271](https://github.com/Fission-AI/OpenSpec/pull/1271), [#1241](https://github.com/Fission-AI/OpenSpec/pull/1241), [#1233](https://github.com/Fission-AI/OpenSpec/pull/1233) — prompt-only archive/greenfield guidance, replaced by an enforceable CLI check. (Prior attempt [#1268](https://github.com/Fission-AI/OpenSpec/pull/1268) was already closed unmerged — noted, not superseded.)
+
+## Related, addressed-in-part
+
+- [#997](https://github.com/Fission-AI/OpenSpec/issues/997) — **this change is the first to implement it**: the delta requirement is schema-graph-driven in **both** `validate` and `archive` (no forcing deltas on proposal-only schemas).
+- [#977](https://github.com/Fission-AI/OpenSpec/pull/977) (allow-specless-changes) — **reconciled, with a deliberate boundary.** A change is allowed to have no specs when its schema produces no delta specs (the #997 gate) or when the user explicitly passes `--skip-specs`. This change does **not** allow a *silent* specless archive under a spec-driven schema — that is precisely the bug. So legitimate specless work is supported (schema choice or an explicit flag), but not by default under a spec-producing schema. Same `validate`/`validator` files, so also coordinate mechanically.
+- [#902](https://github.com/Fission-AI/OpenSpec/pull/902) (sub-agent spec discovery in propose/ff) — edits the same propose/ff loop + schema; coordinate so the loop-termination fix and its spec-discovery step compose rather than overwrite.
+- [#164](https://github.com/Fission-AI/OpenSpec/issues/164), [#426](https://github.com/Fission-AI/OpenSpec/issues/426), [#911](https://github.com/Fission-AI/OpenSpec/issues/911) — confusion about what a delta spec is / sync direction; addressed by the clarity changes (7). The conceptual docs may warrant a focused follow-up. (Prior art: [#194](https://github.com/Fission-AI/OpenSpec/issues/194), now closed.)
+
+## Out of scope (referenced, not closed)
+
+Distinct delta-**merge** bug family, packaging, and broader design requests, tracked separately:
+
+- [#1246](https://github.com/Fission-AI/OpenSpec/issues/1246) / [#1112](https://github.com/Fission-AI/OpenSpec/issues/1112) / [#1252](https://github.com/Fission-AI/OpenSpec/pull/1252) — two changes that MODIFY the same requirement drop scenarios (`buildUpdatedSpec` whole-block replace, `specs-apply.ts`). Same *family* (silent spec loss) but a **distinct root cause and distinct code** from this change, which never touches `buildUpdatedSpec`. **PR #1252 (APPROVED, mergeable) is complementary, not conflicting:** it should land first as the tactical fix for #1246; this change rebases cleanly on top (only a possible `test/core/archive.test.ts` overlap) as the durable deterministic layer. They reinforce each other — this change's keystone (archive routed through the CLI) is what makes #1252's `buildUpdatedSpec` fix actually reachable from the agent path, which today bypasses the CLI merge entirely.
+- [#1120](https://github.com/Fission-AI/OpenSpec/issues/1120) — `openspec-sync-specs` skill not installed for Junie (broader packaging than the archive path #913 fixes).
+- [#827](https://github.com/Fission-AI/OpenSpec/issues/827) — targeting/evolving a single main spec over time (design direction); [#1265](https://github.com/Fission-AI/OpenSpec/issues/1265) — change-naming and reading archived files.
+- Regenerating lost spec content for changes already archived without specs (agent-assisted; the audit in (6) detects them).

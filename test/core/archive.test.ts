@@ -74,7 +74,7 @@ describe('ArchiveCommand', () => {
       await fs.writeFile(path.join(changeDir, 'tasks.md'), tasksContent);
       
       // Execute archive with --yes flag
-      await archiveCommand.execute(changeName, { yes: true });
+      await archiveCommand.execute(changeName, { yes: true, skipSpecs: true });
       
       // Check that change was moved to archive
       const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
@@ -97,7 +97,7 @@ describe('ArchiveCommand', () => {
       await fs.writeFile(path.join(changeDir, 'tasks.md'), tasksContent);
       
       // Execute archive with --yes flag
-      await archiveCommand.execute(changeName, { yes: true });
+      await archiveCommand.execute(changeName, { yes: true, skipSpecs: true });
       
       // Verify warning was logged
       expect(console.log).toHaveBeenCalledWith(
@@ -283,7 +283,7 @@ New feature description.
       
       // Try to archive
       await expect(
-        archiveCommand.execute(changeName, { yes: true })
+        archiveCommand.execute(changeName, { yes: true, skipSpecs: true })
       ).rejects.toThrow(`Archive '${date}-${changeName}' already exists.`);
     });
 
@@ -293,7 +293,7 @@ New feature description.
       await fs.mkdir(changeDir, { recursive: true });
       
       // Execute archive without tasks.md
-      await archiveCommand.execute(changeName, { yes: true });
+      await archiveCommand.execute(changeName, { yes: true, skipSpecs: true });
       
       // Should complete without warnings
       expect(console.log).not.toHaveBeenCalledWith(
@@ -312,7 +312,7 @@ New feature description.
       await fs.mkdir(changeDir, { recursive: true });
       
       // Execute archive without specs
-      await archiveCommand.execute(changeName, { yes: true });
+      await archiveCommand.execute(changeName, { yes: true, skipSpecs: true });
       
       // Should complete without spec updates
       expect(console.log).not.toHaveBeenCalledWith(
@@ -404,19 +404,14 @@ The system will log all events.
       await fs.mkdir(changeSpecDir, { recursive: true });
       
       // Create valid spec in change
-      const specContent = `# Test Capability Spec
+      const specContent = `## ADDED Requirements
 
-## Purpose
-This is a test capability specification.
-
-## Requirements
-
-### The system SHALL provide test capability
+### Requirement: Test capability
+The system SHALL provide test capability.
 
 #### Scenario: Basic test
-Given a test condition
-When an action occurs
-Then expected result happens`;
+- **WHEN** an action occurs
+- **THEN** expected result happens`;
       await fs.writeFile(path.join(changeSpecDir, 'spec.md'), specContent);
       
       // Mock confirm to return false (decline spec updates)
@@ -808,7 +803,7 @@ E1 updated`);
       mockSelect.mockResolvedValueOnce(change1);
       
       // Execute without change name
-      await archiveCommand.execute(undefined, { yes: true });
+      await archiveCommand.execute(undefined, { yes: true, skipSpecs: true });
       
       // Verify select was called with correct options (values matter, names may include progress)
       expect(mockSelect).toHaveBeenCalledWith(expect.objectContaining({
@@ -841,7 +836,7 @@ E1 updated`);
       mockConfirm.mockResolvedValueOnce(true);
       
       // Execute without --yes flag
-      await archiveCommand.execute(changeName);
+      await archiveCommand.execute(changeName, { skipSpecs: true });
       
       // Verify confirm was called
       expect(mockConfirm).toHaveBeenCalledWith({

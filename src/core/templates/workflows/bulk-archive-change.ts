@@ -124,16 +124,13 @@ ${STORE_SELECTION_GUIDANCE}
 
    Process changes in the determined order (respecting conflict resolution):
 
-   a. **Sync specs** if delta specs exist:
-      - Use the openspec-sync-specs approach (agent-driven intelligent merge)
-      - For conflicts, apply in resolved order
-      - Track if sync was done
-
-   b. **Perform the archive**:
+   a. **Archive via the CLI** — in the resolved order, run for each change:
       \`\`\`bash
-      mkdir -p "<planningHome.changesDir>/archive"
-      mv "<changeRoot>" "<planningHome.changesDir>/archive/YYYY-MM-DD-<name>"
+      openspec archive "<name>" --json --yes
       \`\`\`
+      The CLI validates the change, syncs its delta specs into \`openspec/specs/\`, and moves it to the archive folder. Do NOT run \`openspec-sync-specs\` or move files yourself.
+
+   b. **On a block** (non-zero exit / \`status\` diagnostic): that change is NOT archived and nothing moved. Record the diagnostic and continue with the remaining changes (or stop, per user preference). Never bypass with \`--skip-specs\`/\`--no-validate\`; fix the delta spec and re-run.
 
    c. **Track outcome** for each change:
       - Success: archived successfully
@@ -373,16 +370,13 @@ ${STORE_SELECTION_GUIDANCE}
 
    Process changes in the determined order (respecting conflict resolution):
 
-   a. **Sync specs** if delta specs exist:
-      - Use the openspec-sync-specs approach (agent-driven intelligent merge)
-      - For conflicts, apply in resolved order
-      - Track if sync was done
-
-   b. **Perform the archive**:
+   a. **Archive via the CLI** — in the resolved order, run for each change:
       \`\`\`bash
-      mkdir -p "<planningHome.changesDir>/archive"
-      mv "<changeRoot>" "<planningHome.changesDir>/archive/YYYY-MM-DD-<name>"
+      openspec archive "<name>" --json --yes
       \`\`\`
+      The CLI validates the change, syncs its delta specs into \`openspec/specs/\`, and moves it to the archive folder. Do NOT run \`openspec-sync-specs\` or move files yourself.
+
+   b. **On a block** (non-zero exit / \`status\` diagnostic): that change is NOT archived and nothing moved. Record the diagnostic and continue with the remaining changes (or stop, per user preference). Never bypass with \`--skip-specs\`/\`--no-validate\`; fix the delta spec and re-run.
 
    c. **Track outcome** for each change:
       - Success: archived successfully

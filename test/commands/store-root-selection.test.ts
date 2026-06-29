@@ -94,7 +94,7 @@ describe('store root selection for normal commands', () => {
     fs.mkdirSync(changeDir, { recursive: true });
     fs.writeFileSync(
       path.join(changeDir, 'proposal.md'),
-      '## Why\nBilling needs work.\n\n## What Changes\n- **billing:** Add billing\n'
+      '## Why\nBilling needs work to keep invoices correct and auditable over time.\n\n## What Changes\n- **billing:** Add billing\n'
     );
     fs.writeFileSync(
       path.join(changeDir, 'tasks.md'),

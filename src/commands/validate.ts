@@ -1,6 +1,10 @@
 import ora from 'ora';
 import path from 'path';
+import { promises as fs } from 'fs';
 import { Validator } from '../core/validation/validator.js';
+import { makeDeltaRequirementResolver } from '../core/validation/delta-requirement.js';
+import { extractDeclaredCapabilities } from '../core/parsers/declared-capabilities.js';
+import type { ValidationReport } from '../core/validation/types.js';
 import {
   resolveRootForCommand,
   toRootOutput,
@@ -18,6 +22,7 @@ interface ExecuteOptions {
   all?: boolean;
   changes?: boolean;
   specs?: boolean;
+  archived?: boolean;
   type?: string;
   strict?: boolean;
   json?: boolean;
@@ -44,6 +49,12 @@ export class ValidateCommand {
     }
 
     const interactive = isInteractive(options);
+
+    // Audit already-archived changes for silent spec drift (detection only).
+    if (options.archived) {
+      await this.runArchivedDriftAudit(root, { json: !!options.json });
+      return;
+    }
 
     // Handle bulk flags first
     if (options.all || options.changes || options.specs) {
@@ -178,12 +189,123 @@ export class ValidateCommand {
     await this.validateByType(root, type, itemName, opts);
   }
 
+  /**
+   * Validate a change: proposal validation (required sections + change-shape)
+   * ALWAYS runs, and the delta-spec validation + declared-capability coverage
+   * run only when the change's schema produces delta specs (#997). The same
+   * schema-aware delta gate is applied by `openspec archive`, so the two
+   * commands agree on whether delta specs are required — while a malformed or
+   * incomplete proposal fails validation under either schema.
+   */
+  private async validateChange(
+    validator: Validator,
+    requiresDelta: (changeDir: string) => boolean,
+    changeDir: string,
+    strict: boolean
+  ): Promise<ValidationReport> {
+    const reports = [await validator.validateChangeProposal(changeDir)];
+    if (requiresDelta(changeDir)) {
+      reports.push(
+        ...(await Promise.all([
+          validator.validateChangeDeltaSpecs(changeDir),
+          validator.validateChangeCapabilityCoverage(changeDir),
+        ]))
+      );
+    }
+    const issues = reports.flatMap((r) => r.issues);
+    const errors = issues.filter((i) => i.level === 'ERROR').length;
+    const warnings = issues.filter((i) => i.level === 'WARNING').length;
+    const info = issues.filter((i) => i.level === 'INFO').length;
+    const valid = strict ? errors === 0 && warnings === 0 : errors === 0;
+    return { valid, issues, summary: { errors, warnings, info } };
+  }
+
+  /**
+   * Detection-only audit for already-archived changes whose declared
+   * capabilities never reached `openspec/specs/` (silent spec drift accrued
+   * before the archive gate existed). Forward-only: archived proposals without
+   * an extractable `## Capabilities` section predate the contract and are
+   * reported as not-auditable rather than as drift. Does not regenerate content.
+   */
+  private async runArchivedDriftAudit(
+    root: ResolvedOpenSpecRoot,
+    opts: { json: boolean }
+  ): Promise<void> {
+    const archiveDir = path.join(root.changesDir, 'archive');
+    let changeDirs: string[] = [];
+    try {
+      const entries = await fs.readdir(archiveDir, { withFileTypes: true });
+      changeDirs = entries.filter((e) => e.isDirectory()).map((e) => e.name).sort();
+    } catch {
+      // No archive directory — nothing to audit.
+    }
+
+    const drift: Array<{ change: string; capability: string; expected: string }> = [];
+    let audited = 0;
+    let notAuditable = 0;
+    for (const change of changeDirs) {
+      let content: string;
+      try {
+        content = await fs.readFile(path.join(archiveDir, change, 'proposal.md'), 'utf-8');
+      } catch {
+        notAuditable++;
+        continue;
+      }
+      const { hasSection, capabilities } = extractDeclaredCapabilities(content);
+      if (!hasSection) {
+        notAuditable++;
+        continue;
+      }
+      audited++;
+      for (const id of capabilities) {
+        try {
+          await fs.access(path.join(root.specsDir, id, 'spec.md'));
+        } catch {
+          drift.push({ change, capability: id, expected: `openspec/specs/${id}/spec.md` });
+        }
+      }
+    }
+
+    if (opts.json) {
+      console.log(
+        JSON.stringify(
+          {
+            drift,
+            summary: { audited, notAuditable, driftCount: drift.length },
+            root: toRootOutput(root),
+          },
+          null,
+          2
+        )
+      );
+    } else if (drift.length === 0) {
+      console.log(
+        `No archived spec drift detected (${audited} archived change(s) audited, ${notAuditable} pre-contract archive(s) not auditable).`
+      );
+    } else {
+      console.error(
+        `Archived spec drift detected: ${drift.length} declared capabilit(ies) in archived changes never reached openspec/specs/`
+      );
+      for (const d of drift) {
+        console.error(`  ✗ ${d.change}: capability "${d.capability}" missing at ${d.expected}`);
+      }
+      console.error(
+        `\n${audited} archived change(s) audited, ${notAuditable} pre-contract archive(s) not auditable.`
+      );
+      console.error(
+        'This audit detects drift only; it does not regenerate spec content. Recreate the missing spec from the archived change or the implementation.'
+      );
+    }
+    process.exitCode = drift.length > 0 ? 1 : 0;
+  }
+
   private async validateByType(root: ResolvedOpenSpecRoot, type: ItemType, id: string, opts: { strict: boolean; json: boolean }): Promise<void> {
     const validator = new Validator(opts.strict);
     if (type === 'change') {
       const changeDir = path.join(root.changesDir, id);
+      const requiresDelta = makeDeltaRequirementResolver(root.path);
       const start = Date.now();
-      const report = await validator.validateChangeDeltaSpecs(changeDir);
+      const report = await this.validateChange(validator, requiresDelta, changeDir, opts.strict);
       const durationMs = Date.now() - start;
       this.printReport('change', id, report, durationMs, opts.json, root);
       // Non-zero exit if invalid (keeps enriched output test semantics)
@@ -243,13 +365,14 @@ export class ValidateCommand {
     const maxSuggestions = 5; // used by nearestMatches
     const concurrency = normalizeConcurrency(opts.concurrency) ?? normalizeConcurrency(process.env.OPENSPEC_CONCURRENCY) ?? DEFAULT_CONCURRENCY;
     const validator = new Validator(opts.strict);
+    const requiresDelta = makeDeltaRequirementResolver(root.path);
     const queue: Array<() => Promise<BulkItemResult>> = [];
 
     for (const id of changeIds) {
       queue.push(async () => {
         const start = Date.now();
         const changeDir = path.join(root.changesDir, id);
-        const report = await validator.validateChangeDeltaSpecs(changeDir);
+        const report = await this.validateChange(validator, requiresDelta, changeDir, opts.strict);
         const durationMs = Date.now() - start;
         return { id, type: 'change' as const, valid: report.valid, issues: report.issues, durationMs };
       });

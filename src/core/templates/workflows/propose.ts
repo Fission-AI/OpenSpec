@@ -109,6 +109,7 @@ After completing all artifacts, summarize:
 
 **Guardrails**
 - Create ALL artifacts needed for implementation (as defined by schema's \`apply.requires\`)
+- Do NOT treat the change as apply-ready until EVERY \`apply.requires\` artifact has \`status: "done"\`. For \`spec-driven\` that includes \`specs\` (delta specs under \`specs/<capability>/spec.md\` using \`## ADDED/MODIFIED/REMOVED/RENAMED Requirements\`) — creating \`tasks.md\` alone is not enough
 - Always read dependency artifacts before creating a new one
 - If context is critically unclear, ask the user - but prefer making reasonable decisions to keep momentum
 - If a change with that name already exists, ask if user wants to continue it or create a new one
@@ -223,6 +224,7 @@ After completing all artifacts, summarize:
 
 **Guardrails**
 - Create ALL artifacts needed for implementation (as defined by schema's \`apply.requires\`)
+- Do NOT treat the change as apply-ready until EVERY \`apply.requires\` artifact has \`status: "done"\`. For \`spec-driven\` that includes \`specs\` (delta specs under \`specs/<capability>/spec.md\` using \`## ADDED/MODIFIED/REMOVED/RENAMED Requirements\`) — creating \`tasks.md\` alone is not enough
 - Always read dependency artifacts before creating a new one
 - If context is critically unclear, ask the user - but prefer making reasonable decisions to keep momentum
 - If a change with that name already exists, ask if user wants to continue it or create a new one

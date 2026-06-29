@@ -18,6 +18,7 @@ import {
   writeUpdatedSpec,
   type SpecUpdate,
 } from './specs-apply.js';
+import { makeDeltaRequirementResolver } from './validation/delta-requirement.js';
 
 async function listActiveChangeNames(changesDir: string): Promise<string[]> {
   try {
@@ -260,37 +261,29 @@ export class ArchiveCommand {
         }
       }
 
-      // Validate delta-formatted spec files under the change directory if present
-      const changeSpecsDir = path.join(changeDir, 'specs');
-      let hasDeltaSpecs = false;
-      try {
-        const candidates = await fs.readdir(changeSpecsDir, { withFileTypes: true });
-        for (const c of candidates) {
-          if (c.isDirectory()) {
-            try {
-              const candidatePath = path.join(changeSpecsDir, c.name, 'spec.md');
-              await fs.access(candidatePath);
-              const content = await fs.readFile(candidatePath, 'utf-8');
-              if (/^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements/m.test(content)) {
-                hasDeltaSpecs = true;
-                break;
-              }
-            } catch {}
-          }
-        }
-      } catch {}
-      if (hasDeltaSpecs) {
-        const deltaReport = await validator.validateChangeDeltaSpecs(changeDir);
-        if (!deltaReport.valid) {
+      // Validate delta specs + declared-capability coverage, consistently with
+      // `openspec validate`, whenever the schema produces delta specs (#997) and
+      // the user has not opted out of spec updates via --skip-specs. This blocks
+      // total drop (no specs → CHANGE_NO_DELTAS), format drop (present non-delta
+      // spec → "No delta sections found"), and partial drop (declared capability
+      // with no delta spec). Gating on the presence of delta specs — the prior
+      // behaviour — was self-defeating: it skipped the check exactly when specs
+      // were missing.
+      const requiresDeltaSpecs = makeDeltaRequirementResolver(root.path)(changeDir);
+      if (!options.skipSpecs && requiresDeltaSpecs) {
+        const [deltaReport, coverageReport] = await Promise.all([
+          validator.validateChangeDeltaSpecs(changeDir),
+          validator.validateChangeCapabilityCoverage(changeDir),
+        ]);
+        const blockingIssues = [...deltaReport.issues, ...coverageReport.issues].filter(
+          (issue) => issue.level === 'ERROR'
+        );
+        if (blockingIssues.length > 0) {
           hasValidationErrors = true;
           if (!json) {
-            console.log(chalk.red(`\nValidation errors in change delta specs:`));
-            for (const issue of deltaReport.issues) {
-              if (issue.level === 'ERROR') {
-                console.log(chalk.red(`  ✗ ${issue.message}`));
-              } else if (issue.level === 'WARNING') {
-                console.log(chalk.yellow(`  ⚠ ${issue.message}`));
-              }
+            console.log(chalk.red(`\nValidation errors in change specs:`));
+            for (const issue of blockingIssues) {
+              console.log(chalk.red(`  ✗ ${issue.message}`));
             }
           }
         }
