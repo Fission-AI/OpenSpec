@@ -192,6 +192,22 @@ describe('InitCommand', () => {
       ).toBe(true);
     });
 
+    it('should not suggest an IDE restart for CLI-only tools', async () => {
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+
+      await initCommand.execute(testDir);
+
+      expect(getConsoleOutput()).not.toContain('Restart your IDE for slash commands to take effect.');
+    });
+
+    it('should suggest an IDE restart for IDE-resident tools', async () => {
+      const initCommand = new InitCommand({ tools: 'cursor', force: true });
+
+      await initCommand.execute(testDir);
+
+      expect(getConsoleOutput()).toContain('Restart your IDE for slash commands to take effect.');
+    });
+
     it('should create skills for multiple tools at once', async () => {
       const initCommand = new InitCommand({ tools: 'claude,cursor', force: true });
 
@@ -783,4 +799,11 @@ async function directoryExists(dirPath: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+function getConsoleOutput(): string {
+  return (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls
+    .flat()
+    .map(String)
+    .join('\n');
 }
