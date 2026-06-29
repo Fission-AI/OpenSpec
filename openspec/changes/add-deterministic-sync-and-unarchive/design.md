@@ -1,4 +1,4 @@
-# Design: deterministic spec tooling — `sync` (forward), `unarchive` (reverse), `format` (canonical), `diff` (review)
+# Design: deterministic spec tooling — `sync`, `unarchive`, `format`, `diff`, and the `check` gate
 
 ## Context
 
@@ -18,6 +18,7 @@ This design covers that primitive and the commands built on it. It supersedes th
 - Hash-optimized incremental checking: `--check` re-checks only specs whose digest changed, without changing any verdict (Decision 13).
 - A deterministic, behavior-preserving spec formatter (`openspec format` + `--check`) sharing one canonicalizer with the merge engine (Decision 14).
 - A deterministic spec-aware diff (`openspec diff`, opt-in git diff driver) that splices provenance + rationale inline, reusing existing artifacts (Decision 15).
+- A unified deterministic linter `openspec check` (+ `--fix`, `--all`, incremental) wired to run identically as a pre-commit hook and a CI gate, with an opt-in hook installer and a CI template (Decision 16).
 - Skills delegate the merge to the CLI; the agent never performs it.
 - Backward compatible with changes archived (and specs synced) before this feature.
 
@@ -64,12 +65,12 @@ Building three mechanisms would invite three drift bugs. Building one — the pr
 
 ## Decision 4 — `--check` and `--fix`: the gate and the auto-fixer (wiring staged)
 
-**Decision.** `sync --check` is read-only and exits non-zero when the change's deltas are not cleanly appliable to the base, or — when the team commits merged `specs/` during review — when committed `specs/` ≠ the regenerated output. `sync --fix` (and bare `sync`) regenerates `specs/`. This PR ships both CLI modes and documents two integration patterns; it does **not** add a hook runner or CI job to this repo (none exists today).
+**Decision.** `sync --check` is read-only and exits non-zero when the change's deltas are not cleanly appliable to the base, or — when the team commits merged `specs/` during review — when committed `specs/` ≠ the regenerated output. `sync --fix` (and bare `sync`) regenerates `specs/`. The per-tool `--check`/`--fix` modes are the primitives; the unified gate over them is `openspec check` (Decision 16), which is what pre-commit and CI actually invoke.
 
-- **CI drift gate**: a job runs `openspec sync --check` (or `--all`) and fails the PR on drift — "the same pattern as a codegen or IaC drift gate," as a plain binary.
-- **pre-commit hook**: `openspec sync --check` detects drift before `git commit --amend`; `openspec sync --fix` is the eslint-`--fix`-style auto-remediation, after which the amend proceeds with `specs/` canonical.
+- **CI drift gate**: a job runs `openspec check` and fails the PR on drift — "the same pattern as a codegen or IaC drift gate," as a plain binary, no model.
+- **pre-commit hook**: `openspec check` detects drift before commit; `openspec check --fix` is the eslint-`--fix`-style auto-remediation, after which the commit proceeds with `specs/` canonical and in sync.
 
-**Why staged.** The primitives are the reusable, testable part and belong here. Choosing husky vs. lefthook vs. native hooks, and the CI matrix, are repo-policy calls better made as a focused follow-up than bundled into a foundational engine PR. Keeping them separable also keeps this PR reviewable.
+**What ships here vs. what stays policy.** Earlier revisions deferred all wiring. This revision **builds the integration** (Decision 16): the unified `openspec check` command, a runner-agnostic, opt-in hook installer, and a copy-paste CI step. What remains the owner's choice is only *which* runner to standardize on and whether to enable the gate by default — not whether the capability exists.
 
 ## Decision 5 — Keep the `archive` boundary; reject folding the merge into `apply`
 
@@ -87,7 +88,7 @@ Building three mechanisms would invite three drift bugs. Building one — the pr
 
 ## Decision 7 — Reverse under a drift guard, atomically
 
-**Decision.** Before reversing any spec, compare its current content to the baseline's applied-result digest. On drift (a later change touched the same requirement — [#1246](https://github.com/Fission-AI/OpenSpec/issues/1246), [add-change-stacking-awareness](../add-change-stacking-awareness/proposal.md)), **refuse** and point to `--keep-specs`. Stage and validate the whole reversal first; commit order = restore/delete specs → move folder (`moveDirectory`, Windows EPERM/EXDEV fallback). On any failure: *"Abort. No files were changed."*, rolling restored specs back from the still-present baseline if the move fails.
+**Decision.** Before reversing any spec, compare its current content to the baseline's applied-result digest. On drift (a later change touched the same requirement — [#1246](https://github.com/Fission-AI/OpenSpec/issues/1246), [add-change-stacking-awareness](../add-change-stacking-awareness/proposal.md)), **refuse** and point to `--keep-specs`. The reversal runs as a defined **validate → stage → commit** sequence: (1) validate destination-absent + all affected specs present and drift-free; (2) compute reversed specs into a temporary staging area under `.openspec/` (no change to `specs/` yet); (3) swap staged specs into `specs/`; (4) move the folder. A failure in steps 1–2 leaves everything untouched; a failure of step 4 after the swap rolls `specs/` back from the still-present baseline. On any failure: *"Abort. No files were changed."*; if rollback itself cannot complete, report the partial state and exact recovery steps rather than leave a silent inconsistency.
 
 **Why.** Restoring a pre-image over a requirement a later change modified would silently delete that change's contribution — the loss OpenSpec guards against. Refusing is strictly safer, and `--keep-specs` always lets the user proceed. Atomicity gives archive the rollback [#682](https://github.com/Fission-AI/OpenSpec/issues/682) noted it lacks, and matches the abort contract [#1112](https://github.com/Fission-AI/OpenSpec/issues/1112) describes.
 
@@ -97,7 +98,7 @@ Building three mechanisms would invite three drift bugs. Building one — the pr
 
 ## Decision 9 — Backward compatibility: pre-baseline archives and synced specs
 
-**Decision.** Changes archived/synced before baselines existed have none. `unarchive` then reverses **ADDED**/**RENAMED** by delta inversion (the self-invertible half) and, for any **REMOVED**/**MODIFIED**, **refuses to guess** — naming each requirement it cannot safely restore and directing to `--keep-specs` (optionally offering opt-in git recovery of the pre-image). `sync` on a pre-baseline change establishes a baseline on its next run. Never silently emit a wrong spec.
+**Decision.** Changes archived/synced before baselines existed have none. Pre-baseline reversal is **all-or-nothing**: if every delta operation across all affected specs is ADDED/RENAMED (self-invertible), `unarchive` reverses the whole change by delta inversion; if any MODIFIED/REMOVED is present anywhere (pre-image unrecoverable), it **refuses the entire spec reversal** — naming the requirements it cannot restore and directing to `--keep-specs` (optionally offering opt-in git recovery of the pre-image). It does **not** partially reverse the self-invertible specs and leave the rest, because a partial `specs/` is exactly the corruption the atomic guarantee (Decision 7) exists to prevent. `sync` on a pre-baseline change establishes a baseline on its next run. Never silently emit a wrong spec.
 
 **Why.** The feature must be useful on day one, including for already-archived changes, without ever degrading into corruption. Reverse what is provably reversible; stop honestly on the rest.
 
@@ -164,9 +165,23 @@ Building three mechanisms would invite three drift bugs. Building one — the pr
 
 **Why in scope now.** It is the presentation layer of the provenance this PR already produces, and it completes the discussion's review vision deterministically. Like the formatter (Decision 14), it reuses primitives this PR establishes rather than introducing new ones.
 
+## Decision 16 — `openspec check`: the unified deterministic linter for pre-commit *and* CI
+
+**Context.** The discussion's recurring ask: the sync/format gate should run "like a linter," both as a pre-commit hook (eslint-`--fix` style) and as a CI drift gate, with no model in CI. The question is whether the deterministic linter works for pre-commit *or* post-commit (CI). **Answer: both — it is the same binary invoked in two places.** A drift gate is a pure function of the committed files; *where* it runs (a local hook before the commit, or a CI job after) changes nothing about the verdict.
+
+**Decision.** Add `openspec check` — one command that runs the deterministic gates (`format --check`, `sync --check`, `validate`) and exits non-zero on any failure, with `--fix` for auto-remediation, `--all` for cross-change checks, incremental digest skipping, and `--json`. Ship the two integration points as well: a **runner-agnostic, opt-in hook installer** and a **copy-paste CI step**. This is the "deterministic linter" the discussion converged on, and it is the single entrypoint pre-commit and CI both call (so neither has to know the individual sub-checks).
+
+**Why one command, not three.** A hook or CI job shouldn't hard-code `format --check && sync --check && validate` and drift out of step with the toolchain. `openspec check` is the stable contract; the sub-gates can evolve behind it. It also gives one exit-code/`--json` shape for both contexts.
+
+**Pre-commit vs CI — same gate, complementary placement.** Pre-commit catches drift at authoring time and can `--fix` in place before the commit (fast feedback, fewer red CI runs). CI is the backstop that enforces the gate regardless of local setup (someone without the hook, or `--no-verify`). Because the verdict is identical and deterministic, the two never disagree — CI cannot fail something a correctly-installed hook would have passed. Recommended posture: hook runs `--fix` (convenience), CI runs `--check` (enforcement).
+
+**Honesty under `--fix`.** `--fix` only applies *mechanical* remediation (format + sync regeneration). Non-mechanical failures — a delta that doesn't cleanly apply, a cross-change conflict — are reported and still fail; `--fix` never invents a resolution or masks a real conflict.
+
+**Scope note.** This builds the deferred CI/hook items because they directly serve the deterministic-linter goal (the user's explicit ask). The one thing still left to the owner is policy: which runner to standardize and whether the gate is on by default. The inference-based "align spec to implementation" remains out (it needs a model — the `verify` direction, #880).
+
 ## Scope completeness
 
-With `diff` folded in, this proposal now covers **every deterministic, in-scope idea** the discussion raised: the merge engine and applied-delta baseline (forward `sync`, reverse `unarchive`, the `archive` baseline), idempotent crumb-free re-merge, model-free `--check` drift gating, early conflict detection, provenance + delta↔spec correspondence, incremental checking, the canonical formatter, and the spec-aware diff driver. The ideas it deliberately leaves out are documented with reasons: editing specs in place / dropping the delta layer / committing only the spec (Decisions 5, 11, 13), inference-based code-vs-spec verification (Decision 14, the `verify` direction), and the *wiring* of a specific hook runner or CI job (Decision 4, a repo-policy choice). Subsequent sessions should therefore shift from **expansion** to **sequencing and refinement** for owner review — confirming the open decisions (e.g. `--keep-specs` vs `--skip-specs`, the `/opsx:sync` behavior change) and the phase order — rather than adding surface.
+This proposal now covers **every deterministic, in-scope idea** the discussion raised: the merge engine and applied-delta baseline (forward `sync`, reverse `unarchive`, the `archive` baseline), idempotent crumb-free re-merge, model-free `--check` drift gating, early conflict detection, provenance + delta↔spec correspondence, incremental checking, the canonical formatter, the spec-aware diff driver, and the unified `openspec check` linter wired for both pre-commit and CI. The ideas it deliberately leaves out are documented with reasons: editing specs in place / dropping the delta layer / committing only the spec (Decisions 5, 11, 13), and inference-based code-vs-spec verification (Decisions 14, 16 — the `verify` direction, #880). The only thing left to the owner is **policy**, not capability: which hook runner to standardize and whether the gate is on by default. Subsequent sessions should therefore shift from **expansion** to **sequencing and refinement** for owner review — confirming the open decisions (e.g. `--keep-specs` vs `--skip-specs`, the `/opsx:sync` behavior change) and the phase order — rather than adding surface.
 
 ## Risks / trade-offs
 
@@ -177,4 +192,4 @@ With `diff` folded in, this proposal now covers **every deterministic, in-scope 
 
 ## Migration / rollout
 
-Additive and phased (see tasks). The engine + baseline land first (no user-visible change to `archive` output). `sync` and `unarchive` are new commands in the expanded profile. `/opsx:sync` delegation ships with a changeset noting the determinism shift. Pre-baseline changes degrade per Decision 9. Hook/CI wiring is a follow-up.
+Additive and phased (see tasks). The engine + baseline land first (no user-visible change to `archive` output). `sync`, `unarchive`, `format`, `diff`, and `check` are new commands in the expanded profile. `/opsx:sync` delegation ships with a changeset noting the determinism shift. Pre-baseline changes degrade per Decision 9. The `openspec check` gate, opt-in hook installer, and CI template ship in this PR (Decision 16); enabling the gate by default is the owner's policy call.

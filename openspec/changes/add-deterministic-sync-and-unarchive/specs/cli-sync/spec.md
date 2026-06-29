@@ -72,6 +72,12 @@ When sync applies deltas to `openspec/specs/`, it SHALL record a per-change appl
 - **WHEN** sync re-applies a revised delta
 - **THEN** it refreshes the baseline to reflect the new pre-merge state and applied-result digest
 
+#### Scenario: Defined storage location and versioned schema
+
+- **WHEN** sync writes the baseline
+- **THEN** it uses the same defined, versioned storage as archive — a manifest at `<change-folder>/.openspec/merge-baseline.json` plus captured pre-merge content under `<change-folder>/.openspec/pre-merge/<capability>/spec.md`
+- **AND** an unrecognized schema version is treated as no baseline rather than misread
+
 ### Requirement: Drift Check Mode
 
 The sync command SHALL support a read-only `--check` mode that verifies spec consistency and exits non-zero on a problem, without modifying any files, so it can gate commits and CI as a plain binary.
@@ -167,7 +173,7 @@ In `--check` mode, sync SHALL verify a two-way correspondence between a change's
 
 ### Requirement: Cross-Change Conflict Detection
 
-Sync SHALL surface conflicts deterministically and early — at commit or PR time rather than only at archive — including when a change's deltas no longer apply to the current base specs and when two active changes target the same requirement.
+Sync SHALL surface conflicts deterministically and early — at commit or PR time rather than only at archive — including when a change's deltas no longer apply to the current base specs and when two active changes target the same requirement. Cross-change detection requires visibility across active changes, so the command SHALL accept an `--all` flag that operates over every active change rather than a single named one.
 
 #### Scenario: Delta no longer applies to the current base
 
@@ -175,9 +181,15 @@ Sync SHALL surface conflicts deterministically and early — at commit or PR tim
 - **THEN** the command reports the conflict with the specific requirement
 - **AND** it exits with a non-zero status code and modifies no files
 
+#### Scenario: Check all active changes
+
+- **WHEN** the user runs `openspec sync --check --all`
+- **THEN** the command checks every active change for cross-change conflicts (and per-change appliability)
+- **AND** it reports any requirement targeted by more than one active change
+
 #### Scenario: Two active changes target the same requirement
 
-- **WHEN** `--check` runs across active changes and more than one active change modifies, removes, or renames the same requirement
+- **WHEN** `--check --all` runs and more than one active change modifies, removes, or renames the same requirement
 - **THEN** the command reports the overlapping changes and requirement as a potential conflict to resolve before archiving
 - **AND** it exits with a non-zero status code
 

@@ -120,13 +120,29 @@ The command SHALL support a `--keep-specs` flag that restores the change folder 
 
 ### Requirement: Atomic Operation
 
-The command SHALL apply the reversal atomically: it stages and validates all changes first, and on any failure it leaves the filesystem unchanged.
+The command SHALL apply the reversal atomically using a defined sequence: validate, then stage, then commit, so that any failure before the final commit step leaves the filesystem unchanged.
 
-#### Scenario: Failure leaves no partial state
+#### Scenario: Defined sequence
 
-- **WHEN** any step of the reversal fails (for example, the folder move fails after specs were restored)
+- **WHEN** the command performs a reversal that touches specs
+- **THEN** it executes in this order:
+  1. validate that the destination `openspec/changes/<name>/` does not exist and that every affected spec is present and drift-free against the baseline;
+  2. compute the reversed spec content and write it to a temporary staging area inside `.openspec/` (no change yet to `openspec/specs/`);
+  3. swap the staged specs into `openspec/specs/`;
+  4. move the change folder from archive back to active.
+
+#### Scenario: Failure before the folder move leaves specs untouched
+
+- **WHEN** validation or staging (steps 1–2) fails
 - **THEN** the command reports `Abort. No files were changed.`
-- **AND** both `openspec/specs/` and the folder location are returned to their pre-command state
+- **AND** `openspec/specs/` and the archive folder are exactly as they were
+
+#### Scenario: Failure of the final move rolls specs back
+
+- **WHEN** the spec swap (step 3) has occurred but the folder move (step 4) fails
+- **THEN** the command restores `openspec/specs/` from the still-present baseline
+- **AND** reports `Abort. No files were changed.`
+- **AND** if rollback itself cannot complete, it reports the partial state and the exact recovery steps rather than leaving a silent inconsistency
 
 #### Scenario: Destination already exists
 
@@ -136,22 +152,21 @@ The command SHALL apply the reversal atomically: it stages and validates all cha
 
 ### Requirement: Backward Compatibility For Pre-Baseline Archives
 
-For changes archived before applied-delta baselines existed, the command SHALL reverse the operations it can invert from the archived delta alone and SHALL refuse to guess the operations it cannot, never producing an incorrect spec.
+For changes archived before applied-delta baselines existed, the command SHALL reverse the spec merge only when the whole change is invertible from the archived delta alone, and SHALL otherwise refuse the spec reversal entirely (all-or-nothing) rather than leaving a partially reversed `openspec/specs/`. This preserves the same atomic, never-corrupt guarantee in the degraded path.
 
-#### Scenario: Reverse the self-invertible operations
-
-- **WHEN** an archived change has no applied-delta baseline
-- **AND** its delta contains only ADDED and/or RENAMED requirements
-- **THEN** the command reverses them by delta inversion (removing added requirements, renaming renamed requirements back)
-- **AND** restores `openspec/specs/` accordingly
-
-#### Scenario: Refuse to guess irreversible operations
+#### Scenario: Fully self-invertible change is reversed
 
 - **WHEN** an archived change has no applied-delta baseline
-- **AND** its delta contains MODIFIED or REMOVED requirements (whose pre-image is not recoverable from the delta)
-- **THEN** the command does not modify those specs
-- **AND** it reports which requirements cannot be safely reversed
-- **AND** it directs the user to `--keep-specs` (and optionally to git-based recovery)
+- **AND** every delta operation across all of its affected specs is ADDED and/or RENAMED
+- **THEN** the command reverses them by delta inversion (removing added requirements, renaming renamed requirements back) and restores `openspec/specs/` accordingly
+
+#### Scenario: Mixed invertibility refuses all spec reversal
+
+- **WHEN** an archived change has no applied-delta baseline
+- **AND** its delta contains at least one MODIFIED or REMOVED requirement (whose pre-image is not recoverable from the delta), possibly alongside ADDED/RENAMED in the same or other specs
+- **THEN** the command modifies no specs at all (it does not partially reverse the self-invertible specs)
+- **AND** it reports which requirements cannot be safely reversed and why
+- **AND** it directs the user to `--keep-specs` (and optionally to git-based recovery of the pre-image)
 
 #### Scenario: Keep-specs always available
 

@@ -10,6 +10,13 @@ When the archive operation rewrites main specs, it SHALL record a self-contained
 - **THEN** the command records, for each affected spec, its pre-merge content and its applied-result digest in an applied-delta baseline stored inside the change folder
 - **AND** the baseline moves into `openspec/changes/archive/<prefix>-<name>/` together with the rest of the change
 
+#### Scenario: Defined storage location and versioned schema
+
+- **WHEN** the baseline is written
+- **THEN** it is stored at a defined path inside the change folder — a versioned manifest `<change-folder>/.openspec/merge-baseline.json` plus, for each affected spec, its captured pre-merge content under `<change-folder>/.openspec/pre-merge/<capability>/spec.md`
+- **AND** the manifest carries a schema version and, per affected spec, an entry of the form `{ "capability": "...", "preImage": "pre-merge/<capability>/spec.md" | null, "appliedDigest": "<scheme>:<hex>" }` (`preImage: null` marks a spec the archive created)
+- **AND** readers that encounter an unrecognized schema version treat the baseline as unavailable rather than misreading it
+
 #### Scenario: Created specs marked absent
 
 - **WHEN** archiving creates a new spec that did not previously exist

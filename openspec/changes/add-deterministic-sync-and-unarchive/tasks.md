@@ -1,6 +1,6 @@
 # Tasks: deterministic spec tooling — `sync` (forward) + `unarchive` (reverse) + `format` (canonical)
 
-> Phased so the keystone ships first and each phase is independently testable and shippable. Phase 1 (engine + baseline + shared canonicalizer) and Phase 2 (`sync` + `--check`) deliver the deterministic, model-free drift path; Phase 2A (`format`) reuses the canonicalizer from Phase 1, and Phase 2B (`diff`) reuses the provenance from Phase 1–2; Phase 3 (`unarchive`) and Phase 4 (idempotency) build on the same baseline; Phase 5 (skills) removes the model from the merge; Phase 6 (integration) is the staged hook/CI follow-up. Cross-platform concerns (`path.join`, Windows `moveDirectory`, newline-normalized digests) are called out per [openspec/config.yaml](../../config.yaml).
+> Phased so the keystone ships first and each phase is independently testable and shippable. Phase 1 (engine + baseline + shared canonicalizer) and Phase 2 (`sync` + `--check`) deliver the deterministic, model-free drift path; Phase 2A (`format`) reuses the canonicalizer from Phase 1, and Phase 2B (`diff`) reuses the provenance from Phase 1–2; Phase 3 (`unarchive`) and Phase 4 (idempotency) build on the same baseline; Phase 5 (skills) removes the model from the merge; Phase 6 builds the unified `openspec check` gate plus its opt-in pre-commit hook installer and CI template (same binary both places). Cross-platform concerns (`path.join`, Windows `moveDirectory`, newline-normalized digests) are called out per [openspec/config.yaml](../../config.yaml).
 
 ## 1. The engine: deterministic, byte-stable merge + applied-delta baseline
 
@@ -67,15 +67,19 @@
 - [ ] 5.4 Tests: template snapshots assert `/opsx:sync` and `/opsx:unarchive` call the CLI and contain no manual merge/move instructions (anti-#863/#1246 guard).
 - [ ] 5.5 Changeset + docs note: `/opsx:sync` is now deterministic; the agent no longer performs scenario-level merges (fixes #1246); author deltas as complete requirements per the conventions.
 
-## 6. Integration surface (staged): CI gate + pre-commit hook
+## 6. `openspec check` — the unified gate (pre-commit + CI), built
 
-- [ ] 6.1 Document the CI drift-gate pattern (`openspec sync --check` as a plain binary, no model/API keys) in `docs/`; provide a copy-paste job snippet. (Wiring the actual workflow file is the owner's call.)
-- [ ] 6.2 Document the pre-commit hook pattern (`sync --check` to detect, `sync --fix` to auto-remediate before `git commit --amend`), eslint-`--fix` style. (Choosing husky/lefthook/native is a separable follow-up; none exists in the repo today.)
-- [ ] 6.3 Document the **opt-in git diff driver** registration for `openspec diff` (the `.gitattributes` snippet for spec/delta paths), making clear OpenSpec never alters git config without consent (design Decision 15).
+- [ ] 6.1 Create `src/core/check.ts` `CheckCommand` (`--fix`, `--all`, `--json`, incremental): compose `format --check`, `sync --check`, and `validate` into one run with a single exit-code/JSON contract; `--fix` runs `format --fix` + `sync --fix` and never invents non-mechanical resolutions (cross-change conflicts / un-appliable deltas still fail).
+- [ ] 6.2 Register `check` in [src/cli/index.ts](../../../src/cli/index.ts) (`--fix`, `--all`, `--install-hook`, `--json`).
+- [ ] 6.3 Hook installer: `openspec check --install-hook` installs a pre-commit hook that runs `openspec check`; runner-agnostic; composes with an existing hook; never installs automatically or alters git config without the explicit flag.
+- [ ] 6.4 CI template: add a committed, copy-paste CI step (e.g. a GitHub Actions job) that runs `openspec check` as a drift gate — no model, no API keys.
+- [ ] 6.5 Assert the pre-commit/CI symmetry: the same repo state yields the same `openspec check` verdict whether invoked from the hook or the CI step (one binary, one contract).
+- [ ] 6.6 Document the **opt-in git diff driver** registration for `openspec diff` (the `.gitattributes` snippet for spec/delta paths), making clear OpenSpec never alters git config without consent (design Decision 15).
+- [ ] 6.7 Tests: `check` aggregates the sub-gates and exit codes; `--fix` remediates mechanical drift but still fails on conflicts; `--all` runs cross-change checks; incremental skip never changes the verdict; hook installer composes with an existing hook and is never automatic; `--json` shape.
 
 ## 7. Docs & supersession
 
-- [ ] 7.1 `docs/opsx.md` + CLI docs: add `/opsx:unarchive`; update `/opsx:sync` to note CLI delegation + determinism; document `openspec sync`, `openspec format`, and `openspec diff` with their flags (and that `format`/`diff` need no agent/skill).
+- [ ] 7.1 `docs/opsx.md` + CLI docs: add `/opsx:unarchive`; update `/opsx:sync` to note CLI delegation + determinism; document `openspec sync`, `openspec format`, `openspec diff`, and `openspec check` with their flags (and that `format`/`diff`/`check` need no agent/skill); document running `check` as a pre-commit hook and in CI.
 - [ ] 7.2 Note the `specs/` = shipped-reality invariant and why `archive` is retained (design Decision 5), so the "why not just remove archive" question has a documented answer.
 
 ## 8. End-to-end verification
@@ -86,5 +90,6 @@
 - [ ] 8.4 E2E no-crumbs: sync, revise the delta, re-sync → `specs/` reflects only the current delta.
 - [ ] 8.4a E2E formatter: mangle a spec's whitespace → `format --check` fails → `format` fixes it → `--check` passes; and `sync`/`archive` output passes `format --check` unchanged (shared-canonicalizer invariant).
 - [ ] 8.4b E2E diff: edit a change's delta and proposal → `openspec diff <change>` shows the requirement change annotated with the proposal's rationale; a synced spec change is annotated with the originating change via provenance; a pre-baseline edit is shown without invented rationale.
+- [ ] 8.4c E2E check gate: introduce drift (un-synced delta + non-canonical whitespace) → `openspec check` fails naming both gates → `openspec check --fix` remediates → `check` passes; then introduce a cross-change conflict → `check --all` still fails (not auto-fixable); confirm identical verdict whether run via the installed hook or the CI step.
 - [ ] 8.5 Validation: `openspec validate add-deterministic-sync-and-unarchive --strict` passes; `openspec status` shows artifacts complete.
 - [ ] 8.6 Run the suite on macOS, Linux, and Windows CI.
