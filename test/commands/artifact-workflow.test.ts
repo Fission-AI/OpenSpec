@@ -446,6 +446,20 @@ describe('artifact-workflow CLI commands', () => {
       expect(result.stdout).toContain('Missing artifacts: specs, tasks');
     });
 
+    it('design-less change with specs + tasks is apply-ready (conditional design preserved)', async () => {
+      // apply.requires is [specs, tasks] and the apply gate is non-transitive,
+      // so a change without design.md is still ready — "skip design" keeps working.
+      await createTestChange('no-design-apply', ['proposal', 'specs', 'tasks']);
+
+      const result = await runCLI(
+        ['instructions', 'apply', '--change', 'no-design-apply', '--json'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).toBe(0);
+      const json = JSON.parse(result.stdout);
+      expect(json.state).toBe('ready');
+    });
+
     it('outputs JSON for apply instructions', async () => {
       await createTestChange('json-apply', ['proposal', 'design', 'specs', 'tasks']);
 

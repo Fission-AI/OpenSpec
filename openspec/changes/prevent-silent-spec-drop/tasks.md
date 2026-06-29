@@ -45,21 +45,21 @@
 
 ## 6. Tests
 
-- [ ] 6.1 Archive total drop: no `specs/` → `CHANGE_NO_DELTAS`, non-zero, nothing moved
-- [ ] 6.2 Archive format drop: present non-delta `spec.md` → "No delta sections found", blocked
-- [ ] 6.3 Archive partial drop: declares `a`,`b`; only `specs/a` → coverage error for `b`, blocked
-- [ ] 6.4 Schema-aware: a **project-local proposal-only fixture schema** (no `specs` artifact — `spec-driven` can't test this) with no specs → archives (no block) (#997)
-- [ ] 6.5 Covered + valid → archives and syncs (no regression)
-- [ ] 6.6 `--skip-specs` bypasses; `--no-validate` (+ `--yes`) bypasses (human escape hatches)
-- [ ] 6.7 `--yes` alone (no `--skip-specs`/`--no-validate`) on a no-delta spec-driven change → still blocked with `CHANGE_NO_DELTAS`, non-zero, nothing moved
-- [ ] 6.8 Parity: a change `openspec validate` rejects (total/partial/format) is blocked by `openspec archive`
-- [ ] 6.9 Validate schema-aware: `openspec validate` on the proposal-only fixture with no specs → passes (no `CHANGE_NO_DELTAS`); on a spec-driven change with no specs → fails with `CHANGE_NO_DELTAS`; both single and bulk
-- [ ] 6.10 Unparseable/malformed `## Capabilities` → coverage fails open (no crash, no false missing); non-kebab id → warning (not dropped); bold-label form → extracted; resolution-throws → delta validation still applied (fail-safe)
-- [ ] 6.11 All four archive templates call `openspec archive` and contain no raw `mv` (parity assertion per template)
-- [ ] 6.12 Apply: blocked apply exits non-zero (text + JSON); spec-driven `tasks`-only reports `specs` missing; a `design`-less change still passes apply
-- [ ] 6.13 Capability deletion/rename: change with only `## REMOVED Requirements` under the existing folder → coverage passes; whole-capability deletion → requires explicit `--skip-specs`
-- [ ] 6.14 Archived-drift audit: archived change with an un-synced declared capability → flagged; pre-contract archive → not falsely flagged
-- [ ] 6.15 Extraction determinism fixtures; cross-platform `path.join()`
+- [x] 6.1 Archive total drop: no `specs/` → `CHANGE_NO_DELTAS`, non-zero, nothing moved
+- [x] 6.2 Archive format drop: present non-delta `spec.md` → "No delta sections found", blocked
+- [x] 6.3 Archive partial drop: declares `a`,`b`; only `specs/a` → coverage error for `b`, blocked
+- [x] 6.4 Schema-aware: a **project-local proposal-only fixture schema** (no `specs` artifact — `spec-driven` can't test this) with no specs → archives (no block) (#997)
+- [x] 6.5 Covered + valid → archives and syncs (no regression)
+- [x] 6.6 `--skip-specs` bypasses; `--no-validate` (+ `--yes`) bypasses (human escape hatches)
+- [x] 6.7 `--yes` alone (no `--skip-specs`/`--no-validate`) on a no-delta spec-driven change → still blocked with `CHANGE_NO_DELTAS`, non-zero, nothing moved
+- [x] 6.8 Parity: a change `openspec validate` rejects (total/partial/format) is blocked by `openspec archive`
+- [x] 6.9 Validate schema-aware: `openspec validate` on the proposal-only fixture with no specs → passes (no `CHANGE_NO_DELTAS`); on a spec-driven change with no specs → fails with `CHANGE_NO_DELTAS`; both single and bulk
+- [x] 6.10 Unparseable/malformed `## Capabilities` → coverage fails open (no crash, no false missing); non-kebab id → warning (not dropped); bold-label form → extracted; resolution-throws → delta validation still applied (fail-safe)
+- [x] 6.11 All four archive templates call `openspec archive` and contain no raw `mv` (parity assertion per template)
+- [x] 6.12 Apply: blocked apply exits non-zero (text + JSON); spec-driven `tasks`-only reports `specs` missing; a `design`-less change still passes apply
+- [x] 6.13 Capability deletion/rename: change with only `## REMOVED Requirements` under the existing folder → coverage passes; whole-capability deletion → requires explicit `--skip-specs`
+- [x] 6.14 Archived-drift audit: archived change with an un-synced declared capability → flagged; pre-contract archive → not falsely flagged
+- [x] 6.15 Extraction determinism fixtures; cross-platform `path.join()`
 
 ## 7. Release
 
