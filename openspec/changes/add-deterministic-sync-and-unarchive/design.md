@@ -1,4 +1,4 @@
-# Design: deterministic spec-merge engine — `sync` (forward), `unarchive` (reverse)
+# Design: deterministic spec tooling — `sync` (forward), `unarchive` (reverse), `format` (canonical)
 
 ## Context
 
@@ -16,6 +16,7 @@ This design covers that primitive and the commands built on it. It supersedes th
 - Early, deterministic conflict detection (delta-vs-base and cross-change) at commit/PR time, not at archive (Decision 11).
 - Per-edit provenance and a delta↔spec correspondence check, within the delta model (Decision 12).
 - Hash-optimized incremental checking: `--check` re-checks only specs whose digest changed, without changing any verdict (Decision 13).
+- A deterministic, behavior-preserving spec formatter (`openspec format` + `--check`) sharing one canonicalizer with the merge engine (Decision 14).
 - Skills delegate the merge to the CLI; the agent never performs it.
 - Backward compatible with changes archived (and specs synced) before this feature.
 
@@ -23,7 +24,8 @@ This design covers that primitive and the commands built on it. It supersedes th
 - Removing or replacing the `archive` lifecycle boundary, or editing `specs/` in place instead of via deltas (Decisions 5, 11).
 - Folding the spec merge into `apply` (Decision 5).
 - Building the spec-aware git diff driver (Decision 12 — provenance data is in scope; the diff driver is a deferred follow-up).
-- Building a spec linter/formatter or reducing the committed artifact set (Decision 13 — output specs are made canonical here; an authoring formatter and the artifact-model question are separable).
+- Inference-based "align spec to implementation" / code-vs-spec checking — that needs a model and is the `verify` direction (#880), not the deterministic `format` (Decision 14).
+- Reducing the committed artifact set (commit-only-the-spec) — a separate product question served by schema flexibility (Decision 13).
 - Wiring a specific hook runner or CI job into this repo (primitives in scope; config staged — Decision 4).
 - A scenario-granular "smart" merge (Decision 8 — the conventions mandate whole-requirement deltas; whole-block apply is the correct, deterministic semantics).
 - Bulk `sync`/`unarchive`, archive-folder prefix scheme, lifecycle timestamps — out of scope, accommodated.
@@ -131,9 +133,21 @@ Building three mechanisms would invite three drift bugs. Building one — the pr
 
 **Reaffirm (with nuance): deltas + planning artifacts stay.** The wish to commit "only the spec" and treat design/tasks as disposable runs against the reason those artifacts exist: in OpenSpec they *are* the reviewable, resumable product — the agreement about behavior *before* code, and the context a fresh session (or a reader six months later) needs. The delta layer is, again, what keeps *proposed* separate from *shipped* and lets parallel changes stay isolated and individually reversible (Decisions 5, 11). The valid kernel — that not every change needs the full artifact set — is real but is already served *outside this PR* by schema flexibility (a change can run a minimal, spec-only schema); this PR neither needs nor changes that. Recorded here so the "just commit the spec" question has a documented answer.
 
-**Defer (delineated follow-up): the spec linter/formatter.** "How the spec looks, reads, and is organized" — a formatter (prettier-for-specs) and structural/organization lint — is a genuine, separable direction adjacent to `openspec-conventions` and `openspec validate`. This PR already contributes the half that belongs to the merge engine: its output specs are **canonical and byte-stable** (deterministic recomposition, newline normalization), so synced/archived specs have one well-defined form. A formatter for *authoring* input (deltas and hand-edited specs), and richer organization lint, are future work — not built here, to avoid overscoping an engine PR into an authoring-experience PR.
+**In scope (Decision 14): the spec formatter.** "How the spec looks, reads, and is organized" — a deterministic formatter (prettier-for-specs) with a `--check` gate — is now folded into this PR rather than deferred, because it is the same canonicalization the merge engine already performs, exposed for authoring. See Decision 14.
 
-**Why this split.** Incremental checking is a pure consequence of the digest this PR already records — high value, near-zero added surface. The formatter and the artifact-model questions are larger, separable products; folding them in would blur a focused engine PR. Adopt the kernel, document the boundary.
+**Still out of scope: the artifact-model change.** Reducing the committed artifact set (commit-only-the-spec) is a separate product question, served by schema flexibility, not this PR.
+
+## Decision 14 — The deterministic spec formatter (`openspec format`), in scope
+
+**Context.** The discussion wanted the framework's job to include "how the spec looks and reads and is organized/formatted" — a linter/formatter, hash-optimized. Earlier this was deferred (an authoring concern, seemingly separable). Reconsidered: the merge engine *already* computes a canonical form for every spec it writes (deterministic recomposition, newline normalization, canonical spacing). A standalone formatter is that same canonicalizer pointed at authoring input. The marginal surface is small and the conceptual fit is exact, so it belongs in this PR.
+
+**Decision.** Add `openspec format [target]` — a deterministic, pure-code formatter for spec and delta files — with `--check` (read-only gate) and `--fix`/default (write). It shares one canonicalizer with `sync`/`archive`, so **the merge engine's output is, by construction, exactly what the formatter produces**: synced/archived specs always pass `format --check`. It is incremental (Decision 13's digest skip) and `--json`-capable, and it joins `sync --check` as a model-free gate the CI job and pre-commit hook run.
+
+**Behavior-preserving — the hard line.** The formatter changes only *presentation*: whitespace, blank-line policy, list markers/indentation, heading spacing, canonical delta-section headers. It MUST NOT reorder requirements or scenarios (order can carry meaning), rewrite prose, or add/remove/merge/split requirements. The invariant is testable: parse-before == parse-after (same requirements, scenarios, and delta operations); only surrounding whitespace may differ. This is what separates a *formatter* (safe, deterministic, automatic) from a *rewrite* (semantic, requires review).
+
+**What it is NOT.** Not `validate`: `validate` judges *semantic* validity (a requirement has a scenario, headers resolve), `format` judges *canonical form* (is it laid out canonically). They compose — `format` then `validate`. Not the inference-based "align spec to implementation" the discussion also mentioned: checking that *code* matches the spec needs a model and is the `verify` direction ([#880](https://github.com/Fission-AI/OpenSpec/issues/880)), explicitly out of scope here. `format` is pure text canonicalization, so it needs no agent and no `/opsx:format` skill — you run the binary (or the hook runs it).
+
+**Why now, not later.** Folding it in means one canonicalizer is specified and tested once and reused by `sync`, `archive`, and `format`, guaranteeing they cannot diverge. Deferring it would risk a future formatter that disagrees with the merge engine's output — the exact drift this PR exists to kill.
 
 ## Risks / trade-offs
 

@@ -1,10 +1,11 @@
-# Tasks: deterministic spec-merge engine — `sync` (forward) + `unarchive` (reverse)
+# Tasks: deterministic spec tooling — `sync` (forward) + `unarchive` (reverse) + `format` (canonical)
 
-> Phased so the keystone ships first and each phase is independently testable and shippable. Phase 1 (engine + baseline) and Phase 2 (`sync` + `--check`) deliver the deterministic, model-free drift path on their own; Phase 3 (`unarchive`) and Phase 4 (idempotency) build on the same baseline; Phase 5 (skills) removes the model from the merge; Phase 6 (integration) is the staged hook/CI follow-up. Cross-platform concerns (`path.join`, Windows `moveDirectory`, newline-normalized digests) are called out per [openspec/config.yaml](../../config.yaml).
+> Phased so the keystone ships first and each phase is independently testable and shippable. Phase 1 (engine + baseline + shared canonicalizer) and Phase 2 (`sync` + `--check`) deliver the deterministic, model-free drift path; Phase 2A (`format`) reuses the canonicalizer from Phase 1; Phase 3 (`unarchive`) and Phase 4 (idempotency) build on the same baseline; Phase 5 (skills) removes the model from the merge; Phase 6 (integration) is the staged hook/CI follow-up. Cross-platform concerns (`path.join`, Windows `moveDirectory`, newline-normalized digests) are called out per [openspec/config.yaml](../../config.yaml).
 
 ## 1. The engine: deterministic, byte-stable merge + applied-delta baseline
 
 - [ ] 1.1 Make the merge byte-deterministic: audit `buildUpdatedSpec` ([src/core/specs-apply.ts:240-307](../../../src/core/specs-apply.ts)) for any nondeterministic ordering/whitespace; guarantee stable requirement ordering and newline normalization so the same (delta + base) yields byte-identical output on macOS/Linux/Windows.
+- [ ] 1.1a Extract the canonicalizer: factor the recomposition/normalization `buildUpdatedSpec` performs ([specs-apply.ts:311-348](../../../src/core/specs-apply.ts)) into a shared `src/core/spec-canonical.ts` used by the merge engine *and* the formatter, so their output cannot diverge. Cover spec files and delta files (ADDED/MODIFIED/REMOVED/RENAMED sections). Behavior-preserving: assert `parse(canonicalize(x)) == parse(x)`.
 - [ ] 1.2 Define the **applied-delta baseline** format (per design Decision 1): per affected spec, the pre-merge content (or `absent` marker) plus a scheme-tagged, newline-normalized digest of the applied result. Store it with the change (e.g. `.openspec/merge-baseline/`); document the location.
 - [ ] 1.3 Add baseline read/write helpers (safe read-modify-write, preserving unrelated fields), coordinating the digest convention with [#1278](https://github.com/Fission-AI/OpenSpec/pull/1278)'s ledger.
 - [ ] 1.4 Add the inverse merge in `specs-apply.ts`: delta-inversion for ADDED (remove by name) and RENAMED (rename TO→FROM, rewriting the header line); pre-image restore for all ops when a baseline exists. No change to forward behavior for existing callers.
@@ -22,6 +23,15 @@
 - [ ] 2.8 Tests: provenance recorded + `--explain` mapping; orphan-edit and unapplied-delta both fail `--check`; delta-vs-base conflict fails with the right requirement; two active changes on one requirement flagged; clean case passes.
 - [ ] 2.9 Incremental checking (design Decision 13): `--check` skips a spec whose current digest matches the recorded baseline; re-checks on mismatch; forces a full check when the baseline is missing or its scheme is unrecognized. Add an escape hatch to disable skips (e.g. `--no-incremental`) for the equivalence test.
 - [ ] 2.10 Tests: unchanged spec skipped; changed spec re-checked; missing/unknown-scheme baseline → full check; **incremental verdict == full verdict** on the same input (the correctness invariant); a touched spec in a large fixture is the only one re-checked.
+
+## 2A. `openspec format` — the formatter (reuses the Phase 1 canonicalizer)
+
+- [ ] 2A.1 Create `src/core/format.ts` `FormatCommand` (human + `--json`); default/`--fix` rewrites targets via `spec-canonical.ts`; `--check` is read-only.
+- [ ] 2A.2 Target resolution: no target → all main specs + active-change delta files; explicit path → just that file/dir. Handle both spec and delta formats.
+- [ ] 2A.3 `--check`: list non-canonical files, exit non-zero, write nothing; default/`--fix`: write canonical form.
+- [ ] 2A.4 Register `format [target]` in [src/cli/index.ts](../../../src/cli/index.ts) (`--check`, `--fix`, `--json`), mirroring archive's shape. No skill (pure code).
+- [ ] 2A.5 Incremental: reuse the digest skip (Decision 13) so `--check` only re-reads changed files; skip never changes the verdict.
+- [ ] 2A.6 Tests: determinism (same input → same bytes; CRLF/LF; Windows); idempotency (`format(format(x))==format(x)`); **behavior-preserving** (`parse-before==parse-after`; requirement/scenario order and prose unchanged); **shared-canonicalizer invariant** — `sync`/`archive` output passes `format --check`; `--check` exit codes; `--json` shape.
 
 ## 3. `openspec unarchive` (reverse, built on the baseline)
 
@@ -57,7 +67,7 @@
 
 ## 7. Docs & supersession
 
-- [ ] 7.1 `docs/opsx.md`: add `/opsx:unarchive`; update `/opsx:sync` to note CLI delegation + determinism; document `openspec sync` and `--check`/`--fix`.
+- [ ] 7.1 `docs/opsx.md` + CLI docs: add `/opsx:unarchive`; update `/opsx:sync` to note CLI delegation + determinism; document `openspec sync` and `openspec format` with `--check`/`--fix` (and that `format` needs no agent/skill).
 - [ ] 7.2 Note the `specs/` = shipped-reality invariant and why `archive` is retained (design Decision 5), so the "why not just remove archive" question has a documented answer.
 
 ## 8. End-to-end verification
@@ -66,5 +76,6 @@
 - [ ] 8.2 E2E round-trip: `archive` then `unarchive` → `specs/` byte-identical to pre-archive, folder back under `changes/<name>/`.
 - [ ] 8.3 E2E stacked drift: change A MODIFIES req X and is archived; a second change re-MODIFIES X and is archived; `unarchive A` refuses spec reversal; `unarchive A --keep-specs` succeeds untouched.
 - [ ] 8.4 E2E no-crumbs: sync, revise the delta, re-sync → `specs/` reflects only the current delta.
+- [ ] 8.4a E2E formatter: mangle a spec's whitespace → `format --check` fails → `format` fixes it → `--check` passes; and `sync`/`archive` output passes `format --check` unchanged (shared-canonicalizer invariant).
 - [ ] 8.5 Validation: `openspec validate add-deterministic-sync-and-unarchive --strict` passes; `openspec status` shows artifacts complete.
 - [ ] 8.6 Run the suite on macOS, Linux, and Windows CI.
