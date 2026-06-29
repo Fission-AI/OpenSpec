@@ -30,18 +30,18 @@
 - [x] 3.1 Rework ALL archive templates — both `getArchiveChangeSkillTemplate` and `getOpsxArchiveCommandTemplate` in `archive-change.ts`, and both templates in `bulk-archive-change.ts` — replacing the agent-judged "assess sync state" step and the raw `mkdir`+`mv` with a single `openspec archive --json` invocation (`--yes` to suppress prompts; never `--skip-specs` or `--no-validate`)
 - [x] 3.2 Handle the structured result: success summary (specs synced, totals, path) from the CLI output; on `ArchiveBlockedError`, surface the diagnostic and guide the user to create/fix the delta spec, then re-run and trust the exit; never self-certify
 - [x] 3.3 Ensure `--skip-specs`/`--no-validate` are only ever used on explicit user intent, never to bypass a block
-- [ ] 3.4 Add a template-parity assertion for EACH of the four templates that it invokes `openspec archive` and contains no raw `mv`
+- [x] 3.4 Add a template-parity assertion for EACH of the four templates that it invokes `openspec archive` and contains no raw `mv`
 
 ## 4. Recovery audit (detection, not regeneration)
 
-- [ ] 4.1 Add a deterministic audit (the `cli-validate` "Archived Spec-Drift Audit" requirement) that flags archived changes whose declared capabilities have no corresponding `openspec/specs/<id>/spec.md` (surface via `openspec validate`, e.g. an `--archived`/audit mode). Forward-only: parse archived proposals with the same contract; note that pre-contract archives are not auditable rather than implying completeness
-- [ ] 4.2 Document that reconstructing lost spec content is agent-assisted and out of scope; the audit points at what to rebuild (fold the note into the audit help text / changeset)
+- [x] 4.1 Add a deterministic audit (the `cli-validate` "Archived Spec-Drift Audit" requirement) that flags archived changes whose declared capabilities have no corresponding `openspec/specs/<id>/spec.md` (surface via `openspec validate`, e.g. an `--archived`/audit mode). Forward-only: parse archived proposals with the same contract; note that pre-contract archives are not auditable rather than implying completeness
+- [x] 4.2 Document that reconstructing lost spec content is agent-assisted and out of scope; the audit points at what to rebuild (fold the note into the audit help text / changeset)
 
 ## 5. Delta-vs-full-spec clarity (coherence)
 
-- [ ] 5.1 Tighten the `specs` artifact instruction (schema) and `apply-change.ts`/`sync-specs.ts` wording: a delta spec lives at `changes/<name>/specs/<cap>/spec.md` and uses `## ADDED/MODIFIED/REMOVED/RENAMED Requirements`, never `## Purpose`/`## Requirements`
-- [ ] 5.2 Remove any skill language implying the agent decides "no sync needed"; the CLI decides
-- [ ] 5.3 Tighten the **proposal** artifact instruction (schema) so `## Capabilities` uses `### New Capabilities` / `### Modified Capabilities` headings with kebab-case ids matching the spec folder name (the shape the coverage parser enforces)
+- [x] 5.1 Tighten the `specs` artifact instruction (schema) and `apply-change.ts`/`sync-specs.ts` wording: a delta spec lives at `changes/<name>/specs/<cap>/spec.md` and uses `## ADDED/MODIFIED/REMOVED/RENAMED Requirements`, never `## Purpose`/`## Requirements`
+- [x] 5.2 Remove any skill language implying the agent decides "no sync needed"; the CLI decides
+- [x] 5.3 Tighten the **proposal** artifact instruction (schema) so `## Capabilities` uses `### New Capabilities` / `### Modified Capabilities` headings with kebab-case ids matching the spec folder name (the shape the coverage parser enforces)
 
 ## 6. Tests
 

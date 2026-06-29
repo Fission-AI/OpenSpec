@@ -18,7 +18,11 @@ artifacts:
       - **Impact**: Affected code, APIs, dependencies, or systems.
 
       IMPORTANT: The Capabilities section is critical. It creates the contract between
-      proposal and specs phases. Research existing specs before filling this in.
+      proposal and specs phases, and it is checked by validation: every capability id
+      listed here MUST have a matching delta spec at `specs/<id>/spec.md` (the id is the
+      kebab-case capability name, equal to the spec folder name). `openspec validate` and
+      `openspec archive` block a change that declares a capability without its delta spec.
+      Research existing specs before filling this in.
       Each capability listed here will need a corresponding spec file.
 
       Keep it concise (1-2 pages). Focus on the "why" not the "how" -
@@ -37,6 +41,13 @@ artifacts:
       Create one spec file per capability listed in the proposal's Capabilities section.
       - New capabilities: use the exact kebab-case name from the proposal (specs/<capability>/spec.md).
       - Modified capabilities: use the existing spec folder name from openspec/specs/<capability>/ when creating the delta spec at specs/<capability>/spec.md.
+
+      CRITICAL: A change spec is a DELTA spec, not a full spec. It MUST use the
+      delta operation headers below (## ADDED/MODIFIED/REMOVED/RENAMED Requirements).
+      Do NOT write a full spec with `## Purpose` / `## Requirements` here — archive
+      will not recognize it as a delta and will block the change. Every declared
+      capability must have a matching delta spec, or archive blocks (use --skip-specs
+      only if the change intentionally has no specs).
 
       Delta operations (use ## headers):
       - **ADDED Requirements**: New capabilities

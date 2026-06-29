@@ -84,6 +84,10 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         name: 'specs',
         description: 'Validate all specs',
       },
+      {
+        name: 'archived',
+        description: 'Audit archived changes for capabilities never synced to openspec/specs/',
+      },
       COMMON_FLAGS.type,
       COMMON_FLAGS.strict,
       COMMON_FLAGS.jsonValidation,

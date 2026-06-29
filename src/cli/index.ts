@@ -357,6 +357,7 @@ program
   .option('--all', 'Validate all changes and specs')
   .option('--changes', 'Validate all changes')
   .option('--specs', 'Validate all specs')
+  .option('--archived', 'Audit archived changes for capabilities never synced to openspec/specs/')
   .option('--type <type>', 'Specify item type when ambiguous: change|spec')
   .option('--strict', 'Enable strict validation mode')
   .option('--json', 'Output validation results as JSON')
@@ -364,7 +365,7 @@ program
   .option('--no-interactive', 'Disable interactive prompts')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
-  .action(async (itemName?: string, options?: { all?: boolean; changes?: boolean; specs?: boolean; type?: string; strict?: boolean; json?: boolean; noInteractive?: boolean; concurrency?: string; store?: string; storePath?: string }) => {
+  .action(async (itemName?: string, options?: { all?: boolean; changes?: boolean; specs?: boolean; archived?: boolean; type?: string; strict?: boolean; json?: boolean; noInteractive?: boolean; concurrency?: string; store?: string; storePath?: string }) => {
     try {
       const validateCommand = new ValidateCommand();
       await validateCommand.execute(itemName, options);
