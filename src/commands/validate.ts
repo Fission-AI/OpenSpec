@@ -190,10 +190,12 @@ export class ValidateCommand {
   }
 
   /**
-   * Validate a change with the schema-aware delta gate: only run delta-spec
-   * validation + declared-capability coverage when the change's schema produces
-   * delta specs (#997). The same gate is applied by `openspec archive`, so the
-   * two commands agree on whether delta specs are required.
+   * Validate a change: proposal validation (required sections + change-shape)
+   * ALWAYS runs, and the delta-spec validation + declared-capability coverage
+   * run only when the change's schema produces delta specs (#997). The same
+   * schema-aware delta gate is applied by `openspec archive`, so the two
+   * commands agree on whether delta specs are required — while a malformed or
+   * incomplete proposal fails validation under either schema.
    */
   private async validateChange(
     validator: Validator,
@@ -201,14 +203,16 @@ export class ValidateCommand {
     changeDir: string,
     strict: boolean
   ): Promise<ValidationReport> {
-    if (!requiresDelta(changeDir)) {
-      return { valid: true, issues: [], summary: { errors: 0, warnings: 0, info: 0 } };
+    const reports = [await validator.validateChangeProposal(changeDir)];
+    if (requiresDelta(changeDir)) {
+      reports.push(
+        ...(await Promise.all([
+          validator.validateChangeDeltaSpecs(changeDir),
+          validator.validateChangeCapabilityCoverage(changeDir),
+        ]))
+      );
     }
-    const [delta, coverage] = await Promise.all([
-      validator.validateChangeDeltaSpecs(changeDir),
-      validator.validateChangeCapabilityCoverage(changeDir),
-    ]);
-    const issues = [...delta.issues, ...coverage.issues];
+    const issues = reports.flatMap((r) => r.issues);
     const errors = issues.filter((i) => i.level === 'ERROR').length;
     const warnings = issues.filter((i) => i.level === 'WARNING').length;
     const info = issues.filter((i) => i.level === 'INFO').length;

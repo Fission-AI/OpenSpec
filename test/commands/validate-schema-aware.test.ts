@@ -33,7 +33,10 @@ describe('validate: schema-aware delta gate (#997) and archived-drift audit', ()
     const d = path.join(changesDir, name);
     await fs.mkdir(d, { recursive: true });
     if (schema) await fs.writeFile(path.join(d, '.openspec.yaml'), `schema: ${schema}\ncreated: 2026-06-29\n`);
-    await fs.writeFile(path.join(d, 'proposal.md'), '## Why\nlong enough why for validation here today.\n\n## What Changes\n- x\n');
+    await fs.writeFile(
+      path.join(d, 'proposal.md'),
+      '## Why\nA sufficiently long why section so proposal validation passes for this test change.\n\n## What Changes\n- x\n'
+    );
     return d;
   }
 
@@ -48,6 +51,53 @@ describe('validate: schema-aware delta gate (#997) and archived-drift audit', ()
     const r = await runCLI(['validate', 'strict'], { cwd: dir });
     expect(r.exitCode).toBe(1);
     expect(r.stdout + r.stderr).toContain('at least one delta');
+  });
+
+  // Proposal validation must run regardless of the schema-aware delta gate
+  // (regression for the validate-skips-proposal bug found in review).
+  async function changeWithProposal(
+    name: string,
+    schema: string | null,
+    proposal: string,
+    opts: { delta?: boolean } = {}
+  ) {
+    const d = path.join(changesDir, name);
+    await fs.mkdir(d, { recursive: true });
+    if (schema) await fs.writeFile(path.join(d, '.openspec.yaml'), `schema: ${schema}\ncreated: 2026-06-29\n`);
+    await fs.writeFile(path.join(d, 'proposal.md'), proposal);
+    if (opts.delta) {
+      const sd = path.join(d, 'specs', 'cap');
+      await fs.mkdir(sd, { recursive: true });
+      await fs.writeFile(
+        path.join(sd, 'spec.md'),
+        '## ADDED Requirements\n\n### Requirement: Cap\nThe system SHALL cap.\n\n#### Scenario: s\n- **WHEN** a\n- **THEN** b\n'
+      );
+    }
+    return d;
+  }
+
+  it('invalid proposal (missing ## Why) + valid delta still FAILS validate', async () => {
+    await changeWithProposal('bad-spec', 'spec-driven', '## What Changes\n- missing why section\n', {
+      delta: true,
+    });
+    const r = await runCLI(['validate', 'bad-spec'], { cwd: dir });
+    expect(r.exitCode).toBe(1);
+  });
+
+  it('proposal-only schema + invalid proposal still FAILS validate', async () => {
+    await changeWithProposal('bad-prop', 'proposal-only', '## What Changes\n- missing why\n');
+    const r = await runCLI(['validate', 'bad-prop'], { cwd: dir });
+    expect(r.exitCode).toBe(1);
+  });
+
+  it('proposal-only schema + valid proposal + no specs PASSES validate', async () => {
+    await changeWithProposal(
+      'ok-prop',
+      'proposal-only',
+      '## Why\nA valid proposal-only change with a sufficiently long why section here.\n\n## What Changes\n- notes\n'
+    );
+    const r = await runCLI(['validate', 'ok-prop'], { cwd: dir });
+    expect(r.exitCode).toBe(0);
   });
 
   it('bulk validate applies the gate per change (proposal-only ok, spec-driven fails)', async () => {

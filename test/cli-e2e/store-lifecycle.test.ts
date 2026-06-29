@@ -113,7 +113,7 @@ async function writeCompletedChangeArtifacts(
       '',
       '## Why',
       '',
-      'Prove the standalone store lifecycle end to end.',
+      'Prove the standalone store lifecycle works end to end across machines.',
       '',
       '## What Changes',
       '',

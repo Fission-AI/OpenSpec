@@ -88,7 +88,7 @@ describe('declared store fallback (3.2)', () => {
     const changeDir = path.join(storeRoot, 'openspec', 'changes', 'billing-rework');
     fs.writeFileSync(
       path.join(changeDir, 'proposal.md'),
-      '## Why\n\nBilling rework.\n\n## What Changes\n\n- **billing:** Rework billing\n'
+      '## Why\n\nBilling rework is needed to keep invoices correct and auditable over time.\n\n## What Changes\n\n- **billing:** Rework billing\n'
     );
     const deltaDir = path.join(changeDir, 'specs', 'billing');
     fs.mkdirSync(deltaDir, { recursive: true });

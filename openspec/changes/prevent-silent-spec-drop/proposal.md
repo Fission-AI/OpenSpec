@@ -1,34 +1,10 @@
 ## Why
 
-A spec-driven change can complete the whole workflow — propose, implement, archive — while **silently leaving `openspec/specs/` stale**, with no error and no recovery path. It is the most-reported correctness defect in the tracker, and a deep read of the issue cluster (#1212, #1250, #656, #863, #164, #194, #997, #1260, #1222, #1264, #799, and the live Discord reports) shows it is not one bug but **one architectural fault expressed at four layers**:
+A spec-driven change can finish the whole workflow — propose, implement, archive — while **silently leaving `openspec/specs/` stale**, with no error and no recovery path. It is the most-reported correctness defect in the tracker.
 
-> Correctness-critical decisions live in **agent prompts**, not in deterministic CLI logic. Skills are asked to *judge* what a "delta spec" is, *decide* whether to sync, and *track* a loop termination — and agents (GPT-5.x, Claude, others) get these judgments wrong often enough to silently lose spec data.
+The root fault is singular: **correctness-critical decisions live in agent prompts, not deterministic CLI logic.** The propose/ff loop stops at `applyRequires` (which excludes `specs`); the archive skill bypasses `openspec archive` (raw `mv` + agent-judged sync); and archive gates its own validation on `if (hasDeltaSpecs)` — skipping the check exactly when specs are missing. That hides three silent drop modes: **total** (no `specs/`), **partial** (declares `a,b,c`, ships only `a`), and **format** (a full `## Purpose` spec where a `## ADDED Requirements` delta belongs). The fix must not over-correct: schemas that legitimately produce no deltas (#997) must stay valid.
 
-### The four layers
-
-1. **The propose/ff loop stops too early (and non-deterministically).** Both skills loop over artifacts and *"Stop when all `applyRequires` artifacts are done"* (`ff-change.ts:72`), reading `applyRequires` from the schema. For `spec-driven`, `applyRequires` is `[tasks]` — it excludes `specs` — so the loop can end before `openspec instructions specs` is ever called. Because it depends on the agent's path through "ready" artifacts, it is intermittent: the author of PR #1250 **could not reproduce it** on a greenfield project, while others hit it constantly. Anything intermittent in a prompt must be made deterministic in the CLI. (#1212, #1260)
-
-2. **The archive skill bypasses the CLI entirely (the keystone).** `/opsx:archive` does **not** call `openspec archive`. It *assesses sync state by agent judgment* (`archive-change.ts:58-60`: "If none exist, proceed without sync prompt"), optionally invokes a separate agent-driven `openspec-sync-specs`, then moves the change with a raw `mkdir` + `mv` (`archive-change.ts:86-88`). Every deterministic check and the deterministic delta-merge in `src/core/archive.ts` is **never executed for agent workflows**. The `opsx-archive-skill` spec encodes this: it mandates the skill *move* the directory and *prompt-or-skip* sync on judgment. (Filed as #656 and #863.)
-
-3. **Even when reached, the archive CLI skips its own validation.** `openspec validate` runs `validateChangeDeltaSpecs` unconditionally; `openspec archive` runs it only inside `if (hasDeltaSpecs)` (`archive.ts:282`), gating the check on the presence of the very thing whose absence is the bug. This hides **three** drop modes:
-   - **Total drop** — no `specs/` at all (#1212, #1222).
-   - **Partial drop** — proposal declares capabilities `a,b,c`, ships a delta for `a` only.
-   - **Format drop (the Discord case)** — `specs/<cap>/spec.md` exists but as a **full** spec (`## Purpose`/`## Requirements`) instead of a **delta** spec (`## ADDED/MODIFIED/REMOVED/RENAMED Requirements`); the delta-header regex misses it and archive reports "No delta specs." (#164, #194, Discord)
-
-4. **It must not over-correct.** Some schemas legitimately have no delta specs (proposal-only / lighter schemas). A naive "always require deltas" breaks them (#997). The requirement must be **schema-graph-driven**, not hardcoded.
-
-### Reproductions (confirmed against current `main`)
-
-```console
-# Total drop — validate and archive disagree
-$ openspec validate silent-drop      # exit 1: CHANGE_NO_DELTAS
-$ openspec archive silent-drop --yes # exit 0: "archived"; no openspec/specs/ created
-
-# Format drop — a full (non-delta) spec file is silently ignored: archive.ts:274's
-# /^## (ADDED|MODIFIED|REMOVED|RENAMED) Requirements/ never matches, hasDeltaSpecs=false.
-```
-
-And the keystone: `grep "openspec archive" archive-change.ts` → **no match**. The skill never calls the CLI.
+Full analysis, reproductions, and decisions are in [`design.md`](./design.md).
 
 ## What Changes
 
