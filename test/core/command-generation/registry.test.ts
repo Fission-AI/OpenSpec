@@ -32,6 +32,11 @@ describe('command-generation/registry', () => {
       expect(adapter).toBeUndefined();
     });
 
+    it('should return undefined for CodeArts without a command adapter', () => {
+      const adapter = CommandAdapterRegistry.get('codeartsagent');
+      expect(adapter).toBeUndefined();
+    });
+
     it('should return undefined for empty string', () => {
       const adapter = CommandAdapterRegistry.get('');
       expect(adapter).toBeUndefined();
@@ -66,6 +71,10 @@ describe('command-generation/registry', () => {
     it('should return false for unregistered tools', () => {
       expect(CommandAdapterRegistry.has('unknown')).toBe(false);
       expect(CommandAdapterRegistry.has('')).toBe(false);
+    });
+
+    it('should return false for CodeArts without a command adapter', () => {
+      expect(CommandAdapterRegistry.has('codeartsagent')).toBe(false);
     });
   });
 
