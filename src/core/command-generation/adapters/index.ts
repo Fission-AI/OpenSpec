@@ -23,6 +23,7 @@ export { iflowAdapter } from './iflow.js';
 export { junieAdapter } from './junie.js';
 export { kilocodeAdapter } from './kilocode.js';
 export { kiroAdapter } from './kiro.js';
+export { ohMyPiAdapter } from './oh-my-pi.js';
 export { opencodeAdapter } from './opencode.js';
 export { piAdapter } from './pi.js';
 export { qoderAdapter } from './qoder.js';
