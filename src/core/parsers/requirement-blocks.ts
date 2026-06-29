@@ -1,3 +1,5 @@
+import { buildCodeFenceMask } from './code-fence.js';
+
 export interface RequirementBlock {
   headerLine: string; // e.g., '### Requirement: Something'
   name: string; // e.g., 'Something'
@@ -24,7 +26,8 @@ const REQUIREMENT_HEADER_REGEX = /^###\s*Requirement:\s*(.+)\s*$/i;
 export function extractRequirementsSection(content: string): RequirementsSectionParts {
   const normalized = normalizeLineEndings(content);
   const lines = normalized.split('\n');
-  const reqHeaderIndex = lines.findIndex(l => /^##\s+Requirements\s*$/i.test(l));
+  const fenceMask = buildCodeFenceMask(lines);
+  const reqHeaderIndex = lines.findIndex((l, i) => !fenceMask[i] && /^##\s+Requirements\s*$/i.test(l));
 
   if (reqHeaderIndex === -1) {
     // No requirements section; create an empty one at the end
@@ -42,7 +45,7 @@ export function extractRequirementsSection(content: string): RequirementsSection
   // Find end of this section: next line that starts with '## ' at same or higher level
   let endIndex = lines.length;
   for (let i = reqHeaderIndex + 1; i < lines.length; i++) {
-    if (/^##\s+/.test(lines[i])) {
+    if (!fenceMask[i] && /^##\s+/.test(lines[i])) {
       endIndex = i;
       break;
     }
@@ -51,6 +54,11 @@ export function extractRequirementsSection(content: string): RequirementsSection
   const before = lines.slice(0, reqHeaderIndex).join('\n');
   const headerLine = lines[reqHeaderIndex];
   const sectionBodyLines = lines.slice(reqHeaderIndex + 1, endIndex);
+  const sectionBodyMask = fenceMask.slice(reqHeaderIndex + 1, endIndex);
+  const isRequirementHeader = (cursor: number): boolean =>
+    !sectionBodyMask[cursor] && REQUIREMENT_HEADER_REGEX.test(sectionBodyLines[cursor]);
+  const isTopLevelHeader = (cursor: number): boolean =>
+    !sectionBodyMask[cursor] && /^##\s+/.test(sectionBodyLines[cursor]);
 
   // Parse requirement blocks within section body
   const blocks: RequirementBlock[] = [];
@@ -58,25 +66,24 @@ export function extractRequirementsSection(content: string): RequirementsSection
   let preambleLines: string[] = [];
 
   // Collect preamble lines until first requirement header
-  while (cursor < sectionBodyLines.length && !REQUIREMENT_HEADER_REGEX.test(sectionBodyLines[cursor])) {
+  while (cursor < sectionBodyLines.length && !isRequirementHeader(cursor)) {
     preambleLines.push(sectionBodyLines[cursor]);
     cursor++;
   }
 
   while (cursor < sectionBodyLines.length) {
-    const headerStart = cursor;
     const headerLineCandidate = sectionBodyLines[cursor];
-    const headerMatch = headerLineCandidate.match(REQUIREMENT_HEADER_REGEX);
-    if (!headerMatch) {
+    if (!isRequirementHeader(cursor)) {
       // Not a requirement header; skip line defensively
       cursor++;
       continue;
     }
+    const headerMatch = headerLineCandidate.match(REQUIREMENT_HEADER_REGEX)!;
     const name = normalizeRequirementName(headerMatch[1]);
     cursor++;
     // Gather lines until next requirement header or end of section
     const bodyLines: string[] = [headerLineCandidate];
-    while (cursor < sectionBodyLines.length && !REQUIREMENT_HEADER_REGEX.test(sectionBodyLines[cursor]) && !/^##\s+/.test(sectionBodyLines[cursor])) {
+    while (cursor < sectionBodyLines.length && !isRequirementHeader(cursor) && !isTopLevelHeader(cursor)) {
       bodyLines.push(sectionBodyLines[cursor]);
       cursor++;
     }
@@ -114,11 +121,23 @@ function normalizeLineEndings(content: string): string {
 }
 
 /**
+ * A slice of a document represented as its lines plus a parallel mask marking
+ * lines that live inside fenced code blocks (which must be ignored when
+ * detecting Markdown structure).
+ */
+interface SectionBody {
+  lines: string[];
+  fenceMask: boolean[];
+}
+
+/**
  * Parse a delta-formatted spec change file content into a DeltaPlan with raw blocks.
  */
 export function parseDeltaSpec(content: string): DeltaPlan {
   const normalized = normalizeLineEndings(content);
-  const sections = splitTopLevelSections(normalized);
+  const lines = normalized.split('\n');
+  const fenceMask = buildCodeFenceMask(lines);
+  const sections = splitTopLevelSections(lines, fenceMask);
   const addedLookup = getSectionCaseInsensitive(sections, 'ADDED Requirements');
   const modifiedLookup = getSectionCaseInsensitive(sections, 'MODIFIED Requirements');
   const removedLookup = getSectionCaseInsensitive(sections, 'REMOVED Requirements');
@@ -141,50 +160,55 @@ export function parseDeltaSpec(content: string): DeltaPlan {
   };
 }
 
-function splitTopLevelSections(content: string): Record<string, string> {
-  const lines = content.split('\n');
-  const result: Record<string, string> = {};
-  const indices: Array<{ title: string; index: number; level: number }> = [];
+function splitTopLevelSections(lines: string[], fenceMask: boolean[]): Record<string, SectionBody> {
+  const result: Record<string, SectionBody> = {};
+  const indices: Array<{ title: string; index: number }> = [];
   for (let i = 0; i < lines.length; i++) {
+    if (fenceMask[i]) continue;
     const m = lines[i].match(/^(##)\s+(.+)$/);
     if (m) {
-      const level = m[1].length; // only care for '##'
-      indices.push({ title: m[2].trim(), index: i, level });
+      indices.push({ title: m[2].trim(), index: i });
     }
   }
   for (let i = 0; i < indices.length; i++) {
     const current = indices[i];
     const next = indices[i + 1];
-    const body = lines.slice(current.index + 1, next ? next.index : lines.length).join('\n');
-    result[current.title] = body;
+    const end = next ? next.index : lines.length;
+    result[current.title] = {
+      lines: lines.slice(current.index + 1, end),
+      fenceMask: fenceMask.slice(current.index + 1, end),
+    };
   }
   return result;
 }
 
-function getSectionCaseInsensitive(sections: Record<string, string>, desired: string): { body: string; found: boolean } {
+const EMPTY_SECTION_BODY: SectionBody = { lines: [], fenceMask: [] };
+
+function getSectionCaseInsensitive(sections: Record<string, SectionBody>, desired: string): { body: SectionBody; found: boolean } {
   const target = desired.toLowerCase();
   for (const [title, body] of Object.entries(sections)) {
     if (title.toLowerCase() === target) return { body, found: true };
   }
-  return { body: '', found: false };
+  return { body: EMPTY_SECTION_BODY, found: false };
 }
 
-function parseRequirementBlocksFromSection(sectionBody: string): RequirementBlock[] {
-  if (!sectionBody) return [];
-  const lines = normalizeLineEndings(sectionBody).split('\n');
+function parseRequirementBlocksFromSection(sectionBody: SectionBody): RequirementBlock[] {
+  const { lines, fenceMask } = sectionBody;
+  if (lines.length === 0) return [];
+  const isRequirementHeader = (i: number): boolean => !fenceMask[i] && REQUIREMENT_HEADER_REGEX.test(lines[i]);
+  const isTopLevelHeader = (i: number): boolean => !fenceMask[i] && /^##\s+/.test(lines[i]);
   const blocks: RequirementBlock[] = [];
   let i = 0;
   while (i < lines.length) {
     // Seek next requirement header
-    while (i < lines.length && !REQUIREMENT_HEADER_REGEX.test(lines[i])) i++;
+    while (i < lines.length && !isRequirementHeader(i)) i++;
     if (i >= lines.length) break;
     const headerLine = lines[i];
-    const m = headerLine.match(REQUIREMENT_HEADER_REGEX);
-    if (!m) { i++; continue; }
+    const m = headerLine.match(REQUIREMENT_HEADER_REGEX)!;
     const name = normalizeRequirementName(m[1]);
     const buf: string[] = [headerLine];
     i++;
-    while (i < lines.length && !REQUIREMENT_HEADER_REGEX.test(lines[i]) && !/^##\s+/.test(lines[i])) {
+    while (i < lines.length && !isRequirementHeader(i) && !isTopLevelHeader(i)) {
       buf.push(lines[i]);
       i++;
     }
@@ -193,11 +217,13 @@ function parseRequirementBlocksFromSection(sectionBody: string): RequirementBloc
   return blocks;
 }
 
-function parseRemovedNames(sectionBody: string): string[] {
-  if (!sectionBody) return [];
+function parseRemovedNames(sectionBody: SectionBody): string[] {
+  const { lines, fenceMask } = sectionBody;
+  if (lines.length === 0) return [];
   const names: string[] = [];
-  const lines = normalizeLineEndings(sectionBody).split('\n');
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    if (fenceMask[i]) continue;
+    const line = lines[i];
     const m = line.match(REQUIREMENT_HEADER_REGEX);
     if (m) {
       names.push(normalizeRequirementName(m[1]));
@@ -212,12 +238,14 @@ function parseRemovedNames(sectionBody: string): string[] {
   return names;
 }
 
-function parseRenamedPairs(sectionBody: string): Array<{ from: string; to: string }> {
-  if (!sectionBody) return [];
+function parseRenamedPairs(sectionBody: SectionBody): Array<{ from: string; to: string }> {
+  const { lines, fenceMask } = sectionBody;
+  if (lines.length === 0) return [];
   const pairs: Array<{ from: string; to: string }> = [];
-  const lines = normalizeLineEndings(sectionBody).split('\n');
   let current: { from?: string; to?: string } = {};
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    if (fenceMask[i]) continue;
+    const line = lines[i];
     const fromMatch = line.match(/^\s*-?\s*FROM:\s*`?###\s*Requirement:\s*(.+?)`?\s*$/);
     const toMatch = line.match(/^\s*-?\s*TO:\s*`?###\s*Requirement:\s*(.+?)`?\s*$/);
     if (fromMatch) {

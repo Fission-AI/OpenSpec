@@ -1,4 +1,5 @@
 import { Spec, Change, Requirement, Scenario, Delta, DeltaOperation } from '../schemas/index.js';
+import { buildCodeFenceMask } from './code-fence.js';
 
 export interface Section {
   level: number;
@@ -24,51 +25,7 @@ export class MarkdownParser {
   }
 
   protected static buildCodeFenceMask(lines: string[]): boolean[] {
-    const mask = new Array(lines.length).fill(false);
-    let activeFence: { marker: '`' | '~'; length: number } | null = null;
-
-    for (let i = 0; i < lines.length; i++) {
-      const fence = MarkdownParser.getFenceMarker(lines[i]);
-
-      if (!activeFence) {
-        if (fence) {
-          activeFence = fence;
-          mask[i] = true;
-        }
-        continue;
-      }
-
-      mask[i] = true;
-      if (MarkdownParser.isClosingFence(lines[i], activeFence)) {
-        activeFence = null;
-      }
-    }
-
-    return mask;
-  }
-
-  private static getFenceMarker(line: string): { marker: '`' | '~'; length: number } | null {
-    const fenceMatch = line.match(/^\s*(`{3,}|~{3,})/);
-    if (!fenceMatch) {
-      return null;
-    }
-
-    return {
-      marker: fenceMatch[1][0] as '`' | '~',
-      length: fenceMatch[1].length,
-    };
-  }
-
-  private static isClosingFence(
-    line: string,
-    activeFence: { marker: '`' | '~'; length: number }
-  ): boolean {
-    const fenceMatch = line.match(/^\s*(`{3,}|~{3,})\s*$/);
-    return Boolean(
-      fenceMatch &&
-      fenceMatch[1][0] === activeFence.marker &&
-      fenceMatch[1].length >= activeFence.length
-    );
+    return buildCodeFenceMask(lines);
   }
 
   parseSpec(name: string): Spec {
