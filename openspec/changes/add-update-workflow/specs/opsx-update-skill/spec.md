@@ -72,6 +72,12 @@ The `/opsx:update` skill SHALL support an audit mode that reviews a whole change
 - **THEN** the skill does not guess at staleness
 - **AND** it surfaces the deterministic structural facts the CLI reports (an artifact whose output is missing or empty, or one still blocked/incomplete) and asks the user how to proceed
 
+#### Scenario: Audit performs cross-artifact semantic review
+
+- **WHEN** audit mode runs
+- **THEN** in addition to the deterministic drift and structural signals, the skill reviews the change's artifacts against each other for cross-artifact incoherence that those signals cannot detect — for example a scope item present in the proposal but excluded in design, behavior specified only in design but absent from the specs, or a task duplicating an existing capability
+- **AND** it presents such findings for the user to confirm before any edit
+
 #### Scenario: Audit offers per-artifact fixes
 
 - **WHEN** audit mode identifies one or more artifacts to revise

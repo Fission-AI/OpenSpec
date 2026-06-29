@@ -39,7 +39,7 @@ Instead, each artifact carries a **content digest**: `sha256(normalizeNewlines(c
 
 **Drift** is then defined deterministically: a downstream artifact *D* has drifted against upstream *U* iff `digest(U_now) ≠ digest(U_recorded_when_D_was_reconciled)`. The recorded baseline is a small per-change **digest ledger** (Decision 3). Until a baseline is recorded, drift is reported as **`unknown`**, never inferred — so the audit produces zero false positives, in contrast to the mtime heuristic which produced many.
 
-[Risk] No baseline yet (e.g. pre-existing changes) → Mitigation: report `unknown`, fall back to the deterministic *structural* checks already available from `status` (missing/empty output, blocked/incomplete artifact) and the user-named targeted flow, which need no baseline.
+[Risk] No baseline yet (e.g. pre-existing changes) → Mitigation: report `unknown`, fall back to the deterministic *structural* checks (missing/empty output — reusing [#1098](https://github.com/Fission-AI/OpenSpec/pull/1098)'s `artifactOutputComplete` rather than reinventing — and blocked/incomplete status) and the user-named targeted flow, which need no baseline.
 
 ### 3. The digest ledger (deterministic drift baseline) — separable layer
 To detect drift without the user naming what changed, record the baseline. Extend `ChangeMetadataSchema` (today just `schema`/`created`/`goal`/`affected_areas`/`initiative`) with an optional map: for each artifact, the digests of its **direct** upstream outputs at the moment it was last *reconciled* — where "reconciled" means the artifact was just (re)generated or explicitly confirmed up-to-date against those upstreams. Writing the ledger is itself a deterministic CLI operation (`openspec status` can record on read, or an explicit `--record`), invoked by the generating flows (`propose`/`continue`/`ff`) and by `/opsx:update` after each confirmed edit — so the agent triggers a deterministic write, it does not compute hashes.
@@ -72,8 +72,22 @@ The CLI owns every decision that is a function of the graph and the bytes: **whi
 
 Alternatives considered: (a) `openspec regen --from <artifact>` as #705 literally asks — rejected: a mutating CLI verb that rewrites artifacts duplicates the skill's job and bypasses user confirmation; the value is in the agent's semantic revision, not a CLI rewrite. (b) `openspec update artifacts …` subcommand — rejected: still collides conceptually and splits the action across two surfaces.
 
-### 7. Compose with #1277
-The status-JSON additions live in `formatChangeStatus` ([instruction-loader.ts](../../../src/core/artifact-graph/instruction-loader.ts)) and the `status` command ([src/commands/workflow/status.ts](../../../src/commands/workflow/status.ts)); [#1277](https://github.com/Fission-AI/OpenSpec/pull/1277) touches the same status path and adds deterministic capability-coverage helpers (`extractDeclaredCapabilities`, `validateChangeCapabilityCoverage`). Those helpers are **not in this branch's base** (main), so audit's structural checks should *reuse* them once #1277 lands rather than reimplement; the JSON additions here are purely additive fields and compose cleanly.
+### 7. Compose with #1277 and #1098
+The status-JSON additions live in `formatChangeStatus` ([instruction-loader.ts](../../../src/core/artifact-graph/instruction-loader.ts)) and the `status` command ([src/commands/workflow/status.ts](../../../src/commands/workflow/status.ts)); [#1277](https://github.com/Fission-AI/OpenSpec/pull/1277) touches the same status path and adds deterministic capability-coverage helpers (`extractDeclaredCapabilities`, `validateChangeCapabilityCoverage`), and [#1098](https://github.com/Fission-AI/OpenSpec/pull/1098) adds `artifactOutputComplete`/`artifactOutputContentValid` in `outputs.ts` — the exact file the digest helper (Decision 2) lives in. None are in this branch's base (main), so audit's structural checks should *reuse* them as they land rather than reimplement; the JSON additions here are purely additive fields and compose cleanly.
+
+### 8. The command family: one action, distinct surfaces
+The tracker has accumulated several adjacent requests; good design means one coherent action, not five overlapping commands ([#1263](https://github.com/Fission-AI/OpenSpec/issues/1263) and #783 both flag skill-count growth). The boundaries:
+
+| Command | Scope | Reads | Writes |
+|---|---|---|---|
+| `/opsx:clarify` ([#702](https://github.com/Fission-AI/OpenSpec/pull/702)) | *within* one artifact (ambiguity Q&A) | one artifact | that artifact |
+| **`/opsx:update`** (this) | *across* a change's planning artifacts (propagate + audit) | the artifact graph | planning artifacts |
+| `/opsx:review` ([#1251](https://github.com/Fission-AI/OpenSpec/pull/1251)), [#1073](https://github.com/Fission-AI/OpenSpec/issues/1073) | plan *vs. code* | artifacts + code | nothing (read-only) |
+| `/opsx:verify` | archive readiness | artifacts + code | nothing |
+
+`/opsx:update` deliberately **subsumes** the update/regen/refine cluster (#1188/#705/#673/#783/#1206) into its two modes instead of spawning `/opsx:regen`, `/opsx:rebuild`, and `/opsx:refine` separately. It composes with clarify (a within-artifact step that often precedes an update) and review (a code-side check that follows apply); it never overlaps their read/write surfaces.
+
+**Answering #783's form question (skill vs. extend `validate`).** Both, split by determinism: the checks that are pure functions of content and graph — drift (digests), structural completeness (#1098), capability coverage (#1277) — are CLI-shaped and are the natural content of a future schema-aware `openspec validate` coherence rule (aligns with [#829](https://github.com/Fission-AI/OpenSpec/issues/829)); the cross-artifact *semantic* review (scope contradictions, duplication with existing specs, missing abstractions) cannot be deterministic and is the skill's job. This change ships the `status` data + skill; surfacing the deterministic subset in `validate` for a CI gate is a scoped follow-up (Open Questions).
 
 ## Risks / Trade-offs
 
@@ -94,3 +108,5 @@ Purely additive. New graph methods, new optional status fields/flag, one new ski
 3. **Targeted-mode entry point.** Should the skill infer the changed artifact from `git diff` (deterministic for committed files) and confirm, or always ask? Lean: when a baseline exists, default to the drifted set; otherwise ask.
 4. **Relationship to `/opsx:apply`'s mid-flight edits.** `apply` already re-reads artifacts each run; should `/opsx:update` be invocable *from within* an apply session, or strictly before it? Lean: standalone, with apply pointing to it when it detects upstream drift.
 5. **Retire hardcoded patterns in `continue`/`ff` now or later?** ([#777](https://github.com/Fission-AI/OpenSpec/issues/777)) Doing it here widens scope; deferring risks the new skill being the only graph-driven one. Recommend a fast-follow change.
+6. **Surface the deterministic coherence checks in `openspec validate` too?** ([#783](https://github.com/Fission-AI/OpenSpec/issues/783) option B, [#829](https://github.com/Fission-AI/OpenSpec/issues/829)) A schema-aware `validate` drift/completeness rule would give a CI gate independent of the agent. Natural fit, but it overlaps #1277/#1098/#829 surfaces — recommend landing as a coordinated follow-up rather than widening this change.
+7. **Naming.** [#783](https://github.com/Fission-AI/OpenSpec/issues/783) suggests `/opsx:refine` for the cross-artifact review. We keep `/opsx:update` as the umbrella (it is the missing first-class *action*, and covers both propagate and audit); "refine" reads as audit mode. If the team prefers `refine` for the audit half, it can alias the same skill — but two commands for one action reintroduces the sprawl #1263 flags.

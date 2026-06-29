@@ -11,7 +11,7 @@
 
 ## 2. Artifact graph: content digest (deterministic, grounded)
 
-- [ ] 2.1 Add `artifactDigest(changeDir, generates)` in `outputs.ts`: read the files from `resolveArtifactOutputs` (already sorted deterministically), normalize newlines (CRLF→LF), SHA-256 over the concatenation; return undefined when no output exists. (New helper — no content-hash utility exists in the repo; only `crypto.randomUUID` in telemetry.)
+- [ ] 2.1 Add `artifactDigest(changeDir, generates)` in `outputs.ts`: read the files from `resolveArtifactOutputs` (already sorted deterministically), normalize newlines (CRLF→LF), SHA-256 over the concatenation; return undefined when no output exists. (New helper — no content-hash utility exists in the repo; only `crypto.randomUUID` in telemetry.) Lives alongside #1098's `artifactOutputComplete`/`artifactOutputContentValid`; coordinate so structural-completeness reuses #1098 rather than duplicating.
 - [ ] 2.2 Unit tests: identical content → identical digest; changed content → changed digest; **CRLF vs LF inputs → identical digest** (cross-platform); glob multi-file determinism; missing output → undefined.
 
 ## 3. CLI: surface edges, digest, and impact on `status`
@@ -24,7 +24,7 @@
 ## 4. The `/opsx:update` skill (thin wrapper over the deterministic spine)
 
 - [ ] 4.1 Create `src/core/templates/workflows/update-change.ts` with `getUpdateChangeSkillTemplate()` (skill) and `getOpsxUpdateCommandTemplate()` (command), mirroring `continue-change.ts` structure.
-- [ ] 4.2 Instruction body: select change (infer/prompt via `openspec list --json`) → read `openspec status --change <id> --json` → branch into targeted vs audit mode → obtain the impact set/order from `--impact` (never compute it) → propose/confirm/apply/re-check, reading ids/paths/edges/digests from JSON only.
+- [ ] 4.2 Instruction body: select change (infer/prompt via `openspec list --json`) → read `openspec status --change <id> --json` → branch into targeted vs audit mode → obtain the impact set/order from `--impact` (never compute it) → propose/confirm/apply/re-check, reading ids/paths/edges/digests from JSON only. Audit mode additionally performs the cross-artifact semantic review of #783 (scope contradictions, spec gaps, duplication) that the deterministic signals cannot detect.
 - [ ] 4.3 Encode the guardrails explicitly: (a) planning artifacts only — never edit code, hand off to `/opsx:apply`; (b) graph-driven — no literal `proposal`/`specs`/`design`/`tasks` branching; ids and order come from the CLI; (c) audit without a baseline does not guess — it uses structural facts and asks; (d) revise only existing downstream artifacts — defer not-yet-created ones to `/opsx:continue`.
 - [ ] 4.4 Encode the intent-change guard: recommend `/opsx:new` when the revision changes intent (reference the "Update vs. Start Fresh" heuristic).
 - [ ] 4.5 Register the skill/command and add it to the expanded-workflow profile alongside `continue`/`ff`/`verify`.
