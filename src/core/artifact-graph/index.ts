@@ -12,7 +12,7 @@ export {
 export { loadSchema, parseSchema, SchemaValidationError } from './schema.js';
 
 // Graph operations
-export { ArtifactGraph } from './graph.js';
+export { ArtifactGraph, schemaProducesDeltaSpecs } from './graph.js';
 
 // State detection
 export { detectCompleted } from './state.js';

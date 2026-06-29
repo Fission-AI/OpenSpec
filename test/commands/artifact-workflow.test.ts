@@ -434,15 +434,16 @@ describe('artifact-workflow CLI commands', () => {
     });
 
     it('shows blocked state when required artifacts are missing', async () => {
-      // Only create proposal - missing tasks (required by spec-driven apply block)
+      // Only create proposal - missing specs and tasks (required by spec-driven apply block)
       await createTestChange('blocked-apply', ['proposal']);
 
       const result = await runCLI(['instructions', 'apply', '--change', 'blocked-apply'], {
         cwd: tempDir,
       });
-      expect(result.exitCode).toBe(0);
+      // Blocked apply exits non-zero so loops/agents/CI stop.
+      expect(result.exitCode).toBe(1);
       expect(result.stdout).toContain('Blocked');
-      expect(result.stdout).toContain('Missing artifacts: tasks');
+      expect(result.stdout).toContain('Missing artifacts: specs, tasks');
     });
 
     it('outputs JSON for apply instructions', async () => {
@@ -624,7 +625,8 @@ artifacts:
           env: { XDG_DATA_HOME: userDataDir },
         }
       );
-      expect(result.exitCode).toBe(0);
+      // Blocked apply (second artifact missing) exits non-zero.
+      expect(result.exitCode).toBe(1);
 
       const json = JSON.parse(result.stdout);
       // Without apply block, fallback requires ALL artifacts - second is missing

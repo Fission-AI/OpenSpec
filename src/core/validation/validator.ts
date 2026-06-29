@@ -4,6 +4,7 @@ import path from 'path';
 import { SpecSchema, ChangeSchema, Spec, Change } from '../schemas/index.js';
 import { MarkdownParser } from '../parsers/markdown-parser.js';
 import { ChangeParser } from '../parsers/change-parser.js';
+import { extractDeclaredCapabilities } from '../parsers/declared-capabilities.js';
 import { ValidationReport, ValidationIssue, ValidationLevel } from './types.js';
 import {
   MIN_PURPOSE_LENGTH,
@@ -268,6 +269,63 @@ export class Validator {
 
     if (totalDeltas === 0) {
       issues.push({ level: 'ERROR', path: 'file', message: this.enrichTopLevelError('change', VALIDATION_MESSAGES.CHANGE_NO_DELTAS) });
+    }
+
+    return this.createReport(issues);
+  }
+
+  /**
+   * Verify every capability declared in the proposal's `## Capabilities` section
+   * has a corresponding delta spec present at `specs/<id>/spec.md`. Catches the
+   * "partial drop" failure mode: a change that declares capabilities but ships
+   * deltas for only some of them.
+   *
+   * Presence-only: whether a present spec file is a well-formed delta is left to
+   * validateChangeDeltaSpecs (so a non-delta file yields one precise error, not
+   * two). One-directional: undeclared-but-delivered specs are not flagged.
+   *
+   * Callers gate this on schemaProducesDeltaSpecs(schema); it does not re-check
+   * the schema itself.
+   */
+  async validateChangeCapabilityCoverage(changeDir: string): Promise<ValidationReport> {
+    const issues: ValidationIssue[] = [];
+    const proposalPath = path.join(changeDir, 'proposal.md');
+
+    let content: string;
+    try {
+      content = await fs.readFile(proposalPath, 'utf-8');
+    } catch {
+      // No proposal to read → nothing declared (fail open).
+      return this.createReport(issues);
+    }
+
+    const { capabilities, malformed } = extractDeclaredCapabilities(content);
+
+    for (const id of malformed) {
+      issues.push({
+        level: 'WARNING',
+        path: 'proposal.md',
+        message: `Declared capability "${id}" is not kebab-case; rename it to lowercase kebab-case (e.g. "my-capability") so coverage can track it.`,
+      });
+    }
+
+    const specsDir = path.join(changeDir, 'specs');
+    for (const id of capabilities) {
+      const specFile = path.join(specsDir, id, 'spec.md');
+      let exists = false;
+      try {
+        await fs.access(specFile);
+        exists = true;
+      } catch {
+        exists = false;
+      }
+      if (!exists) {
+        issues.push({
+          level: 'ERROR',
+          path: `specs/${id}/spec.md`,
+          message: `Declared capability "${id}" has no delta spec at specs/${id}/spec.md. Create the delta spec, or align the "## Capabilities" id to the existing spec folder name (for a modified capability, use the openspec/specs/<id>/ folder name). To intentionally archive without specs, run with --skip-specs.`,
+        });
+      }
     }
 
     return this.createReport(issues);

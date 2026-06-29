@@ -2,6 +2,19 @@ import type { Artifact, SchemaYaml, CompletedSet, BlockedArtifacts } from './typ
 import { loadSchema, parseSchema } from './schema.js';
 
 /**
+ * Whether a schema produces delta specs — i.e. any artifact whose `generates`
+ * glob writes under `specs/`. Used to gate the delta-spec requirement so that
+ * proposal-only / lighter schemas are never forced to ship delta specs (#997).
+ * Driven off the schema's artifact graph, not a hardcoded schema name.
+ */
+export function schemaProducesDeltaSpecs(schema: SchemaYaml): boolean {
+  return schema.artifacts.some((a) => {
+    const generates = a.generates.replace(/^\.\//, '').replace(/^\//, '');
+    return generates === 'specs' || generates.startsWith('specs/');
+  });
+}
+
+/**
  * Represents an artifact dependency graph.
  * Provides methods for querying build order, ready artifacts, and completion status.
  */

@@ -1,6 +1,8 @@
 import ora from 'ora';
 import path from 'path';
 import { Validator } from '../core/validation/validator.js';
+import { makeDeltaRequirementResolver } from '../core/validation/delta-requirement.js';
+import type { ValidationReport } from '../core/validation/types.js';
 import {
   resolveRootForCommand,
   toRootOutput,
@@ -178,12 +180,40 @@ export class ValidateCommand {
     await this.validateByType(root, type, itemName, opts);
   }
 
+  /**
+   * Validate a change with the schema-aware delta gate: only run delta-spec
+   * validation + declared-capability coverage when the change's schema produces
+   * delta specs (#997). The same gate is applied by `openspec archive`, so the
+   * two commands agree on whether delta specs are required.
+   */
+  private async validateChange(
+    validator: Validator,
+    requiresDelta: (changeDir: string) => boolean,
+    changeDir: string,
+    strict: boolean
+  ): Promise<ValidationReport> {
+    if (!requiresDelta(changeDir)) {
+      return { valid: true, issues: [], summary: { errors: 0, warnings: 0, info: 0 } };
+    }
+    const [delta, coverage] = await Promise.all([
+      validator.validateChangeDeltaSpecs(changeDir),
+      validator.validateChangeCapabilityCoverage(changeDir),
+    ]);
+    const issues = [...delta.issues, ...coverage.issues];
+    const errors = issues.filter((i) => i.level === 'ERROR').length;
+    const warnings = issues.filter((i) => i.level === 'WARNING').length;
+    const info = issues.filter((i) => i.level === 'INFO').length;
+    const valid = strict ? errors === 0 && warnings === 0 : errors === 0;
+    return { valid, issues, summary: { errors, warnings, info } };
+  }
+
   private async validateByType(root: ResolvedOpenSpecRoot, type: ItemType, id: string, opts: { strict: boolean; json: boolean }): Promise<void> {
     const validator = new Validator(opts.strict);
     if (type === 'change') {
       const changeDir = path.join(root.changesDir, id);
+      const requiresDelta = makeDeltaRequirementResolver(root.path);
       const start = Date.now();
-      const report = await validator.validateChangeDeltaSpecs(changeDir);
+      const report = await this.validateChange(validator, requiresDelta, changeDir, opts.strict);
       const durationMs = Date.now() - start;
       this.printReport('change', id, report, durationMs, opts.json, root);
       // Non-zero exit if invalid (keeps enriched output test semantics)
@@ -243,13 +273,14 @@ export class ValidateCommand {
     const maxSuggestions = 5; // used by nearestMatches
     const concurrency = normalizeConcurrency(opts.concurrency) ?? normalizeConcurrency(process.env.OPENSPEC_CONCURRENCY) ?? DEFAULT_CONCURRENCY;
     const validator = new Validator(opts.strict);
+    const requiresDelta = makeDeltaRequirementResolver(root.path);
     const queue: Array<() => Promise<BulkItemResult>> = [];
 
     for (const id of changeIds) {
       queue.push(async () => {
         const start = Date.now();
         const changeDir = path.join(root.changesDir, id);
-        const report = await validator.validateChangeDeltaSpecs(changeDir);
+        const report = await this.validateChange(validator, requiresDelta, changeDir, opts.strict);
         const durationMs = Date.now() - start;
         return { id, type: 'change' as const, valid: report.valid, issues: report.issues, durationMs };
       });

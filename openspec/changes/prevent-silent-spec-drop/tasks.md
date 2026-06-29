@@ -1,24 +1,24 @@
 ## 1. Deterministic CLI gate (the guarantee — do first)
 
 ### 1a. Capability extraction
-- [ ] 1.1 Add `extractDeclaredCapabilities(proposalMarkdown)` to `src/core/parsers/change-parser.ts` per the contract: scope to `## Capabilities` → `### New/Modified Capabilities` **and** the bold-label form (`**New Capabilities**:`); id = first inline-code span of a top-level `- ` bullet; ignore `None`/`_None_`/HTML-comment/empty; return non-kebab ids as a malformed-capability warning (do NOT silently drop). Pure function, no FS access
-- [ ] 1.2 Unit tests: heading form + bold-label form, first-inline-code rule with backticks in description, paths/globs ignored, None/comment/empty, missing section, non-kebab id → warning (not dropped), CRLF
+- [x] 1.1 Add `extractDeclaredCapabilities(proposalMarkdown)` to `src/core/parsers/change-parser.ts` per the contract: scope to `## Capabilities` → `### New/Modified Capabilities` **and** the bold-label form (`**New Capabilities**:`); id = first inline-code span of a top-level `- ` bullet; ignore `None`/`_None_`/HTML-comment/empty; return non-kebab ids as a malformed-capability warning (do NOT silently drop). Pure function, no FS access
+- [x] 1.2 Unit tests: heading form + bold-label form, first-inline-code rule with backticks in description, paths/globs ignored, None/comment/empty, missing section, non-kebab id → warning (not dropped), CRLF
 
 ### 1b. Schema-aware validation
-- [ ] 1.3 Add a helper `schemaProducesDeltaSpecs(schema)` — true iff any artifact's `generates` glob writes under `specs/` (drive off the resolved artifact graph, not a hardcoded schema name); archive resolves the schema via `.openspec.yaml`/`loadChangeContext`
-- [ ] 1.4 Add `validateChangeCapabilityCoverage(changeDir)` to `src/core/validation/validator.ts`: only when the schema produces delta specs; one ERROR per declared capability with no `specs/<id>/spec.md` present, message names the capability + expected path **and explains the id-must-equal-spec-folder-name rule** (for Modified capabilities, the existing `openspec/specs/<id>/` folder); presence-only (let delta validation handle non-delta format); one-directional; fail-open on unparseable proposal
-- [ ] 1.5 In `src/commands/validate.ts` single (`:186`) and bulk (`:252`): resolve the change schema and run BOTH `validateChangeDeltaSpecs` (the existing `CHANGE_NO_DELTAS` rule, currently unconditional) and the new coverage **only when `schemaProducesDeltaSpecs(schema)` is true**, so a proposal-only schema no longer fails `validate` for missing deltas (#997). **Memoize `schemaProducesDeltaSpecs` per schema name within the run** (not per change — the bulk loop must not re-`readdir` schemas per change). Preserve exit-code/JSON semantics; "indeterminate" = resolution throws (fail-safe to requiring deltas), distinct from absent metadata which defaults to `spec-driven`
+- [x] 1.3 Add a helper `schemaProducesDeltaSpecs(schema)` — true iff any artifact's `generates` glob writes under `specs/` (drive off the resolved artifact graph, not a hardcoded schema name); archive resolves the schema via `.openspec.yaml`/`loadChangeContext`
+- [x] 1.4 Add `validateChangeCapabilityCoverage(changeDir)` to `src/core/validation/validator.ts`: only when the schema produces delta specs; one ERROR per declared capability with no `specs/<id>/spec.md` present, message names the capability + expected path **and explains the id-must-equal-spec-folder-name rule** (for Modified capabilities, the existing `openspec/specs/<id>/` folder); presence-only (let delta validation handle non-delta format); one-directional; fail-open on unparseable proposal
+- [x] 1.5 In `src/commands/validate.ts` single (`:186`) and bulk (`:252`): resolve the change schema and run BOTH `validateChangeDeltaSpecs` (the existing `CHANGE_NO_DELTAS` rule, currently unconditional) and the new coverage **only when `schemaProducesDeltaSpecs(schema)` is true**, so a proposal-only schema no longer fails `validate` for missing deltas (#997). **Memoize `schemaProducesDeltaSpecs` per schema name within the run** (not per change — the bulk loop must not re-`readdir` schemas per change). Preserve exit-code/JSON semantics; "indeterminate" = resolution throws (fail-safe to requiring deltas), distinct from absent metadata which defaults to `spec-driven`
 
 ### 1c. Archive parity (same shared gate)
-- [ ] 1.6 In `src/core/archive.ts`, replace the `if (hasDeltaSpecs)` gate (~lines 263-297) with `if (!options.skipSpecs && schemaProducesDeltaSpecs(schema))`, using the SAME helper as validate; run `validateChangeDeltaSpecs` + coverage. Confirm `--yes` does not bypass this gate (only confirmation prompts)
-- [ ] 1.7 Route failures through the existing `hasValidationErrors → ArchiveBlockedError` (JSON) / `return null` + exit-1 (text) path; remove the dead `hasDeltaSpecs` probe
-- [ ] 1.8 Confirm the format-drop case (present non-delta spec) and total/partial drops all block; confirm a proposal-only schema (#997) still archives
+- [x] 1.6 In `src/core/archive.ts`, replace the `if (hasDeltaSpecs)` gate (~lines 263-297) with `if (!options.skipSpecs && schemaProducesDeltaSpecs(schema))`, using the SAME helper as validate; run `validateChangeDeltaSpecs` + coverage. Confirm `--yes` does not bypass this gate (only confirmation prompts)
+- [x] 1.7 Route failures through the existing `hasValidationErrors → ArchiveBlockedError` (JSON) / `return null` + exit-1 (text) path; remove the dead `hasDeltaSpecs` probe
+- [x] 1.8 Confirm the format-drop case (present non-delta spec) and total/partial drops all block; confirm a proposal-only schema (#997) still archives
 
 ### 1d. Apply enforcement + schema gate
-- [ ] 1.9 In `src/commands/workflow/instructions.ts`, set `process.exitCode = 1` when apply `state === 'blocked'` (text and JSON; payload first)
-- [ ] 1.10 Set `apply.requires: [specs, tasks]` in `schemas/spec-driven/schema.yaml`; update tests asserting the old `[tasks]` gate
+- [x] 1.9 In `src/commands/workflow/instructions.ts`, set `process.exitCode = 1` when apply `state === 'blocked'` (text and JSON; payload first)
+- [x] 1.10 Set `apply.requires: [specs, tasks]` in `schemas/spec-driven/schema.yaml`; update tests asserting the old `[tasks]` gate
 
-- [ ] 1.11 Structure `extractDeclaredCapabilities` so a future structured source (`provides` markers from `add-change-stacking-awareness`) can augment/replace prose parsing without changing the coverage rule — keep extraction behind a single function
+- [x] 1.11 Structure `extractDeclaredCapabilities` so a future structured source (`provides` markers from `add-change-stacking-awareness`) can augment/replace prose parsing without changing the coverage rule — keep extraction behind a single function
 
 ## 2. Fix the loop at the source
 
