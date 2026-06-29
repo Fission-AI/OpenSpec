@@ -11,7 +11,7 @@
 
 ## 2. Artifact graph: content digest (deterministic, grounded)
 
-- [ ] 2.1 Add `artifactDigest(changeDir, generates)` in `outputs.ts`: from `resolveArtifactOutputs`, re-derive each file's path **relative to `changeDir` as a forward-slash string**, order files by that relative path (NOT by the absolute-path `.sort()` order `resolveArtifactOutputs` returns — that differs by OS), then SHA-256 over, per file, `relPath` + NUL + newline-normalized (CRLF→LF) content; return undefined when no output exists. (New helper — no content-hash utility exists in the repo; only `crypto.randomUUID` in telemetry.) Lives alongside #1098's `artifactOutputComplete`/`artifactOutputContentValid`; coordinate so structural-completeness reuses #1098 rather than duplicating.
+- [ ] 2.1 Add `artifactDigest(changeDir, generates)` in `outputs.ts`: from `resolveArtifactOutputs`, re-derive each file's path **relative to `changeDir` as a forward-slash string**, order files by that relative path (NOT by the absolute-path `.sort()` order `resolveArtifactOutputs` returns — that differs by OS), then SHA-256 over, per file, `relPath` + NUL + newline-normalized (CRLF→LF) content; return undefined when no output exists. Prefix the digest with a scheme tag (e.g. `sha256-relpath-v1:`) so future canonicalization changes are detectable, not silently mis-compared. (New helper — no content-hash utility exists in the repo; only `crypto.randomUUID` in telemetry.) Lives alongside #1098's `artifactOutputComplete`/`artifactOutputContentValid`; coordinate so structural-completeness reuses #1098 rather than duplicating.
 - [ ] 2.2 Unit tests: identical content → identical digest; changed content → changed digest; **CRLF vs LF inputs → identical digest**; **multi-file glob digest identical under simulated Windows vs POSIX absolute paths** (the cross-OS ordering guard); renaming a file within a glob → different digest; missing output → undefined.
 
 ## 3. CLI: surface edges, digest, and impact on `status`
@@ -48,7 +48,8 @@
 
 > In scope (design Decision 3). Powers unattended/audit drift; consumed by 3.3a's drift signal and 4.x's record-after-edit.
 
-- [ ] 7.1 Extend `ChangeMetadataSchema` (`src/core/change-metadata/schema.ts`) with an optional per-artifact map of recorded **direct** upstream digests.
+- [ ] 7.1 Extend `ChangeMetadataSchema` (`src/core/change-metadata/schema.ts`) with an optional `baselines` map: per artifact, a `scheme` tag and a `upstreams` map of direct-upstream id → recorded digest (or `null` for absent). Add a safe read-modify-write helper for `.openspec.yaml` that preserves existing fields, mirroring the store's `parseStoreMetadataState`/`serializeStoreMetadataState`/`writeStoreMetadataState` pattern (`src/core/store/foundation.ts`) — there is no central change-metadata writer today (`change-metadata/index.ts` only re-exports the schema).
+- [ ] 7.1b Drift comparison compares only same-scheme digests; unrecognized/older scheme → `unknown` (re-`reconcile` restores it).
 - [ ] 7.2 Record the baseline deterministically: on artifact (re)generation in `propose`/`continue`/`ff` and after each confirmed `/opsx:update` edit, write the current direct-upstream digests for the affected artifact ("reconciled").
 - [ ] 7.3 CLI drift report: an artifact is drifted iff a current direct-upstream digest differs from its recorded baseline; no baseline → `unknown` (never a false positive). Verify transitive drift emerges hop-by-hop: changing `proposal` drifts `specs`; reconciling `specs` then drifts `tasks`.
 - [ ] 7.4 Tests: record→no-drift; modify upstream→drift on exactly the direct dependents; hop-by-hop transitive drift; absent baseline→`unknown`; ledger round-trips through metadata read/write.

@@ -44,6 +44,12 @@ The system SHALL report a deterministic per-artifact content digest and a drift 
 - **WHEN** an artifact has no recorded baseline
 - **THEN** the artifact's status JSON reports drift as `unknown` rather than drifted or clean
 
+#### Scenario: Drift is unknown when the baseline scheme is unrecognized
+
+- **WHEN** an artifact's recorded baseline uses a digest scheme the current version does not recognize
+- **THEN** the artifact's status JSON reports drift as `unknown` rather than comparing across schemes
+- **AND** re-recording the baseline restores a comparable drift signal
+
 #### Scenario: Recording a baseline is an explicit write, separate from status
 
 - **WHEN** the baseline is recorded for an artifact via the dedicated record operation

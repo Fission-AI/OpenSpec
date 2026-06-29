@@ -89,12 +89,51 @@ The tracker has accumulated several adjacent requests; good design means one coh
 |---|---|---|---|
 | `/opsx:clarify` ([#702](https://github.com/Fission-AI/OpenSpec/pull/702)) | *within* one artifact (ambiguity Q&A) | one artifact | that artifact |
 | **`/opsx:update`** (this) | *across* a change's planning artifacts (propagate + audit) | the artifact graph | planning artifacts |
-| `/opsx:review` ([#1251](https://github.com/Fission-AI/OpenSpec/pull/1251)), [#1073](https://github.com/Fission-AI/OpenSpec/issues/1073) | plan *vs. code* | artifacts + code | nothing (read-only) |
+| `/opsx:review` ([#1251](https://github.com/Fission-AI/OpenSpec/pull/1251)), [#1073](https://github.com/Fission-AI/OpenSpec/issues/1073), [#880](https://github.com/Fission-AI/OpenSpec/issues/880) | plan *vs. code* | artifacts + code | nothing (read-only) |
 | `/opsx:verify` | archive readiness | artifacts + code | nothing |
 
 `/opsx:update` deliberately **subsumes** the update/regen/refine cluster (#1188/#705/#673/#783/#1206) into its two modes instead of spawning `/opsx:regen`, `/opsx:rebuild`, and `/opsx:refine` separately. It composes with clarify (a within-artifact step that often precedes an update) and review (a code-side check that follows apply); it never overlaps their read/write surfaces.
 
 **Answering #783's form question (skill vs. extend `validate`).** Both, split by determinism: the checks that are pure functions of content and graph — drift (digests), structural completeness (#1098), capability coverage (#1277) — are CLI-shaped and are the natural content of a future schema-aware `openspec validate` coherence rule (aligns with [#829](https://github.com/Fission-AI/OpenSpec/issues/829)); the cross-artifact *semantic* review (scope contradictions, duplication with existing specs, missing abstractions) cannot be deterministic and is the skill's job. This change ships the `status` data + skill; surfacing the deterministic subset in `validate` for a CI gate is a scoped follow-up (Decisions resolved, item 6).
+
+## Data contracts
+
+Concrete shapes so the surface is unambiguous for implementers. All additions are **additive** to existing structures; nothing existing changes type.
+
+**Extended `ArtifactStatus`** (each entry of `status --json`'s `artifacts[]`; existing fields `id`/`outputPath`/`status`/`missingDeps?` from [instruction-loader.ts:120](../../../src/core/artifact-graph/instruction-loader.ts) unchanged):
+
+```jsonc
+{
+  "id": "tasks",
+  "status": "done",
+  "requires": ["specs", "design"],     // direct upstreams (schema edge)
+  "dependents": [],                     // direct dependents (reverse edge)
+  "digest": "sha256-relpath-v1:9f2b…",  // scheme-tagged; null when no output
+  "drift": "drifted",                   // "clean" | "drifted" | "unknown"
+  "driftFrom": ["specs"]                // upstream ids whose digest changed; omitted unless drifted
+}
+```
+
+**Impact response** (`status --change <id> --impact <artifact> --json`): the named artifact's transitive downstream in build order, each an extended `ArtifactStatus` plus its `resolvedOutputPath`, so a consumer reads and rewrites without a second call:
+
+```jsonc
+{ "impactOf": "proposal", "downstream": [ { /* ArtifactStatus + resolvedOutputPath */ } ] }
+```
+
+**Drift baseline ledger** (optional `baselines` map on `ChangeMetadataSchema`, persisted in `.openspec.yaml`):
+
+```yaml
+baselines:
+  tasks:
+    scheme: sha256-relpath-v1          # digest scheme tag (see forward-compat below)
+    upstreams:
+      specs: "sha256-relpath-v1:1a3c…"
+      design: null                      # recorded absent → creating it later = drift
+```
+
+**Digest scheme tag & forward-compat.** Every digest and baseline carries a scheme tag (e.g. `sha256-relpath-v1`). Drift compares **only same-scheme** digests; if a baseline's scheme is unrecognized or older than the current one (e.g. the canonicalization changes in a future version), that artifact's drift is reported `unknown` rather than silently mis-compared, and a re-`reconcile` re-establishes it. This keeps the deterministic guarantee honest across versions instead of producing confident wrong answers.
+
+**Writing the ledger.** There is no central change-metadata writer today ([change-metadata/index.ts](../../../src/core/change-metadata/index.ts) only re-exports the schema). `openspec reconcile` performs a safe read-modify-write of `.openspec.yaml` — preserving all existing fields — mirroring the store's existing `parseStoreMetadataState`/`serializeStoreMetadataState`/`writeStoreMetadataState` pattern ([store/foundation.ts](../../../src/core/store/foundation.ts)) rather than inventing a new persistence style.
 
 ## Risks / Trade-offs
 
