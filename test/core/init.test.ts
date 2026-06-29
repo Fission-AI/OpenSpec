@@ -105,6 +105,7 @@ describe('InitCommand', () => {
       const nonCoreSkillNames = [
         'openspec-new-change',
         'openspec-continue-change',
+        'openspec-brief-change',
         'openspec-ff-change',
         'openspec-bulk-archive-change',
         'openspec-verify-change',
@@ -139,6 +140,7 @@ describe('InitCommand', () => {
       const nonCoreCommandNames = [
         'opsx/new.md',
         'opsx/continue.md',
+        'opsx/brief.md',
         'opsx/ff.md',
         'opsx/bulk-archive.md',
         'opsx/verify.md',
