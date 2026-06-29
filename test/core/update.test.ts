@@ -251,6 +251,33 @@ Old instructions content
       }
     });
 
+    it('should update Devin Desktop workflows with hyphen command references', async () => {
+      // Set up Devin Desktop directory with a skill to indicate it's configured
+      const skillsDir = path.join(testDir, '.devin', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        'old content'
+      );
+
+      await updateCommand.execute(testDir);
+
+      // Verify workflows were created
+      const workflowsDir = path.join(testDir, '.devin', 'workflows');
+      const exploreWorkflow = path.join(workflowsDir, 'opsx-explore.md');
+      const exists = await FileSystemUtils.fileExists(exploreWorkflow);
+      expect(exists).toBe(true);
+
+      const content = await fs.readFile(exploreWorkflow, 'utf-8');
+      expect(content).toContain('---');
+      expect(content).toContain('name:');
+      expect(content).toContain('description:');
+      // Verify command references are transformed to hyphen syntax
+      expect(content).not.toContain('/opsx:');
+    });
+
   });
 
   describe('multi-tool support', () => {
