@@ -185,7 +185,7 @@ The command SHALL generate Agent Skills for selected AI tools.
 #### Scenario: Generating skills for a tool
 
 - **WHEN** a tool is selected during initialization
-- **THEN** create 9 skill directories under `.<tool>/skills/`:
+- **THEN** create skill directories under `.<tool>/skills/` for the selected workflows:
   - `openspec-explore/SKILL.md`
   - `openspec-new-change/SKILL.md`
   - `openspec-continue-change/SKILL.md`
@@ -195,6 +195,7 @@ The command SHALL generate Agent Skills for selected AI tools.
   - `openspec-sync-specs/SKILL.md`
   - `openspec-archive-change/SKILL.md`
   - `openspec-bulk-archive-change/SKILL.md`
+  - `openspec-review-impl-vs-plan/SKILL.md`
 - **AND** each SKILL.md SHALL contain YAML frontmatter with name and description
 - **AND** each SKILL.md SHALL contain the skill instructions
 
@@ -205,7 +206,7 @@ The command SHALL generate opsx slash commands only for selected tools that have
 #### Scenario: Generating slash commands for a tool with a registered adapter
 
 - **WHEN** a tool with a registered command adapter is selected during initialization
-- **THEN** create 9 slash command files using the tool's command adapter:
+- **THEN** create slash command files using the tool's command adapter for the selected workflows:
   - `/opsx:explore`
   - `/opsx:new`
   - `/opsx:continue`
@@ -215,6 +216,7 @@ The command SHALL generate opsx slash commands only for selected tools that have
   - `/opsx:sync`
   - `/opsx:archive`
   - `/opsx:bulk-archive`
+  - `/opsx:review`
 - **AND** use tool-specific path conventions (e.g., `.claude/commands/opsx/` for Claude)
 - **AND** include tool-specific frontmatter format
 
