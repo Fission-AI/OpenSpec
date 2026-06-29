@@ -1,0 +1,103 @@
+## Why
+
+The Discord thread that asked for `openspec unarchive` ended somewhere bigger: the spec merge (delta → `specs/`) is **the** load-bearing operation in OpenSpec, and today it is reachable only two ways — buried *inside* `openspec archive`, or performed by an **AI agent** in `/opsx:sync` ("This is an agent-driven operation… you will read delta specs and directly edit main specs"). Both are problems. The agent path is non-deterministic (wording drift, and the "intelligent" scenario-merge is the very mechanism that silently drops scenarios in [#1246](https://github.com/Fission-AI/OpenSpec/issues/1246)). The CLI path is deterministic but cannot be run on its own — `applySpecs()` has **zero callers**.
+
+So you cannot reverse an archive, you cannot gate drift in CI without a model, and you cannot re-merge a revised delta cleanly. One missing primitive sits under all three. This PR builds it: a deterministic, idempotent, **reversible** merge engine, exposed as first-class commands.
+
+## Background: one engine, three missing directions
+
+Verified against `Fission-AI/OpenSpec` at `main` (`546224e`, #1248) on 2026-06-29. The merge `buildUpdatedSpec` ([src/core/specs-apply.ts:240-307](../../../src/core/specs-apply.ts)) applies a change's deltas to a base spec in fixed order (RENAMED → REMOVED → MODIFIED → ADDED). That engine is missing three things the workflow needs:
+
+1. **A standalone forward command.** `openspec sync` does not exist as a binary. The deterministic merge runs only inside `archive` (fused to the folder move) or is re-implemented by the agent in `/opsx:sync`. So the Discord conclusion — *"a deterministic, code-only sync path that CI can run as a plain binary… no model in CI"* — is impossible today. CI can only gate drift by re-running archive or invoking the LLM.
+
+2. **A reverse direction.** Archiving merges deltas into `specs/` and moves the folder to `changes/archive/`. There is no undo. The maintainer's manual fix (`git revert`, or a hand-scoped `git checkout <pre-archive-sha> -- …`) fails in the motivating case — *"the archive is part of a commit with other changes, so I cannot simply revert."* And the reverse is not free: the archived delta is **not self-inverting**. ADDED and RENAMED can be undone from the delta; **REMOVED and MODIFIED cannot** — the forward merge discards the pre-image (a MODIFIED delta carries "the complete modified requirement, not a diff"; [#1246](https://github.com/Fission-AI/OpenSpec/issues/1246) documents the same whole-block replace as forward data loss).
+
+3. **Idempotent regeneration ("no crumbs").** When review feedback revises a delta, re-merging should regenerate `specs/` from scratch with no leftovers from the prior revision — *"a revised delta should let sync regenerate the spec output from scratch, idempotently, no leftover crumbs."* Today re-applying a revised delta against already-merged `specs/` conflicts or double-applies; there is no record of what the prior revision contributed.
+
+**The unification.** All three need the *same* missing primitive: a per-change **applied-delta baseline** — the pre-image of each affected spec plus a digest of the applied result, recorded whenever a change's deltas are merged. With it:
+
+- **reverse** is a byte-exact restore of the pre-image (deterministic for every op, including REMOVED/MODIFIED) → `unarchive`;
+- **idempotent re-merge** is "reverse the old delta via the baseline, apply the new" → crumb-free `sync`;
+- **drift detection** is "current `specs/` digest ≠ baseline digest" (samholmes' "track the hash of the changes/ state applied to the spec") → a code-only gate for CI and a `sync --fix` pre-commit hook (the eslint-`--fix` analogy both arrived at).
+
+Frozen into the archived folder, that baseline *is* the unarchive reversal snapshot. One primitive, three payoffs.
+
+## What Changes
+
+Design principle the whole thread converges on, and the one this project is already adopting elsewhere ([#1278](https://github.com/Fission-AI/OpenSpec/pull/1278), prevent-silent-spec-drop): **the merge is pure parser code that produces byte-identical output for the same delta + base; the agent never performs it.** Ordered by leverage:
+
+1. **THE ENGINE — deterministic, idempotent, reversible merge core (`cli-sync` NEW, shared by archive).** Promote the existing `applySpecs()` into a first-class, **byte-deterministic** apply that records an applied-delta baseline, and add its inverse. `openspec archive` keeps merging-then-moving but routes its merge through this shared core and writes the baseline before moving (so it travels into the archive). This is the keystone the other three items stand on; it is the "rework it… plain parser code that always produces byte-identical output for the same delta + base" the thread calls for.
+
+2. **FORWARD COMMAND + DRIFT GATE — `openspec sync [change]` (`cli-sync` NEW).** Apply a change's deltas to `specs/` without archiving, deterministically and idempotently. Three modes:
+   - default / `--fix`: write `specs/` to the regenerated result (idempotent — re-running is a no-op; revising the delta regenerates with no crumbs);
+   - `--check`: read-only; exit non-zero if the change's deltas are not cleanly appliable, or (when `specs/` has been synced) if committed `specs/` ≠ the regenerated output. This is the **codegen/IaC-style drift gate CI runs as a plain binary, no model, no API keys** — and the auto-fixer a `pre-commit` hook can call.
+
+3. **REVERSE COMMAND — `openspec unarchive [change-name]` (`cli-unarchive` NEW).** The deterministic inverse of archive: resolve the archived folder (prefix-tolerant, never auto-picking among ambiguous matches), reverse the spec merge from the baseline under a **drift guard** (refuse rather than clobber a requirement a later change has since touched), move the folder back to `changes/<name>/`, **atomically** ("Abort. No files were changed."). `--keep-specs` restores the folder without touching `specs/` (the always-safe escape hatch, mirror of archive's `--skip-specs`). Changes archived before this feature have no baseline and degrade gracefully — reverse the self-invertible half (ADDED/RENAMED), refuse to guess the rest.
+
+4. **NO MODEL IN THE MERGE — skills delegate to the CLI (`specs-sync-skill` MODIFIED; `opsx-unarchive-skill` NEW).** `/opsx:sync` stops doing agent-driven edits and **invokes `openspec sync`**; the new `/opsx:unarchive` invokes `openspec unarchive`. The deterministic work lives in TypeScript; skills only select, confirm, and render. This is the direction [#863](https://github.com/Fission-AI/OpenSpec/issues/863)/[#799](https://github.com/Fission-AI/OpenSpec/issues/799)/[#656](https://github.com/Fission-AI/OpenSpec/issues/656) ask for, and it removes the [#1246](https://github.com/Fission-AI/OpenSpec/issues/1246) "intelligent merge drops scenarios" failure mode by construction.
+
+### What this deliberately does *not* change
+
+samholmes proposed removing `archive` entirely — keep every change in its dated archive location for its whole life and fold the spec merge into `apply`. **Rejected, with the maintainer's reasoning, and it shapes the design:** `specs/` only ever describes *shipped* reality. Folding the merge into `apply` would let proposed-but-unmerged (or abandoned) changes pollute the source of truth and let parallel changes step on each other's specs before any land. So the archive boundary stays; what changes is that the merge across it becomes deterministic and reversible. The determinism is what makes the boundary cheap to cross in both directions, which is the real fix for the "awkward final step." (Full treatment in [design.md](./design.md) Decision 5.)
+
+## Capabilities
+
+### New Capabilities
+
+- `cli-sync`: the deterministic, idempotent spec-merge engine exposed as `openspec sync [change]` — `--fix`/default writes `specs/` from the change's deltas (byte-identical for the same delta + base; re-running is a no-op; a revised delta regenerates with no crumbs), `--check` is a read-only, model-free drift gate for CI and pre-commit hooks. Records a per-change applied-delta baseline (pre-image + digest) that also powers reverse and drift detection. The same engine `archive` uses internally.
+- `cli-unarchive`: `openspec unarchive [change-name]` — the deterministic inverse of archive. Resolves an archived change (prefix-tolerant, never auto-picking ambiguous matches), reverses the spec merge from the baseline under a drift guard, moves the folder back, atomically. `--keep-specs` restores the folder without touching `specs/`; pre-baseline archives degrade gracefully.
+- `opsx-unarchive-skill`: a `/opsx:unarchive` workflow skill that delegates to `openspec unarchive` for all deterministic work (selection, confirmation, rendering only). Expanded profile; no cross-skill dependency.
+
+### Modified Capabilities
+
+- `cli-archive`: routes its spec merge through the shared deterministic engine and records the applied-delta baseline inside the change folder before moving it, so archiving becomes deterministically reversible. Forward-only and backward-compatible — no change to how archive merges, moves, validates, or what it prints.
+- `specs-sync-skill`: `/opsx:sync` delegates the merge to the deterministic `openspec sync` CLI instead of performing agent-driven edits to `specs/`, making the result byte-deterministic and removing the scenario-dropping "intelligent merge" failure mode. The skill handles selection, confirmation, and output only.
+
+### Integration surface (primitives in scope; wiring staged)
+
+- **CI drift gate** and **pre-commit `sync --fix` hook** are the payoff of `cli-sync --check`/`--fix`. This PR delivers the CLI primitives and documents both patterns; wiring a specific hook runner (husky/lefthook — none exists in the repo today) or a CI job is a small, separable follow-up the owner can stage.
+
+## Impact
+
+- `src/core/specs-apply.ts` — make `buildUpdatedSpec`/`applySpecs` byte-deterministic and idempotent; add the inverse (delta-inversion for ADDED/RENAMED; pre-image restore for all ops); add baseline read/write. Forward output unchanged for existing callers.
+- `src/core/sync.ts` (**new**) — `SyncCommand` (default/`--fix`/`--check`), mirroring `ArchiveCommand`'s human + `--json` shape; writes/refreshes the applied-delta baseline.
+- `src/core/unarchive.ts` (**new**) — `UnarchiveCommand`: resolve archived dir, drift-check, restore pre-images (or delta-invert / refuse for pre-baseline), move folder back, atomic abort. Reuse `moveDirectory()`/`copyDirRecursive()` ([src/core/archive.ts:96-128](../../../src/core/archive.ts)).
+- `src/core/archive.ts` — route the merge through the shared engine (already deterministic) and persist the baseline before `moveDirectory` (~414-506). No behavior/output change.
+- `src/core/change-metadata/` or a sibling baseline store — persist the applied-delta baseline per change (pre-image + digest, newline-normalized, scheme-tagged). Coordinate with [#1278](https://github.com/Fission-AI/OpenSpec/pull/1278)'s digest ledger so the two drift layers share a digest convention.
+- `src/core/list.ts` / `src/core/view.ts` — reuse `getArchivedChangesData()` ([#399](https://github.com/Fission-AI/OpenSpec/pull/399)) to resolve/disambiguate archived candidates.
+- `src/cli/index.ts` — register `sync [change]` (`--check`, `--fix`, `--json`, `--store`) and `unarchive [change-name]` (`--keep-specs`/`--skip-specs` alias, `-y/--yes`, `--no-validate`, `--json`, `--store`), mirroring archive (326-343).
+- `src/core/templates/workflows/sync-specs.ts` — rewrite `/opsx:sync` to invoke `openspec sync` (drop agent-driven edits). `src/core/templates/workflows/unarchive-change.ts` (**new**) — `/opsx:unarchive` delegating to the CLI. Registration: export from `skill-templates.ts`; add `unarchive` to `ALL_WORKFLOWS` ([src/core/profiles.ts:19](../../../src/core/profiles.ts)) and `WORKFLOW_TO_SKILL_DIR` ([src/core/init.ts:65](../../../src/core/init.ts)); **not** added to `CORE_WORKFLOWS`. `docs/opsx.md` gains a `/opsx:unarchive` row and a determinism note for `/opsx:sync`.
+- Tests — byte-identical sync determinism (same delta+base → same bytes; CRLF/LF; Windows), idempotency (re-run no-op; revised delta no crumbs), `--check` exit codes, archive→unarchive byte-exact round-trip, drift refusal, `--keep-specs`, destination-collision abort, pre-baseline degradation, atomic "no files changed", skill-template delegation snapshots. Per [openspec/config.yaml](../../config.yaml), run on Windows CI.
+
+## Issues addressed
+
+All references verified against `Fission-AI/OpenSpec` at `main` (`546224e`) on 2026-06-29. No prior unarchive/sync-command/rollback issue or PR exists — this is greenfield.
+
+Delivers (the Discord conclusions):
+
+- **Deterministic, code-only sync path** *("the right fix is a deterministic, code-only openspec sync/archive path that CI can run as a plain binary… I'll fold this into the unarchive PR")* → `openspec sync` + `--check`.
+- **`openspec unarchive` / `/opsx:unarchive`** that "moves the folder back and reverses the spec merge," including the hard case where the archive is buried in a multi-file commit.
+- **Idempotent, crumb-free regeneration** and the **`sync --fix` pre-commit hook** *(samholmes' "sync is a lint step… eslint --fix", Clay's "sync acts as the auto-fixer")*.
+- **Hash-tracked drift** *(samholmes' "track the hash of the changes/ state applied to the spec")* → the baseline digest.
+
+Directly fixes / strengthens:
+
+- [#863](https://github.com/Fission-AI/OpenSpec/issues/863), [#799](https://github.com/Fission-AI/OpenSpec/issues/799), [#656](https://github.com/Fission-AI/OpenSpec/issues/656) — "the archive/sync skill re-implements the merge instead of calling the CLI." Both skills become CLI-first; the merge is one deterministic code path.
+- [#1246](https://github.com/Fission-AI/OpenSpec/issues/1246) — the agent "intelligent merge" silently drops scenarios. Deterministic whole-block apply (per the conventions spec's "complete modified requirement, not a diff") removes the failure mode, and the baseline retains the pre-image #1246 wants for drift detection.
+- [#682](https://github.com/Fission-AI/OpenSpec/issues/682) — archive "is not transactional… there's no rollback." `unarchive` is that rollback, itself atomic.
+- [#1112](https://github.com/Fission-AI/OpenSpec/issues/1112) — MODIFIED/REMOVED/RENAMED-from headers absent from base pass `validate` but abort at archive. `sync --check` surfaces the same appliability check earlier, as a gate.
+
+Delineated from adjacent work (coordinate, don't collide):
+
+- [#1278](https://github.com/Fission-AI/OpenSpec/pull/1278) (this author's sibling) — artifact-graph drift (proposal→design→tasks staleness) via a content-digest ledger. This PR is the *spec-merge* drift layer (delta→`specs/`). Same digest philosophy, different layer; share the digest/newline-normalization convention.
+- [#409](https://github.com/Fission-AI/OpenSpec/issues/409) / [#787](https://github.com/Fission-AI/OpenSpec/pull/787) / [#1192](https://github.com/Fission-AI/OpenSpec/issues/1192) (archive-folder prefix scheme) — unarchive's resolver is prefix-tolerant; it does not pick a scheme.
+- [add-change-stacking-awareness](../add-change-stacking-awareness/proposal.md) — planning-time archive ordering. Unarchive's drift guard and sync's idempotency are the runtime spec-layer counterpart; the two compose.
+- [#704](https://github.com/Fission-AI/OpenSpec/issues/704)/[#682](https://github.com/Fission-AI/OpenSpec/issues/682) (archive hooks), [#709](https://github.com/Fission-AI/OpenSpec/issues/709) (`git mv`) — symmetric `unarchive` hook points and a shared `moveDirectory()` make a future switch cover both directions.
+
+Considered and rejected (documented in design):
+
+- **Remove `archive`; fold the merge into `apply`; edit changes in place in dated dirs** (samholmes' proposal). Rejected to preserve the invariant that `specs/` describes only shipped reality (design Decision 5).
+
+Related, out of scope (referenced, not closed):
+
+- [#1245](https://github.com/Fission-AI/OpenSpec/issues/1245) — first-class lifecycle timestamps. If/when `archived` is persisted, `unarchive` should clear it; noted, not built.

@@ -63,11 +63,11 @@ The command SHALL resolve the target archived directory from either a bare chang
 
 ### Requirement: Deterministic Spec Reversal
 
-The command SHALL reverse the spec merge deterministically by restoring, for each affected spec, the pre-merge content recorded in the change's reversal snapshot — recreating specs that archiving deleted and deleting specs that archiving created — without re-parsing or inferring requirement content.
+The command SHALL reverse the spec merge deterministically by restoring, for each affected spec, the pre-merge content recorded in the change's applied-delta baseline — recreating specs that archiving deleted and deleting specs that archiving created — without re-parsing or inferring requirement content.
 
 #### Scenario: Restore modified and removed requirements exactly
 
-- **WHEN** the archived change's snapshot records pre-merge content for an affected spec
+- **WHEN** the archived change's baseline records pre-merge content for an affected spec
 - **THEN** the command restores that spec to the recorded pre-merge bytes
 - **AND** requirements that were MODIFIED or REMOVED during archiving are restored to their exact prior content
 
@@ -78,7 +78,7 @@ The command SHALL reverse the spec merge deterministically by restoring, for eac
 
 #### Scenario: Recreate a spec that archiving created
 
-- **WHEN** archiving created a new spec (the snapshot marks the pre-image as absent)
+- **WHEN** archiving created a new spec (the baseline marks the pre-image as absent)
 - **THEN** the command deletes that spec on reversal, returning `openspec/specs/` to its pre-archive shape
 
 #### Scenario: Round-trip is byte-exact
@@ -88,18 +88,18 @@ The command SHALL reverse the spec merge deterministically by restoring, for eac
 
 ### Requirement: Drift Guard
 
-The command SHALL verify, before reversing any spec, that each affected spec still matches the post-merge state recorded in the reversal snapshot, and SHALL refuse to reverse a spec that has drifted rather than overwrite later changes.
+The command SHALL verify, before reversing any spec, that each affected spec still matches the applied-result state recorded in the applied-delta baseline, and SHALL refuse to reverse a spec that has drifted rather than overwrite later changes.
 
 #### Scenario: Refuse on drift
 
-- **WHEN** an affected spec's current content no longer matches the post-merge digest recorded in the snapshot (for example, a later change modified the same requirement)
+- **WHEN** an affected spec's current content no longer matches the applied-result digest recorded in the baseline (for example, a later change modified the same requirement)
 - **THEN** the command refuses to reverse the spec merge
 - **AND** it reports which specs drifted
 - **AND** it directs the user to re-run with `--keep-specs` to restore the folder without touching specs
 
 #### Scenario: Proceed when no drift
 
-- **WHEN** every affected spec still matches its recorded post-merge state
+- **WHEN** every affected spec still matches its recorded applied-result state
 - **THEN** the command proceeds with the deterministic spec reversal
 
 ### Requirement: Keep Specs Option
@@ -134,20 +134,20 @@ The command SHALL apply the reversal atomically: it stages and validates all cha
 - **THEN** the command fails without overwriting it
 - **AND** it makes no changes to specs
 
-### Requirement: Backward Compatibility For Pre-Snapshot Archives
+### Requirement: Backward Compatibility For Pre-Baseline Archives
 
-For changes archived before reversal snapshots existed, the command SHALL reverse the operations it can invert from the archived delta alone and SHALL refuse to guess the operations it cannot, never producing an incorrect spec.
+For changes archived before applied-delta baselines existed, the command SHALL reverse the operations it can invert from the archived delta alone and SHALL refuse to guess the operations it cannot, never producing an incorrect spec.
 
 #### Scenario: Reverse the self-invertible operations
 
-- **WHEN** an archived change has no reversal snapshot
+- **WHEN** an archived change has no applied-delta baseline
 - **AND** its delta contains only ADDED and/or RENAMED requirements
 - **THEN** the command reverses them by delta inversion (removing added requirements, renaming renamed requirements back)
 - **AND** restores `openspec/specs/` accordingly
 
 #### Scenario: Refuse to guess irreversible operations
 
-- **WHEN** an archived change has no reversal snapshot
+- **WHEN** an archived change has no applied-delta baseline
 - **AND** its delta contains MODIFIED or REMOVED requirements (whose pre-image is not recoverable from the delta)
 - **THEN** the command does not modify those specs
 - **AND** it reports which requirements cannot be safely reversed
@@ -155,7 +155,7 @@ For changes archived before reversal snapshots existed, the command SHALL revers
 
 #### Scenario: Keep-specs always available
 
-- **WHEN** an archived change has no reversal snapshot
+- **WHEN** an archived change has no applied-delta baseline
 - **AND** the user runs `openspec unarchive <name> --keep-specs`
 - **THEN** the command restores the folder without touching specs, regardless of which delta operations the change contains
 
@@ -170,6 +170,6 @@ The command SHALL handle error conditions gracefully and consistently with `open
 
 #### Scenario: JSON diagnostics
 
-- **WHEN** the command is run with `--json` and a blocked condition occurs (not found, ambiguous, drift, destination exists, or pre-snapshot irreversibility)
+- **WHEN** the command is run with `--json` and a blocked condition occurs (not found, ambiguous, drift, destination exists, or pre-baseline irreversibility)
 - **THEN** it emits a machine-readable diagnostic with a stable code
 - **AND** exits with a non-zero status code
