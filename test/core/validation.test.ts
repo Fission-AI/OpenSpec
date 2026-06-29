@@ -225,6 +225,40 @@ Then they see an error message`;
       expect(report.summary.errors).toBe(0);
     });
 
+    it('should hint when a main spec requirement only has SHALL/MUST in the header', async () => {
+      for (const [caseName, requirementHeader] of [
+        ['prefixed', '### Requirement: System SHALL only say the keyword here'],
+        ['bare', '### System SHALL only say the keyword here'],
+      ]) {
+        const specContent = `# Header Demo Specification
+
+## Purpose
+This specification checks validation guidance for requirements whose keywords only appear in headings.
+
+## Requirements
+
+${requirementHeader}
+This body line omits the normative keyword.
+
+#### Scenario: Missing body keyword
+- **WHEN** the spec is validated
+- **THEN** it should fail with a targeted hint`;
+
+        const specPath = path.join(testDir, `spec-${caseName}.md`);
+        await fs.writeFile(specPath, specContent);
+
+        const validator = new Validator();
+        const report = await validator.validateSpec(specPath);
+
+        expect(report.valid).toBe(false);
+        const shallMessage = report.issues.find(i => i.path === 'requirements.0.text');
+        expect(shallMessage?.message).toContain('not only in the header');
+        expect(shallMessage?.message).toContain('Move the SHALL/MUST statement');
+        expect(shallMessage?.message).toContain('requirement header');
+        expect(report.issues.some(i => i.message === 'Requirement must contain SHALL or MUST keyword')).toBe(false);
+      }
+    });
+
     it('should detect missing overview section', async () => {
       const specContent = `# User Authentication Spec
 
@@ -561,7 +595,7 @@ Error handling logic goes here.
       expect(report.valid).toBe(false);
       const shallMessage = report.issues.find(i => i.message.includes('must contain SHALL or MUST'));
       expect(shallMessage?.message).toContain('not only in the header');
-      expect(shallMessage?.message).toContain('### Requirement:');
+      expect(shallMessage?.message).toContain('requirement header');
     });
 
     it('should hint the author when MODIFIED requirement only has SHALL/MUST in the header', async () => {
@@ -590,7 +624,7 @@ Please describe how validation should work here.
       expect(report.valid).toBe(false);
       const shallMessage = report.issues.find(i => i.message.includes('must contain SHALL or MUST'));
       expect(shallMessage?.message).toContain('not only in the header');
-      expect(shallMessage?.message).toContain('### Requirement:');
+      expect(shallMessage?.message).toContain('requirement header');
     });
 
     it('should keep the generic SHALL/MUST error when neither header nor body contain the keyword', async () => {

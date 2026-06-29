@@ -33,7 +33,7 @@ export class Validator {
       const result = SpecSchema.safeParse(spec);
       
       if (!result.success) {
-        issues.push(...this.convertZodErrors(result.error));
+        issues.push(...this.convertSpecZodErrors(result.error, content));
       }
       
       issues.push(...this.applySpecRules(spec, content));
@@ -61,7 +61,7 @@ export class Validator {
       const spec = parser.parseSpec(specName);
       const result = SpecSchema.safeParse(spec);
       if (!result.success) {
-        issues.push(...this.convertZodErrors(result.error));
+        issues.push(...this.convertSpecZodErrors(result.error, content));
       }
       issues.push(...this.applySpecRules(spec, content));
     } catch (error) {
@@ -287,6 +287,94 @@ export class Validator {
     });
   }
 
+  private convertSpecZodErrors(error: ZodError, content: string): ValidationIssue[] {
+    const requirementNames = this.extractMainSpecRequirementNames(content);
+
+    return error.issues.map(err => {
+      let message = err.message;
+      if (message === VALIDATION_MESSAGES.REQUIREMENT_NO_SHALL) {
+        const requirementIndex = this.getRequirementIndexFromPath(err.path);
+        const requirementName = requirementIndex === undefined
+          ? undefined
+          : requirementNames[requirementIndex];
+        if (requirementName && this.containsShallOrMust(requirementName)) {
+          message = this.buildMissingShallOrMustMessage('Requirement', requirementName);
+        }
+      }
+      return {
+        level: 'ERROR' as ValidationLevel,
+        path: err.path.join('.'),
+        message,
+      };
+    });
+  }
+
+  private getRequirementIndexFromPath(path: PropertyKey[]): number | undefined {
+    if (path.length >= 3 && path[0] === 'requirements' && typeof path[1] === 'number' && path[2] === 'text') {
+      return path[1];
+    }
+    return undefined;
+  }
+
+  private extractMainSpecRequirementNames(content: string): string[] {
+    const lines = content.replace(/\r\n?/g, '\n').split('\n');
+    const names: string[] = [];
+    let activeFence: { marker: '`' | '~'; length: number } | null = null;
+    let requirementsLevel: number | undefined;
+    let requirementLevel: number | undefined;
+
+    for (const line of lines) {
+      if (activeFence) {
+        const closingFence = line.match(/^\s*(`{3,}|~{3,})\s*$/);
+        if (
+          closingFence &&
+          closingFence[1][0] === activeFence.marker &&
+          closingFence[1].length >= activeFence.length
+        ) {
+          activeFence = null;
+        }
+        continue;
+      }
+
+      const openingFence = line.match(/^\s*(`{3,}|~{3,})/);
+      if (openingFence) {
+        activeFence = {
+          marker: openingFence[1][0] as '`' | '~',
+          length: openingFence[1].length,
+        };
+        continue;
+      }
+
+      const headerMatch = line.match(/^(#{1,6})\s+(.+)$/);
+      if (!headerMatch) continue;
+
+      const level = headerMatch[1].length;
+      const title = headerMatch[2].trim();
+
+      if (requirementsLevel === undefined) {
+        if (title.toLowerCase() === 'requirements') {
+          requirementsLevel = level;
+        }
+        continue;
+      }
+
+      if (level <= requirementsLevel) {
+        break;
+      }
+
+      if (requirementLevel === undefined && level > requirementsLevel) {
+        requirementLevel = level;
+      }
+
+      if (level === requirementLevel) {
+        const requirementMatch = title.match(/^Requirement:\s*(.+)$/i);
+        names.push((requirementMatch ? requirementMatch[1] : title).trim());
+      }
+    }
+
+    return names;
+  }
+
   private applySpecRules(spec: Spec, content: string): ValidationIssue[] {
     const issues: ValidationIssue[] = [];
 
@@ -454,10 +542,10 @@ export class Validator {
    * on the requirement body line (the line right after the header), so we point
    * the author at that exact fix when the keyword is found in the header only.
    */
-  private buildMissingShallOrMustMessage(action: 'ADDED' | 'MODIFIED', blockName: string): string {
+  private buildMissingShallOrMustMessage(action: 'ADDED' | 'MODIFIED' | 'Requirement', blockName: string): string {
     const base = `${action} "${blockName}" must contain SHALL or MUST`;
     if (this.containsShallOrMust(blockName)) {
-      return `${base} in the requirement body, not only in the header. Move the SHALL/MUST statement to the line immediately after the "### Requirement: ..." header.`;
+      return `${base} in the requirement body, not only in the header. Move the SHALL/MUST statement to the line immediately after the requirement header.`;
     }
     return base;
   }
