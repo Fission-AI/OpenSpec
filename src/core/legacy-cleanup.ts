@@ -52,7 +52,7 @@ export const LEGACY_SLASH_COMMAND_PATHS: Record<string, LegacySlashCommandPatter
   'factory': { type: 'files', pattern: '.factory/commands/openspec-*.md' },
   'opencode': { type: 'files', pattern: ['.opencode/command/opsx-*.md', '.opencode/command/openspec-*.md'] },
   'continue': { type: 'files', pattern: '.continue/prompts/openspec-*.prompt' },
-  'antigravity': { type: 'files', pattern: '.agent/workflows/openspec-*.md' },
+  'antigravity': { type: 'files', pattern: ['.agents/workflows/openspec-*.md', '.agent/workflows/openspec-*.md', '.agent/workflows/opsx-*.md'] },
   'iflow': { type: 'files', pattern: '.iflow/commands/openspec-*.md' },
   'junie': { type: 'files', pattern: ['.junie/commands/opsx-*.md', '.junie/commands/openspec-*.md'] },
   'qwen': { type: 'files', pattern: '.qwen/commands/openspec-*.toml' },
