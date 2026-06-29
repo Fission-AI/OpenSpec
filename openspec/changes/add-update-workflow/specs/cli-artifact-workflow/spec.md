@@ -15,9 +15,9 @@ The system SHALL include each artifact's dependency edges in the `openspec statu
 - **WHEN** the change uses a custom schema with non-default artifact ids
 - **THEN** the `requires` and `dependents` edges in the status output use that schema's artifact ids
 
-### Requirement: Status Includes Content Digest and Drift
+### Requirement: Content Digest and Drift Reporting
 
-The system SHALL include a deterministic per-artifact content digest in the `openspec status --json` output, and a drift signal computed by comparing each artifact's recorded upstream-digest baseline against the current upstream digests, so consumers can detect content changes reproducibly without relying on filesystem timestamps. The system SHALL provide a way to record the baseline so the drift signal has a deterministic reference.
+The system SHALL report a deterministic per-artifact content digest and a drift signal in the read-only `openspec status --json` output, the drift signal computed by comparing each artifact's recorded upstream-digest baseline against the current upstream digests, so consumers can detect content changes reproducibly without relying on filesystem timestamps. Recording the baseline SHALL be a separate, explicit write operation; `openspec status` SHALL remain read-only and never mutate the baseline.
 
 #### Scenario: Present artifact reports a digest
 
@@ -34,11 +34,6 @@ The system SHALL include a deterministic per-artifact content digest in the `ope
 - **WHEN** an artifact's output does not exist
 - **THEN** the artifact's status JSON omits `digest` (or reports it as null)
 
-#### Scenario: Recording a baseline
-
-- **WHEN** the user runs `openspec status --change <id> --record <artifact>`
-- **THEN** the system records the current digests of that artifact's direct upstream dependencies as its baseline
-
 #### Scenario: Drift reported against a recorded baseline
 
 - **WHEN** an upstream dependency's current digest differs from the value recorded in an artifact's baseline
@@ -48,6 +43,18 @@ The system SHALL include a deterministic per-artifact content digest in the `ope
 
 - **WHEN** an artifact has no recorded baseline
 - **THEN** the artifact's status JSON reports drift as `unknown` rather than drifted or clean
+
+#### Scenario: Recording a baseline is an explicit write, separate from status
+
+- **WHEN** the baseline is recorded for an artifact via the dedicated record operation
+- **THEN** the system stores the current digests of that artifact's direct upstream dependencies as its baseline
+- **AND** running `openspec status` does not by itself create or change any baseline
+
+#### Scenario: Missing upstream is recorded as absent
+
+- **WHEN** an artifact's baseline is recorded while one of its direct upstreams has no output
+- **THEN** that upstream is recorded as absent
+- **AND** later creating that upstream's output reports the artifact as drifted
 
 ### Requirement: Downstream Impact Query
 

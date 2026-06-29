@@ -45,7 +45,7 @@ The system SHALL compute the transitive set of artifacts that depend on a given 
 
 ### Requirement: Artifact Content Digest
 
-The system SHALL compute a deterministic content digest for an artifact from the bytes of its output file(s), such that the same content yields the same digest on every run and on every platform. The digest SHALL normalize line endings before hashing so that otherwise-identical content produces an identical digest regardless of CRLF or LF encoding.
+The system SHALL compute a deterministic content digest for an artifact from its output file(s), such that the same content yields the same digest on every run and on every platform. For an artifact with multiple output files (a glob), the digest SHALL be computed over the files ordered by their change-relative path expressed with forward slashes, and SHALL incorporate each file's relative path together with its content, so that the digest is stable regardless of the operating system's absolute-path sorting, separators, or drive letters. Content SHALL be line-ending-normalized (CRLF to LF) before hashing so that otherwise-identical content produces an identical digest regardless of encoding.
 
 #### Scenario: Identical content yields identical digest
 
@@ -62,11 +62,16 @@ The system SHALL compute a deterministic content digest for an artifact from the
 - **WHEN** the same content is encoded with CRLF on one platform and LF on another
 - **THEN** the digest is identical on both
 
-#### Scenario: Glob output digests all matching files deterministically
+#### Scenario: Glob output digest is stable across platforms
 
 - **WHEN** an artifact generates a glob pattern (e.g. `specs/**/*.md`) with multiple files
-- **THEN** the digest is computed over the matching files in a deterministic order
-- **AND** the digest is stable across runs
+- **THEN** the digest orders the files by change-relative forward-slash path before hashing
+- **AND** the digest is identical on Windows and POSIX for the same file set and contents
+
+#### Scenario: Renaming a file within a glob changes the digest
+
+- **WHEN** a file in a glob artifact is renamed or moved (same total content, different relative path)
+- **THEN** the digest changes, because the relative path is part of the hash
 
 #### Scenario: Missing output has no digest
 

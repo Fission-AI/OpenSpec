@@ -84,6 +84,11 @@ The `/opsx:update` skill SHALL support an audit mode that reviews a whole change
 - **THEN** the skill proposes a concrete revision for each, in revisit order
 - **AND** it applies a revision only after the user confirms it
 
+#### Scenario: Coherent change yields no changes
+
+- **WHEN** audit mode finds no drifted artifacts, no structural gaps, and no cross-artifact incoherence
+- **THEN** the skill reports the change as coherent and makes no edits
+
 ### Requirement: User-Confirmed Incremental Application
 
 The `/opsx:update` skill SHALL propose each artifact revision and apply it only after user confirmation, re-checking coherence after each applied change.
@@ -102,5 +107,5 @@ The `/opsx:update` skill SHALL propose each artifact revision and apply it only 
 #### Scenario: Records the drift baseline after an applied edit
 
 - **WHEN** the skill has applied and confirmed a revision to an artifact
-- **THEN** it records that artifact's drift baseline via the CLI (`openspec status --record`)
+- **THEN** it records that artifact's drift baseline via the CLI's dedicated record operation (not by computing digests itself, and not via read-only `status`)
 - **AND** subsequent audits report that artifact as no longer drifted until an upstream changes again
