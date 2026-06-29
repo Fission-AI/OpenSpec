@@ -24,6 +24,7 @@ import { qoderAdapter } from '../../../src/core/command-generation/adapters/qode
 import { qwenAdapter } from '../../../src/core/command-generation/adapters/qwen.js';
 import { roocodeAdapter } from '../../../src/core/command-generation/adapters/roocode.js';
 import { windsurfAdapter } from '../../../src/core/command-generation/adapters/windsurf.js';
+import { codeassistantAdapter } from '../../../src/core/command-generation/adapters/codeassistant.js';
 import type { CommandContent } from '../../../src/core/command-generation/types.js';
 
 describe('command-generation/adapters', () => {
@@ -705,6 +706,49 @@ describe('command-generation/adapters', () => {
         expect(filePath.length).toBeGreaterThan(0);
         expect(filePath.includes(path.sep) || filePath.includes('.')).toBe(true);
       }
+    });
+  });
+
+  describe('codeassistantAdapter', () => {
+    it('should have correct toolId', () => {
+      expect(codeassistantAdapter.toolId).toBe('codeassistant');
+    });
+
+    it('should generate correct file path', () => {
+      const filePath = codeassistantAdapter.getFilePath('explore');
+      expect(filePath).toBe(path.join('.codeassistant', 'commands', 'opsx-explore.md'));
+    });
+
+    it('should generate correct file path for different command IDs', () => {
+      expect(codeassistantAdapter.getFilePath('new')).toBe(path.join('.codeassistant', 'commands', 'opsx-new.md'));
+      expect(codeassistantAdapter.getFilePath('bulk-archive')).toBe(path.join('.codeassistant', 'commands', 'opsx-bulk-archive.md'));
+    });
+
+    it('should format file with correct YAML frontmatter', () => {
+      const output = codeassistantAdapter.formatFile(sampleContent);
+
+      expect(output).toContain('---\n');
+      expect(output).toContain('description: Enter explore mode for thinking');
+      expect(output).toContain('---\n\n');
+      expect(output).toContain('This is the command body.\n\nWith multiple lines.');
+    });
+
+    it('should escape YAML special characters in description', () => {
+      const contentWithSpecialChars: CommandContent = {
+        ...sampleContent,
+        description: 'Fix: regression in "auth" feature',
+      };
+      const output = codeassistantAdapter.formatFile(contentWithSpecialChars);
+      expect(output).toContain('description: "Fix: regression in \\"auth\\" feature"');
+    });
+
+    it('should escape carriage return in description', () => {
+      const contentWithCR: CommandContent = {
+        ...sampleContent,
+        description: 'Line 1\rLine 2',
+      };
+      const output = codeassistantAdapter.formatFile(contentWithCR);
+      expect(output).toContain('description: "Line 1\\rLine 2"');
     });
   });
 });
