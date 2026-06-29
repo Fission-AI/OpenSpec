@@ -1133,7 +1133,12 @@ openspec completion install
 openspec completion install zsh
 
 # Generate script for manual installation
+
+# Unix/macOS (bash)
 openspec completion generate bash > ~/.bash_completion.d/openspec
+
+# Windows (PowerShell)
+openspec completion generate powershell >> $PROFILE
 
 # Uninstall
 openspec completion uninstall
