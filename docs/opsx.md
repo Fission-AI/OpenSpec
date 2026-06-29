@@ -163,6 +163,7 @@ rules:
 | `/opsx:continue` | Create the next artifact (expanded workflow) |
 | `/opsx:ff` | Fast-forward planning artifacts (expanded workflow) |
 | `/opsx:apply` | Implement tasks, updating artifacts as needed |
+| `/opsx:tdd` | Write failing tests from `tests.md` before implementing (TDD gate) |
 | `/opsx:verify` | Validate implementation against artifacts (expanded workflow) |
 | `/opsx:sync` | Sync delta specs to main (default workflow, optional) |
 | `/opsx:archive` | Archive when done |
