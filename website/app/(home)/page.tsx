@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import {
   ArrowRight,
+  Boxes,
   Check,
+  Clock,
   Compass,
   FileText,
   GitBranch,
@@ -9,6 +11,7 @@ import {
   Archive,
   Layers,
   ListChecks,
+  Share2,
   Sparkles,
 } from 'lucide-react';
 import { links } from '@/lib/shared';
@@ -23,6 +26,7 @@ export default function HomePage() {
       <Anatomy />
       <FiveIdeas />
       <TheLoop />
+      <Teams />
       <Why />
       <Comparison />
       <FinalCta />
@@ -333,6 +337,77 @@ function Why() {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const TEAM_SCENARIOS = [
+  {
+    icon: Share2,
+    title: 'Cross-repo features',
+    body: 'One change, one plan — even when the code lands in the API server, the web app, and a shared library. No more "whose openspec/ folder does this live in?"',
+  },
+  {
+    icon: Boxes,
+    title: 'Shared requirements',
+    body: 'A platform team owns the specs; product teams reference them read-only, right where their coding agent can read them. No more drifting wiki.',
+  },
+  {
+    icon: Clock,
+    title: 'Plan before code',
+    body: 'Capture the plan in the store now, while it is just an idea. The code repos catch up later — the thinking is already recorded and reviewed.',
+  },
+];
+
+function Teams() {
+  return (
+    <section className="border-y border-fd-border bg-fd-primary/5">
+      <div className="mx-auto max-w-5xl px-4 py-20">
+        <div className="mx-auto max-w-2xl text-center">
+          <p className="text-sm font-medium uppercase tracking-wide text-fd-primary">
+            For teams
+          </p>
+          <h2 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
+            Why teams adopt OpenSpec
+          </h2>
+          <p className="mt-4 text-fd-muted-foreground">
+            Solo, OpenSpec keeps you and your AI honest on one repo. On a team,
+            the hard part moves: work spans repos, requirements cross team lines,
+            and planning starts before code exists. OpenSpec{' '}
+            <Link href="/docs/stores" className="font-medium text-fd-primary underline">
+              stores
+            </Link>{' '}
+            put planning in a repo of its own — one source of truth your whole
+            team and every coding agent can read, shared by{' '}
+            <code>git push</code> like anything else.
+          </p>
+        </div>
+        <div className="mt-12 grid gap-5 md:grid-cols-3">
+          {TEAM_SCENARIOS.map(({ icon: Icon, title, body }) => (
+            <div
+              key={title}
+              className="rounded-xl border border-fd-border bg-fd-card p-6"
+            >
+              <div className="mb-3 inline-flex size-10 items-center justify-center rounded-lg bg-fd-primary/10 text-fd-primary">
+                <Icon className="size-5" />
+              </div>
+              <h3 className="font-semibold">{title}</h3>
+              <p className="mt-2 text-sm text-fd-muted-foreground">{body}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-10 text-center">
+          <Link
+            href="/docs/stores"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-fd-primary px-5 py-2.5 text-sm font-semibold text-fd-primary-foreground transition-opacity hover:opacity-90"
+          >
+            Explore stores <ArrowRight className="size-4" />
+          </Link>
+          <span className="ml-3 rounded-full border border-fd-border bg-fd-card px-2.5 py-1 text-xs font-medium text-fd-muted-foreground">
+            Beta
+          </span>
         </div>
       </div>
     </section>

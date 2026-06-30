@@ -133,12 +133,58 @@ Every normal command resolves its root the same way, in this order:
 
 The `Using OpenSpec root:` line (and the `root` block in `--json` output) tells you which case you are in. Two read-only commands answer the obvious questions any time: `openspec doctor` ("is my setup healthy?") and `openspec context` ("what am I working with?").
 
-## Going further (briefly)
+## Story: requirements that cross team lines
 
-- **References** let a code repo *read* another store's specs as context without moving any work — declare them under `references:` in `openspec/config.yaml`.
-- **Worksets** are a personal, named view of the few folders you open together (the plan plus two or three code repos), reopened with `openspec workset open <name>`.
+A platform team owns the requirements. Product teams build against them, in their own repos, with their own designs. A **reference** describes that relationship without moving anyone's work.
 
-Both are covered in full in the [Stores user guide on GitHub](https://github.com/Fission-AI/OpenSpec/blob/main/docs/stores-beta/user-guide.md).
+```text
+   platform-reqs (store)                api-server (code repo)
+   owned by the platform team           owned by a product team
+   ┌─────────────────────────┐          ┌─────────────────────────┐
+   │ openspec/specs/         │ ◀────────│ openspec/config.yaml     │
+   │   payments/spec.md      │  reads   │   references:            │
+   │   auth/spec.md          │          │     - platform-reqs      │
+   │ openspec/changes/       │          │ openspec/specs/  (own)   │
+   │   platform work         │          │ openspec/changes/ (own)  │
+   └─────────────────────────┘          └─────────────────────────┘
+```
+
+The product team declares what it draws on, in its repo's `openspec/config.yaml`:
+
+```yaml
+references:
+  - platform-reqs
+```
+
+References are **read-only context**. The repo keeps its own root; work stays there. What changes: `openspec instructions` in that repo now includes an index of the referenced store's specs — each with a one-line summary and the exact fetch command:
+
+```bash
+openspec show payments --type spec --store platform-reqs
+```
+
+So an agent working in `api-server` can find the upstream payment requirements, cite them, and write its low-level design in the repo's own root — without anyone pasting context around. A reference can also carry its clone source, so teammates who do not have the store yet get a complete, pasteable fix instead of a dead end:
+
+```yaml
+references:
+  - { id: platform-reqs, remote: "git@github.com:acme/platform-reqs.git" }
+```
+
+## Worksets: reopen the folders you work on together
+
+Most people open the same few folders every session — the planning store plus two or three code repos. A **workset** is a personal, named view of exactly that, reopened with one command.
+
+```bash
+openspec workset create platform \
+  --member ~/openspec/team-plans \
+  --member ~/src/api-server \
+  --member ~/src/web-app \
+  --tool code
+
+openspec workset list
+openspec workset open platform     # opens all three in your editor
+```
+
+Worksets are deliberately *not* shared state. They live on your machine, are never committed, and make no claims about the work — they only record what you like open together. Removing one never touches the member folders.
 
 ## Honest limitations
 

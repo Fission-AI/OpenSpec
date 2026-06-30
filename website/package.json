@@ -4,7 +4,7 @@
   "private": true,
   "description": "Documentation site for OpenSpec, built with Fumadocs and deployable to Cloudflare Pages.",
   "scripts": {
-    "build": "next build",
+    "build": "fumadocs-mdx && next build",
     "dev": "next dev",
     "start": "serve out",
     "types:check": "fumadocs-mdx && next typegen && tsc --noEmit"
