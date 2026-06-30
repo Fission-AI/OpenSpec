@@ -1,0 +1,168 @@
+---
+title: Core Concepts
+description: The whole mental model on one page — specs, changes, delta specs, artifacts, and archive.
+icon: Layers
+---
+
+OpenSpec is built from a handful of simple ideas. Learn these and everything else is detail. Here is the entire model in five words: **agree first, then build confidently.**
+
+## The picture
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                        openspec/                            │
+│                                                             │
+│   ┌──────────────────┐         ┌────────────────────────┐  │
+│   │     specs/       │         │       changes/         │  │
+│   │                  │ ◄─────  │                        │  │
+│   │ source of truth  │  merge  │ one folder per change  │  │
+│   │ how things work  │   on    │ proposal · design ·    │  │
+│   │ today            │ archive │ tasks · delta specs    │  │
+│   └──────────────────┘         └────────────────────────┘  │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+Two folders. `specs/` is what is true. `changes/` is what you are proposing. Archiving moves a proposal into truth.
+
+## 1. Specs are the truth
+
+A **spec** describes how your system behaves *right now*. Specs live in `openspec/specs/`, organized by domain — `auth/`, `payments/`, `ui/`. They are made of **requirements** (what the system must do) and **scenarios** (concrete given/when/then examples).
+
+```markdown
+# Auth Specification
+
+## Requirements
+
+### Requirement: Session Expiration
+The system MUST expire sessions after 30 minutes of inactivity.
+
+#### Scenario: Idle timeout
+- GIVEN an authenticated session
+- WHEN 30 minutes pass without activity
+- THEN the session is invalidated
+- AND the user must re-authenticate
+```
+
+A spec is a **behavior contract**, not an implementation plan. It captures observable behavior — inputs, outputs, error conditions, constraints — not class names or library choices. A good test: if the implementation can change without changing externally visible behavior, it probably does not belong in the spec.
+
+<Callout title="RFC 2119 keywords">
+The words **MUST / SHALL** (absolute), **SHOULD** (recommended), and **MAY** (optional) signal how strong a requirement is. Use them to communicate intent precisely.
+</Callout>
+
+## 2. A change is one unit of work
+
+When you want to add, modify, or remove behavior, you create a **change**: a folder in `openspec/changes/` that holds everything about that work in one place.
+
+```text
+openspec/changes/add-dark-mode/
+├── proposal.md     # Why and what
+├── design.md       # How (technical approach)
+├── tasks.md        # Implementation checklist
+└── specs/          # Delta specs — what is changing
+    └── ui/
+        └── spec.md
+```
+
+One change, one folder, one feature. Packaging it this way means everything lives together, multiple changes can be in flight at once without conflicting, and a reviewer can understand the whole thing by opening one directory.
+
+## 3. Delta specs describe what is changing
+
+Inside a change, you do not rewrite the entire spec. You write a small **delta**: what is `ADDED`, `MODIFIED`, or `REMOVED`. This is the trick that makes OpenSpec good at editing *existing* systems, not just green-field ones. You describe the diff, not the destination.
+
+```markdown
+# Delta for Auth
+
+## ADDED Requirements
+
+### Requirement: Two-Factor Authentication
+The system MUST support TOTP-based two-factor authentication.
+
+#### Scenario: 2FA login
+- GIVEN a user with 2FA enabled
+- WHEN the user submits valid credentials
+- THEN an OTP challenge is presented
+- AND login completes only after a valid OTP
+
+## MODIFIED Requirements
+
+### Requirement: Session Expiration
+The system MUST expire sessions after 15 minutes of inactivity.
+(Previously: 30 minutes)
+
+## REMOVED Requirements
+
+### Requirement: Remember Me
+(Deprecated in favor of 2FA.)
+```
+
+| Section | Meaning | What happens on archive |
+|---------|---------|-------------------------|
+| `## ADDED Requirements` | New behavior | Appended to the main spec |
+| `## MODIFIED Requirements` | Changed behavior | Replaces the existing requirement |
+| `## REMOVED Requirements` | Deprecated behavior | Deleted from the main spec |
+
+Why deltas instead of full specs? **Clarity** (you see exactly what is changing), **conflict avoidance** (two changes can touch the same spec file as long as they touch different requirements), and **brownfield fit** (most real work modifies existing behavior).
+
+## 4. Artifacts build on each other
+
+A change contains a few documents, created in a natural order, each feeding the next:
+
+```text
+proposal ──► specs ──► design ──► tasks ──► implement
+   why        what       how       steps      do it
+```
+
+| Artifact | Purpose |
+|----------|---------|
+| `proposal.md` | The **why** and **what** — intent, scope, and approach |
+| `specs/` | Delta specs showing ADDED / MODIFIED / REMOVED requirements |
+| `design.md` | The **how** — technical approach and architecture decisions |
+| `tasks.md` | The implementation checklist, with checkboxes |
+
+### Enablers, not gates
+
+This phrase shows up everywhere in OpenSpec. Old-school spec processes are waterfalls: finish planning, *then* you may implement, and going back hurts. OpenSpec refuses that. The order shows what becomes *possible* next, not what you are *forced* to do next.
+
+Discover during implementation that the design was wrong? Edit `design.md` and keep going. Realize the scope should shrink? Update the proposal. Nothing locks. The dependencies exist only so the AI has the context it needs — not to box you in.
+
+The strength here is honesty: real work is messy and iterative, and OpenSpec lets it be. The tradeoff is discipline: because nothing forces you forward, it is on you to keep a change focused rather than letting it sprawl.
+
+## 5. Archiving folds the change back into the truth
+
+When the work is done, you **archive** the change. Its delta specs merge into your main specs, and the change folder moves to `changes/archive/` with a date stamp.
+
+```text
+Before archive:                  After archive:
+
+openspec/                        openspec/
+├── specs/auth/spec.md ◄──┐      ├── specs/auth/spec.md   (now includes 2FA)
+└── changes/add-2fa/      │      └── changes/archive/
+    └── specs/auth/ ──────┘          └── 2025-01-24-add-2fa/  (preserved)
+```
+
+Now your specs describe the new reality, and you are ready for the next change. The cycle closes — and the archive preserves the full context of every change: not just what changed, but the proposal explaining why and the design explaining how.
+
+## Schemas (a peek under the hood)
+
+A **schema** defines which artifacts a workflow has and how they depend on each other. The built-in `spec-driven` schema is the `proposal → specs → design → tasks` flow you have seen on this page. You can create your own — see [Customization](/docs/customization). Most people never need to think about schemas; the default just works.
+
+## The virtuous cycle
+
+```text
+1. Specs describe current behavior
+2. Changes propose modifications (as deltas)
+3. Implementation makes the changes real
+4. Archive merges deltas into specs
+5. Specs now describe the new behavior
+6. The next change builds on updated specs
+```
+
+<Cards>
+  <Card title="See the workflow in commands" href="/docs/the-workflow">
+    Map each concept to a slash command.
+  </Card>
+  <Card title="Try it on a real codebase" href="/docs/existing-projects">
+    Adopt OpenSpec without documenting everything first.
+  </Card>
+</Cards>

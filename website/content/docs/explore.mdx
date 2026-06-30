@@ -1,0 +1,103 @@
+---
+title: Explore First
+description: /opsx:explore is your thinking partner — reach for it whenever you have a problem but not yet a plan.
+icon: Compass
+---
+
+`/opsx:explore` is your thinking partner. Reach for it whenever you have a problem but not yet a plan. It investigates your codebase, weighs options with you, and clarifies what you actually want — all before a single artifact or line of code is created. When the picture is clear, it hands off to `/opsx:propose`.
+
+<Callout title="If you take one habit from these docs, take this one">
+When you are not sure, **explore before you propose.** AI assistants are eager — ask vaguely and they will confidently build *something*, just maybe not the thing you needed. Explore is the cure.
+</Callout>
+
+## When to explore
+
+Explore is the right first step more often than people expect. Use it when any of these is true:
+
+- You know the *problem* but not the *solution*. ("Pages feel slow." "Auth is a mess." "We keep getting duplicate orders.")
+- You are choosing between approaches and want the tradeoffs laid out against your actual code.
+- You are new to a codebase and need to understand how something works before you change it.
+- The requirements are fuzzy and you want to sharpen them before committing.
+- You suspect the work is bigger or smaller than it looks and want to scope it honestly.
+
+Skip explore only when you already know exactly what you want and how. Then go straight to `/opsx:propose`.
+
+## What it does (and does not)
+
+Explore is a **conversation**, not a generator.
+
+<Cards>
+  <Card title="It does" icon="Check">
+    Read and search your codebase, compare options and name tradeoffs, draw diagrams, narrow a vague idea into a buildable scope, and hand off to `/opsx:propose` when you are ready.
+  </Card>
+  <Card title="It does not" icon="X">
+    Create a change folder, write any artifacts, or touch your code. Exploring costs nothing and commits you to nothing.
+  </Card>
+</Cards>
+
+That is the point. You can explore three dead ends, learn something from each, and only then propose the path that survived.
+
+It ships in the default **core** profile, so there is nothing to enable. If OpenSpec is set up in your project, explore is ready in your AI chat.
+
+## A full example
+
+Watch a vague worry become a sharp, buildable change.
+
+```text
+You: /opsx:explore
+
+AI:  What would you like to explore?
+
+You: Our checkout sometimes creates duplicate orders. I don't know why
+     and I don't know how to fix it safely.
+
+AI:  Let me dig into the checkout path...
+     [reads the order service, the payment webhook handler, and the
+      client submit logic]
+
+     Here's what I found. Duplicates happen two ways:
+     1. The client can submit twice (double-click, slow-network retry).
+        Nothing debounces it.
+     2. The payment webhook can fire more than once, and the handler
+        creates an order each time. There's no idempotency key.
+
+     Cause #2 is the dangerous one — it can charge and fulfill twice.
+
+     Three fixes, roughly by robustness:
+     - Idempotency key on order creation (handles both causes)
+     - Dedup the webhook by payment-intent id (handles #2 only)
+     - Client-side debounce (handles #1 only, papers over the real bug)
+
+     Your code already stores the payment-intent id, so the idempotency
+     key is a small change with the biggest payoff. Want me to scope it?
+
+You: Yes, let's do the idempotency key.
+
+You: /opsx:propose add-order-idempotency-key
+
+AI:  Created openspec/changes/add-order-idempotency-key/, with a proposal
+     and delta spec grounded in what we just found. Ready for implementation.
+```
+
+The starting point was "something is wrong and I am scared to touch it." Twenty seconds of exploration turned that into a named root cause, three ranked options, and a precise change. The proposal that follows is sharp because the thinking happened first.
+
+## Tips for a good exploration
+
+- **Bring the problem, not the solution.** "Logins feel slow" gives the AI room to investigate. "Add a Redis cache" pre-commits you to an answer you have not tested.
+- **Ask for the tradeoffs out loud.** "What are the downsides of each option?" gets a more honest comparison.
+- **Let it read first.** The best explorations start with the AI actually looking at your code, not guessing.
+- **It is okay to bail.** If exploration reveals the idea is not worth it, that is a win — you learned it cheaply.
+- **Explore again mid-change.** Stuck during `/opsx:apply`? Step back, explore a sub-problem, then return.
+
+## The honest tradeoff
+
+The fuzzier the task, the more explore pays off. The clearer the task, the more you can skip straight to proposing. Explore is a conversation, so it is slower than firing off `/opsx:propose` and hoping — and for work you genuinely understand, that extra step is pure overhead. Use judgment.
+
+<Cards>
+  <Card title="Back to the workflow" href="/docs/the-workflow">
+    See explore as part of the everyday loop.
+  </Card>
+  <Card title="Slash command reference" href="/docs/reference/slash-commands">
+    The precise `/opsx:explore` reference.
+  </Card>
+</Cards>

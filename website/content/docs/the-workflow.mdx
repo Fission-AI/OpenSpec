@@ -1,0 +1,136 @@
+---
+title: The Workflow
+description: The day-to-day loop — explore, propose, apply, archive — plus profiles and the expanded command set.
+icon: Workflow
+---
+
+OpenSpec's default workflow is short. Most days look like this:
+
+```text
+/opsx:explore ──► /opsx:propose ──► /opsx:apply ──► /opsx:archive
+  (optional)
+```
+
+Start with `/opsx:explore` when you are figuring out what to do. Jump straight to `/opsx:propose` when you already know. Both ship in the default profile, so they are always there.
+
+## The four core moves
+
+<Steps>
+
+<Step>
+
+### Explore — think it through *(optional)*
+
+```text
+/opsx:explore
+```
+
+A no-stakes thinking partner. It reads your code, weighs options, and turns a fuzzy idea into a concrete plan — all before any artifact exists. This is the single best habit for working with an AI that will otherwise confidently build the wrong thing. [Read the Explore guide.](/docs/explore)
+
+</Step>
+
+<Step>
+
+### Propose — draft the plan
+
+```text
+/opsx:propose add-dark-mode
+```
+
+In one step, the AI creates the change folder and drafts the proposal, spec deltas, design, and task list. This is your review moment: read it and adjust before code is written.
+
+</Step>
+
+<Step>
+
+### Apply — build it
+
+```text
+/opsx:apply
+```
+
+The AI works through the task list, writing code and checking off each item. Learn something mid-build? Update the artifact and keep going.
+
+</Step>
+
+<Step>
+
+### Archive — fold it into the truth
+
+```text
+/opsx:archive
+```
+
+Spec deltas merge into your main specs, and the change moves to `changes/archive/` with a date stamp. (There is also `/opsx:sync`, which merges deltas into specs without archiving; archive will prompt you if a sync is needed, so you rarely call it directly.)
+
+</Step>
+
+</Steps>
+
+## Profiles: core vs expanded
+
+OpenSpec ships two sets of commands. The default is **core** — five commands that cover the whole loop.
+
+<Tabs items={['Core profile (default)', 'Expanded profile']}>
+  <Tab value="Core profile (default)">
+
+| Command | What it does |
+|---------|--------------|
+| `/opsx:explore` | Think through an idea before committing |
+| `/opsx:propose` | Create a change and draft all planning artifacts at once |
+| `/opsx:apply` | Implement the tasks |
+| `/opsx:sync` | Merge delta specs into the main specs |
+| `/opsx:archive` | Archive a completed change |
+
+The core profile is all most people ever need.
+
+  </Tab>
+  <Tab value="Expanded profile">
+
+The expanded profile adds finer-grained control for bigger or more deliberate work:
+
+| Command | What it does |
+|---------|--------------|
+| `/opsx:new` | Scaffold a change without drafting artifacts yet |
+| `/opsx:continue` | Create the next artifact, one at a time |
+| `/opsx:ff` | Fast-forward: create all planning artifacts in order |
+| `/opsx:verify` | Check that the implementation matches the artifacts |
+| `/opsx:bulk-archive` | Archive several completed changes at once |
+| `/opsx:onboard` | A guided tutorial through the full workflow on your own code |
+
+The expanded path looks like:
+
+```text
+/opsx:new ──► /opsx:ff or /opsx:continue ──► /opsx:apply ──► /opsx:verify ──► /opsx:archive
+```
+
+  </Tab>
+</Tabs>
+
+### Switching profiles
+
+The default global profile is `core`. To enable the expanded commands:
+
+```bash
+openspec config profile     # interactive picker
+# ...then apply to your project:
+openspec update
+```
+
+`openspec update` regenerates the command files for your AI tool, so the new commands show up in chat.
+
+## When to reach for what
+
+- **Vague idea?** `/opsx:explore` first.
+- **Clear, small feature?** `/opsx:propose`, then `/opsx:apply`.
+- **Big or risky change?** Consider the expanded profile so you can create artifacts deliberately and `/opsx:verify` before archiving.
+- **Several finished changes piling up?** `/opsx:bulk-archive` (expanded).
+
+<Cards>
+  <Card title="Slash command reference" href="/docs/reference/slash-commands">
+    Every `/opsx:*` command in one place.
+  </Card>
+  <Card title="CLI reference" href="/docs/reference/cli">
+    Every `openspec` terminal command.
+  </Card>
+</Cards>

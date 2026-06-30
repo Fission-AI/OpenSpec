@@ -1,0 +1,22 @@
+{
+  "title": "Documentation",
+  "root": true,
+  "pages": [
+    "---Start here---",
+    "index",
+    "installation",
+    "getting-started",
+    "how-commands-work",
+    "---Understand it---",
+    "core-concepts",
+    "the-workflow",
+    "explore",
+    "---Guides---",
+    "existing-projects",
+    "editing-changes",
+    "customization",
+    "---Reference---",
+    "reference",
+    "faq"
+  ]
+}

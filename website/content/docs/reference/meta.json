@@ -1,0 +1,5 @@
+{
+  "title": "Reference",
+  "icon": "BookMarked",
+  "pages": ["slash-commands", "cli", "supported-tools"]
+}

@@ -1,0 +1,51 @@
+---
+title: Supported Tools
+description: OpenSpec works with 30+ AI coding assistants. Here's the list and how setup works.
+icon: Plug
+---
+
+OpenSpec is tool-agnostic. When you run `openspec init`, it generates the right command files for whichever assistants you use, so the `/opsx:*` commands show up natively in each one.
+
+## The tools
+
+OpenSpec currently integrates with 30+ assistants, including:
+
+```text
+Amazon Q Developer   Antigravity      Auggie           IBM Bob Shell
+Claude Code          Cline            CodeBuddy        Codex
+Continue             CoStrict         Crush            Cursor
+Factory Droid        ForgeCode        Gemini CLI       GitHub Copilot
+iFlow                Junie            Kilo Code        Kimi CLI
+Kiro                 Lingma           Mistral Vibe     OpenCode
+Pi                   Qoder            Qwen Code        RooCode
+Trae                 Windsurf
+```
+
+For the exact file paths each tool uses, see the [Supported Tools reference on GitHub](https://github.com/Fission-AI/OpenSpec/blob/main/docs/supported-tools.md).
+
+## How integration works
+
+For each selected tool, `openspec init` installs:
+
+1. **Skills** — `.../skills/openspec-*/SKILL.md`, the instructions the AI loads.
+2. **Commands** — tool-specific `opsx-*` files that surface as slash commands.
+
+A few tools (ForgeCode, Kimi CLI, Mistral Vibe, Trae) are skill-based only and do not get generated command files — you invoke them through their skill mechanism instead.
+
+## Choosing tools at init
+
+By default, `openspec init` asks which tools to set up. For scripted or CI setups, pass `--tools`:
+
+```bash
+openspec init --tools claude,cursor   # specific tools
+openspec init --tools all             # every supported tool
+openspec init --tools none            # skip tool configuration
+```
+
+<Callout title="Command syntax differs by tool">
+The propose command is `/opsx:propose` in Claude Code, `/opsx-propose` in Cursor and Windsurf, `/openspec-propose` in Trae, and so on. When these docs write `/opsx:propose`, read it as "the propose command in whatever form your tool uses." See [How Commands Work](/docs/how-commands-work).
+</Callout>
+
+## Not seeing your tool?
+
+The list grows often. If your assistant is missing, [open an issue](https://github.com/Fission-AI/OpenSpec/issues) or run `openspec feedback "please add <tool>"` from your terminal.

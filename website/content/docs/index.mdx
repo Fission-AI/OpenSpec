@@ -1,0 +1,83 @@
+---
+title: What is OpenSpec?
+description: A lightweight agreement layer between you and your AI. Agree on what to build before any code is written.
+icon: Sparkles
+---
+
+OpenSpec helps you and your AI coding assistant **agree on what to build before any code is written.**
+
+You describe a change. The AI drafts a short spec and a task list. You both look at the same plan. Then the work happens. No more discovering halfway through that the AI built something you did not ask for.
+
+That is the whole pitch. The rest of these docs is detail.
+
+<Callout title="The one habit worth forming">
+When you are not sure what to build, start with `/opsx:explore`. It is a no-stakes thinking partner that reads your code, weighs options, and sharpens a fuzzy idea into a concrete plan before anything is written. See [Explore First](/docs/explore).
+</Callout>
+
+## Why it exists
+
+AI coding assistants are fast and capable, but they are unpredictable when the requirements live only in a chat thread. Ask vaguely, and a confident assistant will build *something* — just maybe not the thing you meant.
+
+OpenSpec adds a thin layer of agreement. You write down intent in plain language, the AI fills in the details, and you approve the plan before code gets written. The plan and the code then live side by side in your repo, so six months later the spec still explains why the system works the way it does.
+
+<Cards>
+  <Card title="Agree before you build" href="/docs/core-concepts">
+    Human and AI align on a short spec before code gets written.
+  </Card>
+  <Card title="Stay organized" href="/docs/core-concepts">
+    Each change is one folder: proposal, specs, design, and tasks together.
+  </Card>
+  <Card title="Work fluidly" href="/docs/the-workflow">
+    Update any artifact at any time. No rigid phase gates.
+  </Card>
+  <Card title="Use your own tools" href="/docs/reference/supported-tools">
+    Works with 30+ AI assistants through simple slash commands.
+  </Card>
+</Cards>
+
+## The thirty-second version
+
+```text
+1. Install     npm install -g @fission-ai/openspec@latest
+2. Initialize  cd your-project && openspec init
+3. Explore     (in your AI chat)  /opsx:explore          ← optional, great habit
+4. Propose     (in your AI chat)  /opsx:propose add-dark-mode
+5. Build       (in your AI chat)  /opsx:apply
+6. Archive     (in your AI chat)  /opsx:archive
+```
+
+Steps 1 and 2 run in your **terminal**. The rest run in your **AI assistant's chat**. That split is the one thing worth memorizing, and [How Commands Work](/docs/how-commands-work) explains exactly why.
+
+## Pick your path
+
+<Cards>
+  <Card title="I'm brand new" href="/docs/getting-started">
+    Install, initialize, and ship your first change end to end.
+  </Card>
+  <Card title="I have a problem but not a plan" href="/docs/explore">
+    Use `/opsx:explore` to think it through with the AI first.
+  </Card>
+  <Card title="I have a big existing codebase" href="/docs/existing-projects">
+    Adopt OpenSpec on real, brownfield code without boiling the ocean.
+  </Card>
+  <Card title="I want the whole mental model" href="/docs/core-concepts">
+    Specs, changes, deltas, and archive — explained on one page.
+  </Card>
+</Cards>
+
+## A philosophy in four lines
+
+```text
+fluid not rigid          — work on what makes sense, in any order
+iterative not waterfall  — learn as you build, refine as you go
+easy not complex         — initialize in seconds, customize only if you need to
+brownfield-first         — built for existing systems, not just green fields
+```
+
+OpenSpec is designed to be lightweight. It adds a step, and for a truly trivial one-line fix the ceremony may not pay off — that is fine. Use it where agreement matters, which turns out to be most of the time once you are working with an AI that will confidently build whatever you vaguely asked for.
+
+## Get help
+
+- **Discord:** [discord.gg/YctCnvvshC](https://discord.gg/YctCnvvshC) for questions, ideas, and help.
+- **GitHub:** [github.com/Fission-AI/OpenSpec](https://github.com/Fission-AI/OpenSpec) for bugs and feature requests.
+- **From your terminal:** `openspec feedback "your message"` opens a GitHub issue for you.
