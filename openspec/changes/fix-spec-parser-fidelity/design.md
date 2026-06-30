@@ -1,94 +1,68 @@
 # Design: Spec parser reading fidelity
 
-## Verified call graph (against `main`)
+## The requirement reader is implemented twice
 
-| Extractor | Recognition rule | Body capture | Metadata skip | `SHALL`/`MUST` check | Reached by |
-|-----------|------------------|--------------|---------------|----------------------|------------|
-| `Validator.extractRequirementText` (+ `countScenarios`) | canonical `REQUIREMENT_HEADER_REGEX` `/^###\s*Requirement:\s*(.+)$/i` | first substantial line only | **yes** (`/^\*\*[^*]+\*\*:/`) | `containsShallOrMust` → `/\b(SHALL\|MUST)\b/` | `validate <change>` |
-| `MarkdownParser.parseRequirements` → `req.text` | **every** level-3 child | first non-empty line only | **no** | `RequirementSchema.refine` → `text.includes('SHALL')` | `validate <spec>`; `archive` (proposal + rebuilt-spec checks) |
+| | spec reader: `MarkdownParser.parseRequirements` → `req.text` | delta reader: `Validator.extractRequirementText` / `countScenarios` |
+|---|---|---|
+| Recognition | every level-3 child of the section | canonical `REQUIREMENT_HEADER_REGEX` `/^###\s*Requirement:\s*(.+)$/i` |
+| Body capture | first non-empty line | first substantial line |
+| Skip `**metadata**:` | no | yes |
+| Fenced code in body | not skipped | not skipped |
+| Fenced `#### Scenario:` | not counted (parseSections fence-masks it) | **counted** (`/^####\s+/gm` is fence-unaware) |
+| `SHALL`/`MUST` | `text.includes('SHALL')` (substring) | `/\b(SHALL\|MUST)\b/` (word boundary) |
+| Reached by | `validate <spec>`, `archive` | `validate <change>` |
 
-`ChangeParser extends MarkdownParser` and calls `this.parseRequirements`, so it is the same extractor — there is no third implementation. `specs-apply` (the archive rebuild) parses with `parseRequirementBlocksFromSection`, i.e. the canonical rule, so rebuilt main specs are already clean.
+`ChangeParser extends MarkdownParser` and reuses `parseRequirements`, so there is no third reader. Every row where the two columns differ is a reproduced defect.
 
-The table is the whole story: the two extractors differ in **four** columns (capture, metadata, recognition, predicate). Each difference is a reproduced bug.
+## Reproductions (against `main`)
 
-## Root causes (each reproduced)
-
-### 1. Single-line body capture (#361)
-
-Both extractors return the first line and stop. A keyword on body line 2 is never seen.
-
-```
-### Requirement: Realtime quest updates
-Quest-related operations (creation, claiming, completion, approval, denial)
-SHALL propagate to all family members' dashboards in real-time.
-```
-- `validate <change> --strict` → `✗ ADDED "Realtime quest updates" must contain SHALL or MUST`
-- `validate <spec> --strict` → `✗ requirements.0.text: Requirement must contain SHALL or MUST keyword`
-
-### 2. Metadata before description, spec path only (#418)
-
-```
-### Requirement: File Serving
-**ID**: REQ-FILE-001
-**Priority**: P1
-
-The system MUST serve static files from the root directory.
-```
-- `validate <change>` → **valid** (delta extractor skips metadata)
-- `validate <spec>` → `✗ requirements.0.text: ...`; captured `req.text` = `**ID**: REQ-FILE-001`
-
-The delta extractor was already taught to skip metadata; the spec extractor was not. Unifying them fixes #418 and prevents the next such drift.
-
-### 3. Fenced block before the prose corrupts text (#312)
-
-```
-### Requirement: Config example then rule
-```bash
-# example config
-export TOKEN=abc
-```
-The system SHALL load the token from the environment.
-```
-- `validate <spec>` and `validate <change>` both → `✗ ... must contain SHALL or MUST`; captured `req.text` = `` ```bash ``
-
-The body loop breaks on `line.trim().startsWith('#')` (the `#` comment inside the fence) without consulting `codeFenceLineMask`. The original #312 (requirement counts) is already fixed at the section level; this is a distinct, still-live manifestation in the body extractor.
-
-### 4. Divergent requirement recognition (#498)
-
-`parseRequirements` treats every level-3 header as a requirement; the delta parser only canonical `### Requirement:`. A stray `### Documentation Requirements` divider → passes `validate <change>`, but `archive` emits non-blocking phantom `Proposal warnings in proposal.md`, and `validate <spec>` emits a blocking error. Archive does not hard-fail because `specs-apply` filters when rebuilding; the bug is the inconsistent signal.
+- **#361** — `### Requirement: …` with `SHALL` on body line 2 → `validate <change>` `✗ must contain SHALL or MUST`; `validate <spec>` `✗ requirements.0.text: …`.
+- **#418** — metadata lines before a `MUST` description → `validate <change>` **valid**; `validate <spec>` `✗`, `req.text` = `**ID**: REQ-FILE-001`.
+- **#312** — fenced block (with `#` comments) before the prose line → both paths `✗`; `req.text` = `` ```bash ``. (Distinct from the already-fixed section-count manifestation.)
+- **Fenced scenario** — requirement whose only `#### Scenario:` is inside a ` ```markdown ` block → `validate <change>` **valid** (counts the fenced scenario); `validate <spec>` `✗ requirements.0.scenarios: must have at least one scenario`. The delta reader passes a malformed requirement.
+- **#498** — stray `### Documentation Requirements` divider → `validate <change>` **valid**; `archive` prints non-blocking phantom `Proposal warnings in proposal.md`; `validate <spec>` blocking `✗`. (Also: `show`/`view` count the divider as a requirement — `count=2` with `text='Documentation Notes'`.)
 
 ## Approach
 
-**One shared extractor.** A single helper takes the requirement block's lines plus the fence mask and returns the full body: all lines from after the header to the first `#### Scenario:` header detected on a **non-fenced** line, skipping fence-masked lines and `**metadata**:` lines. Both `extractRequirementText` and `parseRequirements` delegate to it. `SHALL`/`MUST` detection runs over the full body via one predicate (`containsShallOrMust`), replacing the substring/word-boundary split.
+### Part A — one shared, fence-aware extraction
 
-This is fence-aware **skip-and-join**, which is why the existing fence tests still pass: in `markdown-parser.test.ts:106`/`:139` the `SHALL` line comes first and the fenced markdown block after it, so skipping fenced lines leaves `text` exactly equal to the `SHALL` line — the asserted value. The case that breaks today (#312) is the inverse: fence *before* the prose, which no test covers.
+A single helper takes the requirement block's lines plus the fence mask and returns the full body: lines from after the header to the first `#### Scenario:` header found on a **non-fence-masked** line, skipping fence-masked lines and `**metadata**:` lines. A companion fence-aware scenario counter counts only non-fence-masked `####` headers. Both readers delegate to these. `SHALL`/`MUST` detection uses one predicate.
 
-**Canonical recognition (Tier 2).** `parseRequirements` filters level-3 children through the exported `REQUIREMENT_HEADER_REGEX`. `## REMOVED`/`## RENAMED` are parsed by separate functions (`parseRemovedNames`, `parseRenamedPairs`) and are unaffected.
+Why the existing fence tests still pass: in `markdown-parser.test.ts:106`/`:139` the `SHALL` line is first and the fenced block follows, so skipping fenced lines leaves `text` exactly equal to the `SHALL` line — the asserted value. The breaking case (#312) is the inverse — fence *before* prose — which no test covers.
 
-## Existing test contract this change touches
+### Part B — surface the #498 divergence (INFO, no recognition change)
 
-`test/core/parsers/markdown-parser.test.ts` (15 tests, all green on `main`) encodes the current — buggy — behavior in three places:
+`validateChangeDeltaSpecs` emits an INFO issue when an `## ADDED`/`## MODIFIED Requirements` section contains a level-3 header that does not match `REQUIREMENT_HEADER_REGEX` (so the delta reader will skip it). Under `--strict`, `valid = errors === 0 && warnings === 0` — **INFO is excluded**, so this never changes pass/fail; it only informs. This is the minimal change that makes `validate <change>` stop *silently* passing the #498 input.
 
-- `:331` *extract requirement text from first non-empty content line* — asserts `req.text` is only the first of two body lines. **Tier 1** changes `req.text` to the full body; this test is updated to assert the joined body. (Its premise is the #361 bug.)
-- `:258` *handle nested sections correctly* — fixtures use bare `### The system SHALL …` headers and assert two requirements. **Tier 2** recognition makes bare headers non-requirements; updated to use `### Requirement: …`.
-- `:310` *use requirement heading as fallback when no content is provided* — bare header. **Tier 2**; updated similarly.
+## Why recognition tightening is rejected
 
-Tier 1 alone updates only `:331`. Tier 2 additionally updates `:258` and `:310`. No other tests are affected; the fence tests (`:106`, `:139`) are preserved.
+The obvious #498 fix is to make `parseRequirements` recognize only `### Requirement:` headers. It is rejected because **bare `### <statement>` headers are a supported, tested requirement format**, not a convention violation:
 
-## Alternatives considered
+- `test/core/validation.test.ts` builds a spec whose requirements are `### The system SHALL provide secure user authentication` (no `Requirement:` prefix) and asserts `report.valid === true`.
+- Bare headers also appear as valid requirements in `test/core/converters/json-converter.test.ts`, `test/core/archive.test.ts`, `test/commands/spec.test.ts`, and `test/core/parsers/markdown-parser.test.ts` (`:258`, `:310`, and the fixtures at `:14`/`:22`/`:55`/`:85`).
 
-- **Patch each extractor separately.** Rejected — duplicated logic is exactly how they drifted (metadata skip in one, not the other).
-- **Tier 2 as a separate opt-in lint instead of tightening recognition.** Keep `parseRequirements` permissive but add a warning when a level-3 header under Requirements is not `### Requirement:`. This avoids the behavior change and keeps bare-header support, but leaves `validate <change>` and `validate <spec>` recognizing different requirement *sets*, so it does not fully close #498. Offered as the conservative option; the proposal recommends tightening because all in-repo specs and the convention already require `### Requirement:`.
-- **Treat a stray level-3 header as a hard error everywhere.** Rejected — newly fails specs that pass `validate <change>` today; tightening-to-convention is the least-surprising consistent rule.
+Tightening would reclassify all of these as non-requirements, breaking those tests and silently dropping requirements from any real spec that uses the bare style. The cost is not justified by #498, whose harm is a *confusing signal*, not data loss (the archive rebuild already filters to `### Requirement:` blocks, so rebuilt specs are correct regardless). Part B fixes the signal safely. If maintainers later decide to make `### Requirement:` mandatory, that belongs in its own change with a deprecation cycle and fixture migration.
+
+## Safety: write path is independent of the reader
+
+`src/core/specs-apply.ts` rebuilds specs during archive from `extractRequirementsSection` + `RequirementBlock.raw` (raw text split on the canonical header). It does not import or call `parseSpec`/`parseRequirements` and never reads `req.text`. Consequently Part A changes only what is *read/validated/displayed*; archived spec bytes are unchanged. (Note: this means `specs-apply` already uses the canonical `### Requirement:` rule — another reason recognition divergence is a reader-only concern.)
+
+## Read-only blast radius (no write path)
+
+Consumers of `parseSpec`/`req.text`: `view.ts`/`list.ts` (requirement **counts** — unchanged, since recognition is unchanged), `json-converter.ts` (JSON `text` — now the full body), `spec.ts` (display), `change-parser.ts:96` (delta descriptions `Add requirement: ${req.text}` — may span lines), and the `MAX_REQUIREMENT_TEXT_LENGTH` INFO (non-blocking). None affect archived content or pass/fail of valid specs.
 
 ## Edge cases for tests
 
-- Display vs. detection: `req.text` becomes the full body; assert single-line requirements are unchanged and the `MAX_REQUIREMENT_TEXT_LENGTH` INFO (non-blocking) is not spuriously tripped for legitimate multi-line bodies.
-- Metadata-only body (no prose) still correctly flags missing `SHALL`/`MUST`.
-- Fenced `#### Scenario:`-looking or `#`-comment lines in the body do not end capture or fabricate a scenario.
-- LF/CRLF/CR via `normalizeContent`; `~~~` and length-≥3 / leading-whitespace fences via existing `buildCodeFenceMask`.
-- Guard: zero non-conventional level-3 headers under Requirements in `openspec/specs/` — Tier 2 is behavior-preserving for all in-repo specs.
+- Single-line requirement unchanged (text and count byte-for-byte).
+- Metadata-only body still flags missing `SHALL`/`MUST`.
+- Fenced `#### Scenario:` / `#`-comment lines do not corrupt text or inflate scenario count.
+- LF/CRLF/CR via `normalizeContent`; `~~~`/length-≥3/leading-whitespace fences via existing `buildCodeFenceMask`.
+- INFO note appears for a stray delta header but does not change `valid` (including `--strict`).
+
+## Prior art
+
+`findMainSpecStructureIssues` (`spec-structure.ts`) already flags a `### Requirement:` header *outside* the `## Requirements` section and delta headers inside a main spec. The Part B INFO note is complementary: it flags non-`Requirement:` headers *inside* a delta Requirements section, which that function does not cover.
 
 ## Out of scope: #559
 
-Deferred — transcript shows an unqualified `changes/<id>/...` path (missing `openspec/` prefix), not a demonstrated folder-vs-title mismatch. Recommend a separate change once intended behavior is confirmed.
+Deferred — transcript shows an unqualified `changes/<id>/...` path (missing `openspec/` prefix), not a demonstrated folder-vs-title mismatch.
