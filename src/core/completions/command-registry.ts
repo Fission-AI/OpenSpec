@@ -248,6 +248,69 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     ],
   },
   {
+    name: 'agent',
+    description: 'Helpers for AI skills and scripts (not intended for direct human use)',
+    flags: [],
+    subcommands: [
+      {
+        name: 'resolve-change',
+        description:
+          'Resolve an active change by name, list active changes, or auto-select the only one',
+        acceptsPositional: true,
+        positionals: [{ name: 'name', optional: true, type: 'change-id' }],
+        positionalType: 'change-id',
+        flags: [
+          {
+            name: 'auto',
+            description: 'Succeed only when exactly one active change exists',
+          },
+          COMMON_FLAGS.json,
+        ],
+      },
+      {
+        name: 'next-artifact',
+        description:
+          'Return the next ready artifact for a change, bundled with its instructions (JSON by default)',
+        flags: [
+          {
+            name: 'change',
+            description: 'Change name',
+            takesValue: true,
+          },
+          {
+            name: 'schema',
+            description: 'Schema override',
+            takesValue: true,
+          },
+          {
+            name: 'no-json',
+            description: 'Print a human-readable summary instead of JSON',
+          },
+        ],
+      },
+      {
+        name: 'mark-task-done',
+        description:
+          "Mark a task complete in the change's tracking file (idempotent)",
+        acceptsPositional: true,
+        positionals: [{ name: 'task-id' }],
+        flags: [
+          {
+            name: 'change',
+            description: 'Change name',
+            takesValue: true,
+          },
+          {
+            name: 'schema',
+            description: 'Schema override',
+            takesValue: true,
+          },
+          COMMON_FLAGS.json,
+        ],
+      },
+    ],
+  },
+  {
     name: 'store',
     description:
       'Create and manage stores - standalone OpenSpec repos you register on this machine',

@@ -20,6 +20,7 @@ import {
   resolveCurrentPlanningHomeSync,
   type PlanningHome,
 } from '../../core/planning-home.js';
+import { buildActionContext } from '../../core/change-status-policy.js';
 import {
   resolveRootForCommand,
   withStoreFlag,
@@ -294,11 +295,22 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
 
 /**
  * Parses tasks.md content and extracts task items with their completion status.
+ *
+ * When a line begins with a `N` or `N.N(.N)*` token (e.g. `1`, `2.3`, `1.10.4`),
+ * that token is captured as `numericId` and the leading whitespace/punctuation
+ * after it is stripped from `description`. Lines without such a token still
+ * parse, and only get a positional `id`. The positional `id` is always set so
+ * existing callers keep working.
  */
 function parseTasksFile(content: string): TaskItem[] {
   const tasks: TaskItem[] = [];
   const lines = content.split('\n');
   let taskIndex = 0;
+
+  // Capture leading task numbers like `1`, `1.1`, `1.10.4`. Followed by a
+  // separator (space, dot, colon, paren, dash) to anchor against descriptions
+  // that just happen to start with a digit.
+  const numericIdRe = /^(\d+(?:\.\d+)*)(?:[.:)\]-]?\s+|\s+)(.*)$/;
 
   for (const line of lines) {
     // Match checkbox patterns: - [ ] or - [x] or - [X]
@@ -306,12 +318,17 @@ function parseTasksFile(content: string): TaskItem[] {
     if (checkboxMatch) {
       taskIndex++;
       const done = checkboxMatch[1].toLowerCase() === 'x';
-      const description = checkboxMatch[2].trim();
-      tasks.push({
+      const rawDescription = checkboxMatch[2].trim();
+      const numericMatch = rawDescription.match(numericIdRe);
+      const task: TaskItem = {
         id: `${taskIndex}`,
-        description,
+        description: numericMatch ? numericMatch[2].trim() : rawDescription,
         done,
-      });
+      };
+      if (numericMatch) {
+        task.numericId = numericMatch[1];
+      }
+      tasks.push(task);
     }
   }
 
@@ -321,6 +338,18 @@ function parseTasksFile(content: string): TaskItem[] {
 export interface GenerateApplyInstructionsOptions {
   planningHome?: PlanningHome;
   references?: ReferenceIndexEntry[];
+}
+
+/**
+ * Picks the first unchecked task with a `numericId` (document order). Returns
+ * `null` if no task qualifies. Mirrors what agent skills need to drive
+ * `openspec agent mark-task-done` without re-parsing the list.
+ */
+function pickNextPendingId(tasks: TaskItem[]): string | null {
+  for (const t of tasks) {
+    if (!t.done && t.numericId) return t.numericId;
+  }
+  return null;
 }
 
 /**
@@ -418,6 +447,13 @@ export async function generateApplyInstructions(
     instruction = schemaInstruction?.trim() ?? 'Read context files, work through pending tasks, mark complete as you go.\nPause if you hit blockers or need clarification.';
   }
 
+  // Surface the same action constraints `status --json` reports so the apply
+  // flow can read planning scope and edit constraints from this one payload.
+  const actionContext = buildActionContext({
+    projectRoot,
+    artifactIds: context.graph.getAllArtifacts().map((a) => a.id),
+  });
+
   return {
     changeName,
     changeDir,
@@ -428,6 +464,8 @@ export async function generateApplyInstructions(
     state,
     missingArtifacts: missingArtifacts.length > 0 ? missingArtifacts : undefined,
     instruction,
+    actionContext,
+    nextPendingId: pickNextPendingId(tasks),
     ...(references !== undefined ? { references } : {}),
   };
 }

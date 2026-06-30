@@ -8,7 +8,7 @@
 import chalk from 'chalk';
 import path from 'path';
 import * as fs from 'fs';
-import { getSchemaDir, listSchemas } from '../../core/artifact-graph/index.js';
+import { getSchemaDir, listSchemas, type ActionContext } from '../../core/artifact-graph/index.js';
 import type { ReferenceIndexEntry } from '../../core/references.js';
 import { isRootSelectionError } from '../../core/root-selection.js';
 import { validateChangeName } from '../../utils/change-utils.js';
@@ -29,6 +29,13 @@ export interface TaskItem {
   id: string;
   description: string;
   done: boolean;
+  /**
+   * Hierarchical task id captured from the start of the description when the
+   * tasks file uses numbered tasks (e.g. `- [ ] 1.1 Wire foo`). Useful for
+   * agents that mark tasks complete by author-supplied id rather than by
+   * position. Absent when the line has no leading `N(.N)*` token.
+   */
+  numericId?: string;
 }
 
 export interface ApplyInstructions {
@@ -45,6 +52,20 @@ export interface ApplyInstructions {
   state: 'blocked' | 'all_done' | 'ready';
   missingArtifacts?: string[];
   instruction: string;
+  /**
+   * Machine-readable action constraints for agents, mirroring the
+   * `actionContext` that `status --json` emits. Surfacing it here lets the
+   * apply flow honor the workspace-planning guard (`mode`, `allowedEditRoots`)
+   * from this single payload instead of issuing a separate `status` call.
+   */
+  actionContext: ActionContext;
+  /**
+   * First unchecked task that has a `numericId` (in document order). Lets
+   * agents drive `openspec agent mark-task-done` without parsing the tasks list
+   * themselves. `null` when no such task exists (all done, or no task uses
+   * numeric ids).
+   */
+  nextPendingId: string | null;
   /** Referenced-store index (read-only upstream context; omitted when none declared) */
   references?: ReferenceIndexEntry[];
 }
