@@ -19,9 +19,6 @@ export type { SchemasOptions } from './schemas.js';
 export { newChangeCommand } from './new-change.js';
 export type { NewChangeOptions } from './new-change.js';
 
-export { setChangeCommand } from './set-change.js';
-export type { SetChangeOptions } from './set-change.js';
-
 export { resolveChangeCommand } from './resolve-change.js';
 export type { ResolveChangeOptions } from './resolve-change.js';
 

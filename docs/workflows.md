@@ -33,8 +33,8 @@ OPSX (fluid actions):
 ### Default Quick Path (`core` profile)
 
 New installs default to `core`, which provides:
-- `/opsx:propose`
 - `/opsx:explore`
+- `/opsx:propose`
 - `/opsx:apply`
 - `/opsx:sync`
 - `/opsx:archive`
@@ -42,8 +42,35 @@ New installs default to `core`, which provides:
 Typical flow:
 
 ```text
-/opsx:propose ──► /opsx:apply ──► /opsx:sync ──► /opsx:archive
+/opsx:explore ──► /opsx:propose ──► /opsx:apply ──► /opsx:sync ──► /opsx:archive
+  (optional)
 ```
+
+#### Start by exploring (the habit worth forming)
+
+`/opsx:explore` is part of the default profile, not an advanced add-on. It's the move to make whenever you have a problem but not yet a plan, which, with an AI assistant, is most of the time.
+
+```text
+You: /opsx:explore
+
+AI:  What would you like to explore?
+
+You: Our search results feel stale. I'm not sure if it's caching,
+     indexing, or the query itself.
+
+AI:  Let me look... [reads the search service and cache layer]
+     It's the index: it only rebuilds nightly, so edits don't show
+     up until the next day. Two options: rebuild on write (simple,
+     more load) or a short-TTL cache invalidation (more moving parts,
+     less load). Given your write volume is low, rebuild-on-write is
+     the cleaner fix. Want to scope it?
+
+You: Yes.
+
+You: /opsx:propose rebuild-search-index-on-write
+```
+
+Explore creates no artifacts and writes no code. It's a free, no-stakes conversation that turns a vague worry into a precise change, so the proposal that follows is sharp. Already know exactly what you want? Skip it and go straight to `/opsx:propose`. Full guide: [Explore First](explore.md).
 
 ### Expanded/Full Workflow (custom selection)
 
@@ -435,7 +462,7 @@ For full command details and options, see [Commands](commands.md).
 | Command | Purpose | When to Use |
 |---------|---------|-------------|
 | `/opsx:propose` | Create change + planning artifacts | Fast default path (`core` profile) |
-| `/opsx:explore` | Think through ideas | Unclear requirements, investigation |
+| `/opsx:explore` | Think through ideas with the AI | Start here when unsure: unclear requirements, investigation, comparing options |
 | `/opsx:new` | Start a change scaffold | Expanded mode, explicit artifact control |
 | `/opsx:continue` | Create next artifact | Expanded mode, step-by-step artifact creation |
 | `/opsx:ff` | Create all planning artifacts | Expanded mode, clear scope |

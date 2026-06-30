@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import type { Command } from 'commander';
 
 import { COMMAND_REGISTRY } from '../../../src/core/completions/command-registry.js';
-import { program } from '../../../src/cli/index.js';
+import { COMMON_FLAGS } from '../../../src/core/completions/shared-flags.js';
+import { STORE_SELECTION_GUIDANCE } from '../../../src/core/templates/workflows/store-selection.js';
+import { getCommandPath, program } from '../../../src/cli/index.js';
 import type {
   CommandDefinition,
   FlagDefinition,
@@ -145,36 +147,90 @@ describe('command completion registry', () => {
     assertRegistryParity(program, COMMAND_REGISTRY);
   });
 
+  it('uses one --store description on every lifecycle command', () => {
+    const expected = COMMON_FLAGS.store.description;
+    const seen: string[] = [];
+
+    function walk(command: Command, parentPath: string): void {
+      for (const child of command.commands) {
+        const commandPath = parentPath ? `${parentPath} ${child.name()}` : child.name();
+        const storeOption = child.options.find((option) => option.long === '--store');
+        if (storeOption) {
+          seen.push(commandPath);
+          expect(storeOption.description, `${commandPath} --store description`).toBe(expected);
+        }
+        walk(child, commandPath);
+      }
+    }
+
+    walk(program, '');
+    expect(seen.sort()).toEqual([
+      'archive',
+      'context',
+      'doctor',
+      'instructions',
+      'list',
+      'new change',
+      'show',
+      'status',
+      'validate',
+    ]);
+
+    // The store-selection guidance interpolated into every generated skill
+    // enumerates exactly these commands; drift here means agents are taught
+    // a stale flag surface.
+    for (const commandPath of seen) {
+      expect(STORE_SELECTION_GUIDANCE, `guidance names ${commandPath}`).toContain(
+        `\`${commandPath}\``
+      );
+    }
+  });
+
+  it('tracks store subcommands under the store: telemetry path', () => {
+    const storeGroup = program.commands.find((child) => child.name() === 'store');
+    expect(storeGroup).toBeDefined();
+    const setup = storeGroup?.commands.find((child) => child.name() === 'setup');
+    expect(setup).toBeDefined();
+    expect(getCommandPath(setup as Command)).toBe('store:setup');
+  });
+
   it('tracks top-level workflow commands', () => {
-    for (const name of ['status', 'instructions', 'templates', 'schemas', 'new', 'set']) {
+    for (const name of ['status', 'instructions', 'templates', 'schemas', 'new']) {
       expect(command(name), `${name} command`).toBeDefined();
     }
+
+    expect(command('set'), 'set command should be removed').toBeUndefined();
 
     const newChange = command('new')?.subcommands?.find((entry) => entry.name === 'change');
     expect(newChange?.flags.map((flag) => flag.name)).toEqual([
       'description',
       'goal',
-      'areas',
-      'initiative',
-      'store',
-      'store-path',
       'schema',
       'json',
+      'store',
     ]);
 
-    const setChange = command('set')?.subcommands?.find((entry) => entry.name === 'change');
-    expect(setChange?.flags.map((flag) => flag.name)).toEqual([
-      'initiative',
-      'store',
-      'store-path',
-      'json',
-    ]);
+    const storeFlag = newChange?.flags.find((flag) => flag.name === 'store');
+    expect(storeFlag?.description).toContain('OpenSpec root');
+    expect(newChange?.flags.map((flag) => flag.name)).not.toContain('initiative');
+    expect(newChange?.flags.map((flag) => flag.name)).not.toContain('areas');
+    expect(newChange?.flags.map((flag) => flag.name)).not.toContain('store-path');
   });
 
-  it('tracks context-store commands and aliases', () => {
-    const contextStore = command('context-store');
+  it('advertises --store on the supported root-selection commands', () => {
+    for (const name of ['list', 'show', 'validate', 'archive', 'status', 'instructions']) {
+      const entry = command(name);
+      const store = entry?.flags.find((flag) => flag.name === 'store');
+      expect(store, `${name} --store flag`).toBeDefined();
+      expect(store?.description).toContain('OpenSpec root');
+      expect(entry?.flags.map((flag) => flag.name)).not.toContain('store-path');
+    }
+  });
 
-    expect(contextStore?.subcommands?.map((entry) => entry.name)).toEqual([
+  it('tracks store commands and aliases', () => {
+    const store = command('store');
+
+    expect(store?.subcommands?.map((entry) => entry.name)).toEqual([
       'setup',
       'register',
       'unregister',
@@ -184,15 +240,16 @@ describe('command completion registry', () => {
       'doctor',
     ]);
 
-    const setup = contextStore?.subcommands?.find((entry) => entry.name === 'setup');
+    const setup = store?.subcommands?.find((entry) => entry.name === 'setup');
     expect(setup?.flags.map((flag) => flag.name)).toEqual([
       'path',
       'init-git',
       'no-init-git',
+      'remote',
       'json',
     ]);
 
-    const remove = contextStore?.subcommands?.find((entry) => entry.name === 'remove');
+    const remove = store?.subcommands?.find((entry) => entry.name === 'remove');
     expect(remove?.flags.map((flag) => flag.name)).toEqual([
       'yes',
       'json',
