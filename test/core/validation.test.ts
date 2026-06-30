@@ -853,5 +853,53 @@ The system SHALL remain unchanged for single-line bodies.
       expect(report.summary.errors).toBe(0);
       expect(report.summary.info).toBe(0);
     });
+
+    it('predicate agrees across readers: a SHALL substring inside a word is not a keyword', async () => {
+      // "MARSHALL" contains the substring SHALL but is not a whole-word normative
+      // keyword. Both readers must reject it identically (the shared predicate).
+      const body = `### Requirement: Marshalling
+The MARSHALL coordinates parade logistics.
+
+#### Scenario: Coordinated
+**Given** a parade
+**When** it begins
+**Then** logistics are coordinated`;
+
+      const changeDir = await writeChangeDelta('fidelity-predicate', `# Test Spec\n\n## ADDED Requirements\n\n${body}`);
+      const changeReport = await new Validator(true).validateChangeDeltaSpecs(changeDir);
+      expect(changeReport.valid).toBe(false);
+
+      const spec = `# Test Spec
+
+## Purpose
+This spec checks that a SHALL substring inside a word is not treated as a keyword.
+
+## Requirements
+
+${body}`;
+      const specPath = await writeSpec('fidelity-predicate-spec', spec);
+      const specReport = await new Validator(true).validateSpec(specPath);
+      expect(specReport.valid).toBe(false);
+    });
+
+    it('guard: a metadata-only body still fails validation (no requirement text)', async () => {
+      const delta = `# Test Spec
+
+## ADDED Requirements
+
+### Requirement: Metadata only
+**ID**: REQ-META-001
+**Priority**: P1 (High)
+
+#### Scenario: Present
+**Given** a metadata-only body
+**When** it is validated
+**Then** validation fails`;
+
+      const changeDir = await writeChangeDelta('fidelity-metadata-only', delta);
+      const report = await new Validator(true).validateChangeDeltaSpecs(changeDir);
+      expect(report.valid).toBe(false);
+      expect(report.summary.errors).toBeGreaterThan(0);
+    });
   });
 });
