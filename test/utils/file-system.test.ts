@@ -236,6 +236,21 @@ describe('FileSystemUtils', () => {
       expect(canWrite).toBe(true);
     });
 
+    it.skipIf(process.platform === 'win32')('should return false for directory without search permission', async () => {
+      const dirPath = path.join(testDir, 'write-only-dir');
+      await fs.mkdir(dirPath);
+      await fs.chmod(dirPath, 0o222);
+
+      let canWrite = false;
+      try {
+        canWrite = await FileSystemUtils.canWriteFile(dirPath);
+      } finally {
+        await fs.chmod(dirPath, 0o755);
+      }
+
+      expect(canWrite).toBe(false);
+    });
+
     it('should traverse multiple non-existent parent directories', async () => {
       const filePath = path.join(testDir, 'a', 'b', 'c', 'd', 'e', 'file.txt');
 

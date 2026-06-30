@@ -1,8 +1,11 @@
 import { z } from 'zod';
+import { isKebabId } from '../id.js';
+
+export { isKebabId } from '../id.js';
 
 const KebabIdentifierSchema = (label: string): z.ZodString =>
   z.string().superRefine((value, ctx) => {
-    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(value)) {
+    if (!isKebabId(value)) {
       ctx.addIssue({
         code: 'custom',
         message: `${label} must be kebab-case with lowercase letters, numbers, and single hyphen separators`,
@@ -11,7 +14,7 @@ const KebabIdentifierSchema = (label: string): z.ZodString =>
   });
 
 export const InitiativeLinkSchema = z.object({
-  store: KebabIdentifierSchema('Context store id'),
+  store: KebabIdentifierSchema('Store id'),
   id: KebabIdentifierSchema('Initiative id'),
 }).strict();
 
