@@ -1084,6 +1084,24 @@ ${OPENSPEC_MARKERS.end}`);
       expect(tools).toHaveLength(1);
     });
 
+    it('should extract cursor from Windows-style legacy artifact paths', () => {
+      const detection = {
+        configFiles: [],
+        configFilesToUpdate: [],
+        slashCommandDirs: [],
+        slashCommandFiles: ['.cursor\\commands\\openspec-proposal.md'],
+        globalSlashCommandFiles: [],
+        hasOpenspecAgents: false,
+        hasProjectMd: false,
+        hasRootAgentsWithMarkers: false,
+        hasLegacyArtifacts: true,
+      };
+
+      const tools = getToolsFromLegacyArtifacts(detection);
+      expect(tools).toContain('cursor');
+      expect(tools).toHaveLength(1);
+    });
+
     it('should extract multiple tools from mixed legacy artifacts', () => {
       const detection = {
         configFiles: [],

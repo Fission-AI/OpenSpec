@@ -1626,13 +1626,13 @@ More user content after markers.
       await fs.writeFile(path.join(skillsDir, 'openspec-explore', 'SKILL.md'), 'old');
 
       const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
-      const legacyPrompt = path.join(promptDir, 'openspec-proposal.md');
+      const managedPrompt = path.join(promptDir, 'opsx-explore.md');
       await fs.mkdir(promptDir, { recursive: true });
-      await fs.writeFile(legacyPrompt, 'legacy prompt');
+      await fs.writeFile(managedPrompt, 'legacy prompt');
 
       await updateCommand.execute(testDir);
 
-      expect(await FileSystemUtils.fileExists(legacyPrompt)).toBe(true);
+      expect(await FileSystemUtils.fileExists(managedPrompt)).toBe(true);
       expect(await FileSystemUtils.fileExists(
         path.join(skillsDir, 'openspec-explore', 'SKILL.md')
       )).toBe(true);
