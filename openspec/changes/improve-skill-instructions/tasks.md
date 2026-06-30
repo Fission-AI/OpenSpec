@@ -11,7 +11,7 @@
 For each: apply Use when / Inputs / Steps / Success / Failure & recovery / Guardrails / Related; add the sibling-boundary clause to the description; reference shared snippets instead of inline copies.
 
 - [ ] 2.1 `new-change` — boundary: scaffold only, then stop
-- [ ] 2.2 `propose` — boundary: one-shot all artifacts; replace duplicated loop with `ARTIFACT_LOOP_GUIDANCE`
+- [ ] 2.2 `propose` — boundary: one-shot all artifacts; replace the 68 lines (87%) duplicated from `ff-change` with a reference to `ARTIFACT_LOOP_GUIDANCE`
 - [ ] 2.3 `ff-change` — boundary: fast-forward to apply-ready
 - [ ] 2.4 `continue-change` — boundary: advance one artifact; flatten the Step 3 decision tree
 - [ ] 2.5 `apply-change` — add recovery paths for blocked/error/pause states
@@ -34,7 +34,7 @@ For each: apply Use when / Inputs / Steps / Success / Failure & recovery / Guard
 
 - [ ] 5.1 Add a test asserting every generated skill description contains a "use when" trigger
 - [ ] 5.2 Add a test asserting every procedural skill body contains the required canonical sections
-- [ ] 5.3 Add a test asserting skill and command shared regions stay in sync (single-source)
-- [ ] 5.4 Run the existing per-skill behavioral spec tests to confirm no behavior changed
+- [ ] 5.3 Add a test asserting that, after stripping surface-specific framing, each skill body and its command body are identical (single-source)
+- [ ] 5.4 Run the existing per-skill behavioral spec tests to confirm no behavior changed (behavior-preservation contract)
 - [ ] 5.5 Run `init`/`update` skill-generation tests on macOS, Linux, and Windows CI to confirm emitted paths and file contents are unchanged by the shared-source refactor
 - [ ] 5.6 `openspec validate improve-skill-instructions --strict` passes

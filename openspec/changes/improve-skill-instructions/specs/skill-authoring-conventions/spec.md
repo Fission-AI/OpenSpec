@@ -55,7 +55,7 @@ A skill and its corresponding command SHALL derive their shared instruction text
 #### Scenario: Skill and command share a source
 - **WHEN** a workflow exposes both a skill and a command
 - **THEN** the body shared by both SHALL be authored once and reused
-- **AND** the two artifacts SHALL differ only in surface-specific framing (invocation syntax and metadata)
+- **AND** after removing surface-specific framing (invocation syntax and metadata), the skill body and command body SHALL be identical
 
 #### Scenario: Shared guidance defined once
 - **WHEN** guidance is common to multiple skills (store selection, change selection, the artifact-creation loop, or the context-and-rules guardrail)
@@ -67,8 +67,8 @@ Each skill SHALL keep its always-read body focused on the core procedure and SHA
 
 #### Scenario: Reference material separated
 - **WHEN** a skill includes worked examples or extended reference tables (for example conflict-resolution walkthroughs, a full delta-format reference, or a multi-phase script)
-- **THEN** that material SHALL be in a clearly separated section distinct from the core procedure
-- **AND** the core procedure SHALL be readable without consuming the reference material
+- **THEN** that material SHALL be under a labeled section distinct from the core procedure
+- **AND** an agent SHALL be able to complete the core procedure by reading the steps without first reading the reference section
 
 ### Requirement: Cross-Skill Navigation
 Each skill SHALL reference the related or next skill in the workflow, so multi-step journeys have explicit handoffs.
@@ -76,3 +76,15 @@ Each skill SHALL reference the related or next skill in the workflow, so multi-s
 #### Scenario: Related-skills reference present
 - **WHEN** a skill completes its work and a natural next or sibling skill exists
 - **THEN** the skill SHALL name that related skill and the condition under which to use it
+
+### Requirement: Behavior Preservation
+Applying these conventions to an existing skill SHALL NOT change the skill's observable workflow behavior; the conventions govern how instructions are written, not what the skill does.
+
+#### Scenario: No behavioral drift from rewrite
+- **WHEN** a skill is rewritten to satisfy these conventions
+- **THEN** the commands it runs, the artifacts it produces, and the prompts it shows SHALL remain unchanged
+- **AND** any success-criteria or failure-recovery text added SHALL describe behavior the skill already performs, not introduce new behavior
+
+#### Scenario: Existing per-skill contracts hold
+- **WHEN** a rewritten skill is already governed by a behavioral spec (for example `opsx-verify-skill` or `opsx-archive-skill`)
+- **THEN** that spec's requirements and scenarios SHALL continue to pass after the rewrite

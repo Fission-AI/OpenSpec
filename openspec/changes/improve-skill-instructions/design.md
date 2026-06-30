@@ -6,6 +6,27 @@ The 11 workflow skills live in `src/core/templates/workflows/*.ts`. Each module 
 
 The skill is read into the agent's context whenever it is selected, so instruction wording is a runtime cost and a correctness lever at the same time. The audit findings are quality-bar gaps, not isolated bugs, which is why the fix is a single shared contract applied uniformly rather than 11 independent edits.
 
+### Audit evidence
+
+Measured from the current instruction strings (skill body vs. its command body; instruction line counts):
+
+| Skill | Instr. lines | Skill↔command overlap | Notable finding |
+|---|---|---|---|
+| onboard | 543 | shared via helper | Largest always-on body; full 11-phase script inline |
+| explore | 278 | 64% | Stance shape; lowest command overlap |
+| bulk-archive-change | 237 | 100% | Conflict-resolution worked examples inline |
+| verify-change | 160 | 99% | Three-dimension reference inline; success implicit |
+| apply-change | 148 | 96% | Pause/blocked/error states without recovery |
+| sync-specs | 136 | 99% | Full delta-format reference inline |
+| continue-change | 110 | 96% | Deeply nested Step 3 decision tree |
+| archive-change | 106 | 77% | Nested warning logic; no recovery paths |
+| propose | 102 | 96% | Body 87% identical to `ff-change` |
+| feedback | 98 | n/a (skill only) | No "use when" trigger |
+| ff-change | 93 | 93% | — |
+| new-change | 65 | 89% | — |
+
+The recurrence of the same gaps across rows is what motivates a single contract rather than per-skill edits.
+
 ## Goals
 
 - One written quality bar (`skill-authoring-conventions`) that every generated skill demonstrably meets.
@@ -45,13 +66,35 @@ Two intentional variants are preserved rather than forced into the procedural sh
 
 ## Deduplication strategy
 
-- **Skill ↔ command.** Author one instruction string per workflow; the command builder reuses it, applying only command-specific framing (the `/opsx:<name>` invocation note and command metadata). This removes the ~98% (and `propose`'s ~90%) byte duplication.
+- **Skill ↔ command.** Author one instruction string per workflow; the command builder reuses it, applying only command-specific framing (the `/opsx:<name>` invocation note and command metadata). This removes the 89–100% body duplication across the nine high-overlap pairs and folds `explore` and `archive-change` onto the same single-source model.
 - **Cross-skill snippets.** Promote three repeated blocks to shared constants beside `STORE_SELECTION_GUIDANCE`:
   - `CHANGE_SELECTION_GUIDANCE` — the "list → prompt with AskUserQuestion → never auto-select → mark most-recent as Recommended" pattern used by six skills.
   - `ARTIFACT_LOOP_GUIDANCE` — the read-instructions / read-dependencies / write-to-`resolvedOutputPath` / verify loop used by the artifact-creating skills.
   - `CONTEXT_RULES_GUARDRAIL` — the "context and rules are constraints for YOU, not content for the file" block.
 
 `propose` stops duplicating `ff-change`'s loop and references `ARTIFACT_LOOP_GUIDANCE` instead; the two stay distinct only in which artifacts they target.
+
+## Worked examples
+
+These illustrate the contract; exact wording is settled during implementation.
+
+**Trigger disambiguation — the create-a-change family.** Four skills currently invite the same request ("I want to build X") with no stated boundary:
+
+- `new-change` today: "Use when the user wants to create a new feature, fix, or modification with a structured step-by-step approach."
+- `propose` today: "Use when the user wants to … get a complete proposal with design, specs, and tasks ready for implementation."
+- `ff-change` today: "Use when the user wants to quickly create all artifacts needed for implementation."
+- `continue-change` today: "Use when the user wants to progress their change, create the next artifact, or continue their workflow."
+
+Rewritten with explicit boundaries an agent can decide on:
+
+- `new-change`: "Scaffold the change directory only, then stop — no artifacts. Use when the user wants to name a change before generating anything. For artifacts in one pass, use `propose`."
+- `propose`: "Create the change and generate proposal, design, and tasks in one pass. Use when the user describes what to build and wants an apply-ready result without stepping through artifacts. To advance an existing change one artifact at a time, use `continue-change`."
+- `ff-change`: "Fast-forward an existing change to apply-ready by generating every remaining required artifact. Use when the change exists but artifacts are missing. To create the change and artifacts together from scratch, use `propose`."
+- `continue-change`: "Generate the single next artifact in dependency order, then stop for review. Use when advancing a change one deliberate step at a time."
+
+**Explicit success criteria — `verify-change`.** Today the skill ends with a report format but no completion condition. Add: "**Success:** every requirement in the delta specs is mapped to passing/failing evidence, every task line is accounted for, and the scorecard lists each dimension with at least one CRITICAL/WARNING/SUGGESTION or an explicit pass."
+
+**Failure & recovery — `apply-change`.** Today it names a "blocked" state but not the exit. Add: "**If blocked** (a task's requirement is ambiguous): stop, state the specific ambiguity, and use AskUserQuestion to resolve it; resume the same task once answered. **If a task fails verification:** leave it unchecked, record why, and continue to independent tasks rather than aborting the run."
 
 ## Decisions
 
