@@ -30,11 +30,35 @@ For each: apply Use when / Inputs / Steps / Success / Failure & recovery / Guard
 
 - [ ] 4.1 Add a Related line to every skill pointing to its natural next/sibling (e.g. `propose` → `apply`, `verify` → `archive`, `new-change` → `continue`)
 
-## 5. Validation
+## 5. Agent Skills standard conformance
 
-- [ ] 5.1 Add a test asserting every generated skill description contains a "use when" trigger
-- [ ] 5.2 Add a test asserting every procedural skill body contains the required canonical sections
-- [ ] 5.3 Add a test asserting that, after stripping surface-specific framing, each skill body and its command body are identical (single-source)
-- [ ] 5.4 Run the existing per-skill behavioral spec tests to confirm no behavior changed (behavior-preservation contract)
-- [ ] 5.5 Run `init`/`update` skill-generation tests on macOS, Linux, and Windows CI to confirm emitted paths and file contents are unchanged by the shared-source refactor
-- [ ] 5.6 `openspec validate improve-skill-instructions --strict` passes
+- [ ] 5.1 Audit all 11 generated `SKILL.md` bodies against the < 500-line / ~5000-token budget; record which exceed it (`onboard` known over at 543)
+- [ ] 5.2 Emit per-skill `references/` files from the generator; move `onboard`'s phase script, `bulk-archive`'s conflict examples, `sync-specs`'s delta-format reference, and `verify`'s dimension detail out of the body and link to them one level deep
+- [ ] 5.3 Confirm frontmatter conforms: `name` ≤64 / valid charset / equals folder (basename comparison), `description` ≤1024 with what+when, `compatibility` ≤500
+- [ ] 5.4 Confirm `references/` links resolve to bundled files
+
+## 6. Conformance validation gate
+
+- [ ] 6.1 Add a skill conformance validator (use the standard's `skills-ref` reference validator, pinned, or a thin internal equivalent)
+- [ ] 6.2 Wire the validator into `init`/`update` generation so a non-conformant skill fails the operation with a clear per-skill error — without changing directory layout or delivery behavior
+- [ ] 6.3 Add a CI check that validates all generated skills against the standard
+
+## 7. Distribution and listing
+
+- [ ] 7.1 Produce a publishable bundle: the validated set of skill folders (`SKILL.md` + `references/`) gathered as a unit, regenerable from current templates
+- [ ] 7.2 Ensure each skill carries license + author metadata and a keyword-rich what+when description for directory search
+- [ ] 7.3 Write the listing checklist (validate → confirm license/metadata → submit) and note external curation/security review is out of OpenSpec's control
+
+## 8. Always-on agent guidance
+
+- [ ] 8.1 Populate `openspec/AGENTS.md` to name the workflow skills and when each applies, the core CLI commands (`list`/`status`/`instructions`/`validate`), reliance on their JSON output, and that generated files are managed by `openspec update` — per `docs-agent-instructions`
+
+## 9. Validation
+
+- [ ] 9.1 Add a test asserting every generated skill description contains a "use when" trigger
+- [ ] 9.2 Add a test asserting every procedural skill body contains the required canonical sections
+- [ ] 9.3 Add a test asserting that, after stripping surface-specific framing, each skill body and its command body are identical (single-source)
+- [ ] 9.4 Add a test asserting every generated skill passes standard conformance (frontmatter, name==folder, body budget, resolvable references)
+- [ ] 9.5 Run the existing per-skill behavioral spec tests to confirm no behavior changed (behavior-preservation contract)
+- [ ] 9.6 Run `init`/`update` skill-generation tests on macOS, Linux, and Windows CI to confirm emitted paths and contents are unchanged by the shared-source refactor and the new `references/` files
+- [ ] 9.7 `openspec validate improve-skill-instructions --strict` passes

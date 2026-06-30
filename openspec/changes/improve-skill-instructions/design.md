@@ -96,23 +96,65 @@ Rewritten with explicit boundaries an agent can decide on:
 
 **Failure & recovery — `apply-change`.** Today it names a "blocked" state but not the exit. Add: "**If blocked** (a task's requirement is ambiguous): stop, state the specific ambiguity, and use AskUserQuestion to resolve it; resume the same task once answered. **If a task fails verification:** leave it unchecked, record why, and continue to independent tasks rather than aborting the run."
 
+## Agent Skills standard conformance
+
+The Agent Skills open standard defines a skill as a folder containing `SKILL.md` (YAML frontmatter + Markdown body), with `references/`, `scripts/`, and `assets/` as optional on-demand directories. OpenSpec already emits exactly this shape — `<tool>/skills/<name>/SKILL.md` — so conformance is mostly a matter of staying inside the standard's constraints, not restructuring.
+
+Current alignment, measured against the standard:
+
+| Standard rule | OpenSpec today | Action |
+|---|---|---|
+| Folder contains `SKILL.md` | Yes — file is `SKILL.md` | none |
+| `name` == folder name | Yes for all 11 | keep; assert in validation |
+| `name`: ≤64, lowercase/hyphen, no leading/trailing/consecutive hyphen | All 11 valid | assert in validation |
+| `description`: ≤1024, what + when | Short "Use when…" lines | item 1 strengthens; assert length |
+| `compatibility`: ≤500 | "Requires openspec CLI." | keep; assert length |
+| Body < 500 lines / ~5000 tokens | `onboard` 543 (over); others under | split deep material into `references/` |
+| Deep material in `references/`, linked one level deep | All inline today | emit `references/` files; link from body |
+
+The body budget is the one hard violation (`onboard`) and the reason items 5 and 7 are the same requirement: "lean always-on body" *is* the standard's progressive-disclosure rule. Splitting moves `onboard`'s phase script, `bulk-archive`'s conflict examples, `sync-specs`'s delta-format reference, and `verify`'s dimension detail into `references/*.md`, leaving each `SKILL.md` body as the core procedure with a relative link.
+
+Validation reuses the standard's own checks (the published reference validator, `skills-ref validate`, or an equivalent internal check): frontmatter validity, name/description/compatibility limits, `name` == folder, body budget. It runs at generation time inside `init`/`update` (fail rather than write a bad skill) and again in CI. This is additive to the existing `generatedBy` version-drift mechanism in `update.ts`; it does not change directory layout or delivery behavior, which keeps it orthogonal to `add-tool-command-surface-capabilities`.
+
+## Distribution and listing
+
+Conformance makes the skills *portable*; distribution makes them *discoverable*. The publishable bundle is just the validated set of skill folders gathered as a unit — no new format, since each folder is already standard-conformant. Listing in a public Agent Skills directory is then a documented, repeatable checklist rather than code:
+
+1. Regenerate skills from current templates (stamps the OpenSpec version into metadata).
+2. Run conformance validation across the bundle; a single failure blocks it.
+3. Confirm license and author metadata on every skill.
+4. Submit per the target directory's process.
+
+The checklist explicitly notes that directories apply their own curation and security review (ranging from none to an audited verification), which OpenSpec does not control. Automating submission is a non-goal; the value here is a bundle that passes validation and a path a maintainer can follow.
+
+## Always-on guidance (AGENTS.md)
+
+Skills cover agents that load `SKILL.md`. A large set of agents read only project-level `AGENTS.md`. To meet the goal — every agent steered onto the deterministic CLI — the generated `openspec/AGENTS.md` (governed by `docs-agent-instructions`) advertises the same workflow: which skill applies when, the core read-and-validate commands (`openspec list/status/instructions/validate`), the instruction to trust their JSON over assumed paths, and the fact that generated skill/command files are managed by `openspec update` and must not be hand-edited. This is a content addition to an existing surface, composed via a `docs-agent-instructions` requirement rather than a new mechanism.
+
 ## Decisions
 
 - **New capability, not modifications to per-skill specs.** The improvements are about how instructions are written, which is a cross-cutting contract. Only 4 of 11 skills have specs today, so editing those four would leave the bar unstated for the rest. A single `skill-authoring-conventions` capability states the bar once, for all skills, and is verifiable against generated output.
 - **Behavior-first requirements.** Requirements assert observable properties of generated skills (a description disambiguates; a body declares success; shared text appears once), per `openspec/config.yaml`. The mechanics — which constant holds which block — live here in design, not in the spec.
 - **No behavioral drift.** Because per-skill contracts are unchanged, existing per-skill spec tests remain the guardrail that the rewrites did not alter behavior.
+- **Conformance folded into authoring, distribution kept separate.** Standard conformance and the validation gate live in `skill-authoring-conventions` because they constrain how each skill is written. Packaging-and-listing is a distinct concern (a bundle, a checklist, an external directory), so it gets its own `skill-distribution` capability rather than overloading the authoring contract.
+- **One change, not three PRs.** Conformance, distribution, and AGENTS.md guidance all serve the single goal of agents driving the deterministic CLI, and they share the same templates and validation. Splitting them would duplicate the validation plumbing and sequencing overhead for no reviewer benefit.
 
 ## Alternatives considered
 
 - **Edit each skill independently, no shared contract.** Rejected: the gaps recur, so the fix would drift again without a stated bar and a test that enforces it.
 - **Modify each per-skill spec to add success/failure language.** Rejected: leaves the 7 unspecced skills uncovered and scatters one contract across many files.
 - **Collapse skill and command into a single artifact.** Out of scope: they are distinct delivery surfaces (`tool-command-surface`); this change only makes them share a source, not merge.
+- **A separate proposal for standard conformance / listing.** Rejected: it would re-derive the same body-budget and validation work this change already does, and the listing payoff depends on conformance landing first.
+- **Build our own skill validator from scratch.** Prefer the standard's published reference validator (`skills-ref`) or a thin internal equivalent, so OpenSpec tracks the standard rather than a private interpretation of it.
 
 ## Cross-platform
 
-Instruction content is platform-neutral prose. The only code touched that writes files is the generation assembly, which already uses `path` utilities. Tasks include a regression pass of `init`/`update` skill generation so shared-source refactoring does not change emitted paths or file contents across macOS, Linux, and Windows.
+Instruction content is platform-neutral prose. The code touched that writes files is the generation assembly (now also emitting per-skill `references/` files), which already uses `path` utilities. Tasks include a regression pass of `init`/`update` skill generation so the shared-source refactor and the new `references/` files do not change emitted paths or contents across macOS, Linux, and Windows — and the conformance gate's `name` == folder check must use path-basename comparison, not string slicing.
 
 ## Risks
 
 - **Over-trimming verbose skills** could drop guidance an agent relies on. Mitigation: move detail to separated sections (progressive disclosure), do not delete it; per-skill behavioral specs catch regressions.
 - **Shared snippets hiding skill-specific nuance.** Mitigation: snippets cover only the genuinely identical blocks; skill-specific wording stays inline.
+- **The standard evolves.** The Agent Skills spec is young (`allowed-tools` is still experimental). Mitigation: validate against the published reference rather than a hand-copied rule set, and pin the validator version so a spec change is a deliberate update.
+- **Splitting bodies into `references/` could orphan a link.** Mitigation: the conformance gate checks that every relative reference link resolves to a bundled file.
+- **A directory may reject or delay a listing.** Mitigation: listing is a checklist, not a release blocker; conformance and the bundle stand on their own value regardless of any single directory's curation.
