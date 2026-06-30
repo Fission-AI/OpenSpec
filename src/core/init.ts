@@ -47,6 +47,13 @@ import { getGlobalConfig, type Delivery, type Profile } from './global-config.js
 import { getProfileWorkflows, CORE_WORKFLOWS, ALL_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
 import { migrateIfNeeded } from './migration.js';
+import {
+  resolveCommandSurfaceCapability,
+  shouldGenerateCommandsForTool,
+  shouldGenerateSkillsForTool,
+  shouldReconcileCommandFilesForTool,
+  shouldRemoveSkillsForTool,
+} from './command-surface.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
@@ -528,6 +535,7 @@ export class InitCommand {
     refreshedTools: typeof tools;
     failedTools: Array<{ name: string; error: Error }>;
     commandsSkipped: string[];
+    skillsInvocableCommandSkips: string[];
     removedCommandCount: number;
     removedSkillCount: number;
   }> {
@@ -535,6 +543,7 @@ export class InitCommand {
     const refreshedTools: typeof tools = [];
     const failedTools: Array<{ name: string; error: Error }> = [];
     const commandsSkipped: string[] = [];
+    const skillsInvocableCommandSkips: string[] = [];
     let removedCommandCount = 0;
     let removedSkillCount = 0;
 
@@ -545,17 +554,19 @@ export class InitCommand {
     const workflows = getProfileWorkflows(profile, globalConfig.workflows);
 
     // Get skill and command templates filtered by profile workflows
-    const shouldGenerateSkills = delivery !== 'commands';
-    const shouldGenerateCommands = delivery !== 'skills';
-    const skillTemplates = shouldGenerateSkills ? getSkillTemplates(workflows) : [];
-    const commandContents = shouldGenerateCommands ? getCommandContents(workflows) : [];
+    const deliveryIncludesCommands = delivery !== 'skills';
+    const skillTemplates = getSkillTemplates(workflows);
+    const commandContents = getCommandContents(workflows);
 
     // Process each tool
     for (const tool of tools) {
       const spinner = ora(`Setting up ${tool.name}...`).start();
 
       try {
-        // Generate skill files if delivery includes skills
+        const shouldGenerateSkills = shouldGenerateSkillsForTool(tool.value, delivery);
+        const shouldGenerateCommands = shouldGenerateCommandsForTool(tool.value, delivery);
+
+        // Generate skill files if the selected delivery and tool capability allow skills
         if (shouldGenerateSkills) {
           // Use tool-specific skillsDir
           const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
@@ -574,7 +585,7 @@ export class InitCommand {
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
         }
-        if (!shouldGenerateSkills) {
+        if (shouldRemoveSkillsForTool(tool.value, delivery)) {
           const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
           removedSkillCount += await this.removeSkillDirs(skillsDir);
         }
@@ -589,11 +600,15 @@ export class InitCommand {
               const commandFile = path.isAbsolute(cmd.path) ? cmd.path : path.join(projectPath, cmd.path);
               await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
             }
+          }
+        } else if (deliveryIncludesCommands) {
+          if (resolveCommandSurfaceCapability(tool.value) === 'skills-invocable') {
+            skillsInvocableCommandSkips.push(tool.value);
           } else {
             commandsSkipped.push(tool.value);
           }
         }
-        if (!shouldGenerateCommands) {
+        if (shouldReconcileCommandFilesForTool(tool.value, delivery)) {
           removedCommandCount += await this.removeCommandFiles(projectPath, tool.value);
         }
 
@@ -615,6 +630,7 @@ export class InitCommand {
       refreshedTools,
       failedTools,
       commandsSkipped,
+      skillsInvocableCommandSkips,
       removedCommandCount,
       removedSkillCount,
     };
@@ -656,6 +672,7 @@ export class InitCommand {
       refreshedTools: typeof tools;
       failedTools: Array<{ name: string; error: Error }>;
       commandsSkipped: string[];
+      skillsInvocableCommandSkips: string[];
       removedCommandCount: number;
       removedSkillCount: number;
     },
@@ -681,8 +698,12 @@ export class InitCommand {
       const delivery: Delivery = globalConfig.delivery ?? 'both';
       const workflows = getProfileWorkflows(profile, globalConfig.workflows);
       const toolDirs = [...new Set(successfulTools.map((t) => t.skillsDir))].join(', ');
-      const skillCount = delivery !== 'commands' ? getSkillTemplates(workflows).length : 0;
-      const commandCount = delivery !== 'skills' ? getCommandContents(workflows).length : 0;
+      const skillCount = successfulTools.some((tool) => shouldGenerateSkillsForTool(tool.value, delivery))
+        ? getSkillTemplates(workflows).length
+        : 0;
+      const commandCount = successfulTools.some((tool) => shouldGenerateCommandsForTool(tool.value, delivery))
+        ? getCommandContents(workflows).length
+        : 0;
       if (skillCount > 0 && commandCount > 0) {
         console.log(`${skillCount} skills and ${commandCount} commands in ${toolDirs}/`);
       } else if (skillCount > 0) {
@@ -700,6 +721,9 @@ export class InitCommand {
     // Show skipped commands
     if (results.commandsSkipped.length > 0) {
       console.log(chalk.dim(`Commands skipped for: ${results.commandsSkipped.join(', ')} (no adapter)`));
+    }
+    if (results.skillsInvocableCommandSkips.length > 0) {
+      console.log(chalk.dim(`Commands skipped for: ${results.skillsInvocableCommandSkips.join(', ')} (uses skills)`));
     }
     if (results.removedCommandCount > 0) {
       console.log(chalk.dim(`Removed: ${results.removedCommandCount} command files (delivery: skills)`));

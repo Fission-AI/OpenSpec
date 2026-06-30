@@ -36,6 +36,7 @@ describe('InitCommand', () => {
     configTempDir = path.join(os.tmpdir(), `openspec-config-init-${Date.now()}`);
     await fs.mkdir(configTempDir, { recursive: true });
     process.env.XDG_CONFIG_HOME = configTempDir;
+    process.env.CODEX_HOME = path.join(testDir, 'codex-home');
 
     // Mock console.log to suppress output during tests
     vi.spyOn(console, 'log').mockImplementation(() => { });
@@ -191,6 +192,26 @@ describe('InitCommand', () => {
         ),
       ).toBe(true);
     });
+
+    it.each(['both', 'skills', 'commands'] as const)(
+      'should create Codex skills and no global prompts when delivery=%s',
+      async (delivery) => {
+        saveGlobalConfig({
+          featureFlags: {},
+          profile: 'core',
+          delivery,
+        });
+
+        const initCommand = new InitCommand({ tools: 'codex', force: true });
+        await initCommand.execute(testDir);
+
+        const skillFile = path.join(testDir, '.codex', 'skills', 'openspec-explore', 'SKILL.md');
+        expect(await fileExists(skillFile)).toBe(true);
+
+        const promptFile = path.join(process.env.CODEX_HOME!, 'prompts', 'opsx-explore.md');
+        expect(await fileExists(promptFile)).toBe(false);
+      }
+    );
 
     it('should create skills for multiple tools at once', async () => {
       const initCommand = new InitCommand({ tools: 'claude,cursor', force: true });
@@ -500,6 +521,7 @@ describe('InitCommand - profile and detection features', () => {
     configTempDir = path.join(os.tmpdir(), `openspec-config-test-${Date.now()}`);
     await fs.mkdir(configTempDir, { recursive: true });
     process.env.XDG_CONFIG_HOME = configTempDir;
+    process.env.CODEX_HOME = path.join(testDir, 'codex-home');
     vi.spyOn(console, 'log').mockImplementation(() => {});
     confirmMock.mockReset();
     confirmMock.mockResolvedValue(true);
@@ -576,6 +598,21 @@ describe('InitCommand - profile and detection features', () => {
     // New commands should be at the correct plural path
     const newCommandsDir = path.join(testDir, '.opencode', 'commands');
     expect(await directoryExists(newCommandsDir)).toBe(true);
+  });
+
+  it('should remove managed global Codex prompts in non-interactive mode', async () => {
+    const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
+    const legacyPrompt = path.join(promptDir, 'opsx-apply.md');
+    await fs.mkdir(promptDir, { recursive: true });
+    await fs.writeFile(legacyPrompt, 'legacy prompt');
+
+    const initCommand = new InitCommand({ tools: 'codex' });
+    await initCommand.execute(testDir);
+
+    expect(await fileExists(legacyPrompt)).toBe(false);
+    expect(await fileExists(
+      path.join(testDir, '.codex', 'skills', 'openspec-apply-change', 'SKILL.md')
+    )).toBe(true);
   });
 
   it('should preselect configured tools but not directory-detected tools in extend mode', async () => {
