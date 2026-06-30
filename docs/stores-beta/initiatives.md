@@ -246,5 +246,20 @@ Honest notes from building this:
   the repos that read from it, so a full "across every repo" rollup needs a bit of
   glue today.
 
+## Where this could go
+
+This works today with plain files and a copied schema. A first-class version
+could:
+
+- Add an `openspec initiative` command to create and list initiatives, so the
+  layout is more than a convention.
+- Roll up status across every repo that references a store, so "where does the
+  whole effort stand" is one command.
+- Ship a few ready-made artifact types (one-pager, persona, decision record) you
+  can turn on, instead of copying a schema.
+
+None of these are needed to start. They are the natural next steps once teams
+lean on initiatives.
+
 Start simple: one initiative folder, grouping a few real changes. Move it into a
 store when more than one repo needs it.
