@@ -29,3 +29,18 @@ small. Together they add up to a smoother first run.
 
 See [inventory.md](inventory.md) for the list of changes and where each one
 stands. The status there comes from `openspec list`.
+
+## What is in this folder
+
+An initiative can hold more than a plan and a change list. It is a home for every
+artifact that supports the work:
+
+- [inventory.md](inventory.md) — the changes, and where each one stands.
+- [personas/](personas/) — who we are building for ([new user](personas/new-user.md),
+  [a lead across repos](personas/team-lead.md), [an AI coding agent](personas/coding-agent.md)).
+- [decisions/](decisions/) — the key decisions and why, as short records
+  ([0001](decisions/0001-aliases-over-rename.md), [0002](decisions/0002-tool-native-paths.md)).
+- [example-schema/](example-schema/) — an optional schema that turns these into
+  typed, checked artifacts. See [the guide](../../../docs/stores-beta/initiatives.md).
+
+These are all artifacts in one place. Your coding agent can read any of them.
