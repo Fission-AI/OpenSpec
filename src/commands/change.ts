@@ -7,11 +7,10 @@ import { Change } from '../core/schemas/index.js';
 import type { RootOutput } from '../core/root-selection.js';
 import { isInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds } from '../utils/item-discovery.js';
+import { getTaskProgressForChange } from '../utils/task-progress.js';
 
 // Constants for better maintainability
 const ARCHIVE_DIR = 'archive';
-const TASK_PATTERN = /^[-*]\s+\[[\sx]\]/i;
-const COMPLETED_TASK_PATTERN = /^[-*]\s+\[x\]/i;
 
 export class ChangeCommand {
   private converter: JsonConverter;
@@ -108,25 +107,17 @@ export class ChangeCommand {
       const changeDetails = await Promise.all(
         changes.map(async (changeName) => {
           const proposalPath = path.join(changesPath, changeName, 'proposal.md');
-          const tasksPath = path.join(changesPath, changeName, 'tasks.md');
-          
+
           try {
             const content = await fs.readFile(proposalPath, 'utf-8');
             const changeDir = path.join(changesPath, changeName);
             const parser = new ChangeParser(content, changeDir);
             const change = await parser.parseChangeWithDeltas(changeName);
-            
-            let taskStatus = { total: 0, completed: 0 };
-            try {
-              const tasksContent = await fs.readFile(tasksPath, 'utf-8');
-              taskStatus = this.countTasks(tasksContent);
-            } catch (error) {
-              // Tasks file may not exist, which is okay
-              if (process.env.DEBUG) {
-                console.error(`Failed to read tasks file at ${tasksPath}:`, error);
-              }
-            }
-            
+
+            // Resolve task progress through the shared tracked-tasks helper so
+            // this deprecated noun-form list cannot re-fork the resolution (#1202).
+            const taskStatus = await getTaskProgressForChange(changesPath, changeName, process.cwd());
+
             return {
               id: changeName,
               title: this.extractTitle(content, changeName),
@@ -161,20 +152,11 @@ export class ChangeCommand {
       // Long format: id: title and minimal counts
       for (const changeName of sorted) {
         const proposalPath = path.join(changesPath, changeName, 'proposal.md');
-        const tasksPath = path.join(changesPath, changeName, 'tasks.md');
         try {
           const content = await fs.readFile(proposalPath, 'utf-8');
           const title = this.extractTitle(content, changeName);
-          let taskStatusText = '';
-          try {
-            const tasksContent = await fs.readFile(tasksPath, 'utf-8');
-            const { total, completed } = this.countTasks(tasksContent);
-            taskStatusText = ` [tasks ${completed}/${total}]`;
-          } catch (error) {
-            if (process.env.DEBUG) {
-              console.error(`Failed to read tasks file at ${tasksPath}:`, error);
-            }
-          }
+          const { total, completed } = await getTaskProgressForChange(changesPath, changeName, process.cwd());
+          const taskStatusText = total > 0 ? ` [tasks ${completed}/${total}]` : '';
           const changeDir = path.join(changesPath, changeName);
           const parser = new ChangeParser(await fs.readFile(proposalPath, 'utf-8'), changeDir);
           const change = await parser.parseChangeWithDeltas(changeName);
@@ -267,23 +249,6 @@ export class ChangeCommand {
   private extractTitle(content: string, changeName: string): string {
     const match = content.match(/^#\s+(?:Change:\s+)?(.+)$/im);
     return match ? match[1].trim() : changeName;
-  }
-
-  private countTasks(content: string): { total: number; completed: number } {
-    const lines = content.split('\n');
-    let total = 0;
-    let completed = 0;
-    
-    for (const line of lines) {
-      if (line.match(TASK_PATTERN)) {
-        total++;
-        if (line.match(COMPLETED_TASK_PATTERN)) {
-          completed++;
-        }
-      }
-    }
-    
-    return { total, completed };
   }
 
   private printNextSteps(): void {
