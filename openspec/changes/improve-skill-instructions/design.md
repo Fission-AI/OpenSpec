@@ -116,6 +116,19 @@ The body budget is the one hard violation (`onboard`) and the reason items 5 and
 
 Validation reuses the standard's own checks (the published reference validator, `skills-ref validate`, or an equivalent internal check): frontmatter validity, name/description/compatibility limits, `name` == folder, body budget. It runs at generation time inside `init`/`update` (fail rather than write a bad skill) and again in CI. This is additive to the existing `generatedBy` version-drift mechanism in `update.ts`; it does not change directory layout or delivery behavior, which keeps it orthogonal to `add-tool-command-surface-capabilities`.
 
+## Pre-approved tools (`allowed-tools`)
+
+`allowed-tools` is the standard's experimental field for pre-approving the tools a skill may run. Adoption has an asymmetric risk: on agents that enforce it as a strict allowlist, an **under**-specified list breaks the skill (a needed tool is blocked); on agents that ignore it, it is a no-op. An **over**-specified list never breaks anything — it just pre-approves more. So the happy path biases toward completeness, generated correct-by-construction.
+
+Decision:
+
+- **Declare once, generate the field.** Each skill template carries an explicit `tools` list — its real toolset. The generator emits `allowed-tools` from it; nobody hand-writes the frontmatter string. A check fails if the body references a tool not in the list, so the declared set stays a superset of actual usage and enforcing agents never block a needed tool.
+- **Scope Bash to the binary where possible.** The headline win is pre-approving `Bash(openspec:*)` so agents stop prompting on every deterministic CLI call — the main friction today. CLI-only skills (explore, new, continue, ff, sync, archive, bulk-archive, verify, propose) get the scoped form.
+- **Unrestricted Bash only where earned.** `apply-change` implements tasks (runs tests, builds, arbitrary commands) and `onboard` runs a live codebase demo, so they declare unrestricted `Bash`. This is honest about what they do; a directory's review can see it.
+- **Forward-compatible.** Because the field is omitted-safe (ignoring agents are unaffected) and complete (enforcing agents don't break), turning it on is pure upside.
+
+Observed toolset across the skills (from the templates): every skill drives `openspec` via Bash; the common non-Bash tools are AskUserQuestion, TodoWrite, Read, Write, Edit, Skill, and Task, with Grep/Glob for the search-heavy skills (`explore`, `verify`). The per-skill `tools` declaration captures exactly each skill's subset.
+
 ## Distribution and listing
 
 Conformance makes the skills *portable*; distribution makes them *discoverable*. The publishable bundle is just the validated set of skill folders gathered as a unit — no new format, since each folder is already standard-conformant. Listing in a public Agent Skills directory is then a documented, repeatable checklist rather than code:

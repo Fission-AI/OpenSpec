@@ -113,12 +113,30 @@ Each generated skill SHALL be a valid Agent Skills package so it is portable acr
 - **WHEN** the skill includes optional metadata (license, metadata map)
 - **THEN** those fields SHALL follow the standard's shape and SHALL NOT introduce fields that violate it
 
+### Requirement: Declared Pre-Approved Tools
+Each skill SHALL declare the tools it uses and emit them as the standard's `allowed-tools` frontmatter, so supporting agents pre-approve the deterministic CLI without prompting, and agents that enforce `allowed-tools` as a strict allowlist never block a tool the skill needs.
+
+#### Scenario: allowed-tools generated from a declared set
+- **WHEN** a skill is generated
+- **THEN** its `allowed-tools` value SHALL be produced from a single declared toolset for that skill, not hand-written per artifact
+- **AND** the declared set SHALL be a superset of every tool the skill body uses
+
+#### Scenario: CLI bash pre-approved and narrowly scoped
+- **WHEN** a skill invokes the OpenSpec CLI through a shell tool
+- **THEN** its `allowed-tools` SHALL pre-approve the OpenSpec CLI invocation scoped to that binary (for example `Bash(openspec:*)`)
+- **AND** unrestricted shell access SHALL be declared only for skills that run arbitrary build or test commands (for example the implementation skill)
+
+#### Scenario: Declared tools cover body usage
+- **WHEN** the conformance check runs
+- **THEN** it SHALL fail if the skill body references a tool that is not in the declared set
+- **AND** an agent that ignores `allowed-tools` SHALL still execute the skill correctly
+
 ### Requirement: Conformance Validation Gate
 Skill generation SHALL validate each emitted skill against this capability and SHALL fail rather than write a non-conformant skill.
 
 #### Scenario: Generation validates output
 - **WHEN** `openspec init` or `openspec update` generates skills
-- **THEN** each skill SHALL be validated for frontmatter validity, `name` equal to folder, and body within budget
+- **THEN** each skill SHALL be validated for frontmatter validity, `name` equal to folder, body within budget, resolvable reference links, and declared tools covering body usage
 - **AND** a validation failure SHALL stop the operation with an error identifying the skill and the violated rule
 
 #### Scenario: Continuous validation

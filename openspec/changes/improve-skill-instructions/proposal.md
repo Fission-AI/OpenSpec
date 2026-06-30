@@ -53,6 +53,8 @@ Each skill ends with a Related line pointing to the natural next or sibling skil
 
 Every generated skill is brought to full conformance with the Agent Skills open standard: valid `SKILL.md` frontmatter (`name` 1–64 chars and equal to the folder; `description` ≤ 1024 chars stating what + when; `compatibility` ≤ 500 chars), and a body within the recommended size budget. `onboard`'s phase script, `bulk-archive-change`'s conflict-resolution examples, `sync-specs`'s delta-format reference, and `verify-change`'s dimension detail move into per-skill `references/` files that the body links to one level deep. This is the standard's own mechanism for the "lean always-on body" of item 5 — the two are the same requirement, now anchored to a published budget.
 
+Scope: conformance, `allowed-tools`, and the publishable bundle (items 7–9, 11) apply to the **11 generated `SKILL.md` skills**. The feedback skill is held to the authoring quality bar (items 1–6) but is not emitted to disk as a distributed `SKILL.md`, so the conformance/distribution requirements do not target it.
+
 ### 8. Conformance validation gate
 
 Skill generation and `openspec update` validate each emitted skill against the standard (frontmatter validity, name/description/compatibility limits, `name` == folder, body within budget) and fail on violation, so a non-conformant skill cannot ship. The same check runs in CI.
@@ -65,11 +67,15 @@ Produce a standard-conformant, validated collection of the OpenSpec skills suita
 
 Ensure the project-level agent instructions (`openspec/AGENTS.md`, governed by `docs-agent-instructions`) name the skills and the core deterministic CLI commands and say when to use each — so agents that read only `AGENTS.md` (no skill loading) still drive the OpenSpec workflow correctly.
 
+### 11. Pre-approved tools (`allowed-tools`)
+
+Each skill declares the tools it uses and emits the standard's `allowed-tools` frontmatter, so supporting agents pre-approve the deterministic CLI and stop prompting on every `openspec` call — the single biggest friction point today. The field is generated from one declared toolset per skill (not hand-written), `Bash` is scoped to `Bash(openspec:*)` for skills that only invoke the CLI, and the declared set is the complete superset of what the body uses so that agents which enforce `allowed-tools` as a strict allowlist never block a needed tool. `apply-change` (and `onboard`'s live demo), which run arbitrary build/test commands, keep unrestricted `Bash` by design. Agents that ignore the field are unaffected, so adoption is pure upside.
+
 ## Capabilities
 
 ### New Capabilities
 
-- `skill-authoring-conventions`: The quality and conformance contract for generated agent skills — trigger disambiguation, canonical structure, explicit success criteria, named failure recovery, single-source generation, shared-snippet reuse, lean always-on body, cross-skill navigation, Agent Skills standard conformance, and a conformance validation gate.
+- `skill-authoring-conventions`: The quality and conformance contract for generated agent skills — trigger disambiguation, canonical structure, explicit success criteria, named failure recovery, single-source generation, shared-snippet reuse, lean always-on body, cross-skill navigation, Agent Skills standard conformance, declared pre-approved tools (`allowed-tools`), and a conformance validation gate.
 - `skill-distribution`: A standard-conformant, validated, publishable bundle of the OpenSpec skills plus the readiness contract for listing them in a public Agent Skills directory.
 
 ### Modified Capabilities

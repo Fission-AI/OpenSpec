@@ -37,28 +37,34 @@ For each: apply Use when / Inputs / Steps / Success / Failure & recovery / Guard
 - [ ] 5.3 Confirm frontmatter conforms: `name` ≤64 / valid charset / equals folder (basename comparison), `description` ≤1024 with what+when, `compatibility` ≤500
 - [ ] 5.4 Confirm `references/` links resolve to bundled files
 
-## 6. Conformance validation gate
+## 6. Pre-approved tools (`allowed-tools`)
 
-- [ ] 6.1 Add a skill conformance validator (use the standard's `skills-ref` reference validator, pinned, or a thin internal equivalent)
-- [ ] 6.2 Wire the validator into `init`/`update` generation so a non-conformant skill fails the operation with a clear per-skill error — without changing directory layout or delivery behavior
-- [ ] 6.3 Add a CI check that validates all generated skills against the standard
+- [ ] 6.1 Add an explicit `tools` declaration to each skill template (its real toolset); emit `allowed-tools` from it in `generateSkillContent`
+- [ ] 6.2 Scope Bash to `Bash(openspec:*)` for CLI-only skills; declare unrestricted `Bash` only for `apply-change` and `onboard`
+- [ ] 6.3 Add a check that the declared `tools` set is a superset of every tool the skill body references (fail on gap)
 
-## 7. Distribution and listing
+## 7. Conformance validation gate
 
-- [ ] 7.1 Produce a publishable bundle: the validated set of skill folders (`SKILL.md` + `references/`) gathered as a unit, regenerable from current templates
-- [ ] 7.2 Ensure each skill carries license + author metadata and a keyword-rich what+when description for directory search
-- [ ] 7.3 Write the listing checklist (validate → confirm license/metadata → submit) and note external curation/security review is out of OpenSpec's control
+- [ ] 7.1 Add a skill conformance validator (use the standard's `skills-ref` reference validator, pinned, or a thin internal equivalent)
+- [ ] 7.2 Wire the validator into `init`/`update` generation so a non-conformant skill fails the operation with a clear per-skill error — without changing directory layout or delivery behavior
+- [ ] 7.3 Add a CI check that validates all generated skills against the standard
 
-## 8. Always-on agent guidance
+## 8. Distribution and listing
 
-- [ ] 8.1 Populate `openspec/AGENTS.md` to name the workflow skills and when each applies, the core CLI commands (`list`/`status`/`instructions`/`validate`), reliance on their JSON output, and that generated files are managed by `openspec update` — per `docs-agent-instructions`
+- [ ] 8.1 Produce a publishable bundle: the validated set of skill folders (`SKILL.md` + `references/`) gathered as a unit, regenerable from current templates
+- [ ] 8.2 Ensure each skill carries license + author metadata and a keyword-rich what+when description for directory search
+- [ ] 8.3 Write the listing checklist (validate → confirm license/metadata → submit) and note external curation/security review is out of OpenSpec's control
 
-## 9. Validation
+## 9. Always-on agent guidance
 
-- [ ] 9.1 Add a test asserting every generated skill description contains a "use when" trigger
-- [ ] 9.2 Add a test asserting every procedural skill body contains the required canonical sections
-- [ ] 9.3 Add a test asserting that, after stripping surface-specific framing, each skill body and its command body are identical (single-source)
-- [ ] 9.4 Add a test asserting every generated skill passes standard conformance (frontmatter, name==folder, body budget, resolvable references)
-- [ ] 9.5 Run the existing per-skill behavioral spec tests to confirm no behavior changed (behavior-preservation contract)
-- [ ] 9.6 Run `init`/`update` skill-generation tests on macOS, Linux, and Windows CI to confirm emitted paths and contents are unchanged by the shared-source refactor and the new `references/` files
-- [ ] 9.7 `openspec validate improve-skill-instructions --strict` passes
+- [ ] 9.1 Populate `openspec/AGENTS.md` to name the workflow skills and when each applies, the core CLI commands (`list`/`status`/`instructions`/`validate`), reliance on their JSON output, and that generated files are managed by `openspec update` — per `docs-agent-instructions`
+
+## 10. Validation
+
+- [ ] 10.1 Add a test asserting every generated skill description contains a "use when" trigger
+- [ ] 10.2 Add a test asserting every procedural skill body contains the required canonical sections
+- [ ] 10.3 Add a test asserting that, after stripping surface-specific framing, each skill body and its command body are identical (single-source)
+- [ ] 10.4 Add a test asserting every generated skill passes standard conformance (frontmatter, name==folder, body budget, resolvable references, declared tools cover body usage)
+- [ ] 10.5 Run the existing per-skill behavioral spec tests to confirm no behavior changed (behavior-preservation contract)
+- [ ] 10.6 Run `init`/`update` skill-generation tests on macOS, Linux, and Windows CI to confirm emitted paths and contents are unchanged by the shared-source refactor and the new `references/` files
+- [ ] 10.7 `openspec validate improve-skill-instructions --strict` passes
