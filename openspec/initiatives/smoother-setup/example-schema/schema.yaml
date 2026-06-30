@@ -2,16 +2,26 @@ name: initiative
 version: 1
 description: >-
   A workflow that keeps the "who and why" next to the "what". It produces a
-  persona, a decision record, a spec, and a task list. Copy this folder into
-  openspec/schemas/initiative/ to use it, then create a change with
+  one-pager, a persona, a decision record, a spec, and a task list. Copy this
+  folder into openspec/schemas/initiative/ to use it, then create a change with
   --schema initiative.
 
 artifacts:
+  - id: one-pager
+    generates: one-pager.md
+    description: The brief — why this work, and what it is, at a glance
+    template: one-pager.md
+    requires: []
+    instruction: |
+      Write a one-page brief: the problem, who it is for, what we will do, and
+      what is out of scope. Keep it to a page.
+
   - id: persona
     generates: persona.md
     description: Who we are building for
     template: persona.md
-    requires: []
+    requires:
+      - one-pager
     instruction: |
       Describe one kind of user: who they are, what they want, and what gets in
       their way. Keep it short and real.

@@ -41,6 +41,8 @@ artifact that supports the work:
 - [decisions/](decisions/) — the key decisions and why, as short records
   ([0001](decisions/0001-aliases-over-rename.md), [0002](decisions/0002-tool-native-paths.md)).
 - [example-schema/](example-schema/) — an optional schema that turns these into
-  typed, checked artifacts. See [the guide](../../../docs/stores-beta/initiatives.md).
+  typed, checked artifacts (one-pager → persona → adr → spec → tasks), with a
+  [finished-example/](example-schema/finished-example/) showing a completed set.
+  See [the guide](../../../docs/stores-beta/initiatives.md).
 
 These are all artifacts in one place. Your coding agent can read any of them.

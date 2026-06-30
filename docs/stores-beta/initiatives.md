@@ -162,9 +162,9 @@ built-in ones.
 
 The example ships one:
 [example-schema/](../../openspec/initiatives/smoother-setup/example-schema/schema.yaml).
-It defines four types — a persona, a decision record, a spec, and a task list —
-and the order they build in. Copy that folder into `openspec/schemas/initiative/`
-and OpenSpec picks it up:
+It defines five types — a one-pager, a persona, a decision record, a spec, and a
+task list — and the order they build in. Copy that folder into
+`openspec/schemas/initiative/` and OpenSpec picks it up:
 
 ```
 openspec schemas
@@ -175,16 +175,16 @@ Available schemas:
 
   initiative (project)
     A workflow that keeps the "who and why" next to the "what". It produces a
-    persona, a decision record, a spec, and a task list.
-    Artifacts: persona → adr → spec → tasks
+    one-pager, a persona, a decision record, a spec, and a task list.
+    Artifacts: one-pager → persona → adr → spec → tasks
 
   spec-driven
     Default OpenSpec workflow - proposal → specs → design → tasks
     Artifacts: proposal → specs → design → tasks
 ```
 
-Now you can start a change on your own types, and OpenSpec tracks the order for
-you:
+Now you can start a change on your own types. OpenSpec tracks the order — each
+artifact unlocks the next:
 
 ```
 openspec new change improve-onboarding --schema initiative
@@ -192,14 +192,43 @@ openspec status --change improve-onboarding
 ```
 
 ```
-[ ] persona
+[ ] one-pager
+[-] persona (blocked by: one-pager)
 [-] adr (blocked by: persona)
 [-] spec (blocked by: adr)
 [-] tasks (blocked by: spec)
 ```
 
+Fill each artifact in order and the graph fills in. Here is a finished one — you
+can read the real files in
+[finished-example/](../../openspec/initiatives/smoother-setup/example-schema/finished-example/):
+
+```
+openspec status --change example-first-run
+```
+
+```
+Progress: 5/5 artifacts complete
+
+[x] one-pager
+[x] persona
+[x] adr
+[x] spec
+[x] tasks
+
+All artifacts complete!
+```
+
+```
+openspec validate example-first-run --type change --strict
+```
+
+```
+Change 'example-first-run' is valid
+```
+
 This is the heart of it: a store is not limited to changes and specs. You decide
-what artifacts your work needs — personas, decision records, one-pagers — and
+what artifacts your work needs — one-pagers, personas, decision records — and
 they all live in one place your team and your coding agent can read.
 
 Start with plain files. Add a schema when you want the structure and the checks.
