@@ -83,6 +83,7 @@ That second one matters more than it looks. OpenSpec has two halves: a command l
 | Doc | What it gives you |
 |-----|-------------------|
 | [Stores: User Guide](stores-beta/user-guide.md) | Plan in its own repo when your work spans repos or teams |
+| [Initiatives](stores-beta/initiatives.md) | Group related changes under one shared plan, in one repo or many |
 | [Agent Contract](agent-contract.md) | The machine-readable CLI surfaces agents drive |
 
 ## The thirty-second version
