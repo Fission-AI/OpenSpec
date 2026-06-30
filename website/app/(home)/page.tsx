@@ -1,12 +1,14 @@
 import Link from 'next/link';
 import {
   ArrowRight,
+  Check,
   Compass,
   FileText,
   GitBranch,
   Hammer,
   Archive,
   Layers,
+  ListChecks,
   Sparkles,
 } from 'lucide-react';
 import { links } from '@/lib/shared';
@@ -16,10 +18,13 @@ export default function HomePage() {
     <main className="flex flex-col">
       <Hero />
       <Philosophy />
+      <ToolStrip />
       <TwoFolders />
+      <Anatomy />
       <FiveIdeas />
       <TheLoop />
       <Why />
+      <Comparison />
       <FinalCta />
     </main>
   );
@@ -28,7 +33,13 @@ export default function HomePage() {
 function Hero() {
   return (
     <section className="relative overflow-hidden border-b border-fd-border">
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,theme(colors.fd-primary/8%),transparent_60%)]" />
+      <div
+        className="absolute inset-0 -z-10"
+        style={{
+          background:
+            'radial-gradient(ellipse at top, color-mix(in oklab, var(--color-fd-primary) 9%, transparent), transparent 60%)',
+        }}
+      />
       <div className="mx-auto flex max-w-5xl flex-col items-center px-4 py-20 text-center sm:py-28">
         <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-fd-border bg-fd-card px-3 py-1 text-xs font-medium text-fd-muted-foreground">
           <Sparkles className="size-3.5 text-fd-primary" />
@@ -323,6 +334,200 @@ function Why() {
             </div>
           ))}
         </div>
+      </div>
+    </section>
+  );
+}
+
+const TOOLS = [
+  'Claude Code',
+  'Cursor',
+  'Codex',
+  'Windsurf',
+  'Gemini CLI',
+  'GitHub Copilot',
+  'Cline',
+  'RooCode',
+  'Kilo Code',
+  'Amazon Q',
+  'OpenCode',
+  'Qwen Code',
+  'Kiro',
+  'Continue',
+  'Factory Droid',
+];
+
+function ToolStrip() {
+  return (
+    <section className="mx-auto max-w-5xl px-4 py-16 text-center">
+      <p className="text-sm font-medium uppercase tracking-wide text-fd-muted-foreground">
+        Works with the tools you already use
+      </p>
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5">
+        {TOOLS.map((t) => (
+          <span
+            key={t}
+            className="rounded-full border border-fd-border bg-fd-card px-3.5 py-1.5 text-sm text-fd-foreground/80"
+          >
+            {t}
+          </span>
+        ))}
+        <span className="rounded-full px-3.5 py-1.5 text-sm font-medium text-fd-primary">
+          + 15 more
+        </span>
+      </div>
+    </section>
+  );
+}
+
+const ARTIFACTS = [
+  {
+    icon: FileText,
+    file: 'proposal.md',
+    caption: 'The why and what',
+    code: `# Proposal: Add Dark Mode
+
+## Intent
+Reduce eye strain at night and
+match the user's system theme.
+
+## Scope
+- Theme toggle in settings
+- System-preference detection
+- Persist the choice`,
+  },
+  {
+    icon: Layers,
+    file: 'specs/ui/spec.md',
+    caption: 'The delta — what changes',
+    code: `# Delta for UI
+
+## ADDED Requirements
+
+### Requirement: Theme Selection
+The system SHALL let users choose
+light or dark.
+
+#### Scenario: Manual toggle
+- WHEN the toggle is clicked
+- THEN the theme switches at once`,
+  },
+  {
+    icon: ListChecks,
+    file: 'tasks.md',
+    caption: 'The checklist',
+    code: `# Tasks
+
+## 1. Theme Infrastructure
+- [ ] 1.1 ThemeContext + state
+- [ ] 1.2 CSS custom properties
+- [ ] 1.3 localStorage persistence
+
+## 2. UI
+- [ ] 2.1 ThemeToggle component`,
+  },
+];
+
+function Anatomy() {
+  return (
+    <section className="mx-auto max-w-5xl px-4 py-20">
+      <div className="mx-auto max-w-2xl text-center">
+        <h2 className="text-3xl font-bold tracking-tight">
+          What a change actually looks like
+        </h2>
+        <p className="mt-4 text-fd-muted-foreground">
+          Plain Markdown files your AI drafts and you review. No new formats to
+          learn, nothing you cannot read at a glance.
+        </p>
+      </div>
+      <div className="mt-12 grid gap-5 md:grid-cols-3">
+        {ARTIFACTS.map(({ icon: Icon, file, caption, code }) => (
+          <div
+            key={file}
+            className="overflow-hidden rounded-xl border border-fd-border bg-fd-card"
+          >
+            <div className="flex items-center gap-2 border-b border-fd-border px-4 py-2.5">
+              <Icon className="size-4 text-fd-primary" />
+              <code className="text-xs font-medium">{file}</code>
+            </div>
+            <pre className="overflow-x-auto p-4 text-xs leading-relaxed text-fd-muted-foreground">
+              <code>{code}</code>
+            </pre>
+            <div className="border-t border-fd-border px-4 py-2 text-xs text-fd-muted-foreground">
+              {caption}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+const ROWS = [
+  {
+    name: 'Spec Kit',
+    by: 'GitHub',
+    good: 'Thorough and structured',
+    catch: 'Rigid phase gates, lots of Markdown, Python setup',
+    us: false,
+  },
+  {
+    name: 'Kiro',
+    by: 'AWS',
+    good: 'Powerful and integrated',
+    catch: 'Locked into their IDE and a limited set of models',
+    us: false,
+  },
+  {
+    name: 'No specs',
+    by: 'the default',
+    good: 'Zero overhead',
+    catch: 'Vague prompts, unpredictable results, no record of why',
+    us: false,
+  },
+  {
+    name: 'OpenSpec',
+    by: '',
+    good: 'Lightweight, fluid, lives in your repo',
+    catch: 'Adds one small step — worth it whenever agreement matters',
+    us: true,
+  },
+];
+
+function Comparison() {
+  return (
+    <section className="mx-auto max-w-5xl px-4 py-20">
+      <div className="mx-auto max-w-2xl text-center">
+        <h2 className="text-3xl font-bold tracking-tight">The honest middle</h2>
+        <p className="mt-4 text-fd-muted-foreground">
+          Heavier tools exist. So does doing nothing. OpenSpec aims for the
+          spot where the value clearly beats the cost.
+        </p>
+      </div>
+      <div className="mx-auto mt-12 max-w-3xl divide-y divide-fd-border overflow-hidden rounded-xl border border-fd-border">
+        {ROWS.map((r) => (
+          <div
+            key={r.name}
+            className={
+              'grid grid-cols-1 gap-1 px-5 py-4 sm:grid-cols-[10rem_1fr] ' +
+              (r.us ? 'bg-fd-primary/5' : 'bg-fd-card')
+            }
+          >
+            <div className="flex items-center gap-2 font-semibold">
+              {r.us && <Check className="size-4 text-fd-primary" />}
+              <span className={r.us ? 'text-fd-primary' : ''}>{r.name}</span>
+              {r.by && (
+                <span className="text-xs font-normal text-fd-muted-foreground">
+                  {r.by}
+                </span>
+              )}
+            </div>
+            <div className="text-sm">
+              <span className="text-fd-foreground/90">{r.good}.</span>{' '}
+              <span className="text-fd-muted-foreground">{r.catch}.</span>
+            </div>
+          </div>
+        ))}
       </div>
     </section>
   );
