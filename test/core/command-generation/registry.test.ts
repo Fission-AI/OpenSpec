@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { CommandAdapterRegistry } from '../../../src/core/command-generation/registry.js';
+import { resolveCommandSurfaceCapability } from '../../../src/core/command-surface.js';
 
 describe('command-generation/registry', () => {
   describe('get', () => {
@@ -32,6 +33,11 @@ describe('command-generation/registry', () => {
       expect(adapter).toBeUndefined();
     });
 
+    it('should return undefined for Codex', () => {
+      const adapter = CommandAdapterRegistry.get('codex');
+      expect(adapter).toBeUndefined();
+    });
+
     it('should return undefined for empty string', () => {
       const adapter = CommandAdapterRegistry.get('');
       expect(adapter).toBeUndefined();
@@ -52,6 +58,7 @@ describe('command-generation/registry', () => {
       expect(toolIds).toContain('claude');
       expect(toolIds).toContain('cursor');
       expect(toolIds).toContain('windsurf');
+      expect(toolIds).not.toContain('codex');
     });
   });
 
@@ -61,6 +68,7 @@ describe('command-generation/registry', () => {
       expect(CommandAdapterRegistry.has('cursor')).toBe(true);
       expect(CommandAdapterRegistry.has('windsurf')).toBe(true);
       expect(CommandAdapterRegistry.has('junie')).toBe(true);
+      expect(CommandAdapterRegistry.has('codex')).toBe(false);
     });
 
     it('should return false for unregistered tools', () => {
@@ -103,6 +111,13 @@ describe('command-generation/registry', () => {
           expect(output).toContain('---');
         }
       }
+    });
+  });
+
+  describe('command surface capabilities', () => {
+    it('resolves Codex as skills-invocable without an adapter', () => {
+      expect(resolveCommandSurfaceCapability('codex')).toBe('skills-invocable');
+      expect(CommandAdapterRegistry.get('codex')).toBeUndefined();
     });
   });
 });

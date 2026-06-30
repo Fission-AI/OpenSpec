@@ -8,6 +8,7 @@ import {
   detectLegacyConfigFiles,
   detectLegacySlashCommands,
   detectLegacyStructureFiles,
+  getCodexPromptDir,
   hasOpenSpecMarkers,
   isOnlyOpenSpecContent,
   removeMarkerBlock,
@@ -17,22 +18,28 @@ import {
   formatProjectMdMigrationHint,
   getToolsFromLegacyArtifacts,
   LEGACY_CONFIG_FILES,
+  LEGACY_GLOBAL_SLASH_COMMAND_PATHS,
   LEGACY_SLASH_COMMAND_PATHS,
 } from '../../src/core/legacy-cleanup.js';
 import { OPENSPEC_MARKERS } from '../../src/core/config.js';
 import { CommandAdapterRegistry } from '../../src/core/command-generation/registry.js';
+import { resolveCommandSurfaceCapability } from '../../src/core/command-surface.js';
 
 describe('legacy-cleanup', () => {
   let testDir: string;
+  let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(async () => {
+    originalEnv = { ...process.env };
     testDir = path.join(os.tmpdir(), `openspec-legacy-test-${randomUUID()}`);
     await fs.mkdir(testDir, { recursive: true });
+    process.env.CODEX_HOME = path.join(testDir, 'codex-home');
     // Create openspec directory structure
     await fs.mkdir(path.join(testDir, 'openspec'), { recursive: true });
   });
 
   afterEach(async () => {
+    process.env = originalEnv;
     await fs.rm(testDir, { recursive: true, force: true });
   });
 
@@ -364,6 +371,20 @@ ${OPENSPEC_MARKERS.end}`);
       expect(result.files).toContain('.opencode/command/opsx-propose.md');
       expect(result.files).toContain('.opencode/command/openspec-new.md');
     });
+
+    it('should not include managed global Codex prompt files in repo-local slash command detection', async () => {
+      const promptDir = getCodexPromptDir();
+      await fs.mkdir(promptDir, { recursive: true });
+      await fs.writeFile(path.join(promptDir, 'opsx-explore.md'), 'managed');
+      await fs.writeFile(path.join(promptDir, 'openspec-proposal.md'), 'managed');
+      await fs.writeFile(path.join(promptDir, 'my-custom-prompt.md'), 'user');
+
+      const result = await detectLegacySlashCommands(testDir);
+
+      expect(result.files).not.toContain(path.join(promptDir, 'opsx-explore.md'));
+      expect(result.files).not.toContain(path.join(promptDir, 'openspec-proposal.md'));
+      expect(result.files).not.toContain(path.join(promptDir, 'my-custom-prompt.md'));
+    });
   });
 
   describe('detectLegacyStructureFiles', () => {
@@ -461,6 +482,21 @@ ${OPENSPEC_MARKERS.end}`);
       expect(result.slashCommandDirs).toContain('.claude/commands/openspec');
       expect(result.hasOpenspecAgents).toBe(true);
       expect(result.hasProjectMd).toBe(true);
+    });
+
+    it('should detect managed global Codex opsx prompt files separately from repo-local slash commands', async () => {
+      const promptDir = getCodexPromptDir();
+      await fs.mkdir(promptDir, { recursive: true });
+      await fs.writeFile(path.join(promptDir, 'opsx-explore.md'), 'managed');
+      await fs.writeFile(path.join(promptDir, 'openspec-proposal.md'), 'managed');
+      await fs.writeFile(path.join(promptDir, 'my-custom-prompt.md'), 'user');
+
+      const result = await detectLegacyArtifacts(testDir);
+
+      expect(result.globalSlashCommandFiles).toContain(path.join(promptDir, 'opsx-explore.md'));
+      expect(result.globalSlashCommandFiles).not.toContain(path.join(promptDir, 'openspec-proposal.md'));
+      expect(result.globalSlashCommandFiles).not.toContain(path.join(promptDir, 'my-custom-prompt.md'));
+      expect(result.slashCommandFiles).not.toContain(path.join(promptDir, 'opsx-explore.md'));
     });
   });
 
@@ -588,6 +624,7 @@ ${OPENSPEC_MARKERS.end}`);
         configFilesToUpdate: ['NON_EXISTENT.md'],
         slashCommandDirs: [],
         slashCommandFiles: [],
+        globalSlashCommandFiles: [],
         hasOpenspecAgents: false,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,
@@ -599,6 +636,26 @@ ${OPENSPEC_MARKERS.end}`);
       // Should not throw, but should record the error
       expect(result.errors.length).toBeGreaterThan(0);
       expect(result.errors[0]).toContain('NON_EXISTENT.md');
+    });
+
+    it('should remove managed global Codex opsx prompts and preserve unmanaged prompts', async () => {
+      const promptDir = getCodexPromptDir();
+      const managedPrompt = path.join(promptDir, 'opsx-apply.md');
+      const legacyPrompt = path.join(promptDir, 'openspec-proposal.md');
+      const unmanagedPrompt = path.join(promptDir, 'personal.md');
+      await fs.mkdir(promptDir, { recursive: true });
+      await fs.writeFile(managedPrompt, 'managed');
+      await fs.writeFile(legacyPrompt, 'managed');
+      await fs.writeFile(unmanagedPrompt, 'user');
+
+      const detection = await detectLegacyArtifacts(testDir);
+      const result = await cleanupLegacyArtifacts(testDir, detection);
+
+      expect(result.deletedFiles).toContain(managedPrompt);
+      expect(result.deletedFiles).not.toContain(legacyPrompt);
+      await expect(fs.access(managedPrompt)).rejects.toThrow();
+      await expect(fs.access(legacyPrompt)).resolves.not.toThrow();
+      await expect(fs.access(unmanagedPrompt)).resolves.not.toThrow();
     });
   });
 
@@ -694,6 +751,7 @@ ${OPENSPEC_MARKERS.end}`);
         configFilesToUpdate: ['CLAUDE.md'],
         slashCommandDirs: [],
         slashCommandFiles: [],
+        globalSlashCommandFiles: [],
         hasOpenspecAgents: false,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,
@@ -712,6 +770,7 @@ ${OPENSPEC_MARKERS.end}`);
         configFilesToUpdate: ['CLAUDE.md'],
         slashCommandDirs: [],
         slashCommandFiles: [],
+        globalSlashCommandFiles: [],
         hasOpenspecAgents: false,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,
@@ -732,6 +791,7 @@ ${OPENSPEC_MARKERS.end}`);
         configFilesToUpdate: ['CLINE.md'],
         slashCommandDirs: [],
         slashCommandFiles: [],
+        globalSlashCommandFiles: [],
         hasOpenspecAgents: false,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,
@@ -751,6 +811,7 @@ ${OPENSPEC_MARKERS.end}`);
         configFilesToUpdate: [],
         slashCommandDirs: ['.claude/commands/openspec'],
         slashCommandFiles: [],
+        globalSlashCommandFiles: [],
         hasOpenspecAgents: false,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,
@@ -768,6 +829,7 @@ ${OPENSPEC_MARKERS.end}`);
         configFilesToUpdate: [],
         slashCommandDirs: [],
         slashCommandFiles: ['.cursor/commands/openspec-proposal.md'],
+        globalSlashCommandFiles: [],
         hasOpenspecAgents: false,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,
@@ -785,6 +847,7 @@ ${OPENSPEC_MARKERS.end}`);
         configFilesToUpdate: [],
         slashCommandDirs: [],
         slashCommandFiles: [],
+        globalSlashCommandFiles: [],
         hasOpenspecAgents: true,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,
@@ -802,6 +865,7 @@ ${OPENSPEC_MARKERS.end}`);
         configFilesToUpdate: [],
         slashCommandDirs: [],
         slashCommandFiles: [],
+        globalSlashCommandFiles: [],
         hasOpenspecAgents: false,
         hasProjectMd: true,
         hasRootAgentsWithMarkers: false,
@@ -822,6 +886,7 @@ ${OPENSPEC_MARKERS.end}`);
         configFilesToUpdate: ['CLAUDE.md'],
         slashCommandDirs: [],
         slashCommandFiles: [],
+        globalSlashCommandFiles: [],
         hasOpenspecAgents: false,
         hasProjectMd: true,
         hasRootAgentsWithMarkers: false,
@@ -842,6 +907,7 @@ ${OPENSPEC_MARKERS.end}`);
         configFilesToUpdate: ['CLAUDE.md', 'CLINE.md'],
         slashCommandDirs: ['.claude/commands/openspec'],
         slashCommandFiles: [],
+        globalSlashCommandFiles: [],
         hasOpenspecAgents: true,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,
@@ -860,12 +926,32 @@ ${OPENSPEC_MARKERS.end}`);
       expect(summary).toContain('• CLINE.md');
     });
 
+    it('should format managed global slash command files separately from repo-local files', () => {
+      const globalPrompt = path.join(getCodexPromptDir(), 'opsx-explore.md');
+      const detection = {
+        configFiles: [],
+        configFilesToUpdate: [],
+        slashCommandDirs: [],
+        slashCommandFiles: [],
+        globalSlashCommandFiles: [globalPrompt],
+        hasOpenspecAgents: false,
+        hasProjectMd: false,
+        hasRootAgentsWithMarkers: false,
+        hasLegacyArtifacts: true,
+      };
+
+      const summary = formatDetectionSummary(detection);
+      expect(summary).toContain('Files to remove');
+      expect(summary).toContain(globalPrompt);
+    });
+
     it('should return empty string when nothing is detected', () => {
       const detection = {
         configFiles: [],
         configFilesToUpdate: [],
         slashCommandDirs: [],
         slashCommandFiles: [],
+        globalSlashCommandFiles: [],
         hasOpenspecAgents: false,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,
@@ -931,16 +1017,33 @@ ${OPENSPEC_MARKERS.end}`);
       });
     });
 
-    it('should only include legacy tool IDs that are present in the CommandAdapterRegistry', () => {
+    it('should only include legacy tool IDs with a command surface capability', () => {
       const registeredTools = new Set(CommandAdapterRegistry.getAll().map(adapter => adapter.toolId));
 
-      // Verify all legacy map entries correspond to known adapters
       for (const tool of Object.keys(LEGACY_SLASH_COMMAND_PATHS)) {
-        expect(registeredTools.has(tool)).toBe(true);
+        expect(registeredTools.has(tool) || resolveCommandSurfaceCapability(tool) === 'skills-invocable').toBe(true);
       }
 
       // Pi was never a pre-1.0 legacy tool
       expect(LEGACY_SLASH_COMMAND_PATHS).not.toHaveProperty('pi');
+    });
+
+    it('should use the repo-local compatibility glob pattern for Codex prompt detection', () => {
+      const codexPatterns = LEGACY_SLASH_COMMAND_PATHS['codex'];
+      expect(codexPatterns.type).toBe('files');
+      const patterns = Array.isArray(codexPatterns.pattern) ? codexPatterns.pattern : [codexPatterns.pattern];
+      expect(patterns).toContain('.codex/prompts/openspec-*.md');
+      expect(patterns).not.toContain('.codex/prompts/opsx-*.md');
+    });
+  });
+
+  describe('LEGACY_GLOBAL_SLASH_COMMAND_PATHS', () => {
+    it('should define the managed global Codex opsx cleanup pattern separately from project-local paths', () => {
+      const codexPatterns = LEGACY_GLOBAL_SLASH_COMMAND_PATHS['codex'];
+      const patterns = Array.isArray(codexPatterns.pattern) ? codexPatterns.pattern : [codexPatterns.pattern];
+      expect(patterns).toContain('opsx-*.md');
+      expect(patterns).not.toContain('openspec-*.md');
+      expect(codexPatterns.resolvePromptDir()).toBe(getCodexPromptDir());
     });
   });
 
@@ -951,6 +1054,7 @@ ${OPENSPEC_MARKERS.end}`);
         configFilesToUpdate: [],
         slashCommandDirs: ['.claude/commands/openspec'],
         slashCommandFiles: [],
+        globalSlashCommandFiles: [],
         hasOpenspecAgents: false,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,
@@ -968,6 +1072,7 @@ ${OPENSPEC_MARKERS.end}`);
         configFilesToUpdate: [],
         slashCommandDirs: [],
         slashCommandFiles: ['.cursor/commands/openspec-proposal.md'],
+        globalSlashCommandFiles: [],
         hasOpenspecAgents: false,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,
@@ -985,6 +1090,7 @@ ${OPENSPEC_MARKERS.end}`);
         configFilesToUpdate: [],
         slashCommandDirs: ['.claude/commands/openspec', '.qoder/commands/openspec'],
         slashCommandFiles: ['.cursor/commands/openspec-apply.md', '.windsurf/workflows/openspec-archive.md'],
+        globalSlashCommandFiles: [],
         hasOpenspecAgents: false,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,
@@ -1009,6 +1115,7 @@ ${OPENSPEC_MARKERS.end}`);
           '.cursor/commands/openspec-apply.md',
           '.cursor/commands/openspec-archive.md',
         ],
+        globalSlashCommandFiles: [],
         hasOpenspecAgents: false,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,
@@ -1020,12 +1127,31 @@ ${OPENSPEC_MARKERS.end}`);
       expect(tools).toHaveLength(1);
     });
 
+    it('should extract codex from managed global legacy prompt files', () => {
+      const detection = {
+        configFiles: [],
+        configFilesToUpdate: [],
+        slashCommandDirs: [],
+        slashCommandFiles: [],
+        globalSlashCommandFiles: [path.join(getCodexPromptDir(), 'opsx-explore.md')],
+        hasOpenspecAgents: false,
+        hasProjectMd: false,
+        hasRootAgentsWithMarkers: false,
+        hasLegacyArtifacts: true,
+      };
+
+      const tools = getToolsFromLegacyArtifacts(detection);
+      expect(tools).toContain('codex');
+      expect(tools).toHaveLength(1);
+    });
+
     it('should return empty array when no legacy artifacts', () => {
       const detection = {
         configFiles: [],
         configFilesToUpdate: [],
         slashCommandDirs: [],
         slashCommandFiles: [],
+        globalSlashCommandFiles: [],
         hasOpenspecAgents: false,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,
@@ -1042,6 +1168,7 @@ ${OPENSPEC_MARKERS.end}`);
         configFilesToUpdate: [],
         slashCommandDirs: [],
         slashCommandFiles: ['.qwen/commands/openspec-proposal.toml'],
+        globalSlashCommandFiles: [],
         hasOpenspecAgents: false,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,
@@ -1059,6 +1186,7 @@ ${OPENSPEC_MARKERS.end}`);
         configFilesToUpdate: [],
         slashCommandDirs: [],
         slashCommandFiles: ['.continue/prompts/openspec-apply.prompt'],
+        globalSlashCommandFiles: [],
         hasOpenspecAgents: false,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,
@@ -1076,6 +1204,7 @@ ${OPENSPEC_MARKERS.end}`);
         configFilesToUpdate: [],
         slashCommandDirs: [],
         slashCommandFiles: ['.github/prompts/openspec-apply.prompt.md'],
+        globalSlashCommandFiles: [],
         hasOpenspecAgents: false,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,
@@ -1093,6 +1222,7 @@ ${OPENSPEC_MARKERS.end}`);
         configFilesToUpdate: [],
         slashCommandDirs: [],
         slashCommandFiles: ['.opencode/command/opsx-propose.md'],
+        globalSlashCommandFiles: [],
         hasOpenspecAgents: false,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,
@@ -1110,6 +1240,7 @@ ${OPENSPEC_MARKERS.end}`);
         configFilesToUpdate: [],
         slashCommandDirs: [],
         slashCommandFiles: ['.opencode/command/openspec-new.md'],
+        globalSlashCommandFiles: [],
         hasOpenspecAgents: false,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,
@@ -1130,6 +1261,7 @@ ${OPENSPEC_MARKERS.end}`);
           '.opencode/command/opsx-propose.md',
           '.opencode/command/openspec-new.md',
         ],
+        globalSlashCommandFiles: [],
         hasOpenspecAgents: false,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,
@@ -1149,6 +1281,7 @@ ${OPENSPEC_MARKERS.end}`);
         configFilesToUpdate: ['CLAUDE.md'],
         slashCommandDirs: [],
         slashCommandFiles: [],
+        globalSlashCommandFiles: [],
         hasOpenspecAgents: true,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,

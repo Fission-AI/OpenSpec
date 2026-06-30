@@ -41,11 +41,14 @@ function resetMockConfig() {
 describe('UpdateCommand', () => {
   let testDir: string;
   let updateCommand: UpdateCommand;
+  let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(async () => {
+    originalEnv = { ...process.env };
     // Create a temporary test directory
     testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
     await fs.mkdir(testDir, { recursive: true });
+    process.env.CODEX_HOME = path.join(testDir, 'codex-home');
 
     // Create openspec directory
     const openspecDir = path.join(testDir, 'openspec');
@@ -61,6 +64,7 @@ describe('UpdateCommand', () => {
   });
 
   afterEach(async () => {
+    process.env = originalEnv;
     // Restore all mocks after each test
     vi.restoreAllMocks();
 
@@ -905,6 +909,54 @@ ${OPENSPEC_MARKERS.end}
       consoleSpy.mockRestore();
     });
 
+    it('should remove managed global Codex opsx prompts with --force and preserve unmanaged prompts', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'commands',
+      });
+
+      const skillsDir = path.join(testDir, '.codex', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        'old'
+      );
+
+      const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
+      const managedPrompt = path.join(promptDir, 'opsx-explore.md');
+      const legacyPrompt = path.join(promptDir, 'openspec-proposal.md');
+      const unmanagedPrompt = path.join(promptDir, 'personal-notes.md');
+      await fs.mkdir(promptDir, { recursive: true });
+      await fs.writeFile(managedPrompt, 'managed');
+      await fs.writeFile(legacyPrompt, 'managed');
+      await fs.writeFile(unmanagedPrompt, 'user');
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      const forceUpdateCommand = new UpdateCommand({ force: true });
+      await forceUpdateCommand.execute(testDir);
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Upgrading to the new OpenSpec')
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining(`Removed ${managedPrompt} (replaced by Codex skills)`)
+      );
+      expect(await FileSystemUtils.fileExists(managedPrompt)).toBe(false);
+      expect(await FileSystemUtils.fileExists(legacyPrompt)).toBe(true);
+      expect(await FileSystemUtils.fileExists(unmanagedPrompt)).toBe(true);
+
+      const skillFile = path.join(skillsDir, 'openspec-explore', 'SKILL.md');
+      expect(await FileSystemUtils.fileExists(skillFile)).toBe(true);
+      const skillContent = await fs.readFile(skillFile, 'utf-8');
+      expect(skillContent).toContain('name: openspec-explore');
+
+      consoleSpy.mockRestore();
+    });
+
     it('should warn but continue with update when legacy files found in non-interactive mode', async () => {
       // Set up a configured tool
       const skillsDir = path.join(testDir, '.claude', 'skills');
@@ -1512,6 +1564,80 @@ More user content after markers.
       )).toBe(false);
     });
 
+    it.each(['both', 'skills', 'commands'] as const)(
+      'should refresh Codex skills and not create global prompts when delivery=%s',
+      async (delivery) => {
+        setMockConfig({
+          featureFlags: {},
+          profile: 'core',
+          delivery,
+        });
+
+        const skillsDir = path.join(testDir, '.codex', 'skills');
+        await fs.mkdir(path.join(skillsDir, 'openspec-explore'), { recursive: true });
+        await fs.writeFile(path.join(skillsDir, 'openspec-explore', 'SKILL.md'), 'old');
+
+        await updateCommand.execute(testDir);
+
+        const skillFile = path.join(skillsDir, 'openspec-explore', 'SKILL.md');
+        expect(await FileSystemUtils.fileExists(skillFile)).toBe(true);
+        const skillContent = await fs.readFile(skillFile, 'utf-8');
+        expect(skillContent).toContain('name: openspec-explore');
+
+        const promptFile = path.join(process.env.CODEX_HOME!, 'prompts', 'opsx-explore.md');
+        expect(await FileSystemUtils.fileExists(promptFile)).toBe(false);
+      }
+    );
+
+    it('should report Codex command generation as skipped because it uses skills', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'both',
+      });
+
+      const skillsDir = path.join(testDir, '.codex', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), { recursive: true });
+      await fs.writeFile(path.join(skillsDir, 'openspec-explore', 'SKILL.md'), 'old');
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Updated: Codex')
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Commands skipped for: codex (uses skills)')
+      );
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should preserve managed global Codex prompts during non-interactive update without force', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'skills',
+      });
+
+      const skillsDir = path.join(testDir, '.codex', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), { recursive: true });
+      await fs.writeFile(path.join(skillsDir, 'openspec-explore', 'SKILL.md'), 'old');
+
+      const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
+      const legacyPrompt = path.join(promptDir, 'openspec-proposal.md');
+      await fs.mkdir(promptDir, { recursive: true });
+      await fs.writeFile(legacyPrompt, 'legacy prompt');
+
+      await updateCommand.execute(testDir);
+
+      expect(await FileSystemUtils.fileExists(legacyPrompt)).toBe(true);
+      expect(await FileSystemUtils.fileExists(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md')
+      )).toBe(true);
+    });
+
     it('should remove skills for configured tools without command adapters in commands-only delivery', async () => {
       setMockConfig({
         featureFlags: {},
@@ -1520,8 +1646,10 @@ More user content after markers.
       });
 
       const { AI_TOOLS } = await import('../../src/core/config.js');
-      const { CommandAdapterRegistry } = await import('../../src/core/command-generation/index.js');
-      const adapterlessTool = AI_TOOLS.find((tool) => tool.skillsDir && !CommandAdapterRegistry.get(tool.value));
+      const { resolveCommandSurfaceCapability } = await import('../../src/core/command-surface.js');
+      const adapterlessTool = AI_TOOLS.find((tool) =>
+        tool.skillsDir && resolveCommandSurfaceCapability(tool.value) === 'none'
+      );
       expect(adapterlessTool).toBeDefined();
       if (!adapterlessTool?.skillsDir) {
         return;

@@ -55,7 +55,7 @@ If `/opsx:propose` (or your tool's equivalent) doesn't appear or doesn't do anyt
 
 5. **Check you initialized this project.** Skills are written per project. If you cloned a repo or switched folders, run `openspec init` (or `openspec update`) there.
 
-6. **Confirm your tool supports command files.** A few tools (Kimi CLI, Trae, ForgeCode, Mistral Vibe) don't get generated `opsx-*` command files; they use skill-based invocations instead. The forms differ per tool: see [Supported Tools](supported-tools.md) and [How Commands Work](how-commands-work.md#slash-command-syntax-by-tool).
+6. **Confirm your tool supports command files.** Codex and a few other tools (Kimi CLI, Trae, ForgeCode, Mistral Vibe) don't get generated `opsx-*` command files; they use skill-based invocations instead. For Codex, check `.codex/skills/openspec-*`. The forms differ per tool: see [Supported Tools](supported-tools.md) and [How Commands Work](how-commands-work.md#slash-command-syntax-by-tool).
 
 ## Working with changes
 
@@ -148,6 +148,8 @@ You're in CI or a non-interactive shell, and OpenSpec found old files to clean u
 ```bash
 openspec init --force
 ```
+
+For Codex, OpenSpec may detect old managed prompt files in `$CODEX_HOME/prompts` or `~/.codex/prompts`. Non-interactive `openspec init` removes those managed files during standard cleanup; non-interactive `openspec update` leaves all legacy cleanup untouched unless you pass `--force`. The replacement surface is `.codex/skills/openspec-*`.
 
 ### Commands didn't appear after migrating
 

@@ -47,6 +47,13 @@ import {
   scanInstalledWorkflows as scanInstalledWorkflowsShared,
   migrateIfNeeded as migrateIfNeededShared,
 } from './migration.js';
+import {
+  resolveCommandSurfaceCapability,
+  shouldGenerateCommandsForTool,
+  shouldGenerateSkillsForTool,
+  shouldReconcileCommandFilesForTool,
+  shouldRemoveSkillsForTool,
+} from './command-surface.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
@@ -102,8 +109,6 @@ export class UpdateCommand {
     const desiredWorkflows = profileWorkflows.filter((workflow): workflow is (typeof ALL_WORKFLOWS)[number] =>
       (ALL_WORKFLOWS as readonly string[]).includes(workflow)
     );
-    const shouldGenerateSkills = delivery !== 'commands';
-    const shouldGenerateCommands = delivery !== 'skills';
 
     // 4. Detect and handle legacy artifacts + upgrade legacy tools using effective config
     const newlyConfiguredTools = await this.handleLegacyCleanup(
@@ -169,13 +174,15 @@ export class UpdateCommand {
     console.log();
 
     // 9. Determine what to generate based on delivery
-    const skillTemplates = shouldGenerateSkills ? getSkillTemplates(desiredWorkflows) : [];
-    const commandContents = shouldGenerateCommands ? getCommandContents(desiredWorkflows) : [];
+    const deliveryIncludesCommands = delivery !== 'skills';
+    const skillTemplates = getSkillTemplates(desiredWorkflows);
+    const commandContents = getCommandContents(desiredWorkflows);
 
     // 10. Update tools (all if force, otherwise only those needing update)
     const toolsToUpdate = this.force ? configuredTools : [...toolsToUpdateSet];
     const updatedTools: string[] = [];
     const failedTools: Array<{ name: string; error: string }> = [];
+    const skillsInvocableCommandSkips: string[] = [];
     let removedCommandCount = 0;
     let removedSkillCount = 0;
     let removedDeselectedCommandCount = 0;
@@ -189,6 +196,8 @@ export class UpdateCommand {
 
       try {
         const skillsDir = path.join(resolvedProjectPath, tool.skillsDir, 'skills');
+        const shouldGenerateSkills = shouldGenerateSkillsForTool(tool.value, delivery);
+        const shouldGenerateCommands = shouldGenerateCommandsForTool(tool.value, delivery);
 
         // Generate skill files if delivery includes skills
         if (shouldGenerateSkills) {
@@ -206,7 +215,7 @@ export class UpdateCommand {
         }
 
         // Delete skill directories if delivery is commands-only
-        if (!shouldGenerateSkills) {
+        if (shouldRemoveSkillsForTool(tool.value, delivery)) {
           removedSkillCount += await this.removeSkillDirs(skillsDir);
         }
 
@@ -227,10 +236,12 @@ export class UpdateCommand {
               desiredWorkflows
             );
           }
+        } else if (deliveryIncludesCommands && resolveCommandSurfaceCapability(tool.value) === 'skills-invocable') {
+          skillsInvocableCommandSkips.push(tool.value);
         }
 
         // Delete command files if delivery is skills-only
-        if (!shouldGenerateCommands) {
+        if (shouldReconcileCommandFilesForTool(tool.value, delivery)) {
           removedCommandCount += await this.removeCommandFiles(resolvedProjectPath, toolId);
         }
 
@@ -252,6 +263,9 @@ export class UpdateCommand {
     }
     if (failedTools.length > 0) {
       console.log(chalk.red(`✗ Failed: ${failedTools.map(f => `${f.name} (${f.error})`).join(', ')}`));
+    }
+    if (skillsInvocableCommandSkips.length > 0) {
+      console.log(chalk.dim(`Commands skipped for: ${skillsInvocableCommandSkips.join(', ')} (uses skills)`));
     }
     if (removedCommandCount > 0) {
       console.log(chalk.dim(`Removed: ${removedCommandCount} command files (delivery: skills)`));
@@ -670,10 +684,8 @@ export class UpdateCommand {
 
     // Create skills/commands for selected tools using effective profile+delivery.
     const newlyConfigured: string[] = [];
-    const shouldGenerateSkills = delivery !== 'commands';
-    const shouldGenerateCommands = delivery !== 'skills';
-    const skillTemplates = shouldGenerateSkills ? getSkillTemplates(desiredWorkflows) : [];
-    const commandContents = shouldGenerateCommands ? getCommandContents(desiredWorkflows) : [];
+    const skillTemplates = getSkillTemplates(desiredWorkflows);
+    const commandContents = getCommandContents(desiredWorkflows);
 
     for (const toolId of selectedTools) {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
@@ -683,6 +695,8 @@ export class UpdateCommand {
 
       try {
         const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
+        const shouldGenerateSkills = shouldGenerateSkillsForTool(tool.value, delivery);
+        const shouldGenerateCommands = shouldGenerateCommandsForTool(tool.value, delivery);
 
         // Create skill files when delivery includes skills
         if (shouldGenerateSkills) {
