@@ -1,0 +1,152 @@
+---
+title: Stores
+description: Plan in a repo of its own — for work that spans several code repos or whole teams. (Beta)
+icon: Boxes
+---
+
+<Callout type="warn" title="Beta">
+Stores are new. Command names, flags, and file formats may still change between releases. Re-read this page after upgrading.
+</Callout>
+
+## The problem it solves
+
+Normally OpenSpec lives inside one code repo: an `openspec/` folder next to your code, holding the specs and changes for *that* repo. That is perfect — until your planning grows bigger than one repo:
+
+- **One feature touches three repos** — the API server, the web app, a shared library. Whose `openspec/` folder does the plan live in?
+- **You plan before code exists**, or plan things that never become code in *this* repo.
+- **Requirements are owned by one team and consumed by others.** The wiki version drifts, and your coding agent cannot read it anyway.
+
+A **store** is the answer: a standalone git repo whose whole job is planning. It has the same `openspec/` shape you already know — specs and changes — plus a tiny identity file. You register it on your machine once, by name, and then every normal OpenSpec command can work in it from anywhere.
+
+## The shape
+
+```text
+        team-plans  (a store: planning in its own repo)
+        ├── .openspec-store/store.yaml     identity: "I am team-plans"
+        └── openspec/
+            ├── specs/      what is true
+            └── changes/    what is in motion
+                  ▲
+                  │ registered on each machine by name;
+                  │ shared by pushing/cloning like any repo
+    ┌─────────────┼─────────────┐
+    │             │             │
+ web-app      api-server    mobile-app
+(code repo)   (code repo)   (code repo)
+```
+
+Two rules keep this simple:
+
+1. **A store is just a git repo.** You commit, push, pull, and review it yourself. OpenSpec never clones, syncs, or pushes anything on its own.
+2. **Declarations, not machinery.** Repos can *declare* how they relate to a store. That changes what OpenSpec can tell you — never where your commands act.
+
+## Five minutes to your first store
+
+Two commands take you from nothing to a working, store-scoped change. Here is exactly what you will see:
+
+```bash
+openspec store setup team-plans --path ~/openspec/team-plans
+```
+
+```text
+Store ready: team-plans
+Location: /Users/you/openspec/team-plans
+OpenSpec root: ready
+Registry: registered
+```
+
+```bash
+openspec new change add-login --store team-plans
+```
+
+```text
+Using OpenSpec root: team-plans (/Users/you/openspec/team-plans)
+Created change 'add-login' at .../team-plans/openspec/changes/add-login/
+Schema: spec-driven
+```
+
+That is the whole model. From here the lifecycle is exactly what you already know — `status`, `validate`, `archive` — with `--store team-plans` on each command. Every printed hint carries the flag for you, and the `Using OpenSpec root:` line always tells you where a command is acting.
+
+## A short story: one team, one planning repo
+
+A team keeps its specs and changes in `team-plans` instead of scattering them across code repos.
+
+<Steps>
+
+<Step>
+
+### Whoever sets it up (once)
+
+```bash
+openspec store setup team-plans --path ~/openspec/team-plans \
+  --remote git@github.com:acme/team-plans.git
+git -C ~/openspec/team-plans push -u origin main
+```
+
+Passing `--remote` records the clone URL inside the store's own identity file. Every future clone is born knowing where it came from, so health checks can print a complete, pasteable fix for teammates who do not have it yet.
+
+</Step>
+
+<Step>
+
+### Every teammate (once per machine)
+
+```bash
+git clone git@github.com:acme/team-plans.git ~/openspec/team-plans
+openspec store register ~/openspec/team-plans
+```
+
+From then on, everyone works in the same planning repo by name.
+
+</Step>
+
+<Step>
+
+### Connect a code repo (optional)
+
+A code repo whose planning is fully externalized needs exactly one line in its `openspec/config.yaml`:
+
+```yaml
+store: team-plans
+```
+
+Now every OpenSpec command run inside that repo acts on `team-plans` with no flags at all. The pointer is a fallback, never an override — an explicit `--store` always wins.
+
+</Step>
+
+</Steps>
+
+**Sharing work is git, on purpose.** A change you create exists only in your checkout until you commit and push it — same as code. Plans get branches, pull requests, and review for free, because a store is an ordinary repo.
+
+## How commands decide where to act
+
+Every normal command resolves its root the same way, in this order:
+
+```text
+1. --store <id>        you said so explicitly       → that store
+2. nearest openspec/   a real planning root here     → this repo
+3. store: pointer      config.yaml names a store     → that store
+4. none of the above   stores registered?            → error with a hint
+                       none registered?              → current directory
+                                                       (classic behavior)
+```
+
+The `Using OpenSpec root:` line (and the `root` block in `--json` output) tells you which case you are in. Two read-only commands answer the obvious questions any time: `openspec doctor` ("is my setup healthy?") and `openspec context` ("what am I working with?").
+
+## Going further (briefly)
+
+- **References** let a code repo *read* another store's specs as context without moving any work — declare them under `references:` in `openspec/config.yaml`.
+- **Worksets** are a personal, named view of the few folders you open together (the plan plus two or three code repos), reopened with `openspec workset open <name>`.
+
+Both are covered in full in the [Stores user guide on GitHub](https://github.com/Fission-AI/OpenSpec/blob/main/docs/stores-beta/user-guide.md).
+
+## Honest limitations
+
+<Callout type="warn">
+- **Beta shape.** Names, flags, file formats, and JSON keys may change between releases.
+- **No sync, ever — by design.** OpenSpec never clones, pulls, or pushes. A stale checkout shows stale specs until *you* pull.
+- **One checkout per store id per machine.** Registering a second under the same id fails with a hint to `store unregister` first.
+- **Per-machine state stays per-machine.** The store registry and worksets are local; nothing about your machine's layout is committed to shared planning.
+</Callout>
+
+Most people never need stores. Reach for them only when planning genuinely outgrows a single repo — and keep using plain `openspec/` folders everywhere else.

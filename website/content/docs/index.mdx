@@ -14,11 +14,15 @@ That is the whole pitch. The rest of these docs is detail.
 When you are not sure what to build, start with `/opsx:explore`. It is a no-stakes thinking partner that reads your code, weighs options, and sharpens a fuzzy idea into a concrete plan before anything is written. See [Explore First](/docs/explore).
 </Callout>
 
-## Why it exists
+## The problem it solves
 
-AI coding assistants are fast and capable, but they are unpredictable when the requirements live only in a chat thread. Ask vaguely, and a confident assistant will build *something* — just maybe not the thing you meant.
+You ask your AI assistant for a feature. It confidently writes 300 lines. Halfway through review you realize it solved a slightly different problem — it cached the wrong layer, or touched auth when it should not have, or built the theme toggle but skipped the system-preference case you cared about most. Now you are reverse-engineering its intent from a diff, inside a chat thread that scrolls away tomorrow.
 
-OpenSpec adds a thin layer of agreement. You write down intent in plain language, the AI fills in the details, and you approve the plan before code gets written. The plan and the code then live side by side in your repo, so six months later the spec still explains why the system works the way it does.
+That failure mode has one root cause: **the requirements lived only in chat.** Nothing wrote down what "done" meant before the code got written.
+
+OpenSpec writes it down. You state intent in plain language, the AI drafts the details, and you both approve a short plan *before* code happens. The plan and the code then live side by side in your repo — so six months later, the spec still explains why the system works the way it does, to you and to the next AI session alike.
+
+The whole bet is that catching a wrong turn in a one-paragraph plan is nearly free, while catching it in 300 lines of code is not.
 
 <Cards>
   <Card title="Agree before you build" href="/docs/core-concepts">
@@ -65,6 +69,19 @@ Steps 1 and 2 run in your **terminal**. The rest run in your **AI assistant's ch
   </Card>
 </Cards>
 
+## How it compares
+
+There are heavier ways to do spec-driven development, and lighter ways (none at all). OpenSpec aims for the honest middle.
+
+| | The approach | The catch |
+|---|---|---|
+| **Spec Kit** (GitHub) | Thorough, structured | Rigid phase gates, lots of Markdown, Python setup |
+| **Kiro** (AWS) | Powerful, integrated | Locked into their IDE and a limited set of models |
+| **No specs at all** | Zero overhead | Vague prompts, unpredictable results, no record of *why* |
+| **OpenSpec** | Lightweight, fluid, in your repo | Adds one small step — worth it whenever agreement matters |
+
+OpenSpec works with the AI tools you already use, fits existing codebases, and never makes you finish planning before you are allowed to build.
+
 ## A philosophy in four lines
 
 ```text
@@ -74,7 +91,9 @@ easy not complex         — initialize in seconds, customize only if you need t
 brownfield-first         — built for existing systems, not just green fields
 ```
 
-OpenSpec is designed to be lightweight. It adds a step, and for a truly trivial one-line fix the ceremony may not pay off — that is fine. Use it where agreement matters, which turns out to be most of the time once you are working with an AI that will confidently build whatever you vaguely asked for.
+<Callout title="When the ceremony isn't worth it">
+OpenSpec is lightweight, but it is not free — it adds a step. For a truly trivial one-line fix, skip it; that is the honest call. Use OpenSpec where agreement matters, which turns out to be most of the time once you are working with an AI that will confidently build whatever you vaguely asked for.
+</Callout>
 
 ## Get help
 
