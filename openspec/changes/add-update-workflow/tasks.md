@@ -1,55 +1,27 @@
-# Tasks: `/opsx:update` — graph-driven artifact update
+# Tasks: `/opsx:update` — a thin update skill
 
-> Sequenced so each layer is independently testable: deterministic graph/digest primitives → drift baseline → CLI surface → skill → docs/verification. Cross-platform (`path.join`, newline-normalized digests) and Windows CI are called out where relevant, per `openspec/config.yaml`. The digest ledger (section 7) is in scope (design Decision 3); it degrades gracefully to `unknown` for changes without a recorded baseline.
+> The whole feature is one new skill template over the existing `openspec status` / `openspec list` commands. No changes to the graph engine, the `status` command, or the metadata schema.
 
-## 1. Artifact graph: reverse traversal (deterministic)
+## 1. The `/opsx:update` skill
 
-- [ ] 1.1 Factor the reverse-adjacency `dependents` map (built and discarded inside `getBuildOrder()`, graph.ts:82-87; same relation `getUnlockedArtifacts` computes for one node) into a shared helper.
-- [ ] 1.2 Add `getDependents(id)` — direct dependents; throw a descriptive error on unknown id.
-- [ ] 1.3 Add `getDownstream(id)` — transitive dependents ordered by the existing `getBuildOrder()`, excluding `id`; throw on unknown id.
-- [ ] 1.4 Unit tests: linear chain, diamond ordering, leaf (empty), unknown-id error, self-exclusion; assert results are identical across repeated calls (determinism).
+- [ ] 1.1 Create `src/core/templates/workflows/update-change.ts` with `getUpdateChangeSkillTemplate()` (skill) and `getOpsxUpdateCommandTemplate()` (command), mirroring `continue-change.ts`.
+- [ ] 1.2 Instruction body (see design "The skill, written by hand"): resolve the change (infer / `openspec list --json` / ask) → `openspec status --change <id> --json` → read the relevant artifacts → apply the requested edit → reconcile the change's other existing artifacts in any direction → confirm and apply one artifact at a time. Read artifact ids and resolved paths from the status JSON only.
+- [ ] 1.3 Encode the guardrails: (a) planning artifacts only — never edit code, hand off to `/opsx:apply`; (b) schema-driven — no branching on literal `proposal`/`specs`/`design`/`tasks`; ids/paths come from `openspec status`; (c) revise only existing artifacts — defer not-yet-created ones to `/opsx:continue`; (d) intent change → recommend `/opsx:new` (the "Update vs. Start Fresh" heuristic in `docs/opsx.md`).
+- [ ] 1.4 Register the skill/command and add it to the expanded-workflow profile alongside `continue`/`ff`/`verify`.
 
-## 2. Artifact graph: content digest (deterministic, grounded)
+## 2. Docs & supersede the stub
 
-- [ ] 2.1 Add `artifactDigest(changeDir, generates)` in `outputs.ts`: from `resolveArtifactOutputs`, re-derive each file's path **relative to `changeDir` as a forward-slash string**, order files by that relative path (NOT by the absolute-path `.sort()` order `resolveArtifactOutputs` returns — that differs by OS), then SHA-256 over, per file, `relPath` + NUL + newline-normalized (CRLF→LF) content; return undefined when no output exists. Prefix the digest with a scheme tag (e.g. `sha256-relpath-v1:`) so future canonicalization changes are detectable, not silently mis-compared. (New helper — no content-hash utility exists in the repo; only `crypto.randomUUID` in telemetry.) Lives alongside #1098's `artifactOutputComplete`/`artifactOutputContentValid`; coordinate so structural-completeness reuses #1098 rather than duplicating.
-- [ ] 2.2 Unit tests: identical content → identical digest; changed content → changed digest; **CRLF vs LF inputs → identical digest**; **multi-file glob digest identical under simulated Windows vs POSIX absolute paths** (the cross-OS ordering guard); renaming a file within a glob → different digest; missing output → undefined.
+- [ ] 2.1 Add a `/opsx:update` row to the command table in `docs/opsx.md`, plus a short "Updating a change" usage note.
+- [ ] 2.2 Remove (or fold) `openspec/changes/add-artifact-regeneration-support/` so the tree has a single update proposal.
+- [ ] 2.3 Update any generated-skill manifests/fixtures that enumerate workflow skills so `openspec-update-change` is included.
 
-## 3. CLI: surface edges, digest, and impact on `status`
+## 3. Tests
 
-- [ ] 3.1 Extend `formatChangeStatus` (instruction-loader.ts, the `ArtifactStatus` objects ~397-426) to add `requires`, `dependents`, and `digest` per artifact; the existing build-order sort (line 429) already yields revisit order.
-- [ ] 3.2 Add `impact?: string` to `StatusOptions` and the `--impact <artifact>` option (`src/commands/workflow/status.ts`, registered at `src/cli/index.ts:488`); when set, output the ordered downstream set with each artifact's resolved paths, digest, and existence/status (so consumers can tell which exist to revise vs. which would need creating); error on unknown artifact id.
-- [ ] 3.3a Add per-artifact `drift` (`drifted`/`clean`/`unknown` + changed-upstream ids) to status JSON, comparing current upstream digests to the recorded baseline (section 7). Keep `status` read-only; add a dedicated `openspec reconcile <change> --artifact <id>` command to write/refresh that baseline.
-- [ ] 3.3 Keep default (non-`--json`, non-`--impact`) human-readable output byte-for-byte unchanged; add a regression test asserting this.
-- [ ] 3.4 Tests: JSON edge fields, per-artifact digest present/stable, `--impact` ordering + determinism (repeat-run equality), `--impact` leaf (empty), `--impact` unknown-id error. Verify on Windows CI.
+- [ ] 3.1 Template generation snapshot for the skill and command templates.
+- [ ] 3.2 Assert the template's control flow contains NO hardcoded artifact-name branching (the anti-#777 guard): artifact ids must be read from `openspec status` JSON.
+- [ ] 3.3 Assert the template instructs planning-artifacts-only with a hand-off to `/opsx:apply` for code, and never advances the build frontier.
 
-## 4. The `/opsx:update` skill (thin wrapper over the deterministic spine)
+## 4. End-to-end verification
 
-- [ ] 4.1 Create `src/core/templates/workflows/update-change.ts` with `getUpdateChangeSkillTemplate()` (skill) and `getOpsxUpdateCommandTemplate()` (command), mirroring `continue-change.ts` structure.
-- [ ] 4.2 Instruction body: select change (infer/prompt via `openspec list --json`) → read `openspec status --change <id> --json` → branch into targeted vs audit mode → obtain the impact set/order from `--impact` (never compute it) → propose/confirm/apply/`reconcile`/re-check, reading ids/paths/edges/digests/drift from JSON only. Targeted entry is baseline-aware: with a baseline, default to the drifted set and confirm; without one, ask which artifact changed. Audit mode additionally performs the cross-artifact semantic review of #783 (scope contradictions, spec gaps, duplication) that the deterministic signals cannot detect.
-- [ ] 4.3 Encode the guardrails explicitly: (a) planning artifacts only — never edit code, hand off to `/opsx:apply`; (b) graph-driven — no literal `proposal`/`specs`/`design`/`tasks` branching; ids and order come from the CLI; (c) audit without a baseline does not guess — it uses structural facts and asks; (d) revise only existing downstream artifacts — defer not-yet-created ones to `/opsx:continue`.
-- [ ] 4.4 Encode the intent-change guard: recommend `/opsx:new` when the revision changes intent (reference the "Update vs. Start Fresh" heuristic).
-- [ ] 4.5 Register the skill/command and add it to the expanded-workflow profile alongside `continue`/`ff`/`verify`.
-- [ ] 4.6 Test: template generation snapshot; assert the template contains NO hardcoded artifact-name branching and NO self-computed ordering (it must read ids/order from JSON) — the anti-#777 guard.
-
-## 5. Supersede the stub & docs
-
-- [ ] 5.1 Remove (or fold) `openspec/changes/add-artifact-regeneration-support/` so the tree has a single, graph-driven update proposal; preserve its staleness idea (now via content digest) in this change's design.
-- [ ] 5.2 Add a `/opsx:update` row to the command table in `docs/opsx.md`; add a short "Updating a change" usage section that uses targeted and audit modes.
-- [ ] 5.3 Update any generated-skill manifests/fixtures that enumerate workflow skills so `openspec-update-change` is included.
-
-## 6. End-to-end verification
-
-- [ ] 6.1 E2E: create a spec-driven change, edit `proposal.md`, run `openspec status --impact proposal --json`, assert the downstream set is exactly `[specs, design, tasks]` in build order with correct paths/digests, and that code is never touched by the skill flow.
-- [ ] 6.2 E2E with a custom (non-default ids) schema fixture: confirm propagation works with no skill changes.
-- [ ] 6.3 Full validation: `openspec validate add-update-workflow --strict` passes; `openspec status --change add-update-workflow` shows all artifacts complete.
-- [ ] 6.4 Run the suite on macOS, Linux, and Windows CI.
-
-## 7. Deterministic drift baseline — the digest ledger
-
-> In scope (design Decision 3). Powers unattended/audit drift; consumed by 3.3a's drift signal and 4.x's record-after-edit.
-
-- [ ] 7.1 Extend `ChangeMetadataSchema` (`src/core/change-metadata/schema.ts`) with an optional `baselines` map: per artifact, a `scheme` tag and a `upstreams` map of direct-upstream id → recorded digest (or `null` for absent). Add a safe read-modify-write helper for `.openspec.yaml` that preserves existing fields, mirroring the store's `parseStoreMetadataState`/`serializeStoreMetadataState`/`writeStoreMetadataState` pattern (`src/core/store/foundation.ts`) — there is no central change-metadata writer today (`change-metadata/index.ts` only re-exports the schema).
-- [ ] 7.1b Drift comparison compares only same-scheme digests; unrecognized/older scheme → `unknown` (re-`reconcile` restores it).
-- [ ] 7.2 Record the baseline deterministically: on artifact (re)generation in `propose`/`continue`/`ff` and after each confirmed `/opsx:update` edit, write the current direct-upstream digests for the affected artifact ("reconciled").
-- [ ] 7.3 CLI drift report: an artifact is drifted iff a current direct-upstream digest differs from its recorded baseline; no baseline → `unknown` (never a false positive). Verify transitive drift emerges hop-by-hop: changing `proposal` drifts `specs`; reconciling `specs` then drifts `tasks`.
-- [ ] 7.4 Tests: record→no-drift; modify upstream→drift on exactly the direct dependents; hop-by-hop transitive drift; absent baseline→`unknown`; ledger round-trips through metadata read/write.
+- [ ] 4.1 `openspec validate add-update-workflow --strict` passes; `openspec status --change add-update-workflow` shows all artifacts complete.
+- [ ] 4.2 Manual walk-through: on a `spec-driven` change, edit `design`, run `/opsx:update`, confirm it proposes coherence edits to other existing artifacts (including upstream where warranted) and never touches code.
