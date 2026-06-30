@@ -70,9 +70,11 @@ jobs:
  * This tells the GitHub Copilot coding agent how to use the OpenSpec CLI.
  */
 export function generateCopilotAgentFile(): string {
-  return generateCopilotAgentFileBody().replace(
+  return replaceRequired(
+    generateCopilotAgentFileBody(),
     '\n# OpenSpec Agent',
-    `\n<!-- ${OPENSPEC_MANAGED_MARKER} -->\n\n# OpenSpec Agent`
+    `\n<!-- ${OPENSPEC_MANAGED_MARKER} -->\n\n# OpenSpec Agent`,
+    'agent heading'
   );
 }
 
@@ -152,28 +154,48 @@ When the user wants to propose a new change:
 }
 
 function generateLegacyCopilotAgentFileBody(): string {
-  return generateCopilotAgentFileBody()
-    .replace(
-      `tools:
+  let content = generateCopilotAgentFileBody();
+  content = replaceRequired(
+    content,
+    `tools:
   - "execute"
   - "read"
   - "search"
   - "edit"`,
-      `tools:
-  - "terminal"`
-    )
-    .replace(
-      'You are a specialized agent for managing OpenSpec workflows. You have access to the `openspec` CLI through shell commands, pre-installed in the development environment via `copilot-setup-steps.yml`.',
-      'You are a specialized agent for managing OpenSpec workflows. You have access to the `openspec` CLI which is pre-installed in the development environment via `copilot-setup-steps.yml`.'
-    )
-    .replace(
-      '| `openspec status [--change <name>] [--json]` | Show artifact progress for a change |',
-      '| `openspec status [--json]` | Show artifact progress for active changes |'
-    )
-    .replace(
-      '| `openspec instructions [artifact] [--change <name>] [--json]` | Get next-step instructions for a change |',
-      '| `openspec instructions [--json]` | Get next-step instructions for a change |'
-    );
+    `tools:
+  - "terminal"`,
+    'legacy tool alias'
+  );
+  content = replaceRequired(
+    content,
+    'You are a specialized agent for managing OpenSpec workflows. You have access to the `openspec` CLI through shell commands, pre-installed in the development environment via `copilot-setup-steps.yml`.',
+    'You are a specialized agent for managing OpenSpec workflows. You have access to the `openspec` CLI which is pre-installed in the development environment via `copilot-setup-steps.yml`.',
+    'legacy CLI access sentence'
+  );
+  content = replaceRequired(
+    content,
+    '| `openspec status [--change <name>] [--json]` | Show artifact progress for a change |',
+    '| `openspec status [--json]` | Show artifact progress for active changes |',
+    'legacy status command row'
+  );
+  return replaceRequired(
+    content,
+    '| `openspec instructions [artifact] [--change <name>] [--json]` | Get next-step instructions for a change |',
+    '| `openspec instructions [--json]` | Get next-step instructions for a change |',
+    'legacy instructions command row'
+  );
+}
+
+function replaceRequired(
+  content: string,
+  searchValue: string,
+  replaceValue: string,
+  label: string
+): string {
+  if (!content.includes(searchValue)) {
+    throw new Error(`Cannot build Copilot cloud file content: missing ${label}`);
+  }
+  return content.replace(searchValue, replaceValue);
 }
 
 /**
