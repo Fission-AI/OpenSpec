@@ -12,11 +12,14 @@ export interface RequirementsSectionParts {
   after: string;
 }
 
+import { buildCodeFenceMask } from './requirement-text.js';
+
 export function normalizeRequirementName(name: string): string {
   return name.trim();
 }
 
-const REQUIREMENT_HEADER_REGEX = /^###\s*Requirement:\s*(.+)\s*$/i;
+/** The canonical requirement header the delta reader recognizes. */
+export const REQUIREMENT_HEADER_REGEX = /^###\s*Requirement:\s*(.+)\s*$/i;
 
 /**
  * Extracts the Requirements section from a spec file and parses requirement blocks.
@@ -210,6 +213,48 @@ function parseRemovedNames(sectionBody: string): string[] {
     }
   }
   return names;
+}
+
+/**
+ * Find level-3 headers inside `## ADDED`/`## MODIFIED Requirements` sections
+ * that are NOT canonical `### Requirement:` headers — the ones the delta reader
+ * silently skips. Fence-aware: headers inside fenced examples are ignored. Used
+ * to surface (as INFO, not a recognition change) headers like a stray
+ * `### Documentation Requirements` divider that `validate <change>` would
+ * otherwise pass without comment.
+ */
+export function findNonRequirementLevel3Headers(
+  content: string
+): Array<{ header: string; section: string; line: number }> {
+  const normalized = normalizeLineEndings(content);
+  const lines = normalized.split('\n');
+  const mask = buildCodeFenceMask(lines);
+  const results: Array<{ header: string; section: string; line: number }> = [];
+
+  let currentSection: string | null = null;
+  for (let i = 0; i < lines.length; i++) {
+    if (mask[i]) continue; // inside a fenced code block
+    const line = lines[i];
+
+    const h2 = line.match(/^##\s+(.+?)\s*$/);
+    if (h2) {
+      const title = h2[1].trim().toLowerCase();
+      currentSection =
+        title === 'added requirements' || title === 'modified requirements'
+          ? h2[1].trim()
+          : null;
+      continue;
+    }
+
+    if (!currentSection) continue;
+
+    const h3 = line.match(/^###\s+(.+?)\s*$/);
+    if (h3 && !REQUIREMENT_HEADER_REGEX.test(line)) {
+      results.push({ header: h3[1].trim(), section: currentSection, line: i + 1 });
+    }
+  }
+
+  return results;
 }
 
 function parseRenamedPairs(sectionBody: string): Array<{ from: string; to: string }> {
