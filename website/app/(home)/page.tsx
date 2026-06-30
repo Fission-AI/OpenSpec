@@ -14,7 +14,7 @@ import {
   Share2,
   Sparkles,
 } from 'lucide-react';
-import { links } from '@/lib/shared';
+import { docsRoute, links } from '@/lib/shared';
 
 export default function HomePage() {
   return (
@@ -62,7 +62,7 @@ function Hero() {
         </p>
         <div className="mt-9 flex flex-col gap-3 sm:flex-row">
           <Link
-            href="/docs/getting-started"
+            href={`${docsRoute}/getting-started`}
             className="inline-flex items-center justify-center gap-2 rounded-lg bg-fd-primary px-5 py-2.5 text-sm font-semibold text-fd-primary-foreground transition-opacity hover:opacity-90"
           >
             Get started <ArrowRight className="size-4" />
@@ -376,7 +376,7 @@ function Teams() {
             Solo, OpenSpec keeps you and your AI honest on one repo. On a team,
             the hard part moves: work spans repos, requirements cross team lines,
             and planning starts before code exists. OpenSpec{' '}
-            <Link href="/docs/stores" className="font-medium text-fd-primary underline">
+            <Link href={`${docsRoute}/stores`} className="font-medium text-fd-primary underline">
               stores
             </Link>{' '}
             put planning in a repo of its own — one source of truth your whole
@@ -400,7 +400,7 @@ function Teams() {
         </div>
         <div className="mt-10 text-center">
           <Link
-            href="/docs/stores"
+            href={`${docsRoute}/stores`}
             className="inline-flex items-center justify-center gap-2 rounded-lg bg-fd-primary px-5 py-2.5 text-sm font-semibold text-fd-primary-foreground transition-opacity hover:opacity-90"
           >
             Explore stores <ArrowRight className="size-4" />
@@ -624,7 +624,7 @@ function FinalCta() {
       </div>
       <div className="mt-8">
         <Link
-          href="/docs/getting-started"
+          href={`${docsRoute}/getting-started`}
           className="inline-flex items-center justify-center gap-2 rounded-lg bg-fd-primary px-6 py-3 text-sm font-semibold text-fd-primary-foreground transition-opacity hover:opacity-90"
         >
           Read the getting-started guide <ArrowRight className="size-4" />
