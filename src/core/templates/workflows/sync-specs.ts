@@ -5,6 +5,7 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
+import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
 export function getSyncSpecsSkillTemplate(): SkillTemplate {
   return {
@@ -13,6 +14,8 @@ export function getSyncSpecsSkillTemplate(): SkillTemplate {
     instructions: `Sync delta specs from a change to main specs.
 
 This is an **agent-driven** operation - you will read delta specs and directly edit main specs to apply the changes. This allows intelligent merging (e.g., adding a scenario without copying the entire requirement).
+
+${STORE_SELECTION_GUIDANCE}
 
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
@@ -32,8 +35,6 @@ This is an **agent-driven** operation - you will read delta specs and directly e
    \`\`\`bash
    openspec status --change "<name>" --json
    \`\`\`
-
-   If status reports \`actionContext.mode: "workspace-planning"\`, explain that workspace spec sync is not supported in this slice and STOP. Do not fall back to repo-local paths or edit linked repos.
 
 3. **Find delta specs**
 
@@ -162,6 +163,8 @@ export function getOpsxSyncCommandTemplate(): CommandTemplate {
 
 This is an **agent-driven** operation - you will read delta specs and directly edit main specs to apply the changes. This allows intelligent merging (e.g., adding a scenario without copying the entire requirement).
 
+${STORE_SELECTION_GUIDANCE}
+
 **Input**: Optionally specify a change name after \`/opsx:sync\` (e.g., \`/opsx:sync add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
@@ -180,8 +183,6 @@ This is an **agent-driven** operation - you will read delta specs and directly e
    \`\`\`bash
    openspec status --change "<name>" --json
    \`\`\`
-
-   If status reports \`actionContext.mode: "workspace-planning"\`, explain that workspace spec sync is not supported in this slice and STOP. Do not fall back to repo-local paths or edit linked repos.
 
 3. **Find delta specs**
 
