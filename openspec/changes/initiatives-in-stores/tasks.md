@@ -4,9 +4,9 @@
       `openspec/schemas/` participates in schema/artifact resolution
       (via `resolveRootForCommand` → `listSchemasWithInfo(root.path)`)
 - [x] 1.2 Add `--store <id>` to `openspec schemas` (list a store's schemas)
-- [ ] 1.3 Include referenced stores' schemas and artifact types in
-      `openspec context` and the agent instruction block, each with a summary and
-      a fetch command (next step)
+- [x] 1.3 Include referenced stores' schemas/artifact types and initiatives in
+      the agent instruction block (`<referenced_stores>`) and `openspec context`
+      (human + JSON), each with a summary and a fetch command
 
 ## 2. Initiative precedence
 

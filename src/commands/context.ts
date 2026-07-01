@@ -26,6 +26,9 @@ import { COMMAND_REGISTRY } from '../core/completions/command-registry.js';
 import { COMMON_FLAGS } from '../core/completions/shared-flags.js';
 import { emitFailure, printJson } from './shared-output.js';
 import { gatherRelationshipData } from './shared-gather.js';
+import { listSchemasWithInfo } from '../core/artifact-graph/index.js';
+import { listInitiativeSummaries } from '../core/initiatives.js';
+import { schemasFetchRecipe, initiativesFetchRecipe } from '../core/references.js';
 
 const FAILURE_PAYLOAD = { root: null, members: [] };
 
@@ -59,6 +62,42 @@ function memberLine(member: WorkingSetMember): string {
   return `  ${member.id}  ${member.path}`;
 }
 
+/**
+ * Enrich available referenced-store members with the store's own custom
+ * artifact types and initiatives, so `context` reports what a repo draws on
+ * beyond specs. Read-only; failures degrade to an unenriched member.
+ */
+async function enrichMembersWithStoreArtifacts(
+  workingSet: WorkingSet
+): Promise<void> {
+  for (const member of workingSet.members) {
+    if (member.role !== 'referenced_store' || !isAvailableMember(member)) {
+      continue;
+    }
+    const storeRoot = member.path as string;
+    try {
+      const artifactTypes = listSchemasWithInfo(storeRoot)
+        .filter((schema) => schema.source === 'project')
+        .map((schema) => schema.name);
+      if (artifactTypes.length > 0) {
+        member.artifactTypes = artifactTypes;
+      }
+    } catch {
+      // Unreadable schemas dir: leave the member unenriched.
+    }
+    try {
+      const initiatives = (await listInitiativeSummaries(storeRoot)).map(
+        (initiative) => initiative.id
+      );
+      if (initiatives.length > 0) {
+        member.initiatives = initiatives;
+      }
+    } catch {
+      // Unreadable initiatives dir: leave the member unenriched.
+    }
+  }
+}
+
 function printHumanWorkingSet(workingSet: WorkingSet, declaredReferenceCount: number): void {
   const rootLabel = workingSet.root.store_id ?? path.basename(workingSet.root.path);
   console.log(`Working context for ${rootLabel} (${workingSet.root.path})`);
@@ -78,6 +117,16 @@ function printHumanWorkingSet(workingSet: WorkingSet, declaredReferenceCount: nu
       console.log(memberLine(member));
       if (member.fetch) {
         console.log(`    Fetch: ${member.fetch}`);
+      }
+      if (member.artifactTypes && member.artifactTypes.length > 0) {
+        console.log(
+          `    Artifact types: ${member.artifactTypes.join(', ')}  (${schemasFetchRecipe(member.id)})`
+        );
+      }
+      if (member.initiatives && member.initiatives.length > 0) {
+        console.log(
+          `    Initiatives: ${member.initiatives.join(', ')}  (${initiativesFetchRecipe(member.id)})`
+        );
       }
     }
   }
@@ -190,6 +239,7 @@ export function registerContextCommand(program: Command): void {
           }
 
           const { workingSet, declaredReferenceCount } = await gatherWorkingSet(root);
+          await enrichMembersWithStoreArtifacts(workingSet);
 
           if (options.json) {
             // The write runs FIRST: a write failure must leave stdout

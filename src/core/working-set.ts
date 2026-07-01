@@ -18,6 +18,11 @@ export interface WorkingSetMember {
   path?: string;
   remote?: string;
   fetch?: string;
+  /** A referenced store's own custom artifact types (project schema names).
+   * Present only when the store defines some and it is available. */
+  artifactTypes?: string[];
+  /** A referenced store's initiative ids. Present only when it has some. */
+  initiatives?: string[];
   status: StoreDiagnostic[];
 }
 

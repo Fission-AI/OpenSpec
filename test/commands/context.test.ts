@@ -103,6 +103,46 @@ describe('openspec context (4.1)', () => {
     expect(parseJson(declared).members).toHaveLength(2);
   });
 
+  it("surfaces a referenced store's own artifact types and initiatives", async () => {
+    // The upstream store defines a custom artifact type and an initiative.
+    const schemaDir = path.join(upstream, 'openspec', 'schemas', 'team-brief');
+    fs.mkdirSync(path.join(schemaDir, 'templates'), { recursive: true });
+    fs.writeFileSync(
+      path.join(schemaDir, 'schema.yaml'),
+      'name: team-brief\nversion: 1\ndescription: Our own artifacts.\n' +
+        'artifacts:\n  - id: brief\n    generates: brief.md\n    description: x\n' +
+        '    template: brief.md\n    requires: []\n    instruction: y\n'
+    );
+    fs.writeFileSync(path.join(schemaDir, 'templates', 'brief.md'), '# Brief\n');
+    const initiativeDir = path.join(upstream, 'openspec', 'initiatives', 'roadmap');
+    fs.mkdirSync(initiativeDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(initiativeDir, 'initiative.yaml'),
+      'title: Roadmap\nchanges: []\n'
+    );
+
+    const json = await runCLI(['context', '--json', '--store', 'team-context'], {
+      cwd: tempDir,
+      env,
+    });
+    const upstreamMember = parseJson(json).members.find(
+      (member: any) => member.id === 'upstream-context'
+    );
+    expect(upstreamMember.artifactTypes).toEqual(['team-brief']);
+    expect(upstreamMember.initiatives).toEqual(['roadmap']);
+
+    const human = await runCLI(['context', '--store', 'team-context'], {
+      cwd: tempDir,
+      env,
+    });
+    expect(human.stdout).toContain(
+      'Artifact types: team-brief  (openspec schemas --store upstream-context)'
+    );
+    expect(human.stdout).toContain(
+      'Initiatives: roadmap  (openspec list --initiatives --store upstream-context)'
+    );
+  });
+
   it('distinguishes self-reference omission from nothing declared', async () => {
     fs.writeFileSync(
       path.join(storeRoot, 'openspec', 'config.yaml'),
