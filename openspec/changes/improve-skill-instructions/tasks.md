@@ -2,7 +2,7 @@
 
 ## 1. Shared foundation
 
-- [ ] 1.1 Add `CHANGE_SELECTION_GUIDANCE`, `ARTIFACT_LOOP_GUIDANCE`, `CONTEXT_RULES_GUARDRAIL`, and `SPEC_CONTENT_GUIDANCE` shared constants beside `STORE_SELECTION_GUIDANCE` in `src/core/templates/workflows/`; author `SPEC_CONTENT_GUIDANCE` as the compact form of `docs/concepts.md`'s "What a Spec Is (and Is Not)" belongs/avoid lists (#1289)
+- [ ] 1.1 Add `CHANGE_SELECTION_GUIDANCE`, `ARTIFACT_LOOP_GUIDANCE`, `CONTEXT_RULES_GUARDRAIL`, `SPEC_CONTENT_GUIDANCE`, and `SPEC_CONVENTIONS_GUIDANCE` shared constants beside `STORE_SELECTION_GUIDANCE` in `src/core/templates/workflows/`; author `SPEC_CONTENT_GUIDANCE` as the compact form of `docs/concepts.md`'s "What a Spec Is (and Is Not)" belongs/avoid lists (#1289), and `SPEC_CONVENTIONS_GUIDANCE` as the compact form of the rigor (Lite/Full), RFC-2119 keyword-meaning, scenario-quality, and delta-convention rules from `concepts.md`
 - [ ] 1.2 Refactor each workflow module so the skill and command templates derive their shared body from one instruction source, differing only in invocation/metadata framing
 - [ ] 1.3 Confirm generated skill files and command files are byte-identical in shared regions after the refactor
 
@@ -20,7 +20,7 @@ For each: apply Use when / Inputs / Steps / Success / Failure & recovery / Guard
 - [ ] 2.8 `bulk-archive-change` — move conflict-resolution worked examples into a separated reference section
 - [ ] 2.9 `verify-change` — make success criteria explicit; separate the three-dimension reference detail
 - [ ] 2.10 `feedback` — add an explicit "use when" trigger; apply the canonical structure
-- [ ] 2.11 Reference `SPEC_CONTENT_GUIDANCE` from the spec-authoring skills (`propose`, `ff-change`, `continue-change`, `sync-specs`) so each embeds the belongs/avoid spec-content rules (#1289)
+- [ ] 2.11 Reference the authoring-guidance snippets from the spec-authoring skills: `propose`/`ff-change`/`continue-change` embed `SPEC_CONTENT_GUIDANCE` + `SPEC_CONVENTIONS_GUIDANCE`; `sync-specs` embeds `SPEC_CONVENTIONS_GUIDANCE` (delta conventions) so agents draft conformant specs without external instruction (#1289)
 
 ## 3. Apply documented variants
 
@@ -59,6 +59,7 @@ For each: apply Use when / Inputs / Steps / Success / Failure & recovery / Guard
 ## 9. Always-on agent guidance
 
 - [ ] 9.1 Populate `openspec/AGENTS.md` to name the workflow skills and when each applies, the core CLI commands (`list`/`status`/`instructions`/`validate`), reliance on their JSON output, and that generated files are managed by `openspec update` — per `docs-agent-instructions`
+- [ ] 9.2 Carry (or link to) the core authoring conventions on `AGENTS.md` — behavior-contract spec content, right-sized rigor, requirement/scenario conventions, and delta operations — reusing the same `SPEC_CONTENT_GUIDANCE`/`SPEC_CONVENTIONS_GUIDANCE` snippets so skill and non-skill agents get identical guidance
 
 ## 10. Validation
 
@@ -68,5 +69,5 @@ For each: apply Use when / Inputs / Steps / Success / Failure & recovery / Guard
 - [ ] 10.4 Add a test asserting every generated skill passes standard conformance (frontmatter, name==folder, body budget, resolvable references, declared tools cover body usage)
 - [ ] 10.5 Run the existing per-skill behavioral spec tests to confirm no behavior changed (behavior-preservation contract)
 - [ ] 10.6 Run `init`/`update` skill-generation tests on macOS, Linux, and Windows CI to confirm emitted paths and contents are unchanged by the shared-source refactor and the new `references/` files
-- [ ] 10.7 Add a test asserting the spec-authoring skills (`propose`, `ff-change`, `continue-change`, `sync-specs`) embed `SPEC_CONTENT_GUIDANCE` and that the snippet lists the same belongs/avoid items as `docs/concepts.md` (#1289)
+- [ ] 10.7 Add a test asserting the spec-authoring skills embed the authoring-guidance snippets (`propose`/`ff-change`/`continue-change` → content + conventions; `sync-specs` → conventions) and that each snippet still lists the same items as its `docs/concepts.md` source (belongs/avoid, rigor, RFC-2119 meanings, scenario quality, delta conventions), so skills and docs cannot drift (#1289)
 - [ ] 10.8 `openspec validate improve-skill-instructions --strict` passes

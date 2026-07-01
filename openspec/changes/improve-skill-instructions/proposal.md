@@ -10,7 +10,7 @@ An audit of all 11 skill instruction strings surfaced consistent, fixable gaps t
 - **Duplication instead of reuse.** Every skill carries a second `CommandTemplate` whose body is 89–100% identical to the skill body for nine of the eleven workflows (`explore` and `archive-change` are the only ones that diverge meaningfully, at 64% and 77%), so each instruction is maintained in two places and drifts. Separately, `propose`'s 78-line body shares 68 lines (87%) verbatim with `ff-change` — the same artifact-creation loop pasted into two skills.
 - **Unbounded always-on context.** `onboard` (543 instruction lines), `bulk-archive-change` (237), `verify-change` (160), and `explore` (278) load deep reference material into context every time the skill is read, even when only the core procedure is needed.
 - **Inconsistent structure and navigation.** Section taxonomy varies (Steps vs Process vs Stance), and skills rarely point to the next/related skill, so multi-step journeys lack handoffs.
-- **Spec-authoring guidance missing from the skills.** The docs state plainly what belongs in a spec — observable behavior, inputs/outputs/error conditions, testable scenarios — and what to keep out — internal class/function names, library choices, step-by-step implementation (`docs/concepts.md`, "What a Spec Is (and Is Not)"). None of that reaches the skills that actually draft specs (`propose`, `ff-change`, `continue-change`, `sync-specs`), so an agent following them writes implementation-laden specs unless a human separately pastes the rules in (#1289).
+- **Authoring guidance stranded in the docs.** A class of guidance that shapes *artifact quality* lives only in `docs/` and never reaches the skills that draft artifacts, so agents don't follow it unless a human pastes it in. A doc-vs-skill audit found: what belongs in a spec vs. what to keep out (`concepts.md`, "What a Spec Is (and Is Not)" — #1289); right-sized rigor ("most changes stay Lite," reserve Full for higher-risk work); the RFC-2119 keyword meanings the specs use (SHOULD/MAY, not just SHALL); scenario quality (≥1 per requirement, testable, cover the edge cases, not only the happy path); and the delta conventions a MODIFIED requirement shows its prior value and a REMOVED requirement says why. Each is absent from the spec-authoring skills (`propose`, `ff-change`, `continue-change`, `sync-specs`) — verified by grep against the templates.
 
 These are not behavioral bugs in any single skill; they are quality-bar gaps that recur across the whole set. This change establishes that quality bar as a written contract and rewrites every skill to meet it.
 
@@ -40,7 +40,7 @@ Each skill states an observable "done when…" condition and, for each named pau
 
 ### 4. Single-source instruction generation
 
-Each workflow's instruction text is authored once and consumed by both its skill and its command template, eliminating the skill↔command duplication. Shared guidance blocks — store selection (already shared), the change-selection prompt, the artifact-creation loop, the "context and rules are constraints for YOU" guardrail, and the spec-content guidance (item 12) — are defined once and reused, the way `STORE_SELECTION_GUIDANCE` already is.
+Each workflow's instruction text is authored once and consumed by both its skill and its command template, eliminating the skill↔command duplication. Shared guidance blocks — store selection (already shared), the change-selection prompt, the artifact-creation loop, the "context and rules are constraints for YOU" guardrail, and the authoring-guidance blocks (item 12) — are defined once and reused, the way `STORE_SELECTION_GUIDANCE` already is.
 
 ### 5. Lean always-loaded body
 
@@ -66,33 +66,40 @@ Produce a standard-conformant, validated collection of the OpenSpec skills suita
 
 ### 10. Always-on agent guidance
 
-Ensure the project-level agent instructions (`openspec/AGENTS.md`, governed by `docs-agent-instructions`) name the skills and the core deterministic CLI commands and say when to use each — so agents that read only `AGENTS.md` (no skill loading) still drive the OpenSpec workflow correctly.
+Ensure the project-level agent instructions (`openspec/AGENTS.md`, governed by `docs-agent-instructions`) name the skills and the core deterministic CLI commands, say when to use each, and carry (or link to) the core artifact-authoring conventions of item 12 — so agents that read only `AGENTS.md` (no skill loading) both drive the OpenSpec workflow correctly and write conformant artifacts.
 
 ### 11. Pre-approved tools (`allowed-tools`)
 
 Each skill declares the tools it uses and emits the standard's `allowed-tools` frontmatter, so supporting agents pre-approve the deterministic CLI and stop prompting on every `openspec` call — the single biggest friction point today. The field is generated from one declared toolset per skill (not hand-written), `Bash` is scoped to `Bash(openspec:*)` for skills that only invoke the CLI, and the declared set is the complete superset of what the body uses so that agents which enforce `allowed-tools` as a strict allowlist never block a needed tool. `apply-change` (and `onboard`'s live demo), which run arbitrary build/test commands, keep unrestricted `Bash` by design. Agents that ignore the field are unaffected, so adoption is pure upside.
 
-### 12. Embedded spec-content guidance
+### 12. Embedded authoring guidance (docs → skills)
 
-Every skill that drafts or updates spec deltas (`propose`, `ff-change`, `continue-change`, `sync-specs`) embeds a concise "what belongs in a spec vs. what to keep out" block, sourced once from the "What a Spec Is (and Is Not)" guidance in `docs/concepts.md` and reused as a shared snippet. An agent following these skills then writes behavior contracts — observable behavior, inputs/outputs/error conditions, testable scenarios — and keeps implementation detail (class/function names, library choices, execution plans) out of the spec, without a human having to restate the rules (#1289). Sourcing it from one snippet keeps the skills and the docs from drifting.
+The skills that draft artifacts embed the authoring guidance that today lives only in `docs/`, so agents produce conformant artifacts without a human pasting the rules in. The guidance is authored as shared snippets (a `SPEC_CONTENT_GUIDANCE` block for what belongs in a spec vs. what to keep out, and a `SPEC_CONVENTIONS_GUIDANCE` block for rigor, keyword semantics, scenario quality, and delta conventions), each sourced once and kept aligned with `docs/concepts.md`. Concretely, the spec-authoring skills (`propose`, `ff-change`, `continue-change`, `sync-specs`) gain:
+
+- **Behavior-contract spec content** — observable behavior, inputs/outputs/error conditions, testable scenarios in; class/function names, library choices, and execution plans out (#1289).
+- **Right-sized rigor** — default to lightweight, behavior-first requirements; reserve heavier rigor for higher-risk (contract/migration/security) changes, instead of maximizing detail everywhere.
+- **Requirement and scenario conventions** — the RFC-2119 keyword meanings the specs use (MUST/SHALL absolute, SHOULD recommended, MAY optional), at least one scenario per requirement, and scenarios that are testable and cover edge cases, not only the happy path.
+- **Delta conventions** — the ADDED/MODIFIED/REMOVED/RENAMED headers plus the reviewer-facing rule that a MODIFIED requirement shows its prior value and a REMOVED requirement states why.
+
+The same conventions are carried on the always-on `AGENTS.md` surface (item 10), so agents that never load a skill get them too. Sourcing everything from shared snippets aligned to the docs keeps the two from drifting.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `skill-authoring-conventions`: The quality and conformance contract for generated agent skills — trigger disambiguation, canonical structure, explicit success criteria, named failure recovery, single-source generation, shared-snippet reuse (including embedded spec-content guidance for the spec-authoring skills), lean always-on body, cross-skill navigation, Agent Skills standard conformance, declared pre-approved tools (`allowed-tools`), and a conformance validation gate.
+- `skill-authoring-conventions`: The quality and conformance contract for generated agent skills — trigger disambiguation, canonical structure, explicit success criteria, named failure recovery, single-source generation, shared-snippet reuse (including embedded authoring guidance — spec content, rigor, keyword/scenario conventions, and delta conventions — for the artifact-drafting skills), lean always-on body, cross-skill navigation, Agent Skills standard conformance, declared pre-approved tools (`allowed-tools`), and a conformance validation gate.
 - `skill-distribution`: A standard-conformant, validated, publishable bundle of the OpenSpec skills plus the readiness contract for listing them in a public Agent Skills directory.
 
 ### Modified Capabilities
 
-- `docs-agent-instructions`: The maintained project agent instructions (`openspec/AGENTS.md`) name the skills and core deterministic CLI commands and state when to use each, so non-skill-loading agents follow the same workflow.
+- `docs-agent-instructions`: The maintained project agent instructions (`openspec/AGENTS.md`) name the skills and core deterministic CLI commands, state when to use each, and carry the core artifact-authoring conventions, so non-skill-loading agents follow the same workflow and write conformant artifacts.
 
 Per-skill behavioral specs (`opsx-verify-skill`, `opsx-onboard-skill`, `opsx-archive-skill`, `specs-sync-skill`) keep their existing contracts; this change tightens how the instructions are written and packaged, not what the skills do.
 
 ## Impact
 
 - `src/core/templates/workflows/*.ts` — rewrite the 11 workflow instruction strings (and feedback) to the new conventions; collapse each skill/command pair onto one instruction source; split over-budget bodies so the deep material can be emitted as `references/` files.
-- `src/core/templates/workflows/store-selection.ts` (and likely new sibling snippet modules) — house the shared change-selection, artifact-loop, and context/rules guardrail blocks.
+- `src/core/templates/workflows/store-selection.ts` (and likely new sibling snippet modules) — house the shared change-selection, artifact-loop, context/rules guardrail, and authoring-guidance (`SPEC_CONTENT_GUIDANCE`, `SPEC_CONVENTIONS_GUIDANCE`) blocks.
 - `src/core/shared/skill-generation.ts` / `src/core/templates/skill-templates.ts` — single-source skill/command assembly; emit any per-skill `references/` files alongside `SKILL.md`.
 - `src/core/shared/tool-detection.ts` / `src/core/update.ts` — run the conformance validation gate during generation/update without changing directory layout or delivery behavior.
 - `openspec/AGENTS.md` — populate with skill + CLI guidance per `docs-agent-instructions`.

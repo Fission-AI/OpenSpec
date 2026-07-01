@@ -71,9 +71,29 @@ Two intentional variants are preserved rather than forced into the procedural sh
   - `CHANGE_SELECTION_GUIDANCE` — the "list → prompt with AskUserQuestion → never auto-select → mark most-recent as Recommended" pattern used by six skills.
   - `ARTIFACT_LOOP_GUIDANCE` — the read-instructions / read-dependencies / write-to-`resolvedOutputPath` / verify loop used by the artifact-creating skills.
   - `CONTEXT_RULES_GUARDRAIL` — the "context and rules are constraints for YOU, not content for the file" block.
-  - `SPEC_CONTENT_GUIDANCE` — the "what belongs in a spec vs. what to keep out" rules, embedded by the spec-authoring skills (`propose`, `ff-change`, `continue-change`, `sync-specs`). It is the compact form of `docs/concepts.md`'s "What a Spec Is (and Is Not)" section; sourcing both from the same intent (with a test asserting the skill snippet lists the same belongs/avoid items) keeps skills and docs from drifting. This closes #1289: the guidance that shapes good specs now travels with the skills that write them, not just the docs a human has to find.
+  - `SPEC_CONTENT_GUIDANCE` — the "what belongs in a spec vs. what to keep out" rules (the compact form of `docs/concepts.md`'s "What a Spec Is (and Is Not)"), embedded by the spec-authoring skills. Closes #1289.
+  - `SPEC_CONVENTIONS_GUIDANCE` — right-sized rigor (Lite by default), the RFC-2119 keyword meanings the specs use, scenario quality (≥1 per requirement, testable, edge cases), and the delta conventions (MODIFIED shows prior value, REMOVED says why). See "Embedded authoring guidance" below.
 
 `propose` stops duplicating `ff-change`'s loop and references `ARTIFACT_LOOP_GUIDANCE` instead; the two stay distinct only in which artifacts they target.
+
+## Embedded authoring guidance (docs → skills)
+
+#1289 is one instance of a broader gap: guidance that shapes *artifact quality* lives only in `docs/` and never reaches the skills that draft artifacts, so an agent following a skill can't apply it. A doc-vs-skill audit (docs `concepts.md`/`agent-contract.md`/`workflows.md`/`editing-changes.md`/`explore.md` against the workflow templates, gaps confirmed by grep) surfaced these doc-only rules:
+
+| Doc-only guidance | Documented in | In the skills today | Fix |
+|---|---|---|---|
+| Spec is a behavior contract, not implementation (belongs/avoid) | concepts.md "What a Spec Is (and Is Not)" | No | `SPEC_CONTENT_GUIDANCE` (#1289) |
+| Right-sized rigor — Lite by default, Full for higher-risk | concepts.md "Keep It Lightweight: Progressive Rigor" | No | `SPEC_CONVENTIONS_GUIDANCE` |
+| RFC-2119 keyword *meanings* (SHOULD/MAY, not just SHALL) | concepts.md "Spec Format" | Skills say "write SHALL"; meanings absent | `SPEC_CONVENTIONS_GUIDANCE` |
+| Scenario quality — ≥1 per requirement, testable, edge cases + happy path | concepts.md "Spec Structure" | Format (`WHEN/THEN`) shown; coverage bar absent | `SPEC_CONVENTIONS_GUIDANCE` |
+| Delta conventions — MODIFIED shows prior value, REMOVED says why | concepts.md "Delta Specs" | `sync-specs` shows headers; conventions absent, and `propose`/`ff`/`continue` carry no delta guidance | `SPEC_CONVENTIONS_GUIDANCE` |
+
+Each snippet is the compact form of its docs section, and a test asserts the snippet still lists the same items the doc does, so the skills and the docs cannot drift. The same snippets are carried on `AGENTS.md` (per `docs-agent-instructions`), so non-skill-loading agents get them too. `sync-specs` primarily needs the delta conventions; `propose`/`ff-change`/`continue-change` need spec content, rigor, and requirement/scenario conventions.
+
+**Deliberately out of scope (found by the same audit, not fixed here):**
+
+- **Enabler-graph vs. gate wording.** `concepts.md` frames artifact dependencies as "what becomes *possible* next," while `continue-change` says "never skip or reorder." That is a behavioral/UX stance, not missing authoring guidance — changing it would touch behavior, which this change forbids.
+- **"Update vs. start fresh" heuristics** (`workflows.md`/`editing-changes.md`) belong to the update workflow, owned by the in-flight `add-update-workflow` change; embedding them here would duplicate that surface.
 
 ## Worked examples
 

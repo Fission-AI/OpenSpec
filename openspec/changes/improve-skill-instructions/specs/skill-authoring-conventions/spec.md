@@ -83,17 +83,29 @@ Each skill SHALL reference the related or next skill in the workflow, so multi-s
 - **WHEN** a skill completes its work and a natural next or sibling skill exists
 - **THEN** the skill SHALL name that related skill and the condition under which to use it
 
-### Requirement: Embedded Spec-Content Guidance
-Each skill that drafts or updates spec deltas SHALL embed guidance that distinguishes behavior-contract content from implementation detail, so an agent following the skill writes conformant spec content without being separately instructed.
+### Requirement: Embedded Authoring Guidance
+Each skill that drafts or updates OpenSpec artifacts SHALL embed the authoring guidance the project docs require but that an agent cannot infer from the workflow procedure alone, so an agent following the skill produces conformant artifacts without being separately instructed. This guidance SHALL be drawn from single shared sources that agree with the project concepts documentation, so the skills and the docs cannot drift.
 
-#### Scenario: Spec-authoring skill carries the guidance
+#### Scenario: Spec content is a behavior contract
 - **WHEN** a skill produces or edits a capability spec or spec delta (for example `propose`, `ff-change`, `continue-change`, `sync-specs`)
 - **THEN** its instructions SHALL state what belongs in a spec (observable behavior; inputs, outputs, and error conditions; external constraints; testable scenarios) and what to keep out (internal class or function names, library or framework choices, step-by-step implementation, execution plans)
-- **AND** that guidance SHALL be drawn from a single shared source rather than restated inline per skill
 
-#### Scenario: Guidance stays aligned with the concepts documentation
-- **WHEN** the shared spec-content guidance is authored
-- **THEN** it SHALL agree with the "What a Spec Is (and Is Not)" guidance in the project concepts documentation, so the skills and the docs cannot diverge
+#### Scenario: Right-sized rigor
+- **WHEN** a skill guides an agent to write spec requirements
+- **THEN** it SHALL convey that a change defaults to lightweight, behavior-first requirements and reserves heavier rigor for higher-risk changes (cross-cutting, contract, migration, or security/privacy), rather than maximizing detail on every change
+
+#### Scenario: Requirement and scenario conventions
+- **WHEN** a skill guides an agent to write requirements and scenarios
+- **THEN** it SHALL convey the RFC 2119 keyword meanings it uses (MUST/SHALL absolute, SHOULD recommended, MAY optional), that every requirement carries at least one scenario, and that scenarios are concrete, testable, and cover the primary path and its notable edge cases
+
+#### Scenario: Delta conventions
+- **WHEN** a skill produces or merges spec deltas
+- **THEN** it SHALL convey the delta operation headers (ADDED / MODIFIED / REMOVED / RENAMED) and the reviewer-facing conventions that a MODIFIED requirement shows its prior value and a REMOVED requirement states why
+
+#### Scenario: Guidance shared and aligned with the docs
+- **WHEN** any of the above guidance is authored
+- **THEN** it SHALL be defined in a single shared source rather than restated inline per skill
+- **AND** it SHALL agree with the corresponding project concepts documentation (for example "What a Spec Is (and Is Not)" and the progressive-rigor guidance), so the skills and the docs cannot diverge
 
 ### Requirement: Behavior Preservation
 Applying these conventions to an existing skill SHALL NOT change the skill's observable workflow behavior; the conventions govern how instructions are written, not what the skill does.
