@@ -58,7 +58,7 @@ A skill and its corresponding command SHALL derive their shared instruction text
 - **AND** after removing surface-specific framing (invocation syntax and metadata), the skill body and command body SHALL be identical
 
 #### Scenario: Shared guidance defined once
-- **WHEN** guidance is common to multiple skills (store selection, change selection, the artifact-creation loop, or the context-and-rules guardrail)
+- **WHEN** guidance is common to multiple skills (store selection, change selection, the artifact-creation loop, the context-and-rules guardrail, or the spec-content guidance)
 - **THEN** that guidance SHALL be defined in a single shared location and referenced
 - **AND** SHALL NOT be copied inline into individual skills
 
@@ -82,6 +82,18 @@ Each skill SHALL reference the related or next skill in the workflow, so multi-s
 #### Scenario: Related-skills reference present
 - **WHEN** a skill completes its work and a natural next or sibling skill exists
 - **THEN** the skill SHALL name that related skill and the condition under which to use it
+
+### Requirement: Embedded Spec-Content Guidance
+Each skill that drafts or updates spec deltas SHALL embed guidance that distinguishes behavior-contract content from implementation detail, so an agent following the skill writes conformant spec content without being separately instructed.
+
+#### Scenario: Spec-authoring skill carries the guidance
+- **WHEN** a skill produces or edits a capability spec or spec delta (for example `propose`, `ff-change`, `continue-change`, `sync-specs`)
+- **THEN** its instructions SHALL state what belongs in a spec (observable behavior; inputs, outputs, and error conditions; external constraints; testable scenarios) and what to keep out (internal class or function names, library or framework choices, step-by-step implementation, execution plans)
+- **AND** that guidance SHALL be drawn from a single shared source rather than restated inline per skill
+
+#### Scenario: Guidance stays aligned with the concepts documentation
+- **WHEN** the shared spec-content guidance is authored
+- **THEN** it SHALL agree with the "What a Spec Is (and Is Not)" guidance in the project concepts documentation, so the skills and the docs cannot diverge
 
 ### Requirement: Behavior Preservation
 Applying these conventions to an existing skill SHALL NOT change the skill's observable workflow behavior; the conventions govern how instructions are written, not what the skill does.

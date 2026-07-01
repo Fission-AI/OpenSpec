@@ -71,6 +71,7 @@ Two intentional variants are preserved rather than forced into the procedural sh
   - `CHANGE_SELECTION_GUIDANCE` — the "list → prompt with AskUserQuestion → never auto-select → mark most-recent as Recommended" pattern used by six skills.
   - `ARTIFACT_LOOP_GUIDANCE` — the read-instructions / read-dependencies / write-to-`resolvedOutputPath` / verify loop used by the artifact-creating skills.
   - `CONTEXT_RULES_GUARDRAIL` — the "context and rules are constraints for YOU, not content for the file" block.
+  - `SPEC_CONTENT_GUIDANCE` — the "what belongs in a spec vs. what to keep out" rules, embedded by the spec-authoring skills (`propose`, `ff-change`, `continue-change`, `sync-specs`). It is the compact form of `docs/concepts.md`'s "What a Spec Is (and Is Not)" section; sourcing both from the same intent (with a test asserting the skill snippet lists the same belongs/avoid items) keeps skills and docs from drifting. This closes #1289: the guidance that shapes good specs now travels with the skills that write them, not just the docs a human has to find.
 
 `propose` stops duplicating `ff-change`'s loop and references `ARTIFACT_LOOP_GUIDANCE` instead; the two stay distinct only in which artifacts they target.
 
