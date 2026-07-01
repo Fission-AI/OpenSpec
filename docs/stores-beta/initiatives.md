@@ -45,15 +45,18 @@ acme-plans  (a store: planning in its own repo)
 *A team is making setup smoother. The work spans a CLI repo and a docs repo.
 The plan should not live in either one.*
 
-### 1. Put the plan in a store
+### 1. Put the plan in a store, and start an initiative
 
-A store is planning in its own git repo. Stand one up once:
+A store is planning in its own git repo. Stand one up once, then scaffold the
+initiative inside it:
 
 ```bash
 openspec store setup acme-plans --path ~/openspec/acme-plans
+openspec new initiative smoother-setup --store acme-plans --title "Smoother setup"
 ```
 
-Now the plan has a home of its own — not buried in anyone's code.
+Now the plan has a home of its own — an `initiative.yaml` and a `brief.md`,
+not buried in anyone's code.
 
 ### 2. Define your own artifacts
 
