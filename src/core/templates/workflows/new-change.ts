@@ -10,12 +10,14 @@ import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 export function getNewChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-new-change',
-    description: 'Start a new OpenSpec change using the experimental artifact workflow. Use when the user wants to create a new feature, fix, or modification with a structured step-by-step approach.',
-    instructions: `Start a new change using the experimental artifact-driven approach.
+    description: 'Scaffold a new OpenSpec change directory only, then stop — no artifacts yet. Use when the user wants to name and scaffold a change before generating anything; to create the change and all artifacts in one pass use openspec-propose instead, or openspec-continue-change to advance an existing change.',
+    instructions: `Scaffold a new change directory, then stop so the user can review before any artifacts are generated.
 
 ${STORE_SELECTION_GUIDANCE}
 
-**Input**: The user's request should include a change name (kebab-case) OR a description of what they want to build.
+**Use when:** the user wants to name and scaffold a change before generating artifacts. To create the change and all artifacts in one pass, use \`openspec-propose\`; to advance an existing change one artifact at a time, use \`openspec-continue-change\`.
+
+**Inputs:** a change name (kebab-case) OR a description to derive one from. If neither is given, ask.
 
 **Steps**
 
@@ -70,12 +72,21 @@ After completing the steps, summarize:
 - The template for the first artifact
 - Prompt: "Ready to create the first artifact? Just describe what this change is about and I'll draft it, or ask me to continue."
 
+**Success:** the change directory exists, \`openspec status --change "<name>" --json\` reports it with 0/N artifacts complete, and the first artifact's instructions have been shown — with no artifact files created yet.
+
+**Failure & recovery**
+- **Invalid name (not kebab-case):** ask for a valid kebab-case name, then retry step 3.
+- **A change with that name already exists:** do NOT overwrite; suggest advancing it with \`openspec-continue-change\`, or pick a new name.
+- **\`openspec new change\` errors:** report the CLI message; if it names a missing planning home or store, resolve that (or pass \`--store <id>\`) and retry step 3.
+
 **Guardrails**
 - Do NOT create any artifacts yet - just show the instructions
 - Do NOT advance beyond showing the first artifact template
 - If the name is invalid (not kebab-case), ask for a valid name
 - If a change with that name already exists, suggest continuing that change instead
-- Pass --schema if using a non-default workflow`,
+- Pass --schema if using a non-default workflow
+
+**Related:** \`openspec-continue-change\` to create the first artifact next; \`openspec-propose\` to scaffold and generate every artifact in one pass.`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },

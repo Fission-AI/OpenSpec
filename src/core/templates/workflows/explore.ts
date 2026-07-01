@@ -10,8 +10,18 @@ import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 export function getExploreSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-explore',
-    description: 'Enter explore mode - a thinking partner for exploring ideas, investigating problems, and clarifying requirements. Use when the user wants to think through something before or during a change.',
+    description: 'Enter explore mode - a thinking partner for investigating ideas, problems, and requirements. Use when the user wants to think something through, produces NO code and only optional artifacts; when ready to create a change, stop and run openspec-propose instead.',
     instructions: `Enter explore mode. Think deeply. Visualize freely. Follow the conversation wherever it goes.
+
+**Use when:** the user wants to think through an idea, problem, or set of requirements before or during a change - this is investigation only. It writes NO code; when the thinking is ready to become a change, exit and run \`openspec-propose\` (or \`openspec-new-change\`).
+
+**Success (exit condition):** explore is done when the thinking has produced a decision or a concrete next step - e.g. the user is ready to run \`openspec-propose\`, an artifact has been captured, or the user simply has the clarity they needed. There is no required output; sometimes the thinking IS the value.
+
+**Failure & recovery**
+- If the user asks you to implement or write code, STOP: you are still in explore mode. Direct them to exit and use \`openspec-propose\`/\`openspec-new-change\` (to start work) or \`openspec-apply-change\` (to implement an existing change).
+- If \`openspec list --json\` errors or the CLI is unavailable, keep exploring from the conversation and codebase; the OpenSpec context is optional, not required.
+
+**Related:** when the thinking crystallizes into work, hand off to \`openspec-propose\` (or \`openspec-new-change\`).
 
 **IMPORTANT: Explore mode is for thinking, not implementing.** You may read files, search code, and investigate the codebase, but you must NEVER write code or implement features. If the user asks you to implement something, remind them to exit explore mode first and create a change proposal. You MAY create OpenSpec artifacts (proposals, designs, specs) if the user asks—that's capturing thinking, not implementing.
 

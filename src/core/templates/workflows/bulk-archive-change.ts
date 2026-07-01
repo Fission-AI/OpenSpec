@@ -7,15 +7,65 @@
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
+export const BULK_ARCHIVE_CONFLICTS_REFERENCE_FILE = 'references/conflict-resolution.md';
+export const BULK_ARCHIVE_CONFLICTS_REFERENCE = `# Bulk-archive conflict resolution
+
+A conflict exists when 2+ selected changes have delta specs for the same capability
+(e.g. \`specs/auth/spec.md\` touched by both \`add-oauth\` and \`add-jwt\`). Resolve each
+conflict by reading the conflicting delta specs and searching the codebase for
+implementation evidence, then apply this rule:
+
+- **Only one change implemented** — sync that change's specs only.
+- **Both implemented** — apply in chronological order (older first, newer overwrites).
+- **Neither implemented** — skip spec sync and warn the user.
+
+## Example 1: Only one implemented
+
+\`\`\`
+Conflict: specs/auth/spec.md touched by [add-oauth, add-jwt]
+
+Checking add-oauth:
+- Delta adds "OAuth Provider Integration" requirement
+- Searching codebase... found src/auth/oauth.ts implementing OAuth flow
+
+Checking add-jwt:
+- Delta adds "JWT Token Handling" requirement
+- Searching codebase... no JWT implementation found
+
+Resolution: Only add-oauth is implemented. Will sync add-oauth specs only.
+\`\`\`
+
+## Example 2: Both implemented
+
+\`\`\`
+Conflict: specs/api/spec.md touched by [add-rest-api, add-graphql]
+
+Checking add-rest-api (created 2026-01-10):
+- Delta adds "REST Endpoints" requirement
+- Searching codebase... found src/api/rest.ts
+
+Checking add-graphql (created 2026-01-15):
+- Delta adds "GraphQL Schema" requirement
+- Searching codebase... found src/api/graphql.ts
+
+Resolution: Both implemented. Will apply add-rest-api specs first,
+then add-graphql specs (chronological order, newer takes precedence).
+\`\`\`
+`;
+
 export function getBulkArchiveChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-bulk-archive-change',
-    description: 'Archive multiple completed changes at once. Use when archiving several parallel changes.',
+    description: 'Batch-archive many completed changes at once, resolving spec conflicts between them. Use when finalizing several parallel changes together — use openspec-archive-change instead when you only have a single change to archive.',
     instructions: `Archive multiple completed changes in a single operation.
 
 This skill allows you to batch-archive changes, handling spec conflicts intelligently by checking the codebase to determine what's actually implemented.
 
 ${STORE_SELECTION_GUIDANCE}
+
+**Use when:** two or more completed changes are ready to archive together and may touch overlapping capabilities. For a single change, use \`openspec-archive-change\` instead; to verify a change is actually complete before archiving, use \`openspec-verify-change\`.
+
+**Inputs:** none required — the skill runs \`openspec list --json\` and prompts for a multi-select of which active changes to archive. If no active changes exist, inform the user and stop.
 
 **Input**: None required (prompts for selection)
 
@@ -166,38 +216,11 @@ ${STORE_SELECTION_GUIDANCE}
    - some-change: Archive directory already exists
    \`\`\`
 
-**Conflict Resolution Examples**
+**Conflict Resolution Rule**
 
-Example 1: Only one implemented
-\`\`\`
-Conflict: specs/auth/spec.md touched by [add-oauth, add-jwt]
+When 2+ changes touch the same capability's spec, read each conflicting delta spec and search the codebase for implementation evidence, then: sync only the implemented change's specs; if both are implemented, apply in chronological order (older first, newer overwrites); if neither is implemented, skip the sync and warn.
 
-Checking add-oauth:
-- Delta adds "OAuth Provider Integration" requirement
-- Searching codebase... found src/auth/oauth.ts implementing OAuth flow
-
-Checking add-jwt:
-- Delta adds "JWT Token Handling" requirement
-- Searching codebase... no JWT implementation found
-
-Resolution: Only add-oauth is implemented. Will sync add-oauth specs only.
-\`\`\`
-
-Example 2: Both implemented
-\`\`\`
-Conflict: specs/api/spec.md touched by [add-rest-api, add-graphql]
-
-Checking add-rest-api (created 2026-01-10):
-- Delta adds "REST Endpoints" requirement
-- Searching codebase... found src/api/rest.ts
-
-Checking add-graphql (created 2026-01-15):
-- Delta adds "GraphQL Schema" requirement
-- Searching codebase... found src/api/graphql.ts
-
-Resolution: Both implemented. Will apply add-rest-api specs first,
-then add-graphql specs (chronological order, newer takes precedence).
-\`\`\`
+See \`references/conflict-resolution.md\` for worked examples of resolving spec conflicts when multiple changes touch the same capability.
 
 **Output On Success**
 
@@ -247,7 +270,17 @@ No active changes found. Create a new change to get started.
 - Track and report all outcomes (success/skip/fail)
 - Preserve .openspec.yaml when moving to archive
 - Archive directory target uses current date: YYYY-MM-DD-<name>
-- If archive target exists, fail that change but continue with others`,
+- If archive target exists, fail that change but continue with others
+
+**Success:** every selected change is accounted for in the final summary as archived, skipped, or failed — each archived change now lives under \`archive/YYYY-MM-DD-<name>/\` and no longer appears in \`openspec list --json\`, every detected capability conflict has a recorded resolution, and any delta specs were synced (or skipped with a stated reason). No selected change is left in an unknown state.
+
+**Failure & recovery**
+- **No active changes:** report "No active changes found" and stop — there is nothing to archive.
+- **Spec conflict — 2+ changes touch the same capability:** read each conflicting delta spec and search the codebase for implementation evidence; sync only the implemented change, apply both in chronological order if both are implemented, or skip the sync and warn if neither is implemented. Record the rationale before archiving.
+- **A change has incomplete artifacts or tasks:** surface it as a warning in the status table and let the user confirm; to fully validate before archiving, run \`openspec-verify-change\` on that change first.
+- **Archive target already exists (\`archive/YYYY-MM-DD-<name>/\`):** mark that change failed, continue with the rest, and report it in the failures list — suggest renaming the existing archive or retrying under a different date.
+
+**Related:** \`openspec-archive-change\` to finalize a single change; \`openspec-verify-change\` to confirm a change is complete before including it; \`openspec-sync-specs\` for the spec-merge step used during archiving.`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },

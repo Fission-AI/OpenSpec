@@ -10,10 +10,14 @@ import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 export function getArchiveChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-archive-change',
-    description: 'Archive a completed change in the experimental workflow. Use when the user wants to finalize and archive a change after implementation is complete.',
+    description: 'Finalize one completed change: sync its specs, then move it into the archive. Use when the user wants to close out a change after implementation is complete; to update main specs while keeping the change active use openspec-sync-specs instead, and to archive many changes at once use openspec-bulk-archive-change rather than this skill.',
     instructions: `Archive a completed change in the experimental workflow.
 
 ${STORE_SELECTION_GUIDANCE}
+
+**Use when:** the user wants to finalize a single completed change - sync its delta specs and move it to the archive. To sync main specs without archiving (keeping the change active), use \`openspec-sync-specs\`; to archive several changes in one run, use \`openspec-bulk-archive-change\`.
+
+**Inputs:** optionally a change name. If omitted, infer it from conversation context; if vague or ambiguous you MUST run \`openspec list --json\` and prompt for available changes (never auto-select).
 
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
@@ -116,7 +120,17 @@ All artifacts complete. All tasks complete.
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
 - Show clear summary of what happened
 - If sync is requested, use openspec-sync-specs approach (agent-driven)
-- If delta specs exist, always run the sync assessment and show the combined summary before prompting`,
+- If delta specs exist, always run the sync assessment and show the combined summary before prompting
+
+**Success:** \`changeRoot\` no longer exists under the active changes directory and now lives at \`<planningHome.changesDir>/archive/YYYY-MM-DD-<name>/\`, and the archive summary was shown (with spec-sync status and any warnings).
+
+**Failure & recovery**
+- **Ambiguous or missing change name:** run \`openspec list --json\` and prompt with the AskUserQuestion tool; never auto-select.
+- **Incomplete artifacts or tasks (\`status\` artifacts not \`done\`, or \`- [ ]\` tasks remain):** show the warning and confirm via AskUserQuestion; if the user does not want to archive incomplete, invoke \`openspec-apply-change\` to finish the tasks first.
+- **Unsynced delta specs:** run the sync assessment and prompt; if the user chooses to sync, invoke \`openspec-sync-specs\` for the change before moving it.
+- **Target archive directory already exists:** stop and report; ask the user to rename the existing archive or archive on a different date - do not overwrite.
+
+**Related:** \`openspec-apply-change\` to complete unfinished tasks before archiving; \`openspec-sync-specs\` to sync specs without archiving; \`openspec-bulk-archive-change\` to archive many changes at once.`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },

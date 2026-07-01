@@ -41,6 +41,8 @@ import {
   getSkillTemplates,
   getCommandContents,
   generateSkillContent,
+  getSkillReferenceFiles,
+  validateSkillConformance,
   type ToolSkillStatus,
 } from './shared/index.js';
 import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
@@ -550,6 +552,17 @@ export class InitCommand {
     const skillTemplates = shouldGenerateSkills ? getSkillTemplates(workflows) : [];
     const commandContents = shouldGenerateCommands ? getCommandContents(workflows) : [];
 
+    // Conformance gate: fail rather than write a non-conformant skill.
+    if (shouldGenerateSkills) {
+      const conformanceErrors: string[] = [];
+      for (const { template, dirName } of skillTemplates) {
+        conformanceErrors.push(...validateSkillConformance(template, dirName).errors);
+      }
+      if (conformanceErrors.length > 0) {
+        throw new Error(`Skill conformance check failed:\n- ${conformanceErrors.join('\n- ')}`);
+      }
+    }
+
     // Process each tool
     for (const tool of tools) {
       const spinner = ora(`Setting up ${tool.name}...`).start();
@@ -572,6 +585,11 @@ export class InitCommand {
 
             // Write the skill file
             await FileSystemUtils.writeFile(skillFile, skillContent);
+
+            // Emit any reference files the skill body links to (e.g. references/authoring-conventions.md)
+            for (const ref of getSkillReferenceFiles(template)) {
+              await FileSystemUtils.writeFile(path.join(skillDir, ref.relativePath), ref.content);
+            }
           }
         }
         if (!shouldGenerateSkills) {

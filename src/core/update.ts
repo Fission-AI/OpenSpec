@@ -22,6 +22,8 @@ import {
   getSkillTemplates,
   getCommandContents,
   generateSkillContent,
+  getSkillReferenceFiles,
+  validateSkillConformance,
   getToolsWithSkillsDir,
   type ToolVersionStatus,
 } from './shared/index.js';
@@ -170,6 +172,15 @@ export class UpdateCommand {
 
     // 9. Determine what to generate based on delivery
     const skillTemplates = shouldGenerateSkills ? getSkillTemplates(desiredWorkflows) : [];
+    if (shouldGenerateSkills) {
+      const conformanceErrors: string[] = [];
+      for (const { template, dirName } of skillTemplates) {
+        conformanceErrors.push(...validateSkillConformance(template, dirName).errors);
+      }
+      if (conformanceErrors.length > 0) {
+        throw new Error(`Skill conformance check failed:\n- ${conformanceErrors.join('\n- ')}`);
+      }
+    }
     const commandContents = shouldGenerateCommands ? getCommandContents(desiredWorkflows) : [];
 
     // 10. Update tools (all if force, otherwise only those needing update)
@@ -200,6 +211,11 @@ export class UpdateCommand {
             const transformer = (tool.value === 'opencode' || tool.value === 'pi') ? transformToHyphenCommands : undefined;
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
+
+            // Emit any reference files the skill body links to (e.g. references/authoring-conventions.md)
+            for (const ref of getSkillReferenceFiles(template)) {
+              await FileSystemUtils.writeFile(path.join(skillDir, ref.relativePath), ref.content);
+            }
           }
 
           removedDeselectedSkillCount += await this.removeUnselectedSkillDirs(skillsDir, desiredWorkflows);
@@ -673,6 +689,15 @@ export class UpdateCommand {
     const shouldGenerateSkills = delivery !== 'commands';
     const shouldGenerateCommands = delivery !== 'skills';
     const skillTemplates = shouldGenerateSkills ? getSkillTemplates(desiredWorkflows) : [];
+    if (shouldGenerateSkills) {
+      const conformanceErrors: string[] = [];
+      for (const { template, dirName } of skillTemplates) {
+        conformanceErrors.push(...validateSkillConformance(template, dirName).errors);
+      }
+      if (conformanceErrors.length > 0) {
+        throw new Error(`Skill conformance check failed:\n- ${conformanceErrors.join('\n- ')}`);
+      }
+    }
     const commandContents = shouldGenerateCommands ? getCommandContents(desiredWorkflows) : [];
 
     for (const toolId of selectedTools) {
@@ -694,6 +719,11 @@ export class UpdateCommand {
             const transformer = (tool.value === 'opencode' || tool.value === 'pi') ? transformToHyphenCommands : undefined;
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
+
+            // Emit any reference files the skill body links to (e.g. references/authoring-conventions.md)
+            for (const ref of getSkillReferenceFiles(template)) {
+              await FileSystemUtils.writeFile(path.join(skillDir, ref.relativePath), ref.content);
+            }
           }
         }
 

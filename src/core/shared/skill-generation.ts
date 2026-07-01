@@ -30,6 +30,60 @@ import {
   type SkillTemplate,
 } from '../templates/skill-templates.js';
 import type { CommandContent } from '../command-generation/index.js';
+import {
+  AUTHORING_CONVENTIONS_REFERENCE,
+  AUTHORING_CONVENTIONS_REFERENCE_FILE,
+} from '../templates/workflows/authoring-conventions.js';
+import { getAllowedToolsFor } from '../templates/workflows/skill-tools.js';
+import {
+  ONBOARD_ARTIFACT_TEMPLATES_FILE,
+  ONBOARD_ARTIFACT_TEMPLATES_REFERENCE,
+} from '../templates/workflows/onboard.js';
+import {
+  DELTA_FORMAT_REFERENCE_FILE,
+  DELTA_FORMAT_REFERENCE,
+} from '../templates/workflows/sync-specs.js';
+import {
+  BULK_ARCHIVE_CONFLICTS_REFERENCE_FILE,
+  BULK_ARCHIVE_CONFLICTS_REFERENCE,
+} from '../templates/workflows/bulk-archive-change.js';
+import {
+  VERIFY_DIMENSIONS_REFERENCE_FILE,
+  VERIFY_DIMENSIONS_REFERENCE,
+} from '../templates/workflows/verify-change.js';
+
+/**
+ * Every reference file a skill body may link, keyed by its relative path. A file
+ * is emitted for a skill exactly when that skill's body links its path, so a
+ * skill can never link a reference that is not written beside it.
+ */
+const REFERENCE_REGISTRY: ReadonlyArray<{ file: string; content: string }> = [
+  { file: AUTHORING_CONVENTIONS_REFERENCE_FILE, content: AUTHORING_CONVENTIONS_REFERENCE },
+  { file: ONBOARD_ARTIFACT_TEMPLATES_FILE, content: ONBOARD_ARTIFACT_TEMPLATES_REFERENCE },
+  { file: DELTA_FORMAT_REFERENCE_FILE, content: DELTA_FORMAT_REFERENCE },
+  { file: BULK_ARCHIVE_CONFLICTS_REFERENCE_FILE, content: BULK_ARCHIVE_CONFLICTS_REFERENCE },
+  { file: VERIFY_DIMENSIONS_REFERENCE_FILE, content: VERIFY_DIMENSIONS_REFERENCE },
+];
+
+/**
+ * A reference file a skill's body links to, emitted beside its `SKILL.md`.
+ * `relativePath` is relative to the skill folder (e.g. `references/authoring-conventions.md`).
+ */
+export interface SkillReferenceFile {
+  relativePath: string;
+  content: string;
+}
+
+/**
+ * Returns the reference files a skill needs, derived from what its body links
+ * to — so exactly the skills that reference a file get it emitted, and a skill
+ * can never link a reference that is not written beside it.
+ */
+export function getSkillReferenceFiles(template: SkillTemplate): SkillReferenceFile[] {
+  return REFERENCE_REGISTRY.filter((ref) => template.instructions.includes(ref.file)).map(
+    (ref) => ({ relativePath: ref.file, content: ref.content })
+  );
+}
 
 /**
  * Skill template with directory name and workflow ID mapping.
@@ -133,10 +187,15 @@ export function generateSkillContent(
     ? transformInstructions(template.instructions)
     : template.instructions;
 
+  const allowedTools = getAllowedToolsFor(template.name);
+  const allowedToolsLine = allowedTools
+    ? `allowed-tools: [${allowedTools.map((t) => JSON.stringify(t)).join(', ')}]\n`
+    : '';
+
   return `---
 name: ${template.name}
 description: ${template.description}
-license: ${template.license || 'MIT'}
+${allowedToolsLine}license: ${template.license || 'MIT'}
 compatibility: ${template.compatibility || 'Requires openspec CLI.'}
 metadata:
   author: ${template.metadata?.author || 'openspec'}

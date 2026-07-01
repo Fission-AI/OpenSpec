@@ -7,10 +7,102 @@
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
+/** Reference file holding the artifact skeletons the onboarding tutorial fills in. */
+export const ONBOARD_ARTIFACT_TEMPLATES_FILE = 'references/onboarding-artifact-templates.md';
+
+/**
+ * The verbatim proposal/spec/design/tasks skeletons the tutorial drafts from.
+ * These are agent-facing scaffolding (placeholders to fill for the user's real
+ * task, not user-facing output), so they live in a reference the body links to,
+ * keeping the always-on body within the standard's budget.
+ */
+export const ONBOARD_ARTIFACT_TEMPLATES_REFERENCE = `# Onboarding artifact skeletons
+
+Fill these in for the user's real task; show the filled draft, not the skeleton.
+
+## Proposal (proposal.md)
+
+\`\`\`
+## Why
+
+[1-2 sentences explaining the problem/opportunity]
+
+## What Changes
+
+[Bullet points of what will be different]
+
+## Capabilities
+
+### New Capabilities
+- \`<capability-name>\`: [brief description]
+
+### Modified Capabilities
+<!-- If modifying existing behavior -->
+
+## Impact
+
+- \`src/path/to/file.ts\`: [what changes]
+- [other files if applicable]
+\`\`\`
+
+## Spec (specs/<capability>/spec.md)
+
+\`\`\`
+## ADDED Requirements
+
+### Requirement: <Name>
+
+<Description of what the system should do>
+
+#### Scenario: <Scenario name>
+
+- **WHEN** <trigger condition>
+- **THEN** <expected outcome>
+- **AND** <additional outcome if needed>
+\`\`\`
+
+The WHEN/THEN/AND format makes requirements testable — you can read them as test cases.
+
+## Design (design.md)
+
+\`\`\`
+## Context
+
+[Brief context about the current state]
+
+## Goals / Non-Goals
+
+**Goals:**
+- [What we're trying to achieve]
+
+**Non-Goals:**
+- [What's explicitly out of scope]
+
+## Decisions
+
+### Decision 1: [Key decision]
+
+[Explanation of approach and rationale]
+\`\`\`
+
+## Tasks (tasks.md)
+
+\`\`\`
+## 1. [Category or file]
+
+- [ ] 1.1 [Specific task]
+- [ ] 1.2 [Specific task]
+
+## 2. Verify
+
+- [ ] 2.1 [Verification step]
+\`\`\`
+`;
+
 export function getOnboardSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-onboard',
-    description: 'Guided onboarding for OpenSpec - walk through a complete workflow cycle with narration and real codebase work.',
+    description: 'Guided, narrated onboarding — walk a new user through one complete OpenSpec workflow cycle doing real work in their codebase. Use when someone is new to OpenSpec and wants a hands-on tour; for real work without the teaching narration use openspec-propose or openspec-continue-change instead.',
     instructions: getOnboardInstructions(),
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
@@ -218,38 +310,7 @@ The proposal captures **why** we're making this change and **what** it involves 
 I'll draft one based on our task.
 \`\`\`
 
-**DO:** Draft the proposal content (don't save yet):
-
-\`\`\`
-Here's a draft proposal:
-
----
-
-## Why
-
-[1-2 sentences explaining the problem/opportunity]
-
-## What Changes
-
-[Bullet points of what will be different]
-
-## Capabilities
-
-### New Capabilities
-- \`<capability-name>\`: [brief description]
-
-### Modified Capabilities
-<!-- If modifying existing behavior -->
-
-## Impact
-
-- \`src/path/to/file.ts\`: [what changes]
-- [other files if applicable]
-
----
-
-Does this capture the intent? I can adjust before we save it.
-\`\`\`
+**DO:** Draft the proposal content (don't save yet), using the proposal skeleton in \`references/onboarding-artifact-templates.md\` — fill in Why / What Changes / Capabilities / Impact for the user's task. Show the filled draft, then ask: "Does this capture the intent? I can adjust before we save it."
 
 **PAUSE** - Wait for user approval/feedback.
 
@@ -284,29 +345,7 @@ openspec instructions specs --change "<name>" --json
 # Use resolvedOutputPath from the JSON. If it is a glob, choose the concrete file path using the schema instruction and the change's context.
 \`\`\`
 
-Draft the spec content:
-
-\`\`\`
-Here's the spec:
-
----
-
-## ADDED Requirements
-
-### Requirement: <Name>
-
-<Description of what the system should do>
-
-#### Scenario: <Scenario name>
-
-- **WHEN** <trigger condition>
-- **THEN** <expected outcome>
-- **AND** <additional outcome if needed>
-
----
-
-This format—WHEN/THEN/AND—makes requirements testable. You can literally read them as test cases.
-\`\`\`
+Draft the spec content using the spec skeleton in \`references/onboarding-artifact-templates.md\` (ADDED Requirements → Requirement → Scenario). Explain that the WHEN/THEN/AND format makes requirements testable — you can read them as test cases.
 
 Save to the concrete file path chosen from \`resolvedOutputPath\`.
 
@@ -323,35 +362,7 @@ The design captures **how** we'll build it—technical decisions, tradeoffs, app
 For small changes, this might be brief. That's fine—not every change needs deep design discussion.
 \`\`\`
 
-**DO:** Draft design.md:
-
-\`\`\`
-Here's the design:
-
----
-
-## Context
-
-[Brief context about the current state]
-
-## Goals / Non-Goals
-
-**Goals:**
-- [What we're trying to achieve]
-
-**Non-Goals:**
-- [What's explicitly out of scope]
-
-## Decisions
-
-### Decision 1: [Key decision]
-
-[Explanation of approach and rationale]
-
----
-
-For a small task, this captures the key decisions without over-engineering.
-\`\`\`
+**DO:** Draft design.md using the design skeleton in \`references/onboarding-artifact-templates.md\` (Context / Goals · Non-Goals / Decisions). Note that for a small task this stays brief — capture the key decisions without over-engineering.
 
 Save to the \`resolvedOutputPath\` from \`openspec instructions design --change "<name>" --json\`.
 
@@ -368,26 +379,7 @@ Finally, we break the work into implementation tasks—checkboxes that drive the
 These should be small, clear, and in logical order.
 \`\`\`
 
-**DO:** Generate tasks based on specs and design:
-
-\`\`\`
-Here are the implementation tasks:
-
----
-
-## 1. [Category or file]
-
-- [ ] 1.1 [Specific task]
-- [ ] 1.2 [Specific task]
-
-## 2. Verify
-
-- [ ] 2.1 [Verification step]
-
----
-
-Each checkbox becomes a unit of work in the apply phase. Ready to implement?
-\`\`\`
+**DO:** Generate tasks based on specs and design using the tasks skeleton in \`references/onboarding-artifact-templates.md\` (numbered groups of checkboxed tasks, ending with a Verify group). Explain that each checkbox becomes a unit of work in the apply phase, then ask: "Ready to implement?"
 
 **PAUSE** - Wait for user to confirm they're ready to implement.
 
@@ -561,7 +553,20 @@ Exit gracefully.
 - **Pause for acknowledgment** at marked points, but don't over-pause
 - **Handle exits gracefully**—never pressure the user to continue
 - **Use real codebase tasks**—don't simulate or use fake examples
-- **Adjust scope gently**—guide toward smaller tasks but respect user choice`;
+- **Adjust scope gently**—guide toward smaller tasks but respect user choice
+
+---
+
+**Use when:** a user is new to OpenSpec and wants a narrated, hands-on tour through one complete cycle. For real work without the teaching narration, use \`openspec-propose\` or \`openspec-continue-change\`.
+
+**Success (exit condition):** the user has walked through a full cycle — explore → propose → specs → tasks → apply → archive — on a real task, ending with an archived change and the wrap-up shown; or the user chose to exit early and you stopped gracefully.
+
+**Failure & recovery**
+- **CLI not installed (preflight fails):** stop and point the user to install \`openspec\`, then restart \`openspec-onboard\`.
+- **User wants to stop mid-tour:** exit gracefully at the current phase; suggest resuming later, or picking up the real workflow with \`openspec-continue-change\`.
+- **The chosen task is too large:** guide toward a smaller slice per the Scope Guardrail rather than abandoning the tour.
+
+**Related:** \`openspec-propose\` or \`openspec-continue-change\` to do real work after the tour; \`openspec-explore\` to think through an idea first.`;
 }
 
 export function getOpsxOnboardCommandTemplate(): CommandTemplate {
@@ -570,6 +575,8 @@ export function getOpsxOnboardCommandTemplate(): CommandTemplate {
     description: 'Guided onboarding - walk through a complete OpenSpec workflow cycle with narration',
     category: 'Workflow',
     tags: ['workflow', 'onboarding', 'tutorial', 'learning'],
-    content: getOnboardInstructions(),
+    // The command is a single self-contained file (no references/ dir), so the
+    // artifact skeletons the body points at are appended inline here.
+    content: `${getOnboardInstructions()}\n\n---\n\n${ONBOARD_ARTIFACT_TEMPLATES_REFERENCE}`,
   };
 }

@@ -6,18 +6,71 @@
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+import { AUTHORING_CONVENTIONS_LINK } from './authoring-conventions.js';
+
+export const DELTA_FORMAT_REFERENCE_FILE = 'references/delta-format.md';
+export const DELTA_FORMAT_REFERENCE = `# Delta spec format
+
+A delta spec expresses the *intended changes* to main specs using labeled sections. Each delta spec file contains sections like:
+
+- \`## ADDED Requirements\` - New requirements to add
+- \`## MODIFIED Requirements\` - Changes to existing requirements
+- \`## REMOVED Requirements\` - Requirements to remove
+- \`## RENAMED Requirements\` - Requirements to rename (FROM:/TO: format)
+
+## Worked example
+
+\`\`\`markdown
+## ADDED Requirements
+
+### Requirement: New Feature
+The system SHALL do something new.
+
+#### Scenario: Basic case
+- **WHEN** user does X
+- **THEN** system does Y
+
+## MODIFIED Requirements
+
+### Requirement: Existing Feature
+#### Scenario: New scenario to add
+- **WHEN** user does A
+- **THEN** system does B
+
+## REMOVED Requirements
+
+### Requirement: Deprecated Feature
+
+## RENAMED Requirements
+
+- FROM: \\\`### Requirement: Old Name\\\`
+- TO: \\\`### Requirement: New Name\\\`
+\`\`\`
+
+## Key principle: intelligent merging
+
+Unlike programmatic merging, you can apply **partial updates**:
+
+- To add a scenario, just include that scenario under MODIFIED - don't copy existing scenarios
+- The delta represents *intent*, not a wholesale replacement
+- Use your judgment to merge changes sensibly
+`;
 
 export function getSyncSpecsSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-sync-specs',
-    description: 'Sync delta specs from a change to main specs. Use when the user wants to update main specs with changes from a delta spec, without archiving the change.',
+    description: 'Merge a change\'s delta specs into the main specs in place, without archiving. Use when the user wants main specs updated now but the change kept active; to sync and finalize together use openspec-archive-change instead.',
     instructions: `Sync delta specs from a change to main specs.
 
 This is an **agent-driven** operation - you will read delta specs and directly edit main specs to apply the changes. This allows intelligent merging (e.g., adding a scenario without copying the entire requirement).
 
 ${STORE_SELECTION_GUIDANCE}
 
-**Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+${AUTHORING_CONVENTIONS_LINK}
+
+**Use when:** the user wants main specs updated from a change's deltas now, but the change kept active. To sync and finalize together, use \`openspec-archive-change\`.
+
+**Inputs:** optionally a change name. If omitted, infer it from context; if vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
@@ -87,41 +140,7 @@ ${STORE_SELECTION_GUIDANCE}
    - Which capabilities were updated
    - What changes were made (requirements added/modified/removed/renamed)
 
-**Delta Spec Format Reference**
-
-\`\`\`markdown
-## ADDED Requirements
-
-### Requirement: New Feature
-The system SHALL do something new.
-
-#### Scenario: Basic case
-- **WHEN** user does X
-- **THEN** system does Y
-
-## MODIFIED Requirements
-
-### Requirement: Existing Feature
-#### Scenario: New scenario to add
-- **WHEN** user does A
-- **THEN** system does B
-
-## REMOVED Requirements
-
-### Requirement: Deprecated Feature
-
-## RENAMED Requirements
-
-- FROM: \`### Requirement: Old Name\`
-- TO: \`### Requirement: New Name\`
-\`\`\`
-
-**Key Principle: Intelligent Merging**
-
-Unlike programmatic merging, you can apply **partial updates**:
-- To add a scenario, just include that scenario under MODIFIED - don't copy existing scenarios
-- The delta represents *intent*, not a wholesale replacement
-- Use your judgment to merge changes sensibly
+See \`references/delta-format.md\` for the full delta spec format (ADDED/MODIFIED/REMOVED/RENAMED) and a worked example.
 
 **Output On Success**
 
@@ -146,7 +165,16 @@ Main specs are now updated. The change remains active - archive when implementat
 - Preserve existing content not mentioned in delta
 - If something is unclear, ask for clarification
 - Show what you're changing as you go
-- The operation should be idempotent - running twice should give same result`,
+- The operation should be idempotent - running twice should give same result
+
+**Success:** every ADDED/MODIFIED/REMOVED/RENAMED section from each delta spec is reflected in the corresponding main spec, unmentioned content is preserved, and a second run would make no further edits (idempotent).
+
+**Failure & recovery**
+- **Ambiguous or missing change name:** run \`openspec list --json\` and prompt with AskUserQuestion; never auto-select.
+- **No delta specs found:** inform the user and stop rather than editing anything.
+- **A delta section is unclear or conflicts with the main spec:** ask for clarification before editing; do not guess a merge.
+
+**Related:** \`openspec-archive-change\` to finalize the change once specs are synced and implementation is complete.`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
