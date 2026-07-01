@@ -6,18 +6,23 @@
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+import { AUTHORING_CONVENTIONS_LINK } from './authoring-conventions.js';
 
 export function getSyncSpecsSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-sync-specs',
-    description: 'Sync delta specs from a change to main specs. Use when the user wants to update main specs with changes from a delta spec, without archiving the change.',
+    description: 'Merge a change\'s delta specs into the main specs in place, without archiving. Use when the user wants main specs updated now but the change kept active; to sync and finalize together use openspec-archive-change instead.',
     instructions: `Sync delta specs from a change to main specs.
 
 This is an **agent-driven** operation - you will read delta specs and directly edit main specs to apply the changes. This allows intelligent merging (e.g., adding a scenario without copying the entire requirement).
 
 ${STORE_SELECTION_GUIDANCE}
 
-**Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+${AUTHORING_CONVENTIONS_LINK}
+
+**Use when:** the user wants main specs updated from a change's deltas now, but the change kept active. To sync and finalize together, use \`openspec-archive-change\`.
+
+**Inputs:** optionally a change name. If omitted, infer it from context; if vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
@@ -146,7 +151,16 @@ Main specs are now updated. The change remains active - archive when implementat
 - Preserve existing content not mentioned in delta
 - If something is unclear, ask for clarification
 - Show what you're changing as you go
-- The operation should be idempotent - running twice should give same result`,
+- The operation should be idempotent - running twice should give same result
+
+**Success:** every ADDED/MODIFIED/REMOVED/RENAMED section from each delta spec is reflected in the corresponding main spec, unmentioned content is preserved, and a second run would make no further edits (idempotent).
+
+**Failure & recovery**
+- **Ambiguous or missing change name:** run \`openspec list --json\` and prompt with AskUserQuestion; never auto-select.
+- **No delta specs found:** inform the user and stop rather than editing anything.
+- **A delta section is unclear or conflicts with the main spec:** ask for clarification before editing; do not guess a merge.
+
+**Related:** \`openspec-archive-change\` to finalize the change once specs are synced and implementation is complete.`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },

@@ -41,6 +41,7 @@ import {
   getSkillTemplates,
   getCommandContents,
   generateSkillContent,
+  getSkillReferenceFiles,
   type ToolSkillStatus,
 } from './shared/index.js';
 import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
@@ -572,6 +573,11 @@ export class InitCommand {
 
             // Write the skill file
             await FileSystemUtils.writeFile(skillFile, skillContent);
+
+            // Emit any reference files the skill body links to (e.g. references/authoring-conventions.md)
+            for (const ref of getSkillReferenceFiles(template)) {
+              await FileSystemUtils.writeFile(path.join(skillDir, ref.relativePath), ref.content);
+            }
           }
         }
         if (!shouldGenerateSkills) {

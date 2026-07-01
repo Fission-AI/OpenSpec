@@ -6,16 +6,21 @@
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+import { AUTHORING_CONVENTIONS_LINK } from './authoring-conventions.js';
 
 export function getContinueChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-continue-change',
-    description: 'Continue working on an OpenSpec change by creating the next artifact. Use when the user wants to progress their change, create the next artifact, or continue their workflow.',
+    description: 'Generate the single next artifact in dependency order, then stop for review. Use when advancing an existing change one deliberate step at a time; to generate every remaining artifact in one pass use openspec-ff-change instead, or openspec-propose to create a change and all artifacts together.',
     instructions: `Continue working on a change by creating the next artifact.
 
 ${STORE_SELECTION_GUIDANCE}
 
-**Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+${AUTHORING_CONVENTIONS_LINK}
+
+**Use when:** advancing an existing change one artifact at a time, stopping after each for review. To generate every remaining artifact in one pass, use \`openspec-ff-change\`; to create a change and all artifacts together, use \`openspec-propose\`.
+
+**Inputs:** optionally a change name. If omitted, infer it from context; if vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
@@ -120,7 +125,16 @@ For other schemas, follow the \`instruction\` field from the CLI output.
 - Use the schema's artifact sequence, don't assume specific artifact names
 - **IMPORTANT**: \`context\` and \`rules\` are constraints for YOU, not content for the file
   - Do NOT copy \`<context>\`, \`<rules>\`, \`<project_context>\` blocks into the artifact
-  - These guide what you write, but should never appear in the output`,
+  - These guide what you write, but should never appear in the output
+
+**Success:** exactly one \`ready\` artifact was created at its \`resolvedOutputPath\`, \`openspec status --change "<name>"\` shows updated progress with newly unlocked artifacts, and (for spec artifacts) the content follows the authoring-conventions reference.
+
+**Failure & recovery**
+- **Ambiguous or missing change name:** run \`openspec list --json\` and prompt with AskUserQuestion; never auto-select.
+- **An artifact's context is unclear:** ask the user the specific question, then resume creating that same artifact.
+- **No artifacts are \`ready\` (all blocked):** show status and flag the schema/dependency issue rather than forcing a write.
+
+**Related:** \`openspec-continue-change\` again for the next artifact, or \`openspec-apply-change\` once all \`applyRequires\` artifacts are done.`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },

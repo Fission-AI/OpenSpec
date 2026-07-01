@@ -6,16 +6,21 @@
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+import { AUTHORING_CONVENTIONS_LINK } from './authoring-conventions.js';
 
 export function getFfChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-ff-change',
-    description: 'Fast-forward through OpenSpec artifact creation. Use when the user wants to quickly create all artifacts needed for implementation without stepping through each one individually.',
+    description: 'Fast-forward a change straight to apply-ready, generating every required artifact with minimal narration. Use when the user just wants everything needed to start implementing; for a fuller proposal-first pass use openspec-propose instead, or openspec-continue-change to advance one artifact at a time.',
     instructions: `Fast-forward through artifact creation - generate everything needed to start implementation in one go.
 
 ${STORE_SELECTION_GUIDANCE}
 
-**Input**: The user's request should include a change name (kebab-case) OR a description of what they want to build.
+${AUTHORING_CONVENTIONS_LINK}
+
+**Use when:** the user just wants every artifact generated quickly to reach apply-ready. For a fuller proposal-first pass, use \`openspec-propose\`; to advance one artifact at a time, use \`openspec-continue-change\`.
+
+**Inputs:** a change name (kebab-case) OR a description to derive one from. If neither is given, ask.
 
 **Steps**
 
@@ -103,7 +108,16 @@ After completing all artifacts, summarize:
 - Always read dependency artifacts before creating a new one
 - If context is critically unclear, ask the user - but prefer making reasonable decisions to keep momentum
 - If a change with that name already exists, suggest continuing that change instead
-- Verify each artifact file exists after writing before proceeding to next`,
+- Verify each artifact file exists after writing before proceeding to next
+
+**Success:** every artifact in \`applyRequires\` reports \`status: "done"\` in \`openspec status --change "<name>" --json\`, each artifact file exists at its \`resolvedOutputPath\`, and spec content follows the authoring-conventions reference (behavior contracts, not implementation detail).
+
+**Failure & recovery**
+- **A change with that name already exists:** do NOT overwrite; suggest advancing it with \`openspec-continue-change\`, or pick a new name.
+- **An artifact's context is unclear:** use the AskUserQuestion tool to resolve the specific gap, then resume creating that same artifact.
+- **A write fails or an artifact is missing on re-check:** re-read the \`resolvedOutputPath\` from instructions, rewrite that artifact, and re-run status before continuing.
+
+**Related:** \`openspec-apply-change\` to implement once apply-ready; \`openspec-propose\` for a fuller proposal-first pass.`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },

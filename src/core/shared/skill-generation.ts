@@ -30,6 +30,35 @@ import {
   type SkillTemplate,
 } from '../templates/skill-templates.js';
 import type { CommandContent } from '../command-generation/index.js';
+import {
+  AUTHORING_CONVENTIONS_REFERENCE,
+  AUTHORING_CONVENTIONS_REFERENCE_FILE,
+} from '../templates/workflows/authoring-conventions.js';
+
+/**
+ * A reference file a skill's body links to, emitted beside its `SKILL.md`.
+ * `relativePath` is relative to the skill folder (e.g. `references/authoring-conventions.md`).
+ */
+export interface SkillReferenceFile {
+  relativePath: string;
+  content: string;
+}
+
+/**
+ * Returns the reference files a skill needs, derived from what its body links
+ * to — so exactly the skills that reference a file get it emitted, and a skill
+ * can never link a reference that is not written beside it.
+ */
+export function getSkillReferenceFiles(template: SkillTemplate): SkillReferenceFile[] {
+  const files: SkillReferenceFile[] = [];
+  if (template.instructions.includes(AUTHORING_CONVENTIONS_REFERENCE_FILE)) {
+    files.push({
+      relativePath: AUTHORING_CONVENTIONS_REFERENCE_FILE,
+      content: AUTHORING_CONVENTIONS_REFERENCE,
+    });
+  }
+  return files;
+}
 
 /**
  * Skill template with directory name and workflow ID mapping.

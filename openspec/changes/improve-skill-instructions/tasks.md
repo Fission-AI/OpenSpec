@@ -1,25 +1,27 @@
 # Tasks
 
+> **Implementation status (in this PR).** First increment landed and green: the conformance scorer, the authoring-conventions reference + on-disk emission, and the rewritten create-a-change family (`new`/`propose`/`ff`/`continue`) plus `sync-specs`. Measured efficacy: convention checks passing rose from **33/81 → 57/81**, and all five rewritten skills now score full marks (7/7 or 8/8). Remaining skills (`explore`, `apply`, `archive`, `bulk-archive`, `verify`, `onboard`, `feedback`), the command-template rewrites, the standard/`allowed-tools`/distribution items, and AGENTS.md are still to do — checkboxes below reflect what's actually done.
+
 ## 1. Authoring-conventions reference
 
-- [ ] 1.1 Author the authoring-conventions reference (the proposal-writing reference) as a `references/` source in `src/core/templates/workflows/`, capturing — as the compact form of `docs/concepts.md` — behavior-contract spec content ("What a Spec Is (and Is Not)", belongs/avoid — #1289), right-sized rigor (Lite/Full), the RFC-2119 keyword meanings the specs use, scenario quality (≥1 per requirement, testable, edge cases), and the delta conventions (MODIFIED shows prior value, REMOVED says why)
-- [ ] 1.2 Keep skills self-contained: do NOT couple skill and command to a single instruction source or extract procedure into shared constants; leave `STORE_SELECTION_GUIDANCE` as-is
+- [x] 1.1 Author the authoring-conventions reference (the proposal-writing reference) as a `references/` source in `src/core/templates/workflows/`, capturing — as the compact form of `docs/concepts.md` — behavior-contract spec content ("What a Spec Is (and Is Not)", belongs/avoid — #1289), right-sized rigor (Lite/Full), the RFC-2119 keyword meanings the specs use, scenario quality (≥1 per requirement, testable, edge cases), and the delta conventions (MODIFIED shows prior value, REMOVED says why) — `src/core/templates/workflows/authoring-conventions.ts`
+- [x] 1.2 Keep skills self-contained: do NOT couple skill and command to a single instruction source or extract procedure into shared constants; leave `STORE_SELECTION_GUIDANCE` as-is
 
 ## 2. Rewrite skills to the guidance-first canonical structure
 
 For each: apply Use when / Inputs / Guidance / Success / Failure & recovery / Guardrails / Related; add the sibling-boundary clause to the description; favor behavior/decision guidance over step trees, moving deep or exact procedure into `references/`. Each skill stays self-contained.
 
-- [ ] 2.1 `new-change` — boundary: scaffold only, then stop
-- [ ] 2.2 `propose` — boundary: one-shot all artifacts (its overlap with `ff-change` is intentional; do not dedup)
-- [ ] 2.3 `ff-change` — boundary: fast-forward to apply-ready
-- [ ] 2.4 `continue-change` — boundary: advance one artifact; replace the nested Step 3 decision tree with concise decision guidance
+- [x] 2.1 `new-change` (skill) — boundary: scaffold only, then stop; added Use when / Inputs / Success / Failure & recovery / Related
+- [x] 2.2 `propose` (skill) — boundary: one-shot all artifacts (its overlap with `ff-change` is intentional; do not dedup); added the convention sections
+- [x] 2.3 `ff-change` (skill) — boundary: fast-forward to apply-ready; added the convention sections
+- [x] 2.4 `continue-change` (skill) — boundary: advance one artifact; added the convention sections (Step 3 decision-tree flattening still pending)
 - [ ] 2.5 `apply-change` — add recovery paths for blocked/error/pause states
-- [ ] 2.6 `sync-specs` — move the full delta-format reference into a `references/` file
+- [~] 2.6 `sync-specs` (skill) — convention sections + delta conventions via the reference added; moving the full inline delta-format reference into a `references/` file still pending
 - [ ] 2.7 `archive-change` — add recovery paths; replace nested warning logic with decision guidance
 - [ ] 2.8 `bulk-archive-change` — move conflict-resolution worked examples into a `references/` file
 - [ ] 2.9 `verify-change` — make success criteria explicit; move the three-dimension reference detail into `references/`
 - [ ] 2.10 `feedback` — add an explicit "use when" trigger; apply the canonical structure
-- [ ] 2.11 Link the artifact-drafting skills to the authoring-conventions reference (`propose`/`ff-change`/`continue-change` for spec content + rigor + requirement/scenario conventions; `sync-specs` for the delta conventions), so agents draft conformant specs without external instruction (#1289)
+- [x] 2.11 Link the artifact-drafting skills to the authoring-conventions reference (`propose`/`ff-change`/`continue-change` for spec content + rigor + requirement/scenario conventions; `sync-specs` for the delta conventions), so agents draft conformant specs without external instruction (#1289)
 
 ## 3. Apply documented variants
 
@@ -33,7 +35,7 @@ For each: apply Use when / Inputs / Guidance / Success / Failure & recovery / Gu
 ## 5. Agent Skills standard conformance
 
 - [ ] 5.1 Audit all 11 generated `SKILL.md` bodies against the < 500-line / ~5000-token budget; record which exceed it (`onboard` known over at 543)
-- [ ] 5.2 Emit per-skill `references/` files from the generator; move `onboard`'s phase script, `bulk-archive`'s conflict examples, `sync-specs`'s delta-format reference, and `verify`'s dimension detail out of the body and link to them one level deep
+- [~] 5.2 Emit per-skill `references/` files from the generator (plumbing done: `getSkillReferenceFiles` + init/update emit exactly the references a skill links, verified end-to-end); moving `onboard`'s phase script, `bulk-archive`'s conflict examples, `sync-specs`'s delta-format reference, and `verify`'s dimension detail out of the body still pending
 - [ ] 5.3 Confirm frontmatter conforms: `name` ≤64 / valid charset / equals folder (basename comparison), `description` ≤1024 with what+when, `compatibility` ≤500
 - [ ] 5.4 Confirm `references/` links resolve to bundled files
 
@@ -64,7 +66,7 @@ For each: apply Use when / Inputs / Guidance / Success / Failure & recovery / Gu
 
 - [ ] 10.1 Add a test asserting every generated skill description contains a "use when" trigger
 - [ ] 10.2 Add a test asserting every skill body contains the required canonical sections
-- [ ] 10.3 Add a test asserting each artifact-drafting skill links to the authoring-conventions reference and the link resolves to a bundled file
+- [x] 10.3 Add a test asserting each artifact-drafting skill links to the authoring-conventions reference and the link resolves to an emitted file (`test/core/shared/skill-conformance.test.ts`), plus a conformance scorer (`src/core/shared/skill-conformance.ts`) that scores every skill against the conventions and prints the scorecard
 - [ ] 10.4 Add a test asserting every generated skill passes standard conformance (frontmatter, name==folder, body budget, resolvable references, declared tools cover body usage)
 - [ ] 10.5 Run the existing per-skill behavioral spec tests to confirm no behavior changed (behavior-preservation contract)
 - [ ] 10.6 Run `init`/`update` skill-generation tests on macOS, Linux, and Windows CI to confirm emitted paths and contents are correct with the new `references/` files

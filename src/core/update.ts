@@ -22,6 +22,7 @@ import {
   getSkillTemplates,
   getCommandContents,
   generateSkillContent,
+  getSkillReferenceFiles,
   getToolsWithSkillsDir,
   type ToolVersionStatus,
 } from './shared/index.js';
@@ -200,6 +201,11 @@ export class UpdateCommand {
             const transformer = (tool.value === 'opencode' || tool.value === 'pi') ? transformToHyphenCommands : undefined;
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
+
+            // Emit any reference files the skill body links to (e.g. references/authoring-conventions.md)
+            for (const ref of getSkillReferenceFiles(template)) {
+              await FileSystemUtils.writeFile(path.join(skillDir, ref.relativePath), ref.content);
+            }
           }
 
           removedDeselectedSkillCount += await this.removeUnselectedSkillDirs(skillsDir, desiredWorkflows);
@@ -694,6 +700,11 @@ export class UpdateCommand {
             const transformer = (tool.value === 'opencode' || tool.value === 'pi') ? transformToHyphenCommands : undefined;
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
+
+            // Emit any reference files the skill body links to (e.g. references/authoring-conventions.md)
+            for (const ref of getSkillReferenceFiles(template)) {
+              await FileSystemUtils.writeFile(path.join(skillDir, ref.relativePath), ref.content);
+            }
           }
         }
 
