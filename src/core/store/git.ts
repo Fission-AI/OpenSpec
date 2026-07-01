@@ -169,6 +169,34 @@ export async function gitOriginUrl(storeRoot: string): Promise<string | null> {
   return url ? url : null;
 }
 
+export interface GitTrackingDrift {
+  ahead: number;
+  behind: number;
+}
+
+/**
+ * Ahead/behind counts of HEAD against its configured upstream tracking
+ * ref, read from local refs only — no fetch, no network. The comparison
+ * is therefore against the current local upstream ref (typically last
+ * updated by fetch, but it may be a local branch), not the live remote.
+ * Null when there is no repository, no upstream, a detached HEAD, or Git
+ * is unavailable: the absence of a comparison is not drift.
+ */
+export async function gitTrackingDrift(storeRoot: string): Promise<GitTrackingDrift | null> {
+  const stdout = await gitProbe(storeRoot, [
+    'rev-list',
+    '--left-right',
+    '--count',
+    '@{upstream}...HEAD',
+  ]);
+  if (stdout === null) return null;
+  const match = stdout.trim().match(/^(\d+)\s+(\d+)$/);
+  if (!match) return null;
+  // `--left-right` orders the counts by side of the `...`: left is @{upstream}
+  // (commits we lack = behind), right is HEAD (commits upstream lacks = ahead).
+  return { behind: Number(match[1]), ahead: Number(match[2]) };
+}
+
 export async function gitDirectoryHasTrackedFiles(
   storeRoot: string,
   relativeDir: string
