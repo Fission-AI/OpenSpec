@@ -37,7 +37,7 @@ Enhance change validation to detect planning issues early:
 - missing dependencies
 - dependency cycles
 - archive ordering violations (for example, attempting to archive a change before all `dependsOn` predecessors are archived)
-- unmatched capability markers (for example, `requires` marker with no provider in active history emits non-blocking warning)
+- unmatched capability markers (for example, `requires` marker with no active or archived provider evidence emits non-blocking warning; archived suppression requires explicit change-level provider evidence)
 - overlap warnings when active changes touch the same capability
 
 Validation should fail only for deterministic blockers (for example cycles or missing required dependencies), and keep overlap checks as actionable warnings.
