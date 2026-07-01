@@ -5,8 +5,8 @@
 ## 1. The `/opsx:update` skill
 
 - [ ] 1.1 Create `src/core/templates/workflows/update-change.ts` with `getUpdateChangeSkillTemplate()` (skill) and `getOpsxUpdateCommandTemplate()` (command), mirroring `continue-change.ts`.
-- [ ] 1.2 Instruction body (see design "The skill, written by hand"): resolve the change (infer / `openspec list --json` / ask) → `openspec status --change <id> --json` → read the relevant artifacts → apply the requested edit → reconcile the change's other existing artifacts in any direction → confirm and apply one artifact at a time. Read artifact ids and resolved paths from the status JSON only.
-- [ ] 1.3 Encode the guardrails: (a) planning artifacts only — never edit code, hand off to `/opsx:apply`; (b) schema-driven — no branching on literal `proposal`/`specs`/`design`/`tasks`; ids/paths come from `openspec status`; (c) revise only existing artifacts — defer not-yet-created ones to `/opsx:continue`; (d) intent change → recommend `/opsx:new` (the "Update vs. Start Fresh" heuristic in `docs/opsx.md`).
+- [ ] 1.2 Instruction body (see design "The skill, written by hand"): resolve the change (infer / `openspec list --json` / ask) → `openspec status --change <id> --json` → read the relevant artifacts → apply the requested edit → reconcile the change's other existing artifacts in any direction → confirm and apply one artifact at a time. Read artifact ids from the status JSON only, and write to `artifactPaths.<id>.existingOutputPaths` (never to a glob `resolvedOutputPath`).
+- [ ] 1.3 Encode the guardrails: (a) planning artifacts only — never edit code, hand off to `/opsx:apply`; (b) schema-driven — no branching on literal `proposal`/`specs`/`design`/`tasks`; ids/paths come from `openspec status`; (c) revise only existing files (`existingOutputPaths`) — defer not-yet-created artifacts, and new files under a glob artifact, to `/opsx:continue`; (d) intent change → recommend `/opsx:new` (the "Update vs. Start Fresh" heuristic in `docs/opsx.md`).
 - [ ] 1.4 Register the skill/command and add it to the expanded-workflow profile alongside `continue`/`ff`/`verify`.
 
 ## 2. Docs & supersede the stub
@@ -20,6 +20,7 @@
 - [ ] 3.1 Template generation snapshot for the skill and command templates.
 - [ ] 3.2 Assert the template's control flow contains NO hardcoded artifact-name branching (the anti-#777 guard): artifact ids must be read from `openspec status` JSON.
 - [ ] 3.3 Assert the template instructs planning-artifacts-only with a hand-off to `/opsx:apply` for code, and never advances the build frontier.
+- [ ] 3.4 Assert the template instructs writing to `existingOutputPaths` (the glob-expanded concrete files) and not to a glob `resolvedOutputPath`.
 
 ## 4. End-to-end verification
 

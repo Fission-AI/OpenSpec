@@ -9,7 +9,7 @@ This is the most-requested missing capability in the tracker. It is one gap with
 The whole feature is a single new workflow skill, `/opsx:update`. Written by hand, its instruction set is short:
 
 1. **Understand the request** — what the user wants to revise (or, with no specific ask, "review this change for coherence").
-2. **Get the artifacts** — run `openspec status --change <id> --json` to learn which artifacts exist, their status, and their resolved paths. (`openspec list --json` to pick the change when it isn't given.)
+2. **Get the artifacts** — run `openspec status --change <id> --json`. Its `artifactPaths` map reports, per artifact, which files exist and where: `existingOutputPaths` is the concrete file list to edit — already expanded for glob artifacts like `specs/**/*.md`. (`openspec list --json` to pick the change when it isn't given.)
 3. **Read and revise** — read the relevant artifacts, make the requested edit, then check the change's **other** artifacts against it and propose any follow-on edits needed to keep the plan coherent.
 4. **Confirm and apply** — show each proposed revision, write only after the user confirms.
 

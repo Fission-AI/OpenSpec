@@ -2,7 +2,7 @@
 
 ## Context
 
-OPSX models a change as a small DAG of planning artifacts. Each schema declares artifacts with `requires` edges ([schemas/spec-driven/schema.yaml](../../../schemas/spec-driven/schema.yaml)); `ArtifactGraph` ([src/core/artifact-graph/graph.ts](../../../src/core/artifact-graph/graph.ts)) topologically sorts them, and `openspec status --change <id> --json` already reports, per artifact: its `status` (`done`/`ready`/`blocked`), its `outputPath`, and — via `artifactPaths` — its resolved and existing on-disk paths, plus the change's `schemaName` and `isComplete`. `openspec list --json` lists changes by recency.
+OPSX models a change as a small DAG of planning artifacts. Each schema declares artifacts with `requires` edges ([schemas/spec-driven/schema.yaml](../../../schemas/spec-driven/schema.yaml)); `ArtifactGraph` ([src/core/artifact-graph/graph.ts](../../../src/core/artifact-graph/graph.ts)) topologically sorts them, and `openspec status --change <id> --json` already reports, per artifact: its `status` (`done`/`ready`/`blocked`), its `outputPath`, and — via the top-level `artifactPaths` map — its `resolvedOutputPath` and `existingOutputPaths`, plus the change's `schemaName` and `isComplete`. The two path fields differ in a way that matters for a write operation: `existingOutputPaths` is the concrete files that exist on disk (for a glob artifact such as `specs/**/*.md`, the glob already expanded to real files); `resolvedOutputPath` is the change-dir-joined declared path, which for a glob artifact is still the glob (`.../specs/**/*.md`) and is therefore **not** a write target. `/opsx:update` edits the files in `existingOutputPaths`. `openspec list --json` lists changes by recency.
 
 That is everything an update skill needs. The artifacts are a handful of markdown files on disk; the agent can read them. So `/opsx:update` is built as a thin skill over the **existing** CLI, in the same shape as `continue-change.ts` (select change → `openspec status --json` → act).
 
@@ -36,8 +36,11 @@ Revise a change's planning artifacts and keep them coherent. Never edit code.
 
 2. Get the artifacts.
    - Run `openspec status --change "<id>" --json`.
-   - Read `artifacts[]` (ids + status) and `artifactPaths` (resolved paths). These come
-     from the active schema — do not assume the artifact ids or paths.
+   - Read `artifacts[]` (ids + status) and the `artifactPaths` map. These come from the
+     active schema — do not assume the artifact ids or paths.
+   - The files to edit are `artifactPaths.<id>.existingOutputPaths` (already glob-expanded
+     for artifacts like `specs/**/*.md`). Do not write to `resolvedOutputPath`: for a glob
+     artifact it is still the glob pattern, not a real file.
 
 3. Understand the request.
    - If the user named a change ("the design now uses X"), that is the starting edit.
@@ -70,7 +73,7 @@ The `spec-driven` artifact names may appear once, as a worked *example* of how t
 The artifact graph has a build *order*, but "what needs updating after an edit" is not strictly downstream. If `design` changes, the `proposal` it elaborates may need to change too; if `tasks` reveal a missing capability, the `specs` may need a new requirement. The skill therefore reads the change's artifacts and reconciles them in whatever direction the edit demands. Build order is still useful as a default *reading* order and for presenting fixes, but it is not a constraint on which artifacts may be revised. This is why the design does not add a one-directional `getDownstream` / `--impact` primitive: it would encode the wrong model.
 
 ### 2. Lean on the existing `status` command
-`openspec status --change <id> --json` already returns the artifact set, per-artifact status, and resolved paths (`artifactPaths.<id>.resolvedOutputPath` / `existingOutputPaths`). The skill needs nothing more to know what exists and where it lives. Picking the change reuses `openspec list --json`, exactly like `/opsx:continue`. No new CLI surface is introduced.
+`openspec status --change <id> --json` already returns the artifact set, per-artifact status, and, in the `artifactPaths` map, the on-disk paths. The skill writes to `artifactPaths.<id>.existingOutputPaths` — the concrete files, glob-expanded — and deliberately not to `resolvedOutputPath`, which for a glob artifact is the pattern itself and not a file. That is everything the skill needs to know what exists and where it lives; no new CLI field is required. Picking the change reuses `openspec list --json`, exactly like `/opsx:continue`. No new CLI surface is introduced.
 
 ### 3. Why not the heavier machinery (digests, ledger, reconcile, impact)
 The first draft proposed SHA-256 content digests, a per-change baseline ledger in `.openspec.yaml`, an `openspec reconcile` write op, a derived drift signal, and a `status --impact` selector — so the CLI could tell the agent *which* artifacts are stale without the agent reading them.

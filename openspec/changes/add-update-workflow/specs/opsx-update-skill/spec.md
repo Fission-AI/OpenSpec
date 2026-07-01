@@ -35,7 +35,7 @@ The `/opsx:update` skill SHALL learn which artifacts exist and where they live b
 #### Scenario: Reads the artifact set from status
 
 - **WHEN** the skill needs to know which artifacts a change has and where they are
-- **THEN** it runs `openspec status --change <id> --json` and uses the reported artifact ids, statuses, and resolved paths
+- **THEN** it runs `openspec status --change <id> --json` and uses the reported artifact ids, statuses, and the `artifactPaths` map (`existingOutputPaths` for the files to edit)
 - **AND** it does not assume the artifact ids or output paths
 
 #### Scenario: Does not branch on hardcoded artifact names
@@ -53,8 +53,20 @@ The `/opsx:update` skill SHALL learn which artifacts exist and where they live b
 #### Scenario: Resolve artifact paths cross-platform
 
 - **WHEN** the skill reads or writes an artifact on macOS, Linux, or Windows
-- **THEN** it uses the resolved path provided by the CLI status output
+- **THEN** it uses the `existingOutputPaths` provided by the CLI status output
 - **AND** it does not assume forward-slash separators
+
+#### Scenario: Edit the concrete files of a glob artifact
+
+- **WHEN** an artifact's declared output path is a glob (for example `specs/**/*.md`)
+- **THEN** the skill edits the concrete files reported in that artifact's `existingOutputPaths`
+- **AND** it does not write to `resolvedOutputPath`, which for a glob artifact remains the glob pattern rather than a real file
+
+#### Scenario: A new file under a glob artifact is deferred to continue
+
+- **WHEN** keeping the change coherent would require a new file under a glob artifact that does not exist yet (for example a spec for a not-yet-captured capability)
+- **THEN** the skill revises only the files already present in `existingOutputPaths`
+- **AND** it points the user to `/opsx:continue`/`/opsx:propose` to create the new file rather than inventing a path from the glob
 
 ### Requirement: Bidirectional Coherence Review
 
