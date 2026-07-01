@@ -1,26 +1,25 @@
 # Tasks
 
-## 1. Shared foundation
+## 1. Authoring-conventions reference
 
-- [ ] 1.1 Add `CHANGE_SELECTION_GUIDANCE`, `ARTIFACT_LOOP_GUIDANCE`, `CONTEXT_RULES_GUARDRAIL`, `SPEC_CONTENT_GUIDANCE`, and `SPEC_CONVENTIONS_GUIDANCE` shared constants beside `STORE_SELECTION_GUIDANCE` in `src/core/templates/workflows/`; author `SPEC_CONTENT_GUIDANCE` as the compact form of `docs/concepts.md`'s "What a Spec Is (and Is Not)" belongs/avoid lists (#1289), and `SPEC_CONVENTIONS_GUIDANCE` as the compact form of the rigor (Lite/Full), RFC-2119 keyword-meaning, scenario-quality, and delta-convention rules from `concepts.md`
-- [ ] 1.2 Refactor each workflow module so the skill and command templates derive their shared body from one instruction source, differing only in invocation/metadata framing
-- [ ] 1.3 Confirm generated skill files and command files are byte-identical in shared regions after the refactor
+- [ ] 1.1 Author the authoring-conventions reference (the proposal-writing reference) as a `references/` source in `src/core/templates/workflows/`, capturing — as the compact form of `docs/concepts.md` — behavior-contract spec content ("What a Spec Is (and Is Not)", belongs/avoid — #1289), right-sized rigor (Lite/Full), the RFC-2119 keyword meanings the specs use, scenario quality (≥1 per requirement, testable, edge cases), and the delta conventions (MODIFIED shows prior value, REMOVED says why)
+- [ ] 1.2 Keep skills self-contained: do NOT couple skill and command to a single instruction source or extract procedure into shared constants; leave `STORE_SELECTION_GUIDANCE` as-is
 
-## 2. Rewrite procedural skills to the canonical structure
+## 2. Rewrite skills to the guidance-first canonical structure
 
-For each: apply Use when / Inputs / Steps / Success / Failure & recovery / Guardrails / Related; add the sibling-boundary clause to the description; reference shared snippets instead of inline copies.
+For each: apply Use when / Inputs / Guidance / Success / Failure & recovery / Guardrails / Related; add the sibling-boundary clause to the description; favor behavior/decision guidance over step trees, moving deep or exact procedure into `references/`. Each skill stays self-contained.
 
 - [ ] 2.1 `new-change` — boundary: scaffold only, then stop
-- [ ] 2.2 `propose` — boundary: one-shot all artifacts; replace the 68 lines (87%) duplicated from `ff-change` with a reference to `ARTIFACT_LOOP_GUIDANCE`
+- [ ] 2.2 `propose` — boundary: one-shot all artifacts (its overlap with `ff-change` is intentional; do not dedup)
 - [ ] 2.3 `ff-change` — boundary: fast-forward to apply-ready
-- [ ] 2.4 `continue-change` — boundary: advance one artifact; flatten the Step 3 decision tree
+- [ ] 2.4 `continue-change` — boundary: advance one artifact; replace the nested Step 3 decision tree with concise decision guidance
 - [ ] 2.5 `apply-change` — add recovery paths for blocked/error/pause states
-- [ ] 2.6 `sync-specs` — move the full delta-format reference into a separated section
-- [ ] 2.7 `archive-change` — add recovery paths; flatten nested warning logic
-- [ ] 2.8 `bulk-archive-change` — move conflict-resolution worked examples into a separated reference section
-- [ ] 2.9 `verify-change` — make success criteria explicit; separate the three-dimension reference detail
+- [ ] 2.6 `sync-specs` — move the full delta-format reference into a `references/` file
+- [ ] 2.7 `archive-change` — add recovery paths; replace nested warning logic with decision guidance
+- [ ] 2.8 `bulk-archive-change` — move conflict-resolution worked examples into a `references/` file
+- [ ] 2.9 `verify-change` — make success criteria explicit; move the three-dimension reference detail into `references/`
 - [ ] 2.10 `feedback` — add an explicit "use when" trigger; apply the canonical structure
-- [ ] 2.11 Reference the authoring-guidance snippets from the spec-authoring skills: `propose`/`ff-change`/`continue-change` embed `SPEC_CONTENT_GUIDANCE` + `SPEC_CONVENTIONS_GUIDANCE`; `sync-specs` embeds `SPEC_CONVENTIONS_GUIDANCE` (delta conventions) so agents draft conformant specs without external instruction (#1289)
+- [ ] 2.11 Link the artifact-drafting skills to the authoring-conventions reference (`propose`/`ff-change`/`continue-change` for spec content + rigor + requirement/scenario conventions; `sync-specs` for the delta conventions), so agents draft conformant specs without external instruction (#1289)
 
 ## 3. Apply documented variants
 
@@ -59,15 +58,15 @@ For each: apply Use when / Inputs / Steps / Success / Failure & recovery / Guard
 ## 9. Always-on agent guidance
 
 - [ ] 9.1 Populate `openspec/AGENTS.md` to name the workflow skills and when each applies, the core CLI commands (`list`/`status`/`instructions`/`validate`), reliance on their JSON output, and that generated files are managed by `openspec update` — per `docs-agent-instructions`
-- [ ] 9.2 Carry (or link to) the core authoring conventions on `AGENTS.md` — behavior-contract spec content, right-sized rigor, requirement/scenario conventions, and delta operations — reusing the same `SPEC_CONTENT_GUIDANCE`/`SPEC_CONVENTIONS_GUIDANCE` snippets so skill and non-skill agents get identical guidance
+- [ ] 9.2 Carry (or link to) the core authoring conventions on `AGENTS.md` — behavior-contract spec content, right-sized rigor, requirement/scenario conventions, and delta operations — from the same authoring-conventions reference so skill and non-skill agents get identical guidance
 
 ## 10. Validation
 
 - [ ] 10.1 Add a test asserting every generated skill description contains a "use when" trigger
-- [ ] 10.2 Add a test asserting every procedural skill body contains the required canonical sections
-- [ ] 10.3 Add a test asserting that, after stripping surface-specific framing, each skill body and its command body are identical (single-source)
+- [ ] 10.2 Add a test asserting every skill body contains the required canonical sections
+- [ ] 10.3 Add a test asserting each artifact-drafting skill links to the authoring-conventions reference and the link resolves to a bundled file
 - [ ] 10.4 Add a test asserting every generated skill passes standard conformance (frontmatter, name==folder, body budget, resolvable references, declared tools cover body usage)
 - [ ] 10.5 Run the existing per-skill behavioral spec tests to confirm no behavior changed (behavior-preservation contract)
-- [ ] 10.6 Run `init`/`update` skill-generation tests on macOS, Linux, and Windows CI to confirm emitted paths and contents are unchanged by the shared-source refactor and the new `references/` files
-- [ ] 10.7 Add a test asserting the spec-authoring skills embed the authoring-guidance snippets (`propose`/`ff-change`/`continue-change` → content + conventions; `sync-specs` → conventions) and that each snippet still lists the same items as its `docs/concepts.md` source (belongs/avoid, rigor, RFC-2119 meanings, scenario quality, delta conventions), so skills and docs cannot drift (#1289)
+- [ ] 10.6 Run `init`/`update` skill-generation tests on macOS, Linux, and Windows CI to confirm emitted paths and contents are correct with the new `references/` files
+- [ ] 10.7 Add a test asserting the authoring-conventions reference still lists the same items as its `docs/concepts.md` source (belongs/avoid, rigor, RFC-2119 meanings, scenario quality, delta conventions), so the reference and the docs cannot drift (#1289)
 - [ ] 10.8 `openspec validate improve-skill-instructions --strict` passes

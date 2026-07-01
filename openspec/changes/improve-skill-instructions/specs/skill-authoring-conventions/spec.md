@@ -18,15 +18,16 @@ Each skill's description SHALL state when to use the skill and SHALL distinguish
 - **THEN** its description SHALL contain an explicit "use when" trigger condition
 
 ### Requirement: Canonical Instruction Structure
-Each procedural skill SHALL present its instructions using the canonical section taxonomy so structure is consistent and parseable across the skill set.
+Each skill SHALL present its instructions using the canonical section taxonomy so structure is consistent and parseable across the skill set, and SHALL favor behavior and decision guidance over long step-by-step procedure.
 
-#### Scenario: Procedural skill sections
-- **WHEN** a procedural skill is generated
-- **THEN** its instructions SHALL include, in order: a "use when" line, inputs, numbered steps, success criteria, failure-and-recovery guidance, guardrails, and a related-skills reference
+#### Scenario: Skill sections
+- **WHEN** a skill is generated
+- **THEN** its instructions SHALL include a "use when" line, the inputs it expects, task guidance, success criteria, failure-and-recovery guidance, guardrails, and a related-skills reference
+- **AND** the task guidance SHALL favor behavior and decision criteria over long "if this then that" step trees, moving exact or deep procedure into a linked reference
 
 #### Scenario: Documented structural variants
 - **WHEN** a skill is intentionally non-procedural (a thinking stance or a guided tutorial)
-- **THEN** it MAY use a documented variant structure instead of numbered steps
+- **THEN** it MAY use a documented variant structure instead of the standard task guidance
 - **AND** it SHALL still declare an explicit completion condition, guardrails, and a related-skills reference
 
 ### Requirement: Explicit Success Criteria
@@ -49,18 +50,18 @@ Each skill that can pause, block, or error SHALL name those states and SHALL pai
 - **THEN** it SHALL describe the action that resumes or resolves that state
 - **AND** the recovery action SHALL be concrete (a command to run, a skill to invoke, or an input to gather), not a generic instruction to "try again"
 
-### Requirement: Single-Source Instruction Generation
-A skill and its corresponding command SHALL derive their shared instruction text from one source, so the two cannot drift.
+### Requirement: Self-Contained Skills With Referenced Conventions
+Each skill SHALL be self-contained and rewritable on its own, and SHALL express shared authoring conventions by linking to a common reference rather than by re-encoding them inline, so a skill can be revised without editing others while conventions stay consistent.
 
-#### Scenario: Skill and command share a source
-- **WHEN** a workflow exposes both a skill and a command
-- **THEN** the body shared by both SHALL be authored once and reused
-- **AND** after removing surface-specific framing (invocation syntax and metadata), the skill body and command body SHALL be identical
+#### Scenario: Skills are independently rewritable
+- **WHEN** a skill is generated
+- **THEN** its body SHALL be readable and rewritable on its own, without depending on another skill's body
+- **AND** duplication of procedure across skills SHALL be treated as acceptable, not a defect to remove by coupling skills to a shared instruction source
 
-#### Scenario: Shared guidance defined once
-- **WHEN** guidance is common to multiple skills (store selection, change selection, the artifact-creation loop, the context-and-rules guardrail, or the spec-content guidance)
-- **THEN** that guidance SHALL be defined in a single shared location and referenced
-- **AND** SHALL NOT be copied inline into individual skills
+#### Scenario: Shared conventions live in a reference
+- **WHEN** an authoring convention applies to more than one skill (for example how to write a proposal, or what belongs in a spec)
+- **THEN** that convention SHALL live in a `references/` file that the relevant skills link to
+- **AND** the skill body SHALL point the agent to the reference rather than encode the convention as exact inline steps
 
 ### Requirement: Lean Always-Loaded Body
 Each skill SHALL keep its always-read body within the Agent Skills standard's recommended budget and SHALL move deep reference material to on-demand files, so reading a skill costs no more context than the task requires.
@@ -83,12 +84,12 @@ Each skill SHALL reference the related or next skill in the workflow, so multi-s
 - **WHEN** a skill completes its work and a natural next or sibling skill exists
 - **THEN** the skill SHALL name that related skill and the condition under which to use it
 
-### Requirement: Embedded Authoring Guidance
-Each skill that drafts or updates OpenSpec artifacts SHALL embed the authoring guidance the project docs require but that an agent cannot infer from the workflow procedure alone, so an agent following the skill produces conformant artifacts without being separately instructed. This guidance SHALL be drawn from single shared sources that agree with the project concepts documentation, so the skills and the docs cannot drift.
+### Requirement: Authoring-Conventions Reference
+Each skill that drafts or updates OpenSpec artifacts SHALL point the agent to an authoring-conventions reference that captures the guidance the project docs require but that an agent cannot infer from the workflow alone, so an agent following the skill produces conformant artifacts without being separately instructed. The reference SHALL agree with the project concepts documentation, so the skills and the docs cannot drift.
 
 #### Scenario: Spec content is a behavior contract
-- **WHEN** a skill produces or edits a capability spec or spec delta (for example `propose`, `ff-change`, `continue-change`, `sync-specs`)
-- **THEN** its instructions SHALL state what belongs in a spec (observable behavior; inputs, outputs, and error conditions; external constraints; testable scenarios) and what to keep out (internal class or function names, library or framework choices, step-by-step implementation, execution plans)
+- **WHEN** the authoring-conventions reference is generated and linked from a skill that produces or edits a capability spec or spec delta (for example `propose`, `ff-change`, `continue-change`, `sync-specs`)
+- **THEN** it SHALL state what belongs in a spec (observable behavior; inputs, outputs, and error conditions; external constraints; testable scenarios) and what to keep out (internal class or function names, library or framework choices, step-by-step implementation, execution plans)
 
 #### Scenario: Right-sized rigor
 - **WHEN** a skill guides an agent to write spec requirements
@@ -102,9 +103,9 @@ Each skill that drafts or updates OpenSpec artifacts SHALL embed the authoring g
 - **WHEN** a skill produces or merges spec deltas
 - **THEN** it SHALL convey the delta operation headers (ADDED / MODIFIED / REMOVED / RENAMED) and the reviewer-facing conventions that a MODIFIED requirement shows its prior value and a REMOVED requirement states why
 
-#### Scenario: Guidance shared and aligned with the docs
-- **WHEN** any of the above guidance is authored
-- **THEN** it SHALL be defined in a single shared source rather than restated inline per skill
+#### Scenario: Guidance lives in one reference aligned with the docs
+- **WHEN** the above guidance is authored
+- **THEN** it SHALL live in one authoring-conventions reference that the drafting skills link to, rather than being restated inline in each skill
 - **AND** it SHALL agree with the corresponding project concepts documentation (for example "What a Spec Is (and Is Not)" and the progressive-rigor guidance), so the skills and the docs cannot diverge
 
 ### Requirement: Behavior Preservation

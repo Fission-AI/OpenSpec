@@ -30,7 +30,8 @@ The recurrence of the same gaps across rows is what motivates a single contract 
 ## Goals
 
 - One written quality bar (`skill-authoring-conventions`) that every generated skill demonstrably meets.
-- Each instruction maintained in exactly one place.
+- Self-contained skills that can be rewritten independently, with shared *conventions* (not procedure) living in a `references/` file the skills link to.
+- Guidance-first instructions: behavior and decision criteria in the body, deep or exact steps in `references/`.
 - Leaner always-on context without losing the depth skills like `verify` and `bulk-archive` rely on.
 - Zero change to observable skill behavior, names, or CLI surface.
 
@@ -41,9 +42,10 @@ Drawn from established agent-skill practice, restated as rules this codebase can
 1. **Disambiguate at the trigger.** A description that says when to use a skill but not how it differs from its neighbors forces a guess. Each description names the boundary against its closest siblings.
 2. **State done explicitly.** Procedures must carry an observable completion check, not an implied one. "Done when all `applyRequires` artifacts report `done`" beats "continue until finished."
 3. **Pair every failure with a recovery.** A named pause/blocked/error state is only useful if the agent knows the move that clears it.
-4. **Single source of truth.** Any text that appears in two artifacts (skill + command) or across skills (selection prompt, artifact loop, guardrail) is defined once and referenced.
-5. **Progressive disclosure.** The always-read body holds the core procedure; worked examples and long reference tables sit in clearly separated sections the agent consults on demand.
-6. **Navigable.** Each skill points to the next/related skill so multi-step journeys have explicit handoffs.
+4. **Self-contained, conventions by reference.** Each skill reads and rewrites on its own; cross-skill duplication is intentional (the cost of independence), so skills are not coupled to a shared instruction source. Shared *conventions* (how to write a proposal, what belongs in a spec) live in a `references/` file the skills link to — consistency from a reference agents read, not from DRY interpolation.
+5. **Guidance over choreography.** Skills express behavior and decision criteria, not long "if this then that" step trees. Exact or deep procedure moves into `references/`.
+6. **Progressive disclosure.** The always-read body holds the core guidance; worked examples and long reference tables sit in clearly separated `references/` files the agent consults on demand.
+7. **Navigable.** Each skill points to the next/related skill so multi-step journeys have explicit handoffs.
 
 ## Canonical structure
 
@@ -52,43 +54,43 @@ Procedural skills (`new-change`, `continue-change`, `apply-change`, `ff-change`,
 ```
 Use when     — one line; includes the sibling boundary
 Inputs       — what the skill expects (and the no-input fallback)
-Steps        — numbered procedure
+Guidance     — behavior and decision criteria (deep/exact steps → references)
 Success      — observable "done when…" condition
 Failure & recovery — each named failure state + how to resume
 Guardrails   — anti-patterns ("Do NOT …")
 Related      — next/sibling skill
 ```
 
+The Guidance section favors decision criteria over long "if this then that" trees: it tells the agent what outcome to reach and how to decide, and links to a `references/` file for any exact or lengthy procedure. This keeps the always-on body short and the skill easy to rewrite.
+
 Two intentional variants are preserved rather than forced into the procedural shape:
 
 - **Stance** (`explore`): keeps Stance / What You Might Do / OpenSpec Awareness / Guardrails. Its "Success" is reframed as a clear exit condition ("when the thinking has produced a decision or a next step"), satisfying the explicit-completion rule without imposing steps on a non-procedural skill.
 - **Tutorial** (`onboard`): keeps its phase walkthrough. Its phase script is the deep-reference material moved out of the always-on body (principle 5); the lean body is the phase list plus the EXPLAIN → DO → SHOW → PAUSE contract.
 
-## Deduplication strategy
+## Self-contained skills and shared references
 
-- **Skill ↔ command.** Author one instruction string per workflow; the command builder reuses it, applying only command-specific framing (the `/opsx:<name>` invocation note and command metadata). This removes the 89–100% body duplication across the nine high-overlap pairs and folds `explore` and `archive-change` onto the same single-source model.
-- **Cross-skill snippets.** Promote three repeated blocks to shared constants beside `STORE_SELECTION_GUIDANCE`:
-  - `CHANGE_SELECTION_GUIDANCE` — the "list → prompt with AskUserQuestion → never auto-select → mark most-recent as Recommended" pattern used by six skills.
-  - `ARTIFACT_LOOP_GUIDANCE` — the read-instructions / read-dependencies / write-to-`resolvedOutputPath` / verify loop used by the artifact-creating skills.
-  - `CONTEXT_RULES_GUARDRAIL` — the "context and rules are constraints for YOU, not content for the file" block.
-  - `SPEC_CONTENT_GUIDANCE` — the "what belongs in a spec vs. what to keep out" rules (the compact form of `docs/concepts.md`'s "What a Spec Is (and Is Not)"), embedded by the spec-authoring skills. Closes #1289.
-  - `SPEC_CONVENTIONS_GUIDANCE` — right-sized rigor (Lite by default), the RFC-2119 keyword meanings the specs use, scenario quality (≥1 per requirement, testable, edge cases), and the delta conventions (MODIFIED shows prior value, REMOVED says why). See "Embedded authoring guidance" below.
+Skills are deliberately **self-contained**: each is meant to be read and rewritten on its own, so the skill↔command overlap the audit measured (89–100% for nine of eleven pairs) and `propose` repeating 87% of `ff-change`'s loop are intentional, not defects. This change does **not** couple skills to a shared instruction source or extract their procedure into DRY string constants — that coupling would make every skill harder to rewrite in isolation. The existing `STORE_SELECTION_GUIDANCE` block is left as-is; it is not a precedent this change extends.
 
-`propose` stops duplicating `ff-change`'s loop and references `ARTIFACT_LOOP_GUIDANCE` instead; the two stay distinct only in which artifacts they target.
+What *is* shared is **conventions**, and they live in a `references/` file rather than inline in each skill:
 
-## Embedded authoring guidance (docs → skills)
+- **Authoring-conventions reference (the proposal-writing reference).** One reference file captures how to write a proposal and its spec deltas; the artifact-drafting skills (`propose`, `ff-change`, `continue-change`, `sync-specs`) link to it instead of each re-encoding the rules. A self-contained skill body stays short — it points the agent to the reference for the conventions and keeps only its own decision guidance inline.
 
-#1289 is one instance of a broader gap: guidance that shapes *artifact quality* lives only in `docs/` and never reaches the skills that draft artifacts, so an agent following a skill can't apply it. A doc-vs-skill audit (docs `concepts.md`/`agent-contract.md`/`workflows.md`/`editing-changes.md`/`explore.md` against the workflow templates, gaps confirmed by grep) surfaced these doc-only rules:
+This is the same mechanism as items 5–7 (progressive disclosure into `references/`), applied to authoring conventions: shared where it should be shared (a reference agents read), self-contained where it should be self-contained (each skill's own body).
 
-| Doc-only guidance | Documented in | In the skills today | Fix |
-|---|---|---|---|
-| Spec is a behavior contract, not implementation (belongs/avoid) | concepts.md "What a Spec Is (and Is Not)" | No | `SPEC_CONTENT_GUIDANCE` (#1289) |
-| Right-sized rigor — Lite by default, Full for higher-risk | concepts.md "Keep It Lightweight: Progressive Rigor" | No | `SPEC_CONVENTIONS_GUIDANCE` |
-| RFC-2119 keyword *meanings* (SHOULD/MAY, not just SHALL) | concepts.md "Spec Format" | Skills say "write SHALL"; meanings absent | `SPEC_CONVENTIONS_GUIDANCE` |
-| Scenario quality — ≥1 per requirement, testable, edge cases + happy path | concepts.md "Spec Structure" | Format (`WHEN/THEN`) shown; coverage bar absent | `SPEC_CONVENTIONS_GUIDANCE` |
-| Delta conventions — MODIFIED shows prior value, REMOVED says why | concepts.md "Delta Specs" | `sync-specs` shows headers; conventions absent, and `propose`/`ff`/`continue` carry no delta guidance | `SPEC_CONVENTIONS_GUIDANCE` |
+## Authoring-conventions reference (docs → skills)
 
-Each snippet is the compact form of its docs section, and a test asserts the snippet still lists the same items the doc does, so the skills and the docs cannot drift. The same snippets are carried on `AGENTS.md` (per `docs-agent-instructions`), so non-skill-loading agents get them too. `sync-specs` primarily needs the delta conventions; `propose`/`ff-change`/`continue-change` need spec content, rigor, and requirement/scenario conventions.
+#1289 is one instance of a broader gap: guidance that shapes *artifact quality* lives only in `docs/` and never reaches the skills that draft artifacts, so an agent following a skill can't apply it. A doc-vs-skill audit (docs `concepts.md`/`agent-contract.md`/`workflows.md`/`editing-changes.md`/`explore.md` against the workflow templates, gaps confirmed by grep) surfaced these doc-only rules, all now captured in the authoring-conventions reference:
+
+| Doc-only guidance | Documented in | In the skills today |
+|---|---|---|
+| Spec is a behavior contract, not implementation (belongs/avoid) | concepts.md "What a Spec Is (and Is Not)" | No (#1289) |
+| Right-sized rigor — Lite by default, Full for higher-risk | concepts.md "Keep It Lightweight: Progressive Rigor" | No |
+| RFC-2119 keyword *meanings* (SHOULD/MAY, not just SHALL) | concepts.md "Spec Format" | Skills say "write SHALL"; meanings absent |
+| Scenario quality — ≥1 per requirement, testable, edge cases + happy path | concepts.md "Spec Structure" | Format (`WHEN/THEN`) shown; coverage bar absent |
+| Delta conventions — MODIFIED shows prior value, REMOVED says why | concepts.md "Delta Specs" | `sync-specs` shows headers; conventions absent, and `propose`/`ff`/`continue` carry no delta guidance |
+
+The reference is the compact form of these `concepts.md` sections, and a test asserts it still lists the same items the docs do, so the skills and the docs cannot drift. The same conventions are carried on `AGENTS.md` (per `docs-agent-instructions`), so non-skill-loading agents get them too. `sync-specs` leans on the delta conventions; `propose`/`ff-change`/`continue-change` lean on spec content, rigor, and requirement/scenario conventions — all from the one reference.
 
 **Deliberately out of scope (found by the same audit, not fixed here):**
 
@@ -168,7 +170,8 @@ Skills cover agents that load `SKILL.md`. A large set of agents read only projec
 ## Decisions
 
 - **New capability, not modifications to per-skill specs.** The improvements are about how instructions are written, which is a cross-cutting contract. Only 4 of 11 skills have specs today, so editing those four would leave the bar unstated for the rest. A single `skill-authoring-conventions` capability states the bar once, for all skills, and is verifiable against generated output.
-- **Behavior-first requirements.** Requirements assert observable properties of generated skills (a description disambiguates; a body declares success; shared text appears once), per `openspec/config.yaml`. The mechanics — which constant holds which block — live here in design, not in the spec.
+- **Behavior-first requirements.** Requirements assert observable properties of generated skills (a description disambiguates; a body declares success; a skill links to the conventions reference), per `openspec/config.yaml`. The mechanics — which file holds the reference — live here in design, not in the spec.
+- **Self-contained over DRY.** Skills are kept independently rewritable rather than deduplicated into a shared instruction source; the resulting cross-skill duplication is an accepted, intentional cost. Only *conventions* are shared, and only through a `references/` file the skills link to — not through interpolated string constants. This is the maintainer-set direction for the skills architecture.
 - **No behavioral drift.** Because per-skill contracts are unchanged, existing per-skill spec tests remain the guardrail that the rewrites did not alter behavior.
 - **Conformance folded into authoring, distribution kept separate.** Standard conformance and the validation gate live in `skill-authoring-conventions` because they constrain how each skill is written. Packaging-and-listing is a distinct concern (a bundle, a checklist, an external directory), so it gets its own `skill-distribution` capability rather than overloading the authoring contract.
 - **One change, not three PRs.** Conformance, distribution, and AGENTS.md guidance all serve the single goal of agents driving the deterministic CLI, and they share the same templates and validation. Splitting them would duplicate the validation plumbing and sequencing overhead for no reviewer benefit.
@@ -177,7 +180,8 @@ Skills cover agents that load `SKILL.md`. A large set of agents read only projec
 
 - **Edit each skill independently, no shared contract.** Rejected: the gaps recur, so the fix would drift again without a stated bar and a test that enforces it.
 - **Modify each per-skill spec to add success/failure language.** Rejected: leaves the 7 unspecced skills uncovered and scatters one contract across many files.
-- **Collapse skill and command into a single artifact.** Out of scope: they are distinct delivery surfaces (`tool-command-surface`); this change only makes them share a source, not merge.
+- **Aggressively DRY the skills (single instruction source, extracted procedure constants).** Rejected: it conflicts with self-contained skills, which are meant to be rewritten independently. Cross-skill duplication is accepted; only conventions are shared, via a reference.
+- **Collapse skill and command into a single artifact.** Out of scope: they are distinct delivery surfaces (`tool-command-surface`), and each stays self-contained; this change does not merge or couple them.
 - **A separate proposal for standard conformance / listing.** Rejected: it would re-derive the same body-budget and validation work this change already does, and the listing payoff depends on conformance landing first.
 - **Build our own skill validator from scratch.** Prefer the standard's published reference validator (`skills-ref`) or a thin internal equivalent, so OpenSpec tracks the standard rather than a private interpretation of it.
 
@@ -188,7 +192,7 @@ Instruction content is platform-neutral prose. The code touched that writes file
 ## Risks
 
 - **Over-trimming verbose skills** could drop guidance an agent relies on. Mitigation: move detail to separated sections (progressive disclosure), do not delete it; per-skill behavioral specs catch regressions.
-- **Shared snippets hiding skill-specific nuance.** Mitigation: snippets cover only the genuinely identical blocks; skill-specific wording stays inline.
+- **The authoring-conventions reference drifting from the docs, or a skill forgetting to link it.** Mitigation: a test asserts the reference still lists the same items as `docs/concepts.md`, and another asserts each artifact-drafting skill links to it and the link resolves.
 - **The standard evolves.** The Agent Skills spec is young (`allowed-tools` is still experimental). Mitigation: validate against the published reference rather than a hand-copied rule set, and pin the validator version so a spec change is a deliberate update.
 - **Splitting bodies into `references/` could orphan a link.** Mitigation: the conformance gate checks that every relative reference link resolves to a bundled file.
 - **A directory may reject or delay a listing.** Mitigation: listing is a checklist, not a release blocker; conformance and the bundle stand on their own value regardless of any single directory's curation.
