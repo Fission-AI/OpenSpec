@@ -4,10 +4,11 @@
   "private": true,
   "description": "Documentation site for OpenSpec, built with Fumadocs and deployable to Cloudflare Pages.",
   "scripts": {
-    "build": "fumadocs-mdx && next build",
-    "dev": "next dev",
+    "sync:docs": "node scripts/sync-docs.mjs",
+    "build": "npm run sync:docs && fumadocs-mdx && next build",
+    "dev": "npm run sync:docs && next dev",
     "start": "serve out",
-    "types:check": "fumadocs-mdx && next typegen && tsc --noEmit"
+    "types:check": "npm run sync:docs && fumadocs-mdx && next typegen && tsc --noEmit"
   },
   "dependencies": {
     "@orama/orama": "^3.1.18",

@@ -4,6 +4,9 @@
 # generated content
 .source
 
+# docs pages are generated from ../docs by scripts/sync-docs.mjs (npm run build)
+/content/docs
+
 # test & build
 /coverage
 /.next/
