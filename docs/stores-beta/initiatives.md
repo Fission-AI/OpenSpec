@@ -113,10 +113,9 @@ The question every team hits: the store has an initiative called
 `smoother-setup`, and someone starts a local one by the same name in their own
 repo. Which wins?
 
-**Best default: the store is canonical.** The store holds the shared,
-agreed-upon initiative. A local one with the same name is treated as a *draft
-that shadows it* — OpenSpec keeps letting you work locally, but tells you
-plainly:
+**The rule: the store is canonical.** The store holds the shared, agreed-upon
+initiative. A local one with the same name is treated as a *draft that shadows
+it* — OpenSpec keeps letting you work locally, but tells you plainly:
 
 ```text
 initiative 'smoother-setup' (local) shadows the canonical one in store 'acme-plans'

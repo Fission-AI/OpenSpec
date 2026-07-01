@@ -39,25 +39,32 @@ commands write.
 **Alternative considered:** copy a store's schemas into the referencing repo.
 Rejected — that is the drift we are trying to remove.
 
-### 2. Initiative precedence: canonical store, local shadow
+### 2. Initiative precedence: canonical store, local shadow (decided)
 
 When a local initiative and a store initiative share an id, the **store is
 canonical** and the local one is a **shadow**: work continues locally, but
 OpenSpec reports the shadow so nothing diverges silently.
 
-This is the store-of-truth stance the product wants, expressed through a
-pattern OpenSpec *already uses* for schemas (`openspec schema which` shows
-`shadows:`). It is consistent, discoverable, and non-destructive.
+**This is the policy we are building.** It is the only option that serves an org
+on all three axes at once:
 
-**Alternative considered:** local silently wins (today's root-selection order,
-where the nearest `openspec/` takes precedence). Rejected for initiative
-*identity* — silence is exactly what lets shared plans drift. Note this only
-governs *identity/reporting*; it does not change where commands act.
+- **Governance** — the store stays the single source of truth every repo points
+  at, so the shared plan is auditable and one place.
+- **No silent drift** — the shadow is surfaced, so a local divergence is visible
+  and reconcilable, not discovered later in review.
+- **Velocity** — local work is never blocked, so a developer can still iterate.
 
-**Owner decision point:** if the owner prefers "local always wins, no warning"
-or "store hard-wins and local is blocked," both are small variations on the same
-reporting hook. The default here is the safe middle: local works, store is
-named as canonical.
+It also reuses a pattern OpenSpec *already uses* for schemas (`openspec schema
+which` shows `shadows:`) — the least code and the most native-feeling. Note it
+governs *identity/reporting* only; it does not change where commands act.
+
+**Alternatives rejected:**
+
+- *Local silently wins* (today's root-selection order, nearest `openspec/`
+  takes precedence). Rejected — it fails governance: a repo can quietly override
+  the shared plan and nobody knows.
+- *Store hard-wins, local blocked.* Rejected — it fails velocity: devs can't
+  experiment locally, so they route around OpenSpec, defeating the point.
 
 ## Risks / Trade-offs
 
@@ -75,7 +82,7 @@ referenced. Ship behind the existing stores beta surface.
 
 ## Open Questions
 
-- Final precedence policy (canonical-shadow vs. local-wins vs. store-hard-wins) —
-  defaulted here, owner to confirm.
 - Whether initiatives get a thin scaffold command later, or stay a plain-folder
   convention for the prototype. This change assumes the latter.
+
+(Precedence policy is settled: canonical store, local shadow — see Decision 2.)
