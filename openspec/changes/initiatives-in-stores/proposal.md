@@ -47,6 +47,9 @@ heavyweight initiative command groups.
 
 - `openspec list --initiatives [--store <id>]` lists initiatives and rolls up the
   live status of the changes each one groups.
+- `openspec new initiative <name> [--store <id>] [--title <text>]` scaffolds the
+  folder, an `initiative.yaml` manifest, and a `brief.md` stub — a thin scaffold
+  under the existing `new` group, nothing more.
 
 ## Capabilities
 

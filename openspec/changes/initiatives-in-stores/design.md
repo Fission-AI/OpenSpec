@@ -82,7 +82,7 @@ referenced. Ship behind the existing stores beta surface.
 
 ## Open Questions
 
-- Whether initiatives get a thin scaffold command later, or stay a plain-folder
-  convention for the prototype. This change assumes the latter.
-
-(Precedence policy is settled: canonical store, local shadow — see Decision 2.)
+(Precedence policy is settled: canonical store, local shadow — see Decision 2.
+Initiatives get a *thin* scaffold — `openspec new initiative <name>` writes the
+folder + `initiative.yaml` + a `brief.md` stub, and nothing more — added under
+the existing `new` group rather than reviving an `initiative` command group.)

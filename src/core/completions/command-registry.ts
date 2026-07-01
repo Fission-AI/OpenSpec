@@ -250,6 +250,21 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
           COMMON_FLAGS.store,
         ],
       },
+      {
+        name: 'initiative',
+        description: 'Scaffold an initiative folder (initiative.yaml + brief.md)',
+        acceptsPositional: true,
+        positionals: [{ name: 'name' }],
+        flags: [
+          {
+            name: 'title',
+            description: 'Human title (default: derived from the id)',
+            takesValue: true,
+          },
+          COMMON_FLAGS.json,
+          COMMON_FLAGS.store,
+        ],
+      },
     ],
   },
   {

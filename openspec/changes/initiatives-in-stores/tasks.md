@@ -23,6 +23,12 @@
 - [x] 3.2 Roll up the live status of the changes each initiative groups, reusing
       the existing `openspec list --changes` status source
 
+## 3b. Thin scaffold
+
+- [x] 3b.1 Add `openspec new initiative <name> [--store <id>] [--title <text>]`
+      that writes the folder + `initiative.yaml` + a `brief.md` stub (under the
+      existing `new` group; not a revived initiative command group)
+
 ## 4. Proof
 
 - [x] 4.1 Update the `smoother-setup` example so it reads as an initiative in a

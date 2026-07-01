@@ -67,6 +67,9 @@ Change: `{ "id", "title", "deltaCount", "deltas": [...], "root" }`. Spec: `{ "id
 ### 4.7 `new change <name> --json`
 Success: `{ "change": { "id", "path", "metadataPath", "schema" }, "root" }`. Failure: `{ "change": null, "status": [d] }`, exit 1.
 
+### 4.7a `new initiative <name> --json`
+Success: `{ "initiative": { "id", "path", "manifestPath", "title" }, "root" }`. Failure: `{ "initiative": null, "status": [d] }`, exit 1.
+
 ### 4.8 `archive <name> --json`
 Success: `{ "archive": { "change", "archivedAs": "YYYY-MM-DD-name", "path", "specsUpdated", "totals"? }, "root" }`. Failure: `{ "archive": null, "root"?, "status": [d] }`, exit 1. JSON mode is strictly non-interactive: every prompt point becomes an `archive_*` code.
 

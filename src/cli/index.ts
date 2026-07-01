@@ -31,12 +31,14 @@ import {
   templatesCommand,
   schemasCommand,
   newChangeCommand,
+  newInitiativeCommand,
   DEFAULT_SCHEMA,
   type StatusOptions,
   type InstructionsOptions,
   type TemplatesOptions,
   type SchemasOptions,
   type NewChangeOptions,
+  type NewInitiativeOptions,
 } from '../commands/workflow/index.js';
 import { maybeShowTelemetryNotice, trackCommand, shutdown } from '../telemetry/index.js';
 import { COMMON_FLAGS } from '../core/completions/shared-flags.js';
@@ -618,6 +620,22 @@ newCmd
   .action(async (name: string, options: NewChangeOptions) => {
     try {
       await newChangeCommand(name, options);
+    } catch (error) {
+      failWithError(error);
+      process.exit(1);
+    }
+  });
+
+newCmd
+  .command('initiative <name>')
+  .description('Scaffold an initiative folder (initiative.yaml + brief.md)')
+  .option('--title <text>', 'Human title (default: derived from the id)')
+  .option('--json', 'Output as JSON')
+  .option('--store <id>', STORE_OPTION_DESCRIPTION)
+  .addOption(hiddenStorePathOption())
+  .action(async (name: string, options: NewInitiativeOptions) => {
+    try {
+      await newInitiativeCommand(name, options);
     } catch (error) {
       failWithError(error);
       process.exit(1);
