@@ -90,7 +90,7 @@ This is the same mechanism as items 5–7 (progressive disclosure into `referenc
 | Scenario quality — ≥1 per requirement, testable, edge cases + happy path | concepts.md "Spec Structure" | Format (`WHEN/THEN`) shown; coverage bar absent |
 | Delta conventions — MODIFIED shows prior value, REMOVED says why | concepts.md "Delta Specs" | `sync-specs` shows headers; conventions absent, and `propose`/`ff`/`continue` carry no delta guidance |
 
-The reference is the compact form of these `concepts.md` sections, and a test asserts it still lists the same items the docs do, so the skills and the docs cannot drift. The same conventions are carried on `AGENTS.md` (per `docs-agent-instructions`), so non-skill-loading agents get them too. `sync-specs` leans on the delta conventions; `propose`/`ff-change`/`continue-change` lean on spec content, rigor, and requirement/scenario conventions — all from the one reference.
+The reference is the compact form of these `concepts.md` sections, and a test asserts it still lists the same items the docs do, so the skills and the docs cannot drift. `sync-specs` leans on the delta conventions; `propose`/`ff-change`/`continue-change` lean on spec content, rigor, and requirement/scenario conventions — all from the one reference.
 
 **Deliberately out of scope (found by the same audit, not fixed here):**
 
@@ -163,9 +163,9 @@ Conformance makes the skills *portable*; distribution makes them *discoverable*.
 
 The checklist explicitly notes that directories apply their own curation and security review (ranging from none to an audited verification), which OpenSpec does not control. Automating submission is a non-goal; the value here is a bundle that passes validation and a path a maintainer can follow.
 
-## Always-on guidance (AGENTS.md)
+## Always-on guidance (AGENTS.md) — dropped
 
-Skills cover agents that load `SKILL.md`. A large set of agents read only project-level `AGENTS.md`. To meet the goal — every agent steered onto the deterministic CLI — the generated `openspec/AGENTS.md` (governed by `docs-agent-instructions`) advertises the same workflow: which skill applies when, the core read-and-validate commands (`openspec list/status/instructions/validate`), the instruction to trust their JSON over assumed paths, and the fact that generated skill/command files are managed by `openspec update` and must not be hand-edited. This is a content addition to an existing surface, composed via a `docs-agent-instructions` requirement rather than a new mechanism.
+An earlier draft added a `docs-agent-instructions` capability so agents that read only project-level `openspec/AGENTS.md` (no skill loading) got the same skill + CLI + authoring guidance. During implementation this proved infeasible: OpenSpec **removed** AGENTS.md generation — `src/core/templates/index.ts` records that the templates were deleted, and `legacy-cleanup.ts` actively deletes `openspec/AGENTS.md` as an "obsolete workflow file." There is no always-on surface to write to, and re-introducing one would contradict the codebase's own direction. The capability is dropped from this change; if always-on guidance is wanted, it needs a separate change that first re-establishes a surface.
 
 ## Decisions
 
@@ -174,7 +174,7 @@ Skills cover agents that load `SKILL.md`. A large set of agents read only projec
 - **Self-contained over DRY.** Skills are kept independently rewritable rather than deduplicated into a shared instruction source; the resulting cross-skill duplication is an accepted, intentional cost. Only *conventions* are shared, and only through a `references/` file the skills link to — not through interpolated string constants. This is the maintainer-set direction for the skills architecture.
 - **No behavioral drift.** Because per-skill contracts are unchanged, existing per-skill spec tests remain the guardrail that the rewrites did not alter behavior.
 - **Conformance folded into authoring, distribution kept separate.** Standard conformance and the validation gate live in `skill-authoring-conventions` because they constrain how each skill is written. Packaging-and-listing is a distinct concern (a bundle, a checklist, an external directory), so it gets its own `skill-distribution` capability rather than overloading the authoring contract.
-- **One change, not three PRs.** Conformance, distribution, and AGENTS.md guidance all serve the single goal of agents driving the deterministic CLI, and they share the same templates and validation. Splitting them would duplicate the validation plumbing and sequencing overhead for no reviewer benefit.
+- **One change, not separate PRs.** Conformance and distribution both serve the single goal of agents driving the deterministic CLI, and they share the same templates and validation. Splitting them would duplicate the validation plumbing and sequencing overhead for no reviewer benefit.
 
 ## Alternatives considered
 

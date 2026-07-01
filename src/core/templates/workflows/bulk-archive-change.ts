@@ -7,6 +7,52 @@
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
+export const BULK_ARCHIVE_CONFLICTS_REFERENCE_FILE = 'references/conflict-resolution.md';
+export const BULK_ARCHIVE_CONFLICTS_REFERENCE = `# Bulk-archive conflict resolution
+
+A conflict exists when 2+ selected changes have delta specs for the same capability
+(e.g. \`specs/auth/spec.md\` touched by both \`add-oauth\` and \`add-jwt\`). Resolve each
+conflict by reading the conflicting delta specs and searching the codebase for
+implementation evidence, then apply this rule:
+
+- **Only one change implemented** — sync that change's specs only.
+- **Both implemented** — apply in chronological order (older first, newer overwrites).
+- **Neither implemented** — skip spec sync and warn the user.
+
+## Example 1: Only one implemented
+
+\`\`\`
+Conflict: specs/auth/spec.md touched by [add-oauth, add-jwt]
+
+Checking add-oauth:
+- Delta adds "OAuth Provider Integration" requirement
+- Searching codebase... found src/auth/oauth.ts implementing OAuth flow
+
+Checking add-jwt:
+- Delta adds "JWT Token Handling" requirement
+- Searching codebase... no JWT implementation found
+
+Resolution: Only add-oauth is implemented. Will sync add-oauth specs only.
+\`\`\`
+
+## Example 2: Both implemented
+
+\`\`\`
+Conflict: specs/api/spec.md touched by [add-rest-api, add-graphql]
+
+Checking add-rest-api (created 2026-01-10):
+- Delta adds "REST Endpoints" requirement
+- Searching codebase... found src/api/rest.ts
+
+Checking add-graphql (created 2026-01-15):
+- Delta adds "GraphQL Schema" requirement
+- Searching codebase... found src/api/graphql.ts
+
+Resolution: Both implemented. Will apply add-rest-api specs first,
+then add-graphql specs (chronological order, newer takes precedence).
+\`\`\`
+`;
+
 export function getBulkArchiveChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-bulk-archive-change',
@@ -170,38 +216,11 @@ ${STORE_SELECTION_GUIDANCE}
    - some-change: Archive directory already exists
    \`\`\`
 
-**Conflict Resolution Examples**
+**Conflict Resolution Rule**
 
-Example 1: Only one implemented
-\`\`\`
-Conflict: specs/auth/spec.md touched by [add-oauth, add-jwt]
+When 2+ changes touch the same capability's spec, read each conflicting delta spec and search the codebase for implementation evidence, then: sync only the implemented change's specs; if both are implemented, apply in chronological order (older first, newer overwrites); if neither is implemented, skip the sync and warn.
 
-Checking add-oauth:
-- Delta adds "OAuth Provider Integration" requirement
-- Searching codebase... found src/auth/oauth.ts implementing OAuth flow
-
-Checking add-jwt:
-- Delta adds "JWT Token Handling" requirement
-- Searching codebase... no JWT implementation found
-
-Resolution: Only add-oauth is implemented. Will sync add-oauth specs only.
-\`\`\`
-
-Example 2: Both implemented
-\`\`\`
-Conflict: specs/api/spec.md touched by [add-rest-api, add-graphql]
-
-Checking add-rest-api (created 2026-01-10):
-- Delta adds "REST Endpoints" requirement
-- Searching codebase... found src/api/rest.ts
-
-Checking add-graphql (created 2026-01-15):
-- Delta adds "GraphQL Schema" requirement
-- Searching codebase... found src/api/graphql.ts
-
-Resolution: Both implemented. Will apply add-rest-api specs first,
-then add-graphql specs (chronological order, newer takes precedence).
-\`\`\`
+See \`references/conflict-resolution.md\` for worked examples of resolving spec conflicts when multiple changes touch the same capability.
 
 **Output On Success**
 

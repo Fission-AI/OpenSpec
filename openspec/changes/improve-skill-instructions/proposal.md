@@ -20,7 +20,7 @@ Beyond internal quality, OpenSpec's skills should be first-class citizens of the
 - **No conformance check.** Nothing validates the generated skills against the standard, so a malformed frontmatter or an over-budget body would ship silently.
 - **No publishable, listable bundle.** There is no validated skill collection an agent-skill directory could index, and no listing path.
 
-The unifying goal: every agent — whether it loads `SKILL.md` skills or only reads project-level `AGENTS.md` — is steered onto OpenSpec's deterministic CLI (`openspec status/instructions/validate …`) and away from guesswork. This change makes the skills conform to the standard, validates them, prepares a listable bundle, and ensures the always-on project instructions advertise the same workflow.
+The unifying goal: every agent that loads OpenSpec's `SKILL.md` skills is steered onto the deterministic CLI (`openspec status/instructions/validate …`) and away from guesswork. This change makes the skills conform to the standard, validates them, and prepares a listable bundle.
 
 ## What Changes
 
@@ -50,7 +50,7 @@ Skills stay self-contained and independently rewritable; this change does not co
 
 ### 5. Lean always-loaded body
 
-Deep reference material (conflict-resolution worked examples, the full delta-format reference, the 11-phase onboarding script, the authoring-conventions reference of item 12) is separated from the core guidance so the always-read body stays lean, while the detail remains available where the skill actually needs it.
+Deep reference material (conflict-resolution worked examples, the full delta-format reference, the onboarding artifact skeletons, the authoring-conventions reference of item 11) is separated from the core guidance so the always-read body stays lean, while the detail remains available where the skill actually needs it.
 
 ### 6. Cross-skill navigation
 
@@ -60,7 +60,7 @@ Each skill ends with a Related line pointing to the natural next or sibling skil
 
 Every generated skill is brought to full conformance with the Agent Skills open standard: valid `SKILL.md` frontmatter (`name` 1–64 chars and equal to the folder; `description` ≤ 1024 chars stating what + when; `compatibility` ≤ 500 chars), and a body within the recommended size budget. `onboard`'s phase script, `bulk-archive-change`'s conflict-resolution examples, `sync-specs`'s delta-format reference, and `verify-change`'s dimension detail move into per-skill `references/` files that the body links to one level deep. This is the standard's own mechanism for the "lean always-on body" of item 5 — the two are the same requirement, now anchored to a published budget.
 
-Scope: conformance, `allowed-tools`, and the publishable bundle (items 7–9, 11) apply to the **11 generated `SKILL.md` skills**. The feedback skill is held to the authoring quality bar (items 1–6) but is not emitted to disk as a distributed `SKILL.md`, so the conformance/distribution requirements do not target it.
+Scope: conformance, `allowed-tools`, and the publishable bundle (items 7–10) apply to the **11 generated `SKILL.md` skills**. The feedback skill is held to the authoring quality bar (items 1–6) but is not emitted to disk as a distributed `SKILL.md`, so the conformance/distribution requirements do not target it.
 
 ### 8. Conformance validation gate
 
@@ -70,15 +70,11 @@ Skill generation and `openspec update` validate each emitted skill against the s
 
 Produce a standard-conformant, validated collection of the OpenSpec skills suitable for submission to a public Agent Skills directory, with a documented listing checklist (validation pass, license, metadata, submission steps). This makes OpenSpec discoverable to agents that install skills from a directory rather than via the CLI.
 
-### 10. Always-on agent guidance
-
-Ensure the project-level agent instructions (`openspec/AGENTS.md`, governed by `docs-agent-instructions`) name the skills and the core deterministic CLI commands, say when to use each, and carry (or link to) the core artifact-authoring conventions of item 12 — so agents that read only `AGENTS.md` (no skill loading) both drive the OpenSpec workflow correctly and write conformant artifacts.
-
-### 11. Pre-approved tools (`allowed-tools`)
+### 10. Pre-approved tools (`allowed-tools`)
 
 Each skill declares the tools it uses and emits the standard's `allowed-tools` frontmatter, so supporting agents pre-approve the deterministic CLI and stop prompting on every `openspec` call — the single biggest friction point today. The field is generated from one declared toolset per skill (not hand-written), `Bash` is scoped to `Bash(openspec:*)` for skills that only invoke the CLI, and the declared set is the complete superset of what the body uses so that agents which enforce `allowed-tools` as a strict allowlist never block a needed tool. `apply-change` (and `onboard`'s live demo), which run arbitrary build/test commands, keep unrestricted `Bash` by design. Agents that ignore the field are unaffected, so adoption is pure upside.
 
-### 12. Authoring-conventions reference (docs → skills)
+### 11. Authoring-conventions reference (docs → skills)
 
 The authoring guidance that today lives only in `docs/` is delivered as a **proposal-writing reference** — a `references/` file covering how to write a proposal and its spec deltas — that the artifact-drafting skills (`propose`, `ff-change`, `continue-change`, `sync-specs`) link to, so agents follow the conventions rather than each skill re-encoding exact steps. The reference captures:
 
@@ -87,7 +83,7 @@ The authoring guidance that today lives only in `docs/` is delivered as a **prop
 - **Requirement and scenario conventions** — the RFC-2119 keyword meanings the specs use (MUST/SHALL absolute, SHOULD recommended, MAY optional), at least one scenario per requirement, and scenarios that are testable and cover edge cases, not only the happy path.
 - **Delta conventions** — the ADDED/MODIFIED/REMOVED/RENAMED headers plus the reviewer-facing rule that a MODIFIED requirement shows its prior value and a REMOVED requirement states why.
 
-The reference is kept aligned with `docs/concepts.md` by test, and the same conventions are carried on the always-on `AGENTS.md` surface (item 10), so agents that never load a skill get them too. Delivering the conventions as one reference the skills point to — rather than a block copied into each skill — keeps skills self-contained (item 4) while a single source stays aligned with the docs.
+The reference is kept aligned with `docs/concepts.md` by test. Delivering the conventions as one reference the skills point to — rather than a block copied into each skill — keeps skills self-contained (item 4) while a single source stays aligned with the docs.
 
 ## Capabilities
 
@@ -98,7 +94,7 @@ The reference is kept aligned with `docs/concepts.md` by test, and the same conv
 
 ### Modified Capabilities
 
-- `docs-agent-instructions`: The maintained project agent instructions (`openspec/AGENTS.md`) name the skills and core deterministic CLI commands, state when to use each, and carry the core artifact-authoring conventions, so non-skill-loading agents follow the same workflow and write conformant artifacts.
+None. (An earlier draft added a `docs-agent-instructions` capability to carry the same guidance on `openspec/AGENTS.md` for non-skill-loading agents. It was **dropped**: the codebase removed AGENTS.md generation — `src/core/templates/index.ts` notes the templates were deleted and `legacy-cleanup.ts` actively deletes `openspec/AGENTS.md` as an "obsolete workflow file" — so there is no always-on surface to target. Reviving always-on guidance belongs in a separate change once such a surface exists.)
 
 Per-skill behavioral specs (`opsx-verify-skill`, `opsx-onboard-skill`, `opsx-archive-skill`, `specs-sync-skill`) keep their existing contracts; this change tightens how the instructions are written and packaged, not what the skills do.
 
@@ -107,8 +103,7 @@ Per-skill behavioral specs (`opsx-verify-skill`, `opsx-onboard-skill`, `opsx-arc
 - `src/core/templates/workflows/*.ts` — rewrite the 11 workflow instruction strings (and feedback) to the guidance-first conventions, keeping each skill self-contained; split over-budget bodies so the deep material can be emitted as `references/` files.
 - `src/core/templates/workflows/` — author the shared authoring-conventions reference (the proposal-writing reference) as source for the `references/` file the artifact-drafting skills link to; `store-selection.ts` stays as-is.
 - `src/core/shared/skill-generation.ts` / `src/core/templates/skill-templates.ts` — emit each skill's `references/` files (including the authoring-conventions reference) alongside `SKILL.md`.
-- `src/core/shared/tool-detection.ts` / `src/core/update.ts` — run the conformance validation gate during generation/update without changing directory layout or delivery behavior.
-- `openspec/AGENTS.md` — populate with skill + CLI guidance per `docs-agent-instructions`.
+- `src/core/init.ts` / `src/core/update.ts` — run the conformance validation gate during generation/update without changing directory layout or delivery behavior.
 - `openspec/specs/skill-authoring-conventions/` and `openspec/specs/skill-distribution/` — new capability specs created on archive.
 - `test/` and CI — assert every generated skill carries the required sections, passes standard conformance, links to a resolvable authoring-conventions reference, and that the reference still matches its `docs/concepts.md` source; regression coverage for `init`/`update` skill generation across platforms.
 

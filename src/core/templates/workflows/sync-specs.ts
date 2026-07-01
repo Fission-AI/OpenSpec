@@ -8,6 +8,54 @@ import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 import { AUTHORING_CONVENTIONS_LINK } from './authoring-conventions.js';
 
+export const DELTA_FORMAT_REFERENCE_FILE = 'references/delta-format.md';
+export const DELTA_FORMAT_REFERENCE = `# Delta spec format
+
+A delta spec expresses the *intended changes* to main specs using labeled sections. Each delta spec file contains sections like:
+
+- \`## ADDED Requirements\` - New requirements to add
+- \`## MODIFIED Requirements\` - Changes to existing requirements
+- \`## REMOVED Requirements\` - Requirements to remove
+- \`## RENAMED Requirements\` - Requirements to rename (FROM:/TO: format)
+
+## Worked example
+
+\`\`\`markdown
+## ADDED Requirements
+
+### Requirement: New Feature
+The system SHALL do something new.
+
+#### Scenario: Basic case
+- **WHEN** user does X
+- **THEN** system does Y
+
+## MODIFIED Requirements
+
+### Requirement: Existing Feature
+#### Scenario: New scenario to add
+- **WHEN** user does A
+- **THEN** system does B
+
+## REMOVED Requirements
+
+### Requirement: Deprecated Feature
+
+## RENAMED Requirements
+
+- FROM: \\\`### Requirement: Old Name\\\`
+- TO: \\\`### Requirement: New Name\\\`
+\`\`\`
+
+## Key principle: intelligent merging
+
+Unlike programmatic merging, you can apply **partial updates**:
+
+- To add a scenario, just include that scenario under MODIFIED - don't copy existing scenarios
+- The delta represents *intent*, not a wholesale replacement
+- Use your judgment to merge changes sensibly
+`;
+
 export function getSyncSpecsSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-sync-specs',
@@ -92,41 +140,7 @@ ${AUTHORING_CONVENTIONS_LINK}
    - Which capabilities were updated
    - What changes were made (requirements added/modified/removed/renamed)
 
-**Delta Spec Format Reference**
-
-\`\`\`markdown
-## ADDED Requirements
-
-### Requirement: New Feature
-The system SHALL do something new.
-
-#### Scenario: Basic case
-- **WHEN** user does X
-- **THEN** system does Y
-
-## MODIFIED Requirements
-
-### Requirement: Existing Feature
-#### Scenario: New scenario to add
-- **WHEN** user does A
-- **THEN** system does B
-
-## REMOVED Requirements
-
-### Requirement: Deprecated Feature
-
-## RENAMED Requirements
-
-- FROM: \`### Requirement: Old Name\`
-- TO: \`### Requirement: New Name\`
-\`\`\`
-
-**Key Principle: Intelligent Merging**
-
-Unlike programmatic merging, you can apply **partial updates**:
-- To add a scenario, just include that scenario under MODIFIED - don't copy existing scenarios
-- The delta represents *intent*, not a wholesale replacement
-- Use your judgment to merge changes sensibly
+See \`references/delta-format.md\` for the full delta spec format (ADDED/MODIFIED/REMOVED/RENAMED) and a worked example.
 
 **Output On Success**
 

@@ -7,6 +7,101 @@
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
+export const VERIFY_DIMENSIONS_REFERENCE_FILE = 'references/verification-dimensions.md';
+export const VERIFY_DIMENSIONS_REFERENCE = `# Verification dimensions
+
+Verification audits a change across three dimensions. Each dimension can raise CRITICAL, WARNING, or SUGGESTION issues.
+
+## Completeness
+
+**Task Completion**:
+- If \`contextFiles.tasks\` exists, read every file path in it
+- Parse checkboxes: \`- [ ]\` (incomplete) vs \`- [x]\` (complete)
+- Count complete vs total tasks
+- If incomplete tasks exist:
+  - Add CRITICAL issue for each incomplete task
+  - Recommendation: "Complete task: <description>" or "Mark as done if already implemented"
+
+**Spec Coverage**:
+- If delta specs exist in \`contextFiles.specs\`:
+  - Extract all requirements (marked with "### Requirement:")
+  - For each requirement:
+    - Search codebase for keywords related to the requirement
+    - Assess if implementation likely exists
+  - If requirements appear unimplemented:
+    - Add CRITICAL issue: "Requirement not found: <requirement name>"
+    - Recommendation: "Implement requirement X: <description>"
+
+## Correctness
+
+**Requirement Implementation Mapping**:
+- For each requirement from delta specs:
+  - Search codebase for implementation evidence
+  - If found, note file paths and line ranges
+  - Assess if implementation matches requirement intent
+  - If divergence detected:
+    - Add WARNING: "Implementation may diverge from spec: <details>"
+    - Recommendation: "Review <file>:<lines> against requirement X"
+
+**Scenario Coverage**:
+- For each scenario in delta specs (marked with "#### Scenario:"):
+  - Check if conditions are handled in code
+  - Check if tests exist covering the scenario
+  - If scenario appears uncovered:
+    - Add WARNING: "Scenario not covered: <scenario name>"
+    - Recommendation: "Add test or implementation for scenario: <description>"
+
+## Coherence
+
+**Design Adherence**:
+- If \`contextFiles.design\` exists:
+  - Extract key decisions (look for sections like "Decision:", "Approach:", "Architecture:")
+  - Verify implementation follows those decisions
+  - If contradiction detected:
+    - Add WARNING: "Design decision not followed: <decision>"
+    - Recommendation: "Update implementation or revise design.md to match reality"
+- If no design.md: Skip design adherence check, note "No design.md to verify against"
+
+**Code Pattern Consistency**:
+- Review new code for consistency with project patterns
+- Check file naming, directory structure, coding style
+- If significant deviations found:
+  - Add SUGGESTION: "Code pattern deviation: <details>"
+  - Recommendation: "Consider following project pattern: <example>"
+
+## Severity levels
+
+1. **CRITICAL** (Must fix before archive):
+   - Incomplete tasks
+   - Missing requirement implementations
+   - Each with specific, actionable recommendation
+
+2. **WARNING** (Should fix):
+   - Spec/design divergences
+   - Missing scenario coverage
+   - Each with specific recommendation
+
+3. **SUGGESTION** (Nice to fix):
+   - Pattern inconsistencies
+   - Minor improvements
+   - Each with specific recommendation
+
+## Verification heuristics
+
+- **Completeness**: Focus on objective checklist items (checkboxes, requirements list)
+- **Correctness**: Use keyword search, file path analysis, reasonable inference - don't require perfect certainty
+- **Coherence**: Look for glaring inconsistencies, don't nitpick style
+- **False Positives**: When uncertain, prefer SUGGESTION over WARNING, WARNING over CRITICAL
+- **Actionability**: Every issue must have a specific recommendation with file/line references where applicable
+
+## Graceful degradation
+
+- If only tasks.md exists: verify task completion only, skip spec/design checks
+- If tasks + specs exist: verify completeness and correctness, skip design
+- If full artifacts: verify all three dimensions
+- Always note which checks were skipped and why
+`;
+
 export function getVerifyChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-verify-change',
@@ -59,64 +154,18 @@ ${STORE_SELECTION_GUIDANCE}
 
    Each dimension can have CRITICAL, WARNING, or SUGGESTION issues.
 
-5. **Verify Completeness**
+5. **Verify each dimension**
 
-   **Task Completion**:
-   - If \`contextFiles.tasks\` exists, read every file path in it
-   - Parse checkboxes: \`- [ ]\` (incomplete) vs \`- [x]\` (complete)
-   - Count complete vs total tasks
-   - If incomplete tasks exist:
-     - Add CRITICAL issue for each incomplete task
-     - Recommendation: "Complete task: <description>" or "Mark as done if already implemented"
+   Audit the change across all three dimensions using the artifacts loaded in step 3:
+   - **Completeness**: count \`contextFiles.tasks\` checkboxes (complete vs incomplete) and check each \`### Requirement:\` from delta specs for implementation evidence.
+   - **Correctness**: map each requirement and each \`#### Scenario:\` to implementation/test evidence with \`file.ts:line\` references, flagging divergences.
+   - **Coherence**: verify the implementation follows any \`contextFiles.design\` decisions and stays consistent with project patterns.
 
-   **Spec Coverage**:
-   - If delta specs exist in \`contextFiles.specs\`:
-     - Extract all requirements (marked with "### Requirement:")
-     - For each requirement:
-       - Search codebase for keywords related to the requirement
-       - Assess if implementation likely exists
-     - If requirements appear unimplemented:
-       - Add CRITICAL issue: "Requirement not found: <requirement name>"
-       - Recommendation: "Implement requirement X: <description>"
+   Record issues at the appropriate severity (CRITICAL / WARNING / SUGGESTION), each with a specific, actionable recommendation. Degrade gracefully when artifacts are missing (e.g. tasks-only), and note which checks were skipped and why.
 
-6. **Verify Correctness**
+   See \`references/verification-dimensions.md\` for the full checklist of the three dimensions (completeness, correctness, coherence) and severity levels.
 
-   **Requirement Implementation Mapping**:
-   - For each requirement from delta specs:
-     - Search codebase for implementation evidence
-     - If found, note file paths and line ranges
-     - Assess if implementation matches requirement intent
-     - If divergence detected:
-       - Add WARNING: "Implementation may diverge from spec: <details>"
-       - Recommendation: "Review <file>:<lines> against requirement X"
-
-   **Scenario Coverage**:
-   - For each scenario in delta specs (marked with "#### Scenario:"):
-     - Check if conditions are handled in code
-     - Check if tests exist covering the scenario
-     - If scenario appears uncovered:
-       - Add WARNING: "Scenario not covered: <scenario name>"
-       - Recommendation: "Add test or implementation for scenario: <description>"
-
-7. **Verify Coherence**
-
-   **Design Adherence**:
-   - If \`contextFiles.design\` exists:
-     - Extract key decisions (look for sections like "Decision:", "Approach:", "Architecture:")
-     - Verify implementation follows those decisions
-     - If contradiction detected:
-       - Add WARNING: "Design decision not followed: <decision>"
-       - Recommendation: "Update implementation or revise design.md to match reality"
-   - If no design.md: Skip design adherence check, note "No design.md to verify against"
-
-   **Code Pattern Consistency**:
-   - Review new code for consistency with project patterns
-   - Check file naming, directory structure, coding style
-   - If significant deviations found:
-     - Add SUGGESTION: "Code pattern deviation: <details>"
-     - Recommendation: "Consider following project pattern: <example>"
-
-8. **Generate Verification Report**
+6. **Generate Verification Report**
 
    **Summary Scorecard**:
    \`\`\`
@@ -151,21 +200,6 @@ ${STORE_SELECTION_GUIDANCE}
    - If CRITICAL issues: "X critical issue(s) found. Fix before archiving."
    - If only warnings: "No critical issues. Y warning(s) to consider. Ready for archive (with noted improvements)."
    - If all clear: "All checks passed. Ready for archive."
-
-**Verification Heuristics**
-
-- **Completeness**: Focus on objective checklist items (checkboxes, requirements list)
-- **Correctness**: Use keyword search, file path analysis, reasonable inference - don't require perfect certainty
-- **Coherence**: Look for glaring inconsistencies, don't nitpick style
-- **False Positives**: When uncertain, prefer SUGGESTION over WARNING, WARNING over CRITICAL
-- **Actionability**: Every issue must have a specific recommendation with file/line references where applicable
-
-**Graceful Degradation**
-
-- If only tasks.md exists: verify task completion only, skip spec/design checks
-- If tasks + specs exist: verify completeness and correctness, skip design
-- If full artifacts: verify all three dimensions
-- Always note which checks were skipped and why
 
 **Output Format**
 

@@ -35,6 +35,35 @@ import {
   AUTHORING_CONVENTIONS_REFERENCE_FILE,
 } from '../templates/workflows/authoring-conventions.js';
 import { getAllowedToolsFor } from '../templates/workflows/skill-tools.js';
+import {
+  ONBOARD_ARTIFACT_TEMPLATES_FILE,
+  ONBOARD_ARTIFACT_TEMPLATES_REFERENCE,
+} from '../templates/workflows/onboard.js';
+import {
+  DELTA_FORMAT_REFERENCE_FILE,
+  DELTA_FORMAT_REFERENCE,
+} from '../templates/workflows/sync-specs.js';
+import {
+  BULK_ARCHIVE_CONFLICTS_REFERENCE_FILE,
+  BULK_ARCHIVE_CONFLICTS_REFERENCE,
+} from '../templates/workflows/bulk-archive-change.js';
+import {
+  VERIFY_DIMENSIONS_REFERENCE_FILE,
+  VERIFY_DIMENSIONS_REFERENCE,
+} from '../templates/workflows/verify-change.js';
+
+/**
+ * Every reference file a skill body may link, keyed by its relative path. A file
+ * is emitted for a skill exactly when that skill's body links its path, so a
+ * skill can never link a reference that is not written beside it.
+ */
+const REFERENCE_REGISTRY: ReadonlyArray<{ file: string; content: string }> = [
+  { file: AUTHORING_CONVENTIONS_REFERENCE_FILE, content: AUTHORING_CONVENTIONS_REFERENCE },
+  { file: ONBOARD_ARTIFACT_TEMPLATES_FILE, content: ONBOARD_ARTIFACT_TEMPLATES_REFERENCE },
+  { file: DELTA_FORMAT_REFERENCE_FILE, content: DELTA_FORMAT_REFERENCE },
+  { file: BULK_ARCHIVE_CONFLICTS_REFERENCE_FILE, content: BULK_ARCHIVE_CONFLICTS_REFERENCE },
+  { file: VERIFY_DIMENSIONS_REFERENCE_FILE, content: VERIFY_DIMENSIONS_REFERENCE },
+];
 
 /**
  * A reference file a skill's body links to, emitted beside its `SKILL.md`.
@@ -51,14 +80,9 @@ export interface SkillReferenceFile {
  * can never link a reference that is not written beside it.
  */
 export function getSkillReferenceFiles(template: SkillTemplate): SkillReferenceFile[] {
-  const files: SkillReferenceFile[] = [];
-  if (template.instructions.includes(AUTHORING_CONVENTIONS_REFERENCE_FILE)) {
-    files.push({
-      relativePath: AUTHORING_CONVENTIONS_REFERENCE_FILE,
-      content: AUTHORING_CONVENTIONS_REFERENCE,
-    });
-  }
-  return files;
+  return REFERENCE_REGISTRY.filter((ref) => template.instructions.includes(ref.file)).map(
+    (ref) => ({ relativePath: ref.file, content: ref.content })
+  );
 }
 
 /**

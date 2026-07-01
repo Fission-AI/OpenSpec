@@ -183,9 +183,20 @@ export function validateSkillConformance(
     errors.push(`${id}: compatibility must be at most 500 characters`);
   }
 
-  // Declared tools
-  if (!getAllowedToolsFor(template.name)?.length) {
+  // Declared tools present + cover body usage
+  const declared = getAllowedToolsFor(template.name);
+  if (!declared?.length) {
     errors.push(`${id}: no allowed-tools declared`);
+  } else {
+    // Only unambiguous tool tokens (not English words) are checked, so the
+    // "declared set covers body usage" rule never false-positives on prose like
+    // "Read the file". A body that names one of these tools must declare it.
+    const UNAMBIGUOUS_TOOLS = ['AskUserQuestion', 'TodoWrite', 'Grep', 'Glob', 'WebFetch', 'WebSearch'];
+    for (const tool of UNAMBIGUOUS_TOOLS) {
+      if (template.instructions.includes(tool) && !declared.includes(tool)) {
+        errors.push(`${id}: body uses ${tool} but it is not in the declared allowed-tools`);
+      }
+    }
   }
 
   // Reference links resolve to an emitted file
