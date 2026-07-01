@@ -97,6 +97,57 @@ describe('relationship health composition (3.6)', () => {
     expect(absent.store?.metadata.remote).toBeUndefined();
   });
 
+  it('notes an upstream-behind checkout as info, but stays quiet when ahead-only', () => {
+    const facts = { id: 'team-context', metadataPresent: true, metadataValid: true };
+
+    const behind = inspectRelationships({
+      ...baseInput(),
+      storeFacts: { ...facts, drift: { ahead: 0, behind: 3 } },
+    });
+    expect(behind.store?.status[0]).toEqual(
+      expect.objectContaining({ severity: 'info', code: 'store_checkout_drift' })
+    );
+    expect(behind.store?.status[0].message).toContain('3 commits behind');
+    expect(behind.store?.drift).toEqual({ ahead: 0, behind: 3 });
+
+    // Singular when exactly one commit behind.
+    const one = inspectRelationships({
+      ...baseInput(),
+      storeFacts: { ...facts, drift: { ahead: 0, behind: 1 } },
+    });
+    expect(one.store?.status[0].message).toContain('1 commit behind');
+    expect(one.store?.status[0].message).not.toContain('1 commits');
+
+    const diverged = inspectRelationships({
+      ...baseInput(),
+      storeFacts: { ...facts, drift: { ahead: 2, behind: 3 } },
+    });
+    expect(diverged.store?.status[0].message).toContain('diverged');
+    expect(diverged.store?.status[0].message).toContain('3 behind, 2 ahead');
+
+    // Ahead-only is the normal steady state for a never-pushed store.
+    const ahead = inspectRelationships({
+      ...baseInput(),
+      storeFacts: { ...facts, drift: { ahead: 4, behind: 0 } },
+    });
+    expect(ahead.store?.status).toEqual([]);
+    expect(ahead.store?.drift).toEqual({ ahead: 4, behind: 0 });
+
+    // In sync: counts surface in JSON (a consumer can tell "in sync" apart
+    // from "no upstream"), but nothing is reported.
+    const synced = inspectRelationships({
+      ...baseInput(),
+      storeFacts: { ...facts, drift: { ahead: 0, behind: 0 } },
+    });
+    expect(synced.store?.status).toEqual([]);
+    expect(synced.store?.drift).toEqual({ ahead: 0, behind: 0 });
+
+    // No drift fact at all: nothing added, nothing reported.
+    const none = inspectRelationships({ ...baseInput(), storeFacts: facts });
+    expect(none.store?.status).toEqual([]);
+    expect(none.store?.drift).toBeUndefined();
+  });
+
   it('passes reference entries through untouched', () => {
     const entries = [
       { store_id: 'up', root: '/up', status: [] },
