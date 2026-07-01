@@ -82,18 +82,57 @@ re-mirrors, and CI redeploys on a schedule (see below).
 
 ## Automated deploys
 
-`.github/workflows/deploy-docs.yml` rebuilds the mirror and deploys to Cloudflare
-Pages via Wrangler:
+`.github/workflows/deploy-docs.yml` rebuilds the mirror and deploys the static
+export to Cloudflare Pages via Wrangler:
 
 - on every push to `main` that touches `docs/**` or `website/**`,
 - daily on a schedule (so docs merged elsewhere still go live),
 - manually via the Actions tab,
-- and as a build-only check on pull requests.
+- and as a build-only check on pull requests (never deploys).
 
-It needs two repository **secrets** — `CLOUDFLARE_API_TOKEN` and
-`CLOUDFLARE_ACCOUNT_ID` — and one optional repository **variable**,
-`DOCS_SITE_URL` (the site's public URL, used for OG/sitemap absolute links). The
-Cloudflare Pages project is named `openspec-docs`.
+Once the site changes, that's it — a `docs/*.md` edit merged to `main` re-mirrors
+and redeploys with no manual step.
+
+### One-time deploy setup (maintainer)
+
+The workflow is ready, but auto-deploy stays dormant until these three are done.
+Until then, docs still mirror correctly on build — they just don't reach
+Cloudflare on their own.
+
+1. **Create the Cloudflare Pages project** named `openspec-docs`, with its
+   production branch set to `main`. Once, via the dashboard or:
+
+   ```bash
+   npx wrangler pages project create openspec-docs --production-branch main
+   ```
+
+   (Non-interactive CI can't create it on the fly, so this must exist first.)
+
+2. **Add two repository secrets** (Settings → Secrets and variables → Actions):
+
+   | Secret | Where to get it |
+   |--------|-----------------|
+   | `CLOUDFLARE_API_TOKEN` | Cloudflare dashboard → My Profile → API Tokens → "Edit Cloudflare Pages" template |
+   | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare dashboard → Workers & Pages → Account ID |
+
+   Optional: set a repository **variable** `DOCS_SITE_URL` to the site's public URL
+   (used for Open Graph / sitemap absolute links). Without it, the build falls
+   back to `https://openspec.dev`, so this is not required.
+
+3. **Merge this to `main`.** GitHub Actions only runs the `push`-to-`main` and
+   scheduled triggers from workflows on the default branch, so the automation
+   activates when the PR merges.
+
+To smoke-test before merging: run the workflow by hand from the **Actions** tab
+(**workflow_dispatch**) once the project and secrets exist.
+
+### Landing page — a maintainer decision
+
+The current [openspec.dev](https://openspec.dev) landing page is a separate Astro
+site. This site ships its own Fumadocs landing page at `app/(home)/page.tsx`
+(the only hand-authored page here; everything under `/docs` is mirrored). Whether
+to keep this landing page, port the Astro one into it, or point Pages only at
+`/docs` is a maintainer call — nothing else in this pipeline depends on it.
 
 ## Project structure
 
