@@ -153,8 +153,10 @@ This is a working prototype — every command above runs today:
 - **Canonical-vs-shadow precedence, enforced.** A local initiative that shares an
   id with one in a referenced store is reported as a shadow — never silently
   overriding it, never blocking your local work.
-- **Read by name via `references:`.** A repo declares the store once and its
-  agent builds against the shared plan; nothing is copied.
+- **Read by name via `references:`.** A repo declares the store once, and its
+  coding agent sees the store's artifact types and initiatives right in its
+  context — in the instruction block and in `openspec context` — each with a
+  one-line summary and the command to fetch it. Nothing is copied.
 
 Still a prototype: the initiative folder is a light convention (an
 `initiative.yaml` manifest — not a revived command group), and richer rollups
