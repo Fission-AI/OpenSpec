@@ -2,9 +2,11 @@ export const appName = 'OpenSpec';
 
 // Absolute base URL of the deployed site, used to resolve Open Graph / social
 // image URLs. Set NEXT_PUBLIC_SITE_URL in your deploy environment (e.g. on
-// Cloudflare Pages) to your real domain. The fallback is only for local builds.
+// Cloudflare Pages) to your real domain. The fallback covers local builds and
+// CI runs where the variable is unset or empty (an empty string would otherwise
+// crash `new URL()` at build time).
 export const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL ?? 'https://openspec.dev';
+  process.env.NEXT_PUBLIC_SITE_URL || 'https://openspec.dev';
 
 export const docsRoute = '/docs';
 export const docsImageRoute = '/og/docs';
