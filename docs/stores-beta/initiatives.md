@@ -1,265 +1,151 @@
-# Group related work with initiatives
+# Initiatives: your plan, your artifacts, shared across repos
 
-> **Beta.** This builds on [stores](user-guide.md), which are still new. Names and
-> file shapes may change between releases.
+> **Beta.** This builds on [stores](user-guide.md). Names and file shapes may
+> change between releases.
 
-Big work is rarely one change. A goal like "make setup smoother" or "add search"
-is really a handful of changes that go together. Today there is no clear home for
-that bigger picture, so people track it in their head or in a stray document.
+## The one idea
 
-An **initiative** is that home. It is a small folder that groups related changes
-and shows where each one stands. You can keep it in your own repo, or in a
-**store** so more than one repo can share it.
+Kiro hands you `requirements → design → tasks`. Spec-Kit hands you
+`spec → plan → tasks`. You use the artifacts they picked.
 
-This page shows both: one repo first, then many repos.
+OpenSpec is different:
 
-## The two ideas, in one line each
+> **You define the artifacts your team actually uses — a brief, a persona, a
+> decision record, anything — and share them in one place every repo can read.**
 
-- **A store** is a planning repo you register by name, so any project can read it.
-- **An initiative** is a folder that groups related changes and tracks their status.
+That one place is a **store**. The plan that lives there is an **initiative**.
 
-## One repo: make an initiative
+## What an initiative is
 
-An initiative is just a folder with two files:
+An **initiative** is the home for a big effort — work that is too large for a
+single change.
 
-```
-openspec/
-  initiatives/
+It holds three things:
+
+- **the brief** — what you are doing, and why
+- **the artifacts you choose** — personas, decision records, whatever your team
+  works from
+- **the changes** that carry it out — each one still a normal OpenSpec change,
+  with live status
+
+One effort. One home. Read by every repo that needs it.
+
+```text
+acme-plans  (a store: planning in its own repo)
+  openspec/initiatives/
     smoother-setup/
-      README.md      the shared plan: what this is and why these changes go together
-      inventory.md   the list of changes, and where each one stands
+      brief.md          what this is, and why
+      personas/         who we build for      ← your own artifact types
+      decisions/        the calls we made      ← your own artifact types
+      (changes grouped here, with live status)
 ```
 
-That is the whole shape to start. The `README.md` holds the plan in plain words.
-The `inventory.md` is a simple table — one row per change.
+## The happy path
 
-There is a real example in this repo: [smoother-setup](../../openspec/initiatives/smoother-setup/README.md).
-It groups four real changes that all make setup easier.
+*A team is making setup smoother. The work spans a CLI repo and a docs repo.
+The plan should not live in either one.*
 
-### See where each change stands
+### 1. Put the plan in a store
 
-You do not track status by hand. Ask OpenSpec:
+A store is planning in its own git repo. Stand one up once:
 
+```bash
+openspec store setup acme-plans --path ~/openspec/acme-plans
 ```
-openspec list --changes
+
+Now the plan has a home of its own — not buried in anyone's code.
+
+### 2. Define your own artifacts
+
+This is the superpower. Your team works from personas and decision records, so
+make those first-class. Describe them once, in a small **schema**:
+
+```yaml
+# acme-plans/openspec/schemas/initiative/schema.yaml
+artifacts:
+  - id: brief        # what and why
+  - id: persona      # who we build for
+  - id: decision     # a call we made, and the trade-off
 ```
 
+These are *your* artifact types — labeled in your words. OpenSpec now knows them
+and can check them, the same way it checks specs and tasks.
+
+### 3. Group the changes it takes
+
+The initiative names the changes that carry it out. Each change is a normal
+OpenSpec change — nothing new to learn. You never track status by hand; ask
+OpenSpec:
+
+```bash
+openspec list --changes --store acme-plans
 ```
+
+```text
 Changes:
-  simplify-skill-installation               ✓ Complete    8d ago
-  fix-opencode-commands-directory           ✓ Complete    8d ago
-  add-global-install-scope                  0/38 tasks    8d ago
-  schema-alias-support                      No tasks      8d ago
-  ...
+  simplify-skill-installation      ✓ Complete    8d ago
+  fix-opencode-commands-directory  ✓ Complete    8d ago
+  add-global-install-scope         0/38 tasks    8d ago
+  schema-alias-support             No tasks      8d ago
 ```
 
-The inventory names the changes; this command shows their live status. Open any
-one to read its full plan:
+One command. Where the whole effort stands.
 
-```
-openspec show simplify-skill-installation
-```
+### 4. Every repo reads it — nothing copied
 
-That is the one-repo case. Your big-picture plan and your changes now live side
-by side, and your coding agent can read both.
-
-### An initiative can hold more than changes
-
-Real work needs more than a change list. It helps to write down *who* you are
-building for and *why* you made the calls you did. An initiative is a good home
-for those too — as plain files, right next to the plan:
-
-```
-smoother-setup/
-  README.md      the plan
-  inventory.md   the changes, and where each one stands
-  personas/      who we are building for
-  decisions/     the key calls, and why (one short record each)
-```
-
-In the [example](../../openspec/initiatives/smoother-setup/README.md):
-
-- **Personas** name the people the work serves — a
-  [new user](../../openspec/initiatives/smoother-setup/personas/new-user.md), a
-  [lead across repos](../../openspec/initiatives/smoother-setup/personas/team-lead.md),
-  and an [AI coding agent](../../openspec/initiatives/smoother-setup/personas/coding-agent.md).
-- **Decision records** (ADRs) capture one call each and why, so the reason is not
-  lost later — for example, [why we added an alias instead of renaming](../../openspec/initiatives/smoother-setup/decisions/0001-aliases-over-rename.md).
-
-All of it sits in one place, in plain Markdown your coding agent can read.
-
-## Many repos: share the initiative in a store
-
-Sometimes the plan is bigger than one repo. Several repos build toward the same
-goal, or one team owns the plan and others build against it. Put the initiative
-in a **store**, and every repo can read it by name.
-
-Register a planning repo as a store once:
-
-```
-openspec store register ./path-to-plans --id team-plans
-```
-
-```
-OpenSpec root: ready
-Registry: registered
-```
-
-Now any repo can read that plan without copying it. A code repo adds one line to
-its `openspec/config.yaml`:
+Each code repo adds one line to its `openspec/config.yaml`:
 
 ```yaml
 references:
-  - team-plans
+  - acme-plans
 ```
 
-From that repo, OpenSpec shows the shared plan as read-only context:
+Now the coding agent in *that* repo sees the shared plan — the brief, the
+personas, the decisions, the changes — and builds against it. No pasting. No
+drift. The plan is read by name, live from the store.
 
-```
-openspec context
-```
+That is the whole happy path: **your store, your artifacts, read by every
+repo, with live status.**
 
-```
-OpenSpec root
-  consumer-demo  /path/to/consumer-demo
+## When two initiatives collide
 
-Referenced stores
-  team-plans  /path/to/plans
-    Fetch: openspec show <spec-id> --type spec --store team-plans
-```
+The question every team hits: the store has an initiative called
+`smoother-setup`, and someone starts a local one by the same name in their own
+repo. Which wins?
 
-And your coding agent, working in the code repo, automatically sees the shared
-plan it should build against:
+**Best default: the store is canonical.** The store holds the shared,
+agreed-upon initiative. A local one with the same name is treated as a *draft
+that shadows it* — OpenSpec keeps letting you work locally, but tells you
+plainly:
 
-```
-<referenced_stores>
-Store team-plans (/path/to/plans):
-  - ai-tool-paths: Define AI tool path metadata used to generate OpenSpec skills...
-  - artifact-graph: Define the artifact graph model, dependency validation...
-  - change-creation: Provide programmatic utilities for creating and validating...
-</referenced_stores>
+```text
+initiative 'smoother-setup' (local) shadows the canonical one in store 'acme-plans'
 ```
 
-You can also read the plan by name from anywhere:
+Nothing diverges silently. You always know there is a shared source of truth,
+and you can reconcile when you are ready. (This mirrors how OpenSpec already
+handles schemas: a project schema *shadows* a package one, and `openspec schema
+which` shows you it is happening.)
 
-```
-openspec list --specs --store team-plans
-```
+## What works today, and what we are building
 
-`openspec doctor` checks that every referenced store is present, and prints a
-copy-paste fix if one is missing. Nothing syncs on its own — a store is a normal
-git repo, so you share it by pushing and pulling like any other.
+Honest scope — this is a prototype.
 
-That is the many-repo case. One plan, one home, read by name from every project —
-instead of copied around and left to drift.
+**Works today:**
+- An initiative folder in a store: the brief, your own artifact types as plain
+  files, and the changes it groups.
+- Live status for those changes with `openspec list --changes --store`.
+- A repo reading the store by name via `references:`.
+- Defining your own artifact types in a schema (`openspec schema`).
 
-## Define your own artifact types
+**The gap we are closing (this is the build):**
+- Today, `openspec schemas` and artifact discovery look only at the current
+  repo — they are not store-aware. So a repo that *references* a store cannot
+  yet see the store's custom artifact types, and initiative precedence
+  (canonical vs. local shadow) is a convention, not something OpenSpec enforces.
+- **The prototype makes both work across repos:** the store's initiatives and
+  artifact types become discoverable and checkable from any repo that
+  references it, with the canonical-vs-shadow rule built in.
 
-Plain files are enough to start. When you want OpenSpec to *check* these
-artifacts — give each one a template and a clear order — you describe them in a
-small **schema**. A schema is how you define your own artifact types, beyond the
-built-in ones.
-
-The example ships one:
-[example-schema/](../../openspec/initiatives/smoother-setup/example-schema/schema.yaml).
-It defines five types — a one-pager, a persona, a decision record, a spec, and a
-task list — and the order they build in. Copy that folder into
-`openspec/schemas/initiative/` and OpenSpec picks it up:
-
-```
-openspec schemas
-```
-
-```
-Available schemas:
-
-  initiative (project)
-    A workflow that keeps the "who and why" next to the "what". It produces a
-    one-pager, a persona, a decision record, a spec, and a task list.
-    Artifacts: one-pager → persona → adr → spec → tasks
-
-  spec-driven
-    Default OpenSpec workflow - proposal → specs → design → tasks
-    Artifacts: proposal → specs → design → tasks
-```
-
-Now you can start a change on your own types. OpenSpec tracks the order — each
-artifact unlocks the next:
-
-```
-openspec new change improve-onboarding --schema initiative
-openspec status --change improve-onboarding
-```
-
-```
-[ ] one-pager
-[-] persona (blocked by: one-pager)
-[-] adr (blocked by: persona)
-[-] spec (blocked by: adr)
-[-] tasks (blocked by: spec)
-```
-
-Fill each artifact in order and the graph fills in. Here is a finished one — you
-can read the real files in
-[finished-example/](../../openspec/initiatives/smoother-setup/example-schema/finished-example/):
-
-```
-openspec status --change example-first-run
-```
-
-```
-Progress: 5/5 artifacts complete
-
-[x] one-pager
-[x] persona
-[x] adr
-[x] spec
-[x] tasks
-
-All artifacts complete!
-```
-
-```
-openspec validate example-first-run --type change --strict
-```
-
-```
-Change 'example-first-run' is valid
-```
-
-This is the heart of it: a store is not limited to changes and specs. You decide
-what artifacts your work needs — one-pagers, personas, decision records — and
-they all live in one place your team and your coding agent can read.
-
-Start with plain files. Add a schema when you want the structure and the checks.
-
-## What works today, and what is still rough
-
-Honest notes from building this:
-
-- **Works now, no extra tools:** the initiative folder, personas and decision
-  records as files, `openspec list` for status, your own artifact types via a
-  schema, and reading a store by name from any repo. Every command and its output
-  above came from a normal OpenSpec install.
-- **Still rough:** the folder layout for an initiative is a convention here, not a
-  built-in command, so it is on you to keep it tidy. And a store cannot yet list
-  the repos that read from it, so a full "across every repo" rollup needs a bit of
-  glue today.
-
-## Where this could go
-
-This works today with plain files and a copied schema. A first-class version
-could:
-
-- Add an `openspec initiative` command to create and list initiatives, so the
-  layout is more than a convention.
-- Roll up status across every repo that references a store, so "where does the
-  whole effort stand" is one command.
-- Ship a few ready-made artifact types (one-pager, persona, decision record) you
-  can turn on, instead of copying a schema.
-
-None of these are needed to start. They are the natural next steps once teams
-lean on initiatives.
-
-Start simple: one initiative folder, grouping a few real changes. Move it into a
-store when more than one repo needs it.
+Start simple: one initiative folder in a store, grouping a few real changes,
+with the artifacts your team already uses. The rest is what we build next.

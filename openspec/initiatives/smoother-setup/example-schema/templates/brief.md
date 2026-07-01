@@ -1,4 +1,4 @@
-# One-pager: [Title]
+# Brief: [Title]
 
 ## Problem
 

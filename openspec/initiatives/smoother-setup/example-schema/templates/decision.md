@@ -1,4 +1,4 @@
-# ADR: [Decision title]
+# Decision: [Decision title]
 
 ## Status
 
