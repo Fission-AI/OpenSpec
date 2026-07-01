@@ -23,6 +23,7 @@ import {
   getCommandContents,
   generateSkillContent,
   getSkillReferenceFiles,
+  validateSkillConformance,
   getToolsWithSkillsDir,
   type ToolVersionStatus,
 } from './shared/index.js';
@@ -171,6 +172,15 @@ export class UpdateCommand {
 
     // 9. Determine what to generate based on delivery
     const skillTemplates = shouldGenerateSkills ? getSkillTemplates(desiredWorkflows) : [];
+    if (shouldGenerateSkills) {
+      const conformanceErrors: string[] = [];
+      for (const { template, dirName } of skillTemplates) {
+        conformanceErrors.push(...validateSkillConformance(template, dirName).errors);
+      }
+      if (conformanceErrors.length > 0) {
+        throw new Error(`Skill conformance check failed:\n- ${conformanceErrors.join('\n- ')}`);
+      }
+    }
     const commandContents = shouldGenerateCommands ? getCommandContents(desiredWorkflows) : [];
 
     // 10. Update tools (all if force, otherwise only those needing update)
@@ -679,6 +689,15 @@ export class UpdateCommand {
     const shouldGenerateSkills = delivery !== 'commands';
     const shouldGenerateCommands = delivery !== 'skills';
     const skillTemplates = shouldGenerateSkills ? getSkillTemplates(desiredWorkflows) : [];
+    if (shouldGenerateSkills) {
+      const conformanceErrors: string[] = [];
+      for (const { template, dirName } of skillTemplates) {
+        conformanceErrors.push(...validateSkillConformance(template, dirName).errors);
+      }
+      if (conformanceErrors.length > 0) {
+        throw new Error(`Skill conformance check failed:\n- ${conformanceErrors.join('\n- ')}`);
+      }
+    }
     const commandContents = shouldGenerateCommands ? getCommandContents(desiredWorkflows) : [];
 
     for (const toolId of selectedTools) {

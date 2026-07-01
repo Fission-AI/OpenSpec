@@ -14,6 +14,9 @@
  */
 
 import { AUTHORING_CONVENTIONS_REFERENCE_FILE } from '../templates/workflows/authoring-conventions.js';
+import { getAllowedToolsFor } from '../templates/workflows/skill-tools.js';
+import { getSkillReferenceFiles } from './skill-generation.js';
+import type { SkillTemplate } from '../templates/skill-templates.js';
 
 /** Workflow ids whose skills draft or update spec deltas. */
 export const SPEC_AUTHORING_WORKFLOWS = new Set(['propose', 'ff', 'continue', 'sync']);
@@ -137,4 +140,68 @@ export function scoreSkillConformance(input: ConformanceInput): ConformanceResul
     passed,
     applicable: applicableChecks.length,
   };
+}
+
+/** Result of validating one skill against the Agent Skills standard's hard rules. */
+export interface ConformanceValidation {
+  errors: string[];
+  warnings: string[];
+}
+
+const NAME_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+const REFERENCE_LINK_PATTERN = /references\/[A-Za-z0-9._-]+/g;
+
+/**
+ * Validates a generated skill against the standard's hard rules — the
+ * conformance gate. Frontmatter validity, `name` == folder, resolvable
+ * `references/` links, and a declared `allowed-tools` set are errors (block
+ * generation); an over-budget body is a warning (does not block).
+ */
+export function validateSkillConformance(
+  template: SkillTemplate,
+  dirName: string
+): ConformanceValidation {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const id = template.name || dirName;
+
+  // Frontmatter: name
+  if (!template.name || template.name.length < 1 || template.name.length > 64) {
+    errors.push(`${id}: name must be 1–64 characters`);
+  } else if (!NAME_PATTERN.test(template.name)) {
+    errors.push(`${id}: name must be lowercase alphanumeric and hyphens with no leading/trailing/consecutive hyphens`);
+  }
+  if (template.name !== dirName) {
+    errors.push(`${id}: name "${template.name}" must equal folder "${dirName}"`);
+  }
+
+  // Frontmatter: description / compatibility
+  if (!template.description || template.description.length < 1 || template.description.length > 1024) {
+    errors.push(`${id}: description must be 1–1024 characters`);
+  }
+  if (template.compatibility && template.compatibility.length > 500) {
+    errors.push(`${id}: compatibility must be at most 500 characters`);
+  }
+
+  // Declared tools
+  if (!getAllowedToolsFor(template.name)?.length) {
+    errors.push(`${id}: no allowed-tools declared`);
+  }
+
+  // Reference links resolve to an emitted file
+  const emitted = new Set(getSkillReferenceFiles(template).map((r) => r.relativePath));
+  const linked = template.instructions.match(REFERENCE_LINK_PATTERN) ?? [];
+  for (const link of linked) {
+    if (!emitted.has(link)) {
+      errors.push(`${id}: links "${link}" but no such reference file is emitted`);
+    }
+  }
+
+  // Body budget — warning, not a hard failure
+  const bodyLines = template.instructions.split('\n').length;
+  if (bodyLines > BODY_LINE_BUDGET) {
+    warnings.push(`${id}: body is ${bodyLines} lines, over the ${BODY_LINE_BUDGET}-line budget`);
+  }
+
+  return { errors, warnings };
 }

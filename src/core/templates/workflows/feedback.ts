@@ -9,10 +9,20 @@ import type { SkillTemplate } from '../types.js';
 export function getFeedbackSkillTemplate(): SkillTemplate {
   return {
     name: 'feedback',
-    description: 'Collect and submit user feedback about OpenSpec with context enrichment and anonymization.',
+    description: 'Collect and submit user feedback about OpenSpec with context enrichment and anonymization. Use when the user wants to send feedback to the OpenSpec maintainers - this is unrelated to the change workflow; for creating or advancing a change use openspec-propose instead.',
     instructions: `Help the user submit feedback about OpenSpec.
 
+**Use when:** the user wants to send feedback (a bug report, friction point, or praise) to the OpenSpec maintainers. This is unrelated to the change workflow skills; to create or advance a change, use \`openspec-propose\` instead.
+
 **Goal**: Guide the user through collecting, enriching, and submitting feedback while ensuring privacy through anonymization.
+
+**Success (exit condition):** done when the feedback has been submitted with \`openspec feedback\` after the user approved the draft - or when the user cancels or declines to submit.
+
+**Failure & recovery**
+- If \`openspec feedback\` fails to submit, report the error to the user and offer to retry, or to copy the drafted title and body so they can file it manually.
+- If the user declines the draft, revise per their notes and re-present, or stop if they no longer want to send feedback.
+
+**Related:** this skill stands alone; for the change lifecycle use the \`openspec-*\` workflow skills (e.g. \`openspec-propose\`, \`openspec-apply-change\`).
 
 **Process**
 

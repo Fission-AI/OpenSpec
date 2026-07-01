@@ -29,3 +29,8 @@ export {
   generateSkillContent,
   getSkillReferenceFiles,
 } from './skill-generation.js';
+
+export {
+  type ConformanceValidation,
+  validateSkillConformance,
+} from './skill-conformance.js';

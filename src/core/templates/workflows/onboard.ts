@@ -10,7 +10,7 @@ import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 export function getOnboardSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-onboard',
-    description: 'Guided onboarding for OpenSpec - walk through a complete workflow cycle with narration and real codebase work.',
+    description: 'Guided, narrated onboarding — walk a new user through one complete OpenSpec workflow cycle doing real work in their codebase. Use when someone is new to OpenSpec and wants a hands-on tour; for real work without the teaching narration use openspec-propose or openspec-continue-change instead.',
     instructions: getOnboardInstructions(),
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
@@ -561,7 +561,20 @@ Exit gracefully.
 - **Pause for acknowledgment** at marked points, but don't over-pause
 - **Handle exits gracefully**—never pressure the user to continue
 - **Use real codebase tasks**—don't simulate or use fake examples
-- **Adjust scope gently**—guide toward smaller tasks but respect user choice`;
+- **Adjust scope gently**—guide toward smaller tasks but respect user choice
+
+---
+
+**Use when:** a user is new to OpenSpec and wants a narrated, hands-on tour through one complete cycle. For real work without the teaching narration, use \`openspec-propose\` or \`openspec-continue-change\`.
+
+**Success (exit condition):** the user has walked through a full cycle — explore → propose → specs → tasks → apply → archive — on a real task, ending with an archived change and the wrap-up shown; or the user chose to exit early and you stopped gracefully.
+
+**Failure & recovery**
+- **CLI not installed (preflight fails):** stop and point the user to install \`openspec\`, then restart \`openspec-onboard\`.
+- **User wants to stop mid-tour:** exit gracefully at the current phase; suggest resuming later, or picking up the real workflow with \`openspec-continue-change\`.
+- **The chosen task is too large:** guide toward a smaller slice per the Scope Guardrail rather than abandoning the tour.
+
+**Related:** \`openspec-propose\` or \`openspec-continue-change\` to do real work after the tour; \`openspec-explore\` to think through an idea first.`;
 }
 
 export function getOpsxOnboardCommandTemplate(): CommandTemplate {

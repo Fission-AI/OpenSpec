@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { getSkillTemplates, getSkillReferenceFiles } from '../../../src/core/shared/skill-generation.js';
+import { validateSkillConformance } from '../../../src/core/shared/skill-conformance.js';
 import { AUTHORING_CONVENTIONS_REFERENCE_FILE } from '../../../src/core/templates/workflows/authoring-conventions.js';
+import { getAllowedToolsFor } from '../../../src/core/templates/workflows/skill-tools.js';
 import {
   scoreSkillConformance,
   SPEC_AUTHORING_WORKFLOWS,
@@ -67,6 +69,27 @@ describe('skill authoring-conventions conformance', () => {
     expect(results.length).toBe(4);
     for (const r of results) {
       expect(r.passed, `${r.workflowId} scored ${r.passed}/${r.applicable}`).toBe(r.applicable);
+    }
+  });
+
+  it('every generated skill passes the conformance gate (validated bundle)', () => {
+    for (const { template, dirName } of getSkillTemplates()) {
+      const { errors } = validateSkillConformance(template, dirName);
+      expect(errors, `${dirName}: ${errors.join('; ')}`).toEqual([]);
+    }
+  });
+
+  it('every generated skill declares allowed-tools (CLI scoped except apply/onboard)', () => {
+    for (const { template, workflowId } of getSkillTemplates()) {
+      const tools = getAllowedToolsFor(template.name);
+      expect(tools?.length, template.name).toBeGreaterThan(0);
+      const hasFullBash = tools!.includes('Bash');
+      const hasScopedBash = tools!.includes('Bash(openspec:*)');
+      expect(hasFullBash || hasScopedBash, `${template.name} declares a Bash tool`).toBe(true);
+      // Only the skills that run arbitrary build/test commands get unrestricted Bash.
+      if (hasFullBash) {
+        expect(['apply', 'onboard']).toContain(workflowId);
+      }
     }
   });
 

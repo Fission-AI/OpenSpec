@@ -10,10 +10,14 @@ import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 export function getApplyChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-apply-change',
-    description: 'Implement tasks from an OpenSpec change. Use when the user wants to start implementing, continue implementation, or work through tasks.',
+    description: 'Implement a change by writing code and checking off its tasks. Use when the user wants to start, continue, or work through implementation; to check whether the work is correct without editing tasks use openspec-verify-change instead, and to create missing artifacts use openspec-continue-change rather than this skill.',
     instructions: `Implement tasks from an OpenSpec change.
 
 ${STORE_SELECTION_GUIDANCE}
+
+**Use when:** the user wants to write code and check off a change's tasks. To confirm the work is correct without modifying tasks, use \`openspec-verify-change\`; to create missing artifacts (proposal, design, tasks) rather than implement them, use \`openspec-continue-change\`.
+
+**Inputs:** optionally a change name. If omitted, infer it from conversation context; auto-select when only one active change exists; if vague or ambiguous you MUST run \`openspec list --json\` and prompt for available changes.
 
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
@@ -158,7 +162,18 @@ What would you like to do?
 This skill supports the "actions on a change" model:
 
 - **Can be invoked anytime**: Before all artifacts are done (if tasks exist), after partial implementation, interleaved with other actions
-- **Allows artifact updates**: If implementation reveals design issues, suggest updating artifacts - not phase-locked, work fluidly`,
+- **Allows artifact updates**: If implementation reveals design issues, suggest updating artifacts - not phase-locked, work fluidly
+
+**Success:** every task in the tasks file is checked \`- [x]\`, and \`openspec instructions apply --change "<name>" --json\` reports \`state: "all_done"\` with 0 remaining tasks.
+
+**Failure & recovery**
+- **Ambiguous or missing change name:** run \`openspec list --json\` and prompt with the AskUserQuestion tool; never guess.
+- **\`state: "blocked"\` (missing artifacts):** stop implementing and invoke \`openspec-continue-change\` to create the missing artifacts, then re-run the apply instructions.
+- **A task is unclear:** ask the specific clarifying question, then resume that same task - do not guess.
+- **Implementation reveals a design issue:** pause and suggest updating the relevant artifact before continuing.
+- **A build/test/command fails or a task is otherwise blocked:** report the concrete error and wait for guidance; leave the task unchecked so progress stays accurate.
+
+**Related:** \`openspec-verify-change\` to confirm the implementation is correct once tasks are done, then \`openspec-archive-change\` to finalize the change.`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },

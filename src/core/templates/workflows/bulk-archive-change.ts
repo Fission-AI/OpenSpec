@@ -10,12 +10,16 @@ import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 export function getBulkArchiveChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-bulk-archive-change',
-    description: 'Archive multiple completed changes at once. Use when archiving several parallel changes.',
+    description: 'Batch-archive many completed changes at once, resolving spec conflicts between them. Use when finalizing several parallel changes together — use openspec-archive-change instead when you only have a single change to archive.',
     instructions: `Archive multiple completed changes in a single operation.
 
 This skill allows you to batch-archive changes, handling spec conflicts intelligently by checking the codebase to determine what's actually implemented.
 
 ${STORE_SELECTION_GUIDANCE}
+
+**Use when:** two or more completed changes are ready to archive together and may touch overlapping capabilities. For a single change, use \`openspec-archive-change\` instead; to verify a change is actually complete before archiving, use \`openspec-verify-change\`.
+
+**Inputs:** none required — the skill runs \`openspec list --json\` and prompts for a multi-select of which active changes to archive. If no active changes exist, inform the user and stop.
 
 **Input**: None required (prompts for selection)
 
@@ -247,7 +251,17 @@ No active changes found. Create a new change to get started.
 - Track and report all outcomes (success/skip/fail)
 - Preserve .openspec.yaml when moving to archive
 - Archive directory target uses current date: YYYY-MM-DD-<name>
-- If archive target exists, fail that change but continue with others`,
+- If archive target exists, fail that change but continue with others
+
+**Success:** every selected change is accounted for in the final summary as archived, skipped, or failed — each archived change now lives under \`archive/YYYY-MM-DD-<name>/\` and no longer appears in \`openspec list --json\`, every detected capability conflict has a recorded resolution, and any delta specs were synced (or skipped with a stated reason). No selected change is left in an unknown state.
+
+**Failure & recovery**
+- **No active changes:** report "No active changes found" and stop — there is nothing to archive.
+- **Spec conflict — 2+ changes touch the same capability:** read each conflicting delta spec and search the codebase for implementation evidence; sync only the implemented change, apply both in chronological order if both are implemented, or skip the sync and warn if neither is implemented. Record the rationale before archiving.
+- **A change has incomplete artifacts or tasks:** surface it as a warning in the status table and let the user confirm; to fully validate before archiving, run \`openspec-verify-change\` on that change first.
+- **Archive target already exists (\`archive/YYYY-MM-DD-<name>/\`):** mark that change failed, continue with the rest, and report it in the failures list — suggest renaming the existing archive or retrying under a different date.
+
+**Related:** \`openspec-archive-change\` to finalize a single change; \`openspec-verify-change\` to confirm a change is complete before including it; \`openspec-sync-specs\` for the spec-merge step used during archiving.`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },

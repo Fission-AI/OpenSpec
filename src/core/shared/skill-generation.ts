@@ -34,6 +34,7 @@ import {
   AUTHORING_CONVENTIONS_REFERENCE,
   AUTHORING_CONVENTIONS_REFERENCE_FILE,
 } from '../templates/workflows/authoring-conventions.js';
+import { getAllowedToolsFor } from '../templates/workflows/skill-tools.js';
 
 /**
  * A reference file a skill's body links to, emitted beside its `SKILL.md`.
@@ -162,10 +163,15 @@ export function generateSkillContent(
     ? transformInstructions(template.instructions)
     : template.instructions;
 
+  const allowedTools = getAllowedToolsFor(template.name);
+  const allowedToolsLine = allowedTools
+    ? `allowed-tools: [${allowedTools.map((t) => JSON.stringify(t)).join(', ')}]\n`
+    : '';
+
   return `---
 name: ${template.name}
 description: ${template.description}
-license: ${template.license || 'MIT'}
+${allowedToolsLine}license: ${template.license || 'MIT'}
 compatibility: ${template.compatibility || 'Requires openspec CLI.'}
 metadata:
   author: ${template.metadata?.author || 'openspec'}

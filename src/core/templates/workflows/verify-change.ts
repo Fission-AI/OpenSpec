@@ -10,10 +10,14 @@ import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 export function getVerifyChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-verify-change',
-    description: 'Verify implementation matches change artifacts. Use when the user wants to validate that implementation is complete, correct, and coherent before archiving.',
+    description: 'Audit a change for completeness/correctness/coherence and produce a CRITICAL/WARNING/SUGGESTION scorecard. Use when validating that implementation matches artifacts before archiving — this only inspects and reports; use openspec-apply-change to do the implementation work, and openspec-archive-change to finalize once verification passes.',
     instructions: `Verify that an implementation matches the change artifacts (specs, tasks, design).
 
 ${STORE_SELECTION_GUIDANCE}
+
+**Use when:** you need a read-only completeness/correctness/coherence audit of a change before archiving. This skill only inspects and reports — use \`openspec-apply-change\` to implement or fix the work it flags, and \`openspec-archive-change\` to finalize once the scorecard is clean.
+
+**Inputs:** optionally a change name. If omitted, infer it from conversation context; if vague or ambiguous, run \`openspec list --json\` and prompt for a selection (never auto-select).
 
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
@@ -170,7 +174,17 @@ Use clear markdown with:
 - Grouped lists for issues (CRITICAL/WARNING/SUGGESTION)
 - Code references in format: \`file.ts:123\`
 - Specific, actionable recommendations
-- No vague suggestions like "consider reviewing"`,
+- No vague suggestions like "consider reviewing"
+
+**Success:** the verification report is produced and every check is accounted for — each task in \`contextFiles.tasks\` is counted as complete or flagged CRITICAL, each \`### Requirement:\` from the delta specs is mapped to pass/fail implementation evidence (with \`file.ts:line\` references), each \`#### Scenario:\` is marked covered or flagged, and any skipped dimension is noted with its reason. The scorecard table renders with a Completeness/Correctness/Coherence row each and ends in a final assessment (all clear, warnings-only, or CRITICAL count).
+
+**Failure & recovery**
+- **No change name and none inferable:** run \`openspec list --json\` and use the AskUserQuestion tool to have the user pick — do not guess or auto-select.
+- **\`openspec status\` / \`openspec instructions apply\` errors or the change is not found:** re-check the name against \`openspec list --json\`; if the change was never scaffolded, hand off to \`openspec-new-change\` or \`openspec-propose\`.
+- **Incomplete tasks or unimplemented requirements (CRITICAL):** stop short of archiving and route the work to \`openspec-apply-change\` to finish it, then re-run this verification.
+- **Only partial artifacts exist (tasks but no specs/design):** degrade gracefully — verify the dimensions you can, and explicitly note in the report which checks were skipped and why.
+
+**Related:** \`openspec-archive-change\` to finalize once verification passes; \`openspec-apply-change\` to implement or fix anything flagged CRITICAL.`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
