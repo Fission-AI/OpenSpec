@@ -23,8 +23,23 @@ import { inspectRegisteredStore, type ResolvedOpenSpecRoot } from './root-select
 import { getSpecIds } from '../utils/item-discovery.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { MAX_CONTEXT_SIZE, type DeclarationEntry } from './project-config.js';
+import { listSchemasWithInfo } from './artifact-graph/index.js';
+import { listInitiativeSummaries } from './initiatives.js';
 
 export interface ReferenceSpecEntry {
+  id: string;
+  summary: string;
+}
+
+/** A store's own custom artifact type (schema), for the reference index. */
+export interface ReferenceSchemaEntry {
+  id: string;
+  summary: string;
+  artifacts: string[];
+}
+
+/** A store's initiative, for the reference index. */
+export interface ReferenceInitiativeEntry {
   id: string;
   summary: string;
 }
@@ -33,6 +48,8 @@ export interface ReferenceIndexEntry {
   store_id: string;
   root?: string;
   specs?: ReferenceSpecEntry[];
+  schemas?: ReferenceSchemaEntry[];
+  initiatives?: ReferenceInitiativeEntry[];
   fetch?: string;
   status: StoreDiagnostic[];
 }
@@ -140,8 +157,52 @@ async function collectSpecEntries(referencedRoot: string): Promise<ReferenceSpec
   );
 }
 
+/**
+ * A store's own custom artifact types — its project-local schemas. Package
+ * built-ins (spec-driven) are excluded: they are the same everywhere and
+ * would be noise in every referenced store's index.
+ */
+function collectSchemaEntries(referencedRoot: string): ReferenceSchemaEntry[] {
+  let schemas;
+  try {
+    schemas = listSchemasWithInfo(referencedRoot);
+  } catch {
+    return [];
+  }
+  return schemas
+    .filter((schema) => schema.source === 'project')
+    .map((schema) => ({
+      id: sanitizeInline(schema.name, 100),
+      summary: sanitizeInline(schema.description),
+      artifacts: schema.artifacts.map((artifact) => sanitizeInline(artifact, 60)),
+    }));
+}
+
+async function collectInitiativeEntries(
+  referencedRoot: string
+): Promise<ReferenceInitiativeEntry[]> {
+  let summaries;
+  try {
+    summaries = await listInitiativeSummaries(referencedRoot);
+  } catch {
+    return [];
+  }
+  return summaries.map((initiative) => ({
+    id: sanitizeInline(initiative.id, 100),
+    summary: sanitizeInline(initiative.title),
+  }));
+}
+
 export function fetchRecipe(storeId: string): string {
   return `openspec show <spec-id> --type spec --store ${storeId}`;
+}
+
+export function schemasFetchRecipe(storeId: string): string {
+  return `openspec schemas --store ${storeId}`;
+}
+
+export function initiativesFetchRecipe(storeId: string): string {
+  return `openspec list --initiatives --store ${storeId}`;
 }
 
 function specLine(spec: ReferenceSpecEntry): string {
@@ -204,6 +265,29 @@ function renderEntryLines(entry: ReferenceIndexEntry): string[] {
     lines.push(`Store ${entry.store_id} (${entry.root}):`);
     for (const spec of entry.specs ?? []) {
       lines.push(specLine(spec));
+    }
+    if (entry.schemas && entry.schemas.length > 0) {
+      lines.push(`  Artifact types (${schemasFetchRecipe(entry.store_id)}):`);
+      for (const schema of entry.schemas) {
+        const graph = schema.artifacts.length > 0
+          ? ` [${schema.artifacts.join(' → ')}]`
+          : '';
+        lines.push(
+          schema.summary
+            ? `    - ${schema.id}: ${schema.summary}${graph}`
+            : `    - ${schema.id}${graph}`
+        );
+      }
+    }
+    if (entry.initiatives && entry.initiatives.length > 0) {
+      lines.push(`  Initiatives (${initiativesFetchRecipe(entry.store_id)}):`);
+      for (const initiative of entry.initiatives) {
+        lines.push(
+          initiative.summary
+            ? `    - ${initiative.id}: ${initiative.summary}`
+            : `    - ${initiative.id}`
+        );
+      }
     }
     if (entry.fetch) {
       lines.push(`  Fetch: ${entry.fetch}`);
@@ -368,10 +452,14 @@ export async function assembleReferenceIndex(
     }
 
     const specs = await collectSpecEntries(inspection.canonicalRoot);
+    const schemas = collectSchemaEntries(inspection.canonicalRoot);
+    const initiatives = await collectInitiativeEntries(inspection.canonicalRoot);
     const entry: ReferenceIndexEntry = {
       store_id: id,
       root: inspection.canonicalRoot,
       specs,
+      ...(schemas.length > 0 ? { schemas } : {}),
+      ...(initiatives.length > 0 ? { initiatives } : {}),
       fetch: fetchRecipe(id),
       status: [],
     };

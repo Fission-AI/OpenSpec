@@ -143,6 +143,25 @@ async function buildShadowLookup(
 }
 
 /**
+ * Lightweight id + title for each initiative at a root — no change rollup and
+ * no shadow detection. Used to index a referenced store's initiatives without
+ * the cost of resolving that store's own references.
+ */
+export async function listInitiativeSummaries(
+  root: string
+): Promise<Array<{ id: string; title: string }>> {
+  const ids = await listInitiativeIds(root);
+  const summaries: Array<{ id: string; title: string }> = [];
+  for (const id of ids) {
+    const manifest = await readManifest(path.join(initiativesDir(root), id));
+    if (manifest === null) continue;
+    summaries.push({ id, title: manifest.title ?? id });
+  }
+  summaries.sort((a, b) => a.id.localeCompare(b.id));
+  return summaries;
+}
+
+/**
  * Lists the initiatives at a root, with rolled-up change status and shadow
  * detection against referenced stores.
  */

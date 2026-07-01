@@ -59,7 +59,7 @@ Change: `{ "id", "title", "deltaCount", "deltas": [...], "root" }`. Spec: `{ "id
 ### 4.5 `instructions <artifact> --json`
 `{ "changeName", "artifactId", "schemaName", "changeDir", "planningHome"?, "outputPath", "resolvedOutputPath", "existingOutputPaths", "description", "instruction"?, "context"?, "rules"?, "references"?: ReferenceIndexEntry[], "template", "dependencies": [{id,done,path,description}], "unlocks", "root" }`.
 
-`ReferenceIndexEntry`: `{ "store_id", "root"?, "specs"?: [{id,summary}], "fetch"?, "status": [] }` — resolved entries carry root/specs/fetch; unresolved carry store_id + warning status. Index capped at 50KB (`reference_index_truncated`).
+`ReferenceIndexEntry`: `{ "store_id", "root"?, "specs"?: [{id,summary}], "schemas"?: [{id,summary,artifacts}], "initiatives"?: [{id,summary}], "fetch"?, "status": [] }` — resolved entries carry root/specs/fetch; `schemas` (the store's own project-local artifact types) and `initiatives` are present only when the store defines them; unresolved carry store_id + warning status. Index capped at 50KB (`reference_index_truncated`).
 
 ### 4.6 `instructions apply --json`
 `{ "changeName", "changeDir", "schemaName", "contextFiles": { "<artifactId>": ["/abs", ...] }, "progress": {total,complete,remaining}, "tasks": [{id,description,done}], "state": "blocked"|"all_done"|"ready", "missingArtifacts"?, "instruction", "references"?, "root" }`.
