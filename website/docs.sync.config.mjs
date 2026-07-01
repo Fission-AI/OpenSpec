@@ -39,10 +39,13 @@ export const sections = [
     label: 'Guides',
     pages: [
       { source: 'examples.md', slug: 'examples', icon: 'ListChecks' },
+      { source: 'writing-specs.md', slug: 'writing-specs', icon: 'PenLine' },
+      { source: 'reviewing-changes.md', slug: 'reviewing-changes', icon: 'SearchCheck' },
       { source: 'existing-projects.md', slug: 'existing-projects', icon: 'FolderGit2' },
       { source: 'editing-changes.md', slug: 'editing-changes', icon: 'Pencil' },
       { source: 'customization.md', slug: 'customization', icon: 'Settings2' },
       { source: 'multi-language.md', slug: 'multi-language', icon: 'Languages' },
+      { source: 'team-workflow.md', slug: 'team-workflow', icon: 'GitPullRequest' },
       { source: 'stores-beta/user-guide.md', slug: 'stores', icon: 'Store' },
     ],
   },
