@@ -44,6 +44,22 @@ describe('openspec doctor (3.6)', () => {
     return dir;
   }
 
+  // Git-backed store with one base commit, isolated from host gitconfig.
+  // Returns the git runner and the base branch name for upstream setup.
+  async function initGitStore() {
+    const { execFileSync } = await import('node:child_process');
+    const gitEnv = { ...process.env, ...isolatedGitEnv(tempDir) };
+    const git = (args: string[]) =>
+      execFileSync('git', args, { cwd: storeRoot, env: gitEnv, stdio: 'ignore' });
+    git(['init']);
+    git(['add', '-A']);
+    git(['commit', '-m', 'base']);
+    const head = execFileSync('git', ['branch', '--show-current'], { cwd: storeRoot })
+      .toString()
+      .trim();
+    return { git, head };
+  }
+
   it('reports ok everywhere for a healthy store-backed root, all session shapes', async () => {
     // A resolvable reference.
     const upstream = path.join(tempDir, 'upstream-context');
@@ -213,16 +229,7 @@ describe('openspec doctor (3.6)', () => {
   });
 
   it('notes an upstream-behind store checkout as info drift', async () => {
-    const { execFileSync } = await import('node:child_process');
-    const gitEnv = { ...process.env, ...isolatedGitEnv(tempDir) };
-    const git = (args: string[]) =>
-      execFileSync('git', args, { cwd: storeRoot, env: gitEnv, stdio: 'ignore' });
-    git(['init']);
-    git(['add', '-A']);
-    git(['commit', '-m', 'shared base']);
-    const head = execFileSync('git', ['branch', '--show-current'], { cwd: storeRoot })
-      .toString()
-      .trim();
+    const { git, head } = await initGitStore();
 
     // A tracking branch that advances one commit past HEAD, then set it as
     // HEAD's upstream — HEAD is now one commit behind, no network involved.
@@ -251,16 +258,7 @@ describe('openspec doctor (3.6)', () => {
   });
 
   it('reports diverged drift when the checkout is both ahead and behind', async () => {
-    const { execFileSync } = await import('node:child_process');
-    const gitEnv = { ...process.env, ...isolatedGitEnv(tempDir) };
-    const git = (args: string[]) =>
-      execFileSync('git', args, { cwd: storeRoot, env: gitEnv, stdio: 'ignore' });
-    git(['init']);
-    git(['add', '-A']);
-    git(['commit', '-m', 'shared base']);
-    const head = execFileSync('git', ['branch', '--show-current'], { cwd: storeRoot })
-      .toString()
-      .trim();
+    const { git, head } = await initGitStore();
 
     // Upstream advances one commit; HEAD then adds its own — the two have
     // diverged (1 behind, 1 ahead) off a common base.
@@ -290,13 +288,7 @@ describe('openspec doctor (3.6)', () => {
   });
 
   it('reports no drift for a store checkout with no upstream tracking branch', async () => {
-    const { execFileSync } = await import('node:child_process');
-    const gitEnv = { ...process.env, ...isolatedGitEnv(tempDir) };
-    const git = (args: string[]) =>
-      execFileSync('git', args, { cwd: storeRoot, env: gitEnv, stdio: 'ignore' });
-    git(['init']);
-    git(['add', '-A']);
-    git(['commit', '-m', 'base']);
+    await initGitStore();
 
     const result = await runCLI(['doctor', '--json', '--store', 'team-context'], {
       cwd: tempDir,

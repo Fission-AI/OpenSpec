@@ -60,8 +60,9 @@ async function gatherHealth(
     // git -C walks UP the tree: probing a non-repo store nested inside
     // another repo would record the ENCLOSING repo's origin (and drift).
     const isRepo = await isGitRepositoryAtRoot(root.path);
-    const originUrl = isRepo ? await gitOriginUrl(root.path) : null;
-    const drift = isRepo ? await gitTrackingDrift(root.path) : null;
+    const [originUrl, drift] = isRepo
+      ? await Promise.all([gitOriginUrl(root.path), gitTrackingDrift(root.path)])
+      : [null, null];
     input.storeFacts = {
       id: root.storeId,
       metadataPresent: metadata !== null,
