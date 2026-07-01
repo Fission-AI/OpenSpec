@@ -308,9 +308,10 @@ tells you which case you're in.
 - **No sync, ever — by design.** OpenSpec never clones, pulls, or pushes.
   A stale checkout shows stale specs until *you* pull; references are
   indexed live from whatever is on disk.
-- **Some commands stay where they are.** `view`, `templates`, `schemas`,
-  and the deprecated noun forms (`openspec change show`, ...) act on the
-  current directory only — no `--store`.
+- **Some commands stay where they are.** `view`, `templates`, and the
+  deprecated noun forms (`openspec change show`, ...) act on the current
+  directory only — no `--store`. (`schemas` now accepts `--store` — see the
+  [initiatives guide](initiatives.md).)
 - **Per-machine state is per-machine.** The store registry and worksets
   are local settings. Nothing about your machine's layout is
   ever committed to shared planning.

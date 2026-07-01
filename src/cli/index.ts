@@ -8,9 +8,10 @@ import { promises as fs } from 'fs';
 import { AI_TOOLS } from '../core/config.js';
 import { UpdateCommand } from '../core/update.js';
 import { ListCommand } from '../core/list.js';
+import { listInitiatives } from '../core/initiatives.js';
 import { ArchiveCommand, type ArchiveOptions } from '../core/archive.js';
 import { ViewCommand } from '../core/view.js';
-import { resolveRootForCommand, toRootOutput } from '../core/root-selection.js';
+import { resolveRootForCommand, toRootOutput, type ResolvedOpenSpecRoot } from '../core/root-selection.js';
 import { registerSpecCommand } from '../commands/spec.js';
 import { ChangeCommand } from '../commands/change.js';
 import { ValidateCommand } from '../commands/validate.js';
@@ -51,6 +52,39 @@ function hiddenStorePathOption(): Option {
     '--store-path <path>',
     'Not supported; register the path with "openspec store register <path>" and use --store <id>'
   ).hideHelp();
+}
+
+async function renderInitiatives(
+  root: ResolvedOpenSpecRoot,
+  options: { json?: boolean }
+): Promise<void> {
+  const initiatives = await listInitiatives(root.path);
+
+  if (options.json) {
+    console.log(
+      JSON.stringify({ initiatives, root: toRootOutput(root) }, null, 2)
+    );
+    return;
+  }
+
+  if (initiatives.length === 0) {
+    console.log('No initiatives found.');
+    return;
+  }
+
+  console.log('Initiatives:');
+  const nameWidth = Math.max(...initiatives.map((i) => i.id.length));
+  for (const initiative of initiatives) {
+    const name = initiative.id.padEnd(nameWidth);
+    const rollup =
+      initiative.changesTotal === 0
+        ? 'no changes'
+        : `${initiative.changesComplete}/${initiative.changesTotal} changes complete`;
+    const shadow = initiative.shadowsStore
+      ? `   (shadows: ${initiative.shadowsStore})`
+      : '';
+    console.log(`  ${name}     ${rollup.padEnd(22)}${shadow}`);
+  }
 }
 
 function failWithError(
@@ -214,20 +248,30 @@ program
 
 program
   .command('list')
-  .description('List items (changes by default). Use --specs to list specs.')
+  .description('List items (changes by default). Use --specs to list specs, --initiatives to list initiatives.')
   .option('--specs', 'List specs instead of changes')
   .option('--changes', 'List changes explicitly (default)')
+  .option('--initiatives', 'List initiatives with rolled-up change status')
   .option('--sort <order>', 'Sort order: "recent" (default) or "name"', 'recent')
   .option('--json', 'Output as JSON (for programmatic use)')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
-  .action(async (options?: { specs?: boolean; changes?: boolean; sort?: string; json?: boolean; store?: string; storePath?: string }) => {
+  .action(async (options?: { specs?: boolean; changes?: boolean; initiatives?: boolean; sort?: string; json?: boolean; store?: string; storePath?: string }) => {
     try {
+      const failurePayload = options?.initiatives
+        ? { initiatives: [], root: null }
+        : options?.specs
+          ? { specs: [], root: null }
+          : { changes: [], root: null };
       const root = await resolveRootForCommand(options ?? {}, {
         json: options?.json,
-        failurePayload: options?.specs ? { specs: [], root: null } : { changes: [], root: null },
+        failurePayload,
       });
       if (!root) {
+        return;
+      }
+      if (options?.initiatives) {
+        await renderInitiatives(root, { json: options?.json });
         return;
       }
       const listCommand = new ListCommand();
@@ -544,6 +588,8 @@ program
   .command('schemas')
   .description('List available workflow schemas with descriptions')
   .option('--json', 'Output as JSON (for agent use)')
+  .option('--store <id>', STORE_OPTION_DESCRIPTION)
+  .addOption(hiddenStorePathOption())
   .action(async (options: SchemasOptions) => {
     try {
       await schemasCommand(options);

@@ -45,7 +45,7 @@ Successful JSON payloads embed the root:
 ## 4. Command JSON shapes
 
 ### 4.1 `list --json`
-`{ "changes": [ { "name", "completedTasks", "totalTasks", "lastModified", "status": "no-tasks"|"complete"|"in-progress" } ], "root": RootOutput }` — note the per-change `status` is a string enum here. `--specs`: `{ "specs": [ { "id", "requirementCount" } ], "root" }`.
+`{ "changes": [ { "name", "completedTasks", "totalTasks", "lastModified", "status": "no-tasks"|"complete"|"in-progress" } ], "root": RootOutput }` — note the per-change `status` is a string enum here. `--specs`: `{ "specs": [ { "id", "requirementCount" } ], "root" }`. `--initiatives`: `{ "initiatives": [ { "id", "title", "changes": [], "changesComplete", "changesTotal", "tasksComplete", "tasksTotal", "shadowsStore"? } ], "root" }` — `shadowsStore` is the id of a referenced store whose canonical initiative this local one shadows (absent when there is no collision).
 
 ### 4.2 `show <item> --json`
 Change: `{ "id", "title", "deltaCount", "deltas": [...], "root" }`. Spec: `{ "id", "title", "overview", "requirementCount", "requirements": [...], "metadata": { "version", "format", "sourcePath"? }, "root" }`.
@@ -80,7 +80,7 @@ Success: `{ "archive": { "change", "archivedAs": "YYYY-MM-DD-name", "path", "spe
 setup/register: `{ "store": {id, root, metadata_path?}, "registry": {path, registered, already_registered}, "git": {is_repository, initialized, committed}, "created_files": [], "status": [] }`. unregister/remove: `{ "store", "registry": {path, removed}, "files": {deleted, deleted_path, left_on_disk}, "status": [] }`. list: `{ "stores": [{id, root}], "status": [] }`. doctor: `{ "stores": [ { id, root, metadata_path?, openspec_root: {...healthy, status}, metadata: {present, valid, id?, remote}, git: {is_repository, has_commits, has_uncommitted_changes, has_remote, origin_url}, status } ], "status": [] }` (`null` = unknown/not probed). Health findings exit 0; failures exit 1 with the matching null-shape. Prompt cancellation exits 130.
 
 ### 4.12 `schemas --json` / `templates --json`
-`schemas`: bare array `[ {name, description, artifacts, source} ]`. `templates`: keyed object `{ "<artifactId>": {path, source} }`. Both cwd-based, no root/status keys.
+`schemas`: bare array `[ {name, description, artifacts, source} ]` — supports `--store <id>` to list a store's schemas (success stays a bare array; a store-resolution failure emits `{status: [...]}` like other commands). `templates`: keyed object `{ "<artifactId>": {path, source} }`, cwd-based, no `--store`.
 
 ## 5. Exit-code contract
 
@@ -133,5 +133,5 @@ Recorded by the capstone audit; published-key renames are product decisions defe
 4. Four parallel envelope type declarations exist in src; archive diagnostics never carry `target`.
 5. `list --json` reuses the `status` key as a string enum per change.
 6. Only `validate` output carries a `version` field.
-7. `schemas`/`templates` ignore root selection (cwd-based, no `--store`).
+7. `schemas` honors root selection (`--store <id>` lists a store's schemas); `templates` is still cwd-based (no `--store`).
 8. Deprecated noun forms (`change`/`spec` subcommands) emit unenveloped payloads without `root`/`status`.

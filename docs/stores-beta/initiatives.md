@@ -34,10 +34,10 @@ One effort. One home. Read by every repo that needs it.
 acme-plans  (a store: planning in its own repo)
   openspec/initiatives/
     smoother-setup/
+      initiative.yaml   the title, and the changes it groups
       brief.md          what this is, and why
       personas/         who we build for      ← your own artifact types
       decisions/        the calls we made      ← your own artifact types
-      (changes grouped here, with live status)
 ```
 
 ## The happy path
@@ -68,8 +68,24 @@ artifacts:
   - id: decision     # a call we made, and the trade-off
 ```
 
-These are *your* artifact types — labeled in your words. OpenSpec now knows them
-and can check them, the same way it checks specs and tasks.
+These are *your* artifact types — labeled in your words. OpenSpec knows them and
+lists them like any other schema, from any repo that can reach the store:
+
+```bash
+openspec schemas --store acme-plans
+```
+
+```text
+Available schemas:
+
+  spec-driven
+    Default OpenSpec workflow - proposal → specs → design → tasks
+    Artifacts: proposal → specs → design → tasks
+
+  team-brief (project)
+    Our own planning artifacts — a brief, then a decision record.
+    Artifacts: brief → decision
+```
 
 ### 3. Group the changes it takes
 
@@ -78,15 +94,12 @@ OpenSpec change — nothing new to learn. You never track status by hand; ask
 OpenSpec:
 
 ```bash
-openspec list --changes --store acme-plans
+openspec list --initiatives --store acme-plans
 ```
 
 ```text
-Changes:
-  simplify-skill-installation      ✓ Complete    8d ago
-  fix-opencode-commands-directory  ✓ Complete    8d ago
-  add-global-install-scope         0/38 tasks    8d ago
-  schema-alias-support             No tasks      8d ago
+Initiatives:
+  smoother-setup     2/4 changes complete
 ```
 
 One command. Where the whole effort stands.
@@ -115,10 +128,12 @@ repo. Which wins?
 
 **The rule: the store is canonical.** The store holds the shared, agreed-upon
 initiative. A local one with the same name is treated as a *draft that shadows
-it* — OpenSpec keeps letting you work locally, but tells you plainly:
+it* — OpenSpec keeps letting you work locally, but tells you plainly, right in
+the list:
 
 ```text
-initiative 'smoother-setup' (local) shadows the canonical one in store 'acme-plans'
+Initiatives:
+  smoother-setup     2/4 changes complete   (shadows: acme-plans)
 ```
 
 Nothing diverges silently. You always know there is a shared source of truth,
@@ -126,25 +141,24 @@ and you can reconcile when you are ready. (This mirrors how OpenSpec already
 handles schemas: a project schema *shadows* a package one, and `openspec schema
 which` shows you it is happening.)
 
-## What works today, and what we are building
+## What works in this prototype
 
-Honest scope — this is a prototype.
+This is a working prototype — every command above runs today:
 
-**Works today:**
-- An initiative folder in a store: the brief, your own artifact types as plain
-  files, and the changes it groups.
-- Live status for those changes with `openspec list --changes --store`.
-- A repo reading the store by name via `references:`.
-- Defining your own artifact types in a schema (`openspec schema`).
+- **Your own artifact types, discoverable across the store boundary.**
+  `openspec schemas --store <id>` lists a store's custom schemas from any repo.
+- **Initiatives with live, rolled-up status.** `openspec list --initiatives`
+  reads each initiative's manifest and rolls up the status of the changes it
+  groups, from the same source as `openspec list --changes`.
+- **Canonical-vs-shadow precedence, enforced.** A local initiative that shares an
+  id with one in a referenced store is reported as a shadow — never silently
+  overriding it, never blocking your local work.
+- **Read by name via `references:`.** A repo declares the store once and its
+  agent builds against the shared plan; nothing is copied.
 
-**The gap we are closing (this is the build):**
-- Today, `openspec schemas` and artifact discovery look only at the current
-  repo — they are not store-aware. So a repo that *references* a store cannot
-  yet see the store's custom artifact types, and initiative precedence
-  (canonical vs. local shadow) is a convention, not something OpenSpec enforces.
-- **The prototype makes both work across repos:** the store's initiatives and
-  artifact types become discoverable and checkable from any repo that
-  references it, with the canonical-vs-shadow rule built in.
+Still a prototype: the initiative folder is a light convention (an
+`initiative.yaml` manifest — not a revived command group), and richer rollups
+(tasks across every referencing repo) are the next step.
 
 Start simple: one initiative folder in a store, grouping a few real changes,
-with the artifacts your team already uses. The rest is what we build next.
+with the artifacts your team already uses.
