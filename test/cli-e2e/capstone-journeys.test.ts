@@ -153,7 +153,9 @@ describe('capstone persona journeys (6.1)', () => {
         target,
         artifact.id === 'specs'
           ? '## ADDED Requirements\n\n### Requirement: Rate limits\nThe API SHALL rate-limit.\n\n#### Scenario: Limit hit\n- **WHEN** the limit is exceeded\n- **THEN** requests are rejected\n'
-          : `# ${artifact.id}\n\nDone.\n`
+          : artifact.id === 'proposal'
+            ? '## Why\n\nRate limiting protects the API from abusive clients and keeps latency predictable for everyone else.\n\n## What Changes\n\n- Add rate limits to the API.\n'
+            : `# ${artifact.id}\n\nDone.\n`
       );
     }
 
