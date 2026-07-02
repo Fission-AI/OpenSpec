@@ -27,6 +27,8 @@ describe('archive spec-drop gate', () => {
     console.log = origLog;
     if (origXdg === undefined) delete process.env.XDG_DATA_HOME;
     else process.env.XDG_DATA_HOME = origXdg;
+    // Blocked archives set process.exitCode = 1; reset so the runner exits clean.
+    process.exitCode = undefined;
     vi.clearAllMocks();
     await fs.rm(tempDir, { recursive: true, force: true });
   });
@@ -109,6 +111,32 @@ describe('archive spec-drop gate', () => {
     expect(await isArchived('good')).toBe(true);
   });
 
+  it('blocks a malformed proposal (missing ## Why) even with a valid delta spec', async () => {
+    const dir = await makeChange('badprop', { caps: ['cap'], deltaSpecs: ['cap'] });
+    await fs.writeFile(
+      path.join(dir, 'proposal.md'),
+      '## What Changes\n- stuff\n\n## Capabilities\n### New Capabilities\n- `cap`: cap\n'
+    );
+    await cmd.execute('badprop', { yes: true });
+    expect(process.exitCode).toBe(1);
+    expect(await stillActive(dir)).toBe(true);
+    expect(await isArchived('badprop')).toBe(false);
+  });
+
+  it('blocks a malformed proposal in --json mode with archive_validation_failed', async () => {
+    const dir = await makeChange('badjson', { caps: ['cap'], deltaSpecs: ['cap'] });
+    await fs.writeFile(
+      path.join(dir, 'proposal.md'),
+      '## What Changes\n- stuff\n\n## Capabilities\n### New Capabilities\n- `cap`: cap\n'
+    );
+    await cmd.execute('badjson', { yes: true, json: true });
+    expect(process.exitCode).toBe(1);
+    const out = (console.log as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]).join('\n');
+    expect(out).toContain('archive_validation_failed');
+    expect(await stillActive(dir)).toBe(true);
+    expect(await isArchived('badjson')).toBe(false);
+  });
+
   it('proposal-only schema (no specs artifact) archives without specs', async () => {
     // project-local schema with no artifact generating under specs/
     const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'proposal-only');
@@ -125,5 +153,22 @@ describe('archive spec-drop gate', () => {
     await cmd.execute('lighter', { yes: true });
     expect(await isArchived('lighter')).toBe(true);
     expect(await stillActive(dir)).toBe(false);
+  });
+
+  it('proposal-only schema with a malformed proposal is still blocked', async () => {
+    const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'proposal-only');
+    await fs.mkdir(path.join(schemaDir, 'templates'), { recursive: true });
+    await fs.writeFile(
+      path.join(schemaDir, 'schema.yaml'),
+      'name: proposal-only\nversion: 1\nartifacts:\n  - id: proposal\n    generates: proposal.md\n    description: p\n    template: proposal.md\n    requires: []\n'
+    );
+    await fs.writeFile(path.join(schemaDir, 'templates', 'proposal.md'), 'tpl');
+    const dir = path.join(changesDir(), 'badlite');
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, '.openspec.yaml'), 'schema: proposal-only\ncreated: 2026-06-29\n');
+    await fs.writeFile(path.join(dir, 'proposal.md'), '## What Changes\n- x\n');
+    await cmd.execute('badlite', { yes: true });
+    expect(await stillActive(dir)).toBe(true);
+    expect(await isArchived('badlite')).toBe(false);
   });
 });

@@ -13,6 +13,7 @@
 - [x] 1.6 In `src/core/archive.ts`, replace the `if (hasDeltaSpecs)` gate (~lines 263-297) with `if (!options.skipSpecs && schemaProducesDeltaSpecs(schema))`, using the SAME helper as validate; run `validateChangeDeltaSpecs` + coverage. Confirm `--yes` does not bypass this gate (only confirmation prompts)
 - [x] 1.7 Route failures through the existing `hasValidationErrors → ArchiveBlockedError` (JSON) / `return null` + exit-1 (text) path; remove the dead `hasDeltaSpecs` probe
 - [x] 1.8 Confirm the format-drop case (present non-delta spec) and total/partial drops all block; confirm a proposal-only schema (#997) still archives
+- [x] 1.8b Run the same proposal validation as `openspec validate` (`validateChangeProposal`) in archive and block on ERROR-level proposal issues in BOTH text and `--json` modes, so archive never syncs/moves a change validate rejects; warnings stay informative (review: validate/archive proposal parity)
 
 ### 1d. Apply enforcement + schema gate
 - [x] 1.9 In `src/commands/workflow/instructions.ts`, set `process.exitCode = 1` when apply `state === 'blocked'` (text and JSON; payload first)
@@ -61,6 +62,7 @@
 - [x] 6.14 Archived-drift audit: archived change with an un-synced declared capability → flagged; pre-contract archive → not falsely flagged
 - [x] 6.15 Extraction determinism fixtures; cross-platform `path.join()`
 - [x] 6.16 E2E regression `test/cli-e2e/issue-1212-spec-drop.test.ts`: reproduces #1212 (apply blocks, archive refuses, audit detects) and asserts #1250 behaviors (apply exit 1 + spec-driven hint) against the real CLI
+- [x] 6.17 Proposal parity: malformed proposal (missing `## Why`) + valid delta → archive blocked in text AND `--json` modes (`archive_validation_failed`, nothing moved); proposal-only schema + malformed proposal → blocked; valid proposals unaffected
 
 ## 7. Release
 

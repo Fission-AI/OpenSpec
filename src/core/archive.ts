@@ -242,22 +242,30 @@ export class ArchiveCommand {
       const validator = new Validator();
       let hasValidationErrors = false;
 
-      // Validate proposal.md (informative only; human mode prints warnings)
-      if (!json) {
-        const changeFile = path.join(changeDir, 'proposal.md');
-        try {
-          await fs.access(changeFile);
-          const changeReport = await validator.validateChange(changeFile);
-          // Proposal validation is informative only (do not block archive)
-          if (!changeReport.valid) {
-            console.log(chalk.yellow(`\nProposal warnings in proposal.md (non-blocking):`));
-            for (const issue of changeReport.issues) {
-              const symbol = issue.level === 'ERROR' ? '⚠' : (issue.level === 'WARNING' ? '⚠' : 'ℹ');
-              console.log(chalk.yellow(`  ${symbol} ${issue.message}`));
-            }
+      // Validate proposal.md with the same rules as `openspec validate`
+      // (required sections + change-shape, minus the schema-gated delta
+      // requirement). Errors block the archive in both text and JSON mode so
+      // archive never syncs/moves a change that validate rejects; warnings
+      // stay informative in human mode.
+      const proposalReport = await validator.validateChangeProposal(changeDir);
+      const proposalErrors = proposalReport.issues.filter((issue) => issue.level === 'ERROR');
+      if (proposalErrors.length > 0) {
+        hasValidationErrors = true;
+        if (!json) {
+          console.log(chalk.red(`\nValidation errors in proposal.md:`));
+          for (const issue of proposalErrors) {
+            console.log(chalk.red(`  ✗ ${issue.message}`));
           }
-        } catch {
-          // Change file doesn't exist, skip validation
+        }
+      }
+      if (!json) {
+        const proposalWarnings = proposalReport.issues.filter((issue) => issue.level !== 'ERROR');
+        if (proposalWarnings.length > 0) {
+          console.log(chalk.yellow(`\nProposal warnings in proposal.md (non-blocking):`));
+          for (const issue of proposalWarnings) {
+            const symbol = issue.level === 'WARNING' ? '⚠' : 'ℹ';
+            console.log(chalk.yellow(`  ${symbol} ${issue.message}`));
+          }
         }
       }
 
@@ -299,6 +307,7 @@ export class ArchiveCommand {
         }
         console.log(chalk.red('\nValidation failed. Please fix the errors before archiving.'));
         console.log(chalk.yellow('To skip validation (not recommended), use --no-validate flag.'));
+        process.exitCode = 1;
         return null;
       }
     } else if (json) {

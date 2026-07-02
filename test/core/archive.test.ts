@@ -51,6 +51,9 @@ describe('ArchiveCommand', () => {
       process.env.XDG_DATA_HOME = originalXdgDataHome;
     }
 
+    // Blocked archives set process.exitCode = 1; reset so the runner exits clean.
+    process.exitCode = undefined;
+
     // Clear mocks
     vi.clearAllMocks();
 

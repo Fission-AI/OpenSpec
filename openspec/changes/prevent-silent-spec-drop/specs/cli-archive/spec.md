@@ -2,7 +2,7 @@
 
 ### Requirement: Archive Validation
 
-The archive command SHALL validate changes before applying them to ensure data integrity. When validation is enabled, the command SHALL run delta-spec validation and declared-capability coverage consistently with `openspec validate` — that is, whenever the user has not opted out of spec updates via `--skip-specs` — rather than only when delta specs already exist. A change that has no delta specs SHALL be blocked with the same `CHANGE_NO_DELTAS` error that `openspec validate` reports; a change whose spec file is present but not in delta format SHALL be blocked with the same "No delta sections found" error; and a change that declares capabilities it has not delivered as delta specs SHALL be blocked with the same coverage errors — instead of being silently archived with missing, malformed, or partial spec updates. This delta requirement SHALL apply only when the change's schema graph includes a `specs` artifact, so schemas that legitimately have no delta specs are not forced to provide them.
+The archive command SHALL validate changes before applying them to ensure data integrity. When validation is enabled, the command SHALL run delta-spec validation and declared-capability coverage consistently with `openspec validate` — that is, whenever the user has not opted out of spec updates via `--skip-specs` — rather than only when delta specs already exist. A change that has no delta specs SHALL be blocked with the same `CHANGE_NO_DELTAS` error that `openspec validate` reports; a change whose spec file is present but not in delta format SHALL be blocked with the same "No delta sections found" error; and a change that declares capabilities it has not delivered as delta specs SHALL be blocked with the same coverage errors — instead of being silently archived with missing, malformed, or partial spec updates. This delta requirement SHALL apply only when the change's schema graph includes a `specs` artifact, so schemas that legitimately have no delta specs are not forced to provide them. The command SHALL also run the same proposal validation as `openspec validate` (required sections + change-shape rules, minus the schema-gated delta requirement) and block on proposal errors in both text and `--json` modes, so archive never syncs or moves a change that validate rejects; proposal warnings remain informative.
 
 #### Scenario: Pre-archive validation
 
@@ -55,6 +55,15 @@ The archive command SHALL validate changes before applying them to ensure data i
 - **WHEN** a change would be reported invalid by `openspec validate change-name`
 - **THEN** `openspec archive change-name` (with validation enabled) blocks on the same errors
 - **AND** does not archive the change
+
+#### Scenario: Malformed proposal blocks archive
+
+- **WHEN** executing `openspec archive change-name` without `--no-validate`
+- **AND** `changes/change-name/proposal.md` fails the proposal validation that `openspec validate` applies (e.g. missing `## Why`), even though every delta spec is valid
+- **THEN** archive validation fails with the same proposal errors
+- **AND** the archive is aborted with a non-zero exit code in both text and `--json` modes
+- **AND** the change is not moved to the archive directory
+- **AND** this applies under proposal-only schemas too, since proposal validation is not gated on the schema producing delta specs
 
 #### Scenario: Force archive without validation
 
