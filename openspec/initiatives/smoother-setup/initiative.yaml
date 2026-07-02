@@ -1,0 +1,8 @@
+# The initiative manifest: its title and the changes it groups.
+# Status for these changes is rolled up live by `openspec list --initiatives`.
+title: Smoother setup
+changes:
+  - simplify-skill-installation
+  - fix-opencode-commands-directory
+  - add-global-install-scope
+  - schema-alias-support

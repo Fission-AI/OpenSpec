@@ -1,0 +1,36 @@
+name: initiative
+version: 1
+description: >-
+  Your own artifact types for an initiative. This one keeps the "who and why"
+  next to the plan: a brief, a persona, and a decision record. Illustrative —
+  copy it into openspec/schemas/initiative/ to make it active.
+
+artifacts:
+  - id: brief
+    generates: brief.md
+    description: What this effort is, and why — at a glance
+    template: brief.md
+    requires: []
+    instruction: |
+      Write the brief: the problem, who it is for, what we will do, and what is
+      out of scope. Keep it to a page.
+
+  - id: persona
+    generates: "personas/**/*.md"
+    description: Who we are building for
+    template: persona.md
+    requires:
+      - brief
+    instruction: |
+      Describe one kind of user: who they are, what they want, and what gets in
+      their way. Keep it short and real.
+
+  - id: decision
+    generates: "decisions/**/*.md"
+    description: A call we made, and the trade-off
+    template: decision.md
+    requires:
+      - persona
+    instruction: |
+      Record one decision: the context, the choice, and the trade-offs. One
+      decision per record.

@@ -130,6 +130,64 @@ describe('reference index assembly', () => {
     expect(entries[0].status).toEqual([]);
   });
 
+  it("indexes a store's own artifact types and initiatives with fetch commands", async () => {
+    const storeRoot = await registerStore('team-context');
+    // A project-local schema (custom artifact types) in the store.
+    const schemaDir = path.join(storeRoot, 'openspec', 'schemas', 'team-brief');
+    fs.mkdirSync(path.join(schemaDir, 'templates'), { recursive: true });
+    fs.writeFileSync(
+      path.join(schemaDir, 'schema.yaml'),
+      'name: team-brief\nversion: 1\ndescription: Our own planning artifacts.\n' +
+        'artifacts:\n  - id: brief\n    generates: brief.md\n    description: What and why\n' +
+        '    template: brief.md\n    requires: []\n    instruction: Write it.\n'
+    );
+    fs.writeFileSync(path.join(schemaDir, 'templates', 'brief.md'), '# Brief\n');
+    // An initiative in the store.
+    const initiativeDir = path.join(
+      storeRoot,
+      'openspec',
+      'initiatives',
+      'smoother-setup'
+    );
+    fs.mkdirSync(initiativeDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(initiativeDir, 'initiative.yaml'),
+      'title: Smoother setup\nchanges: []\n'
+    );
+
+    const [entry] = await assemble(['team-context']);
+
+    expect(entry.schemas).toEqual([
+      {
+        id: 'team-brief',
+        summary: 'Our own planning artifacts.',
+        artifacts: ['brief'],
+      },
+    ]);
+    expect(entry.initiatives).toEqual([
+      { id: 'smoother-setup', summary: 'Smoother setup' },
+    ]);
+
+    const block = renderReferencedStoresBlock([entry]);
+    expect(block).toContain(
+      'Artifact types (openspec schemas --store team-context):'
+    );
+    expect(block).toContain('- team-brief: Our own planning artifacts. [brief]');
+    expect(block).toContain(
+      'Initiatives (openspec list --initiatives --store team-context):'
+    );
+    expect(block).toContain('- smoother-setup: Smoother setup');
+  });
+
+  it('omits schemas/initiatives keys for a store that has none', async () => {
+    await registerStore('bare-context');
+
+    const [entry] = await assemble(['bare-context']);
+
+    expect(entry.schemas).toBeUndefined();
+    expect(entry.initiatives).toBeUndefined();
+  });
+
   it('degrades an unregistered reference to reference_unresolved with a pasteable fix', async () => {
     const entries = await assemble(['missing-context']);
 
