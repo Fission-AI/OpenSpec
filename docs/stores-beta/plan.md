@@ -89,7 +89,8 @@ on your machine that points at the plan. And repos that add
 their agent's context automatically.
 
 Going from solo to team is moving one folder into a store. Nothing else
-changes.
+changes. (Want the plan and your code repos open together? That is what
+[worksets](user-guide.md) already do.)
 
 ## The skill
 
@@ -131,4 +132,6 @@ to agents automatically.
 - Rollup scans repos registered on this machine — it never clones or syncs.
 - Stage order is a naming convention, not a gate. Nothing blocks working out
   of order; the skill just knows what comes next.
+- Want typed, checked artifacts someday? [Custom schemas](../customization.md)
+  already exist — plan artifacts stay freeform until you want that.
 - This repo dogfoods it: see [openspec/plan/](../../openspec/plan/goal.md) — a destination file plus two optional stages.
