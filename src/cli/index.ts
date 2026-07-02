@@ -82,10 +82,42 @@ async function renderInitiatives(
       initiative.changesTotal === 0
         ? 'no changes'
         : `${initiative.changesComplete}/${initiative.changesTotal} changes complete`;
+    const across =
+      initiative.stores.length > 0
+        ? `   across ${initiative.stores.join(', ')}`
+        : '';
     const shadow = initiative.shadowsStore
       ? `   (shadows: ${initiative.shadowsStore})`
       : '';
-    console.log(`  ${name}     ${rollup.padEnd(22)}${shadow}`);
+    console.log(`  ${name}     ${rollup.padEnd(22)}${across}${shadow}`);
+
+    // Cross-repo initiatives show where each change lives — the proof that
+    // one effort's status is rolled up across several repos.
+    if (initiative.stores.length > 0 && initiative.changeStatuses.length > 0) {
+      const changeWidth = Math.max(
+        ...initiative.changeStatuses.map((c) => c.id.length)
+      );
+      for (const change of initiative.changeStatuses) {
+        const mark =
+          change.state === 'complete'
+            ? '✓'
+            : change.state === 'not-found'
+              ? '?'
+              : change.state === 'no-tasks'
+                ? '–'
+                : '·';
+        const where = change.store ?? 'here';
+        const tasks =
+          change.state === 'not-found'
+            ? 'not found'
+            : change.totalTasks === 0
+              ? 'no tasks'
+              : `${change.completedTasks}/${change.totalTasks} tasks`;
+        console.log(
+          `      ${mark} ${change.id.padEnd(changeWidth)}  ${where.padEnd(14)}  ${tasks}`
+        );
+      }
+    }
   }
 }
 

@@ -40,6 +40,54 @@ acme-plans  (a store: planning in its own repo)
       decisions/        the calls we made      ← your own artifact types
 ```
 
+## Two ways to use it: solo, or across repos
+
+The *same* initiative works whether you are one person in one repo or a team
+across many. The only thing that changes is where the grouped changes live.
+
+**Solo — one repo, one machine.** Keep the initiative in your own repo. Its
+changes are your normal changes, right beside it. The manifest just lists them:
+
+```yaml
+# openspec/initiatives/smoother-setup/initiative.yaml
+title: Smoother setup
+changes:
+  - simplify-skill-installation
+  - add-global-install-scope
+```
+
+```text
+$ openspec list --initiatives
+  smoother-setup     2/4 changes complete
+```
+
+Nothing else to set up. This is the whole story for a solo dev.
+
+**Across repos — a store, a team.** The plan lives in a store; the work is
+implemented in several code repos. Each change entry says which repo it lives
+in (any registered store id), and the status rolls up across all of them:
+
+```yaml
+# team-plans/openspec/initiatives/payments-launch/initiative.yaml
+title: Payments launch
+changes:
+  - { id: add-payments-api, store: api-server }
+  - { id: add-payments-ui, store: web-app }
+  - update-docs                                 # lives here, in the store
+```
+
+```text
+$ openspec list --initiatives --store team-plans
+  payments-launch    2/5 changes complete   across api-server, web-app
+      ✓ add-payments-api  api-server   5/5 tasks
+      · add-payments-ui   web-app      1/3 tasks
+      ✓ update-docs       here         2/2 tasks
+      ? add-refunds       web-app      not found
+```
+
+One command answers "where does the whole effort stand?" — across every repo,
+with each change's home shown next to it.
+
 ## The happy path
 
 *A team is making setup smoother. The work spans a CLI repo and a docs repo.
@@ -150,9 +198,12 @@ This is a working prototype — every command above runs today:
 
 - **Your own artifact types, discoverable across the store boundary.**
   `openspec schemas --store <id>` lists a store's custom schemas from any repo.
-- **Initiatives with live, rolled-up status.** `openspec list --initiatives`
-  reads each initiative's manifest and rolls up the status of the changes it
-  groups, from the same source as `openspec list --changes`.
+- **Initiatives with live, rolled-up status — solo or across repos.**
+  `openspec list --initiatives` reads each initiative's manifest and rolls up
+  the status of the changes it groups, from the same source as
+  `openspec list --changes`. When a change lives in another repo (`{ id, store }`),
+  the rollup resolves it there and aggregates — one number for the whole effort,
+  with each change's home shown next to it.
 - **Canonical-vs-shadow precedence, enforced.** A local initiative that shares an
   id with one in a referenced store is reported as a shadow — never silently
   overriding it, never blocking your local work.
@@ -162,8 +213,9 @@ This is a working prototype — every command above runs today:
   one-line summary and the command to fetch it. Nothing is copied.
 
 Still a prototype: the initiative folder is a light convention (an
-`initiative.yaml` manifest — not a revived command group), and richer rollups
-(tasks across every referencing repo) are the next step.
+`initiative.yaml` manifest — not a revived command group). A change in another
+repo is named explicitly (`{ id, store }`); OpenSpec does not auto-discover
+which repos a store's changes live in.
 
 Start simple: one initiative folder in a store, grouping a few real changes,
 with the artifacts your team already uses.

@@ -50,10 +50,26 @@ work.
 ### Requirement: Initiative status rollup
 
 The system SHALL list initiatives and roll up the live status of the changes each
-initiative groups.
+initiative groups, resolving a change against a named store when the manifest
+entry specifies one and against the initiative's own root otherwise.
 
 #### Scenario: Listing initiatives in a store
 
 - **WHEN** a user runs `openspec list --initiatives --store acme-plans`
 - **THEN** the system lists each initiative in the store
 - **AND** each initiative shows the rolled-up status of the changes it groups
+
+#### Scenario: Rolling up changes that live in other repos
+
+- **WHEN** an initiative's manifest groups changes with `{ id, store }` entries
+  that name other registered stores
+- **THEN** the system resolves each change against its named store's root and
+  aggregates the task status across all of them
+- **AND** the output shows each change's home and marks a change whose store or
+  directory is missing as not found
+
+#### Scenario: Solo initiative with changes in its own root
+
+- **WHEN** an initiative's manifest lists changes as plain ids
+- **THEN** the system resolves each change against the initiative's own root
+- **AND** no external stores are reported for that initiative

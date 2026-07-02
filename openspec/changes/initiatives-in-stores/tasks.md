@@ -22,6 +22,10 @@
 - [x] 3.1 Add `openspec list --initiatives [--store <id>]`
 - [x] 3.2 Roll up the live status of the changes each initiative groups, reusing
       the existing `openspec list --changes` status source
+- [x] 3.3 Cross-repo rollup: a manifest change entry may be `{ id, store }`, so
+      an initiative in a planning store aggregates status across the code repos
+      where its changes live (per-change breakdown + `stores` span; unresolved
+      changes reported as `not-found`)
 
 ## 3b. Thin scaffold
 
