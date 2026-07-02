@@ -95,6 +95,27 @@ The `/opsx:update` skill SHALL keep a change's existing planning artifacts coher
 - **WHEN** the skill finds the change's artifacts already coherent
 - **THEN** it reports the change as coherent and makes no edits
 
+### Requirement: Next-Step Guidance
+
+After applying confirmed revisions (or finding none needed), the `/opsx:update` skill SHALL report where the change stands and recommend the next command, without acting on the recommendation itself.
+
+#### Scenario: Updating an already-implemented change
+
+- **WHEN** the user updates a change whose implementation already happened (for example tasks are checked off or `/opsx:apply` was already run)
+- **THEN** the skill still revises planning artifacts only
+- **AND** it notes that the implementation may no longer match the revised plan and recommends `/opsx:apply` to carry the delta into code
+- **AND** it does not implement anything itself
+
+#### Scenario: Next step when artifacts are incomplete
+
+- **WHEN** the update finishes and the change still has not-yet-created artifacts
+- **THEN** the skill recommends `/opsx:continue` to create them
+
+#### Scenario: Next step when the change is fully done
+
+- **WHEN** the update finishes and the change's artifacts are complete and already implemented
+- **THEN** the skill recommends `/opsx:archive`
+
 ### Requirement: User-Confirmed Incremental Application
 
 The `/opsx:update` skill SHALL propose each artifact revision and apply it only after user confirmation.

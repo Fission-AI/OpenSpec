@@ -22,6 +22,7 @@ This proposal began larger — a reverse-dependency graph API, content digests, 
 - Content digests, a drift/staleness signal, a baseline ledger, a `reconcile` op, or a `status --impact` selector (see "Why not the heavier machinery").
 - Regenerating *code* from updated artifacts — that is `/opsx:apply`'s job; `/opsx:update` stops at the plan and hands off.
 - Cross-change audit ([#247](https://github.com/Fission-AI/OpenSpec/issues/247) in full) — a later proposal; this change is intra-change.
+- Updating anything other than a change's planning artifacts. v1 is specific to change proposals; generalizing "update" to other graph types is deferred until such a graph exists (see Naming).
 
 ## The skill, written by hand
 
@@ -58,6 +59,11 @@ Revise a change's planning artifacts and keep them coherent. Never edit code.
    - When a substantial rewrite is needed, `openspec instructions <artifact> --change "<id>" --json`
      gives that artifact's rules/template to follow.
 
+6. Point to the next step (guidance only — never act on it).
+   - Artifacts still missing → suggest `/opsx:continue`. Change already implemented (tasks
+     checked off / applied) → the code may no longer match the revised plan; suggest
+     `/opsx:apply` to carry the delta. Fully done and implemented → suggest `/opsx:archive`.
+
 Guardrails:
 - Planning artifacts only. If the plan now implies code changes, stop and point to `/opsx:apply`.
 - Use artifact ids/paths from `openspec status`; never branch on literal proposal/specs/design/tasks names.
@@ -87,11 +93,16 @@ So `/opsx:update` v1 has the agent read the change's artifacts and judge coheren
 ### 4. Naming: `/opsx:update` skill, not `openspec update` CLI
 `openspec update [path]` already regenerates AI tool/skill files ([src/cli/index.ts](../../../src/cli/index.ts)). Overloading it would give one verb two unrelated meanings. The artifact-update action is therefore the **skill** `/opsx:update`, with no new `openspec` verb at all. Considered and rejected: `openspec regen --from <artifact>` ([#705](https://github.com/Fission-AI/OpenSpec/issues/705)) — a mutating CLI verb that rewrites artifacts duplicates the skill's job and bypasses user confirmation; the value is in the agent's semantic revision, not a CLI rewrite.
 
+Review feedback flagged that "update" alone is generic — could it apply to any graph? The resolution: the skill is scoped to **change proposals only**, and the specific name carries that scope. The skill is `openspec-update-change`, following the `openspec-<verb>-change` naming of its siblings (`openspec-continue-change`, `openspec-new-change`, …). The command is `/opsx:update` because every verb in the `/opsx:` family operates on a change (`continue`, `apply`, `archive` — none says `-change`); a change-scoped meaning is what the namespace already promises. If a future graph type needs its own update action, it gets its own specific skill name then — nothing here blocks or breaks that.
+
 ### 5. Guardrails (the part that makes it the requested command)
 - **Planning artifacts only.** The skill's write targets are the artifact paths from `status`; if a revision implies code changes it stops and points to `/opsx:apply`. This directly answers [#1188](https://github.com/Fission-AI/OpenSpec/issues/1188)'s complaint that the manual workaround edits code.
 - **Schema-driven.** Ids and paths come from `status`; no branching on literal `proposal`/`specs`/`design`/`tasks`. Works for custom schemas ([#777](https://github.com/Fission-AI/OpenSpec/issues/777), [#666](https://github.com/Fission-AI/OpenSpec/issues/666)).
 - **Confirm each edit.** One artifact at a time, shown before writing.
 - **Intent guard.** A revision that changes intent rather than refining it is redirected to `/opsx:new` (the "Update vs. Start Fresh" heuristic, [docs/opsx.md](../../../docs/opsx.md)).
+
+### 6. Next-step guidance, especially for already-implemented changes
+A change can be revised after it was built — tasks checked off, `/opsx:apply` already run. The update itself behaves identically (planning artifacts only), but stopping silently would strand the user: the code and the revised plan now disagree. So the skill ends by reporting where the change stands (from the status JSON and the tasks checklist) and recommending the next command — `/opsx:continue` if artifacts are missing, `/opsx:apply` to carry a revised plan into code, `/opsx:archive` when everything is done. Guidance only: the skill never implements, mirroring the "All artifacts created! You can now implement this change with `/opsx:apply`" hand-off that `continue-change.ts` already uses.
 
 ## Risks / Trade-offs
 
@@ -101,4 +112,4 @@ So `/opsx:update` v1 has the agent read the change's artifacts and judge coheren
 
 ## Migration Plan
 
-Additive and backward-compatible. One new skill template behind the expanded-workflow profile; one docs row. No existing command changes behavior; no schema or graph changes. The superseded stub (`add-artifact-regeneration-support`) is removed or folded in the same PR to avoid two competing proposals in the tree.
+Additive and backward-compatible. One new skill template, installed with the default `core` profile (maintainer call on the PR: update is part of the default happy path, not expanded-only); one docs row. No existing command changes behavior; no schema or graph changes. The superseded stub (`add-artifact-regeneration-support`) is removed or folded in the same PR to avoid two competing proposals in the tree.

@@ -6,12 +6,13 @@ This is the most-requested missing capability in the tracker. It is one gap with
 
 ## What Changes
 
-The whole feature is a single new workflow skill, `/opsx:update`. Written by hand, its instruction set is short:
+The whole feature is a single new workflow skill, `/opsx:update`. The skill is deliberately change-scoped — `openspec-update-change`, following the `openspec-<verb>-change` naming of its siblings — and applies to change proposals only, not arbitrary artifact graphs (see design, Naming). Written by hand, its instruction set is short:
 
 1. **Understand the request** — what the user wants to revise (or, with no specific ask, "review this change for coherence").
 2. **Get the artifacts** — run `openspec status --change <id> --json`. Its `artifactPaths` map reports, per artifact, which files exist and where: `existingOutputPaths` is the concrete file list to edit — already expanded for glob artifacts like `specs/**/*.md`. (`openspec list --json` to pick the change when it isn't given.)
 3. **Read and revise** — read the relevant artifacts, make the requested edit, then check the change's **other** artifacts against it and propose any follow-on edits needed to keep the plan coherent.
 4. **Confirm and apply** — show each proposed revision, write only after the user confirms.
+5. **Point to the next step** — report where the change now stands and recommend what comes next: artifacts still missing → `/opsx:continue`; plan revised after the change was already implemented → `/opsx:apply` to carry the delta into code; everything done and implemented → `/opsx:archive`. Guidance only — the skill never acts on it.
 
 Two guardrails make it the command the cluster asked for:
 
@@ -28,12 +29,12 @@ Per the steer to introduce as little code as possible, and only when there is a 
 
 ### New Capabilities
 
-- `opsx-update-skill`: A new `/opsx:update` workflow skill that revises a change's existing planning artifacts and keeps them coherent with one another. It reads the artifact set and paths from `openspec status`, reviews related artifacts in any direction (not only downstream), edits planning artifacts only and never code, and confirms each edit with the user.
+- `opsx-update-skill`: A new `/opsx:update` workflow skill that revises a change's existing planning artifacts and keeps them coherent with one another. It reads the artifact set and paths from `openspec status`, reviews related artifacts in any direction (not only downstream), edits planning artifacts only and never code, and confirms each edit with the user. It ends with next-step guidance — recommending `/opsx:continue`, `/opsx:apply`, or `/opsx:archive` based on the change's state — without acting on it.
 
 ## Impact
 
 - `src/core/templates/workflows/update-change.ts` (**new**) — the `openspec-update-change` skill template and the `/opsx:update` command template, mirroring the structure of `continue-change.ts`. Reads artifact ids and paths from `openspec status --json`; embeds no artifact-name patterns.
-- Skill/command registration + the expanded-workflow profile that already lists `continue`, `ff`, `verify`, … so `/opsx:update` installs alongside its siblings.
+- Skill/command registration + [src/core/profiles.ts](../../../src/core/profiles.ts) — add `update` to `ALL_WORKFLOWS` **and to the default `core` profile** (`propose`, `explore`, `apply`, `sync`, `archive`), so `/opsx:update` is part of the default install rather than expanded-only (maintainer call on the PR).
 - `docs/opsx.md` — add a `/opsx:update` row to the command table and a short "Updating a change" usage note.
 - `openspec/changes/add-artifact-regeneration-support/` — the in-repo proposal-only stub for this gap is superseded; retire it or fold its notes into design.
 - No changes to `src/core/artifact-graph/*`, `src/commands/workflow/status.ts`, or `ChangeMetadataSchema`. The skill uses `openspec status` / `openspec list` as they exist today.
