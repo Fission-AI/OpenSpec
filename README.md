@@ -47,6 +47,14 @@ Our philosophy:
 ## See it in action
 
 ```text
+You: /opsx:explore
+AI:  What would you like to explore?
+You: I want dark mode but I'm not sure how to do it cleanly.
+AI:  Let me look at your styling setup...
+     Cleanest path here: CSS variables + a small theme context,
+     with system-preference detection. No new dependencies. Scope it?
+You: Yes, let's do it.
+
 You: /opsx:propose add-dark-mode
 AI:  Created openspec/changes/add-dark-mode/
      ✓ proposal.md — why we're doing this, what's changing
@@ -94,9 +102,12 @@ cd your-project
 openspec init
 ```
 
-Now tell your AI: `/opsx:propose <what-you-want-to-build>`
+Now talk to your AI:
 
-If you want the expanded workflow (`/opsx:new`, `/opsx:continue`, `/opsx:ff`, `/opsx:verify`, `/opsx:bulk-archive`, `/opsx:onboard`), select it with `openspec config profile` and apply with `openspec update`.
+- **Not sure what to build yet?** Start with `/opsx:explore`, a no-stakes thinking partner that reads your code, weighs options, and shapes a plan before anything is written. ([Explore guide](docs/explore.md))
+- **Already know what you want?** Go straight to `/opsx:propose <what-you-want-to-build>`.
+
+Both are in the default profile. If you want the expanded workflow (`/opsx:new`, `/opsx:continue`, `/opsx:ff`, `/opsx:verify`, `/opsx:bulk-archive`, `/opsx:onboard`), select it with `openspec config profile` and apply with `openspec update`.
 
 > [!NOTE]
 > Not sure if your tool is supported? [View the full list](docs/supported-tools.md) – we support 25+ tools and growing.
@@ -105,14 +116,24 @@ If you want the expanded workflow (`/opsx:new`, `/opsx:continue`, `/opsx:ff`, `/
 
 ## Docs
 
+**Start here:** the **[Documentation Home](docs/README.md)** maps everything. New to OpenSpec? Read [Getting Started](docs/getting-started.md), then [How Commands Work](docs/how-commands-work.md) (where you actually type `/opsx:propose`).
+
 → **[Getting Started](docs/getting-started.md)**: first steps<br>
+→ **[Explore First](docs/explore.md)**: think it through with `/opsx:explore` before you commit<br>
+→ **[How Commands Work](docs/how-commands-work.md)**: where slash commands run vs the CLI<br>
+→ **[Core Concepts at a Glance](docs/overview.md)**: the whole mental model, one page<br>
+→ **[Examples & Recipes](docs/examples.md)**: real changes, start to finish<br>
 → **[Workflows](docs/workflows.md)**: combos and patterns<br>
+→ **[Existing Projects](docs/existing-projects.md)**: adopt OpenSpec on a brownfield codebase<br>
+→ **[Editing a Change](docs/editing-changes.md)**: update artifacts, go back, reconcile manual edits<br>
 → **[Commands](docs/commands.md)**: slash commands & skills<br>
 → **[CLI](docs/cli.md)**: terminal reference<br>
+→ **[Stores](docs/stores-beta/user-guide.md)**: plan in a separate repo, shared across your team (beta)<br>
 → **[Supported Tools](docs/supported-tools.md)**: tool integrations & install paths<br>
 → **[Concepts](docs/concepts.md)**: how it all fits<br>
 → **[Multi-Language](docs/multi-language.md)**: multi-language support<br>
-→ **[Customization](docs/customization.md)**: make it yours
+→ **[Customization](docs/customization.md)**: make it yours<br>
+→ **[FAQ](docs/faq.md)** · **[Troubleshooting](docs/troubleshooting.md)** · **[Glossary](docs/glossary.md)**: quick help
 
 
 ## Community schemas

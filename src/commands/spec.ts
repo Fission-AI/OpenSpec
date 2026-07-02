@@ -4,6 +4,7 @@ import { join } from 'path';
 import { MarkdownParser } from '../core/parsers/markdown-parser.js';
 import { Validator } from '../core/validation/validator.js';
 import type { Spec } from '../core/schemas/index.js';
+import type { RootOutput } from '../core/root-selection.js';
 import { isInteractive } from '../utils/interactive.js';
 import { getSpecIds } from '../utils/item-discovery.js';
 
@@ -16,6 +17,7 @@ interface ShowOptions {
   scenarios?: boolean; // --no-scenarios sets this to false (JSON only)
   requirement?: string; // JSON only
   noInteractive?: boolean;
+  rootOutput?: RootOutput;
 }
 
 function parseSpecFromFile(specPath: string, specId: string): Spec {
@@ -65,12 +67,20 @@ function printSpecTextRaw(specPath: string): void {
 }
 
 export class SpecCommand {
-  private SPECS_DIR = 'openspec/specs';
+  private specsDir: string;
+  private rootPath?: string;
+
+  // rootPath is set only by root-aware callers (top-level `show`); the
+  // deprecated noun-form commands stay cwd-based.
+  constructor(rootPath?: string) {
+    this.rootPath = rootPath;
+    this.specsDir = rootPath ? join(rootPath, 'openspec', 'specs') : SPECS_DIR;
+  }
 
   async show(specId?: string, options: ShowOptions = {}): Promise<void> {
     if (!specId) {
       const canPrompt = isInteractive(options);
-      const specIds = await getSpecIds();
+      const specIds = await getSpecIds(this.rootPath ?? process.cwd());
       if (canPrompt && specIds.length > 0) {
         const { select } = await import('@inquirer/prompts');
         specId = await select({
@@ -82,9 +92,12 @@ export class SpecCommand {
       }
     }
 
-    const specPath = join(this.SPECS_DIR, specId, 'spec.md');
+    const specPath = join(this.specsDir, specId, 'spec.md');
     if (!existsSync(specPath)) {
-      throw new Error(`Spec '${specId}' not found at openspec/specs/${specId}/spec.md`);
+      // Root-aware callers get the absolute path; the cwd-based noun form
+      // keeps its historical forward-slash relative message on all platforms.
+      const displayPath = this.rootPath ? specPath : `openspec/specs/${specId}/spec.md`;
+      throw new Error(`Spec '${specId}' not found at ${displayPath}`);
     }
 
     if (options.json) {
@@ -100,6 +113,7 @@ export class SpecCommand {
         requirementCount: filtered.requirements.length,
         requirements: filtered.requirements,
         metadata: parsed.metadata ?? { version: '1.0.0', format: 'openspec' as const },
+        ...(options.rootOutput ? { root: options.rootOutput } : {}),
       };
       console.log(JSON.stringify(output, null, 2));
       return;
