@@ -42,6 +42,7 @@ export const COMMAND_IDS = [
   'verify',
   'onboard',
   'propose',
+  'plan',
 ] as const;
 
 export type CommandId = (typeof COMMAND_IDS)[number];

@@ -8,7 +8,7 @@ import { promises as fs } from 'fs';
 import { AI_TOOLS } from '../core/config.js';
 import { UpdateCommand } from '../core/update.js';
 import { ListCommand } from '../core/list.js';
-import { listInitiatives } from '../core/initiatives.js';
+import { rollupPlan } from '../core/plan.js';
 import { ArchiveCommand, type ArchiveOptions } from '../core/archive.js';
 import { ViewCommand } from '../core/view.js';
 import { resolveRootForCommand, toRootOutput, type ResolvedOpenSpecRoot } from '../core/root-selection.js';
@@ -31,14 +31,12 @@ import {
   templatesCommand,
   schemasCommand,
   newChangeCommand,
-  newInitiativeCommand,
   DEFAULT_SCHEMA,
   type StatusOptions,
   type InstructionsOptions,
   type TemplatesOptions,
   type SchemasOptions,
   type NewChangeOptions,
-  type NewInitiativeOptions,
 } from '../commands/workflow/index.js';
 import { maybeShowTelemetryNotice, trackCommand, shutdown } from '../telemetry/index.js';
 import { COMMON_FLAGS } from '../core/completions/shared-flags.js';
@@ -56,68 +54,56 @@ function hiddenStorePathOption(): Option {
   ).hideHelp();
 }
 
-async function renderInitiatives(
+async function renderPlan(
   root: ResolvedOpenSpecRoot,
   options: { json?: boolean }
 ): Promise<void> {
-  const initiatives = await listInitiatives(root.path);
+  const plan = await rollupPlan(root.path);
 
   if (options.json) {
-    console.log(
-      JSON.stringify({ initiatives, root: toRootOutput(root) }, null, 2)
-    );
+    console.log(JSON.stringify({ plan, root: toRootOutput(root) }, null, 2));
     return;
   }
 
-  if (initiatives.length === 0) {
-    console.log('No initiatives found.');
+  if (plan === null) {
+    console.log('No plan folder found at openspec/plan/.');
+    console.log('Start one: mkdir -p openspec/plan/00_goal');
     return;
   }
 
-  console.log('Initiatives:');
-  const nameWidth = Math.max(...initiatives.map((i) => i.id.length));
-  for (const initiative of initiatives) {
-    const name = initiative.id.padEnd(nameWidth);
-    const rollup =
-      initiative.changesTotal === 0
-        ? 'no changes'
-        : `${initiative.changesComplete}/${initiative.changesTotal} changes complete`;
-    const across =
-      initiative.stores.length > 0
-        ? `   across ${initiative.stores.join(', ')}`
-        : '';
-    const shadow = initiative.shadowsStore
-      ? `   (shadows: ${initiative.shadowsStore})`
-      : '';
-    console.log(`  ${name}     ${rollup.padEnd(22)}${across}${shadow}`);
-
-    // Cross-repo initiatives show where each change lives — the proof that
-    // one effort's status is rolled up across several repos.
-    if (initiative.stores.length > 0 && initiative.changeStatuses.length > 0) {
-      const changeWidth = Math.max(
-        ...initiative.changeStatuses.map((c) => c.id.length)
-      );
-      for (const change of initiative.changeStatuses) {
-        const mark =
-          change.state === 'complete'
-            ? '✓'
-            : change.state === 'not-found'
-              ? '?'
-              : change.state === 'no-tasks'
-                ? '–'
-                : '·';
-        const where = change.store ?? 'here';
-        const tasks =
-          change.state === 'not-found'
-            ? 'not found'
-            : change.totalTasks === 0
-              ? 'no tasks'
-              : `${change.completedTasks}/${change.totalTasks} tasks`;
-        console.log(
-          `      ${mark} ${change.id.padEnd(changeWidth)}  ${where.padEnd(14)}  ${tasks}`
-        );
-      }
+  console.log(`Plan: ${plan.path}`);
+  if (plan.stages.length > 0) {
+    console.log('Stages:');
+    const stageWidth = Math.max(...plan.stages.map((s) => s.name.length));
+    for (const stage of plan.stages) {
+      const files = stage.files === 1 ? '1 file' : `${stage.files} files`;
+      console.log(`  ${stage.name.padEnd(stageWidth)}   ${stage.files === 0 ? 'empty' : files}`);
     }
+  } else {
+    console.log('Stages: none yet (numbered folders become stages, e.g. 00_goal/)');
+  }
+
+  if (plan.changes.length === 0) {
+    console.log('Changes pointing here: none yet');
+    console.log('Link one: openspec new change <name> --plan local');
+    return;
+  }
+
+  console.log(
+    `Changes pointing here: ${plan.changesComplete}/${plan.changesTotal} complete`
+  );
+  const changeWidth = Math.max(...plan.changes.map((c) => c.id.length));
+  for (const change of plan.changes) {
+    const mark =
+      change.state === 'complete' ? '✓' : change.state === 'no-tasks' ? '–' : '·';
+    const where = change.store ?? 'here';
+    const tasks =
+      change.totalTasks === 0
+        ? 'no tasks'
+        : `${change.completedTasks}/${change.totalTasks} tasks`;
+    console.log(
+      `  ${mark} ${change.id.padEnd(changeWidth)}  ${where.padEnd(14)}  ${tasks}`
+    );
   }
 }
 
@@ -282,18 +268,18 @@ program
 
 program
   .command('list')
-  .description('List items (changes by default). Use --specs to list specs, --initiatives to list initiatives.')
+  .description('List items (changes by default). Use --specs to list specs, --plan to see the plan rollup.')
   .option('--specs', 'List specs instead of changes')
   .option('--changes', 'List changes explicitly (default)')
-  .option('--initiatives', 'List initiatives with rolled-up change status')
+  .option('--plan', "Show the root's plan: its stages, and every change pointing at it")
   .option('--sort <order>', 'Sort order: "recent" (default) or "name"', 'recent')
   .option('--json', 'Output as JSON (for programmatic use)')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
-  .action(async (options?: { specs?: boolean; changes?: boolean; initiatives?: boolean; sort?: string; json?: boolean; store?: string; storePath?: string }) => {
+  .action(async (options?: { specs?: boolean; changes?: boolean; plan?: boolean; sort?: string; json?: boolean; store?: string; storePath?: string }) => {
     try {
-      const failurePayload = options?.initiatives
-        ? { initiatives: [], root: null }
+      const failurePayload = options?.plan
+        ? { plan: null, root: null }
         : options?.specs
           ? { specs: [], root: null }
           : { changes: [], root: null };
@@ -304,8 +290,8 @@ program
       if (!root) {
         return;
       }
-      if (options?.initiatives) {
-        await renderInitiatives(root, { json: options?.json });
+      if (options?.plan) {
+        await renderPlan(root, { json: options?.json });
         return;
       }
       const listCommand = new ListCommand();
@@ -642,6 +628,7 @@ newCmd
   .option('--description <text>', 'Description to add to README.md')
   .option('--goal <text>', 'Optional goal metadata to store with the change')
   .option('--schema <name>', `Workflow schema to use (default: ${DEFAULT_SCHEMA})`)
+  .option('--plan <where>', "Link this change to a plan: 'local' or a store id")
   .option('--json', 'Output as JSON')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
@@ -652,22 +639,6 @@ newCmd
   .action(async (name: string, options: NewChangeOptions) => {
     try {
       await newChangeCommand(name, options);
-    } catch (error) {
-      failWithError(error);
-      process.exit(1);
-    }
-  });
-
-newCmd
-  .command('initiative <name>')
-  .description('Scaffold an initiative folder (initiative.yaml + brief.md)')
-  .option('--title <text>', 'Human title (default: derived from the id)')
-  .option('--json', 'Output as JSON')
-  .option('--store <id>', STORE_OPTION_DESCRIPTION)
-  .addOption(hiddenStorePathOption())
-  .action(async (name: string, options: NewInitiativeOptions) => {
-    try {
-      await newInitiativeCommand(name, options);
     } catch (error) {
       failWithError(error);
       process.exit(1);

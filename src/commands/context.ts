@@ -27,8 +27,8 @@ import { COMMON_FLAGS } from '../core/completions/shared-flags.js';
 import { emitFailure, printJson } from './shared-output.js';
 import { gatherRelationshipData } from './shared-gather.js';
 import { listSchemasWithInfo } from '../core/artifact-graph/index.js';
-import { listInitiativeSummaries } from '../core/initiatives.js';
-import { schemasFetchRecipe, initiativesFetchRecipe } from '../core/references.js';
+import { readPlanStages } from '../core/plan.js';
+import { schemasFetchRecipe, planFetchRecipe } from '../core/references.js';
 
 const FAILURE_PAYLOAD = { root: null, members: [] };
 
@@ -64,7 +64,7 @@ function memberLine(member: WorkingSetMember): string {
 
 /**
  * Enrich available referenced-store members with the store's own custom
- * artifact types and initiatives, so `context` reports what a repo draws on
+ * artifact types and plan stages, so `context` reports what a repo draws on
  * beyond specs. Read-only; failures degrade to an unenriched member.
  */
 async function enrichMembersWithStoreArtifacts(
@@ -86,14 +86,13 @@ async function enrichMembersWithStoreArtifacts(
       // Unreadable schemas dir: leave the member unenriched.
     }
     try {
-      const initiatives = (await listInitiativeSummaries(storeRoot)).map(
-        (initiative) => initiative.id
-      );
-      if (initiatives.length > 0) {
-        member.initiatives = initiatives;
+      const plan = await readPlanStages(storeRoot);
+      const stages = (plan?.stages ?? []).map((stage) => stage.name);
+      if (stages.length > 0) {
+        member.plan = stages;
       }
     } catch {
-      // Unreadable initiatives dir: leave the member unenriched.
+      // Unreadable plan dir: leave the member unenriched.
     }
   }
 }
@@ -123,9 +122,9 @@ function printHumanWorkingSet(workingSet: WorkingSet, declaredReferenceCount: nu
           `    Artifact types: ${member.artifactTypes.join(', ')}  (${schemasFetchRecipe(member.id)})`
         );
       }
-      if (member.initiatives && member.initiatives.length > 0) {
+      if (member.plan && member.plan.length > 0) {
         console.log(
-          `    Initiatives: ${member.initiatives.join(', ')}  (${initiativesFetchRecipe(member.id)})`
+          `    Plan: ${member.plan.join(' → ')}  (${planFetchRecipe(member.id)})`
         );
       }
     }

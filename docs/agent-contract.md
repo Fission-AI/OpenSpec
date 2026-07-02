@@ -45,7 +45,7 @@ Successful JSON payloads embed the root:
 ## 4. Command JSON shapes
 
 ### 4.1 `list --json`
-`{ "changes": [ { "name", "completedTasks", "totalTasks", "lastModified", "status": "no-tasks"|"complete"|"in-progress" } ], "root": RootOutput }` — note the per-change `status` is a string enum here. `--specs`: `{ "specs": [ { "id", "requirementCount" } ], "root" }`. `--initiatives`: `{ "initiatives": [ { "id", "title", "changes": [string], "changeStatuses": [ { "id", "store"?, "completedTasks", "totalTasks", "state": "complete"|"in-progress"|"no-tasks"|"not-found" } ], "changesComplete", "changesTotal", "tasksComplete", "tasksTotal", "stores": [string], "shadowsStore"? } ], "root" }`. Each change lives in the initiative's own root, or — when its manifest entry is `{ id, store }` — in that registered store's root; `changeStatuses[].store` names it, `stores` is the distinct set (cross-repo), and `not-found` means the change (or its named store) is missing. `shadowsStore` is the id of a referenced store whose canonical initiative this local one shadows.
+`{ "changes": [ { "name", "completedTasks", "totalTasks", "lastModified", "status": "no-tasks"|"complete"|"in-progress" } ], "root": RootOutput }` — note the per-change `status` is a string enum here. `--specs`: `{ "specs": [ { "id", "requirementCount" } ], "root" }`. `--plan`: `{ "plan": { "path", "stages": [{name,files}], "context": [string], "changes": [ { "id", "store"?, "completedTasks", "totalTasks", "state": "complete"|"in-progress"|"no-tasks" } ], "changesComplete", "changesTotal", "tasksComplete", "tasksTotal" } | null, "root" }` — `plan` is null when the root has no `openspec/plan/` folder. `changes` are discovered by scanning `.openspec.yaml` files for `plan: local` (the root's own changes) and `plan: <store-id>` (changes in other registered roots pointing at this store's plan); `changes[].store` names where a change lives, absent = the plan's own root.
 
 ### 4.2 `show <item> --json`
 Change: `{ "id", "title", "deltaCount", "deltas": [...], "root" }`. Spec: `{ "id", "title", "overview", "requirementCount", "requirements": [...], "metadata": { "version", "format", "sourcePath"? }, "root" }`.
@@ -59,16 +59,13 @@ Change: `{ "id", "title", "deltaCount", "deltas": [...], "root" }`. Spec: `{ "id
 ### 4.5 `instructions <artifact> --json`
 `{ "changeName", "artifactId", "schemaName", "changeDir", "planningHome"?, "outputPath", "resolvedOutputPath", "existingOutputPaths", "description", "instruction"?, "context"?, "rules"?, "references"?: ReferenceIndexEntry[], "template", "dependencies": [{id,done,path,description}], "unlocks", "root" }`.
 
-`ReferenceIndexEntry`: `{ "store_id", "root"?, "specs"?: [{id,summary}], "schemas"?: [{id,summary,artifacts}], "initiatives"?: [{id,summary}], "fetch"?, "status": [] }` — resolved entries carry root/specs/fetch; `schemas` (the store's own project-local artifact types) and `initiatives` are present only when the store defines them; unresolved carry store_id + warning status. Index capped at 50KB (`reference_index_truncated`).
+`ReferenceIndexEntry`: `{ "store_id", "root"?, "specs"?: [{id,summary}], "schemas"?: [{id,summary,artifacts}], "plan"?: [string], "fetch"?, "status": [] }` — resolved entries carry root/specs/fetch; `schemas` (the store's own project-local artifact types) and `plan` (the store's plan stage names, in order) are present only when the store defines them; unresolved carry store_id + warning status. Index capped at 50KB (`reference_index_truncated`).
 
 ### 4.6 `instructions apply --json`
 `{ "changeName", "changeDir", "schemaName", "contextFiles": { "<artifactId>": ["/abs", ...] }, "progress": {total,complete,remaining}, "tasks": [{id,description,done}], "state": "blocked"|"all_done"|"ready", "missingArtifacts"?, "instruction", "references"?, "root" }`.
 
 ### 4.7 `new change <name> --json`
 Success: `{ "change": { "id", "path", "metadataPath", "schema" }, "root" }`. Failure: `{ "change": null, "status": [d] }`, exit 1.
-
-### 4.7a `new initiative <name> --json`
-Success: `{ "initiative": { "id", "path", "manifestPath", "title" }, "root" }`. Failure: `{ "initiative": null, "status": [d] }`, exit 1.
 
 ### 4.8 `archive <name> --json`
 Success: `{ "archive": { "change", "archivedAs": "YYYY-MM-DD-name", "path", "specsUpdated", "totals"? }, "root" }`. Failure: `{ "archive": null, "root"?, "status": [d] }`, exit 1. JSON mode is strictly non-interactive: every prompt point becomes an `archive_*` code.
@@ -77,7 +74,7 @@ Success: `{ "archive": { "change", "archivedAs": "YYYY-MM-DD-name", "path", "spe
 `{ "root": { "path", "source", "store_id"?, "healthy", "status": [] }, "store": { "id", "metadata": {present,valid,remote?}, "origin_url"?, "status": [] } | null, "references": [...], "status": [] }`. Health findings of any severity exit 0. Failure payload: `{ "root": null, "store": null, "references": [], "status": [d] }`, exit 1.
 
 ### 4.10 `context --json`
-`{ "root": { "path", "source", "store_id"?, "role": "openspec_root" }, "members": [ { "role": "referenced_store", "id", "path"?, "remote"?, "fetch"?, "artifactTypes"?: [string], "initiatives"?: [string], "status": [] } ], "status": [] }`. AVAILABLE = path present AND status empty. `artifactTypes` (the store's own project-local schema names) and `initiatives` are present only on available members whose store defines them. `--code-workspace <path>` writes `{folders:[{name,path}]}` (available referenced stores only, `ref:` prefixes); in JSON mode the write runs before printing so stdout holds exactly one document even on write failure. Failure: `{ "root": null, "members": [], "status": [d] }`, exit 1.
+`{ "root": { "path", "source", "store_id"?, "role": "openspec_root" }, "members": [ { "role": "referenced_store", "id", "path"?, "remote"?, "fetch"?, "artifactTypes"?: [string], "plan"?: [string], "status": [] } ], "status": [] }`. AVAILABLE = path present AND status empty. `artifactTypes` (the store's own project-local schema names) and `plan` (the store's plan stage names, in order) are present only on available members whose store defines them. `--code-workspace <path>` writes `{folders:[{name,path}]}` (available referenced stores only, `ref:` prefixes); in JSON mode the write runs before printing so stdout holds exactly one document even on write failure. Failure: `{ "root": null, "members": [], "status": [d] }`, exit 1.
 
 ### 4.11 `store ... --json`
 setup/register: `{ "store": {id, root, metadata_path?}, "registry": {path, registered, already_registered}, "git": {is_repository, initialized, committed}, "created_files": [], "status": [] }`. unregister/remove: `{ "store", "registry": {path, removed}, "files": {deleted, deleted_path, left_on_disk}, "status": [] }`. list: `{ "stores": [{id, root}], "status": [] }`. doctor: `{ "stores": [ { id, root, metadata_path?, openspec_root: {...healthy, status}, metadata: {present, valid, id?, remote}, git: {is_repository, has_commits, has_uncommitted_changes, has_remote, origin_url}, status } ], "status": [] }` (`null` = unknown/not probed). Health findings exit 0; failures exit 1 with the matching null-shape. Prompt cancellation exits 130.

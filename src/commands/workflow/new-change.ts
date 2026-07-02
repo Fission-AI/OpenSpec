@@ -31,6 +31,8 @@ export interface NewChangeOptions {
   description?: string;
   goal?: string;
   schema?: string;
+  /** Link the change to a plan: 'local' or a registered store id. */
+  plan?: string;
   store?: string;
   storePath?: string;
   initiative?: string;
@@ -126,6 +128,7 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
       changesDir: root.changesDir,
       metadata: {
         ...(options.goal ? { goal: options.goal } : {}),
+        ...(options.plan ? { plan: options.plan } : {}),
       },
     });
 

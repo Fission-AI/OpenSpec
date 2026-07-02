@@ -171,7 +171,6 @@ describe('command completion registry', () => {
       'instructions',
       'list',
       'new change',
-      'new initiative',
       'schemas',
       'show',
       'status',
@@ -208,6 +207,7 @@ describe('command completion registry', () => {
       'description',
       'goal',
       'schema',
+      'plan',
       'json',
       'store',
     ]);

@@ -103,8 +103,8 @@ describe('openspec context (4.1)', () => {
     expect(parseJson(declared).members).toHaveLength(2);
   });
 
-  it("surfaces a referenced store's own artifact types and initiatives", async () => {
-    // The upstream store defines a custom artifact type and an initiative.
+  it("surfaces a referenced store's own artifact types and plan stages", async () => {
+    // The upstream store defines a custom artifact type and a plan folder.
     const schemaDir = path.join(upstream, 'openspec', 'schemas', 'team-brief');
     fs.mkdirSync(path.join(schemaDir, 'templates'), { recursive: true });
     fs.writeFileSync(
@@ -114,12 +114,12 @@ describe('openspec context (4.1)', () => {
         '    template: brief.md\n    requires: []\n    instruction: y\n'
     );
     fs.writeFileSync(path.join(schemaDir, 'templates', 'brief.md'), '# Brief\n');
-    const initiativeDir = path.join(upstream, 'openspec', 'initiatives', 'roadmap');
-    fs.mkdirSync(initiativeDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(initiativeDir, 'initiative.yaml'),
-      'title: Roadmap\nchanges: []\n'
-    );
+    fs.mkdirSync(path.join(upstream, 'openspec', 'plan', '00_goal'), {
+      recursive: true,
+    });
+    fs.mkdirSync(path.join(upstream, 'openspec', 'plan', '01_changes'), {
+      recursive: true,
+    });
 
     const json = await runCLI(['context', '--json', '--store', 'team-context'], {
       cwd: tempDir,
@@ -129,7 +129,7 @@ describe('openspec context (4.1)', () => {
       (member: any) => member.id === 'upstream-context'
     );
     expect(upstreamMember.artifactTypes).toEqual(['team-brief']);
-    expect(upstreamMember.initiatives).toEqual(['roadmap']);
+    expect(upstreamMember.plan).toEqual(['00_goal', '01_changes']);
 
     const human = await runCLI(['context', '--store', 'team-context'], {
       cwd: tempDir,
@@ -139,7 +139,7 @@ describe('openspec context (4.1)', () => {
       'Artifact types: team-brief  (openspec schemas --store upstream-context)'
     );
     expect(human.stdout).toContain(
-      'Initiatives: roadmap  (openspec list --initiatives --store upstream-context)'
+      'Plan: 00_goal → 01_changes  (openspec list --plan --store upstream-context)'
     );
   });
 

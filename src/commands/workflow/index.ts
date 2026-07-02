@@ -19,7 +19,4 @@ export type { SchemasOptions } from './schemas.js';
 export { newChangeCommand } from './new-change.js';
 export type { NewChangeOptions } from './new-change.js';
 
-export { newInitiativeCommand } from './new-initiative.js';
-export type { NewInitiativeOptions } from './new-initiative.js';
-
 export { DEFAULT_SCHEMA } from './shared.js';

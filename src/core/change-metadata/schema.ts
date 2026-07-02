@@ -33,6 +33,9 @@ export const ChangeMetadataSchema = z.object({
   goal: z.string().min(1).optional(),
   affected_areas: z.array(z.string().min(1)).optional(),
   initiative: InitiativeLinkSchema.optional(),
+  // The upward link to a plan folder: 'local' for the plan in this change's
+  // own repo, or a registered store id for that store's plan.
+  plan: KebabIdentifierSchema('plan').optional(),
 });
 
 export type ChangeMetadata = z.infer<typeof ChangeMetadataSchema>;

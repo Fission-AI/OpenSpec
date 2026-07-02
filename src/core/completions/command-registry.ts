@@ -51,8 +51,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         description: 'List changes explicitly (default)',
       },
       {
-        name: 'initiatives',
-        description: 'List initiatives with rolled-up change status',
+        name: 'plan',
+        description: "Show the root's plan: its stages, and every change pointing at it",
       },
       {
         name: 'sort',
@@ -246,19 +246,9 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             description: 'Workflow schema to use',
             takesValue: true,
           },
-          COMMON_FLAGS.json,
-          COMMON_FLAGS.store,
-        ],
-      },
-      {
-        name: 'initiative',
-        description: 'Scaffold an initiative folder (initiative.yaml + brief.md)',
-        acceptsPositional: true,
-        positionals: [{ name: 'name' }],
-        flags: [
           {
-            name: 'title',
-            description: 'Human title (default: derived from the id)',
+            name: 'plan',
+            description: "Link this change to a plan: 'local' or a store id",
             takesValue: true,
           },
           COMMON_FLAGS.json,
