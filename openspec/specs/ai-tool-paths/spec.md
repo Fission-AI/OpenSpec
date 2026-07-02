@@ -42,6 +42,11 @@ The `AI_TOOLS` array SHALL include `skillsDir` for tools that support the Agent 
 - **WHEN** looking up the `kimi` tool
 - **THEN** `skillsDir` SHALL be `.kimi`
 
+#### Scenario: Hermes Agent paths defined
+
+- **WHEN** looking up the `hermes` tool
+- **THEN** `skillsDir` SHALL be `.hermes`
+
 #### Scenario: Tools without skillsDir
 
 - **WHEN** a tool has no `skillsDir` defined
