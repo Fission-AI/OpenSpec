@@ -9,17 +9,19 @@ convention, one metadata line, one rollup, one skill.
 
 ## What Changes
 
-- **A convention, not a format.** A plan is one folder, `openspec/plan/`.
-  Numbered subfolders are ordered stages; names and contents are the user's
-  own. Unnumbered entries are context.
+- **A convention, not a format.** A plan is one folder, `openspec/plan/`,
+  holding the user's destination — `product.md`, a roadmap, any artifact name
+  or convention; one file is a valid plan. Numbered subfolders add ordered
+  stages when visible order is wanted; unnumbered entries are context.
 - **Changes point up.** One line in a change's `.openspec.yaml` — `plan: local`
   or `plan: <store-id>`. No manifest anywhere. `new change` gains `--plan`.
 - **One rollup.** `openspec list --plan [--store <id>]` shows the stages and
   every change on this machine pointing at the plan, with live task status —
   including changes in other registered repos pointing at a store's plan.
 - **One skill.** `openspec-plan` (`/opsx:plan`): explore-style stance that
-  reads the folders, translates stage to stage, bridges into changes, and
-  syncs status back up. It is instructed to write less, not more.
+  reads the folder, maps in-flight changes against the destination, translates
+  artifact to artifact, bridges into changes, and syncs status back up. It is
+  instructed to write less, not more.
 - Referenced stores' plan stages appear in `openspec context` and the agent
   instruction block.
 

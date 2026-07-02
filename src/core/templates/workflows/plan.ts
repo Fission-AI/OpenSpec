@@ -7,7 +7,7 @@
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
-const PLAN_BODY = `Enter plan mode. Work above a single change: help turn high-level intent into changes, and show where the whole effort stands.
+const PLAN_BODY = `Enter plan mode. Work above a single change: start from the user's end destination, map the in-flight changes against it, and keep the two in sync.
 
 **This is a stance, not a workflow.** No fixed steps, no required sequence, no mandatory outputs. Follow what the conversation needs.
 
@@ -17,22 +17,25 @@ const PLAN_BODY = `Enter plan mode. Work above a single change: help turn high-l
 
 A plan lives in one folder: \`openspec/plan/\` — in this repo, or in a store the team shares.
 
-- **Numbered folders are stages, in order.** \`00_goal/\`, \`01_requirements/\`, \`02_changes/\` — the numbers are the sequence; the names and contents are the user's own. Any artifact goes: a roadmap, a PRD, personas, decisions, a feature table.
-- **Unnumbered files and folders are ambient context.** Vision, meeting notes, glossary — always worth reading, never a stage.
+- **The destination comes first.** A \`product.md\`, \`roadmap.md\`, \`architecture.md\`, a collection of folders — whatever artifact name or convention the user already has. One file is a valid plan.
+- **Numbered folders are stages, when the user wants visible order.** \`00_goal/\`, \`01_requirements/\` — the numbers are the sequence; the names and contents are theirs. Optional, never required.
 - **Changes point up at the plan**, with one line in their \`.openspec.yaml\`: \`plan: local\` (this repo's plan) or \`plan: <store-id>\` (a store's plan). There is no list to maintain anywhere.
 
-## Orient first
+## Where you are decides what you do
 
-Read the folders, not job titles — anyone can pick up from what is on disk.
+Check your cwd and what exists — the folders carry the workflow, not job titles. Anyone can pick up from what is on disk.
 
-- \`ls openspec/plan/\` — which stages exist and which are still empty tells you where the effort stands.
-- \`openspec list --plan --json\` (add \`--store <id>\` for a shared plan) — every change pointing at the plan, with live task status.
+- **At the plan folder (or repo root):** show where the effort stands. \`ls openspec/plan/\` for what exists; \`openspec list --plan --json\` (add \`--store <id>\` for a shared plan) for every change pointing at it, with live task status.
+- **Inside a stage or artifact folder:** everything lower-numbered (and every unnumbered file) is upstream — read it; this folder's artifact is what you produce.
+- **In \`openspec/changes/\` or a change:** that is change work — use the change skills (\`/opsx:apply\`, \`/opsx:continue\`), pulling the plan in as upstream context.
 
 ## Ways of moving
 
-**Translate down.** Take the most complete stage and help produce the next one — one altitude at a time. When you decompose into work items, make each one self-contained: someone could pick any single item up without reading the others. Surface merge/split judgment calls to the user; don't decide silently.
+**Map in-flight changes.** When a destination exists but changes are not linked yet: run \`openspec list --changes\`, read the destination, propose which changes serve this plan, and — with the user's confirmation — add the \`plan:\` line to each one's \`.openspec.yaml\`. This mapping is the point: destination in, in-flight work mapped against it.
 
-**Bridge to changes.** The last stage is where the plan meets execution. When a work item is ready, make it real:
+**Translate down.** Take the most complete artifact and help produce the next one — one altitude at a time. When you decompose into work items, make each one self-contained: someone could pick any single item up without reading the others. Surface merge/split judgment calls to the user; don't decide silently.
+
+**Bridge to changes.** When a work item is ready, make it real:
 
 \`\`\`bash
 openspec new change <name> --plan local        # plan lives in this repo
@@ -41,7 +44,7 @@ openspec new change <name> --plan <store-id>   # plan lives in a store
 
 The \`--plan\` line is the whole link. Status flows back with no bookkeeping.
 
-**Sync up.** Compare \`openspec list --plan\` against the upstream stages. Update the high level to match reality; name drift plainly instead of papering over it.
+**Sync up.** Compare \`openspec list --plan\` against the destination. Update the high level to match reality; name drift plainly instead of papering over it.
 
 **Filter input.** If the plan has a vision or goal file, weigh new input against it. Park contradicting input in a cut file (e.g. \`notes/cut.md\`) with one line of why — preserved, not lost.
 
@@ -52,7 +55,7 @@ Plans die of verbosity.
 - One page per artifact. Longer means cut or split.
 - Prefer a table to prose, a line to a paragraph.
 - No file paths or code snippets in upstream artifacts — they rot.
-- Never restate another stage; point to it.
+- Never restate another artifact; point to it.
 
 ## Stay above the code
 

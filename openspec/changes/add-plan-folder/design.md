@@ -14,11 +14,13 @@ machinery, auto-discovery of unregistered repos.
 
 ## Decisions
 
-**1. Ordered folders are the workflow.** Numbered folders under
-`openspec/plan/` define a linear sequence by convention alone. Reconfiguring
-the workflow is renaming folders. Rejected: a schema for the plan (types the
-artifacts — the thing users want to keep freeform). If checking is ever
-wanted, stages can later map onto the existing schema machinery.
+**1. Destination first; ordered folders when wanted.** The plan is whatever
+destination artifact the user already has — one file is valid. Numbered
+folders opt into a linear sequence by convention alone ("where am I" carries
+the workflow); reconfiguring is renaming folders. Rejected: a schema for the
+plan (types the artifacts — the thing users want to keep freeform). If
+checking is ever wanted, stages can later map onto the existing schema
+machinery.
 
 **2. Changes reference upward.** `plan: local | <store-id>` in change
 metadata; rollup scans for it. Rejected: a downward manifest — a central file

@@ -67,11 +67,18 @@ async function renderPlan(
 
   if (plan === null) {
     console.log('No plan folder found at openspec/plan/.');
-    console.log('Start one: mkdir -p openspec/plan/00_goal');
+    console.log(
+      'Start one: mkdir -p openspec/plan, then add your destination (product.md, roadmap.md — any name).'
+    );
     return;
   }
 
   console.log(`Plan: ${plan.path}`);
+  // Destination and context artifacts (unnumbered) come first: the plan is
+  // the destination; stages are optional structure on the way there.
+  for (const entry of plan.context) {
+    console.log(`  ${entry}`);
+  }
   if (plan.stages.length > 0) {
     console.log('Stages:');
     const stageWidth = Math.max(...plan.stages.map((s) => s.name.length));
@@ -79,8 +86,10 @@ async function renderPlan(
       const files = stage.files === 1 ? '1 file' : `${stage.files} files`;
       console.log(`  ${stage.name.padEnd(stageWidth)}   ${stage.files === 0 ? 'empty' : files}`);
     }
-  } else {
-    console.log('Stages: none yet (numbered folders become stages, e.g. 00_goal/)');
+  } else if (plan.context.length === 0) {
+    console.log(
+      '  (empty — add your destination artifact, or numbered folders for ordered stages)'
+    );
   }
 
   if (plan.changes.length === 0) {
