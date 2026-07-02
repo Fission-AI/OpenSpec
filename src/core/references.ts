@@ -173,11 +173,19 @@ function collectSchemaEntries(referencedRoot: string): ReferenceSchemaEntry[] {
     }));
 }
 
-/** Stage names of a store's plan folder, sanitized for the index. */
+/**
+ * A store's plan for the index: stage names in order, or — for a
+ * destination-only plan with no stages — its artifact names.
+ */
 async function collectPlanStages(referencedRoot: string): Promise<string[]> {
   try {
     const plan = await readPlanStages(referencedRoot);
-    return (plan?.stages ?? []).map((stage) => sanitizeInline(stage.name, 60));
+    if (plan === null) return [];
+    const names =
+      plan.stages.length > 0
+        ? plan.stages.map((stage) => stage.name)
+        : plan.context;
+    return names.map((name) => sanitizeInline(name, 60));
   } catch {
     return [];
   }

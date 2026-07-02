@@ -87,9 +87,16 @@ async function enrichMembersWithStoreArtifacts(
     }
     try {
       const plan = await readPlanStages(storeRoot);
-      const stages = (plan?.stages ?? []).map((stage) => stage.name);
-      if (stages.length > 0) {
-        member.plan = stages;
+      if (plan !== null) {
+        // Stage names in order — or, for a destination-only plan with no
+        // stages, its artifact names. Either way the agent sees the plan.
+        const names =
+          plan.stages.length > 0
+            ? plan.stages.map((stage) => stage.name)
+            : plan.context;
+        if (names.length > 0) {
+          member.plan = names;
+        }
       }
     } catch {
       // Unreadable plan dir: leave the member unenriched.
