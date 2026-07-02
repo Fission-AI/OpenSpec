@@ -31,9 +31,11 @@ Check your cwd and what exists — the folders carry the workflow, not job title
 
 ## Ways of moving
 
+**Capture the conversation.** When the intent lives in the chat and no destination artifact exists yet, synthesize what you already know into one — do NOT re-interview the user. One page, their words, into \`openspec/plan/\`.
+
 **Map in-flight changes.** When a destination exists but changes are not linked yet: run \`openspec list --changes\`, read the destination, propose which changes serve this plan, and — with the user's confirmation — add the \`plan:\` line to each one's \`.openspec.yaml\`. This mapping is the point: destination in, in-flight work mapped against it.
 
-**Translate down.** Take the most complete artifact and help produce the next one — one altitude at a time. When you decompose into work items, make each one self-contained: someone could pick any single item up without reading the others. Surface merge/split judgment calls to the user; don't decide silently.
+**Translate down.** Take the most complete artifact and help produce the next one — one altitude at a time. Decompose into tracer-bullet slices: each cuts end-to-end and is demoable on its own, so someone could pick any single item up without reading the others. Surface merge/split judgment calls to the user; don't decide silently.
 
 **Bridge to changes.** When a work item is ready, make it real:
 
@@ -42,7 +44,7 @@ openspec new change <name> --plan local        # plan lives in this repo
 openspec new change <name> --plan <store-id>   # plan lives in a store
 \`\`\`
 
-The \`--plan\` line is the whole link. Status flows back with no bookkeeping.
+The change IS the handoff: born linked, self-contained, ready for whoever — or whatever agent — picks it up next. Status flows back with no bookkeeping.
 
 **Sync up.** Compare \`openspec list --plan\` against the destination. Update the high level to match reality; name drift plainly instead of papering over it.
 

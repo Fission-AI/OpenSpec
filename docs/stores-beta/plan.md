@@ -94,11 +94,26 @@ changes.
 ## The skill
 
 One skill drives it: `openspec-plan` (`/opsx:plan`). A stance, not a
-procedure — it reads the folder to see where the effort stands, **maps
-in-flight changes against the destination** (proposing `plan:` lines for
-unlinked work), translates each artifact into the next (a PRD into a feature
-list, a feature into changes), and syncs the high level against live status.
-It is also told to write *less*: one page per artifact, tables over prose.
+procedure — it captures a planning conversation into the destination artifact
+(synthesizing what it already knows instead of re-interviewing you), **maps
+in-flight changes against the destination**, decomposes into self-contained
+tracer-bullet slices, and syncs the high level against live status. It is
+also told to write *less*: one page per artifact, tables over prose.
+
+## The handoff
+
+**Whoever plans** (a PM, a lead, you) starts in `/opsx:plan`: talk the idea
+through and the skill writes the destination artifact — or drop an existing
+doc into `openspec/plan/`. Decomposing ends in changes created with
+`--plan`, so each is born linked.
+
+**Whoever builds** picks up any change — each is self-contained — and works
+it with the normal change skills. The plan travels along: the repo's
+`context:` config can point at it locally, and referenced stores surface it
+to agents automatically.
+
+**The handoff artifact is the change itself.** Status flows back to
+`openspec list --plan` with no meetings and no bookkeeping.
 
 ## What the pieces are
 
@@ -116,4 +131,4 @@ It is also told to write *less*: one page per artifact, tables over prose.
 - Rollup scans repos registered on this machine — it never clones or syncs.
 - Stage order is a naming convention, not a gate. Nothing blocks working out
   of order; the skill just knows what comes next.
-- This repo dogfoods it: see [openspec/plan/](../../openspec/plan/00_goal/goal.md).
+- This repo dogfoods it: see [openspec/plan/](../../openspec/plan/goal.md) — a destination file plus two optional stages.

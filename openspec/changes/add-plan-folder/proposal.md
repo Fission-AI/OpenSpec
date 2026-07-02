@@ -19,9 +19,10 @@ convention, one metadata line, one rollup, one skill.
   every change on this machine pointing at the plan, with live task status —
   including changes in other registered repos pointing at a store's plan.
 - **One skill.** `openspec-plan` (`/opsx:plan`): explore-style stance that
-  reads the folder, maps in-flight changes against the destination, translates
-  artifact to artifact, bridges into changes, and syncs status back up. It is
-  instructed to write less, not more.
+  captures a planning conversation into the destination artifact, maps
+  in-flight changes against it, decomposes into self-contained slices,
+  bridges into changes, and syncs status back up. It is instructed to write
+  less, not more.
 - Referenced stores' plan stages appear in `openspec context` and the agent
   instruction block.
 

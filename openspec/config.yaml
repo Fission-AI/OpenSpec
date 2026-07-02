@@ -1,6 +1,9 @@
 schema: spec-driven
 
 context: |
+  The plan for this repo lives in openspec/plan/ — read goal.md first.
+  Changes whose .openspec.yaml says `plan: local` serve that plan.
+
   Tech stack: TypeScript, Node.js (≥20.19.0), ESM modules
   Package manager: pnpm
   CLI framework: Commander.js
