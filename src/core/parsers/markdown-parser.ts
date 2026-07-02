@@ -1,5 +1,5 @@
 import { Spec, Change, Requirement, Scenario, Delta, DeltaOperation } from '../schemas/index.js';
-import { buildCodeFenceMask, extractRequirementBody } from './requirement-text.js';
+import { buildCodeFenceMask, extractRequirementText } from './requirement-text.js';
 
 export interface Section {
   level: number;
@@ -152,10 +152,9 @@ export class MarkdownParser {
     const requirements: Requirement[] = [];
 
     for (const child of section.children) {
-      // Capture the full requirement body (multi-line, fence- and metadata-aware)
-      // via the shared reader, falling back to the heading when there is no body.
-      const body = extractRequirementBody(child.content.split('\n'));
-      const text = body || child.title;
+      // Read the requirement text via the shared reader (multi-line, fence- and
+      // metadata-aware, with the shared header-title fallback for empty bodies).
+      const text = extractRequirementText(child.title, child.content.split('\n'));
 
       const scenarios = this.parseScenarios(child);
 

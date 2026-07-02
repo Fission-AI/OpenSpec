@@ -26,13 +26,13 @@
 
 ### Part A — one shared, fence-aware extraction
 
-A single helper takes the requirement block's lines plus the fence mask and returns the full body: lines from after the header to the first `#### Scenario:` header found on a **non-fence-masked** line, skipping fence-masked lines and `**metadata**:` lines. A companion fence-aware scenario counter counts only non-fence-masked `####` headers. Both readers delegate to these. `SHALL`/`MUST` detection uses one predicate.
+A single helper takes the requirement block's lines plus the fence mask and returns the full body: lines from after the header to the first markdown header found on a **non-fence-masked** line (usually `#### Scenario:`, but also a stray `###` divider the delta reader absorbed into the block — its notes must not feed the keyword check), skipping fence-masked lines and blank lines. `**metadata**:` lines are skipped only when other body text remains; a requirement written entirely as `**Constraint**: The system MUST ...` keeps that line as its body. When the body comes back empty, one shared rule falls back to the header title — this is what lets bare `### The system SHALL ...` headers validate on the spec path, and it keeps the two paths from reaching different verdicts for the same block. A companion fence-aware scenario counter counts only non-fence-masked `####` headers (deliberately *any* `####`, since the spec path treats every level-4 child as a scenario). Both readers delegate to these. `SHALL`/`MUST` detection uses one predicate.
 
 Why the existing fence tests still pass: in `markdown-parser.test.ts:106`/`:139` the `SHALL` line is first and the fenced block follows, so skipping fenced lines leaves `text` exactly equal to the `SHALL` line — the asserted value. The breaking case (#312) is the inverse — fence *before* prose — which no test covers.
 
 ### Part B — surface the #498 divergence (INFO, no recognition change)
 
-`validateChangeDeltaSpecs` emits an INFO issue when an `## ADDED`/`## MODIFIED Requirements` section contains a level-3 header that does not match `REQUIREMENT_HEADER_REGEX` (so the delta reader will skip it). Under `--strict`, `valid = errors === 0 && warnings === 0` — **INFO is excluded**, so this never changes pass/fail; it only informs. This is the minimal change that makes `validate <change>` stop *silently* passing the #498 input.
+`parseDeltaSpec` records the non-canonical level-3 headers it skips *while parsing* the `## ADDED`/`## MODIFIED Requirements` sections, and `validateChangeDeltaSpecs` emits each as an INFO issue. Collecting during the parse (rather than with a separate scanner) guarantees the note describes the reader's real boundaries — a header the reader never saw (e.g. after a fenced `##` line ended the section early) gets no note, and a fenced `###` example line, which the body reader treats as content, is not reported. Under `--strict`, `valid = errors === 0 && warnings === 0` — **INFO is excluded**, so this never changes pass/fail; it only informs. This is the minimal change that makes `validate <change>` stop *silently* passing the #498 input.
 
 ## Why recognition tightening is rejected
 
@@ -58,6 +58,14 @@ Consumers of `parseSpec`/`req.text`: `view.ts`/`list.ts` (requirement **counts**
 - Fenced `#### Scenario:` / `#`-comment lines do not corrupt text or inflate scenario count.
 - LF/CRLF/CR via `normalizeContent`; `~~~`/length-≥3/leading-whitespace fences via existing `buildCodeFenceMask`.
 - INFO note appears for a stray delta header but does not change `valid` (including `--strict`).
+
+## Known remaining divergences
+
+Unification closes the reproduced defects; these divergences remain and are accepted:
+
+- **Empty scenarios** — a `#### Scenario:` header with no body counts on the delta path (`countScenarios` counts headers) but not on the spec path (`parseScenarios` keeps only scenarios with content), so `validate <change>` passes what `validate <spec>`/`archive` rejects.
+- **Recognition** — bare `### <statement>` headers are requirements on the spec path but skipped on the delta path. Deliberate (see "Why recognition tightening is rejected"); the Part B INFO note surfaces it instead of unifying it.
+- **Delta section/block splitting is not fence-aware** — `splitTopLevelSections` and `parseRequirementBlocksFromSection` treat a fenced `## ...` line as a section boundary and a fenced `### Requirement:` line as a new block, while the spec path fence-masks its sectioning. The skipped-header INFO is collected during the actual parse precisely so it reflects these boundaries instead of describing different ones.
 
 ## Prior art
 

@@ -406,6 +406,32 @@ Then result`;
       expect(spec.requirements[0].text).toBe('The system MUST persist the uploaded file.');
     });
 
+    it('keeps a metadata-only body as the requirement text', () => {
+      const content = `# Test Spec
+
+## Purpose
+Test overview for metadata-only requirement bodies.
+
+## Requirements
+
+### Requirement: Constraint style
+**Constraint**: The system MUST respond within the configured deadline.
+
+#### Scenario: Test
+Given test
+When action
+Then result`;
+
+      const parser = new MarkdownParser(content);
+      const spec = parser.parseSpec('test');
+
+      // Metadata lines are skipped only when other body text remains; when the
+      // whole body is metadata, the metadata IS the body.
+      expect(spec.requirements[0].text).toBe(
+        '**Constraint**: The system MUST respond within the configured deadline.'
+      );
+    });
+
     it('ignores a fenced code block that precedes the prose line (#312)', () => {
       const content = `# Test Spec
 

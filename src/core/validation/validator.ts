@@ -10,9 +10,9 @@ import {
   MAX_REQUIREMENT_TEXT_LENGTH,
   VALIDATION_MESSAGES
 } from './constants.js';
-import { parseDeltaSpec, normalizeRequirementName, findNonRequirementLevel3Headers } from '../parsers/requirement-blocks.js';
+import { parseDeltaSpec, normalizeRequirementName } from '../parsers/requirement-blocks.js';
 import {
-  extractRequirementBody,
+  extractRequirementText as extractRequirementTextShared,
   containsShallOrMust as containsShallOrMustShared,
   countScenarios as countScenariosShared,
 } from '../parsers/requirement-text.js';
@@ -140,17 +140,21 @@ export class Validator {
         const plan = parseDeltaSpec(content);
         const entryPath = `${specName}/spec.md`;
 
-        // Surface (as INFO, never a failure) any level-3 header inside an
-        // ADDED/MODIFIED section that is not a canonical "### Requirement:"
-        // header — the delta reader silently skips these, so without this note
-        // a stray divider like "### Documentation Requirements" would pass
-        // validate <change> while failing archive/validate <spec>.
-        for (const stray of findNonRequirementLevel3Headers(content)) {
+        // Surface (as INFO, never a failure) the non-canonical level-3 headers
+        // the delta reader skipped while parsing ADDED/MODIFIED sections —
+        // without this note a stray divider like "### Documentation
+        // Requirements" would pass validate <change> while failing
+        // archive/validate <spec>. The list comes from the parse itself, so it
+        // reflects exactly what the reader skipped.
+        for (const stray of plan.skippedHeaders) {
+          const nameless = /^requirement:?$/i.test(stray.header);
           issues.push({
             level: 'INFO',
             path: entryPath,
             line: stray.line,
-            message: `Header "### ${stray.header}" in ${stray.section} is not a "### Requirement:" header and is ignored by validation. Use "### Requirement: ${stray.header}" if it should be validated as a requirement.`,
+            message: nameless
+              ? `Header "### ${stray.header}" in ${stray.section} is missing a requirement name and is ignored by validation. Add a name, e.g. "### Requirement: <name>".`
+              : `Header "### ${stray.header}" in ${stray.section} is not a "### Requirement:" header and is ignored by validation. Use "### Requirement: ${stray.header}" if it should be validated as a requirement.`,
           });
         }
 
@@ -433,11 +437,13 @@ export class Validator {
   }
 
   private extractRequirementText(blockRaw: string): string | undefined {
-    // Delegate to the shared, fence-/metadata-/multi-line-aware reader so the
-    // change-delta path and the main-spec path cannot diverge. Drop the header
-    // line (index 0) and read the body that follows.
-    const body = extractRequirementBody(blockRaw.split('\n').slice(1));
-    return body || undefined;
+    // Delegate to the shared, fence-/metadata-/multi-line-aware reader (with
+    // the shared header-title fallback for empty bodies) so the change-delta
+    // path and the main-spec path cannot diverge. Line 0 is the
+    // "### Requirement: ..." header.
+    const [headerLine, ...bodyLines] = blockRaw.split('\n');
+    const headerTitle = headerLine.replace(/^#{1,6}\s*/, '');
+    return extractRequirementTextShared(headerTitle, bodyLines) || undefined;
   }
 
   private containsShallOrMust(text: string): boolean {

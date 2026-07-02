@@ -68,7 +68,15 @@ function isClosingFence(
 /** Lines that look like `**ID**: ...` / `**Priority**: ...` metadata. */
 const METADATA_LINE = /^\*\*[^*]+\*\*:/;
 
-/** A level-4 scenario header (`#### Scenario: ...`). */
+/** Any markdown header line — the boundary where a requirement body ends. */
+const HEADER_LINE = /^#{1,6}\s/;
+
+/**
+ * A level-4 header. Deliberately matches ANY `####` header, not only
+ * `#### Scenario:` — the spec path treats every level-4 child of a requirement
+ * as a scenario, so the delta counter must too (parity). Don't tighten this to
+ * `Scenario:` without changing both paths together.
+ */
 const SCENARIO_HEADER = /^####\s+/;
 
 /**
@@ -84,27 +92,47 @@ export function containsShallOrMust(text: string): boolean {
  * Extract the full requirement body from the lines that follow a
  * `### Requirement:` header (the lines may include scenarios and fenced code).
  *
- * Captures every body line from the start up to the first `#### Scenario:`
- * header found on a non-fenced line, skipping blank lines, `**metadata**:`
- * lines, and any line inside a fenced code block. Captured lines are trimmed and
- * joined with newlines so a requirement whose text wraps across lines — or whose
- * `SHALL`/`MUST` lands on a later line — is read in full.
+ * Captures every body line from the start up to the first header found on a
+ * non-fenced line — usually the first `#### Scenario:`, but also a stray `###`
+ * divider the delta reader absorbed into the block — skipping blank lines and
+ * any line inside a fenced code block. `**metadata**:` lines are skipped only
+ * when other body text remains: a requirement written entirely as
+ * `**Constraint**: The system MUST ...` keeps that line as its body. Captured
+ * lines are trimmed and joined with newlines so a requirement whose text wraps
+ * across lines — or whose `SHALL`/`MUST` lands on a later line — is read in
+ * full.
  */
 export function extractRequirementBody(bodyLines: string[]): string {
   const mask = buildCodeFenceMask(bodyLines);
   const captured: string[] = [];
+  const metadata: string[] = [];
 
   for (let i = 0; i < bodyLines.length; i++) {
     if (mask[i]) continue; // inside a fenced code block
     const line = bodyLines[i];
-    if (SCENARIO_HEADER.test(line)) break; // reached the first real scenario
+    if (HEADER_LINE.test(line)) break; // first scenario or stray divider
     const trimmed = line.trim();
     if (trimmed.length === 0) continue; // blank
-    if (METADATA_LINE.test(trimmed)) continue; // **ID**: / **Priority**: ...
+    if (METADATA_LINE.test(trimmed)) {
+      metadata.push(trimmed); // **ID**: / **Priority**: ...
+      continue;
+    }
     captured.push(trimmed);
   }
 
-  return captured.join('\n');
+  if (captured.length > 0) return captured.join('\n');
+  return metadata.join('\n'); // metadata-only body: the metadata IS the body
+}
+
+/**
+ * The one empty-body rule both readers share: a requirement block with no body
+ * text falls back to its header title. This is what lets a bare
+ * `### The system SHALL ...` header validate on the spec path (the title is the
+ * requirement), and it keeps the delta path from reaching a different verdict
+ * than the spec path for the same block.
+ */
+export function extractRequirementText(headerTitle: string, bodyLines: string[]): string {
+  return extractRequirementBody(bodyLines) || headerTitle.trim();
 }
 
 /**

@@ -12,8 +12,8 @@
 
 ## 3. Part B — surface the #498 divergence (INFO, no recognition change)
 
-- [x] 3.1 Export `REQUIREMENT_HEADER_REGEX` from `requirement-blocks.ts`.
-- [x] 3.2 In `validateChangeDeltaSpecs`, emit an INFO issue when an `## ADDED`/`## MODIFIED Requirements` section contains a level-3 header that does not match the canonical regex. Do **not** change recognition.
+- [x] 3.1 Record the non-canonical level-3 headers `parseDeltaSpec` skips while parsing ADDED/MODIFIED sections (`DeltaPlan.skippedHeaders`), so the note reflects the reader's real boundaries.
+- [x] 3.2 In `validateChangeDeltaSpecs`, emit an INFO issue for each skipped header. Do **not** change recognition. Special-case a nameless `### Requirement:` header.
 - [x] 3.3 Confirm INFO does not affect `valid` under `--strict` (`valid = errors === 0 && warnings === 0`).
 
 ## 4. Update the one affected existing test
@@ -32,3 +32,12 @@
 ## 6. Release
 
 - [x] 6.1 Add a changeset: Fixes #361, #418, #312; surfaces #498. Note the read-only display changes (fuller `req.text` in JSON/descriptions); no archived-content change.
+
+## 7. Review fixes (PR #1281)
+
+- [x] 7.1 Skip `**metadata**:` lines only when other body text remains; a metadata-only body (e.g. `**Constraint**: The system MUST ...`) is kept as the requirement text.
+- [x] 7.2 Move the empty-body rule into the shared reader: both paths fall back to the header title.
+- [x] 7.3 End the body at any non-fenced Markdown header, so a stray `###` divider's notes cannot satisfy the keyword check (old-reader parity).
+- [x] 7.4 Replace the standalone INFO scanner with skipped-header collection inside `parseDeltaSpec` (notes match the reader's real boundaries).
+- [x] 7.5 Special-case the nameless `### Requirement:` INFO message; document that the any-`####` scenario match is deliberate; un-export `REQUIREMENT_HEADER_REGEX`.
+- [x] 7.6 Soften the changeset wording and document the known remaining divergences in `design.md`.
