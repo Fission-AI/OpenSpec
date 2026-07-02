@@ -8,30 +8,30 @@ The marketing and documentation site for [OpenSpec](https://github.com/Fission-A
 
 ```bash
 cd website
-npm install
-npm run dev      # http://localhost:3000
+pnpm install
+pnpm run dev      # http://localhost:3000
 ```
 
 | Script | What it does |
 |--------|--------------|
-| `npm run sync:docs` | Mirror `../docs/*.md` into `content/docs/` |
-| `npm run dev` | Sync docs, then start the dev server with hot reload |
-| `npm run build` | Sync docs, then produce the static site in `out/` |
-| `npm run start` | Serve the built `out/` directory locally |
-| `npm run types:check` | Sync docs, generate types, and run `tsc --noEmit` |
+| `pnpm run sync:docs` | Mirror `../docs/*.md` into `content/docs/` |
+| `pnpm run dev` | Sync docs, then start the dev server with hot reload |
+| `pnpm run build` | Sync docs, then produce the static site in `out/` |
+| `pnpm run start` | Serve the built `out/` directory locally |
+| `pnpm run types:check` | Sync docs, generate types, and run `tsc --noEmit` |
 
 `sync:docs` runs automatically inside `dev`, `build`, and `types:check`, so you rarely call it directly.
 
 ## Deploy to Cloudflare Pages
 
-This site is a pure static export — `npm run build` writes plain HTML, CSS, JS, a
+This site is a pure static export — `pnpm run build` writes plain HTML, CSS, JS, a
 prebuilt search index, and `llms.txt` into `out/`. Point Cloudflare Pages at this
 directory and use these settings:
 
 | Setting | Value |
 |---------|-------|
 | Root directory | `website` |
-| Build command | `npm run build` |
+| Build command | `pnpm run build` |
 | Build output directory | `out` |
 | Node version | `20.19.0` or higher (set `NODE_VERSION` if needed) |
 
@@ -50,7 +50,7 @@ path above is the simplest and is what this site is tuned for.)
 ### Deploy with Wrangler (optional)
 
 ```bash
-npm run build
+pnpm run build
 npx wrangler pages deploy out --project-name openspec-docs
 ```
 
@@ -61,7 +61,7 @@ is nothing to hand-edit under `content/docs/` — those files are generated and
 git-ignored.
 
 **To change a page's content:** edit the corresponding file in `../docs`. The
-next `npm run build`/`npm run dev` regenerates the site from it.
+next `pnpm run build`/`pnpm run dev` regenerates the site from it.
 
 **To add, remove, reorder, or re-slug a page, or change its sidebar section or
 icon:** edit `docs.sync.config.mjs`. That manifest is the single place that
