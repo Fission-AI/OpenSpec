@@ -6,7 +6,7 @@ The short answer: a change is just files, and OpenSpec never touches git. So it 
 
 ## One rule: OpenSpec doesn't touch git
 
-OpenSpec reads and writes plain Markdown under `openspec/`. It never commits, branches, pushes, or pulls — same as it never does for a [store](stores-beta/user-guide.md). That means:
+OpenSpec reads and writes plain Markdown under `openspec/`. It never commits, branches, pushes, or pulls in your project — and it never clones or syncs a [store](stores-beta/user-guide.md) on its own. That means:
 
 - **You commit `openspec/` like any source.** Specs, active changes, and the archive are part of your project's history. (Yes, commit the whole folder — see the [FAQ](faq.md#should-i-commit-the-openspec-folder-to-git).)
 - **A change is a folder you version like code.** `openspec/changes/add-dark-mode/` is just files on a branch.

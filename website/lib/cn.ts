@@ -1,1 +1,0 @@
-export { cn } from 'cnfast';

@@ -1,7 +1,6 @@
 import { getPageImage, getPageMarkdownUrl, source } from '@/lib/source';
 import {
   DocsBody,
-  DocsDescription,
   DocsPage,
   DocsTitle,
   MarkdownCopyButton,
@@ -24,7 +23,12 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   return (
     <DocsPage toc={page.data.toc} full={page.data.full}>
       <DocsTitle>{page.data.title}</DocsTitle>
-      <DocsDescription className="mb-0">{page.data.description}</DocsDescription>
+      {/*
+        The frontmatter `description` is derived from the page's first paragraph
+        (see scripts/sync-docs.mjs), so rendering it here as a subtitle would
+        just duplicate the opening paragraph of the body below. We keep it in
+        `generateMetadata` for SEO/OG, but omit the on-page <DocsDescription>.
+      */}
       <div className="flex flex-row gap-2 items-center border-b pb-6">
         <MarkdownCopyButton markdownUrl={markdownUrl} />
         <ViewOptionsPopover

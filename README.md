@@ -162,7 +162,7 @@ AI coding assistants are powerful but unpredictable when requirements live only 
 - **Agree before you build** — human and AI align on specs before code gets written
 - **Stay organized** — each change gets its own folder with proposal, specs, design, and tasks
 - **Work fluidly** — update any artifact anytime, no rigid phase gates
-- **Use your tools** — works with 20+ AI assistants via slash commands
+- **Use your tools** — works with 30+ AI assistants via slash commands
 
 ### How we compare
 

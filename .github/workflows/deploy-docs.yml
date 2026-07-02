@@ -59,8 +59,11 @@ jobs:
         run: npm run build
 
       - name: Deploy to Cloudflare Pages
-        # Skip on pull requests (build-only check) and on forks without secrets.
-        if: ${{ github.event_name != 'pull_request' && github.repository == 'Fission-AI/OpenSpec' }}
+        # Only deploy from main on the canonical repo. This keeps PRs build-only,
+        # keeps forks (no secrets) build-only, and — because the wrangler command
+        # below hardcodes `--branch=main` (a *production* deploy) — prevents a
+        # `workflow_dispatch` on a feature branch from overwriting the live site.
+        if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && github.repository == 'Fission-AI/OpenSpec' }}
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
