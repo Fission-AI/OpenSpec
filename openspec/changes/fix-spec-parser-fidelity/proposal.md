@@ -65,7 +65,7 @@ _None._
 - `src/core/parsers/markdown-parser.ts` — shared multi-line/fence/metadata-aware body extraction.
 - `src/core/validation/validator.ts` — `extractRequirementText` and `countScenarios` delegate to the shared, fence-aware helpers; INFO note for stray delta headers.
 - `src/core/parsers/requirement-blocks.ts` — export the canonical `REQUIREMENT_HEADER_REGEX` for the INFO check.
-- `src/core/schemas/base.schema.ts` — align the `SHALL`/`MUST` refine with the shared predicate.
+- `src/core/schemas/base.schema.ts` — schema-level `SHALL`/`MUST` enforcement stays removed after #1280; the imperative validator uses the shared predicate.
 - `test/core/parsers/markdown-parser.test.ts:331` updated; regression tests added.
 - Read-only blast radius (display only, no write path): `view`/`list` requirement counts and `json-converter`/`spec` JSON `text` reflect the fuller body; `change-parser` delta descriptions built from `req.text` may span multiple lines; the `MAX_REQUIREMENT_TEXT_LENGTH` check is INFO (non-blocking). Requirement **counts** are unchanged (recognition unchanged).
 - Fixes #361, #418, #312; surfaces #498. Related: #559 (deferred). Does not claim #1156 (PR #1280). Hardens the reader that #1112/#1246/#1277 rely on.

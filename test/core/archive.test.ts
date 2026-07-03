@@ -105,6 +105,50 @@ describe('ArchiveCommand', () => {
       );
     });
 
+    it('detects incomplete tasks in nested glob tasks.md files (#1202 data-safety gate)', async () => {
+      // Before the fix the gate read a fixed changes/<name>/tasks.md, saw zero
+      // tasks for a glob-tasks change, and let an unfinished change archive.
+      const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'glob-tasks');
+      await fs.mkdir(schemaDir, { recursive: true });
+      await fs.writeFile(
+        path.join(schemaDir, 'schema.yaml'),
+        [
+          'name: glob-tasks',
+          'version: 1',
+          'artifacts:',
+          '  - id: proposal',
+          '    generates: proposal.md',
+          '    description: Proposal',
+          '    template: proposal.md',
+          '    requires: []',
+          '  - id: tasks',
+          '    generates: "**/tasks.md"',
+          '    description: Nested tasks',
+          '    template: tasks.md',
+          '    requires: [proposal]',
+          'apply:',
+          '  requires: [tasks]',
+          '  tracks: "**/tasks.md"',
+          '',
+        ].join('\n')
+      );
+
+      const changeName = 'glob-incomplete-feature';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(path.join(changeDir, 'backend'), { recursive: true });
+      await fs.mkdir(path.join(changeDir, 'frontend'), { recursive: true });
+      await fs.writeFile(path.join(changeDir, '.openspec.yaml'), 'schema: glob-tasks\n');
+      await fs.writeFile(path.join(changeDir, 'backend', 'tasks.md'), '- [x] 1.1 a\n- [x] 1.2 b\n');
+      await fs.writeFile(path.join(changeDir, 'frontend', 'tasks.md'), '- [x] 2.1 a\n- [ ] 2.2 b\n- [ ] 2.3 c\n');
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true, skipSpecs: true });
+
+      // The gate now sees 5 tasks / 2 incomplete across the nested files.
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('2 incomplete task(s) found')
+      );
+    });
+
     it('should update specs when archiving (delta-based ADDED) and include change name in skeleton', async () => {
       const changeName = 'spec-feature';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);

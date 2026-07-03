@@ -4,10 +4,9 @@
  * The requirement reader used to be implemented twice — once for main specs
  * (`MarkdownParser.parseRequirements`) and once for change deltas
  * (`Validator.extractRequirementText` / `countScenarios`) — and the two drifted
- * apart. These helpers are the single source of truth both readers delegate to,
- * so requirement-body extraction, scenario counting, and `SHALL`/`MUST`
- * detection behave identically for `validate <change>`, `validate <spec>`, and
- * `archive`.
+ * apart. These helpers are the single source of truth for requirement-body
+ * extraction, scenario counting, and `SHALL`/`MUST` detection in
+ * `validate <change>`, `validate <spec>`, and `archive`.
  */
 
 /**
@@ -125,11 +124,12 @@ export function extractRequirementBody(bodyLines: string[]): string {
 }
 
 /**
- * The one empty-body rule both readers share: a requirement block with no body
- * text falls back to its header title. This is what lets a bare
- * `### The system SHALL ...` header validate on the spec path (the title is the
- * requirement), and it keeps the delta path from reaching a different verdict
- * than the spec path for the same block.
+ * Parser/display fallback for a requirement block with no body text. This is
+ * what lets a bare `### The system SHALL ...` header remain readable on the
+ * spec path (the title is the requirement). Validator body-keyword checks for
+ * canonical `### Requirement:` blocks use `extractRequirementBody` directly so
+ * a keyword that appears only in the header still receives the #1156/#1280
+ * body-keyword hint.
  */
 export function extractRequirementText(headerTitle: string, bodyLines: string[]): string {
   return extractRequirementBody(bodyLines) || headerTitle.trim();

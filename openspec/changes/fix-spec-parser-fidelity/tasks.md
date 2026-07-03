@@ -8,7 +8,7 @@
 
 ## 2. Part A — single normative-keyword predicate
 
-- [x] 2.1 Replace the substring check in `src/core/schemas/base.schema.ts` (`text.includes('SHALL')`) with the shared `containsShallOrMust` (`/\b(SHALL|MUST)\b/`).
+- [x] 2.1 Use the shared `containsShallOrMust` (`/\b(SHALL|MUST)\b/`) for validator keyword checks; after the #1280 merge, schema-level keyword enforcement remains removed and owned by the imperative validator.
 
 ## 3. Part B — surface the #498 divergence (INFO, no recognition change)
 
@@ -36,7 +36,7 @@
 ## 7. Review fixes (PR #1281)
 
 - [x] 7.1 Skip `**metadata**:` lines only when other body text remains; a metadata-only body (e.g. `**Constraint**: The system MUST ...`) is kept as the requirement text.
-- [x] 7.2 Move the empty-body rule into the shared reader: both paths fall back to the header title.
+- [x] 7.2 Keep header-title fallback in the Markdown parser for display/bare-header compatibility, while validator checks use body-only extraction so canonical header-only requirements still receive the #1280 body-keyword hint.
 - [x] 7.3 End the body at any non-fenced Markdown header, so a stray `###` divider's notes cannot satisfy the keyword check (old-reader parity).
 - [x] 7.4 Replace the standalone INFO scanner with skipped-header collection inside `parseDeltaSpec` (notes match the reader's real boundaries).
 - [x] 7.5 Special-case the nameless `### Requirement:` INFO message; document that the any-`####` scenario match is deliberate; un-export `REQUIREMENT_HEADER_REGEX`.
