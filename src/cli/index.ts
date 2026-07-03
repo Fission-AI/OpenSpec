@@ -35,6 +35,7 @@ import { registerContextCommand } from '../commands/context.js';
 import { registerWorksetCommand } from '../commands/workset.js';
 import {
   statusCommand,
+  BATCH_STATUS_FAILURE_PAYLOAD,
   instructionsCommand,
   applyInstructionsCommand,
   archiveInstructionsCommand,
@@ -653,7 +654,7 @@ program
         enabled: options.json,
         // The batch null-shape; the single-change failure shape is
         // pre-existing contract and stays payload-free.
-        payload: options.all ? { changes: [] } : undefined,
+        payload: options.all ? BATCH_STATUS_FAILURE_PAYLOAD : undefined,
         fallbackCode: 'change_error',
       });
       process.exit(1);
