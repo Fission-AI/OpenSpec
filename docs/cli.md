@@ -47,7 +47,7 @@ These commands support `--json` output for programmatic use by AI agents and scr
 | `openspec list` | Browse changes/specs | `--json` for structured data |
 | `openspec show <item>` | Read content | `--json` for parsing |
 | `openspec validate` | Check for issues | `--all --json` for bulk validation |
-| `openspec status` | See artifact progress | `--json` for structured status |
+| `openspec status` | See artifact progress | `--all --json` for bulk status, `--json` for one change |
 | `openspec instructions` | Get next steps | `--json` for agent instructions |
 | `openspec templates` | Find template paths | `--json` for path resolution |
 | `openspec schemas` | List available schemas | `--json` for schema discovery |
@@ -670,7 +670,7 @@ openspec status --change add-dark-mode --json
 openspec status --all --json
 ```
 
-With `--all --json` the output is one envelope, `{ "changes": [ <status>, ... ], "root": ... }`, with the changes sorted by name. A change that fails to load contributes `{ "changeName", "status": [diagnostic] }` instead of aborting the sweep.
+With `--all --json` the output is one envelope, `{ "changes": [ <status>, ... ], "root": ... }`, with the changes sorted by name. A change that fails to load contributes `{ "changeName", "status": [diagnostic] }` instead of aborting the sweep; the JSON sweep itself exits 0. In text mode a failed change prints a one-line `✗ <name>: <message>` and the command exits 1 (like `validate --all`).
 
 **Output (text):**
 

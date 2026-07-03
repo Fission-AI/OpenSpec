@@ -73,6 +73,12 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
     // Handle no-changes case gracefully — status is informational,
     // so "no changes" is a valid state, not an error.
     if (!options.change) {
+      // Validate before the no-changes early return so a bogus --schema
+      // fails the same way whether or not any change exists yet.
+      if (options.all && options.schema) {
+        validateSchemaExists(options.schema, projectRoot);
+      }
+
       const available = await getAvailableChanges(projectRoot, root.changesDir);
       if (available.length === 0) {
         spinner?.stop();
@@ -91,10 +97,6 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
       }
 
       if (options.all) {
-        if (options.schema) {
-          validateSchemaExists(options.schema, projectRoot);
-        }
-
         // readdir order is platform-dependent; sort for deterministic output
         // (same reason validate's listChangeIds sorts).
         const entries: BatchStatusEntry[] = [];
@@ -121,6 +123,7 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
           return;
         }
 
+        let failed = 0;
         entries.forEach((entry, index) => {
           if (index > 0) {
             console.log();
@@ -128,9 +131,16 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
           if ('artifacts' in entry) {
             printStatusText(entry);
           } else {
+            failed += 1;
             console.log(chalk.red(`✗ ${entry.changeName}: ${entry.status[0]?.message}`));
           }
         });
+        // Text mode signals load failures via the exit code (like
+        // validate --all); JSON mode instead exits 0 and carries the
+        // per-change diagnostics so the sweep result stays parseable.
+        if (failed > 0) {
+          process.exitCode = 1;
+        }
         return;
       }
 
