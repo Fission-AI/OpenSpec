@@ -131,6 +131,59 @@ describe('top-level validate command', () => {
     expect(result.exitCode).toBe(0);
   });
 
+  // #1182 — validate resolves a change by directory existence (matching
+  // status/instructions), not by requiring proposal.md.
+  const validDelta = [
+    '## ADDED Requirements',
+    '### Requirement: Scaffolded change SHALL validate without a proposal',
+    'The change SHALL validate by directory existence without a proposal file.',
+    '',
+    '#### Scenario: Validate scaffolded change',
+    '- **GIVEN** a change directory with no proposal.md',
+    '- **WHEN** openspec validate runs',
+    '- **THEN** the change resolves and its deltas are validated',
+  ].join('\n');
+
+  it('resolves and validates a scaffolded change without proposal.md (#1182)', async () => {
+    const changeDir = path.join(changesDir, 'scaffolded');
+    const deltaDir = path.join(changeDir, 'specs', 'alpha');
+    await fs.mkdir(deltaDir, { recursive: true });
+    await fs.writeFile(path.join(changeDir, '.openspec.yaml'), 'schema: spec-driven\n', 'utf-8');
+    await fs.writeFile(path.join(deltaDir, 'spec.md'), validDelta, 'utf-8');
+
+    const result = await runCLI(['validate', 'scaffolded'], { cwd: testDir });
+    expect(result.stderr).not.toContain('Unknown item');
+    expect(result.exitCode).toBe(0);
+  });
+
+  it('a resolved-but-invalid proposal-less change exits non-zero, not "Unknown item" (#1182)', async () => {
+    // Resolves by directory existence, then fails validation (no deltas).
+    const changeDir = path.join(changesDir, 'scaffolded-empty');
+    await fs.mkdir(changeDir, { recursive: true });
+    await fs.writeFile(path.join(changeDir, '.openspec.yaml'), 'schema: spec-driven\n', 'utf-8');
+
+    const result = await runCLI(['validate', 'scaffolded-empty'], { cwd: testDir });
+    expect(result.stderr).not.toContain('Unknown item');
+    expect(result.exitCode).toBe(1);
+  });
+
+  it('includes a sole proposal-less change in --all (not "No items found") (#1182)', async () => {
+    const isoRoot = path.join(projectRoot, 'test-validate-iso-tmp');
+    const isoChanges = path.join(isoRoot, 'openspec', 'changes');
+    const deltaDir = path.join(isoChanges, 'only', 'specs', 'alpha');
+    await fs.mkdir(deltaDir, { recursive: true });
+    try {
+      await fs.writeFile(path.join(isoChanges, 'only', '.openspec.yaml'), 'schema: spec-driven\n', 'utf-8');
+      await fs.writeFile(path.join(deltaDir, 'spec.md'), validDelta, 'utf-8');
+
+      const result = await runCLI(['validate', '--all'], { cwd: isoRoot });
+      expect(result.stdout + result.stderr).not.toContain('No items found to validate');
+      expect(result.exitCode).toBe(0);
+    } finally {
+      await fs.rm(isoRoot, { recursive: true, force: true });
+    }
+  });
+
   it('respects --no-interactive flag passed via CLI', async () => {
     // This test ensures Commander.js --no-interactive flag is correctly parsed
     // and passed to the validate command. The flag sets options.interactive = false
