@@ -8,6 +8,7 @@ import {
   getProjectSchemasDir,
   getUserSchemasDir,
   getPackageSchemasDir,
+  isSchemaDir,
   listSchemas,
 } from '../core/artifact-graph/resolver.js';
 import { parseSchema, SchemaValidationError } from '../core/artifact-graph/schema.js';
@@ -437,7 +438,7 @@ export function registerSchemaCommand(program: Command): void {
           let anyInvalid = false;
 
           for (const entry of entries) {
-            if (!entry.isDirectory()) continue;
+            if (!isSchemaDir(projectSchemasDir, entry)) continue;
 
             const schemaDir = path.join(projectSchemasDir, entry.name);
             const schemaPath = path.join(schemaDir, 'schema.yaml');
