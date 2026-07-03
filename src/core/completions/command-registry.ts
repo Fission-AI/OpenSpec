@@ -191,6 +191,10 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         takesValue: true,
       },
       {
+        name: 'all',
+        description: 'Show status for all active changes',
+      },
+      {
         name: 'schema',
         description: 'Schema override',
         takesValue: true,
