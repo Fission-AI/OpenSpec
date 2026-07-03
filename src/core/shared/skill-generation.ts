@@ -32,6 +32,16 @@ import {
 import type { CommandContent } from '../command-generation/index.js';
 
 /**
+ * Pre-approved tools for every generated skill, emitted as the Agent Skills
+ * standard's `allowed-tools` frontmatter. Scoped to the OpenSpec CLI so agents
+ * that honor it stop prompting on each `openspec` call; per the standard this
+ * only pre-approves — it does not restrict, so any other tool a skill needs
+ * (Read, Write, arbitrary Bash for builds/tests) stays available under the
+ * user's normal permission settings.
+ */
+export const SKILL_ALLOWED_TOOLS = 'Bash(openspec:*)';
+
+/**
  * Skill template with directory name and workflow ID mapping.
  */
 export interface SkillTemplateEntry {
@@ -136,6 +146,7 @@ export function generateSkillContent(
   return `---
 name: ${template.name}
 description: ${template.description}
+allowed-tools: ${SKILL_ALLOWED_TOOLS}
 license: ${template.license || 'MIT'}
 compatibility: ${template.compatibility || 'Requires openspec CLI.'}
 metadata:
