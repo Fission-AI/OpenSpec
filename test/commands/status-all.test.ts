@@ -174,4 +174,109 @@ describe('status --all', () => {
     expect(result.stdout).toContain('1/4 artifacts complete');
     expect(result.stdout).toContain('2/4 artifacts complete');
   });
+
+  it('exits 1 in text mode when a change fails to load, still printing the others', async () => {
+    await createTestChange('good-change', ['design']);
+    const brokenDir = await createTestChange('broken-change');
+    await fs.writeFile(
+      path.join(brokenDir, '.openspec.yaml'),
+      'schema: no-such-schema\n'
+    );
+
+    const result = await runCLI(['status', '--all'], { cwd: tempDir });
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain('✗ broken-change:');
+    expect(result.stdout).toContain('Change: good-change');
+    expect(result.stdout).toContain('2/4 artifacts complete');
+  });
+
+  describe('--schema interaction', () => {
+    /** Writes a minimal project-local schema so an override is distinguishable from the default. */
+    async function createProjectSchema(schemaName: string): Promise<void> {
+      const schemaDir = path.join(tempDir, 'openspec', 'schemas', schemaName);
+      await fs.mkdir(schemaDir, { recursive: true });
+      await fs.writeFile(
+        path.join(schemaDir, 'schema.yaml'),
+        [
+          `name: ${schemaName}`,
+          'version: 1',
+          'description: Minimal test schema',
+          'artifacts:',
+          '  - id: proposal',
+          '    generates: proposal.md',
+          '    description: Proposal document',
+          '    template: proposal.md',
+          '',
+        ].join('\n')
+      );
+    }
+
+    it('fails with the null-shape when --schema names an unknown schema', async () => {
+      await createTestChange('some-change');
+
+      const result = await runCLI(
+        ['status', '--all', '--schema', 'no-such-schema', '--json'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).toBe(1);
+
+      const json = JSON.parse(result.stdout);
+      expect(json.changes).toEqual([]);
+      expect(Array.isArray(json.status)).toBe(true);
+      expect(json.status[0].severity).toBe('error');
+      expect(json.status[0].message).toContain("'no-such-schema' not found");
+    });
+
+    it('rejects an unknown --schema even when no changes exist', async () => {
+      const result = await runCLI(
+        ['status', '--all', '--schema', 'no-such-schema', '--json'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).toBe(1);
+
+      const json = JSON.parse(result.stdout);
+      expect(json.changes).toEqual([]);
+      expect(json.status[0].message).toContain("'no-such-schema' not found");
+    });
+
+    it('applies a valid --schema override to every change', async () => {
+      await createProjectSchema('mini');
+      await createTestChange('first-change');
+      await createTestChange('second-change');
+
+      const result = await runCLI(['status', '--all', '--schema', 'mini', '--json'], {
+        cwd: tempDir,
+      });
+      expect(result.exitCode).toBe(0);
+
+      const json = JSON.parse(result.stdout);
+      expect(json.changes).toHaveLength(2);
+      for (const entry of json.changes) {
+        expect(entry.schemaName).toBe('mini');
+        expect(entry.artifacts).toHaveLength(1);
+      }
+    });
+
+    it('does not rescue a change with broken metadata via an explicit --schema', async () => {
+      await createTestChange('good-change');
+      const brokenDir = await createTestChange('broken-change');
+      await fs.writeFile(
+        path.join(brokenDir, '.openspec.yaml'),
+        'schema: no-such-schema\n'
+      );
+
+      const result = await runCLI(
+        ['status', '--all', '--schema', 'spec-driven', '--json'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).toBe(0);
+
+      const json = JSON.parse(result.stdout);
+      const broken = json.changes.find((c: any) => c.changeName === 'broken-change');
+      expect(broken.status[0].code).toBe('change_error');
+
+      const good = json.changes.find((c: any) => c.changeName === 'good-change');
+      expect(good.schemaName).toBe('spec-driven');
+    });
+  });
 });
