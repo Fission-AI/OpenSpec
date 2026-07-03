@@ -120,6 +120,19 @@ describe('status --all', () => {
     expect(getOutput(result)).toContain('mutually exclusive');
   });
 
+  it('honors the JSON null-shape when root selection fails under --all', async () => {
+    const result = await runCLI(['status', '--all', '--json', '--store', 'no-such-store'], {
+      cwd: tempDir,
+    });
+    expect(result.exitCode).toBe(1);
+
+    // The failure document must still carry the batch null-shape.
+    const json = JSON.parse(result.stdout);
+    expect(json.changes).toEqual([]);
+    expect(Array.isArray(json.status)).toBe(true);
+    expect(json.status[0].severity).toBe('error');
+  });
+
   it('honors the JSON null-shape when --all and --change are combined', async () => {
     await createTestChange('some-change');
 
