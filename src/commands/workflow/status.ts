@@ -50,6 +50,11 @@ export interface StatusOptions {
 // to load, the change name plus the diagnostic — the sweep never aborts.
 type BatchStatusEntry = ChangeStatus | { changeName: string; status: StoreDiagnostic[] };
 
+// The --all --json failure null-shape. Root-selection failures (handled in
+// resolveRootForCommand) and thrown errors (caught by the CLI wrapper) must
+// emit the same shape, so both call sites reference this one constant.
+export const BATCH_STATUS_FAILURE_PAYLOAD: Record<string, unknown> = { changes: [] };
+
 export async function statusCommand(options: StatusOptions): Promise<void> {
   if (options.all && options.change) {
     throw new Error('The --all and --change options are mutually exclusive.');
@@ -60,7 +65,7 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
   // a root-selection failure under --all --json still carries `changes: []`.
   const root = await resolveRootForCommand(options, {
     json: options.json,
-    ...(options.all ? { failurePayload: { changes: [] } } : {}),
+    failurePayload: options.all ? BATCH_STATUS_FAILURE_PAYLOAD : undefined,
   });
   if (!root) {
     return;
@@ -116,7 +121,7 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
         // with the same comparator validate --all uses so the two batch
         // commands order a given change set identically.
         const entries: BatchStatusEntry[] = [];
-        for (const changeName of [...available].sort((a, b) => a.localeCompare(b))) {
+        for (const changeName of available.sort((a, b) => a.localeCompare(b))) {
           try {
             entries.push(loadStatus(changeName));
           } catch (error) {
@@ -133,7 +138,7 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
           return;
         }
 
-        let failed = 0;
+        let failed = false;
         entries.forEach((entry, index) => {
           if (index > 0) {
             console.log();
@@ -141,14 +146,14 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
           if ('artifacts' in entry) {
             printStatusText(entry);
           } else {
-            failed += 1;
+            failed = true;
             console.log(chalk.red(`✗ ${entry.changeName}: ${entry.status[0]?.message}`));
           }
         });
         // Text mode signals load failures via the exit code (like
         // validate --all); JSON mode instead exits 0 and carries the
         // per-change diagnostics so the sweep result stays parseable.
-        if (failed > 0) {
+        if (failed) {
           process.exitCode = 1;
         }
         return;
