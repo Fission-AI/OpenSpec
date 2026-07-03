@@ -19,6 +19,8 @@ import {
   formatChangeStatus,
   type ChangeStatus,
 } from '../../core/artifact-graph/index.js';
+import { asStatus } from '../shared-output.js';
+import type { StoreDiagnostic } from '../../core/store/errors.js';
 import {
   validateChangeExists,
   validateSchemaExists,
@@ -33,6 +35,7 @@ import {
 
 export interface StatusOptions {
   change?: string;
+  all?: boolean;
   schema?: string;
   store?: string;
   storePath?: string;
@@ -43,7 +46,15 @@ export interface StatusOptions {
 // Command Implementation
 // -----------------------------------------------------------------------------
 
+// A batch entry is either a fully loaded status or, for a change that failed
+// to load, the change name plus the diagnostic — the sweep never aborts.
+type BatchStatusEntry = ChangeStatus | { changeName: string; status: StoreDiagnostic[] };
+
 export async function statusCommand(options: StatusOptions): Promise<void> {
+  if (options.all && options.change) {
+    throw new Error('The --all and --change options are mutually exclusive.');
+  }
+
   // The root resolves (and the store banner prints) before the spinner starts
   // so the two do not fight over stderr.
   const root = await resolveRootForCommand(options, { json: options.json });
@@ -78,6 +89,51 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
         console.log(`No active changes. Create one with: ${newChangeHint}`);
         return;
       }
+
+      if (options.all) {
+        if (options.schema) {
+          validateSchemaExists(options.schema, projectRoot);
+        }
+
+        // readdir order is platform-dependent; sort for deterministic output
+        // (same reason validate's listChangeIds sorts).
+        const entries: BatchStatusEntry[] = [];
+        for (const changeName of [...available].sort()) {
+          try {
+            const context = loadChangeContext(projectRoot, changeName, options.schema, {
+              changeDir: getChangeDir(planningHome, changeName),
+              planningHome,
+            });
+            entries.push(
+              formatChangeStatus(context, isStoreSelectedRoot(root) ? { storeId: root.storeId } : {})
+            );
+          } catch (error) {
+            // One malformed change must not blank the sweep; carry its
+            // diagnostic in place and keep going.
+            entries.push({ changeName, status: [asStatus(error, 'change_error')] });
+          }
+        }
+
+        spinner?.stop();
+
+        if (options.json) {
+          console.log(JSON.stringify({ changes: entries, root: rootOutput }, null, 2));
+          return;
+        }
+
+        entries.forEach((entry, index) => {
+          if (index > 0) {
+            console.log();
+          }
+          if ('artifacts' in entry) {
+            printStatusText(entry);
+          } else {
+            console.log(chalk.red(`✗ ${entry.changeName}: ${entry.status[0]?.message}`));
+          }
+        });
+        return;
+      }
+
       // Changes exist but --change not provided
       spinner?.stop();
       throw new Error(

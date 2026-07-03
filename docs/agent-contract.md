@@ -56,6 +56,8 @@ Change: `{ "id", "title", "deltaCount", "deltas": [...], "root" }`. Spec: `{ "id
 ### 4.4 `status --json`
 `{ "changeName", "schemaName", "planningHome"?: { "kind", "root", "changesDir", "defaultSchema" }, "changeRoot", "artifactPaths": { "<id>": {outputPath, resolvedOutputPath, existingOutputPaths} }, "nextSteps": ["..."], "actionContext": { "mode": "repo-local", "sourceOfTruth": "repo", "planningArtifacts", "linkedContext", "allowedEditRoots", "requiresAffectedAreaSelection", "constraints" }, "isComplete", "applyRequires", "artifacts": [ {id, outputPath, status: "done"|"ready"|"blocked", missingDeps?} ], "root" }`. No active changes: `{ "changes": [], "message", "root" }`, exit 0.
 
+`--all` (batch, mutually exclusive with `--change` — combining them is an error with the `{ "changes": [], "status": [d] }` null-shape): `{ "changes": [ <per-change status object, no per-change root>, ... ], "root" }`, sorted by change name, exit 0. A change that fails to load contributes `{ "changeName", "status": [d] }` in place; the sweep does not abort.
+
 ### 4.5 `instructions <artifact> --json`
 `{ "changeName", "artifactId", "schemaName", "changeDir", "planningHome"?, "outputPath", "resolvedOutputPath", "existingOutputPaths", "description", "instruction"?, "context"?, "rules"?, "references"?: ReferenceIndexEntry[], "template", "dependencies": [{id,done,path,description}], "unlocks", "root" }`.
 

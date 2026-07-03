@@ -650,6 +650,7 @@ openspec status [options]
 | Option | Description |
 |--------|-------------|
 | `--change <id>` | Change name (prompts if omitted) |
+| `--all` | Show status for all active changes (mutually exclusive with `--change`) |
 | `--schema <name>` | Schema override (auto-detected from change's config) |
 | `--json` | Output as JSON |
 
@@ -664,7 +665,12 @@ openspec status --change add-dark-mode
 
 # JSON for agent use
 openspec status --change add-dark-mode --json
+
+# Every active change in one call (batch health-check)
+openspec status --all --json
 ```
+
+With `--all --json` the output is one envelope, `{ "changes": [ <status>, ... ], "root": ... }`, with the changes sorted by name. A change that fails to load contributes `{ "changeName", "status": [diagnostic] }` instead of aborting the sweep.
 
 **Output (text):**
 
