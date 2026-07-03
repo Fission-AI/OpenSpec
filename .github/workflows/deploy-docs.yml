@@ -63,15 +63,16 @@ jobs:
           NEXT_PUBLIC_SITE_URL: ${{ vars.DOCS_SITE_URL }}
         run: pnpm run build
 
-      - name: Deploy to Cloudflare Pages
-        # Only deploy from main on the canonical repo. This keeps PRs build-only,
-        # keeps forks (no secrets) build-only, and — because the wrangler command
-        # below hardcodes `--branch=main` (a *production* deploy) — prevents a
-        # `workflow_dispatch` on a feature branch from overwriting the live site.
-        if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && github.repository == 'Fission-AI/OpenSpec' }}
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: website
-          command: pages deploy out --project-name=openspec-docs --branch=main
+      # Temporarily disabled until Cloudflare setup is ready.
+      # - name: Deploy to Cloudflare Pages
+      #   # Only deploy from main on the canonical repo. This keeps PRs build-only,
+      #   # keeps forks (no secrets) build-only, and because the wrangler command
+      #   # below hardcodes `--branch=main` (a *production* deploy) prevents a
+      #   # `workflow_dispatch` on a feature branch from overwriting the live site.
+      #   if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && github.repository == 'Fission-AI/OpenSpec' }}
+      #   uses: cloudflare/wrangler-action@v3
+      #   with:
+      #     apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      #     accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      #     workingDirectory: website
+      #     command: pages deploy out --project-name=openspec-docs --branch=main
