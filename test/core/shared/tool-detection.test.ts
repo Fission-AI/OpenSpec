@@ -49,6 +49,7 @@ describe('tool-detection', () => {
       expect(tools).toContain('claude');
       expect(tools).toContain('cursor');
       expect(tools).toContain('windsurf');
+      expect(tools).toContain('agents');
       expect(tools.length).toBeGreaterThan(0);
     });
   });

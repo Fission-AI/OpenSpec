@@ -164,6 +164,19 @@ describe('openspec CLI e2e basics', () => {
       expect(await fileExists(cursorSkillPath)).toBe(false); // Not selected
     });
 
+    it('initializes with --tools agents option', async () => {
+      const projectDir = await prepareFixture('tmp-init');
+      const emptyProjectDir = path.join(projectDir, '..', 'empty-project');
+      await fs.mkdir(emptyProjectDir, { recursive: true });
+
+      const result = await runCLI(['init', '--tools', 'agents'], { cwd: emptyProjectDir });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('OpenSpec Setup Complete');
+
+      const skillPath = path.join(emptyProjectDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md');
+      expect(await fileExists(skillPath)).toBe(true);
+    });
+
     it('initializes with --tools none option', async () => {
       const projectDir = await prepareFixture('tmp-init');
       const emptyProjectDir = path.join(projectDir, '..', 'empty-project');

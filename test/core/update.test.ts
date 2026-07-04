@@ -190,6 +190,21 @@ Old instructions content
         expect(exists).toBe(false);
       }
     });
+
+    it('should update skill files for configured shared agents target', async () => {
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      const exploreSkillDir = path.join(skillsDir, 'openspec-explore');
+      await fs.mkdir(exploreSkillDir, { recursive: true });
+      await fs.writeFile(path.join(exploreSkillDir, 'SKILL.md'), 'old content');
+
+      await updateCommand.execute(testDir);
+
+      const updatedSkill = await fs.readFile(
+        path.join(exploreSkillDir, 'SKILL.md'),
+        'utf-8'
+      );
+      expect(updatedSkill).toContain('name: openspec-explore');
+    });
   });
 
   describe('command updates', () => {

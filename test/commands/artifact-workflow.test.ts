@@ -8,18 +8,27 @@ import { FileSystemUtils } from '../../src/utils/file-system.js';
 describe('artifact-workflow CLI commands', () => {
   let tempDir: string;
   let changesDir: string;
+  let configTempDir: string;
+  let originalEnv: NodeJS.ProcessEnv;
 
   const canonical = (targetPath: string): string => FileSystemUtils.canonicalizeExistingPath(targetPath);
 
   beforeEach(async () => {
+    originalEnv = { ...process.env };
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-artifact-workflow-'));
+    configTempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-artifact-config-'));
+    process.env.XDG_CONFIG_HOME = configTempDir;
     changesDir = path.join(tempDir, 'openspec', 'changes');
     await fs.mkdir(changesDir, { recursive: true });
   });
 
   afterEach(async () => {
+    process.env = originalEnv;
     if (tempDir) {
       await fs.rm(tempDir, { recursive: true, force: true });
+    }
+    if (configTempDir) {
+      await fs.rm(configTempDir, { recursive: true, force: true });
     }
   });
 
@@ -719,14 +728,15 @@ artifacts:
       expect(output).toContain('Invalid tool(s): unknown-tool');
     });
 
-    it('errors for tool without skillsDir', async () => {
-      // Using 'agents' which doesn't have skillsDir configured
+    it('creates skills for the shared agents target', async () => {
       const result = await runCLI(['experimental', '--tool', 'agents'], {
         cwd: tempDir,
       });
-      expect(result.exitCode).toBe(1);
-      const output = getOutput(result);
-      expect(output).toContain('Invalid tool(s): agents');
+      expect(result.exitCode).toBe(0);
+
+      const skillFile = path.join(tempDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md');
+      const stat = await fs.stat(skillFile);
+      expect(stat.isFile()).toBe(true);
     });
 
     it('creates skills for Claude tool', async () => {
