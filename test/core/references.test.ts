@@ -130,7 +130,7 @@ describe('reference index assembly', () => {
     expect(entries[0].status).toEqual([]);
   });
 
-  it("indexes a store's own artifact types and plan stages with fetch commands", async () => {
+  it("indexes a store's own artifact types and initiatives with fetch commands", async () => {
     const storeRoot = await registerStore('team-context');
     // A project-local schema (custom artifact types) in the store.
     const schemaDir = path.join(storeRoot, 'openspec', 'schemas', 'team-brief');
@@ -142,11 +142,14 @@ describe('reference index assembly', () => {
         '    template: brief.md\n    requires: []\n    instruction: Write it.\n'
     );
     fs.writeFileSync(path.join(schemaDir, 'templates', 'brief.md'), '# Brief\n');
-    // A plan folder in the store: numbered stages.
-    const planDir = path.join(storeRoot, 'openspec', 'plan');
-    fs.mkdirSync(path.join(planDir, '00_goal'), { recursive: true });
-    fs.mkdirSync(path.join(planDir, '01_requirements'), { recursive: true });
-    fs.writeFileSync(path.join(planDir, '00_goal', 'goal.md'), '# goal\n');
+    // An initiatives folder in the store: one folder per initiative.
+    const initiativesDir = path.join(storeRoot, 'openspec', 'initiatives');
+    fs.mkdirSync(path.join(initiativesDir, 'smoother-setup'), { recursive: true });
+    fs.mkdirSync(path.join(initiativesDir, 'q3-payments'), { recursive: true });
+    fs.writeFileSync(
+      path.join(initiativesDir, 'smoother-setup', 'goal.md'),
+      '# goal\n'
+    );
 
     const [entry] = await assemble(['team-context']);
 
@@ -157,7 +160,7 @@ describe('reference index assembly', () => {
         artifacts: ['brief'],
       },
     ]);
-    expect(entry.plan).toEqual(['00_goal', '01_requirements']);
+    expect(entry.initiatives).toEqual(['q3-payments', 'smoother-setup']);
 
     const block = renderReferencedStoresBlock([entry]);
     expect(block).toContain(
@@ -165,17 +168,17 @@ describe('reference index assembly', () => {
     );
     expect(block).toContain('- team-brief: Our own planning artifacts. [brief]');
     expect(block).toContain(
-      'Plan: 00_goal → 01_requirements  (openspec list --plan --store team-context)'
+      'Initiatives: q3-payments, smoother-setup  (openspec list --initiatives --store team-context)'
     );
   });
 
-  it('omits schemas/plan keys for a store that has none', async () => {
+  it('omits schemas/initiatives keys for a store that has none', async () => {
     await registerStore('bare-context');
 
     const [entry] = await assemble(['bare-context']);
 
     expect(entry.schemas).toBeUndefined();
-    expect(entry.plan).toBeUndefined();
+    expect(entry.initiatives).toBeUndefined();
   });
 
   it('degrades an unregistered reference to reference_unresolved with a pasteable fix', async () => {

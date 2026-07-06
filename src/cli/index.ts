@@ -8,7 +8,11 @@ import { promises as fs } from 'fs';
 import { AI_TOOLS } from '../core/config.js';
 import { UpdateCommand } from '../core/update.js';
 import { ListCommand } from '../core/list.js';
-import { rollupPlan } from '../core/plan.js';
+import {
+  rollupInitiatives,
+  rollupRegisteredStorePortfolios,
+  type PortfolioInfo,
+} from '../core/initiatives.js';
 import { ArchiveCommand, type ArchiveOptions } from '../core/archive.js';
 import { ViewCommand } from '../core/view.js';
 import { resolveRootForCommand, toRootOutput, type ResolvedOpenSpecRoot } from '../core/root-selection.js';
@@ -54,65 +58,105 @@ function hiddenStorePathOption(): Option {
   ).hideHelp();
 }
 
-async function renderPlan(
+function printPortfolioBody(portfolio: PortfolioInfo, indent: string): void {
+  if (portfolio.evergreen.length > 0) {
+    console.log(`${indent}Evergreen: ${portfolio.evergreen.join(', ')}`);
+  }
+  if (portfolio.initiatives.length === 0) {
+    if (portfolio.evergreen.length === 0) {
+      console.log(
+        `${indent}(empty — add an evergreen artifact like product.md, or a folder per initiative)`
+      );
+    }
+    return;
+  }
+
+  let anyChanges = false;
+  for (const initiative of portfolio.initiatives) {
+    const summary =
+      initiative.changesTotal === 0
+        ? 'no changes yet'
+        : `${initiative.changesComplete}/${initiative.changesTotal} changes complete`;
+    const missing = initiative.exists ? '' : '  (no folder)';
+    console.log('');
+    console.log(`${indent}${initiative.name}   ${summary}${missing}`);
+    if (initiative.stages.length > 0) {
+      console.log(
+        `${indent}  stages: ${initiative.stages.map((stage) => stage.name).join(' → ')}`
+      );
+    }
+    if (initiative.changes.length === 0) continue;
+    anyChanges = true;
+    const changeWidth = Math.max(...initiative.changes.map((c) => c.id.length));
+    for (const change of initiative.changes) {
+      const mark =
+        change.state === 'complete' ? '✓' : change.state === 'no-tasks' ? '–' : '·';
+      const where = change.store ?? 'here';
+      const tasks =
+        change.totalTasks === 0
+          ? 'no tasks'
+          : `${change.completedTasks}/${change.totalTasks} tasks`;
+      console.log(
+        `${indent}  ${mark} ${change.id.padEnd(changeWidth)}  ${where.padEnd(14)}  ${tasks}`
+      );
+    }
+  }
+  if (!anyChanges) {
+    console.log('');
+    console.log(
+      `${indent}Link a change: openspec new change <name> --initiative <name>`
+    );
+  }
+}
+
+async function renderInitiatives(
   root: ResolvedOpenSpecRoot,
   options: { json?: boolean }
 ): Promise<void> {
-  const plan = await rollupPlan(root.path);
+  const initiatives = await rollupInitiatives(root.path);
 
   if (options.json) {
-    console.log(JSON.stringify({ plan, root: toRootOutput(root) }, null, 2));
-    return;
-  }
-
-  if (plan === null) {
-    console.log('No plan folder found at openspec/plan/.');
     console.log(
-      'Start one: mkdir -p openspec/plan, then add your destination (product.md, roadmap.md — any name).'
+      JSON.stringify({ initiatives, root: toRootOutput(root) }, null, 2)
     );
     return;
   }
 
-  console.log(`Plan: ${plan.path}`);
-  // Destination and context artifacts (unnumbered) come first: the plan is
-  // the destination; stages are optional structure on the way there.
-  for (const entry of plan.context) {
-    console.log(`  ${entry}`);
-  }
-  if (plan.stages.length > 0) {
-    console.log('Stages:');
-    const stageWidth = Math.max(...plan.stages.map((s) => s.name.length));
-    for (const stage of plan.stages) {
-      const files = stage.files === 1 ? '1 file' : `${stage.files} files`;
-      console.log(`  ${stage.name.padEnd(stageWidth)}   ${stage.files === 0 ? 'empty' : files}`);
-    }
-  } else if (plan.context.length === 0) {
+  if (initiatives === null) {
+    console.log('No initiatives folder found at openspec/initiatives/.');
     console.log(
-      '  (empty — add your destination artifact, or numbered folders for ordered stages)'
+      'Start one: mkdir -p openspec/initiatives/<name>, then add any artifact (notes.md, roadmap.md — any name).'
     );
-  }
-
-  if (plan.changes.length === 0) {
-    console.log('Changes pointing here: none yet');
-    console.log('Link one: openspec new change <name> --plan local');
     return;
   }
 
-  console.log(
-    `Changes pointing here: ${plan.changesComplete}/${plan.changesTotal} complete`
-  );
-  const changeWidth = Math.max(...plan.changes.map((c) => c.id.length));
-  for (const change of plan.changes) {
-    const mark =
-      change.state === 'complete' ? '✓' : change.state === 'no-tasks' ? '–' : '·';
-    const where = change.store ?? 'here';
-    const tasks =
-      change.totalTasks === 0
-        ? 'no tasks'
-        : `${change.completedTasks}/${change.totalTasks} tasks`;
-    console.log(
-      `  ${mark} ${change.id.padEnd(changeWidth)}  ${where.padEnd(14)}  ${tasks}`
-    );
+  console.log(`Initiatives: ${initiatives.path}`);
+  printPortfolioBody(initiatives, '');
+}
+
+/**
+ * Outside any root, the portfolio question is still answerable: show the
+ * initiatives of every registered store that has them.
+ */
+async function renderStorePortfolios(options: { json?: boolean }): Promise<void> {
+  const stores = await rollupRegisteredStorePortfolios();
+
+  if (options.json) {
+    console.log(JSON.stringify({ initiatives: null, stores, root: null }, null, 2));
+    return;
+  }
+
+  if (stores.length === 0) {
+    console.log('No local OpenSpec root, and no registered store has initiatives.');
+    console.log('Run inside a repo, or pass --store <id>.');
+    return;
+  }
+
+  console.log('No local OpenSpec root — showing registered store portfolios.');
+  for (const { store, portfolio } of stores) {
+    console.log('');
+    console.log(`${store}  (${portfolio.path})`);
+    printPortfolioBody(portfolio, '  ');
   }
 }
 
@@ -277,21 +321,42 @@ program
 
 program
   .command('list')
-  .description('List items (changes by default). Use --specs to list specs, --plan to see the plan rollup.')
+  .description('List items (changes by default). Use --specs to list specs, --initiatives to see the portfolio rollup.')
   .option('--specs', 'List specs instead of changes')
   .option('--changes', 'List changes explicitly (default)')
-  .option('--plan', "Show the root's plan: its stages, and every change pointing at it")
+  .option('--initiatives', "Show the root's portfolio: every initiative, and every change pointing at it")
   .option('--sort <order>', 'Sort order: "recent" (default) or "name"', 'recent')
   .option('--json', 'Output as JSON (for programmatic use)')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
-  .action(async (options?: { specs?: boolean; changes?: boolean; plan?: boolean; sort?: string; json?: boolean; store?: string; storePath?: string }) => {
+  .action(async (options?: { specs?: boolean; changes?: boolean; initiatives?: boolean; sort?: string; json?: boolean; store?: string; storePath?: string }) => {
     try {
-      const failurePayload = options?.plan
-        ? { plan: null, root: null }
+      const failurePayload = options?.initiatives
+        ? { initiatives: null, root: null }
         : options?.specs
           ? { specs: [], root: null }
           : { changes: [], root: null };
+      // The portfolio question is the one `list` answer that still makes
+      // sense outside any root: fall back to registered store portfolios
+      // instead of failing root resolution.
+      if (
+        options?.initiatives &&
+        options.store === undefined &&
+        options.storePath === undefined
+      ) {
+        try {
+          const root = await resolveRootForCommand(options ?? {});
+          if (root) {
+            await renderInitiatives(root, { json: options?.json });
+          }
+          return;
+        } catch (error) {
+          const code = (error as { diagnostic?: { code?: string } }).diagnostic?.code;
+          if (code !== 'no_root_with_registered_stores') throw error;
+          await renderStorePortfolios({ json: options?.json });
+          return;
+        }
+      }
       const root = await resolveRootForCommand(options ?? {}, {
         json: options?.json,
         failurePayload,
@@ -299,8 +364,8 @@ program
       if (!root) {
         return;
       }
-      if (options?.plan) {
-        await renderPlan(root, { json: options?.json });
+      if (options?.initiatives) {
+        await renderInitiatives(root, { json: options?.json });
         return;
       }
       const listCommand = new ListCommand();
@@ -314,7 +379,11 @@ program
     } catch (error) {
       failWithError(error, {
         enabled: options?.json,
-        payload: options?.specs ? { specs: [], root: null } : { changes: [], root: null },
+        payload: options?.initiatives
+          ? { initiatives: null, root: null }
+          : options?.specs
+            ? { specs: [], root: null }
+            : { changes: [], root: null },
         fallbackCode: 'list_error',
       });
       process.exit(1);
@@ -637,13 +706,12 @@ newCmd
   .option('--description <text>', 'Description to add to README.md')
   .option('--goal <text>', 'Optional goal metadata to store with the change')
   .option('--schema <name>', `Workflow schema to use (default: ${DEFAULT_SCHEMA})`)
-  .option('--plan <where>', "Link this change to a plan: 'local' or a store id")
+  .option('--initiative <ref>', 'Link this change to an initiative: <name> or <store-id>/<name>')
   .option('--json', 'Output as JSON')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
-  // Removed options kept registered (hidden) so users get a deliberate
+  // Removed option kept registered (hidden) so users get a deliberate
   // explanation instead of a generic unknown-option error.
-  .addOption(new Option('--initiative <id>', 'No longer supported').hideHelp())
   .addOption(new Option('--areas <names>', 'No longer supported').hideHelp())
   .action(async (name: string, options: NewChangeOptions) => {
     try {

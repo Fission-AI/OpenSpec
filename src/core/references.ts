@@ -24,7 +24,7 @@ import { getSpecIds } from '../utils/item-discovery.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { MAX_CONTEXT_SIZE, type DeclarationEntry } from './project-config.js';
 import { listSchemasWithInfo } from './artifact-graph/index.js';
-import { readPlanStages } from './plan.js';
+import { listInitiativeNames } from './initiatives.js';
 
 export interface ReferenceSpecEntry {
   id: string;
@@ -43,8 +43,9 @@ export interface ReferenceIndexEntry {
   root?: string;
   specs?: ReferenceSpecEntry[];
   schemas?: ReferenceSchemaEntry[];
-  /** Stage names of the store's plan folder, in order (when it has one). */
-  plan?: string[];
+  /** The store's initiative names — or, with none yet, its evergreen
+   * artifact names (when it has an initiatives folder). */
+  initiatives?: string[];
   fetch?: string;
   status: StoreDiagnostic[];
 }
@@ -174,17 +175,12 @@ function collectSchemaEntries(referencedRoot: string): ReferenceSchemaEntry[] {
 }
 
 /**
- * A store's plan for the index: stage names in order, or — for a
- * destination-only plan with no stages — its artifact names.
+ * A store's planning layer for the index: initiative names in order, or —
+ * with no initiatives yet — its evergreen artifact names.
  */
-async function collectPlanStages(referencedRoot: string): Promise<string[]> {
+async function collectInitiativeNames(referencedRoot: string): Promise<string[]> {
   try {
-    const plan = await readPlanStages(referencedRoot);
-    if (plan === null) return [];
-    const names =
-      plan.stages.length > 0
-        ? plan.stages.map((stage) => stage.name)
-        : plan.context;
+    const names = await listInitiativeNames(referencedRoot);
     return names.map((name) => sanitizeInline(name, 60));
   } catch {
     return [];
@@ -199,8 +195,8 @@ export function schemasFetchRecipe(storeId: string): string {
   return `openspec schemas --store ${storeId}`;
 }
 
-export function planFetchRecipe(storeId: string): string {
-  return `openspec list --plan --store ${storeId}`;
+export function initiativesFetchRecipe(storeId: string): string {
+  return `openspec list --initiatives --store ${storeId}`;
 }
 
 function specLine(spec: ReferenceSpecEntry): string {
@@ -277,9 +273,9 @@ function renderEntryLines(entry: ReferenceIndexEntry): string[] {
         );
       }
     }
-    if (entry.plan && entry.plan.length > 0) {
+    if (entry.initiatives && entry.initiatives.length > 0) {
       lines.push(
-        `  Plan: ${entry.plan.join(' → ')}  (${planFetchRecipe(entry.store_id)})`
+        `  Initiatives: ${entry.initiatives.join(', ')}  (${initiativesFetchRecipe(entry.store_id)})`
       );
     }
     if (entry.fetch) {
@@ -446,13 +442,13 @@ export async function assembleReferenceIndex(
 
     const specs = await collectSpecEntries(inspection.canonicalRoot);
     const schemas = collectSchemaEntries(inspection.canonicalRoot);
-    const plan = await collectPlanStages(inspection.canonicalRoot);
+    const initiatives = await collectInitiativeNames(inspection.canonicalRoot);
     const entry: ReferenceIndexEntry = {
       store_id: id,
       root: inspection.canonicalRoot,
       specs,
       ...(schemas.length > 0 ? { schemas } : {}),
-      ...(plan.length > 0 ? { plan } : {}),
+      ...(initiatives.length > 0 ? { initiatives } : {}),
       fetch: fetchRecipe(id),
       status: [],
     };

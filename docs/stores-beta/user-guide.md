@@ -311,7 +311,7 @@ tells you which case you're in.
 - **Some commands stay where they are.** `view`, `templates`, and the
   deprecated noun forms (`openspec change show`, ...) act on the current
   directory only — no `--store`. (`schemas` now accepts `--store` — see the
-  [plan folder guide](plan.md).)
+  [initiatives guide](initiatives.md).)
 - **Per-machine state is per-machine.** The store registry and worksets
   are local settings. Nothing about your machine's layout is
   ever committed to shared planning.

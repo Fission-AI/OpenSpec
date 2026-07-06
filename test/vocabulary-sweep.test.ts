@@ -71,13 +71,16 @@ describe('vocabulary sweep', () => {
     expect(offenders, `retired vocabulary found:\n${offenders.join('\n')}`).toEqual([]);
   });
 
-  it('keeps the deleted workspace/initiative token surface from regrowing', () => {
-    // The command-group deletion slice's ledger records exactly these
-    // survivors; a new (workspace|initiative)_ token in src/ must be a
-    // deliberate decision recorded in the ledger, not drift.
-    const allowed = new Set(['initiative_option_removed']);
+  it('keeps the deleted workspace token surface from regrowing', () => {
+    // The command-group deletion slice retired the workspace machinery; a
+    // new workspace_ token in src/ must be a deliberate decision recorded
+    // in the ledger, not drift. Initiatives returned as a designed feature
+    // (change add-initiatives) — manifest-free, folder-per-initiative — so
+    // initiative_ tokens are no longer policed; the guarded surface there
+    // is the old manifest/collection machinery, which stays deleted.
+    const allowed = new Set<string>([]);
     const found = new Set<string>();
-    const pattern = /(workspace|initiative)_[a-z_]+/g;
+    const pattern = /workspace_[a-z_]+/g;
 
     for (const filePath of walkFiles(path.join(REPO_ROOT, 'src'))) {
       const content = fs.readFileSync(filePath, 'utf-8');

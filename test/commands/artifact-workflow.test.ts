@@ -342,17 +342,18 @@ describe('artifact-workflow CLI commands', () => {
       expect(stat.isDirectory()).toBe(true);
     });
 
-    it('rejects --initiative and writes no change', async () => {
+    it('writes the upward initiative link for --initiative', async () => {
       const result = await runCLI(
         ['new', 'change', 'linked-change', '--initiative', 'billing-launch'],
         { cwd: tempDir }
       );
-      expect(result.exitCode).toBe(1);
-      const output = getOutput(result);
-      expect(output).toContain('--initiative is no longer supported');
-      await expect(fs.stat(path.join(changesDir, 'linked-change'))).rejects.toMatchObject({
-        code: 'ENOENT',
-      });
+      expect(result.exitCode).toBe(0);
+
+      const metadata = await fs.readFile(
+        path.join(changesDir, 'linked-change', '.openspec.yaml'),
+        'utf-8'
+      );
+      expect(metadata).toContain('initiative: billing-launch');
     });
 
     it('rejects --areas and writes no affected-area metadata', async () => {

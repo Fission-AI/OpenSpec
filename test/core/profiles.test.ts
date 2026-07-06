@@ -27,7 +27,7 @@ describe('profiles', () => {
     it('should contain expected workflow IDs', () => {
       const expected = [
         'propose', 'explore', 'new', 'continue', 'apply',
-        'ff', 'sync', 'archive', 'bulk-archive', 'verify', 'onboard', 'plan',
+        'ff', 'sync', 'archive', 'bulk-archive', 'verify', 'onboard', 'initiatives',
       ];
       expect([...ALL_WORKFLOWS]).toEqual(expected);
     });

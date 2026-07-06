@@ -1,8 +1,9 @@
 schema: spec-driven
 
 context: |
-  The plan for this repo lives in openspec/plan/ — read goal.md first.
-  Changes whose .openspec.yaml says `plan: local` serve that plan.
+  This repo's initiatives live in openspec/initiatives/ — read
+  smoother-setup/goal.md first. Changes whose .openspec.yaml says
+  `initiative: smoother-setup` serve that initiative.
 
   Tech stack: TypeScript, Node.js (≥20.19.0), ESM modules
   Package manager: pnpm

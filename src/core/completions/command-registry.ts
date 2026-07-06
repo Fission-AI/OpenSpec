@@ -51,8 +51,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         description: 'List changes explicitly (default)',
       },
       {
-        name: 'plan',
-        description: "Show the root's plan: its stages, and every change pointing at it",
+        name: 'initiatives',
+        description: "Show the root's portfolio: every initiative, and every change pointing at it",
       },
       {
         name: 'sort',
@@ -247,8 +247,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             takesValue: true,
           },
           {
-            name: 'plan',
-            description: "Link this change to a plan: 'local' or a store id",
+            name: 'initiative',
+            description: 'Link this change to an initiative: <name> or <store-id>/<name>',
             takesValue: true,
           },
           COMMON_FLAGS.json,

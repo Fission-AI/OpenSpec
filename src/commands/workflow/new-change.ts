@@ -2,13 +2,14 @@
  * New Change Command
  *
  * Creates a new change directory with optional description and schema in the
- * resolved OpenSpec root. `--store <id>` selects a registered store's
- * root; initiative linking and workspace affected areas are no longer part of
- * this command.
+ * resolved OpenSpec root. `--store <id>` selects a registered store's root;
+ * `--initiative <ref>` links the change upward to an initiative. Workspace
+ * affected areas are no longer part of this command.
  */
 
 import ora from 'ora';
 import path from 'path';
+import { InitiativeRefSchema } from '../../core/change-metadata/schema.js';
 import { createChange, validateChangeName } from '../../utils/change-utils.js';
 import { formatChangeLocation } from '../../core/planning-home.js';
 import {
@@ -31,11 +32,10 @@ export interface NewChangeOptions {
   description?: string;
   goal?: string;
   schema?: string;
-  /** Link the change to a plan: 'local' or a registered store id. */
-  plan?: string;
+  /** Link the change to an initiative: `<name>` or `<store-id>/<name>`. */
+  initiative?: string;
   store?: string;
   storePath?: string;
-  initiative?: string;
   areas?: string;
   json?: boolean;
 }
@@ -55,14 +55,6 @@ interface NewChangeOutput {
 // -----------------------------------------------------------------------------
 
 function assertRemovedOptionsAbsent(options: NewChangeOptions): void {
-  if (options.initiative !== undefined) {
-    throw new RootSelectionError(
-      '--initiative is no longer supported. Normal changes no longer attach to initiatives; --store <id> selects the OpenSpec root.',
-      'initiative_option_removed',
-      { target: 'change.options' }
-    );
-  }
-
   if (options.areas !== undefined) {
     throw new RootSelectionError(
       '--areas is no longer supported. Workspace affected areas are not part of the normal OpenSpec root path.',
@@ -102,6 +94,15 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
 
     assertRemovedOptionsAbsent(options);
 
+    // Validate the ref before anything is created: a bad value must not
+    // leave a half-written change behind.
+    if (options.initiative !== undefined) {
+      const ref = InitiativeRefSchema.safeParse(options.initiative);
+      if (!ref.success) {
+        throw new Error(ref.error.issues[0].message);
+      }
+    }
+
     const root = await resolveRootForCommand(options, {
       json: options.json,
       failurePayload: { change: null },
@@ -128,7 +129,7 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
       changesDir: root.changesDir,
       metadata: {
         ...(options.goal ? { goal: options.goal } : {}),
-        ...(options.plan ? { plan: options.plan } : {}),
+        ...(options.initiative ? { initiative: options.initiative } : {}),
       },
     });
 

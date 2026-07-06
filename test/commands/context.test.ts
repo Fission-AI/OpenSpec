@@ -103,8 +103,8 @@ describe('openspec context (4.1)', () => {
     expect(parseJson(declared).members).toHaveLength(2);
   });
 
-  it("surfaces a referenced store's own artifact types and plan stages", async () => {
-    // The upstream store defines a custom artifact type and a plan folder.
+  it("surfaces a referenced store's own artifact types and initiatives", async () => {
+    // The upstream store defines a custom artifact type and initiatives.
     const schemaDir = path.join(upstream, 'openspec', 'schemas', 'team-brief');
     fs.mkdirSync(path.join(schemaDir, 'templates'), { recursive: true });
     fs.writeFileSync(
@@ -114,10 +114,10 @@ describe('openspec context (4.1)', () => {
         '    template: brief.md\n    requires: []\n    instruction: y\n'
     );
     fs.writeFileSync(path.join(schemaDir, 'templates', 'brief.md'), '# Brief\n');
-    fs.mkdirSync(path.join(upstream, 'openspec', 'plan', '00_goal'), {
+    fs.mkdirSync(path.join(upstream, 'openspec', 'initiatives', 'smoother-setup'), {
       recursive: true,
     });
-    fs.mkdirSync(path.join(upstream, 'openspec', 'plan', '01_changes'), {
+    fs.mkdirSync(path.join(upstream, 'openspec', 'initiatives', 'q3-payments'), {
       recursive: true,
     });
 
@@ -129,7 +129,7 @@ describe('openspec context (4.1)', () => {
       (member: any) => member.id === 'upstream-context'
     );
     expect(upstreamMember.artifactTypes).toEqual(['team-brief']);
-    expect(upstreamMember.plan).toEqual(['00_goal', '01_changes']);
+    expect(upstreamMember.initiatives).toEqual(['q3-payments', 'smoother-setup']);
 
     const human = await runCLI(['context', '--store', 'team-context'], {
       cwd: tempDir,
@@ -139,7 +139,7 @@ describe('openspec context (4.1)', () => {
       'Artifact types: team-brief  (openspec schemas --store upstream-context)'
     );
     expect(human.stdout).toContain(
-      'Plan: 00_goal → 01_changes  (openspec list --plan --store upstream-context)'
+      'Initiatives: q3-payments, smoother-setup  (openspec list --initiatives --store upstream-context)'
     );
   });
 

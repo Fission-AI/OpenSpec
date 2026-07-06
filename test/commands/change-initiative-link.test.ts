@@ -7,11 +7,11 @@ import { readChangeMetadata } from '../../src/utils/change-metadata.js';
 import { runCLI, type RunCLIResult } from '../helpers/run-cli.js';
 
 /**
- * Initiative-link creation was removed from normal change flows in the
- * store-root-selection slice: `new change` no longer accepts `--initiative`
- * and `openspec set change` is gone. Existing initiative metadata from the
- * beta remains readable and untouched; this suite covers that legacy
- * behavior.
+ * The `initiative:` metadata field has two readable shapes: the current
+ * string ref (`<name>` or `<store-id>/<name>`, written by
+ * `new change --initiative`) and the legacy object (`{store, id}`) from the
+ * earlier beta, which stays readable and untouched. `openspec set change`
+ * remains gone. This suite covers both shapes.
  */
 describe('legacy repo-local change initiative metadata', () => {
   let tempDir: string;
@@ -101,16 +101,35 @@ describe('legacy repo-local change initiative metadata', () => {
     expect(metadata?.initiative).toBeUndefined();
   });
 
-  it('rejects new change --initiative without writing files', async () => {
+  it('writes the string ref for new change --initiative', async () => {
     const result = await runCLI(
       ['new', 'change', 'linked-change', '--initiative', 'billing-launch', '--json'],
       { cwd: tempDir, env }
     );
-    expect(result.exitCode).toBe(1);
+    expect(result.exitCode).toBe(0);
     const json = parseJson(result);
-    expect(json.change).toBeNull();
-    expect(json.status[0].code).toBe('initiative_option_removed');
-    expect(fs.existsSync(changeDir('linked-change'))).toBe(false);
+    expect(json.change.id).toBe('linked-change');
+    expect(readChangeMetadata(changeDir('linked-change'), tempDir)?.initiative).toBe(
+      'billing-launch'
+    );
+  });
+
+  it('accepts a store-prefixed ref and rejects a malformed one', async () => {
+    const ok = await runCLI(
+      ['new', 'change', 'store-linked', '--initiative', 'team-plans/billing-launch', '--json'],
+      { cwd: tempDir, env }
+    );
+    expect(ok.exitCode).toBe(0);
+    expect(readChangeMetadata(changeDir('store-linked'), tempDir)?.initiative).toBe(
+      'team-plans/billing-launch'
+    );
+
+    const bad = await runCLI(
+      ['new', 'change', 'bad-linked', '--initiative', 'Not A Ref', '--json'],
+      { cwd: tempDir, env }
+    );
+    expect(bad.exitCode).toBe(1);
+    expect(fs.existsSync(changeDir('bad-linked'))).toBe(false);
   });
 
   it('no longer provides openspec set change', async () => {

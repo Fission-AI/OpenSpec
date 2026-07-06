@@ -27,8 +27,8 @@ import { COMMON_FLAGS } from '../core/completions/shared-flags.js';
 import { emitFailure, printJson } from './shared-output.js';
 import { gatherRelationshipData } from './shared-gather.js';
 import { listSchemasWithInfo } from '../core/artifact-graph/index.js';
-import { readPlanStages } from '../core/plan.js';
-import { schemasFetchRecipe, planFetchRecipe } from '../core/references.js';
+import { listInitiativeNames } from '../core/initiatives.js';
+import { schemasFetchRecipe, initiativesFetchRecipe } from '../core/references.js';
 
 const FAILURE_PAYLOAD = { root: null, members: [] };
 
@@ -64,7 +64,7 @@ function memberLine(member: WorkingSetMember): string {
 
 /**
  * Enrich available referenced-store members with the store's own custom
- * artifact types and plan stages, so `context` reports what a repo draws on
+ * artifact types and initiatives, so `context` reports what a repo draws on
  * beyond specs. Read-only; failures degrade to an unenriched member.
  */
 async function enrichMembersWithStoreArtifacts(
@@ -86,20 +86,14 @@ async function enrichMembersWithStoreArtifacts(
       // Unreadable schemas dir: leave the member unenriched.
     }
     try {
-      const plan = await readPlanStages(storeRoot);
-      if (plan !== null) {
-        // Stage names in order — or, for a destination-only plan with no
-        // stages, its artifact names. Either way the agent sees the plan.
-        const names =
-          plan.stages.length > 0
-            ? plan.stages.map((stage) => stage.name)
-            : plan.context;
-        if (names.length > 0) {
-          member.plan = names;
-        }
+      // Initiative names — or, with none yet, the evergreen artifact
+      // names. Either way the agent sees the planning layer exists.
+      const names = await listInitiativeNames(storeRoot);
+      if (names.length > 0) {
+        member.initiatives = names;
       }
     } catch {
-      // Unreadable plan dir: leave the member unenriched.
+      // Unreadable initiatives dir: leave the member unenriched.
     }
   }
 }
@@ -129,9 +123,9 @@ function printHumanWorkingSet(workingSet: WorkingSet, declaredReferenceCount: nu
           `    Artifact types: ${member.artifactTypes.join(', ')}  (${schemasFetchRecipe(member.id)})`
         );
       }
-      if (member.plan && member.plan.length > 0) {
+      if (member.initiatives && member.initiatives.length > 0) {
         console.log(
-          `    Plan: ${member.plan.join(' → ')}  (${planFetchRecipe(member.id)})`
+          `    Initiatives: ${member.initiatives.join(', ')}  (${initiativesFetchRecipe(member.id)})`
         );
       }
     }
