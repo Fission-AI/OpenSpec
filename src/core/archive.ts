@@ -306,6 +306,7 @@ export class ArchiveCommand {
         }
         console.log(chalk.red('\nValidation failed. Please fix the errors before archiving.'));
         console.log(chalk.yellow('To skip validation (not recommended), use --no-validate flag.'));
+        process.exitCode = 1;
         return null;
       }
     } else if (json) {
@@ -428,6 +429,7 @@ export class ArchiveCommand {
             }
             console.log(String(err.message || err));
             console.log('Aborted. No files were changed.');
+            process.exitCode = 1;
             return null;
           }
 
@@ -451,6 +453,7 @@ export class ArchiveCommand {
                   else if (issue.level === 'WARNING') console.log(chalk.yellow(`  ⚠ ${issue.message}`));
                 }
                 console.log('Aborted. No files were changed.');
+                process.exitCode = 1;
                 return null;
               }
             }

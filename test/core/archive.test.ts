@@ -15,6 +15,7 @@ describe('ArchiveCommand', () => {
   let tempDir: string;
   let archiveCommand: ArchiveCommand;
   const originalConsoleLog = console.log;
+  const originalExitCode = process.exitCode;
   const originalXdgDataHome = process.env.XDG_DATA_HOME;
 
   beforeEach(async () => {
@@ -38,12 +39,19 @@ describe('ArchiveCommand', () => {
     // Suppress console.log during tests
     console.log = vi.fn();
 
+    // Isolate process.exitCode so a failing run can't leak into the next
+    // test or skew the vitest process exit status.
+    process.exitCode = undefined;
+
     archiveCommand = new ArchiveCommand();
   });
 
   afterEach(async () => {
     // Restore console.log
     console.log = originalConsoleLog;
+
+    // Restore process.exitCode (clear anything a test set)
+    process.exitCode = originalExitCode;
 
     if (originalXdgDataHome === undefined) {
       delete process.env.XDG_DATA_HOME;
@@ -823,6 +831,92 @@ E1 updated`);
       expect(console.log).toHaveBeenCalledWith(
         expect.stringContaining('Totals: + 1, ~ 1, - 0, → 1')
       );
+    });
+  });
+
+  describe('exit code on blocked archive (human mode)', () => {
+    // Regression for the silent-exit-0 bug: when archive is blocked in
+    // human mode it must set a non-zero exit code so scripts/CI can detect
+    // the failure, mirroring the JSON-mode behavior.
+    it('sets exit code 1 when delta spec validation fails', async () => {
+      const changeName = 'exit-delta-fail';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'bad-capability');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      // Delta spec missing required SHALL/MUST keyword -> validation error
+      const specContent = `# Bad Capability - Changes
+
+## ADDED Requirements
+
+### Requirement: Logging Feature
+
+The system will log all events.
+
+#### Scenario: Event recorded
+- **WHEN** an event occurs
+- **THEN** it is captured`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), specContent);
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1\n');
+
+      await archiveCommand.execute(changeName, { yes: true, skipSpecs: true });
+
+      expect(process.exitCode).toBe(1);
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('Validation failed')
+      );
+
+      // Change must NOT have been archived
+      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archives = await fs.readdir(archiveDir);
+      expect(archives.some(a => a.includes(changeName))).toBe(false);
+    });
+
+    it('sets exit code 1 when spec rebuild fails (MODIFIED on new spec)', async () => {
+      const changeName = 'exit-rebuild-fail';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'new-capability');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      // MODIFIED on a non-existent target spec aborts the rebuild
+      const specContent = `# New Capability - Changes
+
+## ADDED Requirements
+
+### Requirement: New Feature
+New feature description.
+
+## MODIFIED Requirements
+
+### Requirement: Existing Feature
+Modified content.`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), specContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      expect(process.exitCode).toBe(1);
+      expect(console.log).toHaveBeenCalledWith('Aborted. No files were changed.');
+
+      const mainSpecPath = path.join(tempDir, 'openspec', 'specs', 'new-capability', 'spec.md');
+      await expect(fs.access(mainSpecPath)).rejects.toThrow();
+
+      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archives = await fs.readdir(archiveDir);
+      expect(archives.some(a => a.includes(changeName))).toBe(false);
+    });
+
+    it('leaves exit code 0 on successful archive (no leak from prior test)', async () => {
+      const changeName = 'exit-ok';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(process.exitCode).toBeUndefined();
+
+      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archives = await fs.readdir(archiveDir);
+      expect(archives.some(a => a.includes(changeName))).toBe(true);
     });
   });
 
