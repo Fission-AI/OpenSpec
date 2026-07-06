@@ -16,6 +16,9 @@ import {
   getVerifyChangeSkillTemplate,
   getOnboardSkillTemplate,
   getClsxProposeSkillTemplate,
+  getCheckReadinessSkillTemplate,
+  getDeepReviewSkillTemplate,
+  getDiscoverSkillTemplate,
   getClsxExploreCommandTemplate,
   getClsxNewCommandTemplate,
   getClsxContinueCommandTemplate,
@@ -27,6 +30,9 @@ import {
   getClsxVerifyCommandTemplate,
   getClsxOnboardCommandTemplate,
   getClsxProposeCommandTemplate,
+  getClsxCheckReadinessCommandTemplate,
+  getClsxDeepReviewCommandTemplate,
+  getClsxDiscoverCommandTemplate,
   type SkillTemplate,
 } from '../templates/skill-templates.js';
 import type { CommandContent } from '../command-generation/index.js';
@@ -66,6 +72,9 @@ export function getSkillTemplates(workflowFilter?: readonly string[]): SkillTemp
     { template: getVerifyChangeSkillTemplate(), dirName: 'clearspec-verify-change', workflowId: 'verify' },
     { template: getOnboardSkillTemplate(), dirName: 'clearspec-onboard', workflowId: 'onboard' },
     { template: getClsxProposeSkillTemplate(), dirName: 'clearspec-propose', workflowId: 'propose' },
+    { template: getCheckReadinessSkillTemplate(), dirName: 'clearspec-check-readiness', workflowId: 'check-readiness' },
+    { template: getDeepReviewSkillTemplate(), dirName: 'clearspec-deep-review', workflowId: 'deep-review' },
+    { template: getDiscoverSkillTemplate(), dirName: 'clearspec-discover', workflowId: 'discover' },
   ];
 
   if (!workflowFilter) return all;
@@ -92,6 +101,9 @@ export function getCommandTemplates(workflowFilter?: readonly string[]): Command
     { template: getClsxVerifyCommandTemplate(), id: 'verify' },
     { template: getClsxOnboardCommandTemplate(), id: 'onboard' },
     { template: getClsxProposeCommandTemplate(), id: 'propose' },
+    { template: getClsxCheckReadinessCommandTemplate(), id: 'check-readiness' },
+    { template: getClsxDeepReviewCommandTemplate(), id: 'deep-review' },
+    { template: getClsxDiscoverCommandTemplate(), id: 'discover' },
   ];
 
   if (!workflowFilter) return all;

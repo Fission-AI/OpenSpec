@@ -8,9 +8,9 @@ import {
 
 describe('skill-generation', () => {
   describe('getSkillTemplates', () => {
-    it('should return all 11 skill templates', () => {
+    it('should return all 14 skill templates', () => {
       const templates = getSkillTemplates();
-      expect(templates).toHaveLength(11);
+      expect(templates).toHaveLength(14);
     });
 
     it('should have unique directory names', () => {
@@ -35,6 +35,9 @@ describe('skill-generation', () => {
       expect(dirNames).toContain('clearspec-verify-change');
       expect(dirNames).toContain('clearspec-onboard');
       expect(dirNames).toContain('clearspec-propose');
+      expect(dirNames).toContain('clearspec-check-readiness');
+      expect(dirNames).toContain('clearspec-deep-review');
+      expect(dirNames).toContain('clearspec-discover');
     });
 
     it('should have valid template structure', () => {
@@ -85,12 +88,38 @@ describe('skill-generation', () => {
       expect(filtered[0].workflowId).toBe('propose');
       expect(filtered[0].dirName).toBe('clearspec-propose');
     });
+
+    it.each([
+      ['check-readiness', 'clearspec-check-readiness'],
+      ['deep-review', 'clearspec-deep-review'],
+      ['discover', 'clearspec-discover'],
+    ])('should return the %s readiness skill and exclude it when not requested', (workflowId, dirName) => {
+      const filtered = getSkillTemplates([workflowId]);
+      expect(filtered).toHaveLength(1);
+      expect(filtered[0].workflowId).toBe(workflowId);
+      expect(filtered[0].dirName).toBe(dirName);
+
+      const others = getSkillTemplates(['explore']);
+      expect(others.map(t => t.workflowId)).not.toContain(workflowId);
+    });
+
+    it('should have clearpoint author and version 1.0 frontmatter for the readiness skills', () => {
+      const readiness = getSkillTemplates(['check-readiness', 'deep-review', 'discover']);
+      expect(readiness).toHaveLength(3);
+      for (const { template } of readiness) {
+        expect(template.name).toBeTruthy();
+        expect(template.description).toBeTruthy();
+        expect(template.instructions).toBeTruthy();
+        expect(template.metadata?.author).toBe('clearpoint');
+        expect(template.metadata?.version).toBe('1.0');
+      }
+    });
   });
 
   describe('getCommandTemplates', () => {
-    it('should return all 11 command templates', () => {
+    it('should return all 14 command templates', () => {
       const templates = getCommandTemplates();
-      expect(templates).toHaveLength(11);
+      expect(templates).toHaveLength(14);
     });
 
     it('should have unique IDs', () => {
@@ -115,6 +144,9 @@ describe('skill-generation', () => {
       expect(ids).toContain('verify');
       expect(ids).toContain('onboard');
       expect(ids).toContain('propose');
+      expect(ids).toContain('check-readiness');
+      expect(ids).toContain('deep-review');
+      expect(ids).toContain('discover');
     });
 
     it('should filter by workflow IDs when provided', () => {
@@ -142,9 +174,9 @@ describe('skill-generation', () => {
   });
 
   describe('getCommandContents', () => {
-    it('should return all 11 command contents', () => {
+    it('should return all 14 command contents', () => {
       const contents = getCommandContents();
-      expect(contents).toHaveLength(11);
+      expect(contents).toHaveLength(14);
     });
 
     it('should have valid content structure', () => {

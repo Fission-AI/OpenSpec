@@ -88,13 +88,16 @@ describe('InitCommand', () => {
 
       await initCommand.execute(testDir);
 
-      // Core profile: propose, explore, apply, sync, archive
+      // Core profile: propose, explore, apply, sync, archive, check-readiness, deep-review, discover
       const coreSkillNames = [
         'clearspec-propose',
         'clearspec-explore',
         'clearspec-apply-change',
         'clearspec-sync-specs',
         'clearspec-archive-change',
+        'clearspec-check-readiness',
+        'clearspec-deep-review',
+        'clearspec-discover',
       ];
 
       for (const skillName of coreSkillNames) {
@@ -127,13 +130,16 @@ describe('InitCommand', () => {
 
       await initCommand.execute(testDir);
 
-      // Core profile: propose, explore, apply, sync, archive
+      // Core profile: propose, explore, apply, sync, archive, check-readiness, deep-review, discover
       const coreCommandNames = [
         'clsx/propose.md',
         'clsx/explore.md',
         'clsx/apply.md',
         'clsx/sync.md',
         'clsx/archive.md',
+        'clsx/check-readiness.md',
+        'clsx/deep-review.md',
+        'clsx/discover.md',
       ];
 
       for (const cmdName of coreCommandNames) {
@@ -154,6 +160,42 @@ describe('InitCommand', () => {
         const cmdFile = path.join(testDir, '.claude', 'commands', cmdName);
         expect(await fileExists(cmdFile)).toBe(false);
       }
+    });
+
+    it('should generate the readiness-pipeline skills and commands for Claude Code', async () => {
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+
+      await initCommand.execute(testDir);
+
+      const readinessSkills = [
+        'clearspec-check-readiness',
+        'clearspec-deep-review',
+        'clearspec-discover',
+      ];
+      for (const skillName of readinessSkills) {
+        const skillFile = path.join(testDir, '.claude', 'skills', skillName, 'SKILL.md');
+        expect(await fileExists(skillFile)).toBe(true);
+
+        const content = await fs.readFile(skillFile, 'utf-8');
+        expect(content).toContain('---');
+        expect(content).toContain(`name: ${skillName}`);
+        expect(content).toContain('description:');
+      }
+
+      const readinessCommands = ['check-readiness', 'deep-review', 'discover'];
+      for (const cmdId of readinessCommands) {
+        const cmdFile = path.join(testDir, '.claude', 'commands', 'clsx', `${cmdId}.md`);
+        expect(await fileExists(cmdFile)).toBe(true);
+      }
+    });
+
+    it('should scaffold the reports folder alongside the other project folders', async () => {
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+
+      await initCommand.execute(testDir);
+
+      const reportsDir = path.join(testDir, 'clearspec', 'reports');
+      expect(await directoryExists(reportsDir)).toBe(true);
     });
 
     it('should create skills in Cursor skills directory', async () => {

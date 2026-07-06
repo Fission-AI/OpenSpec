@@ -28,7 +28,7 @@ describe('tool-detection', () => {
 
   describe('SKILL_NAMES', () => {
     it('should contain all skill names matching COMMAND_IDS', () => {
-      expect(SKILL_NAMES).toHaveLength(11);
+      expect(SKILL_NAMES).toHaveLength(14);
       expect(SKILL_NAMES).toContain('clearspec-explore');
       expect(SKILL_NAMES).toContain('clearspec-new-change');
       expect(SKILL_NAMES).toContain('clearspec-continue-change');
@@ -40,6 +40,9 @@ describe('tool-detection', () => {
       expect(SKILL_NAMES).toContain('clearspec-verify-change');
       expect(SKILL_NAMES).toContain('clearspec-onboard');
       expect(SKILL_NAMES).toContain('clearspec-propose');
+      expect(SKILL_NAMES).toContain('clearspec-check-readiness');
+      expect(SKILL_NAMES).toContain('clearspec-deep-review');
+      expect(SKILL_NAMES).toContain('clearspec-discover');
     });
   });
 

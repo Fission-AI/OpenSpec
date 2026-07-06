@@ -6,8 +6,19 @@ export const CLEARSPEC_PROJECT_FOLDERS = [
   'requirements',
   'context',
   'code',
+  'reports',
   'spec-packs',
 ] as const;
+
+// Report filenames produced by the readiness-pipeline stages under clearspec/reports/.
+// Tracked as named constants so a future rename is single-sourced (see the skill bodies).
+export const READINESS_REPORT_FILENAME = 'readiness-report.md';
+export const REVIEW_REPORT_FILENAME = 'review-report.md';
+export const DISCOVERY_REPORT_FILENAME = 'discovery-report.md';
+
+// Finalised requirements documents produced by /clsx:discover under clearspec/requirements/.
+export const PRODUCT_REQUIREMENTS_FILENAME = 'product-requirements.md';
+export const ENGINEERING_REQUIREMENTS_FILENAME = 'engineering-requirements.md';
 
 export const CLEARSPEC_MARKERS = {
   start: '<!-- CLEARSPEC:START -->',

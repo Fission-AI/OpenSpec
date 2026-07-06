@@ -23,6 +23,9 @@ export const WORKFLOW_TO_SKILL_DIR: Record<WorkflowId, string> = {
   'verify': 'clearspec-verify-change',
   'onboard': 'clearspec-onboard',
   'propose': 'clearspec-propose',
+  'check-readiness': 'clearspec-check-readiness',
+  'deep-review': 'clearspec-deep-review',
+  'discover': 'clearspec-discover',
 };
 
 function toKnownWorkflows(workflows: readonly string[]): WorkflowId[] {

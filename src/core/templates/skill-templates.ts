@@ -17,4 +17,7 @@ export { getBulkArchiveChangeSkillTemplate, getClsxBulkArchiveCommandTemplate } 
 export { getVerifyChangeSkillTemplate, getClsxVerifyCommandTemplate } from './workflows/verify-change.js';
 export { getOnboardSkillTemplate, getClsxOnboardCommandTemplate } from './workflows/onboard.js';
 export { getClsxProposeSkillTemplate, getClsxProposeCommandTemplate } from './workflows/propose.js';
+export { getCheckReadinessSkillTemplate, getClsxCheckReadinessCommandTemplate } from './workflows/check-readiness.js';
+export { getDeepReviewSkillTemplate, getClsxDeepReviewCommandTemplate } from './workflows/deep-review.js';
+export { getDiscoverSkillTemplate, getClsxDiscoverCommandTemplate } from './workflows/discover.js';
 export { getFeedbackSkillTemplate } from './workflows/feedback.js';

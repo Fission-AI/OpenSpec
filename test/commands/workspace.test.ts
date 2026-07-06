@@ -342,7 +342,7 @@ describe('workspace command', () => {
     expect(readWorkspaceState(setup.workspace.root).workspace_skills).toEqual(
       expect.objectContaining({
         selected_agents: [],
-        last_applied_workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive'],
+        last_applied_workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive', 'check-readiness', 'deep-review', 'discover'],
       })
     );
   });
@@ -393,14 +393,14 @@ describe('workspace command', () => {
       expect.objectContaining({
         profile: 'core',
         delivery: 'commands',
-        workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive'],
+        workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive', 'check-readiness', 'deep-review', 'discover'],
         selected_agents: ['codex'],
         skills_only: true,
         delivery_notice: expect.stringContaining('skills only'),
         refreshed: [
           expect.objectContaining({
             tool_id: 'codex',
-            workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive'],
+            workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive', 'check-readiness', 'deep-review', 'discover'],
           }),
         ],
         removed: [
@@ -427,7 +427,7 @@ describe('workspace command', () => {
         selected_agents: ['codex'],
         last_applied_profile: 'core',
         last_applied_delivery: 'commands',
-        last_applied_workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive'],
+        last_applied_workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive', 'check-readiness', 'deep-review', 'discover'],
       })
     );
 

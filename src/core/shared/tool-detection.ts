@@ -23,6 +23,9 @@ export const SKILL_NAMES = [
   'clearspec-verify-change',
   'clearspec-onboard',
   'clearspec-propose',
+  'clearspec-check-readiness',
+  'clearspec-deep-review',
+  'clearspec-discover',
 ] as const;
 
 export type SkillName = (typeof SKILL_NAMES)[number];
@@ -42,6 +45,9 @@ export const COMMAND_IDS = [
   'verify',
   'onboard',
   'propose',
+  'check-readiness',
+  'deep-review',
+  'discover',
 ] as const;
 
 export type CommandId = (typeof COMMAND_IDS)[number];
