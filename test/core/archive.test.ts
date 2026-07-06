@@ -905,6 +905,85 @@ Modified content.`;
       expect(archives.some(a => a.includes(changeName))).toBe(false);
     });
 
+    it('sets exit code 1 when rebuilt spec fails validateSpecContent', async () => {
+      // Spot 3 is defensive: spot 1 (validateChangeDeltaSpecs) already
+      // enforces SHALL/MUST/scenario rules on the delta, and buildUpdatedSpec
+      // pre-validates target structure, so a real delta almost never reaches
+      // this branch. Spy on validateSpecContent (the existing --no-validate
+      // test uses the same spy pattern) to force the rebuilt spec invalid
+      // while buildUpdatedSpec runs for real — exercising the exit-code fix.
+      const changeName = 'exit-rebuilt-validate-fail';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'rebuilt-capability');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      // Existing main spec so MODIFIED targets a real spec and buildUpdatedSpec
+      // succeeds (does not throw).
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'rebuilt-capability');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const mainContent = `# rebuilt-capability Specification
+
+## Purpose
+Rebuilt capability purpose.
+
+## Requirements
+
+### Requirement: Existing Feature
+The system SHALL do the thing.
+
+#### Scenario: works
+- **WHEN** x
+- **THEN** y`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainContent);
+
+      // Valid MODIFIED delta (passes spot 1 delta validation).
+      const deltaContent = `# Rebuilt Capability - Changes
+
+## MODIFIED Requirements
+
+### Requirement: Existing Feature
+The system SHALL do the thing differently.
+
+#### Scenario: works
+- **WHEN** x
+- **THEN** z`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaContent);
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1\n');
+
+      const specContentSpy = vi
+        .spyOn(Validator.prototype, 'validateSpecContent')
+        .mockResolvedValue({
+          valid: false,
+          issues: [
+            { level: 'ERROR', path: 'requirements[0]', message: 'mocked rebuilt-spec failure' },
+          ],
+          summary: { errors: 1, warnings: 0, info: 0 },
+        });
+
+      try {
+        await archiveCommand.execute(changeName, { yes: true });
+
+        expect(process.exitCode).toBe(1);
+        // buildUpdatedSpec ran for real and the spy made its output "invalid"
+        expect(specContentSpy).toHaveBeenCalled();
+        expect(console.log).toHaveBeenCalledWith(
+          expect.stringContaining('Validation errors in rebuilt spec for rebuilt-capability')
+        );
+        expect(console.log).toHaveBeenCalledWith('Aborted. No files were changed.');
+
+        // Main spec must be unchanged (no writes happened)
+        const still = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+        expect(still).toBe(mainContent);
+
+        // Change must NOT have been archived
+        const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+        const archives = await fs.readdir(archiveDir);
+        expect(archives.some(a => a.includes(changeName))).toBe(false);
+      } finally {
+        specContentSpy.mockRestore();
+      }
+    });
+
     it('leaves exit code 0 on successful archive (no leak from prior test)', async () => {
       const changeName = 'exit-ok';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
