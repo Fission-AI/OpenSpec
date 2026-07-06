@@ -205,7 +205,7 @@ async function collectMatchingChanges(
     const name = toName(ref);
     if (name === null) continue;
 
-    const progress = await getTaskProgressForChange(changesDir, entry.name);
+    const progress = await getTaskProgressForChange(changesDir, entry.name, root);
     const status: InitiativeChangeStatus = {
       id: entry.name,
       ...(store ? { store } : {}),
