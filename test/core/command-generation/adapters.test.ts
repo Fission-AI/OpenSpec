@@ -19,6 +19,7 @@ import { githubCopilotAdapter } from '../../../src/core/command-generation/adapt
 import { iflowAdapter } from '../../../src/core/command-generation/adapters/iflow.js';
 import { kilocodeAdapter } from '../../../src/core/command-generation/adapters/kilocode.js';
 import { opencodeAdapter } from '../../../src/core/command-generation/adapters/opencode.js';
+import { ompAdapter } from '../../../src/core/command-generation/adapters/omp.js';
 import { piAdapter } from '../../../src/core/command-generation/adapters/pi.js';
 import { qoderAdapter } from '../../../src/core/command-generation/adapters/qoder.js';
 import { qwenAdapter } from '../../../src/core/command-generation/adapters/qwen.js';
@@ -587,6 +588,79 @@ describe('command-generation/adapters', () => {
       expect(output).toContain('prompt = """');
       expect(output).toContain('This is the command body.');
       expect(output).toContain('"""');
+    });
+  });
+
+  describe('ompAdapter', () => {
+    it('should have correct toolId', () => {
+      expect(ompAdapter.toolId).toBe('omp');
+    });
+
+    it('should generate correct file path', () => {
+      const filePath = ompAdapter.getFilePath('explore');
+      expect(filePath).toBe(path.join('.omp', 'commands', 'opsx-explore.md'));
+    });
+
+    it('should generate correct file paths for different commands', () => {
+      expect(ompAdapter.getFilePath('new')).toBe(path.join('.omp', 'commands', 'opsx-new.md'));
+      expect(ompAdapter.getFilePath('bulk-archive')).toBe(path.join('.omp', 'commands', 'opsx-bulk-archive.md'));
+    });
+
+    it('should format file with description frontmatter', () => {
+      const output = ompAdapter.formatFile(sampleContent);
+      expect(output).toContain('---\n');
+      expect(output).toContain('description: Enter explore mode for thinking');
+      expect(output).toContain('---\n\n');
+      expect(output).toContain('This is the command body.');
+    });
+
+    it('should transform command references from colon to hyphen format', () => {
+      const contentWithRefs: CommandContent = {
+        ...sampleContent,
+        body: 'Run /opsx:apply to implement. Then /opsx:archive when done.',
+      };
+
+      const output = ompAdapter.formatFile(contentWithRefs);
+      expect(output).toContain('/opsx-apply');
+      expect(output).toContain('/opsx-archive');
+      expect(output).not.toContain('/opsx:apply');
+    });
+
+    it('should inject template arguments into the input section', () => {
+      const contentWithInput: CommandContent = {
+        ...sampleContent,
+        body: '**Input**: The argument after `/opsx:explore` is the topic.\n\n**Steps**\n1. Think.',
+      };
+
+      const output = ompAdapter.formatFile(contentWithInput);
+      expect(output).toContain('**Provided arguments**: $@');
+    });
+
+    it('should escape YAML special characters in description', () => {
+      const contentWithSpecialChars: CommandContent = {
+        ...sampleContent,
+        description: 'Fix: regression in "auth" feature',
+      };
+      const output = ompAdapter.formatFile(contentWithSpecialChars);
+      expect(output).toContain('description: "Fix: regression in \\"auth\\" feature"');
+    });
+
+    it('should escape newlines in description', () => {
+      const contentWithNewline: CommandContent = {
+        ...sampleContent,
+        description: 'Line 1\nLine 2',
+      };
+      const output = ompAdapter.formatFile(contentWithNewline);
+      expect(output).toContain('description: "Line 1\\nLine 2"');
+    });
+
+    it('should handle empty description', () => {
+      const contentEmptyDesc: CommandContent = {
+        ...sampleContent,
+        description: '',
+      };
+      const output = ompAdapter.formatFile(contentEmptyDesc);
+      expect(output).toContain('description: \n');
     });
   });
 

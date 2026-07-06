@@ -25,6 +25,7 @@ import { iflowAdapter } from './adapters/iflow.js';
 import { junieAdapter } from './adapters/junie.js';
 import { kilocodeAdapter } from './adapters/kilocode.js';
 import { kiroAdapter } from './adapters/kiro.js';
+import { ompAdapter } from './adapters/omp.js';
 import { opencodeAdapter } from './adapters/opencode.js';
 import { piAdapter } from './adapters/pi.js';
 import { qoderAdapter } from './adapters/qoder.js';
@@ -60,6 +61,7 @@ export class CommandAdapterRegistry {
     CommandAdapterRegistry.register(junieAdapter);
     CommandAdapterRegistry.register(kilocodeAdapter);
     CommandAdapterRegistry.register(kiroAdapter);
+    CommandAdapterRegistry.register(ompAdapter);
     CommandAdapterRegistry.register(opencodeAdapter);
     CommandAdapterRegistry.register(piAdapter);
     CommandAdapterRegistry.register(qoderAdapter);
