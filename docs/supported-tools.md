@@ -16,7 +16,7 @@ By default, OpenSpec uses the `core` profile, which includes:
 - `sync`
 - `archive`
 
-You can enable expanded workflows (`new`, `continue`, `ff`, `verify`, `bulk-archive`, `onboard`) via `openspec config profile`, then run `openspec update`.
+You can enable expanded workflows (`new`, `continue`, `ff`, `verify`, `review`, `bulk-archive`, `onboard`) via `openspec config profile`, then run `openspec update`.
 
 ## Tool Directory Reference
 
@@ -83,7 +83,7 @@ OpenSpec installs workflow artifacts based on selected workflows:
 
 - **Core profile (default):** `propose`, `explore`, `apply`, `sync`, `archive`
 - **Custom selection:** any subset of all workflow IDs:
-  `propose`, `explore`, `new`, `continue`, `apply`, `ff`, `sync`, `archive`, `bulk-archive`, `verify`, `onboard`
+  `propose`, `explore`, `new`, `continue`, `apply`, `ff`, `sync`, `archive`, `bulk-archive`, `verify`, `review`, `onboard`
 
 In other words, skill/command counts are profile-dependent and delivery-dependent, not fixed.
 
@@ -101,6 +101,7 @@ When selected by profile/workflow config, OpenSpec generates these skills:
 - `openspec-archive-change`
 - `openspec-bulk-archive-change`
 - `openspec-verify-change`
+- `openspec-review-impl-vs-plan`
 - `openspec-onboard`
 
 See [Commands](commands.md) for command behavior and [CLI](cli.md) for `init`/`update` options.

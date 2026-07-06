@@ -54,7 +54,7 @@ Terms are grouped by topic, then alphabetized within each group.
 
 **Command file.** A per-tool slash command file (`.../commands/opsx-*`). The older delivery mechanism, still supported alongside skills. You rarely touch these directly.
 
-**Profile.** The set of slash commands installed in your project. **Core** (the default) is `propose`, `explore`, `apply`, `sync`, `archive`. The **expanded** set adds `new`, `continue`, `ff`, `verify`, `bulk-archive`, `onboard`. Change it with `openspec config profile`.
+**Profile.** The set of slash commands installed in your project. **Core** (the default) is `propose`, `explore`, `apply`, `sync`, `archive`. The **expanded** set adds `new`, `continue`, `ff`, `verify`, `review`, `bulk-archive`, `onboard`. Change it with `openspec config profile`.
 
 **Delivery.** Whether OpenSpec installs skills, command files, or both for your tools. Configured globally and applied with `openspec update`.
 

@@ -74,7 +74,7 @@ Explore creates no artifacts and writes no code. It's a free, no-stakes conversa
 
 ### Expanded/Full Workflow (custom selection)
 
-If you want explicit scaffold-and-build commands (`/opsx:new`, `/opsx:continue`, `/opsx:ff`, `/opsx:verify`, `/opsx:bulk-archive`, `/opsx:onboard`), enable them with:
+If you want explicit scaffold-and-build commands (`/opsx:new`, `/opsx:continue`, `/opsx:ff`, `/opsx:verify`, `/opsx:review`, `/opsx:bulk-archive`, `/opsx:onboard`), enable them with:
 
 ```bash
 openspec config profile
@@ -303,6 +303,18 @@ AI:  Verifying add-auth...
 
 Verify won't block archive, but it surfaces issues you might want to address first.
 
+#### Review: Check the Implementation Against the Plan
+
+`/opsx:review` is a read-only, code-review style check. It reads the change artifacts, extracts requirements, tasks, scenarios, and design decisions, then inspects the actual implementation path:
+
+- enforcing code
+- default runtime entry points
+- producer/consumer wiring
+- tests and smoke checks
+- config, examples, and docs
+
+Use it when "tasks are checked" is not enough and you need evidence that the shipped behavior matches the approved plan. It reports blockers first and does not edit files.
+
 #### Archive: Finalize the Change
 
 `/opsx:archive` completes the change and moves it to the archive:
@@ -468,6 +480,7 @@ For full command details and options, see [Commands](commands.md).
 | `/opsx:ff` | Create all planning artifacts | Expanded mode, clear scope |
 | `/opsx:apply` | Implement tasks | Ready to write code |
 | `/opsx:verify` | Validate implementation | Expanded mode, before archiving |
+| `/opsx:review` | Review implementation against plan | Expanded mode, before or after verify |
 | `/opsx:sync` | Merge delta specs | Expanded mode, optional |
 | `/opsx:archive` | Complete the change | All work finished |
 | `/opsx:bulk-archive` | Archive multiple changes | Expanded mode, parallel work |

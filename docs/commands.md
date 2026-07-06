@@ -24,6 +24,7 @@ For workflow patterns and when to use each command, see [Workflows](workflows.md
 | `/opsx:continue` | Create the next artifact based on dependencies |
 | `/opsx:ff` | Fast-forward: create all planning artifacts at once |
 | `/opsx:verify` | Validate implementation matches artifacts |
+| `/opsx:review` | Read-only review of implementation against the change plan |
 | `/opsx:bulk-archive` | Archive multiple changes at once |
 | `/opsx:onboard` | Guided tutorial through the complete workflow |
 
@@ -382,6 +383,31 @@ AI:  Verifying add-dark-mode...
 - Warnings don't block archive but indicate potential issues
 - Good for reviewing AI's work before committing
 - Can reveal drift between artifacts and implementation
+
+---
+
+### `/opsx:review`
+
+Run a read-only implementation review against the OpenSpec change plan. This is stricter and more evidence-focused than `/opsx:verify`: it checks whether the default runtime path, producer/consumer wiring, tests, config, examples, and docs actually support the requirements and tasks.
+
+**Syntax:**
+```
+/opsx:review [change-name]
+```
+
+**Arguments:**
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `change-name` | No | Which change to review (inferred from context if not provided) |
+
+**What it does:**
+- Reads proposal, tasks, design, and delta specs
+- Builds a requirement/task/design-to-code review matrix
+- Inspects implementation, tests, runtime wiring, config, and docs
+- Reports BLOCKER, WARNING, and NOTE findings
+- Does not edit code or artifacts
+
+Use `/opsx:review` when you want a code-review style answer to "does the implementation really match the approved plan?" Use `/opsx:verify` when you want the lighter archive-readiness check.
 
 ---
 
