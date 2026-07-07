@@ -3,7 +3,7 @@
 ### Requirement: Oh My Pi command file generation
 OpenSpec SHALL generate command files for Oh My Pi in `.omp/commands/opsx-<id>.md`, one per active workflow command.
 
-Each file SHALL include a YAML frontmatter block with a `description` field. The command body SHALL have `/opsx:` references transformed to `/opsx-` to match Oh My Pi's filename-based slash command naming (e.g., `opsx-propose.md` → `/opsx-propose`). `**Provided arguments**: $@` SHALL be injected on the line immediately following any `**Input**:` heading, unless `$@` or `$ARGUMENTS` is already present in the body.
+Each file SHALL include a YAML frontmatter block with a `description` field. The command body SHALL transform `/opsx:` references to `/opsx-` to match Oh My Pi's filename-based slash command naming (e.g., `opsx-propose.md` → `/opsx-propose`). It SHALL inject `**Provided arguments**: $@` on the line immediately following any `**Input**:` heading, unless `$@` or `$ARGUMENTS` is already present in the body.
 
 #### Scenario: Command file path follows OMP convention
 - **WHEN** OpenSpec generates a command file for Oh My Pi for workflow command `propose`
@@ -12,7 +12,7 @@ Each file SHALL include a YAML frontmatter block with a `description` field. The
 #### Scenario: Command file format includes description frontmatter
 - **WHEN** OpenSpec writes a command file for Oh My Pi
 - **THEN** the file begins with a YAML frontmatter block containing only a `description` field
-- **AND** the body follows after the closing `---`
+- **AND** the body follows the closing `---`
 
 #### Scenario: Command body uses hyphen-based references
 - **WHEN** OpenSpec writes a command file for Oh My Pi whose body contains `/opsx:apply` or similar colon-style references

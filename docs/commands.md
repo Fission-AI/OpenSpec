@@ -323,11 +323,12 @@ AI:  Implementing add-dark-mode...
 Revise a change's existing planning artifacts and keep them coherent with one another. Planning artifacts only - it never edits code.
 
 **Syntax:**
-```
+```text
 /opsx:update [change-name]
 ```
 
 **Arguments:**
+
 | Argument | Required | Description |
 |----------|----------|-------------|
 | `change-name` | No | Which change to update (inferred from context if not provided) |
@@ -340,7 +341,7 @@ Revise a change's existing planning artifacts and keep them coherent with one an
 - Ends by recommending the next step: `/opsx:continue` (artifacts missing), `/opsx:apply` (carry a revised plan into code), or `/opsx:archive` (all done)
 
 **Example:**
-```
+```text
 You: /opsx:update add-dark-mode - we're storing the theme in a cookie now, not localStorage
 
 AI:  Reading add-dark-mode artifacts...
