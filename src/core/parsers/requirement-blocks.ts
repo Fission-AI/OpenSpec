@@ -1,3 +1,5 @@
+import { buildCodeFenceMask } from './requirement-text.js';
+
 export interface RequirementBlock {
   headerLine: string; // e.g., '### Requirement: Something'
   name: string; // e.g., 'Something'
@@ -16,6 +18,7 @@ export function normalizeRequirementName(name: string): string {
   return name.trim();
 }
 
+/** The canonical requirement header the delta reader recognizes. */
 const REQUIREMENT_HEADER_REGEX = /^###\s*Requirement:\s*(.+)\s*$/i;
 
 /**
@@ -96,11 +99,23 @@ export function extractRequirementsSection(content: string): RequirementsSection
   };
 }
 
+/**
+ * A level-3 header inside `## ADDED`/`## MODIFIED Requirements` that is not a
+ * canonical `### Requirement:` header, recorded at the moment the delta reader
+ * skips over it. Surfaced as an INFO note by `validate <change>` (#498).
+ */
+export interface SkippedHeader {
+  header: string; // header text without the leading ###
+  section: string; // the ## section title as written
+  line: number; // 1-based line number in the delta file
+}
+
 export interface DeltaPlan {
   added: RequirementBlock[];
   modified: RequirementBlock[];
   removed: string[]; // requirement names
   renamed: Array<{ from: string; to: string }>;
+  skippedHeaders: SkippedHeader[]; // non-canonical ### headers the reader skipped
   sectionPresence: {
     added: boolean;
     modified: boolean;
@@ -123,15 +138,26 @@ export function parseDeltaSpec(content: string): DeltaPlan {
   const modifiedLookup = getSectionCaseInsensitive(sections, 'MODIFIED Requirements');
   const removedLookup = getSectionCaseInsensitive(sections, 'REMOVED Requirements');
   const renamedLookup = getSectionCaseInsensitive(sections, 'RENAMED Requirements');
-  const added = parseRequirementBlocksFromSection(addedLookup.body);
-  const modified = parseRequirementBlocksFromSection(modifiedLookup.body);
+  const skippedHeaders: SkippedHeader[] = [];
+  const added = parseRequirementBlocksFromSection(addedLookup.body, {
+    section: addedLookup.title,
+    bodyStartLine: addedLookup.bodyStartLine,
+    sink: skippedHeaders,
+  });
+  const modified = parseRequirementBlocksFromSection(modifiedLookup.body, {
+    section: modifiedLookup.title,
+    bodyStartLine: modifiedLookup.bodyStartLine,
+    sink: skippedHeaders,
+  });
   const removedNames = parseRemovedNames(removedLookup.body);
   const renamedPairs = parseRenamedPairs(renamedLookup.body);
+  skippedHeaders.sort((a, b) => a.line - b.line);
   return {
     added,
     modified,
     removed: removedNames,
     renamed: renamedPairs,
+    skippedHeaders,
     sectionPresence: {
       added: addedLookup.found,
       modified: modifiedLookup.found,
@@ -141,9 +167,9 @@ export function parseDeltaSpec(content: string): DeltaPlan {
   };
 }
 
-function splitTopLevelSections(content: string): Record<string, string> {
+function splitTopLevelSections(content: string): Record<string, { body: string; bodyStartLine: number }> {
   const lines = content.split('\n');
-  const result: Record<string, string> = {};
+  const result: Record<string, { body: string; bodyStartLine: number }> = {};
   const indices: Array<{ title: string; index: number; level: number }> = [];
   for (let i = 0; i < lines.length; i++) {
     const m = lines[i].match(/^(##)\s+(.+)$/);
@@ -156,27 +182,53 @@ function splitTopLevelSections(content: string): Record<string, string> {
     const current = indices[i];
     const next = indices[i + 1];
     const body = lines.slice(current.index + 1, next ? next.index : lines.length).join('\n');
-    result[current.title] = body;
+    // First body line, 1-based: the header is at 0-based current.index.
+    result[current.title] = { body, bodyStartLine: current.index + 2 };
   }
   return result;
 }
 
-function getSectionCaseInsensitive(sections: Record<string, string>, desired: string): { body: string; found: boolean } {
+function getSectionCaseInsensitive(
+  sections: Record<string, { body: string; bodyStartLine: number }>,
+  desired: string
+): { title: string; body: string; bodyStartLine: number; found: boolean } {
   const target = desired.toLowerCase();
-  for (const [title, body] of Object.entries(sections)) {
-    if (title.toLowerCase() === target) return { body, found: true };
+  for (const [title, { body, bodyStartLine }] of Object.entries(sections)) {
+    if (title.toLowerCase() === target) return { title, body, bodyStartLine, found: true };
   }
-  return { body: '', found: false };
+  return { title: desired, body: '', bodyStartLine: 0, found: false };
 }
 
-function parseRequirementBlocksFromSection(sectionBody: string): RequirementBlock[] {
+function parseRequirementBlocksFromSection(
+  sectionBody: string,
+  skipped?: { section: string; bodyStartLine: number; sink: SkippedHeader[] }
+): RequirementBlock[] {
   if (!sectionBody) return [];
   const lines = normalizeLineEndings(sectionBody).split('\n');
+  // Record the non-canonical level-3 headers this reader skips, at the moment
+  // it skips them, so the INFO note describes the reader's real boundaries.
+  // Fence-masked lines are excluded: the body reader treats them as fenced
+  // content, not as headers.
+  const fenceMask = skipped ? buildCodeFenceMask(lines) : undefined;
+  const recordIfSkippedHeader = (index: number) => {
+    if (!skipped || fenceMask![index]) return;
+    const h3 = lines[index].match(/^###\s+(.+?)\s*$/);
+    if (h3 && !REQUIREMENT_HEADER_REGEX.test(lines[index])) {
+      skipped.sink.push({
+        header: h3[1].trim(),
+        section: skipped.section,
+        line: skipped.bodyStartLine + index,
+      });
+    }
+  };
   const blocks: RequirementBlock[] = [];
   let i = 0;
   while (i < lines.length) {
     // Seek next requirement header
-    while (i < lines.length && !REQUIREMENT_HEADER_REGEX.test(lines[i])) i++;
+    while (i < lines.length && !REQUIREMENT_HEADER_REGEX.test(lines[i])) {
+      recordIfSkippedHeader(i);
+      i++;
+    }
     if (i >= lines.length) break;
     const headerLine = lines[i];
     const m = headerLine.match(REQUIREMENT_HEADER_REGEX);
@@ -185,6 +237,7 @@ function parseRequirementBlocksFromSection(sectionBody: string): RequirementBloc
     const buf: string[] = [headerLine];
     i++;
     while (i < lines.length && !REQUIREMENT_HEADER_REGEX.test(lines[i]) && !/^##\s+/.test(lines[i])) {
+      recordIfSkippedHeader(i);
       buf.push(lines[i]);
       i++;
     }
