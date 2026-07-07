@@ -55,14 +55,19 @@ describe('available-tools', () => {
     });
 
     it('should only return tools that have a skillsDir property', async () => {
-      // .agents value has no skillsDir in AI_TOOLS config
-      // Create directories for both a valid and the agents case
       await fs.mkdir(path.join(testDir, '.claude'), { recursive: true });
 
       const tools = getAvailableTools(testDir);
       const toolValues = tools.map((t) => t.value);
       expect(toolValues).toContain('claude');
-      expect(toolValues).not.toContain('agents');
+    });
+
+    it('should detect the shared agents directory', async () => {
+      await fs.mkdir(path.join(testDir, '.agents'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('agents');
     });
 
     it('should return full AIToolOption objects', async () => {

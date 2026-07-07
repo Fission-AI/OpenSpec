@@ -170,6 +170,18 @@ describe('InitCommand', () => {
       expect(await fileExists(skillFile)).toBe(true);
     });
 
+    it('should create skills in shared .agents skills directory', async () => {
+      const initCommand = new InitCommand({ tools: 'agents', force: true });
+
+      await initCommand.execute(testDir);
+
+      const skillFile = path.join(testDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
+
+      const commandsDir = path.join(testDir, '.agents', 'commands');
+      expect(await directoryExists(commandsDir)).toBe(false);
+    });
+
     it('should support Kimi CLI as an adapterless skills-only tool', async () => {
       saveGlobalConfig({
         featureFlags: {},
