@@ -620,6 +620,13 @@ Create a change directory and optional checked-in metadata in the resolved OpenS
 openspec new change <name> [options]
 ```
 
+Change names must use lowercase kebab-case. They start with a lowercase letter,
+then contain lowercase letters, numbers, and single hyphens. They cannot start
+with a number, contain spaces, underscores, uppercase letters, consecutive
+hyphens, or leading/trailing hyphens. When including an external ticket ID,
+prefix it with a word, for example `ticket-123-add-notifications` instead of
+`123-add-notifications`.
+
 **Options:**
 
 | Option | Description |
