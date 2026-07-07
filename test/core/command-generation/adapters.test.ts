@@ -24,6 +24,7 @@ import { piAdapter } from '../../../src/core/command-generation/adapters/pi.js';
 import { qoderAdapter } from '../../../src/core/command-generation/adapters/qoder.js';
 import { qwenAdapter } from '../../../src/core/command-generation/adapters/qwen.js';
 import { roocodeAdapter } from '../../../src/core/command-generation/adapters/roocode.js';
+import { traeAdapter } from '../../../src/core/command-generation/adapters/trae.js';
 import { windsurfAdapter } from '../../../src/core/command-generation/adapters/windsurf.js';
 import type { CommandContent } from '../../../src/core/command-generation/types.js';
 
@@ -765,6 +766,77 @@ describe('command-generation/adapters', () => {
     });
   });
 
+  describe('traeAdapter', () => {
+    it('should have correct toolId', () => {
+      expect(traeAdapter.toolId).toBe('trae');
+    });
+
+    it('should generate correct file path', () => {
+      const filePath = traeAdapter.getFilePath('explore');
+      expect(filePath).toBe(path.join('.trae', 'commands', 'opsx-explore.md'));
+    });
+
+    it('should generate correct file paths for different commands', () => {
+      expect(traeAdapter.getFilePath('new')).toBe(path.join('.trae', 'commands', 'opsx-new.md'));
+      expect(traeAdapter.getFilePath('bulk-archive')).toBe(path.join('.trae', 'commands', 'opsx-bulk-archive.md'));
+    });
+
+    it('should format file with name and description frontmatter', () => {
+      const output = traeAdapter.formatFile(sampleContent);
+
+      expect(output).toContain('---\n');
+      expect(output).toContain('name: OpenSpec Explore');
+      expect(output).toContain('description: Enter explore mode for thinking');
+      expect(output).toContain('---\n\n');
+      expect(output).toContain('This is the command body.\n\nWith multiple lines.');
+    });
+
+    it('should escape YAML special characters in name', () => {
+      const contentWithSpecialChars: CommandContent = {
+        ...sampleContent,
+        name: 'Test: Command',
+      };
+      const output = traeAdapter.formatFile(contentWithSpecialChars);
+      expect(output).toContain('name: "Test: Command"');
+    });
+
+    it('should escape YAML special characters in description', () => {
+      const contentWithSpecialChars: CommandContent = {
+        ...sampleContent,
+        description: 'Fix: regression in "auth" feature',
+      };
+      const output = traeAdapter.formatFile(contentWithSpecialChars);
+      expect(output).toContain('description: "Fix: regression in \\"auth\\" feature"');
+    });
+
+    it('should escape newlines in description', () => {
+      const contentWithNewline: CommandContent = {
+        ...sampleContent,
+        description: 'Line 1\nLine 2',
+      };
+      const output = traeAdapter.formatFile(contentWithNewline);
+      expect(output).toContain('description: "Line 1\\nLine 2"');
+    });
+
+    it('should handle empty description', () => {
+      const contentEmptyDesc: CommandContent = {
+        ...sampleContent,
+        description: '',
+      };
+      const output = traeAdapter.formatFile(contentEmptyDesc);
+      expect(output).toContain('description: ""');
+    });
+
+    it('should escape carriage returns in description', () => {
+      const contentWithCR: CommandContent = {
+        ...sampleContent,
+        description: 'Line 1\r\nLine 2',
+      };
+      const output = traeAdapter.formatFile(contentWithCR);
+      expect(output).toContain('description: "Line 1\\r\\nLine 2"');
+    });
+  });
+
   describe('cross-platform path handling', () => {
     it('Claude adapter uses path.join for paths', () => {
       // path.join handles platform-specific separators
@@ -790,7 +862,7 @@ describe('command-generation/adapters', () => {
         codexAdapter, codebuddyAdapter, continueAdapter, costrictAdapter,
         crushAdapter, factoryAdapter, geminiAdapter, githubCopilotAdapter,
         iflowAdapter, kilocodeAdapter, ohMyPiAdapter, opencodeAdapter, piAdapter, qoderAdapter,
-        qwenAdapter, roocodeAdapter
+        qwenAdapter, roocodeAdapter, traeAdapter
       ];
       for (const adapter of adapters) {
         const filePath = adapter.getFilePath('test');
