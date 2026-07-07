@@ -323,16 +323,19 @@ AI:  Implementing add-dark-mode...
 Revise a change's existing planning artifacts and keep them coherent with one another. Planning artifacts only - it never edits code.
 
 **Syntax:**
-```
+
+```text
 /opsx:update [change-name]
 ```
 
 **Arguments:**
+
 | Argument | Required | Description |
 |----------|----------|-------------|
 | `change-name` | No | Which change to update (inferred from context if not provided) |
 
 **What it does:**
+
 - Reads the change's artifacts via `openspec status --change <name> --json`
 - Applies your requested revision, or reviews the artifacts for contradictions if you didn't name one
 - Reconciles the other existing artifacts in any direction (a design edit may ripple back to the proposal)
@@ -340,7 +343,8 @@ Revise a change's existing planning artifacts and keep them coherent with one an
 - Ends by recommending the next step: `/opsx:continue` (artifacts missing), `/opsx:apply` (carry a revised plan into code), or `/opsx:archive` (all done)
 
 **Example:**
-```
+
+```text
 You: /opsx:update add-dark-mode - we're storing the theme in a cookie now, not localStorage
 
 AI:  Reading add-dark-mode artifacts...
@@ -356,6 +360,7 @@ AI:  Reading add-dark-mode artifacts...
 ```
 
 **Tips:**
+
 - It won't create missing artifacts - that's `/opsx:continue`
 - If the change was already implemented, follow up with `/opsx:apply` so the code matches the revised plan
 - If your revision changes the *intent* of the change, start fresh with a new change instead (see [When to Update vs. Start Fresh](opsx.md#when-to-update-vs-start-fresh))
@@ -666,7 +671,7 @@ Different AI tools use slightly different command syntax. Use the format that ma
 | Windsurf | `/opsx-propose`, `/opsx-apply` |
 | Copilot (IDE) | `/opsx-propose`, `/opsx-apply` |
 | Kimi CLI | Skill-based invocations such as `/skill:openspec-propose`, `/skill:openspec-apply-change` (no generated `opsx-*` command files) |
-| Trae | Skill-based invocations such as `/openspec-propose`, `/openspec-apply-change` (no generated `opsx-*` command files) |
+| Trae | `/opsx-propose`, `/opsx-apply` |
 
 The intent is the same across tools, but how commands are surfaced can differ by integration.
 
