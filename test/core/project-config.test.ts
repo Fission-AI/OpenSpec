@@ -257,9 +257,13 @@ rules:
 
         expect(config).toBeNull();
         expect(consoleWarnSpy).toHaveBeenCalledWith(
-          expect.stringContaining('Failed to parse openspec/config.yaml'),
-          expect.anything()
+          expect.stringContaining('could not parse')
         );
+        // The warning names the file and never dumps a stack trace.
+        const warned = consoleWarnSpy.mock.calls.at(-1)?.[0] as string;
+        expect(warned).toContain('config.yaml');
+        expect(warned).not.toContain('node_modules');
+        expect(warned.split('\n')).toHaveLength(1);
       });
 
       it('should warn when config is not a YAML object', () => {
@@ -283,6 +287,88 @@ rules:
         const config = readProjectConfig(tempDir);
 
         expect(config).toBeNull();
+      });
+    });
+
+    describe('references parsing', () => {
+      function writeConfig(body: string): void {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(path.join(configDir, 'config.yaml'), body);
+      }
+
+      it('keeps entries deduplicated and order-preserving, including invalid grammar', () => {
+        writeConfig(
+          'schema: spec-driven\nreferences:\n  - team-context\n  - team-context\n  - "BAD ID"\n  - other-context\n  - 7\n'
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        // Grammar validation is the index assembler's job; the parser
+        // keeps raw ids so bad ids surface as diagnostics.
+        expect(config?.references).toEqual([
+          { id: 'team-context' },
+          { id: 'BAD ID' },
+          { id: 'other-context' },
+        ]);
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Some 'references' entries are invalid")
+        );
+      });
+
+      it('ignores legacy targets declarations', () => {
+        writeConfig(
+          'schema: spec-driven\n' +
+            'references:\n  - team-context\n  - { id: team-context, remote: https://192.0.2.1/a.git }\n  - 7\n' +
+            'targets:\n  - api-server\n  - { id: api-server, remote: https://192.0.2.1/b.git }\n  - 7\n'
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config?.references).toEqual([
+          { id: 'team-context', remote: 'https://192.0.2.1/a.git' },
+        ]);
+        expect('targets' in (config ?? {})).toBe(false);
+        expect(consoleWarnSpy).not.toHaveBeenCalledWith(
+          expect.stringContaining("Some 'targets' entries are invalid")
+        );
+      });
+
+      it('normalizes map entries and fills remotes across duplicates (3.3)', () => {
+        writeConfig(
+          'schema: spec-driven\nreferences:\n' +
+            '  - team-context\n' +
+            '  - { id: team-context, remote: https://192.0.2.1/team.git }\n' +
+            '  - { id: team-context, remote: https://192.0.2.2/other.git }\n' +
+            '  - { id: upstream-context }\n' +
+            '  - { remote: https://192.0.2.3/no-id.git }\n' +
+            '  - { id: bad-remote-context, remote: 7 }\n'
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        // One entry per id, first position kept; the FIRST remote seen
+        // fills a missing one and is never overridden. A map without an
+        // id drops; a non-string remote drops while the id is kept.
+        expect(config?.references).toEqual([
+          { id: 'team-context', remote: 'https://192.0.2.1/team.git' },
+          { id: 'upstream-context' },
+          { id: 'bad-remote-context' },
+        ]);
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Some 'references' entries are invalid")
+        );
+      });
+
+      it('omits the field when absent or empty and warns on non-arrays', () => {
+        writeConfig('schema: spec-driven\n');
+        expect(readProjectConfig(tempDir)?.references).toBeUndefined();
+
+        writeConfig('schema: spec-driven\nreferences: not-an-array\n');
+        expect(readProjectConfig(tempDir)?.references).toBeUndefined();
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid 'references' field")
+        );
       });
     });
 
