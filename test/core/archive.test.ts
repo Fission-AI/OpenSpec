@@ -137,6 +137,41 @@ describe('ArchiveCommand', () => {
       await expect(fs.readdir(archiveDir)).resolves.toEqual([`2026-01-05-${changeName}`]);
     });
 
+    it('keeps an existing YYYY-MM-DD- prefix instead of stacking a new one (#1309)', async () => {
+      const changeName = '2026-07-04-voice-copilot-v1';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1');
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archives = await fs.readdir(archiveDir);
+
+      // Archived under its own name: no second date prefix, and the folder
+      // keeps sorting under the change's own day even when archived later.
+      expect(archives).toEqual([changeName]);
+      await expect(fs.access(changeDir)).rejects.toThrow();
+    });
+
+    it('still adds the date prefix when a name only starts with a partial date', async () => {
+      const changeName = '2026-07-feature';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1');
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archives = await fs.readdir(archiveDir);
+
+      // `2026-07-` is not a full YYYY-MM-DD- prefix, so the name is dated
+      // as usual. Asserted as a pattern rather than an exact date to avoid
+      // a UTC-midnight race between execute() and the expectation.
+      expect(archives.length).toBe(1);
+      expect(archives[0]).toMatch(new RegExp(`^\\d{4}-\\d{2}-\\d{2}-${changeName}$`));
+    });
+
     it('should warn about incomplete tasks', async () => {
       const changeName = 'incomplete-feature';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
