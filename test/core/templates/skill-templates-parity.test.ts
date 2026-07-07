@@ -23,8 +23,10 @@ import {
   getOpsxSyncCommandTemplate,
   getOpsxProposeCommandTemplate,
   getOpsxProposeSkillTemplate,
+  getOpsxUpdateCommandTemplate,
   getOpsxVerifyCommandTemplate,
   getSyncSpecsSkillTemplate,
+  getUpdateChangeSkillTemplate,
   getVerifyChangeSkillTemplate,
 } from '../../../src/core/templates/skill-templates.js';
 import {
@@ -58,6 +60,8 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getOpsxProposeSkillTemplate: '8dfb5e9c719d5ba547aff0d3953c076dca6b33d7223be98cbffc396b8f1e0048',
   getOpsxProposeCommandTemplate: '7cd569beb32d99cdabd0b49615a8245160a8e152b6ea67a99fc4dd71e3f39f50',
   getFeedbackSkillTemplate: 'd7d83c5f7fc2b92fe8f4588a5bf2d9cb315e4c73ec19bcd5ef28270906319a0d',
+  getUpdateChangeSkillTemplate: 'fe2e8edaf973d42dc7fc7dfd846105c4c3cfec0437606e582ec644985cd4e81d',
+  getOpsxUpdateCommandTemplate: 'e55ac5774203a7d9037d2d588889c97c53f3f930da49497cc79e865375920da7',
 };
 
 const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
@@ -72,6 +76,7 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-verify-change': '97d1eed5b900788706c28339e27c1d2d9c548626316253f43ebd00d8d52d02d6',
   'openspec-onboard': 'd136b6ab7134d6bceeca73bc2f6037624506587e8df99059f77fe88874256ed1',
   'openspec-propose': '5c350d80247722489374a49ec9853d5fda55a827f421fbb32b6b6a078fcb69ee',
+  'openspec-update-change': 'c755a35c44245326780a3df1342df15103ed6a9de7af864581844a10de4f554d',
 };
 
 // Intentionally excludes getFeedbackSkillTemplate: this list only models templates
@@ -88,6 +93,7 @@ const GENERATED_SKILL_FACTORIES: Array<[string, () => SkillTemplate]> = [
   ['openspec-verify-change', getVerifyChangeSkillTemplate],
   ['openspec-onboard', getOnboardSkillTemplate],
   ['openspec-propose', getOpsxProposeSkillTemplate],
+  ['openspec-update-change', getUpdateChangeSkillTemplate],
 ];
 
 function stableStringify(value: unknown): string {
@@ -136,6 +142,8 @@ describe('skill templates split parity', () => {
       getOpsxProposeSkillTemplate,
       getOpsxProposeCommandTemplate,
       getFeedbackSkillTemplate,
+      getUpdateChangeSkillTemplate,
+      getOpsxUpdateCommandTemplate,
     };
 
     const actualHashes = Object.fromEntries(
