@@ -30,7 +30,7 @@ ${STORE_SELECTION_GUIDANCE}
 
 1. **If no clear input provided, ask what they want to build**
 
-   Use the **AskUserQuestion tool** (open-ended, no preset options) to ask:
+   Ask the user (open-ended, no preset options):
    > "What change do you want to work on? Describe what you want to build or fix."
 
    From their description, derive a kebab-case name (e.g., "add user authentication" → \`add-user-auth\`).
@@ -43,48 +43,31 @@ ${STORE_SELECTION_GUIDANCE}
    \`\`\`
    This creates a scaffolded change in the planning home resolved by the CLI with \`.openspec.yaml\`.
 
-3. **Get the artifact build order**
+3. **Drive the artifact loop with \`next-artifact\`**
+
+   Keep a running checklist of the artifacts so progress stays visible.
+
+   Repeat until \`{ "done": true }\`:
    \`\`\`bash
-   openspec status --change "<name>" --json
+   openspec agent next-artifact --change "<name>"
    \`\`\`
-   Parse the JSON to get:
-   - \`applyRequires\`: array of artifact IDs needed before implementation (e.g., \`["tasks"]\`)
-   - \`artifacts\`: list of all artifacts with their status and dependencies
-   - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context. Use these instead of assuming repo-local paths.
 
-4. **Create artifacts in sequence until apply-ready**
+   Each non-done response returns the JSON instructions payload for exactly one ready artifact:
+   - \`artifactId\`, \`resolvedOutputPath\`: which file to write and where
+   - \`template\`: the structure to use for your output (fill in its sections)
+   - \`instruction\`: schema-specific guidance for this artifact type
+   - \`context\`, \`rules\`: constraints for YOU — do NOT copy these into the file
+   - \`dependencies\`: completed artifacts to read for context before writing
 
-   Use the **TodoWrite tool** to track progress through the artifacts.
+   For each response:
+   1. Read any \`dependencies\` files for context
+   2. Write the artifact file (use \`template\` as the structure, write to \`resolvedOutputPath\`)
+   3. Show brief progress: "Created <artifact-id>"
+   4. Re-invoke \`openspec agent next-artifact --change "<name>"\` and continue
 
-   Loop through artifacts in dependency order (artifacts with no pending dependencies first):
+   If an artifact requires user input (context unclear), ask the user to clarify, then continue.
 
-   a. **For each artifact that is \`ready\` (dependencies satisfied)**:
-      - Get instructions:
-        \`\`\`bash
-        openspec instructions <artifact-id> --change "<name>" --json
-        \`\`\`
-      - The instructions JSON includes:
-        - \`context\`: Project background (constraints for you - do NOT include in output)
-        - \`rules\`: Artifact-specific rules (constraints for you - do NOT include in output)
-        - \`template\`: The structure to use for your output file
-        - \`instruction\`: Schema-specific guidance for this artifact type
-        - \`resolvedOutputPath\`: Resolved path or pattern to write the artifact
-        - \`dependencies\`: Completed artifacts to read for context
-      - Read any completed dependency files for context
-      - Create the artifact file using \`template\` as the structure and write it to \`resolvedOutputPath\`
-      - Apply \`context\` and \`rules\` as constraints - but do NOT copy them into the file
-      - Show brief progress: "Created <artifact-id>"
-
-   b. **Continue until all \`applyRequires\` artifacts are complete**
-      - After creating each artifact, re-run \`openspec status --change "<name>" --json\`
-      - Check if every artifact ID in \`applyRequires\` has \`status: "done"\` in the artifacts array
-      - Stop when all \`applyRequires\` artifacts are done
-
-   c. **If an artifact requires user input** (unclear context):
-      - Use **AskUserQuestion tool** to clarify
-      - Then continue with creation
-
-5. **Show final status**
+4. **Show final status**
    \`\`\`bash
    openspec status --change "<name>"
    \`\`\`
@@ -99,7 +82,7 @@ After completing all artifacts, summarize:
 
 **Artifact Creation Guidelines**
 
-- Follow the \`instruction\` field from \`openspec instructions\` for each artifact type
+- Follow the \`instruction\` field from each \`openspec agent next-artifact\` response for the matching artifact type
 - The schema defines what each artifact should contain - follow it
 - Read dependency artifacts for context before creating new ones
 - Use \`template\` as the structure for your output file - fill in its sections
@@ -144,7 +127,7 @@ ${STORE_SELECTION_GUIDANCE}
 
 1. **If no input provided, ask what they want to build**
 
-   Use the **AskUserQuestion tool** (open-ended, no preset options) to ask:
+   Ask the user (open-ended, no preset options):
    > "What change do you want to work on? Describe what you want to build or fix."
 
    From their description, derive a kebab-case name (e.g., "add user authentication" → \`add-user-auth\`).
@@ -157,48 +140,31 @@ ${STORE_SELECTION_GUIDANCE}
    \`\`\`
    This creates a scaffolded change in the planning home resolved by the CLI with \`.openspec.yaml\`.
 
-3. **Get the artifact build order**
+3. **Drive the artifact loop with \`next-artifact\`**
+
+   Keep a running checklist of the artifacts so progress stays visible.
+
+   Repeat until \`{ "done": true }\`:
    \`\`\`bash
-   openspec status --change "<name>" --json
+   openspec agent next-artifact --change "<name>"
    \`\`\`
-   Parse the JSON to get:
-   - \`applyRequires\`: array of artifact IDs needed before implementation (e.g., \`["tasks"]\`)
-   - \`artifacts\`: list of all artifacts with their status and dependencies
-   - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context. Use these instead of assuming repo-local paths.
 
-4. **Create artifacts in sequence until apply-ready**
+   Each non-done response returns the JSON instructions payload for exactly one ready artifact:
+   - \`artifactId\`, \`resolvedOutputPath\`: which file to write and where
+   - \`template\`: the structure to use for your output (fill in its sections)
+   - \`instruction\`: schema-specific guidance for this artifact type
+   - \`context\`, \`rules\`: constraints for YOU — do NOT copy these into the file
+   - \`dependencies\`: completed artifacts to read for context before writing
 
-   Use the **TodoWrite tool** to track progress through the artifacts.
+   For each response:
+   1. Read any \`dependencies\` files for context
+   2. Write the artifact file (use \`template\` as the structure, write to \`resolvedOutputPath\`)
+   3. Show brief progress: "Created <artifact-id>"
+   4. Re-invoke \`openspec agent next-artifact --change "<name>"\` and continue
 
-   Loop through artifacts in dependency order (artifacts with no pending dependencies first):
+   If an artifact requires user input (context unclear), ask the user to clarify, then continue.
 
-   a. **For each artifact that is \`ready\` (dependencies satisfied)**:
-      - Get instructions:
-        \`\`\`bash
-        openspec instructions <artifact-id> --change "<name>" --json
-        \`\`\`
-      - The instructions JSON includes:
-        - \`context\`: Project background (constraints for you - do NOT include in output)
-        - \`rules\`: Artifact-specific rules (constraints for you - do NOT include in output)
-        - \`template\`: The structure to use for your output file
-        - \`instruction\`: Schema-specific guidance for this artifact type
-        - \`resolvedOutputPath\`: Resolved path or pattern to write the artifact
-        - \`dependencies\`: Completed artifacts to read for context
-      - Read any completed dependency files for context
-      - Create the artifact file using \`template\` as the structure and write it to \`resolvedOutputPath\`
-      - Apply \`context\` and \`rules\` as constraints - but do NOT copy them into the file
-      - Show brief progress: "Created <artifact-id>"
-
-   b. **Continue until all \`applyRequires\` artifacts are complete**
-      - After creating each artifact, re-run \`openspec status --change "<name>" --json\`
-      - Check if every artifact ID in \`applyRequires\` has \`status: "done"\` in the artifacts array
-      - Stop when all \`applyRequires\` artifacts are done
-
-   c. **If an artifact requires user input** (unclear context):
-      - Use **AskUserQuestion tool** to clarify
-      - Then continue with creation
-
-5. **Show final status**
+4. **Show final status**
    \`\`\`bash
    openspec status --change "<name>"
    \`\`\`
@@ -213,7 +179,7 @@ After completing all artifacts, summarize:
 
 **Artifact Creation Guidelines**
 
-- Follow the \`instruction\` field from \`openspec instructions\` for each artifact type
+- Follow the \`instruction\` field from each \`openspec agent next-artifact\` response for the matching artifact type
 - The schema defines what each artifact should contain - follow it
 - Read dependency artifacts for context before creating new ones
 - Use \`template\` as the structure for your output file - fill in its sections

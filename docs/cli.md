@@ -49,6 +49,9 @@ These commands support `--json` output for programmatic use by AI agents and scr
 | `openspec validate` | Check for issues | `--all --json` for bulk validation |
 | `openspec status` | See artifact progress | `--json` for structured status |
 | `openspec instructions` | Get next steps | `--json` for agent instructions |
+| `openspec agent resolve-change` | Locate active change | `--auto`/`--json` to drive skills without prompts |
+| `openspec agent next-artifact` | One-call propose loop | JSON by default; bundles status + instructions |
+| `openspec agent mark-task-done` | Tick off an applied task | Anchored, idempotent flipping by `numericId` |
 | `openspec templates` | Find template paths | `--json` for path resolution |
 | `openspec schemas` | List available schemas | `--json` for schema discovery |
 | `openspec store setup <id>` | Create and register a local store | `--json` with explicit inputs for structured setup output |
@@ -744,6 +747,171 @@ openspec instructions design --change add-dark-mode --json
 - Project context from config
 - Content from dependency artifacts
 - Per-artifact rules from config
+
+When invoked as `instructions apply --change <name> --json`, each task in the
+returned `tasks` array also carries a `numericId` field whenever the tracking
+file uses numbered tasks (e.g. `- [ ] 1.1 Wire foo` → `numericId: "1.1"`). The
+top-level payload also includes `nextPendingId`: the first unchecked task with a
+`numericId`, or `null` when no such task exists. Use this with
+`openspec agent mark-task-done` to drive an apply loop without re-parsing tasks.md.
+
+---
+
+### `openspec agent resolve-change`
+
+Agent helper: resolve which active change to operate on. Lists every active
+change, validates a supplied name, or auto-selects when exactly one change
+exists. Useful at the top of every workflow skill where the change identity is
+the first question to answer.
+
+```bash
+openspec agent resolve-change [name] [options]
+```
+
+**Arguments:**
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `name` | No | Validate that this change is active; echo it on success |
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--auto` | Succeed only when exactly one active change exists |
+| `--json` | Output as JSON |
+
+**Examples:**
+
+```bash
+# List every active change as JSON (default when no name and no --auto)
+openspec agent resolve-change
+
+# Validate a specific name (exit 2 on miss)
+openspec agent resolve-change add-dark-mode
+
+# Auto-pick the only active change
+openspec agent resolve-change --auto
+```
+
+**Exit codes:**
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success (name echoed, or JSON list emitted) |
+| 1 | `--auto` and no active changes exist |
+| 2 | Named change not active (or invalid name) |
+| 3 | `--auto` and multiple active changes exist |
+
+---
+
+### `openspec agent next-artifact`
+
+Agent helper: return the next ready artifact for a change, bundled with the
+full instructions payload for that artifact. Replaces the
+`status --json` + `instructions <artifact> --json` two-call dance with a single
+call. JSON is the default since agents are the primary consumers; pass
+`--no-json` for a human summary.
+
+```bash
+openspec agent next-artifact --change <name> [options]
+```
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--change <id>` | Change name (required) |
+| `--schema <name>` | Schema override (auto-detected from change config) |
+| `--no-json` | Print a human-readable summary instead of JSON |
+
+**Examples:**
+
+```bash
+# Get the next ready artifact and its instructions (JSON, default)
+openspec agent next-artifact --change add-dark-mode
+
+# Compact human summary
+openspec agent next-artifact --change add-dark-mode --no-json
+```
+
+**Output (JSON):**
+
+```json
+// When work remains:
+{
+  "done": false,
+  "artifactId": "design",
+  "resolvedOutputPath": "/abs/path/openspec/changes/add-dark-mode/design.md",
+  "template": "## Overview\n...",
+  "instruction": "Create the design document...",
+  "context": "...",          // optional
+  "rules": ["..."],          // optional
+  "dependencies": [          // completed artifacts to read first
+    { "id": "proposal", "path": "proposal.md", "done": true, "description": "..." }
+  ],
+  "unlocks": ["specs"]
+}
+
+// When every artifact is complete:
+{ "done": true }
+```
+
+**Exit codes:**
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success (next artifact emitted, or `{done: true}`) |
+| 1 | Missing `--change` or change not found |
+| 3 | No runnable artifact — every pending artifact is dependency-blocked |
+
+---
+
+### `openspec agent mark-task-done`
+
+Agent helper: flip a single checkbox in the change's tracking file (usually
+`tasks.md`) from `- [ ]` to `- [x]`. The target line is identified by the
+leading numeric task id (`1`, `1.1`, `2.3.4`) captured by
+`instructions apply --json`. Idempotent on already-checked lines; preserves
+CRLF vs LF line endings; anchored matching ensures `1.1` does not match
+`1.10`.
+
+```bash
+openspec agent mark-task-done <task-id> --change <name> [options]
+```
+
+**Arguments:**
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `task-id` | Yes | The hierarchical task id (matches `numericId` from `instructions apply`) |
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--change <id>` | Change name (required) |
+| `--schema <name>` | Schema override (auto-detected from change config) |
+| `--json` | Output as JSON |
+
+**Examples:**
+
+```bash
+# Mark task 1.1 done
+openspec agent mark-task-done --change add-dark-mode 1.1
+
+# Inside an apply loop, driven by nextPendingId from `instructions apply --json`
+TASK=$(openspec instructions apply --change add-dark-mode --json | jq -r .nextPendingId)
+openspec agent mark-task-done --change add-dark-mode "$TASK"
+```
+
+**Exit codes:**
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success (flipped, or already-done — both are no-op safe) |
+| 1 | Change could not be resolved — missing or unknown `--change` (matches `agent next-artifact`) |
+| 2 | Bad input — schema lacks `apply.tracks`, tracking file missing, or no matching unchecked task line |
 
 ---
 

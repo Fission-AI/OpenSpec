@@ -19,4 +19,13 @@ export type { SchemasOptions } from './schemas.js';
 export { newChangeCommand } from './new-change.js';
 export type { NewChangeOptions } from './new-change.js';
 
+export { resolveChangeCommand } from './resolve-change.js';
+export type { ResolveChangeOptions } from './resolve-change.js';
+
+export { nextArtifactCommand } from './next-artifact.js';
+export type { NextArtifactOptions } from './next-artifact.js';
+
+export { markTaskDoneCommand } from './mark-task-done.js';
+export type { MarkTaskDoneOptions } from './mark-task-done.js';
+
 export { DEFAULT_SCHEMA } from './shared.js';
