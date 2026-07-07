@@ -148,6 +148,7 @@ CLAUDE.md
 
 # Pnpm
 .pnpm-store/
+/package-lock.json
 result
 
 # OpenCode
