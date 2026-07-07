@@ -57,6 +57,7 @@ describe('command-generation/adapters', () => {
       expect(output).toContain('---\n');
       expect(output).toContain('name: OpenSpec Explore');
       expect(output).toContain('description: Enter explore mode for thinking');
+      expect(output).toContain('allowed-tools: Bash(openspec:*)');
       expect(output).toContain('category: Workflow');
       expect(output).toContain('tags: [workflow, explore, experimental]');
       expect(output).toContain('---\n\n');
