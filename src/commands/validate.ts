@@ -9,7 +9,8 @@ import {
   isStoreSelectedRoot,
 } from '../core/root-selection.js';
 import { isInteractive, resolveNoInteractive } from '../utils/interactive.js';
-import { getActiveChangeIds, getSpecIds } from '../utils/item-discovery.js';
+import { getSpecIds } from '../utils/item-discovery.js';
+import { getAvailableChanges } from './workflow/shared.js';
 import { nearestMatches } from '../utils/match.js';
 
 type ItemType = 'change' | 'spec';
@@ -77,6 +78,18 @@ export class ValidateCommand {
     return undefined;
   }
 
+  /**
+   * Resolve change IDs by directory existence within the resolved root — the
+   * same rule `openspec status`/`instructions` use (`getAvailableChanges`) —
+   * rather than requiring `proposal.md`. This lets `validate` resolve a
+   * scaffolded or still-authoring change that the sibling commands already
+   * resolve (#1182). Sorted to preserve the prior `getActiveChangeIds` ordering.
+   */
+  private async listChangeIds(root: ResolvedOpenSpecRoot): Promise<string[]> {
+    const ids = await getAvailableChanges(root.path, root.changesDir);
+    return ids.sort();
+  }
+
   private async runInteractiveSelector(root: ResolvedOpenSpecRoot, opts: { strict: boolean; json: boolean; concurrency?: string }): Promise<void> {
     const { select } = await import('@inquirer/prompts');
     const choice = await select({
@@ -94,7 +107,7 @@ export class ValidateCommand {
     if (choice === 'specs') return this.runBulkValidation(root, { changes: false, specs: true }, opts);
 
     // one
-    const [changes, specs] = await Promise.all([getActiveChangeIds(root.path), getSpecIds(root.path)]);
+    const [changes, specs] = await Promise.all([this.listChangeIds(root), getSpecIds(root.path)]);
     const items: { name: string; value: { type: ItemType; id: string } }[] = [];
     items.push(...changes.map(id => ({ name: `change/${id}`, value: { type: 'change' as const, id } })));
     items.push(...specs.map(id => ({ name: `spec/${id}`, value: { type: 'spec' as const, id } })));
@@ -117,7 +130,7 @@ export class ValidateCommand {
   }
 
   private async validateDirectItem(root: ResolvedOpenSpecRoot, itemName: string, opts: { typeOverride?: ItemType; strict: boolean; json: boolean }): Promise<void> {
-    const [changes, specs] = await Promise.all([getActiveChangeIds(root.path), getSpecIds(root.path)]);
+    const [changes, specs] = await Promise.all([this.listChangeIds(root), getSpecIds(root.path)]);
     const isChange = changes.includes(itemName);
     const isSpec = specs.includes(itemName);
 
@@ -235,7 +248,7 @@ export class ValidateCommand {
   private async runBulkValidation(root: ResolvedOpenSpecRoot, scope: { changes: boolean; specs: boolean }, opts: { strict: boolean; json: boolean; concurrency?: string; noInteractive?: boolean }): Promise<void> {
     const spinner = !opts.json && !opts.noInteractive ? ora('Validating...').start() : undefined;
     const [changeIds, specIds] = await Promise.all([
-      scope.changes ? getActiveChangeIds(root.path) : Promise.resolve<string[]>([]),
+      scope.changes ? this.listChangeIds(root) : Promise.resolve<string[]>([]),
       scope.specs ? getSpecIds(root.path) : Promise.resolve<string[]>([]),
     ]);
 

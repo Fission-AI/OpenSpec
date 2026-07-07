@@ -25,6 +25,10 @@ That second one matters more than it looks. OpenSpec has two halves: a command l
 
 **I learn by example.** The [Examples & Recipes](examples.md) page walks through real changes start to finish: a small feature, a bug fix, a refactor, an exploration.
 
+**The AI just drafted a plan — now what?** Read it. [Reviewing a Change](reviewing-changes.md) shows the two-minute pass that catches a wrong turn while it's still cheap, and [Writing Good Specs](writing-specs.md) covers what a plan worth approving is made of.
+
+**I work on a team.** [OpenSpec on a Team](team-workflow.md) shows how a change maps onto a branch and a pull request, and how teammates review a plan before the code.
+
 **I'm coming from the old workflow.** The [Migration Guide](migration-guide.md) explains what changed and why, and promises your existing work is safe.
 
 **I want to bend it to my team's process.** [Customization](customization.md) covers project config, custom schemas, and shared context.
@@ -49,6 +53,9 @@ That second one matters more than it looks. OpenSpec has two halves: a command l
 |-----|-------------------|
 | [Workflows](workflows.md) | Common patterns and when to reach for each command |
 | [Examples & Recipes](examples.md) | Full walkthroughs of real changes, copy-pasteable |
+| [Writing Good Specs](writing-specs.md) | What a strong requirement and scenario look like, and how to right-size a change |
+| [Reviewing a Change](reviewing-changes.md) | The two-minute pass on a drafted plan before any code is written |
+| [OpenSpec on a Team](team-workflow.md) | How changes fit branches, pull requests, and review |
 | [Using OpenSpec in an Existing Project](existing-projects.md) | Adopting OpenSpec on a large brownfield codebase |
 | [Editing & Iterating on a Change](editing-changes.md) | Update artifacts, go back, reconcile manual edits |
 | [Commands](commands.md) | Reference for every `/opsx:*` slash command |
