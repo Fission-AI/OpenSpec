@@ -125,5 +125,54 @@ describe('ViewCommand', () => {
       'gamma-change'
     ]);
   });
+
+  it('classifies a nested glob-tasks change as Active, not Draft (#1202)', async () => {
+    const openspecDir = path.join(tempDir, 'openspec');
+    const changesDir = path.join(openspecDir, 'changes');
+    await fs.mkdir(changesDir, { recursive: true });
+
+    // Project-local schema whose tasks artifact resolves a nested glob.
+    const schemaDir = path.join(openspecDir, 'schemas', 'glob-tasks');
+    await fs.mkdir(schemaDir, { recursive: true });
+    await fs.writeFile(
+      path.join(schemaDir, 'schema.yaml'),
+      [
+        'name: glob-tasks',
+        'version: 1',
+        'artifacts:',
+        '  - id: proposal',
+        '    generates: proposal.md',
+        '    description: Proposal',
+        '    template: proposal.md',
+        '    requires: []',
+        '  - id: tasks',
+        '    generates: "**/tasks.md"',
+        '    description: Nested tasks',
+        '    template: tasks.md',
+        '    requires: [proposal]',
+        'apply:',
+        '  requires: [tasks]',
+        '  tracks: "**/tasks.md"',
+        '',
+      ].join('\n')
+    );
+
+    const changeDir = path.join(changesDir, 'nested-change');
+    await fs.mkdir(path.join(changeDir, 'backend'), { recursive: true });
+    await fs.mkdir(path.join(changeDir, 'frontend'), { recursive: true });
+    await fs.writeFile(path.join(changeDir, '.openspec.yaml'), 'schema: glob-tasks\n');
+    await fs.writeFile(path.join(changeDir, 'backend', 'tasks.md'), '- [x] 1.1 a\n- [x] 1.2 b\n');
+    await fs.writeFile(path.join(changeDir, 'frontend', 'tasks.md'), '- [x] 2.1 a\n- [ ] 2.2 b\n- [ ] 2.3 c\n');
+
+    await new ViewCommand().execute(tempDir);
+    const output = logOutput.map(stripAnsi).join('\n');
+
+    // Active section lists the change with aggregated 3/5 progress; not Draft.
+    const activeLines = logOutput.map(stripAnsi).filter(line => line.includes('◉'));
+    expect(activeLines.some(line => line.includes('nested-change'))).toBe(true);
+    const draftLines = logOutput.map(stripAnsi).filter(line => line.includes('○'));
+    expect(draftLines.some(line => line.includes('nested-change'))).toBe(false);
+    expect(output).toContain('60%');
+  });
 });
 
