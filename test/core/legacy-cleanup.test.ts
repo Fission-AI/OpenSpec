@@ -694,6 +694,35 @@ ${OPENSPEC_MARKERS.end}`);
       expect(result.deletedFiles).not.toContain(customizedManagedName);
       await expect(fs.access(customizedManagedName)).resolves.not.toThrow();
     });
+
+    it('should skip unmanaged global prompt paths in stale detection objects', async () => {
+      const promptDir = getCodexPromptDir();
+      const managedPrompt = path.join(promptDir, 'opsx-apply.md');
+      const unmanagedPrompt = path.join(promptDir, 'personal.md');
+      await fs.mkdir(promptDir, { recursive: true });
+      await fs.writeFile(managedPrompt, createLegacyCodexPromptContent('apply'));
+      await fs.writeFile(unmanagedPrompt, 'user');
+
+      const detection = {
+        configFiles: [],
+        configFilesToUpdate: [],
+        slashCommandDirs: [],
+        slashCommandFiles: [],
+        globalSlashCommandFiles: [managedPrompt, unmanagedPrompt],
+        hasOpenspecAgents: false,
+        hasProjectMd: false,
+        hasRootAgentsWithMarkers: false,
+        hasLegacyArtifacts: true,
+      };
+
+      const result = await cleanupLegacyArtifacts(testDir, detection);
+
+      expect(result.deletedFiles).toContain(managedPrompt);
+      expect(result.deletedFiles).not.toContain(unmanagedPrompt);
+      expect(result.errors).toContain(`Skipped unmanaged global prompt ${unmanagedPrompt}`);
+      await expect(fs.access(managedPrompt)).rejects.toThrow();
+      await expect(fs.access(unmanagedPrompt)).resolves.not.toThrow();
+    });
   });
 
   describe('formatCleanupSummary', () => {

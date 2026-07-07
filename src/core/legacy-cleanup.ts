@@ -652,6 +652,11 @@ export async function cleanupLegacyArtifacts(
     getLegacyGlobalPromptMatches(detection).map((prompt) => [prompt.path, prompt] as const)
   );
   for (const filePath of detection.globalSlashCommandFiles) {
+    if (!getManagedGlobalLegacyPromptMetadata(filePath)) {
+      result.errors.push(`Skipped unmanaged global prompt ${filePath}`);
+      continue;
+    }
+
     try {
       await fs.unlink(filePath);
       result.deletedFiles.push(filePath);
