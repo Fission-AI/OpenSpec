@@ -17,13 +17,14 @@
 
 ## 3. Legacy Codex Prompt Cleanup
 
-- [x] 3.1 Add final Codex prompt cleanup pattern support: globally managed `opsx-*.md` prompt files and repo-local `.codex/prompts/openspec-*.md` compatibility cleanup.
+- [x] 3.1 Add final Codex prompt cleanup support: allowlisted globally managed Codex legacy prompt filenames plus repo-local `.codex/prompts/openspec-*.md` compatibility cleanup.
 - [x] 3.2 Resolve the global Codex prompt directory from `CODEX_HOME` when set and the default user `.codex/prompts` directory when unset.
-- [x] 3.3 Detect managed global Codex `opsx-*.md` prompt files during legacy cleanup without globbing or deleting unmanaged prompt files.
-- [x] 3.4 Remove managed global Codex `opsx-*.md` prompt files through the standard legacy cleanup flow.
+- [x] 3.3 Detect allowlisted and signature-verified global Codex prompt files during legacy cleanup, infer workflow IDs from those filenames, and leave unmanaged prompt files untouched.
+- [x] 3.4 Remove managed global Codex prompt files only after replacement Codex skills exist for the represented workflows.
 - [x] 3.5 Preserve existing project-local `.codex/prompts/openspec-*.md` cleanup compatibility.
 - [x] 3.6 Update cleanup summaries to identify removed Codex prompt files as replaced by Codex skills.
-- [x] 3.7 Ensure non-interactive `openspec init` without `--force` removes managed global Codex `opsx-*.md` prompt files through standard cleanup.
+- [x] 3.6a Present deferred global prompts cleanup separately from immediate repo-local removals while listing the affected global prompt files.
+- [x] 3.7 Ensure non-interactive `openspec init` without `--force` removes only the managed global Codex prompt files whose replacement skills exist and preserves unreplaced prompts.
 - [x] 3.8 Ensure non-interactive `openspec update` without `--force` uses the existing legacy-cleanup warning path and leaves legacy files untouched.
 
 ## 4. Documentation and Messaging
@@ -37,9 +38,9 @@
 
 - [x] 5.1 Add `openspec init` tests for Codex under `both`, `skills`, and `commands` delivery modes, verifying skills exist and global prompt files are not created.
 - [x] 5.2 Add `openspec update` tests for Codex under `both`, `skills`, and `commands` delivery modes, verifying skills are refreshed and not removed by commands-only delivery.
-- [x] 5.3 Add cleanup tests for managed global Codex prompt files under `CODEX_HOME/prompts` using `opsx-*`, and verify global `openspec-*` prompts remain unmanaged.
+- [x] 5.3 Add cleanup tests for allowlisted managed global Codex prompt files under `CODEX_HOME/prompts`, and verify custom or non-allowlisted prompts remain unmanaged.
 - [x] 5.4 Add cleanup tests proving unmanaged files in the Codex prompt directory are preserved.
-- [x] 5.5 Add non-interactive init cleanup tests proving managed global Codex prompt files are removed without `--force`.
+- [x] 5.5 Add non-interactive init cleanup tests proving managed global Codex prompt files are removed only after replacement skills exist.
 - [x] 5.6 Add non-interactive update cleanup tests proving global Codex prompt files are preserved without `--force`.
 - [x] 5.7 Add cross-platform path tests that construct Codex cleanup paths with path utilities rather than hardcoded separators.
 - [x] 5.8 Update or remove tests that import the removed Codex adapter directly.

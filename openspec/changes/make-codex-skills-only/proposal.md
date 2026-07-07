@@ -7,7 +7,7 @@ Codex custom prompts are now a poor fit for OpenSpec's generated command surface
 - **BREAKING**: Stop generating new Codex custom prompt files during `openspec init` and `openspec update`.
 - Treat Codex as a skills-first integration so OpenSpec installs and refreshes `.codex/skills/openspec-*/SKILL.md` as the supported Codex workflow surface.
 - Treat Codex as a `skills-invocable` command-surface tool so Codex remains usable when the global delivery mode is `both`, `skills`, or `commands`, instead of relying on deprecated prompt-file generation.
-- Add migration and cleanup behavior for previously managed Codex prompt files, with global cleanup targeting `$CODEX_HOME/prompts` or `~/.codex/prompts` entries named `opsx-*.md` and repo-local compatibility cleanup preserving `.codex/prompts/openspec-*.md` detection in the project tree.
+- Add migration and cleanup behavior for previously managed Codex prompt files, with global cleanup targeting only the known OpenSpec-managed legacy prompt filenames under `$CODEX_HOME/prompts` or `~/.codex/prompts`, deleting them only after replacement Codex skills exist, and repo-local compatibility cleanup preserving `.codex/prompts/openspec-*.md` detection in the project tree.
 - Update user-facing docs and CLI messaging so Codex guidance reflects skills-based usage rather than global custom prompts.
 
 ## Capabilities

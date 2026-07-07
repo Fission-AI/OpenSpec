@@ -10,7 +10,7 @@ Codex custom prompts are now deprecated in favor of skills, while OpenSpec alrea
 
 - Stop generating or refreshing Codex custom prompt files during `openspec init` and `openspec update`.
 - Keep Codex usable through `.codex/skills/openspec-*/SKILL.md` for `both`, `skills`, and `commands` delivery settings.
-- Remove stale OpenSpec-managed global Codex prompt files from the global Codex prompt directory during safe cleanup flows while keeping repo-local `.codex/prompts/openspec-*.md` compatibility cleanup.
+- Remove stale OpenSpec-managed global Codex prompt files from the global Codex prompt directory only after replacement Codex skills exist, while keeping repo-local `.codex/prompts/openspec-*.md` compatibility cleanup.
 - Update user-facing documentation and tests so Codex is documented as skills-only.
 
 **Non-Goals:**
@@ -38,19 +38,38 @@ This should reuse the shared command-surface capability model from `add-tool-com
 
 This follows the adapterless integration boundary for skills-only tools: do not add a fake command adapter or generated command path when the tool's real invocation surface is discovered skills. Codex also has existing managed global prompt files to retire; those global files are handled as legacy cleanup artifacts, not as ordinary delivery-reconciliation command files.
 
-### Decision: Split global and repo-local Codex cleanup patterns by their final managed names
+### Decision: Split global and repo-local Codex cleanup by trust level
 
-Cleanup should resolve the Codex prompt directory with the same `CODEX_HOME` fallback semantics that command generation used, then remove globally managed OpenSpec prompt files matching `opsx-*.md`. Repo-local compatibility cleanup should continue matching `.codex/prompts/openspec-*.md` inside the project tree. This reflects the final managed names left behind by the Codex adapter history: recent global prompt generation used `opsx-*`, while older local compatibility cleanup still needs to catch project-local `openspec-*` artifacts.
+Cleanup resolves the Codex prompt directory with the same `CODEX_HOME` fallback semantics that command generation used, but the global and repo-local legacy surfaces are not trusted equally.
 
-Alternative considered: explicit filename allowlist per workflow ID. That requires maintaining a separate constant synchronized with the workflow list whenever a new workflow is added. The final glob split avoids that double-maintenance cost while still excluding user-authored prompts that do not match the managed `opsx-*` global convention or the project-local `.codex/prompts/openspec-*` compatibility convention.
+Repo-local compatibility cleanup continues matching `.codex/prompts/openspec-*.md` inside the project tree. Those files are repository-scoped compatibility artifacts and can stay in the ordinary legacy cleanup model.
 
-### Decision: Global Codex prompts are handled by legacy cleanup detection
+Global Codex prompts live in a user-owned directory outside the repository, so a broad `opsx-*.md` match is too risky. Global cleanup therefore uses an explicit allowlist of the historical OpenSpec-managed Codex prompt filenames plus a legacy-content signature check before treating a file as OpenSpec-managed. Workflow IDs are inferred from those verified filenames. User-authored files like `opsx-review.md`, `opsx-my-flow.md`, or a custom `opsx-explore.md` remain unmanaged and untouched unless they still match the exact legacy OpenSpec Codex prompt content.
 
-Managed global Codex prompt files should not create a separate cleanup branch in `init` or `update`. `detectLegacyArtifacts(projectPath)` detects globally managed `opsx-*` prompt files as legacy command artifacts, and `cleanupLegacyArtifacts(projectPath, detection)` removes them when that command's normal cleanup flow runs. Non-interactive `openspec init` already auto-cleans OpenSpec-managed artifacts, so it also removes those managed global Codex prompt files. Non-interactive `openspec update` without `--force` keeps its existing broader behavior: it warns about legacy artifacts and does not run cleanup.
+Alternative considered: keep the final `opsx-*` glob split or rely on filename-only allowlisting. Those options keep implementation small, but they can still classify unrelated user prompts as OpenSpec-managed because the global prompt home is shared with user-authored files. The allowlist plus content signature is the safer boundary for a user-owned global directory.
 
-The adapterless command-skip path must not by itself delete files from `$CODEX_HOME/prompts`. Global Codex prompt deletion is only part of legacy artifact cleanup, not ordinary delivery reconciliation.
+### Decision: Global Codex prompt deletion is replacement-gated migration cleanup
 
-Implementation note: model project-local and global legacy prompt surfaces separately. Keep project-root slash-command paths in `LEGACY_SLASH_COMMAND_PATHS`, including `.codex/prompts/openspec-*.md` compatibility cleanup, and represent Codex's external prompt home in a separate `LEGACY_GLOBAL_SLASH_COMMAND_PATHS` table that resolves `$CODEX_HOME/prompts` (or `~/.codex/prompts` when unset) for globally managed `opsx-*.md` files. `detectLegacyArtifacts()` should keep those managed global prompt files separate from repo-local slash command files via `globalSlashCommandFiles`. This keeps the local-path registry scoped to repository artifacts while still letting standard legacy cleanup detect and remove the final managed global Codex prompt files.
+Managed global Codex prompt files are still detected through legacy artifact detection, but they are not deleted as ordinary "detect then delete" cleanup items. They are migration artifacts:
+
+- detect the managed global prompt files
+- infer the workflow IDs represented by those legacy filenames
+- create or confirm replacement `.codex/skills/...` skills for those workflows
+- delete only the prompt files whose replacement skills now exist
+
+This avoids deleting the user's only Codex entry point before OpenSpec has established the replacement skill surface. The adapterless command-skip path must not by itself delete files from `$CODEX_HOME/prompts`, and ordinary delivery reconciliation must not touch them.
+
+`openspec init` may still auto-clean other OpenSpec-managed legacy artifacts in non-interactive mode, but global Codex prompt deletion is deferred until replacement skills exist. `openspec update --force` or accepted interactive cleanup follows the same replacement-gated rule.
+
+To keep cleanup previews auditable without falsely implying immediate deletion, CLI messaging should separate immediate repo-local cleanup from deferred global prompts cleanup. The deferred section should list the concrete global prompt paths and their tool IDs, while clearly stating that those prompts are removed only after matching replacement skills exist.
+
+Implementation note: model project-local and global legacy prompt surfaces separately. Keep project-root slash-command paths in `LEGACY_SLASH_COMMAND_PATHS`, including `.codex/prompts/openspec-*.md` compatibility cleanup, and represent Codex's external prompt home in a separate `LEGACY_GLOBAL_SLASH_COMMAND_PATHS` table that resolves `$CODEX_HOME/prompts` (or `~/.codex/prompts` when unset) for the allowlisted historical OpenSpec prompt filenames. `detectLegacyArtifacts()` should keep those managed global prompt files separate from repo-local slash command files via `globalSlashCommandFiles`, and only populate that list when the file contents still match the legacy OpenSpec Codex prompt signature.
+
+### Decision: Legacy Codex workflow replacement prefers the legacy filenames over the current profile
+
+When OpenSpec migrates legacy global Codex prompts into skills for an unconfigured Codex tool, the replacement skill set is inferred from the detected prompt filenames where possible. For example, a legacy `opsx-explore.md` maps to `openspec-explore` rather than the full current core profile.
+
+Alternative considered: reuse the current profile's `desiredWorkflows` for every legacy Codex upgrade. That can silently expand a narrow historical setup into a broader skill set and makes cleanup unsafe because OpenSpec would delete a legacy prompt even when it did not recreate the equivalent workflow.
 
 ### Decision: Keep legacy project-local `.codex/prompts` cleanup as compatibility cleanup
 
@@ -62,6 +81,6 @@ Alternative considered: replace project-local detection with global-only detecti
 
 - [Risk] Users with custom workflows that rely on Codex custom prompts will lose refreshed prompt files. -> Mitigation: document the breaking change and point Codex users to `.codex/skills/openspec-*`.
 - [Risk] `delivery=commands` semantics become per-tool rather than purely global. -> Mitigation: document Codex as a `skills-invocable` command-surface tool and test commands-only Codex init/update.
-- [Risk] Cleanup touches a global directory. -> Mitigation: remove only globally managed `opsx-*.md` files under the resolved Codex prompt home, keep repo-local `.codex/prompts/openspec-*.md` cleanup scoped to the project tree, and honor `CODEX_HOME` in tests.
+- [Risk] Cleanup touches a global directory. -> Mitigation: remove only allowlisted and signature-verified OpenSpec-managed legacy prompt files under the resolved Codex prompt home, keep repo-local `.codex/prompts/openspec-*.md` cleanup scoped to the project tree, require replacement skills before deletion, and honor `CODEX_HOME` in tests.
 - [Risk] Registry tests or docs may still assume Codex has a command adapter. -> Mitigation: update adapter, registry, supported-tools, troubleshooting, and migration docs in the same change.
 - [Risk] This overlaps with `add-tool-command-surface-capabilities`. -> Mitigation: represent Codex with the same `skills-invocable` concept and rebase whichever change lands second.

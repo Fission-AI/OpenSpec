@@ -72,7 +72,7 @@ The update command SHALL refresh existing slash command files for configured ada
 - **WHEN** a user runs `openspec update`
 - **THEN** the command SHALL NOT refresh Codex prompt files
 - **AND** it SHALL treat those files as legacy cleanup candidates
-- **AND** it SHALL preserve unmanaged content by deleting only files matching the managed global Codex prompt glob pattern (`opsx-*.md`) through the cleanup flow
+- **AND** it SHALL preserve unmanaged content by deleting only allowlisted and signature-verified OpenSpec-managed global Codex prompt files after replacement skills exist
 
 #### Scenario: Updating slash commands for GitHub Copilot
 - **WHEN** `.github/prompts/` contains `openspec-proposal.prompt.md`, `openspec-apply.prompt.md`, and `openspec-archive.prompt.md`
@@ -111,6 +111,11 @@ The update command SHALL refresh existing slash command files for configured ada
 ### Requirement: Codex update uses skills only
 `openspec update` SHALL refresh Codex through generated OpenSpec skills without generating or refreshing Codex custom prompt files.
 
+#### Scenario: Legacy Codex prompt migration infers workflows from the legacy filenames
+- **WHEN** `openspec update` upgrades an unconfigured Codex tool from detected allowlisted and signature-verified global legacy Codex prompt files
+- **THEN** it SHALL infer the replacement workflow IDs from the detected prompt filenames where possible
+- **AND** it SHALL use that inferred workflow subset for the replacement Codex skills instead of expanding to the current profile's full workflow set
+
 #### Scenario: Updating Codex with default delivery
 - **WHEN** a project has Codex OpenSpec skills configured
 - **AND** the active delivery mode is `both`
@@ -132,19 +137,22 @@ The update command SHALL refresh existing slash command files for configured ada
 - **AND** it SHALL NOT delete global Codex prompt files through ordinary delivery reconciliation without accepted or forced cleanup
 
 ### Requirement: Codex update cleanup removes managed legacy prompts
-`openspec update` SHALL clean up previously managed Codex prompt files from the resolved global Codex prompt directory.
+`openspec update` SHALL clean up previously managed Codex prompt files from the resolved global Codex prompt directory only after replacement Codex skills exist.
 
 #### Scenario: Forced update cleanup removes Codex prompts
 - **WHEN** a user runs `openspec update --force`
-- **AND** the resolved Codex prompt directory contains files matching the managed global Codex prompt glob pattern (`opsx-*.md`)
+- **AND** the resolved Codex prompt directory contains allowlisted and signature-verified managed global Codex prompt files
+- **AND** replacement Codex skills exist for the workflows represented by those prompt filenames
 - **THEN** the command SHALL remove those managed Codex prompt files
 - **AND** it SHALL leave non-OpenSpec Codex prompt files unchanged
 
 #### Scenario: Interactive update cleanup includes Codex prompts
 - **WHEN** a user runs `openspec update` interactively
+- **THEN** the preview SHALL list immediate repo-local removals separately from deferred global prompts cleanup
+- **AND** the deferred section SHALL list the concrete global prompt paths before the user confirms cleanup
 - **AND** managed Codex prompt files are detected
 - **THEN** the cleanup prompt SHALL include those files in the cleanup plan
-- **AND** accepting cleanup SHALL remove them
+- **AND** accepting cleanup SHALL remove only the prompt files whose replacement Codex skills exist
 
 #### Scenario: Non-interactive update without force does not delete prompts
 - **WHEN** a user runs `openspec update` without interaction and without `--force`

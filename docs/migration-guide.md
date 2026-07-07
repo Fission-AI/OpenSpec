@@ -47,7 +47,7 @@ Only OpenSpec-managed files that are being replaced:
 - Cline: `.clinerules/workflows/openspec-*.md`
 - Roo: `.roo/commands/openspec-*.md`
 - GitHub Copilot: `.github/prompts/openspec-*.prompt.md` (IDE extensions only; not supported in Copilot CLI)
-- Codex: managed prompt files in `$CODEX_HOME/prompts` or `~/.codex/prompts` are cleaned up by the legacy cleanup flow; Codex now uses `.codex/skills/openspec-*`.
+- Codex: OpenSpec now uses `.codex/skills/openspec-*`; legacy cleanup only targets OpenSpec's allowlisted prompt filenames in `$CODEX_HOME/prompts` or `~/.codex/prompts`, and only removes them after replacement skills exist.
 - And others (Augment, Continue, Amazon Q, etc.)
 
 The migration detects whichever tools you have configured and cleans up their legacy files.
@@ -157,7 +157,7 @@ openspec init --force --tools claude
 
 The `--force` flag skips prompts and auto-accepts cleanup.
 
-This includes cleanup of OpenSpec-managed Codex prompt files in the global Codex prompt directory. Files outside OpenSpec's managed Codex prompt filename list are preserved.
+This includes cleanup of OpenSpec-managed Codex prompt files in the global Codex prompt directory. Cleanup only targets OpenSpec's allowlisted legacy Codex prompt filenames, removes them only after replacement `.codex/skills/openspec-*` skills exist, and preserves all other files.
 
 ---
 

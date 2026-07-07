@@ -13,6 +13,7 @@ import {
   isOnlyOpenSpecContent,
   removeMarkerBlock,
   cleanupLegacyArtifacts,
+  formatDeferredGlobalPromptSummary,
   formatCleanupSummary,
   formatDetectionSummary,
   formatProjectMdMigrationHint,
@@ -24,6 +25,7 @@ import {
 import { OPENSPEC_MARKERS } from '../../src/core/config.js';
 import { CommandAdapterRegistry } from '../../src/core/command-generation/registry.js';
 import { resolveCommandSurfaceCapability } from '../../src/core/command-surface.js';
+import { createLegacyCodexPromptContent } from '../helpers/legacy-codex-prompt.js';
 
 describe('legacy-cleanup', () => {
   let testDir: string;
@@ -375,7 +377,7 @@ ${OPENSPEC_MARKERS.end}`);
     it('should not include managed global Codex prompt files in repo-local slash command detection', async () => {
       const promptDir = getCodexPromptDir();
       await fs.mkdir(promptDir, { recursive: true });
-      await fs.writeFile(path.join(promptDir, 'opsx-explore.md'), 'managed');
+      await fs.writeFile(path.join(promptDir, 'opsx-explore.md'), createLegacyCodexPromptContent('explore'));
       await fs.writeFile(path.join(promptDir, 'openspec-proposal.md'), 'managed');
       await fs.writeFile(path.join(promptDir, 'my-custom-prompt.md'), 'user');
 
@@ -484,19 +486,34 @@ ${OPENSPEC_MARKERS.end}`);
       expect(result.hasProjectMd).toBe(true);
     });
 
-    it('should detect managed global Codex opsx prompt files separately from repo-local slash commands', async () => {
+    it('should detect allowlisted global Codex prompts separately from repo-local slash commands', async () => {
       const promptDir = getCodexPromptDir();
       await fs.mkdir(promptDir, { recursive: true });
-      await fs.writeFile(path.join(promptDir, 'opsx-explore.md'), 'managed');
+      await fs.writeFile(path.join(promptDir, 'opsx-explore.md'), createLegacyCodexPromptContent('explore'));
+      await fs.writeFile(path.join(promptDir, 'opsx-review.md'), 'user');
       await fs.writeFile(path.join(promptDir, 'openspec-proposal.md'), 'managed');
       await fs.writeFile(path.join(promptDir, 'my-custom-prompt.md'), 'user');
 
       const result = await detectLegacyArtifacts(testDir);
 
       expect(result.globalSlashCommandFiles).toContain(path.join(promptDir, 'opsx-explore.md'));
+      expect(result.globalSlashCommandFiles).not.toContain(path.join(promptDir, 'opsx-review.md'));
       expect(result.globalSlashCommandFiles).not.toContain(path.join(promptDir, 'openspec-proposal.md'));
       expect(result.globalSlashCommandFiles).not.toContain(path.join(promptDir, 'my-custom-prompt.md'));
       expect(result.slashCommandFiles).not.toContain(path.join(promptDir, 'opsx-explore.md'));
+    });
+
+    it('should ignore allowlisted global Codex filenames when the content is user-authored', async () => {
+      const promptDir = getCodexPromptDir();
+      await fs.mkdir(promptDir, { recursive: true });
+      await fs.writeFile(
+        path.join(promptDir, 'opsx-explore.md'),
+        '# custom explore prompt\n\nThis is not an OpenSpec generated Codex prompt.\n'
+      );
+
+      const result = await detectLegacyArtifacts(testDir);
+
+      expect(result.globalSlashCommandFiles).not.toContain(path.join(promptDir, 'opsx-explore.md'));
     });
   });
 
@@ -638,13 +655,15 @@ ${OPENSPEC_MARKERS.end}`);
       expect(result.errors[0]).toContain('NON_EXISTENT.md');
     });
 
-    it('should remove managed global Codex opsx prompts and preserve unmanaged prompts', async () => {
+    it('should remove allowlisted global Codex prompts and preserve unmanaged prompts', async () => {
       const promptDir = getCodexPromptDir();
       const managedPrompt = path.join(promptDir, 'opsx-apply.md');
+      const customOpsxPrompt = path.join(promptDir, 'opsx-review.md');
       const legacyPrompt = path.join(promptDir, 'openspec-proposal.md');
       const unmanagedPrompt = path.join(promptDir, 'personal.md');
       await fs.mkdir(promptDir, { recursive: true });
-      await fs.writeFile(managedPrompt, 'managed');
+      await fs.writeFile(managedPrompt, createLegacyCodexPromptContent('apply'));
+      await fs.writeFile(customOpsxPrompt, 'user');
       await fs.writeFile(legacyPrompt, 'managed');
       await fs.writeFile(unmanagedPrompt, 'user');
 
@@ -653,9 +672,27 @@ ${OPENSPEC_MARKERS.end}`);
 
       expect(result.deletedFiles).toContain(managedPrompt);
       expect(result.deletedFiles).not.toContain(legacyPrompt);
+      expect(result.deletedFiles).not.toContain(customOpsxPrompt);
       await expect(fs.access(managedPrompt)).rejects.toThrow();
+      await expect(fs.access(customOpsxPrompt)).resolves.not.toThrow();
       await expect(fs.access(legacyPrompt)).resolves.not.toThrow();
       await expect(fs.access(unmanagedPrompt)).resolves.not.toThrow();
+    });
+
+    it('should preserve allowlisted global Codex filenames when their content is customized', async () => {
+      const promptDir = getCodexPromptDir();
+      const customizedManagedName = path.join(promptDir, 'opsx-apply.md');
+      await fs.mkdir(promptDir, { recursive: true });
+      await fs.writeFile(
+        customizedManagedName,
+        `${createLegacyCodexPromptContent('apply')}\n# user customization\n`
+      );
+
+      const detection = await detectLegacyArtifacts(testDir);
+      const result = await cleanupLegacyArtifacts(testDir, detection);
+
+      expect(result.deletedFiles).not.toContain(customizedManagedName);
+      await expect(fs.access(customizedManagedName)).resolves.not.toThrow();
     });
   });
 
@@ -926,7 +963,7 @@ ${OPENSPEC_MARKERS.end}`);
       expect(summary).toContain('• CLINE.md');
     });
 
-    it('should format managed global slash command files separately from repo-local files', () => {
+    it('should format deferred global prompts cleanup separately from repo-local files', () => {
       const globalPrompt = path.join(getCodexPromptDir(), 'opsx-explore.md');
       const detection = {
         configFiles: [],
@@ -934,14 +971,23 @@ ${OPENSPEC_MARKERS.end}`);
         slashCommandDirs: [],
         slashCommandFiles: [],
         globalSlashCommandFiles: [globalPrompt],
+        globalSlashCommandDetails: [{
+          path: globalPrompt,
+          toolId: 'codex',
+          managedFileName: 'opsx-explore.md',
+          workflowIds: ['explore'],
+          replacementLabel: 'Codex skills',
+        }],
         hasOpenspecAgents: false,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,
         hasLegacyArtifacts: true,
       };
 
-      const summary = formatDetectionSummary(detection);
-      expect(summary).toContain('Files to remove');
+      const summary = formatDeferredGlobalPromptSummary(detection);
+      expect(summary).toContain('Deferred global prompts cleanup');
+      expect(summary).toContain('These global prompts will only be removed after matching replacement skills are installed');
+      expect(summary).toContain(`codex: ${globalPrompt}`);
       expect(summary).toContain(globalPrompt);
     });
 
@@ -1038,11 +1084,12 @@ ${OPENSPEC_MARKERS.end}`);
   });
 
   describe('LEGACY_GLOBAL_SLASH_COMMAND_PATHS', () => {
-    it('should define the managed global Codex opsx cleanup pattern separately from project-local paths', () => {
+    it('should define the allowlisted managed global Codex prompt names separately from project-local paths', () => {
       const codexPatterns = LEGACY_GLOBAL_SLASH_COMMAND_PATHS['codex'];
-      const patterns = Array.isArray(codexPatterns.pattern) ? codexPatterns.pattern : [codexPatterns.pattern];
-      expect(patterns).toContain('opsx-*.md');
-      expect(patterns).not.toContain('openspec-*.md');
+      expect(codexPatterns.managedFileNames).toContain('opsx-explore.md');
+      expect(codexPatterns.managedFileNames).toContain('opsx-apply.md');
+      expect(codexPatterns.managedFileNames).not.toContain('opsx-review.md');
+      expect(codexPatterns.managedFileNames).not.toContain('openspec-proposal.md');
       expect(codexPatterns.resolvePromptDir()).toBe(getCodexPromptDir());
     });
   });
@@ -1152,6 +1199,13 @@ ${OPENSPEC_MARKERS.end}`);
         slashCommandDirs: [],
         slashCommandFiles: [],
         globalSlashCommandFiles: [path.join(getCodexPromptDir(), 'opsx-explore.md')],
+        globalSlashCommandDetails: [{
+          path: path.join(getCodexPromptDir(), 'opsx-explore.md'),
+          toolId: 'codex',
+          managedFileName: 'opsx-explore.md',
+          workflowIds: ['explore'],
+          replacementLabel: 'Codex skills',
+        }],
         hasOpenspecAgents: false,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,

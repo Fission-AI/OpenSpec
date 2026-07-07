@@ -149,7 +149,7 @@ You're in CI or a non-interactive shell, and OpenSpec found old files to clean u
 openspec init --force
 ```
 
-For Codex, OpenSpec may detect old managed prompt files in `$CODEX_HOME/prompts` or `~/.codex/prompts`. Non-interactive `openspec init` removes those managed files during standard cleanup; non-interactive `openspec update` leaves all legacy cleanup untouched unless you pass `--force`. The replacement surface is `.codex/skills/openspec-*`.
+For Codex, OpenSpec may detect old managed prompt files in `$CODEX_HOME/prompts` or `~/.codex/prompts`. That cleanup is limited to OpenSpec's allowlisted legacy Codex prompt filenames, and non-interactive `openspec init` removes only the files whose replacement `.codex/skills/openspec-*` skills exist. Non-interactive `openspec update` leaves all legacy cleanup untouched unless you pass `--force`.
 
 ### Commands didn't appear after migrating
 

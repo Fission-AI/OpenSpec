@@ -8,6 +8,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
 import { randomUUID } from 'crypto';
+import { createLegacyCodexPromptContent } from '../helpers/legacy-codex-prompt.js';
 
 // Shared mutable mock config state
 const mockState = {
@@ -930,7 +931,7 @@ ${OPENSPEC_MARKERS.end}
       const legacyPrompt = path.join(promptDir, 'openspec-proposal.md');
       const unmanagedPrompt = path.join(promptDir, 'personal-notes.md');
       await fs.mkdir(promptDir, { recursive: true });
-      await fs.writeFile(managedPrompt, 'managed');
+      await fs.writeFile(managedPrompt, createLegacyCodexPromptContent('explore'));
       await fs.writeFile(legacyPrompt, 'managed');
       await fs.writeFile(unmanagedPrompt, 'user');
 
@@ -940,7 +941,10 @@ ${OPENSPEC_MARKERS.end}
       await forceUpdateCommand.execute(testDir);
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Upgrading to the new OpenSpec')
+        expect.stringContaining('Deferred global prompts cleanup')
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining(`codex: ${managedPrompt}`)
       );
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining(`Removed ${managedPrompt} (replaced by Codex skills)`)
@@ -955,6 +959,58 @@ ${OPENSPEC_MARKERS.end}
       expect(skillContent).toContain('name: openspec-explore');
 
       consoleSpy.mockRestore();
+    });
+
+    it('should infer Codex replacement workflows from legacy prompt filenames during forced update', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'skills',
+      });
+
+      const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
+      const managedPrompt = path.join(promptDir, 'opsx-explore.md');
+      await fs.mkdir(promptDir, { recursive: true });
+      await fs.writeFile(managedPrompt, createLegacyCodexPromptContent('explore'));
+
+      const forceUpdateCommand = new UpdateCommand({ force: true });
+      await forceUpdateCommand.execute(testDir);
+
+      expect(await FileSystemUtils.fileExists(managedPrompt)).toBe(false);
+      expect(await FileSystemUtils.fileExists(
+        path.join(testDir, '.codex', 'skills', 'openspec-explore', 'SKILL.md')
+      )).toBe(true);
+      expect(await FileSystemUtils.fileExists(
+        path.join(testDir, '.codex', 'skills', 'openspec-apply-change', 'SKILL.md')
+      )).toBe(false);
+      expect(await FileSystemUtils.fileExists(
+        path.join(testDir, '.codex', 'skills', 'openspec-archive-change', 'SKILL.md')
+      )).toBe(false);
+    });
+
+    it('should preserve legacy Codex prompts when a configured Codex tool lacks the replacement workflow', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'skills',
+      });
+
+      const skillsDir = path.join(testDir, '.codex', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), { recursive: true });
+      await fs.writeFile(path.join(skillsDir, 'openspec-explore', 'SKILL.md'), 'old');
+
+      const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
+      const managedPrompt = path.join(promptDir, 'opsx-onboard.md');
+      await fs.mkdir(promptDir, { recursive: true });
+      await fs.writeFile(managedPrompt, createLegacyCodexPromptContent('onboard'));
+
+      const forceUpdateCommand = new UpdateCommand({ force: true });
+      await forceUpdateCommand.execute(testDir);
+
+      expect(await FileSystemUtils.fileExists(managedPrompt)).toBe(true);
+      expect(await FileSystemUtils.fileExists(
+        path.join(testDir, '.codex', 'skills', 'openspec-onboard', 'SKILL.md')
+      )).toBe(false);
     });
 
     it('should warn but continue with update when legacy files found in non-interactive mode', async () => {
@@ -1628,7 +1684,7 @@ More user content after markers.
       const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
       const managedPrompt = path.join(promptDir, 'opsx-explore.md');
       await fs.mkdir(promptDir, { recursive: true });
-      await fs.writeFile(managedPrompt, 'legacy prompt');
+      await fs.writeFile(managedPrompt, createLegacyCodexPromptContent('explore'));
 
       await updateCommand.execute(testDir);
 

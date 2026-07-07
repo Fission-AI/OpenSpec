@@ -31,19 +31,34 @@
 - **AND** it SHALL skip Codex command-file generation because Codex is `skills-invocable`
 
 ### Requirement: Codex initialization cleanup removes managed legacy prompts
-`openspec init` SHALL remove previously managed Codex prompt files through the standard legacy cleanup flow without deleting user-authored Codex prompts.
+`openspec init` SHALL remove previously managed global Codex prompt files only after replacement Codex skills exist, without deleting user-authored Codex prompts.
 
-#### Scenario: Cleanup removes managed global Codex prompt files
+#### Scenario: Cleanup removes allowlisted global Codex prompt files after replacement exists
 - **WHEN** initialization cleanup runs
-- **AND** the Codex prompt directory contains files matching the managed global Codex prompt glob pattern (`opsx-*.md`)
+- **AND** the Codex prompt directory contains allowlisted and signature-verified managed global Codex prompt files
+- **AND** replacement Codex skills exist for the workflows represented by those prompt filenames
 - **THEN** the command SHALL remove those managed Codex prompt files
 - **AND** it SHALL leave other Codex prompt files unchanged
 
-#### Scenario: Non-interactive initialization removes managed global Codex prompts
+#### Scenario: Non-interactive initialization preserves unreplaced global Codex prompts
 - **WHEN** `openspec init` runs without interaction and without `--force`
-- **AND** the resolved global Codex prompt directory contains managed `opsx-*.md` Codex prompt files
-- **THEN** the command SHALL remove those managed Codex prompt files through standard legacy cleanup
+- **AND** the resolved global Codex prompt directory contains allowlisted and signature-verified managed Codex prompt files
+- **AND** replacement Codex skills do not yet exist for at least one detected prompt workflow
+- **THEN** the command SHALL preserve the unreplaced Codex prompt files
+- **AND** it SHALL continue to leave unmanaged Codex prompt files unchanged
+
+#### Scenario: Non-interactive initialization removes replaced global Codex prompts
+- **WHEN** `openspec init` runs without interaction and without `--force`
+- **AND** the resolved global Codex prompt directory contains allowlisted and signature-verified managed Codex prompt files
+- **AND** replacement Codex skills exist for the workflows represented by those prompt filenames
+- **THEN** the command SHALL remove those managed Codex prompt files
 - **AND** it SHALL leave unmanaged Codex prompt files unchanged
+
+#### Scenario: Initialization preview lists deferred global prompts cleanup separately
+- **WHEN** `openspec init` detects managed global Codex prompt files before tool setup
+- **THEN** the command SHALL present deferred global prompts cleanup in a separate section from immediate repo-local removals
+- **AND** that section SHALL list the concrete prompt paths
+- **AND** it SHALL explain that those global prompts are removed only after matching replacement skills are installed
 
 #### Scenario: Cleanup reports Codex skills as the replacement
 - **WHEN** initialization cleanup reports removed Codex prompt files
