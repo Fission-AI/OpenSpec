@@ -1,4 +1,5 @@
 import { Spec, Change, Requirement, Scenario, Delta, DeltaOperation } from '../schemas/index.js';
+import { buildCodeFenceMask, extractRequirementText } from './requirement-text.js';
 
 export interface Section {
   level: number;
@@ -15,60 +16,12 @@ export class MarkdownParser {
   constructor(content: string) {
     const normalized = MarkdownParser.normalizeContent(content);
     this.lines = normalized.split('\n');
-    this.codeFenceLineMask = MarkdownParser.buildCodeFenceMask(this.lines);
+    this.codeFenceLineMask = buildCodeFenceMask(this.lines);
     this.currentLine = 0;
   }
 
   protected static normalizeContent(content: string): string {
     return content.replace(/\r\n?/g, '\n');
-  }
-
-  protected static buildCodeFenceMask(lines: string[]): boolean[] {
-    const mask = new Array(lines.length).fill(false);
-    let activeFence: { marker: '`' | '~'; length: number } | null = null;
-
-    for (let i = 0; i < lines.length; i++) {
-      const fence = MarkdownParser.getFenceMarker(lines[i]);
-
-      if (!activeFence) {
-        if (fence) {
-          activeFence = fence;
-          mask[i] = true;
-        }
-        continue;
-      }
-
-      mask[i] = true;
-      if (MarkdownParser.isClosingFence(lines[i], activeFence)) {
-        activeFence = null;
-      }
-    }
-
-    return mask;
-  }
-
-  private static getFenceMarker(line: string): { marker: '`' | '~'; length: number } | null {
-    const fenceMatch = line.match(/^\s*(`{3,}|~{3,})/);
-    if (!fenceMatch) {
-      return null;
-    }
-
-    return {
-      marker: fenceMatch[1][0] as '`' | '~',
-      length: fenceMatch[1].length,
-    };
-  }
-
-  private static isClosingFence(
-    line: string,
-    activeFence: { marker: '`' | '~'; length: number }
-  ): boolean {
-    const fenceMatch = line.match(/^\s*(`{3,}|~{3,})\s*$/);
-    return Boolean(
-      fenceMatch &&
-      fenceMatch[1][0] === activeFence.marker &&
-      fenceMatch[1].length >= activeFence.length
-    );
   }
 
   parseSpec(name: string): Spec {
@@ -197,43 +150,20 @@ export class MarkdownParser {
 
   protected parseRequirements(section: Section): Requirement[] {
     const requirements: Requirement[] = [];
-    
+
     for (const child of section.children) {
-      // Extract requirement text from first non-empty content line, fall back to heading
-      let text = child.title;
-      
-      // Get content before any child sections (scenarios)
-      if (child.content.trim()) {
-        // Split content into lines and find content before any child headers
-        const lines = child.content.split('\n');
-        const contentBeforeChildren: string[] = [];
-        
-        for (const line of lines) {
-          // Stop at child headers (scenarios start with ####)
-          if (line.trim().startsWith('#')) {
-            break;
-          }
-          contentBeforeChildren.push(line);
-        }
-        
-        // Find first non-empty line
-        const directContent = contentBeforeChildren.join('\n').trim();
-        if (directContent) {
-          const firstLine = directContent.split('\n').find(l => l.trim());
-          if (firstLine) {
-            text = firstLine.trim();
-          }
-        }
-      }
-      
+      // Read the requirement text via the shared reader (multi-line, fence- and
+      // metadata-aware, with the shared header-title fallback for empty bodies).
+      const text = extractRequirementText(child.title, child.content.split('\n'));
+
       const scenarios = this.parseScenarios(child);
-      
+
       requirements.push({
         text,
         scenarios,
       });
     }
-    
+
     return requirements;
   }
 

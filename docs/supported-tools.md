@@ -96,6 +96,7 @@ When selected by profile/workflow config, OpenSpec generates these skills:
 - `openspec-new-change`
 - `openspec-continue-change`
 - `openspec-apply-change`
+- `openspec-update-change`
 - `openspec-ff-change`
 - `openspec-sync-specs`
 - `openspec-archive-change`
