@@ -67,7 +67,7 @@ jobs:
   #
   # Users opt in with: npm install -g @fission-ai/openspec@beta
   beta:
-    if: github.repository == 'Fission-AI/OpenSpec' && github.event_name == 'workflow_dispatch'
+    if: github.repository == 'Fission-AI/OpenSpec' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -88,7 +88,10 @@ jobs:
       # -beta.N suffix that increments over existing beta tags for that version.
       - name: Compute beta version
         id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          git fetch --tags --force origin
           pnpm exec changeset status --output=changeset-status.json
           NEXT=$(node -p "JSON.parse(require('fs').readFileSync('changeset-status.json','utf8')).releases[0]?.newVersion ?? ''")
           rm changeset-status.json
@@ -97,29 +100,83 @@ jobs:
             exit 1
           fi
           N=1
-          while git rev-parse -q --verify "refs/tags/v${NEXT}-beta.${N}" >/dev/null; do
+          while true; do
+            VERSION="${NEXT}-beta.${N}"
+            TAG="v${VERSION}"
+            TAG_EXISTS=false
+            NPM_EXISTS=false
+            RELEASE_EXISTS=false
+
+            if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+              TAG_EXISTS=true
+            fi
+            if npm view "@fission-ai/openspec@${VERSION}" version >/dev/null 2>&1; then
+              NPM_EXISTS=true
+            fi
+            if gh release view "${TAG}" >/dev/null 2>&1; then
+              RELEASE_EXISTS=true
+            fi
+
+            if [ "$TAG_EXISTS" = false ] && [ "$NPM_EXISTS" = false ] && [ "$RELEASE_EXISTS" = false ]; then
+              break
+            fi
+            if [ "$RELEASE_EXISTS" = false ]; then
+              echo "Resuming incomplete beta ${TAG}"
+              break
+            fi
+
             N=$((N + 1))
           done
-          echo "version=${NEXT}-beta.${N}" >> "$GITHUB_OUTPUT"
-          echo "Cutting v${NEXT}-beta.${N}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Cutting ${TAG}"
 
       - name: Set package version
-        run: npm version "${{ steps.version.outputs.version }}" --no-git-tag-version
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: npm version "$VERSION" --no-git-tag-version
 
       # prepublishOnly runs the build. npm authentication handled via OIDC
       # trusted publishing (no token needed).
       - name: Publish to npm under the beta dist-tag
-        run: npm publish --tag beta
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if npm view "@fission-ai/openspec@${VERSION}" version >/dev/null 2>&1; then
+            echo "@fission-ai/openspec@${VERSION} is already on npm; skipping publish."
+            exit 0
+          fi
+          npm publish --tag beta
 
       - name: Tag and create GitHub prerelease
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          git tag "v${VERSION}"
-          git push origin "v${VERSION}"
-          gh release create "v${VERSION}" \
-            --prerelease \
-            --generate-notes \
-            --title "v${VERSION}" \
-            --notes "Beta prerelease. Install with \`npm install -g @fission-ai/openspec@beta\`."
+          TAG="v${VERSION}"
+          HEAD_SHA=$(git rev-parse HEAD)
+
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            TAG_SHA=$(git rev-list -n 1 "${TAG}")
+            if [ "$TAG_SHA" != "$HEAD_SHA" ]; then
+              echo "${TAG} already exists at ${TAG_SHA}, not current HEAD ${HEAD_SHA}."
+              exit 1
+            fi
+          else
+            git tag "${TAG}"
+          fi
+
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "${TAG} already exists on origin; skipping tag push."
+          else
+            git push origin "${TAG}"
+          fi
+
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            echo "GitHub Release ${TAG} already exists; skipping release creation."
+          else
+            gh release create "${TAG}" \
+              --prerelease \
+              --generate-notes \
+              --title "${TAG}" \
+              --notes "Beta prerelease. Install with \`npm install -g @fission-ai/openspec@beta\`."
+          fi
