@@ -59,11 +59,32 @@ finishing an initiative updates the evergreen artifacts, the way archiving a
 change updates specs. Status flows back live — driven by structured facts on
 disk (a task checked off, a change archived), never by prose.
 
-**Want visible order inside an initiative?** Number its folders
-(`00_goal/`, `01_requirements/`) and they become stages: standing in
-`01_requirements/`, an agent (or a new teammate) knows everything
-lower-numbered is upstream. Opt-in — an initiative with no numbers works
-exactly the same.
+## Stages: your workflow, in folder names
+
+Number the folders inside an initiative and they become ordered stages —
+and the names are your workflow:
+
+```text
+openspec/initiatives/checkout-revamp/
+  00_product/           the what & why — a ProductSpec doc, a PRD, anything
+  01_engineering/       the how — decomposes into changes
+```
+
+That is the PM → Engineering base case. Want design in between? Rename to
+`00_product/ 01_design/ 02_engineering/`. A bigger org?
+`00_analysis/ 01_product/ 02_architecture/ 03_design/ 04_engineering/`.
+Reconfiguring the workflow is renaming folders — no settings, no new skills,
+and OpenSpec handles every chain the same way.
+
+The handoff between stages is **pull-based, one rule**: whoever opens the
+initiative reads everything lower-numbered first, then produces what their
+stage owes the next one. Nothing pushes work downstream; the folder position
+already says what is upstream and what comes next.
+
+The documents themselves can be any format — a
+[ProductSpec](https://github.com/gokulrajaram/ProductSpec) file, a PRD, an
+RFC, exported design notes. Position carries the meaning, not the format.
+And stages are opt-in: an initiative with no numbers works exactly the same.
 
 ## Team: the portfolio lives in a store
 
@@ -116,27 +137,30 @@ completes. Every move ends in a short numbered menu of real next actions —
 one marked recommended — and it is told to write *less*: one page per
 artifact, tables over prose.
 
-## The handoff
+## The lifecycle, by persona
 
-**Whoever plans** (a PM, a lead, you) starts in `/opsx:initiatives`: talk the
-idea through and the skill writes the artifacts — or drop existing docs into
-`openspec/initiatives/`. Decomposing ends in changes created with
-`--initiative`, so each is born linked.
+Everyone talks to the same skill; the folder position decides what happens.
+Nobody needs to know the other personas' tools:
 
-**Whoever builds** picks up any change — each is self-contained — and works
-it with the normal change skills. The initiative travels along: the repo's
-`context:` config can point at it locally, and referenced stores surface it
-to agents automatically.
+| Who | Job to be done | What they actually do |
+|---|---|---|
+| PM (or anyone with an idea) | capture the what & why | ask the agent — `/opsx:initiatives` turns the conversation into the first stage's artifact, or they drop an existing doc (ProductSpec, PRD) into the folder |
+| Designer / architect / analyst | add their stage | open the initiative; the skill reads everything upstream and drafts their stage — same move, different position |
+| Engineer | turn the last stage into work | the skill decomposes it into changes born linked (`openspec new change <name> --initiative <ref>`), each tracing to something upstream |
+| Anyone | know where it stands | `openspec list --initiatives` — live, from task lists, no bookkeeping |
 
-**The handoff artifact is the change itself.** Status flows back to
-`openspec list --initiatives` with no meetings and no bookkeeping.
+**The handoff artifact between planning and building is the change itself** —
+self-contained, worked with the normal change skills. The initiative travels
+along: the repo's `context:` config can point at it locally, and referenced
+stores surface it to agents automatically. Status flows back with no
+meetings and no status updates written by hand.
 
 ## What the pieces are
 
 | Piece | What it is |
 |---|---|
 | `openspec/initiatives/` | evergreen truths + one folder per initiative |
-| numbered folders inside an initiative | optional ordered stages |
+| numbered folders inside an initiative | your workflow, as optional ordered stages |
 | `initiative: <name>` / `<store-id>/<name>` | one line in a change's `.openspec.yaml` |
 | `openspec new change <name> --initiative <ref>` | create a change already pointing up |
 | `openspec list --initiatives [--store <id>]` | the portfolio + every linked change, live |

@@ -85,6 +85,23 @@ describe('initiatives', () => {
     expect(smoother?.artifacts).toEqual(['notes.md']);
   });
 
+  it('reads stage chains of any length as the workflow, in order', async () => {
+    write('app/openspec/initiatives/checkout-revamp/00_analysis/brief.md', '# brief\n');
+    write('app/openspec/initiatives/checkout-revamp/01_product/product-spec.md', '# spec\n');
+    write('app/openspec/initiatives/checkout-revamp/02_design/flows.md', '# flows\n');
+    write('app/openspec/initiatives/checkout-revamp/03_engineering/plan.md', '# plan\n');
+
+    const shape = await readInitiativesShape(path.join(tempDir, 'app'));
+    const initiative = shape?.initiatives.find((i) => i.name === 'checkout-revamp');
+
+    expect(initiative?.stages.map((s) => s.name)).toEqual([
+      '00_analysis',
+      '01_product',
+      '02_design',
+      '03_engineering',
+    ]);
+  });
+
   it('returns null when there is no initiatives folder', async () => {
     fs.mkdirSync(path.join(tempDir, 'app', 'openspec'), { recursive: true });
     expect(await readInitiativesShape(path.join(tempDir, 'app'))).toBeNull();

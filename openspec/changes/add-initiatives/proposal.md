@@ -13,8 +13,11 @@ convention, one metadata line, one rollup, one skill.
   planning layer for a root — this repo, or a store the team shares.
   - Each subfolder is one **initiative**: a finite piece of work above a
     single change (`smoother-setup/`, `q3-payments/`). Contents are freeform;
-    numbered folders inside an initiative are ordered stages when visible
-    order is wanted.
+    numbered folders inside an initiative are ordered stages, and their
+    names are the team's workflow (`00_product/ 01_engineering/`, or any
+    longer chain). Stage documents can be any format — a ProductSpec file,
+    a PRD, an RFC. Handoffs are pull-based: read what is lower-numbered,
+    produce what your stage owes the next.
   - Unnumbered files at the top level are **evergreen artifacts** — the
     standing truths every initiative serves (`product.md`, `roadmap.md`,
     `architecture.md`). They are maintained forever, the way specs are.

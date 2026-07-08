@@ -18,6 +18,11 @@ initiative SHALL be treated as ordered stages.
 - **WHEN** `openspec/initiatives/smoother-setup/` contains `00_goal/`, `01_requirements/`, and `notes.md`
 - **THEN** the system reports `00_goal` and `01_requirements` as that initiative's stages, in order
 
+#### Scenario: Stage names encode the team's workflow, any chain length
+
+- **WHEN** `openspec/initiatives/checkout-revamp/` contains `00_analysis/`, `01_product/`, `02_design/`, and `03_engineering/`
+- **THEN** the system reports all four as that initiative's stages, in order, with no configuration naming the workflow
+
 ### Requirement: Changes link upward to an initiative
 
 The system SHALL let a change declare the initiative it serves with an

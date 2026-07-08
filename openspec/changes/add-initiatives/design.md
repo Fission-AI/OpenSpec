@@ -49,7 +49,18 @@ expensive and unrepeatable; facts-per-event with judgment-per-response is
 cheap, auditable, and repeatable — and OpenSpec's task/archive lifecycle
 already supplies the facts.
 
-**4. One skill, routed by state.** `openspec-initiatives` looks at what
+**4. Transitions between roles are pull-based, encoded in folder order.**
+The PM → Engineering handoff (or PM → Design → Engineering, or any longer
+chain) is not a workflow OpenSpec models — it is the numbered stage folders
+themselves. The rule is one sentence: read everything lower-numbered, produce
+what your stage owes the next one. Upstream documents can be any format (a
+ProductSpec file, a PRD, an RFC); position carries the meaning. Why pull:
+push requires the upstream author to know the downstream tooling and fires
+before anyone has implementation context; pull happens when someone opens
+the work, with everything on disk. Rejected: per-role skills (the rule is
+the same move from different positions) and typed transition events.
+
+**5. One skill, routed by state.** `openspec-initiatives` looks at what
 exists before speaking: no folder → offer to capture the conversation;
 folder, no target → summarize the portfolio in a few lines; inside an
 initiative → work it. Its moves (ideate from what is on disk, capture,
@@ -60,7 +71,7 @@ so anyone (or any agent) can pick it up; menus beat paragraphs for fatigue.
 Rejected: per-stage or per-role skills, and a `new initiative` CLI command —
 creating an initiative is `mkdir`, and the skill does it in flow.
 
-**5. Works anywhere.** `--store <id>` resolves through the global registry,
+**6. Works anywhere.** `--store <id>` resolves through the global registry,
 so the rollup answers from any directory, repo or not. With no local root
 and no `--store`, `list --initiatives` falls back to the portfolios of
 registered stores instead of erroring. Why: the planning layer is the level

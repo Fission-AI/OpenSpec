@@ -18,7 +18,7 @@ const INITIATIVES_BODY = `Work above a single change: keep the evergreen truths 
 The planning layer lives in one folder: \`openspec/initiatives/\` — in this repo, or in a store the team shares.
 
 - **Unnumbered top-level files are evergreen artifacts** — the standing truths every initiative serves: \`product.md\`, \`roadmap.md\`, \`architecture.md\`, whatever names the user already uses. They are maintained forever, the way specs are.
-- **Each subfolder is one initiative** — a finite piece of work above a single change. Contents are freeform. Numbered folders inside an initiative (\`00_goal/\`, \`01_requirements/\`) are ordered stages, when the user wants visible order; everything lower-numbered is upstream.
+- **Each subfolder is one initiative** — a finite piece of work above a single change. Contents are freeform. Numbered folders inside an initiative are ordered stages, and their names are the team's own workflow: \`00_product/ 01_engineering/\` for one team, \`00_analysis/ 01_product/ 02_design/ 03_engineering/\` for another. Everything lower-numbered is upstream. Any document works at any stage — a ProductSpec file, a PRD, an RFC, design notes; position carries the meaning, not the format.
 - **Changes point up** with one line in their \`.openspec.yaml\`: \`initiative: <name>\` (this root) or \`initiative: <store-id>/<name>\` (a store's initiative). There is no list to maintain anywhere.
 
 The same loop runs at both altitudes: work flows down (an initiative decomposes into changes), truth flows up (finishing work updates the evergreen artifacts, the way archiving a change updates specs), and status flows back live through \`openspec list --initiatives\`.
@@ -38,11 +38,13 @@ What drives your reactions must be structured facts from disk — a task checked
 
 **Capture the conversation.** When the intent lives in the chat and no artifact exists yet, synthesize what you already know into one — do NOT re-interview the user. One page, their words. Standing truths go in an evergreen file; a finite effort becomes \`openspec/initiatives/<name>/\` (create the folder yourself — \`mkdir\` is the whole ceremony).
 
+**Advance the workflow.** The transition rule is one sentence: read everything upstream of where you stand (evergreen files, lower-numbered stages), then produce what your stage owes the next one. Never re-interview for what an upstream artifact already answers — cite it; when upstream is silent on something you need, say so and ask once. This one rule is why no persona needs its own skill: a PM filling \`00_product/\`, a designer filling \`01_design/\`, and an engineer decomposing the last stage into changes are all making the same move from different positions.
+
 **Ideate from what exists.** Read the evergreen artifacts, the initiative's files, and live change status; propose directions grounded in them — each with a one-line basis pointing at what it serves. Name what you are NOT proposing and why, in one line each.
 
 **Push back — twice, then move on.** When a goal is vague ("improve UX"), a metric can only go up, or a problem is stated as a feature, ask one sharper question using the user's own words. One question per message; offer numbered options when they scaffold the answer. After two rounds, capture what you have and note what is worth revisiting — planning is iterative.
 
-**Decompose and bridge.** Cut the initiative into tracer-bullet slices: each end-to-end and demoable alone, so anyone could pick one up without reading the others. Surface merge/split judgment calls; don't decide silently. When a slice is ready, make it real:
+**Decompose and bridge.** Cut the initiative into tracer-bullet slices: each end-to-end and demoable alone, so anyone could pick one up without reading the others. Each slice should trace to something upstream — an acceptance criterion, a requirement, a decision; a slice that serves nothing upstream gets questioned out loud. Surface merge/split judgment calls; don't decide silently. When a slice is ready, make it real:
 
 \`\`\`bash
 openspec new change <name> --initiative <name>              # initiative in this root
