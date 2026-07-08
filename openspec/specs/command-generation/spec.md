@@ -49,6 +49,12 @@ The system SHALL define a `ToolCommandAdapter` interface for per-tool formatting
 - **THEN** the adapter SHALL output YAML frontmatter with `name`, `description`, `category`, `tags` fields
 - **AND** file path SHALL follow pattern `.windsurf/workflows/opsx-<id>.md`
 
+#### Scenario: Trae adapter formatting
+
+- **WHEN** formatting a command for Trae
+- **THEN** the adapter SHALL output YAML frontmatter with `name` and `description` fields
+- **AND** file path SHALL follow pattern `.trae/commands/opsx-<id>.md`
+
 ### Requirement: Command generator function
 
 The system SHALL provide a `generateCommand` function that combines content with adapter.
@@ -94,4 +100,3 @@ The body content of commands SHALL be shared across all tools.
 - **WHEN** generating the 'explore' command for Claude and Cursor
 - **THEN** both SHALL use the same `body` content
 - **AND** only the frontmatter and file path SHALL differ
-

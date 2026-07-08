@@ -109,7 +109,7 @@ export class ListCommand {
       const changes: ChangeInfo[] = [];
 
       for (const changeDir of changeDirs) {
-        const progress = await getTaskProgressForChange(changesDir, changeDir);
+        const progress = await getTaskProgressForChange(changesDir, changeDir, targetPath);
         const changePath = path.join(changesDir, changeDir);
         const lastModified = await getLastModified(changePath);
         changes.push({

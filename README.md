@@ -85,6 +85,18 @@ AI:  Archived to openspec/changes/archive/2025-01-23-add-dark-mode/
 
 </details>
 
+## Why teams adopt OpenSpec
+
+Solo, OpenSpec keeps you and your AI honest on a single repo. On a team, the hard part moves: a feature spans the API server, the web app, and a shared library; requirements are owned by one team and consumed by others; planning starts before any code exists.
+
+**[Stores](docs/stores-beta/user-guide.md)** are the answer — planning in a repo of its own. The same `openspec/` shape you already know (specs and changes), shared by `git push` like anything else. One source of truth your whole team and every coding agent can read, across every repo.
+
+- **Cross-repo features** — one change, one plan, even when the code lands in three repos.
+- **Shared requirements** — a platform team owns the specs; product teams reference them read-only, right where their coding agent can read them. No drifting wiki.
+- **Plan before code** — capture the plan in the store now; the code repos catch up later.
+
+> Stores are in **beta**. Start with the [Stores User Guide](docs/stores-beta/user-guide.md).
+
 ## Quick Start
 
 **Requires Node.js 20.19.0 or higher.**
@@ -150,7 +162,7 @@ AI coding assistants are powerful but unpredictable when requirements live only 
 - **Agree before you build** — human and AI align on specs before code gets written
 - **Stay organized** — each change gets its own folder with proposal, specs, design, and tasks
 - **Work fluidly** — update any artifact anytime, no rigid phase gates
-- **Use your tools** — works with 20+ AI assistants via slash commands
+- **Use your tools** — works with 30+ AI assistants via slash commands
 
 ### How we compare
 
