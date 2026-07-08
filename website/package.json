@@ -1,0 +1,35 @@
+{
+  "name": "@fission-ai/openspec-website",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Documentation site for OpenSpec, built with Fumadocs and deployable to Cloudflare Pages.",
+  "scripts": {
+    "sync:docs": "node scripts/sync-docs.mjs",
+    "build": "pnpm run sync:docs && fumadocs-mdx && next build",
+    "dev": "pnpm run sync:docs && next dev",
+    "start": "serve out",
+    "types:check": "pnpm run sync:docs && fumadocs-mdx && next typegen && tsc --noEmit"
+  },
+  "dependencies": {
+    "@orama/orama": "^3.1.18",
+    "fumadocs-core": "^16.10.7",
+    "fumadocs-mdx": "^15.0.13",
+    "fumadocs-ui": "^16.10.7",
+    "lucide-react": "^1.22.0",
+    "next": "16.2.9",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.1",
+    "@types/mdx": "^2.0.14",
+    "@types/node": "^26.0.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "postcss": "^8.5.15",
+    "serve": "^14.2.6",
+    "tailwindcss": "^4.3.1",
+    "typescript": "^6.0.3"
+  }
+}
