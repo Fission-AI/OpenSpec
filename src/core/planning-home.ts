@@ -6,6 +6,7 @@ import {
   readWorkspaceViewStateSync,
   workspaceStateFileExistsSync,
 } from './workspace/index.js';
+import { readProjectConfig } from './project-config.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 
 export type PlanningHomeKind = 'repo' | 'workspace';
@@ -113,11 +114,29 @@ function workspacePlanningHome(workspaceRoot: string): PlanningHome {
 }
 
 function repoPlanningHome(repoRoot: string): PlanningHome {
+  // Honor openspec/config.yaml the same way the legacy getChangesDir() path
+  // does. Before this, planning-home consumers (new/status/instructions)
+  // hardcoded openspec/changes while run/validate/archive read the config
+  // changesDir — a change created by `new` was invisible to `run`
+  // (split-brain, introduced by the v1.4.1 planning-home merge).
+  let changesDir = path.join(repoRoot, 'openspec', 'changes');
+  let defaultSchema = REPO_DEFAULT_SCHEMA;
+  try {
+    const config = readProjectConfig(repoRoot);
+    if (config?.changesDir) {
+      changesDir = path.join(repoRoot, config.changesDir);
+    }
+    if (config?.schema) {
+      defaultSchema = config.schema;
+    }
+  } catch {
+    // Unreadable config → defaults, matching getChangesDir() behavior
+  }
   return {
     kind: 'repo',
     root: repoRoot,
-    changesDir: path.join(repoRoot, 'openspec', 'changes'),
-    defaultSchema: REPO_DEFAULT_SCHEMA,
+    changesDir,
+    defaultSchema,
   };
 }
 
