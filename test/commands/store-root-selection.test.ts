@@ -9,6 +9,7 @@ import {
 } from '../../src/core/index.js';
 import { writeStoreMetadataState } from '../../src/core/store/foundation.js';
 import { runCLI, type RunCLIResult } from '../helpers/run-cli.js';
+import { cleanupTempPath } from '../helpers/temp-cleanup.js';
 
 const VALID_DELTA_SPEC = `## ADDED Requirements
 
@@ -69,7 +70,7 @@ describe('store root selection for normal commands', () => {
   });
 
   afterEach(() => {
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    cleanupTempPath(tempDir);
   });
 
   function createOpenSpecRoot(rootDir: string): void {

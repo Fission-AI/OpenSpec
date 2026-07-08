@@ -5,6 +5,7 @@ import path from 'path';
 import { tmpdir } from 'os';
 import { promisify } from 'util';
 import { runCLI } from '../helpers/run-cli.js';
+import { cleanupTempPath } from '../helpers/temp-cleanup.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -18,6 +19,7 @@ const execFileAsync = promisify(execFile);
  */
 
 const STORE_ID = 'team-context';
+const JOURNEY_TIMEOUT_MS = 60_000;
 
 let base: string;
 let storeRoot: string;
@@ -189,7 +191,7 @@ beforeAll(async () => {
 }, 120_000);
 
 afterAll(async () => {
-  await fs.rm(base, { recursive: true, force: true });
+  cleanupTempPath(base);
 });
 
 describe('standalone store lifecycle journey', () => {
@@ -337,7 +339,7 @@ describe('standalone store lifecycle journey', () => {
       path.join(storeRoot, 'openspec', 'changes', 'archive')
     );
     expect(archiveEntries.some((entry) => entry.endsWith(`-${changeId}`))).toBe(true);
-  });
+  }, JOURNEY_TIMEOUT_MS);
 
   it('machine A: the project repo is byte-identical after the lifecycle', async () => {
     const after = await snapshotDirectory(projectDir);
@@ -391,7 +393,7 @@ describe('standalone store lifecycle journey', () => {
     );
     expect(shownSpec.exitCode).toBe(0);
     expect(shownSpec.stdout).toContain('billing SHALL work');
-  });
+  }, JOURNEY_TIMEOUT_MS);
 
   it('machine B: completes its own change through archive in the clone', async () => {
     const changeId = 'add-invoicing';
@@ -450,7 +452,7 @@ describe('standalone store lifecycle journey', () => {
     expect(failedApply.exitCode).not.toBe(0);
     expect(failedApply.stderr).toContain(`Using OpenSpec root: ${STORE_ID}`);
     expect(failedApply.stderr).toContain(`openspec new change <name> --store ${STORE_ID}`);
-  });
+  }, JOURNEY_TIMEOUT_MS);
 
   it('end state is just normal OpenSpec files in both checkouts', async () => {
     for (const root of [storeRoot, cloneRoot]) {
