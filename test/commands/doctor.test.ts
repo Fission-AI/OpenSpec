@@ -7,6 +7,7 @@ import { getGlobalDataDir, registerStore } from '../../src/core/index.js';
 import { runCLI, type RunCLIResult } from '../helpers/run-cli.js';
 import { createOpenSpecRoot, writeSpec } from '../helpers/openspec-fixtures.js';
 import { snapshotDirectory as snapshot } from '../helpers/fs-snapshot.js';
+import { cleanupTempPath } from '../helpers/temp-cleanup.js';
 
 describe('openspec doctor (3.6)', () => {
   let tempDir: string;
@@ -30,7 +31,7 @@ describe('openspec doctor (3.6)', () => {
   });
 
   afterEach(() => {
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    cleanupTempPath(tempDir);
   });
 
   function parseJson(result: RunCLIResult): any {

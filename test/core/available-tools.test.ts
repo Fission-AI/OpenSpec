@@ -157,11 +157,26 @@ describe('available-tools', () => {
       const tools = getAvailableTools(testDir);
       const toolValues = tools.map((t) => t.value);
       expect(toolValues).toContain('vibe');
-      
+
       const vibeTool = tools.find((t) => t.value === 'vibe');
       expect(vibeTool).toBeDefined();
       expect(vibeTool?.name).toBe('Mistral Vibe');
       expect(vibeTool?.skillsDir).toBe('.vibe');
+    });
+
+    it('should detect Oh My Pi when .omp directory exists', async () => {
+      // Oh My Pi uses skillsDir: '.omp' without detectionPaths
+      // This test ensures path semantics do not drift for Oh My Pi skill detection
+      await fs.mkdir(path.join(testDir, '.omp'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('oh-my-pi');
+
+      const ohMyPiTool = tools.find((t) => t.value === 'oh-my-pi');
+      expect(ohMyPiTool).toBeDefined();
+      expect(ohMyPiTool?.name).toBe('Oh My Pi');
+      expect(ohMyPiTool?.skillsDir).toBe('.omp');
     });
   });
 });

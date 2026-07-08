@@ -624,6 +624,84 @@ new text
       await expect(fs.access(changeDir)).resolves.not.toThrow();
     });
 
+    it('should abort stale MODIFIED blocks that would drop current scenarios (issue #1246)', async () => {
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'stale-modified');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const mainSpecPath = path.join(mainSpecDir, 'spec.md');
+      const baseSpec = `# stale-modified Specification
+
+## Purpose
+Stale modified purpose.
+
+## Requirements
+
+### Requirement: Shared Rule
+The system SHALL support the shared rule.
+
+#### Scenario: Existing behavior
+- **WHEN** the original behavior runs
+- **THEN** it succeeds`;
+      await fs.writeFile(mainSpecPath, baseSpec);
+
+      const changeA = 'modify-shared-a';
+      const changeADir = path.join(tempDir, 'openspec', 'changes', changeA);
+      const changeASpecDir = path.join(changeADir, 'specs', 'stale-modified');
+      await fs.mkdir(changeASpecDir, { recursive: true });
+      await fs.writeFile(path.join(changeASpecDir, 'spec.md'), `# Stale Modified - Change A
+
+## MODIFIED Requirements
+
+### Requirement: Shared Rule
+The system SHALL support the shared rule.
+
+#### Scenario: Existing behavior
+- **WHEN** the original behavior runs
+- **THEN** it succeeds
+
+#### Scenario: Behavior from A
+- **WHEN** change A behavior runs
+- **THEN** it succeeds`);
+
+      const changeB = 'modify-shared-b';
+      const changeBDir = path.join(tempDir, 'openspec', 'changes', changeB);
+      const changeBSpecDir = path.join(changeBDir, 'specs', 'stale-modified');
+      await fs.mkdir(changeBSpecDir, { recursive: true });
+      await fs.writeFile(path.join(changeBSpecDir, 'spec.md'), `# Stale Modified - Change B
+
+## MODIFIED Requirements
+
+### Requirement: Shared Rule
+The system SHALL support the shared rule.
+
+#### Scenario: Existing behavior
+- **WHEN** the original behavior runs
+- **THEN** it succeeds
+
+#### Scenario: Behavior from B
+- **WHEN** change B behavior runs
+- **THEN** it succeeds`);
+
+      await archiveCommand.execute(changeA, { yes: true, noValidate: true });
+      await archiveCommand.execute(changeB, { yes: true, noValidate: true });
+
+      const updated = await fs.readFile(mainSpecPath, 'utf-8');
+      expect(updated).toContain('#### Scenario: Existing behavior');
+      expect(updated).toContain('#### Scenario: Behavior from A');
+      expect(updated).not.toContain('#### Scenario: Behavior from B');
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'stale-modified MODIFIED failed for header "### Requirement: Shared Rule" - current spec contains scenario(s) not present in the modified block: "Behavior from A"'
+        )
+      );
+      expect(console.log).toHaveBeenCalledWith('Aborted. No files were changed.');
+
+      await expect(fs.access(changeBDir)).resolves.not.toThrow();
+      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archives = await fs.readdir(archiveDir);
+      expect(archives.some(a => a.includes(changeA))).toBe(true);
+      expect(archives.some(a => a.includes(changeB))).toBe(false);
+    });
+
     it('should abort with a structural error when target spec hides requirements outside ## Requirements', async () => {
       const changeName = 'hidden-requirement-target';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
@@ -1000,13 +1078,13 @@ The system SHALL do the thing differently.
   });
 
   describe('error handling', () => {
-    it('should throw error when openspec directory does not exist', async () => {
+    it('should report no active changes when openspec directory does not exist', async () => {
       // Remove openspec directory
       await fs.rm(path.join(tempDir, 'openspec'), { recursive: true });
       
       await expect(
         archiveCommand.execute('any-change', { yes: true })
-      ).rejects.toThrow("No OpenSpec changes directory found. Run 'openspec init' first.");
+      ).rejects.toThrow("Change 'any-change' not found. No active changes exist in this root.");
     });
   });
 

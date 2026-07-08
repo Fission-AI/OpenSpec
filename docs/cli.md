@@ -104,7 +104,7 @@ openspec init [path] [options]
 
 `--profile custom` uses whatever workflows are currently selected in global config (`openspec config profile`).
 
-**Supported tool IDs (`--tools`):** `amazon-q`, `antigravity`, `auggie`, `bob`, `claude`, `cline`, `codex`, `forgecode`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `lingma`, `vibe`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `windsurf`
+**Supported tool IDs (`--tools`):** `amazon-q`, `antigravity`, `auggie`, `bob`, `claude`, `cline`, `codex`, `forgecode`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `lingma`, `vibe`, `oh-my-pi`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `windsurf`
 
 > This list mirrors `AI_TOOLS` in `src/core/config.ts`. See [Supported Tools](supported-tools.md) for each tool's skill and command paths.
 
@@ -215,7 +215,12 @@ openspec store setup team-context --path ~/openspec/team-context --no-init-git -
 
 ### `openspec store register`
 
-Register an existing local store folder.
+Register an existing local store folder. During the stores beta, a root may be
+registered before any changes exist, specs have been applied, or changes have
+been archived; in that case `openspec/changes/`, `openspec/specs/`, and
+`openspec/changes/archive/` may be absent until normal commands create them.
+A config-only repo that declares `store: <id>` remains a pointer to another
+store and is not registered as a store root unless that pointer is removed.
 
 ```bash
 openspec store register [path] [options]
@@ -619,6 +624,13 @@ Create a change directory and optional checked-in metadata in the resolved OpenS
 ```bash
 openspec new change <name> [options]
 ```
+
+Change names must use lowercase kebab-case. They start with a lowercase letter,
+then contain lowercase letters, numbers, and single hyphens. They cannot start
+with a number, contain spaces, underscores, uppercase letters, consecutive
+hyphens, or leading/trailing hyphens. When including an external ticket ID,
+prefix it with a word, for example `ticket-123-add-notifications` instead of
+`123-add-notifications`.
 
 **Options:**
 

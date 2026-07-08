@@ -6,6 +6,10 @@ import { promisify } from 'node:util';
 
 import { FileSystemUtils } from '../../utils/file-system.js';
 import {
+  classifyOpenSpecDir,
+  storePointerProblem,
+} from '../project-config.js';
+import {
   ANCHORED_OPENSPEC_DIRS,
   DIRECTORY_ANCHOR_FILE_NAME,
   OPENSPEC_ROOT_DIR,
@@ -218,6 +222,33 @@ function alreadyRegisteredDiagnostic(id: string): StoreDiagnostic {
       target: 'store.registry',
     }
   );
+}
+
+function assertNotConfigOnlyPointerRoot(storeRoot: string): void {
+  const { hasPlanningShape, pointer } = classifyOpenSpecDir(storeRoot);
+  if (hasPlanningShape || pointer.filePath === null) return;
+
+  if (pointer.malformed) {
+    throw new StoreError(
+      `The store declaration in ${pointer.filePath} is invalid (${storePointerProblem(pointer.malformed)}).`,
+      'invalid_store_pointer',
+      {
+        target: 'store.pointer',
+        fix: `Fix or remove the store: line in ${pointer.filePath} before registering this path as a store.`,
+      }
+    );
+  }
+
+  if (pointer.value !== undefined) {
+    throw new StoreError(
+      `This repo's planning is externalized to store '${pointer.value}' (${pointer.filePath}); it is not itself a store root.`,
+      'store_root_pointer_declared',
+      {
+        target: 'store.pointer',
+        fix: 'Register the checkout for the declared store, or remove the store: line first to convert this repo into a local store root.',
+      }
+    );
+  }
 }
 
 function createdPath(relativePath: string, absolutePath: string, kind: CreatedPathLedgerEntry['kind']): CreatedPathLedgerEntry {
@@ -459,6 +490,7 @@ async function prepareSetupPlan(
   let backend: StoreGitBackendConfig | undefined;
 
   if (kind === 'directory') {
+    assertNotConfigOnlyPointerRoot(storeRoot);
     metadata = await readStoreMetadataForOperation(storeRoot);
 
     if (metadata) {
@@ -730,6 +762,7 @@ export async function registerExistingStore(
     );
   }
 
+  assertNotConfigOnlyPointerRoot(storeRoot);
   const openspecRoot = await inspectOpenSpecRoot(storeRoot);
   if (!openspecRoot.healthy) {
     const problems =

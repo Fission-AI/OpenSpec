@@ -28,6 +28,7 @@ describe('skill-generation', () => {
       expect(dirNames).toContain('openspec-new-change');
       expect(dirNames).toContain('openspec-continue-change');
       expect(dirNames).toContain('openspec-apply-change');
+      expect(dirNames).toContain('openspec-update-change');
       expect(dirNames).toContain('openspec-ff-change');
       expect(dirNames).toContain('openspec-sync-specs');
       expect(dirNames).toContain('openspec-archive-change');
@@ -108,6 +109,7 @@ describe('skill-generation', () => {
       expect(ids).toContain('new');
       expect(ids).toContain('continue');
       expect(ids).toContain('apply');
+      expect(ids).toContain('update');
       expect(ids).toContain('ff');
       expect(ids).toContain('sync');
       expect(ids).toContain('archive');
