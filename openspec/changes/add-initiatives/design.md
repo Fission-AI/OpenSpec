@@ -50,15 +50,16 @@ cheap, auditable, and repeatable — and OpenSpec's task/archive lifecycle
 already supplies the facts.
 
 **4. Transitions between roles are pull-based, encoded in folder order.**
-The PM → Engineering handoff (or PM → Design → Engineering, or any longer
-chain) is not a workflow OpenSpec models — it is the numbered stage folders
-themselves. The rule is one sentence: read everything lower-numbered, produce
-what your stage owes the next one. Upstream documents can be any format (a
-ProductSpec file, a PRD, an RFC); position carries the meaning. Why pull:
-push requires the upstream author to know the downstream tooling and fires
-before anyone has implementation context; pull happens when someone opens
-the work, with everything on disk. Rejected: per-role skills (the rule is
-the same move from different positions) and typed transition events.
+Handoffs between roles — PM → Engineering, PM → Design → Engineering, or
+any longer chain — are not workflows OpenSpec models; they are the numbered
+stage folders themselves, and every chain is handled identically. The rule
+is one sentence: read everything lower-numbered, produce what your stage
+owes the next one. Upstream documents can be any format (a ProductSpec
+file, a PRD, an RFC); position carries the meaning. Why pull: push requires
+the upstream author to know the downstream tooling and fires before anyone
+has implementation context; pull happens when someone opens the work, with
+everything on disk. Rejected: per-role skills (the rule is the same move
+from different positions) and typed transition events.
 
 **5. One skill, routed by state.** `openspec-initiatives` looks at what
 exists before speaking: no folder → offer to capture the conversation;

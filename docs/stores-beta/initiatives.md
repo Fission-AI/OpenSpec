@@ -62,19 +62,19 @@ disk (a task checked off, a change archived), never by prose.
 ## Stages: your workflow, in folder names
 
 Number the folders inside an initiative and they become ordered stages —
-and the names are your workflow:
+and the names are your workflow. Any chain works, because none of them is
+special:
 
 ```text
-openspec/initiatives/checkout-revamp/
-  00_product/           the what & why — a ProductSpec doc, a PRD, anything
-  01_engineering/       the how — decomposes into changes
+00_product/ 01_engineering/                                    a two-person team
+00_product/ 01_design/ 02_engineering/                         a product team
+00_analysis/ 01_product/ 02_architecture/ 03_design/ 04_engineering/   a bigger org
+00_idea/ 01_build/                                             a solo dev switching hats
 ```
 
-That is the PM → Engineering base case. Want design in between? Rename to
-`00_product/ 01_design/ 02_engineering/`. A bigger org?
-`00_analysis/ 01_product/ 02_architecture/ 03_design/ 04_engineering/`.
-Reconfiguring the workflow is renaming folders — no settings, no new skills,
-and OpenSpec handles every chain the same way.
+Reconfiguring the workflow is renaming folders — no settings, no manifest,
+no new skills. OpenSpec never learns your chain; it only knows *lower-numbered
+is upstream*, and that is enough.
 
 The handoff between stages is **pull-based, one rule**: whoever opens the
 initiative reads everything lower-numbered first, then produces what their
@@ -137,17 +137,17 @@ completes. Every move ends in a short numbered menu of real next actions —
 one marked recommended — and it is told to write *less*: one page per
 artifact, tables over prose.
 
-## The lifecycle, by persona
+## The lifecycle, by position
 
-Everyone talks to the same skill; the folder position decides what happens.
-Nobody needs to know the other personas' tools:
+Everyone talks to the same skill; the folder position — not the job title —
+decides what happens. Whether your chain has two stages or five:
 
-| Who | Job to be done | What they actually do |
+| Where you stand | Job to be done | What actually happens |
 |---|---|---|
-| PM (or anyone with an idea) | capture the what & why | ask the agent — `/opsx:initiatives` turns the conversation into the first stage's artifact, or they drop an existing doc (ProductSpec, PRD) into the folder |
-| Designer / architect / analyst | add their stage | open the initiative; the skill reads everything upstream and drafts their stage — same move, different position |
-| Engineer | turn the last stage into work | the skill decomposes it into changes born linked (`openspec new change <name> --initiative <ref>`), each tracing to something upstream |
-| Anyone | know where it stands | `openspec list --initiatives` — live, from task lists, no bookkeeping |
+| nothing exists yet | capture the intent | ask the agent — `/opsx:initiatives` turns the conversation into the first stage's artifact, or drop in a doc you already have (ProductSpec, PRD, RFC) |
+| any middle stage | add your piece | open the initiative; the skill reads everything lower-numbered and drafts your stage — same move at `01_design/` as at `02_architecture/` |
+| the last stage | turn plans into work | the skill decomposes it into changes born linked (`openspec new change <name> --initiative <ref>`), each tracing to something upstream |
+| anywhere, anytime | know where it stands | `openspec list --initiatives` — live, from task lists, no bookkeeping |
 
 **The handoff artifact between planning and building is the change itself** —
 self-contained, worked with the normal change skills. The initiative travels
