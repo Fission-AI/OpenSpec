@@ -12,6 +12,7 @@ import {
 } from '../../src/core/index.js';
 import { runCLI, type RunCLIResult } from '../helpers/run-cli.js';
 import { createHealthyOpenSpecRoot, isolatedGitEnv } from '../helpers/store-git.js';
+import { cleanupTempPath } from '../helpers/temp-cleanup.js';
 
 vi.mock('@inquirer/prompts', () => ({
   input: vi.fn(),
@@ -82,7 +83,7 @@ describe('store git lifecycle', () => {
     consoleLogSpy?.mockRestore();
     consoleErrorSpy?.mockRestore();
     vi.clearAllMocks();
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    cleanupTempPath(tempDir);
   });
 
   function mkdir(relativePath: string): string {
