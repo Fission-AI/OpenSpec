@@ -104,6 +104,20 @@ jobs:
           path: coverage/
           retention-days: 7
 
+  test_pr_required:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: [test_matrix]
+    if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
+    steps:
+      - name: Verify matrix tests passed
+        run: |
+          if [[ "${{ needs.test_matrix.result }}" != "success" ]]; then
+            echo "Matrix test job failed"
+            exit 1
+          fi
+          echo "All matrix tests passed!"
+
   lint:
     name: Lint & Type Check
     runs-on: ubuntu-latest
