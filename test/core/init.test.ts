@@ -198,7 +198,8 @@ describe('InitCommand', () => {
 
     it('should create both skills and commands for Trae with adapter', async () => {
       saveGlobalConfig({
-        configuredTools: [],
+        featureFlags: {},
+        profile: 'core',
         delivery: 'both',
       });
 
@@ -468,7 +469,7 @@ describe('InitCommand', () => {
           ) {
             throw new Error('EACCES: permission denied');
           }
-          return originalWriteFile.call(fs, filePath, ...args);
+          return (originalWriteFile as any)(filePath, ...args);
         }
       );
 
