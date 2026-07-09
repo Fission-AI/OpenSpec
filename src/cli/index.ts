@@ -70,8 +70,13 @@ function printPortfolioBody(
   }
   if (portfolio.initiatives.length === 0) {
     if (portfolio.evergreen.length === 0) {
+      // The empty state must teach the whole layout: a first-time user with
+      // a fresh store has no other way to learn it from the CLI.
       console.log(
-        `${indent}(empty — add an evergreen artifact like product.md, or a folder per initiative)`
+        `${indent}(empty — add evergreen files like product.md or roadmap.md, and one folder per initiative;`
+      );
+      console.log(
+        `${indent} numbered subfolders like 00_intent/ 01_engineering/ become its ordered stages)`
       );
     }
     return;
@@ -138,7 +143,7 @@ async function renderInitiatives(
   if (initiatives === null) {
     console.log('No initiatives folder found at openspec/initiatives/.');
     console.log(
-      'Start one: mkdir -p openspec/initiatives/<name>, then add any artifact (notes.md, roadmap.md — any name).'
+      'Start one: mkdir -p openspec/initiatives/<name>, then add any doc (numbered subfolders inside become ordered stages).'
     );
     return;
   }
