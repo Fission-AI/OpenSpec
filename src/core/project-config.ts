@@ -1,6 +1,6 @@
-import { existsSync, readFileSync, statSync } from 'fs';
+import { existsSync, readFileSync, statSync, writeFileSync } from 'fs';
 import path from 'path';
-import { parse as parseYaml } from 'yaml';
+import { parse as parseYaml, parseDocument, isSeq } from 'yaml';
 import { z } from 'zod';
 
 /**
@@ -415,6 +415,56 @@ export function readStorePointer(projectRoot: string): StorePointerRead {
   } catch {
     return { malformed: 'unparseable', filePath: configPath };
   }
+}
+
+/**
+ * Adds a store id to the config's `references:` list, preserving the file's
+ * comments and formatting. Conservative on purpose: any state it cannot
+ * edit with certainty (missing config, parse errors, a non-list
+ * `references:`) returns 'skipped' so the caller falls back to telling the
+ * user instead of guessing. Returns 'already' when the reference exists.
+ */
+export function addReferenceToProjectConfig(
+  projectRoot: string,
+  storeId: string
+): 'added' | 'already' | 'skipped' {
+  const configPath = resolveConfigFilePath(projectRoot);
+  if (configPath === null) return 'skipped';
+
+  let doc;
+  try {
+    doc = parseDocument(readFileSync(configPath, 'utf-8'));
+  } catch {
+    return 'skipped';
+  }
+  if (doc.errors.length > 0) return 'skipped';
+
+  const existing = doc.get('references');
+  if (existing === undefined) {
+    doc.set('references', [storeId]);
+  } else if (isSeq(existing)) {
+    const values = existing.toJSON() as unknown[];
+    const present =
+      Array.isArray(values) &&
+      values.some(
+        (value) =>
+          value === storeId ||
+          (value !== null &&
+            typeof value === 'object' &&
+            (value as { id?: unknown }).id === storeId)
+      );
+    if (present) return 'already';
+    existing.add(doc.createNode(storeId));
+  } else {
+    return 'skipped';
+  }
+
+  try {
+    writeFileSync(configPath, doc.toString(), 'utf-8');
+  } catch {
+    return 'skipped';
+  }
+  return 'added';
 }
 
 /** Shared .yaml/.yml probe used by readProjectConfig and readStorePointer. */

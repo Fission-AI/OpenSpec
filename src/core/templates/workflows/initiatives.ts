@@ -67,7 +67,7 @@ Plans die of verbosity.
 
 - One page per artifact. Longer means cut or split.
 - Prefer a table to prose, a line to a paragraph.
-- No file paths or code snippets in upstream artifacts — they rot.
+- No file paths or line-anchored code in upstream artifacts — they rot. Naming a module, crate, or tool is fine; pointing at a path or line is not.
 - Never restate another artifact; point to it.
 
 ## Stay above the code

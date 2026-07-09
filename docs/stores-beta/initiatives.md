@@ -89,18 +89,16 @@ And stages are opt-in: an initiative with no numbers works exactly the same.
 
 Put the same folder in a [store](user-guide.md) — a planning repo the whole
 team registers by name. The store is the parent; each code repo is a child
-pointing up:
+pointing up. The whole path is three commands:
 
 ```bash
-openspec store setup team-plans --path ~/openspec/team-plans
-# put initiatives in team-plans/openspec/initiatives/
+openspec store setup team-plans        # once — defaults to ~/openspec/team-plans
+# put initiatives in team-plans/openspec/initiatives/ (or let /opsx:initiatives capture them)
 
-# in any code repo:
+# in any code repo — this one command does ALL the wiring:
 openspec new change add-search --initiative team-plans/smoother-setup
-```
 
-```bash
-openspec list --initiatives --store team-plans
+openspec list --initiatives            # from anywhere
 ```
 
 ```text
@@ -113,14 +111,13 @@ smoother-setup   2/3 changes complete
   ✓ fix-onboarding    my-app          2/2 tasks
 ```
 
-One command answers "where does everything stand?" — across every repo on
-your machine that points at the store's initiatives. Linking is the
-registration: `new change --initiative team-plans/<name>` records the
-checkout so rollups scan it, with nothing written into the repo itself. It
-even works outside any repo: with no local root, `list --initiatives` shows
-the portfolios of your registered stores. And repos that add
-`references: [team-plans]` to their `openspec/config.yaml` get the
-initiatives into their agent's context automatically.
+Linking does all the wiring, and says so: it records the checkout so
+rollups scan it (nothing written into the repo for that), and it adds
+`references: [team-plans]` to the repo's `openspec/config.yaml` so agents
+there see the store's context — announced in the output, one visible line
+in your own config. One command then answers "where does everything
+stand?" from anywhere — even outside any repo, where `list --initiatives`
+shows the portfolios of your registered stores.
 
 Going from solo to team is moving one folder into a store. The initiative
 is untouched; its ref changes from `smoother-setup` to

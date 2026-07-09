@@ -65,8 +65,17 @@ this machine that points at it, with live task status — via
 - **WHEN** a plain code repo (not a registered store) creates a change with
   `--initiative <store-id>/<name>`
 - **THEN** the repo's checkout is recorded machine-locally, with nothing
-  written into the repo itself
+  written into the repo itself for discovery
 - **AND** the store's rollup includes that change without any further setup
+
+#### Scenario: Linking wires the agent context too
+
+- **WHEN** a change links to a store's initiative and the repo's config does
+  not yet reference that store
+- **THEN** the store is added to `references:` in `openspec/config.yaml`,
+  announced in the command's output
+- **AND** any config the command cannot edit with certainty is left
+  untouched, with the manual one-liner printed instead
 
 #### Scenario: A complete initiative prompts the evergreen sync
 

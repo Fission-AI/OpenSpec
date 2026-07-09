@@ -269,25 +269,18 @@ async function resolveSetupInput(
     );
   }
 
-  if (options.path === undefined && !interactive) {
-    throw new StoreError(
-      'Pass --path with the folder where this store should live.',
-      'store_setup_path_required',
-      {
-        target: 'store.root',
-        fix: `openspec store setup ${id ?? '<id>'} --path ~/openspec/${id ?? '<id>'}`,
-      }
-    );
-  }
-
   const resolvedId = id ? validateStoreId(id) : await promptStoreId();
-  const promptedPath = options.path === undefined
-    ? await promptStorePath(resolvedId)
-    : undefined;
+  // No --path needed: interactive prompts with ~/openspec/<id> prefilled;
+  // non-interactive defaults to the same place, so setup is one command.
+  const resolvedPath =
+    options.path ??
+    (interactive
+      ? await promptStorePath(resolvedId)
+      : ['~', 'openspec', resolvedId].join('/'));
 
   return {
     id: resolvedId,
-    path: options.path ?? promptedPath,
+    path: resolvedPath,
     ...(options.remote !== undefined ? { remote: options.remote } : {}),
   };
 }

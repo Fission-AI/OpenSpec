@@ -445,19 +445,25 @@ export async function generateApplyInstructions(
   let state: ApplyInstructions['state'];
   let instruction: string;
 
+  // Blocked-state hints must point at the always-available CLI path — a
+  // named skill may not be generated under every profile.
+  const tracksArtifactId = tracksFile
+    ? (schema.artifacts.find((a) => a.generates === tracksFile)?.id ??
+      path.parse(path.basename(tracksFile)).name)
+    : null;
   if (missingArtifacts.length > 0) {
     state = 'blocked';
-    instruction = `Cannot apply this change yet. Missing artifacts: ${missingArtifacts.join(', ')}.\nUse the openspec-continue-change skill to create the missing artifacts first.`;
+    instruction = `Cannot apply this change yet. Missing artifacts: ${missingArtifacts.join(', ')}.\nCreate each one first: openspec instructions <artifact> --change ${changeName}`;
   } else if (tracksFile && !tracksFileExists) {
     // Tracking file configured but doesn't exist yet
     const tracksFilename = path.basename(tracksFile);
     state = 'blocked';
-    instruction = `The ${tracksFilename} file is missing and must be created.\nUse openspec-continue-change to generate the tracking file.`;
+    instruction = `The ${tracksFilename} file is missing and must be created.\nGenerate it: openspec instructions ${tracksArtifactId} --change ${changeName}`;
   } else if (tracksFile && tracksFileExists && total === 0) {
     // Tracking file exists but contains no tasks
     const tracksFilename = path.basename(tracksFile);
     state = 'blocked';
-    instruction = `The ${tracksFilename} file exists but contains no tasks.\nAdd tasks to ${tracksFilename} or regenerate it with openspec-continue-change.`;
+    instruction = `The ${tracksFilename} file exists but contains no tasks.\nAdd tasks to ${tracksFilename}, or regenerate it: openspec instructions ${tracksArtifactId} --change ${changeName}`;
   } else if (tracksFile && remaining === 0 && total > 0) {
     state = 'all_done';
     instruction = 'All tasks are complete! This change is ready to be archived.\nConsider running tests and reviewing the changes before archiving.';
@@ -566,7 +572,9 @@ export function printApplyInstructionsText(
     console.log('### ⚠️ Blocked');
     console.log();
     console.log(`Missing artifacts: ${missingArtifacts.join(', ')}`);
-    console.log('Use the openspec-continue-change skill to create these first.');
+    console.log(
+      `Create each one first: openspec instructions <artifact> --change ${changeName}`
+    );
     console.log();
   }
 

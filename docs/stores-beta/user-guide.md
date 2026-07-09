@@ -55,7 +55,7 @@ Two rules keep this simple:
 Two commands take you from nothing to a working, store-scoped change:
 
 ```bash
-openspec store setup team-plans --path ~/openspec/team-plans
+openspec store setup team-plans   # defaults to ~/openspec/team-plans
 ```
 
 ```
@@ -93,8 +93,7 @@ them across code repos.
 **Day one (whoever sets it up):**
 
 ```bash
-openspec store setup team-plans --path ~/openspec/team-plans \
-  --remote git@github.com:acme/team-plans.git
+openspec store setup team-plans --remote git@github.com:acme/team-plans.git
 git -C ~/openspec/team-plans push -u origin main
 ```
 

@@ -11,7 +11,7 @@ import ora from 'ora';
 import path from 'path';
 import { InitiativeRefSchema } from '../../core/change-metadata/schema.js';
 import { recordLinkedRoot } from '../../core/initiatives.js';
-import { readProjectConfig } from '../../core/project-config.js';
+import { addReferenceToProjectConfig } from '../../core/project-config.js';
 import { createChange, validateChangeName } from '../../utils/change-utils.js';
 import { formatChangeLocation } from '../../core/planning-home.js';
 import {
@@ -49,6 +49,12 @@ interface NewChangeOutput {
     metadataPath: string;
     schema: string;
   };
+  /** Present when the change was born linked to an initiative. */
+  initiative?: {
+    ref: string;
+    /** Whether linking auto-added the store to `references:` in config. */
+    reference_wiring?: 'added' | 'already' | 'skipped';
+  };
   root: RootOutput;
 }
 
@@ -69,7 +75,8 @@ function assertRemovedOptionsAbsent(options: NewChangeOptions): void {
 function printCreatedChangeHuman(
   payload: NewChangeOutput,
   root: ResolvedOpenSpecRoot,
-  initiative?: string
+  initiative?: string,
+  referenceWiring?: 'added' | 'already' | 'skipped' | null
 ): void {
   // A relative path is only honest when the root is where the user
   // stands; a distant ancestor root gets the absolute path.
@@ -85,14 +92,14 @@ function printCreatedChangeHuman(
       ? `openspec list --initiatives --store ${storeId}`
       : 'openspec list --initiatives';
     console.log(`Initiative: ${initiative}  (rollup: ${rollup})`);
-    if (storeId !== null) {
-      // readProjectConfig never throws: missing/unparseable configs are null.
-      const references = readProjectConfig(root.path)?.references ?? [];
-      if (!references.some((entry) => entry.id === storeId)) {
-        console.log(
-          `Tip: add 'references: [${storeId}]' to openspec/config.yaml so agents here see that store's context.`
-        );
-      }
+    if (referenceWiring === 'added') {
+      console.log(
+        `Referenced store '${storeId}' in openspec/config.yaml — agents here now see its context.`
+      );
+    } else if (referenceWiring === 'skipped') {
+      console.log(
+        `Tip: add 'references: [${storeId}]' to openspec/config.yaml so agents here see that store's context.`
+      );
     }
   }
   console.log(`Next: ${withStoreFlag(root, `openspec status --change ${payload.change.id}`)}`);
@@ -159,11 +166,19 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
       await fs.writeFile(readmePath, `# ${name}\n\n${options.description}\n`, 'utf-8');
     }
 
-    // A store-qualified link makes this repo part of that store's portfolio;
-    // record the checkout so rollups scan it. Linking IS the registration —
-    // and a recording failure must never fail the created change.
+    // A store-qualified link makes this repo part of that store's portfolio.
+    // Linking does ALL the wiring: record the checkout so rollups scan it,
+    // and reference the store so agents here see its context — neither
+    // failure may fail the created change.
+    let referenceWiring: 'added' | 'already' | 'skipped' | null = null;
     if (options.initiative?.includes('/')) {
       await recordLinkedRoot(projectRoot).catch(() => undefined);
+      const storeId = options.initiative.split('/')[0];
+      try {
+        referenceWiring = addReferenceToProjectConfig(projectRoot, storeId);
+      } catch {
+        referenceWiring = 'skipped';
+      }
     }
 
     const payload: NewChangeOutput = {
@@ -173,6 +188,14 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
         metadataPath: path.join(result.changeDir, '.openspec.yaml'),
         schema: result.schema,
       },
+      ...(options.initiative
+        ? {
+            initiative: {
+              ref: options.initiative,
+              ...(referenceWiring ? { reference_wiring: referenceWiring } : {}),
+            },
+          }
+        : {}),
       root: toRootOutput(root),
     };
 
@@ -182,7 +205,7 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
     }
 
     spinner?.stop();
-    printCreatedChangeHuman(payload, root, options.initiative);
+    printCreatedChangeHuman(payload, root, options.initiative, referenceWiring);
   } catch (error) {
     spinner?.stop();
     if (options.json) {

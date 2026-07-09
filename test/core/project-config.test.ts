@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import {
+  addReferenceToProjectConfig,
   readProjectConfig,
   validateConfigRules,
   suggestSchemas,
@@ -691,6 +692,54 @@ rules:
       // 'abcdefghijk' has large Levenshtein distance from all schemas
       expect(message).not.toContain('Did you mean');
       expect(message).toContain('Available schemas:');
+    });
+  });
+
+  describe('addReferenceToProjectConfig', () => {
+    function writeConfig(content: string): string {
+      const configPath = path.join(tempDir, 'openspec', 'config.yaml');
+      fs.mkdirSync(path.dirname(configPath), { recursive: true });
+      fs.writeFileSync(configPath, content, 'utf-8');
+      return configPath;
+    }
+
+    it('adds a references list when none exists, preserving comments', () => {
+      const configPath = writeConfig('# my config\nschema: spec-driven\n');
+
+      expect(addReferenceToProjectConfig(tempDir, 'team-plans')).toBe('added');
+
+      const content = fs.readFileSync(configPath, 'utf-8');
+      expect(content).toContain('# my config');
+      expect(readProjectConfig(tempDir)?.references).toEqual([
+        { id: 'team-plans' },
+      ]);
+    });
+
+    it('appends to an existing list and is idempotent', () => {
+      writeConfig('schema: spec-driven\nreferences:\n  - other-store\n');
+
+      expect(addReferenceToProjectConfig(tempDir, 'team-plans')).toBe('added');
+      expect(addReferenceToProjectConfig(tempDir, 'team-plans')).toBe('already');
+
+      expect(readProjectConfig(tempDir)?.references).toEqual([
+        { id: 'other-store' },
+        { id: 'team-plans' },
+      ]);
+    });
+
+    it('recognizes an existing {id, remote} entry', () => {
+      writeConfig(
+        'schema: spec-driven\nreferences:\n  - id: team-plans\n    remote: git@example.com:plans.git\n'
+      );
+
+      expect(addReferenceToProjectConfig(tempDir, 'team-plans')).toBe('already');
+    });
+
+    it('skips instead of guessing: missing config or a non-list references', () => {
+      expect(addReferenceToProjectConfig(tempDir, 'team-plans')).toBe('skipped');
+
+      writeConfig('schema: spec-driven\nreferences: not-a-list\n');
+      expect(addReferenceToProjectConfig(tempDir, 'team-plans')).toBe('skipped');
     });
   });
 });
