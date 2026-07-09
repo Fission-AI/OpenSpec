@@ -22,9 +22,12 @@ import path from 'path';
 import { parse as parseYaml } from 'yaml';
 
 import { getTaskProgressForChange } from '../utils/task-progress.js';
+import { writeFileAtomically } from './file-state.js';
 import {
+  getStoresDir,
   listStoreRegistryEntries,
   readStoreRegistryState,
+  type StorePathOptions,
 } from './store/foundation.js';
 import { getStoreRootForBackend } from './store/registry.js';
 
@@ -42,6 +45,8 @@ export interface InitiativeChangeStatus {
   id: string;
   /** Registered store the change lives in; absent = the portfolio's own root. */
   store?: string;
+  /** Linked (non-store) repo the change lives in, by directory name. */
+  repo?: string;
   completedTasks: number;
   totalTasks: number;
   state: 'complete' | 'in-progress' | 'no-tasks';
@@ -108,6 +113,57 @@ export function normalizeInitiativeRef(value: unknown): string | null {
   return null;
 }
 
+// ---------------------------------------------------------------------------
+// Linked roots
+//
+// Rollup can only scan checkouts it knows about. Store roots come from the
+// store registry; plain code repos become known the moment they link a change
+// to a store's initiative (`new change --initiative <store>/<name>` records
+// the repo's path here). Linking IS the registration — no extra command, and
+// nothing is written into the repo itself.
+// ---------------------------------------------------------------------------
+
+const LINKED_ROOTS_FILE_NAME = 'linked-roots.yaml';
+
+function getLinkedRootsPath(options: StorePathOptions = {}): string {
+  return path.join(getStoresDir(options), LINKED_ROOTS_FILE_NAME);
+}
+
+/** Known linked roots. Tolerant: unreadable state means "none". */
+export async function readLinkedRoots(
+  options: StorePathOptions = {}
+): Promise<string[]> {
+  try {
+    const raw = await fs.readFile(getLinkedRootsPath(options), 'utf-8');
+    const parsed = parseYaml(raw) as { roots?: unknown } | null;
+    if (!Array.isArray(parsed?.roots)) return [];
+    return parsed.roots.filter(
+      (entry): entry is string => typeof entry === 'string' && entry.length > 0
+    );
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Records a repo root so rollups scan it. Idempotent; stale entries are
+ * harmless (a missing directory scans as empty).
+ */
+export async function recordLinkedRoot(
+  root: string,
+  options: StorePathOptions = {}
+): Promise<void> {
+  const resolved = path.resolve(root);
+  const existing = await readLinkedRoots(options);
+  if (existing.includes(resolved)) return;
+  const roots = [...existing, resolved].sort();
+  await fs.mkdir(getStoresDir(options), { recursive: true });
+  await writeFileAtomically(
+    getLinkedRootsPath(options),
+    `version: 1\nroots:\n${roots.map((entry) => `  - ${JSON.stringify(entry)}`).join('\n')}\n`
+  );
+}
+
 interface InitiativeShape {
   name: string;
   stages: InitiativeStage[];
@@ -168,7 +224,7 @@ export async function readInitiativesShape(
  * to reference form. Tolerant: any unreadable or unlinked metadata simply
  * means "not part of an initiative".
  */
-async function readInitiativeRef(changeDir: string): Promise<string | null> {
+export async function readInitiativeRef(changeDir: string): Promise<string | null> {
   try {
     const raw = await fs.readFile(path.join(changeDir, '.openspec.yaml'), 'utf-8');
     const parsed = parseYaml(raw) as { initiative?: unknown } | null;
@@ -187,7 +243,7 @@ async function readInitiativeRef(changeDir: string): Promise<string | null> {
 async function collectMatchingChanges(
   root: string,
   toName: (ref: string) => string | null,
-  store: string | undefined
+  label: { store?: string; repo?: string } | undefined
 ): Promise<Map<string, InitiativeChangeStatus[]>> {
   const changesDir = path.join(root, 'openspec', 'changes');
   const found = new Map<string, InitiativeChangeStatus[]>();
@@ -208,7 +264,8 @@ async function collectMatchingChanges(
     const progress = await getTaskProgressForChange(changesDir, entry.name, root);
     const status: InitiativeChangeStatus = {
       id: entry.name,
-      ...(store ? { store } : {}),
+      ...(label?.store ? { store: label.store } : {}),
+      ...(label?.repo ? { repo: label.repo } : {}),
       completedTasks: progress.completed,
       totalTasks: progress.total,
       state:
@@ -297,15 +354,28 @@ export async function rollupInitiatives(
   );
 
   if (ownStoreId !== undefined && ownPrefix !== null) {
+    const toOwnName = (ref: string) =>
+      ref.startsWith(ownPrefix) ? ref.slice(ownPrefix.length) : null;
+    const scanned = new Set([resolvedRoot]);
     for (const store of storeRoots) {
-      if (store.root === resolvedRoot) continue;
+      if (scanned.has(store.root)) continue;
+      scanned.add(store.root);
       mergeChanges(
         byName,
-        await collectMatchingChanges(
-          store.root,
-          (ref) => (ref.startsWith(ownPrefix) ? ref.slice(ownPrefix.length) : null),
-          store.id
-        )
+        await collectMatchingChanges(store.root, toOwnName, { store: store.id })
+      );
+    }
+    // Plain code repos that linked a change here (recorded at link time).
+    for (const linkedRoot of await readLinkedRoots(
+      options.globalDataDir ? { globalDataDir: options.globalDataDir } : {}
+    )) {
+      if (scanned.has(linkedRoot)) continue;
+      scanned.add(linkedRoot);
+      mergeChanges(
+        byName,
+        await collectMatchingChanges(linkedRoot, toOwnName, {
+          repo: path.basename(linkedRoot),
+        })
       );
     }
   }
@@ -401,4 +471,59 @@ export async function listInitiativeNames(root: string): Promise<string[]> {
   return shape.initiatives.length > 0
     ? shape.initiatives.map((initiative) => initiative.name)
     : shape.evergreen;
+}
+
+export interface ResolvedInitiativeLink {
+  /** The reference as written: `<name>` or `<store-id>/<name>`. */
+  ref: string;
+  name: string;
+  /** Present when the ref is store-qualified. */
+  store?: string;
+  /** Absolute path to the initiative folder; null when not found on disk. */
+  path: string | null;
+}
+
+/**
+ * Resolves a change's upward link to the initiative folder it points at, so
+ * instruction surfaces can hand the agent the actual upstream context. A ref
+ * that resolves to no folder still returns (with `path: null`) — a stale
+ * link should be visible, not silently dropped.
+ */
+export async function resolveInitiativeLink(
+  changeDir: string,
+  root: string,
+  options: StorePathOptions = {}
+): Promise<ResolvedInitiativeLink | null> {
+  const ref = await readInitiativeRef(changeDir);
+  if (ref === null) return null;
+
+  const slash = ref.indexOf('/');
+  const store = slash === -1 ? undefined : ref.slice(0, slash);
+  const name = slash === -1 ? ref : ref.slice(slash + 1);
+
+  let initiativeRoot: string | null = slash === -1 ? root : null;
+  if (store !== undefined) {
+    const registry = await readStoreRegistryState(options).catch(() => null);
+    const entry = registry?.stores[store];
+    if (entry) {
+      try {
+        initiativeRoot = getStoreRootForBackend(entry.backend);
+      } catch {
+        // Unusable backend — the link renders with path: null.
+      }
+    }
+  }
+
+  let resolvedPath: string | null = null;
+  if (initiativeRoot !== null) {
+    const candidate = path.join(initiativesDir(initiativeRoot), name);
+    try {
+      const stat = await fs.stat(candidate);
+      if (stat.isDirectory()) resolvedPath = candidate;
+    } catch {
+      // Missing on disk — keep null.
+    }
+  }
+
+  return { ref, name, ...(store !== undefined ? { store } : {}), path: resolvedPath };
 }

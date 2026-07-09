@@ -36,6 +36,10 @@ import {
 import { readRegistrySnapshot } from '../../core/store/registry.js';
 import { readProjectConfig, type ProjectConfig } from '../../core/project-config.js';
 import {
+  resolveInitiativeLink,
+  type ResolvedInitiativeLink,
+} from '../../core/initiatives.js';
+import {
   validateChangeExists,
   validateSchemaExists,
   type TaskItem,
@@ -97,6 +101,33 @@ async function loadRootConfigContext(root: ResolvedOpenSpecRoot): Promise<{
   };
 }
 
+/**
+ * The upward join: a linked change's instructions hand the agent the
+ * initiative it serves and where its upstream context lives on disk, so
+ * intent reaches the working agent without anyone pasting it.
+ */
+function renderInitiativeBlock(link: ResolvedInitiativeLink): string {
+  const lines = [
+    `<initiative ref="${link.ref}">`,
+    `This change serves initiative '${link.name}'${link.store ? ` in store '${link.store}'` : ''}.`,
+  ];
+  if (link.path) {
+    lines.push(`Upstream context: ${link.path}`);
+    lines.push(
+      'Before working, read the evergreen files beside that initiative and every lower-numbered stage inside it; this change should trace to something upstream.'
+    );
+  } else {
+    lines.push(
+      'The linked initiative folder was not found on disk — the link may be stale, or the store may not be registered on this machine.'
+    );
+  }
+  lines.push(
+    `Status rollup: openspec list --initiatives${link.store ? ` --store ${link.store}` : ''}`
+  );
+  lines.push('</initiative>');
+  return lines.join('\n');
+}
+
 export async function instructionsCommand(
   artifactId: string | undefined,
   options: InstructionsOptions
@@ -154,22 +185,37 @@ export async function instructionsCommand(
       references,
     });
     const isBlocked = instructions.dependencies.some((d) => !d.done);
+    const initiative = await resolveInitiativeLink(context.changeDir, projectRoot);
 
     spinner?.stop();
 
     if (options.json) {
-      console.log(JSON.stringify({ ...instructions, root: toRootOutput(root) }, null, 2));
+      console.log(
+        JSON.stringify(
+          {
+            ...instructions,
+            ...(initiative ? { initiative } : {}),
+            root: toRootOutput(root),
+          },
+          null,
+          2
+        )
+      );
       return;
     }
 
-    printInstructionsText(instructions, isBlocked);
+    printInstructionsText(instructions, isBlocked, initiative);
   } catch (error) {
     spinner?.stop();
     throw error;
   }
 }
 
-export function printInstructionsText(instructions: ArtifactInstructions, isBlocked: boolean): void {
+export function printInstructionsText(
+  instructions: ArtifactInstructions,
+  isBlocked: boolean,
+  initiative?: ResolvedInitiativeLink | null
+): void {
   const {
     artifactId,
     changeName,
@@ -212,6 +258,12 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
     console.log('<!-- This is background information for you. Do NOT include this in your output. -->');
     console.log(context);
     console.log('</project_context>');
+    console.log();
+  }
+
+  // The initiative this change serves (read-only upstream context)
+  if (initiative) {
+    console.log(renderInitiativeBlock(initiative));
     console.log();
   }
 
@@ -462,27 +514,47 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
       planningHome,
       references,
     });
+    const initiative = await resolveInitiativeLink(instructions.changeDir, projectRoot);
 
     spinner?.stop();
 
     if (options.json) {
-      console.log(JSON.stringify({ ...instructions, root: toRootOutput(root) }, null, 2));
+      console.log(
+        JSON.stringify(
+          {
+            ...instructions,
+            ...(initiative ? { initiative } : {}),
+            root: toRootOutput(root),
+          },
+          null,
+          2
+        )
+      );
       return;
     }
 
-    printApplyInstructionsText(instructions);
+    printApplyInstructionsText(instructions, initiative);
   } catch (error) {
     spinner?.stop();
     throw error;
   }
 }
 
-export function printApplyInstructionsText(instructions: ApplyInstructions): void {
+export function printApplyInstructionsText(
+  instructions: ApplyInstructions,
+  initiative?: ResolvedInitiativeLink | null
+): void {
   const { changeName, schemaName, contextFiles, progress, tasks, state, missingArtifacts, instruction } = instructions;
 
   console.log(`## Apply: ${changeName}`);
   console.log(`Schema: ${schemaName}`);
   console.log();
+
+  // The initiative this change serves (read-only upstream context)
+  if (initiative) {
+    console.log(renderInitiativeBlock(initiative));
+    console.log();
+  }
 
   if (instructions.references && instructions.references.length > 0) {
     console.log(renderReferencedStoresSection(instructions.references));

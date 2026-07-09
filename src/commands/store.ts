@@ -673,7 +673,7 @@ export function registerStoreCommand(program: Command): void {
     .option('--path <path>', 'Folder where the store should live (for example ~/openspec/<id>)')
     .option('--init-git', 'Initialize a Git repository with an initial commit (default)')
     .option('--no-init-git', 'Skip every Git action: no init, no initial commit')
-    .option('--remote <url>', 'Canonical clone source recorded in store.yaml')
+    .option('--remote <url>', 'Canonical clone source recorded in .openspec-store/store.yaml')
     .option('--json', 'Output as JSON')
     .action(async (id: string | undefined, options: StoreSetupOptions) => {
       await storeCommand.setup(id, options);

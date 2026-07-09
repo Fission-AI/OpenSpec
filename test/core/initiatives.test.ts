@@ -7,6 +7,9 @@ import {
   listInitiativeNames,
   normalizeInitiativeRef,
   readInitiativesShape,
+  readLinkedRoots,
+  recordLinkedRoot,
+  resolveInitiativeLink,
   rollupInitiatives,
   rollupRegisteredStorePortfolios,
 } from '../../src/core/initiatives.js';
@@ -196,6 +199,81 @@ describe('initiatives', () => {
     expect(byId['update-docs'].store).toBeUndefined();
     expect(initiative?.changesComplete).toBe(3);
     expect(initiative?.tasksTotal).toBe(8);
+  });
+
+  it('finds changes in plain linked repos — linking is the registration', async () => {
+    write('team-plans/openspec/initiatives/smoother-setup/goal.md', '# goal\n');
+    await registerStore('team-plans', 'team-plans');
+    // A code repo that is NOT registered as a store; it linked a change,
+    // which recorded its checkout.
+    change('my-app', 'add-search', 'team-plans/smoother-setup', '- [x] a\n- [ ] b\n');
+    await recordLinkedRoot(path.join(tempDir, 'my-app'), { globalDataDir });
+    // Recording is idempotent.
+    await recordLinkedRoot(path.join(tempDir, 'my-app'), { globalDataDir });
+    expect(await readLinkedRoots({ globalDataDir })).toEqual([
+      path.join(tempDir, 'my-app'),
+    ]);
+    // A stale entry (deleted checkout) must not break the rollup.
+    await recordLinkedRoot(path.join(tempDir, 'gone-repo'), { globalDataDir });
+
+    const portfolio = await rollupInitiatives(path.join(tempDir, 'team-plans'), {
+      globalDataDir,
+    });
+
+    const initiative = portfolio?.initiatives.find((i) => i.name === 'smoother-setup');
+    expect(initiative?.changes.map((c) => c.id)).toEqual(['add-search']);
+    expect(initiative?.changes[0].repo).toBe('my-app');
+    expect(initiative?.changes[0].store).toBeUndefined();
+    expect(initiative?.changes[0].state).toBe('in-progress');
+  });
+
+  it('resolves a change link to the initiative folder it points at', async () => {
+    // Local ref: the initiative lives in the change's own root.
+    write('app/openspec/initiatives/smoother-setup/goal.md', '# goal\n');
+    change('app', 'add-search', 'smoother-setup', '- [ ] a\n');
+    const local = await resolveInitiativeLink(
+      path.join(tempDir, 'app/openspec/changes/add-search'),
+      path.join(tempDir, 'app'),
+      { globalDataDir }
+    );
+    expect(local?.ref).toBe('smoother-setup');
+    expect(local?.store).toBeUndefined();
+    expect(local?.path).toBe(path.join(tempDir, 'app/openspec/initiatives/smoother-setup'));
+
+    // Store-qualified ref: resolves through the registry.
+    write('team-plans/openspec/initiatives/q3-payments/brief.md', '# brief\n');
+    await registerStore('team-plans', 'team-plans');
+    change('app', 'add-payments', 'team-plans/q3-payments', '- [ ] a\n');
+    const qualified = await resolveInitiativeLink(
+      path.join(tempDir, 'app/openspec/changes/add-payments'),
+      path.join(tempDir, 'app'),
+      { globalDataDir }
+    );
+    expect(qualified?.store).toBe('team-plans');
+    expect(qualified?.name).toBe('q3-payments');
+    expect(qualified?.path).toBe(
+      path.join(tempDir, 'team-plans/openspec/initiatives/q3-payments')
+    );
+
+    // A stale ref stays visible with path: null instead of vanishing.
+    change('app', 'add-ghost', 'no-such-initiative', '- [ ] a\n');
+    const stale = await resolveInitiativeLink(
+      path.join(tempDir, 'app/openspec/changes/add-ghost'),
+      path.join(tempDir, 'app'),
+      { globalDataDir }
+    );
+    expect(stale?.ref).toBe('no-such-initiative');
+    expect(stale?.path).toBeNull();
+
+    // An unlinked change resolves to nothing.
+    change('app', 'plain', null, '- [ ] a\n');
+    expect(
+      await resolveInitiativeLink(
+        path.join(tempDir, 'app/openspec/changes/plain'),
+        path.join(tempDir, 'app'),
+        { globalDataDir }
+      )
+    ).toBeNull();
   });
 
   it('rolls up every registered store portfolio for the outside-a-root answer', async () => {

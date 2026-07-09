@@ -81,9 +81,8 @@ initiative reads everything lower-numbered first, then produces what their
 stage owes the next one. Nothing pushes work downstream; the folder position
 already says what is upstream and what comes next.
 
-The documents themselves can be any format — a
-[ProductSpec](https://github.com/gokulrajaram/ProductSpec) file, a PRD, an
-RFC, exported design notes. Position carries the meaning, not the format.
+The documents themselves can be any format — a PRD, an RFC, a one-pager,
+exported design notes. Position carries the meaning, not the format.
 And stages are opt-in: an initiative with no numbers works exactly the same.
 
 ## Team: the portfolio lives in a store
@@ -115,11 +114,13 @@ smoother-setup   2/3 changes complete
 ```
 
 One command answers "where does everything stand?" — across every repo on
-your machine that points at the store's initiatives. It even works outside
-any repo: with no local root, `list --initiatives` shows the portfolios of
-your registered stores. And repos that add `references: [team-plans]` to
-their `openspec/config.yaml` get the initiatives into their agent's context
-automatically.
+your machine that points at the store's initiatives. Linking is the
+registration: `new change --initiative team-plans/<name>` records the
+checkout so rollups scan it, with nothing written into the repo itself. It
+even works outside any repo: with no local root, `list --initiatives` shows
+the portfolios of your registered stores. And repos that add
+`references: [team-plans]` to their `openspec/config.yaml` get the
+initiatives into their agent's context automatically.
 
 Going from solo to team is moving one folder into a store. The initiative
 is untouched; its ref changes from `smoother-setup` to
@@ -144,16 +145,18 @@ decides what happens. Whether your chain has two stages or five:
 
 | Where you stand | Job to be done | What actually happens |
 |---|---|---|
-| nothing exists yet | capture the intent | ask the agent — `/opsx:initiatives` turns the conversation into the first stage's artifact, or drop in a doc you already have (ProductSpec, PRD, RFC) |
+| nothing exists yet | capture the intent | ask the agent — `/opsx:initiatives` turns the conversation into the first stage's artifact, or drop in a doc you already have (a PRD, an RFC, a one-pager) |
 | any middle stage | add your piece | open the initiative; the skill reads everything lower-numbered and drafts your stage — same move at `01_design/` as at `02_architecture/` |
 | the last stage | turn plans into work | the skill decomposes it into changes born linked (`openspec new change <name> --initiative <ref>`), each tracing to something upstream |
 | anywhere, anytime | know where it stands | `openspec list --initiatives` — live, from task lists, no bookkeeping |
 
 **The handoff artifact between planning and building is the change itself** —
 self-contained, worked with the normal change skills. The initiative travels
-along: the repo's `context:` config can point at it locally, and referenced
-stores surface it to agents automatically. Status flows back with no
-meetings and no status updates written by hand.
+along: `openspec instructions` and `openspec instructions apply` for a linked
+change open with the initiative it serves and where its upstream context
+lives on disk, so intent reaches the working agent without anyone pasting
+it. Status flows back with no meetings and no status updates written by
+hand.
 
 ## What the pieces are
 
@@ -168,7 +171,9 @@ meetings and no status updates written by hand.
 
 ## Honest limits
 
-- Rollup scans repos registered on this machine — it never clones or syncs.
+- Rollup scans checkouts this machine knows: registered stores, plus any
+  repo that has linked a change to a store's initiative. It never clones or
+  syncs.
 - Stage order is a naming convention, not a gate. Nothing blocks working out
   of order; the skill just knows what comes next.
 - Reactions fire when the skill looks — reactive triggers beyond that (git

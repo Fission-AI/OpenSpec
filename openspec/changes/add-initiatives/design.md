@@ -10,7 +10,8 @@ team's workflow — every team's is different.
 many; one skill; value on first contact for a solo dev AND for an org.
 
 **Non-Goals:** typed upstream artifacts, manifests, file watchers or hook
-machinery, sync engines, auto-discovery of unregistered repos.
+machinery, sync engines, filesystem-crawling discovery of unknown repos
+(a repo becomes known the moment it links a change — never by scanning).
 
 ## Decisions
 
@@ -54,8 +55,8 @@ Handoffs between roles — PM → Engineering, PM → Design → Engineering, or
 any longer chain — are not workflows OpenSpec models; they are the numbered
 stage folders themselves, and every chain is handled identically. The rule
 is one sentence: read everything lower-numbered, produce what your stage
-owes the next one. Upstream documents can be any format (a ProductSpec
-file, a PRD, an RFC); position carries the meaning. Why pull: push requires
+owes the next one. Upstream documents can be any format (a PRD, an RFC, a
+one-pager); position carries the meaning. Why pull: push requires
 the upstream author to know the downstream tooling and fires before anyone
 has implementation context; pull happens when someone opens the work, with
 everything on disk. Rejected: per-role skills (the rule is the same move

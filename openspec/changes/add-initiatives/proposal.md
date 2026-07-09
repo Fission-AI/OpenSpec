@@ -15,8 +15,8 @@ convention, one metadata line, one rollup, one skill.
     single change (`smoother-setup/`, `q3-payments/`). Contents are freeform;
     numbered folders inside an initiative are ordered stages, and their
     names are the team's workflow (`00_product/ 01_engineering/`, or any
-    longer chain). Stage documents can be any format — a ProductSpec file,
-    a PRD, an RFC. Handoffs are pull-based: read what is lower-numbered,
+    longer chain). Stage documents can be any format — a PRD, an RFC, a
+    one-pager. Handoffs are pull-based: read what is lower-numbered,
     produce what your stage owes the next.
   - Unnumbered files at the top level are **evergreen artifacts** — the
     standing truths every initiative serves (`product.md`, `roadmap.md`,
@@ -27,8 +27,11 @@ convention, one metadata line, one rollup, one skill.
   `--initiative`. Legacy `initiative:` objects (`{store, id}`) stay readable.
 - **One rollup.** `openspec list --initiatives [--store <id>]` shows the
   portfolio: every initiative, every change on this machine pointing at it,
-  live task status — including changes in other registered repos. Run
-  outside any root, it falls back to the portfolios of registered stores.
+  live task status — including changes in other checkouts. Linking is the
+  registration: `new change --initiative <store>/<name>` records the repo's
+  path machine-locally so rollups scan it, with nothing written into the
+  repo. Run outside any root, it falls back to the portfolios of registered
+  stores.
 - **One skill.** `openspec-initiatives` (`/opsx:initiatives`): routes by
   what is on disk, captures planning conversations into artifacts, ideates
   from what exists, decomposes into changes born linked, and syncs the
@@ -51,8 +54,10 @@ None.
 
 - Commands: `list` (adds `--initiatives`), `new change` (adds
   `--initiative`), `context` and `instructions` (surface a store's
-  initiatives). All additive.
-- Skill set: one new optional workflow, `initiatives` (not in the core
-  profile).
+  initiatives; a linked change's instructions open with the initiative it
+  serves and its upstream path). All additive.
+- Skill set: one new workflow, `initiatives`, in the core profile — the
+  documented happy path (`openspec init` → `/opsx:initiatives`) must work
+  without extra configuration.
 - No breaking changes. Legacy `initiative:` metadata objects normalize to
   the new reference form when read.

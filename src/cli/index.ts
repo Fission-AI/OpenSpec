@@ -15,7 +15,7 @@ import {
 } from '../core/initiatives.js';
 import { ArchiveCommand, type ArchiveOptions } from '../core/archive.js';
 import { ViewCommand } from '../core/view.js';
-import { resolveRootForCommand, toRootOutput, type ResolvedOpenSpecRoot } from '../core/root-selection.js';
+import { resolveRootForCommand, toRootOutput, isStoreSelectedRoot, type ResolvedOpenSpecRoot } from '../core/root-selection.js';
 import { registerSpecCommand } from '../commands/spec.js';
 import { ChangeCommand } from '../commands/change.js';
 import { ValidateCommand } from '../commands/validate.js';
@@ -58,7 +58,13 @@ function hiddenStorePathOption(): Option {
   ).hideHelp();
 }
 
-function printPortfolioBody(portfolio: PortfolioInfo, indent: string): void {
+function printPortfolioBody(
+  portfolio: PortfolioInfo,
+  indent: string,
+  // Store portfolios need the store-qualified ref in the link hint — a bare
+  // <name> would not resolve from a consumer repo.
+  refPrefix = ''
+): void {
   if (portfolio.evergreen.length > 0) {
     console.log(`${indent}Evergreen: ${portfolio.evergreen.join(', ')}`);
   }
@@ -91,7 +97,7 @@ function printPortfolioBody(portfolio: PortfolioInfo, indent: string): void {
     for (const change of initiative.changes) {
       const mark =
         change.state === 'complete' ? '✓' : change.state === 'no-tasks' ? '–' : '·';
-      const where = change.store ?? 'here';
+      const where = change.store ?? change.repo ?? 'here';
       const tasks =
         change.totalTasks === 0
           ? 'no tasks'
@@ -100,11 +106,18 @@ function printPortfolioBody(portfolio: PortfolioInfo, indent: string): void {
         `${indent}  ${mark} ${change.id.padEnd(changeWidth)}  ${where.padEnd(14)}  ${tasks}`
       );
     }
+    // Truth flows up: an initiative whose changes are all complete is the
+    // trigger to update the evergreen artifacts it served.
+    if (initiative.changesTotal > 0 && initiative.changesComplete === initiative.changesTotal) {
+      console.log(
+        `${indent}  all changes complete — sync the evergreen artifacts this initiative served`
+      );
+    }
   }
   if (!anyChanges) {
     console.log('');
     console.log(
-      `${indent}Link a change: openspec new change <name> --initiative <name>`
+      `${indent}Link a change: openspec new change <name> --initiative ${refPrefix}<name>`
     );
   }
 }
@@ -131,7 +144,7 @@ async function renderInitiatives(
   }
 
   console.log(`Initiatives: ${initiatives.path}`);
-  printPortfolioBody(initiatives, '');
+  printPortfolioBody(initiatives, '', isStoreSelectedRoot(root) ? `${root.storeId}/` : '');
 }
 
 /**
@@ -156,7 +169,7 @@ async function renderStorePortfolios(options: { json?: boolean }): Promise<void>
   for (const { store, portfolio } of stores) {
     console.log('');
     console.log(`${store}  (${portfolio.path})`);
-    printPortfolioBody(portfolio, '  ');
+    printPortfolioBody(portfolio, '  ', `${store}/`);
   }
 }
 

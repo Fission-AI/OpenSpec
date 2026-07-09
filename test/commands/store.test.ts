@@ -157,9 +157,11 @@ describe('store command', () => {
       'openspec/specs/',
       'openspec/changes/',
       'openspec/changes/archive/',
+      'openspec/initiatives/',
       'openspec/config.yaml',
       'openspec/specs/.gitkeep',
       'openspec/changes/archive/.gitkeep',
+      'openspec/initiatives/.gitkeep',
       '.openspec-store/store.yaml',
     ]);
     expect(payload.status).toEqual([]);
@@ -291,9 +293,11 @@ describe('store command', () => {
       'openspec/specs/',
       'openspec/changes/',
       'openspec/changes/archive/',
+      'openspec/initiatives/',
       'openspec/config.yaml',
       'openspec/specs/.gitkeep',
       'openspec/changes/archive/.gitkeep',
+      'openspec/initiatives/.gitkeep',
       '.openspec-store/store.yaml',
     ]);
     expect(fs.existsSync(path.join(storeRoot, '.git'))).toBe(true);
@@ -313,9 +317,12 @@ describe('store command', () => {
     expect(result.exitCode).toBe(0);
     const payload = parseJson(result);
     // First-time accept of an existing root anchors its empty directories
-    // (specs/ has user content here, so only archive/ gets an anchor).
+    // (specs/ has user content here, so only archive/ gets an anchor) and
+    // adds the initiatives/ folder a pre-initiatives root lacks.
     expect(payload.created_files).toEqual([
+      'openspec/initiatives/',
       'openspec/changes/archive/.gitkeep',
+      'openspec/initiatives/.gitkeep',
       '.openspec-store/store.yaml',
     ]);
     expect(fs.existsSync(path.join(storeRoot, 'openspec', 'config.yaml'))).toBe(false);

@@ -110,6 +110,7 @@ describe('OpenSpec root helper', () => {
       'openspec/specs/',
       'openspec/changes/',
       'openspec/changes/archive/',
+      'openspec/initiatives/',
       'openspec/config.yaml',
     ]);
     expect(result.inspection.healthy).toBe(true);
@@ -125,7 +126,9 @@ describe('OpenSpec root helper', () => {
 
     const result = await ensureOpenSpecRoot(root);
 
-    expect(result.createdArtifacts).toEqual([]);
+    // A pre-initiatives root gains only the (empty) initiatives directory;
+    // everything the user already had is untouched.
+    expect(result.createdArtifacts).toEqual(['openspec/initiatives/']);
     expect(fs.existsSync(path.join(root, 'openspec', 'config.yaml'))).toBe(false);
     expect(fs.readFileSync(path.join(root, 'openspec', 'config.yml'), 'utf-8')).toBe(
       `schema: ${DEFAULT_OPENSPEC_SCHEMA}\n`

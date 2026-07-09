@@ -10,6 +10,8 @@
 import ora from 'ora';
 import path from 'path';
 import { InitiativeRefSchema } from '../../core/change-metadata/schema.js';
+import { recordLinkedRoot } from '../../core/initiatives.js';
+import { readProjectConfig } from '../../core/project-config.js';
 import { createChange, validateChangeName } from '../../utils/change-utils.js';
 import { formatChangeLocation } from '../../core/planning-home.js';
 import {
@@ -66,7 +68,8 @@ function assertRemovedOptionsAbsent(options: NewChangeOptions): void {
 
 function printCreatedChangeHuman(
   payload: NewChangeOutput,
-  root: ResolvedOpenSpecRoot
+  root: ResolvedOpenSpecRoot,
+  initiative?: string
 ): void {
   // A relative path is only honest when the root is where the user
   // stands; a distant ancestor root gets the absolute path.
@@ -76,6 +79,22 @@ function printCreatedChangeHuman(
       : payload.change.path;
   console.log(`Created change '${payload.change.id}' at ${location}/`);
   console.log(`Schema: ${payload.change.schema}`);
+  if (initiative) {
+    const storeId = initiative.includes('/') ? initiative.split('/')[0] : null;
+    const rollup = storeId
+      ? `openspec list --initiatives --store ${storeId}`
+      : 'openspec list --initiatives';
+    console.log(`Initiative: ${initiative}  (rollup: ${rollup})`);
+    if (storeId !== null) {
+      // readProjectConfig never throws: missing/unparseable configs are null.
+      const references = readProjectConfig(root.path)?.references ?? [];
+      if (!references.some((entry) => entry.id === storeId)) {
+        console.log(
+          `Tip: add 'references: [${storeId}]' to openspec/config.yaml so agents here see that store's context.`
+        );
+      }
+    }
+  }
   console.log(`Next: ${withStoreFlag(root, `openspec status --change ${payload.change.id}`)}`);
 }
 
@@ -140,6 +159,13 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
       await fs.writeFile(readmePath, `# ${name}\n\n${options.description}\n`, 'utf-8');
     }
 
+    // A store-qualified link makes this repo part of that store's portfolio;
+    // record the checkout so rollups scan it. Linking IS the registration —
+    // and a recording failure must never fail the created change.
+    if (options.initiative?.includes('/')) {
+      await recordLinkedRoot(projectRoot).catch(() => undefined);
+    }
+
     const payload: NewChangeOutput = {
       change: {
         id: name,
@@ -156,7 +182,7 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
     }
 
     spinner?.stop();
-    printCreatedChangeHuman(payload, root);
+    printCreatedChangeHuman(payload, root, options.initiative);
   } catch (error) {
     spinner?.stop();
     if (options.json) {

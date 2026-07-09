@@ -15,8 +15,8 @@
 ## 3. The skill
 
 - [x] 3.1 `openspec-initiatives` skill + `/opsx:initiatives` command
-      (state-routed moves, numbered handoff menus), registered as an
-      optional workflow (not in the core profile)
+      (state-routed moves, numbered handoff menus), in the core profile so
+      the documented happy path (`openspec init` → `/opsx:initiatives`) works
 
 ## 4. Proof
 
@@ -25,3 +25,15 @@
 - [x] 4.2 Tests: initiatives module (solo + cross-repo + legacy + fallback),
       context/instructions surfacing, registries, skill parity
 - [x] 4.3 `openspec validate add-initiatives --strict` passes
+
+## 5. Dogfood round 2 (real multi-repo product, this machine)
+
+- [x] 5.1 Rollup discovers plain code repos: linking a change records the
+      checkout (machine-local, nothing written into the repo)
+- [x] 5.2 The join: `instructions` / `instructions apply` open a linked
+      change with the initiative it serves and its upstream path on disk
+- [x] 5.3 Completion nudge: a fully-complete initiative prompts an
+      evergreen sync in the rollup
+- [x] 5.4 Friction batch: store setup seeds `initiatives/`, link hints are
+      store-qualified, `openspec init` leads the no-root fix, `--remote`
+      help names the real metadata path

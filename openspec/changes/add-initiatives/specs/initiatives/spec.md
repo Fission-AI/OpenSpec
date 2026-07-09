@@ -55,10 +55,24 @@ this machine that points at it, with live task status — via
 
 #### Scenario: Rolling up across repos toward a store initiative
 
-- **WHEN** a store has an initiative and changes in other registered repos say
-  `initiative: <that-store-id>/<name>`
+- **WHEN** a store has an initiative and changes in other checkouts on this
+  machine say `initiative: <that-store-id>/<name>`
 - **AND** the user runs `openspec list --initiatives --store <that-store-id>`
 - **THEN** the output includes those changes with the repo each lives in
+
+#### Scenario: Linking is the registration
+
+- **WHEN** a plain code repo (not a registered store) creates a change with
+  `--initiative <store-id>/<name>`
+- **THEN** the repo's checkout is recorded machine-locally, with nothing
+  written into the repo itself
+- **AND** the store's rollup includes that change without any further setup
+
+#### Scenario: A complete initiative prompts the evergreen sync
+
+- **WHEN** every change linked to an initiative is complete
+- **THEN** the rollup marks it and suggests syncing the evergreen artifacts
+  it served
 
 #### Scenario: Running outside any root
 
@@ -82,3 +96,13 @@ fetch the full rollup.
 - **AND** the user runs `openspec context`
 - **THEN** the store's member entry lists the initiative names (and evergreen artifacts when there are no initiatives)
 - **AND** shows the `openspec list --initiatives --store <id>` fetch command
+
+#### Scenario: A linked change hands its agent the upstream context
+
+- **WHEN** a change's metadata names an initiative
+- **AND** the user runs `openspec instructions <artifact> --change <id>` or
+  `openspec instructions apply --change <id>`
+- **THEN** the output opens with the initiative the change serves, the
+  on-disk path to its folder, and the instruction to read everything
+  upstream first
+- **AND** a ref whose folder cannot be found says so instead of vanishing
