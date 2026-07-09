@@ -40,7 +40,7 @@ The system SHALL define a `ToolCommandAdapter` interface for per-tool formatting
 #### Scenario: Cursor adapter formatting
 
 - **WHEN** formatting a command for Cursor
-- **THEN** the adapter SHALL output YAML frontmatter with `name` as `/opsx-<id>`, `id`, `category`, `description` fields
+- **THEN** the adapter SHALL output YAML frontmatter with `name` as `/opsx:<id>`, `id`, `category`, `description` fields
 - **AND** file path SHALL follow pattern `.cursor/commands/opsx-<id>.md`
 
 #### Scenario: Windsurf adapter formatting
