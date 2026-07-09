@@ -234,7 +234,8 @@ describe('store command', () => {
   it('defaults the path to ~/openspec/<id> for non-interactive JSON setup', async () => {
     const result = await runCLI(
       ['store', 'setup', 'team-context', '--no-init-git', '--json'],
-      { cwd: tempDir, env: { ...env, HOME: tempDir } }
+      // Both spellings: os.homedir() reads HOME on POSIX, USERPROFILE on Windows.
+      { cwd: tempDir, env: { ...env, HOME: tempDir, USERPROFILE: tempDir } }
     );
 
     expect(result.exitCode).toBe(0);
