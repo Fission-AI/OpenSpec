@@ -92,7 +92,7 @@ describe('command-generation/adapters', () => {
       const output = cursorAdapter.formatFile(sampleContent);
 
       expect(output).toContain('---\n');
-      expect(output).toContain('name: /opsx-explore');
+      expect(output).toContain('name: /opsx:explore');
       expect(output).toContain('id: opsx-explore');
       expect(output).toContain('category: Workflow');
       expect(output).toContain('description: Enter explore mode for thinking');

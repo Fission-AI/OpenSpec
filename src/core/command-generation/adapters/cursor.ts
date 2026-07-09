@@ -12,7 +12,7 @@ import { escapeYamlValue } from '../yaml.js';
 /**
  * Cursor adapter for command generation.
  * File path: .cursor/commands/opsx-<id>.md
- * Frontmatter: name (as /opsx-<id>), id, category, description
+ * Frontmatter: name (as /opsx:<id>), id, category, description
  */
 export const cursorAdapter: ToolCommandAdapter = {
   toolId: 'cursor',
@@ -23,7 +23,7 @@ export const cursorAdapter: ToolCommandAdapter = {
 
   formatFile(content: CommandContent): string {
     return `---
-name: /opsx-${content.id}
+name: /opsx:${content.id}
 id: opsx-${content.id}
 category: ${escapeYamlValue(content.category)}
 description: ${escapeYamlValue(content.description)}

@@ -761,7 +761,7 @@ artifacts:
       // Verify commands were created with Cursor format
       const commandFile = path.join(tempDir, '.cursor', 'commands', 'opsx-explore.md');
       const content = await fs.readFile(commandFile, 'utf-8');
-      expect(content).toContain('name: /opsx-explore');
+      expect(content).toContain('name: /opsx:explore');
     });
 
     it('creates skills for Windsurf tool', async () => {
