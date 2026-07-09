@@ -26,12 +26,14 @@ import { iflowAdapter } from './adapters/iflow.js';
 import { junieAdapter } from './adapters/junie.js';
 import { kilocodeAdapter } from './adapters/kilocode.js';
 import { kiroAdapter } from './adapters/kiro.js';
+import { ohMyPiAdapter } from './adapters/oh-my-pi.js';
 import { opencodeAdapter } from './adapters/opencode.js';
 import { piAdapter } from './adapters/pi.js';
 import { qoderAdapter } from './adapters/qoder.js';
 import { lingmaAdapter } from './adapters/lingma.js';
 import { qwenAdapter } from './adapters/qwen.js';
 import { roocodeAdapter } from './adapters/roocode.js';
+import { traeAdapter } from './adapters/trae.js';
 import { windsurfAdapter } from './adapters/windsurf.js';
 
 /**
@@ -62,12 +64,14 @@ export class CommandAdapterRegistry {
     CommandAdapterRegistry.register(junieAdapter);
     CommandAdapterRegistry.register(kilocodeAdapter);
     CommandAdapterRegistry.register(kiroAdapter);
+    CommandAdapterRegistry.register(ohMyPiAdapter);
     CommandAdapterRegistry.register(opencodeAdapter);
     CommandAdapterRegistry.register(piAdapter);
     CommandAdapterRegistry.register(qoderAdapter);
     CommandAdapterRegistry.register(lingmaAdapter);
     CommandAdapterRegistry.register(qwenAdapter);
     CommandAdapterRegistry.register(roocodeAdapter);
+    CommandAdapterRegistry.register(traeAdapter);
     CommandAdapterRegistry.register(windsurfAdapter);
   }
 

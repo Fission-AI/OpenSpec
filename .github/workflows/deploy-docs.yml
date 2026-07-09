@@ -1,0 +1,76 @@
+name: Docs site
+
+# The documentation site (website/) mirrors docs/*.md via scripts/sync-docs.mjs,
+# which runs as the first step of `pnpm run build`. This workflow rebuilds that
+# mirror:
+#   - on every push to main that touches docs/ or website/,
+#   - manually via the Actions tab,
+#   - and as a build-only check on pull requests.
+#
+# The Cloudflare Pages deploy step is temporarily disabled until setup is ready.
+# When re-enabled, deploys require two repository secrets: CLOUDFLARE_API_TOKEN
+# and CLOUDFLARE_ACCOUNT_ID. Set the site's public URL via the DOCS_SITE_URL
+# repository variable (used for OG/sitemap absolute URLs).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'website/**'
+      - '.github/workflows/deploy-docs.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'website/**'
+      - '.github/workflows/deploy-docs.yml'
+  workflow_dispatch:
+
+# Never run two docs site jobs at once; let an in-flight job finish.
+concurrency:
+  group: deploy-docs
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    # Keep enabled forks from spending CI on their own copy of this workflow.
+    # PRs from forks into Fission-AI/OpenSpec still run in the base repository.
+    if: ${{ github.repository == 'Fission-AI/OpenSpec' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+          cache-dependency-path: website/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: website
+        run: pnpm install --frozen-lockfile
+
+      - name: Build site (mirrors docs/*.md, then next build)
+        working-directory: website
+        env:
+          NEXT_PUBLIC_SITE_URL: ${{ vars.DOCS_SITE_URL }}
+        run: pnpm run build
+
+      # Temporarily disabled until Cloudflare setup is ready.
+      # - name: Deploy to Cloudflare Pages
+      #   # Only deploy from main on the canonical repo. This keeps PRs build-only,
+      #   # keeps forks (no secrets) build-only, and because the wrangler command
+      #   # below hardcodes `--branch=main` (a *production* deploy) prevents a
+      #   # `workflow_dispatch` on a feature branch from overwriting the live site.
+      #   if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && github.repository == 'Fission-AI/OpenSpec' }}
+      #   uses: cloudflare/wrangler-action@v3
+      #   with:
+      #     apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      #     accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      #     workingDirectory: website
+      #     command: pages deploy out --project-name=openspec-docs --branch=main

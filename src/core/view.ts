@@ -97,7 +97,7 @@ export class ViewCommand {
 
     for (const entry of entries) {
       if (entry.isDirectory() && entry.name !== 'archive') {
-        const progress = await getTaskProgressForChange(changesDir, entry.name);
+        const progress = await getTaskProgressForChange(changesDir, entry.name, path.dirname(openspecDir));
 
         if (progress.total === 0) {
           // No tasks defined yet - still in planning/draft phase

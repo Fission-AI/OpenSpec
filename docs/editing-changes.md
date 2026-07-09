@@ -85,6 +85,7 @@ There's a full flowchart and worked examples in [Workflows: When to Update vs St
 ## Where to go next
 
 - [Workflows](workflows.md) - patterns, plus the update-vs-new decision guide
+- [Reviewing a Change](reviewing-changes.md) - the two-minute pass on a plan before you build it
 - [Explore First](explore.md) - the place to step back to when an idea needs rethinking
 - [Commands](commands.md) - `/opsx:continue`, `/opsx:apply`, and `/opsx:verify` in detail
 - [Concepts: Artifacts](concepts.md#artifacts) - what each artifact is for
