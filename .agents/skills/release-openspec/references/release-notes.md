@@ -4,10 +4,13 @@ Read this file only after the npm package, tag, and GitHub Release exist, or whe
 
 ## Gather source material
 
-1. Fetch the current release:
+1. Bind the release values once and fetch the current release. Replace the example values, but keep every expansion quoted:
 
    ```bash
-   gh release view <tag> --repo Fission-AI/OpenSpec --json body,name,isPrerelease,url
+   tag="vX.Y.Z"
+   previous_tag="vA.B.C"
+   gh release view "$tag" --repo Fission-AI/OpenSpec \
+     --json body,name,isPrerelease,url
    ```
 
 2. For a stable release, find the preceding stable release by excluding drafts and prereleases. For a beta, compare against the preceding tag in the same beta series when one exists; otherwise compare against the latest stable release.
@@ -15,7 +18,7 @@ Read this file only after the npm package, tag, and GitHub Release exist, or whe
 
    ```bash
    gh api repos/Fission-AI/OpenSpec/releases/generate-notes \
-     -f tag_name=<tag> -f previous_tag_name=<previous-tag> -q '.body'
+     -f "tag_name=$tag" -f "previous_tag_name=$previous_tag" -q '.body'
    ```
 
 4. Cross-check the final content against the released `CHANGELOG.md` section and the merged Version Packages PR. Never invent an item from commit titles alone.
@@ -73,11 +76,14 @@ Use only the sections that contain content:
 
 ## Apply and verify
 
-Write the body to a temporary file to avoid shell-quoting damage, then update:
+Create a temporary file, write the body to it with the available file-editing tool, bind the final title, then update:
 
 ```bash
-gh release edit <tag> --repo Fission-AI/OpenSpec \
-  --title "<title>" --notes-file <notes-file>
+notes_file="$(mktemp)"
+title="$tag - Release Theme"
+# Write the polished Markdown body to "$notes_file" before continuing.
+gh release edit "$tag" --repo Fission-AI/OpenSpec \
+  --title "$title" --notes-file "$notes_file"
 ```
 
 When the user asked only for a preview or audit, show the proposed title/body without editing. When the user asked to run, continue, or complete the release, apply the polished notes without an extra confirmation pause, then fetch the release again and verify the saved title/body.
