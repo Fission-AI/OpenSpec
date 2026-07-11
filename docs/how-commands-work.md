@@ -78,7 +78,7 @@ The intent is identical everywhere. The spelling follows the file your tool load
 | `.../commands/opsx/<id>.*` | `/opsx:propose` | Claude Code, Gemini CLI, Crush |
 | `.../opsx-<id>.*` | `/opsx-propose` | Cursor, GitHub Copilot (IDE), Devin Desktop, Trae, Oh My Pi |
 | `.amazonq/prompts/opsx-<id>.md` | `@opsx-propose` | Amazon Q Developer |
-| none — skills only | `/openspec-propose` | CodeArts, ForgeCode, Hermes, Mistral Vibe, shared `.agents` |
+| none — skills only | `/openspec-propose` | CodeArts, ForgeCode, Grok Build, Hermes, Mistral Vibe, shared `.agents` |
 | none — Kimi Code | `/skill:openspec-propose` | Kimi Code |
 | none — Codex CLI | `$openspec-propose` | Codex |
 
