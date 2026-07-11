@@ -671,6 +671,7 @@ Different AI tools use slightly different command syntax. Use the format that ma
 | Windsurf | `/opsx-propose`, `/opsx-apply` |
 | Copilot (IDE) | `/opsx-propose`, `/opsx-apply` |
 | Oh My Pi | `/opsx-propose`, `/opsx-apply` |
+| Grok Build | Skill-based invocations such as `/openspec-propose`, `/openspec-apply-change` (no generated `opsx-*` command files) |
 | Kimi CLI | Skill-based invocations such as `/skill:openspec-propose`, `/skill:openspec-apply-change` (no generated `opsx-*` command files) |
 | Trae | `/opsx-propose`, `/opsx-apply` |
 
