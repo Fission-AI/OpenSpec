@@ -474,6 +474,24 @@ describe('InitCommand', () => {
       expect(content).toContain('prompt =');
     });
 
+    it('should generate Qwen commands as Markdown files and remove old TOML commands', async () => {
+      const oldCmdFile = path.join(testDir, '.qwen', 'commands', 'opsx-explore.toml');
+      await fs.mkdir(path.dirname(oldCmdFile), { recursive: true });
+      await fs.writeFile(oldCmdFile, 'description = "old"\nprompt = "old"\n');
+
+      const initCommand = new InitCommand({ tools: 'qwen', force: true });
+      await initCommand.execute(testDir);
+
+      const cmdFile = path.join(testDir, '.qwen', 'commands', 'opsx-explore.md');
+      expect(await fileExists(cmdFile)).toBe(true);
+      expect(await fileExists(oldCmdFile)).toBe(false);
+
+      const content = await fs.readFile(cmdFile, 'utf-8');
+      expect(content).toContain('---\n');
+      expect(content).toContain('description:');
+      expect(content).toContain('---\n\n');
+    });
+
     it('should generate Windsurf commands', async () => {
       const initCommand = new InitCommand({ tools: 'windsurf', force: true });
       await initCommand.execute(testDir);

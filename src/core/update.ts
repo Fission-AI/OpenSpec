@@ -17,6 +17,7 @@ import {
   generateCommands,
   CommandAdapterRegistry,
 } from './command-generation/index.js';
+import { getLegacyQwenTomlFilePath } from './command-generation/adapters/qwen.js';
 import {
   getToolVersionStatus,
   getSkillTemplates,
@@ -180,6 +181,7 @@ export class UpdateCommand {
     let removedSkillCount = 0;
     let removedDeselectedCommandCount = 0;
     let removedDeselectedSkillCount = 0;
+    let removedObsoleteCommandCount = 0;
 
     for (const toolId of toolsToUpdate) {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
@@ -221,6 +223,10 @@ export class UpdateCommand {
               await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
             }
 
+            removedObsoleteCommandCount += await this.removeObsoleteCommandFiles(
+              resolvedProjectPath,
+              toolId
+            );
             removedDeselectedCommandCount += await this.removeUnselectedCommandFiles(
               resolvedProjectPath,
               toolId,
@@ -232,6 +238,10 @@ export class UpdateCommand {
         // Delete command files if delivery is skills-only
         if (!shouldGenerateCommands) {
           removedCommandCount += await this.removeCommandFiles(resolvedProjectPath, toolId);
+          removedObsoleteCommandCount += await this.removeObsoleteCommandFiles(
+            resolvedProjectPath,
+            toolId
+          );
         }
 
         spinner.succeed(`Updated ${tool.name}`);
@@ -264,6 +274,9 @@ export class UpdateCommand {
     }
     if (removedDeselectedSkillCount > 0) {
       console.log(chalk.dim(`Removed: ${removedDeselectedSkillCount} skill directories (deselected workflows)`));
+    }
+    if (removedObsoleteCommandCount > 0) {
+      console.log(chalk.dim(`Removed: ${removedObsoleteCommandCount} obsolete command files`));
     }
 
     // 12. Show onboarding message for newly configured tools from legacy upgrade
@@ -465,6 +478,30 @@ export class UpdateCommand {
     for (const workflow of ALL_WORKFLOWS) {
       const cmdPath = adapter.getFilePath(workflow);
       const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
+
+      try {
+        if (fs.existsSync(fullPath)) {
+          await fs.promises.unlink(fullPath);
+          removed++;
+        }
+      } catch {
+        // Ignore errors
+      }
+    }
+
+    return removed;
+  }
+
+  private async removeObsoleteCommandFiles(
+    projectPath: string,
+    toolId: string,
+  ): Promise<number> {
+    if (toolId !== 'qwen') return 0;
+
+    let removed = 0;
+
+    for (const workflow of ALL_WORKFLOWS) {
+      const fullPath = path.join(projectPath, getLegacyQwenTomlFilePath(workflow));
 
       try {
         if (fs.existsSync(fullPath)) {

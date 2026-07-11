@@ -579,17 +579,50 @@ describe('command-generation/adapters', () => {
       expect(qwenAdapter.toolId).toBe('qwen');
     });
 
-    it('should generate correct file path with .toml extension', () => {
+    it('should generate correct file path with .md extension', () => {
       const filePath = qwenAdapter.getFilePath('explore');
-      expect(filePath).toBe(path.join('.qwen', 'commands', 'opsx-explore.toml'));
+      expect(filePath).toBe(path.join('.qwen', 'commands', 'opsx-explore.md'));
     });
 
-    it('should format file in TOML format', () => {
+    it('should format file with description frontmatter', () => {
       const output = qwenAdapter.formatFile(sampleContent);
-      expect(output).toContain('description = "Enter explore mode for thinking"');
-      expect(output).toContain('prompt = """');
+      expect(output).toContain('---\n');
+      expect(output).toContain('description: Enter explore mode for thinking');
+      expect(output).toContain('---\n\n');
       expect(output).toContain('This is the command body.');
-      expect(output).toContain('"""');
+    });
+
+    it('should transform command references from colon to hyphen format', () => {
+      const contentWithRefs: CommandContent = {
+        ...sampleContent,
+        body: 'Run /opsx:apply to implement. Then /opsx:archive when done.',
+      };
+
+      const output = qwenAdapter.formatFile(contentWithRefs);
+      expect(output).toContain('/opsx-apply');
+      expect(output).toContain('/opsx-archive');
+      expect(output).not.toContain('/opsx:apply');
+      expect(output).not.toContain('/opsx:archive');
+    });
+
+    it('should escape YAML special characters in description', () => {
+      const contentWithSpecialChars: CommandContent = {
+        ...sampleContent,
+        description: 'Fix: regression in "auth" feature',
+      };
+
+      const output = qwenAdapter.formatFile(contentWithSpecialChars);
+      expect(output).toContain('description: "Fix: regression in \\"auth\\" feature"');
+    });
+
+    it('should escape carriage returns in description', () => {
+      const contentWithCarriageReturn: CommandContent = {
+        ...sampleContent,
+        description: 'Line 1\rLine 2',
+      };
+
+      const output = qwenAdapter.formatFile(contentWithCarriageReturn);
+      expect(output).toContain('description: "Line 1\\rLine 2"');
     });
   });
 

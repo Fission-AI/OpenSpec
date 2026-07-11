@@ -26,6 +26,7 @@ import {
   generateCommands,
   CommandAdapterRegistry,
 } from './command-generation/index.js';
+import { getLegacyQwenTomlFilePath } from './command-generation/adapters/qwen.js';
 import {
   detectLegacyArtifacts,
   cleanupLegacyArtifacts,
@@ -531,6 +532,7 @@ export class InitCommand {
     commandsSkipped: string[];
     removedCommandCount: number;
     removedSkillCount: number;
+    removedObsoleteCommandCount: number;
   }> {
     const createdTools: typeof tools = [];
     const refreshedTools: typeof tools = [];
@@ -538,6 +540,7 @@ export class InitCommand {
     const commandsSkipped: string[] = [];
     let removedCommandCount = 0;
     let removedSkillCount = 0;
+    let removedObsoleteCommandCount = 0;
 
     // Read global config for profile and delivery settings (use --profile override if set)
     const globalConfig = getGlobalConfig();
@@ -590,12 +593,20 @@ export class InitCommand {
               const commandFile = path.isAbsolute(cmd.path) ? cmd.path : path.join(projectPath, cmd.path);
               await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
             }
+            removedObsoleteCommandCount += await this.removeObsoleteCommandFiles(
+              projectPath,
+              tool.value
+            );
           } else {
             commandsSkipped.push(tool.value);
           }
         }
         if (!shouldGenerateCommands) {
           removedCommandCount += await this.removeCommandFiles(projectPath, tool.value);
+          removedObsoleteCommandCount += await this.removeObsoleteCommandFiles(
+            projectPath,
+            tool.value
+          );
         }
 
         spinner.succeed(`Setup complete for ${tool.name}`);
@@ -618,6 +629,7 @@ export class InitCommand {
       commandsSkipped,
       removedCommandCount,
       removedSkillCount,
+      removedObsoleteCommandCount,
     };
   }
 
@@ -659,6 +671,7 @@ export class InitCommand {
       commandsSkipped: string[];
       removedCommandCount: number;
       removedSkillCount: number;
+      removedObsoleteCommandCount: number;
     },
     configStatus: 'created' | 'exists' | 'skipped'
   ): void {
@@ -707,6 +720,9 @@ export class InitCommand {
     }
     if (results.removedSkillCount > 0) {
       console.log(chalk.dim(`Removed: ${results.removedSkillCount} skill directories (delivery: commands)`));
+    }
+    if (results.removedObsoleteCommandCount > 0) {
+      console.log(chalk.dim(`Removed: ${results.removedObsoleteCommandCount} obsolete command files`));
     }
 
     // Config status
@@ -789,6 +805,27 @@ export class InitCommand {
     for (const workflow of ALL_WORKFLOWS) {
       const cmdPath = adapter.getFilePath(workflow);
       const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
+
+      try {
+        if (fs.existsSync(fullPath)) {
+          await fs.promises.unlink(fullPath);
+          removed++;
+        }
+      } catch {
+        // Ignore errors
+      }
+    }
+
+    return removed;
+  }
+
+  private async removeObsoleteCommandFiles(projectPath: string, toolId: string): Promise<number> {
+    if (toolId !== 'qwen') return 0;
+
+    let removed = 0;
+
+    for (const workflow of ALL_WORKFLOWS) {
+      const fullPath = path.join(projectPath, getLegacyQwenTomlFilePath(workflow));
 
       try {
         if (fs.existsSync(fullPath)) {
