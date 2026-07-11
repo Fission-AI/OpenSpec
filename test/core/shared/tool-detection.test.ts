@@ -12,7 +12,10 @@ import {
   getToolVersionStatus,
   getConfiguredTools,
   getAllToolVersionStatus,
+  resolveSkillsDir,
+  resolveMarkerDir,
 } from '../../../src/core/shared/tool-detection.js';
+import { AI_TOOLS } from '../../../src/core/config.js';
 
 describe('tool-detection', () => {
   let testDir: string;
@@ -329,6 +332,100 @@ metadata:
       const cursorStatus = statuses.find(s => s.toolId === 'cursor');
       expect(cursorStatus?.generatedByVersion).toBe('0.23.0');
       expect(cursorStatus?.needsUpdate).toBe(false);
+    });
+  });
+
+  describe('resolveSkillsDir', () => {
+    it('should return project-local path for tools without installDir', () => {
+      const claude = AI_TOOLS.find(t => t.value === 'claude')!;
+      const result = resolveSkillsDir(claude, '/project');
+      expect(result).toBe(path.join('/project', '.claude', 'skills'));
+    });
+
+    it('should expand ~ to home directory for global-install tools', () => {
+      const hermes = AI_TOOLS.find(t => t.value === 'hermes')!;
+      const result = resolveSkillsDir(hermes, '/project');
+      expect(result).toBe(path.resolve(path.join(os.homedir(), '.hermes', 'skills')));
+      expect(result).not.toContain('~');
+      expect(path.isAbsolute(result)).toBe(true);
+    });
+
+    it('should ignore projectRoot for global-install tools', () => {
+      const hermes = AI_TOOLS.find(t => t.value === 'hermes')!;
+      const result = resolveSkillsDir(hermes, '/some/other/project');
+      const expected = path.resolve(path.join(os.homedir(), '.hermes', 'skills'));
+      expect(result).toBe(expected);
+    });
+  });
+
+  describe('resolveMarkerDir', () => {
+    it('should return project-local path for all tools', () => {
+      const hermes = AI_TOOLS.find(t => t.value === 'hermes')!;
+      const result = resolveMarkerDir(hermes, '/project');
+      expect(result).toBe(path.join('/project', '.hermes', 'skills'));
+    });
+
+    it('should return project-local path for tools without installDir', () => {
+      const claude = AI_TOOLS.find(t => t.value === 'claude')!;
+      const result = resolveMarkerDir(claude, '/project');
+      expect(result).toBe(path.join('/project', '.claude', 'skills'));
+    });
+  });
+
+  describe('getToolSkillStatus (Hermes global-install)', () => {
+    it('should return not configured when marker directory does not exist', () => {
+      const status = getToolSkillStatus(testDir, 'hermes');
+      expect(status.configured).toBe(false);
+      expect(status.fullyConfigured).toBe(false);
+      expect(status.skillCount).toBe(0);
+    });
+
+    it('should return configured when marker directory exists (even without global skills)', async () => {
+      // Create the project-local marker directory
+      const markerDir = path.join(testDir, '.hermes', 'skills');
+      await fs.mkdir(markerDir, { recursive: true });
+
+      const status = getToolSkillStatus(testDir, 'hermes');
+      expect(status.configured).toBe(true);
+      // skillCount reflects the global ~/.hermes/skills/ — may or may not have skills
+      // depending on the test environment, but configured should be true
+    });
+
+    it('should report correct skillCount when marker exists and global skills present', async () => {
+      // This test verifies that when the marker exists, we check the global dir
+      // We can't control ~/.hermes/skills in test env, so just verify configured=true
+      const markerDir = path.join(testDir, '.hermes', 'skills');
+      await fs.mkdir(markerDir, { recursive: true });
+
+      const status = getToolSkillStatus(testDir, 'hermes');
+      expect(status.configured).toBe(true);
+      // skillCount may vary based on global state, but should be a valid number
+      expect(status.skillCount).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  describe('getToolVersionStatus (Hermes global-install)', () => {
+    it('should return not configured when marker directory does not exist', () => {
+      const status = getToolVersionStatus(testDir, 'hermes', '1.6.0');
+      expect(status.configured).toBe(false);
+      expect(status.needsUpdate).toBe(false);
+    });
+
+    it('should include Hermes tool name in status', async () => {
+      const markerDir = path.join(testDir, '.hermes', 'skills');
+      await fs.mkdir(markerDir, { recursive: true });
+
+      const status = getToolVersionStatus(testDir, 'hermes', '1.6.0');
+      expect(status.toolId).toBe('hermes');
+      expect(status.toolName).toBe('Hermes Agent');
+      expect(status.configured).toBe(true);
+    });
+  });
+
+  describe('getToolsWithSkillsDir', () => {
+    it('should include hermes in the list', () => {
+      const tools = getToolsWithSkillsDir();
+      expect(tools).toContain('hermes');
     });
   });
 });

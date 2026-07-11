@@ -18,6 +18,8 @@ export {
   getToolVersionStatus,
   getConfiguredTools,
   getAllToolVersionStatus,
+  resolveSkillsDir,
+  resolveMarkerDir,
 } from './tool-detection.js';
 
 export {

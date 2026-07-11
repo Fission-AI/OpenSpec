@@ -4,7 +4,7 @@ import { AI_TOOLS } from './config.js';
 import type { Delivery } from './global-config.js';
 import { ALL_WORKFLOWS } from './profiles.js';
 import { CommandAdapterRegistry } from './command-generation/index.js';
-import { COMMAND_IDS, getConfiguredTools } from './shared/index.js';
+import { COMMAND_IDS, getConfiguredTools, resolveSkillsDir } from './shared/index.js';
 
 type WorkflowId = (typeof ALL_WORKFLOWS)[number];
 
@@ -97,7 +97,7 @@ export function hasToolProfileOrDeliveryDrift(
 
   const knownDesiredWorkflows = toKnownWorkflows(desiredWorkflows);
   const desiredWorkflowSet = new Set<WorkflowId>(knownDesiredWorkflows);
-  const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
+  const skillsDir = resolveSkillsDir(tool, projectPath);
   const adapter = CommandAdapterRegistry.get(toolId);
   const shouldGenerateSkills = delivery !== 'commands';
   const shouldGenerateCommands = delivery !== 'skills';
@@ -185,7 +185,7 @@ function getInstalledWorkflowsForTool(
   if (!tool?.skillsDir) return [];
 
   const installed = new Set<WorkflowId>();
-  const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
+  const skillsDir = resolveSkillsDir(tool, projectPath);
 
   if (options.includeSkills) {
     for (const workflow of ALL_WORKFLOWS) {

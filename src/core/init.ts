@@ -41,6 +41,8 @@ import {
   getSkillTemplates,
   getCommandContents,
   generateSkillContent,
+  resolveSkillsDir,
+  resolveMarkerDir,
   type ToolSkillStatus,
 } from './shared/index.js';
 import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
@@ -556,11 +558,19 @@ export class InitCommand {
       const spinner = ora(`Setting up ${tool.name}...`).start();
 
       try {
+        // Resolve the tool's installation directory.
+        // When installDir is set (e.g. '~/.hermes/skills'), skills are
+        // installed globally — the tool discovers them from a user-wide
+        // directory, not from the project tree.  A project-local marker
+        // directory (.hermes/skills/) is still created so that auto-detection
+        // and update commands know the tool is configured for this project.
+        const toolConfig = AI_TOOLS.find((t) => t.value === tool.value);
+        const skillsDir = toolConfig
+          ? resolveSkillsDir(toolConfig, projectPath)
+          : path.join(projectPath, tool.skillsDir, 'skills');
+
         // Generate skill files if delivery includes skills
         if (shouldGenerateSkills) {
-          // Use tool-specific skillsDir
-          const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
-
           // Create skill directories and SKILL.md files
           for (const { template, dirName } of skillTemplates) {
             const skillDir = path.join(skillsDir, dirName);
@@ -574,9 +584,17 @@ export class InitCommand {
             // Write the skill file
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
+
+          // For global-install tools, create a project-local marker directory
+          // so available-tools detection and update commands know the tool is
+          // configured for this project.  Hermes itself ignores this directory
+          // — skills live in ~/.hermes/skills/.
+          if (toolConfig?.installDir) {
+            const markerDir = resolveMarkerDir(toolConfig, projectPath);
+            await FileSystemUtils.createDirectory(markerDir);
+          }
         }
         if (!shouldGenerateSkills) {
-          const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
           removedSkillCount += await this.removeSkillDirs(skillsDir);
         }
 

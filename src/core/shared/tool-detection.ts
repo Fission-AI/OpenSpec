@@ -5,8 +5,36 @@
  */
 
 import path from 'path';
+import os from 'os';
 import * as fs from 'fs';
-import { AI_TOOLS } from '../config.js';
+import { AI_TOOLS, type AIToolOption } from '../config.js';
+
+/**
+ * Resolve the skills directory for a tool.
+ *
+ * Most tools install skills into a project-local directory
+ * (``<projectRoot>/<skillsDir>/skills``).  Tools with ``installDir`` set
+ * (e.g. Hermes Agent → ``~/.hermes/skills``) store skills in a user-global
+ * directory; this function expands ``~`` and returns the absolute path.
+ */
+export function resolveSkillsDir(tool: AIToolOption, projectRoot: string): string {
+  if (tool.installDir) {
+    return path.resolve(tool.installDir.replace(/^~/, os.homedir()));
+  }
+  return path.join(projectRoot, tool.skillsDir!, 'skills');
+}
+
+/**
+ * Resolve the project-local marker directory for a tool.
+ *
+ * For global-install tools this is an empty directory used solely for
+ * auto-detection and update-bookkeeping.  For project-local tools it is
+ * the same as the skills directory.
+ */
+export function resolveMarkerDir(tool: AIToolOption, projectRoot: string): string {
+  return path.join(projectRoot, tool.skillsDir!, 'skills');
+}
+
 
 /**
  * Names of skill directories created by openspec init.
@@ -85,6 +113,13 @@ export function getToolsWithSkillsDir(): string[] {
 
 /**
  * Checks which skill files exist for a tool.
+ *
+ * For project-local tools (no installDir), skill files are checked in
+ * ``<projectRoot>/<skillsDir>/skills/``.  For global-install tools
+ * (installDir set, e.g. Hermes), "configured" is determined by the
+ * project-local marker directory existence — the global skills directory
+ * may contain skills from other projects, so its presence does not mean
+ * this project has the tool configured.
  */
 export function getToolSkillStatus(projectRoot: string, toolId: string): ToolSkillStatus {
   const tool = AI_TOOLS.find((t) => t.value === toolId);
@@ -92,7 +127,30 @@ export function getToolSkillStatus(projectRoot: string, toolId: string): ToolSki
     return { configured: false, fullyConfigured: false, skillCount: 0 };
   }
 
-  const skillsDir = path.join(projectRoot, tool.skillsDir, 'skills');
+  if (tool.installDir) {
+    // Global-install tool: "configured" = marker directory exists.
+    // skillCount/fullyConfigured reflect the global skills directory.
+    const markerDir = resolveMarkerDir(tool, projectRoot);
+    const configured = fs.existsSync(markerDir);
+    if (!configured) {
+      return { configured: false, fullyConfigured: false, skillCount: 0 };
+    }
+    const skillsDir = resolveSkillsDir(tool, projectRoot);
+    let skillCount = 0;
+    for (const skillName of SKILL_NAMES) {
+      const skillFile = path.join(skillsDir, skillName, 'SKILL.md');
+      if (fs.existsSync(skillFile)) {
+        skillCount++;
+      }
+    }
+    return {
+      configured: true,
+      fullyConfigured: skillCount === SKILL_NAMES.length,
+      skillCount,
+    };
+  }
+
+  const skillsDir = resolveSkillsDir(tool, projectRoot);
   let skillCount = 0;
 
   for (const skillName of SKILL_NAMES) {
@@ -175,7 +233,7 @@ export function getToolVersionStatus(
     };
   }
 
-  const skillsDir = path.join(projectRoot, tool.skillsDir, 'skills');
+  const skillsDir = resolveSkillsDir(tool, projectRoot);
   let generatedByVersion: string | null = null;
 
   // Find the first skill file that exists and read its version

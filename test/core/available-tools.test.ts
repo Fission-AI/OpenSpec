@@ -178,5 +178,20 @@ describe('available-tools', () => {
       expect(ohMyPiTool?.name).toBe('Oh My Pi');
       expect(ohMyPiTool?.skillsDir).toBe('.omp');
     });
+
+    it('should detect Hermes Agent when .hermes directory exists', async () => {
+      // Hermes uses skillsDir: '.hermes' with installDir: '~/.hermes/skills'
+      // Detection still uses the project-local skillsDir
+      await fs.mkdir(path.join(testDir, '.hermes'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('hermes');
+
+      const hermesTool = tools.find((t) => t.value === 'hermes');
+      expect(hermesTool).toBeDefined();
+      expect(hermesTool?.name).toBe('Hermes Agent');
+      expect(hermesTool?.skillsDir).toBe('.hermes');
+    });
   });
 });

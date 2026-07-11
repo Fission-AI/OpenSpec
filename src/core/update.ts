@@ -23,6 +23,8 @@ import {
   getCommandContents,
   generateSkillContent,
   getToolsWithSkillsDir,
+  resolveSkillsDir,
+  resolveMarkerDir,
   type ToolVersionStatus,
 } from './shared/index.js';
 import {
@@ -188,7 +190,7 @@ export class UpdateCommand {
       const spinner = ora(`Updating ${tool.name}...`).start();
 
       try {
-        const skillsDir = path.join(resolvedProjectPath, tool.skillsDir, 'skills');
+        const skillsDir = resolveSkillsDir(tool, resolvedProjectPath);
 
         // Generate skill files if delivery includes skills
         if (shouldGenerateSkills) {
@@ -200,6 +202,12 @@ export class UpdateCommand {
             const transformer = (tool.value === 'opencode' || tool.value === 'pi' || tool.value === 'oh-my-pi') ? transformToHyphenCommands : undefined;
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
+          }
+
+          // For global-install tools, create a project-local marker directory
+          if (tool.installDir) {
+            const markerDir = resolveMarkerDir(tool, resolvedProjectPath);
+            await FileSystemUtils.createDirectory(markerDir);
           }
 
           removedDeselectedSkillCount += await this.removeUnselectedSkillDirs(skillsDir, desiredWorkflows);
@@ -682,7 +690,7 @@ export class UpdateCommand {
       const spinner = ora(`Setting up ${tool.name}...`).start();
 
       try {
-        const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
+        const skillsDir = resolveSkillsDir(tool, projectPath);
 
         // Create skill files when delivery includes skills
         if (shouldGenerateSkills) {
@@ -694,6 +702,12 @@ export class UpdateCommand {
             const transformer = (tool.value === 'opencode' || tool.value === 'pi' || tool.value === 'oh-my-pi') ? transformToHyphenCommands : undefined;
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
+          }
+
+          // For global-install tools, create a project-local marker directory
+          if (tool.installDir) {
+            const markerDir = resolveMarkerDir(tool, projectPath);
+            await FileSystemUtils.createDirectory(markerDir);
           }
         }
 
