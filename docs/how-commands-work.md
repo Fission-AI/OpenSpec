@@ -80,6 +80,7 @@ The intent is identical everywhere. The punctuation differs. Use the form that m
 | Windsurf | `/opsx-propose`, `/opsx-apply` |
 | GitHub Copilot (IDE) | `/opsx-propose`, `/opsx-apply` |
 | Oh My Pi | `/opsx-propose`, `/opsx-apply` |
+| Grok Build | skill-style, e.g. `/openspec-propose` |
 | Kimi CLI | skill-style, e.g. `/skill:openspec-propose` |
 | Trae | `/opsx-propose`, `/opsx-apply` |
 

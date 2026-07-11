@@ -194,6 +194,30 @@ describe('InitCommand', () => {
       ).toBe(true);
     });
 
+    it('should support Grok Build as an adapterless skills-only tool', async () => {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'both',
+      });
+
+      const initCommand = new InitCommand({ tools: 'grok', force: true });
+      await initCommand.execute(testDir);
+
+      const skillFile = path.join(testDir, '.grok', 'skills', 'openspec-explore', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
+
+      const commandsDir = path.join(testDir, '.grok', 'commands');
+      expect(await directoryExists(commandsDir)).toBe(false);
+
+      const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+      expect(
+        logCalls.some(
+          (entry) => entry.includes('Commands skipped for: grok') && entry.includes('(no adapter)'),
+        ),
+      ).toBe(true);
+    });
+
     it('should create both skills and commands for Trae with adapter', async () => {
       saveGlobalConfig({
         configuredTools: [],

@@ -42,6 +42,11 @@ The `AI_TOOLS` array SHALL include `skillsDir` for tools that support the Agent 
 - **WHEN** looking up the `kimi` tool
 - **THEN** `skillsDir` SHALL be `.kimi`
 
+#### Scenario: Grok Build paths defined
+
+- **WHEN** looking up the `grok` tool
+- **THEN** `skillsDir` SHALL be `.grok`
+
 #### Scenario: Tools without skillsDir
 
 - **WHEN** a tool has no `skillsDir` defined
