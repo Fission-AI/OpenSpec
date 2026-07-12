@@ -80,6 +80,12 @@ export class UpdateCommand {
     this.force = options.force ?? false;
   }
 
+  /**
+   * Refreshes OpenSpec skills and commands for all configured tools,
+   * regenerating artifacts according to the effective profile and delivery mode.
+   *
+   * @param projectPath - Path to the project root containing the openspec directory
+   */
   async execute(projectPath: string): Promise<void> {
     const resolvedProjectPath = path.resolve(projectPath);
     const openspecPath = path.join(resolvedProjectPath, OPENSPEC_DIR_NAME);

@@ -521,6 +521,14 @@ export class InitCommand {
   // SKILL & COMMAND GENERATION
   // ═══════════════════════════════════════════════════════════
 
+  /**
+   * Generates skill files and slash commands for each selected tool,
+   * honoring the configured delivery mode (skills, commands, or both).
+   *
+   * @param projectPath - Absolute path to the project root
+   * @param tools - Selected tools with their skill directory metadata
+   * @returns Created, refreshed, and failed tools plus removed artifact counts
+   */
   private async generateSkillsAndCommands(
     projectPath: string,
     tools: Array<{ value: string; name: string; skillsDir: string; wasConfigured: boolean }>
