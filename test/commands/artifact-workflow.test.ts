@@ -342,139 +342,46 @@ describe('artifact-workflow CLI commands', () => {
       expect(stat.isDirectory()).toBe(true);
     });
 
-    it('creates workspace-planning changes under the workspace root without touching linked repos', async () => {
-      const workspaceEnv = {
-        XDG_DATA_HOME: path.join(tempDir, 'data'),
-        XDG_CONFIG_HOME: path.join(tempDir, 'config'),
-        OPEN_SPEC_INTERACTIVE: '0',
-        OPENSPEC_TELEMETRY: '0',
-      };
-      const api = path.join(tempDir, 'linked-api');
-      await fs.mkdir(path.join(api, 'openspec', 'specs'), { recursive: true });
-      const apiEntriesBefore = (await fs.readdir(api)).sort();
-
-      const setup = await runCLI(
-        [
-          'workspace',
-          'setup',
-          '--no-interactive',
-          '--json',
-          '--name',
-          'platform',
-          '--link',
-          `api=${api}`,
-        ],
-        { cwd: tempDir, env: workspaceEnv }
+    it('rejects --initiative and writes no change', async () => {
+      const result = await runCLI(
+        ['new', 'change', 'linked-change', '--initiative', 'billing-launch'],
+        { cwd: tempDir }
       );
-      expect(setup.exitCode).toBe(0);
-      const workspaceRoot = JSON.parse(setup.stdout).workspace.root;
-
-      const create = await runCLI(
-        [
-          'new',
-          'change',
-          'cross-repo-login',
-          '--goal',
-          'Unify login across API and web',
-          '--areas',
-          'api',
-        ],
-        { cwd: workspaceRoot, env: workspaceEnv }
-      );
-      expect(create.exitCode).toBe(0);
-      const createOutput = getOutput(create);
-      expect(createOutput).toContain('workspace change');
-      expect(normalizePaths(createOutput)).toContain('changes/cross-repo-login');
-
-      const changeDir = path.join(workspaceRoot, 'changes', 'cross-repo-login');
-      const metadata = await fs.readFile(path.join(changeDir, '.openspec.yaml'), 'utf-8');
-      expect(metadata).toContain('schema: workspace-planning');
-      expect(metadata).toContain('goal: Unify login across API and web');
-      expect(metadata).toContain('affected_areas:');
-      expect(metadata).toContain('- api');
-      expect((await fs.readdir(api)).sort()).toEqual(apiEntriesBefore);
-      await expect(fs.stat(path.join(api, 'openspec', 'changes'))).rejects.toMatchObject({
+      expect(result.exitCode).toBe(1);
+      const output = getOutput(result);
+      expect(output).toContain('--initiative is no longer supported');
+      await expect(fs.stat(path.join(changesDir, 'linked-change'))).rejects.toMatchObject({
         code: 'ENOENT',
       });
     });
 
-    it('resolves nested workspace-planning specs as workspace-scoped paths', async () => {
-      const workspaceEnv = {
-        XDG_DATA_HOME: path.join(tempDir, 'data'),
-        XDG_CONFIG_HOME: path.join(tempDir, 'config'),
-        OPEN_SPEC_INTERACTIVE: '0',
-        OPENSPEC_TELEMETRY: '0',
-      };
-      const api = path.join(tempDir, 'linked-api');
-      await fs.mkdir(api, { recursive: true });
-
-      const setup = await runCLI(
-        [
-          'workspace',
-          'setup',
-          '--no-interactive',
-          '--json',
-          '--name',
-          'platform',
-          '--link',
-          `api=${api}`,
-        ],
-        { cwd: tempDir, env: workspaceEnv }
-      );
-      expect(setup.exitCode).toBe(0);
-      const workspaceRoot = JSON.parse(setup.stdout).workspace.root;
-
-      const create = await runCLI(
-        ['new', 'change', 'nested-workspace-spec', '--goal', 'Plan API login', '--areas', 'api'],
-        { cwd: workspaceRoot, env: workspaceEnv }
-      );
-      expect(create.exitCode).toBe(0);
-
-      const changeDir = path.join(workspaceRoot, 'changes', 'nested-workspace-spec');
-      const specPath = path.join(changeDir, 'specs', 'api', 'login', 'spec.md');
-      await fs.mkdir(path.dirname(specPath), { recursive: true });
-      await fs.writeFile(
-        specPath,
-        '## ADDED Requirements\n\n### Requirement: API login\n\n#### Scenario: Valid login\n- **WHEN** credentials are valid\n- **THEN** login succeeds\n'
-      );
-
-      const status = await runCLI(['status', '--change', 'nested-workspace-spec', '--json'], {
-        cwd: workspaceRoot,
-        env: workspaceEnv,
+    it('rejects --areas and writes no affected-area metadata', async () => {
+      const result = await runCLI(['new', 'change', 'area-change', '--areas', 'api'], {
+        cwd: tempDir,
       });
-      expect(status.exitCode).toBe(0);
-      const statusJson = JSON.parse(status.stdout);
-      expect(statusJson.schemaName).toBe('workspace-planning');
-      expect(statusJson.planningHome.kind).toBe('workspace');
-      expect(statusJson.affectedAreas.known).toEqual(['api']);
-      expect(statusJson.actionContext).toEqual(
-        expect.objectContaining({
-          mode: 'workspace-planning',
-          sourceOfTruth: 'workspace-local',
-          allowedEditRoots: [],
-          constraints: expect.arrayContaining([
-            'Treat workspace-local planning artifacts as compatibility context for this local view.',
-            'Use initiatives for durable coordination when initiative context exists.',
-            'Treat linked repos and folders as context until an explicit edit root is selected.',
-          ]),
-        })
-      );
-      expect(statusJson.actionContext.constraints).not.toContain(
-        'Use workspace-level planning artifacts as the source of truth.'
-      );
-      expect(statusJson.artifactPaths.specs.existingOutputPaths).toEqual([canonical(specPath)]);
+      expect(result.exitCode).toBe(1);
+      const output = getOutput(result);
+      expect(output).toContain('--areas is no longer supported');
+      await expect(fs.stat(path.join(changesDir, 'area-change'))).rejects.toMatchObject({
+        code: 'ENOENT',
+      });
+    });
 
-      const instructions = await runCLI(
-        ['instructions', 'specs', '--change', 'nested-workspace-spec', '--json'],
-        { cwd: workspaceRoot, env: workspaceEnv }
+    it('keeps --goal as ordinary metadata without switching schema', async () => {
+      const result = await runCLI(
+        ['new', 'change', 'goal-change', '--goal', 'Improve billing'],
+        { cwd: tempDir }
       );
-      expect(instructions.exitCode).toBe(0);
-      const instructionsJson = JSON.parse(instructions.stdout);
-      expect(instructionsJson.planningHome.kind).toBe('workspace');
-      expect(normalizePaths(instructionsJson.resolvedOutputPath)).toContain(
-        'changes/nested-workspace-spec/specs/**/*.md'
+      expect(result.exitCode).toBe(0);
+
+      const metadata = await fs.readFile(
+        path.join(changesDir, 'goal-change', '.openspec.yaml'),
+        'utf-8'
       );
-      expect(instructionsJson.existingOutputPaths).toEqual([canonical(specPath)]);
+      expect(metadata).toContain('schema: spec-driven');
+      expect(metadata).toContain('goal: Improve billing');
+      expect(metadata).not.toContain('affected_areas');
+      expect(metadata).not.toContain('initiative');
     });
 
     it('creates README.md when --description is provided', async () => {

@@ -49,7 +49,11 @@ describe('Validation Schemas', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should reject requirement without SHALL or MUST', () => {
+    it('no longer enforces SHALL or MUST at the schema level (moved to the validator)', () => {
+      // SHALL/MUST body-keyword enforcement moved out of the Zod refine and into
+      // Validator.applySpecRules so it can recover the requirement header and
+      // emit the targeted body-keyword hint (#1156). The schema therefore accepts
+      // a body without the keyword; the validator (exercised below) reports it.
       const requirement = {
         text: 'The system provides user authentication',
         scenarios: [
@@ -58,12 +62,9 @@ describe('Validation Schemas', () => {
           },
         ],
       };
-      
+
       const result = RequirementSchema.safeParse(requirement);
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.issues[0].message).toBe('Requirement must contain SHALL or MUST keyword');
-      }
+      expect(result.success).toBe(true);
     });
 
     it('should reject requirement without scenarios', () => {
@@ -675,6 +676,527 @@ The system MUST support mixed case delta headers.
       expect(report.summary.errors).toBe(0);
       expect(report.summary.warnings).toBe(0);
       expect(report.summary.info).toBe(0);
+    });
+
+    // #1182b — delta discovery recurses the nested multi-area layout.
+    it('discovers and validates deltas in a nested specs/<area>/<capability> layout (#1182b)', async () => {
+      const changeDir = path.join(testDir, 'test-change-nested');
+      const nestedDir = path.join(changeDir, 'specs', 'area-one', 'cap-a');
+      await fs.mkdir(nestedDir, { recursive: true });
+      await fs.writeFile(
+        path.join(nestedDir, 'spec.md'),
+        `## ADDED Requirements\n\n### Requirement: Nested capability\nThe system SHALL support nested multi-area delta layouts.\n\n#### Scenario: Nested delta is discovered\n- **WHEN** validating a change with nested specs\n- **THEN** the delta is found and validated`
+      );
+
+      const report = await new Validator(true).validateChangeDeltaSpecs(changeDir);
+      expect(report.issues.some(i => i.message.includes('No delta sections found'))).toBe(false);
+      expect(report.issues.some(i => i.message.includes('No deltas found'))).toBe(false);
+      expect(report.valid).toBe(true);
+    });
+
+    it('still validates a single-level layout unchanged (#1182b control)', async () => {
+      const changeDir = path.join(testDir, 'test-change-onelevel');
+      const oneLevelDir = path.join(changeDir, 'specs', 'cap-a');
+      await fs.mkdir(oneLevelDir, { recursive: true });
+      await fs.writeFile(
+        path.join(oneLevelDir, 'spec.md'),
+        `## ADDED Requirements\n\n### Requirement: One level capability\nThe system SHALL support a one-level layout.\n\n#### Scenario: One level delta\n- **WHEN** validating\n- **THEN** the delta is found`
+      );
+
+      const report = await new Validator(true).validateChangeDeltaSpecs(changeDir);
+      expect(report.valid).toBe(true);
+      expect(report.summary.errors).toBe(0);
+    });
+  });
+
+  // #1156 — the SHALL/MUST body-keyword hint applies to main specs too, with the
+  // actionable sentence byte-identical to the change-delta path, emitted once.
+  describe('main-spec SHALL/MUST body-keyword hint (#1156)', () => {
+    const ACTIONABLE_SENTENCE =
+      'must contain SHALL or MUST in the requirement body, not only in the header. Move the SHALL/MUST statement to the line immediately after the "### Requirement: ..." header.';
+
+    const buildSpec = (requirementBlock: string): string =>
+      [
+        '# Demo Spec',
+        '',
+        '## Purpose',
+        'A purpose long enough to satisfy the validator length threshold for tests.',
+        '',
+        '## Requirements',
+        '',
+        requirementBlock,
+      ].join('\n');
+
+    const shallIssues = (issues: { message: string }[]) =>
+      issues.filter(i => i.message.includes('SHALL or MUST'));
+
+    it('emits the targeted hint when the keyword is in the header only (with a body line)', async () => {
+      const content = buildSpec(
+        '### Requirement: The system SHALL log\nLogging happens here.\n\n#### Scenario: S\n- **WHEN** x\n- **THEN** y'
+      );
+      const report = await new Validator().validateSpecContent('demo', content);
+      const issues = shallIssues(report.issues);
+      expect(issues).toHaveLength(1); // exactly one, no duplicate generic
+      expect(issues[0].message).toContain('not only in the header');
+      expect(issues[0].message).toContain(ACTIONABLE_SENTENCE);
+    });
+
+    it('uses an actionable sentence byte-identical to the change-delta message', async () => {
+      const block =
+        '### Requirement: The system SHALL log\nLogging happens here.\n\n#### Scenario: S\n- **WHEN** x\n- **THEN** y';
+
+      const specReport = await new Validator().validateSpecContent('demo', buildSpec(block));
+      const specMsg = shallIssues(specReport.issues)[0].message;
+
+      const changeDir = path.join(testDir, 'change-parity-sentence');
+      const deltaDir = path.join(changeDir, 'specs', 'cap');
+      await fs.mkdir(deltaDir, { recursive: true });
+      await fs.writeFile(path.join(deltaDir, 'spec.md'), `## ADDED Requirements\n\n${block}`);
+      const deltaReport = await new Validator().validateChangeDeltaSpecs(changeDir);
+      const deltaMsg = shallIssues(deltaReport.issues)[0].message;
+
+      // Same actionable sentence; only the leading prefix differs.
+      expect(specMsg.endsWith(ACTIONABLE_SENTENCE)).toBe(true);
+      expect(deltaMsg.endsWith(ACTIONABLE_SENTENCE)).toBe(true);
+      expect(specMsg.startsWith('Requirement "The system SHALL log"')).toBe(true);
+      expect(deltaMsg.startsWith('ADDED "The system SHALL log"')).toBe(true);
+    });
+
+    it('keeps a generic missing-keyword error when neither header nor body has the keyword', async () => {
+      const content = buildSpec(
+        '### Requirement: Logging\nThe system will log all events.\n\n#### Scenario: S\n- **WHEN** x\n- **THEN** y'
+      );
+      const report = await new Validator().validateSpecContent('demo', content);
+      const issues = shallIssues(report.issues);
+      expect(issues).toHaveLength(1);
+      expect(issues[0].message).not.toContain('not only in the header');
+    });
+
+    it('does not flag a requirement whose body line contains the keyword', async () => {
+      const content = buildSpec(
+        '### Requirement: Logging\nThe system SHALL log all events.\n\n#### Scenario: S\n- **WHEN** x\n- **THEN** y'
+      );
+      const report = await new Validator().validateSpecContent('demo', content);
+      expect(shallIssues(report.issues)).toHaveLength(0);
+    });
+
+    it('rejects a lowercase shall/must in the body (matching the delta path)', async () => {
+      const content = buildSpec(
+        '### Requirement: Logging\nthe system shall log all events.\n\n#### Scenario: S\n- **WHEN** x\n- **THEN** y'
+      );
+      const report = await new Validator().validateSpecContent('demo', content);
+      expect(shallIssues(report.issues)).toHaveLength(1);
+    });
+
+    it('emits the hint for a header-only requirement with no body line (intended additive change)', async () => {
+      const content = buildSpec(
+        '### Requirement: The system MUST be available\n\n#### Scenario: S\n- **WHEN** x\n- **THEN** y'
+      );
+      const report = await new Validator().validateSpecContent('demo', content);
+      const issues = shallIssues(report.issues);
+      expect(issues).toHaveLength(1);
+      expect(issues[0].message).toContain('not only in the header');
+    });
+
+    it('does not subject RENAMED requirements to the hint (byte-for-byte unchanged)', async () => {
+      const changeDir = path.join(testDir, 'change-renamed');
+      const deltaDir = path.join(changeDir, 'specs', 'cap');
+      await fs.mkdir(deltaDir, { recursive: true });
+      await fs.writeFile(
+        path.join(deltaDir, 'spec.md'),
+        '## RENAMED Requirements\n\n- FROM: `### Requirement: Old name`\n- TO: `### Requirement: The system SHALL do the new thing`\n'
+      );
+      const report = await new Validator().validateChangeDeltaSpecs(changeDir);
+      expect(report.issues.some(i => i.message.includes('not only in the header'))).toBe(false);
+    });
+  });
+
+  describe('parser reading fidelity (#361, #418, #312, fenced scenario, #498)', () => {
+    async function writeChangeDelta(name: string, deltaSpec: string): Promise<string> {
+      const changeDir = path.join(testDir, name);
+      const specsDir = path.join(changeDir, 'specs', 'test-spec');
+      await fs.mkdir(specsDir, { recursive: true });
+      await fs.writeFile(path.join(specsDir, 'spec.md'), deltaSpec);
+      return changeDir;
+    }
+
+    async function writeSpec(name: string, specContent: string): Promise<string> {
+      const specPath = path.join(testDir, `${name}.md`);
+      await fs.writeFile(specPath, specContent);
+      return specPath;
+    }
+
+    it('#361: a normative keyword on a wrapped body line passes both change and spec', async () => {
+      const delta = `# Test Spec
+
+## ADDED Requirements
+
+### Requirement: Wrapped keyword
+The system performs the described behavior and it
+continues onto a second line where SHALL appears in full.
+
+#### Scenario: Wrapped
+**Given** a request
+**When** it is handled
+**Then** the behavior occurs`;
+
+      const changeDir = await writeChangeDelta('fidelity-361', delta);
+      const changeReport = await new Validator(true).validateChangeDeltaSpecs(changeDir);
+      expect(changeReport.valid).toBe(true);
+      expect(changeReport.summary.errors).toBe(0);
+
+      const spec = `# Test Spec
+
+## Purpose
+This spec exercises a normative keyword wrapped onto a second line.
+
+## Requirements
+
+### Requirement: Wrapped keyword
+The system performs the described behavior and it
+continues onto a second line where SHALL appears in full.
+
+#### Scenario: Wrapped
+**Given** a request
+**When** it is handled
+**Then** the behavior occurs`;
+
+      const specPath = await writeSpec('fidelity-361-spec', spec);
+      const specReport = await new Validator(true).validateSpec(specPath);
+      expect(specReport.valid).toBe(true);
+      expect(specReport.summary.errors).toBe(0);
+    });
+
+    it('#418: metadata before the description passes validate <spec> (matching <change>)', async () => {
+      const spec = `# Test Spec
+
+## Purpose
+This spec exercises metadata fields preceding the requirement description.
+
+## Requirements
+
+### Requirement: Metadata first
+**ID**: REQ-FILE-001
+**Priority**: P1 (High)
+The system MUST persist the uploaded file.
+
+#### Scenario: Persisted
+**Given** an uploaded file
+**When** the request completes
+**Then** the file is stored`;
+
+      const specPath = await writeSpec('fidelity-418-spec', spec);
+      const specReport = await new Validator(true).validateSpec(specPath);
+      expect(specReport.valid).toBe(true);
+      expect(specReport.summary.errors).toBe(0);
+    });
+
+    it('#312: a fenced block before the prose line passes both change and spec', async () => {
+      const delta = `# Test Spec
+
+## ADDED Requirements
+
+### Requirement: Fence first
+\`\`\`bash
+# this is a shell comment, not the requirement text
+echo hello
+\`\`\`
+The system SHALL handle fenced examples before the prose line.
+
+#### Scenario: Handled
+**Given** a fenced example
+**When** the requirement is read
+**Then** the prose line is the requirement text`;
+
+      const changeDir = await writeChangeDelta('fidelity-312', delta);
+      const changeReport = await new Validator(true).validateChangeDeltaSpecs(changeDir);
+      expect(changeReport.valid).toBe(true);
+      expect(changeReport.summary.errors).toBe(0);
+    });
+
+    it('fenced scenario: a #### Scenario inside a fence does not count (change matches spec)', async () => {
+      const delta = `# Test Spec
+
+## ADDED Requirements
+
+### Requirement: Fenced scenario only
+The system SHALL do something real.
+
+\`\`\`markdown
+#### Scenario: not a real scenario
+- **WHEN** a reader studies the example
+- **THEN** it stays inside the fence
+\`\`\``;
+
+      const changeDir = await writeChangeDelta('fidelity-fenced-scenario', delta);
+      const changeReport = await new Validator(true).validateChangeDeltaSpecs(changeDir);
+
+      // The only scenario is fenced, so the requirement has zero real scenarios
+      // and must fail — the same verdict validate <spec> already gives.
+      expect(changeReport.valid).toBe(false);
+      expect(
+        changeReport.issues.some(i => i.message.includes('must include at least one scenario'))
+      ).toBe(true);
+    });
+
+    it('#498: a stray ### divider yields an INFO note and does not change valid (even strict)', async () => {
+      const delta = `# Test Spec
+
+## ADDED Requirements
+
+### Documentation Requirements
+
+### Requirement: Real requirement
+The system SHALL do the real thing.
+
+#### Scenario: Works
+**Given** a request
+**When** it is handled
+**Then** the behavior occurs`;
+
+      const changeDir = await writeChangeDelta('fidelity-498', delta);
+      const report = await new Validator(true).validateChangeDeltaSpecs(changeDir);
+
+      // INFO surfaces the stray header but never fails validation.
+      expect(report.valid).toBe(true);
+      expect(report.summary.errors).toBe(0);
+      const info = report.issues.find(
+        i => i.level === 'INFO' && i.message.includes('Documentation Requirements')
+      );
+      expect(info).toBeDefined();
+      expect(report.summary.info).toBeGreaterThan(0);
+    });
+
+    it('guard: a single-line requirement is read byte-for-byte as before', async () => {
+      const delta = `# Test Spec
+
+## ADDED Requirements
+
+### Requirement: Single line
+The system SHALL remain unchanged for single-line bodies.
+
+#### Scenario: Unchanged
+**Given** a single-line requirement
+**When** it is validated
+**Then** nothing changes`;
+
+      const changeDir = await writeChangeDelta('fidelity-single-line', delta);
+      const report = await new Validator(true).validateChangeDeltaSpecs(changeDir);
+      expect(report.valid).toBe(true);
+      expect(report.summary.errors).toBe(0);
+      expect(report.summary.info).toBe(0);
+    });
+
+    it('predicate agrees across readers: a SHALL substring inside a word is not a keyword', async () => {
+      // "MARSHALL" contains the substring SHALL but is not a whole-word normative
+      // keyword. Both readers must reject it identically (the shared predicate).
+      const body = `### Requirement: Marshalling
+The MARSHALL coordinates parade logistics.
+
+#### Scenario: Coordinated
+**Given** a parade
+**When** it begins
+**Then** logistics are coordinated`;
+
+      const changeDir = await writeChangeDelta('fidelity-predicate', `# Test Spec\n\n## ADDED Requirements\n\n${body}`);
+      const changeReport = await new Validator(true).validateChangeDeltaSpecs(changeDir);
+      expect(changeReport.valid).toBe(false);
+
+      const spec = `# Test Spec
+
+## Purpose
+This spec checks that a SHALL substring inside a word is not treated as a keyword.
+
+## Requirements
+
+${body}`;
+      const specPath = await writeSpec('fidelity-predicate-spec', spec);
+      const specReport = await new Validator(true).validateSpec(specPath);
+      expect(specReport.valid).toBe(false);
+    });
+
+    it('guard: a metadata-only body without a keyword still fails validation', async () => {
+      const delta = `# Test Spec
+
+## ADDED Requirements
+
+### Requirement: Metadata only
+**ID**: REQ-META-001
+**Priority**: P1 (High)
+
+#### Scenario: Present
+**Given** a metadata-only body
+**When** it is validated
+**Then** validation fails`;
+
+      const changeDir = await writeChangeDelta('fidelity-metadata-only', delta);
+      const report = await new Validator(true).validateChangeDeltaSpecs(changeDir);
+      expect(report.valid).toBe(false);
+      // The metadata IS the body when nothing else remains, so the failure is
+      // the missing keyword, not missing text.
+      expect(
+        report.issues.some(i => i.message.includes('must contain SHALL or MUST'))
+      ).toBe(true);
+    });
+
+    it('a requirement written entirely as **Constraint**: metadata keeps its MUST (change and spec)', async () => {
+      const body = `### Requirement: Constraint style
+**Constraint**: The system MUST respond within the configured deadline.
+
+#### Scenario: Deadline honored
+**Given** a configured deadline
+**When** a request is handled
+**Then** the response arrives in time`;
+
+      const changeDir = await writeChangeDelta('fidelity-constraint-only', `# Test Spec\n\n## ADDED Requirements\n\n${body}`);
+      const changeReport = await new Validator(true).validateChangeDeltaSpecs(changeDir);
+      expect(changeReport.valid).toBe(true);
+      expect(changeReport.summary.errors).toBe(0);
+
+      const spec = `# Test Spec
+
+## Purpose
+This spec exercises a requirement whose whole body is a metadata-style line.
+
+## Requirements
+
+${body}`;
+      const specPath = await writeSpec('fidelity-constraint-only-spec', spec);
+      const specReport = await new Validator(true).validateSpec(specPath);
+      expect(specReport.valid).toBe(true);
+      expect(specReport.summary.errors).toBe(0);
+    });
+
+    it('canonical empty bodies keep the body-keyword hint on both paths after #1280', async () => {
+      const body = `### Requirement: The tool MUST support header-only requirements
+
+#### Scenario: Header only
+**Given** a requirement with no body text
+**When** it is validated
+**Then** both paths ask for the keyword in the body`;
+
+      const changeDir = await writeChangeDelta('fidelity-empty-body', `# Test Spec\n\n## ADDED Requirements\n\n${body}`);
+      const changeReport = await new Validator(true).validateChangeDeltaSpecs(changeDir);
+      expect(changeReport.valid).toBe(false);
+      expect(
+        changeReport.issues.some(i => i.message.includes('not only in the header'))
+      ).toBe(true);
+
+      const spec = `# Test Spec
+
+## Purpose
+This spec exercises the shared body extraction without using the display fallback for validation.
+
+## Requirements
+
+${body}`;
+      const specPath = await writeSpec('fidelity-empty-body-spec', spec);
+      const specReport = await new Validator(true).validateSpec(specPath);
+      expect(specReport.valid).toBe(false);
+      expect(
+        specReport.issues.some(i => i.message.includes('not only in the header'))
+      ).toBe(true);
+    });
+
+    it('a stray ### divider ends the requirement body: a MUST in its notes does not count', async () => {
+      const delta = `# Test Spec
+
+## ADDED Requirements
+
+### Requirement: Divider absorbed
+The system performs the described behavior without a keyword.
+
+### Background
+These notes explain that the system MUST NOT be read as requirement text.
+
+#### Scenario: Bounded
+**Given** a stray divider
+**When** the requirement is read
+**Then** the body stops at the divider`;
+
+      const changeDir = await writeChangeDelta('fidelity-divider-body', delta);
+      const report = await new Validator(true).validateChangeDeltaSpecs(changeDir);
+
+      // The body ends at "### Background", so the MUST in the notes is not
+      // seen and the requirement fails the keyword check (as it did on main) —
+      // and the skipped divider is surfaced as INFO.
+      expect(report.valid).toBe(false);
+      expect(
+        report.issues.some(i => i.level === 'ERROR' && i.message.includes('must contain SHALL or MUST'))
+      ).toBe(true);
+      expect(
+        report.issues.some(i => i.level === 'INFO' && i.message.includes('"### Background"'))
+      ).toBe(true);
+    });
+
+    it('a nameless "### Requirement:" header gets a dedicated INFO message', async () => {
+      const delta = `# Test Spec
+
+## ADDED Requirements
+
+### Requirement:
+
+### Requirement: Real requirement
+The system SHALL do the real thing.
+
+#### Scenario: Works
+**Given** a request
+**When** it is handled
+**Then** the behavior occurs`;
+
+      const changeDir = await writeChangeDelta('fidelity-nameless', delta);
+      const report = await new Validator(true).validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(true);
+      const info = report.issues.find(
+        i => i.level === 'INFO' && i.message.includes('missing a requirement name')
+      );
+      expect(info).toBeDefined();
+      expect(info!.message).not.toContain('Requirement: Requirement:');
+    });
+
+    it('the skipped-header INFO reflects the reader: a fenced divider is not reported', async () => {
+      const delta = `# Test Spec
+
+## ADDED Requirements
+
+### Requirement: Fence with divider example
+The system SHALL treat fenced headers as content.
+
+\`\`\`markdown
+### Not A Real Divider
+\`\`\`
+
+#### Scenario: Fenced
+**Given** a fenced example containing a level-3 header
+**When** the delta is validated
+**Then** no INFO note is emitted for it`;
+
+      const changeDir = await writeChangeDelta('fidelity-fenced-divider', delta);
+      const report = await new Validator(true).validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(true);
+      expect(report.summary.info).toBe(0);
+    });
+
+    it('any #### header counts as a scenario on the delta path (deliberate spec-path parity)', async () => {
+      const delta = `# Test Spec
+
+## ADDED Requirements
+
+### Requirement: Notes as scenario
+The system SHALL accept any level-4 child, matching the spec path.
+
+#### Notes
+The spec path treats every level-4 child of a requirement as a scenario.`;
+
+      const changeDir = await writeChangeDelta('fidelity-h4-parity', delta);
+      const report = await new Validator(true).validateChangeDeltaSpecs(changeDir);
+
+      // The spec path (parseScenarios) counts every level-4 child with content
+      // as a scenario, so the delta counter deliberately does the same.
+      expect(report.valid).toBe(true);
+      expect(report.summary.errors).toBe(0);
     });
   });
 });

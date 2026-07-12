@@ -31,12 +31,12 @@ describe('ListCommand', () => {
   });
 
   describe('execute', () => {
-    it('should handle missing openspec/changes directory', async () => {
+    it('should treat a missing openspec/changes directory as no active changes', async () => {
       const listCommand = new ListCommand();
-      
-      await expect(listCommand.execute(tempDir, 'changes')).rejects.toThrow(
-        "No OpenSpec changes directory found. Run 'openspec init' first."
-      );
+
+      await listCommand.execute(tempDir, 'changes');
+
+      expect(logOutput).toEqual(['No active changes found.']);
     });
 
     it('should handle empty changes directory', async () => {
@@ -47,6 +47,16 @@ describe('ListCommand', () => {
       await listCommand.execute(tempDir, 'changes');
 
       expect(logOutput).toEqual(['No active changes found.']);
+    });
+
+    it('should not report a malformed openspec/changes path as empty', async () => {
+      await fs.mkdir(path.join(tempDir, 'openspec'), { recursive: true });
+      await fs.writeFile(path.join(tempDir, 'openspec', 'changes'), 'not a directory\n');
+
+      const listCommand = new ListCommand();
+
+      await expect(listCommand.execute(tempDir, 'changes')).rejects.toThrow();
+      expect(logOutput).toEqual([]);
     });
 
     it('should exclude archive directory', async () => {

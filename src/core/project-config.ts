@@ -38,11 +38,96 @@ export const ProjectConfigSchema = z.object({
     )
     .optional()
     .describe('Per-artifact rules, keyed by artifact ID'),
+
+  // Note: the `references` field (id strings or {id, remote} maps) is
+  // deliberately absent here — readProjectConfig parses and normalizes
+  // it by hand (see DeclarationEntry below); a schema entry nothing
+  // parses would only drift from the real behavior.
+
+  // Optional: the declared default store. Only consulted by root
+  // resolution when this openspec/ directory is config-only (no specs/
+  // or changes/); a fallback, never an override.
+  store: z
+    .string()
+    .optional()
+    .describe('Store id used as the OpenSpec root when no local planning shape exists'),
 });
 
-export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
+/** Normalized in-memory shape of a referenced store declaration. */
+export interface DeclarationEntry {
+  id: string;
+  /** Clone source rendered into onboarding fixes. */
+  remote?: string;
+}
 
-const MAX_CONTEXT_SIZE = 50 * 1024; // 50KB hard limit
+export type ProjectConfig = z.infer<typeof ProjectConfigSchema> & {
+  references?: DeclarationEntry[];
+};
+
+/**
+ * Parser for `references:` declarations: string entries or
+ * {id, remote} maps, normalized to DeclarationEntry[]. Dedup keys on
+ * id and keeps the first position; the first entry carrying a remote
+ * supplies it (a later duplicate fills a missing remote, never
+ * overrides). Invalid entries drop with a warning like other resilient
+ * fields; returns undefined when the field is absent or normalizes to
+ * empty.
+ */
+function parseDeclarationList(raw: unknown): DeclarationEntry[] | undefined {
+  const fieldName = 'references';
+  if (raw === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(raw)) {
+    console.warn(`Invalid '${fieldName}' field in config (must be an array of store ids)`);
+    return undefined;
+  }
+
+  const byId = new Map<string, DeclarationEntry>();
+  let droppedEntries = false;
+  let droppedRemotes = false;
+
+  for (const entry of raw) {
+    let declaration: DeclarationEntry | null = null;
+    if (typeof entry === 'string') {
+      declaration = { id: entry };
+    } else if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+      const candidate = entry as Record<string, unknown>;
+      if (typeof candidate.id === 'string') {
+        declaration = { id: candidate.id };
+        if (typeof candidate.remote === 'string' && candidate.remote.length > 0) {
+          declaration.remote = candidate.remote;
+        } else if (candidate.remote !== undefined) {
+          droppedRemotes = true; // remote dropped, id kept
+        }
+      }
+    }
+
+    if (!declaration) {
+      droppedEntries = true;
+      continue;
+    }
+
+    const existing = byId.get(declaration.id);
+    if (!existing) {
+      byId.set(declaration.id, declaration);
+    } else if (existing.remote === undefined && declaration.remote !== undefined) {
+      existing.remote = declaration.remote;
+    }
+  }
+
+  if (droppedEntries) {
+    console.warn(`Some '${fieldName}' entries are invalid, ignoring them`);
+  }
+  if (droppedRemotes) {
+    console.warn(
+      `Some '${fieldName}' remotes are not non-empty strings; the ids are kept without a clone source`
+    );
+  }
+  return byId.size > 0 ? [...byId.values()] : undefined;
+}
+
+export const MAX_CONTEXT_SIZE = 50 * 1024; // 50KB hard limit, shared with the references index
 
 /**
  * Read and parse openspec/config.yaml from project root.
@@ -64,13 +149,9 @@ const MAX_CONTEXT_SIZE = 50 * 1024; // 50KB hard limit
  * @returns Parsed config or null if file doesn't exist
  */
 export function readProjectConfig(projectRoot: string): ProjectConfig | null {
-  // Try both .yaml and .yml, prefer .yaml
-  let configPath = path.join(projectRoot, 'openspec', 'config.yaml');
-  if (!existsSync(configPath)) {
-    configPath = path.join(projectRoot, 'openspec', 'config.yml');
-    if (!existsSync(configPath)) {
-      return null; // No config is OK
-    }
+  const configPath = resolveConfigFilePath(projectRoot);
+  if (configPath === null) {
+    return null; // No config is OK
   }
 
   try {
@@ -152,12 +233,36 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
       }
     }
 
+    const references = parseDeclarationList(raw.references);
+    if (references) {
+      config.references = references;
+    }
+
+    // Parse store pointer field: a string, or dropped with a warning.
+    // (Root resolution does NOT use this parse — it uses readStorePointer
+    // below, which errors on malformed pointers instead of dropping.)
+    if (raw.store !== undefined) {
+      if (typeof raw.store === 'string') {
+        config.store = raw.store;
+      } else {
+        console.warn(
+          `Warning: ignoring invalid store: field in ${configPathForWarnings(projectRoot)} (must be a single store id string).`
+        );
+      }
+    }
+
     // Return partial config even if some fields failed
     return Object.keys(config).length > 0 ? (config as ProjectConfig) : null;
   } catch (error) {
-    console.warn(`Failed to parse openspec/config.yaml:`, error);
+    console.warn(
+      `Warning: could not parse ${configPathForWarnings(projectRoot)} (${error instanceof Error ? error.message.split('\n')[0] : String(error)}); ignoring it.`
+    );
     return null;
   }
+}
+
+function configPathForWarnings(projectRoot: string): string {
+  return resolveConfigFilePath(projectRoot) ?? path.join(projectRoot, 'openspec', 'config.yaml');
 }
 
 /**
@@ -261,4 +366,97 @@ export function suggestSchemas(
   message += `\nFix: Edit openspec/config.yaml and change 'schema: ${invalidSchemaName}' to a valid schema name`;
 
   return message;
+}
+
+// -----------------------------------------------------------------------------
+// Store pointer (declared default store)
+// -----------------------------------------------------------------------------
+
+export interface StorePointerRead {
+  /** The declared store id, when present and a string. */
+  value?: string;
+  /** Set when the pointer cannot be trusted: the config file could not be
+   * read as YAML, or the store key is present but not a string. An empty
+   * or comments-only config is NOT malformed - it simply has no pointer. */
+  malformed?: 'unparseable' | 'non_string';
+  /** Absolute path of the config file actually read, or null when none exists. */
+  filePath: string | null;
+}
+
+/**
+ * Warning-silent targeted read of the `store:` pointer. Used by root
+ * resolution (which must not re-emit the resilient parser's field
+ * warnings) and by `openspec init`'s pointer guard. Unlike
+ * `readProjectConfig`, a malformed value is REPORTED, not dropped —
+ * a dropped pointer would silently flip where work lands.
+ */
+export function readStorePointer(projectRoot: string): StorePointerRead {
+  const configPath = resolveConfigFilePath(projectRoot);
+  if (configPath === null) {
+    return { filePath: null };
+  }
+
+  try {
+    const raw = parseYaml(readFileSync(configPath, 'utf-8'));
+    // Empty, comments-only, or non-mapping configs carry no pointer;
+    // they are imperfect, not malformed (readProjectConfig owns the
+    // field warnings for those).
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      return { filePath: configPath };
+    }
+    const value = (raw as Record<string, unknown>).store;
+    if (value === undefined) {
+      return { filePath: configPath };
+    }
+    if (typeof value === 'string') {
+      return { value, filePath: configPath };
+    }
+    return { malformed: 'non_string', filePath: configPath };
+  } catch {
+    return { malformed: 'unparseable', filePath: configPath };
+  }
+}
+
+/** Shared .yaml/.yml probe used by readProjectConfig and readStorePointer. */
+export function resolveConfigFilePath(projectRoot: string): string | null {
+  const yamlPath = path.join(projectRoot, 'openspec', 'config.yaml');
+  if (existsSync(yamlPath)) {
+    return yamlPath;
+  }
+  const ymlPath = path.join(projectRoot, 'openspec', 'config.yml');
+  return existsSync(ymlPath) ? ymlPath : null;
+}
+
+/** Human rendering of a malformed pointer reason, shared by every surface. */
+export function storePointerProblem(reason: 'unparseable' | 'non_string'): string {
+  return reason === 'unparseable'
+    ? 'the config file could not be read as YAML'
+    : 'the store key must be a single store id string';
+}
+
+export interface OpenSpecDirClassification {
+  /** True when openspec/specs or openspec/changes exists as a directory. */
+  hasPlanningShape: boolean;
+  pointer: StorePointerRead;
+}
+
+/**
+ * One classification for "real root vs config-only pointer dir", shared
+ * by root resolution and the init pointer guard so they can never
+ * disagree (slice 3.2).
+ */
+export function classifyOpenSpecDir(projectRoot: string): OpenSpecDirClassification {
+  const openspecDir = path.join(projectRoot, 'openspec');
+  const hasPlanningShape =
+    isDirectorySync(path.join(openspecDir, 'specs')) ||
+    isDirectorySync(path.join(openspecDir, 'changes'));
+  return { hasPlanningShape, pointer: readStorePointer(projectRoot) };
+}
+
+function isDirectorySync(candidatePath: string): boolean {
+  try {
+    return statSync(candidatePath).isDirectory();
+  } catch {
+    return false;
+  }
 }
