@@ -391,7 +391,7 @@ describe('config profile interactive flow', () => {
     await runConfigCommand(['profile']);
 
     expect(getGlobalConfig().delivery).toBe('skills');
-    expect(execSync).toHaveBeenCalledWith('npx openspec update', {
+    expect(execSync).toHaveBeenCalledWith('openspec update', {
       stdio: 'inherit',
       cwd: fs.realpathSync(tempDir),
     });

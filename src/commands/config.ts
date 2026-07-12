@@ -621,7 +621,7 @@ export function registerConfigCommand(program: Command): void {
 
           if (applyNow) {
             try {
-              execSync('npx openspec update', { stdio: 'inherit', cwd: projectDir });
+              execSync('openspec update', { stdio: 'inherit', cwd: projectDir });
               console.log('Run `openspec update` in your other projects to apply.');
             } catch {
               console.error('`openspec update` failed. Please run it manually to apply the profile changes.');
