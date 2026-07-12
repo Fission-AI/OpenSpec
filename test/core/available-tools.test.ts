@@ -192,6 +192,7 @@ describe('available-tools', () => {
       expect(hermesTool).toBeDefined();
       expect(hermesTool?.name).toBe('Hermes Agent');
       expect(hermesTool?.skillsDir).toBe('.hermes');
+      expect(hermesTool?.installDir).toBe('~/.hermes/skills');
     });
   });
 });

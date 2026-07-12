@@ -59,7 +59,7 @@ You can enable expanded workflows (`new`, `continue`, `ff`, `verify`, `bulk-arch
 
 \*\* GitHub Copilot prompt files are recognized as custom slash commands in IDE extensions (VS Code, JetBrains, Visual Studio). Copilot CLI does not currently consume `.github/prompts/*.prompt.md` directly.
 
-\*\*\* Hermes Agent installs skills to the user-global `~/.hermes/skills/` directory (not project-local) because Hermes discovers skills globally. A project-local marker directory (`.hermes/skills/`) is created for auto-detection. Use `/skill:openspec-*` to invoke in-session.
+\*\*\* Hermes Agent installs skills to the user-global `~/.hermes/skills/` directory (not project-local) because Hermes discovers skills globally. A project-local marker directory (`.hermes/skills/`) is created during initialization for auto-detection and update-bookkeeping; the `.hermes` directory at the project root triggers tool detection, while `.hermes/skills/` inside it marks the project as OpenSpec-configured. Use `/skill:openspec-*` to invoke in-session.
 
 ## Non-Interactive Setup
 

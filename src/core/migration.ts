@@ -10,7 +10,7 @@ import { getGlobalConfig, getGlobalConfigPath, saveGlobalConfig, type Delivery }
 import { CommandAdapterRegistry } from './command-generation/index.js';
 import { WORKFLOW_TO_SKILL_DIR } from './profile-sync-drift.js';
 import { ALL_WORKFLOWS } from './profiles.js';
-import { resolveSkillsDir } from './shared/index.js';
+import { resolveMarkerDir, resolveSkillsDir } from './shared/index.js';
 import path from 'path';
 import * as fs from 'fs';
 
@@ -30,6 +30,17 @@ function scanInstalledWorkflowArtifacts(
 
   for (const tool of tools) {
     if (!tool.skillsDir) continue;
+
+    // Global-install tools (e.g. Hermes): only scan their global skills
+    // directory when the project-local marker directory exists, so a
+    // project that merely has the tool's detection directory (e.g.
+    // .hermes/) does not inherit workflows from another project's global
+    // install.
+    if (tool.installDir) {
+      const markerDir = resolveMarkerDir(tool, projectPath);
+      if (!fs.existsSync(markerDir)) continue;
+    }
+
     const skillsDir = resolveSkillsDir(tool, projectPath);
 
     for (const workflowId of ALL_WORKFLOWS) {

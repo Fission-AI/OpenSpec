@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
@@ -373,6 +373,35 @@ metadata:
   });
 
   describe('getToolSkillStatus (Hermes global-install)', () => {
+    let fakeHome: string;
+    let homedirSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(async () => {
+      // Redirect os.homedir() to a temp dir so the global ~/.hermes/skills
+      // path is fully under our control (deterministic skill counts).
+      fakeHome = path.join(os.tmpdir(), `openspec-hermes-home-${randomUUID()}`);
+      await fs.mkdir(fakeHome, { recursive: true });
+      homedirSpy = vi.spyOn(os, 'homedir').mockReturnValue(fakeHome);
+    });
+
+    afterEach(async () => {
+      homedirSpy.mockRestore();
+      await fs.rm(fakeHome, { recursive: true, force: true });
+    });
+
+    /**
+     * Create a SKILL.md fixture with the given generatedBy version in the
+     * fake global ~/.hermes/skills directory.
+     */
+    async function createGlobalSkill(skillName: string, generatedBy?: string): Promise<void> {
+      const skillFile = path.join(fakeHome, '.hermes', 'skills', skillName, 'SKILL.md');
+      await fs.mkdir(path.dirname(skillFile), { recursive: true });
+      const frontmatter = generatedBy
+        ? `---\nmetadata:\n  generatedBy: "${generatedBy}"\n---\n`
+        : `---\n---\n`;
+      await fs.writeFile(skillFile, frontmatter, 'utf-8');
+    }
+
     it('should return not configured when marker directory does not exist', () => {
       const status = getToolSkillStatus(testDir, 'hermes');
       expect(status.configured).toBe(false);
@@ -380,45 +409,101 @@ metadata:
       expect(status.skillCount).toBe(0);
     });
 
-    it('should return configured when marker directory exists (even without global skills)', async () => {
-      // Create the project-local marker directory
-      const markerDir = path.join(testDir, '.hermes', 'skills');
-      await fs.mkdir(markerDir, { recursive: true });
+    it('should return configured with exact skillCount when marker and global skills exist', async () => {
+      // Marker directory (project-local)
+      await fs.mkdir(path.join(testDir, '.hermes', 'skills'), { recursive: true });
+      // Two global skills
+      await createGlobalSkill('openspec-explore', '1.6.0');
+      await createGlobalSkill('openspec-new-change', '1.6.0');
 
       const status = getToolSkillStatus(testDir, 'hermes');
       expect(status.configured).toBe(true);
-      // skillCount reflects the global ~/.hermes/skills/ — may or may not have skills
-      // depending on the test environment, but configured should be true
+      expect(status.skillCount).toBe(2);
+      expect(status.fullyConfigured).toBe(false);
     });
 
-    it('should report correct skillCount when marker exists and global skills present', async () => {
-      // This test verifies that when the marker exists, we check the global dir
-      // We can't control ~/.hermes/skills in test env, so just verify configured=true
-      const markerDir = path.join(testDir, '.hermes', 'skills');
-      await fs.mkdir(markerDir, { recursive: true });
+    it('should return fullyConfigured when all skills exist globally', async () => {
+      await fs.mkdir(path.join(testDir, '.hermes', 'skills'), { recursive: true });
+      for (const skillName of SKILL_NAMES) {
+        await createGlobalSkill(skillName, '1.6.0');
+      }
 
       const status = getToolSkillStatus(testDir, 'hermes');
       expect(status.configured).toBe(true);
-      // skillCount may vary based on global state, but should be a valid number
-      expect(status.skillCount).toBeGreaterThanOrEqual(0);
+      expect(status.skillCount).toBe(SKILL_NAMES.length);
+      expect(status.fullyConfigured).toBe(true);
+    });
+
+    it('should return configured with zero skills when marker exists but global is empty', async () => {
+      await fs.mkdir(path.join(testDir, '.hermes', 'skills'), { recursive: true });
+
+      const status = getToolSkillStatus(testDir, 'hermes');
+      expect(status.configured).toBe(true);
+      expect(status.skillCount).toBe(0);
+      expect(status.fullyConfigured).toBe(false);
     });
   });
 
   describe('getToolVersionStatus (Hermes global-install)', () => {
+    let fakeHome: string;
+    let homedirSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(async () => {
+      fakeHome = path.join(os.tmpdir(), `openspec-hermes-home-${randomUUID()}`);
+      await fs.mkdir(fakeHome, { recursive: true });
+      homedirSpy = vi.spyOn(os, 'homedir').mockReturnValue(fakeHome);
+    });
+
+    afterEach(async () => {
+      homedirSpy.mockRestore();
+      await fs.rm(fakeHome, { recursive: true, force: true });
+    });
+
+    async function createGlobalSkill(skillName: string, generatedBy?: string): Promise<void> {
+      const skillFile = path.join(fakeHome, '.hermes', 'skills', skillName, 'SKILL.md');
+      await fs.mkdir(path.dirname(skillFile), { recursive: true });
+      const frontmatter = generatedBy
+        ? `---\nmetadata:\n  generatedBy: "${generatedBy}"\n---\n`
+        : `---\n---\n`;
+      await fs.writeFile(skillFile, frontmatter, 'utf-8');
+    }
+
     it('should return not configured when marker directory does not exist', () => {
       const status = getToolVersionStatus(testDir, 'hermes', '1.6.0');
       expect(status.configured).toBe(false);
       expect(status.needsUpdate).toBe(false);
     });
 
-    it('should include Hermes tool name in status', async () => {
-      const markerDir = path.join(testDir, '.hermes', 'skills');
-      await fs.mkdir(markerDir, { recursive: true });
+    it('should report matching version without update needed', async () => {
+      await fs.mkdir(path.join(testDir, '.hermes', 'skills'), { recursive: true });
+      await createGlobalSkill('openspec-explore', '1.6.0');
 
       const status = getToolVersionStatus(testDir, 'hermes', '1.6.0');
       expect(status.toolId).toBe('hermes');
       expect(status.toolName).toBe('Hermes Agent');
       expect(status.configured).toBe(true);
+      expect(status.generatedByVersion).toBe('1.6.0');
+      expect(status.needsUpdate).toBe(false);
+    });
+
+    it('should report needsUpdate when version differs', async () => {
+      await fs.mkdir(path.join(testDir, '.hermes', 'skills'), { recursive: true });
+      await createGlobalSkill('openspec-explore', '1.5.0');
+
+      const status = getToolVersionStatus(testDir, 'hermes', '1.6.0');
+      expect(status.configured).toBe(true);
+      expect(status.generatedByVersion).toBe('1.5.0');
+      expect(status.needsUpdate).toBe(true);
+    });
+
+    it('should report needsUpdate when generatedBy is missing from skill file', async () => {
+      await fs.mkdir(path.join(testDir, '.hermes', 'skills'), { recursive: true });
+      await createGlobalSkill('openspec-explore');
+
+      const status = getToolVersionStatus(testDir, 'hermes', '1.6.0');
+      expect(status.configured).toBe(true);
+      expect(status.generatedByVersion).toBeNull();
+      expect(status.needsUpdate).toBe(true);
     });
   });
 
