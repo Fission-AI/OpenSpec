@@ -5,12 +5,15 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
+import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
 export function getContinueChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-continue-change',
     description: 'Continue working on an OpenSpec change by creating the next artifact. Use when the user wants to progress their change, create the next artifact, or continue their workflow.',
     instructions: `Continue working on a change by creating the next artifact.
+
+${STORE_SELECTION_GUIDANCE}
 
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
@@ -69,7 +72,7 @@ export function getContinueChangeSkillTemplate(): SkillTemplate {
      - Read any completed dependency files for context
      - Use \`template\` as the structure - fill in its sections
      - Apply \`context\` and \`rules\` as constraints when writing - but do NOT copy them into the file
-     - Write to the \`resolvedOutputPath\` specified in instructions. If it is a glob pattern, choose the concrete file path using the schema instruction and workspace planning context
+     - Write to the \`resolvedOutputPath\` specified in instructions. If it is a glob pattern, choose the concrete file path using the schema instruction and the change's context
    - Show what was created and what's now unlocked
    - STOP after creating ONE artifact
 
@@ -132,6 +135,8 @@ export function getOpsxContinueCommandTemplate(): CommandTemplate {
     tags: ['workflow', 'artifacts', 'experimental'],
     content: `Continue working on a change by creating the next artifact.
 
+${STORE_SELECTION_GUIDANCE}
+
 **Input**: Optionally specify a change name after \`/opsx:continue\` (e.g., \`/opsx:continue add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
@@ -189,7 +194,7 @@ export function getOpsxContinueCommandTemplate(): CommandTemplate {
      - Read any completed dependency files for context
      - Use \`template\` as the structure - fill in its sections
      - Apply \`context\` and \`rules\` as constraints when writing - but do NOT copy them into the file
-     - Write to the \`resolvedOutputPath\` specified in instructions. If it is a glob pattern, choose the concrete file path using the schema instruction and workspace planning context
+     - Write to the \`resolvedOutputPath\` specified in instructions. If it is a glob pattern, choose the concrete file path using the schema instruction and the change's context
    - Show what was created and what's now unlocked
    - STOP after creating ONE artifact
 
