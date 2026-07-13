@@ -14,7 +14,7 @@ The OpenSpec CLI (`openspec`) provides terminal commands for project setup, vali
 | **Browsing** | `list`, `view`, `show` | Explore changes and specs |
 | **Validation** | `validate` | Check changes and specs for issues |
 | **Lifecycle** | `archive` | Finalize completed changes |
-| **Workflow** | `new change`, `status`, `instructions`, `templates`, `schemas` | Artifact-driven workflow support |
+| **Workflow** | `new change`, `new schema`, `status`, `instructions`, `templates`, `schemas` | Artifact-driven workflow support |
 | **Schemas** | `schema init`, `schema fork`, `schema validate`, `schema which` | Create and manage custom workflows |
 | **Config** | `config` | View and modify settings |
 | **Utility** | `feedback`, `completion` | Feedback and shell integration |
@@ -44,20 +44,21 @@ These commands support `--json` output for programmatic use by AI agents and scr
 
 | Command | Human Use | Agent Use |
 |---------|-----------|-----------|
-| `openspec list` | Browse changes/specs | `--json` for structured data |
+| `openspec list` | Browse changes/specs; `--downstream` for the upstream rollup | `--json` for structured data |
 | `openspec show <item>` | Read content | `--json` for parsing |
 | `openspec validate` | Check for issues | `--all --json` for bulk validation |
 | `openspec status` | See artifact progress | `--json` for structured status |
 | `openspec instructions` | Get next steps | `--json` for agent instructions |
 | `openspec templates` | Find template paths | `--json` for path resolution |
-| `openspec schemas` | List available schemas | `--json` for schema discovery |
+| `openspec schemas` | List available schemas (including ones inherited from referenced stores) | `--json` for schema discovery |
 | `openspec store setup <id>` | Create and register a local store | `--json` with explicit inputs for structured setup output |
 | `openspec store register <path>` | Register an existing store | `--json` for structured registration output |
 | `openspec store unregister <id>` | Forget a local store registration | `--json` for structured cleanup output |
 | `openspec store remove <id>` | Delete a registered local store folder | `--yes --json` for non-interactive deletion |
 | `openspec store list` | Browse registered stores | `--json` for structured registrations |
 | `openspec store doctor` | Check local store setup | `--json` for structured diagnostics |
-| `openspec new change <id>` | Create repo-local change scaffolding | `--json`, plus `--store <id>` to use a registered store as the OpenSpec root |
+| `openspec new change <id>` | Create change scaffolding; `--serves <ref>` links it to upstream work | `--json`, plus `--store <id>` to use a registered store as the OpenSpec root |
+| `openspec new schema <id>` | Scaffold a workflow schema (stages, instructions, templates) | `--json`, plus `--store <id>` |
 | `openspec workset create [name]` | Compose a personal working view | `--member <path> --json` for non-interactive composition |
 | `openspec workset list` | Browse saved worksets | `--json` for structured views |
 | `openspec workset remove <name>` | Delete a saved view | `--yes --json` for non-interactive removal |
@@ -202,15 +203,15 @@ openspec store setup [id] [options]
 | `--no-init-git` | Skip every Git action: no init, no initial commit |
 | `--json` | Output JSON |
 
-Non-interactive runs (`--json`, scripts, agents) must pass both the store id and `--path`. In an interactive terminal, setup prompts for the location with an editable suggestion in a visible, user-owned place (for example `~/openspec/<id>`); it never defaults to OpenSpec's managed data directory.
+`--path` is optional: setup defaults to `~/openspec/<id>` (interactive runs prompt with that suggestion prefilled). A fresh store's changes default to the built-in `requirements` workflow — see the [upstream work guide](stores-beta/upstream-work.md).
 
 Examples:
 
 ```bash
 openspec store setup
 openspec store setup team-context
-openspec store setup team-context --path ~/openspec/team-context --no-init-git
-openspec store setup team-context --path ~/openspec/team-context --no-init-git --json
+openspec store setup team-context --no-init-git
+openspec store setup team-context --path ~/plans/team-context --json
 ```
 
 ### `openspec store register`
@@ -390,7 +391,9 @@ openspec list [options]
 |--------|-------------|
 | `--specs` | List specs instead of changes |
 | `--changes` | List changes (default) |
+| `--downstream` | Show the root's changes and every change on this machine that serves them |
 | `--sort <order>` | Sort by `recent` (default) or `name` |
+| `--store <id>` | Store id to use as the OpenSpec root |
 | `--json` | Output as JSON |
 
 **Examples:**
@@ -401,6 +404,9 @@ openspec list
 
 # List all specs
 openspec list --specs
+
+# Where does the team's upstream work stand?
+openspec list --downstream --store team-plans
 
 # JSON output for scripts
 openspec list --json
@@ -639,14 +645,49 @@ prefix it with a word, for example `ticket-123-add-notifications` instead of
 | `--description <text>` | Description to add to `README.md` |
 | `--goal <text>` | Optional goal metadata to store with the change |
 | `--schema <name>` | Workflow schema to use |
+| `--serves <ref>` | Link this change to the work it serves: `<change>` or `<store-id>/<change>` |
 | `--store <id>` | Store id to use as the OpenSpec root (a store is a standalone OpenSpec repo you've registered) |
 | `--json` | Output JSON |
+
+`--serves` records the link in the change's metadata and wires everything
+else automatically: the repo is recorded (machine-local) so
+`openspec list --downstream` finds it, and the store is added to the repo's
+`references:` so agents there see its context.
 
 Examples:
 
 ```bash
 openspec new change add-billing-api
 openspec new change add-billing-api --store team-context --json
+openspec new change add-billing-ui --serves team-context/billing-revamp
+```
+
+### `openspec new schema`
+
+Scaffold a workflow schema — stages, per-stage instructions, and templates —
+in the resolved OpenSpec root.
+
+```bash
+openspec new schema <name> [options]
+```
+
+Creates `openspec/schemas/<name>/` containing `schema.yaml` (the stages, in
+order, via `requires:`), `instructions/*.md` (guidance agents get per
+stage), and `templates/*.md` (the output shape per stage). Each artifact is
+one stage of the workflow — add one per handoff. Set `schema: <name>` in
+`openspec/config.yaml` to make it the root's default.
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--store <id>` | Store id to use as the OpenSpec root |
+| `--json` | Output JSON |
+
+Examples:
+
+```bash
+openspec new schema product-flow --store team-context
 ```
 
 ### `openspec status`
@@ -804,6 +845,8 @@ Templates:
 ### `openspec schemas`
 
 List available workflow schemas with their descriptions and artifact flows.
+Includes schemas inherited from referenced stores, labeled with their
+source store.
 
 ```
 openspec schemas [options]
@@ -813,6 +856,7 @@ openspec schemas [options]
 
 | Option | Description |
 |--------|-------------|
+| `--store <id>` | Store id to use as the OpenSpec root |
 | `--json` | Output as JSON |
 
 **Example:**

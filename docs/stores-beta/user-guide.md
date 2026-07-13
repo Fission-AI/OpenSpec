@@ -60,13 +60,14 @@ openspec store setup team-plans   # defaults to ~/openspec/team-plans
 
 ```
 Store ready: team-plans
-Location: /Users/you/openspec/team-plans
+Location: ~/openspec/team-plans
 OpenSpec root: ready
 Registry: registered
 
-Next: run normal OpenSpec commands against this store, for example:
-  openspec new change <change-id> --store team-plans
-Share this store by committing and pushing it like any Git repo.
+Next:
+  openspec new change <name> --store team-plans     # draft requirements here
+  openspec new change <name> --serves team-plans/<change>   # in any repo: link work to them
+  openspec list --downstream --store team-plans     # where everything stands
 ```
 
 ```bash
@@ -76,7 +77,7 @@ openspec new change add-login --store team-plans
 ```
 Using OpenSpec root: team-plans (/Users/you/openspec/team-plans)
 Created change 'add-login' at /Users/you/openspec/team-plans/openspec/changes/add-login/
-Schema: spec-driven
+Schema: requirements
 Next: openspec status --change add-login --store team-plans
 ```
 
@@ -84,6 +85,19 @@ That's the whole model. From here the lifecycle is exactly what you know —
 `status`, `instructions`, `validate`, `archive` — with `--store team-plans`
 on each command, and every printed hint carries the flag for you. The
 `Using OpenSpec root:` line always tells you where a command is acting.
+
+Two defaults worth knowing:
+
+- A fresh store's changes use the built-in **`requirements`** workflow
+  (proposal → specs, nothing to implement) — a store holds shared planning,
+  not code work. One line in the store's `openspec/config.yaml` changes it,
+  and `openspec new schema <name> --store team-plans` scaffolds a workflow
+  of your own.
+- Any repo can link a change to the store work it implements:
+  `openspec new change <name> --serves team-plans/<change>`. Context wires
+  itself, and `openspec list --downstream --store team-plans` shows where
+  everything stands. The full loop lives in
+  [Upstream Work](upstream-work.md).
 
 ## Story: one team, one planning repo
 
@@ -183,6 +197,13 @@ summary and the exact fetch command (`openspec show <spec-id> --type spec
 --store platform-reqs`). An agent working in `api-server` can find the
 upstream payment requirements, cite them, and write its low-level design in
 the repo's own root — without anyone pasting context around.
+
+References are the read-only half. When a product team's change
+*implements* something the platform team is drafting, link it —
+`openspec new change <name> --serves platform-reqs/<change>` — and the
+platform team sees live progress with
+`openspec list --downstream --store platform-reqs`. See
+[Upstream Work](upstream-work.md).
 
 A reference can carry its clone source, so teammates who don't have the
 store yet get a complete fix instead of a dead end:
@@ -319,9 +340,11 @@ tells you which case you're in.
   deprecated noun forms (`openspec change show`, ...) act on the current
   directory only — no `--store`. (`schemas` now accepts `--store` — see
   [Upstream Work](upstream-work.md).)
-- **Per-machine state is per-machine.** The store registry and worksets
-  are local settings. Nothing about your machine's layout is
-  ever committed to shared planning.
+- **Per-machine state is per-machine.** The store registry, worksets, and
+  the upstream-link records that power `list --downstream` are local
+  settings. The rollup sees the checkouts on *this* machine — pull your
+  teammates' repos to see their work. Nothing about your machine's layout
+  is ever committed to shared planning.
 - **Two launch styles for worksets.** A tool that can't be launched with a
   workspace file or per-folder attach flags can't be added as an opener.
 - **Agent JSON has a known casing split** (store-family keys are
@@ -336,6 +359,7 @@ tells you which case you're in.
 | A store's planning | `<store>/openspec/` (specs, changes) | Yes — commit and push it |
 | A store's identity | `<store>/.openspec-store/store.yaml` | Yes — committed with the store |
 | The store registry | `<data dir>/openspec/stores/registry.yaml` | No — this machine only |
+| Repos linked via `--serves` | `<data dir>/openspec/stores/linked-roots.yaml` | No — this machine only |
 | Worksets | `<data dir>/openspec/worksets/` | No — this machine only |
 
 `<data dir>` is `~/.local/share/openspec` on macOS and Linux (or
