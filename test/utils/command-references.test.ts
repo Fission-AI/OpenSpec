@@ -66,6 +66,7 @@ Finally /opsx-apply to implement`;
       'continue',
       'apply',
       'update',
+      'brief',
       'ff',
       'sync',
       'archive',

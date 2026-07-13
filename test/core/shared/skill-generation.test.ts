@@ -8,9 +8,9 @@ import {
 
 describe('skill-generation', () => {
   describe('getSkillTemplates', () => {
-    it('should return all 12 skill templates', () => {
+    it('should return all 13 skill templates', () => {
       const templates = getSkillTemplates();
-      expect(templates).toHaveLength(12);
+      expect(templates).toHaveLength(13);
     });
 
     it('should have unique directory names', () => {
@@ -29,6 +29,7 @@ describe('skill-generation', () => {
       expect(dirNames).toContain('openspec-continue-change');
       expect(dirNames).toContain('openspec-apply-change');
       expect(dirNames).toContain('openspec-update-change');
+      expect(dirNames).toContain('openspec-brief-change');
       expect(dirNames).toContain('openspec-ff-change');
       expect(dirNames).toContain('openspec-sync-specs');
       expect(dirNames).toContain('openspec-archive-change');
@@ -55,6 +56,17 @@ describe('skill-generation', () => {
       const ids = templates.map(t => t.workflowId);
       const uniqueIds = new Set(ids);
       expect(uniqueIds.size).toBe(templates.length);
+    });
+
+    it('should keep brief output standalone and project-neutral', () => {
+      const brief = getSkillTemplates().find(t => t.workflowId === 'brief');
+
+      expect(brief?.template.instructions).toContain('contextFiles');
+      expect(brief?.template.instructions).toContain('Source artifact index');
+      expect(brief?.template.instructions).toContain('no external JavaScript, CSS, fonts, images, CDN links, or network resources');
+      expect(brief?.template.instructions).toContain('use system fonts only');
+      expect(brief?.template.instructions).toContain('do not include unrelated product names, project names, footers, or branding');
+      expect(brief?.template.instructions).toContain('mark inferred impacts as "Inference"');
     });
 
     it('should filter by workflow IDs when provided', () => {
@@ -89,9 +101,9 @@ describe('skill-generation', () => {
   });
 
   describe('getCommandTemplates', () => {
-    it('should return all 12 command templates', () => {
+    it('should return all 13 command templates', () => {
       const templates = getCommandTemplates();
-      expect(templates).toHaveLength(12);
+      expect(templates).toHaveLength(13);
     });
 
     it('should have unique IDs', () => {
@@ -110,6 +122,7 @@ describe('skill-generation', () => {
       expect(ids).toContain('continue');
       expect(ids).toContain('apply');
       expect(ids).toContain('update');
+      expect(ids).toContain('brief');
       expect(ids).toContain('ff');
       expect(ids).toContain('sync');
       expect(ids).toContain('archive');
@@ -144,9 +157,9 @@ describe('skill-generation', () => {
   });
 
   describe('getCommandContents', () => {
-    it('should return all 12 command contents', () => {
+    it('should return all 13 command contents', () => {
       const contents = getCommandContents();
-      expect(contents).toHaveLength(12);
+      expect(contents).toHaveLength(13);
     });
 
     it('should have valid content structure', () => {
