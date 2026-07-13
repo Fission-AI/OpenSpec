@@ -1,0 +1,39 @@
+import { promises as fs } from 'fs';
+import path from 'path';
+
+export interface DiscoveredSpec {
+  /** Spec id relative to the specs root, forward-slash separated on every platform (e.g. "web" or "platform/session-layout"). */
+  id: string;
+  /** Path to the spec.md file (absolute if the specs root is absolute). */
+  specFile: string;
+}
+
+/**
+ * Recursively discover every `spec.md` under a specs root, so both the flat
+ * `specs/<id>/spec.md` layout and nested `specs/<area>/<id>/spec.md` layouts
+ * are found (#1353). A `spec.md` sitting directly in the root is ignored,
+ * matching the historical requirement that specs live in a capability folder.
+ * Dot-directories are skipped and symlinks are not followed. Results are
+ * sorted by id for deterministic output.
+ */
+export async function discoverSpecFiles(specsRoot: string): Promise<DiscoveredSpec[]> {
+  const results: DiscoveredSpec[] = [];
+  const walk = async (dir: string, segments: string[]): Promise<void> => {
+    let entries;
+    try {
+      entries = await fs.readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (entry.name.startsWith('.')) continue;
+      if (entry.isDirectory()) {
+        await walk(path.join(dir, entry.name), [...segments, entry.name]);
+      } else if (entry.isFile() && entry.name === 'spec.md' && segments.length > 0) {
+        results.push({ id: segments.join('/'), specFile: path.join(dir, entry.name) });
+      }
+    }
+  };
+  await walk(specsRoot, []);
+  return results.sort((a, b) => a.id.localeCompare(b.id));
+}
