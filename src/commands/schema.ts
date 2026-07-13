@@ -9,7 +9,9 @@ import {
   getUserSchemasDir,
   getPackageSchemasDir,
   listSchemas,
+  resolveSchema,
 } from '../core/artifact-graph/resolver.js';
+import { resolveRootForCommand } from '../core/root-selection.js';
 import { parseSchema, SchemaValidationError } from '../core/artifact-graph/schema.js';
 import type { SchemaYaml, Artifact } from '../core/artifact-graph/types.js';
 
@@ -671,6 +673,7 @@ export function registerSchemaCommand(program: Command): void {
     .option('--default', 'Set as project default schema')
     .option('--no-default', 'Do not prompt to set as default')
     .option('--force', 'Overwrite existing schema')
+    .option('--store <id>', 'Store id to use as the OpenSpec root (a store is a standalone OpenSpec repo you\'ve registered)')
     .action(async (
       name: string,
       options?: {
@@ -679,12 +682,23 @@ export function registerSchemaCommand(program: Command): void {
         artifacts?: string;
         default?: boolean;
         force?: boolean;
+        store?: string;
       }
     ) => {
       const spinner = options?.json ? null : ora();
 
       try {
-        const projectRoot = process.cwd();
+        // --store scaffolds into a registered store's root; without it the
+        // command keeps its classic cwd behavior.
+        let projectRoot = process.cwd();
+        if (options?.store) {
+          const root = await resolveRootForCommand(
+            { store: options.store },
+            { json: options?.json, failurePayload: { created: false } }
+          );
+          if (!root) return;
+          projectRoot = root.path;
+        }
 
         // Validate name
         if (!isValidSchemaName(name)) {
@@ -866,6 +880,23 @@ export function registerSchemaCommand(program: Command): void {
           fs.writeFileSync(templatePath, templateContent);
         }
 
+        // Seed per-stage guidance as instructions/<artifact>.md files —
+        // the built-in workflow's guidance is the starting point, and a
+        // file beside the schema is what teams edit (it wins over any
+        // inline instruction).
+        const builtin = resolveSchema('spec-driven');
+        const instructionsDir = path.join(schemaDir, 'instructions');
+        fs.mkdirSync(instructionsDir, { recursive: true });
+        for (const artifact of selectedArtifacts) {
+          const seed = builtin.artifacts.find((a) => a.id === artifact.id)?.instruction;
+          if (seed) {
+            fs.writeFileSync(
+              path.join(instructionsDir, `${artifact.id}.md`),
+              `${seed.trim()}\n`
+            );
+          }
+        }
+
         // Update config if --default
         if (options?.default) {
           const configPath = path.join(projectRoot, 'openspec', 'config.yaml');
@@ -874,7 +905,7 @@ export function registerSchemaCommand(program: Command): void {
             const { parse: parseYaml, stringify: stringifyYaml2 } = await import('yaml');
             const configContent = fs.readFileSync(configPath, 'utf-8');
             const config = parseYaml(configContent) || {};
-            config.defaultSchema = name;
+            config.schema = name;
             fs.writeFileSync(configPath, stringifyYaml2(config));
           } else {
             // Create config file
@@ -882,7 +913,7 @@ export function registerSchemaCommand(program: Command): void {
             if (!fs.existsSync(configDir)) {
               fs.mkdirSync(configDir, { recursive: true });
             }
-            fs.writeFileSync(configPath, stringifyYaml({ defaultSchema: name }));
+            fs.writeFileSync(configPath, stringifyYaml({ schema: name }));
           }
         }
 
@@ -902,10 +933,14 @@ export function registerSchemaCommand(program: Command): void {
           if (options?.default) {
             console.log(`\nSet as project default schema.`);
           }
+          console.log(`\nEach artifact is a stage — order them with requires: in schema.yaml.`);
+          console.log(`Guidance agents get per stage lives in instructions/<artifact>.md.`);
           console.log(`\nNext steps:`);
-          console.log(`  1. Edit ${schemaDir}/schema.yaml to customize artifacts`);
-          console.log(`  2. Modify templates in the schema directory`);
-          console.log(`  3. Use with: openspec new --schema ${name}`);
+          console.log(`  1. Edit ${schemaDir}/schema.yaml to customize the stages`);
+          console.log(`  2. Edit instructions/ and templates/ to match your workflow`);
+          console.log(
+            `  3. Use it: openspec new change <name> --schema ${name}${options?.store ? ` --store ${options.store}` : ''}`
+          );
         }
       } catch (error) {
         if (spinner) spinner.fail(`Creation failed`);

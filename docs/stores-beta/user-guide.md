@@ -91,7 +91,7 @@ Two defaults worth knowing:
 - A fresh store's changes use the built-in **`requirements`** workflow
   (proposal → specs, nothing to implement) — a store holds shared planning,
   not code work. One line in the store's `openspec/config.yaml` changes it,
-  and `openspec new schema <name> --store team-plans` scaffolds a workflow
+  and `openspec schema init <name> --store team-plans` scaffolds a workflow
   of your own.
 - Any repo can link a change to the store work it implements:
   `openspec new change <name> --serves team-plans/<change>`. Context wires

@@ -17,7 +17,7 @@
 
 ## Happy path
 - [x] Built-in `requirements` schema; fresh stores default to it
-- [x] `openspec new schema <name>` scaffolder (schema.yaml + instructions/ + templates/)
+- [x] `schema init`: `--store` support, per-stage instruction files, `--default` key fix
 - [x] Store setup output teaches the loop; skills carry `--serves` guidance
 
 ## Verification

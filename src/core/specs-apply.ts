@@ -227,7 +227,11 @@ export async function buildUpdatedSpec(
       );
     }
     isNewSpec = true;
-    targetContent = buildSpecSkeleton(specName, changeName);
+    targetContent = buildSpecSkeleton(
+      specName,
+      changeName,
+      await readProposalWhy(update.source)
+    );
   }
 
   const structureIssues = findMainSpecStructureIssues(targetContent);
@@ -385,11 +389,43 @@ export async function writeUpdatedSpec(
 }
 
 /**
- * Build a skeleton spec for new capabilities.
+ * Build a skeleton spec for new capabilities. The Purpose is seeded from
+ * the change's own proposal when one exists — the intent was already
+ * written once; a placeholder would just ask for it twice.
  */
-export function buildSpecSkeleton(specFolderName: string, changeName: string): string {
+export function buildSpecSkeleton(
+  specFolderName: string,
+  changeName: string,
+  purpose?: string | null
+): string {
   const titleBase = specFolderName;
-  return `# ${titleBase} Specification\n\n## Purpose\nTBD - created by archiving change ${changeName}. Update Purpose after archive.\n\n## Requirements\n`;
+  const purposeText =
+    purpose ??
+    `TBD - created by archiving change ${changeName}. Update Purpose after archive.`;
+  return `# ${titleBase} Specification\n\n## Purpose\n${purposeText}\n\n## Requirements\n`;
+}
+
+/**
+ * The first paragraph of the change proposal's `## Why` section, flattened
+ * to one line — the natural Purpose for a spec this change creates. The
+ * delta source lives at `<changeDir>/specs/<name>/spec.md`, so the
+ * proposal sits two directories up. Tolerant: any missing or shapeless
+ * proposal means "no seed" and the placeholder is used.
+ */
+async function readProposalWhy(deltaSource: string): Promise<string | null> {
+  const changeDir = path.dirname(path.dirname(path.dirname(deltaSource)));
+  try {
+    const proposal = await fs.readFile(path.join(changeDir, 'proposal.md'), 'utf-8');
+    const match = proposal
+      .replace(/\r\n?/g, '\n')
+      .match(/(?:^|\n)##\s+Why\s*\n+([\s\S]*?)(?=\n##\s|$)/);
+    const text = match?.[1]?.trim();
+    if (!text) return null;
+    const paragraph = text.split(/\n\s*\n/)[0].replace(/\s*\n\s*/g, ' ').trim();
+    return paragraph.length > 0 ? paragraph : null;
+  } catch {
+    return null;
+  }
 }
 
 function findMissingCurrentScenarios(current: RequirementBlock, incoming: RequirementBlock): string[] {

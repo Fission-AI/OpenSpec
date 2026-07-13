@@ -190,6 +190,33 @@ Then expected result happens`;
       expect(updatedContent).toContain('#### Scenario: Basic test');
     });
 
+    it('seeds a new spec\'s Purpose from the proposal\'s Why section', async () => {
+      const changeName = 'seeded-purpose';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'seeded-capability');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      await fs.writeFile(
+        path.join(changeDir, 'proposal.md'),
+        '## Why\n\nAuditors need one answer for retention.\nToday there is none.\n\nSecond paragraph is not the Purpose.\n\n## What Changes\n- Things.\n'
+      );
+      await fs.writeFile(
+        path.join(changeSpecDir, 'spec.md'),
+        '## ADDED Requirements\n\n### Requirement: The system SHALL retain events\n\n#### Scenario: Basic\nGiven a\nWhen b\nThen c'
+      );
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const mainSpecPath = path.join(tempDir, 'openspec', 'specs', 'seeded-capability', 'spec.md');
+      const updatedContent = await fs.readFile(mainSpecPath, 'utf-8');
+      // First Why paragraph, flattened to one line — no TBD placeholder.
+      expect(updatedContent).toContain(
+        '## Purpose\nAuditors need one answer for retention. Today there is none.'
+      );
+      expect(updatedContent).not.toContain('TBD');
+      expect(updatedContent).not.toContain('Second paragraph');
+    });
+
     it('should allow REMOVED requirements when creating new spec file (issue #403)', async () => {
       const changeName = 'new-spec-with-removed';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);

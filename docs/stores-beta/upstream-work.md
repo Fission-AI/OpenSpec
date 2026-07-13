@@ -24,11 +24,11 @@ tell agents there is no implementation phase). To encode your own chain,
 scaffold a schema and add one artifact per handoff:
 
 ```text
-$ openspec new schema product-flow --store product-team
-Created schema 'product-flow' at …/openspec/schemas/product-flow/
-  schema.yaml            stages and their order (requires:)
-  instructions/*.md      guidance agents get per stage
-  templates/*.md         the output shape per stage
+$ openspec schema init product-flow --artifacts proposal,specs --store product-team
+✔ Created schema 'product-flow'
+
+Each artifact is a stage — order them with requires: in schema.yaml.
+Guidance agents get per stage lives in instructions/<artifact>.md.
 ```
 
 A schema is a folder. Long-form guidance lives in files beside it, and a
@@ -111,6 +111,20 @@ the link keeps resolving — marked so downstream agents trace against specs:
 onboarding-revamp   1/2 serving changes complete  (archived — its requirements now live in specs/)
 ```
 
+## Team-wide status
+
+The rollup reads checkouts on the machine it runs on — pull a teammate's
+repo and their work appears. For an always-current team view, run the same
+command somewhere that already has every repo: a CI job that clones the
+store and the code repos, registers the store, and publishes
+`openspec list --downstream --store <id> --json` gives the whole team one
+answer without any new machinery.
+
+Schemas version the same way everything in a store does: git. Pulling the
+store updates the workflow for every repo that references it; a repo that
+needs to pin or diverge defines a project-local schema with the same name,
+which wins.
+
 ## Reference
 
 | Surface | What it carries |
@@ -119,7 +133,7 @@ onboarding-revamp   1/2 serving changes complete  (archived — its requirements
 | `schema.yaml` | optional `notes:` (workflow guidance, surfaced verbatim to agents) |
 | `<schema>/instructions/<artifact>.md` | per-artifact instruction files; a file wins over inline `instruction:` |
 | `config.yaml` | `structure:` — folder → purpose map, surfaced in `context` and the references index |
-| `openspec new schema <name> [--store <id>]` | scaffold a workflow: schema.yaml + instructions/ + templates/ |
+| `openspec schema init <name> [--store <id>]` | scaffold a workflow: schema.yaml + instructions/ + templates/ |
 | `openspec schemas [--store <id>]` | includes inherited schemas with their source store |
 | `openspec list --downstream [--store <id>]` | the rollup; outside any root it shows every registered store's |
 | `openspec context` | referenced stores show artifact types, in-motion changes, and layout |

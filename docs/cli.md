@@ -14,7 +14,7 @@ The OpenSpec CLI (`openspec`) provides terminal commands for project setup, vali
 | **Browsing** | `list`, `view`, `show` | Explore changes and specs |
 | **Validation** | `validate` | Check changes and specs for issues |
 | **Lifecycle** | `archive` | Finalize completed changes |
-| **Workflow** | `new change`, `new schema`, `status`, `instructions`, `templates`, `schemas` | Artifact-driven workflow support |
+| **Workflow** | `new change`, `status`, `instructions`, `templates`, `schemas` | Artifact-driven workflow support |
 | **Schemas** | `schema init`, `schema fork`, `schema validate`, `schema which` | Create and manage custom workflows |
 | **Config** | `config` | View and modify settings |
 | **Utility** | `feedback`, `completion` | Feedback and shell integration |
@@ -58,7 +58,6 @@ These commands support `--json` output for programmatic use by AI agents and scr
 | `openspec store list` | Browse registered stores | `--json` for structured registrations |
 | `openspec store doctor` | Check local store setup | `--json` for structured diagnostics |
 | `openspec new change <id>` | Create change scaffolding; `--serves <ref>` links it to upstream work | `--json`, plus `--store <id>` to use a registered store as the OpenSpec root |
-| `openspec new schema <id>` | Scaffold a workflow schema (stages, instructions, templates) | `--json`, plus `--store <id>` |
 | `openspec workset create [name]` | Compose a personal working view | `--member <path> --json` for non-interactive composition |
 | `openspec workset list` | Browse saved worksets | `--json` for structured views |
 | `openspec workset remove <name>` | Delete a saved view | `--yes --json` for non-interactive removal |
@@ -662,34 +661,6 @@ openspec new change add-billing-api --store team-context --json
 openspec new change add-billing-ui --serves team-context/billing-revamp
 ```
 
-### `openspec new schema`
-
-Scaffold a workflow schema — stages, per-stage instructions, and templates —
-in the resolved OpenSpec root.
-
-```bash
-openspec new schema <name> [options]
-```
-
-Creates `openspec/schemas/<name>/` containing `schema.yaml` (the stages, in
-order, via `requires:`), `instructions/*.md` (guidance agents get per
-stage), and `templates/*.md` (the output shape per stage). Each artifact is
-one stage of the workflow — add one per handoff. Set `schema: <name>` in
-`openspec/config.yaml` to make it the root's default.
-
-**Options:**
-
-| Option | Description |
-|--------|-------------|
-| `--store <id>` | Store id to use as the OpenSpec root |
-| `--json` | Output JSON |
-
-Examples:
-
-```bash
-openspec new schema product-flow --store team-context
-```
-
 ### `openspec status`
 
 Display artifact completion status for a change.
@@ -908,7 +879,14 @@ openspec schema init <name> [options]
 | `--default` | Set as project default schema |
 | `--no-default` | Don't prompt to set as default |
 | `--force` | Overwrite existing schema |
+| `--store <id>` | Store id to use as the OpenSpec root (scaffold into a registered store) |
 | `--json` | Output as JSON |
+
+Each artifact is one stage of the workflow, ordered by `requires:` in
+`schema.yaml`. The scaffold includes `instructions/<artifact>.md` files —
+per-stage guidance agents receive, seeded from the built-in workflow — and
+`templates/` for each stage's output shape. `--default` sets `schema: <name>`
+in the root's `openspec/config.yaml`.
 
 **Examples:**
 

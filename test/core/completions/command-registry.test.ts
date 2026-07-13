@@ -171,7 +171,7 @@ describe('command completion registry', () => {
       'instructions',
       'list',
       'new change',
-      'new schema',
+      'schema init',
       'schemas',
       'show',
       'status',

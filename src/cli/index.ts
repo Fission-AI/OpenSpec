@@ -35,14 +35,12 @@ import {
   templatesCommand,
   schemasCommand,
   newChangeCommand,
-  newSchemaCommand,
   DEFAULT_SCHEMA,
   type StatusOptions,
   type InstructionsOptions,
   type TemplatesOptions,
   type SchemasOptions,
   type NewChangeOptions,
-  type NewSchemaOptions,
 } from '../commands/workflow/index.js';
 import { maybeShowTelemetryNotice, trackCommand, shutdown } from '../telemetry/index.js';
 import { COMMON_FLAGS } from '../core/completions/shared-flags.js';
@@ -730,21 +728,6 @@ newCmd
   .action(async (name: string, options: NewChangeOptions) => {
     try {
       await newChangeCommand(name, options);
-    } catch (error) {
-      failWithError(error);
-      process.exit(1);
-    }
-  });
-
-newCmd
-  .command('schema <name>')
-  .description('Scaffold a workflow schema (stages, instructions, templates) in this root')
-  .option('--json', 'Output as JSON')
-  .option('--store <id>', STORE_OPTION_DESCRIPTION)
-  .addOption(hiddenStorePathOption())
-  .action(async (name: string, options: NewSchemaOptions) => {
-    try {
-      await newSchemaCommand(name, options);
     } catch (error) {
       failWithError(error);
       process.exit(1);

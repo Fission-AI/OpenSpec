@@ -255,16 +255,6 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
           COMMON_FLAGS.store,
         ],
       },
-      {
-        name: 'schema',
-        description: 'Scaffold a workflow schema (stages, instructions, templates) in this root',
-        acceptsPositional: true,
-        positionals: [{ name: 'name' }],
-        flags: [
-          COMMON_FLAGS.json,
-          COMMON_FLAGS.store,
-        ],
-      },
     ],
   },
   {
@@ -775,6 +765,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             name: 'force',
             description: 'Overwrite existing schema',
           },
+          COMMON_FLAGS.store,
         ],
       },
     ],
