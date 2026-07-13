@@ -43,11 +43,14 @@ describe('upstream links', () => {
     fs.writeFileSync(full, content);
   }
 
+  // Fixtures use a schema name that resolves nowhere on purpose: artifact
+  // progress degrades to null and the aggregation tests stay about tasks.
+  // Artifact-aware completion has its own test below.
   function change(root: string, id: string, ref: string | null, tasks: string): void {
     const metadata =
       ref === null
-        ? 'schema: spec-driven\n'
-        : `schema: spec-driven\nserves: ${ref}\n`;
+        ? 'schema: fixture-workflow\n'
+        : `schema: fixture-workflow\nserves: ${ref}\n`;
     write(`${root}/openspec/changes/${id}/.openspec.yaml`, metadata);
     write(`${root}/openspec/changes/${id}/tasks.md`, tasks);
   }
@@ -118,6 +121,27 @@ describe('upstream links', () => {
 
       const unrelated = rollup?.upstream.find((u) => u.id === 'unrelated');
       expect(unrelated?.changesTotal).toBe(0);
+    });
+
+    it('does not call a change complete on tasks alone when artifacts are missing', async () => {
+      change('app', 'onboarding-revamp', null, '');
+      // spec-driven resolves (built-in): tasks done, but only tasks.md of
+      // four artifacts exists — the whole change is not done.
+      write(
+        'app/openspec/changes/half-done/.openspec.yaml',
+        'schema: spec-driven\nserves: onboarding-revamp\n'
+      );
+      write('app/openspec/changes/half-done/tasks.md', '- [x] all checked\n');
+
+      const rollup = await rollupDownstream(path.join(tempDir, 'app'), { globalDataDir });
+      const entry = rollup?.upstream.find((u) => u.id === 'onboarding-revamp');
+      const serving = entry?.changes.find((c) => c.id === 'half-done');
+
+      expect(serving?.state).toBe('in-progress');
+      expect(serving?.completedTasks).toBe(1);
+      expect(serving?.totalArtifacts).toBe(4);
+      expect(serving?.completedArtifacts).toBe(1);
+      expect(entry?.changesComplete).toBe(0);
     });
 
     it('hides serving-only changes from upstream rows', async () => {

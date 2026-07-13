@@ -217,6 +217,33 @@ Then expected result happens`;
       expect(updatedContent).not.toContain('Second paragraph');
     });
 
+    it('prefers an explicit Purpose section in the delta over the proposal Why', async () => {
+      const changeName = 'delta-purpose';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'purposeful');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      await fs.writeFile(
+        path.join(changeDir, 'proposal.md'),
+        '## Why\n\nProposal-level why.\n'
+      );
+      await fs.writeFile(
+        path.join(changeSpecDir, 'spec.md'),
+        '## Purpose\nThe authoritative purpose, written with the requirements.\n\n## ADDED Requirements\n\n### Requirement: The system SHALL work\n\n#### Scenario: Basic\nGiven a\nWhen b\nThen c'
+      );
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const updatedContent = await fs.readFile(
+        path.join(tempDir, 'openspec', 'specs', 'purposeful', 'spec.md'),
+        'utf-8'
+      );
+      expect(updatedContent).toContain(
+        '## Purpose\nThe authoritative purpose, written with the requirements.'
+      );
+      expect(updatedContent).not.toContain('Proposal-level why');
+    });
+
     it('should allow REMOVED requirements when creating new spec file (issue #403)', async () => {
       const changeName = 'new-spec-with-removed';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);

@@ -305,9 +305,18 @@ export function registerSchemaCommand(program: Command): void {
     .description('Show where a schema resolves from')
     .option('--json', 'Output as JSON')
     .option('--all', 'List all schemas with their resolution sources')
-    .action(async (name?: string, options?: { json?: boolean; all?: boolean }) => {
+    .option('--store <id>', 'Store id to use as the OpenSpec root (a store is a standalone OpenSpec repo you\'ve registered)')
+    .action(async (name?: string, options?: { json?: boolean; all?: boolean; store?: string }) => {
       try {
-        const projectRoot = process.cwd();
+        let projectRoot = process.cwd();
+        if (options?.store) {
+          const root = await resolveRootForCommand(
+            { store: options.store },
+            { json: options?.json }
+          );
+          if (!root) return;
+          projectRoot = root.path;
+        }
 
         if (options?.all) {
           // List all schemas
@@ -407,9 +416,18 @@ export function registerSchemaCommand(program: Command): void {
     .description('Validate a schema structure and templates')
     .option('--json', 'Output as JSON')
     .option('--verbose', 'Show detailed validation steps')
-    .action(async (name?: string, options?: { json?: boolean; verbose?: boolean }) => {
+    .option('--store <id>', 'Store id to use as the OpenSpec root (a store is a standalone OpenSpec repo you\'ve registered)')
+    .action(async (name?: string, options?: { json?: boolean; verbose?: boolean; store?: string }) => {
       try {
-        const projectRoot = process.cwd();
+        let projectRoot = process.cwd();
+        if (options?.store) {
+          const root = await resolveRootForCommand(
+            { store: options.store },
+            { json: options?.json }
+          );
+          if (!root) return;
+          projectRoot = root.path;
+        }
 
         if (!name) {
           // Validate all project schemas
@@ -669,7 +687,7 @@ export function registerSchemaCommand(program: Command): void {
     .description('Create a new project-local schema')
     .option('--json', 'Output as JSON')
     .option('--description <text>', 'Schema description')
-    .option('--artifacts <list>', 'Comma-separated artifact IDs (proposal,specs,design,tasks)')
+    .option('--artifacts <list>', 'Comma-separated stage ids, in workflow order (built-in or custom kebab-case names)')
     .option('--default', 'Set as project default schema')
     .option('--no-default', 'Do not prompt to set as default')
     .option('--force', 'Overwrite existing schema')
@@ -790,19 +808,19 @@ export function registerSchemaCommand(program: Command): void {
           if (options?.artifacts) {
             selectedArtifactIds = options.artifacts.split(',').map((a) => a.trim());
 
-            // Validate artifact IDs
-            const validIds = DEFAULT_ARTIFACTS.map((a) => a.id);
+            // Any kebab-case id is a valid stage — custom names are the
+            // point of a custom workflow. Built-in ids (proposal, specs,
+            // design, tasks) get richer seeded content.
             for (const id of selectedArtifactIds) {
-              if (!validIds.includes(id)) {
+              if (!isValidSchemaName(id)) {
                 if (options?.json) {
                   console.log(JSON.stringify({
                     created: false,
-                    error: `Unknown artifact '${id}'`,
-                    valid: validIds,
+                    error: `Invalid artifact id '${id}' — use kebab-case (e.g. design-note)`,
                   }, null, 2));
                 } else {
-                  console.error(`Error: Unknown artifact '${id}'`);
-                  console.error(`Valid artifacts: ${validIds.join(', ')}`);
+                  console.error(`Error: Invalid artifact id '${id}'`);
+                  console.error('Artifact ids must be kebab-case (e.g. design-note)');
                 }
                 process.exitCode = 1;
                 return;
@@ -818,29 +836,29 @@ export function registerSchemaCommand(program: Command): void {
         if (spinner) spinner.start(`Creating schema '${name}'...`);
         fs.mkdirSync(schemaDir, { recursive: true });
 
-        // Build artifacts array with proper dependencies
-        const selectedArtifacts = selectedArtifactIds.map((id) => {
-          const template = DEFAULT_ARTIFACTS.find((a) => a.id === id)!;
-          const artifact: Artifact = {
-            id: template.id,
-            generates: template.generates,
-            description: template.description,
-            template: template.template,
-            requires: [],
-          };
-
-          // Set up dependencies based on typical workflow
-          if (id === 'specs' && selectedArtifactIds.includes('proposal')) {
-            artifact.requires = ['proposal'];
-          } else if (id === 'design' && selectedArtifactIds.includes('specs')) {
-            artifact.requires = ['specs'];
-          } else if (id === 'tasks') {
-            const requires: string[] = [];
-            if (selectedArtifactIds.includes('design')) requires.push('design');
-            else if (selectedArtifactIds.includes('specs')) requires.push('specs');
-            artifact.requires = requires;
+        // Build the artifacts as a sequential chain in the order given —
+        // the order you pass IS your workflow. Built-in ids keep their
+        // known shapes; custom ids get a generic single-file shape.
+        const selectedArtifacts = selectedArtifactIds.map((id, index) => {
+          const known = DEFAULT_ARTIFACTS.find((a) => a.id === id);
+          const artifact: Artifact = known
+            ? {
+                id: known.id,
+                generates: known.generates,
+                description: known.description,
+                template: known.template,
+                requires: [],
+              }
+            : {
+                id,
+                generates: `${id}.md`,
+                description: `The ${id} stage`,
+                template: `${id}.md`,
+                requires: [],
+              };
+          if (index > 0) {
+            artifact.requires = [selectedArtifactIds[index - 1]];
           }
-
           return artifact;
         });
 
@@ -875,7 +893,8 @@ export function registerSchemaCommand(program: Command): void {
             fs.mkdirSync(templateDir, { recursive: true });
           }
 
-          // Create default template content
+          // Create default template content (custom stages get a minimal
+          // heading to replace)
           const templateContent = createDefaultTemplate(artifact.id);
           fs.writeFileSync(templatePath, templateContent);
         }
@@ -888,13 +907,13 @@ export function registerSchemaCommand(program: Command): void {
         const instructionsDir = path.join(schemaDir, 'instructions');
         fs.mkdirSync(instructionsDir, { recursive: true });
         for (const artifact of selectedArtifacts) {
-          const seed = builtin.artifacts.find((a) => a.id === artifact.id)?.instruction;
-          if (seed) {
-            fs.writeFileSync(
-              path.join(instructionsDir, `${artifact.id}.md`),
-              `${seed.trim()}\n`
-            );
-          }
+          const seed =
+            builtin.artifacts.find((a) => a.id === artifact.id)?.instruction ??
+            `Write the ${artifact.id} stage.\n\n<replace with your guidance: required sections, what belongs here vs. later stages, and any review gate — e.g. "Do NOT proceed to the next stage until this is approved.">`;
+          fs.writeFileSync(
+            path.join(instructionsDir, `${artifact.id}.md`),
+            `${seed.trim()}\n`
+          );
         }
 
         // Update config if --default

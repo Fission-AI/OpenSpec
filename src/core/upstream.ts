@@ -18,6 +18,10 @@ import path from 'path';
 import { parse as parseYaml } from 'yaml';
 
 import { getTaskProgressForChange } from '../utils/task-progress.js';
+import { resolveSchemaForChange } from '../utils/change-metadata.js';
+import { ArtifactGraph } from './artifact-graph/graph.js';
+import { detectCompleted } from './artifact-graph/state.js';
+import { resolveSchema } from './artifact-graph/resolver.js';
 import { writeFileAtomically } from './file-state.js';
 import {
   getStoresDir,
@@ -35,7 +39,31 @@ export interface ServingChangeStatus {
   repo?: string;
   completedTasks: number;
   totalTasks: number;
+  /** Artifact-graph progress; absent when the change's schema is unreadable. */
+  completedArtifacts?: number;
+  totalArtifacts?: number;
   state: 'complete' | 'in-progress' | 'no-tasks';
+}
+
+/**
+ * Artifact-graph progress for one serving change, so the rollup's "done"
+ * means the whole change — a checked-off tasks.md with no approved
+ * proposal must not read as complete. Tolerant: an unreadable schema
+ * yields null and the rollup falls back to task counts alone.
+ */
+function readArtifactProgress(
+  changeDir: string,
+  scanRoot: string
+): { completed: number; total: number } | null {
+  try {
+    const schemaName = resolveSchemaForChange(changeDir, undefined, scanRoot);
+    const schema = resolveSchema(schemaName, scanRoot);
+    const graph = ArtifactGraph.fromSchema(schema);
+    const completed = detectCompleted(graph, changeDir);
+    return { completed: completed.size, total: schema.artifacts.length };
+  } catch {
+    return null;
+  }
 }
 
 export interface UpstreamChangeInfo {
@@ -210,18 +238,34 @@ async function collectServingChanges(
     if (id === null) continue;
 
     const progress = await getTaskProgressForChange(changesDir, entry.name, root);
+    const artifacts = readArtifactProgress(path.join(changesDir, entry.name), root);
+    const tasksDone = progress.total > 0 && progress.completed === progress.total;
+    const artifactsDone = artifacts !== null && artifacts.completed === artifacts.total;
+    // Done means the WHOLE change: tasks checked off AND (when the schema
+    // is readable) every artifact present. Without tasks, artifacts alone
+    // can carry it; without either signal, the state stays 'no-tasks'.
+    const state: ServingChangeStatus['state'] =
+      artifacts === null
+        ? progress.total === 0
+          ? 'no-tasks'
+          : tasksDone
+            ? 'complete'
+            : 'in-progress'
+        : (progress.total === 0 ? artifactsDone : tasksDone && artifactsDone)
+          ? 'complete'
+          : progress.total === 0 && artifacts.total === 0
+            ? 'no-tasks'
+            : 'in-progress';
     const status: ServingChangeStatus = {
       id: entry.name,
       ...(label?.store ? { store: label.store } : {}),
       ...(label?.repo ? { repo: label.repo } : {}),
       completedTasks: progress.completed,
       totalTasks: progress.total,
-      state:
-        progress.total === 0
-          ? 'no-tasks'
-          : progress.completed === progress.total
-            ? 'complete'
-            : 'in-progress',
+      ...(artifacts !== null
+        ? { completedArtifacts: artifacts.completed, totalArtifacts: artifacts.total }
+        : {}),
+      state,
     };
     const bucket = found.get(id);
     if (bucket) {

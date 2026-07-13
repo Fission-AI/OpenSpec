@@ -230,7 +230,7 @@ export async function buildUpdatedSpec(
     targetContent = buildSpecSkeleton(
       specName,
       changeName,
-      await readProposalWhy(update.source)
+      (await readDeltaPurpose(update.source)) ?? (await readProposalWhy(update.source))
     );
   }
 
@@ -403,6 +403,25 @@ export function buildSpecSkeleton(
     purpose ??
     `TBD - created by archiving change ${changeName}. Update Purpose after archive.`;
   return `# ${titleBase} Specification\n\n## Purpose\n${purposeText}\n\n## Requirements\n`;
+}
+
+/**
+ * An explicit `## Purpose` section in the delta spec itself — the highest-
+ * fidelity source for a NEW spec's Purpose, written by whoever wrote the
+ * requirements. Delta operations ignore the section, so without this it
+ * would be silently dropped.
+ */
+async function readDeltaPurpose(deltaSource: string): Promise<string | null> {
+  try {
+    const content = await fs.readFile(deltaSource, 'utf-8');
+    const match = content
+      .replace(/\r\n?/g, '\n')
+      .match(/(?:^|\n)##\s+Purpose\s*\n+([\s\S]*?)(?=\n##\s|$)/);
+    const text = match?.[1]?.trim();
+    return text && text.length > 0 ? text : null;
+  } catch {
+    return null;
+  }
 }
 
 /**

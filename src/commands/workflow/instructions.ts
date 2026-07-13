@@ -336,12 +336,6 @@ export function printInstructionsText(
   console.log('</template>');
   console.log();
 
-  // Success criteria placeholder
-  console.log('<success_criteria>');
-  console.log('<!-- To be defined in schema validation rules -->');
-  console.log('</success_criteria>');
-  console.log();
-
   // Unlocks
   if (unlocks.length > 0) {
     console.log('<unlocks>');

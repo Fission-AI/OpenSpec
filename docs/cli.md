@@ -391,6 +391,7 @@ openspec list [options]
 | `--specs` | List specs instead of changes |
 | `--changes` | List changes (default) |
 | `--downstream` | Show the root's changes and every change on this machine that serves them |
+| `--scan <dir>` | With `--downstream`: also scan a directory of checkouts — stateless, for CI (repeatable) |
 | `--sort <order>` | Sort by `recent` (default) or `name` |
 | `--store <id>` | Store id to use as the OpenSpec root |
 | `--json` | Output as JSON |
@@ -875,7 +876,7 @@ openspec schema init <name> [options]
 | Option | Description |
 |--------|-------------|
 | `--description <text>` | Schema description |
-| `--artifacts <list>` | Comma-separated artifact IDs (default: `proposal,specs,design,tasks`) |
+| `--artifacts <list>` | Comma-separated stage ids **in workflow order** — built-in (`proposal,specs,design,tasks`) or custom kebab-case names; each stage requires the previous |
 | `--default` | Set as project default schema |
 | `--no-default` | Don't prompt to set as default |
 | `--force` | Overwrite existing schema |

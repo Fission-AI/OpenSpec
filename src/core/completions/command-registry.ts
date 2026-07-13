@@ -708,6 +708,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             name: 'all',
             description: 'List all schemas with their resolution sources',
           },
+          COMMON_FLAGS.store,
         ],
       },
       {
@@ -722,6 +723,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             name: 'verbose',
             description: 'Show detailed validation steps',
           },
+          COMMON_FLAGS.store,
         ],
       },
       {
@@ -755,7 +757,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
           },
           {
             name: 'artifacts',
-            description: 'Comma-separated artifact IDs',
+            description: 'Comma-separated stage ids, in workflow order (built-in or custom kebab-case names)',
             takesValue: true,
           },
           {

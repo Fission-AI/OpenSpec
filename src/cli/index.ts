@@ -99,12 +99,22 @@ function printRollupBody(
       const mark =
         change.state === 'complete' ? '✓' : change.state === 'no-tasks' ? '–' : '·';
       const where = change.store ?? change.repo ?? 'here';
-      const tasks =
+      const artifactsKnown = change.totalArtifacts !== undefined;
+      const artifactsDone =
+        artifactsKnown && change.completedArtifacts === change.totalArtifacts;
+      let progressText =
         change.totalTasks === 0
-          ? 'no tasks'
+          ? artifactsKnown
+            ? `${change.completedArtifacts}/${change.totalArtifacts} artifacts`
+            : 'no tasks'
           : `${change.completedTasks}/${change.totalTasks} tasks`;
+      // Checked-off tasks with missing artifacts is the half-done state
+      // that must not read as done — surface both numbers.
+      if (change.totalTasks > 0 && artifactsKnown && !artifactsDone) {
+        progressText += `  (${change.completedArtifacts}/${change.totalArtifacts} artifacts)`;
+      }
       console.log(
-        `${indent}  ${mark} ${change.id.padEnd(changeWidth)}  ${where.padEnd(14)}  ${tasks}`
+        `${indent}  ${mark} ${change.id.padEnd(changeWidth)}  ${where.padEnd(14)}  ${progressText}`
       );
     }
     // Truth flows up: upstream work whose serving changes are all complete

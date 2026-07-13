@@ -94,7 +94,10 @@ Before working, read its artifacts (proposal, specs, and any others its schema d
 ## Status flows back live
 
 Rollup is discovered from facts on disk (one `serves:` line per change, task
-checkboxes), never from prose, and works from anywhere:
+checkboxes, artifact presence), never from prose, and works from anywhere.
+A ✓ means the whole change is done — checked-off tasks with missing
+artifacts render as in-progress with both counts, so nobody trusts work
+that skipped its own workflow:
 
 ```text
 $ openspec list --downstream --store product-hub
@@ -137,8 +140,8 @@ $ openspec store register ./plans --id team-plans
 $ openspec list --downstream --store team-plans --scan ./checkouts
 
 onboarding-revamp   0/2 serving changes complete
-  · api-implements      api             1/2 tasks
-  · web-app-implements  web-app         1/2 tasks
+  · api-implements      api             1/2 tasks  (1/4 artifacts)
+  · web-app-implements  web-app         1/2 tasks  (1/4 artifacts)
 ```
 
 Publish the `--json` form of that output and the whole team has one answer
