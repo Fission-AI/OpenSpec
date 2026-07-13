@@ -746,4 +746,15 @@ artifacts:
       expect(schema.apply?.instruction).toBe('Apply from the file.');
     });
   });
+  describe('built-in requirements schema', () => {
+    it('resolves as a documentation-only workflow with notes and file instructions', () => {
+      const schema = resolveSchema('requirements');
+      expect(schema.artifacts.map((a) => a.id)).toEqual(['proposal', 'specs']);
+      expect(schema.notes).toContain('no implementation phase');
+      // Guidance ships as instructions/<artifact>.md files beside the schema.
+      expect(schema.artifacts[0].instruction).toContain('non-engineer');
+      expect(schema.artifacts[1].instruction).toContain('#### Scenario');
+      expect(schema.apply).toBeUndefined();
+    });
+  });
 });

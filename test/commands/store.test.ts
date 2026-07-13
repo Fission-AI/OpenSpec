@@ -164,8 +164,10 @@ describe('store command', () => {
     ]);
     expect(payload.status).toEqual([]);
     expectHealthyOpenSpecRoot(storeRoot);
+    // A fresh store defaults to the documentation-only workflow: its
+    // changes are shared upstream requirements, not code changes.
     expect(fs.readFileSync(path.join(storeRoot, 'openspec', 'config.yaml'), 'utf-8')).toContain(
-      `schema: ${DEFAULT_OPENSPEC_SCHEMA}`
+      'schema: requirements'
     );
     expectNoGeneratedAgentOrBetaArtifacts(storeRoot);
     await expect(readStoreMetadataState(storeRoot)).resolves.toEqual({

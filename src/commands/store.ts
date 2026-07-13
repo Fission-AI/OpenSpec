@@ -398,8 +398,10 @@ function printMutationHuman(
     console.log(`${status.severity === 'error' ? 'Issue' : 'Note'}: ${status.message}`);
   }
   console.log('');
-  console.log('Next: run normal OpenSpec commands against this store, for example:');
-  console.log(`  openspec new change <change-id> --store ${payload.store.id}`);
+  console.log('Next:');
+  console.log(`  openspec new change <name> --store ${payload.store.id}     # draft requirements here`);
+  console.log(`  openspec new change <name> --serves ${payload.store.id}/<change>   # in any repo: link work to them`);
+  console.log(`  openspec list --downstream --store ${payload.store.id}     # where everything stands`);
   if (payload.git.is_repository) {
     const shareRemote = remotes?.canonical ?? remotes?.observed;
     console.log(

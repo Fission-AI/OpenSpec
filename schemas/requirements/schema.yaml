@@ -1,0 +1,21 @@
+name: requirements
+version: 1
+description: Documentation-only workflow — proposal → specs. Draft and agree on requirements here; implementation happens in the repos that serve this change.
+notes: >
+  This workflow has no implementation phase: there is no design.md or
+  tasks.md, and nothing to apply. When the specs are approved, archive the
+  change to sync its delta specs into specs/ — those become the standing
+  truths that downstream work traces against. Repos implement this change
+  by linking to it: openspec new change <name> --serves <store-id>/<change>.
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Bounded statement of what is changing and why, in plain language
+    template: proposal.md
+    requires: []
+  - id: specs
+    generates: specs/**/*.md
+    description: Testable requirements with scenarios, one spec per capability
+    template: spec.md
+    requires:
+      - proposal

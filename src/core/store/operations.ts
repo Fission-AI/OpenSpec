@@ -13,6 +13,7 @@ import {
   ANCHORED_OPENSPEC_DIRS,
   DIRECTORY_ANCHOR_FILE_NAME,
   OPENSPEC_ROOT_DIR,
+  STORE_DEFAULT_CONFIG_CONTENT,
   ensureOpenSpecRoot,
   inspectOpenSpecRoot,
   rollbackCreatedPaths,
@@ -626,6 +627,9 @@ export async function setupPreparedStore(
   try {
     const root = await ensureOpenSpecRoot(storeRoot, {
       anchorEmptyDirectories: !alreadyRegisteredHere,
+      // Stores hold shared upstream work, so a fresh one defaults to the
+      // documentation-only workflow instead of the code workflow.
+      defaultConfigContent: STORE_DEFAULT_CONFIG_CONTENT,
     });
     createdFiles.push(...root.createdArtifacts);
     createdPaths = root.createdPaths;

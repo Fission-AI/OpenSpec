@@ -11,7 +11,7 @@ import ora from 'ora';
 import path from 'path';
 import { ServesRefSchema } from '../../core/change-metadata/schema.js';
 import { recordLinkedRoot, resolveUpstreamLink } from '../../core/upstream.js';
-import { addReferenceToProjectConfig } from '../../core/project-config.js';
+import { addReferenceToProjectConfig, readProjectConfig } from '../../core/project-config.js';
 import { createChange, validateChangeName } from '../../utils/change-utils.js';
 import { formatChangeLocation } from '../../core/planning-home.js';
 import {
@@ -159,7 +159,16 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
       validateSchemaExists(options.schema, projectRoot);
     }
 
-    const resolvedSchema = options.schema ?? root.defaultSchema;
+    // Resolve the schema the same way createChange will (option → config →
+    // default) so the progress line never names the wrong schema.
+    let resolvedSchema = options.schema;
+    if (!resolvedSchema) {
+      try {
+        resolvedSchema = readProjectConfig(projectRoot)?.schema ?? root.defaultSchema;
+      } catch {
+        resolvedSchema = root.defaultSchema;
+      }
+    }
     if (spinner) {
       spinner.start(`Creating change '${name}' with schema '${resolvedSchema}'...`);
     }
