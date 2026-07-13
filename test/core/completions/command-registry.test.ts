@@ -207,13 +207,14 @@ describe('command completion registry', () => {
       'description',
       'goal',
       'schema',
-      'initiative',
+      'serves',
       'json',
       'store',
     ]);
 
     const storeFlag = newChange?.flags.find((flag) => flag.name === 'store');
     expect(storeFlag?.description).toContain('OpenSpec root');
+    expect(newChange?.flags.map((flag) => flag.name)).not.toContain('initiative');
     expect(newChange?.flags.map((flag) => flag.name)).not.toContain('areas');
     expect(newChange?.flags.map((flag) => flag.name)).not.toContain('store-path');
   });

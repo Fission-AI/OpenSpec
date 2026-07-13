@@ -27,7 +27,7 @@ import { COMMON_FLAGS } from '../core/completions/shared-flags.js';
 import { emitFailure, printJson } from './shared-output.js';
 import { gatherRelationshipData } from './shared-gather.js';
 import { listSchemasWithInfo } from '../core/artifact-graph/index.js';
-import { getActiveChangeIds } from '../utils/item-discovery.js';
+import { listActiveChangeIds } from '../core/upstream.js';
 import { readProjectConfig } from '../core/project-config.js';
 import { schemasFetchRecipe, changesFetchRecipe } from '../core/references.js';
 
@@ -89,7 +89,7 @@ async function enrichMembersWithStoreArtifacts(
     try {
       // In-motion change ids: specs say what is true; these say what the
       // team there is currently deciding.
-      const changeIds = await getActiveChangeIds(storeRoot);
+      const changeIds = await listActiveChangeIds(storeRoot);
       if (changeIds.length > 0) {
         member.changes = changeIds;
       }

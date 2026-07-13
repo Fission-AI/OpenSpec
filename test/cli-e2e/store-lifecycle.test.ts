@@ -460,12 +460,7 @@ describe('standalone store lifecycle journey', () => {
 
       for (const entry of entries) {
         expect(entry).toMatch(/^(\.openspec-store(\/|\/store\.yaml)?|openspec(\/.*)?)$/);
-        // The old initiatives machinery (manifests, registration files) stays
-        // gone; the plain openspec/initiatives/ folder convention is expected.
-        expect(entry).not.toMatch(/workspace/i);
-        if (/initiative/i.test(entry)) {
-          expect(entry).toMatch(/^openspec\/initiatives\//);
-        }
+        expect(entry).not.toMatch(/initiative|workspace/i);
       }
 
       expect(entries).toContain('.openspec-store/store.yaml');

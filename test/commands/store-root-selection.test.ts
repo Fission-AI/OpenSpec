@@ -674,8 +674,8 @@ describe('store root selection for normal commands', () => {
     });
   });
 
-  describe('initiative links in normal change flows', () => {
-    it('accepts --initiative and writes the upward link', async () => {
+  describe('initiative links are retired from normal change flows', () => {
+    it('rejects --initiative and creates no files', async () => {
       const localRepo = path.join(tempDir, 'initiative-repo');
       createOpenSpecRoot(localRepo);
 
@@ -683,12 +683,12 @@ describe('store root selection for normal commands', () => {
         ['new', 'change', 'linked-change', '--initiative', 'billing-launch'],
         { cwd: localRepo, env }
       );
-      expect(result.exitCode).toBe(0);
-      const metadata = fs.readFileSync(
-        path.join(localRepo, 'openspec', 'changes', 'linked-change', '.openspec.yaml'),
-        'utf-8'
-      );
-      expect(metadata).toContain('initiative: billing-launch');
+      expect(result.exitCode).toBe(1);
+      const output = result.stdout + result.stderr;
+      expect(output).toContain('--initiative is no longer supported');
+      expect(
+        fs.existsSync(path.join(localRepo, 'openspec', 'changes', 'linked-change'))
+      ).toBe(false);
     });
 
     it('removes openspec set change entirely', async () => {

@@ -76,6 +76,28 @@ export async function readServesRef(changeDir: string): Promise<string | null> {
   }
 }
 
+/**
+ * A root's active change ids: every non-archive directory under
+ * openspec/changes/, regardless of which schema's artifacts it holds.
+ * (Unlike proposal-based discovery, this stays correct for custom
+ * schemas whose first artifact is not proposal.md.)
+ */
+export async function listActiveChangeIds(root: string): Promise<string[]> {
+  let entries;
+  try {
+    entries = await fs.readdir(changesDirOf(root), { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  return entries
+    .filter(
+      (entry) =>
+        entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'archive'
+    )
+    .map((entry) => entry.name)
+    .sort();
+}
+
 // ---------------------------------------------------------------------------
 // Linked roots
 //

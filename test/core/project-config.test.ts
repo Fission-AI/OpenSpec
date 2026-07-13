@@ -695,6 +695,31 @@ rules:
     });
   });
 
+  describe('structure field', () => {
+    it('parses a folder → purpose map and drops invalid entries', () => {
+      const configPath = path.join(tempDir, 'openspec', 'config.yaml');
+      fs.mkdirSync(path.dirname(configPath), { recursive: true });
+      fs.writeFileSync(
+        configPath,
+        'schema: spec-driven\nstructure:\n  research/: raw inputs\n  decisions/: standing decisions\n  bad/: 42\n',
+        'utf-8'
+      );
+
+      expect(readProjectConfig(tempDir)?.structure).toEqual({
+        'research/': 'raw inputs',
+        'decisions/': 'standing decisions',
+      });
+    });
+
+    it('ignores a non-map structure field', () => {
+      const configPath = path.join(tempDir, 'openspec', 'config.yaml');
+      fs.mkdirSync(path.dirname(configPath), { recursive: true });
+      fs.writeFileSync(configPath, 'schema: spec-driven\nstructure: nope\n', 'utf-8');
+
+      expect(readProjectConfig(tempDir)?.structure).toBeUndefined();
+    });
+  });
+
   describe('addReferenceToProjectConfig', () => {
     function writeConfig(content: string): string {
       const configPath = path.join(tempDir, 'openspec', 'config.yaml');

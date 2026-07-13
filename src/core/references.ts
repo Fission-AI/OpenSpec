@@ -20,7 +20,8 @@ import {
 } from './store/foundation.js';
 import { getStoreRootForBackend } from './store/registry.js';
 import { inspectRegisteredStore, type ResolvedOpenSpecRoot } from './root-selection.js';
-import { getSpecIds, getActiveChangeIds } from '../utils/item-discovery.js';
+import { getSpecIds } from '../utils/item-discovery.js';
+import { listActiveChangeIds } from './upstream.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { MAX_CONTEXT_SIZE, readProjectConfig, type DeclarationEntry } from './project-config.js';
 import { listSchemasWithInfo } from './artifact-graph/index.js';
@@ -200,7 +201,7 @@ function collectStructure(referencedRoot: string): Record<string, string> {
  */
 async function collectActiveChangeIds(referencedRoot: string): Promise<string[]> {
   try {
-    const ids = await getActiveChangeIds(referencedRoot);
+    const ids = await listActiveChangeIds(referencedRoot);
     return ids.map((id) => sanitizeInline(id, 60));
   } catch {
     return [];

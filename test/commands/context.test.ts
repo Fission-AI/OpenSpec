@@ -106,8 +106,9 @@ describe('openspec context (4.1)', () => {
     expect(parseJson(declared).members).toHaveLength(2);
   });
 
-  it("surfaces a referenced store's own artifact types and initiatives", async () => {
-    // The upstream store defines a custom artifact type and initiatives.
+  it("surfaces a referenced store's artifact types, work in motion, and layout", async () => {
+    // The upstream store defines a custom artifact type, active changes,
+    // and a declared layout.
     const schemaDir = path.join(upstream, 'openspec', 'schemas', 'team-brief');
     fs.mkdirSync(path.join(schemaDir, 'templates'), { recursive: true });
     fs.writeFileSync(
@@ -117,12 +118,16 @@ describe('openspec context (4.1)', () => {
         '    template: brief.md\n    requires: []\n    instruction: y\n'
     );
     fs.writeFileSync(path.join(schemaDir, 'templates', 'brief.md'), '# Brief\n');
-    fs.mkdirSync(path.join(upstream, 'openspec', 'initiatives', 'smoother-setup'), {
+    fs.mkdirSync(path.join(upstream, 'openspec', 'changes', 'smoother-setup'), {
       recursive: true,
     });
-    fs.mkdirSync(path.join(upstream, 'openspec', 'initiatives', 'q3-payments'), {
+    fs.mkdirSync(path.join(upstream, 'openspec', 'changes', 'q3-payments'), {
       recursive: true,
     });
+    fs.writeFileSync(
+      path.join(upstream, 'openspec', 'config.yaml'),
+      'schema: spec-driven\nstructure:\n  research/: raw inputs\n'
+    );
 
     const json = await runCLI(['context', '--json', '--store', 'team-context'], {
       cwd: tempDir,
@@ -132,7 +137,8 @@ describe('openspec context (4.1)', () => {
       (member: any) => member.id === 'upstream-context'
     );
     expect(upstreamMember.artifactTypes).toEqual(['team-brief']);
-    expect(upstreamMember.initiatives).toEqual(['q3-payments', 'smoother-setup']);
+    expect(upstreamMember.changes).toEqual(['q3-payments', 'smoother-setup']);
+    expect(upstreamMember.structure).toEqual({ 'research/': 'raw inputs' });
 
     const human = await runCLI(['context', '--store', 'team-context'], {
       cwd: tempDir,
@@ -142,8 +148,9 @@ describe('openspec context (4.1)', () => {
       'Artifact types: team-brief  (openspec schemas --store upstream-context)'
     );
     expect(human.stdout).toContain(
-      'Initiatives: q3-payments, smoother-setup  (openspec list --initiatives --store upstream-context)'
+      'In motion: q3-payments, smoother-setup  (openspec list --downstream --store upstream-context)'
     );
+    expect(human.stdout).toContain('Layout: research/ — raw inputs');
   });
 
   it('distinguishes self-reference omission from nothing declared', async () => {

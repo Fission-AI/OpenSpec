@@ -176,7 +176,6 @@ describe('store git lifecycle', () => {
       '.openspec-store/store.yaml',
       'openspec/changes/archive/.gitkeep',
       'openspec/config.yaml',
-      'openspec/initiatives/.gitkeep',
       'openspec/specs/keep-me.md',
     ]);
 
@@ -322,7 +321,6 @@ describe('store git lifecycle', () => {
     expect(committedFiles).toEqual([
       '.openspec-store/store.yaml',
       'openspec/changes/archive/.gitkeep',
-      'openspec/initiatives/.gitkeep',
       'openspec/specs/.gitkeep',
     ]);
 
