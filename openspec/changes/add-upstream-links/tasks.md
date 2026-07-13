@@ -15,6 +15,11 @@
 - [x] Inheritance through `references:` in resolver, listings, and `schemas --store` labels
 - [x] `structure:` config declarations surfaced in context and the references index
 
+## Happy path
+- [x] Built-in `requirements` schema; fresh stores default to it
+- [x] `openspec new schema <name>` scaffolder (schema.yaml + instructions/ + templates/)
+- [x] Store setup output teaches the loop; skills carry `--serves` guidance
+
 ## Verification
 - [x] Unit tests: upstream module, resolver inheritance, structure parsing, references index
 - [x] CLI tests: --serves validation and wiring, downstream rollup, context enrichment

@@ -27,6 +27,10 @@ noun; it is the existing machinery working one level up and across repos.
   schema; schemas inherit through `references:` (project → referenced stores
   → user → package); `structure:` in config declares folder purposes,
   surfaced in `context` and the references index.
+- **Happy path**: a fresh store defaults to the new built-in `requirements`
+  schema (proposal → specs, documentation-only); `openspec new schema <name>`
+  scaffolds a team's own workflow as a folder; store setup output teaches the
+  draft → serve → rollup loop; generated skills know when to use `--serves`.
 - **Removed**: the initiatives folder convention, stages, evergreen files,
   `list --initiatives`, and the initiatives skill. The `initiative` noun
   returns to retired vocabulary; legacy metadata stays readable.

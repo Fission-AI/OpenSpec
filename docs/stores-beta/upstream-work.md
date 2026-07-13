@@ -18,6 +18,19 @@ All output below is from a real run.
 
 ## The store defines the workflow
 
+A fresh store needs no setup: its changes default to the built-in
+`requirements` workflow (proposal → specs, documentation-only — its `notes:`
+tell agents there is no implementation phase). To encode your own chain,
+scaffold a schema and add one artifact per handoff:
+
+```text
+$ openspec new schema product-flow --store product-team
+Created schema 'product-flow' at …/openspec/schemas/product-flow/
+  schema.yaml            stages and their order (requires:)
+  instructions/*.md      guidance agents get per stage
+  templates/*.md         the output shape per stage
+```
+
 A schema is a folder. Long-form guidance lives in files beside it, and a
 top-level `notes:` tells agents how this workflow differs from the default:
 
@@ -106,6 +119,7 @@ onboarding-revamp   1/2 serving changes complete  (archived — its requirements
 | `schema.yaml` | optional `notes:` (workflow guidance, surfaced verbatim to agents) |
 | `<schema>/instructions/<artifact>.md` | per-artifact instruction files; a file wins over inline `instruction:` |
 | `config.yaml` | `structure:` — folder → purpose map, surfaced in `context` and the references index |
+| `openspec new schema <name> [--store <id>]` | scaffold a workflow: schema.yaml + instructions/ + templates/ |
 | `openspec schemas [--store <id>]` | includes inherited schemas with their source store |
 | `openspec list --downstream [--store <id>]` | the rollup; outside any root it shows every registered store's |
 | `openspec context` | referenced stores show artifact types, in-motion changes, and layout |
