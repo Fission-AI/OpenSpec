@@ -111,6 +111,18 @@ the link keeps resolving — marked so downstream agents trace against specs:
 onboarding-revamp   1/2 serving changes complete  (archived — its requirements now live in specs/)
 ```
 
+## Any format, one opinion
+
+Artifacts are fully open — any filename, any document format, any template.
+A team's existing product-spec format is a 15-line schema away, and a
+change made of nothing but that document creates, gates, and archives
+cleanly. OpenSpec holds exactly one format opinion, at the truth boundary:
+deltas you want merged into standing `specs/` at archive time use the
+requirement/scenario format. Freeform artifacts archive as-is. (One known
+seam: `openspec validate` currently expects delta specs in every change,
+so a deliberately spec-less workflow reports a spurious error — making
+validation schema-aware is a flagged follow-up.)
+
 ## Team-wide status
 
 The rollup reads checkouts on the machine it runs on — pull a teammate's
