@@ -1484,6 +1484,9 @@ More user content after markers.
       expect(calls.some(call =>
         call.includes('Your custom profile is missing 1 core workflow: update')
       )).toBe(true);
+      expect(calls.some(call =>
+        call.includes('to add it, or')
+      )).toBe(true);
 
       consoleSpy.mockRestore();
     });

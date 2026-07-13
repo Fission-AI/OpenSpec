@@ -389,8 +389,9 @@ export class UpdateCommand {
     }
 
     const label = missing.length === 1 ? 'workflow' : 'workflows';
+    const pronoun = missing.length === 1 ? 'it' : 'them';
     console.log(chalk.dim(`Note: Your custom profile is missing ${missing.length} core ${label}: ${missing.join(', ')}`));
-    console.log(chalk.dim('Run `openspec config profile` to add them, or `openspec config profile core` to use the core set.'));
+    console.log(chalk.dim(`Run \`openspec config profile\` to add ${pronoun}, or \`openspec config profile core\` to use the core set.`));
   }
 
   /**
