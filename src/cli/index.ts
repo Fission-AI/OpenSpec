@@ -9,6 +9,7 @@ import { AI_TOOLS } from '../core/config.js';
 import { UpdateCommand } from '../core/update.js';
 import { ListCommand } from '../core/list.js';
 import {
+  expandScanDirs,
   rollupDownstream,
   rollupRegisteredStores,
   type DownstreamRollup,
@@ -124,9 +125,13 @@ function printRollupBody(
 
 async function renderDownstream(
   root: ResolvedOpenSpecRoot,
-  options: { json?: boolean }
+  options: { json?: boolean; scan?: string[] }
 ): Promise<void> {
-  const downstream = await rollupDownstream(root.path);
+  const downstream = await rollupDownstream(root.path, {
+    ...(options.scan && options.scan.length > 0
+      ? { extraRoots: await expandScanDirs(options.scan) }
+      : {}),
+  });
 
   if (options.json) {
     console.log(
@@ -336,11 +341,17 @@ program
   .option('--specs', 'List specs instead of changes')
   .option('--changes', 'List changes explicitly (default)')
   .option('--downstream', "Show the root's changes and every change on this machine that serves them")
+  .option(
+    '--scan <dir>',
+    'With --downstream: also scan this directory (and its immediate subdirectories) for serving changes — no registration needed (repeatable)',
+    (value: string, previous: string[]) => [...previous, value],
+    [] as string[]
+  )
   .option('--sort <order>', 'Sort order: "recent" (default) or "name"', 'recent')
   .option('--json', 'Output as JSON (for programmatic use)')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
-  .action(async (options?: { specs?: boolean; changes?: boolean; downstream?: boolean; sort?: string; json?: boolean; store?: string; storePath?: string }) => {
+  .action(async (options?: { specs?: boolean; changes?: boolean; downstream?: boolean; scan?: string[]; sort?: string; json?: boolean; store?: string; storePath?: string }) => {
     try {
       const failurePayload = options?.downstream
         ? { downstream: null, root: null }
@@ -358,7 +369,7 @@ program
         try {
           const root = await resolveRootForCommand(options ?? {});
           if (root) {
-            await renderDownstream(root, { json: options?.json });
+            await renderDownstream(root, { json: options?.json, scan: options?.scan });
           }
           return;
         } catch (error) {
@@ -376,7 +387,7 @@ program
         return;
       }
       if (options?.downstream) {
-        await renderDownstream(root, { json: options?.json });
+        await renderDownstream(root, { json: options?.json, scan: options?.scan });
         return;
       }
       const listCommand = new ListCommand();

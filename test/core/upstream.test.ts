@@ -203,6 +203,29 @@ describe('upstream links', () => {
     });
   });
 
+  describe('scan roots (stateless CI path)', () => {
+    it('rolls up serving changes from extraRoots without any linked-root state', async () => {
+      await registerStore('team-hub', 'team-hub');
+      change('team-hub', 'onboarding-revamp', null, '');
+      change('checkouts/web-app', 'add-tour', 'team-hub/onboarding-revamp', '- [x] a\n');
+      change('checkouts/api', 'add-endpoint', 'team-hub/onboarding-revamp', '- [ ] b\n');
+
+      const { expandScanDirs } = await import('../../src/core/upstream.js');
+      const extraRoots = await expandScanDirs([path.join(tempDir, 'checkouts')]);
+      expect(extraRoots).toHaveLength(2);
+
+      const rollup = await rollupDownstream(path.join(tempDir, 'team-hub'), {
+        globalDataDir,
+        extraRoots,
+      });
+      const entry = rollup?.upstream.find((u) => u.id === 'onboarding-revamp');
+      expect(entry?.changes.map((c) => `${c.repo}/${c.id}`)).toEqual([
+        'api/add-endpoint',
+        'web-app/add-tour',
+      ]);
+    });
+  });
+
   describe('rollupRegisteredStores', () => {
     it('returns rollups for every registered store with changes', async () => {
       await registerStore('team-hub', 'team-hub');

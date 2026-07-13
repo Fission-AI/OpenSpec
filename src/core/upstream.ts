@@ -261,7 +261,7 @@ function mergeChanges(
  */
 export async function rollupDownstream(
   root: string,
-  options: { globalDataDir?: string } = {}
+  options: { globalDataDir?: string; extraRoots?: string[] } = {}
 ): Promise<DownstreamRollup | null> {
   const changesDir = changesDirOf(root);
   let ownEntries;
@@ -329,10 +329,16 @@ export async function rollupDownstream(
         await collectServingChanges(store.root, toOwnId, { store: store.id })
       );
     }
-    // Plain code repos that linked a change here (recorded at link time).
-    for (const linkedRoot of await readLinkedRoots(
-      options.globalDataDir ? { globalDataDir: options.globalDataDir } : {}
-    )) {
+    // Plain code repos that linked a change here (recorded at link time),
+    // plus any roots handed in explicitly (--scan on a machine with no
+    // per-machine state, like CI).
+    const passedRoots = (options.extraRoots ?? []).map((entry) => path.resolve(entry));
+    for (const linkedRoot of [
+      ...(await readLinkedRoots(
+        options.globalDataDir ? { globalDataDir: options.globalDataDir } : {}
+      )),
+      ...passedRoots,
+    ]) {
       if (scanned.has(linkedRoot)) continue;
       scanned.add(linkedRoot);
       mergeChanges(
@@ -409,6 +415,43 @@ export async function rollupRegisteredStores(
     }
   }
   return rollups;
+}
+
+/**
+ * Expands `--scan` arguments into candidate roots: the directory itself
+ * when it is an OpenSpec root, plus every immediate subdirectory that is
+ * one. Stateless by design — a CI checkout directory needs no
+ * registration to be rolled up.
+ */
+export async function expandScanDirs(dirs: string[]): Promise<string[]> {
+  const roots: string[] = [];
+  for (const dir of dirs) {
+    const resolved = path.resolve(dir);
+    const isRoot = async (candidate: string): Promise<boolean> => {
+      try {
+        return (await fs.stat(path.join(candidate, 'openspec', 'changes'))).isDirectory();
+      } catch {
+        return false;
+      }
+    };
+    if (await isRoot(resolved)) {
+      roots.push(resolved);
+    }
+    let entries;
+    try {
+      entries = await fs.readdir(resolved, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.name.startsWith('.')) continue;
+      const candidate = path.join(resolved, entry.name);
+      if (await isRoot(candidate)) {
+        roots.push(candidate);
+      }
+    }
+  }
+  return roots;
 }
 
 export interface ResolvedUpstreamLink {

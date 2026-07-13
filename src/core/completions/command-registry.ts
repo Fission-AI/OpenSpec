@@ -55,6 +55,11 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         description: "Show the root's changes and every change on this machine that serves them",
       },
       {
+        name: 'scan',
+        description: 'With --downstream: also scan this directory (and its immediate subdirectories) for serving changes — no registration needed (repeatable)',
+        takesValue: true,
+      },
+      {
         name: 'sort',
         description: 'Sort order: "recent" (default) or "name"',
         takesValue: true,

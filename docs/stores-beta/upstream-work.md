@@ -126,10 +126,23 @@ never asked for deltas.
 
 The rollup reads checkouts on the machine it runs on — pull a teammate's
 repo and their work appears. For an always-current team view, run the same
-command somewhere that already has every repo: a CI job that clones the
-store and the code repos, registers the store, and publishes
-`openspec list --downstream --store <id> --json` gives the whole team one
-answer without any new machinery.
+command somewhere that already has every repo. `--scan <dir>` rolls up a
+directory of checkouts with no per-machine state at all, so a CI job is
+four lines (run against a real fresh environment):
+
+```text
+$ git clone <store-remote> plans
+$ git clone <repo-remotes...> checkouts/…
+$ openspec store register ./plans --id team-plans
+$ openspec list --downstream --store team-plans --scan ./checkouts
+
+onboarding-revamp   0/2 serving changes complete
+  · api-implements      api             1/2 tasks
+  · web-app-implements  web-app         1/2 tasks
+```
+
+Publish the `--json` form of that output and the whole team has one answer
+without any new machinery.
 
 Schemas version the same way everything in a store does: git. Pulling the
 store updates the workflow for every repo that references it; a repo that
