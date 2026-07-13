@@ -48,7 +48,7 @@ describe('legacy repo-local change initiative metadata', () => {
     return path.join(tempDir, 'openspec', 'changes', id);
   }
 
-  function createLegacyLinkedChange(id: string): string {
+  function createLegacyLinkedChange(id: string, metadataLine?: string): string {
     const dir = changeDir(id);
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(
@@ -57,10 +57,25 @@ describe('legacy repo-local change initiative metadata', () => {
     );
     fs.writeFileSync(
       path.join(dir, '.openspec.yaml'),
-      'schema: spec-driven\ninitiative:\n  store: platform\n  id: billing-launch\n'
+      metadataLine ??
+        'schema: spec-driven\ninitiative:\n  store: platform\n  id: billing-launch\n'
     );
     return dir;
   }
+
+  it('keeps reading the string-form legacy link the beta wrote', async () => {
+    createLegacyLinkedChange(
+      'legacy-string-change',
+      'schema: spec-driven\ninitiative: platform/billing-launch\n'
+    );
+
+    const status = await runCLI(
+      ['status', '--change', 'legacy-string-change', '--json'],
+      { cwd: tempDir, env }
+    );
+    expect(status.exitCode).toBe(0);
+    expect('initiative' in parseJson(status)).toBe(false);
+  });
 
   it('keeps reading existing initiative metadata without modifying it', async () => {
     const dir = createLegacyLinkedChange('legacy-change');

@@ -248,12 +248,14 @@ function mergeChanges(
 }
 
 /**
- * Rolls up a root's downstream work: every active change in the root, plus
+ * Rolls up a root's downstream work: the root's upstream candidates, plus
  * every change on this machine that serves one of them. Local serving
  * changes match `serves: <id>` (or `<own-store-id>/<id>`); when the root is
  * a registered store, other registered roots and linked repos are scanned
- * for `<that id>/<id>`. Ids referenced by serving changes but missing on
- * disk are included with `exists: false` — a bad reference should be
+ * for `<that id>/<id>`. A change that itself serves something is downstream
+ * work — it only gets its own row when something serves IT, so rollups of
+ * busy repos are not noise. Ids referenced by serving changes but missing
+ * on disk are included with `exists: false` — a bad reference should be
  * visible, not silently dropped; archived upstream changes are included
  * with `archived: true`. Returns null when the root has no changes folder.
  */
@@ -268,10 +270,16 @@ export async function rollupDownstream(
   } catch {
     return null;
   }
-  const ownChanges = ownEntries
+  const allOwnChanges = ownEntries
     .filter((entry) => entry.isDirectory() && entry.name !== 'archive')
     .map((entry) => entry.name)
     .sort();
+  const servingOwnChanges = new Set<string>();
+  for (const id of allOwnChanges) {
+    if ((await readServesRef(path.join(changesDir, id))) !== null) {
+      servingOwnChanges.add(id);
+    }
+  }
 
   const registry = await readStoreRegistryState(
     options.globalDataDir ? { globalDataDir: options.globalDataDir } : {}
@@ -359,10 +367,12 @@ export async function rollupDownstream(
     });
   };
 
-  for (const id of ownChanges) {
+  for (const id of allOwnChanges) {
+    // Downstream work only earns an upstream row when something serves it.
+    if (servingOwnChanges.has(id) && !byId.has(id)) continue;
     addUpstream(id, true, false);
   }
-  const known = new Set(ownChanges);
+  const known = new Set(allOwnChanges);
   for (const id of [...byId.keys()].sort()) {
     if (known.has(id)) continue;
     const located = await locateChange(root, id);

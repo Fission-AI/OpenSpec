@@ -50,7 +50,10 @@ export const ChangeMetadataSchema = z.object({
   goal: z.string().min(1).optional(),
   affected_areas: z.array(z.string().min(1)).optional(),
   serves: ServesRefSchema.optional(),
-  initiative: InitiativeLinkSchema.optional(),
+  // Legacy initiative links are tolerated in BOTH shapes the beta wrote —
+  // the `{store, id}` object and the `<store>/<name>` string — read-only,
+  // never re-emitted. A change that carries one must never fail to load.
+  initiative: z.union([InitiativeLinkSchema, z.string().min(1)]).optional(),
 });
 
 export type ChangeMetadata = z.infer<typeof ChangeMetadataSchema>;

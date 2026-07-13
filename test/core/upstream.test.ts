@@ -120,6 +120,17 @@ describe('upstream links', () => {
       expect(unrelated?.changesTotal).toBe(0);
     });
 
+    it('hides serving-only changes from upstream rows', async () => {
+      change('app', 'onboarding-revamp', null, '');
+      change('app', 'add-search', 'onboarding-revamp', '- [ ] one\n');
+
+      const rollup = await rollupDownstream(path.join(tempDir, 'app'), { globalDataDir });
+
+      // add-search is downstream work: it serves something and nothing
+      // serves it, so it appears under its upstream, not as its own row.
+      expect(rollup?.upstream.map((u) => u.id)).toEqual(['onboarding-revamp']);
+    });
+
     it('keeps refs to missing changes visible instead of dropping them', async () => {
       change('app', 'add-search', 'no-such-change', '- [ ] task\n');
 
