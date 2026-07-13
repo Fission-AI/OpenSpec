@@ -20,11 +20,10 @@ import {
 } from './store/foundation.js';
 import { getStoreRootForBackend } from './store/registry.js';
 import { inspectRegisteredStore, type ResolvedOpenSpecRoot } from './root-selection.js';
-import { getSpecIds } from '../utils/item-discovery.js';
+import { getSpecIds, getActiveChangeIds } from '../utils/item-discovery.js';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { MAX_CONTEXT_SIZE, type DeclarationEntry } from './project-config.js';
+import { MAX_CONTEXT_SIZE, readProjectConfig, type DeclarationEntry } from './project-config.js';
 import { listSchemasWithInfo } from './artifact-graph/index.js';
-import { listInitiativeNames } from './initiatives.js';
 
 export interface ReferenceSpecEntry {
   id: string;
@@ -43,9 +42,11 @@ export interface ReferenceIndexEntry {
   root?: string;
   specs?: ReferenceSpecEntry[];
   schemas?: ReferenceSchemaEntry[];
-  /** The store's initiative names — or, with none yet, its evergreen
-   * artifact names (when it has an initiatives folder). */
-  initiatives?: string[];
+  /** The store's in-motion change ids — the work currently being drafted
+   * there. */
+  changes?: string[];
+  /** The store's declared folder purposes (config `structure:`). */
+  structure?: Record<string, string>;
   fetch?: string;
   status: StoreDiagnostic[];
 }
@@ -175,13 +176,32 @@ function collectSchemaEntries(referencedRoot: string): ReferenceSchemaEntry[] {
 }
 
 /**
- * A store's planning layer for the index: initiative names in order, or —
- * with no initiatives yet — its evergreen artifact names.
+ * A store's declared layout for the index: the config's `structure:` map,
+ * sanitized — the store explaining its own non-reserved folders.
  */
-async function collectInitiativeNames(referencedRoot: string): Promise<string[]> {
+function collectStructure(referencedRoot: string): Record<string, string> {
+  let structure;
   try {
-    const names = await listInitiativeNames(referencedRoot);
-    return names.map((name) => sanitizeInline(name, 60));
+    structure = readProjectConfig(referencedRoot)?.structure;
+  } catch {
+    return {};
+  }
+  if (!structure) return {};
+  const sanitized: Record<string, string> = {};
+  for (const [folder, purpose] of Object.entries(structure)) {
+    sanitized[sanitizeInline(folder, 100)] = sanitizeInline(purpose, 200);
+  }
+  return sanitized;
+}
+
+/**
+ * A store's work in motion for the index: its active change ids. Specs say
+ * what is true; these say what the team is currently deciding.
+ */
+async function collectActiveChangeIds(referencedRoot: string): Promise<string[]> {
+  try {
+    const ids = await getActiveChangeIds(referencedRoot);
+    return ids.map((id) => sanitizeInline(id, 60));
   } catch {
     return [];
   }
@@ -195,8 +215,8 @@ export function schemasFetchRecipe(storeId: string): string {
   return `openspec schemas --store ${storeId}`;
 }
 
-export function initiativesFetchRecipe(storeId: string): string {
-  return `openspec list --initiatives --store ${storeId}`;
+export function changesFetchRecipe(storeId: string): string {
+  return `openspec list --downstream --store ${storeId}`;
 }
 
 function specLine(spec: ReferenceSpecEntry): string {
@@ -273,10 +293,16 @@ function renderEntryLines(entry: ReferenceIndexEntry): string[] {
         );
       }
     }
-    if (entry.initiatives && entry.initiatives.length > 0) {
+    if (entry.changes && entry.changes.length > 0) {
       lines.push(
-        `  Initiatives: ${entry.initiatives.join(', ')}  (${initiativesFetchRecipe(entry.store_id)})`
+        `  In motion: ${entry.changes.join(', ')}  (${changesFetchRecipe(entry.store_id)})`
       );
+    }
+    if (entry.structure && Object.keys(entry.structure).length > 0) {
+      lines.push('  Layout:');
+      for (const [folder, purpose] of Object.entries(entry.structure)) {
+        lines.push(`    - ${folder}: ${purpose}`);
+      }
     }
     if (entry.fetch) {
       lines.push(`  Fetch: ${entry.fetch}`);
@@ -442,13 +468,15 @@ export async function assembleReferenceIndex(
 
     const specs = await collectSpecEntries(inspection.canonicalRoot);
     const schemas = collectSchemaEntries(inspection.canonicalRoot);
-    const initiatives = await collectInitiativeNames(inspection.canonicalRoot);
+    const changes = await collectActiveChangeIds(inspection.canonicalRoot);
+    const structure = collectStructure(inspection.canonicalRoot);
     const entry: ReferenceIndexEntry = {
       store_id: id,
       root: inspection.canonicalRoot,
       specs,
       ...(schemas.length > 0 ? { schemas } : {}),
-      ...(initiatives.length > 0 ? { initiatives } : {}),
+      ...(changes.length > 0 ? { changes } : {}),
+      ...(Object.keys(structure).length > 0 ? { structure } : {}),
       fetch: fetchRecipe(id),
       status: [],
     };

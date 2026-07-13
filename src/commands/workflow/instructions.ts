@@ -36,9 +36,9 @@ import {
 import { readRegistrySnapshot } from '../../core/store/registry.js';
 import { readProjectConfig, type ProjectConfig } from '../../core/project-config.js';
 import {
-  resolveInitiativeLink,
-  type ResolvedInitiativeLink,
-} from '../../core/initiatives.js';
+  resolveUpstreamLink,
+  type ResolvedUpstreamLink,
+} from '../../core/upstream.js';
 import {
   validateChangeExists,
   validateSchemaExists,
@@ -103,28 +103,33 @@ async function loadRootConfigContext(root: ResolvedOpenSpecRoot): Promise<{
 
 /**
  * The upward join: a linked change's instructions hand the agent the
- * initiative it serves and where its upstream context lives on disk, so
+ * upstream change it serves and where that context lives on disk, so
  * intent reaches the working agent without anyone pasting it.
  */
-function renderInitiativeBlock(link: ResolvedInitiativeLink): string {
+function renderUpstreamBlock(link: ResolvedUpstreamLink): string {
   const lines = [
-    `<initiative ref="${link.ref}">`,
-    `This change serves initiative '${link.name}'${link.store ? ` in store '${link.store}'` : ''}.`,
+    `<upstream ref="${link.ref}">`,
+    `This change serves the change '${link.changeId}'${link.store ? ` in store '${link.store}'` : ''}.`,
   ];
-  if (link.path) {
+  if (link.path && link.archived) {
+    lines.push(`Upstream context (archived): ${link.path}`);
+    lines.push(
+      "The upstream change has been archived — its requirements were synced into that root's openspec/specs/, which is now the standing truth to trace against."
+    );
+  } else if (link.path) {
     lines.push(`Upstream context: ${link.path}`);
     lines.push(
-      'Before working, read the evergreen files beside that initiative and every lower-numbered stage inside it; this change should trace to something upstream.'
+      "Before working, read its artifacts (proposal, specs, and any others its schema defines); this change should trace to a requirement there. Standing truths live beside it in that root's openspec/specs/."
     );
   } else {
     lines.push(
-      'The linked initiative folder was not found on disk — the link may be stale, or the store may not be registered on this machine.'
+      'The upstream change was not found on disk — the link may be stale, or the store may not be registered on this machine.'
     );
   }
   lines.push(
-    `Status rollup: openspec list --initiatives${link.store ? ` --store ${link.store}` : ''}`
+    `Status rollup: openspec list --downstream${link.store ? ` --store ${link.store}` : ''}`
   );
-  lines.push('</initiative>');
+  lines.push('</upstream>');
   return lines.join('\n');
 }
 
@@ -185,7 +190,7 @@ export async function instructionsCommand(
       references,
     });
     const isBlocked = instructions.dependencies.some((d) => !d.done);
-    const initiative = await resolveInitiativeLink(context.changeDir, projectRoot);
+    const upstream = await resolveUpstreamLink(context.changeDir, projectRoot);
 
     spinner?.stop();
 
@@ -194,7 +199,7 @@ export async function instructionsCommand(
         JSON.stringify(
           {
             ...instructions,
-            ...(initiative ? { initiative } : {}),
+            ...(upstream ? { upstream } : {}),
             root: toRootOutput(root),
           },
           null,
@@ -204,7 +209,7 @@ export async function instructionsCommand(
       return;
     }
 
-    printInstructionsText(instructions, isBlocked, initiative);
+    printInstructionsText(instructions, isBlocked, upstream);
   } catch (error) {
     spinner?.stop();
     throw error;
@@ -214,7 +219,7 @@ export async function instructionsCommand(
 export function printInstructionsText(
   instructions: ArtifactInstructions,
   isBlocked: boolean,
-  initiative?: ResolvedInitiativeLink | null
+  upstream?: ResolvedUpstreamLink | null
 ): void {
   const {
     artifactId,
@@ -252,6 +257,15 @@ export function printInstructionsText(
   console.log('</task>');
   console.log();
 
+  // Schema-level workflow guidance (the schema author speaking to agents)
+  if (instructions.schemaNotes) {
+    console.log('<schema_notes>');
+    console.log('<!-- How this schema\'s workflow differs from the default. Follow it. -->');
+    console.log(instructions.schemaNotes.trim());
+    console.log('</schema_notes>');
+    console.log();
+  }
+
   // Project context (AI constraint - do not include in output)
   if (context) {
     console.log('<project_context>');
@@ -261,9 +275,9 @@ export function printInstructionsText(
     console.log();
   }
 
-  // The initiative this change serves (read-only upstream context)
-  if (initiative) {
-    console.log(renderInitiativeBlock(initiative));
+  // The upstream change this change serves (read-only upstream context)
+  if (upstream) {
+    console.log(renderUpstreamBlock(upstream));
     console.log();
   }
 
@@ -486,6 +500,7 @@ export async function generateApplyInstructions(
     state,
     missingArtifacts: missingArtifacts.length > 0 ? missingArtifacts : undefined,
     instruction,
+    ...(schema.notes ? { schemaNotes: schema.notes } : {}),
     ...(references !== undefined ? { references } : {}),
   };
 }
@@ -520,7 +535,7 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
       planningHome,
       references,
     });
-    const initiative = await resolveInitiativeLink(instructions.changeDir, projectRoot);
+    const upstream = await resolveUpstreamLink(instructions.changeDir, projectRoot);
 
     spinner?.stop();
 
@@ -529,7 +544,7 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
         JSON.stringify(
           {
             ...instructions,
-            ...(initiative ? { initiative } : {}),
+            ...(upstream ? { upstream } : {}),
             root: toRootOutput(root),
           },
           null,
@@ -539,7 +554,7 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
       return;
     }
 
-    printApplyInstructionsText(instructions, initiative);
+    printApplyInstructionsText(instructions, upstream);
   } catch (error) {
     spinner?.stop();
     throw error;
@@ -548,7 +563,7 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
 
 export function printApplyInstructionsText(
   instructions: ApplyInstructions,
-  initiative?: ResolvedInitiativeLink | null
+  upstream?: ResolvedUpstreamLink | null
 ): void {
   const { changeName, schemaName, contextFiles, progress, tasks, state, missingArtifacts, instruction } = instructions;
 
@@ -556,9 +571,17 @@ export function printApplyInstructionsText(
   console.log(`Schema: ${schemaName}`);
   console.log();
 
-  // The initiative this change serves (read-only upstream context)
-  if (initiative) {
-    console.log(renderInitiativeBlock(initiative));
+  // Schema-level workflow guidance (the schema author speaking to agents)
+  if (instructions.schemaNotes) {
+    console.log('### Schema Notes');
+    console.log();
+    console.log(instructions.schemaNotes.trim());
+    console.log();
+  }
+
+  // The upstream change this change serves (read-only upstream context)
+  if (upstream) {
+    console.log(renderUpstreamBlock(upstream));
     console.log();
   }
 

@@ -21,9 +21,10 @@ export interface WorkingSetMember {
   /** A referenced store's own custom artifact types (project schema names).
    * Present only when the store defines some and it is available. */
   artifactTypes?: string[];
-  /** A referenced store's initiative names — or, with none yet, its
-   * evergreen artifact names. */
-  initiatives?: string[];
+  /** A referenced store's in-motion change ids. */
+  changes?: string[];
+  /** A referenced store's declared folder purposes (config `structure:`). */
+  structure?: Record<string, string>;
   status: StoreDiagnostic[];
 }
 

@@ -14,17 +14,12 @@ export const OPENSPEC_CONFIG_YML = 'openspec/config.yml';
 export const OPENSPEC_SPECS_DIR = 'openspec/specs';
 export const OPENSPEC_CHANGES_DIR = 'openspec/changes';
 export const OPENSPEC_ARCHIVE_DIR = 'openspec/changes/archive';
-export const OPENSPEC_INITIATIVES_DIR = 'openspec/initiatives';
 export const DEFAULT_OPENSPEC_SCHEMA = 'spec-driven';
 export const DIRECTORY_ANCHOR_FILE_NAME = '.gitkeep';
 
 // Git cannot track empty directories, so setup anchors otherwise-empty
 // conventional store directories for teammates who clone the repo later.
-export const ANCHORED_OPENSPEC_DIRS = [
-  OPENSPEC_SPECS_DIR,
-  OPENSPEC_ARCHIVE_DIR,
-  OPENSPEC_INITIATIVES_DIR,
-] as const;
+export const ANCHORED_OPENSPEC_DIRS = [OPENSPEC_SPECS_DIR, OPENSPEC_ARCHIVE_DIR] as const;
 
 type PathKind = 'missing' | 'directory' | 'file' | 'other';
 
@@ -315,7 +310,6 @@ export async function ensureOpenSpecRoot(
   await ensureDirectory(storeRoot, OPENSPEC_SPECS_DIR, ledger);
   await ensureDirectory(storeRoot, OPENSPEC_CHANGES_DIR, ledger);
   await ensureDirectory(storeRoot, OPENSPEC_ARCHIVE_DIR, ledger);
-  await ensureDirectory(storeRoot, OPENSPEC_INITIATIVES_DIR, ledger);
   await ensureDefaultConfig(storeRoot, ledger);
 
   if (options.anchorEmptyDirectories) {

@@ -25,6 +25,10 @@ export const SchemaYamlSchema = z.object({
   name: z.string().min(1, { error: 'Schema name is required' }),
   version: z.number().int().positive({ error: 'Version must be a positive integer' }),
   description: z.string().optional(),
+  // Workflow-level guidance surfaced verbatim to agents on every
+  // instruction surface — how this schema's lifecycle differs from the
+  // default (e.g. "no implementation phase; archive after specs").
+  notes: z.string().optional(),
   artifacts: z.array(ArtifactSchema).min(1, { error: 'At least one artifact required' }),
   // Optional apply phase configuration (for schema-aware apply instructions)
   apply: ApplyPhaseSchema.optional(),

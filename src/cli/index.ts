@@ -9,10 +9,10 @@ import { AI_TOOLS } from '../core/config.js';
 import { UpdateCommand } from '../core/update.js';
 import { ListCommand } from '../core/list.js';
 import {
-  rollupInitiatives,
-  rollupRegisteredStorePortfolios,
-  type PortfolioInfo,
-} from '../core/initiatives.js';
+  rollupDownstream,
+  rollupRegisteredStores,
+  type DownstreamRollup,
+} from '../core/upstream.js';
 import { ArchiveCommand, type ArchiveOptions } from '../core/archive.js';
 import { ViewCommand } from '../core/view.js';
 import { resolveRootForCommand, toRootOutput, isStoreSelectedRoot, type ResolvedOpenSpecRoot } from '../core/root-selection.js';
@@ -58,48 +58,43 @@ function hiddenStorePathOption(): Option {
   ).hideHelp();
 }
 
-function printPortfolioBody(
-  portfolio: PortfolioInfo,
+function printRollupBody(
+  rollup: DownstreamRollup,
   indent: string,
-  // Store portfolios need the store-qualified ref in the link hint — a bare
-  // <name> would not resolve from a consumer repo.
+  // Store rollups need the store-qualified ref in the link hint — a bare
+  // <change> would not resolve from a consumer repo.
   refPrefix = ''
 ): void {
-  if (portfolio.evergreen.length > 0) {
-    console.log(`${indent}Evergreen: ${portfolio.evergreen.join(', ')}`);
-  }
-  if (portfolio.initiatives.length === 0) {
-    if (portfolio.evergreen.length === 0) {
-      // The empty state must teach the whole layout: a first-time user with
-      // a fresh store has no other way to learn it from the CLI.
-      console.log(
-        `${indent}(empty — add evergreen files like product.md or roadmap.md, and one folder per initiative;`
-      );
-      console.log(
-        `${indent} numbered subfolders like 00_intent/ 01_engineering/ become its ordered stages)`
-      );
-    }
+  if (rollup.upstream.length === 0) {
+    // The empty state must teach the whole move: a first-time user with a
+    // fresh store has no other way to learn it from the CLI.
+    console.log(`${indent}(no changes yet — upstream work is just a change here:`);
+    console.log(
+      `${indent} openspec new change <name>${refPrefix ? ` --store ${refPrefix.slice(0, -1)}` : ''}, then link work to it from any repo`
+    );
+    console.log(
+      `${indent} with: openspec new change <name> --serves ${refPrefix}<change>)`
+    );
     return;
   }
 
-  let anyChanges = false;
-  for (const initiative of portfolio.initiatives) {
+  let anyServing = false;
+  for (const entry of rollup.upstream) {
     const summary =
-      initiative.changesTotal === 0
-        ? 'no changes yet'
-        : `${initiative.changesComplete}/${initiative.changesTotal} changes complete`;
-    const missing = initiative.exists ? '' : '  (no folder)';
+      entry.changesTotal === 0
+        ? 'nothing serves it yet'
+        : `${entry.changesComplete}/${entry.changesTotal} serving changes complete`;
+    const marker = !entry.exists
+      ? '  (no such change)'
+      : entry.archived
+        ? '  (archived — its requirements now live in specs/)'
+        : '';
     console.log('');
-    console.log(`${indent}${initiative.name}   ${summary}${missing}`);
-    if (initiative.stages.length > 0) {
-      console.log(
-        `${indent}  stages: ${initiative.stages.map((stage) => stage.name).join(' → ')}`
-      );
-    }
-    if (initiative.changes.length === 0) continue;
-    anyChanges = true;
-    const changeWidth = Math.max(...initiative.changes.map((c) => c.id.length));
-    for (const change of initiative.changes) {
+    console.log(`${indent}${entry.id}   ${summary}${marker}`);
+    if (entry.changes.length === 0) continue;
+    anyServing = true;
+    const changeWidth = Math.max(...entry.changes.map((c) => c.id.length));
+    for (const change of entry.changes) {
       const mark =
         change.state === 'complete' ? '✓' : change.state === 'no-tasks' ? '–' : '·';
       const where = change.store ?? change.repo ?? 'here';
@@ -111,70 +106,68 @@ function printPortfolioBody(
         `${indent}  ${mark} ${change.id.padEnd(changeWidth)}  ${where.padEnd(14)}  ${tasks}`
       );
     }
-    // Truth flows up: an initiative whose changes are all complete is the
-    // trigger to update the evergreen artifacts it served.
-    if (initiative.changesTotal > 0 && initiative.changesComplete === initiative.changesTotal) {
+    // Truth flows up: upstream work whose serving changes are all complete
+    // is ready to archive, which syncs its requirements into specs.
+    if (entry.changesTotal > 0 && entry.changesComplete === entry.changesTotal && !entry.archived) {
       console.log(
-        `${indent}  all changes complete — sync the evergreen artifacts this initiative served`
+        `${indent}  all serving changes complete — archive it to sync its specs`
       );
     }
   }
-  if (!anyChanges) {
+  if (!anyServing) {
     console.log('');
     console.log(
-      `${indent}Link a change: openspec new change <name> --initiative ${refPrefix}<name>`
+      `${indent}Link work to a change here: openspec new change <name> --serves ${refPrefix}<change>`
     );
   }
 }
 
-async function renderInitiatives(
+async function renderDownstream(
   root: ResolvedOpenSpecRoot,
   options: { json?: boolean }
 ): Promise<void> {
-  const initiatives = await rollupInitiatives(root.path);
+  const downstream = await rollupDownstream(root.path);
 
   if (options.json) {
     console.log(
-      JSON.stringify({ initiatives, root: toRootOutput(root) }, null, 2)
+      JSON.stringify({ downstream, root: toRootOutput(root) }, null, 2)
     );
     return;
   }
 
-  if (initiatives === null) {
-    console.log('No initiatives folder found at openspec/initiatives/.');
-    console.log(
-      'Start one: mkdir -p openspec/initiatives/<name>, then add any doc (numbered subfolders inside become ordered stages).'
-    );
+  if (downstream === null) {
+    console.log('No changes folder found at openspec/changes/.');
+    console.log('Create the first change: openspec new change <name>');
     return;
   }
 
-  console.log(`Initiatives: ${initiatives.path}`);
-  printPortfolioBody(initiatives, '', isStoreSelectedRoot(root) ? `${root.storeId}/` : '');
+  console.log(`Downstream rollup: ${downstream.path}`);
+  printRollupBody(downstream, '', isStoreSelectedRoot(root) ? `${root.storeId}/` : '');
 }
 
 /**
- * Outside any root, the portfolio question is still answerable: show the
- * initiatives of every registered store that has them.
+ * Outside any root, the rollup question is still answerable: show the
+ * downstream work of every registered store that has changes.
  */
-async function renderStorePortfolios(options: { json?: boolean }): Promise<void> {
-  const stores = await rollupRegisteredStorePortfolios();
+async function renderStoreRollups(options: { json?: boolean }): Promise<void> {
+  const stores = await rollupRegisteredStores();
 
   if (options.json) {
-    console.log(JSON.stringify({ initiatives: null, stores, root: null }, null, 2));
+    console.log(JSON.stringify({ downstream: null, stores, root: null }, null, 2));
     return;
   }
 
   if (stores.length === 0) {
-    console.log('No local OpenSpec root, and no registered store has initiatives.');
+    console.log('No local OpenSpec root, and no registered store has changes.');
     console.log('Run inside a repo, or pass --store <id>.');
     return;
   }
 
-  console.log('No local OpenSpec root — showing registered store portfolios.');
-  for (const { store, portfolio } of stores) {
+  console.log('No local OpenSpec root — showing registered store rollups.');
+  for (const { store, rollup } of stores) {
     console.log('');
-    console.log(`${store}  (${portfolio.path})`);
-    printPortfolioBody(portfolio, '  ', `${store}/`);
+    console.log(`${store}  (${rollup.path})`);
+    printRollupBody(rollup, '  ', `${store}/`);
   }
 }
 
@@ -339,39 +332,39 @@ program
 
 program
   .command('list')
-  .description('List items (changes by default). Use --specs to list specs, --initiatives to see the portfolio rollup.')
+  .description('List items (changes by default). Use --specs to list specs, --downstream to see the upstream rollup.')
   .option('--specs', 'List specs instead of changes')
   .option('--changes', 'List changes explicitly (default)')
-  .option('--initiatives', "Show the root's portfolio: every initiative, and every change pointing at it")
+  .option('--downstream', "Show the root's changes and every change on this machine that serves them")
   .option('--sort <order>', 'Sort order: "recent" (default) or "name"', 'recent')
   .option('--json', 'Output as JSON (for programmatic use)')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
-  .action(async (options?: { specs?: boolean; changes?: boolean; initiatives?: boolean; sort?: string; json?: boolean; store?: string; storePath?: string }) => {
+  .action(async (options?: { specs?: boolean; changes?: boolean; downstream?: boolean; sort?: string; json?: boolean; store?: string; storePath?: string }) => {
     try {
-      const failurePayload = options?.initiatives
-        ? { initiatives: null, root: null }
+      const failurePayload = options?.downstream
+        ? { downstream: null, root: null }
         : options?.specs
           ? { specs: [], root: null }
           : { changes: [], root: null };
-      // The portfolio question is the one `list` answer that still makes
-      // sense outside any root: fall back to registered store portfolios
+      // The rollup question is the one `list` answer that still makes
+      // sense outside any root: fall back to registered store rollups
       // instead of failing root resolution.
       if (
-        options?.initiatives &&
+        options?.downstream &&
         options.store === undefined &&
         options.storePath === undefined
       ) {
         try {
           const root = await resolveRootForCommand(options ?? {});
           if (root) {
-            await renderInitiatives(root, { json: options?.json });
+            await renderDownstream(root, { json: options?.json });
           }
           return;
         } catch (error) {
           const code = (error as { diagnostic?: { code?: string } }).diagnostic?.code;
           if (code !== 'no_root_with_registered_stores') throw error;
-          await renderStorePortfolios({ json: options?.json });
+          await renderStoreRollups({ json: options?.json });
           return;
         }
       }
@@ -382,8 +375,8 @@ program
       if (!root) {
         return;
       }
-      if (options?.initiatives) {
-        await renderInitiatives(root, { json: options?.json });
+      if (options?.downstream) {
+        await renderDownstream(root, { json: options?.json });
         return;
       }
       const listCommand = new ListCommand();
@@ -397,8 +390,8 @@ program
     } catch (error) {
       failWithError(error, {
         enabled: options?.json,
-        payload: options?.initiatives
-          ? { initiatives: null, root: null }
+        payload: options?.downstream
+          ? { downstream: null, root: null }
           : options?.specs
             ? { specs: [], root: null }
             : { changes: [], root: null },
@@ -724,12 +717,13 @@ newCmd
   .option('--description <text>', 'Description to add to README.md')
   .option('--goal <text>', 'Optional goal metadata to store with the change')
   .option('--schema <name>', `Workflow schema to use (default: ${DEFAULT_SCHEMA})`)
-  .option('--initiative <ref>', 'Link this change to an initiative: <name> or <store-id>/<name>')
+  .option('--serves <ref>', 'Link this change to the work it serves: <change> or <store-id>/<change>')
   .option('--json', 'Output as JSON')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
-  // Removed option kept registered (hidden) so users get a deliberate
+  // Removed options kept registered (hidden) so users get a deliberate
   // explanation instead of a generic unknown-option error.
+  .addOption(new Option('--initiative <id>', 'No longer supported').hideHelp())
   .addOption(new Option('--areas <names>', 'No longer supported').hideHelp())
   .action(async (name: string, options: NewChangeOptions) => {
     try {

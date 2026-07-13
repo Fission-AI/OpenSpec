@@ -17,8 +17,6 @@ import {
   getVerifyChangeSkillTemplate,
   getOnboardSkillTemplate,
   getOpsxProposeSkillTemplate,
-  getInitiativesSkillTemplate,
-  getOpsxInitiativesCommandTemplate,
   getOpsxExploreCommandTemplate,
   getOpsxNewCommandTemplate,
   getOpsxContinueCommandTemplate,
@@ -72,7 +70,6 @@ export function getSkillTemplates(workflowFilter?: readonly string[]): SkillTemp
     { template: getVerifyChangeSkillTemplate(), dirName: 'openspec-verify-change', workflowId: 'verify' },
     { template: getOnboardSkillTemplate(), dirName: 'openspec-onboard', workflowId: 'onboard' },
     { template: getOpsxProposeSkillTemplate(), dirName: 'openspec-propose', workflowId: 'propose' },
-    { template: getInitiativesSkillTemplate(), dirName: 'openspec-initiatives', workflowId: 'initiatives' },
   ];
 
   if (!workflowFilter) return all;
@@ -100,7 +97,6 @@ export function getCommandTemplates(workflowFilter?: readonly string[]): Command
     { template: getOpsxVerifyCommandTemplate(), id: 'verify' },
     { template: getOpsxOnboardCommandTemplate(), id: 'onboard' },
     { template: getOpsxProposeCommandTemplate(), id: 'propose' },
-    { template: getOpsxInitiativesCommandTemplate(), id: 'initiatives' },
   ];
 
   if (!workflowFilter) return all;

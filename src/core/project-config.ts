@@ -39,6 +39,15 @@ export const ProjectConfigSchema = z.object({
     .optional()
     .describe('Per-artifact rules, keyed by artifact ID'),
 
+  // Optional: what this root's non-reserved folders are for, keyed by
+  // folder path relative to openspec/ (e.g. "research/": "raw inputs").
+  // Purely declarative — surfaced to agents in context and the
+  // references index so a store can explain its own layout.
+  structure: z
+    .record(z.string(), z.string())
+    .optional()
+    .describe('Folder purposes, keyed by path relative to openspec/'),
+
   // Note: the `references` field (id strings or {id, remote} maps) is
   // deliberately absent here — readProjectConfig parses and normalizes
   // it by hand (see DeclarationEntry below); a schema entry nothing
@@ -230,6 +239,29 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
         }
       } else {
         console.warn(`Invalid 'rules' field in config (must be object)`);
+      }
+    }
+
+    // Parse structure field: folder → purpose map, both non-empty strings.
+    if (raw.structure !== undefined) {
+      if (typeof raw.structure === 'object' && raw.structure !== null && !Array.isArray(raw.structure)) {
+        const parsedStructure: Record<string, string> = {};
+        let droppedFolders = false;
+        for (const [folder, purpose] of Object.entries(raw.structure)) {
+          if (typeof purpose === 'string' && purpose.length > 0 && folder.length > 0) {
+            parsedStructure[folder] = purpose;
+          } else {
+            droppedFolders = true;
+          }
+        }
+        if (droppedFolders) {
+          console.warn(`Some 'structure' entries are invalid (must map folder to a non-empty string), ignoring them`);
+        }
+        if (Object.keys(parsedStructure).length > 0) {
+          config.structure = parsedStructure;
+        }
+      } else {
+        console.warn(`Invalid 'structure' field in config (must be a folder → purpose map)`);
       }
     }
 

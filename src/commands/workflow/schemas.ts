@@ -48,6 +48,8 @@ export async function schemasCommand(options: SchemasOptions): Promise<void> {
     let sourceLabel = '';
     if (schema.source === 'project') {
       sourceLabel = chalk.cyan(' (project)');
+    } else if (schema.source === 'store') {
+      sourceLabel = chalk.cyan(` (from store '${schema.store}')`);
     } else if (schema.source === 'user') {
       sourceLabel = chalk.dim(' (user override)');
     }

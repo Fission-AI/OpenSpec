@@ -27,8 +27,9 @@ import { COMMON_FLAGS } from '../core/completions/shared-flags.js';
 import { emitFailure, printJson } from './shared-output.js';
 import { gatherRelationshipData } from './shared-gather.js';
 import { listSchemasWithInfo } from '../core/artifact-graph/index.js';
-import { listInitiativeNames } from '../core/initiatives.js';
-import { schemasFetchRecipe, initiativesFetchRecipe } from '../core/references.js';
+import { getActiveChangeIds } from '../utils/item-discovery.js';
+import { readProjectConfig } from '../core/project-config.js';
+import { schemasFetchRecipe, changesFetchRecipe } from '../core/references.js';
 
 const FAILURE_PAYLOAD = { root: null, members: [] };
 
@@ -64,8 +65,8 @@ function memberLine(member: WorkingSetMember): string {
 
 /**
  * Enrich available referenced-store members with the store's own custom
- * artifact types and initiatives, so `context` reports what a repo draws on
- * beyond specs. Read-only; failures degrade to an unenriched member.
+ * artifact types and in-motion changes, so `context` reports what a repo
+ * draws on beyond specs. Read-only; failures degrade to an unenriched member.
  */
 async function enrichMembersWithStoreArtifacts(
   workingSet: WorkingSet
@@ -86,14 +87,24 @@ async function enrichMembersWithStoreArtifacts(
       // Unreadable schemas dir: leave the member unenriched.
     }
     try {
-      // Initiative names — or, with none yet, the evergreen artifact
-      // names. Either way the agent sees the planning layer exists.
-      const names = await listInitiativeNames(storeRoot);
-      if (names.length > 0) {
-        member.initiatives = names;
+      // In-motion change ids: specs say what is true; these say what the
+      // team there is currently deciding.
+      const changeIds = await getActiveChangeIds(storeRoot);
+      if (changeIds.length > 0) {
+        member.changes = changeIds;
       }
     } catch {
-      // Unreadable initiatives dir: leave the member unenriched.
+      // Unreadable changes dir: leave the member unenriched.
+    }
+    try {
+      // The store's declared layout (config `structure:`), so agents know
+      // what its non-reserved folders are for without spelunking.
+      const structure = readProjectConfig(storeRoot)?.structure;
+      if (structure && Object.keys(structure).length > 0) {
+        member.structure = structure;
+      }
+    } catch {
+      // Unreadable config: leave the member unenriched.
     }
   }
 }
@@ -123,10 +134,15 @@ function printHumanWorkingSet(workingSet: WorkingSet, declaredReferenceCount: nu
           `    Artifact types: ${member.artifactTypes.join(', ')}  (${schemasFetchRecipe(member.id)})`
         );
       }
-      if (member.initiatives && member.initiatives.length > 0) {
+      if (member.changes && member.changes.length > 0) {
         console.log(
-          `    Initiatives: ${member.initiatives.join(', ')}  (${initiativesFetchRecipe(member.id)})`
+          `    In motion: ${member.changes.join(', ')}  (${changesFetchRecipe(member.id)})`
         );
+      }
+      if (member.structure && Object.keys(member.structure).length > 0) {
+        for (const [folder, purpose] of Object.entries(member.structure)) {
+          console.log(`    Layout: ${folder} — ${purpose}`);
+        }
       }
     }
   }
