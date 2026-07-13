@@ -1428,7 +1428,7 @@ More user content after markers.
       )).toBe(false);
     });
 
-    it('should suggest core preset when custom profile preserves the old core workflow set', async () => {
+    it('should list missing core workflows when custom profile preserves the old core workflow set', async () => {
       setMockConfig({
         featureFlags: {},
         profile: 'custom',
@@ -1447,10 +1447,10 @@ More user content after markers.
         call.map(arg => String(arg)).join(' ')
       );
       expect(calls.some(call =>
-        call.includes('The core profile now includes sync')
+        call.includes('Your custom profile is missing 2 core workflows: update, sync')
       )).toBe(true);
       expect(calls.some(call =>
-        call.includes('openspec config profile core') && call.includes('openspec update')
+        call.includes('openspec config profile core')
       )).toBe(true);
 
       expect(await FileSystemUtils.fileExists(
@@ -1458,6 +1458,56 @@ More user content after markers.
       )).toBe(false);
       expect(await FileSystemUtils.fileExists(
         path.join(testDir, '.claude', 'commands', 'opsx', 'sync.md')
+      )).toBe(false);
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should list a single missing core workflow when custom profile lacks only update', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'custom',
+        delivery: 'both',
+        workflows: ['propose', 'explore', 'apply', 'sync', 'archive'],
+      });
+
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+      await initCommand.execute(testDir);
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      const calls = consoleSpy.mock.calls.map(call =>
+        call.map(arg => String(arg)).join(' ')
+      );
+      expect(calls.some(call =>
+        call.includes('Your custom profile is missing 1 core workflow: update')
+      )).toBe(true);
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should not display a missing-core note when custom profile covers core workflows', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'custom',
+        delivery: 'both',
+        workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive', 'verify'],
+      });
+
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+      await initCommand.execute(testDir);
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      const calls = consoleSpy.mock.calls.map(call =>
+        call.map(arg => String(arg)).join(' ')
+      );
+      expect(calls.some(call =>
+        call.includes('Your custom profile is missing')
       )).toBe(false);
 
       consoleSpy.mockRestore();
