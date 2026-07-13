@@ -7,11 +7,15 @@
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
+import { escapeTOMLBasicString, escapeTOMLMultilineString } from '../toml.js';
 
 /**
  * Easy Code adapter for command generation.
  * File path: .easycode/commands/opsx/<id>.toml
- * Format: TOML with description string and prompt multiline literal string
+ *
+ * Format:
+ *   description = "<basic-string>"         single-line, backslash/quote-safe
+ *   prompt = """<multiline-string>"""       multiline, backslash/triple-quote-safe
  */
 export const easycodeAdapter: ToolCommandAdapter = {
   toolId: 'easycode',
@@ -21,7 +25,8 @@ export const easycodeAdapter: ToolCommandAdapter = {
   },
 
   formatFile(content: CommandContent): string {
-    const safeDesc = content.description.replace(/"/g, '\\"');
-    return `description = "${safeDesc}"\n\nprompt = '''\n${content.body}\n'''\n`;
+    const safeDesc = escapeTOMLBasicString(content.description);
+    const safeBody = escapeTOMLMultilineString(content.body);
+    return `description = "${safeDesc}"\n\nprompt = """\n${safeBody}\n"""\n`;
   },
 };
