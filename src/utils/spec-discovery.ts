@@ -41,5 +41,8 @@ export async function discoverSpecFiles(specsRoot: string): Promise<DiscoveredSp
     }
   };
   await walk(specsRoot, []);
-  return results.sort((a, b) => a.id.localeCompare(b.id));
+  // Plain code-point comparison, not localeCompare: the latter follows the
+  // process's ICU locale, so ordering could vary by OS/CI. Code-point ordering
+  // guarantees the deterministic output the docstring promises.
+  return results.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
