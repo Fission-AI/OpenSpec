@@ -18,3 +18,5 @@
 - Legacy `initiative:` change metadata is tolerated in both the object and string forms (read-only, never re-emitted) instead of failing `status`
 - `openspec new change` no longer names the wrong schema in its progress line when the root's config sets a default
 - `openspec schema init --default` now writes the `schema:` key the config reader uses (previously wrote `defaultSchema:`, which nothing read), and its next-step hint prints a valid command
+- `openspec validate` no longer demands delta specs from changes whose workflow schema defines no specs artifact (deliberately spec-less workflows validated with a spurious error)
+- New specs created by archiving seed their Purpose from the proposal's Why section instead of a TBD placeholder

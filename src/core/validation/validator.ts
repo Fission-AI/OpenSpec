@@ -11,6 +11,8 @@ import {
   VALIDATION_MESSAGES
 } from './constants.js';
 import { parseDeltaSpec, normalizeRequirementName, extractRequirementsSection } from '../parsers/requirement-blocks.js';
+import { resolveSchemaForChange } from '../../utils/change-metadata.js';
+import { resolveSchema } from '../artifact-graph/resolver.js';
 import {
   extractRequirementBody as extractRequirementBodyShared,
   containsShallOrMust as containsShallOrMustShared,
@@ -90,7 +92,12 @@ export class Validator {
       const result = ChangeSchema.safeParse(change);
       
       if (!result.success) {
-        issues.push(...this.convertZodErrors(result.error));
+        const converted = this.convertZodErrors(result.error).filter(
+          (issue) =>
+            !issue.message.startsWith(VALIDATION_MESSAGES.CHANGE_NO_DELTAS) ||
+            this.changeSchemaExpectsDeltas(changeDir)
+        );
+        issues.push(...converted);
       }
       
       issues.push(...this.applyChangeRules(change, content));
@@ -303,11 +310,32 @@ export class Validator {
       });
     }
 
-    if (totalDeltas === 0) {
+    if (totalDeltas === 0 && this.changeSchemaExpectsDeltas(changeDir)) {
       issues.push({ level: 'ERROR', path: 'file', message: this.enrichTopLevelError('change', VALIDATION_MESSAGES.CHANGE_NO_DELTAS) });
     }
 
     return this.createReport(issues);
+  }
+
+  /**
+   * Whether the change's workflow schema defines a specs-generating
+   * artifact. A schema without one is deliberately spec-less (a
+   * documentation-only or freeform workflow), and demanding deltas from
+   * it would flag the schema author's intent as an error. Tolerant: any
+   * resolution failure falls back to requiring deltas, so the guard can
+   * only ever relax validation for schemas we can actually read.
+   */
+  private changeSchemaExpectsDeltas(changeDir: string): boolean {
+    try {
+      const projectRoot = path.dirname(path.dirname(path.dirname(changeDir)));
+      const schemaName = resolveSchemaForChange(changeDir, undefined, projectRoot);
+      const schema = resolveSchema(schemaName, projectRoot);
+      return schema.artifacts.some((artifact) =>
+        artifact.generates.startsWith('specs/')
+      );
+    } catch {
+      return true;
+    }
   }
 
   /**

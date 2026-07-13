@@ -118,10 +118,9 @@ A team's existing product-spec format is a 15-line schema away, and a
 change made of nothing but that document creates, gates, and archives
 cleanly. OpenSpec holds exactly one format opinion, at the truth boundary:
 deltas you want merged into standing `specs/` at archive time use the
-requirement/scenario format. Freeform artifacts archive as-is. (One known
-seam: `openspec validate` currently expects delta specs in every change,
-so a deliberately spec-less workflow reports a spurious error — making
-validation schema-aware is a flagged follow-up.)
+requirement/scenario format. Freeform artifacts archive as-is, and
+validation is schema-aware: a workflow that defines no specs artifact is
+never asked for deltas.
 
 ## Team-wide status
 
