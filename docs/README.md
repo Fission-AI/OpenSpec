@@ -90,6 +90,7 @@ That second one matters more than it looks. OpenSpec has two halves: a command l
 | Doc | What it gives you |
 |-----|-------------------|
 | [Stores: User Guide](stores-beta/user-guide.md) | Plan in its own repo when your work spans repos or teams |
+| [Upstream Work](stores-beta/upstream-work.md) | Typed planning in a store: your schemas, serves links, live status |
 | [Agent Contract](agent-contract.md) | The machine-readable CLI surfaces agents drive |
 
 ## The thirty-second version

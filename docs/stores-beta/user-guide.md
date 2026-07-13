@@ -317,8 +317,8 @@ tells you which case you're in.
   if you intentionally want to convert that repo into a local store root.
 - **Some commands stay where they are.** `view`, `templates`, and the
   deprecated noun forms (`openspec change show`, ...) act on the current
-  directory only — no `--store`. (`schemas` now accepts `--store` — see the
-  [initiatives guide](initiatives.md).)
+  directory only — no `--store`. (`schemas` now accepts `--store` — see
+  [Upstream Work](upstream-work.md).)
 - **Per-machine state is per-machine.** The store registry and worksets
   are local settings. Nothing about your machine's layout is
   ever committed to shared planning.
