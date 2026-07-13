@@ -18,6 +18,7 @@ import { continueAdapter } from './adapters/continue.js';
 import { costrictAdapter } from './adapters/costrict.js';
 import { crushAdapter } from './adapters/crush.js';
 import { cursorAdapter } from './adapters/cursor.js';
+import { easycodeAdapter } from './adapters/easycode.js';
 import { factoryAdapter } from './adapters/factory.js';
 import { geminiAdapter } from './adapters/gemini.js';
 import { githubCopilotAdapter } from './adapters/github-copilot.js';
@@ -55,6 +56,7 @@ export class CommandAdapterRegistry {
     CommandAdapterRegistry.register(costrictAdapter);
     CommandAdapterRegistry.register(crushAdapter);
     CommandAdapterRegistry.register(cursorAdapter);
+    CommandAdapterRegistry.register(easycodeAdapter);
     CommandAdapterRegistry.register(factoryAdapter);
     CommandAdapterRegistry.register(geminiAdapter);
     CommandAdapterRegistry.register(githubCopilotAdapter);
