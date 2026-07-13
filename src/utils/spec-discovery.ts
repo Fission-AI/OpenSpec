@@ -15,6 +15,11 @@ export interface DiscoveredSpec {
  * matching the historical requirement that specs live in a capability folder.
  * Dot-directories are skipped and symlinks are not followed. Results are
  * sorted by id for deterministic output.
+ *
+ * A missing root (ENOENT) yields an empty list, but any other read failure
+ * (EACCES, EIO, ...) is thrown rather than swallowed: since this feeds the
+ * archive/apply merge path, silently dropping an unreadable capability would
+ * recreate the exact data-loss class #1353 is closing.
  */
 export async function discoverSpecFiles(specsRoot: string): Promise<DiscoveredSpec[]> {
   const results: DiscoveredSpec[] = [];
@@ -22,8 +27,9 @@ export async function discoverSpecFiles(specsRoot: string): Promise<DiscoveredSp
     let entries;
     try {
       entries = await fs.readdir(dir, { withFileTypes: true });
-    } catch {
-      return;
+    } catch (err: any) {
+      if (err?.code === 'ENOENT') return;
+      throw err;
     }
     for (const entry of entries) {
       if (entry.name.startsWith('.')) continue;

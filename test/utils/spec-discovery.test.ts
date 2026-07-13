@@ -67,4 +67,61 @@ describe('discoverSpecFiles', () => {
       expect(found).toEqual([]);
     });
   });
+
+  it('throws on a non-ENOENT read error instead of silently dropping specs', async () => {
+    await withTempDir(async (dir) => {
+      // A file where a directory is expected surfaces ENOTDIR from readdir.
+      const notADir = path.join(dir, 'not-a-dir');
+      await fs.writeFile(notADir, 'not a directory\n', 'utf8');
+
+      await expect(discoverSpecFiles(notADir)).rejects.toMatchObject({
+        code: 'ENOTDIR',
+      });
+    });
+  });
+
+  it('surfaces an unreadable nested directory rather than skipping it', async () => {
+    await withTempDir(async (dir) => {
+      await writeSpec(dir, 'platform', 'session-layout');
+      const nested = path.join(dir, 'platform');
+      await fs.chmod(nested, 0o000);
+
+      // Root (and some CI/filesystems) ignore permission bits — skip if not enforced.
+      let enforced = false;
+      try {
+        await fs.readdir(nested);
+      } catch {
+        enforced = true;
+      }
+      if (!enforced) {
+        await fs.chmod(nested, 0o755);
+        return;
+      }
+
+      try {
+        await expect(discoverSpecFiles(dir)).rejects.toMatchObject({
+          code: 'EACCES',
+        });
+      } finally {
+        await fs.chmod(nested, 0o755);
+      }
+    });
+  });
+
+  it('does not follow symlinked directories', async () => {
+    await withTempDir(async (dir) => {
+      await writeSpec(dir, 'real');
+      const target = path.join(dir, 'real');
+      const link = path.join(dir, 'linked');
+      try {
+        await fs.symlink(target, link, 'dir');
+      } catch {
+        // Symlink creation can be unavailable (e.g. Windows without dev mode).
+        return;
+      }
+
+      const found = await discoverSpecFiles(dir);
+      expect(found.map((s) => s.id)).toEqual(['real']);
+    });
+  });
 });
