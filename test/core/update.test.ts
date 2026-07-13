@@ -1493,6 +1493,7 @@ More user content after markers.
         'utf-8'
       );
       expect(skillContent).not.toContain('/opsx:');
+      expect(skillContent).not.toContain('/opsx-');
       expect(skillContent).toContain('/openspec-');
     });
 

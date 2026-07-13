@@ -746,6 +746,7 @@ describe('InitCommand - profile and detection features', () => {
     // Skill content should reference skills, not commands that were never generated
     const skillContent = await fs.readFile(skillFile, 'utf-8');
     expect(skillContent).not.toContain('/opsx:');
+    expect(skillContent).not.toContain('/opsx-');
     expect(skillContent).toContain('/openspec-');
   });
 
