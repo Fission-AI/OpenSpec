@@ -369,7 +369,7 @@ AI:  Reading add-dark-mode artifacts...
 
 ### `/opsx:verify`
 
-Validate that implementation matches your change artifacts. Checks completeness, correctness, and coherence.
+Validate that implementation matches your change artifacts. Checks completeness, correctness, coherence, and relevance.
 
 **Syntax:**
 ```
@@ -382,7 +382,7 @@ Validate that implementation matches your change artifacts. Checks completeness,
 | `change-name` | No | Which change to verify (inferred from context if not provided) |
 
 **What it does:**
-- Checks three dimensions of implementation quality
+- Checks four dimensions of implementation quality
 - Searches codebase for implementation evidence
 - Reports issues categorized as CRITICAL, WARNING, or SUGGESTION
 - Does not block archive, but surfaces issues
@@ -394,6 +394,7 @@ Validate that implementation matches your change artifacts. Checks completeness,
 | **Completeness** | All tasks done, all requirements implemented, scenarios covered |
 | **Correctness** | Implementation matches spec intent, edge cases handled |
 | **Coherence** | Design decisions reflected in code, patterns consistent |
+| **Relevance** | Changed code serves the final implementation, without planning residue |
 
 **Example:**
 ```
@@ -416,15 +417,20 @@ AI:  Verifying add-dark-mode...
      ✓ Naming conventions consistent with design.md
      ⚠ Design mentions "CSS variables" but implementation uses Tailwind classes
 
+     RELEVANCE
+     ✓ New implementation elements map to requirements or necessary infrastructure
+     ⚠ Unused theme adapter remains from an earlier approach
+
      SUMMARY
      ─────────────────────────────
      Critical issues: 0
-     Warnings: 2
+     Warnings: 3
      Ready to archive: Yes (with warnings)
 
      Recommendations:
      1. Add test for system preference detection
      2. Update design.md to reflect Tailwind usage, or refactor to use CSS variables
+     3. Remove the unused theme adapter
 ```
 
 **Tips:**

@@ -97,13 +97,14 @@ Then re-read the part you changed. Re-draft until it's a plan you'd sign your na
 
 ## After the code: verify
 
-Once the work is built, `/opsx:verify` is your second review. It re-reads the artifacts and the code and reports mismatches across three dimensions:
+Once the work is built, `/opsx:verify` is your second review. It re-reads the artifacts and the code and reports mismatches across four dimensions:
 
 | Dimension | What it checks |
 |-----------|----------------|
 | **Completeness** | Every task done, every requirement implemented, scenarios covered |
 | **Correctness** | The implementation matches the spec's intent, edge cases handled |
 | **Coherence** | Design decisions actually show up in the code |
+| **Relevance** | Code introduced by the change still serves the final implementation |
 
 ```
 You: /opsx:verify
