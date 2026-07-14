@@ -347,8 +347,9 @@ tells you which case you're in.
 - **Per-machine state is per-machine.** The store registry, worksets, and
   the upstream-link records that power `list --downstream` are local
   settings. The rollup sees the checkouts on *this* machine — pull your
-  teammates' repos to see their work. Nothing about your machine's layout
-  is ever committed to shared planning.
+  teammates' repos to see their work, or point `list --downstream --scan
+  <dir>` at a directory of clones (stateless; how CI gets the team view).
+  Nothing about your machine's layout is ever committed to shared work.
 - **Two launch styles for worksets.** A tool that can't be launched with a
   workspace file or per-folder attach flags can't be added as an opener.
 - **Agent JSON has a known casing split** (store-family keys are

@@ -65,7 +65,7 @@ Change: `{ "id", "title", "deltaCount", "deltas": [...], "root" }`. Spec: `{ "id
 `{ "changeName", "changeDir", "schemaName", "contextFiles": { "<artifactId>": ["/abs", ...] }, "progress": {total,complete,remaining}, "tasks": [{id,description,done}], "state": "blocked"|"all_done"|"ready", "missingArtifacts"?, "instruction", "schemaNotes"?, "references"?, "upstream"?, "root" }` — `schemaNotes` and `upstream` as in 4.5.
 
 ### 4.7 `new change <name> --json`
-Success: `{ "change": { "id", "path", "metadataPath", "schema" }, "root" }`. Failure: `{ "change": null, "status": [d] }`, exit 1.
+Success: `{ "change": { "id", "path", "metadataPath", "schema" }, "serves"?, "root" }` — `serves` is present when `--serves <ref>` was passed and carries `{ "ref", "resolved", "reference_wiring"?: "added"|"already"|"skipped" }` (`resolved` = the upstream change was found on disk at link time; `reference_wiring` reports the automatic `references:` config edit). Failure: `{ "change": null, "status": [d] }`, exit 1.
 
 ### 4.8 `archive <name> --json`
 Success: `{ "archive": { "change", "archivedAs": "YYYY-MM-DD-name", "path", "specsUpdated", "totals"? }, "root" }`. Failure: `{ "archive": null, "root"?, "status": [d] }`, exit 1. JSON mode is strictly non-interactive: every prompt point becomes an `archive_*` code.

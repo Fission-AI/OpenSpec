@@ -26,13 +26,21 @@ for the apply phase); a file SHALL win over an inline `instruction:` value.
 - **WHEN** any artifact's instructions render
 - **THEN** the notes appear in a `<schema_notes>` block before the artifact guidance
 
-### Requirement: A store can declare its layout
+### Requirement: A store can declare its layout, and the layout is real
 
-Config MAY carry `structure:` — a folder → purpose map. `openspec context`
-and the references index SHALL surface it for the root and for referenced
-stores, so agents learn what non-reserved folders are for without guessing.
+Config MAY carry `structure:` — a map of folders (keys ending `/`) and
+files to their purpose. `openspec context` and the references index SHALL
+surface it; `openspec store setup <id>` SHALL materialize declared entries
+that are missing (seeding markdown files with their purpose, never
+overwriting, confined to `openspec/`); `openspec store doctor` SHALL flag
+declared entries missing on disk.
 
 #### Scenario: Downstream agents see the store's layout
 - **GIVEN** a store whose config declares `structure: { research/: raw inputs }`
 - **WHEN** a referencing repo runs `openspec context`
 - **THEN** the store's member entry lists `research/` with its purpose
+
+#### Scenario: Declared layout materializes on setup
+- **GIVEN** a store whose config declares a folder and a markdown file that do not exist
+- **WHEN** `openspec store setup <id>` runs again
+- **THEN** the folder exists, the file exists seeded with its purpose, and nothing pre-existing was overwritten

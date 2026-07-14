@@ -37,6 +37,28 @@ missing SHALL render visibly; archived targets SHALL be marked as archived.
 - **WHEN** the rollup or a serving change's instructions render
 - **THEN** the link resolves to the archived copy and states that its requirements now live in specs
 
+### Requirement: Rollups work without per-machine state
+
+`openspec list --downstream --scan <dir>` SHALL also scan the directory
+and its immediate subdirectories for serving changes, so a machine with no
+linked-root records (CI) can produce the team rollup from clones alone.
+
+#### Scenario: A CI machine rolls up from fresh clones
+- **GIVEN** a machine with no OpenSpec state, a cloned store registered by path, and code repos cloned under `./checkouts`
+- **WHEN** `openspec list --downstream --store <id> --scan ./checkouts` runs
+- **THEN** serving changes from the scanned clones appear in the rollup
+
+### Requirement: Complete means the whole change
+
+A serving change SHALL count as complete only when its tasks are checked
+off AND (when its schema is resolvable) all of its schema's artifacts
+exist; half-done work SHALL render both counts.
+
+#### Scenario: Checked tasks with missing artifacts is not done
+- **GIVEN** a serving change with all tasks checked but only one of four schema artifacts present
+- **WHEN** the rollup renders
+- **THEN** the change shows as in-progress with both task and artifact counts
+
 ### Requirement: Instructions carry upstream context
 
 Instruction surfaces for a serving change SHALL open with an `<upstream>`
