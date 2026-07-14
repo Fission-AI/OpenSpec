@@ -21,7 +21,9 @@ Format:
   needs at least one scenario.
 
 Specs should be testable — each scenario is a potential acceptance check for
-the downstream work that serves this change.
+the downstream work that serves this change. Every requirement MUST trace to
+something the proposal states; a requirement that traces to nothing is scope
+creep — flag it instead of writing it.
 
 This is the final artifact: there is no design or tasks phase here. Once the
 specs are approved, archive the change to sync them into `specs/`.

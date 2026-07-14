@@ -18,6 +18,14 @@
      Use existing spec names from openspec/specs/. Leave empty if no requirement changes. -->
 - `<existing-name>`: <what requirement is changing>
 
+## Non-goals
+
+<!-- What this deliberately does not include or defers -->
+
+## Success Signals
+
+<!-- 1-3 measurable outcomes: numbers and time bounds, not adjectives -->
+
 ## Impact
 
 <!-- Affected code, APIs, dependencies, systems -->

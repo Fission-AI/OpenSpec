@@ -12,6 +12,11 @@ Sections:
     Use kebab-case names (e.g., `user-auth`, `data-export`).
   - **Modified Capabilities**: existing capabilities whose REQUIREMENTS
     change. Check `openspec/specs/` for existing names. Leave empty if none.
+- **Non-goals**: what this deliberately does NOT include or defers. The
+  explicit deferral list is the single best guard against downstream work
+  building the wrong thing.
+- **Success signals**: 1-3 measurable outcomes — numbers and time bounds,
+  not adjectives.
 - **Impact**: affected systems, teams, or downstream repos.
 
 IMPORTANT: The Capabilities section is the contract with the specs phase —
