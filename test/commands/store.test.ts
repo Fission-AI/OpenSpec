@@ -370,6 +370,50 @@ describe('store command', () => {
     expect(fs.existsSync(getStoreMetadataPath(storeRoot))).toBe(false);
   });
 
+  it('refuses to convert a config-only store pointer repo into a store', async () => {
+    const pointerRoot = mkdir('app-repo');
+    fs.mkdirSync(path.join(pointerRoot, 'openspec'), { recursive: true });
+    fs.writeFileSync(path.join(pointerRoot, 'openspec', 'config.yaml'), 'store: team-context\n');
+
+    const setup = await runCLI(
+      ['store', 'setup', 'app-context', '--path', pointerRoot, '--no-init-git', '--json'],
+      { cwd: tempDir, env }
+    );
+    const register = await runCLI(
+      ['store', 'register', pointerRoot, '--yes', '--json'],
+      { cwd: tempDir, env }
+    );
+
+    expect(setup.exitCode).toBe(1);
+    expect(parseJson(setup).status[0]).toEqual(expect.objectContaining({
+      code: 'store_root_pointer_declared',
+    }));
+    expect(register.exitCode).toBe(1);
+    expect(parseJson(register).status[0]).toEqual(expect.objectContaining({
+      code: 'store_root_pointer_declared',
+    }));
+    expect(fs.existsSync(path.join(pointerRoot, 'openspec', 'specs'))).toBe(false);
+    expect(fs.existsSync(path.join(pointerRoot, 'openspec', 'changes'))).toBe(false);
+    expect(fs.existsSync(getStoreMetadataPath(pointerRoot))).toBe(false);
+  });
+
+  it('refuses malformed config-only store pointer repos before registering', async () => {
+    const pointerRoot = mkdir('bad-app-repo');
+    fs.mkdirSync(path.join(pointerRoot, 'openspec'), { recursive: true });
+    fs.writeFileSync(path.join(pointerRoot, 'openspec', 'config.yaml'), 'store: [team-context]\n');
+
+    const result = await runCLI(
+      ['store', 'register', pointerRoot, '--yes', '--json'],
+      { cwd: tempDir, env }
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(parseJson(result).status[0]).toEqual(expect.objectContaining({
+      code: 'invalid_store_pointer',
+    }));
+    expect(fs.existsSync(getStoreMetadataPath(pointerRoot))).toBe(false);
+  });
+
   it('rejects explicit setup paths inside an existing Git repo in non-interactive mode', async () => {
     const repoRoot = mkdir('repo');
     execFileSync('git', ['init'], { cwd: repoRoot, stdio: 'ignore' });
@@ -513,6 +557,55 @@ describe('store command', () => {
     expect(payload.registry.registered).toBe(true);
     expect(payload.created_files).toEqual([]);
     expect(fs.readFileSync(path.join(storeRoot, 'openspec', 'specs', 'note.md'), 'utf-8')).toBe('keep\n');
+  });
+
+  it('registers a team store before any changes exist', async () => {
+    const storeRoot = mkdir('team-context');
+    fs.mkdirSync(path.join(storeRoot, 'openspec'), { recursive: true });
+    fs.writeFileSync(
+      path.join(storeRoot, 'openspec', 'config.yaml'),
+      `schema: ${DEFAULT_OPENSPEC_SCHEMA}\n`
+    );
+    await writeStoreMetadataState(storeRoot, { version: 1, id: 'team-context' });
+
+    const result = await runCLI(
+      ['store', 'register', storeRoot, '--json'],
+      { cwd: tempDir, env }
+    );
+
+    expect(result.exitCode).toBe(0);
+    const payload = parseJson(result);
+    expect(payload.store.id).toBe('team-context');
+    expect(payload.created_files).toEqual([]);
+    expect(fs.existsSync(path.join(storeRoot, 'openspec', 'changes'))).toBe(false);
+    expect(fs.existsSync(path.join(storeRoot, 'openspec', 'specs'))).toBe(false);
+    expect(fs.existsSync(path.join(storeRoot, 'openspec', 'changes', 'archive'))).toBe(false);
+  });
+
+  it('registers a store with active changes before specs or archive exist', async () => {
+    const storeRoot = mkdir('team-context');
+    fs.mkdirSync(path.join(storeRoot, 'openspec', 'changes', 'add-widget'), { recursive: true });
+    fs.writeFileSync(
+      path.join(storeRoot, 'openspec', 'changes', 'add-widget', 'proposal.md'),
+      '# Proposal\n'
+    );
+    fs.writeFileSync(
+      path.join(storeRoot, 'openspec', 'config.yaml'),
+      `schema: ${DEFAULT_OPENSPEC_SCHEMA}\n`
+    );
+    await writeStoreMetadataState(storeRoot, { version: 1, id: 'team-context' });
+
+    const result = await runCLI(
+      ['store', 'register', storeRoot, '--json'],
+      { cwd: tempDir, env }
+    );
+
+    expect(result.exitCode).toBe(0);
+    const payload = parseJson(result);
+    expect(payload.store.id).toBe('team-context');
+    expect(payload.created_files).toEqual([]);
+    expect(fs.existsSync(path.join(storeRoot, 'openspec', 'specs'))).toBe(false);
+    expect(fs.existsSync(path.join(storeRoot, 'openspec', 'changes', 'archive'))).toBe(false);
   });
 
   it('requires confirmation before registering a healthy root without identity', async () => {
@@ -979,6 +1072,7 @@ describe('store command', () => {
     const storeRoot = mkdir('team-context');
     fs.mkdirSync(path.join(storeRoot, 'openspec', 'specs'), { recursive: true });
     fs.mkdirSync(path.join(storeRoot, 'openspec', 'changes'), { recursive: true });
+    fs.writeFileSync(path.join(storeRoot, 'openspec', 'changes', 'archive'), 'not a dir\n');
     fs.writeFileSync(path.join(storeRoot, 'openspec', 'config.yaml'), `schema: ${DEFAULT_OPENSPEC_SCHEMA}\n`);
     await writeStoreMetadataState(storeRoot, { version: 1, id: 'team-context' });
     await writeStoreRegistryState(
@@ -1006,10 +1100,10 @@ describe('store command', () => {
     expect(store.openspec_root.archive.present).toBe(false);
     expect(store.openspec_root.status[0]).toEqual(
       expect.objectContaining({
-        code: 'openspec_archive_missing',
+        code: 'openspec_archive_not_directory',
       })
     );
-    expect(fs.existsSync(path.join(storeRoot, 'openspec', 'changes', 'archive'))).toBe(false);
+    expect(fs.readFileSync(path.join(storeRoot, 'openspec', 'changes', 'archive'), 'utf-8')).toBe('not a dir\n');
   });
 
   it('register errors are terminal: one-checkout rule, no circular fix texts', async () => {

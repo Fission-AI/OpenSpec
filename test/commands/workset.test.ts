@@ -16,6 +16,7 @@ import {
 import { runCLI, type RunCLIResult } from '../helpers/run-cli.js';
 import { createFakeTool, envWithFakeTools, readLaunchLog } from '../helpers/fake-tool.js';
 import { snapshotDirectory as snapshot } from '../helpers/fs-snapshot.js';
+import { cleanupTempPath } from '../helpers/temp-cleanup.js';
 
 describe('openspec workset (7.1)', () => {
   let tempDir: string;
@@ -56,7 +57,7 @@ describe('openspec workset (7.1)', () => {
 
   afterEach(() => {
     delete process.env.OPENSPEC_ENABLE_CLI_AGENT_OPENERS;
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    cleanupTempPath(tempDir);
   });
 
   function parseJson(result: RunCLIResult): any {
@@ -469,7 +470,7 @@ describe('openspec workset (7.1)', () => {
     it('skips a missing member and falls through to the next primary', async () => {
       await createPlatform(['--tool', 'claude']);
       const fakeClaude = createFakeTool(tempDir, 'claude');
-      fs.rmSync(memberB, { recursive: true, force: true });
+      cleanupTempPath(memberB);
 
       const result = await runCLI(['workset', 'open', 'platform'], {
         cwd: tempDir,
@@ -494,7 +495,7 @@ describe('openspec workset (7.1)', () => {
 
       // Primary missing: the next surviving member becomes cwd, and
       // the reassignment is noted in the skip-line style.
-      fs.rmSync(memberA, { recursive: true, force: true });
+      cleanupTempPath(memberA);
       const second = await runCLI(['workset', 'open', 'platform'], {
         cwd: tempDir,
         env: envWithFakeTools(env, [fakeClaude]),
@@ -508,7 +509,7 @@ describe('openspec workset (7.1)', () => {
       );
 
       // No member survives: a typed failure.
-      fs.rmSync(memberC, { recursive: true, force: true });
+      cleanupTempPath(memberC);
       const third = await runCLI(['workset', 'open', 'platform'], {
         cwd: tempDir,
         env: envWithFakeTools(env, [fakeClaude]),
@@ -871,7 +872,7 @@ describe('interactive compose cancellation (in-process)', () => {
     restoreTTY?.();
     process.env = originalEnv;
     process.exitCode = originalExitCode;
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    cleanupTempPath(tempDir);
   });
 
   function exitPromptError(): Error {
