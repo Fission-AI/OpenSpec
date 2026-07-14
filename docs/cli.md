@@ -44,20 +44,20 @@ These commands support `--json` output for programmatic use by AI agents and scr
 
 | Command | Human Use | Agent Use |
 |---------|-----------|-----------|
-| `openspec list` | Browse changes/specs | `--json` for structured data |
+| `openspec list` | Browse changes/specs; `--downstream` for the upstream rollup | `--json` for structured data |
 | `openspec show <item>` | Read content | `--json` for parsing |
 | `openspec validate` | Check for issues | `--all --json` for bulk validation |
 | `openspec status` | See artifact progress | `--json` for structured status |
 | `openspec instructions` | Get next steps | `--json` for agent instructions |
 | `openspec templates` | Find template paths | `--json` for path resolution |
-| `openspec schemas` | List available schemas | `--json` for schema discovery |
+| `openspec schemas` | List available schemas (including ones inherited from referenced stores) | `--json` for schema discovery |
 | `openspec store setup <id>` | Create and register a local store | `--json` with explicit inputs for structured setup output |
 | `openspec store register <path>` | Register an existing store | `--json` for structured registration output |
 | `openspec store unregister <id>` | Forget a local store registration | `--json` for structured cleanup output |
 | `openspec store remove <id>` | Delete a registered local store folder | `--yes --json` for non-interactive deletion |
 | `openspec store list` | Browse registered stores | `--json` for structured registrations |
 | `openspec store doctor` | Check local store setup | `--json` for structured diagnostics |
-| `openspec new change <id>` | Create repo-local change scaffolding | `--json`, plus `--store <id>` to use a registered store as the OpenSpec root |
+| `openspec new change <id>` | Create change scaffolding; `--serves <ref>` links it to upstream work | `--json`, plus `--store <id>` to use a registered store as the OpenSpec root |
 | `openspec workset create [name]` | Compose a personal working view | `--member <path> --json` for non-interactive composition |
 | `openspec workset list` | Browse saved worksets | `--json` for structured views |
 | `openspec workset remove <name>` | Delete a saved view | `--yes --json` for non-interactive removal |
@@ -202,15 +202,15 @@ openspec store setup [id] [options]
 | `--no-init-git` | Skip every Git action: no init, no initial commit |
 | `--json` | Output JSON |
 
-Non-interactive runs (`--json`, scripts, agents) must pass both the store id and `--path`. In an interactive terminal, setup prompts for the location with an editable suggestion in a visible, user-owned place (for example `~/openspec/<id>`); it never defaults to OpenSpec's managed data directory.
+`--path` is optional: setup defaults to `~/openspec/<id>` (interactive runs prompt with that suggestion prefilled). A fresh store's changes default to the built-in `requirements` workflow — see the [upstream work guide](stores-beta/upstream-work.md).
 
 Examples:
 
 ```bash
 openspec store setup
 openspec store setup team-context
-openspec store setup team-context --path ~/openspec/team-context --no-init-git
-openspec store setup team-context --path ~/openspec/team-context --no-init-git --json
+openspec store setup team-context --no-init-git
+openspec store setup team-context --path ~/plans/team-context --json
 ```
 
 ### `openspec store register`
@@ -390,7 +390,10 @@ openspec list [options]
 |--------|-------------|
 | `--specs` | List specs instead of changes |
 | `--changes` | List changes (default) |
+| `--downstream` | Show the root's changes and every change on this machine that serves them |
+| `--scan <dir>` | With `--downstream`: also scan a directory of checkouts — stateless, for CI (repeatable) |
 | `--sort <order>` | Sort by `recent` (default) or `name` |
+| `--store <id>` | Store id to use as the OpenSpec root |
 | `--json` | Output as JSON |
 
 **Examples:**
@@ -401,6 +404,9 @@ openspec list
 
 # List all specs
 openspec list --specs
+
+# Where does the team's upstream work stand?
+openspec list --downstream --store team-plans
 
 # JSON output for scripts
 openspec list --json
@@ -639,14 +645,21 @@ prefix it with a word, for example `ticket-123-add-notifications` instead of
 | `--description <text>` | Description to add to `README.md` |
 | `--goal <text>` | Optional goal metadata to store with the change |
 | `--schema <name>` | Workflow schema to use |
+| `--serves <ref>` | Link this change to the work it serves: `<change>` or `<store-id>/<change>` |
 | `--store <id>` | Store id to use as the OpenSpec root (a store is a standalone OpenSpec repo you've registered) |
 | `--json` | Output JSON |
+
+`--serves` records the link in the change's metadata and wires everything
+else automatically: the repo is recorded (machine-local) so
+`openspec list --downstream` finds it, and the store is added to the repo's
+`references:` so agents there see its context.
 
 Examples:
 
 ```bash
 openspec new change add-billing-api
 openspec new change add-billing-api --store team-context --json
+openspec new change add-billing-ui --serves team-context/billing-revamp
 ```
 
 ### `openspec status`
@@ -804,6 +817,8 @@ Templates:
 ### `openspec schemas`
 
 List available workflow schemas with their descriptions and artifact flows.
+Includes schemas inherited from referenced stores, labeled with their
+source store.
 
 ```
 openspec schemas [options]
@@ -813,6 +828,7 @@ openspec schemas [options]
 
 | Option | Description |
 |--------|-------------|
+| `--store <id>` | Store id to use as the OpenSpec root |
 | `--json` | Output as JSON |
 
 **Example:**
@@ -860,11 +876,18 @@ openspec schema init <name> [options]
 | Option | Description |
 |--------|-------------|
 | `--description <text>` | Schema description |
-| `--artifacts <list>` | Comma-separated artifact IDs (default: `proposal,specs,design,tasks`) |
+| `--artifacts <list>` | Comma-separated stage ids **in workflow order** — built-in (`proposal,specs,design,tasks`) or custom kebab-case names; each stage requires the previous |
 | `--default` | Set as project default schema |
 | `--no-default` | Don't prompt to set as default |
 | `--force` | Overwrite existing schema |
+| `--store <id>` | Store id to use as the OpenSpec root (scaffold into a registered store) |
 | `--json` | Output as JSON |
+
+Each artifact is one stage of the workflow, ordered by `requires:` in
+`schema.yaml`. The scaffold includes `instructions/<artifact>.md` files —
+per-stage guidance agents receive, seeded from the built-in workflow — and
+`templates/` for each stage's output shape. `--default` sets `schema: <name>`
+in the root's `openspec/config.yaml`.
 
 **Examples:**
 

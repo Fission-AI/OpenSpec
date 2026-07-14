@@ -6,6 +6,7 @@
 
 import chalk from 'chalk';
 import { listSchemasWithInfo } from '../../core/artifact-graph/index.js';
+import { resolveRootForCommand } from '../../core/root-selection.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -13,6 +14,8 @@ import { listSchemasWithInfo } from '../../core/artifact-graph/index.js';
 
 export interface SchemasOptions {
   json?: boolean;
+  store?: string;
+  storePath?: string;
 }
 
 // -----------------------------------------------------------------------------
@@ -20,8 +23,18 @@ export interface SchemasOptions {
 // -----------------------------------------------------------------------------
 
 export async function schemasCommand(options: SchemasOptions): Promise<void> {
-  const projectRoot = process.cwd();
-  const schemas = listSchemasWithInfo(projectRoot);
+  // Resolve the OpenSpec root the same way normal commands do, so
+  // `--store <id>` lists a store's schemas and a repo's own schemas are
+  // still found when no store is selected. The JSON shape stays a bare
+  // array (per the agent contract); only which root is read changes.
+  const root = await resolveRootForCommand(options, {
+    json: options.json,
+    failurePayload: {},
+  });
+  if (!root) {
+    return;
+  }
+  const schemas = listSchemasWithInfo(root.path);
 
   if (options.json) {
     console.log(JSON.stringify(schemas, null, 2));
@@ -35,6 +48,8 @@ export async function schemasCommand(options: SchemasOptions): Promise<void> {
     let sourceLabel = '';
     if (schema.source === 'project') {
       sourceLabel = chalk.cyan(' (project)');
+    } else if (schema.source === 'store') {
+      sourceLabel = chalk.cyan(` (from store '${schema.store}')`);
     } else if (schema.source === 'user') {
       sourceLabel = chalk.dim(' (user override)');
     }

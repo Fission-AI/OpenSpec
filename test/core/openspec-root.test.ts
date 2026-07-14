@@ -11,6 +11,36 @@ import {
 } from '../../src/core/index.js';
 
 describe('OpenSpec root helper', () => {
+  it('materializes declared structure: folders and seeded files, never overwriting', async () => {
+    const root = path.join(tempDir, 'structured-store');
+    fs.mkdirSync(path.join(root, 'openspec'), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, 'openspec', 'config.yaml'),
+      [
+        'schema: spec-driven',
+        'structure:',
+        '  research/: raw inputs',
+        '  decisions/adr-template.md: the shape of a decision record',
+        '  ../escape/: must be skipped',
+      ].join('\n') + '\n'
+    );
+    fs.mkdirSync(path.join(root, 'openspec', 'research'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'openspec', 'research', 'kept.md'), 'existing\n');
+
+    const result = await ensureOpenSpecRoot(root, { anchorEmptyDirectories: true });
+
+    // Declared file seeded with its purpose; existing content untouched;
+    // escaping keys ignored.
+    expect(
+      fs.readFileSync(path.join(root, 'openspec', 'decisions', 'adr-template.md'), 'utf-8')
+    ).toContain('the shape of a decision record');
+    expect(fs.readFileSync(path.join(root, 'openspec', 'research', 'kept.md'), 'utf-8')).toBe(
+      'existing\n'
+    );
+    expect(fs.existsSync(path.join(root, 'escape'))).toBe(false);
+    expect(result.createdArtifacts).toContain('openspec/decisions/adr-template.md');
+  });
+
   let tempDir: string;
 
   beforeEach(() => {

@@ -51,6 +51,8 @@ export interface ChangeContext {
   changeDir: string;
   /** Project root directory */
   projectRoot: string;
+  /** Workflow-level guidance from the schema's `notes:` field */
+  schemaNotes?: string;
   /** Resolved planning home for this change */
   planningHome?: PlanningHome;
   /** Parsed change metadata, when present */
@@ -86,6 +88,8 @@ export interface ArtifactInstructions {
   description: string;
   /** Guidance on how to create this artifact (from schema instruction field) */
   instruction: string | undefined;
+  /** Workflow-level guidance from the schema's `notes:` field */
+  schemaNotes?: string;
   /** Project context from config (constraints/background for AI, not to be included in output) */
   context: string | undefined;
   /** Artifact-specific rules from config (constraints for AI, not to be included in output) */
@@ -244,6 +248,7 @@ export function loadChangeContext(
     changeName,
     changeDir,
     projectRoot,
+    ...(schema.notes ? { schemaNotes: schema.notes } : {}),
     ...(options.planningHome ? { planningHome: options.planningHome } : {}),
     ...(metadata ? { metadata } : {}),
   };
@@ -332,6 +337,7 @@ export function generateInstructions(
     existingOutputPaths: resolveArtifactOutputs(context.changeDir, artifact.generates),
     description: artifact.description,
     instruction: artifact.instruction,
+    ...(context.schemaNotes ? { schemaNotes: context.schemaNotes } : {}),
     context: configContext,
     rules: configRules,
     ...(options.references !== undefined ? { references: options.references } : {}),

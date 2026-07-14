@@ -50,7 +50,7 @@ ${STORE_SELECTION_GUIDANCE}
    - Dynamic instruction based on current state
 
    **Handle states:**
-   - If \`state: "blocked"\` (missing artifacts): show message, suggest using openspec-continue-change
+   - If \`state: "blocked"\` (missing artifacts): show message, create each missing artifact via \`openspec instructions <artifact> --change <name>\` (never point at a skill that may not be installed)
    - If \`state: "all_done"\`: congratulate, suggest archive
    - Otherwise: proceed to implementation
 
@@ -210,7 +210,7 @@ ${STORE_SELECTION_GUIDANCE}
    - Dynamic instruction based on current state
 
    **Handle states:**
-   - If \`state: "blocked"\` (missing artifacts): show message, suggest using \`/opsx:continue\`
+   - If \`state: "blocked"\` (missing artifacts): show message, create each missing artifact via \`openspec instructions <artifact> --change <name>\` (never point at a skill that may not be installed)
    - If \`state: "all_done"\`: congratulate, suggest archive
    - Otherwise: proceed to implementation
 

@@ -158,6 +158,7 @@ rules:
 | Command | What it does |
 |---------|--------------|
 | `/opsx:propose` | Create a change and generate planning artifacts in one step (default quick path) |
+| `/opsx:store` | One door to shared upstream work: set up a store, draft, link with `--serves`, status, archive (stores beta) |
 | `/opsx:explore` | Think through ideas, investigate problems, clarify requirements |
 | `/opsx:new` | Start a new change scaffold (expanded workflow) |
 | `/opsx:continue` | Create the next artifact (expanded workflow) |

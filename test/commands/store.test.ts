@@ -164,8 +164,10 @@ describe('store command', () => {
     ]);
     expect(payload.status).toEqual([]);
     expectHealthyOpenSpecRoot(storeRoot);
+    // A fresh store defaults to the documentation-only workflow: its
+    // changes are shared upstream requirements, not code changes.
     expect(fs.readFileSync(path.join(storeRoot, 'openspec', 'config.yaml'), 'utf-8')).toContain(
-      `schema: ${DEFAULT_OPENSPEC_SCHEMA}`
+      'schema: requirements'
     );
     expectNoGeneratedAgentOrBetaArtifacts(storeRoot);
     await expect(readStoreMetadataState(storeRoot)).resolves.toEqual({
@@ -229,18 +231,23 @@ describe('store command', () => {
     expect(process.exitCode).toBeUndefined();
   });
 
-  it('requires an explicit path for non-interactive JSON setup', async () => {
-    const result = await runCLI(['store', 'setup', 'team-context', '--json'], {
-      cwd: tempDir,
-      env,
-    });
-
-    expect(result.exitCode).toBe(1);
-    expect(parseJson(result).status[0]).toEqual(
-      expect.objectContaining({
-        code: 'store_setup_path_required',
-      })
+  it('defaults the path to ~/openspec/<id> for non-interactive JSON setup', async () => {
+    const result = await runCLI(
+      ['store', 'setup', 'team-context', '--no-init-git', '--json'],
+      // Both spellings: os.homedir() reads HOME on POSIX, USERPROFILE on Windows.
+      { cwd: tempDir, env: { ...env, HOME: tempDir, USERPROFILE: tempDir } }
     );
+
+    expect(result.exitCode).toBe(0);
+    const storeRoot = path.join(
+      expectedExistingPath(tempDir),
+      'openspec',
+      'team-context'
+    );
+    expect(parseJson(result).store.root).toBe(storeRoot);
+    expect(fs.existsSync(getStoreMetadataPath(storeRoot))).toBe(true);
+    expectHealthyOpenSpecRoot(storeRoot);
+    // The default is a visible user-owned location, never the managed data dir.
     expect(
       fs.existsSync(path.join(getStoresDir({ globalDataDir }), 'team-context'))
     ).toBe(false);

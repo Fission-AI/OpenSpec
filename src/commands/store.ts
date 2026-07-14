@@ -269,25 +269,18 @@ async function resolveSetupInput(
     );
   }
 
-  if (options.path === undefined && !interactive) {
-    throw new StoreError(
-      'Pass --path with the folder where this store should live.',
-      'store_setup_path_required',
-      {
-        target: 'store.root',
-        fix: `openspec store setup ${id ?? '<id>'} --path ~/openspec/${id ?? '<id>'}`,
-      }
-    );
-  }
-
   const resolvedId = id ? validateStoreId(id) : await promptStoreId();
-  const promptedPath = options.path === undefined
-    ? await promptStorePath(resolvedId)
-    : undefined;
+  // No --path needed: interactive prompts with ~/openspec/<id> prefilled;
+  // non-interactive defaults to the same place, so setup is one command.
+  const resolvedPath =
+    options.path ??
+    (interactive
+      ? await promptStorePath(resolvedId)
+      : ['~', 'openspec', resolvedId].join('/'));
 
   return {
     id: resolvedId,
-    path: options.path ?? promptedPath,
+    path: resolvedPath,
     ...(options.remote !== undefined ? { remote: options.remote } : {}),
   };
 }
@@ -405,8 +398,10 @@ function printMutationHuman(
     console.log(`${status.severity === 'error' ? 'Issue' : 'Note'}: ${status.message}`);
   }
   console.log('');
-  console.log('Next: run normal OpenSpec commands against this store, for example:');
-  console.log(`  openspec new change <change-id> --store ${payload.store.id}`);
+  console.log('Next:');
+  console.log(`  openspec new change <name> --store ${payload.store.id}     # draft requirements here`);
+  console.log(`  openspec new change <name> --serves ${payload.store.id}/<change>   # in any repo: link work to them`);
+  console.log(`  openspec list --downstream --store ${payload.store.id}     # where everything stands`);
   if (payload.git.is_repository) {
     const shareRemote = remotes?.canonical ?? remotes?.observed;
     console.log(
@@ -673,7 +668,7 @@ export function registerStoreCommand(program: Command): void {
     .option('--path <path>', 'Folder where the store should live (for example ~/openspec/<id>)')
     .option('--init-git', 'Initialize a Git repository with an initial commit (default)')
     .option('--no-init-git', 'Skip every Git action: no init, no initial commit')
-    .option('--remote <url>', 'Canonical clone source recorded in store.yaml')
+    .option('--remote <url>', 'Canonical clone source recorded in .openspec-store/store.yaml')
     .option('--json', 'Output as JSON')
     .action(async (id: string | undefined, options: StoreSetupOptions) => {
       await storeCommand.setup(id, options);

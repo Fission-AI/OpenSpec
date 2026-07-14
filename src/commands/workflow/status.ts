@@ -145,6 +145,11 @@ export function printStatusText(status: ChangeStatus): void {
     console.log(line);
   }
 
+  if (status.artifacts.some((a) => a.status === 'blocked')) {
+    console.log();
+    console.log(chalk.dim('[x] done · [ ] ready · [-] blocked'));
+  }
+
   if (status.isComplete) {
     console.log();
     console.log(chalk.green('All artifacts complete!'));

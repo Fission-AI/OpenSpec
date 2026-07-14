@@ -45,7 +45,7 @@ Successful JSON payloads embed the root:
 ## 4. Command JSON shapes
 
 ### 4.1 `list --json`
-`{ "changes": [ { "name", "completedTasks", "totalTasks", "lastModified", "status": "no-tasks"|"complete"|"in-progress" } ], "root": RootOutput }` — note the per-change `status` is a string enum here. `--specs`: `{ "specs": [ { "id", "requirementCount" } ], "root" }`.
+`{ "changes": [ { "name", "completedTasks", "totalTasks", "lastModified", "status": "no-tasks"|"complete"|"in-progress" } ], "root": RootOutput }` — note the per-change `status` is a string enum here. `--specs`: `{ "specs": [ { "id", "requirementCount" } ], "root" }`. `--downstream`: `{ "downstream": { "path", "upstream": [ { "id", "exists", "archived", "changes": [ { "id", "store"?, "repo"?, "completedTasks", "totalTasks", "completedArtifacts"?, "totalArtifacts"?, "state": "complete"|"in-progress"|"no-tasks" } ], "changesComplete", "changesTotal", "tasksComplete", "tasksTotal" } ] } | null, "root" }` — `downstream` is null when the root has no `openspec/changes/` folder; each `upstream` entry is one of the root's changes plus every change on this machine that serves it. Serving changes are discovered by scanning `.openspec.yaml` files for `serves: <change>` (the root's own changes) and `serves: <store-id>/<change>` (changes in other registered roots and linked repos pointing at this store's change); `"exists": false` marks a ref whose target change is not on disk, `"archived": true` one whose target has been archived; `state: "complete"` requires tasks checked off AND (when the serving change's schema is readable) all artifacts present — `completedArtifacts`/`totalArtifacts` carry the artifact-graph progress and are absent when the schema cannot be resolved; `changes[].store`/`changes[].repo` name where a serving change lives, absent = the rolled-up root. `--scan <dir>` (repeatable, with `--downstream`) additionally scans the directory and its immediate subdirectories for serving changes — stateless, for machines with no linked-root records (CI). Outside any root (and without `--store`), the command answers with registered store rollups instead: `{ "downstream": null, "stores": [ { "store", "rollup": <same shape as downstream> } ], "root": null }`.
 
 ### 4.2 `show <item> --json`
 Change: `{ "id", "title", "deltaCount", "deltas": [...], "root" }`. Spec: `{ "id", "title", "overview", "requirementCount", "requirements": [...], "metadata": { "version", "format", "sourcePath"? }, "root" }`.
@@ -57,15 +57,15 @@ Change: `{ "id", "title", "deltaCount", "deltas": [...], "root" }`. Spec: `{ "id
 `{ "changeName", "schemaName", "planningHome"?: { "kind", "root", "changesDir", "defaultSchema" }, "changeRoot", "artifactPaths": { "<id>": {outputPath, resolvedOutputPath, existingOutputPaths} }, "nextSteps": ["..."], "actionContext": { "mode": "repo-local", "sourceOfTruth": "repo", "planningArtifacts", "linkedContext", "allowedEditRoots", "requiresAffectedAreaSelection", "constraints" }, "isComplete", "applyRequires", "artifacts": [ {id, outputPath, status: "done"|"ready"|"blocked", missingDeps?} ], "root" }`. No active changes: `{ "changes": [], "message", "root" }`, exit 0.
 
 ### 4.5 `instructions <artifact> --json`
-`{ "changeName", "artifactId", "schemaName", "changeDir", "planningHome"?, "outputPath", "resolvedOutputPath", "existingOutputPaths", "description", "instruction"?, "context"?, "rules"?, "references"?: ReferenceIndexEntry[], "template", "dependencies": [{id,done,path,description}], "unlocks", "root" }`.
+`{ "changeName", "artifactId", "schemaName", "changeDir", "planningHome"?, "outputPath", "resolvedOutputPath", "existingOutputPaths", "description", "instruction"?, "schemaNotes"?, "context"?, "rules"?, "references"?: ReferenceIndexEntry[], "upstream"?, "template", "dependencies": [{id,done,path,description}], "unlocks", "root" }` — `schemaNotes` carries the schema's top-level `notes:` verbatim; `upstream` is present when the change's metadata declares `serves:` and carries `{ "ref", "changeId", "store"?, "path": string|null, "archived" }` (path null = link is stale or the store is not registered here).
 
-`ReferenceIndexEntry`: `{ "store_id", "root"?, "specs"?: [{id,summary}], "fetch"?, "status": [] }` — resolved entries carry root/specs/fetch; unresolved carry store_id + warning status. Index capped at 50KB (`reference_index_truncated`).
+`ReferenceIndexEntry`: `{ "store_id", "root"?, "specs"?: [{id,summary}], "schemas"?: [{id,summary,artifacts}], "changes"?: [string], "structure"?: {"<folder>": "<purpose>"}, "fetch"?, "status": [] }` — resolved entries carry root/specs/fetch; `schemas` (the store's own project-local artifact types), `changes` (its in-motion change ids), and `structure` (its config-declared folder purposes) are present only when the store defines them; unresolved carry store_id + warning status. Index capped at 50KB (`reference_index_truncated`).
 
 ### 4.6 `instructions apply --json`
-`{ "changeName", "changeDir", "schemaName", "contextFiles": { "<artifactId>": ["/abs", ...] }, "progress": {total,complete,remaining}, "tasks": [{id,description,done}], "state": "blocked"|"all_done"|"ready", "missingArtifacts"?, "instruction", "references"?, "root" }`.
+`{ "changeName", "changeDir", "schemaName", "contextFiles": { "<artifactId>": ["/abs", ...] }, "progress": {total,complete,remaining}, "tasks": [{id,description,done}], "state": "blocked"|"all_done"|"ready", "missingArtifacts"?, "instruction", "schemaNotes"?, "references"?, "upstream"?, "root" }` — `schemaNotes` and `upstream` as in 4.5.
 
 ### 4.7 `new change <name> --json`
-Success: `{ "change": { "id", "path", "metadataPath", "schema" }, "root" }`. Failure: `{ "change": null, "status": [d] }`, exit 1.
+Success: `{ "change": { "id", "path", "metadataPath", "schema" }, "serves"?, "root" }` — `serves` is present when `--serves <ref>` was passed and carries `{ "ref", "resolved", "reference_wiring"?: "added"|"already"|"skipped" }` (`resolved` = the upstream change was found on disk at link time; `reference_wiring` reports the automatic `references:` config edit). Failure: `{ "change": null, "status": [d] }`, exit 1.
 
 ### 4.8 `archive <name> --json`
 Success: `{ "archive": { "change", "archivedAs": "YYYY-MM-DD-name", "path", "specsUpdated", "totals"? }, "root" }`. Failure: `{ "archive": null, "root"?, "status": [d] }`, exit 1. JSON mode is strictly non-interactive: every prompt point becomes an `archive_*` code.
@@ -74,13 +74,13 @@ Success: `{ "archive": { "change", "archivedAs": "YYYY-MM-DD-name", "path", "spe
 `{ "root": { "path", "source", "store_id"?, "healthy", "status": [] }, "store": { "id", "metadata": {present,valid,remote?}, "origin_url"?, "status": [] } | null, "references": [...], "status": [] }`. Health findings of any severity exit 0. Failure payload: `{ "root": null, "store": null, "references": [], "status": [d] }`, exit 1.
 
 ### 4.10 `context --json`
-`{ "root": { "path", "source", "store_id"?, "role": "openspec_root" }, "members": [ { "role": "referenced_store", "id", "path"?, "remote"?, "fetch"?, "status": [] } ], "status": [] }`. AVAILABLE = path present AND status empty. `--code-workspace <path>` writes `{folders:[{name,path}]}` (available referenced stores only, `ref:` prefixes); in JSON mode the write runs before printing so stdout holds exactly one document even on write failure. Failure: `{ "root": null, "members": [], "status": [d] }`, exit 1.
+`{ "root": { "path", "source", "store_id"?, "role": "openspec_root" }, "members": [ { "role": "referenced_store", "id", "path"?, "remote"?, "fetch"?, "artifactTypes"?: [string], "changes"?: [string], "structure"?: {"<folder>": "<purpose>"}, "status": [] } ], "status": [] }`. AVAILABLE = path present AND status empty. `artifactTypes` (the store's own project-local schema names), `changes` (its in-motion change ids), and `structure` (its config-declared layout — keys ending `/` are folders, other keys files) are present only on available members whose store defines them. `--code-workspace <path>` writes `{folders:[{name,path}]}` (available referenced stores only, `ref:` prefixes); in JSON mode the write runs before printing so stdout holds exactly one document even on write failure. Failure: `{ "root": null, "members": [], "status": [d] }`, exit 1.
 
 ### 4.11 `store ... --json`
 setup/register: `{ "store": {id, root, metadata_path?}, "registry": {path, registered, already_registered}, "git": {is_repository, initialized, committed}, "created_files": [], "status": [] }`. unregister/remove: `{ "store", "registry": {path, removed}, "files": {deleted, deleted_path, left_on_disk}, "status": [] }`. list: `{ "stores": [{id, root}], "status": [] }`. doctor: `{ "stores": [ { id, root, metadata_path?, openspec_root: {...healthy, status}, metadata: {present, valid, id?, remote}, git: {is_repository, has_commits, has_uncommitted_changes, has_remote, origin_url}, status } ], "status": [] }` (`null` = unknown/not probed). Health findings exit 0; failures exit 1 with the matching null-shape. Prompt cancellation exits 130.
 
 ### 4.12 `schemas --json` / `templates --json`
-`schemas`: bare array `[ {name, description, artifacts, source} ]`. `templates`: keyed object `{ "<artifactId>": {path, source} }`. Both cwd-based, no root/status keys.
+`schemas`: bare array `[ {name, description, artifacts, source, store?} ]` — `source` is `project|store|user|package`; `store` names the referenced store an inherited schema comes from. Supports `--store <id>` to list a store's schemas (success stays a bare array; a store-resolution failure emits `{status: [...]}` like other commands). `templates`: keyed object `{ "<artifactId>": {path, source} }`, cwd-based, no `--store`.
 
 ## 5. Exit-code contract
 
@@ -133,5 +133,5 @@ Recorded by the capstone audit; published-key renames are product decisions defe
 4. Four parallel envelope type declarations exist in src; archive diagnostics never carry `target`.
 5. `list --json` reuses the `status` key as a string enum per change.
 6. Only `validate` output carries a `version` field.
-7. `schemas`/`templates` ignore root selection (cwd-based, no `--store`).
+7. `schemas` honors root selection (`--store <id>` lists a store's schemas); `templates` is still cwd-based (no `--store`).
 8. Deprecated noun forms (`change`/`spec` subcommands) emit unenveloped payloads without `root`/`status`.

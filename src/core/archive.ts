@@ -1,6 +1,8 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
+import { resolveSchemaForChange } from '../utils/change-metadata.js';
+import { resolveSchema } from './artifact-graph/resolver.js';
 import { Validator } from './validation/validator.js';
 import chalk from 'chalk';
 import {
@@ -345,7 +347,12 @@ export class ArchiveCommand {
     // Show progress and check for incomplete tasks
     const progress = await getTaskProgressForChange(changesDir, changeName, path.resolve(changesDir, '..', '..'));
     if (!json) {
-      const status = formatTaskStatus(progress);
+      // "No tasks" reads like a warning when the schema deliberately has
+      // no tasks phase — say so instead.
+      const status =
+        progress.total === 0 && !schemaTracksTasks(path.join(changesDir, changeName))
+          ? 'not tracked by this schema'
+          : formatTaskStatus(progress);
       console.log(`Task status: ${status}`);
     }
 
@@ -567,5 +574,25 @@ export class ArchiveCommand {
   private getArchiveDate(): string {
     // Returns date in YYYY-MM-DD format
     return new Date().toISOString().split('T')[0];
+  }
+}
+
+/**
+ * Whether the change's workflow schema has a tasks phase at all — an
+ * artifact generating tasks.md or an apply phase tracking one. Tolerant:
+ * unresolvable schemas count as tracking, so phrasing can only soften for
+ * schemas we can actually read.
+ */
+function schemaTracksTasks(changeDir: string): boolean {
+  try {
+    const projectRoot = path.dirname(path.dirname(path.dirname(changeDir)));
+    const schemaName = resolveSchemaForChange(changeDir, undefined, projectRoot);
+    const schema = resolveSchema(schemaName, projectRoot);
+    return (
+      schema.artifacts.some((artifact) => artifact.generates.endsWith('tasks.md')) ||
+      Boolean(schema.apply?.tracks)
+    );
+  } catch {
+    return true;
   }
 }

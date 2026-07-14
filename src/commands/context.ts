@@ -26,6 +26,10 @@ import { COMMAND_REGISTRY } from '../core/completions/command-registry.js';
 import { COMMON_FLAGS } from '../core/completions/shared-flags.js';
 import { emitFailure, printJson } from './shared-output.js';
 import { gatherRelationshipData } from './shared-gather.js';
+import { listSchemasWithInfo } from '../core/artifact-graph/index.js';
+import { listActiveChangeIds } from '../core/upstream.js';
+import { readProjectConfig } from '../core/project-config.js';
+import { schemasFetchRecipe, changesFetchRecipe } from '../core/references.js';
 
 const FAILURE_PAYLOAD = { root: null, members: [] };
 
@@ -59,6 +63,52 @@ function memberLine(member: WorkingSetMember): string {
   return `  ${member.id}  ${member.path}`;
 }
 
+/**
+ * Enrich available referenced-store members with the store's own custom
+ * artifact types and in-motion changes, so `context` reports what a repo
+ * draws on beyond specs. Read-only; failures degrade to an unenriched member.
+ */
+async function enrichMembersWithStoreArtifacts(
+  workingSet: WorkingSet
+): Promise<void> {
+  for (const member of workingSet.members) {
+    if (member.role !== 'referenced_store' || !isAvailableMember(member)) {
+      continue;
+    }
+    const storeRoot = member.path as string;
+    try {
+      const artifactTypes = listSchemasWithInfo(storeRoot)
+        .filter((schema) => schema.source === 'project')
+        .map((schema) => schema.name);
+      if (artifactTypes.length > 0) {
+        member.artifactTypes = artifactTypes;
+      }
+    } catch {
+      // Unreadable schemas dir: leave the member unenriched.
+    }
+    try {
+      // In-motion change ids: specs say what is true; these say what the
+      // team there is currently deciding.
+      const changeIds = await listActiveChangeIds(storeRoot);
+      if (changeIds.length > 0) {
+        member.changes = changeIds;
+      }
+    } catch {
+      // Unreadable changes dir: leave the member unenriched.
+    }
+    try {
+      // The store's declared layout (config `structure:`), so agents know
+      // what its non-reserved folders are for without spelunking.
+      const structure = readProjectConfig(storeRoot)?.structure;
+      if (structure && Object.keys(structure).length > 0) {
+        member.structure = structure;
+      }
+    } catch {
+      // Unreadable config: leave the member unenriched.
+    }
+  }
+}
+
 function printHumanWorkingSet(workingSet: WorkingSet, declaredReferenceCount: number): void {
   const rootLabel = workingSet.root.store_id ?? path.basename(workingSet.root.path);
   console.log(`Working context for ${rootLabel} (${workingSet.root.path})`);
@@ -78,6 +128,21 @@ function printHumanWorkingSet(workingSet: WorkingSet, declaredReferenceCount: nu
       console.log(memberLine(member));
       if (member.fetch) {
         console.log(`    Fetch: ${member.fetch}`);
+      }
+      if (member.artifactTypes && member.artifactTypes.length > 0) {
+        console.log(
+          `    Artifact types: ${member.artifactTypes.join(', ')}  (${schemasFetchRecipe(member.id)})`
+        );
+      }
+      if (member.changes && member.changes.length > 0) {
+        console.log(
+          `    In motion: ${member.changes.join(', ')}  (${changesFetchRecipe(member.id)})`
+        );
+      }
+      if (member.structure && Object.keys(member.structure).length > 0) {
+        for (const [folder, purpose] of Object.entries(member.structure)) {
+          console.log(`    Layout: ${folder} — ${purpose}`);
+        }
       }
     }
   }
@@ -190,6 +255,7 @@ export function registerContextCommand(program: Command): void {
           }
 
           const { workingSet, declaredReferenceCount } = await gatherWorkingSet(root);
+          await enrichMembersWithStoreArtifacts(workingSet);
 
           if (options.json) {
             // The write runs FIRST: a write failure must leave stdout

@@ -355,6 +355,32 @@ describe('artifact-workflow CLI commands', () => {
       });
     });
 
+    it('writes the upward serves link for --serves', async () => {
+      const result = await runCLI(
+        ['new', 'change', 'serving-change', '--serves', 'billing-launch'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).toBe(0);
+
+      const metadata = await fs.readFile(
+        path.join(changesDir, 'serving-change', '.openspec.yaml'),
+        'utf-8'
+      );
+      expect(metadata).toContain('serves: billing-launch');
+    });
+
+    it('rejects a malformed --serves ref and writes no change', async () => {
+      const result = await runCLI(
+        ['new', 'change', 'bad-serves', '--serves', 'a/b/c'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).toBe(1);
+      expect(getOutput(result)).toContain('serves must be a kebab-case change id');
+      await expect(fs.stat(path.join(changesDir, 'bad-serves'))).rejects.toMatchObject({
+        code: 'ENOENT',
+      });
+    });
+
     it('rejects --areas and writes no affected-area metadata', async () => {
       const result = await runCLI(['new', 'change', 'area-change', '--areas', 'api'], {
         cwd: tempDir,

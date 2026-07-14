@@ -130,6 +130,63 @@ describe('reference index assembly', () => {
     expect(entries[0].status).toEqual([]);
   });
 
+  it("indexes a store's own artifact types, work in motion, and layout", async () => {
+    const storeRoot = await registerStore('team-context');
+    // A project-local schema (custom artifact types) in the store.
+    const schemaDir = path.join(storeRoot, 'openspec', 'schemas', 'team-brief');
+    fs.mkdirSync(path.join(schemaDir, 'templates'), { recursive: true });
+    fs.writeFileSync(
+      path.join(schemaDir, 'schema.yaml'),
+      'name: team-brief\nversion: 1\ndescription: Our own planning artifacts.\n' +
+        'artifacts:\n  - id: brief\n    generates: brief.md\n    description: What and why\n' +
+        '    template: brief.md\n    requires: []\n    instruction: Write it.\n'
+    );
+    fs.writeFileSync(path.join(schemaDir, 'templates', 'brief.md'), '# Brief\n');
+    // Work in motion: active changes in the store.
+    const changesDir = path.join(storeRoot, 'openspec', 'changes');
+    fs.mkdirSync(path.join(changesDir, 'smoother-setup'), { recursive: true });
+    fs.mkdirSync(path.join(changesDir, 'q3-payments'), { recursive: true });
+    // Declared layout in the store's config.
+    fs.writeFileSync(
+      path.join(storeRoot, 'openspec', 'config.yaml'),
+      'schema: team-brief\nstructure:\n  research/: raw inputs — interviews, transcripts\n'
+    );
+
+    const [entry] = await assemble(['team-context']);
+
+    expect(entry.schemas).toEqual([
+      {
+        id: 'team-brief',
+        summary: 'Our own planning artifacts.',
+        artifacts: ['brief'],
+      },
+    ]);
+    expect(entry.changes).toEqual(['q3-payments', 'smoother-setup']);
+    expect(entry.structure).toEqual({
+      'research/': 'raw inputs — interviews, transcripts',
+    });
+
+    const block = renderReferencedStoresBlock([entry]);
+    expect(block).toContain(
+      'Artifact types (openspec schemas --store team-context):'
+    );
+    expect(block).toContain('- team-brief: Our own planning artifacts. [brief]');
+    expect(block).toContain(
+      'In motion: q3-payments, smoother-setup  (openspec list --downstream --store team-context)'
+    );
+    expect(block).toContain('- research/: raw inputs — interviews, transcripts');
+  });
+
+  it('omits schemas/changes/structure keys for a store that has none', async () => {
+    await registerStore('bare-context');
+
+    const [entry] = await assemble(['bare-context']);
+
+    expect(entry.schemas).toBeUndefined();
+    expect(entry.changes).toBeUndefined();
+    expect(entry.structure).toBeUndefined();
+  });
+
   it('degrades an unregistered reference to reference_unresolved with a pasteable fix', async () => {
     const entries = await assemble(['missing-context']);
 

@@ -2,13 +2,16 @@
  * New Change Command
  *
  * Creates a new change directory with optional description and schema in the
- * resolved OpenSpec root. `--store <id>` selects a registered store's
- * root; initiative linking and workspace affected areas are no longer part of
- * this command.
+ * resolved OpenSpec root. `--store <id>` selects a registered store's root;
+ * `--serves <ref>` links the change upward to the work it serves. Workspace
+ * affected areas are no longer part of this command.
  */
 
 import ora from 'ora';
 import path from 'path';
+import { ServesRefSchema } from '../../core/change-metadata/schema.js';
+import { recordLinkedRoot, resolveUpstreamLink } from '../../core/upstream.js';
+import { addReferenceToProjectConfig, readProjectConfig } from '../../core/project-config.js';
 import { createChange, validateChangeName } from '../../utils/change-utils.js';
 import { formatChangeLocation } from '../../core/planning-home.js';
 import {
@@ -31,6 +34,8 @@ export interface NewChangeOptions {
   description?: string;
   goal?: string;
   schema?: string;
+  /** Link the change to the work it serves: `<change>` or `<store-id>/<change>`. */
+  serves?: string;
   store?: string;
   storePath?: string;
   initiative?: string;
@@ -45,6 +50,14 @@ interface NewChangeOutput {
     metadataPath: string;
     schema: string;
   };
+  /** Present when the change was born serving upstream work. */
+  serves?: {
+    ref: string;
+    /** Whether the upstream change was found on disk at link time. */
+    resolved: boolean;
+    /** Whether linking auto-added the store to `references:` in config. */
+    reference_wiring?: 'added' | 'already' | 'skipped';
+  };
   root: RootOutput;
 }
 
@@ -55,7 +68,7 @@ interface NewChangeOutput {
 function assertRemovedOptionsAbsent(options: NewChangeOptions): void {
   if (options.initiative !== undefined) {
     throw new RootSelectionError(
-      '--initiative is no longer supported. Normal changes no longer attach to initiatives; --store <id> selects the OpenSpec root.',
+      '--initiative is no longer supported. Upstream work is a change in its store; link to it with --serves <store-id>/<change>.',
       'initiative_option_removed',
       { target: 'change.options' }
     );
@@ -82,6 +95,28 @@ function printCreatedChangeHuman(
       : payload.change.path;
   console.log(`Created change '${payload.change.id}' at ${location}/`);
   console.log(`Schema: ${payload.change.schema}`);
+  if (payload.serves) {
+    const { ref, resolved, reference_wiring: wiring } = payload.serves;
+    const storeId = ref.includes('/') ? ref.split('/')[0] : null;
+    const rollup = storeId
+      ? `openspec list --downstream --store ${storeId}`
+      : 'openspec list --downstream';
+    console.log(`Serves: ${ref}  (rollup: ${rollup})`);
+    if (!resolved) {
+      console.log(
+        `Warning: '${ref}' was not found on this machine — the link will show as missing in rollups until that change exists.`
+      );
+    }
+    if (wiring === 'added') {
+      console.log(
+        `Referenced store '${storeId}' in openspec/config.yaml — agents here now see its context.`
+      );
+    } else if (wiring === 'skipped') {
+      console.log(
+        `Tip: add 'references: [${storeId}]' to openspec/config.yaml so agents here see that store's context.`
+      );
+    }
+  }
   console.log(`Next: ${withStoreFlag(root, `openspec status --change ${payload.change.id}`)}`);
 }
 
@@ -100,6 +135,15 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
 
     assertRemovedOptionsAbsent(options);
 
+    // Validate the ref before anything is created: a bad value must not
+    // leave a half-written change behind.
+    if (options.serves !== undefined) {
+      const ref = ServesRefSchema.safeParse(options.serves);
+      if (!ref.success) {
+        throw new Error(ref.error.issues[0].message);
+      }
+    }
+
     const root = await resolveRootForCommand(options, {
       json: options.json,
       failurePayload: { change: null },
@@ -115,7 +159,16 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
       validateSchemaExists(options.schema, projectRoot);
     }
 
-    const resolvedSchema = options.schema ?? root.defaultSchema;
+    // Resolve the schema the same way createChange will (option → config →
+    // default) so the progress line never names the wrong schema.
+    let resolvedSchema = options.schema;
+    if (!resolvedSchema) {
+      try {
+        resolvedSchema = readProjectConfig(projectRoot)?.schema ?? root.defaultSchema;
+      } catch {
+        resolvedSchema = root.defaultSchema;
+      }
+    }
     if (spinner) {
       spinner.start(`Creating change '${name}' with schema '${resolvedSchema}'...`);
     }
@@ -126,6 +179,7 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
       changesDir: root.changesDir,
       metadata: {
         ...(options.goal ? { goal: options.goal } : {}),
+        ...(options.serves ? { serves: options.serves } : {}),
       },
     });
 
@@ -136,6 +190,31 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
       await fs.writeFile(readmePath, `# ${name}\n\n${options.description}\n`, 'utf-8');
     }
 
+    // A store-qualified link makes this repo part of that store's rollup.
+    // Linking does ALL the wiring: record the checkout so rollups scan it,
+    // and reference the store so agents here see its context — neither
+    // failure may fail the created change.
+    let referenceWiring: 'added' | 'already' | 'skipped' | null = null;
+    if (options.serves?.includes('/')) {
+      await recordLinkedRoot(projectRoot).catch(() => undefined);
+      const storeId = options.serves.split('/')[0];
+      try {
+        referenceWiring = addReferenceToProjectConfig(projectRoot, storeId);
+      } catch {
+        referenceWiring = 'skipped';
+      }
+    }
+
+    // Resolve (never block on) the upstream link so a typo is visible at
+    // creation time instead of surfacing later as a dangling rollup entry.
+    let servesResolved = false;
+    if (options.serves) {
+      const link = await resolveUpstreamLink(result.changeDir, projectRoot).catch(
+        () => null
+      );
+      servesResolved = link?.path !== null && link !== null;
+    }
+
     const payload: NewChangeOutput = {
       change: {
         id: name,
@@ -143,6 +222,15 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
         metadataPath: path.join(result.changeDir, '.openspec.yaml'),
         schema: result.schema,
       },
+      ...(options.serves
+        ? {
+            serves: {
+              ref: options.serves,
+              resolved: servesResolved,
+              ...(referenceWiring ? { reference_wiring: referenceWiring } : {}),
+            },
+          }
+        : {}),
       root: toRootOutput(root),
     };
 

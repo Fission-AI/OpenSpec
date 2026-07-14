@@ -383,12 +383,15 @@ export async function resolveOpenSpecRoot(
     : [];
 
   if (registeredIds.length > 0) {
+    // Lead with init: for work that belongs to THIS repo (like a change
+    // serving upstream work in a store), --store would land it in the
+    // wrong place — the store, not the repo.
     throw new RootSelectionError(
-      `No OpenSpec root found in the current directory or its ancestors. Registered stores: ${registeredIds.join(', ')}. Pass --store <id> to use one, or run openspec init to create a local root.`,
+      `No OpenSpec root found in the current directory or its ancestors. Run openspec init to create a local root here, or pass --store <id> to work in a registered store (registered: ${registeredIds.join(', ')}).`,
       'no_root_with_registered_stores',
       {
         target: 'openspec.root',
-        fix: `Rerun with --store <id> (registered: ${registeredIds.join(', ')}) or run openspec init.`,
+        fix: `Run openspec init here, or rerun with --store <id> (registered: ${registeredIds.join(', ')}).`,
       }
     );
   }

@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
 import { FileSystemUtils } from '../utils/file-system.js';
+import { readProjectConfig } from './project-config.js';
 import { serializeConfig } from './config-prompts.js';
 import {
   makeStoreDiagnostic,
@@ -15,6 +16,19 @@ export const OPENSPEC_SPECS_DIR = 'openspec/specs';
 export const OPENSPEC_CHANGES_DIR = 'openspec/changes';
 export const OPENSPEC_ARCHIVE_DIR = 'openspec/changes/archive';
 export const DEFAULT_OPENSPEC_SCHEMA = 'spec-driven';
+
+// A store's changes are shared upstream work — requirements drafted before
+// code moves — so a fresh store defaults to the documentation-only workflow.
+// One line to change; `structure:` stays a commented example until a team
+// wants to declare what its folders are for.
+export const STORE_DEFAULT_CONFIG_CONTENT = `schema: requirements
+
+# Optional: tell agents what this store's folders are for. Surfaced to
+# every repo that references this store (openspec context).
+# structure:
+#   research/: raw inputs — interviews, transcripts, meeting notes
+#   decisions/: standing decisions and their rationale
+`;
 export const DIRECTORY_ANCHOR_FILE_NAME = '.gitkeep';
 
 // Git cannot track empty directories, so setup anchors otherwise-empty
@@ -248,7 +262,8 @@ async function ensureDirectory(
 
 async function ensureDefaultConfig(
   storeRoot: string,
-  ledger: CreatedPathLedgerEntry[]
+  ledger: CreatedPathLedgerEntry[],
+  configContent?: string
 ): Promise<void> {
   const configYamlPath = path.join(storeRoot, OPENSPEC_CONFIG_YAML);
   const configYmlPath = path.join(storeRoot, OPENSPEC_CONFIG_YML);
@@ -262,7 +277,7 @@ async function ensureDefaultConfig(
 
   await FileSystemUtils.writeFile(
     configYamlPath,
-    serializeConfig({ schema: DEFAULT_OPENSPEC_SCHEMA })
+    configContent ?? serializeConfig({ schema: DEFAULT_OPENSPEC_SCHEMA })
   );
   ledger.push({
     relativePath: relativeArtifact(OPENSPEC_CONFIG_YAML, 'file'),
@@ -289,8 +304,60 @@ async function ensureDirectoryAnchor(
   });
 }
 
+/**
+ * Materialize the root's declared layout: every `structure:` entry in
+ * config becomes real. Keys ending in `/` are folders (created, anchored
+ * for git when requested); other keys are files (seeded with their purpose
+ * when markdown, created empty otherwise). Never overwrites anything that
+ * exists — declaring is safe, and re-running `store setup <id>` heals a
+ * layout that drifted. Keys are confined to the root; anything escaping it
+ * is skipped.
+ */
+async function ensureDeclaredStructure(
+  storeRoot: string,
+  ledger: CreatedPathLedgerEntry[],
+  anchor?: boolean
+): Promise<void> {
+  let structure;
+  try {
+    structure = readProjectConfig(storeRoot)?.structure;
+  } catch {
+    return;
+  }
+  if (!structure) return;
+
+  const openspecDir = path.resolve(storeRoot, OPENSPEC_ROOT_DIR);
+  for (const [key, purpose] of Object.entries(structure)) {
+    const target = path.resolve(openspecDir, key);
+    if (target !== openspecDir && !target.startsWith(openspecDir + path.sep)) {
+      continue; // Escapes the root — declared paths must stay inside openspec/.
+    }
+    const relative = `${OPENSPEC_ROOT_DIR}/${path.relative(openspecDir, target)}`;
+    if (key.endsWith('/')) {
+      await ensureDirectory(storeRoot, relative, ledger);
+      if (anchor) {
+        await ensureDirectoryAnchor(storeRoot, relative, ledger);
+      }
+    } else {
+      if ((await pathKind(target)) !== 'missing') continue;
+      await fs.mkdir(path.dirname(target), { recursive: true });
+      const seed = key.endsWith('.md')
+        ? `# ${path.basename(key, '.md')}\n\n<!-- ${purpose} -->\n`
+        : '';
+      await fs.writeFile(target, seed, 'utf-8');
+      ledger.push({
+        relativePath: relativeArtifact(relative, 'file'),
+        absolutePath: target,
+        kind: 'file',
+      });
+    }
+  }
+}
+
 export interface EnsureOpenSpecRootOptions {
   anchorEmptyDirectories?: boolean;
+  /** Seed content for a config that does not exist yet (never overwrites). */
+  defaultConfigContent?: string;
 }
 
 export async function ensureOpenSpecRoot(
@@ -310,7 +377,8 @@ export async function ensureOpenSpecRoot(
   await ensureDirectory(storeRoot, OPENSPEC_SPECS_DIR, ledger);
   await ensureDirectory(storeRoot, OPENSPEC_CHANGES_DIR, ledger);
   await ensureDirectory(storeRoot, OPENSPEC_ARCHIVE_DIR, ledger);
-  await ensureDefaultConfig(storeRoot, ledger);
+  await ensureDefaultConfig(storeRoot, ledger, options.defaultConfigContent);
+  await ensureDeclaredStructure(storeRoot, ledger, options.anchorEmptyDirectories);
 
   if (options.anchorEmptyDirectories) {
     for (const relativeDir of ANCHORED_OPENSPEC_DIRS) {

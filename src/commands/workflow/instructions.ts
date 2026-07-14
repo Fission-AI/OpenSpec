@@ -36,6 +36,10 @@ import {
 import { readRegistrySnapshot } from '../../core/store/registry.js';
 import { readProjectConfig, type ProjectConfig } from '../../core/project-config.js';
 import {
+  resolveUpstreamLink,
+  type ResolvedUpstreamLink,
+} from '../../core/upstream.js';
+import {
   validateChangeExists,
   validateSchemaExists,
   type TaskItem,
@@ -97,6 +101,44 @@ async function loadRootConfigContext(root: ResolvedOpenSpecRoot): Promise<{
   };
 }
 
+/**
+ * The upward join: a linked change's instructions hand the agent the
+ * upstream change it serves and where that context lives on disk, so
+ * intent reaches the working agent without anyone pasting it.
+ */
+function renderUpstreamBlock(link: ResolvedUpstreamLink): string {
+  const lines = [
+    `<upstream ref="${link.ref}">`,
+    `This change serves the change '${link.changeId}'${link.store ? ` in store '${link.store}'` : ''}.`,
+  ];
+  if (link.path && link.archived) {
+    lines.push(`Upstream context (archived): ${link.path}`);
+    lines.push(
+      "The upstream change has been archived — its requirements were synced into that root's openspec/specs/, which is now the standing truth to trace against."
+    );
+    lines.push(
+      'If implementation shows a synced requirement is wrong or incomplete, do not silently diverge — propose a change against that spec upstream so the divergence is recorded before it becomes drift.'
+    );
+  } else if (link.path) {
+    lines.push(`Upstream context: ${link.path}`);
+    lines.push(
+      "Before working, read its artifacts (proposal, specs, and any others its schema defines); this change should trace to a requirement there. Standing truths live beside it in that root's openspec/specs/."
+    );
+    lines.push(
+      'If implementation shows an upstream requirement is wrong or incomplete, do not silently diverge — flag it upstream (or edit the upstream change, if that is your team\'s call to make) so intent stays honest.'
+    );
+  } else {
+    lines.push(
+      'The upstream change was not found on disk — the link may be stale, or the store may not be registered on this machine.'
+    );
+  }
+  lines.push(
+    `Status rollup: openspec list --downstream${link.store ? ` --store ${link.store}` : ''}`
+  );
+  lines.push('</upstream>');
+  return lines.join('\n');
+}
+
 export async function instructionsCommand(
   artifactId: string | undefined,
   options: InstructionsOptions
@@ -154,22 +196,37 @@ export async function instructionsCommand(
       references,
     });
     const isBlocked = instructions.dependencies.some((d) => !d.done);
+    const upstream = await resolveUpstreamLink(context.changeDir, projectRoot);
 
     spinner?.stop();
 
     if (options.json) {
-      console.log(JSON.stringify({ ...instructions, root: toRootOutput(root) }, null, 2));
+      console.log(
+        JSON.stringify(
+          {
+            ...instructions,
+            ...(upstream ? { upstream } : {}),
+            root: toRootOutput(root),
+          },
+          null,
+          2
+        )
+      );
       return;
     }
 
-    printInstructionsText(instructions, isBlocked);
+    printInstructionsText(instructions, isBlocked, upstream);
   } catch (error) {
     spinner?.stop();
     throw error;
   }
 }
 
-export function printInstructionsText(instructions: ArtifactInstructions, isBlocked: boolean): void {
+export function printInstructionsText(
+  instructions: ArtifactInstructions,
+  isBlocked: boolean,
+  upstream?: ResolvedUpstreamLink | null
+): void {
   const {
     artifactId,
     changeName,
@@ -206,12 +263,27 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
   console.log('</task>');
   console.log();
 
+  // Schema-level workflow guidance (the schema author speaking to agents)
+  if (instructions.schemaNotes) {
+    console.log('<schema_notes>');
+    console.log('<!-- How this schema\'s workflow differs from the default. Follow it. -->');
+    console.log(instructions.schemaNotes.trim());
+    console.log('</schema_notes>');
+    console.log();
+  }
+
   // Project context (AI constraint - do not include in output)
   if (context) {
     console.log('<project_context>');
     console.log('<!-- This is background information for you. Do NOT include this in your output. -->');
     console.log(context);
     console.log('</project_context>');
+    console.log();
+  }
+
+  // The upstream change this change serves (read-only upstream context)
+  if (upstream) {
+    console.log(renderUpstreamBlock(upstream));
     console.log();
   }
 
@@ -268,12 +340,6 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
   console.log('<!-- Use this as the structure for your output file. Fill in the sections. -->');
   console.log(template.trim());
   console.log('</template>');
-  console.log();
-
-  // Success criteria placeholder
-  console.log('<success_criteria>');
-  console.log('<!-- To be defined in schema validation rules -->');
-  console.log('</success_criteria>');
   console.log();
 
   // Unlocks
@@ -393,19 +459,25 @@ export async function generateApplyInstructions(
   let state: ApplyInstructions['state'];
   let instruction: string;
 
+  // Blocked-state hints must point at the always-available CLI path — a
+  // named skill may not be generated under every profile.
+  const tracksArtifactId = tracksFile
+    ? (schema.artifacts.find((a) => a.generates === tracksFile)?.id ??
+      path.parse(path.basename(tracksFile)).name)
+    : null;
   if (missingArtifacts.length > 0) {
     state = 'blocked';
-    instruction = `Cannot apply this change yet. Missing artifacts: ${missingArtifacts.join(', ')}.\nUse the openspec-continue-change skill to create the missing artifacts first.`;
+    instruction = `Cannot apply this change yet. Missing artifacts: ${missingArtifacts.join(', ')}.\nCreate each one first: openspec instructions <artifact> --change ${changeName}`;
   } else if (tracksFile && !tracksFileExists) {
     // Tracking file configured but doesn't exist yet
     const tracksFilename = path.basename(tracksFile);
     state = 'blocked';
-    instruction = `The ${tracksFilename} file is missing and must be created.\nUse openspec-continue-change to generate the tracking file.`;
+    instruction = `The ${tracksFilename} file is missing and must be created.\nGenerate it: openspec instructions ${tracksArtifactId} --change ${changeName}`;
   } else if (tracksFile && tracksFileExists && total === 0) {
     // Tracking file exists but contains no tasks
     const tracksFilename = path.basename(tracksFile);
     state = 'blocked';
-    instruction = `The ${tracksFilename} file exists but contains no tasks.\nAdd tasks to ${tracksFilename} or regenerate it with openspec-continue-change.`;
+    instruction = `The ${tracksFilename} file exists but contains no tasks.\nAdd tasks to ${tracksFilename}, or regenerate it: openspec instructions ${tracksArtifactId} --change ${changeName}`;
   } else if (tracksFile && remaining === 0 && total > 0) {
     state = 'all_done';
     instruction = 'All tasks are complete! This change is ready to be archived.\nConsider running tests and reviewing the changes before archiving.';
@@ -428,6 +500,7 @@ export async function generateApplyInstructions(
     state,
     missingArtifacts: missingArtifacts.length > 0 ? missingArtifacts : undefined,
     instruction,
+    ...(schema.notes ? { schemaNotes: schema.notes } : {}),
     ...(references !== undefined ? { references } : {}),
   };
 }
@@ -462,27 +535,55 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
       planningHome,
       references,
     });
+    const upstream = await resolveUpstreamLink(instructions.changeDir, projectRoot);
 
     spinner?.stop();
 
     if (options.json) {
-      console.log(JSON.stringify({ ...instructions, root: toRootOutput(root) }, null, 2));
+      console.log(
+        JSON.stringify(
+          {
+            ...instructions,
+            ...(upstream ? { upstream } : {}),
+            root: toRootOutput(root),
+          },
+          null,
+          2
+        )
+      );
       return;
     }
 
-    printApplyInstructionsText(instructions);
+    printApplyInstructionsText(instructions, upstream);
   } catch (error) {
     spinner?.stop();
     throw error;
   }
 }
 
-export function printApplyInstructionsText(instructions: ApplyInstructions): void {
+export function printApplyInstructionsText(
+  instructions: ApplyInstructions,
+  upstream?: ResolvedUpstreamLink | null
+): void {
   const { changeName, schemaName, contextFiles, progress, tasks, state, missingArtifacts, instruction } = instructions;
 
   console.log(`## Apply: ${changeName}`);
   console.log(`Schema: ${schemaName}`);
   console.log();
+
+  // Schema-level workflow guidance (the schema author speaking to agents)
+  if (instructions.schemaNotes) {
+    console.log('### Schema Notes');
+    console.log();
+    console.log(instructions.schemaNotes.trim());
+    console.log();
+  }
+
+  // The upstream change this change serves (read-only upstream context)
+  if (upstream) {
+    console.log(renderUpstreamBlock(upstream));
+    console.log();
+  }
 
   if (instructions.references && instructions.references.length > 0) {
     console.log(renderReferencedStoresSection(instructions.references));
@@ -494,7 +595,9 @@ export function printApplyInstructionsText(instructions: ApplyInstructions): voi
     console.log('### ⚠️ Blocked');
     console.log();
     console.log(`Missing artifacts: ${missingArtifacts.join(', ')}`);
-    console.log('Use the openspec-continue-change skill to create these first.');
+    console.log(
+      `Create each one first: openspec instructions <artifact> --change ${changeName}`
+    );
     console.log();
   }
 

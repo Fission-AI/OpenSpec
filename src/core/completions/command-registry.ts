@@ -51,6 +51,15 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         description: 'List changes explicitly (default)',
       },
       {
+        name: 'downstream',
+        description: "Show the root's changes and every change on this machine that serves them",
+      },
+      {
+        name: 'scan',
+        description: 'With --downstream: also scan this directory (and its immediate subdirectories) for serving changes — no registration needed (repeatable)',
+        takesValue: true,
+      },
+      {
         name: 'sort',
         description: 'Sort order: "recent" (default) or "name"',
         takesValue: true,
@@ -213,6 +222,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     description: 'List available workflow schemas with descriptions',
     flags: [
       COMMON_FLAGS.json,
+      COMMON_FLAGS.store,
     ],
   },
   {
@@ -239,6 +249,11 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
           {
             name: 'schema',
             description: 'Workflow schema to use',
+            takesValue: true,
+          },
+          {
+            name: 'serves',
+            description: 'Link this change to the work it serves: <change> or <store-id>/<change>',
             takesValue: true,
           },
           COMMON_FLAGS.json,
@@ -693,6 +708,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             name: 'all',
             description: 'List all schemas with their resolution sources',
           },
+          COMMON_FLAGS.store,
         ],
       },
       {
@@ -707,6 +723,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             name: 'verbose',
             description: 'Show detailed validation steps',
           },
+          COMMON_FLAGS.store,
         ],
       },
       {
@@ -740,7 +757,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
           },
           {
             name: 'artifacts',
-            description: 'Comma-separated artifact IDs',
+            description: 'Comma-separated stage ids, in workflow order (built-in or custom kebab-case names)',
             takesValue: true,
           },
           {
@@ -755,6 +772,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             name: 'force',
             description: 'Overwrite existing schema',
           },
+          COMMON_FLAGS.store,
         ],
       },
     ],

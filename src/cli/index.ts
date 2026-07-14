@@ -8,9 +8,15 @@ import { promises as fs } from 'fs';
 import { AI_TOOLS } from '../core/config.js';
 import { UpdateCommand } from '../core/update.js';
 import { ListCommand } from '../core/list.js';
+import {
+  expandScanDirs,
+  rollupDownstream,
+  rollupRegisteredStores,
+  type DownstreamRollup,
+} from '../core/upstream.js';
 import { ArchiveCommand, type ArchiveOptions } from '../core/archive.js';
 import { ViewCommand } from '../core/view.js';
-import { resolveRootForCommand, toRootOutput } from '../core/root-selection.js';
+import { resolveRootForCommand, toRootOutput, isStoreSelectedRoot, type ResolvedOpenSpecRoot } from '../core/root-selection.js';
 import { registerSpecCommand } from '../commands/spec.js';
 import { ChangeCommand } from '../commands/change.js';
 import { ValidateCommand } from '../commands/validate.js';
@@ -51,6 +57,133 @@ function hiddenStorePathOption(): Option {
     '--store-path <path>',
     'Not supported; register the path with "openspec store register <path>" and use --store <id>'
   ).hideHelp();
+}
+
+function printRollupBody(
+  rollup: DownstreamRollup,
+  indent: string,
+  // Store rollups need the store-qualified ref in the link hint — a bare
+  // <change> would not resolve from a consumer repo.
+  refPrefix = ''
+): void {
+  if (rollup.upstream.length === 0) {
+    // The empty state must teach the whole move: a first-time user with a
+    // fresh store has no other way to learn it from the CLI.
+    console.log(`${indent}(no changes yet — upstream work is just a change here:`);
+    console.log(
+      `${indent} openspec new change <name>${refPrefix ? ` --store ${refPrefix.slice(0, -1)}` : ''}, then link work to it from any repo`
+    );
+    console.log(
+      `${indent} with: openspec new change <name> --serves ${refPrefix}<change>)`
+    );
+    return;
+  }
+
+  let anyServing = false;
+  for (const entry of rollup.upstream) {
+    const summary =
+      entry.changesTotal === 0
+        ? 'nothing serves it yet'
+        : `${entry.changesComplete}/${entry.changesTotal} serving changes complete`;
+    const marker = !entry.exists
+      ? '  (no such change)'
+      : entry.archived
+        ? '  (archived — its requirements now live in specs/)'
+        : '';
+    console.log('');
+    console.log(`${indent}${entry.id}   ${summary}${marker}`);
+    if (entry.changes.length === 0) continue;
+    anyServing = true;
+    const changeWidth = Math.max(...entry.changes.map((c) => c.id.length));
+    for (const change of entry.changes) {
+      const mark =
+        change.state === 'complete' ? '✓' : change.state === 'no-tasks' ? '–' : '·';
+      const where = change.store ?? change.repo ?? 'here';
+      const artifactsKnown = change.totalArtifacts !== undefined;
+      const artifactsDone =
+        artifactsKnown && change.completedArtifacts === change.totalArtifacts;
+      let progressText =
+        change.totalTasks === 0
+          ? artifactsKnown
+            ? `${change.completedArtifacts}/${change.totalArtifacts} artifacts`
+            : 'no tasks'
+          : `${change.completedTasks}/${change.totalTasks} tasks`;
+      // Checked-off tasks with missing artifacts is the half-done state
+      // that must not read as done — surface both numbers.
+      if (change.totalTasks > 0 && artifactsKnown && !artifactsDone) {
+        progressText += `  (${change.completedArtifacts}/${change.totalArtifacts} artifacts)`;
+      }
+      console.log(
+        `${indent}  ${mark} ${change.id.padEnd(changeWidth)}  ${where.padEnd(14)}  ${progressText}`
+      );
+    }
+    // Truth flows up: upstream work whose serving changes are all complete
+    // is ready to archive, which syncs its requirements into specs.
+    if (entry.changesTotal > 0 && entry.changesComplete === entry.changesTotal && !entry.archived) {
+      console.log(
+        `${indent}  all serving changes complete — archive it to sync its specs`
+      );
+    }
+  }
+  if (!anyServing) {
+    console.log('');
+    console.log(
+      `${indent}Link work to a change here: openspec new change <name> --serves ${refPrefix}<change>`
+    );
+  }
+}
+
+async function renderDownstream(
+  root: ResolvedOpenSpecRoot,
+  options: { json?: boolean; scan?: string[] }
+): Promise<void> {
+  const downstream = await rollupDownstream(root.path, {
+    ...(options.scan && options.scan.length > 0
+      ? { extraRoots: await expandScanDirs(options.scan) }
+      : {}),
+  });
+
+  if (options.json) {
+    console.log(
+      JSON.stringify({ downstream, root: toRootOutput(root) }, null, 2)
+    );
+    return;
+  }
+
+  if (downstream === null) {
+    console.log('No changes folder found at openspec/changes/.');
+    console.log('Create the first change: openspec new change <name>');
+    return;
+  }
+
+  console.log(`Downstream rollup: ${downstream.path}`);
+  printRollupBody(downstream, '', isStoreSelectedRoot(root) ? `${root.storeId}/` : '');
+}
+
+/**
+ * Outside any root, the rollup question is still answerable: show the
+ * downstream work of every registered store that has changes.
+ */
+async function renderStoreRollups(options: { json?: boolean }): Promise<void> {
+  const stores = await rollupRegisteredStores();
+
+  if (options.json) {
+    console.log(JSON.stringify({ downstream: null, stores, root: null }, null, 2));
+    return;
+  }
+
+  if (stores.length === 0) {
+    console.log('No local OpenSpec root, and no registered store has changes.');
+    console.log('Run inside a repo, or pass --store <id>.');
+    return;
+  }
+
+  console.log('No local OpenSpec root — showing registered store rollups.');
+  for (const { store, rollup } of stores) {
+    console.log('');
+    console.log(`${store}  (${rollup.path})`);
+    printRollupBody(rollup, '  ', `${store}/`);
+  }
 }
 
 function failWithError(
@@ -214,20 +347,57 @@ program
 
 program
   .command('list')
-  .description('List items (changes by default). Use --specs to list specs.')
+  .description('List items (changes by default). Use --specs to list specs, --downstream to see the upstream rollup.')
   .option('--specs', 'List specs instead of changes')
   .option('--changes', 'List changes explicitly (default)')
+  .option('--downstream', "Show the root's changes and every change on this machine that serves them")
+  .option(
+    '--scan <dir>',
+    'With --downstream: also scan this directory (and its immediate subdirectories) for serving changes — no registration needed (repeatable)',
+    (value: string, previous: string[]) => [...previous, value],
+    [] as string[]
+  )
   .option('--sort <order>', 'Sort order: "recent" (default) or "name"', 'recent')
   .option('--json', 'Output as JSON (for programmatic use)')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
-  .action(async (options?: { specs?: boolean; changes?: boolean; sort?: string; json?: boolean; store?: string; storePath?: string }) => {
+  .action(async (options?: { specs?: boolean; changes?: boolean; downstream?: boolean; scan?: string[]; sort?: string; json?: boolean; store?: string; storePath?: string }) => {
     try {
+      const failurePayload = options?.downstream
+        ? { downstream: null, root: null }
+        : options?.specs
+          ? { specs: [], root: null }
+          : { changes: [], root: null };
+      // The rollup question is the one `list` answer that still makes
+      // sense outside any root: fall back to registered store rollups
+      // instead of failing root resolution.
+      if (
+        options?.downstream &&
+        options.store === undefined &&
+        options.storePath === undefined
+      ) {
+        try {
+          const root = await resolveRootForCommand(options ?? {});
+          if (root) {
+            await renderDownstream(root, { json: options?.json, scan: options?.scan });
+          }
+          return;
+        } catch (error) {
+          const code = (error as { diagnostic?: { code?: string } }).diagnostic?.code;
+          if (code !== 'no_root_with_registered_stores') throw error;
+          await renderStoreRollups({ json: options?.json });
+          return;
+        }
+      }
       const root = await resolveRootForCommand(options ?? {}, {
         json: options?.json,
-        failurePayload: options?.specs ? { specs: [], root: null } : { changes: [], root: null },
+        failurePayload,
       });
       if (!root) {
+        return;
+      }
+      if (options?.downstream) {
+        await renderDownstream(root, { json: options?.json, scan: options?.scan });
         return;
       }
       const listCommand = new ListCommand();
@@ -241,7 +411,11 @@ program
     } catch (error) {
       failWithError(error, {
         enabled: options?.json,
-        payload: options?.specs ? { specs: [], root: null } : { changes: [], root: null },
+        payload: options?.downstream
+          ? { downstream: null, root: null }
+          : options?.specs
+            ? { specs: [], root: null }
+            : { changes: [], root: null },
         fallbackCode: 'list_error',
       });
       process.exit(1);
@@ -544,6 +718,8 @@ program
   .command('schemas')
   .description('List available workflow schemas with descriptions')
   .option('--json', 'Output as JSON (for agent use)')
+  .option('--store <id>', STORE_OPTION_DESCRIPTION)
+  .addOption(hiddenStorePathOption())
   .action(async (options: SchemasOptions) => {
     try {
       await schemasCommand(options);
@@ -562,6 +738,7 @@ newCmd
   .option('--description <text>', 'Description to add to README.md')
   .option('--goal <text>', 'Optional goal metadata to store with the change')
   .option('--schema <name>', `Workflow schema to use (default: ${DEFAULT_SCHEMA})`)
+  .option('--serves <ref>', 'Link this change to the work it serves: <change> or <store-id>/<change>')
   .option('--json', 'Output as JSON')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())

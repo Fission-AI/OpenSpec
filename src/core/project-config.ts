@@ -1,6 +1,6 @@
-import { existsSync, readFileSync, statSync } from 'fs';
+import { existsSync, readFileSync, statSync, writeFileSync } from 'fs';
 import path from 'path';
-import { parse as parseYaml } from 'yaml';
+import { parse as parseYaml, parseDocument, isSeq } from 'yaml';
 import { z } from 'zod';
 
 /**
@@ -38,6 +38,15 @@ export const ProjectConfigSchema = z.object({
     )
     .optional()
     .describe('Per-artifact rules, keyed by artifact ID'),
+
+  // Optional: what this root's non-reserved folders are for, keyed by
+  // folder path relative to openspec/ (e.g. "research/": "raw inputs").
+  // Purely declarative — surfaced to agents in context and the
+  // references index so a store can explain its own layout.
+  structure: z
+    .record(z.string(), z.string())
+    .optional()
+    .describe('Folder purposes, keyed by path relative to openspec/'),
 
   // Note: the `references` field (id strings or {id, remote} maps) is
   // deliberately absent here — readProjectConfig parses and normalizes
@@ -233,6 +242,29 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
       }
     }
 
+    // Parse structure field: folder → purpose map, both non-empty strings.
+    if (raw.structure !== undefined) {
+      if (typeof raw.structure === 'object' && raw.structure !== null && !Array.isArray(raw.structure)) {
+        const parsedStructure: Record<string, string> = {};
+        let droppedFolders = false;
+        for (const [folder, purpose] of Object.entries(raw.structure)) {
+          if (typeof purpose === 'string' && purpose.length > 0 && folder.length > 0) {
+            parsedStructure[folder] = purpose;
+          } else {
+            droppedFolders = true;
+          }
+        }
+        if (droppedFolders) {
+          console.warn(`Some 'structure' entries are invalid (must map folder to a non-empty string), ignoring them`);
+        }
+        if (Object.keys(parsedStructure).length > 0) {
+          config.structure = parsedStructure;
+        }
+      } else {
+        console.warn(`Invalid 'structure' field in config (must be a folder → purpose map)`);
+      }
+    }
+
     const references = parseDeclarationList(raw.references);
     if (references) {
       config.references = references;
@@ -415,6 +447,56 @@ export function readStorePointer(projectRoot: string): StorePointerRead {
   } catch {
     return { malformed: 'unparseable', filePath: configPath };
   }
+}
+
+/**
+ * Adds a store id to the config's `references:` list, preserving the file's
+ * comments and formatting. Conservative on purpose: any state it cannot
+ * edit with certainty (missing config, parse errors, a non-list
+ * `references:`) returns 'skipped' so the caller falls back to telling the
+ * user instead of guessing. Returns 'already' when the reference exists.
+ */
+export function addReferenceToProjectConfig(
+  projectRoot: string,
+  storeId: string
+): 'added' | 'already' | 'skipped' {
+  const configPath = resolveConfigFilePath(projectRoot);
+  if (configPath === null) return 'skipped';
+
+  let doc;
+  try {
+    doc = parseDocument(readFileSync(configPath, 'utf-8'));
+  } catch {
+    return 'skipped';
+  }
+  if (doc.errors.length > 0) return 'skipped';
+
+  const existing = doc.get('references');
+  if (existing === undefined) {
+    doc.set('references', [storeId]);
+  } else if (isSeq(existing)) {
+    const values = existing.toJSON() as unknown[];
+    const present =
+      Array.isArray(values) &&
+      values.some(
+        (value) =>
+          value === storeId ||
+          (value !== null &&
+            typeof value === 'object' &&
+            (value as { id?: unknown }).id === storeId)
+      );
+    if (present) return 'already';
+    existing.add(doc.createNode(storeId));
+  } else {
+    return 'skipped';
+  }
+
+  try {
+    writeFileSync(configPath, doc.toString(), 'utf-8');
+  } catch {
+    return 'skipped';
+  }
+  return 'added';
 }
 
 /** Shared .yaml/.yml probe used by readProjectConfig and readStorePointer. */

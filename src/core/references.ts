@@ -21,18 +21,33 @@ import {
 import { getStoreRootForBackend } from './store/registry.js';
 import { inspectRegisteredStore, type ResolvedOpenSpecRoot } from './root-selection.js';
 import { getSpecIds } from '../utils/item-discovery.js';
+import { listActiveChangeIds } from './upstream.js';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { MAX_CONTEXT_SIZE, type DeclarationEntry } from './project-config.js';
+import { MAX_CONTEXT_SIZE, readProjectConfig, type DeclarationEntry } from './project-config.js';
+import { listSchemasWithInfo } from './artifact-graph/index.js';
 
 export interface ReferenceSpecEntry {
   id: string;
   summary: string;
 }
 
+/** A store's own custom artifact type (schema), for the reference index. */
+export interface ReferenceSchemaEntry {
+  id: string;
+  summary: string;
+  artifacts: string[];
+}
+
 export interface ReferenceIndexEntry {
   store_id: string;
   root?: string;
   specs?: ReferenceSpecEntry[];
+  schemas?: ReferenceSchemaEntry[];
+  /** The store's in-motion change ids — the work currently being drafted
+   * there. */
+  changes?: string[];
+  /** The store's declared folder purposes (config `structure:`). */
+  structure?: Record<string, string>;
   fetch?: string;
   status: StoreDiagnostic[];
 }
@@ -140,8 +155,69 @@ async function collectSpecEntries(referencedRoot: string): Promise<ReferenceSpec
   );
 }
 
+/**
+ * A store's own custom artifact types — its project-local schemas. Package
+ * built-ins (spec-driven) are excluded: they are the same everywhere and
+ * would be noise in every referenced store's index.
+ */
+function collectSchemaEntries(referencedRoot: string): ReferenceSchemaEntry[] {
+  let schemas;
+  try {
+    schemas = listSchemasWithInfo(referencedRoot);
+  } catch {
+    return [];
+  }
+  return schemas
+    .filter((schema) => schema.source === 'project')
+    .map((schema) => ({
+      id: sanitizeInline(schema.name, 100),
+      summary: sanitizeInline(schema.description),
+      artifacts: schema.artifacts.map((artifact) => sanitizeInline(artifact, 60)),
+    }));
+}
+
+/**
+ * A store's declared layout for the index: the config's `structure:` map,
+ * sanitized — the store explaining its own non-reserved folders.
+ */
+function collectStructure(referencedRoot: string): Record<string, string> {
+  let structure;
+  try {
+    structure = readProjectConfig(referencedRoot)?.structure;
+  } catch {
+    return {};
+  }
+  if (!structure) return {};
+  const sanitized: Record<string, string> = {};
+  for (const [folder, purpose] of Object.entries(structure)) {
+    sanitized[sanitizeInline(folder, 100)] = sanitizeInline(purpose, 200);
+  }
+  return sanitized;
+}
+
+/**
+ * A store's work in motion for the index: its active change ids. Specs say
+ * what is true; these say what the team is currently deciding.
+ */
+async function collectActiveChangeIds(referencedRoot: string): Promise<string[]> {
+  try {
+    const ids = await listActiveChangeIds(referencedRoot);
+    return ids.map((id) => sanitizeInline(id, 60));
+  } catch {
+    return [];
+  }
+}
+
 export function fetchRecipe(storeId: string): string {
   return `openspec show <spec-id> --type spec --store ${storeId}`;
+}
+
+export function schemasFetchRecipe(storeId: string): string {
+  return `openspec schemas --store ${storeId}`;
+}
+
+export function changesFetchRecipe(storeId: string): string {
+  return `openspec list --downstream --store ${storeId}`;
 }
 
 function specLine(spec: ReferenceSpecEntry): string {
@@ -204,6 +280,30 @@ function renderEntryLines(entry: ReferenceIndexEntry): string[] {
     lines.push(`Store ${entry.store_id} (${entry.root}):`);
     for (const spec of entry.specs ?? []) {
       lines.push(specLine(spec));
+    }
+    if (entry.schemas && entry.schemas.length > 0) {
+      lines.push(`  Artifact types (${schemasFetchRecipe(entry.store_id)}):`);
+      for (const schema of entry.schemas) {
+        const graph = schema.artifacts.length > 0
+          ? ` [${schema.artifacts.join(' → ')}]`
+          : '';
+        lines.push(
+          schema.summary
+            ? `    - ${schema.id}: ${schema.summary}${graph}`
+            : `    - ${schema.id}${graph}`
+        );
+      }
+    }
+    if (entry.changes && entry.changes.length > 0) {
+      lines.push(
+        `  In motion: ${entry.changes.join(', ')}  (${changesFetchRecipe(entry.store_id)})`
+      );
+    }
+    if (entry.structure && Object.keys(entry.structure).length > 0) {
+      lines.push('  Layout:');
+      for (const [folder, purpose] of Object.entries(entry.structure)) {
+        lines.push(`    - ${folder}: ${purpose}`);
+      }
     }
     if (entry.fetch) {
       lines.push(`  Fetch: ${entry.fetch}`);
@@ -368,10 +468,16 @@ export async function assembleReferenceIndex(
     }
 
     const specs = await collectSpecEntries(inspection.canonicalRoot);
+    const schemas = collectSchemaEntries(inspection.canonicalRoot);
+    const changes = await collectActiveChangeIds(inspection.canonicalRoot);
+    const structure = collectStructure(inspection.canonicalRoot);
     const entry: ReferenceIndexEntry = {
       store_id: id,
       root: inspection.canonicalRoot,
       specs,
+      ...(schemas.length > 0 ? { schemas } : {}),
+      ...(changes.length > 0 ? { changes } : {}),
+      ...(Object.keys(structure).length > 0 ? { structure } : {}),
       fetch: fetchRecipe(id),
       status: [],
     };

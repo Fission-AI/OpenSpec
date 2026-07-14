@@ -648,4 +648,113 @@ artifacts:
       expect(sharedSchema!.description).toBe('Project shared'); // project version wins
     });
   });
+  describe('schema inheritance through references', () => {
+    function writeSchema(dir: string, name: string, description: string): void {
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(
+        path.join(dir, 'schema.yaml'),
+        `name: ${name}\nversion: 1\ndescription: ${description}\nartifacts:\n  - id: brief\n    generates: brief.md\n    description: What and why\n    template: brief.md\n`
+      );
+    }
+
+    function setUpReferencedStore(): { projectRoot: string; storeRoot: string } {
+      process.env.XDG_DATA_HOME = tempDir;
+      const storeRoot = path.join(tempDir, 'team-hub');
+      const projectRoot = path.join(tempDir, 'web-app');
+      writeSchema(path.join(storeRoot, 'openspec', 'schemas', 'team-brief'), 'team-brief', 'From the store');
+      fs.mkdirSync(path.join(projectRoot, 'openspec'), { recursive: true });
+      fs.writeFileSync(
+        path.join(projectRoot, 'openspec', 'config.yaml'),
+        'schema: spec-driven\nreferences:\n  - team-hub\n'
+      );
+      const storesDir = path.join(tempDir, 'openspec', 'stores');
+      fs.mkdirSync(storesDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(storesDir, 'registry.yaml'),
+        `version: 1\nstores:\n  team-hub:\n    backend:\n      type: git\n      local_path: ${JSON.stringify(storeRoot)}\n`
+      );
+      return { projectRoot, storeRoot };
+    }
+
+    it('resolves a schema from a referenced store when the project has none', () => {
+      const { projectRoot, storeRoot } = setUpReferencedStore();
+
+      expect(getSchemaDir('team-brief', projectRoot)).toBe(
+        path.join(storeRoot, 'openspec', 'schemas', 'team-brief')
+      );
+      expect(listSchemas(projectRoot)).toContain('team-brief');
+    });
+
+    it('lets a project-local schema shadow an inherited one', () => {
+      const { projectRoot } = setUpReferencedStore();
+      writeSchema(
+        path.join(projectRoot, 'openspec', 'schemas', 'team-brief'),
+        'team-brief',
+        'Local override'
+      );
+
+      expect(getSchemaDir('team-brief', projectRoot)).toBe(
+        path.join(projectRoot, 'openspec', 'schemas', 'team-brief')
+      );
+    });
+
+    it('reports inherited schemas with their store id', () => {
+      const { projectRoot } = setUpReferencedStore();
+
+      const info = listSchemasWithInfo(projectRoot).find((s) => s.name === 'team-brief');
+      expect(info?.source).toBe('store');
+      expect(info?.store).toBe('team-hub');
+    });
+
+    it('degrades to no inherited schemas without a registry', () => {
+      const { projectRoot } = setUpReferencedStore();
+      fs.rmSync(path.join(tempDir, 'openspec', 'stores', 'registry.yaml'));
+
+      expect(getSchemaDir('team-brief', projectRoot)).toBeNull();
+    });
+  });
+
+  describe('schema folder extras', () => {
+    it('parses top-level notes', () => {
+      process.env.XDG_DATA_HOME = tempDir;
+      const dir = path.join(tempDir, 'openspec', 'schemas', 'noted');
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(
+        path.join(dir, 'schema.yaml'),
+        'name: noted\nversion: 1\nnotes: No implementation phase; archive after specs.\nartifacts:\n  - id: brief\n    generates: brief.md\n    description: x\n    template: brief.md\n'
+      );
+
+      const schema = resolveSchema('noted');
+      expect(schema.notes).toBe('No implementation phase; archive after specs.');
+    });
+
+    it('loads instructions/<artifact>.md over an inline instruction, and instructions/apply.md', () => {
+      process.env.XDG_DATA_HOME = tempDir;
+      const dir = path.join(tempDir, 'openspec', 'schemas', 'filed');
+      fs.mkdirSync(path.join(dir, 'instructions'), { recursive: true });
+      fs.writeFileSync(
+        path.join(dir, 'schema.yaml'),
+        'name: filed\nversion: 1\nartifacts:\n  - id: brief\n    generates: brief.md\n    description: x\n    template: brief.md\n    instruction: inline version\n  - id: tasks\n    generates: tasks.md\n    description: y\n    template: tasks.md\napply:\n  requires: [brief]\n  tracks: tasks.md\n  instruction: inline apply\n'
+      );
+      fs.writeFileSync(path.join(dir, 'instructions', 'brief.md'), 'From the file.\n');
+      fs.writeFileSync(path.join(dir, 'instructions', 'apply.md'), 'Apply from the file.\n');
+
+      const schema = resolveSchema('filed');
+      expect(schema.artifacts.find((a) => a.id === 'brief')?.instruction).toBe('From the file.');
+      // No file for tasks: inline (absent) stays untouched.
+      expect(schema.artifacts.find((a) => a.id === 'tasks')?.instruction).toBeUndefined();
+      expect(schema.apply?.instruction).toBe('Apply from the file.');
+    });
+  });
+  describe('built-in requirements schema', () => {
+    it('resolves as a documentation-only workflow with notes and file instructions', () => {
+      const schema = resolveSchema('requirements');
+      expect(schema.artifacts.map((a) => a.id)).toEqual(['proposal', 'specs']);
+      expect(schema.notes).toContain('no implementation phase');
+      // Guidance ships as instructions/<artifact>.md files beside the schema.
+      expect(schema.artifacts[0].instruction).toContain('non-engineer');
+      expect(schema.artifacts[1].instruction).toContain('#### Scenario');
+      expect(schema.apply).toBeUndefined();
+    });
+  });
 });
