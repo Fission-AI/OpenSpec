@@ -59,12 +59,31 @@ For tools with `installDir`, `configured` is determined by marker directory exis
 
 ### 5. No command adapter
 
-Hermes exposes skills dynamically as `/skill:<name>` in-session. No file-based command directory exists. This matches the Kimi CLI, ForgeCode, and Mistral Vibe pattern — adapterless tools that are valid for skill generation but skip command-file generation.
+- **No command adapter** — Hermes exposes skills dynamically as `/skill:<name>` in-session. No file-based command directory exists. This matches the Kimi CLI, ForgeCode, and Mistral Vibe pattern — adapterless tools that are valid for skill generation but skip command-file generation.
+
+### 6. Additive/overwrite-only update for global-install tools
+
+When `installDir` is set, `update` and `init` SHALL NOT remove skill directories from the global path. The `removeUnselectedSkillDirs` and `removeSkillDirs` cleanup functions are skipped for global-install tools. Rationale:
+
+- Global skills are shared across all projects on the machine. A per-project profile or delivery change must not delete skills that other projects depend on.
+- Hermes has no command adapter — `delivery=commands` cannot substitute skills with commands. Deleting skills leaves the user with nothing.
+- Residual skill directories (not in the current profile) are harmless — Hermes displays them as available, and their content remains valid.
+
+**What still happens during update for global-install tools:**
+- Overwrite existing skill files with new version content ✓
+- Create newly-selected skill directories ✓
+- Create/maintain the project-local marker directory ✓
+
+**What is skipped:**
+- `removeUnselectedSkillDirs` — no deletion of non-profile skill dirs
+- `removeSkillDirs` — no deletion on delivery=commands switch
+
+For project-local tools (no `installDir`), deletion behavior is unchanged.
 
 ## Risks / Trade-offs
 
 - **Global skills are shared across projects**: Running `openspec init --tools hermes` in project A installs skills globally; project B on the same machine will see those skills too. This is inherent to Hermes's global discovery model and matches how Hermes users already manage skills. The marker directory correctly scopes "configured for this project" detection.
 
-- **`openspec update` overwrites global skills**: If two projects use different OpenSpec versions or profiles, updating one overwrites the global skills. This is the same trade-off SpecKit makes and is acceptable because OpenSpec skills are version-pinned — all projects should use the same OpenSpec version.
+- **`openspec update` overwrites global skills**: If two projects use different OpenSpec versions, updating one overwrites the global skill files. This is acceptable because OpenSpec skills are version-pinned — all projects should use the same OpenSpec version. Skill directories not in the current profile are left in place (additive-only); they remain valid but may appear as "extra" workflows to Hermes.
 
 - **`getToolSkillStatus` reads from global path for `skillCount`**: This means `skillCount` may report non-zero even in a fresh project if global skills exist. The `configured` flag correctly uses the marker, so this only affects display, not detection logic.

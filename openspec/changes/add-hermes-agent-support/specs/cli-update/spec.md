@@ -50,3 +50,17 @@ The update command SHALL refresh existing slash command files for configured too
 - **THEN** skills SHALL be regenerated at `~/.hermes/skills/openspec-*/SKILL.md`
 - **AND** the marker directory at `.hermes/skills/` SHALL be created if it does not exist
 - **AND** command-file generation SHALL be skipped because no Hermes adapter is registered
+
+#### Scenario: Global-install tool skips skill directory deletion on profile change
+
+- **GIVEN** a configured tool has `installDir` set and the active profile excludes workflows that were previously installed
+- **WHEN** the update command runs skill regeneration
+- **THEN** skill directories for non-profile workflows SHALL NOT be removed from the global install path
+- **AND** only skill directories in the active profile SHALL be overwritten or created
+
+#### Scenario: Global-install tool skips skill directory deletion on delivery change
+
+- **GIVEN** a configured tool has `installDir` set and `delivery` is set to `commands`
+- **WHEN** the update command runs
+- **THEN** `removeSkillDirs` SHALL NOT be called on the global install path
+- **AND** existing skills SHALL remain in place

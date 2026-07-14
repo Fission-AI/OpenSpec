@@ -210,11 +210,17 @@ export class UpdateCommand {
             await FileSystemUtils.createDirectory(markerDir);
           }
 
-          removedDeselectedSkillCount += await this.removeUnselectedSkillDirs(skillsDir, desiredWorkflows);
+          // Global-install tools are additive-only: never delete skill directories
+          // from the shared global path, as other projects may depend on them.
+          if (!tool.installDir) {
+            removedDeselectedSkillCount += await this.removeUnselectedSkillDirs(skillsDir, desiredWorkflows);
+          }
         }
 
         // Delete skill directories if delivery is commands-only
-        if (!shouldGenerateSkills) {
+        // Skip for global-install tools — they have no command adapter to
+        // substitute skills, and deletion would destroy shared global state.
+        if (!shouldGenerateSkills && !tool.installDir) {
           removedSkillCount += await this.removeSkillDirs(skillsDir);
         }
 

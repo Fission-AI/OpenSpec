@@ -13,6 +13,7 @@ Unlike existing supported tools, Hermes discovers skills from a user-global dire
 - Add `resolveSkillsDir()` and `resolveMarkerDir()` helper functions in `tool-detection.ts` as the single source of truth for path resolution, replacing inline `path.join(projectPath, tool.skillsDir, 'skills')` calls across `init.ts`, `update.ts`, `profile-sync-drift.ts`, and `migration.ts`.
 - Update `docs/supported-tools.md` with Hermes Agent row, tool ID, and footnotes.
 - No command adapter is added — Hermes exposes skills dynamically as `/skill:<name>`.
+- When `installDir` is set, `update` and `init` SHALL NOT delete skill directories from the global path — update is additive/overwrite-only for global-install tools. This prevents a per-project profile or delivery change from destroying skills that other projects on the same machine depend on.
 
 ## Capabilities
 
@@ -43,4 +44,4 @@ _None._
 
 - Adding a Hermes command adapter (`src/core/command-generation/adapters/hermes.ts`).
 - Changing Hermes itself to support project-level skill discovery — that is a Hermes feature, not an OpenSpec concern.
-- Reworking `delivery=commands` behavior for global-install tools.
+- Reworking `delivery=commands` behavior for global-install tools beyond ensuring skills are not deleted (no command adapter substitution).

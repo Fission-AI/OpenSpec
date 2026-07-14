@@ -44,3 +44,10 @@ The command SHALL configure AI coding assistants with skills and slash commands 
 - **THEN** OpenSpec SHALL treat it as a supported tool with `skillsDir: '.hermes'` and `installDir: '~/.hermes/skills'`
 - **AND** skills SHALL be written to `~/.hermes/skills/openspec-*/SKILL.md`
 - **AND** a marker directory SHALL be created at `.hermes/skills/`
+
+#### Scenario: Global-install tool skips skill directory deletion
+
+- **GIVEN** a selected tool has `installDir` set and `delivery` is set to `commands`
+- **WHEN** initialization runs with `shouldGenerateSkills = false`
+- **THEN** `removeSkillDirs` SHALL NOT be called on the global install path
+- **AND** existing global skills SHALL be preserved

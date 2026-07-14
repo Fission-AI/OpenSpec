@@ -42,3 +42,11 @@
 - [x] 8.1 Run `pnpm run build` — confirms TypeScript compilation
 - [x] 8.2 Run `pnpm run lint` — confirms zero lint errors
 - [x] 8.3 Run `pnpm test` — confirms all 1887 tests pass
+
+## 9. Global Skill Deletion Safety (PR Review Feedback)
+
+- [x] 9.1 Add `installDir` guard in `update.ts` to skip `removeUnselectedSkillDirs` when `tool.installDir` is set
+- [x] 9.2 Add `installDir` guard in `update.ts` to skip `removeSkillDirs` when `tool.installDir` is set
+- [x] 9.3 Add `installDir` guard in `init.ts` to skip `removeSkillDirs` when `tool.installDir` is set
+- [x] 9.4 Add regression test: custom→core profile switch with global Hermes skills — assert non-core skill dirs are preserved in `~/.hermes/skills/`
+- [x] 9.5 Add regression test: `delivery=commands` with global Hermes — assert skill dirs are not deleted from `~/.hermes/skills/`

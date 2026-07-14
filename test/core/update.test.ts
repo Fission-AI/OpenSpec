@@ -1731,6 +1731,94 @@ content
     });
   });
 
+  describe('global-install skill deletion safety', () => {
+    let fakeHome: string;
+    let homedirSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(async () => {
+      // Redirect os.homedir() to a temp dir so the global ~/.hermes/skills
+      // path is fully under our control.
+      fakeHome = path.join(os.tmpdir(), `openspec-hermes-home-${randomUUID()}`);
+      await fs.mkdir(fakeHome, { recursive: true });
+      homedirSpy = vi.spyOn(os, 'homedir').mockReturnValue(fakeHome);
+    });
+
+    afterEach(async () => {
+      homedirSpy.mockRestore();
+      await fs.rm(fakeHome, { recursive: true, force: true });
+    });
+
+    /** Create a skill fixture in the fake global ~/.hermes/skills directory. */
+    async function createGlobalSkill(skillName: string): Promise<void> {
+      const skillFile = path.join(fakeHome, '.hermes', 'skills', skillName, 'SKILL.md');
+      await fs.mkdir(path.dirname(skillFile), { recursive: true });
+      await fs.writeFile(skillFile, '---\nmetadata:\n  generatedBy: "1.6.0"\n---\nold content\n', 'utf-8');
+    }
+
+    it('should not remove non-profile skill directories from global path on profile change', async () => {
+      // Simulate Project A: installed with custom profile (explore, new, propose)
+      // Then Project B switches to core profile.
+      setMockConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'both',
+      });
+
+      // Create the project-local marker so Hermes is "configured"
+      await fs.mkdir(path.join(testDir, '.hermes', 'skills'), { recursive: true });
+
+      // Create global skills for both core and non-core workflows
+      const coreSkill = 'openspec-explore';
+      const nonCoreSkill = 'openspec-propose'; // not in core profile
+      await createGlobalSkill(coreSkill);
+      await createGlobalSkill(nonCoreSkill);
+
+      // Force update to trigger profile sync (core profile would normally
+      // remove openspec-propose, but for installDir tools it must be skipped)
+      const forceUpdate = new UpdateCommand({ force: true });
+      await forceUpdate.execute(testDir);
+
+      // Core skill should be overwritten with new content
+      const coreContent = await fs.readFile(
+        path.join(fakeHome, '.hermes', 'skills', coreSkill, 'SKILL.md'),
+        'utf-8'
+      );
+      expect(coreContent).not.toContain('old content');
+
+      // Non-core skill MUST still exist — global path is shared across projects
+      const nonCoreExists = await FileSystemUtils.fileExists(
+        path.join(fakeHome, '.hermes', 'skills', nonCoreSkill, 'SKILL.md')
+      );
+      expect(nonCoreExists).toBe(true);
+    });
+
+    it('should not delete global skills when delivery is commands-only', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'commands',
+      });
+
+      // Create the project-local marker so Hermes is "configured"
+      await fs.mkdir(path.join(testDir, '.hermes', 'skills'), { recursive: true });
+
+      // Create global skill
+      const skillName = 'openspec-explore';
+      await createGlobalSkill(skillName);
+
+      // Force update — delivery=commands would normally removeSkillDirs,
+      // but for installDir tools it must be skipped
+      const forceUpdate = new UpdateCommand({ force: true });
+      await forceUpdate.execute(testDir);
+
+      // Skill MUST still exist — Hermes has no command adapter to substitute
+      const skillExists = await FileSystemUtils.fileExists(
+        path.join(fakeHome, '.hermes', 'skills', skillName, 'SKILL.md')
+      );
+      expect(skillExists).toBe(true);
+    });
+  });
+
   describe('scanInstalledWorkflows', () => {
     it('should detect installed workflows across tools', async () => {
       // Create skills for Claude

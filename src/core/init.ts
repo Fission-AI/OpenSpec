@@ -594,7 +594,10 @@ export class InitCommand {
             await FileSystemUtils.createDirectory(markerDir);
           }
         }
-        if (!shouldGenerateSkills) {
+        // Skip skill directory deletion for global-install tools —
+        // deletion would destroy shared global state that other projects
+        // depend on, and there is no command adapter to substitute.
+        if (!shouldGenerateSkills && !toolConfig?.installDir) {
           removedSkillCount += await this.removeSkillDirs(skillsDir);
         }
 
