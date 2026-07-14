@@ -64,10 +64,40 @@ describe('OpenSpec root helper', () => {
     expect(inspection.healthy).toBe(false);
     expect(inspection.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
       'openspec_config_missing',
-      'openspec_specs_missing',
-      'openspec_archive_missing',
     ]);
     expect(fs.existsSync(path.join(root, 'openspec', 'changes', 'archive'))).toBe(false);
+  });
+
+  it('accepts roots before changes, applied specs, or archives exist', async () => {
+    const root = path.join(tempDir, 'store');
+    fs.mkdirSync(path.join(root, 'openspec'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'openspec', 'config.yaml'), `schema: ${DEFAULT_OPENSPEC_SCHEMA}\n`);
+
+    const inspection = await inspectOpenSpecRoot(root);
+
+    expect(inspection).toEqual(expect.objectContaining({
+      healthy: true,
+      specs: { present: false },
+      changes: { present: false },
+      archive: { present: false },
+      diagnostics: [],
+    }));
+  });
+
+  it('reports malformed optional planning paths without throwing', async () => {
+    const root = path.join(tempDir, 'store');
+    fs.mkdirSync(path.join(root, 'openspec'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'openspec', 'config.yaml'), `schema: ${DEFAULT_OPENSPEC_SCHEMA}\n`);
+    fs.writeFileSync(path.join(root, 'openspec', 'changes'), 'not a directory\n');
+
+    const inspection = await inspectOpenSpecRoot(root);
+
+    expect(inspection.healthy).toBe(false);
+    expect(inspection.changes).toEqual({ present: false });
+    expect(inspection.archive).toEqual({ present: false });
+    expect(inspection.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
+      'openspec_changes_not_directory',
+    ]);
   });
 
   it('ensures the default root shape and records created paths', async () => {

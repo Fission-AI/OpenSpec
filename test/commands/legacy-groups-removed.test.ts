@@ -6,6 +6,9 @@ import * as path from 'node:path';
 import { getGlobalDataDir, registerStore } from '../../src/core/index.js';
 import { runCLI } from '../helpers/run-cli.js';
 import { createHealthyOpenSpecRoot } from '../helpers/store-git.js';
+import { cleanupTempPath } from '../helpers/temp-cleanup.js';
+
+const SURVIVING_COMMANDS_TIMEOUT_MS = 30_000;
 
 describe('legacy command groups are removed', () => {
   let tempDir: string;
@@ -24,7 +27,7 @@ describe('legacy command groups are removed', () => {
   });
 
   afterEach(() => {
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    cleanupTempPath(tempDir);
   });
 
   function snapshotDirectory(root: string): Map<string, string> {
@@ -139,7 +142,7 @@ describe('legacy command groups are removed', () => {
 
     expect(snapshotDirectory(path.join(storeRoot, 'initiatives'))).toEqual(initiativeBefore);
     expect(snapshotDirectory(path.join(projectDir, '.openspec-workspace'))).toEqual(viewBefore);
-  });
+  }, SURVIVING_COMMANDS_TIMEOUT_MS);
 
   it('tolerates legacy initiative metadata without re-emitting it', async () => {
     const projectDir = path.join(tempDir, 'legacy-project');

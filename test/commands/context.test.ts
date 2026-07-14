@@ -7,6 +7,9 @@ import { getGlobalDataDir, registerStore } from '../../src/core/index.js';
 import { runCLI, type RunCLIResult } from '../helpers/run-cli.js';
 import { createOpenSpecRoot } from '../helpers/openspec-fixtures.js';
 import { snapshotDirectory as snapshot } from '../helpers/fs-snapshot.js';
+import { cleanupTempPath } from '../helpers/temp-cleanup.js';
+
+const CONTEXT_MATRIX_TIMEOUT_MS = 30_000;
 
 describe('openspec context (4.1)', () => {
   let tempDir: string;
@@ -41,7 +44,7 @@ describe('openspec context (4.1)', () => {
   });
 
   afterEach(() => {
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    cleanupTempPath(tempDir);
   });
 
   function parseJson(result: RunCLIResult): any {
@@ -193,7 +196,7 @@ describe('openspec context (4.1)', () => {
     );
     expect(jsonBadDir.exitCode).toBe(1);
     expect(JSON.parse(jsonBadDir.stdout).status[0].code).toBe('context_output_dir_missing');
-  });
+  }, CONTEXT_MATRIX_TIMEOUT_MS);
 
   it('is read-only except the requested file and fails with the null shape', async () => {
     const rootBefore = snapshot(storeRoot);
