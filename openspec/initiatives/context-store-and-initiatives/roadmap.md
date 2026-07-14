@@ -1,8 +1,17 @@
 # Context Store And Initiatives Roadmap
 
-This roadmap turns the direction in `direction.md` into shippable chunks.
+Status: historical beta roadmap snapshot.
 
-The product decision underneath every step is:
+This roadmap preserves the implementation queue that existed while the
+context-store and workspace model was being explored. It is not the active
+roadmap for current simplification work.
+
+For current direction, start with:
+
+1. `openspec/work/simplify-context-and-workspace-model/goal.md`
+2. `openspec/work/simplify-context-and-workspace-model/roadmap.md`
+
+The historical product decision underneath this roadmap was:
 
 ```text
 Context stores sync truth.
@@ -12,17 +21,18 @@ Workspaces open local views.
 Changes implement repo-owned slices.
 ```
 
-## Current Beta Priority
+## Historical Beta Priority Snapshot
 
-The manual beta pass should pull first-run friction forward. Work in this order
-before investing in deeper schema or lifecycle machinery:
+At the time, the manual beta pass pulled first-run friction forward. This was
+the historical working order before investing in deeper schema or lifecycle
+machinery:
 
 1. Finish the manual beta reality pass enough to keep the next slices grounded.
 2. Item 12, context-store first-run and cleanup UX: interactive no-argument setup,
    target-path safety, and a supported unregister/remove path.
-3. Item 13, agent handoff output and delivery polish: "Next for your agent" blocks,
-   direct JSON paths, and baseline OpenSpec guidance even when workflow
-   entrypoints are commands-oriented.
+3. Skip Item 13 as an implementation item for now. Preserve the handoff
+   findings, but avoid hardcoding linear "next step" guidance until the agent
+   handoff model is clearer.
 4. Item 14, workspaces beta guide split: make user docs match the interactive
    setup path and keep exact flags in the agent playbook.
 5. Item 15, context store project roots and schema-led initiatives: sparse initiative
@@ -72,10 +82,13 @@ Locked disposition:
 - Defer branch/worktree orchestration, strong cross-repo validation, dependency
   graph enforcement, and shared contract governance.
 
-Fresh-agent rule:
+Fresh-agent historical reading rule:
 
-- Start from `openspec/initiatives/context-store-and-initiatives/direction.md`
-  for product authority.
+- Start from `openspec/work/simplify-context-and-workspace-model/goal.md` and
+  `openspec/work/simplify-context-and-workspace-model/roadmap.md` for current
+  product authority.
+- Use `openspec/initiatives/context-store-and-initiatives/direction.md` as
+  historical beta direction, not as the current product authority.
 - Treat `openspec/changes/workspace-reimplementation-roadmap/HISTORICAL_DIRECTION.md` and
   `openspec/changes/workspace-reimplementation-roadmap/` as historical reference
   material for preserved local-view behavior and POC lessons.
@@ -492,27 +505,29 @@ Done when:
 
 ## 13. Agent Handoff Output And Delivery Polish
 
-Goal: make existing command output and delivery choices enough for a fresh
-agent to continue safely, before adding any broader `initiative next` command.
+Status: deferred as an implementation item.
+
+Goal, if revisited: define an agent handoff receipt model that reports what
+exists, where it lives, and which affordances are available without prescribing
+one linear next step.
 
 Work item:
 `work-items/13-agent-handoff-output-and-delivery-polish/`
 
 Ship:
 
-- "Next for your agent" handoff guidance in the command outputs where first-run
-  flow otherwise depends on pasted beta knowledge.
-- JSON output with direct created artifact paths where agents need to write
-  files, while preserving existing relative fields for compatibility.
-- Clear delivery wording that separates baseline OpenSpec guidance from
-  workflow entrypoints such as skills or slash commands.
-- Warnings when a selected tool cannot receive workflow slash commands.
+Do not ship fixed "Next for your agent" guidance yet. The current shape assumes
+that users and agents move through the beta flow linearly, but real agentic
+workflows may inspect, branch, skip steps, or start from existing context.
 
-Done when:
+Preserve for future exploration:
 
-- A coding agent can continue from setup or initiative creation output without
-  guessing command names, reconstructing writable paths, or losing baseline
-  OpenSpec guidance because the user chose commands-oriented delivery.
+- Whether command output should include context receipts, available affordances,
+  or nothing beyond deterministic paths.
+- Whether direct path fields like `created_paths` are a small standalone receipt
+  improvement rather than part of a broader handoff model.
+- How delivery wording should distinguish baseline OpenSpec guidance from
+  workflow entrypoints without coupling it to this handoff item.
 
 ## 14. Workspaces Beta Guide Split
 
@@ -747,7 +762,8 @@ These are important, but should wait until the initiative model has real usage:
 10. Let workspaces open initiatives.
 11. Manual beta reality pass.
 12. Context store first-run and cleanup UX.
-13. Agent handoff output and delivery polish.
+13. Skip agent handoff output and delivery polish until the handoff model is
+    clearer.
 14. Workspaces beta guide split.
 15. Context store project roots and schema-led initiatives.
 16. Add local-to-initiative escalation UX.
@@ -755,5 +771,5 @@ These are important, but should wait until the initiative model has real usage:
 18. Explore initiative-hosted target-bound change artifacts.
 19. Review workspace beta compatibility before public release.
 
-Pending discussion: optionally add initiative next / agent handoff UX before or
-alongside the handoff polish work.
+Pending discussion: revisit handoff receipts after the beta guide and sparse
+initiative model clarify what context agents actually need.

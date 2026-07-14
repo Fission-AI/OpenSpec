@@ -5,6 +5,7 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
+import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
 export function getOnboardSkillTemplate(): SkillTemplate {
   return {
@@ -19,6 +20,8 @@ export function getOnboardSkillTemplate(): SkillTemplate {
 
 function getOnboardInstructions(): string {
   return `Guide the user through their first complete OpenSpec workflow cycle. This is a teaching experience—you'll do real work in their codebase while explaining each step.
+
+${STORE_SELECTION_GUIDANCE}
 
 ---
 
@@ -278,7 +281,7 @@ For a small task like this, we might only need one spec file.
 **DO:** Resolve where the spec file should be created:
 \`\`\`bash
 openspec instructions specs --change "<name>" --json
-# Use resolvedOutputPath from the JSON. If it is a glob, choose the concrete file path using the schema instruction and workspace planning context.
+# Use resolvedOutputPath from the JSON. If it is a glob, choose the concrete file path using the schema instruction and the change's context.
 \`\`\`
 
 Draft the spec content:
