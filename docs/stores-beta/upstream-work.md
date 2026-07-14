@@ -1,4 +1,4 @@
-# Upstream work: typed planning in a store
+# Upstream work: typed, linked, and live in a store
 
 > Specs are what is true. Changes are what is in motion. **Upstream work is
 > just a change in the store — typed by a schema the store defines.**
@@ -9,7 +9,7 @@ two primitives OpenSpec already has, working one level up:
 
 | Need | Mechanism |
 |------|-----------|
-| "Our planning work has its own shape" | a **schema in the store** (`openspec/schemas/<name>/`) |
+| "Our upstream work has its own shape" | a **schema in the store** (`openspec/schemas/<name>/`) |
 | "Engineers' work should trace to ours" | a **serves link** (`openspec new change <name> --serves <store>/<change>`) |
 | "What is true, standing, forever" | the store's **specs/** — archive syncs them, as always |
 | "Where does everything stand" | `openspec list --downstream --store <id>` |
