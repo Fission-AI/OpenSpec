@@ -1,6 +1,6 @@
 {
   "name": "@fission-ai/openspec",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "AI-native system for spec-driven development",
   "keywords": [
     "openspec",
@@ -17,6 +17,7 @@
   "license": "MIT",
   "author": "OpenSpec Contributors",
   "type": "module",
+  "packageManager": "pnpm@9.15.9",
   "publishConfig": {
     "access": "public"
   },

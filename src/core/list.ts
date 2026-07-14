@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
-import { readFileSync } from 'fs';
+import { readFileSync, type Dirent } from 'fs';
 import { join } from 'path';
 import { MarkdownParser } from './parsers/markdown-parser.js';
 import type { RootOutput } from './root-selection.js';
@@ -17,6 +17,24 @@ interface ListOptions {
   sort?: 'recent' | 'name';
   json?: boolean;
   root?: RootOutput;
+}
+
+function isMissingPathError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as NodeJS.ErrnoException).code === 'ENOENT'
+  );
+}
+
+async function readChangeDirectoryEntries(changesDir: string): Promise<Dirent[]> {
+  try {
+    return await fs.readdir(changesDir, { withFileTypes: true });
+  } catch (error) {
+    if (isMissingPathError(error)) return [];
+    throw error;
+  }
 }
 
 /**
@@ -83,15 +101,8 @@ export class ListCommand {
     if (mode === 'changes') {
       const changesDir = path.join(targetPath, 'openspec', 'changes');
 
-      // Check if changes directory exists
-      try {
-        await fs.access(changesDir);
-      } catch {
-        throw new Error("No OpenSpec changes directory found. Run 'openspec init' first.");
-      }
-
       // Get all directories in changes (excluding archive)
-      const entries = await fs.readdir(changesDir, { withFileTypes: true });
+      const entries = await readChangeDirectoryEntries(changesDir);
       const changeDirs = entries
         .filter(entry => entry.isDirectory() && entry.name !== 'archive')
         .map(entry => entry.name);
@@ -109,7 +120,7 @@ export class ListCommand {
       const changes: ChangeInfo[] = [];
 
       for (const changeDir of changeDirs) {
-        const progress = await getTaskProgressForChange(changesDir, changeDir);
+        const progress = await getTaskProgressForChange(changesDir, changeDir, targetPath);
         const changePath = path.join(changesDir, changeDir);
         const lastModified = await getLastModified(changePath);
         changes.push({

@@ -79,8 +79,9 @@ The intent is identical everywhere. The punctuation differs. Use the form that m
 | Cursor | `/opsx-propose`, `/opsx-apply` |
 | Windsurf | `/opsx-propose`, `/opsx-apply` |
 | GitHub Copilot (IDE) | `/opsx-propose`, `/opsx-apply` |
+| Oh My Pi | `/opsx-propose`, `/opsx-apply` |
 | Kimi CLI | skill-style, e.g. `/skill:openspec-propose` |
-| Trae | skill-style, e.g. `/openspec-propose` |
+| Trae | `/opsx-propose`, `/opsx-apply` |
 
 Most tools use either the colon form (`/opsx:propose`) or the dash form (`/opsx-propose`). A few tools surface OpenSpec as named skills instead of slash commands; for those you invoke the skill by name. The full per-tool list, including exactly which files get written where, lives in [Supported Tools](supported-tools.md).
 
