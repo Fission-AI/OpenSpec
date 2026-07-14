@@ -86,6 +86,10 @@ That's the whole model. From here the lifecycle is exactly what you know —
 on each command, and every printed hint carries the flag for you. The
 `Using OpenSpec root:` line always tells you where a command is acting.
 
+Prefer to skip the commands entirely? Repos with OpenSpec skills get
+`/opsx:store` — one conversational door that sets up, drafts, links, and
+archives by running all of this for you.
+
 Two defaults worth knowing:
 
 - A fresh store's changes use the built-in **`requirements`** workflow

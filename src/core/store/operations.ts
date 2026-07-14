@@ -35,6 +35,7 @@ import {
   type StorePathOptions,
   type StoreRegistryState,
 } from './foundation.js';
+import { readProjectConfig } from '../project-config.js';
 import { StoreError, type StoreDiagnostic, makeStoreDiagnostic } from './errors.js';
 import {
   assertGitCommitIdentity,
@@ -1091,6 +1092,20 @@ async function inspectStore(entry: {
     openspecRoot = await inspectOpenSpecRoot(root);
     diagnostics.push(...openspecRoot.diagnostics);
 
+    // Declared layout drift: every `structure:` entry should exist on
+    // disk. Setup materializes them, so the fix is one re-run.
+    for (const missing of await findMissingDeclaredStructure(root)) {
+      diagnostics.push(makeStoreDiagnostic(
+        'warning',
+        'store_structure_missing',
+        `Declared structure entry 'openspec/${missing}' is missing on disk.`,
+        {
+          target: 'store.structure',
+          fix: `Run openspec store setup ${entry.id} to materialize the declared layout.`,
+        }
+      ));
+    }
+
     try {
       const parsed = await readOptionalStoreMetadataState(root);
       if (!parsed) {
@@ -1193,6 +1208,31 @@ async function inspectStore(entry: {
     git,
     diagnostics,
   };
+}
+
+/** Declared `structure:` entries (relative to openspec/) missing on disk. */
+async function findMissingDeclaredStructure(root: string): Promise<string[]> {
+  let structure;
+  try {
+    structure = readProjectConfig(root)?.structure;
+  } catch {
+    return [];
+  }
+  if (!structure) return [];
+  const openspecDir = path.resolve(root, OPENSPEC_ROOT_DIR);
+  const missing: string[] = [];
+  for (const key of Object.keys(structure)) {
+    const target = path.resolve(openspecDir, key);
+    if (target !== openspecDir && !target.startsWith(openspecDir + path.sep)) continue;
+    try {
+      const stat = await nodeFs.promises.stat(target);
+      const wantDir = key.endsWith('/');
+      if (wantDir !== stat.isDirectory()) missing.push(key);
+    } catch {
+      missing.push(key);
+    }
+  }
+  return missing.sort();
 }
 
 export async function doctorStores(id?: string): Promise<StoreDoctorResult> {

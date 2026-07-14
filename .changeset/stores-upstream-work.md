@@ -10,7 +10,8 @@
 - **`openspec schema init` upgrades** — accepts `--store <id>` to scaffold into a registered store, and seeds per-stage `instructions/<artifact>.md` files (guidance agents receive, editable per stage) alongside templates
 - **Schema inheritance** — repos that declare `references: [<store>]` resolve the store's schemas (project → referenced stores → user → built-in); `openspec schemas` labels inherited entries with their source store and accepts `--store <id>`
 - **Schema `notes:` and instruction files** — a schema's top-level `notes:` are surfaced verbatim on every instruction surface; `instructions/<artifact>.md` beside the schema wins over inline `instruction:`
-- **`structure:` config** — declare what a root's folders are for; surfaced in `openspec context` and the references index
+- **`structure:` config, now executable** — declare any folders or files in a root's layout (keys ending `/` are folders, other keys files); surfaced in `openspec context` and the references index, materialized by `store setup <id>` (markdown files seeded with their purpose), and drift is flagged by `store doctor`
+- **`/opsx:store` — one door** — a generated skill (core profile) that reads machine state and routes the whole loop conversationally: set up, draft, link with `--serves`, show status, archive; every mechanic stays a deterministic CLI command underneath
 - **One-command store setup** — `openspec store setup <id>` no longer requires `--path` (defaults to `~/openspec/<id>`) and its output teaches the draft → serve → rollup loop
 - **Stateless CI rollups** — `openspec list --downstream --scan <dir>` scans a directory of checkouts with no per-machine state, so a CI job can publish team-wide status
 - **Whole-change rollup status** — a serving change only counts as complete when its tasks AND its schema's artifacts are done; half-done work renders both counts

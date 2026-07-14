@@ -14,6 +14,13 @@ two primitives OpenSpec already has, working one level up:
 | "What is true, standing, forever" | the store's **specs/** — archive syncs them, as always |
 | "Where does everything stand" | `openspec list --downstream --store <id>` |
 
+**And there is one door for all of it:** repos with OpenSpec skills get
+`/opsx:store` — a conversational entry point that reads the machine's
+state, routes to the one thing that makes sense (set up, draft, link,
+status, archive), runs the commands itself, and ends every reply with
+numbered next moves. Users talk; the agent drives; the commands below are
+what it drives.
+
 All output below is from a real run.
 
 ## The store defines the workflow
@@ -161,7 +168,7 @@ which wins.
 | `.openspec.yaml` | `serves: <change>` or `serves: <store-id>/<change>` |
 | `schema.yaml` | optional `notes:` (workflow guidance, surfaced verbatim to agents) |
 | `<schema>/instructions/<artifact>.md` | per-artifact instruction files; a file wins over inline `instruction:` |
-| `config.yaml` | `structure:` — folder → purpose map, surfaced in `context` and the references index |
+| `config.yaml` | `structure:` — layout map, surfaced in `context` and the references index; keys ending `/` are folders, other keys are files; `store setup <id>` materializes anything missing (markdown files are seeded with their purpose) and `store doctor` flags drift |
 | `openspec schema init <name> [--store <id>]` | scaffold a workflow: schema.yaml + instructions/ + templates/ |
 | `openspec schemas [--store <id>]` | includes inherited schemas with their source store |
 | `openspec list --downstream [--store <id>]` | the rollup; outside any root it shows every registered store's |
