@@ -16,6 +16,8 @@
 - **Whole-change rollup status** — a serving change only counts as complete when its tasks AND its schema's artifacts are done; half-done work renders both counts
 - **Custom stages in `schema init`** — `--artifacts` accepts custom kebab-case stage names in workflow order (each stage requires the previous); `schema validate` and `schema which` accept `--store <id>`
 
+- **Intent stays honest** — a serving change's instructions carry a divergence rule (flag upstream instead of silently diverging), and the built-in `requirements` workflow now asks for explicit non-goals and measurable success signals, with requirement-traceability enforced in its specs guidance
+
 ### Fixes
 
 - Legacy `initiative:` change metadata is tolerated in both the object and string forms (read-only, never re-emitted) instead of failing `status`

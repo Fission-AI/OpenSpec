@@ -116,10 +116,16 @@ function renderUpstreamBlock(link: ResolvedUpstreamLink): string {
     lines.push(
       "The upstream change has been archived — its requirements were synced into that root's openspec/specs/, which is now the standing truth to trace against."
     );
+    lines.push(
+      'If implementation shows a synced requirement is wrong or incomplete, do not silently diverge — propose a change against that spec upstream so the divergence is recorded before it becomes drift.'
+    );
   } else if (link.path) {
     lines.push(`Upstream context: ${link.path}`);
     lines.push(
       "Before working, read its artifacts (proposal, specs, and any others its schema defines); this change should trace to a requirement there. Standing truths live beside it in that root's openspec/specs/."
+    );
+    lines.push(
+      'If implementation shows an upstream requirement is wrong or incomplete, do not silently diverge — flag it upstream (or edit the upstream change, if that is your team\'s call to make) so intent stays honest.'
     );
   } else {
     lines.push(

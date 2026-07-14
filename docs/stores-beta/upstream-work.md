@@ -81,7 +81,9 @@ Referenced store 'product-hub' in openspec/config.yaml — agents here now see i
 ```
 
 The serving change's instructions open with the upstream context on disk —
-the intent travels without anyone pasting it:
+the intent travels without anyone pasting it, along with one standing rule:
+if implementation shows an upstream requirement is wrong, flag it upstream
+instead of silently diverging, so intent stays honest:
 
 ```text
 <upstream ref="product-hub/onboarding-revamp">
