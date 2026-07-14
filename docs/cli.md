@@ -367,7 +367,7 @@ Supporting a new tool is configuration, not code. Every tool is one of two launc
     "zed": { "style": "workspace-file" },
     "claude": {
       "attach_flag": "--dir",
-      "args": ["--dangerously-skip-permissions"]
+      "args": ["--model", "opus"]
     }
   }
 }
