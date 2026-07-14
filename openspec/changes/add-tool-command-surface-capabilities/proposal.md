@@ -2,13 +2,13 @@
 
 OpenSpec currently assumes command delivery maps directly to command adapters. That assumption does not hold for all tools.
 
-Trae is a concrete example: it invokes OpenSpec workflows via skill entries (for example `/openspec-new-change`) rather than adapter-generated command files. In this model, skills are the command surface.
+Some tools expose OpenSpec workflows via skill entries rather than adapter-generated command files. Kimi CLI is a concrete example: it invokes skills with forms such as `/skill:openspec-new-change`. In this model, skills are the command surface.
 
 Today, this creates a behavior gap:
 
 - `delivery=commands` can remove skills
 - tools without adapters skip command generation
-- result: selected tools like Trae can end up with no invocable workflow artifacts
+- result: selected tools like Kimi CLI, ForgeCode, or Mistral Vibe can end up with no invocable workflow artifacts
 
 This is more than a prompt UX issue because non-interactive and CI flows bypass interactive guidance. We need a capability-aware model in core generation logic.
 
@@ -25,9 +25,13 @@ Add an optional field in tool metadata to describe how a tool exposes commands:
 Field should be optional. Default behavior is inferred from adapter registry presence: tools with a registered adapter resolve to `adapter`; tools with no adapter registration and no explicit annotation resolve to `none`.
 Capability values use kebab-case string tokens for consistency with serialized metadata conventions.
 
-Initial explicit override:
+Initial explicit overrides:
 
-- Trae -> `skills-invocable`
+- ForgeCode -> `skills-invocable`
+- Kimi CLI -> `skills-invocable`
+- Mistral Vibe -> `skills-invocable`
+
+Trae no longer belongs in this override set once its `.trae/commands/opsx-<id>.md` adapter is available; it should resolve to `adapter` like other file-backed command integrations.
 
 ### 2. Make delivery behavior capability-aware
 
@@ -62,12 +66,12 @@ Update summaries to show effective delivery outcomes per tool (for example, when
 
 ### 4. Update docs and tests
 
-- document capability model and Trae behavior under delivery modes
+- document capability model and skills-invocable behavior under delivery modes
 - ensure CLI docs and supported-tools docs reflect effective behavior
 - add test coverage for:
-  - `init --tools trae` with `delivery=commands`
-  - `update` with Trae configured under `delivery=commands`
-  - mixed selections (`claude + trae`) across all delivery modes
+  - `init --tools kimi` with `delivery=commands`
+  - `update` with Kimi CLI configured under `delivery=commands`
+  - mixed selections (`claude + kimi`) across all delivery modes
   - explicit error path for tools with no command surface under `delivery=commands`
 
 ### 5. Coordinate with install-scope behavior
@@ -94,7 +98,7 @@ Implementation tests should cover mixed-tool matrices to ensure deterministic be
 
 ## Impact
 
-- `src/core/config.ts` - add optional command-surface metadata and Trae override
+- `src/core/config.ts` - add optional command-surface metadata and skills-invocable tool overrides
 - `src/core/command-generation/registry.ts` (or shared helper) - capability inference from adapter presence
 - `src/core/init.ts` - capability-aware generation/removal planning + compatibility validation + summary messaging
 - `src/core/update.ts` - capability-aware sync/removal planning + compatibility validation + summary messaging

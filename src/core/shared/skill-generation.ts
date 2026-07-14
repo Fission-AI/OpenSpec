@@ -9,6 +9,7 @@ import {
   getNewChangeSkillTemplate,
   getContinueChangeSkillTemplate,
   getApplyChangeSkillTemplate,
+  getUpdateChangeSkillTemplate,
   getFfChangeSkillTemplate,
   getSyncSpecsSkillTemplate,
   getArchiveChangeSkillTemplate,
@@ -20,6 +21,7 @@ import {
   getOpsxNewCommandTemplate,
   getOpsxContinueCommandTemplate,
   getOpsxApplyCommandTemplate,
+  getOpsxUpdateCommandTemplate,
   getOpsxFfCommandTemplate,
   getOpsxSyncCommandTemplate,
   getOpsxArchiveCommandTemplate,
@@ -30,6 +32,7 @@ import {
   type SkillTemplate,
 } from '../templates/skill-templates.js';
 import type { CommandContent } from '../command-generation/index.js';
+import { OPENSPEC_CLI_ALLOWED_TOOLS } from './allowed-tools.js';
 
 /**
  * Skill template with directory name and workflow ID mapping.
@@ -59,6 +62,7 @@ export function getSkillTemplates(workflowFilter?: readonly string[]): SkillTemp
     { template: getNewChangeSkillTemplate(), dirName: 'openspec-new-change', workflowId: 'new' },
     { template: getContinueChangeSkillTemplate(), dirName: 'openspec-continue-change', workflowId: 'continue' },
     { template: getApplyChangeSkillTemplate(), dirName: 'openspec-apply-change', workflowId: 'apply' },
+    { template: getUpdateChangeSkillTemplate(), dirName: 'openspec-update-change', workflowId: 'update' },
     { template: getFfChangeSkillTemplate(), dirName: 'openspec-ff-change', workflowId: 'ff' },
     { template: getSyncSpecsSkillTemplate(), dirName: 'openspec-sync-specs', workflowId: 'sync' },
     { template: getArchiveChangeSkillTemplate(), dirName: 'openspec-archive-change', workflowId: 'archive' },
@@ -85,6 +89,7 @@ export function getCommandTemplates(workflowFilter?: readonly string[]): Command
     { template: getOpsxNewCommandTemplate(), id: 'new' },
     { template: getOpsxContinueCommandTemplate(), id: 'continue' },
     { template: getOpsxApplyCommandTemplate(), id: 'apply' },
+    { template: getOpsxUpdateCommandTemplate(), id: 'update' },
     { template: getOpsxFfCommandTemplate(), id: 'ff' },
     { template: getOpsxSyncCommandTemplate(), id: 'sync' },
     { template: getOpsxArchiveCommandTemplate(), id: 'archive' },
@@ -136,6 +141,7 @@ export function generateSkillContent(
   return `---
 name: ${template.name}
 description: ${template.description}
+allowed-tools: ${OPENSPEC_CLI_ALLOWED_TOOLS}
 license: ${template.license || 'MIT'}
 compatibility: ${template.compatibility || 'Requires openspec CLI.'}
 metadata:
