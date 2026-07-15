@@ -3,6 +3,7 @@ import * as path from 'path';
 import chalk from 'chalk';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
 import { MarkdownParser } from './parsers/markdown-parser.js';
+import { getActiveChangeIds } from '../utils/item-discovery.js';
 
 export class ViewCommand {
   async execute(targetPath: string = '.'): Promise<void> {
@@ -93,22 +94,21 @@ export class ViewCommand {
     const active: Array<{ name: string; progress: { total: number; completed: number } }> = [];
     const completed: Array<{ name: string }> = [];
 
-    const entries = fs.readdirSync(changesDir, { withFileTypes: true });
+    const projectRoot = path.dirname(openspecDir);
+    const changeIds = await getActiveChangeIds(projectRoot);
 
-    for (const entry of entries) {
-      if (entry.isDirectory() && entry.name !== 'archive') {
-        const progress = await getTaskProgressForChange(changesDir, entry.name, path.dirname(openspecDir));
+    for (const changeId of changeIds) {
+      const progress = await getTaskProgressForChange(changesDir, changeId, projectRoot);
 
-        if (progress.total === 0) {
-          // No tasks defined yet - still in planning/draft phase
-          draft.push({ name: entry.name });
-        } else if (progress.completed === progress.total) {
-          // All tasks complete
-          completed.push({ name: entry.name });
-        } else {
-          // Has tasks but not all complete
-          active.push({ name: entry.name, progress });
-        }
+      if (progress.total === 0) {
+        // No tasks defined yet - still in planning/draft phase
+        draft.push({ name: changeId });
+      } else if (progress.completed === progress.total) {
+        // All tasks complete
+        completed.push({ name: changeId });
+      } else {
+        // Has tasks but not all complete
+        active.push({ name: changeId, progress });
       }
     }
 

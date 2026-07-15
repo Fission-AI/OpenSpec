@@ -206,11 +206,17 @@ describe('artifact-workflow CLI commands', () => {
       expect(output).toContain('Invalid change name');
     });
 
-    it('rejects slashes in change name', async () => {
-      const result = await runCLI(['status', '--change', 'foo/bar'], { cwd: tempDir });
-      expect(result.exitCode).toBe(1);
-      const output = getOutput(result);
-      expect(output).toContain('Invalid change name');
+    it('accepts slash ids for scaffolded nested changes', async () => {
+      const nestedChangeDir = path.join(changesDir, 'Platform', 'API', 'add-auth');
+      await fs.mkdir(nestedChangeDir, { recursive: true });
+      await fs.writeFile(path.join(nestedChangeDir, '.openspec.yaml'), 'schema: spec-driven\n');
+
+      const result = await runCLI(['status', '--change', 'Platform/API/add-auth'], {
+        cwd: tempDir,
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Platform/API/add-auth');
+      expect(result.stdout).toContain('0/4 artifacts complete');
     });
   });
 

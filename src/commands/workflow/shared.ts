@@ -12,6 +12,7 @@ import { getSchemaDir, listSchemas } from '../../core/artifact-graph/index.js';
 import type { ReferenceIndexEntry } from '../../core/references.js';
 import { isRootSelectionError } from '../../core/root-selection.js';
 import { validateChangeName } from '../../utils/change-utils.js';
+import { findAllChangeIds, splitChangeId, validateDomainPath } from '../../utils/change-path.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -122,16 +123,7 @@ export async function getAvailableChanges(
   projectRoot: string,
   changesDir = path.join(projectRoot, 'openspec', 'changes')
 ): Promise<string[]> {
-  const changesPath = changesDir;
-  try {
-    const entries = await fs.promises.readdir(changesPath, { withFileTypes: true });
-    return entries
-      .filter((e) => e.isDirectory() && e.name !== 'archive' && !e.name.startsWith('.'))
-      .map((e) => e.name);
-  } catch (error: unknown) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
-    throw error;
-  }
+  return findAllChangeIds(changesDir);
 }
 
 /**
@@ -158,14 +150,23 @@ export async function validateChangeExists(
     );
   }
 
-  // Validate change name format to prevent path traversal
-  const nameValidation = validateChangeName(changeName);
+  const { domain, name } = splitChangeId(changeName);
+  const domainValidation = validateDomainPath(domain.join('/'));
+  if (!domainValidation.valid) {
+    throw new Error(`Invalid change name '${changeName}': ${domainValidation.error}`);
+  }
+
+  const nameValidation = validateChangeName(name);
   if (!nameValidation.valid) {
     throw new Error(`Invalid change name '${changeName}': ${nameValidation.error}`);
   }
 
-  // Check directory existence directly
-  const changePath = path.join(changesDir, changeName);
+  const changePath = path.join(changesDir, ...domain, name);
+  const relativeChangePath = path.relative(changesDir, changePath);
+  if (relativeChangePath.startsWith('..') || path.isAbsolute(relativeChangePath)) {
+    throw new Error(`Invalid change name '${changeName}': Change path must stay within changesDir`);
+  }
+
   const exists = fs.existsSync(changePath) && fs.statSync(changePath).isDirectory();
 
   if (!exists) {
