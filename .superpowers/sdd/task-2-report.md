@@ -25,6 +25,10 @@
   `.\node_modules\.bin\vitest.cmd run test/commands/store-root-selection.test.ts test/commands/store-remote.test.ts test/commands/declared-store-fallback.test.ts test/cli-e2e/capstone-journeys.test.ts`
 - Additional GREEN result:
   `4 passed, 60 passed`
+- Review follow-up command:
+  `.\node_modules\.bin\vitest.cmd run test/utils/change-utils.test.ts test/core/openspec-root.test.ts`
+- Review follow-up result:
+  `2 passed, 35 passed`
 
 ### Changed files
 
@@ -47,7 +51,8 @@
 
 ### Commit
 
-- Commit hash: `PENDING`
+- Original Task 2 commit hash: `e3cc728`
+- Integrated by controller as: `b0f16da`
 
 ### Concerns
 

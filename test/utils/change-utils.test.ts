@@ -145,6 +145,16 @@ describe('createChange', () => {
       const content = await fs.readFile(metaPath, 'utf-8');
       expect(content).toContain('schema: spec-driven');
     });
+
+    it('should scaffold openspec/archive without creating openspec/changes/archive', async () => {
+      await createChange(testDir, 'add-auth');
+
+      const archiveDir = path.join(testDir, 'openspec', 'archive');
+      const legacyArchiveDir = path.join(testDir, 'openspec', 'changes', 'archive');
+
+      await expect(fs.stat(archiveDir)).resolves.toMatchObject({ isDirectory: expect.any(Function) });
+      await expect(fs.access(legacyArchiveDir)).rejects.toThrow();
+    });
   });
 
   describe('schema validation', () => {
@@ -196,6 +206,28 @@ describe('createChange', () => {
       const changeDir = path.join(newProjectDir, 'openspec', 'changes', 'add-auth');
       const stats = await fs.stat(changeDir);
       expect(stats.isDirectory()).toBe(true);
+    });
+
+    it('should preserve existing config while scaffolding sibling archive', async () => {
+      const newProjectDir = path.join(testDir, 'configured-project');
+      await fs.mkdir(path.join(newProjectDir, 'openspec'), { recursive: true });
+      await fs.writeFile(
+        path.join(newProjectDir, 'openspec', 'config.yml'),
+        '# keep existing config\nschema: spec-driven\n',
+        'utf-8'
+      );
+
+      await createChange(newProjectDir, 'add-auth', { defaultSchema: 'spec-driven' });
+
+      const archiveDir = path.join(newProjectDir, 'openspec', 'archive');
+      const legacyArchiveDir = path.join(newProjectDir, 'openspec', 'changes', 'archive');
+
+      expect(await fs.readFile(path.join(newProjectDir, 'openspec', 'config.yml'), 'utf-8')).toBe(
+        '# keep existing config\nschema: spec-driven\n'
+      );
+      await expect(fs.access(path.join(newProjectDir, 'openspec', 'config.yaml'))).rejects.toThrow();
+      await expect(fs.stat(archiveDir)).resolves.toMatchObject({ isDirectory: expect.any(Function) });
+      await expect(fs.access(legacyArchiveDir)).rejects.toThrow();
     });
   });
 });
