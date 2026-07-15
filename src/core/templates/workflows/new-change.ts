@@ -56,12 +56,13 @@ ${MANDATORY_DOMAIN_SELECTION_GUIDANCE}
    openspec new change "<name>" --domain "<resolved-domain>"
    \`\`\`
    For root placement, invoke \`openspec new change "<name>" --domain ""\`. If a store was selected, append \`--store <id>\` to either invocation.
+   Set \`<change-id>\` to \`<resolved-domain>/<name>\` for a non-root domain, or \`<name>\` for root placement. Keep any selected \`--store <id>\` on every supported follow-up command.
    Add \`--schema <name>\` only if the user requested a specific workflow.
    This creates a scaffolded change in the planning home resolved by the CLI.
 
 5. **Show the artifact status**
    \`\`\`bash
-   openspec status --change "<name>" --json
+   openspec status --change "<change-id>" --json
    \`\`\`
    Use the returned \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`nextSteps\` instead of assuming repo-local paths.
 
@@ -69,7 +70,7 @@ ${MANDATORY_DOMAIN_SELECTION_GUIDANCE}
    The first artifact depends on the schema (e.g., \`proposal\` for spec-driven).
    Check the status output to find the first artifact with status "ready".
    \`\`\`bash
-   openspec instructions <first-artifact-id> --change "<name>"
+   openspec instructions <first-artifact-id> --change "<change-id>"
    \`\`\`
    This outputs the template and context for creating the first artifact.
 
@@ -136,19 +137,20 @@ ${MANDATORY_DOMAIN_SELECTION_GUIDANCE}
    openspec new change "<name>" --domain "<resolved-domain>"
    \`\`\`
    For root placement, invoke \`openspec new change "<name>" --domain ""\`. If a store was selected, append \`--store <id>\` to either invocation.
+   Set \`<change-id>\` to \`<resolved-domain>/<name>\` for a non-root domain, or \`<name>\` for root placement. Keep any selected \`--store <id>\` on every supported follow-up command.
    Add \`--schema <name>\` only if the user requested a specific workflow.
    This creates a scaffolded change in the planning home resolved by the CLI.
 
 5. **Show the artifact status**
    \`\`\`bash
-   openspec status --change "<name>" --json
+   openspec status --change "<change-id>" --json
    \`\`\`
    Use the returned \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`nextSteps\` instead of assuming repo-local paths.
 
 6. **Get instructions for the first artifact**
    The first artifact depends on the schema. Check the status output to find the first artifact with status "ready".
    \`\`\`bash
-   openspec instructions <first-artifact-id> --change "<name>"
+   openspec instructions <first-artifact-id> --change "<change-id>"
    \`\`\`
    This outputs the template and context for creating the first artifact.
 
@@ -161,13 +163,13 @@ After completing the steps, summarize:
 - Schema/workflow being used and its artifact sequence
 - Current status (0/N artifacts complete)
 - The template for the first artifact
-- Prompt: "Ready to create the first artifact? Run \`/opsx:continue\` or just describe what this change is about and I'll draft it."
+- Prompt: "Ready to create the first artifact? Run \`/opsx:continue <change-id>\` or just describe what this change is about and I'll draft it."
 
 **Guardrails**
 - Do NOT create any artifacts yet - just show the instructions
 - Do NOT advance beyond showing the first artifact template
 - If the name is invalid (not kebab-case), ask for a valid name
-- If a change with that name already exists, suggest using \`/opsx:continue\` instead
+- If a change with that ID already exists, suggest using \`/opsx:continue <change-id>\` instead
 - Pass --schema if using a non-default workflow`
   };
 }

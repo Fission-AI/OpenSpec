@@ -179,7 +179,7 @@ Now let's create a change to hold our work.
 \`\`\`
 ## Creating a Change
 
-A "change" in OpenSpec is a container for all the thinking and planning around a piece of work. It lives at the \`changeRoot\` reported by \`openspec status --change "<name>" --json\` and holds your artifacts—proposal, specs, design, tasks.
+A "change" in OpenSpec is a container for all the thinking and planning around a piece of work. It lives at the \`changeRoot\` reported by \`openspec status --change "<change-id>" --json\` and holds your artifacts—proposal, specs, design, tasks.
 
 Let me create one for our task.
 \`\`\`
@@ -191,6 +191,7 @@ Let me create one for our task.
 openspec new change "<name>" --domain "<resolved-domain>"
 \`\`\`
 For root placement, invoke \`openspec new change "<name>" --domain ""\`. If a store was selected, append \`--store <id>\` to either invocation.
+Set \`<change-id>\` to \`<resolved-domain>/<name>\` for a non-root domain, or \`<name>\` for root placement. Keep any selected \`--store <id>\` on every supported follow-up command.
 
 **SHOW:**
 \`\`\`
@@ -258,9 +259,9 @@ Does this capture the intent? I can adjust before we save it.
 
 After approval, save the proposal:
 \`\`\`bash
-openspec instructions proposal --change "<name>" --json
+openspec instructions proposal --change "<change-id>" --json
 \`\`\`
-Then write the content to the \`resolvedOutputPath\` from \`openspec instructions proposal --change "<name>" --json\`.
+Then write the content to the \`resolvedOutputPath\` from \`openspec instructions proposal --change "<change-id>" --json\`.
 
 \`\`\`
 Proposal saved. This is your "why" document—you can always come back and refine it as understanding evolves.
@@ -283,7 +284,7 @@ For a small task like this, we might only need one spec file.
 
 **DO:** Resolve where the spec file should be created:
 \`\`\`bash
-openspec instructions specs --change "<name>" --json
+openspec instructions specs --change "<change-id>" --json
 # Use resolvedOutputPath from the JSON. If it is a glob, choose the concrete file path using the schema instruction and the change's context.
 \`\`\`
 
@@ -356,7 +357,7 @@ Here's the design:
 For a small task, this captures the key decisions without over-engineering.
 \`\`\`
 
-Save to the \`resolvedOutputPath\` from \`openspec instructions design --change "<name>" --json\`.
+Save to the \`resolvedOutputPath\` from \`openspec instructions design --change "<change-id>" --json\`.
 
 ---
 
@@ -394,7 +395,7 @@ Each checkbox becomes a unit of work in the apply phase. Ready to implement?
 
 **PAUSE** - Wait for user to confirm they're ready to implement.
 
-Save to the \`resolvedOutputPath\` from \`openspec instructions tasks --change "<name>" --json\`.
+Save to the \`resolvedOutputPath\` from \`openspec instructions tasks --change "<change-id>" --json\`.
 
 ---
 
@@ -447,7 +448,7 @@ Archived changes become your project's decision history—you can always find th
 
 **DO:**
 \`\`\`bash
-openspec archive "<name>"
+openspec archive "<change-id>"
 \`\`\`
 If a store was selected, append \`--store <id>\`.
 
@@ -489,17 +490,17 @@ This same rhythm works for any size change—a small fix or a major feature.
  |-------------------|--------------------------------------------|
  | \`/opsx:propose\` | Create a change and generate all artifacts |
  | \`/opsx:explore\` | Think through problems before/during work  |
- | \`/opsx:apply\`   | Implement tasks from a change              |
- | \`/opsx:archive\` | Archive a completed change                 |
+ | \`/opsx:apply <change-id>\`   | Implement tasks from a change              |
+ | \`/opsx:archive <change-id>\` | Archive a completed change                 |
 
 **Additional commands:**
 
  | Command            | What it does                                             |
  |--------------------|----------------------------------------------------------|
  | \`/opsx:new\`      | Start a new change, step through artifacts one at a time |
- | \`/opsx:continue\` | Continue working on an existing change                   |
+ | \`/opsx:continue <change-id>\` | Continue working on an existing change                   |
  | \`/opsx:ff\`       | Fast-forward: create all artifacts at once               |
- | \`/opsx:verify\`   | Verify implementation matches artifacts                  |
+ | \`/opsx:verify <change-id>\`   | Verify implementation matches artifacts                  |
 
 ---
 
@@ -517,11 +518,11 @@ Try \`/opsx:propose\` on something you actually want to build. You've got the rh
 If the user says they need to stop, want to pause, or seem disengaged:
 
 \`\`\`
-No problem! Your change is saved at the \`changeRoot\` reported by \`openspec status --change "<name>" --json\`.
+No problem! Your change is saved at the \`changeRoot\` reported by \`openspec status --change "<change-id>" --json\`.
 
 To pick up where we left off later:
-- \`/opsx:continue <name>\` - Resume artifact creation
-- \`/opsx:apply <name>\` - Jump to implementation (if tasks exist)
+- \`/opsx:continue <change-id>\` - Resume artifact creation
+- \`/opsx:apply <change-id>\` - Jump to implementation (if tasks exist)
 
 The work won't be lost. Come back whenever you're ready.
 \`\`\`
@@ -541,17 +542,17 @@ If the user says they just want to see the commands or skip the tutorial:
  |--------------------------|--------------------------------------------|
  | \`/opsx:propose <name>\` | Create a change and generate all artifacts |
  | \`/opsx:explore\`        | Think through problems (no code changes)   |
- | \`/opsx:apply <name>\`   | Implement tasks                            |
- | \`/opsx:archive <name>\` | Archive when done                          |
+ | \`/opsx:apply <change-id>\`   | Implement tasks                            |
+ | \`/opsx:archive <change-id>\` | Archive when done                          |
 
 **Additional commands:**
 
  | Command                   | What it does                        |
  |---------------------------|-------------------------------------|
  | \`/opsx:new <name>\`      | Start a new change, step by step    |
- | \`/opsx:continue <name>\` | Continue an existing change         |
+ | \`/opsx:continue <change-id>\` | Continue an existing change         |
  | \`/opsx:ff <name>\`       | Fast-forward: all artifacts at once |
- | \`/opsx:verify <name>\`   | Verify implementation               |
+ | \`/opsx:verify <change-id>\`   | Verify implementation               |
 
 Try \`/opsx:propose\` to start your first change.
 \`\`\`
