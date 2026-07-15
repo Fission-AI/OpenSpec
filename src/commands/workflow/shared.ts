@@ -7,12 +7,14 @@
 
 import chalk from 'chalk';
 import path from 'path';
-import * as fs from 'fs';
 import { getSchemaDir, listSchemas } from '../../core/artifact-graph/index.js';
 import type { ReferenceIndexEntry } from '../../core/references.js';
 import { isRootSelectionError } from '../../core/root-selection.js';
-import { validateChangeName } from '../../utils/change-utils.js';
-import { findAllChangeIds, splitChangeId, validateDomainPath } from '../../utils/change-path.js';
+import {
+  ChangeNotFoundError,
+  findAllChangeIds,
+  resolveExistingChangeId,
+} from '../../utils/change-path.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -150,33 +152,12 @@ export async function validateChangeExists(
     );
   }
 
-  const { domain, name } = splitChangeId(changeName);
-  const domainValidation = validateDomainPath(domain.join('/'));
-  if (!domainValidation.valid) {
-    throw new Error(`Invalid change name '${changeName}': ${domainValidation.error}`);
-  }
-
-  const nameValidation = validateChangeName(name);
-  if (!nameValidation.valid) {
-    throw new Error(`Invalid change name '${changeName}': ${nameValidation.error}`);
-  }
-
-  const rootSegment = domain[0] ?? name;
-  if (rootSegment.toLowerCase() === 'archive') {
-    throw new Error(
-      `Invalid change name '${changeName}': Change ID root segment 'archive' is reserved`
-    );
-  }
-
-  const changePath = path.join(changesDir, ...domain, name);
-  const relativeChangePath = path.relative(changesDir, changePath);
-  if (relativeChangePath.startsWith('..') || path.isAbsolute(relativeChangePath)) {
-    throw new Error(`Invalid change name '${changeName}': Change path must stay within changesDir`);
-  }
-
-  const exists = fs.existsSync(changePath) && fs.statSync(changePath).isDirectory();
-
-  if (!exists) {
+  try {
+    await resolveExistingChangeId(changeName, changesDir);
+  } catch (error) {
+    if (!(error instanceof ChangeNotFoundError)) {
+      throw error;
+    }
     const available = await getAvailableChanges(projectRoot, changesDir);
     if (available.length === 0) {
       throw new Error(

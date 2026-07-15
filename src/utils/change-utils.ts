@@ -2,7 +2,11 @@ import path from 'path';
 import { promises as fs } from 'fs';
 import { FileSystemUtils } from './file-system.js';
 import { writeChangeMetadata, validateSchemaName } from './change-metadata.js';
-import { splitChangeId, validateDomainPath } from './change-path.js';
+import {
+  splitChangeId,
+  validateChangeName,
+  validateDomainPath,
+} from './change-path.js';
 import { readProjectConfig } from '../core/project-config.js';
 import type { ChangeMetadata } from '../core/change-metadata/index.js';
 
@@ -93,71 +97,8 @@ export interface CreateChangeResult {
   changeDir: string;
 }
 
-/**
- * Result of validating a change name.
- */
-export interface ValidationResult {
-  valid: boolean;
-  error?: string;
-}
-
-/**
- * Validates that a change name follows kebab-case conventions.
- *
- * Valid names:
- * - Start with a lowercase letter
- * - Contain only lowercase letters, numbers, and hyphens
- * - Do not start or end with a hyphen
- * - Do not contain consecutive hyphens
- *
- * @param name - The change name to validate
- * @returns Validation result with `valid: true` or `valid: false` with an error message
- *
- * @example
- * validateChangeName('add-auth') // { valid: true }
- * validateChangeName('Add-Auth') // { valid: false, error: '...' }
- */
-export function validateChangeName(name: string): ValidationResult {
-  // Pattern: starts with lowercase letter, followed by lowercase letters/numbers,
-  // optionally followed by hyphen + lowercase letters/numbers (repeatable)
-  const kebabCasePattern = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
-
-  if (!name) {
-    return { valid: false, error: 'Change name cannot be empty' };
-  }
-
-  if (!kebabCasePattern.test(name)) {
-    // Provide specific error messages for common mistakes
-    if (/[A-Z]/.test(name)) {
-      return { valid: false, error: 'Change name must be lowercase (use kebab-case)' };
-    }
-    if (/\s/.test(name)) {
-      return { valid: false, error: 'Change name cannot contain spaces (use hyphens instead)' };
-    }
-    if (/_/.test(name)) {
-      return { valid: false, error: 'Change name cannot contain underscores (use hyphens instead)' };
-    }
-    if (name.startsWith('-')) {
-      return { valid: false, error: 'Change name cannot start with a hyphen' };
-    }
-    if (name.endsWith('-')) {
-      return { valid: false, error: 'Change name cannot end with a hyphen' };
-    }
-    if (/--/.test(name)) {
-      return { valid: false, error: 'Change name cannot contain consecutive hyphens' };
-    }
-    if (/[^a-z0-9-]/.test(name)) {
-      return { valid: false, error: 'Change name can only contain lowercase letters, numbers, and hyphens' };
-    }
-    if (/^[0-9]/.test(name)) {
-      return { valid: false, error: 'Change name must start with a letter' };
-    }
-
-    return { valid: false, error: 'Change name must follow kebab-case convention (e.g., add-auth, refactor-db)' };
-  }
-
-  return { valid: true };
-}
+export { validateChangeName } from './change-path.js';
+export type { ValidationResult } from './change-path.js';
 
 /**
  * Creates a new change directory with metadata file.

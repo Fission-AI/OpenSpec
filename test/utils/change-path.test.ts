@@ -9,6 +9,9 @@ import {
   buildArchivePath,
   findAllChangeIds,
   findAllArchivedChangeIds,
+  resolveExistingChangeId,
+  InvalidChangeIdError,
+  ChangeNotFoundError,
 } from '../../src/utils/change-path.js';
 
 afterEach(() => {
@@ -86,6 +89,46 @@ describe('buildArchivePath', () => {
   it('prefixes only the final change-name segment', () => {
     expect(buildArchivePath(path.join('tmp', 'archive'), 'Platform/API/add-auth', '2026-07-15')).toBe(
       path.join('tmp', 'archive', 'Platform', 'API', '2026-07-15-add-auth')
+    );
+  });
+});
+
+describe('resolveExistingChangeId', () => {
+  let testDir: string;
+  let changesDir: string;
+
+  beforeEach(async () => {
+    testDir = path.join(os.tmpdir(), `openspec-resolve-change-${randomUUID()}`);
+    changesDir = path.join(testDir, 'openspec', 'changes');
+    await fs.mkdir(changesDir, { recursive: true });
+  });
+
+  afterEach(async () => {
+    await fs.rm(testDir, { recursive: true, force: true });
+  });
+
+  it('returns parsed segments and the contained path for an existing slash ID', async () => {
+    const changePath = path.join(changesDir, 'Platform', 'API', 'add-auth');
+    await fs.mkdir(changePath, { recursive: true });
+
+    await expect(resolveExistingChangeId('Platform/API/add-auth', changesDir)).resolves.toEqual({
+      id: 'Platform/API/add-auth',
+      domain: ['Platform', 'API'],
+      name: 'add-auth',
+      path: changePath,
+    });
+  });
+
+  it('rejects invalid IDs with a typed validation error', async () => {
+    await expect(resolveExistingChangeId('../specs', changesDir)).rejects.toMatchObject({
+      name: 'InvalidChangeIdError',
+      code: 'invalid_domain',
+    } satisfies Partial<InvalidChangeIdError>);
+  });
+
+  it('rejects valid missing IDs with a distinct typed error', async () => {
+    await expect(resolveExistingChangeId('missing-change', changesDir)).rejects.toBeInstanceOf(
+      ChangeNotFoundError
     );
   });
 });

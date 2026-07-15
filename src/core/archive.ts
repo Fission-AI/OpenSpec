@@ -18,8 +18,13 @@ import {
   writeUpdatedSpec,
   type SpecUpdate,
 } from './specs-apply.js';
-import { buildArchivePath, findAllChangeIds, splitChangeId } from '../utils/change-path.js';
-import { validateChangeExists } from '../commands/workflow/shared.js';
+import {
+  buildArchivePath,
+  ChangeNotFoundError,
+  findAllChangeIds,
+  resolveExistingChangeId,
+  type ResolvedChangeId,
+} from '../utils/change-path.js';
 
 export interface ArchiveOptions {
   yes?: boolean;
@@ -199,14 +204,11 @@ export class ArchiveCommand {
       changeName = selectedChange;
     }
 
-    // Validate the full ID before deriving any filesystem path.
+    let resolvedChange: ResolvedChangeId;
     try {
-      await validateChangeExists(changeName, root.path, changesDir);
+      resolvedChange = await resolveExistingChangeId(changeName, changesDir);
     } catch (error) {
-      if (
-        error instanceof Error &&
-        error.message.startsWith(`Invalid change name '${changeName}':`)
-      ) {
+      if (!(error instanceof ChangeNotFoundError)) {
         throw error;
       }
       const available = await findAllChangeIds(changesDir);
@@ -218,8 +220,7 @@ export class ArchiveCommand {
       );
     }
 
-    const { domain, name } = splitChangeId(changeName);
-    const changeDir = path.join(changesDir, ...domain, name);
+    const { domain, name, path: changeDir } = resolvedChange;
     const archiveDate = this.getArchiveDate();
     const archiveName = `${archiveDate}-${name}`;
     const archivedAs = [...domain, archiveName].join('/');

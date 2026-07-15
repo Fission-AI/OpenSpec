@@ -16,8 +16,10 @@ import {
 } from './parsers/requirement-blocks.js';
 import { findMainSpecStructureIssues } from './parsers/spec-structure.js';
 import { Validator } from './validation/validator.js';
-import { splitChangeId } from '../utils/change-path.js';
-import { validateChangeExists } from '../commands/workflow/shared.js';
+import {
+  ChangeNotFoundError,
+  resolveExistingChangeId,
+} from '../utils/change-path.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -451,20 +453,17 @@ export async function applySpecs(
   } = {}
 ): Promise<SpecsApplyOutput> {
   const changesDir = path.join(projectRoot, 'openspec', 'changes');
+  let resolvedChange;
   try {
-    await validateChangeExists(changeName, projectRoot, changesDir);
+    resolvedChange = await resolveExistingChangeId(changeName, changesDir);
   } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message.startsWith(`Invalid change name '${changeName}':`)
-    ) {
+    if (!(error instanceof ChangeNotFoundError)) {
       throw error;
     }
     throw new Error(`Change '${changeName}' not found.`);
   }
 
-  const { domain, name } = splitChangeId(changeName);
-  const changeDir = path.join(changesDir, ...domain, name);
+  const { domain, path: changeDir } = resolvedChange;
   const mainSpecsDir = path.join(projectRoot, 'openspec', 'specs');
 
   // Find specs to update
