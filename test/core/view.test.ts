@@ -6,6 +6,32 @@ import { ViewCommand } from '../../src/core/view.js';
 
 const stripAnsi = (input: string): string => input.replace(/\u001b\[[0-9;]*m/g, '');
 
+function extractSection(output: string, heading: string, nextHeadings: string[]): string {
+  const lines = output.split('\n');
+  const headingIndex = lines.findIndex((line) => line.trim() === heading);
+  if (headingIndex === -1) {
+    return '';
+  }
+
+  const nextHeadingIndex = lines.findIndex(
+    (line, index) => index > headingIndex && nextHeadings.includes(line.trim())
+  );
+  const sectionLines = lines.slice(
+    headingIndex + 1,
+    nextHeadingIndex === -1 ? lines.length : nextHeadingIndex
+  );
+
+  return sectionLines.join('\n').trim();
+}
+
+function extractSectionLines(output: string, heading: string, nextHeadings: string[]): string[] {
+  const section = extractSection(output, heading, nextHeadings);
+  return section
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+}
+
 async function scaffoldChange(
   changesDir: string,
   changeId: string,
@@ -59,24 +85,20 @@ describe('ViewCommand', () => {
 
     const output = logOutput.map(stripAnsi).join('\n');
 
-    // Draft section should contain empty and no-tasks changes
-    expect(output).toContain('Draft Changes');
-    expect(output).toContain('empty-change');
-    expect(output).toContain('no-tasks-change');
+    const draftLines = extractSectionLines(output, 'Draft Changes', [
+      'Active Changes',
+      'Completed Changes',
+      'Specifications',
+    ]);
+    const completedLines = extractSectionLines(output, 'Completed Changes', ['Specifications']);
 
-    // Completed section should only contain changes with all tasks done
-    expect(output).toContain('Completed Changes');
-    expect(output).toContain('completed-change');
+    expect(draftLines.length).toBeGreaterThan(0);
+    expect(completedLines.length).toBeGreaterThan(0);
 
-    const draftLines = logOutput
-      .map(stripAnsi)
-      .filter((line) => line.includes('empty-change') || line.includes('no-tasks-change'));
     expect(draftLines.some((line) => line.includes('empty-change'))).toBe(true);
     expect(draftLines.some((line) => line.includes('no-tasks-change'))).toBe(true);
+    expect(draftLines.some((line) => line.includes('completed-change'))).toBe(false);
 
-    const completedLines = logOutput
-      .map(stripAnsi)
-      .filter((line) => line.includes('completed-change'));
     expect(completedLines.some((line) => line.includes('completed-change'))).toBe(true);
     expect(completedLines.some((line) => line.includes('empty-change'))).toBe(false);
     expect(completedLines.some((line) => line.includes('no-tasks-change'))).toBe(false);
