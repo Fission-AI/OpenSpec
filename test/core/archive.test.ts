@@ -34,7 +34,7 @@ describe('ArchiveCommand', () => {
     const openspecDir = path.join(tempDir, 'openspec');
     await fs.mkdir(path.join(openspecDir, 'changes'), { recursive: true });
     await fs.mkdir(path.join(openspecDir, 'specs'), { recursive: true });
-    await fs.mkdir(path.join(openspecDir, 'changes', 'archive'), { recursive: true });
+    await fs.mkdir(path.join(openspecDir, 'archive'), { recursive: true });
 
     // Suppress console.log during tests
     console.log = vi.fn();
@@ -85,7 +85,7 @@ describe('ArchiveCommand', () => {
       await archiveCommand.execute(changeName, { yes: true });
       
       // Check that change was moved to archive
-      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archiveDir = path.join(tempDir, 'openspec', 'archive');
       const archives = await fs.readdir(archiveDir);
       
       expect(archives.length).toBe(1);
@@ -93,6 +93,38 @@ describe('ArchiveCommand', () => {
       
       // Verify original change directory no longer exists
       await expect(fs.access(changeDir)).rejects.toThrow();
+    });
+
+    it('preserves a one-level domain when archiving', async () => {
+      const changeId = 'auth/add-login';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', 'auth', 'add-login');
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'proposal.md'), '# Add login');
+
+      await archiveCommand.execute(changeId, { yes: true, noValidate: true });
+
+      const date = new Date().toISOString().split('T')[0];
+      const archivePath = path.join(tempDir, 'openspec', 'archive', 'auth', `${date}-add-login`);
+      await expect(fs.access(path.join(archivePath, 'proposal.md'))).resolves.not.toThrow();
+      await expect(fs.access(changeDir)).rejects.toThrow();
+    });
+
+    it('preserves a multi-level domain and reports an unambiguous archive ID in JSON', async () => {
+      const changeId = 'auth/oauth/add-login';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', 'auth', 'oauth', 'add-login');
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'proposal.md'), '# Add OAuth login');
+
+      await archiveCommand.execute(changeId, { yes: true, noValidate: true, json: true });
+
+      const date = new Date().toISOString().split('T')[0];
+      const archivedAs = `auth/oauth/${date}-add-login`;
+      const archivePath = path.join(process.cwd(), 'openspec', 'archive', 'auth', 'oauth', `${date}-add-login`);
+      const output = JSON.parse((console.log as ReturnType<typeof vi.fn>).mock.calls[0][0]);
+      expect(output.archive).toMatchObject({ change: changeId, archivedAs });
+      expect(path.isAbsolute(output.archive.path)).toBe(true);
+      expect(await fs.realpath(output.archive.path)).toBe(await fs.realpath(archivePath));
+      await expect(fs.access(path.join(output.archive.path, 'proposal.md'))).resolves.not.toThrow();
     });
 
     it('should warn about incomplete tasks', async () => {
@@ -234,7 +266,7 @@ The system SHALL support logo and backgroundColor fields for gift cards.
       expect(updatedContent).not.toContain('### Requirement: Thumbnail Field');
       
       // Verify change was archived successfully
-      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archiveDir = path.join(tempDir, 'openspec', 'archive');
       const archives = await fs.readdir(archiveDir);
       expect(archives.length).toBeGreaterThan(0);
       expect(archives.some(a => a.includes(changeName))).toBe(true);
@@ -274,7 +306,7 @@ Modified content.`;
       await expect(fs.access(mainSpecPath)).rejects.toThrow();
       
       // Verify change was NOT archived
-      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archiveDir = path.join(tempDir, 'openspec', 'archive');
       const archives = await fs.readdir(archiveDir);
       expect(archives.some(a => a.includes(changeName))).toBe(false);
     });
@@ -312,7 +344,7 @@ New feature description.
       await expect(fs.access(mainSpecPath)).rejects.toThrow();
       
       // Verify change was NOT archived
-      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archiveDir = path.join(tempDir, 'openspec', 'archive');
       const archives = await fs.readdir(archiveDir);
       expect(archives.some(a => a.includes(changeName))).toBe(false);
     });
@@ -330,13 +362,31 @@ New feature description.
       
       // Create existing archive with same date
       const date = new Date().toISOString().split('T')[0];
-      const archivePath = path.join(tempDir, 'openspec', 'changes', 'archive', `${date}-${changeName}`);
+      const archivePath = path.join(tempDir, 'openspec', 'archive', `${date}-${changeName}`);
       await fs.mkdir(archivePath, { recursive: true });
       
       // Try to archive
       await expect(
         archiveCommand.execute(changeName, { yes: true })
       ).rejects.toThrow(`Archive '${date}-${changeName}' already exists.`);
+    });
+
+    it('checks collisions at the full domain-preserving archive path', async () => {
+      const changeId = 'auth/oauth/add-login';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', 'auth', 'oauth', 'add-login');
+      await fs.mkdir(changeDir, { recursive: true });
+
+      const date = new Date().toISOString().split('T')[0];
+      const archivedAs = `auth/oauth/${date}-add-login`;
+      await fs.mkdir(
+        path.join(tempDir, 'openspec', 'archive', 'auth', 'oauth', `${date}-add-login`),
+        { recursive: true }
+      );
+
+      await expect(
+        archiveCommand.execute(changeId, { yes: true })
+      ).rejects.toThrow(`Archive '${archivedAs}' already exists.`);
+      await expect(fs.access(changeDir)).resolves.not.toThrow();
     });
 
     it('should handle changes without tasks.md', async () => {
@@ -353,7 +403,7 @@ New feature description.
       );
       
       // Verify change was archived
-      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archiveDir = path.join(tempDir, 'openspec', 'archive');
       const archives = await fs.readdir(archiveDir);
       expect(archives.length).toBe(1);
     });
@@ -372,7 +422,7 @@ New feature description.
       );
       
       // Verify change was archived
-      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archiveDir = path.join(tempDir, 'openspec', 'archive');
       const archives = await fs.readdir(archiveDir);
       expect(archives.length).toBe(1);
     });
@@ -400,7 +450,7 @@ New feature description.
       await expect(fs.access(mainSpecPath)).rejects.toThrow();
       
       // Verify change was still archived
-      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archiveDir = path.join(tempDir, 'openspec', 'archive');
       const archives = await fs.readdir(archiveDir);
       expect(archives.length).toBe(1);
       expect(archives[0]).toMatch(new RegExp(`\\d{4}-\\d{2}-\\d{2}-${changeName}`));
@@ -436,7 +486,7 @@ The system will log all events.
         expect(deltaSpy).not.toHaveBeenCalled();
         expect(specContentSpy).not.toHaveBeenCalled();
 
-        const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+        const archiveDir = path.join(tempDir, 'openspec', 'archive');
         const archives = await fs.readdir(archiveDir);
         expect(archives.length).toBe(1);
         expect(archives[0]).toMatch(new RegExp(`\\d{4}-\\d{2}-\\d{2}-${changeName}`));
@@ -493,7 +543,7 @@ Then expected result happens`;
       await expect(fs.access(mainSpecPath)).rejects.toThrow();
       
       // Verify change was still archived
-      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archiveDir = path.join(tempDir, 'openspec', 'archive');
       const archives = await fs.readdir(archiveDir);
       expect(archives.length).toBe(1);
       expect(archives[0]).toMatch(new RegExp(`\\d{4}-\\d{2}-\\d{2}-${changeName}`));
@@ -696,7 +746,7 @@ The system SHALL support the shared rule.
       expect(console.log).toHaveBeenCalledWith('Aborted. No files were changed.');
 
       await expect(fs.access(changeBDir)).resolves.not.toThrow();
-      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archiveDir = path.join(tempDir, 'openspec', 'archive');
       const archives = await fs.readdir(archiveDir);
       expect(archives.some(a => a.includes(changeA))).toBe(true);
       expect(archives.some(a => a.includes(changeB))).toBe(false);
@@ -759,7 +809,7 @@ The system SHALL do B differently.
       const still = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
       expect(still).toBe(malformedMain);
 
-      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archiveDir = path.join(tempDir, 'openspec', 'archive');
       const archives = await fs.readdir(archiveDir);
       expect(archives.some(a => a.includes(changeName))).toBe(false);
     });
@@ -945,7 +995,7 @@ The system will log all events.
       );
 
       // Change must NOT have been archived
-      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archiveDir = path.join(tempDir, 'openspec', 'archive');
       const archives = await fs.readdir(archiveDir);
       expect(archives.some(a => a.includes(changeName))).toBe(false);
     });
@@ -978,7 +1028,7 @@ Modified content.`;
       const mainSpecPath = path.join(tempDir, 'openspec', 'specs', 'new-capability', 'spec.md');
       await expect(fs.access(mainSpecPath)).rejects.toThrow();
 
-      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archiveDir = path.join(tempDir, 'openspec', 'archive');
       const archives = await fs.readdir(archiveDir);
       expect(archives.some(a => a.includes(changeName))).toBe(false);
     });
@@ -1054,7 +1104,7 @@ The system SHALL do the thing differently.
         expect(still).toBe(mainContent);
 
         // Change must NOT have been archived
-        const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+        const archiveDir = path.join(tempDir, 'openspec', 'archive');
         const archives = await fs.readdir(archiveDir);
         expect(archives.some(a => a.includes(changeName))).toBe(false);
       } finally {
@@ -1071,7 +1121,7 @@ The system SHALL do the thing differently.
 
       expect(process.exitCode).toBeUndefined();
 
-      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archiveDir = path.join(tempDir, 'openspec', 'archive');
       const archives = await fs.readdir(archiveDir);
       expect(archives.some(a => a.includes(changeName))).toBe(true);
     });
@@ -1098,6 +1148,8 @@ The system SHALL do the thing differently.
       const change2 = 'feature-b';
       await fs.mkdir(path.join(tempDir, 'openspec', 'changes', change1), { recursive: true });
       await fs.mkdir(path.join(tempDir, 'openspec', 'changes', change2), { recursive: true });
+      await fs.writeFile(path.join(tempDir, 'openspec', 'changes', change1, 'proposal.md'), '# A');
+      await fs.writeFile(path.join(tempDir, 'openspec', 'changes', change2, 'proposal.md'), '# B');
       
       // Mock select to return first change
       mockSelect.mockResolvedValueOnce(change1);
@@ -1115,9 +1167,31 @@ The system SHALL do the thing differently.
       }));
       
       // Verify the selected change was archived
-      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archiveDir = path.join(tempDir, 'openspec', 'archive');
       const archives = await fs.readdir(archiveDir);
       expect(archives[0]).toContain(change1);
+    });
+
+    it('displays and archives full slash IDs from recursive discovery', async () => {
+      const { select } = await import('@inquirer/prompts');
+      const mockSelect = select as unknown as ReturnType<typeof vi.fn>;
+      const nestedId = 'auth/oauth/add-login';
+      const nestedDir = path.join(tempDir, 'openspec', 'changes', 'auth', 'oauth', 'add-login');
+      await fs.mkdir(nestedDir, { recursive: true });
+      await fs.writeFile(path.join(nestedDir, 'proposal.md'), '# Add login');
+      mockSelect.mockResolvedValueOnce(nestedId);
+
+      await archiveCommand.execute(undefined, { yes: true });
+
+      expect(mockSelect).toHaveBeenCalledWith(expect.objectContaining({
+        choices: expect.arrayContaining([
+          expect.objectContaining({ value: nestedId, name: expect.stringContaining(nestedId) }),
+        ]),
+      }));
+      const date = new Date().toISOString().split('T')[0];
+      await expect(
+        fs.access(path.join(tempDir, 'openspec', 'archive', 'auth', 'oauth', `${date}-add-login`))
+      ).resolves.not.toThrow();
     });
 
     it('should use confirm prompt for task warnings', async () => {

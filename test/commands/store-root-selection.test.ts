@@ -320,6 +320,29 @@ describe('store root selection for normal commands', () => {
       ).toBe(true);
       expectNoLocalOpenSpec();
     });
+
+    it('preserves nested change domains in the selected store archive and specs', async () => {
+      const changeId = 'auth/oauth/store-change';
+      createChange(storeRoot, changeId);
+
+      const result = await runCLI(
+        ['archive', changeId, '--store', 'team-context', '--json', '--yes'],
+        { cwd: appRepo, env }
+      );
+
+      expect(result.exitCode).toBe(0);
+      const json = parseJson(result);
+      expect(json.archive.change).toBe(changeId);
+      expect(json.archive.archivedAs).toMatch(/^auth\/oauth\/\d{4}-\d{2}-\d{2}-store-change$/);
+      expect(json.archive.path).toBe(
+        path.join(storeRoot, 'openspec', 'archive', ...json.archive.archivedAs.split('/'))
+      );
+      expect(fs.existsSync(json.archive.path)).toBe(true);
+      expect(
+        fs.existsSync(path.join(storeRoot, 'openspec', 'specs', 'auth', 'oauth', 'billing', 'spec.md'))
+      ).toBe(true);
+      expectNoLocalOpenSpec();
+    });
   });
 
   describe('human output and stdout purity', () => {

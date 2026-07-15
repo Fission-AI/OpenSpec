@@ -16,6 +16,7 @@ import {
 } from './parsers/requirement-blocks.js';
 import { findMainSpecStructureIssues } from './parsers/spec-structure.js';
 import { Validator } from './validation/validator.js';
+import { splitChangeId } from '../utils/change-path.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -59,7 +60,11 @@ interface ScenarioBlock {
 /**
  * Find all delta spec files that need to be applied from a change.
  */
-export async function findSpecUpdates(changeDir: string, mainSpecsDir: string): Promise<SpecUpdate[]> {
+export async function findSpecUpdates(
+  changeDir: string,
+  mainSpecsDir: string,
+  changeDomain: string[] = []
+): Promise<SpecUpdate[]> {
   const updates: SpecUpdate[] = [];
   const changeSpecsDir = path.join(changeDir, 'specs');
 
@@ -69,7 +74,7 @@ export async function findSpecUpdates(changeDir: string, mainSpecsDir: string): 
     for (const entry of entries) {
       if (entry.isDirectory()) {
         const specFile = path.join(changeSpecsDir, entry.name, 'spec.md');
-        const targetFile = path.join(mainSpecsDir, entry.name, 'spec.md');
+        const targetFile = path.join(mainSpecsDir, ...changeDomain, entry.name, 'spec.md');
 
         try {
           await fs.access(specFile);
@@ -444,7 +449,8 @@ export async function applySpecs(
     silent?: boolean;
   } = {}
 ): Promise<SpecsApplyOutput> {
-  const changeDir = path.join(projectRoot, 'openspec', 'changes', changeName);
+  const { domain, name } = splitChangeId(changeName);
+  const changeDir = path.join(projectRoot, 'openspec', 'changes', ...domain, name);
   const mainSpecsDir = path.join(projectRoot, 'openspec', 'specs');
 
   // Verify change exists
@@ -458,7 +464,7 @@ export async function applySpecs(
   }
 
   // Find specs to update
-  const specUpdates = await findSpecUpdates(changeDir, mainSpecsDir);
+  const specUpdates = await findSpecUpdates(changeDir, mainSpecsDir, domain);
 
   if (specUpdates.length === 0) {
     return {
