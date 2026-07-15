@@ -1,6 +1,7 @@
 import path from 'path';
 import { FileSystemUtils } from './file-system.js';
 import { writeChangeMetadata, validateSchemaName } from './change-metadata.js';
+import { splitChangeId, validateDomainPath } from './change-path.js';
 import { readProjectConfig } from '../core/project-config.js';
 import type { ChangeMetadata } from '../core/change-metadata/index.js';
 
@@ -100,9 +101,9 @@ export function validateChangeName(name: string): ValidationResult {
  * Creates a new change directory with metadata file.
  *
  * @param projectRoot - The root directory of the project (where `openspec/` lives)
- * @param name - The change name (must be valid kebab-case)
+ * @param changeId - Full change ID; domain segments are optional and the final name must be kebab-case
  * @param options - Optional settings for the change
- * @throws Error if the change name is invalid
+ * @throws Error if the domain path or final change name is invalid
  * @throws Error if the schema name is invalid
  * @throws Error if the change directory already exists
  *
@@ -114,16 +115,21 @@ export function validateChangeName(name: string): ValidationResult {
  * console.log(result.schema) // 'spec-driven' or value from config
  *
  * @example
- * // Creates openspec/changes/add-auth/ with custom schema
- * const result = await createChange('/path/to/project', 'add-auth', { schema: 'my-workflow' })
+ * // Creates openspec/changes/Platform/API/add-auth/ with custom schema
+ * const result = await createChange('/path/to/project', 'Platform/API/add-auth', { schema: 'my-workflow' })
  * console.log(result.schema) // 'my-workflow'
  */
 export async function createChange(
   projectRoot: string,
-  name: string,
+  changeId: string,
   options: CreateChangeOptions = {}
 ): Promise<CreateChangeResult> {
-  // Validate the name first
+  const { domain, name } = splitChangeId(changeId);
+  const domainValidation = validateDomainPath(domain.join('/'));
+  if (!domainValidation.valid) {
+    throw new Error(domainValidation.error);
+  }
+
   const validation = validateChangeName(name);
   if (!validation.valid) {
     throw new Error(validation.error);
@@ -149,12 +155,18 @@ export async function createChange(
   // Validate the resolved schema
   validateSchemaName(schemaName, projectRoot);
 
-  // Build the change directory path
-  const changeDir = path.join(options.changesDir ?? path.join(projectRoot, 'openspec', 'changes'), name);
+  const changesDir = path.resolve(
+    options.changesDir ?? path.join(projectRoot, 'openspec', 'changes')
+  );
+  const changeDir = path.resolve(changesDir, ...domain, name);
+  const relativeChangePath = path.relative(changesDir, changeDir);
+  if (relativeChangePath.startsWith('..') || path.isAbsolute(relativeChangePath)) {
+    throw new Error('Change path must stay within changesDir');
+  }
 
   // Check if change already exists
   if (await FileSystemUtils.directoryExists(changeDir)) {
-    throw new Error(`Change '${name}' already exists at ${changeDir}`);
+    throw new Error(`Change '${changeId}' already exists at ${changeDir}`);
   }
 
   // Creating a change may scaffold or complete the root itself (an

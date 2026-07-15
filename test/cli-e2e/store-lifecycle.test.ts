@@ -267,7 +267,7 @@ describe('standalone store lifecycle journey', () => {
     const changeId = 'add-billing';
 
     const created = await runCLI(
-      ['new', 'change', changeId, '--store', STORE_ID, '--json'],
+      ['new', 'change', changeId, '--domain', '', '--store', STORE_ID, '--json'],
       { env: machineA, cwd: projectDir }
     );
     expect(created.exitCode).toBe(0);
@@ -399,7 +399,7 @@ describe('standalone store lifecycle journey', () => {
     const changeId = 'add-invoicing';
 
     const created = await runCLI(
-      ['new', 'change', changeId, '--store', STORE_ID],
+      ['new', 'change', changeId, '--domain', '', '--store', STORE_ID],
       { env: machineB, cwd: base }
     );
     expect(created.exitCode).toBe(0);

@@ -8,8 +8,11 @@
  */
 
 import ora from 'ora';
+import { promises as fs } from 'fs';
 import path from 'path';
 import { createChange, validateChangeName } from '../../utils/change-utils.js';
+import { validateDomainPath } from '../../utils/change-path.js';
+import { isInteractive } from '../../utils/interactive.js';
 import { formatChangeLocation } from '../../core/planning-home.js';
 import {
   resolveRootForCommand,
@@ -29,6 +32,7 @@ import { printJson, statusFromError, validateSchemaExists } from './shared.js';
 
 export interface NewChangeOptions {
   description?: string;
+  domain?: string;
   goal?: string;
   schema?: string;
   store?: string;
@@ -47,6 +51,11 @@ interface NewChangeOutput {
   };
   root: RootOutput;
 }
+
+type DomainChoice =
+  | { kind: 'existing'; segment: string }
+  | { kind: 'here' }
+  | { kind: 'new' };
 
 // -----------------------------------------------------------------------------
 // Command Implementation
@@ -68,6 +77,142 @@ function assertRemovedOptionsAbsent(options: NewChangeOptions): void {
       { target: 'change.options' }
     );
   }
+}
+
+async function isChangeDirectory(directory: string): Promise<boolean> {
+  for (const marker of ['.openspec.yaml', 'proposal.md']) {
+    try {
+      if ((await fs.stat(path.join(directory, marker))).isFile()) {
+        return true;
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw error;
+      }
+    }
+  }
+
+  return false;
+}
+
+async function listDomainChildren(
+  changesDir: string,
+  domain: string[]
+): Promise<string[]> {
+  const currentDir = path.join(changesDir, ...domain);
+  let entries;
+  try {
+    entries = await fs.readdir(currentDir, { withFileTypes: true });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return [];
+    }
+    throw error;
+  }
+
+  const children: string[] = [];
+  for (const entry of entries) {
+    if (
+      !entry.isDirectory() ||
+      entry.name.startsWith('.') ||
+      (domain.length === 0 && entry.name === 'archive')
+    ) {
+      continue;
+    }
+
+    if (!(await isChangeDirectory(path.join(currentDir, entry.name)))) {
+      children.push(entry.name);
+    }
+  }
+
+  return children.sort((left, right) => left.localeCompare(right));
+}
+
+async function findExistingDomains(changesDir: string): Promise<string[]> {
+  const domains: string[] = [];
+
+  async function visit(domain: string[]): Promise<void> {
+    for (const child of await listDomainChildren(changesDir, domain)) {
+      const nested = [...domain, child];
+      domains.push(nested.join('/'));
+      await visit(nested);
+    }
+  }
+
+  await visit([]);
+  return domains;
+}
+
+function validateExplicitDomain(domain: string): string {
+  const validation = validateDomainPath(domain);
+  if (!validation.valid) {
+    throw new Error(validation.error);
+  }
+  return domain;
+}
+
+function validateNewDomainSegment(segment: string): string | undefined {
+  if (!segment || segment.includes('/') || segment.includes('\\')) {
+    return 'Domain name must be a single path segment';
+  }
+
+  const validation = validateDomainPath(segment);
+  return validation.valid ? undefined : validation.error;
+}
+
+async function promptForDomain(changesDir: string): Promise<string> {
+  const { input, select } = await import('@inquirer/prompts');
+  const domain: string[] = [];
+
+  while (true) {
+    const children = await listDomainChildren(changesDir, domain);
+    const location = domain.length === 0 ? 'root' : domain.join('/');
+    const choice = await select<DomainChoice>({
+      message: `Select a domain (${location})`,
+      choices: [
+        ...children.map((segment) => ({
+          name: segment,
+          value: { kind: 'existing' as const, segment },
+        })),
+        { name: `Create here (${location})`, value: { kind: 'here' as const } },
+        { name: 'New subdomain', value: { kind: 'new' as const } },
+      ],
+    });
+
+    if (choice.kind === 'existing') {
+      domain.push(choice.segment);
+      continue;
+    }
+
+    if (choice.kind === 'here') {
+      return domain.join('/');
+    }
+
+    while (true) {
+      const segment = (await input({ message: 'New subdomain name' })).trim();
+      const error = validateNewDomainSegment(segment);
+      if (!error) {
+        return [...domain, segment].join('/');
+      }
+      console.error(error);
+    }
+  }
+}
+
+async function domainRequiredError(changesDir: string): Promise<RootSelectionError> {
+  const domains = await findExistingDomains(changesDir);
+  const existing = domains.length > 0 ? domains.join(', ') : '(none)';
+  const message = [
+    'Domain selection is required.',
+    'Use --domain <path> to create in a domain or --domain "" to create at the root.',
+    `Existing domains in the selected root: ${existing}.`,
+    'Domain casing is preserved, but collisions are possible on case-insensitive file systems.',
+  ].join(' ');
+
+  return new RootSelectionError(message, 'domain_required', {
+    target: 'change.domain',
+    fix: 'Pass --domain <path> or --domain "" explicitly.',
+  });
 }
 
 function printCreatedChangeHuman(
@@ -109,6 +254,15 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
     }
 
     const projectRoot = root.path;
+    let domain: string;
+    if (options.domain !== undefined) {
+      domain = validateExplicitDomain(options.domain);
+    } else if (!options.json && isInteractive()) {
+      domain = await promptForDomain(root.changesDir);
+    } else {
+      throw await domainRequiredError(root.changesDir);
+    }
+    const changeId = domain ? `${domain}/${name}` : name;
 
     // Validate schema if provided
     if (options.schema) {
@@ -117,10 +271,10 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
 
     const resolvedSchema = options.schema ?? root.defaultSchema;
     if (spinner) {
-      spinner.start(`Creating change '${name}' with schema '${resolvedSchema}'...`);
+      spinner.start(`Creating change '${changeId}' with schema '${resolvedSchema}'...`);
     }
 
-    const result = await createChange(projectRoot, name, {
+    const result = await createChange(projectRoot, changeId, {
       schema: options.schema,
       defaultSchema: root.defaultSchema,
       changesDir: root.changesDir,
@@ -138,7 +292,7 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
 
     const payload: NewChangeOutput = {
       change: {
-        id: name,
+        id: changeId,
         path: result.changeDir,
         metadataPath: path.join(result.changeDir, '.openspec.yaml'),
         schema: result.schema,

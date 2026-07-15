@@ -47,7 +47,10 @@ describe('store references in instructions (3.1)', () => {
   }
 
   async function createChange(cwd: string, name: string, extraArgs: string[] = []) {
-    const result = await runCLI(['new', 'change', name, '--json', ...extraArgs], { cwd, env });
+    const result = await runCLI(
+      ['new', 'change', name, '--domain', '', '--json', ...extraArgs],
+      { cwd, env }
+    );
     expect(result.exitCode).toBe(0);
   }
 

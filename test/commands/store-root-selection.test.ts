@@ -125,7 +125,7 @@ describe('store root selection for normal commands', () => {
 
   describe('selecting a registered store by id', () => {
     it('creates a change only in the store and names the root on stderr', async () => {
-      const result = await runCLI(['new', 'change', 'add-billing', '--store', 'team-context'], {
+      const result = await runCLI(['new', 'change', 'add-billing', '--domain', '', '--store', 'team-context'], {
         cwd: appRepo,
         env,
       });
@@ -144,7 +144,7 @@ describe('store root selection for normal commands', () => {
 
     it('includes the shared root block and absolute paths in new change JSON', async () => {
       const result = await runCLI(
-        ['new', 'change', 'add-billing', '--store', 'team-context', '--json'],
+        ['new', 'change', 'add-billing', '--domain', '', '--store', 'team-context', '--json'],
         { cwd: appRepo, env }
       );
       expect(result.exitCode).toBe(0);
@@ -363,7 +363,7 @@ describe('store root selection for normal commands', () => {
 
   describe('selector errors', () => {
     it('rejects --store-path with register guidance', async () => {
-      const result = await runCLI(['new', 'change', 'nope', '--store-path', '/x'], {
+      const result = await runCLI(['new', 'change', 'nope', '--domain', '', '--store-path', '/x'], {
         cwd: appRepo,
         env,
       });
@@ -453,7 +453,7 @@ describe('store root selection for normal commands', () => {
 
   describe('default resolution without --store', () => {
     it('fails with a store hint instead of scaffolding when no root exists', async () => {
-      const result = await runCLI(['new', 'change', 'foo'], { cwd: appRepo, env });
+      const result = await runCLI(['new', 'change', 'foo', '--domain', ''], { cwd: appRepo, env });
       expect(result.exitCode).toBe(1);
       const output = result.stdout + result.stderr;
       expect(output).toContain('team-context');
@@ -680,7 +680,7 @@ describe('store root selection for normal commands', () => {
       createOpenSpecRoot(localRepo);
 
       const result = await runCLI(
-        ['new', 'change', 'linked-change', '--initiative', 'billing-launch'],
+        ['new', 'change', 'linked-change', '--domain', '', '--initiative', 'billing-launch'],
         { cwd: localRepo, env }
       );
       expect(result.exitCode).toBe(1);

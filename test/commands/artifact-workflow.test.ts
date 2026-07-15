@@ -338,7 +338,7 @@ describe('artifact-workflow CLI commands', () => {
 
   describe('new change command', () => {
     it('creates a new change directory', async () => {
-      const result = await runCLI(['new', 'change', 'my-new-feature'], { cwd: tempDir });
+      const result = await runCLI(['new', 'change', 'my-new-feature', '--domain', ''], { cwd: tempDir });
       expect(result.exitCode).toBe(0);
       const output = getOutput(result);
       expect(output).toContain("Created change 'my-new-feature'");
@@ -350,7 +350,7 @@ describe('artifact-workflow CLI commands', () => {
 
     it('rejects --initiative and writes no change', async () => {
       const result = await runCLI(
-        ['new', 'change', 'linked-change', '--initiative', 'billing-launch'],
+        ['new', 'change', 'linked-change', '--domain', '', '--initiative', 'billing-launch'],
         { cwd: tempDir }
       );
       expect(result.exitCode).toBe(1);
@@ -362,7 +362,7 @@ describe('artifact-workflow CLI commands', () => {
     });
 
     it('rejects --areas and writes no affected-area metadata', async () => {
-      const result = await runCLI(['new', 'change', 'area-change', '--areas', 'api'], {
+      const result = await runCLI(['new', 'change', 'area-change', '--domain', '', '--areas', 'api'], {
         cwd: tempDir,
       });
       expect(result.exitCode).toBe(1);
@@ -375,7 +375,7 @@ describe('artifact-workflow CLI commands', () => {
 
     it('keeps --goal as ordinary metadata without switching schema', async () => {
       const result = await runCLI(
-        ['new', 'change', 'goal-change', '--goal', 'Improve billing'],
+        ['new', 'change', 'goal-change', '--domain', '', '--goal', 'Improve billing'],
         { cwd: tempDir }
       );
       expect(result.exitCode).toBe(0);
@@ -392,7 +392,7 @@ describe('artifact-workflow CLI commands', () => {
 
     it('creates README.md when --description is provided', async () => {
       const result = await runCLI(
-        ['new', 'change', 'described-feature', '--description', 'This is a test feature'],
+        ['new', 'change', 'described-feature', '--domain', '', '--description', 'This is a test feature'],
         { cwd: tempDir }
       );
       expect(result.exitCode).toBe(0);
@@ -404,7 +404,7 @@ describe('artifact-workflow CLI commands', () => {
     });
 
     it('errors for invalid change name with spaces', async () => {
-      const result = await runCLI(['new', 'change', 'invalid name'], { cwd: tempDir });
+      const result = await runCLI(['new', 'change', 'invalid name', '--domain', ''], { cwd: tempDir });
       expect(result.exitCode).toBe(1);
       const output = getOutput(result);
       expect(output).toContain('Error');
@@ -413,14 +413,14 @@ describe('artifact-workflow CLI commands', () => {
     it('errors for duplicate change name', async () => {
       await createTestChange('existing-change');
 
-      const result = await runCLI(['new', 'change', 'existing-change'], { cwd: tempDir });
+      const result = await runCLI(['new', 'change', 'existing-change', '--domain', ''], { cwd: tempDir });
       expect(result.exitCode).toBe(1);
       const output = getOutput(result);
       expect(output).toContain('exists');
     });
 
     it('errors when name argument is missing', async () => {
-      const result = await runCLI(['new', 'change'], { cwd: tempDir });
+      const result = await runCLI(['new', 'change', '--domain', ''], { cwd: tempDir });
       expect(result.exitCode).toBe(1);
     });
   });
@@ -797,7 +797,7 @@ artifacts:
         );
 
         // Create a new change without specifying schema
-        const result = await runCLI(['new', 'change', 'test-change'], { cwd: tempDir, timeoutMs: 30000 });
+        const result = await runCLI(['new', 'change', 'test-change', '--domain', ''], { cwd: tempDir, timeoutMs: 30000 });
         expect(result.exitCode).toBe(0);
 
         // Verify the change was created with spec-driven schema
@@ -816,7 +816,7 @@ artifacts:
 
         // Create change with explicit schema
         const result = await runCLI(
-          ['new', 'change', 'override-test', '--schema', 'spec-driven'],
+          ['new', 'change', 'override-test', '--domain', '', '--schema', 'spec-driven'],
           { cwd: tempDir, timeoutMs: 30000 }
         );
         expect(result.exitCode).toBe(0);

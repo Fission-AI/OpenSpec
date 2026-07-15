@@ -379,7 +379,7 @@ describe('store canonical remote (3.3)', () => {
       fs.mkdirSync(path.join(appRepo, 'openspec', 'specs'), { recursive: true });
       fs.mkdirSync(path.join(appRepo, 'openspec', 'archive'), { recursive: true });
 
-      const created = await runCLI(['new', 'change', 'onboard-check', '--json'], {
+      const created = await runCLI(['new', 'change', 'onboard-check', '--domain', '', '--json'], {
         cwd: appRepo,
         env: e2eEnv,
       });

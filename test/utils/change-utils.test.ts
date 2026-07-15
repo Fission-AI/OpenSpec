@@ -146,6 +146,25 @@ describe('createChange', () => {
       expect(content).toContain('schema: spec-driven');
     });
 
+    it('should create a nested change from a full slash ID', async () => {
+      const result = await createChange(testDir, 'Platform/API/add-auth');
+
+      expect(result.changeDir).toBe(
+        path.join(testDir, 'openspec', 'changes', 'Platform', 'API', 'add-auth')
+      );
+      await expect(
+        fs.readFile(path.join(result.changeDir, '.openspec.yaml'), 'utf-8')
+      ).resolves.toContain('schema: spec-driven');
+    });
+
+    it('should resolve a nested ID beneath an explicit changes directory', async () => {
+      const changesDir = path.join(testDir, 'selected-root', 'changes');
+
+      const result = await createChange(testDir, 'Platform/add-auth', { changesDir });
+
+      expect(result.changeDir).toBe(path.join(changesDir, 'Platform', 'add-auth'));
+    });
+
     it('should scaffold openspec/archive without creating openspec/changes/archive', async () => {
       await createChange(testDir, 'add-auth');
 
@@ -192,6 +211,22 @@ describe('createChange', () => {
       await expect(createChange(testDir, '')).rejects.toThrow(
         /empty/
       );
+    });
+
+    it('should validate the domain and final name independently', async () => {
+      await expect(createChange(testDir, 'Platform/../add-auth')).rejects.toThrow(
+        /Domain path cannot contain "\." or "\.\." segments/
+      );
+      await expect(createChange(testDir, 'Platform/Add-Auth')).rejects.toThrow(/lowercase/);
+    });
+
+    it('should reject a full ID that could escape the changes directory', async () => {
+      const changesDir = path.join(testDir, 'selected-root', 'changes');
+
+      await expect(
+        createChange(testDir, '../add-auth', { changesDir })
+      ).rejects.toThrow(/Domain path/);
+      await expect(fs.access(path.join(testDir, 'selected-root', 'add-auth'))).rejects.toThrow();
     });
   });
 

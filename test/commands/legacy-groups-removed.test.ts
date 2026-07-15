@@ -128,7 +128,7 @@ describe('legacy command groups are removed', () => {
     // behavior cannot silently start writing into this fixture.
     expect((await runCLI(['update'], { cwd: projectDir, env })).exitCode).toBe(1);
     expect(
-      (await runCLI(['new', 'change', 'survival-check', '--store', 'team-context', '--json'], {
+      (await runCLI(['new', 'change', 'survival-check', '--domain', '', '--store', 'team-context', '--json'], {
         cwd: projectDir,
         env,
       })).exitCode

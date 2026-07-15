@@ -89,7 +89,7 @@ describe('legacy repo-local change initiative metadata', () => {
   });
 
   it('creates no initiative metadata for new changes', async () => {
-    const result = await runCLI(['new', 'change', 'fresh-change', '--json'], {
+    const result = await runCLI(['new', 'change', 'fresh-change', '--domain', '', '--json'], {
       cwd: tempDir,
       env,
     });
@@ -103,7 +103,7 @@ describe('legacy repo-local change initiative metadata', () => {
 
   it('rejects new change --initiative without writing files', async () => {
     const result = await runCLI(
-      ['new', 'change', 'linked-change', '--initiative', 'billing-launch', '--json'],
+      ['new', 'change', 'linked-change', '--domain', '', '--initiative', 'billing-launch', '--json'],
       { cwd: tempDir, env }
     );
     expect(result.exitCode).toBe(1);

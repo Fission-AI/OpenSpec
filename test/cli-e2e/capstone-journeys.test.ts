@@ -82,7 +82,7 @@ describe('capstone persona journeys (6.1)', () => {
 
     // Low-level design lands in the app repo's own root, not the store.
     const created = await runCLI(
-      ['new', 'change', 'implement-invoice-immutability', '--json'],
+      ['new', 'change', 'implement-invoice-immutability', '--domain', '', '--json'],
       { cwd: appRepo, env }
     );
     expect(created.exitCode).toBe(0);
@@ -119,7 +119,7 @@ describe('capstone persona journeys (6.1)', () => {
 
     // The whole lifecycle from the code repo, zero --store flags.
     const created = await runCLI(
-      ['new', 'change', 'add-rate-limits', '--schema', 'spec-driven', '--json'],
+      ['new', 'change', 'add-rate-limits', '--domain', '', '--schema', 'spec-driven', '--json'],
       { cwd: codeRepo, env }
     );
     expect(created.exitCode).toBe(0);
