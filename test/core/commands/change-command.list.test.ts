@@ -18,6 +18,9 @@ describe('ChangeCommand.list', () => {
     const proposal = `# Change: Demo\n\n## Why\nTest list.\n\n## What Changes\n- **auth:** Add requirement`;
     await fs.writeFile(path.join(changeDir, 'proposal.md'), proposal, 'utf-8');
     await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1\n- [ ] Task 2\n', 'utf-8');
+    const nestedChangeDir = path.join(tempRoot, 'openspec', 'changes', 'auth', 'oauth', 'add-login');
+    await fs.mkdir(nestedChangeDir, { recursive: true });
+    await fs.writeFile(path.join(nestedChangeDir, 'proposal.md'), proposal, 'utf-8');
     process.chdir(tempRoot);
   });
 
@@ -69,6 +72,31 @@ describe('ChangeCommand.list', () => {
       const longOut = logs.join('\n');
       expect(longOut).toMatch(/:\s/);
       expect(longOut).toMatch(/\[deltas\s\d+\]/);
+    } finally {
+      console.log = origLog;
+    }
+  });
+
+  it('includes nested domain IDs in every output mode', async () => {
+    const logs: string[] = [];
+    const origLog = console.log;
+    try {
+      console.log = (msg?: any, ...args: any[]) => {
+        logs.push([msg, ...args].filter(Boolean).join(' '));
+      };
+
+      await cmd.list({ json: true });
+      expect(JSON.parse(logs.join('\n')).map((item: { id: string }) => item.id)).toContain(
+        'auth/oauth/add-login'
+      );
+
+      logs.length = 0;
+      await cmd.list({});
+      expect(logs).toContain('auth/oauth/add-login');
+
+      logs.length = 0;
+      await cmd.list({ long: true });
+      expect(logs.some((line) => line.startsWith('auth/oauth/add-login:'))).toBe(true);
     } finally {
       console.log = origLog;
     }

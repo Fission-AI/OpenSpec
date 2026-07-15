@@ -134,7 +134,11 @@ export class ValidateCommand {
     const isChange = changes.includes(itemName);
     const isSpec = specs.includes(itemName);
 
-    const type = opts.typeOverride ?? (isChange ? 'change' : isSpec ? 'spec' : undefined);
+    const type: ItemType | undefined = opts.typeOverride === 'change'
+      ? (isChange ? 'change' : undefined)
+      : opts.typeOverride === 'spec'
+        ? (isSpec ? 'spec' : undefined)
+        : (isChange ? 'change' : isSpec ? 'spec' : undefined);
 
     if (!type) {
       const suggestions = nearestMatches(itemName, [...changes, ...specs]);

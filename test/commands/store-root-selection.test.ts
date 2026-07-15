@@ -266,6 +266,22 @@ describe('store root selection for normal commands', () => {
       expectNoLocalOpenSpec();
     });
 
+    it.each(['show', 'validate'])('%s rejects traversal outside the selected store', async (command) => {
+      const outsideDir = path.join(storeRoot, 'outside');
+      fs.mkdirSync(outsideDir, { recursive: true });
+      fs.writeFileSync(path.join(outsideDir, 'proposal.md'), '# STORE_OUTSIDE_SENTINEL');
+
+      const result = await runCLI(
+        [command, '../../outside', '--type', 'change', '--store', 'team-context'],
+        { cwd: appRepo, env }
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout + result.stderr).not.toContain('STORE_OUTSIDE_SENTINEL');
+      expect(result.stderr).toContain("Unknown item '../../outside'");
+      expectNoLocalOpenSpec();
+    });
+
     it('lists specs from the store with minimal JSON support', async () => {
       const specDir = path.join(storeRoot, 'openspec', 'specs', 'billing');
       fs.mkdirSync(specDir, { recursive: true });

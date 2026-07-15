@@ -123,7 +123,11 @@ export class ShowCommand {
       isSpec = specs.includes(itemName);
     }
 
-    const resolvedType = params.typeOverride ?? (isChange ? 'change' : isSpec ? 'spec' : undefined);
+    const resolvedType: ItemType | undefined = params.typeOverride === 'change'
+      ? (isChange ? 'change' : undefined)
+      : params.typeOverride === 'spec'
+        ? (isSpec ? 'spec' : undefined)
+        : (isChange ? 'change' : isSpec ? 'spec' : undefined);
 
     if (!resolvedType) {
       const suggestions = nearestMatches(itemName, [...changes, ...specs]);

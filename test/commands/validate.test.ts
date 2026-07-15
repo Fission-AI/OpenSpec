@@ -113,6 +113,18 @@ describe('top-level validate command', () => {
     expect(result.stderr).toContain('Ambiguous item');
   });
 
+  it.each(['change', 'spec'])('rejects traversal IDs with --type %s', async (type) => {
+    const outsideDir = path.join(testDir, 'outside');
+    await fs.mkdir(outsideDir, { recursive: true });
+    await fs.writeFile(path.join(outsideDir, 'proposal.md'), '# Outside', 'utf-8');
+    await fs.writeFile(path.join(outsideDir, 'spec.md'), '## Purpose\nOutside', 'utf-8');
+
+    const result = await runCLI(['validate', '../../outside', '--type', type], { cwd: testDir });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("Unknown item '../../outside'");
+  });
+
   it('accepts change proposals saved with CRLF line endings', async () => {
     const changeId = 'crlf-change';
     const toCrlf = (segments: string[]) => segments.join('\n').replace(/\n/g, '\r\n');
