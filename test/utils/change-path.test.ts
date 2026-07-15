@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
@@ -10,6 +10,10 @@ import {
   findAllChangeIds,
   findAllArchivedChangeIds,
 } from '../../src/utils/change-path.js';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 async function writeMarker(root: string, relativeDir: string, marker: '.openspec.yaml' | 'proposal.md'): Promise<void> {
   const fullDir = path.join(root, ...relativeDir.split('/'));
@@ -117,6 +121,24 @@ describe('findAllChangeIds', () => {
 
   it('returns an empty array when the changes root is missing', async () => {
     await expect(findAllChangeIds(path.join(testDir, 'missing'))).resolves.toEqual([]);
+  });
+
+  it('propagates unexpected readdir errors', async () => {
+    const changesDir = path.join(testDir, 'openspec', 'changes');
+    await writeMarker(changesDir, 'Platform/API/add-auth', '.openspec.yaml');
+
+    const diskFailure = Object.assign(new Error('disk failure'), { code: 'EIO' });
+    const originalReaddir = fs.readdir.bind(fs);
+
+    vi.spyOn(fs, 'readdir').mockImplementation(async (targetPath, options) => {
+      if (targetPath === changesDir) {
+        throw diskFailure;
+      }
+
+      return originalReaddir(targetPath, options as { withFileTypes?: boolean } | BufferEncoding | null | undefined);
+    });
+
+    await expect(findAllChangeIds(changesDir)).rejects.toBe(diskFailure);
   });
 });
 

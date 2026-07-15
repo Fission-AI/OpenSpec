@@ -69,8 +69,12 @@ async function findChangeIds(rootDir: string, ignoreRootArchive: boolean): Promi
     let entries;
     try {
       entries = await fs.readdir(currentDir, { withFileTypes: true });
-    } catch {
-      return;
+    } catch (error) {
+      if (isMissingPathError(error)) {
+        return;
+      }
+
+      throw error;
     }
 
     const hasMarker = segments.length > 0 && entries.some(
@@ -97,4 +101,8 @@ async function findChangeIds(rootDir: string, ignoreRootArchive: boolean): Promi
 
   await walk(rootDir, []);
   return ids.sort();
+}
+
+function isMissingPathError(error: unknown): error is NodeJS.ErrnoException {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT';
 }
