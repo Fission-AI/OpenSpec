@@ -19,10 +19,13 @@ export interface ShellDetectionResult {
  * Map a raw shell name/path to a supported shell, if any.
  */
 function matchSupportedShell(name: string): SupportedShell | undefined {
-  const lower = name.toLowerCase();
-  if (lower.includes('zsh')) return 'zsh';
-  if (lower.includes('bash')) return 'bash';
-  if (lower.includes('fish')) return 'fish';
+  // Match the executable basename exactly so lookalikes such as `fish-lsp` or
+  // `bash-language-server` don't get mistaken for the shell itself. Login
+  // shells report a leading dash (e.g. `-zsh`), so strip it first.
+  const executable = name.trim().toLowerCase().split('/').pop()?.replace(/^-/, '');
+  if (executable === 'zsh') return 'zsh';
+  if (executable === 'bash') return 'bash';
+  if (executable === 'fish') return 'fish';
   return undefined;
 }
 

@@ -189,6 +189,12 @@ describe('shell-detection', () => {
   });
 
   describe('parent process detection', () => {
+    // Parent-process detection is POSIX-only, so pin the platform to make
+    // these tests exercise the `ps` path even when CI runs on Windows.
+    beforeEach(() => {
+      Object.defineProperty(process, 'platform', { value: 'linux' });
+    });
+
     it('should detect fish from the parent process even when SHELL is bash', () => {
       // Reproduces #1197: fish user whose login shell ($SHELL) is bash.
       process.env.SHELL = '/bin/bash';
@@ -205,11 +211,25 @@ describe('shell-detection', () => {
       expect(result.shell).toBe('fish');
     });
 
+    it('should detect a login shell reported with a leading dash', () => {
+      process.env.SHELL = '/bin/bash';
+      mockedExecFileSync.mockReturnValue('-zsh\n');
+      const result = detectShell();
+      expect(result.shell).toBe('zsh');
+    });
+
     it('should fall back to SHELL when the parent process is not a shell', () => {
       process.env.SHELL = '/usr/bin/fish';
       mockedExecFileSync.mockReturnValue('node\n');
       const result = detectShell();
       expect(result.shell).toBe('fish');
+    });
+
+    it('should not mistake shell-named tools like fish-lsp for the shell', () => {
+      process.env.SHELL = '/bin/zsh';
+      mockedExecFileSync.mockReturnValue('fish-lsp\n');
+      const result = detectShell();
+      expect(result.shell).toBe('zsh');
     });
 
     it('should fall back to SHELL when reading the parent process fails', () => {
