@@ -7,8 +7,11 @@
  * - `--store <id>` selects a registered store's root.
  * - Without `--store`, the nearest ancestor containing `openspec/` wins.
  *   Leftover workspace view state is never considered a root here.
- * - With no nearest root, registered stores produce a selection hint error;
- *   otherwise commands may treat the current directory as an implicit root.
+ * - With no nearest root, a global `defaultStore` (if set) is the last
+ *   machine-level fallback before the selection hint error.
+ * - With no nearest root and no default, registered stores produce a
+ *   selection hint error; otherwise commands may treat the current
+ *   directory as an implicit root.
  *
  * Diagnostic codes reuse the store taxonomy where an error passes
  * through unchanged (`invalid_store_id`, metadata parse failures);
@@ -34,6 +37,7 @@ import { getStoreRootForBackend } from './store/registry.js';
 import { inspectOpenSpecRoot } from './openspec-root.js';
 import { findRepoPlanningRootSync, type PlanningHome } from './planning-home.js';
 import { classifyOpenSpecDir, storePointerProblem } from './project-config.js';
+import { getGlobalConfig } from './global-config.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 
 export type OpenSpecRootSource = 'store' | 'declared' | 'nearest' | 'implicit';
@@ -346,6 +350,38 @@ async function resolveNearestOrDeclaredRoot(
   }
 }
 
+/**
+ * The machine-level fallback: the global `defaultStore` resolved as a root.
+ * Mirrors the declared-pointer catch — a stale or unregistered id degrades to
+ * the underlying error, reshaped to point at clearing the global default
+ * rather than passing --store.
+ */
+async function resolveDefaultStoreRoot(
+  id: string,
+  globalDataDir?: string
+): Promise<ResolvedOpenSpecRoot> {
+  try {
+    return await resolveStoreRoot(id, globalDataDir, 'declared');
+  } catch (error) {
+    if (error instanceof RootSelectionError) {
+      const staleFix =
+        error.diagnostic.code === 'unknown_store' ||
+        error.diagnostic.code === 'no_registered_stores'
+          ? `Register the store (openspec store register <path> --id ${id}) or clear the stale global default (openspec config unset defaultStore).`
+          : error.diagnostic.fix;
+      throw new RootSelectionError(
+        `Global defaultStore '${id}': ${error.message}`,
+        error.diagnostic.code,
+        {
+          ...(error.diagnostic.target ? { target: error.diagnostic.target } : {}),
+          ...(staleFix ? { fix: staleFix } : {}),
+        }
+      );
+    }
+    throw error;
+  }
+}
+
 export async function resolveOpenSpecRoot(
   options: ResolveOpenSpecRootOptions = {}
 ): Promise<ResolvedOpenSpecRoot> {
@@ -368,6 +404,14 @@ export async function resolveOpenSpecRoot(
   const nearestRoot = findQualifyingRootSync(startPath);
   if (nearestRoot) {
     return resolveNearestOrDeclaredRoot(nearestRoot, options.globalDataDir);
+  }
+
+  // Machine-level fallback: a global defaultStore is consulted only after
+  // --store, the nearest local root, and project-level pointers have all
+  // failed to resolve — it changes the failure path, never the precedence.
+  const defaultStore = getGlobalConfig().defaultStore;
+  if (defaultStore) {
+    return resolveDefaultStoreRoot(defaultStore, options.globalDataDir);
   }
 
   let registry;

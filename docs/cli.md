@@ -1044,6 +1044,10 @@ openspec config set user.name "My Name" --string
 # Remove a custom setting
 openspec config unset user.name
 
+# Set a machine-level default store (fallback root when no --store,
+# local root, or project store: pointer resolves)
+openspec config set defaultStore team-plans
+
 # Reset all configuration
 openspec config reset --all --yes
 
