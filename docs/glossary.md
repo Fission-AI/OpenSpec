@@ -36,7 +36,7 @@ Terms are grouped by topic, then alphabetized within each group.
 
 ## The lifecycle
 
-**Archive.** The act of finishing a change. Its delta specs merge into the main specs, and the change folder moves to `openspec/changes/archive/YYYY-MM-DD-<name>/`. After archiving, your specs describe the new reality. See [Concepts](concepts.md#archive).
+**Archive.** The act of finishing a change. Its delta specs merge into the main specs, and the change folder moves to `openspec/archive/YYYY-MM-DD-<name>/` or the domain-preserving `openspec/archive/<domain>/YYYY-MM-DD-<name>/`. After archiving, your specs describe the new reality. See [Concepts](concepts.md#archive).
 
 **Sync.** Merging a change's delta specs into the main specs *without* archiving the change. Usually automatic (archive offers to do it), but available on its own as `/opsx:sync` for long-running changes. See [Commands](commands.md#opsxsync).
 

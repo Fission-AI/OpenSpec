@@ -51,10 +51,10 @@ rules:
 
 ```bash
 # Without config
-openspec new change my-feature --schema spec-driven
+openspec new change my-feature --schema spec-driven --domain ""
 
 # With config - schema is automatic
-openspec new change my-feature
+openspec new change my-feature --domain ""
 ```
 
 **Context and rules injection:**
@@ -241,7 +241,7 @@ Once created, use your schema with:
 
 ```bash
 # Specify on command
-openspec new change feature --schema my-workflow
+openspec new change feature --schema my-workflow --domain platform
 
 # Or set as default in config.yaml
 schema: my-workflow

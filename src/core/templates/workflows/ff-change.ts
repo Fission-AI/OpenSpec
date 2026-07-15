@@ -7,6 +7,15 @@
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
+const DOMAIN_SELECTION_GUIDANCE = `2. **Determine the domain (required)**
+
+   Make an explicit domain decision with the user. Recommend lowercase kebab-case domain segments, set the confirmed value as \`<resolved-domain>\`, and use an empty string only when the user chooses root placement.
+
+   If the user provides a CLI-valid literal that does not follow the recommendation, **Do not silently transform it**. Present these choices:
+   1. Convert to the suggested lowercase kebab-case value
+   2. Keep the exact literal
+   3. Choose another domain`;
+
 export function getFfChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-ff-change',
@@ -28,22 +37,26 @@ ${STORE_SELECTION_GUIDANCE}
 
    **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
 
-2. **Create the change directory**
+${DOMAIN_SELECTION_GUIDANCE}
+
+3. **Create the change directory**
    \`\`\`bash
-   openspec new change "<name>"
+   openspec new change "<name>" --domain "<resolved-domain>"
    \`\`\`
+   For root placement, invoke \`openspec new change "<name>" --domain ""\`. If a store was selected, append \`--store <id>\` to either invocation.
+   Set \`<change-id>\` to \`<resolved-domain>/<name>\` for a non-root domain, or \`<name>\` for root placement. Keep any selected \`--store <id>\` on every supported follow-up command.
    This creates a scaffolded change in the planning home resolved by the CLI.
 
-3. **Get the artifact build order**
+4. **Get the artifact build order**
    \`\`\`bash
-   openspec status --change "<name>" --json
+   openspec status --change "<change-id>" --json
    \`\`\`
    Parse the JSON to get:
    - \`applyRequires\`: array of artifact IDs needed before implementation (e.g., \`["tasks"]\`)
    - \`artifacts\`: list of all artifacts with their status and dependencies
    - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context. Use these instead of assuming repo-local paths.
 
-4. **Create artifacts in sequence until apply-ready**
+5. **Create artifacts in sequence until apply-ready**
 
    Use the **TodoWrite tool** to track progress through the artifacts.
 
@@ -52,7 +65,7 @@ ${STORE_SELECTION_GUIDANCE}
    a. **For each artifact that is \`ready\` (dependencies satisfied)**:
       - Get instructions:
         \`\`\`bash
-        openspec instructions <artifact-id> --change "<name>" --json
+        openspec instructions <artifact-id> --change "<change-id>" --json
         \`\`\`
       - The instructions JSON includes:
         - \`context\`: Project background (constraints for you - do NOT include in output)
@@ -67,7 +80,7 @@ ${STORE_SELECTION_GUIDANCE}
       - Show brief progress: "✓ Created <artifact-id>"
 
    b. **Continue until all \`applyRequires\` artifacts are complete**
-      - After creating each artifact, re-run \`openspec status --change "<name>" --json\`
+      - After creating each artifact, re-run \`openspec status --change "<change-id>" --json\`
       - Check if every artifact ID in \`applyRequires\` has \`status: "done"\` in the artifacts array
       - Stop when all \`applyRequires\` artifacts are done
 
@@ -75,9 +88,9 @@ ${STORE_SELECTION_GUIDANCE}
       - Use **AskUserQuestion tool** to clarify
       - Then continue with creation
 
-5. **Show final status**
+6. **Show final status**
    \`\`\`bash
-   openspec status --change "<name>"
+   openspec status --change "<change-id>"
    \`\`\`
 
 **Output**
@@ -86,7 +99,7 @@ After completing all artifacts, summarize:
 - Change name and location
 - List of artifacts created with brief descriptions
 - What's ready: "All artifacts created! Ready for implementation."
-- Prompt: "Run \`/opsx:apply\` or ask me to implement to start working on the tasks."
+- Prompt: "Run \`/opsx:apply <change-id>\` or ask me to implement to start working on the tasks."
 
 **Artifact Creation Guidelines**
 
@@ -133,22 +146,26 @@ ${STORE_SELECTION_GUIDANCE}
 
    **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
 
-2. **Create the change directory**
+${DOMAIN_SELECTION_GUIDANCE}
+
+3. **Create the change directory**
    \`\`\`bash
-   openspec new change "<name>"
+   openspec new change "<name>" --domain "<resolved-domain>"
    \`\`\`
+   For root placement, invoke \`openspec new change "<name>" --domain ""\`. If a store was selected, append \`--store <id>\` to either invocation.
+   Set \`<change-id>\` to \`<resolved-domain>/<name>\` for a non-root domain, or \`<name>\` for root placement. Keep any selected \`--store <id>\` on every supported follow-up command.
    This creates a scaffolded change in the planning home resolved by the CLI.
 
-3. **Get the artifact build order**
+4. **Get the artifact build order**
    \`\`\`bash
-   openspec status --change "<name>" --json
+   openspec status --change "<change-id>" --json
    \`\`\`
    Parse the JSON to get:
    - \`applyRequires\`: array of artifact IDs needed before implementation (e.g., \`["tasks"]\`)
    - \`artifacts\`: list of all artifacts with their status and dependencies
    - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context. Use these instead of assuming repo-local paths.
 
-4. **Create artifacts in sequence until apply-ready**
+5. **Create artifacts in sequence until apply-ready**
 
    Use the **TodoWrite tool** to track progress through the artifacts.
 
@@ -157,7 +174,7 @@ ${STORE_SELECTION_GUIDANCE}
    a. **For each artifact that is \`ready\` (dependencies satisfied)**:
       - Get instructions:
         \`\`\`bash
-        openspec instructions <artifact-id> --change "<name>" --json
+        openspec instructions <artifact-id> --change "<change-id>" --json
         \`\`\`
       - The instructions JSON includes:
         - \`context\`: Project background (constraints for you - do NOT include in output)
@@ -172,7 +189,7 @@ ${STORE_SELECTION_GUIDANCE}
       - Show brief progress: "✓ Created <artifact-id>"
 
    b. **Continue until all \`applyRequires\` artifacts are complete**
-      - After creating each artifact, re-run \`openspec status --change "<name>" --json\`
+      - After creating each artifact, re-run \`openspec status --change "<change-id>" --json\`
       - Check if every artifact ID in \`applyRequires\` has \`status: "done"\` in the artifacts array
       - Stop when all \`applyRequires\` artifacts are done
 
@@ -180,9 +197,9 @@ ${STORE_SELECTION_GUIDANCE}
       - Use **AskUserQuestion tool** to clarify
       - Then continue with creation
 
-5. **Show final status**
+6. **Show final status**
    \`\`\`bash
-   openspec status --change "<name>"
+   openspec status --change "<change-id>"
    \`\`\`
 
 **Output**
@@ -191,7 +208,7 @@ After completing all artifacts, summarize:
 - Change name and location
 - List of artifacts created with brief descriptions
 - What's ready: "All artifacts created! Ready for implementation."
-- Prompt: "Run \`/opsx:apply\` to start implementing."
+- Prompt: "Run \`/opsx:apply <change-id>\` to start implementing."
 
 **Artifact Creation Guidelines**
 

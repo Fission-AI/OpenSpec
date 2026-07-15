@@ -18,6 +18,17 @@ describe('ChangeCommand.show/validate', () => {
     await fs.mkdir(changesDir, { recursive: true });
     const proposal = `# Change: Sample Change\n\n## Why\nConsistency in tests.\n\n## What Changes\n- **auth:** Add requirement`;
     await fs.writeFile(path.join(changesDir, 'proposal.md'), proposal, 'utf-8');
+    const outsideDir = path.join(tempRoot, 'outside');
+    await fs.mkdir(outsideDir, { recursive: true });
+    await fs.writeFile(path.join(outsideDir, 'proposal.md'), '# OUTSIDE_SENTINEL', 'utf-8');
+    const linkedChangeDir = path.join(outsideDir, 'add-login');
+    await fs.mkdir(linkedChangeDir, { recursive: true });
+    await fs.writeFile(path.join(linkedChangeDir, 'proposal.md'), '# LINKED_OUTSIDE_SENTINEL', 'utf-8');
+    await fs.symlink(
+      outsideDir,
+      path.join(tempRoot, 'openspec', 'changes', 'linked'),
+      process.platform === 'win32' ? 'junction' : 'dir'
+    );
     process.chdir(tempRoot);
     changeName = 'sample-change';
   });
@@ -107,5 +118,23 @@ describe('ChangeCommand.show/validate', () => {
     } finally {
       console.log = origLog;
     }
+  });
+
+  it('show rejects a traversal change ID', async () => {
+    await expect(cmd.show('../../outside')).rejects.toThrow(/Invalid change name/);
+  });
+
+  it('validate rejects a traversal change ID', async () => {
+    try {
+      await expect(cmd.validate('../../outside')).rejects.toThrow(/Invalid change name/);
+    } finally {
+      process.exitCode = 0;
+    }
+  });
+
+  it.each(['show', 'validate'] as const)('%s rejects a change that escapes through a directory link', async (operation) => {
+    await expect(cmd[operation]('linked/add-login')).rejects.toThrow(
+      /Change path must stay within changesDir/
+    );
   });
 });

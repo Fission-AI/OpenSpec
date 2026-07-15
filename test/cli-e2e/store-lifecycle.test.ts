@@ -212,7 +212,7 @@ describe('standalone store lifecycle journey', () => {
       expect.arrayContaining([
         'openspec/config.yaml',
         'openspec/specs/.gitkeep',
-        'openspec/changes/archive/.gitkeep',
+        'openspec/archive/.gitkeep',
         '.openspec-store/store.yaml',
       ])
     );
@@ -229,7 +229,7 @@ describe('standalone store lifecycle journey', () => {
     ]);
     expect(committedFiles).toContain('.openspec-store/store.yaml');
     expect(committedFiles).toContain('openspec/specs/.gitkeep');
-    expect(committedFiles).toContain('openspec/changes/archive/.gitkeep');
+    expect(committedFiles).toContain('openspec/archive/.gitkeep');
 
     const status = await git(storeRoot, machineA, ['status', '--porcelain']);
     expect(status.trim()).toBe('');
@@ -267,7 +267,7 @@ describe('standalone store lifecycle journey', () => {
     const changeId = 'add-billing';
 
     const created = await runCLI(
-      ['new', 'change', changeId, '--store', STORE_ID, '--json'],
+      ['new', 'change', changeId, '--domain', '', '--store', STORE_ID, '--json'],
       { env: machineA, cwd: projectDir }
     );
     expect(created.exitCode).toBe(0);
@@ -336,7 +336,7 @@ describe('standalone store lifecycle journey', () => {
     await expect(fs.readFile(specPath, 'utf-8')).resolves.toContain('billing SHALL work');
 
     const archiveEntries = await fs.readdir(
-      path.join(storeRoot, 'openspec', 'changes', 'archive')
+      path.join(storeRoot, 'openspec', 'archive')
     );
     expect(archiveEntries.some((entry) => entry.endsWith(`-${changeId}`))).toBe(true);
   }, JOURNEY_TIMEOUT_MS);
@@ -399,7 +399,7 @@ describe('standalone store lifecycle journey', () => {
     const changeId = 'add-invoicing';
 
     const created = await runCLI(
-      ['new', 'change', changeId, '--store', STORE_ID],
+      ['new', 'change', changeId, '--domain', '', '--store', STORE_ID],
       { env: machineB, cwd: base }
     );
     expect(created.exitCode).toBe(0);
@@ -451,7 +451,12 @@ describe('standalone store lifecycle journey', () => {
     );
     expect(failedApply.exitCode).not.toBe(0);
     expect(failedApply.stderr).toContain(`Using OpenSpec root: ${STORE_ID}`);
-    expect(failedApply.stderr).toContain(`openspec new change <name> --store ${STORE_ID}`);
+    expect(failedApply.stderr).toContain(
+      `openspec new change <name> --domain <path> --store ${STORE_ID}`
+    );
+    expect(failedApply.stderr).toContain(
+      `openspec new change <name> --domain "" --store ${STORE_ID}`
+    );
   }, JOURNEY_TIMEOUT_MS);
 
   it('end state is just normal OpenSpec files in both checkouts', async () => {

@@ -89,10 +89,40 @@ describe('top-level validate command', () => {
     expect(json.items.every((i: any) => i.type === 'spec')).toBe(true);
   });
 
+  it('auto-detects and bulk-validates recursively discovered spec IDs', async () => {
+    const nestedSpecDir = path.join(specsDir, 'auth', 'oauth', 'login');
+    await fs.mkdir(nestedSpecDir, { recursive: true });
+    await fs.copyFile(
+      path.join(specsDir, 'alpha', 'spec.md'),
+      path.join(nestedSpecDir, 'spec.md')
+    );
+
+    const direct = await runCLI(['validate', 'auth/oauth/login', '--json'], { cwd: testDir });
+    expect(direct.exitCode).toBe(0);
+    expect(JSON.parse(direct.stdout).items[0].id).toBe('auth/oauth/login');
+
+    const bulk = await runCLI(['validate', '--specs', '--json'], { cwd: testDir });
+    expect(JSON.parse(bulk.stdout).items.map((item: { id: string }) => item.id)).toContain(
+      'auth/oauth/login'
+    );
+  });
+
   it('errors on ambiguous item names and suggests type override', async () => {
     const result = await runCLI(['validate', 'dup'], { cwd: testDir });
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain('Ambiguous item');
+  });
+
+  it.each(['change', 'spec'])('rejects traversal IDs with --type %s', async (type) => {
+    const outsideDir = path.join(testDir, 'outside');
+    await fs.mkdir(outsideDir, { recursive: true });
+    await fs.writeFile(path.join(outsideDir, 'proposal.md'), '# Outside', 'utf-8');
+    await fs.writeFile(path.join(outsideDir, 'spec.md'), '## Purpose\nOutside', 'utf-8');
+
+    const result = await runCLI(['validate', '../../outside', '--type', type], { cwd: testDir });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("Unknown item '../../outside'");
   });
 
   it('accepts change proposals saved with CRLF line endings', async () => {

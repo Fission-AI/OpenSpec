@@ -209,7 +209,7 @@ Packaging a change as a folder has several benefits:
 
 2. **Parallel work.** Multiple changes can exist simultaneously without conflicting. Work on `add-dark-mode` while `fix-auth-bug` is also in progress.
 
-3. **Clean history.** When archived, changes move to `changes/archive/` with their full context preserved. You can look back and understand not just what changed, but why.
+3. **Clean history.** When archived, changes move to the sibling `archive/` tree with their full domain context preserved. You can look back and understand not just what changed, but why.
 
 4. **Review-friendly.** A change folder is easy to review — open it, read the proposal, check the design, see the spec deltas.
 
@@ -543,7 +543,7 @@ openspec/
 
 1. **Merge deltas.** Each delta spec section (ADDED/MODIFIED/REMOVED) is applied to the corresponding main spec.
 
-2. **Move to archive.** The change folder moves to `changes/archive/` with a date prefix for chronological ordering.
+2. **Move to archive.** The change folder moves to the sibling `archive/` tree with a date prefix for chronological ordering and its domain path preserved.
 
 3. **Preserve context.** All artifacts remain intact in the archive. You can always look back to understand why a change was made.
 

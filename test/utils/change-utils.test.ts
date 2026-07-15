@@ -5,6 +5,23 @@ import os from 'os';
 import { randomUUID } from 'crypto';
 import { validateChangeName, createChange } from '../../src/utils/change-utils.js';
 
+const LINK_CREATION_UNAVAILABLE_CODES = new Set([
+  'EACCES',
+  'EINVAL',
+  'ENOSYS',
+  'ENOTSUP',
+  'EPERM',
+]);
+
+function isLinkCreationUnavailable(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    LINK_CREATION_UNAVAILABLE_CODES.has(String(error.code))
+  );
+}
+
 describe('validateChangeName', () => {
   describe('valid names', () => {
     it('should accept simple kebab-case name', () => {
@@ -145,6 +162,35 @@ describe('createChange', () => {
       const content = await fs.readFile(metaPath, 'utf-8');
       expect(content).toContain('schema: spec-driven');
     });
+
+    it('should create a nested change from a full slash ID', async () => {
+      const result = await createChange(testDir, 'Platform/API/add-auth');
+
+      expect(result.changeDir).toBe(
+        path.join(testDir, 'openspec', 'changes', 'Platform', 'API', 'add-auth')
+      );
+      await expect(
+        fs.readFile(path.join(result.changeDir, '.openspec.yaml'), 'utf-8')
+      ).resolves.toContain('schema: spec-driven');
+    });
+
+    it('should resolve a nested ID beneath an explicit changes directory', async () => {
+      const changesDir = path.join(testDir, 'selected-root', 'changes');
+
+      const result = await createChange(testDir, 'Platform/add-auth', { changesDir });
+
+      expect(result.changeDir).toBe(path.join(changesDir, 'Platform', 'add-auth'));
+    });
+
+    it('should scaffold openspec/archive without creating openspec/changes/archive', async () => {
+      await createChange(testDir, 'add-auth');
+
+      const archiveDir = path.join(testDir, 'openspec', 'archive');
+      const legacyArchiveDir = path.join(testDir, 'openspec', 'changes', 'archive');
+
+      await expect(fs.stat(archiveDir)).resolves.toMatchObject({ isDirectory: expect.any(Function) });
+      await expect(fs.access(legacyArchiveDir)).rejects.toThrow();
+    });
   });
 
   describe('schema validation', () => {
@@ -183,6 +229,73 @@ describe('createChange', () => {
         /empty/
       );
     });
+
+    it('should validate the domain and final name independently', async () => {
+      await expect(createChange(testDir, 'Platform/../add-auth')).rejects.toThrow(
+        /Domain path cannot contain "\." or "\.\." segments/
+      );
+      await expect(createChange(testDir, 'Platform/Add-Auth')).rejects.toThrow(/lowercase/);
+    });
+
+    it('should reject a full ID that could escape the changes directory', async () => {
+      const changesDir = path.join(testDir, 'selected-root', 'changes');
+
+      await expect(
+        createChange(testDir, '../add-auth', { changesDir })
+      ).rejects.toThrow(/Domain path/);
+      await expect(fs.access(path.join(testDir, 'selected-root', 'add-auth'))).rejects.toThrow();
+    });
+
+    it('should reject a link ancestor that escapes the changes directory', async (context) => {
+      const changesDir = path.join(testDir, 'selected-root', 'changes');
+      const outsideDir = path.join(testDir, 'outside');
+      const linkedDomain = path.join(changesDir, 'Linked');
+      await fs.mkdir(changesDir, { recursive: true });
+      await fs.mkdir(outsideDir, { recursive: true });
+
+      try {
+        await fs.symlink(
+          outsideDir,
+          linkedDomain,
+          process.platform === 'win32' ? 'junction' : 'dir'
+        );
+      } catch (error) {
+        if (isLinkCreationUnavailable(error)) {
+          context.skip();
+          return;
+        }
+        throw error;
+      }
+
+      await expect(
+        createChange(testDir, 'Linked/add-auth', { changesDir })
+      ).rejects.toThrow(/stay within changesDir/);
+      await expect(fs.access(path.join(outsideDir, 'add-auth'))).rejects.toThrow();
+    });
+
+    it('should reject the reserved archive segment at the changes root', async () => {
+      await expect(createChange(testDir, 'archive/add-auth')).rejects.toThrow(
+        /root segment 'archive' is reserved/i
+      );
+      await expect(createChange(testDir, 'archive')).rejects.toThrow(
+        /root segment 'archive' is reserved/i
+      );
+    });
+
+    it.each(['.openspec.yaml', 'proposal.md'])(
+      'should reject a domain prefix marked as a change by %s',
+      async (marker) => {
+        const changesDir = path.join(testDir, 'openspec', 'changes');
+        const existingChangeDir = path.join(changesDir, 'existing-change');
+        await fs.mkdir(existingChangeDir, { recursive: true });
+        await fs.writeFile(path.join(existingChangeDir, marker), 'existing change\n');
+
+        await expect(
+          createChange(testDir, 'existing-change/add-auth')
+        ).rejects.toThrow(/Domain prefix 'existing-change' is already a change/);
+        await expect(fs.access(path.join(existingChangeDir, 'add-auth'))).rejects.toThrow();
+      }
+    );
   });
 
   describe('creates parent directories if needed', () => {
@@ -196,6 +309,28 @@ describe('createChange', () => {
       const changeDir = path.join(newProjectDir, 'openspec', 'changes', 'add-auth');
       const stats = await fs.stat(changeDir);
       expect(stats.isDirectory()).toBe(true);
+    });
+
+    it('should preserve existing config while scaffolding sibling archive', async () => {
+      const newProjectDir = path.join(testDir, 'configured-project');
+      await fs.mkdir(path.join(newProjectDir, 'openspec'), { recursive: true });
+      await fs.writeFile(
+        path.join(newProjectDir, 'openspec', 'config.yml'),
+        '# keep existing config\nschema: spec-driven\n',
+        'utf-8'
+      );
+
+      await createChange(newProjectDir, 'add-auth', { defaultSchema: 'spec-driven' });
+
+      const archiveDir = path.join(newProjectDir, 'openspec', 'archive');
+      const legacyArchiveDir = path.join(newProjectDir, 'openspec', 'changes', 'archive');
+
+      expect(await fs.readFile(path.join(newProjectDir, 'openspec', 'config.yml'), 'utf-8')).toBe(
+        '# keep existing config\nschema: spec-driven\n'
+      );
+      await expect(fs.access(path.join(newProjectDir, 'openspec', 'config.yaml'))).rejects.toThrow();
+      await expect(fs.stat(archiveDir)).resolves.toMatchObject({ isDirectory: expect.any(Function) });
+      await expect(fs.access(legacyArchiveDir)).rejects.toThrow();
     });
   });
 });

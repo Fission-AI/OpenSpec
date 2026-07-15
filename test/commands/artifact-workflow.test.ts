@@ -79,6 +79,7 @@ describe('artifact-workflow CLI commands', () => {
       // Create empty change directory (no proposal.md)
       const changeDir = path.join(changesDir, 'scaffolded-change');
       await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, '.openspec.yaml'), 'schema: spec-driven\n');
 
       const result = await runCLI(['status', '--change', 'scaffolded-change'], { cwd: tempDir });
       expect(result.exitCode).toBe(0);
@@ -140,6 +141,8 @@ describe('artifact-workflow CLI commands', () => {
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('No active changes');
       expect(result.stdout).toContain('openspec new change');
+      expect(result.stdout).toContain('--domain <path>');
+      expect(result.stdout).toContain('--domain ""');
     });
 
     it('exits gracefully with JSON when no changes exist', async () => {
@@ -206,11 +209,17 @@ describe('artifact-workflow CLI commands', () => {
       expect(output).toContain('Invalid change name');
     });
 
-    it('rejects slashes in change name', async () => {
-      const result = await runCLI(['status', '--change', 'foo/bar'], { cwd: tempDir });
-      expect(result.exitCode).toBe(1);
-      const output = getOutput(result);
-      expect(output).toContain('Invalid change name');
+    it('accepts slash ids for scaffolded nested changes', async () => {
+      const nestedChangeDir = path.join(changesDir, 'Platform', 'API', 'add-auth');
+      await fs.mkdir(nestedChangeDir, { recursive: true });
+      await fs.writeFile(path.join(nestedChangeDir, '.openspec.yaml'), 'schema: spec-driven\n');
+
+      const result = await runCLI(['status', '--change', 'Platform/API/add-auth'], {
+        cwd: tempDir,
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Platform/API/add-auth');
+      expect(result.stdout).toContain('0/4 artifacts complete');
     });
   });
 
@@ -219,6 +228,7 @@ describe('artifact-workflow CLI commands', () => {
       // Create empty change directory (no proposal.md)
       const changeDir = path.join(changesDir, 'scaffolded-change');
       await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, '.openspec.yaml'), 'schema: spec-driven\n');
 
       const result = await runCLI(['instructions', 'proposal', '--change', 'scaffolded-change'], {
         cwd: tempDir,
@@ -332,7 +342,7 @@ describe('artifact-workflow CLI commands', () => {
 
   describe('new change command', () => {
     it('creates a new change directory', async () => {
-      const result = await runCLI(['new', 'change', 'my-new-feature'], { cwd: tempDir });
+      const result = await runCLI(['new', 'change', 'my-new-feature', '--domain', ''], { cwd: tempDir });
       expect(result.exitCode).toBe(0);
       const output = getOutput(result);
       expect(output).toContain("Created change 'my-new-feature'");
@@ -344,7 +354,7 @@ describe('artifact-workflow CLI commands', () => {
 
     it('rejects --initiative and writes no change', async () => {
       const result = await runCLI(
-        ['new', 'change', 'linked-change', '--initiative', 'billing-launch'],
+        ['new', 'change', 'linked-change', '--domain', '', '--initiative', 'billing-launch'],
         { cwd: tempDir }
       );
       expect(result.exitCode).toBe(1);
@@ -356,7 +366,7 @@ describe('artifact-workflow CLI commands', () => {
     });
 
     it('rejects --areas and writes no affected-area metadata', async () => {
-      const result = await runCLI(['new', 'change', 'area-change', '--areas', 'api'], {
+      const result = await runCLI(['new', 'change', 'area-change', '--domain', '', '--areas', 'api'], {
         cwd: tempDir,
       });
       expect(result.exitCode).toBe(1);
@@ -369,7 +379,7 @@ describe('artifact-workflow CLI commands', () => {
 
     it('keeps --goal as ordinary metadata without switching schema', async () => {
       const result = await runCLI(
-        ['new', 'change', 'goal-change', '--goal', 'Improve billing'],
+        ['new', 'change', 'goal-change', '--domain', '', '--goal', 'Improve billing'],
         { cwd: tempDir }
       );
       expect(result.exitCode).toBe(0);
@@ -386,7 +396,7 @@ describe('artifact-workflow CLI commands', () => {
 
     it('creates README.md when --description is provided', async () => {
       const result = await runCLI(
-        ['new', 'change', 'described-feature', '--description', 'This is a test feature'],
+        ['new', 'change', 'described-feature', '--domain', '', '--description', 'This is a test feature'],
         { cwd: tempDir }
       );
       expect(result.exitCode).toBe(0);
@@ -398,7 +408,7 @@ describe('artifact-workflow CLI commands', () => {
     });
 
     it('errors for invalid change name with spaces', async () => {
-      const result = await runCLI(['new', 'change', 'invalid name'], { cwd: tempDir });
+      const result = await runCLI(['new', 'change', 'invalid name', '--domain', ''], { cwd: tempDir });
       expect(result.exitCode).toBe(1);
       const output = getOutput(result);
       expect(output).toContain('Error');
@@ -407,14 +417,14 @@ describe('artifact-workflow CLI commands', () => {
     it('errors for duplicate change name', async () => {
       await createTestChange('existing-change');
 
-      const result = await runCLI(['new', 'change', 'existing-change'], { cwd: tempDir });
+      const result = await runCLI(['new', 'change', 'existing-change', '--domain', ''], { cwd: tempDir });
       expect(result.exitCode).toBe(1);
       const output = getOutput(result);
       expect(output).toContain('exists');
     });
 
     it('errors when name argument is missing', async () => {
-      const result = await runCLI(['new', 'change'], { cwd: tempDir });
+      const result = await runCLI(['new', 'change', '--domain', ''], { cwd: tempDir });
       expect(result.exitCode).toBe(1);
     });
   });
@@ -614,6 +624,7 @@ artifacts:
       // Create a change with only the first artifact (missing second)
       const changeDir = path.join(changesDir, 'no-apply-test');
       await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, '.openspec.yaml'), 'schema: no-apply\n');
       await fs.writeFile(path.join(changeDir, 'first.md'), '# First artifact content');
 
       // Run with XDG_DATA_HOME pointing to our temp user data dir
@@ -657,6 +668,7 @@ artifacts:
       // Create a change with the artifact present
       const changeDir = path.join(changesDir, 'no-apply-full-test');
       await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, '.openspec.yaml'), 'schema: no-apply-full\n');
       await fs.writeFile(path.join(changeDir, 'only.md'), '# Content');
 
       const result = await runCLI(
@@ -791,7 +803,7 @@ artifacts:
         );
 
         // Create a new change without specifying schema
-        const result = await runCLI(['new', 'change', 'test-change'], { cwd: tempDir, timeoutMs: 30000 });
+        const result = await runCLI(['new', 'change', 'test-change', '--domain', ''], { cwd: tempDir, timeoutMs: 30000 });
         expect(result.exitCode).toBe(0);
 
         // Verify the change was created with spec-driven schema
@@ -810,7 +822,7 @@ artifacts:
 
         // Create change with explicit schema
         const result = await runCLI(
-          ['new', 'change', 'override-test', '--schema', 'spec-driven'],
+          ['new', 'change', 'override-test', '--domain', '', '--schema', 'spec-driven'],
           { cwd: tempDir, timeoutMs: 30000 }
         );
         expect(result.exitCode).toBe(0);

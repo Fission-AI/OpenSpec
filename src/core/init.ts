@@ -489,7 +489,7 @@ export class InitCommand {
         openspecPath,
         path.join(openspecPath, 'specs'),
         path.join(openspecPath, 'changes'),
-        path.join(openspecPath, 'changes', 'archive'),
+        path.join(openspecPath, 'archive'),
       ];
 
       for (const dir of directories) {
@@ -504,7 +504,7 @@ export class InitCommand {
       openspecPath,
       path.join(openspecPath, 'specs'),
       path.join(openspecPath, 'changes'),
-      path.join(openspecPath, 'changes', 'archive'),
+      path.join(openspecPath, 'archive'),
     ];
 
     for (const dir of directories) {

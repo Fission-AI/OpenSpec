@@ -82,7 +82,7 @@ describe('capstone persona journeys (6.1)', () => {
 
     // Low-level design lands in the app repo's own root, not the store.
     const created = await runCLI(
-      ['new', 'change', 'implement-invoice-immutability', '--json'],
+      ['new', 'change', 'implement-invoice-immutability', '--domain', '', '--json'],
       { cwd: appRepo, env }
     );
     expect(created.exitCode).toBe(0);
@@ -98,7 +98,9 @@ describe('capstone persona journeys (6.1)', () => {
     ).toBe(false);
 
     // The store stayed read-only context throughout.
-    const storeChanges = fs.readdirSync(path.join(storeRoot, 'openspec', 'changes'));
+    const storeChanges = fs.existsSync(path.join(storeRoot, 'openspec', 'changes'))
+      ? fs.readdirSync(path.join(storeRoot, 'openspec', 'changes'))
+      : [];
     expect(storeChanges.filter((name) => name !== 'archive' && name !== '.gitkeep')).toEqual([]);
   }, JOURNEY_TIMEOUT_MS);
 
@@ -117,7 +119,7 @@ describe('capstone persona journeys (6.1)', () => {
 
     // The whole lifecycle from the code repo, zero --store flags.
     const created = await runCLI(
-      ['new', 'change', 'add-rate-limits', '--schema', 'spec-driven', '--json'],
+      ['new', 'change', 'add-rate-limits', '--domain', '', '--schema', 'spec-driven', '--json'],
       { cwd: codeRepo, env }
     );
     expect(created.exitCode).toBe(0);
@@ -171,7 +173,7 @@ describe('capstone persona journeys (6.1)', () => {
     );
     expect(archived.exitCode).toBe(0);
     expect(fs.existsSync(changeDir)).toBe(false);
-    const archiveDir = path.join(storeRoot, 'openspec', 'changes', 'archive');
+    const archiveDir = path.join(storeRoot, 'openspec', 'archive');
     const archivedNames = fs.readdirSync(archiveDir);
     expect(archivedNames.some((name) => name.endsWith('add-rate-limits'))).toBe(true);
 

@@ -7,11 +7,14 @@
 
 import chalk from 'chalk';
 import path from 'path';
-import * as fs from 'fs';
 import { getSchemaDir, listSchemas } from '../../core/artifact-graph/index.js';
 import type { ReferenceIndexEntry } from '../../core/references.js';
 import { isRootSelectionError } from '../../core/root-selection.js';
-import { validateChangeName } from '../../utils/change-utils.js';
+import {
+  ChangeNotFoundError,
+  findAllChangeIds,
+  resolveExistingChangeId,
+} from '../../utils/change-path.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -122,16 +125,7 @@ export async function getAvailableChanges(
   projectRoot: string,
   changesDir = path.join(projectRoot, 'openspec', 'changes')
 ): Promise<string[]> {
-  const changesPath = changesDir;
-  try {
-    const entries = await fs.promises.readdir(changesPath, { withFileTypes: true });
-    return entries
-      .filter((e) => e.isDirectory() && e.name !== 'archive' && !e.name.startsWith('.'))
-      .map((e) => e.name);
-  } catch (error: unknown) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
-    throw error;
-  }
+  return findAllChangeIds(changesDir);
 }
 
 /**
@@ -146,7 +140,8 @@ export async function validateChangeExists(
 ): Promise<string> {
   // Hints must stay pasteable: callers with a selected store pass a
   // store-carrying hint so following it lands in the same root.
-  const newChangeHint = hints.newChangeHint ?? 'openspec new change <name>';
+  const newChangeHint = hints.newChangeHint ??
+    'openspec new change <name> --domain <path> or openspec new change <name> --domain ""';
 
   if (!changeName) {
     const available = await getAvailableChanges(projectRoot, changesDir);
@@ -158,17 +153,12 @@ export async function validateChangeExists(
     );
   }
 
-  // Validate change name format to prevent path traversal
-  const nameValidation = validateChangeName(changeName);
-  if (!nameValidation.valid) {
-    throw new Error(`Invalid change name '${changeName}': ${nameValidation.error}`);
-  }
-
-  // Check directory existence directly
-  const changePath = path.join(changesDir, changeName);
-  const exists = fs.existsSync(changePath) && fs.statSync(changePath).isDirectory();
-
-  if (!exists) {
+  try {
+    await resolveExistingChangeId(changeName, changesDir);
+  } catch (error) {
+    if (!(error instanceof ChangeNotFoundError)) {
+      throw error;
+    }
     const available = await getAvailableChanges(projectRoot, changesDir);
     if (available.length === 0) {
       throw new Error(

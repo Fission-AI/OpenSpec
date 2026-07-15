@@ -65,19 +65,20 @@ OpenSpec root: ready
 Registry: registered
 
 Next: run normal OpenSpec commands against this store, for example:
-  openspec new change <change-id> --store team-plans
+  openspec new change <name> --domain <path> --store team-plans
+  openspec new change <name> --domain "" --store team-plans
 Share this store by committing and pushing it like any Git repo.
 ```
 
 ```bash
-openspec new change add-login --store team-plans
+openspec new change add-login --domain auth --store team-plans
 ```
 
 ```
 Using OpenSpec root: team-plans (/Users/you/openspec/team-plans)
-Created change 'add-login' at /Users/you/openspec/team-plans/openspec/changes/add-login/
+Created change 'auth/add-login' at /Users/you/openspec/team-plans/openspec/changes/auth/add-login/
 Schema: spec-driven
-Next: openspec status --change add-login --store team-plans
+Next: openspec status --change auth/add-login --store team-plans
 ```
 
 That's the whole model. From here the lifecycle is exactly what you know —
@@ -309,7 +310,7 @@ tells you which case you're in.
   A stale checkout shows stale specs until *you* pull; references are
   indexed live from whatever is on disk.
 - **Empty planning folders can be absent.** A new store may not have
-  `openspec/changes/`, `openspec/specs/`, or `openspec/changes/archive/` in Git
+  `openspec/changes/`, `openspec/specs/`, or `openspec/archive/` in Git
   yet. That is accepted during the beta; those folders appear once normal
   commands create files for them.
 - **Pointer repos stay pointers.** A config-only repo whose

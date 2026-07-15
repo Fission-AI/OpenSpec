@@ -7,6 +7,22 @@
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
+const DOMAIN_PRESERVING_ARCHIVE_GUIDANCE = `Derive the destination from the full slash-delimited change ID. The final segment is \`<name>\`; every preceding segment is \`<domain>\`.
+
+   - Domain change target: \`<planningHome.root>/openspec/archive/<domain>/YYYY-MM-DD-<name>\`
+   - Root change target: \`<planningHome.root>/openspec/archive/YYYY-MM-DD-<name>\`
+
+   Set \`<archive-target>\` to the applicable path and \`<archive-target-parent>\` to its parent directory. This keeps the archive tree beside \`openspec/changes\` and preserves every domain segment.
+
+   **Check if \`<archive-target>\` already exists:**
+   - If yes: Fail with error, suggest renaming the existing archive or using a different date
+   - If no: Create the parent and move \`changeRoot\`
+
+   \`\`\`bash
+   mkdir -p "<archive-target-parent>"
+   mv "<changeRoot>" "<archive-target>"
+   \`\`\``;
+
 export function getArchiveChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-archive-change',
@@ -15,7 +31,7 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
 
 ${STORE_SELECTION_GUIDANCE}
 
-**Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Input**: Optionally specify a full slash-delimited change ID. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
@@ -28,9 +44,11 @@ ${STORE_SELECTION_GUIDANCE}
 
    **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
 
+   Treat the full selected or supplied value as \`<change-id>\`; do not reduce it to its final name segment.
+
 2. **Check artifact completion status**
 
-   Run \`openspec status --change "<name>" --json\` to check artifact completion.
+   Run \`openspec status --change "<change-id>" --json\` to check artifact completion.
 
    Parse the JSON to understand:
    - \`schemaName\`: The workflow being used
@@ -60,7 +78,8 @@ ${STORE_SELECTION_GUIDANCE}
    Use \`artifactPaths.specs.existingOutputPaths\` from status JSON to check for delta specs. If none exist, proceed without sync prompt.
 
    **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at \`openspec/specs/<capability>/spec.md\`
+   - To derive each full \`<spec-id>\`, derive \`<domain>\` only from every segment before the final \`<name>\` in the full \`<change-id>\`. The repo-local delta path \`specs/<capability>/spec.md\` does not contain the change domain.
+   - Compare it with \`openspec/specs/<domain>/<capability>/spec.md\` or \`openspec/specs/<capability>/spec.md\`, as applicable
    - Determine what changes would be applied (adds, modifications, removals, renames)
    - Show a combined summary before prompting
 
@@ -68,24 +87,11 @@ ${STORE_SELECTION_GUIDANCE}
    - If changes needed: "Sync now (recommended)", "Archive without syncing"
    - If already synced: "Archive now", "Sync anyway", "Cancel"
 
-   If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
+   If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<change-id>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
 
 5. **Perform the archive**
 
-   Create an \`archive\` directory under \`planningHome.changesDir\` if it doesn't exist:
-   \`\`\`bash
-   mkdir -p "<planningHome.changesDir>/archive"
-   \`\`\`
-
-   Generate target name using current date: \`YYYY-MM-DD-<change-name>\`
-
-   **Check if target already exists:**
-   - If yes: Fail with error, suggest renaming existing archive or using different date
-   - If no: Move \`changeRoot\` to the archive directory
-
-   \`\`\`bash
-   mv "<changeRoot>" "<planningHome.changesDir>/archive/YYYY-MM-DD-<name>"
-   \`\`\`
+   ${DOMAIN_PRESERVING_ARCHIVE_GUIDANCE}
 
 6. **Display summary**
 
@@ -103,7 +109,7 @@ ${STORE_SELECTION_GUIDANCE}
 
 **Change:** <change-name>
 **Schema:** <schema-name>
-**Archived to:** the archive path derived from \`planningHome.changesDir\`/YYYY-MM-DD-<name>/
+**Archived to:** \`<archive-target>\`
 **Specs:** ✓ Synced to main specs (or "No delta specs" or "Sync skipped")
 
 All artifacts complete. All tasks complete.
@@ -133,7 +139,7 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
 
 ${STORE_SELECTION_GUIDANCE}
 
-**Input**: Optionally specify a change name after \`/opsx:archive\` (e.g., \`/opsx:archive add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Input**: Optionally specify a full slash-delimited change ID after \`/opsx:archive\` (e.g., \`/opsx:archive auth/add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
@@ -146,9 +152,11 @@ ${STORE_SELECTION_GUIDANCE}
 
    **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
 
+   Treat the full selected or supplied value as \`<change-id>\`; do not reduce it to its final name segment.
+
 2. **Check artifact completion status**
 
-   Run \`openspec status --change "<name>" --json\` to check artifact completion.
+   Run \`openspec status --change "<change-id>" --json\` to check artifact completion.
 
    Parse the JSON to understand:
    - \`schemaName\`: The workflow being used
@@ -178,7 +186,8 @@ ${STORE_SELECTION_GUIDANCE}
    Use \`artifactPaths.specs.existingOutputPaths\` from status JSON to check for delta specs. If none exist, proceed without sync prompt.
 
    **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at \`openspec/specs/<capability>/spec.md\`
+   - To derive each full \`<spec-id>\`, derive \`<domain>\` only from every segment before the final \`<name>\` in the full \`<change-id>\`. The repo-local delta path \`specs/<capability>/spec.md\` does not contain the change domain.
+   - Compare it with \`openspec/specs/<domain>/<capability>/spec.md\` or \`openspec/specs/<capability>/spec.md\`, as applicable
    - Determine what changes would be applied (adds, modifications, removals, renames)
    - Show a combined summary before prompting
 
@@ -186,24 +195,11 @@ ${STORE_SELECTION_GUIDANCE}
    - If changes needed: "Sync now (recommended)", "Archive without syncing"
    - If already synced: "Archive now", "Sync anyway", "Cancel"
 
-   If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
+   If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<change-id>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
 
 5. **Perform the archive**
 
-   Create an \`archive\` directory under \`planningHome.changesDir\` if it doesn't exist:
-   \`\`\`bash
-   mkdir -p "<planningHome.changesDir>/archive"
-   \`\`\`
-
-   Generate target name using current date: \`YYYY-MM-DD-<change-name>\`
-
-   **Check if target already exists:**
-   - If yes: Fail with error, suggest renaming existing archive or using different date
-   - If no: Move \`changeRoot\` to the archive directory
-
-   \`\`\`bash
-   mv "<changeRoot>" "<planningHome.changesDir>/archive/YYYY-MM-DD-<name>"
-   \`\`\`
+   ${DOMAIN_PRESERVING_ARCHIVE_GUIDANCE}
 
 6. **Display summary**
 
@@ -221,7 +217,7 @@ ${STORE_SELECTION_GUIDANCE}
 
 **Change:** <change-name>
 **Schema:** <schema-name>
-**Archived to:** the archive path derived from \`planningHome.changesDir\`/YYYY-MM-DD-<name>/
+**Archived to:** \`<archive-target>\`
 **Specs:** ✓ Synced to main specs
 
 All artifacts complete. All tasks complete.
@@ -234,7 +230,7 @@ All artifacts complete. All tasks complete.
 
 **Change:** <change-name>
 **Schema:** <schema-name>
-**Archived to:** the archive path derived from \`planningHome.changesDir\`/YYYY-MM-DD-<name>/
+**Archived to:** \`<archive-target>\`
 **Specs:** No delta specs
 
 All artifacts complete. All tasks complete.
@@ -247,7 +243,7 @@ All artifacts complete. All tasks complete.
 
 **Change:** <change-name>
 **Schema:** <schema-name>
-**Archived to:** the archive path derived from \`planningHome.changesDir\`/YYYY-MM-DD-<name>/
+**Archived to:** \`<archive-target>\`
 **Specs:** Sync skipped (user chose to skip)
 
 **Warnings:**
@@ -264,7 +260,7 @@ Review the archive if this was not intentional.
 ## Archive Failed
 
 **Change:** <change-name>
-**Target:** the archive path derived from \`planningHome.changesDir\`/YYYY-MM-DD-<name>/
+**Target:** \`<archive-target>\`
 
 Target archive directory already exists.
 

@@ -17,7 +17,7 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
 ${STORE_SELECTION_GUIDANCE}
 
-**Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Input**: Optionally specify a full slash-delimited change ID. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
@@ -29,11 +29,13 @@ ${STORE_SELECTION_GUIDANCE}
 
    **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
 
+   Treat the full selected or supplied value as \`<change-id>\`; do not reduce it to its final name segment.
+
 2. **Resolve change context**
 
    Run:
    \`\`\`bash
-   openspec status --change "<name>" --json
+   openspec status --change "<change-id>" --json
    \`\`\`
 
 3. **Find delta specs**
@@ -54,7 +56,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    a. **Read the delta spec** to understand the intended changes
 
-   b. **Read the main spec** at \`openspec/specs/<capability>/spec.md\` (may not exist yet)
+   b. **Derive the canonical spec ID and read the main spec**: derive \`<domain>\` only from every segment before the final \`<name>\` in the full \`<change-id>\`. The repo-local delta path \`specs/<capability>/spec.md\` does not contain the change domain. Read \`openspec/specs/<domain>/<capability>/spec.md\` for a domain-qualified change, or \`openspec/specs/<capability>/spec.md\` for a root change (it may not exist yet).
 
    c. **Apply changes intelligently**:
 
@@ -77,7 +79,7 @@ ${STORE_SELECTION_GUIDANCE}
       - Find the FROM requirement, rename to TO
 
    d. **Create new main spec** if capability doesn't exist yet:
-      - Create \`openspec/specs/<capability>/spec.md\`
+      - Create \`openspec/specs/<domain>/<capability>/spec.md\` or \`openspec/specs/<capability>/spec.md\`, matching the delta's full spec ID
       - Add Purpose section (can be brief, mark as TBD)
       - Add Requirements section with the ADDED requirements
 
@@ -165,7 +167,7 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
 ${STORE_SELECTION_GUIDANCE}
 
-**Input**: Optionally specify a change name after \`/opsx:sync\` (e.g., \`/opsx:sync add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Input**: Optionally specify a full slash-delimited change ID after \`/opsx:sync\` (e.g., \`/opsx:sync auth/add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
@@ -177,11 +179,13 @@ ${STORE_SELECTION_GUIDANCE}
 
    **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
 
+   Treat the full selected or supplied value as \`<change-id>\`; do not reduce it to its final name segment.
+
 2. **Resolve change context**
 
    Run:
    \`\`\`bash
-   openspec status --change "<name>" --json
+   openspec status --change "<change-id>" --json
    \`\`\`
 
 3. **Find delta specs**
@@ -202,7 +206,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    a. **Read the delta spec** to understand the intended changes
 
-   b. **Read the main spec** at \`openspec/specs/<capability>/spec.md\` (may not exist yet)
+   b. **Derive the canonical spec ID and read the main spec**: derive \`<domain>\` only from every segment before the final \`<name>\` in the full \`<change-id>\`. The repo-local delta path \`specs/<capability>/spec.md\` does not contain the change domain. Read \`openspec/specs/<domain>/<capability>/spec.md\` for a domain-qualified change, or \`openspec/specs/<capability>/spec.md\` for a root change (it may not exist yet).
 
    c. **Apply changes intelligently**:
 
@@ -225,7 +229,7 @@ ${STORE_SELECTION_GUIDANCE}
       - Find the FROM requirement, rename to TO
 
    d. **Create new main spec** if capability doesn't exist yet:
-      - Create \`openspec/specs/<capability>/spec.md\`
+      - Create \`openspec/specs/<domain>/<capability>/spec.md\` or \`openspec/specs/<capability>/spec.md\`, matching the delta's full spec ID
       - Add Purpose section (can be brief, mark as TBD)
       - Add Requirements section with the ADDED requirements
 

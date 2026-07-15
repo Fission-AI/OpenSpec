@@ -7,6 +7,18 @@
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
+const DOMAIN_PRESERVING_ARCHIVE_GUIDANCE = `For each selected change, derive the destination from its full slash-delimited change ID. The final segment is \`<name>\`; every preceding segment is \`<domain>\`.
+
+      - Domain change target: \`<planningHome.root>/openspec/archive/<domain>/YYYY-MM-DD-<name>\`
+      - Root change target: \`<planningHome.root>/openspec/archive/YYYY-MM-DD-<name>\`
+
+      Set \`<archive-target>\` to the applicable path and \`<archive-target-parent>\` to its parent directory. This preserves every domain segment in the sibling \`openspec/archive\` tree.
+
+      \`\`\`bash
+      mkdir -p "<archive-target-parent>"
+      mv "<changeRoot>" "<archive-target>"
+      \`\`\``;
+
 export function getBulkArchiveChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-bulk-archive-change',
@@ -36,11 +48,13 @@ ${STORE_SELECTION_GUIDANCE}
 
    **IMPORTANT**: Do NOT auto-select. Always let the user choose.
 
+   Treat every full selected value as a \`<change-id>\`; do not reduce it to its final name segment.
+
 3. **Batch validation - gather status for all selected changes**
 
    For each selected change, collect:
 
-   a. **Artifact status** - Run \`openspec status --change "<name>" --json\`
+   a. **Artifact status** - Run \`openspec status --change "<change-id>" --json\`
       - Parse \`schemaName\`, \`artifacts\`, \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`
       - Note which artifacts are \`done\` vs other states
 
@@ -49,19 +63,21 @@ ${STORE_SELECTION_GUIDANCE}
       - If no tasks file exists, note as "No tasks"
 
    c. **Delta specs** - Check \`artifactPaths.specs.existingOutputPaths\` from status JSON
-      - List which capability specs exist
+      - To derive each canonical spec ID, derive \`<domain>\` only from every segment before the final \`<name>\` in the full \`<change-id>\`. The repo-local delta path \`specs/<capability>/spec.md\` does not contain the change domain.
+      - List each canonical \`<spec-id>\`: \`<domain>/<capability>\` for a domain-qualified spec, or \`<capability>\` for a root spec
+      - Resolve its main target as \`openspec/specs/<domain>/<capability>/spec.md\` or \`openspec/specs/<capability>/spec.md\`
       - For each, extract requirement names (lines matching \`### Requirement: <name>\`)
 
 4. **Detect spec conflicts**
 
-   Build a map of \`capability -> [changes that touch it]\`:
+   Build a map of \`<spec-id> -> [<change-id>...]\`:
 
    \`\`\`
-   auth -> [change-a, change-b]  <- CONFLICT (2+ changes)
-   api  -> [change-c]            <- OK (only 1 change)
+   auth/login -> [auth/change-a, auth/change-b]  <- CONFLICT (2+ changes)
+   api        -> [change-c]                    <- OK (only 1 change)
    \`\`\`
 
-   A conflict exists when 2+ selected changes have delta specs for the same capability.
+   A conflict exists when 2+ selected changes have delta specs for the same canonical spec ID. Do not merge identical capability leaves in different domains into one conflict key.
 
 5. **Resolve conflicts agentically**
 
@@ -130,10 +146,7 @@ ${STORE_SELECTION_GUIDANCE}
       - Track if sync was done
 
    b. **Perform the archive**:
-      \`\`\`bash
-      mkdir -p "<planningHome.changesDir>/archive"
-      mv "<changeRoot>" "<planningHome.changesDir>/archive/YYYY-MM-DD-<name>"
-      \`\`\`
+      ${DOMAIN_PRESERVING_ARCHIVE_GUIDANCE}
 
    c. **Track outcome** for each change:
       - Success: archived successfully
@@ -148,9 +161,9 @@ ${STORE_SELECTION_GUIDANCE}
    ## Bulk Archive Complete
 
    Archived 3 changes:
-   - schema-management-cli -> archive/2026-01-19-schema-management-cli/
-   - project-config -> archive/2026-01-19-project-config/
-   - add-oauth -> archive/2026-01-19-add-oauth/
+   - platform/schema-management-cli -> <planningHome.root>/openspec/archive/platform/2026-01-19-schema-management-cli/
+   - project-config -> <planningHome.root>/openspec/archive/2026-01-19-project-config/
+   - auth/add-oauth -> <planningHome.root>/openspec/archive/auth/2026-01-19-add-oauth/
 
    Skipped 1 change:
    - add-verify-skill (user chose not to archive incomplete)
@@ -205,8 +218,8 @@ then add-graphql specs (chronological order, newer takes precedence).
 ## Bulk Archive Complete
 
 Archived N changes:
-- <change-1> -> archive/YYYY-MM-DD-<change-1>/
-- <change-2> -> archive/YYYY-MM-DD-<change-2>/
+- <domain>/<change-1> -> <planningHome.root>/openspec/archive/<domain>/YYYY-MM-DD-<change-1>/
+- <change-2> -> <planningHome.root>/openspec/archive/YYYY-MM-DD-<change-2>/
 
 Spec sync summary:
 - N delta specs synced to main specs
@@ -219,7 +232,7 @@ Spec sync summary:
 ## Bulk Archive Complete (partial)
 
 Archived N changes:
-- <change-1> -> archive/YYYY-MM-DD-<change-1>/
+- <domain>/<change-1> -> <planningHome.root>/openspec/archive/<domain>/YYYY-MM-DD-<change-1>/
 
 Skipped M changes:
 - <change-2> (user chose not to archive incomplete)
@@ -285,11 +298,13 @@ ${STORE_SELECTION_GUIDANCE}
 
    **IMPORTANT**: Do NOT auto-select. Always let the user choose.
 
+   Treat every full selected value as a \`<change-id>\`; do not reduce it to its final name segment.
+
 3. **Batch validation - gather status for all selected changes**
 
    For each selected change, collect:
 
-   a. **Artifact status** - Run \`openspec status --change "<name>" --json\`
+   a. **Artifact status** - Run \`openspec status --change "<change-id>" --json\`
       - Parse \`schemaName\`, \`artifacts\`, \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`
       - Note which artifacts are \`done\` vs other states
 
@@ -298,19 +313,21 @@ ${STORE_SELECTION_GUIDANCE}
       - If no tasks file exists, note as "No tasks"
 
    c. **Delta specs** - Check \`artifactPaths.specs.existingOutputPaths\` from status JSON
-      - List which capability specs exist
+      - To derive each canonical spec ID, derive \`<domain>\` only from every segment before the final \`<name>\` in the full \`<change-id>\`. The repo-local delta path \`specs/<capability>/spec.md\` does not contain the change domain.
+      - List each canonical \`<spec-id>\`: \`<domain>/<capability>\` for a domain-qualified spec, or \`<capability>\` for a root spec
+      - Resolve its main target as \`openspec/specs/<domain>/<capability>/spec.md\` or \`openspec/specs/<capability>/spec.md\`
       - For each, extract requirement names (lines matching \`### Requirement: <name>\`)
 
 4. **Detect spec conflicts**
 
-   Build a map of \`capability -> [changes that touch it]\`:
+   Build a map of \`<spec-id> -> [<change-id>...]\`:
 
    \`\`\`
-   auth -> [change-a, change-b]  <- CONFLICT (2+ changes)
-   api  -> [change-c]            <- OK (only 1 change)
+   auth/login -> [auth/change-a, auth/change-b]  <- CONFLICT (2+ changes)
+   api        -> [change-c]                    <- OK (only 1 change)
    \`\`\`
 
-   A conflict exists when 2+ selected changes have delta specs for the same capability.
+   A conflict exists when 2+ selected changes have delta specs for the same canonical spec ID. Do not merge identical capability leaves in different domains into one conflict key.
 
 5. **Resolve conflicts agentically**
 
@@ -379,10 +396,7 @@ ${STORE_SELECTION_GUIDANCE}
       - Track if sync was done
 
    b. **Perform the archive**:
-      \`\`\`bash
-      mkdir -p "<planningHome.changesDir>/archive"
-      mv "<changeRoot>" "<planningHome.changesDir>/archive/YYYY-MM-DD-<name>"
-      \`\`\`
+      ${DOMAIN_PRESERVING_ARCHIVE_GUIDANCE}
 
    c. **Track outcome** for each change:
       - Success: archived successfully
@@ -397,9 +411,9 @@ ${STORE_SELECTION_GUIDANCE}
    ## Bulk Archive Complete
 
    Archived 3 changes:
-   - schema-management-cli -> archive/2026-01-19-schema-management-cli/
-   - project-config -> archive/2026-01-19-project-config/
-   - add-oauth -> archive/2026-01-19-add-oauth/
+   - platform/schema-management-cli -> <planningHome.root>/openspec/archive/platform/2026-01-19-schema-management-cli/
+   - project-config -> <planningHome.root>/openspec/archive/2026-01-19-project-config/
+   - auth/add-oauth -> <planningHome.root>/openspec/archive/auth/2026-01-19-add-oauth/
 
    Skipped 1 change:
    - add-verify-skill (user chose not to archive incomplete)
@@ -454,8 +468,8 @@ then add-graphql specs (chronological order, newer takes precedence).
 ## Bulk Archive Complete
 
 Archived N changes:
-- <change-1> -> archive/YYYY-MM-DD-<change-1>/
-- <change-2> -> archive/YYYY-MM-DD-<change-2>/
+- <domain>/<change-1> -> <planningHome.root>/openspec/archive/<domain>/YYYY-MM-DD-<change-1>/
+- <change-2> -> <planningHome.root>/openspec/archive/YYYY-MM-DD-<change-2>/
 
 Spec sync summary:
 - N delta specs synced to main specs
@@ -468,7 +482,7 @@ Spec sync summary:
 ## Bulk Archive Complete (partial)
 
 Archived N changes:
-- <change-1> -> archive/YYYY-MM-DD-<change-1>/
+- <domain>/<change-1> -> <planningHome.root>/openspec/archive/<domain>/YYYY-MM-DD-<change-1>/
 
 Skipped M changes:
 - <change-2> (user chose not to archive incomplete)

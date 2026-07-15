@@ -8,9 +8,7 @@ import type { RootOutput } from '../core/root-selection.js';
 import { isInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds } from '../utils/item-discovery.js';
 import { getTaskProgressForChange } from '../utils/task-progress.js';
-
-// Constants for better maintainability
-const ARCHIVE_DIR = 'archive';
+import { findAllChangeIds, resolveExistingChangeId } from '../utils/change-path.js';
 
 export class ChangeCommand {
   private converter: JsonConverter;
@@ -58,7 +56,8 @@ export class ChangeCommand {
       }
     }
 
-    const proposalPath = path.join(changesPath, changeName, 'proposal.md');
+    const resolvedChange = await resolveExistingChangeId(changeName, changesPath);
+    const proposalPath = path.join(resolvedChange.path, 'proposal.md');
 
     try {
       await fs.access(proposalPath);
@@ -194,13 +193,7 @@ export class ChangeCommand {
       }
     }
     
-    const changeDir = path.join(changesPath, changeName);
-    
-    try {
-      await fs.access(changeDir);
-    } catch {
-      throw new Error(`Change "${changeName}" not found at ${changeDir}`);
-    }
+    const { path: changeDir } = await resolveExistingChangeId(changeName, changesPath);
     
     const validator = new Validator(options?.strict || false);
     const report = await validator.validateChangeDeltaSpecs(changeDir);
@@ -228,19 +221,7 @@ export class ChangeCommand {
 
   private async getActiveChanges(changesPath: string): Promise<string[]> {
     try {
-      const entries = await fs.readdir(changesPath, { withFileTypes: true });
-      const result: string[] = [];
-      for (const entry of entries) {
-        if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === ARCHIVE_DIR) continue;
-        const proposalPath = path.join(changesPath, entry.name, 'proposal.md');
-        try {
-          await fs.access(proposalPath);
-          result.push(entry.name);
-        } catch {
-          // skip directories without proposal.md
-        }
-      }
-      return result.sort();
+      return await findAllChangeIds(changesPath);
     } catch {
       return [];
     }

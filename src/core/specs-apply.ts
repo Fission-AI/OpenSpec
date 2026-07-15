@@ -16,6 +16,11 @@ import {
 } from './parsers/requirement-blocks.js';
 import { findMainSpecStructureIssues } from './parsers/spec-structure.js';
 import { Validator } from './validation/validator.js';
+import {
+  assertProspectivePathContained,
+  ChangeNotFoundError,
+  resolveExistingChangeId,
+} from '../utils/change-path.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -59,42 +64,53 @@ interface ScenarioBlock {
 /**
  * Find all delta spec files that need to be applied from a change.
  */
-export async function findSpecUpdates(changeDir: string, mainSpecsDir: string): Promise<SpecUpdate[]> {
+export async function findSpecUpdates(
+  changeDir: string,
+  mainSpecsDir: string,
+  changeDomain: string[] = []
+): Promise<SpecUpdate[]> {
   const updates: SpecUpdate[] = [];
   const changeSpecsDir = path.join(changeDir, 'specs');
 
+  let entries;
   try {
-    const entries = await fs.readdir(changeSpecsDir, { withFileTypes: true });
-
-    for (const entry of entries) {
-      if (entry.isDirectory()) {
-        const specFile = path.join(changeSpecsDir, entry.name, 'spec.md');
-        const targetFile = path.join(mainSpecsDir, entry.name, 'spec.md');
-
-        try {
-          await fs.access(specFile);
-
-          // Check if target exists
-          let exists = false;
-          try {
-            await fs.access(targetFile);
-            exists = true;
-          } catch {
-            exists = false;
-          }
-
-          updates.push({
-            source: specFile,
-            target: targetFile,
-            exists,
-          });
-        } catch {
-          // Source spec doesn't exist, skip
-        }
-      }
-    }
+    entries = await fs.readdir(changeSpecsDir, { withFileTypes: true });
   } catch {
     // No specs directory in change
+    return updates;
+  }
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+
+    const specFile = path.join(changeSpecsDir, entry.name, 'spec.md');
+    const targetFile = path.join(mainSpecsDir, ...changeDomain, entry.name, 'spec.md');
+
+    try {
+      await fs.access(specFile);
+    } catch {
+      // Source spec doesn't exist, skip
+      continue;
+    }
+
+    await assertProspectivePathContained(mainSpecsDir, targetFile, 'Spec');
+
+    // Check if target exists
+    let exists = false;
+    try {
+      await fs.access(targetFile);
+      exists = true;
+    } catch {
+      exists = false;
+    }
+
+    updates.push({
+      source: specFile,
+      target: targetFile,
+      exists,
+    });
   }
 
   return updates;
@@ -444,21 +460,22 @@ export async function applySpecs(
     silent?: boolean;
   } = {}
 ): Promise<SpecsApplyOutput> {
-  const changeDir = path.join(projectRoot, 'openspec', 'changes', changeName);
-  const mainSpecsDir = path.join(projectRoot, 'openspec', 'specs');
-
-  // Verify change exists
+  const changesDir = path.join(projectRoot, 'openspec', 'changes');
+  let resolvedChange;
   try {
-    const stat = await fs.stat(changeDir);
-    if (!stat.isDirectory()) {
-      throw new Error(`Change '${changeName}' not found.`);
+    resolvedChange = await resolveExistingChangeId(changeName, changesDir);
+  } catch (error) {
+    if (!(error instanceof ChangeNotFoundError)) {
+      throw error;
     }
-  } catch {
     throw new Error(`Change '${changeName}' not found.`);
   }
 
+  const { domain, path: changeDir } = resolvedChange;
+  const mainSpecsDir = path.join(projectRoot, 'openspec', 'specs');
+
   // Find specs to update
-  const specUpdates = await findSpecUpdates(changeDir, mainSpecsDir);
+  const specUpdates = await findSpecUpdates(changeDir, mainSpecsDir, domain);
 
   if (specUpdates.length === 0) {
     return {
@@ -503,6 +520,11 @@ export async function applySpecs(
 
   for (const p of prepared) {
     const capability = path.basename(path.dirname(p.update.target));
+    const displayPath = path.join(
+      'openspec',
+      'specs',
+      path.relative(mainSpecsDir, p.update.target)
+    ).split(path.sep).join('/');
 
     if (!options.dryRun) {
       // Write the updated spec
@@ -511,14 +533,14 @@ export async function applySpecs(
       await fs.writeFile(p.update.target, p.rebuilt);
 
       if (!options.silent) {
-        console.log(`Applying changes to openspec/specs/${capability}/spec.md:`);
+        console.log(`Applying changes to ${displayPath}:`);
         if (p.counts.added) console.log(`  + ${p.counts.added} added`);
         if (p.counts.modified) console.log(`  ~ ${p.counts.modified} modified`);
         if (p.counts.removed) console.log(`  - ${p.counts.removed} removed`);
         if (p.counts.renamed) console.log(`  → ${p.counts.renamed} renamed`);
       }
     } else if (!options.silent) {
-      console.log(`Would apply changes to openspec/specs/${capability}/spec.md:`);
+      console.log(`Would apply changes to ${displayPath}:`);
       if (p.counts.added) console.log(`  + ${p.counts.added} added`);
       if (p.counts.modified) console.log(`  ~ ${p.counts.modified} modified`);
       if (p.counts.removed) console.log(`  - ${p.counts.removed} removed`);

@@ -180,7 +180,7 @@ Create the next artifact in the dependency chain. Creates one artifact at a time
 
 **Syntax:**
 ```
-/opsx:continue [change-name]
+/opsx:continue [change-id]
 ```
 
 **Arguments:**
@@ -274,7 +274,7 @@ Implement tasks from the change. Works through the task list, writing code and c
 
 **Syntax:**
 ```
-/opsx:apply [change-name]
+/opsx:apply [change-id]
 ```
 
 **Arguments:**
@@ -336,7 +336,7 @@ Revise a change's existing planning artifacts and keep them coherent with one an
 
 **What it does:**
 
-- Reads the change's artifacts via `openspec status --change <name> --json`
+- Reads the change's artifacts via `openspec status --change <change-id> --json`
 - Applies your requested revision, or reviews the artifacts for contradictions if you didn't name one
 - Reconciles the other existing artifacts in any direction (a design edit may ripple back to the proposal)
 - Confirms every edit with you before writing, one artifact at a time
@@ -373,7 +373,7 @@ Validate that implementation matches your change artifacts. Checks completeness,
 
 **Syntax:**
 ```
-/opsx:verify [change-name]
+/opsx:verify [change-id]
 ```
 
 **Arguments:**
@@ -498,7 +498,7 @@ Archive a completed change. Finalizes the change and moves it to the archive fol
 
 **Syntax:**
 ```
-/opsx:archive [change-name]
+/opsx:archive [change-id]
 ```
 
 **Arguments:**
@@ -510,7 +510,7 @@ Archive a completed change. Finalizes the change and moves it to the archive fol
 - Checks artifact completion status
 - Checks task completion (warns if incomplete)
 - Offers to sync delta specs if not already synced
-- Moves change folder to `openspec/changes/archive/YYYY-MM-DD-<name>/`
+- Moves a root change to `openspec/archive/YYYY-MM-DD-<name>/`, or a domain change to `openspec/archive/<domain>/YYYY-MM-DD-<name>/`
 - Preserves all artifacts for audit trail
 
 **Example:**
@@ -531,7 +531,7 @@ AI:  Archiving add-dark-mode...
 You: Yes
 
 AI:  ✓ Synced specs to openspec/specs/ui/spec.md
-     ✓ Moved to openspec/changes/archive/2025-01-24-add-dark-mode/
+     ✓ Moved to openspec/archive/2025-01-24-add-dark-mode/
 
      Change archived successfully.
 ```
@@ -716,7 +716,7 @@ The command couldn't identify which change to work on.
 All artifacts are either complete or blocked by missing dependencies.
 
 **Solutions:**
-- Run `openspec status --change <name>` to see what's blocking
+- Run `openspec status --change <change-id>` to see what's blocking
 - Check if required artifacts exist
 - Create missing dependency artifacts first
 

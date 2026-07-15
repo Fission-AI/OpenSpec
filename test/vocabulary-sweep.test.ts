@@ -47,6 +47,55 @@ function* walkFiles(dir: string): Generator<string> {
 }
 
 describe('vocabulary sweep', () => {
+  it('keeps published docs on sibling archives and explicit domain creation', () => {
+    const archiveOffenders: string[] = [];
+    const domainOffenders: string[] = [];
+    const changeIdOffenders: string[] = [];
+    const publishedFiles = [
+      path.join(REPO_ROOT, 'README.md'),
+      path.join(REPO_ROOT, 'CHANGELOG.md'),
+      ...walkFiles(path.join(REPO_ROOT, 'docs')),
+    ];
+    const retiredArchivePath = 'changes' + '/archive';
+
+    for (const filePath of publishedFiles) {
+      const relativePath = path.relative(REPO_ROOT, filePath).replaceAll('\\', '/');
+      if (relativePath.startsWith('docs/superpowers/')) {
+        continue;
+      }
+
+      const lines = fs.readFileSync(filePath, 'utf-8').split('\n');
+      lines.forEach((line, index) => {
+        if (line.includes(retiredArchivePath)) {
+          archiveOffenders.push(`${relativePath}:${index + 1}: ${line.trim()}`);
+        }
+
+        const command = line.trim();
+        if (command.startsWith('openspec new change ') && !command.includes('--domain')) {
+          domainOffenders.push(`${relativePath}:${index + 1}: ${command}`);
+        }
+        if (
+          /--change (?:"<name>"|<name>)|(?:\/opsx:(?:apply|archive|continue|verify)|openspec archive) \[?change-name/u.test(line)
+        ) {
+          changeIdOffenders.push(`${relativePath}:${index + 1}: ${line.trim()}`);
+        }
+      });
+    }
+
+    expect(
+      archiveOffenders,
+      `retired archive path found in published docs:\n${archiveOffenders.join('\n')}`
+    ).toEqual([]);
+    expect(
+      domainOffenders,
+      `creation example without explicit domain found:\n${domainOffenders.join('\n')}`
+    ).toEqual([]);
+    expect(
+      changeIdOffenders,
+      `non-canonical lifecycle placeholder found:\n${changeIdOffenders.join('\n')}`
+    ).toEqual([]);
+  });
+
   it('keeps the retired store vocabulary out of live surfaces', () => {
     const offenders: string[] = [];
 

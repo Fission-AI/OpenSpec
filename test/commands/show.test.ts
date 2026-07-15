@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
+import { runCLI } from '../helpers/run-cli.js';
 
 describe('top-level show command', () => {
   const projectRoot = process.cwd();
@@ -75,6 +76,32 @@ describe('top-level show command', () => {
     } finally {
       process.chdir(originalCwd);
     }
+  });
+
+  it('auto-detects a recursively discovered spec ID', async () => {
+    const nestedSpecDir = path.join(specsDir, 'auth', 'oauth', 'login');
+    await fs.mkdir(nestedSpecDir, { recursive: true });
+    await fs.copyFile(
+      path.join(specsDir, 'auth', 'spec.md'),
+      path.join(nestedSpecDir, 'spec.md')
+    );
+
+    const result = await runCLI(['show', 'auth/oauth/login', '--json'], { cwd: testDir });
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout).id).toBe('auth/oauth/login');
+  });
+
+  it.each(['change', 'spec'])('rejects traversal IDs with --type %s', async (type) => {
+    const outsideDir = path.join(testDir, 'outside');
+    await fs.mkdir(outsideDir, { recursive: true });
+    await fs.writeFile(path.join(outsideDir, 'proposal.md'), '# OUTSIDE_CHANGE_SENTINEL', 'utf-8');
+    await fs.writeFile(path.join(outsideDir, 'spec.md'), 'OUTSIDE_SPEC_SENTINEL', 'utf-8');
+
+    const result = await runCLI(['show', '../../outside', '--type', type], { cwd: testDir });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout + result.stderr).not.toContain('OUTSIDE_');
+    expect(result.stderr).toContain("Unknown item '../../outside'");
   });
 
   it('handles ambiguity and suggests --type', async () => {

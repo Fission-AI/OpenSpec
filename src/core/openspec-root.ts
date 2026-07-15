@@ -13,7 +13,7 @@ export const OPENSPEC_CONFIG_YAML = 'openspec/config.yaml';
 export const OPENSPEC_CONFIG_YML = 'openspec/config.yml';
 export const OPENSPEC_SPECS_DIR = 'openspec/specs';
 export const OPENSPEC_CHANGES_DIR = 'openspec/changes';
-export const OPENSPEC_ARCHIVE_DIR = 'openspec/changes/archive';
+export const OPENSPEC_ARCHIVE_DIR = 'openspec/archive';
 export const DEFAULT_OPENSPEC_SCHEMA = 'spec-driven';
 export const DIRECTORY_ANCHOR_FILE_NAME = '.gitkeep';
 
@@ -196,7 +196,7 @@ export async function inspectOpenSpecRoot(storeRoot: string): Promise<OpenSpecRo
     'openspec_specs_not_directory',
     'openspec.specs'
   );
-  const changesKind = await inspectOptionalPlanningDirectory(
+  await inspectOptionalPlanningDirectory(
     inspection,
     storeRoot,
     'changes',
@@ -204,18 +204,14 @@ export async function inspectOpenSpecRoot(storeRoot: string): Promise<OpenSpecRo
     'openspec_changes_not_directory',
     'openspec.changes'
   );
-  if (changesKind === 'directory') {
-    await inspectOptionalPlanningDirectory(
-      inspection,
-      storeRoot,
-      'archive',
-      OPENSPEC_ARCHIVE_DIR,
-      'openspec_archive_not_directory',
-      'openspec.archive'
-    );
-  } else {
-    inspection.archive = { present: false };
-  }
+  await inspectOptionalPlanningDirectory(
+    inspection,
+    storeRoot,
+    'archive',
+    OPENSPEC_ARCHIVE_DIR,
+    'openspec_archive_not_directory',
+    'openspec.archive'
+  );
 
   inspection.healthy =
     inspection.present === true &&

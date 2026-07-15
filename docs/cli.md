@@ -57,7 +57,7 @@ These commands support `--json` output for programmatic use by AI agents and scr
 | `openspec store remove <id>` | Delete a registered local store folder | `--yes --json` for non-interactive deletion |
 | `openspec store list` | Browse registered stores | `--json` for structured registrations |
 | `openspec store doctor` | Check local store setup | `--json` for structured diagnostics |
-| `openspec new change <id>` | Create repo-local change scaffolding | `--json`, plus `--store <id>` to use a registered store as the OpenSpec root |
+| `openspec new change <id>` | Create repo-local change scaffolding | Explicit `--domain <path>` or `--domain ""`; add `--json` for structured output and `--store <id>` for a registered Store |
 | `openspec workset create [name]` | Compose a personal working view | `--member <path> --json` for non-interactive composition |
 | `openspec workset list` | Browse saved worksets | `--json` for structured views |
 | `openspec workset remove <name>` | Delete a saved view | `--yes --json` for non-interactive removal |
@@ -218,7 +218,7 @@ openspec store setup team-context --path ~/openspec/team-context --no-init-git -
 Register an existing local store folder. During the stores beta, a root may be
 registered before any changes exist, specs have been applied, or changes have
 been archived; in that case `openspec/changes/`, `openspec/specs/`, and
-`openspec/changes/archive/` may be absent until normal commands create them.
+`openspec/archive/` may be absent until normal commands create them.
 A config-only repo that declares `store: <id>` remains a pointer to another
 store and is not registered as a store root unless that pointer is removed.
 
@@ -571,7 +571,7 @@ Validating add-dark-mode...
 Archive a completed change and merge delta specs into main specs.
 
 ```
-openspec archive [change-name] [options]
+openspec archive [change-id] [options]
 ```
 
 **Arguments:**
@@ -609,7 +609,7 @@ openspec archive update-ci-config --skip-specs
 1. Validates the change (unless `--no-validate`)
 2. Prompts for confirmation (unless `--yes`)
 3. Merges delta specs into `openspec/specs/`
-4. Moves change folder to `openspec/changes/archive/YYYY-MM-DD-<name>/`
+4. Moves a root change to `openspec/archive/YYYY-MM-DD-<name>/`, or preserves its domain at `openspec/archive/<domain>/YYYY-MM-DD-<name>/`
 
 ---
 
@@ -622,7 +622,7 @@ These commands support the artifact-driven OPSX workflow. They're useful for bot
 Create a change directory and optional checked-in metadata in the resolved OpenSpec root.
 
 ```bash
-openspec new change <name> [options]
+openspec new change <name> --domain <path|""> [options]
 ```
 
 Change names must use lowercase kebab-case. They start with a lowercase letter,
@@ -639,14 +639,15 @@ prefix it with a word, for example `ticket-123-add-notifications` instead of
 | `--description <text>` | Description to add to `README.md` |
 | `--goal <text>` | Optional goal metadata to store with the change |
 | `--schema <name>` | Workflow schema to use |
+| `--domain <path>` | Mandatory domain decision; use a slash-delimited path, or `--domain ""` for root placement |
 | `--store <id>` | Store id to use as the OpenSpec root (a store is a standalone OpenSpec repo you've registered) |
 | `--json` | Output JSON |
 
 Examples:
 
 ```bash
-openspec new change add-billing-api
-openspec new change add-billing-api --store team-context --json
+openspec new change add-billing-api --domain billing
+openspec new change add-billing-api --domain "" --store team-context --json
 ```
 
 ### `openspec status`
@@ -661,7 +662,7 @@ openspec status [options]
 
 | Option | Description |
 |--------|-------------|
-| `--change <id>` | Change name (prompts if omitted) |
+| `--change <id>` | Full slash-delimited change ID (prompts if omitted) |
 | `--schema <name>` | Schema override (auto-detected from change's config) |
 | `--json` | Output as JSON |
 

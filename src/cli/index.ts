@@ -560,6 +560,7 @@ newCmd
   .command('change <name>')
   .description('Create a new change directory')
   .option('--description <text>', 'Description to add to README.md')
+  .option('--domain <path>', 'Domain path, or an empty string for the root domain')
   .option('--goal <text>', 'Optional goal metadata to store with the change')
   .option('--schema <name>', `Workflow schema to use (default: ${DEFAULT_SCHEMA})`)
   .option('--json', 'Output as JSON')

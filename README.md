@@ -72,7 +72,7 @@ AI:  Implementing tasks...
      All tasks complete!
 
 You: /opsx:archive
-AI:  Archived to openspec/changes/archive/2025-01-23-add-dark-mode/
+AI:  Archived to openspec/archive/2025-01-23-add-dark-mode/
      Specs updated. Ready for the next feature.
 ```
 

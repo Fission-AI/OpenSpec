@@ -116,7 +116,12 @@ export async function instructionsCommand(
       options.change,
       projectRoot,
       root.changesDir,
-      { newChangeHint: withStoreFlag(root, 'openspec new change <name>') }
+      {
+        newChangeHint: [
+          withStoreFlag(root, 'openspec new change <name> --domain <path>'),
+          withStoreFlag(root, 'openspec new change <name> --domain ""'),
+        ].join(' or '),
+      }
     );
 
     // Validate schema if explicitly provided
@@ -448,7 +453,12 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
       options.change,
       projectRoot,
       root.changesDir,
-      { newChangeHint: withStoreFlag(root, 'openspec new change <name>') }
+      {
+        newChangeHint: [
+          withStoreFlag(root, 'openspec new change <name> --domain <path>'),
+          withStoreFlag(root, 'openspec new change <name> --domain ""'),
+        ].join(' or '),
+      }
     );
 
     // Validate schema if explicitly provided

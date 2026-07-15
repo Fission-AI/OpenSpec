@@ -62,7 +62,7 @@ describe('InitCommand', () => {
       expect(await directoryExists(openspecPath)).toBe(true);
       expect(await directoryExists(path.join(openspecPath, 'specs'))).toBe(true);
       expect(await directoryExists(path.join(openspecPath, 'changes'))).toBe(true);
-      expect(await directoryExists(path.join(openspecPath, 'changes', 'archive'))).toBe(true);
+      expect(await directoryExists(path.join(openspecPath, 'archive'))).toBe(true);
     });
 
     it('should create config.yaml with default schema', async () => {

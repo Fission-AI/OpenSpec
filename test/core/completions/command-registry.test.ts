@@ -204,6 +204,7 @@ describe('command completion registry', () => {
     const newChange = command('new')?.subcommands?.find((entry) => entry.name === 'change');
     expect(newChange?.flags.map((flag) => flag.name)).toEqual([
       'description',
+      'domain',
       'goal',
       'schema',
       'json',
@@ -215,6 +216,17 @@ describe('command completion registry', () => {
     expect(newChange?.flags.map((flag) => flag.name)).not.toContain('initiative');
     expect(newChange?.flags.map((flag) => flag.name)).not.toContain('areas');
     expect(newChange?.flags.map((flag) => flag.name)).not.toContain('store-path');
+  });
+
+  it('advertises mandatory domain selection on new change', () => {
+    const newChange = command('new')?.subcommands?.find((entry) => entry.name === 'change');
+    const domain = newChange?.flags.find((flag) => flag.name === 'domain');
+
+    expect(domain).toEqual({
+      name: 'domain',
+      description: 'Domain path, or an empty string for the root domain',
+      takesValue: true,
+    });
   });
 
   it('advertises --store on the supported root-selection commands', () => {

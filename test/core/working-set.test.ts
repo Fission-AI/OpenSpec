@@ -14,7 +14,7 @@ const root = {
   storeId: 'team-context',
   changesDir: '/team/store/openspec/changes',
   specsDir: '/team/store/openspec/specs',
-  archiveDir: '/team/store/openspec/changes/archive',
+  archiveDir: '/team/store/openspec/archive',
   defaultSchema: 'spec-driven',
 } as ResolvedOpenSpecRoot;
 

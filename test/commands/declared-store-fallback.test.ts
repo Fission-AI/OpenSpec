@@ -53,7 +53,7 @@ describe('declared store fallback (3.2)', () => {
   it('runs the externalized-planning journey without --store anywhere', async () => {
     const pointerBefore = snapshot(pointerRepo);
 
-    const created = await runCLI(['new', 'change', 'billing-rework', '--json'], {
+    const created = await runCLI(['new', 'change', 'billing-rework', '--domain', '', '--json'], {
       cwd: pointerRepo,
       env,
     });
@@ -117,7 +117,7 @@ describe('declared store fallback (3.2)', () => {
       env,
     });
     expect(archive.exitCode).toBe(0);
-    const archived = fs.readdirSync(path.join(storeRoot, 'openspec', 'changes', 'archive'));
+    const archived = fs.readdirSync(path.join(storeRoot, 'openspec', 'archive'));
     expect(archived.some((name) => name.endsWith('billing-rework'))).toBe(true);
 
     // The pointer repo is byte-identical: no specs/, no changes/, nothing.
@@ -136,7 +136,7 @@ describe('declared store fallback (3.2)', () => {
       'schema: spec-driven\nreferences:\n  - upstream-context\n'
     );
 
-    const created = await runCLI(['new', 'change', 'ref-check', '--json'], {
+    const created = await runCLI(['new', 'change', 'ref-check', '--domain', '', '--json'], {
       cwd: pointerRepo,
       env,
     });

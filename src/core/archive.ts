@@ -18,28 +18,15 @@ import {
   writeUpdatedSpec,
   type SpecUpdate,
 } from './specs-apply.js';
-
-function isMissingPathError(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as NodeJS.ErrnoException).code === 'ENOENT'
-  );
-}
-
-async function listActiveChangeNames(changesDir: string): Promise<string[]> {
-  try {
-    const entries = await fs.readdir(changesDir, { withFileTypes: true });
-    return entries
-      .filter((entry) => entry.isDirectory() && entry.name !== 'archive')
-      .map((entry) => entry.name)
-      .sort();
-  } catch (error) {
-    if (!isMissingPathError(error)) throw error;
-    return [];
-  }
-}
+import {
+  assertProspectivePathContained,
+  buildArchivePath,
+  ChangeNotFoundError,
+  findAllChangeIds,
+  pathExistsWithoutFollowingLinks,
+  resolveExistingChangeId,
+  type ResolvedChangeId,
+} from '../utils/change-path.js';
 
 export interface ArchiveOptions {
   yes?: boolean;
@@ -219,16 +206,14 @@ export class ArchiveCommand {
       changeName = selectedChange;
     }
 
-    const changeDir = path.join(changesDir, changeName);
-
-    // Verify change exists
+    let resolvedChange: ResolvedChangeId;
     try {
-      const stat = await fs.stat(changeDir);
-      if (!stat.isDirectory()) {
-        throw new Error(`Change '${changeName}' not found.`);
+      resolvedChange = await resolveExistingChangeId(changeName, changesDir);
+    } catch (error) {
+      if (!(error instanceof ChangeNotFoundError)) {
+        throw error;
       }
-    } catch {
-      const available = await listActiveChangeNames(changesDir);
+      const available = await findAllChangeIds(changesDir);
       throw new ArchiveBlockedError(
         'archive_change_not_found',
         available.length > 0
@@ -236,6 +221,21 @@ export class ArchiveCommand {
           : `Change '${changeName}' not found. No active changes exist in this root.`
       );
     }
+
+    const { domain, name, path: changeDir } = resolvedChange;
+    const archiveDate = this.getArchiveDate();
+    const archiveName = `${archiveDate}-${name}`;
+    const archivedAs = [...domain, archiveName].join('/');
+    const archivePath = buildArchivePath(archiveDir, changeName, archiveDate);
+
+    // Block before validation or spec preparation can mutate any target.
+    if (await pathExistsWithoutFollowingLinks(archivePath)) {
+      throw new ArchiveBlockedError(
+        'archive_target_exists',
+        `Archive '${archivedAs}' already exists.`
+      );
+    }
+    await assertProspectivePathContained(archiveDir, archivePath, 'Archive');
 
     const skipValidation = options.validate === false || options.noValidate === true;
 
@@ -383,7 +383,7 @@ export class ArchiveCommand {
       }
     } else {
       // Find specs to update
-      const specUpdates = await findSpecUpdates(changeDir, mainSpecsDir);
+      const specUpdates = await findSpecUpdates(changeDir, mainSpecsDir, domain);
 
       if (specUpdates.length > 0) {
         if (!json) {
@@ -468,7 +468,11 @@ export class ArchiveCommand {
             await writeUpdatedSpec(p.update, p.rebuilt, p.counts, {
               silent: json,
               // Cross-root paths must be absolute when a store is selected.
-              ...(isStoreSelectedRoot(root) ? { displayPath: p.update.target } : {}),
+              displayPath: isStoreSelectedRoot(root)
+                ? p.update.target
+                : path.join('openspec', 'specs', path.relative(mainSpecsDir, p.update.target))
+                    .split(path.sep)
+                    .join('/'),
             });
             writeTotals.added += p.counts.added;
             writeTotals.modified += p.counts.modified;
@@ -487,37 +491,19 @@ export class ArchiveCommand {
       }
     }
 
-    // Create archive directory with date prefix
-    const archiveName = `${this.getArchiveDate()}-${changeName}`;
-    const archivePath = path.join(archiveDir, archiveName);
-
-    // Check if archive already exists
-    let archiveExists = false;
-    try {
-      await fs.access(archivePath);
-      archiveExists = true;
-    } catch (error: any) {
-      if (error.code !== 'ENOENT') {
-        throw error;
-      }
-    }
-    if (archiveExists) {
-      throw new ArchiveBlockedError('archive_target_exists', `Archive '${archiveName}' already exists.`);
-    }
-
     // Create archive directory if needed
-    await fs.mkdir(archiveDir, { recursive: true });
+    await fs.mkdir(path.dirname(archivePath), { recursive: true });
 
     // Move change to archive (uses copy+remove on EPERM/EXDEV, e.g. Windows)
     await moveDirectory(changeDir, archivePath);
 
     if (!json) {
-      console.log(`Change '${changeName}' archived as '${archiveName}'.`);
+      console.log(`Change '${changeName}' archived as '${archivedAs}'.`);
     }
 
     return {
       change: changeName,
-      archivedAs: archiveName,
+      archivedAs,
       path: archivePath,
       specsUpdated,
       ...(totals ? { totals } : {}),
@@ -526,7 +512,7 @@ export class ArchiveCommand {
 
   private async selectChange(changesDir: string): Promise<string | null> {
     const { select } = await import('@inquirer/prompts');
-    const changeDirs = await listActiveChangeNames(changesDir);
+    const changeDirs = await findAllChangeIds(changesDir);
 
     if (changeDirs.length === 0) {
       console.log('No active changes found.');
