@@ -75,7 +75,7 @@ describe('store root selection for normal commands', () => {
 
   function createOpenSpecRoot(rootDir: string): void {
     fs.mkdirSync(path.join(rootDir, 'openspec', 'specs'), { recursive: true });
-    fs.mkdirSync(path.join(rootDir, 'openspec', 'changes', 'archive'), { recursive: true });
+    fs.mkdirSync(path.join(rootDir, 'openspec', 'archive'), { recursive: true });
     fs.writeFileSync(path.join(rootDir, 'openspec', 'config.yaml'), 'schema: spec-driven\n');
   }
 
@@ -306,7 +306,7 @@ describe('store root selection for normal commands', () => {
       expect(json.archive.change).toBe('store-change');
       expect(json.archive.archivedAs).toMatch(/^\d{4}-\d{2}-\d{2}-store-change$/);
       expect(json.archive.path).toBe(
-        path.join(storeRoot, 'openspec', 'changes', 'archive', json.archive.archivedAs)
+        path.join(storeRoot, 'openspec', 'archive', json.archive.archivedAs)
       );
       expect(json.archive.specsUpdated).toBe(true);
       expect(json.root.store_id).toBe('team-context');

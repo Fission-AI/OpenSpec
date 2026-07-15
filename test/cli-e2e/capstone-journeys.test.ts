@@ -98,7 +98,9 @@ describe('capstone persona journeys (6.1)', () => {
     ).toBe(false);
 
     // The store stayed read-only context throughout.
-    const storeChanges = fs.readdirSync(path.join(storeRoot, 'openspec', 'changes'));
+    const storeChanges = fs.existsSync(path.join(storeRoot, 'openspec', 'changes'))
+      ? fs.readdirSync(path.join(storeRoot, 'openspec', 'changes'))
+      : [];
     expect(storeChanges.filter((name) => name !== 'archive' && name !== '.gitkeep')).toEqual([]);
   }, JOURNEY_TIMEOUT_MS);
 
@@ -171,7 +173,7 @@ describe('capstone persona journeys (6.1)', () => {
     );
     expect(archived.exitCode).toBe(0);
     expect(fs.existsSync(changeDir)).toBe(false);
-    const archiveDir = path.join(storeRoot, 'openspec', 'changes', 'archive');
+    const archiveDir = path.join(storeRoot, 'openspec', 'archive');
     const archivedNames = fs.readdirSync(archiveDir);
     expect(archivedNames.some((name) => name.endsWith('add-rate-limits'))).toBe(true);
 

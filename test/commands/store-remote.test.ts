@@ -355,7 +355,7 @@ describe('store canonical remote (3.3)', () => {
       // Anchor every directory a healthy clone needs (the same job
       // store setup's anchor files do).
       fs.writeFileSync(path.join(originWorktree, 'openspec', 'specs', '.gitkeep'), '');
-      fs.writeFileSync(path.join(originWorktree, 'openspec', 'changes', 'archive', '.gitkeep'), '');
+      fs.writeFileSync(path.join(originWorktree, 'openspec', 'archive', '.gitkeep'), '');
       fs.mkdirSync(path.join(originWorktree, '.openspec-store'), { recursive: true });
       fs.writeFileSync(
         path.join(originWorktree, '.openspec-store', 'store.yaml'),
@@ -377,7 +377,7 @@ describe('store canonical remote (3.3)', () => {
           `  - { id: team-context, remote: ${originRemote} }\n`
       );
       fs.mkdirSync(path.join(appRepo, 'openspec', 'specs'), { recursive: true });
-      fs.mkdirSync(path.join(appRepo, 'openspec', 'changes', 'archive'), { recursive: true });
+      fs.mkdirSync(path.join(appRepo, 'openspec', 'archive'), { recursive: true });
 
       const created = await runCLI(['new', 'change', 'onboard-check', '--json'], {
         cwd: appRepo,
@@ -432,7 +432,7 @@ describe('store canonical remote (3.3)', () => {
       // Keep specs/ and archive/ tracked so the pre-existing
       // fragile-directories warning stays out of this assertion.
       fs.writeFileSync(path.join(storeRoot, 'openspec', 'specs', '.gitkeep'), '');
-      fs.writeFileSync(path.join(storeRoot, 'openspec', 'changes', 'archive', '.gitkeep'), '');
+      fs.writeFileSync(path.join(storeRoot, 'openspec', 'archive', '.gitkeep'), '');
       fs.mkdirSync(path.join(storeRoot, '.openspec-store'), { recursive: true });
       fs.writeFileSync(
         path.join(storeRoot, '.openspec-store', 'store.yaml'),

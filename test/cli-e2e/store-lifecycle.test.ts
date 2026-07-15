@@ -212,7 +212,7 @@ describe('standalone store lifecycle journey', () => {
       expect.arrayContaining([
         'openspec/config.yaml',
         'openspec/specs/.gitkeep',
-        'openspec/changes/archive/.gitkeep',
+        'openspec/archive/.gitkeep',
         '.openspec-store/store.yaml',
       ])
     );
@@ -229,7 +229,7 @@ describe('standalone store lifecycle journey', () => {
     ]);
     expect(committedFiles).toContain('.openspec-store/store.yaml');
     expect(committedFiles).toContain('openspec/specs/.gitkeep');
-    expect(committedFiles).toContain('openspec/changes/archive/.gitkeep');
+    expect(committedFiles).toContain('openspec/archive/.gitkeep');
 
     const status = await git(storeRoot, machineA, ['status', '--porcelain']);
     expect(status.trim()).toBe('');
@@ -336,7 +336,7 @@ describe('standalone store lifecycle journey', () => {
     await expect(fs.readFile(specPath, 'utf-8')).resolves.toContain('billing SHALL work');
 
     const archiveEntries = await fs.readdir(
-      path.join(storeRoot, 'openspec', 'changes', 'archive')
+      path.join(storeRoot, 'openspec', 'archive')
     );
     expect(archiveEntries.some((entry) => entry.endsWith(`-${changeId}`))).toBe(true);
   }, JOURNEY_TIMEOUT_MS);

@@ -48,7 +48,7 @@ describe('resolveOpenSpecRoot', () => {
 
   function createOpenSpecRoot(rootDir: string): void {
     fs.mkdirSync(path.join(rootDir, 'openspec', 'specs'), { recursive: true });
-    fs.mkdirSync(path.join(rootDir, 'openspec', 'changes', 'archive'), { recursive: true });
+    fs.mkdirSync(path.join(rootDir, 'openspec', 'archive'), { recursive: true });
     fs.writeFileSync(path.join(rootDir, 'openspec', 'config.yaml'), 'schema: spec-driven\n');
   }
 
@@ -114,7 +114,7 @@ describe('resolveOpenSpecRoot', () => {
     expect(root.path).toBe(storeRoot);
     expect(root.changesDir).toBe(path.join(storeRoot, 'openspec', 'changes'));
     expect(root.specsDir).toBe(path.join(storeRoot, 'openspec', 'specs'));
-    expect(root.archiveDir).toBe(path.join(storeRoot, 'openspec', 'changes', 'archive'));
+    expect(root.archiveDir).toBe(path.join(storeRoot, 'openspec', 'archive'));
     expect(root.defaultSchema).toBe('spec-driven');
   });
 
@@ -199,6 +199,7 @@ describe('resolveOpenSpecRoot', () => {
 
     expect(root.source).toBe('nearest');
     expect(root.path).toBe(repoRoot);
+    expect(root.archiveDir).toBe(path.join(repoRoot, 'openspec', 'archive'));
   });
 
   it('ignores leftover workspace view state when a nearest root exists', async () => {
@@ -255,6 +256,7 @@ describe('resolveOpenSpecRoot', () => {
     const implicitRoot = await resolveOpenSpecRoot({ startPath: appRepo, globalDataDir });
     expect(implicitRoot.source).toBe('implicit');
     expect(implicitRoot.path).toBe(appRepo);
+    expect(implicitRoot.archiveDir).toBe(path.join(appRepo, 'openspec', 'archive'));
 
     await expectRootSelectionError(
       resolveOpenSpecRoot({ startPath: appRepo, globalDataDir, allowImplicitRoot: false }),
@@ -299,6 +301,7 @@ describe('resolveOpenSpecRoot', () => {
       expect(root.source).toBe('declared');
       expect(root.storeId).toBe('team-context');
       expect(root.path).toBe(storeRoot);
+      expect(root.archiveDir).toBe(path.join(storeRoot, 'openspec', 'archive'));
       // The pointer dir is untouched.
       expect(fs.existsSync(path.join(pointerDir, 'openspec', 'specs'))).toBe(false);
       expect(fs.existsSync(path.join(pointerDir, 'openspec', 'changes'))).toBe(false);

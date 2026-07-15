@@ -160,7 +160,7 @@ export async function createChange(
   // Creating a change may scaffold or complete the root itself (an
   // implicit root, or a config-only/incomplete clone). Never leave a
   // half-root behind that doctor immediately calls unhealthy: ensure
-  // specs/ and changes/archive/ exist, and write a config only when
+  // specs/ and archive/ exist, and write a config only when
   // none exists. The config records the PROJECT default schema, never
   // a one-change --schema override.
   const openspecDir = path.join(projectRoot, 'openspec');
@@ -168,7 +168,7 @@ export async function createChange(
   // Create the directory (including parent directories if needed)
   await FileSystemUtils.createDirectory(changeDir);
   await FileSystemUtils.createDirectory(path.join(openspecDir, 'specs'));
-  await FileSystemUtils.createDirectory(path.join(openspecDir, 'changes', 'archive'));
+  await FileSystemUtils.createDirectory(path.join(openspecDir, 'archive'));
   const configPath = path.join(openspecDir, 'config.yaml');
   const configYmlPath = path.join(openspecDir, 'config.yml');
   if (

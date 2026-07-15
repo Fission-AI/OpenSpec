@@ -9,7 +9,7 @@ import { DEFAULT_OPENSPEC_SCHEMA } from '../../src/core/index.js';
 
 export function createHealthyOpenSpecRoot(root: string, configName = 'config.yaml'): void {
   fs.mkdirSync(path.join(root, 'openspec', 'specs'), { recursive: true });
-  fs.mkdirSync(path.join(root, 'openspec', 'changes', 'archive'), { recursive: true });
+  fs.mkdirSync(path.join(root, 'openspec', 'archive'), { recursive: true });
   fs.writeFileSync(path.join(root, 'openspec', configName), `schema: ${DEFAULT_OPENSPEC_SCHEMA}\n`);
 }
 
