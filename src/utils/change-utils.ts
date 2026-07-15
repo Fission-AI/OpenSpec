@@ -1,4 +1,5 @@
 import path from 'path';
+import { promises as fs } from 'fs';
 import { FileSystemUtils } from './file-system.js';
 import { writeChangeMetadata, validateSchemaName } from './change-metadata.js';
 import { splitChangeId, validateDomainPath } from './change-path.js';
@@ -6,6 +7,67 @@ import { readProjectConfig } from '../core/project-config.js';
 import type { ChangeMetadata } from '../core/change-metadata/index.js';
 
 const DEFAULT_SCHEMA = 'spec-driven';
+const CHANGE_MARKERS = ['.openspec.yaml', 'proposal.md'] as const;
+
+async function canonicalizeProspectivePath(targetPath: string): Promise<string> {
+  const missingSegments: string[] = [];
+  let currentPath = path.resolve(targetPath);
+
+  while (true) {
+    try {
+      const existingPath = await fs.realpath(currentPath);
+      return path.resolve(existingPath, ...missingSegments.reverse());
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw error;
+      }
+
+      const parentPath = path.dirname(currentPath);
+      if (parentPath === currentPath) {
+        throw error;
+      }
+      missingSegments.push(path.basename(currentPath));
+      currentPath = parentPath;
+    }
+  }
+}
+
+function pathStaysWithin(basePath: string, targetPath: string): boolean {
+  const relativePath = path.relative(basePath, targetPath);
+  return (
+    relativePath === '' ||
+    (!path.isAbsolute(relativePath) &&
+      relativePath !== '..' &&
+      !relativePath.startsWith(`..${path.sep}`))
+  );
+}
+
+async function pathIsFile(targetPath: string): Promise<boolean> {
+  try {
+    return (await fs.stat(targetPath)).isFile();
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return false;
+    }
+    throw error;
+  }
+}
+
+async function assertDomainPrefixesAreNotChanges(
+  changesDir: string,
+  domain: string[]
+): Promise<void> {
+  const prefix: string[] = [];
+  for (const segment of domain) {
+    prefix.push(segment);
+    const prefixDir = path.join(changesDir, ...prefix);
+    for (const marker of CHANGE_MARKERS) {
+      if (await pathIsFile(path.join(prefixDir, marker))) {
+        throw new Error(`Domain prefix '${prefix.join('/')}' is already a change`);
+      }
+    }
+  }
+}
 
 /**
  * Options for creating a change.
@@ -135,6 +197,11 @@ export async function createChange(
     throw new Error(validation.error);
   }
 
+  const rootSegment = domain[0] ?? name;
+  if (rootSegment.toLowerCase() === 'archive') {
+    throw new Error("Change ID root segment 'archive' is reserved");
+  }
+
   const defaultSchema = options.defaultSchema ?? DEFAULT_SCHEMA;
 
   // Determine schema: explicit option → project config → supplied default
@@ -159,10 +226,17 @@ export async function createChange(
     options.changesDir ?? path.join(projectRoot, 'openspec', 'changes')
   );
   const changeDir = path.resolve(changesDir, ...domain, name);
-  const relativeChangePath = path.relative(changesDir, changeDir);
-  if (relativeChangePath.startsWith('..') || path.isAbsolute(relativeChangePath)) {
+  if (!pathStaysWithin(changesDir, changeDir)) {
     throw new Error('Change path must stay within changesDir');
   }
+
+  const canonicalChangesDir = await canonicalizeProspectivePath(changesDir);
+  const canonicalChangeDir = await canonicalizeProspectivePath(changeDir);
+  if (!pathStaysWithin(canonicalChangesDir, canonicalChangeDir)) {
+    throw new Error('Change path must stay within changesDir');
+  }
+
+  await assertDomainPrefixesAreNotChanges(changesDir, domain);
 
   // Check if change already exists
   if (await FileSystemUtils.directoryExists(changeDir)) {

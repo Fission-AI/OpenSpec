@@ -196,6 +196,64 @@ describe.sequential('domain-aware new change', () => {
     });
   });
 
+  it('rejects the reserved archive domain without creating an undiscoverable change', async () => {
+    const result = await runCLI(
+      ['new', 'change', 'add-auth', '--domain', 'archive', '--json'],
+      { cwd: localRoot, env }
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(parseJson(result)).toMatchObject({
+      change: null,
+      status: [
+        {
+          severity: 'error',
+          message: expect.stringMatching(/root segment 'archive' is reserved/i),
+        },
+      ],
+    });
+    expect(fs.existsSync(path.join(localRoot, 'openspec', 'changes', 'archive'))).toBe(false);
+  });
+
+  it('rejects a domain prefix that is already a logical change leaf', async () => {
+    writeChange(localRoot, 'Platform/existing-change');
+
+    const result = await runCLI(
+      [
+        'new',
+        'change',
+        'add-auth',
+        '--domain',
+        'Platform/existing-change',
+        '--json',
+      ],
+      { cwd: localRoot, env }
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(parseJson(result)).toMatchObject({
+      change: null,
+      status: [
+        {
+          severity: 'error',
+          message: "Domain prefix 'Platform/existing-change' is already a change",
+        },
+      ],
+    });
+    expect(
+      fs.existsSync(
+        path.join(
+          localRoot,
+          'openspec',
+          'changes',
+          'Platform',
+          'existing-change',
+          'add-auth'
+        )
+      )
+    ).toBe(false);
+  });
+
   it('requires a domain decision in JSON mode and lists domains from the selected root', async () => {
     writeChange(localRoot, 'Platform/API/existing-change');
     writeChange(localRoot, 'Finance/existing-change');

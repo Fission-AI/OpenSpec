@@ -5,6 +5,23 @@ import os from 'os';
 import { randomUUID } from 'crypto';
 import { validateChangeName, createChange } from '../../src/utils/change-utils.js';
 
+const LINK_CREATION_UNAVAILABLE_CODES = new Set([
+  'EACCES',
+  'EINVAL',
+  'ENOSYS',
+  'ENOTSUP',
+  'EPERM',
+]);
+
+function isLinkCreationUnavailable(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    LINK_CREATION_UNAVAILABLE_CODES.has(String(error.code))
+  );
+}
+
 describe('validateChangeName', () => {
   describe('valid names', () => {
     it('should accept simple kebab-case name', () => {
@@ -228,6 +245,57 @@ describe('createChange', () => {
       ).rejects.toThrow(/Domain path/);
       await expect(fs.access(path.join(testDir, 'selected-root', 'add-auth'))).rejects.toThrow();
     });
+
+    it('should reject a link ancestor that escapes the changes directory', async (context) => {
+      const changesDir = path.join(testDir, 'selected-root', 'changes');
+      const outsideDir = path.join(testDir, 'outside');
+      const linkedDomain = path.join(changesDir, 'Linked');
+      await fs.mkdir(changesDir, { recursive: true });
+      await fs.mkdir(outsideDir, { recursive: true });
+
+      try {
+        await fs.symlink(
+          outsideDir,
+          linkedDomain,
+          process.platform === 'win32' ? 'junction' : 'dir'
+        );
+      } catch (error) {
+        if (isLinkCreationUnavailable(error)) {
+          context.skip();
+          return;
+        }
+        throw error;
+      }
+
+      await expect(
+        createChange(testDir, 'Linked/add-auth', { changesDir })
+      ).rejects.toThrow(/stay within changesDir/);
+      await expect(fs.access(path.join(outsideDir, 'add-auth'))).rejects.toThrow();
+    });
+
+    it('should reject the reserved archive segment at the changes root', async () => {
+      await expect(createChange(testDir, 'archive/add-auth')).rejects.toThrow(
+        /root segment 'archive' is reserved/i
+      );
+      await expect(createChange(testDir, 'archive')).rejects.toThrow(
+        /root segment 'archive' is reserved/i
+      );
+    });
+
+    it.each(['.openspec.yaml', 'proposal.md'])(
+      'should reject a domain prefix marked as a change by %s',
+      async (marker) => {
+        const changesDir = path.join(testDir, 'openspec', 'changes');
+        const existingChangeDir = path.join(changesDir, 'existing-change');
+        await fs.mkdir(existingChangeDir, { recursive: true });
+        await fs.writeFile(path.join(existingChangeDir, marker), 'existing change\n');
+
+        await expect(
+          createChange(testDir, 'existing-change/add-auth')
+        ).rejects.toThrow(/Domain prefix 'existing-change' is already a change/);
+        await expect(fs.access(path.join(existingChangeDir, 'add-auth'))).rejects.toThrow();
+      }
+    );
   });
 
   describe('creates parent directories if needed', () => {
