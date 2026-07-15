@@ -232,6 +232,11 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             takesValue: true,
           },
           {
+            name: 'domain',
+            description: 'Domain path, or an empty string for the root domain',
+            takesValue: true,
+          },
+          {
             name: 'goal',
             description: 'Optional goal metadata to store with the change',
             takesValue: true,

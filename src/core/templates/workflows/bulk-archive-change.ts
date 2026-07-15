@@ -7,6 +7,18 @@
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
+const DOMAIN_PRESERVING_ARCHIVE_GUIDANCE = `For each selected change, derive the destination from its full slash-delimited change ID. The final segment is \`<name>\`; every preceding segment is \`<domain>\`.
+
+      - Domain change target: \`<planningHome.root>/openspec/archive/<domain>/YYYY-MM-DD-<name>\`
+      - Root change target: \`<planningHome.root>/openspec/archive/YYYY-MM-DD-<name>\`
+
+      Set \`<archive-target>\` to the applicable path and \`<archive-target-parent>\` to its parent directory. This preserves every domain segment in the sibling \`openspec/archive\` tree.
+
+      \`\`\`bash
+      mkdir -p "<archive-target-parent>"
+      mv "<changeRoot>" "<archive-target>"
+      \`\`\``;
+
 export function getBulkArchiveChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-bulk-archive-change',
@@ -130,10 +142,7 @@ ${STORE_SELECTION_GUIDANCE}
       - Track if sync was done
 
    b. **Perform the archive**:
-      \`\`\`bash
-      mkdir -p "<planningHome.changesDir>/archive"
-      mv "<changeRoot>" "<planningHome.changesDir>/archive/YYYY-MM-DD-<name>"
-      \`\`\`
+      ${DOMAIN_PRESERVING_ARCHIVE_GUIDANCE}
 
    c. **Track outcome** for each change:
       - Success: archived successfully
@@ -148,9 +157,9 @@ ${STORE_SELECTION_GUIDANCE}
    ## Bulk Archive Complete
 
    Archived 3 changes:
-   - schema-management-cli -> archive/2026-01-19-schema-management-cli/
-   - project-config -> archive/2026-01-19-project-config/
-   - add-oauth -> archive/2026-01-19-add-oauth/
+   - platform/schema-management-cli -> <planningHome.root>/openspec/archive/platform/2026-01-19-schema-management-cli/
+   - project-config -> <planningHome.root>/openspec/archive/2026-01-19-project-config/
+   - auth/add-oauth -> <planningHome.root>/openspec/archive/auth/2026-01-19-add-oauth/
 
    Skipped 1 change:
    - add-verify-skill (user chose not to archive incomplete)
@@ -205,8 +214,8 @@ then add-graphql specs (chronological order, newer takes precedence).
 ## Bulk Archive Complete
 
 Archived N changes:
-- <change-1> -> archive/YYYY-MM-DD-<change-1>/
-- <change-2> -> archive/YYYY-MM-DD-<change-2>/
+- <domain>/<change-1> -> <planningHome.root>/openspec/archive/<domain>/YYYY-MM-DD-<change-1>/
+- <change-2> -> <planningHome.root>/openspec/archive/YYYY-MM-DD-<change-2>/
 
 Spec sync summary:
 - N delta specs synced to main specs
@@ -219,7 +228,7 @@ Spec sync summary:
 ## Bulk Archive Complete (partial)
 
 Archived N changes:
-- <change-1> -> archive/YYYY-MM-DD-<change-1>/
+- <domain>/<change-1> -> <planningHome.root>/openspec/archive/<domain>/YYYY-MM-DD-<change-1>/
 
 Skipped M changes:
 - <change-2> (user chose not to archive incomplete)
@@ -379,10 +388,7 @@ ${STORE_SELECTION_GUIDANCE}
       - Track if sync was done
 
    b. **Perform the archive**:
-      \`\`\`bash
-      mkdir -p "<planningHome.changesDir>/archive"
-      mv "<changeRoot>" "<planningHome.changesDir>/archive/YYYY-MM-DD-<name>"
-      \`\`\`
+      ${DOMAIN_PRESERVING_ARCHIVE_GUIDANCE}
 
    c. **Track outcome** for each change:
       - Success: archived successfully
@@ -397,9 +403,9 @@ ${STORE_SELECTION_GUIDANCE}
    ## Bulk Archive Complete
 
    Archived 3 changes:
-   - schema-management-cli -> archive/2026-01-19-schema-management-cli/
-   - project-config -> archive/2026-01-19-project-config/
-   - add-oauth -> archive/2026-01-19-add-oauth/
+   - platform/schema-management-cli -> <planningHome.root>/openspec/archive/platform/2026-01-19-schema-management-cli/
+   - project-config -> <planningHome.root>/openspec/archive/2026-01-19-project-config/
+   - auth/add-oauth -> <planningHome.root>/openspec/archive/auth/2026-01-19-add-oauth/
 
    Skipped 1 change:
    - add-verify-skill (user chose not to archive incomplete)
@@ -454,8 +460,8 @@ then add-graphql specs (chronological order, newer takes precedence).
 ## Bulk Archive Complete
 
 Archived N changes:
-- <change-1> -> archive/YYYY-MM-DD-<change-1>/
-- <change-2> -> archive/YYYY-MM-DD-<change-2>/
+- <domain>/<change-1> -> <planningHome.root>/openspec/archive/<domain>/YYYY-MM-DD-<change-1>/
+- <change-2> -> <planningHome.root>/openspec/archive/YYYY-MM-DD-<change-2>/
 
 Spec sync summary:
 - N delta specs synced to main specs
@@ -468,7 +474,7 @@ Spec sync summary:
 ## Bulk Archive Complete (partial)
 
 Archived N changes:
-- <change-1> -> archive/YYYY-MM-DD-<change-1>/
+- <domain>/<change-1> -> <planningHome.root>/openspec/archive/<domain>/YYYY-MM-DD-<change-1>/
 
 Skipped M changes:
 - <change-2> (user chose not to archive incomplete)

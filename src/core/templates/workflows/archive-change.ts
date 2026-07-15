@@ -7,6 +7,22 @@
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
+const DOMAIN_PRESERVING_ARCHIVE_GUIDANCE = `Derive the destination from the full slash-delimited change ID. The final segment is \`<name>\`; every preceding segment is \`<domain>\`.
+
+   - Domain change target: \`<planningHome.root>/openspec/archive/<domain>/YYYY-MM-DD-<name>\`
+   - Root change target: \`<planningHome.root>/openspec/archive/YYYY-MM-DD-<name>\`
+
+   Set \`<archive-target>\` to the applicable path and \`<archive-target-parent>\` to its parent directory. This keeps the archive tree beside \`openspec/changes\` and preserves every domain segment.
+
+   **Check if \`<archive-target>\` already exists:**
+   - If yes: Fail with error, suggest renaming the existing archive or using a different date
+   - If no: Create the parent and move \`changeRoot\`
+
+   \`\`\`bash
+   mkdir -p "<archive-target-parent>"
+   mv "<changeRoot>" "<archive-target>"
+   \`\`\``;
+
 export function getArchiveChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-archive-change',
@@ -72,20 +88,7 @@ ${STORE_SELECTION_GUIDANCE}
 
 5. **Perform the archive**
 
-   Create an \`archive\` directory under \`planningHome.changesDir\` if it doesn't exist:
-   \`\`\`bash
-   mkdir -p "<planningHome.changesDir>/archive"
-   \`\`\`
-
-   Generate target name using current date: \`YYYY-MM-DD-<change-name>\`
-
-   **Check if target already exists:**
-   - If yes: Fail with error, suggest renaming existing archive or using different date
-   - If no: Move \`changeRoot\` to the archive directory
-
-   \`\`\`bash
-   mv "<changeRoot>" "<planningHome.changesDir>/archive/YYYY-MM-DD-<name>"
-   \`\`\`
+   ${DOMAIN_PRESERVING_ARCHIVE_GUIDANCE}
 
 6. **Display summary**
 
@@ -103,7 +106,7 @@ ${STORE_SELECTION_GUIDANCE}
 
 **Change:** <change-name>
 **Schema:** <schema-name>
-**Archived to:** the archive path derived from \`planningHome.changesDir\`/YYYY-MM-DD-<name>/
+**Archived to:** \`<archive-target>\`
 **Specs:** ✓ Synced to main specs (or "No delta specs" or "Sync skipped")
 
 All artifacts complete. All tasks complete.
@@ -190,20 +193,7 @@ ${STORE_SELECTION_GUIDANCE}
 
 5. **Perform the archive**
 
-   Create an \`archive\` directory under \`planningHome.changesDir\` if it doesn't exist:
-   \`\`\`bash
-   mkdir -p "<planningHome.changesDir>/archive"
-   \`\`\`
-
-   Generate target name using current date: \`YYYY-MM-DD-<change-name>\`
-
-   **Check if target already exists:**
-   - If yes: Fail with error, suggest renaming existing archive or using different date
-   - If no: Move \`changeRoot\` to the archive directory
-
-   \`\`\`bash
-   mv "<changeRoot>" "<planningHome.changesDir>/archive/YYYY-MM-DD-<name>"
-   \`\`\`
+   ${DOMAIN_PRESERVING_ARCHIVE_GUIDANCE}
 
 6. **Display summary**
 
@@ -221,7 +211,7 @@ ${STORE_SELECTION_GUIDANCE}
 
 **Change:** <change-name>
 **Schema:** <schema-name>
-**Archived to:** the archive path derived from \`planningHome.changesDir\`/YYYY-MM-DD-<name>/
+**Archived to:** \`<archive-target>\`
 **Specs:** ✓ Synced to main specs
 
 All artifacts complete. All tasks complete.
@@ -234,7 +224,7 @@ All artifacts complete. All tasks complete.
 
 **Change:** <change-name>
 **Schema:** <schema-name>
-**Archived to:** the archive path derived from \`planningHome.changesDir\`/YYYY-MM-DD-<name>/
+**Archived to:** \`<archive-target>\`
 **Specs:** No delta specs
 
 All artifacts complete. All tasks complete.
@@ -247,7 +237,7 @@ All artifacts complete. All tasks complete.
 
 **Change:** <change-name>
 **Schema:** <schema-name>
-**Archived to:** the archive path derived from \`planningHome.changesDir\`/YYYY-MM-DD-<name>/
+**Archived to:** \`<archive-target>\`
 **Specs:** Sync skipped (user chose to skip)
 
 **Warnings:**
@@ -264,7 +254,7 @@ Review the archive if this was not intentional.
 ## Archive Failed
 
 **Change:** <change-name>
-**Target:** the archive path derived from \`planningHome.changesDir\`/YYYY-MM-DD-<name>/
+**Target:** \`<archive-target>\`
 
 Target archive directory already exists.
 

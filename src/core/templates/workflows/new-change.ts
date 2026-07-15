@@ -7,6 +7,17 @@
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
+const MANDATORY_DOMAIN_SELECTION_GUIDANCE = `3. **Select the domain (required)**
+
+   **Domain selection is mandatory.** Ask the user which domain should contain the change, and recommend lowercase kebab-case domain segments (for example, \`payments/api\`). Root placement is an explicit choice represented by an empty domain.
+
+   If the user provides a CLI-valid literal that does not follow the recommendation, **Do not silently transform it**. Present these choices:
+   1. Convert to the suggested lowercase kebab-case value
+   2. Keep the exact literal
+   3. Choose another domain
+
+   Build the conversion suggestion by replacing acronym/CamelCase boundaries sensibly (\`XMLParser\` -> \`xml-parser\`, \`IOError\` -> \`io-error\`), replace underscores with hyphens, and lowercase only after the user chooses conversion. Use the user's confirmed value as \`<resolved-domain>\`; use an empty string for root placement.`;
+
 export function getNewChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-new-change',
@@ -38,20 +49,23 @@ ${STORE_SELECTION_GUIDANCE}
 
    **Otherwise**: Omit \`--schema\` to use the default.
 
-3. **Create the change directory**
+${MANDATORY_DOMAIN_SELECTION_GUIDANCE}
+
+4. **Create the change directory**
    \`\`\`bash
-   openspec new change "<name>"
+   openspec new change "<name>" --domain "<resolved-domain>"
    \`\`\`
+   For root placement, invoke \`openspec new change "<name>" --domain ""\`. If a store was selected, append \`--store <id>\` to either invocation.
    Add \`--schema <name>\` only if the user requested a specific workflow.
    This creates a scaffolded change in the planning home resolved by the CLI.
 
-4. **Show the artifact status**
+5. **Show the artifact status**
    \`\`\`bash
    openspec status --change "<name>" --json
    \`\`\`
    Use the returned \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`nextSteps\` instead of assuming repo-local paths.
 
-5. **Get instructions for the first artifact**
+6. **Get instructions for the first artifact**
    The first artifact depends on the schema (e.g., \`proposal\` for spec-driven).
    Check the status output to find the first artifact with status "ready".
    \`\`\`bash
@@ -59,7 +73,7 @@ ${STORE_SELECTION_GUIDANCE}
    \`\`\`
    This outputs the template and context for creating the first artifact.
 
-6. **STOP and wait for user direction**
+7. **STOP and wait for user direction**
 
 **Output**
 
@@ -115,27 +129,30 @@ ${STORE_SELECTION_GUIDANCE}
 
    **Otherwise**: Omit \`--schema\` to use the default.
 
-3. **Create the change directory**
+${MANDATORY_DOMAIN_SELECTION_GUIDANCE}
+
+4. **Create the change directory**
    \`\`\`bash
-   openspec new change "<name>"
+   openspec new change "<name>" --domain "<resolved-domain>"
    \`\`\`
+   For root placement, invoke \`openspec new change "<name>" --domain ""\`. If a store was selected, append \`--store <id>\` to either invocation.
    Add \`--schema <name>\` only if the user requested a specific workflow.
    This creates a scaffolded change in the planning home resolved by the CLI.
 
-4. **Show the artifact status**
+5. **Show the artifact status**
    \`\`\`bash
    openspec status --change "<name>" --json
    \`\`\`
    Use the returned \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`nextSteps\` instead of assuming repo-local paths.
 
-5. **Get instructions for the first artifact**
+6. **Get instructions for the first artifact**
    The first artifact depends on the schema. Check the status output to find the first artifact with status "ready".
    \`\`\`bash
    openspec instructions <first-artifact-id> --change "<name>"
    \`\`\`
    This outputs the template and context for creating the first artifact.
 
-6. **STOP and wait for user direction**
+7. **STOP and wait for user direction**
 
 **Output**
 

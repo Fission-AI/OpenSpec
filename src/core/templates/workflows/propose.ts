@@ -7,6 +7,17 @@
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
+const MANDATORY_DOMAIN_SELECTION_GUIDANCE = `2. **Select the domain (required)**
+
+   **Domain selection is mandatory.** Ask the user which domain should contain the change, and recommend lowercase kebab-case domain segments (for example, \`payments/api\`). Root placement is an explicit choice represented by an empty domain.
+
+   If the user provides a CLI-valid literal that does not follow the recommendation, **Do not silently transform it**. Present these choices:
+   1. Convert to the suggested lowercase kebab-case value
+   2. Keep the exact literal
+   3. Choose another domain
+
+   Build the conversion suggestion by replacing acronym/CamelCase boundaries sensibly (\`XMLParser\` -> \`xml-parser\`, \`IOError\` -> \`io-error\`), replace underscores with hyphens, and lowercase only after the user chooses conversion. Use the user's confirmed value as \`<resolved-domain>\`; use an empty string for root placement.`;
+
 export function getOpsxProposeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-propose',
@@ -37,13 +48,16 @@ ${STORE_SELECTION_GUIDANCE}
 
    **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
 
-2. **Create the change directory**
+${MANDATORY_DOMAIN_SELECTION_GUIDANCE}
+
+3. **Create the change directory**
    \`\`\`bash
-   openspec new change "<name>"
+   openspec new change "<name>" --domain "<resolved-domain>"
    \`\`\`
+   For root placement, invoke \`openspec new change "<name>" --domain ""\`. If a store was selected, append \`--store <id>\` to either invocation.
    This creates a scaffolded change in the planning home resolved by the CLI with \`.openspec.yaml\`.
 
-3. **Get the artifact build order**
+4. **Get the artifact build order**
    \`\`\`bash
    openspec status --change "<name>" --json
    \`\`\`
@@ -52,7 +66,7 @@ ${STORE_SELECTION_GUIDANCE}
    - \`artifacts\`: list of all artifacts with their status and dependencies
    - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context. Use these instead of assuming repo-local paths.
 
-4. **Create artifacts in sequence until apply-ready**
+5. **Create artifacts in sequence until apply-ready**
 
    Use the **TodoWrite tool** to track progress through the artifacts.
 
@@ -84,7 +98,7 @@ ${STORE_SELECTION_GUIDANCE}
       - Use **AskUserQuestion tool** to clarify
       - Then continue with creation
 
-5. **Show final status**
+6. **Show final status**
    \`\`\`bash
    openspec status --change "<name>"
    \`\`\`
@@ -151,13 +165,16 @@ ${STORE_SELECTION_GUIDANCE}
 
    **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
 
-2. **Create the change directory**
+${MANDATORY_DOMAIN_SELECTION_GUIDANCE}
+
+3. **Create the change directory**
    \`\`\`bash
-   openspec new change "<name>"
+   openspec new change "<name>" --domain "<resolved-domain>"
    \`\`\`
+   For root placement, invoke \`openspec new change "<name>" --domain ""\`. If a store was selected, append \`--store <id>\` to either invocation.
    This creates a scaffolded change in the planning home resolved by the CLI with \`.openspec.yaml\`.
 
-3. **Get the artifact build order**
+4. **Get the artifact build order**
    \`\`\`bash
    openspec status --change "<name>" --json
    \`\`\`
@@ -166,7 +183,7 @@ ${STORE_SELECTION_GUIDANCE}
    - \`artifacts\`: list of all artifacts with their status and dependencies
    - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context. Use these instead of assuming repo-local paths.
 
-4. **Create artifacts in sequence until apply-ready**
+5. **Create artifacts in sequence until apply-ready**
 
    Use the **TodoWrite tool** to track progress through the artifacts.
 
@@ -198,7 +215,7 @@ ${STORE_SELECTION_GUIDANCE}
       - Use **AskUserQuestion tool** to clarify
       - Then continue with creation
 
-5. **Show final status**
+6. **Show final status**
    \`\`\`bash
    openspec status --change "<name>"
    \`\`\`

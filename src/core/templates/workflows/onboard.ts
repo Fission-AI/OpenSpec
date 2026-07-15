@@ -184,10 +184,13 @@ A "change" in OpenSpec is a container for all the thinking and planning around a
 Let me create one for our task.
 \`\`\`
 
-**DO:** Create the change with a derived kebab-case name:
+**DOMAIN DECISION:** Ask the user which domain should contain this change. Recommend lowercase kebab-case domain segments, set the confirmed choice as \`<resolved-domain>\`, and use an empty string only when the user explicitly chooses root placement.
+
+**DO:** Create the change with a derived kebab-case \`<name>\`:
 \`\`\`bash
-openspec new change "<derived-name>"
+openspec new change "<name>" --domain "<resolved-domain>"
 \`\`\`
+For root placement, invoke \`openspec new change "<name>" --domain ""\`. If a store was selected, append \`--store <id>\` to either invocation.
 
 **SHOW:**
 \`\`\`
@@ -435,7 +438,9 @@ The change is implemented! One more step—let's archive it.
 \`\`\`
 ## Archiving
 
-When a change is complete, we archive it. The archive path is derived from \`planningHome.changesDir\` and the date.
+When a change is complete, we archive it. Derive the archive destination from the full slash-delimited change ID: the last segment is \`<name>\`, and all preceding segments form \`<domain>\`.
+
+A domain change targets \`<planningHome.root>/openspec/archive/<domain>/YYYY-MM-DD-<name>\`. A root change targets \`<planningHome.root>/openspec/archive/YYYY-MM-DD-<name>\`.
 
 Archived changes become your project's decision history—you can always find them later to understand why something was built a certain way.
 \`\`\`
@@ -444,10 +449,12 @@ Archived changes become your project's decision history—you can always find th
 \`\`\`bash
 openspec archive "<name>"
 \`\`\`
+If a store was selected, append \`--store <id>\`.
 
 **SHOW:**
 \`\`\`
-Archived to: \`<planningHome.changesDir>/archive/YYYY-MM-DD-<name>/\`
+Archived to: \`<planningHome.root>/openspec/archive/<domain>/YYYY-MM-DD-<name>/\`
+(For a root change: \`<planningHome.root>/openspec/archive/YYYY-MM-DD-<name>/\`.)
 
 The change is now part of your project's history. The code is in your codebase, the decision record is preserved.
 \`\`\`

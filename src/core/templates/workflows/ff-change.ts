@@ -7,6 +7,10 @@
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
+const DOMAIN_SELECTION_GUIDANCE = `2. **Determine the domain (required)**
+
+   Make an explicit domain decision with the user. Recommend lowercase kebab-case domain segments, set the confirmed value as \`<resolved-domain>\`, and use an empty string only when the user chooses root placement.`;
+
 export function getFfChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-ff-change',
@@ -28,13 +32,16 @@ ${STORE_SELECTION_GUIDANCE}
 
    **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
 
-2. **Create the change directory**
+${DOMAIN_SELECTION_GUIDANCE}
+
+3. **Create the change directory**
    \`\`\`bash
-   openspec new change "<name>"
+   openspec new change "<name>" --domain "<resolved-domain>"
    \`\`\`
+   For root placement, invoke \`openspec new change "<name>" --domain ""\`. If a store was selected, append \`--store <id>\` to either invocation.
    This creates a scaffolded change in the planning home resolved by the CLI.
 
-3. **Get the artifact build order**
+4. **Get the artifact build order**
    \`\`\`bash
    openspec status --change "<name>" --json
    \`\`\`
@@ -43,7 +50,7 @@ ${STORE_SELECTION_GUIDANCE}
    - \`artifacts\`: list of all artifacts with their status and dependencies
    - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context. Use these instead of assuming repo-local paths.
 
-4. **Create artifacts in sequence until apply-ready**
+5. **Create artifacts in sequence until apply-ready**
 
    Use the **TodoWrite tool** to track progress through the artifacts.
 
@@ -75,7 +82,7 @@ ${STORE_SELECTION_GUIDANCE}
       - Use **AskUserQuestion tool** to clarify
       - Then continue with creation
 
-5. **Show final status**
+6. **Show final status**
    \`\`\`bash
    openspec status --change "<name>"
    \`\`\`
@@ -133,13 +140,16 @@ ${STORE_SELECTION_GUIDANCE}
 
    **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
 
-2. **Create the change directory**
+${DOMAIN_SELECTION_GUIDANCE}
+
+3. **Create the change directory**
    \`\`\`bash
-   openspec new change "<name>"
+   openspec new change "<name>" --domain "<resolved-domain>"
    \`\`\`
+   For root placement, invoke \`openspec new change "<name>" --domain ""\`. If a store was selected, append \`--store <id>\` to either invocation.
    This creates a scaffolded change in the planning home resolved by the CLI.
 
-3. **Get the artifact build order**
+4. **Get the artifact build order**
    \`\`\`bash
    openspec status --change "<name>" --json
    \`\`\`
@@ -148,7 +158,7 @@ ${STORE_SELECTION_GUIDANCE}
    - \`artifacts\`: list of all artifacts with their status and dependencies
    - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context. Use these instead of assuming repo-local paths.
 
-4. **Create artifacts in sequence until apply-ready**
+5. **Create artifacts in sequence until apply-ready**
 
    Use the **TodoWrite tool** to track progress through the artifacts.
 
@@ -180,7 +190,7 @@ ${STORE_SELECTION_GUIDANCE}
       - Use **AskUserQuestion tool** to clarify
       - Then continue with creation
 
-5. **Show final status**
+6. **Show final status**
    \`\`\`bash
    openspec status --change "<name>"
    \`\`\`
