@@ -152,6 +152,10 @@ function validateExplicitDomain(domain: string): string {
 }
 
 function validateNewDomainSegment(segment: string): string | undefined {
+  if (segment !== segment.trim()) {
+    return 'Domain name cannot contain leading or trailing whitespace';
+  }
+
   if (!segment || segment.includes('/') || segment.includes('\\')) {
     return 'Domain name must be a single path segment';
   }
@@ -189,7 +193,7 @@ async function promptForDomain(changesDir: string): Promise<string> {
     }
 
     while (true) {
-      const segment = (await input({ message: 'New subdomain name' })).trim();
+      const segment = await input({ message: 'New subdomain name' });
       const error = validateNewDomainSegment(segment);
       if (!error) {
         return [...domain, segment].join('/');
@@ -205,13 +209,14 @@ async function domainRequiredError(changesDir: string): Promise<RootSelectionErr
   const message = [
     'Domain selection is required.',
     'Use --domain <path> to create in a domain or --domain "" to create at the root.',
+    'Agents must ask the user which domain to use; do not choose one automatically.',
     `Existing domains in the selected root: ${existing}.`,
     'Domain casing is preserved, but collisions are possible on case-insensitive file systems.',
   ].join(' ');
 
   return new RootSelectionError(message, 'domain_required', {
     target: 'change.domain',
-    fix: 'Pass --domain <path> or --domain "" explicitly.',
+    fix: 'Ask the user, then pass --domain <path> or --domain "" explicitly.',
   });
 }
 

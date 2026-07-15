@@ -324,7 +324,7 @@ AI:  Archiving add-auth...
 You: Yes
 
 AI:  ✓ Synced specs to openspec/specs/auth/spec.md
-     ✓ Moved to openspec/changes/archive/2025-01-24-add-auth/
+     ✓ Moved to openspec/archive/2025-01-24-add-auth/
 
      Change archived successfully.
 ```

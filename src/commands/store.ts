@@ -406,7 +406,8 @@ function printMutationHuman(
   }
   console.log('');
   console.log('Next: run normal OpenSpec commands against this store, for example:');
-  console.log(`  openspec new change <change-id> --store ${payload.store.id}`);
+  console.log(`  openspec new change <change-id> --domain <path> --store ${payload.store.id}`);
+  console.log(`  openspec new change <change-id> --domain "" --store ${payload.store.id}`);
   if (payload.git.is_repository) {
     const shareRemote = remotes?.canonical ?? remotes?.observed;
     console.log(
@@ -773,11 +774,11 @@ export function registerStoreCommand(program: Command): void {
       process.exitCode = 1;
       return;
     }
-    let example = 'openspec new change <change-id> --store <id>';
+    let example = 'openspec new change <change-id> --domain <path> --store <id>';
     if (!hasFlagLikeToken && attempted.length > 0 && lifecycleRedirects.has(attempted[0])) {
       if (attempted[0] === 'new') {
         const changeId = attempted[1] === 'change' && attempted[2] ? attempted[2] : '<change-id>';
-        example = `openspec new change ${changeId} --store <id>`;
+        example = `openspec new change ${changeId} --domain <path> --store <id>`;
       } else {
         example = `openspec ${attempted.join(' ')} --store <id>`;
       }
@@ -794,6 +795,9 @@ export function registerStoreCommand(program: Command): void {
       'To create or work on a change in a store, use the normal command with --store, for example:'
     );
     console.error(`  ${example}`);
+    if (example.startsWith('openspec new change ')) {
+      console.error(`  ${example.replace('--domain <path>', '--domain ""')}`);
+    }
     process.exitCode = 1;
   });
 }

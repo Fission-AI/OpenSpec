@@ -141,7 +141,7 @@ When you archive a change:
 2. **MODIFIED** requirements replace the existing version
 3. **REMOVED** requirements are deleted from the main spec
 
-The change folder moves to `openspec/changes/archive/` for audit history.
+The change folder moves to the sibling `openspec/archive/` tree for audit history, preserving any domain path.
 
 ## Example: Your First Change
 
@@ -248,7 +248,7 @@ You: /opsx:archive
 
 AI:  Archiving add-dark-mode...
      ✓ Merged specs into openspec/specs/ui/spec.md
-     ✓ Moved to openspec/changes/archive/2025-01-24-add-dark-mode/
+     ✓ Moved to openspec/archive/2025-01-24-add-dark-mode/
      Done! Ready for the next feature.
 ```
 

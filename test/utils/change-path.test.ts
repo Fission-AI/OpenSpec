@@ -131,6 +131,15 @@ describe('resolveExistingChangeId', () => {
       ChangeNotFoundError
     );
   });
+
+  it('maps an ENOTDIR path failure to the stable not-found error', async () => {
+    const notDirectory = Object.assign(new Error('not a directory'), { code: 'ENOTDIR' });
+    vi.spyOn(fs, 'stat').mockRejectedValueOnce(notDirectory);
+
+    await expect(resolveExistingChangeId('auth/add-login', changesDir)).rejects.toBeInstanceOf(
+      ChangeNotFoundError
+    );
+  });
 });
 
 describe('findAllChangeIds', () => {
@@ -198,7 +207,7 @@ describe('findAllArchivedChangeIds', () => {
   });
 
   it('discovers archived change ids without reserving the archive domain name', async () => {
-    const archiveDir = path.join(testDir, 'openspec', 'changes', 'archive');
+    const archiveDir = path.join(testDir, 'openspec', 'archive');
 
     await writeMarker(archiveDir, '2026-07-15-add-auth', 'proposal.md');
     await writeMarker(archiveDir, 'archive/legacy/add-logs', '.openspec.yaml');

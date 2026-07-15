@@ -9,7 +9,12 @@ import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
 const DOMAIN_SELECTION_GUIDANCE = `2. **Determine the domain (required)**
 
-   Make an explicit domain decision with the user. Recommend lowercase kebab-case domain segments, set the confirmed value as \`<resolved-domain>\`, and use an empty string only when the user chooses root placement.`;
+   Make an explicit domain decision with the user. Recommend lowercase kebab-case domain segments, set the confirmed value as \`<resolved-domain>\`, and use an empty string only when the user chooses root placement.
+
+   If the user provides a CLI-valid literal that does not follow the recommendation, **Do not silently transform it**. Present these choices:
+   1. Convert to the suggested lowercase kebab-case value
+   2. Keep the exact literal
+   3. Choose another domain`;
 
 export function getFfChangeSkillTemplate(): SkillTemplate {
   return {

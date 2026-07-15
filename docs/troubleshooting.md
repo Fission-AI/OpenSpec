@@ -75,7 +75,7 @@ Also confirm you're in the right project directory.
 Every artifact is either already created or blocked waiting on a dependency. See what's blocking:
 
 ```bash
-openspec status --change <name>
+openspec status --change <change-id>
 ```
 
 Then create the missing dependency first. Remember the order: proposal enables specs and design; specs and design together enable tasks.

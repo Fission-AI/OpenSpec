@@ -188,5 +188,20 @@ Regular text that should be ignored
       expect(changeLines[0]).toContain('platform/api/add-auth');
       expect(changeLines[1]).toContain('root-change');
     });
+
+    it('lists recursively discovered spec IDs with forward slashes', async () => {
+      const specDir = path.join(tempDir, 'openspec', 'specs', 'auth', 'oauth', 'login');
+      await fs.mkdir(specDir, { recursive: true });
+      await fs.writeFile(
+        path.join(specDir, 'spec.md'),
+        '## Purpose\nLogin.\n\n## Requirements\n\n### Requirement: Login\nLogin SHALL work.\n'
+      );
+
+      await new ListCommand().execute(tempDir, 'specs', { json: true });
+
+      expect(JSON.parse(logOutput.join('\n')).specs).toEqual([
+        { id: 'auth/oauth/login', requirementCount: 1 },
+      ]);
+    });
   });
 });

@@ -89,6 +89,24 @@ describe('top-level validate command', () => {
     expect(json.items.every((i: any) => i.type === 'spec')).toBe(true);
   });
 
+  it('auto-detects and bulk-validates recursively discovered spec IDs', async () => {
+    const nestedSpecDir = path.join(specsDir, 'auth', 'oauth', 'login');
+    await fs.mkdir(nestedSpecDir, { recursive: true });
+    await fs.copyFile(
+      path.join(specsDir, 'alpha', 'spec.md'),
+      path.join(nestedSpecDir, 'spec.md')
+    );
+
+    const direct = await runCLI(['validate', 'auth/oauth/login', '--json'], { cwd: testDir });
+    expect(direct.exitCode).toBe(0);
+    expect(JSON.parse(direct.stdout).items[0].id).toBe('auth/oauth/login');
+
+    const bulk = await runCLI(['validate', '--specs', '--json'], { cwd: testDir });
+    expect(JSON.parse(bulk.stdout).items.map((item: { id: string }) => item.id)).toContain(
+      'auth/oauth/login'
+    );
+  });
+
   it('errors on ambiguous item names and suggests type override', async () => {
     const result = await runCLI(['validate', 'dup'], { cwd: testDir });
     expect(result.exitCode).toBe(1);

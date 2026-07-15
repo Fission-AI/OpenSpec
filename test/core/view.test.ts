@@ -152,6 +152,19 @@ describe('ViewCommand', () => {
     expect(output).toContain('Active Changes');
   });
 
+  it('shows recursively discovered spec IDs with forward slashes', async () => {
+    const specDir = path.join(tempDir, 'openspec', 'specs', 'auth', 'oauth', 'login');
+    await fs.mkdir(specDir, { recursive: true });
+    await fs.writeFile(
+      path.join(specDir, 'spec.md'),
+      '## Purpose\nLogin.\n\n## Requirements\n\n### Requirement: Login\nLogin SHALL work.\n'
+    );
+
+    await new ViewCommand().execute(tempDir);
+
+    expect(logOutput.map(stripAnsi).join('\n')).toContain('auth/oauth/login');
+  });
+
   it('classifies a nested glob-tasks change as Active, not Draft (#1202)', async () => {
     const openspecDir = path.join(tempDir, 'openspec');
     const changesDir = path.join(openspecDir, 'changes');

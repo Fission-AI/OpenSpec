@@ -166,7 +166,7 @@ export async function resolveExistingChangeId(
   try {
     stat = await fs.stat(changePath);
   } catch (error) {
-    if (isMissingPathError(error)) {
+    if (isChangeLookupNotFoundError(error)) {
       throw new ChangeNotFoundError(changeId);
     }
     throw error;
@@ -180,6 +180,13 @@ export async function resolveExistingChangeId(
     fs.realpath(changePath),
   ]);
   assertContainedChangePath(changeId, canonicalRoot, canonicalChange);
+
+  if (!(await hasOwnChangeMarker(changePath))) {
+    const nestedChanges = await findChangeIds(changePath, false);
+    if (nestedChanges.length > 0) {
+      throw new ChangeNotFoundError(changeId);
+    }
+  }
 
   return { id: changeId, domain, name, path: changePath };
 }
@@ -195,6 +202,64 @@ export async function findAllChangeIds(changesDir: string): Promise<string[]> {
 
 export async function findAllArchivedChangeIds(archiveDir: string): Promise<string[]> {
   return findChangeIds(archiveDir, false);
+}
+
+export async function pathExistsWithoutFollowingLinks(targetPath: string): Promise<boolean> {
+  try {
+    await fs.lstat(targetPath);
+    return true;
+  } catch (error) {
+    if (isChangeLookupNotFoundError(error)) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+export async function assertProspectivePathContained(
+  root: string,
+  target: string,
+  label: string
+): Promise<void> {
+  const resolvedRoot = path.resolve(root);
+  const resolvedTarget = path.resolve(target);
+  const containmentError = () => new Error(
+    `${label} destination must stay within the selected root.`
+  );
+
+  if (!isContainedPath(resolvedRoot, resolvedTarget)) {
+    throw containmentError();
+  }
+
+  const missingSegments: string[] = [];
+  let existingAncestor = resolvedTarget;
+  while (!(await pathExistsWithoutFollowingLinks(existingAncestor))) {
+    const parent = path.dirname(existingAncestor);
+    if (parent === existingAncestor) {
+      throw containmentError();
+    }
+    missingSegments.unshift(path.basename(existingAncestor));
+    existingAncestor = parent;
+  }
+
+  let canonicalRoot: string;
+  let canonicalAncestor: string;
+  try {
+    [canonicalRoot, canonicalAncestor] = await Promise.all([
+      fs.realpath(resolvedRoot),
+      fs.realpath(existingAncestor),
+    ]);
+  } catch (error) {
+    if (isChangeLookupNotFoundError(error)) {
+      throw containmentError();
+    }
+    throw error;
+  }
+
+  const canonicalTarget = path.resolve(canonicalAncestor, ...missingSegments);
+  if (!isContainedPath(canonicalRoot, canonicalTarget)) {
+    throw containmentError();
+  }
 }
 
 async function findChangeIds(rootDir: string, ignoreRootArchive: boolean): Promise<string[]> {
@@ -239,20 +304,44 @@ async function findChangeIds(rootDir: string, ignoreRootArchive: boolean): Promi
 }
 
 function isMissingPathError(error: unknown): error is NodeJS.ErrnoException {
-  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT';
+  return typeof error === 'object' && error !== null && 'code' in error &&
+    error.code === 'ENOENT';
+}
+
+function isChangeLookupNotFoundError(error: unknown): error is NodeJS.ErrnoException {
+  return isMissingPathError(error) ||
+    (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOTDIR');
 }
 
 function assertContainedChangePath(changeId: string, root: string, target: string): void {
-  const relativePath = path.relative(root, target);
-  if (
-    path.isAbsolute(relativePath) ||
-    relativePath === '..' ||
-    relativePath.startsWith(`..${path.sep}`)
-  ) {
+  if (!isContainedPath(root, target)) {
     throw new InvalidChangeIdError(
       changeId,
       'outside_changes',
       'Change path must stay within changesDir'
     );
   }
+}
+
+function isContainedPath(root: string, target: string): boolean {
+  const relativePath = path.relative(root, target);
+  return !path.isAbsolute(relativePath) &&
+    relativePath !== '..' &&
+    !relativePath.startsWith(`..${path.sep}`);
+}
+
+async function hasOwnChangeMarker(changePath: string): Promise<boolean> {
+  for (const marker of ['.openspec.yaml', 'proposal.md']) {
+    try {
+      const stats = await fs.stat(path.join(changePath, marker));
+      if (stats.isFile()) {
+        return true;
+      }
+    } catch (error) {
+      if (!isMissingPathError(error)) {
+        throw error;
+      }
+    }
+  }
+  return false;
 }

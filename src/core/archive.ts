@@ -19,9 +19,11 @@ import {
   type SpecUpdate,
 } from './specs-apply.js';
 import {
+  assertProspectivePathContained,
   buildArchivePath,
   ChangeNotFoundError,
   findAllChangeIds,
+  pathExistsWithoutFollowingLinks,
   resolveExistingChangeId,
   type ResolvedChangeId,
 } from '../utils/change-path.js';
@@ -227,17 +229,13 @@ export class ArchiveCommand {
     const archivePath = buildArchivePath(archiveDir, changeName, archiveDate);
 
     // Block before validation or spec preparation can mutate any target.
-    try {
-      await fs.access(archivePath);
+    if (await pathExistsWithoutFollowingLinks(archivePath)) {
       throw new ArchiveBlockedError(
         'archive_target_exists',
         `Archive '${archivedAs}' already exists.`
       );
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-        throw error;
-      }
     }
+    await assertProspectivePathContained(archiveDir, archivePath, 'Archive');
 
     const skipValidation = options.validate === false || options.noValidate === true;
 

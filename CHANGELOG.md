@@ -208,7 +208,7 @@
 
 - [#587](https://github.com/Fission-AI/OpenSpec/pull/587) [`943e0d4`](https://github.com/Fission-AI/OpenSpec/commit/943e0d41026d034de66b9442d1276c01b293eb2b) Thanks [@TabishB](https://github.com/TabishB)! - ### Bug Fixes
 
-  - Fixed incorrect archive path in onboarding documentation — the template now shows the correct path `openspec/changes/archive/YYYY-MM-DD-<name>/` instead of the incorrect `openspec/archive/YYYY-MM-DD--<name>/`
+  - Legacy behavior: fixed the then-current nested archive path in onboarding documentation. Current releases use the sibling `openspec/archive/YYYY-MM-DD-<name>/` layout.
 
 ## 1.0.0
 

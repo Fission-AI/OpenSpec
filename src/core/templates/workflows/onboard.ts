@@ -184,7 +184,7 @@ A "change" in OpenSpec is a container for all the thinking and planning around a
 Let me create one for our task.
 \`\`\`
 
-**DOMAIN DECISION:** Ask the user which domain should contain this change. Recommend lowercase kebab-case domain segments, set the confirmed choice as \`<resolved-domain>\`, and use an empty string only when the user explicitly chooses root placement.
+**DOMAIN DECISION:** Ask the user which domain should contain this change. Recommend lowercase kebab-case domain segments, set the confirmed choice as \`<resolved-domain>\`, and use an empty string only when the user explicitly chooses root placement. If the user provides a CLI-valid literal that does not follow the recommendation, **Do not silently transform it**. Offer exactly these choices: Convert to the suggested lowercase kebab-case value, Keep the exact literal, or Choose another domain.
 
 **DO:** Create the change with a derived kebab-case \`<name>\`:
 \`\`\`bash

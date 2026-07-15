@@ -15,6 +15,10 @@ The system SHALL support OAuth login.
 - **THEN** access is granted
 `;
 
+async function createDirectoryLink(target: string, linkPath: string): Promise<void> {
+  await fs.symlink(target, linkPath, process.platform === 'win32' ? 'junction' : 'dir');
+}
+
 describe('domain-prefixed spec application', () => {
   let tempDir: string;
 
@@ -71,6 +75,38 @@ describe('domain-prefixed spec application', () => {
     await expect(
       fs.readFile(path.join(tempDir, 'openspec', 'specs', 'login', 'spec.md'), 'utf8')
     ).resolves.toContain('### Requirement: OAuth login');
+  });
+
+  it('rejects a linked spec destination outside the selected root', async () => {
+    const changeDir = await writeDelta('auth/add-login');
+    const outsideSpecs = path.join(tempDir, 'outside-specs');
+    await fs.mkdir(outsideSpecs, { recursive: true });
+    await createDirectoryLink(
+      outsideSpecs,
+      path.join(tempDir, 'openspec', 'specs', 'auth')
+    );
+
+    await expect(
+      applySpecs(tempDir, 'auth/add-login', { skipValidation: true, silent: true })
+    ).rejects.toThrow(/spec destination.*selected root/i);
+
+    await expect(fs.readdir(outsideSpecs)).resolves.toEqual([]);
+    await expect(fs.readFile(path.join(changeDir, 'specs', 'login', 'spec.md'), 'utf8')).resolves.toBe(
+      ADDED_DELTA
+    );
+  });
+
+  it('rejects a domain container that contains nested logical changes', async () => {
+    const nestedChangeDir = await writeDelta('auth/add-login');
+    await fs.writeFile(path.join(nestedChangeDir, 'proposal.md'), '# Add login\n');
+
+    await expect(
+      applySpecs(tempDir, 'auth', { skipValidation: true, silent: true })
+    ).rejects.toThrow("Change 'auth' not found.");
+
+    await expect(fs.readFile(path.join(nestedChangeDir, 'proposal.md'), 'utf8')).resolves.toBe(
+      '# Add login\n'
+    );
   });
 
   it('rejects traversal IDs without reading changes or writing specs outside their roots', async () => {

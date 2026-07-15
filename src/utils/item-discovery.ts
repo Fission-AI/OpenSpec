@@ -9,21 +9,30 @@ export async function getSpecIds(root: string = process.cwd()): Promise<string[]
   const { promises: fs } = await import('fs');
   const specsPath = path.join(root, 'openspec', 'specs');
   const result: string[] = [];
-  try {
-    const entries = await fs.readdir(specsPath, { withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isDirectory() || entry.name.startsWith('.')) continue;
-      const specFile = path.join(specsPath, entry.name, 'spec.md');
-      try {
-        await fs.access(specFile);
-        result.push(entry.name);
-      } catch {
-        // ignore
-      }
+
+  async function walk(currentDir: string, segments: string[]): Promise<void> {
+    let entries;
+    try {
+      entries = await fs.readdir(currentDir, { withFileTypes: true });
+    } catch {
+      return;
     }
-  } catch {
-    // ignore
+
+    if (segments.length > 0 && entries.some(
+      (entry) => entry.isFile() && entry.name === 'spec.md'
+    )) {
+      result.push(segments.join('/'));
+    }
+
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.name.startsWith('.')) {
+        continue;
+      }
+      await walk(path.join(currentDir, entry.name), [...segments, entry.name]);
+    }
   }
+
+  await walk(specsPath, []);
   return result.sort();
 }
 

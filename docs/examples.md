@@ -38,7 +38,7 @@ You: /opsx:archive
 
 AI:  Archiving add-logout-button...
      ✓ Merged specs into openspec/specs/auth/spec.md
-     ✓ Moved to openspec/changes/archive/2026-06-22-add-logout-button/
+     ✓ Moved to openspec/archive/2026-06-22-add-logout-button/
      Done. Ready for the next change.
 ```
 

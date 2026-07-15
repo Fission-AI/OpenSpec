@@ -140,6 +140,8 @@ describe('artifact-workflow CLI commands', () => {
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('No active changes');
       expect(result.stdout).toContain('openspec new change');
+      expect(result.stdout).toContain('--domain <path>');
+      expect(result.stdout).toContain('--domain ""');
     });
 
     it('exits gracefully with JSON when no changes exist', async () => {

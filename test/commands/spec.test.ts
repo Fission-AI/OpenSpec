@@ -191,6 +191,26 @@ The system SHALL process credit card payments securely`;
         process.chdir(originalCwd);
       }
     });
+
+    it('should list recursively discovered spec IDs', async () => {
+      const nestedSpecDir = path.join(specsDir, 'auth', 'oauth', 'login');
+      await fs.mkdir(nestedSpecDir, { recursive: true });
+      await fs.copyFile(
+        path.join(specsDir, 'auth', 'spec.md'),
+        path.join(nestedSpecDir, 'spec.md')
+      );
+
+      const originalCwd = process.cwd();
+      try {
+        process.chdir(testDir);
+        const output = execSync(`node ${openspecBin} spec list --json`, { encoding: 'utf-8' });
+        expect(JSON.parse(output).map((spec: { id: string }) => spec.id)).toContain(
+          'auth/oauth/login'
+        );
+      } finally {
+        process.chdir(originalCwd);
+      }
+    });
   });
 
   describe('spec validate', () => {

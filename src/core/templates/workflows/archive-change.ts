@@ -31,7 +31,7 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
 
 ${STORE_SELECTION_GUIDANCE}
 
-**Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Input**: Optionally specify a full slash-delimited change ID. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
@@ -44,9 +44,11 @@ ${STORE_SELECTION_GUIDANCE}
 
    **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
 
+   Treat the full selected or supplied value as \`<change-id>\`; do not reduce it to its final name segment.
+
 2. **Check artifact completion status**
 
-   Run \`openspec status --change "<name>" --json\` to check artifact completion.
+   Run \`openspec status --change "<change-id>" --json\` to check artifact completion.
 
    Parse the JSON to understand:
    - \`schemaName\`: The workflow being used
@@ -76,7 +78,8 @@ ${STORE_SELECTION_GUIDANCE}
    Use \`artifactPaths.specs.existingOutputPaths\` from status JSON to check for delta specs. If none exist, proceed without sync prompt.
 
    **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at \`openspec/specs/<capability>/spec.md\`
+   - Derive the full \`<spec-id>\` from the delta path: \`<domain>/<capability>\` for a domain-qualified spec, or \`<capability>\` for a root spec
+   - Compare it with \`openspec/specs/<domain>/<capability>/spec.md\` or \`openspec/specs/<capability>/spec.md\`, as applicable
    - Determine what changes would be applied (adds, modifications, removals, renames)
    - Show a combined summary before prompting
 
@@ -84,7 +87,7 @@ ${STORE_SELECTION_GUIDANCE}
    - If changes needed: "Sync now (recommended)", "Archive without syncing"
    - If already synced: "Archive now", "Sync anyway", "Cancel"
 
-   If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
+   If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<change-id>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
 
 5. **Perform the archive**
 
@@ -136,7 +139,7 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
 
 ${STORE_SELECTION_GUIDANCE}
 
-**Input**: Optionally specify a change name after \`/opsx:archive\` (e.g., \`/opsx:archive add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Input**: Optionally specify a full slash-delimited change ID after \`/opsx:archive\` (e.g., \`/opsx:archive auth/add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
@@ -149,9 +152,11 @@ ${STORE_SELECTION_GUIDANCE}
 
    **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
 
+   Treat the full selected or supplied value as \`<change-id>\`; do not reduce it to its final name segment.
+
 2. **Check artifact completion status**
 
-   Run \`openspec status --change "<name>" --json\` to check artifact completion.
+   Run \`openspec status --change "<change-id>" --json\` to check artifact completion.
 
    Parse the JSON to understand:
    - \`schemaName\`: The workflow being used
@@ -181,7 +186,8 @@ ${STORE_SELECTION_GUIDANCE}
    Use \`artifactPaths.specs.existingOutputPaths\` from status JSON to check for delta specs. If none exist, proceed without sync prompt.
 
    **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at \`openspec/specs/<capability>/spec.md\`
+   - Derive the full \`<spec-id>\` from the delta path: \`<domain>/<capability>\` for a domain-qualified spec, or \`<capability>\` for a root spec
+   - Compare it with \`openspec/specs/<domain>/<capability>/spec.md\` or \`openspec/specs/<capability>/spec.md\`, as applicable
    - Determine what changes would be applied (adds, modifications, removals, renames)
    - Show a combined summary before prompting
 
@@ -189,7 +195,7 @@ ${STORE_SELECTION_GUIDANCE}
    - If changes needed: "Sync now (recommended)", "Archive without syncing"
    - If already synced: "Archive now", "Sync anyway", "Cancel"
 
-   If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
+   If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<change-id>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
 
 5. **Perform the archive**
 

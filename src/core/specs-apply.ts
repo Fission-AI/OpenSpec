@@ -17,6 +17,7 @@ import {
 import { findMainSpecStructureIssues } from './parsers/spec-structure.js';
 import { Validator } from './validation/validator.js';
 import {
+  assertProspectivePathContained,
   ChangeNotFoundError,
   resolveExistingChangeId,
 } from '../utils/change-path.js';
@@ -71,38 +72,45 @@ export async function findSpecUpdates(
   const updates: SpecUpdate[] = [];
   const changeSpecsDir = path.join(changeDir, 'specs');
 
+  let entries;
   try {
-    const entries = await fs.readdir(changeSpecsDir, { withFileTypes: true });
-
-    for (const entry of entries) {
-      if (entry.isDirectory()) {
-        const specFile = path.join(changeSpecsDir, entry.name, 'spec.md');
-        const targetFile = path.join(mainSpecsDir, ...changeDomain, entry.name, 'spec.md');
-
-        try {
-          await fs.access(specFile);
-
-          // Check if target exists
-          let exists = false;
-          try {
-            await fs.access(targetFile);
-            exists = true;
-          } catch {
-            exists = false;
-          }
-
-          updates.push({
-            source: specFile,
-            target: targetFile,
-            exists,
-          });
-        } catch {
-          // Source spec doesn't exist, skip
-        }
-      }
-    }
+    entries = await fs.readdir(changeSpecsDir, { withFileTypes: true });
   } catch {
     // No specs directory in change
+    return updates;
+  }
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+
+    const specFile = path.join(changeSpecsDir, entry.name, 'spec.md');
+    const targetFile = path.join(mainSpecsDir, ...changeDomain, entry.name, 'spec.md');
+
+    try {
+      await fs.access(specFile);
+    } catch {
+      // Source spec doesn't exist, skip
+      continue;
+    }
+
+    await assertProspectivePathContained(mainSpecsDir, targetFile, 'Spec');
+
+    // Check if target exists
+    let exists = false;
+    try {
+      await fs.access(targetFile);
+      exists = true;
+    } catch {
+      exists = false;
+    }
+
+    updates.push({
+      source: specFile,
+      target: targetFile,
+      exists,
+    });
   }
 
   return updates;

@@ -29,7 +29,7 @@ I'll create a change with artifacts:
 - design.md (how)
 - tasks.md (implementation steps)
 
-When ready to implement, run /opsx:apply
+When ready to implement, run /opsx:apply <change-id>
 
 ---
 
@@ -147,7 +147,7 @@ I'll create a change with artifacts:
 - design.md (how)
 - tasks.md (implementation steps)
 
-When ready to implement, run /opsx:apply
+When ready to implement, run /opsx:apply <change-id>
 
 ---
 

@@ -11,6 +11,10 @@ vi.mock('@inquirer/prompts', () => ({
   confirm: vi.fn()
 }));
 
+async function createDirectoryLink(target: string, linkPath: string): Promise<void> {
+  await fs.symlink(target, linkPath, process.platform === 'win32' ? 'junction' : 'dir');
+}
+
 describe('ArchiveCommand', () => {
   let tempDir: string;
   let archiveCommand: ArchiveCommand;
@@ -125,6 +129,73 @@ describe('ArchiveCommand', () => {
       expect(path.isAbsolute(output.archive.path)).toBe(true);
       expect(await fs.realpath(output.archive.path)).toBe(await fs.realpath(archivePath));
       await expect(fs.access(path.join(output.archive.path, 'proposal.md'))).resolves.not.toThrow();
+    });
+
+    it('rejects an archive destination that escapes through a symlink or junction prefix', async () => {
+      const changeId = 'auth/add-login';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', 'auth', 'add-login');
+      const outsideArchive = path.join(tempDir, 'outside-archive');
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'proposal.md'), '# Add login');
+      await fs.mkdir(outsideArchive, { recursive: true });
+      await createDirectoryLink(
+        outsideArchive,
+        path.join(tempDir, 'openspec', 'archive', 'auth')
+      );
+
+      await expect(
+        archiveCommand.execute(changeId, { yes: true, noValidate: true, skipSpecs: true })
+      ).rejects.toThrow(/archive destination.*selected root/i);
+
+      await expect(fs.access(path.join(changeDir, 'proposal.md'))).resolves.not.toThrow();
+      await expect(fs.readdir(outsideArchive)).resolves.toEqual([]);
+    });
+
+    it('rejects a spec destination that escapes through a symlink or junction prefix', async () => {
+      const changeId = 'auth/add-login';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', 'auth', 'add-login');
+      const deltaDir = path.join(changeDir, 'specs', 'billing');
+      const outsideSpecs = path.join(tempDir, 'outside-specs');
+      await fs.mkdir(deltaDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'proposal.md'), '# Add login');
+      await fs.writeFile(
+        path.join(deltaDir, 'spec.md'),
+        [
+          '## ADDED Requirements',
+          '',
+          '### Requirement: New billing',
+          'The system SHALL add billing.',
+          '',
+          '#### Scenario: Billing is added',
+          '- **WHEN** billing runs',
+          '- **THEN** the new result is produced',
+          '',
+        ].join('\n')
+      );
+      await fs.mkdir(outsideSpecs, { recursive: true });
+      await createDirectoryLink(
+        outsideSpecs,
+        path.join(tempDir, 'openspec', 'specs', 'auth')
+      );
+
+      await expect(
+        archiveCommand.execute(changeId, { yes: true, noValidate: true })
+      ).rejects.toThrow(/spec destination.*selected root/i);
+
+      await expect(fs.access(path.join(changeDir, 'proposal.md'))).resolves.not.toThrow();
+      await expect(fs.readdir(outsideSpecs)).resolves.toEqual([]);
+    });
+
+    it('rejects a domain container instead of archiving its nested changes', async () => {
+      const nestedChangeDir = path.join(tempDir, 'openspec', 'changes', 'auth', 'add-login');
+      await fs.mkdir(nestedChangeDir, { recursive: true });
+      await fs.writeFile(path.join(nestedChangeDir, 'proposal.md'), '# Add login');
+
+      await expect(
+        archiveCommand.execute('auth', { yes: true, noValidate: true, skipSpecs: true })
+      ).rejects.toThrow("Change 'auth' not found.");
+
+      await expect(fs.access(path.join(nestedChangeDir, 'proposal.md'))).resolves.not.toThrow();
     });
 
     it('should warn about incomplete tasks', async () => {
@@ -457,6 +528,61 @@ The system SHALL add new billing.
 
       await expect(fs.readFile(mainSpecPath, 'utf8')).resolves.toBe(originalSpec);
       await expect(fs.access(changeDir)).resolves.not.toThrow();
+    });
+
+    it('treats a dangling archive symlink or junction as a collision before spec writes', async () => {
+      const changeName = 'dangling-collision';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const deltaDir = path.join(changeDir, 'specs', 'billing');
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'billing');
+      const mainSpecPath = path.join(mainSpecDir, 'spec.md');
+      await fs.mkdir(deltaDir, { recursive: true });
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'proposal.md'), '# Dangling collision');
+
+      const originalSpec = `# Billing
+
+## Purpose
+Track billing.
+
+## Requirements
+
+### Requirement: Existing billing
+The system SHALL preserve existing billing.
+
+#### Scenario: Existing billing works
+- **WHEN** billing runs
+- **THEN** the existing result is preserved
+`;
+      await fs.writeFile(mainSpecPath, originalSpec);
+      await fs.writeFile(
+        path.join(deltaDir, 'spec.md'),
+        `## ADDED Requirements
+
+### Requirement: New billing
+The system SHALL add new billing.
+
+#### Scenario: New billing works
+- **WHEN** new billing runs
+- **THEN** the new result is produced
+`
+      );
+
+      const date = new Date().toISOString().split('T')[0];
+      const archivePath = path.join(tempDir, 'openspec', 'archive', `${date}-${changeName}`);
+      const vanishedTarget = path.join(tempDir, 'vanished-archive-target');
+      await fs.mkdir(vanishedTarget);
+      await createDirectoryLink(vanishedTarget, archivePath);
+      await fs.rmdir(vanishedTarget);
+      const lstatSpy = vi.spyOn(fs, 'lstat');
+
+      await expect(
+        archiveCommand.execute(changeName, { yes: true, noValidate: true })
+      ).rejects.toThrow(`Archive '${date}-${changeName}' already exists.`);
+
+      expect(lstatSpy).toHaveBeenCalledTimes(1);
+      await expect(fs.readFile(mainSpecPath, 'utf8')).resolves.toBe(originalSpec);
+      await expect(fs.access(path.join(changeDir, 'proposal.md'))).resolves.not.toThrow();
     });
 
     it('should handle changes without tasks.md', async () => {

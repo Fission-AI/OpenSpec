@@ -1244,7 +1244,12 @@ describe('store command', () => {
       expect(result.stderr).toContain(
         'setup, register, unregister, remove, list (ls), doctor'
       );
-      expect(result.stderr).toContain('openspec new change billing-rework --store <id>');
+      expect(result.stderr).toContain(
+        'openspec new change billing-rework --domain <path> --store <id>'
+      );
+      expect(result.stderr).toContain(
+        'openspec new change billing-rework --domain "" --store <id>'
+      );
     });
 
     it('never suggests an invalid command for partial new invocations', async () => {
@@ -1252,7 +1257,12 @@ describe('store command', () => {
 
       expect(result.exitCode).toBe(1);
       // 'new my-change' would be invalid; the hint falls back to the full form.
-      expect(result.stderr).toContain('openspec new change <change-id> --store <id>');
+      expect(result.stderr).toContain(
+        'openspec new change <change-id> --domain <path> --store <id>'
+      );
+      expect(result.stderr).toContain(
+        'openspec new change <change-id> --domain "" --store <id>'
+      );
       expect(result.stderr).not.toContain('openspec new my-change');
     });
 
@@ -1263,7 +1273,12 @@ describe('store command', () => {
       );
 
       expect(result.exitCode).toBe(1);
-      expect(result.stderr).toContain('openspec new change <change-id> --store <id>');
+      expect(result.stderr).toContain(
+        'openspec new change <change-id> --domain <path> --store <id>'
+      );
+      expect(result.stderr).toContain(
+        'openspec new change <change-id> --domain "" --store <id>'
+      );
       expect(result.stderr).not.toContain('core');
     });
 

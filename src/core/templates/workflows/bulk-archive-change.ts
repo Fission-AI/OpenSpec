@@ -48,11 +48,13 @@ ${STORE_SELECTION_GUIDANCE}
 
    **IMPORTANT**: Do NOT auto-select. Always let the user choose.
 
+   Treat every full selected value as a \`<change-id>\`; do not reduce it to its final name segment.
+
 3. **Batch validation - gather status for all selected changes**
 
    For each selected change, collect:
 
-   a. **Artifact status** - Run \`openspec status --change "<name>" --json\`
+   a. **Artifact status** - Run \`openspec status --change "<change-id>" --json\`
       - Parse \`schemaName\`, \`artifacts\`, \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`
       - Note which artifacts are \`done\` vs other states
 
@@ -61,19 +63,20 @@ ${STORE_SELECTION_GUIDANCE}
       - If no tasks file exists, note as "No tasks"
 
    c. **Delta specs** - Check \`artifactPaths.specs.existingOutputPaths\` from status JSON
-      - List which capability specs exist
+      - List each canonical \`<spec-id>\`: \`<domain>/<capability>\` for a domain-qualified spec, or \`<capability>\` for a root spec
+      - Resolve its main target as \`openspec/specs/<domain>/<capability>/spec.md\` or \`openspec/specs/<capability>/spec.md\`
       - For each, extract requirement names (lines matching \`### Requirement: <name>\`)
 
 4. **Detect spec conflicts**
 
-   Build a map of \`capability -> [changes that touch it]\`:
+   Build a map of \`<spec-id> -> [<change-id>...]\`:
 
    \`\`\`
-   auth -> [change-a, change-b]  <- CONFLICT (2+ changes)
-   api  -> [change-c]            <- OK (only 1 change)
+   auth/login -> [auth/change-a, auth/change-b]  <- CONFLICT (2+ changes)
+   api        -> [change-c]                    <- OK (only 1 change)
    \`\`\`
 
-   A conflict exists when 2+ selected changes have delta specs for the same capability.
+   A conflict exists when 2+ selected changes have delta specs for the same canonical spec ID. Do not merge identical capability leaves in different domains into one conflict key.
 
 5. **Resolve conflicts agentically**
 
@@ -294,11 +297,13 @@ ${STORE_SELECTION_GUIDANCE}
 
    **IMPORTANT**: Do NOT auto-select. Always let the user choose.
 
+   Treat every full selected value as a \`<change-id>\`; do not reduce it to its final name segment.
+
 3. **Batch validation - gather status for all selected changes**
 
    For each selected change, collect:
 
-   a. **Artifact status** - Run \`openspec status --change "<name>" --json\`
+   a. **Artifact status** - Run \`openspec status --change "<change-id>" --json\`
       - Parse \`schemaName\`, \`artifacts\`, \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`
       - Note which artifacts are \`done\` vs other states
 
@@ -307,19 +312,20 @@ ${STORE_SELECTION_GUIDANCE}
       - If no tasks file exists, note as "No tasks"
 
    c. **Delta specs** - Check \`artifactPaths.specs.existingOutputPaths\` from status JSON
-      - List which capability specs exist
+      - List each canonical \`<spec-id>\`: \`<domain>/<capability>\` for a domain-qualified spec, or \`<capability>\` for a root spec
+      - Resolve its main target as \`openspec/specs/<domain>/<capability>/spec.md\` or \`openspec/specs/<capability>/spec.md\`
       - For each, extract requirement names (lines matching \`### Requirement: <name>\`)
 
 4. **Detect spec conflicts**
 
-   Build a map of \`capability -> [changes that touch it]\`:
+   Build a map of \`<spec-id> -> [<change-id>...]\`:
 
    \`\`\`
-   auth -> [change-a, change-b]  <- CONFLICT (2+ changes)
-   api  -> [change-c]            <- OK (only 1 change)
+   auth/login -> [auth/change-a, auth/change-b]  <- CONFLICT (2+ changes)
+   api        -> [change-c]                    <- OK (only 1 change)
    \`\`\`
 
-   A conflict exists when 2+ selected changes have delta specs for the same capability.
+   A conflict exists when 2+ selected changes have delta specs for the same canonical spec ID. Do not merge identical capability leaves in different domains into one conflict key.
 
 5. **Resolve conflicts agentically**
 

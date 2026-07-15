@@ -46,6 +46,11 @@ The system SHALL create bills differently.
 - **THEN** a bill is created
 `;
 
+function createDirectoryLink(target: string, linkPath: string): void {
+  fs.mkdirSync(path.dirname(linkPath), { recursive: true });
+  fs.symlinkSync(target, linkPath, process.platform === 'win32' ? 'junction' : 'dir');
+}
+
 describe('store root selection for normal commands', () => {
   let tempDir: string;
   let appRepo: string;
@@ -341,6 +346,28 @@ describe('store root selection for normal commands', () => {
       expect(
         fs.existsSync(path.join(storeRoot, 'openspec', 'specs', 'auth', 'oauth', 'billing', 'spec.md'))
       ).toBe(true);
+
+      const specs = await runCLI(
+        ['list', '--specs', '--store', 'team-context', '--json'],
+        { cwd: appRepo, env }
+      );
+      expect(parseJson(specs).specs.map((spec: { id: string }) => spec.id)).toContain(
+        'auth/oauth/billing'
+      );
+
+      const shown = await runCLI(
+        ['show', 'auth/oauth/billing', '--store', 'team-context', '--json'],
+        { cwd: appRepo, env }
+      );
+      expect(shown.exitCode).toBe(0);
+      expect(parseJson(shown).id).toBe('auth/oauth/billing');
+
+      const validated = await runCLI(
+        ['validate', 'auth/oauth/billing', '--store', 'team-context', '--json'],
+        { cwd: appRepo, env }
+      );
+      expect(validated.exitCode).toBe(0);
+      expect(parseJson(validated).items[0].id).toBe('auth/oauth/billing');
       expectNoLocalOpenSpec();
     });
   });
@@ -546,6 +573,57 @@ describe('store root selection for normal commands', () => {
   });
 
   describe('archive --json is non-interactive', () => {
+    it('rejects an archive destination junction outside the selected Store root', async () => {
+      const changeId = 'auth/store-change';
+      const changeDir = createChange(storeRoot, changeId, { deltaSpec: null });
+      const outsideArchive = path.join(tempDir, 'outside-store-archive');
+      fs.mkdirSync(outsideArchive, { recursive: true });
+      createDirectoryLink(
+        outsideArchive,
+        path.join(storeRoot, 'openspec', 'archive', 'auth')
+      );
+
+      const result = await runCLI(
+        ['archive', changeId, '--store', 'team-context', '--json', '--yes', '--skip-specs'],
+        { cwd: appRepo, env }
+      );
+
+      expect(result.exitCode).toBe(1);
+      const json = parseJson(result);
+      expect(json.archive).toBeNull();
+      expect(json.status[0]).toEqual(expect.objectContaining({
+        code: 'archive_error',
+        message: expect.stringMatching(/archive destination.*selected root/i),
+      }));
+      expect(fs.existsSync(path.join(changeDir, 'proposal.md'))).toBe(true);
+      expect(fs.readdirSync(outsideArchive)).toEqual([]);
+    });
+
+    it('rejects a spec destination junction outside the selected Store root', async () => {
+      const changeDir = createChange(storeRoot, 'store-change');
+      const outsideSpecs = path.join(tempDir, 'outside-store-specs');
+      fs.mkdirSync(outsideSpecs, { recursive: true });
+      createDirectoryLink(
+        outsideSpecs,
+        path.join(storeRoot, 'openspec', 'specs', 'billing')
+      );
+
+      const result = await runCLI(
+        ['archive', 'store-change', '--store', 'team-context', '--json', '--yes', '--no-validate'],
+        { cwd: appRepo, env }
+      );
+
+      expect(result.exitCode).toBe(1);
+      const json = parseJson(result);
+      expect(json.archive).toBeNull();
+      expect(json.status[0]).toEqual(expect.objectContaining({
+        code: 'archive_error',
+        message: expect.stringMatching(/spec destination.*selected root/i),
+      }));
+      expect(fs.existsSync(path.join(changeDir, 'proposal.md'))).toBe(true);
+      expect(fs.readdirSync(outsideSpecs)).toEqual([]);
+    });
+
     it('fails without a change name instead of opening a picker', async () => {
       createChange(storeRoot, 'store-change');
 
@@ -747,7 +825,8 @@ describe('store root selection for normal commands', () => {
         { cwd: appRepo, env }
       );
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('openspec new change <change-id> --store fresh-context');
+      expect(result.stdout).toContain('openspec new change <change-id> --domain <path> --store fresh-context');
+      expect(result.stdout).toContain('openspec new change <change-id> --domain "" --store fresh-context');
     });
 
     it('shows --store usage after register', async () => {
@@ -763,7 +842,8 @@ describe('store root selection for normal commands', () => {
         env,
       });
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('openspec new change <change-id> --store register-context');
+      expect(result.stdout).toContain('openspec new change <change-id> --domain <path> --store register-context');
+      expect(result.stdout).toContain('openspec new change <change-id> --domain "" --store register-context');
     });
   });
 });

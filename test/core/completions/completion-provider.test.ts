@@ -125,6 +125,14 @@ describe('CompletionProvider', () => {
       expect(specIds).toEqual(['spec-1', 'spec-2']);
     });
 
+    it('should return recursively discovered spec IDs with forward slashes', async () => {
+      const specDir = path.join(testDir, 'openspec', 'specs', 'auth', 'oauth', 'login');
+      await fs.mkdir(specDir, { recursive: true });
+      await fs.writeFile(path.join(specDir, 'spec.md'), '# Login');
+
+      await expect(provider.getSpecIds()).resolves.toEqual(['auth/oauth/login']);
+    });
+
     it('should cache results for the TTL duration', async () => {
       const specsDir = path.join(testDir, 'openspec', 'specs');
       await fs.mkdir(specsDir, { recursive: true });

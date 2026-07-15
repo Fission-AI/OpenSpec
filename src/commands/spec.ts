@@ -1,5 +1,5 @@
 import { program } from 'commander';
-import { existsSync, readdirSync, readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { MarkdownParser } from '../core/parsers/markdown-parser.js';
 import { Validator } from '../core/validation/validator.js';
@@ -155,30 +155,28 @@ export function registerSpecCommand(rootProgram: typeof program) {
     .description('List all available specifications')
     .option('--json', 'Output as JSON')
     .option('--long', 'Show id and title with counts')
-    .action((options: { json?: boolean; long?: boolean }) => {
+    .action(async (options: { json?: boolean; long?: boolean }) => {
       try {
         if (!existsSync(SPECS_DIR)) {
           console.log('No items found');
           return;
         }
 
-        const specs = readdirSync(SPECS_DIR, { withFileTypes: true })
-          .filter(dirent => dirent.isDirectory())
-          .map(dirent => {
-            const specPath = join(SPECS_DIR, dirent.name, 'spec.md');
+        const specs = (await getSpecIds()).map(specId => {
+            const specPath = join(SPECS_DIR, ...specId.split('/'), 'spec.md');
             if (existsSync(specPath)) {
               try {
-                const spec = parseSpecFromFile(specPath, dirent.name);
+                const spec = parseSpecFromFile(specPath, specId);
                 
                 return {
-                  id: dirent.name,
+                  id: specId,
                   title: spec.name,
                   requirementCount: spec.requirements.length
                 };
               } catch {
                 return {
-                  id: dirent.name,
-                  title: dirent.name,
+                  id: specId,
+                  title: specId,
                   requirementCount: 0
                 };
               }

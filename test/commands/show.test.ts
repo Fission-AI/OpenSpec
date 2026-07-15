@@ -77,6 +77,21 @@ describe('top-level show command', () => {
     }
   });
 
+  it('auto-detects a recursively discovered spec ID', async () => {
+    const nestedSpecDir = path.join(specsDir, 'auth', 'oauth', 'login');
+    await fs.mkdir(nestedSpecDir, { recursive: true });
+    await fs.copyFile(
+      path.join(specsDir, 'auth', 'spec.md'),
+      path.join(nestedSpecDir, 'spec.md')
+    );
+
+    const result = await import('../helpers/run-cli.js').then(({ runCLI }) =>
+      runCLI(['show', 'auth/oauth/login', '--json'], { cwd: testDir })
+    );
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout).id).toBe('auth/oauth/login');
+  });
+
   it('handles ambiguity and suggests --type', async () => {
     // create matching spec and change named 'foo'
     await fs.mkdir(path.join(changesDir, 'foo'), { recursive: true });

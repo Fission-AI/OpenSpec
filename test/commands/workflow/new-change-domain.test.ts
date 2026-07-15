@@ -274,6 +274,7 @@ describe.sequential('domain-aware new change', () => {
     });
     expect(json.status[0].message).toContain('--domain <path>');
     expect(json.status[0].message).toContain('--domain ""');
+    expect(json.status[0].message).toMatch(/agents? must ask the user/i);
     expect(json.status[0].message).toContain('Platform');
     expect(json.status[0].message).toContain('Platform/API');
     expect(json.status[0].message).toContain('Finance');
@@ -289,6 +290,7 @@ describe.sequential('domain-aware new change', () => {
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain('--domain <path>');
     expect(result.stderr).toContain('--domain ""');
+    expect(result.stderr).toMatch(/agents? must ask the user/i);
     expect(fs.existsSync(path.join(localRoot, 'openspec', 'changes', 'add-auth'))).toBe(false);
   });
 
@@ -374,6 +376,27 @@ describe.sequential('domain-aware new change', () => {
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       expect.stringContaining('single path segment')
     );
+    expect(
+      fs.existsSync(path.join(localRoot, 'openspec', 'changes', 'New.Team', 'add-auth'))
+    ).toBe(true);
+  });
+
+  it('re-prompts domain literals with leading or trailing whitespace', async () => {
+    process.chdir(localRoot);
+    process.env.OPEN_SPEC_INTERACTIVE = '1';
+    (process.stdin as NodeJS.ReadStream & { isTTY?: boolean }).isTTY = true;
+    const prompts = await import('@inquirer/prompts');
+    vi.mocked(prompts.select).mockImplementation(async (config: any) =>
+      config.choices.find((candidate: any) => candidate.name.startsWith('New subdomain')).value
+    );
+    vi.mocked(prompts.input)
+      .mockResolvedValueOnce(' New.Team ')
+      .mockResolvedValueOnce('New.Team');
+
+    await newChangeCommand('add-auth', {});
+
+    expect(prompts.input).toHaveBeenCalledTimes(2);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('leading or trailing whitespace'));
     expect(
       fs.existsSync(path.join(localRoot, 'openspec', 'changes', 'New.Team', 'add-auth'))
     ).toBe(true);

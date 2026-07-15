@@ -5,7 +5,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { MarkdownParser } from './parsers/markdown-parser.js';
 import type { RootOutput } from './root-selection.js';
-import { getActiveChangeIds } from '../utils/item-discovery.js';
+import { getActiveChangeIds, getSpecIds } from '../utils/item-discovery.js';
 
 interface ChangeInfo {
   name: string;
@@ -148,19 +148,7 @@ export class ListCommand {
 
     // specs mode
     const specsDir = path.join(targetPath, 'openspec', 'specs');
-    try {
-      await fs.access(specsDir);
-    } catch {
-      if (json) {
-        console.log(JSON.stringify({ specs: [], ...(root ? { root } : {}) }, null, 2));
-      } else {
-        console.log('No specs found.');
-      }
-      return;
-    }
-
-    const entries = await fs.readdir(specsDir, { withFileTypes: true });
-    const specDirs = entries.filter(e => e.isDirectory()).map(e => e.name);
+    const specDirs = await getSpecIds(targetPath);
     if (specDirs.length === 0) {
       if (json) {
         console.log(JSON.stringify({ specs: [], ...(root ? { root } : {}) }, null, 2));
@@ -173,7 +161,7 @@ export class ListCommand {
     type SpecInfo = { id: string; requirementCount: number };
     const specs: SpecInfo[] = [];
     for (const id of specDirs) {
-      const specPath = join(specsDir, id, 'spec.md');
+      const specPath = join(specsDir, ...id.split('/'), 'spec.md');
       try {
         const content = readFileSync(specPath, 'utf-8');
         const parser = new MarkdownParser(content);
