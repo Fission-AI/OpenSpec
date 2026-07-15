@@ -12,6 +12,7 @@ import {
 } from '../../src/core/index.js';
 import { runCLI, type RunCLIResult } from '../helpers/run-cli.js';
 import { createHealthyOpenSpecRoot, isolatedGitEnv } from '../helpers/store-git.js';
+import { cleanupTempPath } from '../helpers/temp-cleanup.js';
 
 vi.mock('@inquirer/prompts', () => ({
   input: vi.fn(),
@@ -82,7 +83,7 @@ describe('store git lifecycle', () => {
     consoleLogSpy?.mockRestore();
     consoleErrorSpy?.mockRestore();
     vi.clearAllMocks();
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    cleanupTempPath(tempDir);
   });
 
   function mkdir(relativePath: string): string {
@@ -193,6 +194,102 @@ describe('store git lifecycle', () => {
       expect(fs.existsSync(path.join(cloneRoot, required))).toBe(true);
     }
     expect(fs.existsSync(path.join(cloneRoot, 'workspace.yaml'))).toBe(false);
+  });
+
+  it('registers a clone before any changes exist', async () => {
+    const storeRoot = mkdir('empty-team-context');
+    const cloneRoot = path.join(tempDir, 'empty-team-clone');
+    const gitEnv = { ...env, ...isolatedGitEnv(tempDir) };
+    const gitExecEnv = { ...process.env, ...gitEnv };
+    const teammateEnv = {
+      ...gitEnv,
+      XDG_DATA_HOME: path.join(tempDir, 'empty-teammate-data'),
+      XDG_CONFIG_HOME: path.join(tempDir, 'empty-teammate-config'),
+    };
+    fs.mkdirSync(path.join(storeRoot, 'openspec'), { recursive: true });
+    fs.writeFileSync(path.join(storeRoot, 'openspec', 'config.yaml'), 'schema: spec-driven\n');
+    await writeStoreMetadataState(storeRoot, { version: 1, id: 'empty-team-context' });
+    execFileSync('git', ['init'], { cwd: storeRoot, stdio: 'ignore' });
+    execFileSync('git', ['add', '-A'], { cwd: storeRoot, env: gitExecEnv });
+    execFileSync('git', ['commit', '-m', 'initialize empty store'], {
+      cwd: storeRoot,
+      env: gitExecEnv,
+      stdio: 'ignore',
+    });
+
+    execFileSync('git', ['clone', storeRoot, cloneRoot], {
+      env: gitExecEnv,
+      stdio: 'ignore',
+    });
+    expect(fs.existsSync(path.join(cloneRoot, 'openspec', 'changes'))).toBe(false);
+    expect(fs.existsSync(path.join(cloneRoot, 'openspec', 'specs'))).toBe(false);
+
+    const registered = await runCLI(['store', 'register', cloneRoot, '--json'], {
+      cwd: tempDir,
+      env: teammateEnv,
+    });
+    expect(registered.exitCode).toBe(0);
+    expect(parseJson(registered).store.id).toBe('empty-team-context');
+  });
+
+  it('registers a clone with active changes before specs or archive exist', async () => {
+    const storeRoot = mkdir('planned-context');
+    const cloneRoot = path.join(tempDir, 'planned-clone');
+    const gitEnv = { ...env, ...isolatedGitEnv(tempDir) };
+    const gitExecEnv = { ...process.env, ...gitEnv };
+    const teammateEnv = {
+      ...gitEnv,
+      XDG_DATA_HOME: path.join(tempDir, 'teammate-data'),
+      XDG_CONFIG_HOME: path.join(tempDir, 'teammate-config'),
+    };
+    fs.mkdirSync(path.join(storeRoot, 'openspec', 'changes', 'add-widget'), { recursive: true });
+    fs.writeFileSync(path.join(storeRoot, 'openspec', 'config.yaml'), 'schema: spec-driven\n');
+    fs.writeFileSync(
+      path.join(storeRoot, 'openspec', 'changes', 'add-widget', 'proposal.md'),
+      '# Proposal\n'
+    );
+    fs.writeFileSync(
+      path.join(storeRoot, 'openspec', 'changes', 'add-widget', 'tasks.md'),
+      '# Tasks\n'
+    );
+    await writeStoreMetadataState(storeRoot, { version: 1, id: 'planned-context' });
+    execFileSync('git', ['init'], { cwd: storeRoot, stdio: 'ignore' });
+    execFileSync('git', ['add', '-A'], { cwd: storeRoot, env: gitExecEnv });
+    execFileSync('git', ['commit', '-m', 'draft changes'], {
+      cwd: storeRoot,
+      env: gitExecEnv,
+      stdio: 'ignore',
+    });
+
+    const committedFiles = execFileSync('git', ['show', '--name-only', '--format=', 'HEAD'], {
+      cwd: storeRoot,
+    })
+      .toString()
+      .trim()
+      .split('\n')
+      .sort();
+    expect(committedFiles).toEqual([
+      '.openspec-store/store.yaml',
+      'openspec/changes/add-widget/proposal.md',
+      'openspec/changes/add-widget/tasks.md',
+      'openspec/config.yaml',
+    ]);
+    expect(committedFiles).not.toContain('openspec/specs/.gitkeep');
+    expect(committedFiles).not.toContain('openspec/changes/archive/.gitkeep');
+
+    execFileSync('git', ['clone', storeRoot, cloneRoot], {
+      env: gitExecEnv,
+      stdio: 'ignore',
+    });
+    expect(fs.existsSync(path.join(cloneRoot, 'openspec', 'specs'))).toBe(false);
+    expect(fs.existsSync(path.join(cloneRoot, 'openspec', 'changes', 'archive'))).toBe(false);
+
+    const registered = await runCLI(['store', 'register', cloneRoot, '--json'], {
+      cwd: tempDir,
+      env: teammateEnv,
+    });
+    expect(registered.exitCode).toBe(0);
+    expect(parseJson(registered).store.id).toBe('planned-context');
   });
 
   it('keeps pre-staged user files out of the setup commit', async () => {
