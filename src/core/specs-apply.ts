@@ -17,6 +17,7 @@ import {
 import { findMainSpecStructureIssues } from './parsers/spec-structure.js';
 import { Validator } from './validation/validator.js';
 import { splitChangeId } from '../utils/change-path.js';
+import { validateChangeExists } from '../commands/workflow/shared.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -449,19 +450,22 @@ export async function applySpecs(
     silent?: boolean;
   } = {}
 ): Promise<SpecsApplyOutput> {
-  const { domain, name } = splitChangeId(changeName);
-  const changeDir = path.join(projectRoot, 'openspec', 'changes', ...domain, name);
-  const mainSpecsDir = path.join(projectRoot, 'openspec', 'specs');
-
-  // Verify change exists
+  const changesDir = path.join(projectRoot, 'openspec', 'changes');
   try {
-    const stat = await fs.stat(changeDir);
-    if (!stat.isDirectory()) {
-      throw new Error(`Change '${changeName}' not found.`);
+    await validateChangeExists(changeName, projectRoot, changesDir);
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.startsWith(`Invalid change name '${changeName}':`)
+    ) {
+      throw error;
     }
-  } catch {
     throw new Error(`Change '${changeName}' not found.`);
   }
+
+  const { domain, name } = splitChangeId(changeName);
+  const changeDir = path.join(changesDir, ...domain, name);
+  const mainSpecsDir = path.join(projectRoot, 'openspec', 'specs');
 
   // Find specs to update
   const specUpdates = await findSpecUpdates(changeDir, mainSpecsDir, domain);

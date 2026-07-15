@@ -355,6 +355,30 @@ New feature description.
       ).rejects.toThrow("Change 'non-existent-change' not found.");
     });
 
+    it('rejects traversal IDs without moving directories outside changes', async () => {
+      const specsDir = path.join(tempDir, 'openspec', 'specs');
+      const sentinelPath = path.join(specsDir, 'sentinel.txt');
+      await fs.writeFile(sentinelPath, 'keep me');
+
+      await expect(
+        archiveCommand.execute('../specs', { yes: true, noValidate: true, skipSpecs: true })
+      ).rejects.toThrow(/Invalid change name/);
+
+      await expect(fs.readFile(sentinelPath, 'utf8')).resolves.toBe('keep me');
+      await expect(fs.access(specsDir)).resolves.not.toThrow();
+    });
+
+    it.each([
+      'auth//add-login',
+      'auth/add-login/',
+      'auth/oauth/Add-Login',
+      'archive/legacy-change',
+    ])('rejects malformed or reserved change ID %s', async (changeId) => {
+      await expect(
+        archiveCommand.execute(changeId, { yes: true, noValidate: true, skipSpecs: true })
+      ).rejects.toThrow(/Invalid change name/);
+    });
+
     it('should throw error if archive already exists', async () => {
       const changeName = 'duplicate-feature';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
@@ -386,6 +410,52 @@ New feature description.
       await expect(
         archiveCommand.execute(changeId, { yes: true })
       ).rejects.toThrow(`Archive '${archivedAs}' already exists.`);
+      await expect(fs.access(changeDir)).resolves.not.toThrow();
+    });
+
+    it('checks archive collisions before writing prepared spec updates', async () => {
+      const changeName = 'colliding-spec-change';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const deltaDir = path.join(changeDir, 'specs', 'billing');
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'billing');
+      const mainSpecPath = path.join(mainSpecDir, 'spec.md');
+      await fs.mkdir(deltaDir, { recursive: true });
+      await fs.mkdir(mainSpecDir, { recursive: true });
+
+      const originalSpec = `# Billing
+
+## Purpose
+Track billing.
+
+## Requirements
+
+### Requirement: Existing billing
+The system SHALL preserve existing billing.
+
+#### Scenario: Existing billing works
+- **WHEN** billing runs
+- **THEN** the existing result is preserved
+`;
+      const deltaSpec = `## ADDED Requirements
+
+### Requirement: New billing
+The system SHALL add new billing.
+
+#### Scenario: New billing works
+- **WHEN** new billing runs
+- **THEN** the new result is produced
+`;
+      await fs.writeFile(mainSpecPath, originalSpec);
+      await fs.writeFile(path.join(deltaDir, 'spec.md'), deltaSpec);
+
+      const date = new Date().toISOString().split('T')[0];
+      await fs.mkdir(path.join(tempDir, 'openspec', 'archive', `${date}-${changeName}`));
+
+      await expect(
+        archiveCommand.execute(changeName, { yes: true, noValidate: true })
+      ).rejects.toThrow(`Archive '${date}-${changeName}' already exists.`);
+
+      await expect(fs.readFile(mainSpecPath, 'utf8')).resolves.toBe(originalSpec);
       await expect(fs.access(changeDir)).resolves.not.toThrow();
     });
 

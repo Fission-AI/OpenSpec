@@ -72,4 +72,30 @@ describe('domain-prefixed spec application', () => {
       fs.readFile(path.join(tempDir, 'openspec', 'specs', 'login', 'spec.md'), 'utf8')
     ).resolves.toContain('### Requirement: OAuth login');
   });
+
+  it('rejects traversal IDs without reading changes or writing specs outside their roots', async () => {
+    const outsideChangeDir = path.join(tempDir, 'outside');
+    const deltaDir = path.join(outsideChangeDir, 'specs', 'login');
+    const escapedTarget = path.join(tempDir, 'login', 'spec.md');
+    await fs.mkdir(deltaDir, { recursive: true });
+    await fs.writeFile(path.join(deltaDir, 'spec.md'), ADDED_DELTA);
+
+    await expect(
+      applySpecs(tempDir, '../../outside', { skipValidation: true, silent: true })
+    ).rejects.toThrow(/Invalid change name/);
+
+    await expect(fs.access(escapedTarget)).rejects.toThrow();
+    await expect(fs.readFile(path.join(deltaDir, 'spec.md'), 'utf8')).resolves.toBe(ADDED_DELTA);
+  });
+
+  it.each([
+    'auth//add-login',
+    'auth/add-login/',
+    'auth/oauth/Add-Login',
+    'archive/legacy-change',
+  ])('rejects malformed or reserved change ID %s', async (changeId) => {
+    await expect(
+      applySpecs(tempDir, changeId, { skipValidation: true, silent: true })
+    ).rejects.toThrow(/Invalid change name/);
+  });
 });

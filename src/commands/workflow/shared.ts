@@ -161,6 +161,13 @@ export async function validateChangeExists(
     throw new Error(`Invalid change name '${changeName}': ${nameValidation.error}`);
   }
 
+  const rootSegment = domain[0] ?? name;
+  if (rootSegment.toLowerCase() === 'archive') {
+    throw new Error(
+      `Invalid change name '${changeName}': Change ID root segment 'archive' is reserved`
+    );
+  }
+
   const changePath = path.join(changesDir, ...domain, name);
   const relativeChangePath = path.relative(changesDir, changePath);
   if (relativeChangePath.startsWith('..') || path.isAbsolute(relativeChangePath)) {

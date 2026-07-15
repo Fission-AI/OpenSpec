@@ -19,6 +19,7 @@ import {
   type SpecUpdate,
 } from './specs-apply.js';
 import { buildArchivePath, findAllChangeIds, splitChangeId } from '../utils/change-path.js';
+import { validateChangeExists } from '../commands/workflow/shared.js';
 
 export interface ArchiveOptions {
   yes?: boolean;
@@ -198,16 +199,16 @@ export class ArchiveCommand {
       changeName = selectedChange;
     }
 
-    const { domain, name } = splitChangeId(changeName);
-    const changeDir = path.join(changesDir, ...domain, name);
-
-    // Verify change exists
+    // Validate the full ID before deriving any filesystem path.
     try {
-      const stat = await fs.stat(changeDir);
-      if (!stat.isDirectory()) {
-        throw new Error(`Change '${changeName}' not found.`);
+      await validateChangeExists(changeName, root.path, changesDir);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.startsWith(`Invalid change name '${changeName}':`)
+      ) {
+        throw error;
       }
-    } catch {
       const available = await findAllChangeIds(changesDir);
       throw new ArchiveBlockedError(
         'archive_change_not_found',
@@ -215,6 +216,26 @@ export class ArchiveCommand {
           ? `Change '${changeName}' not found. Available changes: ${available.join(', ')}`
           : `Change '${changeName}' not found. No active changes exist in this root.`
       );
+    }
+
+    const { domain, name } = splitChangeId(changeName);
+    const changeDir = path.join(changesDir, ...domain, name);
+    const archiveDate = this.getArchiveDate();
+    const archiveName = `${archiveDate}-${name}`;
+    const archivedAs = [...domain, archiveName].join('/');
+    const archivePath = buildArchivePath(archiveDir, changeName, archiveDate);
+
+    // Block before validation or spec preparation can mutate any target.
+    try {
+      await fs.access(archivePath);
+      throw new ArchiveBlockedError(
+        'archive_target_exists',
+        `Archive '${archivedAs}' already exists.`
+      );
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw error;
+      }
     }
 
     const skipValidation = options.validate === false || options.noValidate === true;
@@ -465,26 +486,6 @@ export class ArchiveCommand {
           }
         }
       }
-    }
-
-    // Create archive directory with date prefix
-    const archiveDate = this.getArchiveDate();
-    const archiveName = `${archiveDate}-${name}`;
-    const archivedAs = [...domain, archiveName].join('/');
-    const archivePath = buildArchivePath(archiveDir, changeName, archiveDate);
-
-    // Check if archive already exists
-    let archiveExists = false;
-    try {
-      await fs.access(archivePath);
-      archiveExists = true;
-    } catch (error: any) {
-      if (error.code !== 'ENOENT') {
-        throw error;
-      }
-    }
-    if (archiveExists) {
-      throw new ArchiveBlockedError('archive_target_exists', `Archive '${archivedAs}' already exists.`);
     }
 
     // Create archive directory if needed
