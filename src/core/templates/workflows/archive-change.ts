@@ -78,7 +78,7 @@ ${STORE_SELECTION_GUIDANCE}
    Use \`artifactPaths.specs.existingOutputPaths\` from status JSON to check for delta specs. If none exist, proceed without sync prompt.
 
    **If delta specs exist:**
-   - Derive the full \`<spec-id>\` from the delta path: \`<domain>/<capability>\` for a domain-qualified spec, or \`<capability>\` for a root spec
+   - To derive each full \`<spec-id>\`, derive \`<domain>\` only from every segment before the final \`<name>\` in the full \`<change-id>\`. The repo-local delta path \`specs/<capability>/spec.md\` does not contain the change domain.
    - Compare it with \`openspec/specs/<domain>/<capability>/spec.md\` or \`openspec/specs/<capability>/spec.md\`, as applicable
    - Determine what changes would be applied (adds, modifications, removals, renames)
    - Show a combined summary before prompting
@@ -186,7 +186,7 @@ ${STORE_SELECTION_GUIDANCE}
    Use \`artifactPaths.specs.existingOutputPaths\` from status JSON to check for delta specs. If none exist, proceed without sync prompt.
 
    **If delta specs exist:**
-   - Derive the full \`<spec-id>\` from the delta path: \`<domain>/<capability>\` for a domain-qualified spec, or \`<capability>\` for a root spec
+   - To derive each full \`<spec-id>\`, derive \`<domain>\` only from every segment before the final \`<name>\` in the full \`<change-id>\`. The repo-local delta path \`specs/<capability>/spec.md\` does not contain the change domain.
    - Compare it with \`openspec/specs/<domain>/<capability>/spec.md\` or \`openspec/specs/<capability>/spec.md\`, as applicable
    - Determine what changes would be applied (adds, modifications, removals, renames)
    - Show a combined summary before prompting

@@ -825,8 +825,8 @@ describe('store root selection for normal commands', () => {
         { cwd: appRepo, env }
       );
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('openspec new change <change-id> --domain <path> --store fresh-context');
-      expect(result.stdout).toContain('openspec new change <change-id> --domain "" --store fresh-context');
+      expect(result.stdout).toContain('openspec new change <name> --domain <path> --store fresh-context');
+      expect(result.stdout).toContain('openspec new change <name> --domain "" --store fresh-context');
     });
 
     it('shows --store usage after register', async () => {
@@ -842,8 +842,8 @@ describe('store root selection for normal commands', () => {
         env,
       });
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('openspec new change <change-id> --domain <path> --store register-context');
-      expect(result.stdout).toContain('openspec new change <change-id> --domain "" --store register-context');
+      expect(result.stdout).toContain('openspec new change <name> --domain <path> --store register-context');
+      expect(result.stdout).toContain('openspec new change <name> --domain "" --store register-context');
     });
   });
 });

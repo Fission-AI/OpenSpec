@@ -56,7 +56,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    a. **Read the delta spec** to understand the intended changes
 
-   b. **Derive the canonical spec ID and read the main spec** at \`openspec/specs/<domain>/<capability>/spec.md\` for a domain-qualified delta, or \`openspec/specs/<capability>/spec.md\` for a root delta (it may not exist yet)
+   b. **Derive the canonical spec ID and read the main spec**: derive \`<domain>\` only from every segment before the final \`<name>\` in the full \`<change-id>\`. The repo-local delta path \`specs/<capability>/spec.md\` does not contain the change domain. Read \`openspec/specs/<domain>/<capability>/spec.md\` for a domain-qualified change, or \`openspec/specs/<capability>/spec.md\` for a root change (it may not exist yet).
 
    c. **Apply changes intelligently**:
 
@@ -206,7 +206,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    a. **Read the delta spec** to understand the intended changes
 
-   b. **Derive the canonical spec ID and read the main spec** at \`openspec/specs/<domain>/<capability>/spec.md\` for a domain-qualified delta, or \`openspec/specs/<capability>/spec.md\` for a root delta (it may not exist yet)
+   b. **Derive the canonical spec ID and read the main spec**: derive \`<domain>\` only from every segment before the final \`<name>\` in the full \`<change-id>\`. The repo-local delta path \`specs/<capability>/spec.md\` does not contain the change domain. Read \`openspec/specs/<domain>/<capability>/spec.md\` for a domain-qualified change, or \`openspec/specs/<capability>/spec.md\` for a root change (it may not exist yet).
 
    c. **Apply changes intelligently**:
 

@@ -79,6 +79,7 @@ describe('artifact-workflow CLI commands', () => {
       // Create empty change directory (no proposal.md)
       const changeDir = path.join(changesDir, 'scaffolded-change');
       await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, '.openspec.yaml'), 'schema: spec-driven\n');
 
       const result = await runCLI(['status', '--change', 'scaffolded-change'], { cwd: tempDir });
       expect(result.exitCode).toBe(0);
@@ -227,6 +228,7 @@ describe('artifact-workflow CLI commands', () => {
       // Create empty change directory (no proposal.md)
       const changeDir = path.join(changesDir, 'scaffolded-change');
       await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, '.openspec.yaml'), 'schema: spec-driven\n');
 
       const result = await runCLI(['instructions', 'proposal', '--change', 'scaffolded-change'], {
         cwd: tempDir,
@@ -622,6 +624,7 @@ artifacts:
       // Create a change with only the first artifact (missing second)
       const changeDir = path.join(changesDir, 'no-apply-test');
       await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, '.openspec.yaml'), 'schema: no-apply\n');
       await fs.writeFile(path.join(changeDir, 'first.md'), '# First artifact content');
 
       // Run with XDG_DATA_HOME pointing to our temp user data dir
@@ -665,6 +668,7 @@ artifacts:
       // Create a change with the artifact present
       const changeDir = path.join(changesDir, 'no-apply-full-test');
       await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, '.openspec.yaml'), 'schema: no-apply-full\n');
       await fs.writeFile(path.join(changeDir, 'only.md'), '# Content');
 
       const result = await runCLI(

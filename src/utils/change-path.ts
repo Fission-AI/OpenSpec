@@ -183,7 +183,7 @@ export async function resolveExistingChangeId(
 
   if (!(await hasOwnChangeMarker(changePath))) {
     const nestedChanges = await findChangeIds(changePath, false);
-    if (nestedChanges.length > 0) {
+    if (nestedChanges.length > 0 || !(await hasLegacyChangeContent(changePath))) {
       throw new ChangeNotFoundError(changeId);
     }
   }
@@ -259,6 +259,13 @@ export async function assertProspectivePathContained(
   const canonicalTarget = path.resolve(canonicalAncestor, ...missingSegments);
   if (!isContainedPath(canonicalRoot, canonicalTarget)) {
     throw containmentError();
+  }
+
+  if (missingSegments.length > 0) {
+    const ancestorStats = await fs.stat(existingAncestor);
+    if (!ancestorStats.isDirectory()) {
+      throw containmentError();
+    }
   }
 }
 
@@ -344,4 +351,12 @@ async function hasOwnChangeMarker(changePath: string): Promise<boolean> {
     }
   }
   return false;
+}
+
+async function hasLegacyChangeContent(changePath: string): Promise<boolean> {
+  const entries = await fs.readdir(changePath, { withFileTypes: true });
+  return entries.some((entry) =>
+    (entry.isFile() && ['design.md', 'tasks.md', 'README.md'].includes(entry.name)) ||
+    (entry.isDirectory() && entry.name === 'specs')
+  );
 }

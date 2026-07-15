@@ -151,6 +151,32 @@ describe('ArchiveCommand', () => {
       await expect(fs.readdir(outsideArchive)).resolves.toEqual([]);
     });
 
+    it('rejects a non-directory archive parent before writing specs', async () => {
+      const changeId = 'auth/add-login';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', 'auth', 'add-login');
+      const deltaDir = path.join(changeDir, 'specs', 'login');
+      const targetSpec = path.join(tempDir, 'openspec', 'specs', 'auth', 'login', 'spec.md');
+      await fs.mkdir(deltaDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'proposal.md'), '# Add login');
+      await fs.writeFile(path.join(deltaDir, 'spec.md'), `## ADDED Requirements
+
+### Requirement: Login
+The system SHALL support login.
+
+#### Scenario: Login works
+- **WHEN** login runs
+- **THEN** access is granted
+`);
+      await fs.writeFile(path.join(tempDir, 'openspec', 'archive', 'auth'), 'not a directory');
+
+      await expect(
+        archiveCommand.execute(changeId, { yes: true, noValidate: true })
+      ).rejects.toThrow(/archive destination.*selected root/i);
+
+      await expect(fs.access(targetSpec)).rejects.toThrow();
+      await expect(fs.access(path.join(changeDir, 'proposal.md'))).resolves.not.toThrow();
+    });
+
     it('rejects a spec destination that escapes through a symlink or junction prefix', async () => {
       const changeId = 'auth/add-login';
       const changeDir = path.join(tempDir, 'openspec', 'changes', 'auth', 'add-login');
@@ -454,6 +480,7 @@ New feature description.
       const changeName = 'duplicate-feature';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
       await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, '.openspec.yaml'), 'schema: spec-driven\n');
       
       // Create existing archive with same date
       const date = new Date().toISOString().split('T')[0];
@@ -470,6 +497,7 @@ New feature description.
       const changeId = 'auth/oauth/add-login';
       const changeDir = path.join(tempDir, 'openspec', 'changes', 'auth', 'oauth', 'add-login');
       await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, '.openspec.yaml'), 'schema: spec-driven\n');
 
       const date = new Date().toISOString().split('T')[0];
       const archivedAs = `auth/oauth/${date}-add-login`;
@@ -589,6 +617,7 @@ The system SHALL add new billing.
       const changeName = 'no-tasks-feature';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
       await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, '.openspec.yaml'), 'schema: spec-driven\n');
       
       // Execute archive without tasks.md
       await archiveCommand.execute(changeName, { yes: true });
@@ -608,6 +637,7 @@ The system SHALL add new billing.
       const changeName = 'no-specs-feature';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
       await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, '.openspec.yaml'), 'schema: spec-driven\n');
       
       // Execute archive without specs
       await archiveCommand.execute(changeName, { yes: true });
@@ -1312,6 +1342,7 @@ The system SHALL do the thing differently.
       const changeName = 'exit-ok';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
       await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, '.openspec.yaml'), 'schema: spec-driven\n');
 
       await archiveCommand.execute(changeName, { yes: true });
 

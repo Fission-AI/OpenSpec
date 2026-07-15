@@ -42,20 +42,20 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getContinueChangeSkillTemplate: '1bb28875d6e5946ea2ec5f12e90f55d9784c2fa1f6e4c4e2d0eda53d861d4c75',
   getApplyChangeSkillTemplate: '0f5a15fc7fb9ad6059a5643d0e01365d27642637a4aaebf182f9eabb45348197',
   getFfChangeSkillTemplate: 'eb202d18fcbbe3833cba0bf267f8e45f6e71fa0d60a33f80ab97fe5b405830da',
-  getSyncSpecsSkillTemplate: '9dc42219d0e2cf1dc839faeaeaa381399c11195de54d14d4e9abcf06181e2300',
+  getSyncSpecsSkillTemplate: '9559d55a649f68ab0cee69017e0895eb92b7ce16896d353e3b0429ca4f474704',
   getOnboardSkillTemplate: 'a3869b632379ac56ab09e59d1efa53283947b2d73c3fb74156913c7e5b84342f',
   getOpsxExploreCommandTemplate: '37e53590aae7ac6621d4393aa80a5b8af21881323887fa924ed329199fda27e0',
   getOpsxNewCommandTemplate: 'c329c787ee8db8849d2f4dd7f07cbc5a8bb2290d93bc9623306a2770771aba0e',
   getOpsxContinueCommandTemplate: '418108b417107a87019d4020b26c105792d2ef0110fe6920445e255889216716',
   getOpsxApplyCommandTemplate: 'daeb507206707169de73c828e199648dde5732cbc17791ef2a027adffd028574',
   getOpsxFfCommandTemplate: 'f2a8f6f49866b3c7cd1c8e9ef46dcb5d68f7eff054e6a7ef00b3dfc6da33675c',
-  getArchiveChangeSkillTemplate: 'a5f3fe52da9a9fee4a5f1e960b2ef9eb8467d2b67b65ce00382f17f79b1662df',
-  getBulkArchiveChangeSkillTemplate: '4f64b9eea38fb23033024a3b3a47cf62e064e495e97266b129f0dbc758ea0a41',
-  getOpsxSyncCommandTemplate: 'db913d6f17583af04c02e8503fa1f1b22911499276c1a7eab4070a92b1f735bc',
+  getArchiveChangeSkillTemplate: '0f1e8090ee2350f406e3605572619ce022cc1ac34b14dec5d36f97e73072ffb3',
+  getBulkArchiveChangeSkillTemplate: 'c47334cf94ef30184cd116fac7364853d4f8bd82487d1ba5adb7400a6479de6a',
+  getOpsxSyncCommandTemplate: '713969eae4bfda6d8046cdefe1b19f3dbb2cbd0920125755037561d6c26469b3',
   getVerifyChangeSkillTemplate: 'd718c79aad649223a73fdb11036c93fb3842ac5a780f4934d50bfa03c9692683',
-  getOpsxArchiveCommandTemplate: 'f5a854c17612e02dc3da567fa6b1c8902796d7f3407c4fb45f6695acd3962b22',
+  getOpsxArchiveCommandTemplate: '8c443a55106ef4004c6f5e3d5a0ed1381e0d3d217c53d2aba05067860e976ef5',
   getOpsxOnboardCommandTemplate: '79f214d7f189248fe7dafe5ba5f92b9d5c1d5f9b58bff0ed549e89c0d0cd0d55',
-  getOpsxBulkArchiveCommandTemplate: '1fd677064895aaa32504b9b1e2b5349a77934e44676ef54cb39dddafc7b8d53e',
+  getOpsxBulkArchiveCommandTemplate: '38ad1d292f77044068eb6749d678cf7e69b610f4b1f4b1b667b55f9d2e2912b7',
   getOpsxVerifyCommandTemplate: '011509480a20a60342c993906f0f9280c0e9ba5d019d335bdc1ef4d53213a5a8',
   getOpsxProposeSkillTemplate: '2515367c8db1fdaaf1a73388dd3f59668d6d41c5753d9a1566925c6851b265e4',
   getOpsxProposeCommandTemplate: '33f580cf45baa81987e3652c9574b9a55a1ef3537e57d89fd4b50d52d0728b0d',
@@ -70,9 +70,9 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-continue-change': '39b4467a4873cde7c97d52c80d53ac647b220bf7c9d96f4e6505f3188e1a1642',
   'openspec-apply-change': '09c0e1cdf5ccc82416d0969d6bd715cc70616bdbc3531358a5c36057f78be55a',
   'openspec-ff-change': 'b8567d9e727b1342126504685337719b1204839478660dac3e28a3f2250ab2c6',
-  'openspec-sync-specs': '545fa9a4cd308f0fa008c9419dacc6cd2b1398ed781262044762706afdcd585d',
-  'openspec-archive-change': 'b2ee63950307f47a800f72326ca489760adf5df25860b038572e406f74e0d146',
-  'openspec-bulk-archive-change': '1ad961a8864ac5a7e1d771bb2e5f7749d400e307c4b0df793bf503ae72d6764b',
+  'openspec-sync-specs': '479068632b10d3bf060c65cd20c645a074f25d8d41bcce6199a48a95543fb1eb',
+  'openspec-archive-change': '61965cf8db3b571d1a45ee6e526154f3f546798220a45ffb5e7619cbc899ac6d',
+  'openspec-bulk-archive-change': 'c3f5fe47e04e6828a62988f548dee2b81982827d3e6490e95c36521fc07ff490',
   'openspec-verify-change': '9a8735eaaa34c278d2193eb32fa736f4b111d1c47e675971c8df40f81d20c8c3',
   'openspec-onboard': 'c9fb3577d8b9ba876b3d7b95e85781c989ca302ca95f3e8e9abe2df890bcd92b',
   'openspec-propose': '2edb42356aeb5b2c51b5750e888b0d987f64a4dd63f4b2008117acc9d4f4ca26',
@@ -192,6 +192,12 @@ describe('skill templates split parity', () => {
     for (const [label, content] of [...archiveTemplates, ...bulkTemplates, ...syncTemplates]) {
       expect(content, label).toContain('openspec status --change "<change-id>" --json');
       expect(content, label).not.toContain('--change "<name>"');
+      expect(content, label).toContain(
+        'derive `<domain>` only from every segment before the final `<name>` in the full `<change-id>`'
+      );
+      expect(content, label).toContain(
+        'The repo-local delta path `specs/<capability>/spec.md` does not contain the change domain.'
+      );
       expect(content, label).toContain('openspec/specs/<domain>/<capability>/spec.md');
       expect(content, label).toContain('openspec/specs/<capability>/spec.md');
     }

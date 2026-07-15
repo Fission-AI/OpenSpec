@@ -1258,10 +1258,10 @@ describe('store command', () => {
       expect(result.exitCode).toBe(1);
       // 'new my-change' would be invalid; the hint falls back to the full form.
       expect(result.stderr).toContain(
-        'openspec new change <change-id> --domain <path> --store <id>'
+        'openspec new change <name> --domain <path> --store <id>'
       );
       expect(result.stderr).toContain(
-        'openspec new change <change-id> --domain "" --store <id>'
+        'openspec new change <name> --domain "" --store <id>'
       );
       expect(result.stderr).not.toContain('openspec new my-change');
     });
@@ -1274,10 +1274,10 @@ describe('store command', () => {
 
       expect(result.exitCode).toBe(1);
       expect(result.stderr).toContain(
-        'openspec new change <change-id> --domain <path> --store <id>'
+        'openspec new change <name> --domain <path> --store <id>'
       );
       expect(result.stderr).toContain(
-        'openspec new change <change-id> --domain "" --store <id>'
+        'openspec new change <name> --domain "" --store <id>'
       );
       expect(result.stderr).not.toContain('core');
     });

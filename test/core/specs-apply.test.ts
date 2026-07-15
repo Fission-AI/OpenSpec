@@ -67,6 +67,20 @@ describe('domain-prefixed spec application', () => {
     ).rejects.toThrow();
   });
 
+  it('prints the domain-qualified target path in human output', async () => {
+    await writeDelta('auth/oauth/add-login');
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    try {
+      await applySpecs(tempDir, 'auth/oauth/add-login', { skipValidation: true });
+      expect(log).toHaveBeenCalledWith(
+        'Applying changes to openspec/specs/auth/oauth/login/spec.md:'
+      );
+    } finally {
+      log.mockRestore();
+    }
+  });
+
   it('leaves root change capability targets unchanged', async () => {
     await writeDelta('add-login');
 

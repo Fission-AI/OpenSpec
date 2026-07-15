@@ -520,6 +520,11 @@ export async function applySpecs(
 
   for (const p of prepared) {
     const capability = path.basename(path.dirname(p.update.target));
+    const displayPath = path.join(
+      'openspec',
+      'specs',
+      path.relative(mainSpecsDir, p.update.target)
+    ).split(path.sep).join('/');
 
     if (!options.dryRun) {
       // Write the updated spec
@@ -528,14 +533,14 @@ export async function applySpecs(
       await fs.writeFile(p.update.target, p.rebuilt);
 
       if (!options.silent) {
-        console.log(`Applying changes to openspec/specs/${capability}/spec.md:`);
+        console.log(`Applying changes to ${displayPath}:`);
         if (p.counts.added) console.log(`  + ${p.counts.added} added`);
         if (p.counts.modified) console.log(`  ~ ${p.counts.modified} modified`);
         if (p.counts.removed) console.log(`  - ${p.counts.removed} removed`);
         if (p.counts.renamed) console.log(`  → ${p.counts.renamed} renamed`);
       }
     } else if (!options.silent) {
-      console.log(`Would apply changes to openspec/specs/${capability}/spec.md:`);
+      console.log(`Would apply changes to ${displayPath}:`);
       if (p.counts.added) console.log(`  + ${p.counts.added} added`);
       if (p.counts.modified) console.log(`  ~ ${p.counts.modified} modified`);
       if (p.counts.removed) console.log(`  - ${p.counts.removed} removed`);

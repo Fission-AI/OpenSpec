@@ -63,6 +63,7 @@ ${STORE_SELECTION_GUIDANCE}
       - If no tasks file exists, note as "No tasks"
 
    c. **Delta specs** - Check \`artifactPaths.specs.existingOutputPaths\` from status JSON
+      - To derive each canonical spec ID, derive \`<domain>\` only from every segment before the final \`<name>\` in the full \`<change-id>\`. The repo-local delta path \`specs/<capability>/spec.md\` does not contain the change domain.
       - List each canonical \`<spec-id>\`: \`<domain>/<capability>\` for a domain-qualified spec, or \`<capability>\` for a root spec
       - Resolve its main target as \`openspec/specs/<domain>/<capability>/spec.md\` or \`openspec/specs/<capability>/spec.md\`
       - For each, extract requirement names (lines matching \`### Requirement: <name>\`)
@@ -312,6 +313,7 @@ ${STORE_SELECTION_GUIDANCE}
       - If no tasks file exists, note as "No tasks"
 
    c. **Delta specs** - Check \`artifactPaths.specs.existingOutputPaths\` from status JSON
+      - To derive each canonical spec ID, derive \`<domain>\` only from every segment before the final \`<name>\` in the full \`<change-id>\`. The repo-local delta path \`specs/<capability>/spec.md\` does not contain the change domain.
       - List each canonical \`<spec-id>\`: \`<domain>/<capability>\` for a domain-qualified spec, or \`<capability>\` for a root spec
       - Resolve its main target as \`openspec/specs/<domain>/<capability>/spec.md\` or \`openspec/specs/<capability>/spec.md\`
       - For each, extract requirement names (lines matching \`### Requirement: <name>\`)

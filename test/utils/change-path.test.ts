@@ -110,6 +110,7 @@ describe('resolveExistingChangeId', () => {
   it('returns parsed segments and the contained path for an existing slash ID', async () => {
     const changePath = path.join(changesDir, 'Platform', 'API', 'add-auth');
     await fs.mkdir(changePath, { recursive: true });
+    await fs.writeFile(path.join(changePath, '.openspec.yaml'), 'schema: spec-driven\n');
 
     await expect(resolveExistingChangeId('Platform/API/add-auth', changesDir)).resolves.toEqual({
       id: 'Platform/API/add-auth',
@@ -117,6 +118,14 @@ describe('resolveExistingChangeId', () => {
       name: 'add-auth',
       path: changePath,
     });
+  });
+
+  it('rejects an empty markerless directory as a domain container', async () => {
+    await fs.mkdir(path.join(changesDir, 'empty-domain'));
+
+    await expect(resolveExistingChangeId('empty-domain', changesDir)).rejects.toBeInstanceOf(
+      ChangeNotFoundError
+    );
   });
 
   it('rejects invalid IDs with a typed validation error', async () => {

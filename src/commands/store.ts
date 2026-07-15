@@ -406,8 +406,8 @@ function printMutationHuman(
   }
   console.log('');
   console.log('Next: run normal OpenSpec commands against this store, for example:');
-  console.log(`  openspec new change <change-id> --domain <path> --store ${payload.store.id}`);
-  console.log(`  openspec new change <change-id> --domain "" --store ${payload.store.id}`);
+  console.log(`  openspec new change <name> --domain <path> --store ${payload.store.id}`);
+  console.log(`  openspec new change <name> --domain "" --store ${payload.store.id}`);
   if (payload.git.is_repository) {
     const shareRemote = remotes?.canonical ?? remotes?.observed;
     console.log(
@@ -774,11 +774,11 @@ export function registerStoreCommand(program: Command): void {
       process.exitCode = 1;
       return;
     }
-    let example = 'openspec new change <change-id> --domain <path> --store <id>';
+    let example = 'openspec new change <name> --domain <path> --store <id>';
     if (!hasFlagLikeToken && attempted.length > 0 && lifecycleRedirects.has(attempted[0])) {
       if (attempted[0] === 'new') {
-        const changeId = attempted[1] === 'change' && attempted[2] ? attempted[2] : '<change-id>';
-        example = `openspec new change ${changeId} --domain <path> --store <id>`;
+        const changeName = attempted[1] === 'change' && attempted[2] ? attempted[2] : '<name>';
+        example = `openspec new change ${changeName} --domain <path> --store <id>`;
       } else {
         example = `openspec ${attempted.join(' ')} --store <id>`;
       }

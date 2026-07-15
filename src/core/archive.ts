@@ -468,7 +468,11 @@ export class ArchiveCommand {
             await writeUpdatedSpec(p.update, p.rebuilt, p.counts, {
               silent: json,
               // Cross-root paths must be absolute when a store is selected.
-              ...(isStoreSelectedRoot(root) ? { displayPath: p.update.target } : {}),
+              displayPath: isStoreSelectedRoot(root)
+                ? p.update.target
+                : path.join('openspec', 'specs', path.relative(mainSpecsDir, p.update.target))
+                    .split(path.sep)
+                    .join('/'),
             });
             writeTotals.added += p.counts.added;
             writeTotals.modified += p.counts.modified;
