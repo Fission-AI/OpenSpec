@@ -1,6 +1,6 @@
 # Design: Domain Support & Archive Restructure
 
-**Date:** 2026-06-03  
+**Date:** 2026-06-03
 **Status:** Approved
 
 ## Summary
