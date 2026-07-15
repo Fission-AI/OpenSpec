@@ -17,6 +17,7 @@ import { codebuddyAdapter } from './adapters/codebuddy.js';
 import { continueAdapter } from './adapters/continue.js';
 import { costrictAdapter } from './adapters/costrict.js';
 import { crushAdapter } from './adapters/crush.js';
+import { kuramaAdapter } from './adapters/kurama.js';
 import { cursorAdapter } from './adapters/cursor.js';
 import { factoryAdapter } from './adapters/factory.js';
 import { geminiAdapter } from './adapters/gemini.js';
@@ -54,6 +55,7 @@ export class CommandAdapterRegistry {
     CommandAdapterRegistry.register(continueAdapter);
     CommandAdapterRegistry.register(costrictAdapter);
     CommandAdapterRegistry.register(crushAdapter);
+    CommandAdapterRegistry.register(kuramaAdapter);
     CommandAdapterRegistry.register(cursorAdapter);
     CommandAdapterRegistry.register(factoryAdapter);
     CommandAdapterRegistry.register(geminiAdapter);
