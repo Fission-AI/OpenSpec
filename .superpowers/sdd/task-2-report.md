@@ -48,11 +48,12 @@
 - `test/core/root-selection.test.ts`
 - `test/helpers/openspec-fixtures.ts`
 - `test/helpers/store-git.ts`
+- `test/utils/change-utils.test.ts`
 
 ### Commit
 
-- Original Task 2 commit hash: `e3cc728`
-- Integrated by controller as: `b0f16da`
+- Original Task 2 commit hash: `fafc879`
+- Integrated by controller as: `31393c8`
 
 ### Concerns
 
