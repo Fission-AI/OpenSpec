@@ -52,11 +52,11 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getArchiveChangeSkillTemplate: 'c511a1c943bcfc5f9f3833b8c0ff284b22d34864a08f5f553cec471ee485d38f',
   getBulkArchiveChangeSkillTemplate: '0f635913757ae3d1609e111f4a8f699443ca47cbaaf8a1b21eb652f7b96a1d13',
   getOpsxSyncCommandTemplate: '86cf706886d0f18069e2cfa16948b7357028fd348210efb58588c88c416d8622',
-  getVerifyChangeSkillTemplate: 'd718c79aad649223a73fdb11036c93fb3842ac5a780f4934d50bfa03c9692683',
+  getVerifyChangeSkillTemplate: '8246c4e94bddf75369926651b4d5420768eeb13b864af041577311119cf88b94',
   getOpsxArchiveCommandTemplate: '6985bddb310cb45b6b50350bfcebe31bf67146135ca0084c94930920280970a4',
   getOpsxOnboardCommandTemplate: '0673f34a0f81fd173bcfb8c3ac83e2b1c617f7b7564e24e5298d3bd5665a05a9',
   getOpsxBulkArchiveCommandTemplate: '9f444fc7b27a5b788077b5e3aa4f61af45aa8c8004ac8d899d204fa362ff89b7',
-  getOpsxVerifyCommandTemplate: '011509480a20a60342c993906f0f9280c0e9ba5d019d335bdc1ef4d53213a5a8',
+  getOpsxVerifyCommandTemplate: 'a1d235ae804661eec80504fe7f1e8f65bfe2c3a17ec4aa3c3a83af0d4b14acdf',
   getOpsxProposeSkillTemplate: '8dfb5e9c719d5ba547aff0d3953c076dca6b33d7223be98cbffc396b8f1e0048',
   getOpsxProposeCommandTemplate: '7cd569beb32d99cdabd0b49615a8245160a8e152b6ea67a99fc4dd71e3f39f50',
   getFeedbackSkillTemplate: 'd7d83c5f7fc2b92fe8f4588a5bf2d9cb315e4c73ec19bcd5ef28270906319a0d',
@@ -73,7 +73,7 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-sync-specs': 'f6a1581eb11a30061795c42582db6fa4f5e1f213b4b7cad9f3cbfbe3e9fb2d97',
   'openspec-archive-change': '1821aee5a06afd895d59d1e1d16495e484b6087ecf59ec93460d7d5e7851e772',
   'openspec-bulk-archive-change': '7b09b04a440809dd7dbf0b1d7b695cbb8c41184d8d104eb32e82d7cdfb476d18',
-  'openspec-verify-change': '9a8735eaaa34c278d2193eb32fa736f4b111d1c47e675971c8df40f81d20c8c3',
+  'openspec-verify-change': '2bc8cdaa5582621c8df81794557d1efcb234dda29f9ea3f03c831f52e29aac05',
   'openspec-onboard': 'b1b6fc9a1b3ff64dafe9b8c39a761ee1bd001b542d47b4e4deaf058e0aa21256',
   'openspec-propose': '0cfc9278123d973929cb4da3ea7ac8ae1b6c84b472eed4fb753657b8347eaeb9',
   'openspec-update-change': '77ff4d1f1cd08a57649cce1f25e0ebc4f55d6d032dfde5c301d1b479561b72fa',
@@ -192,6 +192,21 @@ describe('skill templates split parity', () => {
     // Feedback has no store-capable command and intentionally carries no
     // store teaching; it ships outside both registries.
     expect(getFeedbackSkillTemplate().instructions).not.toContain('**Store selection:**');
+  });
+
+  it('checks semantic planning residue in both verify templates', () => {
+    const verifyTemplates = [
+      getVerifyChangeSkillTemplate().instructions,
+      getOpsxVerifyCommandTemplate().content,
+    ];
+
+    for (const content of verifyTemplates) {
+      expect(content).toContain('Create a report structure with four dimensions');
+      expect(content).toContain('**Relevance**: Track semantic residue and unnecessary scope');
+      expect(content).toContain('**Verify Relevance**');
+      expect(content).toContain('Trace references and data flow before flagging');
+      expect(content).toContain('Pre-existing debt is out of scope');
+    }
   });
 
   it('generates no workspace-planning residue in any workflow template (4.1)', () => {

@@ -260,7 +260,7 @@ The recommended completion flow:
 
 #### Verify: Check Your Work
 
-`/opsx:verify` validates implementation against your artifacts across three dimensions:
+`/opsx:verify` validates implementation against your artifacts across four dimensions:
 
 ```text
 You: /opsx:verify
@@ -282,15 +282,20 @@ AI:  Verifying add-auth...
      ✓ Naming conventions consistent with design.md
      ⚠ Design mentions "event-driven" but implementation uses polling
 
+     RELEVANCE
+     ✓ New implementation elements map to requirements or necessary infrastructure
+     ⚠ Unused compatibility branch remains from an earlier approach
+
      SUMMARY
      ─────────────────────────────
      Critical issues: 0
-     Warnings: 2
+     Warnings: 3
      Ready to archive: Yes (with warnings)
 
      Recommendations:
      1. Add test for session timeout scenario
      2. Consider refactoring to event-driven as designed, or update design.md
+     3. Remove the unused compatibility branch
 ```
 
 **What verify checks:**
@@ -300,6 +305,7 @@ AI:  Verifying add-auth...
 | Completeness | All tasks done, all requirements implemented, scenarios covered |
 | Correctness | Implementation matches spec intent, edge cases handled |
 | Coherence | Design decisions reflected in code, patterns consistent |
+| Relevance | Changed code serves the final implementation, without planning residue |
 
 Verify won't block archive, but it surfaces issues you might want to address first.
 

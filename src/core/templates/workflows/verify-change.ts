@@ -10,7 +10,7 @@ import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 export function getVerifyChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-verify-change',
-    description: 'Verify implementation matches change artifacts. Use when the user wants to validate that implementation is complete, correct, and coherent before archiving.',
+    description: 'Verify implementation matches change artifacts. Use when the user wants to validate that implementation is complete, correct, coherent, and relevant before archiving.',
     instructions: `Verify that an implementation matches the change artifacts (specs, tasks, design).
 
 ${STORE_SELECTION_GUIDANCE}
@@ -48,10 +48,11 @@ ${STORE_SELECTION_GUIDANCE}
 
 4. **Initialize verification report structure**
 
-   Create a report structure with three dimensions:
+   Create a report structure with four dimensions:
    - **Completeness**: Track tasks and spec coverage
    - **Correctness**: Track requirement implementation and scenario coverage
    - **Coherence**: Track design adherence and pattern consistency
+   - **Relevance**: Track semantic residue and unnecessary scope
 
    Each dimension can have CRITICAL, WARNING, or SUGGESTION issues.
 
@@ -112,7 +113,22 @@ ${STORE_SELECTION_GUIDANCE}
      - Add SUGGESTION: "Code pattern deviation: <details>"
      - Recommendation: "Consider following project pattern: <example>"
 
-8. **Generate Verification Report**
+8. **Verify Relevance**
+
+   **Semantic Residue Audit**:
+   - Review code introduced or changed for this change, focusing on implementation files identified in the earlier steps
+   - For each new API, function, type field, state value, helper, branch, or mapping, identify the requirement, task, design decision, or necessary enabling role it serves
+   - Look for residue from superseded planning assumptions: unused elements, unreachable branches, placeholder or mock code, duplicated mappings, and extension points disconnected from any requirement or task
+   - Trace references and data flow before flagging an element as residue
+   - If an element has no traceable purpose:
+     - Add WARNING: "Planning residue: <element and evidence>"
+     - Recommendation: "Remove <element> or show the requirement/task it serves"
+   - If the purpose is uncertain:
+     - Add SUGGESTION: "Possibly irrelevant code: <element>"
+     - Recommendation: "Confirm whether <element> is required"
+   - Pre-existing debt is out of scope; keep findings limited to code introduced or changed for this change
+
+9. **Generate Verification Report**
 
    **Summary Scorecard**:
    \`\`\`
@@ -124,6 +140,7 @@ ${STORE_SELECTION_GUIDANCE}
    | Completeness | X/Y tasks, N reqs|
    | Correctness  | M/N reqs covered |
    | Coherence    | Followed/Issues  |
+   | Relevance    | Clean/N residue  |
    \`\`\`
 
    **Issues by Priority**:
@@ -136,6 +153,7 @@ ${STORE_SELECTION_GUIDANCE}
    2. **WARNING** (Should fix):
       - Spec/design divergences
       - Missing scenario coverage
+      - Confirmed planning residue
       - Each with specific recommendation
 
    3. **SUGGESTION** (Nice to fix):
@@ -153,6 +171,7 @@ ${STORE_SELECTION_GUIDANCE}
 - **Completeness**: Focus on objective checklist items (checkboxes, requirements list)
 - **Correctness**: Use keyword search, file path analysis, reasonable inference - don't require perfect certainty
 - **Coherence**: Look for glaring inconsistencies, don't nitpick style
+- **Relevance**: Require reference and data-flow evidence that a changed element serves no requirement, task, design decision, or necessary enabling role
 - **False Positives**: When uncertain, prefer SUGGESTION over WARNING, WARNING over CRITICAL
 - **Actionability**: Every issue must have a specific recommendation with file/line references where applicable
 
@@ -160,7 +179,8 @@ ${STORE_SELECTION_GUIDANCE}
 
 - If only tasks.md exists: verify task completion only, skip spec/design checks
 - If tasks + specs exist: verify completeness and correctness, skip design
-- If full artifacts: verify all three dimensions
+- If full artifacts: verify all four dimensions
+- If implementation files cannot be identified: skip relevance and explain why
 - Always note which checks were skipped and why
 
 **Output Format**
@@ -220,10 +240,11 @@ ${STORE_SELECTION_GUIDANCE}
 
 4. **Initialize verification report structure**
 
-   Create a report structure with three dimensions:
+   Create a report structure with four dimensions:
    - **Completeness**: Track tasks and spec coverage
    - **Correctness**: Track requirement implementation and scenario coverage
    - **Coherence**: Track design adherence and pattern consistency
+   - **Relevance**: Track semantic residue and unnecessary scope
 
    Each dimension can have CRITICAL, WARNING, or SUGGESTION issues.
 
@@ -284,7 +305,22 @@ ${STORE_SELECTION_GUIDANCE}
      - Add SUGGESTION: "Code pattern deviation: <details>"
      - Recommendation: "Consider following project pattern: <example>"
 
-8. **Generate Verification Report**
+8. **Verify Relevance**
+
+   **Semantic Residue Audit**:
+   - Review code introduced or changed for this change, focusing on implementation files identified in the earlier steps
+   - For each new API, function, type field, state value, helper, branch, or mapping, identify the requirement, task, design decision, or necessary enabling role it serves
+   - Look for residue from superseded planning assumptions: unused elements, unreachable branches, placeholder or mock code, duplicated mappings, and extension points disconnected from any requirement or task
+   - Trace references and data flow before flagging an element as residue
+   - If an element has no traceable purpose:
+     - Add WARNING: "Planning residue: <element and evidence>"
+     - Recommendation: "Remove <element> or show the requirement/task it serves"
+   - If the purpose is uncertain:
+     - Add SUGGESTION: "Possibly irrelevant code: <element>"
+     - Recommendation: "Confirm whether <element> is required"
+   - Pre-existing debt is out of scope; keep findings limited to code introduced or changed for this change
+
+9. **Generate Verification Report**
 
    **Summary Scorecard**:
    \`\`\`
@@ -296,6 +332,7 @@ ${STORE_SELECTION_GUIDANCE}
    | Completeness | X/Y tasks, N reqs|
    | Correctness  | M/N reqs covered |
    | Coherence    | Followed/Issues  |
+   | Relevance    | Clean/N residue  |
    \`\`\`
 
    **Issues by Priority**:
@@ -308,6 +345,7 @@ ${STORE_SELECTION_GUIDANCE}
    2. **WARNING** (Should fix):
       - Spec/design divergences
       - Missing scenario coverage
+      - Confirmed planning residue
       - Each with specific recommendation
 
    3. **SUGGESTION** (Nice to fix):
@@ -325,6 +363,7 @@ ${STORE_SELECTION_GUIDANCE}
 - **Completeness**: Focus on objective checklist items (checkboxes, requirements list)
 - **Correctness**: Use keyword search, file path analysis, reasonable inference - don't require perfect certainty
 - **Coherence**: Look for glaring inconsistencies, don't nitpick style
+- **Relevance**: Require reference and data-flow evidence that a changed element serves no requirement, task, design decision, or necessary enabling role
 - **False Positives**: When uncertain, prefer SUGGESTION over WARNING, WARNING over CRITICAL
 - **Actionability**: Every issue must have a specific recommendation with file/line references where applicable
 
@@ -332,7 +371,8 @@ ${STORE_SELECTION_GUIDANCE}
 
 - If only tasks.md exists: verify task completion only, skip spec/design checks
 - If tasks + specs exist: verify completeness and correctness, skip design
-- If full artifacts: verify all three dimensions
+- If full artifacts: verify all four dimensions
+- If implementation files cannot be identified: skip relevance and explain why
 - Always note which checks were skipped and why
 
 **Output Format**
