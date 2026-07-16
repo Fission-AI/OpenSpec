@@ -220,6 +220,15 @@ describe('artifact-workflow CLI commands', () => {
       expect(output).toContain('Invalid change name');
     });
 
+    it('rejects the reserved archive directory name', async () => {
+      await fs.mkdir(path.join(changesDir, 'archive'), { recursive: true });
+
+      const result = await runCLI(['status', '--change', 'archive'], { cwd: tempDir });
+      expect(result.exitCode).toBe(1);
+      const output = getOutput(result);
+      expect(output).toContain('Invalid change name');
+    });
+
     it('accepts digit-leading change names that exist on disk (#1308)', async () => {
       await createTestChange('2026-07-04-voice-copilot-v1', ['proposal', 'design']);
 

@@ -138,7 +138,7 @@ export async function getAvailableChanges(
  * Lookup accepts any directory name that `getAvailableChanges` could return
  * (the kebab-case convention in `validateChangeName` applies at creation
  * time only); it only rejects names that would escape the changes directory
- * or address hidden entries.
+ * or address entries `getAvailableChanges` excludes (hidden dirs, archive).
  *
  * @returns An error message, or undefined if the name is safe to look up
  */
@@ -154,6 +154,9 @@ function validateChangeLookupName(changeName: string): string | undefined {
   }
   if (changeName.startsWith('.')) {
     return 'Change name cannot start with a dot';
+  }
+  if (changeName === 'archive') {
+    return "'archive' is reserved for archived changes";
   }
   return undefined;
 }
