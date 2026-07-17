@@ -194,6 +194,35 @@ describe('InitCommand', () => {
       ).toBe(true);
     });
 
+    it('should support Hermes Agent as an adapterless skills-only tool with a setup note', async () => {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'both',
+      });
+
+      const initCommand = new InitCommand({ tools: 'hermes', force: true });
+      await initCommand.execute(testDir);
+
+      const skillFile = path.join(testDir, '.hermes', 'skills', 'openspec-explore', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
+
+      const commandsDir = path.join(testDir, '.hermes', 'commands');
+      expect(await directoryExists(commandsDir)).toBe(false);
+
+      const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+      expect(
+        logCalls.some(
+          (entry) => entry.includes('Commands skipped for: hermes') && entry.includes('(no adapter)'),
+        ),
+      ).toBe(true);
+      expect(
+        logCalls.some(
+          (entry) => entry.includes('Setup required for Hermes Agent') && entry.includes('skills.external_dirs'),
+        ),
+      ).toBe(true);
+    });
+
     it('should create both skills and commands for Trae with adapter', async () => {
       saveGlobalConfig({
         configuredTools: [],

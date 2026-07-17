@@ -709,6 +709,14 @@ export class InitCommand {
       console.log(chalk.dim(`Removed: ${results.removedSkillCount} skill directories (delivery: commands)`));
     }
 
+    // Show manual setup notes for tools that need extra configuration
+    for (const tool of successfulTools) {
+      const setupNote = AI_TOOLS.find((t) => t.value === tool.value)?.setupNote;
+      if (setupNote) {
+        console.log(chalk.yellow(`Setup required for ${tool.name}: ${setupNote}`));
+      }
+    }
+
     // Config status
     if (configStatus === 'created') {
       console.log(`Config: openspec/config.yaml (schema: ${DEFAULT_SCHEMA})`);

@@ -46,6 +46,8 @@ The `AI_TOOLS` array SHALL include `skillsDir` for tools that support the Agent 
 
 - **WHEN** looking up the `hermes` tool
 - **THEN** `skillsDir` SHALL be `.hermes`
+- **AND** `setupNote` SHALL explain that project `.hermes/skills` must be added to `skills.external_dirs` in `~/.hermes/config.yaml`
+- **AND** `openspec init` and `openspec update` SHALL display the note whenever `hermes` is configured
 
 #### Scenario: Tools without skillsDir
 
