@@ -190,6 +190,118 @@ Then expected result happens`;
       expect(updatedContent).toContain('#### Scenario: Basic test');
     });
 
+    it('should archive when ADDED requirements were already synced to the baseline (issue #1332)', async () => {
+      const changeName = 'early-synced-feature';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'core-layer');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      const requirementBlock = `### Requirement: The system SHALL provide a core abstraction layer
+
+#### Scenario: Layer is available
+- **WHEN** a consumer imports the layer
+- **THEN** the abstraction is available`;
+
+      await fs.writeFile(
+        path.join(changeSpecDir, 'spec.md'),
+        `# Core Layer - Changes\n\n## ADDED Requirements\n\n${requirementBlock}`
+      );
+
+      // Simulate the early-sync pattern: the requirement is already in the
+      // main spec (identical content) before archive runs.
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'core-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const mainSpecContent = `# core-layer Specification\n\n## Purpose\nCore abstraction layer.\n\n## Requirements\n\n${requirementBlock}\n`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainSpecContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      // Archive succeeds and the main spec keeps the requirement exactly once
+      const updatedContent = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      const occurrences = updatedContent.split('### Requirement: The system SHALL provide a core abstraction layer').length - 1;
+      expect(occurrences).toBe(1);
+
+      const archives = await fs.readdir(path.join(tempDir, 'openspec', 'changes', 'archive'));
+      expect(archives.some(a => a.includes(changeName))).toBe(true);
+      expect(process.exitCode).toBeUndefined();
+    });
+
+    it('should still abort ADDED when an existing requirement has different content', async () => {
+      const changeName = 'conflicting-added-feature';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'core-layer');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      await fs.writeFile(
+        path.join(changeSpecDir, 'spec.md'),
+        `# Core Layer - Changes\n\n## ADDED Requirements\n\n### Requirement: The system SHALL provide a core abstraction layer\n\n#### Scenario: New behavior\n- **WHEN** a consumer imports the layer\n- **THEN** the new abstraction is available`
+      );
+
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'core-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const mainSpecContent = `# core-layer Specification\n\n## Purpose\nCore abstraction layer.\n\n## Requirements\n\n### Requirement: The system SHALL provide a core abstraction layer\n\n#### Scenario: Old behavior\n- **WHEN** a consumer imports the layer\n- **THEN** the old abstraction is available\n`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainSpecContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      // Genuine conflict: archive aborts, nothing moves, main spec untouched
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('ADDED failed for header "### Requirement: The system SHALL provide a core abstraction layer" - already exists')
+      );
+      expect(process.exitCode).toBe(1);
+      await expect(fs.access(changeDir)).resolves.toBeUndefined();
+      const untouched = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      expect(untouched).toBe(mainSpecContent);
+    });
+
+    it('should merge nested delta specs into the same relative path (#1353)', async () => {
+      const changeName = 'nested-spec-feature';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const nestedSpecDir = path.join(changeDir, 'specs', 'platform', 'example-capability');
+      await fs.mkdir(nestedSpecDir, { recursive: true });
+
+      const specContent = `# Nested Capability - Changes
+
+## ADDED Requirements
+
+### Requirement: Nested capability works
+The system SHALL discover capabilities stored below namespace directories.
+
+#### Scenario: Validate nested delta
+- **WHEN** the user validates the change
+- **THEN** OpenSpec detects the nested capability`;
+      await fs.writeFile(path.join(nestedSpecDir, 'spec.md'), specContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      // Delta merged into the same nested path under the main specs directory
+      const mainSpecPath = path.join(
+        tempDir,
+        'openspec',
+        'specs',
+        'platform',
+        'example-capability',
+        'spec.md'
+      );
+      const updatedContent = await fs.readFile(mainSpecPath, 'utf-8');
+      expect(updatedContent).toContain('### Requirement: Nested capability works');
+      expect(updatedContent).toContain('#### Scenario: Validate nested delta');
+
+      // Change directory moved to archive with the nested delta preserved
+      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archives = await fs.readdir(archiveDir);
+      expect(archives.length).toBe(1);
+      const archivedDelta = path.join(
+        archiveDir,
+        archives[0],
+        'specs',
+        'platform',
+        'example-capability',
+        'spec.md'
+      );
+      await expect(fs.access(archivedDelta)).resolves.toBeUndefined();
+    });
+
     it('should allow REMOVED requirements when creating new spec file (issue #403)', async () => {
       const changeName = 'new-spec-with-removed';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);

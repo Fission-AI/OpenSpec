@@ -99,7 +99,20 @@ describe('openspec doctor (3.6)', () => {
     const declared = await runCLI(['doctor', '--json'], { cwd: pointerRepo, env });
     expect(parseJson(declared).root.source).toBe('declared');
     expect(parseJson(declared).store.id).toBe('team-context');
-  });
+
+    // Global-default session: no root, no pointer — provenance must name
+    // the machine-level default, not masquerade as a repo pointer.
+    fs.mkdirSync(path.join(tempDir, 'config', 'openspec'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'config', 'openspec', 'config.json'),
+      JSON.stringify({ defaultStore: 'team-context' }) + '\n'
+    );
+    const fallback = await runCLI(['doctor', '--json'], { cwd: mkdir('no-root-here'), env });
+    const fallbackHealth = parseJson(fallback);
+    expect(fallbackHealth.root.source).toBe('global_default');
+    expect(fallbackHealth.root.store_id).toBe('team-context');
+    expect(fallbackHealth.store.id).toBe('team-context');
+  }, 30_000);
 
   it('renders none-declared sections distinguishably', async () => {
     const result = await runCLI(['doctor', '--store', 'team-context'], { cwd: tempDir, env });
