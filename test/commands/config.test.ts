@@ -116,6 +116,20 @@ describe('config command integration', () => {
       'Set workflows = new,ff,apply,archive'
     );
   });
+
+  it('should set, get, and unset defaultStore', async () => {
+    await runConfigCommand(['set', 'defaultStore', 'team-plans']);
+
+    const { getGlobalConfig } = await import('../../src/core/global-config.js');
+    expect(getGlobalConfig().defaultStore).toBe('team-plans');
+    expect(consoleLogSpy).toHaveBeenCalledWith('Set defaultStore = "team-plans"');
+
+    await runConfigCommand(['get', 'defaultStore']);
+    expect(consoleLogSpy).toHaveBeenCalledWith('team-plans');
+
+    await runConfigCommand(['unset', 'defaultStore']);
+    expect(getGlobalConfig().defaultStore).toBeUndefined();
+  });
 });
 
 describe('config command shell completion registry', () => {
@@ -213,6 +227,16 @@ describe('config key validation', () => {
   it('allows workflows key', async () => {
     const { validateConfigKeyPath } = await import('../../src/core/config-schema.js');
     expect(validateConfigKeyPath('workflows').valid).toBe(true);
+  });
+
+  it('allows defaultStore key', async () => {
+    const { validateConfigKeyPath } = await import('../../src/core/config-schema.js');
+    expect(validateConfigKeyPath('defaultStore').valid).toBe(true);
+  });
+
+  it('rejects nested keys under defaultStore', async () => {
+    const { validateConfigKeyPath } = await import('../../src/core/config-schema.js');
+    expect(validateConfigKeyPath('defaultStore.nested').valid).toBe(false);
   });
 });
 
