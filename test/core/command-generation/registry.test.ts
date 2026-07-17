@@ -39,6 +39,7 @@ describe('command-generation/registry', () => {
     });
 
     it('should return undefined for skills-only tools without adapters', () => {
+      expect(CommandAdapterRegistry.get('codeartsagent')).toBeUndefined();
       expect(CommandAdapterRegistry.get('hermes')).toBeUndefined();
       expect(CommandAdapterRegistry.get('kimi')).toBeUndefined();
     });
@@ -85,6 +86,10 @@ describe('command-generation/registry', () => {
     it('should return false for unregistered tools', () => {
       expect(CommandAdapterRegistry.has('unknown')).toBe(false);
       expect(CommandAdapterRegistry.has('')).toBe(false);
+    });
+
+    it('should return false for CodeArts without a command adapter', () => {
+      expect(CommandAdapterRegistry.has('codeartsagent')).toBe(false);
     });
   });
 

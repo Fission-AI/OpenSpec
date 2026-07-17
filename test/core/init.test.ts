@@ -222,6 +222,31 @@ describe('InitCommand', () => {
       ).toBe(true);
     });
 
+    it('should support CodeArts as an adapterless skills-only tool', async () => {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'both',
+      });
+
+      const initCommand = new InitCommand({ tools: 'codeartsagent', force: true });
+      await initCommand.execute(testDir);
+
+      const skillFile = path.join(testDir, '.codeartsdoer', 'skills', 'openspec-explore', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
+
+      const commandsDir = path.join(testDir, '.codeartsdoer', 'commands');
+      expect(await directoryExists(commandsDir)).toBe(false);
+
+      const codeArtsLogCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+      expect(codeArtsLogCalls.some((entry) => entry.includes('Created: CodeArts'))).toBe(true);
+      expect(
+        codeArtsLogCalls.some(
+          (entry) => entry.includes('Commands skipped for: codeartsagent') && entry.includes('(no adapter)'),
+        ),
+      ).toBe(true);
+    });
+
     it('should support Hermes Agent as an adapterless skills-only tool with a setup note', async () => {
       saveGlobalConfig({
         featureFlags: {},
@@ -314,10 +339,12 @@ describe('InitCommand', () => {
 
       // Check a few representative tools
       const claudeSkill = path.join(testDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md');
+      const codeArtsSkill = path.join(testDir, '.codeartsdoer', 'skills', 'openspec-explore', 'SKILL.md');
       const cursorSkill = path.join(testDir, '.cursor', 'skills', 'openspec-explore', 'SKILL.md');
       const windsurfSkill = path.join(testDir, '.windsurf', 'skills', 'openspec-explore', 'SKILL.md');
 
       expect(await fileExists(claudeSkill)).toBe(true);
+      expect(await fileExists(codeArtsSkill)).toBe(true);
       expect(await fileExists(cursorSkill)).toBe(true);
       expect(await fileExists(windsurfSkill)).toBe(true);
     });
