@@ -6,6 +6,7 @@
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
+import { escapeYamlValue } from '../yaml.js';
 
 /**
  * CodeBuddy adapter for command generation.
@@ -21,8 +22,8 @@ export const codebuddyAdapter: ToolCommandAdapter = {
 
   formatFile(content: CommandContent): string {
     return `---
-name: ${content.name}
-description: "${content.description}"
+name: ${escapeYamlValue(content.name)}
+description: ${escapeYamlValue(content.description)}
 argument-hint: "[command arguments]"
 ---
 

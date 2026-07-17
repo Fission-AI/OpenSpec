@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { parse as parseYaml } from 'yaml';
 import os from 'os';
 import path from 'path';
 import { amazonQAdapter } from '../../../src/core/command-generation/adapters/amazon-q.js';
@@ -18,6 +19,7 @@ import { geminiAdapter } from '../../../src/core/command-generation/adapters/gem
 import { githubCopilotAdapter } from '../../../src/core/command-generation/adapters/github-copilot.js';
 import { iflowAdapter } from '../../../src/core/command-generation/adapters/iflow.js';
 import { kilocodeAdapter } from '../../../src/core/command-generation/adapters/kilocode.js';
+import { lingmaAdapter } from '../../../src/core/command-generation/adapters/lingma.js';
 import { ohMyPiAdapter } from '../../../src/core/command-generation/adapters/oh-my-pi.js';
 import { opencodeAdapter } from '../../../src/core/command-generation/adapters/opencode.js';
 import { piAdapter } from '../../../src/core/command-generation/adapters/pi.js';
@@ -339,7 +341,9 @@ describe('command-generation/adapters', () => {
       const output = codebuddyAdapter.formatFile(sampleContent);
       expect(output).toContain('---\n');
       expect(output).toContain('name: OpenSpec Explore');
-      expect(output).toContain('description: "Enter explore mode for thinking"');
+      // escapeYamlValue only quotes when a value contains YAML-special chars; a
+      // safe scalar is emitted unquoted (valid YAML, consistent with claude/crush/lingma).
+      expect(output).toContain('description: Enter explore mode for thinking');
       expect(output).toContain('argument-hint: "[command arguments]"');
       expect(output).toContain('---\n\n');
       expect(output).toContain('This is the command body.');
@@ -835,6 +839,44 @@ describe('command-generation/adapters', () => {
       const output = traeAdapter.formatFile(contentWithCR);
       expect(output).toContain('description: "Line 1\\r\\nLine 2"');
     });
+  });
+
+  describe('frontmatter YAML validity for colon-bearing fields', () => {
+    // Real command names carry a colon (e.g. "OPSX: Explore"). Adapters that emit
+    // YAML frontmatter must route interpolated fields through escapeYamlValue so a
+    // colon does not produce a broken `key: value: rest` mapping. Before the fix
+    // these adapters interpolated the raw name and produced INVALID YAML; here we
+    // parse the emitted frontmatter with a real YAML parser to prove it round-trips.
+    const yamlFrontmatterAdapters = [
+      { name: 'codebuddy', adapter: codebuddyAdapter },
+      { name: 'crush', adapter: crushAdapter },
+      { name: 'lingma', adapter: lingmaAdapter },
+      { name: 'qoder', adapter: qoderAdapter },
+    ];
+
+    const extractFrontmatter = (output: string): string => {
+      const match = output.match(/^---\n([\s\S]*?)\n---\n/);
+      if (!match) {
+        throw new Error('No YAML frontmatter block found in adapter output');
+      }
+      return match[1];
+    };
+
+    for (const { name, adapter } of yamlFrontmatterAdapters) {
+      it(`${name} emits parseable YAML frontmatter when the name contains a colon`, () => {
+        const contentWithColon: CommandContent = {
+          ...sampleContent,
+          name: 'OPSX: Explore',
+        };
+
+        const output = adapter.formatFile(contentWithColon);
+        const frontmatter = extractFrontmatter(output);
+
+        // Must parse without throwing and preserve the exact name (colon intact).
+        const parsed = parseYaml(frontmatter) as Record<string, unknown>;
+        expect(parsed.name).toBe('OPSX: Explore');
+      });
+    }
   });
 
   describe('cross-platform path handling', () => {
