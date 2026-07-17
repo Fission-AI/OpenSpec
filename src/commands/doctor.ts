@@ -50,7 +50,8 @@ async function gatherHealth(
     registryUnreadable,
   };
 
-  // Store facts for store-backed roots (explicit --store or declared).
+  // Store facts for store-backed roots (explicit --store, a declared
+  // pointer, or the global default).
   // Missing/invalid metadata never reaches here: store resolution
   // verifies identity first and fails with the existing taxonomy
   // (recorded amendment - corrupt store.yaml is an exit-1 resolution

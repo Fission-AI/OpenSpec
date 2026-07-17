@@ -49,4 +49,24 @@ describe('ChangeParser', () => {
       expect(change.deltas[0].requirement).toBeDefined();
     });
   });
+
+  it('parses nested delta specs with path-based capability ids (#1353)', async () => {
+    await withTempDir(async (dir) => {
+      const changeDir = dir;
+      const nestedSpecDir = path.join(changeDir, 'specs', 'platform', 'session-layout');
+      await fs.mkdir(nestedSpecDir, { recursive: true });
+
+      const content = `# Test Change\n\n## Why\nWe need it because reasons that are sufficiently long.\n\n## What Changes\n- Add nested capability`;
+      const deltaSpec = `# Delta\n\n## ADDED Requirements\n\n### Requirement: Nested capability works\n\n#### Scenario: basic\nGiven X\nWhen Y\nThen Z`;
+
+      await fs.writeFile(path.join(nestedSpecDir, 'spec.md'), deltaSpec, 'utf8');
+
+      const parser = new ChangeParser(content, changeDir);
+      const change = await parser.parseChangeWithDeltas('test-change');
+
+      expect(change.deltas.length).toBe(1);
+      expect(change.deltas[0].spec).toBe('platform/session-layout');
+      expect(change.deltas[0].operation).toBe('ADDED');
+    });
+  });
 });
