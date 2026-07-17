@@ -113,7 +113,7 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
 8. **Generate Verification Report**
 
    **Summary Scorecard**:
-   ```
+   ```markdown
    ## Verification Report: <change-name>
 
    ### Summary

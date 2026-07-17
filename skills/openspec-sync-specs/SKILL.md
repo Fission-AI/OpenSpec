@@ -123,7 +123,7 @@ Unlike programmatic merging, you can apply **partial updates**:
 
 **Output On Success**
 
-```
+```markdown
 ## Specs Synced: <change-name>
 
 Updated main specs:
