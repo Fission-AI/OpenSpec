@@ -164,6 +164,7 @@ export class UpdateCommand {
       this.detectNewTools(resolvedProjectPath, configuredTools);
       this.displayExtraWorkflowsNote(resolvedProjectPath, configuredTools, desiredWorkflows);
       this.displayMissingCoreWorkflowsNote(profile, globalConfig.workflows);
+      this.displaySetupNotes(configuredTools);
       return;
     }
 
@@ -292,6 +293,7 @@ export class UpdateCommand {
     // 14. Display note about extra workflows not in profile
     this.displayExtraWorkflowsNote(resolvedProjectPath, configuredAndNewTools, desiredWorkflows);
     this.displayMissingCoreWorkflowsNote(profile, globalConfig.workflows);
+    this.displaySetupNotes(configuredAndNewTools);
 
     // 15. List affected tools
     if (updatedTools.length > 0) {
@@ -336,6 +338,19 @@ export class UpdateCommand {
     if (upToDate.length > 0) {
       const upToDateNames = upToDate.map((s) => s.toolId);
       console.log(chalk.dim(`Already up to date: ${upToDateNames.join(', ')}`));
+    }
+  }
+
+  /**
+   * Shows manual setup notes for configured tools that need extra
+   * configuration before they pick up generated files.
+   */
+  private displaySetupNotes(toolIds: string[]): void {
+    for (const toolId of toolIds) {
+      const tool = AI_TOOLS.find((t) => t.value === toolId);
+      if (tool?.setupNote) {
+        console.log(chalk.yellow(`Setup required for ${tool.name}: ${tool.setupNote}`));
+      }
     }
   }
 

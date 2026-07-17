@@ -140,6 +140,47 @@ Old instructions content
       consoleSpy.mockRestore();
     });
 
+    it('should show the Hermes setup note when updating a configured Hermes tool', async () => {
+      const exploreSkillDir = path.join(testDir, '.hermes', 'skills', 'openspec-explore');
+      await fs.mkdir(exploreSkillDir, { recursive: true });
+      await fs.writeFile(
+        path.join(exploreSkillDir, 'SKILL.md'),
+        `---\nname: openspec-explore\nmetadata:\n  author: openspec\n  version: "0.9"\n---\n\nOld instructions content\n`
+      );
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      const logCalls = consoleSpy.mock.calls.flat().map(String);
+      expect(
+        logCalls.some(
+          (entry) => entry.includes('Setup required for Hermes Agent') && entry.includes('skills.external_dirs'),
+        ),
+      ).toBe(true);
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should show the Hermes setup note even when Hermes is already up to date', async () => {
+      const initCommand = new InitCommand({ tools: 'hermes', force: true });
+      await initCommand.execute(testDir);
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      const logCalls = consoleSpy.mock.calls.flat().map(String);
+      expect(logCalls.some((entry) => entry.includes('up to date'))).toBe(true);
+      expect(
+        logCalls.some(
+          (entry) => entry.includes('Setup required for Hermes Agent') && entry.includes('skills.external_dirs'),
+        ),
+      ).toBe(true);
+
+      consoleSpy.mockRestore();
+    });
+
     it('should migrate OpenSpec skills from legacy .kimi to .kimi-code, preserving user files', async () => {
       // Managed skill in the legacy Kimi CLI location
       const legacySkillDir = path.join(testDir, '.kimi', 'skills', 'openspec-explore');

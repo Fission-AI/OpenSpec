@@ -140,6 +140,42 @@ describe('available-tools', () => {
       expect(toolValues).toContain('github-copilot');
     });
 
+    it('should detect Hermes Agent when HERMES.md exists', async () => {
+      await fs.writeFile(path.join(testDir, 'HERMES.md'), '');
+
+      const tools = getAvailableTools(testDir);
+      const hermesTool = tools.find((t) => t.value === 'hermes');
+
+      expect(hermesTool).toMatchObject({
+        name: 'Hermes Agent',
+        skillsDir: '.hermes',
+      });
+    });
+
+    it('should detect Hermes Agent when .hermes.md exists', async () => {
+      await fs.writeFile(path.join(testDir, '.hermes.md'), '');
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('hermes');
+    });
+
+    it('should detect Hermes Agent when .hermes directory exists', async () => {
+      await fs.mkdir(path.join(testDir, '.hermes'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('hermes');
+    });
+
+    it('should not detect Hermes Agent from plain CONTEXT.md', async () => {
+      await fs.writeFile(path.join(testDir, 'CONTEXT.md'), '');
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).not.toContain('hermes');
+    });
+
     it('should still use skillsDir detection for tools without detectionPaths', async () => {
       // Claude Code has no detectionPaths, so .claude/ directory should still work
       await fs.mkdir(path.join(testDir, '.claude'), { recursive: true });
