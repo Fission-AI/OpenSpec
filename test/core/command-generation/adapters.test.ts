@@ -13,6 +13,7 @@ import { continueAdapter } from '../../../src/core/command-generation/adapters/c
 import { costrictAdapter } from '../../../src/core/command-generation/adapters/costrict.js';
 import { crushAdapter } from '../../../src/core/command-generation/adapters/crush.js';
 import { cursorAdapter } from '../../../src/core/command-generation/adapters/cursor.js';
+import { devinAdapter } from '../../../src/core/command-generation/adapters/devin.js';
 import { factoryAdapter } from '../../../src/core/command-generation/adapters/factory.js';
 import { geminiAdapter } from '../../../src/core/command-generation/adapters/gemini.js';
 import { githubCopilotAdapter } from '../../../src/core/command-generation/adapters/github-copilot.js';
@@ -126,6 +127,76 @@ describe('command-generation/adapters', () => {
       expect(output).toContain('tags: [workflow, explore, experimental]');
       expect(output).toContain('---\n\n');
       expect(output).toContain('This is the command body.');
+    });
+  });
+
+  describe('devinAdapter', () => {
+    it('should have correct toolId', () => {
+      expect(devinAdapter.toolId).toBe('devin');
+    });
+
+    it('should generate correct file path', () => {
+      const filePath = devinAdapter.getFilePath('explore');
+      expect(filePath).toBe(path.join('.devin', 'workflows', 'opsx-explore.md'));
+    });
+
+    it('should generate correct file paths for different commands', () => {
+      expect(devinAdapter.getFilePath('new')).toBe(path.join('.devin', 'workflows', 'opsx-new.md'));
+      expect(devinAdapter.getFilePath('bulk-archive')).toBe(path.join('.devin', 'workflows', 'opsx-bulk-archive.md'));
+    });
+
+    it('should format file with YAML frontmatter', () => {
+      const output = devinAdapter.formatFile(sampleContent);
+
+      expect(output).toContain('---\n');
+      expect(output).toContain('name: OpenSpec Explore');
+      expect(output).toContain('description: Enter explore mode for thinking');
+      expect(output).toContain('category: Workflow');
+      expect(output).toContain('tags: [workflow, explore, experimental]');
+      expect(output).toContain('---\n\n');
+      expect(output).toContain('This is the command body.');
+    });
+
+    it('should transform colon command references to hyphen format', () => {
+      const contentWithRefs: CommandContent = {
+        ...sampleContent,
+        body: 'Run /opsx:apply to implement. Then use /opsx:verify.',
+      };
+      const output = devinAdapter.formatFile(contentWithRefs);
+      expect(output).toContain('/opsx-apply');
+      expect(output).toContain('/opsx-verify');
+      expect(output).not.toContain('/opsx:apply');
+      expect(output).not.toContain('/opsx:verify');
+    });
+
+    it('should escape YAML special characters in frontmatter', () => {
+      const contentWithSpecialChars: CommandContent = {
+        ...sampleContent,
+        name: 'Test: Command',
+        description: 'Fix "auth" feature',
+      };
+      const output = devinAdapter.formatFile(contentWithSpecialChars);
+      expect(output).toContain('name: "Test: Command"');
+      expect(output).toContain('description: "Fix \\"auth\\" feature"');
+    });
+
+    it('should escape implicit YAML scalars in frontmatter', () => {
+      const contentWithImplicitScalar: CommandContent = {
+        ...sampleContent,
+        name: 'true',
+        description: 'null',
+        category: 'on',
+      };
+      const output = devinAdapter.formatFile(contentWithImplicitScalar);
+      expect(output).toContain('name: "true"');
+      expect(output).toContain('description: "null"');
+      expect(output).toContain('category: "on"');
+    });
+
+    it('should handle empty tags', () => {
+      const contentNoTags: CommandContent = { ...sampleContent, tags: [] };
+      const output = devinAdapter.formatFile(contentNoTags);
+      expect(output).toContain('tags: []');
     });
   });
 
@@ -853,6 +924,11 @@ describe('command-generation/adapters', () => {
     it('Windsurf adapter uses path.join for paths', () => {
       const filePath = windsurfAdapter.getFilePath('test');
       expect(filePath.split(path.sep)).toEqual(['.windsurf', 'workflows', 'opsx-test.md']);
+    });
+
+    it('Devin adapter uses path.join for paths', () => {
+      const filePath = devinAdapter.getFilePath('test');
+      expect(filePath.split(path.sep)).toEqual(['.devin', 'workflows', 'opsx-test.md']);
     });
 
     it('All adapters use path.join for paths', () => {
