@@ -151,6 +151,23 @@ describe('config-schema', () => {
       expect(coerceValue('hello')).toBe('hello');
     });
 
+    it('should parse JSON arrays', () => {
+      expect(coerceValue('["new","ff","apply","archive"]')).toEqual([
+        'new',
+        'ff',
+        'apply',
+        'archive',
+      ]);
+    });
+
+    it('should parse JSON objects', () => {
+      expect(coerceValue('{"nested":"value"}')).toEqual({ nested: 'value' });
+    });
+
+    it('should keep malformed JSON containers as strings', () => {
+      expect(coerceValue('["new",')).toBe('["new",');
+    });
+
     it('should keep strings that start with numbers but are not numbers', () => {
       expect(coerceValue('123abc')).toBe('123abc');
     });
@@ -167,6 +184,7 @@ describe('config-schema', () => {
       expect(coerceValue('true', true)).toBe('true');
       expect(coerceValue('42', true)).toBe('42');
       expect(coerceValue('hello', true)).toBe('hello');
+      expect(coerceValue('["new"]', true)).toBe('["new"]');
     });
 
     it('should not coerce Infinity to number (not finite)', () => {
@@ -317,6 +335,16 @@ describe('config-schema', () => {
       const result = validateConfig(config);
       expect(result.success).toBe(true);
       expect((config.featureFlags as Record<string, unknown>).experimental).toBe(false);
+    });
+
+    it('should accept setting workflows from JSON array syntax', () => {
+      const config: Record<string, unknown> = { featureFlags: {}, profile: 'custom' };
+      const value = coerceValue('["new","ff","apply","archive"]');
+      setNestedValue(config, 'workflows', value);
+
+      const result = validateConfig(config);
+      expect(result.success).toBe(true);
+      expect(config.workflows).toEqual(['new', 'ff', 'apply', 'archive']);
     });
   });
 

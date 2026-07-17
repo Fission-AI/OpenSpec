@@ -82,11 +82,12 @@ describe('InitCommand', () => {
 
       await initCommand.execute(testDir);
 
-      // Core profile: propose, explore, apply, sync, archive
+      // Core profile: propose, explore, apply, update, sync, archive
       const coreSkillNames = [
         'openspec-propose',
         'openspec-explore',
         'openspec-apply-change',
+        'openspec-update-change',
         'openspec-sync-specs',
         'openspec-archive-change',
       ];
@@ -121,11 +122,12 @@ describe('InitCommand', () => {
 
       await initCommand.execute(testDir);
 
-      // Core profile: propose, explore, apply, sync, archive
+      // Core profile: propose, explore, apply, update, sync, archive
       const coreCommandNames = [
         'opsx/propose.md',
         'opsx/explore.md',
         'opsx/apply.md',
+        'opsx/update.md',
         'opsx/sync.md',
         'opsx/archive.md',
       ];
@@ -168,7 +170,35 @@ describe('InitCommand', () => {
       expect(await fileExists(skillFile)).toBe(true);
     });
 
-    it('should support Kimi CLI as an adapterless skills-only tool', async () => {
+    it('should generate ZCode skills and commands under .zcode without creating .agents', async () => {
+      const initCommand = new InitCommand({ tools: 'zcode', force: true });
+
+      await initCommand.execute(testDir);
+
+      // Core profile skills land under .zcode/skills
+      const exploreSkill = path.join(testDir, '.zcode', 'skills', 'openspec-explore', 'SKILL.md');
+      const proposeSkill = path.join(testDir, '.zcode', 'skills', 'openspec-propose', 'SKILL.md');
+      expect(await fileExists(exploreSkill)).toBe(true);
+      expect(await fileExists(proposeSkill)).toBe(true);
+
+      // Core profile commands land under .zcode/commands/opsx
+      const exploreCmd = path.join(testDir, '.zcode', 'commands', 'opsx', 'explore.md');
+      const proposeCmd = path.join(testDir, '.zcode', 'commands', 'opsx', 'propose.md');
+      expect(await fileExists(exploreCmd)).toBe(true);
+      expect(await fileExists(proposeCmd)).toBe(true);
+
+      const cmdContent = await fs.readFile(exploreCmd, 'utf-8');
+      expect(cmdContent).toContain('---');
+      expect(cmdContent).toContain('name:');
+      expect(cmdContent).toContain('description:');
+      expect(cmdContent).toContain('category:');
+      expect(cmdContent).toContain('tags:');
+
+      // .agents is a detection-only root and must never be created during generation
+      expect(await directoryExists(path.join(testDir, '.agents'))).toBe(false);
+    });
+
+    it('should support Kimi Code as an adapterless skills-only tool', async () => {
       saveGlobalConfig({
         featureFlags: {},
         profile: 'core',
@@ -178,10 +208,10 @@ describe('InitCommand', () => {
       const initCommand = new InitCommand({ tools: 'kimi', force: true });
       await initCommand.execute(testDir);
 
-      const skillFile = path.join(testDir, '.kimi', 'skills', 'openspec-explore', 'SKILL.md');
+      const skillFile = path.join(testDir, '.kimi-code', 'skills', 'openspec-explore', 'SKILL.md');
       expect(await fileExists(skillFile)).toBe(true);
 
-      const commandsDir = path.join(testDir, '.kimi', 'commands');
+      const commandsDir = path.join(testDir, '.kimi-code', 'commands');
       expect(await directoryExists(commandsDir)).toBe(false);
 
       const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
@@ -190,6 +220,104 @@ describe('InitCommand', () => {
           (entry) => entry.includes('Commands skipped for: kimi') && entry.includes('(no adapter)'),
         ),
       ).toBe(true);
+    });
+
+    it('should support CodeArts as an adapterless skills-only tool', async () => {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'both',
+      });
+
+      const initCommand = new InitCommand({ tools: 'codeartsagent', force: true });
+      await initCommand.execute(testDir);
+
+      const skillFile = path.join(testDir, '.codeartsdoer', 'skills', 'openspec-explore', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
+
+      const commandsDir = path.join(testDir, '.codeartsdoer', 'commands');
+      expect(await directoryExists(commandsDir)).toBe(false);
+
+      const codeArtsLogCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+      expect(codeArtsLogCalls.some((entry) => entry.includes('Created: CodeArts'))).toBe(true);
+      expect(
+        codeArtsLogCalls.some(
+          (entry) => entry.includes('Commands skipped for: codeartsagent') && entry.includes('(no adapter)'),
+        ),
+      ).toBe(true);
+    });
+
+    it('should support Hermes Agent as an adapterless skills-only tool with a setup note', async () => {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'both',
+      });
+
+      const initCommand = new InitCommand({ tools: 'hermes', force: true });
+      await initCommand.execute(testDir);
+
+      const skillFile = path.join(testDir, '.hermes', 'skills', 'openspec-explore', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
+
+      const commandsDir = path.join(testDir, '.hermes', 'commands');
+      expect(await directoryExists(commandsDir)).toBe(false);
+
+      const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+      expect(
+        logCalls.some(
+          (entry) => entry.includes('Commands skipped for: hermes') && entry.includes('(no adapter)'),
+        ),
+      ).toBe(true);
+      expect(
+        logCalls.some(
+          (entry) => entry.includes('Setup required for Hermes Agent') && entry.includes('skills.external_dirs'),
+        ),
+      ).toBe(true);
+    });
+
+    it('should migrate OpenSpec skills from legacy .kimi to .kimi-code during init', async () => {
+      const legacySkillDir = path.join(testDir, '.kimi', 'skills', 'openspec-explore');
+      await fs.mkdir(legacySkillDir, { recursive: true });
+      await fs.writeFile(
+        path.join(legacySkillDir, 'SKILL.md'),
+        `---\nname: openspec-explore\nmetadata:\n  author: openspec\n  version: "0.9"\n---\n\nOld instructions content\n`
+      );
+      await fs.writeFile(path.join(testDir, '.kimi', 'config.toml'), 'user config');
+
+      const initCommand = new InitCommand({ tools: 'kimi', force: true });
+      await initCommand.execute(testDir);
+
+      // Regenerated in the new location, legacy managed skill removed
+      const newSkill = path.join(testDir, '.kimi-code', 'skills', 'openspec-explore', 'SKILL.md');
+      expect(await fileExists(newSkill)).toBe(true);
+      expect(await directoryExists(legacySkillDir)).toBe(false);
+
+      // User files under .kimi are preserved
+      expect(await fileExists(path.join(testDir, '.kimi', 'config.toml'))).toBe(true);
+    });
+
+    it('should create both skills and commands for Trae with adapter', async () => {
+      saveGlobalConfig({
+        configuredTools: [],
+        delivery: 'both',
+      });
+
+      const initCommand = new InitCommand({ tools: 'trae', force: true });
+      await initCommand.execute(testDir);
+
+      // Skills should be created
+      const skillFile = path.join(testDir, '.trae', 'skills', 'openspec-explore', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
+
+      // Commands should also be created (Trae has an adapter)
+      const commandFile = path.join(testDir, '.trae', 'commands', 'opsx-explore.md');
+      expect(await fileExists(commandFile)).toBe(true);
+
+      const commandContent = await fs.readFile(commandFile, 'utf-8');
+      expect(commandContent).toContain('---');
+      expect(commandContent).toContain('name:');
+      expect(commandContent).toContain('description:');
     });
 
     it('should create skills for multiple tools at once', async () => {
@@ -211,10 +339,12 @@ describe('InitCommand', () => {
 
       // Check a few representative tools
       const claudeSkill = path.join(testDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md');
+      const codeArtsSkill = path.join(testDir, '.codeartsdoer', 'skills', 'openspec-explore', 'SKILL.md');
       const cursorSkill = path.join(testDir, '.cursor', 'skills', 'openspec-explore', 'SKILL.md');
       const windsurfSkill = path.join(testDir, '.windsurf', 'skills', 'openspec-explore', 'SKILL.md');
 
       expect(await fileExists(claudeSkill)).toBe(true);
+      expect(await fileExists(codeArtsSkill)).toBe(true);
       expect(await fileExists(cursorSkill)).toBe(true);
       expect(await fileExists(windsurfSkill)).toBe(true);
     });
