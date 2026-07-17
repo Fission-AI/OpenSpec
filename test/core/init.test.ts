@@ -194,6 +194,27 @@ describe('InitCommand', () => {
       ).toBe(true);
     });
 
+    it('should migrate OpenSpec skills from legacy .kimi to .kimi-code during init', async () => {
+      const legacySkillDir = path.join(testDir, '.kimi', 'skills', 'openspec-explore');
+      await fs.mkdir(legacySkillDir, { recursive: true });
+      await fs.writeFile(
+        path.join(legacySkillDir, 'SKILL.md'),
+        `---\nname: openspec-explore\nmetadata:\n  author: openspec\n  version: "0.9"\n---\n\nOld instructions content\n`
+      );
+      await fs.writeFile(path.join(testDir, '.kimi', 'config.toml'), 'user config');
+
+      const initCommand = new InitCommand({ tools: 'kimi', force: true });
+      await initCommand.execute(testDir);
+
+      // Regenerated in the new location, legacy managed skill removed
+      const newSkill = path.join(testDir, '.kimi-code', 'skills', 'openspec-explore', 'SKILL.md');
+      expect(await fileExists(newSkill)).toBe(true);
+      expect(await directoryExists(legacySkillDir)).toBe(false);
+
+      // User files under .kimi are preserved
+      expect(await fileExists(path.join(testDir, '.kimi', 'config.toml'))).toBe(true);
+    });
+
     it('should create both skills and commands for Trae with adapter', async () => {
       saveGlobalConfig({
         configuredTools: [],

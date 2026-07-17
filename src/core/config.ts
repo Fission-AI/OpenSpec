@@ -38,7 +38,7 @@ export const AI_TOOLS: AIToolOption[] = [
   { name: 'iFlow', value: 'iflow', available: true, successLabel: 'iFlow', skillsDir: '.iflow' },
   { name: 'Junie', value: 'junie', available: true, successLabel: 'Junie', skillsDir: '.junie' },
   { name: 'Kilo Code', value: 'kilocode', available: true, successLabel: 'Kilo Code', skillsDir: '.kilocode' },
-  { name: 'Kimi Code', value: 'kimi', available: true, successLabel: 'Kimi Code', skillsDir: '.kimi-code' },
+  { name: 'Kimi Code', value: 'kimi', available: true, successLabel: 'Kimi Code', skillsDir: '.kimi-code', detectionPaths: ['.kimi-code', '.kimi'] },
   { name: 'Kiro', value: 'kiro', available: true, successLabel: 'Kiro', skillsDir: '.kiro' },
   { name: 'Lingma', value: 'lingma', available: true, successLabel: 'Lingma', skillsDir: '.lingma' },
   { name: 'Mistral Vibe', value: 'vibe', available: true, successLabel: 'Mistral Vibe', skillsDir: '.vibe' },
