@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { getSchemaDir, resolveSchema } from './resolver.js';
+import { getSchemaDir, resolveSchema, listSchemasWithInfo } from './resolver.js';
 import { ArtifactGraph } from './graph.js';
 import { detectCompleted } from './state.js';
 import { resolveArtifactOutputs } from './outputs.js';
@@ -298,14 +298,14 @@ export function generateInstructions(
     }
   }
 
-  // Validate rules artifact IDs if config has rules (only once per session)
+  // Validate rules artifact IDs if config has rules (only once per session).
+  // The rules map is global while each change can use a different schema, so a
+  // key is only "unknown" when it matches no artifact in ANY available schema.
   if (projectConfig?.rules) {
-    const validArtifactIds = new Set(context.graph.getAllArtifacts().map((a) => a.id));
-    const warnings = validateConfigRules(
-      projectConfig.rules,
-      validArtifactIds,
-      context.schemaName
+    const validArtifactIds = new Set(
+      listSchemasWithInfo(effectiveProjectRoot ?? undefined).flatMap((s) => s.artifacts)
     );
+    const warnings = validateConfigRules(projectConfig.rules, validArtifactIds);
 
     // Show each unique warning only once per session
     for (const warning of warnings) {

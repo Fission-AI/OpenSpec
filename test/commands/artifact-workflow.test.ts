@@ -212,6 +212,33 @@ describe('artifact-workflow CLI commands', () => {
       const output = getOutput(result);
       expect(output).toContain('Invalid change name');
     });
+
+    it('rejects hidden directory names', async () => {
+      const result = await runCLI(['status', '--change', '.hidden'], { cwd: tempDir });
+      expect(result.exitCode).toBe(1);
+      const output = getOutput(result);
+      expect(output).toContain('Invalid change name');
+    });
+
+    it('rejects the reserved archive directory name', async () => {
+      await fs.mkdir(path.join(changesDir, 'archive'), { recursive: true });
+
+      const result = await runCLI(['status', '--change', 'archive'], { cwd: tempDir });
+      expect(result.exitCode).toBe(1);
+      const output = getOutput(result);
+      expect(output).toContain('Invalid change name');
+    });
+
+    it('accepts digit-leading change names that exist on disk (#1308)', async () => {
+      await createTestChange('2026-07-04-voice-copilot-v1', ['proposal', 'design']);
+
+      const result = await runCLI(['status', '--change', '2026-07-04-voice-copilot-v1'], {
+        cwd: tempDir,
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('2026-07-04-voice-copilot-v1');
+      expect(result.stdout).toContain('2/4 artifacts complete');
+    });
   });
 
   describe('instructions command', () => {
@@ -289,6 +316,17 @@ describe('artifact-workflow CLI commands', () => {
       const output = getOutput(result);
       expect(output).toContain("Artifact 'unknown-artifact' not found");
       expect(output).toContain('Valid artifacts');
+    });
+
+    it('accepts digit-leading change names that exist on disk (#1308)', async () => {
+      await createTestChange('2026-07-04-voice-copilot-v1', ['proposal']);
+
+      const result = await runCLI(
+        ['instructions', 'design', '--change', '2026-07-04-voice-copilot-v1'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('<artifact id="design"');
     });
   });
 
