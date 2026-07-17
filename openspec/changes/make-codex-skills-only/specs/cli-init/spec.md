@@ -35,21 +35,21 @@
 
 #### Scenario: Cleanup removes allowlisted global Codex prompt files after replacement exists
 - **WHEN** initialization cleanup runs
-- **AND** the Codex prompt directory contains allowlisted and signature-verified managed global Codex prompt files
+- **AND** the Codex prompt directory contains exact allowlisted managed global Codex prompt files
 - **AND** replacement Codex skills exist for the workflows represented by those prompt filenames
 - **THEN** the command SHALL remove those managed Codex prompt files
 - **AND** it SHALL leave other Codex prompt files unchanged
 
 #### Scenario: Non-interactive initialization preserves unreplaced global Codex prompts
 - **WHEN** `openspec init` runs without interaction and without `--force`
-- **AND** the resolved global Codex prompt directory contains allowlisted and signature-verified managed Codex prompt files
+- **AND** the resolved global Codex prompt directory contains exact allowlisted managed Codex prompt files
 - **AND** replacement Codex skills do not yet exist for at least one detected prompt workflow
 - **THEN** the command SHALL preserve the unreplaced Codex prompt files
 - **AND** it SHALL continue to leave unmanaged Codex prompt files unchanged
 
 #### Scenario: Non-interactive initialization removes replaced global Codex prompts
 - **WHEN** `openspec init` runs without interaction and without `--force`
-- **AND** the resolved global Codex prompt directory contains allowlisted and signature-verified managed Codex prompt files
+- **AND** the resolved global Codex prompt directory contains exact allowlisted managed Codex prompt files
 - **AND** replacement Codex skills exist for the workflows represented by those prompt filenames
 - **THEN** the command SHALL remove those managed Codex prompt files
 - **AND** it SHALL leave unmanaged Codex prompt files unchanged

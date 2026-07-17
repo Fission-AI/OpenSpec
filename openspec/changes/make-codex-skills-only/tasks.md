@@ -19,7 +19,7 @@
 
 - [x] 3.1 Add final Codex prompt cleanup support: allowlisted globally managed Codex legacy prompt filenames plus repo-local `.codex/prompts/openspec-*.md` compatibility cleanup.
 - [x] 3.2 Resolve the global Codex prompt directory from `CODEX_HOME` when set and the default user `.codex/prompts` directory when unset.
-- [x] 3.3 Detect allowlisted and signature-verified global Codex prompt files during legacy cleanup, infer workflow IDs from those filenames, and leave unmanaged prompt files untouched.
+- [x] 3.3 Detect exact allowlisted global Codex prompt files under the resolved prompt directory, infer workflow IDs from those filenames, and leave non-allowlisted prompt files untouched.
 - [x] 3.4 Remove managed global Codex prompt files only after replacement Codex skills exist for the represented workflows.
 - [x] 3.5 Preserve existing project-local `.codex/prompts/openspec-*.md` cleanup compatibility.
 - [x] 3.6 Update cleanup summaries to identify removed Codex prompt files as replaced by Codex skills.
@@ -47,3 +47,10 @@
 - [x] 5.9 Add command-surface tests proving Codex resolves as `skills-invocable` and does not require a command adapter.
 - [x] 5.10 Run targeted test suites for command generation, init, update, legacy cleanup, and docs-related snapshots if present.
 - [x] 5.11 Run `openspec validate make-codex-skills-only --strict`.
+
+## 6. Review Follow-up
+
+- [x] 6.1 Add `opsx-update.md` to the managed global Codex prompt allowlist and map it to the `update` workflow.
+- [x] 6.2 Simplify managed global Codex prompt detection to exact directory and filename allowlisting so prompts from older template revisions still migrate.
+- [x] 6.3 Defer approved global Codex prompt cleanup until after configured tools refresh, allowing replacement skills and prompt cleanup to complete in one update run.
+- [x] 6.4 Update focused tests and change artifacts for the final allowlist and cleanup ordering behavior.

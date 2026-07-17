@@ -5,12 +5,11 @@
 
 import path from 'path';
 import os from 'os';
-import { promises as fs, readFileSync } from 'fs';
+import { promises as fs } from 'fs';
 import chalk from 'chalk';
 import { FileSystemUtils, removeMarkerBlock as removeMarkerBlockUtil } from '../utils/file-system.js';
 import { OPENSPEC_MARKERS } from './config.js';
 import type { WorkflowId } from './profiles.js';
-import { getCommandContents } from './shared/skill-generation.js';
 
 /**
  * Legacy config file names from the old ToolRegistry.
@@ -72,6 +71,7 @@ const LEGACY_GLOBAL_CODEX_WORKFLOWS: Record<string, readonly WorkflowId[]> = {
   'opsx-new.md': ['new'],
   'opsx-continue.md': ['continue'],
   'opsx-apply.md': ['apply'],
+  'opsx-update.md': ['update'],
   'opsx-ff.md': ['ff'],
   'opsx-sync.md': ['sync'],
   'opsx-archive.md': ['archive'],
@@ -79,33 +79,6 @@ const LEGACY_GLOBAL_CODEX_WORKFLOWS: Record<string, readonly WorkflowId[]> = {
   'opsx-verify.md': ['verify'],
   'opsx-onboard.md': ['onboard'],
 };
-
-/**
- * Pre-computed expected content for each managed global Codex prompt file.
- *
- * Only single-workflow entries are included — multi-workflow prompts can't be
- * deterministically reconstructed from a single command template. Used by
- * {@link hasManagedGlobalLegacyPromptSignature} to verify whether an on-disk
- * prompt was originally written by OpenSpec.
- */
-const LEGACY_GLOBAL_CODEX_PROMPT_CONTENTS: Readonly<Record<string, string>> = Object.freeze(
-  Object.fromEntries(
-    Object.entries(LEGACY_GLOBAL_CODEX_WORKFLOWS)
-      .map(([fileName, workflowIds]) => {
-        if (workflowIds.length !== 1) {
-          return undefined;
-        }
-
-        const commandContent = getCommandContents(workflowIds)[0];
-        if (!commandContent) {
-          return undefined;
-        }
-
-        return [fileName, formatLegacyCodexPromptContent(commandContent)] as const;
-      })
-      .filter((entry): entry is readonly [string, string] => entry !== undefined)
-  )
-);
 
 /**
  * Global legacy prompt locations that live outside the project tree and require
@@ -172,45 +145,6 @@ function normalizePathForMatch(filePath: string): string {
   return filePath.replace(/\\/g, '/');
 }
 
-// Normalize line endings and trim whitespace so that content comparisons
-// are not affected by OS-level CRLF vs LF differences.
-function normalizePromptContentForMatch(content: string): string {
-  return content.replace(/\r\n/g, '\n').trim();
-}
-
-// Reconstruct the Codex prompt file format from a command's description and
-// body, matching the front-matter schema Codex uses (description + argument-hint).
-function formatLegacyCodexPromptContent(commandContent: { description: string; body: string }): string {
-  return `---
-description: ${commandContent.description}
-argument-hint: command arguments
----
-
-${commandContent.body}
-`;
-}
-
-// Check whether an on-disk prompt file was originally written by OpenSpec (i.e.
-// is "managed") by comparing its normalized content against the expected content
-// derived from LEGACY_GLOBAL_CODEX_PROMPT_CONTENTS.
-function hasManagedGlobalLegacyPromptSignature(managedFileName: string, content: string): boolean {
-  const expectedContent = LEGACY_GLOBAL_CODEX_PROMPT_CONTENTS[managedFileName];
-  if (!expectedContent) {
-    return false;
-  }
-
-  return normalizePromptContentForMatch(content) === normalizePromptContentForMatch(expectedContent);
-}
-
-// Read a global prompt file, returning undefined if it doesn't exist or can't be read.
-function readGlobalPromptFileSync(filePath: string): string | undefined {
-  try {
-    return readFileSync(filePath, 'utf-8');
-  } catch {
-    return undefined;
-  }
-}
-
 /**
  * Classifies a global Codex prompt path as OpenSpec-managed only when it matches
  * the explicit legacy allowlist for the resolved prompt home.
@@ -241,27 +175,6 @@ function getManagedGlobalLegacyPromptMetadata(filePath: string): LegacyGlobalPro
   }
 
   return undefined;
-}
-
-function getManagedGlobalLegacyPromptMatch(
-  filePath: string,
-  fileContent?: string
-): LegacyGlobalPromptMatch | undefined {
-  const match = getManagedGlobalLegacyPromptMetadata(filePath);
-  if (!match) {
-    return undefined;
-  }
-
-  const content = fileContent ?? readGlobalPromptFileSync(match.path);
-  if (content === undefined) {
-    return undefined;
-  }
-
-  if (!hasManagedGlobalLegacyPromptSignature(match.managedFileName, content)) {
-    return undefined;
-  }
-
-  return match;
 }
 
 /**
@@ -431,8 +344,7 @@ async function detectLegacyGlobalPromptFiles(): Promise<LegacyGlobalPromptMatch[
       for (const entry of entries) {
         if (entry.isFile() && pattern.managedFileNames.includes(entry.name)) {
           const fullPath = path.join(promptDir, entry.name);
-          const content = await fs.readFile(fullPath, 'utf-8');
-          const match = getManagedGlobalLegacyPromptMatch(fullPath, content);
+          const match = getManagedGlobalLegacyPromptMetadata(fullPath);
           if (match) {
             foundFiles.push(match);
           }
@@ -703,7 +615,7 @@ export function formatCleanupSummary(result: CleanupResult): string {
 
     for (const file of result.deletedFiles) {
       const replacementLabel = result.deletedFileReplacementLabels?.[file]
-        ?? getManagedGlobalLegacyPromptMatch(file)?.replacementLabel;
+        ?? getManagedGlobalLegacyPromptMetadata(file)?.replacementLabel;
       const replacement = replacementLabel
         ? ` (replaced by ${replacementLabel})`
         : '';
@@ -932,7 +844,7 @@ export function getLegacyGlobalPromptMatches(detection: LegacyDetectionResult): 
   }
 
   return detection.globalSlashCommandFiles
-    .map((filePath) => getManagedGlobalLegacyPromptMatch(filePath))
+    .map((filePath) => getManagedGlobalLegacyPromptMetadata(filePath))
     .filter((match): match is LegacyGlobalPromptMatch => match !== undefined);
 }
 

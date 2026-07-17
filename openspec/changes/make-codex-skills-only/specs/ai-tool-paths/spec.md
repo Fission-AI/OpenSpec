@@ -34,10 +34,11 @@ The system SHALL resolve the legacy Codex prompt cleanup directory using Codex h
 ### Requirement: Codex-managed legacy prompt cleanup patterns reflect the final managed surfaces
 The system SHALL identify managed Codex prompt cleanup targets using the final split patterns for global and repo-local artifacts.
 
-#### Scenario: Global legacy Codex prompts use an explicit allowlist and content signature
+#### Scenario: Global legacy Codex prompts use an exact directory and filename allowlist
 - **WHEN** detecting managed legacy Codex prompt files in the resolved Codex prompt directory
-- **THEN** the system SHALL match only the known OpenSpec-managed legacy Codex prompt filenames whose contents still match the legacy OpenSpec Codex prompt signature
+- **THEN** the system SHALL match only exact historical OpenSpec-owned filenames directly under that resolved directory
 - **AND** it SHALL infer the represented workflow IDs from those filenames
+- **AND** the allowlist SHALL include `opsx-update.md` mapped to the `update` workflow
 
 #### Scenario: Repo-local openspec compatibility prompt names
 - **WHEN** detecting legacy Codex prompt files in the project tree

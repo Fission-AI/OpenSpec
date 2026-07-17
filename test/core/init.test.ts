@@ -4,7 +4,6 @@ import path from 'path';
 import os from 'os';
 import { InitCommand } from '../../src/core/init.js';
 import { saveGlobalConfig, getGlobalConfig } from '../../src/core/global-config.js';
-import { createLegacyCodexPromptContent } from '../helpers/legacy-codex-prompt.js';
 
 const { confirmMock, showWelcomeScreenMock, searchableMultiSelectMock } = vi.hoisted(() => ({
   confirmMock: vi.fn(),
@@ -631,7 +630,7 @@ describe('InitCommand - profile and detection features', () => {
     const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
     const legacyPrompt = path.join(promptDir, 'opsx-apply.md');
     await fs.mkdir(promptDir, { recursive: true });
-    await fs.writeFile(legacyPrompt, createLegacyCodexPromptContent('apply'));
+    await fs.writeFile(legacyPrompt, 'legacy apply prompt');
 
     const initCommand = new InitCommand({ tools: 'codex' });
     await initCommand.execute(testDir);
@@ -646,7 +645,7 @@ describe('InitCommand - profile and detection features', () => {
     const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
     const legacyPrompt = path.join(promptDir, 'opsx-onboard.md');
     await fs.mkdir(promptDir, { recursive: true });
-    await fs.writeFile(legacyPrompt, createLegacyCodexPromptContent('onboard'));
+    await fs.writeFile(legacyPrompt, 'legacy onboard prompt');
 
     const initCommand = new InitCommand({ tools: 'codex' });
     await initCommand.execute(testDir);
@@ -664,7 +663,7 @@ describe('InitCommand - profile and detection features', () => {
     const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
     const legacyPrompt = path.join(promptDir, 'opsx-apply.md');
     await fs.mkdir(promptDir, { recursive: true });
-    await fs.writeFile(legacyPrompt, createLegacyCodexPromptContent('apply'));
+    await fs.writeFile(legacyPrompt, 'legacy apply prompt');
 
     searchableMultiSelectMock.mockResolvedValue(['codex']);
 

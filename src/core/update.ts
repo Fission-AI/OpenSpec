@@ -71,6 +71,7 @@ const OLD_CORE_WORKFLOWS = ['propose', 'explore', 'apply', 'archive'] as const;
 type LegacyUpgradeResult = {
   newlyConfiguredTools: string[];
   workflowOverrides: Partial<Record<string, readonly (typeof ALL_WORKFLOWS)[number][]>>;
+  deferredGlobalCleanup?: LegacyDetectionResult;
 };
 
 /**
@@ -130,12 +131,19 @@ export class UpdateCommand {
       desiredWorkflows,
       delivery
     );
-    const { newlyConfiguredTools, workflowOverrides: legacyWorkflowOverrides } = legacyUpgrade;
+    const {
+      newlyConfiguredTools,
+      workflowOverrides: legacyWorkflowOverrides,
+      deferredGlobalCleanup,
+    } = legacyUpgrade;
 
     // 5. Find configured tools
     const configuredTools = getConfiguredToolsForProfileSync(resolvedProjectPath);
 
     if (configuredTools.length === 0 && newlyConfiguredTools.length === 0) {
+      if (deferredGlobalCleanup) {
+        await this.performDeferredGlobalPromptCleanup(resolvedProjectPath, deferredGlobalCleanup);
+      }
       console.log(chalk.yellow('No configured tools found.'));
       console.log(chalk.dim('Run "openspec init" to set up tools.'));
       return;
@@ -170,6 +178,9 @@ export class UpdateCommand {
     const toolsUpToDate = toolStatuses.filter((s) => !toolsToUpdateSet.has(s.toolId));
 
     if (!this.force && toolsToUpdateSet.size === 0 && newlyConfiguredTools.length === 0) {
+      if (deferredGlobalCleanup) {
+        await this.performDeferredGlobalPromptCleanup(resolvedProjectPath, deferredGlobalCleanup);
+      }
       // All tools are up to date
       this.displayUpToDateMessage(toolStatuses);
 
@@ -271,6 +282,10 @@ export class UpdateCommand {
           error: error instanceof Error ? error.message : String(error)
         });
       }
+    }
+
+    if (deferredGlobalCleanup) {
+      await this.performDeferredGlobalPromptCleanup(resolvedProjectPath, deferredGlobalCleanup);
     }
 
     // 11. Summary
@@ -579,15 +594,21 @@ export class UpdateCommand {
     const canPrompt = isInteractive();
 
     if (this.force) {
-      const newlyConfiguredTools = await this.upgradeLegacyTools(
+      const legacyUpgrade = await this.upgradeLegacyTools(
         projectPath,
         detection,
         canPrompt,
         desiredWorkflows,
         delivery
       );
-      await this.performApprovedLegacyCleanup(projectPath, detection);
-      return newlyConfiguredTools;
+      await this.performImmediateLegacyCleanup(projectPath, detection);
+      return {
+        ...legacyUpgrade,
+        deferredGlobalCleanup: pickGlobalLegacyPromptFiles(
+          detection,
+          detection.globalSlashCommandFiles
+        ),
+      };
     }
 
     if (!canPrompt) {
@@ -606,15 +627,21 @@ export class UpdateCommand {
     });
 
     if (shouldCleanup) {
-      const newlyConfiguredTools = await this.upgradeLegacyTools(
+      const legacyUpgrade = await this.upgradeLegacyTools(
         projectPath,
         detection,
         canPrompt,
         desiredWorkflows,
         delivery
       );
-      await this.performApprovedLegacyCleanup(projectPath, detection);
-      return newlyConfiguredTools;
+      await this.performImmediateLegacyCleanup(projectPath, detection);
+      return {
+        ...legacyUpgrade,
+        deferredGlobalCleanup: pickGlobalLegacyPromptFiles(
+          detection,
+          detection.globalSlashCommandFiles
+        ),
+      };
     } else {
       console.log(chalk.dim('Skipping legacy cleanup. Continuing with skill update...'));
       console.log();
@@ -623,10 +650,9 @@ export class UpdateCommand {
   }
 
   /**
-   * Runs approved legacy cleanup in two phases so global Codex prompts are only
-   * removed after the matching replacement skills exist.
+   * Cleans approved repo-local legacy artifacts before configured tools refresh.
    */
-  private async performApprovedLegacyCleanup(
+  private async performImmediateLegacyCleanup(
     projectPath: string,
     detection: LegacyDetectionResult
   ): Promise<void> {
@@ -634,7 +660,16 @@ export class UpdateCommand {
     if (immediateDetection.hasLegacyArtifacts) {
       await this.performLegacyCleanup(projectPath, immediateDetection);
     }
+  }
 
+  /**
+   * Cleans approved global Codex prompts after configured tools refresh so newly
+   * installed replacement skills can retire their prompts in the same run.
+   */
+  private async performDeferredGlobalPromptCleanup(
+    projectPath: string,
+    detection: LegacyDetectionResult
+  ): Promise<void> {
     const availableCodexWorkflows = new Set(scanInstalledWorkflows(projectPath, ['codex']));
     const removableMatches = getLegacyGlobalPromptMatches(detection)
       .filter((prompt) => prompt.workflowIds.every((workflowId) => availableCodexWorkflows.has(workflowId)));
