@@ -38,6 +38,11 @@ describe('command-generation/registry', () => {
       expect(adapter).toBeUndefined();
     });
 
+    it('should return undefined for skills-only tools without adapters', () => {
+      expect(CommandAdapterRegistry.get('hermes')).toBeUndefined();
+      expect(CommandAdapterRegistry.get('kimi')).toBeUndefined();
+    });
+
     it('should return undefined for empty string', () => {
       const adapter = CommandAdapterRegistry.get('');
       expect(adapter).toBeUndefined();

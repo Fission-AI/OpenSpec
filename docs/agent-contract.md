@@ -31,13 +31,14 @@ All root-resolving commands (`list`, `show`, `validate`, `status`, `instructions
 
 1. `--store <id>` → the registered store's root (`source: "store"`).
 2. Otherwise, nearest ancestor with `openspec/`: planning shape → `source: "nearest"` (a `store:` pointer is ignored with a stderr warning); config-only dir with a valid `store:` pointer → that store, `source: "declared"`.
-3. No nearest root + registered stores exist → error `no_root_with_registered_stores`.
-4. No root, no stores: scaffolding commands treat the cwd as `source: "implicit"`; diagnostic commands (`doctor`, `context`) fail with `no_openspec_root` instead — they inspect, never scaffold.
+3. No nearest root + global `defaultStore` set (`openspec config set defaultStore <id>`) → that store, `source: "global_default"`; a stale id fails with the underlying store error and a `fix` naming `openspec config unset defaultStore`.
+4. No nearest root, no default + registered stores exist → error `no_root_with_registered_stores`.
+5. No root, no default, no stores: scaffolding commands treat the cwd as `source: "implicit"`; diagnostic commands (`doctor`, `context`) fail with `no_openspec_root` instead — they inspect, never scaffold.
 
 Successful JSON payloads embed the root:
 
 ```json
-"root": { "path": "/abs/path", "source": "store" | "declared" | "nearest" | "implicit", "store_id": "id (only when store-selected)" }
+"root": { "path": "/abs/path", "source": "store" | "declared" | "global_default" | "nearest" | "implicit", "store_id": "id (only when store-selected)" }
 ```
 
 **Root-failure contract**: in JSON mode a resolution failure prints `{ ...commandNullShape, "status": [diagnostic] }` on stdout and exits 1.

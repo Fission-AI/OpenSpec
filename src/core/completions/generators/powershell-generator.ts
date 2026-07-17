@@ -196,6 +196,20 @@ Register-ArgumentCompleter -CommandName openspec -ScriptBlock $openspecCompleter
     firstPositionalTokenIndex: number,
     indent: string
   ): string[] {
+    const caseLines: string[] = [];
+    for (const [index, positional] of positionals.entries()) {
+      const completion = this.generatePositionalCompletion(positional.type, indent + '    ');
+      if (completion.length === 0) continue;
+      caseLines.push(`${indent}    ${index} {`);
+      caseLines.push(...completion);
+      caseLines.push(`${indent}    }`);
+    }
+
+    // A switch with no clauses is a PowerShell parse error, so when no
+    // positional produces completions skip the whole block (it would only
+    // feed the empty switch anyway).
+    if (caseLines.length === 0) return [];
+
     const lines: string[] = [];
     const valueFlags = this.generateValueFlags(flags);
 
@@ -228,15 +242,7 @@ Register-ArgumentCompleter -CommandName openspec -ScriptBlock $openspecCompleter
     lines.push(`${indent}}`);
     lines.push('');
     lines.push(`${indent}switch ($positionalIndex) {`);
-
-    for (const [index, positional] of positionals.entries()) {
-      const completion = this.generatePositionalCompletion(positional.type, indent + '    ');
-      if (completion.length === 0) continue;
-      lines.push(`${indent}    ${index} {`);
-      lines.push(...completion);
-      lines.push(`${indent}    }`);
-    }
-
+    lines.push(...caseLines);
     lines.push(`${indent}}`);
 
     return lines;
