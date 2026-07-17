@@ -649,6 +649,76 @@ The system SHALL implement this feature.
       expect(report.summary.errors).toBe(0);
     });
 
+    it('does not flag requirement headers/scenarios inside fenced code blocks', async () => {
+      const changeDir = path.join(testDir, 'test-change-fenced-example');
+      const specsDir = path.join(changeDir, 'specs', 'test-spec');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      const deltaSpec = `# Test Spec
+
+## ADDED Requirements
+
+### Requirement: Documentation Generator
+The system SHALL render a delta example in its output.
+
+#### Scenario: Renders an example
+**Given** a template
+**When** documentation is generated
+**Then** the following snippet is produced:
+
+\`\`\`markdown
+### Requirement: Example only
+#### Scenario: Example scenario
+\`\`\`
+`;
+
+      const specPath = path.join(specsDir, 'spec.md');
+      await fs.writeFile(specPath, deltaSpec);
+
+      const validator = new Validator(true);
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      // The fenced "### Requirement: Example only" must not be parsed as a
+      // second (phantom) requirement, which previously produced a spurious
+      // "missing requirement text" error.
+      expect(report.valid).toBe(true);
+      expect(report.summary.errors).toBe(0);
+      expect(report.issues.some(i => i.message.includes('Example only'))).toBe(false);
+    });
+
+    it('does not count scenario headers inside fenced code blocks toward the required scenario count', async () => {
+      const changeDir = path.join(testDir, 'test-change-fenced-scenario-only');
+      const specsDir = path.join(changeDir, 'specs', 'test-spec');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      const deltaSpec = `# Test Spec
+
+## ADDED Requirements
+
+### Requirement: Documentation Generator
+The system SHALL render a delta example in its output.
+
+\`\`\`markdown
+#### Scenario: Example scenario
+\`\`\`
+`;
+
+      const specPath = path.join(specsDir, 'spec.md');
+      await fs.writeFile(specPath, deltaSpec);
+
+      const validator = new Validator(true);
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      // The only "#### Scenario:" lives inside a fenced code block, so it must
+      // not count toward the scenario requirement; the validator must still
+      // flag the requirement as missing a scenario.
+      expect(report.valid).toBe(false);
+      expect(report.summary.errors).toBeGreaterThan(0);
+      expect(
+        report.issues.some(i => i.message.includes('must include at least one scenario'))
+      ).toBe(true);
+    });
+
     it('should treat delta headers case-insensitively', async () => {
       const changeDir = path.join(testDir, 'test-change-mixed-case');
       const specsDir = path.join(changeDir, 'specs', 'test-spec');

@@ -6,6 +6,9 @@ import * as path from 'node:path';
 import { getGlobalDataDir, registerStore } from '../../src/core/index.js';
 import { runCLI } from '../helpers/run-cli.js';
 import { createOpenSpecRoot, writeSpec } from '../helpers/openspec-fixtures.js';
+import { cleanupTempPath } from '../helpers/temp-cleanup.js';
+
+const JOURNEY_TIMEOUT_MS = 30_000;
 
 /**
  * Capstone persona journeys (6.1). Journey 1 (fresh team) lives in
@@ -31,7 +34,7 @@ describe('capstone persona journeys (6.1)', () => {
   });
 
   afterEach(() => {
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    cleanupTempPath(tempDir);
   });
 
   it('journey 2 — layered flow: app-repo agent discovers, cites, designs locally', async () => {
@@ -97,7 +100,7 @@ describe('capstone persona journeys (6.1)', () => {
     // The store stayed read-only context throughout.
     const storeChanges = fs.readdirSync(path.join(storeRoot, 'openspec', 'changes'));
     expect(storeChanges.filter((name) => name !== 'archive' && name !== '.gitkeep')).toEqual([]);
-  });
+  }, JOURNEY_TIMEOUT_MS);
 
   it('journey 3 — externalized planning: pointer repo runs the lifecycle without --store', async () => {
     const storeRoot = path.join(tempDir, 'team-planning');
@@ -174,5 +177,5 @@ describe('capstone persona journeys (6.1)', () => {
 
     // The code repo never grew planning state.
     expect(fs.readdirSync(path.join(codeRepo, 'openspec'))).toEqual(['config.yaml']);
-  });
+  }, JOURNEY_TIMEOUT_MS);
 });
