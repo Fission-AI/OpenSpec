@@ -18,6 +18,16 @@ import {
   writeUpdatedSpec,
   type SpecUpdate,
 } from './specs-apply.js';
+import { discoverSpecFiles } from '../utils/spec-discovery.js';
+
+function isMissingPathError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as NodeJS.ErrnoException).code === 'ENOENT'
+  );
+}
 
 async function listActiveChangeNames(changesDir: string): Promise<string[]> {
   try {
@@ -26,7 +36,8 @@ async function listActiveChangeNames(changesDir: string): Promise<string[]> {
       .filter((entry) => entry.isDirectory() && entry.name !== 'archive')
       .map((entry) => entry.name)
       .sort();
-  } catch {
+  } catch (error) {
+    if (!isMissingPathError(error)) throw error;
     return [];
   }
 }
@@ -192,13 +203,6 @@ export class ArchiveCommand {
     const archiveDir = root.archiveDir;
     const mainSpecsDir = root.specsDir;
 
-    // Check if changes directory exists
-    try {
-      await fs.access(changesDir);
-    } catch {
-      throw new Error("No OpenSpec changes directory found. Run 'openspec init' first.");
-    }
-
     // Get change name interactively if not provided
     if (!changeName) {
       if (json) {
@@ -263,22 +267,15 @@ export class ArchiveCommand {
       // Validate delta-formatted spec files under the change directory if present
       const changeSpecsDir = path.join(changeDir, 'specs');
       let hasDeltaSpecs = false;
-      try {
-        const candidates = await fs.readdir(changeSpecsDir, { withFileTypes: true });
-        for (const c of candidates) {
-          if (c.isDirectory()) {
-            try {
-              const candidatePath = path.join(changeSpecsDir, c.name, 'spec.md');
-              await fs.access(candidatePath);
-              const content = await fs.readFile(candidatePath, 'utf-8');
-              if (/^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements/m.test(content)) {
-                hasDeltaSpecs = true;
-                break;
-              }
-            } catch {}
+      for (const { specFile } of await discoverSpecFiles(changeSpecsDir)) {
+        try {
+          const content = await fs.readFile(specFile, 'utf-8');
+          if (/^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements/m.test(content)) {
+            hasDeltaSpecs = true;
+            break;
           }
-        }
-      } catch {}
+        } catch {}
+      }
       if (hasDeltaSpecs) {
         const deltaReport = await validator.validateChangeDeltaSpecs(changeDir);
         if (!deltaReport.valid) {
@@ -387,7 +384,7 @@ export class ArchiveCommand {
           console.log('\nSpecs to update:');
           for (const update of specUpdates) {
             const status = update.exists ? 'update' : 'create';
-            const capability = path.basename(path.dirname(update.target));
+            const capability = update.id;
             console.log(`  ${capability}: ${status}`);
           }
         }
@@ -437,7 +434,7 @@ export class ArchiveCommand {
           // late validation failure really does leave all targets unchanged.
           if (!skipValidation) {
             for (const p of prepared) {
-              const specName = path.basename(path.dirname(p.update.target));
+              const specName = p.update.id;
               const report = await new Validator().validateSpecContent(specName, p.rebuilt);
               if (!report.valid) {
                 if (json) {
@@ -523,12 +520,7 @@ export class ArchiveCommand {
 
   private async selectChange(changesDir: string): Promise<string | null> {
     const { select } = await import('@inquirer/prompts');
-    // Get all directories in changes (excluding archive)
-    const entries = await fs.readdir(changesDir, { withFileTypes: true });
-    const changeDirs = entries
-      .filter(entry => entry.isDirectory() && entry.name !== 'archive')
-      .map(entry => entry.name)
-      .sort();
+    const changeDirs = await listActiveChangeNames(changesDir);
 
     if (changeDirs.length === 0) {
       console.log('No active changes found.');

@@ -171,7 +171,7 @@ describe('InitCommand', () => {
       expect(await fileExists(skillFile)).toBe(true);
     });
 
-    it('should support Kimi CLI as an adapterless skills-only tool', async () => {
+    it('should support Kimi Code as an adapterless skills-only tool', async () => {
       saveGlobalConfig({
         featureFlags: {},
         profile: 'core',
@@ -181,10 +181,10 @@ describe('InitCommand', () => {
       const initCommand = new InitCommand({ tools: 'kimi', force: true });
       await initCommand.execute(testDir);
 
-      const skillFile = path.join(testDir, '.kimi', 'skills', 'openspec-explore', 'SKILL.md');
+      const skillFile = path.join(testDir, '.kimi-code', 'skills', 'openspec-explore', 'SKILL.md');
       expect(await fileExists(skillFile)).toBe(true);
 
-      const commandsDir = path.join(testDir, '.kimi', 'commands');
+      const commandsDir = path.join(testDir, '.kimi-code', 'commands');
       expect(await directoryExists(commandsDir)).toBe(false);
 
       const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
@@ -193,6 +193,27 @@ describe('InitCommand', () => {
           (entry) => entry.includes('Commands skipped for: kimi') && entry.includes('(no adapter)'),
         ),
       ).toBe(true);
+    });
+
+    it('should migrate OpenSpec skills from legacy .kimi to .kimi-code during init', async () => {
+      const legacySkillDir = path.join(testDir, '.kimi', 'skills', 'openspec-explore');
+      await fs.mkdir(legacySkillDir, { recursive: true });
+      await fs.writeFile(
+        path.join(legacySkillDir, 'SKILL.md'),
+        `---\nname: openspec-explore\nmetadata:\n  author: openspec\n  version: "0.9"\n---\n\nOld instructions content\n`
+      );
+      await fs.writeFile(path.join(testDir, '.kimi', 'config.toml'), 'user config');
+
+      const initCommand = new InitCommand({ tools: 'kimi', force: true });
+      await initCommand.execute(testDir);
+
+      // Regenerated in the new location, legacy managed skill removed
+      const newSkill = path.join(testDir, '.kimi-code', 'skills', 'openspec-explore', 'SKILL.md');
+      expect(await fileExists(newSkill)).toBe(true);
+      expect(await directoryExists(legacySkillDir)).toBe(false);
+
+      // User files under .kimi are preserved
+      expect(await fileExists(path.join(testDir, '.kimi', 'config.toml'))).toBe(true);
     });
 
     it('should create both skills and commands for Trae with adapter', async () => {

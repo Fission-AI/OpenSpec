@@ -215,7 +215,12 @@ openspec store setup team-context --path ~/openspec/team-context --no-init-git -
 
 ### `openspec store register`
 
-Register an existing local store folder.
+Register an existing local store folder. During the stores beta, a root may be
+registered before any changes exist, specs have been applied, or changes have
+been archived; in that case `openspec/changes/`, `openspec/specs/`, and
+`openspec/changes/archive/` may be absent until normal commands create them.
+A config-only repo that declares `store: <id>` remains a pointer to another
+store and is not registered as a store root unless that pointer is removed.
 
 ```bash
 openspec store register [path] [options]
@@ -316,6 +321,8 @@ store: team-context
 ```
 
 Normal commands then resolve to the declared store automatically; the root banner and JSON `root` block report `source: "declared"` with the store id, and printed hints still carry `--store <id>`. The declaration is a fallback, never an override: explicit `--store` always wins, and a directory with real planning folders ignores the pointer (with a warning). To convert a pointer repo into a local OpenSpec root, remove the `store:` line and run `openspec init` — init refuses to scaffold while the declaration is present.
+
+A machine-level variant covers every repo at once: `openspec config set defaultStore <id>` (see Configuration). It is consulted only after `--store`, a local root, and a project pointer have all failed to resolve; the root banner and JSON `root` block then report `source: "global_default"`.
 
 ## Doctor (relationship health)
 
@@ -1038,6 +1045,10 @@ openspec config set user.name "My Name" --string
 
 # Remove a custom setting
 openspec config unset user.name
+
+# Set a machine-level default store (fallback root when no --store,
+# local root, or project store: pointer resolves)
+openspec config set defaultStore team-plans
 
 # Reset all configuration
 openspec config reset --all --yes

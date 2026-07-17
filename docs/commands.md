@@ -672,7 +672,7 @@ Different AI tools use slightly different command syntax. Use the format that ma
 | Copilot (IDE) | `/opsx-propose`, `/opsx-apply` |
 | Codex | Skill-based invocations from `.codex/skills/openspec-*` (no generated `opsx-*` prompt files) |
 | Oh My Pi | `/opsx-propose`, `/opsx-apply` |
-| Kimi CLI | Skill-based invocations such as `/skill:openspec-propose`, `/skill:openspec-apply-change` (no generated `opsx-*` command files) |
+| Kimi Code | Skill-based invocations such as `/skill:openspec-propose`, `/skill:openspec-apply-change` (no generated `opsx-*` command files) |
 | Trae | `/opsx-propose`, `/opsx-apply` |
 
 The intent is the same across tools, but how commands are surfaced can differ by integration.
