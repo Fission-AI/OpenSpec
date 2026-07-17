@@ -315,6 +315,39 @@ Old instructions content
       expect(content).toContain('tags:');
     });
 
+    it('should generate ZCode commands under .zcode without creating .agents', async () => {
+      // Mark ZCode as configured with an outdated generatedBy so update picks it up
+      const skillsDir = path.join(testDir, '.zcode', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), { recursive: true });
+      await fs.writeFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        '---\nmetadata:\n  generatedBy: "0.0.1"\n---\nold content\n'
+      );
+
+      await updateCommand.execute(testDir);
+
+      // Commands regenerated under .zcode/commands/opsx
+      const exploreCmd = path.join(testDir, '.zcode', 'commands', 'opsx', 'explore.md');
+      expect(await FileSystemUtils.fileExists(exploreCmd)).toBe(true);
+
+      const cmdContent = await fs.readFile(exploreCmd, 'utf-8');
+      expect(cmdContent).toContain('---');
+      expect(cmdContent).toContain('name:');
+      expect(cmdContent).toContain('description:');
+      expect(cmdContent).toContain('category:');
+      expect(cmdContent).toContain('tags:');
+
+      // Skill refreshed under .zcode
+      const refreshedSkill = await fs.readFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        'utf-8'
+      );
+      expect(refreshedSkill).not.toContain('old content');
+
+      // .agents must never be created during update
+      await expect(fs.access(path.join(testDir, '.agents'))).rejects.toThrow();
+    });
+
     it('should update core profile opsx commands when tool is configured', async () => {
       // Set up a configured tool
       const skillsDir = path.join(testDir, '.claude', 'skills');

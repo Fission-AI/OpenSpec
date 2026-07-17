@@ -34,6 +34,7 @@ import { qwenAdapter } from './adapters/qwen.js';
 import { roocodeAdapter } from './adapters/roocode.js';
 import { traeAdapter } from './adapters/trae.js';
 import { windsurfAdapter } from './adapters/windsurf.js';
+import { zcodeAdapter } from './adapters/zcode.js';
 
 /**
  * Registry for looking up tool command adapters.
@@ -71,6 +72,7 @@ export class CommandAdapterRegistry {
     CommandAdapterRegistry.register(roocodeAdapter);
     CommandAdapterRegistry.register(traeAdapter);
     CommandAdapterRegistry.register(windsurfAdapter);
+    CommandAdapterRegistry.register(zcodeAdapter);
   }
 
   /**
