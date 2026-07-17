@@ -529,7 +529,7 @@ describe('resolveOpenSpecRoot', () => {
 
       const root = await resolveOpenSpecRoot({ startPath: scratch, globalDataDir });
 
-      expect(root.source).toBe('declared');
+      expect(root.source).toBe('global_default');
       expect(root.storeId).toBe('team-plans');
       expect(root.path).toBe(storeRoot);
     });

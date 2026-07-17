@@ -40,7 +40,12 @@ import { classifyOpenSpecDir, storePointerProblem } from './project-config.js';
 import { getGlobalConfig } from './global-config.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 
-export type OpenSpecRootSource = 'store' | 'declared' | 'nearest' | 'implicit';
+export type OpenSpecRootSource =
+  | 'store'
+  | 'declared'
+  | 'global_default'
+  | 'nearest'
+  | 'implicit';
 
 export interface StoreSelectorOptions {
   store?: string;
@@ -351,9 +356,11 @@ async function resolveNearestOrDeclaredRoot(
 }
 
 /**
- * The machine-level fallback: the global `defaultStore` resolved as a root.
- * Mirrors the declared-pointer catch — a stale or unregistered id degrades to
- * the underlying error, reshaped to point at clearing the global default
+ * The machine-level fallback: the global `defaultStore` resolved as a root,
+ * with its own provenance (`global_default`) so JSON surfaces can tell a
+ * machine-wide default from a repo's `store:` pointer. Mirrors the
+ * declared-pointer catch — a stale or unregistered id degrades to the
+ * underlying error, reshaped to point at clearing the global default
  * rather than passing --store.
  */
 async function resolveDefaultStoreRoot(
@@ -361,7 +368,7 @@ async function resolveDefaultStoreRoot(
   globalDataDir?: string
 ): Promise<ResolvedOpenSpecRoot> {
   try {
-    return await resolveStoreRoot(id, globalDataDir, 'declared');
+    return await resolveStoreRoot(id, globalDataDir, 'global_default');
   } catch (error) {
     if (error instanceof RootSelectionError) {
       const staleFix =
@@ -467,9 +474,9 @@ export function toRootOutput(root: ResolvedOpenSpecRoot): RootOutput {
 }
 
 /**
- * A store-selected root — explicit `--store` or the declared fallback.
- * Cross-root behavior (absolute paths, --store hints, suppressed
- * noun-form suggestions) keys on this, never on `source` directly.
+ * A store-selected root — explicit `--store`, a declared pointer, or the
+ * global default. Cross-root behavior (absolute paths, --store hints,
+ * suppressed noun-form suggestions) keys on this, never on `source` directly.
  */
 export function isStoreSelectedRoot(
   root: ResolvedOpenSpecRoot
