@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -23,6 +23,44 @@ describe('skills.sh distribution parity', () => {
       const committedPath = join(repoRoot, SKILLS_DIR, dirName, 'SKILL.md');
       const committed = readFileSync(committedPath, 'utf8');
       expect(committed, `${dirName} is stale — run \`pnpm generate:skills\``).toBe(expected);
+    }
+  });
+
+  // Guard against extra, renamed, or symlinked entries that the per-template
+  // loop above would never visit: the committed tree must be exactly what the
+  // generator owns — README.md plus one real directory per template, each
+  // holding a single real SKILL.md.
+  it('commits exactly the generated file set — no extra or symlinked entries', () => {
+    const skillsRoot = join(repoRoot, SKILLS_DIR);
+    const expectedDirs = getSkillTemplates()
+      .map(({ dirName }) => dirName)
+      .sort();
+
+    const entries = readdirSync(skillsRoot, { withFileTypes: true });
+    for (const entry of entries) {
+      expect(entry.isSymbolicLink(), `skills/${entry.name} must not be a symlink`).toBe(false);
+    }
+
+    // Untracked OS droppings like .DS_Store would fail the exact-set check
+    // without telling us anything about the published tree, so hidden *files*
+    // are tolerated; hidden directories still fail the dirs assertion.
+    const dirs = entries.filter((e) => e.isDirectory()).map((e) => e.name).sort();
+    const files = entries
+      .filter((e) => e.isFile() && !e.name.startsWith('.'))
+      .map((e) => e.name)
+      .sort();
+    expect(dirs).toEqual(expectedDirs);
+    expect(files).toEqual(['README.md']);
+
+    for (const dir of dirs) {
+      const inner = readdirSync(join(skillsRoot, dir), { withFileTypes: true }).filter(
+        (e) => !(e.isFile() && e.name.startsWith('.'))
+      );
+      expect(
+        inner.map((e) => e.name),
+        `skills/${dir} must contain only SKILL.md`
+      ).toEqual(['SKILL.md']);
+      expect(inner[0]!.isFile(), `skills/${dir}/SKILL.md must be a regular file`).toBe(true);
     }
   });
 });

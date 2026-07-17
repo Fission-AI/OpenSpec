@@ -14,30 +14,27 @@
  * change: `pnpm build && pnpm generate:skills`.
  */
 
-import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { getSkillTemplates, generateSkillContent } from '../dist/core/shared/skill-generation.js';
-import { stripVolatileFrontmatter, SKILLS_DIR } from './skillssh-shared.mjs';
+import {
+  cleanSkillSubdirectories,
+  prepareSkillDirectory,
+  stripVolatileFrontmatter,
+  SKILLS_DIR,
+} from './skillssh-shared.mjs';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(repoRoot, SKILLS_DIR);
 
-// Remove existing skill subdirectories (clears any renamed/removed skills) but
-// preserve top-level files like README.md.
-mkdirSync(outDir, { recursive: true });
-for (const entry of readdirSync(outDir, { withFileTypes: true })) {
-  if (entry.isDirectory()) {
-    rmSync(join(outDir, entry.name), { recursive: true, force: true });
-  }
-}
+cleanSkillSubdirectories(outDir);
 
 let count = 0;
 for (const { template, dirName } of getSkillTemplates()) {
   const content = stripVolatileFrontmatter(generateSkillContent(template, 'skills.sh'));
-  const skillDir = join(outDir, dirName);
-  mkdirSync(skillDir, { recursive: true });
+  const skillDir = prepareSkillDirectory(outDir, dirName);
   writeFileSync(join(skillDir, 'SKILL.md'), content, 'utf8');
   count++;
 }
