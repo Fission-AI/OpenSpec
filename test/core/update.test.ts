@@ -92,6 +92,20 @@ describe('UpdateCommand', () => {
 
       consoleSpy.mockRestore();
     });
+
+    it('should remove generated Copilot cloud files when no tools are configured', async () => {
+      const initCommand = new InitCommand({ tools: 'github-copilot', force: true });
+      await initCommand.execute(testDir);
+      await fs.rm(path.join(testDir, '.github', 'skills'), { recursive: true, force: true });
+      await fs.rm(path.join(testDir, '.github', 'prompts'), { recursive: true, force: true });
+
+      await updateCommand.execute(testDir);
+
+      await expect(fs.stat(path.join(testDir, '.github', 'workflows', 'copilot-setup-steps.yml')))
+        .rejects.toMatchObject({ code: 'ENOENT' });
+      await expect(fs.stat(path.join(testDir, '.github', 'agents', 'openspec.agent.md')))
+        .rejects.toMatchObject({ code: 'ENOENT' });
+    });
   });
 
   describe('skill updates', () => {
@@ -607,6 +621,21 @@ Old instructions content
       );
 
       consoleSpy.mockRestore();
+    });
+
+    it('should create GitHub Copilot cloud files when github-copilot is up to date', async () => {
+      const initCommand = new InitCommand({ tools: 'github-copilot', force: true });
+      await initCommand.execute(testDir);
+
+      const setupStepsPath = path.join(testDir, '.github', 'workflows', 'copilot-setup-steps.yml');
+      const agentPath = path.join(testDir, '.github', 'agents', 'openspec.agent.md');
+      await fs.rm(setupStepsPath, { force: true });
+      await fs.rm(agentPath, { force: true });
+
+      await updateCommand.execute(testDir);
+
+      await expect(fs.readFile(setupStepsPath, 'utf8')).resolves.toContain('copilot-setup-steps:');
+      await expect(fs.readFile(agentPath, 'utf8')).resolves.toContain('# OpenSpec Agent');
     });
 
     it('should detect update needed when generatedBy is missing', async () => {
