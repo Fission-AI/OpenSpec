@@ -304,12 +304,21 @@ export async function buildUpdatedSpec(
   }
 
   // ADDED
+  let addedApplied = 0;
   for (const add of plan.added) {
     const key = normalizeRequirementName(add.name);
-    if (nameToBlock.has(key)) {
+    const existing = nameToBlock.get(key);
+    if (existing) {
+      // Identical content means the requirement was already synced to the
+      // baseline (early-sync pattern) — re-applying it is a no-op, not a
+      // conflict. Only differing content is a genuine collision.
+      if (normalizeBlockRaw(existing.raw) === normalizeBlockRaw(add.raw)) {
+        continue;
+      }
       throw new Error(`${specName} ADDED failed for header "### Requirement: ${add.name}" - already exists`);
     }
     nameToBlock.set(key, add);
+    addedApplied++;
   }
 
   // Duplicates within resulting map are implicitly prevented by key uniqueness.
@@ -346,12 +355,16 @@ export async function buildUpdatedSpec(
   return {
     rebuilt,
     counts: {
-      added: plan.added.length,
+      added: addedApplied,
       modified: plan.modified.length,
       removed: plan.removed.length,
       renamed: plan.renamed.length,
     },
   };
+}
+
+function normalizeBlockRaw(raw: string): string {
+  return raw.replace(/\r\n?/g, '\n').trim();
 }
 
 /**
