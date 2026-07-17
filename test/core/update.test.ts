@@ -442,19 +442,19 @@ Old instructions content
 
       await updateCommand.execute(testDir);
 
-      // Check Qwen command format (TOML) - Qwen uses flat path structure: opsx-<id>.toml
+      // Check Qwen command format (Markdown) - Qwen uses flat path structure: opsx-<id>.md
       const qwenCmd = path.join(
         testDir,
         '.qwen',
         'commands',
-        'opsx-explore.toml'
+        'opsx-explore.md'
       );
       const exists = await FileSystemUtils.fileExists(qwenCmd);
       expect(exists).toBe(true);
 
       const content = await fs.readFile(qwenCmd, 'utf-8');
-      expect(content).toContain('description =');
-      expect(content).toContain('prompt =');
+      expect(content).toContain('---');
+      expect(content).toContain('description:');
     });
 
     it('should update Windsurf tool with correct command format', async () => {
