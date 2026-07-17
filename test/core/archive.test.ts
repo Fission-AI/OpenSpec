@@ -254,6 +254,54 @@ Then expected result happens`;
       expect(untouched).toBe(mainSpecContent);
     });
 
+    it('should merge nested delta specs into the same relative path (#1353)', async () => {
+      const changeName = 'nested-spec-feature';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const nestedSpecDir = path.join(changeDir, 'specs', 'platform', 'example-capability');
+      await fs.mkdir(nestedSpecDir, { recursive: true });
+
+      const specContent = `# Nested Capability - Changes
+
+## ADDED Requirements
+
+### Requirement: Nested capability works
+The system SHALL discover capabilities stored below namespace directories.
+
+#### Scenario: Validate nested delta
+- **WHEN** the user validates the change
+- **THEN** OpenSpec detects the nested capability`;
+      await fs.writeFile(path.join(nestedSpecDir, 'spec.md'), specContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      // Delta merged into the same nested path under the main specs directory
+      const mainSpecPath = path.join(
+        tempDir,
+        'openspec',
+        'specs',
+        'platform',
+        'example-capability',
+        'spec.md'
+      );
+      const updatedContent = await fs.readFile(mainSpecPath, 'utf-8');
+      expect(updatedContent).toContain('### Requirement: Nested capability works');
+      expect(updatedContent).toContain('#### Scenario: Validate nested delta');
+
+      // Change directory moved to archive with the nested delta preserved
+      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archives = await fs.readdir(archiveDir);
+      expect(archives.length).toBe(1);
+      const archivedDelta = path.join(
+        archiveDir,
+        archives[0],
+        'specs',
+        'platform',
+        'example-capability',
+        'spec.md'
+      );
+      await expect(fs.access(archivedDelta)).resolves.toBeUndefined();
+    });
+
     it('should allow REMOVED requirements when creating new spec file (issue #403)', async () => {
       const changeName = 'new-spec-with-removed';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);

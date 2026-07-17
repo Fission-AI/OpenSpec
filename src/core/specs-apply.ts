@@ -16,12 +16,15 @@ import {
 } from './parsers/requirement-blocks.js';
 import { findMainSpecStructureIssues } from './parsers/spec-structure.js';
 import { Validator } from './validation/validator.js';
+import { discoverSpecFiles } from '../utils/spec-discovery.js';
 
 // -----------------------------------------------------------------------------
 // Types
 // -----------------------------------------------------------------------------
 
 export interface SpecUpdate {
+  /** Capability id relative to the specs root, forward-slash separated (e.g. "web" or "platform/session-layout"). */
+  id: string;
   source: string;
   target: string;
   exists: boolean;
@@ -63,38 +66,29 @@ export async function findSpecUpdates(changeDir: string, mainSpecsDir: string): 
   const updates: SpecUpdate[] = [];
   const changeSpecsDir = path.join(changeDir, 'specs');
 
-  try {
-    const entries = await fs.readdir(changeSpecsDir, { withFileTypes: true });
+  // Discover delta specs recursively so nested layouts like
+  // specs/<area>/<capability>/spec.md merge into the same relative path
+  // under the main specs directory (#1353)
+  const discovered = await discoverSpecFiles(changeSpecsDir);
 
-    for (const entry of entries) {
-      if (entry.isDirectory()) {
-        const specFile = path.join(changeSpecsDir, entry.name, 'spec.md');
-        const targetFile = path.join(mainSpecsDir, entry.name, 'spec.md');
+  for (const { id, specFile } of discovered) {
+    const targetFile = path.join(mainSpecsDir, ...id.split('/'), 'spec.md');
 
-        try {
-          await fs.access(specFile);
-
-          // Check if target exists
-          let exists = false;
-          try {
-            await fs.access(targetFile);
-            exists = true;
-          } catch {
-            exists = false;
-          }
-
-          updates.push({
-            source: specFile,
-            target: targetFile,
-            exists,
-          });
-        } catch {
-          // Source spec doesn't exist, skip
-        }
-      }
+    // Check if target exists
+    let exists = false;
+    try {
+      await fs.access(targetFile);
+      exists = true;
+    } catch {
+      exists = false;
     }
-  } catch {
-    // No specs directory in change
+
+    updates.push({
+      id,
+      source: specFile,
+      target: targetFile,
+      exists,
+    });
   }
 
   return updates;
@@ -114,7 +108,7 @@ export async function buildUpdatedSpec(
 
   // Parse deltas from the change spec file
   const plan = parseDeltaSpec(changeContent);
-  const specName = path.basename(path.dirname(update.target));
+  const specName = update.id;
 
   // Pre-validate duplicates within sections
   const addedNames = new Set<string>();
@@ -200,7 +194,7 @@ export async function buildUpdatedSpec(
   const hasAnyDelta = plan.added.length + plan.modified.length + plan.removed.length + plan.renamed.length > 0;
   if (!hasAnyDelta) {
     throw new Error(
-      `Delta parsing found no operations for ${path.basename(path.dirname(update.source))}. ` +
+      `Delta parsing found no operations for ${update.id}. ` +
         `Provide ADDED/MODIFIED/REMOVED/RENAMED sections in change spec.`
     );
   }
@@ -389,7 +383,7 @@ export async function writeUpdatedSpec(
 
   if (options.silent) return;
 
-  const specName = path.basename(path.dirname(update.target));
+  const specName = update.id;
   console.log(`Applying changes to ${options.displayPath ?? `openspec/specs/${specName}/spec.md`}:`);
   if (counts.added) console.log(`  + ${counts.added} added`);
   if (counts.modified) console.log(`  ~ ${counts.modified} modified`);
@@ -498,7 +492,7 @@ export async function applySpecs(
   if (!options.skipValidation) {
     const validator = new Validator();
     for (const p of prepared) {
-      const specName = path.basename(path.dirname(p.update.target));
+      const specName = p.update.id;
       const report = await validator.validateSpecContent(specName, p.rebuilt);
       if (!report.valid) {
         const errors = report.issues
@@ -515,7 +509,7 @@ export async function applySpecs(
   const totals = { added: 0, modified: 0, removed: 0, renamed: 0 };
 
   for (const p of prepared) {
-    const capability = path.basename(path.dirname(p.update.target));
+    const capability = p.update.id;
 
     if (!options.dryRun) {
       // Write the updated spec
