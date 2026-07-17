@@ -140,6 +140,59 @@ Old instructions content
       consoleSpy.mockRestore();
     });
 
+    it('should migrate OpenSpec skills from legacy .kimi to .kimi-code, preserving user files', async () => {
+      // Managed skill in the legacy Kimi CLI location
+      const legacySkillDir = path.join(testDir, '.kimi', 'skills', 'openspec-explore');
+      await fs.mkdir(legacySkillDir, { recursive: true });
+      await fs.writeFile(
+        path.join(legacySkillDir, 'SKILL.md'),
+        `---\nname: openspec-explore\nmetadata:\n  author: openspec\n  version: "0.9"\n---\n\nOld instructions content\n`
+      );
+
+      // User-owned files in the legacy location that must be preserved
+      const userSkillDir = path.join(testDir, '.kimi', 'skills', 'my-custom-skill');
+      await fs.mkdir(userSkillDir, { recursive: true });
+      await fs.writeFile(path.join(userSkillDir, 'SKILL.md'), 'user skill');
+      await fs.writeFile(path.join(testDir, '.kimi', 'config.toml'), 'user config');
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      // Managed skill migrated to .kimi-code and refreshed by the update
+      const migratedSkill = await fs.readFile(
+        path.join(testDir, '.kimi-code', 'skills', 'openspec-explore', 'SKILL.md'),
+        'utf-8'
+      );
+      expect(migratedSkill).toContain('name: openspec-explore');
+      expect(migratedSkill).not.toContain('Old instructions content');
+
+      // Legacy managed skill is gone; user files stay where they were
+      await expect(fs.access(legacySkillDir)).rejects.toThrow();
+      expect(await fs.readFile(path.join(userSkillDir, 'SKILL.md'), 'utf-8')).toBe('user skill');
+      expect(await fs.readFile(path.join(testDir, '.kimi', 'config.toml'), 'utf-8')).toBe('user config');
+
+      const logCalls = consoleSpy.mock.calls.flat().map(String);
+      expect(logCalls.some((entry) => entry.includes('.kimi/skills') && entry.includes('.kimi-code/skills'))).toBe(true);
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should remove the legacy .kimi directory entirely when it only held OpenSpec skills', async () => {
+      const legacySkillDir = path.join(testDir, '.kimi', 'skills', 'openspec-explore');
+      await fs.mkdir(legacySkillDir, { recursive: true });
+      await fs.writeFile(
+        path.join(legacySkillDir, 'SKILL.md'),
+        `---\nname: openspec-explore\nmetadata:\n  author: openspec\n  version: "0.9"\n---\n\nOld instructions content\n`
+      );
+
+      await updateCommand.execute(testDir);
+
+      await expect(fs.access(path.join(testDir, '.kimi'))).rejects.toThrow();
+      const migratedSkill = path.join(testDir, '.kimi-code', 'skills', 'openspec-explore', 'SKILL.md');
+      await expect(fs.access(migratedSkill)).resolves.toBeUndefined();
+    });
+
     it('should update core profile skill files when tool is configured', async () => {
       // Set up a configured tool with one skill directory
       const skillsDir = path.join(testDir, '.claude', 'skills');

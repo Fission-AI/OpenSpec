@@ -46,6 +46,7 @@ import {
 import {
   scanInstalledWorkflows as scanInstalledWorkflowsShared,
   migrateIfNeeded as migrateIfNeededShared,
+  migrateLegacySkillDirs,
 } from './migration.js';
 
 const require = createRequire(import.meta.url);
@@ -88,7 +89,14 @@ export class UpdateCommand {
       throw new Error(`No OpenSpec directory found. Run 'openspec init' first.`);
     }
 
-    // 2. Perform one-time migration if needed before any legacy upgrade generation.
+    // 2. Migrate OpenSpec-managed skills left in renamed tool directories
+    // (e.g. .kimi -> .kimi-code) so they stay detected and get refreshed,
+    // then perform the one-time profile migration if needed before any
+    // legacy upgrade generation.
+    for (const migration of migrateLegacySkillDirs(resolvedProjectPath)) {
+      console.log(chalk.dim(`Migrated ${migration.movedSkillDirs} skill director${migration.movedSkillDirs === 1 ? 'y' : 'ies'}: ${migration.from}/skills → ${migration.to}/skills`));
+    }
+
     // Use detected tool directories to preserve existing opsx skills/commands.
     const detectedTools = getAvailableTools(resolvedProjectPath);
     migrateIfNeededShared(resolvedProjectPath, detectedTools);
