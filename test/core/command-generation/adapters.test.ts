@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import os from 'os';
 import path from 'path';
 import { amazonQAdapter } from '../../../src/core/command-generation/adapters/amazon-q.js';
 import { antigravityAdapter } from '../../../src/core/command-generation/adapters/antigravity.js';
@@ -7,7 +6,6 @@ import { auggieAdapter } from '../../../src/core/command-generation/adapters/aug
 import { bobAdapter } from '../../../src/core/command-generation/adapters/bob.js';
 import { claudeAdapter } from '../../../src/core/command-generation/adapters/claude.js';
 import { clineAdapter } from '../../../src/core/command-generation/adapters/cline.js';
-import { codexAdapter } from '../../../src/core/command-generation/adapters/codex.js';
 import { codebuddyAdapter } from '../../../src/core/command-generation/adapters/codebuddy.js';
 import { continueAdapter } from '../../../src/core/command-generation/adapters/continue.js';
 import { costrictAdapter } from '../../../src/core/command-generation/adapters/costrict.js';
@@ -269,60 +267,6 @@ describe('command-generation/adapters', () => {
       expect(output).toContain('Enter explore mode for thinking');
       expect(output).toContain('This is the command body.');
       expect(output).not.toContain('---');
-    });
-  });
-
-  describe('codexAdapter', () => {
-    it('should have correct toolId', () => {
-      expect(codexAdapter.toolId).toBe('codex');
-    });
-
-    it('should return an absolute path', () => {
-      const filePath = codexAdapter.getFilePath('explore');
-      expect(path.isAbsolute(filePath)).toBe(true);
-    });
-
-    it('should generate path ending with correct structure', () => {
-      const filePath = codexAdapter.getFilePath('explore');
-      expect(filePath).toMatch(/prompts[/\\]opsx-explore\.md$/);
-    });
-
-    it('should default to homedir/.codex', () => {
-      const original = process.env.CODEX_HOME;
-      delete process.env.CODEX_HOME;
-      try {
-        const filePath = codexAdapter.getFilePath('explore');
-        const expected = path.join(os.homedir(), '.codex', 'prompts', 'opsx-explore.md');
-        expect(filePath).toBe(expected);
-      } finally {
-        if (original !== undefined) {
-          process.env.CODEX_HOME = original;
-        }
-      }
-    });
-
-    it('should respect CODEX_HOME env var', () => {
-      const original = process.env.CODEX_HOME;
-      process.env.CODEX_HOME = '/custom/codex-home';
-      try {
-        const filePath = codexAdapter.getFilePath('explore');
-        expect(filePath).toBe(path.join(path.resolve('/custom/codex-home'), 'prompts', 'opsx-explore.md'));
-      } finally {
-        if (original !== undefined) {
-          process.env.CODEX_HOME = original;
-        } else {
-          delete process.env.CODEX_HOME;
-        }
-      }
-    });
-
-    it('should format file with description and argument-hint', () => {
-      const output = codexAdapter.formatFile(sampleContent);
-      expect(output).toContain('---\n');
-      expect(output).toContain('description: Enter explore mode for thinking');
-      expect(output).toContain('argument-hint: command arguments');
-      expect(output).toContain('---\n\n');
-      expect(output).toContain('This is the command body.');
     });
   });
 
@@ -975,7 +919,7 @@ describe('command-generation/adapters', () => {
       // Verify all adapters produce valid paths
       const adapters = [
         amazonQAdapter, antigravityAdapter, auggieAdapter, bobAdapter, clineAdapter,
-        codexAdapter, codebuddyAdapter, continueAdapter, costrictAdapter,
+        codebuddyAdapter, continueAdapter, costrictAdapter,
         crushAdapter, factoryAdapter, geminiAdapter, githubCopilotAdapter,
         iflowAdapter, kilocodeAdapter, ohMyPiAdapter, opencodeAdapter, piAdapter, qoderAdapter,
         qwenAdapter, roocodeAdapter, traeAdapter, zcodeAdapter
