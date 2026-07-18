@@ -144,6 +144,7 @@ describe('config profile interactive flow', () => {
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     process.env = originalEnv;
     process.chdir(originalCwd);
     (process.stdout as NodeJS.WriteStream & { isTTY?: boolean }).isTTY = originalTTY;
@@ -375,7 +376,7 @@ describe('config profile interactive flow', () => {
     fs.mkdirSync(path.join(tempDir, 'openspec'), { recursive: true });
     const emptyBinDir = path.join(tempDir, 'empty-bin');
     fs.mkdirSync(emptyBinDir);
-    process.env.PATH = emptyBinDir;
+    vi.stubEnv('PATH', emptyBinDir);
 
     select.mockResolvedValueOnce('delivery');
     select.mockResolvedValueOnce('skills');
@@ -388,6 +389,31 @@ describe('config profile interactive flow', () => {
     expect(consoleErrorSpy).not.toHaveBeenCalled();
     expect(consoleLogSpy).toHaveBeenCalledWith('No configured tools found.');
     expect(consoleLogSpy).toHaveBeenCalledWith('Run `openspec update` in your other projects to apply.');
+  });
+
+  it('confirmed project apply should report the update failure reason', async () => {
+    const { saveGlobalConfig } = await import('../../src/core/global-config.js');
+    const { UpdateCommand } = await import('../../src/core/update.js');
+    const { select, confirm } = await getPromptMocks();
+
+    saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both', workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'] });
+    fs.mkdirSync(path.join(tempDir, 'openspec'), { recursive: true });
+    const executeSpy = vi.spyOn(UpdateCommand.prototype, 'execute')
+      .mockRejectedValueOnce(new Error('permission denied'));
+
+    select.mockResolvedValueOnce('delivery');
+    select.mockResolvedValueOnce('skills');
+    confirm.mockResolvedValueOnce(true);
+
+    try {
+      await runConfigCommand(['profile']);
+    } finally {
+      executeSpy.mockRestore();
+    }
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith('`openspec update` failed: permission denied');
+    expect(consoleErrorSpy).toHaveBeenCalledWith('Please run it manually to apply the profile changes.');
+    expect(process.exitCode).toBe(1);
   });
 
   it('core preset should preserve delivery setting', async () => {
