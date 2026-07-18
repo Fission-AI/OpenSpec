@@ -94,6 +94,7 @@ describe('transformToSkillReferences', () => {
       ['new', '/openspec-new-change'],
       ['continue', '/openspec-continue-change'],
       ['apply', '/openspec-apply-change'],
+      ['update', '/openspec-update-change'],
       ['ff', '/openspec-ff-change'],
       ['sync', '/openspec-sync-specs'],
       ['archive', '/openspec-archive-change'],
