@@ -243,10 +243,17 @@ export async function buildUpdatedSpec(
 
   // Apply operations in order: RENAMED → REMOVED → MODIFIED → ADDED
   // RENAMED
+  let renamedApplied = 0;
   for (const r of plan.renamed) {
     const from = normalizeRequirementName(r.from);
     const to = normalizeRequirementName(r.to);
     if (!nameToBlock.has(from)) {
+      // Source gone but target present means the rename was already synced
+      // to the baseline (early-sync pattern) — re-applying it is a no-op,
+      // not a failure. Only a missing source AND target is a genuine error.
+      if (nameToBlock.has(to)) {
+        continue;
+      }
       throw new Error(`${specName} RENAMED failed for header "### Requirement: ${r.from}" - source not found`);
     }
     if (nameToBlock.has(to)) {
@@ -263,6 +270,7 @@ export async function buildUpdatedSpec(
     };
     nameToBlock.delete(from);
     nameToBlock.set(to, renamedBlock);
+    renamedApplied++;
   }
 
   // REMOVED
@@ -358,7 +366,7 @@ export async function buildUpdatedSpec(
       added: addedApplied,
       modified: plan.modified.length,
       removed: plan.removed.length,
-      renamed: plan.renamed.length,
+      renamed: renamedApplied,
     },
   };
 }
