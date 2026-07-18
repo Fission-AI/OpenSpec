@@ -55,7 +55,7 @@ describe('openspec doctor (3.6)', () => {
     git(['init']);
     git(['add', '-A']);
     git(['commit', '-m', 'base']);
-    const head = execFileSync('git', ['branch', '--show-current'], { cwd: storeRoot })
+    const head = execFileSync('git', ['branch', '--show-current'], { cwd: storeRoot, env: gitEnv })
       .toString()
       .trim();
     return { git, head };
