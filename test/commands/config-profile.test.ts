@@ -3,15 +3,6 @@ import { Command } from 'commander';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { execSync } from 'node:child_process';
-
-vi.mock('node:child_process', async () => {
-  const actual = await vi.importActual<typeof import('node:child_process')>('node:child_process');
-  return {
-    ...actual,
-    execSync: vi.fn(),
-  };
-});
 
 vi.mock('@inquirer/prompts', () => ({
   select: vi.fn(),
@@ -150,7 +141,6 @@ describe('config profile interactive flow', () => {
 
     consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.mocked(execSync).mockReset();
   });
 
   afterEach(() => {
@@ -377,12 +367,15 @@ describe('config profile interactive flow', () => {
     });
   });
 
-  it('confirmed project apply should run openspec update in the project', async () => {
+  it('confirmed project apply should update in process without resolving openspec from PATH', async () => {
     const { saveGlobalConfig, getGlobalConfig } = await import('../../src/core/global-config.js');
     const { select, confirm } = await getPromptMocks();
 
     saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both', workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'] });
     fs.mkdirSync(path.join(tempDir, 'openspec'), { recursive: true });
+    const emptyBinDir = path.join(tempDir, 'empty-bin');
+    fs.mkdirSync(emptyBinDir);
+    process.env.PATH = emptyBinDir;
 
     select.mockResolvedValueOnce('delivery');
     select.mockResolvedValueOnce('skills');
@@ -391,10 +384,10 @@ describe('config profile interactive flow', () => {
     await runConfigCommand(['profile']);
 
     expect(getGlobalConfig().delivery).toBe('skills');
-    expect(execSync).toHaveBeenCalledWith('openspec update', {
-      stdio: 'inherit',
-      cwd: fs.realpathSync(tempDir),
-    });
+    expect(process.exitCode).toBeUndefined();
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
+    expect(consoleLogSpy).toHaveBeenCalledWith('No configured tools found.');
+    expect(consoleLogSpy).toHaveBeenCalledWith('Run `openspec update` in your other projects to apply.');
   });
 
   it('core preset should preserve delivery setting', async () => {
