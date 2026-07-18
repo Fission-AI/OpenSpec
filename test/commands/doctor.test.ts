@@ -8,6 +8,7 @@ import { runCLI, type RunCLIResult } from '../helpers/run-cli.js';
 import { createOpenSpecRoot, writeSpec } from '../helpers/openspec-fixtures.js';
 import { snapshotDirectory as snapshot } from '../helpers/fs-snapshot.js';
 import { cleanupTempPath } from '../helpers/temp-cleanup.js';
+import { isolatedGitEnv } from '../helpers/store-git.js';
 
 describe('openspec doctor (3.6)', () => {
   let tempDir: string;
@@ -42,6 +43,22 @@ describe('openspec doctor (3.6)', () => {
     const dir = path.join(tempDir, relativePath);
     fs.mkdirSync(dir, { recursive: true });
     return dir;
+  }
+
+  // Git-backed store with one base commit, isolated from host gitconfig.
+  // Returns the git runner and the base branch name for upstream setup.
+  async function initGitStore() {
+    const { execFileSync } = await import('node:child_process');
+    const gitEnv = { ...process.env, ...isolatedGitEnv(tempDir) };
+    const git = (args: string[]) =>
+      execFileSync('git', args, { cwd: storeRoot, env: gitEnv, stdio: 'ignore' });
+    git(['init']);
+    git(['add', '-A']);
+    git(['commit', '-m', 'base']);
+    const head = execFileSync('git', ['branch', '--show-current'], { cwd: storeRoot, env: gitEnv })
+      .toString()
+      .trim();
+    return { git, head };
   }
 
   it('reports ok everywhere for a healthy store-backed root, all session shapes', async () => {
@@ -223,6 +240,78 @@ describe('openspec doctor (3.6)', () => {
       expect.objectContaining({ severity: 'info', code: 'store_remote_divergence' })
     );
     expect(result.exitCode).toBe(0);
+  });
+
+  it('notes an upstream-behind store checkout as info drift', async () => {
+    const { git, head } = await initGitStore();
+
+    // A tracking branch that advances one commit past HEAD, then set it as
+    // HEAD's upstream — HEAD is now one commit behind, no network involved.
+    git(['branch', 'tracking']);
+    git(['checkout', 'tracking']);
+    fs.writeFileSync(path.join(storeRoot, 'ahead.txt'), 'newer\n');
+    git(['add', '-A']);
+    git(['commit', '-m', 'advance upstream']);
+    git(['checkout', head]);
+    git(['branch', `--set-upstream-to=tracking`, head]);
+
+    const result = await runCLI(['doctor', '--json', '--store', 'team-context'], {
+      cwd: tempDir,
+      env,
+    });
+    expect(result.exitCode).toBe(0);
+    const store = parseJson(result).store;
+    expect(store.drift).toEqual({ ahead: 0, behind: 1 });
+    expect(store.status[0]).toEqual(
+      expect.objectContaining({ severity: 'info', code: 'store_checkout_drift' })
+    );
+    expect(store.status[0].message).toContain('1 commit behind its upstream tracking branch');
+
+    const human = await runCLI(['doctor', '--store', 'team-context'], { cwd: tempDir, env });
+    expect(human.stdout).toContain('behind its upstream tracking branch');
+  });
+
+  it('reports diverged drift when the checkout is both ahead and behind', async () => {
+    const { git, head } = await initGitStore();
+
+    // Upstream advances one commit; HEAD then adds its own — the two have
+    // diverged (1 behind, 1 ahead) off a common base.
+    git(['branch', 'tracking']);
+    git(['checkout', 'tracking']);
+    fs.writeFileSync(path.join(storeRoot, 'upstream.txt'), 'theirs\n');
+    git(['add', '-A']);
+    git(['commit', '-m', 'advance upstream']);
+    git(['checkout', head]);
+    git(['branch', `--set-upstream-to=tracking`, head]);
+    fs.writeFileSync(path.join(storeRoot, 'local.txt'), 'mine\n');
+    git(['add', '-A']);
+    git(['commit', '-m', 'local work']);
+
+    const result = await runCLI(['doctor', '--json', '--store', 'team-context'], {
+      cwd: tempDir,
+      env,
+    });
+    expect(result.exitCode).toBe(0);
+    const store = parseJson(result).store;
+    expect(store.drift).toEqual({ ahead: 1, behind: 1 });
+    expect(store.status[0]).toEqual(
+      expect.objectContaining({ severity: 'info', code: 'store_checkout_drift' })
+    );
+    expect(store.status[0].message).toContain('diverged');
+    expect(store.status[0].message).toContain('1 behind, 1 ahead');
+  });
+
+  it('reports no drift for a store checkout with no upstream tracking branch', async () => {
+    await initGitStore();
+
+    const result = await runCLI(['doctor', '--json', '--store', 'team-context'], {
+      cwd: tempDir,
+      env,
+    });
+    expect(result.exitCode).toBe(0);
+    const store = parseJson(result).store;
+    expect('drift' in store).toBe(false);
+    expect(store.status).toEqual([]);
   });
 
   it('fails with the null-shape payload on command failures', async () => {

@@ -10,7 +10,7 @@ import {
   type ResolvedOpenSpecRoot,
 } from '../core/root-selection.js';
 import { readOptionalStoreMetadataState } from '../core/store/foundation.js';
-import { gitOriginUrl, isGitRepositoryAtRoot } from '../core/store/git.js';
+import { gitOriginUrl, gitTrackingDrift, isGitRepositoryAtRoot } from '../core/store/git.js';
 import {
   classifyOpenSpecDir,
   readProjectConfig,
@@ -59,14 +59,18 @@ async function gatherHealth(
   if (root.storeId) {
     const metadata = await readOptionalStoreMetadataState(root.path).catch(() => null);
     // git -C walks UP the tree: probing a non-repo store nested inside
-    // another repo would record the ENCLOSING repo's origin.
-    const originUrl = (await isGitRepositoryAtRoot(root.path)) ? await gitOriginUrl(root.path) : null;
+    // another repo would record the ENCLOSING repo's origin (and drift).
+    const isRepo = await isGitRepositoryAtRoot(root.path);
+    const [originUrl, drift] = isRepo
+      ? await Promise.all([gitOriginUrl(root.path), gitTrackingDrift(root.path)])
+      : [null, null];
     input.storeFacts = {
       id: root.storeId,
       metadataPresent: metadata !== null,
       metadataValid: metadata !== null,
       ...(metadata?.remote ? { canonicalRemote: metadata.remote } : {}),
       ...(originUrl ? { originUrl } : {}),
+      ...(drift ? { drift } : {}),
     };
   }
 
