@@ -4,10 +4,12 @@
  */
 
 import path from 'path';
+import os from 'os';
 import { promises as fs } from 'fs';
 import chalk from 'chalk';
 import { FileSystemUtils, removeMarkerBlock as removeMarkerBlockUtil } from '../utils/file-system.js';
 import { OPENSPEC_MARKERS } from './config.js';
+import type { WorkflowId } from './profiles.js';
 
 /**
  * Legacy config file names from the old ToolRegistry.
@@ -60,12 +62,119 @@ export const LEGACY_SLASH_COMMAND_PATHS: Record<string, LegacySlashCommandPatter
 };
 
 /**
+ * Final OpenSpec-managed global Codex prompt filenames mapped to the workflows
+ * they represented before Codex moved to skills-only delivery.
+ */
+const LEGACY_GLOBAL_CODEX_WORKFLOWS: Record<string, readonly WorkflowId[]> = {
+  'opsx-propose.md': ['propose'],
+  'opsx-explore.md': ['explore'],
+  'opsx-new.md': ['new'],
+  'opsx-continue.md': ['continue'],
+  'opsx-apply.md': ['apply'],
+  'opsx-update.md': ['update'],
+  'opsx-ff.md': ['ff'],
+  'opsx-sync.md': ['sync'],
+  'opsx-archive.md': ['archive'],
+  'opsx-bulk-archive.md': ['bulk-archive'],
+  'opsx-verify.md': ['verify'],
+  'opsx-onboard.md': ['onboard'],
+};
+
+/**
+ * Global legacy prompt locations that live outside the project tree and require
+ * allowlisted matching instead of broad glob-based cleanup.
+ */
+export const LEGACY_GLOBAL_SLASH_COMMAND_PATHS: Record<string, LegacyGlobalPromptPattern> = {
+  'codex': {
+    managedFileNames: Object.keys(LEGACY_GLOBAL_CODEX_WORKFLOWS),
+    workflowIdsByFileName: LEGACY_GLOBAL_CODEX_WORKFLOWS,
+    resolvePromptDir: getCodexPromptDir,
+    replacementLabel: 'Codex skills',
+  },
+};
+
+/**
  * Pattern types for legacy slash commands
  */
 export interface LegacySlashCommandPattern {
   type: 'directory' | 'files';
   path?: string; // For directory type
   pattern?: string | string[]; // For files type (glob pattern or array of patterns)
+}
+
+/**
+ * Describes a managed global prompt home and the exact filenames OpenSpec is
+ * allowed to treat as legacy artifacts there.
+ */
+export interface LegacyGlobalPromptPattern {
+  managedFileNames: readonly string[];
+  workflowIdsByFileName?: Readonly<Record<string, readonly WorkflowId[]>>;
+  resolvePromptDir: () => string;
+  replacementLabel?: string;
+}
+
+/**
+ * Workflow-aware metadata for a detected global legacy prompt that is safe for
+ * replacement-gated cleanup.
+ */
+export interface LegacyGlobalPromptMatch {
+  path: string;
+  toolId: string;
+  managedFileName: string;
+  workflowIds: readonly WorkflowId[];
+  replacementLabel?: string;
+}
+
+// Resolve the Codex global prompts directory, respecting CODEX_HOME if set.
+export function getCodexPromptDir(): string {
+  const envHome = process.env.CODEX_HOME?.trim();
+  const codexHome = envHome ? envHome : path.join(os.homedir(), '.codex');
+  return path.join(path.resolve(codexHome), 'prompts');
+}
+
+// Convert a simple glob pattern (only * wildcards) into an anchored RegExp.
+function globToRegex(pattern: string): RegExp {
+  const regexPattern = pattern
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    .replace(/\*/g, '.*');
+  return new RegExp(`^${regexPattern}$`);
+}
+
+// Normalize Windows backslashes to forward slashes for cross-platform path matching.
+function normalizePathForMatch(filePath: string): string {
+  return filePath.replace(/\\/g, '/');
+}
+
+/**
+ * Classifies a global Codex prompt path as OpenSpec-managed only when it matches
+ * the explicit legacy allowlist for the resolved prompt home.
+ */
+function getManagedGlobalLegacyPromptMetadata(filePath: string): LegacyGlobalPromptMatch | undefined {
+  if (!path.isAbsolute(filePath)) {
+    return undefined;
+  }
+
+  const resolvedPath = path.resolve(filePath);
+
+  for (const [toolId, pattern] of Object.entries(LEGACY_GLOBAL_SLASH_COMMAND_PATHS)) {
+    const promptDir = path.resolve(pattern.resolvePromptDir());
+    if (path.dirname(resolvedPath) !== promptDir) {
+      continue;
+    }
+
+    const managedFileName = path.basename(resolvedPath);
+    if (pattern.managedFileNames.includes(managedFileName)) {
+      return {
+        path: resolvedPath,
+        toolId,
+        managedFileName,
+        workflowIds: pattern.workflowIdsByFileName?.[managedFileName] ?? [],
+        replacementLabel: pattern.replacementLabel,
+      };
+    }
+  }
+
+  return undefined;
 }
 
 /**
@@ -80,6 +189,10 @@ export interface LegacyDetectionResult {
   slashCommandDirs: string[];
   /** Legacy slash command files found (for file-based tools) */
   slashCommandFiles: string[];
+  /** Managed global command/prompt files found outside the project root */
+  globalSlashCommandFiles: string[];
+  /** Details for managed global command/prompt files */
+  globalSlashCommandDetails?: LegacyGlobalPromptMatch[];
   /** Whether openspec/AGENTS.md exists */
   hasOpenspecAgents: boolean;
   /** Whether openspec/project.md exists (preserved, migration hint only) */
@@ -104,6 +217,8 @@ export async function detectLegacyArtifacts(
     configFilesToUpdate: [],
     slashCommandDirs: [],
     slashCommandFiles: [],
+    globalSlashCommandFiles: [],
+    globalSlashCommandDetails: [],
     hasOpenspecAgents: false,
     hasProjectMd: false,
     hasRootAgentsWithMarkers: false,
@@ -118,7 +233,11 @@ export async function detectLegacyArtifacts(
   // Detect legacy slash commands
   const slashResult = await detectLegacySlashCommands(projectPath);
   result.slashCommandDirs = slashResult.directories;
-  result.slashCommandFiles = slashResult.files;
+  result.slashCommandFiles = [...new Set(slashResult.files)];
+
+  // Detect legacy global slash commands
+  result.globalSlashCommandDetails = await detectLegacyGlobalPromptFiles();
+  result.globalSlashCommandFiles = result.globalSlashCommandDetails.map((detail) => detail.path);
 
   // Detect legacy structure files
   const structureResult = await detectLegacyStructureFiles(projectPath);
@@ -131,6 +250,7 @@ export async function detectLegacyArtifacts(
     result.configFiles.length > 0 ||
     result.slashCommandDirs.length > 0 ||
     result.slashCommandFiles.length > 0 ||
+    result.globalSlashCommandFiles.length > 0 ||
     result.hasOpenspecAgents ||
     result.hasRootAgentsWithMarkers ||
     result.hasProjectMd;
@@ -186,14 +306,13 @@ export async function detectLegacySlashCommands(
   const directories: string[] = [];
   const files: string[] = [];
 
-  for (const [toolId, pattern] of Object.entries(LEGACY_SLASH_COMMAND_PATHS)) {
+  for (const pattern of Object.values(LEGACY_SLASH_COMMAND_PATHS)) {
     if (pattern.type === 'directory' && pattern.path) {
       const dirPath = FileSystemUtils.joinPath(projectPath, pattern.path);
       if (await FileSystemUtils.directoryExists(dirPath)) {
         directories.push(pattern.path);
       }
     } else if (pattern.type === 'files' && pattern.pattern) {
-      // For file-based patterns, check for individual files
       const patterns = Array.isArray(pattern.pattern) ? pattern.pattern : [pattern.pattern];
       for (const p of patterns) {
         const foundFiles = await findLegacySlashCommandFiles(projectPath, p);
@@ -203,6 +322,40 @@ export async function detectLegacySlashCommands(
   }
 
   return { directories, files };
+}
+
+/**
+ * Detects legacy global slash command files.
+ *
+ * @returns Object with individual files found
+ */
+/**
+ * Scans the resolved global Codex prompt directories and returns only the
+ * allowlisted OpenSpec-managed legacy prompt files.
+ */
+async function detectLegacyGlobalPromptFiles(): Promise<LegacyGlobalPromptMatch[]> {
+  const foundFiles: LegacyGlobalPromptMatch[] = [];
+
+  for (const pattern of Object.values(LEGACY_GLOBAL_SLASH_COMMAND_PATHS)) {
+    const promptDir = pattern.resolvePromptDir();
+
+    try {
+      const entries = await fs.readdir(promptDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isFile() && pattern.managedFileNames.includes(entry.name)) {
+          const fullPath = path.join(promptDir, entry.name);
+          const match = getManagedGlobalLegacyPromptMetadata(fullPath);
+          if (match) {
+            foundFiles.push(match);
+          }
+        }
+      }
+    } catch {
+      // Directory does not exist or cannot be read.
+    }
+  }
+
+  return foundFiles;
 }
 
 /**
@@ -235,14 +388,7 @@ async function findLegacySlashCommandFiles(
   try {
     const entries = await fs.readdir(dirPath);
 
-    // Convert glob pattern to regex
-    // openspec-*.md -> /^openspec-.*\.md$/
-    // openspec-*.prompt.md -> /^openspec-.*\.prompt\.md$/
-    // openspec-*.toml -> /^openspec-.*\.toml$/
-    const regexPattern = filePart
-      .replace(/[.+^${}()|[\]\\]/g, '\\$&') // Escape regex special chars except *
-      .replace(/\*/g, '.*'); // Replace * with .*
-    const regex = new RegExp(`^${regexPattern}$`);
+    const regex = globToRegex(filePart);
 
     for (const entry of entries) {
       if (regex.test(entry)) {
@@ -343,6 +489,8 @@ export function removeMarkerBlock(content: string): string {
 export interface CleanupResult {
   /** Files that were deleted entirely */
   deletedFiles: string[];
+  /** Replacement labels for deleted files when cleanup knows the new surface */
+  deletedFileReplacementLabels?: Record<string, string>;
   /** Files that had marker blocks removed */
   modifiedFiles: string[];
   /** Directories that were deleted */
@@ -367,6 +515,7 @@ export async function cleanupLegacyArtifacts(
 ): Promise<CleanupResult> {
   const result: CleanupResult = {
     deletedFiles: [],
+    deletedFileReplacementLabels: {},
     modifiedFiles: [],
     deletedDirs: [],
     projectMdNeedsMigration: detection.hasProjectMd,
@@ -410,6 +559,28 @@ export async function cleanupLegacyArtifacts(
     }
   }
 
+  // Delete managed global slash command files (these are 100% OpenSpec-managed)
+  const globalPromptMatchesByPath = new Map(
+    getLegacyGlobalPromptMatches(detection).map((prompt) => [prompt.path, prompt] as const)
+  );
+  for (const filePath of detection.globalSlashCommandFiles) {
+    if (!getManagedGlobalLegacyPromptMetadata(filePath)) {
+      result.errors.push(`Skipped unmanaged global prompt ${filePath}`);
+      continue;
+    }
+
+    try {
+      await fs.unlink(filePath);
+      result.deletedFiles.push(filePath);
+      const promptMatch = globalPromptMatchesByPath.get(filePath);
+      if (promptMatch?.replacementLabel) {
+        result.deletedFileReplacementLabels![filePath] = promptMatch.replacementLabel;
+      }
+    } catch (error: any) {
+      result.errors.push(`Failed to delete ${filePath}: ${error.message}`);
+    }
+  }
+
   // Delete openspec/AGENTS.md (this is inside openspec/, it's OpenSpec-managed)
   if (detection.hasOpenspecAgents) {
     const agentsPath = FileSystemUtils.joinPath(projectPath, 'openspec', 'AGENTS.md');
@@ -443,7 +614,12 @@ export function formatCleanupSummary(result: CleanupResult): string {
     lines.push('Cleaned up legacy files:');
 
     for (const file of result.deletedFiles) {
-      lines.push(`  ✓ Removed ${file}`);
+      const replacementLabel = result.deletedFileReplacementLabels?.[file]
+        ?? getManagedGlobalLegacyPromptMetadata(file)?.replacementLabel;
+      const replacement = replacementLabel
+        ? ` (replaced by ${replacementLabel})`
+        : '';
+      lines.push(`  ✓ Removed ${file}${replacement}`);
     }
 
     for (const dir of result.deletedDirs) {
@@ -496,6 +672,14 @@ function buildRemovalsList(detection: LegacyDetectionResult): Array<{ path: stri
   // Slash command files (these are 100% OpenSpec-managed)
   for (const file of detection.slashCommandFiles) {
     removals.push({ path: file, explanation: 'replaced by skills/' });
+  }
+
+  // Managed global slash command files
+  for (const prompt of getLegacyGlobalPromptMatches(detection)) {
+    const explanation = prompt.toolId
+      ? `replaced by .${prompt.toolId}/skills/`
+      : 'replaced by skills/';
+    removals.push({ path: prompt.path, explanation });
   }
 
   // openspec/AGENTS.md (inside openspec/, it's OpenSpec-managed)
@@ -582,6 +766,27 @@ export function formatDetectionSummary(detection: LegacyDetectionResult): string
 }
 
 /**
+ * Generates a summary for managed global prompt files whose cleanup must wait
+ * until replacement skills are installed.
+ */
+export function formatDeferredGlobalPromptSummary(detection: LegacyDetectionResult): string {
+  const deferredPrompts = getLegacyGlobalPromptMatches(detection);
+  if (deferredPrompts.length === 0) {
+    return '';
+  }
+
+  const lines: string[] = [];
+  lines.push(chalk.bold('Deferred global prompts cleanup'));
+  lines.push(chalk.dim('These global prompts will only be removed after matching replacement skills are installed.'));
+  for (const prompt of deferredPrompts) {
+    const toolLabel = prompt.toolId ? `${prompt.toolId}: ` : '';
+    lines.push(`  • ${toolLabel}${prompt.path}`);
+  }
+
+  return lines.join('\n');
+}
+
+/**
  * Extract tool IDs from detected legacy artifacts.
  * Uses LEGACY_SLASH_COMMAND_PATHS to map paths back to tool IDs.
  *
@@ -604,18 +809,13 @@ export function getToolsFromLegacyArtifacts(detection: LegacyDetectionResult): s
   // Match files to tool IDs using glob patterns
   for (const file of detection.slashCommandFiles) {
     // Normalize file path to use forward slashes for consistent matching (Windows compatibility)
-    const normalizedFile = file.replace(/\\/g, '/');
+    const normalizedFile = normalizePathForMatch(file);
     for (const [toolId, pattern] of Object.entries(LEGACY_SLASH_COMMAND_PATHS)) {
       if (pattern.type === 'files' && pattern.pattern) {
-        // Convert glob pattern to regex for matching
-        // e.g., '.cursor/commands/openspec-*.md' -> /^\.cursor\/commands\/openspec-.*\.md$/
         const patterns = Array.isArray(pattern.pattern) ? pattern.pattern : [pattern.pattern];
         let matched = false;
         for (const p of patterns) {
-          const regexPattern = p
-            .replace(/[.+^${}()|[\]\\]/g, '\\$&') // Escape regex special chars except *
-            .replace(/\*/g, '.*'); // Replace * with .*
-          const regex = new RegExp(`^${regexPattern}$`);
+          const regex = globToRegex(p);
           if (regex.test(normalizedFile)) {
             tools.add(toolId);
             matched = true;
@@ -627,7 +827,100 @@ export function getToolsFromLegacyArtifacts(detection: LegacyDetectionResult): s
     }
   }
 
+  for (const prompt of getLegacyGlobalPromptMatches(detection)) {
+    tools.add(prompt.toolId);
+  }
+
   return Array.from(tools);
+}
+
+/**
+ * Normalizes global Codex prompt matches so callers can rely on workflow-aware
+ * metadata even when older detection results only carry file paths.
+ */
+export function getLegacyGlobalPromptMatches(detection: LegacyDetectionResult): LegacyGlobalPromptMatch[] {
+  if (detection.globalSlashCommandDetails && detection.globalSlashCommandDetails.length > 0) {
+    return detection.globalSlashCommandDetails;
+  }
+
+  return detection.globalSlashCommandFiles
+    .map((filePath) => getManagedGlobalLegacyPromptMetadata(filePath))
+    .filter((match): match is LegacyGlobalPromptMatch => match !== undefined);
+}
+
+/**
+ * Collects workflow IDs inferred from detected legacy global prompts for a
+ * specific tool.
+ */
+export function getLegacyWorkflowIdsForTool(
+  detection: LegacyDetectionResult,
+  toolId: string
+): WorkflowId[] {
+  const workflows = new Set<WorkflowId>();
+
+  for (const prompt of getLegacyGlobalPromptMatches(detection)) {
+    if (prompt.toolId !== toolId) {
+      continue;
+    }
+
+    for (const workflowId of prompt.workflowIds) {
+      workflows.add(workflowId);
+    }
+  }
+
+  return Array.from(workflows);
+}
+
+function hasLegacyArtifacts(detection: LegacyDetectionResult): boolean {
+  return (
+    detection.configFiles.length > 0 ||
+    detection.slashCommandDirs.length > 0 ||
+    detection.slashCommandFiles.length > 0 ||
+    detection.globalSlashCommandFiles.length > 0 ||
+    detection.hasOpenspecAgents ||
+    detection.hasRootAgentsWithMarkers ||
+    detection.hasProjectMd
+  );
+}
+
+/**
+ * Returns a detection snapshot with global Codex prompt cleanup removed so
+ * callers can safely perform the immediate, non-deferred cleanup pass.
+ */
+export function omitGlobalLegacyPromptFiles(detection: LegacyDetectionResult): LegacyDetectionResult {
+  const nextDetection: LegacyDetectionResult = {
+    ...detection,
+    globalSlashCommandFiles: [],
+    globalSlashCommandDetails: [],
+  };
+  nextDetection.hasLegacyArtifacts = hasLegacyArtifacts(nextDetection);
+  return nextDetection;
+}
+
+/**
+ * Builds a detection snapshot containing only the selected global Codex prompt
+ * matches for replacement-gated cleanup.
+ */
+export function pickGlobalLegacyPromptFiles(
+  detection: LegacyDetectionResult,
+  filePaths: readonly string[]
+): LegacyDetectionResult {
+  const selectedPaths = new Set(filePaths.map((filePath) => path.resolve(filePath)));
+  const details = getLegacyGlobalPromptMatches(detection)
+    .filter((detail) => selectedPaths.has(path.resolve(detail.path)));
+
+  return {
+    configFiles: [],
+    configFilesToUpdate: [],
+    slashCommandDirs: [],
+    slashCommandFiles: [],
+    globalSlashCommandFiles: details.map((detail) => detail.path),
+    globalSlashCommandDetails: details,
+    hasOpenspecAgents: false,
+    hasProjectMd: false,
+    hasRootAgentsWithMarkers: false,
+    hasLegacyArtifacts: details.length > 0,
+  };
 }
 
 /**

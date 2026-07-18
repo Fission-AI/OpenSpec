@@ -12,7 +12,6 @@ import { auggieAdapter } from './adapters/auggie.js';
 import { bobAdapter } from './adapters/bob.js';
 import { claudeAdapter } from './adapters/claude.js';
 import { clineAdapter } from './adapters/cline.js';
-import { codexAdapter } from './adapters/codex.js';
 import { codebuddyAdapter } from './adapters/codebuddy.js';
 import { continueAdapter } from './adapters/continue.js';
 import { costrictAdapter } from './adapters/costrict.js';
@@ -50,7 +49,6 @@ export class CommandAdapterRegistry {
     CommandAdapterRegistry.register(bobAdapter);
     CommandAdapterRegistry.register(claudeAdapter);
     CommandAdapterRegistry.register(clineAdapter);
-    CommandAdapterRegistry.register(codexAdapter);
     CommandAdapterRegistry.register(codebuddyAdapter);
     CommandAdapterRegistry.register(continueAdapter);
     CommandAdapterRegistry.register(costrictAdapter);

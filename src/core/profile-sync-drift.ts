@@ -5,6 +5,12 @@ import type { Delivery } from './global-config.js';
 import { ALL_WORKFLOWS } from './profiles.js';
 import { CommandAdapterRegistry } from './command-generation/index.js';
 import { COMMAND_IDS, getConfiguredTools } from './shared/index.js';
+import {
+  shouldGenerateCommandsForTool,
+  shouldGenerateSkillsForTool,
+  shouldReconcileCommandFilesForTool,
+  shouldRemoveSkillsForTool,
+} from './command-surface.js';
 
 type WorkflowId = (typeof ALL_WORKFLOWS)[number];
 
@@ -99,8 +105,8 @@ export function hasToolProfileOrDeliveryDrift(
   const desiredWorkflowSet = new Set<WorkflowId>(knownDesiredWorkflows);
   const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
   const adapter = CommandAdapterRegistry.get(toolId);
-  const shouldGenerateSkills = delivery !== 'commands';
-  const shouldGenerateCommands = delivery !== 'skills';
+  const shouldGenerateSkills = shouldGenerateSkillsForTool(toolId, delivery);
+  const shouldGenerateCommands = shouldGenerateCommandsForTool(toolId, delivery);
 
   if (shouldGenerateSkills) {
     for (const workflow of knownDesiredWorkflows) {
@@ -120,7 +126,7 @@ export function hasToolProfileOrDeliveryDrift(
         return true;
       }
     }
-  } else {
+  } else if (shouldRemoveSkillsForTool(toolId, delivery)) {
     for (const workflow of ALL_WORKFLOWS) {
       const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
       const skillDir = path.join(skillsDir, dirName);
@@ -148,7 +154,7 @@ export function hasToolProfileOrDeliveryDrift(
         return true;
       }
     }
-  } else if (!shouldGenerateCommands && adapter) {
+  } else if (shouldReconcileCommandFilesForTool(toolId, delivery) && adapter) {
     for (const workflow of ALL_WORKFLOWS) {
       const cmdPath = adapter.getFilePath(workflow);
       const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
@@ -227,10 +233,10 @@ export function hasProjectConfigDrift(
   }
 
   const desiredSet = new Set(toKnownWorkflows(desiredWorkflows));
-  const includeSkills = delivery !== 'commands';
-  const includeCommands = delivery !== 'skills';
 
   for (const toolId of configuredTools) {
+    const includeSkills = shouldGenerateSkillsForTool(toolId, delivery);
+    const includeCommands = shouldGenerateCommandsForTool(toolId, delivery);
     const installed = getInstalledWorkflowsForTool(projectPath, toolId, { includeSkills, includeCommands });
     if (installed.some((workflow) => !desiredSet.has(workflow))) {
       return true;
