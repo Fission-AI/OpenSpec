@@ -48,6 +48,7 @@ describe('tool-detection', () => {
     it('should return tools that have skillsDir configured', () => {
       const tools = getToolsWithSkillsDir();
       expect(tools).toContain('claude');
+      expect(tools).toContain('codeartsagent');
       expect(tools).toContain('cursor');
       expect(tools).toContain('windsurf');
       expect(tools.length).toBeGreaterThan(0);
