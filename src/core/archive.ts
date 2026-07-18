@@ -30,6 +30,13 @@ function isMissingPathError(error: unknown): boolean {
   );
 }
 
+/**
+ * Matches the `YYYY-MM-DD-` prefix that archiving prepends to a change name.
+ * A change whose name already starts with one (a common authoring convention)
+ * is archived under its existing name so the prefix is never stacked (#1309).
+ */
+const ARCHIVE_DATE_PREFIX_PATTERN = /^\d{4}-\d{2}-\d{2}-/;
+
 async function listActiveChangeNames(changesDir: string): Promise<string[]> {
   try {
     const entries = await fs.readdir(changesDir, { withFileTypes: true });
@@ -482,8 +489,13 @@ export class ArchiveCommand {
       }
     }
 
-    // Create archive directory with date prefix
-    const archiveName = `${formatLocalDate()}-${changeName}`;
+    // Create archive directory with date prefix. Names that already carry
+    // one keep it: re-prefixing would stutter the name, and when the archive
+    // runs on a later day the folder would sort under a day on which the
+    // change did not happen (#1309).
+    const archiveName = ARCHIVE_DATE_PREFIX_PATTERN.test(changeName)
+      ? changeName
+      : `${formatLocalDate()}-${changeName}`;
     const archivePath = path.join(archiveDir, archiveName);
 
     // Check if archive already exists
