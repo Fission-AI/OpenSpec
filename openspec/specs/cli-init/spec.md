@@ -226,10 +226,10 @@ The command SHALL generate opsx slash commands only for selected tools that have
 - **AND** command-file generation SHALL be skipped for that tool
 - **AND** the command output SHALL include `Commands skipped for: <tool-id> (no adapter)`
 
-#### Scenario: Kimi CLI skips command-file generation
+#### Scenario: Kimi Code skips command-file generation
 
-- **WHEN** the user selects Kimi CLI during initialization
-- **THEN** OpenSpec SHALL treat it as a supported tool with `skillsDir: '.kimi'`
+- **WHEN** the user selects Kimi Code during initialization
+- **THEN** OpenSpec SHALL treat it as a supported tool with `skillsDir: '.kimi-code'`
 - **AND** command-file generation SHALL be skipped because no Kimi adapter is registered
 
 ### Requirement: Config File Generation
