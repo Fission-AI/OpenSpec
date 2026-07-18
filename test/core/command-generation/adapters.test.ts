@@ -26,6 +26,7 @@ import { qwenAdapter } from '../../../src/core/command-generation/adapters/qwen.
 import { roocodeAdapter } from '../../../src/core/command-generation/adapters/roocode.js';
 import { traeAdapter } from '../../../src/core/command-generation/adapters/trae.js';
 import { windsurfAdapter } from '../../../src/core/command-generation/adapters/windsurf.js';
+import { zcodeAdapter } from '../../../src/core/command-generation/adapters/zcode.js';
 import type { CommandContent } from '../../../src/core/command-generation/types.js';
 
 describe('command-generation/adapters', () => {
@@ -579,17 +580,25 @@ describe('command-generation/adapters', () => {
       expect(qwenAdapter.toolId).toBe('qwen');
     });
 
-    it('should generate correct file path with .toml extension', () => {
+    it('should generate correct file path with .md extension', () => {
       const filePath = qwenAdapter.getFilePath('explore');
-      expect(filePath).toBe(path.join('.qwen', 'commands', 'opsx-explore.toml'));
+      expect(filePath).toBe(path.join('.qwen', 'commands', 'opsx-explore.md'));
     });
 
-    it('should format file in TOML format', () => {
+    it('should format file with description frontmatter', () => {
       const output = qwenAdapter.formatFile(sampleContent);
-      expect(output).toContain('description = "Enter explore mode for thinking"');
-      expect(output).toContain('prompt = """');
+      expect(output).toContain('---\n');
+      expect(output).toContain('description: Enter explore mode for thinking');
+      expect(output).toContain('---\n\n');
       expect(output).toContain('This is the command body.');
-      expect(output).toContain('"""');
+    });
+
+    it('should escape special YAML characters in description', () => {
+      const output = qwenAdapter.formatFile({
+        ...sampleContent,
+        description: 'Review: plan & apply "changes"',
+      });
+      expect(output).toContain('description: "Review: plan & apply \\"changes\\""');
     });
   });
 
@@ -837,6 +846,113 @@ describe('command-generation/adapters', () => {
     });
   });
 
+  describe('zcodeAdapter', () => {
+    it('should have correct toolId', () => {
+      expect(zcodeAdapter.toolId).toBe('zcode');
+    });
+
+    it('should generate correct file path under .zcode/commands/opsx', () => {
+      const filePath = zcodeAdapter.getFilePath('explore');
+      expect(filePath).toBe(path.join('.zcode', 'commands', 'opsx', 'explore.md'));
+    });
+
+    it('should generate correct file paths for different command IDs', () => {
+      expect(zcodeAdapter.getFilePath('new')).toBe(path.join('.zcode', 'commands', 'opsx', 'new.md'));
+      expect(zcodeAdapter.getFilePath('bulk-archive')).toBe(path.join('.zcode', 'commands', 'opsx', 'bulk-archive.md'));
+    });
+
+    it('should keep command paths under .zcode and never reference .agents', () => {
+      for (const id of ['explore', 'new', 'apply', 'sync', 'archive', 'bulk-archive']) {
+        const filePath = zcodeAdapter.getFilePath(id);
+        expect(filePath).toContain('.zcode');
+        expect(filePath).not.toContain('.agents');
+      }
+    });
+
+    it('should format file with name, description, category, and tags frontmatter', () => {
+      const output = zcodeAdapter.formatFile(sampleContent);
+
+      expect(output).toContain('---\n');
+      expect(output).toContain('name: OpenSpec Explore');
+      expect(output).toContain('description: Enter explore mode for thinking');
+      expect(output).toContain('category: Workflow');
+      expect(output).toContain('tags: [workflow, explore, experimental]');
+      expect(output).toContain('---\n\n');
+      expect(output).toContain('This is the command body.\n\nWith multiple lines.');
+    });
+
+    it('should format empty tags as an empty YAML array', () => {
+      const output = zcodeAdapter.formatFile({ ...sampleContent, tags: [] });
+      expect(output).toContain('tags: []');
+    });
+
+    it('should escape colons in description by quoting the YAML value', () => {
+      const output = zcodeAdapter.formatFile({
+        ...sampleContent,
+        description: 'Enter: explore mode',
+      });
+      expect(output).toContain('description: "Enter: explore mode"');
+    });
+
+    it('should escape double quotes in description', () => {
+      const output = zcodeAdapter.formatFile({
+        ...sampleContent,
+        description: 'Enter "explore" mode',
+      });
+      expect(output).toContain('description: "Enter \\"explore\\" mode"');
+    });
+
+    it('should escape newlines in description', () => {
+      const output = zcodeAdapter.formatFile({
+        ...sampleContent,
+        description: 'Line 1\nLine 2',
+      });
+      expect(output).toContain('description: "Line 1\\nLine 2"');
+    });
+
+    it('should escape special characters in name', () => {
+      const output = zcodeAdapter.formatFile({
+        ...sampleContent,
+        name: 'OpenSpec: Explore',
+      });
+      expect(output).toContain('name: "OpenSpec: Explore"');
+    });
+
+    it('should escape special characters in category', () => {
+      const output = zcodeAdapter.formatFile({
+        ...sampleContent,
+        category: 'Work #flow',
+      });
+      expect(output).toContain('category: "Work #flow"');
+    });
+
+    it('should quote individual tags that contain special characters', () => {
+      const output = zcodeAdapter.formatFile({
+        ...sampleContent,
+        tags: ['workflow', 'explore:1', 'experimental'],
+      });
+      expect(output).toContain('tags: [workflow, "explore:1", experimental]');
+    });
+
+    it('should escape backslashes when quoting is triggered by another special char', () => {
+      // Backslash alone does not trigger quoting, but once quoting is on (via ':')
+      // every backslash must be doubled. Locks the replace(/\\/g, '\\\\') branch.
+      const output = zcodeAdapter.formatFile({
+        ...sampleContent,
+        description: 'path:C:\\foo\\bar',
+      });
+      expect(output).toContain('description: "path:C:\\\\foo\\\\bar"');
+    });
+
+    it('should quote values with leading or trailing whitespace', () => {
+      const output = zcodeAdapter.formatFile({
+        ...sampleContent,
+        description: ' explore mode ',
+      });
+      expect(output).toContain('description: " explore mode "');
+    });
+  });
+
   describe('cross-platform path handling', () => {
     it('Claude adapter uses path.join for paths', () => {
       // path.join handles platform-specific separators
@@ -862,7 +978,7 @@ describe('command-generation/adapters', () => {
         codexAdapter, codebuddyAdapter, continueAdapter, costrictAdapter,
         crushAdapter, factoryAdapter, geminiAdapter, githubCopilotAdapter,
         iflowAdapter, kilocodeAdapter, ohMyPiAdapter, opencodeAdapter, piAdapter, qoderAdapter,
-        qwenAdapter, roocodeAdapter, traeAdapter
+        qwenAdapter, roocodeAdapter, traeAdapter, zcodeAdapter
       ];
       for (const adapter of adapters) {
         const filePath = adapter.getFilePath('test');
