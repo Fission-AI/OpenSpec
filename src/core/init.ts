@@ -13,7 +13,7 @@ import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { classifyOpenSpecDir, storePointerProblem } from './project-config.js';
 import { findRepoPlanningRootSync } from './planning-home.js';
-import { transformToHyphenCommands } from '../utils/command-references.js';
+import { getTransformerForTool } from '../utils/command-references.js';
 import {
   AI_TOOLS,
   OPENSPEC_DIR_NAME,
@@ -631,6 +631,14 @@ export class InitCommand {
   // SKILL & COMMAND GENERATION
   // ═══════════════════════════════════════════════════════════
 
+  /**
+   * Generates skill files and slash commands for each selected tool,
+   * honoring the configured delivery mode (skills, commands, or both).
+   *
+   * @param projectPath - Absolute path to the project root
+   * @param tools - Selected tools with their skill directory metadata
+   * @returns Created, refreshed, and failed tools plus removed artifact counts
+   */
   private async generateSkillsAndCommands(
     projectPath: string,
     tools: Array<{ value: string; name: string; skillsDir: string; wasConfigured: boolean }>
@@ -681,8 +689,7 @@ export class InitCommand {
             const skillFile = path.join(skillDir, 'SKILL.md');
 
             // Generate SKILL.md content with YAML frontmatter including generatedBy
-            // Use hyphen-based command references for tools where filename === command name (oh-my-pi, opencode, pi)
-            const transformer = (tool.value === 'opencode' || tool.value === 'pi' || tool.value === 'oh-my-pi') ? transformToHyphenCommands : undefined;
+            const transformer = getTransformerForTool(tool.value, delivery);
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
 
             // Write the skill file

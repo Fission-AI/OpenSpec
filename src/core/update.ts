@@ -11,7 +11,7 @@ import ora from 'ora';
 import * as fs from 'fs';
 import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { transformToHyphenCommands } from '../utils/command-references.js';
+import { getTransformerForTool } from '../utils/command-references.js';
 import { AI_TOOLS, OPENSPEC_DIR_NAME } from './config.js';
 import {
   generateCommands,
@@ -102,6 +102,12 @@ export class UpdateCommand {
     this.force = options.force ?? false;
   }
 
+  /**
+   * Refreshes OpenSpec skills and commands for all configured tools,
+   * regenerating artifacts according to the effective profile and delivery mode.
+   *
+   * @param projectPath - Path to the project root containing the openspec directory
+   */
   async execute(projectPath: string): Promise<void> {
     const resolvedProjectPath = path.resolve(projectPath);
     const openspecPath = path.join(resolvedProjectPath, OPENSPEC_DIR_NAME);
@@ -241,8 +247,7 @@ export class UpdateCommand {
             const skillDir = path.join(skillsDir, dirName);
             const skillFile = path.join(skillDir, 'SKILL.md');
 
-            // Use hyphen-based command references for tools where filename === command name (oh-my-pi, opencode, pi)
-            const transformer = (tool.value === 'opencode' || tool.value === 'pi' || tool.value === 'oh-my-pi') ? transformToHyphenCommands : undefined;
+            const transformer = getTransformerForTool(tool.value, delivery);
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
@@ -850,8 +855,7 @@ export class UpdateCommand {
             const skillDir = path.join(skillsDir, dirName);
             const skillFile = path.join(skillDir, 'SKILL.md');
 
-            // Use hyphen-based command references for tools where filename === command name (oh-my-pi, opencode, pi)
-            const transformer = (tool.value === 'opencode' || tool.value === 'pi' || tool.value === 'oh-my-pi') ? transformToHyphenCommands : undefined;
+            const transformer = getTransformerForTool(tool.value, delivery);
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }

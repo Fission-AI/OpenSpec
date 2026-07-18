@@ -929,6 +929,42 @@ describe('InitCommand - profile and detection features', () => {
     // Commands should NOT exist
     const cmdFile = path.join(testDir, '.claude', 'commands', 'opsx', 'explore.md');
     expect(await fileExists(cmdFile)).toBe(false);
+
+    // Skill content should reference skills, not commands that were never generated
+    const skillContent = await fs.readFile(skillFile, 'utf-8');
+    expect(skillContent).not.toContain('/opsx:');
+    expect(skillContent).not.toContain('/opsx-');
+    expect(skillContent).toContain('/openspec-');
+
+    // update-change references several other workflows; a command missing
+    // from the reference map would leave a raw /opsx: reference behind
+    const updateSkillContent = await fs.readFile(
+      path.join(testDir, '.claude', 'skills', 'openspec-update-change', 'SKILL.md'),
+      'utf-8'
+    );
+    expect(updateSkillContent).not.toContain('/opsx:');
+    expect(updateSkillContent).not.toContain('/opsx-');
+    expect(updateSkillContent).toContain('/openspec-');
+  });
+
+  it('should use skill references for opencode in skills-only delivery', async () => {
+    saveGlobalConfig({
+      featureFlags: {},
+      profile: 'core',
+      delivery: 'skills',
+    });
+
+    const initCommand = new InitCommand({ tools: 'opencode', force: true });
+    await initCommand.execute(testDir);
+
+    const skillFile = path.join(testDir, '.opencode', 'skills', 'openspec-explore', 'SKILL.md');
+    expect(await fileExists(skillFile)).toBe(true);
+
+    // Skills-only must win over the hyphen transform: no /opsx: or /opsx- references
+    const skillContent = await fs.readFile(skillFile, 'utf-8');
+    expect(skillContent).not.toContain('/opsx:');
+    expect(skillContent).not.toContain('/opsx-');
+    expect(skillContent).toContain('/openspec-');
   });
 
   it('should respect delivery=commands setting (no skills)', async () => {
