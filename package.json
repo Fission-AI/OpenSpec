@@ -42,6 +42,7 @@
   "scripts": {
     "lint": "eslint src/",
     "build": "node build.js",
+    "generate:skills": "node scripts/generate-skillssh.mjs",
     "dev": "tsc --watch",
     "dev:cli": "pnpm build && node bin/openspec.js",
     "test": "vitest run",

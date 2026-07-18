@@ -21,6 +21,12 @@ export const GlobalConfigSchema = z
     workflows: z
       .array(z.string())
       .optional(),
+    defaultStore: z
+      .string()
+      .optional()
+      .describe(
+        'Store id used as fallback root when no explicit --store, local root, or project-level store: pointer resolves'
+      ),
   })
   .passthrough();
 
@@ -35,7 +41,7 @@ export const DEFAULT_CONFIG: GlobalConfigType = {
   delivery: 'both',
 };
 
-const KNOWN_TOP_LEVEL_KEYS = new Set([...Object.keys(DEFAULT_CONFIG), 'workflows']);
+const KNOWN_TOP_LEVEL_KEYS = new Set([...Object.keys(DEFAULT_CONFIG), 'workflows', 'defaultStore']);
 
 /**
  * Validate a config key path for CLI set operations.

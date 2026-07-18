@@ -56,7 +56,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    Build a map of \`capability -> [changes that touch it]\`:
 
-   \`\`\`
+   \`\`\`text
    auth -> [change-a, change-b]  <- CONFLICT (2+ changes)
    api  -> [change-c]            <- OK (only 1 change)
    \`\`\`
@@ -87,7 +87,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    Display a table summarizing all changes:
 
-   \`\`\`
+   \`\`\`markdown
    | Change              | Artifacts | Tasks | Specs   | Conflicts | Status |
    |---------------------|-----------|-------|---------|-----------|--------|
    | schema-management   | Done      | 5/5   | 2 delta | None      | Ready  |
@@ -97,13 +97,13 @@ ${STORE_SELECTION_GUIDANCE}
    \`\`\`
 
    For conflicts, show the resolution:
-   \`\`\`
+   \`\`\`text
    * Conflict resolution:
      - auth spec: Will apply add-oauth then add-jwt (both implemented, chronological order)
    \`\`\`
 
    For incomplete changes, show warnings:
-   \`\`\`
+   \`\`\`text
    Warnings:
    - add-verify-skill: 1 incomplete artifact, 3 incomplete tasks
    \`\`\`
@@ -144,7 +144,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    Show final results:
 
-   \`\`\`
+   \`\`\`markdown
    ## Bulk Archive Complete
 
    Archived 3 changes:
@@ -161,7 +161,7 @@ ${STORE_SELECTION_GUIDANCE}
    \`\`\`
 
    If any failures:
-   \`\`\`
+   \`\`\`text
    Failed 1 change:
    - some-change: Archive directory already exists
    \`\`\`
@@ -169,7 +169,7 @@ ${STORE_SELECTION_GUIDANCE}
 **Conflict Resolution Examples**
 
 Example 1: Only one implemented
-\`\`\`
+\`\`\`text
 Conflict: specs/auth/spec.md touched by [add-oauth, add-jwt]
 
 Checking add-oauth:
@@ -184,7 +184,7 @@ Resolution: Only add-oauth is implemented. Will sync add-oauth specs only.
 \`\`\`
 
 Example 2: Both implemented
-\`\`\`
+\`\`\`text
 Conflict: specs/api/spec.md touched by [add-rest-api, add-graphql]
 
 Checking add-rest-api (created 2026-01-10):
@@ -201,7 +201,7 @@ then add-graphql specs (chronological order, newer takes precedence).
 
 **Output On Success**
 
-\`\`\`
+\`\`\`markdown
 ## Bulk Archive Complete
 
 Archived N changes:
@@ -215,7 +215,7 @@ Spec sync summary:
 
 **Output On Partial Success**
 
-\`\`\`
+\`\`\`markdown
 ## Bulk Archive Complete (partial)
 
 Archived N changes:
@@ -230,7 +230,7 @@ Failed K changes:
 
 **Output When No Changes**
 
-\`\`\`
+\`\`\`markdown
 ## No Changes to Archive
 
 No active changes found. Create a new change to get started.
@@ -305,7 +305,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    Build a map of \`capability -> [changes that touch it]\`:
 
-   \`\`\`
+   \`\`\`text
    auth -> [change-a, change-b]  <- CONFLICT (2+ changes)
    api  -> [change-c]            <- OK (only 1 change)
    \`\`\`
@@ -336,7 +336,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    Display a table summarizing all changes:
 
-   \`\`\`
+   \`\`\`markdown
    | Change              | Artifacts | Tasks | Specs   | Conflicts | Status |
    |---------------------|-----------|-------|---------|-----------|--------|
    | schema-management   | Done      | 5/5   | 2 delta | None      | Ready  |
@@ -346,13 +346,13 @@ ${STORE_SELECTION_GUIDANCE}
    \`\`\`
 
    For conflicts, show the resolution:
-   \`\`\`
+   \`\`\`text
    * Conflict resolution:
      - auth spec: Will apply add-oauth then add-jwt (both implemented, chronological order)
    \`\`\`
 
    For incomplete changes, show warnings:
-   \`\`\`
+   \`\`\`text
    Warnings:
    - add-verify-skill: 1 incomplete artifact, 3 incomplete tasks
    \`\`\`
@@ -393,7 +393,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    Show final results:
 
-   \`\`\`
+   \`\`\`markdown
    ## Bulk Archive Complete
 
    Archived 3 changes:
@@ -410,7 +410,7 @@ ${STORE_SELECTION_GUIDANCE}
    \`\`\`
 
    If any failures:
-   \`\`\`
+   \`\`\`text
    Failed 1 change:
    - some-change: Archive directory already exists
    \`\`\`
@@ -418,7 +418,7 @@ ${STORE_SELECTION_GUIDANCE}
 **Conflict Resolution Examples**
 
 Example 1: Only one implemented
-\`\`\`
+\`\`\`text
 Conflict: specs/auth/spec.md touched by [add-oauth, add-jwt]
 
 Checking add-oauth:
@@ -433,7 +433,7 @@ Resolution: Only add-oauth is implemented. Will sync add-oauth specs only.
 \`\`\`
 
 Example 2: Both implemented
-\`\`\`
+\`\`\`text
 Conflict: specs/api/spec.md touched by [add-rest-api, add-graphql]
 
 Checking add-rest-api (created 2026-01-10):
@@ -450,7 +450,7 @@ then add-graphql specs (chronological order, newer takes precedence).
 
 **Output On Success**
 
-\`\`\`
+\`\`\`markdown
 ## Bulk Archive Complete
 
 Archived N changes:
@@ -464,7 +464,7 @@ Spec sync summary:
 
 **Output On Partial Success**
 
-\`\`\`
+\`\`\`markdown
 ## Bulk Archive Complete (partial)
 
 Archived N changes:
@@ -479,7 +479,7 @@ Failed K changes:
 
 **Output When No Changes**
 
-\`\`\`
+\`\`\`markdown
 ## No Changes to Archive
 
 No active changes found. Create a new change to get started.

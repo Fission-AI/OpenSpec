@@ -7,8 +7,11 @@
  * - `--store <id>` selects a registered store's root.
  * - Without `--store`, the nearest ancestor containing `openspec/` wins.
  *   Leftover workspace view state is never considered a root here.
- * - With no nearest root, registered stores produce a selection hint error;
- *   otherwise commands may treat the current directory as an implicit root.
+ * - With no nearest root, a global `defaultStore` (if set) is the last
+ *   machine-level fallback before the selection hint error.
+ * - With no nearest root and no default, registered stores produce a
+ *   selection hint error; otherwise commands may treat the current
+ *   directory as an implicit root.
  *
  * Diagnostic codes reuse the store taxonomy where an error passes
  * through unchanged (`invalid_store_id`, metadata parse failures);
@@ -34,9 +37,15 @@ import { getStoreRootForBackend } from './store/registry.js';
 import { inspectOpenSpecRoot } from './openspec-root.js';
 import { findRepoPlanningRootSync, type PlanningHome } from './planning-home.js';
 import { classifyOpenSpecDir, storePointerProblem } from './project-config.js';
+import { getGlobalConfig } from './global-config.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 
-export type OpenSpecRootSource = 'store' | 'declared' | 'nearest' | 'implicit';
+export type OpenSpecRootSource =
+  | 'store'
+  | 'declared'
+  | 'global_default'
+  | 'nearest'
+  | 'implicit';
 
 export interface StoreSelectorOptions {
   store?: string;
@@ -346,6 +355,40 @@ async function resolveNearestOrDeclaredRoot(
   }
 }
 
+/**
+ * The machine-level fallback: the global `defaultStore` resolved as a root,
+ * with its own provenance (`global_default`) so JSON surfaces can tell a
+ * machine-wide default from a repo's `store:` pointer. Mirrors the
+ * declared-pointer catch — a stale or unregistered id degrades to the
+ * underlying error, reshaped to point at clearing the global default
+ * rather than passing --store.
+ */
+async function resolveDefaultStoreRoot(
+  id: string,
+  globalDataDir?: string
+): Promise<ResolvedOpenSpecRoot> {
+  try {
+    return await resolveStoreRoot(id, globalDataDir, 'global_default');
+  } catch (error) {
+    if (error instanceof RootSelectionError) {
+      const staleFix =
+        error.diagnostic.code === 'unknown_store' ||
+        error.diagnostic.code === 'no_registered_stores'
+          ? `Register the store (openspec store register <path> --id ${id}) or clear the stale global default (openspec config unset defaultStore).`
+          : error.diagnostic.fix;
+      throw new RootSelectionError(
+        `Global defaultStore '${id}': ${error.message}`,
+        error.diagnostic.code,
+        {
+          ...(error.diagnostic.target ? { target: error.diagnostic.target } : {}),
+          ...(staleFix ? { fix: staleFix } : {}),
+        }
+      );
+    }
+    throw error;
+  }
+}
+
 export async function resolveOpenSpecRoot(
   options: ResolveOpenSpecRootOptions = {}
 ): Promise<ResolvedOpenSpecRoot> {
@@ -368,6 +411,14 @@ export async function resolveOpenSpecRoot(
   const nearestRoot = findQualifyingRootSync(startPath);
   if (nearestRoot) {
     return resolveNearestOrDeclaredRoot(nearestRoot, options.globalDataDir);
+  }
+
+  // Machine-level fallback: a global defaultStore is consulted only after
+  // --store, the nearest local root, and project-level pointers have all
+  // failed to resolve — it changes the failure path, never the precedence.
+  const defaultStore = getGlobalConfig().defaultStore;
+  if (defaultStore) {
+    return resolveDefaultStoreRoot(defaultStore, options.globalDataDir);
   }
 
   let registry;
@@ -423,9 +474,9 @@ export function toRootOutput(root: ResolvedOpenSpecRoot): RootOutput {
 }
 
 /**
- * A store-selected root — explicit `--store` or the declared fallback.
- * Cross-root behavior (absolute paths, --store hints, suppressed
- * noun-form suggestions) keys on this, never on `source` directly.
+ * A store-selected root — explicit `--store`, a declared pointer, or the
+ * global default. Cross-root behavior (absolute paths, --store hints,
+ * suppressed noun-form suggestions) keys on this, never on `source` directly.
  */
 export function isStoreSelectedRoot(
   root: ResolvedOpenSpecRoot

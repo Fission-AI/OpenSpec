@@ -46,7 +46,7 @@ import {
 import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
 import { getProfileWorkflows, CORE_WORKFLOWS, ALL_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
-import { migrateIfNeeded } from './migration.js';
+import { migrateIfNeeded, migrateLegacySkillDirs } from './migration.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
@@ -142,6 +142,10 @@ export class InitCommand {
 
     // Check for legacy artifacts and handle cleanup
     await this.handleLegacyCleanup(projectPath, extendMode);
+
+    // Migrate OpenSpec-managed skills left in renamed tool directories
+    // (e.g. .kimi -> .kimi-code) before detection so they stay recognized.
+    migrateLegacySkillDirs(projectPath);
 
     // Detect available tools in the project (task 7.1)
     const detectedTools = getAvailableTools(projectPath);
@@ -707,6 +711,14 @@ export class InitCommand {
     }
     if (results.removedSkillCount > 0) {
       console.log(chalk.dim(`Removed: ${results.removedSkillCount} skill directories (delivery: commands)`));
+    }
+
+    // Show manual setup notes for tools that need extra configuration
+    for (const tool of successfulTools) {
+      const setupNote = AI_TOOLS.find((t) => t.value === tool.value)?.setupNote;
+      if (setupNote) {
+        console.log(chalk.yellow(`Setup required for ${tool.name}: ${setupNote}`));
+      }
     }
 
     // Config status
