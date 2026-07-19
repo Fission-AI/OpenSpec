@@ -43,7 +43,7 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getApplyChangeSkillTemplate: '0f5a15fc7fb9ad6059a5643d0e01365d27642637a4aaebf182f9eabb45348197',
   getFfChangeSkillTemplate: '20ebb682ba89809a100cd4985c074908df5bada2bd649ca1b0f4059a63a1c728',
   getSyncSpecsSkillTemplate: 'dc07ea0312687f3edc602329c889dbbab737c6d79327eb7a723553d346b43433',
-  getOnboardSkillTemplate: 'e871d8ce172bb805ae62a7611aee7a3154d89414f427ad5ef31721c903f13002',
+  getOnboardSkillTemplate: '95240ade743024dcf4da6e0f384dee43cd246ba4bf3808330a656eed7d4ad7fa',
   getOpsxExploreCommandTemplate: '37e53590aae7ac6621d4393aa80a5b8af21881323887fa924ed329199fda27e0',
   getOpsxNewCommandTemplate: '57c600cce318d16b9b4308a18d0d983ea3c0673034e606a7cceec07b4c705e87',
   getOpsxContinueCommandTemplate: 'f63964fab7720ede097aa48808baff196c391b962930ca960459205c724800e5',
@@ -74,7 +74,7 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-archive-change': '4679a077d34016bf38f0d0aa5432b53ea83ae82c2c5fec6dcb7dc15571ee8ac6',
   'openspec-bulk-archive-change': '545b9528df52fbb0b4898405b42a2ce10416678d469d20cf597d022fa6e16e3b',
   'openspec-verify-change': '57693d22940f06080c6cf8d590ac2f48240d4a5e9ce7074dacd0f8d3c9945afa',
-  'openspec-onboard': 'b1b6fc9a1b3ff64dafe9b8c39a761ee1bd001b542d47b4e4deaf058e0aa21256',
+  'openspec-onboard': '405b8f8b779847898eafaba6fcba72db83de44c91e08d60ecaaea42a91febacc',
   'openspec-propose': '024db4bce28d9a4d7b25fa92525da6fc701a64ac07dfdcf777d286c95b5281b5',
   'openspec-update-change': '77ff4d1f1cd08a57649cce1f25e0ebc4f55d6d032dfde5c301d1b479561b72fa',
 };
@@ -236,6 +236,26 @@ describe('skill templates split parity', () => {
       // Verification is bound to the delta specs on disk, not to whatever the
       // sync reports it touched — a silently skipped capability must not escape.
       expect(content, variant).toContain('not only the ones the sync reports it touched');
+    }
+  });
+
+  // The archive instructions must mirror `openspec archive`'s date-prefix
+  // rule (#1316): a change already named with a `YYYY-MM-DD-` prefix keeps
+  // its name, so archived names never stack dates. Guard both the caveat
+  // and the literal `mv` target an agent would copy verbatim (#1317).
+  it('never instructs stacking a date prefix on an already-dated change (#1317)', () => {
+    const archiveInstructions: Array<[string, string]> = [
+      ['openspec-archive-change', getArchiveChangeSkillTemplate().instructions],
+      ['openspec-bulk-archive-change', getBulkArchiveChangeSkillTemplate().instructions],
+      ['openspec-onboard', getOnboardSkillTemplate().instructions],
+      ['opsx-archive', getOpsxArchiveCommandTemplate().content],
+      ['opsx-bulk-archive', getOpsxBulkArchiveCommandTemplate().content],
+      ['opsx-onboard', getOpsxOnboardCommandTemplate().content],
+    ];
+
+    for (const [id, text] of archiveInstructions) {
+      expect(text, id).toContain('already starts with a `YYYY-MM-DD-` prefix');
+      expect(text, id).not.toContain('archive/YYYY-MM-DD-<name>"');
     }
   });
 });

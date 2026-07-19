@@ -437,7 +437,7 @@ openspec archive "<name>"
 
 **SHOW:**
 ```
-Archived to: `<planningHome.changesDir>/archive/YYYY-MM-DD-<name>/`
+Archived to: `<planningHome.changesDir>/archive/YYYY-MM-DD-<name>/` (a name that already starts with a `YYYY-MM-DD-` prefix is kept as-is — no second date)
 
 The change is now part of your project's history. The code is in your codebase, the decision record is preserved.
 ```
