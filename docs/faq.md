@@ -110,6 +110,12 @@ A spec that describes only what's changing, using `ADDED`, `MODIFIED`, and `REMO
 
 To `openspec/changes/archive/YYYY-MM-DD-<name>/`, with all artifacts preserved. Nothing is deleted; the change just moves out of your active list.
 
+### Does OpenSpec support Architecture Decision Records (ADRs)?
+
+Not natively. If you already have MADR or other ADRs—for example in `docs/adrs/`—keep them and their existing links as they are. OpenSpec does not migrate, synchronize, or manage their lifecycle, and adopting OpenSpec does not require changing their format. Treat ADRs as the historical record of _why_ a decision was made; capture the current requirements and change-specific design in OpenSpec's specs and design artifacts.
+
+When an old decision matters, ask the coding agent to research it—`/opsx:explore` is a good starting point—and name the relevant places to inspect: your ADR directory, related code and Git history, and, when applicable, `openspec/changes/archive/`. OpenSpec has no built-in ADR/archive search or default prompt that automatically searches those locations; the agent uses normal repository tools such as `rg`, `git log`, and `git blame`. You can make this expectation persistent with project context or a custom schema; see [Customization](customization.md#existing-adrs-and-decision-history).
+
 ## Configuration and customization
 
 ### How do I tell the AI about my tech stack?

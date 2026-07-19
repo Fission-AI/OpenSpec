@@ -80,6 +80,23 @@ Tech stack: TypeScript, React, Node.js, PostgreSQL
 - **Context** appears in ALL artifacts
 - **Rules** ONLY appear for the matching artifact
 
+### Existing ADRs and Decision History
+
+OpenSpec does not currently provide native Architecture Decision Record (ADR) support. Keep existing MADR/ADR files and references in their current location; there is no OpenSpec migration or sync step for them. If they should inform future work, make their location and the expected research explicit in your project configuration:
+
+```yaml
+context: |
+  Architectural decision records are in docs/adrs/.
+  For work affected by an earlier decision, review the relevant ADRs, code and Git
+  history, and openspec/changes/archive/ before proposing an approach.
+
+rules:
+  design:
+    - Preserve established ADR references; record the change-specific decision and rationale in design.md.
+```
+
+This is guidance for the coding agent, not an indexer: OpenSpec does not automatically search `docs/adrs/` or `openspec/changes/archive/`. Use `/opsx:explore` or ask the agent to investigate a particular decision when you need its rationale. Teams that want ADRs generated or reviewed as part of their process can add planning artifacts and instructions with a custom schema, while continuing to manage their ADR files with their existing workflow.
+
 ### Schema Resolution Order
 
 When OpenSpec needs a schema, it checks in this order:
