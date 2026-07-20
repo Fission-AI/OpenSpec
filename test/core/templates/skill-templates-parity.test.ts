@@ -49,11 +49,11 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getOpsxContinueCommandTemplate: 'f63964fab7720ede097aa48808baff196c391b962930ca960459205c724800e5',
   getOpsxApplyCommandTemplate: 'daeb507206707169de73c828e199648dde5732cbc17791ef2a027adffd028574',
   getOpsxFfCommandTemplate: 'b859b1955cda6012877ae7f9ec6980e468f2e949a3838dfcdebc17209d133749',
-  getArchiveChangeSkillTemplate: '63bcf56a53eee2550d12e80aaafbe37640c432f3a16baee003d903052dbf000f',
+  getArchiveChangeSkillTemplate: '9fcf7aa65543042b39ea77b9cb62586e345729ee131e91bf7d0565c58c5a3852',
   getBulkArchiveChangeSkillTemplate: 'f675122bce3ef583b245352abedecf50ff4043e45bea6bac091885f83c7b6362',
   getOpsxSyncCommandTemplate: '98b20e00da5c588ff83ed6e6f0e959dfc540349090fb3f5792ea030d099b8169',
   getVerifyChangeSkillTemplate: 'cab4db01b5d2b1243d63d90c53747d8b39e488c60f76eba3fe8b994467f69267',
-  getOpsxArchiveCommandTemplate: 'c13e6491780273f59014a0177258b4b794323169900e0245799e8a5ea95fb5ea',
+  getOpsxArchiveCommandTemplate: 'c31724e302184795ace242af0c93a1331b86b2fc77bbcebfeaa61af43a747c32',
   getOpsxOnboardCommandTemplate: '0673f34a0f81fd173bcfb8c3ac83e2b1c617f7b7564e24e5298d3bd5665a05a9',
   getOpsxBulkArchiveCommandTemplate: 'd0d84040bcbd44e89ac525bb21100bee7befb3604e51095bfa65b8453d85290c',
   getOpsxVerifyCommandTemplate: 'f01c0c0cef53be0956de52363d955d4ace131b1b2d77adf902f35fead9a1486d',
@@ -71,7 +71,7 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-apply-change': '09c0e1cdf5ccc82416d0969d6bd715cc70616bdbc3531358a5c36057f78be55a',
   'openspec-ff-change': '0c82830cd9bc98f86eb56b63ddaabe2bf5d35fe25b6c40a7059311aee2c8acac',
   'openspec-sync-specs': 'b3f694ab81956d05126b089fe82dea78dec21788978bb9651485f996aee96740',
-  'openspec-archive-change': '52020d1b337a0bbf9ba9a7c3a2368e94a23dca62b89e85c4b4fc7256e4330769',
+  'openspec-archive-change': 'fb39fd7cfa407e26dcc9d029eba3e6972ec1d253384bab5e47459a1c99750483',
   'openspec-bulk-archive-change': '545b9528df52fbb0b4898405b42a2ce10416678d469d20cf597d022fa6e16e3b',
   'openspec-verify-change': '57693d22940f06080c6cf8d590ac2f48240d4a5e9ce7074dacd0f8d3c9945afa',
   'openspec-onboard': 'b1b6fc9a1b3ff64dafe9b8c39a761ee1bd001b542d47b4e4deaf058e0aa21256',
@@ -214,17 +214,28 @@ describe('skill templates split parity', () => {
     const generatedSkill = generateSkillContent(getArchiveChangeSkillTemplate(), 'PARITY-BASELINE');
     const commandContent = getOpsxArchiveCommandTemplate().content;
 
-    for (const content of [generatedSkill, commandContent]) {
-      // The sync must run inline: a backgrounded subagent lets step 5 move
-      // changeRoot out from under a sync that is still reading it.
-      expect(content).toContain('run it inline: use the Skill tool to invoke');
-      expect(content).toContain('Do not hand the sync to a background subagent');
-      expect(content).toContain('Never archive while a spec sync is still in flight');
+    const variants: Array<[string, string]> = [
+      ['skill', generatedSkill],
+      ['opsx command', commandContent],
+    ];
 
-      // The verification predicate must follow delta semantics, or a correct
-      // REMOVED-only sync would read as a failure and block the archive.
-      expect(content).toContain('REMOVED requirements gone');
-      expect(content).toContain('RENAMED requirements under their new name');
+    for (const [variant, content] of variants) {
+      // The sync must run inline: delegating it to a background task lets step 5
+      // move changeRoot out from under a sync that is still reading it.
+      expect(content, variant).toContain('run the `openspec-sync-specs` workflow inline');
+      expect(content, variant).toContain('Do not delegate it to a background task');
+      expect(content, variant).toContain('Never archive while a spec sync is still in flight');
+
+      // Verification must follow delta semantics. Asserting presence alone would
+      // read a correct REMOVED-only sync as a failure, and would pass a no-op
+      // sync for a MODIFIED-only delta (those requirements already exist).
+      expect(content, variant).toContain('MODIFIED requirements carrying the scenario and description changes');
+      expect(content, variant).toContain('REMOVED requirements gone');
+      expect(content, variant).toContain('RENAMED requirements present under the new name and absent under the old one');
+
+      // Verification is bound to the delta specs on disk, not to whatever the
+      // sync reports it touched — a silently skipped capability must not escape.
+      expect(content, variant).toContain('not only the ones the sync reports it touched');
     }
   });
 });
