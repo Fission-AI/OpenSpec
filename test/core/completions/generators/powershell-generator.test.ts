@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { PowerShellGenerator } from '../../../../src/core/completions/generators/powershell-generator.js';
+import { COMMAND_REGISTRY } from '../../../../src/core/completions/command-registry.js';
 import { CommandDefinition } from '../../../../src/core/completions/types.js';
 
 describe('PowerShellGenerator', () => {
@@ -353,6 +354,23 @@ describe('PowerShellGenerator', () => {
 			expect(script).toContain('"init"');
 		});
 
+		it('should handle positional arguments for schema names', () => {
+			const commands: CommandDefinition[] = [
+				{
+					name: 'schema',
+					description: 'Manage schemas',
+					acceptsPositional: true,
+					positionalType: 'schema-name',
+					flags: [],
+				},
+			];
+
+			const script = generator.generate(commands);
+
+			expect(script).toContain('Get-OpenSpecSchemas');
+			expect(script).toContain('openspec __complete schemas 2>$null');
+		});
+
 		it('should generate dynamic completion helper for changes', () => {
 			const commands: CommandDefinition[] = [
 				{
@@ -442,6 +460,36 @@ describe('PowerShellGenerator', () => {
 			expect(script).toContain('--strict');
 			expect(script).toContain('--json');
 			expect(script).toContain('Get-OpenSpecSpecs');
+		});
+
+		it('should not emit an empty switch when no positional produces completions', () => {
+			const commands: CommandDefinition[] = [
+				{
+					name: 'init',
+					description: 'Initialize OpenSpec',
+					flags: [
+						{
+							name: 'tools',
+							description: 'AI tools to configure',
+							takesValue: true,
+						},
+					],
+					positionals: [{ name: 'path', type: 'path', optional: true }],
+				},
+			];
+
+			const script = generator.generate(commands);
+
+			// An empty switch body is a PowerShell parse error that aborts the
+			// entire completion script ("Missing condition in switch statement clause").
+			expect(script).not.toMatch(/switch \(\$positionalIndex\) \{\s*\}/);
+			expect(script).not.toContain('$positionalIndex');
+		});
+
+		it('should not emit empty switch blocks for the real command registry', () => {
+			const script = generator.generate(COMMAND_REGISTRY);
+
+			expect(script).not.toMatch(/switch \(\$positionalIndex\) \{\s*\}/);
 		});
 
 		it('should not emit trailing commas in @() arrays', () => {

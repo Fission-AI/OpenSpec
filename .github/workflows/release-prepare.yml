@@ -1,8 +1,9 @@
-name: Release (prepare)
+name: Release
 
 on:
   push:
     branches: [main]
+  workflow_dispatch: # manually cut a beta prerelease from main
 
 permissions:
   contents: write
@@ -15,7 +16,7 @@ concurrency:
 
 jobs:
   prepare:
-    if: github.repository == 'Fission-AI/OpenSpec'
+    if: github.repository == 'Fission-AI/OpenSpec' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       # Generate GitHub App token first - used for checkout and changesets
@@ -34,8 +35,6 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - uses: actions/setup-node@v4
         with:
@@ -58,3 +57,126 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           # npm authentication handled via OIDC trusted publishing (no token needed)
+
+  # Manually-dispatched beta prerelease from main: version is the next stable
+  # release per pending changesets with a -beta.N suffix (e.g. v1.6.0-beta.1),
+  # published to npm under the `beta` dist-tag and posted as a prerelease-flagged
+  # GitHub Release. Changesets are left unconsumed, so the stable flow above is
+  # unaffected. This job lives in this file because npm trusted publishing
+  # authorizes a single workflow file per package.
+  #
+  # Users opt in with: npm install -g @fission-ai/openspec@beta
+  beta:
+    if: github.repository == 'Fission-AI/OpenSpec' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24' # Node 24 includes npm 11.5.1+ required for OIDC
+          cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - run: pnpm install --frozen-lockfile
+
+      # Beta version = next stable version per pending changesets, plus a
+      # -beta.N suffix that increments over existing beta tags for that version.
+      - name: Compute beta version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch --tags --force origin
+          pnpm exec changeset status --output=changeset-status.json
+          NEXT=$(node -p "JSON.parse(require('fs').readFileSync('changeset-status.json','utf8')).releases[0]?.newVersion ?? ''")
+          rm changeset-status.json
+          if [ -z "$NEXT" ]; then
+            echo "No pending changesets on main - nothing to cut a beta from."
+            exit 1
+          fi
+          N=1
+          while true; do
+            VERSION="${NEXT}-beta.${N}"
+            TAG="v${VERSION}"
+            TAG_EXISTS=false
+            NPM_EXISTS=false
+            RELEASE_EXISTS=false
+
+            if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+              TAG_EXISTS=true
+            fi
+            if npm view "@fission-ai/openspec@${VERSION}" version >/dev/null 2>&1; then
+              NPM_EXISTS=true
+            fi
+            if gh release view "${TAG}" >/dev/null 2>&1; then
+              RELEASE_EXISTS=true
+            fi
+
+            if [ "$TAG_EXISTS" = false ] && [ "$NPM_EXISTS" = false ] && [ "$RELEASE_EXISTS" = false ]; then
+              break
+            fi
+            if [ "$RELEASE_EXISTS" = false ]; then
+              echo "Resuming incomplete beta ${TAG}"
+              break
+            fi
+
+            N=$((N + 1))
+          done
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Cutting ${TAG}"
+
+      - name: Set package version
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: npm version "$VERSION" --no-git-tag-version
+
+      # prepublishOnly runs the build. npm authentication handled via OIDC
+      # trusted publishing (no token needed).
+      - name: Publish to npm under the beta dist-tag
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if npm view "@fission-ai/openspec@${VERSION}" version >/dev/null 2>&1; then
+            echo "@fission-ai/openspec@${VERSION} is already on npm; skipping publish."
+            exit 0
+          fi
+          npm publish --tag beta
+
+      - name: Tag and create GitHub prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          TAG="v${VERSION}"
+          HEAD_SHA=$(git rev-parse HEAD)
+
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            TAG_SHA=$(git rev-list -n 1 "${TAG}")
+            if [ "$TAG_SHA" != "$HEAD_SHA" ]; then
+              echo "${TAG} already exists at ${TAG_SHA}, not current HEAD ${HEAD_SHA}."
+              exit 1
+            fi
+          else
+            git tag "${TAG}"
+          fi
+
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "${TAG} already exists on origin; skipping tag push."
+          else
+            git push origin "${TAG}"
+          fi
+
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            echo "GitHub Release ${TAG} already exists; skipping release creation."
+          else
+            gh release create "${TAG}" \
+              --prerelease \
+              --generate-notes \
+              --title "${TAG}" \
+              --notes "Beta prerelease. Install with \`npm install -g @fission-ai/openspec@beta\`."
+          fi

@@ -1,11 +1,22 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { getSchemaDir, resolveSchema } from './resolver.js';
+import { getSchemaDir, resolveSchema, listSchemasWithInfo } from './resolver.js';
 import { ArtifactGraph } from './graph.js';
 import { detectCompleted } from './state.js';
-import { resolveSchemaForChange } from '../../utils/change-metadata.js';
+import { resolveArtifactOutputs } from './outputs.js';
+import { readChangeMetadata, resolveSchemaForChange } from '../../utils/change-metadata.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
-import { readProjectConfig, validateConfigRules } from '../project-config.js';
+import {
+  buildActionContext,
+  buildNextSteps,
+  summarizePlanningHome,
+  type ActionContext,
+  type PlanningHomeSummary,
+} from '../change-status-policy.js';
+import { readProjectConfig, validateConfigRules, type ProjectConfig } from '../project-config.js';
+import type { ReferenceIndexEntry } from '../references.js';
+import type { PlanningHome } from '../planning-home.js';
+import type { ChangeMetadata } from '../change-metadata/index.js';
 import type { Artifact, CompletedSet } from './types.js';
 
 // Session-level cache for validation warnings (avoid repeating same warnings)
@@ -40,6 +51,15 @@ export interface ChangeContext {
   changeDir: string;
   /** Project root directory */
   projectRoot: string;
+  /** Resolved planning home for this change */
+  planningHome?: PlanningHome;
+  /** Parsed change metadata, when present */
+  metadata?: ChangeMetadata;
+}
+
+export interface LoadChangeContextOptions {
+  changeDir?: string;
+  planningHome?: PlanningHome;
 }
 
 /**
@@ -54,8 +74,14 @@ export interface ArtifactInstructions {
   schemaName: string;
   /** Full path to change directory */
   changeDir: string;
+  /** Resolved planning home for this change */
+  planningHome?: PlanningHomeSummary;
   /** Output path pattern (e.g., "proposal.md") */
   outputPath: string;
+  /** Absolute output path or glob pattern resolved under the change directory */
+  resolvedOutputPath: string;
+  /** Existing concrete output files for this artifact */
+  existingOutputPaths: string[];
   /** Artifact description */
   description: string;
   /** Guidance on how to create this artifact (from schema instruction field) */
@@ -64,6 +90,8 @@ export interface ArtifactInstructions {
   context: string | undefined;
   /** Artifact-specific rules from config (constraints for AI, not to be included in output) */
   rules: string[] | undefined;
+  /** Referenced-store index (read-only upstream context; omitted when no references are declared) */
+  references?: ReferenceIndexEntry[];
   /** Template content (structure to follow - this IS the output format) */
   template: string;
   /** Dependencies with completion status and paths */
@@ -108,12 +136,29 @@ export interface ChangeStatus {
   changeName: string;
   /** Schema name */
   schemaName: string;
+  /** Planning home facts (generated skills derive the archive dir
+   * from planningHome.changesDir - a published agent contract). */
+  planningHome?: PlanningHomeSummary;
+  /** Full path to the change root */
+  changeRoot: string;
+  /** Absolute artifact path details keyed by artifact ID */
+  artifactPaths: Record<string, ArtifactPathSummary>;
+  /** Plain-language next steps for users and agents */
+  nextSteps: string[];
+  /** Machine-readable action constraints for agents */
+  actionContext: ActionContext;
   /** Whether all artifacts are complete */
   isComplete: boolean;
   /** Artifact IDs required before apply phase (from schema's apply.requires) */
   applyRequires: string[];
   /** Status of each artifact */
   artifacts: ArtifactStatus[];
+}
+
+export interface ArtifactPathSummary {
+  outputPath: string;
+  resolvedOutputPath: string;
+  existingOutputPaths: string[];
 }
 
 /**
@@ -176,14 +221,17 @@ export function loadTemplate(
 export function loadChangeContext(
   projectRoot: string,
   changeName: string,
-  schemaName?: string
+  schemaName?: string,
+  options: LoadChangeContextOptions = {}
 ): ChangeContext {
   const changeDir = FileSystemUtils.canonicalizeExistingPath(
-    path.join(projectRoot, 'openspec', 'changes', changeName)
+    options.changeDir ?? path.join(projectRoot, 'openspec', 'changes', changeName)
   );
 
-  // Resolve schema: explicit > metadata > default
-  const resolvedSchemaName = resolveSchemaForChange(changeDir, schemaName);
+  const metadata = readChangeMetadata(changeDir, projectRoot) ?? undefined;
+  const resolvedSchemaName = resolveSchemaForChange(changeDir, schemaName, projectRoot, {
+    metadata: metadata ?? null,
+  });
 
   const schema = resolveSchema(resolvedSchemaName, projectRoot);
   const graph = ArtifactGraph.fromSchema(schema);
@@ -196,6 +244,8 @@ export function loadChangeContext(
     changeName,
     changeDir,
     projectRoot,
+    ...(options.planningHome ? { planningHome: options.planningHome } : {}),
+    ...(metadata ? { metadata } : {}),
   };
 }
 
@@ -213,10 +263,18 @@ export function loadChangeContext(
  * @returns Enriched artifact instructions
  * @throws Error if artifact not found
  */
+export interface GenerateInstructionsOptions {
+  /** Pre-read project config; suppresses the internal read (no double read). */
+  projectConfig?: ProjectConfig | null;
+  /** Referenced-store index assembled at the command boundary. */
+  references?: ReferenceIndexEntry[];
+}
+
 export function generateInstructions(
   context: ChangeContext,
   artifactId: string,
-  projectRoot?: string
+  projectRoot?: string,
+  options: GenerateInstructionsOptions = {}
 ): ArtifactInstructions {
   const artifact = context.graph.getArtifact(artifactId);
   if (!artifact) {
@@ -230,9 +288,9 @@ export function generateInstructions(
   // Use projectRoot from context if not explicitly provided
   const effectiveProjectRoot = projectRoot ?? context.projectRoot;
 
-  // Try to read project config for context and rules
-  let projectConfig = null;
-  if (effectiveProjectRoot) {
+  // Use the pre-read config when provided; otherwise read it here.
+  let projectConfig = options.projectConfig ?? null;
+  if (options.projectConfig === undefined && effectiveProjectRoot) {
     try {
       projectConfig = readProjectConfig(effectiveProjectRoot);
     } catch {
@@ -240,14 +298,14 @@ export function generateInstructions(
     }
   }
 
-  // Validate rules artifact IDs if config has rules (only once per session)
+  // Validate rules artifact IDs if config has rules (only once per session).
+  // The rules map is global while each change can use a different schema, so a
+  // key is only "unknown" when it matches no artifact in ANY available schema.
   if (projectConfig?.rules) {
-    const validArtifactIds = new Set(context.graph.getAllArtifacts().map((a) => a.id));
-    const warnings = validateConfigRules(
-      projectConfig.rules,
-      validArtifactIds,
-      context.schemaName
+    const validArtifactIds = new Set(
+      listSchemasWithInfo(effectiveProjectRoot ?? undefined).flatMap((s) => s.artifacts)
     );
+    const warnings = validateConfigRules(projectConfig.rules, validArtifactIds);
 
     // Show each unique warning only once per session
     for (const warning of warnings) {
@@ -268,11 +326,15 @@ export function generateInstructions(
     artifactId: artifact.id,
     schemaName: context.schemaName,
     changeDir: context.changeDir,
+    planningHome: summarizePlanningHome(context.planningHome),
     outputPath: artifact.generates,
+    resolvedOutputPath: path.join(context.changeDir, artifact.generates),
+    existingOutputPaths: resolveArtifactOutputs(context.changeDir, artifact.generates),
     description: artifact.description,
     instruction: artifact.instruction,
     context: configContext,
     rules: configRules,
+    ...(options.references !== undefined ? { references: options.references } : {}),
     template: templateContent,
     dependencies,
     unlocks,
@@ -319,7 +381,10 @@ function getUnlockedArtifacts(graph: ArtifactGraph, artifactId: string): string[
  * @param context - Change context
  * @returns Formatted change status
  */
-export function formatChangeStatus(context: ChangeContext): ChangeStatus {
+export function formatChangeStatus(
+  context: ChangeContext,
+  options: { storeId?: string } = {}
+): ChangeStatus {
   // Load schema to get apply phase configuration
   const schema = resolveSchema(context.schemaName, context.projectRoot);
   const applyRequires = schema.apply?.requires ?? schema.artifacts.map(a => a.id);
@@ -328,7 +393,14 @@ export function formatChangeStatus(context: ChangeContext): ChangeStatus {
   const ready = new Set(context.graph.getNextArtifacts(context.completed));
   const blocked = context.graph.getBlocked(context.completed);
 
+  const artifactPaths: Record<string, ArtifactPathSummary> = {};
   const artifactStatuses: ArtifactStatus[] = artifacts.map(artifact => {
+    artifactPaths[artifact.id] = {
+      outputPath: artifact.generates,
+      resolvedOutputPath: path.join(context.changeDir, artifact.generates),
+      existingOutputPaths: resolveArtifactOutputs(context.changeDir, artifact.generates),
+    };
+
     if (context.completed.has(artifact.id)) {
       return {
         id: artifact.id,
@@ -357,12 +429,27 @@ export function formatChangeStatus(context: ChangeContext): ChangeStatus {
   const buildOrder = context.graph.getBuildOrder();
   const orderMap = new Map(buildOrder.map((id, idx) => [id, idx]));
   artifactStatuses.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
+  const isComplete = context.graph.isComplete(context.completed);
+  const artifactIds = artifactStatuses.map((artifact) => artifact.id);
 
   return {
     changeName: context.changeName,
     schemaName: context.schemaName,
-    isComplete: context.graph.isComplete(context.completed),
+    planningHome: summarizePlanningHome(context.planningHome),
+    changeRoot: context.changeDir,
+    artifactPaths,
+    isComplete,
     applyRequires,
+    nextSteps: buildNextSteps({
+      changeName: context.changeName,
+      artifactStatuses,
+      allArtifactsComplete: isComplete,
+      ...(options.storeId ? { storeId: options.storeId } : {}),
+    }),
+    actionContext: buildActionContext({
+      projectRoot: context.projectRoot,
+      artifactIds,
+    }),
     artifacts: artifactStatuses,
   };
 }

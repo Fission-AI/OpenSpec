@@ -167,27 +167,6 @@ export class ZshInstaller {
   }
 
   /**
-   * Check if fpath configuration is needed for a given directory
-   * Used to verify if Oh My Zsh (or other) completions directory is already in fpath
-   *
-   * @param completionsDir - Directory to check for in fpath
-   * @returns true if configuration is needed, false if directory is already referenced
-   */
-  private async needsFpathConfig(completionsDir: string): Promise<boolean> {
-    try {
-      const zshrcPath = this.getZshrcPath();
-      const content = await fs.readFile(zshrcPath, 'utf-8');
-
-      // Check if fpath already includes this directory
-      return !content.includes(completionsDir);
-    } catch (error) {
-      // If we can't read .zshrc, assume config is needed
-      console.debug(`Unable to read .zshrc to check fpath config: ${error instanceof Error ? error.message : String(error)}`);
-      return true;
-    }
-  }
-
-  /**
    * Remove .zshrc configuration
    * Used during uninstallation
    *
@@ -277,6 +256,10 @@ export class ZshInstaller {
         console.debug(`Unable to read existing completion file at ${targetPath}: ${error.message}`);
       }
 
+      if (!(await FileSystemUtils.canWriteFile(targetPath))) {
+        throw new Error(`Path is not writable: ${targetPath}`);
+      }
+
       // Ensure the directory exists
       const targetDir = path.dirname(targetPath);
       await fs.mkdir(targetDir, { recursive: true });
@@ -287,17 +270,10 @@ export class ZshInstaller {
       // Write the completion script
       await fs.writeFile(targetPath, completionScript, 'utf-8');
 
-      // Auto-configure .zshrc
+      // Auto-configure .zshrc for standard Zsh only.
+      // Oh My Zsh loads custom/completions and runs compinit itself.
       let zshrcConfigured = false;
-      if (isOhMyZsh) {
-        // For Oh My Zsh, verify that custom/completions is in fpath
-        // If not, add it to .zshrc
-        const needsConfig = await this.needsFpathConfig(targetDir);
-        if (needsConfig) {
-          zshrcConfigured = await this.configureZshrc(targetDir);
-        }
-      } else {
-        // Standard Zsh always needs .zshrc configuration
+      if (!isOhMyZsh) {
         zshrcConfigured = await this.configureZshrc(targetDir);
       }
 
