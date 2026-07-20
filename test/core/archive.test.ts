@@ -950,6 +950,71 @@ The system SHALL support the shared rule.
       expect(archives.some(a => a.includes(changeB))).toBe(false);
     });
 
+    it('should abort MODIFIED that drops a duplicate-named scenario (issue #1246 multiplicity)', async () => {
+      // Residual blind spot after the original #1246 gate: findMissingCurrentScenarios
+      // used Set membership, so two current scenarios sharing a name were both
+      // considered "present" when the MODIFIED block kept only one of them.
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'dup-scenario');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const mainSpecPath = path.join(mainSpecDir, 'spec.md');
+      await fs.writeFile(
+        mainSpecPath,
+        `# dup-scenario Specification
+
+## Purpose
+Duplicate scenario names within one requirement.
+
+## Requirements
+
+### Requirement: Login
+The system SHALL authenticate.
+
+#### Scenario: Validate
+- **WHEN** input is empty
+- **THEN** reject
+
+#### Scenario: Validate
+- **WHEN** input is malformed
+- **THEN** reject`
+      );
+
+      const changeName = 'drop-one-validate';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'dup-scenario');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+      await fs.writeFile(
+        path.join(changeSpecDir, 'spec.md'),
+        `# Drop One Validate - Change
+
+## MODIFIED Requirements
+
+### Requirement: Login
+The system SHALL authenticate.
+
+#### Scenario: Validate
+- **WHEN** input is empty
+- **THEN** reject`
+      );
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const updated = await fs.readFile(mainSpecPath, 'utf-8');
+      // Spec must be untouched — both Validate scenarios preserved
+      expect((updated.match(/#### Scenario: Validate/g) || []).length).toBe(2);
+      expect(updated).toContain('malformed');
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'dup-scenario MODIFIED failed for header "### Requirement: Login" - current spec contains scenario(s) not present in the modified block: "Validate"'
+        )
+      );
+      expect(console.log).toHaveBeenCalledWith('Aborted. No files were changed.');
+
+      await expect(fs.access(changeDir)).resolves.not.toThrow();
+      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archives = await fs.readdir(archiveDir);
+      expect(archives.some(a => a.includes(changeName))).toBe(false);
+    });
+
     it('should abort with a structural error when target spec hides requirements outside ## Requirements', async () => {
       const changeName = 'hidden-requirement-target';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);

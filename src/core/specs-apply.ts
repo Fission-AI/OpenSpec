@@ -408,10 +408,27 @@ export function buildSpecSkeleton(specFolderName: string, changeName: string): s
 }
 
 function findMissingCurrentScenarios(current: RequirementBlock, incoming: RequirementBlock): string[] {
-  const incomingScenarioNames = new Set(parseScenarioBlocks(incoming.raw).map((scenario) => scenario.name));
-  return parseScenarioBlocks(current.raw)
-    .filter((scenario) => !incomingScenarioNames.has(scenario.name))
-    .map((scenario) => scenario.name);
+  // Multiplicity-aware: a name present N times in current and M times in
+  // incoming means max(0, N - M) instances are missing. Set membership would
+  // treat N>M as fully covered and let archive silently drop duplicates
+  // (residual #1246 / duplicate-scenario-name blind spot).
+  const remainingIncoming = new Map<string, number>();
+  for (const scenario of parseScenarioBlocks(incoming.raw)) {
+    const name = scenario.name;
+    remainingIncoming.set(name, (remainingIncoming.get(name) ?? 0) + 1);
+  }
+
+  const missing: string[] = [];
+  for (const scenario of parseScenarioBlocks(current.raw)) {
+    const name = scenario.name;
+    const remaining = remainingIncoming.get(name) ?? 0;
+    if (remaining > 0) {
+      remainingIncoming.set(name, remaining - 1);
+    } else {
+      missing.push(name);
+    }
+  }
+  return missing;
 }
 
 function parseScenarioBlocks(requirementRaw: string): ScenarioBlock[] {
