@@ -113,8 +113,8 @@ artifacts:
       - Ambiguity that benefits from technical decisions before coding
 
       Sections:
-      - **Context**: Background, current state, constraints, stakeholders
-      - **Goals / Non-Goals**: What this design achieves and explicitly excludes
+      - **Context**: Only the current state and constraints needed to explain the approach. Reference the proposal for motivation instead of restating it (e.g., "See proposal.md - Why").
+      - **Goals / Non-Goals**: What this design achieves and explicitly excludes. Don't restate the proposal's scope - add only design-level boundaries.
       - **Decisions**: Key technical choices with rationale (why X over Y?). Include alternatives considered for each decision.
       - **Risks / Trade-offs**: Known limitations, things that could go wrong. Format: [Risk] → Mitigation
       - **Migration Plan**: Steps to deploy, rollback strategy (if applicable)
@@ -126,7 +126,9 @@ artifacts:
       the task breakdown, resolve it now - ask the user instead of guessing.
 
       Focus on architecture and approach, not line-by-line implementation.
-      Reference the proposal for motivation and specs for requirements.
+      The proposal covers why and what; design covers how. Reference the
+      proposal for motivation and specs for requirements - if a section
+      would only restate them, point to them instead.
 
       Good design docs explain the "why" behind technical decisions.
     requires:
