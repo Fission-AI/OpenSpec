@@ -18,6 +18,7 @@ import {
 } from '../parsers/requirement-text.js';
 import { findMainSpecStructureIssues } from '../parsers/spec-structure.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
+import { discoverSpecFiles } from '../../utils/spec-discovery.js';
 
 export class Validator {
   private strictMode: boolean;
@@ -121,15 +122,34 @@ export class Validator {
     const issues: ValidationIssue[] = [];
     const specsDir = path.join(changeDir, 'specs');
     let totalDeltas = 0;
+    let hasRootLevelSpec = false;
     const missingHeaderSpecs: string[] = [];
     const emptySectionSpecs: Array<{ path: string; sections: string[] }> = [];
 
     try {
-      // Discover delta specs at any depth so the nested multi-area layout
-      // (specs/<area>/<capability>/spec.md) is validated, not just the
-      // one-level specs/<capability>/spec.md layout (#1182b). The spec-driven
-      // specs glob is specs/**/*.md; delta files are always named spec.md.
-      const specFiles = await this.findDeltaSpecFiles(specsDir);
+      // Discover delta specs through the same helper the change parser, show,
+      // apply, and archive use, so validate never accepts a layout the merge
+      // path silently skips (#1385). It finds spec.md at any depth, covering
+      // both specs/<capability>/spec.md and the nested multi-area
+      // specs/<area>/<capability>/spec.md layout (#1182b).
+      const specFiles = (await discoverSpecFiles(specsDir)).map(spec => spec.specFile);
+
+      // A spec.md directly at the specs/ root has no capability folder, so the
+      // merge path drops it: without this error the change validates clean and
+      // archives while its requirements never reach openspec/specs/ (#1385).
+      // Only a regular file counts — a *directory* named spec.md is a capability
+      // folder like any other, and discoverSpecFiles reads it normally.
+      const rootSpecStat = await fs.stat(path.join(specsDir, 'spec.md')).catch(() => null);
+      hasRootLevelSpec = rootSpecStat?.isFile() === true;
+      if (hasRootLevelSpec) {
+        issues.push({
+          level: 'ERROR',
+          path: 'spec.md',
+          message:
+            'Delta spec found at specs/spec.md. Delta specs must live in a capability folder (e.g. specs/<capability>/spec.md) — a file at the specs/ root is ignored when the change is applied or archived.',
+        });
+      }
+
       for (const specFile of specFiles) {
         let content: string | undefined;
         try {
@@ -303,39 +323,14 @@ export class Validator {
       });
     }
 
-    if (totalDeltas === 0) {
+    // The root-level error already names the file and the fix; adding "No
+    // deltas found" on top would contradict it, since the deltas are sitting in
+    // the file just reported.
+    if (totalDeltas === 0 && !hasRootLevelSpec) {
       issues.push({ level: 'ERROR', path: 'file', message: this.enrichTopLevelError('change', VALIDATION_MESSAGES.CHANGE_NO_DELTAS) });
     }
 
     return this.createReport(issues);
-  }
-
-  /**
-   * Recursively collect every delta `spec.md` under a change's specs directory,
-   * so both the one-level (specs/<capability>/spec.md) and nested multi-area
-   * (specs/<area>/<capability>/spec.md) layouts are discovered (#1182b).
-   * Returns absolute paths, sorted for deterministic issue ordering.
-   */
-  private async findDeltaSpecFiles(specsDir: string): Promise<string[]> {
-    const results: string[] = [];
-    const walk = async (dir: string): Promise<void> => {
-      let entries;
-      try {
-        entries = await fs.readdir(dir, { withFileTypes: true });
-      } catch {
-        return;
-      }
-      for (const entry of entries) {
-        const full = path.join(dir, entry.name);
-        if (entry.isDirectory()) {
-          await walk(full);
-        } else if (entry.isFile() && entry.name === 'spec.md') {
-          results.push(full);
-        }
-      }
-    };
-    await walk(specsDir);
-    return results.sort();
   }
 
   private convertZodErrors(error: ZodError): ValidationIssue[] {

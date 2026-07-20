@@ -506,6 +506,84 @@ The system SHALL handle all errors gracefully.
       expect(report.summary.errors).toBe(0);
     });
 
+    it('should fail when a delta spec.md sits directly under specs/', async () => {
+      // #1385: the merge path only reads specs/<capability>/spec.md, so a
+      // root-level file used to validate clean and then archive with its
+      // requirements silently dropped.
+      const changeDir = path.join(testDir, 'test-change-root-delta');
+      const specsDir = path.join(changeDir, 'specs');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      const deltaSpec = `## ADDED Requirements
+
+### Requirement: Request metrics
+The system SHALL record request metrics.
+
+#### Scenario: Request is counted
+- **WHEN** a request completes
+- **THEN** a counter is incremented`;
+
+      await fs.writeFile(path.join(specsDir, 'spec.md'), deltaSpec);
+
+      const validator = new Validator(true);
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(false);
+      expect(
+        report.issues.some(i => i.message.includes('Delta spec found at specs/spec.md'))
+      ).toBe(true);
+      // The precise error replaces the generic one, which would otherwise say
+      // "No deltas found" about a file it just named.
+      expect(report.issues.some(i => i.message.includes('No deltas found'))).toBe(false);
+    });
+
+    it('should accept a capability folder that is literally named spec.md', async () => {
+      const changeDir = path.join(testDir, 'test-change-spec-md-folder');
+      const specsDir = path.join(changeDir, 'specs', 'spec.md');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      const deltaSpec = `## ADDED Requirements
+
+### Requirement: Request metrics
+The system SHALL record request metrics.
+
+#### Scenario: Request is counted
+- **WHEN** a request completes
+- **THEN** a counter is incremented`;
+
+      await fs.writeFile(path.join(specsDir, 'spec.md'), deltaSpec);
+
+      const validator = new Validator(true);
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      // specs/spec.md is a directory here, so nothing is dropped by the merge.
+      expect(report.valid).toBe(true);
+      expect(report.summary.errors).toBe(0);
+    });
+
+    it('should still validate a nested capability layout', async () => {
+      const changeDir = path.join(testDir, 'test-change-nested-delta');
+      const specsDir = path.join(changeDir, 'specs', 'platform', 'metrics');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      const deltaSpec = `## ADDED Requirements
+
+### Requirement: Request metrics
+The system SHALL record request metrics.
+
+#### Scenario: Request is counted
+- **WHEN** a request completes
+- **THEN** a counter is incremented`;
+
+      await fs.writeFile(path.join(specsDir, 'spec.md'), deltaSpec);
+
+      const validator = new Validator(true);
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(true);
+      expect(report.summary.errors).toBe(0);
+    });
+
     it('should fail when requirement text lacks SHALL/MUST', async () => {
       const changeDir = path.join(testDir, 'test-change-3');
       const specsDir = path.join(changeDir, 'specs', 'test-spec');

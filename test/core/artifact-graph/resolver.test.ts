@@ -11,6 +11,7 @@ import {
   getPackageSchemasDir,
   getUserSchemasDir,
   getProjectSchemasDir,
+  isSchemaDir,
 } from '../../../src/core/artifact-graph/resolver.js';
 
 describe('artifact-graph/resolver', () => {
@@ -646,6 +647,128 @@ artifacts:
       expect(sharedSchema).toBeDefined();
       expect(sharedSchema!.source).toBe('project');
       expect(sharedSchema!.description).toBe('Project shared'); // project version wins
+    });
+  });
+
+  // =========================================================================
+  // Symlinked schema directory tests
+  // =========================================================================
+
+  describe('isSchemaDir', () => {
+    it('should return true for a real directory', () => {
+      const dir = path.join(tempDir, 'real-dir');
+      fs.mkdirSync(dir);
+      const [entry] = fs.readdirSync(tempDir, { withFileTypes: true });
+      expect(isSchemaDir(tempDir, entry)).toBe(true);
+    });
+
+    it('should return true for a symlink pointing at a directory', () => {
+      const target = path.join(tempDir, 'target-dir');
+      fs.mkdirSync(target);
+      const link = path.join(tempDir, 'linked-dir');
+      fs.symlinkSync(target, link, 'dir');
+
+      const entry = fs
+        .readdirSync(tempDir, { withFileTypes: true })
+        .find(e => e.name === 'linked-dir')!;
+      expect(entry.isDirectory()).toBe(false); // sanity: Dirent sees the link, not the target
+      expect(entry.isSymbolicLink()).toBe(true);
+      expect(isSchemaDir(tempDir, entry)).toBe(true);
+    });
+
+    it('should return false for a symlink pointing at a file', () => {
+      const targetFile = path.join(tempDir, 'target-file');
+      fs.writeFileSync(targetFile, 'contents');
+      const link = path.join(tempDir, 'linked-file');
+      fs.symlinkSync(targetFile, link, 'file');
+
+      const entry = fs
+        .readdirSync(tempDir, { withFileTypes: true })
+        .find(e => e.name === 'linked-file')!;
+      expect(isSchemaDir(tempDir, entry)).toBe(false);
+    });
+
+    it('should return false for a broken symlink', () => {
+      const link = path.join(tempDir, 'broken-link');
+      fs.symlinkSync(path.join(tempDir, 'does-not-exist'), link, 'dir');
+
+      const entry = fs
+        .readdirSync(tempDir, { withFileTypes: true })
+        .find(e => e.name === 'broken-link')!;
+      expect(isSchemaDir(tempDir, entry)).toBe(false);
+    });
+
+    it('should return false for a regular file', () => {
+      const file = path.join(tempDir, 'plain-file');
+      fs.writeFileSync(file, 'contents');
+      const entry = fs
+        .readdirSync(tempDir, { withFileTypes: true })
+        .find(e => e.name === 'plain-file')!;
+      expect(isSchemaDir(tempDir, entry)).toBe(false);
+    });
+  });
+
+  describe('listSchemas with symlinked directories', () => {
+    it('should include a user schema that is a symlink to a directory', () => {
+      process.env.XDG_DATA_HOME = tempDir;
+      const userSchemasBase = path.join(tempDir, 'openspec', 'schemas');
+      fs.mkdirSync(userSchemasBase, { recursive: true });
+
+      // Real schema dir stored elsewhere, linked into the user schemas dir.
+      const realSchemaDir = path.join(tempDir, 'shared', 'linked-schema');
+      fs.mkdirSync(realSchemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(realSchemaDir, 'schema.yaml'),
+        'name: linked\nversion: 1\nartifacts: []'
+      );
+      fs.symlinkSync(realSchemaDir, path.join(userSchemasBase, 'linked-schema'), 'dir');
+
+      const schemas = listSchemas();
+      expect(schemas).toContain('linked-schema');
+    });
+
+    it('should not include a symlink pointing at a schema file', () => {
+      process.env.XDG_DATA_HOME = tempDir;
+      const userSchemasBase = path.join(tempDir, 'openspec', 'schemas');
+      fs.mkdirSync(userSchemasBase, { recursive: true });
+
+      // A symlink whose target is a file, not a directory.
+      const targetFile = path.join(tempDir, 'schema.yaml');
+      fs.writeFileSync(targetFile, 'name: nope\nversion: 1\nartifacts: []');
+      fs.symlinkSync(targetFile, path.join(userSchemasBase, 'file-link'), 'file');
+
+      const schemas = listSchemas();
+      expect(schemas).not.toContain('file-link');
+    });
+  });
+
+  describe('listSchemasWithInfo with symlinked directories', () => {
+    it('should include a symlinked user schema with source: user', () => {
+      process.env.XDG_DATA_HOME = tempDir;
+      const userSchemasBase = path.join(tempDir, 'openspec', 'schemas');
+      fs.mkdirSync(userSchemasBase, { recursive: true });
+
+      const realSchemaDir = path.join(tempDir, 'shared', 'linked-info');
+      fs.mkdirSync(realSchemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(realSchemaDir, 'schema.yaml'),
+        `name: linked-info
+version: 1
+description: Linked info
+artifacts:
+  - id: a
+    generates: a.md
+    description: A
+    template: a.md
+`
+      );
+      fs.symlinkSync(realSchemaDir, path.join(userSchemasBase, 'linked-info'), 'dir');
+
+      const schemas = listSchemasWithInfo();
+      const linked = schemas.find(s => s.name === 'linked-info');
+      expect(linked).toBeDefined();
+      expect(linked!.source).toBe('user');
+      expect(linked!.description).toBe('Linked info');
     });
   });
 });
