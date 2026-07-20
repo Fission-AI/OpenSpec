@@ -122,6 +122,7 @@ export class Validator {
     const issues: ValidationIssue[] = [];
     const specsDir = path.join(changeDir, 'specs');
     let totalDeltas = 0;
+    let hasRootLevelSpec = false;
     const missingHeaderSpecs: string[] = [];
     const emptySectionSpecs: Array<{ path: string; sections: string[] }> = [];
 
@@ -136,7 +137,11 @@ export class Validator {
       // A spec.md directly at the specs/ root has no capability folder, so the
       // merge path drops it: without this error the change validates clean and
       // archives while its requirements never reach openspec/specs/ (#1385).
-      if (await FileSystemUtils.fileExists(path.join(specsDir, 'spec.md'))) {
+      // Only a regular file counts — a *directory* named spec.md is a capability
+      // folder like any other, and discoverSpecFiles reads it normally.
+      const rootSpecStat = await fs.stat(path.join(specsDir, 'spec.md')).catch(() => null);
+      hasRootLevelSpec = rootSpecStat?.isFile() === true;
+      if (hasRootLevelSpec) {
         issues.push({
           level: 'ERROR',
           path: 'spec.md',
@@ -318,7 +323,10 @@ export class Validator {
       });
     }
 
-    if (totalDeltas === 0) {
+    // The root-level error already names the file and the fix; adding "No
+    // deltas found" on top would contradict it, since the deltas are sitting in
+    // the file just reported.
+    if (totalDeltas === 0 && !hasRootLevelSpec) {
       issues.push({ level: 'ERROR', path: 'file', message: this.enrichTopLevelError('change', VALIDATION_MESSAGES.CHANGE_NO_DELTAS) });
     }
 

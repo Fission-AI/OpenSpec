@@ -1294,6 +1294,38 @@ The system SHALL record request metrics.
       expect(archives.some(a => a.includes(changeName))).toBe(false);
     });
 
+    it('sets exit code 1 for a root-level specs/spec.md without delta headers (#1385)', async () => {
+      const changeName = 'exit-root-plain';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecsDir = path.join(changeDir, 'specs');
+      await fs.mkdir(changeSpecsDir, { recursive: true });
+
+      // Main-spec shape rather than delta shape: still never merged, so the
+      // gate must trip on the file existing, not on its headers.
+      const specContent = `# Metrics
+
+## Purpose
+Metrics for requests.
+
+## Requirements
+
+### Requirement: Request metrics
+The system SHALL record request metrics.
+
+#### Scenario: Request is counted
+- **WHEN** a request completes
+- **THEN** a counter is incremented`;
+      await fs.writeFile(path.join(changeSpecsDir, 'spec.md'), specContent);
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1\n');
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(process.exitCode).toBe(1);
+      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archives = await fs.readdir(archiveDir);
+      expect(archives.some(a => a.includes(changeName))).toBe(false);
+    });
+
     it('sets exit code 1 when spec rebuild fails (MODIFIED on new spec)', async () => {
       const changeName = 'exit-rebuild-fail';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
