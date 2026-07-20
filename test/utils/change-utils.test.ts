@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
@@ -110,6 +110,7 @@ describe('validateChangeName', () => {
 
 describe('createChange', () => {
   let testDir: string;
+  const originalTimeZone = process.env.TZ;
 
   beforeEach(async () => {
     testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
@@ -117,6 +118,12 @@ describe('createChange', () => {
   });
 
   afterEach(async () => {
+    vi.useRealTimers();
+    if (originalTimeZone === undefined) {
+      delete process.env.TZ;
+    } else {
+      process.env.TZ = originalTimeZone;
+    }
     await fs.rm(testDir, { recursive: true, force: true });
   });
 
@@ -136,6 +143,30 @@ describe('createChange', () => {
       const content = await fs.readFile(metaPath, 'utf-8');
       expect(content).toContain('schema: spec-driven');
       expect(content).toMatch(/created: \d{4}-\d{2}-\d{2}/);
+    });
+
+    it('should use the process local date across a UTC date boundary', async () => {
+      process.env.TZ = 'Asia/Shanghai';
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-07-14T16:30:00.000Z'));
+
+      await createChange(testDir, 'local-date-change');
+
+      const metaPath = path.join(testDir, 'openspec', 'changes', 'local-date-change', '.openspec.yaml');
+      const content = await fs.readFile(metaPath, 'utf-8');
+      expect(content).toContain('created: 2026-07-15');
+    });
+
+    it('should preserve the date when UTC and local calendar dates match', async () => {
+      process.env.TZ = 'Asia/Shanghai';
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-01-05T04:30:00.000Z'));
+
+      await createChange(testDir, 'same-date-change');
+
+      const metaPath = path.join(testDir, 'openspec', 'changes', 'same-date-change', '.openspec.yaml');
+      const content = await fs.readFile(metaPath, 'utf-8');
+      expect(content).toContain('created: 2026-01-05');
     });
 
     it('should create .openspec.yaml with custom schema', async () => {

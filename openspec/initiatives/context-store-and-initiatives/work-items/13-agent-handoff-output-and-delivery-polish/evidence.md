@@ -23,3 +23,19 @@ Treat this as output polish, not a new workflow engine:
 - keep baseline OpenSpec literacy separate from workflow entrypoints;
 - leave the broader "what should I do next?" command to the proposed handoff
   work item.
+
+## Reassessment
+
+After reviewing practical examples, the proposed "Next for your agent" shape
+looked too prescriptive. It assumes a fixed linear beta path, but agents may
+inspect state, branch, skip setup, continue an existing change, or use context in
+a different order.
+
+Conclusion on 2026-05-30:
+
+- Skip Item 13 as an implementation item for now.
+- Preserve the evidence because the handoff pain is real.
+- Do not hardcode fixed next-step guidance until the product has a clearer
+  receipt or affordance model.
+- Consider splitting deterministic `created_paths` style receipt fields into a
+  smaller future slice if they remain useful.

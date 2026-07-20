@@ -21,6 +21,12 @@ export const GlobalConfigSchema = z
     workflows: z
       .array(z.string())
       .optional(),
+    defaultStore: z
+      .string()
+      .optional()
+      .describe(
+        'Store id used as fallback root when no explicit --store, local root, or project-level store: pointer resolves'
+      ),
   })
   .passthrough();
 
@@ -35,7 +41,7 @@ export const DEFAULT_CONFIG: GlobalConfigType = {
   delivery: 'both',
 };
 
-const KNOWN_TOP_LEVEL_KEYS = new Set([...Object.keys(DEFAULT_CONFIG), 'workflows']);
+const KNOWN_TOP_LEVEL_KEYS = new Set([...Object.keys(DEFAULT_CONFIG), 'workflows', 'defaultStore']);
 
 /**
  * Validate a config key path for CLI set operations.
@@ -146,13 +152,17 @@ export function deleteNestedValue(obj: Record<string, unknown>, path: string): b
  * Coerce a string value to its appropriate type.
  * - "true" / "false" -> boolean
  * - Numeric strings -> number
+ * - JSON arrays/objects -> parsed containers
  * - Everything else -> string
  *
  * @param value - The string value to coerce
  * @param forceString - If true, always return the value as a string
  * @returns The coerced value
  */
-export function coerceValue(value: string, forceString: boolean = false): string | number | boolean {
+export function coerceValue(
+  value: string,
+  forceString: boolean = false
+): string | number | boolean | unknown[] | Record<string, unknown> {
   if (forceString) {
     return value;
   }
@@ -171,7 +181,37 @@ export function coerceValue(value: string, forceString: boolean = false): string
     return num;
   }
 
+  const jsonContainer = parseJsonContainer(value);
+  if (jsonContainer !== undefined) {
+    return jsonContainer;
+  }
+
   return value;
+}
+
+function parseJsonContainer(value: string): unknown[] | Record<string, unknown> | undefined {
+  const trimmed = value.trim();
+  const looksLikeContainer =
+    (trimmed.startsWith('[') && trimmed.endsWith(']')) ||
+    (trimmed.startsWith('{') && trimmed.endsWith('}'));
+
+  if (!looksLikeContainer) {
+    return undefined;
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+    if (Array.isArray(parsed)) {
+      return parsed;
+    }
+    if (parsed !== null && typeof parsed === 'object') {
+      return parsed as Record<string, unknown>;
+    }
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
 }
 
 /**
