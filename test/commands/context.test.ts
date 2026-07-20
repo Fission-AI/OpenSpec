@@ -7,6 +7,9 @@ import { getGlobalDataDir, registerStore } from '../../src/core/index.js';
 import { runCLI, type RunCLIResult } from '../helpers/run-cli.js';
 import { createOpenSpecRoot } from '../helpers/openspec-fixtures.js';
 import { snapshotDirectory as snapshot } from '../helpers/fs-snapshot.js';
+import { cleanupTempPath } from '../helpers/temp-cleanup.js';
+
+const CONTEXT_MATRIX_TIMEOUT_MS = 30_000;
 
 describe('openspec context (4.1)', () => {
   let tempDir: string;
@@ -41,7 +44,7 @@ describe('openspec context (4.1)', () => {
   });
 
   afterEach(() => {
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    cleanupTempPath(tempDir);
   });
 
   function parseJson(result: RunCLIResult): any {
@@ -101,7 +104,21 @@ describe('openspec context (4.1)', () => {
     const declared = await runCLI(['context', '--json'], { cwd: pointerRepo, env });
     expect(parseJson(declared).root.source).toBe('declared');
     expect(parseJson(declared).members).toHaveLength(2);
-  });
+
+    // Global-default session: no root, no pointer — provenance must name
+    // the machine-level default, not masquerade as a repo pointer.
+    fs.mkdirSync(path.join(tempDir, 'config', 'openspec'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'config', 'openspec', 'config.json'),
+      JSON.stringify({ defaultStore: 'team-context' }) + '\n'
+    );
+    const scratch = path.join(tempDir, 'no-root-here');
+    fs.mkdirSync(scratch, { recursive: true });
+    const fallback = await runCLI(['context', '--json'], { cwd: scratch, env });
+    expect(parseJson(fallback).root.source).toBe('global_default');
+    expect(parseJson(fallback).root.store_id).toBe('team-context');
+    expect(parseJson(fallback).members).toHaveLength(2);
+  }, CONTEXT_MATRIX_TIMEOUT_MS);
 
   it('distinguishes self-reference omission from nothing declared', async () => {
     fs.writeFileSync(
@@ -193,7 +210,7 @@ describe('openspec context (4.1)', () => {
     );
     expect(jsonBadDir.exitCode).toBe(1);
     expect(JSON.parse(jsonBadDir.stdout).status[0].code).toBe('context_output_dir_missing');
-  });
+  }, CONTEXT_MATRIX_TIMEOUT_MS);
 
   it('is read-only except the requested file and fails with the null shape', async () => {
     const rootBefore = snapshot(storeRoot);
