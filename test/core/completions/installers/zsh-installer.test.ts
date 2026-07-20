@@ -194,15 +194,15 @@ describe('ZshInstaller', () => {
       }
     });
 
-    it('should handle installation errors gracefully', async () => {
-      // Create installer with non-existent/invalid home directory
-      // Use a path that will fail on both Unix and Windows
-      const invalidPath = process.platform === 'win32'
-        ? 'Z:\\nonexistent\\invalid\\path'  // Non-existent drive letter on Windows
-        : '/root/invalid/nonexistent/path';  // Permission-denied path on Unix
-      const invalidInstaller = new ZshInstaller(invalidPath);
+    it.skipIf(process.platform === 'win32')('should handle installation errors gracefully', async () => {
+      const restrictedHome = path.join(testHomeDir, 'restricted-home');
+      await fs.mkdir(restrictedHome, { recursive: true });
+      await fs.chmod(restrictedHome, 0o555);
+      const invalidInstaller = new ZshInstaller(restrictedHome);
 
       const result = await invalidInstaller.install(testScript);
+
+      await fs.chmod(restrictedHome, 0o755);
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('Failed to install');
@@ -506,15 +506,15 @@ describe('ZshInstaller', () => {
       }
     });
 
-    it('should handle write permission errors gracefully', async () => {
-      // Create installer with path that can't be written
-      // Use a path that will fail on both Unix and Windows
-      const invalidPath = process.platform === 'win32'
-        ? 'Z:\\nonexistent\\invalid\\path'  // Non-existent drive letter on Windows
-        : '/root/invalid/path';  // Permission-denied path on Unix
-      const invalidInstaller = new ZshInstaller(invalidPath);
+    it.skipIf(process.platform === 'win32')('should handle write permission errors gracefully', async () => {
+      const restrictedHome = path.join(testHomeDir, 'restricted-home');
+      await fs.mkdir(restrictedHome, { recursive: true });
+      await fs.chmod(restrictedHome, 0o555);
+      const invalidInstaller = new ZshInstaller(restrictedHome);
 
       const result = await invalidInstaller.configureZshrc(completionsDir);
+
+      await fs.chmod(restrictedHome, 0o755);
 
       expect(result).toBe(false);
     });
