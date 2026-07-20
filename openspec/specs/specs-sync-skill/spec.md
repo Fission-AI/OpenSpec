@@ -56,6 +56,11 @@ The agent SHALL reconcile main specs with delta specs using the delta operation 
 - **WHEN** delta spec exists for a capability not in main specs
 - **THEN** create new main spec file at `openspec/specs/<capability>/spec.md`
 
+#### Scenario: Merged main spec keeps canonical structure
+- **WHEN** the agent writes a main spec during sync
+- **THEN** every requirement lives under a single `## Requirements` section
+- **AND** the main spec contains no delta operation headers (`## ADDED/MODIFIED/REMOVED/RENAMED Requirements`)
+
 ### Requirement: Skill Output
 The skill SHALL provide clear feedback on what was applied.
 
