@@ -275,7 +275,15 @@ export class ArchiveCommand {
       // Validate delta-formatted spec files under the change directory if present
       const changeSpecsDir = path.join(changeDir, 'specs');
       let hasDeltaSpecs = false;
-      for (const { specFile } of await discoverSpecFiles(changeSpecsDir)) {
+      // The root-level specs/spec.md is not a mergeable delta, but it must
+      // still trigger validation: otherwise a change whose only delta sits
+      // there skips this gate and archives with its requirements dropped
+      // (#1385). Validation reports it as an error and blocks the archive.
+      const deltaCandidates = [
+        ...(await discoverSpecFiles(changeSpecsDir)).map(spec => spec.specFile),
+        path.join(changeSpecsDir, 'spec.md'),
+      ];
+      for (const specFile of deltaCandidates) {
         try {
           const content = await fs.readFile(specFile, 'utf-8');
           if (/^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements/m.test(content)) {
