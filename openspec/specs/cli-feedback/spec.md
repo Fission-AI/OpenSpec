@@ -16,6 +16,15 @@ The system SHALL provide an `openspec feedback` command that creates a GitHub Is
 - **AND** the issue has the `feedback` label
 - **AND** the system displays the created issue URL
 
+#### Scenario: Repository does not define the feedback label
+
+- **WHEN** user executes `openspec feedback "Great tool!"`
+- **AND** the repository does not define the `feedback` label, so `gh` refuses to create the issue
+- **THEN** the system retries `gh issue create` without the label
+- **AND** the issue is created in the openspec repository without the `feedback` label
+- **AND** the system displays the created issue URL
+- **AND** the system notes that the label was not applied
+
 #### Scenario: Safe command execution
 
 - **WHEN** submitting feedback via `gh` CLI
@@ -127,9 +136,10 @@ The system SHALL handle feedback submission errors gracefully.
 
 #### Scenario: gh CLI execution failure
 
-- **WHEN** `gh issue create` command fails
+- **WHEN** `gh issue create` command fails for any reason other than the repository not defining the `feedback` label
 - **THEN** the system displays the error output from `gh` CLI
 - **AND** exits with the same exit code as `gh`
+- **AND** does not retry the submission
 
 #### Scenario: Network failure
 
