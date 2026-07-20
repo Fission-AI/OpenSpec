@@ -286,6 +286,23 @@ complete -c openspec -a 'init'
       expect(result.message).toBe('Completion script uninstalled successfully');
     });
 
+    it.skipIf(process.platform === 'win32')('should uninstall read-only file when parent directory is writable', async () => {
+      await installer.install(mockCompletionScript);
+      const targetPath = path.join(testHomeDir, '.config', 'fish', 'completions', 'openspec.fish');
+      await fs.chmod(targetPath, 0o444);
+
+      let result: Awaited<ReturnType<FishInstaller['uninstall']>> | undefined;
+      try {
+        result = await installer.uninstall();
+      } finally {
+        await fs.chmod(targetPath, 0o644).catch(() => undefined);
+      }
+
+      const fileExists = await fs.access(targetPath).then(() => true).catch(() => false);
+      expect(result?.success).toBe(true);
+      expect(fileExists).toBe(false);
+    });
+
     // Skip on Windows: fs.chmod() on directories doesn't restrict write access on Windows
     // Windows uses ACLs which Node.js chmod doesn't control
     it.skipIf(process.platform === 'win32')('should return failure on permission error', async () => {

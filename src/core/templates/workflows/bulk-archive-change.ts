@@ -5,6 +5,7 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
+import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
 export function getBulkArchiveChangeSkillTemplate(): SkillTemplate {
   return {
@@ -13,6 +14,8 @@ export function getBulkArchiveChangeSkillTemplate(): SkillTemplate {
     instructions: `Archive multiple completed changes in a single operation.
 
 This skill allows you to batch-archive changes, handling spec conflicts intelligently by checking the codebase to determine what's actually implemented.
+
+${STORE_SELECTION_GUIDANCE}
 
 **Input**: None required (prompts for selection)
 
@@ -41,8 +44,6 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - Parse \`schemaName\`, \`artifacts\`, \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`
       - Note which artifacts are \`done\` vs other states
 
-      If any selected change reports \`actionContext.mode: "workspace-planning"\`, explain that workspace bulk archive is not supported in this slice and STOP before syncing specs or moving changes. Do not fall back to repo-local paths or edit linked repos.
-
    b. **Task completion** - Read \`artifactPaths.tasks.existingOutputPaths\` from status JSON
       - Count \`- [ ]\` (incomplete) vs \`- [x]\` (complete)
       - If no tasks file exists, note as "No tasks"
@@ -55,7 +56,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    Build a map of \`capability -> [changes that touch it]\`:
 
-   \`\`\`
+   \`\`\`text
    auth -> [change-a, change-b]  <- CONFLICT (2+ changes)
    api  -> [change-c]            <- OK (only 1 change)
    \`\`\`
@@ -86,7 +87,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    Display a table summarizing all changes:
 
-   \`\`\`
+   \`\`\`markdown
    | Change              | Artifacts | Tasks | Specs   | Conflicts | Status |
    |---------------------|-----------|-------|---------|-----------|--------|
    | schema-management   | Done      | 5/5   | 2 delta | None      | Ready  |
@@ -96,13 +97,13 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
    \`\`\`
 
    For conflicts, show the resolution:
-   \`\`\`
+   \`\`\`text
    * Conflict resolution:
      - auth spec: Will apply add-oauth then add-jwt (both implemented, chronological order)
    \`\`\`
 
    For incomplete changes, show warnings:
-   \`\`\`
+   \`\`\`text
    Warnings:
    - add-verify-skill: 1 incomplete artifact, 3 incomplete tasks
    \`\`\`
@@ -143,7 +144,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    Show final results:
 
-   \`\`\`
+   \`\`\`markdown
    ## Bulk Archive Complete
 
    Archived 3 changes:
@@ -160,7 +161,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
    \`\`\`
 
    If any failures:
-   \`\`\`
+   \`\`\`text
    Failed 1 change:
    - some-change: Archive directory already exists
    \`\`\`
@@ -168,7 +169,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 **Conflict Resolution Examples**
 
 Example 1: Only one implemented
-\`\`\`
+\`\`\`text
 Conflict: specs/auth/spec.md touched by [add-oauth, add-jwt]
 
 Checking add-oauth:
@@ -183,7 +184,7 @@ Resolution: Only add-oauth is implemented. Will sync add-oauth specs only.
 \`\`\`
 
 Example 2: Both implemented
-\`\`\`
+\`\`\`text
 Conflict: specs/api/spec.md touched by [add-rest-api, add-graphql]
 
 Checking add-rest-api (created 2026-01-10):
@@ -200,7 +201,7 @@ then add-graphql specs (chronological order, newer takes precedence).
 
 **Output On Success**
 
-\`\`\`
+\`\`\`markdown
 ## Bulk Archive Complete
 
 Archived N changes:
@@ -214,7 +215,7 @@ Spec sync summary:
 
 **Output On Partial Success**
 
-\`\`\`
+\`\`\`markdown
 ## Bulk Archive Complete (partial)
 
 Archived N changes:
@@ -229,7 +230,7 @@ Failed K changes:
 
 **Output When No Changes**
 
-\`\`\`
+\`\`\`markdown
 ## No Changes to Archive
 
 No active changes found. Create a new change to get started.
@@ -263,6 +264,8 @@ export function getOpsxBulkArchiveCommandTemplate(): CommandTemplate {
 
 This skill allows you to batch-archive changes, handling spec conflicts intelligently by checking the codebase to determine what's actually implemented.
 
+${STORE_SELECTION_GUIDANCE}
+
 **Input**: None required (prompts for selection)
 
 **Steps**
@@ -290,8 +293,6 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - Parse \`schemaName\`, \`artifacts\`, \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`
       - Note which artifacts are \`done\` vs other states
 
-      If any selected change reports \`actionContext.mode: "workspace-planning"\`, explain that workspace bulk archive is not supported in this slice and STOP before syncing specs or moving changes. Do not fall back to repo-local paths or edit linked repos.
-
    b. **Task completion** - Read \`artifactPaths.tasks.existingOutputPaths\` from status JSON
       - Count \`- [ ]\` (incomplete) vs \`- [x]\` (complete)
       - If no tasks file exists, note as "No tasks"
@@ -304,7 +305,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    Build a map of \`capability -> [changes that touch it]\`:
 
-   \`\`\`
+   \`\`\`text
    auth -> [change-a, change-b]  <- CONFLICT (2+ changes)
    api  -> [change-c]            <- OK (only 1 change)
    \`\`\`
@@ -335,7 +336,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    Display a table summarizing all changes:
 
-   \`\`\`
+   \`\`\`markdown
    | Change              | Artifacts | Tasks | Specs   | Conflicts | Status |
    |---------------------|-----------|-------|---------|-----------|--------|
    | schema-management   | Done      | 5/5   | 2 delta | None      | Ready  |
@@ -345,13 +346,13 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
    \`\`\`
 
    For conflicts, show the resolution:
-   \`\`\`
+   \`\`\`text
    * Conflict resolution:
      - auth spec: Will apply add-oauth then add-jwt (both implemented, chronological order)
    \`\`\`
 
    For incomplete changes, show warnings:
-   \`\`\`
+   \`\`\`text
    Warnings:
    - add-verify-skill: 1 incomplete artifact, 3 incomplete tasks
    \`\`\`
@@ -392,7 +393,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    Show final results:
 
-   \`\`\`
+   \`\`\`markdown
    ## Bulk Archive Complete
 
    Archived 3 changes:
@@ -409,7 +410,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
    \`\`\`
 
    If any failures:
-   \`\`\`
+   \`\`\`text
    Failed 1 change:
    - some-change: Archive directory already exists
    \`\`\`
@@ -417,7 +418,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 **Conflict Resolution Examples**
 
 Example 1: Only one implemented
-\`\`\`
+\`\`\`text
 Conflict: specs/auth/spec.md touched by [add-oauth, add-jwt]
 
 Checking add-oauth:
@@ -432,7 +433,7 @@ Resolution: Only add-oauth is implemented. Will sync add-oauth specs only.
 \`\`\`
 
 Example 2: Both implemented
-\`\`\`
+\`\`\`text
 Conflict: specs/api/spec.md touched by [add-rest-api, add-graphql]
 
 Checking add-rest-api (created 2026-01-10):
@@ -449,7 +450,7 @@ then add-graphql specs (chronological order, newer takes precedence).
 
 **Output On Success**
 
-\`\`\`
+\`\`\`markdown
 ## Bulk Archive Complete
 
 Archived N changes:
@@ -463,7 +464,7 @@ Spec sync summary:
 
 **Output On Partial Success**
 
-\`\`\`
+\`\`\`markdown
 ## Bulk Archive Complete (partial)
 
 Archived N changes:
@@ -478,7 +479,7 @@ Failed K changes:
 
 **Output When No Changes**
 
-\`\`\`
+\`\`\`markdown
 ## No Changes to Archive
 
 No active changes found. Create a new change to get started.

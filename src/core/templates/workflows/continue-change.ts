@@ -5,12 +5,15 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
+import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
 export function getContinueChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-continue-change',
     description: 'Continue working on an OpenSpec change by creating the next artifact. Use when the user wants to progress their change, create the next artifact, or continue their workflow.',
     instructions: `Continue working on a change by creating the next artifact.
+
+${STORE_SELECTION_GUIDANCE}
 
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
@@ -66,10 +69,10 @@ export function getContinueChangeSkillTemplate(): SkillTemplate {
      - \`resolvedOutputPath\`: Resolved path or pattern to write the artifact
      - \`dependencies\`: Completed artifacts to read for context
    - **Create the artifact file**:
-     - Read any completed dependency files for context
+     - Read any completed dependency files for context - always re-read them from disk, even if you saw them earlier in the conversation (the user may have edited them)
      - Use \`template\` as the structure - fill in its sections
      - Apply \`context\` and \`rules\` as constraints when writing - but do NOT copy them into the file
-     - Write to the \`resolvedOutputPath\` specified in instructions. If it is a glob pattern, choose the concrete file path using the schema instruction and workspace planning context
+     - Write to the \`resolvedOutputPath\` specified in instructions. If it is a glob pattern, choose the concrete file path using the schema instruction and the change's context
    - Show what was created and what's now unlocked
    - STOP after creating ONE artifact
 
@@ -110,7 +113,7 @@ For other schemas, follow the \`instruction\` field from the CLI output.
 
 **Guardrails**
 - Create ONE artifact per invocation
-- Always read dependency artifacts before creating a new one
+- Always read dependency artifacts before creating a new one - re-read from disk, not from conversation memory (files may have changed since you last saw them)
 - Never skip artifacts or create out of order
 - If context is unclear, ask the user before creating
 - Verify the artifact file exists after writing before marking progress
@@ -131,6 +134,8 @@ export function getOpsxContinueCommandTemplate(): CommandTemplate {
     category: 'Workflow',
     tags: ['workflow', 'artifacts', 'experimental'],
     content: `Continue working on a change by creating the next artifact.
+
+${STORE_SELECTION_GUIDANCE}
 
 **Input**: Optionally specify a change name after \`/opsx:continue\` (e.g., \`/opsx:continue add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
@@ -186,10 +191,10 @@ export function getOpsxContinueCommandTemplate(): CommandTemplate {
      - \`resolvedOutputPath\`: Resolved path or pattern to write the artifact
      - \`dependencies\`: Completed artifacts to read for context
    - **Create the artifact file**:
-     - Read any completed dependency files for context
+     - Read any completed dependency files for context - always re-read them from disk, even if you saw them earlier in the conversation (the user may have edited them)
      - Use \`template\` as the structure - fill in its sections
      - Apply \`context\` and \`rules\` as constraints when writing - but do NOT copy them into the file
-     - Write to the \`resolvedOutputPath\` specified in instructions. If it is a glob pattern, choose the concrete file path using the schema instruction and workspace planning context
+     - Write to the \`resolvedOutputPath\` specified in instructions. If it is a glob pattern, choose the concrete file path using the schema instruction and the change's context
    - Show what was created and what's now unlocked
    - STOP after creating ONE artifact
 
@@ -230,7 +235,7 @@ For other schemas, follow the \`instruction\` field from the CLI output.
 
 **Guardrails**
 - Create ONE artifact per invocation
-- Always read dependency artifacts before creating a new one
+- Always read dependency artifacts before creating a new one - re-read from disk, not from conversation memory (files may have changed since you last saw them)
 - Never skip artifacts or create out of order
 - If context is unclear, ask the user before creating
 - Verify the artifact file exists after writing before marking progress

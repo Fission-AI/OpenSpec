@@ -23,51 +23,78 @@ import {
   getOpsxSyncCommandTemplate,
   getOpsxProposeCommandTemplate,
   getOpsxProposeSkillTemplate,
+  getOpsxUpdateCommandTemplate,
   getOpsxVerifyCommandTemplate,
   getSyncSpecsSkillTemplate,
+  getUpdateChangeSkillTemplate,
   getVerifyChangeSkillTemplate,
 } from '../../../src/core/templates/skill-templates.js';
-import { generateSkillContent } from '../../../src/core/shared/skill-generation.js';
+import {
+  generateSkillContent,
+  getCommandContents,
+  getSkillTemplates,
+} from '../../../src/core/shared/skill-generation.js';
+import { STORE_SELECTION_GUIDANCE } from '../../../src/core/templates/workflows/store-selection.js';
 
 const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
-  getExploreSkillTemplate: 'e2765fae6c2e960f4ce07058cfdaa547ff3435d454eacd5e924e38139e97ad52',
-  getNewChangeSkillTemplate: 'b0c26f0b65380062e586505c08c72230e59dccea89e6acca7b673f01cba70d5a',
-  getContinueChangeSkillTemplate: 'fbc6c379ed3dd39f59f52b10584b8df5b1dc08b5422bcf1c6d6255a944d22a11',
-  getApplyChangeSkillTemplate: 'e746f230c2513a5fd40842bde494bb3cdb3c5f7c1bcece101f92090983d4ff55',
-  getFfChangeSkillTemplate: '50e68fbb49b76d2690b614bffa9e6210e45539fb74419fc2e4311158b6d38485',
-  getSyncSpecsSkillTemplate: '9f02b41227db70875b89eefeb275c769142607dc5b2593f4e606794aed2fdbad',
-  getOnboardSkillTemplate: '4f4b60fea6e3fc7d2185815b2808fad51535fdd00cd4401b32d1536f32fa2b6d',
-  getOpsxExploreCommandTemplate: '4d5e64e3ede6703113cf2fd23b797371ef2407b702478b4f7240fc81cbf2d3a5',
-  getOpsxNewCommandTemplate: '757f72e2d9a1a6794b2188704fd39dd2ab65428899b4b361c76cc15a5e4f2ccc',
-  getOpsxContinueCommandTemplate: '62f8863edda2bfe4e210f8bc3095fd4369aaaaf7772a5cba9602d0f0bca1d0c9',
-  getOpsxApplyCommandTemplate: '812feefd32a4d9d468e03e456d06e3d2d08d1118d29cce4911f0be59cdd30bfc',
-  getOpsxFfCommandTemplate: 'f775b242bcfd56594c431c7f31a0129208a1bacfdb2427074d412543072ef7ca',
-  getArchiveChangeSkillTemplate: 'bdf022ae2cdef1feef4d641a068bef3a7fc5d98a323f7ce9f77ac578fe8d20c6',
-  getBulkArchiveChangeSkillTemplate: 'fdb1715804e86de85be96222b8efeb9d5b350c6d5c19e343e244655deff8e62b',
-  getOpsxSyncCommandTemplate: '4c8118afaea79ff4fed3d946c88e6a7abbba904a5fbf643e4372da1e3735a467',
-  getVerifyChangeSkillTemplate: '3c5dda8b49ba00f50b5bae7f04763dd00cc00a05e5f1d8a2068ad7fb701d8165',
-  getOpsxArchiveCommandTemplate: '5181ec2f59c9f0f3376e61d952ed4be976cbd01595b6b0d5e67466c8bd6bac6d',
-  getOpsxOnboardCommandTemplate: '57c1f3e2590bda8f47818bab1d528456c1b8a9a7501f63ab9e2115e0cfaf6f35',
-  getOpsxBulkArchiveCommandTemplate: 'b76c421023ccb5a12867c349f27cdb186234b692c1811980fb94127567bdabda',
-  getOpsxVerifyCommandTemplate: '9a7a3f9e5bc3d0c0878b1a4493efbbb38729597d9b9be78f63284cc2da7c20c3',
-  getOpsxProposeSkillTemplate: 'bae22279f8c7f711a8d5c5289551551d48197ddf5a99b695d96fff5339e08a49',
-  getOpsxProposeCommandTemplate: '870ab824c2aeb825fe3fe161a1f223633b4fff308ecaeb8197cbf309db2ddf02',
+  getExploreSkillTemplate: '7d2f54e74fffcb36aaaa4498a4a8b033142bb25945fb9b2de532354acbe76b9c',
+  getNewChangeSkillTemplate: '39663a6d2037e6697020393a66f6327506e3e3bc573b7a3556dcb7f9457dc51d',
+  getContinueChangeSkillTemplate: 'acc07a489a30192b4bf2bbdc587a889478fbf6fffbbc9353c7775c4ca1ec5011',
+  getApplyChangeSkillTemplate: '0f5a15fc7fb9ad6059a5643d0e01365d27642637a4aaebf182f9eabb45348197',
+  getFfChangeSkillTemplate: '20ebb682ba89809a100cd4985c074908df5bada2bd649ca1b0f4059a63a1c728',
+  getSyncSpecsSkillTemplate: 'dc07ea0312687f3edc602329c889dbbab737c6d79327eb7a723553d346b43433',
+  getOnboardSkillTemplate: 'e871d8ce172bb805ae62a7611aee7a3154d89414f427ad5ef31721c903f13002',
+  getOpsxExploreCommandTemplate: '37e53590aae7ac6621d4393aa80a5b8af21881323887fa924ed329199fda27e0',
+  getOpsxNewCommandTemplate: '57c600cce318d16b9b4308a18d0d983ea3c0673034e606a7cceec07b4c705e87',
+  getOpsxContinueCommandTemplate: 'f63964fab7720ede097aa48808baff196c391b962930ca960459205c724800e5',
+  getOpsxApplyCommandTemplate: 'daeb507206707169de73c828e199648dde5732cbc17791ef2a027adffd028574',
+  getOpsxFfCommandTemplate: 'b859b1955cda6012877ae7f9ec6980e468f2e949a3838dfcdebc17209d133749',
+  getArchiveChangeSkillTemplate: '81c0ef6794bc0e0b79342ea2a1814efb0d9bc8c7ebc9d7d63a16714d781ee804',
+  getBulkArchiveChangeSkillTemplate: 'f675122bce3ef583b245352abedecf50ff4043e45bea6bac091885f83c7b6362',
+  getOpsxSyncCommandTemplate: '98b20e00da5c588ff83ed6e6f0e959dfc540349090fb3f5792ea030d099b8169',
+  getVerifyChangeSkillTemplate: 'cab4db01b5d2b1243d63d90c53747d8b39e488c60f76eba3fe8b994467f69267',
+  getOpsxArchiveCommandTemplate: '871d9909e0e465fc98f07826c29183f4739c1d9fb79bd268ac5f8685f37f872d',
+  getOpsxOnboardCommandTemplate: '0673f34a0f81fd173bcfb8c3ac83e2b1c617f7b7564e24e5298d3bd5665a05a9',
+  getOpsxBulkArchiveCommandTemplate: 'd0d84040bcbd44e89ac525bb21100bee7befb3604e51095bfa65b8453d85290c',
+  getOpsxVerifyCommandTemplate: 'f01c0c0cef53be0956de52363d955d4ace131b1b2d77adf902f35fead9a1486d',
+  getOpsxProposeSkillTemplate: '59197064a46c53264b62925a1c725af4ebe7caf9f0eaed4101990b7c13a40db1',
+  getOpsxProposeCommandTemplate: '04f808a36e850b9cdbc4f943ef324a9fd2b1b0cc59b92f127ab6cc452d66cc4e',
   getFeedbackSkillTemplate: 'd7d83c5f7fc2b92fe8f4588a5bf2d9cb315e4c73ec19bcd5ef28270906319a0d',
+  getUpdateChangeSkillTemplate: 'fe2e8edaf973d42dc7fc7dfd846105c4c3cfec0437606e582ec644985cd4e81d',
+  getOpsxUpdateCommandTemplate: 'e55ac5774203a7d9037d2d588889c97c53f3f930da49497cc79e865375920da7',
 };
 
 const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
-  'openspec-explore': '28d900ef82b325beb65e69ee6435949adcfdf14a4314638e7006e6dc359b92d4',
-  'openspec-new-change': 'c99989810f982d72eefc74a35f2282b71f1956f23f61b83aaa58fa3dd921716f',
-  'openspec-continue-change': 'c00e2a60f79cd60197094cc59762babe5ee6a2dc1e859a0ede3f436a775ccecf',
-  'openspec-apply-change': 'd849442efd925b9247651e254a5cd696945321610cca5a9432ad420430554548',
-  'openspec-ff-change': '9d9b1995b6f4adb3da570676f7d11fee4cd1cf6c5df8ec83c033e02783a544df',
-  'openspec-sync-specs': '2e0f67ec6fadffc6107b4b1a28eef23a99a6649e5fae706897ea1dd9deb852a8',
-  'openspec-archive-change': '8d14af2c8b2e4358308ac9fc14f75db42a4b41a07e175825035852a82479793e',
-  'openspec-bulk-archive-change': '16207683996b1952559cd4e33463f28fb097761f2c5d912107733d01a90d3f2f',
-  'openspec-verify-change': 'a2acecd0c2b4e57080a314e5e7a093e0688293c37e446eb45d378f5050058550',
-  'openspec-onboard': 'b924ea3c97543ebb7ee82c5f194afe7ce87a521c32b85616f445240ab33a02ab',
-  'openspec-propose': '56aa526fe1e9fac956ad3ad570a3a259d27f54b05086940d85af136a62069292',
+  'openspec-explore': 'ba099821631ce75ee70af370917bbddbc88d0882ad0e50e91ed687d2185102ef',
+  'openspec-new-change': 'd5b8909bea70a33b7a312b38ce204a91f40b6bb2bff12c4c06b3e11641b6a689',
+  'openspec-continue-change': 'bdb8bbb6a768a741b05256effbc284d65ac6a45360b59c24b94198792d3d0ebf',
+  'openspec-apply-change': '09c0e1cdf5ccc82416d0969d6bd715cc70616bdbc3531358a5c36057f78be55a',
+  'openspec-ff-change': '0c82830cd9bc98f86eb56b63ddaabe2bf5d35fe25b6c40a7059311aee2c8acac',
+  'openspec-sync-specs': 'b3f694ab81956d05126b089fe82dea78dec21788978bb9651485f996aee96740',
+  'openspec-archive-change': '5efd666d9b13e3cb41346bc65829026325daaf0b8eaa0e924e12e7021f2ff15a',
+  'openspec-bulk-archive-change': '545b9528df52fbb0b4898405b42a2ce10416678d469d20cf597d022fa6e16e3b',
+  'openspec-verify-change': '57693d22940f06080c6cf8d590ac2f48240d4a5e9ce7074dacd0f8d3c9945afa',
+  'openspec-onboard': 'b1b6fc9a1b3ff64dafe9b8c39a761ee1bd001b542d47b4e4deaf058e0aa21256',
+  'openspec-propose': '024db4bce28d9a4d7b25fa92525da6fc701a64ac07dfdcf777d286c95b5281b5',
+  'openspec-update-change': '77ff4d1f1cd08a57649cce1f25e0ebc4f55d6d032dfde5c301d1b479561b72fa',
 };
+
+// Intentionally excludes getFeedbackSkillTemplate: this list only models templates
+// deployed via generateSkillContent, while feedback is covered in function payload parity.
+const GENERATED_SKILL_FACTORIES: Array<[string, () => SkillTemplate]> = [
+  ['openspec-explore', getExploreSkillTemplate],
+  ['openspec-new-change', getNewChangeSkillTemplate],
+  ['openspec-continue-change', getContinueChangeSkillTemplate],
+  ['openspec-apply-change', getApplyChangeSkillTemplate],
+  ['openspec-ff-change', getFfChangeSkillTemplate],
+  ['openspec-sync-specs', getSyncSpecsSkillTemplate],
+  ['openspec-archive-change', getArchiveChangeSkillTemplate],
+  ['openspec-bulk-archive-change', getBulkArchiveChangeSkillTemplate],
+  ['openspec-verify-change', getVerifyChangeSkillTemplate],
+  ['openspec-onboard', getOnboardSkillTemplate],
+  ['openspec-propose', getOpsxProposeSkillTemplate],
+  ['openspec-update-change', getUpdateChangeSkillTemplate],
+];
 
 function stableStringify(value: unknown): string {
   if (Array.isArray(value)) {
@@ -115,6 +142,8 @@ describe('skill templates split parity', () => {
       getOpsxProposeSkillTemplate,
       getOpsxProposeCommandTemplate,
       getFeedbackSkillTemplate,
+      getUpdateChangeSkillTemplate,
+      getOpsxUpdateCommandTemplate,
     };
 
     const actualHashes = Object.fromEntries(
@@ -125,24 +154,8 @@ describe('skill templates split parity', () => {
   });
 
   it('preserves generated skill file content exactly', () => {
-    // Intentionally excludes getFeedbackSkillTemplate: skillFactories only models templates
-    // deployed via generateSkillContent, while feedback is covered in function payload parity.
-    const skillFactories: Array<[string, () => SkillTemplate]> = [
-      ['openspec-explore', getExploreSkillTemplate],
-      ['openspec-new-change', getNewChangeSkillTemplate],
-      ['openspec-continue-change', getContinueChangeSkillTemplate],
-      ['openspec-apply-change', getApplyChangeSkillTemplate],
-      ['openspec-ff-change', getFfChangeSkillTemplate],
-      ['openspec-sync-specs', getSyncSpecsSkillTemplate],
-      ['openspec-archive-change', getArchiveChangeSkillTemplate],
-      ['openspec-bulk-archive-change', getBulkArchiveChangeSkillTemplate],
-      ['openspec-verify-change', getVerifyChangeSkillTemplate],
-      ['openspec-onboard', getOnboardSkillTemplate],
-      ['openspec-propose', getOpsxProposeSkillTemplate],
-    ];
-
     const actualHashes = Object.fromEntries(
-      skillFactories.map(([dirName, createTemplate]) => [
+      GENERATED_SKILL_FACTORIES.map(([dirName, createTemplate]) => [
         dirName,
         hash(generateSkillContent(createTemplate(), 'PARITY-BASELINE')),
       ])
@@ -151,22 +164,49 @@ describe('skill templates split parity', () => {
     expect(actualHashes).toEqual(EXPECTED_GENERATED_SKILL_CONTENT_HASHES);
   });
 
-  it('guards unsupported workspace workflows from repo-local fallback edits', () => {
-    const guardedSkills: Array<[string, () => SkillTemplate, string]> = [
-      ['openspec-apply-change', getApplyChangeSkillTemplate, 'full workspace apply is not supported'],
-      ['openspec-sync-specs', getSyncSpecsSkillTemplate, 'workspace spec sync is not supported'],
-      ['openspec-archive-change', getArchiveChangeSkillTemplate, 'workspace archive is not supported'],
-      ['openspec-bulk-archive-change', getBulkArchiveChangeSkillTemplate, 'workspace bulk archive is not supported'],
-      ['openspec-verify-change', getVerifyChangeSkillTemplate, 'full workspace implementation verification is not supported'],
+  // Iterating the production registries (not a local list) means a newly
+  // added workflow is covered automatically; the full-constant containment
+  // check fails if any template's interpolation drifts.
+  it('teaches store selection in every deployed skill template', () => {
+    for (const { template, dirName } of getSkillTemplates()) {
+      const content = generateSkillContent(template, 'PARITY-BASELINE');
+      expect(content, dirName).toContain(STORE_SELECTION_GUIDANCE);
+    }
+  });
+
+  // Auto-approve the OpenSpec CLI: every generated skill carries
+  // `allowed-tools: Bash(openspec:*)` so agents that honor it stop prompting
+  // on each `openspec` call. Iterating the registry covers new skills too.
+  it('pre-approves the openspec CLI via allowed-tools in every deployed skill', () => {
+    for (const { template, dirName } of getSkillTemplates()) {
+      const content = generateSkillContent(template, 'PARITY-BASELINE');
+      expect(content, dirName).toContain('allowed-tools: Bash(openspec:*)');
+    }
+  });
+
+  it('teaches store selection in every deployed opsx command template', () => {
+    for (const entry of getCommandContents()) {
+      expect(entry.body, entry.id).toContain(STORE_SELECTION_GUIDANCE);
+    }
+
+    // Feedback has no store-capable command and intentionally carries no
+    // store teaching; it ships outside both registries.
+    expect(getFeedbackSkillTemplate().instructions).not.toContain('**Store selection:**');
+  });
+
+  it('generates no workspace-planning residue in any workflow template (4.1)', () => {
+    const allSkills: Array<[string, () => SkillTemplate]> = [
+      ['openspec-apply-change', getApplyChangeSkillTemplate],
+      ['openspec-sync-specs', getSyncSpecsSkillTemplate],
+      ['openspec-archive-change', getArchiveChangeSkillTemplate],
+      ['openspec-bulk-archive-change', getBulkArchiveChangeSkillTemplate],
+      ['openspec-verify-change', getVerifyChangeSkillTemplate],
     ];
 
-    for (const [dirName, createTemplate, guardText] of guardedSkills) {
+    for (const [dirName, createTemplate] of allSkills) {
       const content = generateSkillContent(createTemplate(), 'PARITY-BASELINE');
-
-      expect(content, dirName).toContain('actionContext.mode: "workspace-planning"');
-      expect(content, dirName).toContain(guardText);
-      expect(content, dirName).not.toContain('openspec/changes/<name>');
-      expect(content, dirName).not.toContain('mv openspec/changes');
+      expect(content, dirName).not.toContain('workspace-planning');
+      expect(content, dirName).not.toContain('Workspace guard');
     }
   });
 });
