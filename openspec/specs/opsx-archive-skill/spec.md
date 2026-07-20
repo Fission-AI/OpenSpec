@@ -74,10 +74,11 @@ The skill SHALL prompt to sync delta specs before archiving if specs exist.
 - **WHEN** agent checks for delta specs
 - **AND** `specs/` directory exists in the change with spec files
 - **THEN** prompt user: "This change has delta specs. Would you like to sync them to main specs before archiving?"
+- **AND** if user cancels, stop without archiving
 - **AND** if user confirms, execute `/opsx:sync` logic inline and wait for it to complete
-- **AND** verify every synced capability matches its delta before archiving
-- **AND** stop without archiving if the user cancels, the sync fails, or a capability does not match
-- **AND** otherwise proceed with the archive
+- **AND** verify each affected capability against its delta: ADDED and MODIFIED requirements present, REMOVED requirements absent, RENAMED requirements under their new name
+- **AND** stop without archiving if the sync fails or any capability does not verify
+- **AND** archive only after verification passes, or when the user explicitly chose to archive without syncing
 
 #### Scenario: No delta specs
 
