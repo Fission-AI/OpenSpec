@@ -274,8 +274,14 @@ export class ArchiveCommand {
 
       // Validate delta-formatted spec files under the change directory if present
       const changeSpecsDir = path.join(changeDir, 'specs');
-      let hasDeltaSpecs = false;
-      for (const { specFile } of await discoverSpecFiles(changeSpecsDir)) {
+      // A spec.md at the specs/ root is never merged, so archiving a change
+      // that has one drops its content whether or not it carries delta headers
+      // (#1385). Its existence alone must run validation, which reports it and
+      // blocks the archive. A directory named spec.md is a normal capability
+      // folder, so only a regular file counts.
+      const rootSpecStat = await fs.stat(path.join(changeSpecsDir, 'spec.md')).catch(() => null);
+      let hasDeltaSpecs = rootSpecStat?.isFile() === true;
+      for (const { specFile } of hasDeltaSpecs ? [] : await discoverSpecFiles(changeSpecsDir)) {
         try {
           const content = await fs.readFile(specFile, 'utf-8');
           if (/^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements/m.test(content)) {
