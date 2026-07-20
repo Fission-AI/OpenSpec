@@ -9,7 +9,7 @@
 
 - [ ] 1.1 Extend tool metadata in `src/core/config.ts` with an optional command-surface capability field
 - [ ] 1.2 Define supported capability values: `adapter`, `skills-invocable`, `none`
-- [ ] 1.3 Mark Trae as `skills-invocable`
+- [ ] 1.3 Mark known skills-invocable tools such as ForgeCode, Kimi CLI, and Mistral Vibe as `skills-invocable`
 - [ ] 1.4 Add a shared capability resolver (explicit metadata override first, inferred fallback from adapter presence second)
 - [ ] 1.5 Add focused unit tests for capability resolution (explicit override, inferred adapter, inferred none)
 
@@ -20,7 +20,7 @@
 - [ ] 2.3 In `delivery=commands`, fail fast before writes when any selected tool resolves to `none`
 - [ ] 2.4 Update init output to clearly report effective behavior for `skills-invocable` tools (skills used as command surface)
 - [ ] 2.5 Ensure init no longer reports "no adapter" for tools intentionally using `skills-invocable`
-- [ ] 2.6 Add/adjust init tests for `delivery=commands` + `trae` (skills retained/generated, no adapter error), mixed tools (`claude,trae`) with per-tool expected outputs, and deterministic failure path for unsupported command surface (`none`)
+- [ ] 2.6 Add/adjust init tests for `delivery=commands` + `kimi` (skills retained/generated, no adapter error), mixed tools (`claude,kimi`) with per-tool expected outputs, and deterministic failure path for unsupported command surface (`none`)
 
 ## 3. Update: Capability-Aware Sync and Drift Detection
 
@@ -30,7 +30,7 @@
 - [ ] 3.4 Update profile/delivery drift detection to avoid perpetual drift for `skills-invocable` tools under commands delivery
 - [ ] 3.5 Ensure configured-tool detection still includes `skills-invocable` tools under commands delivery when managed skills exist
 - [ ] 3.6 Update summary output so skills-invocable behavior is reported as expected behavior (not implicit skip/error)
-- [ ] 3.7 Add/adjust update tests for `delivery=commands` + configured Trae (skills retained/generated), idempotent second update (no false drift loop), mixed configured tools (`claude` + `trae`), and deterministic preflight failure for unsupported command surface (`none`)
+- [ ] 3.7 Add/adjust update tests for `delivery=commands` + configured Kimi CLI (skills retained/generated), idempotent second update (no false drift loop), mixed configured tools (`claude` + `kimi`), and deterministic preflight failure for unsupported command surface (`none`)
 
 ## 4. UX and Error Messaging
 
@@ -40,7 +40,7 @@
 
 ## 5. Documentation Updates
 
-- [ ] 5.1 Update `docs/supported-tools.md` to document command-surface semantics for Trae and clarify delivery interactions
+- [ ] 5.1 Update `docs/supported-tools.md` to document command-surface semantics for skills-invocable tools and clarify delivery interactions
 - [ ] 5.2 Update `docs/cli.md` delivery guidance to explain capability-aware behavior for `delivery=commands`
 - [ ] 5.3 Add a short troubleshooting note for "commands-only + unsupported tool" failures
 
@@ -49,5 +49,5 @@
 - [ ] 6.1 Run targeted tests: `test/core/init.test.ts` and `test/core/update.test.ts`
 - [ ] 6.2 Run any new capability/unit test files added in this change
 - [ ] 6.3 Run full test suite (`pnpm test`) and resolve regressions
-- [ ] 6.4 Manual smoke check: `openspec init --tools trae` with `delivery=commands`
-- [ ] 6.5 Manual smoke check: mixed tools (`claude,trae`) with `delivery=commands`
+- [ ] 6.4 Manual smoke check: `openspec init --tools kimi` with `delivery=commands`
+- [ ] 6.5 Manual smoke check: mixed tools (`claude,kimi`) with `delivery=commands`

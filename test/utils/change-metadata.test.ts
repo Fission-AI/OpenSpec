@@ -93,7 +93,7 @@ describe('ChangeMetadataSchema', () => {
         initiative: {
           store: 'platform',
           id: 'billing-launch',
-          path: '/tmp/context-store/initiatives/billing-launch',
+          path: '/tmp/store/initiatives/billing-launch',
           summary: 'Copied initiative prose',
         },
       });

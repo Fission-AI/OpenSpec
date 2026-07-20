@@ -46,6 +46,34 @@ export function getProjectSchemasDir(projectRoot: string): string {
 }
 
 /**
+ * Determines whether a directory entry represents a schema directory candidate.
+ *
+ * Returns true for real directories and for symlinks whose target is a
+ * directory. `fs.Dirent.isDirectory()` reports the raw entry type, so a symlink
+ * (even one pointing at a directory) has `isDirectory() === false`; we
+ * dereference such entries via `fs.statSync` to admit symlinked schema dirs
+ * while still rejecting symlinks-to-files and broken/dangling symlinks.
+ *
+ * @param parentDir - The directory containing the entry
+ * @param entry - The directory entry from `fs.readdirSync(..., { withFileTypes: true })`
+ */
+export function isSchemaDir(parentDir: string, entry: fs.Dirent): boolean {
+  if (entry.isDirectory()) {
+    return true;
+  }
+  if (entry.isSymbolicLink()) {
+    try {
+      // statSync follows the link; isDirectory() reflects the target type.
+      return fs.statSync(path.join(parentDir, entry.name)).isDirectory();
+    } catch {
+      // Broken symlink (dangling target) — statSync throws; treat as non-dir.
+      return false;
+    }
+  }
+  return false;
+}
+
+/**
  * Resolves a schema name to its directory path.
  *
  * Resolution order (when projectRoot is provided):
@@ -165,7 +193,7 @@ export function listSchemas(projectRoot?: string): string[] {
   const packageDir = getPackageSchemasDir();
   if (fs.existsSync(packageDir)) {
     for (const entry of fs.readdirSync(packageDir, { withFileTypes: true })) {
-      if (entry.isDirectory()) {
+      if (isSchemaDir(packageDir, entry)) {
         const schemaPath = path.join(packageDir, entry.name, 'schema.yaml');
         if (fs.existsSync(schemaPath)) {
           schemas.add(entry.name);
@@ -178,7 +206,7 @@ export function listSchemas(projectRoot?: string): string[] {
   const userDir = getUserSchemasDir();
   if (fs.existsSync(userDir)) {
     for (const entry of fs.readdirSync(userDir, { withFileTypes: true })) {
-      if (entry.isDirectory()) {
+      if (isSchemaDir(userDir, entry)) {
         const schemaPath = path.join(userDir, entry.name, 'schema.yaml');
         if (fs.existsSync(schemaPath)) {
           schemas.add(entry.name);
@@ -192,7 +220,7 @@ export function listSchemas(projectRoot?: string): string[] {
     const projectDir = getProjectSchemasDir(projectRoot);
     if (fs.existsSync(projectDir)) {
       for (const entry of fs.readdirSync(projectDir, { withFileTypes: true })) {
-        if (entry.isDirectory()) {
+        if (isSchemaDir(projectDir, entry)) {
           const schemaPath = path.join(projectDir, entry.name, 'schema.yaml');
           if (fs.existsSync(schemaPath)) {
             schemas.add(entry.name);
@@ -230,7 +258,7 @@ export function listSchemasWithInfo(projectRoot?: string): SchemaInfo[] {
     const projectDir = getProjectSchemasDir(projectRoot);
     if (fs.existsSync(projectDir)) {
       for (const entry of fs.readdirSync(projectDir, { withFileTypes: true })) {
-        if (entry.isDirectory()) {
+        if (isSchemaDir(projectDir, entry)) {
           const schemaPath = path.join(projectDir, entry.name, 'schema.yaml');
           if (fs.existsSync(schemaPath)) {
             try {
@@ -255,7 +283,7 @@ export function listSchemasWithInfo(projectRoot?: string): SchemaInfo[] {
   const userDir = getUserSchemasDir();
   if (fs.existsSync(userDir)) {
     for (const entry of fs.readdirSync(userDir, { withFileTypes: true })) {
-      if (entry.isDirectory() && !seenNames.has(entry.name)) {
+      if (isSchemaDir(userDir, entry) && !seenNames.has(entry.name)) {
         const schemaPath = path.join(userDir, entry.name, 'schema.yaml');
         if (fs.existsSync(schemaPath)) {
           try {
@@ -279,7 +307,7 @@ export function listSchemasWithInfo(projectRoot?: string): SchemaInfo[] {
   const packageDir = getPackageSchemasDir();
   if (fs.existsSync(packageDir)) {
     for (const entry of fs.readdirSync(packageDir, { withFileTypes: true })) {
-      if (entry.isDirectory() && !seenNames.has(entry.name)) {
+      if (isSchemaDir(packageDir, entry) && !seenNames.has(entry.name)) {
         const schemaPath = path.join(packageDir, entry.name, 'schema.yaml');
         if (fs.existsSync(schemaPath)) {
           try {
