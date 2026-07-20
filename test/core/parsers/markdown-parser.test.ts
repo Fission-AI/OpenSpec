@@ -328,7 +328,7 @@ Then result`;
       expect(spec.requirements[0].text).toBe('The system SHALL use heading text when no content');
     });
 
-    it('should extract requirement text from first non-empty content line', () => {
+    it('should extract the full requirement body, not only the first content line', () => {
       const content = `# Test Spec
 
 ## Purpose
@@ -348,8 +348,168 @@ Then result`;
 
       const parser = new MarkdownParser(content);
       const spec = parser.parseSpec('test');
-      
-      expect(spec.requirements[0].text).toBe('This is the actual requirement text.');
+
+      // Body spans both lines up to the first scenario (the #361 fix); the
+      // reader no longer drops everything after line one.
+      expect(spec.requirements[0].text).toBe(
+        'This is the actual requirement text.\nThis is additional description.'
+      );
+    });
+  });
+
+  describe('requirement body reading fidelity', () => {
+    it('captures a normative keyword that wraps onto a later body line (#361)', () => {
+      const content = `# Test Spec
+
+## Purpose
+Test overview for wrapped keyword handling.
+
+## Requirements
+
+### Requirement: Wrapped keyword
+The system performs the described behavior and it
+continues onto a second line where SHALL appears.
+
+#### Scenario: Test
+Given test
+When action
+Then result`;
+
+      const parser = new MarkdownParser(content);
+      const spec = parser.parseSpec('test');
+
+      expect(spec.requirements[0].text).toContain('SHALL appears');
+      expect(spec.requirements[0].text).toContain('The system performs the described behavior');
+    });
+
+    it('skips **metadata**: lines before the description (#418)', () => {
+      const content = `# Test Spec
+
+## Purpose
+Test overview for metadata-first requirements.
+
+## Requirements
+
+### Requirement: Metadata first
+**ID**: REQ-FILE-001
+**Priority**: P1 (High)
+The system MUST persist the uploaded file.
+
+#### Scenario: Test
+Given test
+When action
+Then result`;
+
+      const parser = new MarkdownParser(content);
+      const spec = parser.parseSpec('test');
+
+      expect(spec.requirements[0].text).toBe('The system MUST persist the uploaded file.');
+    });
+
+    it('keeps a metadata-only body as the requirement text', () => {
+      const content = `# Test Spec
+
+## Purpose
+Test overview for metadata-only requirement bodies.
+
+## Requirements
+
+### Requirement: Constraint style
+**Constraint**: The system MUST respond within the configured deadline.
+
+#### Scenario: Test
+Given test
+When action
+Then result`;
+
+      const parser = new MarkdownParser(content);
+      const spec = parser.parseSpec('test');
+
+      // Metadata lines are skipped only when other body text remains; when the
+      // whole body is metadata, the metadata IS the body.
+      expect(spec.requirements[0].text).toBe(
+        '**Constraint**: The system MUST respond within the configured deadline.'
+      );
+    });
+
+    it('ignores a fenced code block that precedes the prose line (#312)', () => {
+      const content = `# Test Spec
+
+## Purpose
+Test overview for fence-before-prose handling.
+
+## Requirements
+
+### Requirement: Fence first
+\`\`\`bash
+# this is a shell comment, not the requirement text
+echo hello
+\`\`\`
+The system SHALL handle fenced examples before the prose line.
+
+#### Scenario: Test
+Given test
+When action
+Then result`;
+
+      const parser = new MarkdownParser(content);
+      const spec = parser.parseSpec('test');
+
+      expect(spec.requirements[0].text).toBe(
+        'The system SHALL handle fenced examples before the prose line.'
+      );
+      expect(spec.requirements[0].scenarios).toHaveLength(1);
+    });
+
+    it('does not count a #### Scenario inside a fenced example as a real scenario', () => {
+      const content = `# Test Spec
+
+## Purpose
+Test overview for fenced scenario handling.
+
+## Requirements
+
+### Requirement: Fenced scenario only
+The system SHALL do something real.
+
+\`\`\`markdown
+#### Scenario: not a real scenario
+- **WHEN** a reader studies the example
+- **THEN** it stays inside the fence
+\`\`\``;
+
+      const parser = new MarkdownParser(content);
+      const spec = parser.parseSpec('test');
+
+      expect(spec.requirements[0].text).toBe('The system SHALL do something real.');
+      expect(spec.requirements[0].scenarios).toHaveLength(0);
+    });
+
+    it('reads a wrapped body the same way under CRLF line endings', () => {
+      const content = [
+        '# Test Spec',
+        '',
+        '## Purpose',
+        'Test overview for CRLF body extraction.',
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: Wrapped keyword',
+        'The system performs the described behavior and it',
+        'continues onto a second line where SHALL appears.',
+        '',
+        '#### Scenario: Test',
+        'Given test',
+        'When action',
+        'Then result',
+      ].join('\r\n');
+
+      const parser = new MarkdownParser(content);
+      const spec = parser.parseSpec('test');
+
+      expect(spec.requirements[0].text).toBe(
+        'The system performs the described behavior and it\ncontinues onto a second line where SHALL appears.'
+      );
     });
   });
 });
