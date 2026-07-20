@@ -38,8 +38,14 @@ export {
   formatChangeStatus,
   TemplateLoadError,
   type ChangeContext,
+  type LoadChangeContextOptions,
   type ArtifactInstructions,
   type DependencyInfo,
   type ArtifactStatus,
   type ChangeStatus,
+  type ArtifactPathSummary,
 } from './instruction-loader.js';
+export type {
+  PlanningHomeSummary,
+  ActionContext,
+} from '../change-status-policy.js';

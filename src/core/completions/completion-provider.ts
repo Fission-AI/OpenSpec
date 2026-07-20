@@ -1,4 +1,5 @@
 import { getActiveChangeIds, getSpecIds } from '../../utils/item-discovery.js';
+import { listSchemas } from '../artifact-graph/index.js';
 
 /**
  * Cache entry for completion data
@@ -17,6 +18,7 @@ export class CompletionProvider {
   private readonly cacheTTL: number;
   private changeCache: CacheEntry<string[]> | null = null;
   private specCache: CacheEntry<string[]> | null = null;
+  private schemaCache: CacheEntry<string[]> | null = null;
 
   /**
    * Creates a new completion provider
@@ -82,6 +84,31 @@ export class CompletionProvider {
   }
 
   /**
+   * Get all schema names for completion
+   *
+   * @returns Array of schema names
+   */
+  async getSchemaNames(): Promise<string[]> {
+    const now = Date.now();
+
+    // Check if cache is valid
+    if (this.schemaCache && now - this.schemaCache.timestamp < this.cacheTTL) {
+      return this.schemaCache.data;
+    }
+
+    // Fetch fresh data
+    const schemaNames = listSchemas(this.projectRoot);
+
+    // Update cache
+    this.schemaCache = {
+      data: schemaNames,
+      timestamp: now,
+    };
+
+    return schemaNames;
+  }
+
+  /**
    * Get both change and spec IDs for completion
    *
    * @returns Object with changeIds and specIds arrays
@@ -101,6 +128,7 @@ export class CompletionProvider {
   clearCache(): void {
     this.changeCache = null;
     this.specCache = null;
+    this.schemaCache = null;
   }
 
   /**
@@ -111,6 +139,7 @@ export class CompletionProvider {
   getCacheStats(): {
     changeCache: { valid: boolean; age?: number };
     specCache: { valid: boolean; age?: number };
+    schemaCache: { valid: boolean; age?: number };
   } {
     const now = Date.now();
 
@@ -122,6 +151,10 @@ export class CompletionProvider {
       specCache: {
         valid: this.specCache !== null && now - this.specCache.timestamp < this.cacheTTL,
         age: this.specCache ? now - this.specCache.timestamp : undefined,
+      },
+      schemaCache: {
+        valid: this.schemaCache !== null && now - this.schemaCache.timestamp < this.cacheTTL,
+        age: this.schemaCache ? now - this.schemaCache.timestamp : undefined,
       },
     };
   }

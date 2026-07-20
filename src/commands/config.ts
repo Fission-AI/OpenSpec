@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { spawn, execSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
@@ -22,6 +22,8 @@ import {
 import { CORE_WORKFLOWS, ALL_WORKFLOWS, getProfileWorkflows } from '../core/profiles.js';
 import { OPENSPEC_DIR_NAME } from '../core/config.js';
 import { hasProjectConfigDrift } from '../core/profile-sync-drift.js';
+import { UpdateCommand } from '../core/update.js';
+import { asErrorMessage, isPromptCancellationError } from './shared-output.js';
 
 type ProfileAction = 'both' | 'delivery' | 'workflows' | 'keep';
 
@@ -88,12 +90,6 @@ const WORKFLOW_PROMPT_META: Record<string, WorkflowPromptMeta> = {
   },
 };
 
-function isPromptCancellationError(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    (error.name === 'ExitPromptError' || error.message.includes('force closed the prompt with SIGINT'))
-  );
-}
 
 /**
  * Resolve the effective current profile state from global config defaults.
@@ -186,7 +182,7 @@ export function diffProfileState(before: ProfileState, after: ProfileState): Pro
   };
 }
 
-function maybeWarnConfigDrift(
+function maybeWarnProjectConfigDrift(
   projectDir: string,
   state: ProfileState,
   colorize: (message: string) => string
@@ -199,6 +195,10 @@ function maybeWarnConfigDrift(
     return;
   }
   console.log(colorize('Warning: Global config is not applied to this project. Run `openspec update` to sync.'));
+}
+
+function printConfigProfileApplyGuidance(): void {
+  console.log('Config updated. Run `openspec update` in your projects to apply.');
 }
 
 /**
@@ -461,7 +461,7 @@ export function registerConfigCommand(program: Command): void {
         config.workflows = [...CORE_WORKFLOWS];
         // Preserve delivery setting
         saveGlobalConfig(config);
-        console.log('Config updated. Run `openspec update` in your projects to apply.');
+        printConfigProfileApplyGuidance();
         return;
       }
 
@@ -521,7 +521,7 @@ export function registerConfigCommand(program: Command): void {
 
         if (action === 'keep') {
           console.log('No config changes.');
-          maybeWarnConfigDrift(process.cwd(), currentState, chalk.yellow);
+          maybeWarnProjectConfigDrift(process.cwd(), currentState, chalk.yellow);
           return;
         }
 
@@ -596,7 +596,7 @@ export function registerConfigCommand(program: Command): void {
         const diff = diffProfileState(currentState, nextState);
         if (!diff.hasChanges) {
           console.log('No config changes.');
-          maybeWarnConfigDrift(process.cwd(), nextState, chalk.yellow);
+          maybeWarnProjectConfigDrift(process.cwd(), nextState, chalk.yellow);
           return;
         }
 
@@ -622,17 +622,18 @@ export function registerConfigCommand(program: Command): void {
 
           if (applyNow) {
             try {
-              execSync('npx openspec update', { stdio: 'inherit', cwd: projectDir });
+              await new UpdateCommand().execute(projectDir);
               console.log('Run `openspec update` in your other projects to apply.');
-            } catch {
-              console.error('`openspec update` failed. Please run it manually to apply the profile changes.');
+            } catch (error) {
+              console.error(`\`openspec update\` failed: ${asErrorMessage(error)}`);
+              console.error('Please run it manually to apply the profile changes.');
               process.exitCode = 1;
             }
             return;
           }
         }
 
-        console.log('Config updated. Run `openspec update` in your projects to apply.');
+        printConfigProfileApplyGuidance();
       } catch (error) {
         if (isPromptCancellationError(error)) {
           console.log('Config profile cancelled.');

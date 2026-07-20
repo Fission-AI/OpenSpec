@@ -37,4 +37,10 @@ end
 function __fish_openspec_items
     __fish_openspec_changes
     __fish_openspec_specs
+end
+
+function __fish_openspec_schemas
+    openspec __complete schemas 2>/dev/null | while read -l id desc
+        printf '%s\\t%s\\n' "$id" "$desc"
+    end
 end`;

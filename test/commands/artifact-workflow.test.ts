@@ -212,6 +212,33 @@ describe('artifact-workflow CLI commands', () => {
       const output = getOutput(result);
       expect(output).toContain('Invalid change name');
     });
+
+    it('rejects hidden directory names', async () => {
+      const result = await runCLI(['status', '--change', '.hidden'], { cwd: tempDir });
+      expect(result.exitCode).toBe(1);
+      const output = getOutput(result);
+      expect(output).toContain('Invalid change name');
+    });
+
+    it('rejects the reserved archive directory name', async () => {
+      await fs.mkdir(path.join(changesDir, 'archive'), { recursive: true });
+
+      const result = await runCLI(['status', '--change', 'archive'], { cwd: tempDir });
+      expect(result.exitCode).toBe(1);
+      const output = getOutput(result);
+      expect(output).toContain('Invalid change name');
+    });
+
+    it('accepts digit-leading change names that exist on disk (#1308)', async () => {
+      await createTestChange('2026-07-04-voice-copilot-v1', ['proposal', 'design']);
+
+      const result = await runCLI(['status', '--change', '2026-07-04-voice-copilot-v1'], {
+        cwd: tempDir,
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('2026-07-04-voice-copilot-v1');
+      expect(result.stdout).toContain('2/4 artifacts complete');
+    });
   });
 
   describe('instructions command', () => {
@@ -290,6 +317,17 @@ describe('artifact-workflow CLI commands', () => {
       expect(output).toContain("Artifact 'unknown-artifact' not found");
       expect(output).toContain('Valid artifacts');
     });
+
+    it('accepts digit-leading change names that exist on disk (#1308)', async () => {
+      await createTestChange('2026-07-04-voice-copilot-v1', ['proposal']);
+
+      const result = await runCLI(
+        ['instructions', 'design', '--change', '2026-07-04-voice-copilot-v1'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('<artifact id="design"');
+    });
   });
 
   describe('templates command', () => {
@@ -340,6 +378,48 @@ describe('artifact-workflow CLI commands', () => {
       const changeDir = path.join(changesDir, 'my-new-feature');
       const stat = await fs.stat(changeDir);
       expect(stat.isDirectory()).toBe(true);
+    });
+
+    it('rejects --initiative and writes no change', async () => {
+      const result = await runCLI(
+        ['new', 'change', 'linked-change', '--initiative', 'billing-launch'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).toBe(1);
+      const output = getOutput(result);
+      expect(output).toContain('--initiative is no longer supported');
+      await expect(fs.stat(path.join(changesDir, 'linked-change'))).rejects.toMatchObject({
+        code: 'ENOENT',
+      });
+    });
+
+    it('rejects --areas and writes no affected-area metadata', async () => {
+      const result = await runCLI(['new', 'change', 'area-change', '--areas', 'api'], {
+        cwd: tempDir,
+      });
+      expect(result.exitCode).toBe(1);
+      const output = getOutput(result);
+      expect(output).toContain('--areas is no longer supported');
+      await expect(fs.stat(path.join(changesDir, 'area-change'))).rejects.toMatchObject({
+        code: 'ENOENT',
+      });
+    });
+
+    it('keeps --goal as ordinary metadata without switching schema', async () => {
+      const result = await runCLI(
+        ['new', 'change', 'goal-change', '--goal', 'Improve billing'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).toBe(0);
+
+      const metadata = await fs.readFile(
+        path.join(changesDir, 'goal-change', '.openspec.yaml'),
+        'utf-8'
+      );
+      expect(metadata).toContain('schema: spec-driven');
+      expect(metadata).toContain('goal: Improve billing');
+      expect(metadata).not.toContain('affected_areas');
+      expect(metadata).not.toContain('initiative');
     });
 
     it('creates README.md when --description is provided', async () => {

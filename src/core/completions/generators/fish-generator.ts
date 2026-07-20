@@ -163,6 +163,9 @@ ${commandCompletions}`;
       case 'change-or-spec-id':
         lines.push(`complete -c openspec -n '${condition}' -a '(__fish_openspec_items)' -f`);
         break;
+      case 'schema-name':
+        lines.push(`complete -c openspec -n '${condition}' -a '(__fish_openspec_schemas)' -f`);
+        break;
       case 'shell':
         lines.push(`complete -c openspec -n '${condition}' -a 'zsh bash fish powershell' -f`);
         break;

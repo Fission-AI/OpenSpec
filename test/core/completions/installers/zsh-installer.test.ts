@@ -167,6 +167,7 @@ describe('ZshInstaller', () => {
 
       const result = await installer.install(testScript);
 
+      expect(result.zshrcConfigured).toBe(false);
       expect(result.instructions).toBeDefined();
       expect(result.instructions!.length).toBeGreaterThan(0);
       // Should include guidance about verifying fpath for Oh My Zsh
@@ -193,15 +194,15 @@ describe('ZshInstaller', () => {
       }
     });
 
-    it('should handle installation errors gracefully', async () => {
-      // Create installer with non-existent/invalid home directory
-      // Use a path that will fail on both Unix and Windows
-      const invalidPath = process.platform === 'win32'
-        ? 'Z:\\nonexistent\\invalid\\path'  // Non-existent drive letter on Windows
-        : '/root/invalid/nonexistent/path';  // Permission-denied path on Unix
-      const invalidInstaller = new ZshInstaller(invalidPath);
+    it.skipIf(process.platform === 'win32')('should handle installation errors gracefully', async () => {
+      const restrictedHome = path.join(testHomeDir, 'restricted-home');
+      await fs.mkdir(restrictedHome, { recursive: true });
+      await fs.chmod(restrictedHome, 0o555);
+      const invalidInstaller = new ZshInstaller(restrictedHome);
 
       const result = await invalidInstaller.install(testScript);
+
+      await fs.chmod(restrictedHome, 0o755);
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('Failed to install');
@@ -505,15 +506,15 @@ describe('ZshInstaller', () => {
       }
     });
 
-    it('should handle write permission errors gracefully', async () => {
-      // Create installer with path that can't be written
-      // Use a path that will fail on both Unix and Windows
-      const invalidPath = process.platform === 'win32'
-        ? 'Z:\\nonexistent\\invalid\\path'  // Non-existent drive letter on Windows
-        : '/root/invalid/path';  // Permission-denied path on Unix
-      const invalidInstaller = new ZshInstaller(invalidPath);
+    it.skipIf(process.platform === 'win32')('should handle write permission errors gracefully', async () => {
+      const restrictedHome = path.join(testHomeDir, 'restricted-home');
+      await fs.mkdir(restrictedHome, { recursive: true });
+      await fs.chmod(restrictedHome, 0o555);
+      const invalidInstaller = new ZshInstaller(restrictedHome);
 
       const result = await invalidInstaller.configureZshrc(completionsDir);
+
+      await fs.chmod(restrictedHome, 0o755);
 
       expect(result).toBe(false);
     });
@@ -630,28 +631,29 @@ describe('ZshInstaller', () => {
       expect(content).toContain('compinit');
     });
 
-    it('should configure .zshrc for Oh My Zsh when fpath is missing', async () => {
+    it('should not configure .zshrc for Oh My Zsh', async () => {
       const ohMyZshPath = path.join(testHomeDir, '.oh-my-zsh');
       await fs.mkdir(ohMyZshPath, { recursive: true });
+      const zshrcPath = path.join(testHomeDir, '.zshrc');
+      const originalZshrc = [
+        'export ZSH="$HOME/.oh-my-zsh"',
+        'source "$ZSH/oh-my-zsh.sh"',
+        '',
+      ].join('\n');
+      await fs.writeFile(zshrcPath, originalZshrc);
 
       const result = await installer.install(testScript);
 
       expect(result.success).toBe(true);
       expect(result.isOhMyZsh).toBe(true);
-      // Should configure .zshrc if fpath doesn't already include the directory
-      expect(result.zshrcConfigured).toBe(true);
+      expect(result.zshrcConfigured).toBe(false);
 
-      // Verify .zshrc was created with fpath configuration
-      const zshrcPath = path.join(testHomeDir, '.zshrc');
-      const exists = await fs.access(zshrcPath).then(() => true).catch(() => false);
-      expect(exists).toBe(true);
-
-      if (exists) {
-        const content = await fs.readFile(zshrcPath, 'utf-8');
-        expect(content).toContain('fpath=');
-        // Check for custom/completions or custom\completions (Windows path separator)
-        expect(content).toMatch(/custom[/\\]completions/);
-      }
+      const content = await fs.readFile(zshrcPath, 'utf-8');
+      expect(content).toBe(originalZshrc);
+      expect(content).not.toContain('# OPENSPEC:START');
+      expect(content).not.toContain('autoload -Uz compinit');
+      expect(content).not.toContain('compinit');
+      expect(result.instructions!.join('\n')).toContain('Oh My Zsh');
     });
 
     it('should not include manual instructions when .zshrc was auto-configured', async () => {

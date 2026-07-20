@@ -52,7 +52,7 @@ The archive operation SHALL follow a structured process to safely move changes t
 - **WHEN** archiving a change
 - **THEN** execute these steps:
   1. Create archive/ directory if it doesn't exist
-  2. Generate target name as `YYYY-MM-DD-[change-name]` using current date
+  2. Generate target name as `YYYY-MM-DD-[change-name]` using current date, keeping the name as-is when it already starts with a `YYYY-MM-DD-` prefix
   3. Check if target directory already exists
   4. Update main specs from the change's future state specs (see Spec Update Process below)
   5. Move the entire change directory to the archive location
@@ -203,7 +203,7 @@ The archive command SHALL validate changes before applying them to ensure data i
 
 **Interactive selection**: Reduces typing and helps users see available changes
 **Task checking**: Prevents accidental archiving of incomplete work
-**Date prefixing**: Maintains chronological order and prevents naming conflicts
+**Date prefixing**: Maintains chronological order and prevents naming conflicts; a name that already carries a date prefix keeps it, so archived names never stack dates
 **No overwrite**: Preserves historical archives and prevents data loss
 **Spec updates before archiving**: Specs in the main directory represent current reality; when a change is deployed and archived, its future state specs become the new reality and must replace the main specs
 **Confirmation for spec updates**: Provides visibility into what will change, prevents accidental overwrites, and ensures users understand the impact before specs are modified
