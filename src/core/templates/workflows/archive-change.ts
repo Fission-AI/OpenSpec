@@ -60,7 +60,7 @@ ${STORE_SELECTION_GUIDANCE}
    Use \`artifactPaths.specs.existingOutputPaths\` from status JSON to check for delta specs. If none exist, proceed without sync prompt.
 
    **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at \`openspec/specs/<capability>/spec.md\`
+   - Compare each delta spec with its corresponding main spec at \`<planningHome.root>/openspec/specs/<capability>/spec.md\` (use the store-aware \`planningHome.root\` from step 2, not a hardcoded repo path)
    - Determine what changes would be applied (adds, modifications, removals, renames)
    - Show a combined summary before prompting
 
@@ -68,7 +68,7 @@ ${STORE_SELECTION_GUIDANCE}
    - If changes needed: "Sync now (recommended)", "Archive without syncing"
    - If already synced: "Archive now", "Sync anyway", "Cancel"
 
-   If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
+   If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). If the user chooses "Cancel", stop — do not archive. For any other choice, proceed to archive.
 
 5. **Perform the archive**
 
@@ -98,7 +98,7 @@ ${STORE_SELECTION_GUIDANCE}
 
 **Output On Success**
 
-\`\`\`
+\`\`\`markdown
 ## Archive Complete
 
 **Change:** <change-name>
@@ -106,7 +106,7 @@ ${STORE_SELECTION_GUIDANCE}
 **Archived to:** the archive path derived from \`planningHome.changesDir\`/YYYY-MM-DD-<name>/
 **Specs:** ✓ Synced to main specs (or "No delta specs" or "Sync skipped")
 
-All artifacts complete. All tasks complete.
+<"All artifacts complete. All tasks complete." — or, if archived with warnings, list them instead (e.g. "Archived with 2 incomplete tasks")>
 \`\`\`
 
 **Guardrails**
@@ -178,7 +178,7 @@ ${STORE_SELECTION_GUIDANCE}
    Use \`artifactPaths.specs.existingOutputPaths\` from status JSON to check for delta specs. If none exist, proceed without sync prompt.
 
    **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at \`openspec/specs/<capability>/spec.md\`
+   - Compare each delta spec with its corresponding main spec at \`<planningHome.root>/openspec/specs/<capability>/spec.md\` (use the store-aware \`planningHome.root\` from step 2, not a hardcoded repo path)
    - Determine what changes would be applied (adds, modifications, removals, renames)
    - Show a combined summary before prompting
 
@@ -186,7 +186,7 @@ ${STORE_SELECTION_GUIDANCE}
    - If changes needed: "Sync now (recommended)", "Archive without syncing"
    - If already synced: "Archive now", "Sync anyway", "Cancel"
 
-   If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
+   If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). If the user chooses "Cancel", stop — do not archive. For any other choice, proceed to archive.
 
 5. **Perform the archive**
 
@@ -216,7 +216,7 @@ ${STORE_SELECTION_GUIDANCE}
 
 **Output On Success**
 
-\`\`\`
+\`\`\`markdown
 ## Archive Complete
 
 **Change:** <change-name>
@@ -229,7 +229,7 @@ All artifacts complete. All tasks complete.
 
 **Output On Success (No Delta Specs)**
 
-\`\`\`
+\`\`\`markdown
 ## Archive Complete
 
 **Change:** <change-name>
@@ -242,7 +242,7 @@ All artifacts complete. All tasks complete.
 
 **Output On Success With Warnings**
 
-\`\`\`
+\`\`\`markdown
 ## Archive Complete (with warnings)
 
 **Change:** <change-name>
@@ -260,7 +260,7 @@ Review the archive if this was not intentional.
 
 **Output On Error (Archive Exists)**
 
-\`\`\`
+\`\`\`markdown
 ## Archive Failed
 
 **Change:** <change-name>

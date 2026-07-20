@@ -17,8 +17,8 @@ export const OPENSPEC_ARCHIVE_DIR = 'openspec/changes/archive';
 export const DEFAULT_OPENSPEC_SCHEMA = 'spec-driven';
 export const DIRECTORY_ANCHOR_FILE_NAME = '.gitkeep';
 
-// Git cannot track empty directories, so clones of a fresh store would lose
-// these and fail root-health checks. Anchored at setup time.
+// Git cannot track empty directories, so setup anchors otherwise-empty
+// conventional store directories for teammates who clone the repo later.
 export const ANCHORED_OPENSPEC_DIRS = [OPENSPEC_SPECS_DIR, OPENSPEC_ARCHIVE_DIR] as const;
 
 type PathKind = 'missing' | 'directory' | 'file' | 'other';
@@ -99,6 +99,28 @@ function missingDirectoryDiagnostic(
   return makeStoreDiagnostic('error', code, message, { target });
 }
 
+type OptionalPlanningDirectoryKey = 'specs' | 'changes' | 'archive';
+
+async function inspectOptionalPlanningDirectory(
+  inspection: OpenSpecRootInspection,
+  storeRoot: string,
+  key: OptionalPlanningDirectoryKey,
+  relativePath: string,
+  notDirectoryCode: string,
+  target: string
+): Promise<PathKind> {
+  const kind = await pathKind(path.join(storeRoot, relativePath));
+  inspection[key] = { present: kind === 'directory' };
+  if (kind === 'directory' || kind === 'missing') return kind;
+
+  inspection.diagnostics.push(missingDirectoryDiagnostic(
+    notDirectoryCode,
+    `${relativePath}/ exists but is not a directory.`,
+    target
+  ));
+  return kind;
+}
+
 export async function inspectOpenSpecRoot(storeRoot: string): Promise<OpenSpecRootInspection> {
   const rootKind = await pathKind(storeRoot);
   const inspection = unresolvedInspection();
@@ -166,28 +188,39 @@ export async function inspectOpenSpecRoot(storeRoot: string): Promise<OpenSpecRo
     }
   }
 
-  for (const [key, relativePath, code, message, target] of [
-    ['specs', OPENSPEC_SPECS_DIR, 'openspec_specs_missing', 'Missing openspec/specs/.', 'openspec.specs'],
-    ['changes', OPENSPEC_CHANGES_DIR, 'openspec_changes_missing', 'Missing openspec/changes/.', 'openspec.changes'],
-    ['archive', OPENSPEC_ARCHIVE_DIR, 'openspec_archive_missing', 'Missing openspec/changes/archive/.', 'openspec.archive'],
-  ] as const) {
-    const kind = await pathKind(path.join(storeRoot, relativePath));
-    inspection[key] = { present: kind === 'directory' };
-    if (kind === 'directory') continue;
-
-    inspection.diagnostics.push(missingDirectoryDiagnostic(
-      kind === 'missing' ? code : code.replace('_missing', '_not_directory'),
-      kind === 'missing' ? message : `${relativePath}/ exists but is not a directory.`,
-      target
-    ));
+  await inspectOptionalPlanningDirectory(
+    inspection,
+    storeRoot,
+    'specs',
+    OPENSPEC_SPECS_DIR,
+    'openspec_specs_not_directory',
+    'openspec.specs'
+  );
+  const changesKind = await inspectOptionalPlanningDirectory(
+    inspection,
+    storeRoot,
+    'changes',
+    OPENSPEC_CHANGES_DIR,
+    'openspec_changes_not_directory',
+    'openspec.changes'
+  );
+  if (changesKind === 'directory') {
+    await inspectOptionalPlanningDirectory(
+      inspection,
+      storeRoot,
+      'archive',
+      OPENSPEC_ARCHIVE_DIR,
+      'openspec_archive_not_directory',
+      'openspec.archive'
+    );
+  } else {
+    inspection.archive = { present: false };
   }
 
   inspection.healthy =
     inspection.present === true &&
     inspection.config.present === true &&
-    inspection.specs.present === true &&
-    inspection.changes.present === true &&
-    inspection.archive.present === true;
+    inspection.diagnostics.length === 0;
 
   return inspection;
 }

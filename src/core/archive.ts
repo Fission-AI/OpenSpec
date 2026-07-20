@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { formatLocalDate } from '../utils/date.js';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
 import { Validator } from './validation/validator.js';
 import chalk from 'chalk';
@@ -18,6 +19,23 @@ import {
   writeUpdatedSpec,
   type SpecUpdate,
 } from './specs-apply.js';
+import { discoverSpecFiles } from '../utils/spec-discovery.js';
+
+function isMissingPathError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as NodeJS.ErrnoException).code === 'ENOENT'
+  );
+}
+
+/**
+ * Matches the `YYYY-MM-DD-` prefix that archiving prepends to a change name.
+ * A change whose name already starts with one (a common authoring convention)
+ * is archived under its existing name so the prefix is never stacked (#1309).
+ */
+const ARCHIVE_DATE_PREFIX_PATTERN = /^\d{4}-\d{2}-\d{2}-/;
 
 async function listActiveChangeNames(changesDir: string): Promise<string[]> {
   try {
@@ -26,7 +44,8 @@ async function listActiveChangeNames(changesDir: string): Promise<string[]> {
       .filter((entry) => entry.isDirectory() && entry.name !== 'archive')
       .map((entry) => entry.name)
       .sort();
-  } catch {
+  } catch (error) {
+    if (!isMissingPathError(error)) throw error;
     return [];
   }
 }
@@ -192,13 +211,6 @@ export class ArchiveCommand {
     const archiveDir = root.archiveDir;
     const mainSpecsDir = root.specsDir;
 
-    // Check if changes directory exists
-    try {
-      await fs.access(changesDir);
-    } catch {
-      throw new Error("No OpenSpec changes directory found. Run 'openspec init' first.");
-    }
-
     // Get change name interactively if not provided
     if (!changeName) {
       if (json) {
@@ -263,22 +275,15 @@ export class ArchiveCommand {
       // Validate delta-formatted spec files under the change directory if present
       const changeSpecsDir = path.join(changeDir, 'specs');
       let hasDeltaSpecs = false;
-      try {
-        const candidates = await fs.readdir(changeSpecsDir, { withFileTypes: true });
-        for (const c of candidates) {
-          if (c.isDirectory()) {
-            try {
-              const candidatePath = path.join(changeSpecsDir, c.name, 'spec.md');
-              await fs.access(candidatePath);
-              const content = await fs.readFile(candidatePath, 'utf-8');
-              if (/^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements/m.test(content)) {
-                hasDeltaSpecs = true;
-                break;
-              }
-            } catch {}
+      for (const { specFile } of await discoverSpecFiles(changeSpecsDir)) {
+        try {
+          const content = await fs.readFile(specFile, 'utf-8');
+          if (/^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements/m.test(content)) {
+            hasDeltaSpecs = true;
+            break;
           }
-        }
-      } catch {}
+        } catch {}
+      }
       if (hasDeltaSpecs) {
         const deltaReport = await validator.validateChangeDeltaSpecs(changeDir);
         if (!deltaReport.valid) {
@@ -306,6 +311,7 @@ export class ArchiveCommand {
         }
         console.log(chalk.red('\nValidation failed. Please fix the errors before archiving.'));
         console.log(chalk.yellow('To skip validation (not recommended), use --no-validate flag.'));
+        process.exitCode = 1;
         return null;
       }
     } else if (json) {
@@ -386,7 +392,7 @@ export class ArchiveCommand {
           console.log('\nSpecs to update:');
           for (const update of specUpdates) {
             const status = update.exists ? 'update' : 'create';
-            const capability = path.basename(path.dirname(update.target));
+            const capability = update.id;
             console.log(`  ${capability}: ${status}`);
           }
         }
@@ -428,6 +434,7 @@ export class ArchiveCommand {
             }
             console.log(String(err.message || err));
             console.log('Aborted. No files were changed.');
+            process.exitCode = 1;
             return null;
           }
 
@@ -435,7 +442,7 @@ export class ArchiveCommand {
           // late validation failure really does leave all targets unchanged.
           if (!skipValidation) {
             for (const p of prepared) {
-              const specName = path.basename(path.dirname(p.update.target));
+              const specName = p.update.id;
               const report = await new Validator().validateSpecContent(specName, p.rebuilt);
               if (!report.valid) {
                 if (json) {
@@ -451,6 +458,7 @@ export class ArchiveCommand {
                   else if (issue.level === 'WARNING') console.log(chalk.yellow(`  ⚠ ${issue.message}`));
                 }
                 console.log('Aborted. No files were changed.');
+                process.exitCode = 1;
                 return null;
               }
             }
@@ -481,8 +489,13 @@ export class ArchiveCommand {
       }
     }
 
-    // Create archive directory with date prefix
-    const archiveName = `${this.getArchiveDate()}-${changeName}`;
+    // Create archive directory with date prefix. Names that already carry
+    // one keep it: re-prefixing would stutter the name, and when the archive
+    // runs on a later day the folder would sort under a day on which the
+    // change did not happen (#1309).
+    const archiveName = ARCHIVE_DATE_PREFIX_PATTERN.test(changeName)
+      ? changeName
+      : `${formatLocalDate()}-${changeName}`;
     const archivePath = path.join(archiveDir, archiveName);
 
     // Check if archive already exists
@@ -520,12 +533,7 @@ export class ArchiveCommand {
 
   private async selectChange(changesDir: string): Promise<string | null> {
     const { select } = await import('@inquirer/prompts');
-    // Get all directories in changes (excluding archive)
-    const entries = await fs.readdir(changesDir, { withFileTypes: true });
-    const changeDirs = entries
-      .filter(entry => entry.isDirectory() && entry.name !== 'archive')
-      .map(entry => entry.name)
-      .sort();
+    const changeDirs = await listActiveChangeNames(changesDir);
 
     if (changeDirs.length === 0) {
       console.log('No active changes found.');
@@ -561,10 +569,5 @@ export class ArchiveCommand {
       // User cancelled (Ctrl+C)
       return null;
     }
-  }
-
-  private getArchiveDate(): string {
-    // Returns date in YYYY-MM-DD format
-    return new Date().toISOString().split('T')[0];
   }
 }

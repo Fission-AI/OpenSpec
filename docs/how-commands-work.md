@@ -79,8 +79,11 @@ The intent is identical everywhere. The punctuation differs. Use the form that m
 | Cursor | `/opsx-propose`, `/opsx-apply` |
 | Windsurf | `/opsx-propose`, `/opsx-apply` |
 | GitHub Copilot (IDE) | `/opsx-propose`, `/opsx-apply` |
+| CodeArts | skill-style, e.g. `/openspec-propose` |
+| Codex | skill-style via `.codex/skills/openspec-*` |
+| Oh My Pi | `/opsx-propose`, `/opsx-apply` |
 | Kimi CLI | skill-style, e.g. `/skill:openspec-propose` |
-| Trae | skill-style, e.g. `/openspec-propose` |
+| Trae | `/opsx-propose`, `/opsx-apply` |
 
 Most tools use either the colon form (`/opsx:propose`) or the dash form (`/opsx-propose`). A few tools surface OpenSpec as named skills instead of slash commands; for those you invoke the skill by name. The full per-tool list, including exactly which files get written where, lives in [Supported Tools](supported-tools.md).
 
@@ -91,7 +94,7 @@ When in doubt, type a slash in your AI chat and look at the autocomplete. Your t
 When you run `openspec init` (or `openspec update`), OpenSpec writes small files into your project so your AI tool can find the workflow. Depending on your tool and settings, these are **skills**, **commands**, or both.
 
 - **Skills** live in places like `.claude/skills/openspec-*/SKILL.md`. They're the emerging cross-tool standard: a folder of instructions your assistant auto-detects.
-- **Commands** live in places like `.claude/commands/opsx/<id>.md`. They're the older per-tool slash command files.
+- **Commands** live in places like `.claude/commands/opsx/<id>.md`. They're the older per-tool slash command files. Codex does not get generated command files; use `.codex/skills/openspec-*`.
 
 You don't have to care which one your tool uses. You just type the slash command and it works. But knowing these files exist helps when something goes wrong: if your commands vanish, it usually means these files are missing or stale, and `openspec update` regenerates them.
 

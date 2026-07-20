@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { spawn, execSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
@@ -22,7 +22,8 @@ import {
 import { CORE_WORKFLOWS, ALL_WORKFLOWS, getProfileWorkflows } from '../core/profiles.js';
 import { OPENSPEC_DIR_NAME } from '../core/config.js';
 import { hasProjectConfigDrift } from '../core/profile-sync-drift.js';
-import { isPromptCancellationError } from './shared-output.js';
+import { UpdateCommand } from '../core/update.js';
+import { asErrorMessage, isPromptCancellationError } from './shared-output.js';
 
 type ProfileAction = 'both' | 'delivery' | 'workflows' | 'keep';
 
@@ -621,10 +622,11 @@ export function registerConfigCommand(program: Command): void {
 
           if (applyNow) {
             try {
-              execSync('npx openspec update', { stdio: 'inherit', cwd: projectDir });
+              await new UpdateCommand().execute(projectDir);
               console.log('Run `openspec update` in your other projects to apply.');
-            } catch {
-              console.error('`openspec update` failed. Please run it manually to apply the profile changes.');
+            } catch (error) {
+              console.error(`\`openspec update\` failed: ${asErrorMessage(error)}`);
+              console.error('Please run it manually to apply the profile changes.');
               process.exitCode = 1;
             }
             return;

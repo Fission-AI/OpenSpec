@@ -40,50 +40,11 @@ jobs:
               - 'scripts/update-flake.sh'
               - '.github/workflows/ci.yml'
 
-  test_pr:
-    name: Test
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.19.0'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build project
-        run: pnpm run build
-
-      - name: Run tests
-        run: pnpm test
-
-      - name: Upload test coverage
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report-pr
-          path: coverage/
-          retention-days: 7
-
   test_matrix:
     name: Test (${{ matrix.label }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
       matrix:
@@ -91,12 +52,15 @@ jobs:
           - os: ubuntu-latest
             shell: bash
             label: linux-bash
+            vitest_workers: 4
           - os: macos-latest
             shell: bash
             label: macos-bash
+            vitest_workers: 4
           - os: windows-latest
             shell: pwsh
             label: windows-pwsh
+            vitest_workers: 2
 
     defaults:
       run:
@@ -110,8 +74,6 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -130,15 +92,31 @@ jobs:
         run: pnpm run build
 
       - name: Run tests
+        env:
+          VITEST_MAX_WORKERS: ${{ matrix.vitest_workers }}
         run: pnpm test
 
       - name: Upload test coverage
         if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report-main
+          name: coverage-report-${{ github.event_name }}
           path: coverage/
           retention-days: 7
+
+  test_pr_required:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: [test_matrix]
+    if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
+    steps:
+      - name: Verify matrix tests passed
+        run: |
+          if [[ "${{ needs.test_matrix.result }}" != "success" ]]; then
+            echo "Matrix test job failed"
+            exit 1
+          fi
+          echo "All matrix tests passed!"
 
   lint:
     name: Lint & Type Check
@@ -149,8 +127,6 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -270,8 +246,6 @@ jobs:
       - name: Setup pnpm
         if: steps.changed-changesets.outputs.has_changesets == 'true'
         uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - name: Setup Node.js
         if: steps.changed-changesets.outputs.has_changesets == 'true'
@@ -296,13 +270,13 @@ jobs:
   required-checks-pr:
     name: All checks passed
     runs-on: ubuntu-latest
-    needs: [test_pr, lint, nix-flake-validate]
+    needs: [test_matrix, lint, nix-flake-validate]
     if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
     steps:
       - name: Verify all checks passed
         run: |
-          if [[ "${{ needs.test_pr.result }}" != "success" ]]; then
-            echo "Test job failed"
+          if [[ "${{ needs.test_matrix.result }}" != "success" ]]; then
+            echo "Matrix test job failed"
             exit 1
           fi
           if [[ "${{ needs.lint.result }}" != "success" ]]; then

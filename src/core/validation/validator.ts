@@ -11,6 +11,11 @@ import {
   VALIDATION_MESSAGES
 } from './constants.js';
 import { parseDeltaSpec, normalizeRequirementName, extractRequirementsSection } from '../parsers/requirement-blocks.js';
+import {
+  extractRequirementBody as extractRequirementBodyShared,
+  containsShallOrMust as containsShallOrMustShared,
+  countScenarios as countScenariosShared,
+} from '../parsers/requirement-text.js';
 import { findMainSpecStructureIssues } from '../parsers/spec-structure.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 
@@ -135,6 +140,25 @@ export class Validator {
 
         const plan = parseDeltaSpec(content);
         const entryPath = FileSystemUtils.toPosixPath(path.relative(specsDir, specFile));
+
+        // Surface (as INFO, never a failure) the non-canonical level-3 headers
+        // the delta reader skipped while parsing ADDED/MODIFIED sections —
+        // without this note a stray divider like "### Documentation
+        // Requirements" would pass validate <change> while failing
+        // archive/validate <spec>. The list comes from the parse itself, so it
+        // reflects exactly what the reader skipped.
+        for (const stray of plan.skippedHeaders) {
+          const nameless = /^requirement:?$/i.test(stray.header);
+          issues.push({
+            level: 'INFO',
+            path: entryPath,
+            line: stray.line,
+            message: nameless
+              ? `Header "### ${stray.header}" in ${stray.section} is missing a requirement name and is ignored by validation. Add a name, e.g. "### Requirement: <name>".`
+              : `Header "### ${stray.header}" in ${stray.section} is not a "### Requirement:" header and is ignored by validation. Use "### Requirement: ${stray.header}" if it should be validated as a requirement.`,
+          });
+        }
+
         const sectionNames: string[] = [];
         if (plan.sectionPresence.added) sectionNames.push('## ADDED Requirements');
         if (plan.sectionPresence.modified) sectionNames.push('## MODIFIED Requirements');
@@ -164,7 +188,13 @@ export class Validator {
           }
           const requirementText = this.extractRequirementText(block.raw);
           if (!requirementText) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `ADDED "${block.name}" is missing requirement text` });
+            issues.push({
+              level: 'ERROR',
+              path: entryPath,
+              message: this.containsShallOrMust(block.name)
+                ? this.buildMissingShallOrMustMessage(`ADDED "${block.name}"`, block.name)
+                : `ADDED "${block.name}" is missing requirement text`,
+            });
           } else if (!this.containsShallOrMust(requirementText)) {
             issues.push({ level: 'ERROR', path: entryPath, message: this.buildMissingShallOrMustMessage(`ADDED "${block.name}"`, block.name) });
           }
@@ -185,7 +215,13 @@ export class Validator {
           }
           const requirementText = this.extractRequirementText(block.raw);
           if (!requirementText) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `MODIFIED "${block.name}" is missing requirement text` });
+            issues.push({
+              level: 'ERROR',
+              path: entryPath,
+              message: this.containsShallOrMust(block.name)
+                ? this.buildMissingShallOrMustMessage(`MODIFIED "${block.name}"`, block.name)
+                : `MODIFIED "${block.name}" is missing requirement text`,
+            });
           } else if (!this.containsShallOrMust(requirementText)) {
             issues.push({ level: 'ERROR', path: entryPath, message: this.buildMissingShallOrMustMessage(`MODIFIED "${block.name}"`, block.name) });
           }
@@ -460,35 +496,17 @@ export class Validator {
   }
 
   private extractRequirementText(blockRaw: string): string | undefined {
-    const lines = blockRaw.split('\n');
-    // Skip header line (index 0)
-    let i = 1;
-
-    // Find the first substantial text line, skipping metadata and blank lines
-    for (; i < lines.length; i++) {
-      const line = lines[i];
-
-      // Stop at scenario headers
-      if (/^####\s+/.test(line)) break;
-
-      const trimmed = line.trim();
-
-      // Skip blank lines
-      if (trimmed.length === 0) continue;
-
-      // Skip metadata lines (lines starting with ** like **ID**, **Priority**, etc.)
-      if (/^\*\*[^*]+\*\*:/.test(trimmed)) continue;
-
-      // Found first non-metadata, non-blank line - this is the requirement text
-      return trimmed;
-    }
-
-    // No requirement text found
-    return undefined;
+    // Delegate to the shared, fence-/metadata-/multi-line-aware body reader.
+    // Validation intentionally does not use the parser/display header-title
+    // fallback for canonical `### Requirement:` blocks: #1280 requires a
+    // SHALL/MUST that appears only in the header to receive the body-keyword
+    // hint. Line 0 is the `### Requirement: ...` header.
+    const [, ...bodyLines] = blockRaw.split('\n');
+    return extractRequirementBodyShared(bodyLines) || undefined;
   }
 
   private containsShallOrMust(text: string): boolean {
-    return /\b(SHALL|MUST)\b/.test(text);
+    return containsShallOrMustShared(text);
   }
 
   /**
@@ -510,8 +528,9 @@ export class Validator {
   }
 
   private countScenarios(blockRaw: string): number {
-    const matches = blockRaw.match(/^####\s+/gm);
-    return matches ? matches.length : 0;
+    // Fence-aware count via the shared reader: a `#### Scenario:` inside a fenced
+    // example is not a real scenario. Drop the header line (index 0).
+    return countScenariosShared(blockRaw.split('\n').slice(1));
   }
 
   private formatSectionList(sections: string[]): string {
