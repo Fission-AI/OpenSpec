@@ -44,7 +44,8 @@ export {
   type ArtifactStatus,
   type ChangeStatus,
   type ArtifactPathSummary,
-  type PlanningHomeSummary,
-  type AffectedAreasSummary,
-  type ActionContext,
 } from './instruction-loader.js';
+export type {
+  PlanningHomeSummary,
+  ActionContext,
+} from '../change-status-policy.js';

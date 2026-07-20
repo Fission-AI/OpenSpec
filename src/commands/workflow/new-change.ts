@@ -1,18 +1,27 @@
 /**
  * New Change Command
  *
- * Creates a new change directory with optional description and schema.
+ * Creates a new change directory with optional description and schema in the
+ * resolved OpenSpec root. `--store <id>` selects a registered store's
+ * root; initiative linking and workspace affected areas are no longer part of
+ * this command.
  */
 
 import ora from 'ora';
 import path from 'path';
 import { createChange, validateChangeName } from '../../utils/change-utils.js';
+import { formatChangeLocation } from '../../core/planning-home.js';
 import {
-  formatChangeLocation,
-  resolveCurrentPlanningHomeSync,
-  type PlanningHome,
-} from '../../core/planning-home.js';
-import { validateSchemaExists } from './shared.js';
+  resolveRootForCommand,
+  RootSelectionError,
+  toPlanningHome,
+  toRootOutput,
+  withStoreFlag,
+  type ResolvedOpenSpecRoot,
+  type RootOutput,
+  isStoreSelectedRoot,
+} from '../../core/root-selection.js';
+import { printJson, statusFromError, validateSchemaExists } from './shared.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -21,78 +30,102 @@ import { validateSchemaExists } from './shared.js';
 export interface NewChangeOptions {
   description?: string;
   goal?: string;
-  areas?: string;
   schema?: string;
+  store?: string;
+  storePath?: string;
+  initiative?: string;
+  areas?: string;
+  json?: boolean;
+}
+
+interface NewChangeOutput {
+  change: {
+    id: string;
+    path: string;
+    metadataPath: string;
+    schema: string;
+  };
+  root: RootOutput;
 }
 
 // -----------------------------------------------------------------------------
 // Command Implementation
 // -----------------------------------------------------------------------------
 
-function parseAffectedAreas(value: string | undefined): string[] {
-  return (value ?? '')
-    .split(',')
-    .map((area) => area.trim())
-    .filter((area) => area.length > 0);
-}
-
-function validateWorkspaceAffectedAreas(planningHome: PlanningHome, affectedAreas: string[]): void {
-  if (affectedAreas.length === 0) {
-    return;
+function assertRemovedOptionsAbsent(options: NewChangeOptions): void {
+  if (options.initiative !== undefined) {
+    throw new RootSelectionError(
+      '--initiative is no longer supported. Normal changes no longer attach to initiatives; --store <id> selects the OpenSpec root.',
+      'initiative_option_removed',
+      { target: 'change.options' }
+    );
   }
 
-  if (planningHome.kind !== 'workspace') {
-    throw new Error('--areas can only be used when creating a workspace-scoped change');
-  }
-
-  const validAreas = new Set(planningHome.workspace?.links ?? []);
-  const invalidAreas = affectedAreas.filter((area) => !validAreas.has(area));
-
-  if (invalidAreas.length > 0) {
-    const validList = [...validAreas].sort((a, b) => a.localeCompare(b));
-    const validMessage = validList.length > 0 ? validList.join(', ') : '(no registered links)';
-    throw new Error(
-      `Invalid affected area${invalidAreas.length === 1 ? '' : 's'}: ${invalidAreas.join(', ')}. ` +
-        `Valid workspace link names: ${validMessage}`
+  if (options.areas !== undefined) {
+    throw new RootSelectionError(
+      '--areas is no longer supported. Workspace affected areas are not part of the normal OpenSpec root path.',
+      'areas_option_removed',
+      { target: 'change.options' }
     );
   }
 }
 
+function printCreatedChangeHuman(
+  payload: NewChangeOutput,
+  root: ResolvedOpenSpecRoot
+): void {
+  // A relative path is only honest when the root is where the user
+  // stands; a distant ancestor root gets the absolute path.
+  const location =
+    !isStoreSelectedRoot(root) && root.path === process.cwd()
+      ? formatChangeLocation(toPlanningHome(root), payload.change.id)
+      : payload.change.path;
+  console.log(`Created change '${payload.change.id}' at ${location}/`);
+  console.log(`Schema: ${payload.change.schema}`);
+  console.log(`Next: ${withStoreFlag(root, `openspec status --change ${payload.change.id}`)}`);
+}
+
 export async function newChangeCommand(name: string | undefined, options: NewChangeOptions): Promise<void> {
-  if (!name) {
-    throw new Error('Missing required argument <name>');
-  }
-
-  const validation = validateChangeName(name);
-  if (!validation.valid) {
-    throw new Error(validation.error);
-  }
-
-  const planningHome = resolveCurrentPlanningHomeSync();
-  const projectRoot = planningHome.root;
-  const affectedAreas = parseAffectedAreas(options.areas);
-  validateWorkspaceAffectedAreas(planningHome, affectedAreas);
-
-  // Validate schema if provided
-  if (options.schema) {
-    validateSchemaExists(options.schema, projectRoot);
-  }
-
-  const resolvedSchema = options.schema ?? planningHome.defaultSchema;
-  const schemaDisplay = ` with schema '${resolvedSchema}'`;
-  const spinner = ora(`Creating change '${name}'${schemaDisplay}...`).start();
+  const spinner = options.json ? undefined : ora();
 
   try {
-    const workspaceGoal = planningHome.kind === 'workspace'
-      ? options.goal ?? options.description
-      : options.goal;
+    if (!name) {
+      throw new Error('Missing required argument <name>');
+    }
+
+    const validation = validateChangeName(name);
+    if (!validation.valid) {
+      throw new Error(validation.error);
+    }
+
+    assertRemovedOptionsAbsent(options);
+
+    const root = await resolveRootForCommand(options, {
+      json: options.json,
+      failurePayload: { change: null },
+    });
+    if (!root) {
+      return;
+    }
+
+    const projectRoot = root.path;
+
+    // Validate schema if provided
+    if (options.schema) {
+      validateSchemaExists(options.schema, projectRoot);
+    }
+
+    const resolvedSchema = options.schema ?? root.defaultSchema;
+    if (spinner) {
+      spinner.start(`Creating change '${name}' with schema '${resolvedSchema}'...`);
+    }
+
     const result = await createChange(projectRoot, name, {
       schema: options.schema,
-      defaultSchema: planningHome.defaultSchema,
-      changesDir: planningHome.changesDir,
+      defaultSchema: root.defaultSchema,
+      changesDir: root.changesDir,
       metadata: {
-        ...(workspaceGoal ? { goal: workspaceGoal } : {}),
-        ...(affectedAreas.length > 0 ? { affected_areas: affectedAreas } : {}),
+        ...(options.goal ? { goal: options.goal } : {}),
       },
     });
 
@@ -103,20 +136,33 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
       await fs.writeFile(readmePath, `# ${name}\n\n${options.description}\n`, 'utf-8');
     }
 
-    const location = formatChangeLocation(planningHome, name);
-    const scope = planningHome.kind === 'workspace' ? 'workspace change' : 'change';
-    spinner.succeed(`Created ${scope} '${name}' at ${location}/ (schema: ${result.schema})`);
+    const payload: NewChangeOutput = {
+      change: {
+        id: name,
+        path: result.changeDir,
+        metadataPath: path.join(result.changeDir, '.openspec.yaml'),
+        schema: result.schema,
+      },
+      root: toRootOutput(root),
+    };
 
-    if (planningHome.kind === 'workspace') {
-      if (affectedAreas.length > 0) {
-        console.log(`Affected areas: ${affectedAreas.join(', ')}`);
-      } else {
-        console.log('Affected areas: unresolved; identify them in workspace specs or tasks as planning continues.');
-      }
-      console.log('Next: run openspec status --change "' + name + '" to inspect workspace planning artifacts.');
+    if (options.json) {
+      printJson(payload);
+      return;
     }
+
+    spinner?.stop();
+    printCreatedChangeHuman(payload, root);
   } catch (error) {
-    spinner.fail(`Failed to create change '${name}'`);
+    spinner?.stop();
+    if (options.json) {
+      printJson({
+        change: null,
+        status: [statusFromError(error)],
+      });
+      process.exitCode = 1;
+      return;
+    }
     throw error;
   }
 }
