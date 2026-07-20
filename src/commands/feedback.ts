@@ -119,41 +119,90 @@ function displayFormattedFeedback(title: string, body: string): void {
 }
 
 /**
- * Submit feedback via gh CLI
+ * Check whether gh refused the issue because the repository does not define
+ * the label. gh resolves label names before creating the issue, so this
+ * failure means no issue was created.
+ *
+ * Only gh's stderr is inspected. The error message also embeds the command
+ * line, which carries the user's own feedback text.
+ */
+function isMissingLabelError(error: any): boolean {
+  return /could not add label/i.test(error?.stderr?.toString() ?? '');
+}
+
+/**
+ * Report a gh CLI failure and exit, preserving gh's exit code
+ */
+function reportGhFailure(error: any): void {
+  // Display the error output from gh CLI
+  if (error.stderr) {
+    console.error(error.stderr.toString());
+  } else if (error.message) {
+    console.error(error.message);
+  }
+
+  // Exit with the same code as gh CLI
+  process.exit(error.status ?? 1);
+}
+
+/**
+ * Create the feedback issue via gh CLI
  * Uses execFileSync to prevent shell injection vulnerabilities
  */
-function submitViaGhCli(title: string, body: string): void {
-  try {
-    const result = execFileSync(
-      'gh',
-      [
-        'issue',
-        'create',
-        '--repo',
-        'Fission-AI/OpenSpec',
-        '--title',
-        title,
-        '--body',
-        body,
-        '--label',
-        'feedback',
-      ],
-      { encoding: 'utf-8', stdio: 'pipe' }
-    );
+function createIssue(title: string, body: string, labels: string[]): string {
+  const args = [
+    'issue',
+    'create',
+    '--repo',
+    'Fission-AI/OpenSpec',
+    '--title',
+    title,
+    '--body',
+    body,
+  ];
 
-    const issueUrl = result.trim();
-    console.log(`\n✓ Feedback submitted successfully!`);
-    console.log(`Issue URL: ${issueUrl}\n`);
+  for (const label of labels) {
+    args.push('--label', label);
+  }
+
+  const result = execFileSync('gh', args, { encoding: 'utf-8', stdio: 'pipe' });
+
+  return result.trim();
+}
+
+/**
+ * Submit feedback via gh CLI
+ */
+function submitViaGhCli(title: string, body: string): void {
+  let issueUrl: string;
+  let labelApplied = true;
+
+  try {
+    issueUrl = createIssue(title, body, ['feedback']);
   } catch (error: any) {
-    // Display the error output from gh CLI
-    if (error.stderr) {
-      console.error(error.stderr.toString());
-    } else if (error.message) {
-      console.error(error.message);
+    if (!isMissingLabelError(error)) {
+      reportGhFailure(error);
+      return;
     }
 
-    // Exit with the same code as gh CLI
-    process.exit(error.status ?? 1);
+    // The repository does not define the 'feedback' label. Nothing was
+    // created, so retry unlabeled rather than dropping the feedback.
+    try {
+      issueUrl = createIssue(title, body, []);
+      labelApplied = false;
+    } catch (retryError: any) {
+      reportGhFailure(retryError);
+      return;
+    }
+  }
+
+  console.log(`\n✓ Feedback submitted successfully!`);
+  console.log(`Issue URL: ${issueUrl}\n`);
+
+  if (!labelApplied) {
+    console.log(
+      "Note: created without the 'feedback' label because the repository does not define it.\n"
+    );
   }
 }
 
