@@ -127,8 +127,8 @@ artifacts:
 
       Focus on architecture and approach, not line-by-line implementation.
       The proposal covers why and what; design covers how. Reference the
-      proposal for motivation and specs for requirements - if a section
-      would only restate them, point to them instead.
+      proposal for motivation and, once written, the specs for requirements -
+      if a section would only restate them, point to them instead.
 
       Good design docs explain the "why" behind technical decisions.
     requires:
