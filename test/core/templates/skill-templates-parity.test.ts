@@ -49,11 +49,11 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getOpsxContinueCommandTemplate: 'f63964fab7720ede097aa48808baff196c391b962930ca960459205c724800e5',
   getOpsxApplyCommandTemplate: 'daeb507206707169de73c828e199648dde5732cbc17791ef2a027adffd028574',
   getOpsxFfCommandTemplate: 'b859b1955cda6012877ae7f9ec6980e468f2e949a3838dfcdebc17209d133749',
-  getArchiveChangeSkillTemplate: '81c0ef6794bc0e0b79342ea2a1814efb0d9bc8c7ebc9d7d63a16714d781ee804',
+  getArchiveChangeSkillTemplate: 'a8f1d9cb06c20c7335ac35826dd09bfadead75ef6d624d359912734f74232cbc',
   getBulkArchiveChangeSkillTemplate: 'f675122bce3ef583b245352abedecf50ff4043e45bea6bac091885f83c7b6362',
   getOpsxSyncCommandTemplate: '98b20e00da5c588ff83ed6e6f0e959dfc540349090fb3f5792ea030d099b8169',
   getVerifyChangeSkillTemplate: 'cab4db01b5d2b1243d63d90c53747d8b39e488c60f76eba3fe8b994467f69267',
-  getOpsxArchiveCommandTemplate: '871d9909e0e465fc98f07826c29183f4739c1d9fb79bd268ac5f8685f37f872d',
+  getOpsxArchiveCommandTemplate: '9d14e1ea23ae8be8971fafa1d6a4d4717a8a7b922b6e76c6fb07aa568a420632',
   getOpsxOnboardCommandTemplate: '0673f34a0f81fd173bcfb8c3ac83e2b1c617f7b7564e24e5298d3bd5665a05a9',
   getOpsxBulkArchiveCommandTemplate: 'd0d84040bcbd44e89ac525bb21100bee7befb3604e51095bfa65b8453d85290c',
   getOpsxVerifyCommandTemplate: 'f01c0c0cef53be0956de52363d955d4ace131b1b2d77adf902f35fead9a1486d',
@@ -71,7 +71,7 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-apply-change': '09c0e1cdf5ccc82416d0969d6bd715cc70616bdbc3531358a5c36057f78be55a',
   'openspec-ff-change': '0c82830cd9bc98f86eb56b63ddaabe2bf5d35fe25b6c40a7059311aee2c8acac',
   'openspec-sync-specs': 'b3f694ab81956d05126b089fe82dea78dec21788978bb9651485f996aee96740',
-  'openspec-archive-change': '5efd666d9b13e3cb41346bc65829026325daaf0b8eaa0e924e12e7021f2ff15a',
+  'openspec-archive-change': '4679a077d34016bf38f0d0aa5432b53ea83ae82c2c5fec6dcb7dc15571ee8ac6',
   'openspec-bulk-archive-change': '545b9528df52fbb0b4898405b42a2ce10416678d469d20cf597d022fa6e16e3b',
   'openspec-verify-change': '57693d22940f06080c6cf8d590ac2f48240d4a5e9ce7074dacd0f8d3c9945afa',
   'openspec-onboard': 'b1b6fc9a1b3ff64dafe9b8c39a761ee1bd001b542d47b4e4deaf058e0aa21256',
@@ -207,6 +207,35 @@ describe('skill templates split parity', () => {
       const content = generateSkillContent(createTemplate(), 'PARITY-BASELINE');
       expect(content, dirName).not.toContain('workspace-planning');
       expect(content, dirName).not.toContain('Workspace guard');
+    }
+  });
+
+  it('gates the archive on a completed spec sync (#1393)', () => {
+    const generatedSkill = generateSkillContent(getArchiveChangeSkillTemplate(), 'PARITY-BASELINE');
+    const commandContent = getOpsxArchiveCommandTemplate().content;
+
+    const variants: Array<[string, string]> = [
+      ['skill', generatedSkill],
+      ['opsx command', commandContent],
+    ];
+
+    for (const [variant, content] of variants) {
+      // The sync must run inline: delegating it to a background task lets step 5
+      // move changeRoot out from under a sync that is still reading it.
+      expect(content, variant).toContain('run the `openspec-sync-specs` workflow inline');
+      expect(content, variant).toContain('Do not delegate it to a background task');
+      expect(content, variant).toContain('Never archive while a spec sync is still in flight');
+
+      // Verification must follow delta semantics. Asserting presence alone would
+      // read a correct REMOVED-only sync as a failure, and would pass a no-op
+      // sync for a MODIFIED-only delta (those requirements already exist).
+      expect(content, variant).toContain('MODIFIED requirements carrying the scenario and description changes');
+      expect(content, variant).toContain('REMOVED requirements gone');
+      expect(content, variant).toContain('RENAMED requirements present under the new name and absent under the old one');
+
+      // Verification is bound to the delta specs on disk, not to whatever the
+      // sync reports it touched — a silently skipped capability must not escape.
+      expect(content, variant).toContain('not only the ones the sync reports it touched');
     }
   });
 });
