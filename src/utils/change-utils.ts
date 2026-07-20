@@ -1,8 +1,9 @@
 import path from 'path';
 import { FileSystemUtils } from './file-system.js';
 import { writeChangeMetadata, validateSchemaName } from './change-metadata.js';
+import { formatLocalDate } from './date.js';
 import { readProjectConfig } from '../core/project-config.js';
-import type { ChangeMetadata } from '../core/artifact-graph/types.js';
+import type { ChangeMetadata } from '../core/change-metadata/index.js';
 
 const DEFAULT_SCHEMA = 'spec-driven';
 
@@ -17,7 +18,7 @@ export interface CreateChangeOptions {
   /** Directory that should contain the change directories */
   changesDir?: string;
   /** Additional metadata to persist in the change's .openspec.yaml */
-  metadata?: Partial<Pick<ChangeMetadata, 'goal' | 'affected_areas'>>;
+  metadata?: Partial<Pick<ChangeMetadata, 'goal' | 'affected_areas' | 'initiative'>>;
 }
 
 /**
@@ -157,14 +158,31 @@ export async function createChange(
     throw new Error(`Change '${name}' already exists at ${changeDir}`);
   }
 
+  // Creating a change may scaffold or complete the root itself (an
+  // implicit root, or a config-only/incomplete clone). Never leave a
+  // half-root behind that doctor immediately calls unhealthy: ensure
+  // specs/ and changes/archive/ exist, and write a config only when
+  // none exists. The config records the PROJECT default schema, never
+  // a one-change --schema override.
+  const openspecDir = path.join(projectRoot, 'openspec');
+
   // Create the directory (including parent directories if needed)
   await FileSystemUtils.createDirectory(changeDir);
+  await FileSystemUtils.createDirectory(path.join(openspecDir, 'specs'));
+  await FileSystemUtils.createDirectory(path.join(openspecDir, 'changes', 'archive'));
+  const configPath = path.join(openspecDir, 'config.yaml');
+  const configYmlPath = path.join(openspecDir, 'config.yml');
+  if (
+    !(await FileSystemUtils.fileExists(configPath)) &&
+    !(await FileSystemUtils.fileExists(configYmlPath))
+  ) {
+    await FileSystemUtils.writeFile(configPath, `schema: ${defaultSchema}\n`);
+  }
 
   // Write metadata file with schema and creation date
-  const today = new Date().toISOString().split('T')[0];
   writeChangeMetadata(changeDir, {
     schema: schemaName,
-    created: today,
+    created: formatLocalDate(),
     ...options.metadata,
   }, projectRoot);
 

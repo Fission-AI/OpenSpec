@@ -5,6 +5,7 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
+import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
 export function getOpsxProposeSkillTemplate(): SkillTemplate {
   return {
@@ -20,6 +21,8 @@ I'll create a change with artifacts:
 When ready to implement, run /opsx:apply
 
 ---
+
+${STORE_SELECTION_GUIDANCE}
 
 **Input**: The user's request should include a change name (kebab-case) OR a description of what they want to build.
 
@@ -67,7 +70,7 @@ When ready to implement, run /opsx:apply
         - \`instruction\`: Schema-specific guidance for this artifact type
         - \`resolvedOutputPath\`: Resolved path or pattern to write the artifact
         - \`dependencies\`: Completed artifacts to read for context
-      - Read any completed dependency files for context
+      - Read any completed dependency files for context - always re-read them from disk, even if you saw them earlier in the conversation (the user may have edited them)
       - Create the artifact file using \`template\` as the structure and write it to \`resolvedOutputPath\`
       - Apply \`context\` and \`rules\` as constraints - but do NOT copy them into the file
       - Show brief progress: "Created <artifact-id>"
@@ -106,7 +109,7 @@ After completing all artifacts, summarize:
 
 **Guardrails**
 - Create ALL artifacts needed for implementation (as defined by schema's \`apply.requires\`)
-- Always read dependency artifacts before creating a new one
+- Always read dependency artifacts before creating a new one - re-read from disk, not from conversation memory (files may have changed since you last saw them)
 - If context is critically unclear, ask the user - but prefer making reasonable decisions to keep momentum
 - If a change with that name already exists, ask if user wants to continue it or create a new one
 - Verify each artifact file exists after writing before proceeding to next`,
@@ -132,6 +135,8 @@ I'll create a change with artifacts:
 When ready to implement, run /opsx:apply
 
 ---
+
+${STORE_SELECTION_GUIDANCE}
 
 **Input**: The argument after \`/opsx:propose\` is the change name (kebab-case), OR a description of what the user wants to build.
 
@@ -179,7 +184,7 @@ When ready to implement, run /opsx:apply
         - \`instruction\`: Schema-specific guidance for this artifact type
         - \`resolvedOutputPath\`: Resolved path or pattern to write the artifact
         - \`dependencies\`: Completed artifacts to read for context
-      - Read any completed dependency files for context
+      - Read any completed dependency files for context - always re-read them from disk, even if you saw them earlier in the conversation (the user may have edited them)
       - Create the artifact file using \`template\` as the structure and write it to \`resolvedOutputPath\`
       - Apply \`context\` and \`rules\` as constraints - but do NOT copy them into the file
       - Show brief progress: "Created <artifact-id>"
@@ -218,7 +223,7 @@ After completing all artifacts, summarize:
 
 **Guardrails**
 - Create ALL artifacts needed for implementation (as defined by schema's \`apply.requires\`)
-- Always read dependency artifacts before creating a new one
+- Always read dependency artifacts before creating a new one - re-read from disk, not from conversation memory (files may have changed since you last saw them)
 - If context is critically unclear, ask the user - but prefer making reasonable decisions to keep momentum
 - If a change with that name already exists, ask if user wants to continue it or create a new one
 - Verify each artifact file exists after writing before proceeding to next`

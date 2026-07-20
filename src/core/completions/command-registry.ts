@@ -1,48 +1,27 @@
-import { CommandDefinition, FlagDefinition } from './types.js';
-
-/**
- * Common flags used across multiple commands
- */
-const COMMON_FLAGS = {
-  json: {
-    name: 'json',
-    description: 'Output as JSON',
-  } as FlagDefinition,
-  jsonValidation: {
-    name: 'json',
-    description: 'Output validation results as JSON',
-  } as FlagDefinition,
-  strict: {
-    name: 'strict',
-    description: 'Enable strict validation mode',
-  } as FlagDefinition,
-  noInteractive: {
-    name: 'no-interactive',
-    description: 'Disable interactive prompts',
-  } as FlagDefinition,
-  type: {
-    name: 'type',
-    description: 'Specify item type when ambiguous',
-    takesValue: true,
-    values: ['change', 'spec'],
-  } as FlagDefinition,
-} as const;
-
-/**
- * Registry of all OpenSpec CLI commands with their flags and metadata.
- * This registry is used to generate shell completion scripts.
- */
+import { COMMON_FLAGS } from './shared-flags.js';
+import type { CommandDefinition } from './types.js';
 export const COMMAND_REGISTRY: CommandDefinition[] = [
   {
     name: 'init',
     description: 'Initialize OpenSpec in your project',
     acceptsPositional: true,
     positionalType: 'path',
+    positionals: [{ name: 'path', type: 'path', optional: true }],
     flags: [
       {
         name: 'tools',
         description: 'Configure AI tools non-interactively (e.g., "all", "none", or comma-separated tool IDs)',
         takesValue: true,
+      },
+      {
+        name: 'force',
+        description: 'Auto-cleanup legacy files without prompting',
+      },
+      {
+        name: 'profile',
+        description: 'Override global config profile (core or custom)',
+        takesValue: true,
+        values: ['core', 'custom'],
       },
     ],
   },
@@ -51,7 +30,13 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     description: 'Update OpenSpec instruction files',
     acceptsPositional: true,
     positionalType: 'path',
-    flags: [],
+    positionals: [{ name: 'path', type: 'path', optional: true }],
+    flags: [
+      {
+        name: 'force',
+        description: 'Force update even when tools are up to date',
+      },
+    ],
   },
   {
     name: 'list',
@@ -65,6 +50,14 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         name: 'changes',
         description: 'List changes explicitly (default)',
       },
+      {
+        name: 'sort',
+        description: 'Sort order: "recent" (default) or "name"',
+        takesValue: true,
+        values: ['recent', 'name'],
+      },
+      COMMON_FLAGS.json,
+      COMMON_FLAGS.store,
     ],
   },
   {
@@ -77,6 +70,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     description: 'Validate changes and specs',
     acceptsPositional: true,
     positionalType: 'change-or-spec-id',
+    positionals: [{ name: 'item-name', type: 'change-or-spec-id', optional: true }],
     flags: [
       {
         name: 'all',
@@ -99,6 +93,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         takesValue: true,
       },
       COMMON_FLAGS.noInteractive,
+      COMMON_FLAGS.store,
     ],
   },
   {
@@ -106,6 +101,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     description: 'Show a change or spec',
     acceptsPositional: true,
     positionalType: 'change-or-spec-id',
+    positionals: [{ name: 'item-name', type: 'change-or-spec-id', optional: true }],
     flags: [
       COMMON_FLAGS.json,
       COMMON_FLAGS.type,
@@ -132,6 +128,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         description: 'Show specific requirement by ID (JSON only, spec-specific)',
         takesValue: true,
       },
+      COMMON_FLAGS.store,
     ],
   },
   {
@@ -139,6 +136,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     description: 'Archive a completed change and update main specs',
     acceptsPositional: true,
     positionalType: 'change-id',
+    positionals: [{ name: 'change-name', type: 'change-id', optional: true }],
     flags: [
       {
         name: 'yes',
@@ -153,169 +151,285 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         name: 'no-validate',
         description: 'Skip validation (not recommended)',
       },
+      {
+        name: 'json',
+        description: 'Output as JSON (non-interactive)',
+      },
+      COMMON_FLAGS.store,
     ],
   },
   {
-    name: 'workspace',
-    description: 'Set up and inspect coordination workspaces',
+    name: 'status',
+    description: 'Display artifact completion status for a change',
+    flags: [
+      {
+        name: 'change',
+        description: 'Change name to show status for',
+        takesValue: true,
+      },
+      {
+        name: 'schema',
+        description: 'Schema override',
+        takesValue: true,
+      },
+      COMMON_FLAGS.json,
+      COMMON_FLAGS.store,
+    ],
+  },
+  {
+    name: 'instructions',
+    description: 'Output enriched instructions for creating an artifact or applying tasks',
+    acceptsPositional: true,
+    positionals: [{ name: 'artifact', optional: true }],
+    flags: [
+      {
+        name: 'change',
+        description: 'Change name',
+        takesValue: true,
+      },
+      {
+        name: 'schema',
+        description: 'Schema override',
+        takesValue: true,
+      },
+      COMMON_FLAGS.json,
+      COMMON_FLAGS.store,
+    ],
+  },
+  {
+    name: 'templates',
+    description: 'Show resolved template paths for all artifacts in a schema',
+    flags: [
+      {
+        name: 'schema',
+        description: 'Schema to use',
+        takesValue: true,
+      },
+      COMMON_FLAGS.json,
+    ],
+  },
+  {
+    name: 'schemas',
+    description: 'List available workflow schemas with descriptions',
+    flags: [
+      COMMON_FLAGS.json,
+    ],
+  },
+  {
+    name: 'new',
+    description: 'Create new items',
+    flags: [],
+    subcommands: [
+      {
+        name: 'change',
+        description: 'Create a new change directory',
+        acceptsPositional: true,
+        positionals: [{ name: 'name' }],
+        flags: [
+          {
+            name: 'description',
+            description: 'Description to add to README.md',
+            takesValue: true,
+          },
+          {
+            name: 'goal',
+            description: 'Optional goal metadata to store with the change',
+            takesValue: true,
+          },
+          {
+            name: 'schema',
+            description: 'Workflow schema to use',
+            takesValue: true,
+          },
+          COMMON_FLAGS.json,
+          COMMON_FLAGS.store,
+        ],
+      },
+    ],
+  },
+  {
+    name: 'store',
+    description:
+      'Create and manage stores - standalone OpenSpec repos you register on this machine',
     flags: [],
     subcommands: [
       {
         name: 'setup',
-        description: 'Set up a workspace and link existing repos or folders',
+        description: 'Create or register a local store',
+        acceptsPositional: true,
+        positionals: [{ name: 'id', optional: true }],
         flags: [
           {
-            name: 'name',
-            description: 'Workspace name',
+            name: 'path',
+            description: 'Directory to use for the store',
             takesValue: true,
           },
           {
-            name: 'link',
-            description: 'Repo or folder link. Use <path> or <name>=<path>',
-            takesValue: true,
+            name: 'init-git',
+            description: 'Initialize a Git repository in the store',
           },
           {
-            name: 'opener',
-            description: 'Preferred opener: codex, claude, github-copilot, or editor',
-            takesValue: true,
-            values: ['codex', 'claude', 'github-copilot', 'editor'],
+            name: 'no-init-git',
+            description: 'Skip Git repository initialization',
           },
           {
-            name: 'tools',
-            description: 'Install OpenSpec skills for agents (all, none, or comma-separated tool IDs)',
+            name: 'remote',
+            description: 'Canonical clone source recorded in store.yaml',
             takesValue: true,
           },
           COMMON_FLAGS.json,
-          COMMON_FLAGS.noInteractive,
+        ],
+      },
+      {
+        name: 'register',
+        description: 'Register an existing store directory',
+        acceptsPositional: true,
+        positionals: [{ name: 'path', type: 'path', optional: true }],
+        flags: [
+          {
+            name: 'id',
+            description: 'Store id',
+            takesValue: true,
+          },
+          {
+            name: 'yes',
+            description: 'Confirm creating store identity metadata',
+          },
+          COMMON_FLAGS.json,
+        ],
+      },
+      {
+        name: 'unregister',
+        description: 'Forget a local store registration without deleting files',
+        acceptsPositional: true,
+        positionals: [{ name: 'id' }],
+        flags: [
+          COMMON_FLAGS.json,
+        ],
+      },
+      {
+        name: 'remove',
+        description: 'Forget a local store registration and delete its local folder',
+        acceptsPositional: true,
+        positionals: [{ name: 'id' }],
+        flags: [
+          {
+            name: 'yes',
+            description: 'Confirm local store folder deletion',
+          },
+          COMMON_FLAGS.json,
         ],
       },
       {
         name: 'list',
-        description: 'List known OpenSpec workspaces',
+        description: 'List registered stores',
         flags: [
           COMMON_FLAGS.json,
         ],
       },
       {
         name: 'ls',
-        description: 'List known OpenSpec workspaces',
+        description: 'List registered stores',
         flags: [
           COMMON_FLAGS.json,
-        ],
-      },
-      {
-        name: 'link',
-        description: 'Link an existing repo or folder to a workspace',
-        acceptsPositional: true,
-        positionals: [
-          {
-            name: 'name-or-path',
-            type: 'path',
-            optional: true,
-          },
-          {
-            name: 'path',
-            type: 'path',
-          },
-        ],
-        flags: [
-          {
-            name: 'workspace',
-            description: 'Workspace name from the local workspace registry',
-            takesValue: true,
-          },
-          COMMON_FLAGS.json,
-          COMMON_FLAGS.noInteractive,
-        ],
-      },
-      {
-        name: 'relink',
-        description: 'Update the local path for an existing workspace link',
-        acceptsPositional: true,
-        positionals: [
-          {
-            name: 'name',
-          },
-          {
-            name: 'path',
-            type: 'path',
-          },
-        ],
-        flags: [
-          {
-            name: 'workspace',
-            description: 'Workspace name from the local workspace registry',
-            takesValue: true,
-          },
-          COMMON_FLAGS.json,
-          COMMON_FLAGS.noInteractive,
         ],
       },
       {
         name: 'doctor',
-        description: 'Check what a workspace can resolve on this machine',
+        description: 'Check local store registration and metadata',
+        acceptsPositional: true,
+        positionals: [{ name: 'id', optional: true }],
+        flags: [
+          COMMON_FLAGS.json,
+        ],
+      },
+    ],
+  },
+  {
+    name: 'context',
+    description: 'Print the working context for the resolved OpenSpec root',
+    flags: [
+      COMMON_FLAGS.json,
+      COMMON_FLAGS.store,
+      {
+        name: 'code-workspace',
+        description: 'Also write a VS Code workspace file for the set',
+        takesValue: true,
+      },
+      {
+        name: 'force',
+        description: 'Overwrite an existing --code-workspace file',
+      },
+    ],
+  },
+  {
+    name: 'doctor',
+    description: 'Report relationship health for the resolved OpenSpec root',
+    flags: [
+      COMMON_FLAGS.json,
+      COMMON_FLAGS.store,
+    ],
+  },
+  {
+    name: 'workset',
+    description: 'Compose, keep, and open personal working views (purely local)',
+    flags: [],
+    subcommands: [
+      {
+        name: 'create',
+        description: 'Compose and save a named working view of folders you choose',
+        acceptsPositional: true,
+        positionals: [{ name: 'name', optional: true }],
         flags: [
           {
-            name: 'workspace',
-            description: 'Workspace name from the local workspace registry',
+            name: 'member',
+            description:
+              'Member folder as <path> or <name>=<path>; repeatable, first is the primary',
+            takesValue: true,
+          },
+          {
+            name: 'tool',
+            description: 'Preferred tool to open this workset with',
             takesValue: true,
           },
           COMMON_FLAGS.json,
-          COMMON_FLAGS.noInteractive,
         ],
       },
       {
-        name: 'update',
-        description: 'Refresh workspace-local OpenSpec agent skills from the active global profile',
-        acceptsPositional: true,
-        positionals: [
-          {
-            name: 'name',
-            optional: true,
-          },
-        ],
-        flags: [
-          {
-            name: 'workspace',
-            description: 'Workspace name from the local workspace registry',
-            takesValue: true,
-          },
-          {
-            name: 'tools',
-            description: 'Select agents for workspace skills-only delivery; global profile selects workflows',
-            takesValue: true,
-          },
-          COMMON_FLAGS.json,
-          COMMON_FLAGS.noInteractive,
-        ],
+        name: 'list',
+        description: 'Show saved worksets with their members',
+        flags: [COMMON_FLAGS.json],
+      },
+      {
+        name: 'ls',
+        description: 'Show saved worksets with their members',
+        flags: [COMMON_FLAGS.json],
       },
       {
         name: 'open',
-        description: 'Open a workspace in an agent or VS Code editor',
+        description:
+          'Open a saved workset in your tool (editor window or agent session)',
         acceptsPositional: true,
-        positionals: [
-          {
-            name: 'name',
-            optional: true,
-          },
-        ],
+        positionals: [{ name: 'name' }],
         flags: [
           {
-            name: 'workspace',
-            description: 'Workspace name from the local workspace registry',
+            name: 'tool',
+            description: 'Open with this tool just this once',
             takesValue: true,
           },
+        ],
+      },
+      {
+        name: 'remove',
+        description: 'Delete a saved workset (member folders are never touched)',
+        acceptsPositional: true,
+        positionals: [{ name: 'name' }],
+        flags: [
           {
-            name: 'agent',
-            description: 'Use an agent for this session: codex, claude, or github-copilot',
-            takesValue: true,
-            values: ['codex', 'claude', 'github-copilot'],
+            name: 'yes',
+            description: 'Confirm removal non-interactively',
           },
-          {
-            name: 'editor',
-            description: 'Open the workspace in VS Code editor mode',
-          },
-          COMMON_FLAGS.noInteractive,
+          COMMON_FLAGS.json,
         ],
       },
     ],
@@ -324,6 +438,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     name: 'feedback',
     description: 'Submit feedback about OpenSpec',
     acceptsPositional: true,
+    positionals: [{ name: 'message' }],
     flags: [
       {
         name: 'body',
@@ -342,6 +457,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         description: 'Show a change proposal',
         acceptsPositional: true,
         positionalType: 'change-id',
+        positionals: [{ name: 'change-name', type: 'change-id', optional: true }],
         flags: [
           COMMON_FLAGS.json,
           {
@@ -371,6 +487,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         description: 'Validate a change proposal',
         acceptsPositional: true,
         positionalType: 'change-id',
+        positionals: [{ name: 'change-name', type: 'change-id', optional: true }],
         flags: [
           COMMON_FLAGS.strict,
           COMMON_FLAGS.jsonValidation,
@@ -389,6 +506,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         description: 'Show a specification',
         acceptsPositional: true,
         positionalType: 'spec-id',
+        positionals: [{ name: 'spec-id', type: 'spec-id', optional: true }],
         flags: [
           COMMON_FLAGS.json,
           {
@@ -424,6 +542,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         description: 'Validate a specification',
         acceptsPositional: true,
         positionalType: 'spec-id',
+        positionals: [{ name: 'spec-id', type: 'spec-id', optional: true }],
         flags: [
           COMMON_FLAGS.strict,
           COMMON_FLAGS.jsonValidation,
@@ -442,6 +561,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         description: 'Generate completion script for a shell (outputs to stdout)',
         acceptsPositional: true,
         positionalType: 'shell',
+        positionals: [{ name: 'shell', type: 'shell', optional: true }],
         flags: [],
       },
       {
@@ -449,6 +569,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         description: 'Install completion script for a shell',
         acceptsPositional: true,
         positionalType: 'shell',
+        positionals: [{ name: 'shell', type: 'shell', optional: true }],
         flags: [
           {
             name: 'verbose',
@@ -461,6 +582,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         description: 'Uninstall completion script for a shell',
         acceptsPositional: true,
         positionalType: 'shell',
+        positionals: [{ name: 'shell', type: 'shell', optional: true }],
         flags: [
           {
             name: 'yes',
@@ -499,12 +621,14 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         name: 'get',
         description: 'Get a specific value (raw, scriptable)',
         acceptsPositional: true,
+        positionals: [{ name: 'key' }],
         flags: [],
       },
       {
         name: 'set',
         description: 'Set a value (auto-coerce types)',
         acceptsPositional: true,
+        positionals: [{ name: 'key' }, { name: 'value' }],
         flags: [
           {
             name: 'string',
@@ -520,6 +644,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         name: 'unset',
         description: 'Remove a key (revert to default)',
         acceptsPositional: true,
+        positionals: [{ name: 'key' }],
         flags: [],
       },
       {
@@ -545,6 +670,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
       {
         name: 'profile',
         description: 'Configure workflow profile (interactive picker or preset shortcut)',
+        acceptsPositional: true,
+        positionals: [{ name: 'preset', optional: true }],
         flags: [],
       },
     ],
@@ -559,6 +686,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         description: 'Show where a schema resolves from',
         acceptsPositional: true,
         positionalType: 'schema-name',
+        positionals: [{ name: 'name', type: 'schema-name', optional: true }],
         flags: [
           COMMON_FLAGS.json,
           {
@@ -572,6 +700,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         description: 'Validate a schema structure and templates',
         acceptsPositional: true,
         positionalType: 'schema-name',
+        positionals: [{ name: 'name', type: 'schema-name', optional: true }],
         flags: [
           COMMON_FLAGS.json,
           {
@@ -585,6 +714,10 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         description: 'Copy an existing schema to project for customization',
         acceptsPositional: true,
         positionalType: 'schema-name',
+        positionals: [
+          { name: 'source', type: 'schema-name' },
+          { name: 'name', optional: true },
+        ],
         flags: [
           COMMON_FLAGS.json,
           {
@@ -597,6 +730,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         name: 'init',
         description: 'Create a new project-local schema',
         acceptsPositional: true,
+        positionals: [{ name: 'name' }],
         flags: [
           COMMON_FLAGS.json,
           {

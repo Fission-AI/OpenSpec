@@ -1,0 +1,21 @@
+@import 'tailwindcss';
+@import 'fumadocs-ui/css/neutral.css';
+@import 'fumadocs-ui/css/preset.css';
+
+/* OpenSpec brand accent — a confident indigo that reads well on light and dark. */
+:root {
+  --color-fd-primary: #4f46e5;
+}
+
+.dark {
+  --color-fd-primary: #818cf8;
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
+html > body[data-scroll-locked] {
+  margin-right: 0px !important;
+  --removed-body-scroll-bar-size: 0px !important;
+}
