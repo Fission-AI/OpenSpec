@@ -1,5 +1,42 @@
-import { promises as fs, constants as fsConstants } from 'fs';
+import * as nodeFs from 'fs';
 import path from 'path';
+
+const fs = nodeFs.promises;
+const { constants: fsConstants } = nodeFs;
+
+function hasOwnerGroupOrOtherWriteBit(stats: nodeFs.Stats): boolean {
+  return (stats.mode & 0o222) !== 0;
+}
+
+function hasOwnerGroupOrOtherExecuteBit(stats: nodeFs.Stats): boolean {
+  return (stats.mode & 0o111) !== 0;
+}
+
+async function hasWritableModeAndAccess(targetPath: string): Promise<boolean> {
+  try {
+    const stats = await fs.stat(targetPath);
+
+    // POSIX root can often write despite mode bits, but OpenSpec should respect
+    // explicit read-only file/directory modes when deciding whether an install
+    // path is user-writable. This also keeps permission checks deterministic in
+    // root-run CI containers. On Windows, chmod mode bits are not authoritative,
+    // so rely on fs.access below.
+    if (process.platform !== 'win32' && !hasOwnerGroupOrOtherWriteBit(stats)) {
+      return false;
+    }
+    if (process.platform !== 'win32' && stats.isDirectory() && !hasOwnerGroupOrOtherExecuteBit(stats)) {
+      return false;
+    }
+
+    const accessMode = stats.isDirectory()
+      ? fsConstants.W_OK | fsConstants.X_OK
+      : fsConstants.W_OK;
+    await fs.access(targetPath, accessMode);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function isMarkerOnOwnLine(content: string, markerIndex: number, markerLength: number): boolean {
   let leftIndex = markerIndex - 1;
@@ -48,6 +85,23 @@ export class FileSystemUtils {
    */
   static toPosixPath(p: string): string {
     return p.replace(/\\/g, '/');
+  }
+
+  /**
+   * Returns a canonical absolute path when the target exists.
+   * Falls back to path.resolve() so callers can still produce a stable absolute path.
+   */
+  static canonicalizeExistingPath(targetPath: string): string {
+    try {
+      // Prefer the native resolver so Windows short-path aliases are expanded.
+      return nodeFs.realpathSync.native(targetPath);
+    } catch {
+      try {
+        return nodeFs.realpathSync(targetPath);
+      } catch {
+        return path.resolve(targetPath);
+      }
+    }
   }
 
   private static isWindowsBasePath(basePath: string): boolean {
@@ -132,18 +186,15 @@ export class FileSystemUtils {
     try {
       const stats = await fs.stat(filePath);
 
+      if (stats.isDirectory()) {
+        return hasWritableModeAndAccess(filePath);
+      }
+
       if (!stats.isFile()) {
         return true;
       }
 
-      // On Windows, stats.mode doesn't reliably indicate write permissions.
-      // Use fs.access with W_OK to check actual write permissions cross-platform.
-      try {
-        await fs.access(filePath, fsConstants.W_OK);
-        return true;
-      } catch {
-        return false;
-      }
+      return hasWritableModeAndAccess(filePath);
     } catch (error: any) {
       if (error.code === 'ENOENT') {
         // File doesn't exist - find first existing parent directory and check its permissions
@@ -155,13 +206,8 @@ export class FileSystemUtils {
           return false;
         }
 
-        // Check if the existing parent directory is writable
-        try {
-          await fs.access(existingDir, fsConstants.W_OK);
-          return true;
-        } catch {
-          return false;
-        }
+        // Check if the existing parent directory is writable.
+        return hasWritableModeAndAccess(existingDir);
       }
 
       console.debug(`Unable to determine write permissions for ${filePath}: ${error.message}`);

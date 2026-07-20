@@ -10,8 +10,15 @@ import {
   MAX_REQUIREMENT_TEXT_LENGTH,
   VALIDATION_MESSAGES
 } from './constants.js';
-import { parseDeltaSpec, normalizeRequirementName } from '../parsers/requirement-blocks.js';
+import { parseDeltaSpec, normalizeRequirementName, extractRequirementsSection } from '../parsers/requirement-blocks.js';
+import {
+  extractRequirementBody as extractRequirementBodyShared,
+  containsShallOrMust as containsShallOrMustShared,
+  countScenarios as countScenariosShared,
+} from '../parsers/requirement-text.js';
+import { findMainSpecStructureIssues } from '../parsers/spec-structure.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
+import { discoverSpecFiles } from '../../utils/spec-discovery.js';
 
 export class Validator {
   private strictMode: boolean;
@@ -115,15 +122,35 @@ export class Validator {
     const issues: ValidationIssue[] = [];
     const specsDir = path.join(changeDir, 'specs');
     let totalDeltas = 0;
+    let hasRootLevelSpec = false;
     const missingHeaderSpecs: string[] = [];
     const emptySectionSpecs: Array<{ path: string; sections: string[] }> = [];
 
     try {
-      const entries = await fs.readdir(specsDir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (!entry.isDirectory()) continue;
-        const specName = entry.name;
-        const specFile = path.join(specsDir, specName, 'spec.md');
+      // Discover delta specs through the same helper the change parser, show,
+      // apply, and archive use, so validate never accepts a layout the merge
+      // path silently skips (#1385). It finds spec.md at any depth, covering
+      // both specs/<capability>/spec.md and the nested multi-area
+      // specs/<area>/<capability>/spec.md layout (#1182b).
+      const specFiles = (await discoverSpecFiles(specsDir)).map(spec => spec.specFile);
+
+      // A spec.md directly at the specs/ root has no capability folder, so the
+      // merge path drops it: without this error the change validates clean and
+      // archives while its requirements never reach openspec/specs/ (#1385).
+      // Only a regular file counts — a *directory* named spec.md is a capability
+      // folder like any other, and discoverSpecFiles reads it normally.
+      const rootSpecStat = await fs.stat(path.join(specsDir, 'spec.md')).catch(() => null);
+      hasRootLevelSpec = rootSpecStat?.isFile() === true;
+      if (hasRootLevelSpec) {
+        issues.push({
+          level: 'ERROR',
+          path: 'spec.md',
+          message:
+            'Delta spec found at specs/spec.md. Delta specs must live in a capability folder (e.g. specs/<capability>/spec.md) — a file at the specs/ root is ignored when the change is applied or archived.',
+        });
+      }
+
+      for (const specFile of specFiles) {
         let content: string | undefined;
         try {
           content = await fs.readFile(specFile, 'utf-8');
@@ -132,7 +159,26 @@ export class Validator {
         }
 
         const plan = parseDeltaSpec(content);
-        const entryPath = `${specName}/spec.md`;
+        const entryPath = FileSystemUtils.toPosixPath(path.relative(specsDir, specFile));
+
+        // Surface (as INFO, never a failure) the non-canonical level-3 headers
+        // the delta reader skipped while parsing ADDED/MODIFIED sections —
+        // without this note a stray divider like "### Documentation
+        // Requirements" would pass validate <change> while failing
+        // archive/validate <spec>. The list comes from the parse itself, so it
+        // reflects exactly what the reader skipped.
+        for (const stray of plan.skippedHeaders) {
+          const nameless = /^requirement:?$/i.test(stray.header);
+          issues.push({
+            level: 'INFO',
+            path: entryPath,
+            line: stray.line,
+            message: nameless
+              ? `Header "### ${stray.header}" in ${stray.section} is missing a requirement name and is ignored by validation. Add a name, e.g. "### Requirement: <name>".`
+              : `Header "### ${stray.header}" in ${stray.section} is not a "### Requirement:" header and is ignored by validation. Use "### Requirement: ${stray.header}" if it should be validated as a requirement.`,
+          });
+        }
+
         const sectionNames: string[] = [];
         if (plan.sectionPresence.added) sectionNames.push('## ADDED Requirements');
         if (plan.sectionPresence.modified) sectionNames.push('## MODIFIED Requirements');
@@ -162,9 +208,15 @@ export class Validator {
           }
           const requirementText = this.extractRequirementText(block.raw);
           if (!requirementText) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `ADDED "${block.name}" is missing requirement text` });
+            issues.push({
+              level: 'ERROR',
+              path: entryPath,
+              message: this.containsShallOrMust(block.name)
+                ? this.buildMissingShallOrMustMessage(`ADDED "${block.name}"`, block.name)
+                : `ADDED "${block.name}" is missing requirement text`,
+            });
           } else if (!this.containsShallOrMust(requirementText)) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `ADDED "${block.name}" must contain SHALL or MUST` });
+            issues.push({ level: 'ERROR', path: entryPath, message: this.buildMissingShallOrMustMessage(`ADDED "${block.name}"`, block.name) });
           }
           const scenarioCount = this.countScenarios(block.raw);
           if (scenarioCount < 1) {
@@ -183,9 +235,15 @@ export class Validator {
           }
           const requirementText = this.extractRequirementText(block.raw);
           if (!requirementText) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `MODIFIED "${block.name}" is missing requirement text` });
+            issues.push({
+              level: 'ERROR',
+              path: entryPath,
+              message: this.containsShallOrMust(block.name)
+                ? this.buildMissingShallOrMustMessage(`MODIFIED "${block.name}"`, block.name)
+                : `MODIFIED "${block.name}" is missing requirement text`,
+            });
           } else if (!this.containsShallOrMust(requirementText)) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `MODIFIED "${block.name}" must contain SHALL or MUST` });
+            issues.push({ level: 'ERROR', path: entryPath, message: this.buildMissingShallOrMustMessage(`MODIFIED "${block.name}"`, block.name) });
           }
           const scenarioCount = this.countScenarios(block.raw);
           if (scenarioCount < 1) {
@@ -265,7 +323,10 @@ export class Validator {
       });
     }
 
-    if (totalDeltas === 0) {
+    // The root-level error already names the file and the fix; adding "No
+    // deltas found" on top would contradict it, since the deltas are sitting in
+    // the file just reported.
+    if (totalDeltas === 0 && !hasRootLevelSpec) {
       issues.push({ level: 'ERROR', path: 'file', message: this.enrichTopLevelError('change', VALIDATION_MESSAGES.CHANGE_NO_DELTAS) });
     }
 
@@ -288,6 +349,15 @@ export class Validator {
 
   private applySpecRules(spec: Spec, content: string): ValidationIssue[] {
     const issues: ValidationIssue[] = [];
+
+    for (const structuralIssue of findMainSpecStructureIssues(content)) {
+      issues.push({
+        level: 'ERROR',
+        path: 'file',
+        line: structuralIssue.line,
+        message: structuralIssue.message,
+      });
+    }
     
     if (spec.overview.length < MIN_PURPOSE_LENGTH) {
       issues.push({
@@ -305,7 +375,7 @@ export class Validator {
           message: VALIDATION_MESSAGES.REQUIREMENT_TOO_LONG,
         });
       }
-      
+
       if (req.scenarios.length === 0) {
         issues.push({
           level: 'WARNING',
@@ -314,7 +384,25 @@ export class Validator {
         });
       }
     });
-    
+
+    // SHALL/MUST body-keyword enforcement for main specs (#1156). The main-spec
+    // parser collapses the requirement header into `text`, so we recover the
+    // header+body pairs here (the same source the delta path trusts) and reuse
+    // the delta detection: a body that omits the keyword errors, with the
+    // targeted "move it to the body line" hint when the keyword is in the header
+    // only and the generic message otherwise. Emitted exactly once per
+    // requirement (the Zod refine that used to emit a generic error is removed).
+    extractRequirementsSection(content).bodyBlocks.forEach((block, index) => {
+      const requirementText = this.extractRequirementText(block.raw);
+      if (!requirementText || !this.containsShallOrMust(requirementText)) {
+        issues.push({
+          level: 'ERROR',
+          path: `requirements[${index}]`,
+          message: this.buildMissingShallOrMustMessage(`Requirement "${block.name}"`, block.name),
+        });
+      }
+    });
+
     return issues;
   }
 
@@ -403,40 +491,41 @@ export class Validator {
   }
 
   private extractRequirementText(blockRaw: string): string | undefined {
-    const lines = blockRaw.split('\n');
-    // Skip header line (index 0)
-    let i = 1;
-
-    // Find the first substantial text line, skipping metadata and blank lines
-    for (; i < lines.length; i++) {
-      const line = lines[i];
-
-      // Stop at scenario headers
-      if (/^####\s+/.test(line)) break;
-
-      const trimmed = line.trim();
-
-      // Skip blank lines
-      if (trimmed.length === 0) continue;
-
-      // Skip metadata lines (lines starting with ** like **ID**, **Priority**, etc.)
-      if (/^\*\*[^*]+\*\*:/.test(trimmed)) continue;
-
-      // Found first non-metadata, non-blank line - this is the requirement text
-      return trimmed;
-    }
-
-    // No requirement text found
-    return undefined;
+    // Delegate to the shared, fence-/metadata-/multi-line-aware body reader.
+    // Validation intentionally does not use the parser/display header-title
+    // fallback for canonical `### Requirement:` blocks: #1280 requires a
+    // SHALL/MUST that appears only in the header to receive the body-keyword
+    // hint. Line 0 is the `### Requirement: ...` header.
+    const [, ...bodyLines] = blockRaw.split('\n');
+    return extractRequirementBodyShared(bodyLines) || undefined;
   }
 
   private containsShallOrMust(text: string): boolean {
-    return /\b(SHALL|MUST)\b/.test(text);
+    return containsShallOrMustShared(text);
+  }
+
+  /**
+   * Build an error message for a requirement block whose body lacks SHALL/MUST.
+   *
+   * When the SHALL/MUST keyword already appears in the requirement header (e.g.
+   * `### Requirement: The system SHALL ...`) the original generic error
+   * ("must contain SHALL or MUST") is confusing because the keyword is visibly
+   * present in the spec. Per the OpenSpec conventions the keyword has to live
+   * on the requirement body line (the line right after the header), so we point
+   * the author at that exact fix when the keyword is found in the header only.
+   */
+  private buildMissingShallOrMustMessage(prefix: string, blockName: string): string {
+    const base = `${prefix} must contain SHALL or MUST`;
+    if (this.containsShallOrMust(blockName)) {
+      return `${base} in the requirement body, not only in the header. Move the SHALL/MUST statement to the line immediately after the "### Requirement: ..." header.`;
+    }
+    return base;
   }
 
   private countScenarios(blockRaw: string): number {
-    const matches = blockRaw.match(/^####\s+/gm);
-    return matches ? matches.length : 0;
+    // Fence-aware count via the shared reader: a `#### Scenario:` inside a fenced
+    // example is not a real scenario. Drop the header line (index 0).
+    return countScenariosShared(blockRaw.split('\n').slice(1));
   }
 
   private formatSectionList(sections: string[]): string {

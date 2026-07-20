@@ -2,7 +2,6 @@
 
 ## Purpose
 Define artifact workflow CLI behavior (`status`, `instructions`, `templates`, and setup flows) for scaffolded and active changes.
-
 ## Requirements
 ### Requirement: Status Command
 
@@ -203,7 +202,7 @@ The system SHALL generate schema-aware apply instructions via `openspec instruct
 - **WHEN** user runs `openspec instructions apply --change <id>`
 - **AND** all required artifacts (per schema's `apply.requires`) exist
 - **THEN** the system outputs:
-  - Context files from all existing artifacts
+  - `contextFiles` mapping artifact IDs to arrays of concrete paths for all existing artifacts
   - Schema-specific instruction text
   - Progress tracking file path (if `apply.tracks` is set)
 
@@ -218,7 +217,7 @@ The system SHALL generate schema-aware apply instructions via `openspec instruct
 
 - **WHEN** user runs `openspec instructions apply --change <id> --json`
 - **THEN** the system outputs JSON with:
-  - `contextFiles`: array of paths to existing artifacts
+  - `contextFiles`: object mapping artifact IDs to arrays of concrete paths for existing artifacts
   - `instruction`: the apply instruction text
   - `tracks`: path to progress file or null
   - `applyRequires`: list of required artifact IDs
@@ -275,3 +274,41 @@ The setup command SHALL display clear output about what was generated.
 
 - **WHEN** command generation is skipped due to missing adapter
 - **THEN** output includes message: "Command generation skipped - no adapter for <tool>"
+
+### Requirement: Status JSON provides planning context
+The status command SHALL provide machine-readable planning context for changes.
+
+#### Scenario: Reporting next steps
+- **WHEN** a user runs `openspec status --change <id> --json`
+- **THEN** the output SHALL include next step guidance for agents
+- **AND** the guidance SHALL use plain action language
+
+### Requirement: Status JSON action context
+The status command SHALL expose action context that lets agents act without hardcoded filesystem assumptions.
+
+#### Scenario: Repo-local action context
+- **GIVEN** the change is repo-local
+- **WHEN** a user runs `openspec status --change <id> --json`
+- **THEN** status JSON SHALL preserve existing artifact status behavior
+- **AND** it SHALL report a repo-local planning home for agents that use action context
+
+### Requirement: Instructions use resolved planning paths
+Artifact and apply instructions SHALL use resolved planning paths rather than hardcoded repo-local change paths.
+
+#### Scenario: Repo-local artifact instructions
+- **GIVEN** the change is repo-local
+- **WHEN** a user runs `openspec instructions <artifact> --change <id> --json`
+- **THEN** instruction output SHALL preserve existing repo-local paths
+
+### Requirement: Workflow skills use CLI artifact context
+Generated workflow skills SHALL use OpenSpec CLI output as the source of truth for artifact locations.
+
+#### Scenario: Skills inspect status before artifact work
+- **WHEN** a generated workflow skill needs to inspect or create artifacts for a change
+- **THEN** it SHALL instruct the agent to run `openspec status --change <id> --json`
+- **AND** it SHALL use returned planning context and artifact paths rather than assuming a repo-local change path
+
+#### Scenario: Skills use instructions before writing artifacts
+- **WHEN** a generated workflow skill is about to create or update an artifact
+- **THEN** it SHALL instruct the agent to run `openspec instructions <artifact> --change <id> --json`
+- **AND** it SHALL write to the resolved artifact path returned by the command

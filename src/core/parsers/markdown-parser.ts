@@ -1,4 +1,5 @@
 import { Spec, Change, Requirement, Scenario, Delta, DeltaOperation } from '../schemas/index.js';
+import { buildCodeFenceMask, extractRequirementText } from './requirement-text.js';
 
 export interface Section {
   level: number;
@@ -9,11 +10,13 @@ export interface Section {
 
 export class MarkdownParser {
   private lines: string[];
+  private codeFenceLineMask: boolean[];
   private currentLine: number;
 
   constructor(content: string) {
     const normalized = MarkdownParser.normalizeContent(content);
     this.lines = normalized.split('\n');
+    this.codeFenceLineMask = buildCodeFenceMask(this.lines);
     this.currentLine = 0;
   }
 
@@ -81,6 +84,9 @@ export class MarkdownParser {
     
     for (let i = 0; i < this.lines.length; i++) {
       const line = this.lines[i];
+      if (this.codeFenceLineMask[i]) {
+        continue;
+      }
       const headerMatch = line.match(/^(#{1,6})\s+(.+)$/);
       
       if (headerMatch) {
@@ -117,7 +123,7 @@ export class MarkdownParser {
     
     for (let i = startLine; i < this.lines.length; i++) {
       const line = this.lines[i];
-      const headerMatch = line.match(/^(#{1,6})\s+/);
+      const headerMatch = this.codeFenceLineMask[i] ? null : line.match(/^(#{1,6})\s+/);
       
       if (headerMatch && headerMatch[1].length <= currentLevel) {
         break;
@@ -144,43 +150,20 @@ export class MarkdownParser {
 
   protected parseRequirements(section: Section): Requirement[] {
     const requirements: Requirement[] = [];
-    
+
     for (const child of section.children) {
-      // Extract requirement text from first non-empty content line, fall back to heading
-      let text = child.title;
-      
-      // Get content before any child sections (scenarios)
-      if (child.content.trim()) {
-        // Split content into lines and find content before any child headers
-        const lines = child.content.split('\n');
-        const contentBeforeChildren: string[] = [];
-        
-        for (const line of lines) {
-          // Stop at child headers (scenarios start with ####)
-          if (line.trim().startsWith('#')) {
-            break;
-          }
-          contentBeforeChildren.push(line);
-        }
-        
-        // Find first non-empty line
-        const directContent = contentBeforeChildren.join('\n').trim();
-        if (directContent) {
-          const firstLine = directContent.split('\n').find(l => l.trim());
-          if (firstLine) {
-            text = firstLine.trim();
-          }
-        }
-      }
-      
+      // Read the requirement text via the shared reader (multi-line, fence- and
+      // metadata-aware, with the shared header-title fallback for empty bodies).
+      const text = extractRequirementText(child.title, child.content.split('\n'));
+
       const scenarios = this.parseScenarios(child);
-      
+
       requirements.push({
         text,
         scenarios,
       });
     }
-    
+
     return requirements;
   }
 

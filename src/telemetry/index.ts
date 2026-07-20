@@ -17,9 +17,23 @@ import { getTelemetryConfig, updateTelemetryConfig } from './config.js';
 const POSTHOG_API_KEY = 'phc_Hthu8YvaIJ9QaFKyTG4TbVwkbd5ktcAFzVTKeMmoW2g';
 // Using reverse proxy to avoid ad blockers and keep traffic on our domain
 const POSTHOG_HOST = 'https://edge.openspec.dev';
+const TELEMETRY_REQUEST_TIMEOUT_MS = 1000;
 
 let posthogClient: PostHog | null = null;
 let anonymousId: string | null = null;
+
+async function safeTelemetryFetch(url: string, options: RequestInit): Promise<Response> {
+  try {
+    const response = await fetch(url, options);
+    if (response.ok) {
+      return response;
+    }
+  } catch {
+    // Silent failure - telemetry should never surface network noise
+  }
+
+  return new Response(null, { status: 204 });
+}
 
 /**
  * Check if telemetry is enabled.
@@ -81,6 +95,12 @@ function getClient(): PostHog {
       host: POSTHOG_HOST,
       flushAt: 1, // Send immediately, don't batch
       flushInterval: 0, // No timer-based flushing
+      fetchRetryCount: 0,
+      requestTimeout: TELEMETRY_REQUEST_TIMEOUT_MS,
+      preloadFeatureFlags: false,
+      disableRemoteConfig: true,
+      disableSurveys: true,
+      fetch: safeTelemetryFetch,
     });
   }
   return posthogClient;

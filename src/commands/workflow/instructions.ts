@@ -12,8 +12,29 @@ import {
   loadChangeContext,
   generateInstructions,
   resolveSchema,
+  resolveArtifactOutputs,
   type ArtifactInstructions,
 } from '../../core/artifact-graph/index.js';
+import {
+  getChangeDir,
+  resolveCurrentPlanningHomeSync,
+  type PlanningHome,
+} from '../../core/planning-home.js';
+import {
+  resolveRootForCommand,
+  withStoreFlag,
+  toPlanningHome,
+  toRootOutput,
+  type ResolvedOpenSpecRoot,
+} from '../../core/root-selection.js';
+import {
+  assembleReferenceIndex,
+  renderReferencedStoresBlock,
+  renderReferencedStoresSection,
+  type ReferenceIndexEntry,
+} from '../../core/references.js';
+import { readRegistrySnapshot } from '../../core/store/registry.js';
+import { readProjectConfig, type ProjectConfig } from '../../core/project-config.js';
 import {
   validateChangeExists,
   validateSchemaExists,
@@ -28,12 +49,16 @@ import {
 export interface InstructionsOptions {
   change?: string;
   schema?: string;
+  store?: string;
+  storePath?: string;
   json?: boolean;
 }
 
 export interface ApplyInstructionsOptions {
   change?: string;
   schema?: string;
+  store?: string;
+  storePath?: string;
   json?: boolean;
 }
 
@@ -41,15 +66,58 @@ export interface ApplyInstructionsOptions {
 // Artifact Instructions Command
 // -----------------------------------------------------------------------------
 
+/**
+ * Reads the resolved root's config once, assembles the referenced-store
+ * index when references are declared, and resolves the config path for
+ * fix text. Shared by both instruction surfaces.
+ */
+async function loadRootConfigContext(root: ResolvedOpenSpecRoot): Promise<{
+  projectConfig: ProjectConfig | null;
+  references: ReferenceIndexEntry[] | undefined;
+}> {
+  // readProjectConfig never throws: missing/unparseable configs are null.
+  const projectConfig = readProjectConfig(root.path);
+
+  // One registry read serves every relationship consumer in this
+  // output so it never carries a torn snapshot.
+  const snapshot = await readRegistrySnapshot();
+  const registryEntries = snapshot.entries;
+
+  const declared = projectConfig?.references ?? [];
+  const index =
+    declared.length > 0
+      ? await assembleReferenceIndex({ references: declared, resolvedRoot: root, registryEntries })
+      : [];
+
+  // Omitted, not empty: an index emptied by self-reference omission must
+  // look identical to an undeclared one in JSON.
+  return {
+    projectConfig,
+    references: index.length > 0 ? index : undefined,
+  };
+}
+
 export async function instructionsCommand(
   artifactId: string | undefined,
   options: InstructionsOptions
 ): Promise<void> {
-  const spinner = ora('Generating instructions...').start();
+  // Resolve (and banner) before the spinner starts so stderr stays readable.
+  const root = await resolveRootForCommand(options, { json: options.json });
+  if (!root) {
+    return;
+  }
+
+  const spinner = options.json ? undefined : ora('Generating instructions...').start();
 
   try {
-    const projectRoot = process.cwd();
-    const changeName = await validateChangeExists(options.change, projectRoot);
+    const planningHome = toPlanningHome(root);
+    const projectRoot = root.path;
+    const changeName = await validateChangeExists(
+      options.change,
+      projectRoot,
+      root.changesDir,
+      { newChangeHint: withStoreFlag(root, 'openspec new change <name>') }
+    );
 
     // Validate schema if explicitly provided
     if (options.schema) {
@@ -57,10 +125,13 @@ export async function instructionsCommand(
     }
 
     // loadChangeContext will auto-detect schema from metadata if not provided
-    const context = loadChangeContext(projectRoot, changeName, options.schema);
+    const context = loadChangeContext(projectRoot, changeName, options.schema, {
+      changeDir: getChangeDir(planningHome, changeName),
+      planningHome,
+    });
 
     if (!artifactId) {
-      spinner.stop();
+      spinner?.stop();
       const validIds = context.graph.getAllArtifacts().map((a) => a.id);
       throw new Error(
         `Missing required argument <artifact>. Valid artifacts:\n  ${validIds.join('\n  ')}`
@@ -70,26 +141,30 @@ export async function instructionsCommand(
     const artifact = context.graph.getArtifact(artifactId);
 
     if (!artifact) {
-      spinner.stop();
+      spinner?.stop();
       const validIds = context.graph.getAllArtifacts().map((a) => a.id);
       throw new Error(
         `Artifact '${artifactId}' not found in schema '${context.schemaName}'. Valid artifacts:\n  ${validIds.join('\n  ')}`
       );
     }
 
-    const instructions = generateInstructions(context, artifactId, projectRoot);
+    const { projectConfig, references } = await loadRootConfigContext(root);
+    const instructions = generateInstructions(context, artifactId, projectRoot, {
+      projectConfig,
+      references,
+    });
     const isBlocked = instructions.dependencies.some((d) => !d.done);
 
-    spinner.stop();
+    spinner?.stop();
 
     if (options.json) {
-      console.log(JSON.stringify(instructions, null, 2));
+      console.log(JSON.stringify({ ...instructions, root: toRootOutput(root) }, null, 2));
       return;
     }
 
     printInstructionsText(instructions, isBlocked);
   } catch (error) {
-    spinner.stop();
+    spinner?.stop();
     throw error;
   }
 }
@@ -100,7 +175,7 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
     changeName,
     schemaName,
     changeDir,
-    outputPath,
+    resolvedOutputPath,
     description,
     instruction,
     context,
@@ -140,6 +215,12 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
     console.log();
   }
 
+  // Referenced-store index (read-only upstream context)
+  if (instructions.references && instructions.references.length > 0) {
+    console.log(renderReferencedStoresBlock(instructions.references));
+    console.log();
+  }
+
   // Rules (AI constraint - do not include in output)
   if (rules && rules.length > 0) {
     console.log('<rules>');
@@ -154,7 +235,7 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
   // Dependencies (files to read for context)
   if (dependencies.length > 0) {
     console.log('<dependencies>');
-    console.log('Read these files for context before creating this artifact:');
+    console.log('Read the current contents of these files before creating this artifact (re-read them from disk even if you saw them earlier - they may have been edited):');
     console.log();
     for (const dep of dependencies) {
       const status = dep.done ? 'done' : 'missing';
@@ -170,7 +251,7 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
 
   // Output location
   console.log('<output>');
-  console.log(`Write to: ${path.join(changeDir, outputPath)}`);
+  console.log(`Write to: ${resolvedOutputPath}`);
   console.log('</output>');
   console.log();
 
@@ -237,66 +318,9 @@ function parseTasksFile(content: string): TaskItem[] {
   return tasks;
 }
 
-/**
- * Checks if an artifact output exists in the change directory.
- * Supports glob patterns (e.g., "specs/*.md") by verifying at least one matching file exists.
- */
-function artifactOutputExists(changeDir: string, generates: string): boolean {
-  // Normalize the generates path to use platform-specific separators
-  const normalizedGenerates = generates.split('/').join(path.sep);
-  const fullPath = path.join(changeDir, normalizedGenerates);
-
-  // If it's a glob pattern (contains ** or *), check for matching files
-  if (generates.includes('*')) {
-    // Extract the directory part before the glob pattern
-    const parts = normalizedGenerates.split(path.sep);
-    const dirParts: string[] = [];
-    let patternPart = '';
-    for (const part of parts) {
-      if (part.includes('*')) {
-        patternPart = part;
-        break;
-      }
-      dirParts.push(part);
-    }
-    const dirPath = path.join(changeDir, ...dirParts);
-
-    // Check if directory exists
-    if (!fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) {
-      return false;
-    }
-
-    // Extract expected extension from pattern (e.g., "*.md" -> ".md")
-    const extMatch = patternPart.match(/\*(\.[a-zA-Z0-9]+)$/);
-    const expectedExt = extMatch ? extMatch[1] : null;
-
-    // Recursively check for matching files
-    const hasMatchingFiles = (dir: string): boolean => {
-      try {
-        const entries = fs.readdirSync(dir, { withFileTypes: true });
-        for (const entry of entries) {
-          if (entry.isDirectory()) {
-            // For ** patterns, recurse into subdirectories
-            if (generates.includes('**') && hasMatchingFiles(path.join(dir, entry.name))) {
-              return true;
-            }
-          } else if (entry.isFile()) {
-            // Check if file matches expected extension (or any file if no extension specified)
-            if (!expectedExt || entry.name.endsWith(expectedExt)) {
-              return true;
-            }
-          }
-        }
-      } catch {
-        return false;
-      }
-      return false;
-    };
-
-    return hasMatchingFiles(dirPath);
-  }
-
-  return fs.existsSync(fullPath);
+export interface GenerateApplyInstructionsOptions {
+  planningHome?: PlanningHome;
+  references?: ReferenceIndexEntry[];
 }
 
 /**
@@ -307,11 +331,18 @@ function artifactOutputExists(changeDir: string, generates: string): boolean {
 export async function generateApplyInstructions(
   projectRoot: string,
   changeName: string,
-  schemaName?: string
+  schemaName?: string,
+  options: GenerateApplyInstructionsOptions = {}
 ): Promise<ApplyInstructions> {
+  const planningHome =
+    options.planningHome ?? resolveCurrentPlanningHomeSync({ startPath: projectRoot });
+  const references = options.references;
   // loadChangeContext will auto-detect schema from metadata if not provided
-  const context = loadChangeContext(projectRoot, changeName, schemaName);
-  const changeDir = path.join(projectRoot, 'openspec', 'changes', changeName);
+  const context = loadChangeContext(projectRoot, changeName, schemaName, {
+    changeDir: getChangeDir(planningHome, changeName),
+    planningHome,
+  });
+  const changeDir = context.changeDir;
 
   // Get the full schema to access the apply phase configuration
   const schema = resolveSchema(context.schemaName, projectRoot);
@@ -327,16 +358,17 @@ export async function generateApplyInstructions(
   const missingArtifacts: string[] = [];
   for (const artifactId of requiredArtifactIds) {
     const artifact = schema.artifacts.find((a) => a.id === artifactId);
-    if (artifact && !artifactOutputExists(changeDir, artifact.generates)) {
+    if (artifact && resolveArtifactOutputs(changeDir, artifact.generates).length === 0) {
       missingArtifacts.push(artifactId);
     }
   }
 
   // Build context files from all existing artifacts in schema
-  const contextFiles: Record<string, string> = {};
+  const contextFiles: Record<string, string[]> = {};
   for (const artifact of schema.artifacts) {
-    if (artifactOutputExists(changeDir, artifact.generates)) {
-      contextFiles[artifact.id] = path.join(changeDir, artifact.generates);
+    const outputs = resolveArtifactOutputs(changeDir, artifact.generates);
+    if (outputs.length > 0) {
+      contextFiles[artifact.id] = outputs;
     }
   }
 
@@ -396,15 +428,28 @@ export async function generateApplyInstructions(
     state,
     missingArtifacts: missingArtifacts.length > 0 ? missingArtifacts : undefined,
     instruction,
+    ...(references !== undefined ? { references } : {}),
   };
 }
 
 export async function applyInstructionsCommand(options: ApplyInstructionsOptions): Promise<void> {
-  const spinner = ora('Generating apply instructions...').start();
+  // Resolve (and banner) before the spinner starts so stderr stays readable.
+  const root = await resolveRootForCommand(options, { json: options.json });
+  if (!root) {
+    return;
+  }
+
+  const spinner = options.json ? undefined : ora('Generating apply instructions...').start();
 
   try {
-    const projectRoot = process.cwd();
-    const changeName = await validateChangeExists(options.change, projectRoot);
+    const planningHome = toPlanningHome(root);
+    const projectRoot = root.path;
+    const changeName = await validateChangeExists(
+      options.change,
+      projectRoot,
+      root.changesDir,
+      { newChangeHint: withStoreFlag(root, 'openspec new change <name>') }
+    );
 
     // Validate schema if explicitly provided
     if (options.schema) {
@@ -412,18 +457,22 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
     }
 
     // generateApplyInstructions uses loadChangeContext which auto-detects schema
-    const instructions = await generateApplyInstructions(projectRoot, changeName, options.schema);
+    const { references } = await loadRootConfigContext(root);
+    const instructions = await generateApplyInstructions(projectRoot, changeName, options.schema, {
+      planningHome,
+      references,
+    });
 
-    spinner.stop();
+    spinner?.stop();
 
     if (options.json) {
-      console.log(JSON.stringify(instructions, null, 2));
+      console.log(JSON.stringify({ ...instructions, root: toRootOutput(root) }, null, 2));
       return;
     }
 
     printApplyInstructionsText(instructions);
   } catch (error) {
-    spinner.stop();
+    spinner?.stop();
     throw error;
   }
 }
@@ -434,6 +483,11 @@ export function printApplyInstructionsText(instructions: ApplyInstructions): voi
   console.log(`## Apply: ${changeName}`);
   console.log(`Schema: ${schemaName}`);
   console.log();
+
+  if (instructions.references && instructions.references.length > 0) {
+    console.log(renderReferencedStoresSection(instructions.references));
+    console.log();
+  }
 
   // Warning for blocked state
   if (state === 'blocked' && missingArtifacts) {
@@ -448,8 +502,10 @@ export function printApplyInstructionsText(instructions: ApplyInstructions): voi
   const contextFileEntries = Object.entries(contextFiles);
   if (contextFileEntries.length > 0) {
     console.log('### Context Files');
-    for (const [artifactId, filePath] of contextFileEntries) {
-      console.log(`- ${artifactId}: ${filePath}`);
+    for (const [artifactId, filePaths] of contextFileEntries) {
+      for (const filePath of filePaths) {
+        console.log(`- ${artifactId}: ${filePath}`);
+      }
     }
     console.log();
   }

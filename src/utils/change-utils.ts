@@ -1,7 +1,9 @@
 import path from 'path';
 import { FileSystemUtils } from './file-system.js';
 import { writeChangeMetadata, validateSchemaName } from './change-metadata.js';
+import { formatLocalDate } from './date.js';
 import { readProjectConfig } from '../core/project-config.js';
+import type { ChangeMetadata } from '../core/change-metadata/index.js';
 
 const DEFAULT_SCHEMA = 'spec-driven';
 
@@ -11,6 +13,12 @@ const DEFAULT_SCHEMA = 'spec-driven';
 export interface CreateChangeOptions {
   /** The workflow schema to use (default: 'spec-driven') */
   schema?: string;
+  /** Default schema to use when no explicit schema or project config is present */
+  defaultSchema?: string;
+  /** Directory that should contain the change directories */
+  changesDir?: string;
+  /** Additional metadata to persist in the change's .openspec.yaml */
+  metadata?: Partial<Pick<ChangeMetadata, 'goal' | 'affected_areas' | 'initiative'>>;
 }
 
 /**
@@ -19,6 +27,8 @@ export interface CreateChangeOptions {
 export interface CreateChangeResult {
   /** The schema that was actually used (resolved from options, config, or default) */
   schema: string;
+  /** Absolute path to the created change directory */
+  changeDir: string;
 }
 
 /**
@@ -120,7 +130,9 @@ export async function createChange(
     throw new Error(validation.error);
   }
 
-  // Determine schema: explicit option → project config → hardcoded default
+  const defaultSchema = options.defaultSchema ?? DEFAULT_SCHEMA;
+
+  // Determine schema: explicit option → project config → supplied default
   let schemaName: string;
   if (options.schema) {
     schemaName = options.schema;
@@ -128,10 +140,10 @@ export async function createChange(
     // Try to read from project config
     try {
       const config = readProjectConfig(projectRoot);
-      schemaName = config?.schema ?? DEFAULT_SCHEMA;
+      schemaName = config?.schema ?? defaultSchema;
     } catch {
       // If config read fails, use default
-      schemaName = DEFAULT_SCHEMA;
+      schemaName = defaultSchema;
     }
   }
 
@@ -139,22 +151,40 @@ export async function createChange(
   validateSchemaName(schemaName, projectRoot);
 
   // Build the change directory path
-  const changeDir = path.join(projectRoot, 'openspec', 'changes', name);
+  const changeDir = path.join(options.changesDir ?? path.join(projectRoot, 'openspec', 'changes'), name);
 
   // Check if change already exists
   if (await FileSystemUtils.directoryExists(changeDir)) {
     throw new Error(`Change '${name}' already exists at ${changeDir}`);
   }
 
+  // Creating a change may scaffold or complete the root itself (an
+  // implicit root, or a config-only/incomplete clone). Never leave a
+  // half-root behind that doctor immediately calls unhealthy: ensure
+  // specs/ and changes/archive/ exist, and write a config only when
+  // none exists. The config records the PROJECT default schema, never
+  // a one-change --schema override.
+  const openspecDir = path.join(projectRoot, 'openspec');
+
   // Create the directory (including parent directories if needed)
   await FileSystemUtils.createDirectory(changeDir);
+  await FileSystemUtils.createDirectory(path.join(openspecDir, 'specs'));
+  await FileSystemUtils.createDirectory(path.join(openspecDir, 'changes', 'archive'));
+  const configPath = path.join(openspecDir, 'config.yaml');
+  const configYmlPath = path.join(openspecDir, 'config.yml');
+  if (
+    !(await FileSystemUtils.fileExists(configPath)) &&
+    !(await FileSystemUtils.fileExists(configYmlPath))
+  ) {
+    await FileSystemUtils.writeFile(configPath, `schema: ${defaultSchema}\n`);
+  }
 
   // Write metadata file with schema and creation date
-  const today = new Date().toISOString().split('T')[0];
   writeChangeMetadata(changeDir, {
     schema: schemaName,
-    created: today,
+    created: formatLocalDate(),
+    ...options.metadata,
   }, projectRoot);
 
-  return { schema: schemaName };
+  return { schema: schemaName, changeDir };
 }

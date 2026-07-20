@@ -16,6 +16,7 @@ export { ArtifactGraph } from './graph.js';
 
 // State detection
 export { detectCompleted } from './state.js';
+export { artifactOutputExists, isGlobPattern, resolveArtifactOutputs } from './outputs.js';
 
 // Schema resolution
 export {
@@ -37,8 +38,14 @@ export {
   formatChangeStatus,
   TemplateLoadError,
   type ChangeContext,
+  type LoadChangeContextOptions,
   type ArtifactInstructions,
   type DependencyInfo,
   type ArtifactStatus,
   type ChangeStatus,
+  type ArtifactPathSummary,
 } from './instruction-loader.js';
+export type {
+  PlanningHomeSummary,
+  ActionContext,
+} from '../change-status-policy.js';

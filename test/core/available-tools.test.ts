@@ -87,5 +87,184 @@ describe('available-tools', () => {
       expect(tools).toHaveLength(1);
       expect(tools[0].value).toBe('claude');
     });
+
+    it('should not detect GitHub Copilot from bare .github directory', async () => {
+      // .github/ exists in virtually every GitHub repo (for workflows, issue templates, etc.)
+      // A bare .github/ directory should NOT trigger Copilot detection
+      await fs.mkdir(path.join(testDir, '.github'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).not.toContain('github-copilot');
+    });
+
+    it('should detect GitHub Copilot when copilot-instructions.md exists', async () => {
+      await fs.mkdir(path.join(testDir, '.github'), { recursive: true });
+      await fs.writeFile(path.join(testDir, '.github', 'copilot-instructions.md'), '');
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('github-copilot');
+    });
+
+    it('should detect GitHub Copilot when .github/prompts directory exists', async () => {
+      await fs.mkdir(path.join(testDir, '.github', 'prompts'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('github-copilot');
+    });
+
+    it('should detect GitHub Copilot when .github/agents directory exists', async () => {
+      await fs.mkdir(path.join(testDir, '.github', 'agents'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('github-copilot');
+    });
+
+    it('should detect GitHub Copilot when .github/skills directory exists', async () => {
+      await fs.mkdir(path.join(testDir, '.github', 'skills'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('github-copilot');
+    });
+
+    it('should detect GitHub Copilot when copilot-setup-steps.yml exists', async () => {
+      await fs.mkdir(path.join(testDir, '.github', 'workflows'), { recursive: true });
+      await fs.writeFile(path.join(testDir, '.github', 'workflows', 'copilot-setup-steps.yml'), '');
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('github-copilot');
+    });
+
+    it('should detect Hermes Agent when HERMES.md exists', async () => {
+      await fs.writeFile(path.join(testDir, 'HERMES.md'), '');
+
+      const tools = getAvailableTools(testDir);
+      const hermesTool = tools.find((t) => t.value === 'hermes');
+
+      expect(hermesTool).toMatchObject({
+        name: 'Hermes Agent',
+        skillsDir: '.hermes',
+      });
+    });
+
+    it('should detect Hermes Agent when .hermes.md exists', async () => {
+      await fs.writeFile(path.join(testDir, '.hermes.md'), '');
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('hermes');
+    });
+
+    it('should detect Hermes Agent when .hermes directory exists', async () => {
+      await fs.mkdir(path.join(testDir, '.hermes'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('hermes');
+    });
+
+    it('should not detect Hermes Agent from plain CONTEXT.md', async () => {
+      await fs.writeFile(path.join(testDir, 'CONTEXT.md'), '');
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).not.toContain('hermes');
+    });
+
+    it('should still use skillsDir detection for tools without detectionPaths', async () => {
+      // Claude Code has no detectionPaths, so .claude/ directory should still work
+      await fs.mkdir(path.join(testDir, '.claude'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('claude');
+    });
+
+    it('should detect Mistral Vibe when .vibe directory exists', async () => {
+      // Mistral Vibe uses skillsDir: '.vibe' without detectionPaths
+      // This test ensures path semantics do not drift for Vibe skill detection
+      await fs.mkdir(path.join(testDir, '.vibe'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('vibe');
+
+      const vibeTool = tools.find((t) => t.value === 'vibe');
+      expect(vibeTool).toBeDefined();
+      expect(vibeTool?.name).toBe('Mistral Vibe');
+      expect(vibeTool?.skillsDir).toBe('.vibe');
+    });
+
+    it('should detect CodeArts when .codeartsdoer directory exists', async () => {
+      await fs.mkdir(path.join(testDir, '.codeartsdoer'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const codeArtsTool = tools.find((t) => t.value === 'codeartsagent');
+      expect(codeArtsTool).toMatchObject({
+        name: 'CodeArts',
+        value: 'codeartsagent',
+        available: true,
+        skillsDir: '.codeartsdoer',
+      });
+    });
+
+    it('should not detect CodeArts when .codeartsdoer directory does not exist', () => {
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).not.toContain('codeartsagent');
+    });
+
+    it('should detect ZCode when .zcode directory exists', async () => {
+      await fs.mkdir(path.join(testDir, '.zcode'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const zcode = tools.find((t) => t.value === 'zcode');
+      expect(zcode).toBeDefined();
+      expect(zcode?.name).toBe('ZCode');
+      expect(zcode?.skillsDir).toBe('.zcode');
+    });
+
+    it('should not detect ZCode from a bare .agents directory', async () => {
+      // .agents is a generic directory used by many agent frameworks; a bare
+      // .agents must not trigger ZCode detection (mirrors the Copilot bare-.github rule).
+      await fs.mkdir(path.join(testDir, '.agents'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((t) => t.value)).not.toContain('zcode');
+    });
+
+    it('should detect ZCode from .zcode even when .agents is also present', async () => {
+      // A co-located .agents must not suppress real ZCode detection via .zcode
+      await fs.mkdir(path.join(testDir, '.zcode'), { recursive: true });
+      await fs.mkdir(path.join(testDir, '.agents'), { recursive: true });
+
+      const zcodeTools = getAvailableTools(testDir).filter((t) => t.value === 'zcode');
+      expect(zcodeTools).toHaveLength(1);
+    });
+
+    it('should not detect ZCode when .zcode is absent', async () => {
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((t) => t.value)).not.toContain('zcode');
+    });
+
+    it('should detect Oh My Pi when .omp directory exists', async () => {
+      // Oh My Pi uses skillsDir: '.omp' without detectionPaths
+      // This test ensures path semantics do not drift for Oh My Pi skill detection
+      await fs.mkdir(path.join(testDir, '.omp'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('oh-my-pi');
+
+      const ohMyPiTool = tools.find((t) => t.value === 'oh-my-pi');
+      expect(ohMyPiTool).toBeDefined();
+      expect(ohMyPiTool?.name).toBe('Oh My Pi');
+      expect(ohMyPiTool?.skillsDir).toBe('.omp');
+    });
   });
 });

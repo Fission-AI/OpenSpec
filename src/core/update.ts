@@ -11,7 +11,7 @@ import ora from 'ora';
 import * as fs from 'fs';
 import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { transformToHyphenCommands } from '../utils/command-references.js';
+import { getTransformerForTool } from '../utils/command-references.js';
 import { AI_TOOLS, OPENSPEC_DIR_NAME } from './config.js';
 import {
   generateCommands,
@@ -28,14 +28,19 @@ import {
 import {
   detectLegacyArtifacts,
   cleanupLegacyArtifacts,
+  formatDeferredGlobalPromptSummary,
   formatCleanupSummary,
   formatDetectionSummary,
+  getLegacyGlobalPromptMatches,
+  getLegacyWorkflowIdsForTool,
   getToolsFromLegacyArtifacts,
+  omitGlobalLegacyPromptFiles,
+  pickGlobalLegacyPromptFiles,
   type LegacyDetectionResult,
 } from './legacy-cleanup.js';
 import { isInteractive } from '../utils/interactive.js';
-import { getGlobalConfig, type Delivery } from './global-config.js';
-import { getProfileWorkflows, ALL_WORKFLOWS } from './profiles.js';
+import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
+import { getProfileWorkflows, ALL_WORKFLOWS, CORE_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
 import {
   WORKFLOW_TO_SKILL_DIR,
@@ -46,10 +51,28 @@ import {
 import {
   scanInstalledWorkflows as scanInstalledWorkflowsShared,
   migrateIfNeeded as migrateIfNeededShared,
+  migrateLegacySkillDirs,
 } from './migration.js';
+import {
+  resolveCommandSurfaceCapability,
+  shouldGenerateCommandsForTool,
+  shouldGenerateSkillsForTool,
+  shouldReconcileCommandFilesForTool,
+  shouldRemoveSkillsForTool,
+} from './command-surface.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
+
+/**
+ * Captures legacy migration side effects so update can refresh newly configured
+ * tools and honor workflow subsets inferred from legacy Codex prompt filenames.
+ */
+type LegacyUpgradeResult = {
+  newlyConfiguredTools: string[];
+  workflowOverrides: Partial<Record<string, readonly (typeof ALL_WORKFLOWS)[number][]>>;
+  deferredGlobalCleanup?: LegacyDetectionResult;
+};
 
 /**
  * Options for the update command.
@@ -79,6 +102,12 @@ export class UpdateCommand {
     this.force = options.force ?? false;
   }
 
+  /**
+   * Refreshes OpenSpec skills and commands for all configured tools,
+   * regenerating artifacts according to the effective profile and delivery mode.
+   *
+   * @param projectPath - Path to the project root containing the openspec directory
+   */
   async execute(projectPath: string): Promise<void> {
     const resolvedProjectPath = path.resolve(projectPath);
     const openspecPath = path.join(resolvedProjectPath, OPENSPEC_DIR_NAME);
@@ -88,7 +117,14 @@ export class UpdateCommand {
       throw new Error(`No OpenSpec directory found. Run 'openspec init' first.`);
     }
 
-    // 2. Perform one-time migration if needed before any legacy upgrade generation.
+    // 2. Migrate OpenSpec-managed skills left in renamed tool directories
+    // (e.g. .kimi -> .kimi-code) so they stay detected and get refreshed,
+    // then perform the one-time profile migration if needed before any
+    // legacy upgrade generation.
+    for (const migration of migrateLegacySkillDirs(resolvedProjectPath)) {
+      console.log(chalk.dim(`Migrated ${migration.movedSkillDirs} skill director${migration.movedSkillDirs === 1 ? 'y' : 'ies'}: ${migration.from}/skills → ${migration.to}/skills`));
+    }
+
     // Use detected tool directories to preserve existing opsx skills/commands.
     const detectedTools = getAvailableTools(resolvedProjectPath);
     migrateIfNeededShared(resolvedProjectPath, detectedTools);
@@ -101,20 +137,26 @@ export class UpdateCommand {
     const desiredWorkflows = profileWorkflows.filter((workflow): workflow is (typeof ALL_WORKFLOWS)[number] =>
       (ALL_WORKFLOWS as readonly string[]).includes(workflow)
     );
-    const shouldGenerateSkills = delivery !== 'commands';
-    const shouldGenerateCommands = delivery !== 'skills';
 
     // 4. Detect and handle legacy artifacts + upgrade legacy tools using effective config
-    const newlyConfiguredTools = await this.handleLegacyCleanup(
+    const legacyUpgrade = await this.handleLegacyCleanup(
       resolvedProjectPath,
       desiredWorkflows,
       delivery
     );
+    const {
+      newlyConfiguredTools,
+      workflowOverrides: legacyWorkflowOverrides,
+      deferredGlobalCleanup,
+    } = legacyUpgrade;
 
     // 5. Find configured tools
     const configuredTools = getConfiguredToolsForProfileSync(resolvedProjectPath);
 
     if (configuredTools.length === 0 && newlyConfiguredTools.length === 0) {
+      if (deferredGlobalCleanup) {
+        await this.performDeferredGlobalPromptCleanup(resolvedProjectPath, deferredGlobalCleanup);
+      }
       console.log(chalk.yellow('No configured tools found.'));
       console.log(chalk.dim('Run "openspec init" to set up tools.'));
       return;
@@ -148,32 +190,38 @@ export class UpdateCommand {
     ]);
     const toolsUpToDate = toolStatuses.filter((s) => !toolsToUpdateSet.has(s.toolId));
 
-    if (!this.force && toolsToUpdateSet.size === 0) {
+    if (!this.force && toolsToUpdateSet.size === 0 && newlyConfiguredTools.length === 0) {
+      if (deferredGlobalCleanup) {
+        await this.performDeferredGlobalPromptCleanup(resolvedProjectPath, deferredGlobalCleanup);
+      }
       // All tools are up to date
       this.displayUpToDateMessage(toolStatuses);
 
       // Still check for new tool directories and extra workflows
       this.detectNewTools(resolvedProjectPath, configuredTools);
       this.displayExtraWorkflowsNote(resolvedProjectPath, configuredTools, desiredWorkflows);
+      this.displayMissingCoreWorkflowsNote(profile, globalConfig.workflows);
+      this.displaySetupNotes(configuredTools);
       return;
     }
 
     // 8. Display update plan
     if (this.force) {
       console.log(`Force updating ${configuredTools.length} tool(s): ${configuredTools.join(', ')}`);
+    } else if (toolsToUpdateSet.size === 0) {
+      console.log('No additional refresh needed after legacy migration.');
     } else {
       this.displayUpdatePlan([...toolsToUpdateSet], statusByTool, toolsUpToDate);
     }
     console.log();
 
     // 9. Determine what to generate based on delivery
-    const skillTemplates = shouldGenerateSkills ? getSkillTemplates(desiredWorkflows) : [];
-    const commandContents = shouldGenerateCommands ? getCommandContents(desiredWorkflows) : [];
-
+    const deliveryIncludesCommands = delivery !== 'skills';
     // 10. Update tools (all if force, otherwise only those needing update)
     const toolsToUpdate = this.force ? configuredTools : [...toolsToUpdateSet];
     const updatedTools: string[] = [];
     const failedTools: Array<{ name: string; error: string }> = [];
+    const skillsInvocableCommandSkips: string[] = [];
     let removedCommandCount = 0;
     let removedSkillCount = 0;
     let removedDeselectedCommandCount = 0;
@@ -187,6 +235,11 @@ export class UpdateCommand {
 
       try {
         const skillsDir = path.join(resolvedProjectPath, tool.skillsDir, 'skills');
+        const shouldGenerateSkills = shouldGenerateSkillsForTool(tool.value, delivery);
+        const shouldGenerateCommands = shouldGenerateCommandsForTool(tool.value, delivery);
+        const toolWorkflows = legacyWorkflowOverrides[tool.value] ?? desiredWorkflows;
+        const skillTemplates = getSkillTemplates(toolWorkflows);
+        const commandContents = getCommandContents(toolWorkflows);
 
         // Generate skill files if delivery includes skills
         if (shouldGenerateSkills) {
@@ -194,17 +247,16 @@ export class UpdateCommand {
             const skillDir = path.join(skillsDir, dirName);
             const skillFile = path.join(skillDir, 'SKILL.md');
 
-            // Use hyphen-based command references for OpenCode
-            const transformer = tool.value === 'opencode' ? transformToHyphenCommands : undefined;
+            const transformer = getTransformerForTool(tool.value, delivery);
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
 
-          removedDeselectedSkillCount += await this.removeUnselectedSkillDirs(skillsDir, desiredWorkflows);
+          removedDeselectedSkillCount += await this.removeUnselectedSkillDirs(skillsDir, toolWorkflows);
         }
 
         // Delete skill directories if delivery is commands-only
-        if (!shouldGenerateSkills) {
+        if (shouldRemoveSkillsForTool(tool.value, delivery)) {
           removedSkillCount += await this.removeSkillDirs(skillsDir);
         }
 
@@ -222,13 +274,15 @@ export class UpdateCommand {
             removedDeselectedCommandCount += await this.removeUnselectedCommandFiles(
               resolvedProjectPath,
               toolId,
-              desiredWorkflows
+              toolWorkflows
             );
           }
+        } else if (deliveryIncludesCommands && resolveCommandSurfaceCapability(tool.value) === 'skills-invocable') {
+          skillsInvocableCommandSkips.push(tool.value);
         }
 
         // Delete command files if delivery is skills-only
-        if (!shouldGenerateCommands) {
+        if (shouldReconcileCommandFilesForTool(tool.value, delivery)) {
           removedCommandCount += await this.removeCommandFiles(resolvedProjectPath, toolId);
         }
 
@@ -243,6 +297,10 @@ export class UpdateCommand {
       }
     }
 
+    if (deferredGlobalCleanup) {
+      await this.performDeferredGlobalPromptCleanup(resolvedProjectPath, deferredGlobalCleanup);
+    }
+
     // 11. Summary
     console.log();
     if (updatedTools.length > 0) {
@@ -250,6 +308,9 @@ export class UpdateCommand {
     }
     if (failedTools.length > 0) {
       console.log(chalk.red(`✗ Failed: ${failedTools.map(f => `${f.name} (${f.error})`).join(', ')}`));
+    }
+    if (skillsInvocableCommandSkips.length > 0) {
+      console.log(chalk.dim(`Commands skipped for: ${skillsInvocableCommandSkips.join(', ')} (uses skills)`));
     }
     if (removedCommandCount > 0) {
       console.log(chalk.dim(`Removed: ${removedCommandCount} command files (delivery: skills)`));
@@ -282,6 +343,8 @@ export class UpdateCommand {
 
     // 14. Display note about extra workflows not in profile
     this.displayExtraWorkflowsNote(resolvedProjectPath, configuredAndNewTools, desiredWorkflows);
+    this.displayMissingCoreWorkflowsNote(profile, globalConfig.workflows);
+    this.displaySetupNotes(configuredAndNewTools);
 
     // 15. List affected tools
     if (updatedTools.length > 0) {
@@ -330,6 +393,19 @@ export class UpdateCommand {
   }
 
   /**
+   * Shows manual setup notes for configured tools that need extra
+   * configuration before they pick up generated files.
+   */
+  private displaySetupNotes(toolIds: string[]): void {
+    for (const toolId of toolIds) {
+      const tool = AI_TOOLS.find((t) => t.value === toolId);
+      if (tool?.setupNote) {
+        console.log(chalk.yellow(`Setup required for ${tool.name}: ${tool.setupNote}`));
+      }
+    }
+  }
+
+  /**
    * Detects new tool directories that aren't currently configured and displays a hint.
    */
   private detectNewTools(projectPath: string, configuredTools: string[]): void {
@@ -367,6 +443,29 @@ export class UpdateCommand {
     if (extraWorkflows.length > 0) {
       console.log(chalk.dim(`Note: ${extraWorkflows.length} extra workflows not in profile (use \`openspec config profile\` to manage)`));
     }
+  }
+
+  /**
+   * Point out core workflows a custom profile is missing, so releases that
+   * grow CORE_WORKFLOWS stay discoverable. Keep custom profiles user-owned;
+   * do not mutate them.
+   */
+  private displayMissingCoreWorkflowsNote(profile: Profile, workflows?: readonly string[]): void {
+    if (profile !== 'custom' || !workflows) {
+      return;
+    }
+
+    const workflowSet = new Set(workflows);
+    const missing = CORE_WORKFLOWS.filter((workflow) => !workflowSet.has(workflow));
+
+    if (missing.length === 0) {
+      return;
+    }
+
+    const label = missing.length === 1 ? 'workflow' : 'workflows';
+    const pronoun = missing.length === 1 ? 'it' : 'them';
+    console.log(chalk.dim(`Note: Your custom profile is missing ${missing.length} core ${label}: ${missing.join(', ')}`));
+    console.log(chalk.dim(`Run \`openspec config profile\` to add ${pronoun}, or \`openspec config profile core\` to use the core set.`));
   }
 
   /**
@@ -497,26 +596,47 @@ export class UpdateCommand {
     projectPath: string,
     desiredWorkflows: readonly (typeof ALL_WORKFLOWS)[number][],
     delivery: Delivery
-  ): Promise<string[]> {
+  ): Promise<LegacyUpgradeResult> {
     // Detect legacy artifacts
     const detection = await detectLegacyArtifacts(projectPath);
 
     if (!detection.hasLegacyArtifacts) {
-      return []; // No legacy artifacts found
+      return { newlyConfiguredTools: [], workflowOverrides: {} }; // No legacy artifacts found
     }
 
     // Show what was detected
-    console.log();
-    console.log(formatDetectionSummary(detection));
-    console.log();
+    const immediateSummary = formatDetectionSummary(omitGlobalLegacyPromptFiles(detection));
+    const deferredSummary = formatDeferredGlobalPromptSummary(detection);
+    if (immediateSummary || deferredSummary) {
+      console.log();
+      if (immediateSummary) {
+        console.log(immediateSummary);
+        console.log();
+      }
+      if (deferredSummary) {
+        console.log(deferredSummary);
+        console.log();
+      }
+    }
 
     const canPrompt = isInteractive();
 
     if (this.force) {
-      // --force flag: proceed with cleanup automatically
-      await this.performLegacyCleanup(projectPath, detection);
-      // Then upgrade legacy tools to new skills
-      return this.upgradeLegacyTools(projectPath, detection, canPrompt, desiredWorkflows, delivery);
+      const legacyUpgrade = await this.upgradeLegacyTools(
+        projectPath,
+        detection,
+        canPrompt,
+        desiredWorkflows,
+        delivery
+      );
+      await this.performImmediateLegacyCleanup(projectPath, detection);
+      return {
+        ...legacyUpgrade,
+        deferredGlobalCleanup: pickGlobalLegacyPromptFiles(
+          detection,
+          detection.globalSlashCommandFiles
+        ),
+      };
     }
 
     if (!canPrompt) {
@@ -524,7 +644,7 @@ export class UpdateCommand {
       // (Unlike init, update doesn't abort - user may just want to update skills)
       console.log(chalk.yellow('⚠ Run with --force to auto-cleanup legacy files, or run interactively.'));
       console.log();
-      return [];
+      return { newlyConfiguredTools: [], workflowOverrides: {} };
     }
 
     // Interactive mode: prompt for confirmation
@@ -535,13 +655,72 @@ export class UpdateCommand {
     });
 
     if (shouldCleanup) {
-      await this.performLegacyCleanup(projectPath, detection);
-      // Then upgrade legacy tools to new skills
-      return this.upgradeLegacyTools(projectPath, detection, canPrompt, desiredWorkflows, delivery);
+      const legacyUpgrade = await this.upgradeLegacyTools(
+        projectPath,
+        detection,
+        canPrompt,
+        desiredWorkflows,
+        delivery
+      );
+      await this.performImmediateLegacyCleanup(projectPath, detection);
+      return {
+        ...legacyUpgrade,
+        deferredGlobalCleanup: pickGlobalLegacyPromptFiles(
+          detection,
+          detection.globalSlashCommandFiles
+        ),
+      };
     } else {
       console.log(chalk.dim('Skipping legacy cleanup. Continuing with skill update...'));
       console.log();
-      return [];
+      return { newlyConfiguredTools: [], workflowOverrides: {} };
+    }
+  }
+
+  /**
+   * Cleans approved repo-local legacy artifacts before configured tools refresh.
+   */
+  private async performImmediateLegacyCleanup(
+    projectPath: string,
+    detection: LegacyDetectionResult
+  ): Promise<void> {
+    const immediateDetection = omitGlobalLegacyPromptFiles(detection);
+    if (immediateDetection.hasLegacyArtifacts) {
+      await this.performLegacyCleanup(projectPath, immediateDetection);
+    }
+  }
+
+  /**
+   * Cleans approved global Codex prompts after configured tools refresh so newly
+   * installed replacement skills can retire their prompts in the same run.
+   */
+  private async performDeferredGlobalPromptCleanup(
+    projectPath: string,
+    detection: LegacyDetectionResult
+  ): Promise<void> {
+    const availableCodexWorkflows = new Set(scanInstalledWorkflows(projectPath, ['codex']));
+    const removableMatches = getLegacyGlobalPromptMatches(detection)
+      .filter((prompt) => prompt.workflowIds.every((workflowId) => availableCodexWorkflows.has(workflowId)));
+
+    if (removableMatches.length > 0) {
+      await this.performLegacyCleanup(
+        projectPath,
+        pickGlobalLegacyPromptFiles(
+          detection,
+          removableMatches.map((prompt) => prompt.path)
+        )
+      );
+    }
+
+    const blockedMatches = getLegacyGlobalPromptMatches(detection)
+      .filter((prompt) => !removableMatches.some((match) => match.path === prompt.path));
+
+    if (blockedMatches.length > 0) {
+      console.log(chalk.yellow('Preserved deferred global prompts without replacement skills:'));
+      for (const prompt of blockedMatches) {
+        console.log(chalk.dim(`  - ${prompt.toolId}: ${prompt.path}`));
+      }
+      console.log();
     }
   }
 
@@ -565,8 +744,8 @@ export class UpdateCommand {
   }
 
   /**
-   * Upgrade legacy tools to new skills system.
-   * Returns array of tool IDs that were newly configured.
+   * Upgrades unconfigured legacy tools into the skills-based setup and carries
+   * workflow overrides for migrations that should mirror legacy Codex prompts.
    */
   private async upgradeLegacyTools(
     projectPath: string,
@@ -574,12 +753,12 @@ export class UpdateCommand {
     canPrompt: boolean,
     desiredWorkflows: readonly (typeof ALL_WORKFLOWS)[number][],
     delivery: Delivery
-  ): Promise<string[]> {
+  ): Promise<LegacyUpgradeResult> {
     // Get tools that had legacy artifacts
     const legacyTools = getToolsFromLegacyArtifacts(detection);
 
     if (legacyTools.length === 0) {
-      return [];
+      return { newlyConfiguredTools: [], workflowOverrides: {} };
     }
 
     // Get currently configured tools
@@ -590,7 +769,7 @@ export class UpdateCommand {
     const unconfiguredLegacyTools = legacyTools.filter((t) => !configuredSet.has(t));
 
     if (unconfiguredLegacyTools.length === 0) {
-      return [];
+      return { newlyConfiguredTools: [], workflowOverrides: {} };
     }
 
     // Get valid tools (those with skillsDir)
@@ -598,7 +777,7 @@ export class UpdateCommand {
     const validUnconfiguredTools = unconfiguredLegacyTools.filter((t) => validToolIds.has(t));
 
     if (validUnconfiguredTools.length === 0) {
-      return [];
+      return { newlyConfiguredTools: [], workflowOverrides: {} };
     }
 
     // Show what tools were detected from legacy artifacts
@@ -639,16 +818,15 @@ export class UpdateCommand {
       if (selectedTools.length === 0) {
         console.log(chalk.dim('Skipping tool setup.'));
         console.log();
-        return [];
+        return { newlyConfiguredTools: [], workflowOverrides: {} };
       }
     }
 
+    const inferredCodexWorkflows = getLegacyWorkflowIdsForTool(detection, 'codex');
+
     // Create skills/commands for selected tools using effective profile+delivery.
     const newlyConfigured: string[] = [];
-    const shouldGenerateSkills = delivery !== 'commands';
-    const shouldGenerateCommands = delivery !== 'skills';
-    const skillTemplates = shouldGenerateSkills ? getSkillTemplates(desiredWorkflows) : [];
-    const commandContents = shouldGenerateCommands ? getCommandContents(desiredWorkflows) : [];
+    const workflowOverrides: LegacyUpgradeResult['workflowOverrides'] = {};
 
     for (const toolId of selectedTools) {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
@@ -658,6 +836,18 @@ export class UpdateCommand {
 
       try {
         const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
+        const shouldGenerateSkills = shouldGenerateSkillsForTool(tool.value, delivery);
+        const shouldGenerateCommands = shouldGenerateCommandsForTool(tool.value, delivery);
+        const toolWorkflows = (
+          tool.value === 'codex' && inferredCodexWorkflows.length > 0
+            ? inferredCodexWorkflows
+            : desiredWorkflows
+        );
+        if (tool.value === 'codex' && inferredCodexWorkflows.length > 0) {
+          workflowOverrides[tool.value] = inferredCodexWorkflows;
+        }
+        const skillTemplates = getSkillTemplates(toolWorkflows);
+        const commandContents = getCommandContents(toolWorkflows);
 
         // Create skill files when delivery includes skills
         if (shouldGenerateSkills) {
@@ -665,8 +855,7 @@ export class UpdateCommand {
             const skillDir = path.join(skillsDir, dirName);
             const skillFile = path.join(skillDir, 'SKILL.md');
 
-            // Use hyphen-based command references for OpenCode
-            const transformer = tool.value === 'opencode' ? transformToHyphenCommands : undefined;
+            const transformer = getTransformerForTool(tool.value, delivery);
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
@@ -697,6 +886,6 @@ export class UpdateCommand {
       console.log();
     }
 
-    return newlyConfigured;
+    return { newlyConfiguredTools: newlyConfigured, workflowOverrides };
   }
 }

@@ -77,41 +77,30 @@ function canAnimate(): boolean {
 /**
  * Wait for Enter key press
  */
-function waitForEnter(): Promise<void> {
-  return new Promise((resolve) => {
-    const { stdin } = process;
+async function waitForEnter(): Promise<void> {
+  if (!process.stdin.isTTY) {
+    return;
+  }
 
-    // Handle non-TTY gracefully
-    if (!stdin.isTTY) {
-      resolve();
-      return;
-    }
-
-    const wasRaw = stdin.isRaw;
-    stdin.setRawMode(true);
-    stdin.resume();
-
-    const onData = (data: Buffer): void => {
-      const char = data.toString();
-
-      // Enter key or Ctrl+C
-      if (char === '\r' || char === '\n' || char === '\u0003') {
-        stdin.removeListener('data', onData);
-        stdin.setRawMode(wasRaw);
-        stdin.pause();
-
-        // Handle Ctrl+C
-        if (char === '\u0003') {
-          process.stdout.write('\n');
-          process.exit(0);
-        }
-
-        resolve();
+  // Keep all interactive input on Inquirer's keypress lifecycle. Mixing a raw
+  // `data` listener between Inquirer prompts breaks arrow/space keys on Windows.
+  const { createPrompt, isEnterKey, useKeypress } = await import('@inquirer/core');
+  const prompt = createPrompt<void, Record<string, never>>((_config, done) => {
+    useKeypress((key) => {
+      if (key.ctrl && key.name === 'c') {
+        process.stdout.write('\n');
+        process.exit(0);
       }
-    };
 
-    stdin.on('data', onData);
+      if (isEnterKey(key)) {
+        done(undefined);
+      }
+    });
+
+    return '';
   });
+
+  await prompt({});
 }
 
 /**

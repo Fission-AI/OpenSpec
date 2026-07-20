@@ -5,12 +5,15 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
+import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
 export function getApplyChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-apply-change',
     description: 'Implement tasks from an OpenSpec change. Use when the user wants to start implementing, continue implementation, or work through tasks.',
     instructions: `Implement tasks from an OpenSpec change.
+
+${STORE_SELECTION_GUIDANCE}
 
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
@@ -31,6 +34,7 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
    \`\`\`
    Parse the JSON to understand:
    - \`schemaName\`: The workflow being used (e.g., "spec-driven")
+   - \`planningHome\`, \`changeRoot\`, and \`actionContext\`: planning scope and edit constraints
    - Which artifact contains the tasks (typically "tasks" for spec-driven, check status for others)
 
 3. **Get apply instructions**
@@ -40,7 +44,7 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
    \`\`\`
 
    This returns:
-   - Context file paths (varies by schema - could be proposal/specs/design/tasks or spec/tests/implementation/docs)
+   - \`contextFiles\`: artifact ID -> array of concrete file paths (varies by schema - could be proposal/specs/design/tasks or spec/tests/implementation/docs)
    - Progress (total, complete, remaining)
    - Task list with status
    - Dynamic instruction based on current state
@@ -52,7 +56,7 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
 
 4. **Read context files**
 
-   Read the files listed in \`contextFiles\` from the apply instructions output.
+   Read every file path listed under \`contextFiles\` from the apply instructions output.
    The files depend on the schema being used:
    - **spec-driven**: proposal, specs, design, tasks
    - Other schemas: follow the contextFiles from CLI output
@@ -169,6 +173,8 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
     tags: ['workflow', 'artifacts', 'experimental'],
     content: `Implement tasks from an OpenSpec change.
 
+${STORE_SELECTION_GUIDANCE}
+
 **Input**: Optionally specify a change name (e.g., \`/opsx:apply add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
@@ -188,6 +194,7 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
    \`\`\`
    Parse the JSON to understand:
    - \`schemaName\`: The workflow being used (e.g., "spec-driven")
+   - \`planningHome\`, \`changeRoot\`, and \`actionContext\`: planning scope and edit constraints
    - Which artifact contains the tasks (typically "tasks" for spec-driven, check status for others)
 
 3. **Get apply instructions**
@@ -197,7 +204,7 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
    \`\`\`
 
    This returns:
-   - Context file paths (varies by schema)
+   - \`contextFiles\`: artifact ID -> array of concrete file paths (varies by schema)
    - Progress (total, complete, remaining)
    - Task list with status
    - Dynamic instruction based on current state
@@ -209,7 +216,7 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
 
 4. **Read context files**
 
-   Read the files listed in \`contextFiles\` from the apply instructions output.
+   Read every file path listed under \`contextFiles\` from the apply instructions output.
    The files depend on the schema being used:
    - **spec-driven**: proposal, specs, design, tasks
    - Other schemas: follow the contextFiles from CLI output

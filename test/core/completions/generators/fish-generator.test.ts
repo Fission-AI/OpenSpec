@@ -294,6 +294,23 @@ describe('FishGenerator', () => {
       expect(script).toContain('powershell');
     });
 
+    it('should handle positional arguments for schema names', () => {
+      const commands: CommandDefinition[] = [
+        {
+          name: 'schema',
+          description: 'Manage schemas',
+          acceptsPositional: true,
+          positionalType: 'schema-name',
+          flags: [],
+        },
+      ];
+
+      const script = generator.generate(commands);
+
+      expect(script).toContain('__fish_openspec_schemas');
+      expect(script).toContain('openspec __complete schemas 2>/dev/null');
+    });
+
     it('should generate dynamic completion helper for changes', () => {
       const commands: CommandDefinition[] = [
         {

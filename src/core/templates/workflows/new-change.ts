@@ -5,12 +5,15 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
+import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
 export function getNewChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-new-change',
     description: 'Start a new OpenSpec change using the experimental artifact workflow. Use when the user wants to create a new feature, fix, or modification with a structured step-by-step approach.',
     instructions: `Start a new change using the experimental artifact-driven approach.
+
+${STORE_SELECTION_GUIDANCE}
 
 **Input**: The user's request should include a change name (kebab-case) OR a description of what they want to build.
 
@@ -40,13 +43,13 @@ export function getNewChangeSkillTemplate(): SkillTemplate {
    openspec new change "<name>"
    \`\`\`
    Add \`--schema <name>\` only if the user requested a specific workflow.
-   This creates a scaffolded change at \`openspec/changes/<name>/\` with the selected schema.
+   This creates a scaffolded change in the planning home resolved by the CLI.
 
 4. **Show the artifact status**
    \`\`\`bash
-   openspec status --change "<name>"
+   openspec status --change "<name>" --json
    \`\`\`
-   This shows which artifacts need to be created and which are ready (dependencies satisfied).
+   Use the returned \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`nextSteps\` instead of assuming repo-local paths.
 
 5. **Get instructions for the first artifact**
    The first artifact depends on the schema (e.g., \`proposal\` for spec-driven).
@@ -87,6 +90,8 @@ export function getOpsxNewCommandTemplate(): CommandTemplate {
     tags: ['workflow', 'artifacts', 'experimental'],
     content: `Start a new change using the experimental artifact-driven approach.
 
+${STORE_SELECTION_GUIDANCE}
+
 **Input**: The argument after \`/opsx:new\` is the change name (kebab-case), OR a description of what the user wants to build.
 
 **Steps**
@@ -115,13 +120,13 @@ export function getOpsxNewCommandTemplate(): CommandTemplate {
    openspec new change "<name>"
    \`\`\`
    Add \`--schema <name>\` only if the user requested a specific workflow.
-   This creates a scaffolded change at \`openspec/changes/<name>/\` with the selected schema.
+   This creates a scaffolded change in the planning home resolved by the CLI.
 
 4. **Show the artifact status**
    \`\`\`bash
-   openspec status --change "<name>"
+   openspec status --change "<name>" --json
    \`\`\`
-   This shows which artifacts need to be created and which are ready (dependencies satisfied).
+   Use the returned \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`nextSteps\` instead of assuming repo-local paths.
 
 5. **Get instructions for the first artifact**
    The first artifact depends on the schema. Check the status output to find the first artifact with status "ready".

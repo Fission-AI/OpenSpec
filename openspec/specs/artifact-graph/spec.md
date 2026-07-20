@@ -2,7 +2,6 @@
 
 ## Purpose
 Define the artifact graph model, dependency validation, and completion-state logic used by schema-driven workflows.
-
 ## Requirements
 ### Requirement: Schema Loading
 The system SHALL load artifact graph definitions from YAML schema files within schema directories.

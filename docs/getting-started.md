@@ -1,6 +1,30 @@
 # Getting Started
 
-This guide explains how OpenSpec works after you've installed and initialized it. For installation instructions, see the [main README](../README.md#quick-start).
+This guide explains how OpenSpec works after you've installed and initialized it. For installation instructions, see the [main README](../README.md#quick-start) or the [Installation guide](installation.md). New to the whole docs set? The [documentation home](README.md) maps everything.
+
+> **Where do I type these commands?** Two places, and mixing them up is the most common early stumble.
+>
+> - `openspec ...` commands (like `openspec init`) run in your **terminal**.
+> - `/opsx:...` commands (like `/opsx:propose`) run in your **AI assistant's chat**, the same box where you'd ask it to write code.
+>
+> There's no separate "interactive mode" to start. You just type the slash command in chat and your assistant takes it from there. Full explanation: [How Commands Work](how-commands-work.md).
+
+## Your First Five Minutes
+
+The whole loop, with each step labeled by where it happens:
+
+```text
+TERMINAL   $ npm install -g @fission-ai/openspec@latest
+TERMINAL   $ cd your-project && openspec init
+AI CHAT      /opsx:explore                    (optional: think it through first)
+AI CHAT      /opsx:propose add-dark-mode      (AI drafts the plan; you review it)
+AI CHAT      /opsx:apply                      (AI builds it)
+AI CHAT      /opsx:archive                    (specs updated, change filed away)
+```
+
+Two terminal steps to set up, then you live in chat. The rest of this guide unpacks what each step does and what you'll see.
+
+> **Not sure what to build yet? Start with `/opsx:explore`.** It's a no-stakes thinking partner that reads your codebase, weighs options, and sharpens a fuzzy idea into a concrete plan, all before any artifact or code exists. When the picture is clear, it hands off to `/opsx:propose`. This is the single best habit for working with an AI that will otherwise confidently build the wrong thing. See the [Explore guide](explore.md).
 
 ## How It Works
 
@@ -9,8 +33,11 @@ OpenSpec helps you and your AI coding assistant agree on what to build before an
 **Default quick path (core profile):**
 
 ```text
-/opsx:propose ──► /opsx:apply ──► /opsx:archive
+/opsx:explore ──► /opsx:propose ──► /opsx:apply ──► /opsx:sync ──► /opsx:archive
+   (optional)
 ```
+
+Start with `/opsx:explore` when you're figuring out what to do, or jump straight to `/opsx:propose` when you already know. Explore is in the default profile, so it's always there when you want it.
 
 **Expanded path (custom workflow selection):**
 
@@ -18,7 +45,7 @@ OpenSpec helps you and your AI coding assistant agree on what to build before an
 /opsx:new ──► /opsx:ff or /opsx:continue ──► /opsx:apply ──► /opsx:verify ──► /opsx:archive
 ```
 
-The default global profile is `core`, which includes `propose`, `explore`, `apply`, and `archive`. You can enable the expanded workflow commands with `openspec config profile` and then `openspec update`.
+The default global profile is `core`, which includes `propose`, `explore`, `apply`, `sync`, and `archive`. You can enable the expanded workflow commands with `openspec config profile` and then `openspec update`.
 
 ## What OpenSpec Creates
 
@@ -247,7 +274,16 @@ openspec view
 
 ## Next Steps
 
+- [Explore First](explore.md) - Use `/opsx:explore` to think through an idea before you commit
+- [Reviewing a Change](reviewing-changes.md) - What to check in the plan the AI drafts, before any code
+- [Writing Good Specs](writing-specs.md) - What a strong requirement and scenario look like
+- [Using OpenSpec in an Existing Project](existing-projects.md) - Start on a large brownfield codebase
+- [Editing & Iterating on a Change](editing-changes.md) - Update artifacts, go back, reconcile manual edits
+- [Core Concepts at a Glance](overview.md) - The whole mental model on one page
+- [Examples & Recipes](examples.md) - Real changes, start to finish
 - [Workflows](workflows.md) - Common patterns and when to use each command
 - [Commands](commands.md) - Full reference for all slash commands
 - [Concepts](concepts.md) - Deeper understanding of specs, changes, and schemas
 - [Customization](customization.md) - Make OpenSpec work your way
+- [Stores](stores-beta/user-guide.md) - Planning that spans repos or teams? Keep it in its own repo (beta)
+- [FAQ](faq.md) and [Troubleshooting](troubleshooting.md) - When you get stuck
