@@ -68,7 +68,13 @@ ${STORE_SELECTION_GUIDANCE}
    - If changes needed: "Sync now (recommended)", "Archive without syncing"
    - If already synced: "Archive now", "Sync anyway", "Cancel"
 
-   If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Wait for that subagent to return before continuing — do not start step 5 while a sync is still running, because moving \`changeRoot\` out from under it loses the delta specs and leaves the main specs unsynced. Once it returns, confirm the synced requirements are present in \`<planningHome.root>/openspec/specs/<capability>/spec.md\`. If the sync failed or those requirements are missing, report that and stop — do not archive. If the user chooses "Cancel", stop — do not archive. For any other choice, proceed to archive.
+   If the user chooses "Cancel", stop — do not archive.
+
+   If the user chooses sync, run it inline: use the Skill tool to invoke \`openspec-sync-specs\` for change '<name>', passing the delta spec analysis from above. Do not hand the sync to a background subagent — step 5 would move \`changeRoot\` out from under a sync that is still reading it, leaving the change archived and the main specs never updated. (If your harness can only run this as a subagent, dispatch it synchronously — for example \`run_in_background: false\` — and wait for its result.)
+
+   When the sync finishes, re-check every capability it touched at \`<planningHome.root>/openspec/specs/<capability>/spec.md\`: ADDED and MODIFIED requirements present, REMOVED requirements gone, RENAMED requirements under their new name. If the sync failed, or any capability does not match its delta, report it and stop — do not archive.
+
+   For any other choice, proceed to archive.
 
 5. **Perform the archive**
 
@@ -104,7 +110,7 @@ ${STORE_SELECTION_GUIDANCE}
 **Change:** <change-name>
 **Schema:** <schema-name>
 **Archived to:** the archive path derived from \`planningHome.changesDir\`/YYYY-MM-DD-<name>/
-**Specs:** ✓ Synced to main specs (or "No delta specs" or "Sync skipped")
+**Specs:** ✓ Synced to main specs — only if the step 4 verification passed (otherwise "No delta specs" or "Sync skipped")
 
 <"All artifacts complete. All tasks complete." — or, if archived with warnings, list them instead (e.g. "Archived with 2 incomplete tasks")>
 \`\`\`
@@ -115,8 +121,8 @@ ${STORE_SELECTION_GUIDANCE}
 - Don't block archive on warnings - just inform and confirm
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
 - Show clear summary of what happened
-- If sync is requested, use openspec-sync-specs approach (agent-driven)
-- Never archive while a spec sync is still in flight — wait for it to finish and verify the main specs first
+- If sync is requested, use the Skill tool to invoke \`openspec-sync-specs\` (inline, agent-driven)
+- Never archive while a spec sync is still in flight — run the sync inline and verify the main specs before moving \`changeRoot\`
 - If delta specs exist, always run the sync assessment and show the combined summary before prompting`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
@@ -187,7 +193,13 @@ ${STORE_SELECTION_GUIDANCE}
    - If changes needed: "Sync now (recommended)", "Archive without syncing"
    - If already synced: "Archive now", "Sync anyway", "Cancel"
 
-   If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Wait for that subagent to return before continuing — do not start step 5 while a sync is still running, because moving \`changeRoot\` out from under it loses the delta specs and leaves the main specs unsynced. Once it returns, confirm the synced requirements are present in \`<planningHome.root>/openspec/specs/<capability>/spec.md\`. If the sync failed or those requirements are missing, report that and stop — do not archive. If the user chooses "Cancel", stop — do not archive. For any other choice, proceed to archive.
+   If the user chooses "Cancel", stop — do not archive.
+
+   If the user chooses sync, run it inline: use the Skill tool to invoke \`openspec-sync-specs\` for change '<name>', passing the delta spec analysis from above. Do not hand the sync to a background subagent — step 5 would move \`changeRoot\` out from under a sync that is still reading it, leaving the change archived and the main specs never updated. (If your harness can only run this as a subagent, dispatch it synchronously — for example \`run_in_background: false\` — and wait for its result.)
+
+   When the sync finishes, re-check every capability it touched at \`<planningHome.root>/openspec/specs/<capability>/spec.md\`: ADDED and MODIFIED requirements present, REMOVED requirements gone, RENAMED requirements under their new name. If the sync failed, or any capability does not match its delta, report it and stop — do not archive.
+
+   For any other choice, proceed to archive.
 
 5. **Perform the archive**
 
@@ -281,8 +293,8 @@ Target archive directory already exists.
 - Don't block archive on warnings - just inform and confirm
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
 - Show clear summary of what happened
-- If sync is requested, use the Skill tool to invoke \`openspec-sync-specs\` (agent-driven)
-- Never archive while a spec sync is still in flight — wait for it to finish and verify the main specs first
+- If sync is requested, use the Skill tool to invoke \`openspec-sync-specs\` (inline, agent-driven)
+- Never archive while a spec sync is still in flight — run the sync inline and verify the main specs before moving \`changeRoot\`
 - If delta specs exist, always run the sync assessment and show the combined summary before prompting`
   };
 }
