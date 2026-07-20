@@ -40,6 +40,14 @@ describe('ZshInstaller', () => {
       expect(isInstalled).toBe(false);
     });
 
+    it('should return true when $ZSH environment variable is set', async () => {
+      // No .oh-my-zsh directory in testHomeDir; detection relies on $ZSH alone
+      process.env.ZSH = path.join(testHomeDir, '.oh-my-zsh');
+
+      const isInstalled = await installer.isOhMyZshInstalled();
+      expect(isInstalled).toBe(true);
+    });
+
     it('should return true when Oh My Zsh directory exists', async () => {
       // Create .oh-my-zsh directory
       const ohMyZshPath = path.join(testHomeDir, '.oh-my-zsh');
