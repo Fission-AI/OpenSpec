@@ -8,7 +8,7 @@
 import { AI_TOOLS, type AIToolOption } from './config.js';
 import { getGlobalConfig, getGlobalConfigPath, saveGlobalConfig, type Delivery } from './global-config.js';
 import { CommandAdapterRegistry } from './command-generation/index.js';
-import { resolveCommandSurfaceCapability } from './command-surface.js';
+import { resolveCommandSurfaceCapability, shouldGenerateCommandsForTool } from './command-surface.js';
 import { WORKFLOW_TO_SKILL_DIR } from './profile-sync-drift.js';
 import { ALL_WORKFLOWS } from './profiles.js';
 import { getSkillReferenceTransformer } from '../utils/command-references.js';
@@ -214,8 +214,11 @@ export function migrateIfNeeded(projectPath: string, tools: AIToolOption[]): voi
   // every detected tool produces the same reference; otherwise stay
   // syntax-neutral rather than advertise a form that is wrong for one tool.
   // Skills-invocable tools (codex) have no slash invocation, so they only
-  // ever get the syntax-neutral form.
-  const hasCommandSurface = tools.some((tool) => CommandAdapterRegistry.has(tool.value));
+  // ever get the syntax-neutral form. Commands must also be allowed by the
+  // effective delivery: with delivery 'skills', /opsx:* will never exist
+  // even for adapter-backed tools.
+  const effectiveDelivery: Delivery = config.delivery ?? 'both';
+  const hasCommandSurface = tools.some((tool) => shouldGenerateCommandsForTool(tool.value, effectiveDelivery));
   const proposeReferences = new Set(
     tools.map((tool) =>
       resolveCommandSurfaceCapability(tool.value) === 'skills-invocable'

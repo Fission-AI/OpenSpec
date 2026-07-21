@@ -873,28 +873,34 @@ export class InitCommand {
     const activeDelivery: Delivery = globalCfg.delivery ?? 'both';
     const commandsGenerated = successfulTools.some((tool) => shouldGenerateCommandsForTool(tool.value, activeDelivery));
     const skillsGenerated = successfulTools.some((tool) => shouldGenerateSkillsForTool(tool.value, activeDelivery));
-    const skillsOnlyHint = successfulTools.length > 0 && !commandsGenerated;
-    // Each hint line must be a usable instruction for the tool it serves;
-    // when selected tools disagree on invocation syntax, print one line per
-    // distinct form, labeled with the tools it applies to. Skills-invocable
-    // tools (codex) have no slash invocation at all, so their hint names
-    // the skill instead of advertising a slash form.
+    // Each hint line must be a usable instruction for the tool it serves.
+    // Tools that generated commands are told the /opsx:* command; tools that
+    // only got skills are told their documented skill invocation (Kimi Code:
+    // /skill:openspec-*; skills-invocable codex has no slash surface at all,
+    // so its hint names the skill; others: /openspec-*). Tools that got no
+    // artifacts are covered by the configuration correction instead. When
+    // the selection disagrees, print one line per distinct instruction,
+    // labeled with the tools it applies to.
     const startHintLines = (command: string): string[] => {
-      if (!skillsOnlyHint) {
-        return [`Start your first change: ${command} "your idea"`];
-      }
       const skillName = transformToSkillReferences(command).slice(1);
       const hintToTools = new Map<string, string[]>();
-      // Only advertise instructions for tools that actually got skills:
-      // under delivery=commands a skills-invocable tool (codex) still
-      // generates them while adapterless tools generate nothing.
-      const skillTools = successfulTools.filter((tool) => shouldGenerateSkillsForTool(tool.value, activeDelivery));
-      for (const tool of skillTools) {
-        const hint =
-          resolveCommandSurfaceCapability(tool.value) === 'skills-invocable'
-            ? `Start your first change with the ${skillName} skill`
-            : `Start your first change: ${getSkillReferenceTransformer(tool.value)(command)} "your idea"`;
+      for (const tool of successfulTools) {
+        let hint: string;
+        if (shouldGenerateCommandsForTool(tool.value, activeDelivery)) {
+          hint = `Start your first change: ${command} "your idea"`;
+        } else if (shouldGenerateSkillsForTool(tool.value, activeDelivery)) {
+          hint =
+            resolveCommandSurfaceCapability(tool.value) === 'skills-invocable'
+              ? `Start your first change with the ${skillName} skill`
+              : `Start your first change: ${getSkillReferenceTransformer(tool.value)(command)} "your idea"`;
+        } else {
+          continue;
+        }
         hintToTools.set(hint, [...(hintToTools.get(hint) ?? []), tool.name]);
+      }
+      if (hintToTools.size === 0) {
+        // No successful tools: keep the generic command hint
+        return [`Start your first change: ${command} "your idea"`];
       }
       if (hintToTools.size === 1) {
         return [[...hintToTools.keys()][0]];
@@ -908,17 +914,28 @@ export class InitCommand {
       }
     };
     console.log();
-    if (successfulTools.length > 0 && !commandsGenerated && !skillsGenerated) {
-      // delivery=commands with tools that only support skills: nothing was
-      // generated, so don't advertise an invocation that doesn't exist.
+    // delivery=commands with tools that only support skills: those tools get
+    // no artifacts at all, so print a per-tool configuration correction
+    // rather than leave them with a dead (or missing) instruction — even
+    // when other selected tools did get commands or skills.
+    const zeroArtifactTools = successfulTools.filter(
+      (tool) =>
+        !shouldGenerateSkillsForTool(tool.value, activeDelivery) &&
+        !shouldGenerateCommandsForTool(tool.value, activeDelivery)
+    );
+    if (zeroArtifactTools.length > 0) {
+      const names = zeroArtifactTools.map((tool) => tool.name).join(', ');
       console.log(
         chalk.yellow(
-          `No skills or commands were generated: delivery is set to 'commands' but ` +
-            `${successfulTools.map((tool) => tool.name).join(', ')} ` +
-            `${successfulTools.length === 1 ? 'supports' : 'support'} only skills. ` +
+          `No skills or commands were generated for ${names}: delivery is set to 'commands' but ` +
+            `${zeroArtifactTools.length === 1 ? 'it supports' : 'they support'} only skills. ` +
             `Run 'openspec config set delivery both' to generate skills.`
         )
       );
+    }
+    if (successfulTools.length > 0 && !commandsGenerated && !skillsGenerated) {
+      // Nothing was generated for any tool: the correction above is the
+      // whole story, so don't advertise an invocation that doesn't exist.
     } else if (activeWorkflows.includes('propose')) {
       printStartHints('/opsx:propose');
     } else if (activeWorkflows.includes('new')) {
