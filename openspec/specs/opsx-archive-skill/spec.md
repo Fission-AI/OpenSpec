@@ -94,7 +94,7 @@ The skill SHALL move the change to the archive folder with date prefix.
 
 - **WHEN** archiving a change
 - **THEN** create `archive/` directory if it doesn't exist
-- **AND** generate target name as `YYYY-MM-DD-<change-name>` using current date
+- **AND** generate target name as `YYYY-MM-DD-<change-name>` using current date, keeping the name as-is when it already starts with a `YYYY-MM-DD-` prefix
 - **AND** move entire change directory to archive location
 - **AND** preserve `.openspec.yaml` file in archived change
 

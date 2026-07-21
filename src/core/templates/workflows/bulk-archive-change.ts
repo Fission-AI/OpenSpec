@@ -208,8 +208,8 @@ then add-graphql specs (chronological order, newer takes precedence).
 ## Bulk Archive Complete
 
 Archived N changes:
-- <change-1> -> archive/YYYY-MM-DD-<change-1>/
-- <change-2> -> archive/YYYY-MM-DD-<change-2>/
+- <change-1> -> archive/<target-name-1>/
+- <change-2> -> archive/<target-name-2>/
 
 Spec sync summary:
 - N delta specs synced to main specs
@@ -222,7 +222,7 @@ Spec sync summary:
 ## Bulk Archive Complete (partial)
 
 Archived N changes:
-- <change-1> -> archive/YYYY-MM-DD-<change-1>/
+- <change-1> -> archive/<target-name-1>/
 
 Skipped M changes:
 - <change-2> (user chose not to archive incomplete)
@@ -460,8 +460,8 @@ then add-graphql specs (chronological order, newer takes precedence).
 ## Bulk Archive Complete
 
 Archived N changes:
-- <change-1> -> archive/YYYY-MM-DD-<change-1>/
-- <change-2> -> archive/YYYY-MM-DD-<change-2>/
+- <change-1> -> archive/<target-name-1>/
+- <change-2> -> archive/<target-name-2>/
 
 Spec sync summary:
 - N delta specs synced to main specs
@@ -474,7 +474,7 @@ Spec sync summary:
 ## Bulk Archive Complete (partial)
 
 Archived N changes:
-- <change-1> -> archive/YYYY-MM-DD-<change-1>/
+- <change-1> -> archive/<target-name-1>/
 
 Skipped M changes:
 - <change-2> (user chose not to archive incomplete)
