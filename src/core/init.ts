@@ -910,8 +910,9 @@ export class InitCommand {
     console.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
     console.log(`Feedback:   ${chalk.cyan('https://github.com/Fission-AI/OpenSpec/issues')}`);
 
-    // Restart instruction if any tools were configured
-    if (results.createdTools.length > 0 || results.refreshedTools.length > 0) {
+    // Restart instruction if any tools were configured and got a surface
+    // (when nothing was generated there is nothing a restart would pick up)
+    if ((results.createdTools.length > 0 || results.refreshedTools.length > 0) && (commandsGenerated || skillsGenerated)) {
       console.log();
       console.log(chalk.white('Restart your IDE for slash commands to take effect.'));
     }

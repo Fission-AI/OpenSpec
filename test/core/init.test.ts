@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'fs';
+import { randomUUID } from 'crypto';
 import path from 'path';
 import os from 'os';
 import { InitCommand } from '../../src/core/init.js';
@@ -29,11 +30,11 @@ describe('InitCommand', () => {
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-init-test-${Date.now()}`);
+    testDir = path.join(os.tmpdir(), `openspec-init-test-${randomUUID()}`);
     await fs.mkdir(testDir, { recursive: true });
     originalEnv = { ...process.env };
     // Use a temp dir for global config to avoid reading real config
-    configTempDir = path.join(os.tmpdir(), `openspec-config-init-${Date.now()}`);
+    configTempDir = path.join(os.tmpdir(), `openspec-config-init-${randomUUID()}`);
     await fs.mkdir(configTempDir, { recursive: true });
     process.env.XDG_CONFIG_HOME = configTempDir;
     process.env.CODEX_HOME = path.join(testDir, 'codex-home');
@@ -989,6 +990,8 @@ describe('InitCommand - profile and detection features', () => {
     const correction = logCalls.find((entry) => entry.includes('No skills or commands were generated'));
     expect(correction).toBeTruthy();
     expect(correction).toContain("openspec config set delivery both");
+    // Nothing was generated, so there is nothing an IDE restart would pick up
+    expect(logCalls.some((entry) => entry.includes('Restart your IDE'))).toBe(false);
   });
 
   it('should fall back to the default skill form when adapterless tools disagree on syntax', async () => {
