@@ -88,7 +88,8 @@ After completing all artifacts, summarize:
 
 **Artifact Creation Guidelines**
 
-- Follow the `instruction` field from `openspec instructions` for each artifact type
+- Follow the `instruction` field from `openspec instructions` for each artifact type - it is the authoritative guidance, even for familiar artifact names
+- If the `instruction` field directs you to use a specific skill or command to create the artifact, invoke that skill instead of writing the artifact directly
 - The schema defines what each artifact should contain - follow it
 - Read dependency artifacts for context before creating new ones
 - Use `template` as the structure for your output file - fill in its sections

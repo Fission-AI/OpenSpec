@@ -96,18 +96,9 @@ After each invocation, show:
 
 **Artifact Creation Guidelines**
 
-The artifact types and their purpose depend on the schema. Use the `instruction` field from the instructions output to understand what to create.
+The artifact types and their purpose depend on the schema. The `instruction` field from the instructions output is the authoritative guidance for each artifact - follow it even when the artifact has a familiar name (proposal.md, tasks.md, etc.), since custom schemas may define different content or a different process for the same file names.
 
-Common artifact patterns:
-
-**spec-driven schema** (proposal → specs → design → tasks):
-- **proposal.md**: Ask user about the change if not clear. Fill in Why, What Changes, Capabilities, Impact.
-  - The Capabilities section is critical - each capability listed will need a spec file.
-- **specs/<capability>/spec.md**: Create one spec per capability listed in the proposal's Capabilities section (use the capability name, not the change name).
-- **design.md**: Document technical decisions, architecture, and implementation approach.
-- **tasks.md**: Break down implementation into checkboxed tasks.
-
-For other schemas, follow the `instruction` field from the CLI output.
+If the `instruction` field directs you to use a specific skill or command to create the artifact, invoke that skill instead of writing the artifact directly.
 
 **Guardrails**
 - Create ONE artifact per invocation
