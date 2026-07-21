@@ -262,13 +262,13 @@ export class ArchiveCommand {
           // Proposal validation is informative only (do not block archive).
           // Report proposal-level issues only. Requirement-level issues reached
           // through `deltas.<n>.requirement(s)` belong to the delta specs, and
-          // the delta report below already reports them once each, with the
-          // capability file path and requirement name. Repeating them here was
-          // noisy and misleading (#498): the change parser records every
-          // requirement under both `requirement` and `requirements`, so each
-          // defect appeared twice, and a stray non-`### Requirement:` header in
-          // a delta section surfaced as a phantom scenario warning against a
-          // requirement that does not exist.
+          // the delta report below already reports them, naming the delta
+          // operation and requirement. Repeating them here was noisy and
+          // misleading (#498): the change parser records every requirement
+          // under both `requirement` and `requirements`, so a missing scenario
+          // was reported twice here and once by the delta report, and a stray
+          // non-`### Requirement:` header in a delta section surfaced as a
+          // phantom scenario warning against a requirement that does not exist.
           const proposalIssues = changeReport.issues.filter(
             (issue) => !/^deltas\.\d+\.requirements?\./.test(issue.path)
           );

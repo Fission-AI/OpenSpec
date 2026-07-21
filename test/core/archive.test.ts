@@ -1638,8 +1638,31 @@ The system SHALL do the thing differently.
       expect(output).toContain('Why section must be at least 50 characters');
     });
 
-    // Real delta defects are still caught, and now reported once by the delta
-    // report instead of three times (twice as proposal warnings, once here).
+    // The filter is anchored to the dot-joined Zod paths
+    // (`deltas.<n>.requirement(s).…`). Rules in applyChangeRules use bracket
+    // notation (`deltas[<n>].description`) and describe simple deltas parsed
+    // from `## What Changes`, which are proposal-level. They must survive.
+    it('keeps proposal-level warnings about simple deltas from What Changes', async () => {
+      const changeName = 'simple-deltas';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(
+        path.join(changeDir, 'proposal.md'),
+        '# Proposal\n\n## Why\nShort.\n\n## What Changes\n- **docs:** add x\n'
+      );
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1\n');
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      const output = loggedLines().join('\n');
+      expect(output).toContain('Proposal warnings in proposal.md');
+      expect(output).toContain('Delta description is too brief');
+      expect(output).toContain('ADDED Delta should include requirements');
+    });
+
+    // Real delta defects are still caught. A missing scenario used to be
+    // reported three times (twice as proposal warnings, once by the delta
+    // report) and is now reported once, by the delta report.
     it('still blocks the archive on real delta requirement errors, reported once', async () => {
       const changeName = 'bad-delta';
       const changeDir = await createChange(
