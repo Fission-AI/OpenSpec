@@ -13,7 +13,7 @@ import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { classifyOpenSpecDir, storePointerProblem } from './project-config.js';
 import { findRepoPlanningRootSync } from './planning-home.js';
-import { getSkillReferenceTransformer, getTransformerForTool } from '../utils/command-references.js';
+import { getSkillReferenceTransformer, getTransformerForTool, transformToSkillReferences } from '../utils/command-references.js';
 import {
   AI_TOOLS,
   OPENSPEC_DIR_NAME,
@@ -876,26 +876,35 @@ export class InitCommand {
     const skillsOnlyHint = successfulTools.length > 0 && !commandsGenerated;
     // Each hint line must be a usable instruction for the tool it serves;
     // when selected tools disagree on invocation syntax, print one line per
-    // distinct form, labeled with the tools it applies to.
-    const startInvocations = (command: string): Array<{ reference: string; toolNames?: string[] }> => {
+    // distinct form, labeled with the tools it applies to. Skills-invocable
+    // tools (codex) have no slash invocation at all, so their hint names
+    // the skill instead of advertising a slash form.
+    const startHintLines = (command: string): string[] => {
       if (!skillsOnlyHint) {
-        return [{ reference: command }];
+        return [`Start your first change: ${command} "your idea"`];
       }
-      const referenceToTools = new Map<string, string[]>();
-      for (const tool of successfulTools) {
-        const reference = getSkillReferenceTransformer(tool.value)(command);
-        referenceToTools.set(reference, [...(referenceToTools.get(reference) ?? []), tool.name]);
+      const skillName = transformToSkillReferences(command).slice(1);
+      const hintToTools = new Map<string, string[]>();
+      // Only advertise instructions for tools that actually got skills:
+      // under delivery=commands a skills-invocable tool (codex) still
+      // generates them while adapterless tools generate nothing.
+      const skillTools = successfulTools.filter((tool) => shouldGenerateSkillsForTool(tool.value, activeDelivery));
+      for (const tool of skillTools) {
+        const hint =
+          resolveCommandSurfaceCapability(tool.value) === 'skills-invocable'
+            ? `Start your first change with the ${skillName} skill`
+            : `Start your first change: ${getSkillReferenceTransformer(tool.value)(command)} "your idea"`;
+        hintToTools.set(hint, [...(hintToTools.get(hint) ?? []), tool.name]);
       }
-      if (referenceToTools.size === 1) {
-        return [{ reference: [...referenceToTools.keys()][0] }];
+      if (hintToTools.size === 1) {
+        return [[...hintToTools.keys()][0]];
       }
-      return [...referenceToTools.entries()].map(([reference, toolNames]) => ({ reference, toolNames }));
+      return [...hintToTools.entries()].map(([hint, toolNames]) => `${hint} (${toolNames.join(', ')})`);
     };
     const printStartHints = (command: string): void => {
       console.log(chalk.bold('Getting started:'));
-      for (const { reference, toolNames } of startInvocations(command)) {
-        const label = toolNames ? ` (${toolNames.join(', ')})` : '';
-        console.log(`  Start your first change: ${reference} "your idea"${label}`);
+      for (const line of startHintLines(command)) {
+        console.log(`  ${line}`);
       }
     };
     console.log();
@@ -924,10 +933,17 @@ export class InitCommand {
     console.log(`Feedback:   ${chalk.cyan('https://github.com/Fission-AI/OpenSpec/issues')}`);
 
     // Restart instruction if any tools were configured and got a surface
-    // (when nothing was generated there is nothing a restart would pick up)
+    // (when nothing was generated there is nothing a restart would pick up);
+    // only mention slash commands when slash commands were actually generated
     if ((results.createdTools.length > 0 || results.refreshedTools.length > 0) && (commandsGenerated || skillsGenerated)) {
       console.log();
-      console.log(chalk.white('Restart your IDE for slash commands to take effect.'));
+      console.log(
+        chalk.white(
+          commandsGenerated
+            ? 'Restart your IDE for slash commands to take effect.'
+            : 'Restart your IDE for the new skills to take effect.'
+        )
+      );
     }
 
     console.log();

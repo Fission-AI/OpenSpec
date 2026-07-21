@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import path from 'path';
 import os from 'os';
 import { randomUUID } from 'crypto';
@@ -133,6 +133,33 @@ describe('migration', () => {
     migrateIfNeeded(projectDir, [ensureClaudeTool()]);
 
     expect(fs.existsSync(getGlobalConfigPath())).toBe(false);
+  });
+
+  it('prints a syntax-neutral propose reference when migrating a codex-only project', async () => {
+    // Codex is skills-invocable with no slash surface: the migration message
+    // must name the skill, not advertise a /openspec-* or /opsx:* form
+    const codexTool = AI_TOOLS.find((tool) => tool.value === 'codex');
+    if (!codexTool) {
+      throw new Error('Codex tool definition not found');
+    }
+    const skillFile = path.join(projectDir, '.codex', 'skills', 'openspec-propose', 'SKILL.md');
+    await fsp.mkdir(path.dirname(skillFile), { recursive: true });
+    await fsp.writeFile(skillFile, 'name: test\n', 'utf-8');
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    let logCalls: string[];
+    try {
+      migrateIfNeeded(projectDir, [codexTool]);
+      logCalls = logSpy.mock.calls.flat().map(String);
+    } finally {
+      logSpy.mockRestore();
+    }
+
+    const message = logCalls.find((entry) => entry.includes('New in this version'));
+    expect(message).toBeTruthy();
+    expect(message).toContain('the openspec-propose skill');
+    expect(message).not.toContain('/openspec-propose');
+    expect(message).not.toContain('/opsx:propose');
   });
 
   it('ignores unknown custom skill and command files when scanning workflows', async () => {

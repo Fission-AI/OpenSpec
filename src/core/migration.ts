@@ -8,6 +8,7 @@
 import { AI_TOOLS, type AIToolOption } from './config.js';
 import { getGlobalConfig, getGlobalConfigPath, saveGlobalConfig, type Delivery } from './global-config.js';
 import { CommandAdapterRegistry } from './command-generation/index.js';
+import { resolveCommandSurfaceCapability } from './command-surface.js';
 import { WORKFLOW_TO_SKILL_DIR } from './profile-sync-drift.js';
 import { ALL_WORKFLOWS } from './profiles.js';
 import { getSkillReferenceTransformer } from '../utils/command-references.js';
@@ -212,8 +213,16 @@ export function migrateIfNeeded(projectPath: string, tools: AIToolOption[]): voi
   // at the skill instead. Use a tool-specific invocation syntax only when
   // every detected tool produces the same reference; otherwise stay
   // syntax-neutral rather than advertise a form that is wrong for one tool.
+  // Skills-invocable tools (codex) have no slash invocation, so they only
+  // ever get the syntax-neutral form.
   const hasCommandSurface = tools.some((tool) => CommandAdapterRegistry.has(tool.value));
-  const proposeReferences = new Set(tools.map((tool) => getSkillReferenceTransformer(tool.value)('/opsx:propose')));
+  const proposeReferences = new Set(
+    tools.map((tool) =>
+      resolveCommandSurfaceCapability(tool.value) === 'skills-invocable'
+        ? 'the openspec-propose skill'
+        : getSkillReferenceTransformer(tool.value)('/opsx:propose')
+    )
+  );
   const proposeReference = hasCommandSurface
     ? '/opsx:propose'
     : proposeReferences.size === 1

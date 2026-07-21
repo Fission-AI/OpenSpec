@@ -1026,6 +1026,71 @@ describe('InitCommand - profile and detection features', () => {
     }
   });
 
+  it('should print a syntax-neutral hint for codex (skills-invocable, no slash surface)', async () => {
+    // Codex has no slash-command surface: docs direct users to
+    // .codex/skills/openspec-*, so the hint must not advertise a slash form
+    const initCommand = new InitCommand({ tools: 'codex', force: true });
+    await initCommand.execute(testDir);
+
+    // Codex skill generation itself is deliberately untouched by #1155
+    // (codex reference rewriting is owned by a separate change)
+    const skillFile = path.join(testDir, '.codex', 'skills', 'openspec-apply-change', 'SKILL.md');
+    expect(await fileExists(skillFile)).toBe(true);
+
+    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+    const startHint = logCalls.find((entry) => entry.includes('Start your first change'));
+    expect(startHint).toContain('with the openspec-propose skill');
+    expect(startHint).not.toContain('/openspec-propose');
+    expect(startHint).not.toContain('/opsx:propose');
+
+    // No slash commands were generated, so the restart line must not claim any
+    const restartHint = logCalls.find((entry) => entry.includes('Restart your IDE'));
+    expect(restartHint).toContain('Restart your IDE for the new skills to take effect.');
+    expect(restartHint).not.toContain('slash commands');
+  });
+
+  it('should label the codex hint separately when mixed with a slash-invocable adapterless tool', async () => {
+    const initCommand = new InitCommand({ tools: 'codex,vibe', force: true });
+    await initCommand.execute(testDir);
+
+    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+    const startHints = logCalls.filter((entry) => entry.includes('Start your first change'));
+    expect(startHints).toHaveLength(2);
+    const codexHint = startHints.find((entry) => entry.includes('(Codex)'));
+    const vibeHint = startHints.find((entry) => entry.includes('Mistral Vibe'));
+    expect(codexHint).toContain('with the openspec-propose skill');
+    expect(codexHint).not.toContain('/openspec-propose');
+    expect(vibeHint).toContain('/openspec-propose');
+    for (const hint of startHints) {
+      expect(hint).not.toContain('/opsx:');
+    }
+  });
+
+  it('should not advertise an instruction for a tool that got no skills (delivery=commands, codex+kimi)', async () => {
+    saveGlobalConfig({
+      featureFlags: {},
+      profile: 'core',
+      delivery: 'commands',
+    });
+
+    const initCommand = new InitCommand({ tools: 'codex,kimi', force: true });
+    await initCommand.execute(testDir);
+
+    // Codex is skills-invocable so its skills are generated even under
+    // delivery=commands; kimi (capability none) gets nothing at all
+    expect(await fileExists(path.join(testDir, '.codex', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
+    expect(await fileExists(path.join(testDir, '.kimi-code'))).toBe(false);
+
+    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+    const startHints = logCalls.filter((entry) => entry.includes('Start your first change'));
+    // Only the codex instruction may be advertised — a Kimi line would point
+    // at skills that were never generated
+    expect(startHints).toHaveLength(1);
+    expect(startHints[0]).toContain('with the openspec-propose skill');
+    expect(startHints[0]).not.toContain('Kimi');
+    expect(logCalls.some((entry) => entry.includes('/skill:openspec-'))).toBe(false);
+  });
+
   it('should keep /opsx: command hints for adapter-backed tools under default delivery', async () => {
     const initCommand = new InitCommand({ tools: 'claude', force: true });
     await initCommand.execute(testDir);
