@@ -67,6 +67,7 @@ Continue working on a change by creating the next artifact.
      - `resolvedOutputPath`: Resolved path or pattern to write the artifact
      - `dependencies`: Completed artifacts to read for context
    - **Create the artifact file**:
+     - If the `instruction` field delegates creation to a specific skill or command, invoke it to produce the artifact instead of following the bullets below, then verify the artifact file exists at `resolvedOutputPath`
      - Read any completed dependency files for context - always re-read them from disk, even if you saw them earlier in the conversation (the user may have edited them)
      - Use `template` as the structure - fill in its sections
      - Apply `context` and `rules` as constraints when writing - but do NOT copy them into the file
@@ -98,7 +99,7 @@ After each invocation, show:
 
 The artifact types and their purpose depend on the schema. The `instruction` field from the instructions output is the authoritative guidance for each artifact - follow it even when the artifact has a familiar name (proposal.md, tasks.md, etc.), since custom schemas may define different content or a different process for the same file names.
 
-If the `instruction` field directs you to use a specific skill or command to create the artifact, invoke that skill instead of writing the artifact directly.
+If the `instruction` field directs you to use a specific skill or command to create the artifact, invoke it instead of writing the artifact directly.
 
 **Guardrails**
 - Create ONE artifact per invocation
