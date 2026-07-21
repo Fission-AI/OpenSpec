@@ -13,7 +13,11 @@ import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { classifyOpenSpecDir, storePointerProblem } from './project-config.js';
 import { findRepoPlanningRootSync } from './planning-home.js';
-import { getSkillReferenceTransformer, getTransformerForTool } from '../utils/command-references.js';
+import {
+  getSkillReferenceTransformer,
+  getTransformerForTool,
+  transformToSkillReferences,
+} from '../utils/command-references.js';
 import {
   AI_TOOLS,
   OPENSPEC_DIR_NAME,
@@ -871,13 +875,27 @@ export class InitCommand {
     // When no tool got /opsx:* commands, point at the skill instead of a
     // command that does not exist.
     const activeDelivery: Delivery = globalCfg.delivery ?? 'both';
-    const skillsOnlyHint =
-      successfulTools.length > 0 &&
-      !successfulTools.some((tool) => shouldGenerateCommandsForTool(tool.value, activeDelivery));
-    const startReference = (command: string) =>
-      skillsOnlyHint ? getSkillReferenceTransformer(successfulTools[0].value)(command) : command;
+    const commandsGenerated = successfulTools.some((tool) => shouldGenerateCommandsForTool(tool.value, activeDelivery));
+    const skillsGenerated = successfulTools.some((tool) => shouldGenerateSkillsForTool(tool.value, activeDelivery));
+    const skillsOnlyHint = successfulTools.length > 0 && !commandsGenerated;
+    // Mixed selections may span invocation syntaxes; use a tool-specific
+    // form only when every selected tool agrees on it.
+    const hintTransformers = new Set(successfulTools.map((tool) => getSkillReferenceTransformer(tool.value)));
+    const hintTransformer = hintTransformers.size === 1 ? [...hintTransformers][0] : transformToSkillReferences;
+    const startReference = (command: string) => (skillsOnlyHint ? hintTransformer(command) : command);
     console.log();
-    if (activeWorkflows.includes('propose')) {
+    if (successfulTools.length > 0 && !commandsGenerated && !skillsGenerated) {
+      // delivery=commands with tools that only support skills: nothing was
+      // generated, so don't advertise an invocation that doesn't exist.
+      console.log(
+        chalk.yellow(
+          `No skills or commands were generated: delivery is set to 'commands' but ` +
+            `${successfulTools.map((tool) => tool.name).join(', ')} ` +
+            `${successfulTools.length === 1 ? 'supports' : 'support'} only skills. ` +
+            `Run 'openspec config set delivery both' to generate skills.`
+        )
+      );
+    } else if (activeWorkflows.includes('propose')) {
       console.log(chalk.bold('Getting started:'));
       console.log(`  Start your first change: ${startReference('/opsx:propose')} "your idea"`);
     } else if (activeWorkflows.includes('new')) {

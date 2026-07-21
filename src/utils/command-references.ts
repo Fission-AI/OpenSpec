@@ -106,8 +106,9 @@ export function getSkillReferenceTransformer(toolId: string): (text: string) => 
  * that were not generated. When commands are generated, tools where the
  * command filename doubles as the command name (oh-my-pi, opencode, pi) use
  * hyphen-based command references. All other cases keep the default
- * `/opsx:*` references; notably skills-invocable tools (codex) are left
- * untouched here because their reference rewriting is handled separately.
+ * `/opsx:*` references; notably skills-invocable tools (codex) are
+ * deliberately left untouched here to keep codex output stable while its
+ * reference rewriting is reworked separately.
  *
  * @param toolId - The AI tool identifier (e.g. 'claude', 'opencode', 'pi')
  * @param delivery - The configured delivery mode

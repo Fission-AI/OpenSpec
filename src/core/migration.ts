@@ -10,7 +10,7 @@ import { getGlobalConfig, getGlobalConfigPath, saveGlobalConfig, type Delivery }
 import { CommandAdapterRegistry } from './command-generation/index.js';
 import { WORKFLOW_TO_SKILL_DIR } from './profile-sync-drift.js';
 import { ALL_WORKFLOWS } from './profiles.js';
-import { getSkillReferenceTransformer } from '../utils/command-references.js';
+import { getSkillReferenceTransformer, transformToSkillReferences } from '../utils/command-references.js';
 import path from 'path';
 import * as fs from 'fs';
 
@@ -209,10 +209,11 @@ export function migrateIfNeeded(projectPath: string, tools: AIToolOption[]): voi
 
   console.log(`Migrated: custom profile with ${installedWorkflows.length} workflows`);
   // Tools without a command adapter never get /opsx:* commands; point them
-  // at the skill instead, using the first detected tool's invocation syntax.
+  // at the skill instead. Use a tool-specific invocation syntax only when
+  // every detected tool agrees on it.
   const hasCommandSurface = tools.some((tool) => CommandAdapterRegistry.has(tool.value));
-  const proposeReference = hasCommandSurface
-    ? '/opsx:propose'
-    : getSkillReferenceTransformer(tools[0]?.value ?? '')('/opsx:propose');
+  const skillTransformers = new Set(tools.map((tool) => getSkillReferenceTransformer(tool.value)));
+  const skillTransformer = skillTransformers.size === 1 ? [...skillTransformers][0] : transformToSkillReferences;
+  const proposeReference = hasCommandSurface ? '/opsx:propose' : skillTransformer('/opsx:propose');
   console.log(`New in this version: ${proposeReference}. Try 'openspec config profile core' for the streamlined experience.`);
 }

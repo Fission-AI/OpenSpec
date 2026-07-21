@@ -969,6 +969,54 @@ describe('InitCommand - profile and detection features', () => {
     expect(startHint).not.toContain('/opsx:propose');
   });
 
+  it('should print a configuration correction, not a dead hint, when delivery=commands generates nothing (adapterless tool)', async () => {
+    saveGlobalConfig({
+      featureFlags: {},
+      profile: 'core',
+      delivery: 'commands',
+    });
+
+    const initCommand = new InitCommand({ tools: 'kimi', force: true });
+    await initCommand.execute(testDir);
+
+    // Kimi has no command adapter and delivery excludes skills: nothing is generated
+    expect(await fileExists(path.join(testDir, '.kimi-code', 'skills', 'openspec-explore', 'SKILL.md'))).toBe(false);
+    expect(await fileExists(path.join(testDir, '.kimi-code', 'commands'))).toBe(false);
+
+    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+    // No invocation hint may be shown — neither /opsx:* nor a skill reference exists
+    expect(logCalls.some((entry) => entry.includes('Start your first change'))).toBe(false);
+    const correction = logCalls.find((entry) => entry.includes('No skills or commands were generated'));
+    expect(correction).toBeTruthy();
+    expect(correction).toContain("openspec config set delivery both");
+  });
+
+  it('should fall back to the default skill form when adapterless tools disagree on syntax', async () => {
+    // kimi documents /skill:<name>, vibe documents /<name> — a shared hint
+    // line cannot serve both, so the default form wins for mixed selections
+    const initCommand = new InitCommand({ tools: 'kimi,vibe', force: true });
+    await initCommand.execute(testDir);
+
+    // Each tool's own skill files still use its documented syntax
+    const kimiSkill = await fs.readFile(
+      path.join(testDir, '.kimi-code', 'skills', 'openspec-apply-change', 'SKILL.md'),
+      'utf-8'
+    );
+    const vibeSkill = await fs.readFile(
+      path.join(testDir, '.vibe', 'skills', 'openspec-apply-change', 'SKILL.md'),
+      'utf-8'
+    );
+    expect(kimiSkill).toContain('/skill:openspec-');
+    expect(vibeSkill).toContain('/openspec-');
+    expect(vibeSkill).not.toContain('/skill:');
+
+    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+    const startHint = logCalls.find((entry) => entry.includes('Start your first change'));
+    expect(startHint).toContain('/openspec-propose');
+    expect(startHint).not.toContain('/skill:');
+    expect(startHint).not.toContain('/opsx:');
+  });
+
   it('should keep /opsx: command hints for adapter-backed tools under default delivery', async () => {
     const initCommand = new InitCommand({ tools: 'claude', force: true });
     await initCommand.execute(testDir);
