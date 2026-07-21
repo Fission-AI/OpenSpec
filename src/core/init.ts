@@ -868,13 +868,12 @@ export class InitCommand {
     const globalCfg = getGlobalConfig();
     const activeProfile: Profile = (this.profileOverride as Profile) ?? globalCfg.profile ?? 'core';
     const activeWorkflows = [...getProfileWorkflows(activeProfile, globalCfg.workflows)];
-    // When skills were generated but no tool got /opsx:* commands, point at
-    // the skill instead of a command that does not exist.
+    // When no tool got /opsx:* commands, point at the skill instead of a
+    // command that does not exist.
     const activeDelivery: Delivery = globalCfg.delivery ?? 'both';
     const skillsOnlyHint =
       successfulTools.length > 0 &&
-      !successfulTools.some((tool) => shouldGenerateCommandsForTool(tool.value, activeDelivery)) &&
-      successfulTools.some((tool) => shouldGenerateSkillsForTool(tool.value, activeDelivery));
+      !successfulTools.some((tool) => shouldGenerateCommandsForTool(tool.value, activeDelivery));
     const startReference = (command: string) => (skillsOnlyHint ? transformToSkillReferences(command) : command);
     console.log();
     if (activeWorkflows.includes('propose')) {

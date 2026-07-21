@@ -4,6 +4,10 @@
  * Utilities for transforming command references to tool-specific formats.
  */
 
+// Type-only import: a value import would close a module cycle
+// (command-generation adapters import this file).
+import type { CommandSurfaceCapability } from '../core/command-surface.js';
+
 /**
  * Transforms colon-based command references to hyphen-based format.
  * Converts `/opsx:` patterns to `/opsx-` for tools that use hyphen syntax.
@@ -65,11 +69,12 @@ export function transformToSkillReferences(text: string): string {
  * Skill references are used whenever the tool ends up without `/opsx:*`
  * commands — either because delivery is skills-only (for every tool) or
  * because the tool has no command surface at all (capability 'none', e.g.
- * Kimi Code or Mistral Vibe) — so generated skills never point at commands
+ * Kimi Code or Mistral Vibe) — so those skills never point at commands
  * that were not generated. When commands are generated, tools where the
  * command filename doubles as the command name (oh-my-pi, opencode, pi) use
  * hyphen-based command references. All other cases keep the default
- * `/opsx:*` references.
+ * `/opsx:*` references; notably skills-invocable tools (codex) are left
+ * untouched here because their reference rewriting is handled separately.
  *
  * @param toolId - The AI tool identifier (e.g. 'claude', 'opencode', 'pi')
  * @param delivery - The configured delivery mode
@@ -79,7 +84,7 @@ export function transformToSkillReferences(text: string): string {
 export function getTransformerForTool(
   toolId: string,
   delivery: 'both' | 'skills' | 'commands',
-  capability: 'adapter-backed' | 'skills-invocable' | 'none'
+  capability: CommandSurfaceCapability
 ): ((text: string) => string) | undefined {
   if (delivery === 'skills' || capability === 'none') {
     return transformToSkillReferences;
