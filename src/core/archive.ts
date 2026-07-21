@@ -259,10 +259,22 @@ export class ArchiveCommand {
         try {
           await fs.access(changeFile);
           const changeReport = await validator.validateChange(changeFile);
-          // Proposal validation is informative only (do not block archive)
-          if (!changeReport.valid) {
+          // Proposal validation is informative only (do not block archive).
+          // Report proposal-level issues only. Requirement-level issues reached
+          // through `deltas.<n>.requirement(s)` belong to the delta specs, and
+          // the delta report below already reports them once each, with the
+          // capability file path and requirement name. Repeating them here was
+          // noisy and misleading (#498): the change parser records every
+          // requirement under both `requirement` and `requirements`, so each
+          // defect appeared twice, and a stray non-`### Requirement:` header in
+          // a delta section surfaced as a phantom scenario warning against a
+          // requirement that does not exist.
+          const proposalIssues = changeReport.issues.filter(
+            (issue) => !/^deltas\.\d+\.requirements?\./.test(issue.path)
+          );
+          if (!changeReport.valid && proposalIssues.length > 0) {
             console.log(chalk.yellow(`\nProposal warnings in proposal.md (non-blocking):`));
-            for (const issue of changeReport.issues) {
+            for (const issue of proposalIssues) {
               const symbol = issue.level === 'ERROR' ? '⚠' : (issue.level === 'WARNING' ? '⚠' : 'ℹ');
               console.log(chalk.yellow(`  ${symbol} ${issue.message}`));
             }

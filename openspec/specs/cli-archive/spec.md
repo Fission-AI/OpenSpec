@@ -193,6 +193,15 @@ The archive command SHALL validate changes before applying them to ensure data i
 - **AND** only proceed if validation passes
 - **AND** show validation errors if it fails
 
+#### Scenario: Proposal warnings stay proposal-level
+
+- **WHEN** archiving a change whose delta specs contain a heading that is not a
+  `### Requirement:` heading
+- **THEN** the non-blocking proposal warnings SHALL report proposal-level issues only
+- **AND** SHALL NOT report requirement-level issues reached through the delta specs
+- **AND** delta spec issues SHALL be reported once by the delta spec validation,
+  with the capability file path and requirement name
+
 #### Scenario: Force archive without validation
 
 - **WHEN** executing `openspec archive change-name --no-validate`
