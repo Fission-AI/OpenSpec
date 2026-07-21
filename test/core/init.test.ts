@@ -902,6 +902,9 @@ describe('InitCommand - profile and detection features', () => {
     await initCommand.execute(testDir);
 
     expect(showWelcomeScreenMock).toHaveBeenCalled();
+    // The welcome screen must be handed the profile's workflows, otherwise it
+    // advertises commands this profile never installs.
+    expect(showWelcomeScreenMock).toHaveBeenCalledWith(['explore', 'new']);
     expect(confirmMock).not.toHaveBeenCalled();
 
     const exploreSkill = path.join(testDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md');
