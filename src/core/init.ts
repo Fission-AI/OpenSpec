@@ -13,7 +13,7 @@ import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { classifyOpenSpecDir, storePointerProblem } from './project-config.js';
 import { findRepoPlanningRootSync } from './planning-home.js';
-import { getTransformerForTool, transformToSkillReferences } from '../utils/command-references.js';
+import { getSkillReferenceTransformer, getTransformerForTool } from '../utils/command-references.js';
 import {
   AI_TOOLS,
   OPENSPEC_DIR_NAME,
@@ -874,7 +874,8 @@ export class InitCommand {
     const skillsOnlyHint =
       successfulTools.length > 0 &&
       !successfulTools.some((tool) => shouldGenerateCommandsForTool(tool.value, activeDelivery));
-    const startReference = (command: string) => (skillsOnlyHint ? transformToSkillReferences(command) : command);
+    const startReference = (command: string) =>
+      skillsOnlyHint ? getSkillReferenceTransformer(successfulTools[0].value)(command) : command;
     console.log();
     if (activeWorkflows.includes('propose')) {
       console.log(chalk.bold('Getting started:'));

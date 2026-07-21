@@ -212,10 +212,11 @@ Old instructions content
       expect(migratedSkill).toContain('name: openspec-explore');
       expect(migratedSkill).not.toContain('Old instructions content');
       // Kimi Code has no command adapter, so the refreshed skill must use
-      // skill references, never /opsx:* commands that were not generated
+      // its documented /skill:<name> invocations, never /opsx:* commands
+      // that were not generated
       expect(migratedSkill).not.toContain('/opsx:');
       expect(migratedSkill).not.toContain('/opsx-');
-      expect(migratedSkill).toContain('/openspec-');
+      expect(migratedSkill).toContain('/skill:openspec-');
 
       // Legacy managed skill is gone; user files stay where they were
       await expect(fs.access(legacySkillDir)).rejects.toThrow();

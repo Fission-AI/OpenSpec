@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  getSkillReferenceTransformer,
   getTransformerForTool,
   transformToHyphenCommands,
   transformToSkillReferences,
@@ -167,6 +168,22 @@ Then /openspec-apply-change to implement`;
   });
 });
 
+describe('getSkillReferenceTransformer', () => {
+  it('uses the default /<name> form for tools without a custom prefix', () => {
+    expect(getSkillReferenceTransformer('vibe')).toBe(transformToSkillReferences);
+    expect(getSkillReferenceTransformer('hermes')('/opsx:apply')).toBe('/openspec-apply-change');
+  });
+
+  it('uses /skill:<name> for Kimi Code, per its documented invocation syntax', () => {
+    const transformer = getSkillReferenceTransformer('kimi');
+    expect(transformer('/opsx:propose')).toBe('/skill:openspec-propose');
+    expect(transformer('Run `/opsx:apply` then /opsx:archive')).toBe(
+      'Run `/skill:openspec-apply-change` then /skill:openspec-archive-change'
+    );
+    expect(transformer('/opsx:unknown-command')).toBe('/opsx:unknown-command');
+  });
+});
+
 describe('getTransformerForTool', () => {
   it('selects skill references for skills-only delivery for every tool', () => {
     expect(getTransformerForTool('claude', 'skills', 'adapter-backed')).toBe(transformToSkillReferences);
@@ -180,9 +197,13 @@ describe('getTransformerForTool', () => {
   it('selects skill references for tools without a command surface, regardless of delivery', () => {
     // Tools like Kimi Code or Mistral Vibe have no command adapter, so their
     // skills must never reference /opsx:* commands that were not generated.
-    expect(getTransformerForTool('kimi', 'both', 'none')).toBe(transformToSkillReferences);
     expect(getTransformerForTool('vibe', 'both', 'none')).toBe(transformToSkillReferences);
-    expect(getTransformerForTool('kimi', 'commands', 'none')).toBe(transformToSkillReferences);
+    expect(getTransformerForTool('hermes', 'both', 'none')).toBe(transformToSkillReferences);
+    // Kimi Code documents /skill:<name> invocations (docs/supported-tools.md)
+    for (const delivery of ['both', 'commands', 'skills'] as const) {
+      const transformer = getTransformerForTool('kimi', delivery, 'none');
+      expect(transformer?.('/opsx:propose')).toBe('/skill:openspec-propose');
+    }
   });
 
   it('selects hyphen commands for opencode, pi, and oh-my-pi when commands are generated', () => {

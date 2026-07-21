@@ -18,5 +18,6 @@ export { FileSystemUtils, removeMarkerBlock } from './file-system.js';
 export {
   transformToHyphenCommands,
   transformToSkillReferences,
+  getSkillReferenceTransformer,
   getTransformerForTool,
 } from './command-references.js';

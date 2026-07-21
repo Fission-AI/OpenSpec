@@ -959,12 +959,13 @@ describe('InitCommand - profile and detection features', () => {
     const skillContent = await fs.readFile(skillFile, 'utf-8');
     expect(skillContent).not.toContain('/opsx:');
     expect(skillContent).not.toContain('/opsx-');
-    expect(skillContent).toContain('/openspec-');
+    // Kimi Code documents /skill:<name> invocations (docs/supported-tools.md)
+    expect(skillContent).toContain('/skill:openspec-');
 
     // The getting-started hint must point at the skill, not a missing command
     const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
     const startHint = logCalls.find((entry) => entry.includes('Start your first change'));
-    expect(startHint).toContain('/openspec-propose');
+    expect(startHint).toContain('/skill:openspec-propose');
     expect(startHint).not.toContain('/opsx:propose');
   });
 
