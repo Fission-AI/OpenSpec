@@ -95,6 +95,12 @@ This tells you:
 - Their names, schemas, and status
 - What the user might be working on
 
+Then read the project's own context from \`<root.path>/openspec/config.yaml\` (use the \`root.path\` returned above; skip this if the file does not exist):
+- \`context\` describes the project - tech stack, conventions, constraints
+- \`rules\` lists per-artifact constraints the project expects
+
+Ground your thinking in these. They are background for you, not material to recite back to the user.
+
 ### When no change exists
 
 Think freely. When insights crystallize, you might offer:
@@ -391,6 +397,12 @@ This tells you:
 - If there are active changes
 - Their names, schemas, and status
 - What the user might be working on
+
+Then read the project's own context from \`<root.path>/openspec/config.yaml\` (use the \`root.path\` returned above; skip this if the file does not exist):
+- \`context\` describes the project - tech stack, conventions, constraints
+- \`rules\` lists per-artifact constraints the project expects
+
+Ground your thinking in these. They are background for you, not material to recite back to the user.
 
 If the user mentioned a specific change name, read its artifacts for context.
 
