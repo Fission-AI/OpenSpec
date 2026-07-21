@@ -95,11 +95,11 @@ This tells you:
 - Their names, schemas, and status
 - What the user might be working on
 
-Then read the project's own context from \`<root.path>/openspec/config.yaml\` (use the \`root.path\` returned above; skip this if the file does not exist):
-- \`context\` describes the project - tech stack, conventions, constraints
-- \`rules\` lists per-artifact constraints the project expects
+Then read the project's own context from the resolved root - \`<root.path>/openspec/config.yaml\` (or \`config.yml\`). Use the \`root.path\` returned above, and skip this if neither file exists:
+- \`context\`: project background - tech stack, conventions, constraints
+- \`rules\`: keyed by artifact id - the entries for an artifact apply only when you write that artifact
 
-Ground your thinking in these. They are background for you, not material to recite back to the user.
+Ground your thinking in these. They are constraints for you to follow, not content to reproduce: do NOT copy them into the conversation or into any artifact you create.
 
 ### When no change exists
 
@@ -398,11 +398,11 @@ This tells you:
 - Their names, schemas, and status
 - What the user might be working on
 
-Then read the project's own context from \`<root.path>/openspec/config.yaml\` (use the \`root.path\` returned above; skip this if the file does not exist):
-- \`context\` describes the project - tech stack, conventions, constraints
-- \`rules\` lists per-artifact constraints the project expects
+Then read the project's own context from the resolved root - \`<root.path>/openspec/config.yaml\` (or \`config.yml\`). Use the \`root.path\` returned above, and skip this if neither file exists:
+- \`context\`: project background - tech stack, conventions, constraints
+- \`rules\`: keyed by artifact id - the entries for an artifact apply only when you write that artifact
 
-Ground your thinking in these. They are background for you, not material to recite back to the user.
+Ground your thinking in these. They are constraints for you to follow, not content to reproduce: do NOT copy them into the conversation or into any artifact you create.
 
 If the user mentioned a specific change name, read its artifacts for context.
 
