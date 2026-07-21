@@ -13,7 +13,7 @@ import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { classifyOpenSpecDir, storePointerProblem } from './project-config.js';
 import { findRepoPlanningRootSync } from './planning-home.js';
-import { getTransformerForTool } from '../utils/command-references.js';
+import { getTransformerForTool, transformToSkillReferences } from '../utils/command-references.js';
 import {
   AI_TOOLS,
   OPENSPEC_DIR_NAME,
@@ -689,7 +689,7 @@ export class InitCommand {
             const skillFile = path.join(skillDir, 'SKILL.md');
 
             // Generate SKILL.md content with YAML frontmatter including generatedBy
-            const transformer = getTransformerForTool(tool.value, delivery);
+            const transformer = getTransformerForTool(tool.value, delivery, resolveCommandSurfaceCapability(tool.value));
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
 
             // Write the skill file
@@ -868,13 +868,21 @@ export class InitCommand {
     const globalCfg = getGlobalConfig();
     const activeProfile: Profile = (this.profileOverride as Profile) ?? globalCfg.profile ?? 'core';
     const activeWorkflows = [...getProfileWorkflows(activeProfile, globalCfg.workflows)];
+    // When skills were generated but no tool got /opsx:* commands, point at
+    // the skill instead of a command that does not exist.
+    const activeDelivery: Delivery = globalCfg.delivery ?? 'both';
+    const skillsOnlyHint =
+      successfulTools.length > 0 &&
+      !successfulTools.some((tool) => shouldGenerateCommandsForTool(tool.value, activeDelivery)) &&
+      successfulTools.some((tool) => shouldGenerateSkillsForTool(tool.value, activeDelivery));
+    const startReference = (command: string) => (skillsOnlyHint ? transformToSkillReferences(command) : command);
     console.log();
     if (activeWorkflows.includes('propose')) {
       console.log(chalk.bold('Getting started:'));
-      console.log('  Start your first change: /opsx:propose "your idea"');
+      console.log(`  Start your first change: ${startReference('/opsx:propose')} "your idea"`);
     } else if (activeWorkflows.includes('new')) {
       console.log(chalk.bold('Getting started:'));
-      console.log('  Start your first change: /opsx:new "your idea"');
+      console.log(`  Start your first change: ${startReference('/opsx:new')} "your idea"`);
     } else {
       console.log("Done. Run 'openspec config profile' to configure your workflows.");
     }

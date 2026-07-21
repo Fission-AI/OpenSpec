@@ -947,6 +947,40 @@ describe('InitCommand - profile and detection features', () => {
     expect(updateSkillContent).toContain('/openspec-');
   });
 
+  it('should use skill references for adapterless tools under default delivery (#1155)', async () => {
+    // Kimi Code has no command adapter: commands are skipped even when
+    // delivery is 'both', so generated skills must not reference /opsx:*
+    const initCommand = new InitCommand({ tools: 'kimi', force: true });
+    await initCommand.execute(testDir);
+
+    const skillFile = path.join(testDir, '.kimi-code', 'skills', 'openspec-apply-change', 'SKILL.md');
+    expect(await fileExists(skillFile)).toBe(true);
+
+    const skillContent = await fs.readFile(skillFile, 'utf-8');
+    expect(skillContent).not.toContain('/opsx:');
+    expect(skillContent).not.toContain('/opsx-');
+    expect(skillContent).toContain('/openspec-');
+
+    // The getting-started hint must point at the skill, not a missing command
+    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+    const startHint = logCalls.find((entry) => entry.includes('Start your first change'));
+    expect(startHint).toContain('/openspec-propose');
+    expect(startHint).not.toContain('/opsx:propose');
+  });
+
+  it('should keep /opsx: command hints for adapter-backed tools under default delivery', async () => {
+    const initCommand = new InitCommand({ tools: 'claude', force: true });
+    await initCommand.execute(testDir);
+
+    const skillFile = path.join(testDir, '.claude', 'skills', 'openspec-apply-change', 'SKILL.md');
+    const skillContent = await fs.readFile(skillFile, 'utf-8');
+    expect(skillContent).toContain('/opsx:');
+
+    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+    const startHint = logCalls.find((entry) => entry.includes('Start your first change'));
+    expect(startHint).toContain('/opsx:propose');
+  });
+
   it('should use skill references for opencode in skills-only delivery', async () => {
     saveGlobalConfig({
       featureFlags: {},

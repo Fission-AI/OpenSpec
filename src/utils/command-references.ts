@@ -62,21 +62,26 @@ export function transformToSkillReferences(text: string): string {
 /**
  * Selects the command-reference transformer for a skill generation target.
  *
- * Skills-only delivery always uses skill references — for every tool — so
- * generated skills never point at commands that were not generated. When
- * commands are generated, tools where the command filename doubles as the
- * command name (oh-my-pi, opencode, pi) use hyphen-based command references.
- * All other cases keep the default `/opsx:*` references.
+ * Skill references are used whenever the tool ends up without `/opsx:*`
+ * commands — either because delivery is skills-only (for every tool) or
+ * because the tool has no command surface at all (capability 'none', e.g.
+ * Kimi Code or Mistral Vibe) — so generated skills never point at commands
+ * that were not generated. When commands are generated, tools where the
+ * command filename doubles as the command name (oh-my-pi, opencode, pi) use
+ * hyphen-based command references. All other cases keep the default
+ * `/opsx:*` references.
  *
  * @param toolId - The AI tool identifier (e.g. 'claude', 'opencode', 'pi')
  * @param delivery - The configured delivery mode
+ * @param capability - The tool's command surface capability
  * @returns The transformer to pass to generateSkillContent, or undefined
  */
 export function getTransformerForTool(
   toolId: string,
-  delivery: 'both' | 'skills' | 'commands'
+  delivery: 'both' | 'skills' | 'commands',
+  capability: 'adapter-backed' | 'skills-invocable' | 'none'
 ): ((text: string) => string) | undefined {
-  if (delivery === 'skills') {
+  if (delivery === 'skills' || capability === 'none') {
     return transformToSkillReferences;
   }
   if (toolId === 'opencode' || toolId === 'pi' || toolId === 'oh-my-pi') {
