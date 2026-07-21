@@ -69,9 +69,9 @@ ${STORE_SELECTION_GUIDANCE}
      - \`resolvedOutputPath\`: Resolved path or pattern to write the artifact
      - \`dependencies\`: Completed artifacts to read for context
    - **Create the artifact file**:
-     - If the \`instruction\` field delegates creation to a specific skill or command, invoke it to produce the artifact instead of following the bullets below, then verify the artifact file exists at \`resolvedOutputPath\`
      - Read any completed dependency files for context - always re-read them from disk, even if you saw them earlier in the conversation (the user may have edited them)
-     - Use \`template\` as the structure - fill in its sections
+     - If the \`instruction\` field delegates creation to a specific skill or command, invoke it to produce the artifact instead of writing the file yourself, then verify the artifact file exists at \`resolvedOutputPath\`
+     - Otherwise use \`template\` as the structure - fill in its sections
      - Apply \`context\` and \`rules\` as constraints when writing - but do NOT copy them into the file
      - Write to the \`resolvedOutputPath\` specified in instructions. If it is a glob pattern, choose the concrete file path using the schema instruction and the change's context
    - Show what was created and what's now unlocked
@@ -183,9 +183,9 @@ ${STORE_SELECTION_GUIDANCE}
      - \`resolvedOutputPath\`: Resolved path or pattern to write the artifact
      - \`dependencies\`: Completed artifacts to read for context
    - **Create the artifact file**:
-     - If the \`instruction\` field delegates creation to a specific skill or command, invoke it to produce the artifact instead of following the bullets below, then verify the artifact file exists at \`resolvedOutputPath\`
      - Read any completed dependency files for context - always re-read them from disk, even if you saw them earlier in the conversation (the user may have edited them)
-     - Use \`template\` as the structure - fill in its sections
+     - If the \`instruction\` field delegates creation to a specific skill or command, invoke it to produce the artifact instead of writing the file yourself, then verify the artifact file exists at \`resolvedOutputPath\`
+     - Otherwise use \`template\` as the structure - fill in its sections
      - Apply \`context\` and \`rules\` as constraints when writing - but do NOT copy them into the file
      - Write to the \`resolvedOutputPath\` specified in instructions. If it is a glob pattern, choose the concrete file path using the schema instruction and the change's context
    - Show what was created and what's now unlocked
