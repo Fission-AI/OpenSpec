@@ -13,11 +13,7 @@ import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { classifyOpenSpecDir, storePointerProblem } from './project-config.js';
 import { findRepoPlanningRootSync } from './planning-home.js';
-import {
-  getSkillReferenceTransformer,
-  getTransformerForTool,
-  transformToSkillReferences,
-} from '../utils/command-references.js';
+import { getSkillReferenceTransformer, getTransformerForTool } from '../utils/command-references.js';
 import {
   AI_TOOLS,
   OPENSPEC_DIR_NAME,
@@ -878,11 +874,30 @@ export class InitCommand {
     const commandsGenerated = successfulTools.some((tool) => shouldGenerateCommandsForTool(tool.value, activeDelivery));
     const skillsGenerated = successfulTools.some((tool) => shouldGenerateSkillsForTool(tool.value, activeDelivery));
     const skillsOnlyHint = successfulTools.length > 0 && !commandsGenerated;
-    // Mixed selections may span invocation syntaxes; use a tool-specific
-    // form only when every selected tool agrees on it.
-    const hintTransformers = new Set(successfulTools.map((tool) => getSkillReferenceTransformer(tool.value)));
-    const hintTransformer = hintTransformers.size === 1 ? [...hintTransformers][0] : transformToSkillReferences;
-    const startReference = (command: string) => (skillsOnlyHint ? hintTransformer(command) : command);
+    // Each hint line must be a usable instruction for the tool it serves;
+    // when selected tools disagree on invocation syntax, print one line per
+    // distinct form, labeled with the tools it applies to.
+    const startInvocations = (command: string): Array<{ reference: string; toolNames?: string[] }> => {
+      if (!skillsOnlyHint) {
+        return [{ reference: command }];
+      }
+      const referenceToTools = new Map<string, string[]>();
+      for (const tool of successfulTools) {
+        const reference = getSkillReferenceTransformer(tool.value)(command);
+        referenceToTools.set(reference, [...(referenceToTools.get(reference) ?? []), tool.name]);
+      }
+      if (referenceToTools.size === 1) {
+        return [{ reference: [...referenceToTools.keys()][0] }];
+      }
+      return [...referenceToTools.entries()].map(([reference, toolNames]) => ({ reference, toolNames }));
+    };
+    const printStartHints = (command: string): void => {
+      console.log(chalk.bold('Getting started:'));
+      for (const { reference, toolNames } of startInvocations(command)) {
+        const label = toolNames ? ` (${toolNames.join(', ')})` : '';
+        console.log(`  Start your first change: ${reference} "your idea"${label}`);
+      }
+    };
     console.log();
     if (successfulTools.length > 0 && !commandsGenerated && !skillsGenerated) {
       // delivery=commands with tools that only support skills: nothing was
@@ -896,11 +911,9 @@ export class InitCommand {
         )
       );
     } else if (activeWorkflows.includes('propose')) {
-      console.log(chalk.bold('Getting started:'));
-      console.log(`  Start your first change: ${startReference('/opsx:propose')} "your idea"`);
+      printStartHints('/opsx:propose');
     } else if (activeWorkflows.includes('new')) {
-      console.log(chalk.bold('Getting started:'));
-      console.log(`  Start your first change: ${startReference('/opsx:new')} "your idea"`);
+      printStartHints('/opsx:new');
     } else {
       console.log("Done. Run 'openspec config profile' to configure your workflows.");
     }

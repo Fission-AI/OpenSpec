@@ -994,9 +994,9 @@ describe('InitCommand - profile and detection features', () => {
     expect(logCalls.some((entry) => entry.includes('Restart your IDE'))).toBe(false);
   });
 
-  it('should fall back to the default skill form when adapterless tools disagree on syntax', async () => {
-    // kimi documents /skill:<name>, vibe documents /<name> — a shared hint
-    // line cannot serve both, so the default form wins for mixed selections
+  it('should print one usable hint per invocation syntax when adapterless tools disagree', async () => {
+    // kimi documents /skill:<name>, vibe documents /<name> — every advertised
+    // instruction must be usable by the tool it is labeled for
     const initCommand = new InitCommand({ tools: 'kimi,vibe', force: true });
     await initCommand.execute(testDir);
 
@@ -1014,10 +1014,16 @@ describe('InitCommand - profile and detection features', () => {
     expect(vibeSkill).not.toContain('/skill:');
 
     const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
-    const startHint = logCalls.find((entry) => entry.includes('Start your first change'));
-    expect(startHint).toContain('/openspec-propose');
-    expect(startHint).not.toContain('/skill:');
-    expect(startHint).not.toContain('/opsx:');
+    const startHints = logCalls.filter((entry) => entry.includes('Start your first change'));
+    expect(startHints).toHaveLength(2);
+    const kimiHint = startHints.find((entry) => entry.includes('Kimi Code'));
+    const vibeHint = startHints.find((entry) => entry.includes('Mistral Vibe'));
+    expect(kimiHint).toContain('/skill:openspec-propose');
+    expect(vibeHint).toContain('/openspec-propose');
+    expect(vibeHint).not.toContain('/skill:');
+    for (const hint of startHints) {
+      expect(hint).not.toContain('/opsx:');
+    }
   });
 
   it('should keep /opsx: command hints for adapter-backed tools under default delivery', async () => {
