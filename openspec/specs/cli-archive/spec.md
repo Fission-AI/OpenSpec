@@ -196,10 +196,11 @@ The archive command SHALL validate changes before applying them to ensure data i
 #### Scenario: Proposal warnings stay proposal-level
 
 - **WHEN** archiving a change
-- **THEN** the non-blocking proposal warnings SHALL report proposal-level issues only
-- **AND** SHALL NOT repeat requirement-level issues reached through the delta specs
-- **AND** requirement-level issues in delta specs SHALL be left to delta spec
-  validation, which blocks the archive when they are errors
+- **THEN** the non-blocking proposal warnings SHALL NOT repeat requirement-level
+  issues reached through the delta specs
+- **AND** a requirement removed by a `## REMOVED Requirements` delta SHALL NOT be
+  reported as missing a scenario
+- **AND** proposal-level issues SHALL still be reported
 
 #### Scenario: Force archive without validation
 

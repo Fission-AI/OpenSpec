@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ArchiveCommand } from '../../src/core/archive.js';
 import { Validator } from '../../src/core/validation/validator.js';
+import { VALIDATION_MESSAGES } from '../../src/core/validation/constants.js';
 import { formatLocalDate } from '../../src/utils/date.js';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -1611,6 +1612,37 @@ The system SHALL do the thing differently.
       expect(archives).toEqual([expect.stringMatching(new RegExp(`\\d{4}-\\d{2}-\\d{2}-${changeName}`))]);
     });
 
+    // REMOVED requirements are names-only by design, so delta spec validation
+    // exempts them. The proposal report did not, and warned about a missing
+    // scenario on every correct removal.
+    it('does not warn about missing scenarios for REMOVED requirements', async () => {
+      const changeName = 'removal';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(path.join(changeDir, 'specs', 'docs'), { recursive: true });
+      await fs.writeFile(
+        path.join(changeDir, 'proposal.md'),
+        `# Proposal\n\n## Why\n${LONG_WHY}\n\n## What Changes\n- Remove docs.\n`
+      );
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1\n');
+      await fs.writeFile(
+        path.join(changeDir, 'specs', 'docs', 'spec.md'),
+        '# Docs Delta\n\n## REMOVED Requirements\n\n### Requirement: Old Thing\n'
+      );
+      // The removal needs a main spec to remove the requirement from.
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'docs');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(
+        path.join(mainSpecDir, 'spec.md'),
+        '# docs Specification\n\n## Purpose\nDocs.\n\n## Requirements\n### Requirement: Old Thing\nThe system SHALL do the old thing.\n\n#### Scenario: Old\n- **WHEN** invoked\n- **THEN** it happens\n'
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      const output = loggedLines().join('\n');
+      expect(output).not.toContain('Proposal warnings in proposal.md');
+      expect(output).not.toContain('Requirement must have at least one scenario');
+    });
+
     it('still reports genuine proposal-level warnings', async () => {
       const changeName = 'short-why';
       await createChange(
@@ -1656,8 +1688,8 @@ The system SHALL do the thing differently.
 
       const output = loggedLines().join('\n');
       expect(output).toContain('Proposal warnings in proposal.md');
-      expect(output).toContain('Delta description is too brief');
-      expect(output).toContain('ADDED Delta should include requirements');
+      expect(output).toContain(VALIDATION_MESSAGES.DELTA_DESCRIPTION_TOO_BRIEF);
+      expect(output).toContain(`ADDED ${VALIDATION_MESSAGES.DELTA_MISSING_REQUIREMENTS}`);
     });
 
     // Real delta defects are still caught. A missing scenario used to be
