@@ -1121,6 +1121,36 @@ ${OPENSPEC_MARKERS.end}
       )).toBe(false);
     });
 
+    it('should print a skill-based getting-started menu when a legacy upgrade newly configures codex', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'skills',
+      });
+
+      // Legacy managed Codex prompt with codex not yet configured: the
+      // upgrade newly configures codex, whose onboarding menu must not
+      // advertise /opsx:* commands (codex has no slash surface)
+      const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
+      await fs.mkdir(promptDir, { recursive: true });
+      await fs.writeFile(path.join(promptDir, 'opsx-explore.md'), 'legacy explore prompt');
+
+      const consoleSpy = vi.spyOn(console, 'log');
+      const forceUpdateCommand = new UpdateCommand({ force: true });
+      await forceUpdateCommand.execute(testDir);
+
+      const logCalls = consoleSpy.mock.calls.flat().map(String);
+      consoleSpy.mockRestore();
+
+      expect(logCalls.some((entry) => entry.includes('Getting started'))).toBe(true);
+      const menuLines = logCalls.filter((entry) => entry.includes('Start a new change'));
+      expect(menuLines).toHaveLength(1);
+      expect(menuLines[0]).toContain('the openspec-new-change skill');
+      expect(logCalls.some((entry) => entry.includes('/opsx:new'))).toBe(false);
+      expect(logCalls.some((entry) => entry.includes('/opsx:continue'))).toBe(false);
+      expect(logCalls.some((entry) => entry.includes('/opsx:apply'))).toBe(false);
+    });
+
     it('should preserve legacy Codex prompts when a configured Codex tool lacks the replacement workflow', async () => {
       setMockConfig({
         featureFlags: {},

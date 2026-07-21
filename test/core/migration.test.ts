@@ -189,6 +189,20 @@ describe('migration', () => {
     expect(message).not.toContain('/opsx:propose');
   });
 
+  it('falls back to a syntax-neutral reference when command and skill-only tools mix (claude+kimi)', async () => {
+    // Claude will get /opsx:* commands but Kimi cannot invoke them; the one
+    // shared message must not advertise a form that is wrong for either tool
+    await writeManagedCommand(projectDir, 'propose');
+    await writeSkill(projectDir, 'openspec-propose', '.kimi-code');
+
+    const message = captureMigrationLogs(projectDir, [ensureClaudeTool(), requireTool('kimi')]).find((entry) =>
+      entry.includes('New in this version')
+    );
+    expect(message).toContain('the openspec-propose skill');
+    expect(message).not.toContain('/opsx:propose');
+    expect(message).not.toContain('/skill:');
+  });
+
   it('does not advertise /opsx:propose when explicit delivery is skills', async () => {
     // Adapter-backed tool, but the effective delivery will never generate
     // commands — the message must use the skill reference instead

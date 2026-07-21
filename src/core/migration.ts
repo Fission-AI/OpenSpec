@@ -209,27 +209,26 @@ export function migrateIfNeeded(projectPath: string, tools: AIToolOption[]): voi
   saveGlobalConfig(config);
 
   console.log(`Migrated: custom profile with ${installedWorkflows.length} workflows`);
-  // Tools without a command adapter never get /opsx:* commands; point them
-  // at the skill instead. Use a tool-specific invocation syntax only when
-  // every detected tool produces the same reference; otherwise stay
-  // syntax-neutral rather than advertise a form that is wrong for one tool.
-  // Skills-invocable tools (codex) have no slash invocation, so they only
-  // ever get the syntax-neutral form. Commands must also be allowed by the
-  // effective delivery: with delivery 'skills', /opsx:* will never exist
-  // even for adapter-backed tools.
+  // Each detected tool resolves to a propose reference for its surface:
+  // the shared /opsx:propose command form when commands will exist for it
+  // under the effective delivery, its documented skill invocation
+  // otherwise (skills-invocable codex has no slash surface and always
+  // gets the syntax-neutral form). When the tools disagree — including
+  // command tools mixed with skill-only tools — stay syntax-neutral
+  // rather than advertise a form that is wrong for one of them.
   const effectiveDelivery: Delivery = config.delivery ?? 'both';
-  const hasCommandSurface = tools.some((tool) => shouldGenerateCommandsForTool(tool.value, effectiveDelivery));
   const proposeReferences = new Set(
-    tools.map((tool) =>
-      resolveCommandSurfaceCapability(tool.value) === 'skills-invocable'
-        ? 'the openspec-propose skill'
-        : getSkillReferenceTransformer(tool.value)('/opsx:propose')
-    )
+    tools.map((tool) => {
+      if (shouldGenerateCommandsForTool(tool.value, effectiveDelivery)) {
+        return '/opsx:propose';
+      }
+      if (resolveCommandSurfaceCapability(tool.value) === 'skills-invocable') {
+        return 'the openspec-propose skill';
+      }
+      return getSkillReferenceTransformer(tool.value)('/opsx:propose');
+    })
   );
-  const proposeReference = hasCommandSurface
-    ? '/opsx:propose'
-    : proposeReferences.size === 1
-      ? [...proposeReferences][0]
-      : 'the openspec-propose skill';
+  const proposeReference =
+    proposeReferences.size === 1 ? [...proposeReferences][0] : 'the openspec-propose skill';
   console.log(`New in this version: ${proposeReference}. Try 'openspec config profile core' for the streamlined experience.`);
 }
