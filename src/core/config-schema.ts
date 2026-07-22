@@ -105,6 +105,9 @@ export function validateConfigKeyPath(path: string): { valid: boolean; reason?: 
  */
 export function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
   const keys = path.split('.');
+  if (hasUnsafeSegment(keys)) {
+    return undefined;
+  }
   let current: unknown = obj;
 
   for (const key of keys) {

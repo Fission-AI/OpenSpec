@@ -392,6 +392,10 @@ describe('config-schema', () => {
       expect(validateConfigKeyPath(path).valid).toBe(false);
     });
 
+    it.each(unsafePaths)('getNestedValue reads nothing for "%s"', (path) => {
+      expect(getNestedValue({}, path)).toBeUndefined();
+    });
+
     it('flags unsafe segments anywhere in the path', () => {
       expect(hasUnsafeKeySegment('featureFlags.__proto__')).toBe(true);
       expect(hasUnsafeKeySegment('featureFlags.myFlag')).toBe(false);

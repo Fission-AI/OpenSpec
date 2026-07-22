@@ -27,7 +27,16 @@ If you think something sits on the boundary, report it and we'll work it out tog
 
 ## Published package contents
 
-The `openspec` npm package publishes `dist/`, `bin/`, `schemas/`, and `scripts/postinstall.js`. Build and test tooling (vite, rollup, vitest, eslint, and their transitive dependencies) is not published. Scanners that read `pnpm-lock.yaml` without separating dependency scope will report advisories for packages that never reach an installed copy of OpenSpec — check the `dependencies` block in `package.json` for what actually ships.
+The `openspec` npm package publishes `dist/`, `bin/`, `schemas/`, and `scripts/postinstall.js`. Build and test tooling (vite, rollup, vitest, eslint, and their transitive dependencies) is not published. Scanners that read `pnpm-lock.yaml` without separating dependency scope will report advisories for packages that never reach an installed copy of OpenSpec.
+
+You do not have to take that on trust — install the package and look:
+
+```sh
+npm install @fission-ai/openspec
+ls node_modules | grep -E '^(vite|rollup|vitest|eslint|js-yaml|minimatch)$'   # no matches
+```
+
+`pnpm audit --prod` in this repository reports the same scope and is enforced in CI on every pull request.
 
 ## Automated checks
 

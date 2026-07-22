@@ -33,11 +33,12 @@ jobs:
         with:
           persist-credentials: false
 
+      # No PR comment: that needs `pull-requests: write`, which a fork's token
+      # never gets. The failed check plus its log is the signal.
       - name: Review dependency changes
         uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4
         with:
           fail-on-severity: high
-          comment-summary-in-pr: on-failure
 
   audit:
     name: Audit

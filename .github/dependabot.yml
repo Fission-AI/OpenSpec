@@ -7,6 +7,14 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    # Let a freshly published version sit before adopting it. Security updates
+    # ignore the cooldown, so this only delays routine bumps — long enough for a
+    # compromised release to be yanked before it reaches this repo.
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 7
+      semver-patch-days: 3
     open-pull-requests-limit: 5
     commit-message:
       prefix: chore
@@ -29,6 +37,14 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    # Let a freshly published version sit before adopting it. Security updates
+    # ignore the cooldown, so this only delays routine bumps — long enough for a
+    # compromised release to be yanked before it reaches this repo.
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 7
+      semver-patch-days: 3
     open-pull-requests-limit: 3
     commit-message:
       prefix: chore
@@ -47,6 +63,14 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    # Let a freshly published version sit before adopting it. Security updates
+    # ignore the cooldown, so this only delays routine bumps — long enough for a
+    # compromised release to be yanked before it reaches this repo.
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 7
+      semver-patch-days: 3
     commit-message:
       prefix: ci
     groups:
