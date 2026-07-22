@@ -13,7 +13,7 @@ import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { classifyOpenSpecDir, storePointerProblem } from './project-config.js';
 import { findRepoPlanningRootSync } from './planning-home.js';
-import { getTransformerForTool } from '../utils/command-references.js';
+import { getSkillReferenceTransformer, getTransformerForTool, transformToSkillReferences } from '../utils/command-references.js';
 import {
   AI_TOOLS,
   OPENSPEC_DIR_NAME,
@@ -174,16 +174,18 @@ export class InitCommand {
       migrateIfNeeded(projectPath, detectedTools);
     }
 
+    // Validate profile override early so invalid values fail before tool setup.
+    // The resolved value is consumed later when generation reads effective config.
+    // This runs ahead of the welcome screen so an invalid --profile does not make
+    // the user press Enter before seeing the error.
+    this.resolveProfileOverride();
+
     // Show animated welcome screen (interactive mode only)
     const canPrompt = this.canPromptInteractively();
     if (canPrompt) {
       const { showWelcomeScreen } = await import('../ui/welcome-screen.js');
-      await showWelcomeScreen();
+      await showWelcomeScreen(this.getActiveWorkflows());
     }
-
-    // Validate profile override early so invalid values fail before tool setup.
-    // The resolved value is consumed later when generation reads effective config.
-    this.resolveProfileOverride();
 
     // Get tool states before processing
     const toolStates = getToolStates(projectPath);
@@ -246,6 +248,16 @@ export class InitCommand {
     }
 
     throw new Error(`Invalid profile "${this.profileOverride}". Available profiles: core, custom`);
+  }
+
+  /**
+   * Resolves the workflows the effective profile installs, so onboarding output
+   * only mentions commands that will actually exist.
+   */
+  private getActiveWorkflows(): string[] {
+    const globalCfg = getGlobalConfig();
+    const activeProfile: Profile = this.resolveProfileOverride() ?? globalCfg.profile ?? 'core';
+    return [...getProfileWorkflows(activeProfile, globalCfg.workflows)];
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -689,7 +701,7 @@ export class InitCommand {
             const skillFile = path.join(skillDir, 'SKILL.md');
 
             // Generate SKILL.md content with YAML frontmatter including generatedBy
-            const transformer = getTransformerForTool(tool.value, delivery);
+            const transformer = getTransformerForTool(tool.value, delivery, resolveCommandSurfaceCapability(tool.value));
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
 
             // Write the skill file
@@ -865,16 +877,79 @@ export class InitCommand {
     }
 
     // Getting started (task 7.6: show propose if in profile)
-    const globalCfg = getGlobalConfig();
-    const activeProfile: Profile = (this.profileOverride as Profile) ?? globalCfg.profile ?? 'core';
-    const activeWorkflows = [...getProfileWorkflows(activeProfile, globalCfg.workflows)];
+    const activeWorkflows = this.getActiveWorkflows();
+    // When no tool got /opsx:* commands, point at the skill instead of a
+    // command that does not exist.
+    const activeDelivery: Delivery = getGlobalConfig().delivery ?? 'both';
+    const commandsGenerated = successfulTools.some((tool) => shouldGenerateCommandsForTool(tool.value, activeDelivery));
+    const skillsGenerated = successfulTools.some((tool) => shouldGenerateSkillsForTool(tool.value, activeDelivery));
+    // Each hint line must be a usable instruction for the tool it serves.
+    // Tools that generated commands are told the /opsx:* command; tools that
+    // only got skills are told their documented skill invocation (Kimi Code:
+    // /skill:openspec-*; skills-invocable codex has no slash surface at all,
+    // so its hint names the skill; others: /openspec-*). Tools that got no
+    // artifacts are covered by the configuration correction instead. When
+    // the selection disagrees, print one line per distinct instruction,
+    // labeled with the tools it applies to.
+    const startHintLines = (command: string): string[] => {
+      const skillName = transformToSkillReferences(command).slice(1);
+      const hintToTools = new Map<string, string[]>();
+      for (const tool of successfulTools) {
+        let hint: string;
+        if (shouldGenerateCommandsForTool(tool.value, activeDelivery)) {
+          hint = `Start your first change: ${command} "your idea"`;
+        } else if (shouldGenerateSkillsForTool(tool.value, activeDelivery)) {
+          hint =
+            resolveCommandSurfaceCapability(tool.value) === 'skills-invocable'
+              ? `Start your first change with the ${skillName} skill`
+              : `Start your first change: ${getSkillReferenceTransformer(tool.value)(command)} "your idea"`;
+        } else {
+          continue;
+        }
+        hintToTools.set(hint, [...(hintToTools.get(hint) ?? []), tool.name]);
+      }
+      if (hintToTools.size === 0) {
+        // No successful tools: keep the generic command hint
+        return [`Start your first change: ${command} "your idea"`];
+      }
+      if (hintToTools.size === 1) {
+        return [[...hintToTools.keys()][0]];
+      }
+      return [...hintToTools.entries()].map(([hint, toolNames]) => `${hint} (${toolNames.join(', ')})`);
+    };
+    const printStartHints = (command: string): void => {
+      console.log(chalk.bold('Getting started:'));
+      for (const line of startHintLines(command)) {
+        console.log(`  ${line}`);
+      }
+    };
     console.log();
-    if (activeWorkflows.includes('propose')) {
-      console.log(chalk.bold('Getting started:'));
-      console.log('  Start your first change: /opsx:propose "your idea"');
+    // delivery=commands with tools that only support skills: those tools get
+    // no artifacts at all, so print a per-tool configuration correction
+    // rather than leave them with a dead (or missing) instruction — even
+    // when other selected tools did get commands or skills.
+    const zeroArtifactTools = successfulTools.filter(
+      (tool) =>
+        !shouldGenerateSkillsForTool(tool.value, activeDelivery) &&
+        !shouldGenerateCommandsForTool(tool.value, activeDelivery)
+    );
+    if (zeroArtifactTools.length > 0) {
+      const names = zeroArtifactTools.map((tool) => tool.name).join(', ');
+      console.log(
+        chalk.yellow(
+          `No skills or commands were generated for ${names}: delivery is set to 'commands' but ` +
+            `${zeroArtifactTools.length === 1 ? 'it supports' : 'they support'} only skills. ` +
+            `Run 'openspec config set delivery both' to generate skills.`
+        )
+      );
+    }
+    if (successfulTools.length > 0 && !commandsGenerated && !skillsGenerated) {
+      // Nothing was generated for any tool: the correction above is the
+      // whole story, so don't advertise an invocation that doesn't exist.
+    } else if (activeWorkflows.includes('propose')) {
+      printStartHints('/opsx:propose');
     } else if (activeWorkflows.includes('new')) {
-      console.log(chalk.bold('Getting started:'));
-      console.log('  Start your first change: /opsx:new "your idea"');
+      printStartHints('/opsx:new');
     } else {
       console.log("Done. Run 'openspec config profile' to configure your workflows.");
     }
@@ -884,10 +959,18 @@ export class InitCommand {
     console.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
     console.log(`Feedback:   ${chalk.cyan('https://github.com/Fission-AI/OpenSpec/issues')}`);
 
-    // Restart instruction if any tools were configured
-    if (results.createdTools.length > 0 || results.refreshedTools.length > 0) {
+    // Restart instruction if any tools were configured and got a surface
+    // (when nothing was generated there is nothing a restart would pick up);
+    // only mention slash commands when slash commands were actually generated
+    if ((results.createdTools.length > 0 || results.refreshedTools.length > 0) && (commandsGenerated || skillsGenerated)) {
       console.log();
-      console.log(chalk.white('Restart your IDE for slash commands to take effect.'));
+      console.log(
+        chalk.white(
+          commandsGenerated
+            ? 'Restart your IDE for slash commands to take effect.'
+            : 'Restart your IDE for the new skills to take effect.'
+        )
+      );
     }
 
     console.log();

@@ -8,6 +8,7 @@ import {
   generateSkillContent,
   getSkillTemplates,
 } from '../../../src/core/shared/skill-generation.js';
+import { transformToSkillReferences } from '../../../src/utils/command-references.js';
 // @ts-expect-error - plain ESM helper shared with the generator script
 import { SKILLS_DIR, stripVolatileFrontmatter } from '../../../scripts/skillssh-shared.mjs';
 
@@ -19,7 +20,9 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
 describe('skills.sh distribution parity', () => {
   it('keeps committed skills/ in sync with the workflow templates', () => {
     for (const { template, dirName } of getSkillTemplates()) {
-      const expected = stripVolatileFrontmatter(generateSkillContent(template, 'skills.sh'));
+      const expected = stripVolatileFrontmatter(
+        generateSkillContent(template, 'skills.sh', transformToSkillReferences)
+      );
       const committedPath = join(repoRoot, SKILLS_DIR, dirName, 'SKILL.md');
       const committed = readFileSync(committedPath, 'utf8');
       expect(committed, `${dirName} is stale — run \`pnpm generate:skills\``).toBe(expected);

@@ -37,45 +37,45 @@ import {
 import { STORE_SELECTION_GUIDANCE } from '../../../src/core/templates/workflows/store-selection.js';
 
 const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
-  getExploreSkillTemplate: '7d2f54e74fffcb36aaaa4498a4a8b033142bb25945fb9b2de532354acbe76b9c',
+  getExploreSkillTemplate: 'a7eb6fabdc05a5b90a4773ba93320a60edffea88e9b27985668a2959dcec2e3d',
   getNewChangeSkillTemplate: '39663a6d2037e6697020393a66f6327506e3e3bc573b7a3556dcb7f9457dc51d',
-  getContinueChangeSkillTemplate: 'acc07a489a30192b4bf2bbdc587a889478fbf6fffbbc9353c7775c4ca1ec5011',
+  getContinueChangeSkillTemplate: '912ce98855bcea351a73730c7ac18505e21512266eac8082351ef72ddfa63906',
   getApplyChangeSkillTemplate: '0f5a15fc7fb9ad6059a5643d0e01365d27642637a4aaebf182f9eabb45348197',
-  getFfChangeSkillTemplate: '20ebb682ba89809a100cd4985c074908df5bada2bd649ca1b0f4059a63a1c728',
-  getSyncSpecsSkillTemplate: 'dc07ea0312687f3edc602329c889dbbab737c6d79327eb7a723553d346b43433',
-  getOnboardSkillTemplate: 'e871d8ce172bb805ae62a7611aee7a3154d89414f427ad5ef31721c903f13002',
-  getOpsxExploreCommandTemplate: '37e53590aae7ac6621d4393aa80a5b8af21881323887fa924ed329199fda27e0',
+  getFfChangeSkillTemplate: '3e2cd56f2b73299fd008e08f61c778d46b098c58c11185a1f1113a92f66f259b',
+  getSyncSpecsSkillTemplate: '32c3169e1ee0345a174c0bacb8fd16db73477cc006d8cedbedc6077233c5461b',
+  getOnboardSkillTemplate: 'bc2216b72724b01c3a733e63b8bf4aff457f561c0e9ff7288bdacc39780a37a7',
+  getOpsxExploreCommandTemplate: 'eef1f8b4fd90ade6d70be46f0f8c3e6722f221fed175a6f9cf626287ef504a94',
   getOpsxNewCommandTemplate: '57c600cce318d16b9b4308a18d0d983ea3c0673034e606a7cceec07b4c705e87',
-  getOpsxContinueCommandTemplate: 'f63964fab7720ede097aa48808baff196c391b962930ca960459205c724800e5',
+  getOpsxContinueCommandTemplate: '7843e40ad80611a80bcd3c8c5abd5ce7f89efe72f749a482fd1d0594762e94f3',
   getOpsxApplyCommandTemplate: 'daeb507206707169de73c828e199648dde5732cbc17791ef2a027adffd028574',
-  getOpsxFfCommandTemplate: 'b859b1955cda6012877ae7f9ec6980e468f2e949a3838dfcdebc17209d133749',
-  getArchiveChangeSkillTemplate: 'a8f1d9cb06c20c7335ac35826dd09bfadead75ef6d624d359912734f74232cbc',
-  getBulkArchiveChangeSkillTemplate: 'f675122bce3ef583b245352abedecf50ff4043e45bea6bac091885f83c7b6362',
-  getOpsxSyncCommandTemplate: '98b20e00da5c588ff83ed6e6f0e959dfc540349090fb3f5792ea030d099b8169',
+  getOpsxFfCommandTemplate: '81686b8e26e61167874d696c905102a6996cd664166003c9c71c511b41e00da6',
+  getArchiveChangeSkillTemplate: 'b04eccde2c57af4bc484fa7279fa873ad1d46474eb024467d68e784d8b985c18',
+  getBulkArchiveChangeSkillTemplate: '2b74b1f73380ff32e35f580734780d843c6161a2748c39edb07f1e00453771b4',
+  getOpsxSyncCommandTemplate: '68dc44c9be2ec1ef719a4ed59830e5a0bc74c3ba6113070650266e1b0d153071',
   getVerifyChangeSkillTemplate: 'cab4db01b5d2b1243d63d90c53747d8b39e488c60f76eba3fe8b994467f69267',
-  getOpsxArchiveCommandTemplate: '9d14e1ea23ae8be8971fafa1d6a4d4717a8a7b922b6e76c6fb07aa568a420632',
-  getOpsxOnboardCommandTemplate: '0673f34a0f81fd173bcfb8c3ac83e2b1c617f7b7564e24e5298d3bd5665a05a9',
-  getOpsxBulkArchiveCommandTemplate: 'd0d84040bcbd44e89ac525bb21100bee7befb3604e51095bfa65b8453d85290c',
+  getOpsxArchiveCommandTemplate: '8c113e2a8bca36fecd0e2152ae262fbfbef508e81378838e15d31308fb069b57',
+  getOpsxOnboardCommandTemplate: '9430a0fb6530791ab720e068f4b172bc3dfc4e96a1ae29102bee0b92c2afe7b5',
+  getOpsxBulkArchiveCommandTemplate: 'da7be1a7318f15b915f5aae8eb638797a8a24a31e5fc7fc0a2bad01bba137686',
   getOpsxVerifyCommandTemplate: 'f01c0c0cef53be0956de52363d955d4ace131b1b2d77adf902f35fead9a1486d',
-  getOpsxProposeSkillTemplate: '59197064a46c53264b62925a1c725af4ebe7caf9f0eaed4101990b7c13a40db1',
-  getOpsxProposeCommandTemplate: '04f808a36e850b9cdbc4f943ef324a9fd2b1b0cc59b92f127ab6cc452d66cc4e',
+  getOpsxProposeSkillTemplate: '7935c0be966667308c9d6abb5fc05058872233d5ae9f2d83e0a2015f4e9c4ef9',
+  getOpsxProposeCommandTemplate: 'c78b8521893b43398ef30477f03d1235d5229304929574a27abe500f33495687',
   getFeedbackSkillTemplate: 'd7d83c5f7fc2b92fe8f4588a5bf2d9cb315e4c73ec19bcd5ef28270906319a0d',
   getUpdateChangeSkillTemplate: 'fe2e8edaf973d42dc7fc7dfd846105c4c3cfec0437606e582ec644985cd4e81d',
   getOpsxUpdateCommandTemplate: 'e55ac5774203a7d9037d2d588889c97c53f3f930da49497cc79e865375920da7',
 };
 
 const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
-  'openspec-explore': 'ba099821631ce75ee70af370917bbddbc88d0882ad0e50e91ed687d2185102ef',
+  'openspec-explore': 'c8de6033b2c78009647647c65a504e4ada1a3bdcee31aed38a4bf7d629513f6e',
   'openspec-new-change': 'd5b8909bea70a33b7a312b38ce204a91f40b6bb2bff12c4c06b3e11641b6a689',
-  'openspec-continue-change': 'bdb8bbb6a768a741b05256effbc284d65ac6a45360b59c24b94198792d3d0ebf',
+  'openspec-continue-change': '30b074eec5f1e70bba3a71d50175dbbcb2994a64930cb4cfd1660872ba767018',
   'openspec-apply-change': '09c0e1cdf5ccc82416d0969d6bd715cc70616bdbc3531358a5c36057f78be55a',
-  'openspec-ff-change': '0c82830cd9bc98f86eb56b63ddaabe2bf5d35fe25b6c40a7059311aee2c8acac',
-  'openspec-sync-specs': 'b3f694ab81956d05126b089fe82dea78dec21788978bb9651485f996aee96740',
-  'openspec-archive-change': '4679a077d34016bf38f0d0aa5432b53ea83ae82c2c5fec6dcb7dc15571ee8ac6',
-  'openspec-bulk-archive-change': '545b9528df52fbb0b4898405b42a2ce10416678d469d20cf597d022fa6e16e3b',
+  'openspec-ff-change': '449a0bccab74183791f4a981cfb563b90b752d5c91368f951550f333d0f6ffb4',
+  'openspec-sync-specs': 'd1bcd420bf8fb55a13f58a2857e6ebde58eb6f9e721a3bf6876bd9f640a63859',
+  'openspec-archive-change': 'b24d326662ef58809de4464960440713748b9a281323357facdca24af52014e7',
+  'openspec-bulk-archive-change': '49d410bda408c0411decd584be9c2355335e3b3db760fc6a0adcd82c172a280f',
   'openspec-verify-change': '57693d22940f06080c6cf8d590ac2f48240d4a5e9ce7074dacd0f8d3c9945afa',
-  'openspec-onboard': 'b1b6fc9a1b3ff64dafe9b8c39a761ee1bd001b542d47b4e4deaf058e0aa21256',
-  'openspec-propose': '024db4bce28d9a4d7b25fa92525da6fc701a64ac07dfdcf777d286c95b5281b5',
+  'openspec-onboard': '76225d10352454a304e56566997811d16f91de1b37653816f2bc5d8ec976febc',
+  'openspec-propose': 'f858b1be2b64ce744d2ff0c8be43aa90c6b2f37e40ca1794276ff7859898111f',
   'openspec-update-change': '77ff4d1f1cd08a57649cce1f25e0ebc4f55d6d032dfde5c301d1b479561b72fa',
 };
 
@@ -236,6 +236,110 @@ describe('skill templates split parity', () => {
       // Verification is bound to the delta specs on disk, not to whatever the
       // sync reports it touched — a silently skipped capability must not escape.
       expect(content, variant).toContain('not only the ones the sync reports it touched');
+    }
+  });
+
+  // The archive instructions must mirror `openspec archive`'s date-prefix
+  // rule (#1316): a change already named with a `YYYY-MM-DD-` prefix keeps
+  // its name, so archived names never stack dates. Guard the caveat, the
+  // literal `mv` target, and the success-summary examples an agent would
+  // copy verbatim (#1317).
+  it('never instructs stacking a date prefix on an already-dated change (#1317)', () => {
+    const archiveInstructions: Array<[string, string]> = [
+      ['openspec-archive-change', getArchiveChangeSkillTemplate().instructions],
+      ['openspec-bulk-archive-change', getBulkArchiveChangeSkillTemplate().instructions],
+      ['openspec-onboard', getOnboardSkillTemplate().instructions],
+      ['opsx-archive', getOpsxArchiveCommandTemplate().content],
+      ['opsx-bulk-archive', getOpsxBulkArchiveCommandTemplate().content],
+      ['opsx-onboard', getOpsxOnboardCommandTemplate().content],
+    ];
+
+    for (const [id, text] of archiveInstructions) {
+      expect(text, id).toContain('already starts with a `YYYY-MM-DD-` prefix');
+
+      // Every archive path an agent reproduces must name the derived target,
+      // never a hardcoded date.
+      expect(text, id).toContain('<target-name>');
+
+      // Discriminator: a `YYYY-MM-DD-` after a path separator belongs to a
+      // literal archive path the agent copies verbatim. The rule statements
+      // only name the prefix, never place it in a path, so they stay legal.
+      expect(text, id).not.toMatch(/\/YYYY-MM-DD-/);
+    }
+  });
+
+  // Covers both archive paths, not just the bulk one the fix targeted: the
+  // single-change routing has been correct since #1357 (current wording from
+  // #1394) but was never pinned, so a stale branch could silently reopen the
+  // bug #1381 actually reported.
+  it('honors Cancel at every archive confirmation (#1381)', () => {
+    const variants: Array<[string, string]> = [
+      ['bulk skill', generateSkillContent(getBulkArchiveChangeSkillTemplate(), 'PARITY-BASELINE')],
+      ['bulk opsx command', getOpsxBulkArchiveCommandTemplate().content],
+      ['single skill', generateSkillContent(getArchiveChangeSkillTemplate(), 'PARITY-BASELINE')],
+      ['single opsx command', getOpsxArchiveCommandTemplate().content],
+    ];
+
+    for (const [variant, content] of variants) {
+      // Offering "Cancel" without routing it let an agent fall straight through
+      // to the archive step and move the changes anyway.
+      expect(content, variant).toContain('"Cancel" — stop, do not archive');
+
+      // An unrecognized answer must re-prompt; archiving is never the default.
+      expect(content, variant).toContain('Anything else — ask again rather than archiving');
+    }
+  });
+
+  // The bulk confirmation labels are written by the agent and carry an `N`
+  // placeholder, so routing must match intent — matching the literal labels
+  // would send every legitimate answer down the "ask again" path forever.
+  it('routes the bulk archive confirmation by intent, not by literal label (#1381)', () => {
+    const variants: Array<[string, string]> = [
+      ['bulk skill', generateSkillContent(getBulkArchiveChangeSkillTemplate(), 'PARITY-BASELINE')],
+      ['bulk opsx command', getOpsxBulkArchiveCommandTemplate().content],
+    ];
+
+    for (const [variant, content] of variants) {
+      expect(content, variant).toContain('Route on the answer by intent, not by exact label');
+
+      // The ready-only route has to name where "ready" is decided, or the agent
+      // cannot tell which subset to archive.
+      expect(content, variant).toContain('the changes the step 6 table marks');
+
+      // A cancelled batch must archive nothing, reinforced where agents skim.
+      expect(content, variant).toContain(
+        'Never archive after the user cancels the confirmation'
+      );
+    }
+  });
+
+  it('makes the schema instruction field authoritative for artifact creation (#777)', () => {
+    const variants: Array<[string, string]> = [
+      ['propose skill', generateSkillContent(getOpsxProposeSkillTemplate(), 'PARITY-BASELINE')],
+      ['propose command', getOpsxProposeCommandTemplate().content],
+      ['continue skill', generateSkillContent(getContinueChangeSkillTemplate(), 'PARITY-BASELINE')],
+      ['continue command', getOpsxContinueCommandTemplate().content],
+      ['ff skill', generateSkillContent(getFfChangeSkillTemplate(), 'PARITY-BASELINE')],
+      ['ff command', getOpsxFfCommandTemplate().content],
+    ];
+
+    for (const [variant, content] of variants) {
+      // The instruction field wins even for familiar artifact names: the old
+      // hard-coded "Common artifact patterns" shortcut is what let agents
+      // ignore custom schemas that reuse proposal.md/tasks.md file names.
+      expect(content, variant).toContain('the authoritative guidance');
+      expect(content, variant).not.toContain('Common artifact patterns');
+
+      // Delegated creation is honored at the creation step itself, and the
+      // delegated skill's output is verified rather than assumed.
+      expect(content, variant).toContain(
+        'If the `instruction` field delegates creation to a specific skill or command, invoke it to produce the artifact instead of writing the file yourself, then verify the artifact file exists at `resolvedOutputPath`'
+      );
+
+      // ...and restated in the artifact-creation guidelines.
+      expect(content, variant).toContain(
+        'If the `instruction` field directs you to use a specific skill or command to create the artifact, invoke it instead of writing the artifact directly'
+      );
     }
   });
 });

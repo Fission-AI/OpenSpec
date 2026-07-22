@@ -259,10 +259,23 @@ export class ArchiveCommand {
         try {
           await fs.access(changeFile);
           const changeReport = await validator.validateChange(changeFile);
-          // Proposal validation is informative only (do not block archive)
-          if (!changeReport.valid) {
+          // Proposal validation is informative only (do not block archive).
+          // `validateChange` parses the change together with its delta specs,
+          // so it also raises requirement-level issues under
+          // `deltas.<n>.requirement(s)`. Those
+          // are not proposal problems, and reporting them here was noisy and
+          // sometimes wrong (#498): the change parser records every requirement
+          // under both `requirement` and `requirements`, so each defect was
+          // printed twice, and REMOVED requirements — names-only by design —
+          // produced a "missing scenario" warning for a correct removal.
+          // Genuine delta defects are still caught below, by the delta spec
+          // validation and by the rebuilt-spec check that runs before any write.
+          const proposalIssues = changeReport.issues.filter(
+            (issue) => !/^deltas\.\d+\.requirements?\./.test(issue.path)
+          );
+          if (!changeReport.valid && proposalIssues.length > 0) {
             console.log(chalk.yellow(`\nProposal warnings in proposal.md (non-blocking):`));
-            for (const issue of changeReport.issues) {
+            for (const issue of proposalIssues) {
               const symbol = issue.level === 'ERROR' ? '⚠' : (issue.level === 'WARNING' ? '⚠' : 'ℹ');
               console.log(chalk.yellow(`  ${symbol} ${issue.message}`));
             }

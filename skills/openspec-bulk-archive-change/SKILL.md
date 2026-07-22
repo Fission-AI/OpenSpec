@@ -118,6 +118,13 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    If there are incomplete changes, make clear they'll be archived with warnings.
 
+   Route on the answer by intent, not by exact label — you wrote these labels,
+   so match what the user picked rather than the wording above:
+   - "Cancel" — stop, do not archive. Report that nothing was archived and skip the remaining steps.
+   - The archive-everything option — proceed with every selected change
+   - The ready-only option — proceed with only the changes the step 6 table marks `Ready` or `Ready*`, and record the rest as Skipped in step 8c. If a `Ready*` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
+   - Anything else — ask again rather than archiving
+
 8. **Execute archive for each confirmed change**
 
    Process changes in the determined order (respecting conflict resolution):
@@ -128,9 +135,12 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - Track if sync was done
 
    b. **Perform the archive**:
+
+      Target name: use the change name as-is when it already starts with a `YYYY-MM-DD-` prefix; otherwise prepend the current date as `YYYY-MM-DD-<name>` (same rule as `openspec archive`).
+
       ```bash
       mkdir -p "<planningHome.changesDir>/archive"
-      mv "<changeRoot>" "<planningHome.changesDir>/archive/YYYY-MM-DD-<name>"
+      mv "<changeRoot>" "<planningHome.changesDir>/archive/<target-name>"
       ```
 
    c. **Track outcome** for each change:
@@ -203,8 +213,8 @@ then add-graphql specs (chronological order, newer takes precedence).
 ## Bulk Archive Complete
 
 Archived N changes:
-- <change-1> -> archive/YYYY-MM-DD-<change-1>/
-- <change-2> -> archive/YYYY-MM-DD-<change-2>/
+- <change-1> -> archive/<target-name-1>/
+- <change-2> -> archive/<target-name-2>/
 
 Spec sync summary:
 - N delta specs synced to main specs
@@ -217,7 +227,7 @@ Spec sync summary:
 ## Bulk Archive Complete (partial)
 
 Archived N changes:
-- <change-1> -> archive/YYYY-MM-DD-<change-1>/
+- <change-1> -> archive/<target-name-1>/
 
 Skipped M changes:
 - <change-2> (user chose not to archive incomplete)
@@ -242,7 +252,8 @@ No active changes found. Create a new change to get started.
 - Skip spec sync only when implementation is missing (warn user)
 - Show clear per-change status before confirming
 - Use single confirmation for entire batch
+- Never archive after the user cancels the confirmation — a cancelled batch archives nothing
 - Track and report all outcomes (success/skip/fail)
 - Preserve .openspec.yaml when moving to archive
-- Archive directory target uses current date: YYYY-MM-DD-<name>
+- Archive directory target uses current date: YYYY-MM-DD-<name>; a name that already starts with a `YYYY-MM-DD-` prefix is used as-is (never stack a second date)
 - If archive target exists, fail that change but continue with others

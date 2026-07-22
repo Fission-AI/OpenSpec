@@ -55,7 +55,7 @@
             };
 
             nativeBuildInputs = with pkgs; [
-              nodejs_20
+              nodejs_22
               npmHooks.npmInstallHook
               pnpmConfigHook
               pnpm_9
@@ -97,7 +97,7 @@
         {
           default = pkgs.mkShell {
             buildInputs = with pkgs; [
-              nodejs_20
+              nodejs_22
               pnpm_9
             ];
 

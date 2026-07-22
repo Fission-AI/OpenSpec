@@ -544,6 +544,7 @@ apply:
           id: 'specs',
           outputPath: 'specs/*/spec.md',
           status: 'done',
+          requires: [],
         },
       ]);
 

@@ -5,6 +5,7 @@
 
 import chalk from 'chalk';
 import { WELCOME_ANIMATION } from './ascii-patterns.js';
+import { getOnboardingCommands } from '../core/onboarding-commands.js';
 
 // Minimum terminal width for side-by-side layout
 const MIN_WIDTH = 60;
@@ -15,7 +16,19 @@ const ART_COLUMN_WIDTH = 24;
 /**
  * Welcome text content (right column)
  */
-function getWelcomeText(): string[] {
+function getWelcomeText(workflows: readonly string[]): string[] {
+  const onboardingCommands = getOnboardingCommands(workflows);
+  const quickStart: string[] = [];
+
+  if (onboardingCommands.length > 0) {
+    const commandWidth = Math.max(...onboardingCommands.map((c) => c.command.length));
+    quickStart.push(chalk.white('Quick start after setup:'));
+    for (const { command, description } of onboardingCommands) {
+      quickStart.push(`  ${chalk.yellow(command.padEnd(commandWidth + 1))} ${chalk.dim(description)}`);
+    }
+    quickStart.push('');
+  }
+
   return [
     chalk.white.bold('Welcome to OpenSpec'),
     chalk.dim('A lightweight spec-driven framework'),
@@ -24,11 +37,7 @@ function getWelcomeText(): string[] {
     chalk.dim('  • Agent Skills for AI tools'),
     chalk.dim('  • /opsx:* slash commands'),
     '',
-    chalk.white('Quick start after setup:'),
-    `  ${chalk.yellow('/opsx:new')}      ${chalk.dim('Create a change')}`,
-    `  ${chalk.yellow('/opsx:continue')} ${chalk.dim('Next artifact')}`,
-    `  ${chalk.yellow('/opsx:apply')}    ${chalk.dim('Implement tasks')}`,
-    '',
+    ...quickStart,
     chalk.cyan('Press Enter to select tools...'),
   ];
 }
@@ -107,8 +116,8 @@ async function waitForEnter(): Promise<void> {
  * Shows the animated welcome screen.
  * Returns when user presses Enter.
  */
-export async function showWelcomeScreen(): Promise<void> {
-  const textLines = getWelcomeText();
+export async function showWelcomeScreen(workflows: readonly string[]): Promise<void> {
+  const textLines = getWelcomeText(workflows);
 
   if (!canAnimate()) {
     // Fallback: show static welcome

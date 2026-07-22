@@ -211,6 +211,12 @@ Old instructions content
       );
       expect(migratedSkill).toContain('name: openspec-explore');
       expect(migratedSkill).not.toContain('Old instructions content');
+      // Kimi Code has no command adapter, so the refreshed skill must use
+      // its documented /skill:<name> invocations, never /opsx:* commands
+      // that were not generated
+      expect(migratedSkill).not.toContain('/opsx:');
+      expect(migratedSkill).not.toContain('/opsx-');
+      expect(migratedSkill).toContain('/skill:openspec-');
 
       // Legacy managed skill is gone; user files stay where they were
       await expect(fs.access(legacySkillDir)).rejects.toThrow();
@@ -1115,6 +1121,42 @@ ${OPENSPEC_MARKERS.end}
       )).toBe(false);
     });
 
+    it('should print a skill-based getting-started menu when a legacy upgrade newly configures codex', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'skills',
+      });
+
+      // Legacy managed Codex prompt with codex not yet configured: the
+      // upgrade newly configures codex, whose onboarding menu must not
+      // advertise /opsx:* commands (codex has no slash surface).
+      // The prompt is opsx-new.md so the inferred workflow ('new') is one the
+      // onboarding menu actually lists — the menu is now filtered to the
+      // workflows the upgrade installed.
+      const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
+      await fs.mkdir(promptDir, { recursive: true });
+      await fs.writeFile(path.join(promptDir, 'opsx-new.md'), 'legacy new prompt');
+
+      const consoleSpy = vi.spyOn(console, 'log');
+      const forceUpdateCommand = new UpdateCommand({ force: true });
+      await forceUpdateCommand.execute(testDir);
+
+      const logCalls = consoleSpy.mock.calls.flat().map(String);
+      consoleSpy.mockRestore();
+
+      expect(logCalls.some((entry) => entry.includes('Getting started'))).toBe(true);
+      const menuLines = logCalls.filter((entry) => entry.includes('Scaffold a change'));
+      expect(menuLines).toHaveLength(1);
+      expect(menuLines[0]).toContain('the openspec-new-change skill');
+      expect(logCalls.some((entry) => entry.includes('/opsx:new'))).toBe(false);
+      expect(logCalls.some((entry) => entry.includes('/opsx:continue'))).toBe(false);
+      expect(logCalls.some((entry) => entry.includes('/opsx:apply'))).toBe(false);
+      // Only the inferred workflow is advertised, not the rest of the profile
+      expect(logCalls.some((entry) => entry.includes('Next artifact'))).toBe(false);
+      expect(logCalls.some((entry) => entry.includes('Implement tasks'))).toBe(false);
+    });
+
     it('should preserve legacy Codex prompts when a configured Codex tool lacks the replacement workflow', async () => {
       setMockConfig({
         featureFlags: {},
@@ -1397,13 +1439,19 @@ More user content after markers.
         expect.stringContaining('Claude Code')
       );
 
-      // Should show getting started message for newly configured tools
+      // Should show getting started message for newly configured tools,
+      // limited to the commands the core profile installs (not new/continue)
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining('Getting started')
       );
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('/opsx:new')
+        expect.stringContaining('/opsx:propose')
       );
+      const gettingStartedCalls = consoleSpy.mock.calls
+        .map((call) => call.map((arg) => String(arg)).join(' '))
+        .join('\n');
+      expect(gettingStartedCalls).not.toContain('/opsx:new');
+      expect(gettingStartedCalls).not.toContain('/opsx:continue');
 
       // Skills should be created
       const skillFile = path.join(testDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md');
@@ -1538,6 +1586,35 @@ More user content after markers.
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining('Getting started')
       );
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should list the expanded commands a custom profile installs', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'custom',
+        delivery: 'both',
+        workflows: ['new', 'continue', 'apply'],
+      });
+
+      const legacyCommandDir = path.join(testDir, '.claude', 'commands', 'openspec');
+      await fs.mkdir(legacyCommandDir, { recursive: true });
+      await fs.writeFile(
+        path.join(legacyCommandDir, 'proposal.md'),
+        'old command content'
+      );
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await new UpdateCommand({ force: true }).execute(testDir);
+
+      const output = consoleSpy.mock.calls
+        .map((call) => call.map((arg) => String(arg)).join(' '))
+        .join('\n');
+      expect(output).toContain('/opsx:new');
+      expect(output).toContain('/opsx:continue');
+      expect(output).not.toContain('/opsx:propose');
 
       consoleSpy.mockRestore();
     });
