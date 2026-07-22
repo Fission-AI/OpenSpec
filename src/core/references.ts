@@ -76,6 +76,54 @@ function registerFix(id: string, remote?: string): string {
   return `Get a checkout from a teammate and run: openspec store register <path> --id ${id}`;
 }
 
+const WHITESPACE = /\s/;
+
+/**
+ * Drop a CommonMark closing sequence (`## Purpose ##`). The closing run only
+ * counts when whitespace precedes it, so `Purpose###` keeps its hashes.
+ * Scans from the end so the cost stays linear in the title length.
+ */
+function stripClosingSequence(title: string): string {
+  let end = title.length;
+  while (end > 0 && WHITESPACE.test(title[end - 1])) {
+    end--;
+  }
+
+  const hashEnd = end;
+  while (end > 0 && title[end - 1] === '#') {
+    end--;
+  }
+
+  const noClosingRun = end === hashEnd;
+  const missingLeadingSpace = end === 0 || !WHITESPACE.test(title[end - 1]);
+  if (noClosingRun || missingLeadingSpace) {
+    return title.trim();
+  }
+
+  return title.slice(0, end).trim();
+}
+
+/**
+ * Heading title, or null when the line is not an ATX heading. Hand-rolled
+ * rather than a regex so a title padded with whitespace cannot backtrack.
+ */
+function parseHeadingTitle(line: string): string | null {
+  let level = 0;
+  while (level < 6 && level < line.length && line[level] === '#') {
+    level++;
+  }
+  if (level === 0 || level >= line.length || !WHITESPACE.test(line[level])) {
+    return null;
+  }
+
+  let start = level;
+  while (start < line.length && WHITESPACE.test(line[start])) {
+    start++;
+  }
+
+  return stripClosingSequence(line.slice(start));
+}
+
 /**
  * Tolerant first-Purpose-line extraction. parseSpec() throws on specs
  * without Purpose/Requirements sections; the index must never fail on an
@@ -103,12 +151,11 @@ export function extractFirstPurposeLine(markdown: string): string {
       continue;
     }
 
-    const heading = line.match(/^(#{1,6})\s+(.*)$/);
-    if (heading) {
+    const title = parseHeadingTitle(line);
+    if (title !== null) {
       if (inPurpose) {
         return '';
       }
-      const title = heading[2].replace(/\s+#+\s*$/, '').trim();
       inPurpose = title.toLowerCase() === 'purpose';
       continue;
     }

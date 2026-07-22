@@ -34,6 +34,9 @@ The `openspec` npm package publishes `dist/`, `bin/`, `schemas/`, and `scripts/p
 | Tool | Covers |
 | --- | --- |
 | [CodeQL](https://github.com/Fission-AI/OpenSpec/security/code-scanning) | Static analysis on every push and pull request to `main` |
-| [Dependabot](https://github.com/Fission-AI/OpenSpec/security/dependabot) | Dependency advisories plus weekly update pull requests |
+| [Dependabot](https://github.com/Fission-AI/OpenSpec/security/dependabot) | Dependency advisories plus weekly update pull requests for the CLI, the docs site, and CI actions |
+| Dependency review | Blocks a pull request that introduces a high-severity dependency |
+| `pnpm audit` | Blocking on published dependencies, weekly on a schedule, informational for build tooling |
+| Pinned actions | Every GitHub Action runs from a commit SHA, so a moved tag cannot change what CI executes |
 
 Alerts are triaged against the threat model above, so a finding in build-only tooling is fixed on the normal update cadence rather than treated as an incident.
