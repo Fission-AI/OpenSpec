@@ -36,7 +36,16 @@ npm install @fission-ai/openspec
 ls node_modules | grep -E '^(vite|rollup|vitest|eslint|js-yaml|minimatch)$'   # no matches
 ```
 
-`pnpm audit --prod` in this repository reports the same scope and is enforced in CI on every pull request.
+`pnpm audit --prod` in this repository reports the same scope, and CI runs it on every pull request.
+
+## What the CLI does on your machine
+
+| Surface | Behavior |
+| --- | --- |
+| Install script | `scripts/postinstall.js` prints one line suggesting shell completions. It makes no network request, writes no files, and runs no shell. Completions are opt-in via `openspec completion install`. |
+| Running other programs | Every call that goes through a shell uses a fixed literal (`which gh`, `gh auth status`). Anything carrying your input — issue text, editor paths, workset commands — uses an argument array with `shell: false`. |
+| Telemetry | Command name, OpenSpec version, and a locally generated random UUID. No file paths, no file contents, no environment, no hostname, and IP capture is explicitly disabled. Opt out with `OPENSPEC_TELEMETRY=0` or `DO_NOT_TRACK=1`; it is off in CI automatically. |
+| Network | Only telemetry, and only when enabled. Reading, writing, and validating specs is entirely local. |
 
 ## Automated checks
 
@@ -45,7 +54,8 @@ ls node_modules | grep -E '^(vite|rollup|vitest|eslint|js-yaml|minimatch)$'   # 
 | [CodeQL](https://github.com/Fission-AI/OpenSpec/security/code-scanning) | Static analysis on every push and pull request to `main` |
 | [Dependabot](https://github.com/Fission-AI/OpenSpec/security/dependabot) | Dependency advisories plus weekly update pull requests for the CLI, the docs site, and CI actions |
 | Dependency review | Blocks a pull request that introduces a high-severity dependency |
-| `pnpm audit` | Blocking on published dependencies, weekly on a schedule, informational for build tooling |
+| Secret scanning | Enabled on the repository, including push protection |
+| `pnpm audit` | Reported on every pull request and weekly on a schedule, separated into published dependencies and build tooling |
 | Pinned actions | Every GitHub Action runs from a commit SHA, so a moved tag cannot change what CI executes |
 
 Alerts are triaged against the threat model above, so a finding in build-only tooling is fixed on the normal update cadence rather than treated as an incident.
