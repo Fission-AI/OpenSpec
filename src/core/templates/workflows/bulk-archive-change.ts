@@ -120,6 +120,13 @@ ${STORE_SELECTION_GUIDANCE}
 
    If there are incomplete changes, make clear they'll be archived with warnings.
 
+   Route on the answer by intent, not by exact label — you wrote these labels,
+   so match what the user picked rather than the wording above:
+   - "Cancel" — stop, do not archive. Report that nothing was archived and skip the remaining steps.
+   - The archive-everything option — proceed with every selected change
+   - The ready-only option — proceed with only the changes the step 6 table marks \`Ready\` or \`Ready*\`, and record the rest as Skipped in step 8c. If a \`Ready*\` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
+   - Anything else — ask again rather than archiving
+
 8. **Execute archive for each confirmed change**
 
    Process changes in the determined order (respecting conflict resolution):
@@ -247,6 +254,7 @@ No active changes found. Create a new change to get started.
 - Skip spec sync only when implementation is missing (warn user)
 - Show clear per-change status before confirming
 - Use single confirmation for entire batch
+- Never archive after the user cancels the confirmation — a cancelled batch archives nothing
 - Track and report all outcomes (success/skip/fail)
 - Preserve .openspec.yaml when moving to archive
 - Archive directory target uses current date: YYYY-MM-DD-<name>; a name that already starts with a \`YYYY-MM-DD-\` prefix is used as-is (never stack a second date)
@@ -372,6 +380,13 @@ ${STORE_SELECTION_GUIDANCE}
 
    If there are incomplete changes, make clear they'll be archived with warnings.
 
+   Route on the answer by intent, not by exact label — you wrote these labels,
+   so match what the user picked rather than the wording above:
+   - "Cancel" — stop, do not archive. Report that nothing was archived and skip the remaining steps.
+   - The archive-everything option — proceed with every selected change
+   - The ready-only option — proceed with only the changes the step 6 table marks \`Ready\` or \`Ready*\`, and record the rest as Skipped in step 8c. If a \`Ready*\` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
+   - Anything else — ask again rather than archiving
+
 8. **Execute archive for each confirmed change**
 
    Process changes in the determined order (respecting conflict resolution):
@@ -499,6 +514,7 @@ No active changes found. Create a new change to get started.
 - Skip spec sync only when implementation is missing (warn user)
 - Show clear per-change status before confirming
 - Use single confirmation for entire batch
+- Never archive after the user cancels the confirmation — a cancelled batch archives nothing
 - Track and report all outcomes (success/skip/fail)
 - Preserve .openspec.yaml when moving to archive
 - Archive directory target uses current date: YYYY-MM-DD-<name>; a name that already starts with a \`YYYY-MM-DD-\` prefix is used as-is (never stack a second date)

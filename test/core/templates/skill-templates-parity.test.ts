@@ -50,12 +50,12 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getOpsxApplyCommandTemplate: 'daeb507206707169de73c828e199648dde5732cbc17791ef2a027adffd028574',
   getOpsxFfCommandTemplate: 'b859b1955cda6012877ae7f9ec6980e468f2e949a3838dfcdebc17209d133749',
   getArchiveChangeSkillTemplate: 'b04eccde2c57af4bc484fa7279fa873ad1d46474eb024467d68e784d8b985c18',
-  getBulkArchiveChangeSkillTemplate: 'f31d17602c274a3fc24d688fb368156618cd31e07762a267d2c506c63b4b4760',
+  getBulkArchiveChangeSkillTemplate: '2b74b1f73380ff32e35f580734780d843c6161a2748c39edb07f1e00453771b4',
   getOpsxSyncCommandTemplate: '98b20e00da5c588ff83ed6e6f0e959dfc540349090fb3f5792ea030d099b8169',
   getVerifyChangeSkillTemplate: 'cab4db01b5d2b1243d63d90c53747d8b39e488c60f76eba3fe8b994467f69267',
   getOpsxArchiveCommandTemplate: '8c113e2a8bca36fecd0e2152ae262fbfbef508e81378838e15d31308fb069b57',
   getOpsxOnboardCommandTemplate: '9430a0fb6530791ab720e068f4b172bc3dfc4e96a1ae29102bee0b92c2afe7b5',
-  getOpsxBulkArchiveCommandTemplate: '22dde4864ec494eee774a46fe5c0c6a68f4ca9ff67272c3177a5d4f5c2be07b7',
+  getOpsxBulkArchiveCommandTemplate: 'da7be1a7318f15b915f5aae8eb638797a8a24a31e5fc7fc0a2bad01bba137686',
   getOpsxVerifyCommandTemplate: 'f01c0c0cef53be0956de52363d955d4ace131b1b2d77adf902f35fead9a1486d',
   getOpsxProposeSkillTemplate: '59197064a46c53264b62925a1c725af4ebe7caf9f0eaed4101990b7c13a40db1',
   getOpsxProposeCommandTemplate: '04f808a36e850b9cdbc4f943ef324a9fd2b1b0cc59b92f127ab6cc452d66cc4e',
@@ -72,7 +72,7 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-ff-change': '0c82830cd9bc98f86eb56b63ddaabe2bf5d35fe25b6c40a7059311aee2c8acac',
   'openspec-sync-specs': 'b3f694ab81956d05126b089fe82dea78dec21788978bb9651485f996aee96740',
   'openspec-archive-change': 'b24d326662ef58809de4464960440713748b9a281323357facdca24af52014e7',
-  'openspec-bulk-archive-change': '98c682899a6fd4c83e71b790b27d6d4ccf832e51c0e754119537992a469c75ec',
+  'openspec-bulk-archive-change': '49d410bda408c0411decd584be9c2355335e3b3db760fc6a0adcd82c172a280f',
   'openspec-verify-change': '57693d22940f06080c6cf8d590ac2f48240d4a5e9ce7074dacd0f8d3c9945afa',
   'openspec-onboard': '76225d10352454a304e56566997811d16f91de1b37653816f2bc5d8ec976febc',
   'openspec-propose': '024db4bce28d9a4d7b25fa92525da6fc701a64ac07dfdcf777d286c95b5281b5',
@@ -265,6 +265,51 @@ describe('skill templates split parity', () => {
       // literal archive path the agent copies verbatim. The rule statements
       // only name the prefix, never place it in a path, so they stay legal.
       expect(text, id).not.toMatch(/\/YYYY-MM-DD-/);
+    }
+  });
+
+  // Covers both archive paths, not just the bulk one the fix targeted: the
+  // single-change routing has been correct since #1357 (current wording from
+  // #1394) but was never pinned, so a stale branch could silently reopen the
+  // bug #1381 actually reported.
+  it('honors Cancel at every archive confirmation (#1381)', () => {
+    const variants: Array<[string, string]> = [
+      ['bulk skill', generateSkillContent(getBulkArchiveChangeSkillTemplate(), 'PARITY-BASELINE')],
+      ['bulk opsx command', getOpsxBulkArchiveCommandTemplate().content],
+      ['single skill', generateSkillContent(getArchiveChangeSkillTemplate(), 'PARITY-BASELINE')],
+      ['single opsx command', getOpsxArchiveCommandTemplate().content],
+    ];
+
+    for (const [variant, content] of variants) {
+      // Offering "Cancel" without routing it let an agent fall straight through
+      // to the archive step and move the changes anyway.
+      expect(content, variant).toContain('"Cancel" — stop, do not archive');
+
+      // An unrecognized answer must re-prompt; archiving is never the default.
+      expect(content, variant).toContain('Anything else — ask again rather than archiving');
+    }
+  });
+
+  // The bulk confirmation labels are written by the agent and carry an `N`
+  // placeholder, so routing must match intent — matching the literal labels
+  // would send every legitimate answer down the "ask again" path forever.
+  it('routes the bulk archive confirmation by intent, not by literal label (#1381)', () => {
+    const variants: Array<[string, string]> = [
+      ['bulk skill', generateSkillContent(getBulkArchiveChangeSkillTemplate(), 'PARITY-BASELINE')],
+      ['bulk opsx command', getOpsxBulkArchiveCommandTemplate().content],
+    ];
+
+    for (const [variant, content] of variants) {
+      expect(content, variant).toContain('Route on the answer by intent, not by exact label');
+
+      // The ready-only route has to name where "ready" is decided, or the agent
+      // cannot tell which subset to archive.
+      expect(content, variant).toContain('the changes the step 6 table marks');
+
+      // A cancelled batch must archive nothing, reinforced where agents skim.
+      expect(content, variant).toContain(
+        'Never archive after the user cancels the confirmation'
+      );
     }
   });
 });
