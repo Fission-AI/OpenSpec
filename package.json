@@ -67,7 +67,7 @@
     "@changesets/cli": "^2.29.6",
     "@types/node": "^24.2.0",
     "@vitest/ui": "^3.2.6",
-    "eslint": "^9.39.2",
+    "eslint": "^10.5.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.62.0",
     "vitest": "^3.2.6"
