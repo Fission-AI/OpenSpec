@@ -1,0 +1,37 @@
+# ATD per-repo openspec/config.yaml template
+# Copy to <repo>/openspec/config.yaml and edit the stack block + rules for your repo.
+
+schema: atd-sdlc
+
+# Reference the shared standards store (register once per machine:
+#   openspec store register <path-to-atd-standards-clone>)
+references:
+  - atd-standards
+
+# Free-text project context injected into every artifact instruction.
+# Keep ONE stack block (delete the others) and fill in your repo's specifics.
+context: |
+  Stack: python            # one of: python | spring-boot | oracle-ebs | angular
+  Service: <service name and one-line purpose>
+  Domain notes: <business domain, key entities, gotchas>
+  Team conventions: <anything the standards spec does not cover>
+
+# Per-artifact rules. Keys MUST be artifact IDs of the atd-sdlc schema
+# (ticket, analysis, specs, design, solution-doc, tasks) — unknown keys are
+# warned and never injected. There is no "apply" or "docs" key.
+rules:
+  # Documentation destination rides the tasks rules and lands in the generated
+  # publication tasks. Pick one form:
+  tasks:
+    - "Documentation destination: repo"
+    # - "Documentation destination: confluence — space <SPACE>, parent page <PAGE-ID>"
+    # - "Documentation destination: both — repo docs/ plus Confluence space <SPACE>, parent <PAGE-ID>"
+
+  # Optional: name code-index/code-graph tooling the agent should prefer over
+  # raw file reads during analysis.
+  # analysis:
+  #   - "Prefer the tokensave MCP tools for symbol lookup and call-path tracing"
+
+  # Optional: disable the confirmed Jira write-back for this repo.
+  # ticket:
+  #   - "Jira write-back is disabled for this repository"

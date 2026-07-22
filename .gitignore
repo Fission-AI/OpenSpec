@@ -166,3 +166,26 @@ opencode.json
 
 # Cursor
 .cursor/
+.agent/skills/openspec-apply-change/SKILL.md
+.agent/skills/openspec-archive-change/SKILL.md
+.agent/skills/openspec-explore/SKILL.md
+.agent/skills/openspec-propose/SKILL.md
+.agent/skills/openspec-sync-specs/SKILL.md
+.agent/skills/openspec-update-change/SKILL.md
+.agent/workflows/opsx-apply.md
+.agent/workflows/opsx-archive.md
+.agent/workflows/opsx-explore.md
+.agent/workflows/opsx-propose.md
+.agent/workflows/opsx-sync.md
+.agent/workflows/opsx-update.md
+.lavish/atd-sdlc-feasibility-review.html
+.lavish/atd-sdlc-plan.html
+.tokensave/branch-meta.json
+.tokensave/config.json
+.tokensave/tokensave.db
+.tokensave/tokensave.db-shm
+.tokensave/tokensave.db-wal
+TRASH/docs-publishing-spec/spec.md
+TRASH/telemetry-spec/spec.md
+TRASH-FILES.md
+.agent/

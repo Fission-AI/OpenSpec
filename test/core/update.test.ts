@@ -1706,7 +1706,7 @@ More user content after markers.
         call.map(arg => String(arg)).join(' ')
       );
       expect(calls.some(call =>
-        call.includes('Your custom profile is missing 2 core workflows: update, sync')
+        call.includes('Your custom profile is missing 3 core workflows: update, sync, atd-triage')
       )).toBe(true);
       expect(calls.some(call =>
         call.includes('openspec config profile core')
@@ -1727,7 +1727,7 @@ More user content after markers.
         featureFlags: {},
         profile: 'custom',
         delivery: 'both',
-        workflows: ['propose', 'explore', 'apply', 'sync', 'archive'],
+        workflows: ['propose', 'explore', 'apply', 'sync', 'archive', 'atd-triage'],
       });
 
       const initCommand = new InitCommand({ tools: 'claude', force: true });
@@ -1755,7 +1755,7 @@ More user content after markers.
         featureFlags: {},
         profile: 'custom',
         delivery: 'both',
-        workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive', 'verify'],
+        workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive', 'atd-triage', 'verify'],
       });
 
       const initCommand = new InitCommand({ tools: 'claude', force: true });

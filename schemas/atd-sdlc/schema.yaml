@@ -1,0 +1,259 @@
+name: atd-sdlc
+version: 1
+description: ATD workflow - Jira ticket → analysis → (specs, design) → solution-doc → tasks
+artifacts:
+  - id: ticket
+    generates: ticket.md
+    description: Normalized ticket intake from Jira and Confluence with completeness gate
+    template: ticket.md
+    instruction: |
+      Create the ticket document that establishes WHAT was asked and makes it complete.
+
+      Change names use the Jira ticket key (e.g. `abc-1234-add-export`). Derive the
+      ticket key from the change name.
+
+      **Intake:**
+      1. Pull the Jira issue and ALL linked Confluence pages via the Atlassian MCP.
+      2. If the Atlassian MCP is unavailable, ask the developer to paste the ticket
+         content and continue with the same checklist below.
+      3. Record in ticket.md: the normalized problem statement, acceptance criteria
+         with stable IDs (AC-1, AC-2, …), affected systems, and links to the Jira
+         issue and every Confluence source.
+
+      **Triage record:**
+      If a `triage.md` sidecar exists in the change directory, fold its routing
+      record (recommendation, condition evaluations, confirmed choice) into
+      ticket.md. When no sidecar exists, proceed normally — direct full-schema
+      creation needs no triage.
+
+      **Branch alignment (advisory):**
+      Compare the current git branch name with the ticket key. If the branch does not
+      reference the key, suggest creating or switching to a branch named after the
+      ticket (e.g. `abc-1234-add-export`). This is a suggestion only — never block,
+      and never create or switch branches without explicit developer confirmation.
+      Record the branch used (and any declined suggestion) in ticket.md.
+
+      **Completeness checklist (gate):**
+      - Problem statement
+      - Acceptance criteria
+      - Affected systems
+      - Edge cases
+      - Constraints
+      - Out-of-scope
+
+      **Grilling protocol (when any checklist item is missing):**
+      - First explore the codebase for answers. A question the code can answer
+        (e.g. which module owns the behavior) is answered by reading the code,
+        never asked.
+      - Otherwise ask the developer EXACTLY ONE question at a time, and attach a
+        recommended answer to every question.
+      - Loop until the checklist passes.
+      - Record the question/answer trace in ticket.md under "Clarified Requirements".
+      - If the ticket is already adequate, the checklist passes trivially — do not
+        interrogate for its own sake.
+
+      **Jira write-back (confirmed, idempotent):**
+      After grilling produced clarified requirements, OFFER to update the Jira issue.
+      Proceed only after the developer confirms. Write into a clearly delimited
+      managed section of the issue description:
+
+          ---- OPENSPEC MANAGED SECTION (auto-generated, do not edit) ----
+          ...clarified requirements...
+          ---- END OPENSPEC MANAGED SECTION ----
+
+      Re-runs replace ONLY the managed section and never touch human-authored
+      content. Note the update in ticket.md. If the developer declines, or the
+      project's `rules: ticket:` config disables write-back, record clarified
+      requirements only in ticket.md.
+    requires: []
+
+  - id: analysis
+    generates: analysis.md
+    description: Evidence-cited analysis of current behavior with affected stacks
+    template: analysis.md
+    instruction: |
+      Create the analysis document that establishes how the system behaves TODAY.
+
+      **Code is the source of truth.** Derive current behavior from the code itself.
+      Documentation (Confluence, comments, wikis) is a hint to verify against code.
+      When documentation and code disagree, record the code's behavior as current
+      truth and list the discrepancy for the developer. Business rules found in code
+      that no documentation mentions are captured with their citation.
+
+      **Evidence:**
+      - Record the repository commit SHA once at the top of the document.
+      - Every claim about existing behavior carries a `file:line` citation
+        (e.g. `src/orders/service.py:120-141`).
+      - Name the affected stacks from the explicit set:
+        {python, spring-boot, oracle-ebs, angular}. The apply phase maps these to
+        standards specs, so this list is mandatory.
+
+      **Token-efficient reading — scope everything to the acceptance criteria:**
+      - For each AC, locate the entry points (endpoint, job, UI action) it concerns.
+      - Trace the call path from the entry point and read only the sections that
+        path touches.
+      - Never sweep whole directories or whole files when a targeted read answers
+        the question.
+      - When the project's `rules: analysis:` config names code-index or code-graph
+        tooling, prefer it over raw file reads for symbol lookup and call-path
+        tracing.
+
+      If analysis reveals the ticket's acceptance criteria are wrong or incomplete,
+      return to the ticket artifact and update it with the developer.
+    requires:
+      - ticket
+
+  - id: specs
+    generates: "specs/**/*.md"
+    description: Delta specifications traceable to acceptance criteria
+    template: spec.md
+    instruction: |
+      Create specification files that define WHAT the system should do.
+
+      A spec is a behavior contract, not an implementation plan.
+
+      **AC traceability (mandatory):** every requirement MUST reference at least one
+      acceptance-criterion ID from ticket.md — write "Covers: AC-n" in the
+      requirement description. A candidate requirement with no matching acceptance
+      criterion is scope invention: either drop it or return to the ticket artifact
+      and add the criterion with the developer. Never keep an untraceable
+      requirement.
+
+      Create one spec file per capability: specs/<capability>/spec.md, kebab-case
+      names.
+
+      Delta operations (use ## headers):
+      - **ADDED Requirements**: new capabilities
+      - **MODIFIED Requirements**: changed behavior — MUST include full updated content
+      - **REMOVED Requirements**: deprecated — MUST include **Reason** and **Migration**
+      - **RENAMED Requirements**: name changes only — FROM:/TO: format
+
+      Format requirements:
+      - Each requirement: `### Requirement: <name>` followed by description with
+        SHALL/MUST language and its "Covers: AC-n" line.
+      - Each scenario: `#### Scenario: <name>` with WHEN/THEN format.
+      - **CRITICAL**: scenarios use exactly 4 hashtags (`####`).
+      - Every requirement MUST have at least one scenario.
+
+      Specs should be testable — each scenario is a potential test case.
+    requires:
+      - analysis
+
+  - id: design
+    generates: design.md
+    description: Technical decisions, alternatives, risks, and solution flow
+    template: design.md
+    instruction: |
+      Create the design document that explains HOW to implement the change.
+
+      Sections:
+      - **Context**: current state from analysis.md, constraints
+      - **Decisions**: key technical choices with rationale and alternatives
+        considered (why X over Y?)
+      - **Solution Flow**: a mermaid diagram — REQUIRED when the change spans
+        multiple components or the flow is non-trivial; OMIT it for
+        single-component changes with a straightforward flow. Never draw a diagram
+        merely to satisfy the template.
+      - **Risks / Trade-offs**: [Risk] → Mitigation format
+
+      Omit any section that has no content. Never fill a section with boilerplate.
+      Keep the document under roughly 1,000 words — design records decisions, not
+      an essay.
+
+      Reference the ticket for motivation, analysis for current behavior, specs for
+      requirements.
+    requires:
+      - analysis
+
+  - id: solution-doc
+    generates: solution.md
+    description: Enterprise-facing functional and technical solution document
+    template: solution.md
+    instruction: |
+      Create solution.md — the enterprise-facing functional and technical document.
+      It exists BEFORE implementation and is reconciled against the code after.
+
+      **Full section set** (scale depth to the change size; OMIT any section that
+      does not apply — a section is never filled with boilerplate to satisfy the
+      template):
+      - Executive summary
+      - Functional problem and proposed behavior
+      - Scope and business rules
+      - Acceptance-criteria traceability (table mapping AC IDs → spec requirements)
+      - Current and proposed technical architecture
+      - APIs, data, security, observability
+      - Migration and rollback
+      - Testing strategy
+      - Standards applied (the mapped standards spec per affected stack)
+      - As-built implementation and deviations — initialize as
+        "Pending implementation"; the final task group updates it
+      - Publication and release metadata
+
+      For a small fix with no API, data, migration, or security surface, the
+      document is short: summary, behavior, traceability, testing, standards —
+      nothing else.
+
+      Content comes from ticket.md (what and why), specs (contract), and design.md
+      (how). Do not invent content that is not in those artifacts.
+    requires:
+      - specs
+      - design
+
+  - id: tasks
+    generates: tasks.md
+    description: Verifiable implementation checklist with mandatory final group
+    template: tasks.md
+    instruction: |
+      Create the task list that breaks down the implementation work.
+
+      **IMPORTANT: follow the checkbox format exactly.** The apply phase parses
+      `- [ ] X.Y` checkboxes to track progress.
+
+      **Every task MUST state:**
+      - the target files or modules it touches
+      - the acceptance-criterion IDs it serves (e.g. "AC-2, AC-3")
+      - a verification command or check (test command, CLI invocation, or
+        observable output)
+
+      Exception: governance tasks in the mandatory final group (standards
+      conformance, reconciliation, publication, Jira closure) need no code
+      files or AC IDs, but MUST still state their verification evidence.
+
+      Group related tasks under ## numbered headings, ordered by dependency.
+
+      **Mandatory final task group — apply is complete only when these are checked:**
+      1. One standards-conformance task per affected stack in analysis.md, naming
+         the mapped spec: python → python-service-standards,
+         spring-boot → spring-boot-standards,
+         oracle-ebs → oracle-ebs-plsql-standards, angular → angular-standards.
+         (e.g. "Verify conformance to `angular-standards` scenarios; note deviations")
+      2. Reconcile solution.md against the implemented code: update the as-built
+         section, record every deviation from design with its reason and
+         verification evidence.
+      3. Publish the reconciled solution.md to the destination declared in the
+         project's `rules: tasks:` config — `confluence` (page under the configured
+         space/parent via the Atlassian MCP, record the page URL in solution.md),
+         `repo` (markdown under docs/), or `both` (repo first, then Confluence).
+         When no destination is configured, ask the developer to choose before
+         publishing.
+      4. Add an idempotent Jira closure comment: change summary plus links to the
+         published documentation; re-runs update the existing closure comment
+         instead of posting a duplicate.
+    requires:
+      - solution-doc
+
+apply:
+  requires: [tasks]
+  tracks: tasks.md
+  instruction: |
+    Before implementing ANY task: fetch the standards spec mapped to each stack
+    listed in analysis.md from the atd-standards store —
+    python → python-service-standards, spring-boot → spring-boot-standards,
+    oracle-ebs → oracle-ebs-plsql-standards, angular → angular-standards —
+    and conform to it while writing code.
+
+    Read context files, work through pending tasks in order, mark each checkbox
+    complete as you go. The mandatory final task group (standards conformance,
+    solution.md reconciliation, publication, Jira closure) is part of apply —
+    apply is complete only when it is checked. Pause on blockers or unclear
+    requirements.

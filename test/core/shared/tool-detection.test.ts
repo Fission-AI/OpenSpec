@@ -28,7 +28,7 @@ describe('tool-detection', () => {
 
   describe('SKILL_NAMES', () => {
     it('should contain all skill names matching COMMAND_IDS', () => {
-      expect(SKILL_NAMES).toHaveLength(12);
+      expect(SKILL_NAMES).toHaveLength(13);
       expect(SKILL_NAMES).toContain('openspec-explore');
       expect(SKILL_NAMES).toContain('openspec-new-change');
       expect(SKILL_NAMES).toContain('openspec-continue-change');
@@ -330,6 +330,28 @@ metadata:
       const cursorStatus = statuses.find(s => s.toolId === 'cursor');
       expect(cursorStatus?.generatedByVersion).toBe('0.23.0');
       expect(cursorStatus?.needsUpdate).toBe(false);
+    });
+  });
+
+  describe('atd-triage-only installations', () => {
+    it('detects a project configured with only the atd-change-triage skill', async () => {
+      const skillFile = path.join(testDir, '.claude', 'skills', 'atd-change-triage', 'SKILL.md');
+      await fs.mkdir(path.dirname(skillFile), { recursive: true });
+      await fs.writeFile(skillFile, 'name: atd-change-triage\n');
+
+      const status = getToolSkillStatus(testDir, 'claude');
+      expect(status.configured).toBe(true);
+      expect(status.skillCount).toBe(1);
+      expect(getConfiguredTools(testDir)).toContain('claude');
+    });
+
+    it('detects a project configured with only the atd-triage command', async () => {
+      const { getConfiguredToolsForProfileSync } = await import('../../../src/core/profile-sync-drift.js');
+      const commandFile = path.join(testDir, '.claude', 'commands', 'opsx', 'atd-triage.md');
+      await fs.mkdir(path.dirname(commandFile), { recursive: true });
+      await fs.writeFile(commandFile, '# atd-triage\n');
+
+      expect(getConfiguredToolsForProfileSync(testDir)).toContain('claude');
     });
   });
 });

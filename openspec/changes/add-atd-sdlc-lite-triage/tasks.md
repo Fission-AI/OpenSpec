@@ -1,0 +1,23 @@
+# Tasks: Add ATD SDLC Lite and Change Triage
+
+## 1. Lite schema
+
+- [x] 1.1 Create `schemas/atd-sdlc-lite/schema.yaml` with ticket → analysis → tasks (apply tracks tasks.md); verify `openspec status` on a test change lists exactly three artifacts
+- [x] 1.2 Write lite `ticket` instruction (compact: Jira source, problem statement, AC IDs, restores-intended-behavior confirmation, triage record section) — duplicate the full schema's shared intake/grilling rule blocks verbatim
+- [x] 1.3 Write lite `analysis` instruction (root cause with SHA + file:line, target files, affected stacks from explicit set, covering spec/test, risk assessment, lite-eligibility justification — full-schema content contract) and lite `tasks` instruction (standard six-task shape incl. standards check via explicit mapping, no-new-solution-doc determination with localized existing-doc updates allowed, idempotent Jira closure)
+- [x] 1.4 Implement pre-tasks escalation as `.openspec.yaml` edit to `schema: atd-sdlc` in the lite analysis instruction; test post-switch status: ticket/analysis done, specs/design ready, solution-doc/tasks blocked, apply blocked
+- [x] 1.5 Implement late escalation in the lite apply instruction for triggers found after `tasks.md` exists or during apply: stop; move `tasks.md` to `tasks.lite.md`; append `triage.md`; update ticket/analysis; switch to `atd-sdlc`; require the regenerated full task list to reconcile partial code. Test `tasks.lite.md` preserved, tracked `tasks.md` absent, specs/design ready, solution-doc/tasks blocked, and apply blocked
+- [x] 1.6 Create `schemas/atd-sdlc-lite/templates/` (ticket.md, analysis.md, tasks.md); verify instruction-loader resolves without diagnostics
+- [x] 1.7 Update `schemas/atd-sdlc/schema.yaml` ticket instruction: read `triage.md` when present and include the routing record in ticket.md; proceed normally when absent; verify both paths in the dry-run
+- [x] 1.8 Add instruction parity test asserting the shared rule blocks (intake incl. branch-alignment suggestion, grilling, citation, affected-stack set) match between `atd-sdlc` and `atd-sdlc-lite`, AND a template-compatibility test asserting generated lite ticket.md/analysis.md contain every mandatory field of the full schema's contract; drift or missing fields fail `pnpm test`
+
+## 2. Triage skill
+
+- [x] 2.1 Author the eligibility decision table in `docs/atd/lite-eligibility.md` (all-must-pass conditions, risk-not-linecount rule with authorization/SQL/financial examples, uncertainty→full default, monotonic override policy, bounded-preflight checklist, and documentation rule: no new solution document/durable doc set; localized updates to existing docs remain lite-eligible unless they reveal a full-workflow impact)
+- [x] 2.2 Add `atd-change-triage` through BOTH delivery paths — skill template and `/opsx:atd-triage` command template — with additive TypeScript changes: workflow template exports, skill-generation registry, command-generation registration, workflow profile/selection mappings, init/update synchronization, committed generated artifacts. Behavior: bounded codebase preflight, evaluate table, present recommendation with quoted conditions, enforce monotonic confirmation, run `openspec new change <key> --schema <chosen> --json`, write `triage.md` sidecar under the returned change path (never ticket.md, never assume repo-local openspec/changes/)
+- [x] 2.3 Add `atd-triage` to the fork's CORE_WORKFLOWS so triage installs by default for ATD tools (bootstrap profile configuration rejected as second-class onboarding); verify init installs it without profile selection
+- [x] 2.4 Add tests, split by what is executable in this repo: (a) instruction-contract tests — monotonic confirmation, uncertainty→full, risk-not-linecount, doc rule, sidecar/`--json` path rules, escalation format, lite self-triage gate vs full proceed-normally — assert the shipped instruction text on both delivery surfaces; (b) graph-level tests — triage.md is not an artifact output, sidecar leaves ticket pending in both schemas, pre-tasks and late escalation status; (c) init/update delivery for skills-only, commands-only, and both. Agent-behavior scenarios (actual routing decisions, live Jira flow, non-repo-local sidecar writes) WILL be verified against the pilot wave 1 transcript — pending, tracked as task 5.2 of add-atd-sdlc-schema; verify `pnpm test` for the repository-testable coverage
+
+## 3. Pilot metrics
+
+- [x] 3.1 Extend pilot metric capture (docs/atd/adoption-track.md) with lite/full selection rate, lite→full escalation rate (sourced from the auditable triage records), and recurring standards-deviation classes flagged as CI-check candidates
