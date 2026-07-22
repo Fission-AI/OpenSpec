@@ -133,9 +133,16 @@ export function getNestedValue(obj: Record<string, unknown>, path: string): unkn
  */
 export function setNestedValue(obj: Record<string, unknown>, path: string, value: unknown): void {
   const keys = path.split('.');
-  if (hasUnsafeSegment(keys)) {
-    return;
+
+  // Compared literally rather than through a helper, so the guard is plain to a
+  // reader and to static analysis. Checked for the whole path before anything is
+  // written, so a rejected key never leaves half-created objects behind.
+  for (const key of keys) {
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+      return;
+    }
   }
+
   let current: Record<string, unknown> = obj;
 
   for (let i = 0; i < keys.length - 1; i++) {
@@ -159,9 +166,13 @@ export function setNestedValue(obj: Record<string, unknown>, path: string, value
  */
 export function deleteNestedValue(obj: Record<string, unknown>, path: string): boolean {
   const keys = path.split('.');
-  if (hasUnsafeSegment(keys)) {
-    return false;
+
+  for (const key of keys) {
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+      return false;
+    }
   }
+
   let current: Record<string, unknown> = obj;
 
   for (let i = 0; i < keys.length - 1; i++) {
