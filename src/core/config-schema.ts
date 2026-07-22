@@ -133,26 +133,28 @@ export function getNestedValue(obj: Record<string, unknown>, path: string): unkn
  */
 export function setNestedValue(obj: Record<string, unknown>, path: string, value: unknown): void {
   const keys = path.split('.');
-  let current: Record<string, unknown> = obj;
 
-  for (let i = 0; i < keys.length; i++) {
-    const key = keys[i];
-    // Compared literally, at the site of the write, so the guard is visible to a
-    // reader and to static analysis rather than hidden behind a helper.
+  // Compared literally rather than through a helper, so the guard is plain to a
+  // reader and to static analysis. Checked for the whole path before anything is
+  // written, so a rejected key never leaves half-created objects behind.
+  for (const key of keys) {
     if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
       return;
     }
+  }
 
-    if (i === keys.length - 1) {
-      current[key] = value;
-      return;
-    }
+  let current: Record<string, unknown> = obj;
 
+  for (let i = 0; i < keys.length - 1; i++) {
+    const key = keys[i];
     if (current[key] === undefined || current[key] === null || typeof current[key] !== 'object') {
       current[key] = {};
     }
     current = current[key] as Record<string, unknown>;
   }
+
+  const lastKey = keys[keys.length - 1];
+  current[lastKey] = value;
 }
 
 /**
@@ -164,28 +166,28 @@ export function setNestedValue(obj: Record<string, unknown>, path: string, value
  */
 export function deleteNestedValue(obj: Record<string, unknown>, path: string): boolean {
   const keys = path.split('.');
-  let current: Record<string, unknown> = obj;
 
-  for (let i = 0; i < keys.length; i++) {
-    const key = keys[i];
+  for (const key of keys) {
     if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
       return false;
     }
+  }
 
-    if (i === keys.length - 1) {
-      if (key in current) {
-        delete current[key];
-        return true;
-      }
-      return false;
-    }
+  let current: Record<string, unknown> = obj;
 
+  for (let i = 0; i < keys.length - 1; i++) {
+    const key = keys[i];
     if (current[key] === undefined || current[key] === null || typeof current[key] !== 'object') {
       return false;
     }
     current = current[key] as Record<string, unknown>;
   }
 
+  const lastKey = keys[keys.length - 1];
+  if (lastKey in current) {
+    delete current[lastKey];
+    return true;
+  }
   return false;
 }
 
