@@ -46,3 +46,42 @@ export async function discoverSpecFiles(specsRoot: string): Promise<DiscoveredSp
   // guarantees the deterministic output the docstring promises.
   return results.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
+
+/**
+ * True when any regular non-dot file exists anywhere under the given
+ * directory. Used by validate/archive to detect content under a change's
+ * specs/ that contradicts a declared skip_specs marker - including files that
+ * discoverSpecFiles ignores (a root spec.md, stray non-spec.md notes), since
+ * anything there would be silently dropped or misread while the change claims
+ * to have nothing. Dot entries (.DS_Store, .gitkeep, dot-directories) are
+ * skipped to match discoverSpecFiles - they are invisible to every other
+ * code path, so they must not count as spec content. Symlinks DO count
+ * (without being followed): the artifact graph's globs follow them, so a
+ * symlinked spec would read as existing content while the change claims to
+ * have none - it contradicts the marker like any regular file. A missing
+ * directory returns false; other read failures are thrown for the caller to
+ * decide.
+ */
+export async function hasAnyFileUnder(dirPath: string): Promise<boolean> {
+  let entries;
+  try {
+    entries = await fs.readdir(dirPath, { withFileTypes: true });
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') {
+      return false;
+    }
+    throw err;
+  }
+  for (const entry of entries) {
+    if (entry.name.startsWith('.')) {
+      continue;
+    }
+    if (entry.isFile() || entry.isSymbolicLink()) {
+      return true;
+    }
+    if (entry.isDirectory() && (await hasAnyFileUnder(path.join(dirPath, entry.name)))) {
+      return true;
+    }
+  }
+  return false;
+}

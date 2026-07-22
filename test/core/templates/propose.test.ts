@@ -105,16 +105,29 @@ describe('artifact loop guards (propose and ff)', () => {
     }
   });
 
-  // specs must not be skippable — `openspec validate` rejects a change with no
-  // deltas. "Required" is not machine-readable (the graph has tasks requiring
-  // both specs and design), but the artifact's own instruction is: spec-driven's
-  // design says "create only if any apply", specs says nothing of the kind.
+  // specs must not be skippable on the agent's own judgment. "Required" is not
+  // machine-readable (the graph has tasks requiring both specs and design), but
+  // the artifact's own instruction is: spec-driven's design says "create only if
+  // any apply", specs says nothing of the kind. The one legitimate way to skip
+  // specs is the `skipped` status the CLI reports for a change declaring
+  // `skip_specs` (#1399) — a decision the tool makes, never the agent.
   it('permits skipping only artifacts their own instruction marks conditional', () => {
     for (const [label, body] of loopBodies) {
       expect(body, label).toContain(
-        'Skip one only when its own `instruction` says it is conditional'
+        'or when its own `instruction` says it is conditional'
       );
       expect(body, label).toContain('do not reconsider it');
+    }
+  });
+
+  // The skip_specs carve-out must stay explicit in the loop: an artifact the CLI
+  // already reports as `skipped` is satisfied and must never be written, or the
+  // agent creates spec files that `openspec validate` then rejects as
+  // conflicting with the marker (#1399).
+  it('treats a `skipped` status as satisfied and never creates it (#1399)', () => {
+    for (const [label, body] of loopBodies) {
+      expect(body, label).toContain('status: "skipped"');
+      expect(body, label).toContain('its files must NOT exist');
     }
   });
 
@@ -126,7 +139,7 @@ describe('artifact loop guards (propose and ff)', () => {
       expect(body, label).toContain(
         'run `openspec instructions <artifact-id> --change "<name>" --json` and skip only if its `instruction` field marks it optional'
       );
-      expect(body, label).toContain('`specs` never does');
+      expect(body, label).toContain('never by your own judgment');
     }
   });
 
@@ -171,7 +184,7 @@ describe('artifact loop guards (propose and ff)', () => {
   it('stops on the whole required set, not on applyRequires alone', () => {
     for (const [label, body] of loopBodies) {
       expect(body, label).toContain(
-        'Stop when every artifact in the required set is `done` or was deliberately skipped'
+        'Stop when every artifact in the required set is `done`, `skipped`, or was deliberately skipped'
       );
       expect(body, label).not.toContain('Stop when all `applyRequires` artifacts are done');
     }

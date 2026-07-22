@@ -26,6 +26,23 @@ describe('ChangeMetadataSchema', () => {
       }
     });
 
+    it('should accept skip_specs boolean and reject non-boolean values', () => {
+      const withFlag = ChangeMetadataSchema.safeParse({
+        schema: 'spec-driven',
+        skip_specs: true,
+      });
+      expect(withFlag.success).toBe(true);
+      if (withFlag.success) {
+        expect(withFlag.data.skip_specs).toBe(true);
+      }
+
+      const nonBoolean = ChangeMetadataSchema.safeParse({
+        schema: 'spec-driven',
+        skip_specs: 'yes',
+      });
+      expect(nonBoolean.success).toBe(false);
+    });
+
     it('should accept valid schema without created date', () => {
       const result = ChangeMetadataSchema.safeParse({
         schema: 'custom-schema',

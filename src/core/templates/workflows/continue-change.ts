@@ -39,7 +39,7 @@ ${STORE_SELECTION_GUIDANCE}
    \`\`\`
    Parse the JSON to understand current state. The response includes:
    - \`schemaName\`: The workflow schema being used (e.g., "spec-driven")
-   - \`artifacts\`: Array of artifacts with their status ("done", "ready", "blocked")
+   - \`artifacts\`: Array of artifacts with their status ("done", "skipped", "ready", "blocked")
    - \`isComplete\`: Boolean indicating if all artifacts are complete
    - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context. Use these instead of assuming repo-local paths.
 
@@ -67,7 +67,8 @@ ${STORE_SELECTION_GUIDANCE}
      - \`template\`: The structure to use for your output file
      - \`instruction\`: Schema-specific guidance
      - \`resolvedOutputPath\`: Resolved path or pattern to write the artifact
-     - \`dependencies\`: Completed artifacts to read for context
+     - \`dependencies\`: Completed artifacts to read for context (entries with \`skipped: true\` have no files - do not look for them)
+     - \`skipped\`/\`warning\`: present when the change declares skip_specs and this artifact must NOT be created - pick another artifact
    - **Create the artifact file**:
      - Read any completed dependency files for context - always re-read them from disk, even if you saw them earlier in the conversation (the user may have edited them)
      - If the \`instruction\` field delegates creation to a specific skill or command, invoke it to produce the artifact instead of writing the file yourself, then verify the artifact file exists at \`resolvedOutputPath\`
@@ -153,7 +154,7 @@ ${STORE_SELECTION_GUIDANCE}
    \`\`\`
    Parse the JSON to understand current state. The response includes:
    - \`schemaName\`: The workflow schema being used (e.g., "spec-driven")
-   - \`artifacts\`: Array of artifacts with their status ("done", "ready", "blocked")
+   - \`artifacts\`: Array of artifacts with their status ("done", "skipped", "ready", "blocked")
    - \`isComplete\`: Boolean indicating if all artifacts are complete
    - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context. Use these instead of assuming repo-local paths.
 
@@ -181,7 +182,8 @@ ${STORE_SELECTION_GUIDANCE}
      - \`template\`: The structure to use for your output file
      - \`instruction\`: Schema-specific guidance
      - \`resolvedOutputPath\`: Resolved path or pattern to write the artifact
-     - \`dependencies\`: Completed artifacts to read for context
+     - \`dependencies\`: Completed artifacts to read for context (entries with \`skipped: true\` have no files - do not look for them)
+     - \`skipped\`/\`warning\`: present when the change declares skip_specs and this artifact must NOT be created - pick another artifact
    - **Create the artifact file**:
      - Read any completed dependency files for context - always re-read them from disk, even if you saw them earlier in the conversation (the user may have edited them)
      - If the \`instruction\` field delegates creation to a specific skill or command, invoke it to produce the artifact instead of writing the file yourself, then verify the artifact file exists at \`resolvedOutputPath\`

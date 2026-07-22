@@ -189,6 +189,18 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
   console.log(`<artifact id="${artifactId}" change="${changeName}" schema="${schemaName}">`);
   console.log();
 
+  // Artifacts skipped via skip_specs get no creation directive: emitting the
+  // task/template anyway would prompt an agent to write spec files that
+  // validate then rejects as conflicting with the marker.
+  if (instructions.skipped) {
+    console.log('<warning>');
+    console.log(instructions.warning ?? 'This artifact is skipped (skip_specs is set in .openspec.yaml).');
+    console.log('</warning>');
+    console.log();
+    console.log('</artifact>');
+    return;
+  }
+
   // Warning for blocked artifacts
   if (isBlocked) {
     const missing = dependencies.filter((d) => !d.done).map((d) => d.id);
@@ -238,6 +250,15 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
     console.log('Read the current contents of these files before creating this artifact (re-read them from disk even if you saw them earlier - they may have been edited):');
     console.log();
     for (const dep of dependencies) {
+      // A dependency satisfied via skip_specs has no files by design: telling
+      // the agent to read them (or calling them "done") would send it hunting
+      // for spec files that must not exist.
+      if (dep.skipped) {
+        console.log(`<dependency id="${dep.id}" status="skipped">`);
+        console.log(`  <description>Skipped: the change declares skip_specs, so this artifact has no files to read.</description>`);
+        console.log('</dependency>');
+        continue;
+      }
       const status = dep.done ? 'done' : 'missing';
       const fullPath = path.join(changeDir, dep.path);
       console.log(`<dependency id="${dep.id}" status="${status}">`);
@@ -354,9 +375,14 @@ export async function generateApplyInstructions(
   const tracksFile = applyConfig?.tracks ?? null;
   const schemaInstruction = applyConfig?.instruction ?? null;
 
-  // Check which required artifacts are missing
+  // Check which required artifacts are missing. Artifacts the change skips
+  // via skip_specs count as present - their files must not exist, and
+  // status already reports them complete, so apply cannot block on them.
   const missingArtifacts: string[] = [];
   for (const artifactId of requiredArtifactIds) {
+    if (context.skippedArtifacts?.has(artifactId)) {
+      continue;
+    }
     const artifact = schema.artifacts.find((a) => a.id === artifactId);
     if (artifact && resolveArtifactOutputs(changeDir, artifact.generates).length === 0) {
       missingArtifacts.push(artifactId);

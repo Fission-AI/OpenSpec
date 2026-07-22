@@ -84,13 +84,15 @@ export function isColorDisabled(): boolean {
 /**
  * Gets the color function based on status.
  */
-export function getStatusColor(status: 'done' | 'ready' | 'blocked'): (text: string) => string {
+export function getStatusColor(status: 'done' | 'skipped' | 'ready' | 'blocked'): (text: string) => string {
   if (isColorDisabled()) {
     return (text: string) => text;
   }
   switch (status) {
     case 'done':
       return chalk.green;
+    case 'skipped':
+      return chalk.gray;
     case 'ready':
       return chalk.yellow;
     case 'blocked':
@@ -101,11 +103,13 @@ export function getStatusColor(status: 'done' | 'ready' | 'blocked'): (text: str
 /**
  * Gets the status indicator for an artifact.
  */
-export function getStatusIndicator(status: 'done' | 'ready' | 'blocked'): string {
+export function getStatusIndicator(status: 'done' | 'skipped' | 'ready' | 'blocked'): string {
   const color = getStatusColor(status);
   switch (status) {
     case 'done':
       return color('[x]');
+    case 'skipped':
+      return color('[~]');
     case 'ready':
       return color('[ ]');
     case 'blocked':

@@ -39,7 +39,7 @@ ${STORE_SELECTION_GUIDANCE}
    \`\`\`
    Parse the JSON to understand current state. The response includes:
    - \`schemaName\`: The workflow schema being used (e.g., "spec-driven")
-   - \`artifacts\`: Array of artifacts with their status ("done", "ready", "blocked")
+   - \`artifacts\`: Array of artifacts with their status ("done", "skipped", "ready", "blocked")
    - \`isComplete\`: Boolean indicating if all artifacts are complete
    - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context. Use these instead of assuming repo-local paths.
 
@@ -125,7 +125,7 @@ ${STORE_SELECTION_GUIDANCE}
    \`\`\`
    Parse the JSON to understand current state. The response includes:
    - \`schemaName\`: The workflow schema being used (e.g., "spec-driven")
-   - \`artifacts\`: Array of artifacts with their status ("done", "ready", "blocked")
+   - \`artifacts\`: Array of artifacts with their status ("done", "skipped", "ready", "blocked")
    - \`isComplete\`: Boolean indicating if all artifacts are complete
    - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context. Use these instead of assuming repo-local paths.
 
