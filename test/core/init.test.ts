@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'fs';
+import { randomUUID } from 'crypto';
 import path from 'path';
 import os from 'os';
 import { InitCommand } from '../../src/core/init.js';
@@ -29,11 +30,11 @@ describe('InitCommand', () => {
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-init-test-${Date.now()}`);
+    testDir = path.join(os.tmpdir(), `openspec-init-test-${randomUUID()}`);
     await fs.mkdir(testDir, { recursive: true });
     originalEnv = { ...process.env };
     // Use a temp dir for global config to avoid reading real config
-    configTempDir = path.join(os.tmpdir(), `openspec-config-init-${Date.now()}`);
+    configTempDir = path.join(os.tmpdir(), `openspec-config-init-${randomUUID()}`);
     await fs.mkdir(configTempDir, { recursive: true });
     process.env.XDG_CONFIG_HOME = configTempDir;
     process.env.CODEX_HOME = path.join(testDir, 'codex-home');
@@ -645,11 +646,11 @@ describe('InitCommand - profile and detection features', () => {
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-init-profile-test-${Date.now()}`);
+    testDir = path.join(os.tmpdir(), `openspec-init-profile-test-${randomUUID()}`);
     await fs.mkdir(testDir, { recursive: true });
     originalEnv = { ...process.env };
     // Use a temp dir for global config to avoid polluting real config
-    configTempDir = path.join(os.tmpdir(), `openspec-config-test-${Date.now()}`);
+    configTempDir = path.join(os.tmpdir(), `openspec-config-test-${randomUUID()}`);
     await fs.mkdir(configTempDir, { recursive: true });
     process.env.XDG_CONFIG_HOME = configTempDir;
     process.env.CODEX_HOME = path.join(testDir, 'codex-home');
@@ -945,6 +946,215 @@ describe('InitCommand - profile and detection features', () => {
     expect(updateSkillContent).not.toContain('/opsx:');
     expect(updateSkillContent).not.toContain('/opsx-');
     expect(updateSkillContent).toContain('/openspec-');
+  });
+
+  it('should use skill references for adapterless tools under default delivery (#1155)', async () => {
+    // Kimi Code has no command adapter: commands are skipped even when
+    // delivery is 'both', so generated skills must not reference /opsx:*
+    const initCommand = new InitCommand({ tools: 'kimi', force: true });
+    await initCommand.execute(testDir);
+
+    const skillFile = path.join(testDir, '.kimi-code', 'skills', 'openspec-apply-change', 'SKILL.md');
+    expect(await fileExists(skillFile)).toBe(true);
+
+    const skillContent = await fs.readFile(skillFile, 'utf-8');
+    expect(skillContent).not.toContain('/opsx:');
+    expect(skillContent).not.toContain('/opsx-');
+    // Kimi Code documents /skill:<name> invocations (docs/supported-tools.md)
+    expect(skillContent).toContain('/skill:openspec-');
+
+    // The getting-started hint must point at the skill, not a missing command
+    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+    const startHint = logCalls.find((entry) => entry.includes('Start your first change'));
+    expect(startHint).toContain('/skill:openspec-propose');
+    expect(startHint).not.toContain('/opsx:propose');
+  });
+
+  it('should print a configuration correction, not a dead hint, when delivery=commands generates nothing (adapterless tool)', async () => {
+    saveGlobalConfig({
+      featureFlags: {},
+      profile: 'core',
+      delivery: 'commands',
+    });
+
+    const initCommand = new InitCommand({ tools: 'kimi', force: true });
+    await initCommand.execute(testDir);
+
+    // Kimi has no command adapter and delivery excludes skills: nothing is generated
+    expect(await fileExists(path.join(testDir, '.kimi-code', 'skills', 'openspec-explore', 'SKILL.md'))).toBe(false);
+    expect(await fileExists(path.join(testDir, '.kimi-code', 'commands'))).toBe(false);
+
+    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+    // No invocation hint may be shown — neither /opsx:* nor a skill reference exists
+    expect(logCalls.some((entry) => entry.includes('Start your first change'))).toBe(false);
+    const correction = logCalls.find((entry) => entry.includes('No skills or commands were generated'));
+    expect(correction).toBeTruthy();
+    expect(correction).toContain("openspec config set delivery both");
+    // Nothing was generated, so there is nothing an IDE restart would pick up
+    expect(logCalls.some((entry) => entry.includes('Restart your IDE'))).toBe(false);
+  });
+
+  it('should print one usable hint per invocation syntax when adapterless tools disagree', async () => {
+    // kimi documents /skill:<name>, vibe documents /<name> — every advertised
+    // instruction must be usable by the tool it is labeled for
+    const initCommand = new InitCommand({ tools: 'kimi,vibe', force: true });
+    await initCommand.execute(testDir);
+
+    // Each tool's own skill files still use its documented syntax
+    const kimiSkill = await fs.readFile(
+      path.join(testDir, '.kimi-code', 'skills', 'openspec-apply-change', 'SKILL.md'),
+      'utf-8'
+    );
+    const vibeSkill = await fs.readFile(
+      path.join(testDir, '.vibe', 'skills', 'openspec-apply-change', 'SKILL.md'),
+      'utf-8'
+    );
+    expect(kimiSkill).toContain('/skill:openspec-');
+    expect(vibeSkill).toContain('/openspec-');
+    expect(vibeSkill).not.toContain('/skill:');
+
+    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+    const startHints = logCalls.filter((entry) => entry.includes('Start your first change'));
+    expect(startHints).toHaveLength(2);
+    const kimiHint = startHints.find((entry) => entry.includes('Kimi Code'));
+    const vibeHint = startHints.find((entry) => entry.includes('Mistral Vibe'));
+    expect(kimiHint).toContain('/skill:openspec-propose');
+    expect(vibeHint).toContain('/openspec-propose');
+    expect(vibeHint).not.toContain('/skill:');
+    for (const hint of startHints) {
+      expect(hint).not.toContain('/opsx:');
+    }
+  });
+
+  it('should print a syntax-neutral hint for codex (skills-invocable, no slash surface)', async () => {
+    // Codex has no slash-command surface: docs direct users to
+    // .codex/skills/openspec-*, so the hint must not advertise a slash form
+    const initCommand = new InitCommand({ tools: 'codex', force: true });
+    await initCommand.execute(testDir);
+
+    // Codex skill generation itself is deliberately untouched by #1155
+    // (codex reference rewriting is owned by a separate change)
+    const skillFile = path.join(testDir, '.codex', 'skills', 'openspec-apply-change', 'SKILL.md');
+    expect(await fileExists(skillFile)).toBe(true);
+
+    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+    const startHint = logCalls.find((entry) => entry.includes('Start your first change'));
+    expect(startHint).toContain('with the openspec-propose skill');
+    expect(startHint).not.toContain('/openspec-propose');
+    expect(startHint).not.toContain('/opsx:propose');
+
+    // No slash commands were generated, so the restart line must not claim any
+    const restartHint = logCalls.find((entry) => entry.includes('Restart your IDE'));
+    expect(restartHint).toContain('Restart your IDE for the new skills to take effect.');
+    expect(restartHint).not.toContain('slash commands');
+  });
+
+  it('should label the codex hint separately when mixed with a slash-invocable adapterless tool', async () => {
+    const initCommand = new InitCommand({ tools: 'codex,vibe', force: true });
+    await initCommand.execute(testDir);
+
+    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+    const startHints = logCalls.filter((entry) => entry.includes('Start your first change'));
+    expect(startHints).toHaveLength(2);
+    const codexHint = startHints.find((entry) => entry.includes('(Codex)'));
+    const vibeHint = startHints.find((entry) => entry.includes('Mistral Vibe'));
+    expect(codexHint).toContain('with the openspec-propose skill');
+    expect(codexHint).not.toContain('/openspec-propose');
+    expect(vibeHint).toContain('/openspec-propose');
+    for (const hint of startHints) {
+      expect(hint).not.toContain('/opsx:');
+    }
+  });
+
+  it('should not advertise an instruction for a tool that got no skills (delivery=commands, codex+kimi)', async () => {
+    saveGlobalConfig({
+      featureFlags: {},
+      profile: 'core',
+      delivery: 'commands',
+    });
+
+    const initCommand = new InitCommand({ tools: 'codex,kimi', force: true });
+    await initCommand.execute(testDir);
+
+    // Codex is skills-invocable so its skills are generated even under
+    // delivery=commands; kimi (capability none) gets nothing at all
+    expect(await fileExists(path.join(testDir, '.codex', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
+    expect(await fileExists(path.join(testDir, '.kimi-code'))).toBe(false);
+
+    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+    const startHints = logCalls.filter((entry) => entry.includes('Start your first change'));
+    // Only the codex instruction may be advertised — a Kimi line would point
+    // at skills that were never generated
+    expect(startHints).toHaveLength(1);
+    expect(startHints[0]).toContain('with the openspec-propose skill');
+    expect(startHints[0]).not.toContain('Kimi');
+    expect(logCalls.some((entry) => entry.includes('/skill:openspec-'))).toBe(false);
+    // Kimi got zero artifacts, so it still deserves the configuration correction
+    const correction = logCalls.find((entry) => entry.includes('No skills or commands were generated for'));
+    expect(correction).toContain('Kimi Code');
+    expect(correction).not.toContain('Codex');
+    expect(correction).toContain("openspec config set delivery both");
+  });
+
+  it('should print a per-tool correction when an adapter-backed tool masks an adapterless one (delivery=commands, claude+kimi)', async () => {
+    saveGlobalConfig({
+      featureFlags: {},
+      profile: 'core',
+      delivery: 'commands',
+    });
+
+    const initCommand = new InitCommand({ tools: 'claude,kimi', force: true });
+    await initCommand.execute(testDir);
+
+    // Claude gets commands; kimi (no adapter, delivery excludes skills) gets nothing
+    expect(await fileExists(path.join(testDir, '.claude', 'commands', 'opsx', 'propose.md'))).toBe(true);
+    expect(await fileExists(path.join(testDir, '.kimi-code'))).toBe(false);
+
+    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+    // The /opsx: hint is correct for Claude, but Kimi must not be left with
+    // a dead instruction: the correction names it even though another tool
+    // generated commands
+    const startHints = logCalls.filter((entry) => entry.includes('Start your first change'));
+    expect(startHints).toHaveLength(1);
+    expect(startHints[0]).toContain('/opsx:propose');
+    const correction = logCalls.find((entry) => entry.includes('No skills or commands were generated for'));
+    expect(correction).toContain('Kimi Code');
+    expect(correction).not.toContain('Claude');
+    expect(correction).toContain("openspec config set delivery both");
+    expect(logCalls.some((entry) => entry.includes('/skill:openspec-'))).toBe(false);
+  });
+
+  it('should label per-tool hints when adapter-backed and adapterless tools are mixed (claude+kimi)', async () => {
+    // Claude gets /opsx:* commands; kimi only gets skills invoked as
+    // /skill:openspec-*. A single unlabeled /opsx: hint would be unusable
+    // for the Kimi user, so each tool gets its own labeled instruction.
+    const initCommand = new InitCommand({ tools: 'claude,kimi', force: true });
+    await initCommand.execute(testDir);
+
+    expect(await fileExists(path.join(testDir, '.claude', 'commands', 'opsx', 'propose.md'))).toBe(true);
+    expect(await fileExists(path.join(testDir, '.kimi-code', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
+
+    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+    const startHints = logCalls.filter((entry) => entry.includes('Start your first change'));
+    expect(startHints).toHaveLength(2);
+    const claudeHint = startHints.find((entry) => entry.includes('Claude Code'));
+    const kimiHint = startHints.find((entry) => entry.includes('Kimi Code'));
+    expect(claudeHint).toContain('/opsx:propose');
+    expect(kimiHint).toContain('/skill:openspec-propose');
+    expect(kimiHint).not.toContain('/opsx:');
+  });
+
+  it('should keep /opsx: command hints for adapter-backed tools under default delivery', async () => {
+    const initCommand = new InitCommand({ tools: 'claude', force: true });
+    await initCommand.execute(testDir);
+
+    const skillFile = path.join(testDir, '.claude', 'skills', 'openspec-apply-change', 'SKILL.md');
+    const skillContent = await fs.readFile(skillFile, 'utf-8');
+    expect(skillContent).toContain('/opsx:');
+
+    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+    const startHint = logCalls.find((entry) => entry.includes('Start your first change'));
+    expect(startHint).toContain('/opsx:propose');
   });
 
   it('should use skill references for opencode in skills-only delivery', async () => {
