@@ -409,4 +409,54 @@ describe('config-schema', () => {
       expect(deleteNestedValue(obj, 'featureFlags.myFlag')).toBe(true);
     });
   });
+
+  // A guard that runs while walking the path creates the objects for the safe
+  // prefix before it reaches the unsafe segment, so the write is rejected but the
+  // target keeps the debris. Every case below puts the unsafe segment *after* a
+  // safe one and asserts the whole object, which the prototype-only assertions
+  // above cannot catch.
+  describe('a rejected key path leaves the target untouched', () => {
+    const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+
+    const cases: Array<[string, Record<string, unknown>]> = [
+      ['b.constructor.c', { a: 'x' }],
+      ['featureFlags.__proto__', { featureFlags: { myFlag: true } }],
+      ['a.b.__proto__.c', { a: { b: { keep: 1 } } }],
+      ['profile.prototype', { profile: 'core' }],
+      ['deep.nested.prototype', {}],
+      ['one.two.three.constructor', {}],
+    ];
+
+    it.each(cases)('setNestedValue writes nothing for "%s"', (path, seed) => {
+      const before = clone(seed);
+      const obj = clone(seed);
+
+      setNestedValue(obj, path, 'value');
+
+      expect(obj).toEqual(before);
+      expect(Object.keys(obj)).toEqual(Object.keys(before));
+    });
+
+    it.each(cases)('deleteNestedValue writes nothing for "%s"', (path, seed) => {
+      const before = clone(seed);
+      const obj = clone(seed);
+
+      expect(deleteNestedValue(obj, path)).toBe(false);
+
+      expect(obj).toEqual(before);
+      expect(Object.keys(obj)).toEqual(Object.keys(before));
+    });
+
+    // When the unsafe segment is last, the debris is a re-parented prototype
+    // rather than an extra key, which a structural comparison alone would miss.
+    it('does not re-parent the target when the final segment is unsafe', () => {
+      const obj: Record<string, unknown> = { featureFlags: { myFlag: true } };
+
+      setNestedValue(obj, 'featureFlags.__proto__', { polluted: true });
+
+      expect(obj).toEqual({ featureFlags: { myFlag: true } });
+      expect(Object.getPrototypeOf(obj.featureFlags)).toBe(Object.prototype);
+      expect((obj.featureFlags as Record<string, unknown>).polluted).toBeUndefined();
+    });
+  });
 });
