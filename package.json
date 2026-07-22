@@ -63,25 +63,25 @@
     "node": ">=20.19.0"
   },
   "devDependencies": {
-    "@changesets/changelog-github": "^0.5.2",
-    "@changesets/cli": "^2.29.6",
+    "@changesets/changelog-github": "^0.7.0",
+    "@changesets/cli": "^2.31.1",
     "@types/node": "^24.2.0",
     "@vitest/ui": "^3.2.6",
-    "eslint": "^9.39.2",
+    "eslint": "^10.5.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.62.0",
+    "typescript-eslint": "^8.65.0",
     "vitest": "^3.2.6"
   },
   "dependencies": {
     "@inquirer/core": "^10.3.2",
     "@inquirer/prompts": "^7.10.1",
-    "chalk": "^5.5.0",
+    "chalk": "^5.6.2",
     "commander": "^14.0.0",
     "cross-spawn": "7.0.6",
     "fast-glob": "^3.3.3",
     "ora": "^8.2.0",
-    "posthog-node": "^5.20.0",
+    "posthog-node": "^5.46.0",
     "yaml": "^2.8.3",
-    "zod": "^4.0.17"
+    "zod": "^4.4.3"
   }
 }
