@@ -702,10 +702,10 @@ Progress: 2/4 artifacts complete
   "isComplete": false,
   "applyRequires": ["tasks"],
   "artifacts": [
-    {"id": "proposal", "outputPath": "proposal.md", "status": "done"},
-    {"id": "design", "outputPath": "design.md", "status": "ready"},
-    {"id": "specs", "outputPath": "specs/**/*.md", "status": "done"},
-    {"id": "tasks", "outputPath": "tasks.md", "status": "blocked", "missingDeps": ["design"]}
+    {"id": "proposal", "outputPath": "proposal.md", "status": "done", "requires": []},
+    {"id": "design", "outputPath": "design.md", "status": "ready", "requires": ["proposal"]},
+    {"id": "specs", "outputPath": "specs/**/*.md", "status": "done", "requires": ["proposal"]},
+    {"id": "tasks", "outputPath": "tasks.md", "status": "blocked", "requires": ["specs", "design"], "missingDeps": ["design"]}
   ]
 }
 ```

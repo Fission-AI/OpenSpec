@@ -124,6 +124,11 @@ export interface ArtifactStatus {
   outputPath: string;
   /** Status: done, ready, or blocked */
   status: 'done' | 'ready' | 'blocked';
+  /** Artifact IDs this artifact directly requires (its `requires` edges).
+   * Present for every status so callers can compute the transitive required
+   * set even when the artifact is already `done` (file-existence status does
+   * not imply its dependencies exist). */
+  requires: string[];
   /** Missing dependencies (only for blocked) */
   missingDeps?: string[];
 }
@@ -406,6 +411,7 @@ export function formatChangeStatus(
         id: artifact.id,
         outputPath: artifact.generates,
         status: 'done' as const,
+        requires: artifact.requires,
       };
     }
 
@@ -414,6 +420,7 @@ export function formatChangeStatus(
         id: artifact.id,
         outputPath: artifact.generates,
         status: 'ready' as const,
+        requires: artifact.requires,
       };
     }
 
@@ -421,6 +428,7 @@ export function formatChangeStatus(
       id: artifact.id,
       outputPath: artifact.generates,
       status: 'blocked' as const,
+      requires: artifact.requires,
       missingDeps: blocked[artifact.id] ?? [],
     };
   });

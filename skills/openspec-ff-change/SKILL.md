@@ -38,10 +38,10 @@ Fast-forward through artifact creation - generate everything needed to start imp
    ```
    Parse the JSON to get:
    - `applyRequires`: array of artifact IDs needed before implementation (e.g., `["tasks"]`)
-   - `artifacts`: list of all artifacts with their status and dependencies
+   - `artifacts`: list of all artifacts, each with its `status` and its `requires` edges (the artifact IDs it directly depends on)
    - `planningHome`, `changeRoot`, `artifactPaths`, and `actionContext`: path and scope context. Use these instead of assuming repo-local paths.
 
-4. **Create artifacts in sequence until apply-ready**
+4. **Create every artifact in the required set**
 
    Use a todo list to track progress through the artifacts.
 
@@ -61,14 +61,18 @@ Fast-forward through artifact creation - generate everything needed to start imp
         - `dependencies`: Completed artifacts to read for context
       - Read any completed dependency files for context - always re-read them from disk, even if you saw them earlier in the conversation (the user may have edited them)
       - If the `instruction` field delegates creation to a specific skill or command, invoke it to produce the artifact instead of writing the file yourself, then verify the artifact file exists at `resolvedOutputPath`
-      - Otherwise create the artifact file using `template` as the structure and write it to `resolvedOutputPath`
+      - Otherwise create the artifact file using `template` as the structure and write it to `resolvedOutputPath`. If `resolvedOutputPath` is a glob, follow `instruction` to choose the concrete file path
       - Apply `context` and `rules` as constraints - but do NOT copy them into the file
       - Show brief progress: "✓ Created <artifact-id>"
 
-   b. **Continue until all `applyRequires` artifacts are complete**
+   b. **Continue until every artifact in the required set exists (not just `apply.requires`)**
       - After creating each artifact, re-run `openspec status --change "<name>" --json`
-      - Check if every artifact ID in `applyRequires` has `status: "done"` in the artifacts array
-      - Stop when all `applyRequires` artifacts are done
+      - The required set is `applyRequires` plus every artifact reachable from those by following the `requires` edges in `status --json` - walk them transitively (spec-driven closes over proposal, specs, design, tasks). Leave artifacts outside that set alone
+      - `status` is file-existence only, so an `applyRequires` artifact reading `done` does NOT mean its dependencies exist - writing `tasks.md` early marks `tasks` done while `specs` was never written. Use each artifact's `requires` edges, not its `status`, to build the required set: a `done` artifact still lists what it depends on
+      - Create every artifact in the required set that is missing, then re-check - creating one can unblock others
+      - Skip one only when its own `instruction` says it is conditional: run `openspec instructions <artifact-id> --change "<name>" --json` and skip only if its `instruction` field marks it optional (e.g. "create only if..."). Spec-driven's `design.md` qualifies; `specs` never does. Tell the user, and do not reconsider it
+      - Dependencies are enablers, not gates: if a required artifact is still `blocked` only because you skipped a conditional dependency, write it anyway
+      - Stop when every artifact in the required set is `done` or was deliberately skipped
 
    c. **If an artifact requires user input** (unclear context):
       - Use **AskUserQuestion tool** to clarify
@@ -83,8 +87,8 @@ Fast-forward through artifact creation - generate everything needed to start imp
 
 After completing all artifacts, summarize:
 - Change name and location
-- List of artifacts created with brief descriptions
-- What's ready: "All artifacts created! Ready for implementation."
+- List of artifacts created with brief descriptions, plus any conditional artifact you skipped and why
+- What's ready: "All artifacts needed for implementation are ready."
 - Prompt: "Run `/openspec-apply-change` or ask me to implement to start working on the tasks."
 
 **Artifact Creation Guidelines**
@@ -99,7 +103,7 @@ After completing all artifacts, summarize:
   - These guide what you write, but should never appear in the output
 
 **Guardrails**
-- Create ALL artifacts needed for implementation (as defined by schema's `apply.requires`)
+- Create every artifact the apply phase transitively depends on, not just the ids listed in `apply.requires`
 - Always read dependency artifacts before creating a new one - re-read from disk, not from conversation memory (files may have changed since you last saw them)
 - If context is critically unclear, ask the user - but prefer making reasonable decisions to keep momentum
 - If a change with that name already exists, suggest continuing that change instead
