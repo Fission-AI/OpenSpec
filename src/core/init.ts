@@ -174,16 +174,18 @@ export class InitCommand {
       migrateIfNeeded(projectPath, detectedTools);
     }
 
+    // Validate profile override early so invalid values fail before tool setup.
+    // The resolved value is consumed later when generation reads effective config.
+    // This runs ahead of the welcome screen so an invalid --profile does not make
+    // the user press Enter before seeing the error.
+    this.resolveProfileOverride();
+
     // Show animated welcome screen (interactive mode only)
     const canPrompt = this.canPromptInteractively();
     if (canPrompt) {
       const { showWelcomeScreen } = await import('../ui/welcome-screen.js');
-      await showWelcomeScreen();
+      await showWelcomeScreen(this.getActiveWorkflows());
     }
-
-    // Validate profile override early so invalid values fail before tool setup.
-    // The resolved value is consumed later when generation reads effective config.
-    this.resolveProfileOverride();
 
     // Get tool states before processing
     const toolStates = getToolStates(projectPath);
@@ -246,6 +248,16 @@ export class InitCommand {
     }
 
     throw new Error(`Invalid profile "${this.profileOverride}". Available profiles: core, custom`);
+  }
+
+  /**
+   * Resolves the workflows the effective profile installs, so onboarding output
+   * only mentions commands that will actually exist.
+   */
+  private getActiveWorkflows(): string[] {
+    const globalCfg = getGlobalConfig();
+    const activeProfile: Profile = this.resolveProfileOverride() ?? globalCfg.profile ?? 'core';
+    return [...getProfileWorkflows(activeProfile, globalCfg.workflows)];
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -865,12 +877,10 @@ export class InitCommand {
     }
 
     // Getting started (task 7.6: show propose if in profile)
-    const globalCfg = getGlobalConfig();
-    const activeProfile: Profile = (this.profileOverride as Profile) ?? globalCfg.profile ?? 'core';
-    const activeWorkflows = [...getProfileWorkflows(activeProfile, globalCfg.workflows)];
+    const activeWorkflows = this.getActiveWorkflows();
     // When no tool got /opsx:* commands, point at the skill instead of a
     // command that does not exist.
-    const activeDelivery: Delivery = globalCfg.delivery ?? 'both';
+    const activeDelivery: Delivery = getGlobalConfig().delivery ?? 'both';
     const commandsGenerated = successfulTools.some((tool) => shouldGenerateCommandsForTool(tool.value, activeDelivery));
     const skillsGenerated = successfulTools.some((tool) => shouldGenerateSkillsForTool(tool.value, activeDelivery));
     // Each hint line must be a usable instruction for the tool it serves.

@@ -41,6 +41,7 @@ import {
 import { isInteractive } from '../utils/interactive.js';
 import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
 import { getProfileWorkflows, ALL_WORKFLOWS, CORE_WORKFLOWS } from './profiles.js';
+import { getOnboardingCommands } from './onboarding-commands.js';
 import { getAvailableTools } from './available-tools.js';
 import {
   WORKFLOW_TO_SKILL_DIR,
@@ -345,18 +346,27 @@ export class UpdateCommand {
         );
         return forms.size === 1 ? [...forms][0] : neutralForm;
       };
-      const entries: Array<[string, string]> = [
-        [referenceFor('/opsx:new'), 'Start a new change'],
-        [referenceFor('/opsx:continue'), 'Create the next artifact'],
-        [referenceFor('/opsx:apply'), 'Implement tasks'],
+      // Only hint at workflows these tools actually received. A legacy upgrade
+      // can install a narrower set than the profile (inferred Codex prompts).
+      const installedWorkflows = [
+        ...new Set(
+          newlyConfiguredTools.flatMap(
+            (toolId) => legacyWorkflowOverrides[toolId] ?? desiredWorkflows
+          )
+        ),
       ];
-      const width = Math.max(...entries.map(([reference]) => reference.length));
+      const entries: Array<[string, string]> = getOnboardingCommands(installedWorkflows).map(
+        ({ command, description }) => [referenceFor(command), description]
+      );
       console.log();
-      console.log(chalk.bold('Getting started:'));
-      for (const [reference, description] of entries) {
-        console.log(`  ${reference.padEnd(width)}  ${description}`);
+      if (entries.length > 0) {
+        const width = Math.max(...entries.map(([reference]) => reference.length));
+        console.log(chalk.bold('Getting started:'));
+        for (const [reference, description] of entries) {
+          console.log(`  ${reference.padEnd(width)}  ${description}`);
+        }
+        console.log();
       }
-      console.log();
       console.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
     }
 
