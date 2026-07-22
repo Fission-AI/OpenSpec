@@ -130,9 +130,12 @@ ${STORE_SELECTION_GUIDANCE}
       - Track if sync was done
 
    b. **Perform the archive**:
+
+      Target name: use the change name as-is when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise prepend the current date as \`YYYY-MM-DD-<name>\` (same rule as \`openspec archive\`).
+
       \`\`\`bash
       mkdir -p "<planningHome.changesDir>/archive"
-      mv "<changeRoot>" "<planningHome.changesDir>/archive/YYYY-MM-DD-<name>"
+      mv "<changeRoot>" "<planningHome.changesDir>/archive/<target-name>"
       \`\`\`
 
    c. **Track outcome** for each change:
@@ -205,8 +208,8 @@ then add-graphql specs (chronological order, newer takes precedence).
 ## Bulk Archive Complete
 
 Archived N changes:
-- <change-1> -> archive/YYYY-MM-DD-<change-1>/
-- <change-2> -> archive/YYYY-MM-DD-<change-2>/
+- <change-1> -> archive/<target-name-1>/
+- <change-2> -> archive/<target-name-2>/
 
 Spec sync summary:
 - N delta specs synced to main specs
@@ -219,7 +222,7 @@ Spec sync summary:
 ## Bulk Archive Complete (partial)
 
 Archived N changes:
-- <change-1> -> archive/YYYY-MM-DD-<change-1>/
+- <change-1> -> archive/<target-name-1>/
 
 Skipped M changes:
 - <change-2> (user chose not to archive incomplete)
@@ -246,7 +249,7 @@ No active changes found. Create a new change to get started.
 - Use single confirmation for entire batch
 - Track and report all outcomes (success/skip/fail)
 - Preserve .openspec.yaml when moving to archive
-- Archive directory target uses current date: YYYY-MM-DD-<name>
+- Archive directory target uses current date: YYYY-MM-DD-<name>; a name that already starts with a \`YYYY-MM-DD-\` prefix is used as-is (never stack a second date)
 - If archive target exists, fail that change but continue with others`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
@@ -379,9 +382,12 @@ ${STORE_SELECTION_GUIDANCE}
       - Track if sync was done
 
    b. **Perform the archive**:
+
+      Target name: use the change name as-is when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise prepend the current date as \`YYYY-MM-DD-<name>\` (same rule as \`openspec archive\`).
+
       \`\`\`bash
       mkdir -p "<planningHome.changesDir>/archive"
-      mv "<changeRoot>" "<planningHome.changesDir>/archive/YYYY-MM-DD-<name>"
+      mv "<changeRoot>" "<planningHome.changesDir>/archive/<target-name>"
       \`\`\`
 
    c. **Track outcome** for each change:
@@ -454,8 +460,8 @@ then add-graphql specs (chronological order, newer takes precedence).
 ## Bulk Archive Complete
 
 Archived N changes:
-- <change-1> -> archive/YYYY-MM-DD-<change-1>/
-- <change-2> -> archive/YYYY-MM-DD-<change-2>/
+- <change-1> -> archive/<target-name-1>/
+- <change-2> -> archive/<target-name-2>/
 
 Spec sync summary:
 - N delta specs synced to main specs
@@ -468,7 +474,7 @@ Spec sync summary:
 ## Bulk Archive Complete (partial)
 
 Archived N changes:
-- <change-1> -> archive/YYYY-MM-DD-<change-1>/
+- <change-1> -> archive/<target-name-1>/
 
 Skipped M changes:
 - <change-2> (user chose not to archive incomplete)
@@ -495,7 +501,7 @@ No active changes found. Create a new change to get started.
 - Use single confirmation for entire batch
 - Track and report all outcomes (success/skip/fail)
 - Preserve .openspec.yaml when moving to archive
-- Archive directory target uses current date: YYYY-MM-DD-<name>
+- Archive directory target uses current date: YYYY-MM-DD-<name>; a name that already starts with a \`YYYY-MM-DD-\` prefix is used as-is (never stack a second date)
 - If archive target exists, fail that change but continue with others`
   };
 }
