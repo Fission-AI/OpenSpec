@@ -51,11 +51,12 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
 
+      # No dependency cache: `pnpm audit` reads the lockfile, nothing is installed,
+      # so a cache-save step would fail on the missing store path.
       - name: Setup Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '20.19.0'
-          cache: 'pnpm'
 
       # Blocking: these are the packages that ship inside the npm tarball.
       - name: Audit published dependencies
