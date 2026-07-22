@@ -367,10 +367,23 @@ Supporting a new tool is configuration, not code. Every tool is one of two launc
 {
   "openers": {
     "zed": { "style": "workspace-file" },
-    "claude": { "attach_flag": "--dir" }
+    "claude": {
+      "attach_flag": "--dir",
+      "args": ["--model", "opus"]
+    }
   }
 }
 ```
+
+| Field | Description |
+|-------|-------------|
+| `style` | `workspace-file` or `attach-dirs`. Required when the row adds a new tool; optional when it adjusts a built-in. |
+| `label` | Name shown in the tool picker. Defaults to the id. |
+| `command` | Executable to launch. Defaults to the id. |
+| `args` | Pre-args passed before the workspace file or the attach pairs — static flags the tool always needs. The built-in `codex` opener ships `["--sandbox", "workspace-write"]` this way. |
+| `attach_flag` | `attach-dirs` only: the flag paired with each member path. Defaults to `--add-dir`. |
+
+A row keyed by a built-in id adjusts only the fields it sets; the rest keep their built-in values.
 
 All workset state lives under the global data dir's `worksets/` folder (the saved views plus the generated `<name>.code-workspace` files, regenerated on every open); deleting that folder removes every trace.
 
