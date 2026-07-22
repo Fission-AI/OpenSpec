@@ -592,6 +592,30 @@ rules:
       expect(tasks?.missingDeps).toContain('design');
     });
 
+    it('should expose each artifact\'s requires edges regardless of status', () => {
+      const changeDir = path.join(tempDir, 'openspec', 'changes', 'my-change');
+      fs.mkdirSync(changeDir, { recursive: true });
+      // Prewritten-tasks scenario: only tasks.md exists. `tasks` reads `done`
+      // by file existence, but its specs/design dependencies were never written.
+      fs.writeFileSync(path.join(changeDir, 'tasks.md'), '# Tasks');
+
+      const context = loadChangeContext(tempDir, 'my-change');
+      const status = formatChangeStatus(context);
+
+      // A done artifact must still carry its requires edges so callers can
+      // compute the transitive required set (alfred's PR #1412 blocker).
+      const tasks = status.artifacts.find(a => a.id === 'tasks');
+      expect(tasks?.status).toBe('done');
+      expect(tasks?.requires).toEqual(expect.arrayContaining(['specs', 'design']));
+
+      // proposal has no dependencies -> empty edges, not undefined.
+      const proposal = status.artifacts.find(a => a.id === 'proposal');
+      expect(proposal?.requires).toEqual([]);
+
+      // Every artifact carries the field, whatever its status.
+      expect(status.artifacts.every(a => Array.isArray(a.requires))).toBe(true);
+    });
+
     it('should sort artifacts in build order', () => {
       const context = loadChangeContext(tempDir, 'my-change');
       const status = formatChangeStatus(context);
