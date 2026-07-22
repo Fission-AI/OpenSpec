@@ -55,7 +55,7 @@ ls node_modules | grep -E '^(vite|rollup|vitest|eslint|js-yaml|minimatch)$'   # 
 | [Dependabot](https://github.com/Fission-AI/OpenSpec/security/dependabot) | Dependency advisories plus weekly update pull requests for the CLI, the docs site, and CI actions |
 | Dependency review | Blocks a pull request that introduces a high-severity dependency |
 | Secret scanning | Enabled on the repository, including push protection |
-| `pnpm audit` | Reported on every pull request and weekly on a schedule, separated into published dependencies and build tooling |
+| `pnpm audit` | Published dependencies are audited on every pull request, on pushes to `main`, and weekly. Advisory on pull requests so an unrelated change is not blocked; failing elsewhere, so a new advisory surfaces even when no dependency changed. Build tooling is always advisory. |
 | Pinned actions | Every GitHub Action runs from a commit SHA, so a moved tag cannot change what CI executes |
 
 Alerts are triaged against the threat model above, so a finding in build-only tooling is fixed on the normal update cadence rather than treated as an incident.

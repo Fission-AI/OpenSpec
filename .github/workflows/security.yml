@@ -59,12 +59,13 @@ jobs:
         with:
           node-version: '20.19.0'
 
-      # Advisory, not blocking. A newly published advisory should not stop an
-      # unrelated pull request, and this step also depends on registry
-      # availability. Dependabot alerts and dependency review are the gates;
-      # this surfaces the state on every run and on the weekly schedule.
+      # Advisory on pull requests: a newly published advisory should not stop an
+      # unrelated change, and the step depends on registry availability.
+      # Blocking everywhere else — on the weekly schedule and on pushes to main
+      # — so a high-severity advisory in a shipped dependency still fails a run
+      # even when no dependency changed.
       - name: Audit published dependencies
-        continue-on-error: true
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         run: pnpm audit --prod --audit-level high
 
       # Build and test tooling never reaches an installed copy of OpenSpec, so an
