@@ -239,7 +239,6 @@ export function renderReferencedStoresSection(entries: ReferenceIndexEntry[]): s
  * let hostile content forge instruction lines (slice 6.1 hardening).
  */
 export function sanitizeInline(value: string, maxLength = 300): string {
-  // eslint-disable-next-line no-control-regex
   const flattened = value.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim();
   return flattened.length > maxLength ? `${flattened.slice(0, maxLength)}…` : flattened;
 }

@@ -422,7 +422,7 @@ const TOOLS = [
   'Gemini CLI',
   'GitHub Copilot',
   'Cline',
-  'RooCode',
+  'Zoo Code',
   'Kilo Code',
   'Amazon Q',
   'OpenCode',
