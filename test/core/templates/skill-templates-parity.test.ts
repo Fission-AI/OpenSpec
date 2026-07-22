@@ -39,16 +39,16 @@ import { STORE_SELECTION_GUIDANCE } from '../../../src/core/templates/workflows/
 const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getExploreSkillTemplate: 'a7eb6fabdc05a5b90a4773ba93320a60edffea88e9b27985668a2959dcec2e3d',
   getNewChangeSkillTemplate: '39663a6d2037e6697020393a66f6327506e3e3bc573b7a3556dcb7f9457dc51d',
-  getContinueChangeSkillTemplate: 'acc07a489a30192b4bf2bbdc587a889478fbf6fffbbc9353c7775c4ca1ec5011',
+  getContinueChangeSkillTemplate: '912ce98855bcea351a73730c7ac18505e21512266eac8082351ef72ddfa63906',
   getApplyChangeSkillTemplate: '0f5a15fc7fb9ad6059a5643d0e01365d27642637a4aaebf182f9eabb45348197',
-  getFfChangeSkillTemplate: 'e1745de40aaa20170bf9314a5c0de09c22e89b2a33b95d6740305b353d1cc4ff',
+  getFfChangeSkillTemplate: '25b584cdda0b99c704dbe473b0dfae084af2fac6f4ca27fe7422fb8789b0fe16',
   getSyncSpecsSkillTemplate: '32c3169e1ee0345a174c0bacb8fd16db73477cc006d8cedbedc6077233c5461b',
   getOnboardSkillTemplate: 'bc2216b72724b01c3a733e63b8bf4aff457f561c0e9ff7288bdacc39780a37a7',
   getOpsxExploreCommandTemplate: 'eef1f8b4fd90ade6d70be46f0f8c3e6722f221fed175a6f9cf626287ef504a94',
   getOpsxNewCommandTemplate: '57c600cce318d16b9b4308a18d0d983ea3c0673034e606a7cceec07b4c705e87',
-  getOpsxContinueCommandTemplate: 'f63964fab7720ede097aa48808baff196c391b962930ca960459205c724800e5',
+  getOpsxContinueCommandTemplate: '7843e40ad80611a80bcd3c8c5abd5ce7f89efe72f749a482fd1d0594762e94f3',
   getOpsxApplyCommandTemplate: 'daeb507206707169de73c828e199648dde5732cbc17791ef2a027adffd028574',
-  getOpsxFfCommandTemplate: '2e187facdbb89d15de09e4fbc926e389e1994bdfa78d0769029c71dff060a006',
+  getOpsxFfCommandTemplate: 'd2d8ea4f6ebf68fb591ce45796aa62387c6c40030360963fae0589fb003c559f',
   getArchiveChangeSkillTemplate: 'b04eccde2c57af4bc484fa7279fa873ad1d46474eb024467d68e784d8b985c18',
   getBulkArchiveChangeSkillTemplate: '2b74b1f73380ff32e35f580734780d843c6161a2748c39edb07f1e00453771b4',
   getOpsxSyncCommandTemplate: '68dc44c9be2ec1ef719a4ed59830e5a0bc74c3ba6113070650266e1b0d153071',
@@ -57,8 +57,8 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getOpsxOnboardCommandTemplate: '9430a0fb6530791ab720e068f4b172bc3dfc4e96a1ae29102bee0b92c2afe7b5',
   getOpsxBulkArchiveCommandTemplate: 'da7be1a7318f15b915f5aae8eb638797a8a24a31e5fc7fc0a2bad01bba137686',
   getOpsxVerifyCommandTemplate: 'f01c0c0cef53be0956de52363d955d4ace131b1b2d77adf902f35fead9a1486d',
-  getOpsxProposeSkillTemplate: '9c17bbe73ee7bcd95bfdb6f2bbb6a2deda2be0f870904fc740018b8b017530c0',
-  getOpsxProposeCommandTemplate: 'b47d1b254d715b454cc64aa146fe994e8c0775352a7c7043d8818b05ec77d53c',
+  getOpsxProposeSkillTemplate: '1cb094f058e884aa8ddacd2ea756e4985bfb56b60628ca680e00cc0bdb97101d',
+  getOpsxProposeCommandTemplate: '494cfbe3a10510d356b513969481541088108123107562a6d4e2f0592ab9db34',
   getFeedbackSkillTemplate: 'd7d83c5f7fc2b92fe8f4588a5bf2d9cb315e4c73ec19bcd5ef28270906319a0d',
   getUpdateChangeSkillTemplate: 'fe2e8edaf973d42dc7fc7dfd846105c4c3cfec0437606e582ec644985cd4e81d',
   getOpsxUpdateCommandTemplate: 'e55ac5774203a7d9037d2d588889c97c53f3f930da49497cc79e865375920da7',
@@ -67,15 +67,15 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
 const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-explore': 'c8de6033b2c78009647647c65a504e4ada1a3bdcee31aed38a4bf7d629513f6e',
   'openspec-new-change': 'd5b8909bea70a33b7a312b38ce204a91f40b6bb2bff12c4c06b3e11641b6a689',
-  'openspec-continue-change': 'bdb8bbb6a768a741b05256effbc284d65ac6a45360b59c24b94198792d3d0ebf',
+  'openspec-continue-change': '30b074eec5f1e70bba3a71d50175dbbcb2994a64930cb4cfd1660872ba767018',
   'openspec-apply-change': '09c0e1cdf5ccc82416d0969d6bd715cc70616bdbc3531358a5c36057f78be55a',
-  'openspec-ff-change': '045487887272576ae6528c6dc90684841ffe86bae7e7a33454531e0e5fc3629b',
+  'openspec-ff-change': 'fa41b10a3101ba58742f9c15fe35f843c1ebcb94c7e4898bd7feaadd6676a80c',
   'openspec-sync-specs': 'd1bcd420bf8fb55a13f58a2857e6ebde58eb6f9e721a3bf6876bd9f640a63859',
   'openspec-archive-change': 'b24d326662ef58809de4464960440713748b9a281323357facdca24af52014e7',
   'openspec-bulk-archive-change': '49d410bda408c0411decd584be9c2355335e3b3db760fc6a0adcd82c172a280f',
   'openspec-verify-change': '57693d22940f06080c6cf8d590ac2f48240d4a5e9ce7074dacd0f8d3c9945afa',
   'openspec-onboard': '76225d10352454a304e56566997811d16f91de1b37653816f2bc5d8ec976febc',
-  'openspec-propose': 'fe3996b4f7355da28187680c978de8ba0b794702192ce2bdaa8abe09d810270d',
+  'openspec-propose': '69329d1eaacfff230d8641809e0290c8b501055ce301a8b76d4c044f42e1fec2',
   'openspec-update-change': '77ff4d1f1cd08a57649cce1f25e0ebc4f55d6d032dfde5c301d1b479561b72fa',
 };
 
@@ -309,6 +309,36 @@ describe('skill templates split parity', () => {
       // A cancelled batch must archive nothing, reinforced where agents skim.
       expect(content, variant).toContain(
         'Never archive after the user cancels the confirmation'
+      );
+    }
+  });
+
+  it('makes the schema instruction field authoritative for artifact creation (#777)', () => {
+    const variants: Array<[string, string]> = [
+      ['propose skill', generateSkillContent(getOpsxProposeSkillTemplate(), 'PARITY-BASELINE')],
+      ['propose command', getOpsxProposeCommandTemplate().content],
+      ['continue skill', generateSkillContent(getContinueChangeSkillTemplate(), 'PARITY-BASELINE')],
+      ['continue command', getOpsxContinueCommandTemplate().content],
+      ['ff skill', generateSkillContent(getFfChangeSkillTemplate(), 'PARITY-BASELINE')],
+      ['ff command', getOpsxFfCommandTemplate().content],
+    ];
+
+    for (const [variant, content] of variants) {
+      // The instruction field wins even for familiar artifact names: the old
+      // hard-coded "Common artifact patterns" shortcut is what let agents
+      // ignore custom schemas that reuse proposal.md/tasks.md file names.
+      expect(content, variant).toContain('the authoritative guidance');
+      expect(content, variant).not.toContain('Common artifact patterns');
+
+      // Delegated creation is honored at the creation step itself, and the
+      // delegated skill's output is verified rather than assumed.
+      expect(content, variant).toContain(
+        'If the `instruction` field delegates creation to a specific skill or command, invoke it to produce the artifact instead of writing the file yourself, then verify the artifact file exists at `resolvedOutputPath`'
+      );
+
+      // ...and restated in the artifact-creation guidelines.
+      expect(content, variant).toContain(
+        'If the `instruction` field directs you to use a specific skill or command to create the artifact, invoke it instead of writing the artifact directly'
       );
     }
   });
