@@ -7,6 +7,8 @@ import {
   coerceValue,
   formatValueYaml,
   validateConfig,
+  validateConfigKeyPath,
+  hasUnsafeKeySegment,
   GlobalConfigSchema,
   DEFAULT_CONFIG,
 } from '../../src/core/config-schema.js';
@@ -363,6 +365,44 @@ describe('config-schema', () => {
   describe('DEFAULT_CONFIG', () => {
     it('should have empty featureFlags', () => {
       expect(DEFAULT_CONFIG.featureFlags).toEqual({});
+    });
+  });
+
+  describe('prototype pollution guards', () => {
+    const unsafePaths = [
+      '__proto__.polluted',
+      'constructor.prototype.polluted',
+      'featureFlags.__proto__',
+      'prototype.polluted',
+    ];
+
+    it.each(unsafePaths)('setNestedValue leaves the prototype untouched for "%s"', (path) => {
+      const obj: Record<string, unknown> = {};
+      setNestedValue(obj, path, 'polluted');
+
+      expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+      expect(Object.prototype).not.toHaveProperty('polluted');
+    });
+
+    it.each(unsafePaths)('deleteNestedValue refuses "%s"', (path) => {
+      expect(deleteNestedValue({}, path)).toBe(false);
+    });
+
+    it.each(unsafePaths)('validateConfigKeyPath rejects "%s"', (path) => {
+      expect(validateConfigKeyPath(path).valid).toBe(false);
+    });
+
+    it('flags unsafe segments anywhere in the path', () => {
+      expect(hasUnsafeKeySegment('featureFlags.__proto__')).toBe(true);
+      expect(hasUnsafeKeySegment('featureFlags.myFlag')).toBe(false);
+      expect(hasUnsafeKeySegment('profile')).toBe(false);
+    });
+
+    it('still sets legitimate nested keys', () => {
+      const obj: Record<string, unknown> = {};
+      setNestedValue(obj, 'featureFlags.myFlag', true);
+      expect(obj).toEqual({ featureFlags: { myFlag: true } });
+      expect(deleteNestedValue(obj, 'featureFlags.myFlag')).toBe(true);
     });
   });
 });

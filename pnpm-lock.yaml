@@ -33,8 +33,8 @@ importers:
         specifier: ^5.20.0
         version: 5.20.0
       yaml:
-        specifier: ^2.8.2
-        version: 2.8.2
+        specifier: ^2.8.3
+        version: 2.9.0
       zod:
         specifier: ^4.0.17
         version: 4.0.17
@@ -62,7 +62,7 @@ importers:
         version: 8.62.0(eslint@9.39.2)(typescript@5.9.3)
       vitest:
         specifier: ^3.2.6
-        version: 3.2.6(@types/node@24.2.0)(@vitest/ui@3.2.6)(yaml@2.8.2)
+        version: 3.2.6(@types/node@24.2.0)(@vitest/ui@3.2.6)(yaml@2.9.0)
 
 packages:
 
@@ -1635,8 +1635,8 @@ packages:
     resolution: {integrity: sha512-r6lPcBGxZXlIcymEu7InxDMhdW0KDxpLgoFLcguasxCaJ/SOIZwINatK9KY/tf+ZrlywOKU0UDj3ATXUBfxJXA==}
     engines: {node: '>=8'}
 
-  yaml@2.8.2:
-    resolution: {integrity: sha512-mplynKqc1C2hTVYxd0PU2xQAc22TI1vShAYGksCCfxbn/dFwnHTNi1bvYsBTkhdUNtGIf5xNOg938rrSSYvS9A==}
+  yaml@2.9.0:
+    resolution: {integrity: sha512-2AvhNX3mb8zd6Zy7INTtSpl1F15HW6Wnqj0srWlkKLcpYl/gMIMJiyuGq2KeI2YFxUPjdlB+3Lc10seMLtL4cA==}
     engines: {node: '>= 14.6'}
     hasBin: true
 
@@ -2297,13 +2297,13 @@ snapshots:
       chai: 5.2.1
       tinyrainbow: 2.0.0
 
-  '@vitest/mocker@3.2.6(vite@7.0.6(@types/node@24.2.0)(yaml@2.8.2))':
+  '@vitest/mocker@3.2.6(vite@7.0.6(@types/node@24.2.0)(yaml@2.9.0))':
     dependencies:
       '@vitest/spy': 3.2.6
       estree-walker: 3.0.3
       magic-string: 0.30.17
     optionalDependencies:
-      vite: 7.0.6(@types/node@24.2.0)(yaml@2.8.2)
+      vite: 7.0.6(@types/node@24.2.0)(yaml@2.9.0)
 
   '@vitest/pretty-format@3.2.6':
     dependencies:
@@ -2334,7 +2334,7 @@ snapshots:
       sirv: 3.0.1
       tinyglobby: 0.2.15
       tinyrainbow: 2.0.0
-      vitest: 3.2.6(@types/node@24.2.0)(@vitest/ui@3.2.6)(yaml@2.8.2)
+      vitest: 3.2.6(@types/node@24.2.0)(@vitest/ui@3.2.6)(yaml@2.9.0)
 
   '@vitest/utils@3.2.6':
     dependencies:
@@ -3079,13 +3079,13 @@ snapshots:
     dependencies:
       punycode: 2.3.1
 
-  vite-node@3.2.4(@types/node@24.2.0)(yaml@2.8.2):
+  vite-node@3.2.4(@types/node@24.2.0)(yaml@2.9.0):
     dependencies:
       cac: 6.7.14
       debug: 4.4.1
       es-module-lexer: 1.7.0
       pathe: 2.0.3
-      vite: 7.0.6(@types/node@24.2.0)(yaml@2.8.2)
+      vite: 7.0.6(@types/node@24.2.0)(yaml@2.9.0)
     transitivePeerDependencies:
       - '@types/node'
       - jiti
@@ -3100,7 +3100,7 @@ snapshots:
       - tsx
       - yaml
 
-  vite@7.0.6(@types/node@24.2.0)(yaml@2.8.2):
+  vite@7.0.6(@types/node@24.2.0)(yaml@2.9.0):
     dependencies:
       esbuild: 0.25.8
       fdir: 6.5.0(picomatch@4.0.4)
@@ -3111,13 +3111,13 @@ snapshots:
     optionalDependencies:
       '@types/node': 24.2.0
       fsevents: 2.3.3
-      yaml: 2.8.2
+      yaml: 2.9.0
 
-  vitest@3.2.6(@types/node@24.2.0)(@vitest/ui@3.2.6)(yaml@2.8.2):
+  vitest@3.2.6(@types/node@24.2.0)(@vitest/ui@3.2.6)(yaml@2.9.0):
     dependencies:
       '@types/chai': 5.2.2
       '@vitest/expect': 3.2.6
-      '@vitest/mocker': 3.2.6(vite@7.0.6(@types/node@24.2.0)(yaml@2.8.2))
+      '@vitest/mocker': 3.2.6(vite@7.0.6(@types/node@24.2.0)(yaml@2.9.0))
       '@vitest/pretty-format': 3.2.6
       '@vitest/runner': 3.2.6
       '@vitest/snapshot': 3.2.6
@@ -3135,8 +3135,8 @@ snapshots:
       tinyglobby: 0.2.15
       tinypool: 1.1.1
       tinyrainbow: 2.0.0
-      vite: 7.0.6(@types/node@24.2.0)(yaml@2.8.2)
-      vite-node: 3.2.4(@types/node@24.2.0)(yaml@2.8.2)
+      vite: 7.0.6(@types/node@24.2.0)(yaml@2.9.0)
+      vite-node: 3.2.4(@types/node@24.2.0)(yaml@2.9.0)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 24.2.0
@@ -3179,7 +3179,7 @@ snapshots:
       string-width: 4.2.3
       strip-ansi: 6.0.1
 
-  yaml@2.8.2: {}
+  yaml@2.9.0: {}
 
   yocto-queue@0.1.0: {}
 
