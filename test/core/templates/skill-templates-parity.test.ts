@@ -164,6 +164,16 @@ describe('skill templates split parity', () => {
     expect(actualHashes).toEqual(EXPECTED_GENERATED_SKILL_CONTENT_HASHES);
   });
 
+  // The assertion above only compares the skills this file already lists, so a
+  // workflow added to getSkillTemplates() but never pinned here would ship with
+  // no golden hash and nothing would fail. Pin the registry itself.
+  it('pins every skill the production registry deploys', () => {
+    const pinned = GENERATED_SKILL_FACTORIES.map(([dirName]) => dirName).sort();
+    const deployed = getSkillTemplates().map(({ dirName }) => dirName).sort();
+
+    expect(pinned, 'add the new skill to GENERATED_SKILL_FACTORIES and EXPECTED_GENERATED_SKILL_CONTENT_HASHES').toEqual(deployed);
+  });
+
   // Iterating the production registries (not a local list) means a newly
   // added workflow is covered automatically; the full-constant containment
   // check fails if any template's interpolation drifts.
