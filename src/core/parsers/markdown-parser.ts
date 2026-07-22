@@ -196,15 +196,25 @@ export class MarkdownParser {
         
         let operation: DeltaOperation = 'MODIFIED';
         const lowerDesc = description.toLowerCase();
-        
-        // Use word boundaries to avoid false matches (e.g., "address" matching "add")
-        // Check RENAMED first since it's more specific than patterns containing "new"
-        if (/\brename(s|d|ing)?\b/.test(lowerDesc) || /\brenamed\s+(to|from)\b/.test(lowerDesc)) {
-          operation = 'RENAMED';
-        } else if (/\badd(s|ed|ing)?\b/.test(lowerDesc) || /\bcreate(s|d|ing)?\b/.test(lowerDesc) || /\bnew\b/.test(lowerDesc)) {
-          operation = 'ADDED';
-        } else if (/\bremove(s|d|ing)?\b/.test(lowerDesc) || /\bdelete(s|d|ing)?\b/.test(lowerDesc)) {
-          operation = 'REMOVED';
+
+        // Classify by the FIRST operation keyword that appears, not a fixed
+        // type priority. Otherwise an incidental later keyword outranks the
+        // actual verb — e.g. "Remove the add-ons page" matched ADDED because
+        // ADDED was tested before REMOVED. The (?<![\w-])/(?![\w-]) boundaries
+        // also exclude hyphen-joined words so "add-ons"/"new-user" no longer
+        // match "add"/"new".
+        const opPatterns: Array<{ op: DeltaOperation; re: RegExp }> = [
+          { op: 'RENAMED', re: /(?<![\w-])rename(s|d|ing)?(?![\w-])/ },
+          { op: 'REMOVED', re: /(?<![\w-])(remove(s|d|ing)?|delete(s|d|ing)?)(?![\w-])/ },
+          { op: 'ADDED', re: /(?<![\w-])(add(s|ed|ing)?|create(s|d|ing)?|new)(?![\w-])/ },
+        ];
+        let bestIndex = Infinity;
+        for (const { op, re } of opPatterns) {
+          const match = lowerDesc.match(re);
+          if (match && match.index !== undefined && match.index < bestIndex) {
+            bestIndex = match.index;
+            operation = op;
+          }
         }
         
         deltas.push({
