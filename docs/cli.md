@@ -493,6 +493,8 @@ Validate changes and specs for structural issues.
 openspec validate [item-name] [options]
 ```
 
+A change with zero spec deltas fails validation unless its `.openspec.yaml` declares `skip_specs: true` (for pure refactors, tooling, or docs work — see [Recipe 5](examples.md#recipe-5-a-refactor-with-no-behavior-change)).
+
 **Arguments:**
 
 | Argument | Required | Description |
@@ -587,7 +589,7 @@ openspec archive [change-name] [options]
 | Option | Description |
 |--------|-------------|
 | `-y, --yes` | Skip confirmation prompts |
-| `--skip-specs` | Skip spec updates (for infrastructure/tooling/doc-only changes) |
+| `--skip-specs` | Skip spec updates for one archive run. A change that permanently has no spec deltas should declare `skip_specs: true` in its `.openspec.yaml` instead — it archives with no flag |
 | `--no-validate` | Skip validation (requires confirmation) |
 
 **Examples:**
@@ -693,6 +695,8 @@ Progress: 2/4 artifacts complete
 [-] tasks (blocked by: design)
 ```
 
+A change that declares `skip_specs: true` shows its specs stage as `[~] specs (skipped: change declares skip_specs)` and excludes it from the progress count.
+
 **Output (JSON):**
 
 ```json
@@ -758,6 +762,8 @@ openspec instructions design --change add-dark-mode --json
 - Project context from config
 - Content from dependency artifacts
 - Per-artifact rules from config
+
+For an artifact skipped via `skip_specs: true`, the output is a warning only (JSON adds `skipped`/`warning` fields) — the artifact must not be created.
 
 ---
 

@@ -18,7 +18,8 @@ import {
 } from '../parsers/requirement-text.js';
 import { findMainSpecStructureIssues } from '../parsers/spec-structure.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
-import { discoverSpecFiles } from '../../utils/spec-discovery.js';
+import { discoverSpecFiles, hasAnyFileUnder } from '../../utils/spec-discovery.js';
+import { METADATA_FILENAME, readSkipSpecsMarker } from '../../utils/change-metadata.js';
 
 export class Validator {
   private strictMode: boolean;
@@ -85,13 +86,28 @@ export class Validator {
       const content = readFileSync(filePath, 'utf-8');
       const changeDir = path.dirname(filePath);
       const parser = new ChangeParser(content, changeDir);
-      
+
       const change = await parser.parseChangeWithDeltas(changeName);
-      
+
       const result = ChangeSchema.safeParse(change);
-      
+
+      const marker = readSkipSpecsMarker(changeDir);
+      if (marker.invalidReason) {
+        issues.push({ level: 'ERROR', path: METADATA_FILENAME, message: this.formatInvalidMarkerMessage(marker.invalidReason) });
+      }
+
       if (!result.success) {
-        issues.push(...this.convertZodErrors(result.error));
+        let zodIssues = this.convertZodErrors(result.error);
+        // Only the no-deltas error is marker-aware here: the marker+files
+        // conflict is validateChangeDeltaSpecs's job, and every caller of
+        // this proposal-level pass (archive's non-blocking warnings) pairs
+        // it with that gate.
+        if (marker.declared) {
+          zodIssues = zodIssues.filter(
+            issue => !issue.message.startsWith(VALIDATION_MESSAGES.CHANGE_NO_DELTAS)
+          );
+        }
+        issues.push(...zodIssues);
       }
       
       issues.push(...this.applyChangeRules(change, content));
@@ -323,14 +339,48 @@ export class Validator {
       });
     }
 
+    const marker = readSkipSpecsMarker(changeDir);
+    if (marker.invalidReason) {
+      issues.push({ level: 'ERROR', path: METADATA_FILENAME, message: this.formatInvalidMarkerMessage(marker.invalidReason) });
+    }
+
+    // ANY file under specs/ contradicts the marker - not just parsed deltas.
+    // Headerless or stray files would be silently dropped at archive time (and
+    // some still satisfy the artifact graph's specs/**  glob) while the change
+    // claims to have nothing, so they must surface as an explicit conflict.
+    // Probed only when the marker is declared, and unreadable specs/ (a stray
+    // `specs` file, permission errors) fails closed as a conflict: the marker
+    // claims nothing is there, and validate must not crash where the
+    // historical path degraded to "no deltas".
+    const skipSpecs = marker.declared;
+    let specsDirHasFiles = false;
+    if (skipSpecs) {
+      try {
+        specsDirHasFiles = await hasAnyFileUnder(specsDir);
+      } catch {
+        specsDirHasFiles = true;
+      }
+    }
+    if (skipSpecs && specsDirHasFiles) {
+      issues.push({ level: 'ERROR', path: 'file', message: VALIDATION_MESSAGES.CHANGE_SKIP_SPECS_CONFLICT });
+    }
+
     // The root-level error already names the file and the fix; adding "No
     // deltas found" on top would contradict it, since the deltas are sitting in
     // the file just reported.
     if (totalDeltas === 0 && !hasRootLevelSpec) {
-      issues.push({ level: 'ERROR', path: 'file', message: this.enrichTopLevelError('change', VALIDATION_MESSAGES.CHANGE_NO_DELTAS) });
+      if (skipSpecs && !specsDirHasFiles) {
+        issues.push({ level: 'INFO', path: 'file', message: VALIDATION_MESSAGES.CHANGE_SKIP_SPECS_ACCEPTED });
+      } else if (!skipSpecs) {
+        issues.push({ level: 'ERROR', path: 'file', message: this.enrichTopLevelError('change', VALIDATION_MESSAGES.CHANGE_NO_DELTAS) });
+      }
     }
 
     return this.createReport(issues);
+  }
+
+  private formatInvalidMarkerMessage(invalidReason: string): string {
+    return `${VALIDATION_MESSAGES.CHANGE_SKIP_SPECS_INVALID_METADATA} (${invalidReason})`;
   }
 
   private convertZodErrors(error: ZodError): ValidationIssue[] {

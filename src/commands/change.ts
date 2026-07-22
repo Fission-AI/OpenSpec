@@ -2,6 +2,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { JsonConverter } from '../core/converters/json-converter.js';
 import { Validator } from '../core/validation/validator.js';
+import { VALIDATION_MESSAGES } from '../core/validation/constants.js';
 import { ChangeParser } from '../core/parsers/change-parser.js';
 import { Change } from '../core/schemas/index.js';
 import type { RootOutput } from '../core/root-selection.js';
@@ -218,7 +219,7 @@ export class ChangeCommand {
           console.error(`${prefix} [${label}] ${issue.path}: ${issue.message}`);
         });
         // Next steps footer to guide fixing issues
-        this.printNextSteps();
+        this.printNextSteps(report.issues);
         if (!options?.json) {
           process.exitCode = 1;
         }
@@ -251,11 +252,27 @@ export class ChangeCommand {
     return match ? match[1].trim() : changeName;
   }
 
-  private printNextSteps(): void {
+  private printNextSteps(issues: Array<{ message: string }> = []): void {
     const bullets: string[] = [];
-    bullets.push('- Ensure change has deltas in specs/: use headers ## ADDED/MODIFIED/REMOVED/RENAMED Requirements');
-    bullets.push('- Each requirement MUST include at least one #### Scenario: block');
-    bullets.push('- Debug parsed deltas: openspec change show <id> --json --deltas-only');
+    // Branch on the exact marker messages: the generic no-deltas guidance
+    // also mentions skip_specs and must not trigger the marker bullets.
+    const conflictIssue = issues.some(i =>
+      i.message.includes(VALIDATION_MESSAGES.CHANGE_SKIP_SPECS_CONFLICT)
+    );
+    const invalidMarkerIssue = issues.some(i =>
+      i.message.includes(VALIDATION_MESSAGES.CHANGE_SKIP_SPECS_INVALID_METADATA)
+    );
+    if (conflictIssue) {
+      bullets.push('- This change declares skip_specs (no spec deltas): delete the files under specs/, or remove skip_specs from .openspec.yaml if requirements do change');
+      bullets.push('- skip_specs is only honored when .openspec.yaml is valid change metadata (schema: <name> is required)');
+    } else if (invalidMarkerIssue) {
+      bullets.push('- Fix .openspec.yaml so the skip_specs marker can be honored (schema: <name> is required)');
+      bullets.push('- Or remove skip_specs from .openspec.yaml and add delta specs instead');
+    } else {
+      bullets.push('- Ensure change has deltas in specs/: use headers ## ADDED/MODIFIED/REMOVED/RENAMED Requirements');
+      bullets.push('- Each requirement MUST include at least one #### Scenario: block');
+      bullets.push('- Debug parsed deltas: openspec change show <id> --json --deltas-only');
+    }
     console.error('Next steps:');
     bullets.forEach(b => console.error(`  ${b}`));
   }

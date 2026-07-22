@@ -626,6 +626,103 @@ New feature description.
       expect(archives.length).toBe(1);
     });
 
+    it('should archive a skip_specs change with no spec files cleanly', async () => {
+      const changeName = 'marked-refactor';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(
+        path.join(changeDir, '.openspec.yaml'),
+        'schema: spec-driven\nskip_specs: true\n'
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      const archives = await fs.readdir(path.join(tempDir, 'openspec', 'changes', 'archive'));
+      expect(archives.some(a => a.includes(changeName))).toBe(true);
+      expect(process.exitCode).toBeUndefined();
+    });
+
+    it('should block archiving a skip_specs change that has files under specs/', async () => {
+      const changeName = 'marked-with-stray-specs';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const strayDir = path.join(changeDir, 'specs', 'notes');
+      await fs.mkdir(strayDir, { recursive: true });
+      await fs.writeFile(path.join(strayDir, 'spec.md'), '# headerless notes\n');
+      await fs.writeFile(
+        path.join(changeDir, '.openspec.yaml'),
+        'schema: spec-driven\nskip_specs: true\n'
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('skip_specs is set in .openspec.yaml but spec files exist under specs/')
+      );
+      expect(process.exitCode).toBe(1);
+      // Change must not have moved.
+      await expect(fs.access(changeDir)).resolves.toBeUndefined();
+      const archives = await fs.readdir(path.join(tempDir, 'openspec', 'changes', 'archive'));
+      expect(archives.some(a => a.includes(changeName))).toBe(false);
+    });
+
+    it('should block archiving when skip_specs is set but the metadata is unhonorable', async () => {
+      const changeName = 'marked-invalid-metadata';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      // skip_specs without the required schema field: validate rejects this
+      // metadata, so archive must not accept the change either.
+      await fs.writeFile(path.join(changeDir, '.openspec.yaml'), 'skip_specs: true\n');
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('skip_specs is set but .openspec.yaml is not valid change metadata')
+      );
+      expect(process.exitCode).toBe(1);
+      const archives = await fs.readdir(path.join(tempDir, 'openspec', 'changes', 'archive'));
+      expect(archives.some(a => a.includes(changeName))).toBe(false);
+    });
+
+    it('should block archiving when skip_specs names an unknown schema', async () => {
+      const changeName = 'marked-unknown-schema';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      // Well-shaped metadata naming a schema that does not resolve: status
+      // rejects this metadata, so archive must not honor the marker and
+      // bypass delta validation even though specs/ is empty.
+      await fs.writeFile(
+        path.join(changeDir, '.openspec.yaml'),
+        'schema: does-not-exist\nskip_specs: true\n'
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('skip_specs is set but .openspec.yaml is not valid change metadata')
+      );
+      expect(process.exitCode).toBe(1);
+      const archives = await fs.readdir(path.join(tempDir, 'openspec', 'changes', 'archive'));
+      expect(archives.some(a => a.includes(changeName))).toBe(false);
+    });
+
+    it('should block archiving when the metadata file exists but cannot be read', async () => {
+      const changeName = 'metadata-as-directory';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      // .openspec.yaml as a directory: every metadata-reading surface errors
+      // and the marker state cannot be determined, so archive must fail
+      // closed into validation instead of treating the change as unmarked.
+      await fs.mkdir(path.join(changeDir, '.openspec.yaml'), { recursive: true });
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('skip_specs is set but .openspec.yaml is not valid change metadata')
+      );
+      expect(process.exitCode).toBe(1);
+      const archives = await fs.readdir(path.join(tempDir, 'openspec', 'changes', 'archive'));
+      expect(archives.some(a => a.includes(changeName))).toBe(false);
+    });
+
     it('should skip spec updates when --skip-specs flag is used', async () => {
       const changeName = 'skip-specs-feature';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
