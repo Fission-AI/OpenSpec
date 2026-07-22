@@ -36,7 +36,7 @@ jobs:
       # No PR comment: that needs `pull-requests: write`, which a fork's token
       # never gets. The failed check plus its log is the signal.
       - name: Review dependency changes
-        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v4
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           fail-on-severity: high
 
