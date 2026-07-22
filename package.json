@@ -43,6 +43,7 @@
     "lint": "eslint src/",
     "build": "node build.js",
     "generate:skills": "node scripts/generate-skillssh.mjs",
+    "regen:parity-hashes": "node scripts/regen-parity-hashes.mjs",
     "dev": "tsc --watch",
     "dev:cli": "pnpm build && node bin/openspec.js",
     "test": "vitest run",
