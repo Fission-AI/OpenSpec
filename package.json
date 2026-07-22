@@ -73,7 +73,7 @@
     "vitest": "^3.2.6"
   },
   "dependencies": {
-    "@inquirer/core": "^10.3.2",
+    "@inquirer/core": "^11.2.1",
     "@inquirer/prompts": "^7.10.1",
     "chalk": "^5.5.0",
     "commander": "^14.0.0",
