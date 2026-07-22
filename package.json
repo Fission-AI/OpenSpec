@@ -63,7 +63,7 @@
     "node": ">=20.19.0"
   },
   "devDependencies": {
-    "@changesets/changelog-github": "^0.5.2",
+    "@changesets/changelog-github": "^0.7.0",
     "@changesets/cli": "^2.29.6",
     "@types/node": "^24.2.0",
     "@vitest/ui": "^3.2.6",
