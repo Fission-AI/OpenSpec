@@ -329,9 +329,15 @@ export class UpdateCommand {
     if (newlyConfiguredTools.length > 0) {
       console.log();
       console.log(chalk.bold('Getting started:'));
-      console.log('  /opsx:new       Start a new change');
-      console.log('  /opsx:continue  Create the next artifact');
-      console.log('  /opsx:apply     Implement tasks');
+      if (desiredWorkflows.includes('atd-triage')) {
+        console.log('  /opsx:atd-triage    Triage a Jira ticket and create the change');
+        console.log('  /opsx:atd-continue  Create the next artifact');
+        console.log('  /opsx:atd-apply     Implement tasks');
+      } else {
+        console.log('  /opsx:new       Start a new change');
+        console.log('  /opsx:continue  Create the next artifact');
+        console.log('  /opsx:apply     Implement tasks');
+      }
       console.log();
       console.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
     }

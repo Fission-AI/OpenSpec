@@ -19,6 +19,14 @@ import {
   getOpsxProposeSkillTemplate,
   getAtdTriageSkillTemplate,
   getOpsxAtdTriageCommandTemplate,
+  getAtdContinueSkillTemplate,
+  getOpsxAtdContinueCommandTemplate,
+  getAtdApplySkillTemplate,
+  getOpsxAtdApplyCommandTemplate,
+  getAtdVerifySkillTemplate,
+  getOpsxAtdVerifyCommandTemplate,
+  getAtdCloseSkillTemplate,
+  getOpsxAtdCloseCommandTemplate,
   getOpsxExploreCommandTemplate,
   getOpsxNewCommandTemplate,
   getOpsxContinueCommandTemplate,
@@ -73,6 +81,10 @@ export function getSkillTemplates(workflowFilter?: readonly string[]): SkillTemp
     { template: getOnboardSkillTemplate(), dirName: 'openspec-onboard', workflowId: 'onboard' },
     { template: getOpsxProposeSkillTemplate(), dirName: 'openspec-propose', workflowId: 'propose' },
     { template: getAtdTriageSkillTemplate(), dirName: 'atd-change-triage', workflowId: 'atd-triage' },
+    { template: getAtdContinueSkillTemplate(), dirName: 'atd-change-continue', workflowId: 'atd-continue' },
+    { template: getAtdApplySkillTemplate(), dirName: 'atd-change-apply', workflowId: 'atd-apply' },
+    { template: getAtdVerifySkillTemplate(), dirName: 'atd-change-verify', workflowId: 'atd-verify' },
+    { template: getAtdCloseSkillTemplate(), dirName: 'atd-change-close', workflowId: 'atd-close' },
   ];
 
   if (!workflowFilter) return all;
@@ -101,6 +113,10 @@ export function getCommandTemplates(workflowFilter?: readonly string[]): Command
     { template: getOpsxOnboardCommandTemplate(), id: 'onboard' },
     { template: getOpsxProposeCommandTemplate(), id: 'propose' },
     { template: getOpsxAtdTriageCommandTemplate(), id: 'atd-triage' },
+    { template: getOpsxAtdContinueCommandTemplate(), id: 'atd-continue' },
+    { template: getOpsxAtdApplyCommandTemplate(), id: 'atd-apply' },
+    { template: getOpsxAtdVerifyCommandTemplate(), id: 'atd-verify' },
+    { template: getOpsxAtdCloseCommandTemplate(), id: 'atd-close' },
   ];
 
   if (!workflowFilter) return all;

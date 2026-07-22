@@ -253,14 +253,15 @@ Old instructions content
 
       await updateCommand.execute(testDir);
 
-      // Verify core profile skill files were created/updated (propose, explore, apply, update, sync, archive)
+      // Verify core profile skill files were created/updated (five ATD façades + explore + update)
       const coreSkillNames = [
+        'atd-change-triage',
+        'atd-change-continue',
+        'atd-change-apply',
+        'atd-change-verify',
+        'atd-change-close',
         'openspec-explore',
-        'openspec-apply-change',
         'openspec-update-change',
-        'openspec-sync-specs',
-        'openspec-archive-change',
-        'openspec-propose',
       ];
 
       for (const skillName of coreSkillNames) {
@@ -276,8 +277,12 @@ Old instructions content
 
       // Verify non-core skills are NOT created
       const nonCoreSkillNames = [
+        'openspec-propose',
         'openspec-new-change',
         'openspec-continue-change',
+        'openspec-apply-change',
+        'openspec-sync-specs',
+        'openspec-archive-change',
         'openspec-ff-change',
         'openspec-bulk-archive-change',
         'openspec-verify-change',
@@ -365,8 +370,8 @@ Old instructions content
 
       await updateCommand.execute(testDir);
 
-      // Verify core profile commands were created (propose, explore, apply, update, sync, archive)
-      const coreCommandIds = ['explore', 'apply', 'update', 'sync', 'archive', 'propose'];
+      // Verify core profile commands were created (five ATD façades + explore + update)
+      const coreCommandIds = ['atd-triage', 'atd-continue', 'atd-apply', 'atd-verify', 'atd-close', 'explore', 'update'];
       const commandsDir = path.join(testDir, '.claude', 'commands', 'opsx');
       for (const cmdId of coreCommandIds) {
         const cmdFile = path.join(commandsDir, `${cmdId}.md`);
@@ -375,7 +380,7 @@ Old instructions content
       }
 
       // Verify non-core commands are NOT created
-      const nonCoreCommandIds = ['new', 'continue', 'ff', 'bulk-archive', 'verify'];
+      const nonCoreCommandIds = ['propose', 'new', 'continue', 'apply', 'sync', 'archive', 'ff', 'bulk-archive', 'verify'];
       for (const cmdId of nonCoreCommandIds) {
         const cmdFile = path.join(commandsDir, `${cmdId}.md`);
         const exists = await FileSystemUtils.fileExists(cmdFile);
@@ -651,20 +656,20 @@ Old instructions content
     });
 
     it('should include proper instructions in skill files', async () => {
-      // Set up a configured tool with apply-change skill (which is in core profile)
+      // Set up a configured tool with atd-change-apply skill (which is in core profile)
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'openspec-apply-change'), {
+      await fs.mkdir(path.join(skillsDir, 'atd-change-apply'), {
         recursive: true,
       });
       await fs.writeFile(
-        path.join(skillsDir, 'openspec-apply-change', 'SKILL.md'),
+        path.join(skillsDir, 'atd-change-apply', 'SKILL.md'),
         'old'
       );
 
       await updateCommand.execute(testDir);
 
       const skillContent = await fs.readFile(
-        path.join(skillsDir, 'openspec-apply-change', 'SKILL.md'),
+        path.join(skillsDir, 'atd-change-apply', 'SKILL.md'),
         'utf-8'
       );
 
@@ -1402,7 +1407,7 @@ More user content after markers.
         expect.stringContaining('Getting started')
       );
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('/opsx:new')
+        expect.stringContaining('/opsx:atd-triage')
       );
 
       // Skills should be created
@@ -1581,11 +1586,13 @@ More user content after markers.
 
       // Default profile is core, so only core workflows should be generated.
       const skillNames = [
-        'openspec-propose',
+        'atd-change-triage',
+        'atd-change-continue',
+        'atd-change-apply',
+        'atd-change-verify',
+        'atd-change-close',
         'openspec-explore',
-        'openspec-apply-change',
-        'openspec-sync-specs',
-        'openspec-archive-change',
+        'openspec-update-change',
       ];
 
       const skillsDir = path.join(testDir, '.claude', 'skills');
@@ -1706,7 +1713,7 @@ More user content after markers.
         call.map(arg => String(arg)).join(' ')
       );
       expect(calls.some(call =>
-        call.includes('Your custom profile is missing 3 core workflows: update, sync, atd-triage')
+        call.includes('Your custom profile is missing 6 core workflows: atd-triage, atd-continue, atd-apply, atd-verify, atd-close, update')
       )).toBe(true);
       expect(calls.some(call =>
         call.includes('openspec config profile core')
@@ -1727,7 +1734,7 @@ More user content after markers.
         featureFlags: {},
         profile: 'custom',
         delivery: 'both',
-        workflows: ['propose', 'explore', 'apply', 'sync', 'archive', 'atd-triage'],
+        workflows: ['atd-triage', 'atd-continue', 'atd-apply', 'atd-verify', 'atd-close', 'explore'],
       });
 
       const initCommand = new InitCommand({ tools: 'claude', force: true });
@@ -1755,7 +1762,7 @@ More user content after markers.
         featureFlags: {},
         profile: 'custom',
         delivery: 'both',
-        workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive', 'atd-triage', 'verify'],
+        workflows: ['atd-triage', 'atd-continue', 'atd-apply', 'atd-verify', 'atd-close', 'explore', 'update', 'verify'],
       });
 
       const initCommand = new InitCommand({ tools: 'claude', force: true });
@@ -2006,7 +2013,7 @@ content
 
       // Commands should be updated/generated for the core profile
       expect(await FileSystemUtils.fileExists(
-        path.join(commandsDir, 'propose.md')
+        path.join(commandsDir, 'atd-triage.md')
       )).toBe(true);
 
       consoleSpy.mockRestore();

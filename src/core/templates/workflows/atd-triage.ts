@@ -93,8 +93,8 @@ ${STORE_SELECTION_GUIDANCE}
 6. **Hand off**
 
    Tell the developer the change was created with schema \`<chosen>\` and that
-   the next step is the \`ticket\` artifact (e.g. via the continue/apply
-   workflow).
+   the next step is the \`ticket\` artifact, created via \`atd-change-continue\`
+   (step 2 of the ATD journey).
 
 **triage.md format**
 

@@ -31,6 +31,10 @@ export const WORKFLOW_TO_SKILL_DIR: Record<WorkflowId, string> = {
   'onboard': 'openspec-onboard',
   'propose': 'openspec-propose',
   'atd-triage': 'atd-change-triage',
+  'atd-continue': 'atd-change-continue',
+  'atd-apply': 'atd-change-apply',
+  'atd-verify': 'atd-change-verify',
+  'atd-close': 'atd-change-close',
 };
 
 function toKnownWorkflows(workflows: readonly string[]): WorkflowId[] {

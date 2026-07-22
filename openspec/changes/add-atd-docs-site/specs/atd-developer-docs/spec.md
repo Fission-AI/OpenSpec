@@ -21,7 +21,7 @@ The site navigation SHALL contain: an index page stating the workflow purpose (o
 - **THEN** the navigation resolves index, architecture, getting-started, flows/{triage, full-sdlc, lite, escalation}, standards, examples/{example-full, example-lite}, and reference/{config-keys, faq}
 
 ### Requirement: Flow pages carry diagrams matching the shipped schemas
-Each flow page SHALL carry a mermaid diagram consistent with the corresponding shipped schema or skill behavior, sourced from the approved change design documents (`add-atd-sdlc-schema`, `add-atd-sdlc-lite-triage`).
+Each flow page SHALL carry a mermaid diagram consistent with the corresponding shipped schema or skill behavior, sourced from the approved change design documents (`add-atd-sdlc-schema`, `add-atd-sdlc-lite-triage`, `add-atd-workflow-facades`). Flow pages SHALL present the developer journey in the five-step façade vocabulary (`atd-change-triage` → `atd-change-continue` → `atd-change-apply` → `atd-change-verify` → `atd-change-close`); generic `openspec-*`/`/opsx:*` workflow names appear only when documenting maintainer or non-ATD flows.
 
 #### Scenario: Full SDLC flow page
 - **WHEN** a developer opens the full-sdlc flow page

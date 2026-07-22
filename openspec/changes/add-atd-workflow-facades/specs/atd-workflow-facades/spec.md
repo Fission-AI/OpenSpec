@@ -29,11 +29,11 @@ Each new ATD workflow SHALL compose the corresponding generic workflow from a sh
 - **THEN** its content includes the shared store-selection guidance block and the template parity test passes
 
 ### Requirement: Façades accept only ATD schemas
-Every ATD façade SHALL read `schemaName` from `openspec status --json` before performing its workflow action and SHALL continue only for `atd-sdlc` or `atd-sdlc-lite`. For any other schema it SHALL stop without modifying artifacts, code, specs, tasks, or archive state and SHALL direct the developer to the corresponding generic workflow.
+Every ATD façade's instructions SHALL direct the agent to read `schemaName` from `openspec status --json` before performing its workflow action and to continue only for `atd-sdlc` or `atd-sdlc-lite`. For any other schema the instructions SHALL direct the agent to stop without modifying artifacts, code, specs, tasks, or archive state and to point the developer to the corresponding generic workflow. Automated tests verify the instruction contract; actual agent compliance is validated during pilot.
 
 #### Scenario: Non-ATD change rejected
 - **WHEN** `atd-change-apply` is invoked for a `spec-driven` change
-- **THEN** it makes no change and directs the developer to `openspec-apply-change`
+- **THEN** its instructions direct the agent to stop without modifying anything and to point the developer to `openspec-apply-change`
 
 ### Requirement: Close hard-gates tracked work and holds no closure logic
 `atd-close` SHALL obtain the apply state from `openspec instructions apply --json` and require every tracked task to be complete, including standards conformance, documentation, and Jira closure tasks. It SHALL NOT rely on a particular task-group heading. When any artifact or task is incomplete, close SHALL surface the incomplete items, direct the developer to `atd-change-apply`, and stop without offering an override. Close SHALL NOT perform publication, Jira closure, or any other closure work itself.

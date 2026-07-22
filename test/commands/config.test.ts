@@ -274,7 +274,7 @@ describe('config profile command', () => {
     const result = getGlobalConfig();
     expect(result.profile).toBe('core');
     expect(result.delivery).toBe('skills'); // preserved
-    expect(result.workflows).toEqual(['propose', 'explore', 'apply', 'update', 'sync', 'archive', 'atd-triage']);
+    expect(result.workflows).toEqual(['atd-triage', 'atd-continue', 'atd-apply', 'atd-verify', 'atd-close', 'explore', 'update']);
   });
 
   it('custom workflow selection should set profile to custom', async () => {

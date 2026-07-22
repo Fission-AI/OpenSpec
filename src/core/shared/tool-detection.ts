@@ -25,6 +25,10 @@ export const SKILL_NAMES = [
   'openspec-onboard',
   'openspec-propose',
   'atd-change-triage',
+  'atd-change-continue',
+  'atd-change-apply',
+  'atd-change-verify',
+  'atd-change-close',
 ] as const;
 
 export type SkillName = (typeof SKILL_NAMES)[number];
@@ -46,6 +50,10 @@ export const COMMAND_IDS = [
   'onboard',
   'propose',
   'atd-triage',
+  'atd-continue',
+  'atd-apply',
+  'atd-verify',
+  'atd-close',
 ] as const;
 
 export type CommandId = (typeof COMMAND_IDS)[number];

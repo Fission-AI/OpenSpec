@@ -83,14 +83,15 @@ describe('InitCommand', () => {
 
       await initCommand.execute(testDir);
 
-      // Core profile: propose, explore, apply, update, sync, archive
+      // Core profile: the five ATD façades plus explore and update
       const coreSkillNames = [
-        'openspec-propose',
+        'atd-change-triage',
+        'atd-change-continue',
+        'atd-change-apply',
+        'atd-change-verify',
+        'atd-change-close',
         'openspec-explore',
-        'openspec-apply-change',
         'openspec-update-change',
-        'openspec-sync-specs',
-        'openspec-archive-change',
       ];
 
       for (const skillName of coreSkillNames) {
@@ -105,8 +106,12 @@ describe('InitCommand', () => {
 
       // Non-core skills should NOT be created
       const nonCoreSkillNames = [
+        'openspec-propose',
         'openspec-new-change',
         'openspec-continue-change',
+        'openspec-apply-change',
+        'openspec-sync-specs',
+        'openspec-archive-change',
         'openspec-ff-change',
         'openspec-bulk-archive-change',
         'openspec-verify-change',
@@ -123,14 +128,15 @@ describe('InitCommand', () => {
 
       await initCommand.execute(testDir);
 
-      // Core profile: propose, explore, apply, update, sync, archive
+      // Core profile: the five ATD façades plus explore and update
       const coreCommandNames = [
-        'opsx/propose.md',
+        'opsx/atd-triage.md',
+        'opsx/atd-continue.md',
+        'opsx/atd-apply.md',
+        'opsx/atd-verify.md',
+        'opsx/atd-close.md',
         'opsx/explore.md',
-        'opsx/apply.md',
         'opsx/update.md',
-        'opsx/sync.md',
-        'opsx/archive.md',
       ];
 
       for (const cmdName of coreCommandNames) {
@@ -140,8 +146,12 @@ describe('InitCommand', () => {
 
       // Non-core commands should NOT be created
       const nonCoreCommandNames = [
+        'opsx/propose.md',
         'opsx/new.md',
         'opsx/continue.md',
+        'opsx/apply.md',
+        'opsx/sync.md',
+        'opsx/archive.md',
         'opsx/ff.md',
         'opsx/bulk-archive.md',
         'opsx/verify.md',
@@ -178,15 +188,15 @@ describe('InitCommand', () => {
 
       // Core profile skills land under .zcode/skills
       const exploreSkill = path.join(testDir, '.zcode', 'skills', 'openspec-explore', 'SKILL.md');
-      const proposeSkill = path.join(testDir, '.zcode', 'skills', 'openspec-propose', 'SKILL.md');
+      const triageSkill = path.join(testDir, '.zcode', 'skills', 'atd-change-triage', 'SKILL.md');
       expect(await fileExists(exploreSkill)).toBe(true);
-      expect(await fileExists(proposeSkill)).toBe(true);
+      expect(await fileExists(triageSkill)).toBe(true);
 
       // Core profile commands land under .zcode/commands/opsx
       const exploreCmd = path.join(testDir, '.zcode', 'commands', 'opsx', 'explore.md');
-      const proposeCmd = path.join(testDir, '.zcode', 'commands', 'opsx', 'propose.md');
+      const triageCmd = path.join(testDir, '.zcode', 'commands', 'opsx', 'atd-triage.md');
       expect(await fileExists(exploreCmd)).toBe(true);
-      expect(await fileExists(proposeCmd)).toBe(true);
+      expect(await fileExists(triageCmd)).toBe(true);
 
       const cmdContent = await fs.readFile(exploreCmd, 'utf-8');
       expect(cmdContent).toContain('---');
@@ -500,24 +510,24 @@ describe('InitCommand', () => {
       expect(content).toContain('thinking partner');
     });
 
-    it('should include propose skill instructions', async () => {
+    it('should include atd-triage skill instructions', async () => {
       const initCommand = new InitCommand({ tools: 'claude', force: true });
       await initCommand.execute(testDir);
 
-      const skillFile = path.join(testDir, '.claude', 'skills', 'openspec-propose', 'SKILL.md');
+      const skillFile = path.join(testDir, '.claude', 'skills', 'atd-change-triage', 'SKILL.md');
       const content = await fs.readFile(skillFile, 'utf-8');
 
-      expect(content).toContain('name: openspec-propose');
+      expect(content).toContain('name: atd-change-triage');
     });
 
-    it('should include apply-change skill instructions', async () => {
+    it('should include atd-apply skill instructions', async () => {
       const initCommand = new InitCommand({ tools: 'claude', force: true });
       await initCommand.execute(testDir);
 
-      const skillFile = path.join(testDir, '.claude', 'skills', 'openspec-apply-change', 'SKILL.md');
+      const skillFile = path.join(testDir, '.claude', 'skills', 'atd-change-apply', 'SKILL.md');
       const content = await fs.readFile(skillFile, 'utf-8');
 
-      expect(content).toContain('name: openspec-apply-change');
+      expect(content).toContain('name: atd-change-apply');
     });
 
     it('should embed generatedBy version in skill files', async () => {
@@ -681,8 +691,8 @@ describe('InitCommand - profile and detection features', () => {
     await initCommand.execute(testDir);
 
     // Core profile skills should be created
-    const proposeSkill = path.join(testDir, '.claude', 'skills', 'openspec-propose', 'SKILL.md');
-    expect(await fileExists(proposeSkill)).toBe(true);
+    const triageSkill = path.join(testDir, '.claude', 'skills', 'atd-change-triage', 'SKILL.md');
+    expect(await fileExists(triageSkill)).toBe(true);
 
     // Non-core skills (from the custom profile) should NOT be created
     const newChangeSkill = path.join(testDir, '.claude', 'skills', 'openspec-new-change', 'SKILL.md');
@@ -733,16 +743,16 @@ describe('InitCommand - profile and detection features', () => {
 
   it('should remove managed global Codex prompts in non-interactive mode', async () => {
     const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
-    const legacyPrompt = path.join(promptDir, 'opsx-apply.md');
+    const legacyPrompt = path.join(promptDir, 'opsx-explore.md');
     await fs.mkdir(promptDir, { recursive: true });
-    await fs.writeFile(legacyPrompt, 'legacy apply prompt');
+    await fs.writeFile(legacyPrompt, 'legacy explore prompt');
 
     const initCommand = new InitCommand({ tools: 'codex' });
     await initCommand.execute(testDir);
 
     expect(await fileExists(legacyPrompt)).toBe(false);
     expect(await fileExists(
-      path.join(testDir, '.codex', 'skills', 'openspec-apply-change', 'SKILL.md')
+      path.join(testDir, '.codex', 'skills', 'openspec-explore', 'SKILL.md')
     )).toBe(true);
   });
 
@@ -766,9 +776,9 @@ describe('InitCommand - profile and detection features', () => {
 
   it('should defer global Codex prompt removal messaging until after interactive tool selection', async () => {
     const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
-    const legacyPrompt = path.join(promptDir, 'opsx-apply.md');
+    const legacyPrompt = path.join(promptDir, 'opsx-explore.md');
     await fs.mkdir(promptDir, { recursive: true });
-    await fs.writeFile(legacyPrompt, 'legacy apply prompt');
+    await fs.writeFile(legacyPrompt, 'legacy explore prompt');
 
     searchableMultiSelectMock.mockResolvedValue(['codex']);
 

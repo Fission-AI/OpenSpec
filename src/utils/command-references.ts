@@ -21,8 +21,7 @@ export function transformToHyphenCommands(text: string): string {
 
 /**
  * Maps command short names to their skill directory references.
- * Keep in sync with WORKFLOW_TO_SKILL_DIR, which exists in both
- * src/core/profile-sync-drift.ts (exported) and src/core/init.ts (local copy).
+ * Keep in sync with WORKFLOW_TO_SKILL_DIR in src/core/profile-sync-drift.ts.
  */
 const COMMAND_TO_SKILL_REFERENCE: Record<string, string> = {
   'explore': '/openspec-explore',
@@ -37,6 +36,11 @@ const COMMAND_TO_SKILL_REFERENCE: Record<string, string> = {
   'verify': '/openspec-verify-change',
   'onboard': '/openspec-onboard',
   'propose': '/openspec-propose',
+  'atd-triage': '/atd-change-triage',
+  'atd-continue': '/atd-change-continue',
+  'atd-apply': '/atd-change-apply',
+  'atd-verify': '/atd-change-verify',
+  'atd-close': '/atd-change-close',
 };
 
 /**

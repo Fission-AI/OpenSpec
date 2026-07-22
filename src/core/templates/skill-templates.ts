@@ -20,3 +20,7 @@ export { getOnboardSkillTemplate, getOpsxOnboardCommandTemplate } from './workfl
 export { getOpsxProposeSkillTemplate, getOpsxProposeCommandTemplate } from './workflows/propose.js';
 export { getFeedbackSkillTemplate } from './workflows/feedback.js';
 export { getAtdTriageSkillTemplate, getOpsxAtdTriageCommandTemplate } from './workflows/atd-triage.js';
+export { getAtdContinueSkillTemplate, getOpsxAtdContinueCommandTemplate } from './workflows/atd-continue.js';
+export { getAtdApplySkillTemplate, getOpsxAtdApplyCommandTemplate } from './workflows/atd-apply.js';
+export { getAtdVerifySkillTemplate, getOpsxAtdVerifyCommandTemplate } from './workflows/atd-verify.js';
+export { getAtdCloseSkillTemplate, getOpsxAtdCloseCommandTemplate } from './workflows/atd-close.js';

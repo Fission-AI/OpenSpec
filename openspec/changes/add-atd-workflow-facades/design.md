@@ -19,6 +19,7 @@
 - New CLI commands, artifact-graph, or resolver behavior.
 - Migrating the existing `atd-triage` id or `atd-change-triage` directory.
 - Documenting the journey on the docs site (that is `add-atd-docs-site`'s scope; coordination only).
+- Lite→full escalation: it remains schema-driven (the `atd-sdlc-lite` schema owns the one-way escalation instructions); façades do not reimplement or gate it.
 
 ## Decisions
 

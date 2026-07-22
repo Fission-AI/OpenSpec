@@ -69,7 +69,7 @@ describe('deriveProfileFromWorkflowSelection', () => {
 
   it('returns core when selection has exactly core workflows in different order', async () => {
     const { deriveProfileFromWorkflowSelection } = await import('../../src/commands/config.js');
-    expect(deriveProfileFromWorkflowSelection(['archive', 'sync', 'update', 'apply', 'explore', 'propose', 'atd-triage'])).toBe('core');
+    expect(deriveProfileFromWorkflowSelection(['atd-close', 'atd-verify', 'atd-apply', 'atd-continue', 'update', 'explore', 'atd-triage'])).toBe('core');
   });
 });
 
@@ -92,13 +92,13 @@ describe('config profile interactive flow', () => {
   function setupSyncedCoreBothArtifacts(projectDir: string): void {
     fs.mkdirSync(path.join(projectDir, 'openspec'), { recursive: true });
     const coreSkillDirs = [
-      'openspec-propose',
-      'openspec-explore',
-      'openspec-apply-change',
-      'openspec-update-change',
-      'openspec-sync-specs',
-      'openspec-archive-change',
       'atd-change-triage',
+      'atd-change-continue',
+      'atd-change-apply',
+      'atd-change-verify',
+      'atd-change-close',
+      'openspec-explore',
+      'openspec-update-change',
     ];
     for (const dirName of coreSkillDirs) {
       const skillPath = path.join(projectDir, '.claude', 'skills', dirName, 'SKILL.md');
@@ -106,7 +106,7 @@ describe('config profile interactive flow', () => {
       fs.writeFileSync(skillPath, `name: ${dirName}\n`, 'utf-8');
     }
 
-    const coreCommands = ['propose', 'explore', 'apply', 'update', 'sync', 'archive', 'atd-triage'];
+    const coreCommands = ['atd-triage', 'atd-continue', 'atd-apply', 'atd-verify', 'atd-close', 'explore', 'update'];
     for (const commandId of coreCommands) {
       const commandPath = path.join(projectDir, '.claude', 'commands', 'opsx', `${commandId}.md`);
       fs.mkdirSync(path.dirname(commandPath), { recursive: true });
@@ -220,9 +220,9 @@ describe('config profile interactive flow', () => {
         unchecked: '[ ]',
       },
     });
-    const proposeChoice = checkboxCall.choices.find((choice: { value: string }) => choice.value === 'propose');
+    const triageChoice = checkboxCall.choices.find((choice: { value: string }) => choice.value === 'atd-triage');
     const onboardChoice = checkboxCall.choices.find((choice: { value: string }) => choice.value === 'onboard');
-    expect(proposeChoice.checked).toBe(true);
+    expect(triageChoice.checked).toBe(true);
     expect(onboardChoice.checked).toBe(false);
     expect(getGlobalConfig().workflows).toEqual(['propose', 'explore']);
   });
@@ -428,7 +428,7 @@ describe('config profile interactive flow', () => {
     const config = getGlobalConfig();
     expect(config.profile).toBe('core');
     expect(config.delivery).toBe('skills');
-    expect(config.workflows).toEqual(['propose', 'explore', 'apply', 'update', 'sync', 'archive', 'atd-triage']);
+    expect(config.workflows).toEqual(['atd-triage', 'atd-continue', 'atd-apply', 'atd-verify', 'atd-close', 'explore', 'update']);
     expect(select).not.toHaveBeenCalled();
     expect(checkbox).not.toHaveBeenCalled();
     expect(confirm).not.toHaveBeenCalled();
