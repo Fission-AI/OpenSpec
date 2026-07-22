@@ -1,0 +1,75 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**/package.json'
+      - '**/pnpm-lock.yaml'
+      - '.github/workflows/security.yml'
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly, so a newly published advisory surfaces even with no commits.
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Blocks a pull request that introduces a vulnerable or badly licensed dependency.
+  dependency-review:
+    name: Dependency Review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      # No PR comment: that needs `pull-requests: write`, which a fork's token
+      # never gets. The failed check plus its log is the signal.
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4
+        with:
+          fail-on-severity: high
+
+  audit:
+    name: Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+
+      # No dependency cache: `pnpm audit` reads the lockfile, nothing is installed,
+      # so a cache-save step would fail on the missing store path.
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '20.19.0'
+
+      # Advisory on pull requests: a newly published advisory should not stop an
+      # unrelated change, and the step depends on registry availability.
+      # Blocking everywhere else — on the weekly schedule and on pushes to main
+      # — so a high-severity advisory in a shipped dependency still fails a run
+      # even when no dependency changed.
+      - name: Audit published dependencies
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        run: pnpm audit --prod --audit-level high
+
+      # Build and test tooling never reaches an installed copy of OpenSpec, so an
+      # advisory here is a scheduled-update item.
+      - name: Audit build and test tooling
+        continue-on-error: true
+        run: pnpm audit --audit-level high

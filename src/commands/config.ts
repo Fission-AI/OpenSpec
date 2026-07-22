@@ -16,6 +16,7 @@ import {
   coerceValue,
   formatValueYaml,
   validateConfigKeyPath,
+  hasUnsafeKeySegment,
   validateConfig,
   DEFAULT_CONFIG,
 } from '../core/config-schema.js';
@@ -296,11 +297,15 @@ export function registerConfigCommand(program: Command): void {
     .action((key: string, value: string, options: { string?: boolean; allowUnknown?: boolean }) => {
       const allowUnknown = Boolean(options.allowUnknown);
       const keyValidation = validateConfigKeyPath(key);
-      if (!keyValidation.valid && !allowUnknown) {
+      // --allow-unknown relaxes the known-key check, but never the prototype-safety check.
+      const unsafeKey = hasUnsafeKeySegment(key);
+      if (!keyValidation.valid && (!allowUnknown || unsafeKey)) {
         const reason = keyValidation.reason ? ` ${keyValidation.reason}.` : '';
         console.error(`Error: Invalid configuration key "${key}".${reason}`);
         console.error('Use "openspec config list" to see available keys.');
-        console.error('Pass --allow-unknown to bypass this check.');
+        if (!allowUnknown && !unsafeKey) {
+          console.error('Pass --allow-unknown to bypass this check.');
+        }
         process.exitCode = 1;
         return;
       }

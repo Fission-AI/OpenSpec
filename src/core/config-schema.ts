@@ -44,6 +44,24 @@ export const DEFAULT_CONFIG: GlobalConfigType = {
 const KNOWN_TOP_LEVEL_KEYS = new Set([...Object.keys(DEFAULT_CONFIG), 'workflows', 'defaultStore']);
 
 /**
+ * Key segments that would reach the prototype chain instead of the config object.
+ * Never valid as configuration keys, so rejecting them costs nothing.
+ */
+const UNSAFE_KEY_SEGMENTS = new Set(['__proto__', 'constructor', 'prototype']);
+
+function hasUnsafeSegment(keys: string[]): boolean {
+  return keys.some((key) => UNSAFE_KEY_SEGMENTS.has(key));
+}
+
+/**
+ * True when a dot-notation key path contains a prototype-reaching segment.
+ * Callers that bypass key validation (e.g. --allow-unknown) still must not bypass this.
+ */
+export function hasUnsafeKeySegment(path: string): boolean {
+  return hasUnsafeSegment(path.split('.'));
+}
+
+/**
  * Validate a config key path for CLI set operations.
  * Unknown top-level keys are rejected unless explicitly allowed by the caller.
  */
@@ -52,6 +70,11 @@ export function validateConfigKeyPath(path: string): { valid: boolean; reason?: 
 
   if (rawKeys.length === 0 || rawKeys.some((key) => key.trim() === '')) {
     return { valid: false, reason: 'Key path must not be empty' };
+  }
+
+  const unsafeKey = rawKeys.find((key) => UNSAFE_KEY_SEGMENTS.has(key));
+  if (unsafeKey) {
+    return { valid: false, reason: `Key segment "${unsafeKey}" is not allowed` };
   }
 
   const rootKey = rawKeys[0];
@@ -82,6 +105,9 @@ export function validateConfigKeyPath(path: string): { valid: boolean; reason?: 
  */
 export function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
   const keys = path.split('.');
+  if (hasUnsafeSegment(keys)) {
+    return undefined;
+  }
   let current: unknown = obj;
 
   for (const key of keys) {
@@ -107,6 +133,9 @@ export function getNestedValue(obj: Record<string, unknown>, path: string): unkn
  */
 export function setNestedValue(obj: Record<string, unknown>, path: string, value: unknown): void {
   const keys = path.split('.');
+  if (hasUnsafeSegment(keys)) {
+    return;
+  }
   let current: Record<string, unknown> = obj;
 
   for (let i = 0; i < keys.length - 1; i++) {
@@ -130,6 +159,9 @@ export function setNestedValue(obj: Record<string, unknown>, path: string, value
  */
 export function deleteNestedValue(obj: Record<string, unknown>, path: string): boolean {
   const keys = path.split('.');
+  if (hasUnsafeSegment(keys)) {
+    return false;
+  }
   let current: Record<string, unknown> = obj;
 
   for (let i = 0; i < keys.length - 1; i++) {
