@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ArchiveCommand } from '../../src/core/archive.js';
 import { Validator } from '../../src/core/validation/validator.js';
+import { VALIDATION_MESSAGES } from '../../src/core/validation/constants.js';
 import { formatLocalDate } from '../../src/utils/date.js';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -1545,6 +1546,183 @@ The system SHALL do the thing differently.
       expect(console.log).toHaveBeenCalledWith('Archive cancelled.');
       
       // Verify change was not archived
+      await expect(fs.access(changeDir)).resolves.not.toThrow();
+    });
+  });
+
+  describe('proposal warnings (#498)', () => {
+    const LONG_WHY =
+      'This change exists to document AI application patterns thoroughly for the team, which is long enough.';
+
+    async function createChange(
+      changeName: string,
+      why: string,
+      deltaSpec: string
+    ): Promise<string> {
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(path.join(changeDir, 'specs', 'docs'), { recursive: true });
+      await fs.writeFile(
+        path.join(changeDir, 'proposal.md'),
+        `# Proposal\n\n## Why\n${why}\n\n## What Changes\n- Add docs.\n`
+      );
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1\n');
+      await fs.writeFile(path.join(changeDir, 'specs', 'docs', 'spec.md'), deltaSpec);
+      return changeDir;
+    }
+
+    function loggedLines(): string[] {
+      return (console.log as unknown as ReturnType<typeof vi.fn>).mock.calls.map(
+        (call) => String(call[0])
+      );
+    }
+
+    // A stray non-`### Requirement:` header inside a delta section used to be
+    // parsed as a requirement, so archive blamed a requirement that does not
+    // exist while `openspec validate` reported the change as valid (#498).
+    it('does not report phantom requirement warnings for a stray delta header', async () => {
+      const changeName = 'stray-header';
+      await createChange(
+        changeName,
+        LONG_WHY,
+        [
+          '# Docs Delta',
+          '',
+          '## ADDED Requirements',
+          '',
+          '### Documentation Requirements',
+          '',
+          '### Requirement: AI Application Documentation',
+          'Teams building AI applications SHALL document agent definitions.',
+          '',
+          '#### Scenario: Agent Definition Documentation',
+          '- **WHEN** a team ships an agent',
+          '- **THEN** the agent definition is documented',
+          '',
+        ].join('\n')
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      const output = loggedLines().join('\n');
+      expect(output).not.toContain('Proposal warnings in proposal.md');
+      expect(output).not.toContain('Requirement must have at least one scenario');
+
+      // The change still archives, exactly as `validate` predicted.
+      const archives = await fs.readdir(path.join(tempDir, 'openspec', 'changes', 'archive'));
+      expect(archives).toEqual([expect.stringMatching(new RegExp(`\\d{4}-\\d{2}-\\d{2}-${changeName}`))]);
+    });
+
+    // REMOVED requirements are names-only by design, so delta spec validation
+    // exempts them. The proposal report did not, and warned about a missing
+    // scenario on every correct removal.
+    it('does not warn about missing scenarios for REMOVED requirements', async () => {
+      const changeName = 'removal';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(path.join(changeDir, 'specs', 'docs'), { recursive: true });
+      await fs.writeFile(
+        path.join(changeDir, 'proposal.md'),
+        `# Proposal\n\n## Why\n${LONG_WHY}\n\n## What Changes\n- Remove docs.\n`
+      );
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1\n');
+      await fs.writeFile(
+        path.join(changeDir, 'specs', 'docs', 'spec.md'),
+        '# Docs Delta\n\n## REMOVED Requirements\n\n### Requirement: Old Thing\n'
+      );
+      // The removal needs a main spec to remove the requirement from.
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'docs');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(
+        path.join(mainSpecDir, 'spec.md'),
+        '# docs Specification\n\n## Purpose\nDocs.\n\n## Requirements\n### Requirement: Old Thing\nThe system SHALL do the old thing.\n\n#### Scenario: Old\n- **WHEN** invoked\n- **THEN** it happens\n'
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      const output = loggedLines().join('\n');
+      expect(output).not.toContain('Proposal warnings in proposal.md');
+      expect(output).not.toContain('Requirement must have at least one scenario');
+    });
+
+    it('still reports genuine proposal-level warnings', async () => {
+      const changeName = 'short-why';
+      await createChange(
+        changeName,
+        'Short.',
+        [
+          '# Docs Delta',
+          '',
+          '## ADDED Requirements',
+          '',
+          '### Requirement: Real Requirement',
+          'The system SHALL do a thing.',
+          '',
+          '#### Scenario: It works',
+          '- **WHEN** invoked',
+          '- **THEN** it works',
+          '',
+        ].join('\n')
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      const output = loggedLines().join('\n');
+      expect(output).toContain('Proposal warnings in proposal.md');
+      expect(output).toContain('Why section must be at least 50 characters');
+    });
+
+    // The filter is anchored to the dot-joined Zod paths
+    // (`deltas.<n>.requirement(s).…`). Rules in applyChangeRules use bracket
+    // notation (`deltas[<n>].description`) and describe simple deltas parsed
+    // from `## What Changes`, which are proposal-level. They must survive.
+    it('keeps proposal-level warnings about simple deltas from What Changes', async () => {
+      const changeName = 'simple-deltas';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(
+        path.join(changeDir, 'proposal.md'),
+        '# Proposal\n\n## Why\nShort.\n\n## What Changes\n- **docs:** add x\n'
+      );
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1\n');
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      const output = loggedLines().join('\n');
+      expect(output).toContain('Proposal warnings in proposal.md');
+      expect(output).toContain(VALIDATION_MESSAGES.DELTA_DESCRIPTION_TOO_BRIEF);
+      expect(output).toContain(`ADDED ${VALIDATION_MESSAGES.DELTA_MISSING_REQUIREMENTS}`);
+    });
+
+    // Real delta defects are still caught. A missing scenario used to be
+    // reported three times (twice as proposal warnings, once by the delta
+    // report) and is now reported once, by the delta report.
+    it('still blocks the archive on real delta requirement errors, reported once', async () => {
+      const changeName = 'bad-delta';
+      const changeDir = await createChange(
+        changeName,
+        LONG_WHY,
+        [
+          '# Docs Delta',
+          '',
+          '## ADDED Requirements',
+          '',
+          '### Requirement: Missing Scenario',
+          'The system SHALL do a thing.',
+          '',
+        ].join('\n')
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      const lines = loggedLines();
+      const output = lines.join('\n');
+      expect(output).toContain('Validation errors in change delta specs');
+      expect(output).toContain('must include at least one scenario');
+      expect(output).not.toContain('Proposal warnings in proposal.md');
+      expect(
+        lines.filter((line) => line.includes('must include at least one scenario'))
+      ).toHaveLength(1);
+
+      // The change was not archived.
       await expect(fs.access(changeDir)).resolves.not.toThrow();
     });
   });
