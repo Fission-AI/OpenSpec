@@ -125,6 +125,29 @@ describe('top-level show command', () => {
     }
   });
 
+  it('offers a scaffolded change when "change show" is called without a name', async () => {
+    await fs.mkdir(path.join(changesDir, 'scaffolded'), { recursive: true });
+    await fs.writeFile(path.join(changesDir, 'scaffolded', '.openspec.yaml'), 'schema: spec-driven\n', 'utf-8');
+
+    const originalCwd = process.cwd();
+    const originalEnv = { ...process.env };
+    try {
+      process.chdir(testDir);
+      process.env.OPEN_SPEC_INTERACTIVE = '0';
+      let err: any;
+      try {
+        execFileSync('node', [openspecBin, 'change', 'show'], { encoding: 'utf-8' });
+      } catch (e) { err = e; }
+      expect(err).toBeDefined();
+      const stderr = err.stderr.toString();
+      expect(stderr).toContain('Available IDs:');
+      expect(stderr).toContain('scaffolded');
+    } finally {
+      process.chdir(originalCwd);
+      process.env = originalEnv;
+    }
+  });
+
   it('prints nearest matches when not found', () => {
     const originalCwd = process.cwd();
     try {

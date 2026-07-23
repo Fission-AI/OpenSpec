@@ -39,7 +39,10 @@ export class ChangeCommand {
 
     if (!changeName) {
       const canPrompt = isInteractive(options);
-      const changes = await this.getActiveChanges(changesPath);
+      // Offer the same changes `show <name>` can resolve. `list` keeps the
+      // proposal-backed scan below because its --json output parses
+      // proposal.md for every change it reports.
+      const changes = await getActiveChangeIds(this.rootPath ?? process.cwd());
       if (canPrompt && changes.length > 0) {
         const { select } = await import('@inquirer/prompts');
         const selected = await select({
