@@ -10,8 +10,12 @@ import { isInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds } from '../utils/item-discovery.js';
 import { getTaskProgressForChange } from '../utils/task-progress.js';
 
-// Constants for better maintainability
-const ARCHIVE_DIR = 'archive';
+async function pathExists(target: string): Promise<boolean> {
+  return fs
+    .access(target)
+    .then(() => true)
+    .catch(() => false);
+}
 
 export class ChangeCommand {
   private converter: JsonConverter;
@@ -39,9 +43,7 @@ export class ChangeCommand {
 
     if (!changeName) {
       const canPrompt = isInteractive(options);
-      // Offer the same changes `show <name>` can resolve. `list` keeps the
-      // proposal-backed scan below because its --json output parses
-      // proposal.md for every change it reports.
+      // Offer exactly the changes `show <name>` can resolve.
       const changes = await getActiveChangeIds(this.rootPath ?? process.cwd());
       if (canPrompt && changes.length > 0) {
         const { select } = await import('@inquirer/prompts');
@@ -72,11 +74,17 @@ export class ChangeCommand {
       // only .openspec.yaml, and a custom schema need not define a proposal
       // artifact. Say which of the two cases this is instead of reporting a
       // change that does exist as missing.
-      const changeExists = await fs
-        .access(changeDir)
-        .then(() => true)
-        .catch(() => false);
-      if (changeExists) {
+      //
+      // Only a directory that is a direct child of changes/ qualifies. A stray
+      // file, or a traversing name like `../..`, is not a change, and naming it
+      // one would point the user at a `status --change` call that cannot work.
+      const isChangeDirectory =
+        path.dirname(path.resolve(changeDir)) === path.resolve(changesPath) &&
+        (await fs
+          .stat(changeDir)
+          .then((stats) => stats.isDirectory())
+          .catch(() => false));
+      if (isChangeDirectory) {
         throw new Error(
           `Change "${changeName}" has no proposal.md yet. ` +
             `Run "openspec status --change ${changeName}" to see which artifact comes next.`
@@ -120,22 +128,35 @@ export class ChangeCommand {
   async list(options?: { json?: boolean; long?: boolean }): Promise<void> {
     const changesPath = path.join(process.cwd(), 'openspec', 'changes');
     
-    const changes = await this.getActiveChanges(changesPath);
-    
+    // Same directory-based resolution as `openspec list`, the command this
+    // deprecated alias points users at. Every output path below already
+    // tolerates a change whose proposal.md is missing or unreadable.
+    const changes = await getActiveChangeIds();
+
     if (options?.json) {
       const changeDetails = await Promise.all(
         changes.map(async (changeName) => {
-          const proposalPath = path.join(changesPath, changeName, 'proposal.md');
+          const changeDir = path.join(changesPath, changeName);
+          const proposalPath = path.join(changeDir, 'proposal.md');
+
+          // Resolve task progress through the shared tracked-tasks helper so
+          // this deprecated noun-form list cannot re-fork the resolution
+          // (#1202). Tasks are independent of the proposal: a change can carry
+          // tasks before, or without, a proposal.md.
+          const taskStatus = await getTaskProgressForChange(changesPath, changeName, process.cwd());
+
+          // No proposal yet is an ordinary state (scaffolded change, or a
+          // schema with no proposal artifact), so name the change rather than
+          // labelling it Unknown. Unknown stays for a proposal that exists but
+          // cannot be read or parsed.
+          if (!(await pathExists(proposalPath))) {
+            return { id: changeName, title: changeName, deltaCount: 0, taskStatus };
+          }
 
           try {
             const content = await fs.readFile(proposalPath, 'utf-8');
-            const changeDir = path.join(changesPath, changeName);
             const parser = new ChangeParser(content, changeDir);
             const change = await parser.parseChangeWithDeltas(changeName);
-
-            // Resolve task progress through the shared tracked-tasks helper so
-            // this deprecated noun-form list cannot re-fork the resolution (#1202).
-            const taskStatus = await getTaskProgressForChange(changesPath, changeName, process.cwd());
 
             return {
               id: changeName,
@@ -143,13 +164,8 @@ export class ChangeCommand {
               deltaCount: change.deltas.length,
               taskStatus,
             };
-          } catch (error) {
-            return {
-              id: changeName,
-              title: 'Unknown',
-              deltaCount: 0,
-              taskStatus: { total: 0, completed: 0 },
-            };
+          } catch {
+            return { id: changeName, title: 'Unknown', deltaCount: 0, taskStatus };
           }
         })
       );
@@ -170,19 +186,23 @@ export class ChangeCommand {
 
       // Long format: id: title and minimal counts
       for (const changeName of sorted) {
-        const proposalPath = path.join(changesPath, changeName, 'proposal.md');
+        const changeDir = path.join(changesPath, changeName);
+        const proposalPath = path.join(changeDir, 'proposal.md');
+        const { total, completed } = await getTaskProgressForChange(changesPath, changeName, process.cwd());
+        const taskStatusText = total > 0 ? ` [tasks ${completed}/${total}]` : '';
+        if (!(await pathExists(proposalPath))) {
+          console.log(`${changeName}: (no proposal.md yet)${taskStatusText}`);
+          continue;
+        }
         try {
           const content = await fs.readFile(proposalPath, 'utf-8');
           const title = this.extractTitle(content, changeName);
-          const { total, completed } = await getTaskProgressForChange(changesPath, changeName, process.cwd());
-          const taskStatusText = total > 0 ? ` [tasks ${completed}/${total}]` : '';
-          const changeDir = path.join(changesPath, changeName);
-          const parser = new ChangeParser(await fs.readFile(proposalPath, 'utf-8'), changeDir);
+          const parser = new ChangeParser(content, changeDir);
           const change = await parser.parseChangeWithDeltas(changeName);
           const deltaCountText = ` [deltas ${change.deltas.length}]`;
           console.log(`${changeName}: ${title}${deltaCountText}${taskStatusText}`);
         } catch {
-          console.log(`${changeName}: (unable to read)`);
+          console.log(`${changeName}: (unable to read)${taskStatusText}`);
         }
       }
     }
@@ -242,26 +262,6 @@ export class ChangeCommand {
           process.exitCode = 1;
         }
       }
-    }
-  }
-
-  private async getActiveChanges(changesPath: string): Promise<string[]> {
-    try {
-      const entries = await fs.readdir(changesPath, { withFileTypes: true });
-      const result: string[] = [];
-      for (const entry of entries) {
-        if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === ARCHIVE_DIR) continue;
-        const proposalPath = path.join(changesPath, entry.name, 'proposal.md');
-        try {
-          await fs.access(proposalPath);
-          result.push(entry.name);
-        } catch {
-          // skip directories without proposal.md
-        }
-      }
-      return result.sort();
-    } catch {
-      return [];
     }
   }
 

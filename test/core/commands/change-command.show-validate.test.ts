@@ -89,6 +89,29 @@ describe('ChangeCommand.show/validate', () => {
     }
   });
 
+  describe('resolving a change that has no proposal.md', () => {
+    it('names the missing proposal and points at status', async () => {
+      await fs.mkdir(path.join(tempRoot, 'openspec', 'changes', 'scaffolded'), { recursive: true });
+
+      await expect(cmd.show('scaffolded', { json: false })).rejects.toThrow(
+        /Change "scaffolded" has no proposal\.md yet\..*openspec status --change scaffolded/s
+      );
+    });
+
+    it('does not treat a stray file under changes/ as a change', async () => {
+      await fs.writeFile(path.join(tempRoot, 'openspec', 'changes', 'notes.md'), 'not a change', 'utf-8');
+
+      // Must stay the plain not-found error: `status --change notes.md` cannot work.
+      await expect(cmd.show('notes.md', { json: false })).rejects.toThrow(/not found at/);
+      await expect(cmd.show('notes.md', { json: false })).rejects.not.toThrow(/has no proposal\.md yet/);
+    });
+
+    it('does not treat a traversing name as a change', async () => {
+      await expect(cmd.show('../..', { json: false })).rejects.toThrow(/not found at/);
+      await expect(cmd.show('../..', { json: false })).rejects.not.toThrow(/has no proposal\.md yet/);
+    });
+  });
+
   it('validate --strict --json returns a report with valid boolean', async () => {
     const logs: string[] = [];
     const origLog = console.log;
