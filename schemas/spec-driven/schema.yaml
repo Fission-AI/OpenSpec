@@ -187,7 +187,7 @@ artifacts:
       - design
 
 apply:
-  requires: [tasks]
+  requires: [specs, tasks]
   tracks: tasks.md
   instruction: |
     Read context files, work through pending tasks, mark complete as you go.
