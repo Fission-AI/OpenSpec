@@ -25,6 +25,7 @@ import { registerContextCommand } from '../commands/context.js';
 import { registerWorksetCommand } from '../commands/workset.js';
 import {
   statusCommand,
+  BATCH_STATUS_FAILURE_PAYLOAD,
   instructionsCommand,
   applyInstructionsCommand,
   templatesCommand,
@@ -488,6 +489,7 @@ program
   .command('status')
   .description('Display artifact completion status for a change')
   .option('--change <id>', 'Change name to show status for')
+  .option('--all', 'Show status for all active changes')
   .option('--schema <name>', 'Schema override (auto-detected from config.yaml)')
   .option('--json', 'Output as JSON')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
@@ -496,7 +498,13 @@ program
     try {
       await statusCommand(options);
     } catch (error) {
-      failWithError(error, { enabled: options.json, fallbackCode: 'change_error' });
+      failWithError(error, {
+        enabled: options.json,
+        // The batch null-shape; the single-change failure shape is
+        // pre-existing contract and stays payload-free.
+        payload: options.all ? BATCH_STATUS_FAILURE_PAYLOAD : undefined,
+        fallbackCode: 'change_error',
+      });
       process.exit(1);
     }
   });

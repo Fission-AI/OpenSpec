@@ -4,7 +4,7 @@
  * Commands for the artifact-driven workflow: status, instructions, templates, schemas, new change.
  */
 
-export { statusCommand } from './status.js';
+export { statusCommand, BATCH_STATUS_FAILURE_PAYLOAD } from './status.js';
 export type { StatusOptions } from './status.js';
 
 export { instructionsCommand, applyInstructionsCommand } from './instructions.js';
