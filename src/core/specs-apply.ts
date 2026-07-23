@@ -445,7 +445,8 @@ export async function writeUpdatedSpec(
 
 /** Blank out `<!-- ... -->` spans, preserving line count so indices stay aligned. */
 function maskHtmlComments(content: string): string {
-  return content.replace(/<!--[\s\S]*?-->/g, comment => comment.replace(/[^\n]/g, ' '));
+  // `--!>` is a comment terminator as well as `-->`.
+  return content.replace(/<!--[\s\S]*?--!?>/g, comment => comment.replace(/[^\n]/g, ' '));
 }
 
 /**
@@ -501,7 +502,8 @@ function readableOverview(skeleton: string, specName: string): string | null {
   // the spec, where it can hide the headers those parsers depend on and blank
   // the document out in any markdown renderer. Refuse rather than write a spec
   // that reads differently depending on who is reading it (#1413).
-  if (/<!--|-->/.test(skeleton)) return null;
+  // `--!>` closes a comment too, so both terminator spellings count.
+  if (/<!--|--!?>/.test(skeleton)) return null;
   if (findMainSpecStructureIssues(skeleton).length > 0) return null;
   try {
     // A heading or unterminated fence in the body truncates or swallows the

@@ -834,6 +834,17 @@ Tracks widgets and keeps their state consistent across restarts.
 <!-- TODO: expand once the widget team confirms the retention policy.
 `,
       ],
+      [
+        'a comment closed with the --!> terminator',
+        'bang-terminated-comment',
+        'bang-comment',
+        `## Purpose
+Tracks widgets and keeps their state consistent across restarts.
+<!-- TODO(author): promote the list below to
+## Requirements
+so the sections line up. --!>
+`,
+      ],
     ])(
       'should fall back to the placeholder when the delta Purpose has %s (issue #1413)',
       async (_label, changeName, specFolder, purposeBlock) => {
