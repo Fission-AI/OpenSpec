@@ -14,6 +14,7 @@ export { codebuddyAdapter } from './codebuddy.js';
 export { continueAdapter } from './continue.js';
 export { costrictAdapter } from './costrict.js';
 export { crushAdapter } from './crush.js';
+export { kuramaAdapter } from './kurama.js';
 export { cursorAdapter } from './cursor.js';
 export { factoryAdapter } from './factory.js';
 export { geminiAdapter } from './gemini.js';
