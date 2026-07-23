@@ -445,8 +445,15 @@ export async function writeUpdatedSpec(
 
 /** Blank out `<!-- ... -->` spans, preserving line count so indices stay aligned. */
 function maskHtmlComments(content: string): string {
+  const blank = (text: string) => text.replace(/[^\n]/g, ' ');
   // `--!>` is a comment terminator as well as `-->`.
-  return content.replace(/<!--[\s\S]*?--!?>/g, comment => comment.replace(/[^\n]/g, ' '));
+  const masked = content.replace(/<!--[\s\S]*?--!?>/g, blank);
+  // A comment that is never closed runs to end of file, so everything after it
+  // is commented out too. Without this an unterminated `<!--` above a
+  // `## Purpose` left the commented-out header looking real (#1413).
+  const unterminated = masked.indexOf('<!--');
+  if (unterminated === -1) return masked;
+  return masked.slice(0, unterminated) + blank(masked.slice(unterminated));
 }
 
 /**
@@ -503,9 +510,10 @@ function readableOverview(skeleton: string, specName: string): string | null {
   // the document out in any markdown renderer. Refuse rather than write a spec
   // that reads differently depending on who is reading it (#1413).
   //
-  // Only the opener is disqualifying. A comment that starts before the section
-  // header masks the header itself, so there is no body to carry; a body can
-  // therefore only hide content behind a `<!--` of its own. A bare `-->` hides
+  // Only the opener is disqualifying, and only because `maskHtmlComments`
+  // covers unterminated comments too: a comment starting above the section
+  // header therefore always masks the header, leaving no body to carry, so a
+  // body can only hide content behind a `<!--` of its own. A bare `-->` hides
   // nothing and renders as text - rejecting it would throw away a Purpose over
   // prose like "ingest --> transform".
   if (skeleton.includes('<!--')) return null;

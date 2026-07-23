@@ -887,6 +887,53 @@ The system SHALL track widgets.
       }
     );
 
+    it.each([
+      ['closed', '-->'],
+      ['unterminated', ''],
+    ])(
+      'should not read a Purpose out of a %s comment that opens above the header (issue #1413)',
+      async (label, terminator) => {
+        const changeName = `commented-out-purpose-${label}`;
+        const changeSpecDir = path.join(tempDir, 'openspec', 'changes', changeName, 'specs', `co-${label}`);
+        await fs.mkdir(changeSpecDir, { recursive: true });
+
+        // An unterminated comment runs to end of file, so the header below it is
+        // commented out just as surely as it is inside a closed comment.
+        await fs.writeFile(
+          path.join(changeSpecDir, 'spec.md'),
+          `<!-- Draft the author commented out
+
+## Purpose
+
+Old abandoned purpose text that must not become the capability's Purpose.
+${terminator}
+
+## ADDED Requirements
+
+### Requirement: Route Events
+The system SHALL route events.
+
+#### Scenario: Event routed
+- **WHEN** an event arrives
+- **THEN** it is routed
+`
+        );
+
+        await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+        const updatedContent = await fs.readFile(
+          path.join(tempDir, 'openspec', 'specs', `co-${label}`, 'spec.md'),
+          'utf-8'
+        );
+        expect(updatedContent).toContain(
+          `TBD - created by archiving change ${changeName}. Update Purpose after archive.`
+        );
+        expect(updatedContent).not.toContain('Old abandoned purpose text');
+        const report = await new Validator().validateSpecContent(`co-${label}`, updatedContent);
+        expect(report.issues.filter(i => i.level === 'ERROR')).toHaveLength(0);
+      }
+    );
+
     it('should carry a Purpose containing arrow notation (issue #1413)', async () => {
       const changeName = 'new-spec-with-arrow-purpose';
       const changeSpecDir = path.join(tempDir, 'openspec', 'changes', changeName, 'specs', 'pipeline');
