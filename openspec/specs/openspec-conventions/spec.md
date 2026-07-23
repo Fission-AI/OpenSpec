@@ -150,9 +150,17 @@ Change proposals SHALL store only the additions, modifications, and removals to 
 The `changes/[name]/specs/` directory SHALL contain:
 - Delta files showing only what changes
 - Sections for ADDED, MODIFIED, REMOVED, and RENAMED requirements
+- An optional `## Purpose` section on deltas that introduce a new capability
 - Normalized header matching for requirement identification
 - Complete requirements using the structured format
 - Clear indication of change type for each requirement
+
+#### Scenario: Introducing a new capability
+
+- **WHEN** a delta introduces a capability that has no main spec yet
+- **THEN** the delta MAY open with a `## Purpose` section describing the capability
+- **AND** that Purpose SHALL seed the main spec created for it
+- **AND** a delta for a capability that already has a main spec SHOULD NOT carry a `## Purpose`, because the existing Purpose is authoritative and the delta's is ignored
 
 #### Scenario: Using standard output symbols
 

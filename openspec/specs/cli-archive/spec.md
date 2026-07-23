@@ -90,6 +90,38 @@ Before moving the change to archive, the command SHALL apply delta changes to ma
 - **THEN** abort with error message showing the conflict
 - **AND** suggest manual resolution
 
+#### Scenario: New main spec inherits the delta's Purpose
+
+- **WHEN** a delta creates a main spec that does not exist yet
+- **AND** the delta spec has a line-initial `## Purpose` header that is not inside a fenced code block or an HTML comment
+- **AND** the section body, ignoring fenced blocks and HTML comments, is not empty
+- **THEN** write the section body into the new main spec, trimmed but otherwise verbatim, fenced code blocks included
+- **AND** the section body runs to the next `## ` heading outside a fenced block
+
+#### Scenario: New main spec without an authored Purpose
+
+- **WHEN** a delta creates a main spec that does not exist yet
+- **AND** the delta spec has no such `## Purpose` header, or that section's body is empty once fenced blocks and HTML comments are ignored
+- **THEN** write the TBD placeholder Purpose naming the change to update after archive
+
+#### Scenario: Delta Purpose that would leave the new main spec unreadable
+
+- **WHEN** a delta creates a main spec that does not exist yet
+- **AND** carrying its `## Purpose` body over would leave a spec that reads differently to different readers - a heading or requirement header that truncates a section, an unterminated code fence that swallows one, or any HTML comment, which the section scan skips but the file keeps
+- **THEN** write the TBD placeholder Purpose instead and warn that the delta Purpose was ignored
+- **AND** complete the archive rather than aborting it
+
+#### Scenario: Carried Purpose shorter than the strict-mode minimum
+
+- **WHEN** the Purpose parsed back out of the new main spec is shorter than the minimum Purpose length strict validation enforces
+- **THEN** carry it over unchanged and warn that `openspec validate --strict` reports it as too brief
+
+#### Scenario: Delta Purpose for a capability that already has a main spec
+
+- **WHEN** a delta carries a `## Purpose` and the target main spec already exists
+- **THEN** leave the existing Purpose untouched
+- **AND** warn that the delta Purpose was ignored, naming the spec file to edit directly, but only when that spec has a Purpose of its own and it differs from the delta's
+
 ### Requirement: Confirmation Behavior
 
 The spec update confirmation SHALL provide clear visibility into changes before they are applied.

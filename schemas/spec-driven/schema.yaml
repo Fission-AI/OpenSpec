@@ -81,6 +81,16 @@ artifacts:
       - **CRITICAL**: Scenarios MUST use exactly 4 hashtags (`####`). Using 3 hashtags or bullets will fail silently.
       - Every requirement MUST have at least one scenario.
 
+      New capabilities only: start the delta spec with a `## Purpose` section -
+      one or two sentences (50+ characters, or `openspec validate --strict`
+      reports it as too brief) describing what the capability is for. Archive
+      copies it into the main spec it creates; without it the new main spec is
+      left with a `TBD ... Update Purpose after archive` placeholder to fill in
+      by hand. Do NOT add `## Purpose` to a delta for an existing capability -
+      that spec already has one and the delta's is ignored. To change an
+      existing capability's Purpose - including a leftover `TBD` placeholder -
+      edit `openspec/specs/<capability>/spec.md` directly.
+
       MODIFIED requirements workflow:
       1. Locate the existing requirement in openspec/specs/<capability>/spec.md
       2. Copy the ENTIRE requirement block (from `### Requirement:` through all scenarios)
@@ -90,8 +100,12 @@ artifacts:
       Common pitfall: Using MODIFIED with partial content loses detail at archive time.
       If adding new concerns without changing existing behavior, use ADDED instead.
 
-      Example:
+      Example (a new capability, so it opens with `## Purpose`):
       ```
+      ## Purpose
+
+      Lets users take their data out of the product in a portable format.
+
       ## ADDED Requirements
 
       ### Requirement: User can export data

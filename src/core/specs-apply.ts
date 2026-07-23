@@ -15,7 +15,10 @@ import {
   type RequirementBlock,
 } from './parsers/requirement-blocks.js';
 import { findMainSpecStructureIssues } from './parsers/spec-structure.js';
+import { buildCodeFenceMask } from './parsers/code-fence.js';
+import { MarkdownParser } from './parsers/markdown-parser.js';
 import { Validator } from './validation/validator.js';
+import { MIN_PURPOSE_LENGTH } from './validation/constants.js';
 import { discoverSpecFiles } from '../utils/spec-discovery.js';
 
 // -----------------------------------------------------------------------------
@@ -200,10 +203,28 @@ export async function buildUpdatedSpec(
   }
 
   // Load or create base target content
+  const deltaPurpose = extractPurposeSection(changeContent);
   let targetContent: string;
   let isNewSpec = false;
   try {
     targetContent = await fs.readFile(update.target, 'utf-8');
+    // A delta Purpose only seeds a spec that does not exist yet. Say so rather
+    // than dropping it silently - the specs instruction tells authors to write
+    // one for new capabilities, and the delta file looks identical either way.
+    // Only when the spec really does have a different Purpose: claiming it
+    // "already has one" would be false when it has none, and saying anything at
+    // all is noise when the two bodies match.
+    if (deltaPurpose && !options.silent) {
+      const existingPurpose = extractPurposeSection(targetContent);
+      if (existingPurpose && existingPurpose !== deltaPurpose) {
+        console.log(
+          chalk.yellow(
+            `⚠️  Warning: ${specName} - delta Purpose ignored; ${specName} already has one. ` +
+              `Edit ${update.target} directly to change it.`
+          )
+        );
+      }
+    }
   } catch {
     // Target spec does not exist; MODIFIED and RENAMED are not allowed for new specs
     // REMOVED will be ignored with a warning since there's nothing to remove
@@ -221,7 +242,30 @@ export async function buildUpdatedSpec(
       );
     }
     isNewSpec = true;
-    targetContent = buildSpecSkeleton(specName, changeName);
+    targetContent = buildSpecSkeleton(specName, changeName, deltaPurpose);
+    const overview = deltaPurpose ? readableOverview(targetContent, specName) : null;
+    if (deltaPurpose && !overview) {
+      // Keep the placeholder rather than turning this into a failure: these
+      // deltas archived cleanly before the Purpose carry-over existed.
+      targetContent = buildSpecSkeleton(specName, changeName);
+      if (!options.silent) {
+        console.log(
+          chalk.yellow(
+            `⚠️  Warning: ${specName} - delta Purpose ignored (it would leave the new spec unreadable); wrote the placeholder Purpose instead.`
+          )
+        );
+      }
+    } else if (overview && overview.length < MIN_PURPOSE_LENGTH && !options.silent) {
+      // The placeholder always cleared this threshold, so a carried Purpose is
+      // the first way archive can leave a spec that `validate --strict` fails.
+      // Measured on the parsed overview, which is what the validator reads.
+      console.log(
+        chalk.yellow(
+          `⚠️  Warning: ${specName} - carried Purpose is under ${MIN_PURPOSE_LENGTH} characters; ` +
+            `openspec validate --strict reports it as too brief.`
+        )
+      );
+    }
   }
 
   const structureIssues = findMainSpecStructureIssues(targetContent);
@@ -399,12 +443,102 @@ export async function writeUpdatedSpec(
   if (counts.renamed) console.log(`  → ${counts.renamed} renamed`);
 }
 
+/** Blank out `<!-- ... -->` spans, preserving line count so indices stay aligned. */
+function maskHtmlComments(content: string): string {
+  const blank = (text: string) => text.replace(/[^\n]/g, ' ');
+  // `--!>` is a comment terminator as well as `-->`.
+  const masked = content.replace(/<!--[\s\S]*?--!?>/g, blank);
+  // A comment that is never closed runs to end of file, so everything after it
+  // is commented out too. Without this an unterminated `<!--` above a
+  // `## Purpose` left the commented-out header looking real (#1413).
+  const unterminated = masked.indexOf('<!--');
+  if (unterminated === -1) return masked;
+  return masked.slice(0, unterminated) + blank(masked.slice(unterminated));
+}
+
 /**
- * Build a skeleton spec for new capabilities.
+ * Read the body of a `## Purpose` section, ignoring markdown that only appears
+ * inside fenced code blocks or HTML comments. Returns undefined when the
+ * section is absent or its body is empty.
  */
-export function buildSpecSkeleton(specFolderName: string, changeName: string): string {
+function extractPurposeSection(content: string): string | undefined {
+  const normalized = content.replace(/\r\n?/g, '\n');
+  const lines = normalized.split('\n');
+  // Structure is read from the masked copy so a commented-out or fenced
+  // `## Purpose` is not mistaken for the real one; the body is returned from
+  // the original lines so an author's own comments and fences survive intact.
+  const masked = maskHtmlComments(normalized).split('\n');
+  const fenceMask = buildCodeFenceMask(masked);
+  const isStructural = (i: number) => !fenceMask[i];
+
+  const start = masked.findIndex((line, i) => isStructural(i) && /^##\s+Purpose\s*$/i.test(line));
+  if (start === -1) return undefined;
+
+  let end = masked.length;
+  for (let i = start + 1; i < masked.length; i++) {
+    if (isStructural(i) && /^##\s+/.test(masked[i])) {
+      end = i;
+      break;
+    }
+  }
+
+  // Emptiness is judged with fenced blocks and HTML comments blanked out, so a
+  // Purpose that is only a code sample or only an unfilled template comment
+  // counts as absent and falls back to the TBD placeholder.
+  const hasProse = masked
+    .slice(start + 1, end)
+    .filter((_, offset) => isStructural(start + 1 + offset))
+    .join('\n')
+    .trim();
+  if (!hasProse) return undefined;
+
+  const body = lines.slice(start + 1, end).join('\n').trim();
+  return body || undefined;
+}
+
+/**
+ * The Purpose a new main spec would end up with, or null when carrying the
+ * delta's body over would leave a spec the readers downstream cannot handle.
+ *
+ * Returns the parsed overview rather than a boolean so callers measure the same
+ * string `validate` measures, not the raw slice out of the delta.
+ */
+function readableOverview(skeleton: string, specName: string): string | null {
+  // HTML comments are invisible to the spec parsers but not to the file itself:
+  // markdown hidden in one is skipped by the boundary scan yet still lands in
+  // the spec, where it can hide the headers those parsers depend on and blank
+  // the document out in any markdown renderer. Refuse rather than write a spec
+  // that reads differently depending on who is reading it (#1413).
+  //
+  // Only the opener is disqualifying, and only because `maskHtmlComments`
+  // covers unterminated comments too: a comment starting above the section
+  // header therefore always masks the header, leaving no body to carry, so a
+  // body can only hide content behind a `<!--` of its own. A bare `-->` hides
+  // nothing and renders as text - rejecting it would throw away a Purpose over
+  // prose like "ingest --> transform".
+  if (skeleton.includes('<!--')) return null;
+  if (findMainSpecStructureIssues(skeleton).length > 0) return null;
+  try {
+    // A heading or unterminated fence in the body truncates or swallows the
+    // sections around it, so archive would abort or write a spec its own
+    // validator rejects.
+    return new MarkdownParser(skeleton).parseSpec(specName).overview.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Build a skeleton spec for new capabilities. When the delta spec authored a
+ * `## Purpose`, carry it over instead of the TBD placeholder (#1413) - archive
+ * invents the Purpose for a brand-new main spec either way, and the author's
+ * own wording beats a placeholder they then have to hand-edit.
+ */
+export function buildSpecSkeleton(specFolderName: string, changeName: string, purpose?: string): string {
   const titleBase = specFolderName;
-  return `# ${titleBase} Specification\n\n## Purpose\nTBD - created by archiving change ${changeName}. Update Purpose after archive.\n\n## Requirements\n`;
+  const purposeBody =
+    purpose?.trim() || `TBD - created by archiving change ${changeName}. Update Purpose after archive.`;
+  return `# ${titleBase} Specification\n\n## Purpose\n${purposeBody}\n\n## Requirements\n`;
 }
 
 function findMissingCurrentScenarios(current: RequirementBlock, incoming: RequirementBlock): string[] {
