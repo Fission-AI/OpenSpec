@@ -69,7 +69,7 @@ Change: `{ "id", "title", "deltaCount", "deltas": [...], "root" }`. Spec: `{ "id
 Success: `{ "change": { "id", "path", "metadataPath", "schema" }, "root" }`. Failure: `{ "change": null, "status": [d] }`, exit 1.
 
 ### 4.8 `archive <name> --json`
-Success: `{ "archive": { "change", "archivedAs": "YYYY-MM-DD-name", "path", "specsUpdated", "totals"? }, "root" }`. Failure: `{ "archive": null, "root"?, "status": [d] }`, exit 1. JSON mode is strictly non-interactive: every prompt point becomes an `archive_*` code.
+Success: `{ "archive": { "change", "archivedAs": "YYYY-MM-DD-name", "path", "specsUpdated", "totals"?, "warnings"? }, "root" }`. Failure: `{ "archive": null, "root"?, "status": [d] }`, exit 1. `specsUpdated` is true only when at least one spec file was written; an already-synced change archives with all-zero totals and the skips listed in `warnings`. JSON mode is strictly non-interactive: every prompt point becomes an `archive_*` code.
 
 ### 4.9 `doctor --json`
 `{ "root": { "path", "source", "store_id"?, "healthy", "status": [] }, "store": { "id", "metadata": {present,valid,remote?}, "origin_url"?, "drift"?: {ahead,behind}, "status": [] } | null, "references": [...], "status": [] }`. `drift` (present only for a git-backed store checkout that has an upstream tracking ref) is ahead/behind counts against the last-fetched upstream, not the live remote. Health findings of any severity exit 0. Failure payload: `{ "root": null, "store": null, "references": [], "status": [d] }`, exit 1.

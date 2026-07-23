@@ -83,3 +83,4 @@ After each invocation, show:
 - Do not advance the build frontier: no new artifacts, no new files under glob artifacts - that is `/openspec-continue-change`'s job.
 - Confirm every edit with the user before writing.
 - If the request changes the change's *intent* rather than refining it, recommend starting fresh with `/openspec-new-change` (the "Update vs. Start Fresh" heuristic).
+- `/openspec-continue-change` and `/openspec-new-change` may not be installed (core profile). When suggesting one that is unavailable, point to the CLI instead: `openspec status --change "<name>" --json` shows the next artifact and `openspec instructions <artifact-id> --change "<name>" --json` explains how to create it.

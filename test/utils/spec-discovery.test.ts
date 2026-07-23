@@ -108,6 +108,45 @@ describe('discoverSpecFiles', () => {
     });
   });
 
+  it('discovers a symlinked spec.md file', async () => {
+    await withTempDir(async (dir) => {
+      // hasAnyFileUnder and the artifact graph's globs both count a symlinked
+      // spec.md as content, so discovery must not silently drop it.
+      const target = path.join(dir, 'shared-delta.md');
+      await fs.writeFile(target, '# Spec\n', 'utf8');
+      await fs.mkdir(path.join(dir, 'auth'), { recursive: true });
+      try {
+        await fs.symlink(target, path.join(dir, 'auth', 'spec.md'), 'file');
+      } catch {
+        // Symlink creation can be unavailable (e.g. Windows without dev mode).
+        return;
+      }
+
+      const found = await discoverSpecFiles(dir);
+      expect(found.map((s) => s.id)).toEqual(['auth']);
+      expect(found[0].specFile).toBe(path.join(dir, 'auth', 'spec.md'));
+    });
+  });
+
+  it('skips a dangling spec.md symlink', async () => {
+    await withTempDir(async (dir) => {
+      await writeSpec(dir, 'real');
+      await fs.mkdir(path.join(dir, 'ghost'), { recursive: true });
+      try {
+        await fs.symlink(
+          path.join(dir, 'missing-target.md'),
+          path.join(dir, 'ghost', 'spec.md'),
+          'file'
+        );
+      } catch {
+        return;
+      }
+
+      const found = await discoverSpecFiles(dir);
+      expect(found.map((s) => s.id)).toEqual(['real']);
+    });
+  });
+
   it('does not follow symlinked directories', async () => {
     await withTempDir(async (dir) => {
       await writeSpec(dir, 'real');

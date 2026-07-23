@@ -18,6 +18,17 @@ export function normalizeRequirementName(name: string): string {
   return name.trim();
 }
 
+/**
+ * Case- and whitespace-insensitive fold of a requirement name. Requirement
+ * matching itself is case-sensitive (normalizeRequirementName); this fold
+ * exists only for typo detection - near-miss REMOVED headers and the
+ * RENAMED+REMOVED cross-section conflict - where two spellings that differ
+ * only in case or interior whitespace mean a mistake, never two requirements.
+ */
+export function foldRequirementName(name: string): string {
+  return normalizeRequirementName(name).toLowerCase().replace(/\s+/g, ' ');
+}
+
 /** The canonical requirement header the delta reader recognizes. */
 const REQUIREMENT_HEADER_REGEX = /^###\s*Requirement:\s*(.+)\s*$/i;
 

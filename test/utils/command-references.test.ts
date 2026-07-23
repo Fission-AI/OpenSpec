@@ -206,13 +206,15 @@ describe('getTransformerForTool', () => {
     }
   });
 
-  it('selects hyphen commands for opencode, pi, and oh-my-pi when commands are generated', () => {
-    expect(getTransformerForTool('opencode', 'both', 'adapter-backed')).toBe(transformToHyphenCommands);
-    expect(getTransformerForTool('opencode', 'commands', 'adapter-backed')).toBe(transformToHyphenCommands);
-    expect(getTransformerForTool('pi', 'both', 'adapter-backed')).toBe(transformToHyphenCommands);
-    expect(getTransformerForTool('pi', 'commands', 'adapter-backed')).toBe(transformToHyphenCommands);
-    expect(getTransformerForTool('oh-my-pi', 'both', 'adapter-backed')).toBe(transformToHyphenCommands);
-    expect(getTransformerForTool('oh-my-pi', 'commands', 'adapter-backed')).toBe(transformToHyphenCommands);
+  it('selects hyphen commands for bob, oh-my-pi, opencode, pi, and qwen when commands are generated', () => {
+    // These tools invoke commands by filename (/opsx-<id>), so skills must
+    // reference the hyphen form their command files actually answer to.
+    for (const toolId of ['bob', 'oh-my-pi', 'opencode', 'pi', 'qwen'] as const) {
+      expect(getTransformerForTool(toolId, 'both', 'adapter-backed')).toBe(transformToHyphenCommands);
+      expect(getTransformerForTool(toolId, 'commands', 'adapter-backed')).toBe(transformToHyphenCommands);
+      // ...but must not fall back to hyphen commands when no commands are generated
+      expect(getTransformerForTool(toolId, 'skills', 'adapter-backed')).toBe(transformToSkillReferences);
+    }
   });
 
   it('selects no transformer for adapter-backed and skills-invocable tools when commands are generated', () => {
