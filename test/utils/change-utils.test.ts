@@ -45,6 +45,11 @@ describe('validateChangeName', () => {
       const result = validateChangeName('101-01-fix-auth');
       expect(result).toEqual({ valid: true });
     });
+
+    it('should accept an all-numeric name', () => {
+      const result = validateChangeName('100');
+      expect(result).toEqual({ valid: true });
+    });
   });
 
   describe('invalid names - uppercase rejected', () => {
