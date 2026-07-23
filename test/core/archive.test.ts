@@ -887,6 +887,38 @@ The system SHALL track widgets.
       }
     );
 
+    it('should carry a Purpose containing arrow notation (issue #1413)', async () => {
+      const changeName = 'new-spec-with-arrow-purpose';
+      const changeSpecDir = path.join(tempDir, 'openspec', 'changes', changeName, 'specs', 'pipeline');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      // `-->` is not a comment opener; it renders as text and hides nothing, so
+      // it must not be mistaken for the HTML-comment hazard.
+      const specContent = `## Purpose
+
+Routes events through the pipeline: ingest --> transform --> sink, retrying each hop.
+
+## ADDED Requirements
+
+### Requirement: Route Events
+The system SHALL route events through the pipeline.
+
+#### Scenario: Event routed
+- **WHEN** an event arrives
+- **THEN** it is routed
+`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), specContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const updatedContent = await fs.readFile(
+        path.join(tempDir, 'openspec', 'specs', 'pipeline', 'spec.md'),
+        'utf-8'
+      );
+      expect(updatedContent).toContain('ingest --> transform --> sink');
+      expect(updatedContent).not.toContain('TBD - created by archiving change');
+    });
+
     it('should keep the TBD placeholder when the delta Purpose is only a code fence (issue #1413)', async () => {
       const changeName = 'new-spec-with-fenced-only-purpose';
       const changeSpecDir = path.join(tempDir, 'openspec', 'changes', changeName, 'specs', 'fenced-only');

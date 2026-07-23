@@ -502,8 +502,13 @@ function readableOverview(skeleton: string, specName: string): string | null {
   // the spec, where it can hide the headers those parsers depend on and blank
   // the document out in any markdown renderer. Refuse rather than write a spec
   // that reads differently depending on who is reading it (#1413).
-  // `--!>` closes a comment too, so both terminator spellings count.
-  if (/<!--|--!?>/.test(skeleton)) return null;
+  //
+  // Only the opener is disqualifying. A comment that starts before the section
+  // header masks the header itself, so there is no body to carry; a body can
+  // therefore only hide content behind a `<!--` of its own. A bare `-->` hides
+  // nothing and renders as text - rejecting it would throw away a Purpose over
+  // prose like "ingest --> transform".
+  if (skeleton.includes('<!--')) return null;
   if (findMainSpecStructureIssues(skeleton).length > 0) return null;
   try {
     // A heading or unterminated fence in the body truncates or swallows the
