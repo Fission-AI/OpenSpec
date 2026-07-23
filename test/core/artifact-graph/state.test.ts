@@ -16,8 +16,7 @@ describe('artifact-graph/state', () => {
   });
 
   beforeEach(() => {
-    tempDir = path.join(os.tmpdir(), `openspec-state-test-${Date.now()}`);
-    fs.mkdirSync(tempDir, { recursive: true });
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-state-test-'));
   });
 
   afterEach(() => {

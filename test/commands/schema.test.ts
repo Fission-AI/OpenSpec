@@ -12,11 +12,7 @@ describe('schema command', () => {
 
   beforeEach(() => {
     // Create unique temp directory for each test
-    tempDir = path.join(
-      os.tmpdir(),
-      `openspec-schema-test-${Date.now()}-${Math.random().toString(36).slice(2)}`
-    );
-    fs.mkdirSync(tempDir, { recursive: true });
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-schema-test-'));
 
     // Create openspec directory structure
     fs.mkdirSync(path.join(tempDir, 'openspec', 'schemas'), { recursive: true });

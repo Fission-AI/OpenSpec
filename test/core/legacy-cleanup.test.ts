@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
-import { randomUUID } from 'crypto';
 import {
   detectLegacyArtifacts,
   detectLegacyConfigFiles,
@@ -32,8 +31,7 @@ describe('legacy-cleanup', () => {
 
   beforeEach(async () => {
     originalEnv = { ...process.env };
-    testDir = path.join(os.tmpdir(), `openspec-legacy-test-${randomUUID()}`);
-    await fs.mkdir(testDir, { recursive: true });
+    testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-legacy-test-'));
     process.env.CODEX_HOME = path.join(testDir, 'codex-home');
     // Create openspec directory structure
     await fs.mkdir(path.join(testDir, 'openspec'), { recursive: true });

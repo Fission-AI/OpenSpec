@@ -3,15 +3,13 @@ import { FishInstaller } from '../../../../src/core/completions/installers/fish-
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
-import { randomUUID } from 'crypto';
 
 describe('FishInstaller', () => {
   let testHomeDir: string;
   let installer: FishInstaller;
 
   beforeEach(async () => {
-    testHomeDir = path.join(os.tmpdir(), `openspec-fish-test-${randomUUID()}`);
-    await fs.mkdir(testHomeDir, { recursive: true });
+    testHomeDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-fish-test-'));
     installer = new FishInstaller(testHomeDir);
   });
 
@@ -179,8 +177,7 @@ complete -c openspec -a 'validate' -d 'Validate specs'
     });
 
     it('should handle installation with paths containing spaces', async () => {
-      const spacedHomeDir = path.join(os.tmpdir(), `openspec fish test ${randomUUID()}`);
-      await fs.mkdir(spacedHomeDir, { recursive: true });
+      const spacedHomeDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec fish test '));
 
       const spacedInstaller = new FishInstaller(spacedHomeDir);
       const result = await spacedInstaller.install(mockCompletionScript);
