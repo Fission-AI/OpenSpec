@@ -78,6 +78,10 @@ ${STORE_SELECTION_GUIDANCE}
       **RENAMED Requirements:**
       - Find the FROM requirement, rename to TO
 
+      **\`## Purpose\` in the delta:**
+      - The main spec already has one and it is authoritative - leave it alone
+        (this is what \`openspec archive\` does; it warns and moves on)
+
    d. **Create new main spec** if capability doesn't exist yet:
       - Create \`<planningHome.root>/openspec/specs/<capability>/spec.md\`
       - Add Purpose section: copy the delta's \`## Purpose\` body verbatim when it has one
@@ -90,10 +94,16 @@ ${STORE_SELECTION_GUIDANCE}
    After applying all changes, summarize:
    - Which capabilities were updated
    - What changes were made (requirements added/modified/removed/renamed)
+   - Any new main spec left with a TBD Purpose placeholder, so it gets written
+     now rather than lingering
 
 **Delta Spec Format Reference**
 
 \`\`\`markdown
+## Purpose
+
+Only on a delta that introduces a brand-new capability. Seeds the new main spec.
+
 ## ADDED Requirements
 
 ### Requirement: New Feature
@@ -251,6 +261,10 @@ ${STORE_SELECTION_GUIDANCE}
       **RENAMED Requirements:**
       - Find the FROM requirement, rename to TO
 
+      **\`## Purpose\` in the delta:**
+      - The main spec already has one and it is authoritative - leave it alone
+        (this is what \`openspec archive\` does; it warns and moves on)
+
    d. **Create new main spec** if capability doesn't exist yet:
       - Create \`<planningHome.root>/openspec/specs/<capability>/spec.md\`
       - Add Purpose section: copy the delta's \`## Purpose\` body verbatim when it has one
@@ -263,10 +277,16 @@ ${STORE_SELECTION_GUIDANCE}
    After applying all changes, summarize:
    - Which capabilities were updated
    - What changes were made (requirements added/modified/removed/renamed)
+   - Any new main spec left with a TBD Purpose placeholder, so it gets written
+     now rather than lingering
 
 **Delta Spec Format Reference**
 
 \`\`\`markdown
+## Purpose
+
+Only on a delta that introduces a brand-new capability. Seeds the new main spec.
+
 ## ADDED Requirements
 
 ### Requirement: New Feature

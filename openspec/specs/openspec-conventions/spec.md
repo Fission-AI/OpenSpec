@@ -160,7 +160,7 @@ The `changes/[name]/specs/` directory SHALL contain:
 - **WHEN** a delta introduces a capability that has no main spec yet
 - **THEN** the delta MAY open with a `## Purpose` section describing the capability
 - **AND** that Purpose SHALL seed the main spec created for it
-- **AND** a delta for a capability that already has a main spec SHALL NOT carry a `## Purpose`, because the existing Purpose is authoritative
+- **AND** a delta for a capability that already has a main spec SHOULD NOT carry a `## Purpose`, because the existing Purpose is authoritative and the delta's is ignored
 
 #### Scenario: Using standard output symbols
 

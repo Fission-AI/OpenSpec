@@ -211,13 +211,19 @@ export async function buildUpdatedSpec(
     // A delta Purpose only seeds a spec that does not exist yet. Say so rather
     // than dropping it silently - the specs instruction tells authors to write
     // one for new capabilities, and the delta file looks identical either way.
+    // Only when the spec really does have a different Purpose: claiming it
+    // "already has one" would be false when it has none, and saying anything at
+    // all is noise when the two bodies match.
     if (deltaPurpose && !options.silent) {
-      console.log(
-        chalk.yellow(
-          `⚠️  Warning: ${specName} - delta Purpose ignored; ${specName} already has one. ` +
-            `Edit openspec/specs/${specName}/spec.md directly to change it.`
-        )
-      );
+      const existingPurpose = extractPurposeSection(targetContent);
+      if (existingPurpose && existingPurpose !== deltaPurpose) {
+        console.log(
+          chalk.yellow(
+            `⚠️  Warning: ${specName} - delta Purpose ignored; ${specName} already has one. ` +
+              `Edit ${update.target} directly to change it.`
+          )
+        );
+      }
     }
   } catch {
     // Target spec does not exist; MODIFIED and RENAMED are not allowed for new specs
@@ -237,9 +243,10 @@ export async function buildUpdatedSpec(
     }
     isNewSpec = true;
     targetContent = buildSpecSkeleton(specName, changeName, deltaPurpose);
-    // Keep the placeholder rather than turning this into a failure: these
-    // deltas archived cleanly before the Purpose carry-over existed.
-    if (!isSkeletonReadable(targetContent, specName)) {
+    const overview = deltaPurpose ? readableOverview(targetContent, specName) : null;
+    if (deltaPurpose && !overview) {
+      // Keep the placeholder rather than turning this into a failure: these
+      // deltas archived cleanly before the Purpose carry-over existed.
       targetContent = buildSpecSkeleton(specName, changeName);
       if (!options.silent) {
         console.log(
@@ -248,9 +255,10 @@ export async function buildUpdatedSpec(
           )
         );
       }
-    } else if (deltaPurpose && deltaPurpose.length < MIN_PURPOSE_LENGTH && !options.silent) {
+    } else if (overview && overview.length < MIN_PURPOSE_LENGTH && !options.silent) {
       // The placeholder always cleared this threshold, so a carried Purpose is
       // the first way archive can leave a spec that `validate --strict` fails.
+      // Measured on the parsed overview, which is what the validator reads.
       console.log(
         chalk.yellow(
           `⚠️  Warning: ${specName} - carried Purpose is under ${MIN_PURPOSE_LENGTH} characters; ` +
@@ -466,27 +474,42 @@ function extractPurposeSection(content: string): string | undefined {
     }
   }
 
-  // Emptiness is judged on the masked body so a comment-only Purpose (an
-  // unfilled template placeholder) falls back to the TBD placeholder.
-  if (!masked.slice(start + 1, end).join('\n').trim()) return undefined;
+  // Emptiness is judged with fenced blocks and HTML comments blanked out, so a
+  // Purpose that is only a code sample or only an unfilled template comment
+  // counts as absent and falls back to the TBD placeholder.
+  const hasProse = masked
+    .slice(start + 1, end)
+    .filter((_, offset) => isStructural(start + 1 + offset))
+    .join('\n')
+    .trim();
+  if (!hasProse) return undefined;
 
   const body = lines.slice(start + 1, end).join('\n').trim();
   return body || undefined;
 }
 
 /**
- * A carried Purpose must leave the new main spec readable by the same parser
- * that `validate`, `list` and a later `archive` use. A body containing a
- * heading, a stray requirement header, or an unterminated code fence silently
- * swallows or truncates the sections around it, so archive would abort or
- * write a spec its own validator rejects (#1413).
+ * The Purpose a new main spec would end up with, or null when carrying the
+ * delta's body over would leave a spec the readers downstream cannot handle.
+ *
+ * Returns the parsed overview rather than a boolean so callers measure the same
+ * string `validate` measures, not the raw slice out of the delta.
  */
-function isSkeletonReadable(skeleton: string, specName: string): boolean {
-  if (findMainSpecStructureIssues(skeleton).length > 0) return false;
+function readableOverview(skeleton: string, specName: string): string | null {
+  // HTML comments are invisible to the spec parsers but not to the file itself:
+  // markdown hidden in one is skipped by the boundary scan yet still lands in
+  // the spec, where it can hide the headers those parsers depend on and blank
+  // the document out in any markdown renderer. Refuse rather than write a spec
+  // that reads differently depending on who is reading it (#1413).
+  if (/<!--|-->/.test(skeleton)) return null;
+  if (findMainSpecStructureIssues(skeleton).length > 0) return null;
   try {
-    return new MarkdownParser(skeleton).parseSpec(specName).overview.trim().length > 0;
+    // A heading or unterminated fence in the body truncates or swallows the
+    // sections around it, so archive would abort or write a spec its own
+    // validator rejects.
+    return new MarkdownParser(skeleton).parseSpec(specName).overview.trim() || null;
   } catch {
-    return false;
+    return null;
   }
 }
 
