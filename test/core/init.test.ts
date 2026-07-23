@@ -1064,6 +1064,22 @@ describe('InitCommand - profile and detection features', () => {
     }
   });
 
+  it('should print the hyphen command hint for filename-invoked tools (claude+qwen)', async () => {
+    const initCommand = new InitCommand({ tools: 'claude,qwen', force: true });
+    await initCommand.execute(testDir);
+
+    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+    const startHints = logCalls.filter((entry) => entry.includes('Start your first change'));
+    // Qwen invokes commands by filename (/opsx-propose), so it must not share
+    // Claude's /opsx:propose line
+    expect(startHints).toHaveLength(2);
+    const claudeHint = startHints.find((entry) => entry.includes('Claude Code'));
+    const qwenHint = startHints.find((entry) => entry.includes('Qwen Code'));
+    expect(claudeHint).toContain('/opsx:propose');
+    expect(qwenHint).toContain('/opsx-propose');
+    expect(qwenHint).not.toContain('/opsx:propose');
+  });
+
   it('should not advertise an instruction for a tool that got no skills (delivery=commands, codex+kimi)', async () => {
     saveGlobalConfig({
       featureFlags: {},

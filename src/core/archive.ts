@@ -74,6 +74,8 @@ interface ArchiveResult {
   path: string;
   specsUpdated: boolean;
   totals?: { added: number; modified: number; removed: number; renamed: number };
+  /** Non-blocking spec-merge warnings (e.g. a REMOVED requirement that was already gone). */
+  warnings?: string[];
 }
 
 /**
@@ -426,6 +428,7 @@ export class ArchiveCommand {
     // Handle spec updates unless skipSpecs flag is set
     let specsUpdated = false;
     let totals: ArchiveResult['totals'];
+    const specWarnings: string[] = [];
     if (options.skipSpecs) {
       if (!json) {
         console.log('Skipping spec updates (--skip-specs flag provided).');
@@ -470,6 +473,9 @@ export class ArchiveCommand {
             for (const update of specUpdates) {
               const built = await buildUpdatedSpec(update, changeName!, { silent: json });
               prepared.push({ update, rebuilt: built.rebuilt, counts: built.counts });
+              // In JSON mode nothing was printed, so carry the warnings into
+              // the result instead of dropping them.
+              specWarnings.push(...built.warnings);
             }
           } catch (err: any) {
             if (json) {
@@ -514,15 +520,21 @@ export class ArchiveCommand {
           // All validations passed; write files and display counts
           const writeTotals = { added: 0, modified: 0, removed: 0, renamed: 0 };
           for (const p of prepared) {
+            const { added, modified, removed, renamed } = p.counts;
+            if (added + modified + removed + renamed === 0) {
+              // Every operation was already synced: rewriting the file would
+              // only churn normalization differences into it.
+              continue;
+            }
             await writeUpdatedSpec(p.update, p.rebuilt, p.counts, {
               silent: json,
               // Cross-root paths must be absolute when a store is selected.
               ...(isStoreSelectedRoot(root) ? { displayPath: p.update.target } : {}),
             });
-            writeTotals.added += p.counts.added;
-            writeTotals.modified += p.counts.modified;
-            writeTotals.removed += p.counts.removed;
-            writeTotals.renamed += p.counts.renamed;
+            writeTotals.added += added;
+            writeTotals.modified += modified;
+            writeTotals.removed += removed;
+            writeTotals.renamed += renamed;
           }
           specsUpdated = true;
           totals = writeTotals;
@@ -575,6 +587,7 @@ export class ArchiveCommand {
       path: archivePath,
       specsUpdated,
       ...(totals ? { totals } : {}),
+      ...(specWarnings.length > 0 ? { warnings: specWarnings } : {}),
     };
   }
 

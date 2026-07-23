@@ -513,7 +513,7 @@ If the user says they need to stop, want to pause, or seem disengaged:
 No problem! Your change is saved at the \`changeRoot\` reported by \`openspec status --change "<name>" --json\`.
 
 To pick up where we left off later:
-- \`/opsx:continue <name>\` - Resume artifact creation (if installed)
+- \`/opsx:continue <name>\` - Resume artifact creation (if installed; otherwise \`openspec status --change "<name>" --json\` shows the next artifact)
 - \`/opsx:apply <name>\` - Jump to implementation (if tasks exist)
 
 The work won't be lost. Come back whenever you're ready.

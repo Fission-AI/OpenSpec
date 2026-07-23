@@ -318,6 +318,9 @@ export class Validator {
           if (addedNames.has(toKey)) {
             issues.push({ level: 'ERROR', path: entryPath, message: `RENAMED TO collides with ADDED for "${to}"` });
           }
+          if (removedNames.has(fromKey)) {
+            issues.push({ level: 'ERROR', path: entryPath, message: `Requirement present in both RENAMED and REMOVED: "${from}"` });
+          }
         }
       }
     } catch {

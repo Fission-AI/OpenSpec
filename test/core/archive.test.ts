@@ -392,6 +392,37 @@ Then expected result happens`;
       expect(untouched).toBe(mainSpecContent);
     });
 
+    it('should abort when REMOVED names the FROM side of a RENAMED in the same delta', async () => {
+      // Contradictory delta: you cannot both rename and remove the same
+      // requirement. This used to fail incidentally at apply time (the rename
+      // consumed the old header, so REMOVED hit "not found"); now that a
+      // missing REMOVED target is treated as already synced, the conflict has
+      // to be rejected explicitly.
+      const changeName = 'rename-and-remove';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'core-layer');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      await fs.writeFile(
+        path.join(changeSpecDir, 'spec.md'),
+        `# Core Layer - Changes\n\n## RENAMED Requirements\n\n- FROM: \`### Requirement: Old name\`\n- TO: \`### Requirement: New name\`\n\n## REMOVED Requirements\n\n### Requirement: Old name\n`
+      );
+
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'core-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const mainSpecContent = `# core-layer Specification\n\n## Purpose\nCore abstraction layer.\n\n## Requirements\n\n### Requirement: Old name\n\n#### Scenario: Works\n- **WHEN** it runs\n- **THEN** it works\n`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainSpecContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('requirement present in multiple sections (RENAMED and REMOVED) for header "### Requirement: Old name"')
+      );
+      expect(process.exitCode).toBe(1);
+      const untouched = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      expect(untouched).toBe(mainSpecContent);
+    });
+
     it('should archive when REMOVED requirements were already synced to the baseline', async () => {
       const changeName = 'early-synced-removal';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
@@ -407,10 +438,8 @@ Then expected result happens`;
       const keptBlock = `### Requirement: The system SHALL provide a core abstraction layer\n\n#### Scenario: Layer is available\n- **WHEN** a consumer imports the layer\n- **THEN** the abstraction is available`;
       const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'core-layer');
       await fs.mkdir(mainSpecDir, { recursive: true });
-      await fs.writeFile(
-        path.join(mainSpecDir, 'spec.md'),
-        `# core-layer Specification\n\n## Purpose\nCore abstraction layer.\n\n## Requirements\n\n${keptBlock}\n`
-      );
+      const mainSpecContent = `# core-layer Specification\n\n## Purpose\nCore abstraction layer.\n\n## Requirements\n\n${keptBlock}\n`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainSpecContent);
 
       await archiveCommand.execute(changeName, { yes: true, noValidate: true });
 
@@ -420,13 +449,47 @@ Then expected result happens`;
       );
       // The skipped removal is not reported as applied
       expect(console.log).not.toHaveBeenCalledWith(expect.stringContaining('- 1 removed'));
+      // A no-op update must not churn the file with normalization differences
       const updatedContent = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
-      expect(updatedContent).toContain('SHALL provide a core abstraction layer');
-      expect(updatedContent).not.toContain('SHALL provide a legacy layer');
+      expect(updatedContent).toBe(mainSpecContent);
 
       const archives = await fs.readdir(path.join(tempDir, 'openspec', 'changes', 'archive'));
       expect(archives.some(a => a.includes(changeName))).toBe(true);
       expect(process.exitCode).toBeUndefined();
+    });
+
+    it('should surface the skipped REMOVED as a warning in --json output', async () => {
+      const changeName = 'early-synced-removal-json';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'core-layer');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      await fs.writeFile(
+        path.join(changeSpecDir, 'spec.md'),
+        `# Core Layer - Changes\n\n## REMOVED Requirements\n\n### Requirement: The system SHALL provide a legacy layer\n**Reason**: Replaced.\n`
+      );
+
+      const keptBlock = `### Requirement: The system SHALL provide a core abstraction layer\n\n#### Scenario: Layer is available\n- **WHEN** a consumer imports the layer\n- **THEN** the abstraction is available`;
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'core-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(
+        path.join(mainSpecDir, 'spec.md'),
+        `# core-layer Specification\n\n## Purpose\nCore abstraction layer.\n\n## Requirements\n\n${keptBlock}\n`
+      );
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true, json: true });
+
+      expect(process.exitCode).toBeUndefined();
+      const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+      const jsonLine = logCalls.find((entry) => entry.trimStart().startsWith('{'));
+      expect(jsonLine).toBeDefined();
+      const parsed = JSON.parse(jsonLine!);
+      expect(parsed.archive.totals.removed).toBe(0);
+      // The silent path must not swallow the skip: agents reading JSON get
+      // the same signal humans get on stdout.
+      expect(parsed.archive.warnings).toEqual([
+        expect.stringContaining('REMOVED requirement "The system SHALL provide a legacy layer" is not in the current spec'),
+      ]);
     });
 
     it('should merge nested delta specs into the same relative path (#1353)', async () => {

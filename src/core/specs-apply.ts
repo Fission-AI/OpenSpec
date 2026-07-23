@@ -84,7 +84,20 @@ export async function buildUpdatedSpec(
   update: SpecUpdate,
   changeName: string,
   options: { silent?: boolean } = {}
-): Promise<{ rebuilt: string; counts: { added: number; modified: number; removed: number; renamed: number } }> {
+): Promise<{
+  rebuilt: string;
+  counts: { added: number; modified: number; removed: number; renamed: number };
+  warnings: string[];
+}> {
+  // Collected so silent (JSON) callers can surface them; printed live for
+  // human callers at the point they occur.
+  const warnings: string[] = [];
+  const warn = (message: string): void => {
+    warnings.push(message);
+    if (!options.silent) {
+      console.log(chalk.yellow(`⚠️  Warning: ${message}`));
+    }
+  };
   // Read change spec content (delta-format expected)
   const changeContent = await fs.readFile(update.source, 'utf-8');
 
@@ -155,6 +168,15 @@ export async function buildUpdatedSpec(
   for (const { from, to } of plan.renamed) {
     const fromNorm = normalizeRequirementName(from);
     const toNorm = normalizeRequirementName(to);
+    // A REMOVED naming the FROM side contradicts the rename. This used to
+    // fail incidentally at apply time (the rename consumed the old header,
+    // so REMOVED hit "not found"); now that a missing REMOVED target is a
+    // no-op, the conflict must be rejected explicitly.
+    if (removedNamesSet.has(fromNorm)) {
+      throw new Error(
+        `${specName} validation failed - requirement present in multiple sections (RENAMED and REMOVED) for header "### Requirement: ${from}"`
+      );
+    }
     if (modifiedNames.has(fromNorm)) {
       throw new Error(
         `${specName} validation failed - when a rename exists, MODIFIED must reference the NEW header "### Requirement: ${to}"`
@@ -193,14 +215,12 @@ export async function buildUpdatedSpec(
     // Only when the spec really does have a different Purpose: claiming it
     // "already has one" would be false when it has none, and saying anything at
     // all is noise when the two bodies match.
-    if (deltaPurpose && !options.silent) {
+    if (deltaPurpose) {
       const existingPurpose = extractPurposeSection(targetContent);
       if (existingPurpose && existingPurpose !== deltaPurpose) {
-        console.log(
-          chalk.yellow(
-            `⚠️  Warning: ${specName} - delta Purpose ignored; ${specName} already has one. ` +
-              `Edit ${update.target} directly to change it.`
-          )
+        warn(
+          `${specName} - delta Purpose ignored; ${specName} already has one. ` +
+            `Edit ${update.target} directly to change it.`
         );
       }
     }
@@ -213,11 +233,9 @@ export async function buildUpdatedSpec(
       );
     }
     // Warn about REMOVED requirements being ignored for new specs
-    if (plan.removed.length > 0 && !options.silent) {
-      console.log(
-        chalk.yellow(
-          `⚠️  Warning: ${specName} - ${plan.removed.length} REMOVED requirement(s) ignored for new spec (nothing to remove).`
-        )
+    if (plan.removed.length > 0) {
+      warn(
+        `${specName} - ${plan.removed.length} REMOVED requirement(s) ignored for new spec (nothing to remove).`
       );
     }
     isNewSpec = true;
@@ -227,22 +245,16 @@ export async function buildUpdatedSpec(
       // Keep the placeholder rather than turning this into a failure: these
       // deltas archived cleanly before the Purpose carry-over existed.
       targetContent = buildSpecSkeleton(specName, changeName);
-      if (!options.silent) {
-        console.log(
-          chalk.yellow(
-            `⚠️  Warning: ${specName} - delta Purpose ignored (it would leave the new spec unreadable); wrote the placeholder Purpose instead.`
-          )
-        );
-      }
-    } else if (overview && overview.length < MIN_PURPOSE_LENGTH && !options.silent) {
+      warn(
+        `${specName} - delta Purpose ignored (it would leave the new spec unreadable); wrote the placeholder Purpose instead.`
+      );
+    } else if (overview && overview.length < MIN_PURPOSE_LENGTH) {
       // The placeholder always cleared this threshold, so a carried Purpose is
       // the first way archive can leave a spec that `validate --strict` fails.
       // Measured on the parsed overview, which is what the validator reads.
-      console.log(
-        chalk.yellow(
-          `⚠️  Warning: ${specName} - carried Purpose is under ${MIN_PURPOSE_LENGTH} characters; ` +
-            `openspec validate --strict reports it as too brief.`
-        )
+      warn(
+        `${specName} - carried Purpose is under ${MIN_PURPOSE_LENGTH} characters; ` +
+          `openspec validate --strict reports it as too brief.`
       );
     }
   }
@@ -306,11 +318,9 @@ export async function buildUpdatedSpec(
       // failure. Unlike RENAMED there is no signal separating that from a
       // mistyped header, so warn instead of skipping silently.
       // For new specs the skip was already warned about above.
-      if (!isNewSpec && !options.silent) {
-        console.log(
-          chalk.yellow(
-            `⚠️  Warning: ${specName} - REMOVED requirement "${name}" is not in the current spec; treating it as already removed.`
-          )
+      if (!isNewSpec) {
+        warn(
+          `${specName} - REMOVED requirement "${name}" is not in the current spec; treating it as already removed.`
         );
       }
       continue;
@@ -399,6 +409,7 @@ export async function buildUpdatedSpec(
       removed: removedApplied,
       renamed: renamedApplied,
     },
+    warnings,
   };
 }
 
