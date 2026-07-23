@@ -14,6 +14,7 @@ This change adds a small runtime contract for apply and archive without changing
 - Fetch current project context and matching operation guidance whenever apply or archive instructions are requested.
 - Return context and operation guidance as separate structured fields.
 - Make the single-change and bulk archive skills consume current inputs at execution time.
+- Carry current artifact rules into archive-driven spec sync whenever the sync creates or updates that artifact.
 - Preserve existing artifact rules, skill steps, user prompts, and CLI behavior.
 - Keep config parsing resilient so malformed operation config does not invalidate unrelated fields.
 
@@ -21,7 +22,7 @@ This change adds a small runtime contract for apply and archive without changing
 
 - Change archive execution ownership, phases, safety guarantees, or filesystem behavior.
 - Change `openspec archive`, its flags, filesystem behavior, or compatibility contract.
-- Change spec sync behavior or pass artifact rules through archive or sync work.
+- Change semantic spec sync ownership, merge phases, or main-spec format.
 - Add new enforceable archive checks or configurable operation checks.
 - Make natural-language operation guidance a security or validation boundary.
 - Change the structure or meaning of artifact `rules`.
@@ -69,13 +70,13 @@ Artifact `rules` remain unchanged and are not read as operation guidance.
 Apply and archive instruction generation use a shared helper conceptually shaped as:
 
 ```ts
-loadOperationInputs(projectRoot, operationId): {
+loadOperationInputs(projectConfig, operationId): {
   context?: string;
   operationGuidance?: string[];
 }
 ```
 
-The helper calls `readProjectConfig()` for every instruction invocation. It does not cache config values in generated skills or module state. The caller passes the root selected by the existing repo/store resolution path, so both fields come from the same current config.
+The existing root-config loader calls `readProjectConfig()` once for each instruction command and passes that parsed `ProjectConfig` to the helper. The same config snapshot supplies references, context, and operation guidance, so malformed-field warnings are not duplicated and one command cannot mix values from two reads. There is no generated-skill or module-state cache, so the next command observes later config changes.
 
 Absent context and empty guidance are omitted rather than returned as empty values.
 
@@ -92,7 +93,7 @@ Absent context and empty guidance are omitted rather than returned as empty valu
 
 The existing apply state, task progress, missing-artifact checks, context files, references, and schema instruction remain unchanged. JSON serialization includes the new fields automatically. Text output renders project context and operation guidance as distinct advisory sections after the built-in apply instruction content.
 
-The apply skill template lists both fields as runtime inputs and applies them as behavioral guidance. CLI-returned state, progress, tasks, missing artifacts, context files, and built-in instruction remain authoritative. Context and operation guidance cannot be interpreted as replacing those fields, marking tasks complete, or bypassing a blocked state, and their contents are not copied into implementation files or planning artifacts.
+The apply skill template lists both fields as runtime inputs, labels them as advisory, and keeps them structurally separate from CLI-returned state, progress, tasks, missing artifacts, context files, and built-in instruction. This change does not modify those CLI-controlled fields or their state transitions. The template tells the agent not to treat context or guidance as task completion, a replacement instruction, or permission to bypass a blocked state, and not to copy their contents into implementation files or planning artifacts. This is prompt guidance rather than an enforcement boundary.
 
 ### D4: Add a dedicated archive runtime-input branch
 
@@ -121,29 +122,32 @@ It uses returned context as project background and archive guidance as optional 
 
 The bulk archive skill makes the same call once for the selected root, using one selected change to establish context, and applies the returned inputs across that batch. It does not change the existing bulk conflict analysis or archive orchestration.
 
-Both templates state that runtime inputs must not be copied verbatim into specs, change artifacts, summaries, or other files unless the user separately asks for that content.
+When either archive skill performs agent-driven spec sync, it fetches the current artifact instructions for the artifact being created or updated, using the same selected root and the change whose delta is being merged. The skill applies the returned artifact rules while writing that artifact. In a mixed-schema bulk batch, this lookup occurs per change so rule validation and instruction selection use that change's schema. Artifact rules are not returned from the archive operation-input surface, relabeled as archive guidance, or applied to unrelated archive steps.
+
+Both templates state that runtime context, operation guidance, and rule text must not be copied verbatim into specs, change artifacts, summaries, or other files unless the user separately asks for that content. Artifact rules constrain the produced artifact without becoming artifact content.
 
 ### D6: Keep enforcement claims within the current scope
 
-Operation guidance is prompt input, not an enforcement mechanism. This change guarantees only that OpenSpec validates its config shape and delivers current values through the documented instruction surfaces.
+Operation guidance is prompt input, not an enforcement mechanism. This change guarantees that OpenSpec validates its config shape, keeps guidance separate from CLI-controlled fields, delivers current values through the documented instruction surfaces, and leaves existing CLI checks unchanged.
 
-Existing checks continue to run wherever the current CLI already owns them. The skill templates continue to define their built-in steps and confirmation behavior, but this change does not claim that prompt text creates a new security boundary. Stronger archive guarantees require a separate archive execution design.
+Existing checks continue to run wherever the current CLI already owns them. Skill templates label operation guidance as advisory and state the intended precedence, but do not claim that prompt text can force agent compliance. Any invariant that must be non-bypassable belongs in a real CLI check and remains outside this change; stronger archive guarantees require a separate archive execution design.
 
 ## Risks / Trade-offs
 
-- **Guidance conflicts with built-in workflow text** -> Templates explicitly label guidance as additive and keep built-in steps and explicit user choices authoritative.
+- **Guidance conflicts with built-in workflow text** -> Keep guidance in a separate field, label it advisory, and leave CLI-controlled state, validation, paths, and command contracts unchanged; do not claim prompt-level enforcement.
 - **Generated skills become stale** -> Skills fetch current inputs on every invocation instead of embedding config content.
-- **Repo/store roots diverge** -> Instruction commands reuse existing root selection and read one config from the resolved root.
+- **Repo/store roots diverge** -> Instruction commands reuse existing root selection and read one config snapshot from the resolved root.
 - **Archive runtime input is mistaken for archive execution** -> Command naming, JSON fields, docs, and tests state that the instruction surface is read-only and performs no archive mutation.
 - **Bulk archive spans an unexpected root** -> The skill resolves the batch root first and fetches inputs once for that root; cross-root batching remains outside the current behavior.
+- **Artifact rules are mistaken for archive guidance** -> Fetch them only when writing their artifact, keep them out of `operationGuidance`, and test that they do not affect unrelated archive steps.
 
 ## Implementation Plan
 
 1. Add typed operation config parsing and tests.
-2. Add the shared runtime-input loader.
+2. Add the shared runtime-input loader using the root command's single parsed config snapshot.
 3. Extend apply instruction JSON and text output.
 4. Add archive instruction JSON and text output without changing archive execution.
-5. Update single-change and bulk archive templates to consume current inputs.
+5. Update single-change and bulk archive templates to consume current inputs and carry artifact rules into archive-driven spec sync.
 6. Update generated config help, documentation, template parity fixtures, and end-to-end coverage.
 
 Rollback is a code revert. The config field is additive, and no archive filesystem format or durable project state changes in this change.

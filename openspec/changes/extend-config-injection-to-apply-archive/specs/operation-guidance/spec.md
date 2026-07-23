@@ -17,7 +17,7 @@ The system SHALL allow projects to configure additive guidance for supported ope
 
 ### Requirement: Keep operation guidance additive and advisory
 
-The system SHALL present operation guidance as optional advice in addition to the built-in skill flow and explicit user choices.
+The system SHALL present operation guidance as optional advice in a field that remains separate from built-in instructions, CLI-controlled state, and explicit user choices.
 
 #### Scenario: Guidance complements built-in flow
 
@@ -27,8 +27,10 @@ The system SHALL present operation guidance as optional advice in addition to th
 #### Scenario: Guidance conflicts with built-in behavior
 
 - **WHEN** operation guidance conflicts with a built-in workflow step, explicit user choice, resolved path, or command contract
-- **THEN** the skill keeps the built-in behavior authoritative
-- **AND** does not represent the guidance as an enforceable override
+- **THEN** instruction output keeps the conflicting text in `operationGuidance` rather than merging it into built-in instruction, state, path, or command fields
+- **AND** the generated skill labels that field as advisory
+- **AND** existing CLI validation, state calculation, resolved paths, and command contracts remain unchanged
+- **AND** the system does not claim that prompt text can enforce agent compliance
 
 ### Requirement: Load operation guidance at execution time
 
