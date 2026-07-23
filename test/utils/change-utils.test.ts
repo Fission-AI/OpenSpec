@@ -41,7 +41,7 @@ describe('validateChangeName', () => {
       expect(result).toEqual({ valid: true });
     });
 
-    it('should accept a name that is all digits and hyphens', () => {
+    it('should accept a tiered numeric prefix with alphanumeric segments (#850)', () => {
       const result = validateChangeName('101-01-fix-auth');
       expect(result).toEqual({ valid: true });
     });
