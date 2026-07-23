@@ -670,12 +670,192 @@ The system SHALL handle widgets.
       expect(updatedContent).not.toContain('### Requirement: Stray header');
       expect(updatedContent).toContain('### Requirement: Real Requirement');
       expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining(`Warning: widgets - delta Purpose ignored (it contains a requirement header)`)
+        expect.stringContaining('Warning: widgets - delta Purpose ignored (it would leave the new spec unreadable)')
       );
 
       // The archive still completed rather than aborting.
       const archives = await fs.readdir(path.join(tempDir, 'openspec', 'changes', 'archive'));
       expect(archives.some(a => a.includes(changeName))).toBe(true);
+    });
+
+    it('should fall back to the placeholder when the delta Purpose contains a heading (issue #1413)', async () => {
+      const changeName = 'new-spec-with-heading-in-purpose';
+      const changeSpecDir = path.join(tempDir, 'openspec', 'changes', changeName, 'specs', 'gadgets');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      // An `#` heading truncates the Purpose section when the spec is read back,
+      // leaving a spec whose own validator rejects it for having no Purpose.
+      const specContent = `## Purpose
+
+# Not a spec title
+Some body text that is comfortably longer than the strict-mode minimum length.
+
+## ADDED Requirements
+
+### Requirement: Handle Gadget
+The system SHALL handle gadgets.
+
+#### Scenario: Gadget handled
+- **WHEN** a gadget arrives
+- **THEN** it is handled
+`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), specContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const updatedContent = await fs.readFile(
+        path.join(tempDir, 'openspec', 'specs', 'gadgets', 'spec.md'),
+        'utf-8'
+      );
+      expect(updatedContent).toContain(
+        `TBD - created by archiving change ${changeName}. Update Purpose after archive.`
+      );
+      expect(updatedContent).not.toContain('# Not a spec title');
+      // The rebuilt spec must still satisfy the validator archive itself runs.
+      const report = await new Validator().validateSpecContent('gadgets', updatedContent);
+      expect(report.issues.filter(i => i.level === 'ERROR')).toHaveLength(0);
+    });
+
+    it('should fall back to the placeholder when the delta Purpose has an unterminated fence (issue #1413)', async () => {
+      const changeName = 'new-spec-with-unterminated-fence';
+      const changeSpecDir = path.join(tempDir, 'openspec', 'changes', changeName, 'specs', 'mesh-config');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      // The open fence masks everything after it, so the Purpose body would
+      // swallow the skeleton's own ## Requirements header.
+      const specContent = `## ADDED Requirements
+
+### Requirement: Normalize Mesh Config
+The system SHALL normalize mesh config.
+
+#### Scenario: Config normalized
+- **WHEN** config is loaded
+- **THEN** it is normalized
+
+## Purpose
+
+Normalizes configuration for every service in the mesh. Canonical shape:
+
+\`\`\`yaml
+retries: 3
+`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), specContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const updatedContent = await fs.readFile(
+        path.join(tempDir, 'openspec', 'specs', 'mesh-config', 'spec.md'),
+        'utf-8'
+      );
+      expect(updatedContent).toContain(
+        `TBD - created by archiving change ${changeName}. Update Purpose after archive.`
+      );
+      // Exactly one Requirements section, and the requirement is still visible.
+      expect(updatedContent.match(/^## Requirements$/gm)).toHaveLength(1);
+      const report = await new Validator().validateSpecContent('mesh-config', updatedContent);
+      expect(report.issues.filter(i => i.level === 'ERROR')).toHaveLength(0);
+    });
+
+    it('should ignore a commented-out Purpose in favor of the real one (issue #1413)', async () => {
+      const changeName = 'new-spec-with-commented-purpose';
+      const changeSpecDir = path.join(tempDir, 'openspec', 'changes', changeName, 'specs', 'loyalty-v2');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      const specContent = `<!--
+## Purpose
+Draft purpose the author commented out while rewriting the section.
+-->
+
+## Purpose
+
+Manages the loyalty program end to end across the storefront and admin console.
+
+## ADDED Requirements
+
+### Requirement: Earn Points
+The system SHALL award loyalty points.
+
+#### Scenario: Points earned
+- **WHEN** an order completes
+- **THEN** points are credited
+`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), specContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const updatedContent = await fs.readFile(
+        path.join(tempDir, 'openspec', 'specs', 'loyalty-v2', 'spec.md'),
+        'utf-8'
+      );
+      expect(updatedContent).toContain('Manages the loyalty program end to end');
+      expect(updatedContent).not.toContain('Draft purpose the author commented out');
+      expect(updatedContent).not.toContain('-->');
+    });
+
+    it('should keep the placeholder when the delta Purpose is only an HTML comment (issue #1413)', async () => {
+      const changeName = 'new-spec-with-unfilled-template';
+      const changeSpecDir = path.join(tempDir, 'openspec', 'changes', changeName, 'specs', 'unfilled');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      // This is the shipped delta template left unfilled.
+      const specContent = `## Purpose
+<!-- New capabilities only: one or two sentences on what this capability is for. -->
+
+## ADDED Requirements
+
+### Requirement: Do Thing
+The system SHALL do the thing.
+
+#### Scenario: Thing done
+- **WHEN** asked
+- **THEN** done
+`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), specContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const updatedContent = await fs.readFile(
+        path.join(tempDir, 'openspec', 'specs', 'unfilled', 'spec.md'),
+        'utf-8'
+      );
+      expect(updatedContent).toContain(
+        `TBD - created by archiving change ${changeName}. Update Purpose after archive.`
+      );
+      expect(updatedContent).not.toContain('New capabilities only');
+    });
+
+    it('should warn when a carried Purpose is under the strict-mode minimum (issue #1413)', async () => {
+      const changeName = 'new-spec-with-brief-purpose';
+      const changeSpecDir = path.join(tempDir, 'openspec', 'changes', changeName, 'specs', 'points');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      const specContent = `## Purpose
+
+Tracks loyalty points.
+
+## ADDED Requirements
+
+### Requirement: Track Points
+The system SHALL track points.
+
+#### Scenario: Points tracked
+- **WHEN** an order completes
+- **THEN** points are tracked
+`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), specContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const updatedContent = await fs.readFile(
+        path.join(tempDir, 'openspec', 'specs', 'points', 'spec.md'),
+        'utf-8'
+      );
+      // The author's words are kept - the warning exists so the strict-mode
+      // failure is not a surprise later.
+      expect(updatedContent).toContain('Tracks loyalty points.');
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('carried Purpose is under 50 characters')
+      );
     });
 
     it('should not overwrite the Purpose of an existing main spec (issue #1413)', async () => {
@@ -726,6 +906,10 @@ The system SHALL refund the card on file.
       expect(updatedContent).toContain('The established purpose that must survive archiving.');
       expect(updatedContent).not.toContain('A purpose written in the delta that must be ignored');
       expect(updatedContent).toContain('### Requirement: Refund Card');
+      // Dropping it silently would be indistinguishable from it having worked.
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('billing - delta Purpose ignored; billing already has one')
+      );
     });
 
     it('should still error on MODIFIED when creating new spec file', async () => {

@@ -16,7 +16,9 @@ import {
 } from './parsers/requirement-blocks.js';
 import { findMainSpecStructureIssues } from './parsers/spec-structure.js';
 import { buildCodeFenceMask } from './parsers/code-fence.js';
+import { MarkdownParser } from './parsers/markdown-parser.js';
 import { Validator } from './validation/validator.js';
+import { MIN_PURPOSE_LENGTH } from './validation/constants.js';
 import { discoverSpecFiles } from '../utils/spec-discovery.js';
 
 // -----------------------------------------------------------------------------
@@ -201,10 +203,22 @@ export async function buildUpdatedSpec(
   }
 
   // Load or create base target content
+  const deltaPurpose = extractPurposeSection(changeContent);
   let targetContent: string;
   let isNewSpec = false;
   try {
     targetContent = await fs.readFile(update.target, 'utf-8');
+    // A delta Purpose only seeds a spec that does not exist yet. Say so rather
+    // than dropping it silently - the specs instruction tells authors to write
+    // one for new capabilities, and the delta file looks identical either way.
+    if (deltaPurpose && !options.silent) {
+      console.log(
+        chalk.yellow(
+          `⚠️  Warning: ${specName} - delta Purpose ignored; ${specName} already has one. ` +
+            `Edit openspec/specs/${specName}/spec.md directly to change it.`
+        )
+      );
+    }
   } catch {
     // Target spec does not exist; MODIFIED and RENAMED are not allowed for new specs
     // REMOVED will be ignored with a warning since there's nothing to remove
@@ -222,19 +236,27 @@ export async function buildUpdatedSpec(
       );
     }
     isNewSpec = true;
-    targetContent = buildSpecSkeleton(specName, changeName, extractPurposeSection(changeContent));
-    // A carried Purpose that hides a requirement header would make the new main
-    // spec structurally invalid and abort an archive that succeeded before
-    // #1413. Keep the placeholder rather than turning a warning into a failure.
-    if (findMainSpecStructureIssues(targetContent).length > 0) {
+    targetContent = buildSpecSkeleton(specName, changeName, deltaPurpose);
+    // Keep the placeholder rather than turning this into a failure: these
+    // deltas archived cleanly before the Purpose carry-over existed.
+    if (!isSkeletonReadable(targetContent, specName)) {
       targetContent = buildSpecSkeleton(specName, changeName);
       if (!options.silent) {
         console.log(
           chalk.yellow(
-            `⚠️  Warning: ${specName} - delta Purpose ignored (it contains a requirement header); wrote the placeholder Purpose instead.`
+            `⚠️  Warning: ${specName} - delta Purpose ignored (it would leave the new spec unreadable); wrote the placeholder Purpose instead.`
           )
         );
       }
+    } else if (deltaPurpose && deltaPurpose.length < MIN_PURPOSE_LENGTH && !options.silent) {
+      // The placeholder always cleared this threshold, so a carried Purpose is
+      // the first way archive can leave a spec that `validate --strict` fails.
+      console.log(
+        chalk.yellow(
+          `⚠️  Warning: ${specName} - carried Purpose is under ${MIN_PURPOSE_LENGTH} characters; ` +
+            `openspec validate --strict reports it as too brief.`
+        )
+      );
     }
   }
 
@@ -413,26 +435,59 @@ export async function writeUpdatedSpec(
   if (counts.renamed) console.log(`  → ${counts.renamed} renamed`);
 }
 
+/** Blank out `<!-- ... -->` spans, preserving line count so indices stay aligned. */
+function maskHtmlComments(content: string): string {
+  return content.replace(/<!--[\s\S]*?-->/g, comment => comment.replace(/[^\n]/g, ' '));
+}
+
 /**
- * Read the body of a `## Purpose` section, ignoring fenced code blocks.
- * Returns undefined when the section is absent or empty.
+ * Read the body of a `## Purpose` section, ignoring markdown that only appears
+ * inside fenced code blocks or HTML comments. Returns undefined when the
+ * section is absent or its body is empty.
  */
 function extractPurposeSection(content: string): string | undefined {
-  const lines = content.replace(/\r\n?/g, '\n').split('\n');
-  const mask = buildCodeFenceMask(lines);
-  const start = lines.findIndex((line, i) => !mask[i] && /^##\s+Purpose\s*$/i.test(line));
+  const normalized = content.replace(/\r\n?/g, '\n');
+  const lines = normalized.split('\n');
+  // Structure is read from the masked copy so a commented-out or fenced
+  // `## Purpose` is not mistaken for the real one; the body is returned from
+  // the original lines so an author's own comments and fences survive intact.
+  const masked = maskHtmlComments(normalized).split('\n');
+  const fenceMask = buildCodeFenceMask(masked);
+  const isStructural = (i: number) => !fenceMask[i];
+
+  const start = masked.findIndex((line, i) => isStructural(i) && /^##\s+Purpose\s*$/i.test(line));
   if (start === -1) return undefined;
 
-  let end = lines.length;
-  for (let i = start + 1; i < lines.length; i++) {
-    if (!mask[i] && /^##\s+/.test(lines[i])) {
+  let end = masked.length;
+  for (let i = start + 1; i < masked.length; i++) {
+    if (isStructural(i) && /^##\s+/.test(masked[i])) {
       end = i;
       break;
     }
   }
 
+  // Emptiness is judged on the masked body so a comment-only Purpose (an
+  // unfilled template placeholder) falls back to the TBD placeholder.
+  if (!masked.slice(start + 1, end).join('\n').trim()) return undefined;
+
   const body = lines.slice(start + 1, end).join('\n').trim();
   return body || undefined;
+}
+
+/**
+ * A carried Purpose must leave the new main spec readable by the same parser
+ * that `validate`, `list` and a later `archive` use. A body containing a
+ * heading, a stray requirement header, or an unterminated code fence silently
+ * swallows or truncates the sections around it, so archive would abort or
+ * write a spec its own validator rejects (#1413).
+ */
+function isSkeletonReadable(skeleton: string, specName: string): boolean {
+  if (findMainSpecStructureIssues(skeleton).length > 0) return false;
+  try {
+    return new MarkdownParser(skeleton).parseSpec(specName).overview.trim().length > 0;
+  } catch {
+    return false;
+  }
 }
 
 /**

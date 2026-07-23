@@ -58,6 +58,8 @@ A change describes its edits to the specs with three section types. Using the ri
 
 On archive, ADDED gets appended to the main spec, MODIFIED replaces the old version, and REMOVED is deleted. If you mark a real change as ADDED, you end up with two competing requirements; if you describe new behavior as MODIFIED, there's nothing to replace. When in doubt, open the current spec and see whether the requirement is already there.
 
+One more section is worth knowing about. When your delta creates a capability that doesn't exist yet, open it with `## Purpose` — a sentence or two on what the capability is for. Archive uses it as the Purpose of the main spec it creates; skip it and you get a `TBD` placeholder to fill in by hand. An existing spec already has a Purpose, so a delta's is ignored there — edit `openspec/specs/<capability>/spec.md` directly to change one.
+
 ## Right-size the change
 
 The single most common authoring mistake isn't a badly worded requirement — it's a change that's trying to be three changes.

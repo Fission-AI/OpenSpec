@@ -93,22 +93,34 @@ Before moving the change to archive, the command SHALL apply delta changes to ma
 #### Scenario: New main spec inherits the delta's Purpose
 
 - **WHEN** a delta creates a main spec that does not exist yet
-- **AND** the delta spec has a `## Purpose` header that is not itself inside a fenced code block
-- **AND** that section's body is not empty
-- **THEN** write the section body into the new main spec verbatim, fenced code blocks included
+- **AND** the delta spec has a line-initial `## Purpose` header that is not inside a fenced code block or an HTML comment
+- **AND** the section body, ignoring fenced blocks and HTML comments, is not empty
+- **THEN** write the section body into the new main spec, trimmed but otherwise verbatim, fenced code blocks and comments included
+- **AND** the section body runs to the next `## ` heading outside a fenced block
 
 #### Scenario: New main spec without an authored Purpose
 
 - **WHEN** a delta creates a main spec that does not exist yet
-- **AND** the delta spec has no `## Purpose` header outside a fenced code block, or the section body is empty
+- **AND** the delta spec has no such `## Purpose` header, or that section's body is empty once fenced blocks and HTML comments are ignored
 - **THEN** write the TBD placeholder Purpose naming the change to update after archive
 
-#### Scenario: Delta Purpose that would invalidate the new main spec
+#### Scenario: Delta Purpose that would leave the new main spec unreadable
 
 - **WHEN** a delta creates a main spec that does not exist yet
-- **AND** carrying its `## Purpose` body over would place a requirement header outside the `## Requirements` section
+- **AND** carrying its `## Purpose` body over would leave a spec the main spec parser cannot read - a heading or requirement header that truncates a section, or an unterminated code fence that swallows one
 - **THEN** write the TBD placeholder Purpose instead and warn that the delta Purpose was ignored
 - **AND** complete the archive rather than aborting it
+
+#### Scenario: Carried Purpose shorter than the strict-mode minimum
+
+- **WHEN** a carried Purpose is shorter than the minimum Purpose length strict validation enforces
+- **THEN** carry it over unchanged and warn that `openspec validate --strict` reports it as too brief
+
+#### Scenario: Delta Purpose for a capability that already has a main spec
+
+- **WHEN** a delta carries a `## Purpose` and the target main spec already exists
+- **THEN** leave the existing Purpose untouched
+- **AND** warn that the delta Purpose was ignored, naming the main spec to edit directly
 
 ### Requirement: Confirmation Behavior
 

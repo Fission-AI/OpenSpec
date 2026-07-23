@@ -80,7 +80,8 @@ ${STORE_SELECTION_GUIDANCE}
 
    d. **Create new main spec** if capability doesn't exist yet:
       - Create \`<planningHome.root>/openspec/specs/<capability>/spec.md\`
-      - Add Purpose section (can be brief, mark as TBD)
+      - Add Purpose section: copy the delta's \`## Purpose\` body verbatim when it has one
+        (this is what \`openspec archive\` does); only write a brief TBD placeholder when it does not
       - Add Requirements section with the ADDED requirements
       - Follow the **Main Spec Format Reference** below
 
@@ -252,7 +253,8 @@ ${STORE_SELECTION_GUIDANCE}
 
    d. **Create new main spec** if capability doesn't exist yet:
       - Create \`<planningHome.root>/openspec/specs/<capability>/spec.md\`
-      - Add Purpose section (can be brief, mark as TBD)
+      - Add Purpose section: copy the delta's \`## Purpose\` body verbatim when it has one
+        (this is what \`openspec archive\` does); only write a brief TBD placeholder when it does not
       - Add Requirements section with the ADDED requirements
       - Follow the **Main Spec Format Reference** below
 
