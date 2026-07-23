@@ -517,6 +517,41 @@ The system SHALL award loyalty points on each completed order.
       expect(updatedContent).toContain('### Requirement: Earn Points');
     });
 
+    it('should keep fenced code inside a real delta Purpose (issue #1413)', async () => {
+      const changeName = 'new-spec-with-fenced-purpose';
+      const changeSpecDir = path.join(tempDir, 'openspec', 'changes', changeName, 'specs', 'config-format');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      const specContent = `## Purpose
+
+Normalizes config files. The canonical shape is:
+
+\`\`\`yaml
+retries: 3
+\`\`\`
+
+## ADDED Requirements
+
+### Requirement: Normalize Config
+The system SHALL normalize config files on load.
+
+#### Scenario: Config normalized
+- **WHEN** a config file is loaded
+- **THEN** it is normalized to the canonical shape
+`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), specContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const mainSpecPath = path.join(tempDir, 'openspec', 'specs', 'config-format', 'spec.md');
+      const updatedContent = await fs.readFile(mainSpecPath, 'utf-8');
+      expect(updatedContent).toContain('Normalizes config files. The canonical shape is:');
+      // The fenced example is part of the authored Purpose - masking fenced
+      // lines out of the body would silently truncate it.
+      expect(updatedContent).toContain('retries: 3');
+      expect(updatedContent).not.toContain('TBD - created by archiving change');
+    });
+
     it('should keep the TBD Purpose placeholder when the delta has no Purpose (issue #1413)', async () => {
       const changeName = 'new-spec-without-purpose';
       const changeSpecDir = path.join(tempDir, 'openspec', 'changes', changeName, 'specs', 'referrals');
@@ -536,6 +571,64 @@ The system SHALL send a referral invite.
       await archiveCommand.execute(changeName, { yes: true, noValidate: true });
 
       const mainSpecPath = path.join(tempDir, 'openspec', 'specs', 'referrals', 'spec.md');
+      const updatedContent = await fs.readFile(mainSpecPath, 'utf-8');
+      expect(updatedContent).toContain(
+        `TBD - created by archiving change ${changeName}. Update Purpose after archive.`
+      );
+    });
+
+    it('should keep the TBD placeholder when the only Purpose header is inside a code fence (issue #1413)', async () => {
+      const changeName = 'new-spec-with-fenced-header';
+      const changeSpecDir = path.join(tempDir, 'openspec', 'changes', changeName, 'specs', 'payouts');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      const specContent = `## ADDED Requirements
+
+### Requirement: Send Payout
+The system SHALL send a payout. A main spec looks like:
+
+\`\`\`markdown
+## Purpose
+Illustration only - not this capability's purpose.
+\`\`\`
+
+#### Scenario: Payout sent
+- **WHEN** a payout is due
+- **THEN** it is sent
+`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), specContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const mainSpecPath = path.join(tempDir, 'openspec', 'specs', 'payouts', 'spec.md');
+      const updatedContent = await fs.readFile(mainSpecPath, 'utf-8');
+      expect(updatedContent).toContain(
+        `TBD - created by archiving change ${changeName}. Update Purpose after archive.`
+      );
+      expect(updatedContent).not.toContain("Illustration only - not this capability's purpose.\n## Requirements");
+    });
+
+    it('should keep the TBD placeholder when the delta Purpose section is empty (issue #1413)', async () => {
+      const changeName = 'new-spec-with-empty-purpose';
+      const changeSpecDir = path.join(tempDir, 'openspec', 'changes', changeName, 'specs', 'notifications');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      const specContent = `## Purpose
+
+## ADDED Requirements
+
+### Requirement: Send Notification
+The system SHALL send a notification.
+
+#### Scenario: Notification sent
+- **WHEN** an event fires
+- **THEN** a notification is sent
+`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), specContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const mainSpecPath = path.join(tempDir, 'openspec', 'specs', 'notifications', 'spec.md');
       const updatedContent = await fs.readFile(mainSpecPath, 'utf-8');
       expect(updatedContent).toContain(
         `TBD - created by archiving change ${changeName}. Update Purpose after archive.`

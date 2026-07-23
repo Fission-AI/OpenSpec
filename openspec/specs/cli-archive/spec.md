@@ -93,13 +93,14 @@ Before moving the change to archive, the command SHALL apply delta changes to ma
 #### Scenario: New main spec inherits the delta's Purpose
 
 - **WHEN** a delta creates a main spec that does not exist yet
-- **AND** the delta spec has a non-empty `## Purpose` section outside fenced code blocks
-- **THEN** write that Purpose into the new main spec
+- **AND** the delta spec has a `## Purpose` header that is not itself inside a fenced code block
+- **AND** that section's body is not empty
+- **THEN** write the section body into the new main spec verbatim, fenced code blocks included
 
 #### Scenario: New main spec without an authored Purpose
 
 - **WHEN** a delta creates a main spec that does not exist yet
-- **AND** the delta spec has no `## Purpose` section, or an empty one
+- **AND** the delta spec has no `## Purpose` header outside a fenced code block, or the section body is empty
 - **THEN** write the TBD placeholder Purpose naming the change to update after archive
 
 ### Requirement: Confirmation Behavior
