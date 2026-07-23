@@ -10,11 +10,25 @@ import { isInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds } from '../utils/item-discovery.js';
 import { getTaskProgressForChange } from '../utils/task-progress.js';
 
-async function pathExists(target: string): Promise<boolean> {
+/**
+ * True only when `target` is definitively absent. An EACCES or I/O failure
+ * means existence cannot be determined, so callers fall through to their
+ * read-error path rather than claim the file was never written.
+ */
+async function isDefinitelyMissing(target: string): Promise<boolean> {
   return fs
     .access(target)
-    .then(() => true)
-    .catch(() => false);
+    .then(() => false)
+    .catch((error: NodeJS.ErrnoException) => error?.code === 'ENOENT');
+}
+
+/**
+ * A change is a directory directly under changes/. Rejecting anything else up
+ * front keeps a traversing name (`../..`) from reading a proposal outside the
+ * changes directory, and keeps the missing-proposal message honest.
+ */
+function isChangeDirectoryName(changesPath: string, changeDir: string): boolean {
+  return path.dirname(path.resolve(changeDir)) === path.resolve(changesPath);
 }
 
 export class ChangeCommand {
@@ -67,23 +81,23 @@ export class ChangeCommand {
     const changeDir = path.join(changesPath, changeName);
     const proposalPath = path.join(changeDir, 'proposal.md');
 
+    if (!isChangeDirectoryName(changesPath, changeDir)) {
+      throw new Error(`Change "${changeName}" not found at ${proposalPath}`);
+    }
+
     try {
       await fs.access(proposalPath);
     } catch {
       // A change can exist without a proposal: `openspec new change` scaffolds
       // only .openspec.yaml, and a custom schema need not define a proposal
       // artifact. Say which of the two cases this is instead of reporting a
-      // change that does exist as missing.
-      //
-      // Only a directory that is a direct child of changes/ qualifies. A stray
-      // file, or a traversing name like `../..`, is not a change, and naming it
-      // one would point the user at a `status --change` call that cannot work.
-      const isChangeDirectory =
-        path.dirname(path.resolve(changeDir)) === path.resolve(changesPath) &&
-        (await fs
-          .stat(changeDir)
-          .then((stats) => stats.isDirectory())
-          .catch(() => false));
+      // change that does exist as missing. A stray file under changes/ is not a
+      // change, and naming it one would point the user at a `status --change`
+      // call that cannot work.
+      const isChangeDirectory = await fs
+        .stat(changeDir)
+        .then((stats) => stats.isDirectory())
+        .catch(() => false);
       if (isChangeDirectory) {
         throw new Error(
           `Change "${changeName}" has no proposal.md yet. ` +
@@ -149,7 +163,7 @@ export class ChangeCommand {
           // schema with no proposal artifact), so name the change rather than
           // labelling it Unknown. Unknown stays for a proposal that exists but
           // cannot be read or parsed.
-          if (!(await pathExists(proposalPath))) {
+          if (await isDefinitelyMissing(proposalPath)) {
             return { id: changeName, title: changeName, deltaCount: 0, taskStatus };
           }
 
@@ -190,7 +204,7 @@ export class ChangeCommand {
         const proposalPath = path.join(changeDir, 'proposal.md');
         const { total, completed } = await getTaskProgressForChange(changesPath, changeName, process.cwd());
         const taskStatusText = total > 0 ? ` [tasks ${completed}/${total}]` : '';
-        if (!(await pathExists(proposalPath))) {
+        if (await isDefinitelyMissing(proposalPath)) {
           console.log(`${changeName}: (no proposal.md yet)${taskStatusText}`);
           continue;
         }

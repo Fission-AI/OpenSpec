@@ -106,9 +106,22 @@ describe('ChangeCommand.show/validate', () => {
       await expect(cmd.show('notes.md', { json: false })).rejects.not.toThrow(/has no proposal\.md yet/);
     });
 
-    it('does not treat a traversing name as a change', async () => {
-      await expect(cmd.show('../..', { json: false })).rejects.toThrow(/not found at/);
-      await expect(cmd.show('../..', { json: false })).rejects.not.toThrow(/has no proposal\.md yet/);
+    it('does not read a proposal outside changes/ via a traversing name', async () => {
+      // Reachable target: openspec/changes/../../proposal.md is tempRoot/proposal.md.
+      // Without containment this resolves and the file is printed verbatim.
+      await fs.writeFile(path.join(tempRoot, 'proposal.md'), '# Outside the changes directory', 'utf-8');
+      const traversal = path.join('..', '..');
+
+      await expect(cmd.show(traversal, { json: false })).rejects.toThrow(/not found at/);
+      await expect(cmd.show(traversal, { json: false })).rejects.not.toThrow(/has no proposal\.md yet/);
+    });
+
+    it('does not treat a nested name as a change', async () => {
+      const nested = path.join('sample-change', 'specs');
+      await fs.mkdir(path.join(tempRoot, 'openspec', 'changes', 'sample-change', 'specs'), { recursive: true });
+
+      await expect(cmd.show(nested, { json: false })).rejects.toThrow(/not found at/);
+      await expect(cmd.show(nested, { json: false })).rejects.not.toThrow(/has no proposal\.md yet/);
     });
   });
 
