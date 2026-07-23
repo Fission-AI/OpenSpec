@@ -223,6 +223,19 @@ export async function buildUpdatedSpec(
     }
     isNewSpec = true;
     targetContent = buildSpecSkeleton(specName, changeName, extractPurposeSection(changeContent));
+    // A carried Purpose that hides a requirement header would make the new main
+    // spec structurally invalid and abort an archive that succeeded before
+    // #1413. Keep the placeholder rather than turning a warning into a failure.
+    if (findMainSpecStructureIssues(targetContent).length > 0) {
+      targetContent = buildSpecSkeleton(specName, changeName);
+      if (!options.silent) {
+        console.log(
+          chalk.yellow(
+            `⚠️  Warning: ${specName} - delta Purpose ignored (it contains a requirement header); wrote the placeholder Purpose instead.`
+          )
+        );
+      }
+    }
   }
 
   const structureIssues = findMainSpecStructureIssues(targetContent);

@@ -103,6 +103,13 @@ Before moving the change to archive, the command SHALL apply delta changes to ma
 - **AND** the delta spec has no `## Purpose` header outside a fenced code block, or the section body is empty
 - **THEN** write the TBD placeholder Purpose naming the change to update after archive
 
+#### Scenario: Delta Purpose that would invalidate the new main spec
+
+- **WHEN** a delta creates a main spec that does not exist yet
+- **AND** carrying its `## Purpose` body over would place a requirement header outside the `## Requirements` section
+- **THEN** write the TBD placeholder Purpose instead and warn that the delta Purpose was ignored
+- **AND** complete the archive rather than aborting it
+
 ### Requirement: Confirmation Behavior
 
 The spec update confirmation SHALL provide clear visibility into changes before they are applied.

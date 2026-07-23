@@ -635,6 +635,49 @@ The system SHALL send a notification.
       );
     });
 
+    it('should fall back to the placeholder when the delta Purpose hides a requirement header (issue #1413)', async () => {
+      const changeName = 'new-spec-with-stray-header-in-purpose';
+      const changeSpecDir = path.join(tempDir, 'openspec', 'changes', changeName, 'specs', 'widgets');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      // A delta an agent can plausibly emit. Carrying this Purpose verbatim
+      // would put a requirement header outside ## Requirements and abort the
+      // archive - which succeeded before the Purpose carry-over existed.
+      const specContent = `## Purpose
+
+Handles widgets.
+
+### Requirement: Stray header
+
+## ADDED Requirements
+
+### Requirement: Real Requirement
+The system SHALL handle widgets.
+
+#### Scenario: Widget handled
+- **WHEN** a widget arrives
+- **THEN** it is handled
+`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), specContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const mainSpecPath = path.join(tempDir, 'openspec', 'specs', 'widgets', 'spec.md');
+      const updatedContent = await fs.readFile(mainSpecPath, 'utf-8');
+      expect(updatedContent).toContain(
+        `TBD - created by archiving change ${changeName}. Update Purpose after archive.`
+      );
+      expect(updatedContent).not.toContain('### Requirement: Stray header');
+      expect(updatedContent).toContain('### Requirement: Real Requirement');
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining(`Warning: widgets - delta Purpose ignored (it contains a requirement header)`)
+      );
+
+      // The archive still completed rather than aborting.
+      const archives = await fs.readdir(path.join(tempDir, 'openspec', 'changes', 'archive'));
+      expect(archives.some(a => a.includes(changeName))).toBe(true);
+    });
+
     it('should not overwrite the Purpose of an existing main spec (issue #1413)', async () => {
       const changeName = 'existing-spec-with-purpose';
       const changeSpecDir = path.join(tempDir, 'openspec', 'changes', changeName, 'specs', 'billing');
