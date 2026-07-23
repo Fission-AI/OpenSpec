@@ -203,10 +203,14 @@ export class ShowCommand {
 
   private warnIrrelevantFlags(type: ItemType, options: { [k: string]: any }): boolean {
     const irrelevant: string[] = [];
+    // --no-scenarios makes commander default `scenarios` to true, so its
+    // presence alone does not mean the user passed it — only false does.
+    const isUserProvided = (k: string) =>
+      k === 'scenarios' ? options[k] === false : k in options;
     if (type === 'change') {
-      for (const k of SPEC_FLAG_KEYS) if (k in options) irrelevant.push(k);
+      for (const k of SPEC_FLAG_KEYS) if (isUserProvided(k)) irrelevant.push(k);
     } else {
-      for (const k of CHANGE_FLAG_KEYS) if (k in options) irrelevant.push(k);
+      for (const k of CHANGE_FLAG_KEYS) if (isUserProvided(k)) irrelevant.push(k);
     }
     if (irrelevant.length > 0) {
       console.error(`Warning: Ignoring flags not applicable to ${type}: ${irrelevant.join(', ')}`);

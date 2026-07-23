@@ -323,7 +323,9 @@ export class ArchiveCommand {
       for (const { specFile } of hasDeltaSpecs ? [] : await discoverSpecFiles(changeSpecsDir)) {
         try {
           const content = await fs.readFile(specFile, 'utf-8');
-          if (/^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements/m.test(content)) {
+          // Case-insensitive to match the delta parser, so a lowercase header
+          // routes through the same delta validation that validate runs.
+          if (/^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements/im.test(content)) {
             hasDeltaSpecs = true;
             break;
           }

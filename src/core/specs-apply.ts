@@ -17,7 +17,6 @@ import {
 import { findMainSpecStructureIssues } from './parsers/spec-structure.js';
 import { buildCodeFenceMask } from './parsers/code-fence.js';
 import { MarkdownParser } from './parsers/markdown-parser.js';
-import { Validator } from './validation/validator.js';
 import { MIN_PURPOSE_LENGTH } from './validation/constants.js';
 import { discoverSpecFiles } from '../utils/spec-discovery.js';
 
@@ -31,26 +30,6 @@ export interface SpecUpdate {
   source: string;
   target: string;
   exists: boolean;
-}
-
-export interface ApplyResult {
-  capability: string;
-  added: number;
-  modified: number;
-  removed: number;
-  renamed: number;
-}
-
-export interface SpecsApplyOutput {
-  changeName: string;
-  capabilities: ApplyResult[];
-  totals: {
-    added: number;
-    modified: number;
-    removed: number;
-    renamed: number;
-  };
-  noChanges: boolean;
 }
 
 interface ScenarioBlock {
@@ -318,18 +297,26 @@ export async function buildUpdatedSpec(
   }
 
   // REMOVED
+  let removedApplied = 0;
   for (const name of plan.removed) {
     const key = normalizeRequirementName(name);
     if (!nameToBlock.has(key)) {
-      // For new specs, REMOVED requirements are already warned about and ignored
-      // For existing specs, missing requirements are an error
-      if (!isNewSpec) {
-        throw new Error(`${specName} REMOVED failed for header "### Requirement: ${name}" - not found`);
+      // Requirement gone from the baseline means the removal was already
+      // synced (early-sync pattern) — re-applying it is a no-op, not a
+      // failure. Unlike RENAMED there is no signal separating that from a
+      // mistyped header, so warn instead of skipping silently.
+      // For new specs the skip was already warned about above.
+      if (!isNewSpec && !options.silent) {
+        console.log(
+          chalk.yellow(
+            `⚠️  Warning: ${specName} - REMOVED requirement "${name}" is not in the current spec; treating it as already removed.`
+          )
+        );
       }
-      // Skip removal for new specs (already warned above)
       continue;
     }
     nameToBlock.delete(key);
+    removedApplied++;
   }
 
   // MODIFIED
@@ -409,7 +396,7 @@ export async function buildUpdatedSpec(
     counts: {
       added: addedApplied,
       modified: plan.modified.length,
-      removed: plan.removed.length,
+      removed: removedApplied,
       renamed: renamedApplied,
     },
   };
@@ -593,119 +580,3 @@ function parseScenarioBlocks(requirementRaw: string): ScenarioBlock[] {
   return scenarios;
 }
 
-/**
- * Apply all delta specs from a change to main specs.
- *
- * @param projectRoot - The project root directory
- * @param changeName - The name of the change to apply
- * @param options - Options for the operation
- * @returns Result of the operation with counts
- */
-export async function applySpecs(
-  projectRoot: string,
-  changeName: string,
-  options: {
-    dryRun?: boolean;
-    skipValidation?: boolean;
-    silent?: boolean;
-  } = {}
-): Promise<SpecsApplyOutput> {
-  const changeDir = path.join(projectRoot, 'openspec', 'changes', changeName);
-  const mainSpecsDir = path.join(projectRoot, 'openspec', 'specs');
-
-  // Verify change exists
-  try {
-    const stat = await fs.stat(changeDir);
-    if (!stat.isDirectory()) {
-      throw new Error(`Change '${changeName}' not found.`);
-    }
-  } catch {
-    throw new Error(`Change '${changeName}' not found.`);
-  }
-
-  // Find specs to update
-  const specUpdates = await findSpecUpdates(changeDir, mainSpecsDir);
-
-  if (specUpdates.length === 0) {
-    return {
-      changeName,
-      capabilities: [],
-      totals: { added: 0, modified: 0, removed: 0, renamed: 0 },
-      noChanges: true,
-    };
-  }
-
-  // Prepare all updates first (validation pass, no writes)
-  const prepared: Array<{
-    update: SpecUpdate;
-    rebuilt: string;
-    counts: { added: number; modified: number; removed: number; renamed: number };
-  }> = [];
-
-  for (const update of specUpdates) {
-    const built = await buildUpdatedSpec(update, changeName);
-    prepared.push({ update, rebuilt: built.rebuilt, counts: built.counts });
-  }
-
-  // Validate rebuilt specs unless validation is skipped
-  if (!options.skipValidation) {
-    const validator = new Validator();
-    for (const p of prepared) {
-      const specName = p.update.id;
-      const report = await validator.validateSpecContent(specName, p.rebuilt);
-      if (!report.valid) {
-        const errors = report.issues
-          .filter((i) => i.level === 'ERROR')
-          .map((i) => `  ✗ ${i.message}`)
-          .join('\n');
-        throw new Error(`Validation errors in rebuilt spec for ${specName}:\n${errors}`);
-      }
-    }
-  }
-
-  // Build results
-  const capabilities: ApplyResult[] = [];
-  const totals = { added: 0, modified: 0, removed: 0, renamed: 0 };
-
-  for (const p of prepared) {
-    const capability = p.update.id;
-
-    if (!options.dryRun) {
-      // Write the updated spec
-      const targetDir = path.dirname(p.update.target);
-      await fs.mkdir(targetDir, { recursive: true });
-      await fs.writeFile(p.update.target, p.rebuilt);
-
-      if (!options.silent) {
-        console.log(`Applying changes to openspec/specs/${capability}/spec.md:`);
-        if (p.counts.added) console.log(`  + ${p.counts.added} added`);
-        if (p.counts.modified) console.log(`  ~ ${p.counts.modified} modified`);
-        if (p.counts.removed) console.log(`  - ${p.counts.removed} removed`);
-        if (p.counts.renamed) console.log(`  → ${p.counts.renamed} renamed`);
-      }
-    } else if (!options.silent) {
-      console.log(`Would apply changes to openspec/specs/${capability}/spec.md:`);
-      if (p.counts.added) console.log(`  + ${p.counts.added} added`);
-      if (p.counts.modified) console.log(`  ~ ${p.counts.modified} modified`);
-      if (p.counts.removed) console.log(`  - ${p.counts.removed} removed`);
-      if (p.counts.renamed) console.log(`  → ${p.counts.renamed} renamed`);
-    }
-
-    capabilities.push({
-      capability,
-      ...p.counts,
-    });
-
-    totals.added += p.counts.added;
-    totals.modified += p.counts.modified;
-    totals.removed += p.counts.removed;
-    totals.renamed += p.counts.renamed;
-  }
-
-  return {
-    changeName,
-    capabilities,
-    totals,
-    noChanges: false,
-  };
-}

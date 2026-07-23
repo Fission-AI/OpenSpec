@@ -84,7 +84,8 @@ After each invocation, show:
 - Edit only the concrete files in \`existingOutputPaths\`; never write to a glob \`resolvedOutputPath\`.
 - Do not advance the build frontier: no new artifacts, no new files under glob artifacts - that is \`/opsx:continue\`'s job.
 - Confirm every edit with the user before writing.
-- If the request changes the change's *intent* rather than refining it, recommend starting fresh with \`/opsx:new\` (the "Update vs. Start Fresh" heuristic).`,
+- If the request changes the change's *intent* rather than refining it, recommend starting fresh with \`/opsx:new\` (the "Update vs. Start Fresh" heuristic).
+- \`/opsx:continue\` and \`/opsx:new\` may not be installed (core profile). When suggesting one that is unavailable, point to the CLI instead: \`openspec status --change "<name>" --json\` shows the next artifact and \`openspec instructions <artifact-id> --change "<name>" --json\` explains how to create it.`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
@@ -170,6 +171,7 @@ After each invocation, show:
 - Edit only the concrete files in \`existingOutputPaths\`; never write to a glob \`resolvedOutputPath\`.
 - Do not advance the build frontier: no new artifacts, no new files under glob artifacts - that is \`/opsx:continue\`'s job.
 - Confirm every edit with the user before writing.
-- If the request changes the change's *intent* rather than refining it, recommend starting fresh with \`/opsx:new\` (the "Update vs. Start Fresh" heuristic).`
+- If the request changes the change's *intent* rather than refining it, recommend starting fresh with \`/opsx:new\` (the "Update vs. Start Fresh" heuristic).
+- \`/opsx:continue\` and \`/opsx:new\` may not be installed (core profile). When suggesting one that is unavailable, point to the CLI instead: \`openspec status --change "<name>" --json\` shows the next artifact and \`openspec instructions <artifact-id> --change "<name>" --json\` explains how to create it.`
   };
 }

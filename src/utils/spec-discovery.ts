@@ -13,8 +13,11 @@ export interface DiscoveredSpec {
  * `specs/<id>/spec.md` layout and nested `specs/<area>/<id>/spec.md` layouts
  * are found (#1353). A `spec.md` sitting directly in the root is ignored,
  * matching the historical requirement that specs live in a capability folder.
- * Dot-directories are skipped and symlinks are not followed. Results are
- * sorted by id for deterministic output.
+ * Dot-directories are skipped and symlinked directories are not followed.
+ * A symlinked `spec.md` IS resolved: `hasAnyFileUnder` and the artifact
+ * graph's globs both count it as content, so dropping it here would silently
+ * lose the delta on archive; a dangling link is skipped. Results are sorted
+ * by id for deterministic output.
  *
  * A missing root (ENOENT) yields an empty list, but any other read failure
  * (EACCES, EIO, ...) is thrown rather than swallowed: since this feeds the
@@ -35,8 +38,20 @@ export async function discoverSpecFiles(specsRoot: string): Promise<DiscoveredSp
       if (entry.name.startsWith('.')) continue;
       if (entry.isDirectory()) {
         await walk(path.join(dir, entry.name), [...segments, entry.name]);
-      } else if (entry.isFile() && entry.name === 'spec.md' && segments.length > 0) {
-        results.push({ id: segments.join('/'), specFile: path.join(dir, entry.name) });
+      } else if (entry.name === 'spec.md' && segments.length > 0) {
+        if (entry.isFile()) {
+          results.push({ id: segments.join('/'), specFile: path.join(dir, entry.name) });
+        } else if (entry.isSymbolicLink()) {
+          const specFile = path.join(dir, entry.name);
+          try {
+            if ((await fs.stat(specFile)).isFile()) {
+              results.push({ id: segments.join('/'), specFile });
+            }
+          } catch (err: any) {
+            // A dangling link is not content; anything else fails loudly.
+            if (err?.code !== 'ENOENT') throw err;
+          }
+        }
       }
     }
   };
