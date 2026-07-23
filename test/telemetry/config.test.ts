@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { randomUUID } from 'node:crypto';
 
 import {
   getConfigPath,
@@ -35,8 +34,7 @@ describe('telemetry/config', () => {
 
   beforeEach(() => {
     // Create temp directory for tests
-    tempDir = path.join(os.tmpdir(), `openspec-telemetry-test-${randomUUID()}`);
-    fs.mkdirSync(tempDir, { recursive: true });
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-telemetry-test-'));
 
     // Mock HOME/USERPROFILE to point to temp dir
     // On POSIX, os.homedir() uses HOME; on Windows it uses USERPROFILE

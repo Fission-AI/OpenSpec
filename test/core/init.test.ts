@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'fs';
-import { randomUUID } from 'crypto';
 import path from 'path';
 import os from 'os';
 import { InitCommand } from '../../src/core/init.js';
@@ -30,12 +29,10 @@ describe('InitCommand', () => {
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-init-test-${randomUUID()}`);
-    await fs.mkdir(testDir, { recursive: true });
+    testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-init-test-'));
     originalEnv = { ...process.env };
     // Use a temp dir for global config to avoid reading real config
-    configTempDir = path.join(os.tmpdir(), `openspec-config-init-${randomUUID()}`);
-    await fs.mkdir(configTempDir, { recursive: true });
+    configTempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-config-init-'));
     process.env.XDG_CONFIG_HOME = configTempDir;
     process.env.CODEX_HOME = path.join(testDir, 'codex-home');
 
@@ -646,12 +643,10 @@ describe('InitCommand - profile and detection features', () => {
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-init-profile-test-${randomUUID()}`);
-    await fs.mkdir(testDir, { recursive: true });
+    testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-init-profile-test-'));
     originalEnv = { ...process.env };
     // Use a temp dir for global config to avoid polluting real config
-    configTempDir = path.join(os.tmpdir(), `openspec-config-test-${randomUUID()}`);
-    await fs.mkdir(configTempDir, { recursive: true });
+    configTempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-config-test-'));
     process.env.XDG_CONFIG_HOME = configTempDir;
     process.env.CODEX_HOME = path.join(testDir, 'codex-home');
     vi.spyOn(console, 'log').mockImplementation(() => {});

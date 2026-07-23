@@ -10,8 +10,7 @@ describe('FileSystemUtils.updateFileWithMarkers', () => {
   const END_MARKER = '<!-- OPENSPEC:END -->';
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-marker-test-${Date.now()}`);
-    await fs.mkdir(testDir, { recursive: true });
+    testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-marker-test-'));
   });
 
   afterEach(async () => {

@@ -31,5 +31,11 @@
     "serve": "^14.2.6",
     "tailwindcss": "^4.3.1",
     "typescript": "^6.0.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "postcss": "^8.5.22",
+      "sharp": "^0.35.3"
+    }
   }
 }

@@ -7,7 +7,6 @@ import type { GlobalConfig } from '../../src/core/global-config.js';
 import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
-import { randomUUID } from 'crypto';
 
 // Shared mutable mock config state
 const mockState = {
@@ -46,8 +45,7 @@ describe('UpdateCommand', () => {
   beforeEach(async () => {
     originalEnv = { ...process.env };
     // Create a temporary test directory
-    testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
-    await fs.mkdir(testDir, { recursive: true });
+    testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-test-'));
     process.env.CODEX_HOME = path.join(testDir, 'codex-home');
 
     // Create openspec directory

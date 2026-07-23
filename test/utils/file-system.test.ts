@@ -3,15 +3,13 @@ import * as nodeFs from 'fs';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
-import { randomUUID } from 'crypto';
 import { FileSystemUtils } from '../../src/utils/file-system.js';
 
 describe('FileSystemUtils', () => {
   let testDir: string;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
-    await fs.mkdir(testDir, { recursive: true });
+    testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-test-'));
   });
 
   afterEach(async () => {
