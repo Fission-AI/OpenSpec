@@ -473,8 +473,8 @@ export class ArchiveCommand {
             for (const update of specUpdates) {
               const built = await buildUpdatedSpec(update, changeName!, { silent: json });
               prepared.push({ update, rebuilt: built.rebuilt, counts: built.counts });
-              // In JSON mode nothing was printed, so carry the warnings into
-              // the result instead of dropping them.
+              // Carried into the result so JSON mode (where nothing was
+              // printed) still surfaces them; human mode discards the result.
               specWarnings.push(...built.warnings);
             }
           } catch (err: any) {
@@ -519,6 +519,7 @@ export class ArchiveCommand {
 
           // All validations passed; write files and display counts
           const writeTotals = { added: 0, modified: 0, removed: 0, renamed: 0 };
+          let wroteAny = false;
           for (const p of prepared) {
             const { added, modified, removed, renamed } = p.counts;
             if (added + modified + removed + renamed === 0) {
@@ -531,18 +532,23 @@ export class ArchiveCommand {
               // Cross-root paths must be absolute when a store is selected.
               ...(isStoreSelectedRoot(root) ? { displayPath: p.update.target } : {}),
             });
+            wroteAny = true;
             writeTotals.added += added;
             writeTotals.modified += modified;
             writeTotals.removed += removed;
             writeTotals.renamed += renamed;
           }
-          specsUpdated = true;
+          specsUpdated = wroteAny;
           totals = writeTotals;
           if (!json) {
             console.log(
               `Totals: + ${writeTotals.added}, ~ ${writeTotals.modified}, - ${writeTotals.removed}, → ${writeTotals.renamed}`
             );
-            console.log('Specs updated successfully.');
+            console.log(
+              wroteAny
+                ? 'Specs updated successfully.'
+                : 'Specs already in sync; no files changed.'
+            );
           }
         }
       }

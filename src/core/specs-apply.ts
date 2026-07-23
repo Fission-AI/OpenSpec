@@ -315,10 +315,17 @@ export async function buildUpdatedSpec(
     if (!nameToBlock.has(key)) {
       // Requirement gone from the baseline means the removal was already
       // synced (early-sync pattern) — re-applying it is a no-op, not a
-      // failure. Unlike RENAMED there is no signal separating that from a
-      // mistyped header, so warn instead of skipping silently.
+      // failure. One signal does separate that from a mistyped header: a
+      // requirement that differs only in case or interior whitespace still
+      // being present. That is a typo, and stays a hard abort.
       // For new specs the skip was already warned about above.
       if (!isNewSpec) {
+        const nearMiss = [...nameToBlock.keys()].find((k) => foldRequirementName(k) === foldRequirementName(key));
+        if (nearMiss !== undefined) {
+          throw new Error(
+            `${specName} REMOVED failed for header "### Requirement: ${name}" - not found, but "### Requirement: ${nameToBlock.get(nearMiss)!.name}" exists; fix the header to match it exactly`
+          );
+        }
         warn(
           `${specName} - REMOVED requirement "${name}" is not in the current spec; treating it as already removed.`
         );
@@ -415,6 +422,11 @@ export async function buildUpdatedSpec(
 
 function normalizeBlockRaw(raw: string): string {
   return raw.replace(/\r\n?/g, '\n').trim();
+}
+
+/** Case- and whitespace-insensitive fold used only for near-miss detection. */
+function foldRequirementName(name: string): string {
+  return name.toLowerCase().replace(/\s+/g, ' ');
 }
 
 /**

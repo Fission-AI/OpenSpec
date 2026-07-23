@@ -452,10 +452,42 @@ Then expected result happens`;
       // A no-op update must not churn the file with normalization differences
       const updatedContent = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
       expect(updatedContent).toBe(mainSpecContent);
+      // ...and must not claim an update happened
+      expect(console.log).toHaveBeenCalledWith('Specs already in sync; no files changed.');
+      expect(console.log).not.toHaveBeenCalledWith('Specs updated successfully.');
 
       const archives = await fs.readdir(path.join(tempDir, 'openspec', 'changes', 'archive'));
       expect(archives.some(a => a.includes(changeName))).toBe(true);
       expect(process.exitCode).toBeUndefined();
+    });
+
+    it('should abort when a REMOVED header near-misses an existing requirement (case/whitespace typo)', async () => {
+      // A fold-insensitive match in the current spec means the header is a
+      // typo, not an early-synced removal - that case must stay a hard abort.
+      const changeName = 'typo-removal';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'core-layer');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      await fs.writeFile(
+        path.join(changeSpecDir, 'spec.md'),
+        `# Core Layer - Changes\n\n## REMOVED Requirements\n\n### Requirement: legacy layer\n**Reason**: Replaced.\n`
+      );
+
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'core-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const mainSpecContent = `# core-layer Specification\n\n## Purpose\nCore abstraction layer.\n\n## Requirements\n\n### Requirement: Legacy Layer\n\n#### Scenario: Works\n- **WHEN** it runs\n- **THEN** it works\n`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainSpecContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('REMOVED failed for header "### Requirement: legacy layer" - not found, but "### Requirement: Legacy Layer" exists')
+      );
+      expect(process.exitCode).toBe(1);
+      await expect(fs.access(changeDir)).resolves.not.toThrow();
+      const untouched = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      expect(untouched).toBe(mainSpecContent);
     });
 
     it('should surface the skipped REMOVED as a warning in --json output', async () => {
@@ -485,6 +517,8 @@ Then expected result happens`;
       expect(jsonLine).toBeDefined();
       const parsed = JSON.parse(jsonLine!);
       expect(parsed.archive.totals.removed).toBe(0);
+      // No file was written, so the result must not claim an update
+      expect(parsed.archive.specsUpdated).toBe(false);
       // The silent path must not swallow the skip: agents reading JSON get
       // the same signal humans get on stdout.
       expect(parsed.archive.warnings).toEqual([
