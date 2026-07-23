@@ -14,6 +14,12 @@
   <a href="https://discord.gg/YctCnvvshC"><img alt="Discord" src="https://img.shields.io/discord/1411657095639601154?style=flat-square&logo=discord&logoColor=white&label=Discord&suffix=%20online" /></a>
 </p>
 
+<p align="center">
+  <img alt="Specs" src="https://raw.githubusercontent.com/Fission-AI/OpenSpec/gh-pages/badges/number_of_specs.svg" />
+  <img alt="Open Changes" src="https://raw.githubusercontent.com/Fission-AI/OpenSpec/gh-pages/badges/open_changes.svg" />
+  <img alt="Tasks Status" src="https://raw.githubusercontent.com/Fission-AI/OpenSpec/gh-pages/badges/tasks_status.svg" />
+</p>
+
 <details>
 <summary><strong>The most loved spec framework.</strong></summary>
 
