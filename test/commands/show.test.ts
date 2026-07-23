@@ -101,6 +101,30 @@ describe('top-level show command', () => {
     }
   });
 
+  it('resolves a scaffolded change that has no proposal.md yet', async () => {
+    // `openspec new change <name>` writes only .openspec.yaml, so `show` must
+    // resolve the change the same way `list` and `status` already do.
+    await fs.mkdir(path.join(changesDir, 'scaffolded'), { recursive: true });
+    await fs.writeFile(path.join(changesDir, 'scaffolded', '.openspec.yaml'), 'schema: spec-driven\n', 'utf-8');
+
+    const originalCwd = process.cwd();
+    try {
+      process.chdir(testDir);
+      let err: any;
+      try {
+        execFileSync('node', [openspecBin, 'show', 'scaffolded'], { encoding: 'utf-8' });
+      } catch (e) { err = e; }
+      expect(err).toBeDefined();
+      const stderr = err.stderr.toString();
+      // Resolved as a change, not rejected as an unknown item.
+      expect(stderr).not.toContain('Unknown item');
+      expect(stderr).toContain('has no proposal.md yet');
+      expect(stderr).toContain('openspec status --change scaffolded');
+    } finally {
+      process.chdir(originalCwd);
+    }
+  });
+
   it('prints nearest matches when not found', () => {
     const originalCwd = process.cwd();
     try {

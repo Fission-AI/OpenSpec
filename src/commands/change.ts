@@ -59,11 +59,26 @@ export class ChangeCommand {
       }
     }
 
-    const proposalPath = path.join(changesPath, changeName, 'proposal.md');
+    const changeDir = path.join(changesPath, changeName);
+    const proposalPath = path.join(changeDir, 'proposal.md');
 
     try {
       await fs.access(proposalPath);
     } catch {
+      // A change can exist without a proposal: `openspec new change` scaffolds
+      // only .openspec.yaml, and a custom schema need not define a proposal
+      // artifact. Say which of the two cases this is instead of reporting a
+      // change that does exist as missing.
+      const changeExists = await fs
+        .access(changeDir)
+        .then(() => true)
+        .catch(() => false);
+      if (changeExists) {
+        throw new Error(
+          `Change "${changeName}" has no proposal.md yet. ` +
+            `Run "openspec status --change ${changeName}" to see which artifact comes next.`
+        );
+      }
       throw new Error(`Change "${changeName}" not found at ${proposalPath}`);
     }
 
