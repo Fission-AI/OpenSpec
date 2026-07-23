@@ -618,9 +618,15 @@ function FinalCta() {
         Works with 30+ AI assistants — Claude Code, Cursor, Codex, Windsurf,
         Gemini CLI, and more.
       </p>
-      <div className="mt-8 inline-flex items-center gap-2 rounded-lg border border-fd-border bg-fd-card px-4 py-3 font-mono text-sm">
-        <span className="text-fd-muted-foreground">$</span>
-        npm install -g @fission-ai/openspec@latest
+      <div className="mt-8 inline-flex flex-col gap-1 rounded-lg border border-fd-border bg-fd-card px-4 py-3 text-left font-mono text-sm">
+        <div className="flex items-center gap-2">
+          <span className="text-fd-muted-foreground">$</span>
+          npm install -g @fission-ai/openspec@latest
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-fd-muted-foreground">$</span>
+          cd your-project &amp;&amp; openspec init
+        </div>
       </div>
       <div className="mt-8">
         <Link
