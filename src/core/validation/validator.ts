@@ -10,7 +10,7 @@ import {
   MAX_REQUIREMENT_TEXT_LENGTH,
   VALIDATION_MESSAGES
 } from './constants.js';
-import { parseDeltaSpec, normalizeRequirementName, extractRequirementsSection } from '../parsers/requirement-blocks.js';
+import { parseDeltaSpec, foldRequirementName, normalizeRequirementName, extractRequirementsSection } from '../parsers/requirement-blocks.js';
 import {
   extractRequirementBody as extractRequirementBodyShared,
   containsShallOrMust as containsShallOrMustShared,
@@ -318,8 +318,19 @@ export class Validator {
           if (addedNames.has(toKey)) {
             issues.push({ level: 'ERROR', path: entryPath, message: `RENAMED TO collides with ADDED for "${to}"` });
           }
-          if (removedNames.has(fromKey)) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `Requirement present in both RENAMED and REMOVED: "${from}"` });
+          // Folded comparison: a case/whitespace variant of the FROM header
+          // in REMOVED is the same contradiction, not a different name.
+          const removedFoldMatch = [...removedNames].find(
+            (r) => foldRequirementName(r) === foldRequirementName(fromKey)
+          );
+          if (removedFoldMatch !== undefined) {
+            issues.push({
+              level: 'ERROR',
+              path: entryPath,
+              message:
+                `Requirement present in both RENAMED and REMOVED: "${from}"` +
+                (removedFoldMatch === fromKey ? '' : ` (REMOVED spells it "${removedFoldMatch}")`),
+            });
           }
         }
       }

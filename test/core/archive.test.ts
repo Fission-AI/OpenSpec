@@ -423,6 +423,33 @@ Then expected result happens`;
       expect(untouched).toBe(mainSpecContent);
     });
 
+    it('should abort when REMOVED spells the renamed FROM header with different case', async () => {
+      const changeName = 'rename-and-remove-case';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'core-layer');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      await fs.writeFile(
+        path.join(changeSpecDir, 'spec.md'),
+        `# Core Layer - Changes\n\n## RENAMED Requirements\n\n- FROM: \`### Requirement: Old Name\`\n- TO: \`### Requirement: New Name\`\n\n## REMOVED Requirements\n\n### Requirement: old name\n`
+      );
+
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'core-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const mainSpecContent = `# core-layer Specification\n\n## Purpose\nCore abstraction layer.\n\n## Requirements\n\n### Requirement: Old Name\n\n#### Scenario: Works\n- **WHEN** it runs\n- **THEN** it works\n`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainSpecContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('requirement present in multiple sections (RENAMED and REMOVED) for header "### Requirement: Old Name" (REMOVED spells it "old name")')
+      );
+      expect(process.exitCode).toBe(1);
+      await expect(fs.access(changeDir)).resolves.not.toThrow();
+      const untouched = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      expect(untouched).toBe(mainSpecContent);
+    });
+
     it('should archive when REMOVED requirements were already synced to the baseline', async () => {
       const changeName = 'early-synced-removal';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);

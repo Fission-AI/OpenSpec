@@ -184,7 +184,7 @@ The archive process SHALL programmatically apply delta changes to current specif
   3. Parse MODIFIED sections and replace by normalized header match (using new names if renamed)
   4. Parse ADDED sections and append new requirements
 - **AND** validate that all MODIFIED headers exist in current spec
-- **AND** treat a REMOVED header that is already absent as already removed (warn and continue; a REMOVED header that names the FROM side of a RENAMED in the same delta, or that differs only in case or whitespace from an existing requirement, is a conflict)
+- **AND** treat a REMOVED header that is already absent as already removed (warn and continue; a REMOVED header that names the FROM side of a RENAMED in the same delta — compared case- and whitespace-insensitively — or that differs only in case or whitespace from an existing requirement, is a conflict)
 - **AND** treat an ADDED header that already exists with identical content as already synced (differing content is a conflict)
 - **AND** treat a RENAMED whose source is gone but target present as already synced
 - **AND** generate the updated spec in the main specs/ directory

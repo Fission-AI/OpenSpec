@@ -10,6 +10,7 @@ import path from 'path';
 import chalk from 'chalk';
 import {
   extractRequirementsSection,
+  foldRequirementName,
   parseDeltaSpec,
   normalizeRequirementName,
   type RequirementBlock,
@@ -171,10 +172,16 @@ export async function buildUpdatedSpec(
     // A REMOVED naming the FROM side contradicts the rename. This used to
     // fail incidentally at apply time (the rename consumed the old header,
     // so REMOVED hit "not found"); now that a missing REMOVED target is a
-    // no-op, the conflict must be rejected explicitly.
-    if (removedNamesSet.has(fromNorm)) {
+    // no-op, the conflict must be rejected explicitly. Compared folded, so
+    // a case/whitespace variant cannot slip past the guard and degrade
+    // into a warned no-op.
+    const removedFoldMatch = [...removedNamesSet].find(
+      (r) => foldRequirementName(r) === foldRequirementName(fromNorm)
+    );
+    if (removedFoldMatch !== undefined) {
       throw new Error(
-        `${specName} validation failed - requirement present in multiple sections (RENAMED and REMOVED) for header "### Requirement: ${from}"`
+        `${specName} validation failed - requirement present in multiple sections (RENAMED and REMOVED) for header "### Requirement: ${from}"` +
+          (removedFoldMatch === fromNorm ? '' : ` (REMOVED spells it "${removedFoldMatch}")`)
       );
     }
     if (modifiedNames.has(fromNorm)) {
@@ -422,11 +429,6 @@ export async function buildUpdatedSpec(
 
 function normalizeBlockRaw(raw: string): string {
   return raw.replace(/\r\n?/g, '\n').trim();
-}
-
-/** Case- and whitespace-insensitive fold used only for near-miss detection. */
-function foldRequirementName(name: string): string {
-  return name.toLowerCase().replace(/\s+/g, ' ');
 }
 
 /**
