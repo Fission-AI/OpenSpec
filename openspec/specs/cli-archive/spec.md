@@ -90,6 +90,18 @@ Before moving the change to archive, the command SHALL apply delta changes to ma
 - **THEN** abort with error message showing the conflict
 - **AND** suggest manual resolution
 
+#### Scenario: New main spec inherits the delta's Purpose
+
+- **WHEN** a delta creates a main spec that does not exist yet
+- **AND** the delta spec has a non-empty `## Purpose` section outside fenced code blocks
+- **THEN** write that Purpose into the new main spec
+
+#### Scenario: New main spec without an authored Purpose
+
+- **WHEN** a delta creates a main spec that does not exist yet
+- **AND** the delta spec has no `## Purpose` section, or an empty one
+- **THEN** write the TBD placeholder Purpose naming the change to update after archive
+
 ### Requirement: Confirmation Behavior
 
 The spec update confirmation SHALL provide clear visibility into changes before they are applied.

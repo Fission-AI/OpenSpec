@@ -15,6 +15,7 @@ import {
   type RequirementBlock,
 } from './parsers/requirement-blocks.js';
 import { findMainSpecStructureIssues } from './parsers/spec-structure.js';
+import { buildCodeFenceMask } from './parsers/code-fence.js';
 import { Validator } from './validation/validator.js';
 import { discoverSpecFiles } from '../utils/spec-discovery.js';
 
@@ -221,7 +222,7 @@ export async function buildUpdatedSpec(
       );
     }
     isNewSpec = true;
-    targetContent = buildSpecSkeleton(specName, changeName);
+    targetContent = buildSpecSkeleton(specName, changeName, extractPurposeSection(changeContent));
   }
 
   const structureIssues = findMainSpecStructureIssues(targetContent);
@@ -400,11 +401,38 @@ export async function writeUpdatedSpec(
 }
 
 /**
- * Build a skeleton spec for new capabilities.
+ * Read the body of a `## Purpose` section, ignoring fenced code blocks.
+ * Returns undefined when the section is absent or empty.
  */
-export function buildSpecSkeleton(specFolderName: string, changeName: string): string {
+function extractPurposeSection(content: string): string | undefined {
+  const lines = content.replace(/\r\n?/g, '\n').split('\n');
+  const mask = buildCodeFenceMask(lines);
+  const start = lines.findIndex((line, i) => !mask[i] && /^##\s+Purpose\s*$/i.test(line));
+  if (start === -1) return undefined;
+
+  let end = lines.length;
+  for (let i = start + 1; i < lines.length; i++) {
+    if (!mask[i] && /^##\s+/.test(lines[i])) {
+      end = i;
+      break;
+    }
+  }
+
+  const body = lines.slice(start + 1, end).join('\n').trim();
+  return body || undefined;
+}
+
+/**
+ * Build a skeleton spec for new capabilities. When the delta spec authored a
+ * `## Purpose`, carry it over instead of the TBD placeholder (#1413) - archive
+ * invents the Purpose for a brand-new main spec either way, and the author's
+ * own wording beats a placeholder they then have to hand-edit.
+ */
+export function buildSpecSkeleton(specFolderName: string, changeName: string, purpose?: string): string {
   const titleBase = specFolderName;
-  return `# ${titleBase} Specification\n\n## Purpose\nTBD - created by archiving change ${changeName}. Update Purpose after archive.\n\n## Requirements\n`;
+  const purposeBody =
+    purpose?.trim() || `TBD - created by archiving change ${changeName}. Update Purpose after archive.`;
+  return `# ${titleBase} Specification\n\n## Purpose\n${purposeBody}\n\n## Requirements\n`;
 }
 
 function findMissingCurrentScenarios(current: RequirementBlock, incoming: RequirementBlock): string[] {

@@ -489,6 +489,110 @@ The system SHALL support logo and backgroundColor fields for gift cards.
       expect(archives.some(a => a.includes(changeName))).toBe(true);
     });
 
+    it('should carry the delta Purpose into a new main spec (issue #1413)', async () => {
+      const changeName = 'new-spec-with-purpose';
+      const changeSpecDir = path.join(tempDir, 'openspec', 'changes', changeName, 'specs', 'loyalty');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      const specContent = `## Purpose
+
+Tracks loyalty points earned and redeemed across the storefront.
+
+## ADDED Requirements
+
+### Requirement: Earn Points
+The system SHALL award loyalty points on each completed order.
+
+#### Scenario: Order completes
+- **WHEN** an order completes
+- **THEN** points are credited to the customer
+`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), specContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const mainSpecPath = path.join(tempDir, 'openspec', 'specs', 'loyalty', 'spec.md');
+      const updatedContent = await fs.readFile(mainSpecPath, 'utf-8');
+      expect(updatedContent).toContain('Tracks loyalty points earned and redeemed across the storefront.');
+      expect(updatedContent).not.toContain('TBD - created by archiving change');
+      expect(updatedContent).toContain('### Requirement: Earn Points');
+    });
+
+    it('should keep the TBD Purpose placeholder when the delta has no Purpose (issue #1413)', async () => {
+      const changeName = 'new-spec-without-purpose';
+      const changeSpecDir = path.join(tempDir, 'openspec', 'changes', changeName, 'specs', 'referrals');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      const specContent = `## ADDED Requirements
+
+### Requirement: Send Invite
+The system SHALL send a referral invite.
+
+#### Scenario: Invite sent
+- **WHEN** a customer refers a friend
+- **THEN** an invite email is sent
+`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), specContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const mainSpecPath = path.join(tempDir, 'openspec', 'specs', 'referrals', 'spec.md');
+      const updatedContent = await fs.readFile(mainSpecPath, 'utf-8');
+      expect(updatedContent).toContain(
+        `TBD - created by archiving change ${changeName}. Update Purpose after archive.`
+      );
+    });
+
+    it('should not overwrite the Purpose of an existing main spec (issue #1413)', async () => {
+      const changeName = 'existing-spec-with-purpose';
+      const changeSpecDir = path.join(tempDir, 'openspec', 'changes', changeName, 'specs', 'billing');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'billing');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(
+        path.join(mainSpecDir, 'spec.md'),
+        `# billing Specification
+
+## Purpose
+The established purpose that must survive archiving.
+
+## Requirements
+
+### Requirement: Charge Card
+The system SHALL charge the card on file.
+
+#### Scenario: Card charged
+- **WHEN** an invoice is due
+- **THEN** the card is charged
+`
+      );
+
+      await fs.writeFile(
+        path.join(changeSpecDir, 'spec.md'),
+        `## Purpose
+
+A purpose written in the delta that must be ignored for an existing spec.
+
+## ADDED Requirements
+
+### Requirement: Refund Card
+The system SHALL refund the card on file.
+
+#### Scenario: Refund issued
+- **WHEN** a refund is approved
+- **THEN** the card is refunded
+`
+      );
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const updatedContent = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      expect(updatedContent).toContain('The established purpose that must survive archiving.');
+      expect(updatedContent).not.toContain('A purpose written in the delta that must be ignored');
+      expect(updatedContent).toContain('### Requirement: Refund Card');
+    });
+
     it('should still error on MODIFIED when creating new spec file', async () => {
       const changeName = 'new-spec-with-modified';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
