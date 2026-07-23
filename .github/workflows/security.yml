@@ -73,3 +73,18 @@ jobs:
       - name: Audit build and test tooling
         continue-on-error: true
         run: pnpm audit --audit-level high
+
+      # The docs site keeps its own lockfile and is not a workspace member, so
+      # neither audit above can see it. Without this step a website advisory is
+      # invisible — which is how two of them sat open long enough to need a
+      # manual override.
+      #
+      # Same blocking rule as the published-dependency audit: advisory on pull
+      # requests, blocking on the weekly schedule and on pushes to main. Green
+      # here has to mean the site is clean, or the step just relocates the blind
+      # spot into a passing log. `!cancelled()` because the two audits above can
+      # fail hard, and a root advisory must not silently skip this one.
+      - name: Audit documentation site
+        if: ${{ !cancelled() }}
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        run: pnpm audit --audit-level high --dir website
