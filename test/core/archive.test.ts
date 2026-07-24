@@ -1482,6 +1482,34 @@ New feature description.
       ).rejects.toThrow("Change 'non-existent-change' not found.");
     });
 
+    it('rejects a path-traversal change name without touching anything outside the changes dir', async () => {
+      // A crafted change name that resolves outside changes/ (e.g. "../../<name>")
+      // must be blocked BEFORE any move/recursive-delete runs. Plant a sentinel
+      // directory outside changes/ that the traversal would target, prove the
+      // command is blocked with the invalid-change-name diagnostic, and prove the
+      // sentinel is left fully intact.
+      const sentinelDir = path.join(tempDir, 'sentinel');
+      const sentinelFile = path.join(sentinelDir, 'keep.txt');
+      await fs.mkdir(sentinelDir, { recursive: true });
+      await fs.writeFile(sentinelFile, 'do not touch');
+
+      // openspec/changes/../../sentinel === tempDir/sentinel (outside changes/).
+      const traversalName = path.join('..', '..', 'sentinel');
+
+      await expect(
+        archiveCommand.execute(traversalName, { yes: true })
+      ).rejects.toThrow(/resolves outside the changes directory/);
+
+      // Sentinel directory and its contents must be untouched (not moved/deleted).
+      await expect(fs.access(sentinelFile)).resolves.not.toThrow();
+      expect(await fs.readFile(sentinelFile, 'utf-8')).toBe('do not touch');
+
+      // Nothing should have been archived.
+      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archives = await fs.readdir(archiveDir);
+      expect(archives.length).toBe(0);
+    });
+
     it('should throw error if archive already exists', async () => {
       const changeName = 'duplicate-feature';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);

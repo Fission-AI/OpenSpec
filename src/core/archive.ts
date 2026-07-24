@@ -233,6 +233,23 @@ export class ArchiveCommand {
 
     const changeDir = path.join(changesDir, changeName);
 
+    // Guard against path traversal: a crafted change name (e.g. "../../x") must
+    // not let archive move/recursively-delete a directory outside the changes
+    // directory. A containment check (rather than a strict name pattern) closes
+    // the hole while preserving support for names the CLI already archives today,
+    // e.g. date-prefixed changes (see #1308).
+    const resolvedChangeDir = path.resolve(changeDir);
+    const changesDirBase = path.resolve(changesDir);
+    if (
+      resolvedChangeDir !== changesDirBase &&
+      !resolvedChangeDir.startsWith(changesDirBase + path.sep)
+    ) {
+      throw new ArchiveBlockedError(
+        'archive_change_name_invalid',
+        `Invalid change name '${changeName}': resolves outside the changes directory.`
+      );
+    }
+
     // Verify change exists
     try {
       const stat = await fs.stat(changeDir);
@@ -562,6 +579,19 @@ export class ArchiveCommand {
       ? changeName
       : `${formatLocalDate()}-${changeName}`;
     const archivePath = path.join(archiveDir, archiveName);
+
+    // Defense-in-depth: the destination must also stay within the archive dir.
+    const resolvedArchivePath = path.resolve(archivePath);
+    const archiveDirBase = path.resolve(archiveDir);
+    if (
+      resolvedArchivePath !== archiveDirBase &&
+      !resolvedArchivePath.startsWith(archiveDirBase + path.sep)
+    ) {
+      throw new ArchiveBlockedError(
+        'archive_change_name_invalid',
+        `Invalid change name '${changeName}': archive path resolves outside the archive directory.`
+      );
+    }
 
     // Check if archive already exists
     let archiveExists = false;
