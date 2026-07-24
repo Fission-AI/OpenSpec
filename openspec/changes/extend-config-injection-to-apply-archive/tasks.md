@@ -27,19 +27,22 @@
 - [ ] 4.3 Add human-readable archive input rendering with separate advisory sections and a valid empty-input result
 - [ ] 4.4 Add tests for required and invalid changes, selected stores, runtime freshness, absent inputs, JSON/text output, and absence of archive filesystem mutations
 
-## 5. Archive Skill Consumption
+## 5. Archive and Sync Skill Consumption
 
 - [ ] 5.1 Update the single-change archive skill and command templates to fetch current archive inputs after resolving the selected change and root
-- [ ] 5.2 Before archive-driven spec sync writes an artifact, fetch that artifact's current instructions for the selected change/root and apply its artifact rules only to the semantic merge
-- [ ] 5.3 Update the bulk archive skill and command templates to fetch archive inputs once per selected root, then fetch artifact instructions per change before syncing so mixed-schema batches use the correct rules
-- [ ] 5.4 State in both templates that operation guidance is advisory, artifact rules constrain only the artifact being written, existing CLI checks and contracts are unchanged, and input text is not copied verbatim into output files
-- [ ] 5.5 Preserve existing single-change and bulk archive orchestration, prompts, semantic merge ownership, filesystem operations, and summaries
-- [ ] 5.6 Add tests for absent and present artifact rules, selected roots, mixed-schema batches, field separation, unchanged CLI checks, and non-copying of rule text
-- [ ] 5.7 Regenerate checked-in skills and update affected template/golden hashes
+- [ ] 5.2 In archive, bulk archive, and standalone sync templates, resolve each concrete delta path to exactly one owning artifact by matching against `artifactPaths.<id>.existingOutputPaths`; group by owner and stop before writes on zero or multiple matches
+- [ ] 5.3 Before archive-driven spec sync writes an artifact, fetch current instructions once per owning artifact for the selected change/root, apply its rules only to that owner's semantic merge, and pass the owner-to-rules snapshot into inline sync
+- [ ] 5.4 Update the standalone sync skill and command templates to perform the same owner resolution and instruction lookup when invoked directly, while reusing an archive-supplied snapshot without re-fetching
+- [ ] 5.5 Update the bulk archive skill and command templates to fetch archive inputs once per selected root, then resolve owners and fetch artifact instructions per change so custom and mixed-schema batches use the correct rules
+- [ ] 5.6 Make archive and bulk conflict scenarios treat both context and operation guidance as advisory inputs, symmetric with apply
+- [ ] 5.7 State in archive, bulk archive, and sync templates that operation guidance is advisory, artifact rules constrain only the artifact being written, existing CLI checks and contracts are unchanged, and input text is not copied verbatim into output files
+- [ ] 5.8 Preserve existing single-change and bulk archive orchestration, prompts, semantic merge ownership, filesystem operations, and summaries
+- [ ] 5.9 Add tests for unique, missing, and ambiguous owners; absent and present artifact rules; selected roots; direct and inline sync; snapshot reuse; mixed-schema batches; field separation; unchanged CLI checks; and non-copying of rule text
+- [ ] 5.10 Regenerate checked-in archive, bulk archive, and sync skills and update affected template/golden hashes
 
 ## 6. Documentation and Verification
 
-- [ ] 6.1 Document `operations.apply.guidance`, `operations.archive.guidance`, runtime freshness, selected-root behavior, advisory semantics, artifact rules travelling with archive-produced specs, and the read-only archive instruction command
+- [ ] 6.1 Document `operations.apply.guidance`, `operations.archive.guidance`, runtime freshness, selected-root behavior, advisory semantics, owning-artifact resolution, artifact rules travelling with archive- or sync-produced specs, and the read-only archive instruction command
 - [ ] 6.2 Document that archive execution phases, semantic merge ownership, direct archive CLI behavior, and artifact-rule configuration/output remain unchanged by this change
 - [ ] 6.3 Run formatting, type checking, build, targeted config/apply/archive/template tests, and the full test suite
 - [ ] 6.4 Run `openspec validate extend-config-injection-to-apply-archive --strict` and reconcile every task with the final implementation diff

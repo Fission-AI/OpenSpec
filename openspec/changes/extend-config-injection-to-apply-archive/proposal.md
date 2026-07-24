@@ -12,11 +12,12 @@ OpenSpec needs a clear separation between artifact requirements and operation ad
 - Update the apply skill template to consume those current runtime inputs while preserving its existing state-driven workflow.
 - Add an archive runtime-input surface through `openspec instructions archive --change <name>` so archive skills can fetch current project context and archive operation guidance when they run.
 - Update the single-change and bulk archive skill templates to consume current archive inputs without embedding configuration snapshots in generated skill text.
-- When archive-driven spec sync creates or updates a spec artifact, fetch that artifact's current instructions and apply its artifact rules to the semantic merge. Artifact rules remain separate from archive guidance and travel only with the artifact they constrain.
+- Resolve the artifact that owns each concrete delta spec by matching its path against `artifactPaths.<id>.existingOutputPaths` from status output, so custom and mixed-schema workflows do not assume a literal `specs` artifact ID.
+- When archive-driven or standalone spec sync creates or updates a spec artifact, fetch that owning artifact's current instructions and apply its artifact rules to the semantic merge. Archive passes its fetched rule snapshot into the inline sync workflow; standalone sync fetches the same inputs itself.
 - Keep operation guidance structurally separate from built-in skill steps, explicit user choices, and CLI-controlled behavior without claiming prompt text can enforce precedence.
 - Validate the `operations` config field independently so one malformed operation entry does not discard otherwise valid project configuration.
 
-This change does not redesign archive execution or spec sync. The existing archive skill orchestration and `openspec archive` command remain intact.
+This change does not redesign archive execution or the semantic spec-merge algorithm. The existing archive skill orchestration and `openspec archive` command remain intact.
 
 ## Capabilities
 
@@ -33,6 +34,7 @@ This change does not redesign archive execution or spec sync. The existing archi
 - `context-injection`: expose the latest project context to apply and archive runtime surfaces in addition to artifact instructions
 - `cli-artifact-workflow`: include current context and apply operation guidance in schema-aware apply instruction output
 - `opsx-archive-skill`: fetch and apply current archive context and guidance, and carry artifact rules into archive-driven spec sync, while preserving the existing archive flow
+- `specs-sync-skill`: resolve the owning artifact and apply its current rules during standalone sync, while reusing an archive-supplied rule snapshot when invoked inline
 
 ## Impact
 
@@ -41,6 +43,7 @@ This change does not redesign archive execution or spec sync. The existing archi
 - The apply skill consumes the new fields as advisory runtime inputs while CLI-returned state, tasks, progress, and instructions remain structurally unchanged.
 - `openspec instructions archive --change <name>` becomes a reserved workflow instruction surface and returns current archive inputs without performing archive work.
 - Archive skill templates call the runtime surface at execution time and treat returned values as advisory inputs that are not copied into output files.
-- During archive-driven spec sync, the skill fetches the current instructions for the artifact being written and follows its artifact rules without exposing them as operation guidance.
+- Archive-driven and standalone spec sync resolve artifact ownership from concrete status paths, fetch current instructions for each owning artifact, and follow its rules without exposing them as operation guidance.
+- Inline sync reuses the rule snapshot supplied by archive, avoiding a second fetch with potentially different config or duplicate warnings.
 - Existing artifact-rule configuration and instruction output, archive filesystem behavior, direct archive CLI options, semantic merge ownership, and bulk archive orchestration remain unchanged.
-- Tests cover resilient config parsing, runtime freshness, single-read config handling, field separation, selected-root behavior, output rendering, artifact-rule consumption during sync, and generated-template parity.
+- Tests cover resilient config parsing, runtime freshness, single-read config handling, field separation, selected-root behavior, output rendering, owning-artifact resolution, archive and standalone-sync rule consumption, mixed-schema batches, and generated-template parity.

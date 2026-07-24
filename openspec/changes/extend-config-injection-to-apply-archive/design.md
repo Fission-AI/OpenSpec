@@ -14,7 +14,7 @@ This change adds a small runtime contract for apply and archive without changing
 - Fetch current project context and matching operation guidance whenever apply or archive instructions are requested.
 - Return context and operation guidance as separate structured fields.
 - Make the single-change and bulk archive skills consume current inputs at execution time.
-- Carry current artifact rules into archive-driven spec sync whenever the sync creates or updates that artifact.
+- Carry current artifact rules into archive-driven and standalone spec sync whenever the sync creates or updates that artifact.
 - Preserve existing artifact rules, skill steps, user prompts, and CLI behavior.
 - Keep config parsing resilient so malformed operation config does not invalidate unrelated fields.
 
@@ -110,7 +110,7 @@ Human-readable output shows the same values as labeled advisory sections. If nei
 
 Keeping this as an instruction surface makes the runtime contract available immediately while leaving archive execution redesign independent.
 
-### D5: Archive skills consume inputs without changing their flow
+### D5: Archive and sync skills consume inputs without changing their flow
 
 After resolving the target change and selected root, the single-change archive skill calls:
 
@@ -122,9 +122,21 @@ It uses returned context as project background and archive guidance as optional 
 
 The bulk archive skill makes the same call once for the selected root, using one selected change to establish context, and applies the returned inputs across that batch. It does not change the existing bulk conflict analysis or archive orchestration.
 
-When either archive skill performs agent-driven spec sync, it fetches the current artifact instructions for the artifact being created or updated, using the same selected root and the change whose delta is being merged. The skill applies the returned artifact rules while writing that artifact. In a mixed-schema bulk batch, this lookup occurs per change so rule validation and instruction selection use that change's schema. Artifact rules are not returned from the archive operation-input surface, relabeled as archive guidance, or applied to unrelated archive steps.
+Before archive-driven or standalone semantic sync writes a main spec, the workflow resolves the artifact that owns each concrete delta spec:
 
-Both templates state that runtime context, operation guidance, and rule text must not be copied verbatim into specs, change artifacts, summaries, or other files unless the user separately asks for that content. Artifact rules constrain the produced artifact without becoming artifact content.
+1. Start with the concrete delta spec paths already discovered by the existing sync assessment.
+2. Use the same change's `openspec status --change "<name>" --json` result and compare each concrete delta path with every `artifactPaths.<id>.existingOutputPaths` entry.
+3. Require each delta path to match exactly one artifact ID. Group delta paths by that owning artifact ID.
+4. If a path has no owner or multiple owners, report the ambiguous path and stop before writing any main spec.
+5. For each unique owner, call `openspec instructions "<artifact-id>" --change "<name>" --json` with the same selected root. Apply only its returned artifact rules to main specs produced from that owner's delta paths.
+
+The comparison uses the concrete paths from one status snapshot rather than a literal artifact ID such as `specs`. For bulk archive, ownership resolution and instruction lookup run per change, so custom and mixed-schema batches use each change's schema and selected root.
+
+The single and bulk archive skills fetch these artifact-instruction snapshots immediately before invoking inline semantic sync and pass the owner-to-rules mapping into that workflow. The sync skill accepts the supplied snapshot without re-fetching it. When the sync skill is invoked directly, with no archive-supplied snapshot, it performs the same status-based ownership resolution and instruction lookup itself. This gives both archive and standalone sync current artifact rules without two reads during one inline sync.
+
+Artifact rules are not returned from the archive operation-input surface, relabeled as archive guidance, or applied to unrelated archive steps.
+
+The archive, bulk archive, and sync templates retain the existing rule that runtime context, operation guidance, and rule text must not be copied verbatim into specs, change artifacts, summaries, or other files unless the user separately asks for that content. Artifact rules constrain the produced artifact without becoming artifact content.
 
 ### D6: Keep enforcement claims within the current scope
 
@@ -140,6 +152,8 @@ Existing checks continue to run wherever the current CLI already owns them. Skil
 - **Archive runtime input is mistaken for archive execution** -> Command naming, JSON fields, docs, and tests state that the instruction surface is read-only and performs no archive mutation.
 - **Bulk archive spans an unexpected root** -> The skill resolves the batch root first and fetches inputs once for that root; cross-root batching remains outside the current behavior.
 - **Artifact rules are mistaken for archive guidance** -> Fetch them only when writing their artifact, keep them out of `operationGuidance`, and test that they do not affect unrelated archive steps.
+- **A delta spec has no unique owning artifact** -> Resolve ownership from concrete status paths and stop before writing if a path matches zero or multiple artifact entries.
+- **Archive and inline sync fetch different rule snapshots** -> Archive fetches once and inline sync reuses the supplied owner-to-rules mapping; only standalone sync performs its own lookup.
 
 ## Implementation Plan
 
@@ -147,7 +161,7 @@ Existing checks continue to run wherever the current CLI already owns them. Skil
 2. Add the shared runtime-input loader using the root command's single parsed config snapshot.
 3. Extend apply instruction JSON and text output.
 4. Add archive instruction JSON and text output without changing archive execution.
-5. Update single-change and bulk archive templates to consume current inputs and carry artifact rules into archive-driven spec sync.
+5. Update single-change archive, bulk archive, and standalone sync templates to resolve owning artifacts and carry current artifact rules into semantic spec sync without duplicate inline fetches.
 6. Update generated config help, documentation, template parity fixtures, and end-to-end coverage.
 
 Rollback is a code revert. The config field is additive, and no archive filesystem format or durable project state changes in this change.

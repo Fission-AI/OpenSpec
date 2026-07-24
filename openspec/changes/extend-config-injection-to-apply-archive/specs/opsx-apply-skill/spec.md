@@ -30,7 +30,7 @@ The `/opsx:apply` skill SHALL consume current project context and apply operatio
 
 ### Requirement: Preserve apply workflow behavior
 
-The `/opsx:apply` skill template and CLI contract SHALL keep their existing change selection, context loading, task progression, validation, and completion reporting structure in this change.
+The `/opsx:apply` skill template and CLI contract SHALL keep their existing change selection, context loading, task progression, pause-on-blocker behavior, and completion reporting structure in this change.
 
 #### Scenario: Runtime inputs are consumed
 

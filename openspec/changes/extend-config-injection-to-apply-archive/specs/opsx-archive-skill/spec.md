@@ -17,12 +17,12 @@ The `/opsx:archive` skill SHALL request current archive operation inputs after r
 - **WHEN** archive instruction output omits context and operation guidance
 - **THEN** the skill continues with its existing archive workflow
 
-#### Scenario: Archive guidance conflicts with the workflow
+#### Scenario: Archive context or guidance conflicts with the workflow
 
-- **WHEN** returned guidance conflicts with a built-in archive step, explicit user choice, resolved path, or command contract
-- **THEN** the generated skill identifies the guidance as advisory input separate from built-in steps and CLI-derived values
+- **WHEN** returned context or operation guidance conflicts with a built-in archive step, explicit user choice, resolved path, or command contract
+- **THEN** the generated skill identifies context and operation guidance as advisory inputs separate from built-in steps and CLI-derived values
 - **AND** this change leaves existing CLI checks, resolved paths, and command contracts unchanged
-- **AND** the template tells the agent not to infer replacement paths, skipped prompts, or command flags from the guidance
+- **AND** the template tells the agent not to infer replacement paths, skipped prompts, or command flags from either advisory field
 - **AND** the system does not represent that prompt-level precedence as an enforceable check
 
 #### Scenario: Archive uses guidance as input only
@@ -43,12 +43,26 @@ The `/opsx:archive` skill SHALL keep its existing completion checks, task checks
 
 The `/opsx:archive` skill SHALL fetch current artifact instructions before archive-driven spec sync writes an artifact and SHALL use the returned artifact rules only to constrain that artifact.
 
+#### Scenario: Resolve the artifact that owns each delta spec
+
+- **WHEN** archive has discovered concrete delta spec paths for a selected change
+- **THEN** the skill matches each path against `artifactPaths.<id>.existingOutputPaths` from that change's status output
+- **AND** requires each delta path to match exactly one owning artifact ID
+- **AND** groups delta paths by owner instead of assuming the owner ID is `specs`
+
+#### Scenario: Delta spec ownership is missing or ambiguous
+
+- **WHEN** a concrete delta spec path matches zero or multiple artifact IDs
+- **THEN** the skill reports the path and candidate owners
+- **AND** stops before writing any main spec or moving the change
+
 #### Scenario: Archive sync writes a spec artifact
 
 - **WHEN** delta specs exist and the user chooses to sync them during archive
-- **THEN** the skill requests current instructions for the artifact that owns those delta specs, using the selected change and planning root
+- **THEN** the skill requests current instructions once for each owning artifact ID, using the selected change and planning root
 - **AND** applies the returned artifact rules while semantically merging the delta into the main spec
 - **AND** keeps artifact rules separate from archive `operationGuidance`
+- **AND** passes the owner-to-rules snapshot to the inline sync workflow so that workflow does not fetch the same instructions again
 
 #### Scenario: Artifact rules are absent
 
