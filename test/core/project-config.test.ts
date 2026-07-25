@@ -577,7 +577,7 @@ rules:
       };
       const validIds = new Set(['proposal', 'specs', 'design', 'tasks']);
 
-      const warnings = validateConfigRules(rules, validIds, 'spec-driven');
+      const warnings = validateConfigRules(rules, validIds);
 
       expect(warnings).toEqual([]);
     });
@@ -590,12 +590,26 @@ rules:
       };
       const validIds = new Set(['proposal', 'specs', 'design', 'tasks']);
 
-      const warnings = validateConfigRules(rules, validIds, 'spec-driven');
+      const warnings = validateConfigRules(rules, validIds);
 
       expect(warnings).toHaveLength(2);
       expect(warnings[0]).toContain('Unknown artifact ID in rules: "testplan"');
-      expect(warnings[0]).toContain('Valid IDs for schema "spec-driven": design, proposal, specs, tasks');
+      expect(warnings[0]).toContain('Known artifact IDs: design, proposal, specs, tasks');
       expect(warnings[1]).toContain('Unknown artifact ID in rules: "documentation"');
+    });
+
+    it('should not warn for keys valid in another schema (union across schemas)', () => {
+      // `issue` is not a spec-driven artifact but is valid for a lighter
+      // schema; the union set contains it, so it must not warn.
+      const rules = {
+        proposal: ['Rule 1'], // spec-driven
+        issue: ['Rule 2'], // another schema
+      };
+      const unionIds = new Set(['proposal', 'specs', 'design', 'tasks', 'issue']);
+
+      const warnings = validateConfigRules(rules, unionIds);
+
+      expect(warnings).toEqual([]);
     });
 
     it('should return warnings for all unknown artifact IDs', () => {
@@ -606,7 +620,7 @@ rules:
       };
       const validIds = new Set(['proposal', 'specs']);
 
-      const warnings = validateConfigRules(rules, validIds, 'spec-driven');
+      const warnings = validateConfigRules(rules, validIds);
 
       expect(warnings).toHaveLength(3);
     });
@@ -615,7 +629,7 @@ rules:
       const rules = {};
       const validIds = new Set(['proposal', 'specs']);
 
-      const warnings = validateConfigRules(rules, validIds, 'spec-driven');
+      const warnings = validateConfigRules(rules, validIds);
 
       expect(warnings).toEqual([]);
     });

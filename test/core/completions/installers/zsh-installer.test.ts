@@ -2,21 +2,32 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
-import { randomUUID } from 'crypto';
 import { ZshInstaller } from '../../../../src/core/completions/installers/zsh-installer.js';
 
 describe('ZshInstaller', () => {
   let testHomeDir: string;
   let installer: ZshInstaller;
+  let originalZsh: string | undefined;
 
   beforeEach(async () => {
+    // Clear $ZSH (set by a real Oh My Zsh install) so isOhMyZshInstalled()
+    // falls through to the isolated test home directory
+    originalZsh = process.env.ZSH;
+    delete process.env.ZSH;
+
     // Create a temporary home directory for testing
-    testHomeDir = path.join(os.tmpdir(), `openspec-zsh-test-${randomUUID()}`);
-    await fs.mkdir(testHomeDir, { recursive: true });
+    testHomeDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-zsh-test-'));
     installer = new ZshInstaller(testHomeDir);
   });
 
   afterEach(async () => {
+    // Restore original environment
+    if (originalZsh !== undefined) {
+      process.env.ZSH = originalZsh;
+    } else {
+      delete process.env.ZSH;
+    }
+
     // Clean up test directory
     await fs.rm(testHomeDir, { recursive: true, force: true });
   });
@@ -25,6 +36,14 @@ describe('ZshInstaller', () => {
     it('should return false when Oh My Zsh is not installed', async () => {
       const isInstalled = await installer.isOhMyZshInstalled();
       expect(isInstalled).toBe(false);
+    });
+
+    it('should return true when $ZSH environment variable is set', async () => {
+      // No .oh-my-zsh directory in testHomeDir; detection relies on $ZSH alone
+      process.env.ZSH = path.join(testHomeDir, '.oh-my-zsh');
+
+      const isInstalled = await installer.isOhMyZshInstalled();
+      expect(isInstalled).toBe(true);
     });
 
     it('should return true when Oh My Zsh directory exists', async () => {
@@ -250,8 +269,7 @@ describe('ZshInstaller', () => {
 
     it('should handle paths with spaces in .zshrc config', async () => {
       // Create a test home directory with spaces
-      const testHomeDirWithSpaces = path.join(os.tmpdir(), `openspec zsh test ${randomUUID()}`);
-      await fs.mkdir(testHomeDirWithSpaces, { recursive: true });
+      const testHomeDirWithSpaces = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec zsh test '));
       const installerWithSpaces = new ZshInstaller(testHomeDirWithSpaces);
 
       try {

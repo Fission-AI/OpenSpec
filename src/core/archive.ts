@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { formatLocalDate } from '../utils/date.js';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
 import { Validator } from './validation/validator.js';
 import chalk from 'chalk';
@@ -18,6 +19,8 @@ import {
   writeUpdatedSpec,
   type SpecUpdate,
 } from './specs-apply.js';
+import { discoverSpecFiles, hasAnyFileUnder } from '../utils/spec-discovery.js';
+import { readSkipSpecsMarker } from '../utils/change-metadata.js';
 
 function isMissingPathError(error: unknown): boolean {
   return (
@@ -27,6 +30,13 @@ function isMissingPathError(error: unknown): boolean {
     (error as NodeJS.ErrnoException).code === 'ENOENT'
   );
 }
+
+/**
+ * Matches the `YYYY-MM-DD-` prefix that archiving prepends to a change name.
+ * A change whose name already starts with one (a common authoring convention)
+ * is archived under its existing name so the prefix is never stacked (#1309).
+ */
+const ARCHIVE_DATE_PREFIX_PATTERN = /^\d{4}-\d{2}-\d{2}-/;
 
 async function listActiveChangeNames(changesDir: string): Promise<string[]> {
   try {
@@ -64,6 +74,8 @@ interface ArchiveResult {
   path: string;
   specsUpdated: boolean;
   totals?: { added: number; modified: number; removed: number; renamed: number };
+  /** Non-blocking spec-merge warnings (e.g. a REMOVED requirement that was already gone). */
+  warnings?: string[];
 }
 
 /**
@@ -250,10 +262,23 @@ export class ArchiveCommand {
         try {
           await fs.access(changeFile);
           const changeReport = await validator.validateChange(changeFile);
-          // Proposal validation is informative only (do not block archive)
-          if (!changeReport.valid) {
+          // Proposal validation is informative only (do not block archive).
+          // `validateChange` parses the change together with its delta specs,
+          // so it also raises requirement-level issues under
+          // `deltas.<n>.requirement(s)`. Those
+          // are not proposal problems, and reporting them here was noisy and
+          // sometimes wrong (#498): the change parser records every requirement
+          // under both `requirement` and `requirements`, so each defect was
+          // printed twice, and REMOVED requirements — names-only by design —
+          // produced a "missing scenario" warning for a correct removal.
+          // Genuine delta defects are still caught below, by the delta spec
+          // validation and by the rebuilt-spec check that runs before any write.
+          const proposalIssues = changeReport.issues.filter(
+            (issue) => !/^deltas\.\d+\.requirements?\./.test(issue.path)
+          );
+          if (!changeReport.valid && proposalIssues.length > 0) {
             console.log(chalk.yellow(`\nProposal warnings in proposal.md (non-blocking):`));
-            for (const issue of changeReport.issues) {
+            for (const issue of proposalIssues) {
               const symbol = issue.level === 'ERROR' ? '⚠' : (issue.level === 'WARNING' ? '⚠' : 'ℹ');
               console.log(chalk.yellow(`  ${symbol} ${issue.message}`));
             }
@@ -265,23 +290,49 @@ export class ArchiveCommand {
 
       // Validate delta-formatted spec files under the change directory if present
       const changeSpecsDir = path.join(changeDir, 'specs');
-      let hasDeltaSpecs = false;
-      try {
-        const candidates = await fs.readdir(changeSpecsDir, { withFileTypes: true });
-        for (const c of candidates) {
-          if (c.isDirectory()) {
-            try {
-              const candidatePath = path.join(changeSpecsDir, c.name, 'spec.md');
-              await fs.access(candidatePath);
-              const content = await fs.readFile(candidatePath, 'utf-8');
-              if (/^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements/m.test(content)) {
-                hasDeltaSpecs = true;
-                break;
-              }
-            } catch {}
+      // A spec.md at the specs/ root is never merged, so archiving a change
+      // that has one drops its content whether or not it carries delta headers
+      // (#1385). Its existence alone must run validation, which reports it and
+      // blocks the archive. A directory named spec.md is a normal capability
+      // folder, so only a regular file counts.
+      const rootSpecStat = await fs.stat(path.join(changeSpecsDir, 'spec.md')).catch(() => null);
+      let hasDeltaSpecs = rootSpecStat?.isFile() === true;
+      // A change that declares skip_specs must not carry any file under
+      // specs/ — validate reports that as a conflict, so archive has to run
+      // the same check instead of skipping validation because the files
+      // happen to have no delta headers. A marker that cannot be honored
+      // (skip_specs mentioned but the metadata fails the shared shape, or
+      // names a schema that does not resolve) also
+      // forces validation, so archive and validate always agree about the
+      // marker. Unreadable specs/ fails closed into validation too. (An
+      // UNMARKED zero-delta change still archives with only non-blocking
+      // proposal warnings — a gap that predates the marker and is left
+      // unchanged here.)
+      if (!hasDeltaSpecs) {
+        const marker = readSkipSpecsMarker(changeDir);
+        if (marker.invalidReason) {
+          hasDeltaSpecs = true;
+        } else if (marker.declared) {
+          let specsDirHasFiles = true;
+          try {
+            specsDirHasFiles = await hasAnyFileUnder(changeSpecsDir);
+          } catch {
+            // fall through with true: let validation surface the conflict
           }
+          hasDeltaSpecs = specsDirHasFiles;
         }
-      } catch {}
+      }
+      for (const { specFile } of hasDeltaSpecs ? [] : await discoverSpecFiles(changeSpecsDir)) {
+        try {
+          const content = await fs.readFile(specFile, 'utf-8');
+          // Case-insensitive to match the delta parser, so a lowercase header
+          // routes through the same delta validation that validate runs.
+          if (/^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements/im.test(content)) {
+            hasDeltaSpecs = true;
+            break;
+          }
+        } catch {}
+      }
       if (hasDeltaSpecs) {
         const deltaReport = await validator.validateChangeDeltaSpecs(changeDir);
         if (!deltaReport.valid) {
@@ -377,6 +428,7 @@ export class ArchiveCommand {
     // Handle spec updates unless skipSpecs flag is set
     let specsUpdated = false;
     let totals: ArchiveResult['totals'];
+    const specWarnings: string[] = [];
     if (options.skipSpecs) {
       if (!json) {
         console.log('Skipping spec updates (--skip-specs flag provided).');
@@ -390,7 +442,7 @@ export class ArchiveCommand {
           console.log('\nSpecs to update:');
           for (const update of specUpdates) {
             const status = update.exists ? 'update' : 'create';
-            const capability = path.basename(path.dirname(update.target));
+            const capability = update.id;
             console.log(`  ${capability}: ${status}`);
           }
         }
@@ -421,6 +473,9 @@ export class ArchiveCommand {
             for (const update of specUpdates) {
               const built = await buildUpdatedSpec(update, changeName!, { silent: json });
               prepared.push({ update, rebuilt: built.rebuilt, counts: built.counts });
+              // Carried into the result so JSON mode (where nothing was
+              // printed) still surfaces them; human mode discards the result.
+              specWarnings.push(...built.warnings);
             }
           } catch (err: any) {
             if (json) {
@@ -440,7 +495,7 @@ export class ArchiveCommand {
           // late validation failure really does leave all targets unchanged.
           if (!skipValidation) {
             for (const p of prepared) {
-              const specName = path.basename(path.dirname(p.update.target));
+              const specName = p.update.id;
               const report = await new Validator().validateSpecContent(specName, p.rebuilt);
               if (!report.valid) {
                 if (json) {
@@ -464,31 +519,48 @@ export class ArchiveCommand {
 
           // All validations passed; write files and display counts
           const writeTotals = { added: 0, modified: 0, removed: 0, renamed: 0 };
+          let wroteAny = false;
           for (const p of prepared) {
+            const { added, modified, removed, renamed } = p.counts;
+            if (added + modified + removed + renamed === 0) {
+              // Every operation was already synced: rewriting the file would
+              // only churn normalization differences into it.
+              continue;
+            }
             await writeUpdatedSpec(p.update, p.rebuilt, p.counts, {
               silent: json,
               // Cross-root paths must be absolute when a store is selected.
               ...(isStoreSelectedRoot(root) ? { displayPath: p.update.target } : {}),
             });
-            writeTotals.added += p.counts.added;
-            writeTotals.modified += p.counts.modified;
-            writeTotals.removed += p.counts.removed;
-            writeTotals.renamed += p.counts.renamed;
+            wroteAny = true;
+            writeTotals.added += added;
+            writeTotals.modified += modified;
+            writeTotals.removed += removed;
+            writeTotals.renamed += renamed;
           }
-          specsUpdated = true;
+          specsUpdated = wroteAny;
           totals = writeTotals;
           if (!json) {
             console.log(
               `Totals: + ${writeTotals.added}, ~ ${writeTotals.modified}, - ${writeTotals.removed}, → ${writeTotals.renamed}`
             );
-            console.log('Specs updated successfully.');
+            console.log(
+              wroteAny
+                ? 'Specs updated successfully.'
+                : 'Specs already in sync; no files changed.'
+            );
           }
         }
       }
     }
 
-    // Create archive directory with date prefix
-    const archiveName = `${this.getArchiveDate()}-${changeName}`;
+    // Create archive directory with date prefix. Names that already carry
+    // one keep it: re-prefixing would stutter the name, and when the archive
+    // runs on a later day the folder would sort under a day on which the
+    // change did not happen (#1309).
+    const archiveName = ARCHIVE_DATE_PREFIX_PATTERN.test(changeName)
+      ? changeName
+      : `${formatLocalDate()}-${changeName}`;
     const archivePath = path.join(archiveDir, archiveName);
 
     // Check if archive already exists
@@ -521,6 +593,7 @@ export class ArchiveCommand {
       path: archivePath,
       specsUpdated,
       ...(totals ? { totals } : {}),
+      ...(specWarnings.length > 0 ? { warnings: specWarnings } : {}),
     };
   }
 
@@ -562,10 +635,5 @@ export class ArchiveCommand {
       // User cancelled (Ctrl+C)
       return null;
     }
-  }
-
-  private getArchiveDate(): string {
-    // Returns date in YYYY-MM-DD format
-    return new Date().toISOString().split('T')[0];
   }
 }

@@ -77,6 +77,29 @@ AI:  Archived to openspec/changes/archive/2025-01-23-add-dark-mode/
 ```
 
 <details>
+<summary><strong>What do the specs actually look like?</strong></summary>
+
+Plain Markdown — requirements with concrete scenarios, no special syntax to learn. Here's what goes in the `specs/` folder created above:
+
+```markdown
+## ADDED Requirements
+
+### Requirement: Theme selection
+The app SHALL let users switch between light and dark themes,
+defaulting to the system preference.
+
+#### Scenario: User toggles dark mode
+- **WHEN** the user clicks the theme toggle
+- **THEN** the app switches to dark mode and persists the choice
+```
+
+Your AI writes these; you review the plan before any code is written.
+
+OpenSpec is built with OpenSpec — browse this repo's live [specs](openspec/specs) and in-flight [changes](openspec/changes) for real examples at scale.
+
+</details>
+
+<details>
 <summary><strong>OpenSpec Dashboard</strong></summary>
 
 <p align="center">

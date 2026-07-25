@@ -56,7 +56,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    Build a map of \`capability -> [changes that touch it]\`:
 
-   \`\`\`
+   \`\`\`text
    auth -> [change-a, change-b]  <- CONFLICT (2+ changes)
    api  -> [change-c]            <- OK (only 1 change)
    \`\`\`
@@ -87,7 +87,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    Display a table summarizing all changes:
 
-   \`\`\`
+   \`\`\`markdown
    | Change              | Artifacts | Tasks | Specs   | Conflicts | Status |
    |---------------------|-----------|-------|---------|-----------|--------|
    | schema-management   | Done      | 5/5   | 2 delta | None      | Ready  |
@@ -97,13 +97,13 @@ ${STORE_SELECTION_GUIDANCE}
    \`\`\`
 
    For conflicts, show the resolution:
-   \`\`\`
+   \`\`\`text
    * Conflict resolution:
      - auth spec: Will apply add-oauth then add-jwt (both implemented, chronological order)
    \`\`\`
 
    For incomplete changes, show warnings:
-   \`\`\`
+   \`\`\`text
    Warnings:
    - add-verify-skill: 1 incomplete artifact, 3 incomplete tasks
    \`\`\`
@@ -120,6 +120,13 @@ ${STORE_SELECTION_GUIDANCE}
 
    If there are incomplete changes, make clear they'll be archived with warnings.
 
+   Route on the answer by intent, not by exact label — you wrote these labels,
+   so match what the user picked rather than the wording above:
+   - "Cancel" — stop, do not archive. Report that nothing was archived and skip the remaining steps.
+   - The archive-everything option — proceed with every selected change
+   - The ready-only option — proceed with only the changes the step 6 table marks \`Ready\` or \`Ready*\`, and record the rest as Skipped in step 8c. If a \`Ready*\` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
+   - Anything else — ask again rather than archiving
+
 8. **Execute archive for each confirmed change**
 
    Process changes in the determined order (respecting conflict resolution):
@@ -130,9 +137,12 @@ ${STORE_SELECTION_GUIDANCE}
       - Track if sync was done
 
    b. **Perform the archive**:
+
+      Target name: use the change name as-is when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise prepend the current date as \`YYYY-MM-DD-<name>\` (same rule as \`openspec archive\`).
+
       \`\`\`bash
       mkdir -p "<planningHome.changesDir>/archive"
-      mv "<changeRoot>" "<planningHome.changesDir>/archive/YYYY-MM-DD-<name>"
+      mv "<changeRoot>" "<planningHome.changesDir>/archive/<target-name>"
       \`\`\`
 
    c. **Track outcome** for each change:
@@ -144,7 +154,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    Show final results:
 
-   \`\`\`
+   \`\`\`markdown
    ## Bulk Archive Complete
 
    Archived 3 changes:
@@ -161,7 +171,7 @@ ${STORE_SELECTION_GUIDANCE}
    \`\`\`
 
    If any failures:
-   \`\`\`
+   \`\`\`text
    Failed 1 change:
    - some-change: Archive directory already exists
    \`\`\`
@@ -169,7 +179,7 @@ ${STORE_SELECTION_GUIDANCE}
 **Conflict Resolution Examples**
 
 Example 1: Only one implemented
-\`\`\`
+\`\`\`text
 Conflict: specs/auth/spec.md touched by [add-oauth, add-jwt]
 
 Checking add-oauth:
@@ -184,7 +194,7 @@ Resolution: Only add-oauth is implemented. Will sync add-oauth specs only.
 \`\`\`
 
 Example 2: Both implemented
-\`\`\`
+\`\`\`text
 Conflict: specs/api/spec.md touched by [add-rest-api, add-graphql]
 
 Checking add-rest-api (created 2026-01-10):
@@ -201,12 +211,12 @@ then add-graphql specs (chronological order, newer takes precedence).
 
 **Output On Success**
 
-\`\`\`
+\`\`\`markdown
 ## Bulk Archive Complete
 
 Archived N changes:
-- <change-1> -> archive/YYYY-MM-DD-<change-1>/
-- <change-2> -> archive/YYYY-MM-DD-<change-2>/
+- <change-1> -> archive/<target-name-1>/
+- <change-2> -> archive/<target-name-2>/
 
 Spec sync summary:
 - N delta specs synced to main specs
@@ -215,11 +225,11 @@ Spec sync summary:
 
 **Output On Partial Success**
 
-\`\`\`
+\`\`\`markdown
 ## Bulk Archive Complete (partial)
 
 Archived N changes:
-- <change-1> -> archive/YYYY-MM-DD-<change-1>/
+- <change-1> -> archive/<target-name-1>/
 
 Skipped M changes:
 - <change-2> (user chose not to archive incomplete)
@@ -230,7 +240,7 @@ Failed K changes:
 
 **Output When No Changes**
 
-\`\`\`
+\`\`\`markdown
 ## No Changes to Archive
 
 No active changes found. Create a new change to get started.
@@ -244,9 +254,10 @@ No active changes found. Create a new change to get started.
 - Skip spec sync only when implementation is missing (warn user)
 - Show clear per-change status before confirming
 - Use single confirmation for entire batch
+- Never archive after the user cancels the confirmation — a cancelled batch archives nothing
 - Track and report all outcomes (success/skip/fail)
 - Preserve .openspec.yaml when moving to archive
-- Archive directory target uses current date: YYYY-MM-DD-<name>
+- Archive directory target uses current date: YYYY-MM-DD-<name>; a name that already starts with a \`YYYY-MM-DD-\` prefix is used as-is (never stack a second date)
 - If archive target exists, fail that change but continue with others`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
@@ -305,7 +316,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    Build a map of \`capability -> [changes that touch it]\`:
 
-   \`\`\`
+   \`\`\`text
    auth -> [change-a, change-b]  <- CONFLICT (2+ changes)
    api  -> [change-c]            <- OK (only 1 change)
    \`\`\`
@@ -336,7 +347,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    Display a table summarizing all changes:
 
-   \`\`\`
+   \`\`\`markdown
    | Change              | Artifacts | Tasks | Specs   | Conflicts | Status |
    |---------------------|-----------|-------|---------|-----------|--------|
    | schema-management   | Done      | 5/5   | 2 delta | None      | Ready  |
@@ -346,13 +357,13 @@ ${STORE_SELECTION_GUIDANCE}
    \`\`\`
 
    For conflicts, show the resolution:
-   \`\`\`
+   \`\`\`text
    * Conflict resolution:
      - auth spec: Will apply add-oauth then add-jwt (both implemented, chronological order)
    \`\`\`
 
    For incomplete changes, show warnings:
-   \`\`\`
+   \`\`\`text
    Warnings:
    - add-verify-skill: 1 incomplete artifact, 3 incomplete tasks
    \`\`\`
@@ -369,6 +380,13 @@ ${STORE_SELECTION_GUIDANCE}
 
    If there are incomplete changes, make clear they'll be archived with warnings.
 
+   Route on the answer by intent, not by exact label — you wrote these labels,
+   so match what the user picked rather than the wording above:
+   - "Cancel" — stop, do not archive. Report that nothing was archived and skip the remaining steps.
+   - The archive-everything option — proceed with every selected change
+   - The ready-only option — proceed with only the changes the step 6 table marks \`Ready\` or \`Ready*\`, and record the rest as Skipped in step 8c. If a \`Ready*\` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
+   - Anything else — ask again rather than archiving
+
 8. **Execute archive for each confirmed change**
 
    Process changes in the determined order (respecting conflict resolution):
@@ -379,9 +397,12 @@ ${STORE_SELECTION_GUIDANCE}
       - Track if sync was done
 
    b. **Perform the archive**:
+
+      Target name: use the change name as-is when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise prepend the current date as \`YYYY-MM-DD-<name>\` (same rule as \`openspec archive\`).
+
       \`\`\`bash
       mkdir -p "<planningHome.changesDir>/archive"
-      mv "<changeRoot>" "<planningHome.changesDir>/archive/YYYY-MM-DD-<name>"
+      mv "<changeRoot>" "<planningHome.changesDir>/archive/<target-name>"
       \`\`\`
 
    c. **Track outcome** for each change:
@@ -393,7 +414,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    Show final results:
 
-   \`\`\`
+   \`\`\`markdown
    ## Bulk Archive Complete
 
    Archived 3 changes:
@@ -410,7 +431,7 @@ ${STORE_SELECTION_GUIDANCE}
    \`\`\`
 
    If any failures:
-   \`\`\`
+   \`\`\`text
    Failed 1 change:
    - some-change: Archive directory already exists
    \`\`\`
@@ -418,7 +439,7 @@ ${STORE_SELECTION_GUIDANCE}
 **Conflict Resolution Examples**
 
 Example 1: Only one implemented
-\`\`\`
+\`\`\`text
 Conflict: specs/auth/spec.md touched by [add-oauth, add-jwt]
 
 Checking add-oauth:
@@ -433,7 +454,7 @@ Resolution: Only add-oauth is implemented. Will sync add-oauth specs only.
 \`\`\`
 
 Example 2: Both implemented
-\`\`\`
+\`\`\`text
 Conflict: specs/api/spec.md touched by [add-rest-api, add-graphql]
 
 Checking add-rest-api (created 2026-01-10):
@@ -450,12 +471,12 @@ then add-graphql specs (chronological order, newer takes precedence).
 
 **Output On Success**
 
-\`\`\`
+\`\`\`markdown
 ## Bulk Archive Complete
 
 Archived N changes:
-- <change-1> -> archive/YYYY-MM-DD-<change-1>/
-- <change-2> -> archive/YYYY-MM-DD-<change-2>/
+- <change-1> -> archive/<target-name-1>/
+- <change-2> -> archive/<target-name-2>/
 
 Spec sync summary:
 - N delta specs synced to main specs
@@ -464,11 +485,11 @@ Spec sync summary:
 
 **Output On Partial Success**
 
-\`\`\`
+\`\`\`markdown
 ## Bulk Archive Complete (partial)
 
 Archived N changes:
-- <change-1> -> archive/YYYY-MM-DD-<change-1>/
+- <change-1> -> archive/<target-name-1>/
 
 Skipped M changes:
 - <change-2> (user chose not to archive incomplete)
@@ -479,7 +500,7 @@ Failed K changes:
 
 **Output When No Changes**
 
-\`\`\`
+\`\`\`markdown
 ## No Changes to Archive
 
 No active changes found. Create a new change to get started.
@@ -493,9 +514,10 @@ No active changes found. Create a new change to get started.
 - Skip spec sync only when implementation is missing (warn user)
 - Show clear per-change status before confirming
 - Use single confirmation for entire batch
+- Never archive after the user cancels the confirmation — a cancelled batch archives nothing
 - Track and report all outcomes (success/skip/fail)
 - Preserve .openspec.yaml when moving to archive
-- Archive directory target uses current date: YYYY-MM-DD-<name>
+- Archive directory target uses current date: YYYY-MM-DD-<name>; a name that already starts with a \`YYYY-MM-DD-\` prefix is used as-is (never stack a second date)
 - If archive target exists, fail that change but continue with others`
   };
 }

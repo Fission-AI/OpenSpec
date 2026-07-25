@@ -35,9 +35,9 @@ ${STORE_SELECTION_GUIDANCE}
    Parse the JSON to understand:
    - \`schemaName\`: The workflow being used
    - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context
-   - \`artifacts\`: List of artifacts with their status (\`done\` or other)
+   - \`artifacts\`: List of artifacts with their status (\`done\`, \`skipped\`, or other)
 
-   **If any artifacts are not \`done\`:**
+   **If any artifacts are neither \`done\` nor \`skipped\`** (skipped artifacts satisfy the requirement - the change declares skip_specs):
    - Display warning listing incomplete artifacts
    - Use **AskUserQuestion tool** to confirm user wants to proceed
    - Proceed if user confirms
@@ -60,7 +60,7 @@ ${STORE_SELECTION_GUIDANCE}
    Use \`artifactPaths.specs.existingOutputPaths\` from status JSON to check for delta specs. If none exist, proceed without sync prompt.
 
    **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at \`openspec/specs/<capability>/spec.md\`
+   - Compare each delta spec with its corresponding main spec at \`<planningHome.root>/openspec/specs/<capability>/spec.md\` (use the store-aware \`planningHome.root\` from step 2, not a hardcoded repo path)
    - Determine what changes would be applied (adds, modifications, removals, renames)
    - Show a combined summary before prompting
 
@@ -68,7 +68,21 @@ ${STORE_SELECTION_GUIDANCE}
    - If changes needed: "Sync now (recommended)", "Archive without syncing"
    - If already synced: "Archive now", "Sync anyway", "Cancel"
 
-   If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
+   Route on the answer:
+   - "Cancel" — stop, do not archive
+   - "Archive without syncing" or "Archive now" — proceed to archive
+   - "Sync now" or "Sync anyway" — sync, then verify (below)
+   - Anything else — ask again rather than archiving
+
+   To sync, run the \`openspec-sync-specs\` workflow inline (agent-driven intelligent merge) for change '<name>', passing the delta spec analysis from above, and wait for it to finish. Do not delegate it to a background task — step 5 would move \`changeRoot\` out from under a sync that is still reading it, leaving the change archived and the main specs never updated. If your agent can only run it by delegation, delegate synchronously and wait for the result.
+
+   Then re-run the comparison from the top of this step against every capability that has a delta spec in \`artifactPaths.specs.existingOutputPaths\` — not only the ones the sync reports it touched. A successful sync leaves nothing left to apply, so each capability must now read as already synced:
+   - ADDED requirements present
+   - MODIFIED requirements carrying the scenario and description changes named in the delta, with their other scenarios intact
+   - REMOVED requirements gone
+   - RENAMED requirements present under the new name and absent under the old one
+
+   If the sync failed, or any capability does not match, report what differs and stop — do not archive. Nothing has moved and \`changeRoot\` is intact, so the user can fix the mismatch or re-run the sync and start the archive again.
 
 5. **Perform the archive**
 
@@ -77,14 +91,14 @@ ${STORE_SELECTION_GUIDANCE}
    mkdir -p "<planningHome.changesDir>/archive"
    \`\`\`
 
-   Generate target name using current date: \`YYYY-MM-DD-<change-name>\`
+   Generate the target name: use the change name as-is when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise prepend the current date as \`YYYY-MM-DD-<change-name>\`. Never stack a second date (same rule as \`openspec archive\`).
 
    **Check if target already exists:**
    - If yes: Fail with error, suggest renaming existing archive or using different date
    - If no: Move \`changeRoot\` to the archive directory
 
    \`\`\`bash
-   mv "<changeRoot>" "<planningHome.changesDir>/archive/YYYY-MM-DD-<name>"
+   mv "<changeRoot>" "<planningHome.changesDir>/archive/<target-name>"
    \`\`\`
 
 6. **Display summary**
@@ -98,15 +112,15 @@ ${STORE_SELECTION_GUIDANCE}
 
 **Output On Success**
 
-\`\`\`
+\`\`\`markdown
 ## Archive Complete
 
 **Change:** <change-name>
 **Schema:** <schema-name>
-**Archived to:** the archive path derived from \`planningHome.changesDir\`/YYYY-MM-DD-<name>/
-**Specs:** ✓ Synced to main specs (or "No delta specs" or "Sync skipped")
+**Archived to:** the archive path derived from \`planningHome.changesDir\`/<target-name>/
+**Specs:** <"✓ Synced to main specs" only if the step 4 verification passed; otherwise "No delta specs" or "Sync skipped">
 
-All artifacts complete. All tasks complete.
+<"All artifacts complete. All tasks complete." — or, if archived with warnings, list them instead (e.g. "Archived with 2 incomplete tasks")>
 \`\`\`
 
 **Guardrails**
@@ -115,7 +129,8 @@ All artifacts complete. All tasks complete.
 - Don't block archive on warnings - just inform and confirm
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
 - Show clear summary of what happened
-- If sync is requested, use openspec-sync-specs approach (agent-driven)
+- If sync is requested, run the \`openspec-sync-specs\` workflow inline (agent-driven)
+- Never archive while a spec sync is still in flight — run the sync inline and verify the main specs before moving \`changeRoot\`
 - If delta specs exist, always run the sync assessment and show the combined summary before prompting`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
@@ -153,9 +168,9 @@ ${STORE_SELECTION_GUIDANCE}
    Parse the JSON to understand:
    - \`schemaName\`: The workflow being used
    - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context
-   - \`artifacts\`: List of artifacts with their status (\`done\` or other)
+   - \`artifacts\`: List of artifacts with their status (\`done\`, \`skipped\`, or other)
 
-   **If any artifacts are not \`done\`:**
+   **If any artifacts are neither \`done\` nor \`skipped\`** (skipped artifacts satisfy the requirement - the change declares skip_specs):
    - Display warning listing incomplete artifacts
    - Prompt user for confirmation to continue
    - Proceed if user confirms
@@ -178,7 +193,7 @@ ${STORE_SELECTION_GUIDANCE}
    Use \`artifactPaths.specs.existingOutputPaths\` from status JSON to check for delta specs. If none exist, proceed without sync prompt.
 
    **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at \`openspec/specs/<capability>/spec.md\`
+   - Compare each delta spec with its corresponding main spec at \`<planningHome.root>/openspec/specs/<capability>/spec.md\` (use the store-aware \`planningHome.root\` from step 2, not a hardcoded repo path)
    - Determine what changes would be applied (adds, modifications, removals, renames)
    - Show a combined summary before prompting
 
@@ -186,7 +201,21 @@ ${STORE_SELECTION_GUIDANCE}
    - If changes needed: "Sync now (recommended)", "Archive without syncing"
    - If already synced: "Archive now", "Sync anyway", "Cancel"
 
-   If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
+   Route on the answer:
+   - "Cancel" — stop, do not archive
+   - "Archive without syncing" or "Archive now" — proceed to archive
+   - "Sync now" or "Sync anyway" — sync, then verify (below)
+   - Anything else — ask again rather than archiving
+
+   To sync, run the \`openspec-sync-specs\` workflow inline (agent-driven intelligent merge) for change '<name>', passing the delta spec analysis from above, and wait for it to finish. Do not delegate it to a background task — step 5 would move \`changeRoot\` out from under a sync that is still reading it, leaving the change archived and the main specs never updated. If your agent can only run it by delegation, delegate synchronously and wait for the result.
+
+   Then re-run the comparison from the top of this step against every capability that has a delta spec in \`artifactPaths.specs.existingOutputPaths\` — not only the ones the sync reports it touched. A successful sync leaves nothing left to apply, so each capability must now read as already synced:
+   - ADDED requirements present
+   - MODIFIED requirements carrying the scenario and description changes named in the delta, with their other scenarios intact
+   - REMOVED requirements gone
+   - RENAMED requirements present under the new name and absent under the old one
+
+   If the sync failed, or any capability does not match, report what differs and stop — do not archive. Nothing has moved and \`changeRoot\` is intact, so the user can fix the mismatch or re-run the sync and start the archive again.
 
 5. **Perform the archive**
 
@@ -195,14 +224,14 @@ ${STORE_SELECTION_GUIDANCE}
    mkdir -p "<planningHome.changesDir>/archive"
    \`\`\`
 
-   Generate target name using current date: \`YYYY-MM-DD-<change-name>\`
+   Generate the target name: use the change name as-is when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise prepend the current date as \`YYYY-MM-DD-<change-name>\`. Never stack a second date (same rule as \`openspec archive\`).
 
    **Check if target already exists:**
    - If yes: Fail with error, suggest renaming existing archive or using different date
    - If no: Move \`changeRoot\` to the archive directory
 
    \`\`\`bash
-   mv "<changeRoot>" "<planningHome.changesDir>/archive/YYYY-MM-DD-<name>"
+   mv "<changeRoot>" "<planningHome.changesDir>/archive/<target-name>"
    \`\`\`
 
 6. **Display summary**
@@ -216,12 +245,12 @@ ${STORE_SELECTION_GUIDANCE}
 
 **Output On Success**
 
-\`\`\`
+\`\`\`markdown
 ## Archive Complete
 
 **Change:** <change-name>
 **Schema:** <schema-name>
-**Archived to:** the archive path derived from \`planningHome.changesDir\`/YYYY-MM-DD-<name>/
+**Archived to:** the archive path derived from \`planningHome.changesDir\`/<target-name>/
 **Specs:** ✓ Synced to main specs
 
 All artifacts complete. All tasks complete.
@@ -229,12 +258,12 @@ All artifacts complete. All tasks complete.
 
 **Output On Success (No Delta Specs)**
 
-\`\`\`
+\`\`\`markdown
 ## Archive Complete
 
 **Change:** <change-name>
 **Schema:** <schema-name>
-**Archived to:** the archive path derived from \`planningHome.changesDir\`/YYYY-MM-DD-<name>/
+**Archived to:** the archive path derived from \`planningHome.changesDir\`/<target-name>/
 **Specs:** No delta specs
 
 All artifacts complete. All tasks complete.
@@ -242,12 +271,12 @@ All artifacts complete. All tasks complete.
 
 **Output On Success With Warnings**
 
-\`\`\`
+\`\`\`markdown
 ## Archive Complete (with warnings)
 
 **Change:** <change-name>
 **Schema:** <schema-name>
-**Archived to:** the archive path derived from \`planningHome.changesDir\`/YYYY-MM-DD-<name>/
+**Archived to:** the archive path derived from \`planningHome.changesDir\`/<target-name>/
 **Specs:** Sync skipped (user chose to skip)
 
 **Warnings:**
@@ -260,11 +289,11 @@ Review the archive if this was not intentional.
 
 **Output On Error (Archive Exists)**
 
-\`\`\`
+\`\`\`markdown
 ## Archive Failed
 
 **Change:** <change-name>
-**Target:** the archive path derived from \`planningHome.changesDir\`/YYYY-MM-DD-<name>/
+**Target:** the archive path derived from \`planningHome.changesDir\`/<target-name>/
 
 Target archive directory already exists.
 
@@ -280,7 +309,8 @@ Target archive directory already exists.
 - Don't block archive on warnings - just inform and confirm
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
 - Show clear summary of what happened
-- If sync is requested, use the Skill tool to invoke \`openspec-sync-specs\` (agent-driven)
+- If sync is requested, run the \`openspec-sync-specs\` workflow inline (agent-driven)
+- Never archive while a spec sync is still in flight — run the sync inline and verify the main specs before moving \`changeRoot\`
 - If delta specs exist, always run the sync assessment and show the combined summary before prompting`
   };
 }

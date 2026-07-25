@@ -11,7 +11,6 @@ import * as fs from 'fs';
 import { getSchemaDir, listSchemas } from '../../core/artifact-graph/index.js';
 import type { ReferenceIndexEntry } from '../../core/references.js';
 import { isRootSelectionError } from '../../core/root-selection.js';
-import { validateChangeName } from '../../utils/change-utils.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -85,13 +84,15 @@ export function isColorDisabled(): boolean {
 /**
  * Gets the color function based on status.
  */
-export function getStatusColor(status: 'done' | 'ready' | 'blocked'): (text: string) => string {
+export function getStatusColor(status: 'done' | 'skipped' | 'ready' | 'blocked'): (text: string) => string {
   if (isColorDisabled()) {
     return (text: string) => text;
   }
   switch (status) {
     case 'done':
       return chalk.green;
+    case 'skipped':
+      return chalk.gray;
     case 'ready':
       return chalk.yellow;
     case 'blocked':
@@ -102,11 +103,13 @@ export function getStatusColor(status: 'done' | 'ready' | 'blocked'): (text: str
 /**
  * Gets the status indicator for an artifact.
  */
-export function getStatusIndicator(status: 'done' | 'ready' | 'blocked'): string {
+export function getStatusIndicator(status: 'done' | 'skipped' | 'ready' | 'blocked'): string {
   const color = getStatusColor(status);
   switch (status) {
     case 'done':
       return color('[x]');
+    case 'skipped':
+      return color('[~]');
     case 'ready':
       return color('[ ]');
     case 'blocked':
@@ -135,6 +138,34 @@ export async function getAvailableChanges(
 }
 
 /**
+ * Validates a change name used to look up an existing change directory.
+ * Lookup accepts any directory name that `getAvailableChanges` could return
+ * (the kebab-case convention in `validateChangeName` applies at creation
+ * time only); it only rejects names that would escape the changes directory
+ * or address entries `getAvailableChanges` excludes (hidden dirs, archive).
+ *
+ * @returns An error message, or undefined if the name is safe to look up
+ */
+function validateChangeLookupName(changeName: string): string | undefined {
+  if (changeName === '.' || changeName === '..') {
+    return 'Change name cannot be a relative path segment';
+  }
+  if (changeName.includes('/') || changeName.includes('\\')) {
+    return 'Change name cannot contain path separators';
+  }
+  if (changeName.includes('\0')) {
+    return 'Change name cannot contain null characters';
+  }
+  if (changeName.startsWith('.')) {
+    return 'Change name cannot start with a dot';
+  }
+  if (changeName === 'archive') {
+    return "'archive' is reserved for archived changes";
+  }
+  return undefined;
+}
+
+/**
  * Validates that a change exists and returns available changes if not.
  * Checks directory existence directly to support scaffolded changes (without proposal.md).
  */
@@ -159,9 +190,9 @@ export async function validateChangeExists(
   }
 
   // Validate change name format to prevent path traversal
-  const nameValidation = validateChangeName(changeName);
-  if (!nameValidation.valid) {
-    throw new Error(`Invalid change name '${changeName}': ${nameValidation.error}`);
+  const lookupError = validateChangeLookupName(changeName);
+  if (lookupError) {
+    throw new Error(`Invalid change name '${changeName}': ${lookupError}`);
   }
 
   // Check directory existence directly

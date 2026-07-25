@@ -12,7 +12,6 @@ import { auggieAdapter } from './adapters/auggie.js';
 import { bobAdapter } from './adapters/bob.js';
 import { claudeAdapter } from './adapters/claude.js';
 import { clineAdapter } from './adapters/cline.js';
-import { codexAdapter } from './adapters/codex.js';
 import { devinAdapter } from './adapters/devin.js';
 import { codebuddyAdapter } from './adapters/codebuddy.js';
 import { continueAdapter } from './adapters/continue.js';
@@ -35,6 +34,7 @@ import { qwenAdapter } from './adapters/qwen.js';
 import { roocodeAdapter } from './adapters/roocode.js';
 import { traeAdapter } from './adapters/trae.js';
 import { windsurfAdapter } from './adapters/windsurf.js';
+import { zcodeAdapter } from './adapters/zcode.js';
 
 /**
  * Registry for looking up tool command adapters.
@@ -50,7 +50,6 @@ export class CommandAdapterRegistry {
     CommandAdapterRegistry.register(bobAdapter);
     CommandAdapterRegistry.register(claudeAdapter);
     CommandAdapterRegistry.register(clineAdapter);
-    CommandAdapterRegistry.register(codexAdapter);
     CommandAdapterRegistry.register(devinAdapter);
     CommandAdapterRegistry.register(codebuddyAdapter);
     CommandAdapterRegistry.register(continueAdapter);
@@ -73,6 +72,7 @@ export class CommandAdapterRegistry {
     CommandAdapterRegistry.register(roocodeAdapter);
     CommandAdapterRegistry.register(traeAdapter);
     CommandAdapterRegistry.register(windsurfAdapter);
+    CommandAdapterRegistry.register(zcodeAdapter);
   }
 
   /**

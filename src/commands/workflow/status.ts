@@ -123,20 +123,26 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
 
 export function printStatusText(status: ChangeStatus): void {
   const doneCount = status.artifacts.filter((a) => a.status === 'done').length;
-  const total = status.artifacts.length;
+  const skippedCount = status.artifacts.filter((a) => a.status === 'skipped').length;
+  const total = status.artifacts.length - skippedCount;
 
   console.log(`Change: ${status.changeName}`);
   console.log(`Schema: ${status.schemaName}`);
   if (status.changeRoot) {
     console.log(`Change root: ${status.changeRoot}`);
   }
-  console.log(`Progress: ${doneCount}/${total} artifacts complete`);
+  const skippedSuffix = skippedCount > 0 ? ` (${skippedCount} skipped)` : '';
+  console.log(`Progress: ${doneCount}/${total} artifacts complete${skippedSuffix}`);
   console.log();
 
   for (const artifact of status.artifacts) {
     const indicator = getStatusIndicator(artifact.status);
     const color = getStatusColor(artifact.status);
     let line = `${indicator} ${artifact.id}`;
+
+    if (artifact.status === 'skipped') {
+      line += color(' (skipped: change declares skip_specs)');
+    }
 
     if (artifact.status === 'blocked' && artifact.missingDeps && artifact.missingDeps.length > 0) {
       line += color(` (blocked by: ${artifact.missingDeps.join(', ')})`);

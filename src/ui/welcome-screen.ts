@@ -5,6 +5,7 @@
 
 import chalk from 'chalk';
 import { WELCOME_ANIMATION } from './ascii-patterns.js';
+import { getOnboardingCommands } from '../core/onboarding-commands.js';
 
 // Minimum terminal width for side-by-side layout
 const MIN_WIDTH = 60;
@@ -15,7 +16,19 @@ const ART_COLUMN_WIDTH = 24;
 /**
  * Welcome text content (right column)
  */
-function getWelcomeText(): string[] {
+function getWelcomeText(workflows: readonly string[]): string[] {
+  const onboardingCommands = getOnboardingCommands(workflows);
+  const quickStart: string[] = [];
+
+  if (onboardingCommands.length > 0) {
+    const commandWidth = Math.max(...onboardingCommands.map((c) => c.command.length));
+    quickStart.push(chalk.white('Quick start after setup:'));
+    for (const { command, description } of onboardingCommands) {
+      quickStart.push(`  ${chalk.yellow(command.padEnd(commandWidth + 1))} ${chalk.dim(description)}`);
+    }
+    quickStart.push('');
+  }
+
   return [
     chalk.white.bold('Welcome to OpenSpec'),
     chalk.dim('A lightweight spec-driven framework'),
@@ -24,11 +37,7 @@ function getWelcomeText(): string[] {
     chalk.dim('  • Agent Skills for AI tools'),
     chalk.dim('  • /opsx:* slash commands'),
     '',
-    chalk.white('Quick start after setup:'),
-    `  ${chalk.yellow('/opsx:new')}      ${chalk.dim('Create a change')}`,
-    `  ${chalk.yellow('/opsx:continue')} ${chalk.dim('Next artifact')}`,
-    `  ${chalk.yellow('/opsx:apply')}    ${chalk.dim('Implement tasks')}`,
-    '',
+    ...quickStart,
     chalk.cyan('Press Enter to select tools...'),
   ];
 }
@@ -77,49 +86,38 @@ function canAnimate(): boolean {
 /**
  * Wait for Enter key press
  */
-function waitForEnter(): Promise<void> {
-  return new Promise((resolve) => {
-    const { stdin } = process;
+async function waitForEnter(): Promise<void> {
+  if (!process.stdin.isTTY) {
+    return;
+  }
 
-    // Handle non-TTY gracefully
-    if (!stdin.isTTY) {
-      resolve();
-      return;
-    }
-
-    const wasRaw = stdin.isRaw;
-    stdin.setRawMode(true);
-    stdin.resume();
-
-    const onData = (data: Buffer): void => {
-      const char = data.toString();
-
-      // Enter key or Ctrl+C
-      if (char === '\r' || char === '\n' || char === '\u0003') {
-        stdin.removeListener('data', onData);
-        stdin.setRawMode(wasRaw);
-        stdin.pause();
-
-        // Handle Ctrl+C
-        if (char === '\u0003') {
-          process.stdout.write('\n');
-          process.exit(0);
-        }
-
-        resolve();
+  // Keep all interactive input on Inquirer's keypress lifecycle. Mixing a raw
+  // `data` listener between Inquirer prompts breaks arrow/space keys on Windows.
+  const { createPrompt, isEnterKey, useKeypress } = await import('@inquirer/core');
+  const prompt = createPrompt<void, Record<string, never>>((_config, done) => {
+    useKeypress((key) => {
+      if (key.ctrl && key.name === 'c') {
+        process.stdout.write('\n');
+        process.exit(0);
       }
-    };
 
-    stdin.on('data', onData);
+      if (isEnterKey(key)) {
+        done(undefined);
+      }
+    });
+
+    return '';
   });
+
+  await prompt({});
 }
 
 /**
  * Shows the animated welcome screen.
  * Returns when user presses Enter.
  */
-export async function showWelcomeScreen(): Promise<void> {
-  const textLines = getWelcomeText();
+export async function showWelcomeScreen(workflows: readonly string[]): Promise<void> {
+  const textLines = getWelcomeText(workflows);
 
   if (!canAnimate()) {
     // Fallback: show static welcome

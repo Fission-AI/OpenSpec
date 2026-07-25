@@ -33,19 +33,28 @@ directory and use these settings:
 | Root directory | `website` |
 | Build command | `pnpm run build` |
 | Build output directory | `out` |
-| Node version | `20.19.0` or higher (set `NODE_VERSION` if needed) |
+| Node version | `22` |
 
 Set one environment variable so social/Open Graph image URLs resolve to your real
 domain:
 
 | Variable | Example |
 |----------|---------|
-| `NEXT_PUBLIC_SITE_URL` | `https://your-docs-domain.com` |
+| `NEXT_PUBLIC_SITE_URL` | `https://openspec.dev` |
 
-That's it. No Workers, adapters, or server runtime are required. (If you later
-want server-side rendering on Cloudflare Workers instead, swap `output: 'export'`
-in `next.config.mjs` for the `@opennextjs/cloudflare` adapter — but the static
-path above is the simplest and is what this site is tuned for.)
+The site itself needs no server runtime. A small routing Worker exposes the
+separate Pages project at `openspec.dev/docs` while the Astro landing project
+continues to own the rest of `openspec.dev`. It also routes the supporting
+`/_next`, search, Open Graph, icon, and `llms` paths. Its source and Wrangler
+configuration live in `cloudflare/router/`.
+
+Cloudflare's Free plan cannot override the Host header or DNS origin in an
+Origin Rule, so the routing Worker proxies these paths to
+`openspec-docs.pages.dev` instead. Deploy routing changes from `website/` with:
+
+```bash
+npx wrangler deploy --config cloudflare/router/wrangler.jsonc
+```
 
 ### Deploy with Wrangler (optional)
 
@@ -78,61 +87,28 @@ then:
 - regenerates `content/docs/meta.json` and `content/docs/reference/meta.json`.
 
 Because the docs are the source, the site cannot drift from them: every build
-re-mirrors, and CI redeploys on a schedule (see below).
+re-mirrors them before producing the static export.
 
 ## Automated deploys
 
-`.github/workflows/deploy-docs.yml` rebuilds the mirror and deploys the static
-export to Cloudflare Pages via Wrangler:
-
-- on every push to `main` that touches `docs/**` or `website/**`,
-- daily on a schedule (so docs merged elsewhere still go live),
-- manually via the Actions tab,
-- and as a build-only check on pull requests (never deploys).
+The `openspec-docs` Cloudflare Pages project is connected directly to
+`Fission-AI/OpenSpec`. Cloudflare rebuilds and deploys `main` when `docs/**` or
+`website/**` changes, and creates preview deployments for pull requests.
 
 Once the site changes, that's it — a `docs/*.md` edit merged to `main` re-mirrors
 and redeploys with no manual step.
 
-### One-time deploy setup (maintainer)
+No GitHub Actions workflow, deployment secrets, or repository variables are
+required for the Git-connected Pages project. Cloudflare reports production and
+preview build statuses directly to GitHub.
 
-The workflow is ready, but auto-deploy stays dormant until these three are done.
-Until then, docs still mirror correctly on build — they just don't reach
-Cloudflare on their own.
+### Landing page
 
-1. **Create the Cloudflare Pages project** named `openspec-docs`, with its
-   production branch set to `main`. Once, via the dashboard or:
-
-   ```bash
-   npx wrangler pages project create openspec-docs --production-branch main
-   ```
-
-   (Non-interactive CI can't create it on the fly, so this must exist first.)
-
-2. **Add two repository secrets** (Settings → Secrets and variables → Actions):
-
-   | Secret | Where to get it |
-   |--------|-----------------|
-   | `CLOUDFLARE_API_TOKEN` | Cloudflare dashboard → My Profile → API Tokens → "Edit Cloudflare Pages" template |
-   | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare dashboard → Workers & Pages → Account ID |
-
-   Optional: set a repository **variable** `DOCS_SITE_URL` to the site's public URL
-   (used for Open Graph / sitemap absolute links). Without it, the build falls
-   back to `https://openspec.dev`, so this is not required.
-
-3. **Merge this to `main`.** GitHub Actions only runs the `push`-to-`main` and
-   scheduled triggers from workflows on the default branch, so the automation
-   activates when the PR merges.
-
-To smoke-test before merging: run the workflow by hand from the **Actions** tab
-(**workflow_dispatch**) once the project and secrets exist.
-
-### Landing page — a maintainer decision
-
-The current [openspec.dev](https://openspec.dev) landing page is a separate Astro
-site. This site ships its own Fumadocs landing page at `app/(home)/page.tsx`
-(the only hand-authored page here; everything under `/docs` is mirrored). Whether
-to keep this landing page, port the Astro one into it, or point Pages only at
-`/docs` is a maintainer call — nothing else in this pipeline depends on it.
+The current [openspec.dev](https://openspec.dev) landing page remains in the
+separate Astro project. The routing Worker sends only documentation-owned paths
+to this Pages project, so its Fumadocs landing page at `app/(home)/page.tsx` is
+built but is not served at the public root. The projects can be consolidated
+later without changing the mirrored documentation workflow.
 
 ## Project structure
 
@@ -152,6 +128,7 @@ website/
 │   ├── source.ts            # Fumadocs content source + sidebar icons
 │   └── layout.shared.tsx    # shared nav/header options
 ├── components/              # MDX components, search dialog, root provider
+├── cloudflare/router/        # Worker that mounts this site on openspec.dev/docs
 ├── next.config.mjs          # static export config
 └── source.config.ts         # Fumadocs MDX collection config
 ```

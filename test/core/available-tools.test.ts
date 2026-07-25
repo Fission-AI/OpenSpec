@@ -2,15 +2,13 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
-import { randomUUID } from 'crypto';
 import { getAvailableTools } from '../../src/core/available-tools.js';
 
 describe('available-tools', () => {
   let testDir: string;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
-    await fs.mkdir(testDir, { recursive: true });
+    testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-test-'));
   });
 
   afterEach(async () => {
@@ -153,6 +151,42 @@ describe('available-tools', () => {
       expect(toolValues).toContain('github-copilot');
     });
 
+    it('should detect Hermes Agent when HERMES.md exists', async () => {
+      await fs.writeFile(path.join(testDir, 'HERMES.md'), '');
+
+      const tools = getAvailableTools(testDir);
+      const hermesTool = tools.find((t) => t.value === 'hermes');
+
+      expect(hermesTool).toMatchObject({
+        name: 'Hermes Agent',
+        skillsDir: '.hermes',
+      });
+    });
+
+    it('should detect Hermes Agent when .hermes.md exists', async () => {
+      await fs.writeFile(path.join(testDir, '.hermes.md'), '');
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('hermes');
+    });
+
+    it('should detect Hermes Agent when .hermes directory exists', async () => {
+      await fs.mkdir(path.join(testDir, '.hermes'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('hermes');
+    });
+
+    it('should not detect Hermes Agent from plain CONTEXT.md', async () => {
+      await fs.writeFile(path.join(testDir, 'CONTEXT.md'), '');
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).not.toContain('hermes');
+    });
+
     it('should still use skillsDir detection for tools without detectionPaths', async () => {
       // Claude Code has no detectionPaths, so .claude/ directory should still work
       await fs.mkdir(path.join(testDir, '.claude'), { recursive: true });
@@ -175,6 +209,58 @@ describe('available-tools', () => {
       expect(vibeTool).toBeDefined();
       expect(vibeTool?.name).toBe('Mistral Vibe');
       expect(vibeTool?.skillsDir).toBe('.vibe');
+    });
+
+    it('should detect CodeArts when .codeartsdoer directory exists', async () => {
+      await fs.mkdir(path.join(testDir, '.codeartsdoer'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const codeArtsTool = tools.find((t) => t.value === 'codeartsagent');
+      expect(codeArtsTool).toMatchObject({
+        name: 'CodeArts',
+        value: 'codeartsagent',
+        available: true,
+        skillsDir: '.codeartsdoer',
+      });
+    });
+
+    it('should not detect CodeArts when .codeartsdoer directory does not exist', () => {
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).not.toContain('codeartsagent');
+    });
+
+    it('should detect ZCode when .zcode directory exists', async () => {
+      await fs.mkdir(path.join(testDir, '.zcode'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const zcode = tools.find((t) => t.value === 'zcode');
+      expect(zcode).toBeDefined();
+      expect(zcode?.name).toBe('ZCode');
+      expect(zcode?.skillsDir).toBe('.zcode');
+    });
+
+    it('should not detect ZCode from a bare .agents directory', async () => {
+      // .agents is a generic directory used by many agent frameworks; a bare
+      // .agents must not trigger ZCode detection (mirrors the Copilot bare-.github rule).
+      await fs.mkdir(path.join(testDir, '.agents'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((t) => t.value)).not.toContain('zcode');
+    });
+
+    it('should detect ZCode from .zcode even when .agents is also present', async () => {
+      // A co-located .agents must not suppress real ZCode detection via .zcode
+      await fs.mkdir(path.join(testDir, '.zcode'), { recursive: true });
+      await fs.mkdir(path.join(testDir, '.agents'), { recursive: true });
+
+      const zcodeTools = getAvailableTools(testDir).filter((t) => t.value === 'zcode');
+      expect(zcodeTools).toHaveLength(1);
+    });
+
+    it('should not detect ZCode when .zcode is absent', async () => {
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((t) => t.value)).not.toContain('zcode');
     });
 
     it('should detect Oh My Pi when .omp directory exists', async () => {

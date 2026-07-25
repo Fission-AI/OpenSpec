@@ -16,7 +16,7 @@
     "fumadocs-mdx": "^15.0.13",
     "fumadocs-ui": "^16.10.7",
     "lucide-react": "^1.22.0",
-    "next": "16.2.9",
+    "next": "16.2.11",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "zod": "^4.4.3"
@@ -31,5 +31,11 @@
     "serve": "^14.2.6",
     "tailwindcss": "^4.3.1",
     "typescript": "^6.0.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "postcss": "^8.5.22",
+      "sharp": "^0.35.3"
+    }
   }
 }

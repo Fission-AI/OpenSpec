@@ -1,6 +1,7 @@
 import ora from 'ora';
 import path from 'path';
 import { Validator } from '../core/validation/validator.js';
+import { VALIDATION_MESSAGES } from '../core/validation/constants.js';
 import {
   resolveRootForCommand,
   toRootOutput,
@@ -226,13 +227,29 @@ export class ValidateCommand {
         const prefix = issue.level === 'ERROR' ? '✗' : issue.level === 'WARNING' ? '⚠' : 'ℹ';
         console.error(`${prefix} [${label}] ${issue.path}: ${issue.message}`);
       }
-      this.printNextSteps(type, id, root);
+      this.printNextSteps(type, id, root, report.issues);
     }
   }
 
-  private printNextSteps(type: ItemType, id: string, root: ResolvedOpenSpecRoot): void {
+  private printNextSteps(type: ItemType, id: string, root: ResolvedOpenSpecRoot, issues: Array<{ message: string }> = []): void {
     const bullets: string[] = [];
-    if (type === 'change') {
+    // The delta-authoring bullets contradict a marker-related error ("add
+    // deltas" vs "remove skip_specs or the files"), so branch on the exact
+    // marker messages - the generic no-deltas guidance also mentions
+    // skip_specs, which must not trigger this.
+    const conflictIssue = issues.some(i =>
+      i.message.includes(VALIDATION_MESSAGES.CHANGE_SKIP_SPECS_CONFLICT)
+    );
+    const invalidMarkerIssue = issues.some(i =>
+      i.message.includes(VALIDATION_MESSAGES.CHANGE_SKIP_SPECS_INVALID_METADATA)
+    );
+    if (type === 'change' && conflictIssue) {
+      bullets.push('- This change declares skip_specs (no spec deltas): delete the files under specs/, or remove skip_specs from .openspec.yaml if requirements do change');
+      bullets.push('- skip_specs is only honored when .openspec.yaml is valid change metadata (schema: <name> naming a known schema is required)');
+    } else if (type === 'change' && invalidMarkerIssue) {
+      bullets.push('- Fix .openspec.yaml so the skip_specs marker can be honored (schema: <name> naming a known schema is required)');
+      bullets.push('- Or remove skip_specs from .openspec.yaml and add delta specs instead');
+    } else if (type === 'change') {
       bullets.push('- Ensure change has deltas in specs/: use headers ## ADDED/MODIFIED/REMOVED/RENAMED Requirements');
       bullets.push('- Each requirement MUST include at least one #### Scenario: block');
       bullets.push(`- Debug parsed deltas: ${withStoreFlag(root, `openspec show ${id} --json --deltas-only`)}`);

@@ -5,13 +5,95 @@
  * Called by both init and update commands before profile resolution.
  */
 
-import type { AIToolOption } from './config.js';
+import { AI_TOOLS, type AIToolOption } from './config.js';
 import { getGlobalConfig, getGlobalConfigPath, saveGlobalConfig, type Delivery } from './global-config.js';
 import { CommandAdapterRegistry } from './command-generation/index.js';
+import { resolveCommandSurfaceCapability, shouldGenerateCommandsForTool } from './command-surface.js';
 import { WORKFLOW_TO_SKILL_DIR } from './profile-sync-drift.js';
 import { ALL_WORKFLOWS } from './profiles.js';
+import { getSkillReferenceTransformer } from '../utils/command-references.js';
 import path from 'path';
 import * as fs from 'fs';
+
+/**
+ * Former skillsDir locations for tools whose directory was renamed.
+ * OpenSpec-managed skill directories left in these locations are migrated
+ * to the tool's current skillsDir; user files are never touched.
+ */
+export const LEGACY_SKILLS_DIRS: Record<string, string[]> = {
+  // Kimi CLI became Kimi Code and moved from .kimi to .kimi-code
+  kimi: ['.kimi'],
+};
+
+export interface LegacySkillsMigration {
+  toolId: string;
+  /** Legacy tool root, e.g. '.kimi' */
+  from: string;
+  /** Current tool root, e.g. '.kimi-code' */
+  to: string;
+  /** Number of skill directories moved or removed */
+  movedSkillDirs: number;
+}
+
+/**
+ * Moves OpenSpec-managed skill directories (openspec-*) from a tool's legacy
+ * skillsDir to its current one. When the destination already exists the legacy
+ * copy is removed instead. Legacy directories are deleted only when left empty,
+ * so user files under the old location are preserved.
+ */
+export function migrateLegacySkillDirs(projectPath: string): LegacySkillsMigration[] {
+  const migrations: LegacySkillsMigration[] = [];
+
+  for (const tool of AI_TOOLS) {
+    if (!tool.skillsDir) continue;
+
+    for (const legacyRoot of LEGACY_SKILLS_DIRS[tool.value] ?? []) {
+      if (legacyRoot === tool.skillsDir) continue;
+      const legacySkillsDir = path.join(projectPath, legacyRoot, 'skills');
+      if (!fs.existsSync(legacySkillsDir)) continue;
+      const currentSkillsDir = path.join(projectPath, tool.skillsDir, 'skills');
+      let movedSkillDirs = 0;
+
+      for (const workflowId of ALL_WORKFLOWS) {
+        const dirName = WORKFLOW_TO_SKILL_DIR[workflowId];
+        const source = path.join(legacySkillsDir, dirName);
+        if (!fs.existsSync(path.join(source, 'SKILL.md'))) continue;
+
+        try {
+          const destination = path.join(currentSkillsDir, dirName);
+          if (fs.existsSync(destination)) {
+            fs.rmSync(source, { recursive: true, force: true });
+          } else {
+            fs.mkdirSync(currentSkillsDir, { recursive: true });
+            fs.renameSync(source, destination);
+          }
+          movedSkillDirs++;
+        } catch {
+          // Leave the legacy directory in place if it cannot be moved
+        }
+      }
+
+      removeDirIfEmpty(legacySkillsDir);
+      removeDirIfEmpty(path.join(projectPath, legacyRoot));
+
+      if (movedSkillDirs > 0) {
+        migrations.push({ toolId: tool.value, from: legacyRoot, to: tool.skillsDir, movedSkillDirs });
+      }
+    }
+  }
+
+  return migrations;
+}
+
+function removeDirIfEmpty(dirPath: string): void {
+  try {
+    if (fs.readdirSync(dirPath).length === 0) {
+      fs.rmdirSync(dirPath);
+    }
+  } catch {
+    // Missing or non-empty directory — nothing to do
+  }
+}
 
 interface InstalledWorkflowArtifacts {
   workflows: string[];
@@ -127,5 +209,26 @@ export function migrateIfNeeded(projectPath: string, tools: AIToolOption[]): voi
   saveGlobalConfig(config);
 
   console.log(`Migrated: custom profile with ${installedWorkflows.length} workflows`);
-  console.log("New in this version: /opsx:propose. Try 'openspec config profile core' for the streamlined experience.");
+  // Each detected tool resolves to a propose reference for its surface:
+  // the shared /opsx:propose command form when commands will exist for it
+  // under the effective delivery, its documented skill invocation
+  // otherwise (skills-invocable codex has no slash surface and always
+  // gets the syntax-neutral form). When the tools disagree — including
+  // command tools mixed with skill-only tools — stay syntax-neutral
+  // rather than advertise a form that is wrong for one of them.
+  const effectiveDelivery: Delivery = config.delivery ?? 'both';
+  const proposeReferences = new Set(
+    tools.map((tool) => {
+      if (shouldGenerateCommandsForTool(tool.value, effectiveDelivery)) {
+        return '/opsx:propose';
+      }
+      if (resolveCommandSurfaceCapability(tool.value) === 'skills-invocable') {
+        return 'the openspec-propose skill';
+      }
+      return getSkillReferenceTransformer(tool.value)('/opsx:propose');
+    })
+  );
+  const proposeReference =
+    proposeReferences.size === 1 ? [...proposeReferences][0] : 'the openspec-propose skill';
+  console.log(`New in this version: ${proposeReference}. Try 'openspec config profile core' for the streamlined experience.`);
 }

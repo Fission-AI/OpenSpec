@@ -37,46 +37,46 @@ import {
 import { STORE_SELECTION_GUIDANCE } from '../../../src/core/templates/workflows/store-selection.js';
 
 const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
-  getExploreSkillTemplate: '7d2f54e74fffcb36aaaa4498a4a8b033142bb25945fb9b2de532354acbe76b9c',
+  getExploreSkillTemplate: 'a7eb6fabdc05a5b90a4773ba93320a60edffea88e9b27985668a2959dcec2e3d',
   getNewChangeSkillTemplate: '39663a6d2037e6697020393a66f6327506e3e3bc573b7a3556dcb7f9457dc51d',
-  getContinueChangeSkillTemplate: '1bb28875d6e5946ea2ec5f12e90f55d9784c2fa1f6e4c4e2d0eda53d861d4c75',
-  getApplyChangeSkillTemplate: '0f5a15fc7fb9ad6059a5643d0e01365d27642637a4aaebf182f9eabb45348197',
-  getFfChangeSkillTemplate: '9f4c12a1c58c723c9c45a139307eb90caf39cedd93c435bc960d0817328875e2',
-  getSyncSpecsSkillTemplate: '75abb20572256e2b8a647e77befae99f109ab5c4dc954a9c3c184829b5fcaa40',
-  getOnboardSkillTemplate: 'e871d8ce172bb805ae62a7611aee7a3154d89414f427ad5ef31721c903f13002',
-  getOpsxExploreCommandTemplate: '37e53590aae7ac6621d4393aa80a5b8af21881323887fa924ed329199fda27e0',
+  getContinueChangeSkillTemplate: '5cc6cf74c055ae67b08373421d934ece65dacbccafbc7452ab5636df3eb9e862',
+  getApplyChangeSkillTemplate: '3d52b852f3c5f87c3c88aeb4915c78604d97cc75d33aaac8f7e174d365b49971',
+  getFfChangeSkillTemplate: '097a9ff9533900f227cac0523289eae4e19f06a081e5f355a8374dbecf3ff55d',
+  getSyncSpecsSkillTemplate: '8a0e6a41250d9e5f893dd016c375ffb5773823693cb4e481ca74775bbfb9bfb9',
+  getOnboardSkillTemplate: 'f9988a9ef9ab7c09a16f64847902b2a082499f8a2d5c0533856cefb1d68f2318',
+  getOpsxExploreCommandTemplate: 'eef1f8b4fd90ade6d70be46f0f8c3e6722f221fed175a6f9cf626287ef504a94',
   getOpsxNewCommandTemplate: '57c600cce318d16b9b4308a18d0d983ea3c0673034e606a7cceec07b4c705e87',
-  getOpsxContinueCommandTemplate: '418108b417107a87019d4020b26c105792d2ef0110fe6920445e255889216716',
-  getOpsxApplyCommandTemplate: 'daeb507206707169de73c828e199648dde5732cbc17791ef2a027adffd028574',
-  getOpsxFfCommandTemplate: '36973ae0dd00ab169fbaaa42bf565f97e1bc97cf63ae7c07307734cc1ca8c1fd',
-  getArchiveChangeSkillTemplate: 'c511a1c943bcfc5f9f3833b8c0ff284b22d34864a08f5f553cec471ee485d38f',
-  getBulkArchiveChangeSkillTemplate: '0f635913757ae3d1609e111f4a8f699443ca47cbaaf8a1b21eb652f7b96a1d13',
-  getOpsxSyncCommandTemplate: '86cf706886d0f18069e2cfa16948b7357028fd348210efb58588c88c416d8622',
-  getVerifyChangeSkillTemplate: 'd718c79aad649223a73fdb11036c93fb3842ac5a780f4934d50bfa03c9692683',
-  getOpsxArchiveCommandTemplate: '6985bddb310cb45b6b50350bfcebe31bf67146135ca0084c94930920280970a4',
-  getOpsxOnboardCommandTemplate: '0673f34a0f81fd173bcfb8c3ac83e2b1c617f7b7564e24e5298d3bd5665a05a9',
-  getOpsxBulkArchiveCommandTemplate: '9f444fc7b27a5b788077b5e3aa4f61af45aa8c8004ac8d899d204fa362ff89b7',
-  getOpsxVerifyCommandTemplate: '011509480a20a60342c993906f0f9280c0e9ba5d019d335bdc1ef4d53213a5a8',
-  getOpsxProposeSkillTemplate: '8dfb5e9c719d5ba547aff0d3953c076dca6b33d7223be98cbffc396b8f1e0048',
-  getOpsxProposeCommandTemplate: '7cd569beb32d99cdabd0b49615a8245160a8e152b6ea67a99fc4dd71e3f39f50',
+  getOpsxContinueCommandTemplate: '5c3968174001c20737ba39d2473ecec0f3b76591a80f7e2fc3974904d3da9dcd',
+  getOpsxApplyCommandTemplate: '147408d7085b468981a400cc725804252c3fd84e519c57c5f6f83562e32606ee',
+  getOpsxFfCommandTemplate: '264b514cc4849f91fb4414f639484c4181f1e5850d0d788ef276c851efa92859',
+  getArchiveChangeSkillTemplate: '206a22b6778e97c30da9145ef51fdad449b8c995538f6fc25752ef551a37b675',
+  getBulkArchiveChangeSkillTemplate: '2b74b1f73380ff32e35f580734780d843c6161a2748c39edb07f1e00453771b4',
+  getOpsxSyncCommandTemplate: 'df0240a79f7b4943a54c7413ab088ee48f5bf5fe19f9347c170d695c8ec777a4',
+  getVerifyChangeSkillTemplate: 'cab4db01b5d2b1243d63d90c53747d8b39e488c60f76eba3fe8b994467f69267',
+  getOpsxArchiveCommandTemplate: '7dea65d0e2e17db366bb666ba6ae5e205ea02707b8c5c7707565200875c78916',
+  getOpsxOnboardCommandTemplate: '16a68b8c9819e2a7bab013c3b49a3e49ea258b68c4e7f47f0d598e30815e0a80',
+  getOpsxBulkArchiveCommandTemplate: 'da7be1a7318f15b915f5aae8eb638797a8a24a31e5fc7fc0a2bad01bba137686',
+  getOpsxVerifyCommandTemplate: 'f01c0c0cef53be0956de52363d955d4ace131b1b2d77adf902f35fead9a1486d',
+  getOpsxProposeSkillTemplate: '57fb556a060e2eb246b500922837af7573a6e100a6ed7dfaa7bd4ce0f5daffd3',
+  getOpsxProposeCommandTemplate: '434cae3ee20835725bb1d2ccb9698310a850c5b95ed669ea15fc7a0125371c59',
   getFeedbackSkillTemplate: 'd7d83c5f7fc2b92fe8f4588a5bf2d9cb315e4c73ec19bcd5ef28270906319a0d',
-  getUpdateChangeSkillTemplate: 'fe2e8edaf973d42dc7fc7dfd846105c4c3cfec0437606e582ec644985cd4e81d',
-  getOpsxUpdateCommandTemplate: 'e55ac5774203a7d9037d2d588889c97c53f3f930da49497cc79e865375920da7',
+  getUpdateChangeSkillTemplate: 'd885847ea1af48a2ef41a08f6319888d058d50b81cf5511bda768cd4b59359ee',
+  getOpsxUpdateCommandTemplate: 'cf43a6bdcdc549180970ddde40893223493a55e171a39290731e0339df530975',
 };
 
 const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
-  'openspec-explore': 'ba099821631ce75ee70af370917bbddbc88d0882ad0e50e91ed687d2185102ef',
+  'openspec-explore': 'c8de6033b2c78009647647c65a504e4ada1a3bdcee31aed38a4bf7d629513f6e',
   'openspec-new-change': 'd5b8909bea70a33b7a312b38ce204a91f40b6bb2bff12c4c06b3e11641b6a689',
-  'openspec-continue-change': '39b4467a4873cde7c97d52c80d53ac647b220bf7c9d96f4e6505f3188e1a1642',
-  'openspec-apply-change': '09c0e1cdf5ccc82416d0969d6bd715cc70616bdbc3531358a5c36057f78be55a',
-  'openspec-ff-change': '8d5a8890eccbd97d714fbab1d73472f79ad9104b519e000264ae43d752cdf631',
-  'openspec-sync-specs': 'f6a1581eb11a30061795c42582db6fa4f5e1f213b4b7cad9f3cbfbe3e9fb2d97',
-  'openspec-archive-change': '1821aee5a06afd895d59d1e1d16495e484b6087ecf59ec93460d7d5e7851e772',
-  'openspec-bulk-archive-change': '7b09b04a440809dd7dbf0b1d7b695cbb8c41184d8d104eb32e82d7cdfb476d18',
-  'openspec-verify-change': '9a8735eaaa34c278d2193eb32fa736f4b111d1c47e675971c8df40f81d20c8c3',
-  'openspec-onboard': 'b1b6fc9a1b3ff64dafe9b8c39a761ee1bd001b542d47b4e4deaf058e0aa21256',
-  'openspec-propose': '0cfc9278123d973929cb4da3ea7ac8ae1b6c84b472eed4fb753657b8347eaeb9',
-  'openspec-update-change': '77ff4d1f1cd08a57649cce1f25e0ebc4f55d6d032dfde5c301d1b479561b72fa',
+  'openspec-continue-change': '02ec4de061ad6277866b877497a1e66142ba364e12b83dd7dedb838579ea88db',
+  'openspec-apply-change': '2f7a8e7a7528d9f8d89b508a8cbc909ba47bdff473db19317008d156b9ba5893',
+  'openspec-ff-change': 'ff3bd3eac427a1e50071ad7c70f73b556cffa3db43e90da2726e96849c3fc886',
+  'openspec-sync-specs': '74de778dd8a8fd4987a09621147358cc32505bb58110492ab2b4ffe7f35aa48f',
+  'openspec-archive-change': '64b1611dd7aee04ca268820d1b193e8bf0a39ff3672ec6ba21fb0a1bcb1786c2',
+  'openspec-bulk-archive-change': '49d410bda408c0411decd584be9c2355335e3b3db760fc6a0adcd82c172a280f',
+  'openspec-verify-change': '57693d22940f06080c6cf8d590ac2f48240d4a5e9ce7074dacd0f8d3c9945afa',
+  'openspec-onboard': '1d581c12d4928d751eb79de099e275dabe9c99fc15dc1f502abebd99ad7cb7d2',
+  'openspec-propose': '4638400113946f4f1ee9f0bd0e965aafb200bd89b64ec7f5406ef5e948e8e218',
+  'openspec-update-change': '4e6669540bc5332b72db7dd432625cc4b45234ae7674f9b46fcd1309b9697b0d',
 };
 
 // Intentionally excludes getFeedbackSkillTemplate: this list only models templates
@@ -164,6 +164,16 @@ describe('skill templates split parity', () => {
     expect(actualHashes).toEqual(EXPECTED_GENERATED_SKILL_CONTENT_HASHES);
   });
 
+  // The assertion above only compares the skills this file already lists, so a
+  // workflow added to getSkillTemplates() but never pinned here would ship with
+  // no golden hash and nothing would fail. Pin the registry itself.
+  it('pins every skill the production registry deploys', () => {
+    const pinned = GENERATED_SKILL_FACTORIES.map(([dirName]) => dirName).sort();
+    const deployed = getSkillTemplates().map(({ dirName }) => dirName).sort();
+
+    expect(pinned, 'add the new skill to GENERATED_SKILL_FACTORIES and EXPECTED_GENERATED_SKILL_CONTENT_HASHES').toEqual(deployed);
+  });
+
   // Iterating the production registries (not a local list) means a newly
   // added workflow is covered automatically; the full-constant containment
   // check fails if any template's interpolation drifts.
@@ -207,6 +217,139 @@ describe('skill templates split parity', () => {
       const content = generateSkillContent(createTemplate(), 'PARITY-BASELINE');
       expect(content, dirName).not.toContain('workspace-planning');
       expect(content, dirName).not.toContain('Workspace guard');
+    }
+  });
+
+  it('gates the archive on a completed spec sync (#1393)', () => {
+    const generatedSkill = generateSkillContent(getArchiveChangeSkillTemplate(), 'PARITY-BASELINE');
+    const commandContent = getOpsxArchiveCommandTemplate().content;
+
+    const variants: Array<[string, string]> = [
+      ['skill', generatedSkill],
+      ['opsx command', commandContent],
+    ];
+
+    for (const [variant, content] of variants) {
+      // The sync must run inline: delegating it to a background task lets step 5
+      // move changeRoot out from under a sync that is still reading it.
+      expect(content, variant).toContain('run the `openspec-sync-specs` workflow inline');
+      expect(content, variant).toContain('Do not delegate it to a background task');
+      expect(content, variant).toContain('Never archive while a spec sync is still in flight');
+
+      // Verification must follow delta semantics. Asserting presence alone would
+      // read a correct REMOVED-only sync as a failure, and would pass a no-op
+      // sync for a MODIFIED-only delta (those requirements already exist).
+      expect(content, variant).toContain('MODIFIED requirements carrying the scenario and description changes');
+      expect(content, variant).toContain('REMOVED requirements gone');
+      expect(content, variant).toContain('RENAMED requirements present under the new name and absent under the old one');
+
+      // Verification is bound to the delta specs on disk, not to whatever the
+      // sync reports it touched — a silently skipped capability must not escape.
+      expect(content, variant).toContain('not only the ones the sync reports it touched');
+    }
+  });
+
+  // The archive instructions must mirror `openspec archive`'s date-prefix
+  // rule (#1316): a change already named with a `YYYY-MM-DD-` prefix keeps
+  // its name, so archived names never stack dates. Guard the caveat, the
+  // literal `mv` target, and the success-summary examples an agent would
+  // copy verbatim (#1317).
+  it('never instructs stacking a date prefix on an already-dated change (#1317)', () => {
+    const archiveInstructions: Array<[string, string]> = [
+      ['openspec-archive-change', getArchiveChangeSkillTemplate().instructions],
+      ['openspec-bulk-archive-change', getBulkArchiveChangeSkillTemplate().instructions],
+      ['openspec-onboard', getOnboardSkillTemplate().instructions],
+      ['opsx-archive', getOpsxArchiveCommandTemplate().content],
+      ['opsx-bulk-archive', getOpsxBulkArchiveCommandTemplate().content],
+      ['opsx-onboard', getOpsxOnboardCommandTemplate().content],
+    ];
+
+    for (const [id, text] of archiveInstructions) {
+      expect(text, id).toContain('already starts with a `YYYY-MM-DD-` prefix');
+
+      // Every archive path an agent reproduces must name the derived target,
+      // never a hardcoded date.
+      expect(text, id).toContain('<target-name>');
+
+      // Discriminator: a `YYYY-MM-DD-` after a path separator belongs to a
+      // literal archive path the agent copies verbatim. The rule statements
+      // only name the prefix, never place it in a path, so they stay legal.
+      expect(text, id).not.toMatch(/\/YYYY-MM-DD-/);
+    }
+  });
+
+  // Covers both archive paths, not just the bulk one the fix targeted: the
+  // single-change routing has been correct since #1357 (current wording from
+  // #1394) but was never pinned, so a stale branch could silently reopen the
+  // bug #1381 actually reported.
+  it('honors Cancel at every archive confirmation (#1381)', () => {
+    const variants: Array<[string, string]> = [
+      ['bulk skill', generateSkillContent(getBulkArchiveChangeSkillTemplate(), 'PARITY-BASELINE')],
+      ['bulk opsx command', getOpsxBulkArchiveCommandTemplate().content],
+      ['single skill', generateSkillContent(getArchiveChangeSkillTemplate(), 'PARITY-BASELINE')],
+      ['single opsx command', getOpsxArchiveCommandTemplate().content],
+    ];
+
+    for (const [variant, content] of variants) {
+      // Offering "Cancel" without routing it let an agent fall straight through
+      // to the archive step and move the changes anyway.
+      expect(content, variant).toContain('"Cancel" — stop, do not archive');
+
+      // An unrecognized answer must re-prompt; archiving is never the default.
+      expect(content, variant).toContain('Anything else — ask again rather than archiving');
+    }
+  });
+
+  // The bulk confirmation labels are written by the agent and carry an `N`
+  // placeholder, so routing must match intent — matching the literal labels
+  // would send every legitimate answer down the "ask again" path forever.
+  it('routes the bulk archive confirmation by intent, not by literal label (#1381)', () => {
+    const variants: Array<[string, string]> = [
+      ['bulk skill', generateSkillContent(getBulkArchiveChangeSkillTemplate(), 'PARITY-BASELINE')],
+      ['bulk opsx command', getOpsxBulkArchiveCommandTemplate().content],
+    ];
+
+    for (const [variant, content] of variants) {
+      expect(content, variant).toContain('Route on the answer by intent, not by exact label');
+
+      // The ready-only route has to name where "ready" is decided, or the agent
+      // cannot tell which subset to archive.
+      expect(content, variant).toContain('the changes the step 6 table marks');
+
+      // A cancelled batch must archive nothing, reinforced where agents skim.
+      expect(content, variant).toContain(
+        'Never archive after the user cancels the confirmation'
+      );
+    }
+  });
+
+  it('makes the schema instruction field authoritative for artifact creation (#777)', () => {
+    const variants: Array<[string, string]> = [
+      ['propose skill', generateSkillContent(getOpsxProposeSkillTemplate(), 'PARITY-BASELINE')],
+      ['propose command', getOpsxProposeCommandTemplate().content],
+      ['continue skill', generateSkillContent(getContinueChangeSkillTemplate(), 'PARITY-BASELINE')],
+      ['continue command', getOpsxContinueCommandTemplate().content],
+      ['ff skill', generateSkillContent(getFfChangeSkillTemplate(), 'PARITY-BASELINE')],
+      ['ff command', getOpsxFfCommandTemplate().content],
+    ];
+
+    for (const [variant, content] of variants) {
+      // The instruction field wins even for familiar artifact names: the old
+      // hard-coded "Common artifact patterns" shortcut is what let agents
+      // ignore custom schemas that reuse proposal.md/tasks.md file names.
+      expect(content, variant).toContain('the authoritative guidance');
+      expect(content, variant).not.toContain('Common artifact patterns');
+
+      // Delegated creation is honored at the creation step itself, and the
+      // delegated skill's output is verified rather than assumed.
+      expect(content, variant).toContain(
+        'If the `instruction` field delegates creation to a specific skill or command, invoke it to produce the artifact instead of writing the file yourself, then verify the artifact file exists at `resolvedOutputPath`'
+      );
+
+      // ...and restated in the artifact-creation guidelines.
+      expect(content, variant).toContain(
+        'If the `instruction` field directs you to use a specific skill or command to create the artifact, invoke it instead of writing the artifact directly'
+      );
     }
   });
 });

@@ -1,5 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { execFileSync } from 'node:child_process';
 import { detectShell, SupportedShell } from '../../src/utils/shell-detection.js';
+
+vi.mock('node:child_process', () => ({
+  execFileSync: vi.fn(),
+}));
+
+const mockedExecFileSync = vi.mocked(execFileSync);
 
 describe('shell-detection', () => {
   let originalShell: string | undefined;
@@ -18,6 +25,11 @@ describe('shell-detection', () => {
     delete process.env.SHELL;
     delete process.env.PSModulePath;
     delete process.env.COMSPEC;
+
+    // Default: parent process is not a shell (e.g. the test runner), so
+    // detection falls through to environment-based logic.
+    mockedExecFileSync.mockReset();
+    mockedExecFileSync.mockReturnValue('node\n');
   });
 
   afterEach(() => {
@@ -173,6 +185,68 @@ describe('shell-detection', () => {
       const result = detectShell();
       expect(result.shell).toBeUndefined();
       expect(result.detected).toBeUndefined();
+    });
+  });
+
+  describe('parent process detection', () => {
+    // Parent-process detection is POSIX-only, so pin the platform to make
+    // these tests exercise the `ps` path even when CI runs on Windows.
+    beforeEach(() => {
+      Object.defineProperty(process, 'platform', { value: 'linux' });
+    });
+
+    it('should detect fish from the parent process even when SHELL is bash', () => {
+      // Reproduces #1197: fish user whose login shell ($SHELL) is bash.
+      process.env.SHELL = '/bin/bash';
+      mockedExecFileSync.mockReturnValue('fish\n');
+      const result = detectShell();
+      expect(result.shell).toBe('fish');
+      expect(result.detected).toBe('fish');
+    });
+
+    it('should handle full-path comm output from macOS ps', () => {
+      process.env.SHELL = '/bin/bash';
+      mockedExecFileSync.mockReturnValue('/opt/homebrew/bin/fish\n');
+      const result = detectShell();
+      expect(result.shell).toBe('fish');
+    });
+
+    it('should detect a login shell reported with a leading dash', () => {
+      process.env.SHELL = '/bin/bash';
+      mockedExecFileSync.mockReturnValue('-zsh\n');
+      const result = detectShell();
+      expect(result.shell).toBe('zsh');
+    });
+
+    it('should fall back to SHELL when the parent process is not a shell', () => {
+      process.env.SHELL = '/usr/bin/fish';
+      mockedExecFileSync.mockReturnValue('node\n');
+      const result = detectShell();
+      expect(result.shell).toBe('fish');
+    });
+
+    it('should not mistake shell-named tools like fish-lsp for the shell', () => {
+      process.env.SHELL = '/bin/zsh';
+      mockedExecFileSync.mockReturnValue('fish-lsp\n');
+      const result = detectShell();
+      expect(result.shell).toBe('zsh');
+    });
+
+    it('should fall back to SHELL when reading the parent process fails', () => {
+      process.env.SHELL = '/bin/zsh';
+      mockedExecFileSync.mockImplementation(() => {
+        throw new Error('ps unavailable');
+      });
+      const result = detectShell();
+      expect(result.shell).toBe('zsh');
+    });
+
+    it('should not shell out to ps on Windows', () => {
+      Object.defineProperty(process, 'platform', { value: 'win32' });
+      process.env.PSModulePath = 'C:\\Program Files\\PowerShell\\Modules';
+      const result = detectShell();
+      expect(result.shell).toBe('powershell');
+      expect(mockedExecFileSync).not.toHaveBeenCalled();
     });
   });
 

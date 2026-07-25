@@ -1,3 +1,5 @@
+import { buildCodeFenceMask } from './code-fence.js';
+
 const REQUIREMENTS_SECTION_HEADER = /^##\s+Requirements\s*$/i;
 const TOP_LEVEL_SECTION_HEADER = /^##\s+/;
 const DELTA_HEADER = /^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements\s*$/i;
@@ -75,43 +77,6 @@ export function findMainSpecStructureIssues(content: string): MainSpecStructureI
 
 export function stripFencedCodeBlocksPreservingLines(content: string): string {
   const lines = content.split('\n');
-  const output: string[] = [];
-  let activeFence: { marker: '`' | '~'; length: number } | null = null;
-
-  for (const line of lines) {
-    const fenceMatch = line.match(/^\s*(`{3,}|~{3,})(.*)$/);
-
-    if (!activeFence) {
-      if (fenceMatch) {
-        activeFence = {
-          marker: fenceMatch[1][0] as '`' | '~',
-          length: fenceMatch[1].length,
-        };
-        output.push('');
-      } else {
-        output.push(line);
-      }
-      continue;
-    }
-
-    output.push('');
-
-    if (isClosingFence(line, activeFence)) {
-      activeFence = null;
-    }
-  }
-
-  return output.join('\n');
-}
-
-function isClosingFence(
-  line: string,
-  activeFence: { marker: '`' | '~'; length: number }
-): boolean {
-  const fenceMatch = line.match(/^\s*(`{3,}|~{3,})\s*$/);
-  return Boolean(
-    fenceMatch &&
-    fenceMatch[1][0] === activeFence.marker &&
-    fenceMatch[1].length >= activeFence.length
-  );
+  const mask = buildCodeFenceMask(lines);
+  return lines.map((line, i) => (mask[i] ? '' : line)).join('\n');
 }
