@@ -35,9 +35,9 @@ ${STORE_SELECTION_GUIDANCE}
    Parse the JSON to understand:
    - \`schemaName\`: The workflow being used
    - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context
-   - \`artifacts\`: List of artifacts with their status (\`done\` or other)
+   - \`artifacts\`: List of artifacts with their status (\`done\`, \`skipped\`, or other)
 
-   **If any artifacts are not \`done\`:**
+   **If any artifacts are neither \`done\` nor \`skipped\`** (skipped artifacts satisfy the requirement - the change declares skip_specs):
    - Display warning listing incomplete artifacts
    - Use **AskUserQuestion tool** to confirm user wants to proceed
    - Proceed if user confirms
@@ -168,9 +168,9 @@ ${STORE_SELECTION_GUIDANCE}
    Parse the JSON to understand:
    - \`schemaName\`: The workflow being used
    - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context
-   - \`artifacts\`: List of artifacts with their status (\`done\` or other)
+   - \`artifacts\`: List of artifacts with their status (\`done\`, \`skipped\`, or other)
 
-   **If any artifacts are not \`done\`:**
+   **If any artifacts are neither \`done\` nor \`skipped\`** (skipped artifacts satisfy the requirement - the change declares skip_specs):
    - Display warning listing incomplete artifacts
    - Prompt user for confirmation to continue
    - Proceed if user confirms

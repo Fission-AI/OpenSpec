@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as yaml from 'yaml';
 import { ChangeMetadataSchema, type ChangeMetadata } from '../core/change-metadata/index.js';
-import { listSchemas } from '../core/artifact-graph/resolver.js';
+import { listSchemas, resolveSchema } from '../core/artifact-graph/resolver.js';
 import { readProjectConfig } from '../core/project-config.js';
 
 export const METADATA_FILENAME = '.openspec.yaml';
@@ -195,4 +195,108 @@ export function resolveSchemaForChange(
 
   // 4. Default
   return 'spec-driven';
+}
+
+export interface SkipSpecsMarker {
+  /**
+   * True when the metadata parses under ChangeMetadataSchema, sets
+   * skip_specs: true, and names a schema that loads.
+   */
+  declared: boolean;
+  /**
+   * Set when the marker cannot be honored: skip_specs appears in a file that
+   * fails the metadata contract, or the metadata file exists but cannot be
+   * read at all (so whether the marker is set cannot even be determined).
+   */
+  invalidReason?: string;
+}
+
+/**
+ * Non-throwing read of the skip_specs marker. The marker only counts when the
+ * metadata would load for status/instructions: the file parses under
+ * ChangeMetadataSchema, its schema name passes readChangeMetadata's
+ * listSchemas membership check, AND the schema itself loads via resolveSchema
+ * (a schema.yaml that exists but does not parse fails status just the same).
+ * Validate and archive must never honor metadata the rest of the CLI rejects,
+ * in either direction. The project root for schema resolution is derived from
+ * changeDir exactly like resolveSchemaForChange (changeDir is
+ * <root>/openspec/changes/<name> for every root type, including store roots).
+ * Missing metadata means "not declared"; a marker that cannot be honored
+ * yields invalidReason so callers can say why.
+ */
+export function readSkipSpecsMarker(changeDir: string): SkipSpecsMarker {
+  let raw: string;
+  try {
+    raw = fs.readFileSync(path.join(changeDir, METADATA_FILENAME), 'utf-8');
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') {
+      return { declared: false };
+    }
+    // The file exists but cannot be read (EACCES, EISDIR, ...). Status and
+    // instructions reject the change outright here, and whether a marker is
+    // set cannot be determined - fail closed rather than let archive treat
+    // the change as unmarked while every metadata-reading surface errors.
+    const message =
+      err instanceof Error ? err.message : String(err);
+    return {
+      declared: false,
+      invalidReason: `the metadata file cannot be read (${message})`,
+    };
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = yaml.parse(raw);
+  } catch {
+    // Anchored so a comment like "# maybe add skip_specs later" does not
+    // claim the marker was set.
+    return /^\s*(['"]?)skip_specs\1\s*:/m.test(raw)
+      ? { declared: false, invalidReason: 'the file is not valid YAML' }
+      : { declared: false };
+  }
+
+  const result = ChangeMetadataSchema.safeParse(parsed);
+  if (result.success) {
+    if (result.data.skip_specs !== true) {
+      return { declared: false };
+    }
+    // Schema loading is checked only when the marker is set: a broken schema
+    // on an ordinary change is status's problem to report, but honoring a
+    // marker that status rejects would let validate/archive pass what the
+    // rest of the CLI refuses to load. The membership check mirrors
+    // readChangeMetadata (which rejects names like 'spec-driven.yaml' that
+    // resolveSchema alone would normalize and accept); resolveSchema then
+    // proves the schema actually parses. Any failure fails closed.
+    try {
+      const projectRoot = path.resolve(changeDir, '../../..');
+      if (!listSchemas(projectRoot).includes(result.data.schema)) {
+        return {
+          declared: false,
+          invalidReason: `schema: unknown schema '${result.data.schema}'`,
+        };
+      }
+      resolveSchema(result.data.schema, projectRoot);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { declared: false, invalidReason: message };
+    }
+    return { declared: true };
+  }
+
+  // Key presence, not value: skip_specs: "yes" must surface as unhonorable,
+  // not vanish while the zero-delta guidance tells the user to set the very
+  // marker they set. An explicit skip_specs: false is the opposite of setting
+  // the marker, so it must not drag unrelated metadata problems into
+  // validate - the change simply is not marked.
+  const markerMentioned =
+    typeof parsed === 'object' &&
+    parsed !== null &&
+    'skip_specs' in parsed &&
+    (parsed as Record<string, unknown>).skip_specs !== false;
+  if (markerMentioned) {
+    const first = result.error.issues[0];
+    const where = first.path.length > 0 ? `${first.path.join('.')}: ` : '';
+    return { declared: false, invalidReason: `${where}${first.message}` };
+  }
+  return { declared: false };
 }

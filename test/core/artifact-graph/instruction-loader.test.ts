@@ -122,6 +122,81 @@ describe('instruction-loader', () => {
 
       expect(context.schemaName).toBe('spec-driven');
     });
+
+    it('should mark specs complete when metadata declares skip_specs', () => {
+      const changeDir = path.join(tempDir, 'openspec', 'changes', 'my-change');
+      fs.mkdirSync(changeDir, { recursive: true });
+      fs.writeFileSync(path.join(changeDir, 'proposal.md'), '# Proposal');
+      fs.writeFileSync(
+        path.join(changeDir, '.openspec.yaml'),
+        'schema: spec-driven\nskip_specs: true\n'
+      );
+
+      const context = loadChangeContext(tempDir, 'my-change');
+
+      expect(context.completed.has('specs')).toBe(true);
+      expect(context.skippedArtifacts?.has('specs')).toBe(true);
+      // Only specs-producing artifacts are synthesized; the rest still
+      // depend on their files existing.
+      expect(context.completed.has('tasks')).toBe(false);
+      expect(context.completed.has('design')).toBe(false);
+
+      // Status must render the synthesized completion as skipped, not done.
+      const status = formatChangeStatus(context);
+      const specsStatus = status.artifacts.find((a) => a.id === 'specs');
+      expect(specsStatus?.status).toBe('skipped');
+      const proposalStatus = status.artifacts.find((a) => a.id === 'proposal');
+      expect(proposalStatus?.status).toBe('done');
+
+      // Instructions for the skipped artifact carry the marker so agents are
+      // warned instead of told to create conflicting spec files.
+      expect(generateInstructions(context, 'specs').skipped).toBe(true);
+      expect(generateInstructions(context, 'design').skipped).toBeUndefined();
+    });
+
+    it('should skip artifacts whose generates path carries a ./ prefix', () => {
+      // './specs/...' globs identically to 'specs/...' everywhere else, so
+      // the skip set must normalize before its prefix test.
+      const changeDir = path.join(tempDir, 'openspec', 'changes', 'my-change');
+      fs.mkdirSync(changeDir, { recursive: true });
+      fs.writeFileSync(path.join(changeDir, 'proposal.md'), '# Proposal');
+      const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'dot-specs');
+      fs.mkdirSync(schemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(schemaDir, 'schema.yaml'),
+        [
+          'name: dot-specs',
+          'version: 1',
+          'description: schema writing generates with a ./ prefix',
+          'artifacts:',
+          '  - id: specs',
+          '    generates: "./specs/**/*.md"',
+          '    description: delta specs',
+          '    template: specs.md',
+          '    requires: []',
+        ].join('\n')
+      );
+      fs.writeFileSync(
+        path.join(changeDir, '.openspec.yaml'),
+        'schema: dot-specs\nskip_specs: true\n'
+      );
+
+      const context = loadChangeContext(tempDir, 'my-change');
+
+      expect(context.completed.has('specs')).toBe(true);
+      expect(context.skippedArtifacts?.has('specs')).toBe(true);
+    });
+
+    it('should not mark specs complete without skip_specs', () => {
+      const changeDir = path.join(tempDir, 'openspec', 'changes', 'my-change');
+      fs.mkdirSync(changeDir, { recursive: true });
+      fs.writeFileSync(path.join(changeDir, 'proposal.md'), '# Proposal');
+      fs.writeFileSync(path.join(changeDir, '.openspec.yaml'), 'schema: spec-driven\n');
+
+      const context = loadChangeContext(tempDir, 'my-change');
+
+      expect(context.completed.has('specs')).toBe(false);
+    });
   });
 
   describe('generateInstructions', () => {

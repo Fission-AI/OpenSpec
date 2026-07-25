@@ -549,10 +549,23 @@ describe('FeedbackCommand', () => {
         // Expected to exit
       }
 
-      // Verify URL is shown
-      const urlCall = consoleLogSpy.mock.calls.find((call: any[]) =>
-        call[0]?.includes('https://github.com/Fission-AI/OpenSpec/issues/new')
-      );
+      // Verify URL is shown. Match on the parsed origin and path rather than a
+      // substring, so a lookalike host in the output cannot satisfy the check.
+      const urlCall = consoleLogSpy.mock.calls.find((call: any[]) => {
+        const found = /https?:\/\/\S+/.exec(String(call[0] ?? ''));
+        if (!found) {
+          return false;
+        }
+        try {
+          const parsed = new URL(found[0]);
+          return (
+            parsed.origin === 'https://github.com' &&
+            parsed.pathname === '/Fission-AI/OpenSpec/issues/new'
+          );
+        } catch {
+          return false;
+        }
+      });
       expect(urlCall).toBeDefined();
 
       // Verify URL has proper parameters

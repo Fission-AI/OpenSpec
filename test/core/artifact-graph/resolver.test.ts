@@ -19,8 +19,7 @@ describe('artifact-graph/resolver', () => {
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(() => {
-    tempDir = path.join(os.tmpdir(), `openspec-resolver-test-${Date.now()}`);
-    fs.mkdirSync(tempDir, { recursive: true });
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-resolver-test-'));
     originalEnv = { ...process.env };
   });
 

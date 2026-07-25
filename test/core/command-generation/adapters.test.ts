@@ -544,6 +544,19 @@ describe('command-generation/adapters', () => {
       });
       expect(output).toContain('description: "Review: plan & apply \\"changes\\""');
     });
+
+    it('should transform colon command references to hyphen format', () => {
+      // Qwen commands are invoked by filename (/opsx-<id>), like bob/opencode.
+      const contentWithRefs: CommandContent = {
+        ...sampleContent,
+        body: 'Run /opsx:apply to implement. Then use /opsx:archive.',
+      };
+      const output = qwenAdapter.formatFile(contentWithRefs);
+      expect(output).toContain('/opsx-apply');
+      expect(output).toContain('/opsx-archive');
+      expect(output).not.toContain('/opsx:apply');
+      expect(output).not.toContain('/opsx:archive');
+    });
   });
 
   describe('piAdapter', () => {

@@ -3,6 +3,7 @@ import { FileSystemUtils } from './file-system.js';
 import { writeChangeMetadata, validateSchemaName } from './change-metadata.js';
 import { formatLocalDate } from './date.js';
 import { readProjectConfig } from '../core/project-config.js';
+import { isKebabId } from '../core/id.js';
 import type { ChangeMetadata } from '../core/change-metadata/index.js';
 
 const DEFAULT_SCHEMA = 'spec-driven';
@@ -42,29 +43,31 @@ export interface ValidationResult {
 /**
  * Validates that a change name follows kebab-case conventions.
  *
- * Valid names:
- * - Start with a lowercase letter
+ * Uses OpenSpec's shared kebab-id grammar (the same one store ids and change
+ * metadata ids use), so a change name may:
+ * - Start with a lowercase letter or a digit
  * - Contain only lowercase letters, numbers, and hyphens
- * - Do not start or end with a hyphen
- * - Do not contain consecutive hyphens
+ * - Not start or end with a hyphen
+ * - Not contain consecutive hyphens
+ *
+ * A leading digit is allowed so ordering conventions like `100-add-feature` or
+ * `00001-add-auth` work; archive already treats such prefixes as a supported
+ * convention (see ARCHIVE_DATE_PREFIX_PATTERN).
  *
  * @param name - The change name to validate
  * @returns Validation result with `valid: true` or `valid: false` with an error message
  *
  * @example
  * validateChangeName('add-auth') // { valid: true }
+ * validateChangeName('100-add-feature') // { valid: true }
  * validateChangeName('Add-Auth') // { valid: false, error: '...' }
  */
 export function validateChangeName(name: string): ValidationResult {
-  // Pattern: starts with lowercase letter, followed by lowercase letters/numbers,
-  // optionally followed by hyphen + lowercase letters/numbers (repeatable)
-  const kebabCasePattern = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
-
   if (!name) {
     return { valid: false, error: 'Change name cannot be empty' };
   }
 
-  if (!kebabCasePattern.test(name)) {
+  if (!isKebabId(name)) {
     // Provide specific error messages for common mistakes
     if (/[A-Z]/.test(name)) {
       return { valid: false, error: 'Change name must be lowercase (use kebab-case)' };
@@ -86,9 +89,6 @@ export function validateChangeName(name: string): ValidationResult {
     }
     if (/[^a-z0-9-]/.test(name)) {
       return { valid: false, error: 'Change name can only contain lowercase letters, numbers, and hyphens' };
-    }
-    if (/^[0-9]/.test(name)) {
-      return { valid: false, error: 'Change name must start with a letter' };
     }
 
     return { valid: false, error: 'Change name must follow kebab-case convention (e.g., add-auth, refactor-db)' };

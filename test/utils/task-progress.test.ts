@@ -36,7 +36,7 @@ describe('getTaskProgressForChange (#1202 tracked-tasks resolution)', () => {
   ].join('\n');
 
   beforeEach(async () => {
-    projectRoot = path.join(os.tmpdir(), `openspec-taskprogress-${Date.now()}-${Math.round(performance.now())}`);
+    projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-taskprogress-'));
     changesDir = path.join(projectRoot, 'openspec', 'changes');
     await fs.mkdir(changesDir, { recursive: true });
   });

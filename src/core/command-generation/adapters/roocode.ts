@@ -1,15 +1,15 @@
 /**
- * RooCode Command Adapter
+ * Zoo Code Command Adapter
  *
- * Formats commands for RooCode following its workflow specification.
- * RooCode uses markdown headers instead of YAML frontmatter.
+ * Formats commands for Zoo Code following its workflow specification.
+ * Zoo Code uses markdown headers instead of YAML frontmatter.
  */
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
 
 /**
- * RooCode adapter for command generation.
+ * Zoo Code adapter for command generation.
  * File path: .roo/commands/opsx-<id>.md
  * Format: Markdown header with description
  */

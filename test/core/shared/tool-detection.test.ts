@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
-import { randomUUID } from 'crypto';
 import {
   SKILL_NAMES,
   getToolsWithSkillsDir,
@@ -18,8 +17,7 @@ describe('tool-detection', () => {
   let testDir: string;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
-    await fs.mkdir(testDir, { recursive: true });
+    testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-test-'));
   });
 
   afterEach(async () => {

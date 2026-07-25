@@ -39,7 +39,7 @@ ${STORE_SELECTION_GUIDANCE}
    \`\`\`
    Parse the JSON to understand current state. The response includes:
    - \`schemaName\`: The workflow schema being used (e.g., "spec-driven")
-   - \`artifacts\`: Array of artifacts with their status ("done", "ready", "blocked")
+   - \`artifacts\`: Array of artifacts with their status ("done", "skipped", "ready", "blocked")
    - \`isComplete\`: Boolean indicating if all artifacts are complete
    - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context. Use these instead of assuming repo-local paths.
 
@@ -84,7 +84,8 @@ After each invocation, show:
 - Edit only the concrete files in \`existingOutputPaths\`; never write to a glob \`resolvedOutputPath\`.
 - Do not advance the build frontier: no new artifacts, no new files under glob artifacts - that is \`/opsx:continue\`'s job.
 - Confirm every edit with the user before writing.
-- If the request changes the change's *intent* rather than refining it, recommend starting fresh with \`/opsx:new\` (the "Update vs. Start Fresh" heuristic).`,
+- If the request changes the change's *intent* rather than refining it, recommend starting fresh with \`/opsx:new\` (the "Update vs. Start Fresh" heuristic).
+- \`/opsx:continue\` and \`/opsx:new\` may not be installed (core profile). When suggesting one that is unavailable, point to the CLI instead: \`openspec status --change "<name>" --json\` shows the next artifact and \`openspec instructions <artifact-id> --change "<name>" --json\` explains how to create it.`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
@@ -125,7 +126,7 @@ ${STORE_SELECTION_GUIDANCE}
    \`\`\`
    Parse the JSON to understand current state. The response includes:
    - \`schemaName\`: The workflow schema being used (e.g., "spec-driven")
-   - \`artifacts\`: Array of artifacts with their status ("done", "ready", "blocked")
+   - \`artifacts\`: Array of artifacts with their status ("done", "skipped", "ready", "blocked")
    - \`isComplete\`: Boolean indicating if all artifacts are complete
    - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context. Use these instead of assuming repo-local paths.
 
@@ -170,6 +171,7 @@ After each invocation, show:
 - Edit only the concrete files in \`existingOutputPaths\`; never write to a glob \`resolvedOutputPath\`.
 - Do not advance the build frontier: no new artifacts, no new files under glob artifacts - that is \`/opsx:continue\`'s job.
 - Confirm every edit with the user before writing.
-- If the request changes the change's *intent* rather than refining it, recommend starting fresh with \`/opsx:new\` (the "Update vs. Start Fresh" heuristic).`
+- If the request changes the change's *intent* rather than refining it, recommend starting fresh with \`/opsx:new\` (the "Update vs. Start Fresh" heuristic).
+- \`/opsx:continue\` and \`/opsx:new\` may not be installed (core profile). When suggesting one that is unavailable, point to the CLI instead: \`openspec status --change "<name>" --json\` shows the next artifact and \`openspec instructions <artifact-id> --change "<name>" --json\` explains how to create it.`
   };
 }
