@@ -14,7 +14,7 @@ This change adds a small runtime contract for apply and archive without changing
 - Fetch current project context and matching operation guidance whenever apply or archive instructions are requested.
 - Return context and operation guidance as separate structured fields.
 - Make the single-change and bulk archive skills consume current inputs at execution time.
-- Carry current artifact rules into archive-driven and standalone spec sync whenever the sync creates or updates that artifact.
+- Carry current `specs` artifact rules into archive-driven and standalone spec sync whenever concrete delta specs are merged into main specs.
 - Preserve existing artifact rules, skill steps, user prompts, and CLI behavior.
 - Keep config parsing resilient so malformed operation config does not invalidate unrelated fields.
 
@@ -26,6 +26,7 @@ This change adds a small runtime contract for apply and archive without changing
 - Add new enforceable archive checks or configurable operation checks.
 - Make natural-language operation guidance a security or validation boundary.
 - Change the structure or meaning of artifact `rules`.
+- Generalize semantic spec sync to arbitrary artifact IDs or infer delta specs from non-`specs` artifacts.
 
 ## Decisions
 
@@ -120,19 +121,24 @@ openspec instructions archive --change "<name>" --json
 
 It uses returned context as project background and archive guidance as optional advice. Built-in archive steps, explicit user choices, target paths, and command flags are not replaced or inferred from guidance.
 
-The bulk archive skill makes the same call once for the selected root, using one selected change to establish context, and applies the returned inputs across that batch. It does not change the existing bulk conflict analysis or archive orchestration.
+A successful response may omit both optional fields, which means no archive operation inputs are configured. If the command exits non-zero or does not return valid archive-instruction JSON, the single-change skill reports the error and stops before inspecting or writing specs or moving the change. A failed lookup is never treated as an empty successful response.
 
-Before archive-driven or standalone semantic sync writes a main spec, the workflow resolves the artifact that owns each concrete delta spec:
+The bulk archive skill makes the same call once for the selected root, using one selected change to establish context, and applies the returned inputs across that batch. If this lookup exits non-zero or returns invalid archive-instruction JSON, the skill reports the error and stops the batch before inspecting or writing specs or moving any change. It does not change the existing bulk conflict analysis or archive orchestration.
 
-1. Start with the concrete delta spec paths already discovered by the existing sync assessment.
-2. Use the same change's `openspec status --change "<name>" --json` result and compare each concrete delta path with every `artifactPaths.<id>.existingOutputPaths` entry.
-3. Require each delta path to match exactly one artifact ID. Group delta paths by that owning artifact ID.
-4. If a path has no owner or multiple owners, report the ambiguous path and stop before writing any main spec.
-5. For each unique owner, call `openspec instructions "<artifact-id>" --change "<name>" --json` with the same selected root. Apply only its returned artifact rules to main specs produced from that owner's delta paths.
+Semantic spec sync keeps its existing artifact contract. The concrete delta spec paths are exactly `artifactPaths.specs.existingOutputPaths` from the selected change's status output. If `artifactPaths.specs` is absent or its concrete output list is empty, that change has no delta specs for this workflow: archive continues without a spec-sync prompt, standalone sync reports that there is nothing to sync, and neither workflow infers delta specs from other artifacts.
 
-The comparison uses the concrete paths from one status snapshot rather than a literal artifact ID such as `specs`. For bulk archive, ownership resolution and instruction lookup run per change, so custom and mixed-schema batches use each change's schema and selected root.
+When concrete `specs` outputs exist and a write-producing sync will run:
 
-The single and bulk archive skills fetch these artifact-instruction snapshots immediately before invoking inline semantic sync and pass the owner-to-rules mapping into that workflow. The sync skill accepts the supplied snapshot without re-fetching it. When the sync skill is invoked directly, with no archive-supplied snapshot, it performs the same status-based ownership resolution and instruction lookup itself. This gives both archive and standalone sync current artifact rules without two reads during one inline sync.
+1. Use the same selected change and planning root that supplied the status result.
+2. Call `openspec instructions specs --change "<name>" --json` once immediately before the semantic merge.
+3. Apply only its returned artifact rules to the main specs produced by that merge.
+4. Keep those rules separate from archive operation guidance and unrelated workflow steps.
+
+A valid artifact-instruction response that omits `rules` means that no `specs` rules are configured and the existing semantic merge continues. A non-zero exit or a response that is not valid artifact-instruction JSON is a lookup failure, not an empty rule set. Single-change archive and standalone sync report that error and stop before modifying any main spec; archive also stops before moving the change.
+
+The single-change archive skill fetches this specs-instruction snapshot after sync has been selected and immediately before invoking inline semantic sync. The bulk archive skill resolves every required specs-instruction snapshot after its sync decisions but before the first main-spec write; if any lookup fails, it reports the affected change and stops the whole batch before writing any main spec or moving any change. Archive passes each successful specs-rule snapshot into the inline sync workflow, which reuses it without fetching the same instructions again. When the sync skill is invoked directly, with no archive-supplied snapshot, it fetches current `specs` instructions itself.
+
+For a mixed-schema batch, this decision is made independently for each change. A change whose resolved schema exposes concrete `artifactPaths.specs.existingOutputPaths` participates in spec sync and receives that change's current `specs` rules. A change whose schema has no `specs` artifact, such as a research/design/plan workflow, has no spec sync and continues through the existing archive path.
 
 Artifact rules are not returned from the archive operation-input surface, relabeled as archive guidance, or applied to unrelated archive steps.
 
@@ -152,8 +158,9 @@ Existing checks continue to run wherever the current CLI already owns them. Skil
 - **Archive runtime input is mistaken for archive execution** -> Command naming, JSON fields, docs, and tests state that the instruction surface is read-only and performs no archive mutation.
 - **Bulk archive spans an unexpected root** -> The skill resolves the batch root first and fetches inputs once for that root; cross-root batching remains outside the current behavior.
 - **Artifact rules are mistaken for archive guidance** -> Fetch them only when writing their artifact, keep them out of `operationGuidance`, and test that they do not affect unrelated archive steps.
-- **A delta spec has no unique owning artifact** -> Resolve ownership from concrete status paths and stop before writing if a path matches zero or multiple artifact entries.
-- **Archive and inline sync fetch different rule snapshots** -> Archive fetches once and inline sync reuses the supplied owner-to-rules mapping; only standalone sync performs its own lookup.
+- **A custom schema has no `specs` artifact** -> Treat it as having no semantic spec-sync input; do not infer delta specs from unrelated artifacts.
+- **Archive and inline sync fetch different rule snapshots** -> Archive fetches once and inline sync reuses the supplied specs-rule snapshot; only standalone sync performs its own lookup.
+- **A failed instruction lookup is mistaken for absent optional input** -> Require a successful, valid JSON response before continuing; archive-input failures stop before spec inspection or change moves, and specs-instruction failures stop before main-spec writes or change moves.
 
 ## Implementation Plan
 
@@ -161,7 +168,7 @@ Existing checks continue to run wherever the current CLI already owns them. Skil
 2. Add the shared runtime-input loader using the root command's single parsed config snapshot.
 3. Extend apply instruction JSON and text output.
 4. Add archive instruction JSON and text output without changing archive execution.
-5. Update single-change archive, bulk archive, and standalone sync templates to resolve owning artifacts and carry current artifact rules into semantic spec sync without duplicate inline fetches.
+5. Update single-change archive, bulk archive, and standalone sync templates to fetch current `specs` rules when concrete delta specs exist and reuse the same snapshot during inline sync.
 6. Update generated config help, documentation, template parity fixtures, and end-to-end coverage.
 
 Rollback is a code revert. The config field is additive, and no archive filesystem format or durable project state changes in this change.

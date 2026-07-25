@@ -17,6 +17,13 @@ The `/opsx:archive` skill SHALL request current archive operation inputs after r
 - **WHEN** archive instruction output omits context and operation guidance
 - **THEN** the skill continues with its existing archive workflow
 
+#### Scenario: Archive instruction lookup fails
+
+- **WHEN** `openspec instructions archive --change "<name>" --json` exits non-zero or does not return valid archive-instruction JSON
+- **THEN** the skill reports the instruction lookup error
+- **AND** stops before inspecting or writing specs or moving the change
+- **AND** does not treat the failed lookup as absent context or operation guidance
+
 #### Scenario: Archive context or guidance conflicts with the workflow
 
 - **WHEN** returned context or operation guidance conflicts with a built-in archive step, explicit user choice, resolved path, or command contract
@@ -41,32 +48,46 @@ The `/opsx:archive` skill SHALL keep its existing completion checks, task checks
 
 ### Requirement: Carry artifact rules into archive-driven spec sync
 
-The `/opsx:archive` skill SHALL fetch current artifact instructions before archive-driven spec sync writes an artifact and SHALL use the returned artifact rules only to constrain that artifact.
+The `/opsx:archive` skill SHALL fetch current `specs` artifact instructions before archive-driven spec sync writes main specs and SHALL use the returned artifact rules only to constrain those specs.
 
-#### Scenario: Resolve the artifact that owns each delta spec
+#### Scenario: Archive discovers delta specs from the specs artifact
 
-- **WHEN** archive has discovered concrete delta spec paths for a selected change
-- **THEN** the skill matches each path against `artifactPaths.<id>.existingOutputPaths` from that change's status output
-- **AND** requires each delta path to match exactly one owning artifact ID
-- **AND** groups delta paths by owner instead of assuming the owner ID is `specs`
+- **WHEN** archive assesses delta specs for a selected change
+- **THEN** it uses `artifactPaths.specs.existingOutputPaths` from that change's status output as the complete delta-spec input
+- **AND** does not infer delta specs from other artifacts
 
-#### Scenario: Delta spec ownership is missing or ambiguous
+#### Scenario: Schema or change has no specs outputs
 
-- **WHEN** a concrete delta spec path matches zero or multiple artifact IDs
-- **THEN** the skill reports the path and candidate owners
-- **AND** stops before writing any main spec or moving the change
+- **WHEN** `artifactPaths.specs` is absent or its `existingOutputPaths` list is empty
+- **THEN** archive continues without a spec-sync prompt
+- **AND** does not request `specs` artifact instructions
 
-#### Scenario: Archive sync writes a spec artifact
+#### Scenario: Archive sync writes main specs
 
-- **WHEN** delta specs exist and the user chooses to sync them during archive
-- **THEN** the skill requests current instructions once for each owning artifact ID, using the selected change and planning root
+- **WHEN** `artifactPaths.specs.existingOutputPaths` contains delta specs
+- **AND** the user chooses to sync them during archive
+- **THEN** the skill requests `openspec instructions specs --change "<name>" --json` once using the selected change and planning root
 - **AND** applies the returned artifact rules while semantically merging the delta into the main spec
 - **AND** keeps artifact rules separate from archive `operationGuidance`
-- **AND** passes the owner-to-rules snapshot to the inline sync workflow so that workflow does not fetch the same instructions again
+- **AND** passes the specs-rule snapshot to the inline sync workflow so that workflow does not fetch the same instructions again
+
+#### Scenario: Specs instruction lookup fails
+
+- **WHEN** delta specs exist and the user chooses to sync them during archive
+- **AND** `openspec instructions specs --change "<name>" --json` exits non-zero or does not return valid artifact-instruction JSON
+- **THEN** the skill reports the instruction lookup error
+- **AND** stops before modifying any main spec or moving the change
+- **AND** does not treat the failed lookup as an absent artifact rule set
+
+#### Scenario: User archives without syncing
+
+- **WHEN** delta specs exist and the user explicitly chooses archive without syncing
+- **THEN** the skill does not request `specs` artifact instructions for a merge
+- **AND** the existing archive-without-sync path continues
 
 #### Scenario: Artifact rules are absent
 
-- **WHEN** archive-driven spec sync receives no artifact rules for the artifact being written
+- **WHEN** archive-driven spec sync receives no rules from `specs` artifact instructions
 - **THEN** the existing semantic merge behavior continues unchanged
 
 #### Scenario: Artifact rules contain operation-like advice

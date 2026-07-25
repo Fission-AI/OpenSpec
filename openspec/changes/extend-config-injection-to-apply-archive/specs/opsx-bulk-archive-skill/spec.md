@@ -15,6 +15,13 @@ The `/opsx:bulk-archive` skill SHALL request current archive operation inputs on
 - **WHEN** archive instruction output omits context and operation guidance
 - **THEN** the skill continues with its existing bulk archive behavior
 
+#### Scenario: Batch archive instruction lookup fails
+
+- **WHEN** `openspec instructions archive --change "<selected-change>" --json` exits non-zero or does not return valid archive-instruction JSON
+- **THEN** the skill reports the instruction lookup error
+- **AND** stops the batch before inspecting or writing specs or moving any change
+- **AND** does not treat the failed lookup as absent context or operation guidance
+
 #### Scenario: Context or guidance conflicts with batch behavior
 
 - **WHEN** context or operation guidance conflicts with built-in conflict analysis, explicit user choices, resolved paths, or command contracts
@@ -25,28 +32,35 @@ The `/opsx:bulk-archive` skill SHALL request current archive operation inputs on
 
 ### Requirement: Carry artifact rules into each batch spec sync
 
-The `/opsx:bulk-archive` skill SHALL fetch current artifact instructions for each selected change before its delta specs are merged and SHALL use the returned artifact rules only for the artifact being written.
+The `/opsx:bulk-archive` skill SHALL fetch current `specs` artifact instructions for each selected change with concrete delta specs and SHALL use the returned artifact rules only for main specs written by that change's merge.
 
-#### Scenario: Resolve owning artifacts per change
+#### Scenario: Discover specs inputs per change
 
-- **WHEN** bulk archive has discovered concrete delta spec paths for a selected change
-- **THEN** it matches each path against that change's `artifactPaths.<id>.existingOutputPaths`
-- **AND** requires exactly one owning artifact ID per delta path
-- **AND** groups paths by owner without assuming a literal `specs` artifact ID
+- **WHEN** bulk archive assesses delta specs for a selected change
+- **THEN** it uses that change's `artifactPaths.specs.existingOutputPaths` as the complete delta-spec input
+- **AND** does not infer delta specs from other artifacts
 
 #### Scenario: Selected changes use different schemas
 
-- **WHEN** a batch contains changes whose delta-spec artifacts resolve under different schemas
-- **THEN** the skill resolves owners and requests artifact instructions separately for each change using that change's selected root and schema
-- **AND** applies each returned rule set only to artifacts produced from that change
-- **AND** passes each change's owner-to-rules snapshot to its inline sync workflow without a duplicate instruction fetch
+- **WHEN** a batch contains changes using different schemas
+- **THEN** the skill evaluates `artifactPaths.specs.existingOutputPaths` separately for each change
+- **AND** requests `specs` artifact instructions once for each change whose list contains delta specs, using that change and selected root
+- **AND** obtains every required specs-instruction snapshot before the first main-spec write
+- **AND** applies each returned rule set only to main specs produced from that change
+- **AND** passes each change's specs-rule snapshot to its inline sync workflow without a duplicate instruction fetch
 
-#### Scenario: A batch change has ambiguous ownership
+#### Scenario: A batch specs instruction lookup fails
 
-- **WHEN** a delta path for one selected change matches zero or multiple artifact IDs
-- **THEN** that change is not ready to sync or archive
-- **AND** no main spec is written for that change
-- **AND** the batch report identifies the path and candidate owners before confirmation
+- **WHEN** a required `openspec instructions specs --change "<name>" --json` lookup exits non-zero or does not return valid artifact-instruction JSON
+- **THEN** the skill reports the affected change and instruction lookup error
+- **AND** stops the whole batch before writing any main spec or moving any change
+- **AND** does not treat the failed lookup as an absent artifact rule set
+
+#### Scenario: A batch change has no specs outputs
+
+- **WHEN** a selected change has no `artifactPaths.specs` entry or its `existingOutputPaths` list is empty
+- **THEN** no spec sync or `specs` instruction lookup is performed for that change
+- **AND** the change continues through the existing batch archive flow
 
 #### Scenario: Batch artifact rules remain separate from archive guidance
 
@@ -57,5 +71,5 @@ The `/opsx:bulk-archive` skill SHALL fetch current artifact instructions for eac
 
 #### Scenario: Batch has no artifact rules
 
-- **WHEN** artifact instructions return no rules for a synced artifact
+- **WHEN** `specs` artifact instructions return no rules for a selected change
 - **THEN** the existing batch conflict resolution and semantic merge behavior continue unchanged

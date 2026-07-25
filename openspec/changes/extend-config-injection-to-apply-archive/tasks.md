@@ -29,20 +29,20 @@
 
 ## 5. Archive and Sync Skill Consumption
 
-- [ ] 5.1 Update the single-change archive skill and command templates to fetch current archive inputs after resolving the selected change and root
-- [ ] 5.2 In archive, bulk archive, and standalone sync templates, resolve each concrete delta path to exactly one owning artifact by matching against `artifactPaths.<id>.existingOutputPaths`; group by owner and stop before writes on zero or multiple matches
-- [ ] 5.3 Before archive-driven spec sync writes an artifact, fetch current instructions once per owning artifact for the selected change/root, apply its rules only to that owner's semantic merge, and pass the owner-to-rules snapshot into inline sync
-- [ ] 5.4 Update the standalone sync skill and command templates to perform the same owner resolution and instruction lookup when invoked directly, while reusing an archive-supplied snapshot without re-fetching
-- [ ] 5.5 Update the bulk archive skill and command templates to fetch archive inputs once per selected root, then resolve owners and fetch artifact instructions per change so custom and mixed-schema batches use the correct rules
+- [ ] 5.1 Update the single-change archive skill and command templates to fetch current archive inputs after resolving the selected change and root; on a non-zero or invalid JSON response, report the error and stop before inspecting or writing specs or moving the change
+- [ ] 5.2 Keep `artifactPaths.specs.existingOutputPaths` as the only delta-spec source in archive, bulk archive, and standalone sync templates; treat a missing `specs` entry or empty output list as no spec sync and do not infer deltas from other artifacts
+- [ ] 5.3 After archive-driven spec sync is selected and before it writes a main spec, fetch `openspec instructions specs` once for the selected change/root, apply its rules to the semantic merge, and pass the specs-rule snapshot into inline sync; on a non-zero or invalid JSON response, report the error and stop before any main-spec write or change move
+- [ ] 5.4 Update the standalone sync skill and command templates to fetch current `specs` instructions when invoked directly, while reusing an archive-supplied specs-rule snapshot without re-fetching; direct lookup failure reports the error and stops before writing a main spec
+- [ ] 5.5 Update the bulk archive skill and command templates to fetch archive inputs once per selected root, stopping before spec inspection or change moves on lookup failure, then obtain all required `specs` instruction snapshots before the first main-spec write; if any required lookup fails, report the affected change and stop the whole batch before spec writes or change moves, while changes without concrete `artifactPaths.specs` outputs continue without spec sync
 - [ ] 5.6 Make archive and bulk conflict scenarios treat both context and operation guidance as advisory inputs, symmetric with apply
 - [ ] 5.7 State in archive, bulk archive, and sync templates that operation guidance is advisory, artifact rules constrain only the artifact being written, existing CLI checks and contracts are unchanged, and input text is not copied verbatim into output files
 - [ ] 5.8 Preserve existing single-change and bulk archive orchestration, prompts, semantic merge ownership, filesystem operations, and summaries
-- [ ] 5.9 Add tests for unique, missing, and ambiguous owners; absent and present artifact rules; selected roots; direct and inline sync; snapshot reuse; mixed-schema batches; field separation; unchanged CLI checks; and non-copying of rule text
+- [ ] 5.9 Add tests for present, missing, and empty `artifactPaths.specs`; absent and present `specs` rules; selected roots; direct and inline sync; snapshot reuse; non-zero and invalid JSON archive/specs instruction responses; failure-vs-absent-input separation; no-write/no-move failure behavior including whole-batch atomicity; mixed-schema batches with and without `specs`; no inference from unrelated artifacts; field separation; unchanged CLI checks; and non-copying of rule text
 - [ ] 5.10 Regenerate checked-in archive, bulk archive, and sync skills and update affected template/golden hashes
 
 ## 6. Documentation and Verification
 
-- [ ] 6.1 Document `operations.apply.guidance`, `operations.archive.guidance`, runtime freshness, selected-root behavior, advisory semantics, owning-artifact resolution, artifact rules travelling with archive- or sync-produced specs, and the read-only archive instruction command
+- [ ] 6.1 Document `operations.apply.guidance`, `operations.archive.guidance`, runtime freshness, selected-root behavior, advisory semantics, fail-closed archive/specs instruction consumption, `artifactPaths.specs` as the spec-sync contract, `specs` rules travelling with archive- or sync-produced main specs, and the read-only archive instruction command
 - [ ] 6.2 Document that archive execution phases, semantic merge ownership, direct archive CLI behavior, and artifact-rule configuration/output remain unchanged by this change
 - [ ] 6.3 Run formatting, type checking, build, targeted config/apply/archive/template tests, and the full test suite
 - [ ] 6.4 Run `openspec validate extend-config-injection-to-apply-archive --strict` and reconcile every task with the final implementation diff

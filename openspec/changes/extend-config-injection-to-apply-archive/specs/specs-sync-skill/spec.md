@@ -2,35 +2,41 @@
 
 ### Requirement: Carry artifact rules into standalone spec sync
 
-The `/opsx:sync` skill SHALL resolve the artifact that owns each delta spec and SHALL apply that artifact's current rules before writing a main spec.
+The `/opsx:sync` skill SHALL use the selected change's concrete `specs` artifact outputs as its delta-spec input and SHALL apply current `specs` artifact rules before writing a main spec.
 
-#### Scenario: Resolve owning artifacts from concrete status paths
+#### Scenario: Discover delta specs from status
 
-- **WHEN** standalone sync discovers concrete delta spec paths for a selected change
-- **THEN** it matches each path against `artifactPaths.<id>.existingOutputPaths` from that change's status output
-- **AND** requires each path to match exactly one owning artifact ID
-- **AND** groups delta paths by owner instead of assuming the owner ID is `specs`
+- **WHEN** standalone sync assesses a selected change
+- **THEN** it uses `artifactPaths.specs.existingOutputPaths` from that change's status output as the complete delta-spec input
+- **AND** does not infer delta specs from other artifacts
 
 #### Scenario: Standalone sync fetches current artifact rules
 
-- **WHEN** standalone sync is ready to merge one or more delta groups
-- **THEN** it requests current instructions once for each owning artifact ID using the selected change and planning root
-- **AND** applies only the returned artifact rules to main specs produced from that owner's delta paths
+- **WHEN** `artifactPaths.specs.existingOutputPaths` contains one or more delta specs
+- **THEN** standalone sync requests `openspec instructions specs --change "<name>" --json` once using the selected change and planning root
+- **AND** applies only the returned artifact rules to main specs produced from those delta paths
 - **AND** keeps artifact rules separate from operation guidance and unrelated workflow steps
 
-#### Scenario: Owning artifact is missing or ambiguous
+#### Scenario: Specs instruction lookup fails
 
-- **WHEN** a concrete delta spec path matches zero or multiple artifact IDs
-- **THEN** the skill reports the path and candidate owners
+- **WHEN** `openspec instructions specs --change "<name>" --json` exits non-zero or does not return valid artifact-instruction JSON
+- **THEN** standalone sync reports the instruction lookup error
 - **AND** stops before writing any main spec
+- **AND** does not treat the failed lookup as an absent artifact rule set
+
+#### Scenario: Schema or change has no specs outputs
+
+- **WHEN** `artifactPaths.specs` is absent or its `existingOutputPaths` list is empty
+- **THEN** standalone sync reports that there are no delta specs to sync
+- **AND** does not request artifact instructions or write a main spec
 
 #### Scenario: Archive supplies an artifact-rule snapshot
 
-- **WHEN** the sync workflow is invoked inline by archive with an owner-to-rules snapshot from current artifact instructions
+- **WHEN** the sync workflow is invoked inline by archive with a specs-rule snapshot from current artifact instructions
 - **THEN** it reuses that supplied snapshot
-- **AND** does not fetch the same artifact instructions again
+- **AND** does not fetch `specs` artifact instructions again
 
 #### Scenario: Artifact rules are absent
 
-- **WHEN** current instructions contain no rules for an owning artifact
-- **THEN** the existing semantic merge behavior continues unchanged for that artifact
+- **WHEN** current `specs` instructions contain no rules
+- **THEN** the existing semantic merge behavior continues unchanged
