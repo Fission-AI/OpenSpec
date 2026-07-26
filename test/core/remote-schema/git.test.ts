@@ -119,6 +119,27 @@ describe('fetchSchemaBundleFromGit', () => {
     expect(result.resolvedCommit).toBe(expectedCommit);
   });
 
+  it('rejects a locked commit that is not reachable from the requested ref', async () => {
+    const mainCommit = git(remoteRepo, 'rev-parse', 'HEAD');
+    git(remoteRepo, 'checkout', '-b', 'other');
+    writeSchema(remoteRepo, 'Other Branch');
+    git(remoteRepo, 'add', '-A');
+    git(remoteRepo, 'commit', '-m', 'other branch');
+    const otherCommit = git(remoteRepo, 'rev-parse', 'HEAD');
+    git(remoteRepo, 'checkout', 'main');
+    expect(otherCommit).not.toBe(mainCommit);
+
+    await expect(
+      fetchSchemaBundleFromGit({
+        git: pathToFileURL(remoteRepo).href,
+        requestedRef: 'main',
+        lockedCommit: otherCommit,
+        bundlePath: 'schemas/team-flow',
+        destinationDir: path.join(tempDir, 'unreachable'),
+      })
+    ).rejects.toThrow(/locked commit verification/i);
+  });
+
   it('rejects a tracked symbolic link without reading its target', async () => {
     const secret = path.join(tempDir, 'secret.txt');
     fs.writeFileSync(secret, 'never-copy');

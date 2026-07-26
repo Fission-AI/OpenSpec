@@ -54,10 +54,26 @@ describe('remote schema cache', () => {
     fs.writeFileSync(path.join(source, 'schema.yaml'), 'name: demo\nversion: 1\n');
     const { integrity } = computeBundleIntegrity(source);
     const installed = installRemoteSchemaCache(source, integrity, dataDir);
-    const before = fs.statSync(installed).ino;
+    const preservedTime = new Date('2000-01-01T00:00:00.000Z');
+    fs.utimesSync(installed, preservedTime, preservedTime);
 
     expect(installRemoteSchemaCache(source, integrity, dataDir)).toBe(installed);
-    expect(fs.statSync(installed).ino).toBe(before);
+    expect(fs.statSync(installed).mtimeMs).toBe(preservedTime.getTime());
+  });
+
+  it('atomically replaces a corrupt cache and removes the displaced directory', () => {
+    const source = path.join(tempDir, 'source');
+    fs.mkdirSync(source);
+    fs.writeFileSync(path.join(source, 'schema.yaml'), 'name: demo\nversion: 1\n');
+    const { integrity } = computeBundleIntegrity(source);
+    const installed = installRemoteSchemaCache(source, integrity, dataDir);
+    fs.writeFileSync(path.join(installed, 'schema.yaml'), 'corrupt\n');
+
+    expect(installRemoteSchemaCache(source, integrity, dataDir)).toBe(installed);
+    expect(verifyRemoteSchemaCache(integrity, dataDir)).toBe(installed);
+    expect(
+      fs.readdirSync(path.dirname(installed)).filter((entry) => entry.startsWith('.displaced-'))
+    ).toEqual([]);
   });
 
   it('rejects malformed integrity values before constructing a path', () => {

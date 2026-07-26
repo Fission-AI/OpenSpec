@@ -87,7 +87,8 @@ export function computeBundleIntegrity(
     throw new Error('Remote schema bundle root must be a directory');
   }
 
-  const files: Array<{ relativePath: string; absolutePath: string; size: number }> = [];
+  const files: Array<{ relativePath: string; content: Buffer }> = [];
+  let totalBytes = 0;
   const visit = (currentDir: string, relativeDir: string): void => {
     const entries = fs
       .readdirSync(currentDir, { withFileTypes: true })
@@ -109,22 +110,21 @@ export function computeBundleIntegrity(
       if (!entry.isFile()) {
         throw new Error(`Remote schema bundle contains non-regular file '${relativePath}'`);
       }
-      const size = fs.statSync(absolutePath).size;
-      files.push({ relativePath, absolutePath, size });
+      const content = fs.readFileSync(absolutePath);
+      files.push({ relativePath, content });
+      if (files.length > limits.maxFiles) {
+        throw new Error(`Remote schema bundle contains more than ${limits.maxFiles} files`);
+      }
+      totalBytes += content.length;
+      if (totalBytes > limits.maxBytes) {
+        throw new Error(`Remote schema bundle contains more than ${limits.maxBytes} bytes`);
+      }
     }
   };
   visit(bundleDir, '');
 
   const relativePaths = files.map((file) => file.relativePath);
   assertPortableBundleEntries(relativePaths);
-  if (files.length > limits.maxFiles) {
-    throw new Error(`Remote schema bundle contains more than ${limits.maxFiles} files`);
-  }
-  const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
-  if (totalBytes > limits.maxBytes) {
-    throw new Error(`Remote schema bundle contains more than ${limits.maxBytes} bytes`);
-  }
-
   const hash = createHash('sha256');
   for (const file of files.sort((left, right) =>
     Buffer.compare(
@@ -136,11 +136,11 @@ export function computeBundleIntegrity(
     const pathLength = Buffer.allocUnsafe(4);
     pathLength.writeUInt32BE(pathBytes.length);
     const contentLength = Buffer.allocUnsafe(8);
-    contentLength.writeBigUInt64BE(BigInt(file.size));
+    contentLength.writeBigUInt64BE(BigInt(file.content.length));
     hash.update(pathLength);
     hash.update(pathBytes);
     hash.update(contentLength);
-    hash.update(fs.readFileSync(file.absolutePath));
+    hash.update(file.content);
   }
 
   return {

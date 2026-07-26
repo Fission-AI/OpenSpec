@@ -906,15 +906,20 @@ Example JSON success:
 {
   "synced": true,
   "locked": false,
+  "lockfile": "/workspace/openspec/schemas.lock.yaml",
   "schemas": [
     {
       "name": "qeda-sdd",
+      "git": "https://github.com/example/team-schemas.git",
+      "requestedRef": "v1.2.0",
       "resolvedCommit": "0123456789abcdef0123456789abcdef01234567",
+      "bundlePath": "schemas/qeda-sdd",
       "integrity": "sha256:...",
       "cachePath": "...",
       "restored": false
     }
-  ]
+  ],
+  "status": []
 }
 ```
 

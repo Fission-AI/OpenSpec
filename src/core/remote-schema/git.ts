@@ -39,14 +39,19 @@ function runGit(
   cwd: string,
   args: string[],
   operation: string,
-  timeoutMs: number
+  timeoutMs: number,
+  input?: Buffer
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    execFile(
+    const child = execFile(
       'git',
       args,
       {
         cwd,
+        env: {
+          ...process.env,
+          GIT_TERMINAL_PROMPT: '0',
+        },
         encoding: 'buffer',
         maxBuffer: GIT_OUTPUT_LIMIT,
         timeout: timeoutMs,
@@ -68,6 +73,9 @@ function runGit(
         resolve(Buffer.isBuffer(stdout) ? stdout : Buffer.from(stdout));
       }
     );
+    if (input !== undefined) {
+      child.stdin?.end(input);
+    }
   });
 }
 
@@ -111,6 +119,42 @@ function parseTreeEntries(output: Buffer, bundlePath: string): GitTreeEntry[] {
   return entries;
 }
 
+function parseBatchBlobs(
+  output: Buffer,
+  entries: GitTreeEntry[]
+): Array<GitTreeEntry & { content: Buffer }> {
+  const blobs: Array<GitTreeEntry & { content: Buffer }> = [];
+  let offset = 0;
+  for (const entry of entries) {
+    const headerEnd = output.indexOf(0x0a, offset);
+    if (headerEnd < 0) {
+      throw new Error('Git returned an incomplete blob batch for remote schema bundle');
+    }
+    const header = output.subarray(offset, headerEnd).toString('ascii');
+    const [objectId, type, sizeText] = header.split(' ');
+    const size = Number(sizeText);
+    if (
+      objectId !== entry.objectId ||
+      type !== 'blob' ||
+      !Number.isSafeInteger(size) ||
+      size < 0
+    ) {
+      throw new Error('Git returned an invalid blob batch for remote schema bundle');
+    }
+    const contentStart = headerEnd + 1;
+    const contentEnd = contentStart + size;
+    if (contentEnd >= output.length || output[contentEnd] !== 0x0a) {
+      throw new Error('Git returned an incomplete blob batch for remote schema bundle');
+    }
+    blobs.push({ ...entry, content: output.subarray(contentStart, contentEnd) });
+    offset = contentEnd + 1;
+  }
+  if (offset !== output.length) {
+    throw new Error('Git returned unexpected data after the remote schema blob batch');
+  }
+  return blobs;
+}
+
 export async function fetchSchemaBundleFromGit(
   options: FetchSchemaBundleOptions
 ): Promise<FetchSchemaBundleResult> {
@@ -144,23 +188,41 @@ export async function fetchSchemaBundleFromGit(
       'remote setup',
       timeoutMs
     );
-    const fetchTarget = options.lockedCommit ?? options.requestedRef;
     await runGit(
       repositoryDir,
-      ['fetch', '--quiet', '--depth=1', '--no-tags', 'origin', fetchTarget],
+      options.lockedCommit
+        ? ['fetch', '--quiet', '--no-tags', 'origin', options.requestedRef]
+        : ['fetch', '--quiet', '--depth=1', '--no-tags', 'origin', options.requestedRef],
       'fetch',
       timeoutMs
     );
-    const resolvedCommit = (
+    let resolvedCommit: string;
+    if (options.lockedCommit) {
+      const verifiedCommit = (
+        await runGit(
+          repositoryDir,
+          ['rev-parse', `${options.lockedCommit}^{commit}`],
+          'locked commit verification',
+          timeoutMs
+        )
+      ).toString('utf8').trim();
       await runGit(
         repositoryDir,
-        ['rev-parse', 'FETCH_HEAD^{commit}'],
-        'commit resolution',
+        ['merge-base', '--is-ancestor', verifiedCommit, 'FETCH_HEAD^{commit}'],
+        'locked commit verification',
         timeoutMs
-      )
-    )
-      .toString('utf8')
-      .trim();
+      );
+      resolvedCommit = verifiedCommit;
+    } else {
+      resolvedCommit = (
+        await runGit(
+          repositoryDir,
+          ['rev-parse', 'FETCH_HEAD^{commit}'],
+          'commit resolution',
+          timeoutMs
+        )
+      ).toString('utf8').trim();
+    }
     if (!/^[0-9a-f]{40}$/.test(resolvedCommit)) {
       throw new Error('Git did not resolve the remote schema ref to a commit SHA');
     }
@@ -176,22 +238,28 @@ export async function fetchSchemaBundleFromGit(
     );
     const entries = parseTreeEntries(treeOutput, bundlePath);
 
-    const blobs: Array<GitTreeEntry & { content: Buffer }> = [];
-    let totalBytes = 0;
-    for (const entry of entries) {
-      const content = await runGit(
+    const batchInput = Buffer.from(
+      `${entries.map((entry) => entry.objectId).join('\n')}\n`,
+      'ascii'
+    );
+    const blobs = parseBatchBlobs(
+      await runGit(
         repositoryDir,
-        ['cat-file', 'blob', entry.objectId],
+        ['cat-file', '--batch'],
         'blob extraction',
-        timeoutMs
-      );
-      totalBytes += content.length;
+        timeoutMs,
+        batchInput
+      ),
+      entries
+    );
+    let totalBytes = 0;
+    for (const blob of blobs) {
+      totalBytes += blob.content.length;
       if (totalBytes > MAX_SCHEMA_BUNDLE_BYTES) {
         throw new Error(
           `Remote schema bundle contains more than ${MAX_SCHEMA_BUNDLE_BYTES} bytes`
         );
       }
-      blobs.push({ ...entry, content });
     }
 
     fs.mkdirSync(options.destinationDir, { recursive: true });

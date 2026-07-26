@@ -88,6 +88,51 @@ describe('schema sync command', () => {
     expect(process.exitCode).toBe(1);
   });
 
+  it('reports every semantic and template validation failure in JSON output', async () => {
+    const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'broken-flow');
+    fs.mkdirSync(schemaDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(schemaDir, 'schema.yaml'),
+      `name: broken-flow
+version: 1
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Proposal
+    template: missing-proposal.md
+    requires: [missing-proposal-dependency]
+  - id: design
+    generates: design.md
+    description: Design
+    template: missing-design.md
+    requires: [missing-design-dependency]
+`
+    );
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await createProgram().parseAsync([
+      'node',
+      'openspec',
+      'schema',
+      'validate',
+      'broken-flow',
+      '--json',
+    ]);
+
+    const output = JSON.parse(String(log.mock.calls[0][0]));
+    expect(output.valid).toBe(false);
+    expect(output.issues.map((issue: { message: string }) => issue.message)).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('missing-proposal-dependency'),
+        expect.stringContaining('missing-design-dependency'),
+        expect.stringContaining('missing-proposal.md'),
+        expect.stringContaining('missing-design.md'),
+      ])
+    );
+    expect(output.issues).toHaveLength(4);
+  });
+
   it('syncs a named local Git source with JSON output', async () => {
     const repo = path.join(tempDir, 'remote');
     const schemaDir = path.join(repo, 'schemas', 'team-flow');

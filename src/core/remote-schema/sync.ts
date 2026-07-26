@@ -35,7 +35,11 @@ export interface SyncRemoteSchemasResult {
   lockfile: string;
   locked: boolean;
   schemas: SyncedRemoteSchema[];
-  status: [];
+  status: Array<{
+    level: 'error' | 'warning';
+    code: string;
+    message: string;
+  }>;
 }
 
 function sourceMatchesLock(

@@ -13,8 +13,7 @@ export function getSchemaLockPath(projectRoot: string): string {
   return path.join(projectRoot, 'openspec', SCHEMA_LOCK_FILE_NAME);
 }
 
-const LockEntrySchema = z
-  .object({
+const LockEntrySchema = z.strictObject({
     git: z
       .string()
       .min(1)
@@ -33,18 +32,15 @@ const LockEntrySchema = z
       }
     }, 'must be a repository-relative portable Git path'),
     integrity: z.string().regex(/^sha256:[0-9a-f]{64}$/),
-  })
-  .strict();
+  });
 
-const LockSchema = z
-  .object({
+const LockSchema = z.strictObject({
     version: z.literal(1),
     schemas: z.record(
       z.string().refine(isValidSchemaSourceName, 'must be a valid schema name'),
       LockEntrySchema
     ),
-  })
-  .strict();
+  });
 
 export function readSchemaLock(projectRoot: string): RemoteSchemaLock | null {
   const lockPath = getSchemaLockPath(projectRoot);

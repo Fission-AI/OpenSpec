@@ -97,16 +97,37 @@ describe('remote schema bundle integrity', () => {
     );
   });
 
-  it('rejects symlinks without reading their targets', () => {
-    const outside = path.join(path.dirname(bundleDir), 'outside-schema-secret.txt');
+  it('enforces byte limits while traversing the bundle', () => {
+    fs.writeFileSync(path.join(bundleDir, 'a-oversized.bin'), '123456');
+    const link = path.join(bundleDir, 'z-link');
+    try {
+      fs.symlinkSync(path.join(bundleDir, 'missing-target'), link, 'file');
+    } catch {
+      // The byte-limit assertion remains valid on hosts that cannot create symlinks.
+    }
+
+    expect(() =>
+      computeBundleIntegrity(bundleDir, { maxFiles: 10, maxBytes: 5 })
+    ).toThrow(/more than 5 bytes/);
+  });
+
+  it('rejects symlinks without reading their targets', (ctx) => {
+    const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-schema-outside-'));
+    const outside = path.join(outsideDir, 'secret.txt');
     fs.writeFileSync(outside, 'do-not-read');
     const link = path.join(bundleDir, 'templates', 'linked.md');
     try {
       fs.symlinkSync(outside, link, 'file');
     } catch {
+      fs.rmSync(outsideDir, { recursive: true, force: true });
+      ctx.skip();
       return;
     }
 
-    expect(() => computeBundleIntegrity(bundleDir)).toThrow(/symbolic link/);
+    try {
+      expect(() => computeBundleIntegrity(bundleDir)).toThrow(/symbolic link/);
+    } finally {
+      fs.rmSync(outsideDir, { recursive: true, force: true });
+    }
   });
 });

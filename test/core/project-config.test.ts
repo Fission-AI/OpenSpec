@@ -506,7 +506,10 @@ schemaSources:
         );
 
         expect(readProjectConfig(tempDir)).toEqual({ schema: 'spec-driven' });
-        expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+        const objectPrototype = {} as Record<string, unknown>;
+        expect(objectPrototype.git).toBeUndefined();
+        expect(objectPrototype.ref).toBeUndefined();
+        expect(objectPrototype.path).toBeUndefined();
         expect(consoleWarnSpy).toHaveBeenCalledWith(
           expect.stringContaining("Invalid schema source name '__proto__'")
         );

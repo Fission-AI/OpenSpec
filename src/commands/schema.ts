@@ -13,7 +13,7 @@ import {
   listSchemas,
 } from '../core/artifact-graph/resolver.js';
 import { parseSchema } from '../core/artifact-graph/schema.js';
-import { validateSchemaDirectory } from '../core/artifact-graph/schema-directory.js';
+import { inspectSchemaDirectory } from '../core/artifact-graph/schema-directory.js';
 import type { SchemaYaml, Artifact } from '../core/artifact-graph/types.js';
 import { syncRemoteSchemas } from '../core/remote-schema/sync.js';
 import { getSchemaLockPath } from '../core/remote-schema/lockfile.js';
@@ -24,6 +24,13 @@ import type { RemoteSchemaLockEntry } from '../core/remote-schema/types.js';
  * Schema source location type
  */
 type SchemaSource = 'project' | 'remote' | 'user' | 'package';
+
+const SCHEMA_SOURCE_PRECEDENCE: Record<SchemaSource, number> = {
+  project: 0,
+  remote: 1,
+  user: 2,
+  package: 3,
+};
 
 /**
  * Result of checking a schema location
@@ -62,7 +69,7 @@ interface ValidationIssue {
 }
 
 /**
- * Check all three locations for a schema and return which ones exist.
+ * Check all schema locations and return which ones exist.
  */
 function checkAllLocations(
   name: string,
@@ -82,6 +89,12 @@ function checkAllLocations(
   // Locked remote location. Project-local schemas remain usable even when a
   // shadowed remote declaration has not been synchronized.
   let remoteDir: string | null = null;
+  let remoteEntry: RemoteSchemaLockEntry | undefined;
+  try {
+    remoteEntry = readSchemaLock(projectRoot)?.schemas[name];
+  } catch {
+    remoteEntry = undefined;
+  }
   try {
     remoteDir = getRemoteSchemaDir(name, projectRoot);
   } catch {
@@ -91,9 +104,7 @@ function checkAllLocations(
     source: 'remote',
     path: remoteDir ?? path.join(getUserSchemasDir(), '..', 'schema-cache'),
     exists: remoteDir !== null,
-    ...(remoteDir
-      ? { remote: readSchemaLock(projectRoot)?.schemas[name] }
-      : {}),
+    ...(remoteEntry ? { remote: remoteEntry } : {}),
   });
 
   // User location
@@ -130,19 +141,27 @@ function getSchemaResolution(
   }
   const locations = checkAllLocations(name, projectRoot);
   const existingLocations = locations.filter((loc) => loc.exists);
-  const active = existingLocations.find((location) => location.path === resolvedDir) ?? {
+  const normalizedResolvedDir = path.resolve(resolvedDir);
+  const active = existingLocations.find(
+    (location) => path.resolve(location.path) === normalizedResolvedDir
+  ) ?? {
     source: 'remote' as const,
     path: resolvedDir,
     exists: true,
+    remote: locations.find((location) => location.source === 'remote')?.remote,
   };
-  const activeIndex = existingLocations.findIndex(
-    (location) => location.path === active.path
-  );
-  const shadows = existingLocations.slice(activeIndex + 1).map((loc) => ({
-    source: loc.source,
-    path: loc.path,
-    ...(loc.remote ?? {}),
-  }));
+  const activeRank = SCHEMA_SOURCE_PRECEDENCE[active.source];
+  const shadows = existingLocations
+    .filter(
+      (location) =>
+        SCHEMA_SOURCE_PRECEDENCE[location.source] > activeRank &&
+        path.resolve(location.path) !== normalizedResolvedDir
+    )
+    .map((loc) => ({
+      source: loc.source,
+      path: loc.path,
+      ...(loc.remote ?? {}),
+    }));
   return {
     name,
     source: active.source,
@@ -184,20 +203,13 @@ function validateSchema(
     console.log('  Validating schema structure...');
     console.log('  Checking template files...');
   }
-  try {
-    validateSchemaDirectory(schemaDir);
-  } catch (error) {
-    return {
-      valid: false,
-      issues: [
-        {
-          level: 'error',
-          path: 'schema.yaml',
-          message: error instanceof Error ? error.message : String(error),
-        },
-      ],
-    };
-  }
+  const inspection = inspectSchemaDirectory(schemaDir);
+  const issues: ValidationIssue[] = inspection.issues.map((issue) => ({
+    level: 'error',
+    path: issue.path,
+    message: issue.message,
+  }));
+  if (issues.length > 0) return { valid: false, issues };
   if (verbose) {
     console.log('  Dependency graph validation passed (via parseSchema)');
   }
