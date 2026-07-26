@@ -36,6 +36,8 @@ ${STORE_SELECTION_GUIDANCE}
    openspec status --change "<name>" --json
    \`\`\`
 
+   The JSON includes \`planningHome.root\`. Main specs live under \`<planningHome.root>/openspec/specs/\` — use that (store-aware) root for every main-spec path below, not a hardcoded repo path. When a store is selected it points at the store, not the current repository.
+
 3. **Find delta specs**
 
    Use \`artifactPaths.specs.existingOutputPaths\` from the status JSON as the list of delta spec files.
@@ -50,11 +52,11 @@ ${STORE_SELECTION_GUIDANCE}
 
 4. **For each delta spec, apply changes to main specs**
 
-   For each repo-local capability delta spec path returned by the CLI:
+   For each capability delta spec path returned by the CLI (these may belong to a selected store, not the repo):
 
    a. **Read the delta spec** to understand the intended changes
 
-   b. **Read the main spec** at \`openspec/specs/<capability>/spec.md\` (may not exist yet)
+   b. **Read the main spec** at \`<planningHome.root>/openspec/specs/<capability>/spec.md\` (may not exist yet)
 
    c. **Apply changes intelligently**:
 
@@ -76,20 +78,32 @@ ${STORE_SELECTION_GUIDANCE}
       **RENAMED Requirements:**
       - Find the FROM requirement, rename to TO
 
+      **\`## Purpose\` in the delta:**
+      - The main spec already has one and it is authoritative - leave it alone
+        (this is what \`openspec archive\` does; it warns and moves on)
+
    d. **Create new main spec** if capability doesn't exist yet:
-      - Create \`openspec/specs/<capability>/spec.md\`
-      - Add Purpose section (can be brief, mark as TBD)
+      - Create \`<planningHome.root>/openspec/specs/<capability>/spec.md\`
+      - Add Purpose section: copy the delta's \`## Purpose\` body verbatim when it has one
+        (this is what \`openspec archive\` does); only write a brief TBD placeholder when it does not
       - Add Requirements section with the ADDED requirements
+      - Follow the **Main Spec Format Reference** below
 
 5. **Show summary**
 
    After applying all changes, summarize:
    - Which capabilities were updated
    - What changes were made (requirements added/modified/removed/renamed)
+   - Any new main spec left with a TBD Purpose placeholder, so it gets written
+     now rather than lingering
 
 **Delta Spec Format Reference**
 
 \`\`\`markdown
+## Purpose
+
+Only on a delta that introduces a brand-new capability. Seeds the new main spec.
+
 ## ADDED Requirements
 
 ### Requirement: New Feature
@@ -116,6 +130,26 @@ The system SHALL do something new.
 - TO: \`### Requirement: New Name\`
 \`\`\`
 
+**Main Spec Format Reference**
+
+Main specs are what the delta merges INTO. They must never contain delta operation headers (\`## ADDED/MODIFIED/REMOVED/RENAMED Requirements\`) - after syncing, every requirement lives under a single \`## Requirements\` section:
+
+\`\`\`markdown
+# <capability> Specification
+
+## Purpose
+Short description of what this capability does and why it exists.
+
+## Requirements
+
+### Requirement: New Feature
+The system SHALL do something new.
+
+#### Scenario: Basic case
+- **WHEN** user does X
+- **THEN** system does Y
+\`\`\`
+
 **Key Principle: Intelligent Merging**
 
 Unlike programmatic merging, you can apply **partial updates**:
@@ -125,7 +159,7 @@ Unlike programmatic merging, you can apply **partial updates**:
 
 **Output On Success**
 
-\`\`\`
+\`\`\`markdown
 ## Specs Synced: <change-name>
 
 Updated main specs:
@@ -144,6 +178,7 @@ Main specs are now updated. The change remains active - archive when implementat
 **Guardrails**
 - Read both delta and main specs before making changes
 - Preserve existing content not mentioned in delta
+- Never copy a delta file into a main spec as-is - merge its content so the main spec keeps the Main Spec Format Reference structure, with no delta operation headers
 - If something is unclear, ask for clarification
 - Show what you're changing as you go
 - The operation should be idempotent - running twice should give same result`,
@@ -184,6 +219,8 @@ ${STORE_SELECTION_GUIDANCE}
    openspec status --change "<name>" --json
    \`\`\`
 
+   The JSON includes \`planningHome.root\`. Main specs live under \`<planningHome.root>/openspec/specs/\` — use that (store-aware) root for every main-spec path below, not a hardcoded repo path. When a store is selected it points at the store, not the current repository.
+
 3. **Find delta specs**
 
    Use \`artifactPaths.specs.existingOutputPaths\` from the status JSON as the list of delta spec files.
@@ -198,11 +235,11 @@ ${STORE_SELECTION_GUIDANCE}
 
 4. **For each delta spec, apply changes to main specs**
 
-   For each repo-local capability delta spec path returned by the CLI:
+   For each capability delta spec path returned by the CLI (these may belong to a selected store, not the repo):
 
    a. **Read the delta spec** to understand the intended changes
 
-   b. **Read the main spec** at \`openspec/specs/<capability>/spec.md\` (may not exist yet)
+   b. **Read the main spec** at \`<planningHome.root>/openspec/specs/<capability>/spec.md\` (may not exist yet)
 
    c. **Apply changes intelligently**:
 
@@ -224,20 +261,32 @@ ${STORE_SELECTION_GUIDANCE}
       **RENAMED Requirements:**
       - Find the FROM requirement, rename to TO
 
+      **\`## Purpose\` in the delta:**
+      - The main spec already has one and it is authoritative - leave it alone
+        (this is what \`openspec archive\` does; it warns and moves on)
+
    d. **Create new main spec** if capability doesn't exist yet:
-      - Create \`openspec/specs/<capability>/spec.md\`
-      - Add Purpose section (can be brief, mark as TBD)
+      - Create \`<planningHome.root>/openspec/specs/<capability>/spec.md\`
+      - Add Purpose section: copy the delta's \`## Purpose\` body verbatim when it has one
+        (this is what \`openspec archive\` does); only write a brief TBD placeholder when it does not
       - Add Requirements section with the ADDED requirements
+      - Follow the **Main Spec Format Reference** below
 
 5. **Show summary**
 
    After applying all changes, summarize:
    - Which capabilities were updated
    - What changes were made (requirements added/modified/removed/renamed)
+   - Any new main spec left with a TBD Purpose placeholder, so it gets written
+     now rather than lingering
 
 **Delta Spec Format Reference**
 
 \`\`\`markdown
+## Purpose
+
+Only on a delta that introduces a brand-new capability. Seeds the new main spec.
+
 ## ADDED Requirements
 
 ### Requirement: New Feature
@@ -264,6 +313,26 @@ The system SHALL do something new.
 - TO: \`### Requirement: New Name\`
 \`\`\`
 
+**Main Spec Format Reference**
+
+Main specs are what the delta merges INTO. They must never contain delta operation headers (\`## ADDED/MODIFIED/REMOVED/RENAMED Requirements\`) - after syncing, every requirement lives under a single \`## Requirements\` section:
+
+\`\`\`markdown
+# <capability> Specification
+
+## Purpose
+Short description of what this capability does and why it exists.
+
+## Requirements
+
+### Requirement: New Feature
+The system SHALL do something new.
+
+#### Scenario: Basic case
+- **WHEN** user does X
+- **THEN** system does Y
+\`\`\`
+
 **Key Principle: Intelligent Merging**
 
 Unlike programmatic merging, you can apply **partial updates**:
@@ -273,7 +342,7 @@ Unlike programmatic merging, you can apply **partial updates**:
 
 **Output On Success**
 
-\`\`\`
+\`\`\`markdown
 ## Specs Synced: <change-name>
 
 Updated main specs:
@@ -292,6 +361,7 @@ Main specs are now updated. The change remains active - archive when implementat
 **Guardrails**
 - Read both delta and main specs before making changes
 - Preserve existing content not mentioned in delta
+- Never copy a delta file into a main spec as-is - merge its content so the main spec keeps the Main Spec Format Reference structure, with no delta operation headers
 - If something is unclear, ask for clarification
 - Show what you're changing as you go
 - The operation should be idempotent - running twice should give same result`

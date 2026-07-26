@@ -99,10 +99,16 @@ The update command SHALL refresh existing slash command files for configured too
 - **AND** skip creating missing files during update
 
 #### Scenario: Updating slash commands for OpenCode
-- **WHEN** `.opencode/command/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
+- **WHEN** `.opencode/commands/` contains OpenSpec-managed `opsx-*.md` command files for the configured profile (for example `opsx-propose.md`, `opsx-apply.md`, and `opsx-archive.md`)
 - **THEN** refresh each file using shared templates
+- **AND** transform command references to hyphen form (for example `/opsx-propose`) for OpenCode compatibility
 - **AND** ensure templates include instructions for the relevant workflow stage
 - **AND** ensure the archive command includes `$ARGUMENTS` placeholder in frontmatter for accepting change ID arguments
+
+#### Scenario: Legacy OpenCode command path cleanup
+- **WHEN** a project still has command files under the legacy singular path `.opencode/command/` (for example `opsx-*.md` or `openspec-*.md`)
+- **THEN** `openspec init` or legacy cleanup SHALL remove those files and generate replacements under `.opencode/commands/`
+- **AND** `openspec update` SHALL NOT refresh files that remain only under `.opencode/command/`
 
 #### Scenario: Updating slash commands for Windsurf
 - **WHEN** `.windsurf/workflows/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`

@@ -131,7 +131,7 @@ ${STORE_SELECTION_GUIDANCE}
 9. **Generate Verification Report**
 
    **Summary Scorecard**:
-   \`\`\`
+   \`\`\`markdown
    ## Verification Report: <change-name>
 
    ### Summary
@@ -323,7 +323,7 @@ ${STORE_SELECTION_GUIDANCE}
 9. **Generate Verification Report**
 
    **Summary Scorecard**:
-   \`\`\`
+   \`\`\`markdown
    ## Verification Report: <change-name>
 
    ### Summary

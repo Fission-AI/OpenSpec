@@ -104,7 +104,7 @@ openspec init [path] [options]
 
 `--profile custom` uses whatever workflows are currently selected in global config (`openspec config profile`).
 
-**Supported tool IDs (`--tools`):** `amazon-q`, `antigravity`, `auggie`, `bob`, `claude`, `cline`, `codex`, `forgecode`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `lingma`, `vibe`, `oh-my-pi`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `windsurf`
+**Supported tool IDs (`--tools`):** `amazon-q`, `antigravity`, `auggie`, `bob`, `claude`, `cline`, `codeartsagent`, `codex`, `forgecode`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `hermes`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `lingma`, `vibe`, `oh-my-pi`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `windsurf`, `zcode`
 
 > This list mirrors `AI_TOOLS` in `src/core/config.ts`. See [Supported Tools](supported-tools.md) for each tool's skill and command paths.
 
@@ -322,6 +322,8 @@ store: team-context
 
 Normal commands then resolve to the declared store automatically; the root banner and JSON `root` block report `source: "declared"` with the store id, and printed hints still carry `--store <id>`. The declaration is a fallback, never an override: explicit `--store` always wins, and a directory with real planning folders ignores the pointer (with a warning). To convert a pointer repo into a local OpenSpec root, remove the `store:` line and run `openspec init` — init refuses to scaffold while the declaration is present.
 
+A machine-level variant covers every repo at once: `openspec config set defaultStore <id>` (see Configuration). It is consulted only after `--store`, a local root, and a project pointer have all failed to resolve; the root banner and JSON `root` block then report `source: "global_default"`.
+
 ## Doctor (relationship health)
 
 One read-only question, one place: is the OpenSpec root healthy, and are the stores it references available on this machine?
@@ -330,7 +332,7 @@ One read-only question, one place: is the OpenSpec root healthy, and are the sto
 openspec doctor [--store <id>] [--json]
 ```
 
-The report separates root health, store metadata health (including a note when the recorded remote and the checkout's origin diverge), and reference health (the same diagnostics instructions show, with clone fixes for unresolved references). Health findings of any severity exit 0 — agents read the `status` arrays; only command failures (no root, unknown store) exit 1. Doctor never clones, syncs, or repairs. To get the assembled set itself rather than its health, use `openspec context`.
+The report separates root health, store metadata health (including a note when the recorded remote and the checkout's origin diverge, and a note when the store checkout has drifted behind its last-fetched upstream tracking ref), and reference health (the same diagnostics instructions show, with clone fixes for unresolved references). Health findings of any severity exit 0 — agents read the `status` arrays; only command failures (no root, unknown store) exit 1. Doctor never clones, syncs, or repairs. To get the assembled set itself rather than its health, use `openspec context`.
 
 ## Working context (the assembled set)
 
@@ -491,6 +493,8 @@ Validate changes and specs for structural issues.
 openspec validate [item-name] [options]
 ```
 
+A change with zero spec deltas fails validation unless its `.openspec.yaml` declares `skip_specs: true` (for pure refactors, tooling, or docs work — see [Recipe 5](examples.md#recipe-5-a-refactor-with-no-behavior-change)).
+
 **Arguments:**
 
 | Argument | Required | Description |
@@ -585,7 +589,7 @@ openspec archive [change-name] [options]
 | Option | Description |
 |--------|-------------|
 | `-y, --yes` | Skip confirmation prompts |
-| `--skip-specs` | Skip spec updates (for infrastructure/tooling/doc-only changes) |
+| `--skip-specs` | Skip spec updates for one archive run. A change that permanently has no spec deltas should declare `skip_specs: true` in its `.openspec.yaml` instead — it archives with no flag |
 | `--no-validate` | Skip validation (requires confirmation) |
 
 **Examples:**
@@ -625,12 +629,11 @@ Create a change directory and optional checked-in metadata in the resolved OpenS
 openspec new change <name> [options]
 ```
 
-Change names must use lowercase kebab-case. They start with a lowercase letter,
-then contain lowercase letters, numbers, and single hyphens. They cannot start
-with a number, contain spaces, underscores, uppercase letters, consecutive
-hyphens, or leading/trailing hyphens. When including an external ticket ID,
-prefix it with a word, for example `ticket-123-add-notifications` instead of
-`123-add-notifications`.
+Change names must use lowercase kebab-case: lowercase letters, numbers, and
+single hyphens. They cannot contain spaces, underscores, uppercase letters,
+consecutive hyphens, or leading/trailing hyphens. A leading number is allowed,
+so you can prefix names to order or tier changes, for example `100-add-feature`
+or `00001-add-auth`.
 
 **Options:**
 
@@ -691,6 +694,8 @@ Progress: 2/4 artifacts complete
 [-] tasks (blocked by: design)
 ```
 
+A change that declares `skip_specs: true` shows its specs stage as `[~] specs (skipped: change declares skip_specs)` and excludes it from the progress count.
+
 **Output (JSON):**
 
 ```json
@@ -700,10 +705,10 @@ Progress: 2/4 artifacts complete
   "isComplete": false,
   "applyRequires": ["tasks"],
   "artifacts": [
-    {"id": "proposal", "outputPath": "proposal.md", "status": "done"},
-    {"id": "design", "outputPath": "design.md", "status": "ready"},
-    {"id": "specs", "outputPath": "specs/**/*.md", "status": "done"},
-    {"id": "tasks", "outputPath": "tasks.md", "status": "blocked", "missingDeps": ["design"]}
+    {"id": "proposal", "outputPath": "proposal.md", "status": "done", "requires": []},
+    {"id": "design", "outputPath": "design.md", "status": "ready", "requires": ["proposal"]},
+    {"id": "specs", "outputPath": "specs/**/*.md", "status": "done", "requires": ["proposal"]},
+    {"id": "tasks", "outputPath": "tasks.md", "status": "blocked", "requires": ["specs", "design"], "missingDeps": ["design"]}
   ]
 }
 ```
@@ -756,6 +761,8 @@ openspec instructions design --change add-dark-mode --json
 - Project context from config
 - Content from dependency artifacts
 - Per-artifact rules from config
+
+For an artifact skipped via `skip_specs: true`, the output is a warning only (JSON adds `skipped`/`warning` fields) — the artifact must not be created.
 
 ---
 
@@ -1043,6 +1050,10 @@ openspec config set user.name "My Name" --string
 
 # Remove a custom setting
 openspec config unset user.name
+
+# Set a machine-level default store (fallback root when no --store,
+# local root, or project store: pointer resolves)
+openspec config set defaultStore team-plans
 
 # Reset all configuration
 openspec config reset --all --yes

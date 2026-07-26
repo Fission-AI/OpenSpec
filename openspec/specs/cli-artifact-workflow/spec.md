@@ -34,6 +34,12 @@ The system SHALL display artifact completion status for a change, including scaf
   - `changeName`, `schemaName`, `isComplete`, `artifacts` array
   - `applyRequires`: array of artifact IDs needed for apply phase
 
+#### Scenario: Status JSON exposes each artifact's dependency edges
+
+- **WHEN** user runs `openspec status --change <id> --json`
+- **THEN** every entry in the `artifacts` array includes `requires`: the array of artifact IDs it directly depends on
+- **AND** `requires` is present regardless of the artifact's status, so a `done` artifact still reports its dependencies (letting agents compute the transitive required set from status alone)
+
 #### Scenario: Status on scaffolded change
 
 - **WHEN** user runs `openspec status --change <id>` on a change with no artifacts

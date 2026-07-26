@@ -7,6 +7,8 @@ import {
   coerceValue,
   formatValueYaml,
   validateConfig,
+  validateConfigKeyPath,
+  hasUnsafeKeySegment,
   GlobalConfigSchema,
   DEFAULT_CONFIG,
 } from '../../src/core/config-schema.js';
@@ -363,6 +365,98 @@ describe('config-schema', () => {
   describe('DEFAULT_CONFIG', () => {
     it('should have empty featureFlags', () => {
       expect(DEFAULT_CONFIG.featureFlags).toEqual({});
+    });
+  });
+
+  describe('prototype pollution guards', () => {
+    const unsafePaths = [
+      '__proto__.polluted',
+      'constructor.prototype.polluted',
+      'featureFlags.__proto__',
+      'prototype.polluted',
+    ];
+
+    it.each(unsafePaths)('setNestedValue leaves the prototype untouched for "%s"', (path) => {
+      const obj: Record<string, unknown> = {};
+      setNestedValue(obj, path, 'polluted');
+
+      expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+      expect(Object.prototype).not.toHaveProperty('polluted');
+    });
+
+    it.each(unsafePaths)('deleteNestedValue refuses "%s"', (path) => {
+      expect(deleteNestedValue({}, path)).toBe(false);
+    });
+
+    it.each(unsafePaths)('validateConfigKeyPath rejects "%s"', (path) => {
+      expect(validateConfigKeyPath(path).valid).toBe(false);
+    });
+
+    it.each(unsafePaths)('getNestedValue reads nothing for "%s"', (path) => {
+      expect(getNestedValue({}, path)).toBeUndefined();
+    });
+
+    it('flags unsafe segments anywhere in the path', () => {
+      expect(hasUnsafeKeySegment('featureFlags.__proto__')).toBe(true);
+      expect(hasUnsafeKeySegment('featureFlags.myFlag')).toBe(false);
+      expect(hasUnsafeKeySegment('profile')).toBe(false);
+    });
+
+    it('still sets legitimate nested keys', () => {
+      const obj: Record<string, unknown> = {};
+      setNestedValue(obj, 'featureFlags.myFlag', true);
+      expect(obj).toEqual({ featureFlags: { myFlag: true } });
+      expect(deleteNestedValue(obj, 'featureFlags.myFlag')).toBe(true);
+    });
+  });
+
+  // A guard that runs while walking the path creates the objects for the safe
+  // prefix before it reaches the unsafe segment, so the write is rejected but the
+  // target keeps the debris. Every case below puts the unsafe segment *after* a
+  // safe one and asserts the whole object, which the prototype-only assertions
+  // above cannot catch.
+  describe('a rejected key path leaves the target untouched', () => {
+    const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+
+    const cases: Array<[string, Record<string, unknown>]> = [
+      ['b.constructor.c', { a: 'x' }],
+      ['featureFlags.__proto__', { featureFlags: { myFlag: true } }],
+      ['a.b.__proto__.c', { a: { b: { keep: 1 } } }],
+      ['profile.prototype', { profile: 'core' }],
+      ['deep.nested.prototype', {}],
+      ['one.two.three.constructor', {}],
+    ];
+
+    it.each(cases)('setNestedValue writes nothing for "%s"', (path, seed) => {
+      const before = clone(seed);
+      const obj = clone(seed);
+
+      setNestedValue(obj, path, 'value');
+
+      expect(obj).toEqual(before);
+      expect(Object.keys(obj)).toEqual(Object.keys(before));
+    });
+
+    it.each(cases)('deleteNestedValue writes nothing for "%s"', (path, seed) => {
+      const before = clone(seed);
+      const obj = clone(seed);
+
+      expect(deleteNestedValue(obj, path)).toBe(false);
+
+      expect(obj).toEqual(before);
+      expect(Object.keys(obj)).toEqual(Object.keys(before));
+    });
+
+    // When the unsafe segment is last, the debris is a re-parented prototype
+    // rather than an extra key, which a structural comparison alone would miss.
+    it('does not re-parent the target when the final segment is unsafe', () => {
+      const obj: Record<string, unknown> = { featureFlags: { myFlag: true } };
+
+      setNestedValue(obj, 'featureFlags.__proto__', { polluted: true });
+
+      expect(obj).toEqual({ featureFlags: { myFlag: true } });
+      expect(Object.getPrototypeOf(obj.featureFlags)).toBe(Object.prototype);
+      expect((obj.featureFlags as Record<string, unknown>).polluted).toBeUndefined();
     });
   });
 });

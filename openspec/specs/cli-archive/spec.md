@@ -52,7 +52,7 @@ The archive operation SHALL follow a structured process to safely move changes t
 - **WHEN** archiving a change
 - **THEN** execute these steps:
   1. Create archive/ directory if it doesn't exist
-  2. Generate target name as `YYYY-MM-DD-[change-name]` using current date
+  2. Generate target name as `YYYY-MM-DD-[change-name]` using current date, keeping the name as-is when it already starts with a `YYYY-MM-DD-` prefix
   3. Check if target directory already exists
   4. Update main specs from the change's future state specs (see Spec Update Process below)
   5. Move the entire change directory to the archive location
@@ -89,6 +89,38 @@ Before moving the change to archive, the command SHALL apply delta changes to ma
 - **WHEN** applying deltas would create duplicate requirement headers
 - **THEN** abort with error message showing the conflict
 - **AND** suggest manual resolution
+
+#### Scenario: New main spec inherits the delta's Purpose
+
+- **WHEN** a delta creates a main spec that does not exist yet
+- **AND** the delta spec has a line-initial `## Purpose` header that is not inside a fenced code block or an HTML comment
+- **AND** the section body, ignoring fenced blocks and HTML comments, is not empty
+- **THEN** write the section body into the new main spec, trimmed but otherwise verbatim, fenced code blocks included
+- **AND** the section body runs to the next `## ` heading outside a fenced block
+
+#### Scenario: New main spec without an authored Purpose
+
+- **WHEN** a delta creates a main spec that does not exist yet
+- **AND** the delta spec has no such `## Purpose` header, or that section's body is empty once fenced blocks and HTML comments are ignored
+- **THEN** write the TBD placeholder Purpose naming the change to update after archive
+
+#### Scenario: Delta Purpose that would leave the new main spec unreadable
+
+- **WHEN** a delta creates a main spec that does not exist yet
+- **AND** carrying its `## Purpose` body over would leave a spec that reads differently to different readers - a heading or requirement header that truncates a section, an unterminated code fence that swallows one, or any HTML comment, which the section scan skips but the file keeps
+- **THEN** write the TBD placeholder Purpose instead and warn that the delta Purpose was ignored
+- **AND** complete the archive rather than aborting it
+
+#### Scenario: Carried Purpose shorter than the strict-mode minimum
+
+- **WHEN** the Purpose parsed back out of the new main spec is shorter than the minimum Purpose length strict validation enforces
+- **THEN** carry it over unchanged and warn that `openspec validate --strict` reports it as too brief
+
+#### Scenario: Delta Purpose for a capability that already has a main spec
+
+- **WHEN** a delta carries a `## Purpose` and the target main spec already exists
+- **THEN** leave the existing Purpose untouched
+- **AND** warn that the delta Purpose was ignored, naming the spec file to edit directly, but only when that spec has a Purpose of its own and it differs from the delta's
 
 ### Requirement: Confirmation Behavior
 
@@ -193,6 +225,15 @@ The archive command SHALL validate changes before applying them to ensure data i
 - **AND** only proceed if validation passes
 - **AND** show validation errors if it fails
 
+#### Scenario: Proposal warnings stay proposal-level
+
+- **WHEN** archiving a change
+- **THEN** the non-blocking proposal warnings SHALL NOT repeat requirement-level
+  issues reached through the delta specs
+- **AND** a requirement removed by a `## REMOVED Requirements` delta SHALL NOT be
+  reported as missing a scenario
+- **AND** proposal-level issues SHALL still be reported
+
 #### Scenario: Force archive without validation
 
 - **WHEN** executing `openspec archive change-name --no-validate`
@@ -203,7 +244,7 @@ The archive command SHALL validate changes before applying them to ensure data i
 
 **Interactive selection**: Reduces typing and helps users see available changes
 **Task checking**: Prevents accidental archiving of incomplete work
-**Date prefixing**: Maintains chronological order and prevents naming conflicts
+**Date prefixing**: Maintains chronological order and prevents naming conflicts; a name that already carries a date prefix keeps it, so archived names never stack dates
 **No overwrite**: Preserves historical archives and prevents data loss
 **Spec updates before archiving**: Specs in the main directory represent current reality; when a change is deployed and archived, its future state specs become the new reality and must replace the main specs
 **Confirmation for spec updates**: Provides visibility into what will change, prevents accidental overwrites, and ensures users understand the impact before specs are modified

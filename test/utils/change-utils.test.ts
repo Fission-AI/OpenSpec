@@ -1,8 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
-import { randomUUID } from 'crypto';
 import { validateChangeName, createChange } from '../../src/utils/change-utils.js';
 
 describe('validateChangeName', () => {
@@ -29,6 +28,26 @@ describe('validateChangeName', () => {
 
     it('should accept name with numbers in segments', () => {
       const result = validateChangeName('upgrade-to-v2');
+      expect(result).toEqual({ valid: true });
+    });
+
+    it('should accept a numeric-prefixed name for ordering (#850, #1169)', () => {
+      const result = validateChangeName('100-add-feature');
+      expect(result).toEqual({ valid: true });
+    });
+
+    it('should accept a zero-padded numeric-prefixed name', () => {
+      const result = validateChangeName('00001-add-auth');
+      expect(result).toEqual({ valid: true });
+    });
+
+    it('should accept a tiered numeric prefix with alphanumeric segments (#850)', () => {
+      const result = validateChangeName('101-01-fix-auth');
+      expect(result).toEqual({ valid: true });
+    });
+
+    it('should accept an all-numeric name', () => {
+      const result = validateChangeName('100');
       expect(result).toEqual({ valid: true });
     });
   });
@@ -110,13 +129,19 @@ describe('validateChangeName', () => {
 
 describe('createChange', () => {
   let testDir: string;
+  const originalTimeZone = process.env.TZ;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
-    await fs.mkdir(testDir, { recursive: true });
+    testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-test-'));
   });
 
   afterEach(async () => {
+    vi.useRealTimers();
+    if (originalTimeZone === undefined) {
+      delete process.env.TZ;
+    } else {
+      process.env.TZ = originalTimeZone;
+    }
     await fs.rm(testDir, { recursive: true, force: true });
   });
 
@@ -129,6 +154,14 @@ describe('createChange', () => {
       expect(stats.isDirectory()).toBe(true);
     });
 
+    it('should create a numeric-prefixed change directory (#850, #1169)', async () => {
+      await createChange(testDir, '100-add-feature');
+
+      const changeDir = path.join(testDir, 'openspec', 'changes', '100-add-feature');
+      const stats = await fs.stat(changeDir);
+      expect(stats.isDirectory()).toBe(true);
+    });
+
     it('should create .openspec.yaml metadata file with default schema', async () => {
       await createChange(testDir, 'add-auth');
 
@@ -136,6 +169,30 @@ describe('createChange', () => {
       const content = await fs.readFile(metaPath, 'utf-8');
       expect(content).toContain('schema: spec-driven');
       expect(content).toMatch(/created: \d{4}-\d{2}-\d{2}/);
+    });
+
+    it('should use the process local date across a UTC date boundary', async () => {
+      process.env.TZ = 'Asia/Shanghai';
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-07-14T16:30:00.000Z'));
+
+      await createChange(testDir, 'local-date-change');
+
+      const metaPath = path.join(testDir, 'openspec', 'changes', 'local-date-change', '.openspec.yaml');
+      const content = await fs.readFile(metaPath, 'utf-8');
+      expect(content).toContain('created: 2026-07-15');
+    });
+
+    it('should preserve the date when UTC and local calendar dates match', async () => {
+      process.env.TZ = 'Asia/Shanghai';
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-01-05T04:30:00.000Z'));
+
+      await createChange(testDir, 'same-date-change');
+
+      const metaPath = path.join(testDir, 'openspec', 'changes', 'same-date-change', '.openspec.yaml');
+      const content = await fs.readFile(metaPath, 'utf-8');
+      expect(content).toContain('created: 2026-01-05');
     });
 
     it('should create .openspec.yaml with custom schema', async () => {

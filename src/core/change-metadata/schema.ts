@@ -33,6 +33,12 @@ export const ChangeMetadataSchema = z.object({
   goal: z.string().min(1).optional(),
   affected_areas: z.array(z.string().min(1)).optional(),
   initiative: InitiativeLinkSchema.optional(),
+  // Declares that this change intentionally has no spec deltas (pure refactor,
+  // tooling, or docs work). Validation accepts zero deltas, and the artifact
+  // graph counts artifacts whose `generates` path lives under specs/ as
+  // complete - that path prefix, not the artifact id, is the contract custom
+  // schemas inherit.
+  skip_specs: z.boolean().optional(),
 });
 
 export type ChangeMetadata = z.infer<typeof ChangeMetadataSchema>;

@@ -163,3 +163,6 @@ opencode.json
 
 # Trae
 .trae/
+
+# Cursor
+.cursor/
