@@ -9,7 +9,7 @@ import * as fs from 'fs';
 import { AI_TOOLS } from '../config.js';
 
 /**
- * Names of skill directories created by openspec init.
+ * Names of skill directories created by openspec init/update.
  */
 export const SKILL_NAMES = [
   'openspec-explore',
@@ -24,6 +24,7 @@ export const SKILL_NAMES = [
   'openspec-verify-change',
   'openspec-onboard',
   'openspec-propose',
+  'openspec-phase-timing',
 ] as const;
 
 export type SkillName = (typeof SKILL_NAMES)[number];

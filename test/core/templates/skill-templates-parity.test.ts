@@ -25,6 +25,7 @@ import {
   getOpsxProposeSkillTemplate,
   getOpsxUpdateCommandTemplate,
   getOpsxVerifyCommandTemplate,
+  getPhaseTimingSkillTemplate,
   getSyncSpecsSkillTemplate,
   getUpdateChangeSkillTemplate,
   getVerifyChangeSkillTemplate,
@@ -62,6 +63,7 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getFeedbackSkillTemplate: 'd7d83c5f7fc2b92fe8f4588a5bf2d9cb315e4c73ec19bcd5ef28270906319a0d',
   getUpdateChangeSkillTemplate: 'd885847ea1af48a2ef41a08f6319888d058d50b81cf5511bda768cd4b59359ee',
   getOpsxUpdateCommandTemplate: 'cf43a6bdcdc549180970ddde40893223493a55e171a39290731e0339df530975',
+  getPhaseTimingSkillTemplate: '966c1ba08a043a1ef60e97060da8244049f225bab7c4e1dfab88444cd92f798d',
 };
 
 const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
@@ -77,6 +79,7 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-onboard': '1d581c12d4928d751eb79de099e275dabe9c99fc15dc1f502abebd99ad7cb7d2',
   'openspec-propose': '4638400113946f4f1ee9f0bd0e965aafb200bd89b64ec7f5406ef5e948e8e218',
   'openspec-update-change': '4e6669540bc5332b72db7dd432625cc4b45234ae7674f9b46fcd1309b9697b0d',
+  'openspec-phase-timing': 'f1d078037f9ebb5b796faa3260b4dea7425da3c7ee12c661292c95fba45c693e',
 };
 
 // Intentionally excludes getFeedbackSkillTemplate: this list only models templates
@@ -94,6 +97,7 @@ const GENERATED_SKILL_FACTORIES: Array<[string, () => SkillTemplate]> = [
   ['openspec-onboard', getOnboardSkillTemplate],
   ['openspec-propose', getOpsxProposeSkillTemplate],
   ['openspec-update-change', getUpdateChangeSkillTemplate],
+  ['openspec-phase-timing', getPhaseTimingSkillTemplate],
 ];
 
 function stableStringify(value: unknown): string {
@@ -144,6 +148,7 @@ describe('skill templates split parity', () => {
       getFeedbackSkillTemplate,
       getUpdateChangeSkillTemplate,
       getOpsxUpdateCommandTemplate,
+      getPhaseTimingSkillTemplate,
     };
 
     const actualHashes = Object.fromEntries(
@@ -180,7 +185,11 @@ describe('skill templates split parity', () => {
   it('teaches store selection in every deployed skill template', () => {
     for (const { template, dirName } of getSkillTemplates()) {
       const content = generateSkillContent(template, 'PARITY-BASELINE');
-      expect(content, dirName).toContain(STORE_SELECTION_GUIDANCE);
+      if (dirName === 'openspec-phase-timing') {
+        expect(content, dirName).not.toContain(STORE_SELECTION_GUIDANCE);
+      } else {
+        expect(content, dirName).toContain(STORE_SELECTION_GUIDANCE);
+      }
     }
   });
 
