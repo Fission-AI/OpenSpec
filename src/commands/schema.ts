@@ -5,19 +5,25 @@ import ora from 'ora';
 import { stringify as stringifyYaml } from 'yaml';
 import {
   getSchemaDir,
+  getRemoteSchemaDir,
   getProjectSchemasDir,
   getUserSchemasDir,
   getPackageSchemasDir,
   isSchemaDir,
   listSchemas,
 } from '../core/artifact-graph/resolver.js';
-import { parseSchema, SchemaValidationError } from '../core/artifact-graph/schema.js';
+import { parseSchema } from '../core/artifact-graph/schema.js';
+import { validateSchemaDirectory } from '../core/artifact-graph/schema-directory.js';
 import type { SchemaYaml, Artifact } from '../core/artifact-graph/types.js';
+import { syncRemoteSchemas } from '../core/remote-schema/sync.js';
+import { getSchemaLockPath } from '../core/remote-schema/lockfile.js';
+import { readSchemaLock } from '../core/remote-schema/lockfile.js';
+import type { RemoteSchemaLockEntry } from '../core/remote-schema/types.js';
 
 /**
  * Schema source location type
  */
-type SchemaSource = 'project' | 'user' | 'package';
+type SchemaSource = 'project' | 'remote' | 'user' | 'package';
 
 /**
  * Result of checking a schema location
@@ -26,6 +32,7 @@ interface SchemaLocation {
   source: SchemaSource;
   path: string;
   exists: boolean;
+  remote?: RemoteSchemaLockEntry;
 }
 
 /**
@@ -35,7 +42,14 @@ interface SchemaResolution {
   name: string;
   source: SchemaSource;
   path: string;
-  shadows: Array<{ source: SchemaSource; path: string }>;
+  shadows: Array<
+    { source: SchemaSource; path: string } & Partial<RemoteSchemaLockEntry>
+  >;
+  git?: string;
+  requestedRef?: string;
+  resolvedCommit?: string;
+  bundlePath?: string;
+  integrity?: string;
 }
 
 /**
@@ -63,6 +77,23 @@ function checkAllLocations(
     source: 'project',
     path: projectDir,
     exists: fs.existsSync(projectSchemaPath),
+  });
+
+  // Locked remote location. Project-local schemas remain usable even when a
+  // shadowed remote declaration has not been synchronized.
+  let remoteDir: string | null = null;
+  try {
+    remoteDir = getRemoteSchemaDir(name, projectRoot);
+  } catch {
+    remoteDir = null;
+  }
+  locations.push({
+    source: 'remote',
+    path: remoteDir ?? path.join(getUserSchemasDir(), '..', 'schema-cache'),
+    exists: remoteDir !== null,
+    ...(remoteDir
+      ? { remote: readSchemaLock(projectRoot)?.schemas[name] }
+      : {}),
   });
 
   // User location
@@ -93,24 +124,31 @@ function getSchemaResolution(
   name: string,
   projectRoot: string
 ): SchemaResolution | null {
-  const locations = checkAllLocations(name, projectRoot);
-  const existingLocations = locations.filter((loc) => loc.exists);
-
-  if (existingLocations.length === 0) {
+  const resolvedDir = getSchemaDir(name, projectRoot);
+  if (!resolvedDir) {
     return null;
   }
-
-  const active = existingLocations[0];
-  const shadows = existingLocations.slice(1).map((loc) => ({
+  const locations = checkAllLocations(name, projectRoot);
+  const existingLocations = locations.filter((loc) => loc.exists);
+  const active = existingLocations.find((location) => location.path === resolvedDir) ?? {
+    source: 'remote' as const,
+    path: resolvedDir,
+    exists: true,
+  };
+  const activeIndex = existingLocations.findIndex(
+    (location) => location.path === active.path
+  );
+  const shadows = existingLocations.slice(activeIndex + 1).map((loc) => ({
     source: loc.source,
     path: loc.path,
+    ...(loc.remote ?? {}),
   }));
-
   return {
     name,
     source: active.source,
     path: active.path,
     shadows,
+    ...(active.remote ?? {}),
   };
 }
 
@@ -140,88 +178,30 @@ function validateSchema(
   schemaDir: string,
   verbose: boolean = false
 ): { valid: boolean; issues: ValidationIssue[] } {
-  const issues: ValidationIssue[] = [];
-  const schemaPath = path.join(schemaDir, 'schema.yaml');
-
-  // Check schema.yaml exists
   if (verbose) {
     console.log('  Checking schema.yaml exists...');
-  }
-  if (!fs.existsSync(schemaPath)) {
-    issues.push({
-      level: 'error',
-      path: 'schema.yaml',
-      message: 'schema.yaml not found',
-    });
-    return { valid: false, issues };
-  }
-
-  // Parse YAML
-  if (verbose) {
     console.log('  Parsing YAML...');
-  }
-  let content: string;
-  try {
-    content = fs.readFileSync(schemaPath, 'utf-8');
-  } catch (err) {
-    issues.push({
-      level: 'error',
-      path: 'schema.yaml',
-      message: `Failed to read file: ${(err as Error).message}`,
-    });
-    return { valid: false, issues };
-  }
-
-  // Validate against Zod schema
-  if (verbose) {
     console.log('  Validating schema structure...');
-  }
-  let schema: SchemaYaml;
-  try {
-    schema = parseSchema(content);
-  } catch (err) {
-    if (err instanceof SchemaValidationError) {
-      issues.push({
-        level: 'error',
-        path: 'schema.yaml',
-        message: err.message,
-      });
-    } else {
-      issues.push({
-        level: 'error',
-        path: 'schema.yaml',
-        message: `Parse error: ${(err as Error).message}`,
-      });
-    }
-    return { valid: false, issues };
-  }
-
-  // Check template files exist
-  // Templates can be in schemaDir directly or in a templates/ subdirectory
-  if (verbose) {
     console.log('  Checking template files...');
   }
-  for (const artifact of schema.artifacts) {
-    // Try templates subdirectory first (standard location), then root
-    const templatePathInTemplates = path.join(schemaDir, 'templates', artifact.template);
-    const templatePathInRoot = path.join(schemaDir, artifact.template);
-
-    if (!fs.existsSync(templatePathInTemplates) && !fs.existsSync(templatePathInRoot)) {
-      issues.push({
-        level: 'error',
-        path: `artifacts.${artifact.id}.template`,
-        message: `Template file '${artifact.template}' not found for artifact '${artifact.id}'`,
-      });
-    }
+  try {
+    validateSchemaDirectory(schemaDir);
+  } catch (error) {
+    return {
+      valid: false,
+      issues: [
+        {
+          level: 'error',
+          path: 'schema.yaml',
+          message: error instanceof Error ? error.message : String(error),
+        },
+      ],
+    };
   }
-
-  // Dependency graph validation is already done by parseSchema
-  // (it throws on cycles and invalid references)
   if (verbose) {
     console.log('  Dependency graph validation passed (via parseSchema)');
   }
-
-  return { valid: issues.length === 0, issues };
+  return { valid: true, issues: [] };
 }
 
 /**
@@ -298,6 +278,70 @@ export function registerSchemaCommand(program: Command): void {
     console.error('Note: Schema commands are experimental and may change.');
   });
 
+  // schema sync
+  schemaCmd
+    .command('sync [name]')
+    .description('Synchronize project-declared Git schema sources')
+    .option('--locked', 'Restore exactly the commits and content in the lockfile')
+    .option('--json', 'Output as JSON')
+    .action(
+      async (
+        name?: string,
+        options?: { locked?: boolean; json?: boolean }
+      ) => {
+        try {
+          const result = await syncRemoteSchemas(process.cwd(), {
+            name,
+            locked: options?.locked,
+          });
+          if (options?.json) {
+            console.log(JSON.stringify({ synced: true, ...result }, null, 2));
+          } else {
+            for (const schema of result.schemas) {
+              const action = schema.restored
+                ? 'Restored'
+                : result.locked
+                  ? 'Verified'
+                  : 'Synced';
+              console.log(
+                `${action} '${schema.name}': ${schema.requestedRef} → ${schema.resolvedCommit}`
+              );
+              console.log(`  Cache: ${schema.cachePath} (${schema.integrity})`);
+            }
+            console.log(
+              `${result.locked ? 'Verified' : 'Updated'} ${result.lockfile}`
+            );
+          }
+        } catch (error) {
+          if (options?.json) {
+            console.log(
+              JSON.stringify(
+                {
+                  synced: false,
+                  mode: options?.locked ? 'locked' : 'update',
+                  lockfile: getSchemaLockPath(process.cwd()),
+                  schemas: [],
+                  status: [
+                    {
+                      level: 'error',
+                      code: 'schema_sync_failed',
+                      message: (error as Error).message,
+                    },
+                  ],
+                  error: (error as Error).message,
+                },
+                null,
+                2
+              )
+            );
+          } else {
+            console.error(`Error: ${(error as Error).message}`);
+          }
+          process.exitCode = 1;
+        }
+      }
+    );
+
   // schema which
   schemaCmd
     .command('which [name]')
@@ -323,6 +367,7 @@ export function registerSchemaCommand(program: Command): void {
             // Group by source
             const bySource = {
               project: schemas.filter((s) => s.source === 'project'),
+              remote: schemas.filter((s) => s.source === 'remote'),
               user: schemas.filter((s) => s.source === 'user'),
               package: schemas.filter((s) => s.source === 'package'),
             };
@@ -330,6 +375,16 @@ export function registerSchemaCommand(program: Command): void {
             if (bySource.project.length > 0) {
               console.log('\nProject schemas:');
               for (const schema of bySource.project) {
+                const shadowInfo = schema.shadows.length > 0
+                  ? ` (shadows: ${schema.shadows.map((s) => s.source).join(', ')})`
+                  : '';
+                console.log(`  ${schema.name}${shadowInfo}`);
+              }
+            }
+
+            if (bySource.remote.length > 0) {
+              console.log('\nRemote schemas:');
+              for (const schema of bySource.remote) {
                 const shadowInfo = schema.shadows.length > 0
                   ? ` (shadows: ${schema.shadows.map((s) => s.source).join(', ')})`
                   : '';
@@ -358,7 +413,30 @@ export function registerSchemaCommand(program: Command): void {
         }
 
         if (!name) {
-          console.error('Error: Schema name is required (or use --all to list all schemas)');
+          const message = 'Schema name is required (or use --all to list all schemas)';
+          if (options?.json) {
+            console.log(
+              JSON.stringify(
+                {
+                  name: null,
+                  source: null,
+                  path: null,
+                  shadows: [],
+                  status: [
+                    {
+                      level: 'error',
+                      code: 'schema_name_required',
+                      message,
+                    },
+                  ],
+                },
+                null,
+                2
+              )
+            );
+          } else {
+            console.error(`Error: ${message}`);
+          }
           process.exitCode = 1;
           return;
         }
@@ -386,6 +464,12 @@ export function registerSchemaCommand(program: Command): void {
           console.log(`Schema: ${resolution.name}`);
           console.log(`Source: ${resolution.source}`);
           console.log(`Path: ${resolution.path}`);
+          if (resolution.requestedRef && resolution.resolvedCommit) {
+            console.log(
+              `Locked: ${resolution.requestedRef} → ${resolution.resolvedCommit}`
+            );
+            console.log(`Integrity: ${resolution.integrity}`);
+          }
 
           if (resolution.shadows.length > 0) {
             console.log('\nShadows:');
@@ -395,7 +479,29 @@ export function registerSchemaCommand(program: Command): void {
           }
         }
       } catch (error) {
-        console.error(`Error: ${(error as Error).message}`);
+        if (options?.json) {
+          console.log(
+            JSON.stringify(
+              {
+                name: name ?? null,
+                source: null,
+                path: null,
+                shadows: [],
+                status: [
+                  {
+                    level: 'error',
+                    code: 'schema_resolution_failed',
+                    message: (error as Error).message,
+                  },
+                ],
+              },
+              null,
+              2
+            )
+          );
+        } else {
+          console.error(`Error: ${(error as Error).message}`);
+        }
         process.exitCode = 1;
       }
     });

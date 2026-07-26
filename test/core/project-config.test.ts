@@ -372,6 +372,153 @@ rules:
       });
     });
 
+    describe('schemaSources parsing', () => {
+      it('parses a valid Git-backed schema source without changing schema selection', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: qeda-sdd
+schemaSources:
+  qeda-sdd:
+    git: https://github.com/example/QEDASDD.git
+    ref: v1.0.0
+    path: schemas/qeda-sdd
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config).toEqual({
+          schema: 'qeda-sdd',
+          schemaSources: {
+            'qeda-sdd': {
+              git: 'https://github.com/example/QEDASDD.git',
+              ref: 'v1.0.0',
+              path: 'schemas/qeda-sdd',
+            },
+          },
+        });
+        expect(consoleWarnSpy).not.toHaveBeenCalled();
+      });
+
+      it('keeps valid sources and unrelated fields when other declarations are invalid', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: qeda-sdd
+context: Keep this
+schemaSources:
+  Valid_Name:
+    git: https://example.com/invalid-name.git
+    ref: main
+    path: schema
+  missing-ref:
+    git: https://example.com/missing-ref.git
+    path: schema
+  qeda-sdd:
+    git: git@github.com:example/QEDASDD.git
+    ref: main
+    path: schemas/qeda-sdd
+`
+        );
+
+        expect(readProjectConfig(tempDir)).toEqual({
+          schema: 'qeda-sdd',
+          context: 'Keep this',
+          schemaSources: {
+            'qeda-sdd': {
+              git: 'git@github.com:example/QEDASDD.git',
+              ref: 'main',
+              path: 'schemas/qeda-sdd',
+            },
+          },
+        });
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid schema source name 'Valid_Name'")
+        );
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid 'ref' for schema source 'missing-ref'")
+        );
+      });
+
+      it('rejects credential-bearing HTTPS URLs without repeating the secret', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+schemaSources:
+  private-flow:
+    git: https://oauth2:super-secret-token@example.com/team/schema.git
+    ref: main
+    path: schema
+`
+        );
+
+        expect(readProjectConfig(tempDir)).toEqual({ schema: 'spec-driven' });
+        const warnings = consoleWarnSpy.mock.calls.flat().join('\n');
+        expect(warnings).toContain("Credentials are not allowed in Git URL for schema source 'private-flow'");
+        expect(warnings).not.toContain('super-secret-token');
+      });
+
+      it('rejects Git remote-helper transports without invoking them', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+schemaSources:
+  unsafe-flow:
+    git: ext::malicious-helper
+    ref: main
+    path: schema
+`
+        );
+
+        expect(readProjectConfig(tempDir)).toEqual({ schema: 'spec-driven' });
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Unsupported Git source for schema source 'unsafe-flow'")
+        );
+      });
+
+      it('rejects prototype keys explicitly without mutating object prototypes', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+schemaSources:
+  __proto__:
+    git: https://example.com/proto.git
+    ref: main
+    path: schema
+  constructor:
+    git: https://example.com/constructor.git
+    ref: main
+    path: schema
+  prototype:
+    git: https://example.com/prototype.git
+    ref: main
+    path: schema
+`
+        );
+
+        expect(readProjectConfig(tempDir)).toEqual({ schema: 'spec-driven' });
+        expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid schema source name '__proto__'")
+        );
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid schema source name 'constructor'")
+        );
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid schema source name 'prototype'")
+        );
+      });
+    });
+
     describe('context size limit enforcement', () => {
       it('should accept context under 50KB limit', () => {
         const configDir = path.join(tempDir, 'openspec');

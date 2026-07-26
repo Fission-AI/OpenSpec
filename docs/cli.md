@@ -15,7 +15,7 @@ The OpenSpec CLI (`openspec`) provides terminal commands for project setup, vali
 | **Validation** | `validate` | Check changes and specs for issues |
 | **Lifecycle** | `archive` | Finalize completed changes |
 | **Workflow** | `new change`, `status`, `instructions`, `templates`, `schemas` | Artifact-driven workflow support |
-| **Schemas** | `schema init`, `schema fork`, `schema validate`, `schema which` | Create and manage custom workflows |
+| **Schemas** | `schema init`, `schema fork`, `schema validate`, `schema which`, `schema sync` | Create, inspect, and synchronize custom workflows |
 | **Config** | `config` | View and modify settings |
 | **Utility** | `feedback`, `completion` | Feedback and shell integration |
 
@@ -51,6 +51,7 @@ These commands support `--json` output for programmatic use by AI agents and scr
 | `openspec instructions` | Get next steps | `--json` for agent instructions |
 | `openspec templates` | Find template paths | `--json` for path resolution |
 | `openspec schemas` | List available schemas | `--json` for schema discovery |
+| `openspec schema sync [name]` | Synchronize declared Git schemas | `--json` for structured sync results |
 | `openspec store setup <id>` | Create and register a local store | `--json` with explicit inputs for structured setup output |
 | `openspec store register <path>` | Register an existing store | `--json` for structured registration output |
 | `openspec store unregister <id>` | Forget a local store registration | `--json` for structured cleanup output |
@@ -848,6 +849,75 @@ Available schemas:
 
 Commands for creating and managing custom workflow schemas.
 
+### `openspec schema sync`
+
+Synchronize Git schema sources declared in `openspec/config.yaml`.
+
+```text
+openspec schema sync [name] [options]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--locked` | Restore or verify the exact commit and digest already in the lockfile |
+| `--json` | Emit exactly one JSON result document |
+
+Omit `name` to synchronize every declared source. Update mode resolves a
+configured branch or tag to an immutable commit, validates the complete bundle,
+installs it in the local content-addressed cache, and atomically updates
+`openspec/schemas.lock.yaml`.
+
+```bash
+# Update one source to the current configured ref
+openspec schema sync qeda-sdd
+
+# Update every source
+openspec schema sync
+
+# CI: restore the exact committed lock state
+openspec schema sync --locked --json
+```
+
+Public HTTPS and private SSH declarations:
+
+```yaml
+schemaSources:
+  public-flow:
+    git: https://github.com/example/team-schemas.git
+    ref: v1.2.0
+    path: schemas/public-flow
+  private-flow:
+    git: git@github.com:acme/private-schemas.git
+    ref: main
+    path: schemas/private-flow
+```
+
+Private access reuses system Git SSH and credential helpers. Never embed a token
+in a URL. Commit the lockfile, but do not commit the global cache. Ordinary
+commands are network-free and continue to use the old locked version after a
+remote branch advances. Run update mode explicitly to upgrade. A missing or
+corrupt cache reports a `schema sync --locked` fix; CI must either restore the
+global cache or run that command while the source is reachable before entering
+an offline phase.
+
+Example JSON success:
+
+```json
+{
+  "synced": true,
+  "locked": false,
+  "schemas": [
+    {
+      "name": "qeda-sdd",
+      "resolvedCommit": "0123456789abcdef0123456789abcdef01234567",
+      "integrity": "sha256:...",
+      "cachePath": "...",
+      "restored": false
+    }
+  ]
+}
+```
+
 ### `openspec schema init`
 
 Create a new project-local schema.
@@ -1002,8 +1072,12 @@ spec-driven resolves from: package
 **Schema precedence:**
 
 1. Project: `openspec/schemas/<name>/`
-2. User: `~/.local/share/openspec/schemas/<name>/`
-3. Package: Built-in schemas
+2. Remote: project-declared source with matching lock and verified local cache
+3. User: `~/.local/share/openspec/schemas/<name>/`
+4. Package: Built-in schemas
+
+Declared remote sources fail closed when unavailable and never trigger an
+implicit network request.
 
 ---
 

@@ -35,10 +35,19 @@ export async function schemasCommand(options: SchemasOptions): Promise<void> {
     let sourceLabel = '';
     if (schema.source === 'project') {
       sourceLabel = chalk.cyan(' (project)');
+    } else if (schema.source === 'remote') {
+      sourceLabel = schema.available === false
+        ? chalk.yellow(' (remote, unavailable)')
+        : chalk.cyan(' (remote)');
     } else if (schema.source === 'user') {
       sourceLabel = chalk.dim(' (user override)');
     }
     console.log(`  ${chalk.bold(schema.name)}${sourceLabel}`);
+    if (schema.available === false) {
+      console.log(`    ${chalk.yellow(schema.error ?? 'Remote schema is unavailable')}`);
+      console.log();
+      continue;
+    }
     console.log(`    ${schema.description}`);
     console.log(`    Artifacts: ${schema.artifacts.join(' → ')}`);
     console.log();

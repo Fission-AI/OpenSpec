@@ -2,6 +2,10 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getGlobalDataDir } from '../global-config.js';
+import { readProjectConfig } from '../project-config.js';
+import { verifyRemoteSchemaCache } from '../remote-schema/cache.js';
+import { readSchemaLock } from '../remote-schema/lockfile.js';
+import { validateSchemaDirectory } from './schema-directory.js';
 import { parseSchema, SchemaValidationError } from './schema.js';
 import type { SchemaYaml } from './types.js';
 
@@ -45,6 +49,61 @@ export function getProjectSchemasDir(projectRoot: string): string {
   return path.join(projectRoot, 'openspec', 'schemas');
 }
 
+export function getRemoteSchemaDir(name: string, projectRoot: string): string | null {
+  const source = readProjectConfig(projectRoot)?.schemaSources?.[name];
+  if (!source) {
+    return null;
+  }
+
+  let lock;
+  try {
+    lock = readSchemaLock(projectRoot);
+  } catch (error) {
+    throw new Error(
+      `${error instanceof Error ? error.message : String(error)}; run 'openspec schema sync'`
+    );
+  }
+  const entry = lock?.schemas[name];
+  if (!entry) {
+    throw new Error(
+      `Remote schema '${name}' is not locked; run 'openspec schema sync ${name}'`
+    );
+  }
+  if (
+    entry.git !== source.git ||
+    entry.requestedRef !== source.ref ||
+    entry.bundlePath !== source.path
+  ) {
+    throw new Error(
+      `Remote schema '${name}' lock does not match openspec/config.yaml; run 'openspec schema sync ${name}'`
+    );
+  }
+
+  let cacheDir: string;
+  try {
+    cacheDir = verifyRemoteSchemaCache(entry.integrity);
+  } catch (error) {
+    throw new Error(
+      `Remote schema '${name}' cache is unavailable or corrupt: ${
+        error instanceof Error ? error.message : String(error)
+      }; run 'openspec schema sync ${name} --locked'`
+    );
+  }
+  try {
+    validateSchemaDirectory(cacheDir, {
+      expectedName: name,
+      requireTemplatesDirectory: true,
+    });
+  } catch (error) {
+    throw new Error(
+      `Remote schema '${name}' cache is invalid: ${
+        error instanceof Error ? error.message : String(error)
+      }; run 'openspec schema sync ${name} --locked'`
+    );
+  }
+  return cacheDir;
+}
+
 /**
  * Determines whether a directory entry represents a schema directory candidate.
  *
@@ -78,8 +137,9 @@ export function isSchemaDir(parentDir: string, entry: fs.Dirent): boolean {
  *
  * Resolution order (when projectRoot is provided):
  * 1. Project-local: <projectRoot>/openspec/schemas/<name>/schema.yaml
- * 2. User override: ${XDG_DATA_HOME}/openspec/schemas/<name>/schema.yaml
- * 3. Package built-in: <package>/schemas/<name>/schema.yaml
+ * 2. Locked remote schema declared by the project
+ * 3. User override: ${XDG_DATA_HOME}/openspec/schemas/<name>/schema.yaml
+ * 4. Package built-in: <package>/schemas/<name>/schema.yaml
  *
  * When projectRoot is not provided, only user override and package built-in are checked
  * (backward compatible behavior).
@@ -99,16 +159,21 @@ export function getSchemaDir(
     if (fs.existsSync(projectSchemaPath)) {
       return projectDir;
     }
+
+    const remoteDir = getRemoteSchemaDir(name, projectRoot);
+    if (remoteDir) {
+      return remoteDir;
+    }
   }
 
-  // 2. Check user override directory
+  // 3. Check user override directory
   const userDir = path.join(getUserSchemasDir(), name);
   const userSchemaPath = path.join(userDir, 'schema.yaml');
   if (fs.existsSync(userSchemaPath)) {
     return userDir;
   }
 
-  // 3. Check package built-in directory
+  // 4. Check package built-in directory
   const packageDir = path.join(getPackageSchemasDir(), name);
   const packageSchemaPath = path.join(packageDir, 'schema.yaml');
   if (fs.existsSync(packageSchemaPath)) {
@@ -217,6 +282,13 @@ export function listSchemas(projectRoot?: string): string[] {
 
   // Add project-local schemas (if projectRoot provided)
   if (projectRoot) {
+    const remoteNames = Object.keys(
+      readProjectConfig(projectRoot)?.schemaSources ?? {}
+    );
+    for (const name of remoteNames) {
+      schemas.add(name);
+    }
+
     const projectDir = getProjectSchemasDir(projectRoot);
     if (fs.existsSync(projectDir)) {
       for (const entry of fs.readdirSync(projectDir, { withFileTypes: true })) {
@@ -240,7 +312,9 @@ export interface SchemaInfo {
   name: string;
   description: string;
   artifacts: string[];
-  source: 'project' | 'user' | 'package';
+  source: 'project' | 'remote' | 'user' | 'package';
+  available?: boolean;
+  error?: string;
 }
 
 /**
@@ -275,6 +349,37 @@ export function listSchemasWithInfo(projectRoot?: string): SchemaInfo[] {
             }
           }
         }
+      }
+    }
+
+    const remoteNames = Object.keys(
+      readProjectConfig(projectRoot)?.schemaSources ?? {}
+    ).sort();
+    for (const name of remoteNames) {
+      if (seenNames.has(name)) continue;
+      try {
+        const remoteDir = getRemoteSchemaDir(name, projectRoot);
+        if (!remoteDir) continue;
+        const schema = parseSchema(
+          fs.readFileSync(path.join(remoteDir, 'schema.yaml'), 'utf8')
+        );
+        schemas.push({
+          name,
+          description: schema.description || '',
+          artifacts: schema.artifacts.map((artifact) => artifact.id),
+          source: 'remote',
+        });
+        seenNames.add(name);
+      } catch (error) {
+        schemas.push({
+          name,
+          description: '',
+          artifacts: [],
+          source: 'remote',
+          available: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        seenNames.add(name);
       }
     }
   }

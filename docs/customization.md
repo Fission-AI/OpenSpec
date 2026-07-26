@@ -1,11 +1,12 @@
 # Customization
 
-OpenSpec provides three levels of customization:
+OpenSpec provides four levels of customization:
 
 | Level | What it does | Best for |
 |-------|--------------|----------|
 | **Project Config** | Set defaults, inject context/rules | Most teams |
 | **Custom Schemas** | Define your own workflow artifacts | Teams with unique processes |
+| **Remote Schemas** | Pin a team-owned Git schema across repositories | Multi-repository teams |
 | **Global Overrides** | Share schemas across all projects | Power users |
 
 ---
@@ -271,6 +272,82 @@ Path: /path/to/project/openspec/schemas/my-workflow
 
 > **Note:** OpenSpec also supports user-level schemas at `~/.local/share/openspec/schemas/` for sharing across projects, but project-level schemas in `openspec/schemas/` are recommended since they're version-controlled with your code.
 
+## Remote Team Schemas
+
+A remote schema is a complete schema bundle maintained in a Git repository and
+declared by a project. It solves a different problem from the other locations:
+
+- A **project-local schema** is copied into one repository and can evolve there.
+- A **remote schema** is shared by many repositories and pinned by each consumer.
+- A **user-level schema** is a machine-local override and is not reproducible for a team.
+- A **package schema** ships with the installed OpenSpec version.
+
+Declare the source without changing the existing string-valued `schema` field:
+
+```yaml
+# openspec/config.yaml
+schema: qeda-sdd
+
+schemaSources:
+  qeda-sdd:
+    git: https://github.com/example/QEDASDD.git
+    ref: v1.0.0
+    path: schemas/qeda-sdd
+```
+
+Then synchronize explicitly:
+
+```bash
+# Resolve the configured ref and update the lock
+openspec schema sync qeda-sdd
+
+# Synchronize every declared source
+openspec schema sync
+
+# Restore/verify the exact lockfile state, for example in CI
+openspec schema sync --locked
+```
+
+Commit `openspec/schemas.lock.yaml`. It records the requested ref, resolved
+commit SHA, bundle path, and SHA-256 content integrity. Do not commit the
+machine cache under the OpenSpec global data directory. Normal OpenSpec
+commands never fetch: they only use a matching lock entry and verified cache.
+If the cache is absent, run `schema sync --locked` while the Git source is
+reachable, then ordinary commands work offline.
+
+Branches and tags are allowed, but they move only when `schema sync` is run
+without `--locked`. A remote update therefore cannot change a normal command's
+workflow unexpectedly.
+
+Private repositories use the system Git client's existing SSH agent or
+credential helper:
+
+```yaml
+schemaSources:
+  private-flow:
+    git: git@github.com:acme/private-schemas.git
+    ref: main
+    path: schemas/private-flow
+```
+
+Do not put credentials or tokens in configuration. Credential-bearing HTTPS
+URLs are rejected, and lockfiles contain no authentication material.
+
+Schema location precedence is:
+
+1. `openspec/schemas/<name>` in the project
+2. A project-declared, locked, integrity-verified remote schema
+3. A user-level schema
+4. A package built-in schema
+
+A declared remote source fails closed when its lock or cache is missing,
+stale, or corrupt; OpenSpec does not silently select a same-named user or
+package schema. Bundle paths must stay inside the Git repository. Absolute
+paths, traversal, symlinks, submodules, case-colliding paths, invalid names,
+incomplete schemas, and bundles over 1,000 files or 10 MiB are rejected.
+Remote schemas are complete bundles; inheritance and schema merging are not
+supported.
+
 ---
 
 ## Examples
@@ -341,7 +418,7 @@ Then edit `schema.yaml` to add:
 
 OpenSpec also supports community-maintained schemas distributed via standalone repositories. These provide opinionated workflows that integrate OpenSpec with other tools or systems, similar to how [github/spec-kit's community extension catalog](https://github.com/github/spec-kit/tree/main/extensions) works for spec-kit.
 
-Community schemas are not vendored into OpenSpec core — they live in their own repositories with their own release cadence. To use one, copy the schema bundle into your project's `openspec/schemas/<schema-name>/` directory (each repo's README has install instructions).
+Community schemas are not vendored into OpenSpec core — they live in their own repositories with their own release cadence. You can either declare one as a remote schema and pin it with `openspec schema sync`, or copy its bundle into your project's `openspec/schemas/<schema-name>/` directory.
 
 | Schema | Maintainer | Repository | Description |
 |--------|-----------|-----------|-------------|
