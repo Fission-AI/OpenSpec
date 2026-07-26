@@ -1,12 +1,21 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { Command } from 'commander';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+
+async function runSchemaCommand(args: string[]): Promise<void> {
+  const { registerSchemaCommand } = await import('../../src/commands/schema.js');
+  const program = new Command();
+  registerSchemaCommand(program);
+  await program.parseAsync(['node', 'openspec', 'schema', ...args]);
+}
 
 describe('schema command', () => {
   let tempDir: string;
   let originalCwd: string;
   let originalEnv: NodeJS.ProcessEnv;
+  let originalExitCode: typeof process.exitCode;
   let consoleLogSpy: ReturnType<typeof vi.spyOn>;
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
@@ -20,6 +29,8 @@ describe('schema command', () => {
     // Save original cwd and env
     originalCwd = process.cwd();
     originalEnv = { ...process.env };
+    originalExitCode = process.exitCode;
+    process.exitCode = undefined;
 
     // Change to temp directory
     process.chdir(tempDir);
@@ -37,6 +48,7 @@ describe('schema command', () => {
     // Restore cwd and env
     process.chdir(originalCwd);
     process.env = originalEnv;
+    process.exitCode = originalExitCode;
 
     // Clean up temp directory
     fs.rmSync(tempDir, { recursive: true, force: true });
@@ -241,6 +253,69 @@ artifacts:
   });
 
   describe('schema init', () => {
+    it('should preserve an existing schema when forced init rejects an artifact', async () => {
+      const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'tdd-driven');
+      const schemaPath = path.join(schemaDir, 'schema.yaml');
+      const sentinelPath = path.join(schemaDir, 'keep.bin');
+      const existingSchema = 'name: tdd-driven\nversion: 1\n';
+      const sentinel = Buffer.from([0x00, 0x01, 0x7f, 0xff]);
+
+      fs.mkdirSync(schemaDir, { recursive: true });
+      fs.writeFileSync(schemaPath, existingSchema);
+      fs.writeFileSync(sentinelPath, sentinel);
+
+      await runSchemaCommand([
+        'init',
+        'tdd-driven',
+        '--force',
+        '--artifacts',
+        'proposal,specs,design,task',
+        '--json',
+      ]);
+
+      expect(process.exitCode).toBe(1);
+      const output = consoleLogSpy.mock.calls.at(-1)?.[0];
+      expect(typeof output).toBe('string');
+      expect(JSON.parse(output as string)).toEqual({
+        created: false,
+        error: "Unknown artifact 'task'",
+        valid: ['proposal', 'specs', 'design', 'tasks'],
+      });
+      expect(fs.readFileSync(schemaPath, 'utf-8')).toBe(existingSchema);
+      expect(fs.readFileSync(sentinelPath)).toEqual(sentinel);
+    });
+
+    it('should replace an existing schema after forced init validates its artifacts', async () => {
+      const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'tdd-driven');
+      const sentinelPath = path.join(schemaDir, 'keep.txt');
+
+      fs.mkdirSync(schemaDir, { recursive: true });
+      fs.writeFileSync(sentinelPath, 'remove me');
+
+      await runSchemaCommand([
+        'init',
+        'tdd-driven',
+        '--force',
+        '--artifacts',
+        'proposal,specs,design,tasks',
+        '--json',
+      ]);
+
+      const output = consoleLogSpy.mock.calls.at(-1)?.[0];
+      expect(typeof output).toBe('string');
+      expect(JSON.parse(output as string)).toMatchObject({
+        created: true,
+        schema: 'tdd-driven',
+        artifacts: ['proposal', 'specs', 'design', 'tasks'],
+      });
+      expect(fs.existsSync(sentinelPath)).toBe(false);
+      expect(fs.existsSync(path.join(schemaDir, 'schema.yaml'))).toBe(true);
+      expect(fs.existsSync(path.join(schemaDir, 'templates', 'proposal.md'))).toBe(true);
+      expect(fs.existsSync(path.join(schemaDir, 'templates', 'specs', 'spec.md'))).toBe(true);
+      expect(fs.existsSync(path.join(schemaDir, 'templates', 'design.md'))).toBe(true);
+      expect(fs.existsSync(path.join(schemaDir, 'templates', 'tasks.md'))).toBe(true);
+    });
+
     it('should create schema directory with schema.yaml', async () => {
       const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'new-schema');
       fs.mkdirSync(schemaDir, { recursive: true });
