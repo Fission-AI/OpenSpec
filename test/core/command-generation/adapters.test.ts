@@ -15,7 +15,10 @@ import { factoryAdapter } from '../../../src/core/command-generation/adapters/fa
 import { geminiAdapter } from '../../../src/core/command-generation/adapters/gemini.js';
 import { githubCopilotAdapter } from '../../../src/core/command-generation/adapters/github-copilot.js';
 import { iflowAdapter } from '../../../src/core/command-generation/adapters/iflow.js';
+import { junieAdapter } from '../../../src/core/command-generation/adapters/junie.js';
 import { kilocodeAdapter } from '../../../src/core/command-generation/adapters/kilocode.js';
+import { kiroAdapter } from '../../../src/core/command-generation/adapters/kiro.js';
+import { lingmaAdapter } from '../../../src/core/command-generation/adapters/lingma.js';
 import { ohMyPiAdapter } from '../../../src/core/command-generation/adapters/oh-my-pi.js';
 import { opencodeAdapter } from '../../../src/core/command-generation/adapters/opencode.js';
 import { piAdapter } from '../../../src/core/command-generation/adapters/pi.js';
@@ -247,7 +250,7 @@ describe('command-generation/adapters', () => {
         description: '',
       };
       const output = bobAdapter.formatFile(contentEmptyDesc);
-      expect(output).toContain('description: \n');
+      expect(output).toContain('description: ""');
     });
   });
 
@@ -284,7 +287,7 @@ describe('command-generation/adapters', () => {
       const output = codebuddyAdapter.formatFile(sampleContent);
       expect(output).toContain('---\n');
       expect(output).toContain('name: OpenSpec Explore');
-      expect(output).toContain('description: "Enter explore mode for thinking"');
+      expect(output).toContain('description: Enter explore mode for thinking');
       expect(output).toContain('argument-hint: "[command arguments]"');
       expect(output).toContain('---\n\n');
       expect(output).toContain('This is the command body.');
@@ -325,7 +328,7 @@ describe('command-generation/adapters', () => {
     it('should format file with description and argument-hint', () => {
       const output = costrictAdapter.formatFile(sampleContent);
       expect(output).toContain('---\n');
-      expect(output).toContain('description: "Enter explore mode for thinking"');
+      expect(output).toContain('description: Enter explore mode for thinking');
       expect(output).toContain('argument-hint: command arguments');
       expect(output).toContain('---\n\n');
       expect(output).toContain('This is the command body.');
@@ -942,6 +945,55 @@ describe('command-generation/adapters', () => {
         expect(filePath.length).toBeGreaterThan(0);
         expect(filePath.includes(path.sep) || filePath.includes('.')).toBe(true);
       }
+    });
+  });
+
+  describe('YAML frontmatter escaping across adapters', () => {
+    const yamlAdapters = [
+      amazonQAdapter,
+      antigravityAdapter,
+      auggieAdapter,
+      bobAdapter,
+      claudeAdapter,
+      codebuddyAdapter,
+      continueAdapter,
+      costrictAdapter,
+      crushAdapter,
+      cursorAdapter,
+      factoryAdapter,
+      githubCopilotAdapter,
+      iflowAdapter,
+      junieAdapter,
+      ohMyPiAdapter,
+      opencodeAdapter,
+      piAdapter,
+      qoderAdapter,
+      qwenAdapter,
+      traeAdapter,
+      windsurfAdapter,
+      zcodeAdapter,
+    ];
+
+    it.each(yamlAdapters)('$toolId formats valid YAML frontmatter when description contains colons and quotes', (adapter) => {
+      const specialContent: CommandContent = {
+        id: 'explore',
+        name: 'OpenSpec: Explore',
+        description: 'Explore mode: "thinking" & planning (e.g. feature: dark-mode)',
+        category: 'Workflow: Core',
+        tags: ['workflow:core', 'explore:mode'],
+        body: 'Body text',
+      };
+
+      const fileContent = adapter.formatFile(specialContent);
+      const frontmatterMatch = fileContent.match(/^---\n([\s\S]*?)\n---/);
+      expect(frontmatterMatch).not.toBeNull();
+
+      // Ensure frontmatter is valid YAML that parses without throwing
+      const { parse: parseYaml } = require('yaml');
+      expect(() => parseYaml(frontmatterMatch![1])).not.toThrow();
+
+      const parsed = parseYaml(frontmatterMatch![1]);
+      expect(parsed.description).toBe(specialContent.description);
     });
   });
 });

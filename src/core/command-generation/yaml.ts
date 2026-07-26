@@ -20,6 +20,9 @@
  * @returns The value, double-quoted and escaped when necessary.
  */
 export function escapeYamlValue(value: string): string {
+  if (value === '') {
+    return '""';
+  }
   // Check if value needs quoting (contains special YAML characters or starts/ends with whitespace)
   const needsQuoting = /[:\n\r#{}[\],&*!|>'"%@`]|^\s|\s$/.test(value);
   if (needsQuoting) {
@@ -35,4 +38,15 @@ export function escapeYamlValue(value: string): string {
     return `"${escaped}"`;
   }
   return value;
+}
+
+/**
+ * Formats a tags array as a YAML array with proper escaping.
+ *
+ * @param tags - Array of tag strings.
+ * @returns Formatted YAML array string, e.g. '[tag1, tag2]'.
+ */
+export function formatTagsArray(tags: string[]): string {
+  const escapedTags = tags.map((tag) => escapeYamlValue(tag));
+  return `[${escapedTags.join(', ')}]`;
 }

@@ -6,6 +6,7 @@
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
+import { escapeYamlValue } from '../yaml.js';
 
 /**
  * iFlow adapter for command generation.
@@ -23,8 +24,8 @@ export const iflowAdapter: ToolCommandAdapter = {
     return `---
 name: /opsx-${content.id}
 id: opsx-${content.id}
-category: ${content.category}
-description: ${content.description}
+category: ${escapeYamlValue(content.category)}
+description: ${escapeYamlValue(content.description)}
 ---
 
 ${content.body}
