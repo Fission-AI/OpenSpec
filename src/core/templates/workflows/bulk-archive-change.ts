@@ -132,7 +132,7 @@ ${STORE_SELECTION_GUIDANCE}
    Process changes in the determined order (respecting conflict resolution):
 
    a. **Sync specs** if delta specs exist:
-      - Use the openspec-sync-specs approach (agent-driven intelligent merge)
+      - Use the openspec-sync-specs approach (agent-driven intelligent merge, or merge delta specs directly into main specs if sync workflow is not installed)
       - For conflicts, apply in resolved order
       - Track if sync was done
 
@@ -392,7 +392,7 @@ ${STORE_SELECTION_GUIDANCE}
    Process changes in the determined order (respecting conflict resolution):
 
    a. **Sync specs** if delta specs exist:
-      - Use the openspec-sync-specs approach (agent-driven intelligent merge)
+      - Use the openspec-sync-specs approach (agent-driven intelligent merge, or merge delta specs directly into main specs if sync workflow is not installed)
       - For conflicts, apply in resolved order
       - Track if sync was done
 
