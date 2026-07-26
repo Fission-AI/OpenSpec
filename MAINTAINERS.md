@@ -7,6 +7,7 @@ People who maintain and guide OpenSpec.
 | Name | GitHub | Role |
 |------|--------|------|
 | Tabish Bidiwale | [@TabishB](https://github.com/TabishB) | Lead maintainer |
+| Clay Good | [@clay-good](https://github.com/clay-good) | Maintainer |
 
 ## Advisors
 
