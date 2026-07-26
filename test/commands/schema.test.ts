@@ -301,6 +301,7 @@ artifacts:
         '--json',
       ]);
 
+      expect(process.exitCode).toBeUndefined();
       const output = consoleLogSpy.mock.calls.at(-1)?.[0];
       expect(typeof output).toBe('string');
       expect(JSON.parse(output as string)).toMatchObject({
