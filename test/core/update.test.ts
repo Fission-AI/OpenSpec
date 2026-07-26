@@ -387,6 +387,21 @@ Old instructions content
       }
     });
 
+    it('should update command files when tool is configured via commands-only delivery without skills', async () => {
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+      const commandsDir = path.join(testDir, '.claude', 'commands', 'opsx');
+      await fs.mkdir(commandsDir, { recursive: true });
+      const coreCommandIds = ['explore', 'apply', 'update', 'sync', 'archive', 'propose'];
+      for (const cmdId of coreCommandIds) {
+        await fs.writeFile(path.join(commandsDir, `${cmdId}.md`), 'old command content');
+      }
+
+      await updateCommand.execute(testDir);
+
+      const updatedContent = await fs.readFile(path.join(commandsDir, 'explore.md'), 'utf-8');
+      expect(updatedContent).not.toBe('old command content');
+      expect(updatedContent).toContain('---');
+    });
   });
 
   describe('multi-tool support', () => {

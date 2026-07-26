@@ -169,7 +169,11 @@ export class UpdateCommand {
     const toolStatuses = configuredTools.map((toolId) => {
       const status = getToolVersionStatus(resolvedProjectPath, toolId, OPENSPEC_VERSION);
       if (!status.configured && commandConfiguredSet.has(toolId)) {
-        return { ...status, configured: true };
+        return {
+          ...status,
+          configured: true,
+          needsUpdate: status.generatedByVersion === null || status.generatedByVersion !== OPENSPEC_VERSION,
+        };
       }
       return status;
     });
