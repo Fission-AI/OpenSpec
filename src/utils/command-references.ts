@@ -104,8 +104,8 @@ export function getSkillReferenceTransformer(toolId: string): (text: string) => 
  * because the tool has no command surface at all (capability 'none', e.g.
  * Kimi Code or Mistral Vibe) — so those skills never point at commands
  * that were not generated. When commands are generated, tools where the
- * command filename doubles as the command name (oh-my-pi, opencode, pi) use
- * hyphen-based command references. All other cases keep the default
+ * command filename doubles as the command name (bob, oh-my-pi, opencode,
+ * pi, qwen) use hyphen-based command references. All other cases keep the default
  * `/opsx:*` references; notably skills-invocable tools (codex) are
  * deliberately left untouched here to keep codex output stable while its
  * reference rewriting is reworked separately.
@@ -123,7 +123,13 @@ export function getTransformerForTool(
   if (delivery === 'skills' || capability === 'none') {
     return getSkillReferenceTransformer(toolId);
   }
-  if (toolId === 'opencode' || toolId === 'pi' || toolId === 'oh-my-pi') {
+  if (
+    toolId === 'bob' ||
+    toolId === 'oh-my-pi' ||
+    toolId === 'opencode' ||
+    toolId === 'pi' ||
+    toolId === 'qwen'
+  ) {
     return transformToHyphenCommands;
   }
   return undefined;

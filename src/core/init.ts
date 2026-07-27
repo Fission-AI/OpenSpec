@@ -897,7 +897,14 @@ export class InitCommand {
       for (const tool of successfulTools) {
         let hint: string;
         if (shouldGenerateCommandsForTool(tool.value, activeDelivery)) {
-          hint = `Start your first change: ${command} "your idea"`;
+          // Tools that invoke commands by filename (bob, qwen, ...) need the
+          // hyphen form here too, not just inside generated bodies.
+          const transformer = getTransformerForTool(
+            tool.value,
+            activeDelivery,
+            resolveCommandSurfaceCapability(tool.value)
+          );
+          hint = `Start your first change: ${transformer ? transformer(command) : command} "your idea"`;
         } else if (shouldGenerateSkillsForTool(tool.value, activeDelivery)) {
           hint =
             resolveCommandSurfaceCapability(tool.value) === 'skills-invocable'

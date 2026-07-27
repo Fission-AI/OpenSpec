@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { execFileSync } from 'child_process';
+import { execFileSync, spawnSync } from 'child_process';
 
 describe('top-level show command', () => {
   const projectRoot = process.cwd();
@@ -64,6 +64,27 @@ describe('top-level show command', () => {
     }
   });
 
+  it('does not warn about spec-only flags that were never passed', () => {
+    // commander defaults `scenarios` to true for --no-scenarios, so a plain
+    // `show <change>` must not warn about a flag the user never typed.
+    const res = spawnSync('node', [openspecBin, 'show', 'demo', '--json'], {
+      encoding: 'utf-8',
+      cwd: testDir,
+    });
+    expect(res.status).toBe(0);
+    expect(res.stderr).not.toContain('not applicable');
+  });
+
+  it('still warns when --no-scenarios is explicitly passed for a change', () => {
+    const res = spawnSync(
+      'node',
+      [openspecBin, 'show', 'demo', '--json', '--no-scenarios'],
+      { encoding: 'utf-8', cwd: testDir }
+    );
+    expect(res.status).toBe(0);
+    expect(res.stderr).toContain('Ignoring flags not applicable to change: scenarios');
+  });
+
   it('auto-detects spec id and supports spec-only flags', () => {
     const originalCwd = process.cwd();
     try {
@@ -98,6 +119,53 @@ describe('top-level show command', () => {
       expect(stderr).toContain('--type change|spec');
     } finally {
       process.chdir(originalCwd);
+    }
+  });
+
+  it('resolves a scaffolded change that has no proposal.md yet', async () => {
+    // `openspec new change <name>` writes only .openspec.yaml, so `show` must
+    // resolve the change the same way `list` and `status` already do.
+    await fs.mkdir(path.join(changesDir, 'scaffolded'), { recursive: true });
+    await fs.writeFile(path.join(changesDir, 'scaffolded', '.openspec.yaml'), 'schema: spec-driven\n', 'utf-8');
+
+    const originalCwd = process.cwd();
+    try {
+      process.chdir(testDir);
+      let err: any;
+      try {
+        execFileSync('node', [openspecBin, 'show', 'scaffolded'], { encoding: 'utf-8' });
+      } catch (e) { err = e; }
+      expect(err).toBeDefined();
+      const stderr = err.stderr.toString();
+      // Resolved as a change, not rejected as an unknown item.
+      expect(stderr).not.toContain('Unknown item');
+      expect(stderr).toContain('has no proposal.md yet');
+      expect(stderr).toContain('openspec status --change scaffolded');
+    } finally {
+      process.chdir(originalCwd);
+    }
+  });
+
+  it('offers a scaffolded change when "change show" is called without a name', async () => {
+    await fs.mkdir(path.join(changesDir, 'scaffolded'), { recursive: true });
+    await fs.writeFile(path.join(changesDir, 'scaffolded', '.openspec.yaml'), 'schema: spec-driven\n', 'utf-8');
+
+    const originalCwd = process.cwd();
+    const originalEnv = { ...process.env };
+    try {
+      process.chdir(testDir);
+      process.env.OPEN_SPEC_INTERACTIVE = '0';
+      let err: any;
+      try {
+        execFileSync('node', [openspecBin, 'change', 'show'], { encoding: 'utf-8' });
+      } catch (e) { err = e; }
+      expect(err).toBeDefined();
+      const stderr = err.stderr.toString();
+      expect(stderr).toContain('Available IDs:');
+      expect(stderr).toContain('scaffolded');
+    } finally {
+      process.chdir(originalCwd);
+      process.env = originalEnv;
     }
   });
 

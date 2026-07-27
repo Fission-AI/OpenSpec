@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import path from 'path';
 import os from 'os';
-import { randomUUID } from 'crypto';
 import fs from 'node:fs';
 import { promises as fsp } from 'node:fs';
 import { AI_TOOLS, type AIToolOption } from '../../src/core/config.js';
@@ -65,10 +64,8 @@ describe('migration', () => {
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(async () => {
-    projectDir = path.join(os.tmpdir(), `openspec-migration-project-${randomUUID()}`);
-    configHome = path.join(os.tmpdir(), `openspec-migration-config-${randomUUID()}`);
-    await fsp.mkdir(projectDir, { recursive: true });
-    await fsp.mkdir(configHome, { recursive: true });
+    projectDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'openspec-migration-project-'));
+    configHome = await fsp.mkdtemp(path.join(os.tmpdir(), 'openspec-migration-config-'));
     originalEnv = { ...process.env };
     process.env.XDG_CONFIG_HOME = configHome;
   });
