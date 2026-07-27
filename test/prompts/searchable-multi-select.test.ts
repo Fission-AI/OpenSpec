@@ -227,6 +227,9 @@ describe('searchable-multi-select keybindings', () => {
       expect(renderOutput).toContain('[x]');
       pressKey('space');
       expect(renderOutput).not.toContain('[x]');
+      expect(renderOutput).toContain('[ ]');
+      expect(renderOutput).not.toContain('◉');
+      expect(renderOutput).not.toContain('○');
     });
   });
 
