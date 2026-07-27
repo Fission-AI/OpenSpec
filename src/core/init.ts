@@ -97,6 +97,8 @@ type InitCommandOptions = {
   force?: boolean;
   interactive?: boolean;
   profile?: string;
+  /** Commander's --no-animation flag: false disables the welcome animation. */
+  animation?: boolean;
 };
 
 /**
@@ -116,12 +118,14 @@ export class InitCommand {
   private readonly force: boolean;
   private readonly interactiveOption?: boolean;
   private readonly profileOverride?: string;
+  private readonly animation: boolean;
 
   constructor(options: InitCommandOptions = {}) {
     this.toolsArg = options.tools;
     this.force = options.force ?? false;
     this.interactiveOption = options.interactive;
     this.profileOverride = options.profile;
+    this.animation = options.animation ?? true;
   }
 
   async execute(targetPath: string): Promise<void> {
@@ -184,7 +188,7 @@ export class InitCommand {
     const canPrompt = this.canPromptInteractively();
     if (canPrompt) {
       const { showWelcomeScreen } = await import('../ui/welcome-screen.js');
-      await showWelcomeScreen(this.getActiveWorkflows());
+      await showWelcomeScreen(this.getActiveWorkflows(), { animate: this.animation });
     }
 
     // Get tool states before processing
