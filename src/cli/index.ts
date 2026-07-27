@@ -252,10 +252,18 @@ program
 program
   .command('view')
   .description('Display an interactive dashboard of specs and changes')
-  .action(async () => {
+  .option('--store <id>', STORE_OPTION_DESCRIPTION)
+  .addOption(hiddenStorePathOption())
+  .action(async (options?: { store?: string; storePath?: string }) => {
     try {
+      const root = await resolveRootForCommand(options ?? {}, {
+        allowImplicitRoot: false,
+      });
+      if (!root) {
+        return;
+      }
       const viewCommand = new ViewCommand();
-      await viewCommand.execute('.');
+      await viewCommand.execute(root.path);
     } catch (error) {
       failWithError(error);
       process.exit(1);
