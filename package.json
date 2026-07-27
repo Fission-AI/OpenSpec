@@ -83,5 +83,10 @@
     "posthog-node": "^5.46.0",
     "yaml": "^2.8.3",
     "zod": "^4.4.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "brace-expansion@<=5.0.7": ">=5.0.8"
+    }
   }
 }
