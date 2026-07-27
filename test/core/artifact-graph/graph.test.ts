@@ -140,6 +140,19 @@ artifacts:
 
       expect(graph.getBuildOrder()).toEqual(['root', 'second', 'first']);
     });
+
+    it('should prefer a waiting artifact declared before an already-queued root', () => {
+      // laterRoot is ready from the start but declared last; child becomes ready
+      // once root is built and is declared earlier, so it must come first.
+      const schema = createSchema([
+        { id: 'root', generates: 'root.md', description: 'root', template: 't.md', requires: [] },
+        { id: 'child', generates: 'child.md', description: 'child', template: 't.md', requires: ['root'] },
+        { id: 'laterRoot', generates: 'later.md', description: 'later', template: 't.md', requires: [] },
+      ]);
+      const graph = ArtifactGraph.fromSchema(schema);
+
+      expect(graph.getBuildOrder()).toEqual(['root', 'child', 'laterRoot']);
+    });
   });
 
   describe('getNextArtifacts', () => {

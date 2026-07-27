@@ -126,7 +126,10 @@ export class ArtifactGraph {
           newlyReady.push(dep);
         }
       }
-      queue.push(...newlyReady.sort(this.compareByDeclarationOrder));
+      // Re-sort the whole queue, not just the new arrivals: an artifact that
+      // has been waiting can be declared after one that just became ready.
+      queue.push(...newlyReady);
+      queue.sort(this.compareByDeclarationOrder);
     }
 
     return result;
