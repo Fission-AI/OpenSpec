@@ -261,6 +261,46 @@ describe('store root selection for normal commands', () => {
       expectNoLocalOpenSpec();
     });
 
+    it('loads apply and archive operation inputs from the selected store root', async () => {
+      createChange(storeRoot, 'store-change');
+      fs.writeFileSync(
+        path.join(storeRoot, 'openspec', 'config.yaml'),
+        `schema: spec-driven
+context: Store context
+operations:
+  apply:
+    guidance:
+      - Store apply guidance
+  archive:
+    guidance:
+      - Store archive guidance
+`
+      );
+
+      const applyResult = await runCLI(
+        ['instructions', 'apply', '--change', 'store-change', '--store', 'team-context', '--json'],
+        { cwd: appRepo, env }
+      );
+      const archiveResult = await runCLI(
+        ['instructions', 'archive', '--change', 'store-change', '--store', 'team-context', '--json'],
+        { cwd: appRepo, env }
+      );
+
+      expect(applyResult.exitCode).toBe(0);
+      expect(parseJson(applyResult)).toMatchObject({
+        context: 'Store context',
+        operationGuidance: ['Store apply guidance'],
+        root: { path: storeRoot, store_id: 'team-context' },
+      });
+      expect(archiveResult.exitCode).toBe(0);
+      expect(parseJson(archiveResult)).toMatchObject({
+        context: 'Store context',
+        operationGuidance: ['Store archive guidance'],
+        root: { path: storeRoot, store_id: 'team-context' },
+      });
+      expectNoLocalOpenSpec();
+    });
+
     it('lists specs from the store with minimal JSON support', async () => {
       const specDir = path.join(storeRoot, 'openspec', 'specs', 'billing');
       fs.mkdirSync(specDir, { recursive: true });

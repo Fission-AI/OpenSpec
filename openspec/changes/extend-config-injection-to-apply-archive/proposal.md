@@ -1,0 +1,56 @@
+## Why
+
+Project configuration reaches agents while they create OpenSpec artifacts, but apply and archive workflows cannot fetch the same current project context or operation-specific working preferences when they run. Generated skills therefore lack a stable runtime input contract and can become disconnected from later configuration changes.
+
+OpenSpec needs a clear separation between project context, artifact requirements, and operation advice. Project `context` supplies facts, conventions, and constraints the agent must apply when relevant. Artifact `rules` continue to describe the artifacts an agent produces, while optional operation guidance provides additive advice about how an agent should conduct apply or archive work. Both apply and archive should fetch their current inputs from OpenSpec at execution time.
+
+## What Changes
+
+- Add optional `operations.apply.guidance` and `operations.archive.guidance` configuration for additive operation advice. A skill considers returned guidance and follows it when applicable and compatible with the built-in workflow.
+- Keep `rules` artifact-specific and preserve all existing artifact-instruction behavior.
+- Extend apply instruction output with separate optional fields for current project context and apply operation guidance.
+- Update the apply skill template to consume those current runtime inputs while preserving its existing state-driven workflow.
+- Add an archive runtime-input surface through `openspec instructions archive --change <name>` so archive skills can fetch current project context and archive operation guidance when they run.
+- Treat a non-zero or invalid archive-input response as blocking: report the error and stop before inspecting or writing specs or moving the change. A successful response with omitted optional fields remains the valid no-input case.
+- Update the single-change and bulk archive skill templates to consume current archive inputs without embedding configuration snapshots in generated skill text.
+- Keep the existing spec-sync contract: delta specs come from `artifactPaths.specs.existingOutputPaths`; schemas without that artifact do not participate in spec sync.
+- When archive-driven or standalone spec sync updates main specs, fetch current `specs` artifact instructions and apply their rules to the semantic merge. Archive passes its fetched specs-rule snapshot into the inline sync workflow; standalone sync fetches the same input itself.
+- Treat a non-zero or invalid `specs` instruction response as blocking before any main-spec write or archive move. A successful response that omits `rules` continues with the existing semantic merge.
+- Treat current context as a required prompt-level input: the agent must read it and apply relevant project facts, conventions, and constraints.
+- Treat operation guidance as optional additive advice: the agent considers it and follows applicable entries, but guidance does not define or replace the built-in workflow.
+- Keep current context and operation guidance structurally separate from explicit user choices and CLI-controlled behavior. Context conflicts must be reported; guidance that is inapplicable or conflicts with controlling workflow input is not followed and the reason is explained. Neither field is presented as an enforceable security or validation boundary.
+- Validate the `operations` config field independently so one malformed operation entry does not discard otherwise valid project configuration.
+
+This change does not redesign archive execution or the semantic spec-merge algorithm. The existing archive skill orchestration and `openspec archive` command remain intact.
+
+## Capabilities
+
+### New Capabilities
+
+- `operation-guidance`: define the `operations.<operation>.guidance` config model, resilient validation, advisory semantics, and runtime delivery for apply and archive
+- `cli-archive-instructions`: provide current archive operation inputs in structured JSON and readable text form
+- `opsx-apply-skill`: consume current apply context and guidance without changing the built-in apply workflow
+- `opsx-bulk-archive-skill`: fetch current archive inputs for a selected batch and apply relevant artifact rules during each spec sync
+
+### Modified Capabilities
+
+- `config-loading`: parse operation guidance independently from existing project-config fields
+- `context-injection`: expose the latest project context to apply and archive runtime surfaces in addition to artifact instructions
+- `cli-artifact-workflow`: include current context and apply operation guidance in schema-aware apply instruction output
+- `opsx-archive-skill`: fetch and apply current archive context and guidance, and carry artifact rules into archive-driven spec sync, while preserving the existing archive flow
+- `specs-sync-skill`: apply current `specs` artifact rules during standalone sync, while reusing an archive-supplied specs-rule snapshot when invoked inline
+
+## Impact
+
+- Project config types, parsing, generated help text, and documentation gain an optional `operations` section.
+- Apply JSON and text instruction output gain separate optional `context` and `operationGuidance` fields.
+- The apply skill must consume current context as a required prompt-level input and consider current operation guidance as optional additive advice, while CLI-returned state, tasks, progress, and instructions remain structurally unchanged.
+- `openspec instructions archive --change <name>` becomes a reserved workflow instruction surface and returns current archive inputs without performing archive work.
+- Archive skill templates call the runtime surface at execution time, must apply relevant returned context, consider and follow applicable operation guidance, and do not copy their text into output files.
+- Archive and bulk archive stop before spec inspection, spec writes, or change moves when the required archive-input lookup fails or returns invalid JSON.
+- Archive-driven and standalone spec sync continue to use `artifactPaths.specs.existingOutputPaths`, fetch current `specs` instructions when delta specs exist, and follow those rules without exposing them as operation guidance.
+- Archive, bulk archive, and standalone sync stop before writing main specs when a required `specs` instruction lookup fails or returns invalid JSON; only a valid response with no `rules` means that no artifact rules are configured.
+- Schemas without a `specs` artifact, or changes with no concrete `specs` outputs, continue without spec sync and do not infer delta specs from other artifacts.
+- Inline sync reuses the specs-rule snapshot supplied by archive, avoiding a second fetch with potentially different config or duplicate warnings.
+- Existing artifact-rule configuration and instruction output, archive filesystem behavior, direct archive CLI options, semantic merge ownership, and bulk archive orchestration remain unchanged.
+- Tests cover resilient config parsing, runtime freshness, single-read config handling, field separation, required context consumption, advisory operation guidance, conflict reporting, selected-root behavior, output rendering, archive and standalone-sync `specs` rule consumption, failed and invalid instruction responses, no-write/no-move failure behavior, schemas with and without `specs`, mixed-schema batches, and generated-template parity.
