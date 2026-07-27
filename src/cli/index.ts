@@ -144,7 +144,8 @@ program
   .option('--tools <tools>', toolsOptionDescription)
   .option('--force', 'Auto-cleanup legacy files without prompting')
   .option('--profile <profile>', 'Override global config profile (core or custom)')
-  .action(async (targetPath = '.', options?: { tools?: string; force?: boolean; profile?: string }) => {
+  .option('--no-animation', 'Show a static welcome screen instead of the animated one')
+  .action(async (targetPath = '.', options?: { tools?: string; force?: boolean; profile?: string; animation?: boolean }) => {
     try {
       // Validate that the path is a valid directory
       const resolvedPath = path.resolve(targetPath);
@@ -170,6 +171,7 @@ program
         tools: options?.tools,
         force: options?.force,
         profile: options?.profile,
+        animation: options?.animation,
       });
       await initCommand.execute(targetPath);
     } catch (error) {
