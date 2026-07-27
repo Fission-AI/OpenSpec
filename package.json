@@ -68,7 +68,7 @@
     "@types/node": "^24.2.0",
     "@vitest/ui": "^3.2.6",
     "eslint": "^10.5.0",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.3",
     "typescript-eslint": "^8.65.0",
     "vitest": "^3.2.6"
   },
