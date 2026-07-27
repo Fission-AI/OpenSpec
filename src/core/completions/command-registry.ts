@@ -67,7 +67,9 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
   {
     name: 'view',
     description: 'Display an interactive dashboard of specs and changes',
-    flags: [],
+    flags: [
+      COMMON_FLAGS.store,
+    ],
   },
   {
     name: 'validate',
