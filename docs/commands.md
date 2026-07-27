@@ -205,7 +205,7 @@ AI:  Change: add-dark-mode
      ✓ proposal    (done)
      ◆ specs       (ready)
      ◆ design      (ready)
-     ○ tasks       (blocked - needs: specs)
+     ○ tasks       (blocked - needs: specs, design)
 
      Creating specs...
 
@@ -213,7 +213,7 @@ AI:  Change: add-dark-mode
 
      ✓ Created openspec/changes/add-dark-mode/specs/ui/spec.md
 
-     Now available: tasks
+     Now available: design
      Run /opsx:continue to create the next artifact.
 ```
 
