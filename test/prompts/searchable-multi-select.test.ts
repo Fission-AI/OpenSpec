@@ -207,6 +207,29 @@ describe('searchable-multi-select keybindings', () => {
     });
   });
 
+  describe('checkbox markers', () => {
+    it('should render unselected items with [ ] and no radio symbols', async () => {
+      await setup();
+      expect(renderOutput).toContain('[ ]');
+      expect(renderOutput).not.toContain('◉');
+      expect(renderOutput).not.toContain('○');
+    });
+
+    it('should render selected items with [x]', async () => {
+      await setup();
+      pressKey('space');
+      expect(renderOutput).toContain('[x]');
+    });
+
+    it('should revert to [ ] when the item is deselected', async () => {
+      await setup();
+      pressKey('space');
+      expect(renderOutput).toContain('[x]');
+      pressKey('space');
+      expect(renderOutput).not.toContain('[x]');
+    });
+  });
+
   describe('hint text', () => {
     it('should include Space toggle and Enter confirm in rendered output', async () => {
       await setup();
