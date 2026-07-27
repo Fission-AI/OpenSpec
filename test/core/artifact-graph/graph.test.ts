@@ -114,7 +114,7 @@ artifacts:
       expect(order.indexOf('C')).toBeLessThan(order.indexOf('D'));
     });
 
-    it('should return independent artifacts in stable sorted order', () => {
+    it('should return independent artifacts in declaration order', () => {
       const schema = createSchema([
         { id: 'Z', generates: 'z.md', description: 'Z', template: 't.md', requires: [] },
         { id: 'A', generates: 'a.md', description: 'A', template: 't.md', requires: [] },
@@ -124,8 +124,21 @@ artifacts:
 
       const order = graph.getBuildOrder();
 
-      // All independent, should be sorted alphabetically for stability
-      expect(order).toEqual(['A', 'M', 'Z']);
+      // All independent: the schema's declared sequence wins, not the alphabet
+      expect(order).toEqual(['Z', 'A', 'M']);
+    });
+
+    it('should break sibling ties by declaration order, not alphabetically', () => {
+      // Both children become ready together; the schema declares the later
+      // letter first, so alphabetical sorting would reverse the author's order.
+      const schema = createSchema([
+        { id: 'root', generates: 'root.md', description: 'root', template: 't.md', requires: [] },
+        { id: 'second', generates: 'second.md', description: 'second', template: 't.md', requires: ['root'] },
+        { id: 'first', generates: 'first.md', description: 'first', template: 't.md', requires: ['root'] },
+      ]);
+      const graph = ArtifactGraph.fromSchema(schema);
+
+      expect(graph.getBuildOrder()).toEqual(['root', 'second', 'first']);
     });
   });
 
@@ -185,6 +198,17 @@ artifacts:
 
       // Both B and C completed - D ready
       expect(graph.getNextArtifacts(new Set(['A', 'B', 'C']))).toEqual(['D']);
+    });
+
+    it('should list ready siblings in declaration order', () => {
+      const schema = createSchema([
+        { id: 'root', generates: 'root.md', description: 'root', template: 't.md', requires: [] },
+        { id: 'second', generates: 'second.md', description: 'second', template: 't.md', requires: ['root'] },
+        { id: 'first', generates: 'first.md', description: 'first', template: 't.md', requires: ['root'] },
+      ]);
+      const graph = ArtifactGraph.fromSchema(schema);
+
+      expect(graph.getNextArtifacts(new Set(['root']))).toEqual(['second', 'first']);
     });
   });
 
@@ -263,6 +287,17 @@ artifacts:
       const graph = ArtifactGraph.fromSchema(schema);
 
       expect(graph.getBlocked(new Set(['A', 'B']))).toEqual({});
+    });
+
+    it('should list unmet dependencies in declaration order', () => {
+      const schema = createSchema([
+        { id: 'second', generates: 'second.md', description: 'second', template: 't.md', requires: [] },
+        { id: 'first', generates: 'first.md', description: 'first', template: 't.md', requires: [] },
+        { id: 'last', generates: 'last.md', description: 'last', template: 't.md', requires: ['first', 'second'] },
+      ]);
+      const graph = ArtifactGraph.fromSchema(schema);
+
+      expect(graph.getBlocked(new Set())).toEqual({ last: ['second', 'first'] });
     });
   });
 });
