@@ -14,9 +14,9 @@ function roundTrip(value: string): unknown {
 }
 
 describe('command-generation/yaml escapeYamlValue', () => {
-  it('returns the value unquoted when no special characters are present', () => {
+  it('quotes plain values for safe string serialization', () => {
     expect(escapeYamlValue('Enter explore mode for thinking')).toBe(
-      'Enter explore mode for thinking'
+      '"Enter explore mode for thinking"'
     );
   });
 

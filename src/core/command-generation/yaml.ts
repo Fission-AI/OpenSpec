@@ -20,24 +20,12 @@
  * @returns The value, double-quoted and escaped when necessary.
  */
 export function escapeYamlValue(value: string): string {
-  if (value === '') {
-    return '""';
-  }
-  // Check if value needs quoting (contains special YAML characters or starts/ends with whitespace)
-  const needsQuoting = /[:\n\r#{}[\],&*!|>'"%@`]|^\s|\s$/.test(value);
-  if (needsQuoting) {
-    // Use double quotes and escape characters that are not safe to emit
-    // verbatim inside a double-quoted YAML scalar. Carriage returns must be
-    // escaped too: a literal CR inside double quotes is subject to YAML line
-    // folding/normalization and would silently corrupt the round-tripped value.
-    const escaped = value
-      .replace(/\\/g, '\\\\')
-      .replace(/"/g, '\\"')
-      .replace(/\n/g, '\\n')
-      .replace(/\r/g, '\\r');
-    return `"${escaped}"`;
-  }
-  return value;
+  const escaped = value
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r');
+  return `"${escaped}"`;
 }
 
 /**

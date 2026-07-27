@@ -22,7 +22,7 @@ export const continueAdapter: ToolCommandAdapter = {
 
   formatFile(content: CommandContent): string {
     return `---
-name: opsx-${content.id}
+name: ${escapeYamlValue(`opsx-${content.id}`)}
 description: ${escapeYamlValue(content.description)}
 invokable: true
 ---
