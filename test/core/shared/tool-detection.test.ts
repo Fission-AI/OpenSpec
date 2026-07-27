@@ -258,6 +258,48 @@ Content here
       expect(status.needsUpdate).toBe(false);
     });
 
+    it('should detect configured status and version match for commands-only setup', async () => {
+      const { InitCommand } = await import('../../../src/core/init.js');
+      const { saveGlobalConfig } = await import('../../../src/core/global-config.js');
+      saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+      await initCommand.execute(testDir);
+
+      const { version } = await import('../../../package.json');
+      const status = getToolVersionStatus(testDir, 'claude', version, {
+        workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'],
+        delivery: 'commands',
+      });
+
+      expect(status.configured).toBe(true);
+      expect(status.generatedByVersion).toBe(version);
+      expect(status.needsUpdate).toBe(false);
+    });
+
+    it('should detect needsUpdate when command file content differs in commands-only setup', async () => {
+      const { InitCommand } = await import('../../../src/core/init.js');
+      const { saveGlobalConfig } = await import('../../../src/core/global-config.js');
+      saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+      await initCommand.execute(testDir);
+
+      // Modify one command file
+      const cmdFile = path.join(testDir, '.claude', 'commands', 'opsx', 'explore.md');
+      await fs.writeFile(cmdFile, 'outdated content');
+
+      const { version } = await import('../../../package.json');
+      const status = getToolVersionStatus(testDir, 'claude', version, {
+        workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'],
+        delivery: 'commands',
+      });
+
+      expect(status.configured).toBe(true);
+      expect(status.generatedByVersion).toBeNull();
+      expect(status.needsUpdate).toBe(true);
+    });
+
     it('should include tool name in status', async () => {
       const skillDir = path.join(testDir, '.claude', 'skills', 'openspec-explore');
       await fs.mkdir(skillDir, { recursive: true });

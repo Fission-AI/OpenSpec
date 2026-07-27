@@ -163,20 +163,12 @@ export class UpdateCommand {
       return;
     }
 
-    // 6. Check version status for all configured tools
-    const commandConfiguredTools = getCommandConfiguredTools(resolvedProjectPath);
-    const commandConfiguredSet = new Set(commandConfiguredTools);
-    const toolStatuses = configuredTools.map((toolId) => {
-      const status = getToolVersionStatus(resolvedProjectPath, toolId, OPENSPEC_VERSION);
-      if (!status.configured && commandConfiguredSet.has(toolId)) {
-        return {
-          ...status,
-          configured: true,
-          needsUpdate: status.generatedByVersion === null || status.generatedByVersion !== OPENSPEC_VERSION,
-        };
-      }
-      return status;
-    });
+    const toolStatuses = configuredTools.map((toolId) =>
+      getToolVersionStatus(resolvedProjectPath, toolId, OPENSPEC_VERSION, {
+        workflows: desiredWorkflows,
+        delivery,
+      })
+    );
     const statusByTool = new Map(toolStatuses.map((status) => [status.toolId, status] as const));
 
     // 7. Smart update detection

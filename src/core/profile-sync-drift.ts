@@ -4,13 +4,15 @@ import { AI_TOOLS } from './config.js';
 import type { Delivery } from './global-config.js';
 import { ALL_WORKFLOWS } from './profiles.js';
 import { CommandAdapterRegistry } from './command-generation/index.js';
-import { COMMAND_IDS, getConfiguredTools } from './shared/index.js';
+import { COMMAND_IDS, getConfiguredTools, toolHasAnyConfiguredCommand } from './shared/index.js';
 import {
   shouldGenerateCommandsForTool,
   shouldGenerateSkillsForTool,
   shouldReconcileCommandFilesForTool,
   shouldRemoveSkillsForTool,
 } from './command-surface.js';
+
+export { toolHasAnyConfiguredCommand };
 
 type WorkflowId = (typeof ALL_WORKFLOWS)[number];
 
@@ -39,23 +41,6 @@ function toKnownWorkflows(workflows: readonly string[]): WorkflowId[] {
   );
 }
 
-/**
- * Checks whether a tool has at least one generated OpenSpec command file.
- */
-export function toolHasAnyConfiguredCommand(projectPath: string, toolId: string): boolean {
-  const adapter = CommandAdapterRegistry.get(toolId);
-  if (!adapter) return false;
-
-  for (const commandId of COMMAND_IDS) {
-    const cmdPath = adapter.getFilePath(commandId);
-    const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
-    if (fs.existsSync(fullPath)) {
-      return true;
-    }
-  }
-
-  return false;
-}
 
 /**
  * Returns tools with at least one generated command file on disk.

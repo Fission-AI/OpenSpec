@@ -1934,6 +1934,32 @@ More user content after markers.
       )).toBe(false);
     });
 
+    it('should be a no-op on second update run for commands-only delivery', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'commands',
+      });
+
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), { recursive: true });
+      await fs.writeFile(path.join(skillsDir, 'openspec-explore', 'SKILL.md'), 'old');
+
+      // First run updates commands and removes skills
+      await updateCommand.execute(testDir);
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      // Second run should report all tools up to date without updating
+      await updateCommand.execute(testDir);
+
+      const logCalls = consoleSpy.mock.calls.flat().map(String);
+      expect(logCalls.some((entry) => entry.includes('up to date'))).toBe(true);
+      expect(logCalls.some((entry) => entry.includes('Updating 1 tool(s)'))).toBe(false);
+
+      consoleSpy.mockRestore();
+    });
+
     it.each(['both', 'skills', 'commands'] as const)(
       'should refresh Codex skills and not create global prompts when delivery=%s',
       async (delivery) => {

@@ -148,6 +148,7 @@ export async function runCLI(args: string[] = [], options: RunCLIOptions = {}): 
         {
           OPENSPEC_TELEMETRY: '0',
           OPEN_SPEC_INTERACTIVE: '0',
+          XDG_CONFIG_HOME: options.env?.XDG_CONFIG_HOME ?? path.join(projectRoot, 'test', 'fixtures', '.tmp-config'),
         },
         options.env
       ),
