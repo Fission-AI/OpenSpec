@@ -151,6 +151,16 @@ describe('welcome screen', () => {
     expect(output).not.toMatch(/\x1b\[\d+A/);
   });
 
+  it('honors OPENSPEC_NO_ANIMATION even when set to an empty value', async () => {
+    const { showWelcomeScreen } = await import('../../src/ui/welcome-screen.js');
+    process.env.OPENSPEC_NO_ANIMATION = '';
+
+    await showWelcomeScreen(CORE_WORKFLOWS);
+
+    expect(useKeypressMock).not.toHaveBeenCalled();
+    expect(writtenOutput()).not.toMatch(/\x1b\[\d+A/);
+  });
+
   it('renders statically when animate is disabled via options', async () => {
     const { showWelcomeScreen } = await import('../../src/ui/welcome-screen.js');
 
