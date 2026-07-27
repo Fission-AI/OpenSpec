@@ -995,11 +995,8 @@ export class InitCommand {
   private async removeSkillDirs(skillsDir: string): Promise<number> {
     let removed = 0;
 
-    for (const workflow of ALL_WORKFLOWS) {
-      const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
-      if (!dirName) continue;
-
-      const skillDir = path.join(skillsDir, dirName);
+    for (const skillName of SKILL_NAMES) {
+      const skillDir = path.join(skillsDir, skillName);
       try {
         if (fs.existsSync(skillDir)) {
           await fs.promises.rm(skillDir, { recursive: true, force: true });

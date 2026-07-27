@@ -1,0 +1,71 @@
+---
+name: openspec-phase-timing
+description: Measure OpenSpec command phase and stage durations locally without external analytics. Use when you need a personal timing trace or local profiling for init, update, validate, or similar flows.
+allowed-tools: Bash(openspec:*)
+license: MIT
+compatibility: Requires openspec CLI.
+metadata:
+  author: openspec
+  version: "1.0"
+---
+
+# OpenSpec Phase Timing
+
+Measure OpenSpec phases locally and keep the results on the user's machine.
+This skill is for personal profiling and regression checks, not shared usage analytics.
+
+## Principles
+
+- Keep the data local to the user.
+- Do not send timings to PostHog or any external service.
+- Do not capture file contents, prompts, arguments, or paths unless the user explicitly asks for them in a local report.
+- Use monotonic timing (`performance.now()` or equivalent) instead of wall-clock time.
+- Keep phase names low-cardinality and stable.
+
+## Default storage
+
+Write reports to one of these local locations:
+
+- Repo-local: `.openspec/telemetry/phase-timings.json`
+- User-local: the platform state directory for OpenSpec, for example `$XDG_STATE_HOME/openspec/telemetry/` or the OS equivalent on Windows/macOS
+
+Prefer the user-local location when the user wants a personal history across repositories. Prefer the repo-local location when the user wants a one-off trace attached to the current checkout.
+
+## Measurement model
+
+Record one entry per phase with:
+
+- `command`
+- `phase`
+- `durationMs`
+- `outcome` (`success` or `error`)
+- optional low-cardinality metadata such as `profile`, `delivery`, `extendMode`, or small counts
+
+Suggested OpenSpec phases:
+
+- `validate`
+- `legacy_cleanup`
+- `tool_detection`
+- `migration`
+- `interactive_prompting`
+- `tool_selection`
+- `directory_structure`
+- `artifact_generation`
+- `config_write`
+- `success_render`
+
+## Workflow
+
+1. Identify the command being profiled.
+2. Wrap each phase boundary with a local timer.
+3. Ensure failures still emit a timing record in a `finally` block.
+4. Write the result to the local storage target.
+5. Summarize the slowest phases and repeated bottlenecks for the user.
+
+## Guardrails
+
+- Do not add analytics dependencies.
+- Do not widen the schema with high-cardinality labels.
+- Do not store secrets or user content.
+- Do not infer user identity.
+- Keep reports readable by the user without external tools.

@@ -17,6 +17,7 @@ import {
   getVerifyChangeSkillTemplate,
   getOnboardSkillTemplate,
   getOpsxProposeSkillTemplate,
+  getPhaseTimingSkillTemplate,
   getOpsxExploreCommandTemplate,
   getOpsxNewCommandTemplate,
   getOpsxContinueCommandTemplate,
@@ -40,7 +41,7 @@ import { OPENSPEC_CLI_ALLOWED_TOOLS } from './allowed-tools.js';
 export interface SkillTemplateEntry {
   template: SkillTemplate;
   dirName: string;
-  workflowId: string;
+  workflowId?: string;
 }
 
 /**
@@ -70,12 +71,13 @@ export function getSkillTemplates(workflowFilter?: readonly string[]): SkillTemp
     { template: getVerifyChangeSkillTemplate(), dirName: 'openspec-verify-change', workflowId: 'verify' },
     { template: getOnboardSkillTemplate(), dirName: 'openspec-onboard', workflowId: 'onboard' },
     { template: getOpsxProposeSkillTemplate(), dirName: 'openspec-propose', workflowId: 'propose' },
+    { template: getPhaseTimingSkillTemplate(), dirName: 'openspec-phase-timing' },
   ];
 
   if (!workflowFilter) return all;
 
   const filterSet = new Set(workflowFilter);
-  return all.filter(entry => filterSet.has(entry.workflowId));
+  return all.filter(entry => entry.workflowId === undefined || filterSet.has(entry.workflowId));
 }
 
 /**
