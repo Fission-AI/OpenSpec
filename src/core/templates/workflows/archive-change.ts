@@ -34,11 +34,11 @@ ${STORE_SELECTION_GUIDANCE}
    \`\`\`bash
    openspec instructions archive --change "<name>" --json
    \`\`\`
-   Keep the same selected-root flags on this command. Require a zero exit status
-   and valid archive-instruction JSON for the selected change. If the lookup exits
-   non-zero or returns invalid JSON, report the error and stop before inspecting or
-   writing specs or moving the change. Do not treat a failed lookup as an empty
-   successful response.
+   Keep the same selected-root flags on this command. This lookup is advisory and
+   optional: it only supplies extra prompt inputs, so it must never block archiving.
+   If it exits non-zero or returns invalid JSON — for example on an older CLI that
+   does not support this command yet — continue the archive workflow with no
+   context and no operation guidance. Do not report an error and do not stop.
 
    A successful response may omit both optional fields. Treat \`context\` as a
    required prompt-level input: read and consider it, and apply relevant project
@@ -211,11 +211,11 @@ ${STORE_SELECTION_GUIDANCE}
    \`\`\`bash
    openspec instructions archive --change "<name>" --json
    \`\`\`
-   Keep the same selected-root flags on this command. Require a zero exit status
-   and valid archive-instruction JSON for the selected change. If the lookup exits
-   non-zero or returns invalid JSON, report the error and stop before inspecting or
-   writing specs or moving the change. Do not treat a failed lookup as an empty
-   successful response.
+   Keep the same selected-root flags on this command. This lookup is advisory and
+   optional: it only supplies extra prompt inputs, so it must never block archiving.
+   If it exits non-zero or returns invalid JSON — for example on an older CLI that
+   does not support this command yet — continue the archive workflow with no
+   context and no operation guidance. Do not report an error and do not stop.
 
    A successful response may omit both optional fields. Treat \`context\` as a
    required prompt-level input: read and consider it, and apply relevant project

@@ -49,13 +49,13 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getOpsxContinueCommandTemplate: '5c3968174001c20737ba39d2473ecec0f3b76591a80f7e2fc3974904d3da9dcd',
   getOpsxApplyCommandTemplate: '5c84ed7270ebaf61769ae07cbf26e253baf4cc1aed8ba2354da49b10780fa0de',
   getOpsxFfCommandTemplate: '264b514cc4849f91fb4414f639484c4181f1e5850d0d788ef276c851efa92859',
-  getArchiveChangeSkillTemplate: '3f87c1afb8bff78a27e13c00606c5ee3a5c0a1bffcc24dfa408a71fd76c54feb',
-  getBulkArchiveChangeSkillTemplate: '86a908882035cb968511aa24ecc63e91d1b505bedbb8e22076325558cb6e7ddf',
+  getArchiveChangeSkillTemplate: '92a5f76e9228608fb036a85a3131ee1470e92ea15d53833f54c3bdc4bc433b6e',
+  getBulkArchiveChangeSkillTemplate: '3498003721d312d80748edd4f64b30ec70609334c37ab84116322080f962a25b',
   getOpsxSyncCommandTemplate: '1d7a758b3430eb8c2b22c4973e09a179c1d7ad3945d54e05df1409ff3e64d090',
   getVerifyChangeSkillTemplate: 'cab4db01b5d2b1243d63d90c53747d8b39e488c60f76eba3fe8b994467f69267',
-  getOpsxArchiveCommandTemplate: '69681846ed403205498b220630f87a205ae3783b454e6046a4fd9cf81b52e91d',
+  getOpsxArchiveCommandTemplate: '732d1e2f29306d9878ab4ab8d7111fa2cc590f67b84710d75052e672f86af23a',
   getOpsxOnboardCommandTemplate: '16a68b8c9819e2a7bab013c3b49a3e49ea258b68c4e7f47f0d598e30815e0a80',
-  getOpsxBulkArchiveCommandTemplate: '5b5eaf79f95fec3a19269832e8a225c46d85b3c1ad7837ef87d9c11f76ef278f',
+  getOpsxBulkArchiveCommandTemplate: 'a53f05e903d64107b7c6115e843ef64d966707da34094c4b919a9be7dd966faa',
   getOpsxVerifyCommandTemplate: 'f01c0c0cef53be0956de52363d955d4ace131b1b2d77adf902f35fead9a1486d',
   getOpsxProposeSkillTemplate: '57fb556a060e2eb246b500922837af7573a6e100a6ed7dfaa7bd4ce0f5daffd3',
   getOpsxProposeCommandTemplate: '434cae3ee20835725bb1d2ccb9698310a850c5b95ed669ea15fc7a0125371c59',
@@ -71,8 +71,8 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-apply-change': '5c8676a0e4285da265f39b5912522b4a4674083afadb50a5c0bc5286c065c98b',
   'openspec-ff-change': 'ff3bd3eac427a1e50071ad7c70f73b556cffa3db43e90da2726e96849c3fc886',
   'openspec-sync-specs': '46cb69d2aa56b4ff681a5dc826cc4b50cd2a1698134568923048868c97a3f19e',
-  'openspec-archive-change': '80bbb7017ca63133a4df1a34c8477f03c46a49f99d8c9d6bc4ae2a1e47df3308',
-  'openspec-bulk-archive-change': '7544f4c5a8be40745add1e17468c503cf74d5e6654740fc00ee15779eee8c7e2',
+  'openspec-archive-change': '07f613e50cb94d24ef2d66d55337b379e2f9f726ee8eca9cfe3902b5798b69c3',
+  'openspec-bulk-archive-change': 'a2e7a5bc88b2189e080e10f54a1609b03d5ae6b75201e8aa7d07f1c1cf7cfcab',
   'openspec-verify-change': '57693d22940f06080c6cf8d590ac2f48240d4a5e9ce7074dacd0f8d3c9945afa',
   'openspec-onboard': '1d581c12d4928d751eb79de099e275dabe9c99fc15dc1f502abebd99ad7cb7d2',
   'openspec-propose': '4638400113946f4f1ee9f0bd0e965aafb200bd89b64ec7f5406ef5e948e8e218',
@@ -285,7 +285,7 @@ describe('skill templates split parity', () => {
     }
   });
 
-  it('makes single archive and sync instruction consumption fail closed', () => {
+  it('makes the archive-inputs lookup fail open and sync instruction consumption fail closed', () => {
     const archiveVariants: Array<[string, string]> = [
       ['archive skill', getArchiveChangeSkillTemplate().instructions],
       ['archive command', getOpsxArchiveCommandTemplate().content],
@@ -296,12 +296,17 @@ describe('skill templates split parity', () => {
         'openspec instructions archive --change "<name>" --json'
       );
       expect(content, variant).toContain('same selected-root flags');
-      expect(content, variant).toContain('non-zero or returns invalid JSON');
+      // The archive-inputs lookup is a new CLI command, so a skill installed
+      // ahead of the CLI (skills.sh) must degrade instead of blocking archiving.
+      expect(content, variant).toContain('advisory and\n   optional');
+      expect(content, variant).toContain('must never block archiving');
+      expect(content, variant).toContain('older CLI that\n   does not support this command yet');
       expect(content, variant).toContain(
-        'stop before inspecting or\n   writing specs or moving the change'
+        'continue the archive workflow with no\n   context and no operation guidance'
       );
-      expect(content, variant).toContain(
-        'Do not treat a failed lookup as an empty\n   successful response'
+      expect(content, variant).toContain('Do not report an error and do not stop');
+      expect(content, variant).not.toContain(
+        'stop before inspecting or\n   writing specs or moving the change'
       );
       expect(content, variant).toContain('successful response may omit both optional fields');
       expect(content, variant).toContain(
@@ -368,11 +373,15 @@ describe('skill templates split parity', () => {
       expect(content, variant).toContain(
         'openspec instructions archive --change "<selected-change>" --json'
       );
+      // Same rule as the single-change skill: a missing archive-inputs command
+      // must not take down a whole batch.
+      expect(content, variant).toContain('advisory and optional');
+      expect(content, variant).toContain('must never block the batch');
       expect(content, variant).toContain(
-        'stop the whole batch before inspecting specs, writing main specs'
+        'continue the batch with no context and no operation guidance'
       );
-      expect(content, variant).toContain(
-        'Do not treat a failed lookup as absent optional inputs'
+      expect(content, variant).not.toContain(
+        'stop the whole batch before inspecting specs, writing main specs'
       );
       expect(content, variant).toContain(
         'Treat this list as the only delta-spec source'

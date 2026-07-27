@@ -40,10 +40,11 @@ ${STORE_SELECTION_GUIDANCE}
 
    Choose one selected change from this root and run
    \`openspec instructions archive --change "<selected-change>" --json\` with the
-   same selected-root flags. Require a zero exit status and valid
-   archive-instruction JSON. If the lookup fails or returns invalid JSON, report
-   the error and stop the whole batch before inspecting specs, writing main specs,
-   or moving any change. Do not treat a failed lookup as absent optional inputs.
+   same selected-root flags. This lookup is advisory and optional: it only supplies
+   extra prompt inputs, so it must never block the batch. If it fails or returns
+   invalid JSON — for example on an older CLI that does not support this command
+   yet — continue the batch with no context and no operation guidance. Do not
+   report an error and do not stop.
 
    A valid response may omit \`context\` and \`operationGuidance\`. Treat
    \`context\` as a required prompt-level input across the batch: read and consider
@@ -304,7 +305,8 @@ No active changes found. Create a new change to get started.
 - If archive target exists, fail that change but continue with others
 - Fetch archive inputs once per selected root before spec inspection or moves
 - Fetch all required specs-rule snapshots before the batch's first main-spec write or move
-- A failed archive/specs instruction lookup stops the whole batch atomically
+- A failed archive-inputs lookup never blocks the batch; it proceeds with no context or guidance
+- A failed specs instruction lookup stops the whole batch atomically
 - Changes without concrete \`artifactPaths.specs.existingOutputPaths\` continue without spec sync
 - Apply relevant runtime context across the batch and report conflicts
 - Operation guidance remains advisory; consider every entry and explain rejected advice
@@ -352,10 +354,11 @@ ${STORE_SELECTION_GUIDANCE}
 
    Choose one selected change from this root and run
    \`openspec instructions archive --change "<selected-change>" --json\` with the
-   same selected-root flags. Require a zero exit status and valid
-   archive-instruction JSON. If the lookup fails or returns invalid JSON, report
-   the error and stop the whole batch before inspecting specs, writing main specs,
-   or moving any change. Do not treat a failed lookup as absent optional inputs.
+   same selected-root flags. This lookup is advisory and optional: it only supplies
+   extra prompt inputs, so it must never block the batch. If it fails or returns
+   invalid JSON — for example on an older CLI that does not support this command
+   yet — continue the batch with no context and no operation guidance. Do not
+   report an error and do not stop.
 
    A valid response may omit \`context\` and \`operationGuidance\`. Treat
    \`context\` as a required prompt-level input across the batch: read and consider
@@ -617,7 +620,8 @@ No active changes found. Create a new change to get started.
 - If archive target exists, fail that change but continue with others
 - Fetch archive inputs once per selected root before spec inspection or moves
 - Fetch all required specs-rule snapshots before the batch's first main-spec write or move
-- A failed archive/specs instruction lookup stops the whole batch atomically
+- A failed archive-inputs lookup never blocks the batch; it proceeds with no context or guidance
+- A failed specs instruction lookup stops the whole batch atomically
 - Changes without concrete \`artifactPaths.specs.existingOutputPaths\` continue without spec sync
 - Apply relevant runtime context across the batch and report conflicts
 - Operation guidance remains advisory; consider every entry and explain rejected advice
