@@ -61,7 +61,7 @@ One thing that *is* genuinely interactive lives in the terminal: `openspec view`
 
 ## Why this split exists
 
-It's worth understanding, because it explains why OpenSpec works with 25+ different AI tools.
+It's worth understanding, because it explains why OpenSpec works with 30+ different AI tools.
 
 The CLI is the **engine**. It knows the rules: what a change folder looks like, which artifacts depend on which, how to merge a delta spec into your source of truth. It's the same everywhere.
 
@@ -116,6 +116,7 @@ By default, OpenSpec installs the **core** set of slash commands:
 - `/opsx:explore`: think through an idea with the AI before committing to a change (great first step when you're unsure)
 - `/opsx:propose`: create a change and draft all its planning artifacts in one step
 - `/opsx:apply`: build the change by working through its task list
+- `/opsx:update`: revise a change's planning artifacts and keep them coherent
 - `/opsx:sync`: merge a change's spec updates into your main specs (usually automatic)
 - `/opsx:archive`: finish a change and file it away
 
