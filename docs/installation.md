@@ -24,8 +24,10 @@ order, and stop where a step tells you to stop.
      bun add -g @fission-ai/openspec@latest
      yarn global add @fission-ai/openspec@latest   (Yarn 1.x only)
    Don't pick based on this project's lockfile — a global install has nothing to
-   do with how this repo's own dependencies are installed.
-   Stop and ask me first if the install needs sudo or admin rights, fails with a
+   do with how this repo's own dependencies are installed. Show me the exact
+   command and let me confirm before you run it; this installs software outside
+   the project, and I may want a different package manager to own it.
+   Stop and ask me again if the install needs sudo or admin rights, fails with a
    permissions error, or reports that its global bin directory is missing or
    unconfigured. Never edit my shell startup files (.bashrc, .zshrc, .profile,
    fish, PowerShell profile), and never run a setup command that edits them for
@@ -34,9 +36,12 @@ order, and stop where a step tells you to stop.
 3. PATH. Run `openspec --version`. If the command isn't found, it may just be
    missing from this shell: tell me where the package manager installed it and
    how to add that directory to PATH for my shell and OS, then stop until I
-   confirm. If I use a version manager, say so rather than editing PATH around
-   it: with nvm or fnm the CLI is tied to the Node version that was active when
-   you installed it, and with asdf or volta a shim may need regenerating.
+   confirm. If it prints an older version than the one the install just
+   reported, an earlier copy is shadowing it on PATH — tell me both versions
+   instead of continuing. If I use a version manager, say so rather than editing
+   PATH around it: with nvm or fnm the CLI is tied to the Node version that was
+   active when you installed it, and with asdf or volta a shim may need
+   regenerating.
 
 4. INITIALIZE. Ask me which AI coding tool or tools I use and map each to an id
    from `openspec init --help` (Copilot is `github-copilot`, Zoo Code is
@@ -46,8 +51,9 @@ order, and stop where a step tells you to stop.
    directory (Codex keeps them in ~/.codex/prompts). Before you run it, look for
    those: `.../commands/openspec/` folders, OpenSpec marker blocks in files like
    CLAUDE.md or AGENTS.md, and home-directory `opsx-*.md` prompts. List whatever
-   you find and wait for my go-ahead. An existing `openspec/` folder is not a
-   problem — init refreshes it and leaves my specs and changes alone.
+   you find and wait for my go-ahead; if you find nothing, say so and carry on
+   without asking. An existing `openspec/` folder is not a problem — init
+   refreshes it and leaves my specs and changes alone.
    Confirm I'm in the right folder too: init creates `openspec/` wherever it
    runs, including inside a monorepo package.
    Then run: openspec init --tools <ids>
@@ -58,8 +64,10 @@ order, and stop where a step tells you to stop.
    skills-only and correctly create zero command files, so missing commands is
    not a failure on its own. If init said nothing was generated, relay the fix
    it suggested instead of retrying. Finish by telling me how to invoke OpenSpec
-   in my tool — slash commands like /opsx:propose for most tools, a skill
-   invocation for skills-only ones.
+   in my tool, and take the exact spelling from the files init created rather
+   than from its summary line: the punctuation differs per tool (/opsx:propose
+   in some, /opsx-propose in others), and skills-only tools have no slash
+   command at all.
 ```
 
 Nothing in the prompt is vendor-specific: it's plain instructions plus the same commands documented on this page. It works on macOS, Linux, and Windows, and it deliberately stops rather than improvising when a step needs your permission. Your assistant does need to be able to run shell commands — a few IDE integrations can't.
