@@ -90,7 +90,7 @@ The system SHALL identify which artifacts are ready to be created based on depen
 
 #### Scenario: Ready artifacts ordered by declaration
 - **WHEN** several artifacts are ready at once
-- **THEN** getNextArtifacts() returns them in the order the schema declares them, so the first entry is the artifact the schema wants written next
+- **THEN** getNextArtifacts() returns them in the order the schema declares them, so the first entry is the artifact the schema recommends writing next
 
 ### Requirement: Completion Check
 The system SHALL determine when all artifacts in a graph are complete.

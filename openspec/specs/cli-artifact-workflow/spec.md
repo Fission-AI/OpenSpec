@@ -40,11 +40,12 @@ The system SHALL display artifact completion status for a change, including scaf
 - **THEN** every entry in the `artifacts` array includes `requires`: the array of artifact IDs it directly depends on
 - **AND** `requires` is present regardless of the artifact's status, so a `done` artifact still reports its dependencies (letting agents compute the transitive required set from status alone)
 
-#### Scenario: Status lists artifacts in the schema's declared order
+#### Scenario: Status lists artifacts in dependency order, declaration order breaking ties
 
 - **WHEN** user runs `openspec status --change <id>` (text or `--json`)
-- **THEN** artifacts appear in the order the schema declares them, so the first `ready` entry is the artifact to write next
-- **AND** artifacts that become ready at the same time are not reordered alphabetically
+- **THEN** artifacts appear in dependency order, so a dependency is never listed after something that requires it
+- **AND** artifacts that become ready at the same time keep the order the schema declares them, rather than being reordered alphabetically
+- **AND** the first `ready` entry is therefore the artifact to write next
 - **AND** a blocked artifact's `missingDeps` uses that same order
 
 #### Scenario: Status on scaffolded change

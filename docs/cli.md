@@ -716,10 +716,11 @@ A change that declares `skip_specs: true` shows its specs stage as `[~] specs (s
 }
 ```
 
-Artifacts are listed in the order the schema declares them, so the first `ready`
-entry is the one to write next. Artifacts that become ready at the same time
-(spec-driven's `specs` and `design` both need only `proposal`) keep the schema's
-declared sequence.
+Artifacts are listed in dependency order - a dependency never appears after
+something that requires it - and artifacts that become ready at the same time
+(spec-driven's `specs` and `design` both need only `proposal`) keep the order the
+schema declares them rather than an alphabetical one. So the first `ready` entry
+is the artifact to write next.
 
 ---
 
