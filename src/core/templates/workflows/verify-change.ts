@@ -21,7 +21,7 @@ ${STORE_SELECTION_GUIDANCE}
 
 1. **If no change name provided, prompt for selection**
 
-   Run \`openspec list --json\` to get available changes. Use the **AskUserQuestion tool** to let the user select.
+   Run \`openspec list --json\` to get available changes. Ask the user to select one.
 
    Show changes that have implementation tasks (tasks artifact exists).
    Include the schema used for each change if available.
@@ -193,7 +193,7 @@ ${STORE_SELECTION_GUIDANCE}
 
 1. **If no change name provided, prompt for selection**
 
-   Run \`openspec list --json\` to get available changes. Use the **AskUserQuestion tool** to let the user select.
+   Run \`openspec list --json\` to get available changes. Ask the user to select one.
 
    Show changes that have implementation tasks (tasks artifact exists).
    Include the schema used for each change if available.

@@ -29,7 +29,7 @@ ${STORE_SELECTION_GUIDANCE}
 
 2. **Prompt for change selection**
 
-   Use **AskUserQuestion tool** with multi-select to let user choose changes:
+   Ask the user to choose changes (multi-select):
    - Show each change with its schema
    - Include an option for "All changes"
    - Allow any number of selections (1+ works, 2+ is the typical use case)
@@ -139,7 +139,7 @@ ${STORE_SELECTION_GUIDANCE}
 
 7. **Confirm batch operation**
 
-   Use **AskUserQuestion tool** with a single confirmation:
+   Ask the user a single confirmation question:
 
    - "Archive N changes?" with options based on status
    - Options might include:
@@ -343,7 +343,7 @@ ${STORE_SELECTION_GUIDANCE}
 
 2. **Prompt for change selection**
 
-   Use **AskUserQuestion tool** with multi-select to let user choose changes:
+   Ask the user to choose changes (multi-select):
    - Show each change with its schema
    - Include an option for "All changes"
    - Allow any number of selections (1+ works, 2+ is the typical use case)
@@ -454,7 +454,7 @@ ${STORE_SELECTION_GUIDANCE}
 
 7. **Confirm batch operation**
 
-   Use **AskUserQuestion tool** with a single confirmation:
+   Ask the user a single confirmation question:
 
    - "Archive N changes?" with options based on status
    - Options might include:
