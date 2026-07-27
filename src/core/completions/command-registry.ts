@@ -23,6 +23,10 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         takesValue: true,
         values: ['core', 'custom'],
       },
+      {
+        name: 'no-animation',
+        description: 'Show a static welcome screen instead of the animated one',
+      },
     ],
   },
   {
