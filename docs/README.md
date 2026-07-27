@@ -21,7 +21,7 @@ That second one matters more than it looks. OpenSpec has two halves: a command l
 
 **I have a big existing codebase.** You don't document all of it. [Using OpenSpec in an Existing Project](existing-projects.md) shows how to start on real, brownfield code without boiling the ocean.
 
-**I just want to get it working.** [Install](installation.md), run `openspec init`, then read [How Commands Work](how-commands-work.md) so your first slash command lands in the right place.
+**I just want to get it working.** [Install](installation.md), run `openspec init`, then read [How Commands Work](how-commands-work.md) so your first slash command lands in the right place. Or hand the setup to your assistant with the [AI-assisted install prompt](installation.md#install-with-your-ai-assistant).
 
 **I learn by example.** The [Examples & Recipes](examples.md) page walks through real changes start to finish: a small feature, a bug fix, a refactor, an exploration.
 

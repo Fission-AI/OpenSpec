@@ -13,7 +13,9 @@ npm install -g @fission-ai/openspec@latest
 openspec --version
 ```
 
-If it installed but still isn't found, your global npm bin directory probably isn't on your `PATH`. Run `npm bin -g` to see where global binaries live, and make sure that path is in your shell profile.
+If it installed but still isn't found, your global npm bin directory probably isn't on your `PATH`. Run `npm prefix -g` to see where global packages live — binaries land in that directory's `bin/` — and make sure that path is in your shell profile. (`npm bin -g` was removed in npm 9.)
+
+If you used the [AI-assisted install](installation.md#install-with-your-ai-assistant), this is the expected hand-off point: that prompt tells your assistant to show you the `PATH` change rather than edit your shell startup files itself.
 
 ### "Requires Node.js 20.19.0 or higher"
 

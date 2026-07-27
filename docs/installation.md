@@ -6,42 +6,63 @@
 
 ## Install with your AI assistant
 
-Rather not do this by hand? Paste the prompt below into any coding assistant that can run shell commands — Claude Code, Codex, Cursor, Gemini CLI, Copilot, and the rest of the [supported tools](supported-tools.md). It detects your runtime and package manager, installs the CLI, initializes this project, and verifies the result.
+Rather not do this by hand? Paste the prompt below into any coding assistant that can run shell commands — Claude Code, Codex, Cursor, Gemini CLI, Copilot, and the rest of the [supported tools](supported-tools.md). It installs the CLI, initializes this project, and reports back what actually happened.
 
-The manual steps below are the source of truth — the prompt just runs them for you. If your assistant gets stuck, do it yourself with [Package Managers](#package-managers).
+The manual steps below are the source of truth — the prompt just runs them for you. If your assistant stops and hands something back, that's by design: it asks before anything privileged and never edits your shell startup files. Finish those bits yourself with [Package Managers](#package-managers) and [Troubleshooting](troubleshooting.md).
 
 ```text
-Install OpenSpec in this project and set it up for me.
+Install OpenSpec in this project and set it up for me. Follow these steps in
+order, and stop where a step tells you to stop.
 
-1. Check that Node.js 20.19.0 or higher is on PATH (`node --version`). If it is
-   missing or too old, tell me and stop — do not install or switch Node versions
-   for me.
+1. RUNTIME. Run `node --version`. OpenSpec needs Node.js 20.19.0 or higher. If
+   Node is missing or older, say so and stop — don't install Node, switch
+   versions, or reconfigure my version manager for me.
 
-2. Detect which package manager this project uses, then install the CLI globally
-   with it:
-     npm    → npm install -g @fission-ai/openspec@latest
-     pnpm   → pnpm add -g @fission-ai/openspec@latest
-     yarn   → yarn global add @fission-ai/openspec@latest
-     bun    → bun add -g @fission-ai/openspec@latest
-   Ask me first before running anything with sudo or anything that changes
-   system-wide configuration. Never edit my shell startup files (.bashrc,
-   .zshrc, .profile, fish config) — if the global bin directory is not on PATH,
-   print the line I should add and let me add it.
+2. INSTALL. Use whichever package manager is already on my PATH, preferring npm:
+     npm install -g @fission-ai/openspec@latest
+     pnpm add -g @fission-ai/openspec@latest
+     bun add -g @fission-ai/openspec@latest
+     yarn global add @fission-ai/openspec@latest   (Yarn 1.x only)
+   Don't pick based on this project's lockfile — a global install has nothing to
+   do with how this repo's own dependencies are installed.
+   Stop and ask me first if the install needs sudo or admin rights, fails with a
+   permissions error, or reports that its global bin directory is missing or
+   unconfigured. Never edit my shell startup files (.bashrc, .zshrc, .profile,
+   fish, PowerShell profile), and never run a setup command that edits them for
+   me — show me the change and let me make it.
 
-3. Ask me which AI coding tool I use, then set up this directory
-   non-interactively: `openspec init --tools <tool-id>`. Run `openspec init
-   --help` for the list of tool ids. Tell me before overwriting any existing
-   file.
+3. PATH. Run `openspec --version`. If the command isn't found, it may just be
+   missing from this shell: tell me where the package manager installed it and
+   how to add that directory to PATH for my shell and OS, then stop until I
+   confirm. If I use a version manager, say so rather than editing PATH around
+   it: with nvm or fnm the CLI is tied to the Node version that was active when
+   you installed it, and with asdf or volta a shim may need regenerating.
 
-4. Verify, then report back what you found:
-   - `openspec --version` prints a version
-   - an `openspec/` directory exists and contains `config.yaml`
-   - the generated skill and command files for my tool exist — init prints how
-     many and where; list the actual files
-   Finish by telling me what to restart or reload before the slash commands work.
+4. INITIALIZE. Ask me which AI coding tool or tools I use and map each to an id
+   from `openspec init --help` (Copilot is `github-copilot`, Zoo Code is
+   `roocode`). `--tools` takes a comma-separated list, so name all of them.
+   `openspec init --tools <ids>` deletes leftovers from older OpenSpec versions
+   automatically, without asking — including `opsx-*.md` prompt files in my home
+   directory (Codex keeps them in ~/.codex/prompts). Before you run it, look for
+   those: `.../commands/openspec/` folders, OpenSpec marker blocks in files like
+   CLAUDE.md or AGENTS.md, and home-directory `opsx-*.md` prompts. List whatever
+   you find and wait for my go-ahead. An existing `openspec/` folder is not a
+   problem — init refreshes it and leaves my specs and changes alone.
+   Confirm I'm in the right folder too: init creates `openspec/` wherever it
+   runs, including inside a monorepo package.
+   Then run: openspec init --tools <ids>
+
+5. REPORT. Don't assume what should exist — tell me what init actually printed:
+   how many skills and/or commands it created and where, the config file line,
+   any "Setup required" note, and what to restart or reload. Some tools are
+   skills-only and correctly create zero command files, so missing commands is
+   not a failure on its own. If init said nothing was generated, relay the fix
+   it suggested instead of retrying. Finish by telling me how to invoke OpenSpec
+   in my tool — slash commands like /opsx:propose for most tools, a skill
+   invocation for skills-only ones.
 ```
 
-Nothing in the prompt is specific to one vendor: it is plain instructions plus the same commands documented on this page.
+Nothing in the prompt is vendor-specific: it's plain instructions plus the same commands documented on this page. It works on macOS, Linux, and Windows, and it deliberately stops rather than improvising when a step needs your permission. Your assistant does need to be able to run shell commands — a few IDE integrations can't.
 
 ## Package Managers
 
@@ -62,6 +83,8 @@ pnpm add -g @fission-ai/openspec@latest
 ```bash
 yarn global add @fission-ai/openspec@latest
 ```
+
+Yarn 2 and later (Berry) removed the `global` command. On those versions, install OpenSpec with npm, pnpm, or bun instead — a global CLI doesn't need to share your project's package manager.
 
 ### bun
 
