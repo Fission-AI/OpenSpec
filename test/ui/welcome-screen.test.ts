@@ -1,8 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ALL_WORKFLOWS, CORE_WORKFLOWS } from '../../src/core/profiles.js';
 
-const { useKeypressMock } = vi.hoisted(() => ({
+const { useKeypressMock, execFileSyncMock } = vi.hoisted(() => ({
   useKeypressMock: vi.fn(),
+  execFileSyncMock: vi.fn(),
+}));
+
+vi.mock('node:child_process', () => ({
+  execFileSync: execFileSyncMock,
 }));
 
 vi.mock('@inquirer/core', () => ({
@@ -23,6 +28,7 @@ vi.mock('@inquirer/core', () => ({
 
 describe('welcome screen', () => {
   const originalNoColor = process.env.NO_COLOR;
+  const originalNoAnimation = process.env.OPENSPEC_NO_ANIMATION;
   const originalStdinIsTTY = process.stdin.isTTY;
   const originalStdoutIsTTY = process.stdout.isTTY;
   const originalColumns = process.stdout.columns;
@@ -38,11 +44,18 @@ describe('welcome screen', () => {
 
   beforeEach(() => {
     delete process.env.NO_COLOR;
+    delete process.env.OPENSPEC_NO_ANIMATION;
     Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true });
     Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true });
     Object.defineProperty(process.stdout, 'columns', { value: 100, configurable: true });
     writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
     useKeypressMock.mockClear();
+    // Deterministic default: no OS-level reduced-motion preference detectable,
+    // so animated-path tests behave the same on every machine.
+    execFileSyncMock.mockReset();
+    execFileSyncMock.mockImplementation(() => {
+      throw new Error('not available in tests');
+    });
   });
 
   afterEach(() => {
@@ -50,6 +63,11 @@ describe('welcome screen', () => {
       delete process.env.NO_COLOR;
     } else {
       process.env.NO_COLOR = originalNoColor;
+    }
+    if (originalNoAnimation === undefined) {
+      delete process.env.OPENSPEC_NO_ANIMATION;
+    } else {
+      process.env.OPENSPEC_NO_ANIMATION = originalNoAnimation;
     }
     Object.defineProperty(process.stdin, 'isTTY', { value: originalStdinIsTTY, configurable: true });
     Object.defineProperty(process.stdout, 'isTTY', { value: originalStdoutIsTTY, configurable: true });
@@ -118,5 +136,92 @@ describe('welcome screen', () => {
     for (const line of rendered.split('\n')) {
       expect(line.length).toBeLessThanOrEqual(59);
     }
+  });
+
+  it('renders statically when OPENSPEC_NO_ANIMATION is set', async () => {
+    const { showWelcomeScreen } = await import('../../src/ui/welcome-screen.js');
+    process.env.OPENSPEC_NO_ANIMATION = '1';
+
+    await showWelcomeScreen(CORE_WORKFLOWS);
+
+    expect(useKeypressMock).not.toHaveBeenCalled();
+    const output = writtenOutput();
+    expect(output).toContain('Welcome to OpenSpec');
+    // No cursor-up repaints: the frame is drawn exactly once.
+    expect(output).not.toMatch(/\x1b\[\d+A/);
+  });
+
+  it('renders statically when animate is disabled via options', async () => {
+    const { showWelcomeScreen } = await import('../../src/ui/welcome-screen.js');
+
+    await showWelcomeScreen(CORE_WORKFLOWS, { animate: false });
+
+    expect(useKeypressMock).not.toHaveBeenCalled();
+    const output = writtenOutput();
+    expect(output).toContain('Welcome to OpenSpec');
+    expect(output).not.toMatch(/\x1b\[\d+A/);
+  });
+
+  it.runIf(process.platform === 'darwin' || process.platform === 'linux')(
+    'renders statically when the OS prefers reduced motion',
+    async () => {
+      const { showWelcomeScreen } = await import('../../src/ui/welcome-screen.js');
+      execFileSyncMock.mockImplementation((file: string) =>
+        file === 'defaults' ? '1\n' : 'false\n'
+      );
+
+      await showWelcomeScreen(CORE_WORKFLOWS);
+
+      expect(useKeypressMock).not.toHaveBeenCalled();
+      expect(writtenOutput()).toContain('Welcome to OpenSpec');
+    }
+  );
+});
+
+describe('prefersReducedMotion', () => {
+  beforeEach(() => {
+    execFileSyncMock.mockReset();
+  });
+
+  it('detects macOS Reduce Motion', async () => {
+    const { prefersReducedMotion } = await import('../../src/ui/welcome-screen.js');
+    execFileSyncMock.mockReturnValue('1\n');
+
+    expect(prefersReducedMotion('darwin')).toBe(true);
+    expect(execFileSyncMock).toHaveBeenCalledWith(
+      'defaults',
+      ['read', 'com.apple.universalaccess', 'reduceMotion'],
+      expect.objectContaining({ timeout: 500 })
+    );
+  });
+
+  it('treats a disabled or unset macOS preference as no preference', async () => {
+    const { prefersReducedMotion } = await import('../../src/ui/welcome-screen.js');
+
+    execFileSyncMock.mockReturnValue('0\n');
+    expect(prefersReducedMotion('darwin')).toBe(false);
+
+    // `defaults read` exits non-zero while the key has never been toggled.
+    execFileSyncMock.mockImplementation(() => {
+      throw new Error('The domain/default pair does not exist');
+    });
+    expect(prefersReducedMotion('darwin')).toBe(false);
+  });
+
+  it('detects GNOME reduced motion via disabled animations', async () => {
+    const { prefersReducedMotion } = await import('../../src/ui/welcome-screen.js');
+
+    execFileSyncMock.mockReturnValue('false\n');
+    expect(prefersReducedMotion('linux')).toBe(true);
+
+    execFileSyncMock.mockReturnValue('true\n');
+    expect(prefersReducedMotion('linux')).toBe(false);
+  });
+
+  it('returns false without spawning anything on other platforms', async () => {
+    const { prefersReducedMotion } = await import('../../src/ui/welcome-screen.js');
+
+    expect(prefersReducedMotion('win32')).toBe(false);
+    expect(execFileSyncMock).not.toHaveBeenCalled();
   });
 });
