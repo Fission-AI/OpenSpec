@@ -121,8 +121,8 @@ function canAnimate(): boolean {
   // Respect NO_COLOR
   if (process.env.NO_COLOR) return false;
 
-  // Manual override for users who need reduced motion (#722). Like NO_COLOR,
-  // presence is what counts: even an empty value disables the animation.
+  // Manual override for users who need reduced motion (#722). Presence is
+  // what counts: even an empty value disables the animation.
   if (process.env.OPENSPEC_NO_ANIMATION !== undefined) return false;
 
   // Check terminal width
