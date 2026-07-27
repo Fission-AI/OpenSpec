@@ -19,7 +19,7 @@ Continue working on a change by creating the next artifact.
 
 1. **If no change name provided, prompt for selection**
 
-   Run `openspec list --json` to get available changes sorted by most recently modified. Then use the **AskUserQuestion tool** to let the user select which change to work on.
+   Run `openspec list --json` to get available changes sorted by most recently modified. Then ask the user to select which change to work on.
 
    Present the top 3-4 most recently modified changes as options, showing:
    - Change name
