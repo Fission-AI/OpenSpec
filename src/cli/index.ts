@@ -254,10 +254,19 @@ program
 program
   .command('view')
   .description('Display an interactive dashboard of specs and changes')
-  .action(async () => {
+  .option('--store <id>', STORE_OPTION_DESCRIPTION)
+  .addOption(hiddenStorePathOption())
+  .action(async (options?: { store?: string; storePath?: string }) => {
     try {
+      // Implicit cwd fallback stays enabled so `view` keeps accepting the same
+      // directories as `list`/`status` — notably pre-config.yaml `openspec/`
+      // dirs. ViewCommand still reports a missing openspec/ directory itself.
+      const root = await resolveRootForCommand(options ?? {});
+      if (!root) {
+        return;
+      }
       const viewCommand = new ViewCommand();
-      await viewCommand.execute('.');
+      await viewCommand.execute(root.path);
     } catch (error) {
       failWithError(error);
       process.exit(1);
