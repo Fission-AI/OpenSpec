@@ -258,9 +258,10 @@ program
   .addOption(hiddenStorePathOption())
   .action(async (options?: { store?: string; storePath?: string }) => {
     try {
-      const root = await resolveRootForCommand(options ?? {}, {
-        allowImplicitRoot: false,
-      });
+      // Implicit cwd fallback stays enabled so `view` keeps accepting the same
+      // directories as `list`/`status` — notably pre-config.yaml `openspec/`
+      // dirs. ViewCommand still reports a missing openspec/ directory itself.
+      const root = await resolveRootForCommand(options ?? {});
       if (!root) {
         return;
       }
