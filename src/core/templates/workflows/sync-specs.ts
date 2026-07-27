@@ -23,7 +23,7 @@ ${STORE_SELECTION_GUIDANCE}
 
 1. **If no change name provided, prompt for selection**
 
-   Run \`openspec list --json\` to get available changes. Use the **AskUserQuestion tool** to let the user select.
+   Run \`openspec list --json\` to get available changes. Ask the user to select one.
 
    Show changes that have delta specs (under \`specs/\` directory).
 
@@ -230,7 +230,7 @@ ${STORE_SELECTION_GUIDANCE}
 
 1. **If no change name provided, prompt for selection**
 
-   Run \`openspec list --json\` to get available changes. Use the **AskUserQuestion tool** to let the user select.
+   Run \`openspec list --json\` to get available changes. Ask the user to select one.
 
    Show changes that have delta specs (under \`specs/\` directory).
 

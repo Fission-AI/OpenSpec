@@ -19,7 +19,7 @@ Revise a change's existing planning artifacts and keep them coherent. Never edit
 
 1. **If no change name provided, prompt for selection**
 
-   Run `openspec list --json` to get available changes sorted by most recently modified. Then use the **AskUserQuestion tool** to let the user select which change to update.
+   Run `openspec list --json` to get available changes sorted by most recently modified. Then ask the user to select which change to update.
 
    Present the top 3-4 most recently modified changes as options, showing:
    - Change name
