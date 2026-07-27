@@ -14,7 +14,8 @@ The system SHALL include current project context and apply operation guidance as
 #### Scenario: Apply text contains context and guidance
 
 - **WHEN** a user runs `openspec instructions apply --change <id>` with configured context and apply guidance
-- **THEN** text output labels project context and operation guidance as separate advisory sections
+- **THEN** text output labels project context as a required instruction input
+- **AND** labels operation guidance as separate advisory input
 - **AND** preserves the built-in apply instruction content
 
 #### Scenario: Apply has artifact rules only

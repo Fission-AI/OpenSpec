@@ -48,11 +48,28 @@ ${STORE_SELECTION_GUIDANCE}
    - Progress (total, complete, remaining)
    - Task list with status
    - Dynamic instruction based on current state
+   - Optional \`context\`: current required project instruction input from the selected root
+   - Optional \`operationGuidance\`: current advisory guidance for apply
 
    **Handle states:**
    - If \`state: "blocked"\` (missing artifacts): show message, suggest using openspec-continue-change
    - If \`state: "all_done"\`: congratulate, suggest archive
    - Otherwise: proceed to implementation
+
+   Treat \`context\` as a required prompt-level input. Read and consider it, and
+   apply relevant project facts, conventions, and constraints while implementing.
+   Treat \`operationGuidance\` as optional additive advice. Read and consider every
+   entry, and follow entries that are applicable and compatible with the built-in
+   workflow.
+
+   Keep both fields separate from CLI-returned state, missing artifacts, tasks,
+   progress, \`contextFiles\`, and the built-in \`instruction\`. They are not
+   evidence of task completion, do not replace the built-in instruction, and do
+   not permit bypassing a blocked state. If context conflicts with the built-in
+   instruction, an explicit user choice, or a CLI-controlled value, report the
+   conflict and preserve the controlling value. If guidance is inapplicable or
+   conflicts with those controlling inputs, do not follow it and explain why.
+   These are prompt-level behavior contracts, not enforceable checks.
 
 4. **Read context files**
 
@@ -60,6 +77,9 @@ ${STORE_SELECTION_GUIDANCE}
    The files depend on the schema being used:
    - **spec-driven**: proposal, specs, design, tasks
    - Other schemas: follow the contextFiles from CLI output
+
+   Do not copy \`context\` or \`operationGuidance\` verbatim into implementation
+   files or planning artifacts unless the user separately asks for that content.
 
 5. **Show current progress**
 
@@ -152,6 +172,11 @@ What would you like to do?
 - Update task checkbox immediately after completing each task
 - Pause on errors, blockers, or unclear requirements - don't guess
 - Use contextFiles from CLI output, don't assume specific file names
+- Do not use context or operation guidance as proof that a task is complete
+- Apply relevant project context; report conflicts with controlling workflow inputs
+- Consider every guidance entry; explain any inapplicable or conflicting advice
+- Do not copy runtime context or operation guidance into implementation files or planning artifacts
+- Preserve CLI-controlled blocked/ready/all-done behavior and completion criteria
 
 **Fluid Workflow Integration**
 
@@ -208,11 +233,28 @@ ${STORE_SELECTION_GUIDANCE}
    - Progress (total, complete, remaining)
    - Task list with status
    - Dynamic instruction based on current state
+   - Optional \`context\`: current required project instruction input from the selected root
+   - Optional \`operationGuidance\`: current advisory guidance for apply
 
    **Handle states:**
    - If \`state: "blocked"\` (missing artifacts): show message, suggest using \`/opsx:continue\`
    - If \`state: "all_done"\`: congratulate, suggest archive
    - Otherwise: proceed to implementation
+
+   Treat \`context\` as a required prompt-level input. Read and consider it, and
+   apply relevant project facts, conventions, and constraints while implementing.
+   Treat \`operationGuidance\` as optional additive advice. Read and consider every
+   entry, and follow entries that are applicable and compatible with the built-in
+   workflow.
+
+   Keep both fields separate from CLI-returned state, missing artifacts, tasks,
+   progress, \`contextFiles\`, and the built-in \`instruction\`. They are not
+   evidence of task completion, do not replace the built-in instruction, and do
+   not permit bypassing a blocked state. If context conflicts with the built-in
+   instruction, an explicit user choice, or a CLI-controlled value, report the
+   conflict and preserve the controlling value. If guidance is inapplicable or
+   conflicts with those controlling inputs, do not follow it and explain why.
+   These are prompt-level behavior contracts, not enforceable checks.
 
 4. **Read context files**
 
@@ -220,6 +262,9 @@ ${STORE_SELECTION_GUIDANCE}
    The files depend on the schema being used:
    - **spec-driven**: proposal, specs, design, tasks
    - Other schemas: follow the contextFiles from CLI output
+
+   Do not copy \`context\` or \`operationGuidance\` verbatim into implementation
+   files or planning artifacts unless the user separately asks for that content.
 
 5. **Show current progress**
 
@@ -312,6 +357,11 @@ What would you like to do?
 - Update task checkbox immediately after completing each task
 - Pause on errors, blockers, or unclear requirements - don't guess
 - Use contextFiles from CLI output, don't assume specific file names
+- Do not use context or operation guidance as proof that a task is complete
+- Apply relevant project context; report conflicts with controlling workflow inputs
+- Consider every guidance entry; explain any inapplicable or conflicting advice
+- Do not copy runtime context or operation guidance into implementation files or planning artifacts
+- Preserve CLI-controlled blocked/ready/all-done behavior and completion criteria
 
 **Fluid Workflow Integration**
 

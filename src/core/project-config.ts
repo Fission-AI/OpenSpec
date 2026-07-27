@@ -3,6 +3,19 @@ import path from 'path';
 import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
 
+export const OPERATION_IDS = ['apply', 'archive'] as const;
+export type OperationId = (typeof OPERATION_IDS)[number];
+
+export interface OperationConfig {
+  guidance?: string[];
+}
+
+export type OperationsConfig = Partial<Record<OperationId, OperationConfig>>;
+
+const OperationConfigSchema = z.object({
+  guidance: z.array(z.string()).optional(),
+});
+
 /**
  * Zod schema for project configuration.
  *
@@ -39,6 +52,15 @@ export const ProjectConfigSchema = z.object({
     .optional()
     .describe('Per-artifact rules, keyed by artifact ID'),
 
+  // Optional: per-operation advisory guidance, kept separate from artifact rules.
+  operations: z
+    .object({
+      apply: OperationConfigSchema.optional(),
+      archive: OperationConfigSchema.optional(),
+    })
+    .optional()
+    .describe('Per-operation advisory guidance'),
+
   // Note: the `references` field (id strings or {id, remote} maps) is
   // deliberately absent here — readProjectConfig parses and normalizes
   // it by hand (see DeclarationEntry below); a schema entry nothing
@@ -63,6 +85,90 @@ export interface DeclarationEntry {
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema> & {
   references?: DeclarationEntry[];
 };
+
+export interface OperationInputs {
+  context?: string;
+  operationGuidance?: string[];
+}
+
+export function loadOperationInputs(
+  projectConfig: ProjectConfig | null,
+  operationId: OperationId
+): OperationInputs {
+  const context =
+    projectConfig?.context !== undefined && projectConfig.context.trim().length > 0
+      ? projectConfig.context
+      : undefined;
+  const guidance = projectConfig?.operations?.[operationId]?.guidance;
+  const operationGuidance = guidance && guidance.length > 0 ? guidance : undefined;
+
+  return {
+    ...(context !== undefined ? { context } : {}),
+    ...(operationGuidance !== undefined ? { operationGuidance } : {}),
+  };
+}
+
+function parseOperations(raw: unknown): OperationsConfig | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    console.warn(`Invalid 'operations' field in config (must be object)`);
+    return undefined;
+  }
+
+  const supported = new Set<string>(OPERATION_IDS);
+  const operations: OperationsConfig = {};
+
+  for (const [operationId, value] of Object.entries(raw)) {
+    if (!supported.has(operationId)) {
+      console.warn(
+        `Unknown operation ID '${operationId}' in config. Supported operation IDs: ${OPERATION_IDS.join(', ')}`
+      );
+      continue;
+    }
+
+    const typedOperationId = operationId as OperationId;
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      console.warn(
+        `Invalid 'operations.${operationId}' field in config (must be object), ignoring this operation`
+      );
+      continue;
+    }
+
+    const operation = value as Record<string, unknown>;
+    const unknownFields = Object.keys(operation).filter((field) => field !== 'guidance');
+    if (unknownFields.length > 0) {
+      console.warn(
+        `Unknown field(s) in 'operations.${operationId}': ${unknownFields.join(', ')}. Supported fields: guidance`
+      );
+    }
+
+    if (operation.guidance === undefined) {
+      continue;
+    }
+
+    const guidanceResult = z.array(z.string()).safeParse(operation.guidance);
+    if (!guidanceResult.success) {
+      console.warn(
+        `Guidance for operation '${operationId}' must be an array of strings, ignoring this operation's guidance`
+      );
+      continue;
+    }
+
+    const guidance = guidanceResult.data.filter((entry) => entry.length > 0);
+    if (guidance.length < guidanceResult.data.length) {
+      console.warn(
+        `Some guidance for operation '${operationId}' are empty strings, ignoring them`
+      );
+    }
+    if (guidance.length > 0) {
+      operations[typedOperationId] = { guidance };
+    }
+  }
+
+  return Object.keys(operations).length > 0 ? operations : undefined;
+}
 
 /**
  * Parser for `references:` declarations: string entries or
@@ -231,6 +337,11 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
       } else {
         console.warn(`Invalid 'rules' field in config (must be object)`);
       }
+    }
+
+    const operations = parseOperations(raw.operations);
+    if (operations) {
+      config.operations = operations;
     }
 
     const references = parseDeclarationList(raw.references);

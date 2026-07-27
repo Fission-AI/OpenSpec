@@ -38,7 +38,11 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
 3. **Find delta specs**
 
-   Use `artifactPaths.specs.existingOutputPaths` from the status JSON as the list of delta spec files.
+   Use `artifactPaths.specs.existingOutputPaths` from the status JSON as the
+   complete list of delta spec files. If the `specs` entry is missing or
+   `existingOutputPaths` is empty, report that there are no delta specs to sync,
+   do not infer them from other artifacts, and stop without requesting artifact
+   instructions or writing a main spec.
 
    Each delta spec file contains sections like:
    - `## ADDED Requirements` - New requirements to add
@@ -49,6 +53,22 @@ This is an **agent-driven** operation - you will read delta specs and directly e
    If no delta specs found, inform user and stop.
 
 4. **For each delta spec, apply changes to main specs**
+
+   Before the first main-spec write, obtain one current specs-rule snapshot:
+   - If archive invoked this workflow inline and supplied a valid snapshot from
+     `openspec instructions specs --change "<name>" --json`, reuse it and do not
+     fetch the same instructions again.
+   - Otherwise run that command once now with the same selected-root flags.
+   - If the direct lookup exits non-zero or returns invalid artifact-instruction
+     JSON, report the error and stop before writing any main spec. Do not treat the
+     failure as an absent rule set.
+   - A valid response with omitted `rules` means no artifact rules are configured
+     and the existing semantic merge continues.
+
+   Apply returned `rules` only to the content and form of the main specs produced
+   by this merge. Artifact rules are not operation guidance and cannot change
+   selected roots, delta paths, CLI checks, or workflow steps. Use their text as
+   constraints without copying it verbatim into a main spec or summary.
 
    For each capability delta spec path returned by the CLI (these may belong to a selected store, not the repo):
 
@@ -169,3 +189,7 @@ Main specs are now updated. The change remains active - archive when implementat
 - If something is unclear, ask for clarification
 - Show what you're changing as you go
 - The operation should be idempotent - running twice should give same result
+- Use only `artifactPaths.specs.existingOutputPaths`; never infer delta specs from unrelated artifacts
+- Fetch specs instructions once for direct sync, or reuse the archive-supplied snapshot inline
+- Stop before every main-spec write on a non-zero or invalid JSON specs-instruction response
+- Artifact rules constrain only the specs being written and are never copied into output files

@@ -9,8 +9,10 @@ The `/opsx:archive` skill SHALL request current archive operation inputs after r
 - **WHEN** the skill has selected a change
 - **AND** current config contains project context and `operations.archive.guidance`
 - **THEN** the skill calls `openspec instructions archive --change "<name>" --json` with the selected-root context
-- **AND** uses returned context as project background
-- **AND** uses returned operation guidance as additive advice for the archive workflow
+- **AND** treats context as a required prompt-level instruction input
+- **AND** tells the agent to read it and apply relevant project facts, conventions, and constraints
+- **AND** treats operation guidance as optional additive advice
+- **AND** tells the agent to read and consider it and follow entries that are applicable and compatible with the built-in archive workflow
 
 #### Scenario: Archive operation inputs are absent
 
@@ -27,12 +29,14 @@ The `/opsx:archive` skill SHALL request current archive operation inputs after r
 #### Scenario: Archive context or guidance conflicts with the workflow
 
 - **WHEN** returned context or operation guidance conflicts with a built-in archive step, explicit user choice, resolved path, or command contract
-- **THEN** the generated skill identifies context and operation guidance as advisory inputs separate from built-in steps and CLI-derived values
+- **THEN** the generated skill keeps required project context and advisory operation guidance separate from built-in steps and CLI-derived values
+- **AND** tells the agent to report context conflicts
+- **AND** tells the agent to explain why conflicting or inapplicable operation guidance was not followed
 - **AND** this change leaves existing CLI checks, resolved paths, and command contracts unchanged
-- **AND** the template tells the agent not to infer replacement paths, skipped prompts, or command flags from either advisory field
+- **AND** the template tells the agent not to infer replacement paths, skipped prompts, or command flags from either field
 - **AND** the system does not represent that prompt-level precedence as an enforceable check
 
-#### Scenario: Archive uses guidance as input only
+#### Scenario: Archive consumes runtime instructions without copying them
 
 - **WHEN** the skill receives context or operation guidance
 - **THEN** it does not copy those fields verbatim into specs, change artifacts, or archive summaries unless separately requested by the user

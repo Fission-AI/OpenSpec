@@ -34,6 +34,30 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    **IMPORTANT**: Do NOT auto-select. Always let the user choose.
 
+   **Load current archive inputs once for the selected root before batch validation:**
+
+   Choose one selected change from this root and run
+   `openspec instructions archive --change "<selected-change>" --json` with the
+   same selected-root flags. Require a zero exit status and valid
+   archive-instruction JSON. If the lookup fails or returns invalid JSON, report
+   the error and stop the whole batch before inspecting specs, writing main specs,
+   or moving any change. Do not treat a failed lookup as absent optional inputs.
+
+   A valid response may omit `context` and `operationGuidance`. Treat
+   `context` as a required prompt-level input across the batch: read and consider
+   it, and apply relevant project facts, conventions, and constraints. Treat
+   `operationGuidance` as optional additive advice: read and consider every
+   entry, and follow entries that are applicable and compatible with the built-in
+   batch workflow.
+
+   Keep both fields separate from conflict analysis, explicit user choices,
+   resolved paths, CLI checks, and command contracts. If context conflicts with one
+   of those controlling inputs, report the conflict and preserve the controlling
+   value. If guidance is inapplicable or conflicts with a controlling input, do not
+   follow it and explain why. Do not infer skipped prompts, replacement paths, or
+   flags from either field, and do not copy their text verbatim into specs, changes,
+   or summaries. These are prompt-level behavior contracts, not enforceable checks.
+
 3. **Batch validation - gather status for all selected changes**
 
    For each selected change, collect:
@@ -49,7 +73,11 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
    c. **Delta specs** - Check `artifactPaths.specs.existingOutputPaths` from status JSON
       - List which capability specs exist
       - For each, extract requirement names (lines matching `### Requirement: <name>`)
-
+      - Treat this list as the only delta-spec source. If the `specs` entry is
+        missing or the list is empty, perform no spec sync or specs-instruction
+        lookup for that change; do not infer deltas from unrelated artifacts.
+      - Evaluate this independently for every change, including mixed-schema
+        batches where some schemas have no `specs` artifact.
 4. **Detect spec conflicts**
 
    Build a map of `capability -> [changes that touch it]`:
@@ -125,6 +153,16 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
    - The ready-only option — proceed with only the changes the step 6 table marks `Ready` or `Ready*`, and record the rest as Skipped in step 8c. If a `Ready*` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
    - Anything else — ask again rather than archiving
 
+   Before step 8 writes the first main spec or moves any change, fetch every
+   required specs-rule snapshot for the confirmed batch. For each change that will
+   sync concrete `artifactPaths.specs.existingOutputPaths`, run
+   `openspec instructions specs --change "<name>" --json` exactly once with the
+   same selected-root flags. Obtain all snapshots before the first write or move.
+   If any lookup exits non-zero or returns invalid artifact-instruction JSON,
+   identify the affected change, report the error, and stop the whole batch before
+   any main-spec write or change move. Do not treat lookup failure as omitted
+   rules. A valid response without `rules` is the no-rules case.
+
 8. **Execute archive for each confirmed change**
 
    Process changes in the determined order (respecting conflict resolution):
@@ -132,6 +170,11 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
    a. **Sync specs** if delta specs exist:
       - Use the openspec-sync-specs approach (agent-driven intelligent merge)
       - For conflicts, apply in resolved order
+      - Pass that change's fetched specs-rule snapshot into inline sync; inline
+        sync must reuse it without fetching instructions again
+      - Apply artifact rules only to main specs produced by that change. They do
+        not change conflict resolution, archive behavior, or CLI contracts, and
+        their text is not copied into an output file
       - Track if sync was done
 
    b. **Perform the archive**:
@@ -257,3 +300,12 @@ No active changes found. Create a new change to get started.
 - Preserve .openspec.yaml when moving to archive
 - Archive directory target uses current date: YYYY-MM-DD-<name>; a name that already starts with a `YYYY-MM-DD-` prefix is used as-is (never stack a second date)
 - If archive target exists, fail that change but continue with others
+- Fetch archive inputs once per selected root before spec inspection or moves
+- Fetch all required specs-rule snapshots before the batch's first main-spec write or move
+- A failed archive/specs instruction lookup stops the whole batch atomically
+- Changes without concrete `artifactPaths.specs.existingOutputPaths` continue without spec sync
+- Apply relevant runtime context across the batch and report conflicts
+- Operation guidance remains advisory; consider every entry and explain rejected advice
+- Keep runtime inputs, conflict analysis, CLI-derived values, and artifact rules separate
+- Artifact rules constrain only written specs
+- Never copy runtime input or artifact-rule text verbatim into output files

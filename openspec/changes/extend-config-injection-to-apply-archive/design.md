@@ -10,7 +10,7 @@ This change adds a small runtime contract for apply and archive without changing
 
 **Goals:**
 
-- Model optional apply and archive working preferences as `operations.<operation>.guidance`.
+- Model optional apply and archive working advice as `operations.<operation>.guidance`.
 - Fetch current project context and matching operation guidance whenever apply or archive instructions are requested.
 - Return context and operation guidance as separate structured fields.
 - Make the single-change and bulk archive skills consume current inputs at execution time.
@@ -24,7 +24,7 @@ This change adds a small runtime contract for apply and archive without changing
 - Change `openspec archive`, its flags, filesystem behavior, or compatibility contract.
 - Change semantic spec sync ownership, merge phases, or main-spec format.
 - Add new enforceable archive checks or configurable operation checks.
-- Make natural-language operation guidance a security or validation boundary.
+- Make any natural-language instruction input a security or validation boundary.
 - Change the structure or meaning of artifact `rules`.
 - Generalize semantic spec sync to arbitrary artifact IDs or infer delta specs from non-`specs` artifacts.
 
@@ -92,9 +92,11 @@ Absent context and empty guidance are omitted rather than returned as empty valu
 }
 ```
 
-The existing apply state, task progress, missing-artifact checks, context files, references, and schema instruction remain unchanged. JSON serialization includes the new fields automatically. Text output renders project context and operation guidance as distinct advisory sections after the built-in apply instruction content.
+The existing apply state, task progress, missing-artifact checks, context files, references, and schema instruction remain unchanged. JSON serialization includes the new fields automatically. Text output renders project context as a required instruction-input section and operation guidance as a distinct advisory section after the built-in apply instruction content.
 
-The apply skill template lists both fields as runtime inputs, labels them as advisory, and keeps them structurally separate from CLI-returned state, progress, tasks, missing artifacts, context files, and built-in instruction. This change does not modify those CLI-controlled fields or their state transitions. The template tells the agent not to treat context or guidance as task completion, a replacement instruction, or permission to bypass a blocked state, and not to copy their contents into implementation files or planning artifacts. This is prompt guidance rather than an enforcement boundary.
+The apply skill template keeps both fields structurally separate from CLI-returned state, progress, tasks, missing artifacts, context files, and built-in instruction. When context is present, the agent must read it and apply relevant project facts, conventions, and constraints as a required prompt-level input. When operation guidance is present, the agent must read and consider it as optional additive advice and follow entries that are applicable and compatible with the built-in workflow.
+
+This change does not modify CLI-controlled fields or their state transitions. The template tells the agent not to treat context or guidance as task completion, a replacement for the state-driven workflow, or permission to bypass a blocked state. It must report context conflicts with the built-in instruction, explicit user choices, or CLI-controlled values. If guidance is inapplicable or conflicts with those controlling inputs, the agent preserves the built-in flow and explains why the advice was not followed. It must not copy either field's contents into implementation files or planning artifacts.
 
 ### D4: Add a dedicated archive runtime-input branch
 
@@ -107,7 +109,7 @@ The apply skill template lists both fields as runtime inputs, labels them as adv
 - does not return a static archive workflow template;
 - does not inspect delta specs, update specs, move the change, or invoke `openspec archive`.
 
-Human-readable output shows the same values as labeled advisory sections. If neither value is configured, the command still succeeds with the change and root metadata so skill behavior is uniform.
+Human-readable output shows project context as a required instruction-input section and operation guidance as a separate advisory section. If neither value is configured, the command still succeeds with the change and root metadata so skill behavior is uniform.
 
 Keeping this as an instruction surface makes the runtime contract available immediately while leaving archive execution redesign independent.
 
@@ -119,7 +121,7 @@ After resolving the target change and selected root, the single-change archive s
 openspec instructions archive --change "<name>" --json
 ```
 
-It uses returned context as project background and archive guidance as optional advice. Built-in archive steps, explicit user choices, target paths, and command flags are not replaced or inferred from guidance.
+It must read returned context and apply relevant project facts, conventions, and constraints as a required prompt-level input. It reads and considers returned archive guidance as optional additive advice and follows applicable entries that are compatible with the built-in archive workflow. Explicit user choices, target paths, CLI checks, and command flags are not replaced or inferred from either field. Context conflicts are reported; conflicting or inapplicable guidance is not followed and the reason is explained.
 
 A successful response may omit both optional fields, which means no archive operation inputs are configured. If the command exits non-zero or does not return valid archive-instruction JSON, the single-change skill reports the error and stops before inspecting or writing specs or moving the change. A failed lookup is never treated as an empty successful response.
 
@@ -144,15 +146,18 @@ Artifact rules are not returned from the archive operation-input surface, relabe
 
 The archive, bulk archive, and sync templates retain the existing rule that runtime context, operation guidance, and rule text must not be copied verbatim into specs, change artifacts, summaries, or other files unless the user separately asks for that content. Artifact rules constrain the produced artifact without becoming artifact content.
 
-### D6: Keep enforcement claims within the current scope
+### D6: Require context consumption while keeping guidance advisory
 
-Operation guidance is prompt input, not an enforcement mechanism. This change guarantees that OpenSpec validates its config shape, keeps guidance separate from CLI-controlled fields, delivers current values through the documented instruction surfaces, and leaves existing CLI checks unchanged.
+Current context is a required prompt-level input, not optional-to-ignore metadata. When present, the generated skill must tell the agent to read it and apply relevant project facts, conventions, and constraints.
 
-Existing checks continue to run wherever the current CLI already owns them. Skill templates label operation guidance as advisory and state the intended precedence, but do not claim that prompt text can force agent compliance. Any invariant that must be non-bypassable belongs in a real CLI check and remains outside this change; stronger archive guarantees require a separate archive execution design.
+Operation guidance is optional additive advice. When present, the generated skill must tell the agent to read and consider it and to follow entries that are applicable and compatible with the built-in workflow. If guidance is inapplicable or conflicts with an explicit user choice, resolved path, CLI-controlled state, or command contract, the skill preserves the controlling value and explains why the advice was not followed.
+
+Both semantics remain behavioral contracts for the agent, not enforcement mechanisms. OpenSpec guarantees that it validates the config shape, keeps fields separate from CLI-controlled values, delivers current inputs through the documented instruction surfaces, and leaves existing CLI checks unchanged. Existing checks continue to run wherever the current CLI already owns them. Any invariant that must be non-bypassable belongs in a real CLI check and remains outside this change; stronger archive guarantees require a separate archive execution design.
 
 ## Risks / Trade-offs
 
-- **Guidance conflicts with built-in workflow text** -> Keep guidance in a separate field, label it advisory, and leave CLI-controlled state, validation, paths, and command contracts unchanged; do not claim prompt-level enforcement.
+- **Context conflicts with the built-in workflow** -> Require the skill to report the conflict, preserve explicit user choices and CLI-controlled state, validation, paths, and command contracts, and do not claim prompt-level enforcement.
+- **Guidance is inapplicable or conflicts with the built-in workflow** -> Keep it advisory and separate, preserve controlling workflow inputs, and explain why the advice was not followed.
 - **Generated skills become stale** -> Skills fetch current inputs on every invocation instead of embedding config content.
 - **Repo/store roots diverge** -> Instruction commands reuse existing root selection and read one config snapshot from the resolved root.
 - **Archive runtime input is mistaken for archive execution** -> Command naming, JSON fields, docs, and tests state that the instruction surface is read-only and performs no archive mutation.

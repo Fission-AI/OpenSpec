@@ -8,7 +8,8 @@ The `/opsx:bulk-archive` skill SHALL request current archive operation inputs on
 
 - **WHEN** the skill has selected one or more changes from one planning root
 - **THEN** it calls `openspec instructions archive --change "<selected-change>" --json` once for that root
-- **AND** uses returned context and archive guidance as advisory inputs across the batch
+- **AND** treats context as a required prompt-level instruction input and applies relevant project facts, conventions, and constraints across the batch
+- **AND** treats operation guidance as optional additive advice, considers every entry, and follows entries that are applicable and compatible with the built-in batch workflow
 
 #### Scenario: Batch operation inputs are absent
 
@@ -25,9 +26,11 @@ The `/opsx:bulk-archive` skill SHALL request current archive operation inputs on
 #### Scenario: Context or guidance conflicts with batch behavior
 
 - **WHEN** context or operation guidance conflicts with built-in conflict analysis, explicit user choices, resolved paths, or command contracts
-- **THEN** the generated skill identifies context and operation guidance as advisory inputs separate from conflict analysis and CLI-derived values
+- **THEN** the generated skill keeps required project context and advisory operation guidance separate from conflict analysis and CLI-derived values
+- **AND** tells the agent to report context conflicts
+- **AND** tells the agent to explain why conflicting or inapplicable operation guidance was not followed
 - **AND** this change leaves existing CLI checks, resolved paths, and command contracts unchanged
-- **AND** the template tells the agent not to infer skipped prompts, replacement paths, or command flags from either advisory field
+- **AND** the template tells the agent not to infer skipped prompts, replacement paths, or command flags from either field
 - **AND** the system does not represent that prompt-level precedence as an enforceable check
 
 ### Requirement: Carry artifact rules into each batch spec sync
@@ -66,7 +69,7 @@ The `/opsx:bulk-archive` skill SHALL fetch current `specs` artifact instructions
 
 - **WHEN** artifact instructions contain rules and archive instructions contain `operationGuidance`
 - **THEN** artifact rules constrain spec content and form
-- **AND** archive guidance remains optional advice for the archive operation
+- **AND** configured archive guidance remains optional additive advice for choices within the archive operation
 - **AND** neither field is relabeled or merged into the other
 
 #### Scenario: Batch has no artifact rules

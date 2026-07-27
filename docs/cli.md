@@ -728,7 +728,7 @@ openspec instructions [artifact] [options]
 
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `artifact` | No | Artifact ID: `proposal`, `specs`, `design`, `tasks`, or `apply` |
+| `artifact` | No | Artifact ID, or workflow input surface: `apply` or `archive` |
 
 **Options:**
 
@@ -738,7 +738,9 @@ openspec instructions [artifact] [options]
 | `--schema <name>` | Schema override |
 | `--json` | Output as JSON |
 
-**Special case:** Use `apply` as the artifact to get task implementation instructions.
+**Special cases:** Use `apply` to get task implementation instructions. Use
+`archive` to fetch current, read-only archive inputs (`context` and
+`operationGuidance`) for a valid change; it does not archive or mutate anything.
 
 **Examples:**
 
@@ -752,6 +754,9 @@ openspec instructions design --change add-dark-mode
 # Get apply/implementation instructions
 openspec instructions apply --change add-dark-mode
 
+# Get current archive operation inputs without archiving
+openspec instructions archive --change add-dark-mode --json
+
 # JSON for agent consumption
 openspec instructions design --change add-dark-mode --json
 ```
@@ -762,6 +767,19 @@ openspec instructions design --change add-dark-mode --json
 - Project context from config
 - Content from dependency artifacts
 - Per-artifact rules from config
+- Current project context and matching operation guidance for `apply`/`archive`
+
+Operation inputs are read from the resolved repo or selected store on every
+invocation. Project context is a required prompt-level input: agents read it and
+apply relevant project facts, conventions, and constraints. Operation guidance is
+optional additive advice: agents consider every entry and follow only entries that
+are applicable and compatible with the built-in workflow. Both fields remain
+separate from explicit user choices, CLI-controlled state, built-in instructions,
+and artifact rules. Conflicting context is reported; conflicting or inapplicable
+guidance is not followed and the reason is explained. These are behavioral
+contracts for generated agents, not enforceable CLI checks. `instructions archive`
+returns only the selected change, optional inputs, and root metadata; it does not
+include the static archive workflow.
 
 For an artifact skipped via `skip_specs: true`, the output is a warning only (JSON adds `skipped`/`warning` fields) — the artifact must not be created.
 

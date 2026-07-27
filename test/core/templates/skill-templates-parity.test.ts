@@ -40,22 +40,22 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getExploreSkillTemplate: 'a7eb6fabdc05a5b90a4773ba93320a60edffea88e9b27985668a2959dcec2e3d',
   getNewChangeSkillTemplate: '39663a6d2037e6697020393a66f6327506e3e3bc573b7a3556dcb7f9457dc51d',
   getContinueChangeSkillTemplate: '5cc6cf74c055ae67b08373421d934ece65dacbccafbc7452ab5636df3eb9e862',
-  getApplyChangeSkillTemplate: '0f5a15fc7fb9ad6059a5643d0e01365d27642637a4aaebf182f9eabb45348197',
+  getApplyChangeSkillTemplate: '380408e4f48a984682f1b81a1bd80ef24aeb6019c200cc82f4236a68dffe8169',
   getFfChangeSkillTemplate: '097a9ff9533900f227cac0523289eae4e19f06a081e5f355a8374dbecf3ff55d',
-  getSyncSpecsSkillTemplate: '32c3169e1ee0345a174c0bacb8fd16db73477cc006d8cedbedc6077233c5461b',
+  getSyncSpecsSkillTemplate: '8fcf40d45396568264b78c3e42cf052d83859dc6e49df83a0a022dc7ac6336df',
   getOnboardSkillTemplate: 'bc2216b72724b01c3a733e63b8bf4aff457f561c0e9ff7288bdacc39780a37a7',
   getOpsxExploreCommandTemplate: 'eef1f8b4fd90ade6d70be46f0f8c3e6722f221fed175a6f9cf626287ef504a94',
   getOpsxNewCommandTemplate: '57c600cce318d16b9b4308a18d0d983ea3c0673034e606a7cceec07b4c705e87',
   getOpsxContinueCommandTemplate: '5c3968174001c20737ba39d2473ecec0f3b76591a80f7e2fc3974904d3da9dcd',
-  getOpsxApplyCommandTemplate: 'daeb507206707169de73c828e199648dde5732cbc17791ef2a027adffd028574',
+  getOpsxApplyCommandTemplate: '2a7ecbad001a091218e2b6d9de13c6b212b5a44f0c37db85c5c2a13dba896ad7',
   getOpsxFfCommandTemplate: '264b514cc4849f91fb4414f639484c4181f1e5850d0d788ef276c851efa92859',
-  getArchiveChangeSkillTemplate: '206a22b6778e97c30da9145ef51fdad449b8c995538f6fc25752ef551a37b675',
-  getBulkArchiveChangeSkillTemplate: '2b74b1f73380ff32e35f580734780d843c6161a2748c39edb07f1e00453771b4',
-  getOpsxSyncCommandTemplate: '68dc44c9be2ec1ef719a4ed59830e5a0bc74c3ba6113070650266e1b0d153071',
+  getArchiveChangeSkillTemplate: '3f87c1afb8bff78a27e13c00606c5ee3a5c0a1bffcc24dfa408a71fd76c54feb',
+  getBulkArchiveChangeSkillTemplate: '86a908882035cb968511aa24ecc63e91d1b505bedbb8e22076325558cb6e7ddf',
+  getOpsxSyncCommandTemplate: '01bbae1459a91fe2686284dd1770d589cf5d6c5a7a8dde0979b33998a6fcc7ad',
   getVerifyChangeSkillTemplate: 'cab4db01b5d2b1243d63d90c53747d8b39e488c60f76eba3fe8b994467f69267',
-  getOpsxArchiveCommandTemplate: '7dea65d0e2e17db366bb666ba6ae5e205ea02707b8c5c7707565200875c78916',
+  getOpsxArchiveCommandTemplate: '69681846ed403205498b220630f87a205ae3783b454e6046a4fd9cf81b52e91d',
   getOpsxOnboardCommandTemplate: '9430a0fb6530791ab720e068f4b172bc3dfc4e96a1ae29102bee0b92c2afe7b5',
-  getOpsxBulkArchiveCommandTemplate: 'da7be1a7318f15b915f5aae8eb638797a8a24a31e5fc7fc0a2bad01bba137686',
+  getOpsxBulkArchiveCommandTemplate: '5b5eaf79f95fec3a19269832e8a225c46d85b3c1ad7837ef87d9c11f76ef278f',
   getOpsxVerifyCommandTemplate: 'f01c0c0cef53be0956de52363d955d4ace131b1b2d77adf902f35fead9a1486d',
   getOpsxProposeSkillTemplate: '57fb556a060e2eb246b500922837af7573a6e100a6ed7dfaa7bd4ce0f5daffd3',
   getOpsxProposeCommandTemplate: '434cae3ee20835725bb1d2ccb9698310a850c5b95ed669ea15fc7a0125371c59',
@@ -68,11 +68,11 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-explore': 'c8de6033b2c78009647647c65a504e4ada1a3bdcee31aed38a4bf7d629513f6e',
   'openspec-new-change': 'd5b8909bea70a33b7a312b38ce204a91f40b6bb2bff12c4c06b3e11641b6a689',
   'openspec-continue-change': '02ec4de061ad6277866b877497a1e66142ba364e12b83dd7dedb838579ea88db',
-  'openspec-apply-change': '09c0e1cdf5ccc82416d0969d6bd715cc70616bdbc3531358a5c36057f78be55a',
+  'openspec-apply-change': 'b1266379b60350ca67c60fb3d78457cc1f9d5dd567a19acc95df78449ad426a5',
   'openspec-ff-change': 'ff3bd3eac427a1e50071ad7c70f73b556cffa3db43e90da2726e96849c3fc886',
-  'openspec-sync-specs': 'd1bcd420bf8fb55a13f58a2857e6ebde58eb6f9e721a3bf6876bd9f640a63859',
-  'openspec-archive-change': '64b1611dd7aee04ca268820d1b193e8bf0a39ff3672ec6ba21fb0a1bcb1786c2',
-  'openspec-bulk-archive-change': '49d410bda408c0411decd584be9c2355335e3b3db760fc6a0adcd82c172a280f',
+  'openspec-sync-specs': 'fc2848ef997ed8a59d8ef9fe222d6ad0c8dd941d03d52ef359e4cff467a0dcb5',
+  'openspec-archive-change': '80bbb7017ca63133a4df1a34c8477f03c46a49f99d8c9d6bc4ae2a1e47df3308',
+  'openspec-bulk-archive-change': '7544f4c5a8be40745add1e17468c503cf74d5e6654740fc00ee15779eee8c7e2',
   'openspec-verify-change': '57693d22940f06080c6cf8d590ac2f48240d4a5e9ce7074dacd0f8d3c9945afa',
   'openspec-onboard': '76225d10352454a304e56566997811d16f91de1b37653816f2bc5d8ec976febc',
   'openspec-propose': '4638400113946f4f1ee9f0bd0e965aafb200bd89b64ec7f5406ef5e948e8e218',
@@ -246,6 +246,167 @@ describe('skill templates split parity', () => {
       // Verification is bound to the delta specs on disk, not to whatever the
       // sync reports it touched — a silently skipped capability must not escape.
       expect(content, variant).toContain('not only the ones the sync reports it touched');
+    }
+  });
+
+  it('requires apply context while keeping guidance advisory and state separate', () => {
+    const variants: Array<[string, string]> = [
+      ['apply skill', getApplyChangeSkillTemplate().instructions],
+      ['apply command', getOpsxApplyCommandTemplate().content],
+    ];
+
+    for (const [variant, content] of variants) {
+      expect(content, variant).toContain('Optional `context`');
+      expect(content, variant).toContain('Optional `operationGuidance`');
+      expect(content, variant).toContain('Treat `context` as a required prompt-level input');
+      expect(content, variant).toContain('apply relevant project facts, conventions, and constraints');
+      expect(content, variant).toContain(
+        'Treat `operationGuidance` as optional additive advice'
+      );
+      expect(content, variant).toContain('Read and consider every');
+      expect(content, variant).toContain('applicable and compatible with the built-in');
+      expect(content, variant).toContain(
+        'separate from CLI-returned state, missing artifacts, tasks'
+      );
+      expect(content, variant).toContain(
+        'Do not use context or operation guidance as proof that a task is complete'
+      );
+      expect(content, variant).toContain('conflict and preserve the controlling value');
+      expect(content, variant).toContain('do not follow it and explain why');
+      expect(content, variant).toContain(
+        'Do not copy runtime context or operation guidance into implementation files or planning artifacts'
+      );
+      expect(content, variant).toContain(
+        'Preserve CLI-controlled blocked/ready/all-done behavior'
+      );
+      expect(content, variant).toContain(
+        'These are prompt-level behavior contracts, not enforceable checks'
+      );
+    }
+  });
+
+  it('makes single archive and sync instruction consumption fail closed', () => {
+    const archiveVariants: Array<[string, string]> = [
+      ['archive skill', getArchiveChangeSkillTemplate().instructions],
+      ['archive command', getOpsxArchiveCommandTemplate().content],
+    ];
+
+    for (const [variant, content] of archiveVariants) {
+      expect(content, variant).toContain(
+        'openspec instructions archive --change "<name>" --json'
+      );
+      expect(content, variant).toContain('same selected-root flags');
+      expect(content, variant).toContain('non-zero or returns invalid JSON');
+      expect(content, variant).toContain(
+        'stop before inspecting or\n   writing specs or moving the change'
+      );
+      expect(content, variant).toContain(
+        'Do not treat a failed lookup as an empty\n   successful response'
+      );
+      expect(content, variant).toContain('successful response may omit both optional fields');
+      expect(content, variant).toContain(
+        'Treat `context` as a\n   required prompt-level input'
+      );
+      expect(content, variant).toContain(
+        'Treat `operationGuidance` as optional\n   additive advice'
+      );
+      expect(content, variant).toContain('read and consider every entry');
+      expect(content, variant).toContain('report the conflict and preserve the controlling value');
+      expect(content, variant).toContain('do not follow it\n   and explain why');
+      expect(content, variant).toContain(
+        '`artifactPaths.specs.existingOutputPaths` from status JSON as the only'
+      );
+      expect(content, variant).toContain('`specs` entry is missing');
+      expect(content, variant).toContain('do not infer\n   delta specs from other artifacts');
+      expect(content, variant).toContain(
+        'openspec instructions specs --change "<name>" --json'
+      );
+      expect(content, variant).toContain('stop\n   before writing any main spec or moving the change');
+      expect(content, variant).toContain('valid response with omitted\n   `rules`');
+      expect(content, variant).toContain('inline sync must reuse that snapshot');
+      expect(content, variant).toContain('do not use them as archive guidance');
+      expect(content, variant).toContain(
+        'Existing CLI checks, resolved paths, prompts, and command contracts are unchanged'
+      );
+      expect(content, variant).toContain(
+        'Never copy runtime context, operation guidance, or artifact-rule text verbatim'
+      );
+      expect(content, variant).toContain(
+        'Artifact rules constrain only the specs being written and are never operation guidance'
+      );
+    }
+
+    const syncVariants: Array<[string, string]> = [
+      ['sync skill', getSyncSpecsSkillTemplate().instructions],
+      ['sync command', getOpsxSyncCommandTemplate().content],
+    ];
+
+    for (const [variant, content] of syncVariants) {
+      expect(content, variant).toContain(
+        '`artifactPaths.specs.existingOutputPaths` from the status JSON as the'
+      );
+      expect(content, variant).toContain('`specs` entry is missing');
+      expect(content, variant).toContain('do not infer them from other artifacts');
+      expect(content, variant).toContain('reuse it and do not\n     fetch the same instructions again');
+      expect(content, variant).toContain('Otherwise run that command once now');
+      expect(content, variant).toContain('stop before writing any main spec');
+      expect(content, variant).toContain('Do not treat the\n     failure as an absent rule set');
+      expect(content, variant).toContain('valid response with omitted `rules`');
+      expect(content, variant).toContain('Artifact rules are not operation guidance');
+      expect(content, variant).toContain('without copying it verbatim');
+    }
+  });
+
+  it('keeps bulk archive instruction lookups atomic across mixed-schema batches', () => {
+    const variants: Array<[string, string]> = [
+      ['bulk skill', getBulkArchiveChangeSkillTemplate().instructions],
+      ['bulk command', getOpsxBulkArchiveCommandTemplate().content],
+    ];
+
+    for (const [variant, content] of variants) {
+      expect(content, variant).toContain('archive inputs once for the selected root');
+      expect(content, variant).toContain(
+        'openspec instructions archive --change "<selected-change>" --json'
+      );
+      expect(content, variant).toContain(
+        'stop the whole batch before inspecting specs, writing main specs'
+      );
+      expect(content, variant).toContain(
+        'Do not treat a failed lookup as absent optional inputs'
+      );
+      expect(content, variant).toContain(
+        'Treat this list as the only delta-spec source'
+      );
+      expect(content, variant).toContain('missing or the list is empty');
+      expect(content, variant).toContain('mixed-schema\n        batches');
+      expect(content, variant).toContain('fetch every\n   required specs-rule snapshot');
+      expect(content, variant).toContain(
+        'Obtain all snapshots before the first write or move'
+      );
+      expect(content, variant).toContain(
+        'stop the whole batch before\n   any main-spec write or change move'
+      );
+      expect(content, variant).toContain(
+        'sync must reuse it without fetching instructions again'
+      );
+      expect(content, variant).toContain(
+        'Treat\n   `context` as a required prompt-level input across the batch'
+      );
+      expect(content, variant).toContain(
+        'Treat\n   `operationGuidance` as optional additive advice'
+      );
+      expect(content, variant).toContain('read and consider every');
+      expect(content, variant).toContain('report the conflict and preserve the controlling');
+      expect(content, variant).toContain('do not\n   follow it and explain why');
+      expect(content, variant).toContain(
+        'Keep runtime inputs, conflict analysis, CLI-derived values, and artifact rules separate'
+      );
+      expect(content, variant).toContain(
+        'Artifact rules constrain only written specs'
+      );
+      expect(content, variant).toContain(
+        'Never copy runtime input or artifact-rule text verbatim into output files'
+      );
     }
   });
 

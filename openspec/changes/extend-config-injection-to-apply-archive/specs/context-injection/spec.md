@@ -29,12 +29,20 @@ The system SHALL expose project context to apply and archive instruction output 
 - **WHEN** project config has no non-empty context
 - **THEN** apply and archive structured outputs omit the context field
 
-### Requirement: Keep operation context separate from output files
+### Requirement: Consume operation context as required agent instruction
 
-The system SHALL identify operation context as agent input that is not automatically copied into implementation output, specs, change artifacts, archive summaries, or archived files.
+The system SHALL identify returned operation context as a required agent instruction input with the same prompt-level consumption expectation as the built-in instruction. Context supplies applicable project facts, conventions, and constraints without becoming output content or replacing CLI-controlled workflow state.
 
-#### Scenario: Skill uses context as background
+#### Scenario: Skill applies project context
 
 - **WHEN** an apply or archive skill receives project context
-- **THEN** the context is available as background guidance
+- **THEN** the skill tells the agent to read and consider the context
+- **AND** apply its relevant project facts, conventions, and constraints while performing the operation
 - **AND** the workflow does not automatically insert the context into an output file
+
+#### Scenario: Context conflicts with controlling workflow input
+
+- **WHEN** project context conflicts with a built-in workflow step, explicit user choice, resolved path, CLI-controlled state, or command contract
+- **THEN** the skill reports the conflict
+- **AND** does not use context to replace or bypass the controlling workflow input
+- **AND** does not claim that prompt text can enforce agent compliance

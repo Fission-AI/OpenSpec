@@ -66,6 +66,8 @@ export interface ChangeContext {
 export interface LoadChangeContextOptions {
   changeDir?: string;
   planningHome?: PlanningHome;
+  /** Pre-read project config; suppresses schema resolution's fallback config read. */
+  projectConfig?: ProjectConfig | null;
 }
 
 /**
@@ -257,6 +259,7 @@ export function loadChangeContext(
   const metadata = readChangeMetadata(changeDir, projectRoot) ?? undefined;
   const resolvedSchemaName = resolveSchemaForChange(changeDir, schemaName, projectRoot, {
     metadata: metadata ?? null,
+    projectConfig: options.projectConfig,
   });
 
   const schema = resolveSchema(resolvedSchemaName, projectRoot);

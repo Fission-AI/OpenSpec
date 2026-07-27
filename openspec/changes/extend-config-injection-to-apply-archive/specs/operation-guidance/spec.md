@@ -1,8 +1,8 @@
 ## ADDED Requirements
 
-### Requirement: Configure advisory operation guidance
+### Requirement: Configure operation guidance
 
-The system SHALL allow projects to configure additive guidance for supported operations under `operations.<operation>.guidance` without treating that guidance as an artifact rule or an enforceable check.
+The system SHALL allow projects to configure additive advice for supported operations under `operations.<operation>.guidance` without treating that guidance as an artifact rule, the built-in workflow, or an enforceable check.
 
 #### Scenario: Configure apply and archive guidance
 
@@ -15,20 +15,22 @@ The system SHALL allow projects to configure additive guidance for supported ope
 - **WHEN** a supported operation has no configured guidance or only empty guidance entries
 - **THEN** the operation output omits `operationGuidance`
 
-### Requirement: Keep operation guidance additive and advisory
+### Requirement: Consume operation guidance as optional additive advice
 
-The system SHALL present operation guidance as optional advice in a field that remains separate from built-in instructions, CLI-controlled state, and explicit user choices.
+The system SHALL present returned operation guidance as optional additive advice rather than as the operation's built-in flow or an enforceable check. A skill that receives guidance SHALL tell the agent to read and consider every entry, follow entries that are applicable and compatible with the built-in workflow, and keep the field separate from built-in instructions, CLI-controlled state, and explicit user choices.
 
 #### Scenario: Guidance complements built-in flow
 
 - **WHEN** archive guidance asks for a concise completion summary
-- **THEN** the archive skill receives that advice without replacing its built-in steps or prompts
+- **THEN** the archive skill tells the agent to follow that applicable guidance
+- **AND** preserves its built-in steps and prompts
 
 #### Scenario: Guidance conflicts with built-in behavior
 
 - **WHEN** operation guidance conflicts with a built-in workflow step, explicit user choice, resolved path, or command contract
 - **THEN** instruction output keeps the conflicting text in `operationGuidance` rather than merging it into built-in instruction, state, path, or command fields
-- **AND** the generated skill labels that field as advisory
+- **AND** the generated skill tells the agent to explain why the advice was not followed
+- **AND** does not use the conflicting entry to replace or bypass the controlling workflow input
 - **AND** existing CLI validation, state calculation, resolved paths, and command contracts remain unchanged
 - **AND** the system does not claim that prompt text can enforce agent compliance
 

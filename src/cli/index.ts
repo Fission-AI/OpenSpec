@@ -27,6 +27,7 @@ import {
   statusCommand,
   instructionsCommand,
   applyInstructionsCommand,
+  archiveInstructionsCommand,
   templatesCommand,
   schemasCommand,
   newChangeCommand,
@@ -504,7 +505,7 @@ program
 // Instructions command
 program
   .command('instructions [artifact]')
-  .description('Output enriched instructions for creating an artifact or applying tasks')
+  .description('Output enriched instructions for artifacts, apply, or archive')
   .option('--change <id>', 'Change name')
   .option('--schema <name>', 'Schema override (auto-detected from config.yaml)')
   .option('--json', 'Output as JSON')
@@ -512,9 +513,11 @@ program
   .addOption(hiddenStorePathOption())
   .action(async (artifactId: string | undefined, options: InstructionsOptions) => {
     try {
-      // Special case: "apply" is not an artifact, but a command to get apply instructions
+      // Workflow instruction surfaces are reserved command branches, not artifacts.
       if (artifactId === 'apply') {
         await applyInstructionsCommand(options);
+      } else if (artifactId === 'archive') {
+        await archiveInstructionsCommand(options);
       } else {
         await instructionsCommand(artifactId, options);
       }

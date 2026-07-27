@@ -14,7 +14,8 @@ The CLI SHALL provide `openspec instructions archive --change <name>` as a read-
 #### Scenario: Archive text contains context and guidance
 
 - **WHEN** a user runs `openspec instructions archive --change <name>` with configured inputs
-- **THEN** text output labels project context and operation guidance as separate advisory sections
+- **THEN** text output labels project context as a required instruction input
+- **AND** labels operation guidance as separate advisory input
 
 #### Scenario: Archive inputs are absent
 
@@ -48,7 +49,7 @@ The archive instruction surface SHALL require a valid change and use existing re
 
 ### Requirement: Keep archive instructions read-only
 
-The archive instruction surface SHALL return runtime guidance without performing archive execution work.
+The archive instruction surface SHALL return runtime instruction inputs without performing archive execution work.
 
 #### Scenario: Archive instructions are requested
 

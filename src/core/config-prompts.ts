@@ -3,7 +3,7 @@ import type { ProjectConfig } from './project-config.js';
 /**
  * Serialize config to YAML string with helpful comments.
  *
- * @param config - Partial config object (schema required, context/rules optional)
+ * @param config - Partial config object (schema required, other fields optional)
  * @returns YAML string ready to write to file
  */
 export function serializeConfig(config: Partial<ProjectConfig>): string {
@@ -34,6 +34,20 @@ export function serializeConfig(config: Partial<ProjectConfig>): string {
   lines.push('#       - Always include a "Non-goals" section');
   lines.push('#     tasks:');
   lines.push('#       - Break tasks into chunks of max 2 hours');
+  lines.push('');
+
+  // Operation guidance section with comments
+  lines.push('# Per-operation guidance (optional)');
+  lines.push('# Add advisory guidance for how apply and archive work should be conducted.');
+  lines.push('# This is separate from artifact rules above.');
+  lines.push('# Example:');
+  lines.push('#   operations:');
+  lines.push('#     apply:');
+  lines.push('#       guidance:');
+  lines.push('#         - Keep test summaries concise');
+  lines.push('#     archive:');
+  lines.push('#       guidance:');
+  lines.push('#         - Summarize the archive outcome before finishing');
 
   return lines.join('\n') + '\n';
 }
