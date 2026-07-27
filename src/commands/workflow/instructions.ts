@@ -421,7 +421,11 @@ export async function generateApplyInstructions(
 
   if (missingArtifacts.length > 0) {
     state = 'blocked';
-    instruction = `Cannot apply this change yet. Missing artifacts: ${missingArtifacts.join(', ')}.\nUse the openspec-continue-change skill to create the missing artifacts first.`;
+    const specsHint =
+      missingArtifacts.includes('specs') && context.schemaName === 'spec-driven'
+        ? '\nDelta specs must exist under changes/<name>/specs/ before implementation.'
+        : '';
+    instruction = `Cannot apply this change yet. Missing artifacts: ${missingArtifacts.join(', ')}.${specsHint}\nUse the openspec-continue-change skill to create the missing artifacts first.`;
   } else if (tracksFile && !tracksFileExists) {
     // Tracking file configured but doesn't exist yet
     const tracksFilename = path.basename(tracksFile);
@@ -493,10 +497,13 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
 
     if (options.json) {
       console.log(JSON.stringify({ ...instructions, root: toRootOutput(root) }, null, 2));
-      return;
+    } else {
+      printApplyInstructionsText(instructions);
     }
 
-    printApplyInstructionsText(instructions);
+    if (instructions.state === 'blocked') {
+      process.exitCode = 1;
+    }
   } catch (error) {
     spinner?.stop();
     throw error;
