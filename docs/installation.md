@@ -4,6 +4,45 @@
 
 - **Node.js 20.19.0 or higher** — Check your version: `node --version`
 
+## Install with your AI assistant
+
+Rather not do this by hand? Paste the prompt below into any coding assistant that can run shell commands — Claude Code, Codex, Cursor, Gemini CLI, Copilot, and the rest of the [supported tools](supported-tools.md). It detects your runtime and package manager, installs the CLI, initializes this project, and verifies the result.
+
+The manual steps below are the source of truth — the prompt just runs them for you. If your assistant gets stuck, do it yourself with [Package Managers](#package-managers).
+
+```text
+Install OpenSpec in this project and set it up for me.
+
+1. Check that Node.js 20.19.0 or higher is on PATH (`node --version`). If it is
+   missing or too old, tell me and stop — do not install or switch Node versions
+   for me.
+
+2. Detect which package manager this project uses, then install the CLI globally
+   with it:
+     npm    → npm install -g @fission-ai/openspec@latest
+     pnpm   → pnpm add -g @fission-ai/openspec@latest
+     yarn   → yarn global add @fission-ai/openspec@latest
+     bun    → bun add -g @fission-ai/openspec@latest
+   Ask me first before running anything with sudo or anything that changes
+   system-wide configuration. Never edit my shell startup files (.bashrc,
+   .zshrc, .profile, fish config) — if the global bin directory is not on PATH,
+   print the line I should add and let me add it.
+
+3. Ask me which AI coding tool I use, then set up this directory
+   non-interactively: `openspec init --tools <tool-id>`. Run `openspec init
+   --help` for the list of tool ids. Tell me before overwriting any existing
+   file.
+
+4. Verify, then report back what you found:
+   - `openspec --version` prints a version
+   - an `openspec/` directory exists and contains `config.yaml`
+   - the generated skill and command files for my tool exist — init prints how
+     many and where; list the actual files
+   Finish by telling me what to restart or reload before the slash commands work.
+```
+
+Nothing in the prompt is specific to one vendor: it is plain instructions plus the same commands documented on this page.
+
 ## Package Managers
 
 ### npm
