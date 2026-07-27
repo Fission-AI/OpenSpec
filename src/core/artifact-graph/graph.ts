@@ -30,9 +30,12 @@ export class ArtifactGraph {
    * schemas alike, and stays just as deterministic. Ids not in the schema sort
    * last so the comparator stays total.
    */
-  private compareByDeclarationOrder = (a: string, b: string): number =>
-    (this.declarationOrder.get(a) ?? Number.MAX_SAFE_INTEGER) -
-    (this.declarationOrder.get(b) ?? Number.MAX_SAFE_INTEGER);
+  private compareByDeclarationOrder(a: string, b: string): number {
+    return (
+      (this.declarationOrder.get(a) ?? Number.MAX_SAFE_INTEGER) -
+      (this.declarationOrder.get(b) ?? Number.MAX_SAFE_INTEGER)
+    );
+  }
 
   /**
    * Creates an ArtifactGraph from a YAML file path.
@@ -109,7 +112,7 @@ export class ArtifactGraph {
     // Start with roots (in-degree 0), in declaration order for determinism
     const queue = [...this.artifacts.keys()]
       .filter(id => inDegree.get(id) === 0)
-      .sort(this.compareByDeclarationOrder);
+      .sort((a, b) => this.compareByDeclarationOrder(a, b));
 
     const result: string[] = [];
 
@@ -129,7 +132,7 @@ export class ArtifactGraph {
       // Re-sort the whole queue, not just the new arrivals: an artifact that
       // has been waiting can be declared after one that just became ready.
       queue.push(...newlyReady);
-      queue.sort(this.compareByDeclarationOrder);
+      queue.sort((a, b) => this.compareByDeclarationOrder(a, b));
     }
 
     return result;
@@ -154,7 +157,7 @@ export class ArtifactGraph {
 
     // Declaration order: deterministic, and the first entry is the artifact the
     // schema wants written next.
-    return ready.sort(this.compareByDeclarationOrder);
+    return ready.sort((a, b) => this.compareByDeclarationOrder(a, b));
   }
 
   /**
@@ -182,7 +185,7 @@ export class ArtifactGraph {
 
       const unmetDeps = artifact.requires.filter(req => !completed.has(req));
       if (unmetDeps.length > 0) {
-        blocked[artifact.id] = unmetDeps.sort(this.compareByDeclarationOrder);
+        blocked[artifact.id] = unmetDeps.sort((a, b) => this.compareByDeclarationOrder(a, b));
       }
     }
 

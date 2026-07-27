@@ -44,6 +44,7 @@ The system SHALL enrich templates with change-specific context.
 #### Scenario: Include unlocked artifacts
 - **WHEN** instructions are generated
 - **THEN** the output includes which artifacts become available after this one
+- **AND** they are listed in the order the schema declares them, matching the order `openspec status` recommends them
 
 #### Scenario: Root artifact indicator
 - **WHEN** an artifact has no dependencies
