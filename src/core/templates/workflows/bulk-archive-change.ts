@@ -124,7 +124,7 @@ ${STORE_SELECTION_GUIDANCE}
    so match what the user picked rather than the wording above:
    - "Cancel" — stop, do not archive. Report that nothing was archived and skip the remaining steps.
    - The archive-everything option — proceed with every selected change
-   - The ready-only option — proceed with only the changes the step 6 table marks \`Ready\` or \`Ready*\`, and record the rest as Skipped in step 8c. If a \`Ready*\` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
+   - The ready-only option — proceed with only the changes the step 6 table marks \`Ready\` or \`Ready*\`, and record the rest as Skipped in step 8d. If a \`Ready*\` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
    - Anything else — ask again rather than archiving
 
 8. **Execute archive for each confirmed change**
@@ -132,11 +132,20 @@ ${STORE_SELECTION_GUIDANCE}
    Process changes in the determined order (respecting conflict resolution):
 
    a. **Sync specs** if delta specs exist:
-      - Use the openspec-sync-specs approach (agent-driven intelligent merge, or merge delta specs directly into main specs if sync workflow is not installed)
-      - For conflicts, apply in resolved order
-      - Track if sync was done
+      - Run the \`openspec-sync-specs\` workflow inline (agent-driven intelligent merge, or merge delta specs directly into main specs at \`<planningHome.root>/openspec/specs/<capability>/spec.md\` if sync workflow is not installed) for each change, passing the delta spec analysis, and wait for it to finish.
+      - For conflicts, apply in resolved order.
+      - Do not delegate to a background task — step 8c would move \`changeRoot\` out from under a sync that is still reading it.
 
-   b. **Perform the archive**:
+   b. **Verify main specs before moving changeRoot**:
+      - Re-run the comparison against every capability that has a delta spec in \`artifactPaths.specs.existingOutputPaths\` against main spec at \`<planningHome.root>/openspec/specs/<capability>/spec.md\` (use the store-aware \`planningHome.root\` from step 3 status JSON, not a hardcoded repo path).
+      - Verify that main specs are updated:
+        - ADDED requirements present
+        - MODIFIED requirements carrying scenario and description changes named in the delta, with their other scenarios intact
+        - REMOVED requirements gone
+        - RENAMED requirements present under the new name and absent under the old one
+      - If sync failed or any capability does not match verification, report what differs and fail/skip moving that change's \`changeRoot\` — do not archive that change. \`changeRoot\` remains intact.
+
+   c. **Perform the archive**:
 
       Target name: use the change name as-is when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise prepend the current date as \`YYYY-MM-DD-<name>\` (same rule as \`openspec archive\`).
 
@@ -145,9 +154,9 @@ ${STORE_SELECTION_GUIDANCE}
       mv "<changeRoot>" "<planningHome.changesDir>/archive/<target-name>"
       \`\`\`
 
-   c. **Track outcome** for each change:
+   d. **Track outcome** for each change:
       - Success: archived successfully
-      - Failed: error during archive (record error)
+      - Failed: error during archive or spec verification (record error)
       - Skipped: user chose not to archive (if applicable)
 
 9. **Display summary**
@@ -180,7 +189,7 @@ ${STORE_SELECTION_GUIDANCE}
 
 Example 1: Only one implemented
 \`\`\`text
-Conflict: specs/auth/spec.md touched by [add-oauth, add-jwt]
+Conflict: <planningHome.root>/openspec/specs/auth/spec.md touched by [add-oauth, add-jwt]
 
 Checking add-oauth:
 - Delta adds "OAuth Provider Integration" requirement
@@ -195,7 +204,7 @@ Resolution: Only add-oauth is implemented. Will sync add-oauth specs only.
 
 Example 2: Both implemented
 \`\`\`text
-Conflict: specs/api/spec.md touched by [add-rest-api, add-graphql]
+Conflict: <planningHome.root>/openspec/specs/api/spec.md touched by [add-rest-api, add-graphql]
 
 Checking add-rest-api (created 2026-01-10):
 - Delta adds "REST Endpoints" requirement
@@ -258,7 +267,9 @@ No active changes found. Create a new change to get started.
 - Track and report all outcomes (success/skip/fail)
 - Preserve .openspec.yaml when moving to archive
 - Archive directory target uses current date: YYYY-MM-DD-<name>; a name that already starts with a \`YYYY-MM-DD-\` prefix is used as-is (never stack a second date)
-- If archive target exists, fail that change but continue with others`,
+- If archive target exists, fail that change but continue with others
+- If sync is requested, run the \`openspec-sync-specs\` workflow inline (agent-driven) for each change
+- Never archive a change while a spec sync is still in flight — run the sync inline and verify main specs at \`<planningHome.root>/openspec/specs/<capability>/spec.md\` before moving \`changeRoot\``,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
@@ -384,7 +395,7 @@ ${STORE_SELECTION_GUIDANCE}
    so match what the user picked rather than the wording above:
    - "Cancel" — stop, do not archive. Report that nothing was archived and skip the remaining steps.
    - The archive-everything option — proceed with every selected change
-   - The ready-only option — proceed with only the changes the step 6 table marks \`Ready\` or \`Ready*\`, and record the rest as Skipped in step 8c. If a \`Ready*\` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
+   - The ready-only option — proceed with only the changes the step 6 table marks \`Ready\` or \`Ready*\`, and record the rest as Skipped in step 8d. If a \`Ready*\` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
    - Anything else — ask again rather than archiving
 
 8. **Execute archive for each confirmed change**
@@ -392,11 +403,20 @@ ${STORE_SELECTION_GUIDANCE}
    Process changes in the determined order (respecting conflict resolution):
 
    a. **Sync specs** if delta specs exist:
-      - Use the openspec-sync-specs approach (agent-driven intelligent merge, or merge delta specs directly into main specs if sync workflow is not installed)
-      - For conflicts, apply in resolved order
-      - Track if sync was done
+      - Run the \`/opsx:sync\` workflow inline (agent-driven intelligent merge, or merge delta specs directly into main specs at \`<planningHome.root>/openspec/specs/<capability>/spec.md\` if sync workflow is not installed) for each change, passing the delta spec analysis, and wait for it to finish.
+      - For conflicts, apply in resolved order.
+      - Do not delegate to a background task — step 8c would move \`changeRoot\` out from under a sync that is still reading it.
 
-   b. **Perform the archive**:
+   b. **Verify main specs before moving changeRoot**:
+      - Re-run the comparison against every capability that has a delta spec in \`artifactPaths.specs.existingOutputPaths\` against main spec at \`<planningHome.root>/openspec/specs/<capability>/spec.md\` (use the store-aware \`planningHome.root\` from step 3 status JSON, not a hardcoded repo path).
+      - Verify that main specs are updated:
+        - ADDED requirements present
+        - MODIFIED requirements carrying scenario and description changes named in the delta, with their other scenarios intact
+        - REMOVED requirements gone
+        - RENAMED requirements present under the new name and absent under the old one
+      - If sync failed or any capability does not match verification, report what differs and fail/skip moving that change's \`changeRoot\` — do not archive that change. \`changeRoot\` remains intact.
+
+   c. **Perform the archive**:
 
       Target name: use the change name as-is when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise prepend the current date as \`YYYY-MM-DD-<name>\` (same rule as \`openspec archive\`).
 
@@ -405,9 +425,9 @@ ${STORE_SELECTION_GUIDANCE}
       mv "<changeRoot>" "<planningHome.changesDir>/archive/<target-name>"
       \`\`\`
 
-   c. **Track outcome** for each change:
+   d. **Track outcome** for each change:
       - Success: archived successfully
-      - Failed: error during archive (record error)
+      - Failed: error during archive or spec verification (record error)
       - Skipped: user chose not to archive (if applicable)
 
 9. **Display summary**
@@ -440,7 +460,7 @@ ${STORE_SELECTION_GUIDANCE}
 
 Example 1: Only one implemented
 \`\`\`text
-Conflict: specs/auth/spec.md touched by [add-oauth, add-jwt]
+Conflict: <planningHome.root>/openspec/specs/auth/spec.md touched by [add-oauth, add-jwt]
 
 Checking add-oauth:
 - Delta adds "OAuth Provider Integration" requirement
@@ -455,7 +475,7 @@ Resolution: Only add-oauth is implemented. Will sync add-oauth specs only.
 
 Example 2: Both implemented
 \`\`\`text
-Conflict: specs/api/spec.md touched by [add-rest-api, add-graphql]
+Conflict: <planningHome.root>/openspec/specs/api/spec.md touched by [add-rest-api, add-graphql]
 
 Checking add-rest-api (created 2026-01-10):
 - Delta adds "REST Endpoints" requirement
@@ -518,6 +538,8 @@ No active changes found. Create a new change to get started.
 - Track and report all outcomes (success/skip/fail)
 - Preserve .openspec.yaml when moving to archive
 - Archive directory target uses current date: YYYY-MM-DD-<name>; a name that already starts with a \`YYYY-MM-DD-\` prefix is used as-is (never stack a second date)
-- If archive target exists, fail that change but continue with others`
+- If archive target exists, fail that change but continue with others
+- If sync is requested, run the \`/opsx:sync\` workflow inline (agent-driven) for each change
+- Never archive a change while a spec sync is still in flight — run the sync inline and verify main specs at \`<planningHome.root>/openspec/specs/<capability>/spec.md\` before moving \`changeRoot\``
   };
 }
