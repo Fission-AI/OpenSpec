@@ -83,7 +83,9 @@ Alternatives considered:
 
 For multiple selected sources, all fetch/extract/validation operations finish before one atomic lock replacement. A successful cache directory that becomes unreferenced because a later source fails is harmless content-addressed data; no prior lock or cache is removed.
 
-All update and locked synchronization runs under one project-scoped interprocess lock covering lockfile read, Git/cache work, merge, and lockfile write. Beneath the consumer repository's `openspec/.schemas.lock` coordination directory, each contender creates unique choosing and immutable ticket files containing a random token, PID, hostname, acquisition time, and bakery number. The filesystem bakery ordering prevents a stale reclaimer from moving a shared lock path and temporarily admitting two owners. Acquisition retries for a bounded period, reclaims only the exact unique files of a same-host process that is no longer alive, and removes only the current token's ticket on release. The empty coordination directory is removed when possible. This deliberately serializes network work in V1 so two named sync processes cannot both merge against stale lock state.
+All update and locked synchronization runs under one project-scoped interprocess lock covering lockfile read, Git/cache work, merge, and lockfile write. Beneath the consumer repository's `openspec/.schemas.lock` coordination directory, each contender creates unique choosing and immutable ticket files containing a random token, PID, hostname, acquisition time, and bakery number. The directory contains a self-ignore rule so coordination, staging, and stale runtime files never appear as Git candidates in consumer repositories.
+
+Participant state is written to a uniquely named staging file and atomically published through an exclusive filesystem link. Ticket validation requires a positive bakery number; choosing records intentionally omit it. The filesystem bakery ordering prevents a stale reclaimer from moving a shared lock path and temporarily admitting two owners. Acquisition retries for a bounded period, immediately reclaims the exact unique files of a same-host process that is no longer alive, and reclaims unparseable choosing or ticket files only after their filesystem age exceeds the acquisition timeout. Release removes only the current token's ticket and leaves the self-ignoring coordination directory available for later runs. This deliberately serializes network work in V1 so two named sync processes cannot both merge against stale lock state.
 
 ### 4. Fetch with system Git and extract tracked objects, not a working-tree copy
 
@@ -100,7 +102,7 @@ A focused Git adapter uses `execFile` argument arrays and a temporary repository
 
 Reading Git objects rather than recursively copying a checkout prevents `.git`, untracked content, and followed filesystem symlinks from entering the bundle. Tree modes identify and reject symlinks and submodules before content extraction. Every process has bounded output and duration.
 
-Git runs with `GIT_TERMINAL_PROMPT=0`. SSH transports preserve the user's existing `GIT_SSH_COMMAND` command, identity, proxy, and other arguments while enforcing `BatchMode=yes` and `StrictHostKeyChecking=accept-new`. Existing conflicting values are normalized so authentication, passphrase, and host-key questions cannot block automation. The constructed SSH command is never included in diagnostics.
+Git runs with `GIT_TERMINAL_PROMPT=0`. SSH transports preserve the user's existing `GIT_SSH_COMMAND` command, identity, proxy, and other arguments while normalizing and enforcing `BatchMode=yes`. An explicit user `StrictHostKeyChecking` policy is preserved, including the stricter `yes` policy; `StrictHostKeyChecking=accept-new` is appended only when no policy exists. Authentication and passphrase questions therefore cannot block automation, while OpenSpec does not weaken an explicitly selected host-key policy. The constructed SSH command is never included in diagnostics.
 
 Git stderr is treated as untrusted and is not copied verbatim into user diagnostics. Errors use stable codes and sanitized source labels. This prevents a transport, credential helper, or malicious remote from reflecting secrets while keeping the actionable fixes (`check Git credentials`, `schema sync`, or `schema sync --locked`).
 
@@ -191,8 +193,8 @@ Focused modules keep network-capable code out of ordinary resolution and make th
 - **Global cache can accumulate unused digests** → Document manual removal; automatic garbage collection is deferred until lock discovery semantics exist.
 - **Case-fold collision checks are stricter than a Linux checkout** → This intentionally guarantees that one committed lock is usable on Windows and case-insensitive macOS filesystems.
 - **Remote source syntax and lock shape may evolve after maintainer feedback** → Mark the command group experimental, version the lock, and keep parsing strict so migrations can be explicit.
-- **A crashed sync can leave an interprocess lock** → Record process ownership and reclaim only a same-host lock whose PID is no longer alive; live or ambiguous owners time out without modifying the lockfile.
-- **`StrictHostKeyChecking=accept-new` trusts a host on first contact** → This keeps first-run automation usable while still rejecting changed known keys; OpenSpec never disables host-key checking.
+- **A crashed sync can leave interprocess coordination state** → Publish participant records atomically, require ticket numbers, self-ignore the runtime directory, reclaim dead same-host owners immediately, and reclaim malformed records only after the acquisition timeout.
+- **`StrictHostKeyChecking=accept-new` trusts a host on first contact** → Use it only as the default when the user supplied no policy; preserve explicit stricter policies unchanged.
 
 ## Migration Plan
 

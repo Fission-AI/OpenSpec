@@ -387,6 +387,9 @@ The consumer repository owns both `openspec/config.yaml` and
 upward for that repository. A configured planning store does not own or redirect
 remote schema sources. Sync processes for one consumer repository are
 serialized, so concurrent named updates cannot lose lockfile entries.
+The `openspec/.schemas.lock/` coordination directory ignores its own runtime
+files. Participant records are published atomically, and aged malformed
+records left by an interrupted process are reclaimed without manual cleanup.
 
 Branches and tags are allowed, but they move only when `schema sync` is run
 without `--locked`. A remote update therefore cannot change a normal command's
@@ -405,9 +408,9 @@ schemaSources:
 
 Do not put credentials or tokens in configuration. Credential-bearing HTTPS
 URLs are rejected, and lockfiles contain no authentication material. OpenSpec
-preserves existing `GIT_SSH_COMMAND` options while enforcing `BatchMode=yes`
-and `StrictHostKeyChecking=accept-new`, so Git cannot wait for a passphrase or
-host-key prompt and changed known host keys are rejected.
+preserves existing `GIT_SSH_COMMAND` options while enforcing `BatchMode=yes`.
+An explicit `StrictHostKeyChecking` value is preserved; OpenSpec adds
+`StrictHostKeyChecking=accept-new` only when no host-key policy is present.
 
 Schema authority is name-based:
 

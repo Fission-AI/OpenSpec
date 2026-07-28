@@ -167,18 +167,22 @@ export async function createChange(
   // specs/ and changes/archive/ exist, and write a config only when
   // none exists. The config records the PROJECT default schema, never
   // a one-change --schema override.
-  const openspecDir = path.join(projectRoot, 'openspec');
+  const planningOpenSpecDir = path.join(projectRoot, 'openspec');
+  const configOpenSpecDir = path.join(schemaRoot, 'openspec');
 
   // Create the directory (including parent directories if needed)
   await FileSystemUtils.createDirectory(changeDir);
-  await FileSystemUtils.createDirectory(path.join(openspecDir, 'specs'));
-  await FileSystemUtils.createDirectory(path.join(openspecDir, 'changes', 'archive'));
-  const configPath = path.join(openspecDir, 'config.yaml');
-  const configYmlPath = path.join(openspecDir, 'config.yml');
+  await FileSystemUtils.createDirectory(path.join(planningOpenSpecDir, 'specs'));
+  await FileSystemUtils.createDirectory(
+    path.join(planningOpenSpecDir, 'changes', 'archive')
+  );
+  const configPath = path.join(configOpenSpecDir, 'config.yaml');
+  const configYmlPath = path.join(configOpenSpecDir, 'config.yml');
   if (
     !(await FileSystemUtils.fileExists(configPath)) &&
     !(await FileSystemUtils.fileExists(configYmlPath))
   ) {
+    await FileSystemUtils.createDirectory(configOpenSpecDir);
     await FileSystemUtils.writeFile(configPath, `schema: ${defaultSchema}\n`);
   }
 

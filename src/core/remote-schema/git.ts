@@ -48,16 +48,33 @@ function removeSshOption(command: string, option: string): string {
     .trim();
 }
 
+function hasSshOption(command: string, option: string): boolean {
+  const assignment = `${option}(?:\\s*=\\s*|\\s+)`;
+  return new RegExp(
+    `(^|\\s)-o\\s*(?:"${assignment}[^"]*"|'${assignment}[^']*'|${assignment}(?:"[^"]*"|'[^']*'|\\S+))`,
+    'i'
+  ).test(command);
+}
+
 export function buildNonInteractiveGitEnvironment(
   environment: NodeJS.ProcessEnv = process.env
 ): NodeJS.ProcessEnv {
-  let sshCommand = environment.GIT_SSH_COMMAND?.trim() || 'ssh';
+  const originalSshCommand =
+    environment.GIT_SSH_COMMAND?.trim() || 'ssh';
+  const hasHostKeyPolicy = hasSshOption(
+    originalSshCommand,
+    'StrictHostKeyChecking'
+  );
+  let sshCommand = originalSshCommand;
   sshCommand = removeSshOption(sshCommand, 'BatchMode');
-  sshCommand = removeSshOption(sshCommand, 'StrictHostKeyChecking');
+  const defaultHostKeyPolicy = hasHostKeyPolicy
+    ? ''
+    : ' -o StrictHostKeyChecking=accept-new';
   return {
     ...environment,
     GIT_TERMINAL_PROMPT: '0',
-    GIT_SSH_COMMAND: `${sshCommand} -o BatchMode=yes -o StrictHostKeyChecking=accept-new`,
+    GIT_SSH_COMMAND:
+      `${sshCommand} -o BatchMode=yes${defaultHostKeyPolicy}`,
   };
 }
 

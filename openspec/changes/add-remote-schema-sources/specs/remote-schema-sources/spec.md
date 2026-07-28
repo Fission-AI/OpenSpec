@@ -15,7 +15,9 @@ The system SHALL allow a project to associate a valid schema name with a Git rep
 #### Scenario: Existing SSH command configuration
 - **WHEN** synchronization inherits a `GIT_SSH_COMMAND` containing identity, proxy, or other user options
 - **THEN** the system SHALL preserve those options
-- **AND** it SHALL enforce `BatchMode=yes` and `StrictHostKeyChecking=accept-new`
+- **AND** it SHALL enforce `BatchMode=yes`
+- **AND** it SHALL preserve an explicit user `StrictHostKeyChecking` policy
+- **AND** it SHALL add `StrictHostKeyChecking=accept-new` only when the inherited command has no host-key policy
 - **AND** authentication, passphrase, and host-key questions SHALL NOT block the command
 
 #### Scenario: Credential-bearing HTTPS source
@@ -42,6 +44,12 @@ The CLI SHALL provide `openspec schema sync [name]` to resolve configured Git re
 - **WHEN** a workflow command writes planning artifacts to a selected store
 - **THEN** schema selection, metadata validation, template loading, status, instructions, apply guidance, validation, archive checks, and discovery SHALL resolve schemas from the consumer repository
 - **AND** the planning store SHALL NOT become the schema authority
+
+#### Scenario: Store-backed change creation initializes schema configuration
+- **WHEN** change creation writes planning artifacts beneath a selected planning root that differs from the consumer schema root
+- **THEN** any generated `openspec/config.yaml` SHALL be written beneath the consumer schema root
+- **AND** change directories, specs, and archive directories SHALL remain beneath the planning root
+- **AND** change creation SHALL NOT generate schema configuration beneath the planning root
 
 #### Scenario: Synchronize one source
 - **WHEN** a user runs `openspec schema sync qeda-sdd`
@@ -78,6 +86,17 @@ The CLI SHALL provide `openspec schema sync [name]` to resolve configured Git re
 - **THEN** a later synchronization SHALL remove only that abandoned participant's files
 - **AND** concurrent reclaimers SHALL preserve mutual exclusion
 - **AND** releasing an older owner SHALL NOT delete a successor's ticket
+
+#### Scenario: Partially written or malformed synchronization participant
+- **WHEN** a choosing or ticket participant file is unparseable or a ticket omits its positive bakery number
+- **THEN** the malformed participant SHALL NOT be admitted to bakery ordering
+- **AND** it SHALL be reclaimed only after its filesystem age exceeds the bounded acquisition timeout
+- **AND** subsequent synchronization SHALL recover without manual deletion
+
+#### Scenario: Coordination state stays out of Git
+- **WHEN** synchronization creates choosing, ticket, or staging files beneath `openspec/.schemas.lock`
+- **THEN** the coordination directory SHALL ignore all of its runtime contents
+- **AND** ordinary Git status and staging SHALL NOT select those files
 
 ### Requirement: Locked synchronization restores without upgrading
 

@@ -254,5 +254,31 @@ describe('createChange', () => {
       const stats = await fs.stat(changeDir);
       expect(stats.isDirectory()).toBe(true);
     });
+
+    it('keeps generated config at the schema root when planning elsewhere', async () => {
+      const planningRoot = path.join(testDir, 'planning-store');
+      const schemaRoot = path.join(testDir, 'consumer');
+      await fs.mkdir(planningRoot);
+      await fs.mkdir(schemaRoot);
+
+      await createChange(planningRoot, 'store-backed-change', { schemaRoot });
+
+      await expect(
+        fs.readFile(path.join(schemaRoot, 'openspec', 'config.yaml'), 'utf8')
+      ).resolves.toBe('schema: spec-driven\n');
+      await expect(
+        fs.stat(
+          path.join(
+            planningRoot,
+            'openspec',
+            'changes',
+            'store-backed-change'
+          )
+        )
+      ).resolves.toMatchObject({});
+      await expect(
+        fs.access(path.join(planningRoot, 'openspec', 'config.yaml'))
+      ).rejects.toThrow();
+    });
   });
 });

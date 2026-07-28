@@ -74,8 +74,10 @@ describe('validateSchemaDirectory', () => {
 
     try {
       expect(
-        validateLocalSchemaDirectory(schemaDir).templatePaths.proposal
-      ).toBe(sharedTemplate);
+        fs.realpathSync.native(
+          validateLocalSchemaDirectory(schemaDir).templatePaths.proposal
+        )
+      ).toBe(fs.realpathSync.native(sharedTemplate));
     } finally {
       fs.rmSync(sharedTemplate, { force: true });
     }

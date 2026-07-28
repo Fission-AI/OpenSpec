@@ -826,13 +826,20 @@ openspec templates --json
 
 ```
 Schema: spec-driven
+Source: package
 
-Templates:
-  proposal  → ~/.openspec/schemas/spec-driven/templates/proposal.md
-  specs     → ~/.openspec/schemas/spec-driven/templates/specs.md
-  design    → ~/.openspec/schemas/spec-driven/templates/design.md
-  tasks     → ~/.openspec/schemas/spec-driven/templates/tasks.md
+proposal:
+  /path/to/openspec/schemas/spec-driven/templates/proposal.md
+specs:
+  /path/to/openspec/schemas/spec-driven/templates/specs.md
+design:
+  /path/to/openspec/schemas/spec-driven/templates/design.md
+tasks:
+  /path/to/openspec/schemas/spec-driven/templates/tasks.md
 ```
+
+The source is one of `project`, `remote`, `user`, or `package`. Synchronized
+remote templates report `remote` in both text and JSON output.
 
 ---
 
@@ -899,6 +906,10 @@ consumer repository containing `openspec/`. Its `config.yaml` and
 `schemas.lock.yaml` remain authoritative even when the repository selects a
 planning store. Concurrent schema sync processes for the same consumer
 repository are serialized so named updates cannot overwrite each other.
+Runtime coordination lives beneath a self-ignored
+`openspec/.schemas.lock/` directory. OpenSpec publishes participant records
+atomically and recovers aged malformed records, so interrupted syncs neither
+dirty Git status nor require manual lock cleanup.
 
 ```bash
 # Update one source to the current configured ref
@@ -927,13 +938,14 @@ schemaSources:
 
 Private access reuses system Git SSH and credential helpers. OpenSpec preserves
 an existing `GIT_SSH_COMMAND` while enforcing non-interactive SSH with
-`BatchMode=yes` and `StrictHostKeyChecking=accept-new`; changed known host keys
-still fail. Never embed a token in a URL. Commit the lockfile, but do not commit
-the global cache. Ordinary commands are network-free and continue to use the
-old locked version after a remote branch advances. Run update mode explicitly
-to upgrade. A missing or corrupt cache reports a `schema sync --locked` fix; CI
-must either restore the global cache or run that command while the source is
-reachable before entering an offline phase.
+`BatchMode=yes`. An explicit `StrictHostKeyChecking` value is preserved;
+`accept-new` is added only when the inherited command has no host-key policy.
+Never embed a token in a URL. Commit the lockfile, but do not commit the global
+cache. Ordinary commands are network-free and continue to use the old locked
+version after a remote branch advances. Run update mode explicitly to upgrade.
+A missing or corrupt cache reports a `schema sync --locked` fix; CI must either
+restore the global cache or run that command while the source is reachable
+before entering an offline phase.
 
 Example JSON success:
 

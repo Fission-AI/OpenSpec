@@ -70,6 +70,11 @@ Schema listing APIs and commands SHALL include valid locked remote schemas with 
 - **THEN** `listSchemas(projectRoot)` SHALL include its name
 - **AND** `listSchemasWithInfo(projectRoot)` SHALL report source `remote`
 
+#### Scenario: Remote schema templates report their source
+- **WHEN** a user requests template paths for a declared remote schema with matching lock and cache content
+- **THEN** human and JSON template output SHALL report source `remote`
+- **AND** the cache location SHALL NOT be mislabeled as a package schema
+
 #### Scenario: Project schema conflicts with remote in list
 - **WHEN** project-local and remote schemas share a name
 - **THEN** diagnostic schema listings SHALL contain one unavailable remote entry with `schema_name_conflict`

@@ -29,6 +29,8 @@ const DEFAULT_TIMEOUT_MS = 30_000;
 const DEFAULT_RETRY_DELAY_MS = 50;
 const CHOOSING_SUFFIX = '.choosing.json';
 const TICKET_SUFFIX = '.ticket.json';
+const SELF_IGNORE_FILE = '.gitignore';
+const SELF_IGNORE_CONTENT = '*\n';
 
 export function getSchemaSyncLockPath(projectRoot: string): string {
   return path.join(projectRoot, 'openspec', '.schemas.lock');
@@ -46,6 +48,12 @@ function readParticipant(filePath: string): SchemaSyncParticipant | null {
       typeof value.startedAt !== 'string' ||
       (value.number !== undefined &&
         (!Number.isSafeInteger(value.number) || value.number < 1))
+    ) {
+      return null;
+    }
+    if (
+      filePath.endsWith(TICKET_SUFFIX) &&
+      value.number === undefined
     ) {
       return null;
     }
@@ -86,20 +94,35 @@ function removeOwnFile(filePath: string, token: string): void {
   }
 }
 
-function removeLockDirectoryIfEmpty(lockPath: string): void {
+function removeParticipantFile(filePath: string): void {
   try {
-    fs.rmdirSync(lockPath);
+    fs.unlinkSync(filePath);
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
-    if (code !== 'ENOENT' && code !== 'ENOTEMPTY' && code !== 'EEXIST') {
+    if (code !== 'ENOENT') {
       throw error;
     }
   }
 }
 
+function malformedParticipantExpired(
+  filePath: string,
+  timeoutMs: number
+): boolean {
+  try {
+    return Date.now() - fs.statSync(filePath).mtimeMs >= timeoutMs;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return false;
+    }
+    throw error;
+  }
+}
+
 function listParticipantFiles(
   lockPath: string,
-  suffix: string
+  suffix: string,
+  timeoutMs: number
 ): Array<{ filePath: string; participant: SchemaSyncParticipant | null }> {
   let names: string[];
   try {
@@ -122,9 +145,48 @@ function listParticipantFiles(
       removeOwnFile(filePath, participant!.token);
       continue;
     }
+    if (
+      participant === null &&
+      malformedParticipantExpired(filePath, timeoutMs)
+    ) {
+      removeParticipantFile(filePath);
+      continue;
+    }
     participants.push({ filePath, participant });
   }
   return participants;
+}
+
+function ensureSelfIgnoredLockDirectory(lockPath: string): void {
+  fs.mkdirSync(lockPath, { recursive: true });
+  const ignorePath = path.join(lockPath, SELF_IGNORE_FILE);
+  try {
+    fs.writeFileSync(ignorePath, SELF_IGNORE_CONTENT, {
+      encoding: 'utf8',
+      flag: 'wx',
+    });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
+      throw error;
+    }
+  }
+  if (fs.readFileSync(ignorePath, 'utf8') === SELF_IGNORE_CONTENT) {
+    return;
+  }
+
+  const stagingPath = path.join(
+    lockPath,
+    `.self-ignore-${randomUUID()}.tmp`
+  );
+  try {
+    fs.writeFileSync(stagingPath, SELF_IGNORE_CONTENT, {
+      encoding: 'utf8',
+      flag: 'wx',
+    });
+    fs.renameSync(stagingPath, ignorePath);
+  } finally {
+    fs.rmSync(stagingPath, { force: true });
+  }
 }
 
 function createParticipantFile(
@@ -134,18 +196,25 @@ function createParticipantFile(
 ): string {
   const filePath = path.join(lockPath, fileName);
   while (true) {
-    fs.mkdirSync(lockPath, { recursive: true });
+    ensureSelfIgnoredLockDirectory(lockPath);
+    const stagingPath = path.join(
+      lockPath,
+      `.participant-${randomUUID()}.tmp`
+    );
     try {
-      fs.writeFileSync(filePath, JSON.stringify(participant), {
+      fs.writeFileSync(stagingPath, JSON.stringify(participant), {
         encoding: 'utf8',
         flag: 'wx',
       });
+      fs.linkSync(stagingPath, filePath);
       return filePath;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         continue;
       }
       throw error;
+    } finally {
+      fs.rmSync(stagingPath, { force: true });
     }
   }
 }
@@ -186,7 +255,11 @@ async function acquireSchemaSyncLock(
   let ticketPath: string | null = null;
 
   try {
-    const highestNumber = listParticipantFiles(lockPath, TICKET_SUFFIX)
+    const highestNumber = listParticipantFiles(
+      lockPath,
+      TICKET_SUFFIX,
+      timeoutMs
+    )
       .reduce(
         (highest, entry) =>
           Math.max(highest, entry.participant?.number ?? 0),
@@ -206,11 +279,13 @@ async function acquireSchemaSyncLock(
     while (true) {
       const anotherIsChoosing = listParticipantFiles(
         lockPath,
-        CHOOSING_SUFFIX
+        CHOOSING_SUFFIX,
+        timeoutMs
       ).some((entry) => entry.participant?.token !== token);
       const predecessorExists = listParticipantFiles(
         lockPath,
-        TICKET_SUFFIX
+        TICKET_SUFFIX,
+        timeoutMs
       ).some(
         (entry) =>
           entry.participant === null ||
@@ -232,7 +307,6 @@ async function acquireSchemaSyncLock(
     if (ticketPath) {
       removeOwnFile(ticketPath, token);
     }
-    removeLockDirectoryIfEmpty(lockPath);
     throw error;
   }
 }
@@ -243,7 +317,6 @@ function releaseSchemaSyncLock(
   token: string
 ): void {
   removeOwnFile(ticketPath, token);
-  removeLockDirectoryIfEmpty(lockPath);
 }
 
 export async function withSchemaSyncLock<T>(

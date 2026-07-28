@@ -66,8 +66,19 @@
 - [x] 9.5 Add failing multi-issue remote validation tests, then preserve structured issue paths through sync and JSON errors
 - [x] 9.6 Add a failing real-child-process concurrency test, then add a token-owned project sync lock covering lock read through final write
 - [x] 9.7 Add failing live-lock, abandoned-lock, and release-ownership tests, then implement bounded acquisition and safe same-host stale-lock recovery
-- [x] 9.8 Add failing SSH environment tests, then preserve existing `GIT_SSH_COMMAND` while enforcing `BatchMode=yes` and `StrictHostKeyChecking=accept-new`
+- [x] 9.8 Add failing SSH environment tests, then preserve existing `GIT_SSH_COMMAND` while enforcing `BatchMode=yes` and a default `StrictHostKeyChecking=accept-new`
 - [x] 9.9 Add failing oversized-single-file and stat/read-change tests, then preflight file size before reading and recheck actual bytes
 - [x] 9.10 Add failing direct locked-commit ancestry tests, then extract and verify present ancestor, present non-ancestor, and missing-commit paths
 - [x] 9.11 Update CLI/customization documentation for consumer-root authority, name conflicts, per-entry diagnostics, sync serialization, local/remote validation, and SSH host-key policy
 - [x] 9.12 Run focused tests after each fix, then run strict change validation, build, typecheck, lint, and the complete test suite
+
+## 10. CodeRabbit Follow-up Hardening
+
+- [x] 10.1 Add failing sync-lock tests for partial JSON, missing ticket numbers, atomic participant publication, delayed corrupt-state reclamation, and self-ignored runtime files
+- [x] 10.2 Implement atomic participant publication, ticket-specific validation, timeout-aged malformed-file reclamation, and the persistent self-ignore coordination directory
+- [x] 10.3 Add failing SSH environment tests proving explicit host-key policies are preserved while missing policies default to `accept-new`
+- [x] 10.4 Preserve explicit `StrictHostKeyChecking` values, continue normalizing `BatchMode=yes`, and update CLI/customization documentation
+- [x] 10.5 Add failing store-backed change tests proving generated configuration remains at the consumer schema root, then separate planning-root scaffolding from schema-root configuration initialization
+- [x] 10.6 Add failing remote-template reporting tests, then classify declared remote template paths as source `remote`
+- [x] 10.7 Harden affected tests with canonical path comparisons, hermetic Git configuration, actionable child-process stderr, and explicit concurrency timeouts
+- [x] 10.8 Run focused tests after each fix, then strict change validation, build, typecheck, lint, and the complete test suite

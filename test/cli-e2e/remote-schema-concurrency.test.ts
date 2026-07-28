@@ -7,18 +7,18 @@ import { parse as parseYaml } from 'yaml';
 import { afterEach, describe, expect, it } from 'vitest';
 import { runCLI } from '../helpers/run-cli.js';
 
-const gitEnv = {
-  ...process.env,
-  GIT_AUTHOR_NAME: 'OpenSpec Test',
-  GIT_AUTHOR_EMAIL: 'openspec@example.test',
-  GIT_COMMITTER_NAME: 'OpenSpec Test',
-  GIT_COMMITTER_EMAIL: 'openspec@example.test',
-};
-
 function git(cwd: string, ...args: string[]): void {
-  execFileSync('git', args, {
+  execFileSync('git', ['-c', 'commit.gpgsign=false', ...args], {
     cwd,
-    env: gitEnv,
+    env: {
+      ...process.env,
+      GIT_CONFIG_GLOBAL: path.join(cwd, '.missing-global-gitconfig'),
+      GIT_CONFIG_SYSTEM: path.join(cwd, '.missing-system-gitconfig'),
+      GIT_AUTHOR_NAME: 'OpenSpec Test',
+      GIT_AUTHOR_EMAIL: 'openspec@example.test',
+      GIT_COMMITTER_NAME: 'OpenSpec Test',
+      GIT_COMMITTER_EMAIL: 'openspec@example.test',
+    },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 }
@@ -108,8 +108,8 @@ schemaSources:
       }),
     ]);
 
-    expect(alpha.exitCode).toBe(0);
-    expect(beta.exitCode).toBe(0);
+    expect(alpha.exitCode, alpha.stderr).toBe(0);
+    expect(beta.exitCode, beta.stderr).toBe(0);
     const lock = parseYaml(
       fs.readFileSync(
         path.join(projectRoot, 'openspec', 'schemas.lock.yaml'),
@@ -120,5 +120,5 @@ schemaSources:
       'alpha-flow',
       'beta-flow',
     ]);
-  });
+  }, 60_000);
 });

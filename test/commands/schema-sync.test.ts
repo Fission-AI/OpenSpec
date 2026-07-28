@@ -7,6 +7,7 @@ import { Command } from 'commander';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { registerSchemaCommand } from '../../src/commands/schema.js';
 import { schemasCommand } from '../../src/commands/workflow/schemas.js';
+import { templatesCommand } from '../../src/commands/workflow/templates.js';
 
 const gitEnv = {
   ...process.env,
@@ -314,6 +315,63 @@ schemaSources:
     });
     expect(process.exitCode).toBe(1);
     process.exitCode = undefined;
+  });
+
+  it('reports synchronized remote template paths as remote', async () => {
+    const repo = path.join(tempDir, 'remote-templates');
+    const schemaDir = path.join(repo, 'schemas', 'template-flow');
+    fs.mkdirSync(path.join(schemaDir, 'templates'), { recursive: true });
+    fs.writeFileSync(
+      path.join(schemaDir, 'schema.yaml'),
+      `name: template-flow
+version: 1
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Proposal
+    template: proposal.md
+    requires: []
+`
+    );
+    fs.writeFileSync(
+      path.join(schemaDir, 'templates', 'proposal.md'),
+      '# Proposal\n'
+    );
+    git(repo, 'init', '-b', 'main');
+    git(repo, 'add', '-A');
+    git(repo, 'commit', '-m', 'schema');
+    fs.writeFileSync(
+      path.join(tempDir, 'openspec', 'config.yaml'),
+      `schema: template-flow
+schemaSources:
+  template-flow:
+    git: ${pathToFileURL(repo).href}
+    ref: main
+    path: schemas/template-flow
+`
+    );
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await createProgram().parseAsync([
+      'node',
+      'openspec',
+      'schema',
+      'sync',
+      'template-flow',
+      '--json',
+    ]);
+    expect(process.exitCode).toBeUndefined();
+
+    log.mockClear();
+    await templatesCommand({ schema: 'template-flow', json: true });
+
+    expect(JSON.parse(String(log.mock.calls[0][0]))).toMatchObject({
+      proposal: {
+        path: expect.stringContaining('proposal.md'),
+        source: 'remote',
+      },
+    });
   });
 
   it('preserves every remote validation issue path in sync JSON output', async () => {

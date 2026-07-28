@@ -298,7 +298,7 @@ describe('buildNonInteractiveGitEnvironment', () => {
     });
   });
 
-  it('preserves existing SSH options while overriding interactive policies', () => {
+  it('preserves existing SSH options and an explicit host-key policy', () => {
     const result = buildNonInteractiveGitEnvironment({
       PATH: '/bin',
       GIT_SSH_COMMAND:
@@ -308,20 +308,20 @@ describe('buildNonInteractiveGitEnvironment', () => {
     expect(result.GIT_SSH_COMMAND).toContain('-i "/tmp/key file"');
     expect(result.GIT_SSH_COMMAND).toContain('-J bastion');
     expect(result.GIT_SSH_COMMAND).not.toMatch(/BatchMode=no/i);
-    expect(result.GIT_SSH_COMMAND).not.toMatch(/StrictHostKeyChecking=no/i);
+    expect(result.GIT_SSH_COMMAND).toMatch(/StrictHostKeyChecking=no/i);
     expect(result.GIT_SSH_COMMAND).toMatch(/-o BatchMode=yes/);
-    expect(result.GIT_SSH_COMMAND).toMatch(/-o StrictHostKeyChecking=accept-new/);
+    expect(result.GIT_SSH_COMMAND).not.toMatch(/StrictHostKeyChecking=accept-new/i);
   });
 
-  it('removes conflicting SSH policies quoted as one option argument', () => {
+  it('preserves a quoted strict host-key policy while normalizing BatchMode', () => {
     const result = buildNonInteractiveGitEnvironment({
       GIT_SSH_COMMAND:
-        `ssh -i key -o "BatchMode=no" -o 'StrictHostKeyChecking=no'`,
+        `ssh -i key -o "BatchMode=no" -o 'StrictHostKeyChecking=yes'`,
     });
 
     expect(result.GIT_SSH_COMMAND).not.toMatch(/BatchMode=no/i);
-    expect(result.GIT_SSH_COMMAND).not.toMatch(/StrictHostKeyChecking=no/i);
+    expect(result.GIT_SSH_COMMAND).toMatch(/StrictHostKeyChecking=yes/i);
     expect(result.GIT_SSH_COMMAND).toMatch(/-o BatchMode=yes/);
-    expect(result.GIT_SSH_COMMAND).toMatch(/-o StrictHostKeyChecking=accept-new/);
+    expect(result.GIT_SSH_COMMAND).not.toMatch(/StrictHostKeyChecking=accept-new/i);
   });
 });

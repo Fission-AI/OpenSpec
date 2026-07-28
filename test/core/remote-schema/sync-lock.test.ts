@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { once } from 'node:events';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -140,7 +140,106 @@ describe('schema synchronization lock', () => {
         retryDelayMs: 5,
       })
     ).resolves.toBe('acquired');
-    expect(fs.existsSync(lockPath)).toBe(false);
+    expect(fs.readdirSync(lockPath)).toEqual(['.gitignore']);
+  });
+
+  it('recovers an aged corrupt ticket without manual deletion', async () => {
+    const lockPath = getSchemaSyncLockPath(projectRoot);
+    fs.mkdirSync(lockPath, { recursive: true });
+    const corruptPath = path.join(lockPath, 'claim-corrupt.ticket.json');
+    fs.writeFileSync(corruptPath, '{"token"');
+    const old = new Date(Date.now() - 1_000);
+    fs.utimesSync(corruptPath, old, old);
+
+    await expect(
+      withSchemaSyncLock(projectRoot, async () => 'acquired', {
+        timeoutMs: 50,
+        retryDelayMs: 5,
+      })
+    ).resolves.toBe('acquired');
+    expect(fs.existsSync(corruptPath)).toBe(false);
+  });
+
+  it('waits the full timeout before reclaiming a fresh unparseable participant', async () => {
+    const lockPath = getSchemaSyncLockPath(projectRoot);
+    fs.mkdirSync(lockPath, { recursive: true });
+    const corruptPath = path.join(lockPath, 'claim-corrupt.choosing.json');
+    fs.writeFileSync(corruptPath, '{"token"');
+    const startedAt = Date.now();
+
+    await expect(
+      withSchemaSyncLock(projectRoot, async () => 'acquired', {
+        timeoutMs: 40,
+        retryDelayMs: 5,
+      })
+    ).resolves.toBe('acquired');
+    expect(Date.now() - startedAt).toBeGreaterThanOrEqual(35);
+    expect(fs.existsSync(corruptPath)).toBe(false);
+  });
+
+  it('reclaims an aged ticket whose bakery number is missing', async () => {
+    const lockPath = getSchemaSyncLockPath(projectRoot);
+    fs.mkdirSync(lockPath, { recursive: true });
+    const invalidPath = path.join(lockPath, 'claim-numberless.ticket.json');
+    fs.writeFileSync(
+      invalidPath,
+      JSON.stringify({
+        token: 'numberless',
+        pid: process.pid,
+        hostname: os.hostname(),
+        startedAt: new Date().toISOString(),
+      })
+    );
+    const old = new Date(Date.now() - 1_000);
+    fs.utimesSync(invalidPath, old, old);
+
+    await expect(
+      withSchemaSyncLock(projectRoot, async () => 'acquired', {
+        timeoutMs: 50,
+        retryDelayMs: 5,
+      })
+    ).resolves.toBe('acquired');
+    expect(fs.existsSync(invalidPath)).toBe(false);
+  });
+
+  it('keeps runtime coordination files out of Git status', async () => {
+    execFileSync('git', ['init', '-q'], { cwd: projectRoot });
+
+    await withSchemaSyncLock(projectRoot, async () => {
+      const lockPath = getSchemaSyncLockPath(projectRoot);
+      expect(fs.readFileSync(path.join(lockPath, '.gitignore'), 'utf8')).toBe('*\n');
+      expect(
+        execFileSync(
+          'git',
+          ['status', '--porcelain', '--untracked-files=all'],
+          { cwd: projectRoot, encoding: 'utf8' }
+        )
+      ).toBe('');
+    });
+
+    expect(
+      fs.existsSync(
+        path.join(getSchemaSyncLockPath(projectRoot), '.gitignore')
+      )
+    ).toBe(true);
+  });
+
+  it('repairs an incomplete self-ignore file before publishing participants', async () => {
+    execFileSync('git', ['init', '-q'], { cwd: projectRoot });
+    const lockPath = getSchemaSyncLockPath(projectRoot);
+    fs.mkdirSync(lockPath, { recursive: true });
+    fs.writeFileSync(path.join(lockPath, '.gitignore'), '');
+
+    await withSchemaSyncLock(projectRoot, async () => {
+      expect(fs.readFileSync(path.join(lockPath, '.gitignore'), 'utf8')).toBe('*\n');
+      expect(
+        execFileSync(
+          'git',
+          ['status', '--porcelain', '--untracked-files=all'],
+          { cwd: projectRoot, encoding: 'utf8' }
+        )
+      ).toBe('');
+    });
   });
 
   it('does not remove a successor lock when ownership changes', async () => {
