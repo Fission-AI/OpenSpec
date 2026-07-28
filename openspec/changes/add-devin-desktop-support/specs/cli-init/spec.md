@@ -68,5 +68,5 @@ The command SHALL generate opsx slash commands only for selected tools that have
 
 - **WHEN** the user selects Devin Desktop during initialization
 - **THEN** create one workflow file per profile workflow at `.devin/workflows/opsx-<id>.md`
-- **AND** include Windsurf-style frontmatter with `name`, `description`, `category`, and `tags`
+- **AND** include frontmatter with `name`, `description`, `category`, and `tags`
 - **AND** rewrite `/opsx:<id>` references in the body to `/opsx-<id>`, the name Devin registers for a workflow file

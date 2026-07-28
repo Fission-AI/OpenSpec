@@ -28,7 +28,7 @@ export const AI_TOOLS: AIToolOption[] = [
   { name: 'Cline', value: 'cline', available: true, successLabel: 'Cline', skillsDir: '.cline' },
   { name: 'CodeArts', value: 'codeartsagent', available: true, successLabel: 'CodeArts', skillsDir: '.codeartsdoer' },
   { name: 'Codex', value: 'codex', available: true, successLabel: 'Codex', skillsDir: '.codex' },
-  { name: 'Devin Desktop', value: 'devin', available: true, successLabel: 'Devin Desktop', skillsDir: '.devin' },
+  { name: 'Devin Desktop (formerly Windsurf)', value: 'devin', available: true, successLabel: 'Devin Desktop', skillsDir: '.devin', detectionPaths: ['.devin', '.windsurf'] },
   { name: 'ForgeCode', value: 'forgecode', available: true, successLabel: 'ForgeCode', skillsDir: '.forge' },
   { name: 'CodeBuddy Code (CLI)', value: 'codebuddy', available: true, successLabel: 'CodeBuddy Code', skillsDir: '.codebuddy' },
   { name: 'Continue', value: 'continue', available: true, successLabel: 'Continue (VS Code / JetBrains / Cli)', skillsDir: '.continue' },
@@ -53,7 +53,23 @@ export const AI_TOOLS: AIToolOption[] = [
   { name: 'Qwen Code', value: 'qwen', available: true, successLabel: 'Qwen Code', skillsDir: '.qwen' },
   { name: 'Zoo Code', value: 'roocode', available: true, successLabel: 'Zoo Code', skillsDir: '.roo' },
   { name: 'Trae', value: 'trae', available: true, successLabel: 'Trae', skillsDir: '.trae' },
-  { name: 'Windsurf', value: 'windsurf', available: true, successLabel: 'Windsurf', skillsDir: '.windsurf' },
   { name: 'ZCode', value: 'zcode', available: true, successLabel: 'ZCode', skillsDir: '.zcode' },
   { name: 'AGENTS.md (works with Amp, VS Code, …)', value: 'agents', available: false, successLabel: 'your AGENTS.md-compatible assistant' }
 ];
+
+/**
+ * Retired tool ids that still resolve, so a rebrand does not break scripted
+ * `--tools` invocations. Windsurf was rebranded to Devin Desktop on
+ * 2026-06-02 and its config directory moved from `.windsurf/` to `.devin/`;
+ * `--tools windsurf` therefore configures `devin`.
+ */
+export const TOOL_ID_ALIASES: Record<string, string> = {
+  windsurf: 'devin',
+};
+
+/**
+ * Resolves a tool id through TOOL_ID_ALIASES, leaving current ids untouched.
+ */
+export function resolveToolIdAlias(toolId: string): string {
+  return TOOL_ID_ALIASES[toolId] ?? toolId;
+}

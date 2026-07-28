@@ -133,7 +133,7 @@ describe('command-generation/invocation', () => {
 
   describe('generateCommand', () => {
     it('rewrites command references to the names a flat tool registers', () => {
-      for (const toolId of ['cursor', 'github-copilot', 'windsurf', 'devin', 'opencode', 'qwen']) {
+      for (const toolId of ['cursor', 'github-copilot', 'devin', 'opencode', 'qwen']) {
         const adapter = CommandAdapterRegistry.get(toolId)!;
         const { fileContent } = generateCommand(sampleContent, adapter);
         expect(fileContent, toolId).toContain('/opsx-archive');

@@ -9,7 +9,7 @@ The update command SHALL refresh existing slash command files for configured too
 #### Scenario: Updating slash commands for Antigravity
 - **WHEN** `.agent/workflows/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
 - **THEN** refresh the OpenSpec-managed portion of each file so the workflow copy matches other tools while preserving the existing single-field `description` frontmatter
-- **AND** skip creating any missing workflow files during update, mirroring the behavior for Windsurf and other IDEs
+- **AND** skip creating any missing workflow files during update, mirroring the behavior for Devin Desktop and other IDEs
 
 #### Scenario: Updating slash commands for Claude Code
 - **WHEN** `.claude/commands/openspec/` contains `proposal.md`, `apply.md`, and `archive.md`
@@ -64,7 +64,7 @@ The update command SHALL refresh existing slash command files for configured too
 - **AND** `openspec update` SHALL NOT refresh files that remain only under `.opencode/command/`
 
 #### Scenario: Updating slash commands for Windsurf
-- **WHEN** `.windsurf/workflows/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
+- **WHEN** the legacy Windsurf location `.windsurf/workflows/`, now Devin's, contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
 - **THEN** refresh each file using shared templates wrapped in OpenSpec markers
 - **AND** ensure templates include instructions for the relevant workflow stage
 - **AND** skip creating missing files (the update command only refreshes what already exists)

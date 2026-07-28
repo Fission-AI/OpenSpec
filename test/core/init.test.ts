@@ -160,13 +160,19 @@ describe('InitCommand', () => {
       expect(await fileExists(skillFile)).toBe(true);
     });
 
-    it('should create skills in Windsurf skills directory', async () => {
+    it('should route the retired windsurf id to Devin Desktop', async () => {
+      // Windsurf was rebranded to Devin Desktop; `--tools windsurf` still
+      // resolves so an existing setup script keeps working, but it configures
+      // the current tool and writes the current directory.
       const initCommand = new InitCommand({ tools: 'windsurf', force: true });
 
       await initCommand.execute(testDir);
 
-      const skillFile = path.join(testDir, '.windsurf', 'skills', 'openspec-explore', 'SKILL.md');
+      const skillFile = path.join(testDir, '.devin', 'skills', 'openspec-explore', 'SKILL.md');
       expect(await fileExists(skillFile)).toBe(true);
+      expect(
+        await fileExists(path.join(testDir, '.windsurf', 'skills', 'openspec-explore', 'SKILL.md'))
+      ).toBe(false);
     });
 
     it('should generate ZCode skills and commands under .zcode without creating .agents', async () => {
@@ -361,12 +367,12 @@ describe('InitCommand', () => {
       const claudeSkill = path.join(testDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md');
       const codeArtsSkill = path.join(testDir, '.codeartsdoer', 'skills', 'openspec-explore', 'SKILL.md');
       const cursorSkill = path.join(testDir, '.cursor', 'skills', 'openspec-explore', 'SKILL.md');
-      const windsurfSkill = path.join(testDir, '.windsurf', 'skills', 'openspec-explore', 'SKILL.md');
+      const devinSkill = path.join(testDir, '.devin', 'skills', 'openspec-explore', 'SKILL.md');
 
       expect(await fileExists(claudeSkill)).toBe(true);
       expect(await fileExists(codeArtsSkill)).toBe(true);
       expect(await fileExists(cursorSkill)).toBe(true);
-      expect(await fileExists(windsurfSkill)).toBe(true);
+      expect(await fileExists(devinSkill)).toBe(true);
     });
 
     it('should skip tool configuration with --tools none option', async () => {
@@ -599,11 +605,11 @@ describe('InitCommand', () => {
       expect(content).toContain('prompt =');
     });
 
-    it('should generate Windsurf commands', async () => {
+    it('should generate Devin workflows for the retired windsurf id', async () => {
       const initCommand = new InitCommand({ tools: 'windsurf', force: true });
       await initCommand.execute(testDir);
 
-      const cmdFile = path.join(testDir, '.windsurf', 'workflows', 'opsx-explore.md');
+      const cmdFile = path.join(testDir, '.devin', 'workflows', 'opsx-explore.md');
       expect(await fileExists(cmdFile)).toBe(true);
     });
 

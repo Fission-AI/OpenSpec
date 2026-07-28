@@ -21,7 +21,7 @@ openspec list        # see active changes
 openspec view        # open the interactive dashboard
 ```
 
-**The slash commands (chat half).** Short commands like `/opsx:propose` and `/opsx:apply` that you type into your AI assistant. These tell the AI to follow the OpenSpec workflow: draft a proposal, write specs, build from the task list, archive when done. You type these into Claude Code, Cursor, Windsurf, Copilot, or whichever assistant you use.
+**The slash commands (chat half).** Short commands like `/opsx:propose` and `/opsx:apply` that you type into your AI assistant. These tell the AI to follow the OpenSpec workflow: draft a proposal, write specs, build from the task list, archive when done. You type these into Claude Code, Cursor, Devin Desktop, Copilot, or whichever assistant you use.
 
 ```text
 /opsx:propose add-dark-mode    (typed in your AI chat)
@@ -51,7 +51,7 @@ You don't enter a special OpenSpec mode. You just open your AI coding assistant 
 
 So the real instructions are:
 
-1. Open your AI coding assistant (Claude Code, Cursor, Windsurf, and so on) in your project.
+1. Open your AI coding assistant (Claude Code, Cursor, Devin Desktop, and so on) in your project.
 2. Type `/opsx:propose` in its chat, the same place you type any other request.
 3. Watch the autocomplete: if OpenSpec is installed, you'll see `/opsx:propose`, `/opsx:apply`, and friends appear as you type the slash.
 
@@ -65,7 +65,7 @@ It's worth understanding, because it explains why OpenSpec works with 30+ differ
 
 The CLI is the **engine**. It knows the rules: what a change folder looks like, which artifacts depend on which, how to merge a delta spec into your source of truth. It's the same everywhere.
 
-The slash commands are the **steering wheel**, and every AI tool has a slightly different one. Claude Code calls them commands. Cursor and Windsurf have their own formats. Some tools call them skills. When you run `openspec init`, OpenSpec generates the right kind of file for each tool you selected, so the same `/opsx:propose` intent works no matter which assistant you prefer.
+The slash commands are the **steering wheel**, and every AI tool has a slightly different one. Claude Code calls them commands. Cursor and Devin Desktop have their own formats. Some tools call them skills. When you run `openspec init`, OpenSpec generates the right kind of file for each tool you selected, so the same `/opsx:propose` intent works no matter which assistant you prefer.
 
 The strength of this design: you learn the workflow once and carry it across tools. The tradeoff: the exact syntax of a command can differ slightly between tools, which is the next section.
 
@@ -76,7 +76,7 @@ The intent is identical everywhere. The spelling follows the file your tool load
 | Your tool's command file | How you type it | Example tools |
 |--------------------------|-----------------|---------------|
 | `.../commands/opsx/<id>.*` | `/opsx:propose` | Claude Code, Gemini CLI, Crush |
-| `.../opsx-<id>.*` | `/opsx-propose` | Cursor, GitHub Copilot (IDE), Windsurf, Devin Desktop, Trae, Oh My Pi |
+| `.../opsx-<id>.*` | `/opsx-propose` | Cursor, GitHub Copilot (IDE), Devin Desktop, Trae, Oh My Pi |
 | `.amazonq/prompts/opsx-<id>.md` | `@opsx-propose` | Amazon Q Developer |
 | none — skills only | `/openspec-propose` | CodeArts, ForgeCode, Hermes, Mistral Vibe |
 | none — Kimi Code | `/skill:openspec-propose` | Kimi Code |

@@ -16,10 +16,10 @@ describe('command-generation/registry', () => {
       expect(adapter?.toolId).toBe('cursor');
     });
 
-    it('should return Windsurf adapter for "windsurf"', () => {
-      const adapter = CommandAdapterRegistry.get('windsurf');
+    it('should return the Devin adapter for "devin", the id Windsurf became', () => {
+      const adapter = CommandAdapterRegistry.get('devin');
       expect(adapter).toBeDefined();
-      expect(adapter?.toolId).toBe('windsurf');
+      expect(adapter?.toolId).toBe('devin');
     });
 
     it('should return Devin adapter for "devin"', () => {
@@ -66,16 +66,15 @@ describe('command-generation/registry', () => {
     it('should return array of all registered adapters', () => {
       const adapters = CommandAdapterRegistry.getAll();
       expect(Array.isArray(adapters)).toBe(true);
-      expect(adapters.length).toBeGreaterThanOrEqual(3); // At least Claude, Cursor, Windsurf
+      expect(adapters.length).toBeGreaterThanOrEqual(3); // At least Claude, Cursor, Devin
     });
 
-    it('should include Claude, Cursor, Windsurf, and Devin adapters', () => {
+    it('should include Claude, Cursor, and Devin adapters', () => {
       const adapters = CommandAdapterRegistry.getAll();
       const toolIds = adapters.map((a) => a.toolId);
 
       expect(toolIds).toContain('claude');
       expect(toolIds).toContain('cursor');
-      expect(toolIds).toContain('windsurf');
       expect(toolIds).toContain('devin');
       expect(toolIds).not.toContain('codex');
     });
@@ -92,7 +91,7 @@ describe('command-generation/registry', () => {
     it('should return true for registered tools', () => {
       expect(CommandAdapterRegistry.has('claude')).toBe(true);
       expect(CommandAdapterRegistry.has('cursor')).toBe(true);
-      expect(CommandAdapterRegistry.has('windsurf')).toBe(true);
+      expect(CommandAdapterRegistry.has('devin')).toBe(true);
       expect(CommandAdapterRegistry.has('devin')).toBe(true);
       expect(CommandAdapterRegistry.has('junie')).toBe(true);
       expect(CommandAdapterRegistry.has('zcode')).toBe(true);
@@ -113,12 +112,10 @@ describe('command-generation/registry', () => {
     it('registered adapters should have working getFilePath', () => {
       const claudeAdapter = CommandAdapterRegistry.get('claude');
       const cursorAdapter = CommandAdapterRegistry.get('cursor');
-      const windsurfAdapter = CommandAdapterRegistry.get('windsurf');
       const devinAdapter = CommandAdapterRegistry.get('devin');
 
       expect(claudeAdapter?.getFilePath('test')).toContain('.claude');
       expect(cursorAdapter?.getFilePath('test')).toContain('.cursor');
-      expect(windsurfAdapter?.getFilePath('test')).toContain('.windsurf');
       expect(devinAdapter?.getFilePath('test')).toContain('.devin');
     });
 

@@ -51,7 +51,10 @@ import {
 import {
   scanInstalledWorkflows as scanInstalledWorkflowsShared,
   migrateIfNeeded as migrateIfNeededShared,
-  migrateLegacySkillDirs,
+  findLegacyToolMigrations,
+  migrateLegacyToolDirs,
+  describeLegacyMigration,
+  legacyMigrationNotice,
 } from './migration.js';
 import {
   resolveCommandSurfaceCapability,
@@ -122,9 +125,10 @@ export class UpdateCommand {
     // (e.g. .kimi -> .kimi-code) so they stay detected and get refreshed,
     // then perform the one-time profile migration if needed before any
     // legacy upgrade generation.
-    for (const migration of migrateLegacySkillDirs(resolvedProjectPath)) {
-      console.log(chalk.dim(`Migrated ${migration.movedSkillDirs} skill director${migration.movedSkillDirs === 1 ? 'y' : 'ies'}: ${migration.from}/skills → ${migration.to}/skills`));
+    for (const migration of migrateLegacyToolDirs(resolvedProjectPath)) {
+      console.log(chalk.dim(`Migrated ${describeLegacyMigration(migration)}: ${migration.from} → ${migration.to}`));
     }
+    await this.offerConsentedLegacyMigrations(resolvedProjectPath);
 
     // Use detected tool directories to preserve existing opsx skills/commands.
     const detectedTools = getAvailableTools(resolvedProjectPath);
@@ -627,6 +631,50 @@ export class UpdateCommand {
     }
 
     return removed;
+  }
+
+  /**
+   * Offers to move OpenSpec content out of a renamed tool's former directory
+   * when the old location might still be the live one — today, Windsurf's
+   * `.windsurf/` after the Devin Desktop rebrand.
+   *
+   * Interactive runs are asked, because nothing on disk distinguishes a user
+   * who took the rebrand from one still on a pre-rebrand Windsurf build that
+   * reads only `.windsurf/`. `--force` and non-interactive runs migrate, which
+   * is what an unattended upgrade wants.
+   */
+  private async offerConsentedLegacyMigrations(projectPath: string): Promise<void> {
+    const pending = findLegacyToolMigrations(projectPath).filter((m) => m.needsConsent);
+    if (pending.length === 0) return;
+
+    for (const migration of pending) {
+      console.log(chalk.yellow(legacyMigrationNotice(migration)));
+
+      if (!this.force && isInteractive()) {
+        const { confirm } = await import('@inquirer/prompts');
+        const shouldMigrate = await confirm({
+          message: `Move ${describeLegacyMigration(migration)} from ${migration.from}/ to ${migration.to}/?`,
+          default: true,
+        });
+        if (!shouldMigrate) {
+          // Say what declining costs. OpenSpec writes the current root now, so
+          // the files keep working where they are but stop being refreshed.
+          console.log(
+            chalk.dim(
+              `Left in place. OpenSpec writes ${migration.to}/ now, so ${migration.from}/ ` +
+                `will not be refreshed until you move it. You will be asked again next run.`
+            )
+          );
+          console.log();
+          continue;
+        }
+      }
+
+      for (const applied of migrateLegacyToolDirs(projectPath, [migration.toolId])) {
+        console.log(chalk.dim(`Migrated ${describeLegacyMigration(applied)}: ${applied.from} → ${applied.to}`));
+      }
+      console.log();
+    }
   }
 
   /**

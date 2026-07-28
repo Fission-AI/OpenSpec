@@ -1,5 +1,61 @@
 # ai-tool-paths Delta Specification
 
+## ADDED Requirements
+
+### Requirement: Migrating OpenSpec content out of a renamed tool's former directory
+
+When a tool's directory is renamed, OpenSpec-managed content left in the former
+location SHALL be moved to the current one. Content the user wrote SHALL never
+be moved or deleted.
+
+Some renames are safe to apply silently and some are not, so each former root
+declares whether leaving it needs the user's consent. Kimi CLI is gone, so
+`.kimi` can be vacated without asking. Windsurf's `.windsurf` cannot: a
+pre-rebrand Windsurf build reads only that directory, and nothing on disk
+distinguishes that user from one who took the rebrand.
+
+#### Scenario: Moving a former directory that needs no consent
+
+- **WHEN** `openspec init` or `openspec update` runs and OpenSpec-managed content is found under a former root marked as needing no consent, such as `.kimi`
+- **THEN** move it to the tool's current directory without prompting
+- **AND** report what moved
+
+#### Scenario: Offering a move that needs consent
+
+- **GIVEN** OpenSpec skills or command files under `.windsurf/`
+- **WHEN** `openspec update` runs interactively without `--force`
+- **THEN** explain that Windsurf is now Devin Desktop, that `.devin/` is the current directory, and that Devin Local does not read `.windsurf/` at all
+- **AND** ask before moving anything
+- **AND** on decline, leave every file untouched and state that `.windsurf/` will no longer be refreshed until it is moved
+
+#### Scenario: Unattended runs take the move
+
+- **WHEN** `openspec update` runs with `--force`, or non-interactively
+- **THEN** perform the move without prompting, reporting what moved
+
+#### Scenario: Selecting a renamed tool is consent
+
+- **WHEN** `openspec init` configures a tool that has OpenSpec content under a former root
+- **THEN** move that content as part of setup, rather than leaving the user with two installs of one tool
+
+#### Scenario: Both directories already hold OpenSpec content
+
+- **GIVEN** the same OpenSpec-managed skill or command exists under both the former and the current root
+- **WHEN** the move runs
+- **THEN** keep the copy under the current root and delete the former one, rather than merging or overwriting
+
+#### Scenario: User files survive the move
+
+- **GIVEN** a former root also holds files the user wrote, such as a hand-written workflow beside the generated ones
+- **WHEN** the move runs
+- **THEN** move only OpenSpec-managed skill directories (`openspec-*`) and command files (`opsx-*`)
+- **AND** delete the former directory only when the move leaves it empty
+
+#### Scenario: The move is idempotent
+
+- **WHEN** `openspec update` runs again after a completed move
+- **THEN** find nothing to migrate and report nothing
+
 ## MODIFIED Requirements
 
 ### Requirement: Path configuration for supported tools
@@ -18,8 +74,10 @@ The `AI_TOOLS` array SHALL include `skillsDir` for tools that support the Agent 
 
 #### Scenario: Windsurf paths defined
 
+- **GIVEN** Windsurf was rebranded to Devin Desktop and `windsurf` is retired as a tool id
 - **WHEN** looking up the `windsurf` tool
-- **THEN** `skillsDir` SHALL be `.windsurf`
+- **THEN** no `AI_TOOLS` entry SHALL exist for it
+- **AND** the id SHALL resolve to `devin`, whose `skillsDir` is `.devin` and whose `detectionPaths` still include the legacy `.windsurf`
 
 #### Scenario: Kimi Code paths defined
 
@@ -39,6 +97,13 @@ The `AI_TOOLS` array SHALL include `skillsDir` for tools that support the Agent 
 - **WHEN** looking up the `devin` tool
 - **THEN** `skillsDir` SHALL be `.devin`
 - **AND** workflow files SHALL be written to `.devin/workflows/opsx-<id>.md`
+- **AND** `detectionPaths` SHALL include both `.devin` and the legacy `.windsurf`, so a project set up before the rebrand is still recognized
+
+#### Scenario: Retired tool ids resolve on the command line
+
+- **WHEN** a retired brand is named on the command line, such as `--tools windsurf`
+- **THEN** it SHALL resolve to the current tool id `devin` rather than erroring as unknown
+- **AND** generation SHALL write the current directory `.devin/`, not the retired one
 
 #### Scenario: Tools without skillsDir
 

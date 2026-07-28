@@ -27,7 +27,6 @@ import { qoderAdapter } from '../../../src/core/command-generation/adapters/qode
 import { qwenAdapter } from '../../../src/core/command-generation/adapters/qwen.js';
 import { roocodeAdapter } from '../../../src/core/command-generation/adapters/roocode.js';
 import { traeAdapter } from '../../../src/core/command-generation/adapters/trae.js';
-import { windsurfAdapter } from '../../../src/core/command-generation/adapters/windsurf.js';
 import { zcodeAdapter } from '../../../src/core/command-generation/adapters/zcode.js';
 import type {
   CommandContent,
@@ -112,29 +111,6 @@ describe('command-generation/adapters', () => {
     it('should not include tags in Cursor format', () => {
       const output = cursorAdapter.formatFile(sampleContent);
       expect(output).not.toContain('tags:');
-    });
-  });
-
-  describe('windsurfAdapter', () => {
-    it('should have correct toolId', () => {
-      expect(windsurfAdapter.toolId).toBe('windsurf');
-    });
-
-    it('should generate correct file path', () => {
-      const filePath = windsurfAdapter.getFilePath('explore');
-      expect(filePath).toBe(path.join('.windsurf', 'workflows', 'opsx-explore.md'));
-    });
-
-    it('should format file similar to Claude format', () => {
-      const output = windsurfAdapter.formatFile(sampleContent);
-
-      expect(output).toContain('---\n');
-      expect(output).toContain('name: "OpenSpec Explore"');
-      expect(output).toContain('description: "Enter explore mode for thinking"');
-      expect(output).toContain('category: "Workflow"');
-      expect(output).toContain('tags: ["workflow", "explore", "experimental"]');
-      expect(output).toContain('---\n\n');
-      expect(output).toContain('This is the command body.');
     });
   });
 
@@ -968,11 +944,6 @@ describe('command-generation/adapters', () => {
     it('Cursor adapter uses path.join for paths', () => {
       const filePath = cursorAdapter.getFilePath('test');
       expect(filePath.split(path.sep)).toEqual(['.cursor', 'commands', 'opsx-test.md']);
-    });
-
-    it('Windsurf adapter uses path.join for paths', () => {
-      const filePath = windsurfAdapter.getFilePath('test');
-      expect(filePath.split(path.sep)).toEqual(['.windsurf', 'workflows', 'opsx-test.md']);
     });
 
     it('Devin adapter uses path.join for paths', () => {

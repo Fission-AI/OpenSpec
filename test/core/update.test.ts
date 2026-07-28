@@ -222,7 +222,7 @@ Old instructions content
       expect(await fs.readFile(path.join(testDir, '.kimi', 'config.toml'), 'utf-8')).toBe('user config');
 
       const logCalls = consoleSpy.mock.calls.flat().map(String);
-      expect(logCalls.some((entry) => entry.includes('.kimi/skills') && entry.includes('.kimi-code/skills'))).toBe(true);
+      expect(logCalls.some((entry) => entry.includes('.kimi → .kimi-code'))).toBe(true);
 
       consoleSpy.mockRestore();
     });
@@ -616,32 +616,64 @@ Old instructions content
       expect(content).toContain('description:');
     });
 
-    it('should update Windsurf tool with correct command format', async () => {
-      // Set up Windsurf
-      const windsurfSkillsDir = path.join(testDir, '.windsurf', 'skills');
-      await fs.mkdir(path.join(windsurfSkillsDir, 'openspec-explore'), {
-        recursive: true,
-      });
-      await fs.writeFile(
-        path.join(windsurfSkillsDir, 'openspec-explore', 'SKILL.md'),
-        'old'
+    it('should migrate a legacy .windsurf install to .devin, preserving user files', async () => {
+      // A project set up before the Devin Desktop rebrand: OpenSpec skills and
+      // workflows under .windsurf/, alongside files the user wrote themselves.
+      const legacySkillDir = path.join(testDir, '.windsurf', 'skills', 'openspec-explore');
+      await fs.mkdir(legacySkillDir, { recursive: true });
+      await fs.writeFile(path.join(legacySkillDir, 'SKILL.md'), 'old skill content');
+
+      const legacyWorkflows = path.join(testDir, '.windsurf', 'workflows');
+      await fs.mkdir(legacyWorkflows, { recursive: true });
+      await fs.writeFile(path.join(legacyWorkflows, 'opsx-explore.md'), 'old workflow content');
+
+      // User-owned content that must survive untouched
+      const userSkillDir = path.join(testDir, '.windsurf', 'skills', 'my-custom-skill');
+      await fs.mkdir(userSkillDir, { recursive: true });
+      await fs.writeFile(path.join(userSkillDir, 'SKILL.md'), 'user skill');
+      await fs.writeFile(path.join(legacyWorkflows, 'my-workflow.md'), 'user workflow');
+
+      // Tests run non-interactively, so the consent-gated move is taken.
+      await updateCommand.execute(testDir);
+
+      // Both surfaces now live under .devin and were refreshed
+      const migratedSkill = await fs.readFile(
+        path.join(testDir, '.devin', 'skills', 'openspec-explore', 'SKILL.md'),
+        'utf-8'
       );
+      expect(migratedSkill).not.toContain('old skill content');
+      const migratedWorkflow = await fs.readFile(
+        path.join(testDir, '.devin', 'workflows', 'opsx-explore.md'),
+        'utf-8'
+      );
+      expect(migratedWorkflow).not.toContain('old workflow content');
+      expect(migratedWorkflow).toContain('---');
+
+      // The OpenSpec-managed originals are gone; the user's files are not
+      await expect(fs.access(legacySkillDir)).rejects.toThrow();
+      await expect(
+        fs.access(path.join(legacyWorkflows, 'opsx-explore.md'))
+      ).rejects.toThrow();
+      expect(await fs.readFile(path.join(userSkillDir, 'SKILL.md'), 'utf-8')).toBe('user skill');
+      expect(
+        await fs.readFile(path.join(legacyWorkflows, 'my-workflow.md'), 'utf-8')
+      ).toBe('user workflow');
+    });
+
+    it('should leave a migrated project alone on the next run', async () => {
+      // The move must be idempotent: once .windsurf/ holds nothing of ours,
+      // a second update has nothing to migrate and nothing to announce.
+      const legacySkillDir = path.join(testDir, '.windsurf', 'skills', 'openspec-explore');
+      await fs.mkdir(legacySkillDir, { recursive: true });
+      await fs.writeFile(path.join(legacySkillDir, 'SKILL.md'), 'old');
 
       await updateCommand.execute(testDir);
 
-      // Check Windsurf command format
-      const windsurfCmd = path.join(
-        testDir,
-        '.windsurf',
-        'workflows',
-        'opsx-explore.md'
-      );
-      const exists = await FileSystemUtils.fileExists(windsurfCmd);
-      expect(exists).toBe(true);
-
-      const content = await fs.readFile(windsurfCmd, 'utf-8');
-      expect(content).toContain('---');
-      expect(content).toContain('name:');
+      const consoleSpy = vi.spyOn(console, 'log');
+      await updateCommand.execute(testDir);
+      const logCalls = consoleSpy.mock.calls.flat().map(String);
+      expect(logCalls.some((entry) => entry.includes('.windsurf → .devin'))).toBe(false);
+      consoleSpy.mockRestore();
     });
   });
 
