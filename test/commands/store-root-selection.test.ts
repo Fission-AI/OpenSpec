@@ -181,6 +181,104 @@ describe('store root selection for normal commands', () => {
       expect(json.root.store_id).toBe('team-context');
     });
 
+    it('keeps schema ownership in the consumer repository when planning uses a store', async () => {
+      const localRepo = path.join(tempDir, 'schema-consumer');
+      const schemaDir = path.join(
+        localRepo,
+        'openspec',
+        'schemas',
+        'consumer-flow'
+      );
+      createOpenSpecRoot(localRepo);
+      fs.mkdirSync(path.join(schemaDir, 'templates'), { recursive: true });
+      fs.writeFileSync(
+        path.join(schemaDir, 'schema.yaml'),
+        `name: consumer-flow
+version: 1
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Proposal
+    template: proposal.md
+    requires: []
+`
+      );
+      fs.writeFileSync(
+        path.join(schemaDir, 'templates', 'proposal.md'),
+        '# Proposal\n'
+      );
+      const nested = path.join(localRepo, 'src', 'nested');
+      fs.mkdirSync(nested, { recursive: true });
+
+      const result = await runCLI(
+        [
+          'new',
+          'change',
+          'consumer-schema-change',
+          '--schema',
+          'consumer-flow',
+          '--store',
+          'team-context',
+          '--json',
+        ],
+        { cwd: nested, env }
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(parseJson(result).change).toMatchObject({
+        schema: 'consumer-flow',
+        path: path.join(
+          storeRoot,
+          'openspec',
+          'changes',
+          'consumer-schema-change'
+        ),
+      });
+      expect(
+        fs.existsSync(
+          path.join(
+            storeRoot,
+            'openspec',
+            'changes',
+            'consumer-schema-change',
+            '.openspec.yaml'
+          )
+        )
+      ).toBe(true);
+
+      const status = await runCLI(
+        [
+          'status',
+          '--change',
+          'consumer-schema-change',
+          '--store',
+          'team-context',
+          '--json',
+        ],
+        { cwd: nested, env }
+      );
+      expect(status.exitCode).toBe(0);
+      expect(parseJson(status).schemaName).toBe('consumer-flow');
+
+      const instructions = await runCLI(
+        [
+          'instructions',
+          'proposal',
+          '--change',
+          'consumer-schema-change',
+          '--store',
+          'team-context',
+          '--json',
+        ],
+        { cwd: nested, env }
+      );
+      expect(instructions.exitCode).toBe(0);
+      expect(parseJson(instructions)).toMatchObject({
+        schemaName: 'consumer-flow',
+        template: '# Proposal\n',
+      });
+    });
+
     it('lists an empty team store before any changes exist', async () => {
       const blankStoreRoot = path.join(tempDir, 'stores', 'blank-context');
       fs.mkdirSync(path.join(blankStoreRoot, 'openspec'), { recursive: true });

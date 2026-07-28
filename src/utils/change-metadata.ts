@@ -93,7 +93,8 @@ export function writeChangeMetadata(
  */
 export function readChangeMetadata(
   changeDir: string,
-  projectRoot?: string
+  projectRoot?: string,
+  projectConfig?: ProjectConfig | null
 ): ChangeMetadata | null {
   const metaPath = path.join(changeDir, METADATA_FILENAME);
 
@@ -135,7 +136,7 @@ export function readChangeMetadata(
   }
 
   // Validate that the schema exists
-  const availableSchemas = listSchemas(projectRoot);
+  const availableSchemas = listSchemas(projectRoot, projectConfig);
   if (!availableSchemas.includes(parseResult.data.schema)) {
     throw new ChangeMetadataError(
       `Unknown schema '${parseResult.data.schema}'. Available: ${availableSchemas.join(', ')}`,
@@ -232,7 +233,10 @@ export interface SkipSpecsMarker {
  * Missing metadata means "not declared"; a marker that cannot be honored
  * yields invalidReason so callers can say why.
  */
-export function readSkipSpecsMarker(changeDir: string): SkipSpecsMarker {
+export function readSkipSpecsMarker(
+  changeDir: string,
+  schemaRoot?: string
+): SkipSpecsMarker {
   let raw: string;
   try {
     raw = fs.readFileSync(path.join(changeDir, METADATA_FILENAME), 'utf-8');
@@ -276,7 +280,7 @@ export function readSkipSpecsMarker(changeDir: string): SkipSpecsMarker {
     // resolveSchema alone would normalize and accept); resolveSchema then
     // proves the schema actually parses. Any failure fails closed.
     try {
-      const projectRoot = path.resolve(changeDir, '../../..');
+      const projectRoot = schemaRoot ?? path.resolve(changeDir, '../../..');
       if (!listSchemas(projectRoot).includes(result.data.schema)) {
         return {
           declared: false,

@@ -4,7 +4,11 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { fetchSchemaBundleFromGit } from '../../../src/core/remote-schema/git.js';
+import {
+  buildNonInteractiveGitEnvironment,
+  fetchSchemaBundleFromGit,
+  verifyLockedCommitIsAncestor,
+} from '../../../src/core/remote-schema/git.js';
 
 const gitEnv = {
   ...process.env,
@@ -140,6 +144,53 @@ describe('fetchSchemaBundleFromGit', () => {
     ).rejects.toThrow(/locked commit verification/i);
   });
 
+  it('directly distinguishes present non-ancestors from missing locked commits', async () => {
+    const mainCommit = git(remoteRepo, 'rev-parse', 'main');
+    git(remoteRepo, 'checkout', '-b', 'other');
+    writeSchema(remoteRepo, 'Other Branch');
+    git(remoteRepo, 'add', '-A');
+    git(remoteRepo, 'commit', '-m', 'other branch');
+    const otherCommit = git(remoteRepo, 'rev-parse', 'HEAD');
+    git(remoteRepo, 'checkout', 'main');
+
+    const verificationRepo = path.join(tempDir, 'verification');
+    fs.mkdirSync(verificationRepo);
+    git(verificationRepo, 'init');
+    git(verificationRepo, 'remote', 'add', 'origin', pathToFileURL(remoteRepo).href);
+    git(
+      verificationRepo,
+      'fetch',
+      'origin',
+      'main:refs/remotes/origin/main',
+      'other:refs/remotes/origin/other'
+    );
+
+    await expect(
+      verifyLockedCommitIsAncestor(
+        verificationRepo,
+        mainCommit,
+        'refs/remotes/origin/main',
+        2_000
+      )
+    ).resolves.toBe(mainCommit);
+    await expect(
+      verifyLockedCommitIsAncestor(
+        verificationRepo,
+        otherCommit,
+        'refs/remotes/origin/main',
+        2_000
+      )
+    ).rejects.toThrow(/not reachable from the requested ref/i);
+    await expect(
+      verifyLockedCommitIsAncestor(
+        verificationRepo,
+        'f'.repeat(40),
+        'refs/remotes/origin/main',
+        2_000
+      )
+    ).rejects.toThrow(/not present after fetching the requested ref/i);
+  });
+
   it('rejects a tracked symbolic link without reading its target', async () => {
     const secret = path.join(tempDir, 'secret.txt');
     fs.writeFileSync(secret, 'never-copy');
@@ -234,5 +285,43 @@ describe('fetchSchemaBundleFromGit', () => {
         destinationDir: path.join(tempDir, 'option-ref'),
       })
     ).rejects.toThrow(/Invalid remote schema ref/);
+  });
+});
+
+describe('buildNonInteractiveGitEnvironment', () => {
+  it('adds an explicit non-interactive SSH policy', () => {
+    expect(buildNonInteractiveGitEnvironment({ PATH: '/bin' })).toMatchObject({
+      PATH: '/bin',
+      GIT_TERMINAL_PROMPT: '0',
+      GIT_SSH_COMMAND:
+        'ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new',
+    });
+  });
+
+  it('preserves existing SSH options while overriding interactive policies', () => {
+    const result = buildNonInteractiveGitEnvironment({
+      PATH: '/bin',
+      GIT_SSH_COMMAND:
+        'ssh -i "/tmp/key file" -J bastion -o BatchMode=no -o StrictHostKeyChecking=no',
+    });
+
+    expect(result.GIT_SSH_COMMAND).toContain('-i "/tmp/key file"');
+    expect(result.GIT_SSH_COMMAND).toContain('-J bastion');
+    expect(result.GIT_SSH_COMMAND).not.toMatch(/BatchMode=no/i);
+    expect(result.GIT_SSH_COMMAND).not.toMatch(/StrictHostKeyChecking=no/i);
+    expect(result.GIT_SSH_COMMAND).toMatch(/-o BatchMode=yes/);
+    expect(result.GIT_SSH_COMMAND).toMatch(/-o StrictHostKeyChecking=accept-new/);
+  });
+
+  it('removes conflicting SSH policies quoted as one option argument', () => {
+    const result = buildNonInteractiveGitEnvironment({
+      GIT_SSH_COMMAND:
+        `ssh -i key -o "BatchMode=no" -o 'StrictHostKeyChecking=no'`,
+    });
+
+    expect(result.GIT_SSH_COMMAND).not.toMatch(/BatchMode=no/i);
+    expect(result.GIT_SSH_COMMAND).not.toMatch(/StrictHostKeyChecking=no/i);
+    expect(result.GIT_SSH_COMMAND).toMatch(/-o BatchMode=yes/);
+    expect(result.GIT_SSH_COMMAND).toMatch(/-o StrictHostKeyChecking=accept-new/);
   });
 });

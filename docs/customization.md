@@ -382,6 +382,12 @@ commands never fetch: they only use a matching lock entry and verified cache.
 If the cache is absent, run `schema sync --locked` while the Git source is
 reachable, then ordinary commands work offline.
 
+The consumer repository owns both `openspec/config.yaml` and
+`openspec/schemas.lock.yaml`. Running sync from a nested directory searches
+upward for that repository. A configured planning store does not own or redirect
+remote schema sources. Sync processes for one consumer repository are
+serialized, so concurrent named updates cannot lose lockfile entries.
+
 Branches and tags are allowed, but they move only when `schema sync` is run
 without `--locked`. A remote update therefore cannot change a normal command's
 workflow unexpectedly.
@@ -398,22 +404,29 @@ schemaSources:
 ```
 
 Do not put credentials or tokens in configuration. Credential-bearing HTTPS
-URLs are rejected, and lockfiles contain no authentication material.
+URLs are rejected, and lockfiles contain no authentication material. OpenSpec
+preserves existing `GIT_SSH_COMMAND` options while enforcing `BatchMode=yes`
+and `StrictHostKeyChecking=accept-new`, so Git cannot wait for a passphrase or
+host-key prompt and changed known host keys are rejected.
 
-Schema location precedence is:
+Schema authority is name-based:
 
-1. `openspec/schemas/<name>` in the project
-2. A project-declared, locked, integrity-verified remote schema
-3. A user-level schema
-4. A package built-in schema
+- Without a remote declaration, precedence remains project-local, user-level,
+  then package built-in.
+- Once `schemaSources.<name>` is declared, the remote owns that name.
+- A same-named project-local bundle is a configuration conflict; OpenSpec does
+  not silently choose or shadow either bundle.
 
 A declared remote source fails closed when its lock or cache is missing,
 stale, or corrupt; OpenSpec does not silently select a same-named user or
-package schema. Bundle paths must stay inside the Git repository. Absolute
-paths, traversal, symlinks, submodules, case-colliding paths, invalid names,
-incomplete schemas, and bundles over 1,000 files or 10 MiB are rejected.
-Remote schemas are complete bundles; inheritance and schema merging are not
-supported.
+package schema. `schema which --all` reports each unavailable remote separately
+while continuing to list healthy schemas. Bundle paths must stay inside the Git
+repository. Absolute paths, traversal, symlinks, submodules, case-colliding
+paths, invalid names, incomplete schemas, and bundles over 1,000 files or
+10 MiB are rejected. These portable fail-closed checks apply to remote bundles;
+existing project-local schema validation retains its legacy path and symlink
+behavior. Remote schemas are complete bundles; inheritance and schema merging
+are not supported.
 
 ---
 

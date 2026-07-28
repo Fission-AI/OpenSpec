@@ -56,3 +56,18 @@
 - [x] 8.2 Run `pnpm run build`, `pnpm exec tsc --noEmit`, and `pnpm lint` with zero errors
 - [x] 8.3 Run the complete `pnpm test` suite and confirm the Linux/macOS/Windows-sensitive path cases remain covered
 - [x] 8.4 Validate `add-remote-schema-sources` strictly and compare proposal, design, specs, tasks, docs, and implementation for unresolved contradictions or scope drift
+
+## 9. Maintainer Review Blockers
+
+- [x] 9.1 Add failing nested-directory and store-pointer regression tests, then resolve schema source configuration and locks from the consumer repository root
+- [x] 9.2 Add failing same-name project/remote tests, then replace project shadowing with a stable `schema_name_conflict` across resolver, discovery, sync, fork, and `schema which`
+- [x] 9.3 Add failing mixed-availability `schema which --all` tests, then return per-entry available/unavailable results without aborting healthy schema inspection
+- [x] 9.4 Add failing legacy-local compatibility tests, then split local schema inspection from strict remote-bundle validation
+- [x] 9.5 Add failing multi-issue remote validation tests, then preserve structured issue paths through sync and JSON errors
+- [x] 9.6 Add a failing real-child-process concurrency test, then add a token-owned project sync lock covering lock read through final write
+- [x] 9.7 Add failing live-lock, abandoned-lock, and release-ownership tests, then implement bounded acquisition and safe same-host stale-lock recovery
+- [x] 9.8 Add failing SSH environment tests, then preserve existing `GIT_SSH_COMMAND` while enforcing `BatchMode=yes` and `StrictHostKeyChecking=accept-new`
+- [x] 9.9 Add failing oversized-single-file and stat/read-change tests, then preflight file size before reading and recheck actual bytes
+- [x] 9.10 Add failing direct locked-commit ancestry tests, then extract and verify present ancestor, present non-ancestor, and missing-commit paths
+- [x] 9.11 Update CLI/customization documentation for consumer-root authority, name conflicts, per-entry diagnostics, sync serialization, local/remote validation, and SSH host-key policy
+- [x] 9.12 Run focused tests after each fix, then run strict change validation, build, typecheck, lint, and the complete test suite

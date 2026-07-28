@@ -17,6 +17,7 @@ interface ListOptions {
   sort?: 'recent' | 'name';
   json?: boolean;
   root?: RootOutput;
+  schemaRoot?: string;
 }
 
 function isMissingPathError(error: unknown): boolean {
@@ -96,7 +97,7 @@ function formatRelativeTime(date: Date): string {
 
 export class ListCommand {
   async execute(targetPath: string = '.', mode: 'changes' | 'specs' = 'changes', options: ListOptions = {}): Promise<void> {
-    const { sort = 'recent', json = false, root } = options;
+    const { sort = 'recent', json = false, root, schemaRoot = targetPath } = options;
 
     if (mode === 'changes') {
       const changesDir = path.join(targetPath, 'openspec', 'changes');
@@ -120,7 +121,12 @@ export class ListCommand {
       const changes: ChangeInfo[] = [];
 
       for (const changeDir of changeDirs) {
-        const progress = await getTaskProgressForChange(changesDir, changeDir, targetPath);
+        const progress = await getTaskProgressForChange(
+          changesDir,
+          changeDir,
+          targetPath,
+          schemaRoot
+        );
         const changePath = path.join(changesDir, changeDir);
         const lastModified = await getLastModified(changePath);
         changes.push({

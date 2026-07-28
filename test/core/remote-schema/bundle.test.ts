@@ -97,6 +97,26 @@ describe('remote schema bundle integrity', () => {
     );
   });
 
+  it('rejects an oversized file before reading it into memory', (ctx) => {
+    if (process.platform === 'win32') {
+      ctx.skip();
+      return;
+    }
+    const oversizedDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-oversized-'));
+    const oversized = path.join(oversizedDir, 'oversized.bin');
+    fs.writeFileSync(oversized, '123456');
+    fs.chmodSync(oversized, 0o000);
+
+    try {
+      expect(() =>
+        computeBundleIntegrity(oversizedDir, { maxFiles: 10, maxBytes: 5 })
+      ).toThrow(/more than 5 bytes/);
+    } finally {
+      fs.chmodSync(oversized, 0o600);
+      fs.rmSync(oversizedDir, { recursive: true, force: true });
+    }
+  });
+
   it('enforces byte limits while traversing the bundle', () => {
     fs.writeFileSync(path.join(bundleDir, 'a-oversized.bin'), '123456');
     const link = path.join(bundleDir, 'z-link');

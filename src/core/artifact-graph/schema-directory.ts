@@ -25,13 +25,32 @@ export interface InspectedSchemaDirectory {
   issues: SchemaDirectoryIssue[];
 }
 
+export class SchemaDirectoryValidationError extends Error {
+  constructor(public readonly issues: SchemaDirectoryIssue[]) {
+    super(
+      issues.map((issue) => issue.message).join('; ') || 'Schema validation failed'
+    );
+    this.name = 'SchemaDirectoryValidationError';
+  }
+}
+
 export function validateSchemaDirectory(
   schemaDir: string,
   options: SchemaDirectoryOptions = {}
 ): ValidatedSchemaDirectory {
-  const inspection = inspectSchemaDirectory(schemaDir, options);
+  return options.expectedName !== undefined || options.requireTemplatesDirectory
+    ? validateRemoteSchemaDirectory(
+        schemaDir,
+        options.expectedName
+      )
+    : validateLocalSchemaDirectory(schemaDir);
+}
+
+function validatedResult(
+  inspection: InspectedSchemaDirectory
+): ValidatedSchemaDirectory {
   if (!inspection.schema || inspection.issues.length > 0) {
-    throw new Error(inspection.issues[0]?.message ?? 'Schema validation failed');
+    throw new SchemaDirectoryValidationError(inspection.issues);
   }
   return {
     schema: inspection.schema,
@@ -39,9 +58,45 @@ export function validateSchemaDirectory(
   };
 }
 
+export function validateLocalSchemaDirectory(
+  schemaDir: string
+): ValidatedSchemaDirectory {
+  return validatedResult(inspectLocalSchemaDirectory(schemaDir));
+}
+
+export function validateRemoteSchemaDirectory(
+  schemaDir: string,
+  expectedName?: string
+): ValidatedSchemaDirectory {
+  return validatedResult(inspectRemoteSchemaDirectory(schemaDir, expectedName));
+}
+
 export function inspectSchemaDirectory(
   schemaDir: string,
   options: SchemaDirectoryOptions = {}
+): InspectedSchemaDirectory {
+  return options.expectedName !== undefined || options.requireTemplatesDirectory
+    ? inspectRemoteSchemaDirectory(schemaDir, options.expectedName)
+    : inspectLocalSchemaDirectory(schemaDir);
+}
+
+export function inspectLocalSchemaDirectory(
+  schemaDir: string
+): InspectedSchemaDirectory {
+  return inspectSchemaDirectoryWithMode(schemaDir, 'legacy-local');
+}
+
+export function inspectRemoteSchemaDirectory(
+  schemaDir: string,
+  expectedName?: string
+): InspectedSchemaDirectory {
+  return inspectSchemaDirectoryWithMode(schemaDir, 'remote-bundle', expectedName);
+}
+
+function inspectSchemaDirectoryWithMode(
+  schemaDir: string,
+  mode: 'legacy-local' | 'remote-bundle',
+  expectedName?: string
 ): InspectedSchemaDirectory {
   const issues: SchemaDirectoryIssue[] = [];
   const templatePaths: Record<string, string> = {};
@@ -52,15 +107,17 @@ export function inspectSchemaDirectory(
       issues: [{ path: 'schema.yaml', message: `schema.yaml not found in '${schemaDir}'` }],
     };
   }
-  const schemaStat = fs.lstatSync(schemaPath);
-  if (schemaStat.isSymbolicLink() || !schemaStat.isFile()) {
-    return {
-      templatePaths,
-      issues: [{
-        path: 'schema.yaml',
-        message: `schema.yaml must be a regular file in '${schemaDir}'`,
-      }],
-    };
+  if (mode === 'remote-bundle') {
+    const schemaStat = fs.lstatSync(schemaPath);
+    if (schemaStat.isSymbolicLink() || !schemaStat.isFile()) {
+      return {
+        templatePaths,
+        issues: [{
+          path: 'schema.yaml',
+          message: `schema.yaml must be a regular file in '${schemaDir}'`,
+        }],
+      };
+    }
   }
 
   const schemaInspection = inspectSchema(fs.readFileSync(schemaPath, 'utf8'));
@@ -69,53 +126,58 @@ export function inspectSchemaDirectory(
   if (!schema) {
     return { templatePaths, issues };
   }
-  if (options.expectedName !== undefined && schema.name !== options.expectedName) {
+  if (expectedName !== undefined && schema.name !== expectedName) {
     issues.push({
       path: 'schema.yaml',
-      message: `Remote schema bundle was declared as '${options.expectedName}' but schema.yaml name is '${schema.name}'`,
+      message: `Remote schema bundle was declared as '${expectedName}' but schema.yaml name is '${schema.name}'`,
     });
   }
 
   const templatesDir = path.join(schemaDir, 'templates');
-  if (options.requireTemplatesDirectory) {
+  if (mode === 'remote-bundle') {
     if (!fs.existsSync(templatesDir)) {
       issues.push({
         path: 'templates',
         message: `templates directory not found in '${schemaDir}'`,
       });
-      return { schema, templatePaths, issues };
-    }
-    const templatesStat = fs.lstatSync(templatesDir);
-    if (templatesStat.isSymbolicLink() || !templatesStat.isDirectory()) {
-      issues.push({
-        path: 'templates',
-        message: `templates must be a real directory in '${schemaDir}'`,
-      });
-      return { schema, templatePaths, issues };
+    } else {
+      const templatesStat = fs.lstatSync(templatesDir);
+      if (templatesStat.isSymbolicLink() || !templatesStat.isDirectory()) {
+        issues.push({
+          path: 'templates',
+          message: `templates must be a real directory in '${schemaDir}'`,
+        });
+      }
     }
   }
 
   for (const artifact of schema.artifacts) {
-    let normalizedTemplate: string;
-    try {
-      normalizedTemplate = normalizeBundlePath(artifact.template);
-    } catch {
-      issues.push({
-        path: `schema.yaml:artifacts.${artifact.id}.template`,
-        message: `Artifact '${artifact.id}' has unsafe template path '${artifact.template}'`,
-      });
-      continue;
+    let normalizedTemplate = artifact.template;
+    if (mode === 'remote-bundle') {
+      try {
+        normalizedTemplate = normalizeBundlePath(artifact.template);
+      } catch {
+        issues.push({
+          path: `schema.yaml:artifacts.${artifact.id}.template`,
+          message: `Artifact '${artifact.id}' has unsafe template path '${artifact.template}'`,
+        });
+        continue;
+      }
     }
 
-    const templateSegments = normalizedTemplate.split('/');
-    const candidates = options.requireTemplatesDirectory
+    const templateSegments =
+      mode === 'remote-bundle'
+        ? normalizedTemplate.split('/')
+        : [artifact.template];
+    const candidates = mode === 'remote-bundle'
       ? [path.join(templatesDir, ...templateSegments)]
       : [
-          path.join(templatesDir, ...templateSegments),
-          path.join(schemaDir, ...templateSegments),
+          path.join(templatesDir, artifact.template),
+          path.join(schemaDir, artifact.template),
         ];
     const templatePath = candidates.find((candidate) => {
       if (!fs.existsSync(candidate)) return false;
+      if (mode === 'legacy-local') return true;
       const stat = fs.lstatSync(candidate);
       return stat.isFile() && !stat.isSymbolicLink();
     });

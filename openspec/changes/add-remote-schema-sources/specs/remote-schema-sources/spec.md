@@ -12,6 +12,12 @@ The system SHALL allow a project to associate a valid schema name with a Git rep
 - **WHEN** `openspec/config.yaml` declares a schema source with an `ssh://` or scp-style Git URL
 - **THEN** synchronization SHALL invoke the system Git client so its SSH configuration and credential mechanisms remain available
 
+#### Scenario: Existing SSH command configuration
+- **WHEN** synchronization inherits a `GIT_SSH_COMMAND` containing identity, proxy, or other user options
+- **THEN** the system SHALL preserve those options
+- **AND** it SHALL enforce `BatchMode=yes` and `StrictHostKeyChecking=accept-new`
+- **AND** authentication, passphrase, and host-key questions SHALL NOT block the command
+
 #### Scenario: Credential-bearing HTTPS source
 - **WHEN** an HTTPS source URL contains username, password, or token user information
 - **THEN** the system SHALL reject the declaration
@@ -20,6 +26,22 @@ The system SHALL allow a project to associate a valid schema name with a Git rep
 ### Requirement: Schema synchronization produces an immutable lock
 
 The CLI SHALL provide `openspec schema sync [name]` to resolve configured Git refs, validate schema bundles, populate the local cache, and atomically write `openspec/schemas.lock.yaml`.
+
+#### Scenario: Synchronize from a nested directory
+- **WHEN** a user runs schema synchronization beneath a consumer repository root
+- **THEN** the system SHALL search ancestor directories for the nearest repository containing `openspec/`
+- **AND** it SHALL read source declarations and write the lock beneath that consumer root
+- **AND** it SHALL NOT create a lockfile relative to the raw current directory
+
+#### Scenario: Consumer repository selects a planning store
+- **WHEN** the consumer repository configuration contains a `store:` pointer
+- **THEN** remote schema declarations and `schemas.lock.yaml` SHALL remain owned by the consumer repository
+- **AND** synchronization SHALL NOT read or write remote schema state in the selected planning store
+
+#### Scenario: Workflow planning uses a selected store
+- **WHEN** a workflow command writes planning artifacts to a selected store
+- **THEN** schema selection, metadata validation, template loading, status, instructions, apply guidance, validation, archive checks, and discovery SHALL resolve schemas from the consumer repository
+- **AND** the planning store SHALL NOT become the schema authority
 
 #### Scenario: Synchronize one source
 - **WHEN** a user runs `openspec schema sync qeda-sdd`
@@ -40,6 +62,22 @@ The CLI SHALL provide `openspec schema sync [name]` to resolve configured Git re
 - **WHEN** a branch-backed source has already been synchronized and the remote branch later advances
 - **AND** a user runs `openspec schema sync` for that source again
 - **THEN** the lockfile and active cache SHALL advance to the newly resolved commit after validation succeeds
+
+#### Scenario: Concurrent named synchronization
+- **WHEN** two processes synchronize different declared schema names in the same consumer repository
+- **THEN** synchronization SHALL serialize the complete lock read, fetch/cache operation, merge, and lock write per project
+- **AND** the final lockfile SHALL contain both successful updates
+
+#### Scenario: Live synchronization lock
+- **WHEN** a second process cannot acquire the project synchronization lock within the bounded wait period
+- **THEN** it SHALL fail with a `schema_sync_locked` status
+- **AND** it SHALL NOT modify the lockfile
+
+#### Scenario: Abandoned same-host synchronization lock
+- **WHEN** a unique lock claim or ticket names a same-host process that is no longer alive
+- **THEN** a later synchronization SHALL remove only that abandoned participant's files
+- **AND** concurrent reclaimers SHALL preserve mutual exclusion
+- **AND** releasing an older owner SHALL NOT delete a successor's ticket
 
 ### Requirement: Locked synchronization restores without upgrading
 
@@ -140,6 +178,29 @@ Before activation, the system SHALL validate the selected bundle with the existi
 - **WHEN** the selected bundle exceeds either the file-count or total-byte limit
 - **THEN** synchronization SHALL fail with the applicable limit
 - **AND** downloaded content SHALL not become active
+
+#### Scenario: Oversized individual file
+- **WHEN** a local extraction or cache entry contains one regular file larger than the remaining byte budget
+- **THEN** integrity validation SHALL reject it using file metadata before reading the complete file
+- **AND** it SHALL recheck the actual bytes read before accepting the bundle
+
+#### Scenario: Multiple remote validation failures
+- **WHEN** a remote bundle violates more than one structural or boundary rule
+- **THEN** validation SHALL preserve every discovered issue with its path
+- **AND** human and JSON error surfaces SHALL NOT report only the first issue
+
+### Requirement: Remote strict validation does not change legacy local schemas
+
+The system SHALL apply portable path, real-file, real-directory, containment, and declared-name rules only to remote bundles while preserving pre-feature local schema validation behavior.
+
+#### Scenario: Legacy local template layout
+- **WHEN** a project-local schema uses a template layout accepted before remote schema support
+- **THEN** `schema validate` SHALL continue to apply the legacy local lookup behavior
+- **AND** remote-only portable bundle checks SHALL NOT reject it
+
+#### Scenario: Same layout arrives from a remote source
+- **WHEN** an equivalent layout violates the remote bundle boundary
+- **THEN** synchronization and cache verification SHALL reject it before activation
 
 ### Requirement: Synchronization is failure-atomic
 

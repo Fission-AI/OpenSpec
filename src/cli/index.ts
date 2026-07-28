@@ -239,6 +239,7 @@ program
       await listCommand.execute(root.path, mode, {
         sort,
         json: options?.json,
+        schemaRoot: root.schemaRoot,
         ...(options?.json ? { root: toRootOutput(root) } : {}),
       });
     } catch (error) {

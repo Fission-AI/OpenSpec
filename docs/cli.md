@@ -894,6 +894,12 @@ configured branch or tag to an immutable commit, validates the complete bundle,
 installs it in the local content-addressed cache, and atomically updates
 `openspec/schemas.lock.yaml`.
 
+The command searches upward from the current directory for the nearest
+consumer repository containing `openspec/`. Its `config.yaml` and
+`schemas.lock.yaml` remain authoritative even when the repository selects a
+planning store. Concurrent schema sync processes for the same consumer
+repository are serialized so named updates cannot overwrite each other.
+
 ```bash
 # Update one source to the current configured ref
 openspec schema sync qeda-sdd
@@ -919,13 +925,15 @@ schemaSources:
     path: schemas/private-flow
 ```
 
-Private access reuses system Git SSH and credential helpers. Never embed a token
-in a URL. Commit the lockfile, but do not commit the global cache. Ordinary
-commands are network-free and continue to use the old locked version after a
-remote branch advances. Run update mode explicitly to upgrade. A missing or
-corrupt cache reports a `schema sync --locked` fix; CI must either restore the
-global cache or run that command while the source is reachable before entering
-an offline phase.
+Private access reuses system Git SSH and credential helpers. OpenSpec preserves
+an existing `GIT_SSH_COMMAND` while enforcing non-interactive SSH with
+`BatchMode=yes` and `StrictHostKeyChecking=accept-new`; changed known host keys
+still fail. Never embed a token in a URL. Commit the lockfile, but do not commit
+the global cache. Ordinary commands are network-free and continue to use the
+old locked version after a remote branch advances. Run update mode explicitly
+to upgrade. A missing or corrupt cache reports a `schema sync --locked` fix; CI
+must either restore the global cache or run that command while the source is
+reachable before entering an offline phase.
 
 Example JSON success:
 
@@ -1101,15 +1109,16 @@ spec-driven resolves from: package
   Source: /usr/local/lib/node_modules/@fission-ai/openspec/schemas/spec-driven
 ```
 
-**Schema precedence:**
+**Schema authority and precedence:**
 
-1. Project: `openspec/schemas/<name>/`
-2. Remote: project-declared source with matching lock and verified local cache
-3. User: `~/.local/share/openspec/schemas/<name>/`
-4. Package: Built-in schemas
+For a name without a remote declaration, precedence remains project, user, then
+package. A `schemaSources.<name>` declaration owns that name: a same-named
+project schema is a configuration conflict, a valid lock/cache resolves as
+remote, and an unavailable remote never falls through to user or package.
 
 Declared remote sources fail closed when unavailable and never trigger an
-implicit network request.
+implicit network request. `schema which --all` reports an unavailable remote as
+one structured entry and continues listing healthy schemas.
 
 ---
 

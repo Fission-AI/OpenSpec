@@ -35,6 +35,32 @@ interface GitTreeEntry {
 const DEFAULT_GIT_TIMEOUT_MS = 120_000;
 const GIT_OUTPUT_LIMIT = MAX_SCHEMA_BUNDLE_BYTES + 1024 * 1024;
 
+function removeSshOption(command: string, option: string): string {
+  const assignment = `${option}(?:\\s*=\\s*|\\s+)`;
+  return command
+    .replace(
+      new RegExp(
+        `(^|\\s)-o\\s*(?:"${assignment}[^"]*"|'${assignment}[^']*'|${assignment}(?:"[^"]*"|'[^']*'|\\S+))`,
+        'gi'
+      ),
+      '$1'
+    )
+    .trim();
+}
+
+export function buildNonInteractiveGitEnvironment(
+  environment: NodeJS.ProcessEnv = process.env
+): NodeJS.ProcessEnv {
+  let sshCommand = environment.GIT_SSH_COMMAND?.trim() || 'ssh';
+  sshCommand = removeSshOption(sshCommand, 'BatchMode');
+  sshCommand = removeSshOption(sshCommand, 'StrictHostKeyChecking');
+  return {
+    ...environment,
+    GIT_TERMINAL_PROMPT: '0',
+    GIT_SSH_COMMAND: `${sshCommand} -o BatchMode=yes -o StrictHostKeyChecking=accept-new`,
+  };
+}
+
 function runGit(
   cwd: string,
   args: string[],
@@ -48,10 +74,7 @@ function runGit(
       args,
       {
         cwd,
-        env: {
-          ...process.env,
-          GIT_TERMINAL_PROMPT: '0',
-        },
+        env: buildNonInteractiveGitEnvironment(),
         encoding: 'buffer',
         maxBuffer: GIT_OUTPUT_LIMIT,
         timeout: timeoutMs,
@@ -77,6 +100,43 @@ function runGit(
       child.stdin?.end(input);
     }
   });
+}
+
+export async function verifyLockedCommitIsAncestor(
+  repositoryDir: string,
+  lockedCommit: string,
+  fetchedRef: string,
+  timeoutMs: number
+): Promise<string> {
+  let verifiedCommit: string;
+  try {
+    verifiedCommit = (
+      await runGit(
+        repositoryDir,
+        ['rev-parse', `${lockedCommit}^{commit}`],
+        'locked commit presence verification',
+        timeoutMs
+      )
+    ).toString('utf8').trim();
+  } catch {
+    throw new Error(
+      'Locked commit verification failed: the commit is not present after fetching the requested ref'
+    );
+  }
+
+  try {
+    await runGit(
+      repositoryDir,
+      ['merge-base', '--is-ancestor', verifiedCommit, fetchedRef],
+      'locked commit ancestry verification',
+      timeoutMs
+    );
+  } catch {
+    throw new Error(
+      'Locked commit verification failed: the commit is not reachable from the requested ref'
+    );
+  }
+  return verifiedCommit;
 }
 
 function parseTreeEntries(output: Buffer, bundlePath: string): GitTreeEntry[] {
@@ -198,21 +258,12 @@ export async function fetchSchemaBundleFromGit(
     );
     let resolvedCommit: string;
     if (options.lockedCommit) {
-      const verifiedCommit = (
-        await runGit(
-          repositoryDir,
-          ['rev-parse', `${options.lockedCommit}^{commit}`],
-          'locked commit verification',
-          timeoutMs
-        )
-      ).toString('utf8').trim();
-      await runGit(
+      resolvedCommit = await verifyLockedCommitIsAncestor(
         repositoryDir,
-        ['merge-base', '--is-ancestor', verifiedCommit, 'FETCH_HEAD^{commit}'],
-        'locked commit verification',
+        options.lockedCommit,
+        'FETCH_HEAD^{commit}',
         timeoutMs
       );
-      resolvedCommit = verifiedCommit;
     } else {
       resolvedCommit = (
         await runGit(

@@ -6,6 +6,7 @@
 
 import chalk from 'chalk';
 import { listSchemasWithInfo } from '../../core/artifact-graph/index.js';
+import { resolveSchemaConsumerRoot } from '../../core/remote-schema/consumer-root.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -20,7 +21,7 @@ export interface SchemasOptions {
 // -----------------------------------------------------------------------------
 
 export async function schemasCommand(options: SchemasOptions): Promise<void> {
-  const projectRoot = process.cwd();
+  const projectRoot = resolveSchemaConsumerRoot(process.cwd()) ?? process.cwd();
   const schemas = listSchemasWithInfo(projectRoot);
 
   if (options.json) {
@@ -44,7 +45,11 @@ export async function schemasCommand(options: SchemasOptions): Promise<void> {
     }
     console.log(`  ${chalk.bold(schema.name)}${sourceLabel}`);
     if (schema.available === false) {
-      console.log(`    ${chalk.yellow(schema.error ?? 'Remote schema is unavailable')}`);
+      const diagnostic = schema.status?.[0];
+      const message = diagnostic
+        ? `${diagnostic.code}: ${diagnostic.message}`
+        : schema.error ?? 'Remote schema is unavailable';
+      console.log(`    ${chalk.yellow(message)}`);
       console.log();
       continue;
     }

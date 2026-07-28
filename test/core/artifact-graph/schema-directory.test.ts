@@ -2,7 +2,12 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { validateSchemaDirectory } from '../../../src/core/artifact-graph/schema-directory.js';
+import {
+  SchemaDirectoryValidationError,
+  validateLocalSchemaDirectory,
+  validateRemoteSchemaDirectory,
+  validateSchemaDirectory,
+} from '../../../src/core/artifact-graph/schema-directory.js';
 
 function schemaYaml(name: string, template = 'proposal.md'): string {
   return `name: ${name}
@@ -57,6 +62,60 @@ describe('validateSchemaDirectory', () => {
         requireTemplatesDirectory: true,
       }).templatePaths.proposal
     ).toBe(path.join(schemaDir, 'templates', 'nested', 'proposal.md'));
+  });
+
+  it('preserves legacy project-local template lookup outside templates/', () => {
+    const sharedTemplate = path.join(path.dirname(schemaDir), 'shared-proposal.md');
+    fs.writeFileSync(sharedTemplate, '# Shared\n');
+    fs.writeFileSync(
+      path.join(schemaDir, 'schema.yaml'),
+      schemaYaml('local-flow', '../shared-proposal.md')
+    );
+
+    try {
+      expect(
+        validateLocalSchemaDirectory(schemaDir).templatePaths.proposal
+      ).toBe(sharedTemplate);
+    } finally {
+      fs.rmSync(sharedTemplate, { force: true });
+    }
+  });
+
+  it('preserves every strict remote validation issue', () => {
+    fs.mkdirSync(path.join(schemaDir, 'templates'));
+    fs.writeFileSync(
+      path.join(schemaDir, 'schema.yaml'),
+      `name: wrong-name
+version: 1
+artifacts:
+  - id: escaped
+    generates: escaped.md
+    description: Escaped
+    template: ../escaped.md
+    requires: []
+  - id: missing
+    generates: missing.md
+    description: Missing
+    template: missing.md
+    requires: []
+`
+    );
+
+    try {
+      validateRemoteSchemaDirectory(schemaDir, 'declared-name');
+      throw new Error('expected remote validation to fail');
+    } catch (error) {
+      expect(error).toBeInstanceOf(SchemaDirectoryValidationError);
+      const validationError = error as SchemaDirectoryValidationError;
+      expect(validationError.issues).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ message: expect.stringMatching(/declared-name.*wrong-name/) }),
+          expect.objectContaining({ message: expect.stringMatching(/unsafe template path/) }),
+          expect.objectContaining({ message: expect.stringMatching(/missing.md.*not found/) }),
+        ])
+      );
+      expect(validationError.issues).toHaveLength(3);
+    }
   });
 
   it.each([

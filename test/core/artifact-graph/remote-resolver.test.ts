@@ -75,14 +75,16 @@ schemaSources:
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('resolves project-local, remote, user, then package priority', () => {
+  it('resolves declared remote, undeclared user, and package schemas', () => {
     const user = path.join(process.env.XDG_DATA_HOME!, 'openspec', 'schemas', 'team-flow');
     writeSchema(user, 'team-flow', 'user');
     expect(getSchemaDir('team-flow', projectRoot)).toBe(cacheDir);
 
     const local = path.join(projectRoot, 'openspec', 'schemas', 'team-flow');
     writeSchema(local, 'team-flow', 'project');
-    expect(getSchemaDir('team-flow', projectRoot)).toBe(local);
+    expect(() => getSchemaDir('team-flow', projectRoot)).toThrow(
+      /project-local schema.*conflicts with declared remote schema/i
+    );
     expect(getSchemaDir('team-flow')).toBe(user);
     expect(getSchemaDir('spec-driven', projectRoot)).toContain(
       path.join('schemas', 'spec-driven')
@@ -137,6 +139,30 @@ schemaSources:
       source: 'remote',
       available: false,
       error: expect.stringMatching(/schema sync/),
+      status: [
+        expect.objectContaining({
+          code: 'remote_not_locked',
+        }),
+      ],
+    });
+  });
+
+  it('reports a project-local bundle with a declared remote name as unavailable', () => {
+    const local = path.join(projectRoot, 'openspec', 'schemas', 'team-flow');
+    writeSchema(local, 'team-flow', 'project');
+
+    expect(listSchemasWithInfo(projectRoot)).toContainEqual({
+      name: 'team-flow',
+      description: '',
+      artifacts: [],
+      source: 'remote',
+      available: false,
+      error: expect.stringMatching(/project-local schema.*conflicts/i),
+      status: [
+        expect.objectContaining({
+          code: 'schema_name_conflict',
+        }),
+      ],
     });
   });
 });

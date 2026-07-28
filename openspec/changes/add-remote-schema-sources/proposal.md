@@ -8,9 +8,13 @@ Teams that share custom OpenSpec workflows across multiple repositories currentl
 - Add explicit schema synchronization that resolves a requested Git ref to a commit, validates the selected bundle, installs it in a local cache, and writes a commit-friendly lockfile.
 - Keep ordinary OpenSpec commands network-free by resolving remote schemas only from the project lockfile and verified local cache.
 - Add deterministic locked-cache restoration for CI without advancing the requested ref.
-- Extend schema discovery and diagnostics to distinguish project-local, remote, user-level, and package schemas.
+- Resolve remote schema configuration and locks from the consumer repository root even when commands run from nested directories or the repository selects a planning store.
+- Extend schema discovery and diagnostics to distinguish project-local, remote, user-level, and package schemas without one unavailable remote aborting an all-schema inspection.
+- Treat a declared remote source as the authority for its schema name and report a same-named project-local bundle as a configuration conflict.
+- Serialize synchronization per consumer project so concurrent named syncs cannot lose lockfile updates.
 - Reject unsafe or incomplete bundles, credential-bearing declarations, path escapes, symlinks, oversized content, and lock/cache integrity mismatches.
-- Preserve all existing project-local, user-level, and package schema behavior.
+- Preserve existing local-schema validation behavior while applying portable fail-closed checks only to remote bundles.
+- Force Git and SSH transport to fail non-interactively while preserving existing SSH command configuration.
 
 ## Capabilities
 

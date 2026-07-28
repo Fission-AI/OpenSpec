@@ -50,7 +50,7 @@ Alternatives considered:
 
 ### 2. Commit a project lock and keep a global content-addressed cache
 
-The lock path is tracked by one constant and is always `openspec/schemas.lock.yaml` relative to the project root:
+The consumer repository owns both the source declarations and the lock. The lock path is tracked by one constant and is always `openspec/schemas.lock.yaml` relative to the nearest consumer repository root:
 
 ```yaml
 version: 1
@@ -64,6 +64,8 @@ schemas:
 ```
 
 The cache lives under `getGlobalDataDir()/schema-cache/v1/sha256/<hex-digest>`. The lock never stores a machine-specific absolute cache path. Identical bundle content is reused across projects and commits, and a failed upgrade cannot overwrite the old content-addressed directory.
+
+Schema source ownership does not follow a selected planning store. Commands started in a nested directory search upward for the nearest repository containing `openspec/` and use that consumer root for configuration, local schemas, and the lockfile. A `store:` pointer or global default store may redirect planning artifacts, but it does not redirect remote schema sources in V1.
 
 The digest is computed over every regular file beneath the bundle using sorted Git-style relative paths, explicit byte lengths, and file bytes. Paths are normalized to `/` only for the canonical digest and lock contract; filesystem access uses `path.join`/`path.resolve`.
 
@@ -81,6 +83,8 @@ Alternatives considered:
 
 For multiple selected sources, all fetch/extract/validation operations finish before one atomic lock replacement. A successful cache directory that becomes unreferenced because a later source fails is harmless content-addressed data; no prior lock or cache is removed.
 
+All update and locked synchronization runs under one project-scoped interprocess lock covering lockfile read, Git/cache work, merge, and lockfile write. Beneath the consumer repository's `openspec/.schemas.lock` coordination directory, each contender creates unique choosing and immutable ticket files containing a random token, PID, hostname, acquisition time, and bakery number. The filesystem bakery ordering prevents a stale reclaimer from moving a shared lock path and temporarily admitting two owners. Acquisition retries for a bounded period, reclaims only the exact unique files of a same-host process that is no longer alive, and removes only the current token's ticket on release. The empty coordination directory is removed when possible. This deliberately serializes network work in V1 so two named sync processes cannot both merge against stale lock state.
+
 ### 4. Fetch with system Git and extract tracked objects, not a working-tree copy
 
 A focused Git adapter uses `execFile` argument arrays and a temporary repository:
@@ -88,12 +92,15 @@ A focused Git adapter uses `execFile` argument arrays and a temporary repository
 1. `git init`
 2. `git remote add origin <configured-url>`
 3. update mode: `git fetch --depth=1 --no-tags origin <requested-ref>`
-4. locked mode: `git fetch --depth=1 --no-tags origin <resolved-commit>`
+4. locked mode: fetch the advertised requested ref with history, then verify the locked commit exists and is its ancestor
 5. `git rev-parse <fetched-object>^{commit}`
-6. `git ls-tree -r -z <commit> -- <bundle-path>`
-7. `git cat-file blob <object-id>` for accepted regular files
+6. `git merge-base --is-ancestor <locked-commit> <fetched-ref>` in locked mode
+7. `git ls-tree -r -z <commit> -- <bundle-path>`
+8. `git cat-file --batch` for accepted regular files
 
 Reading Git objects rather than recursively copying a checkout prevents `.git`, untracked content, and followed filesystem symlinks from entering the bundle. Tree modes identify and reject symlinks and submodules before content extraction. Every process has bounded output and duration.
+
+Git runs with `GIT_TERMINAL_PROMPT=0`. SSH transports preserve the user's existing `GIT_SSH_COMMAND` command, identity, proxy, and other arguments while enforcing `BatchMode=yes` and `StrictHostKeyChecking=accept-new`. Existing conflicting values are normalized so authentication, passphrase, and host-key questions cannot block automation. The constructed SSH command is never included in diagnostics.
 
 Git stderr is treated as untrusted and is not copied verbatim into user diagnostics. Errors use stable codes and sanitized source labels. This prevents a transport, credential helper, or malicious remote from reflecting secrets while keeping the actionable fixes (`check Git credentials`, `schema sync`, or `schema sync --locked`).
 
@@ -110,28 +117,32 @@ Every `ls-tree` entry must:
 - map to a unique case-folded portable relative path;
 - keep the bundle at or below 1,000 files and 10 MiB total bytes.
 
-The extracted bundle must contain `schema.yaml`, a real `templates` directory, and every parser-declared template inside that directory. The parsed schema name must equal the source-map key. A reusable core schema-directory validator will be extracted from the current schema command so sync and `schema validate` share the parser and template checks; remote validation adds the stricter boundary rules.
+The extracted bundle must contain `schema.yaml`, a real `templates` directory, and every parser-declared template inside that directory. The parsed schema name must equal the source-map key.
+
+Schema parsing and issue collection are shared, but validation has two explicit entry points. Legacy local validation preserves the pre-feature template lookup and symlink/path behavior. Remote-bundle validation adds the portable path, real-file, real-directory, containment, and declared-name rules. Remote validation returns every structured issue so sync and JSON diagnostics do not hide later failures behind the first error.
+
+Local/cache integrity traversal checks each regular file's stat size against the remaining byte budget before reading it, then rechecks the actual buffer length to remain correct if the file changes between stat and read.
 
 ### 6. Activate cache and lock atomically
 
 Extraction occurs in a `mkdtemp` directory under the cache parent, followed by structural validation and digest calculation. If the final content-addressed directory is absent, it is installed with `rename`; if present, it is re-verified and reused. Temporary directories are removed on every exit path.
 
-The lock is serialized deterministically with source names sorted. It is written to a uniquely named temporary sibling, flushed by close, then renamed over the known lock filename. Sync never deletes the previous digest directory. A lock write failure therefore leaves ordinary resolution on the previous lock.
+The lock is serialized deterministically with source names sorted. It is written to a uniquely named temporary sibling, flushed by close, then renamed over the known lock filename. Sync never deletes the previous digest directory. A lock write failure therefore leaves ordinary resolution on the previous lock. Atomic replacement prevents partial files; the project-scoped sync lock separately prevents lost updates between processes.
 
 ### 7. Remote declarations fail closed in the resolver
 
-With `projectRoot`, location priority becomes:
+With `projectRoot`, an undeclared name retains the existing project-local → user → package precedence. Once `schemaSources.<name>` is declared, that declaration owns the name:
 
-1. `openspec/schemas/<name>` project-local
-2. matching configured remote source with matching lock and verified cache
-3. user-level schema
-4. package built-in schema
-
-Project-local remains the team's explicit in-repository override. Once a remote source name is declared and no project-local schema shadows it, a missing/stale lock, absent cache, malformed metadata, or integrity mismatch is an error; resolution does not fall through to a personal or package copy with the same name.
+1. a same-named project-local bundle is a `schema_name_conflict`;
+2. a matching lock and verified cache resolve as `remote`;
+3. a missing/stale lock, absent cache, malformed metadata, or integrity mismatch is an unavailable remote error; and
+4. resolution never falls through to a same-named user or package copy.
 
 Without `projectRoot`, existing behavior stays exactly user then package and no config, lock, or remote cache is read.
 
 `SchemaInfo.source` and schema-command resolution types add `remote`. A remote location may include requested ref, commit, bundle path, and integrity. Diagnostic listing can describe an unsynchronized declaration, while APIs that must return a loadable directory fail with an actionable error.
+
+All-schema inspection uses a discriminated available/unavailable result per name. An unusable remote contributes its own structured status and does not abort inspection of healthy project, remote, user, or package schemas. Single-schema inspection uses the same result but exits non-zero when the requested entry is unavailable.
 
 ### 8. Keep JSON output singular and stable
 
@@ -166,7 +177,8 @@ Failures emit the same null-safe fields with one or more structured statuses and
 - `src/core/remote-schema/bundle.ts`: Git-tree entry validation, extraction, size limits, canonical digest, and cache verification.
 - `src/core/remote-schema/git.ts`: bounded, credential-safe system Git calls.
 - `src/core/remote-schema/sync.ts`: multi-source transaction orchestration.
-- `src/core/artifact-graph/schema-directory.ts`: reusable parser/template directory validation.
+- `src/core/remote-schema/sync-lock.ts`: project-scoped cross-process synchronization lock.
+- `src/core/artifact-graph/schema-directory.ts`: separate legacy-local and strict-remote parser/template validation entry points.
 - `src/core/artifact-graph/resolver.ts`: remote tier integration and metadata.
 - `src/commands/schema.ts`: `sync`, enhanced `which`, validation reuse, and human/JSON rendering.
 
@@ -175,11 +187,12 @@ Focused modules keep network-capable code out of ordinary resolution and make th
 ## Risks / Trade-offs
 
 - **Integrity verification reads every cached file during resolution** → Bundles are capped at 10 MiB/1,000 files; correctness is preferred over an unverified stamp in the MVP.
-- **Some Git servers refuse shallow fetch by raw locked SHA** → Return a locked-restore diagnostic; users can preserve/restore the content-addressed cache, pin an advertised tag, or run update mode. Do not silently advance the lock.
+- **Locked restoration needs history reachable from the advertised ref** → Fetch the requested ref without shallow depth in locked mode, verify the locked commit is its ancestor, and fail without advancing when the commit is no longer reachable.
 - **Global cache can accumulate unused digests** → Document manual removal; automatic garbage collection is deferred until lock discovery semantics exist.
 - **Case-fold collision checks are stricter than a Linux checkout** → This intentionally guarantees that one committed lock is usable on Windows and case-insensitive macOS filesystems.
 - **Remote source syntax and lock shape may evolve after maintainer feedback** → Mark the command group experimental, version the lock, and keep parsing strict so migrations can be explicit.
-- **A project-local schema can shadow a declared remote source** → `schema which` exposes the shadow; this preserves the established highest-priority project override.
+- **A crashed sync can leave an interprocess lock** → Record process ownership and reclaim only a same-host lock whose PID is no longer alive; live or ambiguous owners time out without modifying the lockfile.
+- **`StrictHostKeyChecking=accept-new` trusts a host on first contact** → This keeps first-run automation usable while still rejecting changed known keys; OpenSpec never disables host-key checking.
 
 ## Migration Plan
 
@@ -187,9 +200,10 @@ Focused modules keep network-capable code out of ordinary resolution and make th
 2. A team adds a source declaration and runs `openspec schema sync <name>`.
 3. The team reviews and commits `openspec/config.yaml` plus `openspec/schemas.lock.yaml`.
 4. Developers run update sync intentionally or locked sync to restore missing cache.
-5. Removing a source declaration makes its stale lock/cache inert; no automatic deletion occurs.
+5. A same-named project-local bundle must be renamed or the remote declaration removed; OpenSpec does not choose one silently.
+6. Removing a source declaration makes its stale lock/cache inert; no automatic deletion occurs.
 
-Rollback is removal of the declaration and lock entry (or reverting the feature commit). Existing project/user/package schemas remain available under their prior precedence.
+Rollback is removal of the declaration and lock entry (or reverting the feature commit). Once the declaration is removed, existing project/user/package schemas resume their prior precedence.
 
 ## Open Questions
 

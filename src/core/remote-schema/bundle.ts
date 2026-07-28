@@ -110,15 +110,19 @@ export function computeBundleIntegrity(
       if (!entry.isFile()) {
         throw new Error(`Remote schema bundle contains non-regular file '${relativePath}'`);
       }
-      const content = fs.readFileSync(absolutePath);
-      files.push({ relativePath, content });
-      if (files.length > limits.maxFiles) {
+      if (files.length + 1 > limits.maxFiles) {
         throw new Error(`Remote schema bundle contains more than ${limits.maxFiles} files`);
       }
-      totalBytes += content.length;
-      if (totalBytes > limits.maxBytes) {
+      const size = fs.statSync(absolutePath).size;
+      if (totalBytes + size > limits.maxBytes) {
         throw new Error(`Remote schema bundle contains more than ${limits.maxBytes} bytes`);
       }
+      const content = fs.readFileSync(absolutePath);
+      if (totalBytes + content.length > limits.maxBytes) {
+        throw new Error(`Remote schema bundle contains more than ${limits.maxBytes} bytes`);
+      }
+      files.push({ relativePath, content });
+      totalBytes += content.length;
     }
   };
   visit(bundleDir, '');

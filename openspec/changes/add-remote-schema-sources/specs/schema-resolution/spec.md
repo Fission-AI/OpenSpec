@@ -2,13 +2,14 @@
 
 ### Requirement: Project-local schema resolution
 
-The system SHALL resolve schemas in the following location order when a `projectRoot` is provided: project-local directory, matching locked remote declaration, user override, then package built-in.
+The system SHALL preserve project-local, user override, then package built-in precedence for names without a remote declaration. When a project declares a remote source name, the declaration SHALL own that name and SHALL either resolve its verified locked cache or report an actionable remote-schema error.
 
-#### Scenario: Project-local schema takes precedence over remote source
+#### Scenario: Project-local schema conflicts with remote source
 - **WHEN** a schema named "my-workflow" exists at `./openspec/schemas/my-workflow/schema.yaml`
-- **AND** project configuration declares a synchronized remote source named "my-workflow"
+- **AND** project configuration declares a remote source named "my-workflow"
 - **AND** `getSchemaDir("my-workflow", projectRoot)` is called
-- **THEN** the system SHALL return the project-local path
+- **THEN** resolution SHALL fail with a `schema_name_conflict` diagnostic
+- **AND** the system SHALL NOT silently select either the local or remote bundle
 
 #### Scenario: Project-local schema takes precedence over user override
 - **WHEN** a schema named "my-workflow" exists at `./openspec/schemas/my-workflow/schema.yaml`
@@ -22,9 +23,8 @@ The system SHALL resolve schemas in the following location order when a `project
 - **AND** `getSchemaDir("spec-driven", projectRoot)` is called
 - **THEN** the system SHALL return the project-local path
 
-#### Scenario: Locked remote takes precedence over user override
-- **WHEN** no project-local schema named "my-workflow" exists
-- **AND** project configuration declares a synchronized remote source named "my-workflow"
+#### Scenario: Locked remote owns the name over user override
+- **WHEN** project configuration declares a synchronized remote source named "my-workflow"
 - **AND** a same-named user schema exists
 - **THEN** the system SHALL return the verified remote cache path
 
@@ -70,11 +70,18 @@ Schema listing APIs and commands SHALL include valid locked remote schemas with 
 - **THEN** `listSchemas(projectRoot)` SHALL include its name
 - **AND** `listSchemasWithInfo(projectRoot)` SHALL report source `remote`
 
-#### Scenario: Project schema shadows remote in list
+#### Scenario: Project schema conflicts with remote in list
 - **WHEN** project-local and remote schemas share a name
-- **THEN** schema listings SHALL contain the name once with source `project`
+- **THEN** diagnostic schema listings SHALL contain one unavailable remote entry with `schema_name_conflict`
+- **AND** loadable-schema APIs SHALL fail instead of reporting either bundle as active
 
 #### Scenario: Unsynchronized declaration is listed as unavailable
 - **WHEN** project configuration declares a remote schema without usable locked cache content
 - **THEN** diagnostic schema surfaces SHALL identify the declaration as requiring synchronization
 - **AND** ordinary schema loading SHALL continue to fail closed
+
+#### Scenario: Same-named lower tiers do not mask an unavailable remote
+- **WHEN** a declared remote schema is unavailable
+- **AND** a same-named user or package schema exists
+- **THEN** diagnostic schema surfaces SHALL report the unavailable remote
+- **AND** ordinary schema loading SHALL NOT fall back to the lower-tier schema

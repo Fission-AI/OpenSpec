@@ -13,12 +13,21 @@ import {
   listSchemas,
 } from '../core/artifact-graph/resolver.js';
 import { parseSchema } from '../core/artifact-graph/schema.js';
-import { inspectSchemaDirectory } from '../core/artifact-graph/schema-directory.js';
+import {
+  inspectLocalSchemaDirectory,
+  SchemaDirectoryValidationError,
+} from '../core/artifact-graph/schema-directory.js';
 import type { SchemaYaml, Artifact } from '../core/artifact-graph/types.js';
 import { syncRemoteSchemas } from '../core/remote-schema/sync.js';
 import { getSchemaLockPath } from '../core/remote-schema/lockfile.js';
 import { readSchemaLock } from '../core/remote-schema/lockfile.js';
 import type { RemoteSchemaLockEntry } from '../core/remote-schema/types.js';
+import {
+  assertProjectSchemaNameUnclaimed,
+  RemoteSchemaResolutionError,
+} from '../core/remote-schema/authority.js';
+import { resolveSchemaConsumerRoot } from '../core/remote-schema/consumer-root.js';
+import { SchemaSyncLockError } from '../core/remote-schema/sync-lock.js';
 
 /**
  * Schema source location type
@@ -47,11 +56,17 @@ interface SchemaLocation {
  */
 interface SchemaResolution {
   name: string;
+  available: boolean;
   source: SchemaSource;
-  path: string;
+  path: string | null;
   shadows: Array<
     { source: SchemaSource; path: string } & Partial<RemoteSchemaLockEntry>
   >;
+  status: Array<{
+    level: 'error';
+    code: string;
+    message: string;
+  }>;
   git?: string;
   requestedRef?: string;
   resolvedCommit?: string;
@@ -66,6 +81,33 @@ interface ValidationIssue {
   level: 'error' | 'warning';
   path: string;
   message: string;
+}
+
+function schemaSyncFailureStatus(error: unknown): Array<{
+  level: 'error';
+  code: string;
+  message: string;
+  path?: string;
+}> {
+  if (error instanceof SchemaDirectoryValidationError) {
+    return error.issues.map((issue) => ({
+      level: 'error',
+      code: 'remote_schema_invalid',
+      path: issue.path,
+      message: issue.message,
+    }));
+  }
+  const code =
+    error instanceof RemoteSchemaResolutionError
+      ? error.code
+      : error instanceof SchemaSyncLockError
+        ? error.code
+        : 'schema_sync_failed';
+  return [{
+    level: 'error',
+    code,
+    message: error instanceof Error ? error.message : String(error),
+  }];
 }
 
 /**
@@ -86,8 +128,8 @@ function checkAllLocations(
     exists: fs.existsSync(projectSchemaPath),
   });
 
-  // Locked remote location. Project-local schemas remain usable even when a
-  // shadowed remote declaration has not been synchronized.
+  // Locked remote location. A declared remote owns its name; conflicts and
+  // unavailable cache state are reported by getSchemaResolution().
   let remoteDir: string | null = null;
   let remoteEntry: RemoteSchemaLockEntry | undefined;
   try {
@@ -135,7 +177,35 @@ function getSchemaResolution(
   name: string,
   projectRoot: string
 ): SchemaResolution | null {
-  const resolvedDir = getSchemaDir(name, projectRoot);
+  let resolvedDir: string | null;
+  try {
+    resolvedDir = getSchemaDir(name, projectRoot);
+  } catch (error) {
+    if (error instanceof RemoteSchemaResolutionError) {
+      let remote: RemoteSchemaLockEntry | undefined;
+      try {
+        remote = readSchemaLock(projectRoot)?.schemas[name];
+      } catch {
+        remote = undefined;
+      }
+      return {
+        name,
+        available: false,
+        source: 'remote',
+        path: null,
+        shadows: [],
+        status: [
+          {
+            level: 'error',
+            code: error.code,
+            message: error.message,
+          },
+        ],
+        ...(remote ?? {}),
+      };
+    }
+    throw error;
+  }
   if (!resolvedDir) {
     return null;
   }
@@ -164,9 +234,11 @@ function getSchemaResolution(
     }));
   return {
     name,
+    available: true,
     source: active.source,
     path: active.path,
     shadows,
+    status: [],
     ...(active.remote ?? {}),
   };
 }
@@ -203,7 +275,7 @@ function validateSchema(
     console.log('  Validating schema structure...');
     console.log('  Checking template files...');
   }
-  const inspection = inspectSchemaDirectory(schemaDir);
+  const inspection = inspectLocalSchemaDirectory(schemaDir);
   const issues: ValidationIssue[] = inspection.issues.map((issue) => ({
     level: 'error',
     path: issue.path,
@@ -301,8 +373,15 @@ export function registerSchemaCommand(program: Command): void {
         name?: string,
         options?: { locked?: boolean; json?: boolean }
       ) => {
+        let projectRoot: string | null = null;
         try {
-          const result = await syncRemoteSchemas(process.cwd(), {
+          projectRoot = resolveSchemaConsumerRoot(process.cwd());
+          if (!projectRoot) {
+            throw new Error(
+              `No consumer OpenSpec project found from '${process.cwd()}' or its ancestors`
+            );
+          }
+          const result = await syncRemoteSchemas(projectRoot, {
             name,
             locked: options?.locked,
           });
@@ -325,21 +404,16 @@ export function registerSchemaCommand(program: Command): void {
             );
           }
         } catch (error) {
+          const status = schemaSyncFailureStatus(error);
           if (options?.json) {
             console.log(
               JSON.stringify(
                 {
                   synced: false,
                   mode: options?.locked ? 'locked' : 'update',
-                  lockfile: getSchemaLockPath(process.cwd()),
+                  lockfile: projectRoot ? getSchemaLockPath(projectRoot) : null,
                   schemas: [],
-                  status: [
-                    {
-                      level: 'error',
-                      code: 'schema_sync_failed',
-                      message: (error as Error).message,
-                    },
-                  ],
+                  status,
                   error: (error as Error).message,
                 },
                 null,
@@ -347,7 +421,10 @@ export function registerSchemaCommand(program: Command): void {
               )
             );
           } else {
-            console.error(`Error: ${(error as Error).message}`);
+            for (const diagnostic of status) {
+              const location = diagnostic.path ? `${diagnostic.path}: ` : '';
+              console.error(`Error: ${location}${diagnostic.message}`);
+            }
           }
           process.exitCode = 1;
         }
@@ -362,7 +439,8 @@ export function registerSchemaCommand(program: Command): void {
     .option('--all', 'List all schemas with their resolution sources')
     .action(async (name?: string, options?: { json?: boolean; all?: boolean }) => {
       try {
-        const projectRoot = process.cwd();
+        const projectRoot =
+          resolveSchemaConsumerRoot(process.cwd()) ?? process.cwd();
 
         if (options?.all) {
           // List all schemas
@@ -378,10 +456,11 @@ export function registerSchemaCommand(program: Command): void {
 
             // Group by source
             const bySource = {
-              project: schemas.filter((s) => s.source === 'project'),
-              remote: schemas.filter((s) => s.source === 'remote'),
-              user: schemas.filter((s) => s.source === 'user'),
-              package: schemas.filter((s) => s.source === 'package'),
+              project: schemas.filter((s) => s.available && s.source === 'project'),
+              remote: schemas.filter((s) => s.available && s.source === 'remote'),
+              user: schemas.filter((s) => s.available && s.source === 'user'),
+              package: schemas.filter((s) => s.available && s.source === 'package'),
+              unavailable: schemas.filter((s) => !s.available),
             };
 
             if (bySource.project.length > 0) {
@@ -418,6 +497,13 @@ export function registerSchemaCommand(program: Command): void {
               console.log('\nPackage schemas:');
               for (const schema of bySource.package) {
                 console.log(`  ${schema.name}`);
+              }
+            }
+
+            if (bySource.unavailable.length > 0) {
+              console.log('\nUnavailable schemas:');
+              for (const schema of bySource.unavailable) {
+                console.log(`  ${schema.name}: ${schema.status[0]?.message ?? 'Unavailable'}`);
               }
             }
           }
@@ -465,6 +551,16 @@ export function registerSchemaCommand(program: Command): void {
           } else {
             console.error(`Error: Schema '${name}' not found`);
             console.error(`Available schemas: ${available.join(', ')}`);
+          }
+          process.exitCode = 1;
+          return;
+        }
+
+        if (!resolution.available) {
+          if (options?.json) {
+            console.log(JSON.stringify(resolution, null, 2));
+          } else {
+            console.error(`Error: ${resolution.status[0]?.message ?? `Schema '${name}' is unavailable`}`);
           }
           process.exitCode = 1;
           return;
@@ -526,7 +622,8 @@ export function registerSchemaCommand(program: Command): void {
     .option('--verbose', 'Show detailed validation steps')
     .action(async (name?: string, options?: { json?: boolean; verbose?: boolean }) => {
       try {
-        const projectRoot = process.cwd();
+        const projectRoot =
+          resolveSchemaConsumerRoot(process.cwd()) ?? process.cwd();
 
         if (!name) {
           // Validate all project schemas
@@ -673,7 +770,8 @@ export function registerSchemaCommand(program: Command): void {
       const spinner = options?.json ? null : ora();
 
       try {
-        const projectRoot = process.cwd();
+        const projectRoot =
+          resolveSchemaConsumerRoot(process.cwd()) ?? process.cwd();
         const destinationName = name || `${source}-custom`;
 
         // Validate destination name
@@ -690,6 +788,8 @@ export function registerSchemaCommand(program: Command): void {
           process.exitCode = 1;
           return;
         }
+
+        assertProjectSchemaNameUnclaimed(projectRoot, destinationName);
 
         // Find source schema
         const sourceDir = getSchemaDir(source, projectRoot);
@@ -771,6 +871,9 @@ export function registerSchemaCommand(program: Command): void {
         if (options?.json) {
           console.log(JSON.stringify({
             forked: false,
+            ...(error instanceof RemoteSchemaResolutionError
+              ? { code: error.code }
+              : {}),
             error: (error as Error).message,
           }, null, 2));
         } else {
@@ -803,7 +906,8 @@ export function registerSchemaCommand(program: Command): void {
       const spinner = options?.json ? null : ora();
 
       try {
-        const projectRoot = process.cwd();
+        const projectRoot =
+          resolveSchemaConsumerRoot(process.cwd()) ?? process.cwd();
 
         // Validate name
         if (!isValidSchemaName(name)) {
@@ -819,6 +923,8 @@ export function registerSchemaCommand(program: Command): void {
           process.exitCode = 1;
           return;
         }
+
+        assertProjectSchemaNameUnclaimed(projectRoot, name);
 
         const schemaDir = path.join(getProjectSchemasDir(projectRoot), name);
 
@@ -1041,6 +1147,9 @@ export function registerSchemaCommand(program: Command): void {
         if (options?.json) {
           console.log(JSON.stringify({
             created: false,
+            ...(error instanceof RemoteSchemaResolutionError
+              ? { code: error.code }
+              : {}),
             error: (error as Error).message,
           }, null, 2));
         } else {

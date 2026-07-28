@@ -18,6 +18,8 @@ export interface CreateChangeOptions {
   defaultSchema?: string;
   /** Directory that should contain the change directories */
   changesDir?: string;
+  /** Consumer repository that owns schema configuration and caches. */
+  schemaRoot?: string;
   /** Additional metadata to persist in the change's .openspec.yaml */
   metadata?: Partial<Pick<ChangeMetadata, 'goal' | 'affected_areas' | 'initiative'>>;
 }
@@ -131,6 +133,7 @@ export async function createChange(
   }
 
   const defaultSchema = options.defaultSchema ?? DEFAULT_SCHEMA;
+  const schemaRoot = options.schemaRoot ?? projectRoot;
 
   // Determine schema: explicit option → project config → supplied default
   let schemaName: string;
@@ -139,7 +142,7 @@ export async function createChange(
   } else {
     // Try to read from project config
     try {
-      const config = readProjectConfig(projectRoot);
+      const config = readProjectConfig(schemaRoot);
       schemaName = config?.schema ?? defaultSchema;
     } catch {
       // If config read fails, use default
@@ -148,7 +151,7 @@ export async function createChange(
   }
 
   // Validate the resolved schema
-  validateSchemaName(schemaName, projectRoot);
+  validateSchemaName(schemaName, schemaRoot);
 
   // Build the change directory path
   const changeDir = path.join(options.changesDir ?? path.join(projectRoot, 'openspec', 'changes'), name);
@@ -184,7 +187,7 @@ export async function createChange(
     schema: schemaName,
     created: formatLocalDate(),
     ...options.metadata,
-  }, projectRoot);
+  }, schemaRoot);
 
   return { schema: schemaName, changeDir };
 }

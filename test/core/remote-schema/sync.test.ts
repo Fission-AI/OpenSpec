@@ -93,6 +93,48 @@ schemaSources:
       .toBe('# one\n');
   });
 
+  it('rejects synchronization when a project-local schema owns the declared remote name', async () => {
+    const localSchema = path.join(projectRoot, 'openspec', 'schemas', 'team-flow');
+    fs.cpSync(path.join(repo, 'schemas', 'team-flow'), localSchema, {
+      recursive: true,
+    });
+
+    await expect(syncRemoteSchemas(projectRoot, { globalDataDir })).rejects.toThrow(
+      /project-local schema.*conflicts with declared remote schema/i
+    );
+    expect(readSchemaLock(projectRoot)).toBeNull();
+  });
+
+  it('preserves both lock entries when named synchronizations run concurrently', async () => {
+    writeSchema(repo, 'review-flow', 'review');
+    git(repo, 'add', '-A');
+    git(repo, 'commit', '-m', 'review flow');
+    fs.writeFileSync(
+      path.join(projectRoot, 'openspec', 'config.yaml'),
+      `schema: team-flow
+schemaSources:
+  team-flow:
+    git: ${pathToFileURL(repo).href}
+    ref: main
+    path: schemas/team-flow
+  review-flow:
+    git: ${pathToFileURL(repo).href}
+    ref: main
+    path: schemas/review-flow
+`
+    );
+
+    await Promise.all([
+      syncRemoteSchemas(projectRoot, { name: 'team-flow', globalDataDir }),
+      syncRemoteSchemas(projectRoot, { name: 'review-flow', globalDataDir }),
+    ]);
+
+    expect(Object.keys(readSchemaLock(projectRoot)?.schemas ?? {}).sort()).toEqual([
+      'review-flow',
+      'team-flow',
+    ]);
+  });
+
   it('keeps using the old lock until an explicit update and supports locked restoration', async () => {
     const first = await syncRemoteSchemas(projectRoot, { globalDataDir });
     const lockPath = path.join(projectRoot, 'openspec', 'schemas.lock.yaml');

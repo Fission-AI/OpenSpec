@@ -193,7 +193,7 @@ export class ValidateCommand {
   }
 
   private async validateByType(root: ResolvedOpenSpecRoot, type: ItemType, id: string, opts: { strict: boolean; json: boolean }): Promise<void> {
-    const validator = new Validator(opts.strict);
+    const validator = new Validator(opts.strict, root.schemaRoot);
     if (type === 'change') {
       const changeDir = path.join(root.changesDir, id);
       const start = Date.now();
@@ -272,7 +272,7 @@ export class ValidateCommand {
     const DEFAULT_CONCURRENCY = 6;
     const maxSuggestions = 5; // used by nearestMatches
     const concurrency = normalizeConcurrency(opts.concurrency) ?? normalizeConcurrency(process.env.OPENSPEC_CONCURRENCY) ?? DEFAULT_CONCURRENCY;
-    const validator = new Validator(opts.strict);
+    const validator = new Validator(opts.strict, root.schemaRoot);
     const queue: Array<() => Promise<BulkItemResult>> = [];
 
     for (const id of changeIds) {

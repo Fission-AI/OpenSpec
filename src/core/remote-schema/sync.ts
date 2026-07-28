@@ -1,12 +1,14 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { validateSchemaDirectory } from '../artifact-graph/schema-directory.js';
+import { validateRemoteSchemaDirectory } from '../artifact-graph/schema-directory.js';
 import { getGlobalDataDir } from '../global-config.js';
 import { readProjectConfig } from '../project-config.js';
 import { installRemoteSchemaCache, verifyRemoteSchemaCache } from './cache.js';
 import { fetchSchemaBundleFromGit } from './git.js';
 import { getSchemaLockPath, readSchemaLock, writeSchemaLock } from './lockfile.js';
+import { assertNoProjectSchemaConflict } from './authority.js';
+import { withSchemaSyncLock } from './sync-lock.js';
 import type {
   GitSchemaSource,
   RemoteSchemaLock,
@@ -71,6 +73,15 @@ export async function syncRemoteSchemas(
   projectRoot: string,
   options: SyncRemoteSchemasOptions = {}
 ): Promise<SyncRemoteSchemasResult> {
+  return withSchemaSyncLock(projectRoot, () =>
+    syncRemoteSchemasUnlocked(projectRoot, options)
+  );
+}
+
+async function syncRemoteSchemasUnlocked(
+  projectRoot: string,
+  options: SyncRemoteSchemasOptions
+): Promise<SyncRemoteSchemasResult> {
   const config = readProjectConfig(projectRoot);
   const sources = config?.schemaSources;
   if (!sources || Object.keys(sources).length === 0) {
@@ -78,6 +89,9 @@ export async function syncRemoteSchemas(
   }
 
   const selected = selectedSources(sources, options.name);
+  for (const [name] of selected) {
+    assertNoProjectSchemaConflict(projectRoot, name);
+  }
   let currentLock: RemoteSchemaLock | null;
   try {
     currentLock = readSchemaLock(projectRoot);
@@ -117,10 +131,7 @@ export async function syncRemoteSchemas(
       }
       try {
         const cacheDir = verifyRemoteSchemaCache(lockedEntry.integrity, globalDataDir);
-        validateSchemaDirectory(cacheDir, {
-          expectedName: name,
-          requireTemplatesDirectory: true,
-        });
+        validateRemoteSchemaDirectory(cacheDir, name);
         results.push({
           name,
           git: source.git,
@@ -148,10 +159,7 @@ export async function syncRemoteSchemas(
         bundlePath: source.path,
         destinationDir: extractionDir,
       });
-      validateSchemaDirectory(extractionDir, {
-        expectedName: name,
-        requireTemplatesDirectory: true,
-      });
+      validateRemoteSchemaDirectory(extractionDir, name);
       if (options.locked && fetched.integrity !== lockedEntry?.integrity) {
         throw new Error(
           `Remote schema '${name}' content does not match the lockfile integrity`
