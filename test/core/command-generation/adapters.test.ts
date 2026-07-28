@@ -28,7 +28,12 @@ import { roocodeAdapter } from '../../../src/core/command-generation/adapters/ro
 import { traeAdapter } from '../../../src/core/command-generation/adapters/trae.js';
 import { windsurfAdapter } from '../../../src/core/command-generation/adapters/windsurf.js';
 import { zcodeAdapter } from '../../../src/core/command-generation/adapters/zcode.js';
-import type { CommandContent } from '../../../src/core/command-generation/types.js';
+import type {
+  CommandContent,
+  ToolCommandAdapter,
+} from '../../../src/core/command-generation/types.js';
+import { CommandAdapterRegistry } from '../../../src/core/command-generation/registry.js';
+import { parse as parseYaml } from 'yaml';
 
 describe('command-generation/adapters', () => {
   const sampleContent: CommandContent = {
@@ -950,32 +955,58 @@ describe('command-generation/adapters', () => {
   });
 
   describe('YAML frontmatter escaping across adapters', () => {
-    const yamlAdapters = [
-      amazonQAdapter,
-      antigravityAdapter,
-      auggieAdapter,
-      bobAdapter,
-      claudeAdapter,
-      codebuddyAdapter,
-      continueAdapter,
-      costrictAdapter,
-      crushAdapter,
-      cursorAdapter,
-      factoryAdapter,
-      githubCopilotAdapter,
-      iflowAdapter,
-      junieAdapter,
-      kiroAdapter,
-      lingmaAdapter,
-      ohMyPiAdapter,
-      opencodeAdapter,
-      piAdapter,
-      qoderAdapter,
-      qwenAdapter,
-      traeAdapter,
-      windsurfAdapter,
-      zcodeAdapter,
-    ];
+    // Derived from the registry, not hand-listed: a newly registered adapter
+    // must be covered by default. Adding one that emits no YAML frontmatter is
+    // then a deliberate act of adding it here.
+    const NON_YAML_ADAPTERS = ['cline', 'kilocode', 'roocode', 'gemini'];
+    const yamlAdapters = CommandAdapterRegistry.getAll().filter(
+      (adapter) => !NON_YAML_ADAPTERS.includes(adapter.toolId)
+    );
+
+    /**
+     * Builds a CommandContent whose every string field carries `marker`.
+     */
+    function contentWith(marker: string): CommandContent {
+      return {
+        id: 'explore',
+        name: marker,
+        description: marker,
+        category: marker,
+        tags: [marker, 'explore'],
+        body: 'Body text',
+      };
+    }
+
+    /**
+     * Returns the frontmatter fields this adapter fills from CommandContent,
+     * found by rendering two different markers and keeping the fields that
+     * change. Fields derived from the command id (Cursor's `name`/`id`) or
+     * emitted as constants stay put and are excluded.
+     */
+    function contentDerivedFields(adapter: ToolCommandAdapter): string[] {
+      const render = (marker: string): Record<string, unknown> => {
+        const match = adapter.formatFile(contentWith(marker)).match(/^---\n([\s\S]*?)\n---/);
+        return (parseYaml(match![1]) ?? {}) as Record<string, unknown>;
+      };
+      const left = render('AAA-marker');
+      const right = render('BBB-marker');
+      return Object.keys(left).filter(
+        (key) => JSON.stringify(left[key]) !== JSON.stringify(right[key])
+      );
+    }
+
+    it('covers every registered YAML adapter', () => {
+      const baseline = contentWith('Baseline');
+      expect(yamlAdapters.length).toBeGreaterThan(0);
+      for (const adapter of yamlAdapters) {
+        expect(adapter.formatFile(baseline), adapter.toolId).toMatch(/^---\n/);
+      }
+      for (const toolId of NON_YAML_ADAPTERS) {
+        const adapter = CommandAdapterRegistry.get(toolId);
+        expect(adapter, `${toolId} is excluded but not registered`).toBeDefined();
+        expect(adapter!.formatFile(baseline), toolId).not.toMatch(/^---\n/);
+      }
+    });
 
     const roundTripCases: Array<[string, string]> = [
       ['plain text', 'Enter explore mode for thinking'],
@@ -1016,28 +1047,53 @@ describe('command-generation/adapters', () => {
     for (const adapter of yamlAdapters) {
       describe(`${adapter.toolId} adapter table-driven round-trip`, () => {
         for (const [label, testVal] of roundTripCases) {
-          it(`preserves description value and string type for ${label}`, () => {
+          it(`preserves every string field and its type for ${label}`, () => {
+            // Every string field carries the hostile value, not just
+            // description: a field an adapter forgot to escape is only caught
+            // if the matrix actually drives that field.
             const content: CommandContent = {
               id: 'explore',
-              name: 'OpenSpec Explore',
+              name: testVal,
               description: testVal,
-              category: 'Workflow',
-              tags: ['workflow', 'explore'],
+              category: testVal,
+              tags: [testVal, 'explore'],
               body: 'Body text',
             };
 
             const fileContent = adapter.formatFile(content);
             const frontmatterMatch = fileContent.match(/^---\n([\s\S]*?)\n---/);
             expect(frontmatterMatch).not.toBeNull();
+            const frontmatter = frontmatterMatch![1];
 
-            const { parse: parseYaml } = require('yaml');
-            let parsed: any;
+            // A raw CR survives the parser but corrupts the file for anything
+            // that splits on lines, so round-tripping alone would not catch it.
+            expect(frontmatter, 'raw carriage return in frontmatter').not.toContain('\r');
+
+            let parsed: Record<string, unknown> | undefined;
             expect(() => {
-              parsed = parseYaml(frontmatterMatch![1]);
+              parsed = parseYaml(frontmatter);
             }).not.toThrow();
 
-            expect(parsed.description).toBe(testVal);
-            expect(typeof parsed.description).toBe('string');
+            // Adapters emit different field subsets, and some derive name/id
+            // from the command id rather than from the content. Identify the
+            // content-derived fields by rendering a second time with a
+            // different value and seeing which outputs move — a field that is
+            // constant across both renders never carried our input, so it has
+            // nothing to round-trip. This must not be softened into "skip the
+            // field if it doesn't look like our value": a broken escape mangles
+            // the value, and skipping on mismatch would skip the very bug.
+            const contentFields = contentDerivedFields(adapter);
+            expect(contentFields.length, `${adapter.toolId} emits no content fields`)
+              .toBeGreaterThan(0);
+
+            for (const field of contentFields) {
+              if (field === 'tags') {
+                expect(parsed!.tags, `${adapter.toolId}.tags`).toEqual([testVal, 'explore']);
+                continue;
+              }
+              expect(parsed![field], `${adapter.toolId}.${field}`).toBe(testVal);
+              expect(typeof parsed![field], `${adapter.toolId}.${field} type`).toBe('string');
+            }
           });
         }
       });

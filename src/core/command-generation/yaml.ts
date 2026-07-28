@@ -10,21 +10,33 @@
 /**
  * Escapes a string value for safe YAML output.
  *
- * Quotes the value with double quotes when it contains characters that
- * carry special meaning in YAML (or leading/trailing whitespace), and
- * escapes the characters that are not representable verbatim inside a
- * double-quoted scalar: backslash, double quote, line feed and carriage
- * return. Values without special characters are returned unquoted.
+ * Always emits a double-quoted scalar. Quoting unconditionally keeps the
+ * value a string no matter what it holds: an unquoted `true`, `null` or
+ * `123` would round-trip as a boolean, null or number, and an unquoted
+ * value opening with a block indicator (`|`, `>`) or containing `: `
+ * is not valid YAML at all.
+ *
+ * Inside the quotes it escapes everything that cannot appear verbatim in a
+ * double-quoted scalar: backslash, double quote, line feed, carriage
+ * return, and the non-printable characters YAML's `c-printable` production
+ * excludes (C0 controls, DEL and C1 controls). Lenient parsers accept a raw
+ * control byte, but strict ones reject the document outright, so escaping
+ * them here keeps the generated file portable across every tool's parser.
  *
  * @param value - The raw string to embed in YAML frontmatter.
- * @returns The value, double-quoted and escaped when necessary.
+ * @returns The value as an escaped, double-quoted YAML scalar.
  */
 export function escapeYamlValue(value: string): string {
   const escaped = value
     .replace(/\\/g, '\\\\')
     .replace(/"/g, '\\"')
     .replace(/\n/g, '\\n')
-    .replace(/\r/g, '\\r');
+    .replace(/\r/g, '\\r')
+    // Remaining non-printables have no dedicated escape; emit them as \xHH.
+    .replace(
+      /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]/g,
+      (char) => `\\x${char.charCodeAt(0).toString(16).padStart(2, '0')}`
+    );
   return `"${escaped}"`;
 }
 

@@ -39,10 +39,18 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 3. **Find delta specs**
 
    Use `artifactPaths.specs.existingOutputPaths` from the status JSON as the
-   complete list of delta spec files. If the `specs` entry is missing or
+   only source of delta spec paths. If the `specs` entry is missing or
    `existingOutputPaths` is empty, report that there are no delta specs to sync,
    do not infer them from other artifacts, and stop without requesting artifact
    instructions or writing a main spec.
+
+   Sync every path in `existingOutputPaths` unless a caller narrowed the set:
+   if archive invoked this workflow inline and supplied an explicit subset of
+   `existingOutputPaths` to sync, sync only that subset and leave the remaining
+   delta specs untouched — bulk archive excludes a delta whose implementation it
+   could not find, and syncing it anyway would write a main spec the caller
+   deliberately withheld. Never sync a path outside `existingOutputPaths`, and
+   never widen a supplied subset back to the full list.
 
    Each delta spec file contains sections like:
    - `## ADDED Requirements` - New requirements to add
@@ -201,6 +209,7 @@ Main specs are now updated. The change remains active - archive when implementat
 - Show what you're changing as you go
 - The operation should be idempotent - running twice should give same result
 - Use only `artifactPaths.specs.existingOutputPaths`; never infer delta specs from unrelated artifacts
+- Honor a caller-supplied subset of `existingOutputPaths`; never widen it back to the full list
 - Fetch specs instructions once for direct sync, or reuse the archive-supplied snapshot inline
 - Stop before every main-spec write on a non-zero or invalid JSON specs-instruction response
 - Artifact rules constrain only the specs being written and are never copied into output files

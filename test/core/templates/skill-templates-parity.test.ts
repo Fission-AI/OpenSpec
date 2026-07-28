@@ -42,7 +42,7 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getContinueChangeSkillTemplate: 'bb3e6440eeae417a8f7efd1c064024ab2fcf824ff2adbf37cfc2607a2c8c6249',
   getApplyChangeSkillTemplate: '031cf8f8ffc2937fc4051651bd5e1fc6159bfd225605d8e4c3181054a4e52b38',
   getFfChangeSkillTemplate: '225a8eaf1b3769ac5d43e079297c5fa9cc20fc2e34fec9bb0d887c8c1fb0ea71',
-  getSyncSpecsSkillTemplate: '125672d288cb990759679c2aa2976fccb9c13cceb2af43a89f99dd1aae9bc397',
+  getSyncSpecsSkillTemplate: '2e672cc4c60df64062cd654109554744c312d175e06abc245123b6bddad84ff9',
   getOnboardSkillTemplate: '31dffc7c3b8d75ffbd59ed751d6a1550b885b20ef90e12d236262127ee4021e9',
   getOpsxExploreCommandTemplate: 'e9674ddace813e685b0e9fe37149140a3d33d48aa20b9ba2b0963a7c49c9aea7',
   getOpsxNewCommandTemplate: '652adc870f16bb260d54436356132b6ee051a9ed7cc0464603fb31f4db259762',
@@ -51,7 +51,7 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getOpsxFfCommandTemplate: '678375642a21d255444f0ba717e659abb2cc2b7474981d52eae900a0793e3e4d',
   getArchiveChangeSkillTemplate: 'd325f65b26dccba084ace510874cf92b73cecdc430d93b2d73dd0066b95619a3',
   getBulkArchiveChangeSkillTemplate: 'de198c7b7c1472773b013b9af917de27773fd613083309f0e8e607c005c92d3d',
-  getOpsxSyncCommandTemplate: 'a1404217de12a9ca31b2abe66c352ce47e5f362fb016e3650655cc599b94430a',
+  getOpsxSyncCommandTemplate: '5432a035bdc6799bdf7fe23451988182582dbcfdccc9dea95ae97390991ebda5',
   getVerifyChangeSkillTemplate: '4af69762ff061c1a76dad21725827d87b168dca8bd0c4cea133152e37cacc2ce',
   getOpsxArchiveCommandTemplate: '88f8b83973b2803975c89117027d2172c3376b066276e3b0025d3b8e0e8ec597',
   getOpsxOnboardCommandTemplate: 'e69a5aa37749727290c05b687981dd69f3b17a55514a118d088c4124c5fd8505',
@@ -70,7 +70,7 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-continue-change': '0d3fe07961b061a9bac0d18f98891038ffd89f70c4f3d987fc997379a9e6e9f4',
   'openspec-apply-change': '49fc5772404e3033085384ee214c44488c93880a596a9a05dcad42f9ce86cf83',
   'openspec-ff-change': '4228d75e3571097164f2360e2ad3063a5b88d44750078c3601b23a89e74c1de6',
-  'openspec-sync-specs': '7eae5d8a46b8b81bd6acad9b78f5dae25e3f848052bebb291a494ed0c0f9ea67',
+  'openspec-sync-specs': 'da7a6d5194cc6165c3f0f02306336c10297ca94c53fb90d8f761d365c6b97241',
   'openspec-archive-change': 'bd30f9c1f5979c4b469796dc231c5ad3be3c9ede54c8eb92c5b5f96b35241265',
   'openspec-bulk-archive-change': '5ac320e2004e453c78541233f48e5f6e246cc674a44f1e427cecb7b2e9587f9b',
   'openspec-verify-change': '0b087d5428df63145f4853a3b136eca522e3a9cbe88047fb30e5f774d873adf4',
@@ -310,6 +310,56 @@ describe('skill templates split parity', () => {
       expect(content, variant).toContain(
         '`sync skipped` without treating the archive itself as skipped'
       );
+
+      // These three carried no assertion, so deleting any of them from a
+      // single variant was caught only by the golden hash — and this repo
+      // regenerates hashes as a matter of routine, which makes that no
+      // protection at all.
+      expect(content, variant).toContain(
+        '`includedDeltas`: all non-conflicting delta specs from confirmed changes plus conflict deltas selected for sync'
+      );
+      expect(content, variant).toContain(
+        '`excludedDeltas`: conflict deltas from confirmed changes excluded because their implementation is missing'
+      );
+      expect(content, variant).toContain(
+        'Carry the per-delta `includedDeltas` and `excludedDeltas` decisions into execution'
+      );
+      // The worked example must show the skip, or the agent has no model of
+      // what a partially-synced batch report looks like.
+      expect(content, variant).toContain(
+        '1 delta spec sync skipped (add-jwt/auth: implementation not found)'
+      );
+    }
+  });
+
+  it('lets the sync workflow honor the delta subset bulk archive hands it', () => {
+    // Bulk archive tells sync to ignore excludedDeltas, but sync treats
+    // existingOutputPaths as its own source of truth. Without an explicit
+    // carve-out the callee re-syncs the delta the caller withheld, step 8b
+    // never checks it (it verifies only includedDeltas), and the run still
+    // reports `sync skipped` for a spec that was in fact written.
+    const variants: Array<[string, string]> = [
+      ['sync skill', getSyncSpecsSkillTemplate().instructions],
+      ['sync command', getOpsxSyncCommandTemplate().content],
+    ];
+
+    for (const [variant, content] of variants) {
+      expect(content, variant).toContain(
+        'supplied an explicit subset of'
+      );
+      expect(content, variant).toContain(
+        'sync only that subset and leave the remaining'
+      );
+      expect(content, variant).toContain(
+        'never widen a supplied subset back to the full list'
+      );
+      expect(content, variant).toContain(
+        'Honor a caller-supplied subset of `existingOutputPaths`'
+      );
+
+      // The pre-merge wording called existingOutputPaths the "complete list",
+      // which reads as an instruction to override the caller's exclusions.
+      expect(content, variant).not.toContain('complete list of delta spec files');
     }
   });
 
