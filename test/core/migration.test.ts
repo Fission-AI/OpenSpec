@@ -41,10 +41,14 @@ function captureMigrationLogs(projectDir: string, tools: AIToolOption[]): string
   }
 }
 
-async function writeManagedCommand(projectPath: string, workflowId: string): Promise<void> {
-  const adapter = CommandAdapterRegistry.get('claude');
+async function writeManagedCommand(
+  projectPath: string,
+  workflowId: string,
+  toolId = 'claude'
+): Promise<void> {
+  const adapter = CommandAdapterRegistry.get(toolId);
   if (!adapter) {
-    throw new Error('Claude adapter not found');
+    throw new Error(`${toolId} adapter not found`);
   }
   const commandPath = adapter.getFilePath(workflowId);
   const fullPath = path.isAbsolute(commandPath)
@@ -163,6 +167,34 @@ describe('migration', () => {
     expect(message).toContain('$openspec-propose');
     expect(message).not.toContain('/openspec-propose');
     expect(message).not.toContain('/opsx:propose');
+  });
+
+  it('prints the hyphen propose reference when migrating a qwen-only project', async () => {
+    // Qwen invokes commands by filename (.qwen/commands/opsx-propose.md ->
+    // /opsx-propose), so the upgrade message must not advertise the colon form
+    // its palette never registers.
+    await writeManagedCommand(projectDir, 'apply', 'qwen');
+
+    const message = captureMigrationLogs(projectDir, [requireTool('qwen')]).find((entry) =>
+      entry.includes('New in this version')
+    );
+    expect(message).toContain('/opsx-propose');
+    expect(message).not.toContain('/opsx:propose');
+  });
+
+  it('falls back to the skill name when a namespaced and a flat tool disagree', async () => {
+    // Claude registers /opsx:propose, Qwen registers /opsx-propose: no single
+    // slash form is right for both, so neither may be advertised.
+    await writeManagedCommand(projectDir, 'apply', 'claude');
+    await writeManagedCommand(projectDir, 'apply', 'qwen');
+
+    const message = captureMigrationLogs(projectDir, [
+      requireTool('claude'),
+      requireTool('qwen'),
+    ]).find((entry) => entry.includes('New in this version'));
+    expect(message).toContain('the openspec-propose skill');
+    expect(message).not.toContain('/opsx:propose');
+    expect(message).not.toContain('/opsx-propose');
   });
 
   it('prints the documented /skill: propose reference when migrating a kimi-only project', async () => {

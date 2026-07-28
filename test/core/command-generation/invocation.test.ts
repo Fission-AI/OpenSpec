@@ -8,6 +8,7 @@ import { CommandAdapterRegistry } from '../../../src/core/command-generation/reg
 import { resolveCommandInvocationStyle } from '../../../src/core/command-surface.js';
 import { generateCommand } from '../../../src/core/command-generation/generator.js';
 import type { CommandContent } from '../../../src/core/command-generation/types.js';
+import { ALL_WORKFLOWS } from '../../../src/core/profiles.js';
 
 /**
  * Tools whose command files live in an `opsx/` directory, so the tool
@@ -54,27 +55,29 @@ describe('command-generation/invocation', () => {
       }
     });
 
-    it('classifies every command id the same way', () => {
+    it('classifies every command id as that adapter is expected to be classified', () => {
       for (const adapter of CommandAdapterRegistry.getAll()) {
-        const styles = new Set(
-          ['apply', 'archive', 'bulk-archive', 'propose'].map((id) =>
-            getInvocationStyleForPath(adapter.getFilePath(id))
-          )
-        );
-        expect(styles.size, `${adapter.toolId} must use one naming rule`).toBe(1);
+        const expected = NAMESPACED_TOOLS.includes(adapter.toolId) ? 'namespaced' : 'flat';
+        for (const id of ALL_WORKFLOWS) {
+          expect(
+            getInvocationStyleForPath(adapter.getFilePath(id)),
+            `${adapter.toolId} ${id}`
+          ).toBe(expected);
+        }
       }
     });
   });
 
   describe('resolveCommandInvocationStyle', () => {
     it('resolves the style for every registered tool', () => {
+      // Compared against the expected table, not against
+      // getInvocationStyleForAdapter — asserting f(x) === f(x) can never fail.
+      for (const adapter of CommandAdapterRegistry.getAll()) {
+        const expected = NAMESPACED_TOOLS.includes(adapter.toolId) ? 'namespaced' : 'flat';
+        expect(resolveCommandInvocationStyle(adapter.toolId), adapter.toolId).toBe(expected);
+      }
       expect(resolveCommandInvocationStyle('cursor')).toBe('flat');
       expect(resolveCommandInvocationStyle('claude')).toBe('namespaced');
-      for (const adapter of CommandAdapterRegistry.getAll()) {
-        expect(resolveCommandInvocationStyle(adapter.toolId), adapter.toolId).toBe(
-          getInvocationStyleForAdapter(adapter)
-        );
-      }
     });
 
     it('returns undefined for tools with no command adapter', () => {
@@ -105,10 +108,21 @@ describe('command-generation/invocation', () => {
       }
     });
 
-    it('does not alter the body of a tool that ships no command references', () => {
+    it('rewrites nothing but the command references', () => {
       const adapter = CommandAdapterRegistry.get('cursor')!;
-      const plain = { ...sampleContent, body: 'Plain body with no command references.' };
-      expect(generateCommand(plain, adapter).fileContent).toContain('Plain body with no command references.');
+      const plain = { ...sampleContent, body: 'Plain body. See docs/opsx.md and openspec/changes/.' };
+      const { fileContent } = generateCommand(plain, adapter);
+      expect(fileContent).toContain('Plain body. See docs/opsx.md and openspec/changes/.');
+    });
+
+    it('leaves the adapters themselves as pure formatters', () => {
+      // generateCommand owns the rewrite; an adapter that re-added its own
+      // body transform would break this contract even though the output of
+      // generateCommand happens to be identical (the rewrite is idempotent).
+      for (const toolId of ['bob', 'oh-my-pi', 'opencode', 'pi', 'qwen', 'cursor']) {
+        const adapter = CommandAdapterRegistry.get(toolId)!;
+        expect(adapter.formatFile(sampleContent), toolId).toContain('/opsx:archive');
+      }
     });
   });
 });

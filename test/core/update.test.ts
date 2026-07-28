@@ -296,6 +296,64 @@ Old instructions content
   });
 
   describe('command updates', () => {
+    it('heals stale colon references for a filename-invoked tool (cursor)', async () => {
+      // The headline upgrade path for #1307: a project generated before the
+      // fix carries /opsx: references that Cursor's palette never registers.
+      // `openspec update` must rewrite both the command bodies and the skills.
+      const initCommand = new InitCommand({ tools: 'cursor', force: true });
+      await initCommand.execute(testDir);
+
+      const commandFile = path.join(testDir, '.cursor', 'commands', 'opsx-apply.md');
+      const skillFile = path.join(
+        testDir,
+        '.cursor',
+        'skills',
+        'openspec-apply-change',
+        'SKILL.md'
+      );
+      for (const file of [commandFile, skillFile]) {
+        const stale = (await fs.readFile(file, 'utf-8')).replace(/\/opsx-/g, '/opsx:');
+        await fs.writeFile(file, stale);
+      }
+      expect(await fs.readFile(commandFile, 'utf-8')).toContain('/opsx:apply');
+
+      await new UpdateCommand({ force: true }).execute(testDir);
+
+      const command = await fs.readFile(commandFile, 'utf-8');
+      expect(command).toContain('/opsx-archive');
+      expect(command).not.toContain('/opsx:');
+
+      const skill = await fs.readFile(skillFile, 'utf-8');
+      expect(skill).not.toContain('/opsx:');
+    });
+
+    it('keeps namespaced references for claude while hyphenating qwen in one run', async () => {
+      const initCommand = new InitCommand({ tools: 'claude,qwen', force: true });
+      await initCommand.execute(testDir);
+
+      await new UpdateCommand({ force: true }).execute(testDir);
+
+      const claudeCommand = await fs.readFile(
+        path.join(testDir, '.claude', 'commands', 'opsx', 'apply.md'),
+        'utf-8'
+      );
+      expect(claudeCommand).toContain('/opsx:archive');
+      expect(claudeCommand).not.toContain('/opsx-archive');
+
+      const qwenCommand = await fs.readFile(
+        path.join(testDir, '.qwen', 'commands', 'opsx-apply.md'),
+        'utf-8'
+      );
+      expect(qwenCommand).toContain('/opsx-archive');
+      expect(qwenCommand).not.toContain('/opsx:');
+
+      const qwenSkill = await fs.readFile(
+        path.join(testDir, '.qwen', 'skills', 'openspec-apply-change', 'SKILL.md'),
+        'utf-8'
+      );
+      expect(qwenSkill).not.toContain('/opsx:');
+    });
+
     it('should update opsx commands for configured Claude tool', async () => {
       // Set up a configured Claude tool
       const skillsDir = path.join(testDir, '.claude', 'skills');
@@ -1153,6 +1211,31 @@ ${OPENSPEC_MARKERS.end}
       // Only the inferred workflow is advertised, not the rest of the profile
       expect(logCalls.some((entry) => entry.includes('Next artifact'))).toBe(false);
       expect(logCalls.some((entry) => entry.includes('Implement tasks'))).toBe(false);
+    });
+
+    it('should print the hyphen getting-started menu when a legacy upgrade newly configures cursor', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'both',
+      });
+
+      // A pre-opsx Cursor project: legacy .cursor/commands/openspec-*.md files
+      // make the upgrade newly configure cursor, whose menu must name the
+      // commands its palette registers (/opsx-propose), not /opsx:propose.
+      const legacyDir = path.join(testDir, '.cursor', 'commands');
+      await fs.mkdir(legacyDir, { recursive: true });
+      await fs.writeFile(path.join(legacyDir, 'openspec-proposal.md'), 'legacy proposal command');
+
+      const consoleSpy = vi.spyOn(console, 'log');
+      await new UpdateCommand({ force: true }).execute(testDir);
+      const logCalls = consoleSpy.mock.calls.flat().map(String);
+      consoleSpy.mockRestore();
+
+      const menuLines = logCalls.filter((entry) => entry.includes('Start a change'));
+      expect(menuLines).toHaveLength(1);
+      expect(menuLines[0]).toContain('/opsx-propose');
+      expect(logCalls.some((entry) => entry.includes('/opsx:propose'))).toBe(false);
     });
 
     it('should preserve legacy Codex prompts when a configured Codex tool lacks the replacement workflow', async () => {

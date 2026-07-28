@@ -24,6 +24,12 @@ export type CommandInvocationStyle = 'namespaced' | 'flat';
 /**
  * Classifies a generated command file by the name the tool will answer to.
  *
+ * The test is the filename, not the directory: an `opsx-` prefix means the
+ * filename is the command. Every other shape is treated as namespaced, which
+ * is what all seven `opsx/<id>.*` adapters need. An adapter that neither
+ * prefixes the filename nor nests under `opsx/` would land here too — none
+ * does, and the registry-wide test in invocation.test.ts fails if one appears.
+ *
  * @param commandFilePath - Path returned by an adapter's `getFilePath`
  * @returns 'flat' when the filename carries the `opsx-` prefix, otherwise
  *          'namespaced'

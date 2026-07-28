@@ -1076,7 +1076,9 @@ describe('InitCommand - profile and detection features', () => {
     const read = (...segments: string[]) => fs.readFile(path.join(testDir, ...segments), 'utf-8');
 
     const cursorCommand = await read('.cursor', 'commands', 'opsx-apply.md');
-    expect(cursorCommand).toContain('/opsx-');
+    // A body cross-reference, not the frontmatter name, which already
+    // carried the hyphen form before this behaviour existed.
+    expect(cursorCommand).toContain('/opsx-archive');
     expect(cursorCommand).not.toContain('/opsx:');
 
     const cursorSkill = await read('.cursor', 'skills', 'openspec-apply-change', 'SKILL.md');
@@ -1084,7 +1086,7 @@ describe('InitCommand - profile and detection features', () => {
 
     // Claude's namespaced commands are unchanged
     const claudeCommand = await read('.claude', 'commands', 'opsx', 'apply.md');
-    expect(claudeCommand).toContain('/opsx:');
+    expect(claudeCommand).toContain('/opsx:archive');
     expect(claudeCommand).not.toContain('/opsx-');
 
     const claudeSkill = await read('.claude', 'skills', 'openspec-apply-change', 'SKILL.md');

@@ -51,6 +51,19 @@ describe('transformToHyphenCommands', () => {
       const expected = '/opsx-new /opsx-continue /opsx-apply';
       expect(transformToHyphenCommands(input)).toBe(expected);
     });
+
+    it('should leave unknown command references unchanged', () => {
+      // Mirrors transformToSkillReferences: an invented id is left as written
+      // rather than reshaped into a command that does not exist either.
+      const input = 'Try /opsx:unknown-command here';
+      expect(transformToHyphenCommands(input)).toBe(input);
+    });
+
+    it('should rewrite only the known id on a mixed line', () => {
+      expect(transformToHyphenCommands('/opsx:apply and /opsx:bogus')).toBe(
+        '/opsx-apply and /opsx:bogus'
+      );
+    });
   });
 
   describe('multiline content', () => {
