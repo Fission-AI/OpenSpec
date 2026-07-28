@@ -30,6 +30,12 @@ function getWelcomeText(workflows: readonly string[]): string[] {
     for (const { command, description } of onboardingCommands) {
       quickStart.push(`  ${chalk.yellow(command.padEnd(commandWidth + 1))} ${chalk.dim(description)}`);
     }
+    // These are the canonical names. How each tool spells them differs
+    // (/opsx-propose, @opsx-propose, $openspec-propose ...) and cannot be known
+    // until tools are picked, one prompt later — so flag it rather than let the
+    // canonical form read as the literal thing to type. "Getting started"
+    // prints the real spelling once the selection is known.
+    quickStart.push(chalk.dim('  (spelling varies by tool)'));
     quickStart.push('');
   }
 

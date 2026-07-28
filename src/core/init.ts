@@ -974,13 +974,15 @@ export class InitCommand {
 
     // Restart instruction if any tools were configured and got a surface
     // (when nothing was generated there is nothing a restart would pick up);
-    // only mention slash commands when slash commands were actually generated
+    // only mention commands when commands were actually generated. Not "slash
+    // commands": Amazon Q's generated files are prompt-library entries invoked
+    // with @, so a restart line promising slash commands would be wrong for it.
     if ((results.createdTools.length > 0 || results.refreshedTools.length > 0) && (commandsGenerated || skillsGenerated)) {
       console.log();
       console.log(
         chalk.white(
           commandsGenerated
-            ? 'Restart your IDE for slash commands to take effect.'
+            ? 'Restart your IDE for the new commands to take effect.'
             : 'Restart your IDE for the new skills to take effect.'
         )
       );

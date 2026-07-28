@@ -138,6 +138,30 @@ describe('welcome screen', () => {
     expect(output).not.toContain('opsx slash commands');
   });
 
+  it('flags that the quick-start spelling varies by tool', async () => {
+    const { showWelcomeScreen } = await import('../../src/ui/welcome-screen.js');
+    renderStatically();
+
+    // The quick start shows canonical names, but this screen renders one
+    // prompt before tools are picked — an Amazon Q user types @opsx-propose
+    // and a Codex user $openspec-propose, neither of which is shown here.
+    await showWelcomeScreen(['propose']);
+
+    const output = writtenOutput();
+
+    expect(output).toContain('/opsx:propose');
+    expect(output).toContain('spelling varies by tool');
+  });
+
+  it('omits the spelling caveat when there is no quick start block', async () => {
+    const { showWelcomeScreen } = await import('../../src/ui/welcome-screen.js');
+    renderStatically();
+
+    await showWelcomeScreen(['archive']);
+
+    expect(writtenOutput()).not.toContain('spelling varies by tool');
+  });
+
   it('keeps every rendered line inside the animation width budget', async () => {
     const { showWelcomeScreen } = await import('../../src/ui/welcome-screen.js');
     renderStatically();

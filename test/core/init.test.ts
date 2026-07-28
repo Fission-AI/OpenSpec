@@ -1048,6 +1048,36 @@ describe('InitCommand - profile and detection features', () => {
     expect(restartHint).not.toContain('slash commands');
   });
 
+  it('should print the @-prefixed prompt hint for amazon-q (prompt library, no slash surface)', async () => {
+    // Amazon Q loads .amazonq/prompts/opsx-<id>.md into its prompt library,
+    // invoked as @opsx-<id>. It registers no slash command under any spelling,
+    // so neither the hint, the generated prompts, the skills, nor the restart
+    // line may name one.
+    const initCommand = new InitCommand({ tools: 'amazon-q', force: true });
+    await initCommand.execute(testDir);
+
+    const promptFile = path.join(testDir, '.amazonq', 'prompts', 'opsx-apply.md');
+    const skillFile = path.join(testDir, '.amazonq', 'skills', 'openspec-apply-change', 'SKILL.md');
+    for (const file of [promptFile, skillFile]) {
+      expect(await fileExists(file)).toBe(true);
+      const content = await fs.readFile(file, 'utf-8');
+      expect(content).toContain('@opsx-apply');
+      expect(content).not.toContain('/opsx:');
+      expect(content).not.toContain('/opsx-');
+    }
+
+    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+    const startHint = logCalls.find((entry) => entry.includes('Start your first change'));
+    expect(startHint).toContain('@opsx-propose');
+    expect(startHint).not.toContain('/opsx-propose');
+    expect(startHint).not.toContain('/opsx:propose');
+
+    // Commands were generated, but they are not slash commands.
+    const restartHint = logCalls.find((entry) => entry.includes('Restart your IDE'));
+    expect(restartHint).toContain('Restart your IDE for the new commands to take effect.');
+    expect(restartHint).not.toContain('slash commands');
+  });
+
   it('should label the codex hint separately when mixed with a slash-invocable adapterless tool', async () => {
     const initCommand = new InitCommand({ tools: 'codex,vibe', force: true });
     await initCommand.execute(testDir);
