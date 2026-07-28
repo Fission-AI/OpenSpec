@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import * as yaml from 'yaml';
 import { ChangeMetadataSchema, type ChangeMetadata } from '../core/change-metadata/index.js';
 import { listSchemas, resolveSchema } from '../core/artifact-graph/resolver.js';
-import { readProjectConfig } from '../core/project-config.js';
+import { readProjectConfig, type ProjectConfig } from '../core/project-config.js';
 
 export const METADATA_FILENAME = '.openspec.yaml';
 
@@ -148,6 +148,8 @@ export function readChangeMetadata(
 
 export interface ResolveSchemaForChangeOptions {
   metadata?: ChangeMetadata | null;
+  /** Pre-read project config; suppresses the fallback config read when provided. */
+  projectConfig?: ProjectConfig | null;
 }
 
 /**
@@ -184,13 +186,19 @@ export function resolveSchemaForChange(
   }
 
   // 3. Try reading from project config when metadata is absent.
-  try {
-    const config = readProjectConfig(projectRoot);
-    if (config?.schema) {
-      return config.schema;
+  if (options.projectConfig !== undefined) {
+    if (options.projectConfig?.schema) {
+      return options.projectConfig.schema;
     }
-  } catch {
-    // If config read fails, fall back to default
+  } else {
+    try {
+      const config = readProjectConfig(projectRoot);
+      if (config?.schema) {
+        return config.schema;
+      }
+    } catch {
+      // If config read fails, fall back to default
+    }
   }
 
   // 4. Default

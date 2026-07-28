@@ -8,7 +8,7 @@ OPSX replaces the old phase-locked workflow with a fluid, action-based approach.
 
 | Aspect | Legacy | OPSX |
 |--------|--------|------|
-| **Commands** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` | Default: `/opsx:propose`, `/opsx:apply`, `/opsx:sync`, `/opsx:archive` (expanded workflow commands optional) |
+| **Commands** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` | Default: `/opsx:propose`, `/opsx:explore`, `/opsx:apply`, `/opsx:update`, `/opsx:sync`, `/opsx:archive` (expanded workflow commands optional) |
 | **Workflow** | Create all artifacts at once | Create incrementally or all at once—your choice |
 | **Going back** | Awkward phase gates | Natural—update any artifact anytime |
 | **Customization** | Fixed structure | Schema-driven, fully hackable |
@@ -85,7 +85,7 @@ Don't worry about getting it perfect. We're still learning what works best here,
 
 Both `openspec init` and `openspec update` detect legacy files and guide you through the same cleanup process. Use whichever fits your situation:
 
-- New installs default to profile `core` (`propose`, `explore`, `apply`, `sync`, `archive`).
+- New installs default to profile `core` (`propose`, `explore`, `apply`, `update`, `sync`, `archive`).
 - Migrated installs preserve your previously installed workflows by writing a `custom` profile when needed.
 
 ### Using `openspec init`
@@ -290,6 +290,8 @@ Command availability is profile-dependent:
 | `/opsx:propose` | Create a change and generate planning artifacts in one step |
 | `/opsx:explore` | Think through ideas with no structure |
 | `/opsx:apply` | Implement tasks from tasks.md |
+| `/opsx:update` | Revise a change's planning artifacts and keep them coherent |
+| `/opsx:sync` | Merge delta specs into main specs |
 | `/opsx:archive` | Finalize and archive the change |
 
 **Expanded workflow (custom selection):**
@@ -300,7 +302,6 @@ Command availability is profile-dependent:
 | `/opsx:continue` | Create the next artifact (one at a time) |
 | `/opsx:ff` | Fast-forward—create planning artifacts at once |
 | `/opsx:verify` | Validate implementation matches specs |
-| `/opsx:sync` | Merge delta specs into main specs |
 | `/opsx:bulk-archive` | Archive multiple changes at once |
 | `/opsx:onboard` | Guided end-to-end onboarding workflow |
 
@@ -566,7 +567,9 @@ project/
 │       ├── openspec-propose/     # default core profile
 │       ├── openspec-explore/
 │       ├── openspec-apply-change/
+│       ├── openspec-update-change/
 │       ├── openspec-sync-specs/
+│       ├── openspec-archive-change/
 │       └── ...                   # expanded profile adds new/continue/ff/etc.
 ├── CLAUDE.md                     # OpenSpec markers removed, your content preserved
 └── AGENTS.md                     # OpenSpec markers removed, your content preserved

@@ -34,12 +34,17 @@ import {
   type ReferenceIndexEntry,
 } from '../../core/references.js';
 import { readRegistrySnapshot } from '../../core/store/registry.js';
-import { readProjectConfig, type ProjectConfig } from '../../core/project-config.js';
+import {
+  loadOperationInputs,
+  readProjectConfig,
+  type ProjectConfig,
+} from '../../core/project-config.js';
 import {
   validateChangeExists,
   validateSchemaExists,
   type TaskItem,
   type ApplyInstructions,
+  type ArchiveInstructions,
 } from './shared.js';
 
 // -----------------------------------------------------------------------------
@@ -61,6 +66,8 @@ export interface ApplyInstructionsOptions {
   storePath?: string;
   json?: boolean;
 }
+
+export type ArchiveInstructionsOptions = ApplyInstructionsOptions;
 
 // -----------------------------------------------------------------------------
 // Artifact Instructions Command
@@ -124,10 +131,13 @@ export async function instructionsCommand(
       validateSchemaExists(options.schema, projectRoot);
     }
 
+    const { projectConfig, references } = await loadRootConfigContext(root);
+
     // loadChangeContext will auto-detect schema from metadata if not provided
     const context = loadChangeContext(projectRoot, changeName, options.schema, {
       changeDir: getChangeDir(planningHome, changeName),
       planningHome,
+      projectConfig,
     });
 
     if (!artifactId) {
@@ -148,7 +158,6 @@ export async function instructionsCommand(
       );
     }
 
-    const { projectConfig, references } = await loadRootConfigContext(root);
     const instructions = generateInstructions(context, artifactId, projectRoot, {
       projectConfig,
       references,
@@ -342,6 +351,7 @@ function parseTasksFile(content: string): TaskItem[] {
 export interface GenerateApplyInstructionsOptions {
   planningHome?: PlanningHome;
   references?: ReferenceIndexEntry[];
+  projectConfig?: ProjectConfig | null;
 }
 
 /**
@@ -362,6 +372,7 @@ export async function generateApplyInstructions(
   const context = loadChangeContext(projectRoot, changeName, schemaName, {
     changeDir: getChangeDir(planningHome, changeName),
     planningHome,
+    projectConfig: options.projectConfig,
   });
   const changeDir = context.changeDir;
 
@@ -374,6 +385,7 @@ export async function generateApplyInstructions(
   const requiredArtifactIds = applyConfig?.requires ?? schema.artifacts.map((a) => a.id);
   const tracksFile = applyConfig?.tracks ?? null;
   const schemaInstruction = applyConfig?.instruction ?? null;
+  const operationInputs = loadOperationInputs(options.projectConfig ?? null, 'apply');
 
   // Check which required artifacts are missing. Artifacts the change skips
   // via skip_specs count as present - their files must not exist, and
@@ -455,6 +467,7 @@ export async function generateApplyInstructions(
     missingArtifacts: missingArtifacts.length > 0 ? missingArtifacts : undefined,
     instruction,
     ...(references !== undefined ? { references } : {}),
+    ...operationInputs,
   };
 }
 
@@ -482,11 +495,13 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
       validateSchemaExists(options.schema, projectRoot);
     }
 
-    // generateApplyInstructions uses loadChangeContext which auto-detects schema
-    const { references } = await loadRootConfigContext(root);
+    // One parsed config snapshot supplies schema fallback, references, context,
+    // and operation guidance for this command.
+    const { projectConfig, references } = await loadRootConfigContext(root);
     const instructions = await generateApplyInstructions(projectRoot, changeName, options.schema, {
       planningHome,
       references,
+      projectConfig,
     });
 
     spinner?.stop();
@@ -560,4 +575,80 @@ export function printApplyInstructionsText(instructions: ApplyInstructions): voi
   // Instruction
   console.log('### Instruction');
   console.log(instruction);
+  console.log();
+
+  printOperationInputsText(instructions);
+}
+
+export function generateArchiveInstructions(
+  changeName: string,
+  projectConfig: ProjectConfig | null
+): ArchiveInstructions {
+  return {
+    changeName,
+    ...loadOperationInputs(projectConfig, 'archive'),
+  };
+}
+
+export async function archiveInstructionsCommand(
+  options: ArchiveInstructionsOptions
+): Promise<void> {
+  const root = await resolveRootForCommand(options, { json: options.json });
+  if (!root) {
+    return;
+  }
+
+  const spinner = options.json ? undefined : ora('Loading archive inputs...').start();
+
+  try {
+    const changeName = await validateChangeExists(
+      options.change,
+      root.path,
+      root.changesDir,
+      { newChangeHint: withStoreFlag(root, 'openspec new change <name>') }
+    );
+    const projectConfig = readProjectConfig(root.path);
+    const instructions = generateArchiveInstructions(changeName, projectConfig);
+
+    spinner?.stop();
+
+    if (options.json) {
+      console.log(JSON.stringify({ ...instructions, root: toRootOutput(root) }, null, 2));
+      return;
+    }
+
+    printArchiveInstructionsText(instructions);
+  } catch (error) {
+    spinner?.stop();
+    throw error;
+  }
+}
+
+export function printArchiveInstructionsText(instructions: ArchiveInstructions): void {
+  console.log(`## Archive Inputs: ${instructions.changeName}`);
+  console.log();
+  printOperationInputsText(instructions);
+}
+
+function printOperationInputsText(inputs: {
+  context?: string;
+  operationGuidance?: string[];
+}): void {
+  if (inputs.context) {
+    console.log('### Project Context (required instruction input)');
+    console.log(inputs.context);
+    console.log();
+  }
+
+  if (inputs.operationGuidance && inputs.operationGuidance.length > 0) {
+    console.log('### Operation Guidance (advisory)');
+    for (const guidance of inputs.operationGuidance) {
+      console.log(`- ${guidance}`);
+    }
+    console.log();
+  }
+
+  if (!inputs.context && !inputs.operationGuidance) {
+    console.log('No project context or operation guidance configured.');
+  }
 }
