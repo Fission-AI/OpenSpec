@@ -316,6 +316,7 @@ Old instructions content
         await fs.writeFile(file, stale);
       }
       expect(await fs.readFile(commandFile, 'utf-8')).toContain('/opsx:apply');
+      expect(await fs.readFile(skillFile, 'utf-8')).toContain('/opsx:apply');
 
       await new UpdateCommand({ force: true }).execute(testDir);
 
@@ -324,6 +325,9 @@ Old instructions content
       expect(command).not.toContain('/opsx:');
 
       const skill = await fs.readFile(skillFile, 'utf-8');
+      // Positive assertion too: a skill that simply dropped every reference
+      // would satisfy the negative one.
+      expect(skill).toContain('/opsx-apply');
       expect(skill).not.toContain('/opsx:');
     });
 
@@ -351,7 +355,15 @@ Old instructions content
         path.join(testDir, '.qwen', 'skills', 'openspec-apply-change', 'SKILL.md'),
         'utf-8'
       );
+      expect(qwenSkill).toContain('/opsx-apply');
       expect(qwenSkill).not.toContain('/opsx:');
+
+      const claudeSkill = await fs.readFile(
+        path.join(testDir, '.claude', 'skills', 'openspec-apply-change', 'SKILL.md'),
+        'utf-8'
+      );
+      expect(claudeSkill).toContain('/opsx:apply');
+      expect(claudeSkill).not.toContain('/opsx-');
     });
 
     it('should update opsx commands for configured Claude tool', async () => {
