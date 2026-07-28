@@ -15,6 +15,11 @@ import {
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
 
+// Resolved so the fixtures carry a drive letter on Windows, where an
+// unresolved POSIX path can never prefix-match a resolved one.
+const PROJECT_ROOT = path.resolve(path.join('tmp-fixture', 'proj'));
+const GLOBAL_ROOT = path.resolve(path.join('tmp-fixture', 'global'));
+
 function bumpMajor(version: string): string {
   const major = Number.parseInt(version.split('.')[0] ?? '0', 10);
   return `${major + 1}.0.0`;
@@ -266,18 +271,15 @@ describe('displayCliUpdateNote', () => {
   });
 
   it('picks the upgrade command that matches how the CLI was installed', () => {
-    const global = buildCliUpdateLines(
-      '9.9.9',
-      '/usr/local/lib/node_modules/@fission-ai/openspec',
-      '/tmp/proj'
-    ).join('\n');
-    expect(global).toContain('npm install -g @fission-ai/openspec@latest');
+    const globalDir = path.join(GLOBAL_ROOT, 'lib', 'node_modules', '@fission-ai', 'openspec');
+    const globalLines = buildCliUpdateLines('9.9.9', globalDir, PROJECT_ROOT).join('\n');
+    expect(globalLines).toContain('npm install -g @fission-ai/openspec@latest');
 
     // Hoisted workspace layout: run from a sub-package, dependency at the root.
     const local = buildCliUpdateLines(
       '9.9.9',
-      path.join('/tmp/proj', 'node_modules', '@fission-ai', 'openspec'),
-      '/tmp/proj/packages/app'
+      path.join(PROJECT_ROOT, 'node_modules', '@fission-ai', 'openspec'),
+      path.join(PROJECT_ROOT, 'packages', 'app')
     ).join('\n');
     expect(local).toContain('npm install @fission-ai/openspec@latest');
     expect(local).not.toContain('npm install -g');
@@ -285,56 +287,68 @@ describe('displayCliUpdateNote', () => {
 
     const npx = buildCliUpdateLines(
       '9.9.9',
-      '/home/u/.npm/_npx/abc123/node_modules/@fission-ai/openspec',
-      '/tmp/proj'
+      path.join(GLOBAL_ROOT, '.npm', '_npx', 'abc123', 'node_modules', '@fission-ai', 'openspec'),
+      PROJECT_ROOT
     ).join('\n');
     expect(npx).toContain('npx @fission-ai/openspec@latest update');
     expect(npx).not.toContain('npm install -g');
   });
 
   it('omits the install path only when it cannot be resolved', () => {
+    const dir = path.join(GLOBAL_ROOT, 'openspec');
     expect(buildCliUpdateLines('9.9.9', null, '.').join('\n')).not.toContain('Running from:');
-    expect(buildCliUpdateLines('9.9.9', '/opt/openspec', '.').join('\n')).toContain(
-      'Running from: /opt/openspec'
-    );
+    expect(buildCliUpdateLines('9.9.9', dir, '.').join('\n')).toContain(`Running from: ${dir}`);
   });
 
   it('recognizes project-local installs from any directory under the project', () => {
-    const local = path.join('/tmp/proj', 'node_modules', '@fission-ai', 'openspec');
+    const local = path.join(PROJECT_ROOT, 'node_modules', '@fission-ai', 'openspec');
 
-    expect(isProjectLocalInstall(local, '/tmp/proj')).toBe(true);
+    expect(isProjectLocalInstall(local, PROJECT_ROOT)).toBe(true);
     // Workspace sub-package with a hoisted root node_modules.
-    expect(isProjectLocalInstall(local, '/tmp/proj/packages/app')).toBe(true);
+    expect(isProjectLocalInstall(local, path.join(PROJECT_ROOT, 'packages', 'app'))).toBe(true);
     // pnpm's real path still lives under the same node_modules.
     expect(
       isProjectLocalInstall(
-        path.join('/tmp/proj', 'node_modules', '.pnpm', 'x', 'node_modules', 'y'),
-        '/tmp/proj'
+        path.join(PROJECT_ROOT, 'node_modules', '.pnpm', 'x', 'node_modules', 'y'),
+        PROJECT_ROOT
       )
     ).toBe(true);
 
-    expect(isProjectLocalInstall('/usr/local/lib/node_modules/@fission-ai/openspec', '/tmp/proj')).toBe(
-      false
-    );
-    expect(isProjectLocalInstall(null, '/tmp/proj')).toBe(false);
+    expect(
+      isProjectLocalInstall(
+        path.join(GLOBAL_ROOT, 'lib', 'node_modules', '@fission-ai', 'openspec'),
+        PROJECT_ROOT
+      )
+    ).toBe(false);
+    expect(isProjectLocalInstall(null, PROJECT_ROOT)).toBe(false);
   });
 
   it('never throws when the working directory has been deleted', () => {
+    const anywhere = path.join(GLOBAL_ROOT, 'node_modules', 'pkg');
     vi.spyOn(process, 'cwd').mockImplementation(() => {
       throw new Error('ENOENT: uv_cwd');
     });
 
-    expect(() => isProjectLocalInstall('/anywhere/node_modules/pkg')).not.toThrow();
-    expect(isProjectLocalInstall('/anywhere/node_modules/pkg')).toBe(false);
+    expect(() => isProjectLocalInstall(anywhere)).not.toThrow();
+    expect(isProjectLocalInstall(anywhere)).toBe(false);
     expect(() => capture(() => displayCliUpdateNote('9.9.9'))).not.toThrow();
   });
 
   it('tells npx and dlx users to re-run rather than install globally', () => {
-    expect(isEphemeralRunnerInstall('/home/u/.npm/_npx/abc123/node_modules/@fission-ai/openspec')).toBe(
-      true
-    );
-    expect(isEphemeralRunnerInstall('/home/u/.cache/pnpm/dlx/abc/node_modules/pkg')).toBe(true);
-    expect(isEphemeralRunnerInstall('/usr/local/lib/node_modules/@fission-ai/openspec')).toBe(false);
+    // Matched on whole path segments, so a directory merely containing the
+    // word (…/my-dlx-tools/…) is not mistaken for a throwaway cache.
+    expect(
+      isEphemeralRunnerInstall(path.join(GLOBAL_ROOT, '.npm', '_npx', 'abc', 'node_modules', 'pkg'))
+    ).toBe(true);
+    expect(
+      isEphemeralRunnerInstall(path.join(GLOBAL_ROOT, 'pnpm', 'dlx', 'abc', 'node_modules', 'pkg'))
+    ).toBe(true);
+    expect(
+      isEphemeralRunnerInstall(path.join(GLOBAL_ROOT, 'lib', 'node_modules', '@fission-ai', 'openspec'))
+    ).toBe(false);
+    expect(
+      isEphemeralRunnerInstall(path.join(GLOBAL_ROOT, 'my-dlx-tools', 'node_modules', 'pkg'))
+    ).toBe(false);
     expect(isEphemeralRunnerInstall(null)).toBe(false);
   });
 });

@@ -171,11 +171,16 @@ export function isProjectLocalInstall(
 ): boolean {
   if (!installDir) return false;
 
+  // Windows paths differ in case and drive-letter casing between sources.
+  const normalize = (value: string) =>
+    process.platform === 'win32' ? value.toLowerCase() : value;
+
   try {
     let dir = path.resolve(projectPath);
+    const target = normalize(installDir);
 
     for (;;) {
-      if (installDir.startsWith(path.join(dir, 'node_modules') + path.sep)) {
+      if (target.startsWith(normalize(path.join(dir, 'node_modules') + path.sep))) {
         return true;
       }
       const parent = path.dirname(dir);
