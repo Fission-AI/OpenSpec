@@ -65,7 +65,7 @@ You can enable expanded workflows (`new`, `continue`, `ff`, `verify`, `bulk-arch
 
 \*\*\* Hermes loads skills from `~/.hermes/skills/` by default. To use project-local OpenSpec skills, add the project `.hermes/skills/` directory to `skills.external_dirs` in `~/.hermes/config.yaml`; Hermes then exposes skills with user-facing slash invocations such as `/openspec-propose`.
 
-\*\*\*\* Devin Desktop is the current name for Windsurf, and `.devin/` is its [preferred replacement](https://docs.devin.ai/desktop/devin-desktop-faq) for `.windsurf/`. Workflows are invoked by filename, so `.devin/workflows/opsx-apply.md` is `/opsx-apply`. The [Devin Local agent does not support workflows](https://docs.devin.ai/desktop/devin-local) — only skills — so OpenSpec keeps Devin's skill bodies and its getting-started hint on `/openspec-*` skill invocations, which work on both agents.
+\*\*\*\* Devin Desktop is the current name for Windsurf, and `.devin/` is its [preferred replacement](https://docs.devin.ai/desktop/devin-desktop-faq) for `.windsurf/`. Workflows are invoked by filename, so `.devin/workflows/opsx-apply.md` is `/opsx-apply`. The [Devin Local agent does not support workflows](https://docs.devin.ai/desktop/devin-local) — only skills — so whenever OpenSpec writes Devin skills it keeps their bodies, and the getting-started hint, on `/openspec-*` skill invocations, which work on both agents. Under commands-only delivery no skills are written and both fall back to `/opsx-*`.
 
 ## Non-Interactive Setup
 

@@ -11,7 +11,7 @@ import { CommandAdapterRegistry } from './command-generation/index.js';
 import { resolveCommandSurfaceCapability, shouldGenerateCommandsForTool } from './command-surface.js';
 import { WORKFLOW_TO_SKILL_DIR } from './profile-sync-drift.js';
 import { ALL_WORKFLOWS } from './profiles.js';
-import { getSkillReferenceTransformer } from '../utils/command-references.js';
+import { getSkillReferenceTransformer, getTransformerForTool } from '../utils/command-references.js';
 import path from 'path';
 import * as fs from 'fs';
 
@@ -210,17 +210,24 @@ export function migrateIfNeeded(projectPath: string, tools: AIToolOption[]): voi
 
   console.log(`Migrated: custom profile with ${installedWorkflows.length} workflows`);
   // Each detected tool resolves to a propose reference for its surface:
-  // the shared /opsx:propose command form when commands will exist for it
-  // under the effective delivery, its documented skill invocation
-  // otherwise (skills-invocable codex has no slash surface and always
-  // gets the syntax-neutral form). When the tools disagree — including
-  // command tools mixed with skill-only tools — stay syntax-neutral
-  // rather than advertise a form that is wrong for one of them.
+  // the command form when commands will exist for it under the effective
+  // delivery, run through the tool's transformer so tools that do not
+  // answer to the colon form (Devin's `/opsx-propose`) are named
+  // correctly; its documented skill invocation otherwise (skills-invocable
+  // codex has no slash surface and always gets the syntax-neutral form).
+  // When the tools disagree — including command tools mixed with
+  // skill-only tools — stay syntax-neutral rather than advertise a form
+  // that is wrong for one of them.
   const effectiveDelivery: Delivery = config.delivery ?? 'both';
   const proposeReferences = new Set(
     tools.map((tool) => {
       if (shouldGenerateCommandsForTool(tool.value, effectiveDelivery)) {
-        return '/opsx:propose';
+        const transformer = getTransformerForTool(
+          tool.value,
+          effectiveDelivery,
+          resolveCommandSurfaceCapability(tool.value)
+        );
+        return transformer ? transformer('/opsx:propose') : '/opsx:propose';
       }
       if (resolveCommandSurfaceCapability(tool.value) === 'skills-invocable') {
         return 'the openspec-propose skill';

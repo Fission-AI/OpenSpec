@@ -70,12 +70,11 @@ The update command SHALL refresh existing slash command files for configured too
 - **AND** skip creating missing files (the update command only refreshes what already exists)
 
 #### Scenario: Updating workflows for Devin Desktop
-- **WHEN** `.devin/workflows/` contains OpenSpec-managed `opsx-*.md` workflow files (for example `opsx-propose.md`, `opsx-apply.md`, and `opsx-archive.md`)
-- **THEN** refresh each file using shared templates wrapped in OpenSpec markers
-- **AND** preserve the frontmatter structure (`name`, `description`, `category`, `tags`)
+- **WHEN** Devin Desktop is a configured tool (its `.devin/` directory exists)
+- **THEN** write `.devin/workflows/opsx-<id>.md` for each workflow in the active profile, from shared templates
+- **AND** emit frontmatter with `name`, `description`, `category`, and `tags`
 - **AND** transform command references to hyphen form (for example `/opsx-propose`), the name Devin registers for a workflow file
 - **AND** refresh `.devin/skills/openspec-*/SKILL.md` with `/openspec-*` skill references, the one invocation both Devin agents accept
-- **AND** skip creating missing files (the update command only refreshes what already exists)
 
 #### Scenario: Updating slash commands for Kilo Code
 - **WHEN** `.kilocode/workflows/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`

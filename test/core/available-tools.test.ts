@@ -50,7 +50,7 @@ describe('available-tools', () => {
       const tools = getAvailableTools(testDir);
       const toolValues = tools.map((t) => t.value);
       expect(toolValues).toContain('devin');
-      
+
       const devinTool = tools.find((t) => t.value === 'devin');
       expect(devinTool).toBeDefined();
       expect(devinTool?.name).toBe('Devin Desktop');
