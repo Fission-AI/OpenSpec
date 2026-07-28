@@ -2020,6 +2020,131 @@ The system SHALL authenticate.
       expect(archives.some(a => a.includes(changeName))).toBe(false);
     });
 
+    it('should not treat a fenced scenario example in the current spec as real drift', async () => {
+      // The validator ignores fenced `#### Scenario:` lines (countScenarios is
+      // fence-aware); the drift check must agree, or a fenced sample in the
+      // current spec aborts an archive that validate said was fine.
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'fenced-current');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const mainSpecPath = path.join(mainSpecDir, 'spec.md');
+      await fs.writeFile(
+        mainSpecPath,
+        `# fenced-current Specification
+
+## Purpose
+Fenced scenario samples in the current spec.
+
+## Requirements
+
+### Requirement: Reporting
+The system SHALL report results using the scenario format:
+
+\`\`\`markdown
+#### Scenario: Fenced sample
+- **WHEN** shown as an example
+- **THEN** it is not a real scenario
+\`\`\`
+
+#### Scenario: Emit report
+- **WHEN** a run finishes
+- **THEN** a report is emitted`
+      );
+
+      const changeName = 'edit-fenced-current';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'fenced-current');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+      await fs.writeFile(
+        path.join(changeSpecDir, 'spec.md'),
+        `# Edit Fenced Current - Change
+
+## MODIFIED Requirements
+
+### Requirement: Reporting
+The system SHALL report results in JSON.
+
+#### Scenario: Emit report
+- **WHEN** a run finishes
+- **THEN** a JSON report is emitted`
+      );
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const updated = await fs.readFile(mainSpecPath, 'utf-8');
+      expect(updated).toContain('The system SHALL report results in JSON.');
+      expect(updated).toContain('a JSON report is emitted');
+      expect(console.log).not.toHaveBeenCalledWith(
+        expect.stringContaining('current spec contains scenario(s) not present in the modified block')
+      );
+      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archives = await fs.readdir(archiveDir);
+      expect(archives.some(a => a.includes(changeName))).toBe(true);
+    });
+
+    it('should abort when a MODIFIED block only keeps a dropped scenario inside a fence', async () => {
+      // The inverse hole: a fenced `#### Scenario: Audit` in the incoming block
+      // must not count as keeping the real Audit scenario the block dropped.
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'fenced-incoming');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const mainSpecPath = path.join(mainSpecDir, 'spec.md');
+      await fs.writeFile(
+        mainSpecPath,
+        `# fenced-incoming Specification
+
+## Purpose
+Fenced scenario names in the incoming block.
+
+## Requirements
+
+### Requirement: Access log
+The system SHALL log access.
+
+#### Scenario: Audit
+- **WHEN** a user signs in
+- **THEN** an audit row is written`
+      );
+
+      const changeName = 'drop-audit-behind-fence';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'fenced-incoming');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+      await fs.writeFile(
+        path.join(changeSpecDir, 'spec.md'),
+        `# Drop Audit Behind Fence - Change
+
+## MODIFIED Requirements
+
+### Requirement: Access log
+The system SHALL log access, for example:
+
+\`\`\`markdown
+#### Scenario: Audit
+- **WHEN** shown as an example
+- **THEN** it is not a real scenario
+\`\`\`
+
+#### Scenario: Trace
+- **WHEN** a request is served
+- **THEN** a trace row is written`
+      );
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const updated = await fs.readFile(mainSpecPath, 'utf-8');
+      // Spec must be untouched — the real Audit scenario preserved.
+      expect(updated).toContain('an audit row is written');
+      expect(updated).not.toContain('Trace');
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'fenced-incoming MODIFIED failed for header "### Requirement: Access log" - current spec contains scenario(s) not present in the modified block: "Audit"'
+        )
+      );
+      expect(console.log).toHaveBeenCalledWith('Aborted. No files were changed.');
+      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archives = await fs.readdir(archiveDir);
+      expect(archives.some(a => a.includes(changeName))).toBe(false);
+    });
+
     it('should abort with a structural error when target spec hides requirements outside ## Requirements', async () => {
       const changeName = 'hidden-requirement-target';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);

@@ -579,11 +579,16 @@ function findMissingCurrentScenarios(current: RequirementBlock, incoming: Requir
 
 function parseScenarioBlocks(requirementRaw: string): ScenarioBlock[] {
   const lines = requirementRaw.replace(/\r\n?/g, '\n').split('\n');
+  // A `#### Scenario:` inside a fenced example is not a real scenario. The
+  // validator's countScenarios already ignores fenced lines; the drift check
+  // must agree with it, or a fenced sample can false-abort an archive (or
+  // mask a genuinely dropped scenario).
+  const mask = buildCodeFenceMask(lines);
   const scenarios: ScenarioBlock[] = [];
   let index = 0;
 
   while (index < lines.length) {
-    const headerMatch = lines[index].match(/^####\s*Scenario:\s*(.+)\s*$/);
+    const headerMatch = mask[index] ? null : lines[index].match(/^####\s*Scenario:\s*(.+)\s*$/);
     if (!headerMatch) {
       index++;
       continue;
@@ -592,7 +597,7 @@ function parseScenarioBlocks(requirementRaw: string): ScenarioBlock[] {
     const start = index;
     const name = headerMatch[1].trim();
     index++;
-    while (index < lines.length && !/^####\s*Scenario:\s*(.+)\s*$/.test(lines[index])) {
+    while (index < lines.length && (mask[index] || !/^####\s*Scenario:\s*(.+)\s*$/.test(lines[index]))) {
       index++;
     }
 
