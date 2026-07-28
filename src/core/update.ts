@@ -45,7 +45,6 @@ import { getOnboardingCommands } from './onboarding-commands.js';
 import { getAvailableTools } from './available-tools.js';
 import {
   WORKFLOW_TO_SKILL_DIR,
-  getCommandConfiguredTools,
   getConfiguredToolsForProfileSync,
   getToolsNeedingProfileSync,
 } from './profile-sync-drift.js';
@@ -163,10 +162,12 @@ export class UpdateCommand {
       return;
     }
 
+    // 6. Check version status for all configured tools. The workflow set must match
+    //    the one the generation loop below writes, or a legacy-upgraded tool would be
+    //    fingerprinted against the wrong commands and never settle as up to date.
     const toolStatuses = configuredTools.map((toolId) =>
       getToolVersionStatus(resolvedProjectPath, toolId, OPENSPEC_VERSION, {
-        workflows: desiredWorkflows,
-        delivery,
+        workflows: legacyWorkflowOverrides[toolId] ?? desiredWorkflows,
       })
     );
     const statusByTool = new Map(toolStatuses.map((status) => [status.toolId, status] as const));

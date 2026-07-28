@@ -4,15 +4,13 @@ import { AI_TOOLS } from './config.js';
 import type { Delivery } from './global-config.js';
 import { ALL_WORKFLOWS } from './profiles.js';
 import { CommandAdapterRegistry } from './command-generation/index.js';
-import { COMMAND_IDS, getConfiguredTools, toolHasAnyConfiguredCommand } from './shared/index.js';
+import { getConfiguredTools, toolHasAnyConfiguredCommand } from './shared/index.js';
 import {
   shouldGenerateCommandsForTool,
   shouldGenerateSkillsForTool,
   shouldReconcileCommandFilesForTool,
   shouldRemoveSkillsForTool,
 } from './command-surface.js';
-
-export { toolHasAnyConfiguredCommand };
 
 type WorkflowId = (typeof ALL_WORKFLOWS)[number];
 
@@ -40,7 +38,6 @@ function toKnownWorkflows(workflows: readonly string[]): WorkflowId[] {
       (ALL_WORKFLOWS as readonly string[]).includes(workflow)
   );
 }
-
 
 /**
  * Returns tools with at least one generated command file on disk.

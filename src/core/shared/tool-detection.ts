@@ -9,7 +9,7 @@ import * as fs from 'fs';
 import { AI_TOOLS } from '../config.js';
 import { CommandAdapterRegistry, generateCommands } from '../command-generation/index.js';
 import { getCommandContents } from './skill-generation.js';
-import { getGlobalConfig, type Delivery } from '../global-config.js';
+import { getGlobalConfig } from '../global-config.js';
 import { getProfileWorkflows, ALL_WORKFLOWS } from '../profiles.js';
 
 /**
@@ -133,13 +133,15 @@ export function toolHasAnyConfiguredCommand(projectPath: string, toolId: string)
 
 /**
  * Checks whether command files for a tool on disk match current generated command contents.
+ *
+ * Command files carry no version stamp, so content equality is the only available
+ * "is this current?" signal for a commands-only install.
  */
 export function areCommandFilesUpToDate(
   projectRoot: string,
   toolId: string,
   options?: {
     workflows?: readonly string[];
-    delivery?: Delivery;
   }
 ): boolean {
   const adapter = CommandAdapterRegistry.get(toolId);
@@ -246,7 +248,8 @@ export function extractGeneratedByVersion(skillFilePath: string): string | null 
 }
 
 /**
- * Gets version status for a tool by reading available skill or command files or checking content fingerprint.
+ * Gets version status for a tool by reading its skill files, falling back to a
+ * command-content fingerprint for installs that have commands but no skills.
  */
 export function getToolVersionStatus(
   projectRoot: string,
@@ -254,7 +257,6 @@ export function getToolVersionStatus(
   currentVersion: string,
   options?: {
     workflows?: readonly string[];
-    delivery?: Delivery;
   }
 ): ToolVersionStatus {
   const tool = AI_TOOLS.find((t) => t.value === toolId);
@@ -284,28 +286,11 @@ export function getToolVersionStatus(
   const commandConfigured = toolHasAnyConfiguredCommand(projectRoot, toolId);
   const configured = skillConfigured || commandConfigured;
 
-  // 2. If version is not found in skills, check command files
-  if (generatedByVersion === null && commandConfigured) {
-    const adapter = CommandAdapterRegistry.get(toolId);
-    if (adapter) {
-      for (const commandId of COMMAND_IDS) {
-        const cmdPath = adapter.getFilePath(commandId);
-        const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectRoot, cmdPath);
-        if (fs.existsSync(fullPath)) {
-          const version = extractGeneratedByVersion(fullPath);
-          if (version !== null) {
-            generatedByVersion = version;
-            break;
-          }
-        }
-      }
-
-      if (generatedByVersion === null) {
-        if (areCommandFilesUpToDate(projectRoot, toolId, options)) {
-          generatedByVersion = currentVersion;
-        }
-      }
-    }
+  // 2. Commands-only installs have no skill file to read a version from, so fall
+  //    back to comparing the generated command content. Deliberately skipped when
+  //    skill files exist: an unreadable version there must still force a rewrite.
+  if (!skillConfigured && commandConfigured && areCommandFilesUpToDate(projectRoot, toolId, options)) {
+    generatedByVersion = currentVersion;
   }
 
   const needsUpdate = configured && (generatedByVersion === null || generatedByVersion !== currentVersion);
@@ -339,7 +324,6 @@ export function getAllToolVersionStatus(
   currentVersion: string,
   options?: {
     workflows?: readonly string[];
-    delivery?: Delivery;
   }
 ): ToolVersionStatus[] {
   const configuredTools = getConfiguredTools(projectRoot);
@@ -347,4 +331,3 @@ export function getAllToolVersionStatus(
     getToolVersionStatus(projectRoot, toolId, currentVersion, options)
   );
 }
-

@@ -271,12 +271,56 @@ Content here
       const { version } = await import('../../../package.json');
       const status = getToolVersionStatus(testDir, 'claude', version, {
         workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'],
-        delivery: 'commands',
       });
 
       expect(status.configured).toBe(true);
       expect(status.generatedByVersion).toBe(version);
       expect(status.needsUpdate).toBe(false);
+    });
+
+    it('should detect needsUpdate when a deselected workflow left a command file behind', async () => {
+      const { InitCommand } = await import('../../../src/core/init.js');
+      const { saveGlobalConfig } = await import('../../../src/core/global-config.js');
+      saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+      await initCommand.execute(testDir);
+
+      // A workflow that is no longer selected still has a command file on disk
+      const strayFile = path.join(testDir, '.claude', 'commands', 'opsx', 'verify.md');
+      await fs.writeFile(strayFile, 'stray command from a previous profile');
+
+      const { version } = await import('../../../package.json');
+      const status = getToolVersionStatus(testDir, 'claude', version, {
+        workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'],
+      });
+
+      expect(status.configured).toBe(true);
+      expect(status.generatedByVersion).toBeNull();
+      expect(status.needsUpdate).toBe(true);
+    });
+
+    it('should not let matching command files mask an unreadable skill version', async () => {
+      const { InitCommand } = await import('../../../src/core/init.js');
+      const { saveGlobalConfig } = await import('../../../src/core/global-config.js');
+      saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both' });
+
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+      await initCommand.execute(testDir);
+
+      // Corrupt a skill file so its generatedBy version can no longer be read,
+      // while every command file still matches the current generated content.
+      const skillFile = path.join(testDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md');
+      await fs.writeFile(skillFile, 'truncated skill file');
+
+      const { version } = await import('../../../package.json');
+      const status = getToolVersionStatus(testDir, 'claude', version, {
+        workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'],
+      });
+
+      expect(status.configured).toBe(true);
+      expect(status.generatedByVersion).toBeNull();
+      expect(status.needsUpdate).toBe(true);
     });
 
     it('should detect needsUpdate when command file content differs in commands-only setup', async () => {
@@ -294,7 +338,6 @@ Content here
       const { version } = await import('../../../package.json');
       const status = getToolVersionStatus(testDir, 'claude', version, {
         workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'],
-        delivery: 'commands',
       });
 
       expect(status.configured).toBe(true);
