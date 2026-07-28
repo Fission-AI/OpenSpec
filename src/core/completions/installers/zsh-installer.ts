@@ -340,12 +340,14 @@ export class ZshInstaller {
    * @returns Array of guidance strings, or undefined if not needed
    */
   private generateOhMyZshFpathGuidance(completionsDir: string): string[] | undefined {
+    // One fpath entry per line, matched as a literal: a relocated $ZSH_CUSTOM
+    // need not contain "custom/completions", and the path may hold characters
+    // grep would otherwise read as a pattern. Single-quoted for the shell.
+    const quotedDir = `'${completionsDir.replace(/'/g, `'\\''`)}'`;
     return [
       'Note: Oh My Zsh typically auto-loads completions from custom/completions.',
       `Verify that ${completionsDir} is in your fpath by running:`,
-      // Grep for the actual directory: a relocated $ZSH_CUSTOM need not
-      // contain the literal "custom/completions".
-      `  echo $fpath | grep "${completionsDir}"`,
+      `  printf '%s\\n' $fpath | grep -F ${quotedDir}`,
       '',
       'If not found, completions may not work. Restart your shell to ensure changes take effect.',
     ];
