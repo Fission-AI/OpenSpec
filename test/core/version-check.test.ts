@@ -215,6 +215,35 @@ describe('getAvailableCliUpdate', () => {
     await expect(getAvailableCliUpdate()).resolves.toBeNull();
   });
 
+  it('tears down a redirected connection when the overall budget expires', async () => {
+    // The redirect target trickles bytes forever: steady data keeps resetting
+    // the per-request idle timeout, so only the overall budget timer can end
+    // the exchange — and it must destroy the redirected request, not the
+    // already-dead first hop, or the socket outlives the check.
+    let hop = 0;
+    let trickleClosed = false;
+    respond = (res) => {
+      hop += 1;
+      if (hop === 1) {
+        res.writeHead(302, { location: '/mirror/@fission-ai/openspec/latest' });
+        res.end();
+        return;
+      }
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.write('{"ver');
+      const trickle = setInterval(() => res.write('x'), 200);
+      res.on('close', () => {
+        trickleClosed = true;
+        clearInterval(trickle);
+      });
+    };
+
+    const startedAt = Date.now();
+    await expect(getAvailableCliUpdate()).resolves.toBeNull();
+    expect(Date.now() - startedAt).toBeLessThan(5000);
+    await vi.waitFor(() => expect(trickleClosed).toBe(true), { timeout: 2000 });
+  }, 10000);
+
   it('gives up rather than hanging when the registry stalls mid-response', async () => {
     respond = (res) => {
       res.writeHead(200, { 'content-type': 'application/json' });
@@ -411,7 +440,13 @@ describe('offerCliUpgrade', () => {
         ? path.join(prefix, 'node_modules', '@fission-ai', 'openspec')
         : path.join(prefix, 'lib', 'node_modules', '@fission-ai', 'openspec');
       fs.mkdirSync(installed, { recursive: true });
-      fs.mkdirSync(path.join(prefix, 'bin'), { recursive: true });
+      if (isWindows) {
+        // npm writes the .cmd shim beside node_modules; it is what separates
+        // a real prefix from a hand-copied portable tree.
+        fs.writeFileSync(path.join(prefix, 'openspec.cmd'), '@echo off\n');
+      } else {
+        fs.mkdirSync(path.join(prefix, 'bin'), { recursive: true });
+      }
 
       expect(npmPrefixFromInstallDir(installed)).toBe(prefix);
       // Deliberately an unrelated root, standing in for the Cellar path.
@@ -421,6 +456,21 @@ describe('offerCliUpgrade', () => {
 
       expect(npmPrefixFromInstallDir(path.join(HOME_ROOT, 'not', 'an', 'install'))).toBeNull();
       expect(npmPrefixFromInstallDir(null)).toBeNull();
+
+      // The same shape with nothing npm wrote (no bin dir, no .cmd shim) is a
+      // hand-copied portable tree, not an npm install — no upgrade offer.
+      const portable = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-portable-'));
+      try {
+        const copied = isWindows
+          ? path.join(portable, 'node_modules', '@fission-ai', 'openspec')
+          : path.join(portable, 'lib', 'node_modules', '@fission-ai', 'openspec');
+        fs.mkdirSync(copied, { recursive: true });
+        expect(
+          isNpmGlobalInstall(copied, [path.join(GLOBAL_ROOT, 'lib', 'node_modules')])
+        ).toBe(false);
+      } finally {
+        fs.rmSync(portable, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+      }
     } finally {
       fs.rmSync(prefix, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     }
@@ -489,6 +539,16 @@ describe('offerCliUpgrade', () => {
     }
 
     expect(detectPackageManager(null)).toBe('npm');
+  });
+
+  it('does not let a user or project directory named after a manager steal the install', () => {
+    // A person named volta with a plain npm prefix in their home directory:
+    // the undotted segment alone must not turn the hint into `volta install`.
+    expect(detectPackageManager('/home/volta/.npm-global/lib/node_modules/pkg')).toBe('npm');
+    expect(detectPackageManager('/srv/volta/apps/node_modules/pkg')).toBe('npm');
+    // Even alongside a generic "tools" dir — only volta's full tools/image
+    // layout counts.
+    expect(detectPackageManager('/srv/volta/tools/apps/node_modules/pkg')).toBe('npm');
   });
 
   it('recognizes the Windows spellings of those install directories', () => {

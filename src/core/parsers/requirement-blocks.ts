@@ -141,7 +141,9 @@ export interface DeltaPlan {
 }
 
 function normalizeLineEndings(content: string): string {
-  return content.replace(/\r\n?/g, '\n');
+  // Strip a UTF-8 BOM: Windows editors and PowerShell redirects prepend one,
+  // and it would keep the first line's `## ADDED Requirements` from matching.
+  return content.replace(/^﻿/, '').replace(/\r\n?/g, '\n');
 }
 
 /**

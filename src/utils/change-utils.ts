@@ -67,6 +67,13 @@ export function validateChangeName(name: string): ValidationResult {
     return { valid: false, error: 'Change name cannot be empty' };
   }
 
+  // Filesystem directory components cap at 255 bytes and archive prepends a
+  // date prefix; bounding here turns the failure into a validation message
+  // instead of a raw ENAMETOOLONG from mkdir.
+  if (name.length > 200) {
+    return { valid: false, error: 'Change name is too long (200 characters max)' };
+  }
+
   if (!isKebabId(name)) {
     // Provide specific error messages for common mistakes
     if (/[A-Z]/.test(name)) {

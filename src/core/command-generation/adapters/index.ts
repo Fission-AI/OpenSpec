@@ -31,3 +31,4 @@ export { lingmaAdapter } from './lingma.js';
 export { qwenAdapter } from './qwen.js';
 export { roocodeAdapter } from './roocode.js';
 export { traeAdapter } from './trae.js';
+export { zcodeAdapter } from './zcode.js';

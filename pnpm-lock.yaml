@@ -57,6 +57,9 @@ importers:
       eslint:
         specifier: ^10.5.0
         version: 10.7.0
+      smol-toml:
+        specifier: ^1.7.1
+        version: 1.7.1
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -1381,6 +1384,10 @@ packages:
   slash@3.0.0:
     resolution: {integrity: sha512-g9Q1haeby36OSStwb4ntCGGGaKsaVSjQ68fBxoQcutl5fS1vuY18H3wSt3jFyFtrkx+Kz0V1G85A4MyAdDMi2Q==}
     engines: {node: '>=8'}
+
+  smol-toml@1.7.1:
+    resolution: {integrity: sha512-PPlsspAZ4jbMBu5DMFhfUGDQLu/vrL4SyBROVS37x8ynnVmFIs1VPBz1Co8Xks3TvpIaZXmU85y4DrQ+UyVFoQ==}
+    engines: {node: '>= 18'}
 
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
@@ -2895,6 +2902,8 @@ snapshots:
       totalist: 3.0.1
 
   slash@3.0.0: {}
+
+  smol-toml@1.7.1: {}
 
   source-map-js@1.2.1: {}
 

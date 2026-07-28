@@ -184,9 +184,12 @@ describe('welcome screen', () => {
 
     await showWelcomeScreen(CORE_WORKFLOWS);
 
-    expect(useKeypressMock).not.toHaveBeenCalled();
+    // Static rendering still waits for the Enter the prompt line asks for;
+    // otherwise the keystroke falls through into the tool picker (#1462).
+    expect(useKeypressMock).toHaveBeenCalledOnce();
     const output = writtenOutput();
     expect(output).toContain('Welcome to OpenSpec');
+    expect(output).toContain('Press Enter');
     // No cursor-up repaints: the frame is drawn exactly once.
     expect(output).not.toMatch(/\x1b\[\d+A/);
   });
@@ -197,7 +200,7 @@ describe('welcome screen', () => {
 
     await showWelcomeScreen(CORE_WORKFLOWS);
 
-    expect(useKeypressMock).not.toHaveBeenCalled();
+    expect(useKeypressMock).toHaveBeenCalledOnce();
     expect(writtenOutput()).not.toMatch(/\x1b\[\d+A/);
   });
 
@@ -206,7 +209,7 @@ describe('welcome screen', () => {
 
     await showWelcomeScreen(CORE_WORKFLOWS, { animate: false });
 
-    expect(useKeypressMock).not.toHaveBeenCalled();
+    expect(useKeypressMock).toHaveBeenCalledOnce();
     const output = writtenOutput();
     expect(output).toContain('Welcome to OpenSpec');
     expect(output).not.toMatch(/\x1b\[\d+A/);
@@ -222,7 +225,7 @@ describe('welcome screen', () => {
 
       await showWelcomeScreen(CORE_WORKFLOWS);
 
-      expect(useKeypressMock).not.toHaveBeenCalled();
+      expect(useKeypressMock).toHaveBeenCalledOnce();
       expect(writtenOutput()).toContain('Welcome to OpenSpec');
     }
   );

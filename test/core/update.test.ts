@@ -2414,11 +2414,19 @@ More user content after markers.
       await fs.mkdir(path.join(skillsDir, 'openspec-explore'), { recursive: true });
       await fs.writeFile(path.join(skillsDir, 'openspec-explore', 'SKILL.md'), 'old');
 
+      const consoleSpy = vi.spyOn(console, 'log');
       await expect(updateCommand.execute(testDir)).resolves.toBeUndefined();
 
       expect(await FileSystemUtils.fileExists(
         path.join(skillsDir, 'openspec-explore', 'SKILL.md')
       )).toBe(false);
+
+      // The tool now has zero OpenSpec artifacts; the removal must not be
+      // silent — update prints the same configuration correction init does.
+      const logCalls = consoleSpy.mock.calls.flat().map(String);
+      const correction = logCalls.find((entry) => entry.includes('No skills or commands remain'));
+      expect(correction).toBeTruthy();
+      expect(correction).toContain("openspec config set delivery both");
     });
 
     it('should apply config sync when templates are up to date', async () => {

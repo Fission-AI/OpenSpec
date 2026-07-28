@@ -184,9 +184,16 @@ export async function showWelcomeScreen(
   const textLines = getWelcomeText(workflows);
 
   if (options.animate === false || !canAnimate()) {
-    // Fallback: show static welcome
+    // Fallback: show static welcome. The "Press Enter" line is only honest
+    // when we actually wait; in a TTY, returning immediately would let the
+    // Enter it asks for fall through into the tool picker and submit the
+    // pre-selected tools sight-unseen. Without a TTY, drop the line instead.
+    const staticLines = process.stdin.isTTY
+      ? textLines
+      : textLines.filter((line) => !line.includes('Press Enter'));
     const frame = WELCOME_ANIMATION.frames[3]; // Peak frame
-    process.stdout.write('\n' + renderFrame(frame, textLines) + '\n\n');
+    process.stdout.write('\n' + renderFrame(frame, staticLines) + '\n\n');
+    await waitForEnter();
     return;
   }
 

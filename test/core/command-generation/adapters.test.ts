@@ -35,6 +35,7 @@ import type {
 import { CommandAdapterRegistry } from '../../../src/core/command-generation/registry.js';
 import { generateCommand } from '../../../src/core/command-generation/generator.js';
 import { parse as parseYaml } from 'yaml';
+import { parse as parseToml } from 'smol-toml';
 
 describe('command-generation/adapters', () => {
   const sampleContent: CommandContent = {
@@ -414,6 +415,55 @@ describe('command-generation/adapters', () => {
       expect(output).toContain('This is the command body.');
       expect(output).toContain('"""');
     });
+
+    it('escapes TOML-active characters in the description', () => {
+      const output = geminiAdapter.formatFile({
+        ...sampleContent,
+        description: 'Say "hi" to C:\\Users and\nmore',
+      });
+      // Basic strings are escape-active: quotes, backslashes, and newlines
+      // must be written as escapes or the file stops parsing as TOML.
+      expect(output).toContain('description = "Say \\"hi\\" to C:\\\\Users and\\nmore"');
+      expect((parseToml(output) as { description: string }).description).toBe(
+        'Say "hi" to C:\\Users and\nmore'
+      );
+    });
+
+    it('keeps the prompt a single multiline string when the body carries fences and backslashes', () => {
+      const body = 'Windows path C:\\temp and a quote run: """ done';
+      const output = geminiAdapter.formatFile({ ...sampleContent, body });
+      // Backslashes must be escaped and no unescaped quote-triple may remain,
+      // or the """ delimiter ends the prompt early.
+      expect(output).toContain('C:\\\\temp');
+      expect(output).toContain('""\\" done');
+      const delimiters = output.match(/(?<!\\)"""/g) ?? [];
+      expect(delimiters).toHaveLength(2);
+      expect((parseToml(output) as { prompt: string }).prompt).toBe(`${body}\n`);
+    });
+
+    // Escaping claims are only proven by a real parser: every hostile body
+    // must yield a file smol-toml accepts, and the parsed prompt must
+    // round-trip to the original (modulo CRLF normalization).
+    const HOSTILE_BODIES: Array<[string, string, string]> = [
+      ['control characters', 'null:\u0000 vt:\u000b ff:\u000c end', 'null:\u0000 vt:\u000b ff:\u000c end'],
+      // A lone CR is illegal raw in a multiline basic string (only LF and
+      // CRLF may appear); Python tomllib rejects it — so must never be
+      // emitted bare.
+      ['a lone carriage return', 'a\rb', 'a\rb'],
+      ['CRLF line endings (normalized to LF)', 'line one\r\nline two\r\n', 'line one\nline two\n'],
+      ['a CR before a quote run', 'x\r""" y', 'x\r""" y'],
+      ['a trailing backslash', 'ends with a backslash \\', 'ends with a backslash \\'],
+      ['quote runs of four and five', 'four """" five """""', 'four """" five """""'],
+    ];
+
+    for (const [label, body, expected] of HOSTILE_BODIES) {
+      it(`emits parseable TOML for a body with ${label}`, () => {
+        const output = geminiAdapter.formatFile({ ...sampleContent, body });
+        const parsed = parseToml(output) as { description: string; prompt: string };
+        expect(parsed.prompt).toBe(`${expected}\n`);
+        expect(parsed.description).toBe(sampleContent.description);
+      });
+    }
   });
 
   describe('githubCopilotAdapter', () => {
