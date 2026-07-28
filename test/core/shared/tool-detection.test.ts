@@ -292,7 +292,7 @@ Content here
       for (const entry of await fs.readdir(commandsDir)) {
         const file = path.join(commandsDir, entry);
         const content = await fs.readFile(file, 'utf-8');
-        await fs.writeFile(file, '\ufeff' + content.replace(/\n/g, '\r\n'));
+        await fs.writeFile(file, '\ufeff' + content.replace(/\r?\n/g, '\r\n'));
       }
 
       const { version } = await import('../../../package.json');
