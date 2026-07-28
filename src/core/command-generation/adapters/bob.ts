@@ -13,7 +13,11 @@ import { escapeYamlValue } from '../yaml.js';
 /**
  * Bob Shell adapter for command generation.
  * File path: .bob/commands/opsx-<id>.md
- * Frontmatter: description, argument-hint
+ * Frontmatter: description
+ *
+ * Bob uses the filename (minus .md) as the slash command name, so
+ * opsx-propose.md → /opsx-propose. Command references in the body
+ * are transformed from /opsx: to /opsx- for consistency.
  */
 export const bobAdapter: ToolCommandAdapter = {
   toolId: 'bob',
@@ -23,7 +27,6 @@ export const bobAdapter: ToolCommandAdapter = {
   },
 
   formatFile(content: CommandContent): string {
-    // Transform command references from colon to hyphen format for Bob
     const transformedBody = transformToHyphenCommands(content.body);
 
     return `---

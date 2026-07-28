@@ -44,10 +44,22 @@ ${STORE_SELECTION_GUIDANCE}
 3. **Find delta specs**
 
    Use \`artifactPaths.specs.existingOutputPaths\` from the status JSON as the
-   complete list of delta spec files. If the \`specs\` entry is missing or
+   only source of delta spec paths. If the \`specs\` entry is missing or
    \`existingOutputPaths\` is empty, report that there are no delta specs to sync,
    do not infer them from other artifacts, and stop without requesting artifact
    instructions or writing a main spec.
+
+   Sync every path in \`existingOutputPaths\` unless the caller narrowed the set.
+   A caller narrows it by naming an explicit list of delta spec paths to sync —
+   archive does this inline, and a user can too ("only sync the billing delta").
+   Then sync only the named paths and leave the remaining delta specs untouched:
+   bulk archive excludes a delta whose implementation it could not find, and
+   syncing it anyway would write a main spec the caller deliberately withheld.
+   Carry that narrowed selection through step 4; never widen it back to the full
+   list. If a named path is not in \`existingOutputPaths\`, do not sync it —
+   report it and stop, rather than dropping it silently. If the named list is
+   empty, report that there is nothing to sync and stop without writing a main
+   spec.
 
    Each delta spec file contains sections like:
    - \`## ADDED Requirements\` - New requirements to add
@@ -75,7 +87,7 @@ ${STORE_SELECTION_GUIDANCE}
    selected roots, delta paths, CLI checks, or workflow steps. Use their text as
    constraints without copying it verbatim into a main spec or summary.
 
-   For each capability delta spec path returned by the CLI (these may belong to a selected store, not the repo):
+   For each capability delta spec path selected in step 3 — the full \`existingOutputPaths\` list, or the narrowed subset when a caller supplied one (these may belong to a selected store, not the repo):
 
    a. **Read the delta spec** to understand the intended changes
 
@@ -206,6 +218,7 @@ Main specs are now updated. The change remains active - archive when implementat
 - Show what you're changing as you go
 - The operation should be idempotent - running twice should give same result
 - Use only \`artifactPaths.specs.existingOutputPaths\`; never infer delta specs from unrelated artifacts
+- Honor a caller-supplied subset of \`existingOutputPaths\`; never widen it back to the full list
 - Fetch specs instructions once for direct sync, or reuse the archive-supplied snapshot inline
 - Stop before every main-spec write on a non-zero or invalid JSON specs-instruction response
 - Artifact rules constrain only the specs being written and are never copied into output files`,
@@ -254,10 +267,22 @@ ${STORE_SELECTION_GUIDANCE}
 3. **Find delta specs**
 
    Use \`artifactPaths.specs.existingOutputPaths\` from the status JSON as the
-   complete list of delta spec files. If the \`specs\` entry is missing or
+   only source of delta spec paths. If the \`specs\` entry is missing or
    \`existingOutputPaths\` is empty, report that there are no delta specs to sync,
    do not infer them from other artifacts, and stop without requesting artifact
    instructions or writing a main spec.
+
+   Sync every path in \`existingOutputPaths\` unless the caller narrowed the set.
+   A caller narrows it by naming an explicit list of delta spec paths to sync —
+   archive does this inline, and a user can too ("only sync the billing delta").
+   Then sync only the named paths and leave the remaining delta specs untouched:
+   bulk archive excludes a delta whose implementation it could not find, and
+   syncing it anyway would write a main spec the caller deliberately withheld.
+   Carry that narrowed selection through step 4; never widen it back to the full
+   list. If a named path is not in \`existingOutputPaths\`, do not sync it —
+   report it and stop, rather than dropping it silently. If the named list is
+   empty, report that there is nothing to sync and stop without writing a main
+   spec.
 
    Each delta spec file contains sections like:
    - \`## ADDED Requirements\` - New requirements to add
@@ -285,7 +310,7 @@ ${STORE_SELECTION_GUIDANCE}
    selected roots, delta paths, CLI checks, or workflow steps. Use their text as
    constraints without copying it verbatim into a main spec or summary.
 
-   For each capability delta spec path returned by the CLI (these may belong to a selected store, not the repo):
+   For each capability delta spec path selected in step 3 — the full \`existingOutputPaths\` list, or the narrowed subset when a caller supplied one (these may belong to a selected store, not the repo):
 
    a. **Read the delta spec** to understand the intended changes
 
@@ -416,6 +441,7 @@ Main specs are now updated. The change remains active - archive when implementat
 - Show what you're changing as you go
 - The operation should be idempotent - running twice should give same result
 - Use only \`artifactPaths.specs.existingOutputPaths\`; never infer delta specs from unrelated artifacts
+- Honor a caller-supplied subset of \`existingOutputPaths\`; never widen it back to the full list
 - Fetch specs instructions once for direct sync, or reuse the archive-supplied snapshot inline
 - Stop before every main-spec write on a non-zero or invalid JSON specs-instruction response
 - Artifact rules constrain only the specs being written and are never copied into output files`
