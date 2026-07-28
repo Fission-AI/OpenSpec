@@ -488,6 +488,68 @@ Then expected result happens`;
       expect(process.exitCode).toBeUndefined();
     });
 
+    it('should archive when MODIFIED requirements were already synced to the baseline', async () => {
+      const changeName = 'early-synced-modify';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'mod-layer');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      const block = `### Requirement: Session handling\nThe system SHALL keep sessions.\n\n#### Scenario: Session persists\n- **WHEN** a user returns\n- **THEN** the session is restored`;
+      await fs.writeFile(
+        path.join(changeSpecDir, 'spec.md'),
+        `# Mod Layer - Changes\n\n## MODIFIED Requirements\n\n${block}\n`
+      );
+
+      // Early-sync pattern: the modification is already applied to main.
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'mod-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const mainSpecContent = `# mod-layer Specification\n\n## Purpose\nSession layer behavior.\n\n## Requirements\n\n${block}\n`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainSpecContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      // An identical MODIFIED block is a no-op: no churned rewrite, no
+      // claimed update, no "~ 1 modified" in the totals.
+      const updatedContent = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      expect(updatedContent).toBe(mainSpecContent);
+      expect(console.log).toHaveBeenCalledWith('Specs already in sync; no files changed.');
+      expect(console.log).not.toHaveBeenCalledWith('Specs updated successfully.');
+
+      const archives = await fs.readdir(path.join(tempDir, 'openspec', 'changes', 'archive'));
+      expect(archives.some(a => a.includes(changeName))).toBe(true);
+      expect(process.exitCode).toBeUndefined();
+    });
+
+    it('should abort an already-synced RENAMED when a case variant of the source still exists', async () => {
+      // FROM missing + TO present normally means the rename was early-synced,
+      // but a fold-variant of FROM still in the spec means the header is a
+      // typo - the same near-miss guard REMOVED applies.
+      const changeName = 'typo-rename';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'rename-layer');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      await fs.writeFile(
+        path.join(changeSpecDir, 'spec.md'),
+        `# Rename Layer - Changes\n\n## RENAMED Requirements\n- FROM: \`### Requirement: cache policy\`\n- TO: \`### Requirement: Eviction policy\`\n`
+      );
+
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'rename-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const mainSpecContent = `# rename-layer Specification\n\n## Purpose\nCache behavior.\n\n## Requirements\n\n### Requirement: Cache Policy\nThe system SHALL cache.\n\n#### Scenario: Cached\n- **WHEN** data repeats\n- **THEN** it is served from cache\n\n### Requirement: Eviction policy\nThe system SHALL evict.\n\n#### Scenario: Evicted\n- **WHEN** the cache is full\n- **THEN** old entries are dropped\n`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainSpecContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('RENAMED failed for header "### Requirement: cache policy" - source not found, but "### Requirement: Cache Policy" exists')
+      );
+      expect(process.exitCode).toBe(1);
+      await expect(fs.access(changeDir)).resolves.not.toThrow();
+      const untouched = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      expect(untouched).toBe(mainSpecContent);
+    });
+
     it('should abort when a REMOVED header near-misses an existing requirement (case/whitespace typo)', async () => {
       // A fold-insensitive match in the current spec means the header is a
       // typo, not an early-synced removal - that case must stay a hard abort.
