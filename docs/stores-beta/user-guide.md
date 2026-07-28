@@ -148,6 +148,44 @@ The pointer is a fallback, never an override: an explicit `--store` always
 wins, and if the repo grows real planning folders of its own, those win
 (with a warning to remove the stale pointer).
 
+**Sharing workflow schemas independently.** A Store can also be selected only
+for schemas and templates. This keeps changes and specs in the local repo:
+
+```yaml
+# web-app/openspec/config.yaml
+schema: qeda-sdd
+schemaStore:
+  id: department-schemas
+  schemas: [qeda-sdd, frontend-sdd]
+```
+
+Or combine two Store roles explicitly:
+
+```yaml
+store: department-planning
+schema: qeda-sdd
+schemaStore: department-schemas
+```
+
+Here `department-planning` owns specs, changes, and archives, while
+`department-schemas` contributes the allowed schemas. Use
+`schemaStore: department-schemas` when every schema should be visible; the
+object form also defaults to `*` when `schemas` is omitted.
+
+Set up or clone the schema repository normally, then register it on each
+machine:
+
+```bash
+git clone git@github.com:acme/department-schemas.git
+openspec store register ./department-schemas --id department-schemas
+```
+
+Schema resolution never runs Git commands. Pull or switch the registered
+checkout yourself; its current working tree is immediately visible to every
+local consumer. OpenSpec does not pin separate commits per project. Use
+`openspec schema which <name>` to see the winning source and
+`openspec store doctor department-schemas` when Store identity is unhealthy.
+
 **One default for every repo on your machine.** If you work across many
 code repos that all plan into the same store, set it once, globally,
 instead of adding the `store:` line to each repo:

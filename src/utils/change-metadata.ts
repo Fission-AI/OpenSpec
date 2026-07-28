@@ -2,7 +2,11 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as yaml from 'yaml';
 import { ChangeMetadataSchema, type ChangeMetadata } from '../core/change-metadata/index.js';
-import { listSchemas, resolveSchema } from '../core/artifact-graph/resolver.js';
+import {
+  listSchemas,
+  resolveSchema,
+  type SchemaResolutionTarget,
+} from '../core/artifact-graph/resolver.js';
 import { readProjectConfig, type ProjectConfig } from '../core/project-config.js';
 
 export const METADATA_FILENAME = '.openspec.yaml';
@@ -31,9 +35,9 @@ export class ChangeMetadataError extends Error {
  */
 export function validateSchemaName(
   schemaName: string,
-  projectRoot?: string
+  schemaTarget?: SchemaResolutionTarget
 ): string {
-  const availableSchemas = listSchemas(projectRoot);
+  const availableSchemas = listSchemas(schemaTarget);
   if (!availableSchemas.includes(schemaName)) {
     throw new Error(
       `Unknown schema '${schemaName}'. Available: ${availableSchemas.join(', ')}`
@@ -53,12 +57,12 @@ export function validateSchemaName(
 export function writeChangeMetadata(
   changeDir: string,
   metadata: ChangeMetadata,
-  projectRoot?: string
+  schemaTarget?: SchemaResolutionTarget
 ): void {
   const metaPath = path.join(changeDir, METADATA_FILENAME);
 
   // Validate schema exists
-  validateSchemaName(metadata.schema, projectRoot);
+  validateSchemaName(metadata.schema, schemaTarget);
 
   // Validate with Zod
   const parseResult = ChangeMetadataSchema.safeParse(metadata);
@@ -93,7 +97,7 @@ export function writeChangeMetadata(
  */
 export function readChangeMetadata(
   changeDir: string,
-  projectRoot?: string
+  schemaTarget?: SchemaResolutionTarget
 ): ChangeMetadata | null {
   const metaPath = path.join(changeDir, METADATA_FILENAME);
 
@@ -135,7 +139,7 @@ export function readChangeMetadata(
   }
 
   // Validate that the schema exists
-  const availableSchemas = listSchemas(projectRoot);
+  const availableSchemas = listSchemas(schemaTarget);
   if (!availableSchemas.includes(parseResult.data.schema)) {
     throw new ChangeMetadataError(
       `Unknown schema '${parseResult.data.schema}'. Available: ${availableSchemas.join(', ')}`,
@@ -150,6 +154,8 @@ export interface ResolveSchemaForChangeOptions {
   metadata?: ChangeMetadata | null;
   /** Pre-read project config; suppresses the fallback config read when provided. */
   projectConfig?: ProjectConfig | null;
+  /** Resolved project or schema Store authority for metadata validation. */
+  schemaTarget?: SchemaResolutionTarget;
 }
 
 /**
@@ -180,7 +186,9 @@ export function resolveSchemaForChange(
   }
 
   const metadata =
-    options.metadata !== undefined ? options.metadata : readChangeMetadata(changeDir, projectRoot);
+    options.metadata !== undefined
+      ? options.metadata
+      : readChangeMetadata(changeDir, options.schemaTarget ?? projectRoot);
   if (metadata?.schema) {
     return metadata.schema;
   }
@@ -232,7 +240,10 @@ export interface SkipSpecsMarker {
  * Missing metadata means "not declared"; a marker that cannot be honored
  * yields invalidReason so callers can say why.
  */
-export function readSkipSpecsMarker(changeDir: string): SkipSpecsMarker {
+export function readSkipSpecsMarker(
+  changeDir: string,
+  schemaTarget?: SchemaResolutionTarget
+): SkipSpecsMarker {
   let raw: string;
   try {
     raw = fs.readFileSync(path.join(changeDir, METADATA_FILENAME), 'utf-8');
@@ -277,13 +288,14 @@ export function readSkipSpecsMarker(changeDir: string): SkipSpecsMarker {
     // proves the schema actually parses. Any failure fails closed.
     try {
       const projectRoot = path.resolve(changeDir, '../../..');
-      if (!listSchemas(projectRoot).includes(result.data.schema)) {
+      const effectiveSchemaTarget = schemaTarget ?? projectRoot;
+      if (!listSchemas(effectiveSchemaTarget).includes(result.data.schema)) {
         return {
           declared: false,
           invalidReason: `schema: unknown schema '${result.data.schema}'`,
         };
       }
-      resolveSchema(result.data.schema, projectRoot);
+      resolveSchema(result.data.schema, effectiveSchemaTarget);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       return { declared: false, invalidReason: message };

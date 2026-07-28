@@ -20,12 +20,18 @@ import { findMainSpecStructureIssues } from '../parsers/spec-structure.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import { discoverSpecFiles, hasAnyFileUnder } from '../../utils/spec-discovery.js';
 import { METADATA_FILENAME, readSkipSpecsMarker } from '../../utils/change-metadata.js';
+import type { SchemaResolutionTarget } from '../artifact-graph/index.js';
 
 export class Validator {
   private strictMode: boolean;
+  private schemaTarget?: SchemaResolutionTarget;
 
-  constructor(strictMode: boolean = false) {
+  constructor(
+    strictMode: boolean = false,
+    schemaTarget?: SchemaResolutionTarget
+  ) {
     this.strictMode = strictMode;
+    this.schemaTarget = schemaTarget;
   }
 
   async validateSpec(filePath: string): Promise<ValidationReport> {
@@ -91,7 +97,7 @@ export class Validator {
 
       const result = ChangeSchema.safeParse(change);
 
-      const marker = readSkipSpecsMarker(changeDir);
+      const marker = readSkipSpecsMarker(changeDir, this.schemaTarget);
       if (marker.invalidReason) {
         issues.push({ level: 'ERROR', path: METADATA_FILENAME, message: this.formatInvalidMarkerMessage(marker.invalidReason) });
       }
@@ -353,7 +359,7 @@ export class Validator {
       });
     }
 
-    const marker = readSkipSpecsMarker(changeDir);
+    const marker = readSkipSpecsMarker(changeDir, this.schemaTarget);
     if (marker.invalidReason) {
       issues.push({ level: 'ERROR', path: METADATA_FILENAME, message: this.formatInvalidMarkerMessage(marker.invalidReason) });
     }

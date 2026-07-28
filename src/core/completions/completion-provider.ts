@@ -1,5 +1,6 @@
 import { getActiveChangeIds, getSpecIds } from '../../utils/item-discovery.js';
 import { listSchemas } from '../artifact-graph/index.js';
+import type { SchemaResolutionTarget } from '../artifact-graph/index.js';
 
 /**
  * Cache entry for completion data
@@ -28,7 +29,8 @@ export class CompletionProvider {
    */
   constructor(
     private readonly cacheTTLMs: number = 2000,
-    private readonly projectRoot: string = process.cwd()
+    private readonly projectRoot: string = process.cwd(),
+    private readonly schemaTarget?: SchemaResolutionTarget
   ) {
     this.cacheTTL = cacheTTLMs;
   }
@@ -88,7 +90,9 @@ export class CompletionProvider {
    *
    * @returns Array of schema names
    */
-  async getSchemaNames(): Promise<string[]> {
+  async getSchemaNames(
+    schemaTarget: SchemaResolutionTarget | undefined = this.schemaTarget
+  ): Promise<string[]> {
     const now = Date.now();
 
     // Check if cache is valid
@@ -97,7 +101,7 @@ export class CompletionProvider {
     }
 
     // Fetch fresh data
-    const schemaNames = listSchemas(this.projectRoot);
+    const schemaNames = listSchemas(schemaTarget ?? this.projectRoot);
 
     // Update cache
     this.schemaCache = {

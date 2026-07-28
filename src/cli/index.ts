@@ -51,6 +51,7 @@ import {
 import { maybeShowTelemetryNotice, trackCommand, shutdown } from '../telemetry/index.js';
 import { COMMON_FLAGS } from '../core/completions/shared-flags.js';
 import { isInteractive } from '../utils/interactive.js';
+import { readResolvedProjectConfig } from '../core/root-selection.js';
 
 const STORE_OPTION_DESCRIPTION = COMMON_FLAGS.store.description;
 
@@ -301,6 +302,8 @@ program
       await listCommand.execute(root.path, mode, {
         sort,
         json: options?.json,
+        schemaTarget: root.schemaContext,
+        projectConfig: readResolvedProjectConfig(root),
         ...(options?.json ? { root: toRootOutput(root) } : {}),
       });
     } catch (error) {
@@ -328,7 +331,10 @@ program
         return;
       }
       const viewCommand = new ViewCommand();
-      await viewCommand.execute(root.path);
+      await viewCommand.execute(root.path, {
+        schemaTarget: root.schemaContext,
+        projectConfig: readResolvedProjectConfig(root),
+      });
     } catch (error) {
       failWithError(error);
       process.exit(1);
@@ -370,7 +376,13 @@ changeCmd
   .action(async (options?: { json?: boolean; long?: boolean }) => {
     try {
       console.error('Warning: "openspec change list" is deprecated. Use "openspec list".');
-      const changeCommand = new ChangeCommand();
+      const root = await resolveRootForCommand({}, { json: options?.json });
+      if (!root) return;
+      const changeCommand = new ChangeCommand(
+        root.path,
+        root.schemaContext,
+        readResolvedProjectConfig(root)
+      );
       await changeCommand.list(options);
     } catch (error) {
       console.error(`Error: ${(error as Error).message}`);
@@ -606,6 +618,8 @@ program
   .description('Show resolved template paths for all artifacts in a schema')
   .option('--schema <name>', `Schema to use (default: ${DEFAULT_SCHEMA})`)
   .option('--json', 'Output as JSON mapping artifact IDs to template paths')
+  .option('--store <id>', STORE_OPTION_DESCRIPTION)
+  .addOption(hiddenStorePathOption())
   .action(async (options: TemplatesOptions) => {
     try {
       await templatesCommand(options);
@@ -620,6 +634,8 @@ program
   .command('schemas')
   .description('List available workflow schemas with descriptions')
   .option('--json', 'Output as JSON (for agent use)')
+  .option('--store <id>', STORE_OPTION_DESCRIPTION)
+  .addOption(hiddenStorePathOption())
   .action(async (options: SchemasOptions) => {
     try {
       await schemasCommand(options);

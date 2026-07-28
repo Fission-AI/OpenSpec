@@ -22,6 +22,7 @@ import {
   isStoreSelectedRoot,
 } from '../../core/root-selection.js';
 import { printJson, statusFromError, validateSchemaExists } from './shared.js';
+import { readResolvedProjectConfig } from '../../core/root-selection.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -109,13 +110,15 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
     }
 
     const projectRoot = root.path;
+    const projectConfig = readResolvedProjectConfig(root);
 
     // Validate schema if provided
     if (options.schema) {
-      validateSchemaExists(options.schema, projectRoot);
+      validateSchemaExists(options.schema, root.schemaContext);
     }
 
-    const resolvedSchema = options.schema ?? root.defaultSchema;
+    const resolvedSchema =
+      options.schema ?? projectConfig?.schema ?? root.defaultSchema;
     if (spinner) {
       spinner.start(`Creating change '${name}' with schema '${resolvedSchema}'...`);
     }
@@ -124,6 +127,8 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
       schema: options.schema,
       defaultSchema: root.defaultSchema,
       changesDir: root.changesDir,
+      projectConfig,
+      schemaTarget: root.schemaContext,
       metadata: {
         ...(options.goal ? { goal: options.goal } : {}),
       },

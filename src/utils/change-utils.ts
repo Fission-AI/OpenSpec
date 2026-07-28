@@ -5,6 +5,8 @@ import { formatLocalDate } from './date.js';
 import { readProjectConfig } from '../core/project-config.js';
 import { isKebabId } from '../core/id.js';
 import type { ChangeMetadata } from '../core/change-metadata/index.js';
+import type { SchemaResolutionTarget } from '../core/artifact-graph/resolver.js';
+import type { ProjectConfig } from '../core/project-config.js';
 
 const DEFAULT_SCHEMA = 'spec-driven';
 
@@ -20,6 +22,10 @@ export interface CreateChangeOptions {
   changesDir?: string;
   /** Additional metadata to persist in the change's .openspec.yaml */
   metadata?: Partial<Pick<ChangeMetadata, 'goal' | 'affected_areas' | 'initiative'>>;
+  /** Consumer config snapshot when planning lives in a different Store. */
+  projectConfig?: ProjectConfig | null;
+  /** Resolved project or schema Store authority used to validate the schema. */
+  schemaTarget?: SchemaResolutionTarget;
 }
 
 /**
@@ -139,7 +145,10 @@ export async function createChange(
   } else {
     // Try to read from project config
     try {
-      const config = readProjectConfig(projectRoot);
+      const config =
+        options.projectConfig !== undefined
+          ? options.projectConfig
+          : readProjectConfig(projectRoot);
       schemaName = config?.schema ?? defaultSchema;
     } catch {
       // If config read fails, use default
@@ -148,7 +157,7 @@ export async function createChange(
   }
 
   // Validate the resolved schema
-  validateSchemaName(schemaName, projectRoot);
+  validateSchemaName(schemaName, options.schemaTarget ?? projectRoot);
 
   // Build the change directory path
   const changeDir = path.join(options.changesDir ?? path.join(projectRoot, 'openspec', 'changes'), name);
@@ -184,7 +193,7 @@ export async function createChange(
     schema: schemaName,
     created: formatLocalDate(),
     ...options.metadata,
-  }, projectRoot);
+  }, options.schemaTarget ?? projectRoot);
 
   return { schema: schemaName, changeDir };
 }

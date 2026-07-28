@@ -10,14 +10,16 @@ import {
   getPackageSchemasDir,
   isSchemaDir,
   listSchemas,
+  type SchemaResolutionContext,
 } from '../core/artifact-graph/resolver.js';
 import { parseSchema, SchemaValidationError } from '../core/artifact-graph/schema.js';
 import type { SchemaYaml, Artifact } from '../core/artifact-graph/types.js';
+import { resolveRootForCommand } from '../core/root-selection.js';
 
 /**
  * Schema source location type
  */
-type SchemaSource = 'project' | 'user' | 'package';
+type SchemaSource = 'project' | 'store' | 'user' | 'package';
 
 /**
  * Result of checking a schema location
@@ -26,6 +28,7 @@ interface SchemaLocation {
   source: SchemaSource;
   path: string;
   exists: boolean;
+  storeId?: string;
 }
 
 /**
@@ -35,7 +38,8 @@ interface SchemaResolution {
   name: string;
   source: SchemaSource;
   path: string;
-  shadows: Array<{ source: SchemaSource; path: string }>;
+  storeId?: string;
+  shadows: Array<{ source: SchemaSource; path: string; storeId?: string }>;
 }
 
 /**
@@ -52,18 +56,27 @@ interface ValidationIssue {
  */
 function checkAllLocations(
   name: string,
-  projectRoot: string
+  schemaContext: SchemaResolutionContext
 ): SchemaLocation[] {
   const locations: SchemaLocation[] = [];
 
-  // Project location
-  const projectDir = path.join(getProjectSchemasDir(projectRoot), name);
+  // Active project layer: local project or configured schema Store.
+  const projectDir = path.join(getProjectSchemasDir(schemaContext.root), name);
   const projectSchemaPath = path.join(projectDir, 'schema.yaml');
-  locations.push({
-    source: 'project',
-    path: projectDir,
-    exists: fs.existsSync(projectSchemaPath),
-  });
+  const visible =
+    schemaContext.source === 'project' ||
+    schemaContext.visibleSchemas === '*' ||
+    schemaContext.visibleSchemas.includes(name);
+  if (visible) {
+    locations.push({
+      source: schemaContext.source,
+      path: projectDir,
+      exists: fs.existsSync(projectSchemaPath),
+      ...(schemaContext.source === 'store' && schemaContext.storeId
+        ? { storeId: schemaContext.storeId }
+        : {}),
+    });
+  }
 
   // User location
   const userDir = path.join(getUserSchemasDir(), name);
@@ -91,9 +104,9 @@ function checkAllLocations(
  */
 function getSchemaResolution(
   name: string,
-  projectRoot: string
+  schemaContext: SchemaResolutionContext
 ): SchemaResolution | null {
-  const locations = checkAllLocations(name, projectRoot);
+  const locations = checkAllLocations(name, schemaContext);
   const existingLocations = locations.filter((loc) => loc.exists);
 
   if (existingLocations.length === 0) {
@@ -104,12 +117,14 @@ function getSchemaResolution(
   const shadows = existingLocations.slice(1).map((loc) => ({
     source: loc.source,
     path: loc.path,
+    ...(loc.storeId ? { storeId: loc.storeId } : {}),
   }));
 
   return {
     name,
     source: active.source,
     path: active.path,
+    ...(active.storeId ? { storeId: active.storeId } : {}),
     shadows,
   };
 }
@@ -118,13 +133,13 @@ function getSchemaResolution(
  * Get all schemas with resolution info.
  */
 function getAllSchemasWithResolution(
-  projectRoot: string
+  schemaContext: SchemaResolutionContext
 ): SchemaResolution[] {
-  const schemaNames = listSchemas(projectRoot);
+  const schemaNames = listSchemas(schemaContext);
   const results: SchemaResolution[] = [];
 
   for (const name of schemaNames) {
-    const resolution = getSchemaResolution(name, projectRoot);
+    const resolution = getSchemaResolution(name, schemaContext);
     if (resolution) {
       results.push(resolution);
     }
@@ -306,11 +321,13 @@ export function registerSchemaCommand(program: Command): void {
     .option('--all', 'List all schemas with their resolution sources')
     .action(async (name?: string, options?: { json?: boolean; all?: boolean }) => {
       try {
-        const projectRoot = process.cwd();
+        const root = await resolveRootForCommand({}, { json: options?.json });
+        if (!root) return;
+        const schemaContext = root.schemaContext;
 
         if (options?.all) {
           // List all schemas
-          const schemas = getAllSchemasWithResolution(projectRoot);
+          const schemas = getAllSchemasWithResolution(schemaContext);
 
           if (options?.json) {
             console.log(JSON.stringify(schemas, null, 2));
@@ -323,6 +340,7 @@ export function registerSchemaCommand(program: Command): void {
             // Group by source
             const bySource = {
               project: schemas.filter((s) => s.source === 'project'),
+              store: schemas.filter((s) => s.source === 'store'),
               user: schemas.filter((s) => s.source === 'user'),
               package: schemas.filter((s) => s.source === 'package'),
             };
@@ -334,6 +352,19 @@ export function registerSchemaCommand(program: Command): void {
                   ? ` (shadows: ${schema.shadows.map((s) => s.source).join(', ')})`
                   : '';
                 console.log(`  ${schema.name}${shadowInfo}`);
+              }
+            }
+
+            if (bySource.store.length > 0) {
+              console.log('\nStore schemas:');
+              for (const schema of bySource.store) {
+                const shadowInfo =
+                  schema.shadows.length > 0
+                    ? ` (shadows: ${schema.shadows.map((s) => s.source).join(', ')})`
+                    : '';
+                console.log(
+                  `  ${schema.name} (${schema.storeId})${shadowInfo}`
+                );
               }
             }
 
@@ -363,10 +394,10 @@ export function registerSchemaCommand(program: Command): void {
           return;
         }
 
-        const resolution = getSchemaResolution(name, projectRoot);
+        const resolution = getSchemaResolution(name, schemaContext);
 
         if (!resolution) {
-          const available = listSchemas(projectRoot);
+          const available = listSchemas(schemaContext);
           if (options?.json) {
             console.log(JSON.stringify({
               error: `Schema '${name}' not found`,
@@ -384,7 +415,13 @@ export function registerSchemaCommand(program: Command): void {
           console.log(JSON.stringify(resolution, null, 2));
         } else {
           console.log(`Schema: ${resolution.name}`);
-          console.log(`Source: ${resolution.source}`);
+          console.log(
+            `Source: ${
+              resolution.source === 'store'
+                ? `Store (${resolution.storeId})`
+                : resolution.source
+            }`
+          );
           console.log(`Path: ${resolution.path}`);
 
           if (resolution.shadows.length > 0) {
@@ -408,11 +445,13 @@ export function registerSchemaCommand(program: Command): void {
     .option('--verbose', 'Show detailed validation steps')
     .action(async (name?: string, options?: { json?: boolean; verbose?: boolean }) => {
       try {
-        const projectRoot = process.cwd();
+        const root = await resolveRootForCommand({}, { json: options?.json });
+        if (!root) return;
+        const schemaContext = root.schemaContext;
 
         if (!name) {
-          // Validate all project schemas
-          const projectSchemasDir = getProjectSchemasDir(projectRoot);
+          // Validate all schemas in the active project layer.
+          const projectSchemasDir = getProjectSchemasDir(schemaContext.root);
 
           if (!fs.existsSync(projectSchemasDir)) {
             if (options?.json) {
@@ -439,6 +478,13 @@ export function registerSchemaCommand(program: Command): void {
 
           for (const entry of entries) {
             if (!isSchemaDir(projectSchemasDir, entry)) continue;
+            if (
+              schemaContext.source === 'store' &&
+              schemaContext.visibleSchemas !== '*' &&
+              !schemaContext.visibleSchemas.includes(entry.name)
+            ) {
+              continue;
+            }
 
             const schemaDir = path.join(projectSchemasDir, entry.name);
             const schemaPath = path.join(schemaDir, 'schema.yaml');
@@ -490,10 +536,10 @@ export function registerSchemaCommand(program: Command): void {
         }
 
         // Validate specific schema
-        const schemaDir = getSchemaDir(name, projectRoot);
+        const schemaDir = getSchemaDir(name, schemaContext);
 
         if (!schemaDir) {
-          const available = listSchemas(projectRoot);
+          const available = listSchemas(schemaContext);
           if (options?.json) {
             console.log(JSON.stringify({
               valid: false,
@@ -555,7 +601,13 @@ export function registerSchemaCommand(program: Command): void {
       const spinner = options?.json ? null : ora();
 
       try {
-        const projectRoot = process.cwd();
+        const root = await resolveRootForCommand({}, { json: options?.json });
+        if (!root) {
+          spinner?.stop();
+          return;
+        }
+        const projectRoot = root.consumerRoot;
+        const schemaContext = root.schemaContext;
         const destinationName = name || `${source}-custom`;
 
         // Validate destination name
@@ -574,9 +626,9 @@ export function registerSchemaCommand(program: Command): void {
         }
 
         // Find source schema
-        const sourceDir = getSchemaDir(source, projectRoot);
+        const sourceDir = getSchemaDir(source, schemaContext);
         if (!sourceDir) {
-          const available = listSchemas(projectRoot);
+          const available = listSchemas(schemaContext);
           if (options?.json) {
             console.log(JSON.stringify({
               forked: false,
@@ -592,7 +644,7 @@ export function registerSchemaCommand(program: Command): void {
         }
 
         // Determine source location
-        const sourceResolution = getSchemaResolution(source, projectRoot);
+        const sourceResolution = getSchemaResolution(source, schemaContext);
         const sourceLocation = sourceResolution?.source || 'package';
 
         // Check destination
@@ -685,7 +737,12 @@ export function registerSchemaCommand(program: Command): void {
       const spinner = options?.json ? null : ora();
 
       try {
-        const projectRoot = process.cwd();
+        const root = await resolveRootForCommand({}, { json: options?.json });
+        if (!root) {
+          spinner?.stop();
+          return;
+        }
+        const projectRoot = root.consumerRoot;
 
         // Validate name
         if (!isValidSchemaName(name)) {

@@ -21,6 +21,8 @@ import {
 } from './specs-apply.js';
 import { discoverSpecFiles, hasAnyFileUnder } from '../utils/spec-discovery.js';
 import { readSkipSpecsMarker } from '../utils/change-metadata.js';
+import { type ProjectConfig } from './project-config.js';
+import { readResolvedProjectConfig } from './root-selection.js';
 
 function isMissingPathError(error: unknown): boolean {
   return (
@@ -213,6 +215,7 @@ export class ArchiveCommand {
     const changesDir = root.changesDir;
     const archiveDir = root.archiveDir;
     const mainSpecsDir = root.specsDir;
+    const projectConfig = readResolvedProjectConfig(root);
 
     // Get change name interactively if not provided
     if (!changeName) {
@@ -223,7 +226,11 @@ export class ArchiveCommand {
           withStoreFlag(root, 'openspec archive <change-name> --json')
         );
       }
-      const selectedChange = await this.selectChange(changesDir);
+      const selectedChange = await this.selectChange(
+        changesDir,
+        root,
+        projectConfig
+      );
       if (!selectedChange) {
         console.log('No change selected. Aborting.');
         return null;
@@ -253,7 +260,7 @@ export class ArchiveCommand {
 
     // Validate specs and change before archiving
     if (!skipValidation) {
-      const validator = new Validator();
+      const validator = new Validator(false, root.schemaContext);
       let hasValidationErrors = false;
 
       // Validate proposal.md (informative only; human mode prints warnings)
@@ -309,7 +316,7 @@ export class ArchiveCommand {
       // proposal warnings — a gap that predates the marker and is left
       // unchanged here.)
       if (!hasDeltaSpecs) {
-        const marker = readSkipSpecsMarker(changeDir);
+        const marker = readSkipSpecsMarker(changeDir, root.schemaContext);
         if (marker.invalidReason) {
           hasDeltaSpecs = true;
         } else if (marker.declared) {
@@ -394,7 +401,13 @@ export class ArchiveCommand {
     }
 
     // Show progress and check for incomplete tasks
-    const progress = await getTaskProgressForChange(changesDir, changeName, path.resolve(changesDir, '..', '..'));
+    const progress = await getTaskProgressForChange(
+      changesDir,
+      changeName,
+      root.path,
+      root.schemaContext,
+      projectConfig
+    );
     if (!json) {
       const status = formatTaskStatus(progress);
       console.log(`Task status: ${status}`);
@@ -496,7 +509,10 @@ export class ArchiveCommand {
           if (!skipValidation) {
             for (const p of prepared) {
               const specName = p.update.id;
-              const report = await new Validator().validateSpecContent(specName, p.rebuilt);
+              const report = await new Validator(
+                false,
+                root.schemaContext
+              ).validateSpecContent(specName, p.rebuilt);
               if (!report.valid) {
                 if (json) {
                   throw new ArchiveBlockedError(
@@ -597,7 +613,11 @@ export class ArchiveCommand {
     };
   }
 
-  private async selectChange(changesDir: string): Promise<string | null> {
+  private async selectChange(
+    changesDir: string,
+    root: ResolvedOpenSpecRoot,
+    projectConfig: ProjectConfig | null
+  ): Promise<string | null> {
     const { select } = await import('@inquirer/prompts');
     const changeDirs = await listActiveChangeNames(changesDir);
 
@@ -611,7 +631,13 @@ export class ArchiveCommand {
     try {
       const progressList: Array<{ id: string; status: string }> = [];
       for (const id of changeDirs) {
-        const progress = await getTaskProgressForChange(changesDir, id, path.resolve(changesDir, '..', '..'));
+        const progress = await getTaskProgressForChange(
+          changesDir,
+          id,
+          root.path,
+          root.schemaContext,
+          projectConfig
+        );
         const status = formatTaskStatus(progress);
         progressList.push({ id, status });
       }

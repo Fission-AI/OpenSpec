@@ -649,6 +649,137 @@ artifacts:
     });
   });
 
+  describe('schema Store context', () => {
+    function writeSchema(
+      root: string,
+      name: string,
+      schemaName: string,
+      description = schemaName
+    ): string {
+      const schemaDir = path.join(root, 'openspec', 'schemas', name);
+      fs.mkdirSync(schemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(schemaDir, 'schema.yaml'),
+        `name: ${schemaName}
+version: 1
+description: ${description}
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Proposal
+    template: proposal.md
+`
+      );
+      return schemaDir;
+    }
+
+    function storeContext(
+      root: string,
+      visibleSchemas: '*' | readonly string[] = '*'
+    ) {
+      return {
+        root,
+        source: 'store' as const,
+        storeId: 'department-schemas',
+        visibleSchemas,
+      };
+    }
+
+    it('resolves a visible Store schema ahead of user and package schemas', () => {
+      process.env.XDG_DATA_HOME = path.join(tempDir, 'user-data');
+      const storeRoot = path.join(tempDir, 'schema-store');
+      const storeSchemaDir = writeSchema(
+        storeRoot,
+        'spec-driven',
+        'store-spec-driven'
+      );
+      writeSchema(
+        process.env.XDG_DATA_HOME,
+        'spec-driven',
+        'unused-user'
+      );
+
+      expect(getSchemaDir('spec-driven', storeContext(storeRoot))).toBe(
+        storeSchemaDir
+      );
+      expect(resolveSchema('spec-driven', storeContext(storeRoot)).name).toBe(
+        'store-spec-driven'
+      );
+    });
+
+    it('applies exact visibility only to the Store source', () => {
+      process.env.XDG_DATA_HOME = path.join(tempDir, 'user-data');
+      const storeRoot = path.join(tempDir, 'schema-store');
+      writeSchema(storeRoot, 'visible-schema', 'visible-store');
+      writeSchema(storeRoot, 'hidden-schema', 'hidden-store');
+      const userSchemaDir = path.join(
+        process.env.XDG_DATA_HOME,
+        'openspec',
+        'schemas',
+        'hidden-schema'
+      );
+      fs.mkdirSync(userSchemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(userSchemaDir, 'schema.yaml'),
+        `name: hidden-user
+version: 1
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Proposal
+    template: proposal.md
+`
+      );
+      const context = storeContext(storeRoot, ['visible-schema']);
+
+      expect(listSchemas(context)).toContain('visible-schema');
+      expect(resolveSchema('visible-schema', context).name).toBe('visible-store');
+      expect(getSchemaDir('hidden-schema', context)).toBe(userSchemaDir);
+      expect(resolveSchema('hidden-schema', context).name).toBe('hidden-user');
+    });
+
+    it('uses wildcard visibility and tolerates an empty Store schema directory', () => {
+      const storeRoot = path.join(tempDir, 'schema-store');
+      writeSchema(storeRoot, 'alpha-schema', 'alpha-store');
+
+      expect(listSchemas(storeContext(storeRoot))).toContain('alpha-schema');
+
+      const emptyStoreRoot = path.join(tempDir, 'empty-schema-store');
+      fs.mkdirSync(emptyStoreRoot, { recursive: true });
+      expect(listSchemas(storeContext(emptyStoreRoot))).toContain('spec-driven');
+    });
+
+    it('replaces consumer-local project schemas when a Store is configured', () => {
+      process.env.XDG_DATA_HOME = path.join(tempDir, 'user-data');
+      const consumerRoot = path.join(tempDir, 'consumer');
+      const storeRoot = path.join(tempDir, 'schema-store');
+      writeSchema(consumerRoot, 'consumer-only', 'consumer-version');
+      writeSchema(storeRoot, 'store-only', 'store-version');
+
+      const schemas = listSchemas(storeContext(storeRoot));
+
+      expect(schemas).toContain('store-only');
+      expect(schemas).not.toContain('consumer-only');
+      expect(getSchemaDir('consumer-only', storeContext(storeRoot))).toBeNull();
+    });
+
+    it('reports Store provenance and exact Store id', () => {
+      const storeRoot = path.join(tempDir, 'schema-store');
+      writeSchema(storeRoot, 'team-workflow', 'team-workflow', 'Team workflow');
+
+      const info = listSchemasWithInfo(storeContext(storeRoot)).find(
+        (schema) => schema.name === 'team-workflow'
+      );
+
+      expect(info).toMatchObject({
+        name: 'team-workflow',
+        description: 'Team workflow',
+        source: 'store',
+        storeId: 'department-schemas',
+      });
+    });
+  });
+
   // =========================================================================
   // Symlinked schema directory tests
   // =========================================================================

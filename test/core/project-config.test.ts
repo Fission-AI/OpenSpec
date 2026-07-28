@@ -6,6 +6,7 @@ import {
   loadOperationInputs,
   OPERATION_IDS,
   readProjectConfig,
+  readSchemaStoreDeclaration,
   validateConfigRules,
   suggestSchemas,
 } from '../../src/core/project-config.js';
@@ -564,6 +565,165 @@ rules:
         expect(consoleWarnSpy).toHaveBeenCalledWith(
           expect.stringContaining("Invalid 'references' field")
         );
+      });
+    });
+
+    describe('schemaStore parsing', () => {
+      function writeConfig(body: string): void {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(path.join(configDir, 'config.yaml'), body);
+      }
+
+      it('normalizes the scalar form to wildcard visibility', () => {
+        writeConfig('schema: qeda-sdd\nschemaStore: department-schemas\n');
+
+        expect(readProjectConfig(tempDir)).toEqual({
+          schema: 'qeda-sdd',
+          schemaStore: {
+            id: 'department-schemas',
+            schemas: '*',
+          },
+        });
+      });
+
+      it('normalizes omitted and explicit wildcard visibility', () => {
+        writeConfig(
+          'schema: qeda-sdd\nschemaStore:\n  id: department-schemas\n'
+        );
+        expect(readProjectConfig(tempDir)?.schemaStore).toEqual({
+          id: 'department-schemas',
+          schemas: '*',
+        });
+
+        writeConfig(
+          'schema: qeda-sdd\nschemaStore:\n  id: department-schemas\n  schemas: ["*"]\n'
+        );
+        expect(readProjectConfig(tempDir)?.schemaStore).toEqual({
+          id: 'department-schemas',
+          schemas: '*',
+        });
+      });
+
+      it('normalizes an exact allowlist by deduplicating in declaration order', () => {
+        writeConfig(
+          'schema: qeda-sdd\nschemaStore:\n  id: department-schemas\n  schemas:\n    - qeda-sdd\n    - api-contract\n    - qeda-sdd\n'
+        );
+
+        expect(readProjectConfig(tempDir)?.schemaStore).toEqual({
+          id: 'department-schemas',
+          schemas: ['qeda-sdd', 'api-contract'],
+        });
+      });
+
+      it.each([
+        {
+          label: 'empty visibility',
+          declaration: 'id: department-schemas\n  schemas: []',
+        },
+        {
+          label: 'mixed wildcard visibility',
+          declaration:
+            'id: department-schemas\n  schemas:\n    - "*"\n    - qeda-sdd',
+        },
+        {
+          label: 'invalid Store id',
+          declaration: 'id: "Department Schemas"',
+        },
+        {
+          label: 'invalid schema name',
+          declaration:
+            'id: department-schemas\n  schemas:\n    - Not-A-Schema',
+        },
+        {
+          label: 'unsupported field',
+          declaration:
+            'id: department-schemas\n  schemas: ["*"]\n  remote: https://example.com/schemas.git',
+        },
+      ])(
+        'drops $label while preserving unrelated valid fields',
+        ({ declaration }) => {
+          writeConfig(
+            `schema: spec-driven
+context: Keep this context
+schemaStore:
+  ${declaration}
+`
+          );
+
+          expect(readProjectConfig(tempDir)).toEqual({
+            schema: 'spec-driven',
+            context: 'Keep this context',
+          });
+          expect(consoleWarnSpy).toHaveBeenCalledWith(
+            expect.stringContaining("Invalid 'schemaStore' field")
+          );
+        }
+      );
+
+      it('strictly distinguishes an absent declaration from a valid declaration', () => {
+        writeConfig('schema: spec-driven\n');
+        expect(readSchemaStoreDeclaration(tempDir)).toEqual({
+          filePath: path.join(tempDir, 'openspec', 'config.yaml'),
+        });
+
+        writeConfig(
+          'schema: qeda-sdd\nschemaStore:\n  id: department-schemas\n  schemas: [qeda-sdd, qeda-sdd]\n'
+        );
+        expect(readSchemaStoreDeclaration(tempDir)).toEqual({
+          value: {
+            id: 'department-schemas',
+            schemas: ['qeda-sdd'],
+          },
+          filePath: path.join(tempDir, 'openspec', 'config.yaml'),
+        });
+      });
+
+      it.each([
+        {
+          body: 'schemaStore:\n  id: department-schemas\n  schemas: []\n',
+          problem: 'at least one schema',
+        },
+        {
+          body:
+            'schemaStore:\n  id: department-schemas\n  schemas: ["*", qeda-sdd]\n',
+          problem: 'cannot be combined',
+        },
+        {
+          body: 'schemaStore: "Department Schemas"\n',
+          problem: 'valid kebab-case Store id',
+        },
+        {
+          body:
+            'schemaStore:\n  id: department-schemas\n  schemas: [Not-A-Schema]\n',
+          problem: 'invalid schema name',
+        },
+        {
+          body:
+            'schemaStore:\n  id: department-schemas\n  remote: https://example.com/schemas.git\n',
+          problem: 'unsupported field',
+        },
+      ])(
+        'reports an invalid explicit declaration without dropping it',
+        ({ body, problem }) => {
+          writeConfig(body);
+
+          expect(readSchemaStoreDeclaration(tempDir)).toEqual({
+            malformed: 'invalid_declaration',
+            problem: expect.stringContaining(problem),
+            filePath: path.join(tempDir, 'openspec', 'config.yaml'),
+          });
+        }
+      );
+
+      it('reports malformed YAML as unparseable', () => {
+        writeConfig('schemaStore: [unclosed');
+
+        expect(readSchemaStoreDeclaration(tempDir)).toEqual({
+          malformed: 'unparseable',
+          problem: 'the config file could not be read as YAML',
+          filePath: path.join(tempDir, 'openspec', 'config.yaml'),
+        });
       });
     });
 

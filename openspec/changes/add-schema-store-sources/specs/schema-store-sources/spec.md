@@ -24,6 +24,17 @@ The system SHALL allow a consumer project to select one registered Store as its 
 - **WHEN** a project does not declare `schemaStore`
 - **THEN** schema and planning resolution SHALL retain their existing behavior
 
+#### Scenario: Redirected planning retains Planning Store configuration
+- **WHEN** a consumer redirects planning to a Store
+- **AND** does not declare `schemaStore`
+- **THEN** workflow commands SHALL continue to use the Planning Store's project configuration
+
+#### Scenario: Schema consumer configuration overlays planning configuration
+- **WHEN** a consumer redirects planning to one Store
+- **AND** declares a separate `schemaStore`
+- **THEN** consumer configuration fields SHALL override corresponding Planning Store fields
+- **AND** fields omitted by the consumer SHALL remain inherited from the Planning Store
+
 ### Requirement: Schema Store visibility is consumer-controlled
 
 The system SHALL let the consumer select which schemas from its schema Store participate in discovery and resolution.

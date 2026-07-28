@@ -126,6 +126,15 @@ Schema-only commands use the same schema-context resolver rather than duplicatin
 
 Alternative considered: make `getSchemaDir`, `resolveSchema`, and every caller asynchronous. Rejected because registry lookup is the only asynchronous requirement and can be completed at the command boundary.
 
+Operational configuration remains backward-compatible with Planning Store
+selection. When planning is redirected and the consumer does not declare
+`schemaStore`, commands continue to use the Planning Store's configuration.
+When the consumer does declare `schemaStore`, its configuration overlays the
+Planning Store configuration: consumer-authored schema choices and rules can
+target the selected schema authority, while omitted fields such as
+`references`, context, and operation guidance remain inherited from the
+Planning Store.
+
 ### 5. Treat a schema Store as the project schema layer
 
 When `schemaStore` is configured, its visible schemas replace the consumer repository's project-local schema layer. Resolution precedence becomes:

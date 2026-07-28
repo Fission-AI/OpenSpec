@@ -28,6 +28,8 @@ export {
   getUserSchemasDir,
   SchemaLoadError,
   type SchemaInfo,
+  type SchemaResolutionContext,
+  type SchemaResolutionTarget,
 } from './resolver.js';
 
 // Instruction loading

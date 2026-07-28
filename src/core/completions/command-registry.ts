@@ -212,6 +212,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         takesValue: true,
       },
       COMMON_FLAGS.json,
+      COMMON_FLAGS.store,
     ],
   },
   {
@@ -219,6 +220,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     description: 'List available workflow schemas with descriptions',
     flags: [
       COMMON_FLAGS.json,
+      COMMON_FLAGS.store,
     ],
   },
   {
