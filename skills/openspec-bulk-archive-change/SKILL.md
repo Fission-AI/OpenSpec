@@ -77,8 +77,9 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - If neither implemented -> skip spec sync, warn user
 
    d. **Record resolution** for each conflict:
-      - Which change's specs to apply
-      - In what order (if both)
+      - An inclusion or exclusion decision for every delta spec, keyed by change and capability
+      - Which included delta specs to apply and in what order
+      - Which delta specs to exclude from sync because their implementation is missing
       - Rationale (what was found in codebase)
 
 6. **Show consolidated status table**
@@ -127,20 +128,27 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
 8. **Execute archive for each confirmed change**
 
+   Before processing, carry the recorded decisions from step 5 (after any step 7 re-derivation) into two per-delta sets:
+   - `includedDeltas`: all non-conflicting delta specs from confirmed changes plus conflict deltas selected for sync
+   - `excludedDeltas`: conflict deltas from confirmed changes excluded because their implementation is missing
+   - A single change can have both included and excluded delta specs. Keep the decision per delta; do not collapse it into a per-change sync flag.
+
    Process changes in the determined order (respecting conflict resolution):
 
-   a. **Sync specs** if delta specs exist:
-      - Run the `openspec-sync-specs` workflow inline (agent-driven intelligent merge) for each change, passing the delta spec analysis, and wait for it to finish.
+   a. **Sync included delta specs**:
+      - Run the `openspec-sync-specs` workflow inline (agent-driven intelligent merge) only for changes with entries in `includedDeltas`, passing only the included delta paths and explicitly instructing it to ignore that change's `excludedDeltas`. Wait for it to finish.
       - For conflicts, apply in resolved order.
       - Do not delegate to a background task — step 8c would move `changeRoot` out from under a sync that is still reading it.
+      - If a change has no included delta specs, do not run the sync workflow for it.
 
-   b. **Verify main specs before moving changeRoot**:
-      - Re-run the comparison against every capability that has a delta spec in `artifactPaths.specs.existingOutputPaths` against main spec at `<planningHome.root>/openspec/specs/<capability>/spec.md` (use the store-aware `planningHome.root` from step 3 status JSON, not a hardcoded repo path).
+   b. **Verify included delta specs before moving changeRoot**:
+      - Re-run the comparison only for delta specs in `includedDeltas` against main spec at `<planningHome.root>/openspec/specs/<capability>/spec.md` (use the store-aware `planningHome.root` from step 3 status JSON, not a hardcoded repo path).
       - Verify that main specs are updated:
         - ADDED requirements present
         - MODIFIED requirements carrying scenario and description changes named in the delta, with their other scenarios intact
         - REMOVED requirements gone
         - RENAMED requirements present under the new name and absent under the old one
+      - Do not verify delta specs in `excludedDeltas`; they are intentionally left unsynced.
       - If sync failed or any capability does not match verification, report what differs and fail/skip moving that change's `changeRoot` — do not archive that change. `changeRoot` remains intact.
 
    c. **Perform the archive**:
@@ -156,6 +164,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - Success: archived successfully
       - Failed: error during archive or spec verification (record error)
       - Skipped: user chose not to archive (if applicable)
+      - Sync skipped: for every delta in `excludedDeltas`, report `sync skipped` with the change, capability, and recorded reason. This is distinct from skipping the archive.
 
 9. **Display summary**
 
@@ -174,7 +183,8 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    Spec sync summary:
    - 4 delta specs synced to main specs
-   - 1 conflict resolved (auth: applied both in chronological order)
+   - 1 delta spec sync skipped (add-jwt/auth: implementation not found)
+   - 1 conflict resolved (auth: synced add-oauth, skipped add-jwt)
    ```
 
    If any failures:
@@ -266,5 +276,7 @@ No active changes found. Create a new change to get started.
 - Preserve .openspec.yaml when moving to archive
 - Archive directory target uses current date: YYYY-MM-DD-<name>; a name that already starts with a `YYYY-MM-DD-` prefix is used as-is (never stack a second date)
 - If archive target exists, fail that change but continue with others
-- If sync is requested, run the `openspec-sync-specs` workflow inline (agent-driven) for each change
+- If sync is requested, run the `openspec-sync-specs` workflow inline (agent-driven) for each change with included delta specs
+- Carry the per-delta `includedDeltas` and `excludedDeltas` decisions into execution; sync and verify only included deltas
+- Report every excluded delta as `sync skipped` without treating the archive itself as skipped
 - Never archive a change while a spec sync is still in flight — run the sync inline and verify main specs at `<planningHome.root>/openspec/specs/<capability>/spec.md` before moving `changeRoot`
