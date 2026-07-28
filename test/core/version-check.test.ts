@@ -546,6 +546,9 @@ describe('offerCliUpgrade', () => {
     // the undotted segment alone must not turn the hint into `volta install`.
     expect(detectPackageManager('/home/volta/.npm-global/lib/node_modules/pkg')).toBe('npm');
     expect(detectPackageManager('/srv/volta/apps/node_modules/pkg')).toBe('npm');
+    // Even alongside a generic "tools" dir — only volta's full tools/image
+    // layout counts.
+    expect(detectPackageManager('/srv/volta/tools/apps/node_modules/pkg')).toBe('npm');
   });
 
   it('recognizes the Windows spellings of those install directories', () => {

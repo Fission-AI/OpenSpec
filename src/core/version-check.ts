@@ -450,9 +450,10 @@ export function detectPackageManager(installDir: string | null): PackageManager 
   const has = (...names: string[]) => names.some((name) => segments.includes(name));
 
   // The undotted spelling exists for Windows (%LOCALAPPDATA%\Volta), whose
-  // layout nests tools\image; require it so a user or project directory
-  // merely named "volta" does not steal the install.
-  if (has('.volta') || (has('volta') && has('tools', 'image'))) return 'volta';
+  // layout nests tools\image; require both segments so a user or project
+  // directory merely named "volta" (even one with its own "tools" dir) does
+  // not steal the install.
+  if (has('.volta') || (has('volta') && has('tools') && has('image'))) return 'volta';
   if (has('.bun')) return 'bun';
   // These two need a corroborating segment: a directory merely named "pnpm" or
   // "yarn" (a user's home, a project) is not a global install of one.
