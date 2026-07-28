@@ -144,7 +144,7 @@ The system SHALL report what was cleaned up.
   ```
   Cleaned up legacy files:
     ✓ Removed OpenSpec markers from CLAUDE.md
-    ✓ Removed .claude/commands/openspec/ (replaced by /opsx:*)
+    ✓ Removed .claude/commands/openspec/ (replaced by OpenSpec skills and commands)
     ✓ Removed openspec/AGENTS.md (no longer needed)
   ```
 - **AND IF** `openspec/project.md` exists

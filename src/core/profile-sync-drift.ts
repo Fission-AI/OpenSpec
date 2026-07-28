@@ -4,7 +4,7 @@ import { AI_TOOLS } from './config.js';
 import type { Delivery } from './global-config.js';
 import { ALL_WORKFLOWS } from './profiles.js';
 import { CommandAdapterRegistry } from './command-generation/index.js';
-import { COMMAND_IDS, getConfiguredTools } from './shared/index.js';
+import { getConfiguredTools } from './shared/index.js';
 import {
   shouldGenerateCommandsForTool,
   shouldGenerateSkillsForTool,
@@ -40,48 +40,10 @@ function toKnownWorkflows(workflows: readonly string[]): WorkflowId[] {
 }
 
 /**
- * Checks whether a tool has at least one generated OpenSpec command file.
- */
-export function toolHasAnyConfiguredCommand(projectPath: string, toolId: string): boolean {
-  const adapter = CommandAdapterRegistry.get(toolId);
-  if (!adapter) return false;
-
-  for (const commandId of COMMAND_IDS) {
-    const cmdPath = adapter.getFilePath(commandId);
-    const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
-    if (fs.existsSync(fullPath)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-/**
- * Returns tools with at least one generated command file on disk.
- */
-export function getCommandConfiguredTools(projectPath: string): string[] {
-  return AI_TOOLS
-    .filter((tool) => {
-      if (!tool.skillsDir) return false;
-      const toolDir = path.join(projectPath, tool.skillsDir);
-      try {
-        return fs.statSync(toolDir).isDirectory();
-      } catch {
-        return false;
-      }
-    })
-    .map((tool) => tool.value)
-    .filter((toolId) => toolHasAnyConfiguredCommand(projectPath, toolId));
-}
-
-/**
  * Returns tools that are configured via either skills or commands.
  */
 export function getConfiguredToolsForProfileSync(projectPath: string): string[] {
-  const skillConfigured = getConfiguredTools(projectPath);
-  const commandConfigured = getCommandConfiguredTools(projectPath);
-  return [...new Set([...skillConfigured, ...commandConfigured])];
+  return getConfiguredTools(projectPath);
 }
 
 /**

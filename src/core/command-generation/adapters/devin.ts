@@ -7,7 +7,6 @@
  */
 
 import path from 'path';
-import { transformToHyphenCommands } from '../../../utils/command-references.js';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
 import { escapeYamlValue, formatTagsArray } from '../yaml.js';
 
@@ -16,9 +15,9 @@ import { escapeYamlValue, formatTagsArray } from '../yaml.js';
  * File path: .devin/workflows/opsx-<id>.md
  * Frontmatter: name, description, category, tags
  *
- * Devin discovers `.devin/workflows/opsx-apply.md` as `/opsx-apply`, so the
- * body's `/opsx:*` references are rewritten to the hyphen form the tool
- * actually registers.
+ * The `opsx-` filename prefix makes this a flat invocation, so the generator
+ * rewrites the body's `/opsx:*` references to the `/opsx-*` form Devin
+ * registers — see invocation.ts.
  */
 export const devinAdapter: ToolCommandAdapter = {
   toolId: 'devin',
@@ -28,8 +27,6 @@ export const devinAdapter: ToolCommandAdapter = {
   },
 
   formatFile(content: CommandContent): string {
-    const transformedBody = transformToHyphenCommands(content.body);
-
     return `---
 name: ${escapeYamlValue(content.name)}
 description: ${escapeYamlValue(content.description)}
@@ -37,7 +34,7 @@ category: ${escapeYamlValue(content.category)}
 tags: ${formatTagsArray(content.tags)}
 ---
 
-${transformedBody}
+${content.body}
 `;
   },
 };

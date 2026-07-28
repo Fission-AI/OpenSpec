@@ -8,7 +8,6 @@
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
-import { transformToHyphenCommands } from '../../../utils/command-references.js';
 import { escapeYamlValue } from '../yaml.js';
 
 const OMP_INPUT_HEADING = /^\*\*Input\*\*:[^\n]*$/m;
@@ -30,8 +29,8 @@ function injectOmpArgs(body: string): string {
  * Frontmatter: description
  *
  * OMP uses the filename (minus .md) as the slash command name, so
- * opsx-propose.md → /opsx-propose. Command references in the body
- * are transformed from /opsx: to /opsx- for consistency, and
+ * opsx-propose.md → /opsx-propose. generateCommand rewrites the body's
+ * command references to that form before this adapter formats it, and
  * $@ is injected after **Input**: headings so user-supplied arguments
  * (e.g. /opsx-propose my-feature) are visible to the agent.
  */
@@ -43,13 +42,11 @@ export const ohMyPiAdapter: ToolCommandAdapter = {
   },
 
   formatFile(content: CommandContent): string {
-    const transformedBody = transformToHyphenCommands(content.body);
-
     return `---
 description: ${escapeYamlValue(content.description)}
 ---
 
-${injectOmpArgs(transformedBody)}
+${injectOmpArgs(content.body)}
 `;
   },
 };
