@@ -252,9 +252,8 @@ describe('instruction-loader', () => {
       const context = loadChangeContext(tempDir, 'my-change');
       const instructions = generateInstructions(context, 'proposal');
 
-      // proposal unlocks specs and design
-      expect(instructions.unlocks).toContain('specs');
-      expect(instructions.unlocks).toContain('design');
+      // proposal unlocks specs and design, in the schema's declared order
+      expect(instructions.unlocks).toEqual(['specs', 'design']);
     });
 
     it('should have empty dependencies for root artifact', () => {

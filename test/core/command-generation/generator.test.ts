@@ -20,17 +20,17 @@ describe('command-generation/generator', () => {
 
       expect(result.path).toContain('.claude');
       expect(result.path).toContain('explore.md');
-      expect(result.fileContent).toContain('name: OpenSpec Explore');
+      expect(result.fileContent).toContain('name: "OpenSpec Explore"');
       expect(result.fileContent).toContain('Command body here.');
     });
 
-    it('should generate command with path and content using Cursor adapter', () => {
+    it('should generate command for Cursor adapter', () => {
       const result = generateCommand(sampleContent, cursorAdapter);
 
       expect(result.path).toContain('.cursor');
       expect(result.path).toContain('opsx-explore.md');
-      expect(result.fileContent).toContain('name: /opsx-explore');
-      expect(result.fileContent).toContain('id: opsx-explore');
+      expect(result.fileContent).toContain('name: "/opsx-explore"');
+      expect(result.fileContent).toContain('id: "opsx-explore"');
       expect(result.fileContent).toContain('Command body here.');
     });
 
@@ -98,13 +98,13 @@ describe('command-generation/generator', () => {
 
       const results = generateCommands(contents, claudeAdapter);
 
-      expect(results[0].fileContent).toContain('name: A');
+      expect(results[0].fileContent).toContain('name: "A"');
       expect(results[0].fileContent).toContain('B1');
-      expect(results[0].fileContent).not.toContain('name: B');
+      expect(results[0].fileContent).not.toContain('name: "B"');
 
-      expect(results[1].fileContent).toContain('name: B');
+      expect(results[1].fileContent).toContain('name: "B"');
       expect(results[1].fileContent).toContain('B2');
-      expect(results[1].fileContent).not.toContain('name: A');
+      expect(results[1].fileContent).not.toContain('name: "A"');
     });
   });
 });

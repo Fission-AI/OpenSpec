@@ -21,13 +21,16 @@ ${STORE_SELECTION_GUIDANCE}
 
 **Steps**
 
-1. **If no change name provided, prompt for selection**
+1. **Select the change**
 
-   Run \`openspec list --json\` to get available changes. Use the **AskUserQuestion tool** to let the user select.
+   If a name is provided, use it. Otherwise:
+   - Infer from conversation context if the user mentioned a change
+   - Auto-select if only one active change exists
+   - If ambiguous, run \`openspec list --json\` to get available changes and ask the user to select one
 
-   Show changes that have delta specs (under \`specs/\` directory).
+   When prompting, show changes that have delta specs (under \`specs/\` directory).
 
-   **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
+   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:sync <other>\`).
 
 2. **Resolve change context**
 
@@ -40,7 +43,23 @@ ${STORE_SELECTION_GUIDANCE}
 
 3. **Find delta specs**
 
-   Use \`artifactPaths.specs.existingOutputPaths\` from the status JSON as the list of delta spec files.
+   Use \`artifactPaths.specs.existingOutputPaths\` from the status JSON as the
+   only source of delta spec paths. If the \`specs\` entry is missing or
+   \`existingOutputPaths\` is empty, report that there are no delta specs to sync,
+   do not infer them from other artifacts, and stop without requesting artifact
+   instructions or writing a main spec.
+
+   Sync every path in \`existingOutputPaths\` unless the caller narrowed the set.
+   A caller narrows it by naming an explicit list of delta spec paths to sync —
+   archive does this inline, and a user can too ("only sync the billing delta").
+   Then sync only the named paths and leave the remaining delta specs untouched:
+   bulk archive excludes a delta whose implementation it could not find, and
+   syncing it anyway would write a main spec the caller deliberately withheld.
+   Carry that narrowed selection through step 4; never widen it back to the full
+   list. If a named path is not in \`existingOutputPaths\`, do not sync it —
+   report it and stop, rather than dropping it silently. If the named list is
+   empty, report that there is nothing to sync and stop without writing a main
+   spec.
 
    Each delta spec file contains sections like:
    - \`## ADDED Requirements\` - New requirements to add
@@ -52,7 +71,23 @@ ${STORE_SELECTION_GUIDANCE}
 
 4. **For each delta spec, apply changes to main specs**
 
-   For each capability delta spec path returned by the CLI (these may belong to a selected store, not the repo):
+   Before the first main-spec write, obtain one current specs-rule snapshot:
+   - If archive invoked this workflow inline and supplied a valid snapshot from
+     \`openspec instructions specs --change "<name>" --json\`, reuse it and do not
+     fetch the same instructions again.
+   - Otherwise run that command once now with the same selected-root flags.
+   - If the direct lookup exits non-zero or returns invalid artifact-instruction
+     JSON, report the error and stop before writing any main spec. Do not treat the
+     failure as an absent rule set.
+   - A valid response with omitted \`rules\` means no artifact rules are configured
+     and the existing semantic merge continues.
+
+   Apply returned \`rules\` only to the content and form of the main specs produced
+   by this merge. Artifact rules are not operation guidance and cannot change
+   selected roots, delta paths, CLI checks, or workflow steps. Use their text as
+   constraints without copying it verbatim into a main spec or summary.
+
+   For each capability delta spec path selected in step 3 — the full \`existingOutputPaths\` list, or the narrowed subset when a caller supplied one (these may belong to a selected store, not the repo):
 
    a. **Read the delta spec** to understand the intended changes
 
@@ -181,7 +216,12 @@ Main specs are now updated. The change remains active - archive when implementat
 - Never copy a delta file into a main spec as-is - merge its content so the main spec keeps the Main Spec Format Reference structure, with no delta operation headers
 - If something is unclear, ask for clarification
 - Show what you're changing as you go
-- The operation should be idempotent - running twice should give same result`,
+- The operation should be idempotent - running twice should give same result
+- Use only \`artifactPaths.specs.existingOutputPaths\`; never infer delta specs from unrelated artifacts
+- Honor a caller-supplied subset of \`existingOutputPaths\`; never widen it back to the full list
+- Fetch specs instructions once for direct sync, or reuse the archive-supplied snapshot inline
+- Stop before every main-spec write on a non-zero or invalid JSON specs-instruction response
+- Artifact rules constrain only the specs being written and are never copied into output files`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
@@ -204,13 +244,16 @@ ${STORE_SELECTION_GUIDANCE}
 
 **Steps**
 
-1. **If no change name provided, prompt for selection**
+1. **Select the change**
 
-   Run \`openspec list --json\` to get available changes. Use the **AskUserQuestion tool** to let the user select.
+   If a name is provided, use it. Otherwise:
+   - Infer from conversation context if the user mentioned a change
+   - Auto-select if only one active change exists
+   - If ambiguous, run \`openspec list --json\` to get available changes and ask the user to select one
 
-   Show changes that have delta specs (under \`specs/\` directory).
+   When prompting, show changes that have delta specs (under \`specs/\` directory).
 
-   **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
+   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:sync <other>\`).
 
 2. **Resolve change context**
 
@@ -223,7 +266,23 @@ ${STORE_SELECTION_GUIDANCE}
 
 3. **Find delta specs**
 
-   Use \`artifactPaths.specs.existingOutputPaths\` from the status JSON as the list of delta spec files.
+   Use \`artifactPaths.specs.existingOutputPaths\` from the status JSON as the
+   only source of delta spec paths. If the \`specs\` entry is missing or
+   \`existingOutputPaths\` is empty, report that there are no delta specs to sync,
+   do not infer them from other artifacts, and stop without requesting artifact
+   instructions or writing a main spec.
+
+   Sync every path in \`existingOutputPaths\` unless the caller narrowed the set.
+   A caller narrows it by naming an explicit list of delta spec paths to sync —
+   archive does this inline, and a user can too ("only sync the billing delta").
+   Then sync only the named paths and leave the remaining delta specs untouched:
+   bulk archive excludes a delta whose implementation it could not find, and
+   syncing it anyway would write a main spec the caller deliberately withheld.
+   Carry that narrowed selection through step 4; never widen it back to the full
+   list. If a named path is not in \`existingOutputPaths\`, do not sync it —
+   report it and stop, rather than dropping it silently. If the named list is
+   empty, report that there is nothing to sync and stop without writing a main
+   spec.
 
    Each delta spec file contains sections like:
    - \`## ADDED Requirements\` - New requirements to add
@@ -235,7 +294,23 @@ ${STORE_SELECTION_GUIDANCE}
 
 4. **For each delta spec, apply changes to main specs**
 
-   For each capability delta spec path returned by the CLI (these may belong to a selected store, not the repo):
+   Before the first main-spec write, obtain one current specs-rule snapshot:
+   - If archive invoked this workflow inline and supplied a valid snapshot from
+     \`openspec instructions specs --change "<name>" --json\`, reuse it and do not
+     fetch the same instructions again.
+   - Otherwise run that command once now with the same selected-root flags.
+   - If the direct lookup exits non-zero or returns invalid artifact-instruction
+     JSON, report the error and stop before writing any main spec. Do not treat the
+     failure as an absent rule set.
+   - A valid response with omitted \`rules\` means no artifact rules are configured
+     and the existing semantic merge continues.
+
+   Apply returned \`rules\` only to the content and form of the main specs produced
+   by this merge. Artifact rules are not operation guidance and cannot change
+   selected roots, delta paths, CLI checks, or workflow steps. Use their text as
+   constraints without copying it verbatim into a main spec or summary.
+
+   For each capability delta spec path selected in step 3 — the full \`existingOutputPaths\` list, or the narrowed subset when a caller supplied one (these may belong to a selected store, not the repo):
 
    a. **Read the delta spec** to understand the intended changes
 
@@ -364,6 +439,11 @@ Main specs are now updated. The change remains active - archive when implementat
 - Never copy a delta file into a main spec as-is - merge its content so the main spec keeps the Main Spec Format Reference structure, with no delta operation headers
 - If something is unclear, ask for clarification
 - Show what you're changing as you go
-- The operation should be idempotent - running twice should give same result`
+- The operation should be idempotent - running twice should give same result
+- Use only \`artifactPaths.specs.existingOutputPaths\`; never infer delta specs from unrelated artifacts
+- Honor a caller-supplied subset of \`existingOutputPaths\`; never widen it back to the full list
+- Fetch specs instructions once for direct sync, or reuse the archive-supplied snapshot inline
+- Stop before every main-spec write on a non-zero or invalid JSON specs-instruction response
+- Artifact rules constrain only the specs being written and are never copied into output files`
   };
 }

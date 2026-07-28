@@ -4,6 +4,10 @@
  */
 
 import chalk from 'chalk';
+import {
+  execFileSync,
+  type ExecFileSyncOptionsWithStringEncoding,
+} from 'node:child_process';
 import { WELCOME_ANIMATION } from './ascii-patterns.js';
 import { getOnboardingCommands } from '../core/onboarding-commands.js';
 
@@ -66,6 +70,47 @@ function renderFrame(artLines: string[], textLines: string[]): string {
   return lines.join('\n');
 }
 
+const REDUCED_MOTION_EXEC_OPTIONS: ExecFileSyncOptionsWithStringEncoding = {
+  encoding: 'utf8',
+  timeout: 500,
+  // SIGKILL so a wedged lookup can never outlive the timeout and stall init.
+  killSignal: 'SIGKILL',
+  stdio: ['ignore', 'pipe', 'ignore'],
+};
+
+/**
+ * Best-effort check of the OS-level reduced-motion preference (#722).
+ * Any lookup failure (missing binary, unset key, timeout) means
+ * "no preference detected" and animation stays enabled.
+ */
+export function prefersReducedMotion(
+  platform: NodeJS.Platform = process.platform
+): boolean {
+  try {
+    if (platform === 'darwin') {
+      // The key only exists once the user has toggled Reduce Motion; when it
+      // is unset `defaults` exits non-zero and lands in the catch below.
+      const out = execFileSync(
+        'defaults',
+        ['read', 'com.apple.universalaccess', 'reduceMotion'],
+        REDUCED_MOTION_EXEC_OPTIONS
+      );
+      return out.trim() === '1';
+    }
+    if (platform === 'linux') {
+      const out = execFileSync(
+        'gsettings',
+        ['get', 'org.gnome.desktop.interface', 'enable-animations'],
+        REDUCED_MOTION_EXEC_OPTIONS
+      );
+      return out.trim() === 'false';
+    }
+  } catch {
+    // Detection is best-effort only.
+  }
+  return false;
+}
+
 /**
  * Checks if the terminal supports animation
  */
@@ -76,9 +121,16 @@ function canAnimate(): boolean {
   // Respect NO_COLOR
   if (process.env.NO_COLOR) return false;
 
+  // Manual override for users who need reduced motion (#722). Presence is
+  // what counts: even an empty value disables the animation.
+  if (process.env.OPENSPEC_NO_ANIMATION !== undefined) return false;
+
   // Check terminal width
   const columns = process.stdout.columns || 80;
   if (columns < MIN_WIDTH) return false;
+
+  // Last so only interactive terminals pay for the OS lookup
+  if (prefersReducedMotion()) return false;
 
   return true;
 }
@@ -116,10 +168,13 @@ async function waitForEnter(): Promise<void> {
  * Shows the animated welcome screen.
  * Returns when user presses Enter.
  */
-export async function showWelcomeScreen(workflows: readonly string[]): Promise<void> {
+export async function showWelcomeScreen(
+  workflows: readonly string[],
+  options: { animate?: boolean } = {}
+): Promise<void> {
   const textLines = getWelcomeText(workflows);
 
-  if (!canAnimate()) {
+  if (options.animate === false || !canAnimate()) {
     // Fallback: show static welcome
     const frame = WELCOME_ANIMATION.frames[3]; // Peak frame
     process.stdout.write('\n' + renderFrame(frame, textLines) + '\n\n');
