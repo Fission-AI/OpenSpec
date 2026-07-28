@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import fs from 'fs';
-import os from 'os';
 import path from 'path';
+import { createRequire } from 'module';
 import {
   compareVersions,
   getAvailableCliUpdate,
@@ -10,7 +9,7 @@ import {
   displayCliUpdateNote,
 } from '../../src/core/version-check.js';
 
-const require = (await import('module')).createRequire(import.meta.url);
+const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
 
 function bumpMajor(version: string): string {
@@ -30,28 +29,36 @@ describe('compareVersions', () => {
   it('sorts prereleases below their release', () => {
     expect(compareVersions('1.7.0-beta.1', '1.7.0')).toBe(-1);
     expect(compareVersions('1.7.0', '1.7.0-beta.1')).toBe(1);
-    expect(compareVersions('1.7.0-beta.2', '1.7.0-beta.1')).toBe(1);
+    expect(compareVersions('1.7.0-beta.1', '1.6.0')).toBe(1);
   });
 
-  it('tolerates a leading v and partial versions', () => {
+  it('compares prerelease identifiers per SemVer', () => {
+    expect(compareVersions('1.7.0-beta.10', '1.7.0-beta.2')).toBe(1);
+    expect(compareVersions('1.7.0-beta.2', '1.7.0-beta.10')).toBe(-1);
+    expect(compareVersions('1.7.0-beta.2', '1.7.0-beta.2')).toBe(0);
+    // Numeric identifiers rank below alphanumeric ones.
+    expect(compareVersions('1.7.0-1', '1.7.0-alpha')).toBe(-1);
+    // A longer identifier list wins an otherwise equal comparison.
+    expect(compareVersions('1.7.0-beta.1.1', '1.7.0-beta.1')).toBe(1);
+    expect(compareVersions('1.7.0-alpha', '1.7.0-beta')).toBe(-1);
+  });
+
+  it('tolerates a leading v, build metadata, and partial versions', () => {
     expect(compareVersions('v1.7.0', '1.6.0')).toBe(1);
     expect(compareVersions('1.7', '1.7.0')).toBe(0);
+    expect(compareVersions('1.7.0+build.5', '1.7.0')).toBe(0);
   });
 });
 
 describe('getAvailableCliUpdate', () => {
-  let tmpDir: string;
   let originalEnv: Record<string, string | undefined>;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-version-check-'));
     originalEnv = {
-      TMPDIR: process.env.TMPDIR,
       NODE_ENV: process.env.NODE_ENV,
       CI: process.env.CI,
       OPENSPEC_NO_UPDATE_CHECK: process.env.OPENSPEC_NO_UPDATE_CHECK,
     };
-    process.env.TMPDIR = tmpDir;
     // The check is disabled under test/CI by design; opt back in to exercise it.
     delete process.env.NODE_ENV;
     delete process.env.CI;
@@ -66,7 +73,6 @@ describe('getAvailableCliUpdate', () => {
         process.env[key] = value;
       }
     }
-    fs.rmSync(tmpDir, { recursive: true, force: true });
     vi.restoreAllMocks();
   });
 
@@ -97,14 +103,20 @@ describe('getAvailableCliUpdate', () => {
     await expect(getAvailableCliUpdate()).resolves.toBeNull();
   });
 
-  it('caches the result so repeat runs skip the network', async () => {
-    const newer = bumpMajor(OPENSPEC_VERSION);
-    const fetchSpy = mockRegistry(newer);
+  it('returns null when the registry payload has no usable version', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ version: 42 }), { status: 200 })
+    );
+    await expect(getAvailableCliUpdate()).resolves.toBeNull();
+  });
 
-    await getAvailableCliUpdate();
+  it('requests the registry with a timeout so it cannot hang the command', async () => {
+    const fetchSpy = mockRegistry(OPENSPEC_VERSION);
     await getAvailableCliUpdate();
 
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://registry.npmjs.org/@fission-ai/openspec/latest');
+    expect(init.signal).toBeInstanceOf(AbortSignal);
   });
 
   it('names the global install command and the copy that answered', () => {
@@ -134,17 +146,26 @@ describe('getAvailableCliUpdate', () => {
   it('skips the check entirely when opted out', async () => {
     const fetchSpy = mockRegistry(bumpMajor(OPENSPEC_VERSION));
 
-    process.env.OPENSPEC_NO_UPDATE_CHECK = '1';
-    await expect(getAvailableCliUpdate()).resolves.toBeNull();
-
-    delete process.env.OPENSPEC_NO_UPDATE_CHECK;
-    process.env.CI = 'true';
-    await expect(getAvailableCliUpdate()).resolves.toBeNull();
-
-    delete process.env.CI;
-    process.env.NODE_ENV = 'test';
-    await expect(getAvailableCliUpdate()).resolves.toBeNull();
+    for (const [key, value] of [
+      ['OPENSPEC_NO_UPDATE_CHECK', '1'],
+      ['OPENSPEC_NO_UPDATE_CHECK', ''],
+      ['CI', 'true'],
+      ['CI', '1'],
+      ['CI', 'TRUE'],
+      ['NODE_ENV', 'test'],
+    ] as const) {
+      process.env[key] = value;
+      await expect(getAvailableCliUpdate()).resolves.toBeNull();
+      delete process.env[key];
+    }
 
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('still runs when CI is set to a disabled value', async () => {
+    const newer = bumpMajor(OPENSPEC_VERSION);
+    mockRegistry(newer);
+    process.env.CI = 'false';
+    await expect(getAvailableCliUpdate()).resolves.toBe(newer);
   });
 });

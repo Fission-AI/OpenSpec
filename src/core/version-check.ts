@@ -1,5 +1,3 @@
-import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import { createRequire } from 'module';
 import chalk from 'chalk';
@@ -9,11 +7,11 @@ const { name: PACKAGE_NAME, version: OPENSPEC_VERSION } = require('../../package
 
 const REGISTRY_URL = `https://registry.npmjs.org/${PACKAGE_NAME}/latest`;
 const REQUEST_TIMEOUT_MS = 1500;
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
-function cacheFilePath(): string {
-  return path.join(os.tmpdir(), 'openspec-version-check.json');
-}
+/**
+ * Values a CI provider may set. GitHub Actions uses "true", others use "1".
+ */
+const CI_ENABLED_VALUES = new Set(['true', '1']);
 
 /**
  * The check is opt-out and must never get in the way: no network in CI or
@@ -21,9 +19,43 @@ function cacheFilePath(): string {
  */
 function isCheckEnabled(): boolean {
   if (process.env.OPENSPEC_NO_UPDATE_CHECK !== undefined) return false;
-  if (process.env.CI === 'true') return false;
+  if (CI_ENABLED_VALUES.has((process.env.CI ?? '').toLowerCase())) return false;
   if (process.env.NODE_ENV === 'test') return false;
   return true;
+}
+
+/**
+ * Compares two prerelease tags per SemVer: dot-separated identifiers compared
+ * one by one, numeric identifiers numerically (so beta.10 > beta.2), numeric
+ * ranking below alphanumeric, and a longer identifier list winning ties.
+ */
+function comparePrerelease(a: string, b: string): number {
+  if (a === b) return 0;
+  if (a === '') return 1;
+  if (b === '') return -1;
+
+  const left = a.split('.');
+  const right = b.split('.');
+
+  for (let i = 0; i < Math.max(left.length, right.length); i++) {
+    const l = left[i];
+    const r = right[i];
+    if (l === undefined) return -1;
+    if (r === undefined) return 1;
+
+    const lNumeric = /^\d+$/.test(l);
+    const rNumeric = /^\d+$/.test(r);
+
+    if (lNumeric && rNumeric) {
+      const diff = Number.parseInt(l, 10) - Number.parseInt(r, 10);
+      if (diff !== 0) return diff > 0 ? 1 : -1;
+      continue;
+    }
+    if (lNumeric !== rNumeric) return lNumeric ? -1 : 1;
+    if (l !== r) return l > r ? 1 : -1;
+  }
+
+  return 0;
 }
 
 /**
@@ -32,11 +64,14 @@ function isCheckEnabled(): boolean {
  */
 export function compareVersions(a: string, b: string): number {
   const parse = (version: string) => {
-    const [core, prerelease] = version.trim().replace(/^v/, '').split('-', 2);
+    const withoutBuild = version.trim().replace(/^v/, '').split('+', 1)[0] ?? '';
+    const separator = withoutBuild.indexOf('-');
+    const core = separator === -1 ? withoutBuild : withoutBuild.slice(0, separator);
+    const prerelease = separator === -1 ? '' : withoutBuild.slice(separator + 1);
     const parts = core.split('.').map((n) => Number.parseInt(n, 10));
     return {
       numbers: [parts[0] || 0, parts[1] || 0, parts[2] || 0],
-      prerelease: prerelease ?? '',
+      prerelease,
     };
   };
 
@@ -48,36 +83,7 @@ export function compareVersions(a: string, b: string): number {
     if (left.numbers[i] < right.numbers[i]) return -1;
   }
 
-  if (left.prerelease === right.prerelease) return 0;
-  if (left.prerelease === '') return 1;
-  if (right.prerelease === '') return -1;
-  return left.prerelease > right.prerelease ? 1 : -1;
-}
-
-function readCachedVersion(): string | null {
-  try {
-    const raw = fs.readFileSync(cacheFilePath(), 'utf-8');
-    const cached = JSON.parse(raw) as { version?: unknown; checkedAt?: unknown };
-    if (typeof cached.version !== 'string' || typeof cached.checkedAt !== 'number') {
-      return null;
-    }
-    if (Date.now() - cached.checkedAt > CACHE_TTL_MS) return null;
-    return cached.version;
-  } catch {
-    return null;
-  }
-}
-
-function writeCachedVersion(version: string): void {
-  try {
-    fs.writeFileSync(
-      cacheFilePath(),
-      JSON.stringify({ version, checkedAt: Date.now() }),
-      'utf-8'
-    );
-  } catch {
-    // Cache is an optimization; losing it is harmless.
-  }
+  return comparePrerelease(left.prerelease, right.prerelease);
 }
 
 async function fetchLatestVersion(): Promise<string | null> {
@@ -102,9 +108,8 @@ export async function getAvailableCliUpdate(): Promise<string | null> {
   if (!isCheckEnabled()) return null;
 
   try {
-    const latest = readCachedVersion() ?? (await fetchLatestVersion());
+    const latest = await fetchLatestVersion();
     if (!latest) return null;
-    writeCachedVersion(latest);
     return compareVersions(latest, OPENSPEC_VERSION) > 0 ? latest : null;
   } catch {
     return null;
