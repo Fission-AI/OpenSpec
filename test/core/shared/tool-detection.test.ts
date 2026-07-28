@@ -278,6 +278,71 @@ Content here
       expect(status.needsUpdate).toBe(false);
     });
 
+    // Command paths vary in shape across adapters: a nested directory with a
+    // per-tool extension (gemini writes TOML), a flat opsx-* file, and — for
+    // cline — a directory that is not the tool's skillsDir at all.
+    it.each([
+      ['gemini', path.join('.gemini', 'commands', 'opsx', 'explore.toml')],
+      ['cursor', path.join('.cursor', 'commands', 'opsx-explore.md')],
+      ['cline', path.join('.clinerules', 'workflows', 'opsx-explore.md')],
+    ])('should fingerprint commands-only %s installs', async (toolId, explorePath) => {
+      const { InitCommand } = await import('../../../src/core/init.js');
+      const { saveGlobalConfig } = await import('../../../src/core/global-config.js');
+      saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+
+      const initCommand = new InitCommand({ tools: toolId, force: true });
+      await initCommand.execute(testDir);
+
+      const { version } = await import('../../../package.json');
+      const coreWorkflows = ['propose', 'explore', 'apply', 'update', 'sync', 'archive'];
+
+      // cline's commands live outside its skillsDir (.cline), so a commands-only
+      // install leaves that directory absent entirely.
+      expect(getConfiguredTools(testDir)).toContain(toolId);
+
+      const fresh = getToolVersionStatus(testDir, toolId, version, { workflows: coreWorkflows });
+      expect(fresh.configured).toBe(true);
+      expect(fresh.generatedByVersion).toBe(version);
+      expect(fresh.needsUpdate).toBe(false);
+
+      await fs.writeFile(path.join(testDir, explorePath), 'stale content');
+
+      const drifted = getToolVersionStatus(testDir, toolId, version, { workflows: coreWorkflows });
+      expect(drifted.generatedByVersion).toBeNull();
+      expect(drifted.needsUpdate).toBe(true);
+    });
+
+    it('should fingerprint a custom profile against its own workflow subset', async () => {
+      const { InitCommand } = await import('../../../src/core/init.js');
+      const { saveGlobalConfig } = await import('../../../src/core/global-config.js');
+      const customWorkflows = ['explore', 'apply'];
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'custom',
+        delivery: 'commands',
+        workflows: customWorkflows,
+      });
+
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+      await initCommand.execute(testDir);
+
+      const { version } = await import('../../../package.json');
+      const status = getToolVersionStatus(testDir, 'claude', version, {
+        workflows: customWorkflows,
+      });
+
+      expect(status.configured).toBe(true);
+      expect(status.generatedByVersion).toBe(version);
+      expect(status.needsUpdate).toBe(false);
+
+      // The core set is a superset of this profile, so comparing against it must
+      // report drift — the fingerprint has to use the workflows actually selected.
+      const againstCore = getToolVersionStatus(testDir, 'claude', version, {
+        workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'],
+      });
+      expect(againstCore.needsUpdate).toBe(true);
+    });
+
     it('should treat CRLF line endings and a BOM as up to date, not as drift', async () => {
       const { InitCommand } = await import('../../../src/core/init.js');
       const { saveGlobalConfig } = await import('../../../src/core/global-config.js');
