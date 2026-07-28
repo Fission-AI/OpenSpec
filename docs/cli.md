@@ -203,6 +203,16 @@ Whenever anything is printed, it names the directory the running CLI was loaded 
 
 It asks the registry in `npm_config_registry` when npm exports it, and `https://registry.npmjs.org` otherwise. No `.npmrc` is read: letting file contents choose where an outbound request goes is a flow worth avoiding, and a project's `.npmrc` travels with the repository. On a private mirror, export `npm_config_registry` — or set `OPENSPEC_NO_UPDATE_CHECK` to skip the check entirely. The check is skipped when `CI` is set to anything but an explicit off-value (`false`, `0`, `no`, `off`, or empty), under `NODE_ENV=test`, and whenever `OPENSPEC_NO_UPDATE_CHECK` (any value), `DO_NOT_TRACK=1`, or `OPENSPEC_TELEMETRY=0` is set. It runs before the update and can delay it by at most 1.5 seconds — it gives up after that even when the network drops packets silently, and stays quiet when the registry is unreachable.
 
+**How "up to date" is decided:** skill files record the version that generated
+them, so OpenSpec compares that against the installed CLI. Command files carry no
+version stamp, so for a tool that has commands but no skills (delivery
+`commands`), OpenSpec compares the file contents against what it would generate
+now — edits to those files count as drift and are overwritten. With delivery
+`skills` or `both`, only the recorded version is checked, so a hand-edited file
+whose version still matches is left alone; use `--force` to rewrite it. Either
+way, generated files are OpenSpec's to own — keep your own instructions
+elsewhere.
+
 ---
 
 ## Stores (standalone OpenSpec repos)

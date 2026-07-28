@@ -387,6 +387,23 @@ Old instructions content
       }
     });
 
+    it('should update command files when tool is configured via commands-only delivery without skills', async () => {
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+      const commandsDir = path.join(testDir, '.claude', 'commands', 'opsx');
+      await fs.mkdir(commandsDir, { recursive: true });
+      const coreCommandIds = ['explore', 'apply', 'update', 'sync', 'archive', 'propose'];
+      for (const cmdId of coreCommandIds) {
+        await fs.writeFile(path.join(commandsDir, `${cmdId}.md`), 'old command content');
+      }
+
+      await updateCommand.execute(testDir);
+
+      for (const cmdId of coreCommandIds) {
+        const updatedContent = await fs.readFile(path.join(commandsDir, `${cmdId}.md`), 'utf-8');
+        expect(updatedContent).not.toBe('old command content');
+        expect(updatedContent).toContain('---');
+      }
+    });
   });
 
   describe('multi-tool support', () => {
@@ -1917,6 +1934,32 @@ More user content after markers.
       expect(await FileSystemUtils.fileExists(
         path.join(skillsDir, 'openspec-explore', 'SKILL.md')
       )).toBe(false);
+    });
+
+    it('should be a no-op on second update run for commands-only delivery', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'commands',
+      });
+
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), { recursive: true });
+      await fs.writeFile(path.join(skillsDir, 'openspec-explore', 'SKILL.md'), 'old');
+
+      // First run updates commands and removes skills
+      await updateCommand.execute(testDir);
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      // Second run should report all tools up to date without updating
+      await updateCommand.execute(testDir);
+
+      const logCalls = consoleSpy.mock.calls.flat().map(String);
+      expect(logCalls.some((entry) => entry.includes('up to date'))).toBe(true);
+      expect(logCalls.some((entry) => entry.includes('Updating 1 tool(s)'))).toBe(false);
+
+      consoleSpy.mockRestore();
     });
 
     it.each(['both', 'skills', 'commands'] as const)(
