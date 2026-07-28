@@ -22,8 +22,6 @@ import { resolveRootForCommand } from '../../core/root-selection.js';
 export interface TemplatesOptions {
   schema?: string;
   json?: boolean;
-  store?: string;
-  storePath?: string;
 }
 
 export interface TemplateInfo {
@@ -41,7 +39,7 @@ export async function templatesCommand(options: TemplatesOptions): Promise<void>
   const spinner = options.json ? undefined : ora('Loading templates...').start();
 
   try {
-    const root = await resolveRootForCommand(options, { json: options.json });
+    const root = await resolveRootForCommand({}, { json: options.json });
     if (!root) {
       spinner?.stop();
       return;

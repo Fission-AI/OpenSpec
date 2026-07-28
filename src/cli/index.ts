@@ -618,8 +618,6 @@ program
   .description('Show resolved template paths for all artifacts in a schema')
   .option('--schema <name>', `Schema to use (default: ${DEFAULT_SCHEMA})`)
   .option('--json', 'Output as JSON mapping artifact IDs to template paths')
-  .option('--store <id>', STORE_OPTION_DESCRIPTION)
-  .addOption(hiddenStorePathOption())
   .action(async (options: TemplatesOptions) => {
     try {
       await templatesCommand(options);
@@ -634,8 +632,6 @@ program
   .command('schemas')
   .description('List available workflow schemas with descriptions')
   .option('--json', 'Output as JSON (for agent use)')
-  .option('--store <id>', STORE_OPTION_DESCRIPTION)
-  .addOption(hiddenStorePathOption())
   .action(async (options: SchemasOptions) => {
     try {
       await schemasCommand(options);

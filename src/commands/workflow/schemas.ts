@@ -14,8 +14,6 @@ import { resolveRootForCommand } from '../../core/root-selection.js';
 
 export interface SchemasOptions {
   json?: boolean;
-  store?: string;
-  storePath?: string;
 }
 
 // -----------------------------------------------------------------------------
@@ -23,7 +21,7 @@ export interface SchemasOptions {
 // -----------------------------------------------------------------------------
 
 export async function schemasCommand(options: SchemasOptions): Promise<void> {
-  const root = await resolveRootForCommand(options, { json: options.json });
+  const root = await resolveRootForCommand({}, { json: options.json });
   if (!root) return;
   const schemas = listSchemasWithInfo(root.schemaContext);
 
