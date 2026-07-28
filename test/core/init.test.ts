@@ -615,7 +615,7 @@ describe('InitCommand', () => {
       expect(await fileExists(cmdFile)).toBe(true);
 
       const content = await fs.readFile(cmdFile, 'utf-8');
-      expect(content).toContain('name: opsx-explore');
+      expect(content).toContain('name: "opsx-explore"');
       expect(content).toContain('invokable: true');
     });
 

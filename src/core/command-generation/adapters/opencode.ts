@@ -7,6 +7,7 @@
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
 import { transformToHyphenCommands } from '../../../utils/command-references.js';
+import { escapeYamlValue } from '../yaml.js';
 
 /**
  * OpenCode adapter for command generation.
@@ -25,7 +26,7 @@ export const opencodeAdapter: ToolCommandAdapter = {
     const transformedBody = transformToHyphenCommands(content.body);
 
     return `---
-description: ${content.description}
+description: ${escapeYamlValue(content.description)}
 ---
 
 ${transformedBody}

@@ -42,7 +42,7 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getContinueChangeSkillTemplate: 'bb3e6440eeae417a8f7efd1c064024ab2fcf824ff2adbf37cfc2607a2c8c6249',
   getApplyChangeSkillTemplate: '031cf8f8ffc2937fc4051651bd5e1fc6159bfd225605d8e4c3181054a4e52b38',
   getFfChangeSkillTemplate: '225a8eaf1b3769ac5d43e079297c5fa9cc20fc2e34fec9bb0d887c8c1fb0ea71',
-  getSyncSpecsSkillTemplate: '125672d288cb990759679c2aa2976fccb9c13cceb2af43a89f99dd1aae9bc397',
+  getSyncSpecsSkillTemplate: '2ab06e1cd331debc3056fe992c1e495a26f253214070c254a0bb51657350bd11',
   getOnboardSkillTemplate: '31dffc7c3b8d75ffbd59ed751d6a1550b885b20ef90e12d236262127ee4021e9',
   getOpsxExploreCommandTemplate: 'e9674ddace813e685b0e9fe37149140a3d33d48aa20b9ba2b0963a7c49c9aea7',
   getOpsxNewCommandTemplate: '652adc870f16bb260d54436356132b6ee051a9ed7cc0464603fb31f4db259762',
@@ -50,12 +50,12 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getOpsxApplyCommandTemplate: '18c82fc48e65084065171e44f811db8fdc96bd6cb0f61fe8f31324207f4861c7',
   getOpsxFfCommandTemplate: '678375642a21d255444f0ba717e659abb2cc2b7474981d52eae900a0793e3e4d',
   getArchiveChangeSkillTemplate: 'd325f65b26dccba084ace510874cf92b73cecdc430d93b2d73dd0066b95619a3',
-  getBulkArchiveChangeSkillTemplate: '3ed5e36fdb1b0f4a70c75a341550c0d910cd63c5394ff61ac666f241f86c1e19',
-  getOpsxSyncCommandTemplate: 'a1404217de12a9ca31b2abe66c352ce47e5f362fb016e3650655cc599b94430a',
+  getBulkArchiveChangeSkillTemplate: 'de198c7b7c1472773b013b9af917de27773fd613083309f0e8e607c005c92d3d',
+  getOpsxSyncCommandTemplate: 'de0e4a25d7bbe4f655bdc58bf162def60ce1c26f17238c49b01a0b454202e863',
   getVerifyChangeSkillTemplate: '4af69762ff061c1a76dad21725827d87b168dca8bd0c4cea133152e37cacc2ce',
-  getOpsxArchiveCommandTemplate: '10a230ea7dc8f8f9ed8bbcd0017cdec694a8f9a3da1e15845bc745e68e2cdeda',
+  getOpsxArchiveCommandTemplate: '88f8b83973b2803975c89117027d2172c3376b066276e3b0025d3b8e0e8ec597',
   getOpsxOnboardCommandTemplate: 'e69a5aa37749727290c05b687981dd69f3b17a55514a118d088c4124c5fd8505',
-  getOpsxBulkArchiveCommandTemplate: 'bd2301e28fc68dcb4a2582af2b21304a490d474909f85c508947c92dc9aa4eb9',
+  getOpsxBulkArchiveCommandTemplate: '93355fb7bc13e549e8646e4dc48db6f98ac5372545dff3cf3970c4f45f55c5f7',
   getOpsxVerifyCommandTemplate: 'fa60b9258df1d98934077315c20f1838431d9340281d8126ad651e36d8e87cb8',
   getOpsxProposeSkillTemplate: '06a8f7d272db8d3cb113dc05d606630d1e5aedd267c2722e971d1175e0d8bb40',
   getOpsxProposeCommandTemplate: 'ed3ad596d9bb238830b4fcbe566e3c1ba9d0db62f4a92cdb28c38262dc3f04df',
@@ -70,9 +70,9 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-continue-change': '0d3fe07961b061a9bac0d18f98891038ffd89f70c4f3d987fc997379a9e6e9f4',
   'openspec-apply-change': '49fc5772404e3033085384ee214c44488c93880a596a9a05dcad42f9ce86cf83',
   'openspec-ff-change': '4228d75e3571097164f2360e2ad3063a5b88d44750078c3601b23a89e74c1de6',
-  'openspec-sync-specs': '7eae5d8a46b8b81bd6acad9b78f5dae25e3f848052bebb291a494ed0c0f9ea67',
+  'openspec-sync-specs': '097a104e87623c6e26131ad5e6789763dec05863f6a93b9201430b30b455a1df',
   'openspec-archive-change': 'bd30f9c1f5979c4b469796dc231c5ad3be3c9ede54c8eb92c5b5f96b35241265',
-  'openspec-bulk-archive-change': 'ae0d8b038311f5fd172cdfa7476c4c6881af17aa3ad6bf904a5969393813b0b6',
+  'openspec-bulk-archive-change': '5ac320e2004e453c78541233f48e5f6e246cc674a44f1e427cecb7b2e9587f9b',
   'openspec-verify-change': '0b087d5428df63145f4853a3b136eca522e3a9cbe88047fb30e5f774d873adf4',
   'openspec-onboard': 'f2440f59c22b1ac9db33247b23a6fa32fb9cd418dc196486a213f5d7e91b1dbc',
   'openspec-propose': '6b49634d3672e7fef4750a8c7572a661fec0dafe6d52a0075b41a2c87a793871',
@@ -224,28 +224,158 @@ describe('skill templates split parity', () => {
     const generatedSkill = generateSkillContent(getArchiveChangeSkillTemplate(), 'PARITY-BASELINE');
     const commandContent = getOpsxArchiveCommandTemplate().content;
 
+    // The single archive skill references openspec-sync-specs; opsx command references /opsx:sync.
+    expect(generatedSkill, 'skill').toContain('run the `openspec-sync-specs` workflow inline');
+    expect(commandContent, 'opsx command').toContain('run the `/opsx:sync` workflow inline');
+
     const variants: Array<[string, string]> = [
       ['skill', generatedSkill],
       ['opsx command', commandContent],
     ];
 
     for (const [variant, content] of variants) {
-      // The sync must run inline: delegating it to a background task lets step 5
-      // move changeRoot out from under a sync that is still reading it.
-      expect(content, variant).toContain('run the `openspec-sync-specs` workflow inline');
       expect(content, variant).toContain('Do not delegate it to a background task');
       expect(content, variant).toContain('Never archive while a spec sync is still in flight');
 
-      // Verification must follow delta semantics. Asserting presence alone would
-      // read a correct REMOVED-only sync as a failure, and would pass a no-op
-      // sync for a MODIFIED-only delta (those requirements already exist).
+      // Verification must follow delta semantics.
       expect(content, variant).toContain('MODIFIED requirements carrying the scenario and description changes');
       expect(content, variant).toContain('REMOVED requirements gone');
       expect(content, variant).toContain('RENAMED requirements present under the new name and absent under the old one');
 
-      // Verification is bound to the delta specs on disk, not to whatever the
-      // sync reports it touched — a silently skipped capability must not escape.
+      // Verification is bound to the delta specs on disk, not to whatever the sync reports it touched.
       expect(content, variant).toContain('not only the ones the sync reports it touched');
+
+      // Main spec paths are store-root aware
+      expect(content, variant).toContain('<planningHome.root>/openspec/specs/<capability>/spec.md');
+    }
+  });
+
+  it('gates bulk archive on inline synchronous spec sync and verification before moving change root', () => {
+    const generatedSkill = generateSkillContent(getBulkArchiveChangeSkillTemplate(), 'PARITY-BASELINE');
+    const commandContent = getOpsxBulkArchiveCommandTemplate().content;
+
+    // The bulk archive skill references openspec-sync-specs; opsx command references /opsx:sync.
+    expect(generatedSkill, 'bulk skill').toContain('run the `openspec-sync-specs` workflow inline');
+    expect(commandContent, 'bulk opsx command').toContain('run the `/opsx:sync` workflow inline');
+
+    const variants: Array<[string, string]> = [
+      ['bulk skill', generatedSkill],
+      ['bulk opsx command', commandContent],
+    ];
+
+    for (const [variant, content] of variants) {
+      expect(content, variant).toContain('Do not delegate to a background task');
+      expect(content, variant).toContain('Never archive a change while a spec sync is still in flight');
+      expect(content, variant).toContain('Verify included delta specs before moving changeRoot');
+
+      // Verification must follow delta semantics.
+      expect(content, variant).toContain('MODIFIED requirements carrying scenario and description changes');
+      expect(content, variant).toContain('REMOVED requirements gone');
+      expect(content, variant).toContain('RENAMED requirements present under the new name and absent under the old one');
+
+      // Main spec paths are store-root aware
+      expect(content, variant).toContain('<planningHome.root>/openspec/specs/<capability>/spec.md');
+    }
+  });
+
+  it('carries mixed included and excluded bulk-archive deltas through both generated variants', () => {
+    const variants: Array<[string, string]> = [
+      [
+        'bulk skill',
+        generateSkillContent(getBulkArchiveChangeSkillTemplate(), 'PARITY-BASELINE'),
+      ],
+      ['bulk opsx command', getOpsxBulkArchiveCommandTemplate().content],
+    ];
+
+    for (const [variant, content] of variants) {
+      expect(content, variant).toContain(
+        'An inclusion or exclusion decision for every delta spec'
+      );
+      expect(content, variant).toContain(
+        'A single change can have both included and excluded delta specs'
+      );
+      expect(content, variant).toContain(
+        'passing only the included delta paths and explicitly instructing it to ignore'
+      );
+      expect(content, variant).not.toContain(
+        'for each change, passing the delta spec analysis'
+      );
+      expect(content, variant).toContain(
+        'Re-run the comparison only for delta specs in `includedDeltas`'
+      );
+      expect(content, variant).toContain(
+        'Do not verify delta specs in `excludedDeltas`'
+      );
+      expect(content, variant).toContain('report `sync skipped`');
+      expect(content, variant).toContain(
+        '`sync skipped` without treating the archive itself as skipped'
+      );
+
+      // These three carried no assertion, so deleting any of them from a
+      // single variant was caught only by the golden hash — and this repo
+      // regenerates hashes as a matter of routine, which makes that no
+      // protection at all.
+      expect(content, variant).toContain(
+        '`includedDeltas`: all non-conflicting delta specs from confirmed changes plus conflict deltas selected for sync'
+      );
+      expect(content, variant).toContain(
+        '`excludedDeltas`: conflict deltas from confirmed changes excluded because their implementation is missing'
+      );
+      expect(content, variant).toContain(
+        'Carry the per-delta `includedDeltas` and `excludedDeltas` decisions into execution'
+      );
+      // The worked example must show the skip, or the agent has no model of
+      // what a partially-synced batch report looks like.
+      expect(content, variant).toContain(
+        '1 delta spec sync skipped (add-jwt/auth: implementation not found)'
+      );
+    }
+  });
+
+  it('lets the sync workflow honor the delta subset bulk archive hands it', () => {
+    // Bulk archive tells sync to ignore excludedDeltas, but sync treats
+    // existingOutputPaths as its own source of truth. Without an explicit
+    // carve-out the callee re-syncs the delta the caller withheld, step 8b
+    // never checks it (it verifies only includedDeltas), and the run still
+    // reports `sync skipped` for a spec that was in fact written.
+    const variants: Array<[string, string]> = [
+      ['sync skill', getSyncSpecsSkillTemplate().instructions],
+      ['sync command', getOpsxSyncCommandTemplate().content],
+    ];
+
+    for (const [variant, content] of variants) {
+      expect(content, variant).toContain(
+        'A caller narrows it by naming an explicit list of delta spec paths to sync'
+      );
+      expect(content, variant).toContain(
+        'sync only the named paths and leave the remaining delta specs untouched'
+      );
+      expect(content, variant).toContain(
+        'never widen it back to the full\n   list'
+      );
+      expect(content, variant).toContain(
+        'Honor a caller-supplied subset of `existingOutputPaths`'
+      );
+
+      // Step 4 is the operative loop. Narrowing step 3 alone left the loop
+      // still iterating "each path returned by the CLI", which re-widens the
+      // set and re-syncs the delta the caller withheld — the original bug,
+      // one step further down the template.
+      expect(content, variant).toContain(
+        'For each capability delta spec path selected in step 3'
+      );
+      expect(content, variant).not.toContain(
+        'For each capability delta spec path returned by the CLI'
+      );
+
+      // The undefined edges: a named path outside existingOutputPaths, and an
+      // empty named list. Both must stop rather than proceed on a guess.
+      expect(content, variant).toContain(
+        'If a named path is not in `existingOutputPaths`, do not sync it'
+      );
+      expect(content, variant).toContain(
+        'If the named list is\n   empty, report that there is nothing to sync and stop'
+      );
     }
   });
 
