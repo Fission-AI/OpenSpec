@@ -692,8 +692,8 @@ Schema: spec-driven
 Progress: 2/4 artifacts complete
 
 [x] proposal
-[ ] design
 [x] specs
+[ ] design
 [-] tasks (blocked by: design)
 ```
 
@@ -709,12 +709,18 @@ A change that declares `skip_specs: true` shows its specs stage as `[~] specs (s
   "applyRequires": ["tasks"],
   "artifacts": [
     {"id": "proposal", "outputPath": "proposal.md", "status": "done", "requires": []},
-    {"id": "design", "outputPath": "design.md", "status": "ready", "requires": ["proposal"]},
     {"id": "specs", "outputPath": "specs/**/*.md", "status": "done", "requires": ["proposal"]},
+    {"id": "design", "outputPath": "design.md", "status": "ready", "requires": ["proposal"]},
     {"id": "tasks", "outputPath": "tasks.md", "status": "blocked", "requires": ["specs", "design"], "missingDeps": ["design"]}
   ]
 }
 ```
+
+Artifacts are listed in dependency order - a dependency never appears after
+something that requires it - and artifacts that become ready at the same time
+(spec-driven's `specs` and `design` both need only `proposal`) keep the order the
+schema declares them rather than an alphabetical one. So the first `ready` entry
+is the artifact to write next.
 
 ---
 

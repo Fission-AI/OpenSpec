@@ -260,6 +260,10 @@ apply:
 | `instruction` | AI instructions for creating this artifact |
 | `requires` | Dependencies - which artifacts must exist first |
 
+List artifacts in the order you want them written. `requires` decides what is
+possible; the order of the `artifacts:` list decides what comes first when
+several artifacts are ready at once.
+
 ### Templates
 
 Templates are markdown files that guide the AI. They're injected into the prompt when creating that artifact.

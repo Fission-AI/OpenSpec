@@ -126,6 +126,19 @@ describe('artifact-workflow CLI commands', () => {
       expect(proposalArtifact.status).toBe('done');
     });
 
+    it('recommends specs before design for a proposal-only change', async () => {
+      await createTestChange('order-change');
+
+      const result = await runCLI(['status', '--change', 'order-change', '--json'], {
+        cwd: tempDir,
+      });
+      expect(result.exitCode).toBe(0);
+
+      const json = JSON.parse(result.stdout);
+      expect(json.artifacts.map((a: any) => a.id)).toEqual(['proposal', 'specs', 'design', 'tasks']);
+      expect(json.nextSteps[0]).toContain('openspec instructions specs');
+    });
+
     it('shows complete status when all artifacts are done', async () => {
       await createTestChange('complete-change', ['proposal', 'design', 'specs', 'tasks']);
 

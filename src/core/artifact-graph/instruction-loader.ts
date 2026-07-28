@@ -416,6 +416,10 @@ function getDependencyInfo(
 
 /**
  * Gets artifacts that become available after completing the given artifact.
+ *
+ * `getAllArtifacts()` already yields the schema's declaration order, so the list
+ * is returned as collected: sorting it alphabetically would have `unlocks` name
+ * the artifacts in a different order than `status` recommends them.
  */
 function getUnlockedArtifacts(graph: ArtifactGraph, artifactId: string): string[] {
   const unlocks: string[] = [];
@@ -426,7 +430,7 @@ function getUnlockedArtifacts(graph: ArtifactGraph, artifactId: string): string[
     }
   }
 
-  return unlocks.sort();
+  return unlocks;
 }
 
 /**
