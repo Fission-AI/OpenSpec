@@ -988,8 +988,11 @@ describe('command-generation/adapters', () => {
         const match = adapter.formatFile(contentWith(marker)).match(/^---\n([\s\S]*?)\n---/);
         return (parseYaml(match![1]) ?? {}) as Record<string, unknown>;
       };
-      const left = render('AAA-marker');
-      const right = render('BBB-marker');
+      // Deliberately different in length and shape. Two same-shaped markers
+      // would render identically for a field derived via length or a slice,
+      // and such a field would then be silently dropped from every assertion.
+      const left = render('AAA');
+      const right = render('zz-BBB-9-longer');
       return Object.keys(left).filter(
         (key) => JSON.stringify(left[key]) !== JSON.stringify(right[key])
       );
@@ -1042,6 +1045,15 @@ describe('command-generation/adapters', () => {
       ['leading space', ' leading'],
       ['trailing space', 'trailing '],
       ['multiple spaces', '   '],
+      // Without these the matrix drives no control character at all, so the
+      // escaping this suite exists to prove gets no adapter-level coverage —
+      // and the raw-CR assertion below can never fail.
+      ['carriage return', 'line 1\rline 2'],
+      ['line feed', 'line 1\nline 2'],
+      ['nul', 'a\x00b'],
+      ['escape', 'ansi\x1b[0m'],
+      ['delete', 'a\x7fb'],
+      ['next line', 'a\x85b'],
     ];
 
     for (const adapter of yamlAdapters) {
