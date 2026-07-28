@@ -19,6 +19,8 @@ import {
   buildUpgradeCommandLines,
   canSelfUpgrade,
   offerCliUpgrade,
+  readCliVersion,
+  rerunUpdateWithUpgradedCli,
   buildCliUpdateLines,
   displayCliUpdateNote,
 } from '../../src/core/version-check.js';
@@ -201,6 +203,9 @@ describe('getAvailableCliUpdate', () => {
       ['CI', 'true'],
       ['CI', '1'],
       ['CI', 'TRUE'],
+      // An unknown value still means CI: suppressing is the safe direction,
+      // and it keeps this in step with isInteractive() in utils/interactive.
+      ['CI', 'yes'],
       ['NODE_ENV', 'test'],
       ['DO_NOT_TRACK', '1'],
       ['OPENSPEC_TELEMETRY', '0'],
@@ -213,9 +218,33 @@ describe('getAvailableCliUpdate', () => {
     expect(requests).toHaveLength(0);
   });
 
-  it('still runs when CI is set to a disabled value', async () => {
-    process.env.CI = 'false';
-    await expect(getAvailableCliUpdate()).resolves.toBe(bumpMajor(OPENSPEC_VERSION));
+  it('still runs when CI is explicitly switched off', async () => {
+    for (const value of ['false', '0', 'no', '']) {
+      process.env.CI = value;
+      await expect(getAvailableCliUpdate()).resolves.toBe(bumpMajor(OPENSPEC_VERSION));
+    }
+  });
+
+  it('asks the registry npm is pointed at, including one set only in .npmrc', async () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-npmrc-'));
+    try {
+      fs.writeFileSync(
+        path.join(home, '.npmrc'),
+        '; a comment\nregistry=https://npm.internal.example.com/\n'
+      );
+      // npm only exports npm_config_registry under `npm run`, so a global
+      // binary has to read the file itself.
+      delete process.env.npm_config_registry;
+      vi.spyOn(process, 'cwd').mockReturnValue(home);
+
+      expect(registryUrl()).toBe('https://npm.internal.example.com/@fission-ai/openspec/latest');
+
+      // The environment still wins when npm did export it.
+      process.env.npm_config_registry = 'https://env.example.com';
+      expect(registryUrl()).toBe('https://env.example.com/@fission-ai/openspec/latest');
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true });
+    }
   });
 
   it('falls back to the public registry when the override is not an http(s) URL', () => {
@@ -351,22 +380,128 @@ describe('offerCliUpgrade', () => {
     vi.doMock('@inquirer/prompts', () => ({ confirm }));
     const { offerCliUpgrade: offer } = await import('../../src/core/version-check.js?decline');
 
-    await expect(offer('9.9.9')).resolves.toBe(false);
+    await expect(offer('9.9.9')).resolves.toBe('declined');
     // Proves the prompt drove the result rather than an unrelated failure.
     expect(confirm).toHaveBeenCalledTimes(1);
     expect(confirm.mock.calls[0][0]).toMatchObject({ message: expect.stringContaining('9.9.9') });
   });
 
-  it('treats an interrupted prompt as a decline rather than a crash', async () => {
+  it('reports Ctrl-C as cancelled, so the caller can stop instead of prompting on', async () => {
+    const cancellation = Object.assign(new Error('User force closed the prompt'), {
+      name: 'ExitPromptError',
+    });
     const confirm = vi.fn(async () => {
-      throw new Error('User force closed the prompt');
+      throw cancellation;
     });
     vi.doMock('@inquirer/prompts', () => ({ confirm }));
     const { offerCliUpgrade: offer } = await import('../../src/core/version-check.js?ctrlc');
 
-    await expect(offer('9.9.9')).resolves.toBe(false);
+    await expect(offer('9.9.9')).resolves.toBe('cancelled');
     expect(confirm).toHaveBeenCalledTimes(1);
   });
+
+  it('treats an unexpected prompt failure as a decline rather than a crash', async () => {
+    const confirm = vi.fn(async () => {
+      throw new Error('tty exploded');
+    });
+    vi.doMock('@inquirer/prompts', () => ({ confirm }));
+    const { offerCliUpgrade: offer } = await import('../../src/core/version-check.js?boom');
+
+    await expect(offer('9.9.9')).resolves.toBe('declined');
+  });
+
+  it('reads a version back from a binary rather than trusting an exit code', async () => {
+    // `npm install -g` exits 0 even when it installed nothing, so the version
+    // has to be read from whatever now answers.
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-bin-'));
+    try {
+      const isWindows = process.platform === 'win32';
+      const bin = path.join(dir, isWindows ? 'fake.cmd' : 'fake.sh');
+      fs.writeFileSync(bin, isWindows ? '@echo 9.9.9\n' : '#!/bin/sh\necho 9.9.9\n');
+      fs.chmodSync(bin, 0o755);
+
+      await expect(readCliVersion(bin)).resolves.toBe('9.9.9');
+      await expect(readCliVersion(path.join(dir, 'does-not-exist'))).resolves.toBeNull();
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }, 20000);
+});
+
+/**
+ * The re-run stands in for the command the user typed, so what it forwards and
+ * what it reports are both load-bearing.
+ */
+describe('rerunUpdateWithUpgradedCli', () => {
+  let dir: string;
+  const isWindows = process.platform === 'win32';
+
+  function writeFakeCli(body: string): string {
+    const bin = path.join(dir, isWindows ? 'openspec.cmd' : 'openspec');
+    fs.writeFileSync(bin, body);
+    fs.chmodSync(bin, 0o755);
+    return bin;
+  }
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-rerun-'));
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('forwards --force and separates the path from any flag-shaped value', async () => {
+    const log = path.join(dir, 'args.txt');
+    const bin = writeFakeCli(
+      isWindows
+        ? `@echo %* > "${log}"\r\n@exit /b 0\r\n`
+        : `#!/bin/sh\necho "$@" > "${log}"\nexit 0\n`
+    );
+
+    await expect(
+      rerunUpdateWithUpgradedCli('--weird-path', { force: true, binPath: bin })
+    ).resolves.toBe(0);
+
+    const args = fs.readFileSync(log, 'utf-8').trim();
+    expect(args).toContain('--force');
+    // Without the separator the path would be parsed as an option.
+    expect(args).toContain('-- --weird-path');
+  }, 30000);
+
+  it('disables the check in the child, so a stale PATH cannot loop forever', async () => {
+    const log = path.join(dir, 'env.txt');
+    const bin = writeFakeCli(
+      isWindows
+        ? `@echo %OPENSPEC_NO_UPDATE_CHECK% > "${log}"\r\n@exit /b 0\r\n`
+        : `#!/bin/sh\necho "$OPENSPEC_NO_UPDATE_CHECK" > "${log}"\nexit 0\n`
+    );
+
+    await rerunUpdateWithUpgradedCli('.', { binPath: bin });
+
+    // Without this, a PATH still resolving to the old binary would prompt
+    // again, and again.
+    expect(fs.readFileSync(log, 'utf-8').trim()).toBe('1');
+  }, 30000);
+
+  it('passes the child exit code through instead of claiming success', async () => {
+    const bin = writeFakeCli(isWindows ? '@exit /b 7\r\n' : '#!/bin/sh\nexit 7\n');
+
+    await expect(rerunUpdateWithUpgradedCli('.', { binPath: bin })).resolves.toBe(7);
+  }, 30000);
+
+  it('reports a failure when there is no upgraded CLI to hand off to', async () => {
+    const lines: string[] = [];
+    vi.spyOn(console, 'log').mockImplementation((line?: unknown) => {
+      lines.push(String(line ?? ''));
+    });
+
+    await expect(
+      rerunUpdateWithUpgradedCli('.', { binPath: path.join(dir, 'not-installed') })
+    ).resolves.toBe(1);
+    expect(lines.join('\n')).toContain('were not regenerated');
+  }, 30000);
 });
 
 describe('displayCliUpdateNote', () => {

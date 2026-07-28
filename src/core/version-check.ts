@@ -1,5 +1,6 @@
 import fs from 'fs';
 import http from 'http';
+import os from 'os';
 import https from 'https';
 import path from 'path';
 import { createRequire } from 'module';
@@ -11,11 +12,19 @@ const { name: PACKAGE_NAME, version: OPENSPEC_VERSION } = require('../../package
 const DEFAULT_REGISTRY = 'https://registry.npmjs.org';
 const REQUEST_TIMEOUT_MS = 1500;
 const MAX_RESPONSE_BYTES = 256 * 1024;
+const VERSION_PROBE_TIMEOUT_MS = 5000;
 
 /**
- * Values a CI provider may set. GitHub Actions uses "true", others use "1".
+ * `CI` set to anything meaningful means CI. Providers use "true", "1", "yes";
+ * only an explicit off-value counts as "not CI", so a value we do not know
+ * still suppresses the request rather than surprising a build.
  */
-const CI_ENABLED_VALUES = new Set(['true', '1']);
+const CI_DISABLED_VALUES = new Set(['', 'false', '0', 'no', 'off']);
+
+function isCiEnvironment(): boolean {
+  const value = process.env.CI;
+  return value !== undefined && !CI_DISABLED_VALUES.has(value.trim().toLowerCase());
+}
 
 /**
  * A version we are willing to print. The registry only ever serves SemVer here,
@@ -35,19 +44,48 @@ function isCheckEnabled(): boolean {
   if (process.env.OPENSPEC_NO_UPDATE_CHECK !== undefined) return false;
   if (process.env.DO_NOT_TRACK === '1') return false;
   if (process.env.OPENSPEC_TELEMETRY === '0') return false;
-  if (CI_ENABLED_VALUES.has((process.env.CI ?? '').toLowerCase())) return false;
+  if (isCiEnvironment()) return false;
   if (process.env.NODE_ENV === 'test') return false;
   return true;
 }
 
 /**
- * Honors `npm_config_registry` when npm has exported it — under `npm run`, or
- * an explicit export — so people on a private mirror get an answer their own
- * install command can deliver. Falls back to the public registry otherwise;
- * an .npmrc setting alone is not visible to us.
+ * The registry npm itself would use: the environment variable npm exports
+ * under `npm run`, else a `registry=` line from the project or user .npmrc.
+ * Someone who deliberately pointed npm at an internal mirror should not get an
+ * unannounced call to the public registry — nor an advertised version their
+ * mirror does not carry.
  */
+function configuredRegistry(): string | undefined {
+  const fromEnv = process.env.npm_config_registry?.trim();
+  if (fromEnv) return fromEnv;
+
+  const candidates: string[] = [];
+  try {
+    candidates.push(path.join(process.cwd(), '.npmrc'));
+  } catch {
+    // cwd can be gone; the user .npmrc is still worth reading.
+  }
+  try {
+    candidates.push(path.join(os.homedir(), '.npmrc'));
+  } catch {
+    // No home directory resolvable.
+  }
+
+  for (const file of candidates) {
+    try {
+      const match = /^[ \t]*registry[ \t]*=[ \t]*(\S+)[ \t]*$/m.exec(fs.readFileSync(file, 'utf-8'));
+      if (match) return match[1];
+    } catch {
+      // Missing or unreadable .npmrc is normal.
+    }
+  }
+
+  return undefined;
+}
+
 export function registryUrl(): string {
-  const configured = process.env.npm_config_registry?.trim();
+  const configured = configuredRegistry();
   const base = configured && /^https?:\/\//i.test(configured) ? configured : DEFAULT_REGISTRY;
   return `${base.replace(/\/+$/, '')}/${PACKAGE_NAME}/latest`;
 }
@@ -426,7 +464,10 @@ function loadSpawn(): typeof import('child_process').spawn {
 export function canSelfUpgrade(installDir: string | null, projectPath: string): boolean {
   if (!installDir) return false;
   if (isEphemeralRunnerInstall(installDir)) return false;
+  // Both anchors matter: `openspec update ../other` from a project that owns
+  // the CLI as a dependency is still a project-local install.
   if (isProjectLocalInstall(installDir, projectPath)) return false;
+  if (isProjectLocalInstall(installDir)) return false;
   if (isSourceCheckout(installDir)) return false;
   return isNpmGlobalInstall(installDir);
 }
@@ -449,10 +490,80 @@ async function runGlobalUpgrade(): Promise<boolean> {
 }
 
 /**
- * Offers to run the upgrade, and returns whether it succeeded. Declining is
- * free: the caller prints the command either way, so nobody is stuck.
+ * The `openspec` npm installs alongside its global package, so the upgrade can
+ * be handed to the copy npm just wrote rather than to whatever PATH resolves.
+ * Null when it cannot be found, in which case PATH is the only option left.
  */
-export async function offerCliUpgrade(latestVersion: string): Promise<boolean> {
+export function upgradedBinPath(roots: string[] = npmGlobalRoots()): string | null {
+  for (const root of roots) {
+    const candidates =
+      process.platform === 'win32'
+        ? [path.join(path.dirname(root), 'openspec.cmd'), path.join(root, '..', 'openspec.cmd')]
+        : [path.resolve(root, '..', '..', 'bin', 'openspec')];
+
+    for (const candidate of candidates) {
+      try {
+        if (fs.existsSync(candidate)) return candidate;
+      } catch {
+        // Unreadable candidate; try the next one.
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Asks a CLI binary its version. Used to confirm an upgrade actually landed:
+ * `npm install -g` exits 0 even when it installed nothing, so its exit code
+ * alone cannot justify telling the user they are on a new version.
+ */
+export function readCliVersion(binPath: string): Promise<string | null> {
+  const spawn = loadSpawn();
+
+  return new Promise((resolve) => {
+    let output = '';
+    let child;
+    try {
+      child = spawn(binPath, ['--version'], { stdio: ['ignore', 'pipe', 'ignore'] });
+    } catch {
+      resolve(null);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      child.kill();
+      resolve(null);
+    }, VERSION_PROBE_TIMEOUT_MS);
+
+    child.stdout?.on('data', (chunk: Buffer) => {
+      output += chunk.toString();
+    });
+    child.on('error', () => {
+      clearTimeout(timer);
+      resolve(null);
+    });
+    child.on('close', () => {
+      clearTimeout(timer);
+      const match = /\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?/.exec(output);
+      resolve(match ? match[0] : null);
+    });
+  });
+}
+
+export type UpgradeOutcome = 'upgraded' | 'declined' | 'failed' | 'cancelled' | 'not-on-path';
+
+function isPromptCancellation(error: unknown): boolean {
+  const name = (error as { name?: string } | undefined)?.name;
+  return name === 'ExitPromptError' || name === 'AbortPromptError';
+}
+
+/**
+ * Offers to run the upgrade and reports what actually happened. The version is
+ * read back from the installed binary rather than assumed, so "upgraded" is a
+ * fact and a PATH that still answers with the old copy is caught here instead
+ * of silently doing nothing.
+ */
+export async function offerCliUpgrade(latestVersion: string): Promise<UpgradeOutcome> {
   const { confirm } = await import('@inquirer/prompts');
 
   let accepted = false;
@@ -461,24 +572,38 @@ export async function offerCliUpgrade(latestVersion: string): Promise<boolean> {
       message: `Upgrade to v${latestVersion} now?`,
       default: true,
     });
-  } catch {
-    // Ctrl-C at the prompt is a decline, not a crash.
-    return false;
+  } catch (error) {
+    // Ctrl-C means stop, not "no thanks, carry on with everything else".
+    return isPromptCancellation(error) ? 'cancelled' : 'declined';
   }
-  if (!accepted) return false;
+  if (!accepted) return 'declined';
 
   console.log();
-  const upgraded = await runGlobalUpgrade();
+  const installed = await runGlobalUpgrade();
   console.log();
 
-  if (!upgraded) {
+  if (!installed) {
     console.log(chalk.yellow('The upgrade did not complete. A global install may need'));
     console.log(chalk.yellow('elevated permissions, or a different package manager.'));
-    return false;
+    return 'failed';
   }
 
-  console.log(chalk.green(`✓ Upgraded to v${latestVersion}.`));
-  return true;
+  const binPath = upgradedBinPath();
+  const version = await readCliVersion(binPath ?? 'openspec');
+
+  if (!version) {
+    console.log(chalk.yellow('Upgrade finished, but no "openspec" could be run to confirm it.'));
+    return 'not-on-path';
+  }
+  if (compareVersions(version, OPENSPEC_VERSION) <= 0) {
+    // npm wrote the new copy, but the one that answers is still the old one.
+    console.log(chalk.yellow(`Upgrade finished, but "openspec" still reports v${version}.`));
+    console.log(chalk.dim('  Another install earlier on your PATH is answering first.'));
+    return 'not-on-path';
+  }
+
+  console.log(chalk.green(`✓ Upgraded to v${version}.`));
+  return 'upgraded';
 }
 
 /**
@@ -488,24 +613,35 @@ export async function offerCliUpgrade(latestVersion: string): Promise<boolean> {
  * upgrade still landed but nothing was regenerated, so it says so and
  * resolves 0 rather than reporting a failure the upgrade did not have.
  */
-export async function rerunUpdateWithUpgradedCli(projectPath: string): Promise<number> {
+export async function rerunUpdateWithUpgradedCli(
+  projectPath: string,
+  options: { force?: boolean; binPath?: string } = {}
+): Promise<number> {
   const spawn = loadSpawn();
+  const binPath = options.binPath ?? upgradedBinPath() ?? 'openspec';
+  // The re-run stands in for the command the user typed, so it has to carry
+  // the flags they typed with it.
+  const args = ['update'];
+  if (options.force) args.push('--force');
+  // `--` so a path that looks like a flag stays a path.
+  args.push('--', projectPath);
 
   return new Promise((resolve) => {
-    const child = spawn('openspec', ['update', projectPath], {
+    const child = spawn(binPath, args, {
       stdio: 'inherit',
       // The child must not offer the upgrade again: if PATH still resolves to
       // the old binary, prompting would loop forever.
       env: { ...process.env, OPENSPEC_NO_UPDATE_CHECK: '1' },
     });
     child.on('error', () => {
-      // No openspec on PATH to hand off to; the upgrade landed but the
-      // instruction files are still the old ones, so say so plainly.
+      // Nothing to hand off to: the upgrade landed but the instruction files
+      // are still the old ones, so this run did not do what was asked.
       console.log(chalk.yellow('Instruction files were not regenerated.'));
       console.log(chalk.dim('  Run "openspec update" to pick up the new workflows.'));
-      resolve(0);
+      resolve(1);
     });
-    child.on('close', (code) => resolve(code ?? 0));
+    // A child killed by a signal reports no code; that is not success.
+    child.on('close', (code) => resolve(code ?? 1));
   });
 }
 

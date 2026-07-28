@@ -187,7 +187,7 @@ A newer OpenSpec CLI is available (v1.6.0 → v1.7.0).
 ? Upgrade to v1.7.0 now? (Y/n)
 ```
 
-Answer yes and it runs `npm install -g @fission-ai/openspec@latest`, then re-runs the update with the new CLI so the new workflows land in the same command. (If the upgraded `openspec` is not on your `PATH`, it says so and leaves you to run `openspec update` yourself.) Answer no and it prints the command and updates with the CLI you have.
+Answer yes and it runs `npm install -g @fission-ai/openspec@latest`, then re-runs the update with the new CLI so the new workflows land in the same command. It confirms the upgrade by asking the installed binary its version rather than trusting npm's exit code, so if another install earlier on your `PATH` is still answering, it tells you instead of claiming success. Answer no and it prints the command and updates with the CLI you have. Ctrl-C stops the command.
 
 The offer appears only in an interactive terminal, and only when npm owns the install — the one case `npm install -g` actually fixes. Everything else gets the command that matches how it was installed instead:
 
@@ -201,7 +201,7 @@ The offer appears only in an interactive terminal, and only when npm owns the in
 
 Every case prints `Running from:` when the install directory can be resolved, which is the thing to check when you did upgrade but a stale shim still owns your `PATH`.
 
-The check is skipped in CI (`CI` set to `true` or `1`), under `NODE_ENV=test`, and whenever `OPENSPEC_NO_UPDATE_CHECK` (any value), `DO_NOT_TRACK=1`, or `OPENSPEC_TELEMETRY=0` is set. It runs before the update and can delay it by at most 1.5 seconds — it gives up after that even when the network drops packets silently, and stays quiet when the registry is unreachable.
+It asks whichever registry npm is pointed at — `npm_config_registry` when npm exports it, otherwise a `registry=` line from the project or user `.npmrc` — so a private mirror is never bypassed. The check is skipped when `CI` is set to anything but an explicit off-value (`false`, `0`, `no`, `off`), under `NODE_ENV=test`, and whenever `OPENSPEC_NO_UPDATE_CHECK` (any value), `DO_NOT_TRACK=1`, or `OPENSPEC_TELEMETRY=0` is set. It runs before the update and can delay it by at most 1.5 seconds — it gives up after that even when the network drops packets silently, and stays quiet when the registry is unreachable.
 
 ---
 
@@ -1236,8 +1236,8 @@ openspec completion uninstall
 | `EDITOR` or `VISUAL` | Editor for `openspec config edit` |
 | `NO_COLOR` | Disable color output when set |
 | `OPENSPEC_NO_ANIMATION` | Disable the `openspec init` welcome animation when set |
-| `OPENSPEC_NO_UPDATE_CHECK` | Disable the `openspec update` check for a newer published CLI when set (any value). Also skipped when `CI` is `true`/`1` or `NODE_ENV=test` |
-| `npm_config_registry` | npm's own registry setting, honored by the `openspec update` version check when npm exports it. Must be an `http(s)` URL or it falls back to `https://registry.npmjs.org` |
+| `OPENSPEC_NO_UPDATE_CHECK` | Disable the `openspec update` check for a newer published CLI when set (any value). Also skipped when `CI` is set (unless `false`/`0`/`no`/`off`) or `NODE_ENV=test` |
+| `npm_config_registry` | npm's own registry setting, honored by the `openspec update` version check; a `registry=` line in the project or user `.npmrc` is read when this is unset. Must be an `http(s)` URL or it falls back to `https://registry.npmjs.org` |
 
 ---
 

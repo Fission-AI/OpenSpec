@@ -10,8 +10,8 @@ A newer OpenSpec CLI is available (v1.6.0 → v1.7.0).
 ? Upgrade to v1.7.0 now? (Y/n)
 ```
 
-Say yes and it upgrades, then re-runs the update with the new CLI so the new workflows arrive in the same command. Say no and it prints the command and updates with what you have — nothing happens to your machine that you did not agree to.
+Say yes and it upgrades, then re-runs the update with the new CLI so the new workflows arrive in the same command. It confirms by reading the installed version back, so a second install earlier on your `PATH` is reported rather than mistaken for success. Say no and it prints the command and updates with what you have — nothing happens to your machine that you did not agree to, and Ctrl-C stops the command outright.
 
 The offer appears only in an interactive terminal, and only when npm owns the install — the one case `npm install -g` actually fixes. A global pnpm, bun, yarn, or volta install gets that manager's own command; a project dependency is pointed at its own package manager; an `npx`/`dlx` cache is told to re-run with `@latest`; and a git clone gets nothing at all. Whenever the install directory can be resolved, the note names it, which is the thing to check when you did upgrade but a stale shim still owns `PATH`.
 
-The check runs before the update and can delay it by at most 1.5 seconds. It gives up after that even against a network that drops packets silently, fails quietly when the registry is unreachable, honors `npm_config_registry` when npm exports it, and is skipped in CI, under `NODE_ENV=test`, and whenever `OPENSPEC_NO_UPDATE_CHECK`, `DO_NOT_TRACK=1`, or `OPENSPEC_TELEMETRY=0` is set.
+The check runs before the update and can delay it by at most 1.5 seconds. It gives up after that even against a network that drops packets silently, fails quietly when the registry is unreachable, asks whichever registry npm is pointed at (`npm_config_registry`, else a `registry=` line in the project or user `.npmrc`) so a private mirror is never bypassed, and is skipped in CI, under `NODE_ENV=test`, and whenever `OPENSPEC_NO_UPDATE_CHECK`, `DO_NOT_TRACK=1`, or `OPENSPEC_TELEMETRY=0` is set.

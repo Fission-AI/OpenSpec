@@ -225,15 +225,34 @@ program
       const announce = latestVersion !== null && !isSourceCheckout(installDir);
       // Offer to upgrade first: this process generates files from its own
       // templates, so upgrading afterwards would leave the old ones on disk.
-      const canOffer = announce && isInteractive() && canSelfUpgrade(installDir, targetPath);
+      // Both streams must be a terminal — with stdout redirected the question
+      // lands in the file and the user waits at a blank screen forever.
+      const canOffer =
+        announce &&
+        isInteractive() &&
+        Boolean(process.stdout.isTTY) &&
+        canSelfUpgrade(installDir, targetPath);
 
       if (latestVersion && canOffer) {
         displayCliUpdateNote(latestVersion, targetPath, { withCommand: false });
-        if (await offerCliUpgrade(latestVersion)) {
-          process.exit(await rerunUpdateWithUpgradedCli(targetPath));
+        const outcome = await offerCliUpgrade(latestVersion);
+
+        // Set the code and return rather than process.exit: exiting here would
+        // skip commander's postAction hook, killing the telemetry flush
+        // mid-request.
+        if (outcome === 'cancelled') {
+          // Ctrl-C means stop the command, not fall through to more prompts.
+          process.exitCode = 130;
+          return;
         }
-        // Declined, or the upgrade failed: leave the command on screen so the
-        // manual route is never more than a copy away.
+        if (outcome === 'upgraded') {
+          process.exitCode = await rerunUpdateWithUpgradedCli(targetPath, {
+            force: options?.force,
+          });
+          return;
+        }
+        // Declined, failed, or upgraded-but-unreachable: leave the command on
+        // screen so the manual route is never more than a copy away.
         displayUpgradeCommand(targetPath);
       }
 
