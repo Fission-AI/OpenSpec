@@ -8,6 +8,9 @@
 A newer OpenSpec CLI is available (v1.6.0 → v1.7.0).
   npm install -g @fission-ai/openspec@latest
   Then run "openspec update" again to pick up new workflows.
+  Running from: /usr/local/lib/node_modules/@fission-ai/openspec
 ```
+
+A project-local install is pointed at its dependency instead of `npm install -g`, and the `Running from:` line identifies which copy answered — the thing to check when you did upgrade but a stale shim is still on `PATH`.
 
 The check runs alongside the update rather than before it, times out after 1.5 seconds, caches the answer for 24 hours, and fails silently when the registry is unreachable. It is skipped in CI and disabled entirely by setting `OPENSPEC_NO_UPDATE_CHECK`.

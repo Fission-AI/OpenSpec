@@ -2,7 +2,13 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { compareVersions, getAvailableCliUpdate } from '../../src/core/version-check.js';
+import {
+  compareVersions,
+  getAvailableCliUpdate,
+  getInstallDir,
+  isProjectLocalInstall,
+  displayCliUpdateNote,
+} from '../../src/core/version-check.js';
 
 const require = (await import('module')).createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
@@ -99,6 +105,30 @@ describe('getAvailableCliUpdate', () => {
     await getAvailableCliUpdate();
 
     expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('names the global install command and the copy that answered', () => {
+    const lines: string[] = [];
+    vi.spyOn(console, 'log').mockImplementation((line?: unknown) => {
+      lines.push(String(line ?? ''));
+    });
+
+    displayCliUpdateNote('9.9.9');
+    const output = lines.join('\n');
+
+    expect(output).toContain(`v${OPENSPEC_VERSION} → v9.9.9`);
+    expect(output).toContain('npm install -g @fission-ai/openspec@latest');
+    expect(output).toContain(`Running from: ${getInstallDir()}`);
+  });
+
+  it('recognizes a project-local install so it is not told to use -g', () => {
+    const cwd = process.cwd();
+    expect(isProjectLocalInstall(path.join(cwd, 'node_modules', '@fission-ai', 'openspec'))).toBe(
+      true
+    );
+    expect(isProjectLocalInstall('/usr/local/lib/node_modules/@fission-ai/openspec')).toBe(false);
+    expect(isProjectLocalInstall(getInstallDir())).toBe(false);
+    expect(isProjectLocalInstall(null)).toBe(false);
   });
 
   it('skips the check entirely when opted out', async () => {
