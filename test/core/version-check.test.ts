@@ -256,47 +256,22 @@ describe('getAvailableCliUpdate', () => {
     }
   });
 
-  it('asks the registry npm is pointed at, including one set only in ~/.npmrc', async () => {
+  it('asks the registry npm exported, and only that', () => {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-npmrc-'));
-    const project = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-project-'));
     try {
-      fs.writeFileSync(
-        path.join(home, '.npmrc'),
-        '; a comment\nregistry=https://npm.internal.example.com/\n'
-      );
-      // npm only exports npm_config_registry under `npm run`, so a global
-      // binary has to read the file itself.
-      delete process.env.npm_config_registry;
+      // A .npmrc must not steer the request: file contents choosing an
+      // outbound destination is a flow this deliberately does not have.
+      fs.writeFileSync(path.join(home, '.npmrc'), 'registry=https://from-file.example.com/\n');
       vi.spyOn(os, 'homedir').mockReturnValue(home);
+      vi.spyOn(process, 'cwd').mockReturnValue(home);
+      delete process.env.npm_config_registry;
 
-      expect(registryUrl()).toBe('https://npm.internal.example.com/@fission-ai/openspec/latest');
+      expect(registryUrl()).toBe('https://registry.npmjs.org/@fission-ai/openspec/latest');
 
-      // A project .npmrc travels with a repository, so a cloned repo must not
-      // be able to redirect this request.
-      fs.writeFileSync(path.join(project, '.npmrc'), 'registry=https://attacker.example.com/\n');
-      vi.spyOn(process, 'cwd').mockReturnValue(project);
-      expect(registryUrl()).toBe('https://npm.internal.example.com/@fission-ai/openspec/latest');
-
-      // A scoped registry is how a private mirror is normally configured for a
-      // scoped package, and npm resolves it ahead of the default.
-      fs.writeFileSync(
-        path.join(home, '.npmrc'),
-        'registry=https://default.example.com/\n@fission-ai:registry=https://scoped.example.com/\n'
-      );
-      expect(registryUrl()).toBe('https://scoped.example.com/@fission-ai/openspec/latest');
-
-      // npm expands ${VAR}; an unexpanded value would not be a URL at all.
-      process.env.OPENSPEC_TEST_REGISTRY = 'https://from-env.example.com';
-      fs.writeFileSync(path.join(home, '.npmrc'), 'registry=${OPENSPEC_TEST_REGISTRY}\n');
-      expect(registryUrl()).toBe('https://from-env.example.com/@fission-ai/openspec/latest');
-      delete process.env.OPENSPEC_TEST_REGISTRY;
-
-      // The environment still wins when npm did export it.
       process.env.npm_config_registry = 'https://env.example.com';
       expect(registryUrl()).toBe('https://env.example.com/@fission-ai/openspec/latest');
     } finally {
-      fs.rmSync(home, { recursive: true, force: true });
-      fs.rmSync(project, { recursive: true, force: true });
+      fs.rmSync(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     }
   });
 

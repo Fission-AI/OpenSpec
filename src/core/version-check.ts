@@ -1,6 +1,5 @@
 import fs from 'fs';
 import http from 'http';
-import os from 'os';
 import https from 'https';
 import path from 'path';
 import { createRequire } from 'module';
@@ -51,47 +50,15 @@ function isCheckEnabled(): boolean {
 }
 
 /**
- * The registry npm itself would use: the environment variable npm exports
- * under `npm run`, else a `registry=` line from the user's own ~/.npmrc.
- * Someone who deliberately pointed npm at an internal mirror should not get an
- * unannounced call to the public registry — nor an advertised version their
- * mirror does not carry.
+ * The registry to ask: only the environment variable npm exports (under
+ * `npm run`, or an explicit export). Deliberately not a `registry=` line from
+ * any .npmrc — letting file contents choose the destination of an outbound
+ * request is a flow worth avoiding for a convenience this small, and a project
+ * file would travel with a cloned repository. Anyone on a private mirror can
+ * export `npm_config_registry`, or turn the check off entirely.
  */
-function configuredRegistry(): string | undefined {
-  const fromEnv = process.env.npm_config_registry?.trim();
-  if (fromEnv) return fromEnv;
-
-  // Deliberately the user's own .npmrc and not the project's: a project file
-  // travels with a repository, so honoring it would let a cloned repo point
-  // this request at a host of its choosing. A mirror is configured per user
-  // anyway (`npm config set registry` writes here).
-  try {
-    const text = fs.readFileSync(path.join(os.homedir(), '.npmrc'), 'utf-8');
-    const scope = PACKAGE_NAME.startsWith('@') ? PACKAGE_NAME.split('/')[0] : null;
-    // A scoped registry wins for a scoped package, exactly as npm resolves it.
-    const scoped = scope
-      ? new RegExp(`^[ \t]*${escapeForRegExp(scope)}:registry[ \t]*=[ \t]*(\\S+)[ \t]*$`, 'm').exec(text)
-      : null;
-    const match = scoped ?? /^[ \t]*registry[ \t]*=[ \t]*(\S+)[ \t]*$/m.exec(text);
-    if (match) return expandEnvRefs(match[1]);
-  } catch {
-    // Missing or unreadable .npmrc is normal.
-  }
-
-  return undefined;
-}
-
-function escapeForRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-/** npm expands ${VAR} in .npmrc values; an unexpanded one is not a URL. */
-function expandEnvRefs(value: string): string {
-  return value.replace(/\$\{([^}]+)\}/g, (_match, name: string) => process.env[name] ?? '');
-}
-
 export function registryUrl(): string {
-  const configured = configuredRegistry();
+  const configured = process.env.npm_config_registry?.trim();
   const base = configured && /^https?:\/\//i.test(configured) ? configured : DEFAULT_REGISTRY;
   return `${base.replace(/\/+$/, '')}/${PACKAGE_NAME}/latest`;
 }
