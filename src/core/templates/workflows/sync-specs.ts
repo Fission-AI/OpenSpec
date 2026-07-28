@@ -21,13 +21,16 @@ ${STORE_SELECTION_GUIDANCE}
 
 **Steps**
 
-1. **If no change name provided, prompt for selection**
+1. **Select the change**
 
-   Run \`openspec list --json\` to get available changes. Ask the user to select one.
+   If a name is provided, use it. Otherwise:
+   - Infer from conversation context if the user mentioned a change
+   - Auto-select if only one active change exists
+   - If ambiguous, run \`openspec list --json\` to get available changes and ask the user to select one
 
-   Show changes that have delta specs (under \`specs/\` directory).
+   When prompting, show changes that have delta specs (under \`specs/\` directory).
 
-   **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
+   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:sync <other>\`).
 
 2. **Resolve change context**
 
@@ -228,13 +231,16 @@ ${STORE_SELECTION_GUIDANCE}
 
 **Steps**
 
-1. **If no change name provided, prompt for selection**
+1. **Select the change**
 
-   Run \`openspec list --json\` to get available changes. Ask the user to select one.
+   If a name is provided, use it. Otherwise:
+   - Infer from conversation context if the user mentioned a change
+   - Auto-select if only one active change exists
+   - If ambiguous, run \`openspec list --json\` to get available changes and ask the user to select one
 
-   Show changes that have delta specs (under \`specs/\` directory).
+   When prompting, show changes that have delta specs (under \`specs/\` directory).
 
-   **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
+   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:sync <other>\`).
 
 2. **Resolve change context**
 

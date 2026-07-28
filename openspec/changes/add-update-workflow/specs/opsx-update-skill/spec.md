@@ -7,8 +7,8 @@ The system SHALL provide a `/opsx:update` workflow skill that revises a change's
 #### Scenario: Select the change to update
 
 - **WHEN** the user invokes `/opsx:update` without a change name
-- **THEN** the skill infers the change from conversation context if possible
-- **AND** if it cannot, it lists available changes (most-recently-modified first) via `openspec list --json` and asks the user to choose, never auto-selecting
+- **THEN** the skill infers the change from conversation context if possible, or auto-selects the change when only one active change exists
+- **AND** if it is still ambiguous, it lists available changes (most-recently-modified first) via `openspec list --json` and asks the user to choose
 
 #### Scenario: Revise without advancing the frontier
 
