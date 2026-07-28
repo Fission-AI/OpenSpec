@@ -101,7 +101,7 @@ The update command SHALL refresh existing slash command files for configured too
 #### Scenario: Updating slash commands for OpenCode
 - **WHEN** `.opencode/commands/` contains OpenSpec-managed `opsx-*.md` command files for the configured profile (for example `opsx-propose.md`, `opsx-apply.md`, and `opsx-archive.md`)
 - **THEN** refresh each file using shared templates
-- **AND** transform command references to hyphen form (for example `/opsx-propose`) for OpenCode compatibility
+- **AND** transform command references to hyphen form (for example `/opsx-propose`), as for every tool whose command files are named `opsx-<id>`
 - **AND** ensure templates include instructions for the relevant workflow stage
 - **AND** ensure the archive command includes `$ARGUMENTS` placeholder in frontmatter for accepting change ID arguments
 
