@@ -11,30 +11,6 @@ For each selected tool, OpenSpec can install:
 
 Codex is skills-only: OpenSpec installs `.codex/skills/openspec-*/SKILL.md` for Codex even when delivery is set to `commands`, and it does not generate Codex custom prompt files.
 
-## How To Invoke
-
-Docs use `/opsx:propose` as the canonical name, but each tool spells it the way
-it loads the file OpenSpec wrote. Read your tool's command path in the table
-below and match it to a row here — the generated files and the post-setup
-"Getting started" hint already use the right form for the tools you selected.
-
-| Command path pattern | You type | Tools |
-|----------------------|----------|-------|
-| `.../commands/opsx/<id>.md` (namespaced) | `/opsx:<id>` | Claude Code, CodeBuddy, Crush, Gemini CLI, Lingma, Qoder, ZCode |
-| `.../opsx-<id>.md` (filename is the command) | `/opsx-<id>` | Antigravity, Auggie, IBM Bob Shell, CoStrict, Continue, Cursor, Factory Droid, GitHub Copilot, iFlow, Junie, Kiro, Oh My Pi, OpenCode, Pi, Qwen Code, Trae, Windsurf, Zoo Code |
-| `.../opsx-<id>.md`, invoked with the extension | `/opsx-<id>.md` | Cline, Kilo Code |
-| `.amazonq/prompts/opsx-<id>.md`, expanded as a prompt | `@opsx-<id>` | Amazon Q Developer |
-| No command files — skills only | `/openspec-<skill>` | CodeArts, ForgeCode, Hermes, Mistral Vibe |
-| No command files — Kimi Code | `/skill:openspec-<skill>` | Kimi Code |
-| No command files — Codex CLI | `$openspec-<skill>` | Codex ([the `/openspec-<skill>` form is not recognized](https://github.com/openai/codex/issues/11817)) |
-
-So `/opsx:propose` is `/opsx-propose` in Cursor and `$openspec-propose` in Codex.
-Skill names are listed under [Generated Skill Names](#generated-skill-names).
-
-The last four rows are the exceptions worth knowing: the `opsx-<id>` part is the
-same everywhere, but the wrapper around it is the tool's own. If a slash does not
-autocomplete, type your tool's prefix in front of `opsx-propose`.
-
 By default, OpenSpec uses the `core` profile, which includes:
 - `propose`
 - `explore`
@@ -44,6 +20,32 @@ By default, OpenSpec uses the `core` profile, which includes:
 - `archive`
 
 You can enable expanded workflows (`new`, `continue`, `ff`, `verify`, `bulk-archive`, `onboard`) via `openspec config profile`, then run `openspec update`.
+
+## How To Invoke
+
+These docs use `/opsx:propose` as the canonical name, but each tool spells it the
+way it loads the file OpenSpec wrote. Find your tool's command path in the
+[Tool Directory Reference](#tool-directory-reference) below, then match its shape here.
+
+| Command file OpenSpec writes | You type | Tools |
+|------------------------------|----------|-------|
+| `.../commands/opsx/<id>.*` — an `opsx/` folder namespaces it | `/opsx:<id>` | Claude Code, CodeBuddy, Crush, Gemini CLI, Lingma, Qoder, ZCode |
+| `.../opsx-<id>.*` — the filename is the command | `/opsx-<id>` | Every other tool with generated command files |
+| none — skills only | `/openspec-<skill>` | CodeArts, ForgeCode, Hermes, Mistral Vibe |
+| none — Kimi Code | `/skill:openspec-<skill>` | Kimi Code |
+| none — Codex CLI | `$openspec-<skill>` | Codex ([`/openspec-<skill>` is not recognized](https://github.com/openai/codex/issues/11817)) |
+
+So `/opsx:propose` is `/opsx-propose` in Cursor and `$openspec-propose` in Codex.
+The last three rows use skill names, not command names — those are listed under
+[Generated Skill Names](#generated-skill-names), and they do not map one-to-one
+onto command ids (`/opsx:apply` is the `openspec-apply-change` skill).
+
+The files OpenSpec generates, and the "Getting started" hint printed after setup,
+already use the right form for the tools you selected — so the fastest answer is
+to read the hint. A few tools wrap the name further still (some show the file
+name with its extension; Amazon Q surfaces prompts rather than slash commands),
+so if a slash does not autocomplete, check how your tool loads files from the
+directory listed below.
 
 ## Tool Directory Reference
 

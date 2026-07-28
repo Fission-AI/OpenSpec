@@ -70,7 +70,7 @@ The system SHALL provide a `generateCommand` function that combines content with
 
 - **WHEN** the adapter's file path names the command by filename (`opsx-<id>`)
 - **THEN** `generateCommand` SHALL rewrite `/opsx:<id>` references in the body to `/opsx-<id>` before formatting
-- **WHEN** the adapter's file path namespaces the command under an `opsx/` directory
+- **WHEN** the adapter's file path does not name the command by filename (for example it namespaces the command under an `opsx/` directory)
 - **THEN** the body's `/opsx:<id>` references SHALL be left unchanged
 
 #### Scenario: Generate multiple commands

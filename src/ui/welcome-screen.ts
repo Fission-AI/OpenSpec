@@ -39,7 +39,7 @@ function getWelcomeText(workflows: readonly string[]): string[] {
     '',
     chalk.white('This setup will configure:'),
     chalk.dim('  • Agent Skills for AI tools'),
-    chalk.dim('  • /opsx:* slash commands'),
+    chalk.dim('  • opsx slash commands'),
     '',
     ...quickStart,
     chalk.cyan('Press Enter to select tools...'),

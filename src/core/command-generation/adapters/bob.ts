@@ -15,8 +15,8 @@ import { escapeYamlValue } from '../yaml.js';
  * Frontmatter: description
  *
  * Bob uses the filename (minus .md) as the slash command name, so
- * opsx-propose.md → /opsx-propose. Command references in the body
- * are transformed from /opsx: to /opsx- for consistency.
+ * opsx-propose.md → /opsx-propose. generateCommand rewrites the body's
+ * command references to that form before this adapter formats it.
  */
 export const bobAdapter: ToolCommandAdapter = {
   toolId: 'bob',

@@ -52,7 +52,7 @@ The command SHALL configure AI coding assistants with skills and slash commands 
 
 - **WHEN** user selects tools and confirms
 - **THEN** generate skills in `.<tool>/skills/` directory for each selected tool
-- **AND** generate slash commands in `.<tool>/commands/opsx/` directory for each selected tool
+- **AND** generate slash commands for each selected tool with a command adapter, at that adapter's own path (for example `.claude/commands/opsx/<id>.md` or `.cursor/commands/opsx-<id>.md`)
 - **AND** create `openspec/config.yaml` with default schema setting
 
 ### Requirement: Interactive Mode
@@ -85,11 +85,9 @@ The command SHALL provide clear, actionable next steps upon successful initializ
   - "Created: <tools>" for newly configured tools
   - "Refreshed: <tools>" for already-configured tools that were updated
   - Count of skills and commands generated
-- **AND** display getting started section with:
-  - `/opsx:new` - Start a new change
-  - `/opsx:continue` - Create the next artifact
-  - `/opsx:apply` - Implement tasks
+- **AND** display a getting started section naming an installed onboarding workflow (for example `/opsx:propose` - Start a change)
 - **AND** spell each command the way the configured tool registers it: `/opsx-<id>` for tools whose command files are named `opsx-<id>`, and the tool's skill invocation (`$openspec-<skill>` for Codex, `/skill:openspec-<skill>` for Kimi Code, `/openspec-<skill>` otherwise) for tools that receive no command files
+- **AND** print one labeled line per distinct form when the selected tools disagree
 - **AND** display links to documentation and feedback
 
 #### Scenario: Displaying restart instruction

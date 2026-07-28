@@ -29,8 +29,8 @@ function injectOmpArgs(body: string): string {
  * Frontmatter: description
  *
  * OMP uses the filename (minus .md) as the slash command name, so
- * opsx-propose.md → /opsx-propose. Command references in the body
- * are transformed from /opsx: to /opsx- for consistency, and
+ * opsx-propose.md → /opsx-propose. generateCommand rewrites the body's
+ * command references to that form before this adapter formats it, and
  * $@ is injected after **Input**: headings so user-supplied arguments
  * (e.g. /opsx-propose my-feature) are visible to the agent.
  */
