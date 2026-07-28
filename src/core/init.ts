@@ -51,7 +51,7 @@ import {
 import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
 import { getProfileWorkflows, CORE_WORKFLOWS, ALL_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
-import { migrateIfNeeded, migrateLegacyToolDirs, describeLegacyMigration, scanInstalledWorkflows as scanInstalledWorkflowsShared } from './migration.js';
+import { migrateIfNeeded, migrateLegacyToolDirs, describeLegacyMigration, keptInPlaceNotice, scanInstalledWorkflows as scanInstalledWorkflowsShared } from './migration.js';
 import {
   resolveCommandSurfaceCapability,
   resolveCommandInvocation,
@@ -210,6 +210,8 @@ export class InitCommand {
       validatedTools.map((tool) => tool.value)
     )) {
       console.log(chalk.dim(`Migrated ${describeLegacyMigration(migration)}: ${migration.from} → ${migration.to}`));
+      const kept = keptInPlaceNotice(migration);
+      if (kept) console.log(chalk.dim(kept));
     }
 
     // Create directory structure and config

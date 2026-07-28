@@ -678,21 +678,49 @@ Old instructions content
 
     it('should keep user files that live inside an OpenSpec-managed skill directory', async () => {
       // Both roots holding the same skill is the normal state after a rebrand.
-      // The destination wins, but only the file OpenSpec generated may be
-      // removed from the loser — a reference the user wrote beside it is theirs.
+      // A reference the user wrote beside SKILL.md is theirs and never moves.
       const devinSkill = path.join(testDir, '.devin', 'skills', 'openspec-explore');
       await fs.mkdir(devinSkill, { recursive: true });
       await fs.writeFile(path.join(devinSkill, 'SKILL.md'), 'current');
 
       const legacySkill = path.join(testDir, '.windsurf', 'skills', 'openspec-explore');
       await fs.mkdir(legacySkill, { recursive: true });
-      await fs.writeFile(path.join(legacySkill, 'SKILL.md'), 'stale');
+      await fs.writeFile(path.join(legacySkill, 'SKILL.md'), 'current');
       await fs.writeFile(path.join(legacySkill, 'reference.md'), 'my notes');
 
       await updateCommand.execute(testDir);
 
+      // Byte-identical to the survivor, so the redundant copy goes
       await expect(fs.access(path.join(legacySkill, 'SKILL.md'))).rejects.toThrow();
       expect(await fs.readFile(path.join(legacySkill, 'reference.md'), 'utf-8')).toBe('my notes');
+    });
+
+    it('should keep a legacy SKILL.md the user edited, matching how command files are treated', async () => {
+      // Skills and commands must follow one rule. An earlier draft compared
+      // content for commands and not for skills, so the same situation
+      // destroyed a user's edited skill while preserving their edited command.
+      const devinSkill = path.join(testDir, '.devin', 'skills', 'openspec-explore');
+      await fs.mkdir(devinSkill, { recursive: true });
+      await fs.writeFile(path.join(devinSkill, 'SKILL.md'), 'current');
+      const devinWorkflows = path.join(testDir, '.devin', 'workflows');
+      await fs.mkdir(devinWorkflows, { recursive: true });
+      await fs.writeFile(path.join(devinWorkflows, 'opsx-explore.md'), 'current');
+
+      const legacySkill = path.join(testDir, '.windsurf', 'skills', 'openspec-explore');
+      await fs.mkdir(legacySkill, { recursive: true });
+      await fs.writeFile(path.join(legacySkill, 'SKILL.md'), 'my edited skill');
+      const legacyWorkflows = path.join(testDir, '.windsurf', 'workflows');
+      await fs.mkdir(legacyWorkflows, { recursive: true });
+      await fs.writeFile(path.join(legacyWorkflows, 'opsx-explore.md'), 'my edited command');
+
+      await updateCommand.execute(testDir);
+
+      expect(await fs.readFile(path.join(legacySkill, 'SKILL.md'), 'utf-8')).toBe(
+        'my edited skill'
+      );
+      expect(await fs.readFile(path.join(legacyWorkflows, 'opsx-explore.md'), 'utf-8')).toBe(
+        'my edited command'
+      );
     });
 
     it('should not carry a user file into a skill directory that commands-only delivery deletes', async () => {

@@ -55,6 +55,7 @@ import {
   migrateLegacyToolDirs,
   describeLegacyMigration,
   legacyMigrationNotice,
+  keptInPlaceNotice,
   type LegacyToolMigration,
 } from './migration.js';
 import {
@@ -128,6 +129,7 @@ export class UpdateCommand {
     // legacy upgrade generation.
     for (const migration of migrateLegacyToolDirs(resolvedProjectPath)) {
       console.log(chalk.dim(`Migrated ${describeLegacyMigration(migration)}: ${migration.from} → ${migration.to}`));
+      this.reportKeptInPlace(migration);
     }
     const declinedMigrations = await this.offerConsentedLegacyMigrations(resolvedProjectPath);
 
@@ -660,6 +662,12 @@ export class UpdateCommand {
    * reads only `.windsurf/`. `--force` and non-interactive runs migrate, which
    * is what an unattended upgrade wants.
    */
+  /** Surfaces files the move left behind rather than overwriting. */
+  private reportKeptInPlace(migration: LegacyToolMigration): void {
+    const notice = keptInPlaceNotice(migration);
+    if (notice) console.log(chalk.dim(notice));
+  }
+
   private async offerConsentedLegacyMigrations(
     projectPath: string
   ): Promise<LegacyToolMigration[]> {
@@ -701,6 +709,7 @@ export class UpdateCommand {
 
       for (const applied of migrateLegacyToolDirs(projectPath, [migration.toolId])) {
         console.log(chalk.dim(`Migrated ${describeLegacyMigration(applied)}: ${applied.from} → ${applied.to}`));
+        this.reportKeptInPlace(applied);
       }
       console.log();
     }

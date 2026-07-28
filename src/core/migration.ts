@@ -56,8 +56,34 @@ export interface LegacyToolMigration {
   skillDirs: number;
   /** Command files that moved, or would move */
   commandFiles: number;
+  /**
+   * OpenSpec-managed files left under the legacy root because the copy there
+   * differs from the one that survives — the user edited it, so it is reported
+   * rather than dropped.
+   */
+  keptInPlace: number;
   /** Whether this move needs the user's consent first */
   needsConsent: boolean;
+}
+
+/**
+ * Classifies one OpenSpec-managed file. `move` is the fast path (nothing at
+ * the destination yet); `drop` means the destination already holds the same
+ * bytes, so the legacy copy is redundant; `keep` means the two differ, which
+ * only happens when the user edited one, and an edit is not ours to discard.
+ */
+type FileDisposition = 'move' | 'drop' | 'keep' | 'skip';
+
+function classifyManagedFile(source: string, destination: string): FileDisposition {
+  if (isSamePath(source, destination)) return 'skip';
+  if (!fs.existsSync(destination)) return 'move';
+  try {
+    return fs.readFileSync(source, 'utf-8') === fs.readFileSync(destination, 'utf-8')
+      ? 'drop'
+      : 'keep';
+  } catch {
+    return 'keep';
+  }
 }
 
 /**
@@ -124,8 +150,8 @@ function collectLegacyToolMigrations(
       if (apply && !toolIds && legacy.needsConsent) continue;
       if (!fs.existsSync(path.join(projectPath, legacy.root))) continue;
 
-      const skillDirs = migrateSkillDirs(projectPath, tool.skillsDir, legacy.root, apply);
-      const commandFiles = migrateCommandFiles(projectPath, tool, legacy.root, apply);
+      const skills = migrateSkillDirs(projectPath, tool.skillsDir, legacy.root, apply);
+      const commands = migrateCommandFiles(projectPath, tool, legacy.root, apply);
 
       if (apply) {
         removeDirIfEmpty(path.join(projectPath, legacy.root, 'skills'));
@@ -133,13 +159,14 @@ function collectLegacyToolMigrations(
         removeDirIfEmpty(path.join(projectPath, legacy.root));
       }
 
-      if (skillDirs > 0 || commandFiles > 0) {
+      if (skills.moved > 0 || commands.moved > 0) {
         migrations.push({
           toolId: tool.value,
           from: legacy.root,
           to: tool.skillsDir,
-          skillDirs,
-          commandFiles,
+          skillDirs: skills.moved,
+          commandFiles: commands.moved,
+          keptInPlace: skills.kept + commands.kept,
           needsConsent: legacy.needsConsent,
         });
       }
@@ -154,33 +181,39 @@ function migrateSkillDirs(
   currentRoot: string,
   legacyRoot: string,
   apply: boolean
-): number {
+): { moved: number; kept: number } {
   const legacySkillsDir = path.join(projectPath, legacyRoot, 'skills');
-  if (!fs.existsSync(legacySkillsDir)) return 0;
+  if (!fs.existsSync(legacySkillsDir)) return { moved: 0, kept: 0 };
   const currentSkillsDir = path.join(projectPath, currentRoot, 'skills');
   let moved = 0;
+  let kept = 0;
 
   for (const workflowId of ALL_WORKFLOWS) {
     const dirName = WORKFLOW_TO_SKILL_DIR[workflowId];
     const source = path.join(legacySkillsDir, dirName);
     const sourceSkill = path.join(source, 'SKILL.md');
     if (!fs.existsSync(sourceSkill)) continue;
+
+    const destination = path.join(currentSkillsDir, dirName);
+    const destinationSkill = path.join(destination, 'SKILL.md');
+    const disposition = classifyManagedFile(sourceSkill, destinationSkill);
+    if (disposition === 'skip') continue;
+    if (disposition === 'keep') {
+      kept++;
+      continue;
+    }
     if (!apply) {
       moved++;
       continue;
     }
 
     try {
-      const destination = path.join(currentSkillsDir, dirName);
-      const destinationSkill = path.join(destination, 'SKILL.md');
-      if (isSamePath(sourceSkill, destinationSkill)) continue;
-
       // Move the generated file, never the directory around it. A skill
       // directory can also hold files the user wrote, and this destination is
       // one OpenSpec deletes on its own — commands-only delivery and a
       // deselected workflow both remove the whole skill directory. Carrying a
       // user's file across would be handing it to that later removal.
-      if (fs.existsSync(destinationSkill)) {
+      if (disposition === 'drop') {
         fs.rmSync(sourceSkill, { force: true });
       } else {
         fs.mkdirSync(destination, { recursive: true });
@@ -194,7 +227,7 @@ function migrateSkillDirs(
     }
   }
 
-  return moved;
+  return { moved, kept };
 }
 
 function migrateCommandFiles(
@@ -202,10 +235,11 @@ function migrateCommandFiles(
   tool: AIToolOption,
   legacyRoot: string,
   apply: boolean
-): number {
+): { moved: number; kept: number } {
   const adapter = CommandAdapterRegistry.get(tool.value);
-  if (!adapter || !tool.skillsDir) return 0;
+  if (!adapter || !tool.skillsDir) return { moved: 0, kept: 0 };
   let moved = 0;
+  let kept = 0;
 
   for (const commandId of COMMAND_IDS) {
     const currentPath = adapter.getFilePath(commandId);
@@ -214,34 +248,33 @@ function migrateCommandFiles(
 
     const source = path.join(projectPath, legacyPath);
     if (!fs.existsSync(source)) continue;
+
+    const destination = path.join(projectPath, currentPath);
+    const disposition = classifyManagedFile(source, destination);
+    if (disposition === 'skip') continue;
+    if (disposition === 'keep') {
+      kept++;
+      continue;
+    }
     if (!apply) {
       moved++;
       continue;
     }
 
     try {
-      const destination = path.join(projectPath, currentPath);
-      if (!fs.existsSync(destination)) {
+      if (disposition === 'drop') {
+        fs.rmSync(source, { force: true });
+      } else {
         fs.mkdirSync(path.dirname(destination), { recursive: true });
         fs.renameSync(source, destination);
-        moved++;
-        continue;
       }
-      if (isSamePath(source, destination)) continue;
-
-      // Both roots have this command. Dropping the legacy copy is only safe
-      // when it is byte-identical to the one that survives — otherwise the
-      // user edited it, and an edit is not ours to throw away.
-      if (fs.readFileSync(source, 'utf-8') === fs.readFileSync(destination, 'utf-8')) {
-        fs.rmSync(source, { force: true });
-        moved++;
-      }
+      moved++;
     } catch {
       // Leave the legacy file in place if it cannot be moved
     }
   }
 
-  return moved;
+  return { moved, kept };
 }
 
 /**
@@ -256,6 +289,20 @@ export function describeLegacyMigration(migration: LegacyToolMigration): string 
     parts.push(`${migration.commandFiles} command${migration.commandFiles === 1 ? '' : 's'}`);
   }
   return parts.join(' and ');
+}
+
+/**
+ * Names OpenSpec-managed files the move deliberately left behind, so a user
+ * who customized one knows there are now two copies to reconcile.
+ */
+export function keptInPlaceNotice(migration: LegacyToolMigration): string | undefined {
+  if (migration.keptInPlace === 0) return undefined;
+  const n = migration.keptInPlace;
+  return (
+    `Left ${n} edited file${n === 1 ? '' : 's'} in ${migration.from}/: ` +
+    `${migration.to}/ already has ${n === 1 ? 'it' : 'them'} with different content, ` +
+    `so your version was kept rather than overwritten.`
+  );
 }
 
 /**
