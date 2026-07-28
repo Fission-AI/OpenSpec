@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
@@ -18,9 +18,11 @@ describe('tool-detection', () => {
 
   beforeEach(async () => {
     testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-test-'));
+    vi.stubEnv('XDG_CONFIG_HOME', path.join(testDir, 'config'));
   });
 
   afterEach(async () => {
+    vi.unstubAllEnvs();
     await fs.rm(testDir, { recursive: true, force: true });
   });
 

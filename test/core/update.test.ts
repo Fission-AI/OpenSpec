@@ -398,9 +398,11 @@ Old instructions content
 
       await updateCommand.execute(testDir);
 
-      const updatedContent = await fs.readFile(path.join(commandsDir, 'explore.md'), 'utf-8');
-      expect(updatedContent).not.toBe('old command content');
-      expect(updatedContent).toContain('---');
+      for (const cmdId of coreCommandIds) {
+        const updatedContent = await fs.readFile(path.join(commandsDir, `${cmdId}.md`), 'utf-8');
+        expect(updatedContent).not.toBe('old command content');
+        expect(updatedContent).toContain('---');
+      }
     });
   });
 
