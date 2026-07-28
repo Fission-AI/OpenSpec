@@ -181,9 +181,11 @@ openspec update
 them, so OpenSpec compares that against the installed CLI. Command files carry no
 version stamp, so for a tool that has commands but no skills (delivery
 `commands`), OpenSpec compares the file contents against what it would generate
-now. Either way, generated files are OpenSpec's to own — local edits to them are
-overwritten on the next update. Put your own instructions in project files
-instead.
+now — edits to those files count as drift and are overwritten. With delivery
+`skills` or `both`, only the recorded version is checked, so a hand-edited file
+whose version still matches is left alone; use `--force` to rewrite it. Either
+way, generated files are OpenSpec's to own — keep your own instructions
+elsewhere.
 
 ---
 

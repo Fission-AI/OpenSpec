@@ -278,6 +278,32 @@ Content here
       expect(status.needsUpdate).toBe(false);
     });
 
+    it('should treat CRLF line endings and a BOM as up to date, not as drift', async () => {
+      const { InitCommand } = await import('../../../src/core/init.js');
+      const { saveGlobalConfig } = await import('../../../src/core/global-config.js');
+      saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+      await initCommand.execute(testDir);
+
+      // A Windows clone with core.autocrlf re-materializes committed command
+      // files with CRLF endings; that is a checkout artifact, not content drift.
+      const commandsDir = path.join(testDir, '.claude', 'commands', 'opsx');
+      for (const entry of await fs.readdir(commandsDir)) {
+        const file = path.join(commandsDir, entry);
+        const content = await fs.readFile(file, 'utf-8');
+        await fs.writeFile(file, '\ufeff' + content.replace(/\n/g, '\r\n'));
+      }
+
+      const { version } = await import('../../../package.json');
+      const status = getToolVersionStatus(testDir, 'claude', version, {
+        workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'],
+      });
+
+      expect(status.generatedByVersion).toBe(version);
+      expect(status.needsUpdate).toBe(false);
+    });
+
     it('should detect needsUpdate when a deselected workflow left a command file behind', async () => {
       const { InitCommand } = await import('../../../src/core/init.js');
       const { saveGlobalConfig } = await import('../../../src/core/global-config.js');

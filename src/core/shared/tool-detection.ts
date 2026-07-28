@@ -132,6 +132,15 @@ export function toolHasAnyConfiguredCommand(projectPath: string, toolId: string)
 }
 
 /**
+ * Normalizes checkout artifacts that are not real content drift: a UTF-8 BOM and
+ * CRLF line endings, which a Windows clone with `core.autocrlf` reintroduces on
+ * every checkout of committed command files.
+ */
+function normalizeCommandContent(content: string): string {
+  return content.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
+}
+
+/**
  * Checks whether command files for a tool on disk match current generated command contents.
  *
  * Command files carry no version stamp, so content equality is the only available
@@ -178,7 +187,7 @@ export function areCommandFilesUpToDate(
     }
     try {
       const existingContent = fs.readFileSync(cmdPath, 'utf-8');
-      if (existingContent !== cmd.fileContent) {
+      if (normalizeCommandContent(existingContent) !== normalizeCommandContent(cmd.fileContent)) {
         return false;
       }
     } catch {

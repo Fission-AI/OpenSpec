@@ -40,30 +40,10 @@ function toKnownWorkflows(workflows: readonly string[]): WorkflowId[] {
 }
 
 /**
- * Returns tools with at least one generated command file on disk.
- */
-export function getCommandConfiguredTools(projectPath: string): string[] {
-  return AI_TOOLS
-    .filter((tool) => {
-      if (!tool.skillsDir) return false;
-      const toolDir = path.join(projectPath, tool.skillsDir);
-      try {
-        return fs.statSync(toolDir).isDirectory();
-      } catch {
-        return false;
-      }
-    })
-    .map((tool) => tool.value)
-    .filter((toolId) => toolHasAnyConfiguredCommand(projectPath, toolId));
-}
-
-/**
  * Returns tools that are configured via either skills or commands.
  */
 export function getConfiguredToolsForProfileSync(projectPath: string): string[] {
-  const skillConfigured = getConfiguredTools(projectPath);
-  const commandConfigured = getCommandConfiguredTools(projectPath);
-  return [...new Set([...skillConfigured, ...commandConfigured])];
+  return getConfiguredTools(projectPath);
 }
 
 /**

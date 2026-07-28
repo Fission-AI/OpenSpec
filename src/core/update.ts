@@ -162,9 +162,9 @@ export class UpdateCommand {
       return;
     }
 
-    // 6. Check version status for all configured tools. The workflow set must match
-    //    the one the generation loop below writes, or a legacy-upgraded tool would be
-    //    fingerprinted against the wrong commands and never settle as up to date.
+    // 6. Check version status for all configured tools, against the same workflow set
+    //    the generation loop below writes — otherwise a legacy-upgraded tool would be
+    //    fingerprinted against commands it was never given.
     const toolStatuses = configuredTools.map((toolId) =>
       getToolVersionStatus(resolvedProjectPath, toolId, OPENSPEC_VERSION, {
         workflows: legacyWorkflowOverrides[toolId] ?? desiredWorkflows,
