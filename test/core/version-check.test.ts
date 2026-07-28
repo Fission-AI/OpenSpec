@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import fs from 'fs';
 import http from 'http';
+import os from 'os';
 import path from 'path';
 import { execFile } from 'child_process';
 import { createRequire } from 'module';
@@ -10,6 +12,11 @@ import {
   getInstallDir,
   isProjectLocalInstall,
   isEphemeralRunnerInstall,
+  isNpmGlobalInstall,
+  isSourceCheckout,
+  detectPackageManager,
+  npmGlobalRoots,
+  buildUpgradeCommandLines,
   canSelfUpgrade,
   offerCliUpgrade,
   buildCliUpdateLines,
@@ -23,6 +30,7 @@ const { version: OPENSPEC_VERSION } = require('../../package.json');
 // unresolved POSIX path can never prefix-match a resolved one.
 const PROJECT_ROOT = path.resolve(path.join('tmp-fixture', 'proj'));
 const GLOBAL_ROOT = path.resolve(path.join('tmp-fixture', 'global'));
+const HOME_ROOT = path.resolve(path.join('tmp-fixture', 'home'));
 
 function bumpMajor(version: string): string {
   const major = Number.parseInt(version.split('.')[0] ?? '0', 10);
@@ -272,22 +280,70 @@ describe('offerCliUpgrade', () => {
     vi.resetModules();
   });
 
-  it('only offers to run the upgrade for a global install', () => {
-    const globalDir = path.join(GLOBAL_ROOT, 'lib', 'node_modules', '@fission-ai', 'openspec');
-    expect(canSelfUpgrade(globalDir, PROJECT_ROOT)).toBe(true);
+  it('offers only for an npm-owned global install', () => {
+    // Anchored on this machine's real npm root so the case is not fictional.
+    const npmGlobal = path.join(npmGlobalRoots()[0], '@fission-ai', 'openspec');
+    expect(canSelfUpgrade(npmGlobal, PROJECT_ROOT)).toBe(true);
 
-    // A project dependency belongs to that project's package manager, and an
-    // npx cache has nothing to upgrade.
-    expect(
-      canSelfUpgrade(
-        path.join(PROJECT_ROOT, 'node_modules', '@fission-ai', 'openspec'),
-        PROJECT_ROOT
-      )
-    ).toBe(false);
-    expect(
-      canSelfUpgrade(path.join(GLOBAL_ROOT, '.npm', '_npx', 'a', 'node_modules', 'pkg'), PROJECT_ROOT)
-    ).toBe(false);
-    expect(canSelfUpgrade(null, PROJECT_ROOT)).toBe(false);
+    // `npm install -g` is the only command we run, so anything npm does not
+    // own would get a second copy that may not be the one on PATH.
+    const notOurs = [
+      path.join(HOME_ROOT, 'Library', 'pnpm', 'global', '5', 'node_modules', 'pkg'),
+      path.join(HOME_ROOT, '.volta', 'tools', 'image', 'packages', 'x', 'node_modules', 'pkg'),
+      path.join(HOME_ROOT, '.bun', 'install', 'global', 'node_modules', 'pkg'),
+      path.join(HOME_ROOT, '.npm', '_npx', 'a', 'node_modules', 'pkg'),
+      path.join(PROJECT_ROOT, 'node_modules', '@fission-ai', 'openspec'),
+      null,
+    ];
+    for (const dir of notOurs) {
+      expect(canSelfUpgrade(dir, PROJECT_ROOT)).toBe(false);
+    }
+  });
+
+  it('never offers to install over a source checkout', () => {
+    const clone = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-clone-'));
+    try {
+      fs.mkdirSync(path.join(clone, '.git'));
+      expect(isSourceCheckout(clone)).toBe(true);
+      expect(canSelfUpgrade(clone, PROJECT_ROOT)).toBe(false);
+
+      const installed = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-installed-'));
+      try {
+        expect(isSourceCheckout(installed)).toBe(false);
+      } finally {
+        fs.rmSync(installed, { recursive: true, force: true });
+      }
+    } finally {
+      fs.rmSync(clone, { recursive: true, force: true });
+    }
+    expect(isSourceCheckout(null)).toBe(false);
+  });
+
+  it('recognizes npm global roots without shelling out', () => {
+    const roots = [path.join(GLOBAL_ROOT, 'lib', 'node_modules')];
+
+    expect(isNpmGlobalInstall(path.join(roots[0], '@fission-ai', 'openspec'), roots)).toBe(true);
+    expect(isNpmGlobalInstall(path.join(GLOBAL_ROOT, 'lib', 'node_modules'), roots)).toBe(false);
+    expect(isNpmGlobalInstall(path.join(HOME_ROOT, 'elsewhere', 'pkg'), roots)).toBe(false);
+    expect(isNpmGlobalInstall(null, roots)).toBe(false);
+    // A sibling whose name merely starts with the root.
+    expect(isNpmGlobalInstall(`${roots[0]}-other${path.sep}pkg`, roots)).toBe(false);
+  });
+
+  it('names the command the owning package manager understands', () => {
+    const cases: Array<[string, string]> = [
+      [path.join(HOME_ROOT, 'Library', 'pnpm', 'global', '5', 'node_modules', 'pkg'), 'pnpm add -g'],
+      [path.join(HOME_ROOT, '.bun', 'install', 'global', 'node_modules', 'pkg'), 'bun add -g'],
+      [path.join(HOME_ROOT, '.volta', 'tools', 'image', 'packages', 'x', 'pkg'), 'volta install'],
+      [path.join(HOME_ROOT, '.config', 'yarn', 'global', 'node_modules', 'pkg'), 'yarn global add'],
+      [path.join(GLOBAL_ROOT, 'lib', 'node_modules', 'pkg'), 'npm install -g'],
+    ];
+
+    for (const [dir, expected] of cases) {
+      expect(buildUpgradeCommandLines(dir, PROJECT_ROOT)[0]).toContain(expected);
+    }
+
+    expect(detectPackageManager(null)).toBe('npm');
   });
 
   it('asks before touching anything, and does nothing when declined', async () => {
@@ -351,9 +407,9 @@ describe('displayCliUpdateNote', () => {
       path.join(PROJECT_ROOT, 'node_modules', '@fission-ai', 'openspec'),
       path.join(PROJECT_ROOT, 'packages', 'app')
     ).join('\n');
-    expect(local).toContain('npm install @fission-ai/openspec@latest');
-    expect(local).not.toContain('npm install -g');
-    expect(local).toContain('dependency of this project');
+    // No npm command: the project's own package manager owns its lockfile.
+    expect(local).toContain('Update the @fission-ai/openspec dependency in this project.');
+    expect(local).not.toContain('npm install');
 
     const npx = buildCliUpdateLines(
       '9.9.9',

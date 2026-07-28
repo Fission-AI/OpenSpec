@@ -15,6 +15,7 @@ import {
   offerCliUpgrade,
   rerunUpdateWithUpgradedCli,
   displayUpgradeCommand,
+  isSourceCheckout,
 } from '../core/version-check.js';
 import { ListCommand } from '../core/list.js';
 import { ArchiveCommand, type ArchiveOptions } from '../core/archive.js';
@@ -218,12 +219,13 @@ program
   .action(async (targetPath = '.', options?: { force?: boolean }) => {
     try {
       const latestVersion = await getAvailableCliUpdate();
+      const installDir = getInstallDir();
+      // Running from a clone: the version is whatever the branch says, so any
+      // upgrade advice would be noise.
+      const announce = latestVersion !== null && !isSourceCheckout(installDir);
       // Offer to upgrade first: this process generates files from its own
       // templates, so upgrading afterwards would leave the old ones on disk.
-      const canOffer =
-        latestVersion !== null &&
-        isInteractive() &&
-        canSelfUpgrade(getInstallDir(), targetPath);
+      const canOffer = announce && isInteractive() && canSelfUpgrade(installDir, targetPath);
 
       if (latestVersion && canOffer) {
         displayCliUpdateNote(latestVersion, targetPath, { withCommand: false });
@@ -238,7 +240,7 @@ program
       const updateCommand = new UpdateCommand({ force: options?.force });
       await updateCommand.execute(targetPath);
 
-      if (latestVersion && !canOffer) {
+      if (latestVersion && announce && !canOffer) {
         displayCliUpdateNote(latestVersion, targetPath);
       }
     } catch (error) {

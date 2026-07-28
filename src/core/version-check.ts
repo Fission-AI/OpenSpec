@@ -1,3 +1,4 @@
+import fs from 'fs';
 import http from 'http';
 import https from 'https';
 import path from 'path';
@@ -40,8 +41,10 @@ function isCheckEnabled(): boolean {
 }
 
 /**
- * Ask the registry the user's package manager is configured against, so people
- * on a private mirror get an answer their `npm install` can actually deliver.
+ * Honors `npm_config_registry` when npm has exported it — under `npm run`, or
+ * an explicit export — so people on a private mirror get an answer their own
+ * install command can deliver. Falls back to the public registry otherwise;
+ * an .npmrc setting alone is not visible to us.
  */
 export function registryUrl(): string {
   const configured = process.env.npm_config_registry?.trim();
@@ -273,6 +276,88 @@ export function isEphemeralRunnerInstall(installDir: string | null): boolean {
 }
 
 /**
+ * Directories npm installs global packages into. Derived from the running node
+ * rather than by shelling out to `npm prefix -g`, which would cost more than
+ * the version check itself.
+ */
+export function npmGlobalRoots(): string[] {
+  const roots: string[] = [];
+  const nodeDir = path.dirname(process.execPath);
+
+  if (process.platform === 'win32') {
+    roots.push(path.join(nodeDir, 'node_modules'));
+    if (process.env.APPDATA) {
+      roots.push(path.join(process.env.APPDATA, 'npm', 'node_modules'));
+    }
+  } else {
+    roots.push(path.resolve(nodeDir, '..', 'lib', 'node_modules'));
+  }
+
+  const prefix = process.env.npm_config_prefix;
+  if (prefix) {
+    roots.push(
+      process.platform === 'win32'
+        ? path.join(prefix, 'node_modules')
+        : path.join(prefix, 'lib', 'node_modules')
+    );
+  }
+
+  return roots;
+}
+
+/**
+ * True only when npm itself owns this copy. Everything else — a pnpm, bun,
+ * yarn or volta global — would be made worse by `npm install -g`, which adds a
+ * second copy that may not even be the one on PATH.
+ */
+export function isNpmGlobalInstall(
+  installDir: string | null,
+  roots: string[] = npmGlobalRoots()
+): boolean {
+  if (!installDir) return false;
+  const normalize = (value: string) =>
+    process.platform === 'win32' ? value.toLowerCase() : value;
+  const target = normalize(installDir);
+  return roots.some((root) => target.startsWith(normalize(root + path.sep)));
+}
+
+/**
+ * True when the CLI is running from a clone rather than an install. Upgrade
+ * advice is meaningless there: the version is whatever the branch says.
+ */
+export function isSourceCheckout(installDir: string | null): boolean {
+  if (!installDir) return false;
+  try {
+    return fs.existsSync(path.join(installDir, '.git'));
+  } catch {
+    return false;
+  }
+}
+
+export type PackageManager = 'npm' | 'pnpm' | 'bun' | 'yarn' | 'volta';
+
+/**
+ * The package manager that owns this copy, so the printed command is one the
+ * user's setup will actually honor.
+ */
+export function detectPackageManager(installDir: string | null): PackageManager {
+  const segments = (installDir ?? '').split(/[\\/]/);
+  if (segments.includes('.volta')) return 'volta';
+  if (segments.includes('pnpm') || segments.includes('.pnpm-global')) return 'pnpm';
+  if (segments.includes('.bun')) return 'bun';
+  if (segments.includes('.yarn') || segments.includes('yarn')) return 'yarn';
+  return 'npm';
+}
+
+const GLOBAL_UPGRADE_COMMANDS: Record<PackageManager, string> = {
+  npm: `npm install -g ${PACKAGE_NAME}@latest`,
+  pnpm: `pnpm add -g ${PACKAGE_NAME}@latest`,
+  bun: `bun add -g ${PACKAGE_NAME}@latest`,
+  yarn: `yarn global add ${PACKAGE_NAME}@latest`,
+  volta: `volta install ${PACKAGE_NAME}@latest`,
+};
+
+/**
  * Builds the hint, with the upgrade command chosen for how this copy of the CLI
  * was installed. Pure so every branch is assertable.
  */
@@ -309,10 +394,10 @@ export function buildUpgradeCommandLines(
   if (isEphemeralRunnerInstall(installDir)) {
     lines.push(`  npx ${PACKAGE_NAME}@latest update`);
   } else if (isProjectLocalInstall(installDir, projectPath)) {
-    lines.push(`  npm install ${PACKAGE_NAME}@latest`);
-    lines.push('  (OpenSpec is a dependency of this project, not a global install.)');
+    // Its package manager owns the lockfile; naming npm could be wrong.
+    lines.push(`  Update the ${PACKAGE_NAME} dependency in this project.`);
   } else {
-    lines.push(`  npm install -g ${PACKAGE_NAME}@latest`);
+    lines.push(`  ${GLOBAL_UPGRADE_COMMANDS[detectPackageManager(installDir)]}`);
   }
 
   lines.push('  Then run "openspec update" again to pick up new workflows.');
@@ -332,15 +417,18 @@ function loadSpawn(): typeof import('child_process').spawn {
 /**
  * Whether we can run the upgrade for the user instead of only printing it.
  *
- * Only a global npm install qualifies. A project dependency belongs to that
- * project's package manager — running npm against a pnpm or yarn lockfile is
- * not ours to do — and an npx/dlx cache has nothing to upgrade.
+ * Only an npm-owned global install qualifies, because `npm install -g` is the
+ * only command we run: a pnpm/bun/yarn/volta global would get a second copy
+ * that may not be the one on PATH, a project dependency belongs to that
+ * project's package manager, an npx/dlx cache has nothing to upgrade, and a
+ * source checkout is not an install at all.
  */
 export function canSelfUpgrade(installDir: string | null, projectPath: string): boolean {
   if (!installDir) return false;
   if (isEphemeralRunnerInstall(installDir)) return false;
   if (isProjectLocalInstall(installDir, projectPath)) return false;
-  return true;
+  if (isSourceCheckout(installDir)) return false;
+  return isNpmGlobalInstall(installDir);
 }
 
 /**
@@ -396,7 +484,9 @@ export async function offerCliUpgrade(latestVersion: string): Promise<boolean> {
 /**
  * Runs `openspec update` again with the CLI that was just installed — this
  * process is still the old code, so it cannot write the new workflows itself.
- * Resolves the exit code to pass along.
+ * Resolves the exit code to pass along; when no `openspec` is on PATH the
+ * upgrade still landed but nothing was regenerated, so it says so and
+ * resolves 0 rather than reporting a failure the upgrade did not have.
  */
 export async function rerunUpdateWithUpgradedCli(projectPath: string): Promise<number> {
   const spawn = loadSpawn();
@@ -409,8 +499,10 @@ export async function rerunUpdateWithUpgradedCli(projectPath: string): Promise<n
       env: { ...process.env, OPENSPEC_NO_UPDATE_CHECK: '1' },
     });
     child.on('error', () => {
-      // No openspec on PATH to hand off to; the upgrade still landed.
-      console.log(chalk.dim('Now run "openspec update" to pick up the new workflows.'));
+      // No openspec on PATH to hand off to; the upgrade landed but the
+      // instruction files are still the old ones, so say so plainly.
+      console.log(chalk.yellow('Instruction files were not regenerated.'));
+      console.log(chalk.dim('  Run "openspec update" to pick up the new workflows.'));
       resolve(0);
     });
     child.on('close', (code) => resolve(code ?? 0));
