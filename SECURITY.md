@@ -45,7 +45,7 @@ ls node_modules | grep -E '^(vite|rollup|vitest|eslint|js-yaml|minimatch)$'   # 
 | Install script | `scripts/postinstall.js` prints one line suggesting shell completions. It makes no network request, writes no files, and runs no shell. Completions are opt-in via `openspec completion install`. |
 | Running other programs | Every call that goes through a shell uses a fixed literal (`which gh`, `gh auth status`). Anything carrying your input — issue text, editor paths, workset commands — uses an argument array with `shell: false`. |
 | Telemetry | Command name, OpenSpec version, and a locally generated random UUID. No file paths, no file contents, no environment, no hostname, and IP capture is explicitly disabled. Opt out with `OPENSPEC_TELEMETRY=0` or `DO_NOT_TRACK=1`; it is off in CI automatically. |
-| Network | Only telemetry, and only when enabled. Reading, writing, and validating specs is entirely local. |
+| Network | Telemetry when enabled, and one npm registry request during `openspec update` to check whether a newer CLI has been published. That request sends no data about you beyond what any HTTP request reveals, and is skipped in CI or when `OPENSPEC_NO_UPDATE_CHECK`, `DO_NOT_TRACK=1`, or `OPENSPEC_TELEMETRY=0` is set. Reading, writing, and validating specs is entirely local. |
 
 ## Automated checks
 

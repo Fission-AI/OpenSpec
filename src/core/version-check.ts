@@ -5,7 +5,7 @@ import chalk from 'chalk';
 const require = createRequire(import.meta.url);
 const { name: PACKAGE_NAME, version: OPENSPEC_VERSION } = require('../../package.json');
 
-const REGISTRY_URL = `https://registry.npmjs.org/${PACKAGE_NAME}/latest`;
+const DEFAULT_REGISTRY = 'https://registry.npmjs.org';
 const REQUEST_TIMEOUT_MS = 1500;
 
 /**
@@ -14,14 +14,36 @@ const REQUEST_TIMEOUT_MS = 1500;
 const CI_ENABLED_VALUES = new Set(['true', '1']);
 
 /**
+ * A version we are willing to print. The registry only ever serves SemVer here,
+ * so anything else is either a broken mirror or a hostile response — and since
+ * this string lands in the terminal next to an install command, an unvalidated
+ * one could smuggle ANSI cursor controls and repaint the lines around it.
+ */
+const SAFE_VERSION = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
+
+/**
  * The check is opt-out and must never get in the way: no network in CI or
- * tests, and an explicit escape hatch for anyone offline or air-gapped.
+ * tests, an explicit escape hatch for anyone offline or air-gapped, and the
+ * same privacy signals telemetry already honors — a user who set DO_NOT_TRACK
+ * did not agree to a different outbound request.
  */
 function isCheckEnabled(): boolean {
   if (process.env.OPENSPEC_NO_UPDATE_CHECK !== undefined) return false;
+  if (process.env.DO_NOT_TRACK === '1') return false;
+  if (process.env.OPENSPEC_TELEMETRY === '0') return false;
   if (CI_ENABLED_VALUES.has((process.env.CI ?? '').toLowerCase())) return false;
   if (process.env.NODE_ENV === 'test') return false;
   return true;
+}
+
+/**
+ * Ask the registry the user's package manager is configured against, so people
+ * on a private mirror get an answer their `npm install` can actually deliver.
+ */
+function registryUrl(): string {
+  const configured = process.env.npm_config_registry?.trim();
+  const base = configured && /^https?:\/\//i.test(configured) ? configured : DEFAULT_REGISTRY;
+  return `${base.replace(/\/+$/, '')}/${PACKAGE_NAME}/latest`;
 }
 
 /**
@@ -86,15 +108,20 @@ export function compareVersions(a: string, b: string): number {
   return comparePrerelease(left.prerelease, right.prerelease);
 }
 
+/**
+ * Reads the `latest` dist-tag. Sends no custom Accept header: the registry
+ * answers `/<pkg>/latest` with 406 for npm's abbreviated-metadata type, which
+ * it only serves on the full packument.
+ */
 async function fetchLatestVersion(): Promise<string | null> {
   try {
-    const response = await fetch(REGISTRY_URL, {
+    const response = await fetch(registryUrl(), {
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      headers: { accept: 'application/vnd.npm.install-v1+json' },
     });
     if (!response.ok) return null;
     const body = (await response.json()) as { version?: unknown };
-    return typeof body.version === 'string' ? body.version : null;
+    if (typeof body.version !== 'string' || !SAFE_VERSION.test(body.version)) return null;
+    return body.version;
   } catch {
     return null;
   }
@@ -130,10 +157,73 @@ export function getInstallDir(): string | null {
   }
 }
 
-export function isProjectLocalInstall(installDir: string | null): boolean {
+/**
+ * True when the running CLI resolves from a `node_modules` belonging to the
+ * project being updated or any ancestor of it — the hoisted-root layout npm and
+ * pnpm workspaces produce. Anchored on the target path rather than the working
+ * directory, since `openspec update <path>` and running from a sub-package are
+ * both normal. Never throws: process.cwd() fails when the directory has been
+ * deleted, and a wrong upgrade hint must not take down a successful update.
+ */
+export function isProjectLocalInstall(
+  installDir: string | null,
+  projectPath: string = '.'
+): boolean {
   if (!installDir) return false;
-  const projectModules = path.join(process.cwd(), 'node_modules') + path.sep;
-  return installDir.startsWith(projectModules);
+
+  try {
+    let dir = path.resolve(projectPath);
+
+    for (;;) {
+      if (installDir.startsWith(path.join(dir, 'node_modules') + path.sep)) {
+        return true;
+      }
+      const parent = path.dirname(dir);
+      if (parent === dir) return false;
+      dir = parent;
+    }
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * True for the throwaway caches npx/pnpm dlx/bunx unpack into. Telling those
+ * users to install globally would create the second copy on PATH they were
+ * deliberately avoiding.
+ */
+export function isEphemeralRunnerInstall(installDir: string | null): boolean {
+  if (!installDir) return false;
+  const segments = installDir.split(/[\\/]/);
+  return segments.some((segment) => segment === '_npx' || segment === 'dlx' || segment === '_bunx');
+}
+
+/**
+ * Builds the hint, with the upgrade command chosen for how this copy of the CLI
+ * was installed. Pure so every branch is assertable.
+ */
+export function buildCliUpdateLines(
+  latestVersion: string,
+  installDir: string | null,
+  projectPath: string
+): string[] {
+  const lines = [`A newer OpenSpec CLI is available (v${OPENSPEC_VERSION} → v${latestVersion}).`];
+
+  if (isEphemeralRunnerInstall(installDir)) {
+    lines.push(`  npx ${PACKAGE_NAME}@latest update`);
+  } else if (isProjectLocalInstall(installDir, projectPath)) {
+    lines.push(`  npm install ${PACKAGE_NAME}@latest`);
+    lines.push('  (OpenSpec is a dependency of this project, not a global install.)');
+  } else {
+    lines.push(`  npm install -g ${PACKAGE_NAME}@latest`);
+  }
+
+  lines.push('  Then run "openspec update" again to pick up new workflows.');
+  if (installDir) {
+    lines.push(`  Running from: ${installDir}`);
+  }
+
+  return lines;
 }
 
 /**
@@ -141,22 +231,12 @@ export function isProjectLocalInstall(installDir: string | null): boolean {
  * CLI, so "up to date" only ever means "matches this CLI" — without this note
  * a stale install looks like a successful update.
  */
-export function displayCliUpdateNote(latestVersion: string): void {
-  const installDir = getInstallDir();
+export function displayCliUpdateNote(latestVersion: string, projectPath: string = '.'): void {
+  const [headline, ...rest] = buildCliUpdateLines(latestVersion, getInstallDir(), projectPath);
 
   console.log();
-  console.log(
-    chalk.yellow(
-      `A newer OpenSpec CLI is available (v${OPENSPEC_VERSION} → v${latestVersion}).`
-    )
-  );
-  if (isProjectLocalInstall(installDir)) {
-    console.log(chalk.dim(`  Update the ${PACKAGE_NAME} dependency in this project.`));
-  } else {
-    console.log(chalk.dim(`  npm install -g ${PACKAGE_NAME}@latest`));
-  }
-  console.log(chalk.dim('  Then run "openspec update" again to pick up new workflows.'));
-  if (installDir) {
-    console.log(chalk.dim(`  Running from: ${installDir}`));
+  console.log(chalk.yellow(headline));
+  for (const line of rest) {
+    console.log(chalk.dim(line));
   }
 }

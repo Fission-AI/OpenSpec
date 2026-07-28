@@ -213,7 +213,7 @@ program
       await updateCommand.execute(targetPath);
       const latestVersion = await updateCheck;
       if (latestVersion) {
-        displayCliUpdateNote(latestVersion);
+        displayCliUpdateNote(latestVersion, targetPath);
       }
     } catch (error) {
       failWithError(error);
