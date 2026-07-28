@@ -247,6 +247,7 @@ export class UpdateCommand {
     const updatedTools: string[] = [];
     const failedTools: Array<{ name: string; error: string }> = [];
     const skillsInvocableCommandSkips: string[] = [];
+    const zeroArtifactTools: string[] = [];
     let removedCommandCount = 0;
     let removedSkillCount = 0;
     let removedDeselectedCommandCount = 0;
@@ -288,6 +289,13 @@ export class UpdateCommand {
         // Delete skill directories if delivery is commands-only
         if (shouldRemoveSkillsForTool(tool.value, delivery)) {
           removedSkillCount += await this.removeSkillDirs(skillsDir);
+          // A tool with no command adapter now has zero OpenSpec artifacts;
+          // say so like init does, rather than deleting its skills silently
+          // and letting tool detection re-suggest an init that would also
+          // generate nothing under this delivery setting.
+          if (!shouldGenerateCommandsForTool(tool.value, delivery)) {
+            zeroArtifactTools.push(tool.name);
+          }
         }
 
         // Generate commands if delivery includes commands
@@ -347,6 +355,16 @@ export class UpdateCommand {
     }
     if (removedSkillCount > 0) {
       console.log(chalk.dim(`Removed: ${removedSkillCount} skill directories (delivery: commands)`));
+    }
+    if (zeroArtifactTools.length > 0) {
+      const names = zeroArtifactTools.join(', ');
+      console.log(
+        chalk.yellow(
+          `No skills or commands remain for ${names}: delivery is set to 'commands' but ` +
+            `${zeroArtifactTools.length === 1 ? 'it supports' : 'they support'} only skills. ` +
+            `Run 'openspec config set delivery both' to generate skills.`
+        )
+      );
     }
     if (removedDeselectedCommandCount > 0) {
       console.log(chalk.dim(`Removed: ${removedDeselectedCommandCount} command files (deselected workflows)`));
