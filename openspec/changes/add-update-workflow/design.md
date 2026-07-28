@@ -34,7 +34,7 @@ Revise a change's planning artifacts and keep them coherent. Never edit code.
 1. Resolve the change.
    - If named, use it. Else infer from context, or auto-select the only active change;
      if still unclear, run `openspec list --json` and ask the user to choose
-     (most-recently-modified first).
+     (most-recently-modified first). Announce the selection and how to override.
 
 2. Get the artifacts.
    - Run `openspec status --change "<id>" --json`.
