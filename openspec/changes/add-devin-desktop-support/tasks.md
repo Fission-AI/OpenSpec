@@ -1,92 +1,32 @@
 # Implementation Tasks
 
-## 1. Create Devin Desktop Adapter
+## 1. Adapter
 
-### 1.1 Create adapter file
-- Create `src/core/command-generation/adapters/devin.ts`
-- Base implementation on the existing Windsurf adapter (`src/core/command-generation/adapters/windsurf.ts`)
-- Use `.devin/workflows/` as the target directory
-- Use `opsx-<id>.md` as the filename pattern
-- Include frontmatter with: name, description, category, tags
+- [x] 1.1 Add `src/core/command-generation/adapters/devin.ts`, modeled on the Windsurf adapter: `.devin/workflows/opsx-<id>.md`, frontmatter `name`/`description`/`category`/`tags` via the shared helpers in `command-generation/yaml.ts`.
+- [x] 1.2 Rewrite `/opsx:<id>` body references to `/opsx-<id>` with `transformToHyphenCommands` — Devin registers a workflow under its filename.
+- [x] 1.3 Register in `registry.ts` and re-export from `adapters/index.ts`.
 
-### 1.2 Implement adapter interface
-- Export `devinAdapter` object implementing `ToolCommandAdapter`
-- Set `toolId` to `'devin'`
-- Implement `getFilePath()` to return `.devin/workflows/opsx-<id>.md`
-- Implement `formatFile()` to generate YAML frontmatter + body content
+## 2. Tool wiring
 
-## 2. Register Adapter
+- [x] 2.1 Add the `devin` row to `AI_TOOLS` in `src/core/config.ts` with `skillsDir: '.devin'`. Detection, the init picker, `--tools` validation, update, and profile sync all derive from this row.
+- [x] 2.2 In `getTransformerForTool`, give `devin` the skill-reference transformer whenever skills are generated, so skill bodies and the getting-started hint say `/openspec-*` — the Devin Local agent has no workflows. Under commands-only delivery, fall back to the hyphen form.
 
-### 2.1 Update registry
-- Edit `src/core/command-generation/registry.ts`
-- Import the new `devinAdapter`
-- Register it in the static initializer: `CommandAdapterRegistry.register(devinAdapter)`
+## 3. Documentation
 
-### 2.2 Export adapter
-- Edit `src/core/command-generation/adapters/index.ts`
-- Add export: `export { devinAdapter } from './devin.js'`
-- Update main index if needed: `src/core/command-generation/index.ts`
+- [x] 3.1 Add the Devin row to the tool table in `docs/supported-tools.md`, plus a footnote covering the `.windsurf/` → `.devin/` move and the Devin Local workflow gap.
+- [x] 3.2 Add `devin` to the `--tools` ID lists in `docs/supported-tools.md` and `docs/cli.md` (both mirror `AI_TOOLS`).
+- [x] 3.3 Add a Devin row to the command-syntax tables in `docs/commands.md` and `docs/how-commands-work.md`.
 
-## 3. Update CLI Tool Selection
+## 4. Tests
 
-### 3.1 Add Devin Desktop to tool picker
-- Locate CLI initialization code that prompts for tool selection
-- Add "Devin Desktop" option to the multi-select menu
-- Ensure it appears alongside Windsurf and other tools
-- Map selection to `devin` tool ID
+- [x] 4.1 Adapter: tool id, `getFilePath`, frontmatter, and hyphen rewriting. YAML escaping is covered by the registry-derived parity matrix, which enrolls Devin automatically.
+- [x] 4.2 Registry and `available-tools` detection from `.devin/`, including the negative case.
+- [x] 4.3 `init`: both surfaces — `.devin/workflows/opsx-*.md` carry `/opsx-*`, `.devin/skills/openspec-*/SKILL.md` carry `/openspec-*`, and neither carries `/opsx:`.
+- [x] 4.4 `update`: workflows and skills are both refreshed, with stale content gone.
+- [x] 4.5 `getTransformerForTool` returns the skill transformer for Devin under `both`/`skills` delivery and the hyphen transformer under `commands`.
 
-## 4. Update Documentation
+## 5. Verification
 
-### 4.1 Update supported tools reference
-- Edit `docs/supported-tools.md`
-- Add Devin Desktop row to the tool directory reference table
-- Include:
-  - Tool name and ID: `Devin Desktop (devin)`
-  - Skills path: `.devin/skills/openspec-*/SKILL.md`
-  - Command path: `.devin/workflows/opsx-<id>.md`
-- Add `devin` to the available tool IDs list in the "Non-Interactive Setup" section
-
-### 4.2 Update README if needed
-- Check if README mentions tool count or lists specific tools
-- Update any references to reflect Devin Desktop support
-
-## 5. Add Tests
-
-### 5.1 Test adapter functionality
-- Create or update tests for the Devin adapter
-- Test `getFilePath()` returns correct path
-- Test `formatFile()` generates valid YAML frontmatter
-- Test cross-platform path handling (Windows, macOS, Linux)
-
-### 5.2 Test CLI integration
-- Test `openspec init --tools devin` generates `.devin/workflows/` files
-- Test `openspec update` refreshes existing Devin workflows
-- Test that Devin Desktop appears in interactive tool selection
-- Verify files are created with correct structure and content
-
-### 5.3 Test backward compatibility
-- Ensure Windsurf adapter still works
-- Verify both Devin and Windsurf can be selected together
-- Test that existing Windsurf installations are not affected
-
-## 6. Verify and Polish
-
-### 6.1 Manual testing
-- Run `openspec init` and select Devin Desktop
-- Verify `.devin/workflows/` directory is created
-- Check that workflow files have correct frontmatter and content
-- Run `openspec update` and verify files are refreshed
-- Test on Windows, macOS, and Linux if possible
-
-### 6.2 Code review checklist
-- Adapter follows existing patterns (Windsurf, Cursor, Claude)
-- No hardcoded paths (use `path.join()`)
-- YAML escaping handles special characters
-- Error handling is consistent with other adapters
-- Comments are clear and helpful
-
-### 6.3 Documentation review
-- Supported tools table is accurate and complete
-- Tool IDs are consistent across docs
-- Examples show Devin Desktop usage
-- Links and references are correct
+- [x] 5.1 `openspec validate add-devin-desktop-support --strict`.
+- [x] 5.2 `openspec archive add-devin-desktop-support --yes` merges cleanly and additively (run on a scratch copy, then reverted).
+- [x] 5.3 Manual `openspec init --tools devin --force` and `openspec update --force` in a scratch repo, under `both`, `skills`, and `commands` delivery.

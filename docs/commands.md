@@ -669,6 +669,7 @@ Different AI tools use slightly different command syntax. Use the format that ma
 | Claude Code | `/opsx:propose`, `/opsx:apply` |
 | Cursor | `/opsx-propose`, `/opsx-apply` |
 | Windsurf | `/opsx-propose`, `/opsx-apply` |
+| Devin Desktop | `/opsx-propose`, `/opsx-apply` (Devin Local has no workflows — use `/openspec-propose`, `/openspec-apply-change`) |
 | Copilot (IDE) | `/opsx-propose`, `/opsx-apply` |
 | CodeArts | Skill-based invocations such as `/openspec-propose`, `/openspec-apply-change` (no generated `opsx-*` command files) |
 | Codex | Skill-based invocations from `.codex/skills/openspec-*` (no generated `opsx-*` prompt files) |

@@ -78,6 +78,7 @@ The intent is identical everywhere. The punctuation differs. Use the form that m
 | Claude Code | `/opsx:propose`, `/opsx:apply` |
 | Cursor | `/opsx-propose`, `/opsx-apply` |
 | Windsurf | `/opsx-propose`, `/opsx-apply` |
+| Devin Desktop | `/opsx-propose`, `/opsx-apply` (Devin Local: skill-style, e.g. `/openspec-propose`) |
 | GitHub Copilot (IDE) | `/opsx-propose`, `/opsx-apply` |
 | CodeArts | skill-style, e.g. `/openspec-propose` |
 | Codex | skill-style via `.codex/skills/openspec-*` |

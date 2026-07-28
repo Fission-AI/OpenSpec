@@ -387,31 +387,33 @@ Old instructions content
       }
     });
 
-    it('should update Devin Desktop workflows with hyphen command references', async () => {
+    it('should refresh both Devin Desktop surfaces with the right invocation syntax', async () => {
       // Set up Devin Desktop directory with a skill to indicate it's configured
       const skillsDir = path.join(testDir, '.devin', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
+      await fs.mkdir(path.join(skillsDir, 'openspec-apply-change'), {
         recursive: true,
       });
-      await fs.writeFile(
-        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
-        'old content'
-      );
+      const skillFile = path.join(skillsDir, 'openspec-apply-change', 'SKILL.md');
+      await fs.writeFile(skillFile, 'old content');
 
       await updateCommand.execute(testDir);
 
-      // Verify workflows were created
-      const workflowsDir = path.join(testDir, '.devin', 'workflows');
-      const exploreWorkflow = path.join(workflowsDir, 'opsx-explore.md');
-      const exists = await FileSystemUtils.fileExists(exploreWorkflow);
-      expect(exists).toBe(true);
+      // Workflows are invoked by filename, so their bodies use `/opsx-*`.
+      const workflow = path.join(testDir, '.devin', 'workflows', 'opsx-apply.md');
+      expect(await FileSystemUtils.fileExists(workflow)).toBe(true);
 
-      const content = await fs.readFile(exploreWorkflow, 'utf-8');
-      expect(content).toContain('---');
-      expect(content).toContain('name:');
-      expect(content).toContain('description:');
-      // Verify command references are transformed to hyphen syntax
-      expect(content).not.toContain('/opsx:');
+      const workflowContent = await fs.readFile(workflow, 'utf-8');
+      expect(workflowContent).toMatch(/^---\nname: "/);
+      expect(workflowContent).toContain('/opsx-');
+      expect(workflowContent).not.toContain('/opsx:');
+
+      // Skills are refreshed too, and point at skills — the Devin Local agent
+      // has no workflows to point at.
+      const skillContent = await fs.readFile(skillFile, 'utf-8');
+      expect(skillContent).not.toContain('old content');
+      expect(skillContent).toContain('/openspec-apply-change');
+      expect(skillContent).not.toContain('/opsx:');
+      expect(skillContent).not.toContain('/opsx-');
     });
 
   });

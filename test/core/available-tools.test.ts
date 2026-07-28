@@ -57,6 +57,13 @@ describe('available-tools', () => {
       expect(devinTool?.skillsDir).toBe('.devin');
     });
 
+    it('should not detect Devin Desktop when .devin does not exist', async () => {
+      await fs.mkdir(path.join(testDir, '.windsurf'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((t) => t.value)).not.toContain('devin');
+    });
+
     it('should ignore files that are not directories', async () => {
       // Create a file named .claude instead of a directory
       await fs.writeFile(path.join(testDir, '.claude'), 'not a directory');

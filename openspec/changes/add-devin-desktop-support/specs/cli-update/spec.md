@@ -74,7 +74,7 @@ The update command SHALL refresh existing slash command files for configured too
 - **THEN** refresh each file using shared templates wrapped in OpenSpec markers
 - **AND** preserve the frontmatter structure (`name`, `description`, `category`, `tags`)
 - **AND** transform command references to hyphen form (for example `/opsx-propose`), the name Devin registers for a workflow file
-- **AND** refresh `.devin/skills/openspec-*/SKILL.md` with `/openspec-*` skill references, which work on Devin Local as well as Devin Desktop
+- **AND** refresh `.devin/skills/openspec-*/SKILL.md` with `/openspec-*` skill references, the one invocation both Devin agents accept
 - **AND** skip creating missing files (the update command only refreshes what already exists)
 
 #### Scenario: Updating slash commands for Kilo Code

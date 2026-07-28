@@ -24,10 +24,11 @@ The command SHALL generate Agent Skills for selected AI tools.
 
 #### Scenario: Devin skills reference skills rather than workflows
 
-- **GIVEN** only Devin Desktop reads `.devin/workflows/`, while Devin Local supports skills but not workflows
+- **GIVEN** the Devin Local agent does not support workflows and its documentation directs users to skills instead
 - **WHEN** generating skills for the `devin` tool
-- **THEN** rewrite `/opsx:<id>` references in the skill body to the matching `/openspec-<skill>` invocation, which works on both Devin surfaces
+- **THEN** rewrite `/opsx:<id>` references in the skill body to the matching `/openspec-<skill>` invocation, which both Devin agents accept
 - **AND** the getting-started hint SHALL name `/openspec-propose` rather than a workflow
+- **AND** under commands-only delivery, where no Devin skills are written, both the workflow bodies and the hint SHALL fall back to `/opsx-<id>`
 
 ### Requirement: Slash Command Generation
 

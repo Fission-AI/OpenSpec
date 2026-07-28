@@ -217,6 +217,17 @@ describe('getTransformerForTool', () => {
     }
   });
 
+  it('selects skill references for devin whenever skills are generated', () => {
+    // The Devin Local agent has no workflows, so Devin skill bodies and the
+    // getting-started hint must name `/openspec-*` skills, which both Devin
+    // agents accept. Workflow bodies get the hyphen form from devinAdapter.
+    expect(getTransformerForTool('devin', 'both', 'adapter-backed')).toBe(transformToSkillReferences);
+    expect(getTransformerForTool('devin', 'skills', 'adapter-backed')).toBe(transformToSkillReferences);
+    // Under commands-only delivery no Devin skills exist to point at, so the
+    // hint falls back to the workflow name Devin registers.
+    expect(getTransformerForTool('devin', 'commands', 'adapter-backed')).toBe(transformToHyphenCommands);
+  });
+
   it('selects no transformer for adapter-backed and skills-invocable tools when commands are generated', () => {
     expect(getTransformerForTool('claude', 'both', 'adapter-backed')).toBeUndefined();
     expect(getTransformerForTool('claude', 'commands', 'adapter-backed')).toBeUndefined();

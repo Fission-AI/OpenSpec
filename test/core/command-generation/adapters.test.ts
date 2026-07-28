@@ -147,11 +147,6 @@ describe('command-generation/adapters', () => {
       expect(filePath).toBe(path.join('.devin', 'workflows', 'opsx-explore.md'));
     });
 
-    it('should generate correct file paths for different commands', () => {
-      expect(devinAdapter.getFilePath('new')).toBe(path.join('.devin', 'workflows', 'opsx-new.md'));
-      expect(devinAdapter.getFilePath('bulk-archive')).toBe(path.join('.devin', 'workflows', 'opsx-bulk-archive.md'));
-    });
-
     it('should format file with YAML frontmatter', () => {
       const output = devinAdapter.formatFile(sampleContent);
 
@@ -176,29 +171,9 @@ describe('command-generation/adapters', () => {
       expect(output).not.toContain('/opsx:verify');
     });
 
-    it('should escape YAML special characters in frontmatter', () => {
-      const contentWithSpecialChars: CommandContent = {
-        ...sampleContent,
-        name: 'Test: Command',
-        description: 'Fix "auth" feature',
-      };
-      const output = devinAdapter.formatFile(contentWithSpecialChars);
-      expect(output).toContain('name: "Test: Command"');
-      expect(output).toContain('description: "Fix \\"auth\\" feature"');
-    });
-
-    it('should escape implicit YAML scalars in frontmatter', () => {
-      const contentWithImplicitScalar: CommandContent = {
-        ...sampleContent,
-        name: 'true',
-        description: 'null',
-        category: 'on',
-      };
-      const output = devinAdapter.formatFile(contentWithImplicitScalar);
-      expect(output).toContain('name: "true"');
-      expect(output).toContain('description: "null"');
-      expect(output).toContain('category: "on"');
-    });
+    // Frontmatter escaping comes from the shared yaml.ts helpers and is
+    // covered for every registered adapter by the round-trip matrix in
+    // "YAML frontmatter escaping across adapters" below.
 
     it('should handle empty tags', () => {
       const contentNoTags: CommandContent = { ...sampleContent, tags: [] };

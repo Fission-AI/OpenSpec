@@ -607,19 +607,34 @@ describe('InitCommand', () => {
       expect(await fileExists(cmdFile)).toBe(true);
     });
 
-    it('should generate Devin Desktop workflows', async () => {
+    it('should generate Devin Desktop workflows that reference the hyphen form Devin registers', async () => {
       const initCommand = new InitCommand({ tools: 'devin', force: true });
       await initCommand.execute(testDir);
 
-      const cmdFile = path.join(testDir, '.devin', 'workflows', 'opsx-explore.md');
+      const cmdFile = path.join(testDir, '.devin', 'workflows', 'opsx-apply.md');
       expect(await fileExists(cmdFile)).toBe(true);
 
       const content = await fs.readFile(cmdFile, 'utf-8');
-      expect(content).toContain('---');
-      expect(content).toContain('name:');
-      expect(content).toContain('description:');
-      // Verify command references are transformed to hyphen syntax
+      expect(content).toMatch(/^---\nname: "/);
+      expect(content).toContain('category: "Workflow"');
+      // Devin discovers `.devin/workflows/opsx-apply.md` as `/opsx-apply`.
+      expect(content).toContain('/opsx-');
       expect(content).not.toContain('/opsx:');
+    });
+
+    it('should generate Devin Desktop skills that reference skills, not workflows', async () => {
+      const initCommand = new InitCommand({ tools: 'devin', force: true });
+      await initCommand.execute(testDir);
+
+      // The Devin Local agent has no workflows, so skill bodies must point at
+      // `/openspec-*` skills, which both Devin agents accept.
+      const skillFile = path.join(testDir, '.devin', 'skills', 'openspec-apply-change', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
+
+      const content = await fs.readFile(skillFile, 'utf-8');
+      expect(content).toContain('/openspec-apply-change');
+      expect(content).not.toContain('/opsx:');
+      expect(content).not.toContain('/opsx-');
     });
 
     it('should generate Continue prompt files', async () => {
