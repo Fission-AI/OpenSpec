@@ -720,9 +720,12 @@ Old instructions content
 
       // The divergence is surfaced...
       expect(logCalls.some((entry) => entry.includes('Left 2 files in .windsurf/'))).toBe(true);
-      // ...without claiming a migration that did not happen
+      // ...without claiming a migration that did not happen. Matched on the
+      // directory arrow rather than the word "Migrated", which also begins the
+      // unrelated profile-migration line ("Migrated: custom profile with N
+      // workflows") that fires only under some config states.
+      expect(logCalls.some((entry) => entry.includes('.windsurf → .devin'))).toBe(false);
       expect(logCalls.some((entry) => entry.includes('Migrated 0'))).toBe(false);
-      expect(logCalls.some((entry) => /Migrated\s*:/.test(entry))).toBe(false);
       // ...and nothing was touched
       expect(await fs.readFile(path.join(legacySkill, 'SKILL.md'), 'utf-8')).toBe('mine');
       expect(await fs.readFile(path.join(legacyWorkflows, 'opsx-explore.md'), 'utf-8')).toBe('mine');
