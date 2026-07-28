@@ -24,9 +24,12 @@ order, and stop where a step tells you to stop.
      bun add -g @fission-ai/openspec@latest
      yarn global add @fission-ai/openspec@latest   (Yarn 1.x only)
    Don't pick based on this project's lockfile — a global install has nothing to
-   do with how this repo's own dependencies are installed. Show me the exact
-   command and let me confirm before you run it; this installs software outside
-   the project, and I may want a different package manager to own it.
+   do with how this repo's own dependencies are installed. If none of those four
+   is available, stop and tell me — don't improvise an install. (If I'm on Nix,
+   point me at the Nix section of the OpenSpec installation docs instead.)
+   Show me the exact command and let me confirm before you run it; this installs
+   software outside the project, and I may want a different package manager to
+   own it.
    Stop and ask me again if the install needs sudo or admin rights, fails with a
    permissions error, or reports that its global bin directory is missing or
    unconfigured. Never edit my shell startup files (.bashrc, .zshrc, .profile,
