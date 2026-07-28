@@ -55,6 +55,7 @@ import {
   migrateLegacyToolDirs,
   describeLegacyMigration,
   legacyMigrationNotice,
+  type LegacyToolMigration,
 } from './migration.js';
 import {
   resolveCommandSurfaceCapability,
@@ -128,7 +129,7 @@ export class UpdateCommand {
     for (const migration of migrateLegacyToolDirs(resolvedProjectPath)) {
       console.log(chalk.dim(`Migrated ${describeLegacyMigration(migration)}: ${migration.from} → ${migration.to}`));
     }
-    await this.offerConsentedLegacyMigrations(resolvedProjectPath);
+    const declinedMigrations = await this.offerConsentedLegacyMigrations(resolvedProjectPath);
 
     // Use detected tool directories to preserve existing opsx skills/commands.
     const detectedTools = getAvailableTools(resolvedProjectPath);
@@ -161,6 +162,22 @@ export class UpdateCommand {
     if (configuredTools.length === 0 && newlyConfiguredTools.length === 0) {
       if (deferredGlobalCleanup) {
         await this.performDeferredGlobalPromptCleanup(resolvedProjectPath, deferredGlobalCleanup);
+      }
+      if (declinedMigrations.length > 0) {
+        // Not an unconfigured project — a configured one the user chose to
+        // leave in its former directory. Saying "run init" would be wrong.
+        for (const migration of declinedMigrations) {
+          console.log(
+            chalk.yellow(
+              `Nothing to update: this project's OpenSpec files are still in ${migration.from}/, ` +
+                `which OpenSpec no longer writes.`
+            )
+          );
+          console.log(
+            chalk.dim(`Re-run "openspec update" and accept the move to ${migration.to}/ to resume updates.`)
+          );
+        }
+        return;
       }
       console.log(chalk.yellow('No configured tools found.'));
       console.log(chalk.dim('Run "openspec init" to set up tools.'));
@@ -643,29 +660,41 @@ export class UpdateCommand {
    * reads only `.windsurf/`. `--force` and non-interactive runs migrate, which
    * is what an unattended upgrade wants.
    */
-  private async offerConsentedLegacyMigrations(projectPath: string): Promise<void> {
+  private async offerConsentedLegacyMigrations(
+    projectPath: string
+  ): Promise<LegacyToolMigration[]> {
     const pending = findLegacyToolMigrations(projectPath).filter((m) => m.needsConsent);
-    if (pending.length === 0) return;
+    const declined: LegacyToolMigration[] = [];
+    if (pending.length === 0) return declined;
 
     for (const migration of pending) {
       console.log(chalk.yellow(legacyMigrationNotice(migration)));
 
       if (!this.force && isInteractive()) {
         const { confirm } = await import('@inquirer/prompts');
-        const shouldMigrate = await confirm({
-          message: `Move ${describeLegacyMigration(migration)} from ${migration.from}/ to ${migration.to}/?`,
-          default: true,
-        });
+        let shouldMigrate: boolean;
+        try {
+          shouldMigrate = await confirm({
+            message: `Move ${describeLegacyMigration(migration)} from ${migration.from}/ to ${migration.to}/?`,
+            default: true,
+          });
+        } catch {
+          // Closed stdin is not consent, and it must not abort the update.
+          shouldMigrate = false;
+        }
         if (!shouldMigrate) {
           // Say what declining costs. OpenSpec writes the current root now, so
-          // the files keep working where they are but stop being refreshed.
+          // the files keep working where they are, but OpenSpec stops managing
+          // them — it no longer looks in the former directory.
           console.log(
             chalk.dim(
-              `Left in place. OpenSpec writes ${migration.to}/ now, so ${migration.from}/ ` +
-                `will not be refreshed until you move it. You will be asked again next run.`
+              `Left in place. OpenSpec writes ${migration.to}/ now and will not manage ` +
+                `${migration.from}/, so those files stay as they are until you move them. ` +
+                `You will be asked again next run.`
             )
           );
           console.log();
+          declined.push(migration);
           continue;
         }
       }
@@ -675,6 +704,8 @@ export class UpdateCommand {
       }
       console.log();
     }
+
+    return declined;
   }
 
   /**

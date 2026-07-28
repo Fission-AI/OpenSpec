@@ -42,7 +42,15 @@ distinguishes that user from one who took the rebrand.
 
 - **GIVEN** the same OpenSpec-managed skill or command exists under both the former and the current root
 - **WHEN** the move runs
-- **THEN** keep the copy under the current root and delete the former one, rather than merging or overwriting
+- **THEN** the copy under the current root SHALL win, rather than being merged or overwritten
+- **AND** only the file OpenSpec generated SHALL be removed from the former root — for a skill directory that is `SKILL.md` alone, never the directory and whatever else it holds
+- **AND** a former command file SHALL be removed only when it is byte-identical to the surviving one; a file the user edited SHALL be left where it is
+
+#### Scenario: One root is a symbolic link to the other
+
+- **GIVEN** the former and current roots resolve to the same directory, as when a user symlinks one at the other to straddle the rename
+- **WHEN** the move runs
+- **THEN** recognize that source and destination are the same file and change nothing, rather than deleting the only copy
 
 #### Scenario: User files survive the move
 
@@ -74,7 +82,7 @@ The `AI_TOOLS` array SHALL include `skillsDir` for tools that support the Agent 
 
 #### Scenario: Windsurf paths defined
 
-- **GIVEN** Windsurf was rebranded to Devin Desktop and `windsurf` is retired as a tool id
+- **GIVEN** RETIRED — Windsurf was rebranded to Devin Desktop and `windsurf` is no longer a tool id
 - **WHEN** looking up the `windsurf` tool
 - **THEN** no `AI_TOOLS` entry SHALL exist for it
 - **AND** the id SHALL resolve to `devin`, whose `skillsDir` is `.devin` and whose `detectionPaths` still include the legacy `.windsurf`

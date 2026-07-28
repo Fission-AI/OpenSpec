@@ -660,6 +660,62 @@ Old instructions content
       ).toBe('user workflow');
     });
 
+    it('should not delete the install when the legacy root is a symlink to the current one', async () => {
+      // Symlinking the two roots is a realistic way to straddle the rebrand.
+      // Source and destination are then the same file, so a naive
+      // "destination exists, drop the legacy copy" would delete the original.
+      await updateCommand.execute(testDir);
+      const devinSkill = path.join(testDir, '.devin', 'skills', 'openspec-explore');
+      await fs.mkdir(devinSkill, { recursive: true });
+      await fs.writeFile(path.join(devinSkill, 'SKILL.md'), 'real content');
+      await fs.symlink('.devin', path.join(testDir, '.windsurf'));
+
+      await updateCommand.execute(testDir);
+
+      // The real file is still there, through either path
+      expect(await FileSystemUtils.fileExists(path.join(devinSkill, 'SKILL.md'))).toBe(true);
+    });
+
+    it('should keep user files that live inside an OpenSpec-managed skill directory', async () => {
+      // Both roots holding the same skill is the normal state after a rebrand.
+      // The destination wins, but only the file OpenSpec generated may be
+      // removed from the loser — a reference the user wrote beside it is theirs.
+      const devinSkill = path.join(testDir, '.devin', 'skills', 'openspec-explore');
+      await fs.mkdir(devinSkill, { recursive: true });
+      await fs.writeFile(path.join(devinSkill, 'SKILL.md'), 'current');
+
+      const legacySkill = path.join(testDir, '.windsurf', 'skills', 'openspec-explore');
+      await fs.mkdir(legacySkill, { recursive: true });
+      await fs.writeFile(path.join(legacySkill, 'SKILL.md'), 'stale');
+      await fs.writeFile(path.join(legacySkill, 'reference.md'), 'my notes');
+
+      await updateCommand.execute(testDir);
+
+      await expect(fs.access(path.join(legacySkill, 'SKILL.md'))).rejects.toThrow();
+      expect(await fs.readFile(path.join(legacySkill, 'reference.md'), 'utf-8')).toBe('my notes');
+    });
+
+    it('should keep a legacy command file the user edited, and drop an identical one', async () => {
+      const devinWorkflows = path.join(testDir, '.devin', 'workflows');
+      await fs.mkdir(devinWorkflows, { recursive: true });
+      await fs.writeFile(path.join(devinWorkflows, 'opsx-explore.md'), 'generated');
+      await fs.writeFile(path.join(devinWorkflows, 'opsx-apply.md'), 'generated');
+
+      const legacyWorkflows = path.join(testDir, '.windsurf', 'workflows');
+      await fs.mkdir(legacyWorkflows, { recursive: true });
+      // Edited by the user — deleting it would throw the edit away
+      await fs.writeFile(path.join(legacyWorkflows, 'opsx-explore.md'), 'my edits');
+      // Byte-identical — nothing is lost by dropping it
+      await fs.writeFile(path.join(legacyWorkflows, 'opsx-apply.md'), 'generated');
+
+      await updateCommand.execute(testDir);
+
+      expect(await fs.readFile(path.join(legacyWorkflows, 'opsx-explore.md'), 'utf-8')).toBe(
+        'my edits'
+      );
+      await expect(fs.access(path.join(legacyWorkflows, 'opsx-apply.md'))).rejects.toThrow();
+    });
+
     it('should leave a migrated project alone on the next run', async () => {
       // The move must be idempotent: once .windsurf/ holds nothing of ours,
       // a second update has nothing to migrate and nothing to announce.

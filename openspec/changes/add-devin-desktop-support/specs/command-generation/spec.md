@@ -28,7 +28,7 @@ The system SHALL define a `ToolCommandAdapter` interface for per-tool formatting
 
 #### Scenario: Windsurf adapter formatting
 
-- **GIVEN** Windsurf was rebranded to Devin Desktop and its config directory moved
+- **GIVEN** RETIRED — Windsurf was rebranded to Devin Desktop and its config directory moved
 - **WHEN** looking for a Windsurf adapter
 - **THEN** none SHALL be registered — it is replaced by the Devin adapter below, not kept alongside a second adapter for the same product
 

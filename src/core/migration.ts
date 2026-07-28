@@ -171,12 +171,19 @@ function migrateSkillDirs(
 
     try {
       const destination = path.join(currentSkillsDir, dirName);
-      if (fs.existsSync(destination)) {
-        fs.rmSync(source, { recursive: true, force: true });
-      } else {
+      if (!fs.existsSync(destination)) {
         fs.mkdirSync(currentSkillsDir, { recursive: true });
         fs.renameSync(source, destination);
+        moved++;
+        continue;
       }
+      if (isSamePath(source, destination)) continue;
+
+      // The destination wins, but only the file OpenSpec generated may be
+      // removed from the source: a skill directory can also hold references
+      // the user wrote next to SKILL.md, and those are not ours to delete.
+      fs.rmSync(path.join(source, 'SKILL.md'), { force: true });
+      removeDirIfEmpty(source);
       moved++;
     } catch {
       // Leave the legacy directory in place if it cannot be moved
@@ -210,13 +217,21 @@ function migrateCommandFiles(
 
     try {
       const destination = path.join(projectPath, currentPath);
-      if (fs.existsSync(destination)) {
-        fs.rmSync(source, { force: true });
-      } else {
+      if (!fs.existsSync(destination)) {
         fs.mkdirSync(path.dirname(destination), { recursive: true });
         fs.renameSync(source, destination);
+        moved++;
+        continue;
       }
-      moved++;
+      if (isSamePath(source, destination)) continue;
+
+      // Both roots have this command. Dropping the legacy copy is only safe
+      // when it is byte-identical to the one that survives — otherwise the
+      // user edited it, and an edit is not ours to throw away.
+      if (fs.readFileSync(source, 'utf-8') === fs.readFileSync(destination, 'utf-8')) {
+        fs.rmSync(source, { force: true });
+        moved++;
+      }
     } catch {
       // Leave the legacy file in place if it cannot be moved
     }
@@ -252,6 +267,22 @@ export function legacyMigrationNotice(migration: LegacyToolMigration): string {
     );
   }
   return `${migration.from}/ is the former location for this tool; ${migration.to}/ is current.`;
+}
+
+/**
+ * Whether two paths are the same file on disk once symlinks are resolved.
+ *
+ * Symlinking one tool root at the other is a realistic way to straddle a
+ * rebrand (`ln -s .devin .windsurf` to keep an older build working). Without
+ * this check the "destination already exists, drop the legacy copy" branch
+ * deletes the destination itself, taking the only copy with it.
+ */
+function isSamePath(a: string, b: string): boolean {
+  try {
+    return fs.realpathSync(a) === fs.realpathSync(b);
+  } catch {
+    return false;
+  }
 }
 
 function removeDirIfEmpty(dirPath: string): void {
