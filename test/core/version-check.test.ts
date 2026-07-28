@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import http from 'http';
 import path from 'path';
 import { execFile } from 'child_process';
-import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
 import {
   compareVersions,
@@ -11,6 +10,8 @@ import {
   getInstallDir,
   isProjectLocalInstall,
   isEphemeralRunnerInstall,
+  canSelfUpgrade,
+  offerCliUpgrade,
   buildCliUpdateLines,
   displayCliUpdateNote,
 } from '../../src/core/version-check.js';
@@ -229,31 +230,87 @@ describe('getAvailableCliUpdate', () => {
  */
 describe('getAvailableCliUpdate against an unroutable registry', () => {
   it('lets the process exit as soon as it gives up', async () => {
-    const distModule = fileURLToPath(new URL('../../dist/core/version-check.js', import.meta.url));
+    // A file:// URL, not a path: import() rejects a bare Windows path.
+    const distModule = new URL('../../dist/core/version-check.js', import.meta.url).href;
+
+    const env = { ...process.env, npm_config_registry: 'http://192.0.2.1:81/' };
+    // TEST-NET-1 (RFC 5737) is routable nowhere, so the connection can only
+    // end by our own teardown. Windows drops empty env vars, so unset rather
+    // than blank the guards that would otherwise skip the check.
+    delete env.NODE_ENV;
+    delete env.CI;
 
     const startedAt = Date.now();
-    const exitCode = await new Promise<number>((resolve) => {
+    const { code, stderr } = await new Promise<{ code: number; stderr: string }>((resolve) => {
+      let stderr = '';
       const child = execFile(
         process.execPath,
         ['-e', `import(${JSON.stringify(distModule)}).then((m) => m.getAvailableCliUpdate())`],
-        {
-          env: {
-            ...process.env,
-            NODE_ENV: '',
-            CI: '',
-            // TEST-NET-1 (RFC 5737): routable nowhere, so the connection can
-            // only end by our own teardown.
-            npm_config_registry: 'http://192.0.2.1:81/',
-          },
-        },
+        { env },
         () => undefined
       );
-      child.on('close', (code) => resolve(code ?? 0));
+      child.stderr?.on('data', (chunk) => {
+        stderr += String(chunk);
+      });
+      child.on('close', (exitCode) => resolve({ code: exitCode ?? 0, stderr }));
     });
 
-    expect(exitCode).toBe(0);
+    expect(stderr).toBe('');
+    expect(code).toBe(0);
     expect(Date.now() - startedAt).toBeLessThan(6000);
   }, 30000);
+});
+
+/**
+ * The upgrade is offered, never performed unasked: a CLI that mutates the
+ * user's global environment without consent is the wrong default.
+ */
+describe('offerCliUpgrade', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.doUnmock('@inquirer/prompts');
+    vi.resetModules();
+  });
+
+  it('only offers to run the upgrade for a global install', () => {
+    const globalDir = path.join(GLOBAL_ROOT, 'lib', 'node_modules', '@fission-ai', 'openspec');
+    expect(canSelfUpgrade(globalDir, PROJECT_ROOT)).toBe(true);
+
+    // A project dependency belongs to that project's package manager, and an
+    // npx cache has nothing to upgrade.
+    expect(
+      canSelfUpgrade(
+        path.join(PROJECT_ROOT, 'node_modules', '@fission-ai', 'openspec'),
+        PROJECT_ROOT
+      )
+    ).toBe(false);
+    expect(
+      canSelfUpgrade(path.join(GLOBAL_ROOT, '.npm', '_npx', 'a', 'node_modules', 'pkg'), PROJECT_ROOT)
+    ).toBe(false);
+    expect(canSelfUpgrade(null, PROJECT_ROOT)).toBe(false);
+  });
+
+  it('asks before touching anything, and does nothing when declined', async () => {
+    const confirm = vi.fn(async () => false);
+    vi.doMock('@inquirer/prompts', () => ({ confirm }));
+    const { offerCliUpgrade: offer } = await import('../../src/core/version-check.js?decline');
+
+    await expect(offer('9.9.9')).resolves.toBe(false);
+    // Proves the prompt drove the result rather than an unrelated failure.
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(confirm.mock.calls[0][0]).toMatchObject({ message: expect.stringContaining('9.9.9') });
+  });
+
+  it('treats an interrupted prompt as a decline rather than a crash', async () => {
+    const confirm = vi.fn(async () => {
+      throw new Error('User force closed the prompt');
+    });
+    vi.doMock('@inquirer/prompts', () => ({ confirm }));
+    const { offerCliUpgrade: offer } = await import('../../src/core/version-check.js?ctrlc');
+
+    await expect(offer('9.9.9')).resolves.toBe(false);
+    expect(confirm).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('displayCliUpdateNote', () => {

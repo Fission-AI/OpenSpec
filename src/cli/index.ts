@@ -7,7 +7,15 @@ import { fileURLToPath } from 'url';
 import { promises as fs } from 'fs';
 import { AI_TOOLS } from '../core/config.js';
 import { UpdateCommand } from '../core/update.js';
-import { getAvailableCliUpdate, displayCliUpdateNote } from '../core/version-check.js';
+import {
+  getAvailableCliUpdate,
+  displayCliUpdateNote,
+  canSelfUpgrade,
+  getInstallDir,
+  offerCliUpgrade,
+  rerunUpdateWithUpgradedCli,
+  displayUpgradeCommand,
+} from '../core/version-check.js';
 import { ListCommand } from '../core/list.js';
 import { ArchiveCommand, type ArchiveOptions } from '../core/archive.js';
 import { ViewCommand } from '../core/view.js';
@@ -41,6 +49,7 @@ import {
 } from '../commands/workflow/index.js';
 import { maybeShowTelemetryNotice, trackCommand, shutdown } from '../telemetry/index.js';
 import { COMMON_FLAGS } from '../core/completions/shared-flags.js';
+import { isInteractive } from '../utils/interactive.js';
 
 const STORE_OPTION_DESCRIPTION = COMMON_FLAGS.store.description;
 
@@ -208,11 +217,28 @@ program
   .option('--force', 'Force update even when tools are up to date')
   .action(async (targetPath = '.', options?: { force?: boolean }) => {
     try {
+      const latestVersion = await getAvailableCliUpdate();
+      // Offer to upgrade first: this process generates files from its own
+      // templates, so upgrading afterwards would leave the old ones on disk.
+      const canOffer =
+        latestVersion !== null &&
+        isInteractive() &&
+        canSelfUpgrade(getInstallDir(), targetPath);
+
+      if (latestVersion && canOffer) {
+        displayCliUpdateNote(latestVersion, targetPath, { withCommand: false });
+        if (await offerCliUpgrade(latestVersion)) {
+          process.exit(await rerunUpdateWithUpgradedCli(targetPath));
+        }
+        // Declined, or the upgrade failed: leave the command on screen so the
+        // manual route is never more than a copy away.
+        displayUpgradeCommand(targetPath);
+      }
+
       const updateCommand = new UpdateCommand({ force: options?.force });
-      const updateCheck = getAvailableCliUpdate();
       await updateCommand.execute(targetPath);
-      const latestVersion = await updateCheck;
-      if (latestVersion) {
+
+      if (latestVersion && !canOffer) {
         displayCliUpdateNote(latestVersion, targetPath);
       }
     } catch (error) {

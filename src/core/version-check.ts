@@ -279,9 +279,32 @@ export function isEphemeralRunnerInstall(installDir: string | null): boolean {
 export function buildCliUpdateLines(
   latestVersion: string,
   installDir: string | null,
-  projectPath: string
+  projectPath: string,
+  options: { withCommand?: boolean } = {}
 ): string[] {
   const lines = [`A newer OpenSpec CLI is available (v${OPENSPEC_VERSION} → v${latestVersion}).`];
+
+  // Omitted when we are about to offer to run it — printing a command and then
+  // asking to run that same command reads like the user has to do both.
+  if (options.withCommand !== false) {
+    lines.push(...buildUpgradeCommandLines(installDir, projectPath));
+  }
+  if (installDir) {
+    lines.push(`  Running from: ${installDir}`);
+  }
+
+  return lines;
+}
+
+/**
+ * The upgrade command for however this copy was installed, plus the reminder
+ * that instruction files come from the CLI and so need a second pass.
+ */
+export function buildUpgradeCommandLines(
+  installDir: string | null,
+  projectPath: string
+): string[] {
+  const lines: string[] = [];
 
   if (isEphemeralRunnerInstall(installDir)) {
     lines.push(`  npx ${PACKAGE_NAME}@latest update`);
@@ -293,11 +316,105 @@ export function buildCliUpdateLines(
   }
 
   lines.push('  Then run "openspec update" again to pick up new workflows.');
-  if (installDir) {
-    lines.push(`  Running from: ${installDir}`);
+  return lines;
+}
+
+// cross-spawn resolves npm's shim on Windows, where spawning "npm" directly
+// fails. Loaded lazily so ordinary runs skip its module graph.
+let cachedSpawn: typeof import('child_process').spawn | undefined;
+function loadSpawn(): typeof import('child_process').spawn {
+  if (cachedSpawn === undefined) {
+    cachedSpawn = require('cross-spawn') as typeof import('child_process').spawn;
+  }
+  return cachedSpawn;
+}
+
+/**
+ * Whether we can run the upgrade for the user instead of only printing it.
+ *
+ * Only a global npm install qualifies. A project dependency belongs to that
+ * project's package manager — running npm against a pnpm or yarn lockfile is
+ * not ours to do — and an npx/dlx cache has nothing to upgrade.
+ */
+export function canSelfUpgrade(installDir: string | null, projectPath: string): boolean {
+  if (!installDir) return false;
+  if (isEphemeralRunnerInstall(installDir)) return false;
+  if (isProjectLocalInstall(installDir, projectPath)) return false;
+  return true;
+}
+
+/**
+ * Runs `npm install -g <pkg>@latest`, inheriting stdio so npm's own output —
+ * including any auth or permission prompt — reaches the user directly.
+ * Resolves true only on a clean exit.
+ */
+async function runGlobalUpgrade(): Promise<boolean> {
+  const spawn = loadSpawn();
+
+  return new Promise((resolve) => {
+    const child = spawn('npm', ['install', '-g', `${PACKAGE_NAME}@latest`], {
+      stdio: 'inherit',
+    });
+    child.on('error', () => resolve(false));
+    child.on('close', (code) => resolve(code === 0));
+  });
+}
+
+/**
+ * Offers to run the upgrade, and returns whether it succeeded. Declining is
+ * free: the caller prints the command either way, so nobody is stuck.
+ */
+export async function offerCliUpgrade(latestVersion: string): Promise<boolean> {
+  const { confirm } = await import('@inquirer/prompts');
+
+  let accepted = false;
+  try {
+    accepted = await confirm({
+      message: `Upgrade to v${latestVersion} now?`,
+      default: true,
+    });
+  } catch {
+    // Ctrl-C at the prompt is a decline, not a crash.
+    return false;
+  }
+  if (!accepted) return false;
+
+  console.log();
+  const upgraded = await runGlobalUpgrade();
+  console.log();
+
+  if (!upgraded) {
+    console.log(chalk.yellow('The upgrade did not complete. A global install may need'));
+    console.log(chalk.yellow('elevated permissions, or a different package manager.'));
+    return false;
   }
 
-  return lines;
+  console.log(chalk.green(`✓ Upgraded to v${latestVersion}.`));
+  return true;
+}
+
+/**
+ * Runs `openspec update` again with the CLI that was just installed — this
+ * process is still the old code, so it cannot write the new workflows itself.
+ * Resolves the exit code to pass along.
+ */
+export async function rerunUpdateWithUpgradedCli(projectPath: string): Promise<number> {
+  const spawn = loadSpawn();
+
+  return new Promise((resolve) => {
+    const child = spawn('openspec', ['update', projectPath], {
+      stdio: 'inherit',
+      // The child must not offer the upgrade again: if PATH still resolves to
+      // the old binary, prompting would loop forever.
+      env: { ...process.env, OPENSPEC_NO_UPDATE_CHECK: '1' },
+    });
+    child.on('error', () => {
+      // No openspec on PATH to hand off to; the upgrade still landed.
+      console.log(chalk.dim('Now run "openspec update" to pick up the new workflows.'));
+      resolve(0);
+    });
+    child.on('close', (code) => resolve(code ?? 0));
+  });
 }
 
 /**
@@ -305,12 +422,30 @@ export function buildCliUpdateLines(
  * CLI, so "up to date" only ever means "matches this CLI" — without this note
  * a stale install looks like a successful update.
  */
-export function displayCliUpdateNote(latestVersion: string, projectPath: string = '.'): void {
-  const [headline, ...rest] = buildCliUpdateLines(latestVersion, getInstallDir(), projectPath);
+export function displayCliUpdateNote(
+  latestVersion: string,
+  projectPath: string = '.',
+  options: { withCommand?: boolean } = {}
+): void {
+  const [headline, ...rest] = buildCliUpdateLines(
+    latestVersion,
+    getInstallDir(),
+    projectPath,
+    options
+  );
 
   console.log();
   console.log(chalk.yellow(headline));
   for (const line of rest) {
+    console.log(chalk.dim(line));
+  }
+}
+
+/**
+ * Prints just the manual command, for when the offer was declined or failed.
+ */
+export function displayUpgradeCommand(projectPath: string = '.'): void {
+  for (const line of buildUpgradeCommandLines(getInstallDir(), projectPath)) {
     console.log(chalk.dim(line));
   }
 }
