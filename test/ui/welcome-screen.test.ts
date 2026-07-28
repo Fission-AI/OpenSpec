@@ -122,6 +122,22 @@ describe('welcome screen', () => {
     expect(output).not.toContain('Quick start after setup:');
   });
 
+  it('does not promise opsx commands in the setup summary', async () => {
+    const { showWelcomeScreen } = await import('../../src/ui/welcome-screen.js');
+    renderStatically();
+
+    // This screen runs before tool selection, and skills-only tools (Codex,
+    // Kimi Code, ...) correctly receive no command files, so the summary must
+    // not state that opsx slash commands are part of every setup.
+    await showWelcomeScreen(['archive']);
+
+    const output = writtenOutput();
+
+    expect(output).toContain('Agent Skills for AI tools');
+    expect(output).toContain('Workflow commands, if supported');
+    expect(output).not.toContain('opsx slash commands');
+  });
+
   it('keeps every rendered line inside the animation width budget', async () => {
     const { showWelcomeScreen } = await import('../../src/ui/welcome-screen.js');
     renderStatically();

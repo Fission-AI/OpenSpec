@@ -73,6 +73,14 @@ The system SHALL provide a `generateCommand` function that combines content with
 - **WHEN** the adapter's file path does not name the command by filename (for example it namespaces the command under an `opsx/` directory)
 - **THEN** the body's `/opsx:<id>` references SHALL be left unchanged
 
+#### Scenario: Command references use the tool's own invocation prefix
+
+- **WHEN** an adapter declares an `invocationPrefix` because its files are not invoked with a slash (Amazon Q loads `.amazonq/prompts/opsx-<id>.md` into a prompt library invoked with `@`)
+- **THEN** `generateCommand` SHALL rewrite `/opsx:<id>` references in the body to `<prefix>opsx-<id>` — for Amazon Q, `@opsx-<id>` — replacing the leading slash rather than adding to it
+- **AND** generated skills and the `init`/`update` "Getting started" hint SHALL use the same form
+- **WHEN** an adapter declares no `invocationPrefix`
+- **THEN** the prefix SHALL default to `/`
+
 #### Scenario: Generate multiple commands
 
 - **WHEN** generating all opsx commands for a tool

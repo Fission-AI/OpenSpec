@@ -56,7 +56,7 @@ import {
 } from './migration.js';
 import {
   resolveCommandSurfaceCapability,
-  resolveCommandInvocationStyle,
+  resolveCommandInvocation,
   shouldGenerateCommandsForTool,
   shouldGenerateSkillsForTool,
   shouldReconcileCommandFilesForTool,
@@ -253,7 +253,7 @@ export class UpdateCommand {
               tool.value,
               delivery,
               resolveCommandSurfaceCapability(tool.value),
-              resolveCommandInvocationStyle(tool.value)
+              resolveCommandInvocation(tool.value)
             );
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
@@ -348,7 +348,7 @@ export class UpdateCommand {
                 toolId,
                 delivery,
                 resolveCommandSurfaceCapability(toolId),
-                resolveCommandInvocationStyle(toolId)
+                resolveCommandInvocation(toolId)
               );
               return transformer ? transformer(command) : command;
             }
@@ -904,7 +904,7 @@ export class UpdateCommand {
               tool.value,
               delivery,
               resolveCommandSurfaceCapability(tool.value),
-              resolveCommandInvocationStyle(tool.value)
+              resolveCommandInvocation(tool.value)
             );
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);

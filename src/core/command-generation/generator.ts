@@ -5,17 +5,18 @@
  */
 
 import type { CommandContent, ToolCommandAdapter, GeneratedCommand } from './types.js';
-import { getInvocationStyleForPath } from './invocation.js';
-import { transformToHyphenCommands } from '../../utils/command-references.js';
+import { getInvocationForAdapter, needsInvocationRewrite } from './invocation.js';
+import { transformCommandInvocations } from '../../utils/command-references.js';
 
 /**
  * Generate a single command file using the provided adapter.
  *
  * Command bodies are authored with `/opsx:<id>` references. Tools whose command
- * files are invoked by filename register `/opsx-<id>` instead, so the body is
- * rewritten to the form that tool answers to before the adapter formats it.
- * Doing it here rather than per adapter keeps every tool in step (#727, #1307);
- * adapters stay pure formatters.
+ * files are invoked by filename register `/opsx-<id>` instead, and Amazon Q
+ * surfaces them in its prompt library as `@opsx-<id>`, so the body is rewritten
+ * to the form that tool answers to before the adapter formats it. Doing it here
+ * rather than per adapter keeps every tool in step (#727, #1307); adapters stay
+ * pure formatters.
  *
  * @param content - The tool-agnostic command content
  * @param adapter - The tool-specific adapter
@@ -25,14 +26,13 @@ export function generateCommand(
   content: CommandContent,
   adapter: ToolCommandAdapter
 ): GeneratedCommand {
-  const filePath = adapter.getFilePath(content.id);
-  const formatted =
-    getInvocationStyleForPath(filePath) === 'flat'
-      ? { ...content, body: transformToHyphenCommands(content.body) }
-      : content;
+  const invocation = getInvocationForAdapter(adapter);
+  const formatted = needsInvocationRewrite(invocation)
+    ? { ...content, body: transformCommandInvocations(content.body, invocation) }
+    : content;
 
   return {
-    path: filePath,
+    path: adapter.getFilePath(content.id),
     fileContent: adapter.formatFile(formatted),
   };
 }

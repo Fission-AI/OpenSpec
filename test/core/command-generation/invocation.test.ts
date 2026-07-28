@@ -1,11 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import path from 'path';
 import {
-  getInvocationStyleForAdapter,
+  formatCommandInvocation,
+  getInvocationForAdapter,
   getInvocationStyleForPath,
+  needsInvocationRewrite,
 } from '../../../src/core/command-generation/invocation.js';
 import { CommandAdapterRegistry } from '../../../src/core/command-generation/registry.js';
-import { resolveCommandInvocationStyle } from '../../../src/core/command-surface.js';
+import { resolveCommandInvocation } from '../../../src/core/command-surface.js';
 import { generateCommand } from '../../../src/core/command-generation/generator.js';
 import type { CommandContent } from '../../../src/core/command-generation/types.js';
 import { ALL_WORKFLOWS } from '../../../src/core/profiles.js';
@@ -21,6 +23,20 @@ import { ALL_WORKFLOWS } from '../../../src/core/profiles.js';
  * of the split fails here, which is the point.
  */
 const NAMESPACED_TOOLS = ['claude', 'codebuddy', 'crush', 'gemini', 'lingma', 'qoder', 'zcode'];
+
+/**
+ * Tools whose command name is wrapped in something other than a slash. The
+ * prefix cannot be read off the file path, so it is adapter metadata — and
+ * this list is the tripwire that a new one was declared deliberately. Amazon Q
+ * loads its `.amazonq/prompts/` files into its prompt library, invoked as
+ * `@opsx-<id>`.
+ */
+const NON_SLASH_PREFIXES: Record<string, string> = { 'amazon-q': '@' };
+
+const expectedInvocation = (toolId: string) => ({
+  style: NAMESPACED_TOOLS.includes(toolId) ? ('namespaced' as const) : ('flat' as const),
+  prefix: NON_SLASH_PREFIXES[toolId] ?? '/',
+});
 
 const sampleContent: CommandContent = {
   id: 'apply',
@@ -47,11 +63,20 @@ describe('command-generation/invocation', () => {
   describe('every registered adapter', () => {
     it('is classified by the command files it writes, not by a hand-kept list', () => {
       for (const adapter of CommandAdapterRegistry.getAll()) {
-        const expected = NAMESPACED_TOOLS.includes(adapter.toolId) ? 'namespaced' : 'flat';
         expect(
-          getInvocationStyleForAdapter(adapter),
+          getInvocationForAdapter(adapter),
           `${adapter.toolId} writes ${adapter.getFilePath('apply')}`
-        ).toBe(expected);
+        ).toEqual(expectedInvocation(adapter.toolId));
+      }
+    });
+
+    it('defaults to the slash prefix unless the adapter declares another', () => {
+      // The prefix is the one part that cannot be derived from the file path,
+      // so an adapter that quietly grew one should show up here.
+      for (const adapter of CommandAdapterRegistry.getAll()) {
+        expect(adapter.invocationPrefix, adapter.toolId).toBe(
+          NON_SLASH_PREFIXES[adapter.toolId]
+        );
       }
     });
 
@@ -68,23 +93,41 @@ describe('command-generation/invocation', () => {
     });
   });
 
-  describe('resolveCommandInvocationStyle', () => {
-    it('resolves the style for every registered tool', () => {
+  describe('resolveCommandInvocation', () => {
+    it('resolves the invocation for every registered tool', () => {
       // Compared against the expected table, not against
-      // getInvocationStyleForAdapter — asserting f(x) === f(x) can never fail.
+      // getInvocationForAdapter — asserting f(x) === f(x) can never fail.
       for (const adapter of CommandAdapterRegistry.getAll()) {
-        const expected = NAMESPACED_TOOLS.includes(adapter.toolId) ? 'namespaced' : 'flat';
-        expect(resolveCommandInvocationStyle(adapter.toolId), adapter.toolId).toBe(expected);
+        expect(resolveCommandInvocation(adapter.toolId), adapter.toolId).toEqual(
+          expectedInvocation(adapter.toolId)
+        );
       }
-      expect(resolveCommandInvocationStyle('cursor')).toBe('flat');
-      expect(resolveCommandInvocationStyle('claude')).toBe('namespaced');
+      expect(resolveCommandInvocation('cursor')).toEqual({ style: 'flat', prefix: '/' });
+      expect(resolveCommandInvocation('claude')).toEqual({ style: 'namespaced', prefix: '/' });
+      expect(resolveCommandInvocation('amazon-q')).toEqual({ style: 'flat', prefix: '@' });
     });
 
     it('returns undefined for tools with no command adapter', () => {
       // These tools receive skills only, so they have no command name to spell.
       for (const toolId of ['codex', 'kimi', 'vibe', 'hermes', 'not-a-tool']) {
-        expect(resolveCommandInvocationStyle(toolId), toolId).toBeUndefined();
+        expect(resolveCommandInvocation(toolId), toolId).toBeUndefined();
       }
+    });
+  });
+
+  describe('formatCommandInvocation', () => {
+    it('spells each shape the way the tool registers it', () => {
+      expect(formatCommandInvocation({ style: 'namespaced', prefix: '/' }, 'apply')).toBe('/opsx:apply');
+      expect(formatCommandInvocation({ style: 'flat', prefix: '/' }, 'apply')).toBe('/opsx-apply');
+      expect(formatCommandInvocation({ style: 'flat', prefix: '@' }, 'bulk-archive')).toBe(
+        '@opsx-bulk-archive'
+      );
+    });
+
+    it('rewrites only what differs from the canonical authored form', () => {
+      expect(needsInvocationRewrite({ style: 'namespaced', prefix: '/' })).toBe(false);
+      expect(needsInvocationRewrite({ style: 'flat', prefix: '/' })).toBe(true);
+      expect(needsInvocationRewrite({ style: 'namespaced', prefix: '@' })).toBe(true);
     });
   });
 
@@ -97,6 +140,17 @@ describe('command-generation/invocation', () => {
         expect(fileContent, toolId).toContain('/opsx-continue');
         expect(fileContent, toolId).not.toContain('/opsx:');
       }
+    });
+
+    it("writes Amazon Q's prompt-library form, not a slash command", () => {
+      // .amazonq/prompts/opsx-<id>.md is a prompt, invoked with @ — a body
+      // telling the user to type /opsx-archive names nothing Amazon Q registers.
+      const adapter = CommandAdapterRegistry.get('amazon-q')!;
+      const { fileContent } = generateCommand(sampleContent, adapter);
+      expect(fileContent).toContain('@opsx-archive');
+      expect(fileContent).toContain('@opsx-continue');
+      expect(fileContent).not.toContain('/opsx-');
+      expect(fileContent).not.toContain('/opsx:');
     });
 
     it('leaves command references alone for namespaced tools', () => {

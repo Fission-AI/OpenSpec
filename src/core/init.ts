@@ -53,7 +53,7 @@ import { getAvailableTools } from './available-tools.js';
 import { migrateIfNeeded, migrateLegacySkillDirs, scanInstalledWorkflows as scanInstalledWorkflowsShared } from './migration.js';
 import {
   resolveCommandSurfaceCapability,
-  resolveCommandInvocationStyle,
+  resolveCommandInvocation,
   shouldGenerateCommandsForTool,
   shouldGenerateSkillsForTool,
   shouldReconcileCommandFilesForTool,
@@ -710,7 +710,7 @@ export class InitCommand {
               tool.value,
               delivery,
               resolveCommandSurfaceCapability(tool.value),
-              resolveCommandInvocationStyle(tool.value)
+              resolveCommandInvocation(tool.value)
             );
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
 
@@ -911,7 +911,7 @@ export class InitCommand {
             tool.value,
             activeDelivery,
             resolveCommandSurfaceCapability(tool.value),
-            resolveCommandInvocationStyle(tool.value)
+            resolveCommandInvocation(tool.value)
           );
           hint = `Start your first change: ${transformer ? transformer(command) : command} "your idea"`;
         } else if (shouldGenerateSkillsForTool(tool.value, activeDelivery)) {

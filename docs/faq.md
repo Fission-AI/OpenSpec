@@ -36,7 +36,7 @@ There isn't a separate mode to start. You open your AI assistant like normal and
 
 ### I typed a slash command and nothing happened. Why?
 
-Most likely you typed it in the terminal instead of your AI chat, you used a spelling your tool doesn't register, or the commands aren't installed yet. Run `openspec update` in your project, restart your assistant, then use the form it prints under "Getting started" — see [How To Invoke](supported-tools.md#how-to-invoke). [Troubleshooting](troubleshooting.md#commands-dont-show-up) has the full checklist.
+Most likely you typed it in the terminal instead of your AI chat, you used a spelling your tool doesn't register, or the commands aren't installed yet. If the files are missing — or you never set the tool up — run `openspec init`; `openspec update` only refreshes files that already exist. Then restart your assistant and use the form printed under "Getting started" — see [How To Invoke](supported-tools.md#how-to-invoke). [Troubleshooting](troubleshooting.md#commands-dont-show-up) has the full checklist.
 
 ### Why is the syntax `/opsx:propose` in one tool and `/opsx-propose` in another?
 

@@ -9,7 +9,7 @@ import { AI_TOOLS, type AIToolOption } from './config.js';
 import { getGlobalConfig, getGlobalConfigPath, saveGlobalConfig, type Delivery } from './global-config.js';
 import { CommandAdapterRegistry } from './command-generation/index.js';
 import {
-  resolveCommandInvocationStyle,
+  resolveCommandInvocation,
   resolveCommandSurfaceCapability,
   shouldGenerateCommandsForTool,
 } from './command-surface.js';
@@ -228,7 +228,7 @@ export function migrateIfNeeded(projectPath: string, tools: AIToolOption[]): voi
           tool.value,
           effectiveDelivery,
           resolveCommandSurfaceCapability(tool.value),
-          resolveCommandInvocationStyle(tool.value)
+          resolveCommandInvocation(tool.value)
         );
         return transformer ? transformer('/opsx:propose') : '/opsx:propose';
       }

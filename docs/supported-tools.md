@@ -30,22 +30,34 @@ way it loads the file OpenSpec wrote. Find your tool's command path in the
 | Command file OpenSpec writes | You type | Tools |
 |------------------------------|----------|-------|
 | `.../commands/opsx/<id>.*` — an `opsx/` folder namespaces it | `/opsx:<id>` | Claude Code, CodeBuddy, Crush, Gemini CLI, Lingma, Qoder, ZCode |
-| `.../opsx-<id>.*` — the filename is the command | `/opsx-<id>` | Every other tool with generated command files |
+| `.../opsx-<id>.*` — the filename is the command | `/opsx-<id>` | Every other tool with generated command files, except Amazon Q |
+| `.amazonq/prompts/opsx-<id>.md` — a prompt, not a command | `@opsx-<id>` | Amazon Q Developer |
 | none — skills only | `/openspec-<skill>` | CodeArts, ForgeCode, Hermes, Mistral Vibe |
 | none — Kimi Code | `/skill:openspec-<skill>` | Kimi Code |
 | none — Codex CLI | `$openspec-<skill>` | Codex ([`/openspec-<skill>` is not recognized](https://github.com/openai/codex/issues/11817)) |
 
-So `/opsx:propose` is `/opsx-propose` in Cursor and `$openspec-propose` in Codex.
-The last three rows use skill names, not command names — those are listed under
-[Generated Skill Names](#generated-skill-names), and they do not map one-to-one
-onto command ids (`/opsx:apply` is the `openspec-apply-change` skill).
+So `/opsx:propose` is `/opsx-propose` in Cursor, `@opsx-propose` in Amazon Q, and
+`$openspec-propose` in Codex.
+
+Two things vary independently, which is why the rows do not collapse:
+
+- **The name.** Rows 1–2 differ only in how the file names the command, and the
+  `opsx-<id>` / `opsx:<id>` stem is the same for every tool with generated
+  command files.
+- **The wrapper.** Amazon Q loads its files into a prompt library invoked with
+  `@`. Skills-only tools generate no command files at all, so their last three
+  rows use *skill* names — listed under
+  [Generated Skill Names](#generated-skill-names) — which do not map one-to-one
+  onto command ids (`/opsx:apply` is the `openspec-apply-change` skill).
+
+The command path patterns above are extension-neutral (`.*`) on purpose: the
+extension is the tool's (`.toml` for Gemini CLI, `.prompt` for Continue,
+`.prompt.md` for Kiro and GitHub Copilot), and a few tools show the name with
+its extension in the picker. Match the directory shape, not the extension.
 
 The files OpenSpec generates, and the "Getting started" hint printed after setup,
 already use the right form for the tools you selected — so the fastest answer is
-to read the hint. A few tools wrap the name further still (some show the file
-name with its extension; Amazon Q surfaces prompts rather than slash commands),
-so if a slash does not autocomplete, check how your tool loads files from the
-directory listed below.
+to read the hint.
 
 ## Tool Directory Reference
 

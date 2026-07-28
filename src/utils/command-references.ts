@@ -8,12 +8,19 @@
 // (command-generation imports this file). Callers resolve the concrete
 // capability and invocation style and pass them in.
 import type { CommandSurfaceCapability } from '../core/command-surface.js';
-import type { CommandInvocationStyle } from '../core/command-generation/invocation.js';
+import type { CommandInvocation } from '../core/command-generation/invocation.js';
+// Value import of a pure, dependency-free helper: invocation.ts imports only
+// `path` and a type, so this does not close the cycle the note above guards.
+import {
+  formatCommandInvocation,
+  needsInvocationRewrite,
+} from '../core/command-generation/invocation.js';
 
 /**
- * Transforms colon-based command references to hyphen-based format.
- * Converts `/opsx:<command>` patterns to `/opsx-<command>` for tools that use
- * hyphen syntax.
+ * Rewrites the canonical `/opsx:<command>` references that command bodies and
+ * skill templates are authored with into the form one tool actually registers
+ * — `/opsx-<command>` for tools that name the command by filename,
+ * `@opsx-<command>` for Amazon Q's prompt library.
  *
  * Only known command ids are rewritten, matching how
  * `transformToSkillReferences` leaves unrecognized references alone, so a
@@ -21,15 +28,21 @@ import type { CommandInvocationStyle } from '../core/command-generation/invocati
  * silently reshaped into a command that does not exist either.
  *
  * @param text - The text containing command references
- * @returns Text with command references transformed to hyphen format
+ * @param invocation - The tool's invocation, from resolveCommandInvocation()
+ * @returns Text with command references spelled the tool's way
  *
  * @example
- * transformToHyphenCommands('/opsx:new') // returns '/opsx-new'
- * transformToHyphenCommands('Use /opsx:apply to implement') // returns 'Use /opsx-apply to implement'
+ * transformCommandInvocations('/opsx:new', { style: 'flat', prefix: '/' }) // '/opsx-new'
+ * transformCommandInvocations('/opsx:new', { style: 'flat', prefix: '@' }) // '@opsx-new'
  */
-export function transformToHyphenCommands(text: string): string {
+export function transformCommandInvocations(
+  text: string,
+  invocation: CommandInvocation
+): string {
   return text.replace(/\/opsx:([a-z-]+)/g, (match, commandId: string) =>
-    commandId in COMMAND_TO_SKILL_NAME ? `/opsx-${commandId}` : match
+    commandId in COMMAND_TO_SKILL_NAME
+      ? formatCommandInvocation(invocation, commandId)
+      : match
   );
 }
 
@@ -118,35 +131,36 @@ export function getSkillReferenceTransformer(toolId: string): (text: string) => 
  * files for it (capability 'skills-invocable', i.e. Codex) — so those skills
  * never point at commands that were not generated.
  *
- * When commands are generated, the spelling follows the command files the
- * tool's adapter writes: a `flat` adapter names the command by filename
- * (`.cursor/commands/opsx-apply.md` → `/opsx-apply`), while a `namespaced`
- * adapter puts it in an `opsx/` directory (`.claude/commands/opsx/apply.md` →
- * `/opsx:apply`). Passing the style in keeps this module free of a
- * hand-maintained tool list — the list drifted and left 16 tools advertising
- * commands their palettes never registered (#727, #1307).
+ * When commands are generated, the spelling follows the tool's invocation: a
+ * `flat` adapter names the command by filename (`.cursor/commands/opsx-apply.md`
+ * → `/opsx-apply`), a `namespaced` adapter puts it in an `opsx/` directory
+ * (`.claude/commands/opsx/apply.md` → `/opsx:apply`), and a non-slash prefix
+ * wraps it further (`.amazonq/prompts/opsx-apply.md` → `@opsx-apply`). Passing
+ * the invocation in keeps this module free of a hand-maintained tool list —
+ * the list drifted and left 16 tools advertising commands their palettes never
+ * registered (#727, #1307).
  *
  * @param toolId - The AI tool identifier (e.g. 'claude', 'opencode', 'pi')
  * @param delivery - The configured delivery mode
  * @param capability - The tool's command surface capability
- * @param invocationStyle - How the tool's generated command files are invoked,
- *        from resolveCommandInvocationStyle(); undefined for tools with no
- *        command adapter. Required rather than optional so a caller that
- *        forgets it fails to compile instead of silently getting the
- *        namespaced form.
- * @returns The transformer to pass to generateSkillContent, or undefined
+ * @param invocation - How the tool's generated commands are invoked, from
+ *        resolveCommandInvocation(); undefined for tools with no command
+ *        adapter. Required rather than optional so a caller that forgets it
+ *        fails to compile instead of silently getting the canonical form.
+ * @returns The transformer to pass to generateSkillContent, or undefined when
+ *          the tool already answers to the canonical `/opsx:<id>`
  */
 export function getTransformerForTool(
   toolId: string,
   delivery: 'both' | 'skills' | 'commands',
   capability: CommandSurfaceCapability,
-  invocationStyle: CommandInvocationStyle | undefined
+  invocation: CommandInvocation | undefined
 ): ((text: string) => string) | undefined {
   if (delivery === 'skills' || capability !== 'adapter-backed') {
     return getSkillReferenceTransformer(toolId);
   }
-  if (invocationStyle === 'flat') {
-    return transformToHyphenCommands;
+  if (invocation !== undefined && needsInvocationRewrite(invocation)) {
+    return (text: string) => transformCommandInvocations(text, invocation);
   }
   return undefined;
 }

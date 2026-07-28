@@ -39,7 +39,10 @@ function getWelcomeText(workflows: readonly string[]): string[] {
     '',
     chalk.white('This setup will configure:'),
     chalk.dim('  • Agent Skills for AI tools'),
-    chalk.dim('  • opsx slash commands'),
+    // Not "opsx slash commands": this screen runs before tool selection, and
+    // skills-only tools (Codex, Kimi Code, ...) correctly get no command files
+    // at all. The exact spelling per tool is printed in "Getting started".
+    chalk.dim('  • Workflow commands, if supported'),
     '',
     ...quickStart,
     chalk.cyan('Press Enter to select tools...'),

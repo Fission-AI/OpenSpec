@@ -366,6 +366,41 @@ Old instructions content
       expect(claudeSkill).not.toContain('/opsx-');
     });
 
+    it('heals stale slash references for a prompt-library tool (amazon-q)', async () => {
+      // Amazon Q registers no slash command at all: .amazonq/prompts files are
+      // its prompt library, invoked with @. A project generated before this fix
+      // carries /opsx: references that Amazon Q answers to under no spelling.
+      const initCommand = new InitCommand({ tools: 'amazon-q', force: true });
+      await initCommand.execute(testDir);
+
+      const promptFile = path.join(testDir, '.amazonq', 'prompts', 'opsx-apply.md');
+      const skillFile = path.join(
+        testDir,
+        '.amazonq',
+        'skills',
+        'openspec-apply-change',
+        'SKILL.md'
+      );
+      for (const file of [promptFile, skillFile]) {
+        const stale = (await fs.readFile(file, 'utf-8')).replace(/@opsx-/g, '/opsx:');
+        await fs.writeFile(file, stale);
+      }
+      expect(await fs.readFile(promptFile, 'utf-8')).toContain('/opsx:apply');
+
+      await new UpdateCommand({ force: true }).execute(testDir);
+
+      for (const file of [promptFile, skillFile]) {
+        const refreshed = await fs.readFile(file, 'utf-8');
+        // Positive assertion too: dropping every reference would satisfy the
+        // negative ones. And no stray slash may survive the rewrite.
+        expect(refreshed).toContain('@opsx-apply');
+        expect(refreshed).not.toContain('/opsx:');
+        expect(refreshed).not.toContain('/opsx-');
+      }
+      // The prompt body cross-references other prompts; those move too.
+      expect(await fs.readFile(promptFile, 'utf-8')).toContain('@opsx-archive');
+    });
+
     it('should update opsx commands for configured Claude tool', async () => {
       // Set up a configured Claude tool
       const skillsDir = path.join(testDir, '.claude', 'skills');

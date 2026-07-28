@@ -77,14 +77,16 @@ The intent is identical everywhere. The spelling follows the file your tool load
 |--------------------------|-----------------|---------------|
 | `.../commands/opsx/<id>.*` | `/opsx:propose` | Claude Code, Gemini CLI, Crush |
 | `.../opsx-<id>.*` | `/opsx-propose` | Cursor, GitHub Copilot (IDE), Windsurf, Trae, Oh My Pi |
+| `.amazonq/prompts/opsx-<id>.md` | `@opsx-propose` | Amazon Q Developer |
 | none — skills only | `/openspec-propose` | CodeArts, ForgeCode, Hermes, Mistral Vibe |
 | none — Kimi Code | `/skill:openspec-propose` | Kimi Code |
 | none — Codex CLI | `$openspec-propose` | Codex |
 
 Every tool is listed in [How To Invoke](supported-tools.md#how-to-invoke) — that
-table is the authoritative one, and it covers the tools that wrap the name
-further still. Note that the last three rows use the *skill* name, which is not
-the command id (`/opsx:apply` is the `openspec-apply-change` skill).
+table is the authoritative one. Two rows are not slash commands at all: Amazon Q
+loads its files into a prompt library invoked with `@`, and the last three rows
+use the *skill* name, which is not the command id (`/opsx:apply` is the
+`openspec-apply-change` skill).
 
 When in doubt, read the "Getting started" line `openspec init` printed: it already
 uses the form your tools registered. Typing a slash and watching the autocomplete
