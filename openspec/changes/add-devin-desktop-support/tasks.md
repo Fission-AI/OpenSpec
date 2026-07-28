@@ -3,7 +3,7 @@
 ## 1. Adapter
 
 - [x] 1.1 Add `src/core/command-generation/adapters/devin.ts`, modeled on the Windsurf adapter: `.devin/workflows/opsx-<id>.md`, frontmatter `name`/`description`/`category`/`tags` via the shared helpers in `command-generation/yaml.ts`.
-- [x] 1.2 Rewrite `/opsx:<id>` body references to `/opsx-<id>` with `transformToHyphenCommands` — Devin registers a workflow under its filename.
+- [x] 1.2 Keep the adapter a pure formatter: the `opsx-` filename prefix makes Devin a flat invocation, so the generator rewrites `/opsx:<id>` body references to `/opsx-<id>` — the name Devin registers for a workflow file.
 - [x] 1.3 Register in `registry.ts` and re-export from `adapters/index.ts`.
 
 ## 2. Tool wiring
@@ -19,7 +19,7 @@
 
 ## 4. Tests
 
-- [x] 4.1 Adapter: tool id, `getFilePath`, frontmatter, and hyphen rewriting. YAML escaping is covered by the registry-derived parity matrix, which enrolls Devin automatically.
+- [x] 4.1 Adapter: tool id, `getFilePath`, and frontmatter. Hyphen rewriting is asserted end to end in the `generateCommand` flat-tool loop, and YAML escaping by the registry-derived parity matrix — both enroll Devin automatically.
 - [x] 4.2 Registry and `available-tools` detection from `.devin/`, including the negative case.
 - [x] 4.3 `init`: both surfaces — `.devin/workflows/opsx-*.md` carry `/opsx-*`, `.devin/skills/openspec-*/SKILL.md` carry `/openspec-*`, and neither carries `/opsx:`.
 - [x] 4.4 `update`: workflows and skills are both refreshed, with stale content gone.
