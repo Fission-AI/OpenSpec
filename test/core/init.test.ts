@@ -1024,26 +1024,57 @@ describe('InitCommand - profile and detection features', () => {
     }
   });
 
-  it('should print a syntax-neutral hint for codex (skills-invocable, no slash surface)', async () => {
-    // Codex has no slash-command surface: docs direct users to
-    // .codex/skills/openspec-*, so the hint must not advertise a slash form
+  it('should print the $-prefixed skill hint for codex (skills-invocable, no slash surface)', async () => {
+    // Codex has no slash-command surface: it invokes skills as $<name>, so the
+    // hint - and the generated skills - must use that form, never /opsx:*
     const initCommand = new InitCommand({ tools: 'codex', force: true });
     await initCommand.execute(testDir);
 
-    // Codex skill generation itself is deliberately untouched by #1155
-    // (codex reference rewriting is owned by a separate change)
     const skillFile = path.join(testDir, '.codex', 'skills', 'openspec-apply-change', 'SKILL.md');
     expect(await fileExists(skillFile)).toBe(true);
+    const skillContent = await fs.readFile(skillFile, 'utf-8');
+    expect(skillContent).not.toContain('/opsx:');
+    expect(skillContent).toContain('$openspec-');
 
     const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
     const startHint = logCalls.find((entry) => entry.includes('Start your first change'));
-    expect(startHint).toContain('with the openspec-propose skill');
+    expect(startHint).toContain('$openspec-propose');
     expect(startHint).not.toContain('/openspec-propose');
     expect(startHint).not.toContain('/opsx:propose');
 
     // No slash commands were generated, so the restart line must not claim any
     const restartHint = logCalls.find((entry) => entry.includes('Restart your IDE'));
     expect(restartHint).toContain('Restart your IDE for the new skills to take effect.');
+    expect(restartHint).not.toContain('slash commands');
+  });
+
+  it('should print the @-prefixed prompt hint for amazon-q (prompt library, no slash surface)', async () => {
+    // Amazon Q loads .amazonq/prompts/opsx-<id>.md into its prompt library,
+    // invoked as @opsx-<id>. It registers no slash command under any spelling,
+    // so neither the hint, the generated prompts, the skills, nor the restart
+    // line may name one.
+    const initCommand = new InitCommand({ tools: 'amazon-q', force: true });
+    await initCommand.execute(testDir);
+
+    const promptFile = path.join(testDir, '.amazonq', 'prompts', 'opsx-apply.md');
+    const skillFile = path.join(testDir, '.amazonq', 'skills', 'openspec-apply-change', 'SKILL.md');
+    for (const file of [promptFile, skillFile]) {
+      expect(await fileExists(file)).toBe(true);
+      const content = await fs.readFile(file, 'utf-8');
+      expect(content).toContain('@opsx-apply');
+      expect(content).not.toContain('/opsx:');
+      expect(content).not.toContain('/opsx-');
+    }
+
+    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+    const startHint = logCalls.find((entry) => entry.includes('Start your first change'));
+    expect(startHint).toContain('@opsx-propose');
+    expect(startHint).not.toContain('/opsx-propose');
+    expect(startHint).not.toContain('/opsx:propose');
+
+    // Commands were generated, but they are not slash commands.
+    const restartHint = logCalls.find((entry) => entry.includes('Restart your IDE'));
+    expect(restartHint).toContain('Restart your IDE for the new commands to take effect.');
     expect(restartHint).not.toContain('slash commands');
   });
 
@@ -1056,12 +1087,45 @@ describe('InitCommand - profile and detection features', () => {
     expect(startHints).toHaveLength(2);
     const codexHint = startHints.find((entry) => entry.includes('(Codex)'));
     const vibeHint = startHints.find((entry) => entry.includes('Mistral Vibe'));
-    expect(codexHint).toContain('with the openspec-propose skill');
+    expect(codexHint).toContain('$openspec-propose');
     expect(codexHint).not.toContain('/openspec-propose');
     expect(vibeHint).toContain('/openspec-propose');
     for (const hint of startHints) {
       expect(hint).not.toContain('/opsx:');
     }
+  });
+
+  it('should reference commands by the names each tool registers (cursor+claude)', async () => {
+    // Cursor registers commands by filename (.cursor/commands/opsx-apply.md ->
+    // /opsx-apply) while Claude namespaces them under opsx/ (-> /opsx:apply).
+    // Command bodies, skills and the onboarding hint must each follow the tool
+    // they are written for.
+    const initCommand = new InitCommand({ tools: 'cursor,claude', force: true });
+    await initCommand.execute(testDir);
+
+    const read = (...segments: string[]) => fs.readFile(path.join(testDir, ...segments), 'utf-8');
+
+    const cursorCommand = await read('.cursor', 'commands', 'opsx-apply.md');
+    // A body cross-reference, not the frontmatter name, which already
+    // carried the hyphen form before this behaviour existed.
+    expect(cursorCommand).toContain('/opsx-archive');
+    expect(cursorCommand).not.toContain('/opsx:');
+
+    const cursorSkill = await read('.cursor', 'skills', 'openspec-apply-change', 'SKILL.md');
+    expect(cursorSkill).not.toContain('/opsx:');
+
+    // Claude's namespaced commands are unchanged
+    const claudeCommand = await read('.claude', 'commands', 'opsx', 'apply.md');
+    expect(claudeCommand).toContain('/opsx:archive');
+    expect(claudeCommand).not.toContain('/opsx-');
+
+    const claudeSkill = await read('.claude', 'skills', 'openspec-apply-change', 'SKILL.md');
+    expect(claudeSkill).not.toContain('/opsx-');
+
+    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+    const startHints = logCalls.filter((entry) => entry.includes('Start your first change'));
+    expect(startHints.find((entry) => entry.includes('Cursor'))).toContain('/opsx-propose');
+    expect(startHints.find((entry) => entry.includes('Claude Code'))).toContain('/opsx:propose');
   });
 
   it('should print the hyphen command hint for filename-invoked tools (claude+qwen)', async () => {
@@ -1100,7 +1164,7 @@ describe('InitCommand - profile and detection features', () => {
     // Only the codex instruction may be advertised — a Kimi line would point
     // at skills that were never generated
     expect(startHints).toHaveLength(1);
-    expect(startHints[0]).toContain('with the openspec-propose skill');
+    expect(startHints[0]).toContain('$openspec-propose');
     expect(startHints[0]).not.toContain('Kimi');
     expect(logCalls.some((entry) => entry.includes('/skill:openspec-'))).toBe(false);
     // Kimi got zero artifacts, so it still deserves the configuration correction

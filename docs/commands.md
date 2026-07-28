@@ -4,6 +4,11 @@ This is the reference for OpenSpec's slash commands. These commands are invoked 
 
 For workflow patterns and when to use each command, see [Workflows](workflows.md). For CLI commands, see [CLI](cli.md).
 
+These pages use `/opsx:<command>` as the canonical name. Some tools spell it
+differently — Cursor and GitHub Copilot register `/opsx-propose`, Codex uses
+`$openspec-propose` — so check [How To Invoke](supported-tools.md#how-to-invoke)
+for your tool. The files OpenSpec generates already use the right form.
+
 ## Quick Reference
 
 ### Default Quick Path (`core` profile)
@@ -664,19 +669,15 @@ AI:  Welcome to OpenSpec!
 
 Different AI tools use slightly different command syntax. Use the format that matches your tool:
 
-| Tool | Syntax Example |
-|------|----------------|
-| Claude Code | `/opsx:propose`, `/opsx:apply` |
-| Cursor | `/opsx-propose`, `/opsx-apply` |
-| Windsurf | `/opsx-propose`, `/opsx-apply` |
-| Copilot (IDE) | `/opsx-propose`, `/opsx-apply` |
-| CodeArts | Skill-based invocations such as `/openspec-propose`, `/openspec-apply-change` (no generated `opsx-*` command files) |
-| Codex | Skill-based invocations from `.codex/skills/openspec-*` (no generated `opsx-*` prompt files) |
-| Oh My Pi | `/opsx-propose`, `/opsx-apply` |
-| Kimi Code | Skill-based invocations such as `/skill:openspec-propose`, `/skill:openspec-apply-change` (no generated `opsx-*` command files) |
-| Trae | `/opsx-propose`, `/opsx-apply` |
+| Your tool's command file | Syntax example | Example tools |
+|--------------------------|----------------|---------------|
+| `.../commands/opsx/<id>.*` | `/opsx:propose`, `/opsx:apply` | Claude Code, Gemini CLI, Crush |
+| `.../opsx-<id>.*` | `/opsx-propose`, `/opsx-apply` | Cursor, Windsurf, Copilot (IDE), Trae, Oh My Pi |
+| none — skills only | `/openspec-propose`, `/openspec-apply-change` | CodeArts, ForgeCode, Hermes, Mistral Vibe |
+| none — Kimi Code | `/skill:openspec-propose` | Kimi Code |
+| none — Codex CLI | `$openspec-propose` | Codex |
 
-The intent is the same across tools, but how commands are surfaced can differ by integration.
+The intent is the same across tools, but how commands are surfaced can differ by integration. [How To Invoke](supported-tools.md#how-to-invoke) lists every supported tool; this table shows only examples of each shape.
 
 > **Note:** GitHub Copilot commands (`.github/prompts/*.prompt.md`) are only available in IDE extensions (VS Code, JetBrains, Visual Studio). GitHub Copilot CLI does not currently support custom prompt files — see [Supported Tools](supported-tools.md) for details and workarounds.
 

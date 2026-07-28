@@ -69,8 +69,9 @@ order, and stop where a step tells you to stop.
    it suggested instead of retrying. Finish by telling me how to invoke OpenSpec
    in my tool, and take the exact spelling from the files init created rather
    than from its summary line: the punctuation differs per tool (/opsx:propose
-   in some, /opsx-propose in others), and skills-only tools have no slash
-   command at all.
+   in some, /opsx-propose in others, @opsx-propose in Amazon Q), and tools that
+   get skills instead of commands are invoked by skill name (/openspec-propose,
+   or $openspec-propose in Codex, or /skill:openspec-propose in Kimi Code).
 ```
 
 Nothing in the prompt is vendor-specific: it's plain instructions plus the same commands documented on this page. It works on macOS, Linux, and Windows, and it deliberately stops rather than improvising when a step needs your permission. Your assistant does need to be able to run shell commands — a few IDE integrations can't.

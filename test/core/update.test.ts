@@ -296,6 +296,111 @@ Old instructions content
   });
 
   describe('command updates', () => {
+    it('heals stale colon references for a filename-invoked tool (cursor)', async () => {
+      // The headline upgrade path for #1307: a project generated before the
+      // fix carries /opsx: references that Cursor's palette never registers.
+      // `openspec update` must rewrite both the command bodies and the skills.
+      const initCommand = new InitCommand({ tools: 'cursor', force: true });
+      await initCommand.execute(testDir);
+
+      const commandFile = path.join(testDir, '.cursor', 'commands', 'opsx-apply.md');
+      const skillFile = path.join(
+        testDir,
+        '.cursor',
+        'skills',
+        'openspec-apply-change',
+        'SKILL.md'
+      );
+      for (const file of [commandFile, skillFile]) {
+        const stale = (await fs.readFile(file, 'utf-8')).replace(/\/opsx-/g, '/opsx:');
+        await fs.writeFile(file, stale);
+      }
+      expect(await fs.readFile(commandFile, 'utf-8')).toContain('/opsx:apply');
+      expect(await fs.readFile(skillFile, 'utf-8')).toContain('/opsx:apply');
+
+      await new UpdateCommand({ force: true }).execute(testDir);
+
+      const command = await fs.readFile(commandFile, 'utf-8');
+      expect(command).toContain('/opsx-archive');
+      expect(command).not.toContain('/opsx:');
+
+      const skill = await fs.readFile(skillFile, 'utf-8');
+      // Positive assertion too: a skill that simply dropped every reference
+      // would satisfy the negative one.
+      expect(skill).toContain('/opsx-apply');
+      expect(skill).not.toContain('/opsx:');
+    });
+
+    it('keeps namespaced references for claude while hyphenating qwen in one run', async () => {
+      const initCommand = new InitCommand({ tools: 'claude,qwen', force: true });
+      await initCommand.execute(testDir);
+
+      await new UpdateCommand({ force: true }).execute(testDir);
+
+      const claudeCommand = await fs.readFile(
+        path.join(testDir, '.claude', 'commands', 'opsx', 'apply.md'),
+        'utf-8'
+      );
+      expect(claudeCommand).toContain('/opsx:archive');
+      expect(claudeCommand).not.toContain('/opsx-archive');
+
+      const qwenCommand = await fs.readFile(
+        path.join(testDir, '.qwen', 'commands', 'opsx-apply.md'),
+        'utf-8'
+      );
+      expect(qwenCommand).toContain('/opsx-archive');
+      expect(qwenCommand).not.toContain('/opsx:');
+
+      const qwenSkill = await fs.readFile(
+        path.join(testDir, '.qwen', 'skills', 'openspec-apply-change', 'SKILL.md'),
+        'utf-8'
+      );
+      expect(qwenSkill).toContain('/opsx-apply');
+      expect(qwenSkill).not.toContain('/opsx:');
+
+      const claudeSkill = await fs.readFile(
+        path.join(testDir, '.claude', 'skills', 'openspec-apply-change', 'SKILL.md'),
+        'utf-8'
+      );
+      expect(claudeSkill).toContain('/opsx:apply');
+      expect(claudeSkill).not.toContain('/opsx-');
+    });
+
+    it('heals stale slash references for a prompt-library tool (amazon-q)', async () => {
+      // Amazon Q registers no slash command at all: .amazonq/prompts files are
+      // its prompt library, invoked with @. A project generated before this fix
+      // carries /opsx: references that Amazon Q answers to under no spelling.
+      const initCommand = new InitCommand({ tools: 'amazon-q', force: true });
+      await initCommand.execute(testDir);
+
+      const promptFile = path.join(testDir, '.amazonq', 'prompts', 'opsx-apply.md');
+      const skillFile = path.join(
+        testDir,
+        '.amazonq',
+        'skills',
+        'openspec-apply-change',
+        'SKILL.md'
+      );
+      for (const file of [promptFile, skillFile]) {
+        const stale = (await fs.readFile(file, 'utf-8')).replace(/@opsx-/g, '/opsx:');
+        await fs.writeFile(file, stale);
+      }
+      expect(await fs.readFile(promptFile, 'utf-8')).toContain('/opsx:apply');
+
+      await new UpdateCommand({ force: true }).execute(testDir);
+
+      for (const file of [promptFile, skillFile]) {
+        const refreshed = await fs.readFile(file, 'utf-8');
+        // Positive assertion too: dropping every reference would satisfy the
+        // negative ones. And no stray slash may survive the rewrite.
+        expect(refreshed).toContain('@opsx-apply');
+        expect(refreshed).not.toContain('/opsx:');
+        expect(refreshed).not.toContain('/opsx-');
+      }
+      // The prompt body cross-references other prompts; those move too.
+      expect(await fs.readFile(promptFile, 'utf-8')).toContain('@opsx-archive');
+    });
+
     it('should update opsx commands for configured Claude tool', async () => {
       // Set up a configured Claude tool
       const skillsDir = path.join(testDir, '.claude', 'skills');
@@ -387,6 +492,23 @@ Old instructions content
       }
     });
 
+    it('should update command files when tool is configured via commands-only delivery without skills', async () => {
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+      const commandsDir = path.join(testDir, '.claude', 'commands', 'opsx');
+      await fs.mkdir(commandsDir, { recursive: true });
+      const coreCommandIds = ['explore', 'apply', 'update', 'sync', 'archive', 'propose'];
+      for (const cmdId of coreCommandIds) {
+        await fs.writeFile(path.join(commandsDir, `${cmdId}.md`), 'old command content');
+      }
+
+      await updateCommand.execute(testDir);
+
+      for (const cmdId of coreCommandIds) {
+        const updatedContent = await fs.readFile(path.join(commandsDir, `${cmdId}.md`), 'utf-8');
+        expect(updatedContent).not.toBe('old command content');
+        expect(updatedContent).toContain('---');
+      }
+    });
   });
 
   describe('multi-tool support', () => {
@@ -1146,13 +1268,38 @@ ${OPENSPEC_MARKERS.end}
       expect(logCalls.some((entry) => entry.includes('Getting started'))).toBe(true);
       const menuLines = logCalls.filter((entry) => entry.includes('Scaffold a change'));
       expect(menuLines).toHaveLength(1);
-      expect(menuLines[0]).toContain('the openspec-new-change skill');
+      expect(menuLines[0]).toContain('$openspec-new-change');
       expect(logCalls.some((entry) => entry.includes('/opsx:new'))).toBe(false);
       expect(logCalls.some((entry) => entry.includes('/opsx:continue'))).toBe(false);
       expect(logCalls.some((entry) => entry.includes('/opsx:apply'))).toBe(false);
       // Only the inferred workflow is advertised, not the rest of the profile
       expect(logCalls.some((entry) => entry.includes('Next artifact'))).toBe(false);
       expect(logCalls.some((entry) => entry.includes('Implement tasks'))).toBe(false);
+    });
+
+    it('should print the hyphen getting-started menu when a legacy upgrade newly configures cursor', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'both',
+      });
+
+      // A pre-opsx Cursor project: legacy .cursor/commands/openspec-*.md files
+      // make the upgrade newly configure cursor, whose menu must name the
+      // commands its palette registers (/opsx-propose), not /opsx:propose.
+      const legacyDir = path.join(testDir, '.cursor', 'commands');
+      await fs.mkdir(legacyDir, { recursive: true });
+      await fs.writeFile(path.join(legacyDir, 'openspec-proposal.md'), 'legacy proposal command');
+
+      const consoleSpy = vi.spyOn(console, 'log');
+      await new UpdateCommand({ force: true }).execute(testDir);
+      const logCalls = consoleSpy.mock.calls.flat().map(String);
+      consoleSpy.mockRestore();
+
+      const menuLines = logCalls.filter((entry) => entry.includes('Start a change'));
+      expect(menuLines).toHaveLength(1);
+      expect(menuLines[0]).toContain('/opsx-propose');
+      expect(logCalls.some((entry) => entry.includes('/opsx:propose'))).toBe(false);
     });
 
     it('should preserve legacy Codex prompts when a configured Codex tool lacks the replacement workflow', async () => {
@@ -1917,6 +2064,32 @@ More user content after markers.
       expect(await FileSystemUtils.fileExists(
         path.join(skillsDir, 'openspec-explore', 'SKILL.md')
       )).toBe(false);
+    });
+
+    it('should be a no-op on second update run for commands-only delivery', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'commands',
+      });
+
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), { recursive: true });
+      await fs.writeFile(path.join(skillsDir, 'openspec-explore', 'SKILL.md'), 'old');
+
+      // First run updates commands and removes skills
+      await updateCommand.execute(testDir);
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      // Second run should report all tools up to date without updating
+      await updateCommand.execute(testDir);
+
+      const logCalls = consoleSpy.mock.calls.flat().map(String);
+      expect(logCalls.some((entry) => entry.includes('up to date'))).toBe(true);
+      expect(logCalls.some((entry) => entry.includes('Updating 1 tool(s)'))).toBe(false);
+
+      consoleSpy.mockRestore();
     });
 
     it.each(['both', 'skills', 'commands'] as const)(
