@@ -51,6 +51,8 @@ If `/opsx:propose` (or your tool's equivalent) doesn't appear or doesn't do anyt
 
    This rewrites the skill and command files for every tool you've configured.
 
+   Instruction files come from the *installed* CLI, so an outdated CLI reports everything up to date without ever writing the newer workflows. `openspec update` now checks for that and offers to upgrade — take the offer if you see it.
+
 3. **Restart your assistant.** Most tools scan for skills and commands at startup. A fresh window often does it.
 
 4. **Confirm the files exist.** For Claude Code, check that `.claude/skills/` contains `openspec-*` folders. Other tools use their own directories, all listed in [Supported Tools](supported-tools.md).
