@@ -18,10 +18,12 @@ it loads the file OpenSpec wrote. Read your tool's command path in the table
 below and match it to a row here — the generated files and the post-setup
 "Getting started" hint already use the right form for the tools you selected.
 
-| Command path pattern | You type | Examples |
-|----------------------|----------|----------|
+| Command path pattern | You type | Tools |
+|----------------------|----------|-------|
 | `.../commands/opsx/<id>.md` (namespaced) | `/opsx:<id>` | Claude Code, CodeBuddy, Crush, Gemini CLI, Lingma, Qoder, ZCode |
-| `.../opsx-<id>.md` (filename is the command) | `/opsx-<id>` | Cursor, GitHub Copilot, Windsurf, OpenCode, Qwen Code, and every other adapter-backed tool |
+| `.../opsx-<id>.md` (filename is the command) | `/opsx-<id>` | Antigravity, Auggie, IBM Bob Shell, CoStrict, Continue, Cursor, Factory Droid, GitHub Copilot, iFlow, Junie, Kiro, Oh My Pi, OpenCode, Pi, Qwen Code, Trae, Windsurf, Zoo Code |
+| `.../opsx-<id>.md`, invoked with the extension | `/opsx-<id>.md` | Cline, Kilo Code |
+| `.amazonq/prompts/opsx-<id>.md`, expanded as a prompt | `@opsx-<id>` | Amazon Q Developer |
 | No command files — skills only | `/openspec-<skill>` | CodeArts, ForgeCode, Hermes, Mistral Vibe |
 | No command files — Kimi Code | `/skill:openspec-<skill>` | Kimi Code |
 | No command files — Codex CLI | `$openspec-<skill>` | Codex ([the `/openspec-<skill>` form is not recognized](https://github.com/openai/codex/issues/11817)) |
@@ -29,10 +31,9 @@ below and match it to a row here — the generated files and the post-setup
 So `/opsx:propose` is `/opsx-propose` in Cursor and `$openspec-propose` in Codex.
 Skill names are listed under [Generated Skill Names](#generated-skill-names).
 
-A few tools wrap the same file name in their own syntax — Cline and Kilo Code
-invoke workflows including the `.md` suffix, and Amazon Q expands saved prompts
-with `@`. The `opsx-<id>` part is the same either way; if a slash does not
-autocomplete, type the tool's own prefix in front of `opsx-propose`.
+The last four rows are the exceptions worth knowing: the `opsx-<id>` part is the
+same everywhere, but the wrapper around it is the tool's own. If a slash does not
+autocomplete, type your tool's prefix in front of `opsx-propose`.
 
 By default, OpenSpec uses the `core` profile, which includes:
 - `propose`

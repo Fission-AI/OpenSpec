@@ -198,11 +198,11 @@ describe('getTransformerForTool', () => {
   it('selects skill references for tools without a command surface, regardless of delivery', () => {
     // Tools like Kimi Code or Mistral Vibe have no command adapter, so their
     // skills must never reference /opsx:* commands that were not generated.
-    expect(getTransformerForTool('vibe', 'both', 'none')).toBe(transformToSkillReferences);
-    expect(getTransformerForTool('hermes', 'both', 'none')).toBe(transformToSkillReferences);
+    expect(getTransformerForTool('vibe', 'both', 'none', undefined)).toBe(transformToSkillReferences);
+    expect(getTransformerForTool('hermes', 'both', 'none', undefined)).toBe(transformToSkillReferences);
     // Kimi Code documents /skill:<name> invocations (docs/supported-tools.md)
     for (const delivery of ['both', 'commands', 'skills'] as const) {
-      const transformer = getTransformerForTool('kimi', delivery, 'none');
+      const transformer = getTransformerForTool('kimi', delivery, 'none', undefined);
       expect(transformer?.('/opsx:propose')).toBe('/skill:openspec-propose');
     }
   });
@@ -226,7 +226,7 @@ describe('getTransformerForTool', () => {
   it('selects $-prefixed skill references for codex, which registers no slash commands', () => {
     // Codex CLI invokes skills as $<name>; the /<name> form is unrecognized.
     for (const delivery of ['both', 'commands', 'skills'] as const) {
-      const transformer = getTransformerForTool('codex', delivery, 'skills-invocable');
+      const transformer = getTransformerForTool('codex', delivery, 'skills-invocable', undefined);
       expect(transformer?.('/opsx:propose')).toBe('$openspec-propose');
       expect(transformer?.('Run /opsx:apply next')).toBe('Run $openspec-apply-change next');
     }

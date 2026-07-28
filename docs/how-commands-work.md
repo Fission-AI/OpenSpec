@@ -85,7 +85,7 @@ The intent is identical everywhere. The punctuation differs. Use the form that m
 | Kimi CLI | skill-style, e.g. `/skill:openspec-propose` |
 | Trae | `/opsx-propose`, `/opsx-apply` |
 
-Most tools use either the colon form (`/opsx:propose`) or the dash form (`/opsx-propose`); the dash form is the common one, used by every tool whose command file is named `opsx-<id>`. A few tools surface OpenSpec as named skills instead of slash commands; for those you invoke the skill by name, with the prefix that tool expects. The full per-tool list, including exactly which files get written where, lives in [Supported Tools](supported-tools.md#how-to-invoke).
+Most tools use either the colon form (`/opsx:propose`) or the dash form (`/opsx-propose`); the dash form is the common one, used by tools whose command file is named `opsx-<id>`. A handful wrap that same name differently — Cline and Kilo Code want the `.md` suffix, Amazon Q expands prompts with `@` — and a few surface OpenSpec as named skills instead of slash commands, invoked by name with the prefix that tool expects. Every tool's exact form is listed in [How To Invoke](supported-tools.md#how-to-invoke).
 
 When in doubt, type a slash in your AI chat and look at the autocomplete. Your tool will show you the form it expects.
 
