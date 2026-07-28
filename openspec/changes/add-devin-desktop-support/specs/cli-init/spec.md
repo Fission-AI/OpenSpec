@@ -1,34 +1,71 @@
+# cli-init Delta Specification
+
 ## MODIFIED Requirements
 
-### Requirement: AI Tool Configuration
-The command SHALL configure AI coding assistants with OpenSpec instructions using a marker system.
+### Requirement: Skill Generation
 
-#### Scenario: Prompting for AI tool selection
-- **WHEN** run interactively
-- **THEN** prompt the user with "Which AI tools do you use?" using a multi-select menu
-- **AND** list every available tool with a checkbox:
-  - Claude Code (creates or refreshes CLAUDE.md and slash commands)
-  - Cursor (creates or refreshes `.cursor/commands/*` slash commands)
-  - OpenCode (creates or refreshes `.opencode/command/openspec-*.md` slash commands)
-  - Devin Desktop (creates or refreshes `.devin/workflows/opsx-*.md` workflows)
-  - Windsurf (creates or refreshes `.windsurf/workflows/opsx-*.md` workflows)
-  - AGENTS.md standard (creates or refreshes AGENTS.md with OpenSpec markers)
-- **AND** show "(already configured)" beside tools whose managed files exist so users understand selections will refresh content
-- **AND** treat disabled tools as "coming soon" and keep them unselectable
-- **AND** allow confirming with Enter after selecting one or more tools
+The command SHALL generate Agent Skills for selected AI tools.
 
-### Requirement: Slash Command Configuration
-The init command SHALL generate slash command files for supported editors using shared templates.
+#### Scenario: Generating skills for a tool
+
+- **WHEN** a tool is selected during initialization
+- **THEN** create 9 skill directories under `.<tool>/skills/`:
+  - `openspec-explore/SKILL.md`
+  - `openspec-new-change/SKILL.md`
+  - `openspec-continue-change/SKILL.md`
+  - `openspec-apply-change/SKILL.md`
+  - `openspec-ff-change/SKILL.md`
+  - `openspec-verify-change/SKILL.md`
+  - `openspec-sync-specs/SKILL.md`
+  - `openspec-archive-change/SKILL.md`
+  - `openspec-bulk-archive-change/SKILL.md`
+- **AND** each SKILL.md SHALL contain YAML frontmatter with name and description
+- **AND** each SKILL.md SHALL contain the skill instructions
+
+#### Scenario: Devin skills reference skills rather than workflows
+
+- **GIVEN** only Devin Desktop reads `.devin/workflows/`, while Devin Local supports skills but not workflows
+- **WHEN** generating skills for the `devin` tool
+- **THEN** rewrite `/opsx:<id>` references in the skill body to the matching `/openspec-<skill>` invocation, which works on both Devin surfaces
+- **AND** the getting-started hint SHALL name `/openspec-propose` rather than a workflow
+
+### Requirement: Slash Command Generation
+
+The command SHALL generate opsx slash commands only for selected tools that have a registered command adapter, while keeping adapterless tools valid for skill generation.
+
+#### Scenario: Generating slash commands for a tool with a registered adapter
+
+- **WHEN** a tool with a registered command adapter is selected during initialization
+- **THEN** create 9 slash command files using the tool's command adapter:
+  - `/opsx:explore`
+  - `/opsx:new`
+  - `/opsx:continue`
+  - `/opsx:apply`
+  - `/opsx:ff`
+  - `/opsx:verify`
+  - `/opsx:sync`
+  - `/opsx:archive`
+  - `/opsx:bulk-archive`
+- **AND** use tool-specific path conventions (e.g., `.claude/commands/opsx/` for Claude)
+- **AND** include tool-specific frontmatter format
+
+#### Scenario: Selected tool has no command adapter
+
+- **GIVEN** a selected tool has `skillsDir` configured but no registered command adapter
+- **WHEN** initialization includes command generation
+- **THEN** skill generation for that tool SHALL still remain valid
+- **AND** command-file generation SHALL be skipped for that tool
+- **AND** the command output SHALL include `Commands skipped for: <tool-id> (no adapter)`
+
+#### Scenario: Kimi Code skips command-file generation
+
+- **WHEN** the user selects Kimi Code during initialization
+- **THEN** OpenSpec SHALL treat it as a supported tool with `skillsDir: '.kimi-code'`
+- **AND** command-file generation SHALL be skipped because no Kimi adapter is registered
 
 #### Scenario: Generating workflows for Devin Desktop
-- **WHEN** the user selects Devin Desktop during initialization
-- **THEN** create `.devin/workflows/opsx-propose.md`, `.devin/workflows/opsx-apply.md`, and `.devin/workflows/opsx-archive.md`
-- **AND** populate each file from shared templates (wrapped in OpenSpec markers) so workflow text matches other tools
-- **AND** each template includes instructions for the relevant OpenSpec workflow stage
-- **AND** use the same frontmatter structure as Windsurf (name, description, category, tags)
 
-#### Scenario: Generating workflows for Windsurf
-- **WHEN** the user selects Windsurf during initialization
-- **THEN** create `.windsurf/workflows/opsx-propose.md`, `.windsurf/workflows/opsx-apply.md`, and `.windsurf/workflows/opsx-archive.md`
-- **AND** populate each file from shared templates (wrapped in OpenSpec markers) so workflow text matches other tools
-- **AND** each template includes instructions for the relevant OpenSpec workflow stage
+- **WHEN** the user selects Devin Desktop during initialization
+- **THEN** create one workflow file per profile workflow at `.devin/workflows/opsx-<id>.md`
+- **AND** include Windsurf-style frontmatter with `name`, `description`, `category`, and `tags`
+- **AND** rewrite `/opsx:<id>` references in the body to `/opsx-<id>`, the name Devin registers for a workflow file

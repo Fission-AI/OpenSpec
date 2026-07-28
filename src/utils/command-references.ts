@@ -103,7 +103,11 @@ export function getSkillReferenceTransformer(toolId: string): (text: string) => 
  * commands — either because delivery is skills-only (for every tool) or
  * because the tool has no command surface at all (capability 'none', e.g.
  * Kimi Code or Mistral Vibe) — so those skills never point at commands
- * that were not generated. When commands are generated, tools where the
+ * that were not generated. Devin is the same case for a different reason:
+ * only Devin Desktop reads `.devin/workflows/`, so a workflow reference is
+ * dead text for anyone on Devin Local, while the `/openspec-*` skills work
+ * on both. Devin's workflow bodies still get hyphen references, applied by
+ * devinAdapter itself. When commands are generated, tools where the
  * command filename doubles as the command name (bob, oh-my-pi, opencode,
  * pi, qwen) use hyphen-based command references. All other cases keep the default
  * `/opsx:*` references; notably skills-invocable tools (codex) are
@@ -120,7 +124,7 @@ export function getTransformerForTool(
   delivery: 'both' | 'skills' | 'commands',
   capability: CommandSurfaceCapability
 ): ((text: string) => string) | undefined {
-  if (delivery === 'skills' || capability === 'none') {
+  if (delivery === 'skills' || capability === 'none' || toolId === 'devin') {
     return getSkillReferenceTransformer(toolId);
   }
   if (

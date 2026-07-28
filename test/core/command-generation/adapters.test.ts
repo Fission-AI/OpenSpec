@@ -156,10 +156,10 @@ describe('command-generation/adapters', () => {
       const output = devinAdapter.formatFile(sampleContent);
 
       expect(output).toContain('---\n');
-      expect(output).toContain('name: OpenSpec Explore');
-      expect(output).toContain('description: Enter explore mode for thinking');
-      expect(output).toContain('category: Workflow');
-      expect(output).toContain('tags: [workflow, explore, experimental]');
+      expect(output).toContain('name: "OpenSpec Explore"');
+      expect(output).toContain('description: "Enter explore mode for thinking"');
+      expect(output).toContain('category: "Workflow"');
+      expect(output).toContain('tags: ["workflow", "explore", "experimental"]');
       expect(output).toContain('---\n\n');
       expect(output).toContain('This is the command body.');
     });
