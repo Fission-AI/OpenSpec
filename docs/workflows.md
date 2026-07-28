@@ -36,6 +36,7 @@ New installs default to `core`, which provides:
 - `/opsx:explore`
 - `/opsx:propose`
 - `/opsx:apply`
+- `/opsx:update`
 - `/opsx:sync`
 - `/opsx:archive`
 

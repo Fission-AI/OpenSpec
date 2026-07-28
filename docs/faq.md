@@ -22,7 +22,7 @@ Existing codebases are the main event. OpenSpec is brownfield-first: you do not 
 
 ### Is it tied to one AI tool?
 
-No. OpenSpec works with 25+ assistants, including Claude Code, Cursor, Windsurf, GitHub Copilot, Gemini CLI, Codex, and more. The full list and per-tool details are in [Supported Tools](supported-tools.md).
+No. OpenSpec works with 30+ assistants, including Claude Code, Cursor, Windsurf, GitHub Copilot, Gemini CLI, Codex, and more. The full list and per-tool details are in [Supported Tools](supported-tools.md).
 
 ## Running commands
 
@@ -66,7 +66,7 @@ Explore to think it through, propose to draft the plan, apply to build it, archi
 
 ### What are `core` and expanded profiles?
 
-A profile decides which slash commands get installed. **Core** (the default) gives you `propose`, `explore`, `apply`, `sync`, `archive`. The **expanded** set adds `new`, `continue`, `ff`, `verify`, `bulk-archive`, and `onboard` for finer control. Switch with `openspec config profile`, then apply with `openspec update`.
+A profile decides which slash commands get installed. **Core** (the default) gives you `propose`, `explore`, `apply`, `update`, `sync`, `archive`. The **expanded** set adds `new`, `continue`, `ff`, `verify`, `bulk-archive`, and `onboard` for finer control. Switch with `openspec config profile`, then apply with `openspec update`.
 
 ### Do I need to run `/opsx:sync`?
 

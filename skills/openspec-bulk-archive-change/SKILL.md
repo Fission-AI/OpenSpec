@@ -13,7 +13,7 @@ Archive multiple completed changes in a single operation.
 
 This skill allows you to batch-archive changes, handling spec conflicts intelligently by checking the codebase to determine what's actually implemented.
 
-**Store selection:** If the user names a store (a store is a standalone OpenSpec repo registered on this machine) or the work lives in one, run `openspec store list --json` to discover registered store ids, then pass `--store <id>` on the commands that read or write specs and changes (`new change`, `status`, `instructions`, `list`, `show`, `validate`, `archive`, `doctor`, `context`). Other commands do not take the flag. Hints printed by commands already carry the flag; keep it on follow-ups. Without a store, commands act on the nearest local `openspec/` root.
+**Store selection:** If the user names a store (a store is a standalone OpenSpec repo registered on this machine) or the work lives in one, run `openspec store list --json` to discover registered store ids, then pass `--store <id>` on the commands that read or write specs and changes (`new change`, `status`, `instructions`, `list`, `show`, `validate`, `archive`, `doctor`, `context`, `view`). Other commands do not take the flag. Hints printed by commands already carry the flag; keep it on follow-ups. Without a store, commands act on the nearest local `openspec/` root.
 
 **Input**: None required (prompts for selection)
 
@@ -27,12 +27,37 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
 2. **Prompt for change selection**
 
-   Use **AskUserQuestion tool** with multi-select to let user choose changes:
+   Ask the user to choose changes (multi-select):
    - Show each change with its schema
    - Include an option for "All changes"
    - Allow any number of selections (1+ works, 2+ is the typical use case)
 
    **IMPORTANT**: Do NOT auto-select. Always let the user choose.
+
+   **Load current archive inputs once for the selected root before batch validation:**
+
+   Choose one selected change from this root and run
+   `openspec instructions archive --change "<selected-change>" --json` with the
+   same selected-root flags. This lookup is advisory and optional: it only supplies
+   extra prompt inputs, so it must never block the batch. If it fails or returns
+   invalid JSON — for example on an older CLI that does not support this command
+   yet — continue the batch with no context and no operation guidance. Do not
+   report an error and do not stop.
+
+   A valid response may omit `context` and `operationGuidance`. Treat
+   `context` as a required prompt-level input across the batch: read and consider
+   it, and apply relevant project facts, conventions, and constraints. Treat
+   `operationGuidance` as optional additive advice: read and consider every
+   entry, and follow entries that are applicable and compatible with the built-in
+   batch workflow.
+
+   Keep both fields separate from conflict analysis, explicit user choices,
+   resolved paths, CLI checks, and command contracts. If context conflicts with one
+   of those controlling inputs, report the conflict and preserve the controlling
+   value. If guidance is inapplicable or conflicts with a controlling input, do not
+   follow it and explain why. Do not infer skipped prompts, replacement paths, or
+   flags from either field, and do not copy their text verbatim into specs, changes,
+   or summaries. These are prompt-level behavior contracts, not enforceable checks.
 
 3. **Batch validation - gather status for all selected changes**
 
@@ -49,7 +74,11 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
    c. **Delta specs** - Check `artifactPaths.specs.existingOutputPaths` from status JSON
       - List which capability specs exist
       - For each, extract requirement names (lines matching `### Requirement: <name>`)
-
+      - Treat this list as the only delta-spec source. If the `specs` entry is
+        missing or the list is empty, perform no spec sync or specs-instruction
+        lookup for that change; do not infer deltas from unrelated artifacts.
+      - Evaluate this independently for every change, including mixed-schema
+        batches where some schemas have no `specs` artifact.
 4. **Detect spec conflicts**
 
    Build a map of `capability -> [changes that touch it]`:
@@ -77,8 +106,9 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - If neither implemented -> skip spec sync, warn user
 
    d. **Record resolution** for each conflict:
-      - Which change's specs to apply
-      - In what order (if both)
+      - An inclusion or exclusion decision for every delta spec, keyed by change and capability
+      - Which included delta specs to apply and in what order
+      - Which delta specs to exclude from sync because their implementation is missing
       - Rationale (what was found in codebase)
 
 6. **Show consolidated status table**
@@ -108,7 +138,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
 7. **Confirm batch operation**
 
-   Use **AskUserQuestion tool** with a single confirmation:
+   Ask the user a single confirmation question:
 
    - "Archive N changes?" with options based on status
    - Options might include:
@@ -122,19 +152,50 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
    so match what the user picked rather than the wording above:
    - "Cancel" — stop, do not archive. Report that nothing was archived and skip the remaining steps.
    - The archive-everything option — proceed with every selected change
-   - The ready-only option — proceed with only the changes the step 6 table marks `Ready` or `Ready*`, and record the rest as Skipped in step 8c. If a `Ready*` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
+   - The ready-only option — proceed with only the changes the step 6 table marks `Ready` or `Ready*`, and record the rest as Skipped in step 8d. If a `Ready*` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
    - Anything else — ask again rather than archiving
+
+   Before step 8 writes the first main spec or moves any change, fetch every
+   required specs-rule snapshot for the confirmed batch. For each change that will
+   sync concrete `artifactPaths.specs.existingOutputPaths`, run
+   `openspec instructions specs --change "<name>" --json` exactly once with the
+   same selected-root flags. Obtain all snapshots before the first write or move.
+   If any lookup exits non-zero or returns invalid artifact-instruction JSON,
+   identify the affected change, report the error, and stop the whole batch before
+   any main-spec write or change move. Do not treat lookup failure as omitted
+   rules. A valid response without `rules` is the no-rules case.
 
 8. **Execute archive for each confirmed change**
 
+   Before processing, carry the recorded decisions from step 5 (after any step 7 re-derivation) into two per-delta sets:
+   - `includedDeltas`: all non-conflicting delta specs from confirmed changes plus conflict deltas selected for sync
+   - `excludedDeltas`: conflict deltas from confirmed changes excluded because their implementation is missing
+   - A single change can have both included and excluded delta specs. Keep the decision per delta; do not collapse it into a per-change sync flag.
+
    Process changes in the determined order (respecting conflict resolution):
 
-   a. **Sync specs** if delta specs exist:
-      - Use the openspec-sync-specs approach (agent-driven intelligent merge)
-      - For conflicts, apply in resolved order
-      - Track if sync was done
+   a. **Sync included delta specs**:
+      - Run the `openspec-sync-specs` workflow inline (agent-driven intelligent merge) only for changes with entries in `includedDeltas`, passing only the included delta paths and explicitly instructing it to ignore that change's `excludedDeltas`. Wait for it to finish.
+      - For conflicts, apply in resolved order.
+      - Pass that change's fetched specs-rule snapshot into inline sync; inline
+        sync must reuse it without fetching instructions again
+      - Apply artifact rules only to main specs produced by that change. They do
+        not change conflict resolution, archive behavior, or CLI contracts, and
+        their text is not copied into an output file
+      - Do not delegate to a background task — step 8c would move `changeRoot` out from under a sync that is still reading it.
+      - If a change has no included delta specs, do not run the sync workflow for it.
 
-   b. **Perform the archive**:
+   b. **Verify included delta specs before moving changeRoot**:
+      - Re-run the comparison only for delta specs in `includedDeltas` against main spec at `<planningHome.root>/openspec/specs/<capability>/spec.md` (use the store-aware `planningHome.root` from step 3 status JSON, not a hardcoded repo path).
+      - Verify that main specs are updated:
+        - ADDED requirements present
+        - MODIFIED requirements carrying scenario and description changes named in the delta, with their other scenarios intact
+        - REMOVED requirements gone
+        - RENAMED requirements present under the new name and absent under the old one
+      - Do not verify delta specs in `excludedDeltas`; they are intentionally left unsynced.
+      - If sync failed or any capability does not match verification, report what differs and fail/skip moving that change's `changeRoot` — do not archive that change. `changeRoot` remains intact.
+
+   c. **Perform the archive**:
 
       Target name: use the change name as-is when it already starts with a `YYYY-MM-DD-` prefix; otherwise prepend the current date as `YYYY-MM-DD-<name>` (same rule as `openspec archive`).
 
@@ -143,10 +204,11 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       mv "<changeRoot>" "<planningHome.changesDir>/archive/<target-name>"
       ```
 
-   c. **Track outcome** for each change:
+   d. **Track outcome** for each change:
       - Success: archived successfully
-      - Failed: error during archive (record error)
+      - Failed: error during archive or spec verification (record error)
       - Skipped: user chose not to archive (if applicable)
+      - Sync skipped: for every delta in `excludedDeltas`, report `sync skipped` with the change, capability, and recorded reason. This is distinct from skipping the archive.
 
 9. **Display summary**
 
@@ -165,7 +227,8 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    Spec sync summary:
    - 4 delta specs synced to main specs
-   - 1 conflict resolved (auth: applied both in chronological order)
+   - 1 delta spec sync skipped (add-jwt/auth: implementation not found)
+   - 1 conflict resolved (auth: synced add-oauth, skipped add-jwt)
    ```
 
    If any failures:
@@ -178,7 +241,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
 Example 1: Only one implemented
 ```text
-Conflict: specs/auth/spec.md touched by [add-oauth, add-jwt]
+Conflict: <planningHome.root>/openspec/specs/auth/spec.md touched by [add-oauth, add-jwt]
 
 Checking add-oauth:
 - Delta adds "OAuth Provider Integration" requirement
@@ -193,7 +256,7 @@ Resolution: Only add-oauth is implemented. Will sync add-oauth specs only.
 
 Example 2: Both implemented
 ```text
-Conflict: specs/api/spec.md touched by [add-rest-api, add-graphql]
+Conflict: <planningHome.root>/openspec/specs/api/spec.md touched by [add-rest-api, add-graphql]
 
 Checking add-rest-api (created 2026-01-10):
 - Delta adds "REST Endpoints" requirement
@@ -257,3 +320,17 @@ No active changes found. Create a new change to get started.
 - Preserve .openspec.yaml when moving to archive
 - Archive directory target uses current date: YYYY-MM-DD-<name>; a name that already starts with a `YYYY-MM-DD-` prefix is used as-is (never stack a second date)
 - If archive target exists, fail that change but continue with others
+- If sync is requested, run the `openspec-sync-specs` workflow inline (agent-driven) for each change with included delta specs
+- Carry the per-delta `includedDeltas` and `excludedDeltas` decisions into execution; sync and verify only included deltas
+- Report every excluded delta as `sync skipped` without treating the archive itself as skipped
+- Never archive a change while a spec sync is still in flight — run the sync inline and verify main specs at `<planningHome.root>/openspec/specs/<capability>/spec.md` before moving `changeRoot`
+- Fetch archive inputs once per selected root before spec inspection or moves
+- Fetch all required specs-rule snapshots before the batch's first main-spec write or move
+- A failed archive-inputs lookup never blocks the batch; it proceeds with no context or guidance
+- A failed specs instruction lookup stops the whole batch atomically
+- Changes without concrete `artifactPaths.specs.existingOutputPaths` continue without spec sync
+- Apply relevant runtime context across the batch and report conflicts
+- Operation guidance remains advisory; consider every entry and explain rejected advice
+- Keep runtime inputs, conflict analysis, CLI-derived values, and artifact rules separate
+- Artifact rules constrain only written specs
+- Never copy runtime input or artifact-rule text verbatim into output files

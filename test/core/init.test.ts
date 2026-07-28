@@ -630,7 +630,7 @@ describe('InitCommand', () => {
       expect(await fileExists(cmdFile)).toBe(true);
 
       const content = await fs.readFile(cmdFile, 'utf-8');
-      expect(content).toContain('name: opsx-explore');
+      expect(content).toContain('name: "opsx-explore"');
       expect(content).toContain('invokable: true');
     });
 
@@ -914,7 +914,7 @@ describe('InitCommand - profile and detection features', () => {
     expect(showWelcomeScreenMock).toHaveBeenCalled();
     // The welcome screen must be handed the profile's workflows, otherwise it
     // advertises commands this profile never installs.
-    expect(showWelcomeScreenMock).toHaveBeenCalledWith(['explore', 'new']);
+    expect(showWelcomeScreenMock).toHaveBeenCalledWith(['explore', 'new'], { animate: true });
     expect(confirmMock).not.toHaveBeenCalled();
 
     const exploreSkill = path.join(testDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md');

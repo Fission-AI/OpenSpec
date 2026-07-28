@@ -21,8 +21,9 @@ The system SHALL provide an `/opsx:sync` skill that syncs delta specs from a cha
 
 #### Scenario: Change selection prompt
 - **WHEN** agent executes `/opsx:sync` without specifying a change
-- **THEN** the agent prompts user to select from available changes
-- **AND** shows changes that have delta specs
+- **THEN** the agent infers the change from conversation context, or auto-selects it when only one active change exists
+- **AND** when ambiguous, prompts user to select from available changes, showing changes that have delta specs
+- **AND** announces which change was selected and how to override
 
 ### Requirement: Delta Reconciliation Logic
 The agent SHALL reconcile main specs with delta specs using the delta operation headers.

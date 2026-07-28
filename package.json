@@ -65,10 +65,10 @@
   "devDependencies": {
     "@changesets/changelog-github": "^0.7.0",
     "@changesets/cli": "^2.31.1",
-    "@types/node": "^24.2.0",
+    "@types/node": "^20.19.43",
     "@vitest/ui": "^3.2.6",
     "eslint": "^10.5.0",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.3",
     "typescript-eslint": "^8.65.0",
     "vitest": "^3.2.6"
   },
@@ -79,9 +79,14 @@
     "commander": "^14.0.0",
     "cross-spawn": "7.0.6",
     "fast-glob": "^3.3.3",
-    "ora": "^8.2.0",
+    "ora": "^9.4.1",
     "posthog-node": "^5.46.0",
     "yaml": "^2.8.3",
     "zod": "^4.4.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "brace-expansion@<=5.0.7": ">=5.0.8"
+    }
   }
 }

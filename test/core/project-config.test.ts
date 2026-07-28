@@ -3,6 +3,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import {
+  loadOperationInputs,
+  OPERATION_IDS,
   readProjectConfig,
   validateConfigRules,
   suggestSchemas,
@@ -66,6 +68,199 @@ rules:
           schema: 'spec-driven',
         });
         expect(consoleWarnSpy).not.toHaveBeenCalled();
+      });
+
+      it('should parse apply and archive operation guidance independently from rules', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+rules:
+  specs:
+    - Preserve requirement IDs
+operations:
+  apply:
+    guidance:
+      - Keep test summaries concise
+  archive:
+    guidance:
+      - Summarize the archive outcome
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config).toEqual({
+          schema: 'spec-driven',
+          rules: { specs: ['Preserve requirement IDs'] },
+          operations: {
+            apply: { guidance: ['Keep test summaries concise'] },
+            archive: { guidance: ['Summarize the archive outcome'] },
+          },
+        });
+        expect(consoleWarnSpy).not.toHaveBeenCalled();
+      });
+
+      it('should omit operations when the field is absent', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(path.join(configDir, 'config.yaml'), 'schema: spec-driven\n');
+
+        expect(readProjectConfig(tempDir)?.operations).toBeUndefined();
+      });
+
+      it('should preserve a valid operation when another operation is malformed', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+context: Valid context
+operations:
+  apply:
+    guidance:
+      - Run focused tests first
+  archive:
+    guidance: not-an-array
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config).toEqual({
+          schema: 'spec-driven',
+          context: 'Valid context',
+          operations: {
+            apply: { guidance: ['Run focused tests first'] },
+          },
+        });
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Guidance for operation 'archive' must be an array of strings")
+        );
+      });
+
+      it('should ignore a non-object operations field without discarding other fields', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+context: Valid context
+operations:
+  - apply
+`
+        );
+
+        expect(readProjectConfig(tempDir)).toEqual({
+          schema: 'spec-driven',
+          context: 'Valid context',
+        });
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid 'operations' field")
+        );
+      });
+
+      it('should ignore malformed operation entries independently', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+operations:
+  apply: invalid
+  archive:
+    guidance:
+      - Keep the summary concise
+`
+        );
+
+        expect(readProjectConfig(tempDir)?.operations).toEqual({
+          archive: { guidance: ['Keep the summary concise'] },
+        });
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid 'operations.apply' field")
+        );
+      });
+
+      it('should warn for unknown operation IDs and fields while preserving valid guidance', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+operations:
+  deploy:
+    guidance:
+      - Deploy carefully
+  apply:
+    guidance:
+      - Run tests
+    replacementInstruction: Skip validation
+`
+        );
+
+        expect(readProjectConfig(tempDir)?.operations).toEqual({
+          apply: { guidance: ['Run tests'] },
+        });
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Unknown operation ID 'deploy'")
+        );
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Unknown field(s) in 'operations.apply': replacementInstruction")
+        );
+      });
+
+      it('should filter empty guidance and omit operations with no non-empty guidance', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+operations:
+  apply:
+    guidance:
+      - ""
+      - Run tests
+      - ""
+  archive:
+    guidance:
+      - ""
+`
+        );
+
+        expect(readProjectConfig(tempDir)?.operations).toEqual({
+          apply: { guidance: ['Run tests'] },
+        });
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Some guidance for operation 'apply' are empty strings")
+        );
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Some guidance for operation 'archive' are empty strings")
+        );
+      });
+
+      it('should preserve multi-line and Markdown guidance without rewriting it', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+operations:
+  apply:
+    guidance:
+      - |-
+        **Verification**
+        - Run focused tests
+        - Preserve \`--store\`
+      - "Keep [links](https://example.com) intact"
+`
+        );
+
+        expect(readProjectConfig(tempDir)?.operations?.apply?.guidance).toEqual([
+          '**Verification**\n- Run focused tests\n- Preserve `--store`',
+          'Keep [links](https://example.com) intact',
+        ]);
       });
 
       it('should return partial config when schema is invalid', () => {
@@ -565,6 +760,49 @@ rules:
           'Follow {variable} naming',
         ]);
       });
+    });
+  });
+
+  describe('loadOperationInputs', () => {
+    it('matches only the requested operation and never exposes artifact rules', () => {
+      const config = {
+        schema: 'spec-driven',
+        context: 'Project background',
+        rules: { specs: ['Artifact-only rule'] },
+        operations: {
+          apply: { guidance: ['Apply guidance'] },
+          archive: { guidance: ['Archive guidance'] },
+        },
+      };
+
+      expect(OPERATION_IDS).toEqual(['apply', 'archive']);
+      expect(loadOperationInputs(config, 'apply')).toEqual({
+        context: 'Project background',
+        operationGuidance: ['Apply guidance'],
+      });
+      expect(loadOperationInputs(config, 'archive')).toEqual({
+        context: 'Project background',
+        operationGuidance: ['Archive guidance'],
+      });
+      expect(JSON.stringify(loadOperationInputs(config, 'apply'))).not.toContain(
+        'Artifact-only rule'
+      );
+    });
+
+    it('omits empty optional inputs', () => {
+      expect(
+        loadOperationInputs(
+          {
+            schema: 'spec-driven',
+            context: '',
+            operations: {
+              apply: {},
+            },
+          },
+          'apply'
+        )
+      ).toEqual({});
+      expect(loadOperationInputs(null, 'archive')).toEqual({});
     });
   });
 
