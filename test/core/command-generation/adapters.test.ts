@@ -414,6 +414,29 @@ describe('command-generation/adapters', () => {
       expect(output).toContain('This is the command body.');
       expect(output).toContain('"""');
     });
+
+    it('escapes TOML-active characters in the description', () => {
+      const output = geminiAdapter.formatFile({
+        ...sampleContent,
+        description: 'Say "hi" to C:\\Users and\nmore',
+      });
+      // Basic strings are escape-active: quotes, backslashes, and newlines
+      // must be written as escapes or the file stops parsing as TOML.
+      expect(output).toContain('description = "Say \\"hi\\" to C:\\\\Users and\\nmore"');
+    });
+
+    it('keeps the prompt a single multiline string when the body carries fences and backslashes', () => {
+      const output = geminiAdapter.formatFile({
+        ...sampleContent,
+        body: 'Windows path C:\\temp and a quote run: """ done',
+      });
+      // Backslashes must be escaped and no unescaped quote-triple may remain,
+      // or the """ delimiter ends the prompt early.
+      expect(output).toContain('C:\\\\temp');
+      expect(output).toContain('""\\" done');
+      const delimiters = output.match(/(?<!\\)"""/g) ?? [];
+      expect(delimiters).toHaveLength(2);
+    });
   });
 
   describe('githubCopilotAdapter', () => {
