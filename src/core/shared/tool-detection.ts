@@ -72,9 +72,13 @@ export interface ToolVersionStatus {
   toolId: string;
   /** The tool's display name */
   toolName: string;
-  /** Whether the tool has any skills configured */
+  /** Whether the tool has any skills or commands configured */
   configured: boolean;
-  /** The generatedBy version found in the skill files, or null if not found */
+  /**
+   * The generatedBy version recorded in the tool's skill files. For a tool that
+   * has commands but no skills, the current version when the command files match
+   * what would be generated now. Null when neither says the files are current.
+   */
   generatedByVersion: string | null;
   /** Whether the tool needs updating (version mismatch or missing) */
   needsUpdate: boolean;
@@ -330,13 +334,10 @@ export function getConfiguredTools(projectRoot: string): string[] {
  */
 export function getAllToolVersionStatus(
   projectRoot: string,
-  currentVersion: string,
-  options?: {
-    workflows?: readonly string[];
-  }
+  currentVersion: string
 ): ToolVersionStatus[] {
   const configuredTools = getConfiguredTools(projectRoot);
   return configuredTools.map((toolId) =>
-    getToolVersionStatus(projectRoot, toolId, currentVersion, options)
+    getToolVersionStatus(projectRoot, toolId, currentVersion)
   );
 }

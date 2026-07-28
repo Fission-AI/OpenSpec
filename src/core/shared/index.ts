@@ -13,8 +13,6 @@ export {
   type ToolVersionStatus,
   getToolsWithSkillsDir,
   getToolSkillStatus,
-  toolHasAnyConfiguredCommand,
-  areCommandFilesUpToDate,
   getToolStates,
   extractGeneratedByVersion,
   getToolVersionStatus,

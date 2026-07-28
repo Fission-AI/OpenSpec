@@ -4,7 +4,7 @@ import { AI_TOOLS } from './config.js';
 import type { Delivery } from './global-config.js';
 import { ALL_WORKFLOWS } from './profiles.js';
 import { CommandAdapterRegistry } from './command-generation/index.js';
-import { getConfiguredTools, toolHasAnyConfiguredCommand } from './shared/index.js';
+import { getConfiguredTools } from './shared/index.js';
 import {
   shouldGenerateCommandsForTool,
   shouldGenerateSkillsForTool,
