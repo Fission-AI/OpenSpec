@@ -440,7 +440,13 @@ describe('offerCliUpgrade', () => {
         ? path.join(prefix, 'node_modules', '@fission-ai', 'openspec')
         : path.join(prefix, 'lib', 'node_modules', '@fission-ai', 'openspec');
       fs.mkdirSync(installed, { recursive: true });
-      fs.mkdirSync(path.join(prefix, 'bin'), { recursive: true });
+      if (isWindows) {
+        // npm writes the .cmd shim beside node_modules; it is what separates
+        // a real prefix from a hand-copied portable tree.
+        fs.writeFileSync(path.join(prefix, 'openspec.cmd'), '@echo off\n');
+      } else {
+        fs.mkdirSync(path.join(prefix, 'bin'), { recursive: true });
+      }
 
       expect(npmPrefixFromInstallDir(installed)).toBe(prefix);
       // Deliberately an unrelated root, standing in for the Cellar path.
@@ -450,6 +456,21 @@ describe('offerCliUpgrade', () => {
 
       expect(npmPrefixFromInstallDir(path.join(HOME_ROOT, 'not', 'an', 'install'))).toBeNull();
       expect(npmPrefixFromInstallDir(null)).toBeNull();
+
+      // The same shape with nothing npm wrote (no bin dir, no .cmd shim) is a
+      // hand-copied portable tree, not an npm install — no upgrade offer.
+      const portable = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-portable-'));
+      try {
+        const copied = isWindows
+          ? path.join(portable, 'node_modules', '@fission-ai', 'openspec')
+          : path.join(portable, 'lib', 'node_modules', '@fission-ai', 'openspec');
+        fs.mkdirSync(copied, { recursive: true });
+        expect(
+          isNpmGlobalInstall(copied, [path.join(GLOBAL_ROOT, 'lib', 'node_modules')])
+        ).toBe(false);
+      } finally {
+        fs.rmSync(portable, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+      }
     } finally {
       fs.rmSync(prefix, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     }
