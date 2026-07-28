@@ -89,6 +89,7 @@ The command SHALL provide clear, actionable next steps upon successful initializ
   - `/opsx:new` - Start a new change
   - `/opsx:continue` - Create the next artifact
   - `/opsx:apply` - Implement tasks
+- **AND** spell each command the way the configured tool registers it: `/opsx-<id>` for tools whose command files are named `opsx-<id>`, and the tool's skill invocation (`$openspec-<skill>` for Codex, `/skill:openspec-<skill>` for Kimi Code, `/openspec-<skill>` otherwise) for tools that receive no command files
 - **AND** display links to documentation and feedback
 
 #### Scenario: Displaying restart instruction

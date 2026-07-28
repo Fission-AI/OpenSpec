@@ -150,16 +150,17 @@ describe('migration', () => {
     expect(fs.existsSync(getGlobalConfigPath())).toBe(false);
   });
 
-  it('prints a syntax-neutral propose reference when migrating a codex-only project', async () => {
-    // Codex is skills-invocable with no slash surface: the migration message
-    // must name the skill, not advertise a /openspec-* or /opsx:* form
+  it('prints the $-prefixed propose reference when migrating a codex-only project', async () => {
+    // Codex is skills-invocable with no slash surface: it invokes skills as
+    // $<name>, so the migration message must not advertise a /openspec-* or
+    // /opsx:* form
     await writeSkill(projectDir, 'openspec-propose', '.codex');
 
     const message = captureMigrationLogs(projectDir, [requireTool('codex')]).find((entry) =>
       entry.includes('New in this version')
     );
     expect(message).toBeTruthy();
-    expect(message).toContain('the openspec-propose skill');
+    expect(message).toContain('$openspec-propose');
     expect(message).not.toContain('/openspec-propose');
     expect(message).not.toContain('/opsx:propose');
   });

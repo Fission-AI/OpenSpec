@@ -80,12 +80,12 @@ The intent is identical everywhere. The punctuation differs. Use the form that m
 | Windsurf | `/opsx-propose`, `/opsx-apply` |
 | GitHub Copilot (IDE) | `/opsx-propose`, `/opsx-apply` |
 | CodeArts | skill-style, e.g. `/openspec-propose` |
-| Codex | skill-style via `.codex/skills/openspec-*` |
+| Codex | skill-style with `$`, e.g. `$openspec-propose` |
 | Oh My Pi | `/opsx-propose`, `/opsx-apply` |
 | Kimi CLI | skill-style, e.g. `/skill:openspec-propose` |
 | Trae | `/opsx-propose`, `/opsx-apply` |
 
-Most tools use either the colon form (`/opsx:propose`) or the dash form (`/opsx-propose`). A few tools surface OpenSpec as named skills instead of slash commands; for those you invoke the skill by name. The full per-tool list, including exactly which files get written where, lives in [Supported Tools](supported-tools.md).
+Most tools use either the colon form (`/opsx:propose`) or the dash form (`/opsx-propose`); the dash form is the common one, used by every tool whose command file is named `opsx-<id>`. A few tools surface OpenSpec as named skills instead of slash commands; for those you invoke the skill by name, with the prefix that tool expects. The full per-tool list, including exactly which files get written where, lives in [Supported Tools](supported-tools.md#how-to-invoke).
 
 When in doubt, type a slash in your AI chat and look at the autocomplete. Your tool will show you the form it expects.
 

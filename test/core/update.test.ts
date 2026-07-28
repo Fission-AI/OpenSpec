@@ -1146,7 +1146,7 @@ ${OPENSPEC_MARKERS.end}
       expect(logCalls.some((entry) => entry.includes('Getting started'))).toBe(true);
       const menuLines = logCalls.filter((entry) => entry.includes('Scaffold a change'));
       expect(menuLines).toHaveLength(1);
-      expect(menuLines[0]).toContain('the openspec-new-change skill');
+      expect(menuLines[0]).toContain('$openspec-new-change');
       expect(logCalls.some((entry) => entry.includes('/opsx:new'))).toBe(false);
       expect(logCalls.some((entry) => entry.includes('/opsx:continue'))).toBe(false);
       expect(logCalls.some((entry) => entry.includes('/opsx:apply'))).toBe(false);

@@ -7,7 +7,6 @@
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
-import { transformToHyphenCommands } from '../../../utils/command-references.js';
 import { escapeYamlValue } from '../yaml.js';
 
 /**
@@ -27,14 +26,12 @@ export const bobAdapter: ToolCommandAdapter = {
   },
 
   formatFile(content: CommandContent): string {
-    const transformedBody = transformToHyphenCommands(content.body);
-
     return `---
 description: ${escapeYamlValue(content.description)}
 argument-hint: command arguments
 ---
 
-${transformedBody}
+${content.body}
 `;
   },
 };

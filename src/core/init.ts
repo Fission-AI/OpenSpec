@@ -13,7 +13,7 @@ import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { classifyOpenSpecDir, storePointerProblem } from './project-config.js';
 import { findRepoPlanningRootSync } from './planning-home.js';
-import { getSkillReferenceTransformer, getTransformerForTool, transformToSkillReferences } from '../utils/command-references.js';
+import { getSkillReferenceTransformer, getTransformerForTool } from '../utils/command-references.js';
 import {
   AI_TOOLS,
   OPENSPEC_DIR_NAME,
@@ -53,6 +53,7 @@ import { getAvailableTools } from './available-tools.js';
 import { migrateIfNeeded, migrateLegacySkillDirs, scanInstalledWorkflows as scanInstalledWorkflowsShared } from './migration.js';
 import {
   resolveCommandSurfaceCapability,
+  resolveCommandInvocationStyle,
   shouldGenerateCommandsForTool,
   shouldGenerateSkillsForTool,
   shouldReconcileCommandFilesForTool,
@@ -705,7 +706,12 @@ export class InitCommand {
             const skillFile = path.join(skillDir, 'SKILL.md');
 
             // Generate SKILL.md content with YAML frontmatter including generatedBy
-            const transformer = getTransformerForTool(tool.value, delivery, resolveCommandSurfaceCapability(tool.value));
+            const transformer = getTransformerForTool(
+              tool.value,
+              delivery,
+              resolveCommandSurfaceCapability(tool.value),
+              resolveCommandInvocationStyle(tool.value)
+            );
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
 
             // Write the skill file
@@ -888,32 +894,28 @@ export class InitCommand {
     const commandsGenerated = successfulTools.some((tool) => shouldGenerateCommandsForTool(tool.value, activeDelivery));
     const skillsGenerated = successfulTools.some((tool) => shouldGenerateSkillsForTool(tool.value, activeDelivery));
     // Each hint line must be a usable instruction for the tool it serves.
-    // Tools that generated commands are told the /opsx:* command; tools that
-    // only got skills are told their documented skill invocation (Kimi Code:
-    // /skill:openspec-*; skills-invocable codex has no slash surface at all,
-    // so its hint names the skill; others: /openspec-*). Tools that got no
-    // artifacts are covered by the configuration correction instead. When
-    // the selection disagrees, print one line per distinct instruction,
-    // labeled with the tools it applies to.
+    // Tools that generated commands are told the command name their files
+    // answer to (/opsx:* when namespaced under opsx/, /opsx-* when the
+    // filename is the command); tools that only got skills are told their
+    // documented skill invocation (Kimi Code: /skill:openspec-*; Codex CLI:
+    // $openspec-*; others: /openspec-*). Tools that got no artifacts are
+    // covered by the configuration correction instead. When the selection
+    // disagrees, print one line per distinct instruction, labeled with the
+    // tools it applies to.
     const startHintLines = (command: string): string[] => {
-      const skillName = transformToSkillReferences(command).slice(1);
       const hintToTools = new Map<string, string[]>();
       for (const tool of successfulTools) {
         let hint: string;
         if (shouldGenerateCommandsForTool(tool.value, activeDelivery)) {
-          // Tools that invoke commands by filename (bob, qwen, ...) need the
-          // hyphen form here too, not just inside generated bodies.
           const transformer = getTransformerForTool(
             tool.value,
             activeDelivery,
-            resolveCommandSurfaceCapability(tool.value)
+            resolveCommandSurfaceCapability(tool.value),
+            resolveCommandInvocationStyle(tool.value)
           );
           hint = `Start your first change: ${transformer ? transformer(command) : command} "your idea"`;
         } else if (shouldGenerateSkillsForTool(tool.value, activeDelivery)) {
-          hint =
-            resolveCommandSurfaceCapability(tool.value) === 'skills-invocable'
-              ? `Start your first change with the ${skillName} skill`
-              : `Start your first change: ${getSkillReferenceTransformer(tool.value)(command)} "your idea"`;
+          hint = `Start your first change: ${getSkillReferenceTransformer(tool.value)(command)} "your idea"`;
         } else {
           continue;
         }

@@ -7,7 +7,6 @@
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
-import { transformToHyphenCommands } from '../../../utils/command-references.js';
 import { escapeYamlValue } from '../yaml.js';
 
 const PI_INPUT_HEADING = /^\*\*Input\*\*:[^\n]*$/m;
@@ -40,14 +39,11 @@ export const piAdapter: ToolCommandAdapter = {
   },
 
   formatFile(content: CommandContent): string {
-    // Transform /opsx: references to /opsx- and inject $@ for template args
-    const transformedBody = transformToHyphenCommands(content.body);
-
     return `---
 description: ${escapeYamlValue(content.description)}
 ---
 
-${injectPiArgs(transformedBody)}
+${injectPiArgs(content.body)}
 `;
   },
 };

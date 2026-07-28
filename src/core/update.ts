@@ -56,6 +56,7 @@ import {
 } from './migration.js';
 import {
   resolveCommandSurfaceCapability,
+  resolveCommandInvocationStyle,
   shouldGenerateCommandsForTool,
   shouldGenerateSkillsForTool,
   shouldReconcileCommandFilesForTool,
@@ -248,7 +249,12 @@ export class UpdateCommand {
             const skillDir = path.join(skillsDir, dirName);
             const skillFile = path.join(skillDir, 'SKILL.md');
 
-            const transformer = getTransformerForTool(tool.value, delivery, resolveCommandSurfaceCapability(tool.value));
+            const transformer = getTransformerForTool(
+              tool.value,
+              delivery,
+              resolveCommandSurfaceCapability(tool.value),
+              resolveCommandInvocationStyle(tool.value)
+            );
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
@@ -327,19 +333,24 @@ export class UpdateCommand {
     }
 
     // 12. Show onboarding message for newly configured tools from legacy upgrade.
-    // Command tools keep the shared /opsx:* form, skill-only tools get their
-    // documented skill invocation, and disagreements (or skills-invocable
-    // codex, which has no slash surface) fall back to naming the skill.
+    // Command tools get the command name their files answer to, skill-only
+    // tools their documented skill invocation, and disagreements fall back to
+    // naming the skill.
     if (newlyConfiguredTools.length > 0) {
       const referenceFor = (command: string): string => {
         const neutralForm = `the ${transformToSkillReferences(command).slice(1)} skill`;
         const forms = new Set(
           newlyConfiguredTools.map((toolId) => {
             if (shouldGenerateCommandsForTool(toolId, delivery)) {
-              return command;
-            }
-            if (resolveCommandSurfaceCapability(toolId) === 'skills-invocable') {
-              return neutralForm;
+              // Name the command the tool's files actually answer to:
+              // /opsx-<id> where the filename is the command name.
+              const transformer = getTransformerForTool(
+                toolId,
+                delivery,
+                resolveCommandSurfaceCapability(toolId),
+                resolveCommandInvocationStyle(toolId)
+              );
+              return transformer ? transformer(command) : command;
             }
             return getSkillReferenceTransformer(toolId)(command);
           })
@@ -889,7 +900,12 @@ export class UpdateCommand {
             const skillDir = path.join(skillsDir, dirName);
             const skillFile = path.join(skillDir, 'SKILL.md');
 
-            const transformer = getTransformerForTool(tool.value, delivery, resolveCommandSurfaceCapability(tool.value));
+            const transformer = getTransformerForTool(
+              tool.value,
+              delivery,
+              resolveCommandSurfaceCapability(tool.value),
+              resolveCommandInvocationStyle(tool.value)
+            );
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }

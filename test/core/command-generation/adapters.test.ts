@@ -33,6 +33,8 @@ import type {
   ToolCommandAdapter,
 } from '../../../src/core/command-generation/types.js';
 import { CommandAdapterRegistry } from '../../../src/core/command-generation/registry.js';
+import { generateCommand } from '../../../src/core/command-generation/generator.js';
+import { getInvocationStyleForAdapter } from '../../../src/core/command-generation/invocation.js';
 import { parse as parseYaml } from 'yaml';
 
 describe('command-generation/adapters', () => {
@@ -224,7 +226,7 @@ describe('command-generation/adapters', () => {
         ...sampleContent,
         body: 'Run /opsx:apply to implement. Then use /opsx:verify.',
       };
-      const output = bobAdapter.formatFile(contentWithRefs);
+      const output = generateCommand(contentWithRefs, bobAdapter).fileContent;
       expect(output).toContain('/opsx-apply');
       expect(output).toContain('/opsx-verify');
       expect(output).not.toContain('/opsx:apply');
@@ -482,7 +484,7 @@ describe('command-generation/adapters', () => {
         ...sampleContent,
         body: 'Use /opsx:new to start, then /opsx:apply to implement.',
       };
-      const output = opencodeAdapter.formatFile(contentWithCommands);
+      const output = generateCommand(contentWithCommands, opencodeAdapter).fileContent;
       expect(output).toContain('/opsx-new');
       expect(output).toContain('/opsx-apply');
       expect(output).not.toContain('/opsx:new');
@@ -497,7 +499,7 @@ describe('command-generation/adapters', () => {
 /opsx:continue to proceed
 /opsx:apply to implement`,
       };
-      const output = opencodeAdapter.formatFile(contentWithMultipleCommands);
+      const output = generateCommand(contentWithMultipleCommands, opencodeAdapter).fileContent;
       expect(output).toContain('/opsx-explore');
       expect(output).toContain('/opsx-new');
       expect(output).toContain('/opsx-continue');
@@ -559,7 +561,7 @@ describe('command-generation/adapters', () => {
         ...sampleContent,
         body: 'Run /opsx:apply to implement. Then use /opsx:archive.',
       };
-      const output = qwenAdapter.formatFile(contentWithRefs);
+      const output = generateCommand(contentWithRefs, qwenAdapter).fileContent;
       expect(output).toContain('/opsx-apply');
       expect(output).toContain('/opsx-archive');
       expect(output).not.toContain('/opsx:apply');
@@ -596,7 +598,7 @@ describe('command-generation/adapters', () => {
         body: 'Run /opsx:apply to implement. Then /opsx:archive when done.',
       };
 
-      const output = piAdapter.formatFile(contentWithRefs);
+      const output = generateCommand(contentWithRefs, piAdapter).fileContent;
       expect(output).toContain('/opsx-apply');
       expect(output).toContain('/opsx-archive');
       expect(output).not.toContain('/opsx:apply');
@@ -659,7 +661,7 @@ describe('command-generation/adapters', () => {
         ...sampleContent,
         body: 'Run /opsx:apply to implement. Then /opsx:archive when done.',
       };
-      const output = ohMyPiAdapter.formatFile(contentWithRefs);
+      const output = generateCommand(contentWithRefs, ohMyPiAdapter).fileContent;
       expect(output).toContain('/opsx-apply');
       expect(output).toContain('/opsx-archive');
       expect(output).not.toContain('/opsx:apply');
@@ -697,7 +699,7 @@ describe('command-generation/adapters', () => {
         ...sampleContent,
         body: '**Input**: The argument is the change name.\n\nRun /opsx:apply.',
       };
-      const output = ohMyPiAdapter.formatFile(contentWithInput);
+      const output = generateCommand(contentWithInput, ohMyPiAdapter).fileContent;
       expect(output).toContain('**Provided arguments**: $@');
       expect(output).toContain('/opsx-apply');
     });
