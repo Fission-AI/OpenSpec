@@ -22,7 +22,7 @@ Existing codebases are the main event. OpenSpec is brownfield-first: you do not 
 
 ### Is it tied to one AI tool?
 
-No. OpenSpec works with 30+ assistants, including Claude Code, Cursor, Windsurf, GitHub Copilot, Gemini CLI, Codex, and more. The full list and per-tool details are in [Supported Tools](supported-tools.md).
+No. OpenSpec works with 30+ assistants, including Claude Code, Cursor, Devin Desktop, GitHub Copilot, Gemini CLI, Codex, and more. The full list and per-tool details are in [Supported Tools](supported-tools.md).
 
 ## Running commands
 

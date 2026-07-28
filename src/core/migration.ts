@@ -14,79 +14,342 @@ import {
   shouldGenerateCommandsForTool,
 } from './command-surface.js';
 import { WORKFLOW_TO_SKILL_DIR } from './profile-sync-drift.js';
+import { COMMAND_IDS } from './shared/tool-detection.js';
 import { ALL_WORKFLOWS } from './profiles.js';
 import { getSkillReferenceTransformer, getTransformerForTool } from '../utils/command-references.js';
 import path from 'path';
 import * as fs from 'fs';
 
-/**
- * Former skillsDir locations for tools whose directory was renamed.
- * OpenSpec-managed skill directories left in these locations are migrated
- * to the tool's current skillsDir; user files are never touched.
- */
-export const LEGACY_SKILLS_DIRS: Record<string, string[]> = {
-  // Kimi CLI became Kimi Code and moved from .kimi to .kimi-code
-  kimi: ['.kimi'],
-};
-
-export interface LegacySkillsMigration {
-  toolId: string;
-  /** Legacy tool root, e.g. '.kimi' */
-  from: string;
-  /** Current tool root, e.g. '.kimi-code' */
-  to: string;
-  /** Number of skill directories moved or removed */
-  movedSkillDirs: number;
+export interface LegacyToolRoot {
+  /** Former tool root, e.g. '.kimi' */
+  root: string;
+  /**
+   * Whether leaving this root requires the user's say-so. False when the old
+   * product is gone and its directory is certainly dead. True when the old
+   * location may still be the live one for somebody.
+   */
+  needsConsent: boolean;
 }
 
 /**
- * Moves OpenSpec-managed skill directories (openspec-*) from a tool's legacy
- * skillsDir to its current one. When the destination already exists the legacy
- * copy is removed instead. Legacy directories are deleted only when left empty,
- * so user files under the old location are preserved.
+ * Former tool roots whose OpenSpec-managed content belongs under the tool's
+ * current skillsDir. User files are never touched.
  */
-export function migrateLegacySkillDirs(projectPath: string): LegacySkillsMigration[] {
-  const migrations: LegacySkillsMigration[] = [];
+export const LEGACY_TOOL_ROOTS: Record<string, LegacyToolRoot[]> = {
+  // Kimi CLI became Kimi Code and moved from .kimi to .kimi-code.
+  kimi: [{ root: '.kimi', needsConsent: false }],
+  // Windsurf was rebranded to Devin Desktop on 2026-06-02 and its config
+  // directory moved to .devin/. Devin Desktop reads .windsurf/ only as a
+  // fallback and Devin Local does not read it at all, so moving is the right
+  // default — but a pre-rebrand Windsurf build reads ONLY .windsurf/, and
+  // nothing on disk tells that user apart, so the move is offered, not taken.
+  devin: [{ root: '.windsurf', needsConsent: true }],
+};
+
+export interface LegacyToolMigration {
+  toolId: string;
+  /** Legacy tool root, e.g. '.windsurf' */
+  from: string;
+  /** Current tool root, e.g. '.devin' */
+  to: string;
+  /** Skill directories that moved, or would move */
+  skillDirs: number;
+  /** Command files that moved, or would move */
+  commandFiles: number;
+  /**
+   * OpenSpec-managed files left under the legacy root because the copy there
+   * differs from the one that survives — the user edited it, so it is reported
+   * rather than dropped.
+   */
+  keptInPlace: number;
+  /** Whether this move needs the user's consent first */
+  needsConsent: boolean;
+}
+
+/**
+ * Classifies one OpenSpec-managed file. `move` is the fast path (nothing at
+ * the destination yet); `drop` means the destination already holds the same
+ * bytes, so the legacy copy is redundant; `keep` means the two differ, which
+ * only happens when the user edited one, and an edit is not ours to discard.
+ */
+type FileDisposition = 'move' | 'drop' | 'keep' | 'skip';
+
+function classifyManagedFile(source: string, destination: string): FileDisposition {
+  if (isSamePath(source, destination)) return 'skip';
+  if (!fs.existsSync(destination)) return 'move';
+  try {
+    return fs.readFileSync(source, 'utf-8') === fs.readFileSync(destination, 'utf-8')
+      ? 'drop'
+      : 'keep';
+  } catch {
+    return 'keep';
+  }
+}
+
+/**
+ * Rewrites a generated command path from the tool's current root to a legacy
+ * one, so `.devin/workflows/opsx-apply.md` locates its `.windsurf/` twin
+ * without the migration hard-coding either layout.
+ *
+ * Returns undefined for adapters whose paths are absolute (global-scoped
+ * command files) or do not start at the tool root — neither can be relocated
+ * by swapping a leading segment.
+ */
+function legacyCommandPath(
+  commandPath: string,
+  currentRoot: string,
+  legacyRoot: string
+): string | undefined {
+  if (path.isAbsolute(commandPath)) return undefined;
+  const segments = commandPath.split(/[\\/]/);
+  if (segments[0] !== currentRoot) return undefined;
+  segments[0] = legacyRoot;
+  return path.join(...segments);
+}
+
+/**
+ * Reports the OpenSpec content sitting under each tool's legacy root, without
+ * moving anything. Callers use this to ask before a move that needs consent.
+ */
+export function findLegacyToolMigrations(projectPath: string): LegacyToolMigration[] {
+  return collectLegacyToolMigrations(projectPath, false);
+}
+
+/**
+ * Moves OpenSpec-managed skill directories (openspec-*) and command files
+ * (opsx-*) from a tool's legacy root to its current one. When the destination
+ * already exists the legacy copy is removed instead. Legacy directories are
+ * deleted only when left empty, so user files under the old location — a
+ * hand-written Cascade workflow next to the generated ones — are preserved.
+ *
+ * @param projectPath - Project root
+ * @param toolIds - Restrict the move to these tools; omit to move every tool
+ *        whose legacy root needs no consent
+ */
+export function migrateLegacyToolDirs(
+  projectPath: string,
+  toolIds?: string[]
+): LegacyToolMigration[] {
+  return collectLegacyToolMigrations(projectPath, true, toolIds);
+}
+
+function collectLegacyToolMigrations(
+  projectPath: string,
+  apply: boolean,
+  toolIds?: string[]
+): LegacyToolMigration[] {
+  const migrations: LegacyToolMigration[] = [];
 
   for (const tool of AI_TOOLS) {
     if (!tool.skillsDir) continue;
+    if (toolIds && !toolIds.includes(tool.value)) continue;
 
-    for (const legacyRoot of LEGACY_SKILLS_DIRS[tool.value] ?? []) {
-      if (legacyRoot === tool.skillsDir) continue;
-      const legacySkillsDir = path.join(projectPath, legacyRoot, 'skills');
-      if (!fs.existsSync(legacySkillsDir)) continue;
-      const currentSkillsDir = path.join(projectPath, tool.skillsDir, 'skills');
-      let movedSkillDirs = 0;
+    for (const legacy of LEGACY_TOOL_ROOTS[tool.value] ?? []) {
+      if (legacy.root === tool.skillsDir) continue;
+      // Without an explicit tool list, only moves that need no consent run.
+      if (apply && !toolIds && legacy.needsConsent) continue;
+      if (!fs.existsSync(path.join(projectPath, legacy.root))) continue;
 
-      for (const workflowId of ALL_WORKFLOWS) {
-        const dirName = WORKFLOW_TO_SKILL_DIR[workflowId];
-        const source = path.join(legacySkillsDir, dirName);
-        if (!fs.existsSync(path.join(source, 'SKILL.md'))) continue;
+      const skills = migrateSkillDirs(projectPath, tool.skillsDir, legacy.root, apply);
+      const commands = migrateCommandFiles(projectPath, tool, legacy.root, apply);
 
-        try {
-          const destination = path.join(currentSkillsDir, dirName);
-          if (fs.existsSync(destination)) {
-            fs.rmSync(source, { recursive: true, force: true });
-          } else {
-            fs.mkdirSync(currentSkillsDir, { recursive: true });
-            fs.renameSync(source, destination);
-          }
-          movedSkillDirs++;
-        } catch {
-          // Leave the legacy directory in place if it cannot be moved
-        }
+      if (apply) {
+        removeDirIfEmpty(path.join(projectPath, legacy.root, 'skills'));
+        removeDirIfEmpty(path.join(projectPath, legacy.root, 'workflows'));
+        removeDirIfEmpty(path.join(projectPath, legacy.root));
       }
 
-      removeDirIfEmpty(legacySkillsDir);
-      removeDirIfEmpty(path.join(projectPath, legacyRoot));
-
-      if (movedSkillDirs > 0) {
-        migrations.push({ toolId: tool.value, from: legacyRoot, to: tool.skillsDir, movedSkillDirs });
+      // Kept-only results are retained deliberately. When every legacy file
+      // differs from its counterpart nothing is movable, and dropping the
+      // record here would leave the user with two divergent copies and no
+      // word of it.
+      if (skills.moved > 0 || commands.moved > 0 || skills.kept > 0 || commands.kept > 0) {
+        migrations.push({
+          toolId: tool.value,
+          from: legacy.root,
+          to: tool.skillsDir,
+          skillDirs: skills.moved,
+          commandFiles: commands.moved,
+          keptInPlace: skills.kept + commands.kept,
+          needsConsent: legacy.needsConsent,
+        });
       }
     }
   }
 
   return migrations;
+}
+
+function migrateSkillDirs(
+  projectPath: string,
+  currentRoot: string,
+  legacyRoot: string,
+  apply: boolean
+): { moved: number; kept: number } {
+  const legacySkillsDir = path.join(projectPath, legacyRoot, 'skills');
+  if (!fs.existsSync(legacySkillsDir)) return { moved: 0, kept: 0 };
+  const currentSkillsDir = path.join(projectPath, currentRoot, 'skills');
+  let moved = 0;
+  let kept = 0;
+
+  for (const workflowId of ALL_WORKFLOWS) {
+    const dirName = WORKFLOW_TO_SKILL_DIR[workflowId];
+    const source = path.join(legacySkillsDir, dirName);
+    const sourceSkill = path.join(source, 'SKILL.md');
+    if (!fs.existsSync(sourceSkill)) continue;
+
+    const destination = path.join(currentSkillsDir, dirName);
+    const destinationSkill = path.join(destination, 'SKILL.md');
+    const disposition = classifyManagedFile(sourceSkill, destinationSkill);
+    if (disposition === 'skip') continue;
+    if (disposition === 'keep') {
+      kept++;
+      continue;
+    }
+    if (!apply) {
+      moved++;
+      continue;
+    }
+
+    try {
+      // Move the generated file, never the directory around it. A skill
+      // directory can also hold files the user wrote, and this destination is
+      // one OpenSpec deletes on its own — commands-only delivery and a
+      // deselected workflow both remove the whole skill directory. Carrying a
+      // user's file across would be handing it to that later removal.
+      if (disposition === 'drop') {
+        fs.rmSync(sourceSkill, { force: true });
+      } else {
+        fs.mkdirSync(destination, { recursive: true });
+        fs.renameSync(sourceSkill, destinationSkill);
+      }
+      // Anything the user left beside it stays under the legacy root.
+      removeDirIfEmpty(source);
+      moved++;
+    } catch {
+      // Leave the legacy directory in place if it cannot be moved
+    }
+  }
+
+  return { moved, kept };
+}
+
+function migrateCommandFiles(
+  projectPath: string,
+  tool: AIToolOption,
+  legacyRoot: string,
+  apply: boolean
+): { moved: number; kept: number } {
+  const adapter = CommandAdapterRegistry.get(tool.value);
+  if (!adapter || !tool.skillsDir) return { moved: 0, kept: 0 };
+  let moved = 0;
+  let kept = 0;
+
+  for (const commandId of COMMAND_IDS) {
+    const currentPath = adapter.getFilePath(commandId);
+    const legacyPath = legacyCommandPath(currentPath, tool.skillsDir, legacyRoot);
+    if (!legacyPath) continue;
+
+    const source = path.join(projectPath, legacyPath);
+    if (!fs.existsSync(source)) continue;
+
+    const destination = path.join(projectPath, currentPath);
+    const disposition = classifyManagedFile(source, destination);
+    if (disposition === 'skip') continue;
+    if (disposition === 'keep') {
+      kept++;
+      continue;
+    }
+    if (!apply) {
+      moved++;
+      continue;
+    }
+
+    try {
+      if (disposition === 'drop') {
+        fs.rmSync(source, { force: true });
+      } else {
+        fs.mkdirSync(path.dirname(destination), { recursive: true });
+        fs.renameSync(source, destination);
+      }
+      moved++;
+    } catch {
+      // Leave the legacy file in place if it cannot be moved
+    }
+  }
+
+  return { moved, kept };
+}
+
+/**
+ * Summarizes what a migration moved, e.g. "6 skills and 6 commands".
+ */
+export function describeLegacyMigration(migration: LegacyToolMigration): string {
+  const parts: string[] = [];
+  if (migration.skillDirs > 0) {
+    parts.push(`${migration.skillDirs} skill${migration.skillDirs === 1 ? '' : 's'}`);
+  }
+  if (migration.commandFiles > 0) {
+    parts.push(`${migration.commandFiles} command${migration.commandFiles === 1 ? '' : 's'}`);
+  }
+  return parts.join(' and ');
+}
+
+/**
+ * Names OpenSpec-managed files the move deliberately left behind, so a user
+ * who customized one knows there are now two copies to reconcile.
+ */
+export function keptInPlaceNotice(migration: LegacyToolMigration): string | undefined {
+  if (migration.keptInPlace === 0) return undefined;
+  const n = migration.keptInPlace;
+  // Deliberately does not claim the difference came from an edit: an older
+  // OpenSpec version's output differs too. Either way nothing was overwritten,
+  // and the user is the one who decides which copy to keep.
+  return (
+    `Left ${n} file${n === 1 ? '' : 's'} in ${migration.from}/ that ` +
+    `differ${n === 1 ? 's' : ''} from the copy in ${migration.to}/. Nothing was ` +
+    `overwritten — compare the two and delete the ${migration.from}/ copy once ` +
+    `you have kept anything you customized.`
+  );
+}
+
+/**
+ * Whether a migration has anything to move, as opposed to only files left in
+ * place. Callers use this to avoid offering a move of nothing.
+ */
+export function hasMovableContent(migration: LegacyToolMigration): boolean {
+  return migration.skillDirs > 0 || migration.commandFiles > 0;
+}
+
+/**
+ * Explains why a consent-gated move is being offered, in the user's terms.
+ * Keyed by tool so the reason is specific rather than a generic "files moved".
+ */
+export function legacyMigrationNotice(migration: LegacyToolMigration): string {
+  if (migration.toolId === 'devin') {
+    return (
+      `Windsurf is now Devin Desktop, and its config directory moved from ` +
+      `${migration.from}/ to ${migration.to}/. Devin Desktop reads ${migration.from}/ ` +
+      `only as a fallback, and Devin Local does not read it at all.`
+    );
+  }
+  return `${migration.from}/ is the former location for this tool; ${migration.to}/ is current.`;
+}
+
+/**
+ * Whether two paths are the same file on disk once symlinks are resolved.
+ *
+ * Symlinking one tool root at the other is a realistic way to straddle a
+ * rebrand (`ln -s .devin .windsurf` to keep an older build working). Without
+ * this check the "destination already exists, drop the legacy copy" branch
+ * deletes the destination itself, taking the only copy with it.
+ */
+function isSamePath(a: string, b: string): boolean {
+  try {
+    return fs.realpathSync(a) === fs.realpathSync(b);
+  } catch {
+    return false;
+  }
 }
 
 function removeDirIfEmpty(dirPath: string): void {

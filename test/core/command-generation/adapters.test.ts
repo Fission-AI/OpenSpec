@@ -11,6 +11,7 @@ import { continueAdapter } from '../../../src/core/command-generation/adapters/c
 import { costrictAdapter } from '../../../src/core/command-generation/adapters/costrict.js';
 import { crushAdapter } from '../../../src/core/command-generation/adapters/crush.js';
 import { cursorAdapter } from '../../../src/core/command-generation/adapters/cursor.js';
+import { devinAdapter } from '../../../src/core/command-generation/adapters/devin.js';
 import { factoryAdapter } from '../../../src/core/command-generation/adapters/factory.js';
 import { geminiAdapter } from '../../../src/core/command-generation/adapters/gemini.js';
 import { githubCopilotAdapter } from '../../../src/core/command-generation/adapters/github-copilot.js';
@@ -26,7 +27,6 @@ import { qoderAdapter } from '../../../src/core/command-generation/adapters/qode
 import { qwenAdapter } from '../../../src/core/command-generation/adapters/qwen.js';
 import { roocodeAdapter } from '../../../src/core/command-generation/adapters/roocode.js';
 import { traeAdapter } from '../../../src/core/command-generation/adapters/trae.js';
-import { windsurfAdapter } from '../../../src/core/command-generation/adapters/windsurf.js';
 import { zcodeAdapter } from '../../../src/core/command-generation/adapters/zcode.js';
 import type {
   CommandContent,
@@ -114,18 +114,18 @@ describe('command-generation/adapters', () => {
     });
   });
 
-  describe('windsurfAdapter', () => {
+  describe('devinAdapter', () => {
     it('should have correct toolId', () => {
-      expect(windsurfAdapter.toolId).toBe('windsurf');
+      expect(devinAdapter.toolId).toBe('devin');
     });
 
     it('should generate correct file path', () => {
-      const filePath = windsurfAdapter.getFilePath('explore');
-      expect(filePath).toBe(path.join('.windsurf', 'workflows', 'opsx-explore.md'));
+      const filePath = devinAdapter.getFilePath('explore');
+      expect(filePath).toBe(path.join('.devin', 'workflows', 'opsx-explore.md'));
     });
 
-    it('should format file similar to Claude format', () => {
-      const output = windsurfAdapter.formatFile(sampleContent);
+    it('should format file with YAML frontmatter', () => {
+      const output = devinAdapter.formatFile(sampleContent);
 
       expect(output).toContain('---\n');
       expect(output).toContain('name: "OpenSpec Explore"');
@@ -134,6 +134,20 @@ describe('command-generation/adapters', () => {
       expect(output).toContain('tags: ["workflow", "explore", "experimental"]');
       expect(output).toContain('---\n\n');
       expect(output).toContain('This is the command body.');
+    });
+
+    // The body's `/opsx:*` references are rewritten to the `/opsx-*` form
+    // Devin registers by the generator, not here — adapters are pure
+    // formatters. Covered for devin in invocation.test.ts.
+
+    // Frontmatter escaping comes from the shared yaml.ts helpers and is
+    // covered for every registered adapter by the round-trip matrix in
+    // "YAML frontmatter escaping across adapters" below.
+
+    it('should handle empty tags', () => {
+      const contentNoTags: CommandContent = { ...sampleContent, tags: [] };
+      const output = devinAdapter.formatFile(contentNoTags);
+      expect(output).toContain('tags: []');
     });
   });
 
@@ -932,9 +946,9 @@ describe('command-generation/adapters', () => {
       expect(filePath.split(path.sep)).toEqual(['.cursor', 'commands', 'opsx-test.md']);
     });
 
-    it('Windsurf adapter uses path.join for paths', () => {
-      const filePath = windsurfAdapter.getFilePath('test');
-      expect(filePath.split(path.sep)).toEqual(['.windsurf', 'workflows', 'opsx-test.md']);
+    it('Devin adapter uses path.join for paths', () => {
+      const filePath = devinAdapter.getFilePath('test');
+      expect(filePath.split(path.sep)).toEqual(['.devin', 'workflows', 'opsx-test.md']);
     });
 
     it('All adapters use path.join for paths', () => {

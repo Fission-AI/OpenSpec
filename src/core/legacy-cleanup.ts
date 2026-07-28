@@ -43,7 +43,10 @@ export const LEGACY_SLASH_COMMAND_PATHS: Record<string, LegacySlashCommandPatter
 
   // File-based: individual openspec-*.md files in a commands/workflows/prompts folder
   'cursor': { type: 'files', pattern: '.cursor/commands/openspec-*.md' },
-  'windsurf': { type: 'files', pattern: '.windsurf/workflows/openspec-*.md' },
+  // Keyed by the tool id these map back to, so the pre-opsx Windsurf files
+  // belong to `devin` — the id Windsurf became. Only `.windsurf/` is listed:
+  // `.devin/` postdates the opsx rename and never held `openspec-*` files.
+  'devin': { type: 'files', pattern: '.windsurf/workflows/openspec-*.md' },
   'kilocode': { type: 'files', pattern: '.kilocode/workflows/openspec-*.md' },
   'kiro': { type: 'files', pattern: '.kiro/prompts/openspec-*.prompt.md' },
   'github-copilot': { type: 'files', pattern: '.github/prompts/openspec-*.prompt.md' },

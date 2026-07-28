@@ -222,7 +222,7 @@ Old instructions content
       expect(await fs.readFile(path.join(testDir, '.kimi', 'config.toml'), 'utf-8')).toBe('user config');
 
       const logCalls = consoleSpy.mock.calls.flat().map(String);
-      expect(logCalls.some((entry) => entry.includes('.kimi/skills') && entry.includes('.kimi-code/skills'))).toBe(true);
+      expect(logCalls.some((entry) => entry.includes('.kimi → .kimi-code'))).toBe(true);
 
       consoleSpy.mockRestore();
     });
@@ -492,6 +492,35 @@ Old instructions content
       }
     });
 
+    it('should refresh both Devin Desktop surfaces with the right invocation syntax', async () => {
+      // Set up Devin Desktop directory with a skill to indicate it's configured
+      const skillsDir = path.join(testDir, '.devin', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-apply-change'), {
+        recursive: true,
+      });
+      const skillFile = path.join(skillsDir, 'openspec-apply-change', 'SKILL.md');
+      await fs.writeFile(skillFile, 'old content');
+
+      await updateCommand.execute(testDir);
+
+      // Workflows are invoked by filename, so their bodies use `/opsx-*`.
+      const workflow = path.join(testDir, '.devin', 'workflows', 'opsx-apply.md');
+      expect(await FileSystemUtils.fileExists(workflow)).toBe(true);
+
+      const workflowContent = await fs.readFile(workflow, 'utf-8');
+      expect(workflowContent).toMatch(/^---\nname: "/);
+      expect(workflowContent).toContain('/opsx-');
+      expect(workflowContent).not.toContain('/opsx:');
+
+      // Skills are refreshed too, and point at skills — the Devin Local agent
+      // has no workflows to point at.
+      const skillContent = await fs.readFile(skillFile, 'utf-8');
+      expect(skillContent).not.toContain('old content');
+      expect(skillContent).toContain('/openspec-apply-change');
+      expect(skillContent).not.toContain('/opsx:');
+      expect(skillContent).not.toContain('/opsx-');
+    });
+
     it('should update command files when tool is configured via commands-only delivery without skills', async () => {
       setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
       const commandsDir = path.join(testDir, '.claude', 'commands', 'opsx');
@@ -587,32 +616,230 @@ Old instructions content
       expect(content).toContain('description:');
     });
 
-    it('should update Windsurf tool with correct command format', async () => {
-      // Set up Windsurf
-      const windsurfSkillsDir = path.join(testDir, '.windsurf', 'skills');
-      await fs.mkdir(path.join(windsurfSkillsDir, 'openspec-explore'), {
-        recursive: true,
-      });
-      await fs.writeFile(
-        path.join(windsurfSkillsDir, 'openspec-explore', 'SKILL.md'),
-        'old'
+    it('should migrate a legacy .windsurf install to .devin, preserving user files', async () => {
+      // A project set up before the Devin Desktop rebrand: OpenSpec skills and
+      // workflows under .windsurf/, alongside files the user wrote themselves.
+      const legacySkillDir = path.join(testDir, '.windsurf', 'skills', 'openspec-explore');
+      await fs.mkdir(legacySkillDir, { recursive: true });
+      await fs.writeFile(path.join(legacySkillDir, 'SKILL.md'), 'old skill content');
+
+      const legacyWorkflows = path.join(testDir, '.windsurf', 'workflows');
+      await fs.mkdir(legacyWorkflows, { recursive: true });
+      await fs.writeFile(path.join(legacyWorkflows, 'opsx-explore.md'), 'old workflow content');
+
+      // User-owned content that must survive untouched
+      const userSkillDir = path.join(testDir, '.windsurf', 'skills', 'my-custom-skill');
+      await fs.mkdir(userSkillDir, { recursive: true });
+      await fs.writeFile(path.join(userSkillDir, 'SKILL.md'), 'user skill');
+      await fs.writeFile(path.join(legacyWorkflows, 'my-workflow.md'), 'user workflow');
+
+      // Tests run non-interactively, so the consent-gated move is taken.
+      await updateCommand.execute(testDir);
+
+      // Both surfaces now live under .devin and were refreshed
+      const migratedSkill = await fs.readFile(
+        path.join(testDir, '.devin', 'skills', 'openspec-explore', 'SKILL.md'),
+        'utf-8'
       );
+      expect(migratedSkill).not.toContain('old skill content');
+      const migratedWorkflow = await fs.readFile(
+        path.join(testDir, '.devin', 'workflows', 'opsx-explore.md'),
+        'utf-8'
+      );
+      expect(migratedWorkflow).not.toContain('old workflow content');
+      expect(migratedWorkflow).toContain('---');
+
+      // The OpenSpec-managed originals are gone; the user's files are not
+      await expect(fs.access(legacySkillDir)).rejects.toThrow();
+      await expect(
+        fs.access(path.join(legacyWorkflows, 'opsx-explore.md'))
+      ).rejects.toThrow();
+      expect(await fs.readFile(path.join(userSkillDir, 'SKILL.md'), 'utf-8')).toBe('user skill');
+      expect(
+        await fs.readFile(path.join(legacyWorkflows, 'my-workflow.md'), 'utf-8')
+      ).toBe('user workflow');
+    });
+
+    it('should not delete the install when the legacy root is a symlink to the current one', async () => {
+      // Symlinking the two roots is a realistic way to straddle the rebrand.
+      // Source and destination are then the same file, so a naive
+      // "destination exists, drop the legacy copy" would delete the original.
+      await updateCommand.execute(testDir);
+      const devinSkill = path.join(testDir, '.devin', 'skills', 'openspec-explore');
+      await fs.mkdir(devinSkill, { recursive: true });
+      await fs.writeFile(path.join(devinSkill, 'SKILL.md'), 'real content');
+      await fs.symlink('.devin', path.join(testDir, '.windsurf'));
 
       await updateCommand.execute(testDir);
 
-      // Check Windsurf command format
-      const windsurfCmd = path.join(
-        testDir,
-        '.windsurf',
-        'workflows',
-        'opsx-explore.md'
-      );
-      const exists = await FileSystemUtils.fileExists(windsurfCmd);
-      expect(exists).toBe(true);
+      // The real file is still there, through either path
+      expect(await FileSystemUtils.fileExists(path.join(devinSkill, 'SKILL.md'))).toBe(true);
+    });
 
-      const content = await fs.readFile(windsurfCmd, 'utf-8');
-      expect(content).toContain('---');
-      expect(content).toContain('name:');
+    it('should keep user files that live inside an OpenSpec-managed skill directory', async () => {
+      // Both roots holding the same skill is the normal state after a rebrand.
+      // A reference the user wrote beside SKILL.md is theirs and never moves.
+      const devinSkill = path.join(testDir, '.devin', 'skills', 'openspec-explore');
+      await fs.mkdir(devinSkill, { recursive: true });
+      await fs.writeFile(path.join(devinSkill, 'SKILL.md'), 'current');
+
+      const legacySkill = path.join(testDir, '.windsurf', 'skills', 'openspec-explore');
+      await fs.mkdir(legacySkill, { recursive: true });
+      await fs.writeFile(path.join(legacySkill, 'SKILL.md'), 'current');
+      await fs.writeFile(path.join(legacySkill, 'reference.md'), 'my notes');
+
+      await updateCommand.execute(testDir);
+
+      // Byte-identical to the survivor, so the redundant copy goes
+      await expect(fs.access(path.join(legacySkill, 'SKILL.md'))).rejects.toThrow();
+      expect(await fs.readFile(path.join(legacySkill, 'reference.md'), 'utf-8')).toBe('my notes');
+    });
+
+    it('should report divergent files even when nothing is movable', async () => {
+      // Every legacy file differs from its counterpart, so there is no move to
+      // make. Staying silent would leave two divergent copies the user never
+      // hears about, so the result is reported rather than dropped.
+      const devinSkill = path.join(testDir, '.devin', 'skills', 'openspec-explore');
+      await fs.mkdir(devinSkill, { recursive: true });
+      await fs.writeFile(path.join(devinSkill, 'SKILL.md'), 'current');
+      const devinWorkflows = path.join(testDir, '.devin', 'workflows');
+      await fs.mkdir(devinWorkflows, { recursive: true });
+      await fs.writeFile(path.join(devinWorkflows, 'opsx-explore.md'), 'current');
+
+      const legacySkill = path.join(testDir, '.windsurf', 'skills', 'openspec-explore');
+      await fs.mkdir(legacySkill, { recursive: true });
+      await fs.writeFile(path.join(legacySkill, 'SKILL.md'), 'mine');
+      const legacyWorkflows = path.join(testDir, '.windsurf', 'workflows');
+      await fs.mkdir(legacyWorkflows, { recursive: true });
+      await fs.writeFile(path.join(legacyWorkflows, 'opsx-explore.md'), 'mine');
+
+      const consoleSpy = vi.spyOn(console, 'log');
+      await updateCommand.execute(testDir);
+      const logCalls = consoleSpy.mock.calls.flat().map(String);
+      consoleSpy.mockRestore();
+
+      // The divergence is surfaced...
+      expect(logCalls.some((entry) => entry.includes('Left 2 files in .windsurf/'))).toBe(true);
+      // ...without claiming a migration that did not happen. Matched on the
+      // directory arrow rather than the word "Migrated", which also begins the
+      // unrelated profile-migration line ("Migrated: custom profile with N
+      // workflows") that fires only under some config states.
+      expect(logCalls.some((entry) => entry.includes('.windsurf → .devin'))).toBe(false);
+      expect(logCalls.some((entry) => entry.includes('Migrated 0'))).toBe(false);
+      // ...and nothing was touched
+      expect(await fs.readFile(path.join(legacySkill, 'SKILL.md'), 'utf-8')).toBe('mine');
+      expect(await fs.readFile(path.join(legacyWorkflows, 'opsx-explore.md'), 'utf-8')).toBe('mine');
+    });
+
+    it('should keep a legacy SKILL.md the user edited, matching how command files are treated', async () => {
+      // Skills and commands must follow one rule. An earlier draft compared
+      // content for commands and not for skills, so the same situation
+      // destroyed a user's edited skill while preserving their edited command.
+      const devinSkill = path.join(testDir, '.devin', 'skills', 'openspec-explore');
+      await fs.mkdir(devinSkill, { recursive: true });
+      await fs.writeFile(path.join(devinSkill, 'SKILL.md'), 'current');
+      const devinWorkflows = path.join(testDir, '.devin', 'workflows');
+      await fs.mkdir(devinWorkflows, { recursive: true });
+      await fs.writeFile(path.join(devinWorkflows, 'opsx-explore.md'), 'current');
+
+      const legacySkill = path.join(testDir, '.windsurf', 'skills', 'openspec-explore');
+      await fs.mkdir(legacySkill, { recursive: true });
+      await fs.writeFile(path.join(legacySkill, 'SKILL.md'), 'my edited skill');
+      const legacyWorkflows = path.join(testDir, '.windsurf', 'workflows');
+      await fs.mkdir(legacyWorkflows, { recursive: true });
+      await fs.writeFile(path.join(legacyWorkflows, 'opsx-explore.md'), 'my edited command');
+
+      await updateCommand.execute(testDir);
+
+      expect(await fs.readFile(path.join(legacySkill, 'SKILL.md'), 'utf-8')).toBe(
+        'my edited skill'
+      );
+      expect(await fs.readFile(path.join(legacyWorkflows, 'opsx-explore.md'), 'utf-8')).toBe(
+        'my edited command'
+      );
+    });
+
+    it('should not carry a user file into a skill directory that commands-only delivery deletes', async () => {
+      // Only SKILL.md may cross. The destination is a directory OpenSpec owns
+      // and removes on its own under commands-only delivery, so moving the
+      // whole legacy directory would hand the user's file to that removal.
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+      const legacySkill = path.join(testDir, '.windsurf', 'skills', 'openspec-explore');
+      await fs.mkdir(legacySkill, { recursive: true });
+      await fs.writeFile(path.join(legacySkill, 'SKILL.md'), 'stale');
+      await fs.writeFile(path.join(legacySkill, 'reference.md'), 'my notes');
+
+      await updateCommand.execute(testDir);
+
+      expect(await fs.readFile(path.join(legacySkill, 'reference.md'), 'utf-8')).toBe('my notes');
+      await expect(fs.access(path.join(legacySkill, 'SKILL.md'))).rejects.toThrow();
+    });
+
+    it('should not carry a user file into a skill directory a deselected workflow deletes', async () => {
+      // openspec-new-change is outside the core profile, so the skill
+      // directory it would land in is one OpenSpec prunes.
+      const legacySkill = path.join(testDir, '.windsurf', 'skills', 'openspec-new-change');
+      await fs.mkdir(legacySkill, { recursive: true });
+      await fs.writeFile(path.join(legacySkill, 'SKILL.md'), 'stale');
+      await fs.writeFile(path.join(legacySkill, 'reference.md'), 'my notes');
+
+      await updateCommand.execute(testDir);
+
+      expect(await fs.readFile(path.join(legacySkill, 'reference.md'), 'utf-8')).toBe('my notes');
+    });
+
+    it('should still fully vacate a legacy skill directory that holds only SKILL.md', async () => {
+      // The safety rule must not leave empty scaffolding behind in the
+      // ordinary case, where there is nothing of the user's to preserve.
+      const legacySkill = path.join(testDir, '.windsurf', 'skills', 'openspec-explore');
+      await fs.mkdir(legacySkill, { recursive: true });
+      await fs.writeFile(path.join(legacySkill, 'SKILL.md'), 'stale');
+
+      await updateCommand.execute(testDir);
+
+      expect(
+        await FileSystemUtils.fileExists(
+          path.join(testDir, '.devin', 'skills', 'openspec-explore', 'SKILL.md')
+        )
+      ).toBe(true);
+      await expect(fs.access(path.join(testDir, '.windsurf'))).rejects.toThrow();
+    });
+
+    it('should keep a legacy command file the user edited, and drop an identical one', async () => {
+      const devinWorkflows = path.join(testDir, '.devin', 'workflows');
+      await fs.mkdir(devinWorkflows, { recursive: true });
+      await fs.writeFile(path.join(devinWorkflows, 'opsx-explore.md'), 'generated');
+      await fs.writeFile(path.join(devinWorkflows, 'opsx-apply.md'), 'generated');
+
+      const legacyWorkflows = path.join(testDir, '.windsurf', 'workflows');
+      await fs.mkdir(legacyWorkflows, { recursive: true });
+      // Edited by the user — deleting it would throw the edit away
+      await fs.writeFile(path.join(legacyWorkflows, 'opsx-explore.md'), 'my edits');
+      // Byte-identical — nothing is lost by dropping it
+      await fs.writeFile(path.join(legacyWorkflows, 'opsx-apply.md'), 'generated');
+
+      await updateCommand.execute(testDir);
+
+      expect(await fs.readFile(path.join(legacyWorkflows, 'opsx-explore.md'), 'utf-8')).toBe(
+        'my edits'
+      );
+      await expect(fs.access(path.join(legacyWorkflows, 'opsx-apply.md'))).rejects.toThrow();
+    });
+
+    it('should leave a migrated project alone on the next run', async () => {
+      // The move must be idempotent: once .windsurf/ holds nothing of ours,
+      // a second update has nothing to migrate and nothing to announce.
+      const legacySkillDir = path.join(testDir, '.windsurf', 'skills', 'openspec-explore');
+      await fs.mkdir(legacySkillDir, { recursive: true });
+      await fs.writeFile(path.join(legacySkillDir, 'SKILL.md'), 'old');
+
+      await updateCommand.execute(testDir);
+
+      const consoleSpy = vi.spyOn(console, 'log');
+      await updateCommand.execute(testDir);
+      const logCalls = consoleSpy.mock.calls.flat().map(String);
+      expect(logCalls.some((entry) => entry.includes('.windsurf → .devin'))).toBe(false);
+      consoleSpy.mockRestore();
     });
   });
 

@@ -418,7 +418,7 @@ const TOOLS = [
   'Claude Code',
   'Cursor',
   'Codex',
-  'Windsurf',
+  'Devin Desktop',
   'Gemini CLI',
   'GitHub Copilot',
   'Cline',
@@ -615,7 +615,7 @@ function FinalCta() {
         Ship your first change in five minutes
       </h2>
       <p className="mx-auto mt-4 max-w-xl text-fd-muted-foreground">
-        Works with 30+ AI assistants — Claude Code, Cursor, Codex, Windsurf,
+        Works with 30+ AI assistants — Claude Code, Cursor, Codex, Devin Desktop,
         Gemini CLI, and more.
       </p>
       <div className="mt-8 inline-flex flex-col gap-1 rounded-lg border border-fd-border bg-fd-card px-4 py-3 text-left font-mono text-sm">
