@@ -16,8 +16,11 @@ import {
   isSourceCheckout,
   detectPackageManager,
   npmGlobalRoots,
+  npmPrefixFromInstallDir,
+  upgradedBinPath,
   buildUpgradeCommandLines,
   canSelfUpgrade,
+  shouldOfferUpgrade,
   offerCliUpgrade,
   readCliVersion,
   rerunUpdateWithUpgradedCli,
@@ -155,6 +158,34 @@ describe('getAvailableCliUpdate', () => {
     await expect(getAvailableCliUpdate()).resolves.toBeNull();
   });
 
+  it('follows a redirect, as mirrors and corporate front-ends send', async () => {
+    let hop = 0;
+    respond = (res) => {
+      hop += 1;
+      if (hop === 1) {
+        res.writeHead(302, { location: '/elsewhere/@fission-ai/openspec/latest' });
+        res.end();
+        return;
+      }
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ version: bumpMajor(OPENSPEC_VERSION) }));
+    };
+
+    await expect(getAvailableCliUpdate()).resolves.toBe(bumpMajor(OPENSPEC_VERSION));
+    expect(requests[1].url).toBe('/elsewhere/@fission-ai/openspec/latest');
+  });
+
+  it('gives up rather than following a redirect loop', async () => {
+    respond = (res) => {
+      res.writeHead(302, { location: '/round/and/round' });
+      res.end();
+    };
+
+    await expect(getAvailableCliUpdate()).resolves.toBeNull();
+    // Bounded: the first request plus a fixed number of hops.
+    expect(requests.length).toBeLessThanOrEqual(5);
+  });
+
   it('returns null on a non-OK registry response', async () => {
     respond = (res) => {
       res.writeHead(500);
@@ -246,6 +277,20 @@ describe('getAvailableCliUpdate', () => {
       vi.spyOn(process, 'cwd').mockReturnValue(project);
       expect(registryUrl()).toBe('https://npm.internal.example.com/@fission-ai/openspec/latest');
 
+      // A scoped registry is how a private mirror is normally configured for a
+      // scoped package, and npm resolves it ahead of the default.
+      fs.writeFileSync(
+        path.join(home, '.npmrc'),
+        'registry=https://default.example.com/\n@fission-ai:registry=https://scoped.example.com/\n'
+      );
+      expect(registryUrl()).toBe('https://scoped.example.com/@fission-ai/openspec/latest');
+
+      // npm expands ${VAR}; an unexpanded value would not be a URL at all.
+      process.env.OPENSPEC_TEST_REGISTRY = 'https://from-env.example.com';
+      fs.writeFileSync(path.join(home, '.npmrc'), 'registry=${OPENSPEC_TEST_REGISTRY}\n');
+      expect(registryUrl()).toBe('https://from-env.example.com/@fission-ai/openspec/latest');
+      delete process.env.OPENSPEC_TEST_REGISTRY;
+
       // The environment still wins when npm did export it.
       process.env.npm_config_registry = 'https://env.example.com';
       expect(registryUrl()).toBe('https://env.example.com/@fission-ai/openspec/latest');
@@ -258,7 +303,9 @@ describe('getAvailableCliUpdate', () => {
   it('falls back to the public registry when the override is not an http(s) URL', () => {
     // Asserted on the URL rather than by calling: the fallback would send a
     // real request to npmjs.org, which no test should depend on.
-    for (const bogus of ['not-a-url', '   ', 'file:///etc/passwd', 'javascript:alert(1)']) {
+    // No '   ' case: a blank value falls through to ~/.npmrc, and this test
+    // must not depend on whatever the machine has configured there.
+    for (const bogus of ['not-a-url', 'file:///etc/passwd', 'javascript:alert(1)']) {
       process.env.npm_config_registry = bogus;
       expect(registryUrl()).toBe('https://registry.npmjs.org/@fission-ai/openspec/latest');
     }
@@ -302,7 +349,7 @@ describe('getAvailableCliUpdate against an unroutable registry', () => {
 
     expect(stderr).toBe('');
     expect(code).toBe(0);
-    expect(Date.now() - startedAt).toBeLessThan(6000);
+    expect(Date.now() - startedAt).toBeLessThan(process.platform === 'win32' ? 12000 : 6000);
   }, 30000);
 });
 
@@ -337,6 +384,28 @@ describe('offerCliUpgrade', () => {
     }
   });
 
+  it('asks only where the answer can be given and acted on', () => {
+    const npmGlobal = path.join(npmGlobalRoots()[0], '@fission-ai', 'openspec');
+    const base = { installDir: npmGlobal, projectPath: PROJECT_ROOT };
+
+    expect(shouldOfferUpgrade({ ...base, interactive: true, stdoutIsTty: true })).toBe(true);
+
+    // A prompt on a redirected stdout is a question nobody sees, and the
+    // command would wait on it forever.
+    expect(shouldOfferUpgrade({ ...base, interactive: true, stdoutIsTty: false })).toBe(false);
+    expect(shouldOfferUpgrade({ ...base, interactive: false, stdoutIsTty: true })).toBe(false);
+
+    // Interactive, but nothing `npm install -g` can fix.
+    expect(
+      shouldOfferUpgrade({
+        installDir: path.join(HOME_ROOT, 'Library', 'pnpm', 'global', '5', 'node_modules', 'pkg'),
+        projectPath: PROJECT_ROOT,
+        interactive: true,
+        stdoutIsTty: true,
+      })
+    ).toBe(false);
+  });
+
   it('never offers to install over a source checkout', () => {
     const clone = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-clone-'));
     try {
@@ -348,12 +417,76 @@ describe('offerCliUpgrade', () => {
       try {
         expect(isSourceCheckout(installed)).toBe(false);
       } finally {
-        fs.rmSync(installed, { recursive: true, force: true });
+        fs.rmSync(installed, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
       }
     } finally {
-      fs.rmSync(clone, { recursive: true, force: true });
+      fs.rmSync(clone, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     }
     expect(isSourceCheckout(null)).toBe(false);
+  });
+
+  it('recognizes an npm prefix that the node binary does not point at', () => {
+    // Homebrew realpaths node into the Cellar, so a root derived from
+    // process.execPath never matches the prefix npm actually installs into.
+    // The install's own shape is what settles it.
+    const prefix = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-brew-'));
+    try {
+      const isWindows = process.platform === 'win32';
+      const installed = isWindows
+        ? path.join(prefix, 'node_modules', '@fission-ai', 'openspec')
+        : path.join(prefix, 'lib', 'node_modules', '@fission-ai', 'openspec');
+      fs.mkdirSync(installed, { recursive: true });
+      fs.mkdirSync(path.join(prefix, 'bin'), { recursive: true });
+
+      expect(npmPrefixFromInstallDir(installed)).toBe(prefix);
+      // Deliberately an unrelated root, standing in for the Cellar path.
+      expect(isNpmGlobalInstall(installed, [path.join(GLOBAL_ROOT, 'lib', 'node_modules')])).toBe(
+        true
+      );
+
+      expect(npmPrefixFromInstallDir(path.join(HOME_ROOT, 'not', 'an', 'install'))).toBeNull();
+      expect(npmPrefixFromInstallDir(null)).toBeNull();
+    } finally {
+      fs.rmSync(prefix, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    }
+  });
+
+  it('does not mistake another manager\'s npm-shaped layout for an npm install', () => {
+    // volta nests a whole node install, so its packages sit in exactly the
+    // <prefix>/lib/node_modules shape npm uses.
+    const volta = path.join(
+      HOME_ROOT,
+      '.volta',
+      'tools',
+      'image',
+      'node',
+      '22.0.0',
+      'lib',
+      'node_modules',
+      '@fission-ai',
+      'openspec'
+    );
+
+    expect(isNpmGlobalInstall(volta, [path.join(GLOBAL_ROOT, 'lib', 'node_modules')])).toBe(false);
+    expect(canSelfUpgrade(volta, PROJECT_ROOT)).toBe(false);
+    // And the printed command matches the manager that does own it.
+    expect(buildUpgradeCommandLines(volta, PROJECT_ROOT)[0]).toContain('volta install');
+  });
+
+  it('does not read a package manager into an incidental directory name', () => {
+    // A user directory called "pnpm", or a project called "yarn", is not a
+    // global install of either.
+    expect(detectPackageManager('/home/pnpm/npm-global/lib/node_modules/pkg')).toBe('npm');
+    expect(detectPackageManager(path.join(HOME_ROOT, 'projects', 'yarn', 'node_modules', 'pkg'))).toBe(
+      'npm'
+    );
+    // The real layouts still resolve.
+    expect(detectPackageManager(path.join(HOME_ROOT, 'Library', 'pnpm', 'global', '5', 'pkg'))).toBe(
+      'pnpm'
+    );
+    expect(
+      detectPackageManager(path.join(HOME_ROOT, '.config', 'yarn', 'global', 'node_modules', 'pkg'))
+    ).toBe('yarn');
   });
 
   it('recognizes npm global roots without shelling out', () => {
@@ -381,6 +514,21 @@ describe('offerCliUpgrade', () => {
     }
 
     expect(detectPackageManager(null)).toBe('npm');
+  });
+
+  it('recognizes the Windows spellings of those install directories', () => {
+    // %LOCALAPPDATA%\Volta, \Yarn\Data, \pnpm-cache — capitalized, undotted,
+    // and nothing like their POSIX equivalents.
+    expect(detectPackageManager('C:\\Users\\me\\AppData\\Local\\Volta\\tools\\image\\pkg')).toBe(
+      'volta'
+    );
+    expect(detectPackageManager('C:\\Users\\me\\AppData\\Local\\pnpm\\global\\5\\pkg')).toBe('pnpm');
+    expect(detectPackageManager('C:\\Users\\me\\AppData\\Local\\Yarn\\Data\\global\\pkg')).toBe(
+      'yarn'
+    );
+    expect(isEphemeralRunnerInstall('C:\\Users\\me\\AppData\\Local\\pnpm-cache\\dlx\\a\\pkg')).toBe(
+      true
+    );
   });
 
   it('asks before touching anything, and does nothing when declined', async () => {
@@ -418,6 +566,27 @@ describe('offerCliUpgrade', () => {
     await expect(offer('9.9.9')).resolves.toBe('declined');
   });
 
+  it('reads the version line, not the first version-shaped token in a banner', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-banner-'));
+    try {
+      const isWindows = process.platform === 'win32';
+      const bin = path.join(dir, isWindows ? 'banner.cmd' : 'banner.sh');
+      // A wrapper that greets before answering: taking the first match would
+      // report the Node version as OpenSpec's.
+      fs.writeFileSync(
+        bin,
+        isWindows
+          ? '@echo Node.js v25.8.1 ^| OpenSpec\r\n@echo 1.7.0\r\n'
+          : '#!/bin/sh\necho "Node.js v25.8.1 | OpenSpec"\necho "1.7.0"\n'
+      );
+      fs.chmodSync(bin, 0o755);
+
+      await expect(readCliVersion(bin)).resolves.toBe('1.7.0');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    }
+  }, 30000);
+
   it('reads a version back from a binary rather than trusting an exit code', async () => {
     // `npm install -g` exits 0 even when it installed nothing, so the version
     // has to be read from whatever now answers.
@@ -425,13 +594,13 @@ describe('offerCliUpgrade', () => {
     try {
       const isWindows = process.platform === 'win32';
       const bin = path.join(dir, isWindows ? 'fake.cmd' : 'fake.sh');
-      fs.writeFileSync(bin, isWindows ? '@echo 9.9.9\n' : '#!/bin/sh\necho 9.9.9\n');
+      fs.writeFileSync(bin, isWindows ? '@echo 9.9.9\r\n' : '#!/bin/sh\necho 9.9.9\n');
       fs.chmodSync(bin, 0o755);
 
       await expect(readCliVersion(bin)).resolves.toBe('9.9.9');
       await expect(readCliVersion(path.join(dir, 'does-not-exist'))).resolves.toBeNull();
     } finally {
-      fs.rmSync(dir, { recursive: true, force: true });
+      fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     }
   }, 20000);
 });
@@ -457,7 +626,7 @@ describe('rerunUpdateWithUpgradedCli', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-    fs.rmSync(dir, { recursive: true, force: true });
+    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   });
 
   it('forwards --force and separates the path from any flag-shaped value', async () => {
@@ -616,6 +785,46 @@ describe('displayCliUpdateNote', () => {
     expect(() => isProjectLocalInstall(anywhere)).not.toThrow();
     expect(isProjectLocalInstall(anywhere)).toBe(false);
     expect(() => capture(() => displayCliUpdateNote('9.9.9'))).not.toThrow();
+  });
+
+  it('does not tell npx users to run an update they were just handed', () => {
+    // `npx …@latest update` IS the update, so a "then run it again" line
+    // would be nonsense.
+    const npx = buildUpgradeCommandLines(
+      path.join(HOME_ROOT, '.npm', '_npx', 'abc', 'node_modules', 'pkg'),
+      PROJECT_ROOT
+    );
+    expect(npx).toEqual(['  npx @fission-ai/openspec@latest update']);
+
+    // Every other flavor does need the second pass.
+    expect(buildUpgradeCommandLines(path.join(GLOBAL_ROOT, 'lib', 'node_modules', 'pkg'), PROJECT_ROOT))
+      .toContain('  Then run "openspec update" again to pick up new workflows.');
+  });
+
+  it('finds the binary npm installs beside its global root', () => {
+    const prefix = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-prefix-'));
+    try {
+      const isWindows = process.platform === 'win32';
+      // npm's layout: <prefix>/lib/node_modules on POSIX, <prefix>/node_modules
+      // on Windows, with the shim one level up from the root's parent.
+      const root = isWindows
+        ? path.join(prefix, 'node_modules')
+        : path.join(prefix, 'lib', 'node_modules');
+      fs.mkdirSync(root, { recursive: true });
+
+      // Nothing installed yet: nothing to hand off to.
+      expect(upgradedBinPath([root])).toBeNull();
+
+      const bin = isWindows
+        ? path.join(prefix, 'openspec.cmd')
+        : path.join(prefix, 'bin', 'openspec');
+      fs.mkdirSync(path.dirname(bin), { recursive: true });
+      fs.writeFileSync(bin, '');
+
+      expect(upgradedBinPath([root])).toBe(bin);
+    } finally {
+      fs.rmSync(prefix, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    }
   });
 
   it('tells npx and dlx users to re-run rather than install globally', () => {

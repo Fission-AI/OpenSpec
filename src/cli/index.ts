@@ -10,7 +10,7 @@ import { UpdateCommand } from '../core/update.js';
 import {
   getAvailableCliUpdate,
   displayCliUpdateNote,
-  canSelfUpgrade,
+  shouldOfferUpgrade,
   getInstallDir,
   offerCliUpgrade,
   rerunUpdateWithUpgradedCli,
@@ -218,21 +218,26 @@ program
   .option('--force', 'Force update even when tools are up to date')
   .action(async (targetPath = '.', options?: { force?: boolean }) => {
     try {
-      const latestVersion = await getAvailableCliUpdate();
       const installDir = getInstallDir();
       // Running from a clone: the version is whatever the branch says, so any
-      // upgrade advice would be noise.
-      const announce = latestVersion !== null && !isSourceCheckout(installDir);
+      // upgrade advice would be noise. Decided before the request, so a
+      // contributor never waits on an answer that gets thrown away.
+      const latestVersion = isSourceCheckout(installDir) ? null : await getAvailableCliUpdate();
+      const announce = latestVersion !== null;
       // Offer to upgrade first: this process generates files from its own
       // templates, so upgrading afterwards would leave the old ones on disk.
       // Both streams must be a terminal — with stdout redirected the question
       // lands in the file and the user waits at a blank screen forever.
       const canOffer =
         announce &&
-        isInteractive() &&
-        Boolean(process.stdout.isTTY) &&
-        canSelfUpgrade(installDir, targetPath);
+        shouldOfferUpgrade({
+          installDir,
+          projectPath: targetPath,
+          interactive: isInteractive(),
+          stdoutIsTty: Boolean(process.stdout.isTTY),
+        });
 
+      let declined = false;
       if (latestVersion && canOffer) {
         displayCliUpdateNote(latestVersion, targetPath, { withCommand: false });
         const outcome = await offerCliUpgrade(latestVersion);
@@ -251,15 +256,19 @@ program
           });
           return;
         }
-        // Declined, failed, or upgraded-but-unreachable: leave the command on
-        // screen so the manual route is never more than a copy away.
-        displayUpgradeCommand(targetPath);
+        // Declined, failed, or upgraded-but-unreachable: fall through to the
+        // update, then leave the command on screen underneath it.
+        declined = true;
       }
 
       const updateCommand = new UpdateCommand({ force: options?.force });
       await updateCommand.execute(targetPath);
 
-      if (latestVersion && announce && !canOffer) {
+      if (declined) {
+        // The headline was printed before the prompt; only the manual route is
+        // still owed, and it belongs where the user is looking now.
+        displayUpgradeCommand(targetPath);
+      } else if (latestVersion) {
         displayCliUpdateNote(latestVersion, targetPath);
       }
     } catch (error) {

@@ -193,15 +193,15 @@ The offer appears only in an interactive terminal, and only when npm owns the in
 
 | How OpenSpec is installed | What you get |
 |---------------------------|--------------|
-| Global npm install | The prompt, and the upgrade run for you |
-| Global pnpm, bun, yarn, or volta install | `pnpm add -g`, `bun add -g`, `yarn global add`, or `volta install` |
+| Global npm install | The prompt, and the upgrade run for you — in an interactive terminal; piped output gets the printed command instead |
+| Global pnpm, bun, yarn, or volta install | That manager's own command: `pnpm add -g …@latest`, `bun add -g …@latest`, `yarn global add …@latest`, or `volta install …@latest` |
 | A dependency of the project | A note to update the dependency, since its package manager owns the lockfile |
-| An `npx` / `dlx` cache | `npx @fission-ai/openspec@latest update` |
+| An `npx` / `dlx` cache | `npx @fission-ai/openspec@latest update` — that command is the update, so there is no second step |
 | A git clone | Nothing — your version is whatever the branch says |
 
-Every case prints `Running from:` when the install directory can be resolved, which is the thing to check when you did upgrade but a stale shim still owns your `PATH`.
+Whenever anything is printed, it names the directory the running CLI was loaded from — the thing to check when you did upgrade but a stale shim still owns your `PATH`.
 
-It asks whichever registry npm is pointed at — `npm_config_registry` when npm exports it, otherwise a `registry=` line in your own `~/.npmrc` — so a private mirror is never bypassed. A project's `.npmrc` is deliberately ignored, since it travels with the repository and a clone should not be able to choose where this request goes. The check is skipped when `CI` is set to anything but an explicit off-value (`false`, `0`, `no`, `off`), under `NODE_ENV=test`, and whenever `OPENSPEC_NO_UPDATE_CHECK` (any value), `DO_NOT_TRACK=1`, or `OPENSPEC_TELEMETRY=0` is set. It runs before the update and can delay it by at most 1.5 seconds — it gives up after that even when the network drops packets silently, and stays quiet when the registry is unreachable.
+It asks whichever registry npm is pointed at — `npm_config_registry` when npm exports it, otherwise a `registry=` line in your own `~/.npmrc` — so a private mirror is never bypassed. A project's `.npmrc` is deliberately ignored, since it travels with the repository and a clone should not be able to choose where this request goes. The check is skipped when `CI` is set to anything but an explicit off-value (`false`, `0`, `no`, `off`, or empty), under `NODE_ENV=test`, and whenever `OPENSPEC_NO_UPDATE_CHECK` (any value), `DO_NOT_TRACK=1`, or `OPENSPEC_TELEMETRY=0` is set. It runs before the update and can delay it by at most 1.5 seconds — it gives up after that even when the network drops packets silently, and stays quiet when the registry is unreachable.
 
 ---
 
@@ -1236,7 +1236,7 @@ openspec completion uninstall
 | `EDITOR` or `VISUAL` | Editor for `openspec config edit` |
 | `NO_COLOR` | Disable color output when set |
 | `OPENSPEC_NO_ANIMATION` | Disable the `openspec init` welcome animation when set |
-| `OPENSPEC_NO_UPDATE_CHECK` | Disable the `openspec update` check for a newer published CLI when set (any value). Also skipped when `CI` is set (unless `false`/`0`/`no`/`off`) or `NODE_ENV=test` |
+| `OPENSPEC_NO_UPDATE_CHECK` | Disable the `openspec update` check for a newer published CLI when set (any value, including empty). Also skipped when `CI` is set (unless `false`/`0`/`no`/`off`) or `NODE_ENV=test` |
 | `npm_config_registry` | npm's own registry setting, honored by the `openspec update` version check; a `registry=` line in your `~/.npmrc` is read when this is unset (a project `.npmrc` is ignored on purpose). Must be an `http(s)` URL or it falls back to `https://registry.npmjs.org` |
 
 ---

@@ -13,6 +13,7 @@ const DEFAULT_REGISTRY = 'https://registry.npmjs.org';
 const REQUEST_TIMEOUT_MS = 1500;
 const MAX_RESPONSE_BYTES = 256 * 1024;
 const VERSION_PROBE_TIMEOUT_MS = 5000;
+const MAX_REDIRECTS = 3;
 
 /**
  * `CI` set to anything meaningful means CI. Providers use "true", "1", "yes";
@@ -51,7 +52,7 @@ function isCheckEnabled(): boolean {
 
 /**
  * The registry npm itself would use: the environment variable npm exports
- * under `npm run`, else a `registry=` line from the project or user .npmrc.
+ * under `npm run`, else a `registry=` line from the user's own ~/.npmrc.
  * Someone who deliberately pointed npm at an internal mirror should not get an
  * unannounced call to the public registry — nor an advertised version their
  * mirror does not carry.
@@ -66,13 +67,27 @@ function configuredRegistry(): string | undefined {
   // anyway (`npm config set registry` writes here).
   try {
     const text = fs.readFileSync(path.join(os.homedir(), '.npmrc'), 'utf-8');
-    const match = /^[ \t]*registry[ \t]*=[ \t]*(\S+)[ \t]*$/m.exec(text);
-    if (match) return match[1];
+    const scope = PACKAGE_NAME.startsWith('@') ? PACKAGE_NAME.split('/')[0] : null;
+    // A scoped registry wins for a scoped package, exactly as npm resolves it.
+    const scoped = scope
+      ? new RegExp(`^[ \t]*${escapeForRegExp(scope)}:registry[ \t]*=[ \t]*(\\S+)[ \t]*$`, 'm').exec(text)
+      : null;
+    const match = scoped ?? /^[ \t]*registry[ \t]*=[ \t]*(\S+)[ \t]*$/m.exec(text);
+    if (match) return expandEnvRefs(match[1]);
   } catch {
     // Missing or unreadable .npmrc is normal.
   }
 
   return undefined;
+}
+
+function escapeForRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** npm expands ${VAR} in .npmrc values; an unexpanded one is not a URL. */
+function expandEnvRefs(value: string): string {
+  return value.replace(/\$\{([^}]+)\}/g, (_match, name: string) => process.env[name] ?? '');
 }
 
 export function registryUrl(): string {
@@ -172,52 +187,85 @@ function fetchLatestVersion(): Promise<string | null> {
       return;
     }
 
-    const request = (url.protocol === 'http:' ? http : https).get(
-      url,
-      { timeout: REQUEST_TIMEOUT_MS },
-      (response) => {
-        if (response.statusCode !== 200) {
-          response.resume();
-          request.destroy();
-          finish(null);
-          return;
-        }
+    // Mirrors and corporate front-ends redirect; without following one the
+    // check would be permanently and silently dead for them.
+    let redirectsLeft = MAX_REDIRECTS;
 
-        let body = '';
-        response.setEncoding('utf-8');
-        response.on('data', (chunk: string) => {
-          body += chunk;
-          // The dist-tag document is small; refuse to buffer a firehose.
-          if (body.length > MAX_RESPONSE_BYTES) {
+    const send = (target: URL): void => {
+      const request = (target.protocol === 'http:' ? http : https).get(
+        target,
+        { timeout: REQUEST_TIMEOUT_MS },
+        (response) => {
+          const status = response.statusCode ?? 0;
+          const location = response.headers.location;
+
+          if (status >= 300 && status < 400 && location) {
+            response.resume();
+            request.destroy();
+            if (redirectsLeft <= 0) {
+              finish(null);
+              return;
+            }
+            redirectsLeft -= 1;
+            try {
+              const next = new URL(location, target);
+              if (next.protocol === 'http:' || next.protocol === 'https:') {
+                send(next);
+                return;
+              }
+            } catch {
+              // Unparseable Location.
+            }
+            finish(null);
+            return;
+          }
+
+          if (status !== 200) {
+            response.resume();
             request.destroy();
             finish(null);
+            return;
           }
-        });
-        response.on('end', () => {
-          try {
-            const parsed = JSON.parse(body) as { version?: unknown };
-            const version = parsed.version;
-            finish(
-              typeof version === 'string' && SAFE_VERSION.test(version) ? version : null
-            );
-          } catch {
-            finish(null);
-          }
-        });
-        response.on('error', () => finish(null));
+
+          let body = '';
+          response.setEncoding('utf-8');
+          response.on('data', (chunk: string) => {
+            body += chunk;
+            // The dist-tag document is small; refuse to buffer a firehose.
+            if (body.length > MAX_RESPONSE_BYTES) {
+              request.destroy();
+              finish(null);
+            }
+          });
+          response.on('end', () => {
+            try {
+              const parsed = JSON.parse(body) as { version?: unknown };
+              const version = parsed.version;
+              finish(typeof version === 'string' && SAFE_VERSION.test(version) ? version : null);
+            } catch {
+              finish(null);
+            }
+          });
+          response.on('error', () => finish(null));
+        }
+      );
+
+      request.on('timeout', () => {
+        request.destroy();
+        finish(null);
+      });
+      request.on('error', () => finish(null));
+
+      // One budget for the whole exchange, redirects included.
+      if (!timer) {
+        timer = setTimeout(() => {
+          request.destroy();
+          finish(null);
+        }, REQUEST_TIMEOUT_MS);
       }
-    );
+    };
 
-    timer = setTimeout(() => {
-      request.destroy();
-      finish(null);
-    }, REQUEST_TIMEOUT_MS);
-
-    request.on('timeout', () => {
-      request.destroy();
-      finish(null);
-    });
-    request.on('error', () => finish(null));
+    send(url);
   });
 }
 
@@ -293,21 +341,24 @@ export function isProjectLocalInstall(
  */
 export function isEphemeralRunnerInstall(installDir: string | null): boolean {
   if (!installDir) return false;
-  const segments = installDir.split(/[\\/]/);
+  const segments = installDir.split(/[\\/]/).map((segment) => segment.toLowerCase());
   return segments.some(
     (segment, i) =>
       segment === '_npx' ||
       segment === '_bunx' ||
-      // Only pnpm's/bun's own cache, never a user directory that happens to be
-      // called "dlx".
-      (segment === 'dlx' && ['pnpm', 'bun', '.pnpm'].includes(segments[i - 1] ?? ''))
+      // Only a package manager's own cache, never a user directory that
+      // happens to be called "dlx". Windows uses pnpm-cache for the same job.
+      (segment === 'dlx' &&
+        ['pnpm', 'bun', '.pnpm', 'pnpm-cache', 'bun-cache'].includes(segments[i - 1] ?? ''))
   );
 }
 
 /**
  * Directories npm installs global packages into. Derived from the running node
  * rather than by shelling out to `npm prefix -g`, which would cost more than
- * the version check itself.
+ * the version check itself. Only a hint: `process.execPath` is realpath'd, so
+ * on Homebrew it lands in the Cellar rather than the brew prefix — which is
+ * why the install's own layout is the primary signal below.
  */
 export function npmGlobalRoots(): string[] {
   const roots: string[] = [];
@@ -335,6 +386,30 @@ export function npmGlobalRoots(): string[] {
 }
 
 /**
+ * The prefix of an npm global install, read from the install's own shape:
+ * `<prefix>/lib/node_modules/<pkg>` on POSIX, `<prefix>/node_modules/<pkg>` on
+ * Windows. Self-describing, so it holds for Homebrew, nvm, Debian and anywhere
+ * else npm's prefix is not derivable from the node binary. Null when the
+ * layout does not match.
+ */
+export function npmPrefixFromInstallDir(installDir: string | null): string | null {
+  if (!installDir) return null;
+
+  let dir = installDir;
+  for (;;) {
+    const parent = path.dirname(dir);
+    if (parent === dir) return null;
+    if (path.basename(dir).toLowerCase() === 'node_modules') break;
+    dir = parent;
+  }
+
+  const container = path.dirname(dir);
+  if (process.platform === 'win32') return container;
+  // POSIX npm always nests the root under lib/.
+  return path.basename(container).toLowerCase() === 'lib' ? path.dirname(container) : null;
+}
+
+/**
  * True only when npm itself owns this copy. Everything else — a pnpm, bun,
  * yarn or volta global — would be made worse by `npm install -g`, which adds a
  * second copy that may not even be the one on PATH.
@@ -344,10 +419,25 @@ export function isNpmGlobalInstall(
   roots: string[] = npmGlobalRoots()
 ): boolean {
   if (!installDir) return false;
+  // Another manager's layout can still look like npm's (volta nests a whole
+  // node install), so who owns it is decided before where it sits.
+  if (detectPackageManager(installDir) !== 'npm') return false;
+
   const normalize = (value: string) =>
     process.platform === 'win32' ? value.toLowerCase() : value;
   const target = normalize(installDir);
-  return roots.some((root) => target.startsWith(normalize(root + path.sep)));
+  if (roots.some((root) => target.startsWith(normalize(root + path.sep)))) return true;
+
+  // The derived roots miss any prefix that is not beside the node binary, so
+  // fall back to the install's own shape plus the bin directory npm would
+  // have written the shim into.
+  const prefix = npmPrefixFromInstallDir(installDir);
+  if (!prefix) return false;
+  try {
+    return fs.existsSync(process.platform === 'win32' ? prefix : path.join(prefix, 'bin'));
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -370,11 +460,18 @@ export type PackageManager = 'npm' | 'pnpm' | 'bun' | 'yarn' | 'volta';
  * user's setup will actually honor.
  */
 export function detectPackageManager(installDir: string | null): PackageManager {
-  const segments = (installDir ?? '').split(/[\\/]/);
-  if (segments.includes('.volta')) return 'volta';
-  if (segments.includes('pnpm') || segments.includes('.pnpm-global')) return 'pnpm';
-  if (segments.includes('.bun')) return 'bun';
-  if (segments.includes('.yarn') || segments.includes('yarn')) return 'yarn';
+  // Lowercased because the Windows directories are capitalized and undotted:
+  // %LOCALAPPDATA%\\Volta, \\Yarn\\Data, \\pnpm-cache.
+  const segments = (installDir ?? '').split(/[\\/]/).map((segment) => segment.toLowerCase());
+  const has = (...names: string[]) => names.some((name) => segments.includes(name));
+
+  if (has('.volta', 'volta')) return 'volta';
+  if (has('.bun')) return 'bun';
+  // These two need a corroborating segment: a directory merely named "pnpm" or
+  // "yarn" (a user's home, a project) is not a global install of one.
+  if (has('.pnpm-global', 'pnpm-cache')) return 'pnpm';
+  if (has('pnpm') && has('global', 'dlx', 'store')) return 'pnpm';
+  if (has('.yarn') || (has('yarn') && has('global'))) return 'yarn';
   return 'npm';
 }
 
@@ -421,8 +518,12 @@ export function buildUpgradeCommandLines(
   const lines: string[] = [];
 
   if (isEphemeralRunnerInstall(installDir)) {
+    // That command *is* the update, so there is nothing to run afterwards.
     lines.push(`  npx ${PACKAGE_NAME}@latest update`);
-  } else if (isProjectLocalInstall(installDir, projectPath)) {
+    return lines;
+  }
+
+  if (isProjectLocalInstall(installDir, projectPath)) {
     // Its package manager owns the lockfile; naming npm could be wrong.
     lines.push(`  Update the ${PACKAGE_NAME} dependency in this project.`);
   } else {
@@ -464,6 +565,24 @@ export function canSelfUpgrade(installDir: string | null, projectPath: string): 
 }
 
 /**
+ * Whether to offer the upgrade rather than just print the command. Kept here,
+ * as a pure function of the environment, because the interesting mistakes live
+ * in this decision: offering where `npm install -g` cannot help, or asking a
+ * question no one can answer.
+ */
+export function shouldOfferUpgrade(params: {
+  installDir: string | null;
+  projectPath: string;
+  interactive: boolean;
+  stdoutIsTty: boolean;
+}): boolean {
+  // A prompt written to a redirected stdout is a question the user never sees
+  // and the command waits on forever.
+  if (!params.interactive || !params.stdoutIsTty) return false;
+  return canSelfUpgrade(params.installDir, params.projectPath);
+}
+
+/**
  * Runs `npm install -g <pkg>@latest`, inheriting stdio so npm's own output —
  * including any auth or permission prompt — reaches the user directly.
  * Resolves true only on a clean exit.
@@ -485,11 +604,28 @@ async function runGlobalUpgrade(): Promise<boolean> {
  * be handed to the copy npm just wrote rather than to whatever PATH resolves.
  * Null when it cannot be found, in which case PATH is the only option left.
  */
-export function upgradedBinPath(roots: string[] = npmGlobalRoots()): string | null {
-  for (const root of roots) {
+export function upgradedBinPath(
+  roots: string[] = npmGlobalRoots(),
+  installDir: string | null = getInstallDir()
+): string | null {
+  // The copy npm just replaced tells us exactly which prefix it wrote to;
+  // a root derived from the node binary can point at an unrelated install.
+  const ownPrefix = npmPrefixFromInstallDir(installDir);
+  const ordered = ownPrefix
+    ? [
+        process.platform === 'win32'
+          ? path.join(ownPrefix, 'node_modules')
+          : path.join(ownPrefix, 'lib', 'node_modules'),
+        ...roots,
+      ]
+    : roots;
+
+  for (const root of ordered) {
+    // npm writes the shim beside the global root on Windows
+    // (%APPDATA%\\npm\\openspec.cmd) and in <prefix>/bin on POSIX.
     const candidates =
       process.platform === 'win32'
-        ? [path.join(path.dirname(root), 'openspec.cmd'), path.join(root, '..', 'openspec.cmd')]
+        ? [path.join(path.dirname(root), 'openspec.cmd')]
         : [path.resolve(root, '..', '..', 'bin', 'openspec')];
 
     for (const candidate of candidates) {
@@ -521,8 +657,11 @@ export function readCliVersion(binPath: string): Promise<string | null> {
       return;
     }
 
+    // Never let a probe hold the CLI open: a wrapper that traps SIGTERM would
+    // otherwise keep the process alive for as long as it runs.
+    child.unref();
     const timer = setTimeout(() => {
-      child.kill();
+      child.kill('SIGKILL');
       resolve(null);
     }, VERSION_PROBE_TIMEOUT_MS);
 
@@ -535,8 +674,15 @@ export function readCliVersion(binPath: string): Promise<string | null> {
     });
     child.on('close', () => {
       clearTimeout(timer);
-      const match = /\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?/.exec(output);
-      resolve(match ? match[0] : null);
+      // A line that is only a version, not the first version-shaped token
+      // anywhere: a wrapper banner ("Node.js v25.8.1 | OpenSpec") would
+      // otherwise be read as the answer.
+      const version = output
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => SAFE_VERSION.test(line.replace(/^v/, '')))
+        .pop();
+      resolve(version ? version.replace(/^v/, '') : null);
     });
   });
 }
@@ -587,9 +733,15 @@ export async function offerCliUpgrade(latestVersion: string): Promise<UpgradeOut
     return 'not-on-path';
   }
   if (compareVersions(version, OPENSPEC_VERSION) <= 0) {
-    // npm wrote the new copy, but the one that answers is still the old one.
     console.log(chalk.yellow(`Upgrade finished, but "openspec" still reports v${version}.`));
-    console.log(chalk.dim('  Another install earlier on your PATH is answering first.'));
+    console.log(
+      chalk.dim(
+        binPath
+          ? // We asked the installed copy directly, so PATH is not the story.
+            `  npm reported success, but ${binPath} did not change.`
+          : '  Another install earlier on your PATH is answering first.'
+      )
+    );
     return 'not-on-path';
   }
 
@@ -620,9 +772,15 @@ export async function rerunUpdateWithUpgradedCli(
   return new Promise((resolve) => {
     const child = spawn(binPath, args, {
       stdio: 'inherit',
-      // The child must not offer the upgrade again: if PATH still resolves to
-      // the old binary, prompting would loop forever.
-      env: { ...process.env, OPENSPEC_NO_UPDATE_CHECK: '1' },
+      env: {
+        ...process.env,
+        // The child must not offer the upgrade again: if PATH still resolves
+        // to the old binary, prompting would loop forever.
+        OPENSPEC_NO_UPDATE_CHECK: '1',
+        // This is a continuation of the command the user already ran, and the
+        // parent recorded it; counting it twice would overstate usage.
+        OPENSPEC_TELEMETRY: '0',
+      },
     });
     child.on('error', () => {
       // Nothing to hand off to: the upgrade landed but the instruction files
