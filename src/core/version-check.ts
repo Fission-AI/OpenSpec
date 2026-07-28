@@ -1,3 +1,5 @@
+import http from 'http';
+import https from 'https';
 import path from 'path';
 import { createRequire } from 'module';
 import chalk from 'chalk';
@@ -7,6 +9,7 @@ const { name: PACKAGE_NAME, version: OPENSPEC_VERSION } = require('../../package
 
 const DEFAULT_REGISTRY = 'https://registry.npmjs.org';
 const REQUEST_TIMEOUT_MS = 1500;
+const MAX_RESPONSE_BYTES = 256 * 1024;
 
 /**
  * Values a CI provider may set. GitHub Actions uses "true", others use "1".
@@ -19,7 +22,7 @@ const CI_ENABLED_VALUES = new Set(['true', '1']);
  * this string lands in the terminal next to an install command, an unvalidated
  * one could smuggle ANSI cursor controls and repaint the lines around it.
  */
-const SAFE_VERSION = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
+const SAFE_VERSION = /^\d{1,10}\.\d{1,10}\.\d{1,10}(?:-[0-9A-Za-z.-]{1,64})?(?:\+[0-9A-Za-z.-]{1,64})?$/;
 
 /**
  * The check is opt-out and must never get in the way: no network in CI or
@@ -40,7 +43,7 @@ function isCheckEnabled(): boolean {
  * Ask the registry the user's package manager is configured against, so people
  * on a private mirror get an answer their `npm install` can actually deliver.
  */
-function registryUrl(): string {
+export function registryUrl(): string {
   const configured = process.env.npm_config_registry?.trim();
   const base = configured && /^https?:\/\//i.test(configured) ? configured : DEFAULT_REGISTRY;
   return `${base.replace(/\/+$/, '')}/${PACKAGE_NAME}/latest`;
@@ -112,19 +115,78 @@ export function compareVersions(a: string, b: string): number {
  * Reads the `latest` dist-tag. Sends no custom Accept header: the registry
  * answers `/<pkg>/latest` with 406 for npm's abbreviated-metadata type, which
  * it only serves on the full packument.
+ *
+ * Uses node:http(s) rather than fetch so the timeout can destroy the socket.
+ * Aborting a fetch that is still completing its TCP handshake — a firewall
+ * dropping packets, a captive portal — leaves the connect handle open and the
+ * CLI cannot exit until the OS gives up, long after the hint has printed.
  */
-async function fetchLatestVersion(): Promise<string | null> {
-  try {
-    const response = await fetch(registryUrl(), {
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+function fetchLatestVersion(): Promise<string | null> {
+  return new Promise((resolve) => {
+    let settled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const finish = (version: string | null) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      resolve(version);
+    };
+
+    let url: URL;
+    try {
+      url = new URL(registryUrl());
+    } catch {
+      resolve(null);
+      return;
+    }
+
+    const request = (url.protocol === 'http:' ? http : https).get(
+      url,
+      { timeout: REQUEST_TIMEOUT_MS },
+      (response) => {
+        if (response.statusCode !== 200) {
+          response.resume();
+          request.destroy();
+          finish(null);
+          return;
+        }
+
+        let body = '';
+        response.setEncoding('utf-8');
+        response.on('data', (chunk: string) => {
+          body += chunk;
+          // The dist-tag document is small; refuse to buffer a firehose.
+          if (body.length > MAX_RESPONSE_BYTES) {
+            request.destroy();
+            finish(null);
+          }
+        });
+        response.on('end', () => {
+          try {
+            const parsed = JSON.parse(body) as { version?: unknown };
+            const version = parsed.version;
+            finish(
+              typeof version === 'string' && SAFE_VERSION.test(version) ? version : null
+            );
+          } catch {
+            finish(null);
+          }
+        });
+        response.on('error', () => finish(null));
+      }
+    );
+
+    timer = setTimeout(() => {
+      request.destroy();
+      finish(null);
+    }, REQUEST_TIMEOUT_MS);
+
+    request.on('timeout', () => {
+      request.destroy();
+      finish(null);
     });
-    if (!response.ok) return null;
-    const body = (await response.json()) as { version?: unknown };
-    if (typeof body.version !== 'string' || !SAFE_VERSION.test(body.version)) return null;
-    return body.version;
-  } catch {
-    return null;
-  }
+    request.on('error', () => finish(null));
+  });
 }
 
 /**
@@ -200,7 +262,14 @@ export function isProjectLocalInstall(
 export function isEphemeralRunnerInstall(installDir: string | null): boolean {
   if (!installDir) return false;
   const segments = installDir.split(/[\\/]/);
-  return segments.some((segment) => segment === '_npx' || segment === 'dlx' || segment === '_bunx');
+  return segments.some(
+    (segment, i) =>
+      segment === '_npx' ||
+      segment === '_bunx' ||
+      // Only pnpm's/bun's own cache, never a user directory that happens to be
+      // called "dlx".
+      (segment === 'dlx' && ['pnpm', 'bun', '.pnpm'].includes(segments[i - 1] ?? ''))
+  );
 }
 
 /**

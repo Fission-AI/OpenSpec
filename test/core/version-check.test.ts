@@ -1,10 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import http from 'http';
 import path from 'path';
+import { execFile } from 'child_process';
+import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
 import {
   compareVersions,
   getAvailableCliUpdate,
+  registryUrl,
   getInstallDir,
   isProjectLocalInstall,
   isEphemeralRunnerInstall,
@@ -58,28 +61,52 @@ describe('compareVersions', () => {
   });
 });
 
+/**
+ * Every case runs against a local registry rather than a stubbed HTTP client.
+ * A mocked client cannot catch a request the real registry rejects — an Accept
+ * header that made npm answer 406 on this endpoint shipped past mocks once
+ * already — and it cannot prove that an opt-out sent nothing.
+ */
 describe('getAvailableCliUpdate', () => {
+  let server: http.Server;
+  let requests: Array<{ url: string; method: string; headers: http.IncomingHttpHeaders }>;
+  let respond: (res: http.ServerResponse) => void;
   let originalEnv: Record<string, string | undefined>;
 
-  beforeEach(() => {
-    originalEnv = {
-      NODE_ENV: process.env.NODE_ENV,
-      CI: process.env.CI,
-      OPENSPEC_NO_UPDATE_CHECK: process.env.OPENSPEC_NO_UPDATE_CHECK,
-      DO_NOT_TRACK: process.env.DO_NOT_TRACK,
-      OPENSPEC_TELEMETRY: process.env.OPENSPEC_TELEMETRY,
-      npm_config_registry: process.env.npm_config_registry,
+  const ENV_KEYS = [
+    'NODE_ENV',
+    'CI',
+    'OPENSPEC_NO_UPDATE_CHECK',
+    'DO_NOT_TRACK',
+    'OPENSPEC_TELEMETRY',
+    'npm_config_registry',
+  ] as const;
+
+  function serveVersion(version: unknown) {
+    respond = (res) => {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ version }));
     };
+  }
+
+  beforeEach(async () => {
+    requests = [];
+    serveVersion(bumpMajor(OPENSPEC_VERSION));
+
+    server = http.createServer((req, res) => {
+      requests.push({ url: req.url ?? '', method: req.method ?? '', headers: req.headers });
+      respond(res);
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const port = (server.address() as { port: number }).port;
+
+    originalEnv = Object.fromEntries(ENV_KEYS.map((key) => [key, process.env[key]]));
     // The check is disabled under test/CI by design; opt back in to exercise it.
-    delete process.env.NODE_ENV;
-    delete process.env.CI;
-    delete process.env.OPENSPEC_NO_UPDATE_CHECK;
-    delete process.env.DO_NOT_TRACK;
-    delete process.env.OPENSPEC_TELEMETRY;
-    delete process.env.npm_config_registry;
+    for (const key of ENV_KEYS) delete process.env[key];
+    process.env.npm_config_registry = `http://127.0.0.1:${port}/`;
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     for (const [key, value] of Object.entries(originalEnv)) {
       if (value === undefined) {
         delete process.env[key];
@@ -88,56 +115,77 @@ describe('getAvailableCliUpdate', () => {
       }
     }
     vi.restoreAllMocks();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
   });
 
-  function mockRegistry(version: string) {
-    return vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ version }), { status: 200 })
-    );
-  }
-
   it('reports the published version when the installed CLI is behind', async () => {
-    const newer = bumpMajor(OPENSPEC_VERSION);
-    mockRegistry(newer);
-    await expect(getAvailableCliUpdate()).resolves.toBe(newer);
+    await expect(getAvailableCliUpdate()).resolves.toBe(bumpMajor(OPENSPEC_VERSION));
+  });
+
+  it('asks the dist-tag endpoint, and never with an Accept type it answers 406 for', async () => {
+    await getAvailableCliUpdate();
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0].method).toBe('GET');
+    expect(requests[0].url).toBe('/@fission-ai/openspec/latest');
+    // npm serves application/vnd.npm.install-v1+json only on the full
+    // packument; asking for it here returns 406 and silently disables the
+    // whole check.
+    expect(requests[0].headers.accept ?? '').not.toContain('vnd.npm.install-v1+json');
   });
 
   it('returns null when the installed CLI is current', async () => {
-    mockRegistry(OPENSPEC_VERSION);
+    serveVersion(OPENSPEC_VERSION);
     await expect(getAvailableCliUpdate()).resolves.toBeNull();
   });
 
-  it('returns null and never throws when the registry is unreachable', async () => {
-    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('ENOTFOUND'));
+  it('returns null when the registry is unreachable', async () => {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
     await expect(getAvailableCliUpdate()).resolves.toBeNull();
   });
 
   it('returns null on a non-OK registry response', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('nope', { status: 500 }));
+    respond = (res) => {
+      res.writeHead(500);
+      res.end('nope');
+    };
+    await expect(getAvailableCliUpdate()).resolves.toBeNull();
+  });
+
+  it('returns null on a response that is not JSON', async () => {
+    respond = (res) => {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end('<html>proxy login</html>');
+    };
     await expect(getAvailableCliUpdate()).resolves.toBeNull();
   });
 
   it('rejects a version that is not plain SemVer', async () => {
     // A hostile or broken response must never reach the terminal: this one
     // carries ANSI cursor controls that would repaint the lines around it.
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ version: '9.9.9\u001b[1A\u001b[2K malicious' }), {
-        status: 200,
-      })
-    );
+    serveVersion('9.9.9[1A[2K malicious');
+    await expect(getAvailableCliUpdate()).resolves.toBeNull();
+
+    serveVersion(42);
+    await expect(getAvailableCliUpdate()).resolves.toBeNull();
+
+    serveVersion(`9.9.9-${'a'.repeat(500)}`);
     await expect(getAvailableCliUpdate()).resolves.toBeNull();
   });
 
-  it('returns null when the registry payload has no usable version', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ version: 42 }), { status: 200 })
-    );
+  it('gives up rather than hanging when the registry stalls mid-response', async () => {
+    respond = (res) => {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.write('{"ver');
+      // Never finishes the body; only the request timeout can end this.
+    };
+
+    const startedAt = Date.now();
     await expect(getAvailableCliUpdate()).resolves.toBeNull();
-  });
+    expect(Date.now() - startedAt).toBeLessThan(5000);
+  }, 10000);
 
-  it('skips the check entirely when opted out', async () => {
-    const fetchSpy = mockRegistry(bumpMajor(OPENSPEC_VERSION));
-
+  it('sends nothing at all when opted out', async () => {
     for (const [key, value] of [
       ['OPENSPEC_NO_UPDATE_CHECK', '1'],
       ['OPENSPEC_NO_UPDATE_CHECK', ''],
@@ -153,101 +201,66 @@ describe('getAvailableCliUpdate', () => {
       delete process.env[key];
     }
 
-    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(requests).toHaveLength(0);
   });
 
   it('still runs when CI is set to a disabled value', async () => {
-    const newer = bumpMajor(OPENSPEC_VERSION);
-    mockRegistry(newer);
     process.env.CI = 'false';
-    await expect(getAvailableCliUpdate()).resolves.toBe(newer);
+    await expect(getAvailableCliUpdate()).resolves.toBe(bumpMajor(OPENSPEC_VERSION));
+  });
+
+  it('falls back to the public registry when the override is not an http(s) URL', () => {
+    // Asserted on the URL rather than by calling: the fallback would send a
+    // real request to npmjs.org, which no test should depend on.
+    for (const bogus of ['not-a-url', '   ', 'file:///etc/passwd', 'javascript:alert(1)']) {
+      process.env.npm_config_registry = bogus;
+      expect(registryUrl()).toBe('https://registry.npmjs.org/@fission-ai/openspec/latest');
+    }
+
+    process.env.npm_config_registry = 'https://npm.internal.example.com/';
+    expect(registryUrl()).toBe('https://npm.internal.example.com/@fission-ai/openspec/latest');
   });
 });
 
 /**
- * Exercises the real fetch path against a local server. The mocked tests above
- * cannot catch a request the registry rejects — an Accept header that made
- * npm answer 406 on this endpoint shipped past them once already.
+ * Guards the teardown, which no in-process assertion can prove: aborting a
+ * request still completing its TCP handshake used to leave a ref'd connect
+ * handle, so the CLI sat for ~10s after printing everything.
  */
-describe('getAvailableCliUpdate against a real HTTP server', () => {
-  let server: http.Server;
-  let requests: Array<{ url: string; headers: http.IncomingHttpHeaders }>;
-  let respond: (res: http.ServerResponse) => void;
-  let originalEnv: Record<string, string | undefined>;
-
-  beforeEach(async () => {
-    requests = [];
-    respond = (res) => {
-      res.writeHead(200, { 'content-type': 'application/json' });
-      res.end(JSON.stringify({ version: bumpMajor(OPENSPEC_VERSION) }));
-    };
-
-    server = http.createServer((req, res) => {
-      requests.push({ url: req.url ?? '', headers: req.headers });
-      respond(res);
-    });
-    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-    const port = (server.address() as { port: number }).port;
-
-    originalEnv = {
-      NODE_ENV: process.env.NODE_ENV,
-      CI: process.env.CI,
-      npm_config_registry: process.env.npm_config_registry,
-    };
-    delete process.env.NODE_ENV;
-    delete process.env.CI;
-    process.env.npm_config_registry = `http://127.0.0.1:${port}/`;
-  });
-
-  afterEach(async () => {
-    for (const [key, value] of Object.entries(originalEnv)) {
-      if (value === undefined) {
-        delete process.env[key];
-      } else {
-        process.env[key] = value;
-      }
-    }
-    await new Promise<void>((resolve) => server.close(() => resolve()));
-  });
-
-  it('requests the dist-tag endpoint and parses a real response', async () => {
-    const newer = bumpMajor(OPENSPEC_VERSION);
-    await expect(getAvailableCliUpdate()).resolves.toBe(newer);
-    expect(requests).toHaveLength(1);
-    expect(requests[0].url).toBe('/@fission-ai/openspec/latest');
-  });
-
-  it('sends no Accept header the registry answers 406 for', async () => {
-    await getAvailableCliUpdate();
-    // npm serves application/vnd.npm.install-v1+json only on the full
-    // packument; requesting it on /latest returns 406 and silently disables
-    // the whole check.
-    expect(requests[0].headers.accept ?? '').not.toContain('vnd.npm.install-v1+json');
-  });
-
-  it('gives up rather than hanging when the registry stalls', async () => {
-    respond = (res) => {
-      res.writeHead(200, { 'content-type': 'application/json' });
-      res.write('{"ver');
-      // Never finishes the body; only the request timeout can end this.
-    };
+describe('getAvailableCliUpdate against an unroutable registry', () => {
+  it('lets the process exit as soon as it gives up', async () => {
+    const distModule = fileURLToPath(new URL('../../dist/core/version-check.js', import.meta.url));
 
     const startedAt = Date.now();
-    await expect(getAvailableCliUpdate()).resolves.toBeNull();
-    expect(Date.now() - startedAt).toBeLessThan(5000);
-  }, 10000);
+    const exitCode = await new Promise<number>((resolve) => {
+      const child = execFile(
+        process.execPath,
+        ['-e', `import(${JSON.stringify(distModule)}).then((m) => m.getAvailableCliUpdate())`],
+        {
+          env: {
+            ...process.env,
+            NODE_ENV: '',
+            CI: '',
+            // TEST-NET-1 (RFC 5737): routable nowhere, so the connection can
+            // only end by our own teardown.
+            npm_config_registry: 'http://192.0.2.1:81/',
+          },
+        },
+        () => undefined
+      );
+      child.on('close', (code) => resolve(code ?? 0));
+    });
 
-  it('ignores a registry override that is not an http(s) URL', async () => {
-    process.env.npm_config_registry = 'not-a-url';
-    // Falls back to the public registry, which this offline-safe test must not
-    // reach — assert on the local server seeing nothing instead.
-    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'));
-    await expect(getAvailableCliUpdate()).resolves.toBeNull();
-    expect(requests).toHaveLength(0);
-  });
+    expect(exitCode).toBe(0);
+    expect(Date.now() - startedAt).toBeLessThan(6000);
+  }, 30000);
 });
 
 describe('displayCliUpdateNote', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   function capture(run: () => void): string {
     const lines: string[] = [];
     const spy = vi.spyOn(console, 'log').mockImplementation((line?: unknown) => {
@@ -320,6 +333,13 @@ describe('displayCliUpdateNote', () => {
         PROJECT_ROOT
       )
     ).toBe(false);
+    // A sibling directory whose name merely starts with the project path.
+    expect(
+      isProjectLocalInstall(
+        `${PROJECT_ROOT}-other${path.sep}node_modules${path.sep}pkg`,
+        PROJECT_ROOT
+      )
+    ).toBe(false);
     expect(isProjectLocalInstall(null, PROJECT_ROOT)).toBe(false);
   });
 
@@ -335,8 +355,8 @@ describe('displayCliUpdateNote', () => {
   });
 
   it('tells npx and dlx users to re-run rather than install globally', () => {
-    // Matched on whole path segments, so a directory merely containing the
-    // word (…/my-dlx-tools/…) is not mistaken for a throwaway cache.
+    // Matched on whole path segments, and "dlx" only under its package
+    // manager's own cache — a user directory named "dlx" is not a throwaway one.
     expect(
       isEphemeralRunnerInstall(path.join(GLOBAL_ROOT, '.npm', '_npx', 'abc', 'node_modules', 'pkg'))
     ).toBe(true);
@@ -344,10 +364,12 @@ describe('displayCliUpdateNote', () => {
       isEphemeralRunnerInstall(path.join(GLOBAL_ROOT, 'pnpm', 'dlx', 'abc', 'node_modules', 'pkg'))
     ).toBe(true);
     expect(
-      isEphemeralRunnerInstall(path.join(GLOBAL_ROOT, 'lib', 'node_modules', '@fission-ai', 'openspec'))
+      isEphemeralRunnerInstall(
+        path.join(GLOBAL_ROOT, 'lib', 'node_modules', '@fission-ai', 'openspec')
+      )
     ).toBe(false);
     expect(
-      isEphemeralRunnerInstall(path.join(GLOBAL_ROOT, 'my-dlx-tools', 'node_modules', 'pkg'))
+      isEphemeralRunnerInstall(path.join(path.sep, 'Users', 'dlx', 'app', 'node_modules', 'pkg'))
     ).toBe(false);
     expect(isEphemeralRunnerInstall(null)).toBe(false);
   });

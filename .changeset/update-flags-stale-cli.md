@@ -13,4 +13,4 @@ A newer OpenSpec CLI is available (v1.6.0 → v1.7.0).
 
 The upgrade command matches how the CLI was installed — global, a project dependency, or an `npx`/`dlx` cache — and the `Running from:` line identifies which copy answered, the thing to check when you did upgrade but a stale shim is still on `PATH`.
 
-The check runs alongside the update rather than before it, times out after 1.5 seconds, and fails silently when the registry is unreachable. It queries whichever registry npm is configured against, and is skipped in CI or when `OPENSPEC_NO_UPDATE_CHECK`, `DO_NOT_TRACK=1`, or `OPENSPEC_TELEMETRY=0` is set.
+The check runs alongside the update rather than before it, gives up after 1.5 seconds even against a network that drops packets silently, and fails quietly when the registry is unreachable. It queries whichever registry npm is configured against, and is skipped in CI, under `NODE_ENV=test`, and whenever `OPENSPEC_NO_UPDATE_CHECK`, `DO_NOT_TRACK=1`, or `OPENSPEC_TELEMETRY=0` is set.
