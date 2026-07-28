@@ -21,8 +21,9 @@ The system SHALL provide an `/opsx:archive` skill that archives completed change
 #### Scenario: Change selection prompt
 
 - **WHEN** agent executes `/opsx:archive` without specifying a change
-- **THEN** the agent prompts user to select from available changes
-- **AND** shows only active changes (excludes archive/)
+- **THEN** the agent infers the change from conversation context, or auto-selects it when only one active change exists
+- **AND** when ambiguous, prompts user to select from available changes, showing only active changes (excludes archive/)
+- **AND** announces which change was selected and how to override
 
 ### Requirement: Artifact Completion Check
 

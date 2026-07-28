@@ -19,14 +19,17 @@ ${STORE_SELECTION_GUIDANCE}
 
 **Steps**
 
-1. **If no change name provided, prompt for selection**
+1. **Select the change**
 
-   Run \`openspec list --json\` to get available changes. Ask the user to select one.
+   If a name is provided, use it. Otherwise:
+   - Infer from conversation context if the user mentioned a change
+   - Auto-select if only one active change exists
+   - If ambiguous, run \`openspec list --json\` to get available changes and ask the user to select one
 
-   Show only active changes (not already archived).
+   When prompting, show only active changes (not already archived).
    Include the schema used for each change if available.
 
-   **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
+   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:archive <other>\`).
 
    **Load current archive inputs before the existing archive checks:**
 
@@ -163,7 +166,7 @@ ${STORE_SELECTION_GUIDANCE}
 \`\`\`
 
 **Guardrails**
-- Always prompt for change selection if not provided
+- Announce the selected change; prompt for selection when it is ambiguous
 - Use artifact graph (openspec status --json) for completion checking
 - Don't block archive on warnings - just inform and confirm
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
@@ -196,14 +199,17 @@ ${STORE_SELECTION_GUIDANCE}
 
 **Steps**
 
-1. **If no change name provided, prompt for selection**
+1. **Select the change**
 
-   Run \`openspec list --json\` to get available changes. Ask the user to select one.
+   If a name is provided, use it. Otherwise:
+   - Infer from conversation context if the user mentioned a change
+   - Auto-select if only one active change exists
+   - If ambiguous, run \`openspec list --json\` to get available changes and ask the user to select one
 
-   Show only active changes (not already archived).
+   When prompting, show only active changes (not already archived).
    Include the schema used for each change if available.
 
-   **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
+   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:archive <other>\`).
 
    **Load current archive inputs before the existing archive checks:**
 
@@ -387,7 +393,7 @@ Target archive directory already exists.
 \`\`\`
 
 **Guardrails**
-- Always prompt for change selection if not provided
+- Announce the selected change; prompt for selection when it is ambiguous
 - Use artifact graph (openspec status --json) for completion checking
 - Don't block archive on warnings - just inform and confirm
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
