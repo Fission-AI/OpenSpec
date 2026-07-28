@@ -437,6 +437,16 @@ describe('command-generation/adapters', () => {
       const delimiters = output.match(/(?<!\\)"""/g) ?? [];
       expect(delimiters).toHaveLength(2);
     });
+
+    it('escapes control characters invalid inside a multiline basic string', () => {
+      const output = geminiAdapter.formatFile({
+        ...sampleContent,
+        body: 'null:\u0000 vt:\u000b end',
+      });
+      expect(output).toContain('null:\\u0000 vt:\\u000b end');
+      expect(output).not.toContain('\u0000');
+      expect(output).not.toContain('\u000b');
+    });
   });
 
   describe('githubCopilotAdapter', () => {

@@ -30,10 +30,16 @@ function escapeTomlBasicString(value: string): string {
 
 /**
  * Multiline basic strings keep raw newlines and tabs, but backslashes are
- * still escape-active and any run of three quotes would end the string.
+ * still escape-active, any run of three quotes would end the string, and the
+ * same control characters are invalid as in single-line basic strings.
+ * Control chars are escaped last so their introduced backslashes are not
+ * re-doubled.
  */
 function escapeTomlMultilineBasicString(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/"""/g, '""\\"');
+  return value
+    .replace(/\\/g, '\\\\')
+    .replace(/"""/g, '""\\"')
+    .replace(TOML_CONTROL_CHARS, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
 }
 
 /**
