@@ -158,6 +158,12 @@ function fetchLatestVersion(): Promise<string | null> {
     // check would be permanently and silently dead for them.
     let redirectsLeft = MAX_REDIRECTS;
 
+    // The budget timer must tear down whichever request is open when it
+    // fires. Closing over the first hop's request would leave a redirected
+    // socket alive: a target that trickles bytes keeps resetting its idle
+    // timeout, and only the body-size cap would end it.
+    let activeRequest: http.ClientRequest | undefined;
+
     const send = (target: URL): void => {
       const request = (target.protocol === 'http:' ? http : https).get(
         target,
@@ -217,6 +223,8 @@ function fetchLatestVersion(): Promise<string | null> {
         }
       );
 
+      activeRequest = request;
+
       request.on('timeout', () => {
         request.destroy();
         finish(null);
@@ -226,7 +234,7 @@ function fetchLatestVersion(): Promise<string | null> {
       // One budget for the whole exchange, redirects included.
       if (!timer) {
         timer = setTimeout(() => {
-          request.destroy();
+          activeRequest?.destroy();
           finish(null);
         }, REQUEST_TIMEOUT_MS);
       }

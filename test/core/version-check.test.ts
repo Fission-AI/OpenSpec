@@ -215,6 +215,35 @@ describe('getAvailableCliUpdate', () => {
     await expect(getAvailableCliUpdate()).resolves.toBeNull();
   });
 
+  it('tears down a redirected connection when the overall budget expires', async () => {
+    // The redirect target trickles bytes forever: steady data keeps resetting
+    // the per-request idle timeout, so only the overall budget timer can end
+    // the exchange — and it must destroy the redirected request, not the
+    // already-dead first hop, or the socket outlives the check.
+    let hop = 0;
+    let trickleClosed = false;
+    respond = (res) => {
+      hop += 1;
+      if (hop === 1) {
+        res.writeHead(302, { location: '/mirror/@fission-ai/openspec/latest' });
+        res.end();
+        return;
+      }
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.write('{"ver');
+      const trickle = setInterval(() => res.write('x'), 200);
+      res.on('close', () => {
+        trickleClosed = true;
+        clearInterval(trickle);
+      });
+    };
+
+    const startedAt = Date.now();
+    await expect(getAvailableCliUpdate()).resolves.toBeNull();
+    expect(Date.now() - startedAt).toBeLessThan(5000);
+    await vi.waitFor(() => expect(trickleClosed).toBe(true), { timeout: 2000 });
+  }, 10000);
+
   it('gives up rather than hanging when the registry stalls mid-response', async () => {
     respond = (res) => {
       res.writeHead(200, { 'content-type': 'application/json' });
