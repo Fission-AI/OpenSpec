@@ -23,6 +23,10 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         takesValue: true,
         values: ['core', 'custom'],
       },
+      {
+        name: 'no-animation',
+        description: 'Show a static welcome screen instead of the animated one',
+      },
     ],
   },
   {
@@ -63,7 +67,9 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
   {
     name: 'view',
     description: 'Display an interactive dashboard of specs and changes',
-    flags: [],
+    flags: [
+      COMMON_FLAGS.store,
+    ],
   },
   {
     name: 'validate',

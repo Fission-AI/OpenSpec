@@ -83,7 +83,7 @@ These options work with all commands:
 
 Initialize OpenSpec in your project. Creates the folder structure and configures AI tool integrations.
 
-Default behavior uses global config defaults: profile `core`, delivery `both`, workflows `propose, explore, apply, sync, archive`.
+Default behavior uses global config defaults: profile `core`, delivery `both`, workflows `propose, explore, apply, update, sync, archive`.
 
 ```
 openspec init [path] [options]
@@ -102,8 +102,11 @@ openspec init [path] [options]
 | `--tools <list>` | Configure AI tools non-interactively. Use `all`, `none`, or comma-separated list |
 | `--force` | Auto-cleanup legacy files without prompting |
 | `--profile <profile>` | Override global profile for this init run (`core` or `custom`) |
+| `--no-animation` | Show a static welcome screen instead of the animated one |
 
 `--profile custom` uses whatever workflows are currently selected in global config (`openspec config profile`).
+
+The welcome animation is also skipped when the `OPENSPEC_NO_ANIMATION` environment variable is set (any value, including empty), when `NO_COLOR` is set to a non-empty value, or when the OS reduced-motion preference is enabled (macOS Reduce Motion, GNOME animations disabled).
 
 **Supported tool IDs (`--tools`):** `amazon-q`, `antigravity`, `auggie`, `bob`, `claude`, `cline`, `codeartsagent`, `codex`, `forgecode`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `hermes`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `lingma`, `vibe`, `oh-my-pi`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `windsurf`, `zcode`
 
@@ -690,8 +693,8 @@ Schema: spec-driven
 Progress: 2/4 artifacts complete
 
 [x] proposal
-[ ] design
 [x] specs
+[ ] design
 [-] tasks (blocked by: design)
 ```
 
@@ -707,12 +710,18 @@ A change that declares `skip_specs: true` shows its specs stage as `[~] specs (s
   "applyRequires": ["tasks"],
   "artifacts": [
     {"id": "proposal", "outputPath": "proposal.md", "status": "done", "requires": []},
-    {"id": "design", "outputPath": "design.md", "status": "ready", "requires": ["proposal"]},
     {"id": "specs", "outputPath": "specs/**/*.md", "status": "done", "requires": ["proposal"]},
+    {"id": "design", "outputPath": "design.md", "status": "ready", "requires": ["proposal"]},
     {"id": "tasks", "outputPath": "tasks.md", "status": "blocked", "requires": ["specs", "design"], "missingDeps": ["design"]}
   ]
 }
 ```
+
+Artifacts are listed in dependency order - a dependency never appears after
+something that requires it - and artifacts that become ready at the same time
+(spec-driven's `specs` and `design` both need only `proposal`) keep the order the
+schema declares them rather than an alphabetical one. So the first `ready` entry
+is the artifact to write next.
 
 ---
 
@@ -728,7 +737,7 @@ openspec instructions [artifact] [options]
 
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `artifact` | No | Artifact ID: `proposal`, `specs`, `design`, `tasks`, or `apply` |
+| `artifact` | No | Artifact ID, or workflow input surface: `apply` or `archive` |
 
 **Options:**
 
@@ -738,7 +747,9 @@ openspec instructions [artifact] [options]
 | `--schema <name>` | Schema override |
 | `--json` | Output as JSON |
 
-**Special case:** Use `apply` as the artifact to get task implementation instructions.
+**Special cases:** Use `apply` to get task implementation instructions. Use
+`archive` to fetch current, read-only archive inputs (`context` and
+`operationGuidance`) for a valid change; it does not archive or mutate anything.
 
 **Examples:**
 
@@ -752,6 +763,9 @@ openspec instructions design --change add-dark-mode
 # Get apply/implementation instructions
 openspec instructions apply --change add-dark-mode
 
+# Get current archive operation inputs without archiving
+openspec instructions archive --change add-dark-mode --json
+
 # JSON for agent consumption
 openspec instructions design --change add-dark-mode --json
 ```
@@ -762,6 +776,19 @@ openspec instructions design --change add-dark-mode --json
 - Project context from config
 - Content from dependency artifacts
 - Per-artifact rules from config
+- Current project context and matching operation guidance for `apply`/`archive`
+
+Operation inputs are read from the resolved repo or selected store on every
+invocation. Project context is a required prompt-level input: agents read it and
+apply relevant project facts, conventions, and constraints. Operation guidance is
+optional additive advice: agents consider every entry and follow only entries that
+are applicable and compatible with the built-in workflow. Both fields remain
+separate from explicit user choices, CLI-controlled state, built-in instructions,
+and artifact rules. Conflicting context is reported; conflicting or inapplicable
+guidance is not followed and the reason is explained. These are behavioral
+contracts for generated agents, not enforceable CLI checks. `instructions archive`
+returns only the selected change, optional inputs, and root metadata; it does not
+include the static archive workflow.
 
 For an artifact skipped via `skip_specs: true`, the output is a warning only (JSON adds `skipped`/`warning` fields) — the artifact must not be created.
 
@@ -1261,6 +1288,7 @@ openspec completion uninstall
 | `OPENSPEC_CONCURRENCY` | Default concurrency for bulk validation (default: 6) |
 | `EDITOR` or `VISUAL` | Editor for `openspec config edit` |
 | `NO_COLOR` | Disable color output when set |
+| `OPENSPEC_NO_ANIMATION` | Disable the `openspec init` welcome animation when set |
 
 ---
 
