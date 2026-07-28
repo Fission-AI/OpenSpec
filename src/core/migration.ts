@@ -159,7 +159,11 @@ function collectLegacyToolMigrations(
         removeDirIfEmpty(path.join(projectPath, legacy.root));
       }
 
-      if (skills.moved > 0 || commands.moved > 0) {
+      // Kept-only results are retained deliberately. When every legacy file
+      // differs from its counterpart nothing is movable, and dropping the
+      // record here would leave the user with two divergent copies and no
+      // word of it.
+      if (skills.moved > 0 || commands.moved > 0 || skills.kept > 0 || commands.kept > 0) {
         migrations.push({
           toolId: tool.value,
           from: legacy.root,
@@ -298,11 +302,23 @@ export function describeLegacyMigration(migration: LegacyToolMigration): string 
 export function keptInPlaceNotice(migration: LegacyToolMigration): string | undefined {
   if (migration.keptInPlace === 0) return undefined;
   const n = migration.keptInPlace;
+  // Deliberately does not claim the difference came from an edit: an older
+  // OpenSpec version's output differs too. Either way nothing was overwritten,
+  // and the user is the one who decides which copy to keep.
   return (
-    `Left ${n} edited file${n === 1 ? '' : 's'} in ${migration.from}/: ` +
-    `${migration.to}/ already has ${n === 1 ? 'it' : 'them'} with different content, ` +
-    `so your version was kept rather than overwritten.`
+    `Left ${n} file${n === 1 ? '' : 's'} in ${migration.from}/ that ` +
+    `differ${n === 1 ? 's' : ''} from the copy in ${migration.to}/. Nothing was ` +
+    `overwritten — compare the two and delete the ${migration.from}/ copy once ` +
+    `you have kept anything you customized.`
   );
+}
+
+/**
+ * Whether a migration has anything to move, as opposed to only files left in
+ * place. Callers use this to avoid offering a move of nothing.
+ */
+export function hasMovableContent(migration: LegacyToolMigration): boolean {
+  return migration.skillDirs > 0 || migration.commandFiles > 0;
 }
 
 /**

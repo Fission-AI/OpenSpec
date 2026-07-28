@@ -695,6 +695,39 @@ Old instructions content
       expect(await fs.readFile(path.join(legacySkill, 'reference.md'), 'utf-8')).toBe('my notes');
     });
 
+    it('should report divergent files even when nothing is movable', async () => {
+      // Every legacy file differs from its counterpart, so there is no move to
+      // make. Staying silent would leave two divergent copies the user never
+      // hears about, so the result is reported rather than dropped.
+      const devinSkill = path.join(testDir, '.devin', 'skills', 'openspec-explore');
+      await fs.mkdir(devinSkill, { recursive: true });
+      await fs.writeFile(path.join(devinSkill, 'SKILL.md'), 'current');
+      const devinWorkflows = path.join(testDir, '.devin', 'workflows');
+      await fs.mkdir(devinWorkflows, { recursive: true });
+      await fs.writeFile(path.join(devinWorkflows, 'opsx-explore.md'), 'current');
+
+      const legacySkill = path.join(testDir, '.windsurf', 'skills', 'openspec-explore');
+      await fs.mkdir(legacySkill, { recursive: true });
+      await fs.writeFile(path.join(legacySkill, 'SKILL.md'), 'mine');
+      const legacyWorkflows = path.join(testDir, '.windsurf', 'workflows');
+      await fs.mkdir(legacyWorkflows, { recursive: true });
+      await fs.writeFile(path.join(legacyWorkflows, 'opsx-explore.md'), 'mine');
+
+      const consoleSpy = vi.spyOn(console, 'log');
+      await updateCommand.execute(testDir);
+      const logCalls = consoleSpy.mock.calls.flat().map(String);
+      consoleSpy.mockRestore();
+
+      // The divergence is surfaced...
+      expect(logCalls.some((entry) => entry.includes('Left 2 files in .windsurf/'))).toBe(true);
+      // ...without claiming a migration that did not happen
+      expect(logCalls.some((entry) => entry.includes('Migrated 0'))).toBe(false);
+      expect(logCalls.some((entry) => /Migrated\s*:/.test(entry))).toBe(false);
+      // ...and nothing was touched
+      expect(await fs.readFile(path.join(legacySkill, 'SKILL.md'), 'utf-8')).toBe('mine');
+      expect(await fs.readFile(path.join(legacyWorkflows, 'opsx-explore.md'), 'utf-8')).toBe('mine');
+    });
+
     it('should keep a legacy SKILL.md the user edited, matching how command files are treated', async () => {
       // Skills and commands must follow one rule. An earlier draft compared
       // content for commands and not for skills, so the same situation

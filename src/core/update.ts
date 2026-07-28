@@ -56,6 +56,7 @@ import {
   describeLegacyMigration,
   legacyMigrationNotice,
   keptInPlaceNotice,
+  hasMovableContent,
   type LegacyToolMigration,
 } from './migration.js';
 import {
@@ -128,7 +129,9 @@ export class UpdateCommand {
     // then perform the one-time profile migration if needed before any
     // legacy upgrade generation.
     for (const migration of migrateLegacyToolDirs(resolvedProjectPath)) {
-      console.log(chalk.dim(`Migrated ${describeLegacyMigration(migration)}: ${migration.from} → ${migration.to}`));
+      if (hasMovableContent(migration)) {
+        console.log(chalk.dim(`Migrated ${describeLegacyMigration(migration)}: ${migration.from} → ${migration.to}`));
+      }
       this.reportKeptInPlace(migration);
     }
     const declinedMigrations = await this.offerConsentedLegacyMigrations(resolvedProjectPath);
@@ -676,6 +679,15 @@ export class UpdateCommand {
     if (pending.length === 0) return declined;
 
     for (const migration of pending) {
+      // Nothing movable: every legacy file differs from its counterpart, so
+      // there is no move to offer. Still say so — silence would leave two
+      // divergent copies the user never hears about.
+      if (!hasMovableContent(migration)) {
+        this.reportKeptInPlace(migration);
+        console.log();
+        continue;
+      }
+
       console.log(chalk.yellow(legacyMigrationNotice(migration)));
 
       if (!this.force && isInteractive()) {
@@ -708,7 +720,9 @@ export class UpdateCommand {
       }
 
       for (const applied of migrateLegacyToolDirs(projectPath, [migration.toolId])) {
-        console.log(chalk.dim(`Migrated ${describeLegacyMigration(applied)}: ${applied.from} → ${applied.to}`));
+        if (hasMovableContent(applied)) {
+          console.log(chalk.dim(`Migrated ${describeLegacyMigration(applied)}: ${applied.from} → ${applied.to}`));
+        }
         this.reportKeptInPlace(applied);
       }
       console.log();

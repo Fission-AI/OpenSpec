@@ -45,8 +45,16 @@ distinguishes that user from one who took the rebrand.
 - **THEN** the copy under the current root SHALL win, rather than being merged or overwritten
 - **AND** only the file OpenSpec generated SHALL be removed from the former root — for a skill directory that is `SKILL.md` alone, never the directory and whatever else it holds
 - **AND** one rule SHALL govern skills and command files alike: the former copy SHALL be removed only when it is byte-identical to the surviving one
-- **AND** a former copy that differs SHALL be left where it is, because only a user edit makes it differ
+- **AND** a former copy that differs SHALL be left where it is, since the difference may be a customization
 - **AND** files left behind for that reason SHALL be reported, so the user knows two copies now exist
+
+#### Scenario: Every former file differs, so nothing is movable
+
+- **GIVEN** every OpenSpec-managed file under the former root differs from its counterpart under the current one
+- **WHEN** the move runs
+- **THEN** report the files left in place, rather than staying silent because nothing moved
+- **AND** NOT offer to move anything, since there is nothing movable to consent to
+- **AND** NOT report a migration that did not happen
 
 #### Scenario: One root is a symbolic link to the other
 
