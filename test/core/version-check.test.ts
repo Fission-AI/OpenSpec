@@ -225,8 +225,9 @@ describe('getAvailableCliUpdate', () => {
     }
   });
 
-  it('asks the registry npm is pointed at, including one set only in .npmrc', async () => {
+  it('asks the registry npm is pointed at, including one set only in ~/.npmrc', async () => {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-npmrc-'));
+    const project = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-project-'));
     try {
       fs.writeFileSync(
         path.join(home, '.npmrc'),
@@ -235,8 +236,14 @@ describe('getAvailableCliUpdate', () => {
       // npm only exports npm_config_registry under `npm run`, so a global
       // binary has to read the file itself.
       delete process.env.npm_config_registry;
-      vi.spyOn(process, 'cwd').mockReturnValue(home);
+      vi.spyOn(os, 'homedir').mockReturnValue(home);
 
+      expect(registryUrl()).toBe('https://npm.internal.example.com/@fission-ai/openspec/latest');
+
+      // A project .npmrc travels with a repository, so a cloned repo must not
+      // be able to redirect this request.
+      fs.writeFileSync(path.join(project, '.npmrc'), 'registry=https://attacker.example.com/\n');
+      vi.spyOn(process, 'cwd').mockReturnValue(project);
       expect(registryUrl()).toBe('https://npm.internal.example.com/@fission-ai/openspec/latest');
 
       // The environment still wins when npm did export it.
@@ -244,6 +251,7 @@ describe('getAvailableCliUpdate', () => {
       expect(registryUrl()).toBe('https://env.example.com/@fission-ai/openspec/latest');
     } finally {
       fs.rmSync(home, { recursive: true, force: true });
+      fs.rmSync(project, { recursive: true, force: true });
     }
   });
 

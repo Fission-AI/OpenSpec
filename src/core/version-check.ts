@@ -60,25 +60,16 @@ function configuredRegistry(): string | undefined {
   const fromEnv = process.env.npm_config_registry?.trim();
   if (fromEnv) return fromEnv;
 
-  const candidates: string[] = [];
+  // Deliberately the user's own .npmrc and not the project's: a project file
+  // travels with a repository, so honoring it would let a cloned repo point
+  // this request at a host of its choosing. A mirror is configured per user
+  // anyway (`npm config set registry` writes here).
   try {
-    candidates.push(path.join(process.cwd(), '.npmrc'));
+    const text = fs.readFileSync(path.join(os.homedir(), '.npmrc'), 'utf-8');
+    const match = /^[ \t]*registry[ \t]*=[ \t]*(\S+)[ \t]*$/m.exec(text);
+    if (match) return match[1];
   } catch {
-    // cwd can be gone; the user .npmrc is still worth reading.
-  }
-  try {
-    candidates.push(path.join(os.homedir(), '.npmrc'));
-  } catch {
-    // No home directory resolvable.
-  }
-
-  for (const file of candidates) {
-    try {
-      const match = /^[ \t]*registry[ \t]*=[ \t]*(\S+)[ \t]*$/m.exec(fs.readFileSync(file, 'utf-8'));
-      if (match) return match[1];
-    } catch {
-      // Missing or unreadable .npmrc is normal.
-    }
+    // Missing or unreadable .npmrc is normal.
   }
 
   return undefined;
