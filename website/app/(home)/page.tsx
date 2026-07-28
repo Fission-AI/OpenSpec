@@ -628,6 +628,16 @@ function FinalCta() {
           cd your-project &amp;&amp; openspec init
         </div>
       </div>
+      <p className="mt-4 text-sm text-fd-muted-foreground">
+        Or{' '}
+        <Link
+          href={`${docsRoute}/installation#install-with-your-ai-assistant`}
+          className="underline underline-offset-4 hover:text-fd-foreground"
+        >
+          let your AI assistant install it for you
+        </Link>
+        .
+      </p>
       <div className="mt-8">
         <Link
           href={`${docsRoute}/getting-started`}
