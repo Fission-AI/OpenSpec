@@ -464,10 +464,18 @@ describe('rerunUpdateWithUpgradedCli', () => {
       rerunUpdateWithUpgradedCli('--weird-path', { force: true, binPath: bin })
     ).resolves.toBe(0);
 
-    const args = fs.readFileSync(log, 'utf-8').trim();
+    // cmd.exe echoes each argument quoted, so compare on tokens rather than
+    // on the raw line.
+    const args = fs
+      .readFileSync(log, 'utf-8')
+      .trim()
+      .split(/\s+/)
+      .map((token) => token.replace(/^"|"$/g, ''));
+
     expect(args).toContain('--force');
     // Without the separator the path would be parsed as an option.
-    expect(args).toContain('-- --weird-path');
+    expect(args.indexOf('--')).toBeGreaterThan(-1);
+    expect(args[args.indexOf('--') + 1]).toBe('--weird-path');
   }, 30000);
 
   it('disables the check in the child, so a stale PATH cannot loop forever', async () => {
