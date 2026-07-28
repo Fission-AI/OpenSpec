@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import { promises as fs } from 'fs';
 import { AI_TOOLS } from '../core/config.js';
 import { UpdateCommand } from '../core/update.js';
+import { getAvailableCliUpdate, displayCliUpdateNote } from '../core/version-check.js';
 import { ListCommand } from '../core/list.js';
 import { ArchiveCommand, type ArchiveOptions } from '../core/archive.js';
 import { ViewCommand } from '../core/view.js';
@@ -208,7 +209,12 @@ program
   .action(async (targetPath = '.', options?: { force?: boolean }) => {
     try {
       const updateCommand = new UpdateCommand({ force: options?.force });
+      const updateCheck = getAvailableCliUpdate();
       await updateCommand.execute(targetPath);
+      const latestVersion = await updateCheck;
+      if (latestVersion) {
+        displayCliUpdateNote(latestVersion);
+      }
     } catch (error) {
       failWithError(error);
       process.exit(1);
