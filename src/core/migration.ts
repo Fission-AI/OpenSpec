@@ -163,7 +163,8 @@ function migrateSkillDirs(
   for (const workflowId of ALL_WORKFLOWS) {
     const dirName = WORKFLOW_TO_SKILL_DIR[workflowId];
     const source = path.join(legacySkillsDir, dirName);
-    if (!fs.existsSync(path.join(source, 'SKILL.md'))) continue;
+    const sourceSkill = path.join(source, 'SKILL.md');
+    if (!fs.existsSync(sourceSkill)) continue;
     if (!apply) {
       moved++;
       continue;
@@ -171,18 +172,21 @@ function migrateSkillDirs(
 
     try {
       const destination = path.join(currentSkillsDir, dirName);
-      if (!fs.existsSync(destination)) {
-        fs.mkdirSync(currentSkillsDir, { recursive: true });
-        fs.renameSync(source, destination);
-        moved++;
-        continue;
-      }
-      if (isSamePath(source, destination)) continue;
+      const destinationSkill = path.join(destination, 'SKILL.md');
+      if (isSamePath(sourceSkill, destinationSkill)) continue;
 
-      // The destination wins, but only the file OpenSpec generated may be
-      // removed from the source: a skill directory can also hold references
-      // the user wrote next to SKILL.md, and those are not ours to delete.
-      fs.rmSync(path.join(source, 'SKILL.md'), { force: true });
+      // Move the generated file, never the directory around it. A skill
+      // directory can also hold files the user wrote, and this destination is
+      // one OpenSpec deletes on its own — commands-only delivery and a
+      // deselected workflow both remove the whole skill directory. Carrying a
+      // user's file across would be handing it to that later removal.
+      if (fs.existsSync(destinationSkill)) {
+        fs.rmSync(sourceSkill, { force: true });
+      } else {
+        fs.mkdirSync(destination, { recursive: true });
+        fs.renameSync(sourceSkill, destinationSkill);
+      }
+      // Anything the user left beside it stays under the legacy root.
       removeDirIfEmpty(source);
       moved++;
     } catch {

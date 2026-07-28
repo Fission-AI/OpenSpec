@@ -695,6 +695,52 @@ Old instructions content
       expect(await fs.readFile(path.join(legacySkill, 'reference.md'), 'utf-8')).toBe('my notes');
     });
 
+    it('should not carry a user file into a skill directory that commands-only delivery deletes', async () => {
+      // Only SKILL.md may cross. The destination is a directory OpenSpec owns
+      // and removes on its own under commands-only delivery, so moving the
+      // whole legacy directory would hand the user's file to that removal.
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+      const legacySkill = path.join(testDir, '.windsurf', 'skills', 'openspec-explore');
+      await fs.mkdir(legacySkill, { recursive: true });
+      await fs.writeFile(path.join(legacySkill, 'SKILL.md'), 'stale');
+      await fs.writeFile(path.join(legacySkill, 'reference.md'), 'my notes');
+
+      await updateCommand.execute(testDir);
+
+      expect(await fs.readFile(path.join(legacySkill, 'reference.md'), 'utf-8')).toBe('my notes');
+      await expect(fs.access(path.join(legacySkill, 'SKILL.md'))).rejects.toThrow();
+    });
+
+    it('should not carry a user file into a skill directory a deselected workflow deletes', async () => {
+      // openspec-new-change is outside the core profile, so the skill
+      // directory it would land in is one OpenSpec prunes.
+      const legacySkill = path.join(testDir, '.windsurf', 'skills', 'openspec-new-change');
+      await fs.mkdir(legacySkill, { recursive: true });
+      await fs.writeFile(path.join(legacySkill, 'SKILL.md'), 'stale');
+      await fs.writeFile(path.join(legacySkill, 'reference.md'), 'my notes');
+
+      await updateCommand.execute(testDir);
+
+      expect(await fs.readFile(path.join(legacySkill, 'reference.md'), 'utf-8')).toBe('my notes');
+    });
+
+    it('should still fully vacate a legacy skill directory that holds only SKILL.md', async () => {
+      // The safety rule must not leave empty scaffolding behind in the
+      // ordinary case, where there is nothing of the user's to preserve.
+      const legacySkill = path.join(testDir, '.windsurf', 'skills', 'openspec-explore');
+      await fs.mkdir(legacySkill, { recursive: true });
+      await fs.writeFile(path.join(legacySkill, 'SKILL.md'), 'stale');
+
+      await updateCommand.execute(testDir);
+
+      expect(
+        await FileSystemUtils.fileExists(
+          path.join(testDir, '.devin', 'skills', 'openspec-explore', 'SKILL.md')
+        )
+      ).toBe(true);
+      await expect(fs.access(path.join(testDir, '.windsurf'))).rejects.toThrow();
+    });
+
     it('should keep a legacy command file the user edited, and drop an identical one', async () => {
       const devinWorkflows = path.join(testDir, '.devin', 'workflows');
       await fs.mkdir(devinWorkflows, { recursive: true });

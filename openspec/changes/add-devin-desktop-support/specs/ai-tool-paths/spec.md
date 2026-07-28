@@ -56,8 +56,16 @@ distinguishes that user from one who took the rebrand.
 
 - **GIVEN** a former root also holds files the user wrote, such as a hand-written workflow beside the generated ones
 - **WHEN** the move runs
-- **THEN** move only OpenSpec-managed skill directories (`openspec-*`) and command files (`opsx-*`)
+- **THEN** move only the files OpenSpec generates — each skill's `SKILL.md` and command files named `opsx-*`
 - **AND** delete the former directory only when the move leaves it empty
+
+#### Scenario: A user file beside a generated skill is not carried into a directory OpenSpec prunes
+
+- **GIVEN** a former skill directory holds `SKILL.md` alongside a file the user wrote
+- **AND** OpenSpec removes whole skill directories it owns, as under commands-only delivery or for a workflow outside the active profile
+- **WHEN** the move runs
+- **THEN** move `SKILL.md` alone and leave the user's file under the former root
+- **AND** never move the enclosing directory, which would hand that file to a later removal
 
 #### Scenario: The move is idempotent
 
