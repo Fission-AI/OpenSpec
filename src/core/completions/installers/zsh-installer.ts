@@ -343,7 +343,9 @@ export class ZshInstaller {
     return [
       'Note: Oh My Zsh typically auto-loads completions from custom/completions.',
       `Verify that ${completionsDir} is in your fpath by running:`,
-      '  echo $fpath | grep "custom/completions"',
+      // Grep for the actual directory: a relocated $ZSH_CUSTOM need not
+      // contain the literal "custom/completions".
+      `  echo $fpath | grep "${completionsDir}"`,
       '',
       'If not found, completions may not work. Restart your shell to ensure changes take effect.',
     ];

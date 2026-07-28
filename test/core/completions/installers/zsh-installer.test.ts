@@ -8,12 +8,16 @@ describe('ZshInstaller', () => {
   let testHomeDir: string;
   let installer: ZshInstaller;
   let originalZsh: string | undefined;
+  let originalZshCustom: string | undefined;
 
   beforeEach(async () => {
-    // Clear $ZSH (set by a real Oh My Zsh install) so isOhMyZshInstalled()
-    // falls through to the isolated test home directory
+    // Clear $ZSH and $ZSH_CUSTOM (set by a real Oh My Zsh install) so the
+    // installer resolves against the isolated test home directory instead of
+    // reading — or writing into — the developer's real OMZ tree
     originalZsh = process.env.ZSH;
     delete process.env.ZSH;
+    originalZshCustom = process.env.ZSH_CUSTOM;
+    delete process.env.ZSH_CUSTOM;
 
     // Create a temporary home directory for testing
     testHomeDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-zsh-test-'));
@@ -26,6 +30,11 @@ describe('ZshInstaller', () => {
       process.env.ZSH = originalZsh;
     } else {
       delete process.env.ZSH;
+    }
+    if (originalZshCustom !== undefined) {
+      process.env.ZSH_CUSTOM = originalZshCustom;
+    } else {
+      delete process.env.ZSH_CUSTOM;
     }
 
     // Clean up test directory
@@ -82,6 +91,30 @@ describe('ZshInstaller', () => {
 
       expect(result.isOhMyZsh).toBe(false);
       expect(result.path).toBe(path.join(testHomeDir, '.zsh', 'completions', '_openspec'));
+    });
+
+    it('should honor $ZSH for an Oh My Zsh install at a custom location', async () => {
+      // A relocated OMZ exports $ZSH; writing under ~/.oh-my-zsh instead
+      // would create a tree that no shell ever loads.
+      const customRoot = path.join(testHomeDir, 'dotfiles', 'omz');
+      process.env.ZSH = customRoot;
+
+      const result = await installer.getInstallationPath();
+
+      expect(result.isOhMyZsh).toBe(true);
+      expect(result.path).toBe(path.join(customRoot, 'custom', 'completions', '_openspec'));
+    });
+
+    it('should honor $ZSH_CUSTOM over the derived custom dir', async () => {
+      process.env.ZSH = path.join(testHomeDir, 'dotfiles', 'omz');
+      process.env.ZSH_CUSTOM = path.join(testHomeDir, 'dotfiles', 'omz-custom');
+
+      const result = await installer.getInstallationPath();
+
+      expect(result.isOhMyZsh).toBe(true);
+      expect(result.path).toBe(
+        path.join(testHomeDir, 'dotfiles', 'omz-custom', 'completions', '_openspec')
+      );
     });
   });
 
