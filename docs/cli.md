@@ -1119,6 +1119,9 @@ openspec config profile
 
 # Fast preset: switch workflows to core (keeps delivery mode)
 openspec config profile core
+
+# Fast preset: select all workflows (keeps delivery mode)
+openspec config profile all
 ```
 
 `openspec config profile` starts with a current-state summary, then lets you choose:

@@ -459,11 +459,16 @@ export function registerConfigCommand(program: Command): void {
     .command('profile [preset]')
     .description('Configure workflow profile (interactive picker or preset shortcut)')
     .action(async (preset?: string) => {
-      // Preset shortcut: `openspec config profile core`
-      if (preset === 'core') {
+      // Preset shortcuts: `openspec config profile core` / `openspec config profile all`
+      if (preset === 'core' || preset === 'all') {
         const config = getGlobalConfig();
-        config.profile = 'core';
-        config.workflows = [...CORE_WORKFLOWS];
+        if (preset === 'core') {
+          config.profile = 'core';
+          config.workflows = [...CORE_WORKFLOWS];
+        } else {
+          config.profile = 'custom';
+          config.workflows = [...ALL_WORKFLOWS];
+        }
         // Preserve delivery setting
         saveGlobalConfig(config);
         printConfigProfileApplyGuidance();
@@ -471,7 +476,7 @@ export function registerConfigCommand(program: Command): void {
       }
 
       if (preset) {
-        console.error(`Error: Unknown profile preset "${preset}". Available presets: core`);
+        console.error(`Error: Unknown profile preset "${preset}". Available presets: core, all`);
         process.exitCode = 1;
         return;
       }

@@ -432,6 +432,24 @@ describe('config profile interactive flow', () => {
     expect(confirm).not.toHaveBeenCalled();
   });
 
+  it('all preset should select every workflow and preserve delivery setting', async () => {
+    const { saveGlobalConfig, getGlobalConfig } = await import('../../src/core/global-config.js');
+    const { ALL_WORKFLOWS } = await import('../../src/core/profiles.js');
+    const { select, checkbox, confirm } = await getPromptMocks();
+
+    saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'skills', workflows: ['explore'] });
+
+    await runConfigCommand(['profile', 'all']);
+
+    const config = getGlobalConfig();
+    expect(config.profile).toBe('custom');
+    expect(config.delivery).toBe('skills');
+    expect(config.workflows).toEqual([...ALL_WORKFLOWS]);
+    expect(select).not.toHaveBeenCalled();
+    expect(checkbox).not.toHaveBeenCalled();
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
   it('Ctrl+C should cancel without stack trace and set interrupted exit code', async () => {
     const { select, checkbox, confirm } = await getPromptMocks();
     const cancellationError = new Error('User force closed the prompt with SIGINT');
