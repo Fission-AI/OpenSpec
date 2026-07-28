@@ -520,6 +520,13 @@ describe('offerCliUpgrade', () => {
     expect(detectPackageManager(null)).toBe('npm');
   });
 
+  it('does not let a user or project directory named after a manager steal the install', () => {
+    // A person named volta with a plain npm prefix in their home directory:
+    // the undotted segment alone must not turn the hint into `volta install`.
+    expect(detectPackageManager('/home/volta/.npm-global/lib/node_modules/pkg')).toBe('npm');
+    expect(detectPackageManager('/srv/volta/apps/node_modules/pkg')).toBe('npm');
+  });
+
   it('recognizes the Windows spellings of those install directories', () => {
     // %LOCALAPPDATA%\Volta, \Yarn\Data, \pnpm-cache — capitalized, undotted,
     // and nothing like their POSIX equivalents.
