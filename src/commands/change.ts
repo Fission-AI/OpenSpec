@@ -256,7 +256,9 @@ export class ChangeCommand {
     }
     
     const validator = new Validator(options?.strict || false);
-    const report = await validator.validateChangeDeltaSpecs(changeDir);
+    const report = await validator.validateChangeDeltaSpecs(changeDir, {
+      mainSpecsDir: path.join(process.cwd(), 'openspec', 'specs'),
+    });
     
     if (options?.json) {
       console.log(JSON.stringify(report, null, 2));

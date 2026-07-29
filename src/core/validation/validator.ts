@@ -10,7 +10,14 @@ import {
   MAX_REQUIREMENT_TEXT_LENGTH,
   VALIDATION_MESSAGES
 } from './constants.js';
-import { parseDeltaSpec, foldRequirementName, normalizeRequirementName, extractRequirementsSection } from '../parsers/requirement-blocks.js';
+import {
+  parseDeltaSpec,
+  foldRequirementName,
+  normalizeRequirementName,
+  extractRequirementsSection,
+  findMissingCurrentScenarios,
+  type RequirementBlock,
+} from '../parsers/requirement-blocks.js';
 import {
   extractRequirementBody as extractRequirementBodyShared,
   containsShallOrMust as containsShallOrMustShared,
@@ -133,8 +140,16 @@ export class Validator {
    * - REMOVED: names only; no scenario/description required
    * - RENAMED: pairs well-formed
    * - No duplicates within sections; no cross-section conflicts per spec
+   *
+   * When `options.mainSpecsDir` is given, MODIFIED blocks are also checked
+   * against the current main specs for the scenario loss archive refuses to
+   * apply (#1477). Omitting it keeps the change-only checks, so callers with
+   * no main specs root (and existing library callers) behave as before.
    */
-  async validateChangeDeltaSpecs(changeDir: string): Promise<ValidationReport> {
+  async validateChangeDeltaSpecs(
+    changeDir: string,
+    options: { mainSpecsDir?: string } = {}
+  ): Promise<ValidationReport> {
     const issues: ValidationIssue[] = [];
     const specsDir = path.join(changeDir, 'specs');
     let totalDeltas = 0;
@@ -148,7 +163,7 @@ export class Validator {
       // path silently skips (#1385). It finds spec.md at any depth, covering
       // both specs/<capability>/spec.md and the nested multi-area
       // specs/<area>/<capability>/spec.md layout (#1182b).
-      const specFiles = (await discoverSpecFiles(specsDir)).map(spec => spec.specFile);
+      const discoveredSpecs = await discoverSpecFiles(specsDir);
 
       // A spec.md directly at the specs/ root has no capability folder, so the
       // merge path drops it: without this error the change validates clean and
@@ -166,7 +181,7 @@ export class Validator {
         });
       }
 
-      for (const specFile of specFiles) {
+      for (const { id: specId, specFile } of discoveredSpecs) {
         let content: string | undefined;
         try {
           content = await fs.readFile(specFile, 'utf-8');
@@ -265,6 +280,21 @@ export class Validator {
           if (scenarioCount < 1) {
             issues.push({ level: 'ERROR', path: entryPath, message: `MODIFIED "${block.name}" must include at least one scenario` });
           }
+        }
+
+        // MODIFIED blocks that drop a scenario the main spec still has are
+        // rejected by archive, which refuses to overwrite the requirement and
+        // lose it. Run the same non-mutating check here so the change fails at
+        // authoring time instead of days later at archive time (#1477).
+        if (options.mainSpecsDir && plan.modified.length > 0) {
+          issues.push(
+            ...(await this.findScenarioLossIssues(
+              plan.modified,
+              plan.renamed,
+              path.join(options.mainSpecsDir, ...specId.split('/'), 'spec.md'),
+              entryPath
+            ))
+          );
         }
 
         // Validate REMOVED (names only)
@@ -399,6 +429,63 @@ export class Validator {
     }
 
     return this.createReport(issues);
+  }
+
+  /**
+   * Report MODIFIED requirements whose block omits a scenario the main spec
+   * still carries. Uses the same comparison archive applies, so validate can
+   * only report what archive would refuse.
+   *
+   * Silent when the main spec or the requirement header is absent: applying a
+   * MODIFIED against a base that is not there yet is a different failure (a
+   * sister change still in flight is the legitimate case), and archive is the
+   * gate for it.
+   */
+  private async findScenarioLossIssues(
+    modified: RequirementBlock[],
+    renamed: Array<{ from: string; to: string }>,
+    mainSpecFile: string,
+    entryPath: string
+  ): Promise<ValidationIssue[]> {
+    let mainContent: string;
+    try {
+      mainContent = await fs.readFile(mainSpecFile, 'utf-8');
+    } catch {
+      return [];
+    }
+
+    const currentBlocks = new Map<string, RequirementBlock>();
+    for (const block of extractRequirementsSection(mainContent).bodyBlocks) {
+      currentBlocks.set(normalizeRequirementName(block.name), block);
+    }
+    // Archive applies RENAMED before MODIFIED, so a MODIFIED naming the new
+    // header is compared against the renamed block's scenarios. Re-key the
+    // same way or a rename-plus-modify pair would skip the check entirely.
+    for (const { from, to } of renamed) {
+      const fromKey = normalizeRequirementName(from);
+      const toKey = normalizeRequirementName(to);
+      const block = currentBlocks.get(fromKey);
+      if (!block || currentBlocks.has(toKey)) continue;
+      currentBlocks.delete(fromKey);
+      currentBlocks.set(toKey, block);
+    }
+
+    const issues: ValidationIssue[] = [];
+    for (const block of modified) {
+      const current = currentBlocks.get(normalizeRequirementName(block.name));
+      if (!current) continue;
+      const missing = findMissingCurrentScenarios(current, block);
+      if (missing.length === 0) continue;
+      issues.push({
+        level: 'ERROR',
+        path: entryPath,
+        message:
+          `MODIFIED "${block.name}" omits scenario(s) the current spec still has: ` +
+          `${missing.map(name => `"${name}"`).join(', ')}. ` +
+          'Copy them into the MODIFIED block (a MODIFIED requirement replaces the whole block, so archive refuses to drop them).',
+      });
+    }
+    return issues;
   }
 
   private formatInvalidMarkerMessage(invalidReason: string): string {

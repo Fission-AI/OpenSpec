@@ -62,6 +62,25 @@ The CLI SHALL append a Next steps footer when the item is invalid and not using 
 - **WHEN** a change validation fails
 - **THEN** print "Next steps" with 2-3 targeted bullets and suggest `openspec change show <id> --json --deltas-only`
 
+### Requirement: Change validation SHALL report scenarios a MODIFIED block would drop
+
+A `MODIFIED` requirement replaces the whole requirement block, so archive refuses to apply one that omits a scenario the main spec still has. Change validation SHALL run the same non-mutating check against the main specs and report each omitted scenario as an error, naming the delta file and the scenarios.
+
+The check SHALL be silent when the main spec file or the requirement header is absent, because a `MODIFIED` written against a base that has not landed yet is a separate condition that archive gates.
+
+#### Scenario: MODIFIED omits an existing scenario
+
+- **GIVEN** the main spec's requirement has scenarios "A" and "B"
+- **WHEN** a change MODIFIES that requirement with only scenario "A" and `openspec validate <change>` runs
+- **THEN** report an error naming the delta file and scenario "B"
+- **AND** exit with code 1
+
+#### Scenario: MODIFIED header is not in the main spec
+
+- **GIVEN** a change MODIFIES a requirement header the main spec does not contain
+- **WHEN** `openspec validate <change>` runs
+- **THEN** do not report a dropped-scenario error for that requirement
+
 ### Requirement: Top-level validate command
 
 The CLI SHALL provide a top-level `validate` command for validating changes and specs with flexible selection options.
