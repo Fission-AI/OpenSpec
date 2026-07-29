@@ -1,5 +1,6 @@
 import { getActiveChangeIds, getSpecIds } from '../../utils/item-discovery.js';
 import { listSchemas } from '../artifact-graph/index.js';
+import { resolveSchemaConsumerRoot } from '../remote-schema/consumer-root.js';
 
 /**
  * Cache entry for completion data
@@ -97,7 +98,9 @@ export class CompletionProvider {
     }
 
     // Fetch fresh data
-    const schemaNames = listSchemas(this.projectRoot);
+    const schemaNames = listSchemas(
+      resolveSchemaConsumerRoot(this.projectRoot) ?? this.projectRoot
+    );
 
     // Update cache
     this.schemaCache = {

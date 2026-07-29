@@ -51,6 +51,8 @@ export interface ChangeContext {
   changeDir: string;
   /** Project root directory */
   projectRoot: string;
+  /** Consumer repository that owns schema configuration and caches. */
+  schemaRoot: string;
   /** Resolved planning home for this change */
   planningHome?: PlanningHome;
   /** Parsed change metadata, when present */
@@ -68,6 +70,7 @@ export interface LoadChangeContextOptions {
   planningHome?: PlanningHome;
   /** Pre-read project config; suppresses schema resolution's fallback config read. */
   projectConfig?: ProjectConfig | null;
+  schemaRoot?: string;
 }
 
 /**
@@ -201,9 +204,10 @@ export interface ArtifactPathSummary {
 export function loadTemplate(
   schemaName: string,
   templatePath: string,
-  projectRoot?: string
+  projectRoot?: string,
+  projectConfig?: ProjectConfig | null
 ): string {
-  const schemaDir = getSchemaDir(schemaName, projectRoot);
+  const schemaDir = getSchemaDir(schemaName, projectRoot, projectConfig);
   if (!schemaDir) {
     throw new TemplateLoadError(
       `Schema '${schemaName}' not found`,
@@ -252,17 +256,19 @@ export function loadChangeContext(
   schemaName?: string,
   options: LoadChangeContextOptions = {}
 ): ChangeContext {
+  const schemaRoot = options.schemaRoot ?? projectRoot;
   const changeDir = FileSystemUtils.canonicalizeExistingPath(
     options.changeDir ?? path.join(projectRoot, 'openspec', 'changes', changeName)
   );
 
-  const metadata = readChangeMetadata(changeDir, projectRoot) ?? undefined;
-  const resolvedSchemaName = resolveSchemaForChange(changeDir, schemaName, projectRoot, {
+  const metadata =
+    readChangeMetadata(changeDir, schemaRoot, options.projectConfig) ?? undefined;
+  const resolvedSchemaName = resolveSchemaForChange(changeDir, schemaName, schemaRoot, {
     metadata: metadata ?? null,
     projectConfig: options.projectConfig,
   });
 
-  const schema = resolveSchema(resolvedSchemaName, projectRoot);
+  const schema = resolveSchema(resolvedSchemaName, schemaRoot, options.projectConfig);
   const graph = ArtifactGraph.fromSchema(schema);
   const completed = detectCompleted(graph, changeDir);
 
@@ -292,6 +298,7 @@ export function loadChangeContext(
     changeName,
     changeDir,
     projectRoot,
+    schemaRoot,
     ...(options.planningHome ? { planningHome: options.planningHome } : {}),
     ...(metadata ? { metadata } : {}),
     ...(skippedArtifacts.size > 0 ? { skippedArtifacts } : {}),
@@ -330,7 +337,12 @@ export function generateInstructions(
     throw new Error(`Artifact '${artifactId}' not found in schema '${context.schemaName}'`);
   }
 
-  const templateContent = loadTemplate(context.schemaName, artifact.template, context.projectRoot);
+  const templateContent = loadTemplate(
+    context.schemaName,
+    artifact.template,
+    context.schemaRoot,
+    options.projectConfig
+  );
   const dependencies = getDependencyInfo(artifact, context.graph, context.completed, context.skippedArtifacts);
   const unlocks = getUnlockedArtifacts(context.graph, artifactId);
 
@@ -352,7 +364,7 @@ export function generateInstructions(
   // key is only "unknown" when it matches no artifact in ANY available schema.
   if (projectConfig?.rules) {
     const validArtifactIds = new Set(
-      listSchemasWithInfo(effectiveProjectRoot ?? undefined).flatMap((s) => s.artifacts)
+      listSchemasWithInfo(context.schemaRoot, options.projectConfig).flatMap((s) => s.artifacts)
     );
     const warnings = validateConfigRules(projectConfig.rules, validArtifactIds);
 
@@ -444,7 +456,7 @@ export function formatChangeStatus(
   options: { storeId?: string } = {}
 ): ChangeStatus {
   // Load schema to get apply phase configuration
-  const schema = resolveSchema(context.schemaName, context.projectRoot);
+  const schema = resolveSchema(context.schemaName, context.schemaRoot);
   const applyRequires = schema.apply?.requires ?? schema.artifacts.map(a => a.id);
 
   const artifacts = context.graph.getAllArtifacts();

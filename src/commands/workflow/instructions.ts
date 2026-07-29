@@ -119,6 +119,7 @@ export async function instructionsCommand(
   try {
     const planningHome = toPlanningHome(root);
     const projectRoot = root.path;
+    const schemaRoot = root.schemaRoot;
     const changeName = await validateChangeExists(
       options.change,
       projectRoot,
@@ -128,7 +129,7 @@ export async function instructionsCommand(
 
     // Validate schema if explicitly provided
     if (options.schema) {
-      validateSchemaExists(options.schema, projectRoot);
+      validateSchemaExists(options.schema, schemaRoot);
     }
 
     const { projectConfig, references } = await loadRootConfigContext(root);
@@ -138,6 +139,7 @@ export async function instructionsCommand(
       changeDir: getChangeDir(planningHome, changeName),
       planningHome,
       projectConfig,
+      schemaRoot,
     });
 
     if (!artifactId) {
@@ -352,6 +354,7 @@ export interface GenerateApplyInstructionsOptions {
   planningHome?: PlanningHome;
   references?: ReferenceIndexEntry[];
   projectConfig?: ProjectConfig | null;
+  schemaRoot?: string;
 }
 
 /**
@@ -373,11 +376,16 @@ export async function generateApplyInstructions(
     changeDir: getChangeDir(planningHome, changeName),
     planningHome,
     projectConfig: options.projectConfig,
+    schemaRoot: options.schemaRoot,
   });
   const changeDir = context.changeDir;
 
   // Get the full schema to access the apply phase configuration
-  const schema = resolveSchema(context.schemaName, projectRoot);
+  const schema = resolveSchema(
+    context.schemaName,
+    context.schemaRoot,
+    options.projectConfig
+  );
   const applyConfig = schema.apply;
 
   // Determine required artifacts and tracking file from schema
@@ -483,6 +491,7 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
   try {
     const planningHome = toPlanningHome(root);
     const projectRoot = root.path;
+    const schemaRoot = root.schemaRoot;
     const changeName = await validateChangeExists(
       options.change,
       projectRoot,
@@ -492,7 +501,7 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
 
     // Validate schema if explicitly provided
     if (options.schema) {
-      validateSchemaExists(options.schema, projectRoot);
+      validateSchemaExists(options.schema, schemaRoot);
     }
 
     // One parsed config snapshot supplies schema fallback, references, context,
@@ -502,6 +511,7 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
       planningHome,
       references,
       projectConfig,
+      schemaRoot,
     });
 
     spinner?.stop();

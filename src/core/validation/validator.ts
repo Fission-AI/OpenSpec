@@ -23,9 +23,11 @@ import { METADATA_FILENAME, readSkipSpecsMarker } from '../../utils/change-metad
 
 export class Validator {
   private strictMode: boolean;
+  private schemaRoot?: string;
 
-  constructor(strictMode: boolean = false) {
+  constructor(strictMode: boolean = false, schemaRoot?: string) {
     this.strictMode = strictMode;
+    this.schemaRoot = schemaRoot;
   }
 
   async validateSpec(filePath: string): Promise<ValidationReport> {
@@ -91,7 +93,7 @@ export class Validator {
 
       const result = ChangeSchema.safeParse(change);
 
-      const marker = readSkipSpecsMarker(changeDir);
+      const marker = readSkipSpecsMarker(changeDir, this.schemaRoot);
       if (marker.invalidReason) {
         issues.push({ level: 'ERROR', path: METADATA_FILENAME, message: this.formatInvalidMarkerMessage(marker.invalidReason) });
       }
@@ -361,7 +363,7 @@ export class Validator {
       });
     }
 
-    const marker = readSkipSpecsMarker(changeDir);
+    const marker = readSkipSpecsMarker(changeDir, this.schemaRoot);
     if (marker.invalidReason) {
       issues.push({ level: 'ERROR', path: METADATA_FILENAME, message: this.formatInvalidMarkerMessage(marker.invalidReason) });
     }

@@ -24,6 +24,7 @@ export {
   listSchemas,
   listSchemasWithInfo,
   getSchemaDir,
+  getRemoteSchemaDir,
   getPackageSchemasDir,
   getUserSchemasDir,
   SchemaLoadError,

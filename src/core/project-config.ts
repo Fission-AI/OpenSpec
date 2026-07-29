@@ -2,6 +2,8 @@ import { existsSync, readFileSync, statSync } from 'fs';
 import path from 'path';
 import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
+import { parseSchemaSources } from './remote-schema/config.js';
+import type { GitSchemaSource } from './remote-schema/types.js';
 
 export const OPERATION_IDS = ['apply', 'archive'] as const;
 export type OperationId = (typeof OPERATION_IDS)[number];
@@ -84,6 +86,7 @@ export interface DeclarationEntry {
 
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema> & {
   references?: DeclarationEntry[];
+  schemaSources?: Record<string, GitSchemaSource>;
 };
 
 export interface OperationInputs {
@@ -347,6 +350,11 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
     const references = parseDeclarationList(raw.references);
     if (references) {
       config.references = references;
+    }
+
+    const schemaSources = parseSchemaSources(raw.schemaSources, (message) => console.warn(message));
+    if (schemaSources) {
+      config.schemaSources = schemaSources;
     }
 
     // Parse store pointer field: a string, or dropped with a warning.

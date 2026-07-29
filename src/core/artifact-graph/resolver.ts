@@ -2,6 +2,14 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getGlobalDataDir } from '../global-config.js';
+import { readProjectConfig, type ProjectConfig } from '../project-config.js';
+import { verifyRemoteSchemaCache } from '../remote-schema/cache.js';
+import { readSchemaLock } from '../remote-schema/lockfile.js';
+import {
+  assertNoProjectSchemaConflict,
+  RemoteSchemaResolutionError,
+} from '../remote-schema/authority.js';
+import { validateRemoteSchemaDirectory } from './schema-directory.js';
 import { parseSchema, SchemaValidationError } from './schema.js';
 import type { SchemaYaml } from './types.js';
 
@@ -45,6 +53,70 @@ export function getProjectSchemasDir(projectRoot: string): string {
   return path.join(projectRoot, 'openspec', 'schemas');
 }
 
+export function getRemoteSchemaDir(
+  name: string,
+  projectRoot: string,
+  projectConfig?: ProjectConfig | null
+): string | null {
+  const config =
+    projectConfig === undefined ? readProjectConfig(projectRoot) : projectConfig;
+  const source = config?.schemaSources?.[name];
+  if (!source) {
+    return null;
+  }
+  assertNoProjectSchemaConflict(projectRoot, name);
+
+  let lock;
+  try {
+    lock = readSchemaLock(projectRoot);
+  } catch (error) {
+    throw new RemoteSchemaResolutionError(
+      'remote_lock_invalid',
+      `${error instanceof Error ? error.message : String(error)}; run 'openspec schema sync'`
+    );
+  }
+  const entry = lock?.schemas[name];
+  if (!entry) {
+    throw new RemoteSchemaResolutionError(
+      'remote_not_locked',
+      `Remote schema '${name}' is not locked; run 'openspec schema sync ${name}'`
+    );
+  }
+  if (
+    entry.git !== source.git ||
+    entry.requestedRef !== source.ref ||
+    entry.bundlePath !== source.path
+  ) {
+    throw new RemoteSchemaResolutionError(
+      'remote_lock_mismatch',
+      `Remote schema '${name}' lock does not match openspec/config.yaml; run 'openspec schema sync ${name}'`
+    );
+  }
+
+  let cacheDir: string;
+  try {
+    cacheDir = verifyRemoteSchemaCache(entry.integrity);
+  } catch (error) {
+    throw new RemoteSchemaResolutionError(
+      'remote_cache_invalid',
+      `Remote schema '${name}' cache is unavailable or corrupt: ${
+        error instanceof Error ? error.message : String(error)
+      }; run 'openspec schema sync ${name} --locked'`
+    );
+  }
+  try {
+    validateRemoteSchemaDirectory(cacheDir, name);
+  } catch (error) {
+    throw new RemoteSchemaResolutionError(
+      'remote_cache_invalid',
+      `Remote schema '${name}' cache is invalid: ${
+        error instanceof Error ? error.message : String(error)
+      }; run 'openspec schema sync ${name} --locked'`
+    );
+  }
+  return cacheDir;
+}
+
 /**
  * Determines whether a directory entry represents a schema directory candidate.
  *
@@ -77,9 +149,10 @@ export function isSchemaDir(parentDir: string, entry: fs.Dirent): boolean {
  * Resolves a schema name to its directory path.
  *
  * Resolution order (when projectRoot is provided):
- * 1. Project-local: <projectRoot>/openspec/schemas/<name>/schema.yaml
- * 2. User override: ${XDG_DATA_HOME}/openspec/schemas/<name>/schema.yaml
- * 3. Package built-in: <package>/schemas/<name>/schema.yaml
+ * 1. A declared remote owns its name and conflicts with a same-named project schema
+ * 2. Otherwise, project-local: <projectRoot>/openspec/schemas/<name>/schema.yaml
+ * 3. User override: ${XDG_DATA_HOME}/openspec/schemas/<name>/schema.yaml
+ * 4. Package built-in: <package>/schemas/<name>/schema.yaml
  *
  * When projectRoot is not provided, only user override and package built-in are checked
  * (backward compatible behavior).
@@ -90,25 +163,38 @@ export function isSchemaDir(parentDir: string, entry: fs.Dirent): boolean {
  */
 export function getSchemaDir(
   name: string,
-  projectRoot?: string
+  projectRoot?: string,
+  projectConfig?: ProjectConfig | null
 ): string | null {
   // 1. Check project-local directory (if projectRoot provided)
   if (projectRoot) {
+    const config =
+      projectConfig === undefined ? readProjectConfig(projectRoot) : projectConfig;
+    const declaredRemote = config?.schemaSources?.[name];
+    if (declaredRemote) {
+      return getRemoteSchemaDir(name, projectRoot, config);
+    }
+
     const projectDir = path.join(getProjectSchemasDir(projectRoot), name);
     const projectSchemaPath = path.join(projectDir, 'schema.yaml');
     if (fs.existsSync(projectSchemaPath)) {
       return projectDir;
     }
+
+    const remoteDir = getRemoteSchemaDir(name, projectRoot, config);
+    if (remoteDir) {
+      return remoteDir;
+    }
   }
 
-  // 2. Check user override directory
+  // 3. Check user override directory
   const userDir = path.join(getUserSchemasDir(), name);
   const userSchemaPath = path.join(userDir, 'schema.yaml');
   if (fs.existsSync(userSchemaPath)) {
     return userDir;
   }
 
-  // 3. Check package built-in directory
+  // 4. Check package built-in directory
   const packageDir = path.join(getPackageSchemasDir(), name);
   const packageSchemaPath = path.join(packageDir, 'schema.yaml');
   if (fs.existsSync(packageSchemaPath)) {
@@ -122,9 +208,10 @@ export function getSchemaDir(
  * Resolves a schema name to a SchemaYaml object.
  *
  * Resolution order (when projectRoot is provided):
- * 1. Project-local: <projectRoot>/openspec/schemas/<name>/schema.yaml
- * 2. User override: ${XDG_DATA_HOME}/openspec/schemas/<name>/schema.yaml
- * 3. Package built-in: <package>/schemas/<name>/schema.yaml
+ * 1. A declared remote owns its name and conflicts with a same-named project schema
+ * 2. Otherwise, project-local: <projectRoot>/openspec/schemas/<name>/schema.yaml
+ * 3. User override: ${XDG_DATA_HOME}/openspec/schemas/<name>/schema.yaml
+ * 4. Package built-in: <package>/schemas/<name>/schema.yaml
  *
  * When projectRoot is not provided, only user override and package built-in are checked
  * (backward compatible behavior).
@@ -134,13 +221,17 @@ export function getSchemaDir(
  * @returns The resolved schema object
  * @throws Error if schema is not found in any location
  */
-export function resolveSchema(name: string, projectRoot?: string): SchemaYaml {
+export function resolveSchema(
+  name: string,
+  projectRoot?: string,
+  projectConfig?: ProjectConfig | null
+): SchemaYaml {
   // Normalize name (remove .yaml extension if provided)
   const normalizedName = name.replace(/\.ya?ml$/, '');
 
-  const schemaDir = getSchemaDir(normalizedName, projectRoot);
+  const schemaDir = getSchemaDir(normalizedName, projectRoot, projectConfig);
   if (!schemaDir) {
-    const availableSchemas = listSchemas(projectRoot);
+    const availableSchemas = listSchemas(projectRoot, projectConfig);
     throw new Error(
       `Schema '${normalizedName}' not found. Available schemas: ${availableSchemas.join(', ')}`
     );
@@ -186,7 +277,10 @@ export function resolveSchema(name: string, projectRoot?: string): SchemaYaml {
  *
  * @param projectRoot - Optional project root directory for project-local schema resolution
  */
-export function listSchemas(projectRoot?: string): string[] {
+export function listSchemas(
+  projectRoot?: string,
+  projectConfig?: ProjectConfig | null
+): string[] {
   const schemas = new Set<string>();
 
   // Add package built-in schemas
@@ -217,6 +311,15 @@ export function listSchemas(projectRoot?: string): string[] {
 
   // Add project-local schemas (if projectRoot provided)
   if (projectRoot) {
+    const config =
+      projectConfig === undefined ? readProjectConfig(projectRoot) : projectConfig;
+    const remoteNames = Object.keys(
+      config?.schemaSources ?? {}
+    );
+    for (const name of remoteNames) {
+      schemas.add(name);
+    }
+
     const projectDir = getProjectSchemasDir(projectRoot);
     if (fs.existsSync(projectDir)) {
       for (const entry of fs.readdirSync(projectDir, { withFileTypes: true })) {
@@ -240,7 +343,14 @@ export interface SchemaInfo {
   name: string;
   description: string;
   artifacts: string[];
-  source: 'project' | 'user' | 'package';
+  source: 'project' | 'remote' | 'user' | 'package';
+  available?: boolean;
+  error?: string;
+  status?: Array<{
+    level: 'error';
+    code: string;
+    message: string;
+  }>;
 }
 
 /**
@@ -249,18 +359,30 @@ export interface SchemaInfo {
  *
  * @param projectRoot - Optional project root directory for project-local schema resolution
  */
-export function listSchemasWithInfo(projectRoot?: string): SchemaInfo[] {
+export function listSchemasWithInfo(
+  projectRoot?: string,
+  projectConfig?: ProjectConfig | null
+): SchemaInfo[] {
   const schemas: SchemaInfo[] = [];
   const seenNames = new Set<string>();
+  const config = projectRoot
+    ? projectConfig === undefined
+      ? readProjectConfig(projectRoot)
+      : projectConfig
+    : null;
+  const remoteNames = projectRoot
+    ? Object.keys(config?.schemaSources ?? {}).sort()
+    : [];
+  const remoteNameSet = new Set(remoteNames);
 
-  // Add project-local schemas first (highest priority, if projectRoot provided)
+  // Add unclaimed project-local schemas first (if projectRoot provided).
   if (projectRoot) {
     const projectDir = getProjectSchemasDir(projectRoot);
     if (fs.existsSync(projectDir)) {
       for (const entry of fs.readdirSync(projectDir, { withFileTypes: true })) {
         if (isSchemaDir(projectDir, entry)) {
           const schemaPath = path.join(projectDir, entry.name, 'schema.yaml');
-          if (fs.existsSync(schemaPath)) {
+          if (fs.existsSync(schemaPath) && !remoteNameSet.has(entry.name)) {
             try {
               const schema = parseSchema(fs.readFileSync(schemaPath, 'utf-8'));
               schemas.push({
@@ -275,6 +397,40 @@ export function listSchemasWithInfo(projectRoot?: string): SchemaInfo[] {
             }
           }
         }
+      }
+    }
+
+    for (const name of remoteNames) {
+      if (seenNames.has(name)) continue;
+      try {
+        const remoteDir = getRemoteSchemaDir(name, projectRoot, config);
+        if (!remoteDir) continue;
+        const schema = parseSchema(
+          fs.readFileSync(path.join(remoteDir, 'schema.yaml'), 'utf8')
+        );
+        schemas.push({
+          name,
+          description: schema.description || '',
+          artifacts: schema.artifacts.map((artifact) => artifact.id),
+          source: 'remote',
+        });
+        seenNames.add(name);
+      } catch (error) {
+        const code =
+          error instanceof RemoteSchemaResolutionError
+            ? error.code
+            : 'remote_schema_unavailable';
+        const message = error instanceof Error ? error.message : String(error);
+        schemas.push({
+          name,
+          description: '',
+          artifacts: [],
+          source: 'remote',
+          available: false,
+          error: message,
+          status: [{ level: 'error', code, message }],
+        });
+        seenNames.add(name);
       }
     }
   }

@@ -223,7 +223,7 @@ export class ArchiveCommand {
           withStoreFlag(root, 'openspec archive <change-name> --json')
         );
       }
-      const selectedChange = await this.selectChange(changesDir);
+      const selectedChange = await this.selectChange(changesDir, root.schemaRoot);
       if (!selectedChange) {
         console.log('No change selected. Aborting.');
         return null;
@@ -253,7 +253,7 @@ export class ArchiveCommand {
 
     // Validate specs and change before archiving
     if (!skipValidation) {
-      const validator = new Validator();
+      const validator = new Validator(false, root.schemaRoot);
       let hasValidationErrors = false;
 
       // Validate proposal.md (informative only; human mode prints warnings)
@@ -309,7 +309,7 @@ export class ArchiveCommand {
       // proposal warnings — a gap that predates the marker and is left
       // unchanged here.)
       if (!hasDeltaSpecs) {
-        const marker = readSkipSpecsMarker(changeDir);
+        const marker = readSkipSpecsMarker(changeDir, root.schemaRoot);
         if (marker.invalidReason) {
           hasDeltaSpecs = true;
         } else if (marker.declared) {
@@ -394,7 +394,12 @@ export class ArchiveCommand {
     }
 
     // Show progress and check for incomplete tasks
-    const progress = await getTaskProgressForChange(changesDir, changeName, path.resolve(changesDir, '..', '..'));
+    const progress = await getTaskProgressForChange(
+      changesDir,
+      changeName,
+      path.resolve(changesDir, '..', '..'),
+      root.schemaRoot
+    );
     if (!json) {
       const status = formatTaskStatus(progress);
       console.log(`Task status: ${status}`);
@@ -597,7 +602,10 @@ export class ArchiveCommand {
     };
   }
 
-  private async selectChange(changesDir: string): Promise<string | null> {
+  private async selectChange(
+    changesDir: string,
+    schemaRoot: string
+  ): Promise<string | null> {
     const { select } = await import('@inquirer/prompts');
     const changeDirs = await listActiveChangeNames(changesDir);
 
@@ -611,7 +619,12 @@ export class ArchiveCommand {
     try {
       const progressList: Array<{ id: string; status: string }> = [];
       for (const id of changeDirs) {
-        const progress = await getTaskProgressForChange(changesDir, id, path.resolve(changesDir, '..', '..'));
+        const progress = await getTaskProgressForChange(
+          changesDir,
+          id,
+          path.resolve(changesDir, '..', '..'),
+          schemaRoot
+        );
         const status = formatTaskStatus(progress);
         progressList.push({ id, status });
       }

@@ -79,11 +79,12 @@ async function countSingleTopLevelTasksFile(changeDir: string): Promise<TaskProg
 export async function getTaskProgressForChange(
   changesDir: string,
   changeName: string,
-  projectRoot: string
+  projectRoot: string,
+  schemaRoot = projectRoot
 ): Promise<TaskProgress> {
   const changeDir = path.join(changesDir, changeName);
 
-  const generates = resolveTrackedTasksGlob(changeDir, projectRoot);
+  const generates = resolveTrackedTasksGlob(changeDir, schemaRoot);
   if (generates) {
     const files = resolveArtifactOutputs(changeDir, generates);
     if (files.length > 0) {
@@ -111,5 +112,4 @@ export function formatTaskStatus(progress: TaskProgress): string {
   if (progress.completed === progress.total) return '✓ Complete';
   return `${progress.completed}/${progress.total} tasks`;
 }
-
 

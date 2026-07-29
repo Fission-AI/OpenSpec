@@ -688,6 +688,20 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     flags: [],
     subcommands: [
       {
+        name: 'sync',
+        description: 'Synchronize project-declared Git schema sources',
+        acceptsPositional: true,
+        positionalType: 'schema-name',
+        positionals: [{ name: 'name', type: 'schema-name', optional: true }],
+        flags: [
+          COMMON_FLAGS.json,
+          {
+            name: 'locked',
+            description: 'Restore exactly the commits and content in the lockfile',
+          },
+        ],
+      },
+      {
         name: 'which',
         description: 'Show where a schema resolves from',
         acceptsPositional: true,
