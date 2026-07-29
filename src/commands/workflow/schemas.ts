@@ -6,6 +6,7 @@
 
 import chalk from 'chalk';
 import { listSchemasWithInfo } from '../../core/artifact-graph/index.js';
+import { resolveRootForCommand } from '../../core/root-selection.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -20,8 +21,9 @@ export interface SchemasOptions {
 // -----------------------------------------------------------------------------
 
 export async function schemasCommand(options: SchemasOptions): Promise<void> {
-  const projectRoot = process.cwd();
-  const schemas = listSchemasWithInfo(projectRoot);
+  const root = await resolveRootForCommand({}, { json: options.json });
+  if (!root) return;
+  const schemas = listSchemasWithInfo(root.schemaContext);
 
   if (options.json) {
     console.log(JSON.stringify(schemas, null, 2));
@@ -35,6 +37,8 @@ export async function schemasCommand(options: SchemasOptions): Promise<void> {
     let sourceLabel = '';
     if (schema.source === 'project') {
       sourceLabel = chalk.cyan(' (project)');
+    } else if (schema.source === 'store') {
+      sourceLabel = chalk.cyan(` (Store: ${schema.storeId})`);
     } else if (schema.source === 'user') {
       sourceLabel = chalk.dim(' (user override)');
     }

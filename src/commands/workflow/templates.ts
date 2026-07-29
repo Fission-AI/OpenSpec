@@ -13,6 +13,7 @@ import {
 } from '../../core/artifact-graph/index.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import { validateSchemaExists, DEFAULT_SCHEMA } from './shared.js';
+import { resolveRootForCommand } from '../../core/root-selection.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -26,7 +27,8 @@ export interface TemplatesOptions {
 export interface TemplateInfo {
   artifactId: string;
   templatePath: string;
-  source: 'project' | 'user' | 'package';
+  source: 'project' | 'store' | 'user' | 'package';
+  storeId?: string;
 }
 
 // -----------------------------------------------------------------------------
@@ -37,18 +39,25 @@ export async function templatesCommand(options: TemplatesOptions): Promise<void>
   const spinner = options.json ? undefined : ora('Loading templates...').start();
 
   try {
-    const projectRoot = process.cwd();
-    const schemaName = validateSchemaExists(options.schema ?? DEFAULT_SCHEMA, projectRoot);
-    const schema = resolveSchema(schemaName, projectRoot);
+    const root = await resolveRootForCommand({}, { json: options.json });
+    if (!root) {
+      spinner?.stop();
+      return;
+    }
+    const schemaName = validateSchemaExists(
+      options.schema ?? DEFAULT_SCHEMA,
+      root.schemaContext
+    );
+    const schema = resolveSchema(schemaName, root.schemaContext);
     const graph = ArtifactGraph.fromSchema(schema);
-    const schemaDir = getSchemaDir(schemaName, projectRoot)!;
+    const schemaDir = getSchemaDir(schemaName, root.schemaContext)!;
 
     // Determine the source (project, user, or package)
     const {
       getUserSchemasDir,
       getProjectSchemasDir,
     } = await import('../../core/artifact-graph/resolver.js');
-    const projectSchemasDir = getProjectSchemasDir(projectRoot);
+    const projectSchemasDir = getProjectSchemasDir(root.schemaContext.root);
     const userSchemasDir = getUserSchemasDir();
 
     // Determine source by checking if schemaDir is inside each base directory
@@ -58,9 +67,9 @@ export async function templatesCommand(options: TemplatesOptions): Promise<void>
       return !relative.startsWith('..') && !path.isAbsolute(relative);
     };
 
-    let source: 'project' | 'user' | 'package';
+    let source: 'project' | 'store' | 'user' | 'package';
     if (isInsideDir(schemaDir, projectSchemasDir)) {
-      source = 'project';
+      source = root.schemaContext.source;
     } else if (isInsideDir(schemaDir, userSchemasDir)) {
       source = 'user';
     } else {
@@ -73,21 +82,33 @@ export async function templatesCommand(options: TemplatesOptions): Promise<void>
         path.join(schemaDir, 'templates', artifact.template)
       ),
       source,
+      ...(source === 'store' && root.schemaContext.storeId
+        ? { storeId: root.schemaContext.storeId }
+        : {}),
     }));
 
     spinner?.stop();
 
     if (options.json) {
-      const output: Record<string, { path: string; source: string }> = {};
+      const output: Record<
+        string,
+        { path: string; source: string; storeId?: string }
+      > = {};
       for (const t of templates) {
-        output[t.artifactId] = { path: t.templatePath, source: t.source };
+        output[t.artifactId] = {
+          path: t.templatePath,
+          source: t.source,
+          ...(t.storeId ? { storeId: t.storeId } : {}),
+        };
       }
       console.log(JSON.stringify(output, null, 2));
       return;
     }
 
     console.log(`Schema: ${schemaName}`);
-    console.log(`Source: ${source}`);
+    console.log(
+      `Source: ${source === 'store' ? `Store (${root.schemaContext.storeId})` : source}`
+    );
     console.log();
 
     for (const t of templates) {

@@ -148,6 +148,49 @@ The pointer is a fallback, never an override: an explicit `--store` always
 wins, and if the repo grows real planning folders of its own, those win
 (with a warning to remove the stale pointer).
 
+**Sharing workflow schemas independently.** A Store can also be selected only
+for schemas and templates. This keeps changes and specs in the local repo:
+
+```yaml
+# web-app/openspec/config.yaml
+schema: qeda-sdd
+schemaStore:
+  id: department-schemas
+  schemas: [qeda-sdd, frontend-sdd]
+```
+
+Or combine two Store roles explicitly:
+
+```yaml
+store: department-planning
+schema: qeda-sdd
+schemaStore: department-schemas
+```
+
+Here `department-planning` owns specs, changes, and archives, while
+`department-schemas` contributes the allowed schemas. Use
+`schemaStore: department-schemas` when every schema should be visible; the
+object form also defaults to `*` when `schemas` is omitted.
+
+Set up or clone the schema repository normally, then register it on each
+machine:
+
+```bash
+git clone git@github.com:acme/department-schemas.git
+openspec store register ./department-schemas --id department-schemas
+```
+
+Schema resolution never runs Git commands. Pull or switch the registered
+checkout yourself; its current working tree is immediately visible to every
+local consumer. OpenSpec does not pin separate commits per project. Use
+`openspec schema which <name>` to see the winning source and
+`openspec store doctor department-schemas` when Store identity is unhealthy.
+
+Use `openspec schema init` and `openspec schema fork` only when the consumer
+owns its project-local schema layer; while `schemaStore` is configured, those
+commands fail before writing an invisible local schema. Edit the registered
+Schema Store directly, or remove `schemaStore` first.
+
 **One default for every repo on your machine.** If you work across many
 code repos that all plan into the same store, set it once, globally,
 instead of adding the `store:` line to each repo:
@@ -335,9 +378,10 @@ tells you which case you're in.
   `openspec/config.yaml` declares `store: <id>` is treated as externalized
   planning, not as a store checkout to register. Remove the `store:` line first
   if you intentionally want to convert that repo into a local store root.
-- **Some commands stay where they are.** `view`, `templates`, `schemas`,
-  and the deprecated noun forms (`openspec change show`, ...) act on the
-  current directory only — no `--store`.
+- **Schema inspection follows the consumer config.** `templates` and `schemas`
+  do not accept `--store`; they resolve the nearest consumer project's
+  `schemaStore`. Deprecated noun forms (`openspec change show`, ...) remain
+  current-directory commands.
 - **Per-machine state is per-machine.** The store registry and worksets
   are local settings. Nothing about your machine's layout is
   ever committed to shared planning.

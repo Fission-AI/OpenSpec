@@ -4,6 +4,8 @@ import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progre
 import { readFileSync, type Dirent } from 'fs';
 import { MarkdownParser } from './parsers/markdown-parser.js';
 import type { RootOutput } from './root-selection.js';
+import type { SchemaResolutionTarget } from './artifact-graph/index.js';
+import type { ProjectConfig } from './project-config.js';
 import { discoverSpecFiles } from '../utils/spec-discovery.js';
 
 interface ChangeInfo {
@@ -17,6 +19,8 @@ interface ListOptions {
   sort?: 'recent' | 'name';
   json?: boolean;
   root?: RootOutput;
+  schemaTarget?: SchemaResolutionTarget;
+  projectConfig?: ProjectConfig | null;
 }
 
 function isMissingPathError(error: unknown): boolean {
@@ -96,7 +100,13 @@ function formatRelativeTime(date: Date): string {
 
 export class ListCommand {
   async execute(targetPath: string = '.', mode: 'changes' | 'specs' = 'changes', options: ListOptions = {}): Promise<void> {
-    const { sort = 'recent', json = false, root } = options;
+    const {
+      sort = 'recent',
+      json = false,
+      root,
+      schemaTarget,
+      projectConfig,
+    } = options;
 
     if (mode === 'changes') {
       const changesDir = path.join(targetPath, 'openspec', 'changes');
@@ -120,7 +130,13 @@ export class ListCommand {
       const changes: ChangeInfo[] = [];
 
       for (const changeDir of changeDirs) {
-        const progress = await getTaskProgressForChange(changesDir, changeDir, targetPath);
+        const progress = await getTaskProgressForChange(
+          changesDir,
+          changeDir,
+          targetPath,
+          schemaTarget ?? targetPath,
+          projectConfig
+        );
         const changePath = path.join(changesDir, changeDir);
         const lastModified = await getLastModified(changePath);
         changes.push({

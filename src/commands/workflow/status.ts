@@ -26,6 +26,7 @@ import {
   getStatusIndicator,
   getStatusColor,
 } from './shared.js';
+import { readResolvedProjectConfig } from '../../core/root-selection.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -94,13 +95,15 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
 
     // Validate schema if explicitly provided
     if (options.schema) {
-      validateSchemaExists(options.schema, projectRoot);
+      validateSchemaExists(options.schema, root.schemaContext);
     }
 
     // loadChangeContext will auto-detect schema from metadata if not provided
     const context = loadChangeContext(projectRoot, changeName, options.schema, {
       changeDir: getChangeDir(planningHome, changeName),
       planningHome,
+      projectConfig: readResolvedProjectConfig(root),
+      schemaTarget: root.schemaContext,
     });
     const status = formatChangeStatus(
       context,

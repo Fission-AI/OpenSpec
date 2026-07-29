@@ -33,12 +33,23 @@ import {
   readOptionalStoreMetadataState,
   validateStoreId,
 } from './store/foundation.js';
-import { getStoreRootForBackend } from './store/registry.js';
+import {
+  getStoreRootForBackend,
+  resolveRegisteredStore,
+} from './store/registry.js';
 import { inspectOpenSpecRoot } from './openspec-root.js';
 import { findRepoPlanningRootSync, type PlanningHome } from './planning-home.js';
-import { classifyOpenSpecDir, storePointerProblem } from './project-config.js';
+import {
+  classifyOpenSpecDir,
+  readProjectConfig,
+  readSchemaStoreDeclaration,
+  storePointerProblem,
+  type ProjectConfig,
+  type SchemaStoreDeclaration,
+} from './project-config.js';
 import { getGlobalConfig } from './global-config.js';
 import { FileSystemUtils } from '../utils/file-system.js';
+import type { SchemaResolutionContext } from './artifact-graph/resolver.js';
 
 export type OpenSpecRootSource =
   | 'store'
@@ -60,6 +71,10 @@ export interface ResolveOpenSpecRootOptions extends StoreSelectorOptions {
 
 export interface ResolvedOpenSpecRoot {
   path: string;
+  /** Repository that owns the controlling config, even when planning is redirected. */
+  consumerRoot: string;
+  /** Synchronously consumable schema authority resolved at the async root boundary. */
+  schemaContext: SchemaResolutionContext;
   changesDir: string;
   specsDir: string;
   archiveDir: string;
@@ -99,6 +114,31 @@ export function isRootSelectionError(error: unknown): error is RootSelectionErro
   return error instanceof RootSelectionError;
 }
 
+/**
+ * Read the operational config for a resolved root without changing existing
+ * Planning Store semantics. A consumer config becomes an overlay only when it
+ * explicitly declares a schema Store; this lets a consumer select its schema
+ * authority while retaining planning-owned references, context, and rules.
+ */
+export function readResolvedProjectConfig(
+  root: ResolvedOpenSpecRoot
+): ProjectConfig | null {
+  const planningConfig = readProjectConfig(root.path);
+  if (root.consumerRoot === root.path) {
+    return planningConfig;
+  }
+
+  const consumerConfig = readProjectConfig(root.consumerRoot);
+  if (!consumerConfig?.schemaStore) {
+    return planningConfig;
+  }
+
+  return {
+    ...(planningConfig ?? {}),
+    ...consumerConfig,
+  } as ProjectConfig;
+}
+
 function fromStoreError(error: unknown): never {
   if (error instanceof StoreError) {
     throw new RootSelectionError(error.message, error.diagnostic.code, {
@@ -121,6 +161,12 @@ function makeRoot(
 ): ResolvedOpenSpecRoot {
   return {
     path: rootPath,
+    consumerRoot: rootPath,
+    schemaContext: {
+      root: rootPath,
+      source: 'project',
+      visibleSchemas: '*',
+    },
     changesDir: path.join(rootPath, 'openspec', 'changes'),
     specsDir: path.join(rootPath, 'openspec', 'specs'),
     archiveDir: path.join(rootPath, 'openspec', 'changes', 'archive'),
@@ -128,6 +174,104 @@ function makeRoot(
     source,
     ...(storeId ? { storeId } : {}),
   };
+}
+
+function schemaStoreFix(
+  declaration: SchemaStoreDeclaration,
+  error: StoreError
+): string | undefined {
+  if (
+    error.diagnostic.code === 'store_not_found' ||
+    error.diagnostic.code === 'no_store_registry'
+  ) {
+    return `Register the schema Store with openspec store register <path> --id ${declaration.id}.`;
+  }
+  if (
+    error.diagnostic.code === 'store_metadata_missing' ||
+    error.diagnostic.code === 'store_metadata_id_mismatch'
+  ) {
+    return `Run openspec store doctor ${declaration.id} to inspect or repair the schema Store.`;
+  }
+  return error.diagnostic.fix;
+}
+
+async function withSchemaContext(
+  planningRoot: ResolvedOpenSpecRoot,
+  consumerRoot: string | null,
+  globalDataDir?: string
+): Promise<ResolvedOpenSpecRoot> {
+  const configRoot = consumerRoot ?? planningRoot.path;
+  const declarationRead = readSchemaStoreDeclaration(configRoot);
+
+  if (declarationRead.malformed) {
+    throw new RootSelectionError(
+      `Invalid schemaStore declaration in ${declarationRead.filePath}: ${declarationRead.problem}.`,
+      'invalid_schema_store_declaration',
+      {
+        target: 'schemaStore',
+        fix:
+          declarationRead.malformed === 'unparseable'
+            ? `Fix the YAML syntax in ${declarationRead.filePath}.`
+            : `Edit ${declarationRead.filePath} so schemaStore names a registered Store and valid visible schemas.`,
+      }
+    );
+  }
+
+  if (!declarationRead.value) {
+    return {
+      ...planningRoot,
+      consumerRoot: configRoot,
+      schemaContext: {
+        root: planningRoot.path,
+        source: 'project',
+        visibleSchemas: '*',
+      },
+    };
+  }
+
+  const declaration = declarationRead.value;
+  if (planningRoot.storeId === declaration.id) {
+    return {
+      ...planningRoot,
+      consumerRoot: configRoot,
+      schemaContext: {
+        root: planningRoot.path,
+        source: 'store',
+        storeId: declaration.id,
+        visibleSchemas: declaration.schemas,
+      },
+    };
+  }
+
+  try {
+    const schemaStore = await resolveRegisteredStore({
+      id: declaration.id,
+      ...(globalDataDir ? { globalDataDir } : {}),
+    });
+    return {
+      ...planningRoot,
+      consumerRoot: configRoot,
+      schemaContext: {
+        root: FileSystemUtils.canonicalizeExistingPath(schemaStore.storeRoot),
+        source: 'store',
+        storeId: declaration.id,
+        visibleSchemas: declaration.schemas,
+      },
+    };
+  } catch (error) {
+    if (error instanceof StoreError) {
+      const fix = schemaStoreFix(declaration, error);
+      throw new RootSelectionError(
+        `Schema Store '${declaration.id}' declared in ${declarationRead.filePath}: ${error.message}`,
+        error.diagnostic.code,
+        {
+          target: 'schemaStore.id',
+          ...(fix ? { fix } : {}),
+        }
+      );
+    }
+    throw error;
+  }
 }
 
 function canonicalDirectory(startPath: string): string {
@@ -403,14 +547,20 @@ export async function resolveOpenSpecRoot(
     );
   }
 
-  if (options.store !== undefined) {
-    return resolveStoreRoot(options.store, options.globalDataDir);
-  }
-
   const startPath = options.startPath ?? process.cwd();
   const nearestRoot = findQualifyingRootSync(startPath);
+
+  if (options.store !== undefined) {
+    const planningRoot = await resolveStoreRoot(options.store, options.globalDataDir);
+    return withSchemaContext(planningRoot, nearestRoot, options.globalDataDir);
+  }
+
   if (nearestRoot) {
-    return resolveNearestOrDeclaredRoot(nearestRoot, options.globalDataDir);
+    const planningRoot = await resolveNearestOrDeclaredRoot(
+      nearestRoot,
+      options.globalDataDir
+    );
+    return withSchemaContext(planningRoot, nearestRoot, options.globalDataDir);
   }
 
   // Machine-level fallback: a global defaultStore is consulted only after
@@ -418,7 +568,11 @@ export async function resolveOpenSpecRoot(
   // failed to resolve — it changes the failure path, never the precedence.
   const defaultStore = getGlobalConfig().defaultStore;
   if (defaultStore) {
-    return resolveDefaultStoreRoot(defaultStore, options.globalDataDir);
+    const planningRoot = await resolveDefaultStoreRoot(
+      defaultStore,
+      options.globalDataDir
+    );
+    return withSchemaContext(planningRoot, null, options.globalDataDir);
   }
 
   let registry;
@@ -452,7 +606,11 @@ export async function resolveOpenSpecRoot(
     );
   }
 
-  return makeRoot(canonicalDirectory(startPath), 'implicit');
+  return withSchemaContext(
+    makeRoot(canonicalDirectory(startPath), 'implicit'),
+    null,
+    options.globalDataDir
+  );
 }
 
 // -----------------------------------------------------------------------------

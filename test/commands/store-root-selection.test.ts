@@ -123,6 +123,413 @@ describe('store root selection for normal commands', () => {
     expect(fs.existsSync(path.join(appRepo, 'openspec'))).toBe(false);
   }
 
+  function createSchema(rootDir: string, name: string): void {
+    const schemaDir = path.join(rootDir, 'openspec', 'schemas', name);
+    fs.mkdirSync(path.join(schemaDir, 'templates'), { recursive: true });
+    fs.writeFileSync(
+      path.join(schemaDir, 'schema.yaml'),
+      `name: ${name}
+version: 1
+description: Department workflow
+artifacts:
+  - id: brief
+    generates: brief.md
+    description: Department brief
+    template: brief.md
+  - id: checklist
+    generates: department-tasks.md
+    description: Department checklist
+    template: checklist.md
+    requires: [brief]
+apply:
+  requires: [brief, checklist]
+  tracks: department-tasks.md
+`
+    );
+    fs.writeFileSync(
+      path.join(schemaDir, 'templates', 'brief.md'),
+      '# Department Brief\n\nStore-backed template.\n'
+    );
+    fs.writeFileSync(
+      path.join(schemaDir, 'templates', 'checklist.md'),
+      '# Department Checklist\n\n- [ ] Implement the change.\n'
+    );
+  }
+
+  describe('schema Store workflow context', () => {
+    it('uses a schema Store across new change, status, and instructions with local planning', async () => {
+      const schemaStoreRoot = await registerStoreFixture('department-schemas');
+      createSchema(schemaStoreRoot, 'department-flow');
+      createSchema(schemaStoreRoot, 'hidden-flow');
+      const localRepo = path.join(tempDir, 'schema-consumer');
+      createOpenSpecRoot(localRepo);
+      fs.writeFileSync(
+        path.join(localRepo, 'openspec', 'config.yaml'),
+        `schema: department-flow
+schemaStore:
+  id: department-schemas
+  schemas: [department-flow]
+`
+      );
+
+      const created = await runCLI(['new', 'change', 'use-department-flow'], {
+        cwd: localRepo,
+        env,
+      });
+      expect(created.exitCode).toBe(0);
+      expect(
+        fs.existsSync(
+          path.join(
+            localRepo,
+            'openspec',
+            'changes',
+            'use-department-flow',
+            '.openspec.yaml'
+          )
+        )
+      ).toBe(true);
+
+      const status = await runCLI(
+        ['status', '--change', 'use-department-flow', '--json'],
+        { cwd: localRepo, env }
+      );
+      expect(status.exitCode).toBe(0);
+      expect(parseJson(status)).toMatchObject({
+        schemaName: 'department-flow',
+        artifacts: [
+          { id: 'brief', status: 'ready' },
+          { id: 'checklist', status: 'blocked' },
+        ],
+      });
+
+      const instructions = await runCLI(
+        [
+          'instructions',
+          'brief',
+          '--change',
+          'use-department-flow',
+          '--json',
+        ],
+        { cwd: localRepo, env }
+      );
+      expect(instructions.exitCode).toBe(0);
+      expect(parseJson(instructions).template).toContain('Store-backed template');
+
+      const schemas = await runCLI(['schemas', '--json'], {
+        cwd: localRepo,
+        env,
+      });
+      expect(schemas.exitCode).toBe(0);
+      const schemaList = parseJson(schemas);
+      expect(schemaList).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            name: 'department-flow',
+            source: 'store',
+            storeId: 'department-schemas',
+          }),
+        ])
+      );
+      expect(
+        schemaList.some((schema: { name: string }) => schema.name === 'hidden-flow')
+      ).toBe(false);
+
+      const which = await runCLI(
+        ['schema', 'which', 'department-flow', '--json'],
+        { cwd: localRepo, env }
+      );
+      expect(which.exitCode).toBe(0);
+      expect(parseJson(which)).toMatchObject({
+        name: 'department-flow',
+        source: 'store',
+        storeId: 'department-schemas',
+        path: path.join(
+          schemaStoreRoot,
+          'openspec',
+          'schemas',
+          'department-flow'
+        ),
+      });
+
+      const allSchemas = await runCLI(
+        ['schema', 'which', '--all', '--json'],
+        { cwd: localRepo, env }
+      );
+      expect(allSchemas.exitCode).toBe(0);
+      expect(
+        parseJson(allSchemas).some(
+          (schema: { name: string }) => schema.name === 'hidden-flow'
+        )
+      ).toBe(false);
+
+      const schemaValidation = await runCLI(
+        ['schema', 'validate', 'department-flow', '--json'],
+        { cwd: localRepo, env }
+      );
+      expect(schemaValidation.exitCode).toBe(0);
+
+      const forked = await runCLI(
+        ['schema', 'fork', 'department-flow', 'forked-flow', '--json'],
+        { cwd: localRepo, env }
+      );
+      expect(forked.exitCode).toBe(1);
+      expect(parseJson(forked)).toMatchObject({
+        forked: false,
+        storeId: 'department-schemas',
+        error: expect.stringContaining('remove schemaStore'),
+      });
+      expect(
+        fs.existsSync(
+          path.join(
+            localRepo,
+            'openspec',
+            'schemas',
+            'forked-flow',
+            'schema.yaml'
+          )
+        )
+      ).toBe(false);
+
+      const initialized = await runCLI(
+        ['schema', 'init', 'local-flow', '--json'],
+        { cwd: localRepo, env }
+      );
+      expect(initialized.exitCode).toBe(1);
+      expect(parseJson(initialized)).toMatchObject({
+        created: false,
+        storeId: 'department-schemas',
+        error: expect.stringContaining('remove schemaStore'),
+      });
+      expect(
+        fs.existsSync(
+          path.join(
+            localRepo,
+            'openspec',
+            'schemas',
+            'local-flow',
+            'schema.yaml'
+          )
+        )
+      ).toBe(false);
+
+      const templates = await runCLI(
+        ['templates', '--schema', 'department-flow', '--json'],
+        { cwd: localRepo, env }
+      );
+      expect(templates.exitCode).toBe(0);
+      expect(parseJson(templates).brief).toMatchObject({
+        source: 'store',
+        storeId: 'department-schemas',
+      });
+
+      const changeDir = path.join(
+        localRepo,
+        'openspec',
+        'changes',
+        'use-department-flow'
+      );
+      fs.writeFileSync(path.join(changeDir, 'brief.md'), '# Brief\n');
+      fs.writeFileSync(
+        path.join(changeDir, 'department-tasks.md'),
+        '- [x] Implement the change.\n'
+      );
+      fs.writeFileSync(
+        path.join(changeDir, 'proposal.md'),
+        '## Why\nThis department change is needed.\n\n## What Changes\n- Update the department flow.\n'
+      );
+      fs.appendFileSync(path.join(changeDir, '.openspec.yaml'), 'skip_specs: true\n');
+
+      const apply = await runCLI(
+        ['instructions', 'apply', '--change', 'use-department-flow', '--json'],
+        { cwd: localRepo, env }
+      );
+      expect(apply.exitCode).toBe(0);
+      expect(parseJson(apply)).toMatchObject({
+        schemaName: 'department-flow',
+        state: 'all_done',
+        progress: { total: 1, complete: 1, remaining: 0 },
+      });
+
+      const listed = await runCLI(['list', '--json'], { cwd: localRepo, env });
+      expect(listed.exitCode).toBe(0);
+      expect(parseJson(listed).changes[0]).toMatchObject({
+        name: 'use-department-flow',
+        completedTasks: 1,
+        totalTasks: 1,
+      });
+
+      const validated = await runCLI(
+        ['validate', 'use-department-flow', '--json'],
+        { cwd: localRepo, env }
+      );
+      expect(validated.exitCode).toBe(0);
+
+      const archived = await runCLI(
+        ['archive', 'use-department-flow', '--json', '--yes'],
+        { cwd: localRepo, env }
+      );
+      expect(archived.exitCode).toBe(0);
+      expect(
+        fs.existsSync(
+          path.join(localRepo, 'openspec', 'changes', 'use-department-flow')
+        )
+      ).toBe(false);
+    });
+
+    it('keeps writes in the planning Store while loading schemas from another Store', async () => {
+      const schemaStoreRoot = await registerStoreFixture('department-schemas');
+      createSchema(schemaStoreRoot, 'department-flow');
+      fs.mkdirSync(path.join(appRepo, 'openspec'), { recursive: true });
+      fs.writeFileSync(
+        path.join(appRepo, 'openspec', 'config.yaml'),
+        `store: team-context
+schema: department-flow
+schemaStore: department-schemas
+`
+      );
+
+      const result = await runCLI(['new', 'change', 'split-store-flow'], {
+        cwd: appRepo,
+        env,
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(
+        fs.existsSync(
+          path.join(storeRoot, 'openspec', 'changes', 'split-store-flow')
+        )
+      ).toBe(true);
+      expect(
+        fs.readFileSync(
+          path.join(
+            storeRoot,
+            'openspec',
+            'changes',
+            'split-store-flow',
+            '.openspec.yaml'
+          ),
+          'utf-8'
+        )
+      ).toContain('schema: department-flow');
+      expect(
+        fs.existsSync(
+          path.join(appRepo, 'openspec', 'changes', 'split-store-flow')
+        )
+      ).toBe(false);
+
+      const changeDir = path.join(
+        storeRoot,
+        'openspec',
+        'changes',
+        'split-store-flow'
+      );
+      const status = await runCLI(
+        ['status', '--change', 'split-store-flow', '--json'],
+        { cwd: appRepo, env }
+      );
+      expect(status.exitCode).toBe(0);
+      expect(parseJson(status).schemaName).toBe('department-flow');
+
+      const instructions = await runCLI(
+        ['instructions', 'brief', '--change', 'split-store-flow', '--json'],
+        { cwd: appRepo, env }
+      );
+      expect(instructions.exitCode).toBe(0);
+      expect(parseJson(instructions).template).toContain('Store-backed template');
+
+      fs.writeFileSync(path.join(changeDir, 'brief.md'), '# Brief\n');
+      fs.writeFileSync(
+        path.join(changeDir, 'department-tasks.md'),
+        '- [x] Implement the change.\n'
+      );
+      fs.writeFileSync(
+        path.join(changeDir, 'proposal.md'),
+        '## Why\nThis department change is needed.\n\n## What Changes\n- Update the department flow.\n'
+      );
+      fs.appendFileSync(path.join(changeDir, '.openspec.yaml'), 'skip_specs: true\n');
+
+      const deprecatedValidation = await runCLI(
+        ['change', 'validate', 'split-store-flow', '--json'],
+        { cwd: appRepo, env }
+      );
+      expect(deprecatedValidation.exitCode).toBe(0);
+      expect(parseJson(deprecatedValidation)).toMatchObject({ valid: true });
+
+      const apply = await runCLI(
+        ['instructions', 'apply', '--change', 'split-store-flow', '--json'],
+        { cwd: appRepo, env }
+      );
+      expect(apply.exitCode).toBe(0);
+      expect(parseJson(apply)).toMatchObject({
+        schemaName: 'department-flow',
+        state: 'all_done',
+      });
+
+      const listed = await runCLI(['list', '--json'], { cwd: appRepo, env });
+      expect(listed.exitCode).toBe(0);
+      expect(parseJson(listed).changes[0]).toMatchObject({
+        name: 'split-store-flow',
+        completedTasks: 1,
+        totalTasks: 1,
+      });
+
+      const legacyChangeDir = path.join(
+        storeRoot,
+        'openspec',
+        'changes',
+        'legacy-split-flow'
+      );
+      fs.mkdirSync(legacyChangeDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(legacyChangeDir, 'department-tasks.md'),
+        '- [ ] Legacy task.\n'
+      );
+      const listedWithLegacy = parseJson(
+        await runCLI(['list', '--json'], { cwd: appRepo, env })
+      );
+      expect(
+        listedWithLegacy.changes.find(
+          (change: { name: string }) => change.name === 'legacy-split-flow'
+        )
+      ).toMatchObject({
+        completedTasks: 0,
+        totalTasks: 1,
+      });
+
+      const deprecatedList = await runCLI(['change', 'list', '--json'], {
+        cwd: appRepo,
+        env,
+      });
+      expect(deprecatedList.exitCode).toBe(0);
+      expect(
+        parseJson(deprecatedList).find(
+          (change: { id: string }) => change.id === 'legacy-split-flow'
+        )
+      ).toMatchObject({
+        taskStatus: { completed: 0, total: 1 },
+      });
+
+      const validated = await runCLI(
+        ['validate', 'split-store-flow', '--json'],
+        { cwd: appRepo, env }
+      );
+      expect(validated.exitCode).toBe(0);
+
+      const archived = await runCLI(
+        ['archive', 'split-store-flow', '--json', '--yes'],
+        { cwd: appRepo, env }
+      );
+      expect(archived.exitCode).toBe(0);
+      expect(fs.existsSync(changeDir)).toBe(false);
+      expect(
+        fs.existsSync(path.join(storeRoot, 'openspec', 'changes', 'archive'))
+      ).toBe(true);
+      expect(fs.existsSync(path.join(appRepo, 'openspec', 'changes'))).toBe(
+        false
+      );
+    });
+  });
+
   describe('selecting a registered store by id', () => {
     it('creates a change only in the store and names the root on stderr', async () => {
       const result = await runCLI(['new', 'change', 'add-billing', '--store', 'team-context'], {

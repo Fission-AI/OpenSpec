@@ -298,6 +298,222 @@ describe('resolveOpenSpecRoot', () => {
     expect(root.path).toBe(storeRoot);
   });
 
+  describe('schema Store context', () => {
+    it('keeps local planning while resolving a separate schema Store', async () => {
+      const schemaStoreRoot = await registerStore('department-schemas', {
+        healthyRoot: false,
+      });
+      const repoRoot = mkdir('local-planning');
+      createOpenSpecRoot(repoRoot);
+      fs.writeFileSync(
+        path.join(repoRoot, 'openspec', 'config.yaml'),
+        'schema: qeda-sdd\nschemaStore: department-schemas\n'
+      );
+
+      const root = await resolveOpenSpecRoot({
+        startPath: path.join(repoRoot, 'openspec'),
+        globalDataDir,
+      });
+
+      expect(root.path).toBe(repoRoot);
+      expect(root.consumerRoot).toBe(repoRoot);
+      expect(root.schemaContext).toEqual({
+        root: schemaStoreRoot,
+        source: 'store',
+        storeId: 'department-schemas',
+        visibleSchemas: '*',
+      });
+    });
+
+    it('resolves different planning and schema Stores from the consumer config', async () => {
+      const planningStoreRoot = await registerStore('department-planning');
+      const schemaStoreRoot = await registerStore('department-schemas', {
+        healthyRoot: false,
+      });
+      const consumerRoot = mkdir('split-store-consumer');
+      fs.mkdirSync(path.join(consumerRoot, 'openspec'), { recursive: true });
+      fs.writeFileSync(
+        path.join(consumerRoot, 'openspec', 'config.yaml'),
+        `store: department-planning
+schema: qeda-sdd
+schemaStore:
+  id: department-schemas
+  schemas: [qeda-sdd, frontend-sdd]
+`
+      );
+
+      const root = await resolveOpenSpecRoot({
+        startPath: consumerRoot,
+        globalDataDir,
+      });
+
+      expect(root.path).toBe(planningStoreRoot);
+      expect(root.storeId).toBe('department-planning');
+      expect(root.consumerRoot).toBe(consumerRoot);
+      expect(root.schemaContext).toEqual({
+        root: schemaStoreRoot,
+        source: 'store',
+        storeId: 'department-schemas',
+        visibleSchemas: ['qeda-sdd', 'frontend-sdd'],
+      });
+    });
+
+    it('allows the same Store to fill both roles only when explicitly declared', async () => {
+      const sharedStoreRoot = await registerStore('department-shared');
+      const consumerRoot = mkdir('shared-store-consumer');
+      fs.mkdirSync(path.join(consumerRoot, 'openspec'), { recursive: true });
+      fs.writeFileSync(
+        path.join(consumerRoot, 'openspec', 'config.yaml'),
+        'store: department-shared\nschemaStore: department-shared\n'
+      );
+
+      const root = await resolveOpenSpecRoot({
+        startPath: consumerRoot,
+        globalDataDir,
+      });
+
+      expect(root.path).toBe(sharedStoreRoot);
+      expect(root.consumerRoot).toBe(consumerRoot);
+      expect(root.schemaContext.root).toBe(sharedStoreRoot);
+      expect(root.schemaContext.storeId).toBe('department-shared');
+    });
+
+    it('lets --store select planning without losing the consumer schema declaration', async () => {
+      const planningStoreRoot = await registerStore('selected-planning');
+      const schemaStoreRoot = await registerStore('department-schemas', {
+        healthyRoot: false,
+      });
+      const consumerRoot = mkdir('explicit-planning-consumer');
+      createOpenSpecRoot(consumerRoot);
+      fs.writeFileSync(
+        path.join(consumerRoot, 'openspec', 'config.yaml'),
+        'schemaStore: department-schemas\n'
+      );
+
+      const root = await resolveOpenSpecRoot({
+        startPath: consumerRoot,
+        store: 'selected-planning',
+        globalDataDir,
+      });
+
+      expect(root.path).toBe(planningStoreRoot);
+      expect(root.consumerRoot).toBe(consumerRoot);
+      expect(root.schemaContext).toMatchObject({
+        root: schemaStoreRoot,
+        source: 'store',
+        storeId: 'department-schemas',
+      });
+    });
+
+    it('retains existing schema-root behavior when schemaStore is absent', async () => {
+      const planningStoreRoot = await registerStore('department-planning');
+      const consumerRoot = mkdir('existing-behavior-consumer');
+      fs.mkdirSync(path.join(consumerRoot, 'openspec'), { recursive: true });
+      fs.writeFileSync(
+        path.join(consumerRoot, 'openspec', 'config.yaml'),
+        'store: department-planning\nschema: spec-driven\n'
+      );
+
+      const root = await resolveOpenSpecRoot({
+        startPath: consumerRoot,
+        globalDataDir,
+      });
+
+      expect(root.path).toBe(planningStoreRoot);
+      expect(root.consumerRoot).toBe(consumerRoot);
+      expect(root.schemaContext).toEqual({
+        root: planningStoreRoot,
+        source: 'project',
+        visibleSchemas: '*',
+      });
+    });
+
+    it('fails closed for an invalid schemaStore declaration', async () => {
+      const repoRoot = mkdir('invalid-schema-store');
+      createOpenSpecRoot(repoRoot);
+      fs.writeFileSync(
+        path.join(repoRoot, 'openspec', 'config.yaml'),
+        'schema: spec-driven\nschemaStore:\n  id: department-schemas\n  schemas: []\n'
+      );
+
+      const error = await expectRootSelectionError(
+        resolveOpenSpecRoot({ startPath: repoRoot, globalDataDir }),
+        'invalid_schema_store_declaration'
+      );
+      expect(error.message).toContain('schemaStore');
+      expect(error.message).toContain(path.join(repoRoot, 'openspec', 'config.yaml'));
+    });
+
+    it('directs an unknown schema Store declaration to registration', async () => {
+      await registerStore('some-other-store');
+      const repoRoot = mkdir('unknown-schema-store');
+      createOpenSpecRoot(repoRoot);
+      fs.writeFileSync(
+        path.join(repoRoot, 'openspec', 'config.yaml'),
+        'schemaStore: department-schemas\n'
+      );
+
+      const error = await expectRootSelectionError(
+        resolveOpenSpecRoot({ startPath: repoRoot, globalDataDir }),
+        'store_not_found'
+      );
+      expect(error.message).toContain("Schema Store 'department-schemas'");
+      expect(error.diagnostic.fix).toContain(
+        'openspec store register <path> --id department-schemas'
+      );
+    });
+
+    it.each([
+      {
+        label: 'missing identity metadata',
+        options: { healthyRoot: false, metadataId: null },
+        code: 'store_metadata_missing',
+      },
+      {
+        label: 'mismatched identity metadata',
+        options: { healthyRoot: false, metadataId: 'other-schemas' },
+        code: 'store_metadata_id_mismatch',
+      },
+    ])('directs $label to Store doctor', async ({ options, code }) => {
+      await registerStore('department-schemas', options);
+      const repoRoot = mkdir(`bad-schema-store-${code}`);
+      createOpenSpecRoot(repoRoot);
+      fs.writeFileSync(
+        path.join(repoRoot, 'openspec', 'config.yaml'),
+        'schemaStore: department-schemas\n'
+      );
+
+      const error = await expectRootSelectionError(
+        resolveOpenSpecRoot({ startPath: repoRoot, globalDataDir }),
+        code
+      );
+      expect(error.message).toContain("Schema Store 'department-schemas'");
+      expect(error.diagnostic.fix).toContain(
+        'openspec store doctor department-schemas'
+      );
+    });
+
+    it('returns the platform-native canonical schema Store path', async () => {
+      const schemaStoreRoot = await registerStore('department-schemas', {
+        healthyRoot: false,
+      });
+      const repoRoot = mkdir(path.join('native path', 'consumer'));
+      createOpenSpecRoot(repoRoot);
+      fs.writeFileSync(
+        path.join(repoRoot, 'openspec', 'config.yaml'),
+        'schemaStore: department-schemas\n'
+      );
+
+      const root = await resolveOpenSpecRoot({
+        startPath: path.join(repoRoot, 'openspec', 'config.yaml'),
+        globalDataDir,
+      });
+
+      expect(root.schemaContext.root).toBe(fs.realpathSync.native(schemaStoreRoot));
+      expect(root.consumerRoot).toBe(fs.realpathSync.native(repoRoot));
+    });
+  });
+
   describe('declared store fallback (3.2)', () => {
     function createPointerDir(relativePath: string, configBody: string): string {
       const dir = mkdir(relativePath);

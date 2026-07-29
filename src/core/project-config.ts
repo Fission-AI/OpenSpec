@@ -2,6 +2,7 @@ import { existsSync, readFileSync, statSync } from 'fs';
 import path from 'path';
 import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
+import { isValidStoreId } from './store/foundation.js';
 
 export const OPERATION_IDS = ['apply', 'archive'] as const;
 export type OperationId = (typeof OPERATION_IDS)[number];
@@ -82,8 +83,16 @@ export interface DeclarationEntry {
   remote?: string;
 }
 
+/** Normalized schema-only Store declaration from project configuration. */
+export interface SchemaStoreDeclaration {
+  id: string;
+  /** `*` exposes every Store schema; an array exposes exact schema names. */
+  schemas: '*' | string[];
+}
+
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema> & {
   references?: DeclarationEntry[];
+  schemaStore?: SchemaStoreDeclaration;
 };
 
 export interface OperationInputs {
@@ -233,6 +242,100 @@ function parseDeclarationList(raw: unknown): DeclarationEntry[] | undefined {
   return byId.size > 0 ? [...byId.values()] : undefined;
 }
 
+type SchemaStoreParseResult =
+  | { success: true; value: SchemaStoreDeclaration }
+  | { success: false; problem: string };
+
+const SCHEMA_NAME_REGEX = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
+
+function parseSchemaStoreDeclaration(raw: unknown): SchemaStoreParseResult {
+  if (typeof raw === 'string') {
+    if (!isValidStoreId(raw)) {
+      return {
+        success: false,
+        problem: 'id must be a valid kebab-case Store id',
+      };
+    }
+    return { success: true, value: { id: raw, schemas: '*' } };
+  }
+
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return {
+      success: false,
+      problem: 'must be a Store id string or an object',
+    };
+  }
+
+  const declaration = raw as Record<string, unknown>;
+  const unknownFields = Object.keys(declaration).filter(
+    (field) => field !== 'id' && field !== 'schemas'
+  );
+  if (unknownFields.length > 0) {
+    return {
+      success: false,
+      problem: `contains unsupported field(s): ${unknownFields.join(', ')}`,
+    };
+  }
+
+  if (typeof declaration.id !== 'string' || !isValidStoreId(declaration.id)) {
+    return {
+      success: false,
+      problem: 'id must be a valid kebab-case Store id',
+    };
+  }
+
+  if (declaration.schemas === undefined) {
+    return {
+      success: true,
+      value: { id: declaration.id, schemas: '*' },
+    };
+  }
+
+  if (!Array.isArray(declaration.schemas) || declaration.schemas.length === 0) {
+    return {
+      success: false,
+      problem: 'schemas must contain at least one schema name or "*"',
+    };
+  }
+
+  if (!declaration.schemas.every((entry) => typeof entry === 'string')) {
+    return {
+      success: false,
+      problem: 'schemas must be an array of schema name strings',
+    };
+  }
+
+  const names = declaration.schemas as string[];
+  if (names.includes('*')) {
+    if (names.length !== 1) {
+      return {
+        success: false,
+        problem: 'schemas wildcard "*" cannot be combined with schema names',
+      };
+    }
+    return {
+      success: true,
+      value: { id: declaration.id, schemas: '*' },
+    };
+  }
+
+  const invalidName = names.find((name) => !SCHEMA_NAME_REGEX.test(name));
+  if (invalidName !== undefined) {
+    return {
+      success: false,
+      problem: `schemas contains invalid schema name '${invalidName}'`,
+    };
+  }
+
+  return {
+    success: true,
+    value: {
+      id: declaration.id,
+      schemas: [...new Set(names)],
+    },
+  };
+}
+
 export const MAX_CONTEXT_SIZE = 50 * 1024; // 50KB hard limit, shared with the references index
 
 /**
@@ -362,6 +465,17 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
       }
     }
 
+    if (raw.schemaStore !== undefined) {
+      const schemaStore = parseSchemaStoreDeclaration(raw.schemaStore);
+      if (schemaStore.success) {
+        config.schemaStore = schemaStore.value;
+      } else {
+        console.warn(
+          `Invalid 'schemaStore' field in config (${schemaStore.problem}); ignoring it`
+        );
+      }
+    }
+
     // Return partial config even if some fields failed
     return Object.keys(config).length > 0 ? (config as ProjectConfig) : null;
   } catch (error) {
@@ -481,6 +595,60 @@ export function suggestSchemas(
 // -----------------------------------------------------------------------------
 // Store pointer (declared default store)
 // -----------------------------------------------------------------------------
+
+export interface SchemaStoreDeclarationRead {
+  /** Normalized declaration when schemaStore is present and valid. */
+  value?: SchemaStoreDeclaration;
+  /** Invalid declarations and malformed YAML must fail closed at authority
+   * resolution instead of silently falling back to another schema source. */
+  malformed?: 'unparseable' | 'invalid_declaration';
+  /** Concise, user-facing reason for a malformed result. */
+  problem?: string;
+  /** Absolute path of the config file actually read, or null when none exists. */
+  filePath: string | null;
+}
+
+/**
+ * Warning-silent authoritative read of `schemaStore`. Generic config loading is
+ * resilient, but schema authority selection must distinguish absent from invalid.
+ */
+export function readSchemaStoreDeclaration(
+  projectRoot: string
+): SchemaStoreDeclarationRead {
+  const configPath = resolveConfigFilePath(projectRoot);
+  if (configPath === null) {
+    return { filePath: null };
+  }
+
+  try {
+    const raw = parseYaml(readFileSync(configPath, 'utf-8'));
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      return { filePath: configPath };
+    }
+
+    const value = (raw as Record<string, unknown>).schemaStore;
+    if (value === undefined) {
+      return { filePath: configPath };
+    }
+
+    const result = parseSchemaStoreDeclaration(value);
+    if (result.success) {
+      return { value: result.value, filePath: configPath };
+    }
+
+    return {
+      malformed: 'invalid_declaration',
+      problem: result.problem,
+      filePath: configPath,
+    };
+  } catch {
+    return {
+      malformed: 'unparseable',
+      problem: 'the config file could not be read as YAML',
+      filePath: configPath,
+    };
+  }
+}
 
 export interface StorePointerRead {
   /** The declared store id, when present and a string. */

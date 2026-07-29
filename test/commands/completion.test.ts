@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { CompletionCommand } from '../../src/commands/completion.js';
+import { CompletionProvider } from '../../src/core/completions/completion-provider.js';
 import * as shellDetection from '../../src/utils/shell-detection.js';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 
 // Mock the shell detection module
 vi.mock('../../src/utils/shell-detection.js', () => ({
@@ -250,6 +254,154 @@ describe('CompletionCommand', () => {
 
       expect(consoleLogSpy).toHaveBeenCalledWith('spec-driven\tschema');
       expect(process.exitCode).toBe(0);
+    });
+
+    it('applies schema Store visibility and replaces consumer-local schemas', async () => {
+      const tempDir = fs.mkdtempSync(
+        path.join(os.tmpdir(), 'openspec-completion-store-')
+      );
+      try {
+        const schemaStoreRoot = path.join(tempDir, 'schema-store');
+        for (const name of ['visible-flow', 'hidden-flow']) {
+          const schemaDir = path.join(
+            schemaStoreRoot,
+            'openspec',
+            'schemas',
+            name
+          );
+          fs.mkdirSync(schemaDir, { recursive: true });
+          fs.writeFileSync(
+            path.join(schemaDir, 'schema.yaml'),
+            `name: ${name}\n`
+          );
+        }
+        const consumerSchemaDir = path.join(
+          tempDir,
+          'consumer',
+          'openspec',
+          'schemas',
+          'consumer-only'
+        );
+        fs.mkdirSync(consumerSchemaDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(consumerSchemaDir, 'schema.yaml'),
+          'name: consumer-only\n'
+        );
+
+        const provider = new CompletionProvider(
+          0,
+          path.join(tempDir, 'consumer'),
+          {
+            root: schemaStoreRoot,
+            source: 'store',
+            storeId: 'department-schemas',
+            visibleSchemas: ['visible-flow'],
+          }
+        );
+
+        const schemas = await provider.getSchemaNames();
+        expect(schemas).toContain('visible-flow');
+        expect(schemas).not.toContain('hidden-flow');
+        expect(schemas).not.toContain('consumer-only');
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it('does not reuse schema completion cache entries across resolution targets', async () => {
+      const tempDir = fs.mkdtempSync(
+        path.join(os.tmpdir(), 'openspec-completion-target-cache-')
+      );
+      try {
+        const firstRoot = path.join(tempDir, 'first');
+        const secondRoot = path.join(tempDir, 'second');
+        for (const [root, name] of [
+          [firstRoot, 'first-flow'],
+          [secondRoot, 'second-flow'],
+        ]) {
+          const schemaDir = path.join(root, 'openspec', 'schemas', name);
+          fs.mkdirSync(schemaDir, { recursive: true });
+          fs.writeFileSync(path.join(schemaDir, 'schema.yaml'), `name: ${name}\n`);
+        }
+
+        const provider = new CompletionProvider(60_000, tempDir);
+        expect(await provider.getSchemaNames(firstRoot)).toContain('first-flow');
+
+        const secondSchemas = await provider.getSchemaNames({
+          root: secondRoot,
+          source: 'store',
+          storeId: 'second-store',
+          visibleSchemas: '*',
+        });
+        expect(secondSchemas).toContain('second-flow');
+        expect(secondSchemas).not.toContain('first-flow');
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it('fails silently instead of falling back for an invalid schemaStore authority', async () => {
+      const tempDir = fs.mkdtempSync(
+        path.join(os.tmpdir(), 'openspec-completion-invalid-')
+      );
+      try {
+        fs.mkdirSync(path.join(tempDir, 'openspec', 'changes'), {
+          recursive: true,
+        });
+        fs.writeFileSync(
+          path.join(tempDir, 'openspec', 'config.yaml'),
+          'schemaStore:\n  id: department-schemas\n  schemas: []\n'
+        );
+
+        await new CompletionCommand(tempDir).complete({ type: 'schemas' });
+
+        expect(consoleLogSpy).not.toHaveBeenCalled();
+        expect(process.exitCode).toBe(1);
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it('lists ordinary schemas outside a project even when Stores are registered', async () => {
+      const tempDir = fs.mkdtempSync(
+        path.join(os.tmpdir(), 'openspec-completion-no-root-')
+      );
+      const previousXdgDataHome = process.env.XDG_DATA_HOME;
+      try {
+        process.env.XDG_DATA_HOME = path.join(tempDir, 'data');
+        const registryDir = path.join(
+          process.env.XDG_DATA_HOME,
+          'openspec',
+          'stores'
+        );
+        fs.mkdirSync(registryDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(registryDir, 'registry.yaml'),
+          [
+            'version: 1',
+            'stores:',
+            '  registered-store:',
+            '    backend:',
+            '      type: git',
+            `      local_path: ${path.join(tempDir, 'registered-store')}`,
+            '',
+          ].join('\n')
+        );
+
+        await new CompletionCommand(path.join(tempDir, 'outside')).complete({
+          type: 'schemas',
+        });
+
+        expect(consoleLogSpy).toHaveBeenCalledWith('spec-driven\tschema');
+        expect(process.exitCode).toBe(0);
+      } finally {
+        if (previousXdgDataHome === undefined) {
+          delete process.env.XDG_DATA_HOME;
+        } else {
+          process.env.XDG_DATA_HOME = previousXdgDataHome;
+        }
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
     });
   });
 

@@ -170,6 +170,53 @@ your-project/
 └── src/
 ```
 
+### Share Schemas from a Store
+
+For schemas maintained by another team or department, register that repository
+as a normal OpenSpec Store and select it independently from the location that
+owns changes and specs:
+
+```yaml
+# openspec/config.yaml
+schema: qeda-sdd
+schemaStore:
+  id: department-schemas
+  schemas:
+    - qeda-sdd
+    - frontend-sdd
+```
+
+The scalar form exposes every schema in the Store:
+
+```yaml
+schemaStore: department-schemas
+```
+
+Omitting `schemas`, or writing `schemas: ["*"]`, has the same all-visible
+behavior. Otherwise the list contains exact schema names; `*` cannot be mixed
+with names.
+
+When `schemaStore` is configured, its visible schemas replace the project's
+local schema layer. Resolution order is:
+
+1. visible schemas from the configured Schema Store;
+2. user schemas;
+3. package schemas.
+
+The visibility list filters only the Store. A hidden Store schema can still
+resolve from the user or package layer. Without `schemaStore`, existing
+project → user → package behavior is unchanged.
+
+OpenSpec reads the registered checkout's current files. It does not fetch,
+pull, pin, or otherwise synchronize that repository during schema or workflow
+commands. Update the checkout with normal Git commands; one registered checkout
+is shared by every local consumer that names that Store.
+
+Because a configured Schema Store replaces the project-local schema layer,
+`openspec schema init` and `openspec schema fork` do not create local schemas
+in that consumer. Edit the registered Store directly, or remove `schemaStore`
+before creating a project-local schema.
+
 ### Fork an Existing Schema
 
 The fastest way to customize is to fork a built-in schema:

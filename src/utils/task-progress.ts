@@ -2,6 +2,8 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import type { Artifact, SchemaYaml } from '../core/artifact-graph/index.js';
 import { resolveArtifactOutputs, resolveSchema } from '../core/artifact-graph/index.js';
+import type { SchemaResolutionTarget } from '../core/artifact-graph/index.js';
+import type { ProjectConfig } from '../core/project-config.js';
 import { resolveSchemaForChange } from './change-metadata.js';
 
 const TASK_PATTERN = /^[-*]\s+\[[\sx]\]/i;
@@ -47,10 +49,18 @@ function findTrackedTasksArtifact(schema: SchemaYaml): Artifact | undefined {
  * `resolveSchema` throws on an unresolvable/misnamed schema; we swallow that so
  * the caller falls back to a single top-level `tasks.md` and never crashes.
  */
-function resolveTrackedTasksGlob(changeDir: string, projectRoot: string): string | undefined {
+function resolveTrackedTasksGlob(
+  changeDir: string,
+  projectRoot: string,
+  schemaTarget: SchemaResolutionTarget,
+  projectConfig?: ProjectConfig | null
+): string | undefined {
   try {
-    const schemaName = resolveSchemaForChange(changeDir, undefined, projectRoot);
-    const schema = resolveSchema(schemaName, projectRoot);
+    const schemaName = resolveSchemaForChange(changeDir, undefined, projectRoot, {
+      schemaTarget,
+      ...(projectConfig !== undefined ? { projectConfig } : {}),
+    });
+    const schema = resolveSchema(schemaName, schemaTarget);
     return findTrackedTasksArtifact(schema)?.generates;
   } catch {
     return undefined;
@@ -79,11 +89,18 @@ async function countSingleTopLevelTasksFile(changeDir: string): Promise<TaskProg
 export async function getTaskProgressForChange(
   changesDir: string,
   changeName: string,
-  projectRoot: string
+  projectRoot: string,
+  schemaTarget: SchemaResolutionTarget = projectRoot,
+  projectConfig?: ProjectConfig | null
 ): Promise<TaskProgress> {
   const changeDir = path.join(changesDir, changeName);
 
-  const generates = resolveTrackedTasksGlob(changeDir, projectRoot);
+  const generates = resolveTrackedTasksGlob(
+    changeDir,
+    projectRoot,
+    schemaTarget,
+    projectConfig
+  );
   if (generates) {
     const files = resolveArtifactOutputs(changeDir, generates);
     if (files.length > 0) {
@@ -111,5 +128,3 @@ export function formatTaskStatus(progress: TaskProgress): string {
   if (progress.completed === progress.total) return '✓ Complete';
   return `${progress.completed}/${progress.total} tasks`;
 }
-
-
