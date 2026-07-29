@@ -2934,6 +2934,18 @@ This change exists to document greeting behavior thoroughly for the team, which 
         'Complete the tasks or rerun with openspec archive <change-name> --yes'
       );
 
+      // cmd.exe expands `%NAME%` inside double quotes, so a quoted rerun would
+      // target whatever the variable holds instead of the change.
+      expect(await fixFor('%USERNAME%')).toBe(
+        'Complete the tasks or rerun with openspec archive <change-name> --yes'
+      );
+
+      // `!` expands inside double quotes too - cmd.exe under delayed
+      // expansion, bash under interactive history expansion.
+      expect(await fixFor('fix!thing')).toBe(
+        'Complete the tasks or rerun with openspec archive <change-name> --yes'
+      );
+
       // A leading dash is read as an option however it is quoted, so it goes
       // behind the `--` that ends option parsing.
       expect(await fixFor('--force')).toBe(

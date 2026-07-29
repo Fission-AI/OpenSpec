@@ -111,10 +111,18 @@ class ArchiveBlockedError extends Error {
  * limit of what can be quoted portably; a name containing anything else has
  * no portable spelling, so the placeholder is named instead of emitting a
  * command that might expand to something the reader did not intend.
+ *
+ * `%` and `!` are unquotable for the same reason even though POSIX shells
+ * leave them alone inside double quotes: cmd.exe expands `%NAME%` inside
+ * double quotes, and `!NAME!` expands there too under `setlocal
+ * enabledelayedexpansion` (as does `!` under bash's interactive history
+ * expansion). A change directory really can be named `%USERNAME%`, and a
+ * rerun that silently targets a different change is worse than one the reader
+ * has to fill in.
  */
 function quoteChangeName(name: string): string {
   if (/^[A-Za-z0-9._-]+$/.test(name)) return name;
-  if (!/["\\$`\r\n]/.test(name)) return `"${name}"`;
+  if (!/["\\$`\r\n%!]/.test(name)) return `"${name}"`;
   return '<change-name>';
 }
 
