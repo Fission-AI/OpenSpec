@@ -109,17 +109,20 @@ This is an **agent-driven** operation - you will read delta specs and directly e
       - Remove the entire requirement block from main spec
       - Retiring the capability. Delete the whole `spec.md` - and the directory once
         nothing else is left in it - only when ALL of these hold:
-        1. removing the requirements *this run* left `## Requirements` completely
-           empty: no requirement blocks and no other `###` headings or prose under it;
+        1. removing the requirements *this run* left `## Requirements` with no
+           requirement blocks and no other `###` heading under it;
         2. the rest of the spec is well-formed (it still has a `## Purpose`);
         3. the main spec was not already empty before this sync - if you removed
            nothing, change nothing;
         4. the change's `.openspec.yaml` declares `retire_capabilities: true`.
-        Otherwise keep the file: report what is left and let the user decide. An
-        empty `## Requirements` fails `openspec validate`, so say so rather than
-        saving one silently. When only the marker is missing, say that too - it is
-        the one thing the user can add to make the retirement go through.
-        `openspec archive` draws exactly these lines.
+        `openspec archive` draws exactly these four lines. Otherwise keep the
+        file: report what is left and let the user decide. An empty
+        `## Requirements` fails `openspec validate`, so say so rather than saving
+        one silently. When only the marker is missing, say that too - it is the one
+        thing the user can add to make the retirement go through.
+      - Loose prose left under `## Requirements` does NOT block the retirement, and
+        the CLI cannot name it for you. Read it before you delete: quote it back to
+        the user, so a hand-written note is a decision rather than a casualty.
       - Deleting the file also deletes its `## Purpose` and every other section it
         held. Name them when you report the retirement, with the
         `git checkout HEAD -- <path>` that brings the file back.

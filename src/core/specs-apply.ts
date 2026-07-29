@@ -96,14 +96,14 @@ export async function buildUpdatedSpec(
   /**
    * `###` headings still sitting in the rebuilt requirements body. A reader sees
    * these as requirements whatever the parsers make of them, so their presence
-   * disqualifies a retirement: something is left to keep, and moving the file
-   * out of the live specs tree would take it along silently.
+   * disqualifies a retirement: something is left to keep, and deleting the file
+   * would take it along silently.
    */
   residualRequirementHeadings: string[];
   /**
    * Authored `## ` sections other than Purpose and Requirements. Retirement
-   * moves the whole file out of the live specs tree, so callers name these when
-   * reporting where the hand-written prose went.
+   * deletes the whole file, so callers name these rather than discarding
+   * hand-written prose silently.
    */
   otherSections: string[];
 }> {
@@ -604,9 +604,9 @@ async function isInsideRealDir(realPath: string, dir: string): Promise<boolean> 
  * Remove now-empty directories from `startDir` upward, never leaving the real
  * `boundaryDir` and never removing that directory itself.
  *
- * Two callers, two boundaries: the specs root, when a retirement empties a
- * capability directory, and the change directory, when a failed retirement has
- * to take its own staging folders back out.
+ * The boundary is a parameter rather than the specs root directly so the walk's
+ * containment is stated at the call site, where the root it must not escape is
+ * the thing being reasoned about.
  *
  * The guard re-runs every iteration, so stepping to the LEXICAL parent is safe:
  * a parent that is not the real one is simply re-resolved and rejected. Errors

@@ -89,8 +89,7 @@ async function decideSpecOutcome(
   //
   // Residual `###` headings veto it outright. The validator can be talked out of
   // seeing them - a stray `### Requirements` under Purpose captures its section
-  // lookup - but a reader cannot, and moving the file would take them out of the
-  // live specs tree with it.
+  // lookup - but a reader cannot, and deleting the file would take them with it.
   //
   // Under --no-validate there is no verdict to lean on, so nothing is retired:
   // the author opted out of the check that makes this safe, and the old

@@ -49,7 +49,7 @@ The agent SHALL reconcile main specs with delta specs using the delta operation 
 - **THEN** remove the requirement from main spec
 
 #### Scenario: REMOVED requirements retire the capability
-- **WHEN** removing the requirements named in the delta leaves `## Requirements` completely empty, with no other `###` heading or prose under it
+- **WHEN** removing the requirements named in the delta leaves `## Requirements` with no requirement blocks and no other `###` heading under it
 - **AND** the rest of the spec is well-formed and it was not already empty before this sync
 - **AND** the change declares `retire_capabilities: true` in its metadata
 - **THEN** delete that capability's `spec.md`, and its directory once nothing else remains in it

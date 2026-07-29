@@ -630,7 +630,7 @@ openspec archive [change-name] [options]
 |--------|-------------|
 | `-y, --yes` | Skip confirmation prompts |
 | `--skip-specs` | Skip spec updates for one archive run. A change that permanently has no spec deltas should declare `skip_specs: true` in its `.openspec.yaml` instead — it archives with no flag |
-| `--no-validate` | Skip validation (requires confirmation) |
+| `--no-validate` | Skip validation (requires confirmation). Also disables capability retirement — with no validator verdict, nothing is retired |
 
 **Examples:**
 
