@@ -5,7 +5,7 @@
  * Applies delta specs from a change to main specs without archiving.
  */
 
-import { promises as fs } from 'fs';
+import { promises as fs, constants as fsConstants } from 'fs';
 import path from 'path';
 import chalk from 'chalk';
 import {
@@ -549,6 +549,13 @@ function findOtherSections(content: string): string[] {
  * link's target alone: moving the link itself would archive a symlink whose
  * relative path no longer resolves from where it landed.
  *
+ * Safe to run concurrently against the same destination: the copy claims the
+ * path exclusively, so of two racing retirements one wins and the other is
+ * refused, and neither can roll back the other's file. Not crash-safe, which is
+ * a weaker promise - a process killed between the copy and the unlink leaves
+ * the spec in both places, and the next run refuses rather than guessing which
+ * to keep.
+ *
  * Directory pruning IS bounded, by REAL paths rather than string prefixes:
  * `path.resolve` collapses `..` but does not resolve symlinks, and `readdir` and
  * `rmdir` both follow them, so a symlinked capability directory would otherwise
@@ -578,45 +585,54 @@ export async function retireSpec(
 
   const dest = path.join(destDir, ...update.id.split('/'), 'spec.md');
 
-  // Set once the destination is known to be free, so the failure path can tell
-  // a file THIS attempt created from one it must never touch. Both non-atomic
-  // routes below (the symlink path and the EXDEV/EPERM fallback) copy first and
-  // remove the source second, so the source can survive a copy that already
-  // landed - leaving two copies and a destination that blocks every retry.
+  // True only when THIS call created the destination, which is what makes the
+  // rollback below safe to perform. Checking `access` first and then writing
+  // was not an ownership claim: two concurrent retirements both saw the path
+  // free, one moved the spec in, and the other - its own flag equally set -
+  // rolled that file back out, losing the source and the staged copy together.
   let destIsOurs = false;
 
   try {
     await fs.mkdir(path.dirname(dest), { recursive: true });
-    // Never overwrite: a spec already sitting here is one an earlier, aborted
-    // run of this same archive moved, and clobbering it would destroy the very
-    // copy this whole path exists to preserve.
-    let destTaken = false;
-    try {
-      await fs.access(dest);
-      destTaken = true;
-    } catch {}
-    if (destTaken) {
-      throw new Error(`${dest} already exists`);
-    }
-    destIsOurs = true;
 
-    if (isSymlink) {
-      // Copy the content, then drop the link. `rename` would move the link and
-      // leave a relative path pointing somewhere else once archived.
-      await fs.copyFile(update.target, dest);
-      await fs.unlink(update.target);
-    } else {
-      try {
-        await fs.rename(update.target, dest);
-      } catch (error) {
-        const code = (error as NodeJS.ErrnoException).code;
-        // Different filesystem (EXDEV) or Windows holding the file (EPERM):
-        // same fallback the change-directory move uses.
-        if (code !== 'EXDEV' && code !== 'EPERM') throw error;
-        await fs.copyFile(update.target, dest);
-        await fs.unlink(update.target);
+    // The claim and the content arrive in one syscall. `COPYFILE_EXCL` fails
+    // with EEXIST rather than overwriting, so exactly one caller can ever own
+    // this path - which is also the check that refuses to clobber a spec an
+    // earlier, aborted run staged, now decided atomically instead of by a
+    // separate look beforehand.
+    //
+    // Deliberately a copy rather than a rename, for both the symlink case and
+    // the ordinary one. `rename` cannot be the claim: it overwrites silently on
+    // every platform, so it cannot tell "I created this" from "I destroyed
+    // someone else's". Copying also crosses filesystems, which retires the
+    // EXDEV/EPERM fallback this used to need, and reads a symlink's content
+    // rather than moving the link - leaving the link's target alone, and
+    // archiving a file instead of a relative path that no longer resolves.
+    try {
+      await fs.copyFile(update.target, dest, fsConstants.COPYFILE_EXCL);
+      destIsOurs = true;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      // Two failures mean the destination is NOT ours, and rolling it back
+      // would delete a file this call never created:
+      //
+      // - EEXIST: another run already staged a spec there.
+      // - ENOENT: the SOURCE is gone. `copyFile` opens the source before it
+      //   creates anything, so nothing of ours exists. The racing winner having
+      //   just moved that source away is exactly how this arises - claiming it
+      //   here is what destroyed the winner's copy along with the original.
+      //
+      // Any other failure can have left a partial copy, which is ours to clean.
+      if (code === 'EEXIST') {
+        throw new Error(`${dest} already exists`);
       }
+      if (code !== 'ENOENT') {
+        destIsOurs = true;
+      }
+      throw error;
     }
+
+    await fs.unlink(update.target);
   } catch (error) {
     // Roll the destination back to how this attempt found it: not there. A copy
     // that succeeded before the source could be removed leaves the spec in two

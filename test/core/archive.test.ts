@@ -3319,17 +3319,28 @@ The system SHALL do the thing differently.
       }
     );
 
-    // Both non-atomic routes copy first and remove the source second, so a
-    // copy that lands before an `unlink` that fails used to leave the spec in
-    // TWO places - and the staged one then tripped the "already exists" guard
-    // on every rerun, so the retry the error message asks for could never work.
+    // The retirement copies the spec into staging and removes the source
+    // second, so a copy that lands before an `unlink` that fails used to leave
+    // the spec in TWO places - and the staged one then tripped the "already
+    // staged" guard on every rerun, so the retry the error message asks for
+    // could never work.
     describe.each([
+      {
+        route: 'ordinary spec.md',
+        // Regular files and spies only, so this one runs everywhere.
+        skipOnWindows: false,
+        async stage(capability: string): Promise<string> {
+          const target = path.join(capability, 'spec.md');
+          await fs.writeFile(target, mainSpec('legacy-layer'));
+          return target;
+        },
+      },
       {
         route: 'symlinked spec.md',
         // Creating a symlink needs privileges Windows does not hand out by
-        // default; the other case carries this route's shape there.
+        // default; the other case carries the same shape there.
         skipOnWindows: true,
-        // A symlink is copied by content and its link removed, never renamed.
+        // A symlink is read for its content, never moved as a link.
         async stage(capability: string): Promise<string> {
           const target = path.join(capability, 'spec.md');
           const linked = path.join(tempDir, 'linked-spec.md');
@@ -3337,28 +3348,8 @@ The system SHALL do the thing differently.
           await fs.symlink(linked, target);
           return target;
         },
-        forceRoute(): void {},
       },
-      {
-        route: 'EXDEV rename fallback',
-        // Regular files and spies only, so this one runs everywhere - which
-        // matters, because the sibling errno this fallback keys on (EPERM) is
-        // the Windows case, and skipping here would leave it untested there.
-        skipOnWindows: false,
-        async stage(capability: string): Promise<string> {
-          const target = path.join(capability, 'spec.md');
-          await fs.writeFile(target, mainSpec('legacy-layer'));
-          return target;
-        },
-        // A cross-device rename cannot be provoked inside one temp dir, so the
-        // errno the fallback keys on is injected directly.
-        forceRoute(): void {
-          vi.spyOn(fs, 'rename').mockImplementationOnce(async () => {
-            throw Object.assign(new Error('cross-device link'), { code: 'EXDEV' });
-          });
-        },
-      },
-    ])('post-copy failure on the $route', ({ stage, forceRoute, skipOnWindows }) => {
+    ])('post-copy failure on an $route', ({ stage, skipOnWindows }) => {
       it.skipIf(skipOnWindows && process.platform === 'win32')(
         'rolls back the staged copy so the archive can be rerun',
         async () => {
@@ -3381,7 +3372,6 @@ The system SHALL do the thing differently.
               }
               return realUnlink(p);
             });
-          forceRoute();
 
           await expect(
             retireSpec(update, specsRoot, staging, { silent: true })
@@ -3401,6 +3391,43 @@ The system SHALL do the thing differently.
           await expect(fs.readFile(dest, 'utf-8')).resolves.toBe(mainSpec('legacy-layer'));
         }
       );
+    });
+
+    it('never loses the spec when two retirements race for the same destination', async () => {
+      // Looking with `access` and then writing was not an ownership claim: both
+      // callers saw the destination free, one moved the spec in, and the other
+      // - equally convinced the destination was its own - rolled that file back
+      // out, so the source AND the staged copy both ended up gone.
+      //
+      // The losing caller can fail two ways, and BOTH used to destroy the
+      // winner's file: EEXIST when it reaches the copy after the winner, and
+      // ENOENT when it reaches the copy after the winner already removed the
+      // source. Repeated because which one happens is a scheduling accident.
+      const specsRoot = path.join(tempDir, 'openspec', 'specs');
+      for (let attempt = 0; attempt < 25; attempt++) {
+        const capability = path.join(specsRoot, `legacy-${attempt}`);
+        await fs.mkdir(capability, { recursive: true });
+        const target = path.join(capability, 'spec.md');
+        await fs.writeFile(target, mainSpec('legacy-layer'));
+        const staging = path.join(tempDir, `change-${attempt}`, 'retired-specs');
+        const update = { id: `legacy-${attempt}`, source: 'x', target, exists: true };
+
+        const settled = await Promise.allSettled([
+          retireSpec(update, specsRoot, staging, { silent: true }),
+          retireSpec(update, specsRoot, staging, { silent: true }),
+        ]);
+
+        // Exactly one retirement happened...
+        const retired = settled.filter(
+          (r) => r.status === 'fulfilled' && r.value.retired
+        );
+        expect(retired).toHaveLength(1);
+        // ...and the spec survived it, exactly once and intact.
+        await expect(
+          fs.readFile(path.join(staging, `legacy-${attempt}`, 'spec.md'), 'utf-8')
+        ).resolves.toBe(mainSpec('legacy-layer'));
+        await expect(fs.access(target)).rejects.toThrow();
+      }
     });
 
     it('refuses to overwrite a spec an earlier aborted run already staged', async () => {

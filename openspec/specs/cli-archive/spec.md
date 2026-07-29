@@ -153,15 +153,16 @@ A delta whose REMOVED entries cover every requirement a capability has SHALL ret
 
 - **WHEN** moving a retired capability's `spec.md`
 - **THEN** stage it inside the change directory, which is renamed onto the archive path, so the spec travels with the change that retired it
+- **AND** claim the destination atomically, so of two retirements racing for the same path one succeeds and the other is refused, and neither can remove the other's file
 - **AND** refuse to overwrite a spec already staged there by an earlier aborted run of the same archive
 - **AND** copy the file's content, rather than the link, when the main spec is a symlink, leaving the link's target untouched
 - **AND** remove the staging directories it created when the move fails, so no empty folder rides into the archive claiming a retirement that never happened, while keeping any retirement the same run already staged beside it
 
 #### Scenario: The copy lands but the live spec cannot be removed
 
-- **WHEN** a retirement copies the spec into staging and then fails to remove the original, on either non-atomic route - a symlinked main spec, or the cross-device fallback
+- **WHEN** a retirement copies the spec into staging and then fails to remove the original
 - **THEN** delete the staged copy this attempt created, leaving the capability exactly as the attempt found it
-- **AND** never delete a staged copy an earlier run put there
+- **AND** never delete a staged copy this call did not create, whether an earlier run staged it or a concurrent one did
 - **AND** report that the spec is still in place, so rerunning the archive is a real instruction rather than one the "already staged" guard would reject
 - **AND** say where the leftover copy is instead, if removing it also failed
 
