@@ -3005,6 +3005,165 @@ The system SHALL do the thing differently.
       });
     });
 
+    // A second `## Requirements` section is where every parser here stops short:
+    // `extractRequirementsSection` binds to the first one, so the validator's
+    // lookup, the block parser, the residual-heading veto and the lost-section
+    // report all ignore what follows. A spec shaped like this passed
+    // `validate --strict` and was then deleted with a live SHALL requirement in
+    // it, named nowhere in the report.
+    it('refuses to retire a spec that has a second Requirements section', async () => {
+      const changeName = 'retire-two-sections';
+      await createChange(changeName, 'audit', [
+        '# Audit - Changes',
+        '',
+        '## REMOVED Requirements',
+        '',
+        '### Requirement: Audit trail',
+        '**Reason**: Superseded.',
+        '**Migration**: None.',
+        '',
+      ].join('\n'));
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'audit');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const original = [
+        '# audit Specification',
+        '',
+        '## Purpose',
+        PURPOSE,
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: Audit trail',
+        'The system SHALL record an audit entry for every privileged action.',
+        '',
+        '#### Scenario: Entry recorded',
+        '- **WHEN** a privileged action runs',
+        '- **THEN** an entry is recorded',
+        '',
+        '## Requirements',
+        '',
+        '### Seven year retention',
+        'The system SHALL retain audit entries for seven years.',
+        '',
+        '#### Scenario: Early purge refused',
+        '- **WHEN** a purge is attempted early',
+        '- **THEN** it is refused',
+        '',
+      ].join('\n');
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), original);
+
+      // The spec as written is valid, which is what made the deletion silent.
+      const before = await new Validator().validateSpecContent('audit', original, 'strict');
+      expect(before.valid).toBe(true);
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      // Aborts instead, exactly as it did before retirement existed...
+      expect(process.exitCode).toBe(1);
+      // ...and the second section's requirement is still there.
+      await expect(fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8')).resolves.toBe(
+        original
+      );
+    });
+
+    it('names the marker only when retiring would really fix it', async () => {
+      // The same two-section spec, with no marker. The hint must stay quiet:
+      // adding the marker would not have made this spec writable.
+      const changeName = 'retire-two-sections-unmarked';
+      await createChange(
+        changeName,
+        'audit',
+        '# Audit - Changes\n\n## REMOVED Requirements\n\n### Requirement: Audit trail\n**Reason**: x.\n**Migration**: None.\n',
+        { declareRetirement: false }
+      );
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'audit');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(
+        path.join(mainSpecDir, 'spec.md'),
+        `# audit Specification\n\n## Purpose\n${PURPOSE}\n\n## Requirements\n\n### Requirement: Audit trail\nThe system SHALL audit.\n\n#### Scenario: S\n- **WHEN** w\n- **THEN** t\n\n## Requirements\n\n### Kept\nThe system SHALL keep this.\n\n#### Scenario: K\n- **WHEN** w\n- **THEN** t\n`
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(process.exitCode).toBe(1);
+      expect(console.log).not.toHaveBeenCalledWith(
+        expect.stringContaining('add `retire_capabilities: true`')
+      );
+    });
+
+    it('does not promise git recovery outright, and names the real path', async () => {
+      // Archive cannot know whether the file is in HEAD - a spec an earlier
+      // archive created and nobody committed is not - so the recovery line is
+      // phrased as the condition it is rather than as a promise.
+      const changeName = 'retire-recovery-wording';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainSpec('legacy-layer'));
+
+      await archiveCommand.execute(changeName, { yes: true, json: true });
+
+      const notes = JSON.parse(lastJsonPayload()).archive.warnings.join('\n');
+      expect(notes).toContain(
+        'If it was committed, restore it with: git checkout HEAD -- openspec/specs/legacy-layer/spec.md'
+      );
+      expect(notes).not.toContain('Recover with: git checkout');
+    });
+
+    it('refuses a marker sitting in unparseable YAML', async () => {
+      // Fail-closed branch: metadata the rest of the CLI cannot read must never
+      // authorise a deletion, and the abort has to say why.
+      const changeName = 'retire-broken-yaml';
+      const changeDir = await createChange(changeName, 'legacy-layer', REMOVE_ALL, {
+        declareRetirement: false,
+      });
+      await fs.writeFile(
+        path.join(changeDir, '.openspec.yaml'),
+        'schema: spec-driven\nretire_capabilities: true\n  bad: [oops\n'
+      );
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainSpec('legacy-layer'));
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(process.exitCode).toBe(1);
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('the file is not valid YAML')
+      );
+      await expect(fs.access(path.join(mainSpecDir, 'spec.md'))).resolves.not.toThrow();
+    });
+
+    it('reports an unlink failure instead of archiving over a spec it could not delete', async () => {
+      // If the unlink error were swallowed, archive would complete and leave a
+      // main spec that `openspec validate` rejects - the exact state #1302 is
+      // about, reached silently.
+      const capability = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(capability, { recursive: true });
+      const target = path.join(capability, 'spec.md');
+      await fs.writeFile(target, mainSpec('legacy-layer'));
+      const realUnlink = fs.unlink.bind(fs);
+      vi.spyOn(fs, 'unlink').mockImplementation(
+        async (candidate: Parameters<typeof fs.unlink>[0]) => {
+          if (String(candidate) === target) {
+            throw Object.assign(new Error('permission denied'), { code: 'EACCES' });
+          }
+          return realUnlink(candidate);
+        }
+      );
+
+      await expect(
+        retireSpec(
+          { id: 'legacy-layer', source: 'x', target, exists: true },
+          path.join(tempDir, 'openspec', 'specs'),
+          { silent: true }
+        )
+      ).rejects.toThrow(/Could not retire capability 'legacy-layer'.*Remove it by hand/s);
+
+      vi.restoreAllMocks();
+      await expect(fs.access(target)).resolves.not.toThrow();
+    });
+
     it('retires the capability when a delta removes its last requirement', async () => {
       const changeName = 'retire-legacy-layer';
       await createChange(changeName, 'legacy-layer', REMOVE_ALL);
@@ -3029,7 +3188,7 @@ The system SHALL do the thing differently.
       // get the file back.
       expect(console.log).toHaveBeenCalledWith(
         expect.stringContaining(
-          'Recover it with: git checkout HEAD -- openspec/specs/legacy-layer/spec.md'
+          'If it was committed, restore it with: git checkout HEAD -- openspec/specs/legacy-layer/spec.md'
         )
       );
       expect(console.log).toHaveBeenCalledWith(

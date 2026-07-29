@@ -101,6 +101,19 @@ export async function buildUpdatedSpec(
    */
   residualRequirementHeadings: string[];
   /**
+   * The spec has more than one `## Requirements` section.
+   *
+   * `extractRequirementsSection` binds to the FIRST one, so every later section
+   * lands in the tail this merge copies through untouched - invisible to the
+   * residual-heading veto above, and invisible to `findOtherSections`, which
+   * filters every `## Requirements` out by title. The validator's section lookup
+   * stops at the first one too, so a second section holding a `SHALL` and a
+   * scenario passes `validate --strict` and would then be deleted with the file
+   * and never named in the report. Retirement is refused outright instead: a
+   * spec shaped like this is one no parser here reads the way its author does.
+   */
+  hasMultipleRequirementsSections: boolean;
+  /**
    * Authored `## ` sections other than Purpose and Requirements. Retirement
    * deletes the whole file, so callers name these rather than discarding
    * hand-written prose silently.
@@ -473,6 +486,12 @@ export async function buildUpdatedSpec(
       /^###\s+(.+?)\s*$/
     ).filter((title) => !/^Requirement:/i.test(title)),
     otherSections: findOtherSections(rebuilt),
+    // Read off the ORIGINAL spec: the rebuilt one carries the same tail, but the
+    // question is about the file the author wrote.
+    hasMultipleRequirementsSections:
+      findHeadings(targetContent, /^##\s+(.+?)\s*$/).filter((title) =>
+        /^Requirements$/i.test(title)
+      ).length > 1,
   };
 }
 

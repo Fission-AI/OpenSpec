@@ -98,6 +98,11 @@ async function decideSpecOutcome(
     !skipValidation &&
     built.noRequirementBlocks &&
     built.residualRequirementHeadings.length === 0 &&
+    // A second `## Requirements` section is a section every parser here stops
+    // short of: the validator's lookup, the block parser, the residual-heading
+    // veto, and the lost-section report all bind to the first one. Its contents
+    // would be deleted with the file and never named.
+    !built.hasMultipleRequirementsSections &&
     (await isRetirableSpec(update.id, built.rebuilt));
 
   if (!retirable) return 'write';
@@ -582,7 +587,7 @@ export class ArchiveCommand {
 
         if (shouldUpdateSpecs) {
           // Prepare all updates first (validation pass, no writes)
-          const prepared: Array<{ update: SpecUpdate; rebuilt: string; counts: { added: number; modified: number; removed: number; renamed: number }; outcome: SpecOutcome; otherSections: string[]; noRequirementBlocks: boolean; residualRequirementHeadings: string[] }> = [];
+          const prepared: Array<{ update: SpecUpdate; rebuilt: string; counts: { added: number; modified: number; removed: number; renamed: number }; outcome: SpecOutcome; otherSections: string[]; noRequirementBlocks: boolean; residualRequirementHeadings: string[]; hasMultipleRequirementsSections: boolean }> = [];
           try {
             for (const update of specUpdates) {
               const built = await buildUpdatedSpec(update, changeName!, { silent: json });
@@ -594,6 +599,7 @@ export class ArchiveCommand {
                 otherSections: built.otherSections,
                 noRequirementBlocks: built.noRequirementBlocks,
                 residualRequirementHeadings: built.residualRequirementHeadings,
+                hasMultipleRequirementsSections: built.hasMultipleRequirementsSections,
               });
               // Carried into the result so JSON mode (where nothing was
               // printed) still surfaces them; human mode discards the result.
@@ -634,6 +640,7 @@ export class ArchiveCommand {
                   !retirementDeclared &&
                   p.noRequirementBlocks &&
                   p.residualRequirementHeadings.length === 0 &&
+                  !p.hasMultipleRequirementsSections &&
                   p.update.exists &&
                   p.counts.removed > 0 &&
                   (await isRetirableSpec(specName, p.rebuilt));
@@ -716,13 +723,29 @@ export class ArchiveCommand {
             // is named too rather than left to the reader to work out, and the
             // note carries the command that brings the file back.
             const lost = ['Purpose', ...p.otherSections];
-            const nominal = `openspec/specs/${p.update.id}/spec.md`;
+            // The path the file actually lived at. A store-selected root is not
+            // under `openspec/` in the caller's repo, and a symlinked capability
+            // directory puts the file somewhere else entirely - naming the
+            // nominal path in either case sends the reader somewhere that does
+            // not exist. `sourcePath` is set only when the file escaped the
+            // specs tree, so it wins when present.
+            const deletedPath =
+              sourcePath ??
+              (isStoreSelectedRoot(root)
+                ? p.update.target
+                : `openspec/specs/${p.update.id}/spec.md`);
+            // Deliberately conditional. Whether this file is in `HEAD` is not
+            // something archive knows - a spec an earlier archive CREATED and
+            // nobody has committed yet is not, and for that one the command
+            // below cannot work. Promising recovery outright would be the one
+            // claim this feature must not get wrong, so it is phrased as the
+            // condition it really is.
+            const recovery = `If it was committed, restore it with: git checkout HEAD -- ${deletedPath}`;
             const retirementNote =
               `${p.update.id} - capability retired; deleted the main spec (all requirements removed` +
-              `, declared by retire_capabilities)` +
-              (sourcePath ? ` at ${sourcePath}` : '') +
+              `, declared by retire_capabilities) at ${deletedPath}` +
               `. Its section(s) went with it: ${lost.join(', ')}. ` +
-              `Recover with: git checkout HEAD -- ${nominal}`;
+              recovery;
             specWarnings.push(retirementNote);
             // The "Retiring ..." line already told a human the file is gone; the
             // sections it took along, and how to get them back, are the parts
@@ -735,7 +758,7 @@ export class ArchiveCommand {
                   )
                 );
               }
-              console.log(`   Recover it with: git checkout HEAD -- ${nominal}`);
+              console.log(`   ${recovery}`);
             }
           }
 

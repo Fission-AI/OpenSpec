@@ -652,4 +652,21 @@ describe('skill templates split parity', () => {
       );
     }
   });
+
+  // A golden hash proves the generated file matches its source, never that the
+  // source is right - so a careless `regen:parity-hashes` over a dropped
+  // paragraph passes CI silently. The sync skill is the one place an agent
+  // learns that retiring a capability needs the marker; pin the fact, not the
+  // hash, so losing the guidance fails here instead of shipping.
+  it('tells the sync skill that retirement needs the retire_capabilities marker', () => {
+    const sync = getSkillTemplates().find(
+      ({ dirName }) => dirName === 'openspec-sync-specs'
+    );
+    expect(sync, 'openspec-sync-specs template').toBeTruthy();
+    const text = sync!.template.instructions;
+    expect(text).toContain('retire_capabilities: true');
+    // And that the CLI draws the same lines, so an agent syncing by hand does
+    // not delete a spec the CLI would have kept.
+    expect(text).toContain('no other `###` heading under it');
+  });
 });
