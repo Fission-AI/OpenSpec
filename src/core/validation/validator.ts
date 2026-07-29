@@ -340,8 +340,16 @@ export class Validator {
           }
         }
       }
-    } catch {
-      // If no specs dir, treat as no deltas
+    } catch (error) {
+      // A missing specs dir (or a stray `specs` file) means no deltas;
+      // anything else (EACCES, EIO) must stay loud — discoverSpecFiles
+      // documents that silently dropping an unreadable capability recreates
+      // the data-loss class it prevents, and archive lets the same error
+      // propagate.
+      const code = (error as NodeJS.ErrnoException)?.code;
+      if (code !== 'ENOENT' && code !== 'ENOTDIR') {
+        throw error;
+      }
     }
 
     for (const { path: specPath, sections } of emptySectionSpecs) {

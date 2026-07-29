@@ -133,7 +133,7 @@ describe('command-generation/invocation', () => {
 
   describe('generateCommand', () => {
     it('rewrites command references to the names a flat tool registers', () => {
-      for (const toolId of ['cursor', 'github-copilot', 'windsurf', 'opencode', 'qwen']) {
+      for (const toolId of ['cursor', 'github-copilot', 'devin', 'opencode', 'qwen']) {
         const adapter = CommandAdapterRegistry.get(toolId)!;
         const { fileContent } = generateCommand(sampleContent, adapter);
         expect(fileContent, toolId).toContain('/opsx-archive');
@@ -173,7 +173,7 @@ describe('command-generation/invocation', () => {
       // generateCommand owns the rewrite; an adapter that re-added its own
       // body transform would break this contract even though the output of
       // generateCommand happens to be identical (the rewrite is idempotent).
-      for (const toolId of ['bob', 'oh-my-pi', 'opencode', 'pi', 'qwen', 'cursor']) {
+      for (const toolId of ['bob', 'oh-my-pi', 'opencode', 'pi', 'qwen', 'cursor', 'devin']) {
         const adapter = CommandAdapterRegistry.get(toolId)!;
         expect(adapter.formatFile(sampleContent), toolId).toContain('/opsx:archive');
       }

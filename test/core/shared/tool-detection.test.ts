@@ -50,7 +50,7 @@ describe('tool-detection', () => {
       expect(tools).toContain('claude');
       expect(tools).toContain('codeartsagent');
       expect(tools).toContain('cursor');
-      expect(tools).toContain('windsurf');
+      expect(tools).toContain('devin');
       expect(tools.length).toBeGreaterThan(0);
     });
   });

@@ -184,7 +184,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
   },
   {
     name: 'instructions',
-    description: 'Output enriched instructions for creating an artifact or applying tasks',
+    description: 'Output enriched instructions for artifacts, apply, or archive',
     acceptsPositional: true,
     positionals: [{ name: 'artifact', optional: true }],
     flags: [

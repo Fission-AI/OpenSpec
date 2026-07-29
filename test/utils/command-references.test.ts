@@ -264,6 +264,23 @@ describe('getTransformerForTool', () => {
     }
   });
 
+  it('selects skill references for devin whenever skills are generated', () => {
+    // The Devin Local agent has no workflows, so Devin skill bodies and the
+    // getting-started hint must name `/openspec-*` skills, which both Devin
+    // agents accept. Workflow bodies get the hyphen form from the generator,
+    // like every other flat-invocation tool.
+    expect(getTransformerForTool('devin', 'both', 'adapter-backed', FLAT_SLASH)).toBe(
+      transformToSkillReferences
+    );
+    expect(getTransformerForTool('devin', 'skills', 'adapter-backed', FLAT_SLASH)).toBe(
+      transformToSkillReferences
+    );
+    // Under commands-only delivery no Devin skills exist to point at, so the
+    // hint falls back to the workflow name Devin registers.
+    const commandsOnly = getTransformerForTool('devin', 'commands', 'adapter-backed', FLAT_SLASH);
+    expect(commandsOnly?.('/opsx:propose')).toBe('/opsx-propose');
+  });
+
   it("selects Amazon Q's @-prefixed prompt form when commands are generated", () => {
     // Amazon Q loads .amazonq/prompts/opsx-<id>.md into its prompt library,
     // which is invoked with @ — it registers no slash command at all.

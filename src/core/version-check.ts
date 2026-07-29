@@ -158,6 +158,12 @@ function fetchLatestVersion(): Promise<string | null> {
     // check would be permanently and silently dead for them.
     let redirectsLeft = MAX_REDIRECTS;
 
+    // The budget timer must tear down whichever request is open when it
+    // fires. Closing over the first hop's request would leave a redirected
+    // socket alive: a target that trickles bytes keeps resetting its idle
+    // timeout, and only the body-size cap would end it.
+    let activeRequest: http.ClientRequest | undefined;
+
     const send = (target: URL): void => {
       const request = (target.protocol === 'http:' ? http : https).get(
         target,
@@ -176,7 +182,10 @@ function fetchLatestVersion(): Promise<string | null> {
             redirectsLeft -= 1;
             try {
               const next = new URL(location, target);
-              if (next.protocol === 'http:' || next.protocol === 'https:') {
+              // Never follow a downgrade to plain http: a MITM on the reply
+              // would control the "newer version" answer.
+              const downgrade = target.protocol === 'https:' && next.protocol === 'http:';
+              if (!downgrade && (next.protocol === 'http:' || next.protocol === 'https:')) {
                 send(next);
                 return;
               }
@@ -217,6 +226,8 @@ function fetchLatestVersion(): Promise<string | null> {
         }
       );
 
+      activeRequest = request;
+
       request.on('timeout', () => {
         request.destroy();
         finish(null);
@@ -226,7 +237,7 @@ function fetchLatestVersion(): Promise<string | null> {
       // One budget for the whole exchange, redirects included.
       if (!timer) {
         timer = setTimeout(() => {
-          request.destroy();
+          activeRequest?.destroy();
           finish(null);
         }, REQUEST_TIMEOUT_MS);
       }
@@ -401,7 +412,13 @@ export function isNpmGlobalInstall(
   const prefix = npmPrefixFromInstallDir(installDir);
   if (!prefix) return false;
   try {
-    return fs.existsSync(process.platform === 'win32' ? prefix : path.join(prefix, 'bin'));
+    // Corroborate with something npm itself wrote: the bin dir on POSIX, the
+    // .cmd shim on Windows. The prefix alone proves nothing — it is just the
+    // parent of the node_modules dir the CLI resolved from, so a hand-copied
+    // portable tree would pass and be offered an npm upgrade it never had.
+    return fs.existsSync(
+      process.platform === 'win32' ? path.join(prefix, 'openspec.cmd') : path.join(prefix, 'bin')
+    );
   } catch {
     return false;
   }
@@ -432,7 +449,11 @@ export function detectPackageManager(installDir: string | null): PackageManager 
   const segments = (installDir ?? '').split(/[\\/]/).map((segment) => segment.toLowerCase());
   const has = (...names: string[]) => names.some((name) => segments.includes(name));
 
-  if (has('.volta', 'volta')) return 'volta';
+  // The undotted spelling exists for Windows (%LOCALAPPDATA%\Volta), whose
+  // layout nests tools\image; require both segments so a user or project
+  // directory merely named "volta" (even one with its own "tools" dir) does
+  // not steal the install.
+  if (has('.volta') || (has('volta') && has('tools') && has('image'))) return 'volta';
   if (has('.bun')) return 'bun';
   // These two need a corroborating segment: a directory merely named "pnpm" or
   // "yarn" (a user's home, a project) is not a global install of one.

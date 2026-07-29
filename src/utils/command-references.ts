@@ -140,6 +140,13 @@ export function getSkillReferenceTransformer(toolId: string): (text: string) => 
  * the list drifted and left 16 tools advertising commands their palettes never
  * registered (#727, #1307).
  *
+ * Devin is the one tool that takes skill references even though its commands
+ * are generated: only Devin Desktop reads `.devin/workflows/`, so a workflow
+ * reference is dead text for anyone on Devin Local, while the `/openspec-*`
+ * skills work on both agents. Under commands-only delivery there are no Devin
+ * skills to point at, so it falls through to the invocation rewrite below and
+ * gets the `/opsx-<id>` form its workflow filenames register.
+ *
  * @param toolId - The AI tool identifier (e.g. 'claude', 'opencode', 'pi')
  * @param delivery - The configured delivery mode
  * @param capability - The tool's command surface capability
@@ -157,6 +164,9 @@ export function getTransformerForTool(
   invocation: CommandInvocation | undefined
 ): ((text: string) => string) | undefined {
   if (delivery === 'skills' || capability !== 'adapter-backed') {
+    return getSkillReferenceTransformer(toolId);
+  }
+  if (toolId === 'devin' && delivery === 'both') {
     return getSkillReferenceTransformer(toolId);
   }
   if (invocation !== undefined && needsInvocationRewrite(invocation)) {
