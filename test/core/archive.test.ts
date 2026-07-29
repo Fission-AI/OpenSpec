@@ -3427,7 +3427,10 @@ The system SHALL do the thing differently.
         w.includes('capability retired')
       );
       expect(retirement).toBeDefined();
-      expect(retirement).not.toContain(tempDir);
+      // Canonicalized for the same reason as the symlinked-spec.md test: the
+      // warning would print the resolved form, so comparing the raw tempDir
+      // would pass regardless of what the code did.
+      expect(retirement).not.toContain(await fs.realpath(tempDir));
     });
 
     it.skipIf(process.platform === 'win32')(
@@ -3497,7 +3500,10 @@ The system SHALL do the thing differently.
         await archiveCommand.execute(changeName, { yes: true, json: true });
 
         const warnings = JSON.parse(lastJsonPayload()).archive.warnings.join('\n');
-        expect(warnings).not.toContain(shared);
+        // Canonicalized: the warning would print the resolved form, and on
+        // macOS tempDir lives under /var -> /private/var, so comparing the
+        // uncanonicalized path would pass no matter what the code did.
+        expect(warnings).not.toContain(await fs.realpath(shared));
         // The shared file really is still there.
         await expect(fs.readFile(shared, 'utf-8')).resolves.toContain('### Requirement:');
       }
