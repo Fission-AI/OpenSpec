@@ -463,10 +463,23 @@ export class Validator {
       renamed.map(({ from, to }) => [normalizeRequirementName(to), normalizeRequirementName(from)])
     );
 
+    // Walked, not looked up once: renames chain (A→B then B→C leaves C holding
+    // A's block), and the visited set stops a cycle from looping forever.
+    const currentBlockFor = (name: string): RequirementBlock | undefined => {
+      const visited = new Set<string>();
+      let key: string | undefined = name;
+      while (key !== undefined && !visited.has(key)) {
+        const block = currentBlocks.get(key);
+        if (block) return block;
+        visited.add(key);
+        key = renamedFrom.get(key);
+      }
+      return undefined;
+    };
+
     const issues: ValidationIssue[] = [];
     for (const block of modified) {
-      const key = normalizeRequirementName(block.name);
-      const current = currentBlocks.get(key) ?? currentBlocks.get(renamedFrom.get(key) ?? '');
+      const current = currentBlockFor(normalizeRequirementName(block.name));
       if (!current) continue;
       const missing = findMissingCurrentScenarios(current, block);
       if (missing.length === 0) continue;

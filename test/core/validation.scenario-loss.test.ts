@@ -217,6 +217,26 @@ describe('validate: MODIFIED blocks that would drop a main-spec scenario (#1477)
     expect(await archiveError(changeDir)).toContain('Dropped');
   });
 
+  it('follows a chain of renames back to the block the main spec still holds', async () => {
+    await writeMainSpec(
+      'widgets',
+      mainSpec(
+        `### Requirement: Alpha\nThe system SHALL do the alpha thing.\n\n#### Scenario: Kept\n- **WHEN** invoked\n- **THEN** it works\n\n#### Scenario: Dropped\n- **WHEN** retried\n- **THEN** it still works`
+      )
+    );
+    const changeDir = await writeChange(
+      'rename-chain',
+      'widgets',
+      `## RENAMED Requirements\n\n- FROM: \`### Requirement: Alpha\`\n- TO: \`### Requirement: Bravo\`\n- FROM: \`### Requirement: Bravo\`\n- TO: \`### Requirement: Charlie\`\n\n## MODIFIED Requirements\n\n### Requirement: Charlie\nThe system SHALL do the charlie thing.\n\n#### Scenario: Kept\n- **WHEN** invoked\n- **THEN** it works\n`
+    );
+
+    const report = await validate(changeDir);
+
+    expect(report.valid).toBe(false);
+    expect(report.issues.map((i) => i.message).join('\n')).toContain('"Dropped"');
+    expect(await archiveError(changeDir)).toContain('Dropped');
+  });
+
   it('reads a CRLF main spec the same way archive does', async () => {
     await writeMainSpec(
       'widgets',
