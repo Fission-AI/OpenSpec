@@ -16,6 +16,10 @@ describe('validate: MODIFIED blocks that would drop a main-spec scenario (#1477)
   let changesDir: string;
   let mainSpecsDir: string;
 
+  /** Two scenarios in the main spec; the delta below keeps only the first. */
+  const TWO_SCENARIO_REQUIREMENT = `### Requirement: Widget state\nThe system SHALL report the widget state.\n\n#### Scenario: Existing scenario\n- **WHEN** queried\n- **THEN** the state is reported\n\n#### Scenario: Second scenario\n- **WHEN** idle\n- **THEN** idle is reported`;
+  const DELTA_KEEPING_ONE = `## MODIFIED Requirements\n\n### Requirement: Widget state\nThe system SHALL report the widget state.\n\n#### Scenario: Existing scenario\n- **WHEN** queried\n- **THEN** the state is reported\n`;
+
   const mainSpec = (body: string) =>
     `# widgets Specification\n\n## Purpose\nDefine widget behavior for these tests.\n\n## Requirements\n\n${body}\n`;
 
@@ -64,14 +68,12 @@ describe('validate: MODIFIED blocks that would drop a main-spec scenario (#1477)
   it('errors when the MODIFIED block omits a scenario the main spec still has', async () => {
     await writeMainSpec(
       'widgets',
-      mainSpec(
-        `### Requirement: Widget state\nThe system SHALL report the widget state.\n\n#### Scenario: Existing scenario\n- **WHEN** queried\n- **THEN** the state is reported\n\n#### Scenario: Second scenario\n- **WHEN** idle\n- **THEN** idle is reported`
-      )
+      mainSpec(TWO_SCENARIO_REQUIREMENT)
     );
     const changeDir = await writeChange(
       'rename-scenario',
       'widgets',
-      `## MODIFIED Requirements\n\n### Requirement: Widget state\nThe system SHALL report the widget state.\n\n#### Scenario: Existing scenario\n- **WHEN** queried\n- **THEN** the state is reported\n`
+      DELTA_KEEPING_ONE
     );
 
     const report = await validate(changeDir);
@@ -218,9 +220,7 @@ describe('validate: MODIFIED blocks that would drop a main-spec scenario (#1477)
   it('reads a CRLF main spec the same way archive does', async () => {
     await writeMainSpec(
       'widgets',
-      mainSpec(
-        `### Requirement: Widget state\nThe system SHALL report the widget state.\n\n#### Scenario: Existing scenario\n- **WHEN** queried\n- **THEN** the state is reported\n\n#### Scenario: Second scenario\n- **WHEN** idle\n- **THEN** idle is reported`
-      ).replace(/\n/g, '\r\n')
+      mainSpec(TWO_SCENARIO_REQUIREMENT).replace(/\n/g, '\r\n')
     );
     const changeDir = await writeChange(
       'crlf-drop',
@@ -238,14 +238,12 @@ describe('validate: MODIFIED blocks that would drop a main-spec scenario (#1477)
   it('runs no main-spec check when the caller passes no main specs directory', async () => {
     await writeMainSpec(
       'widgets',
-      mainSpec(
-        `### Requirement: Widget state\nThe system SHALL report the widget state.\n\n#### Scenario: Existing scenario\n- **WHEN** queried\n- **THEN** the state is reported\n\n#### Scenario: Second scenario\n- **WHEN** idle\n- **THEN** idle is reported`
-      )
+      mainSpec(TWO_SCENARIO_REQUIREMENT)
     );
     const changeDir = await writeChange(
       'no-root',
       'widgets',
-      `## MODIFIED Requirements\n\n### Requirement: Widget state\nThe system SHALL report the widget state.\n\n#### Scenario: Existing scenario\n- **WHEN** queried\n- **THEN** the state is reported\n`
+      DELTA_KEEPING_ONE
     );
 
     const report = await new Validator(true).validateChangeDeltaSpecs(changeDir);

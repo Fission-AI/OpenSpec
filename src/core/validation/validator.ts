@@ -282,9 +282,7 @@ export class Validator {
           }
         }
 
-        // MODIFIED blocks that drop a scenario the main spec still has are
-        // rejected by archive, which refuses to overwrite the requirement and
-        // lose it. Run the same non-mutating check here so the change fails at
+        // Run archive's scenario-loss check here too, so the change fails at
         // authoring time instead of days later at archive time (#1477).
         if (options.mainSpecsDir && plan.modified.length > 0) {
           issues.push(
@@ -459,20 +457,16 @@ export class Validator {
       currentBlocks.set(normalizeRequirementName(block.name), block);
     }
     // Archive applies RENAMED before MODIFIED, so a MODIFIED naming the new
-    // header is compared against the renamed block's scenarios. Re-key the
-    // same way or a rename-plus-modify pair would skip the check entirely.
-    for (const { from, to } of renamed) {
-      const fromKey = normalizeRequirementName(from);
-      const toKey = normalizeRequirementName(to);
-      const block = currentBlocks.get(fromKey);
-      if (!block || currentBlocks.has(toKey)) continue;
-      currentBlocks.delete(fromKey);
-      currentBlocks.set(toKey, block);
-    }
+    // header is compared against the renamed block's scenarios. Fall back to
+    // the old header, or a rename-plus-modify pair would skip the check.
+    const renamedFrom = new Map(
+      renamed.map(({ from, to }) => [normalizeRequirementName(to), normalizeRequirementName(from)])
+    );
 
     const issues: ValidationIssue[] = [];
     for (const block of modified) {
-      const current = currentBlocks.get(normalizeRequirementName(block.name));
+      const key = normalizeRequirementName(block.name);
+      const current = currentBlocks.get(key) ?? currentBlocks.get(renamedFrom.get(key) ?? '');
       if (!current) continue;
       const missing = findMissingCurrentScenarios(current, block);
       if (missing.length === 0) continue;

@@ -324,7 +324,7 @@ function parseRenamedPairs(sectionBody: SectionBody): Array<{ from: string; to: 
   return pairs;
 }
 
-export interface ScenarioBlock {
+interface ScenarioBlock {
   name: string;
   raw: string;
 }
@@ -362,7 +362,7 @@ export function findMissingCurrentScenarios(current: RequirementBlock, incoming:
   return missing;
 }
 
-export function parseScenarioBlocks(requirementRaw: string): ScenarioBlock[] {
+function parseScenarioBlocks(requirementRaw: string): ScenarioBlock[] {
   const lines = requirementRaw.replace(/\r\n?/g, '\n').split('\n');
   // A `#### Scenario:` inside a fenced example is not a real scenario. The
   // validator's countScenarios already ignores fenced lines; the drift check
