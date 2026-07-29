@@ -334,6 +334,9 @@ export class ArchiveCommand {
         } catch {}
       }
       if (hasDeltaSpecs) {
+        // No mainSpecsDir here on purpose: the scenario-loss check standalone
+        // validate runs (#1477) is the same one buildUpdatedSpec enforces a few
+        // steps later, and reporting it here would relabel that failure.
         const deltaReport = await validator.validateChangeDeltaSpecs(changeDir);
         if (!deltaReport.valid) {
           hasValidationErrors = true;

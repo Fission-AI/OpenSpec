@@ -96,6 +96,14 @@ openspec validate --all --strict   # stricter checks, good for CI
 
 Common causes are a missing required section (like a spec with no scenarios) or a malformed delta header. Fix the file and re-run. The [CLI reference](cli.md#openspec-validate) documents the output format.
 
+One message deserves its own note:
+
+```text
+MODIFIED "<requirement>" omits scenario(s) the current spec still has: "<scenario>"
+```
+
+A `MODIFIED` requirement replaces the whole requirement block, so it has to carry every scenario that survives the change, not only the ones you edited. Copy the named scenarios from `openspec/specs/<capability>/spec.md` back into the delta. This often appears on an older change after someone else's change added a scenario to the same requirement — archive refuses that change either way, and validation now says so before you implement it.
+
 ### The AI created incomplete or wrong artifacts
 
 The AI didn't have enough context. A few levers help:
