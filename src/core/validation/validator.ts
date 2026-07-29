@@ -451,16 +451,21 @@ export class Validator {
       mainContent = await fs.readFile(mainSpecFile, 'utf-8');
     } catch (error) {
       const code = (error as NodeJS.ErrnoException)?.code;
-      // ENOTDIR joins ENOENT as "no such spec": a file sitting where a parent
-      // folder would be means the capability has no main spec either.
-      if (code === 'ENOENT' || code === 'ENOTDIR') return [];
+      // Reported only for the codes that mean the file itself is unusable, and
+      // will be just as unusable when archive reads it. Everything else -
+      // ENOENT/ENOTDIR ("no main spec"), and transient resource errors like
+      // EMFILE that say nothing about the file - stays silent rather than
+      // failing a change that is fine. `validate --all` reads six changes at
+      // once, so a resource error must never become a verdict.
+      const UNUSABLE = new Set(['EACCES', 'EPERM', 'EISDIR', 'ELOOP', 'ENAMETOOLONG']);
+      if (!code || !UNUSABLE.has(code)) return [];
       return [
         {
           level: 'ERROR',
           path: entryPath,
           message:
             `Could not read ${FileSystemUtils.toPosixPath(mainSpecFile)} to check the MODIFIED requirements against it ` +
-            `(${code ?? 'unknown error'}). Archive reads the same file, so fix the file before archiving.`,
+            `(${code}). Archive reads the same file, so fix the file before archiving.`,
         },
       ];
     }

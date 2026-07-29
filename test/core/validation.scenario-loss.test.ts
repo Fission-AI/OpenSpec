@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
@@ -347,7 +347,34 @@ describe('validate: MODIFIED blocks that would drop a main-spec scenario (#1477)
     const issue = report.issues.find((i) => i.message.includes('Could not read'));
     expect(issue?.level).toBe('ERROR');
     expect(issue?.message).toContain('widgets/spec.md');
+    expect(issue?.message).toContain('EISDIR');
     expect(await archiveError(changeDir)).not.toBeNull();
+  });
+
+  it('stays silent on a read error that says nothing about the file', async () => {
+    // A resource error (EMFILE and friends) means the process is busy, not that
+    // the change is wrong - `validate --all` reads six changes at once, so it
+    // must not turn one into a verdict.
+    await writeMainSpec('widgets', mainSpec(TWO_SCENARIO_REQUIREMENT));
+    const changeDir = await writeChange('transient-read-error', 'widgets', DELTA_KEEPING_ONE);
+    // Only the main spec read fails: the delta must still be read, or the check
+    // never runs and the test proves nothing.
+    const mainSpecFile = path.join(mainSpecsDir, 'widgets', 'spec.md');
+    const readFile = fs.readFile;
+    const spy = vi.spyOn(fs, 'readFile').mockImplementation(async (file, ...rest) => {
+      if (String(file) === mainSpecFile) {
+        throw Object.assign(new Error('EMFILE: too many open files'), { code: 'EMFILE' });
+      }
+      return (readFile as unknown as typeof fs.readFile)(file, ...(rest as []));
+    });
+
+    try {
+      const report = await validate(changeDir);
+      expect(spy.mock.calls.some(([file]) => String(file) === mainSpecFile)).toBe(true);
+      expect(report.issues.some((i) => i.message.includes('Could not read'))).toBe(false);
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('does not name scenarios for a MODIFIED the same delta renames away', async () => {
