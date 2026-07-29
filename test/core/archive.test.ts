@@ -3326,6 +3326,9 @@ The system SHALL do the thing differently.
     describe.each([
       {
         route: 'symlinked spec.md',
+        // Creating a symlink needs privileges Windows does not hand out by
+        // default; the other case carries this route's shape there.
+        skipOnWindows: true,
         // A symlink is copied by content and its link removed, never renamed.
         async stage(capability: string): Promise<string> {
           const target = path.join(capability, 'spec.md');
@@ -3338,6 +3341,10 @@ The system SHALL do the thing differently.
       },
       {
         route: 'EXDEV rename fallback',
+        // Regular files and spies only, so this one runs everywhere - which
+        // matters, because the sibling errno this fallback keys on (EPERM) is
+        // the Windows case, and skipping here would leave it untested there.
+        skipOnWindows: false,
         async stage(capability: string): Promise<string> {
           const target = path.join(capability, 'spec.md');
           await fs.writeFile(target, mainSpec('legacy-layer'));
@@ -3351,8 +3358,8 @@ The system SHALL do the thing differently.
           });
         },
       },
-    ])('post-copy failure on the $route', ({ stage, forceRoute }) => {
-      it.skipIf(process.platform === 'win32')(
+    ])('post-copy failure on the $route', ({ stage, forceRoute, skipOnWindows }) => {
+      it.skipIf(skipOnWindows && process.platform === 'win32')(
         'rolls back the staged copy so the archive can be rerun',
         async () => {
           const capability = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
