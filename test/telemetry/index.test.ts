@@ -164,6 +164,30 @@ describe('telemetry/index', () => {
       await trackCommand('test', '1.0.0');
       await expect(shutdown()).resolves.not.toThrow();
     });
+
+    it('should dispose the response body of a successful response before the event settles', async () => {
+      // Undici holds the connection until the body is consumed or canceled;
+      // an undisposed body would let the socket outlive shutdown().
+      enableTelemetry();
+      const response = new Response('{"status": 1}', { status: 200 });
+      fetchSpy.mockResolvedValueOnce(response);
+
+      await trackCommand('test', '1.0.0');
+      await shutdown();
+
+      expect(response.bodyUsed).toBe(true);
+    });
+
+    it('should dispose the response body of a non-2xx response before the event settles', async () => {
+      enableTelemetry();
+      const response = new Response('rate limited', { status: 429 });
+      fetchSpy.mockResolvedValueOnce(response);
+
+      await trackCommand('test', '1.0.0');
+      await shutdown();
+
+      expect(response.bodyUsed).toBe(true);
+    });
   });
 
   describe('shutdown', () => {

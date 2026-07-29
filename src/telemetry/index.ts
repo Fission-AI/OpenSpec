@@ -41,6 +41,12 @@ const pendingEvents = new Set<Promise<void>>();
 async function safeTelemetryFetch(url: string, options: RequestInit): Promise<Response> {
   try {
     const response = await fetch(url, options);
+    // Telemetry never reads the body, but undici keeps the connection
+    // occupied until the body is consumed or canceled — dispose of it on
+    // every path so no socket outlives shutdown().
+    if (response.body) {
+      await response.body.cancel();
+    }
     if (response.ok) {
       return response;
     }
