@@ -526,7 +526,7 @@ openspec show add-dark-mode --json
 
 ### `openspec validate`
 
-Validate changes and specs for structural issues.
+Validate changes and specs for structural issues, and check a change's MODIFIED requirements against the main specs they would replace.
 
 ```
 openspec validate [item-name] [options]

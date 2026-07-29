@@ -37,10 +37,19 @@ describe('validate: MODIFIED blocks that would drop a main-spec scenario (#1477)
     return changeDir;
   };
 
+  /** The scenario-loss issue, so assertions cannot pass on an unrelated error. */
+  const lossIssue = (report: { issues: Array<{ level: string; path: string; message: string }> }) =>
+    report.issues.find((i) => i.message.includes('omits scenario(s)'));
+
   const validate = (changeDir: string) =>
     new Validator(true).validateChangeDeltaSpecs(changeDir, { mainSpecsDir });
 
-  /** What archive would do with the same change: null when it applies cleanly. */
+  /**
+   * What archive would do with the same change: null when it applies cleanly.
+   * It shares the comparison itself with the validator (that is the point of the
+   * refactor), so what it cross-checks is the layer above: spec discovery, which
+   * requirement block the MODIFIED lands on, and archive's operation order.
+   */
   const archiveError = async (changeDir: string): Promise<string | null> => {
     const updates = await findSpecUpdates(changeDir, mainSpecsDir);
     for (const update of updates) {
@@ -84,7 +93,7 @@ describe('validate: MODIFIED blocks that would drop a main-spec scenario (#1477)
     expect(issue?.path).toBe('widgets/spec.md');
     expect(issue?.message).toContain('MODIFIED "Widget state"');
     expect(issue?.message).toContain('"Second scenario"');
-    // Parity: archive rejects exactly this change today.
+    // Parity: archive refuses this change today, naming the same scenario.
     expect(await archiveError(changeDir)).toContain('Second scenario');
   });
 
@@ -104,7 +113,7 @@ describe('validate: MODIFIED blocks that would drop a main-spec scenario (#1477)
     const report = await validate(changeDir);
 
     expect(report.valid).toBe(false);
-    expect(report.issues.map((i) => i.message).join('\n')).toContain('"Repeated"');
+    expect(lossIssue(report)?.message).toContain('"Repeated"');
     expect(await archiveError(changeDir)).toContain('Repeated');
   });
 
@@ -213,7 +222,7 @@ describe('validate: MODIFIED blocks that would drop a main-spec scenario (#1477)
     const report = await validate(changeDir);
 
     expect(report.valid).toBe(false);
-    expect(report.issues.map((i) => i.message).join('\n')).toContain('"Dropped"');
+    expect(lossIssue(report)?.message).toContain('"Dropped"');
     expect(await archiveError(changeDir)).toContain('Dropped');
   });
 
@@ -233,7 +242,7 @@ describe('validate: MODIFIED blocks that would drop a main-spec scenario (#1477)
     const report = await validate(changeDir);
 
     expect(report.valid).toBe(false);
-    expect(report.issues.map((i) => i.message).join('\n')).toContain('"Dropped"');
+    expect(lossIssue(report)?.message).toContain('"Dropped"');
     expect(await archiveError(changeDir)).toContain('Dropped');
   });
 
@@ -251,7 +260,7 @@ describe('validate: MODIFIED blocks that would drop a main-spec scenario (#1477)
     const report = await validate(changeDir);
 
     expect(report.valid).toBe(false);
-    expect(report.issues.map((i) => i.message).join('\n')).toContain('"Second scenario"');
+    expect(lossIssue(report)?.message).toContain('"Second scenario"');
     expect(await archiveError(changeDir)).toContain('Second scenario');
   });
 
@@ -269,5 +278,98 @@ describe('validate: MODIFIED blocks that would drop a main-spec scenario (#1477)
     const report = await new Validator(true).validateChangeDeltaSpecs(changeDir);
 
     expect(report.valid).toBe(true);
+  });
+
+  it('fails the change in the default (non-strict) mode too', async () => {
+    // --strict is opt-in, so the shipped default is the mode that matters most.
+    await writeMainSpec('widgets', mainSpec(TWO_SCENARIO_REQUIREMENT));
+    const changeDir = await writeChange('non-strict', 'widgets', DELTA_KEEPING_ONE);
+
+    const report = await new Validator(false).validateChangeDeltaSpecs(changeDir, { mainSpecsDir });
+
+    expect(report.valid).toBe(false);
+    expect(lossIssue(report)?.level).toBe('ERROR');
+  });
+
+  it('terminates on a rename cycle instead of walking it forever', async () => {
+    // Two guards keep the rename walk out of a cycle (the rename-away skip and
+    // the visited set). A hang here is unrecoverable — it blocks the event loop,
+    // so no test timeout can interrupt it — which is why the input is pinned.
+    await writeMainSpec(
+      'widgets',
+      mainSpec(
+        `### Requirement: Untouched\nThe system SHALL do the untouched thing.\n\n#### Scenario: Only\n- **WHEN** invoked\n- **THEN** it works`
+      )
+    );
+    const changeDir = await writeChange(
+      'rename-cycle',
+      'widgets',
+      `## RENAMED Requirements\n\n- FROM: \`### Requirement: Alpha\`\n- TO: \`### Requirement: Bravo\`\n- FROM: \`### Requirement: Bravo\`\n- TO: \`### Requirement: Alpha\`\n\n## MODIFIED Requirements\n\n### Requirement: Alpha\nThe system SHALL do the alpha thing.\n\n#### Scenario: Only\n- **WHEN** invoked\n- **THEN** it works\n`
+    );
+
+    const report = await validate(changeDir);
+
+    expect(report).toBeDefined();
+    expect(lossIssue(report)).toBeUndefined();
+  });
+
+  it('ignores a fenced scenario sample inside the MODIFIED block itself', async () => {
+    await writeMainSpec(
+      'widgets',
+      mainSpec(
+        `### Requirement: Widget state\nThe system SHALL report the widget state.\n\n#### Scenario: Existing scenario\n- **WHEN** queried\n- **THEN** the state is reported\n\n#### Scenario: Second scenario\n- **WHEN** idle\n- **THEN** idle is reported`
+      )
+    );
+    // The delta quotes "Second scenario" inside a fence; a fenced sample is not
+    // a scenario, so it must not satisfy the requirement to carry it over.
+    const changeDir = await writeChange(
+      'fenced-in-delta',
+      'widgets',
+      `## MODIFIED Requirements\n\n### Requirement: Widget state\nThe system SHALL report the widget state.\n\n#### Scenario: Existing scenario\n- **WHEN** queried\n- **THEN** the state is reported\n\n\`\`\`markdown\n#### Scenario: Second scenario\n- **WHEN** idle\n- **THEN** idle is reported\n\`\`\`\n`
+    );
+
+    const report = await validate(changeDir);
+
+    expect(report.valid).toBe(false);
+    expect(lossIssue(report)?.message).toContain('"Second scenario"');
+    expect(await archiveError(changeDir)).toContain('Second scenario');
+  });
+
+  it('says so when the main spec exists but cannot be read', async () => {
+    // A directory where spec.md belongs reads as EISDIR: not absent, and archive
+    // aborts on it, so reporting beats calling the change valid.
+    await fs.mkdir(path.join(mainSpecsDir, 'widgets', 'spec.md'), { recursive: true });
+    const changeDir = await writeChange('unreadable-main-spec', 'widgets', DELTA_KEEPING_ONE);
+
+    const report = await validate(changeDir);
+
+    expect(report.valid).toBe(false);
+    const issue = report.issues.find((i) => i.message.includes('Could not read'));
+    expect(issue?.level).toBe('ERROR');
+    expect(issue?.message).toContain('widgets/spec.md');
+    expect(await archiveError(changeDir)).not.toBeNull();
+  });
+
+  it('does not name scenarios for a MODIFIED the same delta renames away', async () => {
+    // The block this MODIFIED would land on is not the one it names, so any
+    // scenario reported here would send the author after the wrong requirement.
+    // The contradiction itself is still reported by the RENAMED/MODIFIED check.
+    await writeMainSpec(
+      'widgets',
+      mainSpec(
+        `### Requirement: Old name\nThe system SHALL do the old thing.\n\n#### Scenario: Kept\n- **WHEN** invoked\n- **THEN** it works\n\n#### Scenario: Dropped\n- **WHEN** retried\n- **THEN** it still works`
+      )
+    );
+    const changeDir = await writeChange(
+      'modifies-renamed-away',
+      'widgets',
+      `## RENAMED Requirements\n\n- FROM: \`### Requirement: Old name\`\n- TO: \`### Requirement: New name\`\n\n## MODIFIED Requirements\n\n### Requirement: Old name\nThe system SHALL do the old thing.\n\n#### Scenario: Kept\n- **WHEN** invoked\n- **THEN** it works\n`
+    );
+
+    const report = await validate(changeDir);
+
+    expect(report.valid).toBe(false);
+    expect(lossIssue(report)).toBeUndefined();
+    expect(report.issues.map((i) => i.message).join('\n')).toContain('MODIFIED references old name from RENAMED');
   });
 });

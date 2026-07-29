@@ -64,9 +64,13 @@ The CLI SHALL append a Next steps footer when the item is invalid and not using 
 
 ### Requirement: Change validation SHALL report scenarios a MODIFIED block would drop
 
-A `MODIFIED` requirement replaces the whole requirement block, so archive refuses to apply one that omits a scenario the main spec still has. Change validation SHALL run the same non-mutating check against the main specs and report each omitted scenario as an error, naming the delta file and the scenarios.
+The `validate` command SHALL compare every `MODIFIED` requirement in a change against the main specs and report, as an error naming the delta file, each scenario the main spec still has that the `MODIFIED` block omits. A `MODIFIED` requirement replaces the whole requirement block, so archive refuses to apply one that drops a scenario; this is the same check, run without writing anything.
 
-The check SHALL be silent when the main spec file or the requirement header is absent, because a `MODIFIED` written against a base that has not landed yet is a separate condition that archive gates.
+The comparison SHALL match archive's operation order, comparing a `MODIFIED` that names the new header of a rename against the renamed requirement's scenarios.
+
+The check SHALL be silent when the main spec file or the requirement header is absent, because a `MODIFIED` written against a base that has not landed yet is a separate condition that archive gates. A main spec that exists but cannot be read SHALL be reported instead, since archive fails on it too.
+
+Validation run inside `openspec archive` SHALL NOT report these issues, because archive enforces the same check when it applies the deltas.
 
 #### Scenario: MODIFIED omits an existing scenario
 
@@ -74,6 +78,12 @@ The check SHALL be silent when the main spec file or the requirement header is a
 - **WHEN** a change MODIFIES that requirement with only scenario "A" and `openspec validate <change>` runs
 - **THEN** report an error naming the delta file and scenario "B"
 - **AND** exit with code 1
+
+#### Scenario: MODIFIED names the new header of a rename
+
+- **GIVEN** the main spec has requirement "A" with scenarios "S1" and "S2"
+- **WHEN** a change renames "A" to "B" and MODIFIES "B" with only scenario "S1"
+- **THEN** report an error naming scenario "S2"
 
 #### Scenario: MODIFIED header is not in the main spec
 

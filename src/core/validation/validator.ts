@@ -437,7 +437,8 @@ export class Validator {
    * Silent when the main spec or the requirement header is absent: applying a
    * MODIFIED against a base that is not there yet is a different failure (a
    * sister change still in flight is the legitimate case), and archive is the
-   * gate for it.
+   * gate for it. A spec that exists but cannot be read is not absent, though —
+   * archive aborts on it, so reporting it beats calling the change valid.
    */
   private async findScenarioLossIssues(
     modified: RequirementBlock[],
@@ -448,8 +449,20 @@ export class Validator {
     let mainContent: string;
     try {
       mainContent = await fs.readFile(mainSpecFile, 'utf-8');
-    } catch {
-      return [];
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException)?.code;
+      // ENOTDIR joins ENOENT as "no such spec": a file sitting where a parent
+      // folder would be means the capability has no main spec either.
+      if (code === 'ENOENT' || code === 'ENOTDIR') return [];
+      return [
+        {
+          level: 'ERROR',
+          path: entryPath,
+          message:
+            `Could not read ${FileSystemUtils.toPosixPath(mainSpecFile)} to check the MODIFIED requirements against it ` +
+            `(${code ?? 'unknown error'}). Archive reads the same file, so fix the file before archiving.`,
+        },
+      ];
     }
 
     const currentBlocks = new Map<string, RequirementBlock>();
@@ -464,7 +477,10 @@ export class Validator {
     );
 
     // Walked, not looked up once: renames chain (A→B then B→C leaves C holding
-    // A's block), and the visited set stops a cycle from looping forever.
+    // A's block), and the visited set stops a cycle from looping forever. Every
+    // name in a rename cycle is also a rename FROM, so the skip above already
+    // keeps the walk out of one; the guard stays because the cost of being
+    // wrong about that is a hung CLI, not a wrong message.
     const currentBlockFor = (name: string): RequirementBlock | undefined => {
       const visited = new Set<string>();
       let key: string | undefined = name;
@@ -477,9 +493,17 @@ export class Validator {
       return undefined;
     };
 
+    // A MODIFIED naming a header the same delta renames away is already
+    // reported ("MODIFIED references old name from RENAMED"), and the block it
+    // would land on is not the one it names — so any scenario named here would
+    // send the author after the wrong requirement.
+    const renamedAway = new Set(renamed.map(({ from }) => normalizeRequirementName(from)));
+
     const issues: ValidationIssue[] = [];
     for (const block of modified) {
-      const current = currentBlockFor(normalizeRequirementName(block.name));
+      const key = normalizeRequirementName(block.name);
+      if (renamedAway.has(key)) continue;
+      const current = currentBlockFor(key);
       if (!current) continue;
       const missing = findMissingCurrentScenarios(current, block);
       if (missing.length === 0) continue;
