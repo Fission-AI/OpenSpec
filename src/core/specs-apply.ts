@@ -464,13 +464,18 @@ export async function buildUpdatedSpec(
       renamed: renamedApplied,
     },
     warnings,
-    // Only ADDED grows the block set, so an empty result means the delta removed
-    // the last requirement block the capability had. Whether that spec is
-    // genuinely unwritable is the validator's call, not this one.
     noRequirementBlocks: keptOrder.length === 0,
-    // Read off the rebuilt requirements body, which is the preamble alone once
-    // every block is gone.
-    residualRequirementHeadings: findHeadings(reqBody, /^###\s+(.+?)\s*$/),
+    // Read off the ORIGINAL requirements section, not the rebuilt one. Anything
+    // after the last `### Requirement:` header belongs to that block's raw and
+    // is discarded with it, so a rebuilt-body scan only ever sees headings above
+    // the first requirement - it would veto `### Notes` written before the
+    // requirements and miss the identical heading written after them.
+    residualRequirementHeadings: findHeadings(
+      [parts.preamble, ...parts.bodyBlocks.map((block) => block.raw)]
+        .filter((part) => part && part.trim())
+        .join('\n\n'),
+      /^###\s+(.+?)\s*$/
+    ).filter((title) => !/^Requirement:/i.test(title)),
     otherSections: findOtherSections(rebuilt),
   };
 }
@@ -483,14 +488,17 @@ export async function buildUpdatedSpec(
  */
 function findHeadings(content: string, pattern: RegExp): string[] {
   const normalized = content.replace(/\r\n?/g, '\n');
+  const lines = normalized.split('\n');
+  // Fence first, then comments. The other order lets a `<!--` written inside a
+  // fenced example be read as real comment syntax, and an unterminated one there
+  // blanks the rest of the document - which would silently truncate this list.
+  const fenceMask = buildCodeFenceMask(lines);
+  const unfenced = lines.map((line, i) => (fenceMask[i] ? '' : line)).join('\n');
   // Structure is read from the masked copy; titles come from the real lines so
   // an author's own wording is reported verbatim.
-  const lines = normalized.split('\n');
-  const masked = maskHtmlComments(normalized).split('\n');
-  const fenceMask = buildCodeFenceMask(masked);
+  const masked = maskHtmlComments(unfenced).split('\n');
   const found: string[] = [];
   for (let i = 0; i < masked.length; i++) {
-    if (fenceMask[i]) continue;
     if (!pattern.test(masked[i])) continue;
     const match = lines[i].match(pattern);
     if (match) found.push(match[1]);
@@ -537,9 +545,13 @@ export async function retireSpec(
 ): Promise<{ deleted: boolean; retiredPath?: string }> {
   // Resolved before the unlink, while the link still exists, so the report can
   // name the file that actually goes when a symlink points out of the tree.
+  // A symlinked `spec.md` is excluded: `realpath` would follow it, but `unlink`
+  // removes the link and leaves the target alone, so naming the target would
+  // claim a file was deleted that is still there.
   let realTarget: string | undefined;
   try {
-    realTarget = await fs.realpath(update.target);
+    const link = await fs.lstat(update.target);
+    realTarget = link.isSymbolicLink() ? undefined : await fs.realpath(update.target);
   } catch {
     realTarget = undefined;
   }

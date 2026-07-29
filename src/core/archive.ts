@@ -63,6 +63,44 @@ export async function isRetirableSpec(specName: string, rebuilt: string): Promis
   );
 }
 
+/**
+ * What this run should do with a rebuilt spec: write it as usual, delete the
+ * capability's spec because the delta removed its last requirement (#1302), or
+ * do nothing because there is no spec to write and none to delete.
+ */
+type SpecOutcome = 'write' | 'delete' | 'skip';
+
+async function decideSpecOutcome(
+  update: SpecUpdate,
+  built: Awaited<ReturnType<typeof buildUpdatedSpec>>,
+  skipValidation: boolean
+): Promise<SpecOutcome> {
+  // Retirement is decided by the validator, never by a second opinion about
+  // what counts as a requirement: the block parser sweeps some shapes the
+  // validator accepts into the preamble, so "no blocks left" alone would delete
+  // specs that validate fine.
+  //
+  // Residual `###` headings veto it outright. The validator can be talked out of
+  // seeing them - a stray `### Requirements` under Purpose captures its section
+  // lookup - but a reader cannot, and deleting the file would take them with it.
+  //
+  // Under --no-validate there is no verdict to lean on, so nothing is retired:
+  // the author opted out of the check that makes this safe, and the old
+  // behavior (write the spec) loses nothing.
+  const retirable =
+    !skipValidation &&
+    built.noRequirementBlocks &&
+    built.residualRequirementHeadings.length === 0 &&
+    (await isRetirableSpec(update.id, built.rebuilt));
+
+  if (!retirable) return 'write';
+  // Nothing on disk to write or delete: the capability is already retired.
+  if (!update.exists) return 'skip';
+  // A spec that was already requirement-less and lost nothing this run is still
+  // the author's to fix, so it takes the same abort it has always produced.
+  return built.counts.removed > 0 ? 'delete' : 'write';
+}
+
 async function listActiveChangeNames(changesDir: string): Promise<string[]> {
   try {
     const entries = await fs.readdir(changesDir, { withFileTypes: true });
@@ -165,6 +203,14 @@ async function moveDirectory(src: string, dest: string): Promise<void> {
     await fs.rename(src, dest);
   } catch (err: any) {
     const code = err?.code;
+    // rename onto a non-empty directory: the destination was taken while the
+    // archive was running. Same condition the pre-flight check reports.
+    if (code === 'ENOTEMPTY' || code === 'EEXIST') {
+      throw new ArchiveBlockedError(
+        'archive_target_exists',
+        `Archive '${path.basename(dest)}' already exists.`
+      );
+    }
     if (code === 'EPERM' || code === 'EXDEV') {
       await copyDirRecursive(src, dest);
       await fs.rm(src, { recursive: true, force: true });
@@ -519,43 +565,15 @@ export class ArchiveCommand {
 
         if (shouldUpdateSpecs) {
           // Prepare all updates first (validation pass, no writes)
-          const prepared: Array<{ update: SpecUpdate; rebuilt: string; counts: { added: number; modified: number; removed: number; renamed: number }; retired: boolean; deletes: boolean; otherSections: string[] }> = [];
+          const prepared: Array<{ update: SpecUpdate; rebuilt: string; counts: { added: number; modified: number; removed: number; renamed: number }; outcome: SpecOutcome; otherSections: string[] }> = [];
           try {
             for (const update of specUpdates) {
               const built = await buildUpdatedSpec(update, changeName!, { silent: json });
-              // Retirement is decided by the validator, never by a second
-              // opinion about what counts as a requirement: the block parser
-              // sweeps some shapes the validator accepts into the preamble, so
-              // "no blocks left" alone would delete specs that validate fine.
-              //
-              // Residual `###` headings veto it outright. The validator can be
-              // talked out of seeing them - a stray `### Requirements` under
-              // Purpose captures the section lookup - but a reader cannot, and
-              // deleting the file would take them with it.
-              //
-              // Under --no-validate there is no verdict to lean on, so nothing
-              // is retired: the author opted out of the check that makes this
-              // safe, and the old behavior (write the spec) loses nothing.
-              const retirable =
-                !skipValidation &&
-                built.noRequirementBlocks &&
-                built.residualRequirementHeadings.length === 0 &&
-                (await isRetirableSpec(update.id, built.rebuilt));
-              // Two ways to need no spec written, and only one of them deletes.
-              // `deletes`: the spec is there and this run removed its last
-              // requirement. `!update.exists`: nothing to write and nothing to
-              // delete - the capability is already retired.
-              // Neither covers a spec that is already requirement-less and lost
-              // nothing this run: that stays the author's to fix and falls
-              // through to the same abort it has always produced.
-              const deletes = retirable && update.exists && built.counts.removed > 0;
-              const retired = deletes || (retirable && !update.exists);
               prepared.push({
                 update,
                 rebuilt: built.rebuilt,
                 counts: built.counts,
-                retired,
-                deletes,
+                outcome: await decideSpecOutcome(update, built, skipValidation),
                 otherSections: built.otherSections,
               });
               // Carried into the result so JSON mode (where nothing was
@@ -583,7 +601,7 @@ export class ArchiveCommand {
               // A retirement was already put to the validator, and failed on
               // nothing but "no requirements" - there is no spec left to write,
               // so re-reporting that one error would just abort the fix (#1302).
-              if (p.retired) continue;
+              if (p.outcome !== 'write') continue;
               const specName = p.update.id;
               const report = await new Validator().validateSpecContent(specName, p.rebuilt);
               if (!report.valid) {
@@ -610,10 +628,8 @@ export class ArchiveCommand {
           const writeTotals = { added: 0, modified: 0, removed: 0, renamed: 0 };
           let wroteAny = false;
           for (const p of prepared) {
-            // Retirements are deferred to the end: they are the only
-            // irreversible step here, and the write loop is not transactional,
-            // so a later write that throws must not find a spec already deleted.
-            if (p.retired) continue;
+            // Deletions are deferred to the loop below.
+            if (p.outcome !== 'write') continue;
             const { added, modified, removed, renamed } = p.counts;
             if (added + modified + removed + renamed === 0) {
               // Every operation was already synced: rewriting the file would
@@ -638,13 +654,11 @@ export class ArchiveCommand {
           // a second deletion fails the first is already done, which the thrown
           // message names so the state is at least legible.
           for (const p of prepared) {
-            if (!p.deletes) continue;
+            if (p.outcome !== 'delete') continue;
             const { deleted, retiredPath } = await retireSpec(p.update, mainSpecsDir, {
               silent: json,
               ...(isStoreSelectedRoot(root) ? { displayPath: p.update.target } : {}),
             });
-            // The file was gone before we got to it, so nothing was retired by
-            // this run and nothing should be reported as though it had been.
             if (!deleted) continue;
             wroteAny = true;
             // A rename applied on the way to the removal still happened; folding
@@ -687,6 +701,17 @@ export class ArchiveCommand {
           }
         }
       }
+    }
+
+    // The destination was checked before the merge, so anything claiming it now
+    // appeared while we were working. Report that as the collision it is: a raw
+    // ENOTEMPTY from rename would otherwise degrade to a bare `archive_error`.
+    try {
+      await fs.access(archivePath);
+      throw new ArchiveBlockedError('archive_target_exists', `Archive '${archiveName}' already exists.`);
+    } catch (error: any) {
+      if (error instanceof ArchiveBlockedError) throw error;
+      if (error.code !== 'ENOENT') throw error;
     }
 
     // Create archive directory if needed

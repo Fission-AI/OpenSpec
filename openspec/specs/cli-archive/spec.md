@@ -128,7 +128,7 @@ A delta whose REMOVED entries cover every requirement a capability has SHALL ret
 
 #### Scenario: Deciding that a rebuilt spec cannot be written
 
-- **WHEN** applying a delta leaves the rebuilt spec with no requirement blocks and no other `###` heading under `## Requirements`
+- **WHEN** applying a delta leaves the rebuilt spec with no requirement blocks, and the capability's `## Requirements` section holds no `###` heading other than its requirement headers, wherever in the section it sits
 - **THEN** put that rebuilt spec to the spec validator
 - **AND** treat it as retirable only when its sole validation error is that the spec has no requirements
 - **AND** otherwise write or reject it exactly as any other rebuilt spec, so a spec the validator still accepts, one broken in some further way, and one still holding a `###` heading are all left alone
@@ -146,13 +146,14 @@ A delta whose REMOVED entries cover every requirement a capability has SHALL ret
 - **THEN** delete the capability's `spec.md` instead of writing it
 - **AND** delete any directory the deletion leaves empty, resolving symlinks so nothing outside the real specs root is removed, and never the specs root itself
 - **AND** count every operation the delta applied in the archive totals
-- **AND** record the retirement in the archive warnings, naming the sections the deleted file held, and the resolved path when a symlink placed it elsewhere
+- **AND** record the retirement in the archive warnings, naming the sections the deleted file held, and the resolved path when a symlinked directory placed the file outside the specs tree
 
 #### Scenario: Retirement is deferred until every spec is written
 
 - **WHEN** an archive both retires one capability and updates another
 - **THEN** settle the archive destination before touching any spec, so a name collision cannot strand a deletion
 - **AND** perform the deletion only after every spec write has succeeded
+- **AND** report a destination claimed while the merge ran as the same collision, rather than as a raw filesystem error
 
 #### Scenario: Capability directory holds other files
 

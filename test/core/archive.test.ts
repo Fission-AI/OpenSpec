@@ -2961,22 +2961,6 @@ The system SHALL do the thing differently.
       ).resolves.not.toThrow();
     });
 
-    it('leaves the file alone on a no-op delta under --no-validate', async () => {
-      const changeName = 'retire-noop-unvalidated';
-      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
-      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
-      await fs.mkdir(mainSpecDir, { recursive: true });
-      const emptied = `# legacy-layer Specification\n\n## Purpose\n${PURPOSE}\n\n## Requirements\n`;
-      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), emptied);
-
-      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
-
-      await expect(fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8')).resolves.toBe(emptied);
-      await expect(
-        fs.access(path.join(tempDir, 'openspec', 'changes', changeName))
-      ).rejects.toThrow();
-    });
-
     it('aborts instead of retiring when the emptied spec is also broken another way', async () => {
       // "No requirements" is the only error retirement replaces. A spec that is
       // additionally malformed is the author's to fix, so archive must abort as
@@ -3437,8 +3421,13 @@ The system SHALL do the thing differently.
       await archiveCommand.execute(changeName, { yes: true, json: true });
 
       const payload = JSON.parse(lastJsonPayload());
-      // No " at <path>" suffix: the nominal path told the whole story.
-      expect(payload.archive.warnings.join('\n')).not.toContain('removed) at ');
+      // The retirement warning carries no resolved-path suffix: the nominal
+      // path told the whole story. Asserted on the path, not on message prose.
+      const retirement = payload.archive.warnings.find((w: string) =>
+        w.includes('capability retired')
+      );
+      expect(retirement).toBeDefined();
+      expect(retirement).not.toContain(tempDir);
     });
 
     it.skipIf(process.platform === 'win32')(
@@ -3464,6 +3453,114 @@ The system SHALL do the thing differently.
         await expect(fs.access(outside)).resolves.not.toThrow();
       }
     );
+
+    // The veto must not depend on WHERE the heading sits. Anything after the
+    // last `### Requirement:` belongs to that block's raw and is discarded with
+    // it, so reading the rebuilt body only ever saw headings above the first
+    // requirement - and silently deleted the identical heading written below.
+    it.each(['before', 'after'])(
+      'refuses to retire with a stray heading %s the requirement',
+      async (position) => {
+        const changeName = `retire-heading-${position}`;
+        await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+        const note = [
+          '### Migration notes (hand-written, keep)',
+          'Move consumers to v2 before deleting the shim.',
+        ].join('\n');
+        const body = position === 'before' ? `${note}\n\n${REQUIREMENT}` : `${REQUIREMENT}\n\n${note}`;
+        const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+        await fs.mkdir(mainSpecDir, { recursive: true });
+        await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainSpec('legacy-layer', body));
+
+        await archiveCommand.execute(changeName, { yes: true });
+
+        const survived = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+        expect(survived).toContain('### Migration notes');
+        expect(process.exitCode).toBe(1);
+      }
+    );
+
+    it.skipIf(process.platform === 'win32')(
+      'does not claim it deleted the target of a symlinked spec.md',
+      async () => {
+        // realpath follows the link; unlink removes the link and leaves the
+        // target alone. Naming the target would report a deletion that never
+        // happened.
+        const changeName = 'retire-symlinked-file';
+        await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+        const shared = path.join(tempDir, 'shared-legacy.md');
+        await fs.writeFile(shared, mainSpec('legacy-layer'));
+        const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+        await fs.mkdir(mainSpecDir, { recursive: true });
+        await fs.symlink(shared, path.join(mainSpecDir, 'spec.md'));
+
+        await archiveCommand.execute(changeName, { yes: true, json: true });
+
+        const warnings = JSON.parse(lastJsonPayload()).archive.warnings.join('\n');
+        expect(warnings).not.toContain(shared);
+        // The shared file really is still there.
+        await expect(fs.readFile(shared, 'utf-8')).resolves.toContain('### Requirement:');
+      }
+    );
+
+    it('still names every lost section when a fence holds an unterminated comment', async () => {
+      // Masking comments before fences let a `<!--` inside a fenced example be
+      // read as real syntax, blanking the rest of the file and truncating this
+      // very list.
+      const changeName = 'retire-fenced-comment';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(
+        path.join(mainSpecDir, 'spec.md'),
+        [
+          mainSpec('legacy-layer'),
+          '## Example markup',
+          '',
+          '```html',
+          '<!-- an unterminated comment example',
+          '```',
+          '',
+          '## Operational notes',
+          'Worth keeping.',
+          '',
+        ].join('\n')
+      );
+
+      await archiveCommand.execute(changeName, { yes: true, json: true });
+
+      const warnings = JSON.parse(lastJsonPayload()).archive.warnings.join('\n');
+      expect(warnings).toContain('Example markup');
+      expect(warnings).toContain('Operational notes');
+    });
+
+    it('reports a destination taken during the merge as a collision, not a raw errno', async () => {
+      // The pre-flight check cannot cover the whole merge, so the move itself
+      // has to name the same condition rather than leaking ENOTEMPTY.
+      const changeName = 'retire-raced';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainSpec('legacy-layer'));
+      const archived = path.join(
+        tempDir,
+        'openspec',
+        'changes',
+        'archive',
+        `${formatLocalDate()}-${changeName}`
+      );
+      // Claim the destination while the confirmation prompt is open.
+      const { confirm } = await import('@inquirer/prompts');
+      vi.mocked(confirm).mockImplementation(async () => {
+        await fs.mkdir(archived, { recursive: true });
+        await fs.writeFile(path.join(archived, 'squatter.txt'), 'mine now\n');
+        return true;
+      });
+
+      // Human mode: JSON mode never reaches the prompt, so the race cannot be
+      // staged there. The error carries the same diagnostic either way.
+      await expect(archiveCommand.execute(changeName, {})).rejects.toThrow(/already exists/);
+    });
 
     it('reports the retirement, and what it took, in the --json warnings', async () => {
       const changeName = 'retire-json-warnings';
