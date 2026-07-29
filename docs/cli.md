@@ -651,8 +651,8 @@ openspec archive update-ci-config --skip-specs
 
 1. Validates the change (unless `--no-validate`)
 2. Prompts for confirmation (unless `--yes`)
-3. Merges delta specs into `openspec/specs/` — a capability whose last requirement the change removes is retired, and its spec file deleted
-4. Moves change folder to `openspec/changes/archive/YYYY-MM-DD-<name>/`
+3. Merges delta specs into `openspec/specs/` — a capability whose last requirement the change removes is retired, and its spec file moved into the archived change rather than deleted
+4. Moves change folder to `openspec/changes/archive/YYYY-MM-DD-<name>/`, which is where a retired spec lands too: `retired-specs/<capability>/spec.md`
 
 ---
 

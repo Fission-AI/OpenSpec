@@ -107,18 +107,22 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
       **REMOVED Requirements:**
       - Remove the entire requirement block from main spec
-      - Retiring the capability. Delete the whole `spec.md` - and the directory once
-        nothing else is left in it - only when ALL of these hold:
+      - Retiring the capability. Move the whole `spec.md` to
+        `<planningHome.root>/openspec/changes/<change-id>/retired-specs/<capability>/spec.md`
+        - and remove its old directory once nothing else is left in it - only when
+        ALL of these hold:
         1. removing the requirements *this run* left `## Requirements` completely
            empty: no requirement blocks and no other `###` headings or prose under it;
         2. the rest of the spec is well-formed (it still has a `## Purpose`);
         3. the main spec was not already empty before this sync - if you removed
            nothing, change nothing.
-        Otherwise keep the file: report what is left and let the user decide. An
-        empty `## Requirements` fails `openspec validate`, so say so rather than
-        saving one silently. `openspec archive` draws exactly these lines.
-      - Deleting the file also deletes its `## Purpose` and every other section it
-        held. Name them when you report the retirement.
+        Otherwise keep the file where it is: report what is left and let the user
+        decide. An empty `## Requirements` fails `openspec validate`, so say so
+        rather than saving one silently. `openspec archive` draws exactly these
+        lines, and archiving the change carries `retired-specs/` along with it.
+      - Never delete the file. Moving it keeps its `## Purpose` and every other
+        section it held, recoverable from the archive. Name them, and the new path,
+        when you report the retirement.
 
       **RENAMED Requirements:**
       - Find the FROM requirement, rename to TO
@@ -141,8 +145,8 @@ This is an **agent-driven** operation - you will read delta specs and directly e
    - What changes were made (requirements added/modified/removed/renamed)
    - Any new main spec left with a TBD Purpose placeholder, so it gets written
      now rather than lingering
-   - Any capability retired, naming the `spec.md` you deleted and any other
-     sections it held, since deleting the file takes those with it
+   - Any capability retired, naming the `spec.md` you moved, where it went, and
+     any other sections that moved with it
 
 **Delta Spec Format Reference**
 

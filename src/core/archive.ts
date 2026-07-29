@@ -44,7 +44,7 @@ const ARCHIVE_DATE_PREFIX_PATTERN = /^\d{4}-\d{2}-\d{2}-/;
  * True when the ONLY thing wrong with a rebuilt spec is that it has no
  * requirements. That is the exact failure retiring a capability replaces
  * (#1302); anything else means the spec is broken in a way the author still has
- * to fix, so archive must abort exactly as it always did instead of deleting.
+ * to fix, so archive must abort exactly as it always did instead of retiring.
  *
  * Asking the validator - rather than counting requirement blocks a second time -
  * is what makes "this spec could not have been written anyway" true by
@@ -64,11 +64,38 @@ export async function isRetirableSpec(specName: string, rebuilt: string): Promis
 }
 
 /**
- * What this run should do with a rebuilt spec: write it as usual, delete the
- * capability's spec because the delta removed its last requirement (#1302), or
- * do nothing because there is no spec to write and none to delete.
+ * Folder inside a change directory that a retired capability's spec is staged
+ * into. The change directory is renamed onto the archive path, so this is where
+ * the spec ends up: `openspec/changes/archive/<archived-name>/retired-specs/`.
  */
-type SpecOutcome = 'write' | 'delete' | 'skip';
+const RETIRED_SPECS_DIR = 'retired-specs';
+
+/**
+ * Where a retired spec will live once the change is archived. Reported instead
+ * of the staging path under the still-active change directory, which stops
+ * existing the moment the change is renamed into the archive.
+ *
+ * Cross-root paths must be absolute when a store is selected, matching how
+ * every other path in the spec-merge output is reported.
+ */
+function retiredSpecDisplayPath(
+  root: ResolvedOpenSpecRoot,
+  archiveName: string,
+  specId: string
+): string {
+  const segments = [archiveName, RETIRED_SPECS_DIR, ...specId.split('/'), 'spec.md'];
+  if (isStoreSelectedRoot(root)) {
+    return path.join(root.archiveDir, ...segments);
+  }
+  return ['openspec', 'changes', 'archive', ...segments].join('/');
+}
+
+/**
+ * What this run should do with a rebuilt spec: write it as usual, retire the
+ * capability because the delta removed its last requirement (#1302), or do
+ * nothing because there is no spec to write and none to retire.
+ */
+type SpecOutcome = 'write' | 'retire' | 'skip';
 
 async function decideSpecOutcome(
   update: SpecUpdate,
@@ -77,12 +104,13 @@ async function decideSpecOutcome(
 ): Promise<SpecOutcome> {
   // Retirement is decided by the validator, never by a second opinion about
   // what counts as a requirement: the block parser sweeps some shapes the
-  // validator accepts into the preamble, so "no blocks left" alone would delete
+  // validator accepts into the preamble, so "no blocks left" alone would retire
   // specs that validate fine.
   //
   // Residual `###` headings veto it outright. The validator can be talked out of
   // seeing them - a stray `### Requirements` under Purpose captures its section
-  // lookup - but a reader cannot, and deleting the file would take them with it.
+  // lookup - but a reader cannot, and moving the file would take them out of the
+  // live specs tree with it.
   //
   // Under --no-validate there is no verdict to lean on, so nothing is retired:
   // the author opted out of the check that makes this safe, and the old
@@ -94,11 +122,11 @@ async function decideSpecOutcome(
     (await isRetirableSpec(update.id, built.rebuilt));
 
   if (!retirable) return 'write';
-  // Nothing on disk to write or delete: the capability is already retired.
+  // Nothing on disk to write or retire: the capability is already retired.
   if (!update.exists) return 'skip';
   // A spec that was already requirement-less and lost nothing this run is still
   // the author's to fix, so it takes the same abort it has always produced.
-  return built.counts.removed > 0 ? 'delete' : 'write';
+  return built.counts.removed > 0 ? 'retire' : 'write';
 }
 
 async function listActiveChangeNames(changesDir: string): Promise<string[]> {
@@ -499,7 +527,7 @@ export class ArchiveCommand {
     // Settle the archive destination BEFORE touching any spec. The name depends
     // only on the change, and a collision is routine (archiving twice in a day,
     // a restored change), so discovering it after the merge would leave specs
-    // rewritten - or a capability deleted - for an archive that never happened.
+    // rewritten - or a capability retired - for an archive that never happened.
     //
     // Names that already carry a date prefix keep it: re-prefixing would stutter
     // the name, and when the archive runs on a later day the folder would sort
@@ -508,6 +536,10 @@ export class ArchiveCommand {
       ? changeName
       : `${formatLocalDate()}-${changeName}`;
     const archivePath = path.join(archiveDir, archiveName);
+
+    // Retired specs are staged inside the change directory, which is renamed
+    // onto archivePath below, so they travel with the change for free.
+    const retiredSpecsStagingDir = path.join(changeDir, RETIRED_SPECS_DIR);
 
     let archiveExists = false;
     try {
@@ -648,42 +680,56 @@ export class ArchiveCommand {
             writeTotals.renamed += renamed;
           }
 
-          // Deletions run only after every write has succeeded - they are the
-          // one irreversible step, and the write loop is not transactional.
-          // Deleting several capabilities is still not atomic against itself: if
-          // a second deletion fails the first is already done, which the thrown
-          // message names so the state is at least legible.
+          // Retirements run only after every write has succeeded: they move a
+          // file out of the live specs tree, and the write loop is not
+          // transactional. Retiring several capabilities is still not atomic
+          // against itself - if a second move fails the first is already done,
+          // which the thrown message names so the state is at least legible.
+          //
+          // Staged inside the change directory, which is renamed onto the
+          // archive path a few steps below, so the retired spec rides along with
+          // the change that retired it and nothing is ever deleted.
           for (const p of prepared) {
-            if (p.outcome !== 'delete') continue;
-            const { deleted, retiredPath } = await retireSpec(p.update, mainSpecsDir, {
-              silent: json,
-              ...(isStoreSelectedRoot(root) ? { displayPath: p.update.target } : {}),
-            });
-            if (!deleted) continue;
+            if (p.outcome !== 'retire') continue;
+            const { retired, movedTo, sourcePath } = await retireSpec(
+              p.update,
+              mainSpecsDir,
+              retiredSpecsStagingDir,
+              {
+                silent: json,
+                ...(isStoreSelectedRoot(root) ? { displayPath: p.update.target } : {}),
+                // Named where it will live once the change is archived, not
+                // where it is staged: the staging path stops existing moments
+                // later, so printing it would send a reader to a dead path.
+                destDisplayPath: retiredSpecDisplayPath(root, archiveName, p.update.id),
+              }
+            );
+            if (!retired) continue;
             wroteAny = true;
-            // A rename applied on the way to the removal still happened; folding
-            // every count in keeps the totals honest about the whole delta.
+            // A rename applied on the way to the retirement still happened;
+            // folding every count in keeps the totals honest about the whole
+            // delta.
             writeTotals.added += p.counts.added;
             writeTotals.modified += p.counts.modified;
             writeTotals.removed += p.counts.removed;
             writeTotals.renamed += p.counts.renamed;
-            // Deleting a file is the one archive outcome a JSON consumer cannot
-            // infer from the totals, so it is recorded the way every other
-            // spec-merge divergence is. Purpose is always lost with the file, so
-            // it is named too rather than left to the reader to work out.
-            const lost = ['Purpose', ...p.otherSections];
+            // A spec leaving openspec/specs/ is the one archive outcome a JSON
+            // consumer cannot infer from the totals, so it is recorded the way
+            // every other spec-merge divergence is. Purpose always travels with
+            // the file, so it is named too rather than left to the reader.
+            const carried = ['Purpose', ...p.otherSections];
             const retirementNote =
-              `${p.update.id} - capability retired; deleted the main spec (all requirements removed)` +
-              (retiredPath ? ` at ${retiredPath}` : '') +
-              `. Its section(s) went with it: ${lost.join(', ')}.`;
+              `${p.update.id} - capability retired; moved the main spec to ${movedTo} ` +
+              `(all requirements removed)` +
+              (sourcePath ? `, from ${sourcePath}` : '') +
+              `. Its section(s) moved with it: ${carried.join(', ')}.`;
             specWarnings.push(retirementNote);
-            // The "Retiring ..." line already told a human the file is gone; the
-            // sections it took along are the part they cannot see.
+            // The "Retiring ..." line already said where the file went; the
+            // sections that travelled with it are the part a reader cannot see
+            // from the path alone.
             if (!json && p.otherSections.length > 0) {
               console.log(
-                chalk.yellow(
-                  `⚠️  Warning: ${p.update.id} - the deleted spec also held section(s): ${p.otherSections.join(', ')}.`
-                )
+                `   The retired spec also held section(s): ${p.otherSections.join(', ')}.`
               );
             }
           }

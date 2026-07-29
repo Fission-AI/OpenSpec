@@ -136,28 +136,36 @@ A delta whose REMOVED entries cover every requirement a capability has SHALL ret
 #### Scenario: Validation was skipped
 
 - **WHEN** the archive runs with validation disabled
-- **THEN** retire nothing, because no verdict was produced to justify a deletion
+- **THEN** retire nothing, because no verdict was produced to justify moving a spec out of the live tree
 - **AND** write the rebuilt spec exactly as an archive without this behavior would
 
 #### Scenario: Delta removes the capability's last requirement
 
 - **WHEN** a retirable rebuilt spec belongs to a capability whose main spec exists
 - **AND** at least one requirement was actually removed by this run
-- **THEN** delete the capability's `spec.md` instead of writing it
-- **AND** delete any directory the deletion leaves empty, resolving symlinks so nothing outside the real specs root is removed, and never the specs root itself
+- **THEN** move the capability's `spec.md` into the change being archived instead of writing it, so it comes to rest at `<archive>/retired-specs/<capability>/spec.md`
+- **AND** delete no spec content, leaving the file recoverable from the archive
+- **AND** remove any directory the move leaves empty, resolving symlinks so nothing outside the real specs root is removed, and never the specs root itself
 - **AND** count every operation the delta applied in the archive totals
-- **AND** record the retirement in the archive warnings, naming the sections the deleted file held, and the resolved path when a symlinked directory placed the file outside the specs tree
+- **AND** record the retirement in the archive warnings, naming where the spec moved to, the sections that moved with it, and the resolved path when a symlinked directory placed the file outside the specs tree
+
+#### Scenario: Retired spec is staged inside the change
+
+- **WHEN** moving a retired capability's `spec.md`
+- **THEN** stage it inside the change directory, which is renamed onto the archive path, so the spec travels with the change that retired it
+- **AND** refuse to overwrite a spec already staged there by an earlier aborted run of the same archive
+- **AND** copy the file's content, rather than the link, when the main spec is a symlink, leaving the link's target untouched
 
 #### Scenario: Retirement is deferred until every spec is written
 
 - **WHEN** an archive both retires one capability and updates another
-- **THEN** settle the archive destination before touching any spec, so a name collision cannot strand a deletion
-- **AND** perform the deletion only after every spec write has succeeded
+- **THEN** settle the archive destination before touching any spec, so a name collision cannot strand a retirement
+- **AND** perform the move only after every spec write has succeeded
 - **AND** report a destination claimed while the merge ran as the same collision, rather than as a raw filesystem error
 
 #### Scenario: Capability directory holds other files
 
-- **WHEN** retiring a capability whose directory still holds other files after `spec.md` is deleted
+- **WHEN** retiring a capability whose directory still holds other files after `spec.md` moves out
 - **THEN** leave that directory in place
 
 #### Scenario: Removal was already synced
@@ -166,10 +174,10 @@ A delta whose REMOVED entries cover every requirement a capability has SHALL ret
 - **THEN** leave the file untouched
 - **AND** abort the archive with the validation error, as for any other unwritable spec, unless validation was skipped
 
-#### Scenario: Main spec was already deleted
+#### Scenario: Main spec is already gone
 
 - **WHEN** a REMOVED-only delta targets a capability that has no main spec
-- **THEN** complete the archive without creating or deleting one
+- **THEN** complete the archive without creating or retiring one
 
 ### Requirement: Confirmation Behavior
 

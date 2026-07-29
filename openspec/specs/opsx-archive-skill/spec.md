@@ -78,7 +78,7 @@ The skill SHALL prompt to sync delta specs before archiving if specs exist.
 - **AND** if user cancels, stop without archiving
 - **AND** if user confirms, execute `/opsx:sync` logic inline and wait for it to complete
 - **AND** verify every capability that has a delta spec, not only those the sync reports it touched: ADDED requirements present, MODIFIED requirements carrying the changes named in the delta, REMOVED requirements absent, RENAMED requirements present under the new name and absent under the old one
-- **AND** treat a capability whose last requirement the sync removed as verified when its main spec was deleted rather than left empty, and a spec the sync deliberately kept and reported as verified too
+- **AND** treat a capability whose last requirement the sync removed as verified when its main spec was moved into the change's `retired-specs/` rather than left empty, and a spec the sync deliberately kept and reported as verified too
 - **AND** stop without archiving if the sync fails or any capability does not verify
 - **AND** archive only after verification passes, or when the user explicitly chose to archive without syncing or to archive already-synced specs
 

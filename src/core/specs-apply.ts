@@ -106,8 +106,8 @@ export async function buildUpdatedSpec(
   residualRequirementHeadings: string[];
   /**
    * Authored `## ` sections other than Purpose and Requirements. Retirement
-   * deletes the whole file, so callers name these in a warning rather than
-   * discarding hand-written prose silently.
+   * moves the whole file out of the live specs tree, so callers name these when
+   * reporting where the hand-written prose went.
    */
   otherSections: string[];
 }> {
@@ -508,7 +508,7 @@ function findHeadings(content: string, pattern: RegExp): string[] {
 
 /**
  * Authored `## ` headings other than Purpose and Requirements. Named so a
- * retirement can say what it is deleting along with the spec, so duplicates are
+ * retirement can say what moved along with the spec, so duplicates are
  * collapsed - this list is read as prose, not as a count.
  */
 function findOtherSections(content: string): string[] {
@@ -519,19 +519,35 @@ function findOtherSections(content: string): string[] {
 }
 
 /**
- * Retire a capability whose last requirement a delta removed: delete its main
- * spec and any directories the deletion leaves empty. Returns false when there
- * was nothing to delete.
+ * Retire a capability whose last requirement a delta removed: move its main
+ * spec out of the live specs tree and into the change that retired it, then
+ * prune any directories the move leaves empty. Returns false when there was
+ * nothing to move.
  *
- * Only the generated `spec.md` is removed - a directory holding anything else
- * (a nested capability, a hand-kept note) is left in place.
+ * Nothing is deleted. `destDir` is a folder inside the change directory, which
+ * the archive step renames into `openspec/changes/archive/<archived-name>/`
+ * moments later, so the retired spec lands beside the proposal and tasks that
+ * retired it and `git` records the whole thing as a rename. Recovering a
+ * capability archived by mistake is a `git mv` back, not a trip through the
+ * reflog.
  *
- * The unlink is deliberately NOT bounded to the specs root: it targets exactly
+ * Staged into the change directory rather than written straight to the archive
+ * path on purpose: the archive path must not exist yet (the change directory is
+ * renamed onto it), and staging keeps the ordering safe. If any later step
+ * fails, the spec is sitting in a change that is still active, so a rerun
+ * carries it through - versus writing into the archive after the move, where a
+ * failure would strand the live specs tree without a spec it still needs.
+ *
+ * Only the generated `spec.md` moves - a directory holding anything else (a
+ * nested capability, a hand-kept note) is left in place.
+ *
+ * The move is deliberately NOT bounded to the specs root: it targets exactly
  * the path a write would have written to, so a symlinked capability directory
- * resolves the same way for both. That does mean a symlinked directory lets the
- * unlink reach a file outside the repository, which `retiredPath` surfaces so the
- * report never hides where the file really was. A symlinked `spec.md` itself
- * loses the link and leaves its target alone.
+ * resolves the same way for both. `sourcePath` surfaces where the file really
+ * lived when a symlink points out of the tree, so the report never hides it. A
+ * symlinked `spec.md` is copied by content and its link removed, leaving the
+ * link's target alone: moving the link itself would archive a symlink whose
+ * relative path no longer resolves from where it landed.
  *
  * Directory pruning IS bounded, by REAL paths rather than string prefixes:
  * `path.resolve` collapses `..` but does not resolve symlinks, and `readdir` and
@@ -541,30 +557,65 @@ function findOtherSections(content: string): string[] {
 export async function retireSpec(
   update: SpecUpdate,
   mainSpecsDir: string,
-  options: { silent?: boolean; displayPath?: string } = {}
-): Promise<{ deleted: boolean; retiredPath?: string }> {
-  // Resolved before the unlink, while the link still exists, so the report can
-  // name the file that actually goes when a symlink points out of the tree.
-  // A symlinked `spec.md` is excluded: `realpath` would follow it, but `unlink`
-  // removes the link and leaves the target alone, so naming the target would
-  // claim a file was deleted that is still there.
-  let realTarget: string | undefined;
+  destDir: string,
+  options: { silent?: boolean; displayPath?: string; destDisplayPath?: string } = {}
+): Promise<{ retired: boolean; movedTo?: string; sourcePath?: string }> {
+  // Resolved before the move, while the link still exists, so the report can
+  // name the file that actually left when a symlink points out of the tree.
+  // A symlinked `spec.md` is excluded: `realpath` would follow it to a file
+  // this function copies from and then leaves alone, so naming that target
+  // would claim a file moved that is still exactly where it was.
+  let isSymlink = false;
+  let realSource: string | undefined;
   try {
     const link = await fs.lstat(update.target);
-    realTarget = link.isSymbolicLink() ? undefined : await fs.realpath(update.target);
-  } catch {
-    realTarget = undefined;
+    isSymlink = link.isSymbolicLink();
+    realSource = isSymlink ? undefined : await fs.realpath(update.target);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { retired: false };
+    realSource = undefined;
   }
 
+  const dest = path.join(destDir, ...update.id.split('/'), 'spec.md');
+
   try {
-    await fs.unlink(update.target);
+    await fs.mkdir(path.dirname(dest), { recursive: true });
+    // Never overwrite: a spec already sitting here is one an earlier, aborted
+    // run of this same archive moved, and clobbering it would destroy the very
+    // copy this whole path exists to preserve.
+    let destTaken = false;
+    try {
+      await fs.access(dest);
+      destTaken = true;
+    } catch {}
+    if (destTaken) {
+      throw new Error(`${dest} already exists`);
+    }
+
+    if (isSymlink) {
+      // Copy the content, then drop the link. `rename` would move the link and
+      // leave a relative path pointing somewhere else once archived.
+      await fs.copyFile(update.target, dest);
+      await fs.unlink(update.target);
+    } else {
+      try {
+        await fs.rename(update.target, dest);
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        // Different filesystem (EXDEV) or Windows holding the file (EPERM):
+        // same fallback the change-directory move uses.
+        if (code !== 'EXDEV' && code !== 'EPERM') throw error;
+        await fs.copyFile(update.target, dest);
+        await fs.unlink(update.target);
+      }
+    }
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { deleted: false };
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { retired: false };
     // A bare errno here reads as an internal failure; say what was being
     // attempted so the message is actionable on its own.
     throw new Error(
-      `Could not retire capability '${update.id}': failed to delete ${update.target} ` +
-        `(${(error as Error).message}). Remove it by hand, then rerun the archive.`
+      `Could not retire capability '${update.id}': failed to move ${update.target} to ${dest} ` +
+        `(${(error as Error).message}). Move it by hand, then rerun the archive.`
     );
   }
 
@@ -575,12 +626,19 @@ export async function retireSpec(
   // is the thing the nominal path hides. Comparing the resolved target against
   // the merely-resolved one would fire on any canonicalization difference - the
   // platform's own `/var` -> `/private/var` link is enough - and say nothing.
-  const escaped = realTarget !== undefined && !(await isInsideRealDir(realTarget, mainSpecsDir));
-  const resolvedNote = escaped ? ` (resolved to ${realTarget})` : '';
+  const escaped = realSource !== undefined && !(await isInsideRealDir(realSource, mainSpecsDir));
+  const resolvedNote = escaped ? ` (resolved to ${realSource})` : '';
+  const destDisplay = options.destDisplayPath ?? dest;
   if (!options.silent) {
-    console.log(`Retiring ${nominal}${resolvedNote}: all requirements removed.`);
+    console.log(
+      `Retiring ${nominal}${resolvedNote}: all requirements removed. Moved to ${destDisplay}.`
+    );
   }
-  return { deleted: true, ...(resolvedNote ? { retiredPath: realTarget } : {}) };
+  return {
+    retired: true,
+    movedTo: destDisplay,
+    ...(resolvedNote ? { sourcePath: realSource } : {}),
+  };
 }
 
 /** Whether `realPath` (already canonical) sits under the real `dir`. */

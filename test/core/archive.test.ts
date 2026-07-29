@@ -2834,16 +2834,34 @@ The system SHALL do the thing differently.
 
       await archiveCommand.execute(changeName, { yes: true });
 
-      // The spec and the directory it was alone in are gone...
+      // The spec and the directory it was alone in are gone from the live tree...
       await expect(fs.access(mainSpecDir)).rejects.toThrow();
       // ...but the specs root itself is never pruned.
       await expect(
         fs.access(path.join(tempDir, 'openspec', 'specs'))
       ).resolves.not.toThrow();
+      // Nothing was deleted: the spec rode into the archive with its change,
+      // byte for byte, so recovering the capability is a `git mv` back.
+      const retired = path.join(
+        tempDir,
+        'openspec',
+        'changes',
+        'archive',
+        `${formatLocalDate()}-${changeName}`,
+        'retired-specs',
+        'legacy-layer',
+        'spec.md'
+      );
+      await expect(fs.readFile(retired, 'utf-8')).resolves.toBe(mainSpec('legacy-layer'));
       // The archive completed rather than aborting.
       expect(process.exitCode).not.toBe(1);
       expect(console.log).toHaveBeenCalledWith(
         expect.stringContaining('Retiring openspec/specs/legacy-layer/spec.md')
+      );
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining(
+          `Moved to openspec/changes/archive/${formatLocalDate()}-${changeName}/retired-specs/legacy-layer/spec.md`
+        )
       );
       expect(console.log).toHaveBeenCalledWith(
         expect.stringContaining('Totals: + 0, ~ 0, - 1, → 0')
@@ -3153,7 +3171,7 @@ The system SHALL do the thing differently.
       );
     });
 
-    it('names the sections a retirement deletes along with the spec', async () => {
+    it('names the sections that moved with a retired spec', async () => {
       const changeName = 'retire-with-sections';
       await createChange(changeName, 'legacy-layer', REMOVE_ALL);
       const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
@@ -3166,11 +3184,27 @@ The system SHALL do the thing differently.
       await archiveCommand.execute(changeName, { yes: true });
 
       expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('the deleted spec also held section(s): Why These Decisions')
+        expect.stringContaining('The retired spec also held section(s): Why These Decisions')
       );
+      // Those sections are not lost - they moved with the file.
+      const retired = await fs.readFile(
+        path.join(
+          tempDir,
+          'openspec',
+          'changes',
+          'archive',
+          `${formatLocalDate()}-${changeName}`,
+          'retired-specs',
+          'legacy-layer',
+          'spec.md'
+        ),
+        'utf-8'
+      );
+      expect(retired).toContain('## Why These Decisions');
+      expect(retired).toContain(PURPOSE);
     });
 
-    it('deletes nothing when the user declines the spec update', async () => {
+    it('moves nothing when the user declines the spec update', async () => {
       const { confirm } = await import('@inquirer/prompts');
       vi.mocked(confirm).mockResolvedValue(false);
       const changeName = 'retire-declined';
@@ -3185,8 +3219,8 @@ The system SHALL do the thing differently.
       await expect(fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8')).resolves.toBe(original);
     });
 
-    it('reports nothing to delete when the spec vanished before the write', async () => {
-      // Guards the `if (deleted)` branch: a racing deletion must not be counted
+    it('reports nothing to retire when the spec vanished before the write', async () => {
+      // Guards the `if (retired)` branch: a racing deletion must not be counted
       // as a retirement this run.
       const update = {
         id: 'legacy-layer',
@@ -3196,15 +3230,53 @@ The system SHALL do the thing differently.
       };
 
       await expect(
-        retireSpec(update, path.join(tempDir, 'openspec', 'specs'))
-      ).resolves.toEqual({ deleted: false });
+        retireSpec(
+          update,
+          path.join(tempDir, 'openspec', 'specs'),
+          path.join(tempDir, 'retired')
+        )
+      ).resolves.toEqual({ retired: false });
       expect(console.log).not.toHaveBeenCalledWith(expect.stringContaining('Retiring'));
+    });
+
+    it('refuses to overwrite a spec an earlier aborted run already staged', async () => {
+      // The staged copy is the only copy once the live one is moved, so
+      // clobbering it would destroy the thing this whole path preserves.
+      const capability = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(capability, { recursive: true });
+      await fs.writeFile(path.join(capability, 'spec.md'), mainSpec('legacy-layer'));
+      const staging = path.join(tempDir, 'retired');
+      await fs.mkdir(path.join(staging, 'legacy-layer'), { recursive: true });
+      await fs.writeFile(
+        path.join(staging, 'legacy-layer', 'spec.md'),
+        'staged by an earlier run\n'
+      );
+
+      await expect(
+        retireSpec(
+          {
+            id: 'legacy-layer',
+            source: 'x',
+            target: path.join(capability, 'spec.md'),
+            exists: true,
+          },
+          path.join(tempDir, 'openspec', 'specs'),
+          staging,
+          { silent: true }
+        )
+      ).rejects.toThrow(/already exists/);
+
+      // Both copies survive.
+      await expect(
+        fs.readFile(path.join(staging, 'legacy-layer', 'spec.md'), 'utf-8')
+      ).resolves.toBe('staged by an earlier run\n');
+      await expect(fs.access(path.join(capability, 'spec.md'))).resolves.not.toThrow();
     });
 
     // The archive destination is settled from the change name alone, so a
     // collision is knowable before anything is touched. Discovering it after the
-    // merge deleted a spec for an archive that then never happened.
-    it('checks the archive destination before deleting anything', async () => {
+    // merge moved a spec out for an archive that then never happened.
+    it('checks the archive destination before moving anything', async () => {
       const changeName = 'retire-colliding';
       await createChange(changeName, 'legacy-layer', REMOVE_ALL);
       const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
@@ -3291,9 +3363,10 @@ The system SHALL do the thing differently.
         retireSpec(
           { id: 'legacy-layer', source: 'x', target: path.join(sibling, 'spec.md'), exists: true },
           specsRoot,
+          path.join(tempDir, 'retired'),
           { silent: true }
         )
-      ).resolves.toMatchObject({ deleted: true });
+      ).resolves.toMatchObject({ retired: true });
 
       await expect(fs.access(sibling)).resolves.not.toThrow();
       await expect(
@@ -3319,6 +3392,7 @@ The system SHALL do the thing differently.
             exists: true,
           },
           linkedRoot,
+          path.join(tempDir, 'retired'),
           { silent: true }
         );
 
@@ -3568,7 +3642,7 @@ The system SHALL do the thing differently.
       await expect(archiveCommand.execute(changeName, {})).rejects.toThrow(/already exists/);
     });
 
-    it('reports the retirement, and what it took, in the --json warnings', async () => {
+    it('reports the retirement, and where it went, in the --json warnings', async () => {
       const changeName = 'retire-json-warnings';
       await createChange(changeName, 'legacy-layer', REMOVE_ALL);
       const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
@@ -3583,10 +3657,13 @@ The system SHALL do the thing differently.
       const payload = JSON.parse(lastJsonPayload());
       expect(payload.archive.warnings).toEqual(
         expect.arrayContaining([
-          expect.stringContaining('legacy-layer - capability retired; deleted the main spec'),
+          expect.stringContaining(
+            'legacy-layer - capability retired; moved the main spec to ' +
+              `openspec/changes/archive/${formatLocalDate()}-${changeName}/retired-specs/legacy-layer/spec.md`
+          ),
         ])
       );
-      // Purpose always goes with the file, so it is named alongside the rest.
+      // Purpose always travels with the file, so it is named alongside the rest.
       expect(payload.archive.warnings.join('\n')).toContain('Purpose, Why These Decisions');
     });
 
