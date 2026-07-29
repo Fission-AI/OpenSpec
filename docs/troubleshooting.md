@@ -98,7 +98,7 @@ Common causes are a missing required section (like a spec with no scenarios) or 
 
 One message deserves its own note:
 
-```
+```text
 MODIFIED "<requirement>" omits scenario(s) the current spec still has: "<scenario>"
 ```
 
