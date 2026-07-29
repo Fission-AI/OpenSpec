@@ -2907,23 +2907,38 @@ This change exists to document greeting behavior thoroughly for the team, which 
       });
     });
 
-    it('shell-quotes a change name that would not paste back as one argument', async () => {
+    it('quotes a change name that would not paste back as one argument', async () => {
       const { confirm } = await import('@inquirer/prompts');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
-      mockConfirm.mockRejectedValueOnce(exitPromptError());
+      mockConfirm.mockRejectedValue(exitPromptError());
 
       // Archive resolves a change by stat-ing its directory, so the name is
       // whatever the directory is called.
-      const changeName = 'my change';
-      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
-      await fs.mkdir(changeDir, { recursive: true });
-      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [ ] Task 1\n');
+      async function fixFor(changeName: string): Promise<string> {
+        const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+        await fs.mkdir(changeDir, { recursive: true });
+        await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [ ] Task 1\n');
+        const error = await archiveCommand.execute(changeName).catch((err) => err);
+        return error.diagnostic.fix;
+      }
 
-      await expect(archiveCommand.execute(changeName)).rejects.toMatchObject({
-        diagnostic: {
-          fix: "Complete the tasks or rerun with openspec archive 'my change' --yes",
-        },
-      });
+      // Double quotes are the one form bash, zsh, PowerShell and cmd.exe all
+      // read the same way.
+      expect(await fixFor('my change')).toBe(
+        'Complete the tasks or rerun with openspec archive "my change" --yes'
+      );
+
+      // A name with no portable spelling names the placeholder rather than
+      // emitting a command that would expand.
+      expect(await fixFor('x$(id)y')).toBe(
+        'Complete the tasks or rerun with openspec archive <change-name> --yes'
+      );
+
+      // A leading dash is read as an option however it is quoted, so it goes
+      // behind the `--` that ends option parsing.
+      expect(await fixFor('--force')).toBe(
+        'Complete the tasks or rerun with openspec archive --yes -- --force'
+      );
     });
 
     it('rethrows a prompt failure that is not about a missing answer', async () => {
@@ -2987,39 +3002,48 @@ This change exists to document greeting behavior thoroughly for the team, which 
       expect(console.log).not.toHaveBeenCalledWith('No change selected. Aborting.');
     });
 
-    it('still treats a cancelled prompt at a real terminal as a cancellation', async () => {
-      setStdinIsTty(true);
-
+    it('carries the caller\'s flags into the change-name request too', async () => {
       const { select } = await import('@inquirer/prompts');
       const mockSelect = select as unknown as ReturnType<typeof vi.fn>;
-      const cancelled = new Error('User force closed the prompt with SIGINT');
-      cancelled.name = 'ExitPromptError';
-      mockSelect.mockRejectedValueOnce(cancelled);
+      mockSelect.mockRejectedValueOnce(exitPromptError());
 
       await fs.mkdir(path.join(tempDir, 'openspec', 'changes', 'some-change'), {
         recursive: true,
       });
 
-      await expect(archiveCommand.execute(undefined, { yes: true })).resolves.toBeUndefined();
-      expect(console.log).toHaveBeenCalledWith('No change selected. Aborting.');
+      await expect(
+        archiveCommand.execute(undefined, { skipSpecs: true })
+      ).rejects.toMatchObject({
+        diagnostic: { fix: 'openspec archive <change-name> --skip-specs --yes' },
+      });
     });
 
-    it('treats Ctrl-C as a cancellation even when stdin is a pipe', async () => {
-      // A script started from a terminal has a piped stdin, and SIGINT still
-      // reaches it. Reading that as "nobody was there" would tell a user who
-      // deliberately quit to rerun with --yes.
-      const { select } = await import('@inquirer/prompts');
-      const mockSelect = select as unknown as ReturnType<typeof vi.fn>;
-      const cancelled = new Error('User force closed the prompt with SIGINT');
-      cancelled.name = 'ExitPromptError';
-      mockSelect.mockRejectedValueOnce(cancelled);
+    it('leaves a prompt that failed at a usable terminal alone', async () => {
+      // The terminal is what proves an answer was possible. Losing that leg
+      // would relabel a failure a human could have answered.
+      setStdinIsTty(true);
+      const originalCi = process.env.CI;
+      const originalOpenSpecInteractive = process.env.OPEN_SPEC_INTERACTIVE;
+      delete process.env.CI;
+      delete process.env.OPEN_SPEC_INTERACTIVE;
 
-      await fs.mkdir(path.join(tempDir, 'openspec', 'changes', 'some-change'), {
-        recursive: true,
-      });
+      try {
+        const { select } = await import('@inquirer/prompts');
+        const mockSelect = select as unknown as ReturnType<typeof vi.fn>;
+        mockSelect.mockRejectedValueOnce(exitPromptError());
 
-      await expect(archiveCommand.execute(undefined, { yes: true })).resolves.toBeUndefined();
-      expect(console.log).toHaveBeenCalledWith('No change selected. Aborting.');
+        await fs.mkdir(path.join(tempDir, 'openspec', 'changes', 'some-change'), {
+          recursive: true,
+        });
+
+        await expect(archiveCommand.execute(undefined, { yes: true })).resolves.toBeUndefined();
+        expect(console.log).toHaveBeenCalledWith('No change selected. Aborting.');
+      } finally {
+        if (originalCi === undefined) delete process.env.CI;
+        else process.env.CI = originalCi;
+        if (originalOpenSpecInteractive === undefined) delete process.env.OPEN_SPEC_INTERACTIVE;
+        else process.env.OPEN_SPEC_INTERACTIVE = originalOpenSpecInteractive;
+      }
     });
 
     it('reports guidance when a runner allocated a terminal but declared CI', async () => {

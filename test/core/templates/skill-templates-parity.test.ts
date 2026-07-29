@@ -584,22 +584,33 @@ describe('skill templates split parity', () => {
   // generated file matches its source, never that the source is right, so
   // pin the flag itself.
   it('passes --yes wherever it tells an agent to run openspec archive (#1479)', () => {
-    const variants: Array<[string, string]> = [
-      ['openspec-onboard', getOnboardSkillTemplate().instructions],
-      ['opsx-onboard', getOpsxOnboardCommandTemplate().content],
+    // Sweep the whole corpus, not just the one template that has such an
+    // invocation today: the point is to catch the next one.
+    const corpus: Array<[string, string]> = [
+      ...getSkillTemplates().map(
+        ({ dirName, template }) => [dirName, template.instructions] as [string, string]
+      ),
+      ...getCommandContents().map((entry) => [entry.id, entry.body] as [string, string]),
     ];
 
-    for (const [id, text] of variants) {
+    let total = 0;
+    for (const [id, text] of corpus) {
       // Only runnable invocations count: prose that merely names the command
-      // ("same rule as `openspec archive`") has nothing to confirm.
-      // The optional tail matters: a regressed bare `openspec archive` line
-      // would slip past a pattern that demands arguments.
-      const invocations = text.match(/^openspec archive(?:\s.*)?$/gm) ?? [];
-      expect(invocations.length, id).toBeGreaterThan(0);
+      // ("same rule as `openspec archive`") has nothing to confirm. Leading
+      // whitespace is allowed so an indented one (a list item, a nested
+      // fence) cannot hide, and the optional tail catches a regression to a
+      // bare `openspec archive`, which blocks an agent exactly as #1479
+      // describes.
+      const invocations = text.match(/^[ \t]*openspec archive(?:\s.*)?$/gm) ?? [];
+      total += invocations.length;
       for (const invocation of invocations) {
-        expect(invocation, id).toContain('--yes');
+        expect(invocation.trim(), id).toContain('--yes');
       }
     }
+
+    // Guards the guard: if the corpus stops containing any invocation, the
+    // loop above would pass vacuously.
+    expect(total).toBeGreaterThan(0);
   });
 
   // Covers both archive paths, not just the bulk one the fix targeted: the

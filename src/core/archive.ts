@@ -100,33 +100,51 @@ class ArchiveBlockedError extends Error {
 }
 
 /**
- * Shell-quotes a change name for a `Fix:` line the reader is meant to paste.
+ * Quotes a change name for a `Fix:` line the reader is meant to paste.
  * Archive resolves a change by stat-ing its directory, so the name is
  * whatever the directory is called - including names with spaces or shell
  * metacharacters, which pasted unquoted would run as a second command.
+ *
+ * Double quotes are the one form bash, zsh, PowerShell and cmd.exe all read
+ * the same way, so a POSIX-only `'...'` would be wrong on Windows. Characters
+ * that stay inert inside double quotes in every one of those shells are the
+ * limit of what can be quoted portably; a name containing anything else has
+ * no portable spelling, so the placeholder is named instead of emitting a
+ * command that might expand to something the reader did not intend.
  */
 function quoteChangeName(name: string): string {
   if (/^[A-Za-z0-9._-]+$/.test(name)) return name;
-  return `'${name.replace(/'/g, `'\\''`)}'`;
+  if (!/["\\$`\r\n]/.test(name)) return `"${name}"`;
+  return '<change-name>';
 }
 
 /**
- * Builds the rerun a blocked archive should suggest. It carries the flags the
- * caller already passed, because suggesting a bare `--yes` rerun for
+ * Builds the flags a blocked archive's suggested rerun has to reproduce. The
+ * caller's own flags are carried, because suggesting a bare `--yes` rerun for
  * `archive x --skip-specs` would merge deltas into the main specs - the exact
  * thing `--skip-specs` was passed to prevent.
  */
+function rerunFlags(options: ArchiveOptions): string[] {
+  return [
+    ...(options.skipSpecs ? ['--skip-specs'] : []),
+    ...(options.validate === false || options.noValidate === true ? ['--no-validate'] : []),
+    '--yes',
+  ];
+}
+
 function rerunCommand(
   root: ResolvedOpenSpecRoot,
   changeName: string,
   options: ArchiveOptions
 ): string {
-  const flags = [
-    ...(options.skipSpecs ? ['--skip-specs'] : []),
-    ...(options.validate === false || options.noValidate === true ? ['--no-validate'] : []),
-    '--yes',
-  ];
-  return withStoreFlag(root, `openspec archive ${quoteChangeName(changeName)} ${flags.join(' ')}`);
+  const flags = rerunFlags(options).join(' ');
+  // A name starting with a dash is read as an option wherever it sits, so it
+  // goes last, behind the `--` that ends option parsing. The store flag has
+  // to stay in front of that `--` to still be read as an option.
+  if (changeName.startsWith('-')) {
+    return `${withStoreFlag(root, `openspec archive ${flags}`)} -- ${quoteChangeName(changeName)}`;
+  }
+  return withStoreFlag(root, `openspec archive ${quoteChangeName(changeName)} ${flags}`);
 }
 
 /**
@@ -276,7 +294,7 @@ export class ArchiveCommand {
           withStoreFlag(root, 'openspec archive <change-name> --json')
         );
       }
-      const selectedChange = await this.selectChange(changesDir, root);
+      const selectedChange = await this.selectChange(changesDir, root, options);
       if (!selectedChange) {
         console.log('No change selected. Aborting.');
         return null;
@@ -673,7 +691,8 @@ export class ArchiveCommand {
 
   private async selectChange(
     changesDir: string,
-    root: ResolvedOpenSpecRoot
+    root: ResolvedOpenSpecRoot,
+    options: ArchiveOptions
   ): Promise<string | null> {
     const { select } = await import('@inquirer/prompts');
     const changeDirs = await listActiveChangeNames(changesDir);
@@ -712,12 +731,14 @@ export class ArchiveCommand {
       // Nobody to pick from the list: reporting "No change selected" and
       // exiting 0 told an agent the archive had succeeded when nothing
       // happened (#1479). The suggested rerun carries --yes because the same
-      // caller cannot answer the confirmations further down either.
+      // caller cannot answer the confirmations further down either, and the
+      // caller's own flags because dropping --skip-specs here would suggest a
+      // rerun that merges the specs it was passed to leave alone.
       if (isNonInteractivePromptError(error)) {
         throw new ArchiveBlockedError(
           'archive_change_name_required',
           'A change name is required: no answer could be read from stdin.',
-          withStoreFlag(root, 'openspec archive <change-name> --yes')
+          withStoreFlag(root, `openspec archive <change-name> ${rerunFlags(options).join(' ')}`)
         );
       }
       // User cancelled (Ctrl+C)
