@@ -2842,7 +2842,7 @@ This change exists to document greeting behavior thoroughly for the team, which 
       const changeDir = await createChangeWithDeltaSpec(changeName);
 
       await expect(archiveCommand.execute(changeName)).rejects.toMatchObject({
-        message: expect.stringContaining('this terminal is not interactive'),
+        message: 'Updating 1 spec(s) requires confirmation, and no answer could be read from stdin.',
         diagnostic: {
           code: 'archive_confirmation_required',
           fix: `openspec archive ${changeName} --yes`,
@@ -2867,12 +2867,82 @@ This change exists to document greeting behavior thoroughly for the team, which 
       await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [ ] Task 1\n');
 
       await expect(archiveCommand.execute(changeName)).rejects.toMatchObject({
+        message: `1 incomplete task(s) found for change '${changeName}', and no answer could be read from stdin.`,
         diagnostic: {
           code: 'archive_tasks_incomplete',
-          fix: expect.stringContaining(`openspec archive ${changeName} --yes`),
+          fix: `Complete the tasks or rerun with openspec archive ${changeName} --yes`,
         },
       });
       await expect(fs.access(changeDir)).resolves.not.toThrow();
+    });
+
+    it('carries the flags the caller already passed into the suggested rerun', async () => {
+      // Suggesting a bare `--yes` rerun for `archive x --skip-specs` would
+      // merge deltas into the main specs - the exact thing --skip-specs was
+      // passed to prevent.
+      const { confirm } = await import('@inquirer/prompts');
+      const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
+      mockConfirm.mockRejectedValue(exitPromptError());
+
+      const changeName = 'non-interactive-flags';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [ ] Task 1\n');
+
+      await expect(
+        archiveCommand.execute(changeName, { skipSpecs: true })
+      ).rejects.toMatchObject({
+        diagnostic: {
+          fix: `Complete the tasks or rerun with openspec archive ${changeName} --skip-specs --yes`,
+        },
+      });
+
+      // Flags compose: the rerun has to reproduce the whole invocation.
+      await expect(
+        archiveCommand.execute(changeName, { skipSpecs: true, noValidate: true })
+      ).rejects.toMatchObject({
+        diagnostic: {
+          fix: `openspec archive ${changeName} --skip-specs --no-validate --yes`,
+        },
+      });
+    });
+
+    it('shell-quotes a change name that would not paste back as one argument', async () => {
+      const { confirm } = await import('@inquirer/prompts');
+      const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
+      mockConfirm.mockRejectedValueOnce(exitPromptError());
+
+      // Archive resolves a change by stat-ing its directory, so the name is
+      // whatever the directory is called.
+      const changeName = 'my change';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [ ] Task 1\n');
+
+      await expect(archiveCommand.execute(changeName)).rejects.toMatchObject({
+        diagnostic: {
+          fix: "Complete the tasks or rerun with openspec archive 'my change' --yes",
+        },
+      });
+    });
+
+    it('rethrows a prompt failure that is not about a missing answer', async () => {
+      // Only the "nobody could answer" failure earns the guidance. Anything
+      // else - an IO error, a bug in a future prompt refactor - must surface
+      // as itself rather than be relabelled "rerun with --yes".
+      const { confirm } = await import('@inquirer/prompts');
+      const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
+      mockConfirm.mockRejectedValueOnce(new Error('EACCES: permission denied'));
+
+      const changeName = 'non-interactive-io-error';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [ ] Task 1\n');
+
+      const error = await archiveCommand.execute(changeName).catch((err) => err);
+      expect(error).toBeInstanceOf(Error);
+      expect(error.message).toBe('EACCES: permission denied');
+      expect(error).not.toHaveProperty('diagnostic');
     });
 
     it('names the flag when the skip-validation confirmation cannot be answered', async () => {
@@ -2888,6 +2958,7 @@ This change exists to document greeting behavior thoroughly for the team, which 
       await expect(
         archiveCommand.execute(changeName, { noValidate: true })
       ).rejects.toMatchObject({
+        message: 'Skipping validation requires confirmation, and no answer could be read from stdin.',
         diagnostic: {
           code: 'archive_confirmation_required',
           fix: `openspec archive ${changeName} --no-validate --yes`,
@@ -2908,7 +2979,9 @@ This change exists to document greeting behavior thoroughly for the team, which 
       await expect(archiveCommand.execute(undefined, { yes: true })).rejects.toMatchObject({
         diagnostic: {
           code: 'archive_change_name_required',
-          fix: 'openspec archive <change-name>',
+          // --yes because the same caller cannot answer the confirmations
+          // waiting further down either.
+          fix: 'openspec archive <change-name> --yes',
         },
       });
       expect(console.log).not.toHaveBeenCalledWith('No change selected. Aborting.');
@@ -2929,6 +3002,50 @@ This change exists to document greeting behavior thoroughly for the team, which 
 
       await expect(archiveCommand.execute(undefined, { yes: true })).resolves.toBeUndefined();
       expect(console.log).toHaveBeenCalledWith('No change selected. Aborting.');
+    });
+
+    it('treats Ctrl-C as a cancellation even when stdin is a pipe', async () => {
+      // A script started from a terminal has a piped stdin, and SIGINT still
+      // reaches it. Reading that as "nobody was there" would tell a user who
+      // deliberately quit to rerun with --yes.
+      const { select } = await import('@inquirer/prompts');
+      const mockSelect = select as unknown as ReturnType<typeof vi.fn>;
+      const cancelled = new Error('User force closed the prompt with SIGINT');
+      cancelled.name = 'ExitPromptError';
+      mockSelect.mockRejectedValueOnce(cancelled);
+
+      await fs.mkdir(path.join(tempDir, 'openspec', 'changes', 'some-change'), {
+        recursive: true,
+      });
+
+      await expect(archiveCommand.execute(undefined, { yes: true })).resolves.toBeUndefined();
+      expect(console.log).toHaveBeenCalledWith('No change selected. Aborting.');
+    });
+
+    it('reports guidance when a runner allocated a terminal but declared CI', async () => {
+      // isInteractive() treats CI as authoritative, so a pty-allocating CI
+      // job must get the guidance rather than the raw @inquirer failure.
+      setStdinIsTty(true);
+      const originalCi = process.env.CI;
+      process.env.CI = 'true';
+
+      try {
+        const { confirm } = await import('@inquirer/prompts');
+        const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
+        mockConfirm.mockRejectedValueOnce(exitPromptError());
+
+        const changeName = 'non-interactive-ci-pty';
+        const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+        await fs.mkdir(changeDir, { recursive: true });
+        await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [ ] Task 1\n');
+
+        await expect(archiveCommand.execute(changeName)).rejects.toMatchObject({
+          diagnostic: { code: 'archive_tasks_incomplete' },
+        });
+      } finally {
+        if (originalCi === undefined) delete process.env.CI;
+        else process.env.CI = originalCi;
+      }
     });
 
     it('leaves JSON mode untouched', async () => {

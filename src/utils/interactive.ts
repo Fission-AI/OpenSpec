@@ -28,20 +28,36 @@ export function isInteractive(value?: boolean | InteractiveOptions): boolean {
 }
 
 /**
- * True when a prompt failed because there was nobody at a terminal to answer
- * it — an agent or a script that ran the command with stdin closed. @inquirer
- * rejects those with `User force closed the prompt with 0 null`, which is
- * accurate and useless: it names no flag and no next step (#1479).
+ * True when a prompt failed because no answer could be read — an agent or a
+ * script that ran the command with stdin closed, a CI job, or a shell whose
+ * stdin is not a terminal. @inquirer rejects those with `User force closed
+ * the prompt with 0 null`, which is accurate and useless: it names no flag
+ * and no next step (#1479).
  *
- * Ctrl-C raises the same error class, so the TTY check is what separates "the
- * user quit" from "there was never anyone there". Answers piped into the
- * command still work — this only inspects a prompt that already failed.
+ * Two things it deliberately is not:
+ *
+ * - It is not a substitute for `isInteractive()`. This classifies a prompt
+ *   that has *already failed*, so piped answers are unaffected: an answer
+ *   that arrives resolves the prompt and never reaches this check. Refusing
+ *   to prompt up front would break `printf 'y\n' | openspec archive ...`,
+ *   which works today.
+ * - It is not a cancellation check. Ctrl-C raises the same error class, and
+ *   it reaches a process whose stdin is a pipe just as easily as one at a
+ *   terminal, so the SIGINT signal - not the terminal - is what proves
+ *   somebody was there and chose to quit.
+ *
+ * Beyond that it defers to `isInteractive()`, so `CI`, `OPEN_SPEC_INTERACTIVE=0`
+ * and `--no-interactive` count even when a runner allocated a pty.
  */
-export function isNonInteractivePromptError(error: unknown): boolean {
-  if (process.stdin.isTTY) return false;
-  return (
-    error instanceof Error &&
-    (error.name === 'ExitPromptError' || error.message.includes('force closed the prompt'))
-  );
+export function isNonInteractivePromptError(
+  error: unknown,
+  value?: boolean | InteractiveOptions
+): boolean {
+  if (!(error instanceof Error)) return false;
+  const failedPrompt =
+    error.name === 'ExitPromptError' || error.message.includes('force closed the prompt');
+  if (!failedPrompt) return false;
+  if (error.message.includes('SIGINT')) return false;
+  return !isInteractive(value);
 }
 

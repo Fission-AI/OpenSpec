@@ -146,11 +146,48 @@ describe('interactive utilities', () => {
       ).toBe(true);
     });
 
-    it('treats the same failure at a real terminal as a user cancellation', () => {
+    it('recognizes the failure by name alone', () => {
+      // An @inquirer upgrade may reword the message; the error class is the
+      // other half of the signal and must stand on its own.
+      setStdinIsTTY(false);
+      expect(isNonInteractivePromptError(exitPromptError('prompt closed'))).toBe(true);
+    });
+
+    it('recognizes the failure by message alone', () => {
+      // ...and vice versa, if the class is ever renamed or duplicated by a
+      // bundled copy of the library.
+      setStdinIsTTY(false);
+      const plain = new Error('User force closed the prompt with 0 null');
+      expect(isNonInteractivePromptError(plain)).toBe(true);
+    });
+
+    it('treats a SIGINT cancellation as a cancellation, terminal or not', () => {
+      const sigint = exitPromptError('User force closed the prompt with SIGINT');
       setStdinIsTTY(true);
-      expect(
-        isNonInteractivePromptError(exitPromptError('User force closed the prompt with SIGINT'))
-      ).toBe(false);
+      expect(isNonInteractivePromptError(sigint)).toBe(false);
+      // A script started from a terminal has a piped stdin and still receives
+      // Ctrl-C: the signal, not the terminal, proves the user was there.
+      setStdinIsTTY(false);
+      expect(isNonInteractivePromptError(sigint)).toBe(false);
+    });
+
+    it('honors the same non-interactive signals as isInteractive()', () => {
+      const failure = exitPromptError('User force closed the prompt with 0 null');
+
+      // A pty-allocating CI runner: a terminal exists, but CI declares that
+      // nobody is watching it.
+      setStdinIsTTY(true);
+      expect(isNonInteractivePromptError(failure)).toBe(false);
+
+      process.env.CI = 'true';
+      expect(isNonInteractivePromptError(failure)).toBe(true);
+      delete process.env.CI;
+
+      process.env.OPEN_SPEC_INTERACTIVE = '0';
+      expect(isNonInteractivePromptError(failure)).toBe(true);
+      delete process.env.OPEN_SPEC_INTERACTIVE;
+
+      expect(isNonInteractivePromptError(failure, { interactive: false })).toBe(true);
     });
 
     it('ignores unrelated failures', () => {

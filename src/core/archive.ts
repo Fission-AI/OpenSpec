@@ -100,11 +100,41 @@ class ArchiveBlockedError extends Error {
 }
 
 /**
- * Asks a yes/no question in human mode. When there is no terminal to answer it
- * — the usual case for an AI agent or a script that runs the command with
- * stdin closed — the raw @inquirer failure is replaced with the same guidance
- * JSON mode already gives for this decision point, so the caller learns which
- * flag to pass instead of reading `User force closed the prompt` (#1479).
+ * Shell-quotes a change name for a `Fix:` line the reader is meant to paste.
+ * Archive resolves a change by stat-ing its directory, so the name is
+ * whatever the directory is called - including names with spaces or shell
+ * metacharacters, which pasted unquoted would run as a second command.
+ */
+function quoteChangeName(name: string): string {
+  if (/^[A-Za-z0-9._-]+$/.test(name)) return name;
+  return `'${name.replace(/'/g, `'\\''`)}'`;
+}
+
+/**
+ * Builds the rerun a blocked archive should suggest. It carries the flags the
+ * caller already passed, because suggesting a bare `--yes` rerun for
+ * `archive x --skip-specs` would merge deltas into the main specs - the exact
+ * thing `--skip-specs` was passed to prevent.
+ */
+function rerunCommand(
+  root: ResolvedOpenSpecRoot,
+  changeName: string,
+  options: ArchiveOptions
+): string {
+  const flags = [
+    ...(options.skipSpecs ? ['--skip-specs'] : []),
+    ...(options.validate === false || options.noValidate === true ? ['--no-validate'] : []),
+    '--yes',
+  ];
+  return withStoreFlag(root, `openspec archive ${quoteChangeName(changeName)} ${flags.join(' ')}`);
+}
+
+/**
+ * Asks a yes/no question in human mode. When no answer can be read — the
+ * usual case for an AI agent or a script that runs the command with stdin
+ * closed — the raw @inquirer failure is replaced with guidance for this
+ * decision point, so the caller learns which flag to pass instead of reading
+ * `User force closed the prompt` (#1479).
  */
 async function confirmOrBlock(
   prompt: { message: string; default: boolean },
@@ -407,8 +437,8 @@ export class ArchiveCommand {
           () =>
             new ArchiveBlockedError(
               'archive_confirmation_required',
-              'Skipping validation requires confirmation, and this terminal is not interactive.',
-              withStoreFlag(root, `openspec archive ${changeName} --no-validate --yes`)
+              'Skipping validation requires confirmation, and no answer could be read from stdin.',
+              rerunCommand(root, changeName!, options)
             )
         );
         if (!proceed) {
@@ -449,8 +479,8 @@ export class ArchiveCommand {
           () =>
             new ArchiveBlockedError(
               'archive_tasks_incomplete',
-              `${incompleteTasks} incomplete task(s) found for change '${changeName}', and this terminal is not interactive.`,
-              `Complete the tasks or rerun with ${withStoreFlag(root, `openspec archive ${changeName} --yes`)}`
+              `${incompleteTasks} incomplete task(s) found for change '${changeName}', and no answer could be read from stdin.`,
+              `Complete the tasks or rerun with ${rerunCommand(root, changeName!, options)}`
             )
         );
         if (!proceed) {
@@ -501,8 +531,8 @@ export class ArchiveCommand {
             () =>
               new ArchiveBlockedError(
                 'archive_confirmation_required',
-                `Updating ${specUpdates.length} spec(s) requires confirmation, and this terminal is not interactive.`,
-                withStoreFlag(root, `openspec archive ${changeName} --yes`)
+                `Updating ${specUpdates.length} spec(s) requires confirmation, and no answer could be read from stdin.`,
+                rerunCommand(root, changeName!, options)
               )
           );
           if (!shouldUpdateSpecs) {
@@ -679,13 +709,15 @@ export class ArchiveCommand {
       });
       return answer;
     } catch (error) {
-      // No terminal to pick from: reporting "No change selected" and exiting 0
-      // told an agent the archive had succeeded when nothing happened (#1479).
+      // Nobody to pick from the list: reporting "No change selected" and
+      // exiting 0 told an agent the archive had succeeded when nothing
+      // happened (#1479). The suggested rerun carries --yes because the same
+      // caller cannot answer the confirmations further down either.
       if (isNonInteractivePromptError(error)) {
         throw new ArchiveBlockedError(
           'archive_change_name_required',
-          'A change name is required: this terminal is not interactive.',
-          withStoreFlag(root, 'openspec archive <change-name>')
+          'A change name is required: no answer could be read from stdin.',
+          withStoreFlag(root, 'openspec archive <change-name> --yes')
         );
       }
       // User cancelled (Ctrl+C)
