@@ -578,6 +578,13 @@ export async function retireSpec(
 
   const dest = path.join(destDir, ...update.id.split('/'), 'spec.md');
 
+  // Set once the destination is known to be free, so the failure path can tell
+  // a file THIS attempt created from one it must never touch. Both non-atomic
+  // routes below (the symlink path and the EXDEV/EPERM fallback) copy first and
+  // remove the source second, so the source can survive a copy that already
+  // landed - leaving two copies and a destination that blocks every retry.
+  let destIsOurs = false;
+
   try {
     await fs.mkdir(path.dirname(dest), { recursive: true });
     // Never overwrite: a spec already sitting here is one an earlier, aborted
@@ -591,6 +598,7 @@ export async function retireSpec(
     if (destTaken) {
       throw new Error(`${dest} already exists`);
     }
+    destIsOurs = true;
 
     if (isSymlink) {
       // Copy the content, then drop the link. `rename` would move the link and
@@ -610,6 +618,23 @@ export async function retireSpec(
       }
     }
   } catch (error) {
+    // Roll the destination back to how this attempt found it: not there. A copy
+    // that succeeded before the source could be removed leaves the spec in two
+    // places, and the one in staging then trips the "already exists" guard on
+    // every rerun - so the retry the error message asks for could never work.
+    // Guarded by `destIsOurs`, so a spec staged by an EARLIER run is never the
+    // thing rolled back. A partially written copy is removed by the same call.
+    let rolledBack = true;
+    if (destIsOurs) {
+      try {
+        await fs.unlink(dest);
+      } catch (cleanupError) {
+        // Already gone is the outcome we wanted; anything else and a copy is
+        // still sitting there, which the message below has to admit rather than
+        // promise a retry that the "already exists" guard would reject.
+        rolledBack = (cleanupError as NodeJS.ErrnoException).code === 'ENOENT';
+      }
+    }
     // The staging directories were created before the move, so a failure here
     // would leave an empty `retired-specs/<capability>/` behind - which rides
     // into the archive claiming a retirement that never happened. Only empty
@@ -617,10 +642,15 @@ export async function retireSpec(
     await pruneEmptyDirs(path.dirname(dest), path.dirname(destDir));
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { retired: false };
     // A bare errno here reads as an internal failure; say what was being
-    // attempted so the message is actionable on its own.
+    // attempted so the message is actionable on its own. Every throwing path
+    // above leaves the source in place, so the only question the reader has is
+    // whether anything was left behind in staging.
+    const state = rolledBack
+      ? 'The spec is still in place; fix that and rerun the archive.'
+      : `The spec is still in place, but a copy was left at ${dest} - remove it, then rerun the archive.`;
     throw new Error(
       `Could not retire capability '${update.id}': failed to move ${update.target} to ${dest} ` +
-        `(${(error as Error).message}). Move it by hand, then rerun the archive.`
+        `(${(error as Error).message}). ${state}`
     );
   }
 

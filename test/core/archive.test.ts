@@ -3319,6 +3319,83 @@ The system SHALL do the thing differently.
       }
     );
 
+    // Both non-atomic routes copy first and remove the source second, so a
+    // copy that lands before an `unlink` that fails used to leave the spec in
+    // TWO places - and the staged one then tripped the "already exists" guard
+    // on every rerun, so the retry the error message asks for could never work.
+    describe.each([
+      {
+        route: 'symlinked spec.md',
+        // A symlink is copied by content and its link removed, never renamed.
+        async stage(capability: string): Promise<string> {
+          const target = path.join(capability, 'spec.md');
+          const linked = path.join(tempDir, 'linked-spec.md');
+          await fs.writeFile(linked, mainSpec('legacy-layer'));
+          await fs.symlink(linked, target);
+          return target;
+        },
+        forceRoute(): void {},
+      },
+      {
+        route: 'EXDEV rename fallback',
+        async stage(capability: string): Promise<string> {
+          const target = path.join(capability, 'spec.md');
+          await fs.writeFile(target, mainSpec('legacy-layer'));
+          return target;
+        },
+        // A cross-device rename cannot be provoked inside one temp dir, so the
+        // errno the fallback keys on is injected directly.
+        forceRoute(): void {
+          vi.spyOn(fs, 'rename').mockImplementationOnce(async () => {
+            throw Object.assign(new Error('cross-device link'), { code: 'EXDEV' });
+          });
+        },
+      },
+    ])('post-copy failure on the $route', ({ stage, forceRoute }) => {
+      it.skipIf(process.platform === 'win32')(
+        'rolls back the staged copy so the archive can be rerun',
+        async () => {
+          const capability = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+          await fs.mkdir(capability, { recursive: true });
+          const target = await stage(capability);
+          const staging = path.join(tempDir, 'change', 'retired-specs');
+          const update = { id: 'legacy-layer', source: 'x', target, exists: true };
+          const specsRoot = path.join(tempDir, 'openspec', 'specs');
+          const dest = path.join(staging, 'legacy-layer', 'spec.md');
+
+          // Fail removing the SOURCE only, so the copy has already landed. The
+          // rollback's own unlink of the destination must still go through.
+          const realUnlink = fs.unlink.bind(fs);
+          const unlinkSpy = vi
+            .spyOn(fs, 'unlink')
+            .mockImplementation(async (p: Parameters<typeof fs.unlink>[0]) => {
+              if (String(p) === target) {
+                throw Object.assign(new Error('permission denied'), { code: 'EACCES' });
+              }
+              return realUnlink(p);
+            });
+          forceRoute();
+
+          await expect(
+            retireSpec(update, specsRoot, staging, { silent: true })
+          ).rejects.toThrow(/Could not retire capability 'legacy-layer'/);
+
+          unlinkSpy.mockRestore();
+          vi.restoreAllMocks();
+
+          // Rolled back to how the attempt found it: nothing staged, spec live.
+          await expect(fs.access(dest)).rejects.toThrow();
+          await expect(fs.lstat(target)).resolves.toBeTruthy();
+
+          // ...so the rerun the error message asks for actually works.
+          await expect(
+            retireSpec(update, specsRoot, staging, { silent: true })
+          ).resolves.toMatchObject({ retired: true });
+          await expect(fs.readFile(dest, 'utf-8')).resolves.toBe(mainSpec('legacy-layer'));
+        }
+      );
+    });
+
     it('refuses to overwrite a spec an earlier aborted run already staged', async () => {
       // The staged copy is the only copy once the live one is moved, so
       // clobbering it would destroy the thing this whole path preserves.
