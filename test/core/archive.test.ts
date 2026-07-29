@@ -3269,17 +3269,19 @@ The system SHALL do the thing differently.
       const legacyDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
       await fs.mkdir(legacyDir, { recursive: true });
       await fs.writeFile(path.join(legacyDir, 'spec.md'), mainSpec('legacy-layer'));
-      // Make the second spec's write throw.
-      const readOnlyDir = path.join(tempDir, 'openspec', 'specs', 'zz-other-layer');
-      await fs.mkdir(readOnlyDir, { recursive: true });
-      await fs.chmod(readOnlyDir, 0o555);
+      // Make the second spec's write throw, by putting a directory where its
+      // file belongs. Read-only permissions would be a no-op on Windows; this
+      // fails the write on every platform.
+      await fs.mkdir(path.join(tempDir, 'openspec', 'specs', 'zz-other-layer', 'spec.md'), {
+        recursive: true,
+      });
 
-      try {
-        await archiveCommand.execute(changeName, { yes: true }).catch(() => undefined);
-        await expect(fs.access(path.join(legacyDir, 'spec.md'))).resolves.not.toThrow();
-      } finally {
-        await fs.chmod(readOnlyDir, 0o755);
-      }
+      await archiveCommand.execute(changeName, { yes: true }).catch(() => undefined);
+
+      await expect(fs.access(path.join(legacyDir, 'spec.md'))).resolves.not.toThrow();
+      await expect(
+        fs.access(path.join(tempDir, 'openspec', 'changes', changeName))
+      ).resolves.not.toThrow();
     });
 
     it('prunes a whole chain of emptied parents, not just one level', async () => {
@@ -3421,6 +3423,47 @@ The system SHALL do the thing differently.
       const survived = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
       expect(survived).toContain('### Legacy note');
     });
+
+    it('does not claim a resolved path for an ordinary retirement', async () => {
+      // The temp root is itself reached through a symlink on macOS
+      // (/var -> /private/var), so comparing resolved-vs-canonical paths would
+      // decorate every retirement with a note that means nothing.
+      const changeName = 'retire-plain-path';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainSpec('legacy-layer'));
+
+      await archiveCommand.execute(changeName, { yes: true, json: true });
+
+      const payload = JSON.parse(lastJsonPayload());
+      // No " at <path>" suffix: the nominal path told the whole story.
+      expect(payload.archive.warnings.join('\n')).not.toContain('removed) at ');
+    });
+
+    it.skipIf(process.platform === 'win32')(
+      'names the resolved path when a symlink put the spec outside the specs tree',
+      async () => {
+        const changeName = 'retire-outside';
+        await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+        const outside = path.join(tempDir, 'outside', 'legacy-layer');
+        await fs.mkdir(outside, { recursive: true });
+        await fs.writeFile(path.join(outside, 'spec.md'), mainSpec('legacy-layer'));
+        await fs.symlink(outside, path.join(tempDir, 'openspec', 'specs', 'legacy-layer'), 'dir');
+
+        await archiveCommand.execute(changeName, { yes: true, json: true });
+
+        const payload = JSON.parse(lastJsonPayload());
+        // The warning names where the file really was, not the nominal path.
+        expect(payload.archive.warnings.join('\n')).toContain(
+          await fs.realpath(path.join(tempDir, 'outside'))
+        );
+        // The unlink follows the link exactly where a write would have gone...
+        await expect(fs.access(path.join(outside, 'spec.md'))).rejects.toThrow();
+        // ...but the directory outside the tree is left alone.
+        await expect(fs.access(outside)).resolves.not.toThrow();
+      }
+    );
 
     it('reports the retirement, and what it took, in the --json warnings', async () => {
       const changeName = 'retire-json-warnings';

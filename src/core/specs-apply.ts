@@ -559,13 +559,28 @@ export async function retireSpec(
   await pruneEmptyDirs(path.dirname(update.target), mainSpecsDir);
 
   const nominal = options.displayPath ?? `openspec/specs/${update.id}/spec.md`;
-  // Only worth showing when the two differ - otherwise it is the same path twice.
-  const resolvedNote =
-    realTarget && realTarget !== path.resolve(update.target) ? ` (resolved to ${realTarget})` : '';
+  // Worth showing only when the file really lived outside the specs tree, which
+  // is the thing the nominal path hides. Comparing the resolved target against
+  // the merely-resolved one would fire on any canonicalization difference - the
+  // platform's own `/var` -> `/private/var` link is enough - and say nothing.
+  const escaped = realTarget !== undefined && !(await isInsideRealDir(realTarget, mainSpecsDir));
+  const resolvedNote = escaped ? ` (resolved to ${realTarget})` : '';
   if (!options.silent) {
     console.log(`Retiring ${nominal}${resolvedNote}: all requirements removed.`);
   }
   return { deleted: true, ...(resolvedNote ? { retiredPath: realTarget } : {}) };
+}
+
+/** Whether `realPath` (already canonical) sits under the real `dir`. */
+async function isInsideRealDir(realPath: string, dir: string): Promise<boolean> {
+  let realDir: string;
+  try {
+    realDir = await fs.realpath(dir);
+  } catch {
+    // No root to measure against: say nothing rather than claim an escape.
+    return true;
+  }
+  return realPath.startsWith(realDir + path.sep);
 }
 
 /**
