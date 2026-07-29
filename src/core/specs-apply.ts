@@ -5,7 +5,8 @@
  * Applies delta specs from a change to main specs without archiving.
  */
 
-import { promises as fs, constants as fsConstants } from 'fs';
+import { promises as fs } from 'fs';
+import type { FileHandle } from 'fs/promises';
 import path from 'path';
 import chalk from 'chalk';
 import {
@@ -595,41 +596,46 @@ export async function retireSpec(
   try {
     await fs.mkdir(path.dirname(dest), { recursive: true });
 
-    // The claim and the content arrive in one syscall. `COPYFILE_EXCL` fails
-    // with EEXIST rather than overwriting, so exactly one caller can ever own
-    // this path - which is also the check that refuses to clobber a spec an
-    // earlier, aborted run staged, now decided atomically instead of by a
-    // separate look beforehand.
+    // Claim the destination with an exclusive create, and let THAT be the only
+    // thing ownership is ever read from. `wx` is O_CREAT|O_EXCL: it returns a
+    // handle exactly when it created the file, so "did this call create it?" is
+    // answered by the syscall rather than inferred afterwards.
     //
-    // Deliberately a copy rather than a rename, for both the symlink case and
-    // the ordinary one. `rename` cannot be the claim: it overwrites silently on
-    // every platform, so it cannot tell "I created this" from "I destroyed
-    // someone else's". Copying also crosses filesystems, which retires the
-    // EXDEV/EPERM fallback this used to need, and reads a symlink's content
-    // rather than moving the link - leaving the link's target alone, and
-    // archiving a file instead of a relative path that no longer resolves.
+    // Inferring it from a copy's errno cannot work, however the errnos are
+    // partitioned. A failure code describes what went wrong, not what was
+    // created - a source-side EACCES looks identical whether the destination
+    // was untouched or belonged to someone else, and treating it as "probably a
+    // partial copy of mine" deleted a recovery copy an earlier run had staged.
+    //
+    // EEXIST here is also the check that refuses to clobber that earlier copy,
+    // now decided by the same atomic operation instead of a separate look.
+    let handle: FileHandle;
     try {
-      await fs.copyFile(update.target, dest, fsConstants.COPYFILE_EXCL);
-      destIsOurs = true;
+      handle = await fs.open(dest, 'wx');
     } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code;
-      // Two failures mean the destination is NOT ours, and rolling it back
-      // would delete a file this call never created:
-      //
-      // - EEXIST: another run already staged a spec there.
-      // - ENOENT: the SOURCE is gone. `copyFile` opens the source before it
-      //   creates anything, so nothing of ours exists. The racing winner having
-      //   just moved that source away is exactly how this arises - claiming it
-      //   here is what destroyed the winner's copy along with the original.
-      //
-      // Any other failure can have left a partial copy, which is ours to clean.
-      if (code === 'EEXIST') {
+      // Nothing was created on any failure path, so the destination is not
+      // ours and `destIsOurs` stays false - no rollback can reach it.
+      if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
         throw new Error(`${dest} already exists`);
       }
-      if (code !== 'ENOENT') {
-        destIsOurs = true;
-      }
       throw error;
+    }
+    destIsOurs = true;
+
+    // Content is copied through the claimed handle rather than by `copyFile`,
+    // which would need its own destination and hand the claim back. Read as
+    // bytes so nothing re-encodes the file on the way through.
+    //
+    // Reading a symlink follows it, which is the intent: the archive gets the
+    // spec's content, the link's target is left alone, and nothing archives a
+    // relative path that no longer resolves from where it landed. Working
+    // through a copy rather than `rename` also crosses filesystems, which
+    // retires the EXDEV/EPERM fallback this used to need.
+    try {
+      await handle.writeFile(await fs.readFile(update.target));
+    } finally {
+      // Before any rollback: Windows will not unlink a file that is still open.
+      await handle.close().catch(() => {});
     }
 
     await fs.unlink(update.target);

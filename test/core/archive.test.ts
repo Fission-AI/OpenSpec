@@ -3430,6 +3430,55 @@ The system SHALL do the thing differently.
       }
     });
 
+    // Mode bits are the only way to make a read fail at the syscall level,
+    // which this needs: the defect was that a *source-side* errno was read as
+    // proof the DESTINATION belonged to this call. Stubbing a JS-level read
+    // cannot reproduce it, because the copy it has to fool never went through
+    // one. Windows ignores the bits, and root bypasses them.
+    const cannotDenyReads = process.platform === 'win32' || process.getuid?.() === 0;
+    it.skipIf(cannotDenyReads)(
+      "keeps an earlier run's staged copy when this run cannot read the source",
+      async () => {
+        // Ownership used to be inferred from the copy's errno: anything that
+        // was not EEXIST or ENOENT was treated as "probably a partial copy of
+        // mine" and cleaned up. A source-side EACCES looks exactly like that,
+        // so the cleanup deleted the recovery copy an earlier run had staged -
+        // the last copy of a spec whose live file could not even be read.
+        //
+        // Ownership now comes from an exclusive create, which cannot succeed
+        // here, so no failure of any kind can reach that file.
+        const capability = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+        await fs.mkdir(capability, { recursive: true });
+        const target = path.join(capability, 'spec.md');
+        await fs.writeFile(target, mainSpec('legacy-layer'));
+        const staging = path.join(tempDir, 'change', 'retired-specs');
+        await fs.mkdir(path.join(staging, 'legacy-layer'), { recursive: true });
+        const recovery = path.join(staging, 'legacy-layer', 'spec.md');
+        await fs.writeFile(recovery, '# staged by an earlier run\n');
+        await fs.chmod(target, 0o000);
+
+        try {
+          await expect(
+            retireSpec(
+              { id: 'legacy-layer', source: 'x', target, exists: true },
+              path.join(tempDir, 'openspec', 'specs'),
+              staging,
+              { silent: true }
+            )
+          ).rejects.toThrow();
+
+          // The recovery copy is untouched, and so is the live spec.
+          await expect(fs.readFile(recovery, 'utf-8')).resolves.toBe(
+            '# staged by an earlier run\n'
+          );
+          await expect(fs.lstat(target)).resolves.toBeTruthy();
+        } finally {
+          // Restored so the suite's own cleanup can remove it.
+          await fs.chmod(target, 0o644).catch(() => {});
+        }
+      }
+    );
+
     it('refuses to overwrite a spec an earlier aborted run already staged', async () => {
       // The staged copy is the only copy once the live one is moved, so
       // clobbering it would destroy the thing this whole path preserves.
