@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { ArchiveCommand } from '../../src/core/archive.js';
+import { ArchiveCommand, isRetirableSpec } from '../../src/core/archive.js';
 import { retireSpec } from '../../src/core/specs-apply.js';
 import { Validator } from '../../src/core/validation/validator.js';
 import { MarkdownParser } from '../../src/core/parsers/markdown-parser.js';
@@ -2802,6 +2802,12 @@ The system SHALL do the thing differently.
       '',
     ].join('\n');
 
+    /** The last thing printed, which in JSON mode is the one payload. */
+    function lastJsonPayload(): string {
+      const calls = (console.log as unknown as ReturnType<typeof vi.fn>).mock.calls;
+      return String(calls[calls.length - 1][0]);
+    }
+
     async function createChange(
       changeName: string,
       capability: string,
@@ -2879,20 +2885,6 @@ The system SHALL do the thing differently.
       await expect(fs.readFile(path.join(mainSpecDir, 'NOTES.md'), 'utf-8')).resolves.toBe(
         'Kept by hand.\n'
       );
-    });
-
-    it('retires rather than writing an empty spec under --no-validate', async () => {
-      // --no-validate was the one path that did not abort: it wrote a spec with
-      // zero requirements, which every later validate then rejected.
-      const changeName = 'retire-no-validate';
-      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
-      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
-      await fs.mkdir(mainSpecDir, { recursive: true });
-      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainSpec('legacy-layer'));
-
-      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
-
-      await expect(fs.access(mainSpecDir)).rejects.toThrow();
     });
 
     it('archives a REMOVED-only delta whose main spec was already deleted', async () => {
@@ -3221,8 +3213,334 @@ The system SHALL do the thing differently.
 
       await expect(
         retireSpec(update, path.join(tempDir, 'openspec', 'specs'))
-      ).resolves.toBe(false);
+      ).resolves.toEqual({ deleted: false });
       expect(console.log).not.toHaveBeenCalledWith(expect.stringContaining('Retiring'));
+    });
+
+    // The archive destination is settled from the change name alone, so a
+    // collision is knowable before anything is touched. Discovering it after the
+    // merge deleted a spec for an archive that then never happened.
+    it('checks the archive destination before deleting anything', async () => {
+      const changeName = 'retire-colliding';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainSpec('legacy-layer'));
+      await fs.mkdir(
+        path.join(tempDir, 'openspec', 'changes', 'archive', `${formatLocalDate()}-${changeName}`),
+        { recursive: true }
+      );
+
+      await expect(archiveCommand.execute(changeName, { yes: true })).rejects.toThrow(
+        /already exists/
+      );
+
+      await expect(fs.access(path.join(mainSpecDir, 'spec.md'))).resolves.not.toThrow();
+      await expect(
+        fs.access(path.join(tempDir, 'openspec', 'changes', changeName))
+      ).resolves.not.toThrow();
+    });
+
+    it('keeps the retiring spec on disk when a later spec write fails', async () => {
+      // The validation pass runs before both loops, so only a failing WRITE
+      // proves deletions really are deferred to the end.
+      const changeName = 'retire-with-failing-write';
+      const changeDir = await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      // `zz-` keeps the retirement first in the prepared order, so an
+      // undeferred deletion would land before the failing write.
+      const otherDelta = path.join(changeDir, 'specs', 'zz-other-layer');
+      await fs.mkdir(otherDelta, { recursive: true });
+      await fs.writeFile(
+        path.join(otherDelta, 'spec.md'),
+        [
+          '# Other - Changes',
+          '',
+          '## ADDED Requirements',
+          '',
+          '### Requirement: The system SHALL do a new thing',
+          'The system SHALL do a new thing.',
+          '',
+          '#### Scenario: It happens',
+          '- **WHEN** invoked',
+          '- **THEN** it happens',
+          '',
+        ].join('\n')
+      );
+      const legacyDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(legacyDir, { recursive: true });
+      await fs.writeFile(path.join(legacyDir, 'spec.md'), mainSpec('legacy-layer'));
+      // Make the second spec's write throw.
+      const readOnlyDir = path.join(tempDir, 'openspec', 'specs', 'zz-other-layer');
+      await fs.mkdir(readOnlyDir, { recursive: true });
+      await fs.chmod(readOnlyDir, 0o555);
+
+      try {
+        await archiveCommand.execute(changeName, { yes: true }).catch(() => undefined);
+        await expect(fs.access(path.join(legacyDir, 'spec.md'))).resolves.not.toThrow();
+      } finally {
+        await fs.chmod(readOnlyDir, 0o755);
+      }
+    });
+
+    it('prunes a whole chain of emptied parents, not just one level', async () => {
+      const changeName = 'retire-deep';
+      await createChange(changeName, 'a/b/legacy-layer', REMOVE_ALL);
+      const deep = path.join(tempDir, 'openspec', 'specs', 'a', 'b', 'legacy-layer');
+      await fs.mkdir(deep, { recursive: true });
+      await fs.writeFile(path.join(deep, 'spec.md'), mainSpec('legacy-layer'));
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      await expect(fs.access(path.join(tempDir, 'openspec', 'specs', 'a'))).rejects.toThrow();
+      await expect(fs.access(path.join(tempDir, 'openspec', 'specs'))).resolves.not.toThrow();
+    });
+
+    it('never prunes a sibling directory that merely shares the specs-root prefix', async () => {
+      const specsRoot = path.join(tempDir, 'openspec', 'specs');
+      const sibling = path.join(tempDir, 'openspec', 'specs-extra', 'legacy-layer');
+      await fs.mkdir(sibling, { recursive: true });
+      await fs.writeFile(path.join(sibling, 'spec.md'), mainSpec('legacy-layer'));
+
+      await expect(
+        retireSpec(
+          { id: 'legacy-layer', source: 'x', target: path.join(sibling, 'spec.md'), exists: true },
+          specsRoot,
+          { silent: true }
+        )
+      ).resolves.toMatchObject({ deleted: true });
+
+      await expect(fs.access(sibling)).resolves.not.toThrow();
+      await expect(
+        fs.access(path.join(tempDir, 'openspec', 'specs-extra'))
+      ).resolves.not.toThrow();
+    });
+
+    it.skipIf(process.platform === 'win32')(
+      'prunes even when the specs root is itself named through a symlink',
+      async () => {
+        const realRoot = path.join(tempDir, 'openspec', 'specs');
+        const linkedRoot = path.join(tempDir, 'specs-link');
+        await fs.symlink(realRoot, linkedRoot, 'dir');
+        const capability = path.join(realRoot, 'legacy-layer');
+        await fs.mkdir(capability, { recursive: true });
+        await fs.writeFile(path.join(capability, 'spec.md'), mainSpec('legacy-layer'));
+
+        await retireSpec(
+          {
+            id: 'legacy-layer',
+            source: 'x',
+            target: path.join(capability, 'spec.md'),
+            exists: true,
+          },
+          linkedRoot,
+          { silent: true }
+        );
+
+        await expect(fs.access(capability)).rejects.toThrow();
+      }
+    );
+
+    it('retires both capabilities when one archive empties two', async () => {
+      const changeName = 'retire-two';
+      const changeDir = await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const secondDelta = path.join(changeDir, 'specs', 'second-layer');
+      await fs.mkdir(secondDelta, { recursive: true });
+      await fs.writeFile(
+        path.join(secondDelta, 'spec.md'),
+        REMOVE_ALL.replace('Legacy Layer', 'Second Layer')
+      );
+      for (const capability of ['legacy-layer', 'second-layer']) {
+        const dir = path.join(tempDir, 'openspec', 'specs', capability);
+        await fs.mkdir(dir, { recursive: true });
+        await fs.writeFile(path.join(dir, 'spec.md'), mainSpec(capability));
+      }
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      await expect(fs.access(path.join(tempDir, 'openspec', 'specs', 'legacy-layer'))).rejects.toThrow();
+      await expect(fs.access(path.join(tempDir, 'openspec', 'specs', 'second-layer'))).rejects.toThrow();
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('Totals: + 0, ~ 0, - 2, → 0')
+      );
+    });
+
+    it('does not retire under --no-validate, since nothing checked the result', async () => {
+      // The safety argument is the validator's verdict. With validation off
+      // there is none, so the pre-#1302 behavior stands: write the spec.
+      const changeName = 'retire-unvalidated';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(
+        path.join(mainSpecDir, 'spec.md'),
+        `${mainSpec('legacy-layer')}\n## Notes\nHand-written notes worth keeping.\n`
+      );
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const written = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      expect(written).toContain('## Notes');
+      expect(written).not.toContain('### Requirement:');
+    });
+
+    it('refuses to retire while any ### heading remains under Requirements', async () => {
+      // A stray `### Requirements` under Purpose captures the validator's
+      // section lookup, so it reports "no requirements" for a spec that plainly
+      // still has one. A reader is not fooled, and neither is this guard.
+      const changeName = 'retire-residual-heading';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(
+        path.join(mainSpecDir, 'spec.md'),
+        [
+          '# legacy-layer Specification',
+          '',
+          '## Purpose',
+          PURPOSE,
+          '',
+          '### Requirements',
+          '(a stray sub-heading a previous author left behind)',
+          '',
+          '## Requirements',
+          '',
+          '### Legacy note',
+          'The system SHALL keep the legacy note until migration completes.',
+          '',
+          '#### Scenario: Note applies',
+          '- **WHEN** a reader consults the note',
+          '- **THEN** it applies',
+          '',
+          REQUIREMENT,
+          '',
+        ].join('\n')
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      const survived = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      expect(survived).toContain('### Legacy note');
+    });
+
+    it('reports the retirement, and what it took, in the --json warnings', async () => {
+      const changeName = 'retire-json-warnings';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(
+        path.join(mainSpecDir, 'spec.md'),
+        `${mainSpec('legacy-layer')}\n## Why These Decisions\nBecause v1 predates routing.\n`
+      );
+
+      await archiveCommand.execute(changeName, { yes: true, json: true });
+
+      const payload = JSON.parse(lastJsonPayload());
+      expect(payload.archive.warnings).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining('legacy-layer - capability retired; deleted the main spec'),
+        ])
+      );
+      // Purpose always goes with the file, so it is named alongside the rest.
+      expect(payload.archive.warnings.join('\n')).toContain('Purpose, Why These Decisions');
+    });
+
+    it('claims no retirement for a spec that was already gone', async () => {
+      const changeName = 'retire-already-gone-json';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+
+      await archiveCommand.execute(changeName, { yes: true, json: true });
+
+      const payload = JSON.parse(lastJsonPayload());
+      expect(payload.archive.specsUpdated).toBe(false);
+      expect(payload.archive.totals).toEqual({ added: 0, modified: 0, removed: 0, renamed: 0 });
+      expect(JSON.stringify(payload.archive.warnings ?? [])).not.toContain('capability retired');
+    });
+
+    it('does not name headings hidden in fences or HTML comments, nor repeat one', async () => {
+      const changeName = 'retire-masked-sections';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(
+        path.join(mainSpecDir, 'spec.md'),
+        [
+          mainSpec('legacy-layer'),
+          '## Notes',
+          'A sample of the format:',
+          '',
+          '```markdown',
+          '## Not A Real Section',
+          '```',
+          '',
+          '<!--',
+          '## CommentedOut',
+          '-->',
+          '',
+          '## Notes',
+          'A second block under the same heading.',
+          '',
+        ].join('\n')
+      );
+
+      await archiveCommand.execute(changeName, { yes: true, json: true });
+
+      const warnings = JSON.parse(lastJsonPayload()).archive.warnings.join('\n');
+      expect(warnings).toContain('Notes');
+      expect(warnings).not.toContain('Not A Real Section');
+      expect(warnings).not.toContain('CommentedOut');
+      // Deduped: the repeated heading is named once.
+      expect(warnings.match(/Notes/g)).toHaveLength(1);
+    });
+
+    describe('isRetirableSpec', () => {
+      const REQUIREMENTLESS = `# legacy-layer Specification\n\n## Purpose\n${PURPOSE}\n\n## Requirements\n`;
+
+      it('is false for a spec that validates', async () => {
+        await expect(
+          isRetirableSpec('legacy-layer', mainSpec('legacy-layer'))
+        ).resolves.toBe(false);
+      });
+
+      it('is true when the only error is that it has no requirements', async () => {
+        await expect(isRetirableSpec('legacy-layer', REQUIREMENTLESS)).resolves.toBe(true);
+      });
+
+      it('is false for a different single error', async () => {
+        // No Purpose section: a real failure, but not the one retirement replaces.
+        await expect(
+          isRetirableSpec(
+            'legacy-layer',
+            `# legacy-layer Specification\n\n## Requirements\n\n${REQUIREMENT}\n`
+          )
+        ).resolves.toBe(false);
+      });
+
+      it('is false when another error accompanies the missing requirements', async () => {
+        // A requirement stranded under a trailing section: "no requirements"
+        // AND "header outside the main ## Requirements section".
+        const stranded = [
+          '# legacy-layer Specification',
+          '',
+          '## Purpose',
+          PURPOSE,
+          '',
+          '## Requirements',
+          '',
+          '## Appendix',
+          '',
+          REQUIREMENT,
+          '',
+        ].join('\n');
+        const report = await new Validator().validateSpecContent('legacy-layer', stranded);
+        const errors = report.issues.filter((issue) => issue.level === 'ERROR');
+        // Guards the `every` rather than `some`: this shape carries the
+        // no-requirements error alongside at least one other.
+        expect(errors.length).toBeGreaterThan(1);
+        expect(errors.map((issue) => issue.message)).toContain(
+          VALIDATION_MESSAGES.SPEC_NO_REQUIREMENTS
+        );
+        await expect(isRetirableSpec('legacy-layer', stranded)).resolves.toBe(false);
+      });
     });
 
     it('reports the retirement in --json instead of printing progress lines', async () => {

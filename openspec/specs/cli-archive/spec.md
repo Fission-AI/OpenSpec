@@ -128,10 +128,16 @@ A delta whose REMOVED entries cover every requirement a capability has SHALL ret
 
 #### Scenario: Deciding that a rebuilt spec cannot be written
 
-- **WHEN** applying a delta leaves the rebuilt spec with no requirement blocks
+- **WHEN** applying a delta leaves the rebuilt spec with no requirement blocks and no other `###` heading under `## Requirements`
 - **THEN** put that rebuilt spec to the spec validator
 - **AND** treat it as retirable only when its sole validation error is that the spec has no requirements
-- **AND** otherwise write or reject it exactly as any other rebuilt spec, so a spec the validator still accepts is never deleted
+- **AND** otherwise write or reject it exactly as any other rebuilt spec, so a spec the validator still accepts, one broken in some further way, and one still holding a `###` heading are all left alone
+
+#### Scenario: Validation was skipped
+
+- **WHEN** the archive runs with validation disabled
+- **THEN** retire nothing, because no verdict was produced to justify a deletion
+- **AND** write the rebuilt spec exactly as an archive without this behavior would
 
 #### Scenario: Delta removes the capability's last requirement
 
@@ -140,12 +146,13 @@ A delta whose REMOVED entries cover every requirement a capability has SHALL ret
 - **THEN** delete the capability's `spec.md` instead of writing it
 - **AND** delete any directory the deletion leaves empty, resolving symlinks so nothing outside the real specs root is removed, and never the specs root itself
 - **AND** count every operation the delta applied in the archive totals
-- **AND** report the retirement as a warning, naming any sections the deleted file held besides Purpose and Requirements
+- **AND** record the retirement in the archive warnings, naming the sections the deleted file held, and the resolved path when a symlink placed it elsewhere
 
 #### Scenario: Retirement is deferred until every spec is written
 
 - **WHEN** an archive both retires one capability and updates another
-- **THEN** perform the deletion only after every spec write has succeeded, so a failure part-way leaves nothing deleted
+- **THEN** settle the archive destination before touching any spec, so a name collision cannot strand a deletion
+- **AND** perform the deletion only after every spec write has succeeded
 
 #### Scenario: Capability directory holds other files
 
@@ -155,7 +162,8 @@ A delta whose REMOVED entries cover every requirement a capability has SHALL ret
 #### Scenario: Removal was already synced
 
 - **WHEN** a retirable rebuilt spec removed nothing this run and its main spec exists
-- **THEN** leave the file untouched and abort the archive with the validation error, as for any other unwritable spec
+- **THEN** leave the file untouched
+- **AND** abort the archive with the validation error, as for any other unwritable spec, unless validation was skipped
 
 #### Scenario: Main spec was already deleted
 

@@ -53,7 +53,7 @@ const ARCHIVE_DATE_PREFIX_PATTERN = /^\d{4}-\d{2}-\d{2}-/;
  * parser only indexes canonical `### Requirement:` headers and sweeps the rest
  * into the preamble, which survives into the rebuilt spec.
  */
-async function isRetirableSpec(specName: string, rebuilt: string): Promise<boolean> {
+export async function isRetirableSpec(specName: string, rebuilt: string): Promise<boolean> {
   const report = await new Validator().validateSpecContent(specName, rebuilt);
   if (report.valid) return false;
   const errors = report.issues.filter((issue) => issue.level === 'ERROR');
@@ -450,6 +450,32 @@ export class ArchiveCommand {
       }
     }
 
+    // Settle the archive destination BEFORE touching any spec. The name depends
+    // only on the change, and a collision is routine (archiving twice in a day,
+    // a restored change), so discovering it after the merge would leave specs
+    // rewritten - or a capability deleted - for an archive that never happened.
+    //
+    // Names that already carry a date prefix keep it: re-prefixing would stutter
+    // the name, and when the archive runs on a later day the folder would sort
+    // under a day on which the change did not happen (#1309).
+    const archiveName = ARCHIVE_DATE_PREFIX_PATTERN.test(changeName)
+      ? changeName
+      : `${formatLocalDate()}-${changeName}`;
+    const archivePath = path.join(archiveDir, archiveName);
+
+    let archiveExists = false;
+    try {
+      await fs.access(archivePath);
+      archiveExists = true;
+    } catch (error: any) {
+      if (error.code !== 'ENOENT') {
+        throw error;
+      }
+    }
+    if (archiveExists) {
+      throw new ArchiveBlockedError('archive_target_exists', `Archive '${archiveName}' already exists.`);
+    }
+
     // Handle spec updates unless skipSpecs flag is set
     let specsUpdated = false;
     let totals: ArchiveResult['totals'];
@@ -493,7 +519,7 @@ export class ArchiveCommand {
 
         if (shouldUpdateSpecs) {
           // Prepare all updates first (validation pass, no writes)
-          const prepared: Array<{ update: SpecUpdate; rebuilt: string; counts: { added: number; modified: number; removed: number; renamed: number }; retired: boolean; otherSections: string[] }> = [];
+          const prepared: Array<{ update: SpecUpdate; rebuilt: string; counts: { added: number; modified: number; removed: number; renamed: number }; retired: boolean; deletes: boolean; otherSections: string[] }> = [];
           try {
             for (const update of specUpdates) {
               const built = await buildUpdatedSpec(update, changeName!, { silent: json });
@@ -501,20 +527,35 @@ export class ArchiveCommand {
               // opinion about what counts as a requirement: the block parser
               // sweeps some shapes the validator accepts into the preamble, so
               // "no blocks left" alone would delete specs that validate fine.
+              //
+              // Residual `###` headings veto it outright. The validator can be
+              // talked out of seeing them - a stray `### Requirements` under
+              // Purpose captures the section lookup - but a reader cannot, and
+              // deleting the file would take them with it.
+              //
+              // Under --no-validate there is no verdict to lean on, so nothing
+              // is retired: the author opted out of the check that makes this
+              // safe, and the old behavior (write the spec) loses nothing.
               const retirable =
-                built.noRequirementBlocks && (await isRetirableSpec(update.id, built.rebuilt));
-              // There are two ways to need no spec written. The spec is already
-              // gone, so the capability is retired and there is nothing to do;
-              // or it exists and this run removed its last requirement, so it
-              // gets deleted. A spec that is already requirement-less and lost
-              // nothing this run is neither: it stays the author's to fix, and
-              // falls through to the same abort it has always produced.
-              const retired = retirable && (!update.exists || built.counts.removed > 0);
+                !skipValidation &&
+                built.noRequirementBlocks &&
+                built.residualRequirementHeadings.length === 0 &&
+                (await isRetirableSpec(update.id, built.rebuilt));
+              // Two ways to need no spec written, and only one of them deletes.
+              // `deletes`: the spec is there and this run removed its last
+              // requirement. `!update.exists`: nothing to write and nothing to
+              // delete - the capability is already retired.
+              // Neither covers a spec that is already requirement-less and lost
+              // nothing this run: that stays the author's to fix and falls
+              // through to the same abort it has always produced.
+              const deletes = retirable && update.exists && built.counts.removed > 0;
+              const retired = deletes || (retirable && !update.exists);
               prepared.push({
                 update,
                 rebuilt: built.rebuilt,
                 counts: built.counts,
                 retired,
+                deletes,
                 otherSections: built.otherSections,
               });
               // Carried into the result so JSON mode (where nothing was
@@ -591,12 +632,19 @@ export class ArchiveCommand {
             writeTotals.renamed += renamed;
           }
 
+          // Deletions run only after every write has succeeded - they are the
+          // one irreversible step, and the write loop is not transactional.
+          // Deleting several capabilities is still not atomic against itself: if
+          // a second deletion fails the first is already done, which the thrown
+          // message names so the state is at least legible.
           for (const p of prepared) {
-            if (!p.retired) continue;
-            const deleted = await retireSpec(p.update, mainSpecsDir, {
+            if (!p.deletes) continue;
+            const { deleted, retiredPath } = await retireSpec(p.update, mainSpecsDir, {
               silent: json,
               ...(isStoreSelectedRoot(root) ? { displayPath: p.update.target } : {}),
             });
+            // The file was gone before we got to it, so nothing was retired by
+            // this run and nothing should be reported as though it had been.
             if (!deleted) continue;
             wroteAny = true;
             // A rename applied on the way to the removal still happened; folding
@@ -607,12 +655,13 @@ export class ArchiveCommand {
             writeTotals.renamed += p.counts.renamed;
             // Deleting a file is the one archive outcome a JSON consumer cannot
             // infer from the totals, so it is recorded the way every other
-            // spec-merge divergence is.
+            // spec-merge divergence is. Purpose is always lost with the file, so
+            // it is named too rather than left to the reader to work out.
+            const lost = ['Purpose', ...p.otherSections];
             const retirementNote =
-              `${p.update.id} - capability retired; deleted the main spec (all requirements removed).` +
-              (p.otherSections.length > 0
-                ? ` Its other section(s) went with it: ${p.otherSections.join(', ')}.`
-                : '');
+              `${p.update.id} - capability retired; deleted the main spec (all requirements removed)` +
+              (retiredPath ? ` at ${retiredPath}` : '') +
+              `. Its section(s) went with it: ${lost.join(', ')}.`;
             specWarnings.push(retirementNote);
             // The "Retiring ..." line already told a human the file is gone; the
             // sections it took along are the part they cannot see.
@@ -638,29 +687,6 @@ export class ArchiveCommand {
           }
         }
       }
-    }
-
-    // Create archive directory with date prefix. Names that already carry
-    // one keep it: re-prefixing would stutter the name, and when the archive
-    // runs on a later day the folder would sort under a day on which the
-    // change did not happen (#1309).
-    const archiveName = ARCHIVE_DATE_PREFIX_PATTERN.test(changeName)
-      ? changeName
-      : `${formatLocalDate()}-${changeName}`;
-    const archivePath = path.join(archiveDir, archiveName);
-
-    // Check if archive already exists
-    let archiveExists = false;
-    try {
-      await fs.access(archivePath);
-      archiveExists = true;
-    } catch (error: any) {
-      if (error.code !== 'ENOENT') {
-        throw error;
-      }
-    }
-    if (archiveExists) {
-      throw new ArchiveBlockedError('archive_target_exists', `Archive '${archiveName}' already exists.`);
     }
 
     // Create archive directory if needed

@@ -98,6 +98,13 @@ export async function buildUpdatedSpec(
    */
   noRequirementBlocks: boolean;
   /**
+   * `###` headings still sitting in the rebuilt requirements body. A reader sees
+   * these as requirements whatever the parsers make of them, so their presence
+   * disqualifies a retirement: something is left to keep, and deleting the file
+   * would take it silently.
+   */
+  residualRequirementHeadings: string[];
+  /**
    * Authored `## ` sections other than Purpose and Requirements. Retirement
    * deletes the whole file, so callers name these in a warning rather than
    * discarding hand-written prose silently.
@@ -461,27 +468,46 @@ export async function buildUpdatedSpec(
     // the last requirement block the capability had. Whether that spec is
     // genuinely unwritable is the validator's call, not this one.
     noRequirementBlocks: keptOrder.length === 0,
+    // Read off the rebuilt requirements body, which is the preamble alone once
+    // every block is gone.
+    residualRequirementHeadings: findHeadings(reqBody, /^###\s+(.+?)\s*$/),
     otherSections: findOtherSections(rebuilt),
   };
 }
 
 /**
- * Authored `## ` headings other than Purpose and Requirements, outside fenced
- * code. Named so a retirement can say what it is deleting along with the spec.
+ * Structural headings matching `pattern`, ignoring anything inside a fenced code
+ * block or an HTML comment - the same two things every other structural scan in
+ * this file masks, because a commented-out or fenced heading is invisible to the
+ * spec parsers but still sits in the file (#1413).
+ */
+function findHeadings(content: string, pattern: RegExp): string[] {
+  const normalized = content.replace(/\r\n?/g, '\n');
+  // Structure is read from the masked copy; titles come from the real lines so
+  // an author's own wording is reported verbatim.
+  const lines = normalized.split('\n');
+  const masked = maskHtmlComments(normalized).split('\n');
+  const fenceMask = buildCodeFenceMask(masked);
+  const found: string[] = [];
+  for (let i = 0; i < masked.length; i++) {
+    if (fenceMask[i]) continue;
+    if (!pattern.test(masked[i])) continue;
+    const match = lines[i].match(pattern);
+    if (match) found.push(match[1]);
+  }
+  return found;
+}
+
+/**
+ * Authored `## ` headings other than Purpose and Requirements. Named so a
+ * retirement can say what it is deleting along with the spec, so duplicates are
+ * collapsed - this list is read as prose, not as a count.
  */
 function findOtherSections(content: string): string[] {
-  const lines = content.replace(/\r\n?/g, '\n').split('\n');
-  const mask = buildCodeFenceMask(lines);
-  const sections: string[] = [];
-  for (let i = 0; i < lines.length; i++) {
-    if (mask[i]) continue;
-    const match = lines[i].match(/^##\s+(.+?)\s*$/);
-    if (!match) continue;
-    const title = match[1];
-    if (/^(Purpose|Requirements)$/i.test(title)) continue;
-    sections.push(title);
-  }
-  return sections;
+  const titles = findHeadings(content, /^##\s+(.+?)\s*$/).filter(
+    (title) => !/^(Purpose|Requirements)$/i.test(title)
+  );
+  return [...new Set(titles)];
 }
 
 /**
@@ -490,11 +516,16 @@ function findOtherSections(content: string): string[] {
  * was nothing to delete.
  *
  * Only the generated `spec.md` is removed - a directory holding anything else
- * (a nested capability, a hand-kept note) is left in place. Unlinking `spec.md`
- * follows the same path the write path would have written to, so a symlinked
- * spec file loses the link and leaves its target alone.
+ * (a nested capability, a hand-kept note) is left in place.
  *
- * Directory pruning is bounded by REAL paths, not by string prefixes:
+ * The unlink is deliberately NOT bounded to the specs root: it targets exactly
+ * the path a write would have written to, so a symlinked capability directory
+ * resolves the same way for both. That does mean a symlinked directory lets the
+ * unlink reach a file outside the repository, which `retiredPath` surfaces so the
+ * report never hides where the file really was. A symlinked `spec.md` itself
+ * loses the link and leaves its target alone.
+ *
+ * Directory pruning IS bounded, by REAL paths rather than string prefixes:
  * `path.resolve` collapses `..` but does not resolve symlinks, and `readdir` and
  * `rmdir` both follow them, so a symlinked capability directory would otherwise
  * let the walk delete directories outside the specs root entirely.
@@ -503,25 +534,55 @@ export async function retireSpec(
   update: SpecUpdate,
   mainSpecsDir: string,
   options: { silent?: boolean; displayPath?: string } = {}
-): Promise<boolean> {
+): Promise<{ deleted: boolean; retiredPath?: string }> {
+  // Resolved before the unlink, while the link still exists, so the report can
+  // name the file that actually goes when a symlink points out of the tree.
+  let realTarget: string | undefined;
+  try {
+    realTarget = await fs.realpath(update.target);
+  } catch {
+    realTarget = undefined;
+  }
+
   try {
     await fs.unlink(update.target);
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
-    throw error;
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { deleted: false };
+    // A bare errno here reads as an internal failure; say what was being
+    // attempted so the message is actionable on its own.
+    throw new Error(
+      `Could not retire capability '${update.id}': failed to delete ${update.target} ` +
+        `(${(error as Error).message}). Remove it by hand, then rerun the archive.`
+    );
   }
 
   await pruneEmptyDirs(path.dirname(update.target), mainSpecsDir);
 
+  const nominal = options.displayPath ?? `openspec/specs/${update.id}/spec.md`;
+  // Only worth showing when the two differ - otherwise it is the same path twice.
+  const resolvedNote =
+    realTarget && realTarget !== path.resolve(update.target) ? ` (resolved to ${realTarget})` : '';
   if (!options.silent) {
-    console.log(
-      `Retiring ${options.displayPath ?? `openspec/specs/${update.id}/spec.md`}: all requirements removed.`
-    );
+    console.log(`Retiring ${nominal}${resolvedNote}: all requirements removed.`);
   }
-  return true;
+  return { deleted: true, ...(resolvedNote ? { retiredPath: realTarget } : {}) };
 }
 
-/** Remove now-empty directories from `startDir` upward, never leaving the real specs root. */
+/**
+ * Remove now-empty directories from `startDir` upward, never leaving the real
+ * specs root.
+ *
+ * The guard re-runs every iteration, so stepping to the LEXICAL parent is safe:
+ * a parent that is not the real one is simply re-resolved and rejected. Errors
+ * are swallowed and end the walk - ENOTEMPTY and ENOENT are correct outcomes (a
+ * file arriving mid-walk must win), and a permissions failure leaves an empty
+ * directory behind, which the next successful archive clears.
+ *
+ * Not race-free: an attacker who can swap an ancestor between the check and the
+ * `rmdir` could get an empty directory outside the root removed. Closing that
+ * needs fd-relative syscalls Node does not expose, and it requires local write
+ * access to `openspec/specs` during an archive.
+ */
 async function pruneEmptyDirs(startDir: string, mainSpecsDir: string): Promise<void> {
   let specsRoot: string;
   try {
