@@ -122,6 +122,33 @@ Before moving the change to archive, the command SHALL apply delta changes to ma
 - **THEN** leave the existing Purpose untouched
 - **AND** warn that the delta Purpose was ignored, naming the spec file to edit directly, but only when that spec has a Purpose of its own and it differs from the delta's
 
+### Requirement: Capability Retirement
+
+A delta whose REMOVED entries cover every requirement a capability has SHALL retire that capability instead of writing a main spec with no requirements, which can never pass validation.
+
+#### Scenario: Delta removes the capability's last requirement
+
+- **WHEN** applying a delta leaves the target main spec with no requirements
+- **AND** at least one requirement was actually removed by this run
+- **THEN** delete the capability's `spec.md` instead of writing it
+- **AND** delete any directory the deletion leaves empty, up to but never including the specs root
+- **AND** count the removals in the archive totals and complete the archive
+
+#### Scenario: Capability directory holds other files
+
+- **WHEN** retiring a capability whose directory still holds other files after `spec.md` is deleted
+- **THEN** leave that directory in place
+
+#### Scenario: Removal was already synced
+
+- **WHEN** applying a delta leaves the main spec with no requirements but removed nothing this run
+- **THEN** leave the existing file untouched and complete the archive
+
+#### Scenario: Main spec was already deleted
+
+- **WHEN** a REMOVED-only delta targets a capability that has no main spec
+- **THEN** complete the archive without creating one
+
 ### Requirement: Confirmation Behavior
 
 The spec update confirmation SHALL provide clear visibility into changes before they are applied.

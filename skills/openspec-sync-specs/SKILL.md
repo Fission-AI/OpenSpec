@@ -107,6 +107,10 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
       **REMOVED Requirements:**
       - Remove the entire requirement block from main spec
+      - If that leaves the main spec with no requirements at all, the capability is
+        retired: delete its `spec.md` (and the directory, once nothing else is left
+        in it) instead of saving an empty spec. A spec with zero requirements fails
+        `openspec validate`, which is what `openspec archive` does here too.
 
       **RENAMED Requirements:**
       - Find the FROM requirement, rename to TO

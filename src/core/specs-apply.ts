@@ -89,6 +89,12 @@ export async function buildUpdatedSpec(
   rebuilt: string;
   counts: { added: number; modified: number; removed: number; renamed: number };
   warnings: string[];
+  /**
+   * The delta left the capability with no requirements at all, so `rebuilt` is a
+   * spec body that can never validate ("Spec must have at least one
+   * requirement"). Callers retire the capability instead of writing it (#1302).
+   */
+  retired: boolean;
 }> {
   // Collected so silent (JSON) callers can surface them; printed live for
   // human callers at the point they occur.
@@ -443,7 +449,52 @@ export async function buildUpdatedSpec(
       renamed: renamedApplied,
     },
     warnings,
+    // Only ADDED grows the requirement set, so an empty result means the delta
+    // removed the last requirement the capability had. There is no valid spec
+    // to write for that state - every such archive aborted before #1302.
+    retired: keptOrder.length === 0,
   };
+}
+
+/**
+ * Retire a capability whose last requirement a delta removed: delete its main
+ * spec and any directories the deletion leaves empty, up to (but never
+ * including) the specs root. Returns false when there was nothing to delete.
+ *
+ * Only the generated `spec.md` is removed - a directory holding anything else
+ * (a nested capability, a hand-kept note) is left in place.
+ */
+export async function retireSpec(
+  update: SpecUpdate,
+  mainSpecsDir: string,
+  options: { silent?: boolean; displayPath?: string } = {}
+): Promise<boolean> {
+  try {
+    await fs.unlink(update.target);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+    throw error;
+  }
+
+  const specsRoot = path.resolve(mainSpecsDir);
+  let dir = path.dirname(path.resolve(update.target));
+  while (dir !== specsRoot && dir.startsWith(specsRoot + path.sep)) {
+    try {
+      const entries = await fs.readdir(dir);
+      if (entries.length > 0) break;
+      await fs.rmdir(dir);
+    } catch {
+      break;
+    }
+    dir = path.dirname(dir);
+  }
+
+  if (!options.silent) {
+    console.log(
+      `Retiring ${options.displayPath ?? `openspec/specs/${update.id}/spec.md`}: all requirements removed.`
+    );
+  }
+  return true;
 }
 
 function normalizeBlockRaw(raw: string): string {

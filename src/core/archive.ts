@@ -17,6 +17,7 @@ import {
   findSpecUpdates,
   buildUpdatedSpec,
   writeUpdatedSpec,
+  retireSpec,
   type SpecUpdate,
 } from './specs-apply.js';
 import { discoverSpecFiles, hasAnyFileUnder } from '../utils/spec-discovery.js';
@@ -468,11 +469,11 @@ export class ArchiveCommand {
 
         if (shouldUpdateSpecs) {
           // Prepare all updates first (validation pass, no writes)
-          const prepared: Array<{ update: SpecUpdate; rebuilt: string; counts: { added: number; modified: number; removed: number; renamed: number } }> = [];
+          const prepared: Array<{ update: SpecUpdate; rebuilt: string; counts: { added: number; modified: number; removed: number; renamed: number }; retired: boolean }> = [];
           try {
             for (const update of specUpdates) {
               const built = await buildUpdatedSpec(update, changeName!, { silent: json });
-              prepared.push({ update, rebuilt: built.rebuilt, counts: built.counts });
+              prepared.push({ update, rebuilt: built.rebuilt, counts: built.counts, retired: built.retired });
               // Carried into the result so JSON mode (where nothing was
               // printed) still surfaces them; human mode discards the result.
               specWarnings.push(...built.warnings);
@@ -495,6 +496,9 @@ export class ArchiveCommand {
           // late validation failure really does leave all targets unchanged.
           if (!skipValidation) {
             for (const p of prepared) {
+              // A retired capability has no spec left to validate; the whole
+              // point is that the empty body could never pass (#1302).
+              if (p.retired) continue;
               const specName = p.update.id;
               const report = await new Validator().validateSpecContent(specName, p.rebuilt);
               if (!report.valid) {
@@ -522,6 +526,21 @@ export class ArchiveCommand {
           let wroteAny = false;
           for (const p of prepared) {
             const { added, modified, removed, renamed } = p.counts;
+            if (p.retired) {
+              // Nothing was actually removed this run (the requirements were
+              // already gone from the baseline), so leave the file alone rather
+              // than deleting on the strength of a no-op delta.
+              if (removed === 0) continue;
+              const deleted = await retireSpec(p.update, mainSpecsDir, {
+                silent: json,
+                ...(isStoreSelectedRoot(root) ? { displayPath: p.update.target } : {}),
+              });
+              if (deleted) {
+                wroteAny = true;
+                writeTotals.removed += removed;
+              }
+              continue;
+            }
             if (added + modified + removed + renamed === 0) {
               // Every operation was already synced: rewriting the file would
               // only churn normalization differences into it.

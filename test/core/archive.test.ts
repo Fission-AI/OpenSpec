@@ -2769,6 +2769,210 @@ The system SHALL do the thing differently.
     });
   });
 
+  // A delta whose REMOVED entries cover every requirement rebuilds the main
+  // spec empty, and an empty spec can never validate. Every such archive used
+  // to abort with "Spec must have at least one requirement", leaving no way to
+  // retire a capability (#1302).
+  describe('capability retirement (#1302)', () => {
+    const REQUIREMENT = [
+      '### Requirement: The system SHALL provide a legacy layer',
+      'The system SHALL provide a legacy layer to existing consumers.',
+      '',
+      '#### Scenario: Layer is available',
+      '- **WHEN** a consumer imports the layer',
+      '- **THEN** the legacy layer is available',
+    ].join('\n');
+
+    const PURPOSE =
+      'Holds the behavior contract for the legacy layer that consumers still depend on today.';
+
+    function mainSpec(name: string, requirements = REQUIREMENT): string {
+      return `# ${name} Specification\n\n## Purpose\n${PURPOSE}\n\n## Requirements\n\n${requirements}\n`;
+    }
+
+    const REMOVE_ALL = [
+      '# Legacy Layer - Changes',
+      '',
+      '## REMOVED Requirements',
+      '',
+      '### Requirement: The system SHALL provide a legacy layer',
+      '**Reason**: The capability is retired.',
+      '**Migration**: None; consumers already moved off it.',
+      '',
+    ].join('\n');
+
+    async function createChange(
+      changeName: string,
+      capability: string,
+      deltaSpec: string
+    ): Promise<string> {
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(path.join(changeDir, 'specs', ...capability.split('/')), {
+        recursive: true,
+      });
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1\n');
+      await fs.writeFile(
+        path.join(changeDir, 'specs', ...capability.split('/'), 'spec.md'),
+        deltaSpec
+      );
+      return changeDir;
+    }
+
+    it('retires the capability when a delta removes its last requirement', async () => {
+      const changeName = 'retire-legacy-layer';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainSpec('legacy-layer'));
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      // The spec and the directory it was alone in are gone...
+      await expect(fs.access(mainSpecDir)).rejects.toThrow();
+      // ...but the specs root itself is never pruned.
+      await expect(
+        fs.access(path.join(tempDir, 'openspec', 'specs'))
+      ).resolves.not.toThrow();
+      // The archive completed rather than aborting.
+      expect(process.exitCode).not.toBe(1);
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('Retiring openspec/specs/legacy-layer/spec.md')
+      );
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('Totals: + 0, ~ 0, - 1, → 0')
+      );
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('Specs updated successfully.')
+      );
+      await expect(fs.access(path.join(tempDir, 'openspec', 'changes', changeName))).rejects.toThrow();
+    });
+
+    it('prunes empty parent directories in a nested layout but keeps siblings', async () => {
+      const changeName = 'retire-nested';
+      await createChange(changeName, 'platform/legacy-layer', REMOVE_ALL);
+      const nestedDir = path.join(tempDir, 'openspec', 'specs', 'platform', 'legacy-layer');
+      const siblingDir = path.join(tempDir, 'openspec', 'specs', 'platform', 'kept');
+      await fs.mkdir(nestedDir, { recursive: true });
+      await fs.mkdir(siblingDir, { recursive: true });
+      await fs.writeFile(path.join(nestedDir, 'spec.md'), mainSpec('legacy-layer'));
+      await fs.writeFile(path.join(siblingDir, 'spec.md'), mainSpec('kept'));
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      await expect(fs.access(nestedDir)).rejects.toThrow();
+      // The sibling keeps the shared parent alive.
+      await expect(fs.access(path.join(siblingDir, 'spec.md'))).resolves.not.toThrow();
+    });
+
+    it('leaves a capability directory that still holds other files', async () => {
+      const changeName = 'retire-with-notes';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainSpec('legacy-layer'));
+      await fs.writeFile(path.join(mainSpecDir, 'NOTES.md'), 'Kept by hand.\n');
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      await expect(fs.access(path.join(mainSpecDir, 'spec.md'))).rejects.toThrow();
+      await expect(fs.readFile(path.join(mainSpecDir, 'NOTES.md'), 'utf-8')).resolves.toBe(
+        'Kept by hand.\n'
+      );
+    });
+
+    it('retires rather than writing an empty spec under --no-validate', async () => {
+      // --no-validate was the one path that did not abort: it wrote a spec with
+      // zero requirements, which every later validate then rejected.
+      const changeName = 'retire-no-validate';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainSpec('legacy-layer'));
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      await expect(fs.access(mainSpecDir)).rejects.toThrow();
+    });
+
+    it('archives a REMOVED-only delta whose main spec was already deleted', async () => {
+      // The issue's second dead end: pre-deleting the spec made the delta look
+      // like a create, which landed on an empty spec and failed the same way.
+      const changeName = 'retire-already-gone';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(process.exitCode).not.toBe(1);
+      // Nothing was recreated.
+      await expect(
+        fs.access(path.join(tempDir, 'openspec', 'specs', 'legacy-layer'))
+      ).rejects.toThrow();
+      await expect(
+        fs.access(path.join(tempDir, 'openspec', 'changes', changeName))
+      ).rejects.toThrow();
+    });
+
+    it('does not delete a spec when the removal was already synced', async () => {
+      // Nothing was removed this run, so the empty spec is the user's to fix -
+      // deleting on a no-op delta would destroy a file the change never touched.
+      const changeName = 'retire-noop';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const emptied = `# legacy-layer Specification\n\n## Purpose\nThe legacy layer.\n\n## Requirements\n`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), emptied);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      await expect(fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8')).resolves.toBe(emptied);
+    });
+
+    it('still writes the spec when requirements remain after the removal', async () => {
+      const changeName = 'partial-removal';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const kept = [
+        '### Requirement: The system SHALL provide a core layer',
+        'The system SHALL provide a core layer to every consumer.',
+        '',
+        '#### Scenario: Core is available',
+        '- **WHEN** a consumer imports the core',
+        '- **THEN** the core layer is available',
+      ].join('\n');
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(
+        path.join(mainSpecDir, 'spec.md'),
+        mainSpec('legacy-layer', `${REQUIREMENT}\n\n${kept}`)
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      const updated = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      expect(updated).toContain('core layer');
+      expect(updated).not.toContain('legacy layer is available');
+    });
+
+    it('reports the retirement in --json instead of printing progress lines', async () => {
+      const changeName = 'retire-json';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainSpec('legacy-layer'));
+
+      await archiveCommand.execute(changeName, { yes: true, json: true });
+
+      await expect(fs.access(mainSpecDir)).rejects.toThrow();
+      const calls = (console.log as unknown as ReturnType<typeof vi.fn>).mock.calls.map(
+        (call) => String(call[0])
+      );
+      // JSON mode prints exactly one payload and no human progress lines.
+      expect(calls.some((line) => line.includes('Retiring'))).toBe(false);
+      const payload = JSON.parse(calls[calls.length - 1]);
+      expect(payload.archive.specsUpdated).toBe(true);
+      expect(payload.archive.totals).toEqual({ added: 0, modified: 0, removed: 1, renamed: 0 });
+    });
+  });
+
   describe('proposal warnings (#498)', () => {
     const LONG_WHY =
       'This change exists to document AI application patterns thoroughly for the team, which is long enough.';
