@@ -199,8 +199,33 @@ describe('InitCommand', () => {
       expect(cmdContent).toContain('category:');
       expect(cmdContent).toContain('tags:');
 
-      // .agents is a detection-only root and must never be created during generation
+      // ZCode writes only to its own root; selecting it must never create another
+      // tool's root, including the shared .agents target.
       expect(await directoryExists(path.join(testDir, '.agents'))).toBe(false);
+    });
+
+    it('should support the shared agents target as an adapterless skills-only tool', async () => {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'both',
+      });
+
+      const initCommand = new InitCommand({ tools: 'agents', force: true });
+      await initCommand.execute(testDir);
+
+      const skillFile = path.join(testDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
+
+      const commandsDir = path.join(testDir, '.agents', 'commands');
+      expect(await directoryExists(commandsDir)).toBe(false);
+
+      const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+      expect(
+        logCalls.some(
+          (entry) => entry.includes('Commands skipped for: agents') && entry.includes('(no adapter)'),
+        ),
+      ).toBe(true);
     });
 
     it('should support Kimi Code as an adapterless skills-only tool', async () => {
