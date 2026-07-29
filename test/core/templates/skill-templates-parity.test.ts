@@ -592,7 +592,9 @@ describe('skill templates split parity', () => {
     for (const [id, text] of variants) {
       // Only runnable invocations count: prose that merely names the command
       // ("same rule as `openspec archive`") has nothing to confirm.
-      const invocations = text.match(/^openspec archive .*$/gm) ?? [];
+      // The optional tail matters: a regressed bare `openspec archive` line
+      // would slip past a pattern that demands arguments.
+      const invocations = text.match(/^openspec archive(?:\s.*)?$/gm) ?? [];
       expect(invocations.length, id).toBeGreaterThan(0);
       for (const invocation of invocations) {
         expect(invocation, id).toContain('--yes');

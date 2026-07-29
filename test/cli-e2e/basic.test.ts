@@ -240,8 +240,8 @@ describe('openspec CLI e2e basics', () => {
       expect(output).toContain('openspec archive add-greeting --yes');
 
       // The change is untouched: nothing was archived or merged.
-      expect(await fileExists(path.join(projectDir, 'openspec/changes/add-greeting/proposal.md'))).toBe(true);
-      expect(await fileExists(path.join(projectDir, 'openspec/specs/greeting/spec.md'))).toBe(false);
+      expect(await fileExists(path.join(projectDir, 'openspec', 'changes', 'add-greeting', 'proposal.md'))).toBe(true);
+      expect(await fileExists(path.join(projectDir, 'openspec', 'specs', 'greeting', 'spec.md'))).toBe(false);
     });
 
     it('reports the incomplete-task prompt the same way', async () => {
@@ -282,7 +282,7 @@ describe('openspec CLI e2e basics', () => {
       const result = await runCLI(['archive', 'add-greeting', '--yes'], { cwd: projectDir });
 
       expect(result.exitCode).toBe(0);
-      expect(await fileExists(path.join(projectDir, 'openspec/specs/greeting/spec.md'))).toBe(true);
+      expect(await fileExists(path.join(projectDir, 'openspec', 'specs', 'greeting', 'spec.md'))).toBe(true);
     });
 
     it('asks for a change name instead of exiting 0 without archiving', async () => {
@@ -292,7 +292,7 @@ describe('openspec CLI e2e basics', () => {
       const output = `${result.stdout}${result.stderr}`;
       expect(result.exitCode).toBe(1);
       expect(output).toContain('A change name is required');
-      expect(await fileExists(path.join(projectDir, 'openspec/changes/add-greeting/proposal.md'))).toBe(true);
+      expect(await fileExists(path.join(projectDir, 'openspec', 'changes', 'add-greeting', 'proposal.md'))).toBe(true);
     });
 
     it('keeps --store in the suggested rerun for a store-rooted change', async () => {
