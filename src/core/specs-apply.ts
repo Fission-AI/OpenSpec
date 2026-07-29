@@ -610,6 +610,11 @@ export async function retireSpec(
       }
     }
   } catch (error) {
+    // The staging directories were created before the move, so a failure here
+    // would leave an empty `retired-specs/<capability>/` behind - which rides
+    // into the archive claiming a retirement that never happened. Only empty
+    // ones go, so a capability already staged by this same run is untouched.
+    await pruneEmptyDirs(path.dirname(dest), path.dirname(destDir));
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { retired: false };
     // A bare errno here reads as an internal failure; say what was being
     // attempted so the message is actionable on its own.

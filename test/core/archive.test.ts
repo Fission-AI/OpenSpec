@@ -3239,6 +3239,86 @@ The system SHALL do the thing differently.
       expect(console.log).not.toHaveBeenCalledWith(expect.stringContaining('Retiring'));
     });
 
+    it.skipIf(process.platform === 'win32')(
+      'leaves no empty staging directory behind when the move fails',
+      async () => {
+        // The staging directories are created before the move, so a failure
+        // used to leave an empty `retired-specs/<capability>/` that rides into
+        // the archive claiming a retirement that never happened. A dangling
+        // symlink is the reproducible failure: lstat sees a file, the copy
+        // follows the link and finds nothing.
+        const capability = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+        await fs.mkdir(capability, { recursive: true });
+        await fs.symlink(
+          path.join(tempDir, 'no-such-target.md'),
+          path.join(capability, 'spec.md')
+        );
+        const staging = path.join(tempDir, 'change', 'retired-specs');
+
+        await expect(
+          retireSpec(
+            {
+              id: 'legacy-layer',
+              source: 'x',
+              target: path.join(capability, 'spec.md'),
+              exists: true,
+            },
+            path.join(tempDir, 'openspec', 'specs'),
+            staging,
+            { silent: true }
+          )
+        ).resolves.toEqual({ retired: false });
+
+        // Nothing staged, and no husk of a directory left claiming otherwise.
+        await expect(fs.access(staging)).rejects.toThrow();
+        // The dangling link is still the author's to clean up.
+        await expect(fs.lstat(path.join(capability, 'spec.md'))).resolves.toBeTruthy();
+      }
+    );
+
+    it.skipIf(process.platform === 'win32')(
+      'keeps a sibling capability staged by the same run when a later move fails',
+      async () => {
+        // The cleanup walks up only through EMPTY directories, so it must stop
+        // at a `retired-specs/` that already holds a retirement from this run
+        // rather than taking the whole folder with it.
+        const staging = path.join(tempDir, 'change', 'retired-specs');
+        await fs.mkdir(path.join(staging, 'already-staged'), { recursive: true });
+        await fs.writeFile(
+          path.join(staging, 'already-staged', 'spec.md'),
+          mainSpec('already-staged')
+        );
+        const capability = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+        await fs.mkdir(capability, { recursive: true });
+        // Dangling: lstat sees a file, so staging happens, then the copy fails.
+        await fs.symlink(
+          path.join(tempDir, 'no-such-target.md'),
+          path.join(capability, 'spec.md')
+        );
+
+        await expect(
+          retireSpec(
+            {
+              id: 'legacy-layer',
+              source: 'x',
+              target: path.join(capability, 'spec.md'),
+              exists: true,
+            },
+            path.join(tempDir, 'openspec', 'specs'),
+            staging,
+            { silent: true }
+          )
+        ).resolves.toEqual({ retired: false });
+
+        // The failed capability's husk is gone...
+        await expect(fs.access(path.join(staging, 'legacy-layer'))).rejects.toThrow();
+        // ...and the sibling that really was staged survives untouched.
+        await expect(
+          fs.readFile(path.join(staging, 'already-staged', 'spec.md'), 'utf-8')
+        ).resolves.toBe(mainSpec('already-staged'));
+      }
+    );
+
     it('refuses to overwrite a spec an earlier aborted run already staged', async () => {
       // The staged copy is the only copy once the live one is moved, so
       // clobbering it would destroy the thing this whole path preserves.

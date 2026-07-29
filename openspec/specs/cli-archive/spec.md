@@ -155,6 +155,7 @@ A delta whose REMOVED entries cover every requirement a capability has SHALL ret
 - **THEN** stage it inside the change directory, which is renamed onto the archive path, so the spec travels with the change that retired it
 - **AND** refuse to overwrite a spec already staged there by an earlier aborted run of the same archive
 - **AND** copy the file's content, rather than the link, when the main spec is a symlink, leaving the link's target untouched
+- **AND** remove the staging directories it created when the move fails, so no empty folder rides into the archive claiming a retirement that never happened, while keeping any retirement the same run already staged beside it
 
 #### Scenario: Retirement is deferred until every spec is written
 
