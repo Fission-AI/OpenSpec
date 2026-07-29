@@ -6,7 +6,6 @@
  */
 
 import { promises as fs } from 'fs';
-import type { FileHandle } from 'fs/promises';
 import path from 'path';
 import chalk from 'chalk';
 import {
@@ -520,42 +519,27 @@ function findOtherSections(content: string): string[] {
 }
 
 /**
- * Retire a capability whose last requirement a delta removed: move its main
- * spec out of the live specs tree and into the change that retired it, then
- * prune any directories the move leaves empty. Returns false when there was
- * nothing to move.
+ * Retire a capability whose last requirement a delta removed: delete its main
+ * spec and prune any directories the deletion leaves empty. Returns false when
+ * there was nothing to delete.
  *
- * Nothing is deleted. `destDir` is a folder inside the change directory, which
- * the archive step renames into `openspec/changes/archive/<archived-name>/`
- * moments later, so the retired spec lands beside the proposal and tasks that
- * retired it and `git` records the whole thing as a rename. Recovering a
- * capability archived by mistake is a `git mv` back, not a trip through the
- * reflog.
+ * Gated by the caller on the change's `retire_capabilities` marker, so the one
+ * archive action that removes a file from `openspec/specs/` is always something
+ * the author asked for rather than something inferred from a delta's shape. The
+ * file is recoverable from git, which the report names; applying REMOVED already
+ * deletes requirement content from a main spec, so deleting the spec once
+ * nothing is left is the same operation carried to its end rather than a new
+ * kind of act.
  *
- * Staged into the change directory rather than written straight to the archive
- * path on purpose: the archive path must not exist yet (the change directory is
- * renamed onto it), and staging keeps the ordering safe. If any later step
- * fails, the spec is sitting in a change that is still active, so a rerun
- * carries it through - versus writing into the archive after the move, where a
- * failure would strand the live specs tree without a spec it still needs.
- *
- * Only the generated `spec.md` moves - a directory holding anything else (a
+ * Only the generated `spec.md` is removed - a directory holding anything else (a
  * nested capability, a hand-kept note) is left in place.
  *
- * The move is deliberately NOT bounded to the specs root: it targets exactly
+ * The unlink is deliberately NOT bounded to the specs root: it targets exactly
  * the path a write would have written to, so a symlinked capability directory
- * resolves the same way for both. `sourcePath` surfaces where the file really
- * lived when a symlink points out of the tree, so the report never hides it. A
- * symlinked `spec.md` is copied by content and its link removed, leaving the
- * link's target alone: moving the link itself would archive a symlink whose
- * relative path no longer resolves from where it landed.
- *
- * Safe to run concurrently against the same destination: the destination is
- * claimed by an exclusive create, so of two racing retirements one wins and the
- * other is refused, and neither can roll back the other's file. Not crash-safe,
- * which is a weaker promise - a process killed between the write and the unlink
- * leaves the spec in both places, and the next run refuses rather than guessing
- * which to keep.
+ * resolves the same way for both. That does mean a symlinked directory lets the
+ * unlink reach a file outside the repository, which `sourcePath` surfaces so the
+ * report never hides where the file really was. A symlinked `spec.md` loses the
+ * link and leaves its target alone.
  *
  * Directory pruning IS bounded, by REAL paths rather than string prefixes:
  * `path.resolve` collapses `..` but does not resolve symlinks, and `readdir` and
@@ -565,126 +549,31 @@ function findOtherSections(content: string): string[] {
 export async function retireSpec(
   update: SpecUpdate,
   mainSpecsDir: string,
-  destDir: string,
-  options: { silent?: boolean; displayPath?: string; destDisplayPath?: string } = {}
-): Promise<{ retired: boolean; movedTo?: string; sourcePath?: string }> {
-  // Resolved before the move, while the link still exists, so the report can
-  // name the file that actually left when a symlink points out of the tree.
-  // A symlinked `spec.md` is excluded: `realpath` would follow it to a file
-  // this function copies from and then leaves alone, so naming that target
-  // would claim a file moved that is still exactly where it was.
-  let isSymlink = false;
+  options: { silent?: boolean; displayPath?: string } = {}
+): Promise<{ retired: boolean; sourcePath?: string }> {
+  // Resolved before the unlink, while the link still exists, so the report can
+  // name the file that actually goes when a symlink points out of the tree.
+  // A symlinked `spec.md` is excluded: `realpath` would follow it, but `unlink`
+  // removes the link and leaves the target alone, so naming the target would
+  // claim a file was deleted that is still there.
   let realSource: string | undefined;
   try {
     const link = await fs.lstat(update.target);
-    isSymlink = link.isSymbolicLink();
-    realSource = isSymlink ? undefined : await fs.realpath(update.target);
+    realSource = link.isSymbolicLink() ? undefined : await fs.realpath(update.target);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { retired: false };
     realSource = undefined;
   }
 
-  const dest = path.join(destDir, ...update.id.split('/'), 'spec.md');
-
-  // True only when THIS call created the destination, which is what makes the
-  // rollback below safe to perform. Checking `access` first and then writing
-  // was not an ownership claim: two concurrent retirements both saw the path
-  // free, one moved the spec in, and the other - its own flag equally set -
-  // rolled that file back out, losing the source and the staged copy together.
-  let destIsOurs = false;
-
   try {
-    await fs.mkdir(path.dirname(dest), { recursive: true });
-
-    // Claim the destination with an exclusive create, and let THAT be the only
-    // thing ownership is ever read from. `wx` is O_CREAT|O_EXCL: it returns a
-    // handle exactly when it created the file, so "did this call create it?" is
-    // answered by the syscall rather than inferred afterwards.
-    //
-    // Inferring it from a copy's errno cannot work, however the errnos are
-    // partitioned. A failure code describes what went wrong, not what was
-    // created - a source-side EACCES looks identical whether the destination
-    // was untouched or belonged to someone else, and treating it as "probably a
-    // partial copy of mine" deleted a recovery copy an earlier run had staged.
-    //
-    // EEXIST here is also the check that refuses to clobber that earlier copy,
-    // now decided by the same atomic operation instead of a separate look.
-    let handle: FileHandle;
-    try {
-      handle = await fs.open(dest, 'wx');
-    } catch (error) {
-      // Nothing was created on any failure path, so the destination is not
-      // ours and `destIsOurs` stays false - no rollback can reach it.
-      if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
-        throw new Error(`${dest} already exists`);
-      }
-      throw error;
-    }
-    destIsOurs = true;
-
-    // Content is copied through the claimed handle rather than by `copyFile`,
-    // which would need its own destination and hand the claim back. Read as
-    // bytes so nothing re-encodes the file on the way through.
-    //
-    // Reading a symlink follows it, which is the intent: the archive gets the
-    // spec's content, the link's target is left alone, and nothing archives a
-    // relative path that no longer resolves from where it landed. Working
-    // through a copy rather than `rename` also crosses filesystems, which
-    // retires the EXDEV/EPERM fallback this used to need.
-    try {
-      await handle.writeFile(await fs.readFile(update.target));
-    } finally {
-      // Before any rollback: Windows will not unlink a file that is still open.
-      await handle.close().catch(() => {});
-    }
-
-    try {
-      await fs.unlink(update.target);
-    } catch (error) {
-      // A source that is ALREADY gone is the end state this was reaching for,
-      // and the staged copy now holds its content - so this is a success, not a
-      // failure to roll back. Rolling back here destroyed the only remaining
-      // copy of a spec whose source something else had just removed.
-      //
-      // Every other errno still throws: the source is still sitting there, and
-      // leaving the staged copy beside it is the two-places state that blocks
-      // every rerun.
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-    }
+    await fs.unlink(update.target);
   } catch (error) {
-    // Roll the destination back to how this attempt found it: not there. A copy
-    // that succeeded before the source could be removed leaves the spec in two
-    // places, and the one in staging then trips the "already exists" guard on
-    // every rerun - so the retry the error message asks for could never work.
-    // Guarded by `destIsOurs`, so a spec staged by an EARLIER run is never the
-    // thing rolled back. A partially written copy is removed by the same call.
-    let rolledBack = true;
-    if (destIsOurs) {
-      try {
-        await fs.unlink(dest);
-      } catch (cleanupError) {
-        // Already gone is the outcome we wanted; anything else and a copy is
-        // still sitting there, which the message below has to admit rather than
-        // promise a retry that the "already exists" guard would reject.
-        rolledBack = (cleanupError as NodeJS.ErrnoException).code === 'ENOENT';
-      }
-    }
-    // The staging directories were created before the move, so a failure here
-    // would leave an empty `retired-specs/<capability>/` behind - which rides
-    // into the archive claiming a retirement that never happened. Only empty
-    // ones go, so a capability already staged by this same run is untouched.
-    await pruneEmptyDirs(path.dirname(dest), path.dirname(destDir));
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { retired: false };
     // A bare errno here reads as an internal failure; say what was being
-    // attempted so the message is actionable on its own. Every throwing path
-    // above leaves the source in place, so the only question the reader has is
-    // whether anything was left behind in staging.
-    const state = rolledBack
-      ? 'The spec is still in place; fix that and rerun the archive.'
-      : `The spec is still in place, but a copy was left at ${dest} - remove it, then rerun the archive.`;
+    // attempted so the message is actionable on its own.
     throw new Error(
-      `Could not retire capability '${update.id}': failed to move ${update.target} to ${dest} ` +
-        `(${(error as Error).message}). ${state}`
+      `Could not retire capability '${update.id}': failed to delete ${update.target} ` +
+        `(${(error as Error).message}). Remove it by hand, then rerun the archive.`
     );
   }
 
@@ -697,17 +586,10 @@ export async function retireSpec(
   // platform's own `/var` -> `/private/var` link is enough - and say nothing.
   const escaped = realSource !== undefined && !(await isInsideRealDir(realSource, mainSpecsDir));
   const resolvedNote = escaped ? ` (resolved to ${realSource})` : '';
-  const destDisplay = options.destDisplayPath ?? dest;
   if (!options.silent) {
-    console.log(
-      `Retiring ${nominal}${resolvedNote}: all requirements removed. Moved to ${destDisplay}.`
-    );
+    console.log(`Retiring ${nominal}${resolvedNote}: all requirements removed.`);
   }
-  return {
-    retired: true,
-    movedTo: destDisplay,
-    ...(resolvedNote ? { sourcePath: realSource } : {}),
-  };
+  return { retired: true, ...(resolvedNote ? { sourcePath: realSource } : {}) };
 }
 
 /** Whether `realPath` (already canonical) sits under the real `dir`. */

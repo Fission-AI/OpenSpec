@@ -136,52 +136,36 @@ A delta whose REMOVED entries cover every requirement a capability has SHALL ret
 #### Scenario: Validation was skipped
 
 - **WHEN** the archive runs with validation disabled
-- **THEN** retire nothing, because no verdict was produced to justify moving a spec out of the live tree
+- **THEN** retire nothing, because no verdict was produced to justify a deletion
 - **AND** write the rebuilt spec exactly as an archive without this behavior would
+
+#### Scenario: Retirement is not declared
+
+- **WHEN** a rebuilt spec is retirable but the change does not declare `retire_capabilities: true` in its metadata, or declares it in metadata that cannot be honored
+- **THEN** write the spec as any other, so the archive aborts on it exactly as it did before this behavior existed
+- **AND** name the marker as the fix in that abort, and say when a marker that is present cannot be honored
+- **AND** say nothing about the marker when retiring would not have made the spec writable anyway
 
 #### Scenario: Delta removes the capability's last requirement
 
 - **WHEN** a retirable rebuilt spec belongs to a capability whose main spec exists
 - **AND** at least one requirement was actually removed by this run
-- **THEN** move the capability's `spec.md` into the change being archived instead of writing it, so it comes to rest at `<archive>/retired-specs/<capability>/spec.md`
-- **AND** delete no spec content, leaving the file recoverable from the archive
-- **AND** remove any directory the move leaves empty, resolving symlinks so nothing outside the real specs root is removed, and never the specs root itself
+- **AND** the change declares `retire_capabilities: true`
+- **THEN** delete the capability's `spec.md` instead of writing it
+- **AND** delete any directory the deletion leaves empty, resolving symlinks so nothing outside the real specs root is removed, and never the specs root itself
 - **AND** count every operation the delta applied in the archive totals
-- **AND** record the retirement in the archive warnings, naming where the spec moved to, the sections that moved with it, and the resolved path when a symlinked directory placed the file outside the specs tree
-
-#### Scenario: Retired spec is staged inside the change
-
-- **WHEN** moving a retired capability's `spec.md`
-- **THEN** stage it inside the change directory, which is renamed onto the archive path, so the spec travels with the change that retired it
-- **AND** claim the destination by creating it exclusively, so of two retirements racing for the same path one succeeds and the other is refused, and neither can remove the other's file
-- **AND** treat only that creation as proof of ownership, never a later error code, so no failure reading or writing the spec can be mistaken for a claim on a file this run did not create
-- **AND** refuse to overwrite a spec already staged there by an earlier aborted run of the same archive
-- **AND** copy the file's content, rather than the link, when the main spec is a symlink, leaving the link's target untouched
-- **AND** remove the staging directories it created when the move fails, so no empty folder rides into the archive claiming a retirement that never happened, while keeping any retirement the same run already staged beside it
-
-#### Scenario: The copy lands but the live spec cannot be removed
-
-- **WHEN** a retirement copies the spec into staging and then fails to remove the original, which is still there
-- **THEN** delete the staged copy this attempt created, leaving the capability exactly as the attempt found it
-- **AND** never delete a staged copy this call did not create, whether an earlier run staged it or a concurrent one did
-- **AND** report that the spec is still in place, so rerunning the archive is a real instruction rather than one the "already staged" guard would reject
-- **AND** say where the leftover copy is instead, if removing it also failed
-
-#### Scenario: The source disappears after the copy is written
-
-- **WHEN** the spec's content has been written into staging and the original turns out to be gone already
-- **THEN** keep the staged copy and report the retirement, because that is the end state the retirement was reaching for and the copy holds the only remaining content
+- **AND** record the retirement in the archive warnings, naming the sections the deleted file held, the command that restores it from git, and the resolved path when a symlinked directory placed the file outside the specs tree
 
 #### Scenario: Retirement is deferred until every spec is written
 
 - **WHEN** an archive both retires one capability and updates another
 - **THEN** settle the archive destination before touching any spec, so a name collision cannot strand a retirement
-- **AND** perform the move only after every spec write has succeeded
+- **AND** perform the deletion only after every spec write has succeeded
 - **AND** report a destination claimed while the merge ran as the same collision, rather than as a raw filesystem error
 
 #### Scenario: Capability directory holds other files
 
-- **WHEN** retiring a capability whose directory still holds other files after `spec.md` moves out
+- **WHEN** retiring a capability whose directory still holds other files after `spec.md` is deleted
 - **THEN** leave that directory in place
 
 #### Scenario: Removal was already synced

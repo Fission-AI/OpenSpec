@@ -51,13 +51,14 @@ The agent SHALL reconcile main specs with delta specs using the delta operation 
 #### Scenario: REMOVED requirements retire the capability
 - **WHEN** removing the requirements named in the delta leaves `## Requirements` completely empty, with no other `###` heading or prose under it
 - **AND** the rest of the spec is well-formed and it was not already empty before this sync
-- **THEN** move that capability's `spec.md` to `openspec/changes/<change-id>/retired-specs/<capability>/spec.md`, so it travels into the archive with the change that retired it, and remove its directory once nothing else remains in it
-- **AND** delete no spec content
-- **AND** report the retirement, naming where the spec moved to and the `## Purpose` and any other sections that moved with it
+- **AND** the change declares `retire_capabilities: true` in its metadata
+- **THEN** delete that capability's `spec.md`, and its directory once nothing else remains in it
+- **AND** report the retirement, naming the `## Purpose` and any other sections the file held
+- **AND** leave the file in place and say the marker is missing when it is not declared
 
 #### Scenario: Something is left under Requirements
 - **WHEN** any of those conditions fails - content remains under `## Requirements`, the spec is malformed, or nothing was removed this run
-- **THEN** keep the file in place and report what is left, rather than retiring it
+- **THEN** keep the file in place and report what is left, rather than deleting it
 
 #### Scenario: RENAMED requirements
 - **WHEN** delta contains `## RENAMED Requirements` with FROM:/TO: format

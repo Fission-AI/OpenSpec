@@ -2808,10 +2808,16 @@ The system SHALL do the thing differently.
       return String(calls[calls.length - 1][0]);
     }
 
+    /**
+     * A change that is allowed to retire a capability. Every retirement case
+     * below carries the marker, because without it archive aborts - which is the
+     * whole point of the marker, and has its own tests further down.
+     */
     async function createChange(
       changeName: string,
       capability: string,
-      deltaSpec: string
+      deltaSpec: string,
+      options: { declareRetirement?: boolean } = {}
     ): Promise<string> {
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
       await fs.mkdir(path.join(changeDir, 'specs', ...capability.split('/')), {
@@ -2822,8 +2828,125 @@ The system SHALL do the thing differently.
         path.join(changeDir, 'specs', ...capability.split('/'), 'spec.md'),
         deltaSpec
       );
+      if (options.declareRetirement !== false) {
+        await fs.writeFile(
+          path.join(changeDir, '.openspec.yaml'),
+          'schema: spec-driven\nretire_capabilities: true\n'
+        );
+      }
       return changeDir;
     }
+
+    // The marker is what makes the deletion the author's decision rather than
+    // an inference from the shape of a delta. Without it archive behaves exactly
+    // as it did before #1302 - it aborts on a spec it cannot write - except that
+    // the abort now names the way out.
+    describe('retire_capabilities marker', () => {
+      async function setUpUnmarked(changeName: string, metadata?: string): Promise<string> {
+        const changeDir = await createChange(changeName, 'legacy-layer', REMOVE_ALL, {
+          declareRetirement: false,
+        });
+        if (metadata !== undefined) {
+          await fs.writeFile(path.join(changeDir, '.openspec.yaml'), metadata);
+        }
+        const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+        await fs.mkdir(mainSpecDir, { recursive: true });
+        await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainSpec('legacy-layer'));
+        return path.join(mainSpecDir, 'spec.md');
+      }
+
+      it('aborts without the marker, naming it, and deletes nothing', async () => {
+        const target = await setUpUnmarked('retire-unmarked');
+        const original = await fs.readFile(target, 'utf-8');
+
+        await archiveCommand.execute('retire-unmarked', { yes: true });
+
+        // Pre-#1302 behavior, unchanged: the unwritable spec aborts the archive.
+        expect(process.exitCode).toBe(1);
+        expect(console.log).toHaveBeenCalledWith(
+          expect.stringContaining(VALIDATION_MESSAGES.SPEC_NO_REQUIREMENTS)
+        );
+        // ...but the dead end now comes with its own way out.
+        expect(console.log).toHaveBeenCalledWith(
+          expect.stringContaining('add `retire_capabilities: true`')
+        );
+        // Nothing touched: not the spec, not the change.
+        await expect(fs.readFile(target, 'utf-8')).resolves.toBe(original);
+        await expect(
+          fs.access(path.join(tempDir, 'openspec', 'changes', 'retire-unmarked'))
+        ).resolves.not.toThrow();
+      });
+
+      it('refuses a marker it cannot honor, and says why', async () => {
+        // Mirrors skip_specs: a marker in metadata that fails the contract is
+        // not a marker. Silently ignoring it would be the worst outcome - the
+        // author believes they authorised the deletion.
+        const target = await setUpUnmarked(
+          'retire-bad-marker',
+          'schema: spec-driven\nretire_capabilities: yes-please\n'
+        );
+
+        await archiveCommand.execute('retire-bad-marker', { yes: true });
+
+        expect(process.exitCode).toBe(1);
+        expect(console.log).toHaveBeenCalledWith(
+          expect.stringContaining('cannot be honored')
+        );
+        await expect(fs.access(target)).resolves.not.toThrow();
+      });
+
+      it('treats retire_capabilities: false as not declared', async () => {
+        const target = await setUpUnmarked(
+          'retire-false-marker',
+          'schema: spec-driven\nretire_capabilities: false\n'
+        );
+
+        await archiveCommand.execute('retire-false-marker', { yes: true });
+
+        expect(process.exitCode).toBe(1);
+        // An explicit false is the opposite of setting the marker, so it must
+        // not be reported as an unhonorable one.
+        expect(console.log).not.toHaveBeenCalledWith(
+          expect.stringContaining('cannot be honored')
+        );
+        await expect(fs.access(target)).resolves.not.toThrow();
+      });
+
+      it('reports the missing marker as the fix in --json', async () => {
+        await setUpUnmarked('retire-unmarked-json');
+
+        await archiveCommand
+          .execute('retire-unmarked-json', { yes: true, json: true })
+          .catch(() => undefined);
+
+        const payload = JSON.parse(lastJsonPayload());
+        expect(payload.archive).toBeNull();
+        expect(JSON.stringify(payload.status)).toContain('retire_capabilities: true');
+      });
+
+      it('does not name the marker when retirement would not have fixed it', async () => {
+        // A spec broken in some further way is not a retirement candidate, so
+        // pointing at the marker would send the author after the wrong fix.
+        const changeDir = await createChange('retire-also-broken-marker', 'legacy-layer', REMOVE_ALL, {
+          declareRetirement: false,
+        });
+        expect(changeDir).toBeTruthy();
+        const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+        await fs.mkdir(mainSpecDir, { recursive: true });
+        // No `## Purpose`: a second, independent validation error.
+        await fs.writeFile(
+          path.join(mainSpecDir, 'spec.md'),
+          `# legacy-layer Specification\n\n## Requirements\n\n${REQUIREMENT}\n`
+        );
+
+        await archiveCommand.execute('retire-also-broken-marker', { yes: true });
+
+        expect(process.exitCode).toBe(1);
+        expect(console.log).not.toHaveBeenCalledWith(
+          expect.stringContaining('add `retire_capabilities: true`')
+        );
+      });
+    });
 
     it('retires the capability when a delta removes its last requirement', async () => {
       const changeName = 'retire-legacy-layer';
@@ -2840,27 +2963,16 @@ The system SHALL do the thing differently.
       await expect(
         fs.access(path.join(tempDir, 'openspec', 'specs'))
       ).resolves.not.toThrow();
-      // Nothing was deleted: the spec rode into the archive with its change,
-      // byte for byte, so recovering the capability is a `git mv` back.
-      const retired = path.join(
-        tempDir,
-        'openspec',
-        'changes',
-        'archive',
-        `${formatLocalDate()}-${changeName}`,
-        'retired-specs',
-        'legacy-layer',
-        'spec.md'
-      );
-      await expect(fs.readFile(retired, 'utf-8')).resolves.toBe(mainSpec('legacy-layer'));
       // The archive completed rather than aborting.
       expect(process.exitCode).not.toBe(1);
       expect(console.log).toHaveBeenCalledWith(
         expect.stringContaining('Retiring openspec/specs/legacy-layer/spec.md')
       );
+      // The one thing a reader needs that the path does not tell them: how to
+      // get the file back.
       expect(console.log).toHaveBeenCalledWith(
         expect.stringContaining(
-          `Moved to openspec/changes/archive/${formatLocalDate()}-${changeName}/retired-specs/legacy-layer/spec.md`
+          'Recover it with: git checkout HEAD -- openspec/specs/legacy-layer/spec.md'
         )
       );
       expect(console.log).toHaveBeenCalledWith(
@@ -3171,7 +3283,7 @@ The system SHALL do the thing differently.
       );
     });
 
-    it('names the sections that moved with a retired spec', async () => {
+    it('names the sections a retirement deletes along with the spec', async () => {
       const changeName = 'retire-with-sections';
       await createChange(changeName, 'legacy-layer', REMOVE_ALL);
       const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
@@ -3184,27 +3296,15 @@ The system SHALL do the thing differently.
       await archiveCommand.execute(changeName, { yes: true });
 
       expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('The retired spec also held section(s): Why These Decisions')
+        expect.stringContaining('the deleted spec also held section(s): Why These Decisions')
       );
-      // Those sections are not lost - they moved with the file.
-      const retired = await fs.readFile(
-        path.join(
-          tempDir,
-          'openspec',
-          'changes',
-          'archive',
-          `${formatLocalDate()}-${changeName}`,
-          'retired-specs',
-          'legacy-layer',
-          'spec.md'
-        ),
-        'utf-8'
+      // Named, not silently dropped - and the note says how to get them back.
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('git checkout HEAD -- openspec/specs/legacy-layer/spec.md')
       );
-      expect(retired).toContain('## Why These Decisions');
-      expect(retired).toContain(PURPOSE);
     });
 
-    it('moves nothing when the user declines the spec update', async () => {
+    it('deletes nothing when the user declines the spec update', async () => {
       const { confirm } = await import('@inquirer/prompts');
       vi.mocked(confirm).mockResolvedValue(false);
       const changeName = 'retire-declined';
@@ -3232,330 +3332,17 @@ The system SHALL do the thing differently.
       await expect(
         retireSpec(
           update,
-          path.join(tempDir, 'openspec', 'specs'),
-          path.join(tempDir, 'retired')
+          path.join(tempDir, 'openspec', 'specs')
         )
       ).resolves.toEqual({ retired: false });
       expect(console.log).not.toHaveBeenCalledWith(expect.stringContaining('Retiring'));
     });
 
-    it.skipIf(process.platform === 'win32')(
-      'leaves no empty staging directory behind when the move fails',
-      async () => {
-        // The staging directories are created before the move, so a failure
-        // used to leave an empty `retired-specs/<capability>/` that rides into
-        // the archive claiming a retirement that never happened. A dangling
-        // symlink is the reproducible failure: lstat sees a file, the copy
-        // follows the link and finds nothing.
-        const capability = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
-        await fs.mkdir(capability, { recursive: true });
-        await fs.symlink(
-          path.join(tempDir, 'no-such-target.md'),
-          path.join(capability, 'spec.md')
-        );
-        const staging = path.join(tempDir, 'change', 'retired-specs');
-
-        await expect(
-          retireSpec(
-            {
-              id: 'legacy-layer',
-              source: 'x',
-              target: path.join(capability, 'spec.md'),
-              exists: true,
-            },
-            path.join(tempDir, 'openspec', 'specs'),
-            staging,
-            { silent: true }
-          )
-        ).resolves.toEqual({ retired: false });
-
-        // Nothing staged, and no husk of a directory left claiming otherwise.
-        await expect(fs.access(staging)).rejects.toThrow();
-        // The dangling link is still the author's to clean up.
-        await expect(fs.lstat(path.join(capability, 'spec.md'))).resolves.toBeTruthy();
-      }
-    );
-
-    it.skipIf(process.platform === 'win32')(
-      'keeps a sibling capability staged by the same run when a later move fails',
-      async () => {
-        // The cleanup walks up only through EMPTY directories, so it must stop
-        // at a `retired-specs/` that already holds a retirement from this run
-        // rather than taking the whole folder with it.
-        const staging = path.join(tempDir, 'change', 'retired-specs');
-        await fs.mkdir(path.join(staging, 'already-staged'), { recursive: true });
-        await fs.writeFile(
-          path.join(staging, 'already-staged', 'spec.md'),
-          mainSpec('already-staged')
-        );
-        const capability = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
-        await fs.mkdir(capability, { recursive: true });
-        // Dangling: lstat sees a file, so staging happens, then the copy fails.
-        await fs.symlink(
-          path.join(tempDir, 'no-such-target.md'),
-          path.join(capability, 'spec.md')
-        );
-
-        await expect(
-          retireSpec(
-            {
-              id: 'legacy-layer',
-              source: 'x',
-              target: path.join(capability, 'spec.md'),
-              exists: true,
-            },
-            path.join(tempDir, 'openspec', 'specs'),
-            staging,
-            { silent: true }
-          )
-        ).resolves.toEqual({ retired: false });
-
-        // The failed capability's husk is gone...
-        await expect(fs.access(path.join(staging, 'legacy-layer'))).rejects.toThrow();
-        // ...and the sibling that really was staged survives untouched.
-        await expect(
-          fs.readFile(path.join(staging, 'already-staged', 'spec.md'), 'utf-8')
-        ).resolves.toBe(mainSpec('already-staged'));
-      }
-    );
-
-    // The retirement copies the spec into staging and removes the source
-    // second, so a copy that lands before an `unlink` that fails used to leave
-    // the spec in TWO places - and the staged one then tripped the "already
-    // staged" guard on every rerun, so the retry the error message asks for
-    // could never work.
-    describe.each([
-      {
-        route: 'ordinary spec.md',
-        // Regular files and spies only, so this one runs everywhere.
-        skipOnWindows: false,
-        async stage(capability: string): Promise<string> {
-          const target = path.join(capability, 'spec.md');
-          await fs.writeFile(target, mainSpec('legacy-layer'));
-          return target;
-        },
-      },
-      {
-        route: 'symlinked spec.md',
-        // Creating a symlink needs privileges Windows does not hand out by
-        // default; the other case carries the same shape there.
-        skipOnWindows: true,
-        // A symlink is read for its content, never moved as a link.
-        async stage(capability: string): Promise<string> {
-          const target = path.join(capability, 'spec.md');
-          const linked = path.join(tempDir, 'linked-spec.md');
-          await fs.writeFile(linked, mainSpec('legacy-layer'));
-          await fs.symlink(linked, target);
-          return target;
-        },
-      },
-    ])('post-copy failure on an $route', ({ stage, skipOnWindows }) => {
-      it.skipIf(skipOnWindows && process.platform === 'win32')(
-        'rolls back the staged copy so the archive can be rerun',
-        async () => {
-          const capability = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
-          await fs.mkdir(capability, { recursive: true });
-          const target = await stage(capability);
-          const staging = path.join(tempDir, 'change', 'retired-specs');
-          const update = { id: 'legacy-layer', source: 'x', target, exists: true };
-          const specsRoot = path.join(tempDir, 'openspec', 'specs');
-          const dest = path.join(staging, 'legacy-layer', 'spec.md');
-
-          // Fail removing the SOURCE only, so the copy has already landed. The
-          // rollback's own unlink of the destination must still go through.
-          const realUnlink = fs.unlink.bind(fs);
-          const unlinkSpy = vi
-            .spyOn(fs, 'unlink')
-            .mockImplementation(async (p: Parameters<typeof fs.unlink>[0]) => {
-              if (String(p) === target) {
-                throw Object.assign(new Error('permission denied'), { code: 'EACCES' });
-              }
-              return realUnlink(p);
-            });
-
-          await expect(
-            retireSpec(update, specsRoot, staging, { silent: true })
-          ).rejects.toThrow(/Could not retire capability 'legacy-layer'/);
-
-          unlinkSpy.mockRestore();
-          vi.restoreAllMocks();
-
-          // Rolled back to how the attempt found it: nothing staged, spec live.
-          await expect(fs.access(dest)).rejects.toThrow();
-          await expect(fs.lstat(target)).resolves.toBeTruthy();
-
-          // ...so the rerun the error message asks for actually works.
-          await expect(
-            retireSpec(update, specsRoot, staging, { silent: true })
-          ).resolves.toMatchObject({ retired: true });
-          await expect(fs.readFile(dest, 'utf-8')).resolves.toBe(mainSpec('legacy-layer'));
-        }
-      );
-    });
-
-    it('never loses the spec when two retirements race for the same destination', async () => {
-      // Looking with `access` and then writing was not an ownership claim: both
-      // callers saw the destination free, one moved the spec in, and the other
-      // - equally convinced the destination was its own - rolled that file back
-      // out, so the source AND the staged copy both ended up gone.
-      //
-      // The losing caller can fail two ways, and BOTH used to destroy the
-      // winner's file: EEXIST when it reaches the copy after the winner, and
-      // ENOENT when it reaches the copy after the winner already removed the
-      // source. Repeated because which one happens is a scheduling accident.
-      const specsRoot = path.join(tempDir, 'openspec', 'specs');
-      for (let attempt = 0; attempt < 25; attempt++) {
-        const capability = path.join(specsRoot, `legacy-${attempt}`);
-        await fs.mkdir(capability, { recursive: true });
-        const target = path.join(capability, 'spec.md');
-        await fs.writeFile(target, mainSpec('legacy-layer'));
-        const staging = path.join(tempDir, `change-${attempt}`, 'retired-specs');
-        const update = { id: `legacy-${attempt}`, source: 'x', target, exists: true };
-
-        const settled = await Promise.allSettled([
-          retireSpec(update, specsRoot, staging, { silent: true }),
-          retireSpec(update, specsRoot, staging, { silent: true }),
-        ]);
-
-        // Exactly one retirement happened...
-        const retired = settled.filter(
-          (r) => r.status === 'fulfilled' && r.value.retired
-        );
-        expect(retired).toHaveLength(1);
-        // ...and the spec survived it, exactly once and intact.
-        await expect(
-          fs.readFile(path.join(staging, `legacy-${attempt}`, 'spec.md'), 'utf-8')
-        ).resolves.toBe(mainSpec('legacy-layer'));
-        await expect(fs.access(target)).rejects.toThrow();
-      }
-    });
-
-    it('keeps the staged copy when the source disappears after it is written', async () => {
-      // The rollback exists for a copy that landed while the source survived -
-      // the two-places state that blocks every rerun. It must not fire once the
-      // source is gone: at that point the staged copy holds the only remaining
-      // content, and the end state the retirement was reaching for is already
-      // reached. Rolling back here destroyed the spec outright.
-      const capability = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
-      await fs.mkdir(capability, { recursive: true });
-      const target = path.join(capability, 'spec.md');
-      await fs.writeFile(target, mainSpec('legacy-layer'));
-      const staging = path.join(tempDir, 'change', 'retired-specs');
-      const dest = path.join(staging, 'legacy-layer', 'spec.md');
-
-      // An external delete landing between the read and the unlink.
-      const realUnlink = fs.unlink.bind(fs);
-      vi.spyOn(fs, 'unlink').mockImplementation(
-        async (p: Parameters<typeof fs.unlink>[0]) => {
-          if (String(p) === target) {
-            await realUnlink(target);
-            throw Object.assign(new Error('no such file'), { code: 'ENOENT' });
-          }
-          return realUnlink(p);
-        }
-      );
-
-      const result = await retireSpec(
-        { id: 'legacy-layer', source: 'x', target, exists: true },
-        path.join(tempDir, 'openspec', 'specs'),
-        staging,
-        { silent: true }
-      );
-      vi.restoreAllMocks();
-
-      // Reported as the retirement it is, with the content intact.
-      expect(result).toMatchObject({ retired: true });
-      await expect(fs.readFile(dest, 'utf-8')).resolves.toBe(mainSpec('legacy-layer'));
-      await expect(fs.access(target)).rejects.toThrow();
-    });
-
-    // Mode bits are the only way to make a read fail at the syscall level,
-    // which this needs: the defect was that a *source-side* errno was read as
-    // proof the DESTINATION belonged to this call. Stubbing a JS-level read
-    // cannot reproduce it, because the copy it has to fool never went through
-    // one. Windows ignores the bits, and root bypasses them.
-    const cannotDenyReads = process.platform === 'win32' || process.getuid?.() === 0;
-    it.skipIf(cannotDenyReads)(
-      "keeps an earlier run's staged copy when this run cannot read the source",
-      async () => {
-        // Ownership used to be inferred from the copy's errno: anything that
-        // was not EEXIST or ENOENT was treated as "probably a partial copy of
-        // mine" and cleaned up. A source-side EACCES looks exactly like that,
-        // so the cleanup deleted the recovery copy an earlier run had staged -
-        // the last copy of a spec whose live file could not even be read.
-        //
-        // Ownership now comes from an exclusive create, which cannot succeed
-        // here, so no failure of any kind can reach that file.
-        const capability = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
-        await fs.mkdir(capability, { recursive: true });
-        const target = path.join(capability, 'spec.md');
-        await fs.writeFile(target, mainSpec('legacy-layer'));
-        const staging = path.join(tempDir, 'change', 'retired-specs');
-        await fs.mkdir(path.join(staging, 'legacy-layer'), { recursive: true });
-        const recovery = path.join(staging, 'legacy-layer', 'spec.md');
-        await fs.writeFile(recovery, '# staged by an earlier run\n');
-        await fs.chmod(target, 0o000);
-
-        try {
-          await expect(
-            retireSpec(
-              { id: 'legacy-layer', source: 'x', target, exists: true },
-              path.join(tempDir, 'openspec', 'specs'),
-              staging,
-              { silent: true }
-            )
-          ).rejects.toThrow();
-
-          // The recovery copy is untouched, and so is the live spec.
-          await expect(fs.readFile(recovery, 'utf-8')).resolves.toBe(
-            '# staged by an earlier run\n'
-          );
-          await expect(fs.lstat(target)).resolves.toBeTruthy();
-        } finally {
-          // Restored so the suite's own cleanup can remove it.
-          await fs.chmod(target, 0o644).catch(() => {});
-        }
-      }
-    );
-
-    it('refuses to overwrite a spec an earlier aborted run already staged', async () => {
-      // The staged copy is the only copy once the live one is moved, so
-      // clobbering it would destroy the thing this whole path preserves.
-      const capability = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
-      await fs.mkdir(capability, { recursive: true });
-      await fs.writeFile(path.join(capability, 'spec.md'), mainSpec('legacy-layer'));
-      const staging = path.join(tempDir, 'retired');
-      await fs.mkdir(path.join(staging, 'legacy-layer'), { recursive: true });
-      await fs.writeFile(
-        path.join(staging, 'legacy-layer', 'spec.md'),
-        'staged by an earlier run\n'
-      );
-
-      await expect(
-        retireSpec(
-          {
-            id: 'legacy-layer',
-            source: 'x',
-            target: path.join(capability, 'spec.md'),
-            exists: true,
-          },
-          path.join(tempDir, 'openspec', 'specs'),
-          staging,
-          { silent: true }
-        )
-      ).rejects.toThrow(/already exists/);
-
-      // Both copies survive.
-      await expect(
-        fs.readFile(path.join(staging, 'legacy-layer', 'spec.md'), 'utf-8')
-      ).resolves.toBe('staged by an earlier run\n');
-      await expect(fs.access(path.join(capability, 'spec.md'))).resolves.not.toThrow();
-    });
 
     // The archive destination is settled from the change name alone, so a
     // collision is knowable before anything is touched. Discovering it after the
-    // merge moved a spec out for an archive that then never happened.
-    it('checks the archive destination before moving anything', async () => {
+    // merge deleted a spec for an archive that then never happened.
+    it('checks the archive destination before deleting anything', async () => {
       const changeName = 'retire-colliding';
       await createChange(changeName, 'legacy-layer', REMOVE_ALL);
       const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
@@ -3642,7 +3429,6 @@ The system SHALL do the thing differently.
         retireSpec(
           { id: 'legacy-layer', source: 'x', target: path.join(sibling, 'spec.md'), exists: true },
           specsRoot,
-          path.join(tempDir, 'retired'),
           { silent: true }
         )
       ).resolves.toMatchObject({ retired: true });
@@ -3671,7 +3457,6 @@ The system SHALL do the thing differently.
             exists: true,
           },
           linkedRoot,
-          path.join(tempDir, 'retired'),
           { silent: true }
         );
 
@@ -3937,13 +3722,16 @@ The system SHALL do the thing differently.
       expect(payload.archive.warnings).toEqual(
         expect.arrayContaining([
           expect.stringContaining(
-            'legacy-layer - capability retired; moved the main spec to ' +
-              `openspec/changes/archive/${formatLocalDate()}-${changeName}/retired-specs/legacy-layer/spec.md`
+            'legacy-layer - capability retired; deleted the main spec (all requirements removed' +
+              ', declared by retire_capabilities)'
           ),
         ])
       );
-      // Purpose always travels with the file, so it is named alongside the rest.
-      expect(payload.archive.warnings.join('\n')).toContain('Purpose, Why These Decisions');
+      // Purpose always goes with the file, so it is named alongside the rest,
+      // and a JSON consumer gets the recovery command too.
+      const notes = payload.archive.warnings.join('\n');
+      expect(notes).toContain('Purpose, Why These Decisions');
+      expect(notes).toContain('git checkout HEAD -- openspec/specs/legacy-layer/spec.md');
     });
 
     it('claims no retirement for a spec that was already gone', async () => {
