@@ -190,7 +190,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - Verify that main specs are updated:
         - ADDED requirements present
         - MODIFIED requirements carrying scenario and description changes named in the delta, with their other scenarios intact
-        - REMOVED requirements gone
+        - REMOVED requirements gone — and where this sync removed a capability's last requirement, its main spec deleted rather than left empty (a main spec that was already empty beforehand is left alone, so treat that as matching too)
         - RENAMED requirements present under the new name and absent under the old one
       - Do not verify delta specs in `excludedDeltas`; they are intentionally left unsynced.
       - If sync failed or any capability does not match verification, report what differs and fail/skip moving that change's `changeRoot` — do not archive that change. `changeRoot` remains intact.

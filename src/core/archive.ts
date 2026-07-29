@@ -3,6 +3,7 @@ import path from 'path';
 import { formatLocalDate } from '../utils/date.js';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
 import { Validator } from './validation/validator.js';
+import { VALIDATION_MESSAGES } from './validation/constants.js';
 import chalk from 'chalk';
 import {
   emitStoreRootBanner,
@@ -38,6 +39,29 @@ function isMissingPathError(error: unknown): boolean {
  * is archived under its existing name so the prefix is never stacked (#1309).
  */
 const ARCHIVE_DATE_PREFIX_PATTERN = /^\d{4}-\d{2}-\d{2}-/;
+
+/**
+ * True when the ONLY thing wrong with a rebuilt spec is that it has no
+ * requirements. That is the exact failure retiring a capability replaces
+ * (#1302); anything else means the spec is broken in a way the author still has
+ * to fix, so archive must abort exactly as it always did instead of deleting.
+ *
+ * Asking the validator - rather than counting requirement blocks a second time -
+ * is what makes "this spec could not have been written anyway" true by
+ * construction. The two counts genuinely disagree: `MarkdownParser` accepts any
+ * `###` heading under `## Requirements` as a requirement, while the delta block
+ * parser only indexes canonical `### Requirement:` headers and sweeps the rest
+ * into the preamble, which survives into the rebuilt spec.
+ */
+async function isRetirableSpec(specName: string, rebuilt: string): Promise<boolean> {
+  const report = await new Validator().validateSpecContent(specName, rebuilt);
+  if (report.valid) return false;
+  const errors = report.issues.filter((issue) => issue.level === 'ERROR');
+  return (
+    errors.length > 0 &&
+    errors.every((issue) => issue.message === VALIDATION_MESSAGES.SPEC_NO_REQUIREMENTS)
+  );
+}
 
 async function listActiveChangeNames(changesDir: string): Promise<string[]> {
   try {
@@ -469,11 +493,30 @@ export class ArchiveCommand {
 
         if (shouldUpdateSpecs) {
           // Prepare all updates first (validation pass, no writes)
-          const prepared: Array<{ update: SpecUpdate; rebuilt: string; counts: { added: number; modified: number; removed: number; renamed: number }; retired: boolean }> = [];
+          const prepared: Array<{ update: SpecUpdate; rebuilt: string; counts: { added: number; modified: number; removed: number; renamed: number }; retired: boolean; otherSections: string[] }> = [];
           try {
             for (const update of specUpdates) {
               const built = await buildUpdatedSpec(update, changeName!, { silent: json });
-              prepared.push({ update, rebuilt: built.rebuilt, counts: built.counts, retired: built.retired });
+              // Retirement is decided by the validator, never by a second
+              // opinion about what counts as a requirement: the block parser
+              // sweeps some shapes the validator accepts into the preamble, so
+              // "no blocks left" alone would delete specs that validate fine.
+              const retirable =
+                built.noRequirementBlocks && (await isRetirableSpec(update.id, built.rebuilt));
+              // There are two ways to need no spec written. The spec is already
+              // gone, so the capability is retired and there is nothing to do;
+              // or it exists and this run removed its last requirement, so it
+              // gets deleted. A spec that is already requirement-less and lost
+              // nothing this run is neither: it stays the author's to fix, and
+              // falls through to the same abort it has always produced.
+              const retired = retirable && (!update.exists || built.counts.removed > 0);
+              prepared.push({
+                update,
+                rebuilt: built.rebuilt,
+                counts: built.counts,
+                retired,
+                otherSections: built.otherSections,
+              });
               // Carried into the result so JSON mode (where nothing was
               // printed) still surfaces them; human mode discards the result.
               specWarnings.push(...built.warnings);
@@ -496,8 +539,9 @@ export class ArchiveCommand {
           // late validation failure really does leave all targets unchanged.
           if (!skipValidation) {
             for (const p of prepared) {
-              // A retired capability has no spec left to validate; the whole
-              // point is that the empty body could never pass (#1302).
+              // A retirement was already put to the validator, and failed on
+              // nothing but "no requirements" - there is no spec left to write,
+              // so re-reporting that one error would just abort the fix (#1302).
               if (p.retired) continue;
               const specName = p.update.id;
               const report = await new Validator().validateSpecContent(specName, p.rebuilt);
@@ -525,22 +569,11 @@ export class ArchiveCommand {
           const writeTotals = { added: 0, modified: 0, removed: 0, renamed: 0 };
           let wroteAny = false;
           for (const p of prepared) {
+            // Retirements are deferred to the end: they are the only
+            // irreversible step here, and the write loop is not transactional,
+            // so a later write that throws must not find a spec already deleted.
+            if (p.retired) continue;
             const { added, modified, removed, renamed } = p.counts;
-            if (p.retired) {
-              // Nothing was actually removed this run (the requirements were
-              // already gone from the baseline), so leave the file alone rather
-              // than deleting on the strength of a no-op delta.
-              if (removed === 0) continue;
-              const deleted = await retireSpec(p.update, mainSpecsDir, {
-                silent: json,
-                ...(isStoreSelectedRoot(root) ? { displayPath: p.update.target } : {}),
-              });
-              if (deleted) {
-                wroteAny = true;
-                writeTotals.removed += removed;
-              }
-              continue;
-            }
             if (added + modified + removed + renamed === 0) {
               // Every operation was already synced: rewriting the file would
               // only churn normalization differences into it.
@@ -556,6 +589,40 @@ export class ArchiveCommand {
             writeTotals.modified += modified;
             writeTotals.removed += removed;
             writeTotals.renamed += renamed;
+          }
+
+          for (const p of prepared) {
+            if (!p.retired) continue;
+            const deleted = await retireSpec(p.update, mainSpecsDir, {
+              silent: json,
+              ...(isStoreSelectedRoot(root) ? { displayPath: p.update.target } : {}),
+            });
+            if (!deleted) continue;
+            wroteAny = true;
+            // A rename applied on the way to the removal still happened; folding
+            // every count in keeps the totals honest about the whole delta.
+            writeTotals.added += p.counts.added;
+            writeTotals.modified += p.counts.modified;
+            writeTotals.removed += p.counts.removed;
+            writeTotals.renamed += p.counts.renamed;
+            // Deleting a file is the one archive outcome a JSON consumer cannot
+            // infer from the totals, so it is recorded the way every other
+            // spec-merge divergence is.
+            const retirementNote =
+              `${p.update.id} - capability retired; deleted the main spec (all requirements removed).` +
+              (p.otherSections.length > 0
+                ? ` Its other section(s) went with it: ${p.otherSections.join(', ')}.`
+                : '');
+            specWarnings.push(retirementNote);
+            // The "Retiring ..." line already told a human the file is gone; the
+            // sections it took along are the part they cannot see.
+            if (!json && p.otherSections.length > 0) {
+              console.log(
+                chalk.yellow(
+                  `⚠️  Warning: ${p.update.id} - the deleted spec also held section(s): ${p.otherSections.join(', ')}.`
+                )
+              );
+            }
           }
           specsUpdated = wroteAny;
           totals = writeTotals;

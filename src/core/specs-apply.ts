@@ -90,11 +90,19 @@ export async function buildUpdatedSpec(
   counts: { added: number; modified: number; removed: number; renamed: number };
   warnings: string[];
   /**
-   * The delta left the capability with no requirements at all, so `rebuilt` is a
-   * spec body that can never validate ("Spec must have at least one
-   * requirement"). Callers retire the capability instead of writing it (#1302).
+   * Every canonical `### Requirement:` block the delta could act on is gone.
+   * This is only a *candidate* signal for retirement (#1302): the validator, not
+   * this count, decides whether `rebuilt` is actually unwritable - it recognises
+   * requirement shapes this parser sweeps into the preamble, so a spec can be
+   * blockless here and still validate. See `isRetirableSpec` in archive.ts.
    */
-  retired: boolean;
+  noRequirementBlocks: boolean;
+  /**
+   * Authored `## ` sections other than Purpose and Requirements. Retirement
+   * deletes the whole file, so callers name these in a warning rather than
+   * discarding hand-written prose silently.
+   */
+  otherSections: string[];
 }> {
   // Collected so silent (JSON) callers can surface them; printed live for
   // human callers at the point they occur.
@@ -449,20 +457,47 @@ export async function buildUpdatedSpec(
       renamed: renamedApplied,
     },
     warnings,
-    // Only ADDED grows the requirement set, so an empty result means the delta
-    // removed the last requirement the capability had. There is no valid spec
-    // to write for that state - every such archive aborted before #1302.
-    retired: keptOrder.length === 0,
+    // Only ADDED grows the block set, so an empty result means the delta removed
+    // the last requirement block the capability had. Whether that spec is
+    // genuinely unwritable is the validator's call, not this one.
+    noRequirementBlocks: keptOrder.length === 0,
+    otherSections: findOtherSections(rebuilt),
   };
 }
 
 /**
+ * Authored `## ` headings other than Purpose and Requirements, outside fenced
+ * code. Named so a retirement can say what it is deleting along with the spec.
+ */
+function findOtherSections(content: string): string[] {
+  const lines = content.replace(/\r\n?/g, '\n').split('\n');
+  const mask = buildCodeFenceMask(lines);
+  const sections: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (mask[i]) continue;
+    const match = lines[i].match(/^##\s+(.+?)\s*$/);
+    if (!match) continue;
+    const title = match[1];
+    if (/^(Purpose|Requirements)$/i.test(title)) continue;
+    sections.push(title);
+  }
+  return sections;
+}
+
+/**
  * Retire a capability whose last requirement a delta removed: delete its main
- * spec and any directories the deletion leaves empty, up to (but never
- * including) the specs root. Returns false when there was nothing to delete.
+ * spec and any directories the deletion leaves empty. Returns false when there
+ * was nothing to delete.
  *
  * Only the generated `spec.md` is removed - a directory holding anything else
- * (a nested capability, a hand-kept note) is left in place.
+ * (a nested capability, a hand-kept note) is left in place. Unlinking `spec.md`
+ * follows the same path the write path would have written to, so a symlinked
+ * spec file loses the link and leaves its target alone.
+ *
+ * Directory pruning is bounded by REAL paths, not by string prefixes:
+ * `path.resolve` collapses `..` but does not resolve symlinks, and `readdir` and
+ * `rmdir` both follow them, so a symlinked capability directory would otherwise
+ * let the walk delete directories outside the specs root entirely.
  */
 export async function retireSpec(
   update: SpecUpdate,
@@ -476,18 +511,7 @@ export async function retireSpec(
     throw error;
   }
 
-  const specsRoot = path.resolve(mainSpecsDir);
-  let dir = path.dirname(path.resolve(update.target));
-  while (dir !== specsRoot && dir.startsWith(specsRoot + path.sep)) {
-    try {
-      const entries = await fs.readdir(dir);
-      if (entries.length > 0) break;
-      await fs.rmdir(dir);
-    } catch {
-      break;
-    }
-    dir = path.dirname(dir);
-  }
+  await pruneEmptyDirs(path.dirname(update.target), mainSpecsDir);
 
   if (!options.silent) {
     console.log(
@@ -495,6 +519,43 @@ export async function retireSpec(
     );
   }
   return true;
+}
+
+/** Remove now-empty directories from `startDir` upward, never leaving the real specs root. */
+async function pruneEmptyDirs(startDir: string, mainSpecsDir: string): Promise<void> {
+  let specsRoot: string;
+  try {
+    specsRoot = await fs.realpath(mainSpecsDir);
+  } catch {
+    return;
+  }
+
+  let dir = startDir;
+  for (;;) {
+    let realDir: string;
+    try {
+      // lstat first: rmdir on a symlink fails anyway, but resolving one would
+      // walk us out of the tree, and the parent we then step to would be wrong.
+      const link = await fs.lstat(dir);
+      if (link.isSymbolicLink()) return;
+      realDir = await fs.realpath(dir);
+    } catch {
+      return;
+    }
+
+    // Strictly inside the real specs root - the root itself is never pruned.
+    if (realDir === specsRoot || !realDir.startsWith(specsRoot + path.sep)) return;
+
+    try {
+      const entries = await fs.readdir(dir);
+      if (entries.length > 0) return;
+      await fs.rmdir(dir);
+    } catch {
+      return;
+    }
+
+    dir = path.dirname(dir);
+  }
 }
 
 function normalizeBlockRaw(raw: string): string {

@@ -48,6 +48,12 @@ The agent SHALL reconcile main specs with delta specs using the delta operation 
 - **AND** the requirement exists in main spec
 - **THEN** remove the requirement from main spec
 
+#### Scenario: REMOVED requirements retire the capability
+- **WHEN** removing the requirements named in the delta leaves the main spec with no requirements at all
+- **THEN** delete that capability's `spec.md`, and its directory once nothing else remains in it
+- **AND** report the deletion, naming any other sections the file held
+- **AND** report, rather than delete, a main spec that was already empty before this sync
+
 #### Scenario: RENAMED requirements
 - **WHEN** delta contains `## RENAMED Requirements` with FROM:/TO: format
 - **AND** the FROM requirement exists in main spec

@@ -119,7 +119,7 @@ Archive a completed change in the experimental workflow.
    Then re-run the comparison from the top of this step against every capability that has a delta spec in `artifactPaths.specs.existingOutputPaths` — not only the ones the sync reports it touched. A successful sync leaves nothing left to apply, so each capability must now read as already synced:
    - ADDED requirements present
    - MODIFIED requirements carrying the scenario and description changes named in the delta, with their other scenarios intact
-   - REMOVED requirements gone — and where a delta removed a capability's last requirement, its main spec deleted rather than left empty
+   - REMOVED requirements gone — and where this sync removed a capability's last requirement, its main spec deleted rather than left empty (a main spec that was already empty beforehand is left alone, so treat that as matching too)
    - RENAMED requirements present under the new name and absent under the old one
 
    If the sync failed, or any capability does not match, report what differs and stop — do not archive. Nothing has moved and `changeRoot` is intact, so the user can fix the mismatch or re-run the sync and start the archive again.

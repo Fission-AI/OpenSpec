@@ -126,13 +126,26 @@ Before moving the change to archive, the command SHALL apply delta changes to ma
 
 A delta whose REMOVED entries cover every requirement a capability has SHALL retire that capability instead of writing a main spec with no requirements, which can never pass validation.
 
+#### Scenario: Deciding that a rebuilt spec cannot be written
+
+- **WHEN** applying a delta leaves the rebuilt spec with no requirement blocks
+- **THEN** put that rebuilt spec to the spec validator
+- **AND** treat it as retirable only when its sole validation error is that the spec has no requirements
+- **AND** otherwise write or reject it exactly as any other rebuilt spec, so a spec the validator still accepts is never deleted
+
 #### Scenario: Delta removes the capability's last requirement
 
-- **WHEN** applying a delta leaves the target main spec with no requirements
+- **WHEN** a retirable rebuilt spec belongs to a capability whose main spec exists
 - **AND** at least one requirement was actually removed by this run
 - **THEN** delete the capability's `spec.md` instead of writing it
-- **AND** delete any directory the deletion leaves empty, up to but never including the specs root
-- **AND** count the removals in the archive totals and complete the archive
+- **AND** delete any directory the deletion leaves empty, resolving symlinks so nothing outside the real specs root is removed, and never the specs root itself
+- **AND** count every operation the delta applied in the archive totals
+- **AND** report the retirement as a warning, naming any sections the deleted file held besides Purpose and Requirements
+
+#### Scenario: Retirement is deferred until every spec is written
+
+- **WHEN** an archive both retires one capability and updates another
+- **THEN** perform the deletion only after every spec write has succeeded, so a failure part-way leaves nothing deleted
 
 #### Scenario: Capability directory holds other files
 
@@ -141,13 +154,13 @@ A delta whose REMOVED entries cover every requirement a capability has SHALL ret
 
 #### Scenario: Removal was already synced
 
-- **WHEN** applying a delta leaves the main spec with no requirements but removed nothing this run
-- **THEN** leave the existing file untouched and complete the archive
+- **WHEN** a retirable rebuilt spec removed nothing this run and its main spec exists
+- **THEN** leave the file untouched and abort the archive with the validation error, as for any other unwritable spec
 
 #### Scenario: Main spec was already deleted
 
 - **WHEN** a REMOVED-only delta targets a capability that has no main spec
-- **THEN** complete the archive without creating one
+- **THEN** complete the archive without creating or deleting one
 
 ### Requirement: Confirmation Behavior
 

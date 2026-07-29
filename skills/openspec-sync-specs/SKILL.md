@@ -107,10 +107,13 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
       **REMOVED Requirements:**
       - Remove the entire requirement block from main spec
-      - If that leaves the main spec with no requirements at all, the capability is
-        retired: delete its `spec.md` (and the directory, once nothing else is left
-        in it) instead of saving an empty spec. A spec with zero requirements fails
-        `openspec validate`, which is what `openspec archive` does here too.
+      - If removing it *this run* leaves the main spec with no requirements at all,
+        the capability is retired: delete its `spec.md`, and the directory once
+        nothing else is left in it. An empty main spec fails `openspec validate`,
+        so saving one is never the right outcome.
+      - If the main spec was already empty before this sync - you removed nothing -
+        change nothing. Report the empty spec and let the user decide; do not delete
+        a file this change never touched. `openspec archive` draws the same line.
 
       **RENAMED Requirements:**
       - Find the FROM requirement, rename to TO
@@ -133,6 +136,8 @@ This is an **agent-driven** operation - you will read delta specs and directly e
    - What changes were made (requirements added/modified/removed/renamed)
    - Any new main spec left with a TBD Purpose placeholder, so it gets written
      now rather than lingering
+   - Any capability retired, naming the `spec.md` you deleted and any other
+     sections it held, since deleting the file takes those with it
 
 **Delta Spec Format Reference**
 
