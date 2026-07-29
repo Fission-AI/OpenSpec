@@ -161,11 +161,16 @@ A delta whose REMOVED entries cover every requirement a capability has SHALL ret
 
 #### Scenario: The copy lands but the live spec cannot be removed
 
-- **WHEN** a retirement copies the spec into staging and then fails to remove the original
+- **WHEN** a retirement copies the spec into staging and then fails to remove the original, which is still there
 - **THEN** delete the staged copy this attempt created, leaving the capability exactly as the attempt found it
 - **AND** never delete a staged copy this call did not create, whether an earlier run staged it or a concurrent one did
 - **AND** report that the spec is still in place, so rerunning the archive is a real instruction rather than one the "already staged" guard would reject
 - **AND** say where the leftover copy is instead, if removing it also failed
+
+#### Scenario: The source disappears after the copy is written
+
+- **WHEN** the spec's content has been written into staging and the original turns out to be gone already
+- **THEN** keep the staged copy and report the retirement, because that is the end state the retirement was reaching for and the copy holds the only remaining content
 
 #### Scenario: Retirement is deferred until every spec is written
 

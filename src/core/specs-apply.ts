@@ -550,12 +550,12 @@ function findOtherSections(content: string): string[] {
  * link's target alone: moving the link itself would archive a symlink whose
  * relative path no longer resolves from where it landed.
  *
- * Safe to run concurrently against the same destination: the copy claims the
- * path exclusively, so of two racing retirements one wins and the other is
- * refused, and neither can roll back the other's file. Not crash-safe, which is
- * a weaker promise - a process killed between the copy and the unlink leaves
- * the spec in both places, and the next run refuses rather than guessing which
- * to keep.
+ * Safe to run concurrently against the same destination: the destination is
+ * claimed by an exclusive create, so of two racing retirements one wins and the
+ * other is refused, and neither can roll back the other's file. Not crash-safe,
+ * which is a weaker promise - a process killed between the write and the unlink
+ * leaves the spec in both places, and the next run refuses rather than guessing
+ * which to keep.
  *
  * Directory pruning IS bounded, by REAL paths rather than string prefixes:
  * `path.resolve` collapses `..` but does not resolve symlinks, and `readdir` and
@@ -638,7 +638,19 @@ export async function retireSpec(
       await handle.close().catch(() => {});
     }
 
-    await fs.unlink(update.target);
+    try {
+      await fs.unlink(update.target);
+    } catch (error) {
+      // A source that is ALREADY gone is the end state this was reaching for,
+      // and the staged copy now holds its content - so this is a success, not a
+      // failure to roll back. Rolling back here destroyed the only remaining
+      // copy of a spec whose source something else had just removed.
+      //
+      // Every other errno still throws: the source is still sitting there, and
+      // leaving the staged copy beside it is the two-places state that blocks
+      // every rerun.
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
   } catch (error) {
     // Roll the destination back to how this attempt found it: not there. A copy
     // that succeeded before the source could be removed leaves the spec in two

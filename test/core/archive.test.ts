@@ -3430,6 +3430,45 @@ The system SHALL do the thing differently.
       }
     });
 
+    it('keeps the staged copy when the source disappears after it is written', async () => {
+      // The rollback exists for a copy that landed while the source survived -
+      // the two-places state that blocks every rerun. It must not fire once the
+      // source is gone: at that point the staged copy holds the only remaining
+      // content, and the end state the retirement was reaching for is already
+      // reached. Rolling back here destroyed the spec outright.
+      const capability = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(capability, { recursive: true });
+      const target = path.join(capability, 'spec.md');
+      await fs.writeFile(target, mainSpec('legacy-layer'));
+      const staging = path.join(tempDir, 'change', 'retired-specs');
+      const dest = path.join(staging, 'legacy-layer', 'spec.md');
+
+      // An external delete landing between the read and the unlink.
+      const realUnlink = fs.unlink.bind(fs);
+      vi.spyOn(fs, 'unlink').mockImplementation(
+        async (p: Parameters<typeof fs.unlink>[0]) => {
+          if (String(p) === target) {
+            await realUnlink(target);
+            throw Object.assign(new Error('no such file'), { code: 'ENOENT' });
+          }
+          return realUnlink(p);
+        }
+      );
+
+      const result = await retireSpec(
+        { id: 'legacy-layer', source: 'x', target, exists: true },
+        path.join(tempDir, 'openspec', 'specs'),
+        staging,
+        { silent: true }
+      );
+      vi.restoreAllMocks();
+
+      // Reported as the retirement it is, with the content intact.
+      expect(result).toMatchObject({ retired: true });
+      await expect(fs.readFile(dest, 'utf-8')).resolves.toBe(mainSpec('legacy-layer'));
+      await expect(fs.access(target)).rejects.toThrow();
+    });
+
     // Mode bits are the only way to make a read fail at the syscall level,
     // which this needs: the defect was that a *source-side* errno was read as
     // proof the DESTINATION belonged to this call. Stubbing a JS-level read
