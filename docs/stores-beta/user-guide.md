@@ -186,6 +186,11 @@ local consumer. OpenSpec does not pin separate commits per project. Use
 `openspec schema which <name>` to see the winning source and
 `openspec store doctor department-schemas` when Store identity is unhealthy.
 
+Use `openspec schema init` and `openspec schema fork` only when the consumer
+owns its project-local schema layer; while `schemaStore` is configured, those
+commands fail before writing an invisible local schema. Edit the registered
+Schema Store directly, or remove `schemaStore` first.
+
 **One default for every repo on your machine.** If you work across many
 code repos that all plan into the same store, set it once, globally,
 instead of adding the `store:` line to each repo:

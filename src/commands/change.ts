@@ -39,8 +39,8 @@ export class ChangeCommand {
   private schemaTarget?: SchemaResolutionTarget;
   private projectConfig?: ProjectConfig | null;
 
-  // rootPath is set only by root-aware callers (top-level `show`); the
-  // deprecated noun-form commands stay cwd-based.
+  // rootPath and schemaTarget let both verb-first and deprecated noun-form
+  // callers use the same planning and schema authorities.
   constructor(
     rootPath?: string,
     schemaTarget?: SchemaResolutionTarget,
@@ -246,11 +246,12 @@ export class ChangeCommand {
   }
 
   async validate(changeName?: string, options?: { strict?: boolean; json?: boolean; noInteractive?: boolean }): Promise<void> {
-    const changesPath = path.join(process.cwd(), 'openspec', 'changes');
+    const projectRoot = this.rootPath ?? process.cwd();
+    const changesPath = this.getChangesPath();
     
     if (!changeName) {
       const canPrompt = isInteractive(options);
-      const changes = await getActiveChangeIds();
+      const changes = await getActiveChangeIds(projectRoot);
       if (canPrompt && changes.length > 0) {
         const { select } = await import('@inquirer/prompts');
         const selected = await select({
@@ -278,7 +279,7 @@ export class ChangeCommand {
       throw new Error(`Change "${changeName}" not found at ${changeDir}`);
     }
     
-    const validator = new Validator(options?.strict || false);
+    const validator = new Validator(options?.strict || false, this.schemaTarget);
     const report = await validator.validateChangeDeltaSpecs(changeDir);
     
     if (options?.json) {

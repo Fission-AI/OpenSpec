@@ -933,6 +933,10 @@ Commands for creating and managing custom workflow schemas.
 
 Create a new project-local schema.
 
+This command refuses to create an invisible project-local schema when
+`schemaStore` is configured. Edit the registered Schema Store directly, or
+remove `schemaStore` first.
+
 ```
 openspec schema init <name> [options]
 ```
@@ -984,6 +988,10 @@ openspec/schemas/<name>/
 ### `openspec schema fork`
 
 Copy an existing schema to your project for customization.
+
+This command refuses to create an invisible project-local schema when
+`schemaStore` is configured. Edit the registered Schema Store directly, or
+remove `schemaStore` first.
 
 ```
 openspec schema fork <source> [name] [options]

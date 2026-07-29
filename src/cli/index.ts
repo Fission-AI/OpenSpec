@@ -398,7 +398,13 @@ changeCmd
   .option('--no-interactive', 'Disable interactive prompts')
   .action(async (changeName?: string, options?: { strict?: boolean; json?: boolean; noInteractive?: boolean }) => {
     try {
-      const changeCommand = new ChangeCommand();
+      const root = await resolveRootForCommand({}, { json: options?.json });
+      if (!root) return;
+      const changeCommand = new ChangeCommand(
+        root.path,
+        root.schemaContext,
+        readResolvedProjectConfig(root)
+      );
       await changeCommand.validate(changeName, options);
       if (typeof process.exitCode === 'number' && process.exitCode !== 0) {
         process.exit(process.exitCode);

@@ -63,5 +63,20 @@ The system SHALL use the same resolved schema Store, visibility, and provenance 
 - **AND** SHALL keep planning artifacts in the planning Store
 
 #### Scenario: Schema commands use the same context
-- **WHEN** the user runs schema listing, which, validation, forking, or template reporting from the consumer project
+- **WHEN** the user runs schema listing, which, validation, or template reporting from the consumer project
 - **THEN** each command SHALL apply the same Store and visibility resolution
+
+### Requirement: Schema Store replacement prevents invisible local writes
+
+The system SHALL reject commands that would create a consumer-local project
+schema while a schema Store replaces the project schema layer.
+
+#### Scenario: Fork is rejected while schema Store is configured
+- **WHEN** the user runs `openspec schema fork` from a consumer with `schemaStore`
+- **THEN** the command SHALL fail before creating a consumer-local schema
+- **AND** the diagnostic SHALL identify the schema Store and explain how to edit the Store or restore local schema ownership
+
+#### Scenario: Init is rejected while schema Store is configured
+- **WHEN** the user runs `openspec schema init` from a consumer with `schemaStore`
+- **THEN** the command SHALL fail before creating a consumer-local schema
+- **AND** the diagnostic SHALL identify the schema Store and explain how to edit the Store or restore local schema ownership

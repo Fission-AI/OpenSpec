@@ -42,6 +42,26 @@ interface SchemaResolution {
   shadows: Array<{ source: SchemaSource; path: string; storeId?: string }>;
 }
 
+function schemaStoreWriteError(
+  schemaContext: SchemaResolutionContext,
+  command: 'fork' | 'init'
+): { message: string; storeId?: string } | null {
+  if (schemaContext.source !== 'store') {
+    return null;
+  }
+
+  const storeLabel = schemaContext.storeId
+    ? ` '${schemaContext.storeId}'`
+    : '';
+  return {
+    message:
+      `Cannot create project-local schemas while schemaStore${storeLabel} is configured. ` +
+      `Edit the registered Schema Store directly, or remove schemaStore from openspec/config.yaml ` +
+      `before using "openspec schema ${command}".`,
+    ...(schemaContext.storeId ? { storeId: schemaContext.storeId } : {}),
+  };
+}
+
 /**
  * Validation issue structure
  */
@@ -609,6 +629,20 @@ export function registerSchemaCommand(program: Command): void {
         const projectRoot = root.consumerRoot;
         const schemaContext = root.schemaContext;
         const destinationName = name || `${source}-custom`;
+        const writeError = schemaStoreWriteError(schemaContext, 'fork');
+        if (writeError) {
+          if (options?.json) {
+            console.log(JSON.stringify({
+              forked: false,
+              error: writeError.message,
+              ...(writeError.storeId ? { storeId: writeError.storeId } : {}),
+            }, null, 2));
+          } else {
+            console.error(`Error: ${writeError.message}`);
+          }
+          process.exitCode = 1;
+          return;
+        }
 
         // Validate destination name
         if (!isValidSchemaName(destinationName)) {
@@ -743,6 +777,20 @@ export function registerSchemaCommand(program: Command): void {
           return;
         }
         const projectRoot = root.consumerRoot;
+        const writeError = schemaStoreWriteError(root.schemaContext, 'init');
+        if (writeError) {
+          if (options?.json) {
+            console.log(JSON.stringify({
+              created: false,
+              error: writeError.message,
+              ...(writeError.storeId ? { storeId: writeError.storeId } : {}),
+            }, null, 2));
+          } else {
+            console.error(`Error: ${writeError.message}`);
+          }
+          process.exitCode = 1;
+          return;
+        }
 
         // Validate name
         if (!isValidSchemaName(name)) {

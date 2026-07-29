@@ -3,7 +3,7 @@
 - [x] 1.1 Add failing project-config tests for scalar `schemaStore`, object form, omitted visibility, explicit `["*"]`, exact-name allowlists, duplicate normalization, and preservation of unrelated valid fields
 - [x] 1.2 Add failing strict-declaration tests for empty lists, wildcard/name mixing, invalid Store IDs, invalid schema names, unsupported fields, and malformed YAML
 - [x] 1.3 Implement normalized `SchemaStoreDeclaration` parsing plus a strict authority reader while preserving resilient generic config loading
-- [x] 1.4 Run `pnpm vitest run test/core/project-config.test.ts` and confirm the configuration contract is green
+- [x] 1.4 Run `pnpm exec vitest run test/core/project-config.test.ts` and confirm the configuration contract is green
 
 ## 2. Resolved Schema Context
 
@@ -29,6 +29,7 @@
 - [x] 4.4 Add backward-compatibility assertions showing projects without `schemaStore` retain existing paths, output, and schema precedence
 - [x] 4.5 Run all affected workflow, Store root-selection, archive, validation, and change utility suites
 - [x] 4.6 Preserve Planning Store configuration when `schemaStore` is absent, and layer explicit schema-consumer configuration without dropping inherited references
+- [x] 4.7 Route deprecated `change validate` through the resolved planning root and schema context
 
 ## 5. Schema CLI and Reporting
 
@@ -37,6 +38,8 @@
 - [x] 5.3 Extend JSON output with `source: "store"` and `storeId` while preserving existing fields and unavailable/error shapes
 - [x] 5.4 Verify every schema-oriented command resolves Store registration once at its asynchronous boundary and performs no Git network operation
 - [x] 5.5 Run the complete schema command and artifact-workflow focused suites
+- [x] 5.6 Reject project-local `schema init` and `schema fork` writes while a schema Store replaces that layer, with actionable Store-aware diagnostics
+- [x] 5.7 Key schema completion caching by the effective schema resolution target
 
 ## 6. Documentation and Release Contract
 

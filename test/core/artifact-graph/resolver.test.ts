@@ -753,14 +753,23 @@ artifacts:
       process.env.XDG_DATA_HOME = path.join(tempDir, 'user-data');
       const consumerRoot = path.join(tempDir, 'consumer');
       const storeRoot = path.join(tempDir, 'schema-store');
+      writeSchema(consumerRoot, 'shared-schema', 'consumer-version');
       writeSchema(consumerRoot, 'consumer-only', 'consumer-version');
+      writeSchema(storeRoot, 'shared-schema', 'store-version');
       writeSchema(storeRoot, 'store-only', 'store-version');
 
-      const schemas = listSchemas(storeContext(storeRoot));
+      const consumerSchemas = listSchemas(consumerRoot);
+      expect(consumerSchemas).toContain('consumer-only');
+      expect(resolveSchema('shared-schema', consumerRoot).name).toBe(
+        'consumer-version'
+      );
 
-      expect(schemas).toContain('store-only');
-      expect(schemas).not.toContain('consumer-only');
-      expect(getSchemaDir('consumer-only', storeContext(storeRoot))).toBeNull();
+      const context = storeContext(storeRoot);
+      const storeSchemas = listSchemas(context);
+      expect(storeSchemas).toContain('store-only');
+      expect(storeSchemas).not.toContain('consumer-only');
+      expect(resolveSchema('shared-schema', context).name).toBe('store-version');
+      expect(getSchemaDir('consumer-only', context)).toBeNull();
     });
 
     it('reports Store provenance and exact Store id', () => {

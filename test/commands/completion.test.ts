@@ -308,6 +308,38 @@ describe('CompletionCommand', () => {
       }
     });
 
+    it('does not reuse schema completion cache entries across resolution targets', async () => {
+      const tempDir = fs.mkdtempSync(
+        path.join(os.tmpdir(), 'openspec-completion-target-cache-')
+      );
+      try {
+        const firstRoot = path.join(tempDir, 'first');
+        const secondRoot = path.join(tempDir, 'second');
+        for (const [root, name] of [
+          [firstRoot, 'first-flow'],
+          [secondRoot, 'second-flow'],
+        ]) {
+          const schemaDir = path.join(root, 'openspec', 'schemas', name);
+          fs.mkdirSync(schemaDir, { recursive: true });
+          fs.writeFileSync(path.join(schemaDir, 'schema.yaml'), `name: ${name}\n`);
+        }
+
+        const provider = new CompletionProvider(60_000, tempDir);
+        expect(await provider.getSchemaNames(firstRoot)).toContain('first-flow');
+
+        const secondSchemas = await provider.getSchemaNames({
+          root: secondRoot,
+          source: 'store',
+          storeId: 'second-store',
+          visibleSchemas: '*',
+        });
+        expect(secondSchemas).toContain('second-flow');
+        expect(secondSchemas).not.toContain('first-flow');
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
     it('fails silently instead of falling back for an invalid schemaStore authority', async () => {
       const tempDir = fs.mkdtempSync(
         path.join(os.tmpdir(), 'openspec-completion-invalid-')

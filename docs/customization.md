@@ -212,6 +212,11 @@ pull, pin, or otherwise synchronize that repository during schema or workflow
 commands. Update the checkout with normal Git commands; one registered checkout
 is shared by every local consumer that names that Store.
 
+Because a configured Schema Store replaces the project-local schema layer,
+`openspec schema init` and `openspec schema fork` do not create local schemas
+in that consumer. Edit the registered Store directly, or remove `schemaStore`
+before creating a project-local schema.
+
 ### Fork an Existing Schema
 
 The fastest way to customize is to fork a built-in schema:

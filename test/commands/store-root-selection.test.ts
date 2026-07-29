@@ -272,10 +272,11 @@ schemaStore:
         ['schema', 'fork', 'department-flow', 'forked-flow', '--json'],
         { cwd: localRepo, env }
       );
-      expect(forked.exitCode).toBe(0);
+      expect(forked.exitCode).toBe(1);
       expect(parseJson(forked)).toMatchObject({
-        forked: true,
-        sourceLocation: 'store',
+        forked: false,
+        storeId: 'department-schemas',
+        error: expect.stringContaining('remove schemaStore'),
       });
       expect(
         fs.existsSync(
@@ -287,7 +288,29 @@ schemaStore:
             'schema.yaml'
           )
         )
-      ).toBe(true);
+      ).toBe(false);
+
+      const initialized = await runCLI(
+        ['schema', 'init', 'local-flow', '--json'],
+        { cwd: localRepo, env }
+      );
+      expect(initialized.exitCode).toBe(1);
+      expect(parseJson(initialized)).toMatchObject({
+        created: false,
+        storeId: 'department-schemas',
+        error: expect.stringContaining('remove schemaStore'),
+      });
+      expect(
+        fs.existsSync(
+          path.join(
+            localRepo,
+            'openspec',
+            'schemas',
+            'local-flow',
+            'schema.yaml'
+          )
+        )
+      ).toBe(false);
 
       const templates = await runCLI(
         ['templates', '--schema', 'department-flow', '--json'],
@@ -424,6 +447,13 @@ schemaStore: department-schemas
         '## Why\nThis department change is needed.\n\n## What Changes\n- Update the department flow.\n'
       );
       fs.appendFileSync(path.join(changeDir, '.openspec.yaml'), 'skip_specs: true\n');
+
+      const deprecatedValidation = await runCLI(
+        ['change', 'validate', 'split-store-flow', '--json'],
+        { cwd: appRepo, env }
+      );
+      expect(deprecatedValidation.exitCode).toBe(0);
+      expect(parseJson(deprecatedValidation)).toMatchObject({ valid: true });
 
       const apply = await runCLI(
         ['instructions', 'apply', '--change', 'split-store-flow', '--json'],

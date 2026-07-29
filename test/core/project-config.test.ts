@@ -26,6 +26,12 @@ describe('project-config', () => {
   });
 
   describe('readProjectConfig', () => {
+    function writeConfig(body: string): void {
+      const configDir = path.join(tempDir, 'openspec');
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(path.join(configDir, 'config.yaml'), body);
+    }
+
     describe('resilient parsing', () => {
       it('should parse complete valid config', () => {
         const configDir = path.join(tempDir, 'openspec');
@@ -487,12 +493,6 @@ rules:
     });
 
     describe('references parsing', () => {
-      function writeConfig(body: string): void {
-        const configDir = path.join(tempDir, 'openspec');
-        fs.mkdirSync(configDir, { recursive: true });
-        fs.writeFileSync(path.join(configDir, 'config.yaml'), body);
-      }
-
       it('keeps entries deduplicated and order-preserving, including invalid grammar', () => {
         writeConfig(
           'schema: spec-driven\nreferences:\n  - team-context\n  - team-context\n  - "BAD ID"\n  - other-context\n  - 7\n'
@@ -569,12 +569,6 @@ rules:
     });
 
     describe('schemaStore parsing', () => {
-      function writeConfig(body: string): void {
-        const configDir = path.join(tempDir, 'openspec');
-        fs.mkdirSync(configDir, { recursive: true });
-        fs.writeFileSync(path.join(configDir, 'config.yaml'), body);
-      }
-
       it('normalizes the scalar form to wildcard visibility', () => {
         writeConfig('schema: qeda-sdd\nschemaStore: department-schemas\n');
 

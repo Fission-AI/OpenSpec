@@ -10,6 +10,22 @@ interface CacheEntry<T> {
   timestamp: number;
 }
 
+function schemaTargetCacheKey(target: SchemaResolutionTarget): string {
+  if (typeof target === 'string') {
+    return JSON.stringify({ root: target, source: 'project', visibleSchemas: '*' });
+  }
+
+  return JSON.stringify({
+    root: target.root,
+    source: target.source,
+    storeId: target.storeId,
+    visibleSchemas:
+      target.visibleSchemas === '*'
+        ? '*'
+        : [...target.visibleSchemas].sort(),
+  });
+}
+
 /**
  * Provides dynamic completion suggestions for OpenSpec items (changes and specs).
  * Implements a 2-second cache to avoid excessive file system operations during
@@ -20,6 +36,7 @@ export class CompletionProvider {
   private changeCache: CacheEntry<string[]> | null = null;
   private specCache: CacheEntry<string[]> | null = null;
   private schemaCache: CacheEntry<string[]> | null = null;
+  private schemaCacheKey: string | null = null;
 
   /**
    * Creates a new completion provider
@@ -94,20 +111,27 @@ export class CompletionProvider {
     schemaTarget: SchemaResolutionTarget | undefined = this.schemaTarget
   ): Promise<string[]> {
     const now = Date.now();
+    const effectiveTarget = schemaTarget ?? this.projectRoot;
+    const cacheKey = schemaTargetCacheKey(effectiveTarget);
 
     // Check if cache is valid
-    if (this.schemaCache && now - this.schemaCache.timestamp < this.cacheTTL) {
+    if (
+      this.schemaCache &&
+      this.schemaCacheKey === cacheKey &&
+      now - this.schemaCache.timestamp < this.cacheTTL
+    ) {
       return this.schemaCache.data;
     }
 
     // Fetch fresh data
-    const schemaNames = listSchemas(schemaTarget ?? this.projectRoot);
+    const schemaNames = listSchemas(effectiveTarget);
 
     // Update cache
     this.schemaCache = {
       data: schemaNames,
       timestamp: now,
     };
+    this.schemaCacheKey = cacheKey;
 
     return schemaNames;
   }
@@ -133,6 +157,7 @@ export class CompletionProvider {
     this.changeCache = null;
     this.specCache = null;
     this.schemaCache = null;
+    this.schemaCacheKey = null;
   }
 
   /**

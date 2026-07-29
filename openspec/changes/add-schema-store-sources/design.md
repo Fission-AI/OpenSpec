@@ -153,6 +153,13 @@ The planning Store is never searched for schemas merely because it owns the acti
 
 This avoids implicit coupling and makes the schema authority visible in consumer configuration.
 
+Because the Store replaces the consumer-local project layer, `schema init` and
+`schema fork` MUST NOT write into the consumer repository while `schemaStore`
+is configured. Such files would be immediately invisible to resolution.
+Instead, both commands fail before mutation, identify the configured Store, and
+direct the user to edit that Store or remove `schemaStore` before creating a
+project-local schema.
+
 ### 6. Report Store provenance consistently
 
 Schema discovery records extend the source union with `store`. Store-backed results include the Store ID and canonical schema directory path.
@@ -163,7 +170,7 @@ The following surfaces use the same resolved schema context and visibility:
 - `openspec schema which <name>`;
 - `openspec schema which --all`;
 - template reporting;
-- schema validation and forking;
+- schema validation;
 - change creation, status, instructions, apply, verify, and archive.
 
 Human output labels Store schemas with the Store ID. JSON output adds `source: "store"` and `storeId` without changing existing fields for project, user, or package sources.
