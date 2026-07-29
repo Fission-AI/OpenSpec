@@ -33,7 +33,7 @@ way it loads the file OpenSpec wrote. Find your tool's command path in the
 | `.../opsx-<id>.*` — the filename is the command | `/opsx-<id>` | Every other tool with generated command files, except Amazon Q and Devin |
 | `.devin/workflows/opsx-<id>.md` — read by only one of Devin's two agents | `/opsx-<id>` on Devin Desktop, `/openspec-<skill>` on Devin Local | Devin Desktop\*\*\*\* |
 | `.amazonq/prompts/opsx-<id>.md` — a prompt, not a command | `@opsx-<id>` | Amazon Q Developer |
-| none — skills only | `/openspec-<skill>` | CodeArts, ForgeCode, Hermes, Mistral Vibe |
+| none — skills only | `/openspec-<skill>` | CodeArts, ForgeCode, Hermes, Mistral Vibe, shared `.agents` |
 | none — Kimi Code | `/skill:openspec-<skill>` | Kimi Code |
 | none — Codex CLI | `$openspec-<skill>` | Codex ([`/openspec-<skill>` is not recognized](https://github.com/openai/codex/issues/11817)) |
 
@@ -98,12 +98,49 @@ to read the hint.
 | [Zoo Code](https://github.com/Zoo-Code-Org/Zoo-Code) (`roocode`) | `.roo/skills/openspec-*/SKILL.md` | `.roo/commands/opsx-<id>.md` |
 | Trae (`trae`) | `.trae/skills/openspec-*/SKILL.md` | `.trae/commands/opsx-<id>.md` |
 | ZCode (`zcode`) | `.zcode/skills/openspec-*/SKILL.md` | `.zcode/commands/opsx/<id>.md` |
+| Shared `.agents` skills (`agents`) | `.agents/skills/openspec-*/SKILL.md` | Not generated (no command adapter; use skill-based `/openspec-*` invocations) |
 
 \*\* GitHub Copilot prompt files are recognized as custom slash commands in IDE extensions (VS Code, JetBrains, Visual Studio). Copilot CLI does not currently consume `.github/prompts/*.prompt.md` directly.
 
 \*\*\* Hermes loads skills from `~/.hermes/skills/` by default. To use project-local OpenSpec skills, add the project `.hermes/skills/` directory to `skills.external_dirs` in `~/.hermes/config.yaml`; Hermes then exposes skills with user-facing slash invocations such as `/openspec-propose`.
 
 \*\*\*\* Windsurf was [rebranded to Devin Desktop](https://docs.devin.ai/desktop/devin-desktop-faq) on June 2, 2026, and its config directory moved: `.devin/` is the preferred read + write location, `.windsurf/` a legacy read-only fallback. OpenSpec follows the rename — the tool id is `devin`, and `--tools windsurf` still resolves to it so existing setup scripts keep working. A project still holding OpenSpec files in `.windsurf/` is offered the move on the next `openspec update`; declining leaves them in place, and files you wrote yourself are never touched. Workflows are invoked by filename, so `.devin/workflows/opsx-apply.md` is `/opsx-apply`. The [Devin Local agent does not support workflows](https://docs.devin.ai/desktop/devin-local) — only skills, and it does not read `.windsurf/` at all — so whenever OpenSpec writes Devin skills it keeps their bodies, and the getting-started hint, on `/openspec-*` skill invocations, which work on both agents. Under commands-only delivery no skills are written and both fall back to `/opsx-*`.
+
+### When to pick the shared `.agents` target
+
+`agents` is the vendor-neutral option: it writes skills to `.agents/skills/`, the
+shared root many agent tools read, instead of a tool-specific directory.
+
+| Situation | Pick |
+|-----------|------|
+| Your tool has its own row above | Its own ID — you get that tool's integration, including slash commands where it supports them |
+| Several agents on one repo, all reading `.agents/skills` | `agents` — one skill tree instead of one per tool |
+| Your tool isn't listed yet but reads `.agents/skills` | `agents` |
+
+Selecting it alongside a tool-specific ID is fine; each writes to its own root.
+OpenSpec also offers it automatically once a project has a `.agents/skills/`
+directory — a bare `.agents/` is not enough, since tools use that root for rules
+and subagent definitions too. Note `.agents` is not `.agent`: the singular
+directory belongs to Antigravity.
+
+Two things to know:
+
+- **Skills only.** No command adapter exists, so no `opsx-*` command files are
+  written; with a commands-inclusive delivery mode `openspec init` lists `agents`
+  among the tools it reports under `Commands skipped for: … (no adapter)`.
+  Invoke the workflows by skill name —
+  most assistants that read `.agents/skills` spell that `/openspec-propose`, the form
+  OpenSpec's setup hint prints. The target is vendor-neutral, so check your
+  assistant's own docs if it uses another form.
+- **No `AGENTS.md` is created or edited.** The target is the `.agents/` directory.
+  If your root `AGENTS.md` still carries OpenSpec marker blocks from an older
+  version, `openspec update` strips them — see the [Migration Guide](migration-guide.md).
+
+Because `.agents/skills/` is shared, it is worth knowing what OpenSpec claims there:
+it writes, refreshes, and removes only the `openspec-*` skill directories for your
+selected workflows. Anything else in that directory is left alone. Treat the
+`openspec-*` names as OpenSpec's — edits inside them are replaced on the next
+`openspec update`, the same as for every other tool.
 
 ## Non-Interactive Setup
 
@@ -123,7 +160,7 @@ openspec init --tools none
 openspec init --profile core
 ```
 
-**Available tool IDs (`--tools`)** — `windsurf` is also accepted, as an alias for `devin`: `amazon-q`, `antigravity`, `auggie`, `bob`, `claude`, `cline`, `codeartsagent`, `codex`, `devin`, `forgecode`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `hermes`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `lingma`, `vibe`, `oh-my-pi`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `zcode`
+**Available tool IDs (`--tools`)** — `windsurf` is also accepted, as an alias for `devin`: `amazon-q`, `antigravity`, `auggie`, `bob`, `claude`, `cline`, `codeartsagent`, `codex`, `devin`, `forgecode`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `hermes`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `lingma`, `vibe`, `oh-my-pi`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `zcode`, `agents`
 
 ## Workflow-Dependent Installation
 

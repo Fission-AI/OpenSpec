@@ -59,7 +59,7 @@ If `/opsx:propose` (or your tool's equivalent) doesn't appear or doesn't do anyt
 
 5. **Check you initialized this project.** Skills are written per project. If you cloned a repo or switched folders, run `openspec init` (or `openspec update`) there.
 
-6. **Confirm your tool supports command files.** Codex, CodeArts, ForgeCode, Hermes, Kimi Code and Mistral Vibe don't get generated `opsx-*` command files; they use skill-based invocations instead, so `/opsx` will never autocomplete for them. Type `$openspec-propose` in Codex, `/skill:openspec-propose` in Kimi Code, and `/openspec-propose` in the rest. Amazon Q does get command files, but loads them into its prompt library rather than its slash menu — type `@opsx-propose` there, not `/opsx`. Every tool's form is listed in [How To Invoke](supported-tools.md#how-to-invoke).
+6. **Confirm your tool supports command files.** Codex, CodeArts, ForgeCode, Hermes, Kimi Code, Mistral Vibe and the shared `.agents` target don't get generated `opsx-*` command files; they use skill-based invocations instead, so `/opsx` will never autocomplete for them. Type `$openspec-propose` in Codex, `/skill:openspec-propose` in Kimi Code, and `/openspec-propose` in the rest. The shared `.agents` target is vendor-neutral, so `/openspec-propose` is the common form rather than a guaranteed one — if your assistant does not answer to it, check its own docs for how it invokes a skill. Amazon Q does get command files, but loads them into its prompt library rather than its slash menu — type `@opsx-propose` there, not `/opsx`. Every tool's form is listed in [How To Invoke](supported-tools.md#how-to-invoke).
 
 ## Working with changes
 
@@ -95,6 +95,14 @@ openspec validate --all --strict   # stricter checks, good for CI
 ```
 
 Common causes are a missing required section (like a spec with no scenarios) or a malformed delta header. Fix the file and re-run. The [CLI reference](cli.md#openspec-validate) documents the output format.
+
+One message deserves its own note:
+
+```text
+MODIFIED "<requirement>" omits scenario(s) the current spec still has: "<scenario>"
+```
+
+A `MODIFIED` requirement replaces the whole requirement block, so it has to carry every scenario that survives the change, not only the ones you edited. Copy the named scenarios from `openspec/specs/<capability>/spec.md` back into the delta. This often appears on an older change after someone else's change added a scenario to the same requirement — archive refuses that change either way, and validation now says so before you implement it.
 
 ### The AI created incomplete or wrong artifacts
 
