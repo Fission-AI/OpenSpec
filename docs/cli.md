@@ -107,7 +107,7 @@ openspec init [path] [options]
 
 The welcome animation is also skipped when the `OPENSPEC_NO_ANIMATION` environment variable is set (any value, including empty), when `NO_COLOR` is set to a non-empty value, or when the OS reduced-motion preference is enabled (macOS Reduce Motion, GNOME animations disabled).
 
-**Supported tool IDs (`--tools`)** — `windsurf` is also accepted, as an alias for `devin`: `amazon-q`, `antigravity`, `auggie`, `bob`, `claude`, `cline`, `codeartsagent`, `codex`, `devin`, `forgecode`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `hermes`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `lingma`, `vibe`, `oh-my-pi`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `zcode`
+**Supported tool IDs (`--tools`)** — `windsurf` is also accepted, as an alias for `devin`: `amazon-q`, `antigravity`, `auggie`, `bob`, `claude`, `cline`, `codeartsagent`, `codex`, `devin`, `forgecode`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `hermes`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `lingma`, `vibe`, `oh-my-pi`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `zcode`, `agents`
 
 > This list mirrors `AI_TOOLS` in `src/core/config.ts`. See [Supported Tools](supported-tools.md) for each tool's skill and command paths.
 
@@ -144,6 +144,7 @@ openspec/
 .claude/skills/         # Claude Code skills (if claude selected)
 .cursor/skills/         # Cursor skills (if cursor selected)
 .cursor/commands/       # Cursor OPSX commands (if delivery includes commands)
+.agents/skills/         # Shared skills for AGENTS.md-compatible tools (if agents selected)
 ... (other tool configs)
 ```
 
@@ -526,7 +527,7 @@ openspec show add-dark-mode --json
 
 ### `openspec validate`
 
-Validate changes and specs for structural issues.
+Validate changes and specs for structural issues, and check a change's MODIFIED requirements against the main specs they would replace.
 
 ```
 openspec validate [item-name] [options]

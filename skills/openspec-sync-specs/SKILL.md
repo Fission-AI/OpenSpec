@@ -100,7 +100,7 @@ This is an **agent-driven** operation - you will read delta specs and directly e
       **MODIFIED Requirements:**
       - Find the requirement in main spec
       - Apply the changes - this can be:
-        - Adding new scenarios (don't need to copy existing ones)
+        - Adding new scenarios the main spec does not have yet
         - Modifying existing scenarios
         - Changing the requirement description
       - Preserve scenarios/content not mentioned in the delta
@@ -167,6 +167,12 @@ The system SHALL do something new.
 ## MODIFIED Requirements
 
 ### Requirement: Existing Feature
+The system SHALL keep doing the existing thing, now also handling A.
+
+#### Scenario: Scenario the main spec already has
+- **WHEN** user does X
+- **THEN** system does Y
+
 #### Scenario: New scenario to add
 - **WHEN** user does A
 - **THEN** system does B
@@ -203,9 +209,9 @@ The system SHALL do something new.
 
 **Key Principle: Intelligent Merging**
 
-Unlike programmatic merging, you can apply **partial updates**:
-- To add a scenario, just include that scenario under MODIFIED - don't copy existing scenarios
-- The delta represents *intent*, not a wholesale replacement
+Unlike programmatic merging, you merge rather than overwrite:
+- A MODIFIED block carries the whole requirement - body plus every scenario that survives the change. `openspec validate` and `openspec archive` both reject one that drops a scenario the main spec still has.
+- Keep anything the delta does not mention, in the main spec's existing order
 - Use your judgment to merge changes sensibly
 
 **Output On Success**

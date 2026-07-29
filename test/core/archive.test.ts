@@ -237,6 +237,31 @@ describe('ArchiveCommand', () => {
       );
     });
 
+    it('detects incomplete indented sub-tasks (#1485 data-safety gate)', async () => {
+      // Before the fix the gate only saw checkboxes at column 0, so a change
+      // whose sub-tasks were unfinished archived with no warning at all.
+      const changeName = 'nested-subtasks-feature';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(
+        path.join(changeDir, 'tasks.md'),
+        [
+          '## 1. Implementation',
+          '- [x] 1.1 Parent task',
+          '  - [ ] 1.1.1 Unfinished sub-task',
+          '  - [ ] 1.1.2 Another unfinished sub-task',
+          '- [x] 1.2 Second parent',
+          '',
+        ].join('\n')
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('Warning: 2 incomplete task(s) found')
+      );
+    });
+
     it('should update specs when archiving (delta-based ADDED) and include change name in skeleton', async () => {
       const changeName = 'spec-feature';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
@@ -2766,6 +2791,38 @@ The system SHALL do the thing differently.
       expect(console.log).toHaveBeenCalledWith('Archive cancelled.');
       
       // Verify change was not archived
+      await expect(fs.access(changeDir)).resolves.not.toThrow();
+    });
+
+    it('prompts before archiving a change whose only unfinished work is a sub-task (#1485)', async () => {
+      // The other half of the gate: without --yes the user is asked, and
+      // declining leaves the change in place. Before the fix there was no
+      // question to answer - the sub-task was invisible and archive ran.
+      const { confirm } = await import('@inquirer/prompts');
+      const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
+
+      const changeName = 'subtask-prompt';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(
+        path.join(changeDir, 'tasks.md'),
+        '- [x] 1.1 Parent task\n  - [ ] 1.1.1 Unfinished sub-task\n'
+      );
+
+      // Drain answers queued by earlier tests: vi.clearAllMocks() resets calls
+      // but not a pending mockResolvedValueOnce queue.
+      mockConfirm.mockReset();
+      // First confirm is the skip-validation prompt, second is the task warning.
+      mockConfirm.mockResolvedValueOnce(true);
+      mockConfirm.mockResolvedValueOnce(false);
+
+      await archiveCommand.execute(changeName, { noValidate: true });
+
+      expect(mockConfirm).toHaveBeenCalledWith({
+        message: 'Warning: 1 incomplete task(s) found. Continue?',
+        default: false,
+      });
+      expect(console.log).toHaveBeenCalledWith('Archive cancelled.');
       await expect(fs.access(changeDir)).resolves.not.toThrow();
     });
   });
