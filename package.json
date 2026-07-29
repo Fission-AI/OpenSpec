@@ -1,6 +1,6 @@
 {
   "name": "@fission-ai/openspec",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "AI-native system for spec-driven development",
   "keywords": [
     "openspec",
@@ -68,6 +68,7 @@
     "@types/node": "^20.19.43",
     "@vitest/ui": "^3.2.6",
     "eslint": "^10.5.0",
+    "smol-toml": "^1.7.1",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.65.0",
     "vitest": "^3.2.6"
@@ -80,7 +81,6 @@
     "cross-spawn": "7.0.6",
     "fast-glob": "^3.3.3",
     "ora": "^9.4.1",
-    "posthog-node": "^5.46.0",
     "yaml": "^2.8.3",
     "zod": "^4.4.3"
   },

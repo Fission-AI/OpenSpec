@@ -294,6 +294,17 @@ export async function buildUpdatedSpec(
       // to the baseline (early-sync pattern) — re-applying it is a no-op,
       // not a failure. Only a missing source AND target is a genuine error.
       if (nameToBlock.has(to)) {
+        // Unless a case/whitespace variant of the source still exists (and is
+        // not the target itself, as in a case-only rename): that is a typo'd
+        // header, not an early-synced rename — same guard REMOVED applies.
+        const nearMiss = [...nameToBlock.keys()].find(
+          (k) => k !== to && foldRequirementName(k) === foldRequirementName(from)
+        );
+        if (nearMiss !== undefined) {
+          throw new Error(
+            `${specName} RENAMED failed for header "### Requirement: ${r.from}" - source not found, but "### Requirement: ${nameToBlock.get(nearMiss)!.name}" exists; fix the header to match it exactly`
+          );
+        }
         continue;
       }
       throw new Error(`${specName} RENAMED failed for header "### Requirement: ${r.from}" - source not found`);
@@ -344,6 +355,7 @@ export async function buildUpdatedSpec(
   }
 
   // MODIFIED
+  let modifiedApplied = 0;
   for (const mod of plan.modified) {
     const key = normalizeRequirementName(mod.name);
     const currentBlock = nameToBlock.get(key);
@@ -362,6 +374,13 @@ export async function buildUpdatedSpec(
       throw new Error(
         `${specName} MODIFIED failed for header "### Requirement: ${mod.name}" - current spec contains scenario(s) not present in the modified block: ${missingScenarios.map(name => `"${name}"`).join(', ')}. Refresh the change spec before archiving to avoid dropping scenarios.`
       );
+    }
+    // Identical content means the modification was already synced to the
+    // baseline (early-sync pattern) — count only real replacements, so a
+    // fully synced change still takes the "already in sync" write skip
+    // instead of churning normalization differences into the file.
+    if (normalizeBlockRaw(currentBlock.raw) !== normalizeBlockRaw(mod.raw)) {
+      modifiedApplied++;
     }
     nameToBlock.set(key, mod);
   }
@@ -419,7 +438,7 @@ export async function buildUpdatedSpec(
     rebuilt,
     counts: {
       added: addedApplied,
-      modified: plan.modified.length,
+      modified: modifiedApplied,
       removed: removedApplied,
       renamed: renamedApplied,
     },
@@ -579,11 +598,16 @@ function findMissingCurrentScenarios(current: RequirementBlock, incoming: Requir
 
 function parseScenarioBlocks(requirementRaw: string): ScenarioBlock[] {
   const lines = requirementRaw.replace(/\r\n?/g, '\n').split('\n');
+  // A `#### Scenario:` inside a fenced example is not a real scenario. The
+  // validator's countScenarios already ignores fenced lines; the drift check
+  // must agree with it, or a fenced sample can false-abort an archive (or
+  // mask a genuinely dropped scenario).
+  const mask = buildCodeFenceMask(lines);
   const scenarios: ScenarioBlock[] = [];
   let index = 0;
 
   while (index < lines.length) {
-    const headerMatch = lines[index].match(/^####\s*Scenario:\s*(.+)\s*$/);
+    const headerMatch = mask[index] ? null : lines[index].match(/^####\s*Scenario:\s*(.+)\s*$/);
     if (!headerMatch) {
       index++;
       continue;
@@ -592,7 +616,7 @@ function parseScenarioBlocks(requirementRaw: string): ScenarioBlock[] {
     const start = index;
     const name = headerMatch[1].trim();
     index++;
-    while (index < lines.length && !/^####\s*Scenario:\s*(.+)\s*$/.test(lines[index])) {
+    while (index < lines.length && (mask[index] || !/^####\s*Scenario:\s*(.+)\s*$/.test(lines[index]))) {
       index++;
     }
 

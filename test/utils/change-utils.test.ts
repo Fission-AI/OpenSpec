@@ -11,6 +11,15 @@ describe('validateChangeName', () => {
       expect(result).toEqual({ valid: true });
     });
 
+    it('should accept a long-but-bounded name and reject one past the cap', () => {
+      // Past the cap the failure must be a validation message, not a raw
+      // ENAMETOOLONG once mkdir hits the 255-byte component limit.
+      expect(validateChangeName('a'.repeat(200))).toEqual({ valid: true });
+      const result = validateChangeName('a'.repeat(201));
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('too long');
+    });
+
     it('should accept name with multiple segments', () => {
       const result = validateChangeName('add-user-auth');
       expect(result).toEqual({ valid: true });

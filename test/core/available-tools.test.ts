@@ -40,8 +40,39 @@ describe('available-tools', () => {
       const toolValues = tools.map((t) => t.value);
       expect(toolValues).toContain('claude');
       expect(toolValues).toContain('cursor');
-      expect(toolValues).toContain('windsurf');
+      // Windsurf was rebranded to Devin Desktop, so .windsurf detects as devin
+      expect(toolValues).toContain('devin');
       expect(tools).toHaveLength(3);
+    });
+
+    it('should detect Devin Desktop when .devin directory exists', async () => {
+      await fs.mkdir(path.join(testDir, '.devin'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('devin');
+
+      const devinTool = tools.find((t) => t.value === 'devin');
+      expect(devinTool).toBeDefined();
+      expect(devinTool?.name).toBe('Devin Desktop (formerly Windsurf)');
+      expect(devinTool?.skillsDir).toBe('.devin');
+    });
+
+    it('should detect Devin Desktop from the legacy .windsurf directory', async () => {
+      // The rebrand moved the config dir; a project set up before it still has
+      // only .windsurf/, and that user must still be recognized.
+      await fs.mkdir(path.join(testDir, '.windsurf'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((t) => t.value)).toContain('devin');
+      expect(tools.find((t) => t.value === 'devin')?.skillsDir).toBe('.devin');
+    });
+
+    it('should not detect Devin Desktop when neither .devin nor .windsurf exists', async () => {
+      await fs.mkdir(path.join(testDir, '.cursor'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((t) => t.value)).not.toContain('devin');
     });
 
     it('should ignore files that are not directories', async () => {

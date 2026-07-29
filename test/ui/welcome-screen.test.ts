@@ -122,6 +122,46 @@ describe('welcome screen', () => {
     expect(output).not.toContain('Quick start after setup:');
   });
 
+  it('does not promise opsx commands in the setup summary', async () => {
+    const { showWelcomeScreen } = await import('../../src/ui/welcome-screen.js');
+    renderStatically();
+
+    // This screen runs before tool selection, and skills-only tools (Codex,
+    // Kimi Code, ...) correctly receive no command files, so the summary must
+    // not state that opsx slash commands are part of every setup.
+    await showWelcomeScreen(['archive']);
+
+    const output = writtenOutput();
+
+    expect(output).toContain('Agent Skills for AI tools');
+    expect(output).toContain('Workflow commands, if supported');
+    expect(output).not.toContain('opsx slash commands');
+  });
+
+  it('flags that the quick-start spelling varies by tool', async () => {
+    const { showWelcomeScreen } = await import('../../src/ui/welcome-screen.js');
+    renderStatically();
+
+    // The quick start shows canonical names, but this screen renders one
+    // prompt before tools are picked — an Amazon Q user types @opsx-propose
+    // and a Codex user $openspec-propose, neither of which is shown here.
+    await showWelcomeScreen(['propose']);
+
+    const output = writtenOutput();
+
+    expect(output).toContain('/opsx:propose');
+    expect(output).toContain('spelling varies by tool');
+  });
+
+  it('omits the spelling caveat when there is no quick start block', async () => {
+    const { showWelcomeScreen } = await import('../../src/ui/welcome-screen.js');
+    renderStatically();
+
+    await showWelcomeScreen(['archive']);
+
+    expect(writtenOutput()).not.toContain('spelling varies by tool');
+  });
+
   it('keeps every rendered line inside the animation width budget', async () => {
     const { showWelcomeScreen } = await import('../../src/ui/welcome-screen.js');
     renderStatically();
@@ -144,9 +184,12 @@ describe('welcome screen', () => {
 
     await showWelcomeScreen(CORE_WORKFLOWS);
 
-    expect(useKeypressMock).not.toHaveBeenCalled();
+    // Static rendering still waits for the Enter the prompt line asks for;
+    // otherwise the keystroke falls through into the tool picker (#1462).
+    expect(useKeypressMock).toHaveBeenCalledOnce();
     const output = writtenOutput();
     expect(output).toContain('Welcome to OpenSpec');
+    expect(output).toContain('Press Enter');
     // No cursor-up repaints: the frame is drawn exactly once.
     expect(output).not.toMatch(/\x1b\[\d+A/);
   });
@@ -157,7 +200,7 @@ describe('welcome screen', () => {
 
     await showWelcomeScreen(CORE_WORKFLOWS);
 
-    expect(useKeypressMock).not.toHaveBeenCalled();
+    expect(useKeypressMock).toHaveBeenCalledOnce();
     expect(writtenOutput()).not.toMatch(/\x1b\[\d+A/);
   });
 
@@ -166,7 +209,7 @@ describe('welcome screen', () => {
 
     await showWelcomeScreen(CORE_WORKFLOWS, { animate: false });
 
-    expect(useKeypressMock).not.toHaveBeenCalled();
+    expect(useKeypressMock).toHaveBeenCalledOnce();
     const output = writtenOutput();
     expect(output).toContain('Welcome to OpenSpec');
     expect(output).not.toMatch(/\x1b\[\d+A/);
@@ -182,7 +225,7 @@ describe('welcome screen', () => {
 
       await showWelcomeScreen(CORE_WORKFLOWS);
 
-      expect(useKeypressMock).not.toHaveBeenCalled();
+      expect(useKeypressMock).toHaveBeenCalledOnce();
       expect(writtenOutput()).toContain('Welcome to OpenSpec');
     }
   );

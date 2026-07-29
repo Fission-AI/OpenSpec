@@ -21,7 +21,8 @@ export class MarkdownParser {
   }
 
   protected static normalizeContent(content: string): string {
-    return content.replace(/\r\n?/g, '\n');
+    // Strip a UTF-8 BOM so a header on the first line still matches.
+    return content.replace(/^﻿/, '').replace(/\r\n?/g, '\n');
   }
 
   parseSpec(name: string): Spec {

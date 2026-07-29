@@ -30,6 +30,12 @@ function getWelcomeText(workflows: readonly string[]): string[] {
     for (const { command, description } of onboardingCommands) {
       quickStart.push(`  ${chalk.yellow(command.padEnd(commandWidth + 1))} ${chalk.dim(description)}`);
     }
+    // These are the canonical names. How each tool spells them differs
+    // (/opsx-propose, @opsx-propose, $openspec-propose ...) and cannot be known
+    // until tools are picked, one prompt later — so flag it rather than let the
+    // canonical form read as the literal thing to type. "Getting started"
+    // prints the real spelling once the selection is known.
+    quickStart.push(chalk.dim('  (spelling varies by tool)'));
     quickStart.push('');
   }
 
@@ -39,7 +45,10 @@ function getWelcomeText(workflows: readonly string[]): string[] {
     '',
     chalk.white('This setup will configure:'),
     chalk.dim('  • Agent Skills for AI tools'),
-    chalk.dim('  • /opsx:* slash commands'),
+    // Not "opsx slash commands": this screen runs before tool selection, and
+    // skills-only tools (Codex, Kimi Code, ...) correctly get no command files
+    // at all. The exact spelling per tool is printed in "Getting started".
+    chalk.dim('  • Workflow commands, if supported'),
     '',
     ...quickStart,
     chalk.cyan('Press Enter to select tools...'),
@@ -175,9 +184,16 @@ export async function showWelcomeScreen(
   const textLines = getWelcomeText(workflows);
 
   if (options.animate === false || !canAnimate()) {
-    // Fallback: show static welcome
+    // Fallback: show static welcome. The "Press Enter" line is only honest
+    // when we actually wait; in a TTY, returning immediately would let the
+    // Enter it asks for fall through into the tool picker and submit the
+    // pre-selected tools sight-unseen. Without a TTY, drop the line instead.
+    const staticLines = process.stdin.isTTY
+      ? textLines
+      : textLines.filter((line) => !line.includes('Press Enter'));
     const frame = WELCOME_ANIMATION.frames[3]; // Peak frame
-    process.stdout.write('\n' + renderFrame(frame, textLines) + '\n\n');
+    process.stdout.write('\n' + renderFrame(frame, staticLines) + '\n\n');
+    await waitForEnter();
     return;
   }
 
