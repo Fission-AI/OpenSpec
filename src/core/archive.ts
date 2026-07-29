@@ -21,6 +21,7 @@ import {
 } from './specs-apply.js';
 import { discoverSpecFiles, hasAnyFileUnder } from '../utils/spec-discovery.js';
 import { readSkipSpecsMarker } from '../utils/change-metadata.js';
+import { isNonInteractivePromptError } from '../utils/interactive.js';
 
 function isMissingPathError(error: unknown): boolean {
   return (
@@ -95,6 +96,28 @@ class ArchiveBlockedError extends Error {
       message,
       ...(fix ? { fix } : {}),
     };
+  }
+}
+
+/**
+ * Asks a yes/no question in human mode. When there is no terminal to answer it
+ * — the usual case for an AI agent or a script that runs the command with
+ * stdin closed — the raw @inquirer failure is replaced with the same guidance
+ * JSON mode already gives for this decision point, so the caller learns which
+ * flag to pass instead of reading `User force closed the prompt` (#1479).
+ */
+async function confirmOrBlock(
+  prompt: { message: string; default: boolean },
+  blocked: () => ArchiveBlockedError
+): Promise<boolean> {
+  const { confirm } = await import('@inquirer/prompts');
+  try {
+    return await confirm(prompt);
+  } catch (error) {
+    if (isNonInteractivePromptError(error)) {
+      throw blocked();
+    }
+    throw error;
   }
 }
 
@@ -223,7 +246,7 @@ export class ArchiveCommand {
           withStoreFlag(root, 'openspec archive <change-name> --json')
         );
       }
-      const selectedChange = await this.selectChange(changesDir);
+      const selectedChange = await this.selectChange(changesDir, root);
       if (!selectedChange) {
         console.log('No change selected. Aborting.');
         return null;
@@ -376,11 +399,18 @@ export class ArchiveCommand {
       const timestamp = new Date().toISOString();
 
       if (!options.yes) {
-        const { confirm } = await import('@inquirer/prompts');
-        const proceed = await confirm({
-          message: chalk.yellow('⚠️  WARNING: Skipping validation may archive invalid specs. Continue? (y/N)'),
-          default: false
-        });
+        const proceed = await confirmOrBlock(
+          {
+            message: chalk.yellow('⚠️  WARNING: Skipping validation may archive invalid specs. Continue? (y/N)'),
+            default: false
+          },
+          () =>
+            new ArchiveBlockedError(
+              'archive_confirmation_required',
+              'Skipping validation requires confirmation, and this terminal is not interactive.',
+              withStoreFlag(root, `openspec archive ${changeName} --no-validate --yes`)
+            )
+        );
         if (!proceed) {
           console.log('Archive cancelled.');
           return null;
@@ -411,11 +441,18 @@ export class ArchiveCommand {
           );
         }
       } else if (!options.yes) {
-        const { confirm } = await import('@inquirer/prompts');
-        const proceed = await confirm({
-          message: `Warning: ${incompleteTasks} incomplete task(s) found. Continue?`,
-          default: false
-        });
+        const proceed = await confirmOrBlock(
+          {
+            message: `Warning: ${incompleteTasks} incomplete task(s) found. Continue?`,
+            default: false
+          },
+          () =>
+            new ArchiveBlockedError(
+              'archive_tasks_incomplete',
+              `${incompleteTasks} incomplete task(s) found for change '${changeName}', and this terminal is not interactive.`,
+              `Complete the tasks or rerun with ${withStoreFlag(root, `openspec archive ${changeName} --yes`)}`
+            )
+        );
         if (!proceed) {
           console.log('Archive cancelled.');
           return null;
@@ -456,11 +493,18 @@ export class ArchiveCommand {
               withStoreFlag(root, 'openspec archive <change-name> --json --yes')
             );
           }
-          const { confirm } = await import('@inquirer/prompts');
-          shouldUpdateSpecs = await confirm({
-            message: 'Proceed with spec updates?',
-            default: true
-          });
+          shouldUpdateSpecs = await confirmOrBlock(
+            {
+              message: 'Proceed with spec updates?',
+              default: true
+            },
+            () =>
+              new ArchiveBlockedError(
+                'archive_confirmation_required',
+                `Updating ${specUpdates.length} spec(s) requires confirmation, and this terminal is not interactive.`,
+                withStoreFlag(root, `openspec archive ${changeName} --yes`)
+              )
+          );
           if (!shouldUpdateSpecs) {
             console.log('Skipping spec updates. Proceeding with archive.');
           }
@@ -597,7 +641,10 @@ export class ArchiveCommand {
     };
   }
 
-  private async selectChange(changesDir: string): Promise<string | null> {
+  private async selectChange(
+    changesDir: string,
+    root: ResolvedOpenSpecRoot
+  ): Promise<string | null> {
     const { select } = await import('@inquirer/prompts');
     const changeDirs = await listActiveChangeNames(changesDir);
 
@@ -632,6 +679,15 @@ export class ArchiveCommand {
       });
       return answer;
     } catch (error) {
+      // No terminal to pick from: reporting "No change selected" and exiting 0
+      // told an agent the archive had succeeded when nothing happened (#1479).
+      if (isNonInteractivePromptError(error)) {
+        throw new ArchiveBlockedError(
+          'archive_change_name_required',
+          'A change name is required: this terminal is not interactive.',
+          withStoreFlag(root, 'openspec archive <change-name>')
+        );
+      }
       // User cancelled (Ctrl+C)
       return null;
     }

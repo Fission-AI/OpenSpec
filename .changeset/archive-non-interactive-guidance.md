@@ -1,0 +1,5 @@
+---
+'@fission-ai/openspec': patch
+---
+
+Tell the caller which flag to pass when `openspec archive` cannot ask its confirmation questions. An AI agent (or any script) runs the CLI with stdin closed, so every prompt rejects with `@inquirer`'s `User force closed the prompt with 0 null` — the archive aborted with an error that named neither the question nor the flag, and agents burned a turn guessing (#1479). Each confirmation now reports the same guidance JSON mode has always given for that decision point, including a pasteable command: `openspec archive <name> --yes`, `openspec archive <name> --no-validate --yes`, or "complete the tasks". `openspec archive` with no change name used to swallow the same failure, print `No change selected. Aborting.` and exit 0 — success for a run that archived nothing; it now exits 1 asking for a change name, matching how `openspec show` and `openspec validate` already behave without a terminal. Answers piped into the command, `--yes`, `--json`, and Ctrl-C at a real terminal all behave exactly as before. The onboarding walkthrough now shows `openspec archive "<name>" --yes`, the form an agent can actually run.

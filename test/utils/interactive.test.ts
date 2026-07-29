@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { isInteractive, resolveNoInteractive, InteractiveOptions } from '../../src/utils/interactive.js';
+import {
+  isInteractive,
+  isNonInteractivePromptError,
+  resolveNoInteractive,
+  InteractiveOptions,
+} from '../../src/utils/interactive.js';
 
 describe('interactive utilities', () => {
   let originalOpenSpecInteractive: string | undefined;
@@ -120,6 +125,39 @@ describe('interactive utilities', () => {
     it('should return true when stdin is TTY and options are undefined', () => {
       Object.defineProperty(process.stdin, 'isTTY', { value: true, writable: true, configurable: true });
       expect(isInteractive(undefined)).toBe(true);
+    });
+  });
+
+  describe('isNonInteractivePromptError', () => {
+    function setStdinIsTTY(value: boolean): void {
+      Object.defineProperty(process.stdin, 'isTTY', { value, writable: true, configurable: true });
+    }
+
+    function exitPromptError(message: string): Error {
+      const error = new Error(message);
+      error.name = 'ExitPromptError';
+      return error;
+    }
+
+    it('recognizes a prompt that failed with no terminal to answer it', () => {
+      setStdinIsTTY(false);
+      expect(
+        isNonInteractivePromptError(exitPromptError('User force closed the prompt with 0 null'))
+      ).toBe(true);
+    });
+
+    it('treats the same failure at a real terminal as a user cancellation', () => {
+      setStdinIsTTY(true);
+      expect(
+        isNonInteractivePromptError(exitPromptError('User force closed the prompt with SIGINT'))
+      ).toBe(false);
+    });
+
+    it('ignores unrelated failures', () => {
+      setStdinIsTTY(false);
+      expect(isNonInteractivePromptError(new Error('disk full'))).toBe(false);
+      expect(isNonInteractivePromptError('not an error')).toBe(false);
+      expect(isNonInteractivePromptError(undefined)).toBe(false);
     });
   });
 });

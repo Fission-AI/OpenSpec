@@ -430,9 +430,9 @@ When a change is complete, we archive it. The archive path is derived from `plan
 Archived changes become your project's decision history—you can always find them later to understand why something was built a certain way.
 ```
 
-**DO:**
+**DO:** (`--yes` answers the confirmation prompts, which you cannot answer from a tool call)
 ```bash
-openspec archive "<name>"
+openspec archive "<name>" --yes
 ```
 
 **SHOW:**

@@ -202,4 +202,59 @@ describe('openspec CLI e2e basics', () => {
       expect(result.stderr).toContain('Cannot combine reserved values "all" or "none" with specific tool IDs');
     });
   });
+
+  describe('archive with no terminal to answer its prompts (#1479)', () => {
+    // runCLI closes the child's stdin, which is exactly how an AI agent or a
+    // CI script invokes the CLI.
+    async function prepareChange(): Promise<string> {
+      const base = await fs.mkdtemp(path.join(tmpdir(), 'openspec-archive-e2e-'));
+      tempRoots.push(base);
+      const changeDir = path.join(base, 'openspec', 'changes', 'add-greeting');
+      await fs.mkdir(path.join(changeDir, 'specs', 'greeting'), { recursive: true });
+      await fs.mkdir(path.join(base, 'openspec', 'specs'), { recursive: true });
+      await fs.writeFile(
+        path.join(changeDir, 'proposal.md'),
+        '## Why\nThis change exists to document greeting behavior for the team, which is long enough.\n\n## What Changes\n- Add a greeting requirement.\n'
+      );
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1\n');
+      await fs.writeFile(
+        path.join(changeDir, 'specs', 'greeting', 'spec.md'),
+        '## ADDED Requirements\n\n### Requirement: Greeting\nThe system SHALL greet the user.\n\n#### Scenario: Greets on request\n- **WHEN** the user says hello\n- **THEN** the system greets back\n'
+      );
+      return base;
+    }
+
+    it('reports the flag to pass instead of a closed-prompt error', async () => {
+      const projectDir = await prepareChange();
+      const result = await runCLI(['archive', 'add-greeting'], { cwd: projectDir });
+
+      const output = `${result.stdout}${result.stderr}`;
+      expect(result.exitCode).toBe(1);
+      expect(output).not.toContain('force closed the prompt');
+      expect(output).toContain('this terminal is not interactive');
+      expect(output).toContain('openspec archive add-greeting --yes');
+
+      // The change is untouched: nothing was archived or merged.
+      expect(await fileExists(path.join(projectDir, 'openspec/changes/add-greeting/proposal.md'))).toBe(true);
+      expect(await fileExists(path.join(projectDir, 'openspec/specs/greeting/spec.md'))).toBe(false);
+    });
+
+    it('archives normally once that flag is passed', async () => {
+      const projectDir = await prepareChange();
+      const result = await runCLI(['archive', 'add-greeting', '--yes'], { cwd: projectDir });
+
+      expect(result.exitCode).toBe(0);
+      expect(await fileExists(path.join(projectDir, 'openspec/specs/greeting/spec.md'))).toBe(true);
+    });
+
+    it('asks for a change name instead of exiting 0 without archiving', async () => {
+      const projectDir = await prepareChange();
+      const result = await runCLI(['archive'], { cwd: projectDir });
+
+      const output = `${result.stdout}${result.stderr}`;
+      expect(result.exitCode).toBe(1);
+      expect(output).toContain('A change name is required');
+      expect(await fileExists(path.join(projectDir, 'openspec/changes/add-greeting/proposal.md'))).toBe(true);
+    });
+  });
 });

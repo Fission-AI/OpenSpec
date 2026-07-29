@@ -2769,6 +2769,187 @@ The system SHALL do the thing differently.
     });
   });
 
+  describe('non-interactive prompts (#1479)', () => {
+    // An AI agent (or any script) runs the CLI with stdin closed, so every
+    // prompt rejects with @inquirer's "User force closed the prompt with 0
+    // null". Archive used to surface that verbatim - or, for the change
+    // picker, swallow it and exit 0 - which told the caller nothing about
+    // which flag to pass.
+    const originalIsTty = process.stdin.isTTY;
+
+    function setStdinIsTty(value: boolean | undefined): void {
+      Object.defineProperty(process.stdin, 'isTTY', {
+        value,
+        configurable: true,
+        writable: true,
+      });
+    }
+
+    function exitPromptError(): Error {
+      const error = new Error('User force closed the prompt with 0 null');
+      error.name = 'ExitPromptError';
+      return error;
+    }
+
+    beforeEach(async () => {
+      setStdinIsTty(false);
+      // vi.clearAllMocks() clears recorded calls but leaves queued
+      // `...Once` answers from earlier tests behind; drain them so each
+      // prompt here rejects the way a closed stdin makes it reject.
+      const { confirm, select } = await import('@inquirer/prompts');
+      (confirm as unknown as ReturnType<typeof vi.fn>).mockReset();
+      (select as unknown as ReturnType<typeof vi.fn>).mockReset();
+    });
+
+    afterEach(() => {
+      setStdinIsTty(originalIsTty);
+    });
+
+    async function createChangeWithDeltaSpec(changeName: string): Promise<string> {
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(path.join(changeDir, 'specs', 'greeting'), { recursive: true });
+      await fs.writeFile(
+        path.join(changeDir, 'specs', 'greeting', 'spec.md'),
+        `## ADDED Requirements
+
+### Requirement: Greeting
+The system SHALL greet the user.
+
+#### Scenario: Greets on request
+- **WHEN** the user says hello
+- **THEN** the system greets back
+`
+      );
+      await fs.writeFile(
+        path.join(changeDir, 'proposal.md'),
+        `## Why
+This change exists to document greeting behavior thoroughly for the team, which is long enough.
+
+## What Changes
+- Add a greeting requirement.
+`
+      );
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1\n');
+      return changeDir;
+    }
+
+    it('names the flag when the spec-update confirmation cannot be answered', async () => {
+      const { confirm } = await import('@inquirer/prompts');
+      const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
+      mockConfirm.mockRejectedValueOnce(exitPromptError());
+
+      const changeName = 'non-interactive-specs';
+      const changeDir = await createChangeWithDeltaSpec(changeName);
+
+      await expect(archiveCommand.execute(changeName)).rejects.toMatchObject({
+        message: expect.stringContaining('this terminal is not interactive'),
+        diagnostic: {
+          code: 'archive_confirmation_required',
+          fix: `openspec archive ${changeName} --yes`,
+        },
+      });
+
+      // Nothing was archived and no spec was written.
+      await expect(fs.access(changeDir)).resolves.not.toThrow();
+      await expect(
+        fs.access(path.join(tempDir, 'openspec', 'specs', 'greeting', 'spec.md'))
+      ).rejects.toThrow();
+    });
+
+    it('names the flag when the incomplete-task confirmation cannot be answered', async () => {
+      const { confirm } = await import('@inquirer/prompts');
+      const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
+      mockConfirm.mockRejectedValueOnce(exitPromptError());
+
+      const changeName = 'non-interactive-tasks';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [ ] Task 1\n');
+
+      await expect(archiveCommand.execute(changeName)).rejects.toMatchObject({
+        diagnostic: {
+          code: 'archive_tasks_incomplete',
+          fix: expect.stringContaining(`openspec archive ${changeName} --yes`),
+        },
+      });
+      await expect(fs.access(changeDir)).resolves.not.toThrow();
+    });
+
+    it('names the flag when the skip-validation confirmation cannot be answered', async () => {
+      const { confirm } = await import('@inquirer/prompts');
+      const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
+      mockConfirm.mockRejectedValueOnce(exitPromptError());
+
+      const changeName = 'non-interactive-no-validate';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1\n');
+
+      await expect(
+        archiveCommand.execute(changeName, { noValidate: true })
+      ).rejects.toMatchObject({
+        diagnostic: {
+          code: 'archive_confirmation_required',
+          fix: `openspec archive ${changeName} --no-validate --yes`,
+        },
+      });
+      await expect(fs.access(changeDir)).resolves.not.toThrow();
+    });
+
+    it('asks for a change name instead of reporting a silent cancellation', async () => {
+      const { select } = await import('@inquirer/prompts');
+      const mockSelect = select as unknown as ReturnType<typeof vi.fn>;
+      mockSelect.mockRejectedValueOnce(exitPromptError());
+
+      await fs.mkdir(path.join(tempDir, 'openspec', 'changes', 'some-change'), {
+        recursive: true,
+      });
+
+      await expect(archiveCommand.execute(undefined, { yes: true })).rejects.toMatchObject({
+        diagnostic: {
+          code: 'archive_change_name_required',
+          fix: 'openspec archive <change-name>',
+        },
+      });
+      expect(console.log).not.toHaveBeenCalledWith('No change selected. Aborting.');
+    });
+
+    it('still treats a cancelled prompt at a real terminal as a cancellation', async () => {
+      setStdinIsTty(true);
+
+      const { select } = await import('@inquirer/prompts');
+      const mockSelect = select as unknown as ReturnType<typeof vi.fn>;
+      const cancelled = new Error('User force closed the prompt with SIGINT');
+      cancelled.name = 'ExitPromptError';
+      mockSelect.mockRejectedValueOnce(cancelled);
+
+      await fs.mkdir(path.join(tempDir, 'openspec', 'changes', 'some-change'), {
+        recursive: true,
+      });
+
+      await expect(archiveCommand.execute(undefined, { yes: true })).resolves.toBeUndefined();
+      expect(console.log).toHaveBeenCalledWith('No change selected. Aborting.');
+    });
+
+    it('leaves JSON mode untouched', async () => {
+      const { confirm } = await import('@inquirer/prompts');
+      const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
+
+      const changeName = 'non-interactive-json';
+      await createChangeWithDeltaSpec(changeName);
+
+      await archiveCommand.execute(changeName, { json: true });
+
+      // JSON mode never reaches a prompt: it blocks with its own diagnostic.
+      expect(mockConfirm).not.toHaveBeenCalled();
+      const payload = JSON.parse(
+        (console.log as unknown as ReturnType<typeof vi.fn>).mock.calls.at(-1)![0] as string
+      );
+      expect(payload.status[0].code).toBe('archive_confirmation_required');
+      expect(process.exitCode).toBe(1);
+    });
+  });
+
   describe('proposal warnings (#498)', () => {
     const LONG_WHY =
       'This change exists to document AI application patterns thoroughly for the team, which is long enough.';
