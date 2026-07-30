@@ -404,31 +404,49 @@ export async function buildUpdatedSpec(
   // Recompose requirements section preserving original ordering where possible
   const keptOrder: RequirementBlock[] = [];
   const seen = new Set<string>();
-  // Content that was never part of a requirement but sat inside its block, kept
-  // in place when that requirement goes. See `salvageForeignTail`.
-  const salvaged: string[] = [];
+  // What the section will actually contain, in order. Kept apart from
+  // `keptOrder` because that one answers "are there any requirements left",
+  // which salvaged content must not influence.
+  const orderedBody: string[] = [];
+  // Content that was never a requirement's own but sat inside its block, paired
+  // with the position it should keep. See `salvageForeignTail`.
+  const pendingTails: Array<{ at: number; tail: string }> = [];
   for (const block of parts.bodyBlocks) {
     const key = normalizeRequirementName(block.name);
     const replacement = nameToBlock.get(key);
+    // Read off the ORIGINAL block - the only copy that still has it.
+    const foreignTail = salvageForeignTail(block.raw);
     if (replacement) {
       keptOrder.push(replacement);
+      orderedBody.push(replacement.raw);
       seen.add(key);
-    } else {
-      const tail = salvageForeignTail(block.raw);
-      if (tail) salvaged.push(tail);
     }
+    if (foreignTail) pendingTails.push({ at: orderedBody.length, tail: foreignTail });
   }
   // Append any newly added that were not in original order
   for (const [key, block] of nameToBlock.entries()) {
     if (!seen.has(key)) {
       keptOrder.push(block);
+      orderedBody.push(block.raw);
+    }
+  }
+  // Re-insert only the content that did NOT survive on its own. A RENAMED block
+  // is the original with its header line swapped, so it still carries its tail
+  // and re-adding it would duplicate the text; a MODIFIED block is rebuilt from
+  // the delta and does not, and a REMOVED one is gone entirely. Asking the
+  // assembled result, rather than tracking which operation applied, is what
+  // makes this correct for all three - the rename bookkeeping deletes the
+  // original key, so the operation is not reliably knowable here.
+  for (let index = pendingTails.length - 1; index >= 0; index--) {
+    const { at, tail } = pendingTails[index];
+    if (!orderedBody.some((part) => part.includes(tail))) {
+      orderedBody.splice(at, 0, tail);
     }
   }
 
   const reqBody = [parts.preamble && parts.preamble.trim() ? parts.preamble.trimEnd() : '']
     .filter(Boolean)
-    .concat(keptOrder.map((b) => b.raw))
-    .concat(salvaged)
+    .concat(orderedBody)
     .join('\n\n')
     .trimEnd();
 

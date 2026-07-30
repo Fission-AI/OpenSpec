@@ -19,7 +19,7 @@ describe('buildUpdatedSpec (content absorbed into a removed requirement)', () =>
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
-  async function rebuild(foreign: string[]): Promise<string> {
+  async function rebuild(foreign: string[], delta?: string[]): Promise<string> {
     const specsDir = path.join(tempDir, 'openspec', 'specs', 'demo');
     const changeDir = path.join(tempDir, 'openspec', 'changes', 'drop');
     await fs.mkdir(specsDir, { recursive: true });
@@ -54,16 +54,18 @@ describe('buildUpdatedSpec (content absorbed into a removed requirement)', () =>
     );
     await fs.writeFile(
       path.join(changeDir, 'specs', 'demo', 'spec.md'),
-      [
-        '# demo - Changes',
-        '',
-        '## REMOVED Requirements',
-        '',
-        '### Requirement: Doomed',
-        '**Reason**: Superseded.',
-        '**Migration**: None.',
-        '',
-      ].join('\n')
+      (
+        delta ?? [
+          '# demo - Changes',
+          '',
+          '## REMOVED Requirements',
+          '',
+          '### Requirement: Doomed',
+          '**Reason**: Superseded.',
+          '**Migration**: None.',
+          '',
+        ]
+      ).join('\n')
     );
     const [update] = await findSpecUpdates(changeDir, path.join(tempDir, 'openspec', 'specs'));
     const built = await buildUpdatedSpec(update, 'drop', { silent: true });
@@ -90,5 +92,52 @@ describe('buildUpdatedSpec (content absorbed into a removed requirement)', () =>
     const rebuilt = await rebuild([]);
     expect(rebuilt).not.toContain('#### Scenario: One');
     expect(rebuilt).toContain('#### Scenario: Two');
+  });
+
+  // A RENAMED block is the original with its header swapped, so it still holds
+  // the absorbed content. A MODIFIED one is rebuilt from the delta and does not
+  // - dropping it there loses the content exactly as removing the requirement
+  // would, which the first version of this fix missed.
+  it('keeps absorbed content when the requirement above it is MODIFIED', async () => {
+    const rebuilt = await rebuild(
+      ['   ### Notes', '   Kept by hand, never delete.'],
+      [
+        '# demo - Changes',
+        '',
+        '## MODIFIED Requirements',
+        '',
+        '### Requirement: Doomed',
+        'The system SHALL do the doomed thing, now better.',
+        '',
+        '#### Scenario: One',
+        '- **WHEN** a',
+        '- **THEN** b',
+        '',
+      ]
+    );
+    expect(rebuilt).toContain('Kept by hand, never delete.');
+    // Exactly once - a rename path that already carries the tail must not
+    // duplicate it.
+    expect(rebuilt.match(/Kept by hand/g)).toHaveLength(1);
+    expect(rebuilt).toContain('now better');
+    // And it stays where the author put it, not appended at the end.
+    expect(rebuilt.indexOf('Kept by hand')).toBeLessThan(rebuilt.indexOf('Requirement: Survivor'));
+  });
+
+  it('does not duplicate absorbed content when the requirement is RENAMED', async () => {
+    const rebuilt = await rebuild(
+      ['   ### Notes', '   Kept by hand, never delete.'],
+      [
+        '# demo - Changes',
+        '',
+        '## RENAMED Requirements',
+        '',
+        '- FROM: `### Requirement: Doomed`',
+        '- TO: `### Requirement: Renamed`',
+        '',
+      ]
+    );
+    expect(rebuilt.match(/Kept by hand/g)).toHaveLength(1);
+    expect(rebuilt).toContain('### Requirement: Renamed');
   });
 });
