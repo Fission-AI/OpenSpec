@@ -2978,7 +2978,10 @@ This change exists to document greeting behavior thoroughly for the team, which 
       });
     });
 
-    it('cannot let a change directory forge its own Fix line', async () => {
+    // Windows rejects control characters in a filename outright, so the
+    // directory this needs cannot exist there - which is also why the hole it
+    // covers is POSIX-only.
+    it.skipIf(process.platform === 'win32')('cannot let a change directory forge its own Fix line', async () => {
       const { confirm } = await import('@inquirer/prompts');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       mockConfirm.mockRejectedValue(exitPromptError());
