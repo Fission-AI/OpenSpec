@@ -3151,6 +3151,31 @@ The system SHALL do the thing differently.
       );
     });
 
+    it.skipIf(process.platform === 'win32')(
+      'gives guidance, not a broken command, when the spec lived outside the repo',
+      async () => {
+        // `git checkout HEAD -- <absolute path>` is rejected from a different
+        // worktree however it is quoted, and an unquoted path with a space
+        // splits when pasted. A store-selected root and a symlinked capability
+        // directory both produce exactly that path, so those cases say where the
+        // file was instead of offering a command that cannot run.
+        const outside = path.join(tempDir, 'out side');
+        await fs.mkdir(outside, { recursive: true });
+        await fs.writeFile(path.join(outside, 'spec.md'), mainSpec('legacy-layer'));
+        await fs.mkdir(path.join(tempDir, 'openspec', 'specs'), { recursive: true });
+        await fs.symlink(outside, path.join(tempDir, 'openspec', 'specs', 'legacy-layer'), 'dir');
+        const changeName = 'retire-outside';
+        await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+
+        await archiveCommand.execute(changeName, { yes: true, json: true });
+
+        const notes = JSON.parse(lastJsonPayload()).archive.warnings.join('\n');
+        expect(notes).toContain('out side/spec.md; if it was committed, restore it from');
+        // No command at all, so nothing can be pasted and silently mis-run.
+        expect(notes).not.toContain('git checkout HEAD --');
+      }
+    );
+
     it('does not promise git recovery outright, and names the real path', async () => {
       // Archive cannot know whether the file is in HEAD - a spec an earlier
       // archive created and nobody committed is not - so the recovery line is

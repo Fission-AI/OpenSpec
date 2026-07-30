@@ -731,7 +731,9 @@ describe('skill templates split parity', () => {
     const text = sync!.template.instructions;
     expect(text).toContain('retire_capabilities: true');
     // And that the CLI draws the same lines, so an agent syncing by hand does
-    // not delete a spec the CLI would have kept.
+    // not delete a spec the CLI would have kept - including the tail veto, which
+    // the skill cannot infer and the CLI will not budge on.
     expect(text).toContain('no other `###` heading under it');
+    expect(text).toContain('past the end of the');
   });
 });

@@ -198,9 +198,22 @@ class ArchiveBlockedError extends Error {
  * has to fill in.
  */
 function quoteChangeName(name: string): string {
-  if (/^[A-Za-z0-9._-]+$/.test(name)) return name;
-  if (!/["\\$`\r\n%!]/.test(name)) return `"${name}"`;
-  return '<change-name>';
+  return quoteForShell(name) ?? '<change-name>';
+}
+
+/**
+ * Quotes an argument for a line the reader is meant to paste, or returns
+ * undefined when no portable spelling exists.
+ *
+ * Double quotes are the one form bash, zsh, PowerShell and cmd.exe all read the
+ * same way. A value holding a character that stays special INSIDE double quotes
+ * in any of them has no portable spelling, so callers say something else rather
+ * than emit a command that expands to something the reader did not intend.
+ */
+function quoteForShell(value: string): string | undefined {
+  if (/^[A-Za-z0-9._\/-]+$/.test(value)) return value;
+  if (!/["\\$`\r\n%!]/.test(value)) return `"${value}"`;
+  return undefined;
 }
 
 /**
@@ -873,19 +886,24 @@ export class ArchiveCommand {
               (isStoreSelectedRoot(root)
                 ? p.update.target
                 : path.relative(root.path, p.update.target).split(path.sep).join('/'));
-            // Deliberately conditional. Whether this file is in `HEAD` is not
+            // A command is offered only when pasting it where archive was run
+            // would actually work. An absolute path here means the file did not
+            // live under that directory - a selected store, or a symlinked
+            // capability directory - and `git checkout HEAD -- <abs>` is rejected
+            // from a different worktree however it is quoted, so that case gets
+            // guidance instead of a command that cannot run. A path with no
+            // portable shell spelling is handled the same way.
+            //
+            // Conditional on purpose, too: whether the file is in `HEAD` is not
             // something archive knows - a spec an earlier archive CREATED and
-            // nobody has committed yet is not, and for that one the command
-            // below cannot work. Promising recovery outright would be the one
-            // claim this feature must not get wrong, so it is phrased as the
-            // condition it really is.
-            const recovery =
-              `If it was committed, restore it with: git checkout HEAD -- ${deletedPath}` +
-              // An absolute path here means the file did not live under the
-              // directory archive was run from - a selected store, or a
-              // symlinked capability directory - so the command has to be run
-              // in the checkout that actually holds it.
-              (path.isAbsolute(deletedPath) ? ' (from the checkout that holds it)' : '');
+            // nobody has committed yet is not - and promising recovery is the one
+            // claim this feature must not get wrong.
+            const pasteablePath = path.isAbsolute(deletedPath)
+              ? undefined
+              : quoteForShell(deletedPath);
+            const recovery = pasteablePath
+              ? `If it was committed, restore it with: git checkout HEAD -- ${pasteablePath}`
+              : `It was deleted from ${deletedPath}; if it was committed, restore it from that checkout's history.`;
             const retirementNote =
               `${p.update.id} - capability retired; deleted the main spec (all requirements removed` +
               `, declared by retire_capabilities) at ${deletedPath}` +
