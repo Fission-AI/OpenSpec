@@ -310,7 +310,11 @@ export async function buildUpdatedSpec(
     }
     const block = nameToBlock.get(from)!;
     const newHeader = `### Requirement: ${to}`;
-    const rawLines = block.raw.split('\n');
+    // Only the requirement's own lines are carried over. Anything absorbed
+    // below it is put back by the salvage in the recomposition step, which
+    // keeps every path - renamed, modified, removed - uniform: the replacement
+    // never holds the tail, so the salvage never has to guess whether it does.
+    const rawLines = requirementOwnLines(block.raw);
     rawLines[0] = newHeader;
     const renamedBlock: RequirementBlock = {
       headerLine: newHeader,
@@ -421,7 +425,12 @@ export async function buildUpdatedSpec(
       orderedBody.push(replacement.raw);
       seen.add(key);
     }
-    if (foreignTail) pendingTails.push({ at: orderedBody.length, tail: foreignTail });
+    // Re-insert the tail unless this block came through untouched, in which
+    // case it still carries it. Identity, not text: two requirements can carry
+    // the same note, and a containment check would drop the second copy.
+    if (foreignTail && replacement !== block) {
+      pendingTails.push({ at: orderedBody.length, tail: foreignTail });
+    }
   }
   // Append any newly added that were not in original order
   for (const [key, block] of nameToBlock.entries()) {
@@ -430,18 +439,11 @@ export async function buildUpdatedSpec(
       orderedBody.push(block.raw);
     }
   }
-  // Re-insert only the content that did NOT survive on its own. A RENAMED block
-  // is the original with its header line swapped, so it still carries its tail
-  // and re-adding it would duplicate the text; a MODIFIED block is rebuilt from
-  // the delta and does not, and a REMOVED one is gone entirely. Asking the
-  // assembled result, rather than tracking which operation applied, is what
-  // makes this correct for all three - the rename bookkeeping deletes the
-  // original key, so the operation is not reliably knowable here.
+  // Put each salvaged note back where it was written. Walked in reverse so the
+  // recorded positions are still valid as earlier entries shift.
   for (let index = pendingTails.length - 1; index >= 0; index--) {
     const { at, tail } = pendingTails[index];
-    if (!orderedBody.some((part) => part.includes(tail))) {
-      orderedBody.splice(at, 0, tail);
-    }
+    orderedBody.splice(at, 0, tail);
   }
 
   const reqBody = [parts.preamble && parts.preamble.trim() ? parts.preamble.trimEnd() : '']
@@ -483,16 +485,27 @@ export async function buildUpdatedSpec(
  * Nothing is reclassified. An indented heading is still not a requirement - it
  * simply survives its neighbour's removal, which is all this ever needed to do.
  */
-function salvageForeignTail(raw: string): string {
+/** A block's own lines, up to whatever was absorbed below it. */
+function requirementOwnLines(raw: string): string[] {
   const lines = raw.replace(/\r\n?/g, '\n').split('\n');
+  const boundary = foreignTailIndex(lines);
+  return boundary === -1 ? lines : lines.slice(0, boundary);
+}
+
+/** Index of the first line that was never the requirement's own, or -1. */
+function foreignTailIndex(lines: string[]): number {
   const fenceMask = buildCodeFenceMask(lines);
   for (let index = 1; index < lines.length; index++) {
     if (fenceMask[index]) continue;
-    if (/^ {0,3}#{1,3}\s/.test(lines[index])) {
-      return lines.slice(index).join('\n').trimEnd();
-    }
+    if (/^ {0,3}#{1,3}\s/.test(lines[index])) return index;
   }
-  return '';
+  return -1;
+}
+
+function salvageForeignTail(raw: string): string {
+  const lines = raw.replace(/\r\n?/g, '\n').split('\n');
+  const boundary = foreignTailIndex(lines);
+  return boundary === -1 ? '' : lines.slice(boundary).join('\n').trimEnd();
 }
 
 function normalizeBlockRaw(raw: string): string {

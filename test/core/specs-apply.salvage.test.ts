@@ -140,4 +140,98 @@ describe('buildUpdatedSpec (content absorbed into a removed requirement)', () =>
     expect(rebuilt.match(/Kept by hand/g)).toHaveLength(1);
     expect(rebuilt).toContain('### Requirement: Renamed');
   });
+
+  // Whether a note survived cannot be decided by looking for its text in the
+  // result: two requirements may carry the same note, and a containment check
+  // drops the second copy. Survival is decided by whether the block came
+  // through untouched, which is a question about identity, not text.
+  it('keeps both copies when two removed requirements carry the same note', async () => {
+    const specsDir = path.join(tempDir, 'openspec', 'specs', 'demo');
+    const changeDir = path.join(tempDir, 'openspec', 'changes', 'drop');
+    await fs.mkdir(specsDir, { recursive: true });
+    await fs.mkdir(path.join(changeDir, 'specs', 'demo'), { recursive: true });
+    const note = ['   ### Notes', '   Owned by payments.'];
+    await fs.writeFile(
+      path.join(specsDir, 'spec.md'),
+      [
+        '# demo Specification',
+        '',
+        '## Purpose',
+        'Why this exists.',
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: Alpha',
+        'The system SHALL alpha.',
+        '',
+        '#### Scenario: A',
+        '- **WHEN** a',
+        '- **THEN** b',
+        '',
+        ...note,
+        '',
+        '### Requirement: Beta',
+        'The system SHALL beta.',
+        '',
+        '#### Scenario: B',
+        '- **WHEN** c',
+        '- **THEN** d',
+        '',
+        ...note,
+        '',
+        '### Requirement: Gamma',
+        'The system SHALL gamma.',
+        '',
+        '#### Scenario: G',
+        '- **WHEN** e',
+        '- **THEN** f',
+        '',
+      ].join('\n')
+    );
+    await fs.writeFile(
+      path.join(changeDir, 'specs', 'demo', 'spec.md'),
+      [
+        '# demo - Changes',
+        '',
+        '## REMOVED Requirements',
+        '',
+        '### Requirement: Alpha',
+        '**Reason**: x.',
+        '**Migration**: None.',
+        '',
+        '### Requirement: Beta',
+        '**Reason**: y.',
+        '**Migration**: None.',
+        '',
+      ].join('\n')
+    );
+    const [update] = await findSpecUpdates(changeDir, path.join(tempDir, 'openspec', 'specs'));
+    const { rebuilt } = await buildUpdatedSpec(update, 'drop', { silent: true });
+
+    // Two notes were written; two must survive.
+    expect(rebuilt.match(/### Notes/g)).toHaveLength(2);
+    expect(rebuilt).toContain('### Requirement: Gamma');
+  });
+
+  it('does not duplicate a note when its requirement is untouched', async () => {
+    // An untouched block is the original object and still carries its note, so
+    // re-inserting would double it.
+    const rebuilt = await rebuild(
+      ['   ### Notes', '   Kept by hand, never delete.'],
+      [
+        '# demo - Changes',
+        '',
+        '## ADDED Requirements',
+        '',
+        '### Requirement: Fresh',
+        'The system SHALL be fresh.',
+        '',
+        '#### Scenario: F',
+        '- **WHEN** a',
+        '- **THEN** b',
+        '',
+      ]
+    );
+    expect(rebuilt.match(/Kept by hand/g)).toHaveLength(1);
+  });
 });
