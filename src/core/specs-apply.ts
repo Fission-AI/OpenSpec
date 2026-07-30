@@ -15,6 +15,7 @@ import {
   parseDeltaSpec,
   normalizeRequirementName,
   type RequirementBlock,
+  type RequirementsSectionParts,
 } from './parsers/requirement-blocks.js';
 import { findMainSpecStructureIssues } from './parsers/spec-structure.js';
 import { buildCodeFenceMask } from './parsers/code-fence.js';
@@ -94,37 +95,26 @@ export async function buildUpdatedSpec(
    */
   noRequirementBlocks: boolean;
   /**
-   * Content the merge carried through without understanding it: anything
-   * non-blank sitting between the `## Requirements` header and the first
-   * requirement, or after the section ends.
+   * Every non-blank line of the spec this merge cannot name.
    *
-   * Retirement deletes the whole file, so every byte in it has to be one this
-   * merge can account for - the title, the `## Purpose` section, the
-   * `## Requirements` header, and the requirement blocks themselves. These two
-   * slices are the parts that are none of those.
+   * Retirement deletes the whole file, so the only safe question is whether the
+   * merge can account for all of it. `extractRequirementsSection` splits a spec
+   * into five slices, and auditing a subset is how this guard kept failing: for
+   * seven rounds it looked for requirement-SHAPED text and was beaten by a new
+   * disguise each time, and when it started asking where content landed it
+   * still read only the preamble and the tail - so content simply moved into a
+   * slice nobody checked, and authored prose sitting inside a removed block's
+   * raw was deleted while the report said only "Purpose" was lost.
    *
-   * Deliberately NOT a search for requirement-shaped text. Six review rounds
-   * each found a different way to dress content so a heading scan would miss it:
-   * a second `## Requirements` section, a `##` inside an HTML comment ending the
-   * section early, a three-space indent, a setext underline. Every one of those
-   * lands here regardless of how it is spelled, because this asks where content
-   * ended up rather than what it looks like - and `extractRequirementsSection`
-   * has already drawn the boundaries, so there is no second opinion to disagree
-   * with the first.
+   * So this accounts for the whole file: the title, the `## Purpose` section,
+   * the `## Requirements` header, and, inside each requirement block, the parts
+   * that make up a requirement - its header, its statement, and its scenarios'
+   * bullets. Every other non-blank line is reported and refuses the retirement.
+   *
+   * Fails safe in every direction: a line this cannot classify counts as
+   * unaccounted, which refuses rather than deletes.
    */
   unaccountedContent: string[];
-  /**
-   * `###` headings inside the requirements section that are not requirement
-   * headers. A block's `raw` runs to the next header the parser RECOGNISES, so
-   * one of these is absorbed into the requirement above it and would be deleted
-   * with the file - it never reaches the preamble or the tail, which is why
-   * `unaccountedContent` cannot see it.
-   *
-   * The clean version of this is a parser that ends a block at any `###`
-   * heading, which would fold this into the check above. That belongs in the
-   * parser, not here.
-   */
-  residualRequirementHeadings: string[];
   /**
    * Authored `## ` sections other than Purpose and Requirements. Retirement
    * deletes the whole file, so callers name these rather than discarding
@@ -491,20 +481,7 @@ export async function buildUpdatedSpec(
     // is discarded with it, so a rebuilt-body scan only ever sees headings above
     // the first requirement - it would veto `### Notes` written before the
     // requirements and miss the identical heading written after them.
-    unaccountedContent: [parts.preamble, parts.after]
-      .flatMap((part) => part.split('\n'))
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0),
-    // Read off the ORIGINAL section body, not the rebuilt one: a heading below
-    // the last requirement lives in that block's raw and is discarded with it,
-    // so a rebuilt-body scan would only ever see headings written above the
-    // first requirement.
-    residualRequirementHeadings: findHeadings(
-      [parts.preamble, ...parts.bodyBlocks.map((block) => block.raw)]
-        .filter((part) => part && part.trim())
-        .join('\n\n'),
-      /^ {0,3}###\s+(.+?)\s*$/
-    ).filter((title) => !/^Requirement:/i.test(title)),
+    unaccountedContent: contentTheMergeCannotName(parts),
     otherSections: findOtherSections(rebuilt),
   };
 }
@@ -533,6 +510,80 @@ function findHeadings(content: string, pattern: RegExp): string[] {
     if (match) found.push(match[1]);
   }
   return found;
+}
+
+/**
+ * The non-blank lines of a spec that are not part of what a retirement is able
+ * to name: the title, the `## Purpose` section, the `## Requirements` header,
+ * and each requirement block's own header, statement and scenario bullets.
+ *
+ * Deliberately whole-file. Auditing a subset of the slices is what let authored
+ * prose inside a removed block, and content above the requirements section, be
+ * deleted unmentioned.
+ */
+function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
+  const leftovers: string[] = [];
+
+  // Above the requirements section: the title and the Purpose section are
+  // expected; anything else is authored content the deletion would take.
+  const beforeLines = parts.before.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n').split('\n');
+  const beforeMask = buildCodeFenceMask(beforeLines);
+  let inPurpose = false;
+  let titleSeen = false;
+  for (let index = 0; index < beforeLines.length; index++) {
+    const line = beforeLines[index];
+    if (!line.trim()) continue;
+    if (!beforeMask[index]) {
+      const section = line.match(/^ {0,3}##\s+(.+?)\s*$/);
+      if (section) {
+        inPurpose = /^purpose$/i.test(section[1].trim());
+        if (!inPurpose) leftovers.push(line.trim());
+        continue;
+      }
+      if (!titleSeen && !inPurpose && /^ {0,3}#\s+.+$/.test(line)) {
+        titleSeen = true;
+        continue;
+      }
+    }
+    if (inPurpose) continue;
+    leftovers.push(line.trim());
+  }
+
+  // Between the header and the first requirement, and past the section's end.
+  for (const slice of [parts.preamble, parts.after]) {
+    for (const line of slice.split('\n')) {
+      if (line.trim()) leftovers.push(line.trim());
+    }
+  }
+
+  // Inside each requirement block, everything the block parser did not treat as
+  // a new header rides along in `raw` - tables, fences, comments, prose written
+  // below the scenarios. Only a requirement's own parts are expected here.
+  for (const block of parts.bodyBlocks) {
+    const lines = block.raw.replace(/\r\n?/g, '\n').split('\n');
+    const mask = buildCodeFenceMask(lines);
+    let seenScenario = false;
+    for (let index = 0; index < lines.length; index++) {
+      const line = lines[index];
+      if (!line.trim()) continue;
+      if (index === 0) continue; // the `### Requirement:` header itself
+      if (mask[index]) {
+        leftovers.push(line.trim());
+        continue;
+      }
+      if (/^ {0,3}####\s+Scenario:/i.test(line)) {
+        seenScenario = true;
+        continue;
+      }
+      // Bullets belong to a scenario; free prose belongs to the requirement
+      // statement, which sits above the first scenario.
+      if (/^\s*[-*]\s/.test(line)) continue;
+      if (!seenScenario && !/^\s*[|`<]/.test(line)) continue;
+      leftovers.push(line.trim());
+    }
+  }
+
+  return leftovers;
 }
 
 /**

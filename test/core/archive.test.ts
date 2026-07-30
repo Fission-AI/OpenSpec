@@ -3126,6 +3126,69 @@ The system SHALL do the thing differently.
       );
     });
 
+    // The guard audits the WHOLE file, not a couple of its slices. A block's
+    // raw carries everything the parser did not read as a new header - prose,
+    // tables, fences - and that content was deleted while the report said only
+    // "Purpose" was lost. Content above the requirements section had the same
+    // hole.
+    it.each([
+      {
+        where: 'inside a removed block',
+        spec: [
+          '# legacy-layer Specification',
+          '',
+          '## Purpose',
+          PURPOSE,
+          '',
+          '## Requirements',
+          '',
+          REQUIREMENT,
+          '',
+          'MIGRATION RUNBOOK (authored by hand, not a heading):',
+          'Step 1: rotate the customer keys before 2026-08-01.',
+          '',
+          '| host | owner |',
+          '| --- | --- |',
+          '| db-1 | payments |',
+          '',
+        ].join('\n'),
+        quoted: 'MIGRATION RUNBOOK',
+      },
+      {
+        where: 'above the requirements section',
+        spec: [
+          '# legacy-layer Specification',
+          '',
+          'NOTE TO MAINTAINERS: the escrow keys live in the "legacy" vault.',
+          '',
+          '## Purpose',
+          PURPOSE,
+          '',
+          '## Requirements',
+          '',
+          REQUIREMENT,
+          '',
+        ].join('\n'),
+        quoted: 'NOTE TO MAINTAINERS',
+      },
+      // Not a case: prose between `## Purpose` and `## Requirements` IS the
+      // Purpose body - the section runs to the next `##` - and the retirement
+      // warning already names Purpose as going with the file.
+    ])('refuses to retire with authored content $where', async ({ spec, quoted }) => {
+      const changeName = `retire-authored-${quoted.split(' ')[0].toLowerCase()}`;
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(process.exitCode).toBe(1);
+      await expect(fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8')).resolves.toBe(spec);
+      // And the author is told which lines stood in the way.
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining(quoted));
+    });
+
     it('names the marker only when retiring would really fix it', async () => {
       // The same two-section spec, with no marker. The hint must stay quiet:
       // adding the marker would not have made this spec writable.

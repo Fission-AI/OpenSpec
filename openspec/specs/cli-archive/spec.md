@@ -184,7 +184,7 @@ A delta whose REMOVED entries cover every requirement a capability has SHALL ret
 
 #### Scenario: Content the merge cannot account for
 
-- **WHEN** the spec holds any non-blank content outside the parts this merge understands - between the `## Requirements` header and the first requirement, or after the section ends, whatever put it there
+- **WHEN** the spec holds any non-blank line the merge cannot name - anywhere in the file, including above the requirements section and inside a requirement block, where content the parser did not read as a new header rides along
 - **THEN** refuse the retirement, because deleting the file would take that content with it
 - **AND** say which lines stood in the way when the change declared the marker, rather than aborting on the bare validation error
 

@@ -103,7 +103,6 @@ async function decideSpecOutcome(
     // a requirement" - the second question is the one six review rounds each
     // found a new way to answer wrongly.
     built.unaccountedContent.length === 0 &&
-    built.residualRequirementHeadings.length === 0 &&
     (await isRetirableSpec(update.id, built.rebuilt));
 
   if (!retirable) return 'write';
@@ -715,7 +714,7 @@ export class ArchiveCommand {
 
         if (shouldUpdateSpecs) {
           // Prepare all updates first (validation pass, no writes)
-          const prepared: Array<{ update: SpecUpdate; rebuilt: string; counts: { added: number; modified: number; removed: number; renamed: number }; outcome: SpecOutcome; otherSections: string[]; noRequirementBlocks: boolean; unaccountedContent: string[]; residualRequirementHeadings: string[] }> = [];
+          const prepared: Array<{ update: SpecUpdate; rebuilt: string; counts: { added: number; modified: number; removed: number; renamed: number }; outcome: SpecOutcome; otherSections: string[]; noRequirementBlocks: boolean; unaccountedContent: string[] }> = [];
           try {
             for (const update of specUpdates) {
               const built = await buildUpdatedSpec(update, changeName!, { silent: json });
@@ -727,7 +726,6 @@ export class ArchiveCommand {
                 otherSections: built.otherSections,
                 noRequirementBlocks: built.noRequirementBlocks,
                 unaccountedContent: built.unaccountedContent,
-                residualRequirementHeadings: built.residualRequirementHeadings,
               });
               // Carried into the result so JSON mode (where nothing was
               // printed) still surfaces them; human mode discards the result.
@@ -768,7 +766,6 @@ export class ArchiveCommand {
                   !retirementDeclared &&
                   p.noRequirementBlocks &&
                   p.unaccountedContent.length === 0 &&
-                  p.residualRequirementHeadings.length === 0 &&
                   p.update.exists &&
                   p.counts.removed > 0 &&
                   (await isRetirableSpec(specName, p.rebuilt));
