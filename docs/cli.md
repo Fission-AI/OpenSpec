@@ -622,26 +622,26 @@ openspec archive [change-name] [options]
 
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `change-name` | No | Change to archive (prompts if omitted) |
+| `change-name` | No | Change to archive (prompts if omitted; required when nothing can answer the prompt) |
 
 **Options:**
 
 | Option | Description |
 |--------|-------------|
-| `-y, --yes` | Skip confirmation prompts |
+| `-y, --yes` | Skip confirmation prompts. Required when nothing can answer them — an AI agent, a CI job, or any run with stdin closed |
 | `--skip-specs` | Skip spec updates for one archive run. A change that permanently has no spec deltas should declare `skip_specs: true` in its `.openspec.yaml` instead — it archives with no flag |
 | `--no-validate` | Skip validation (requires confirmation) |
 
 **Examples:**
 
 ```bash
-# Interactive archive
+# Interactive archive (asks which change, then confirms)
 openspec archive
 
 # Archive specific change
 openspec archive add-dark-mode
 
-# Archive without prompts (CI/scripts)
+# Archive without prompts (agents, CI, scripts)
 openspec archive add-dark-mode --yes
 
 # Archive a tooling change that doesn't affect specs
@@ -654,6 +654,11 @@ openspec archive update-ci-config --skip-specs
 2. Prompts for confirmation (unless `--yes`)
 3. Merges delta specs into `openspec/specs/`
 4. Moves change folder to `openspec/changes/archive/YYYY-MM-DD-<name>/`
+
+**Without a terminal:** an AI agent, a CI job, or any run with stdin closed cannot
+answer step 2, so archive stops before touching anything, exits 1, and names the
+command to rerun — `openspec archive <name> --yes`, carrying whatever other flags
+you passed. Pass `--yes` (and the change name) up front to skip the round trip.
 
 ---
 
