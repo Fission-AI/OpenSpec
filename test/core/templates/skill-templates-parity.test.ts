@@ -598,16 +598,33 @@ describe('skill templates split parity', () => {
     // always mid-sentence, so requiring the command to open the line
     // separates the two. Everything a runnable line may legitimately carry in
     // front of the command is allowed, because each of these hid an
-    // invocation from an earlier, stricter version of this regex: indentation,
+    // invocation from an earlier, stricter version of this check: indentation,
     // a list marker, a shell prompt, and a global flag between `openspec` and
-    // `archive`. The optional tail catches a regression to a bare
-    // `openspec archive`, which blocks an agent exactly as #1479 describes.
-    const INVOCATION =
-      /^[ \t]*(?:[-*+]\s+|\d+\.\s+)?(?:\$\s+)?openspec\s+(?:--[\w-]+(?:[ =]\S+)?\s+)*archive(?:\s.*)?$/gm;
+    // `archive`. Tokenised rather than pattern-matched - the regex this
+    // replaces needed nested quantifiers to accept the flags, which is a ReDoS
+    // shape even in a test.
+    function archiveInvocations(text: string): string[] {
+      return text.split('\n').filter((line) => {
+        const bare = line
+          .trimStart()
+          .replace(/^(?:[-*+]|\d+\.)[ \t]+/, '')
+          .replace(/^\$[ \t]+/, '');
+        const tokens = bare.split(/\s+/).filter(Boolean);
+        if (tokens[0] !== 'openspec') return false;
+        const archiveAt = tokens.indexOf('archive');
+        if (archiveAt < 1) return false;
+        // Anything between `openspec` and `archive` has to be a global flag or
+        // one's value, or this is a different subcommand that merely mentions
+        // the word (`openspec list archive`).
+        return tokens
+          .slice(1, archiveAt)
+          .every((token, i, before) => token.startsWith('-') || !!before[i - 1]?.startsWith('-'));
+      });
+    }
 
     let total = 0;
     for (const [id, text] of corpus) {
-      const invocations = text.match(INVOCATION) ?? [];
+      const invocations = archiveInvocations(text);
       total += invocations.length;
       for (const invocation of invocations) {
         expect(invocation.trim(), id).toContain('--yes');
@@ -622,7 +639,7 @@ describe('skill templates split parity', () => {
     const onboard = corpus.filter(([id]) => id.includes('onboard'));
     expect(onboard.length).toBeGreaterThan(0);
     for (const [id, text] of onboard) {
-      expect(text.match(INVOCATION) ?? [], id).not.toHaveLength(0);
+      expect(archiveInvocations(text), id).not.toHaveLength(0);
     }
   });
 
