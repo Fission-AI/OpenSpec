@@ -182,11 +182,11 @@ A delta whose REMOVED entries cover every requirement a capability has SHALL ret
 - **THEN** leave the file untouched
 - **AND** abort the archive with the validation error, as for any other unwritable spec, unless validation was skipped
 
-#### Scenario: A heading past the end of the Requirements section
+#### Scenario: Content the merge cannot account for
 
-- **WHEN** the spec holds a `###` heading beyond the `## Requirements` section this merge reads, whatever put it there - a second `## Requirements` section, or a `##` line inside an HTML comment that ends the section for the merge but not for a scan that masks comments
-- **THEN** refuse the retirement, because that heading is a requirement to any reader and would be deleted with the file and named nowhere
-- **AND** say so when the change declared the marker, rather than aborting on the bare validation error
+- **WHEN** the spec holds any non-blank content outside the parts this merge understands - between the `## Requirements` header and the first requirement, or after the section ends, whatever put it there
+- **THEN** refuse the retirement, because deleting the file would take that content with it
+- **AND** say which lines stood in the way when the change declared the marker, rather than aborting on the bare validation error
 
 #### Scenario: Main spec is already gone
 

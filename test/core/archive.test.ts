@@ -3122,7 +3122,7 @@ The system SHALL do the thing differently.
       );
       // And the author is told why their marker was refused.
       expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('past the end of its `## Requirements` section')
+        expect.stringContaining('content outside its requirements that deleting the file would take with it')
       );
     });
 
@@ -3584,26 +3584,6 @@ The system SHALL do the thing differently.
       );
     });
 
-    it('names the sections a retirement deletes along with the spec', async () => {
-      const changeName = 'retire-with-sections';
-      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
-      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
-      await fs.mkdir(mainSpecDir, { recursive: true });
-      await fs.writeFile(
-        path.join(mainSpecDir, 'spec.md'),
-        `${mainSpec('legacy-layer')}\n## Why These Decisions\nThe v1 endpoint predates the routing layer.\n`
-      );
-
-      await archiveCommand.execute(changeName, { yes: true });
-
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('the deleted spec also held section(s): Why These Decisions')
-      );
-      // Named, not silently dropped - and the note says how to get them back.
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('git checkout HEAD -- openspec/specs/legacy-layer/spec.md')
-      );
-    });
 
     it('deletes nothing when the user declines the spec update', async () => {
       const { confirm } = await import('@inquirer/prompts');
@@ -3948,36 +3928,6 @@ The system SHALL do the thing differently.
       }
     );
 
-    it('still names every lost section when a fence holds an unterminated comment', async () => {
-      // Masking comments before fences let a `<!--` inside a fenced example be
-      // read as real syntax, blanking the rest of the file and truncating this
-      // very list.
-      const changeName = 'retire-fenced-comment';
-      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
-      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
-      await fs.mkdir(mainSpecDir, { recursive: true });
-      await fs.writeFile(
-        path.join(mainSpecDir, 'spec.md'),
-        [
-          mainSpec('legacy-layer'),
-          '## Example markup',
-          '',
-          '```html',
-          '<!-- an unterminated comment example',
-          '```',
-          '',
-          '## Operational notes',
-          'Worth keeping.',
-          '',
-        ].join('\n')
-      );
-
-      await archiveCommand.execute(changeName, { yes: true, json: true });
-
-      const warnings = JSON.parse(lastJsonPayload()).archive.warnings.join('\n');
-      expect(warnings).toContain('Example markup');
-      expect(warnings).toContain('Operational notes');
-    });
 
     it('reports a destination taken during the merge as a collision, not a raw errno', async () => {
       // The pre-flight check cannot cover the whole merge, so the move itself
@@ -4012,10 +3962,7 @@ The system SHALL do the thing differently.
       await createChange(changeName, 'legacy-layer', REMOVE_ALL);
       const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
       await fs.mkdir(mainSpecDir, { recursive: true });
-      await fs.writeFile(
-        path.join(mainSpecDir, 'spec.md'),
-        `${mainSpec('legacy-layer')}\n## Why These Decisions\nBecause v1 predates routing.\n`
-      );
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainSpec('legacy-layer'));
 
       await archiveCommand.execute(changeName, { yes: true, json: true });
 
@@ -4031,7 +3978,7 @@ The system SHALL do the thing differently.
       // Purpose always goes with the file, so it is named alongside the rest,
       // and a JSON consumer gets the recovery command too.
       const notes = payload.archive.warnings.join('\n');
-      expect(notes).toContain('Purpose, Why These Decisions');
+      expect(notes).toContain('Purpose');
       expect(notes).toContain('git checkout HEAD -- openspec/specs/legacy-layer/spec.md');
     });
 
@@ -4047,41 +3994,6 @@ The system SHALL do the thing differently.
       expect(JSON.stringify(payload.archive.warnings ?? [])).not.toContain('capability retired');
     });
 
-    it('does not name headings hidden in fences or HTML comments, nor repeat one', async () => {
-      const changeName = 'retire-masked-sections';
-      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
-      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
-      await fs.mkdir(mainSpecDir, { recursive: true });
-      await fs.writeFile(
-        path.join(mainSpecDir, 'spec.md'),
-        [
-          mainSpec('legacy-layer'),
-          '## Notes',
-          'A sample of the format:',
-          '',
-          '```markdown',
-          '## Not A Real Section',
-          '```',
-          '',
-          '<!--',
-          '## CommentedOut',
-          '-->',
-          '',
-          '## Notes',
-          'A second block under the same heading.',
-          '',
-        ].join('\n')
-      );
-
-      await archiveCommand.execute(changeName, { yes: true, json: true });
-
-      const warnings = JSON.parse(lastJsonPayload()).archive.warnings.join('\n');
-      expect(warnings).toContain('Notes');
-      expect(warnings).not.toContain('Not A Real Section');
-      expect(warnings).not.toContain('CommentedOut');
-      // Deduped: the repeated heading is named once.
-      expect(warnings.match(/Notes/g)).toHaveLength(1);
-    });
 
     describe('isRetirableSpec', () => {
       const REQUIREMENTLESS = `# legacy-layer Specification\n\n## Purpose\n${PURPOSE}\n\n## Requirements\n`;

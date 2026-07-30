@@ -98,12 +98,12 @@ async function decideSpecOutcome(
   const retirable =
     !skipValidation &&
     built.noRequirementBlocks &&
+    // Nothing in the file this merge cannot account for. Asked as "did anything
+    // land outside the parts I understand" rather than "does anything look like
+    // a requirement" - the second question is the one six review rounds each
+    // found a new way to answer wrongly.
+    built.unaccountedContent.length === 0 &&
     built.residualRequirementHeadings.length === 0 &&
-    // Anything requirement-shaped past the merged section's boundary is content
-    // every parser here stops short of - the validator's lookup, the block
-    // parser, the residual-heading veto and the lost-section report all bind to
-    // the first section. It would be deleted with the file and named nowhere.
-    !built.hasUnmergedRequirementHeadings &&
     (await isRetirableSpec(update.id, built.rebuilt));
 
   if (!retirable) return 'write';
@@ -715,7 +715,7 @@ export class ArchiveCommand {
 
         if (shouldUpdateSpecs) {
           // Prepare all updates first (validation pass, no writes)
-          const prepared: Array<{ update: SpecUpdate; rebuilt: string; counts: { added: number; modified: number; removed: number; renamed: number }; outcome: SpecOutcome; otherSections: string[]; noRequirementBlocks: boolean; residualRequirementHeadings: string[]; hasUnmergedRequirementHeadings: boolean }> = [];
+          const prepared: Array<{ update: SpecUpdate; rebuilt: string; counts: { added: number; modified: number; removed: number; renamed: number }; outcome: SpecOutcome; otherSections: string[]; noRequirementBlocks: boolean; unaccountedContent: string[]; residualRequirementHeadings: string[] }> = [];
           try {
             for (const update of specUpdates) {
               const built = await buildUpdatedSpec(update, changeName!, { silent: json });
@@ -726,8 +726,8 @@ export class ArchiveCommand {
                 outcome: await decideSpecOutcome(update, built, skipValidation, retirementDeclared),
                 otherSections: built.otherSections,
                 noRequirementBlocks: built.noRequirementBlocks,
+                unaccountedContent: built.unaccountedContent,
                 residualRequirementHeadings: built.residualRequirementHeadings,
-                hasUnmergedRequirementHeadings: built.hasUnmergedRequirementHeadings,
               });
               // Carried into the result so JSON mode (where nothing was
               // printed) still surfaces them; human mode discards the result.
@@ -767,8 +767,8 @@ export class ArchiveCommand {
                 const retirementWouldFix =
                   !retirementDeclared &&
                   p.noRequirementBlocks &&
+                  p.unaccountedContent.length === 0 &&
                   p.residualRequirementHeadings.length === 0 &&
-                  !p.hasUnmergedRequirementHeadings &&
                   p.update.exists &&
                   p.counts.removed > 0 &&
                   (await isRetirableSpec(specName, p.rebuilt));
@@ -785,17 +785,17 @@ export class ArchiveCommand {
                 // nothing left the author who did exactly what the docs asked
                 // back in the original dead end with no signal that their
                 // marker had been read at all.
-                // Only the unmerged-tail veto can reach this abort. A residual
-                // heading INSIDE the section still counts as a requirement to
-                // the validator, so that spec is valid and simply gets written -
-                // there is no dead end there to explain.
+                // The author asked for a retirement and got the bare
+                // validation abort. Name the lines that stood in the way.
                 const refusalReason =
                   retirementDeclared &&
-                  p.hasUnmergedRequirementHeadings &&
+                  p.unaccountedContent.length > 0 &&
                   (await isRetirableSpec(specName, p.rebuilt))
-                    ? `'${specName}' declares retire_capabilities, but the spec holds ### heading(s) past the end of ` +
-                      'its `## Requirements` section, which this merge does not read. Move them into that section, ' +
-                      'or delete the spec by hand.'
+                    ? `'${specName}' declares retire_capabilities, but the spec holds content outside its ` +
+                      `requirements that deleting the file would take with it: ` +
+                      `${p.unaccountedContent.slice(0, 3).map((line) => `"${line}"`).join(', ')}` +
+                      `${p.unaccountedContent.length > 3 ? `, and ${p.unaccountedContent.length - 3} more line(s)` : ''}. ` +
+                      'Move it under `## Requirements`, or delete the spec by hand.'
                     : undefined;
                 if (json) {
                   throw new ArchiveBlockedError(

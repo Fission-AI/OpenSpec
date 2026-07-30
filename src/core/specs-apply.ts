@@ -94,32 +94,37 @@ export async function buildUpdatedSpec(
    */
   noRequirementBlocks: boolean;
   /**
-   * `###` headings still sitting in the rebuilt requirements body. A reader sees
-   * these as requirements whatever the parsers make of them, so their presence
-   * disqualifies a retirement: something is left to keep, and deleting the file
-   * would take it along silently.
+   * Content the merge carried through without understanding it: anything
+   * non-blank sitting between the `## Requirements` header and the first
+   * requirement, or after the section ends.
+   *
+   * Retirement deletes the whole file, so every byte in it has to be one this
+   * merge can account for - the title, the `## Purpose` section, the
+   * `## Requirements` header, and the requirement blocks themselves. These two
+   * slices are the parts that are none of those.
+   *
+   * Deliberately NOT a search for requirement-shaped text. Six review rounds
+   * each found a different way to dress content so a heading scan would miss it:
+   * a second `## Requirements` section, a `##` inside an HTML comment ending the
+   * section early, a three-space indent, a setext underline. Every one of those
+   * lands here regardless of how it is spelled, because this asks where content
+   * ended up rather than what it looks like - and `extractRequirementsSection`
+   * has already drawn the boundaries, so there is no second opinion to disagree
+   * with the first.
+   */
+  unaccountedContent: string[];
+  /**
+   * `###` headings inside the requirements section that are not requirement
+   * headers. A block's `raw` runs to the next header the parser RECOGNISES, so
+   * one of these is absorbed into the requirement above it and would be deleted
+   * with the file - it never reaches the preamble or the tail, which is why
+   * `unaccountedContent` cannot see it.
+   *
+   * The clean version of this is a parser that ends a block at any `###`
+   * heading, which would fold this into the check above. That belongs in the
+   * parser, not here.
    */
   residualRequirementHeadings: string[];
-  /**
-   * The tail this merge copies through untouched still holds a `###` heading.
-   *
-   * `extractRequirementsSection` binds to the FIRST `## `-terminated section, so
-   * anything past that boundary rides through unexamined: the residual-heading
-   * veto above only sees the section body, `findOtherSections` reports `## `
-   * titles and filters `Requirements` out entirely, and the validator's own
-   * section lookup stops at the first one too. A `SHALL` with a scenario down
-   * there therefore passes `validate --strict` and would be deleted with the
-   * file, named nowhere.
-   *
-   * Read with the fence-only mask, deliberately, because that is the mask
-   * `extractRequirementsSection` used to choose the boundary. `findHeadings`
-   * masks HTML comments as well, and that one-mask difference was the bug: a
-   * multi-line comment holding a `## ` line ends the section for the merge while
-   * staying invisible to a comment-masking scan, so the tail it created could
-   * not be seen. Whatever the boundary turned out to be, this asks the same
-   * question about what ended up beyond it.
-   */
-  hasUnmergedRequirementHeadings: boolean;
   /**
    * Authored `## ` sections other than Purpose and Requirements. Retirement
    * deletes the whole file, so callers name these rather than discarding
@@ -486,14 +491,21 @@ export async function buildUpdatedSpec(
     // is discarded with it, so a rebuilt-body scan only ever sees headings above
     // the first requirement - it would veto `### Notes` written before the
     // requirements and miss the identical heading written after them.
+    unaccountedContent: [parts.preamble, parts.after]
+      .flatMap((part) => part.split('\n'))
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0),
+    // Read off the ORIGINAL section body, not the rebuilt one: a heading below
+    // the last requirement lives in that block's raw and is discarded with it,
+    // so a rebuilt-body scan would only ever see headings written above the
+    // first requirement.
     residualRequirementHeadings: findHeadings(
       [parts.preamble, ...parts.bodyBlocks.map((block) => block.raw)]
         .filter((part) => part && part.trim())
         .join('\n\n'),
-      /^###\s+(.+?)\s*$/
+      /^ {0,3}###\s+(.+?)\s*$/
     ).filter((title) => !/^Requirement:/i.test(title)),
     otherSections: findOtherSections(rebuilt),
-    hasUnmergedRequirementHeadings: hasHeadingsBeyondMergedSection(parts.after),
   };
 }
 
@@ -521,22 +533,6 @@ function findHeadings(content: string, pattern: RegExp): string[] {
     if (match) found.push(match[1]);
   }
   return found;
-}
-
-/**
- * Whether the untouched tail after the merged Requirements section still holds a
- * `###` heading - a requirement to any reader, whatever the parsers make of it.
- *
- * Masks fenced blocks and nothing else, matching the mask
- * `extractRequirementsSection` used to pick the boundary. Masking HTML comments
- * here too would reintroduce the blind spot this exists to close: a `## ` inside
- * a multi-line comment is a boundary for that function, so the tail is real even
- * though a comment-masking scan cannot see what created it.
- */
-function hasHeadingsBeyondMergedSection(after: string): boolean {
-  const lines = after.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n').split('\n');
-  const fenceMask = buildCodeFenceMask(lines);
-  return lines.some((line, index) => !fenceMask[index] && /^###\s+/.test(line));
 }
 
 /**
