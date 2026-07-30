@@ -19,11 +19,14 @@ ${STORE_SELECTION_GUIDANCE}
 
 **Steps**
 
-1. **If no change name provided, prompt for selection**
+1. **Select the change**
 
-   Run \`openspec list --json\` to get available changes sorted by most recently modified. Then use the **AskUserQuestion tool** to let the user select which change to update.
+   If a name is provided, use it. Otherwise:
+   - Infer from conversation context if the user mentioned a change
+   - Auto-select if only one active change exists
+   - If ambiguous, run \`openspec list --json\` to get available changes sorted by most recently modified, and ask the user to select one
 
-   Present the top 3-4 most recently modified changes as options, showing:
+   When prompting, present the top 3-4 most recently modified changes as options, showing:
    - Change name
    - Schema (from \`schema\` field if present, otherwise "spec-driven")
    - Status (e.g., "0/5 tasks", "complete", "no tasks")
@@ -31,7 +34,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    Mark the most recently modified change as "(Recommended)" since it's likely what the user wants to update.
 
-   **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
+   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:update <other>\`).
 
 2. **Get the change's artifacts**
    \`\`\`bash
@@ -106,11 +109,14 @@ ${STORE_SELECTION_GUIDANCE}
 
 **Steps**
 
-1. **If no change name provided, prompt for selection**
+1. **Select the change**
 
-   Run \`openspec list --json\` to get available changes sorted by most recently modified. Then use the **AskUserQuestion tool** to let the user select which change to update.
+   If a name is provided, use it. Otherwise:
+   - Infer from conversation context if the user mentioned a change
+   - Auto-select if only one active change exists
+   - If ambiguous, run \`openspec list --json\` to get available changes sorted by most recently modified, and ask the user to select one
 
-   Present the top 3-4 most recently modified changes as options, showing:
+   When prompting, present the top 3-4 most recently modified changes as options, showing:
    - Change name
    - Schema (from \`schema\` field if present, otherwise "spec-driven")
    - Status (e.g., "0/5 tasks", "complete", "no tasks")
@@ -118,7 +124,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    Mark the most recently modified change as "(Recommended)" since it's likely what the user wants to update.
 
-   **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
+   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:update <other>\`).
 
 2. **Get the change's artifacts**
    \`\`\`bash

@@ -774,7 +774,7 @@ ${OPENSPEC_MARKERS.end}`);
       };
 
       const summary = formatCleanupSummary(result);
-      expect(summary).toContain('✓ Removed .claude/commands/openspec/ (replaced by /opsx:*)');
+      expect(summary).toContain('✓ Removed .claude/commands/openspec/ (replaced by OpenSpec skills and commands)');
     });
 
     it('should format modified files', () => {
@@ -1109,7 +1109,7 @@ ${OPENSPEC_MARKERS.end}`);
         pattern: '.cursor/commands/openspec-*.md',
       });
 
-      expect(LEGACY_SLASH_COMMAND_PATHS['windsurf']).toEqual({
+      expect(LEGACY_SLASH_COMMAND_PATHS['devin']).toEqual({
         type: 'files',
         pattern: '.windsurf/workflows/openspec-*.md',
       });
@@ -1220,7 +1220,7 @@ ${OPENSPEC_MARKERS.end}`);
       expect(tools).toContain('claude');
       expect(tools).toContain('qoder');
       expect(tools).toContain('cursor');
-      expect(tools).toContain('windsurf');
+      expect(tools).toContain('devin');
       expect(tools).toHaveLength(4);
     });
 

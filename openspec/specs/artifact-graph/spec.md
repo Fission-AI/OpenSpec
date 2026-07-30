@@ -43,7 +43,12 @@ The system SHALL compute a valid topological build order for artifacts.
 
 #### Scenario: Independent artifacts
 - **WHEN** artifacts have no dependencies
-- **THEN** getBuildOrder() returns them in a stable order
+- **THEN** getBuildOrder() returns them in the order the schema declares them
+
+#### Scenario: Simultaneously ready artifacts ordered by declaration
+- **WHEN** artifacts become ready at the same time (spec-driven's specs and design both require only proposal)
+- **THEN** getBuildOrder() returns them in the order the schema's artifacts list declares them, not alphabetically
+- **AND** an artifact already waiting to be built is not placed ahead of one the schema declares before it
 
 ### Requirement: State Detection
 The system SHALL detect artifact completion state by scanning the filesystem.
@@ -83,6 +88,10 @@ The system SHALL identify which artifacts are ready to be created based on depen
 - **WHEN** an artifact has uncompleted dependencies
 - **THEN** getNextArtifacts() does not include that artifact
 
+#### Scenario: Ready artifacts ordered by declaration
+- **WHEN** several artifacts are ready at once
+- **THEN** getNextArtifacts() returns them in the order the schema declares them, so the first entry is the artifact the schema recommends writing next
+
 ### Requirement: Completion Check
 The system SHALL determine when all artifacts in a graph are complete.
 
@@ -108,6 +117,7 @@ The system SHALL identify which artifacts are blocked and return all their unmet
 #### Scenario: Artifact blocked by all dependencies
 - **WHEN** artifact C requires A and B, and neither is complete
 - **THEN** getBlocked() returns `{ C: ['A', 'B'] }`
+- **AND** unmet dependencies are listed in the order the schema declares them
 
 ### Requirement: Schema Directory Structure
 The system SHALL support self-contained schema directories with co-located templates.

@@ -131,15 +131,25 @@ function isMissingLabelError(error: any): boolean {
 }
 
 /**
- * Report a gh CLI failure and exit, preserving gh's exit code
+ * Report a gh CLI failure and exit, preserving gh's exit code.
+ *
+ * gh failed after the user already typed their feedback (issues disabled,
+ * network, rate limit, ...), so show the same manual-submission path the
+ * missing-gh and unauthenticated flows get instead of discarding the text.
  */
-function reportGhFailure(error: any): void {
+function reportGhFailure(error: any, title: string, body: string): void {
   // Display the error output from gh CLI
   if (error.stderr) {
     console.error(error.stderr.toString());
   } else if (error.message) {
     console.error(error.message);
   }
+
+  displayFormattedFeedback(title, body);
+
+  const manualUrl = generateManualSubmissionUrl(title, body);
+  console.log('Please submit your feedback manually:');
+  console.log(manualUrl);
 
   // Exit with the same code as gh CLI
   process.exit(error.status ?? 1);
@@ -181,7 +191,7 @@ function submitViaGhCli(title: string, body: string): void {
     issueUrl = createIssue(title, body, ['feedback']);
   } catch (error: any) {
     if (!isMissingLabelError(error)) {
-      reportGhFailure(error);
+      reportGhFailure(error, title, body);
       return;
     }
 
@@ -191,7 +201,7 @@ function submitViaGhCli(title: string, body: string): void {
       issueUrl = createIssue(title, body, []);
       labelApplied = false;
     } catch (retryError: any) {
-      reportGhFailure(retryError);
+      reportGhFailure(retryError, title, body);
       return;
     }
   }

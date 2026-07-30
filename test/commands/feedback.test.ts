@@ -344,6 +344,16 @@ describe('FeedbackCommand', () => {
 
       // A non-label failure must NOT be retried
       expect(mockExecFileSync).toHaveBeenCalledTimes(1);
+
+      // ...and must not discard the typed feedback: the manual-submission
+      // fallback (formatted text + pre-filled URL) is shown like the
+      // missing-gh and unauthenticated flows.
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Please submit your feedback manually:')
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining('github.com/Fission-AI/OpenSpec/issues/new')
+      );
     });
 
     it('should not retry when the feedback text mentions the label error', async () => {

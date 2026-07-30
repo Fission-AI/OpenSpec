@@ -10,7 +10,14 @@ import {
   MAX_REQUIREMENT_TEXT_LENGTH,
   VALIDATION_MESSAGES
 } from './constants.js';
-import { parseDeltaSpec, foldRequirementName, normalizeRequirementName, extractRequirementsSection } from '../parsers/requirement-blocks.js';
+import {
+  parseDeltaSpec,
+  foldRequirementName,
+  normalizeRequirementName,
+  extractRequirementsSection,
+  findMissingCurrentScenarios,
+  type RequirementBlock,
+} from '../parsers/requirement-blocks.js';
 import {
   extractRequirementBody as extractRequirementBodyShared,
   containsShallOrMust as containsShallOrMustShared,
@@ -133,8 +140,16 @@ export class Validator {
    * - REMOVED: names only; no scenario/description required
    * - RENAMED: pairs well-formed
    * - No duplicates within sections; no cross-section conflicts per spec
+   *
+   * When `options.mainSpecsDir` is given, MODIFIED blocks are also checked
+   * against the current main specs for the scenario loss archive refuses to
+   * apply (#1477). Omitting it keeps the change-only checks, so callers with
+   * no main specs root (and existing library callers) behave as before.
    */
-  async validateChangeDeltaSpecs(changeDir: string): Promise<ValidationReport> {
+  async validateChangeDeltaSpecs(
+    changeDir: string,
+    options: { mainSpecsDir?: string } = {}
+  ): Promise<ValidationReport> {
     const issues: ValidationIssue[] = [];
     const specsDir = path.join(changeDir, 'specs');
     let totalDeltas = 0;
@@ -148,7 +163,7 @@ export class Validator {
       // path silently skips (#1385). It finds spec.md at any depth, covering
       // both specs/<capability>/spec.md and the nested multi-area
       // specs/<area>/<capability>/spec.md layout (#1182b).
-      const specFiles = (await discoverSpecFiles(specsDir)).map(spec => spec.specFile);
+      const discoveredSpecs = await discoverSpecFiles(specsDir);
 
       // A spec.md directly at the specs/ root has no capability folder, so the
       // merge path drops it: without this error the change validates clean and
@@ -166,7 +181,7 @@ export class Validator {
         });
       }
 
-      for (const specFile of specFiles) {
+      for (const { id: specId, specFile } of discoveredSpecs) {
         let content: string | undefined;
         try {
           content = await fs.readFile(specFile, 'utf-8');
@@ -267,6 +282,19 @@ export class Validator {
           }
         }
 
+        // Run archive's scenario-loss check here too, so the change fails at
+        // authoring time instead of days later at archive time (#1477).
+        if (options.mainSpecsDir && plan.modified.length > 0) {
+          issues.push(
+            ...(await this.findScenarioLossIssues(
+              plan.modified,
+              plan.renamed,
+              path.join(options.mainSpecsDir, ...specId.split('/'), 'spec.md'),
+              entryPath
+            ))
+          );
+        }
+
         // Validate REMOVED (names only)
         for (const name of plan.removed) {
           const key = normalizeRequirementName(name);
@@ -334,8 +362,16 @@ export class Validator {
           }
         }
       }
-    } catch {
-      // If no specs dir, treat as no deltas
+    } catch (error) {
+      // A missing specs dir (or a stray `specs` file) means no deltas;
+      // anything else (EACCES, EIO) must stay loud — discoverSpecFiles
+      // documents that silently dropping an unreadable capability recreates
+      // the data-loss class it prevents, and archive lets the same error
+      // propagate.
+      const code = (error as NodeJS.ErrnoException)?.code;
+      if (code !== 'ENOENT' && code !== 'ENOTDIR') {
+        throw error;
+      }
     }
 
     for (const { path: specPath, sections } of emptySectionSpecs) {
@@ -391,6 +427,101 @@ export class Validator {
     }
 
     return this.createReport(issues);
+  }
+
+  /**
+   * Report MODIFIED requirements whose block omits a scenario the main spec
+   * still carries. Uses the same comparison archive applies, so validate can
+   * only report what archive would refuse.
+   *
+   * Silent when the main spec or the requirement header is absent: applying a
+   * MODIFIED against a base that is not there yet is a different failure (a
+   * sister change still in flight is the legitimate case), and archive is the
+   * gate for it. A spec that exists but cannot be read is not absent, though —
+   * archive aborts on it, so reporting it beats calling the change valid.
+   */
+  private async findScenarioLossIssues(
+    modified: RequirementBlock[],
+    renamed: Array<{ from: string; to: string }>,
+    mainSpecFile: string,
+    entryPath: string
+  ): Promise<ValidationIssue[]> {
+    let mainContent: string;
+    try {
+      mainContent = await fs.readFile(mainSpecFile, 'utf-8');
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException)?.code;
+      // Reported only for the codes that mean the file itself is unusable, and
+      // will be just as unusable when archive reads it. Everything else -
+      // ENOENT/ENOTDIR ("no main spec"), and transient resource errors like
+      // EMFILE that say nothing about the file - stays silent rather than
+      // failing a change that is fine. `validate --all` reads six changes at
+      // once, so a resource error must never become a verdict.
+      const UNUSABLE = new Set(['EACCES', 'EPERM', 'EISDIR', 'ELOOP', 'ENAMETOOLONG']);
+      if (!code || !UNUSABLE.has(code)) return [];
+      return [
+        {
+          level: 'ERROR',
+          path: entryPath,
+          message:
+            `Could not read ${FileSystemUtils.toPosixPath(mainSpecFile)} to check the MODIFIED requirements against it ` +
+            `(${code}). Archive reads the same file, so fix the file before archiving.`,
+        },
+      ];
+    }
+
+    const currentBlocks = new Map<string, RequirementBlock>();
+    for (const block of extractRequirementsSection(mainContent).bodyBlocks) {
+      currentBlocks.set(normalizeRequirementName(block.name), block);
+    }
+    // Archive applies RENAMED before MODIFIED, so a MODIFIED naming the new
+    // header is compared against the renamed block's scenarios. Fall back to
+    // the old header, or a rename-plus-modify pair would skip the check.
+    const renamedFrom = new Map(
+      renamed.map(({ from, to }) => [normalizeRequirementName(to), normalizeRequirementName(from)])
+    );
+
+    // Walked, not looked up once: renames chain (A→B then B→C leaves C holding
+    // A's block), and the visited set stops a cycle from looping forever. Every
+    // name in a rename cycle is also a rename FROM, so the skip above already
+    // keeps the walk out of one; the guard stays because the cost of being
+    // wrong about that is a hung CLI, not a wrong message.
+    const currentBlockFor = (name: string): RequirementBlock | undefined => {
+      const visited = new Set<string>();
+      let key: string | undefined = name;
+      while (key !== undefined && !visited.has(key)) {
+        const block = currentBlocks.get(key);
+        if (block) return block;
+        visited.add(key);
+        key = renamedFrom.get(key);
+      }
+      return undefined;
+    };
+
+    // A MODIFIED naming a header the same delta renames away is already
+    // reported ("MODIFIED references old name from RENAMED"), and the block it
+    // would land on is not the one it names — so any scenario named here would
+    // send the author after the wrong requirement.
+    const renamedAway = new Set(renamed.map(({ from }) => normalizeRequirementName(from)));
+
+    const issues: ValidationIssue[] = [];
+    for (const block of modified) {
+      const key = normalizeRequirementName(block.name);
+      if (renamedAway.has(key)) continue;
+      const current = currentBlockFor(key);
+      if (!current) continue;
+      const missing = findMissingCurrentScenarios(current, block);
+      if (missing.length === 0) continue;
+      issues.push({
+        level: 'ERROR',
+        path: entryPath,
+        message:
+          `MODIFIED "${block.name}" omits scenario(s) the current spec still has: ` +
+          `${missing.map(name => `"${name}"`).join(', ')}. ` +
+          'Copy them into the MODIFIED block (a MODIFIED requirement replaces the whole block, so archive refuses to drop them).',
+      });
+    }
+    return issues;
   }
 
   private formatInvalidMarkerMessage(invalidReason: string): string {

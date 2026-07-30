@@ -236,6 +236,31 @@ describe('ArchiveCommand', () => {
       );
     });
 
+    it('detects incomplete indented sub-tasks (#1485 data-safety gate)', async () => {
+      // Before the fix the gate only saw checkboxes at column 0, so a change
+      // whose sub-tasks were unfinished archived with no warning at all.
+      const changeName = 'nested-subtasks-feature';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(
+        path.join(changeDir, 'tasks.md'),
+        [
+          '## 1. Implementation',
+          '- [x] 1.1 Parent task',
+          '  - [ ] 1.1.1 Unfinished sub-task',
+          '  - [ ] 1.1.2 Another unfinished sub-task',
+          '- [x] 1.2 Second parent',
+          '',
+        ].join('\n')
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('Warning: 2 incomplete task(s) found')
+      );
+    });
+
     it('should update specs when archiving (delta-based ADDED) and include change name in skeleton', async () => {
       const changeName = 'spec-feature';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
@@ -486,6 +511,68 @@ Then expected result happens`;
       const archives = await fs.readdir(path.join(tempDir, 'openspec', 'changes', 'archive'));
       expect(archives.some(a => a.includes(changeName))).toBe(true);
       expect(process.exitCode).toBeUndefined();
+    });
+
+    it('should archive when MODIFIED requirements were already synced to the baseline', async () => {
+      const changeName = 'early-synced-modify';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'mod-layer');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      const block = `### Requirement: Session handling\nThe system SHALL keep sessions.\n\n#### Scenario: Session persists\n- **WHEN** a user returns\n- **THEN** the session is restored`;
+      await fs.writeFile(
+        path.join(changeSpecDir, 'spec.md'),
+        `# Mod Layer - Changes\n\n## MODIFIED Requirements\n\n${block}\n`
+      );
+
+      // Early-sync pattern: the modification is already applied to main.
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'mod-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const mainSpecContent = `# mod-layer Specification\n\n## Purpose\nSession layer behavior.\n\n## Requirements\n\n${block}\n`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainSpecContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      // An identical MODIFIED block is a no-op: no churned rewrite, no
+      // claimed update, no "~ 1 modified" in the totals.
+      const updatedContent = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      expect(updatedContent).toBe(mainSpecContent);
+      expect(console.log).toHaveBeenCalledWith('Specs already in sync; no files changed.');
+      expect(console.log).not.toHaveBeenCalledWith('Specs updated successfully.');
+
+      const archives = await fs.readdir(path.join(tempDir, 'openspec', 'changes', 'archive'));
+      expect(archives.some(a => a.includes(changeName))).toBe(true);
+      expect(process.exitCode).toBeUndefined();
+    });
+
+    it('should abort an already-synced RENAMED when a case variant of the source still exists', async () => {
+      // FROM missing + TO present normally means the rename was early-synced,
+      // but a fold-variant of FROM still in the spec means the header is a
+      // typo - the same near-miss guard REMOVED applies.
+      const changeName = 'typo-rename';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'rename-layer');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      await fs.writeFile(
+        path.join(changeSpecDir, 'spec.md'),
+        `# Rename Layer - Changes\n\n## RENAMED Requirements\n- FROM: \`### Requirement: cache policy\`\n- TO: \`### Requirement: Eviction policy\`\n`
+      );
+
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'rename-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const mainSpecContent = `# rename-layer Specification\n\n## Purpose\nCache behavior.\n\n## Requirements\n\n### Requirement: Cache Policy\nThe system SHALL cache.\n\n#### Scenario: Cached\n- **WHEN** data repeats\n- **THEN** it is served from cache\n\n### Requirement: Eviction policy\nThe system SHALL evict.\n\n#### Scenario: Evicted\n- **WHEN** the cache is full\n- **THEN** old entries are dropped\n`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainSpecContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('RENAMED failed for header "### Requirement: cache policy" - source not found, but "### Requirement: Cache Policy" exists')
+      );
+      expect(process.exitCode).toBe(1);
+      await expect(fs.access(changeDir)).resolves.not.toThrow();
+      const untouched = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      expect(untouched).toBe(mainSpecContent);
     });
 
     it('should abort when a REMOVED header near-misses an existing requirement (case/whitespace typo)', async () => {
@@ -2020,6 +2107,131 @@ The system SHALL authenticate.
       expect(archives.some(a => a.includes(changeName))).toBe(false);
     });
 
+    it('should not treat a fenced scenario example in the current spec as real drift', async () => {
+      // The validator ignores fenced `#### Scenario:` lines (countScenarios is
+      // fence-aware); the drift check must agree, or a fenced sample in the
+      // current spec aborts an archive that validate said was fine.
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'fenced-current');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const mainSpecPath = path.join(mainSpecDir, 'spec.md');
+      await fs.writeFile(
+        mainSpecPath,
+        `# fenced-current Specification
+
+## Purpose
+Fenced scenario samples in the current spec.
+
+## Requirements
+
+### Requirement: Reporting
+The system SHALL report results using the scenario format:
+
+\`\`\`markdown
+#### Scenario: Fenced sample
+- **WHEN** shown as an example
+- **THEN** it is not a real scenario
+\`\`\`
+
+#### Scenario: Emit report
+- **WHEN** a run finishes
+- **THEN** a report is emitted`
+      );
+
+      const changeName = 'edit-fenced-current';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'fenced-current');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+      await fs.writeFile(
+        path.join(changeSpecDir, 'spec.md'),
+        `# Edit Fenced Current - Change
+
+## MODIFIED Requirements
+
+### Requirement: Reporting
+The system SHALL report results in JSON.
+
+#### Scenario: Emit report
+- **WHEN** a run finishes
+- **THEN** a JSON report is emitted`
+      );
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const updated = await fs.readFile(mainSpecPath, 'utf-8');
+      expect(updated).toContain('The system SHALL report results in JSON.');
+      expect(updated).toContain('a JSON report is emitted');
+      expect(console.log).not.toHaveBeenCalledWith(
+        expect.stringContaining('current spec contains scenario(s) not present in the modified block')
+      );
+      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archives = await fs.readdir(archiveDir);
+      expect(archives.some(a => a.includes(changeName))).toBe(true);
+    });
+
+    it('should abort when a MODIFIED block only keeps a dropped scenario inside a fence', async () => {
+      // The inverse hole: a fenced `#### Scenario: Audit` in the incoming block
+      // must not count as keeping the real Audit scenario the block dropped.
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'fenced-incoming');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const mainSpecPath = path.join(mainSpecDir, 'spec.md');
+      await fs.writeFile(
+        mainSpecPath,
+        `# fenced-incoming Specification
+
+## Purpose
+Fenced scenario names in the incoming block.
+
+## Requirements
+
+### Requirement: Access log
+The system SHALL log access.
+
+#### Scenario: Audit
+- **WHEN** a user signs in
+- **THEN** an audit row is written`
+      );
+
+      const changeName = 'drop-audit-behind-fence';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'fenced-incoming');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+      await fs.writeFile(
+        path.join(changeSpecDir, 'spec.md'),
+        `# Drop Audit Behind Fence - Change
+
+## MODIFIED Requirements
+
+### Requirement: Access log
+The system SHALL log access, for example:
+
+\`\`\`markdown
+#### Scenario: Audit
+- **WHEN** shown as an example
+- **THEN** it is not a real scenario
+\`\`\`
+
+#### Scenario: Trace
+- **WHEN** a request is served
+- **THEN** a trace row is written`
+      );
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const updated = await fs.readFile(mainSpecPath, 'utf-8');
+      // Spec must be untouched — the real Audit scenario preserved.
+      expect(updated).toContain('an audit row is written');
+      expect(updated).not.toContain('Trace');
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'fenced-incoming MODIFIED failed for header "### Requirement: Access log" - current spec contains scenario(s) not present in the modified block: "Audit"'
+        )
+      );
+      expect(console.log).toHaveBeenCalledWith('Aborted. No files were changed.');
+      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archives = await fs.readdir(archiveDir);
+      expect(archives.some(a => a.includes(changeName))).toBe(false);
+    });
+
     it('should abort with a structural error when target spec hides requirements outside ## Requirements', async () => {
       const changeName = 'hidden-requirement-target';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
@@ -2579,6 +2791,415 @@ The system SHALL do the thing differently.
       
       // Verify change was not archived
       await expect(fs.access(changeDir)).resolves.not.toThrow();
+    });
+
+    it('prompts before archiving a change whose only unfinished work is a sub-task (#1485)', async () => {
+      // The other half of the gate: without --yes the user is asked, and
+      // declining leaves the change in place. Before the fix there was no
+      // question to answer - the sub-task was invisible and archive ran.
+      const { confirm } = await import('@inquirer/prompts');
+      const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
+
+      const changeName = 'subtask-prompt';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(
+        path.join(changeDir, 'tasks.md'),
+        '- [x] 1.1 Parent task\n  - [ ] 1.1.1 Unfinished sub-task\n'
+      );
+
+      // Drain answers queued by earlier tests: vi.clearAllMocks() resets calls
+      // but not a pending mockResolvedValueOnce queue.
+      mockConfirm.mockReset();
+      // First confirm is the skip-validation prompt, second is the task warning.
+      mockConfirm.mockResolvedValueOnce(true);
+      mockConfirm.mockResolvedValueOnce(false);
+
+      await archiveCommand.execute(changeName, { noValidate: true });
+
+      expect(mockConfirm).toHaveBeenCalledWith({
+        message: 'Warning: 1 incomplete task(s) found. Continue?',
+        default: false,
+      });
+      expect(console.log).toHaveBeenCalledWith('Archive cancelled.');
+      await expect(fs.access(changeDir)).resolves.not.toThrow();
+    });
+  });
+
+  describe('non-interactive prompts (#1479)', () => {
+    // An AI agent (or any script) runs the CLI with stdin closed, so every
+    // prompt rejects with @inquirer's "User force closed the prompt with 0
+    // null". Archive used to surface that verbatim - or, for the change
+    // picker, swallow it and exit 0 - which told the caller nothing about
+    // which flag to pass.
+    const originalIsTty = process.stdin.isTTY;
+
+    function setStdinIsTty(value: boolean | undefined): void {
+      Object.defineProperty(process.stdin, 'isTTY', {
+        value,
+        configurable: true,
+        writable: true,
+      });
+    }
+
+    function exitPromptError(): Error {
+      const error = new Error('User force closed the prompt with 0 null');
+      error.name = 'ExitPromptError';
+      return error;
+    }
+
+    beforeEach(async () => {
+      setStdinIsTty(false);
+      // vi.clearAllMocks() clears recorded calls but leaves queued
+      // `...Once` answers from earlier tests behind; drain them so each
+      // prompt here rejects the way a closed stdin makes it reject.
+      const { confirm, select } = await import('@inquirer/prompts');
+      (confirm as unknown as ReturnType<typeof vi.fn>).mockReset();
+      (select as unknown as ReturnType<typeof vi.fn>).mockReset();
+    });
+
+    afterEach(() => {
+      setStdinIsTty(originalIsTty);
+    });
+
+    async function createChangeWithDeltaSpec(changeName: string): Promise<string> {
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(path.join(changeDir, 'specs', 'greeting'), { recursive: true });
+      await fs.writeFile(
+        path.join(changeDir, 'specs', 'greeting', 'spec.md'),
+        `## ADDED Requirements
+
+### Requirement: Greeting
+The system SHALL greet the user.
+
+#### Scenario: Greets on request
+- **WHEN** the user says hello
+- **THEN** the system greets back
+`
+      );
+      await fs.writeFile(
+        path.join(changeDir, 'proposal.md'),
+        `## Why
+This change exists to document greeting behavior thoroughly for the team, which is long enough.
+
+## What Changes
+- Add a greeting requirement.
+`
+      );
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1\n');
+      return changeDir;
+    }
+
+    it('names the flag when the spec-update confirmation cannot be answered', async () => {
+      const { confirm } = await import('@inquirer/prompts');
+      const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
+      mockConfirm.mockRejectedValueOnce(exitPromptError());
+
+      const changeName = 'non-interactive-specs';
+      const changeDir = await createChangeWithDeltaSpec(changeName);
+
+      await expect(archiveCommand.execute(changeName)).rejects.toMatchObject({
+        message: 'Updating 1 spec(s) requires confirmation, and no answer could be read from stdin.',
+        diagnostic: {
+          code: 'archive_confirmation_required',
+          fix: `openspec archive ${changeName} --yes`,
+        },
+      });
+
+      // Nothing was archived and no spec was written.
+      await expect(fs.access(changeDir)).resolves.not.toThrow();
+      await expect(
+        fs.access(path.join(tempDir, 'openspec', 'specs', 'greeting', 'spec.md'))
+      ).rejects.toThrow();
+    });
+
+    it('names the flag when the incomplete-task confirmation cannot be answered', async () => {
+      const { confirm } = await import('@inquirer/prompts');
+      const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
+      mockConfirm.mockRejectedValueOnce(exitPromptError());
+
+      const changeName = 'non-interactive-tasks';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [ ] Task 1\n');
+
+      await expect(archiveCommand.execute(changeName)).rejects.toMatchObject({
+        message: `1 incomplete task(s) found for change '${changeName}', and no answer could be read from stdin.`,
+        diagnostic: {
+          code: 'archive_tasks_incomplete',
+          fix: `Complete the tasks or rerun with openspec archive ${changeName} --yes`,
+        },
+      });
+      await expect(fs.access(changeDir)).resolves.not.toThrow();
+    });
+
+    it('carries the flags the caller already passed into the suggested rerun', async () => {
+      // Suggesting a bare `--yes` rerun for `archive x --skip-specs` would
+      // merge deltas into the main specs - the exact thing --skip-specs was
+      // passed to prevent.
+      const { confirm } = await import('@inquirer/prompts');
+      const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
+      mockConfirm.mockRejectedValue(exitPromptError());
+
+      const changeName = 'non-interactive-flags';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [ ] Task 1\n');
+
+      await expect(
+        archiveCommand.execute(changeName, { skipSpecs: true })
+      ).rejects.toMatchObject({
+        diagnostic: {
+          fix: `Complete the tasks or rerun with openspec archive ${changeName} --skip-specs --yes`,
+        },
+      });
+
+      // Flags compose: the rerun has to reproduce the whole invocation.
+      await expect(
+        archiveCommand.execute(changeName, { skipSpecs: true, noValidate: true })
+      ).rejects.toMatchObject({
+        diagnostic: {
+          fix: `openspec archive ${changeName} --skip-specs --no-validate --yes`,
+        },
+      });
+
+      // `validate: false` is the shape Commander actually produces for
+      // `--no-validate`; `noValidate: true` above is the programmatic
+      // spelling. Both legs of that disjunction have to emit the flag, and
+      // neither may emit it twice. Skipping validation is confirmed before
+      // tasks are counted, so this one blocks at that earlier prompt.
+      await expect(
+        archiveCommand.execute(changeName, { validate: false })
+      ).rejects.toMatchObject({
+        diagnostic: {
+          code: 'archive_confirmation_required',
+          fix: `openspec archive ${changeName} --no-validate --yes`,
+        },
+      });
+    });
+
+    // Windows rejects control characters in a filename outright, so the
+    // directory this needs cannot exist there - which is also why the hole it
+    // covers is POSIX-only.
+    it.skipIf(process.platform === 'win32')('cannot let a change directory forge its own Fix line', async () => {
+      const { confirm } = await import('@inquirer/prompts');
+      const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
+      mockConfirm.mockRejectedValue(exitPromptError());
+
+      // Human mode prints the message verbatim, so a newline in the directory
+      // name could add a second, attacker-chosen `Fix:` line - and it is
+      // precisely these names whose real fix degrades to `<change-name>`,
+      // which would leave the forged line as the only pasteable command.
+      const changeName = 'sneaky\nFix: openspec archive other --yes';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [ ] Task 1\n');
+
+      const error = await archiveCommand.execute(changeName).catch((err) => err);
+
+      expect(error.message).not.toContain('\n');
+      expect(error.message).toBe(
+        "1 incomplete task(s) found for change 'sneaky?Fix: openspec archive other --yes', and no answer could be read from stdin."
+      );
+      // The real fix still refuses to guess a command for an unquotable name.
+      expect(error.diagnostic.fix).toBe(
+        'Complete the tasks or rerun with openspec archive <change-name> --yes'
+      );
+    });
+
+    it('quotes a change name that would not paste back as one argument', async () => {
+      const { confirm } = await import('@inquirer/prompts');
+      const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
+      mockConfirm.mockRejectedValue(exitPromptError());
+
+      // Archive resolves a change by stat-ing its directory, so the name is
+      // whatever the directory is called.
+      async function fixFor(changeName: string): Promise<string> {
+        const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+        await fs.mkdir(changeDir, { recursive: true });
+        await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [ ] Task 1\n');
+        const error = await archiveCommand.execute(changeName).catch((err) => err);
+        return error.diagnostic.fix;
+      }
+
+      // Double quotes are the one form bash, zsh, PowerShell and cmd.exe all
+      // read the same way.
+      expect(await fixFor('my change')).toBe(
+        'Complete the tasks or rerun with openspec archive "my change" --yes'
+      );
+
+      // A name with no portable spelling names the placeholder rather than
+      // emitting a command that would expand.
+      expect(await fixFor('x$(id)y')).toBe(
+        'Complete the tasks or rerun with openspec archive <change-name> --yes'
+      );
+
+      // cmd.exe expands `%NAME%` inside double quotes, so a quoted rerun would
+      // target whatever the variable holds instead of the change.
+      expect(await fixFor('%USERNAME%')).toBe(
+        'Complete the tasks or rerun with openspec archive <change-name> --yes'
+      );
+
+      // `!` expands inside double quotes too - cmd.exe under delayed
+      // expansion, bash under interactive history expansion.
+      expect(await fixFor('fix!thing')).toBe(
+        'Complete the tasks or rerun with openspec archive <change-name> --yes'
+      );
+
+      // A leading dash is read as an option however it is quoted, so it goes
+      // behind the `--` that ends option parsing.
+      expect(await fixFor('--force')).toBe(
+        'Complete the tasks or rerun with openspec archive --yes -- --force'
+      );
+    });
+
+    it('rethrows a prompt failure that is not about a missing answer', async () => {
+      // Only the "nobody could answer" failure earns the guidance. Anything
+      // else - an IO error, a bug in a future prompt refactor - must surface
+      // as itself rather than be relabelled "rerun with --yes".
+      const { confirm } = await import('@inquirer/prompts');
+      const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
+      mockConfirm.mockRejectedValueOnce(new Error('EACCES: permission denied'));
+
+      const changeName = 'non-interactive-io-error';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [ ] Task 1\n');
+
+      const error = await archiveCommand.execute(changeName).catch((err) => err);
+      expect(error).toBeInstanceOf(Error);
+      expect(error.message).toBe('EACCES: permission denied');
+      expect(error).not.toHaveProperty('diagnostic');
+    });
+
+    it('names the flag when the skip-validation confirmation cannot be answered', async () => {
+      const { confirm } = await import('@inquirer/prompts');
+      const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
+      mockConfirm.mockRejectedValueOnce(exitPromptError());
+
+      const changeName = 'non-interactive-no-validate';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1\n');
+
+      await expect(
+        archiveCommand.execute(changeName, { noValidate: true })
+      ).rejects.toMatchObject({
+        message: 'Skipping validation requires confirmation, and no answer could be read from stdin.',
+        diagnostic: {
+          code: 'archive_confirmation_required',
+          fix: `openspec archive ${changeName} --no-validate --yes`,
+        },
+      });
+      await expect(fs.access(changeDir)).resolves.not.toThrow();
+    });
+
+    it('asks for a change name instead of reporting a silent cancellation', async () => {
+      const { select } = await import('@inquirer/prompts');
+      const mockSelect = select as unknown as ReturnType<typeof vi.fn>;
+      mockSelect.mockRejectedValueOnce(exitPromptError());
+
+      await fs.mkdir(path.join(tempDir, 'openspec', 'changes', 'some-change'), {
+        recursive: true,
+      });
+
+      await expect(archiveCommand.execute(undefined, { yes: true })).rejects.toMatchObject({
+        diagnostic: {
+          code: 'archive_change_name_required',
+          // --yes because the same caller cannot answer the confirmations
+          // waiting further down either.
+          fix: 'openspec archive <change-name> --yes',
+        },
+      });
+      expect(console.log).not.toHaveBeenCalledWith('No change selected. Aborting.');
+    });
+
+    it('carries the caller\'s flags into the change-name request too', async () => {
+      const { select } = await import('@inquirer/prompts');
+      const mockSelect = select as unknown as ReturnType<typeof vi.fn>;
+      mockSelect.mockRejectedValueOnce(exitPromptError());
+
+      await fs.mkdir(path.join(tempDir, 'openspec', 'changes', 'some-change'), {
+        recursive: true,
+      });
+
+      await expect(
+        archiveCommand.execute(undefined, { skipSpecs: true })
+      ).rejects.toMatchObject({
+        diagnostic: { fix: 'openspec archive <change-name> --skip-specs --yes' },
+      });
+    });
+
+    it('leaves a prompt that failed at a usable terminal alone', async () => {
+      // The terminal is what proves an answer was possible. Losing that leg
+      // would relabel a failure a human could have answered.
+      setStdinIsTty(true);
+      const originalCi = process.env.CI;
+      const originalOpenSpecInteractive = process.env.OPEN_SPEC_INTERACTIVE;
+      delete process.env.CI;
+      delete process.env.OPEN_SPEC_INTERACTIVE;
+
+      try {
+        const { select } = await import('@inquirer/prompts');
+        const mockSelect = select as unknown as ReturnType<typeof vi.fn>;
+        mockSelect.mockRejectedValueOnce(exitPromptError());
+
+        await fs.mkdir(path.join(tempDir, 'openspec', 'changes', 'some-change'), {
+          recursive: true,
+        });
+
+        await expect(archiveCommand.execute(undefined, { yes: true })).resolves.toBeUndefined();
+        expect(console.log).toHaveBeenCalledWith('No change selected. Aborting.');
+      } finally {
+        if (originalCi === undefined) delete process.env.CI;
+        else process.env.CI = originalCi;
+        if (originalOpenSpecInteractive === undefined) delete process.env.OPEN_SPEC_INTERACTIVE;
+        else process.env.OPEN_SPEC_INTERACTIVE = originalOpenSpecInteractive;
+      }
+    });
+
+    it('reports guidance when a runner allocated a terminal but declared CI', async () => {
+      // isInteractive() treats CI as authoritative, so a pty-allocating CI
+      // job must get the guidance rather than the raw @inquirer failure.
+      setStdinIsTty(true);
+      const originalCi = process.env.CI;
+      process.env.CI = 'true';
+
+      try {
+        const { confirm } = await import('@inquirer/prompts');
+        const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
+        mockConfirm.mockRejectedValueOnce(exitPromptError());
+
+        const changeName = 'non-interactive-ci-pty';
+        const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+        await fs.mkdir(changeDir, { recursive: true });
+        await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [ ] Task 1\n');
+
+        await expect(archiveCommand.execute(changeName)).rejects.toMatchObject({
+          diagnostic: { code: 'archive_tasks_incomplete' },
+        });
+      } finally {
+        if (originalCi === undefined) delete process.env.CI;
+        else process.env.CI = originalCi;
+      }
+    });
+
+    it('leaves JSON mode untouched', async () => {
+      const { confirm } = await import('@inquirer/prompts');
+      const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
+
+      const changeName = 'non-interactive-json';
+      await createChangeWithDeltaSpec(changeName);
+
+      await archiveCommand.execute(changeName, { json: true });
+
+      // JSON mode never reaches a prompt: it blocks with its own diagnostic.
+      expect(mockConfirm).not.toHaveBeenCalled();
+      const payload = JSON.parse(
+        (console.log as unknown as ReturnType<typeof vi.fn>).mock.calls.at(-1)![0] as string
+      );
+      expect(payload.status[0].code).toBe('archive_confirmation_required');
+      expect(process.exitCode).toBe(1);
     });
   });
 
