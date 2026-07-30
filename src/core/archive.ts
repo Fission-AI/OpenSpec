@@ -647,7 +647,8 @@ export class ArchiveCommand {
                 const retirementHint = retirementWouldFix
                   ? `This change removes the last requirement '${specName}' has. To retire the` +
                     ` capability and delete its spec, add \`retire_capabilities: true\` to the` +
-                    ` change's ${METADATA_FILENAME}, then rerun.` +
+                    ` change's ${METADATA_FILENAME} (alongside its \`schema:\`, which that file` +
+                    ` requires), then rerun.` +
                     (retirementMarker.invalidReason
                       ? ` The marker present now cannot be honored (${retirementMarker.invalidReason}).`
                       : '')
