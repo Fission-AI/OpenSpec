@@ -4127,6 +4127,9 @@ The system SHALL do the thing differently.
       const payload = JSON.parse(calls[calls.length - 1]);
       expect(payload.archive.specsUpdated).toBe(true);
       expect(payload.archive.totals).toEqual({ added: 0, modified: 0, removed: 1, renamed: 0 });
+    });
+  });
+
   describe('non-interactive prompts (#1479)', () => {
     // An AI agent (or any script) runs the CLI with stdin closed, so every
     // prompt rejects with @inquirer's "User force closed the prompt with 0
