@@ -404,12 +404,18 @@ export async function buildUpdatedSpec(
   // Recompose requirements section preserving original ordering where possible
   const keptOrder: RequirementBlock[] = [];
   const seen = new Set<string>();
+  // Content that was never part of a requirement but sat inside its block, kept
+  // in place when that requirement goes. See `salvageForeignTail`.
+  const salvaged: string[] = [];
   for (const block of parts.bodyBlocks) {
     const key = normalizeRequirementName(block.name);
     const replacement = nameToBlock.get(key);
     if (replacement) {
       keptOrder.push(replacement);
       seen.add(key);
+    } else {
+      const tail = salvageForeignTail(block.raw);
+      if (tail) salvaged.push(tail);
     }
   }
   // Append any newly added that were not in original order
@@ -422,6 +428,7 @@ export async function buildUpdatedSpec(
   const reqBody = [parts.preamble && parts.preamble.trim() ? parts.preamble.trimEnd() : '']
     .filter(Boolean)
     .concat(keptOrder.map((b) => b.raw))
+    .concat(salvaged)
     .join('\n\n')
     .trimEnd();
 
@@ -440,6 +447,34 @@ export async function buildUpdatedSpec(
     },
     warnings,
   };
+}
+
+/**
+ * The part of a requirement block's `raw` that was never the requirement's own.
+ *
+ * A block runs to the next header the parser RECOGNISES, so a heading it does
+ * not - one indented by the 0-3 spaces CommonMark allows, or a plain
+ * `### Notes` - is absorbed into the requirement above it. Removing that
+ * requirement then deleted the absorbed content too, silently, because nothing
+ * counted it and nothing reported it.
+ *
+ * Anything from the first `#`/`##`/`###` heading after the block's own header is
+ * returned so the caller can keep it. `####` is excluded on purpose: a
+ * requirement's `#### Scenario:` headings are its own and go with it.
+ *
+ * Nothing is reclassified. An indented heading is still not a requirement - it
+ * simply survives its neighbour's removal, which is all this ever needed to do.
+ */
+function salvageForeignTail(raw: string): string {
+  const lines = raw.replace(/\r\n?/g, '\n').split('\n');
+  const fenceMask = buildCodeFenceMask(lines);
+  for (let index = 1; index < lines.length; index++) {
+    if (fenceMask[index]) continue;
+    if (/^ {0,3}#{1,3}\s/.test(lines[index])) {
+      return lines.slice(index).join('\n').trimEnd();
+    }
+  }
+  return '';
 }
 
 function normalizeBlockRaw(raw: string): string {
