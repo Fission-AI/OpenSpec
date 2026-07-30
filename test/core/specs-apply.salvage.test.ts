@@ -4,234 +4,130 @@ import path from 'path';
 import os from 'os';
 import { buildUpdatedSpec, findSpecUpdates } from '../../src/core/specs-apply.js';
 
-// A requirement block runs to the next header the parser RECOGNISES, so a
-// heading it does not - one indented by the 0-3 spaces CommonMark allows, or a
-// plain `### Notes` - is absorbed into the requirement above it. Removing that
-// requirement deleted the absorbed content too. Silently: nothing counted it, so
-// nothing warned, and the spec that remained still validated.
-describe('buildUpdatedSpec (content absorbed into a removed requirement)', () => {
+// A requirement block runs to the next header the parser RECOGNISES, so a note
+// written below it - indented by the 0-3 spaces CommonMark allows, say - is
+// absorbed into that requirement and goes when the requirement is rewritten or
+// removed. The loss was silent: nothing counted the note, so nothing said a
+// word, and the spec left behind still validated.
+//
+// It is reported, not moved. A heading-shaped line inside a scenario (a
+// `# comment`, a markdown example) is indistinguishable from a real note by any
+// line-based rule, and relocating one of those rewrites the spec wrongly -
+// resurrecting superseded text on MODIFIED, and growing the file on every
+// re-apply. A wrong warning costs a line of output instead.
+describe('buildUpdatedSpec (content absorbed into a requirement)', () => {
   let tempDir: string;
 
   beforeEach(async () => {
-    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-salvage-'));
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-orphan-'));
   });
   afterEach(async () => {
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
-  async function rebuild(foreign: string[], delta?: string[]): Promise<string> {
+  async function build(specBody: string[], deltaBody: string[]) {
     const specsDir = path.join(tempDir, 'openspec', 'specs', 'demo');
-    const changeDir = path.join(tempDir, 'openspec', 'changes', 'drop');
+    const changeDir = path.join(tempDir, 'openspec', 'changes', 'c');
     await fs.mkdir(specsDir, { recursive: true });
     await fs.mkdir(path.join(changeDir, 'specs', 'demo'), { recursive: true });
-    await fs.writeFile(
-      path.join(specsDir, 'spec.md'),
-      [
-        '# demo Specification',
-        '',
-        '## Purpose',
-        'Why this exists.',
-        '',
-        '## Requirements',
-        '',
-        '### Requirement: Doomed',
-        'The system SHALL do the doomed thing.',
-        '',
-        '#### Scenario: One',
-        '- **WHEN** a',
-        '- **THEN** b',
-        '',
-        ...foreign,
-        '',
-        '### Requirement: Survivor',
-        'The system SHALL survive.',
-        '',
-        '#### Scenario: Two',
-        '- **WHEN** c',
-        '- **THEN** d',
-        '',
-      ].join('\n')
-    );
-    await fs.writeFile(
-      path.join(changeDir, 'specs', 'demo', 'spec.md'),
-      (
-        delta ?? [
-          '# demo - Changes',
-          '',
-          '## REMOVED Requirements',
-          '',
-          '### Requirement: Doomed',
-          '**Reason**: Superseded.',
-          '**Migration**: None.',
-          '',
-        ]
-      ).join('\n')
-    );
+    await fs.writeFile(path.join(specsDir, 'spec.md'), specBody.join('\n'));
+    await fs.writeFile(path.join(changeDir, 'specs', 'demo', 'spec.md'), deltaBody.join('\n'));
     const [update] = await findSpecUpdates(changeDir, path.join(tempDir, 'openspec', 'specs'));
-    const built = await buildUpdatedSpec(update, 'drop', { silent: true });
-    return built.rebuilt;
+    return buildUpdatedSpec(update, 'c', { silent: true });
   }
 
+  const REQUIREMENT = [
+    '### Requirement: Target',
+    'The system SHALL target.',
+    '',
+    '#### Scenario: S',
+    '- **WHEN** a',
+    '- **THEN** b',
+  ];
+  const SPEC = (middle: string[]) => [
+    '# demo Specification',
+    '',
+    '## Purpose',
+    'Why this exists.',
+    '',
+    '## Requirements',
+    '',
+    ...REQUIREMENT,
+    '',
+    ...middle,
+    '',
+    '### Requirement: Other',
+    'The system SHALL other.',
+    '',
+    '#### Scenario: T',
+    '- **WHEN** c',
+    '- **THEN** d',
+    '',
+  ];
+  const REMOVE = [
+    '# demo - Changes',
+    '',
+    '## REMOVED Requirements',
+    '',
+    '### Requirement: Target',
+    '**Reason**: x.',
+    '**Migration**: None.',
+    '',
+  ];
+
   it.each([
-    { what: 'an indented requirement header', foreign: ['   ### Requirement: Audit trail', '   The system SHALL retain it.'] },
-    { what: 'a heading that is not a requirement', foreign: ['### Notes', 'Kept by hand, never delete.'] },
-    { what: 'an indented non-requirement heading', foreign: ['  ### Notes', 'Indented, kept by hand.'] },
-  ])('keeps $what when the requirement above it is removed', async ({ foreign }) => {
-    const rebuilt = await rebuild(foreign);
-    for (const line of foreign) {
-      expect(rebuilt).toContain(line.trim());
-    }
-    // The removal itself still happened, and the neighbour is untouched.
-    expect(rebuilt).not.toContain('The system SHALL do the doomed thing.');
-    expect(rebuilt).toContain('### Requirement: Survivor');
+    { what: 'an indented note', line: '   ### Notes' },
+    { what: 'an unindented note', line: '### Notes' },
+    { what: 'an indented requirement header', line: '   ### Requirement: Absorbed' },
+  ])('warns that $what goes with the requirement it sits in', async ({ line }) => {
+    const { warnings } = await build(SPEC([line, 'Kept by hand.']), REMOVE);
+    expect(warnings.join('\n')).toContain(line.trim());
+    expect(warnings.join('\n')).toContain('goes with it');
   });
 
-  it("keeps a requirement's own scenarios with it when it is removed", async () => {
-    // `####` must NOT count as a boundary, or every requirement would be severed
-    // from its scenarios and they would survive as orphans.
-    const rebuilt = await rebuild([]);
-    expect(rebuilt).not.toContain('#### Scenario: One');
-    expect(rebuilt).toContain('#### Scenario: Two');
+  it('says nothing when a requirement holds only its own content', async () => {
+    const { warnings } = await build(SPEC([]), REMOVE);
+    expect(warnings.join('\n')).not.toContain('goes with it');
   });
 
-  // A RENAMED block is the original with its header swapped, so it still holds
-  // the absorbed content. A MODIFIED one is rebuilt from the delta and does not
-  // - dropping it there loses the content exactly as removing the requirement
-  // would, which the first version of this fix missed.
-  it('keeps absorbed content when the requirement above it is MODIFIED', async () => {
-    const rebuilt = await rebuild(
-      ['   ### Notes', '   Kept by hand, never delete.'],
-      [
-        '# demo - Changes',
-        '',
-        '## MODIFIED Requirements',
-        '',
-        '### Requirement: Doomed',
-        'The system SHALL do the doomed thing, now better.',
-        '',
-        '#### Scenario: One',
-        '- **WHEN** a',
-        '- **THEN** b',
-        '',
-      ]
-    );
-    expect(rebuilt).toContain('Kept by hand, never delete.');
-    // Exactly once - a rename path that already carries the tail must not
-    // duplicate it.
-    expect(rebuilt.match(/Kept by hand/g)).toHaveLength(1);
-    expect(rebuilt).toContain('now better');
-    // And it stays where the author put it, not appended at the end.
-    expect(rebuilt.indexOf('Kept by hand')).toBeLessThan(rebuilt.indexOf('Requirement: Survivor'));
+  it('does not warn about a requirement left untouched', async () => {
+    // The note sits in `Target`, which this delta does not mention.
+    const { warnings } = await build(SPEC(['   ### Notes', 'Kept by hand.']), [
+      '# demo - Changes',
+      '',
+      '## ADDED Requirements',
+      '',
+      '### Requirement: Fresh',
+      'The system SHALL be fresh.',
+      '',
+      '#### Scenario: F',
+      '- **WHEN** a',
+      '- **THEN** b',
+      '',
+    ]);
+    expect(warnings.join('\n')).not.toContain('goes with it');
   });
 
-  it('does not duplicate absorbed content when the requirement is RENAMED', async () => {
-    const rebuilt = await rebuild(
-      ['   ### Notes', '   Kept by hand, never delete.'],
-      [
-        '# demo - Changes',
-        '',
-        '## RENAMED Requirements',
-        '',
-        '- FROM: `### Requirement: Doomed`',
-        '- TO: `### Requirement: Renamed`',
-        '',
-      ]
+  it('ignores a heading inside a fenced example', async () => {
+    const { warnings } = await build(
+      SPEC(['```markdown', '### Requirement: Example', '```']),
+      REMOVE
     );
-    expect(rebuilt.match(/Kept by hand/g)).toHaveLength(1);
-    expect(rebuilt).toContain('### Requirement: Renamed');
+    expect(warnings.join('\n')).not.toContain('goes with it');
   });
 
-  // Whether a note survived cannot be decided by looking for its text in the
-  // result: two requirements may carry the same note, and a containment check
-  // drops the second copy. Survival is decided by whether the block came
-  // through untouched, which is a question about identity, not text.
-  it('keeps both copies when two removed requirements carry the same note', async () => {
-    const specsDir = path.join(tempDir, 'openspec', 'specs', 'demo');
-    const changeDir = path.join(tempDir, 'openspec', 'changes', 'drop');
-    await fs.mkdir(specsDir, { recursive: true });
-    await fs.mkdir(path.join(changeDir, 'specs', 'demo'), { recursive: true });
-    const note = ['   ### Notes', '   Owned by payments.'];
-    await fs.writeFile(
-      path.join(specsDir, 'spec.md'),
-      [
-        '# demo Specification',
-        '',
-        '## Purpose',
-        'Why this exists.',
-        '',
-        '## Requirements',
-        '',
-        '### Requirement: Alpha',
-        'The system SHALL alpha.',
-        '',
-        '#### Scenario: A',
-        '- **WHEN** a',
-        '- **THEN** b',
-        '',
-        ...note,
-        '',
-        '### Requirement: Beta',
-        'The system SHALL beta.',
-        '',
-        '#### Scenario: B',
-        '- **WHEN** c',
-        '- **THEN** d',
-        '',
-        ...note,
-        '',
-        '### Requirement: Gamma',
-        'The system SHALL gamma.',
-        '',
-        '#### Scenario: G',
-        '- **WHEN** e',
-        '- **THEN** f',
-        '',
-      ].join('\n')
-    );
-    await fs.writeFile(
-      path.join(changeDir, 'specs', 'demo', 'spec.md'),
-      [
-        '# demo - Changes',
-        '',
-        '## REMOVED Requirements',
-        '',
-        '### Requirement: Alpha',
-        '**Reason**: x.',
-        '**Migration**: None.',
-        '',
-        '### Requirement: Beta',
-        '**Reason**: y.',
-        '**Migration**: None.',
-        '',
-      ].join('\n')
-    );
-    const [update] = await findSpecUpdates(changeDir, path.join(tempDir, 'openspec', 'specs'));
-    const { rebuilt } = await buildUpdatedSpec(update, 'drop', { silent: true });
-
-    // Two notes were written; two must survive.
-    expect(rebuilt.match(/### Notes/g)).toHaveLength(2);
-    expect(rebuilt).toContain('### Requirement: Gamma');
+  it("leaves a requirement's own scenarios alone", async () => {
+    // `####` must not count, or every requirement would look like it holds
+    // foreign content.
+    const { warnings } = await build(SPEC([]), REMOVE);
+    expect(warnings.join('\n')).not.toContain('Scenario');
   });
 
-  it('does not duplicate a note when its requirement is untouched', async () => {
-    // An untouched block is the original object and still carries its note, so
-    // re-inserting would double it.
-    const rebuilt = await rebuild(
-      ['   ### Notes', '   Kept by hand, never delete.'],
-      [
-        '# demo - Changes',
-        '',
-        '## ADDED Requirements',
-        '',
-        '### Requirement: Fresh',
-        'The system SHALL be fresh.',
-        '',
-        '#### Scenario: F',
-        '- **WHEN** a',
-        '- **THEN** b',
-        '',
-      ]
-    );
-    expect(rebuilt.match(/Kept by hand/g)).toHaveLength(1);
+  it('rewrites the spec exactly as before - nothing is moved', async () => {
+    const { rebuilt } = await build(SPEC(['   ### Notes', 'Kept by hand.']), REMOVE);
+    // The note is reported, not relocated: it goes with the requirement, which
+    // is the pre-existing behaviour this warning exists to surface.
+    expect(rebuilt).not.toContain('Kept by hand.');
+    expect(rebuilt).toContain('### Requirement: Other');
   });
 });

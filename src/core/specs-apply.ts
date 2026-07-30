@@ -310,11 +310,7 @@ export async function buildUpdatedSpec(
     }
     const block = nameToBlock.get(from)!;
     const newHeader = `### Requirement: ${to}`;
-    // Only the requirement's own lines are carried over. Anything absorbed
-    // below it is put back by the salvage in the recomposition step, which
-    // keeps every path - renamed, modified, removed - uniform: the replacement
-    // never holds the tail, so the salvage never has to guess whether it does.
-    const rawLines = requirementOwnLines(block.raw);
+    const rawLines = block.raw.split('\n');
     rawLines[0] = newHeader;
     const renamedBlock: RequirementBlock = {
       headerLine: newHeader,
@@ -408,47 +404,41 @@ export async function buildUpdatedSpec(
   // Recompose requirements section preserving original ordering where possible
   const keptOrder: RequirementBlock[] = [];
   const seen = new Set<string>();
-  // What the section will actually contain, in order. Kept apart from
-  // `keptOrder` because that one answers "are there any requirements left",
-  // which salvaged content must not influence.
-  const orderedBody: string[] = [];
-  // Content that was never a requirement's own but sat inside its block, paired
-  // with the position it should keep. See `salvageForeignTail`.
-  const pendingTails: Array<{ at: number; tail: string }> = [];
   for (const block of parts.bodyBlocks) {
     const key = normalizeRequirementName(block.name);
     const replacement = nameToBlock.get(key);
-    // Read off the ORIGINAL block - the only copy that still has it.
-    const foreignTail = salvageForeignTail(block.raw);
     if (replacement) {
       keptOrder.push(replacement);
-      orderedBody.push(replacement.raw);
       seen.add(key);
     }
-    // Re-insert the tail unless this block came through untouched, in which
-    // case it still carries it. Identity, not text: two requirements can carry
-    // the same note, and a containment check would drop the second copy.
-    if (foreignTail && replacement !== block) {
-      pendingTails.push({ at: orderedBody.length, tail: foreignTail });
+    // A block's raw runs to the next header the parser RECOGNISES, so anything
+    // else - a note indented by the 0-3 spaces CommonMark allows, say - is
+    // absorbed into the requirement above it and goes when that requirement is
+    // rewritten or removed. Reported rather than moved: a heading-shaped line
+    // inside a scenario (`# comment`, a markdown example) is indistinguishable
+    // from a real note here, and relocating one of those corrupts the spec
+    // silently. Saying what will go is useful whichever it is; moving it is
+    // only safe for one.
+    if (replacement !== block) {
+      const orphan = firstForeignLine(block.raw);
+      if (orphan) {
+        warn(
+          `${specName} - "${orphan}" sits inside requirement "${block.name}" and goes with it. ` +
+            'Move it under its own requirement, or above `## Requirements`, to keep it.'
+        );
+      }
     }
   }
   // Append any newly added that were not in original order
   for (const [key, block] of nameToBlock.entries()) {
     if (!seen.has(key)) {
       keptOrder.push(block);
-      orderedBody.push(block.raw);
     }
-  }
-  // Put each salvaged note back where it was written. Walked in reverse so the
-  // recorded positions are still valid as earlier entries shift.
-  for (let index = pendingTails.length - 1; index >= 0; index--) {
-    const { at, tail } = pendingTails[index];
-    orderedBody.splice(at, 0, tail);
   }
 
   const reqBody = [parts.preamble && parts.preamble.trim() ? parts.preamble.trimEnd() : '']
     .filter(Boolean)
-    .concat(orderedBody)
+    .concat(keptOrder.map((b) => b.raw))
     .join('\n\n')
     .trimEnd();
 
@@ -470,42 +460,25 @@ export async function buildUpdatedSpec(
 }
 
 /**
- * The part of a requirement block's `raw` that was never the requirement's own.
+ * The first line of a requirement block that was never the requirement's own -
+ * a heading at `#`, `##` or `###` after the block's own header - or undefined.
  *
- * A block runs to the next header the parser RECOGNISES, so a heading it does
- * not - one indented by the 0-3 spaces CommonMark allows, or a plain
- * `### Notes` - is absorbed into the requirement above it. Removing that
- * requirement then deleted the absorbed content too, silently, because nothing
- * counted it and nothing reported it.
+ * `####` is excluded: a requirement's `#### Scenario:` headings are its own.
+ * Fenced lines are skipped, so a heading inside an example does not count.
  *
- * Anything from the first `#`/`##`/`###` heading after the block's own header is
- * returned so the caller can keep it. `####` is excluded on purpose: a
- * requirement's `#### Scenario:` headings are its own and go with it.
- *
- * Nothing is reclassified. An indented heading is still not a requirement - it
- * simply survives its neighbour's removal, which is all this ever needed to do.
+ * Approximate on purpose, and only ever used to WARN. A `#` line inside a
+ * scenario looks the same as a note written below the requirement, and no
+ * line-based rule separates them; a wrong warning costs a line of output, while
+ * acting on a wrong answer would rewrite the spec.
  */
-/** A block's own lines, up to whatever was absorbed below it. */
-function requirementOwnLines(raw: string): string[] {
+function firstForeignLine(raw: string): string | undefined {
   const lines = raw.replace(/\r\n?/g, '\n').split('\n');
-  const boundary = foreignTailIndex(lines);
-  return boundary === -1 ? lines : lines.slice(0, boundary);
-}
-
-/** Index of the first line that was never the requirement's own, or -1. */
-function foreignTailIndex(lines: string[]): number {
   const fenceMask = buildCodeFenceMask(lines);
   for (let index = 1; index < lines.length; index++) {
     if (fenceMask[index]) continue;
-    if (/^ {0,3}#{1,3}\s/.test(lines[index])) return index;
+    if (/^ {0,3}#{1,3}\s/.test(lines[index])) return lines[index].trim();
   }
-  return -1;
-}
-
-function salvageForeignTail(raw: string): string {
-  const lines = raw.replace(/\r\n?/g, '\n').split('\n');
-  const boundary = foreignTailIndex(lines);
-  return boundary === -1 ? '' : lines.slice(boundary).join('\n').trimEnd();
+  return undefined;
 }
 
 function normalizeBlockRaw(raw: string): string {
