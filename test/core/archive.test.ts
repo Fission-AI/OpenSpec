@@ -3264,6 +3264,59 @@ The system SHALL do the thing differently.
       await expect(fs.access(path.join(mainSpecDir, 'spec.md'))).rejects.toThrow();
     });
 
+    it.each([
+      { what: 'a setext heading', body: ['Data Migration Notes', '--------------------', 'Export the table by hand first.'] },
+      { what: 'a raw HTML heading', body: ['<h2>Data Migration Notes</h2>', 'Export the table by hand first.'] },
+    ])('refuses to retire when $what opens a section inside Purpose', async ({ body }) => {
+      // `##` is not the only way to open a section. Treating everything up to
+      // the next ATX `##` as Purpose body swallowed these whole and deleted
+      // them, reported as nothing but "Purpose".
+      const changeName = `retire-purpose-span-${body.length}`;
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const spec = [
+        '# legacy-layer Specification',
+        '',
+        '## Purpose',
+        PURPOSE,
+        '',
+        ...body,
+        '',
+        '## Requirements',
+        '',
+        REQUIREMENT,
+        '',
+      ].join('\n');
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
+      expect((await new Validator().validateSpecContent('legacy-layer', spec, 'strict')).valid).toBe(
+        true
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(process.exitCode).toBe(1);
+      await expect(fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8')).resolves.toBe(spec);
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('Data Migration Notes')
+      );
+    });
+
+    it('never retires under --no-validate, whatever else the spec holds', async () => {
+      // Isolates that conjunct: the spec is otherwise a clean retirement
+      // candidate, so only the flag can be stopping it.
+      const changeName = 'retire-novalidate-isolated';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainSpec('legacy-layer'));
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      // Written, not deleted.
+      await expect(fs.access(path.join(mainSpecDir, 'spec.md'))).resolves.not.toThrow();
+    });
+
     it('names the marker only when retiring would really fix it', async () => {
       // The same two-section spec, with no marker. The hint must stay quiet:
       // adding the marker would not have made this spec writable.
@@ -3308,9 +3361,10 @@ The system SHALL do the thing differently.
         await archiveCommand.execute(changeName, { yes: true, json: true });
 
         const notes = JSON.parse(lastJsonPayload()).archive.warnings.join('\n');
-        expect(notes).toContain('out side/spec.md; if it was committed, restore it from');
-        // No command at all, so nothing can be pasted and silently mis-run.
-        expect(notes).not.toContain('git checkout HEAD --');
+        // The symlink points elsewhere in the SAME repo, so a command still
+        // works there - and it names the path that was really unlinked, quoted,
+        // rather than the nominal one git would reject.
+        expect(notes).toContain('git checkout HEAD -- "out side/spec.md"');
       }
     );
 
@@ -4004,9 +4058,10 @@ The system SHALL do the thing differently.
 
         const payload = JSON.parse(lastJsonPayload());
         // The warning names where the file really was, not the nominal path.
-        expect(payload.archive.warnings.join('\n')).toContain(
-          await fs.realpath(path.join(tempDir, 'outside'))
-        );
+        // Root-relative, because this symlink still points inside the repo: an
+          // absolute path is reserved for one that genuinely leaves it, and is
+          // what routes the message to prose instead of a command.
+          expect(payload.archive.warnings.join('\n')).toContain('outside/legacy-layer/spec.md');
         // The unlink follows the link exactly where a write would have gone...
         await expect(fs.access(path.join(outside, 'spec.md'))).rejects.toThrow();
         // ...but the directory outside the tree is left alone.

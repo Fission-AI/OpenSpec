@@ -848,7 +848,7 @@ export class ArchiveCommand {
           // names so the state is at least legible.
           for (const p of prepared) {
             if (p.outcome !== 'retire') continue;
-            const { retired, sourcePath } = await retireSpec(p.update, mainSpecsDir, {
+            const { retired, sourcePath, resolvedPath } = await retireSpec(p.update, mainSpecsDir, {
               silent: json,
               ...(isStoreSelectedRoot(root) ? { displayPath: p.update.target } : {}),
             });
@@ -878,11 +878,28 @@ export class ArchiveCommand {
             // real directory can differ in case, and git is case-sensitive, so
             // an id-derived path is one git rejects. `sourcePath` is set only
             // when the file escaped the specs tree, so it wins when present.
+            // `update.target` is built from the capability id, so on a
+            // case-insensitive filesystem it can differ in case from the file
+            // that was actually unlinked - and git is case-sensitive, so the
+            // printed command is one git rejects. A capability directory
+            // symlinked to a sibling has the same problem without leaving the
+            // tree. `retiredPath` carries the resolved path, so it wins
+            // whenever it disagrees, not only when it escapes.
+            const unlinkedPath = resolvedPath ?? p.update.target;
+            // Measured against the REAL root, so the platform's own
+            // `/var` -> `/private/var` link does not read as an escape. A path
+            // that genuinely sits outside stays absolute, which is what routes
+            // it to prose guidance instead of a command git would reject.
+            const realRoot = await fs.realpath(root.path).catch(() => root.path);
+            const relativeToRoot = path.relative(realRoot, unlinkedPath);
+            const insideRoot =
+              relativeToRoot !== '' &&
+              !relativeToRoot.startsWith('..') &&
+              !path.isAbsolute(relativeToRoot);
             const deletedPath =
-              sourcePath ??
-              (isStoreSelectedRoot(root)
-                ? p.update.target
-                : path.relative(root.path, p.update.target).split(path.sep).join('/'));
+              isStoreSelectedRoot(root) || !insideRoot
+                ? unlinkedPath
+                : relativeToRoot.split(path.sep).join('/');
             // A command is offered only when pasting it where archive was run
             // would actually work. An absolute path here means the file did not
             // live under that directory - a selected store, or a symlinked

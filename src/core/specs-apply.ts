@@ -530,21 +530,41 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
   const beforeMask = buildCodeFenceMask(beforeLines);
   let inPurpose = false;
   let titleSeen = false;
+  let previousLine = '';
   for (let index = 0; index < beforeLines.length; index++) {
     const line = beforeLines[index];
-    if (!line.trim()) continue;
+    if (!line.trim()) {
+      previousLine = '';
+      continue;
+    }
     if (!beforeMask[index]) {
       const section = line.match(/^ {0,3}##\s+(.+?)\s*$/);
       if (section) {
         inPurpose = /^purpose$/i.test(section[1].trim());
         if (!inPurpose) leftovers.push(line.trim());
+        previousLine = line;
+        continue;
+      }
+      // `##` is not the only way to open a section. A setext underline turns
+      // the line above it into a heading, and raw HTML says so outright - a
+      // reader sees a sibling of `## Purpose`, not more of its body. Treating
+      // everything up to the next ATX `##` as Purpose swallowed those whole and
+      // deleted them, reported as nothing but "Purpose".
+      const setext = inPurpose && previousLine.trim() && /^ {0,3}(=+|-+)\s*$/.test(line);
+      const htmlHeading = /^ {0,3}<h[1-6]\b/i.test(line);
+      if (setext || htmlHeading) {
+        leftovers.push((setext ? previousLine : line).trim());
+        inPurpose = false;
+        previousLine = line;
         continue;
       }
       if (!titleSeen && !inPurpose && /^ {0,3}#\s+.+$/.test(line)) {
         titleSeen = true;
+        previousLine = line;
         continue;
       }
     }
+    previousLine = line;
     if (inPurpose) continue;
     leftovers.push(line.trim());
   }
@@ -654,7 +674,7 @@ export async function retireSpec(
   update: SpecUpdate,
   mainSpecsDir: string,
   options: { silent?: boolean; displayPath?: string } = {}
-): Promise<{ retired: boolean; sourcePath?: string }> {
+): Promise<{ retired: boolean; sourcePath?: string; resolvedPath?: string }> {
   // Resolved before the unlink, while the link still exists, so the report can
   // name the file that actually goes when a symlink points out of the tree.
   // A symlinked `spec.md` is excluded: `realpath` would follow it, but `unlink`
@@ -693,7 +713,15 @@ export async function retireSpec(
   if (!options.silent) {
     console.log(`Retiring ${nominal}${resolvedNote}: all requirements removed.`);
   }
-  return { retired: true, ...(resolvedNote ? { sourcePath: realSource } : {}) };
+  // `resolvedPath` is always the file that was actually unlinked - callers need
+  // it to report a path git will accept, since the nominal one is built from
+  // the capability id and can differ in case, or point through a symlink.
+  // `sourcePath` stays the narrower "this escaped the specs tree" signal.
+  return {
+    retired: true,
+    ...(realSource ? { resolvedPath: realSource } : {}),
+    ...(resolvedNote ? { sourcePath: realSource } : {}),
+  };
 }
 
 /** Whether `realPath` (already canonical) sits under the real `dir`. */
