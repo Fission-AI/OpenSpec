@@ -80,9 +80,11 @@ interface ArchiveResult {
 }
 
 /**
- * JSON mode is non-interactive: any point where the human flow would prompt or
- * print prose instead throws this error, which becomes a machine-readable
- * status entry with a non-zero exit code.
+ * A decision point archive cannot get past on its own. Thrown wherever the
+ * flow needs an answer it has no way to obtain: in JSON mode, which never
+ * prompts at all, and in human mode when a prompt failed because nothing
+ * could answer it (#1479). Either way it carries a machine-readable
+ * diagnostic and exits non-zero.
  */
 class ArchiveBlockedError extends Error {
   readonly diagnostic: ArchiveDiagnostic;
@@ -124,6 +126,19 @@ function quoteChangeName(name: string): string {
   if (/^[A-Za-z0-9._-]+$/.test(name)) return name;
   if (!/["\\$`\r\n%!]/.test(name)) return `"${name}"`;
   return '<change-name>';
+}
+
+/**
+ * Renders a change name inside a prose message. The name is a directory name,
+ * so it can hold control characters, and human mode prints the message
+ * verbatim: a raw CR or LF would let a change directory forge its own `Fix:`
+ * line, which is worse here than anywhere else because `quoteChangeName`
+ * degrades the real fix to the `<change-name>` placeholder for exactly those
+ * names - leaving the forged line as the only pasteable command on screen.
+ * An ESC could redraw the terminal. Neither survives.
+ */
+function describeChangeName(name: string): string {
+  return name.replace(/[\u0000-\u001f\u007f]/g, '?');
 }
 
 /**
@@ -508,7 +523,7 @@ export class ArchiveCommand {
           () =>
             new ArchiveBlockedError(
               'archive_tasks_incomplete',
-              `${incompleteTasks} incomplete task(s) found for change '${changeName}', and no answer could be read from stdin.`,
+              `${incompleteTasks} incomplete task(s) found for change '${describeChangeName(changeName!)}', and no answer could be read from stdin.`,
               `Complete the tasks or rerun with ${rerunCommand(root, changeName!, options)}`
             )
         );

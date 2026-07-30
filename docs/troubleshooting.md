@@ -117,6 +117,18 @@ The AI didn't have enough context. A few levers help:
 
 Archive won't *block* on incomplete tasks, but it warns you, because archiving usually means the work is done. If tasks remain on purpose (you're filing a partial change), proceed. Otherwise finish the tasks first. Archive will also offer to sync your delta specs into the main specs if you haven't synced yet; say yes unless you have a reason not to.
 
+### "User force closed the prompt with 0 null"
+
+Something ran `openspec archive` where nothing can answer a question — an AI agent calling it from a tool, a CI job, or any shell with stdin closed. Archive asks up to three confirmations, and an unanswerable one used to fail with that raw message.
+
+Pass `--yes` to answer them up front:
+
+```bash
+openspec archive <change-name> --yes
+```
+
+Keep any flags you were already passing — `--skip-specs` and `--no-validate` change what archive does, so a bare `--yes` rerun is not the same command. Current versions name the flag for you and print a `Fix:` line you can paste. If you meant to pick from a list, pass the change name explicitly: the picker needs an answer too.
+
 ## Configuration
 
 ### My `config.yaml` isn't being applied

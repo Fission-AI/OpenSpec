@@ -593,24 +593,37 @@ describe('skill templates split parity', () => {
       ...getCommandContents().map((entry) => [entry.id, entry.body] as [string, string]),
     ];
 
+    // Only runnable invocations count: prose that merely names the command
+    // ("same rule as `openspec archive`") has nothing to confirm, and it is
+    // always mid-sentence, so requiring the command to open the line
+    // separates the two. Everything a runnable line may legitimately carry in
+    // front of the command is allowed, because each of these hid an
+    // invocation from an earlier, stricter version of this regex: indentation,
+    // a list marker, a shell prompt, and a global flag between `openspec` and
+    // `archive`. The optional tail catches a regression to a bare
+    // `openspec archive`, which blocks an agent exactly as #1479 describes.
+    const INVOCATION =
+      /^[ \t]*(?:[-*+]\s+|\d+\.\s+)?(?:\$\s+)?openspec\s+(?:--[\w-]+(?:[ =]\S+)?\s+)*archive(?:\s.*)?$/gm;
+
     let total = 0;
     for (const [id, text] of corpus) {
-      // Only runnable invocations count: prose that merely names the command
-      // ("same rule as `openspec archive`") has nothing to confirm. Leading
-      // whitespace is allowed so an indented one (a list item, a nested
-      // fence) cannot hide, and the optional tail catches a regression to a
-      // bare `openspec archive`, which blocks an agent exactly as #1479
-      // describes.
-      const invocations = text.match(/^[ \t]*openspec archive(?:\s.*)?$/gm) ?? [];
+      const invocations = text.match(INVOCATION) ?? [];
       total += invocations.length;
       for (const invocation of invocations) {
         expect(invocation.trim(), id).toContain('--yes');
       }
     }
 
-    // Guards the guard: if the corpus stops containing any invocation, the
-    // loop above would pass vacuously.
+    // Guards the guard, and names the floor rather than trusting `> 0`: the
+    // onboarding walkthrough is the one template that is supposed to contain
+    // a runnable archive invocation, so a corpus that stops containing it
+    // fails here instead of passing vacuously.
     expect(total).toBeGreaterThan(0);
+    const onboard = corpus.filter(([id]) => id.includes('onboard'));
+    expect(onboard.length).toBeGreaterThan(0);
+    for (const [id, text] of onboard) {
+      expect(text.match(INVOCATION) ?? [], id).not.toHaveLength(0);
+    }
   });
 
   // Covers both archive paths, not just the bulk one the fix targeted: the

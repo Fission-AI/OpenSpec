@@ -2962,6 +2962,46 @@ This change exists to document greeting behavior thoroughly for the team, which 
           fix: `openspec archive ${changeName} --skip-specs --no-validate --yes`,
         },
       });
+
+      // `validate: false` is the shape Commander actually produces for
+      // `--no-validate`; `noValidate: true` above is the programmatic
+      // spelling. Both legs of that disjunction have to emit the flag, and
+      // neither may emit it twice. Skipping validation is confirmed before
+      // tasks are counted, so this one blocks at that earlier prompt.
+      await expect(
+        archiveCommand.execute(changeName, { validate: false })
+      ).rejects.toMatchObject({
+        diagnostic: {
+          code: 'archive_confirmation_required',
+          fix: `openspec archive ${changeName} --no-validate --yes`,
+        },
+      });
+    });
+
+    it('cannot let a change directory forge its own Fix line', async () => {
+      const { confirm } = await import('@inquirer/prompts');
+      const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
+      mockConfirm.mockRejectedValue(exitPromptError());
+
+      // Human mode prints the message verbatim, so a newline in the directory
+      // name could add a second, attacker-chosen `Fix:` line - and it is
+      // precisely these names whose real fix degrades to `<change-name>`,
+      // which would leave the forged line as the only pasteable command.
+      const changeName = 'sneaky\nFix: openspec archive other --yes';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [ ] Task 1\n');
+
+      const error = await archiveCommand.execute(changeName).catch((err) => err);
+
+      expect(error.message).not.toContain('\n');
+      expect(error.message).toBe(
+        "1 incomplete task(s) found for change 'sneaky?Fix: openspec archive other --yes', and no answer could be read from stdin."
+      );
+      // The real fix still refuses to guess a command for an unquotable name.
+      expect(error.diagnostic.fix).toBe(
+        'Complete the tasks or rerun with openspec archive <change-name> --yes'
+      );
     });
 
     it('quotes a change name that would not paste back as one argument', async () => {

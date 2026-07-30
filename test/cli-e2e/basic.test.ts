@@ -341,5 +341,42 @@ describe('openspec CLI e2e basics', () => {
       expect(result.exitCode).toBe(1);
       expect(output).toContain('openspec archive add-greeting --yes --store team-store');
     });
+
+    it('keeps --store in front of the `--` for a dash-leading change name', async () => {
+      // `rerunCommand` has two branches and the other tests only ever cover
+      // one at a time, so dropping the store flag from just this one went
+      // unnoticed. Both halves have to be right at once: the store flag stays
+      // an option (in front of `--`) while the name stays an argument
+      // (behind it).
+      const base = await fs.mkdtemp(path.join(tmpdir(), 'openspec-archive-store-dash-e2e-'));
+      tempRoots.push(base);
+      const env = {
+        XDG_DATA_HOME: path.join(base, 'data'),
+        XDG_CONFIG_HOME: path.join(base, 'config'),
+      };
+      const storeRoot = path.join(base, 'team-store');
+      createOpenSpecRoot(storeRoot);
+      await registerStore({
+        id: 'team-store',
+        localPath: storeRoot,
+        globalDataDir: getGlobalDataDir({ env }),
+      });
+
+      const changeDir = path.join(storeRoot, 'openspec', 'changes', '--force');
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [ ] Task 1\n');
+
+      const scratch = path.join(base, 'no-root-here');
+      await fs.mkdir(scratch, { recursive: true });
+
+      const result = await runCLI(['archive', '--store', 'team-store', '--', '--force'], {
+        cwd: scratch,
+        env,
+      });
+
+      const output = `${result.stdout}${result.stderr}`;
+      expect(result.exitCode).toBe(1);
+      expect(output).toContain('openspec archive --yes --store team-store -- --force');
+    });
   });
 });
