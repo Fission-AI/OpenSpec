@@ -563,22 +563,46 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
     const lines = block.raw.replace(/\r\n?/g, '\n').split('\n');
     const mask = buildCodeFenceMask(lines);
     let seenScenario = false;
+    // A scenario's bullets run unbroken beneath its header. A blank line after
+    // them ends the scenario, so bullets written past that point are a note the
+    // author added, not part of the scenario - and deleting the file would take
+    // them. Treating every bullet as a scenario's own is what let an
+    // operational note below the last scenario be deleted unmentioned.
+    let inScenarioBullets = false;
+    let bulletsSeen = false;
     for (let index = 0; index < lines.length; index++) {
       const line = lines[index];
-      if (!line.trim()) continue;
+      if (!line.trim()) {
+        // Only a blank that follows actual bullets closes the run, so a blank
+        // between a scenario header and its first bullet is not a boundary.
+        if (bulletsSeen) inScenarioBullets = false;
+        continue;
+      }
       if (index === 0) continue; // the `### Requirement:` header itself
-      if (mask[index]) {
+      // Fenced lines render as a code block inside the requirement, so they are
+      // its own content however they are spelled - a `### Requirement:` in an
+      // example is not a heading to any reader. Flagging them made a spec that
+      // merely documents a command unretirable.
+      if (mask[index]) continue;
+      if (/^ {0,3}####\s+Scenario:/i.test(line)) {
+        seenScenario = true;
+        inScenarioBullets = true;
+        bulletsSeen = false;
+        continue;
+      }
+      if (/^\s*(?:[-*]|\d+[.)])\s/.test(line)) {
+        if (inScenarioBullets) {
+          bulletsSeen = true;
+          continue;
+        }
+        // A bullet outside a scenario. Before the first scenario it is part of
+        // the requirement statement; after one it is the author's own note.
+        if (!seenScenario) continue;
         leftovers.push(line.trim());
         continue;
       }
-      if (/^ {0,3}####\s+Scenario:/i.test(line)) {
-        seenScenario = true;
-        continue;
-      }
-      // Bullets belong to a scenario; free prose belongs to the requirement
-      // statement, which sits above the first scenario.
-      if (/^\s*[-*]\s/.test(line)) continue;
-      if (!seenScenario && !/^\s*[|`<]/.test(line)) continue;
+      // Free prose above the first scenario is the requirement statement.
+      if (!seenScenario && !/^\s*[|<]/.test(line)) continue;
       leftovers.push(line.trim());
     }
   }

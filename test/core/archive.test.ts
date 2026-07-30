@@ -3189,6 +3189,81 @@ The system SHALL do the thing differently.
       expect(console.log).toHaveBeenCalledWith(expect.stringContaining(quoted));
     });
 
+    it('refuses to retire when a note is bulleted below the scenarios', async () => {
+      // Every bullet used to count as a scenario's own, so an operational note
+      // written under the last scenario was deleted with the file and named
+      // nowhere. A scenario's bullets run unbroken beneath its header; a blank
+      // line ends them.
+      const changeName = 'retire-bulleted-note';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const spec = [
+        '# legacy-layer Specification',
+        '',
+        '## Purpose',
+        PURPOSE,
+        '',
+        '## Requirements',
+        '',
+        REQUIREMENT,
+        '',
+        '- IMPORTANT: escrow keys live in the "legacy" vault; rotate before deleting.',
+        '',
+      ].join('\n');
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
+      expect((await new Validator().validateSpecContent('legacy-layer', spec, 'strict')).valid).toBe(
+        true
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(process.exitCode).toBe(1);
+      await expect(fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8')).resolves.toBe(spec);
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('escrow keys'));
+    });
+
+    it('still retires a spec whose requirement uses lists and code examples', async () => {
+      // The guard must not refuse ordinary spec prose: a numbered list, a fenced
+      // example, and a statement opening with inline code are all a
+      // requirement's own content.
+      //
+      // Known limitation, deliberate: a scenario whose bullets are split by a
+      // blank line reads the same as a note bulleted below the scenario, and no
+      // line-based rule separates them. Such a spec is REFUSED, never deleted -
+      // the abort names the lines and the author moves them or deletes the file
+      // by hand.
+      const changeName = 'retire-rich-requirement';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(
+        path.join(mainSpecDir, 'spec.md'),
+        [
+          '# legacy-layer Specification',
+          '',
+          '## Purpose',
+          PURPOSE,
+          '',
+          '## Requirements',
+          '',
+          '### Requirement: The system SHALL provide a legacy layer',
+          '`openspec legacy` SHALL provide a legacy layer to existing consumers.',
+          '',
+          '#### Scenario: Layer is available',
+          '- **WHEN** a consumer runs `openspec legacy --check`',
+          '- **THEN** these happen in order:',
+          '  1. the layer loads',
+          '  2. the consumer proceeds',
+          '',
+        ].join('\n')
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      await expect(fs.access(path.join(mainSpecDir, 'spec.md'))).rejects.toThrow();
+    });
+
     it('names the marker only when retiring would really fix it', async () => {
       // The same two-section spec, with no marker. The hint must stay quiet:
       // adding the marker would not have made this spec writable.
