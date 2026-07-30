@@ -98,11 +98,11 @@ async function decideSpecOutcome(
     !skipValidation &&
     built.noRequirementBlocks &&
     built.residualRequirementHeadings.length === 0 &&
-    // A second `## Requirements` section is a section every parser here stops
-    // short of: the validator's lookup, the block parser, the residual-heading
-    // veto, and the lost-section report all bind to the first one. Its contents
-    // would be deleted with the file and never named.
-    !built.hasMultipleRequirementsSections &&
+    // Anything requirement-shaped past the merged section's boundary is content
+    // every parser here stops short of - the validator's lookup, the block
+    // parser, the residual-heading veto and the lost-section report all bind to
+    // the first section. It would be deleted with the file and named nowhere.
+    !built.hasUnmergedRequirementHeadings &&
     (await isRetirableSpec(update.id, built.rebuilt));
 
   if (!retirable) return 'write';
@@ -587,7 +587,7 @@ export class ArchiveCommand {
 
         if (shouldUpdateSpecs) {
           // Prepare all updates first (validation pass, no writes)
-          const prepared: Array<{ update: SpecUpdate; rebuilt: string; counts: { added: number; modified: number; removed: number; renamed: number }; outcome: SpecOutcome; otherSections: string[]; noRequirementBlocks: boolean; residualRequirementHeadings: string[]; hasMultipleRequirementsSections: boolean }> = [];
+          const prepared: Array<{ update: SpecUpdate; rebuilt: string; counts: { added: number; modified: number; removed: number; renamed: number }; outcome: SpecOutcome; otherSections: string[]; noRequirementBlocks: boolean; residualRequirementHeadings: string[]; hasUnmergedRequirementHeadings: boolean }> = [];
           try {
             for (const update of specUpdates) {
               const built = await buildUpdatedSpec(update, changeName!, { silent: json });
@@ -599,7 +599,7 @@ export class ArchiveCommand {
                 otherSections: built.otherSections,
                 noRequirementBlocks: built.noRequirementBlocks,
                 residualRequirementHeadings: built.residualRequirementHeadings,
-                hasMultipleRequirementsSections: built.hasMultipleRequirementsSections,
+                hasUnmergedRequirementHeadings: built.hasUnmergedRequirementHeadings,
               });
               // Carried into the result so JSON mode (where nothing was
               // printed) still surfaces them; human mode discards the result.
@@ -640,7 +640,7 @@ export class ArchiveCommand {
                   !retirementDeclared &&
                   p.noRequirementBlocks &&
                   p.residualRequirementHeadings.length === 0 &&
-                  !p.hasMultipleRequirementsSections &&
+                  !p.hasUnmergedRequirementHeadings &&
                   p.update.exists &&
                   p.counts.removed > 0 &&
                   (await isRetirableSpec(specName, p.rebuilt));
@@ -652,11 +652,28 @@ export class ArchiveCommand {
                       ? ` The marker present now cannot be honored (${retirementMarker.invalidReason}).`
                       : '')
                   : undefined;
+                // The marker was set and retirement was still refused. Saying
+                // nothing left the author who did exactly what the docs asked
+                // back in the original dead end with no signal that their
+                // marker had been read at all.
+                // Only the unmerged-tail veto can reach this abort. A residual
+                // heading INSIDE the section still counts as a requirement to
+                // the validator, so that spec is valid and simply gets written -
+                // there is no dead end there to explain.
+                const refusalReason =
+                  retirementDeclared &&
+                  p.hasUnmergedRequirementHeadings &&
+                  (await isRetirableSpec(specName, p.rebuilt))
+                    ? `'${specName}' declares retire_capabilities, but the spec holds ### heading(s) past the end of ` +
+                      'its `## Requirements` section, which this merge does not read. Move them into that section, ' +
+                      'or delete the spec by hand.'
+                    : undefined;
                 if (json) {
                   throw new ArchiveBlockedError(
                     'archive_spec_validation_failed',
                     `Rebuilt spec for '${specName}' failed validation. No files were changed.`,
-                    retirementHint ??
+                    refusalReason ??
+                      retirementHint ??
                       `Run ${withStoreFlag(root, `openspec validate ${specName}`)} after fixing the change deltas.`
                   );
                 }
@@ -666,6 +683,7 @@ export class ArchiveCommand {
                   else if (issue.level === 'WARNING') console.log(chalk.yellow(`  ⚠ ${issue.message}`));
                 }
                 if (retirementHint) console.log(chalk.yellow(`  → ${retirementHint}`));
+                if (refusalReason) console.log(chalk.yellow(`  → ${refusalReason}`));
                 console.log('Aborted. No files were changed.');
                 process.exitCode = 1;
                 return null;
@@ -729,18 +747,29 @@ export class ArchiveCommand {
             // nominal path in either case sends the reader somewhere that does
             // not exist. `sourcePath` is set only when the file escaped the
             // specs tree, so it wins when present.
+            // Derived from the path that was unlinked, never rebuilt from the
+            // capability id: on a case-insensitive filesystem the id and the
+            // real directory can differ in case, and git is case-sensitive, so
+            // an id-derived path is one git rejects. `sourcePath` is set only
+            // when the file escaped the specs tree, so it wins when present.
             const deletedPath =
               sourcePath ??
               (isStoreSelectedRoot(root)
                 ? p.update.target
-                : `openspec/specs/${p.update.id}/spec.md`);
+                : path.relative(root.path, p.update.target).split(path.sep).join('/'));
             // Deliberately conditional. Whether this file is in `HEAD` is not
             // something archive knows - a spec an earlier archive CREATED and
             // nobody has committed yet is not, and for that one the command
             // below cannot work. Promising recovery outright would be the one
             // claim this feature must not get wrong, so it is phrased as the
             // condition it really is.
-            const recovery = `If it was committed, restore it with: git checkout HEAD -- ${deletedPath}`;
+            const recovery =
+              `If it was committed, restore it with: git checkout HEAD -- ${deletedPath}` +
+              // An absolute path here means the file did not live under the
+              // directory archive was run from - a selected store, or a
+              // symlinked capability directory - so the command has to be run
+              // in the checkout that actually holds it.
+              (path.isAbsolute(deletedPath) ? ' (from the checkout that holds it)' : '');
             const retirementNote =
               `${p.update.id} - capability retired; deleted the main spec (all requirements removed` +
               `, declared by retire_capabilities) at ${deletedPath}` +

@@ -101,18 +101,25 @@ export async function buildUpdatedSpec(
    */
   residualRequirementHeadings: string[];
   /**
-   * The spec has more than one `## Requirements` section.
+   * The tail this merge copies through untouched still holds a `###` heading.
    *
-   * `extractRequirementsSection` binds to the FIRST one, so every later section
-   * lands in the tail this merge copies through untouched - invisible to the
-   * residual-heading veto above, and invisible to `findOtherSections`, which
-   * filters every `## Requirements` out by title. The validator's section lookup
-   * stops at the first one too, so a second section holding a `SHALL` and a
-   * scenario passes `validate --strict` and would then be deleted with the file
-   * and never named in the report. Retirement is refused outright instead: a
-   * spec shaped like this is one no parser here reads the way its author does.
+   * `extractRequirementsSection` binds to the FIRST `## `-terminated section, so
+   * anything past that boundary rides through unexamined: the residual-heading
+   * veto above only sees the section body, `findOtherSections` reports `## `
+   * titles and filters `Requirements` out entirely, and the validator's own
+   * section lookup stops at the first one too. A `SHALL` with a scenario down
+   * there therefore passes `validate --strict` and would be deleted with the
+   * file, named nowhere.
+   *
+   * Read with the fence-only mask, deliberately, because that is the mask
+   * `extractRequirementsSection` used to choose the boundary. `findHeadings`
+   * masks HTML comments as well, and that one-mask difference was the bug: a
+   * multi-line comment holding a `## ` line ends the section for the merge while
+   * staying invisible to a comment-masking scan, so the tail it created could
+   * not be seen. Whatever the boundary turned out to be, this asks the same
+   * question about what ended up beyond it.
    */
-  hasMultipleRequirementsSections: boolean;
+  hasUnmergedRequirementHeadings: boolean;
   /**
    * Authored `## ` sections other than Purpose and Requirements. Retirement
    * deletes the whole file, so callers name these rather than discarding
@@ -486,12 +493,7 @@ export async function buildUpdatedSpec(
       /^###\s+(.+?)\s*$/
     ).filter((title) => !/^Requirement:/i.test(title)),
     otherSections: findOtherSections(rebuilt),
-    // Read off the ORIGINAL spec: the rebuilt one carries the same tail, but the
-    // question is about the file the author wrote.
-    hasMultipleRequirementsSections:
-      findHeadings(targetContent, /^##\s+(.+?)\s*$/).filter((title) =>
-        /^Requirements$/i.test(title)
-      ).length > 1,
+    hasUnmergedRequirementHeadings: hasHeadingsBeyondMergedSection(parts.after),
   };
 }
 
@@ -519,6 +521,22 @@ function findHeadings(content: string, pattern: RegExp): string[] {
     if (match) found.push(match[1]);
   }
   return found;
+}
+
+/**
+ * Whether the untouched tail after the merged Requirements section still holds a
+ * `###` heading - a requirement to any reader, whatever the parsers make of it.
+ *
+ * Masks fenced blocks and nothing else, matching the mask
+ * `extractRequirementsSection` used to pick the boundary. Masking HTML comments
+ * here too would reintroduce the blind spot this exists to close: a `## ` inside
+ * a multi-line comment is a boundary for that function, so the tail is real even
+ * though a comment-masking scan cannot see what created it.
+ */
+function hasHeadingsBeyondMergedSection(after: string): boolean {
+  const lines = after.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n').split('\n');
+  const fenceMask = buildCodeFenceMask(lines);
+  return lines.some((line, index) => !fenceMask[index] && /^###\s+/.test(line));
 }
 
 /**

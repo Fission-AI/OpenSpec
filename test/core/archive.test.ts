@@ -3066,6 +3066,66 @@ The system SHALL do the thing differently.
       );
     });
 
+    // `extractRequirementsSection` masks fences only, `findHeadings` masks HTML
+    // comments as well. That one-mask difference was a data-loss bug: a `##`
+    // inside a multi-line comment ends the section for the merge, so everything
+    // below it became a tail no comment-masking scan could see - and a
+    // `validate --strict`-clean spec was deleted with a live SHALL in it.
+    it('refuses to retire when a commented-out heading hid the section boundary', async () => {
+      const changeName = 'retire-comment-boundary';
+      await createChange(
+        changeName,
+        'audit',
+        '# Audit - Changes\n\n## REMOVED Requirements\n\n### Requirement: Audit trail\n**Reason**: x.\n**Migration**: None.\n'
+      );
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'audit');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const original = [
+        '# audit Specification',
+        '',
+        '## Purpose',
+        PURPOSE,
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: Audit trail',
+        'The system SHALL record an audit entry.',
+        '',
+        '#### Scenario: Recorded',
+        '- **WHEN** a privileged action runs',
+        '- **THEN** an entry is recorded',
+        '',
+        '<!-- duplicate header left over from an old split',
+        '## Purpose',
+        '-->',
+        '',
+        '### Seven year retention',
+        'The system SHALL retain audit entries for seven years.',
+        '',
+        '#### Scenario: Early purge refused',
+        '- **WHEN** a purge is attempted early',
+        '- **THEN** it is refused',
+        '',
+      ].join('\n');
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), original);
+
+      // Valid as written, which is what made the deletion silent.
+      expect((await new Validator().validateSpecContent('audit', original, 'strict')).valid).toBe(
+        true
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(process.exitCode).toBe(1);
+      await expect(fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8')).resolves.toBe(
+        original
+      );
+      // And the author is told why their marker was refused.
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('past the end of its `## Requirements` section')
+      );
+    });
+
     it('names the marker only when retiring would really fix it', async () => {
       // The same two-section spec, with no marker. The hint must stay quiet:
       // adding the marker would not have made this spec writable.

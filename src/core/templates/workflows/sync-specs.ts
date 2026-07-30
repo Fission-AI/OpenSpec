@@ -117,7 +117,9 @@ ${STORE_SELECTION_GUIDANCE}
         3. the main spec was not already empty before this sync - if you removed
            nothing, change nothing;
         4. the change's \`.openspec.yaml\` declares \`retire_capabilities: true\`.
-        \`openspec archive\` draws exactly these four lines. Otherwise keep the
+        \`openspec archive\` requires all four, and refuses on two more it can
+        check and you cannot easily: a \`###\` heading past the end of the
+        \`## Requirements\` section, and a spec that is already gone. Otherwise keep the
         file: report what is left and let the user decide. An empty
         \`## Requirements\` fails \`openspec validate\`, so say so rather than saving
         one silently. When only the marker is missing, say that too - it is the one
@@ -367,7 +369,9 @@ ${STORE_SELECTION_GUIDANCE}
         3. the main spec was not already empty before this sync - if you removed
            nothing, change nothing;
         4. the change's \`.openspec.yaml\` declares \`retire_capabilities: true\`.
-        \`openspec archive\` draws exactly these four lines. Otherwise keep the
+        \`openspec archive\` requires all four, and refuses on two more it can
+        check and you cannot easily: a \`###\` heading past the end of the
+        \`## Requirements\` section, and a spec that is already gone. Otherwise keep the
         file: report what is left and let the user decide. An empty
         \`## Requirements\` fails \`openspec validate\`, so say so rather than saving
         one silently. When only the marker is missing, say that too - it is the one
