@@ -1,4 +1,5 @@
 import { constants, promises as fs } from 'fs';
+import { createHash } from 'crypto';
 import path from 'path';
 import { formatLocalDate } from '../utils/date.js';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
@@ -71,6 +72,22 @@ export async function isRetirableSpec(specName: string, rebuilt: string): Promis
  */
 type SpecOutcome = 'write' | 'retire' | 'skip';
 
+async function isRetirementCandidate(
+  update: SpecUpdate,
+  built: Pick<
+    Awaited<ReturnType<typeof buildUpdatedSpec>>,
+    'rebuilt' | 'noRequirementBlocks' | 'unaccountedContent'
+  >,
+  skipValidation: boolean
+): Promise<boolean> {
+  return (
+    !skipValidation &&
+    built.noRequirementBlocks &&
+    built.unaccountedContent.length === 0 &&
+    (await isRetirableSpec(update.id, built.rebuilt))
+  );
+}
+
 async function decideSpecOutcome(
   update: SpecUpdate,
   built: Awaited<ReturnType<typeof buildUpdatedSpec>>,
@@ -95,15 +112,11 @@ async function decideSpecOutcome(
   // Under --no-validate there is no verdict to lean on, so nothing is retired:
   // the author opted out of the check that makes this safe, and the old
   // behavior (write the spec) loses nothing.
-  const retirable =
-    !skipValidation &&
-    built.noRequirementBlocks &&
-    // Nothing in the file this merge cannot account for. Asked as "did anything
-    // land outside the parts I understand" rather than "does anything look like
-    // a requirement" - the second question is the one six review rounds each
-    // found a new way to answer wrongly.
-    built.unaccountedContent.length === 0 &&
-    (await isRetirableSpec(update.id, built.rebuilt));
+  // Nothing in the file may sit outside the parts the merge understands. Asked
+  // as "did anything land outside the parts I understand" rather than "does
+  // anything look like a requirement" - the second question is the one six
+  // review rounds each found a new way to answer wrongly.
+  const retirable = await isRetirementCandidate(update, built, skipValidation);
 
   if (!retirable) return 'write';
   // Nothing on disk to write or retire: the capability is already retired.
@@ -403,32 +416,90 @@ async function claimArchiveDestination(
 interface SpecSnapshot {
   target: string;
   existed: boolean;
+  outcome: 'write' | 'retire';
+  expectedContent?: Buffer;
   content?: Buffer;
+  contentExisted?: boolean;
   mode?: number;
   symlink?: string;
 }
 
-async function captureSpecSnapshots(updates: SpecUpdate[]): Promise<SpecSnapshot[]> {
+interface SpecMutation {
+  update: SpecUpdate;
+  outcome: 'write' | 'retire';
+  rebuilt: string;
+}
+
+async function fingerprintPath(filePath: string): Promise<string> {
+  try {
+    const stat = await fs.lstat(filePath);
+    const digest = async (): Promise<string> =>
+      createHash('sha256').update(await fs.readFile(filePath)).digest('hex');
+    if (stat.isSymbolicLink()) {
+      const link = await fs.readlink(filePath);
+      try {
+        return `symlink:${link}:${await digest()}`;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+          return `symlink:${link}:missing`;
+        }
+        throw error;
+      }
+    }
+    if (stat.isFile()) return `file:${await digest()}`;
+    return `other:${stat.mode}`;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return 'missing';
+    throw error;
+  }
+}
+
+async function fingerprintSpecInputs(update: SpecUpdate): Promise<string> {
+  return `${await fingerprintPath(update.source)}\n${await fingerprintPath(update.target)}`;
+}
+
+async function captureSpecSnapshots(mutations: SpecMutation[]): Promise<SpecSnapshot[]> {
   return Promise.all(
-    updates.map(async (update) => {
+    mutations.map(async ({ update, outcome, rebuilt }) => {
       try {
         const stat = await fs.lstat(update.target);
         if (stat.isSymbolicLink()) {
+          let content: Buffer | undefined;
+          let contentExisted = false;
+          if (outcome === 'write') {
+            try {
+              content = await fs.readFile(update.target);
+              contentExisted = true;
+            } catch (error) {
+              if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+            }
+          }
           return {
             target: update.target,
             existed: true,
+            outcome,
+            ...(outcome === 'write' ? { expectedContent: Buffer.from(rebuilt) } : {}),
+            content,
+            contentExisted,
             symlink: await fs.readlink(update.target),
           };
         }
         return {
           target: update.target,
           existed: true,
+          outcome,
+          ...(outcome === 'write' ? { expectedContent: Buffer.from(rebuilt) } : {}),
           ...(stat.isFile() ? { content: await fs.readFile(update.target) } : {}),
           ...(stat.isFile() ? { mode: stat.mode } : {}),
         };
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-          return { target: update.target, existed: false };
+          return {
+            target: update.target,
+            existed: false,
+            outcome,
+            ...(outcome === 'write' ? { expectedContent: Buffer.from(rebuilt) } : {}),
+          };
         }
         throw error;
       }
@@ -437,34 +508,99 @@ async function captureSpecSnapshots(updates: SpecUpdate[]): Promise<SpecSnapshot
 }
 
 async function restoreSpecSnapshots(snapshots: SpecSnapshot[]): Promise<void> {
+  const errors: Error[] = [];
   for (const snapshot of [...snapshots].reverse()) {
-    if (!snapshot.existed) {
-      await fs.rm(snapshot.target, { force: true });
-      continue;
-    }
-    if (snapshot.symlink !== undefined) {
-      try {
-        const current = await fs.lstat(snapshot.target);
+    try {
+      if (snapshot.outcome === 'retire') {
+        try {
+          const current = await fs.lstat(snapshot.target);
+          const unchangedSymlink =
+            snapshot.symlink !== undefined &&
+            current.isSymbolicLink() &&
+            (await fs.readlink(snapshot.target)) === snapshot.symlink;
+          const unchangedFile =
+            snapshot.symlink === undefined &&
+            snapshot.content !== undefined &&
+            current.isFile() &&
+            (await fs.readFile(snapshot.target)).equals(snapshot.content);
+          if (unchangedSymlink || unchangedFile) continue;
+          throw new Error(
+            `Archive rollback would overwrite a concurrent change at ${snapshot.target}.`
+          );
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+        }
+      } else {
+        let current;
+        try {
+          current = await fs.lstat(snapshot.target);
+        } catch (error) {
+          if (
+            (error as NodeJS.ErrnoException).code === 'ENOENT' &&
+            !snapshot.existed
+          ) {
+            continue;
+          }
+          throw error;
+        }
         if (
-          !current.isSymbolicLink() ||
-          (await fs.readlink(snapshot.target)) !== snapshot.symlink
+          (snapshot.symlink !== undefined &&
+            (!current.isSymbolicLink() ||
+              (await fs.readlink(snapshot.target)) !== snapshot.symlink)) ||
+          (snapshot.symlink === undefined && !current.isFile())
         ) {
           throw new Error(
             `Archive rollback would overwrite a concurrent change at ${snapshot.target}.`
           );
         }
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-        await fs.mkdir(path.dirname(snapshot.target), { recursive: true });
-        await fs.symlink(snapshot.symlink, snapshot.target);
+        const currentContent = await fs.readFile(snapshot.target);
+        const originalContent =
+          snapshot.symlink !== undefined && !snapshot.contentExisted
+            ? undefined
+            : snapshot.content;
+        if (
+          originalContent !== undefined &&
+          currentContent.equals(originalContent)
+        ) {
+          continue;
+        }
+        if (
+          snapshot.expectedContent === undefined ||
+          !currentContent.equals(snapshot.expectedContent)
+        ) {
+          throw new Error(
+            `Archive rollback would overwrite a concurrent change at ${snapshot.target}.`
+          );
+        }
       }
-      continue;
+
+      if (!snapshot.existed) {
+        await fs.rm(snapshot.target, { force: true });
+        continue;
+      }
+      if (snapshot.symlink !== undefined) {
+        if (snapshot.outcome === 'retire') {
+          await fs.mkdir(path.dirname(snapshot.target), { recursive: true });
+          await fs.symlink(snapshot.symlink, snapshot.target);
+        } else if (snapshot.contentExisted) {
+          await fs.writeFile(snapshot.target, snapshot.content!);
+        } else {
+          const referent = path.resolve(path.dirname(snapshot.target), snapshot.symlink);
+          await fs.rm(referent, { force: true });
+        }
+        continue;
+      }
+      if (snapshot.content !== undefined) {
+        await fs.mkdir(path.dirname(snapshot.target), { recursive: true });
+        await fs.writeFile(snapshot.target, snapshot.content);
+        if (snapshot.mode !== undefined) await fs.chmod(snapshot.target, snapshot.mode);
+      }
+    } catch (error) {
+      errors.push(error instanceof Error ? error : new Error(String(error)));
     }
-    if (snapshot.content !== undefined) {
-      await fs.mkdir(path.dirname(snapshot.target), { recursive: true });
-      await fs.writeFile(snapshot.target, snapshot.content);
-      if (snapshot.mode !== undefined) await fs.chmod(snapshot.target, snapshot.mode);
-    }
+  }
+  if (errors.length > 0) {
+    throw new Error(errors.map(({ message }) => message).join(' '));
   }
 }
 
@@ -820,11 +956,19 @@ export class ArchiveCommand {
           outcome: SpecOutcome;
           noRequirementBlocks: boolean;
           unaccountedContent: string[];
+          inputFingerprint: string;
         }> = [];
         let prepareError: unknown;
         try {
           for (const update of specUpdates) {
+            const inputBeforeBuild = await fingerprintSpecInputs(update);
             const built = await buildUpdatedSpec(update, changeName!, { silent: true });
+            const inputAfterBuild = await fingerprintSpecInputs(update);
+            if (inputBeforeBuild !== inputAfterBuild) {
+              throw new Error(
+                `Spec inputs for '${update.id}' changed while archive was preparing the preview.`
+              );
+            }
             prepared.push({
               update,
               rebuilt: built.rebuilt,
@@ -837,6 +981,7 @@ export class ArchiveCommand {
               ),
               noRequirementBlocks: built.noRequirementBlocks,
               unaccountedContent: built.unaccountedContent,
+              inputFingerprint: inputAfterBuild,
             });
             specWarnings.push(...built.warnings);
           }
@@ -884,6 +1029,15 @@ export class ArchiveCommand {
           // delete a requirement added while the prompt was waiting.
           if (prepareError === undefined) {
             try {
+              const currentRetirementMarker = readRetireCapabilitiesMarker(changeDir);
+              if (
+                currentRetirementMarker.declared !== retirementMarker.declared ||
+                currentRetirementMarker.invalidReason !== retirementMarker.invalidReason
+              ) {
+                throw new Error(
+                  `The ${METADATA_FILENAME} retirement authorization changed while archive was awaiting confirmation.`
+                );
+              }
               const currentUpdates = await findSpecUpdates(changeDir, mainSpecsDir);
               const currentById = new Map(currentUpdates.map((update) => [update.id, update]));
               if (currentUpdates.length !== prepared.length) {
@@ -894,6 +1048,12 @@ export class ArchiveCommand {
                 if (!current) {
                   throw new Error(
                     `The delta for '${proposed.update.id}' changed while archive was awaiting confirmation.`
+                  );
+                }
+                if ((await fingerprintSpecInputs(current)) !== proposed.inputFingerprint) {
+                  throw new Error(
+                    `Spec inputs for '${proposed.update.id}' changed while archive was awaiting confirmation. ` +
+                      'No files were changed; review the new content and rerun.'
                   );
                 }
                 const rebuilt = await buildUpdatedSpec(current, changeName!, { silent: true });
@@ -955,11 +1115,9 @@ export class ArchiveCommand {
                 // sends someone after a marker that would not have helped.
                 const retirementWouldFix =
                   !retirementDeclared &&
-                  p.noRequirementBlocks &&
-                  p.unaccountedContent.length === 0 &&
                   p.update.exists &&
                   p.counts.removed > 0 &&
-                  (await isRetirableSpec(specName, p.rebuilt));
+                  (await isRetirementCandidate(p.update, p, false));
                 const retirementHint = retirementWouldFix
                   ? `This change removes the last requirement '${specName}' has. To retire the` +
                     ` capability and delete its spec, add \`retire_capabilities: true\` to the` +
@@ -1023,7 +1181,11 @@ export class ArchiveCommand {
                   (outcome === 'write' &&
                     counts.added + counts.modified + counts.removed + counts.renamed > 0)
               )
-              .map(({ update }) => update)
+              .map(({ update, outcome, rebuilt }) => ({
+                update,
+                outcome: outcome as 'write' | 'retire',
+                rebuilt,
+              }))
           );
           await moveDirectory(changeDir, archivePath);
           changeArchived = true;

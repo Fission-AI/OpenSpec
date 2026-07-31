@@ -334,6 +334,6 @@ The archive command SHALL validate changes before applying them to ensure data i
 **Task checking**: Prevents accidental archiving of incomplete work
 **Date prefixing**: Maintains chronological order and prevents naming conflicts; a name that already carries a date prefix keeps it, so archived names never stack dates
 **No overwrite**: Preserves historical archives and prevents data loss
-**Spec updates before archiving**: Specs in the main directory represent current reality; when a change is deployed and archived, its future state specs become the new reality and must replace the main specs
+**Archive-first transaction**: The destination is claimed and the change is moved before main specs are mutated; if a spec update fails, both the specs and active change location are rolled back
 **Confirmation for spec updates**: Provides visibility into what will change, prevents accidental overwrites, and ensures users understand the impact before specs are modified
 **--yes flag for automation**: Allows CI/CD pipelines to archive without interactive prompts while maintaining safety by default for manual use

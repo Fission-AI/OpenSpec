@@ -634,6 +634,14 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
       // example is not a heading to any reader. Flagging them made a spec that
       // merely documents a command unretirable.
       if (mask[index]) continue;
+      if (
+        index > 1 &&
+        /^ {0,3}(?:=+|-+)\s*$/.test(line) &&
+        lines[index - 1].trim()
+      ) {
+        leftovers.push(lines[index - 1].trim());
+        continue;
+      }
       if (/^ {0,3}####\s+Scenario:/i.test(line)) {
         seenScenario = true;
         inScenarioBullets = true;
@@ -718,14 +726,28 @@ export async function retireSpec(
     realSource = link.isSymbolicLink() ? undefined : await fs.realpath(update.target);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { retired: false };
-    realSource = undefined;
+    throw new Error(
+      `Could not retire capability '${update.id}': could not verify ${update.target} ` +
+        `before deletion (${error instanceof Error ? error.message : String(error)}).`
+    );
   }
 
-  if (realSource !== undefined && !(await isInsideRealDir(realSource, mainSpecsDir))) {
-    throw new Error(
-      `Could not retire capability '${update.id}': ${update.target} resolves outside ` +
-        `${mainSpecsDir}. Remove the external file by hand, or replace the symlink and rerun.`
-    );
+  if (realSource !== undefined) {
+    let inside: boolean;
+    try {
+      inside = await isInsideRealDir(realSource, mainSpecsDir);
+    } catch (error) {
+      throw new Error(
+        `Could not retire capability '${update.id}': could not verify that ${update.target} ` +
+          `is inside ${mainSpecsDir} (${error instanceof Error ? error.message : String(error)}).`
+      );
+    }
+    if (!inside) {
+      throw new Error(
+        `Could not retire capability '${update.id}': ${update.target} resolves outside ` +
+          `${mainSpecsDir}. Remove the external file by hand, or replace the symlink and rerun.`
+      );
+    }
   }
 
   try {
@@ -757,13 +779,7 @@ export async function retireSpec(
 
 /** Whether `realPath` (already canonical) sits under the real `dir`. */
 async function isInsideRealDir(realPath: string, dir: string): Promise<boolean> {
-  let realDir: string;
-  try {
-    realDir = await fs.realpath(dir);
-  } catch {
-    // No root to measure against: say nothing rather than claim an escape.
-    return true;
-  }
+  const realDir = await fs.realpath(dir);
   return realPath.startsWith(realDir + path.sep);
 }
 
