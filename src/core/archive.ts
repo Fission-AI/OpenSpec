@@ -558,6 +558,32 @@ export class ArchiveCommand {
           }
         }
 
+        // Build the proposed updates before asking permission to apply them.
+        // buildUpdatedSpec also reports content that the merge would drop, so
+        // the confirmation must come after this preview.
+        const prepared: Array<{
+          update: SpecUpdate;
+          rebuilt: string;
+          counts: { added: number; modified: number; removed: number; renamed: number };
+        }> = [];
+        let prepareError: unknown;
+        try {
+          for (const update of specUpdates) {
+            const built = await buildUpdatedSpec(update, changeName!, { silent: true });
+            prepared.push({ update, rebuilt: built.rebuilt, counts: built.counts });
+            specWarnings.push(...built.warnings);
+          }
+        } catch (err: unknown) {
+          // A user may still decline spec updates and archive the change, as
+          // before this preview existed. Defer the error until they accept.
+          prepareError = err;
+        }
+        if (prepareError === undefined && !json) {
+          for (const warning of specWarnings) {
+            console.log(chalk.yellow(`⚠️  Warning: ${warning}`));
+          }
+        }
+
         let shouldUpdateSpecs = true;
         if (!options.yes) {
           if (json) {
@@ -585,32 +611,24 @@ export class ArchiveCommand {
         }
 
         if (shouldUpdateSpecs) {
-          // Prepare all updates first (validation pass, no writes)
-          const prepared: Array<{ update: SpecUpdate; rebuilt: string; counts: { added: number; modified: number; removed: number; renamed: number } }> = [];
-          try {
-            for (const update of specUpdates) {
-              const built = await buildUpdatedSpec(update, changeName!, { silent: json });
-              prepared.push({ update, rebuilt: built.rebuilt, counts: built.counts });
-              // Carried into the result so JSON mode (where nothing was
-              // printed) still surfaces them; human mode discards the result.
-              specWarnings.push(...built.warnings);
-            }
-          } catch (err: any) {
+          if (prepareError !== undefined) {
+            const message =
+              prepareError instanceof Error ? prepareError.message : String(prepareError);
             if (json) {
               throw new ArchiveBlockedError(
                 'archive_spec_update_failed',
-                String(err.message || err),
+                message,
                 'Fix the change delta specs and rerun. No files were changed.'
               );
             }
-            console.log(String(err.message || err));
+            console.log(message);
             console.log('Aborted. No files were changed.');
             process.exitCode = 1;
             return null;
           }
 
-          // Validate every rebuilt spec before writing any of them, so a
-          // late validation failure really does leave all targets unchanged.
+          // Validate every rebuilt spec before writing any of them, so a late
+          // validation failure really does leave all targets unchanged.
           if (!skipValidation) {
             for (const p of prepared) {
               const specName = p.update.id;
