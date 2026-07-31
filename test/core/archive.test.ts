@@ -1842,6 +1842,132 @@ Then expected result happens`;
       expect(archives[0]).toMatch(new RegExp(`\\d{4}-\\d{2}-\\d{2}-${changeName}`));
     });
 
+    it('warns about absorbed content before asking to apply the destructive spec update', async () => {
+      const { confirm } = await import('@inquirer/prompts');
+      const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
+      const changeName = 'warn-before-spec-update';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'demo');
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'demo');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+      await fs.mkdir(mainSpecDir, { recursive: true });
+
+      const mainSpec = `# demo Specification
+
+## Purpose
+This capability exists to exercise archive warning behavior.
+
+## Requirements
+
+### Requirement: Target
+The system SHALL target.
+
+#### Scenario: Target works
+- **WHEN** it runs
+- **THEN** it works
+
+   ### Notes
+Keep this note.
+
+### Requirement: Survivor
+The system SHALL survive.
+
+#### Scenario: Survivor works
+- **WHEN** it runs
+- **THEN** it survives
+`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainSpec);
+      await fs.writeFile(
+        path.join(changeSpecDir, 'spec.md'),
+        `# demo - Changes
+
+## REMOVED Requirements
+
+### Requirement: Target
+**Reason**: It is obsolete.
+`
+      );
+
+      mockConfirm.mockReset();
+      mockConfirm.mockImplementationOnce(async () => {
+        expect(console.log).toHaveBeenCalledWith(
+          expect.stringContaining('"### Notes" sits inside requirement "Target"')
+        );
+        return false;
+      });
+
+      await archiveCommand.execute(changeName);
+
+      expect(mockConfirm).toHaveBeenCalledWith({
+        message: 'Proceed with spec updates?',
+        default: true,
+      });
+      await expect(fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8')).resolves.toBe(mainSpec);
+      await expect(fs.access(changeDir)).rejects.toThrow();
+    });
+
+    it('prints the loss warning before --yes writes the spec', async () => {
+      const changeName = 'warn-before-yes-write';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'demo');
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'demo');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(
+        path.join(mainSpecDir, 'spec.md'),
+        `# demo Specification
+
+## Purpose
+This capability exists to exercise archive warning behavior.
+
+## Requirements
+
+### Requirement: Target
+The system SHALL target.
+
+#### Scenario: Target works
+- **WHEN** it runs
+- **THEN** it works
+
+   ### Notes
+Keep this note.
+
+### Requirement: Survivor
+The system SHALL survive.
+
+#### Scenario: Survivor works
+- **WHEN** it runs
+- **THEN** it survives
+`
+      );
+      await fs.writeFile(
+        path.join(changeSpecDir, 'spec.md'),
+        `# demo - Changes
+
+## REMOVED Requirements
+
+### Requirement: Target
+**Reason**: It is obsolete.
+`
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      const output = (
+        console.log as unknown as { mock: { calls: unknown[][] } }
+      ).mock.calls.flat().map(String);
+      const warningIndex = output.findIndex((line) =>
+        line.includes('"### Notes" sits inside requirement "Target"')
+      );
+      const successIndex = output.indexOf('Specs updated successfully.');
+      expect(warningIndex).toBeGreaterThanOrEqual(0);
+      expect(successIndex).toBeGreaterThan(warningIndex);
+      await expect(fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8')).resolves.not.toContain(
+        'Keep this note.'
+      );
+      await expect(fs.access(changeDir)).rejects.toThrow();
+    });
+
     it('should support header trim-only normalization for matching', async () => {
       const changeName = 'normalize-headers';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);

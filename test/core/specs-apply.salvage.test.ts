@@ -79,6 +79,7 @@ describe('buildUpdatedSpec (content absorbed into a requirement)', () => {
     { what: 'an indented note', line: '   ### Notes' },
     { what: 'an unindented note', line: '### Notes' },
     { what: 'an indented requirement header', line: '   ### Requirement: Absorbed' },
+    { what: 'an empty ATX heading', line: '###' },
   ])('warns that $what goes with the requirement it sits in', async ({ line }) => {
     const { warnings } = await build(SPEC([line, 'Kept by hand.']), REMOVE);
     expect(warnings.join('\n')).toContain(line.trim());
@@ -121,6 +122,107 @@ describe('buildUpdatedSpec (content absorbed into a requirement)', () => {
     // foreign content.
     const { warnings } = await build(SPEC([]), REMOVE);
     expect(warnings.join('\n')).not.toContain('Scenario');
+  });
+
+  it('does not warn when RENAMED carries the full absorbed tail forward', async () => {
+    const tail = ['   ### Notes', 'Kept by hand.'];
+    const { rebuilt, counts, warnings } = await build(SPEC(tail), [
+      '# demo - Changes',
+      '',
+      '## RENAMED Requirements',
+      '',
+      '- FROM: `### Requirement: Target`',
+      '- TO: `### Requirement: Renamed`',
+      '',
+    ]);
+
+    expect(rebuilt).toContain(tail.join('\n'));
+    expect(counts.renamed).toBe(1);
+    expect(warnings.join('\n')).not.toContain('goes with it');
+  });
+
+  it('does not warn when MODIFIED carries the full absorbed tail forward', async () => {
+    const tail = ['   ### Notes', 'Kept by hand.'];
+    const { rebuilt, counts, warnings } = await build(SPEC(tail), [
+      '# demo - Changes',
+      '',
+      '## MODIFIED Requirements',
+      '',
+      ...REQUIREMENT,
+      '',
+      ...tail,
+      '',
+    ]);
+
+    expect(rebuilt).toContain(tail.join('\n'));
+    expect(counts.modified).toBe(0);
+    expect(warnings.join('\n')).not.toContain('goes with it');
+  });
+
+  it('warns when MODIFIED keeps the heading but drops part of the absorbed tail', async () => {
+    const tail = ['   ### Notes', 'Kept by hand.'];
+    const { rebuilt, warnings } = await build(SPEC(tail), [
+      '# demo - Changes',
+      '',
+      '## MODIFIED Requirements',
+      '',
+      ...REQUIREMENT,
+      '',
+      tail[0],
+      '',
+    ]);
+
+    expect(rebuilt).not.toContain(tail[1]);
+    expect(warnings.join('\n')).toContain(tail[0].trim());
+    expect(warnings.join('\n')).toContain('goes with it');
+  });
+
+  it('does not let an identical earlier copy mask loss of the absorbed tail', async () => {
+    const repeated = ['   ### Notes', 'Kept by hand.'];
+    const requirementWithExample = [
+      '### Requirement: Target',
+      'The system SHALL target.',
+      '',
+      '```markdown',
+      ...repeated,
+      '```',
+      '',
+      '#### Scenario: S',
+      '- **WHEN** a',
+      '- **THEN** b',
+    ];
+    const spec = [
+      '# demo Specification',
+      '',
+      '## Purpose',
+      'Why this exists.',
+      '',
+      '## Requirements',
+      '',
+      ...requirementWithExample,
+      '',
+      ...repeated,
+      '',
+      '### Requirement: Other',
+      'The system SHALL other.',
+      '',
+      '#### Scenario: T',
+      '- **WHEN** c',
+      '- **THEN** d',
+      '',
+    ];
+    const { rebuilt, warnings } = await build(spec, [
+      '# demo - Changes',
+      '',
+      '## MODIFIED Requirements',
+      '',
+      ...requirementWithExample,
+      '',
+    ]);
+
+    expect(rebuilt).toContain(repeated.join('\n'));
+    expect(warnings.join('\n')).toContain(repeated[0].trim());
+    expect(warnings.join('\n')).toContain('goes with it');
   });
 
   it('rewrites the spec exactly as before - nothing is moved', async () => {
