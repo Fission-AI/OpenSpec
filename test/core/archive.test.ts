@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, onTestFinished, vi } from 'vitest';
 import { ArchiveCommand, isRetirableSpec } from '../../src/core/archive.js';
 import { retireSpec } from '../../src/core/specs-apply.js';
 import { Validator } from '../../src/core/validation/validator.js';
@@ -3122,7 +3122,7 @@ The system SHALL do the thing differently.
       );
       // And the author is told why their marker was refused.
       expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('content outside its requirements that deleting the file would take with it')
+        expect.stringContaining('content the merge cannot safely account for')
       );
     });
 
@@ -3358,13 +3358,10 @@ The system SHALL do the thing differently.
         const changeName = 'retire-outside';
         await createChange(changeName, 'legacy-layer', REMOVE_ALL);
 
-        await archiveCommand.execute(changeName, { yes: true, json: true });
-
-        const notes = JSON.parse(lastJsonPayload()).archive.warnings.join('\n');
-        // The symlink points elsewhere in the SAME repo, so a command still
-        // works there - and it names the path that was really unlinked, quoted,
-        // rather than the nominal one git would reject.
-        expect(notes).toContain('git checkout HEAD -- "out side/spec.md"');
+        await expect(
+          archiveCommand.execute(changeName, { yes: true })
+        ).rejects.toThrow(/resolves outside/);
+        await expect(fs.access(path.join(outside, 'spec.md'))).resolves.not.toThrow();
       }
     );
 
@@ -3382,7 +3379,7 @@ The system SHALL do the thing differently.
 
       const notes = JSON.parse(lastJsonPayload()).archive.warnings.join('\n');
       expect(notes).toContain(
-        'If it was committed, restore it with: git checkout HEAD -- openspec/specs/legacy-layer/spec.md'
+        'If it was committed, restore it with: git checkout HEAD -- ":(top)openspec/specs/legacy-layer/spec.md"'
       );
       expect(notes).not.toContain('Recover with: git checkout');
     });
@@ -3420,6 +3417,7 @@ The system SHALL do the thing differently.
       const target = path.join(capability, 'spec.md');
       await fs.writeFile(target, mainSpec('legacy-layer'));
       const realUnlink = fs.unlink.bind(fs);
+      onTestFinished(() => vi.restoreAllMocks());
       vi.spyOn(fs, 'unlink').mockImplementation(
         async (candidate: Parameters<typeof fs.unlink>[0]) => {
           if (String(candidate) === target) {
@@ -3437,7 +3435,6 @@ The system SHALL do the thing differently.
         )
       ).rejects.toThrow(/Could not retire capability 'legacy-layer'.*Remove it by hand/s);
 
-      vi.restoreAllMocks();
       await expect(fs.access(target)).resolves.not.toThrow();
     });
 
@@ -3465,7 +3462,7 @@ The system SHALL do the thing differently.
       // get the file back.
       expect(console.log).toHaveBeenCalledWith(
         expect.stringContaining(
-          'If it was committed, restore it with: git checkout HEAD -- openspec/specs/legacy-layer/spec.md'
+          'If it was committed, restore it with: git checkout HEAD -- ":(top)openspec/specs/legacy-layer/spec.md"'
         )
       );
       expect(console.log).toHaveBeenCalledWith(
@@ -3658,11 +3655,11 @@ The system SHALL do the thing differently.
         await fs.writeFile(path.join(linkedCapability, 'spec.md'), mainSpec('legacy-layer'));
         await fs.symlink(outside, path.join(tempDir, 'openspec', 'specs', 'platform'), 'dir');
 
-        await archiveCommand.execute(changeName, { yes: true });
+        await expect(
+          archiveCommand.execute(changeName, { yes: true })
+        ).rejects.toThrow(/resolves outside/);
 
-        // The spec file itself goes, exactly where a write would have landed...
-        await expect(fs.access(path.join(linkedCapability, 'spec.md'))).rejects.toThrow();
-        // ...but no directory outside the real specs root is removed.
+        await expect(fs.access(path.join(linkedCapability, 'spec.md'))).resolves.not.toThrow();
         await expect(fs.access(linkedCapability)).resolves.not.toThrow();
         await expect(fs.access(outside)).resolves.not.toThrow();
       }
@@ -3904,8 +3901,9 @@ The system SHALL do the thing differently.
           specsRoot,
           { silent: true }
         )
-      ).resolves.toMatchObject({ retired: true });
+      ).rejects.toThrow(/resolves outside/);
 
+      await expect(fs.access(path.join(sibling, 'spec.md'))).resolves.not.toThrow();
       await expect(fs.access(sibling)).resolves.not.toThrow();
       await expect(
         fs.access(path.join(tempDir, 'openspec', 'specs-extra'))
@@ -3959,6 +3957,42 @@ The system SHALL do the thing differently.
       expect(console.log).toHaveBeenCalledWith(
         expect.stringContaining('Totals: + 0, ~ 0, - 2, → 0')
       );
+    });
+
+    it('rolls back earlier retirements when a later retirement fails', async () => {
+      const changeName = 'retire-two-rollback';
+      const changeDir = await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const secondDelta = path.join(changeDir, 'specs', 'second-layer');
+      await fs.mkdir(secondDelta, { recursive: true });
+      await fs.writeFile(
+        path.join(secondDelta, 'spec.md'),
+        REMOVE_ALL.replace('Legacy Layer', 'Second Layer')
+      );
+      const targets = ['legacy-layer', 'second-layer'].map((capability) =>
+        path.join(tempDir, 'openspec', 'specs', capability, 'spec.md')
+      );
+      for (const [index, target] of targets.entries()) {
+        await fs.mkdir(path.dirname(target), { recursive: true });
+        await fs.writeFile(target, mainSpec(index === 0 ? 'legacy-layer' : 'second-layer'));
+      }
+
+      const realUnlink = fs.unlink.bind(fs);
+      onTestFinished(() => vi.restoreAllMocks());
+      vi.spyOn(fs, 'unlink').mockImplementation(async (candidate) => {
+        if (String(candidate).endsWith(`${path.sep}second-layer${path.sep}spec.md`)) {
+          throw Object.assign(new Error('permission denied'), { code: 'EACCES' });
+        }
+        return realUnlink(candidate);
+      });
+
+      await expect(
+        archiveCommand.execute(changeName, { yes: true })
+      ).rejects.toThrow(/failed to delete/);
+
+      for (const target of targets) {
+        await expect(fs.readFile(target, 'utf-8')).resolves.toContain('### Requirement:');
+      }
+      await expect(fs.access(changeDir)).resolves.not.toThrow();
     });
 
     it('does not retire under --no-validate, since nothing checked the result', async () => {
@@ -4045,7 +4079,7 @@ The system SHALL do the thing differently.
     });
 
     it.skipIf(process.platform === 'win32')(
-      'names the resolved path when a symlink put the spec outside the specs tree',
+      'refuses to retire through a capability symlink outside the specs tree',
       async () => {
         const changeName = 'retire-outside';
         await createChange(changeName, 'legacy-layer', REMOVE_ALL);
@@ -4056,16 +4090,12 @@ The system SHALL do the thing differently.
 
         await archiveCommand.execute(changeName, { yes: true, json: true });
 
-        const payload = JSON.parse(lastJsonPayload());
-        // The warning names where the file really was, not the nominal path.
-        // Root-relative, because this symlink still points inside the repo: an
-          // absolute path is reserved for one that genuinely leaves it, and is
-          // what routes the message to prose instead of a command.
-          expect(payload.archive.warnings.join('\n')).toContain('outside/legacy-layer/spec.md');
-        // The unlink follows the link exactly where a write would have gone...
-        await expect(fs.access(path.join(outside, 'spec.md'))).rejects.toThrow();
-        // ...but the directory outside the tree is left alone.
-        await expect(fs.access(outside)).resolves.not.toThrow();
+        expect(process.exitCode).toBe(1);
+        expect(lastJsonPayload()).toContain('resolves outside');
+        await expect(fs.access(path.join(outside, 'spec.md'))).resolves.not.toThrow();
+        await expect(
+          fs.access(path.join(tempDir, 'openspec', 'changes', changeName))
+        ).resolves.not.toThrow();
       }
     );
 
@@ -4094,6 +4124,40 @@ The system SHALL do the thing differently.
         expect(process.exitCode).toBe(1);
       }
     );
+
+    it('refuses to retire a reader-visible heading absorbed before a scenario', async () => {
+      const changeName = 'retire-indented-requirement';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const original = mainSpec(
+        'legacy-layer',
+        [
+          '### Requirement: The system SHALL provide a legacy layer',
+          'The system SHALL preserve legacy behavior.',
+          '',
+          '   ### Requirement: Reader-visible',
+          'The system SHALL keep this reader-visible requirement.',
+          '',
+          '#### Scenario: Legacy applies',
+          '- **WHEN** legacy behavior is requested',
+          '- **THEN** it remains available',
+        ].join('\n')
+      );
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      const target = path.join(mainSpecDir, 'spec.md');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(target, original);
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      await expect(fs.readFile(target, 'utf-8')).resolves.toBe(original);
+      expect(process.exitCode).toBe(1);
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('### Requirement: Reader-visible')
+      );
+      await expect(
+        fs.access(path.join(tempDir, 'openspec', 'changes', changeName))
+      ).resolves.not.toThrow();
+    });
 
     it.skipIf(process.platform === 'win32')(
       'does not claim it deleted the target of a symlinked spec.md',
@@ -4139,6 +4203,7 @@ The system SHALL do the thing differently.
       );
       // Claim the destination while the confirmation prompt is open.
       const { confirm } = await import('@inquirer/prompts');
+      onTestFinished(() => vi.mocked(confirm).mockReset());
       vi.mocked(confirm).mockImplementation(async () => {
         await fs.mkdir(archived, { recursive: true });
         await fs.writeFile(path.join(archived, 'squatter.txt'), 'mine now\n');
@@ -4148,6 +4213,10 @@ The system SHALL do the thing differently.
       // Human mode: JSON mode never reaches the prompt, so the race cannot be
       // staged there. The error carries the same diagnostic either way.
       await expect(archiveCommand.execute(changeName, {})).rejects.toThrow(/already exists/);
+      await expect(fs.access(path.join(mainSpecDir, 'spec.md'))).resolves.not.toThrow();
+      await expect(
+        fs.access(path.join(tempDir, 'openspec', 'changes', changeName))
+      ).resolves.not.toThrow();
     });
 
     it('reports the retirement, and where it went, in the --json warnings', async () => {
@@ -4172,7 +4241,7 @@ The system SHALL do the thing differently.
       // and a JSON consumer gets the recovery command too.
       const notes = payload.archive.warnings.join('\n');
       expect(notes).toContain('Purpose');
-      expect(notes).toContain('git checkout HEAD -- openspec/specs/legacy-layer/spec.md');
+      expect(notes).toContain('git checkout HEAD -- ":(top)openspec/specs/legacy-layer/spec.md"');
     });
 
     it('claims no retirement for a spec that was already gone', async () => {

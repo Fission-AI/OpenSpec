@@ -49,16 +49,16 @@ The agent SHALL reconcile main specs with delta specs using the delta operation 
 - **THEN** remove the requirement from main spec
 
 #### Scenario: REMOVED requirements retire the capability
-- **WHEN** removing the requirements named in the delta leaves `## Requirements` with no requirement blocks and no other `###` heading under it
-- **AND** the spec holds no `###` heading past the end of that section either, whatever put it there - a second `## Requirements` section, or a `##` line inside an HTML comment
+- **WHEN** removing the requirements named in the delta leaves no requirement blocks
+- **AND** every other nonblank line in the whole file is accounted for as the title, Purpose, Requirements header, or a canonical requirement's statement, scenarios, or fenced examples
 - **AND** the rest of the spec is well-formed and it was not already empty before this sync
 - **AND** the change declares `retire_capabilities: true` in its metadata
 - **THEN** delete that capability's `spec.md`, and its directory once nothing else remains in it
-- **AND** report the retirement, naming the `## Purpose` and any other sections the file held
+- **AND** report the retirement and name the deleted `## Purpose`
 - **AND** leave the file in place and say the marker is missing when it is not declared
 
-#### Scenario: Something is left under Requirements
-- **WHEN** any of those conditions fails - content remains under `## Requirements`, a `###` heading sits past the end of that section, the spec is malformed, or nothing was removed this run
+#### Scenario: Something is left in the spec
+- **WHEN** any of those conditions fails - unaccounted content remains anywhere in the file, the spec is malformed, or nothing was removed this run
 - **THEN** keep the file in place and report what is left, rather than deleting it
 
 #### Scenario: RENAMED requirements

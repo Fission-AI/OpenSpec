@@ -109,25 +109,22 @@ This is an **agent-driven** operation - you will read delta specs and directly e
       - Remove the entire requirement block from main spec
       - Retiring the capability. Delete the whole `spec.md` - and the directory once
         nothing else is left in it - only when ALL of these hold:
-        1. removing the requirements *this run* left `## Requirements` with no
-           requirement blocks and no other `###` heading under it;
+        1. removing the requirements *this run* left no requirement blocks;
         2. the rest of the spec is well-formed (it still has a `## Purpose`);
         3. the main spec was not already empty before this sync - if you removed
            nothing, change nothing;
-        4. the change's `.openspec.yaml` declares `retire_capabilities: true`.
-        `openspec archive` requires all four, and refuses on two more it can
-        check and you cannot easily: a `###` heading past the end of the
-        `## Requirements` section, and a spec that is already gone. Otherwise keep the
-        file: report what is left and let the user decide. An empty
+        4. every other nonblank line in the whole file is accounted for as the
+           title, Purpose, Requirements header, or a canonical requirement's
+           statement, scenarios, or fenced examples;
+        5. the change's `.openspec.yaml` declares `retire_capabilities: true`.
+        Otherwise keep the file: report what is left and let the user decide. An empty
         `## Requirements` fails `openspec validate`, so say so rather than saving
         one silently. When only the marker is missing, say that too - it is the one
         thing the user can add to make the retirement go through.
-      - Loose prose left under `## Requirements` does NOT block the retirement, and
-        the CLI cannot name it for you. Read it before you delete: quote it back to
-        the user, so a hand-written note is a decision rather than a casualty.
-      - Deleting the file also deletes its `## Purpose` and every other section it
-        held. Name them when you report the retirement, with the
-        `git checkout HEAD -- <path>` that brings the file back.
+      - Deleting the file also deletes its `## Purpose`; any other section blocks
+        retirement. Name Purpose when you report the retirement. Include a pasteable
+        `git checkout` only when the spec lived in the caller's checkout;
+        otherwise give checkout-scoped recovery guidance.
 
       **RENAMED Requirements:**
       - Find the FROM requirement, rename to TO

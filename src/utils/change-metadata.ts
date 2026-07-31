@@ -205,19 +205,22 @@ export function resolveSchemaForChange(
   return 'spec-driven';
 }
 
-export interface SkipSpecsMarker {
+export interface MetadataMarker {
   /**
    * True when the metadata parses under ChangeMetadataSchema, sets
-   * skip_specs: true, and names a schema that loads.
+   * the requested boolean marker to true, and names a schema that loads.
    */
   declared: boolean;
   /**
-   * Set when the marker cannot be honored: skip_specs appears in a file that
+   * Set when the marker cannot be honored: it appears in a file that
    * fails the metadata contract, or the metadata file exists but cannot be
    * read at all (so whether the marker is set cannot even be determined).
    */
   invalidReason?: string;
 }
+
+/** @deprecated Use MetadataMarker. */
+export type SkipSpecsMarker = MetadataMarker;
 
 /**
  * Non-throwing read of the skip_specs marker. The marker only counts when the
@@ -232,7 +235,7 @@ export interface SkipSpecsMarker {
  * Missing metadata means "not declared"; a marker that cannot be honored
  * yields invalidReason so callers can say why.
  */
-export function readSkipSpecsMarker(changeDir: string): SkipSpecsMarker {
+export function readSkipSpecsMarker(changeDir: string): MetadataMarker {
   return readBooleanMarker(changeDir, 'skip_specs');
 }
 
@@ -246,7 +249,7 @@ export function readSkipSpecsMarker(changeDir: string): SkipSpecsMarker {
  * (#1302). Declared rather than inferred because the delete is recoverable only
  * from git, so it is the author's call.
  */
-export function readRetireCapabilitiesMarker(changeDir: string): SkipSpecsMarker {
+export function readRetireCapabilitiesMarker(changeDir: string): MetadataMarker {
   return readBooleanMarker(changeDir, 'retire_capabilities');
 }
 
@@ -258,7 +261,7 @@ export function readRetireCapabilitiesMarker(changeDir: string): SkipSpecsMarker
 function readBooleanMarker(
   changeDir: string,
   key: 'skip_specs' | 'retire_capabilities'
-): SkipSpecsMarker {
+): MetadataMarker {
   let raw: string;
   try {
     raw = fs.readFileSync(path.join(changeDir, METADATA_FILENAME), 'utf-8');

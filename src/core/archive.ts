@@ -1,4 +1,4 @@
-import { promises as fs } from 'fs';
+import { constants, promises as fs } from 'fs';
 import path from 'path';
 import { formatLocalDate } from '../utils/date.js';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
@@ -296,16 +296,18 @@ function toArchiveDiagnostic(error: unknown): ArchiveDiagnostic {
 /**
  * Recursively copy a directory. Used when fs.rename fails (e.g. EPERM on Windows).
  */
-async function copyDirRecursive(src: string, dest: string): Promise<void> {
-  await fs.mkdir(dest, { recursive: true });
+async function copyDirContents(src: string, dest: string): Promise<void> {
   const entries = await fs.readdir(src, { withFileTypes: true });
   for (const entry of entries) {
     const srcPath = path.join(src, entry.name);
     const destPath = path.join(dest, entry.name);
     if (entry.isDirectory()) {
-      await copyDirRecursive(srcPath, destPath);
+      await fs.mkdir(destPath);
+      await copyDirContents(srcPath, destPath);
+    } else if (entry.isSymbolicLink()) {
+      await fs.symlink(await fs.readlink(srcPath), destPath);
     } else {
-      await fs.copyFile(srcPath, destPath);
+      await fs.copyFile(srcPath, destPath, constants.COPYFILE_EXCL);
     }
   }
 }
@@ -330,10 +332,118 @@ async function moveDirectory(src: string, dest: string): Promise<void> {
       );
     }
     if (code === 'EPERM' || code === 'EXDEV') {
-      await copyDirRecursive(src, dest);
-      await fs.rm(src, { recursive: true, force: true });
+      let destIsOurs = false;
+      try {
+        await fs.mkdir(dest);
+        destIsOurs = true;
+        await copyDirContents(src, dest);
+        await fs.rm(src, { recursive: true, force: true });
+      } catch (copyError) {
+        if (destIsOurs) {
+          await fs.rm(dest, { recursive: true, force: true }).catch(() => undefined);
+        }
+        if ((copyError as NodeJS.ErrnoException).code === 'EEXIST') {
+          throw new ArchiveBlockedError(
+            'archive_target_exists',
+            `Archive '${path.basename(dest)}' already exists.`
+          );
+        }
+        throw copyError;
+      }
     } else {
       throw err;
+    }
+  }
+}
+
+async function assertArchiveDestinationAvailable(
+  archivePath: string,
+  archiveName: string
+): Promise<void> {
+  try {
+    await fs.access(archivePath);
+    throw new ArchiveBlockedError(
+      'archive_target_exists',
+      `Archive '${archiveName}' already exists.`
+    );
+  } catch (error: any) {
+    if (error instanceof ArchiveBlockedError) throw error;
+    if (error.code !== 'ENOENT') throw error;
+  }
+}
+
+async function claimArchiveDestination(
+  archivePath: string,
+  archiveName: string
+): Promise<Awaited<ReturnType<typeof fs.open>>> {
+  try {
+    return await fs.open(`${archivePath}.lock`, 'wx');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+      throw new ArchiveBlockedError(
+        'archive_target_exists',
+        `Archive '${archiveName}' is already being created.`
+      );
+    }
+    throw error;
+  }
+}
+
+interface SpecSnapshot {
+  target: string;
+  existed: boolean;
+  content?: Buffer;
+  mode?: number;
+  symlink?: string;
+}
+
+async function captureSpecSnapshots(updates: SpecUpdate[]): Promise<SpecSnapshot[]> {
+  return Promise.all(
+    updates.map(async (update) => {
+      try {
+        const stat = await fs.lstat(update.target);
+        return {
+          target: update.target,
+          existed: true,
+          ...((stat.isFile() || stat.isSymbolicLink())
+            ? { content: await fs.readFile(update.target) }
+            : {}),
+          ...(stat.isFile() ? { mode: stat.mode } : {}),
+          ...(stat.isSymbolicLink() ? { symlink: await fs.readlink(update.target) } : {}),
+        };
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+          return { target: update.target, existed: false };
+        }
+        throw error;
+      }
+    })
+  );
+}
+
+async function restoreSpecSnapshots(snapshots: SpecSnapshot[]): Promise<void> {
+  for (const snapshot of [...snapshots].reverse()) {
+    if (!snapshot.existed) {
+      await fs.rm(snapshot.target, { force: true });
+      continue;
+    }
+    if (snapshot.symlink !== undefined) {
+      try {
+        await fs.lstat(snapshot.target);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+        await fs.mkdir(path.dirname(snapshot.target), { recursive: true });
+        await fs.symlink(snapshot.symlink, snapshot.target);
+      }
+      if (snapshot.content !== undefined) {
+        await fs.writeFile(snapshot.target, snapshot.content);
+      }
+      continue;
+    }
+    if (snapshot.content !== undefined) {
+      await fs.mkdir(path.dirname(snapshot.target), { recursive: true });
+      await fs.writeFile(snapshot.target, snapshot.content);
+      if (snapshot.mode !== undefined) await fs.chmod(snapshot.target, snapshot.mode);
     }
   }
 }
@@ -651,24 +761,18 @@ export class ArchiveCommand {
     const retirementMarker = readRetireCapabilitiesMarker(changeDir);
     const retirementDeclared = retirementMarker.declared;
 
-    let archiveExists = false;
-    try {
-      await fs.access(archivePath);
-      archiveExists = true;
-    } catch (error: any) {
-      if (error.code !== 'ENOENT') {
-        throw error;
-      }
-    }
-    if (archiveExists) {
-      throw new ArchiveBlockedError('archive_target_exists', `Archive '${archiveName}' already exists.`);
-    }
+    await assertArchiveDestinationAvailable(archivePath, archiveName);
+    await fs.mkdir(archiveDir, { recursive: true });
+    const claimPath = `${archivePath}.lock`;
+    let archiveClaim: Awaited<ReturnType<typeof fs.open>> | undefined;
 
-    // Handle spec updates unless skipSpecs flag is set
-    let specsUpdated = false;
-    let totals: ArchiveResult['totals'];
-    const specWarnings: string[] = [];
-    if (options.skipSpecs) {
+    try {
+      // Handle spec updates unless skipSpecs flag is set
+      let specsUpdated = false;
+      let totals: ArchiveResult['totals'];
+      const specWarnings: string[] = [];
+      let changeArchived = false;
+      if (options.skipSpecs) {
       if (!json) {
         console.log('Skipping spec updates (--skip-specs flag provided).');
       }
@@ -714,7 +818,7 @@ export class ArchiveCommand {
 
         if (shouldUpdateSpecs) {
           // Prepare all updates first (validation pass, no writes)
-          const prepared: Array<{ update: SpecUpdate; rebuilt: string; counts: { added: number; modified: number; removed: number; renamed: number }; outcome: SpecOutcome; otherSections: string[]; noRequirementBlocks: boolean; unaccountedContent: string[] }> = [];
+          const prepared: Array<{ update: SpecUpdate; rebuilt: string; counts: { added: number; modified: number; removed: number; renamed: number }; outcome: SpecOutcome; noRequirementBlocks: boolean; unaccountedContent: string[] }> = [];
           try {
             for (const update of specUpdates) {
               const built = await buildUpdatedSpec(update, changeName!, { silent: json });
@@ -723,7 +827,6 @@ export class ArchiveCommand {
                 rebuilt: built.rebuilt,
                 counts: built.counts,
                 outcome: await decideSpecOutcome(update, built, skipValidation, retirementDeclared),
-                otherSections: built.otherSections,
                 noRequirementBlocks: built.noRequirementBlocks,
                 unaccountedContent: built.unaccountedContent,
               });
@@ -788,11 +891,11 @@ export class ArchiveCommand {
                   retirementDeclared &&
                   p.unaccountedContent.length > 0 &&
                   (await isRetirableSpec(specName, p.rebuilt))
-                    ? `'${specName}' declares retire_capabilities, but the spec holds content outside its ` +
-                      `requirements that deleting the file would take with it: ` +
+                    ? `'${specName}' declares retire_capabilities, but the spec holds content the merge ` +
+                      `cannot safely account for and deleting the file would take with it: ` +
                       `${p.unaccountedContent.slice(0, 3).map((line) => `"${line}"`).join(', ')}` +
                       `${p.unaccountedContent.length > 3 ? `, and ${p.unaccountedContent.length - 3} more line(s)` : ''}. ` +
-                      'Move it under `## Requirements`, or delete the spec by hand.'
+                      'Move it into `## Purpose` or a canonical requirement, or delete the spec by hand.'
                     : undefined;
                 if (json) {
                   throw new ArchiveBlockedError(
@@ -817,10 +920,24 @@ export class ArchiveCommand {
             }
           }
 
-          // All validations passed; write files and display counts
-          const writeTotals = { added: 0, modified: 0, removed: 0, renamed: 0 };
-          let wroteAny = false;
-          for (const p of prepared) {
+          // A legitimate concurrent archive cannot pass the exclusive claim,
+          // while this catches an external process that created the final
+          // destination during a confirmation prompt. Check before the first
+          // spec mutation so a collision never strands a write or retirement.
+          await assertArchiveDestinationAvailable(archivePath, archiveName);
+          archiveClaim = await claimArchiveDestination(archivePath, archiveName);
+          await assertArchiveDestinationAvailable(archivePath, archiveName);
+          const specSnapshots = await captureSpecSnapshots(
+            prepared.map(({ update }) => update)
+          );
+          await moveDirectory(changeDir, archivePath);
+          changeArchived = true;
+
+          try {
+            // All validations passed; write files and display counts
+            const writeTotals = { added: 0, modified: 0, removed: 0, renamed: 0 };
+            let wroteAny = false;
+            for (const p of prepared) {
             // Deletions are deferred to the loop below.
             if (p.outcome !== 'write') continue;
             const { added, modified, removed, renamed } = p.counts;
@@ -839,14 +956,14 @@ export class ArchiveCommand {
             writeTotals.modified += modified;
             writeTotals.removed += removed;
             writeTotals.renamed += renamed;
-          }
+            }
 
-          // Retirements run only after every write has succeeded: they delete a
+            // Retirements run only after every write has succeeded: they delete a
           // file, and the write loop is not transactional. Retiring several
           // capabilities is still not atomic against itself - if a second
           // deletion fails the first is already done, which the thrown message
           // names so the state is at least legible.
-          for (const p of prepared) {
+            for (const p of prepared) {
             if (p.outcome !== 'retire') continue;
             const { retired, sourcePath, resolvedPath } = await retireSpec(p.update, mainSpecsDir, {
               silent: json,
@@ -866,7 +983,7 @@ export class ArchiveCommand {
             // spec-merge divergence is. Purpose always goes with the file, so it
             // is named too rather than left to the reader to work out, and the
             // note carries the command that brings the file back.
-            const lost = ['Purpose', ...p.otherSections];
+            const lost = ['Purpose'];
             // The path the file actually lived at. A store-selected root is not
             // under `openspec/` in the caller's repo, and a symlinked capability
             // directory puts the file somewhere else entirely - naming the
@@ -914,7 +1031,7 @@ export class ArchiveCommand {
             // claim this feature must not get wrong.
             const pasteablePath = path.isAbsolute(deletedPath)
               ? undefined
-              : quoteForShell(deletedPath);
+              : quoteForShell(`:(top)${deletedPath}`);
             const recovery = pasteablePath
               ? `If it was committed, restore it with: git checkout HEAD -- ${pasteablePath}`
               : `It was deleted from ${deletedPath}; if it was committed, restore it from that checkout's history.`;
@@ -928,20 +1045,13 @@ export class ArchiveCommand {
             // sections it took along, and how to get them back, are the parts
             // they cannot see from the path.
             if (!json) {
-              if (p.otherSections.length > 0) {
-                console.log(
-                  chalk.yellow(
-                    `⚠️  Warning: ${p.update.id} - the deleted spec also held section(s): ${p.otherSections.join(', ')}.`
-                  )
-                );
-              }
               console.log(`   ${recovery}`);
             }
-          }
+            }
 
-          specsUpdated = wroteAny;
-          totals = writeTotals;
-          if (!json) {
+            specsUpdated = wroteAny;
+            totals = writeTotals;
+            if (!json) {
             console.log(
               `Totals: + ${writeTotals.added}, ~ ${writeTotals.modified}, - ${writeTotals.removed}, → ${writeTotals.renamed}`
             );
@@ -950,40 +1060,49 @@ export class ArchiveCommand {
                 ? 'Specs updated successfully.'
                 : 'Specs already in sync; no files changed.'
             );
+            }
+          } catch (error) {
+            await restoreSpecSnapshots(specSnapshots);
+            await moveDirectory(archivePath, changeDir);
+            changeArchived = false;
+            throw error;
           }
         }
       }
     }
 
-    // The destination was checked before the merge, so anything claiming it now
+      // The destination was checked before the merge, so anything claiming it now
     // appeared while we were working. Report that as the collision it is: a raw
     // ENOTEMPTY from rename would otherwise degrade to a bare `archive_error`.
-    try {
-      await fs.access(archivePath);
-      throw new ArchiveBlockedError('archive_target_exists', `Archive '${archiveName}' already exists.`);
-    } catch (error: any) {
-      if (error instanceof ArchiveBlockedError) throw error;
-      if (error.code !== 'ENOENT') throw error;
+      if (!changeArchived) {
+        await assertArchiveDestinationAvailable(archivePath, archiveName);
+        archiveClaim = await claimArchiveDestination(archivePath, archiveName);
+        await assertArchiveDestinationAvailable(archivePath, archiveName);
+
+        // Create archive directory if needed
+        await fs.mkdir(archiveDir, { recursive: true });
+
+        // Move change to archive (uses copy+remove on EPERM/EXDEV, e.g. Windows)
+        await moveDirectory(changeDir, archivePath);
+        changeArchived = true;
+      }
+
+      if (!json) {
+        console.log(`Change '${changeName}' archived as '${archiveName}'.`);
+      }
+
+      return {
+        change: changeName,
+        archivedAs: archiveName,
+        path: archivePath,
+        specsUpdated,
+        ...(totals ? { totals } : {}),
+        ...(specWarnings.length > 0 ? { warnings: specWarnings } : {}),
+      };
+    } finally {
+      await archiveClaim?.close().catch(() => undefined);
+      if (archiveClaim) await fs.unlink(claimPath).catch(() => undefined);
     }
-
-    // Create archive directory if needed
-    await fs.mkdir(archiveDir, { recursive: true });
-
-    // Move change to archive (uses copy+remove on EPERM/EXDEV, e.g. Windows)
-    await moveDirectory(changeDir, archivePath);
-
-    if (!json) {
-      console.log(`Change '${changeName}' archived as '${archiveName}'.`);
-    }
-
-    return {
-      change: changeName,
-      archivedAs: archiveName,
-      path: archivePath,
-      specsUpdated,
-      ...(totals ? { totals } : {}),
-      ...(specWarnings.length > 0 ? { warnings: specWarnings } : {}),
-    };
   }
 
   private async selectChange(

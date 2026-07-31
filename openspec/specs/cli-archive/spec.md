@@ -160,9 +160,10 @@ A delta whose REMOVED entries cover every requirement a capability has SHALL ret
 - **AND** at least one requirement was actually removed by this run
 - **AND** the change declares `retire_capabilities: true`
 - **THEN** delete the capability's `spec.md` instead of writing it
-- **AND** delete any directory the deletion leaves empty, resolving symlinks so nothing outside the real specs root is removed, and never the specs root itself
+- **AND** refuse to delete when the target resolves outside the real specs root
+- **AND** delete any in-root directory the deletion leaves empty, and never the specs root itself
 - **AND** count every operation the delta applied in the archive totals
-- **AND** record the retirement in the archive warnings, naming the sections the deleted file held, the command that restores it from git, and the resolved path when a symlinked directory placed the file outside the specs tree
+- **AND** record the retirement in the archive warnings, naming what the deleted file held and giving a pasteable Git recovery command only when the spec lived in the caller's checkout
 
 #### Scenario: Retirement is deferred until every spec is written
 

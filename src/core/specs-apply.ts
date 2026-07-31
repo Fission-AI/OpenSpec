@@ -120,7 +120,6 @@ export async function buildUpdatedSpec(
    * deletes the whole file, so callers name these rather than discarding
    * hand-written prose silently.
    */
-  otherSections: string[];
 }> {
   // Collected so silent (JSON) callers can surface them; printed live for
   // human callers at the point they occur.
@@ -457,7 +456,8 @@ export async function buildUpdatedSpec(
     // only safe for one.
     if (replacement !== block) {
       const orphan = firstForeignLine(block.raw);
-      if (orphan) {
+      const replacementOrphan = replacement ? firstForeignLine(replacement.raw) : undefined;
+      if (orphan && orphan !== replacementOrphan) {
         warn(
           `${specName} - "${orphan}" sits inside requirement "${block.name}" and goes with it. ` +
             'Move it under its own requirement, or above `## Requirements`, to keep it.'
@@ -499,7 +499,6 @@ export async function buildUpdatedSpec(
     // the first requirement - it would veto `### Notes` written before the
     // requirements and miss the identical heading written after them.
     unaccountedContent: contentTheMergeCannotName(parts),
-    otherSections: findOtherSections(rebuilt),
   };
 }
 
@@ -523,32 +522,6 @@ function firstForeignLine(raw: string): string | undefined {
     if (/^ {0,3}#{1,3}\s/.test(lines[index])) return lines[index].trim();
   }
   return undefined;
-}
-
-/**
- * Structural headings matching `pattern`, ignoring anything inside a fenced code
- * block or an HTML comment - the same two things every other structural scan in
- * this file masks, because a commented-out or fenced heading is invisible to the
- * spec parsers but still sits in the file (#1413).
- */
-function findHeadings(content: string, pattern: RegExp): string[] {
-  const normalized = content.replace(/\r\n?/g, '\n');
-  const lines = normalized.split('\n');
-  // Fence first, then comments. The other order lets a `<!--` written inside a
-  // fenced example be read as real comment syntax, and an unterminated one there
-  // blanks the rest of the document - which would silently truncate this list.
-  const fenceMask = buildCodeFenceMask(lines);
-  const unfenced = lines.map((line, i) => (fenceMask[i] ? '' : line)).join('\n');
-  // Structure is read from the masked copy; titles come from the real lines so
-  // an author's own wording is reported verbatim.
-  const masked = maskHtmlComments(unfenced).split('\n');
-  const found: string[] = [];
-  for (let i = 0; i < masked.length; i++) {
-    if (!pattern.test(masked[i])) continue;
-    const match = lines[i].match(pattern);
-    if (match) found.push(match[1]);
-  }
-  return found;
 }
 
 /**
@@ -619,6 +592,9 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
   // a new header rides along in `raw` - tables, fences, comments, prose written
   // below the scenarios. Only a requirement's own parts are expected here.
   for (const block of parts.bodyBlocks) {
+    const foreignHeading = firstForeignLine(block.raw);
+    if (foreignHeading) leftovers.push(foreignHeading);
+
     const lines = block.raw.replace(/\r\n?/g, '\n').split('\n');
     const mask = buildCodeFenceMask(lines);
     let seenScenario = false;
@@ -666,19 +642,7 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
     }
   }
 
-  return leftovers;
-}
-
-/**
- * Authored `## ` headings other than Purpose and Requirements. Named so a
- * retirement can say what moved along with the spec, so duplicates are
- * collapsed - this list is read as prose, not as a count.
- */
-function findOtherSections(content: string): string[] {
-  const titles = findHeadings(content, /^##\s+(.+?)\s*$/).filter(
-    (title) => !/^(Purpose|Requirements)$/i.test(title)
-  );
-  return [...new Set(titles)];
+  return [...new Set(leftovers)];
 }
 
 /**
@@ -697,12 +661,10 @@ function findOtherSections(content: string): string[] {
  * Only the generated `spec.md` is removed - a directory holding anything else (a
  * nested capability, a hand-kept note) is left in place.
  *
- * The unlink is deliberately NOT bounded to the specs root: it targets exactly
- * the path a write would have written to, so a symlinked capability directory
- * resolves the same way for both. That does mean a symlinked directory lets the
- * unlink reach a file outside the repository, which `sourcePath` surfaces so the
- * report never hides where the file really was. A symlinked `spec.md` loses the
- * link and leaves its target alone.
+ * The target must resolve inside the selected specs root. A capability-directory
+ * symlink must not turn a retirement marker into authorization to delete an
+ * unrelated external file. A symlinked `spec.md` itself is safe: unlink removes
+ * the link and leaves its target alone.
  *
  * Directory pruning IS bounded, by REAL paths rather than string prefixes:
  * `path.resolve` collapses `..` but does not resolve symlinks, and `readdir` and
@@ -728,6 +690,13 @@ export async function retireSpec(
     realSource = undefined;
   }
 
+  if (realSource !== undefined && !(await isInsideRealDir(realSource, mainSpecsDir))) {
+    throw new Error(
+      `Could not retire capability '${update.id}': ${update.target} resolves outside ` +
+        `${mainSpecsDir}. Remove the external file by hand, or replace the symlink and rerun.`
+    );
+  }
+
   try {
     await fs.unlink(update.target);
   } catch (error) {
@@ -743,23 +712,15 @@ export async function retireSpec(
   await pruneEmptyDirs(path.dirname(update.target), mainSpecsDir);
 
   const nominal = options.displayPath ?? `openspec/specs/${update.id}/spec.md`;
-  // Worth showing only when the file really lived outside the specs tree, which
-  // is the thing the nominal path hides. Comparing the resolved target against
-  // the merely-resolved one would fire on any canonicalization difference - the
-  // platform's own `/var` -> `/private/var` link is enough - and say nothing.
-  const escaped = realSource !== undefined && !(await isInsideRealDir(realSource, mainSpecsDir));
-  const resolvedNote = escaped ? ` (resolved to ${realSource})` : '';
   if (!options.silent) {
-    console.log(`Retiring ${nominal}${resolvedNote}: all requirements removed.`);
+    console.log(`Retiring ${nominal}: all requirements removed.`);
   }
   // `resolvedPath` is always the file that was actually unlinked - callers need
   // it to report a path git will accept, since the nominal one is built from
   // the capability id and can differ in case, or point through a symlink.
-  // `sourcePath` stays the narrower "this escaped the specs tree" signal.
   return {
     retired: true,
     ...(realSource ? { resolvedPath: realSource } : {}),
-    ...(resolvedNote ? { sourcePath: realSource } : {}),
   };
 }
 
