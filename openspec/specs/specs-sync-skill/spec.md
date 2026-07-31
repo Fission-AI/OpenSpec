@@ -53,6 +53,7 @@ The agent SHALL reconcile main specs with delta specs using the delta operation 
 - **AND** every other nonblank line in the whole file is accounted for as the title, Purpose, Requirements header, or a canonical requirement's statement, scenarios, or fenced examples
 - **AND** the rest of the spec is well-formed and it was not already empty before this sync
 - **AND** the change declares `retire_capabilities: true` in its metadata
+- **AND** the `spec.md` resolves inside the real specs root
 - **THEN** delete that capability's `spec.md`, and its directory once nothing else remains in it
 - **AND** report the retirement and name the deleted `## Purpose`
 - **AND** leave the file in place and say the marker is missing when it is not declared

@@ -337,7 +337,6 @@ async function moveDirectory(src: string, dest: string): Promise<void> {
         await fs.mkdir(dest);
         destIsOurs = true;
         await copyDirContents(src, dest);
-        await fs.rm(src, { recursive: true, force: true });
       } catch (copyError) {
         if (destIsOurs) {
           await fs.rm(dest, { recursive: true, force: true }).catch(() => undefined);
@@ -349,6 +348,18 @@ async function moveDirectory(src: string, dest: string): Promise<void> {
           );
         }
         throw copyError;
+      }
+      try {
+        await fs.rm(src, { recursive: true, force: true });
+      } catch (cleanupError) {
+        // Recursive removal may already have deleted part of the source. The
+        // destination is now the only complete copy, so never erase it while
+        // trying to make this failed move look atomic.
+        throw new Error(
+          `Copied ${src} to ${dest}, but could not remove the source completely ` +
+            `(${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}). ` +
+            'The complete destination was retained for recovery.'
+        );
       }
     } else {
       throw err;
@@ -402,14 +413,18 @@ async function captureSpecSnapshots(updates: SpecUpdate[]): Promise<SpecSnapshot
     updates.map(async (update) => {
       try {
         const stat = await fs.lstat(update.target);
+        if (stat.isSymbolicLink()) {
+          return {
+            target: update.target,
+            existed: true,
+            symlink: await fs.readlink(update.target),
+          };
+        }
         return {
           target: update.target,
           existed: true,
-          ...((stat.isFile() || stat.isSymbolicLink())
-            ? { content: await fs.readFile(update.target) }
-            : {}),
+          ...(stat.isFile() ? { content: await fs.readFile(update.target) } : {}),
           ...(stat.isFile() ? { mode: stat.mode } : {}),
-          ...(stat.isSymbolicLink() ? { symlink: await fs.readlink(update.target) } : {}),
         };
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -429,14 +444,19 @@ async function restoreSpecSnapshots(snapshots: SpecSnapshot[]): Promise<void> {
     }
     if (snapshot.symlink !== undefined) {
       try {
-        await fs.lstat(snapshot.target);
+        const current = await fs.lstat(snapshot.target);
+        if (
+          !current.isSymbolicLink() ||
+          (await fs.readlink(snapshot.target)) !== snapshot.symlink
+        ) {
+          throw new Error(
+            `Archive rollback would overwrite a concurrent change at ${snapshot.target}.`
+          );
+        }
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
         await fs.mkdir(path.dirname(snapshot.target), { recursive: true });
         await fs.symlink(snapshot.symlink, snapshot.target);
-      }
-      if (snapshot.content !== undefined) {
-        await fs.writeFile(snapshot.target, snapshot.content);
       }
       continue;
     }
@@ -790,6 +810,47 @@ export class ArchiveCommand {
           }
         }
 
+        // Build the proposed updates before asking permission to apply them.
+        // buildUpdatedSpec also reports content that the merge would drop, so
+        // the confirmation must come after this preview.
+        const prepared: Array<{
+          update: SpecUpdate;
+          rebuilt: string;
+          counts: { added: number; modified: number; removed: number; renamed: number };
+          outcome: SpecOutcome;
+          noRequirementBlocks: boolean;
+          unaccountedContent: string[];
+        }> = [];
+        let prepareError: unknown;
+        try {
+          for (const update of specUpdates) {
+            const built = await buildUpdatedSpec(update, changeName!, { silent: true });
+            prepared.push({
+              update,
+              rebuilt: built.rebuilt,
+              counts: built.counts,
+              outcome: await decideSpecOutcome(
+                update,
+                built,
+                skipValidation,
+                retirementDeclared
+              ),
+              noRequirementBlocks: built.noRequirementBlocks,
+              unaccountedContent: built.unaccountedContent,
+            });
+            specWarnings.push(...built.warnings);
+          }
+        } catch (err: unknown) {
+          // A user may still decline spec updates and archive the change, as
+          // before this preview existed. Defer the error until they accept.
+          prepareError = err;
+        }
+        if (prepareError === undefined && !json) {
+          for (const warning of specWarnings) {
+            console.log(chalk.yellow(`⚠️  Warning: ${warning}`));
+          }
+        }
+
         let shouldUpdateSpecs = true;
         if (!options.yes) {
           if (json) {
@@ -817,32 +878,59 @@ export class ArchiveCommand {
         }
 
         if (shouldUpdateSpecs) {
-          // Prepare all updates first (validation pass, no writes)
-          const prepared: Array<{ update: SpecUpdate; rebuilt: string; counts: { added: number; modified: number; removed: number; renamed: number }; outcome: SpecOutcome; noRequirementBlocks: boolean; unaccountedContent: string[] }> = [];
-          try {
-            for (const update of specUpdates) {
-              const built = await buildUpdatedSpec(update, changeName!, { silent: json });
-              prepared.push({
-                update,
-                rebuilt: built.rebuilt,
-                counts: built.counts,
-                outcome: await decideSpecOutcome(update, built, skipValidation, retirementDeclared),
-                noRequirementBlocks: built.noRequirementBlocks,
-                unaccountedContent: built.unaccountedContent,
-              });
-              // Carried into the result so JSON mode (where nothing was
-              // printed) still surfaces them; human mode discards the result.
-              specWarnings.push(...built.warnings);
+          // The confirmation may stay open while another editor changes a main
+          // spec. Never apply the proposal built before the prompt to a newer
+          // baseline: in particular, a stale retirement decision must not
+          // delete a requirement added while the prompt was waiting.
+          if (prepareError === undefined) {
+            try {
+              const currentUpdates = await findSpecUpdates(changeDir, mainSpecsDir);
+              const currentById = new Map(currentUpdates.map((update) => [update.id, update]));
+              if (currentUpdates.length !== prepared.length) {
+                throw new Error('The change specs changed while archive was awaiting confirmation.');
+              }
+              for (const proposed of prepared) {
+                const current = currentById.get(proposed.update.id);
+                if (!current) {
+                  throw new Error(
+                    `The delta for '${proposed.update.id}' changed while archive was awaiting confirmation.`
+                  );
+                }
+                const rebuilt = await buildUpdatedSpec(current, changeName!, { silent: true });
+                const outcome = await decideSpecOutcome(
+                  current,
+                  rebuilt,
+                  skipValidation,
+                  retirementDeclared
+                );
+                if (
+                  current.exists !== proposed.update.exists ||
+                  rebuilt.rebuilt !== proposed.rebuilt ||
+                  JSON.stringify(rebuilt.counts) !== JSON.stringify(proposed.counts) ||
+                  outcome !== proposed.outcome
+                ) {
+                  throw new Error(
+                    `Main spec '${proposed.update.id}' changed while archive was awaiting confirmation. ` +
+                      'No files were changed; review the new content and rerun.'
+                  );
+                }
+              }
+            } catch (error) {
+              prepareError = error;
             }
-          } catch (err: any) {
+          }
+
+          if (prepareError !== undefined) {
+            const message =
+              prepareError instanceof Error ? prepareError.message : String(prepareError);
             if (json) {
               throw new ArchiveBlockedError(
                 'archive_spec_update_failed',
-                String(err.message || err),
+                message,
                 'Fix the change delta specs and rerun. No files were changed.'
               );
             }
-            console.log(String(err.message || err));
+            console.log(message);
             console.log('Aborted. No files were changed.');
             process.exitCode = 1;
             return null;
@@ -928,11 +1016,19 @@ export class ArchiveCommand {
           archiveClaim = await claimArchiveDestination(archivePath, archiveName);
           await assertArchiveDestinationAvailable(archivePath, archiveName);
           const specSnapshots = await captureSpecSnapshots(
-            prepared.map(({ update }) => update)
+            prepared
+              .filter(
+                ({ outcome, counts }) =>
+                  outcome === 'retire' ||
+                  (outcome === 'write' &&
+                    counts.added + counts.modified + counts.removed + counts.renamed > 0)
+              )
+              .map(({ update }) => update)
           );
           await moveDirectory(changeDir, archivePath);
           changeArchived = true;
 
+          const mutationAttempts = new Set<string>();
           try {
             // All validations passed; write files and display counts
             const writeTotals = { added: 0, modified: 0, removed: 0, renamed: 0 };
@@ -946,6 +1042,7 @@ export class ArchiveCommand {
               // only churn normalization differences into it.
               continue;
             }
+            mutationAttempts.add(p.update.target);
             await writeUpdatedSpec(p.update, p.rebuilt, p.counts, {
               silent: json,
               // Cross-root paths must be absolute when a store is selected.
@@ -958,14 +1055,12 @@ export class ArchiveCommand {
             writeTotals.renamed += renamed;
             }
 
-            // Retirements run only after every write has succeeded: they delete a
-          // file, and the write loop is not transactional. Retiring several
-          // capabilities is still not atomic against itself - if a second
-          // deletion fails the first is already done, which the thrown message
-          // names so the state is at least legible.
+            // Retirements run only after every write has succeeded. If any
+            // later mutation fails, the snapshots below restore every target.
             for (const p of prepared) {
             if (p.outcome !== 'retire') continue;
-            const { retired, sourcePath, resolvedPath } = await retireSpec(p.update, mainSpecsDir, {
+            mutationAttempts.add(p.update.target);
+            const { retired, resolvedPath } = await retireSpec(p.update, mainSpecsDir, {
               silent: json,
               ...(isStoreSelectedRoot(root) ? { displayPath: p.update.target } : {}),
             });
@@ -984,17 +1079,10 @@ export class ArchiveCommand {
             // is named too rather than left to the reader to work out, and the
             // note carries the command that brings the file back.
             const lost = ['Purpose'];
-            // The path the file actually lived at. A store-selected root is not
-            // under `openspec/` in the caller's repo, and a symlinked capability
-            // directory puts the file somewhere else entirely - naming the
-            // nominal path in either case sends the reader somewhere that does
-            // not exist. `sourcePath` is set only when the file escaped the
-            // specs tree, so it wins when present.
             // Derived from the path that was unlinked, never rebuilt from the
             // capability id: on a case-insensitive filesystem the id and the
             // real directory can differ in case, and git is case-sensitive, so
-            // an id-derived path is one git rejects. `sourcePath` is set only
-            // when the file escaped the specs tree, so it wins when present.
+            // an id-derived path is one git rejects.
             // `update.target` is built from the capability id, so on a
             // case-insensitive filesystem it can differ in case from the file
             // that was actually unlinked - and git is case-sensitive, so the
@@ -1062,9 +1150,34 @@ export class ArchiveCommand {
             );
             }
           } catch (error) {
-            await restoreSpecSnapshots(specSnapshots);
-            await moveDirectory(archivePath, changeDir);
-            changeArchived = false;
+            const rollbackErrors: Error[] = [];
+            try {
+              await restoreSpecSnapshots(
+                specSnapshots.filter(({ target }) => mutationAttempts.has(target))
+              );
+            } catch (rollbackError) {
+              rollbackErrors.push(
+                rollbackError instanceof Error
+                  ? rollbackError
+                  : new Error(String(rollbackError))
+              );
+            }
+            try {
+              await moveDirectory(archivePath, changeDir);
+              changeArchived = false;
+            } catch (rollbackError) {
+              rollbackErrors.push(
+                rollbackError instanceof Error
+                  ? rollbackError
+                  : new Error(String(rollbackError))
+              );
+            }
+            if (rollbackErrors.length > 0) {
+              const original = error instanceof Error ? error.message : String(error);
+              throw new Error(
+                `${original} Rollback also failed: ${rollbackErrors.map(({ message }) => message).join(' ')}`
+              );
+            }
             throw error;
           }
         }

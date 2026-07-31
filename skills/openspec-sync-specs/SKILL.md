@@ -116,7 +116,9 @@ This is an **agent-driven** operation - you will read delta specs and directly e
         4. every other nonblank line in the whole file is accounted for as the
            title, Purpose, Requirements header, or a canonical requirement's
            statement, scenarios, or fenced examples;
-        5. the change's `.openspec.yaml` declares `retire_capabilities: true`.
+        5. the change's `.openspec.yaml` declares `retire_capabilities: true`;
+        6. the `spec.md` resolves inside the real specs root (do not follow a
+           capability-directory symlink to delete an external file).
         Otherwise keep the file: report what is left and let the user decide. An empty
         `## Requirements` fails `openspec validate`, so say so rather than saving
         one silently. When only the marker is missing, say that too - it is the one
@@ -147,8 +149,8 @@ This is an **agent-driven** operation - you will read delta specs and directly e
    - What changes were made (requirements added/modified/removed/renamed)
    - Any new main spec left with a TBD Purpose placeholder, so it gets written
      now rather than lingering
-   - Any capability retired, naming the `spec.md` you deleted, any other sections
-     it held, and the `git checkout` that restores it
+   - Any capability retired, naming the deleted `spec.md`, its Purpose, and
+     either a pasteable `git checkout` or checkout-scoped recovery guidance
 
 **Delta Spec Format Reference**
 

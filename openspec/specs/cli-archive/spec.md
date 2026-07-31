@@ -61,9 +61,10 @@ The archive operation SHALL follow a structured process to safely move changes t
 - **THEN** execute these steps:
   1. Create archive/ directory if it doesn't exist
   2. Generate target name as `YYYY-MM-DD-[change-name]` using current date, keeping the name as-is when it already starts with a `YYYY-MM-DD-` prefix
-  3. Check if target directory already exists
-  4. Update main specs from the change's future state specs (see Spec Update Process below)
-  5. Move the entire change directory to the archive location
+  3. Claim the target and verify that it does not already exist
+  4. Move the entire change directory to the archive location
+  5. Update main specs from the archived change's delta specs (see Spec Update Process below)
+  6. If a spec update fails, restore the specs and move the change back
 
 #### Scenario: Archive already exists
 
@@ -78,7 +79,7 @@ The archive operation SHALL follow a structured process to safely move changes t
 
 ### Requirement: Spec Update Process
 
-Before moving the change to archive, the command SHALL apply delta changes to main specs to reflect the deployed reality.
+After claiming and moving the change to its archive destination, the command SHALL apply delta changes to main specs to reflect the deployed reality, rolling both operations back when a spec update fails.
 
 #### Scenario: Applying delta changes
 
@@ -136,7 +137,7 @@ A delta whose REMOVED entries cover every requirement a capability has SHALL ret
 
 #### Scenario: Deciding that a rebuilt spec cannot be written
 
-- **WHEN** applying a delta leaves the rebuilt spec with no requirement blocks, and neither the capability's `## Requirements` section nor anything past the end of that section holds a `###` heading other than its requirement headers, wherever it sits
+- **WHEN** applying a delta leaves the rebuilt spec with no requirement blocks, and every other nonblank line in the whole file is accounted for as the title, Purpose, Requirements header, or a canonical requirement's statement, scenarios, or fenced examples
 - **THEN** put that rebuilt spec to the spec validator
 - **AND** treat it as retirable only when its sole validation error is that the spec has no requirements
 - **AND** otherwise write or reject it exactly as any other rebuilt spec, so a spec the validator still accepts, one broken in some further way, and one still holding a `###` heading are all left alone

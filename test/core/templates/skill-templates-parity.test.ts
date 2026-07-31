@@ -42,7 +42,7 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getContinueChangeSkillTemplate: '676e7472977d2b6f4d922ce384db1f15020c195f94d6cd4ee71abcf0201e28a9',
   getApplyChangeSkillTemplate: '031cf8f8ffc2937fc4051651bd5e1fc6159bfd225605d8e4c3181054a4e52b38',
   getFfChangeSkillTemplate: '225a8eaf1b3769ac5d43e079297c5fa9cc20fc2e34fec9bb0d887c8c1fb0ea71',
-  getSyncSpecsSkillTemplate: '6c0a042cfa5f94187832209ccb201be60a3992a16c31306691cb007f4b8d4c23',
+  getSyncSpecsSkillTemplate: '9d3c97162dcdff57aeeb79ee97578271bc5bde4599f64b9e68f9b41a6d3ce2c4',
   getOnboardSkillTemplate: '856b5f451f45093f8906967da29b4e0479c7c271e401eab2ef58165800a67284',
   getOpsxExploreCommandTemplate: 'e9674ddace813e685b0e9fe37149140a3d33d48aa20b9ba2b0963a7c49c9aea7',
   getOpsxNewCommandTemplate: '652adc870f16bb260d54436356132b6ee051a9ed7cc0464603fb31f4db259762',
@@ -51,7 +51,7 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getOpsxFfCommandTemplate: '678375642a21d255444f0ba717e659abb2cc2b7474981d52eae900a0793e3e4d',
   getArchiveChangeSkillTemplate: 'ee27b4c15a2f13bbb0ab0ceb5f4b10fa5e19dd70128ca58dd3f482c1f2a8f97f',
   getBulkArchiveChangeSkillTemplate: 'e67a6fae6553e01c9930bd08f11465a205637fec6c72726b0cfa1a735920bba4',
-  getOpsxSyncCommandTemplate: '95a42f94f60f40a04875f6740b6aa7e16bd15742fcadc336ddc81139a2f88050',
+  getOpsxSyncCommandTemplate: '4cd78e6460b3adee5ddb2a2db73cb373c7ed7c466600766cebc17c935d85a8b3',
   getVerifyChangeSkillTemplate: '917de96cc8341799107b0617979cdaf30e121c51676272f5caef143b090583f9',
   getOpsxArchiveCommandTemplate: '729fcdc9be6af7abb65f4ed3400ce6e95eef256d3660cfaeac3ef07e89144671',
   getOpsxOnboardCommandTemplate: '3fda1bb6ce52cdb240d1ade84319ea44160aef79573052ce58b77eb662de98a1',
@@ -70,7 +70,7 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-continue-change': '2e1a7d17ec021949d115c72227729609bf9980ad1f23445af117c09834711121',
   'openspec-apply-change': '49fc5772404e3033085384ee214c44488c93880a596a9a05dcad42f9ce86cf83',
   'openspec-ff-change': '4228d75e3571097164f2360e2ad3063a5b88d44750078c3601b23a89e74c1de6',
-  'openspec-sync-specs': '17e8691eec686b6a1458457c598935c88c5f0bd06eaf2d59588ec27cb302f904',
+  'openspec-sync-specs': 'c97e49c3ad67f0d14cd43969d1e7b3020eba601c2aec8aa662c917f952d4df85',
   'openspec-archive-change': '7fde55c06ae896b5f628b00e0dddceb9f86fdbf431e3f4dcd5fc0aacac16d808',
   'openspec-bulk-archive-change': '789d60d5874eab9714aef6a0b1109af0af2f9f23f57767b4641db89849dd0fce',
   'openspec-verify-change': '1c3f73a36be691a18d3acb200d22e6874004d6d4a5d3e2e346ae95a7379e9da8',
@@ -735,6 +735,9 @@ describe('skill templates split parity', () => {
     for (const [variant, text] of variants) {
       expect(text, variant).toContain('retire_capabilities: true');
       expect(text, variant).toContain('every other nonblank line in the whole file is accounted for');
+      expect(text, variant).toContain('resolves inside the real specs root');
+      expect(text, variant).toContain('checkout-scoped recovery guidance');
+      expect(text, variant).not.toContain('any other sections');
       expect(text, variant).not.toContain('Loose prose left under `## Requirements` does NOT block');
     }
   });

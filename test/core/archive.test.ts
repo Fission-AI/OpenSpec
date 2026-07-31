@@ -108,6 +108,49 @@ describe('ArchiveCommand', () => {
       await expect(fs.access(changeDir)).rejects.toThrow();
     });
 
+    it('retains the complete copied archive when fallback source cleanup partially fails', async () => {
+      const changeName = 'fallback-cleanup-failure';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Complete\n');
+      await fs.writeFile(path.join(changeDir, 'notes.md'), 'keep this\n');
+
+      const realRename = fs.rename.bind(fs);
+      const realRm = fs.rm.bind(fs);
+      onTestFinished(() => vi.restoreAllMocks());
+      vi.spyOn(fs, 'rename').mockImplementation(async (source, destination) => {
+        if (String(source).endsWith(`${path.sep}changes${path.sep}${changeName}`)) {
+          throw Object.assign(new Error('cross-device move'), { code: 'EXDEV' });
+        }
+        return realRename(source, destination);
+      });
+      vi.spyOn(fs, 'rm').mockImplementation(async (candidate, options) => {
+        if (String(candidate).endsWith(`${path.sep}changes${path.sep}${changeName}`)) {
+          await realRm(path.join(changeDir, 'tasks.md'), { force: true });
+          throw Object.assign(new Error('source cleanup failed'), { code: 'EACCES' });
+        }
+        return realRm(candidate, options);
+      });
+
+      await expect(
+        archiveCommand.execute(changeName, { yes: true, skipSpecs: true })
+      ).rejects.toThrow(/complete destination was retained for recovery/);
+
+      const archived = path.join(
+        tempDir,
+        'openspec',
+        'changes',
+        'archive',
+        `${formatLocalDate()}-${changeName}`
+      );
+      await expect(fs.readFile(path.join(archived, 'tasks.md'), 'utf-8')).resolves.toContain(
+        'Complete'
+      );
+      await expect(fs.readFile(path.join(archived, 'notes.md'), 'utf-8')).resolves.toBe(
+        'keep this\n'
+      );
+    });
+
     it('should use the process local date across a UTC date boundary', async () => {
       process.env.TZ = 'Asia/Shanghai';
       vi.useFakeTimers();
@@ -1841,6 +1884,198 @@ Then expected result happens`;
       const archives = await fs.readdir(archiveDir);
       expect(archives.length).toBe(1);
       expect(archives[0]).toMatch(new RegExp(`\\d{4}-\\d{2}-\\d{2}-${changeName}`));
+    });
+
+    it('warns about absorbed content before asking to apply the destructive spec update', async () => {
+      const { confirm } = await import('@inquirer/prompts');
+      const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
+      const changeName = 'warn-before-spec-update';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'demo');
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'demo');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+      await fs.mkdir(mainSpecDir, { recursive: true });
+
+      const mainSpec = `# demo Specification
+
+## Purpose
+This capability exists to exercise archive warning behavior.
+
+## Requirements
+
+### Requirement: Target
+The system SHALL target.
+
+#### Scenario: Target works
+- **WHEN** it runs
+- **THEN** it works
+
+   ### Notes
+Keep this note.
+
+### Requirement: Survivor
+The system SHALL survive.
+
+#### Scenario: Survivor works
+- **WHEN** it runs
+- **THEN** it survives
+`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainSpec);
+      await fs.writeFile(
+        path.join(changeSpecDir, 'spec.md'),
+        `# demo - Changes
+
+## REMOVED Requirements
+
+### Requirement: Target
+**Reason**: It is obsolete.
+`
+      );
+
+      mockConfirm.mockReset();
+      mockConfirm.mockImplementationOnce(async () => {
+        expect(console.log).toHaveBeenCalledWith(
+          expect.stringContaining('"### Notes" sits inside requirement "Target"')
+        );
+        return false;
+      });
+
+      await archiveCommand.execute(changeName);
+
+      expect(mockConfirm).toHaveBeenCalledWith({
+        message: 'Proceed with spec updates?',
+        default: true,
+      });
+      await expect(fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8')).resolves.toBe(mainSpec);
+      await expect(fs.access(changeDir)).rejects.toThrow();
+    });
+
+    it('does not apply a stale retirement decision after the main spec changes at the prompt', async () => {
+      const { confirm } = await import('@inquirer/prompts');
+      const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
+      const changeName = 'retirement-changed-at-prompt';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const deltaDir = path.join(changeDir, 'specs', 'legacy-layer');
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      const target = path.join(mainSpecDir, 'spec.md');
+      await fs.mkdir(deltaDir, { recursive: true });
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, '.openspec.yaml'), 'schema: spec-driven\nretire_capabilities: true\n');
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Done\n');
+      await fs.writeFile(
+        path.join(deltaDir, 'spec.md'),
+        `## REMOVED Requirements
+
+### Requirement: Legacy behavior
+**Reason**: It is retired.
+**Migration**: None.
+`
+      );
+      await fs.writeFile(
+        target,
+        `# legacy-layer Specification
+
+## Purpose
+This capability preserves legacy behavior for existing consumers.
+
+## Requirements
+
+### Requirement: Legacy behavior
+The system SHALL preserve legacy behavior.
+
+#### Scenario: Legacy behavior applies
+- **WHEN** legacy behavior is requested
+- **THEN** it remains available
+`
+      );
+
+      mockConfirm.mockReset();
+      mockConfirm.mockImplementationOnce(async () => {
+        await fs.appendFile(
+          target,
+          `\n### Requirement: Added while waiting
+The system SHALL preserve concurrent edits.
+
+#### Scenario: Edit survives
+- **WHEN** archive is awaiting confirmation
+- **THEN** the new requirement remains
+`
+        );
+        return true;
+      });
+
+      await archiveCommand.execute(changeName);
+
+      await expect(fs.readFile(target, 'utf-8')).resolves.toContain(
+        '### Requirement: Added while waiting'
+      );
+      await expect(fs.access(changeDir)).resolves.not.toThrow();
+      expect(process.exitCode).toBe(1);
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining("Main spec 'legacy-layer' changed")
+      );
+    });
+
+    it('prints the loss warning before --yes writes the spec', async () => {
+      const changeName = 'warn-before-yes-write';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'demo');
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'demo');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(
+        path.join(mainSpecDir, 'spec.md'),
+        `# demo Specification
+
+## Purpose
+This capability exists to exercise archive warning behavior.
+
+## Requirements
+
+### Requirement: Target
+The system SHALL target.
+
+#### Scenario: Target works
+- **WHEN** it runs
+- **THEN** it works
+
+   ### Notes
+Keep this note.
+
+### Requirement: Survivor
+The system SHALL survive.
+
+#### Scenario: Survivor works
+- **WHEN** it runs
+- **THEN** it survives
+`
+      );
+      await fs.writeFile(
+        path.join(changeSpecDir, 'spec.md'),
+        `# demo - Changes
+
+## REMOVED Requirements
+
+### Requirement: Target
+**Reason**: It is obsolete.
+`
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      const output = (
+        console.log as unknown as { mock: { calls: unknown[][] } }
+      ).mock.calls.flat().map(String);
+      const warningIndex = output.findIndex((line) =>
+        line.includes('"### Notes" sits inside requirement "Target"')
+      );
+      const successIndex = output.indexOf('Specs updated successfully.');
+      expect(warningIndex).toBeGreaterThanOrEqual(0);
+      expect(successIndex).toBeGreaterThan(warningIndex);
+      await expect(fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8')).resolves.not.toContain(
+        'Keep this note.'
+      );
+      await expect(fs.access(changeDir)).rejects.toThrow();
     });
 
     it('should support header trim-only normalization for matching', async () => {
@@ -3994,6 +4229,98 @@ The system SHALL do the thing differently.
       }
       await expect(fs.access(changeDir)).resolves.not.toThrow();
     });
+
+    it.skipIf(process.platform === 'win32')(
+      'restores a retired symlink without overwriting its concurrently updated target',
+      async () => {
+        const changeName = 'retire-symlink-rollback';
+        const changeDir = await createChange(
+          changeName,
+          'a-layer',
+          REMOVE_ALL.replace('Legacy Layer', 'A Layer')
+        );
+        const secondDelta = path.join(changeDir, 'specs', 'z-layer');
+        await fs.mkdir(secondDelta, { recursive: true });
+        await fs.writeFile(
+          path.join(secondDelta, 'spec.md'),
+          REMOVE_ALL.replace('Legacy Layer', 'Z Layer')
+        );
+
+        const shared = path.join(tempDir, 'shared-legacy.md');
+        await fs.writeFile(shared, mainSpec('a-layer'));
+        const linkedSpec = path.join(tempDir, 'openspec', 'specs', 'a-layer', 'spec.md');
+        await fs.mkdir(path.dirname(linkedSpec), { recursive: true });
+        await fs.symlink(shared, linkedSpec);
+
+        const secondSpec = path.join(tempDir, 'openspec', 'specs', 'z-layer', 'spec.md');
+        await fs.mkdir(path.dirname(secondSpec), { recursive: true });
+        await fs.writeFile(secondSpec, mainSpec('z-layer'));
+
+        const realUnlink = fs.unlink.bind(fs);
+        onTestFinished(() => vi.restoreAllMocks());
+        vi.spyOn(fs, 'unlink').mockImplementation(async (candidate) => {
+          if (String(candidate).endsWith(`${path.sep}a-layer${path.sep}spec.md`)) {
+            await realUnlink(candidate);
+            await fs.writeFile(shared, 'concurrent update\n');
+            return;
+          }
+          if (String(candidate).endsWith(`${path.sep}z-layer${path.sep}spec.md`)) {
+            throw Object.assign(new Error('permission denied'), { code: 'EACCES' });
+          }
+          return realUnlink(candidate);
+        });
+
+        await expect(
+          archiveCommand.execute(changeName, { yes: true })
+        ).rejects.toThrow(/failed to delete/);
+
+        expect((await fs.lstat(linkedSpec)).isSymbolicLink()).toBe(true);
+        expect(await fs.readlink(linkedSpec)).toBe(shared);
+        await expect(fs.readFile(shared, 'utf-8')).resolves.toBe('concurrent update\n');
+        await expect(fs.access(changeDir)).resolves.not.toThrow();
+      }
+    );
+
+    it.skipIf(process.platform === 'win32')(
+      'preserves a concurrent replacement at a retired symlink path and restores the change',
+      async () => {
+        const changeName = 'retire-symlink-occupant';
+        const changeDir = await createChange(changeName, 'a-layer', REMOVE_ALL);
+        const secondDelta = path.join(changeDir, 'specs', 'z-layer');
+        await fs.mkdir(secondDelta, { recursive: true });
+        await fs.writeFile(path.join(secondDelta, 'spec.md'), REMOVE_ALL);
+
+        const shared = path.join(tempDir, 'shared-legacy.md');
+        await fs.writeFile(shared, mainSpec('a-layer'));
+        const linkedSpec = path.join(tempDir, 'openspec', 'specs', 'a-layer', 'spec.md');
+        await fs.mkdir(path.dirname(linkedSpec), { recursive: true });
+        await fs.symlink(shared, linkedSpec);
+        const secondSpec = path.join(tempDir, 'openspec', 'specs', 'z-layer', 'spec.md');
+        await fs.mkdir(path.dirname(secondSpec), { recursive: true });
+        await fs.writeFile(secondSpec, mainSpec('z-layer'));
+
+        const realUnlink = fs.unlink.bind(fs);
+        onTestFinished(() => vi.restoreAllMocks());
+        vi.spyOn(fs, 'unlink').mockImplementation(async (candidate) => {
+          if (String(candidate).endsWith(`${path.sep}a-layer${path.sep}spec.md`)) {
+            await realUnlink(candidate);
+            await fs.writeFile(candidate, 'concurrent occupant\n');
+            return;
+          }
+          if (String(candidate).endsWith(`${path.sep}z-layer${path.sep}spec.md`)) {
+            throw Object.assign(new Error('permission denied'), { code: 'EACCES' });
+          }
+          return realUnlink(candidate);
+        });
+
+        await expect(
+          archiveCommand.execute(changeName, { yes: true })
+        ).rejects.toThrow(/rollback would overwrite a concurrent change/);
+
+        await expect(fs.readFile(linkedSpec, 'utf-8')).resolves.toBe('concurrent occupant\n');
+        await expect(fs.access(changeDir)).resolves.not.toThrow();
+      }
+    );
 
     it('does not retire under --no-validate, since nothing checked the result', async () => {
       // The safety argument is the validator's verdict. With validation off
