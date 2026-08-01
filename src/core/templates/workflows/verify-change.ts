@@ -46,7 +46,17 @@ ${STORE_SELECTION_GUIDANCE}
 
    This returns the change directory and \`contextFiles\` (artifact ID -> array of concrete file paths). Read all available artifacts from \`contextFiles\`.
 
-4. **Initialize verification report structure**
+4. **Establish implementation scope**
+
+   Determine the complete implementation diff before evaluating relevance:
+   - Identify the change's version-control baseline from repository context (for example, its target branch or merge base). If the baseline is ambiguous, ask the user instead of guessing.
+   - List every file added, modified, deleted, or renamed between that baseline and the current working state. Include committed, staged, and unstaged changes when applicable.
+   - Record the baseline and the changed-file discovery method so the audit scope is reproducible.
+   - Separate implementation files (source, tests, configuration, scripts, and other runtime-affecting files) from OpenSpec change artifacts. Save the implementation file set for the relevance audit.
+   - Do not derive this file set from requirement keyword searches. Those searches find supporting evidence, but cannot detect disconnected implementation.
+   - If version-control information is unavailable or no reliable baseline can be established, state the limitation and skip the relevance audit rather than inspecting the entire repository as though it were part of the change.
+
+5. **Initialize verification report structure**
 
    Create a report structure with four dimensions:
    - **Completeness**: Track tasks and spec coverage
@@ -56,7 +66,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    Each dimension can have CRITICAL, WARNING, or SUGGESTION issues.
 
-5. **Verify Completeness**
+6. **Verify Completeness**
 
    **Task Completion**:
    - If \`contextFiles.tasks\` exists, read every file path in it
@@ -76,7 +86,7 @@ ${STORE_SELECTION_GUIDANCE}
        - Add CRITICAL issue: "Requirement not found: <requirement name>"
        - Recommendation: "Implement requirement X: <description>"
 
-6. **Verify Correctness**
+7. **Verify Correctness**
 
    **Requirement Implementation Mapping**:
    - For each requirement from delta specs:
@@ -95,7 +105,7 @@ ${STORE_SELECTION_GUIDANCE}
        - Add WARNING: "Scenario not covered: <scenario name>"
        - Recommendation: "Add test or implementation for scenario: <description>"
 
-7. **Verify Coherence**
+8. **Verify Coherence**
 
    **Design Adherence**:
    - If \`contextFiles.design\` exists:
@@ -113,10 +123,10 @@ ${STORE_SELECTION_GUIDANCE}
      - Add SUGGESTION: "Code pattern deviation: <details>"
      - Recommendation: "Consider following project pattern: <example>"
 
-8. **Verify Relevance**
+9. **Verify Relevance**
 
    **Semantic Residue Audit**:
-   - Review code introduced or changed for this change, focusing on implementation files identified in the earlier steps
+   - Review every file in the implementation file set established from the version-control diff
    - For each new API, function, type field, state value, helper, branch, or mapping, identify the requirement, task, design decision, or necessary enabling role it serves
    - Look for residue from superseded planning assumptions: unused elements, unreachable branches, placeholder or mock code, duplicated mappings, and extension points disconnected from any requirement or task
    - Trace references and data flow before flagging an element as residue
@@ -128,7 +138,7 @@ ${STORE_SELECTION_GUIDANCE}
      - Recommendation: "Confirm whether <element> is required"
    - Pre-existing debt is out of scope; keep findings limited to code introduced or changed for this change
 
-9. **Generate Verification Report**
+10. **Generate Verification Report**
 
    **Summary Scorecard**:
    \`\`\`markdown
@@ -180,7 +190,7 @@ ${STORE_SELECTION_GUIDANCE}
 - If only tasks.md exists: verify task completion only, skip spec/design checks
 - If tasks + specs exist: verify completeness and correctness, skip design
 - If full artifacts: verify all four dimensions
-- If implementation files cannot be identified: skip relevance and explain why
+- If the implementation diff baseline or file set cannot be identified reliably: skip relevance and explain why
 - Always note which checks were skipped and why
 
 **Output Format**
@@ -238,7 +248,17 @@ ${STORE_SELECTION_GUIDANCE}
 
    This returns the change directory and \`contextFiles\` (artifact ID -> array of concrete file paths). Read all available artifacts from \`contextFiles\`.
 
-4. **Initialize verification report structure**
+4. **Establish implementation scope**
+
+   Determine the complete implementation diff before evaluating relevance:
+   - Identify the change's version-control baseline from repository context (for example, its target branch or merge base). If the baseline is ambiguous, ask the user instead of guessing.
+   - List every file added, modified, deleted, or renamed between that baseline and the current working state. Include committed, staged, and unstaged changes when applicable.
+   - Record the baseline and the changed-file discovery method so the audit scope is reproducible.
+   - Separate implementation files (source, tests, configuration, scripts, and other runtime-affecting files) from OpenSpec change artifacts. Save the implementation file set for the relevance audit.
+   - Do not derive this file set from requirement keyword searches. Those searches find supporting evidence, but cannot detect disconnected implementation.
+   - If version-control information is unavailable or no reliable baseline can be established, state the limitation and skip the relevance audit rather than inspecting the entire repository as though it were part of the change.
+
+5. **Initialize verification report structure**
 
    Create a report structure with four dimensions:
    - **Completeness**: Track tasks and spec coverage
@@ -248,7 +268,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    Each dimension can have CRITICAL, WARNING, or SUGGESTION issues.
 
-5. **Verify Completeness**
+6. **Verify Completeness**
 
    **Task Completion**:
    - If \`contextFiles.tasks\` exists, read every file path in it
@@ -268,7 +288,7 @@ ${STORE_SELECTION_GUIDANCE}
        - Add CRITICAL issue: "Requirement not found: <requirement name>"
        - Recommendation: "Implement requirement X: <description>"
 
-6. **Verify Correctness**
+7. **Verify Correctness**
 
    **Requirement Implementation Mapping**:
    - For each requirement from delta specs:
@@ -287,7 +307,7 @@ ${STORE_SELECTION_GUIDANCE}
        - Add WARNING: "Scenario not covered: <scenario name>"
        - Recommendation: "Add test or implementation for scenario: <description>"
 
-7. **Verify Coherence**
+8. **Verify Coherence**
 
    **Design Adherence**:
    - If \`contextFiles.design\` exists:
@@ -305,10 +325,10 @@ ${STORE_SELECTION_GUIDANCE}
      - Add SUGGESTION: "Code pattern deviation: <details>"
      - Recommendation: "Consider following project pattern: <example>"
 
-8. **Verify Relevance**
+9. **Verify Relevance**
 
    **Semantic Residue Audit**:
-   - Review code introduced or changed for this change, focusing on implementation files identified in the earlier steps
+   - Review every file in the implementation file set established from the version-control diff
    - For each new API, function, type field, state value, helper, branch, or mapping, identify the requirement, task, design decision, or necessary enabling role it serves
    - Look for residue from superseded planning assumptions: unused elements, unreachable branches, placeholder or mock code, duplicated mappings, and extension points disconnected from any requirement or task
    - Trace references and data flow before flagging an element as residue
@@ -320,7 +340,7 @@ ${STORE_SELECTION_GUIDANCE}
      - Recommendation: "Confirm whether <element> is required"
    - Pre-existing debt is out of scope; keep findings limited to code introduced or changed for this change
 
-9. **Generate Verification Report**
+10. **Generate Verification Report**
 
    **Summary Scorecard**:
    \`\`\`markdown
@@ -372,7 +392,7 @@ ${STORE_SELECTION_GUIDANCE}
 - If only tasks.md exists: verify task completion only, skip spec/design checks
 - If tasks + specs exist: verify completeness and correctness, skip design
 - If full artifacts: verify all four dimensions
-- If implementation files cannot be identified: skip relevance and explain why
+- If the implementation diff baseline or file set cannot be identified reliably: skip relevance and explain why
 - Always note which checks were skipped and why
 
 **Output Format**
