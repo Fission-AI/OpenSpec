@@ -1,5 +1,5 @@
 import { constants, promises as fs } from 'fs';
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import path from 'path';
 import { formatLocalDate } from '../utils/date.js';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
@@ -331,7 +331,15 @@ async function copyDirContents(src: string, dest: string): Promise<void> {
  * file watcher, antivirus). Fall back to copy-then-remove when rename fails
  * with EPERM or EXDEV.
  */
-async function moveDirectory(src: string, dest: string): Promise<void> {
+class MoveDestinationRetainedError extends Error {}
+
+async function moveDirectory(
+  src: string,
+  dest: string,
+  options: {
+    verifyCopiedDestination?: (stagedSource: string) => Promise<void>;
+  } = {}
+): Promise<void> {
   try {
     await fs.rename(src, dest);
   } catch (err: any) {
@@ -345,14 +353,34 @@ async function moveDirectory(src: string, dest: string): Promise<void> {
       );
     }
     if (code === 'EPERM' || code === 'EXDEV') {
+      const stagedSource = `${src}.openspec-move-${randomUUID()}`;
+      try {
+        await fs.rename(src, stagedSource);
+      } catch (stageError) {
+        throw new Error(
+          `Could not safely stage ${src} before the fallback archive copy ` +
+            `(${stageError instanceof Error ? stageError.message : String(stageError)}). ` +
+            'No fallback copy was attempted.'
+        );
+      }
       let destIsOurs = false;
       try {
         await fs.mkdir(dest);
         destIsOurs = true;
-        await copyDirContents(src, dest);
+        await copyDirContents(stagedSource, dest);
+        await options.verifyCopiedDestination?.(stagedSource);
       } catch (copyError) {
         if (destIsOurs) {
           await fs.rm(dest, { recursive: true, force: true }).catch(() => undefined);
+        }
+        try {
+          await fs.rename(stagedSource, src);
+        } catch (restoreError) {
+          throw new Error(
+            `${copyError instanceof Error ? copyError.message : String(copyError)} ` +
+              `Could not restore the staged source at ${stagedSource} ` +
+              `(${restoreError instanceof Error ? restoreError.message : String(restoreError)}).`
+          );
         }
         if ((copyError as NodeJS.ErrnoException).code === 'EEXIST') {
           throw new ArchiveBlockedError(
@@ -363,13 +391,15 @@ async function moveDirectory(src: string, dest: string): Promise<void> {
         throw copyError;
       }
       try {
-        await fs.rm(src, { recursive: true, force: true });
+        await options.verifyCopiedDestination?.(stagedSource);
+        await fs.rm(stagedSource, { recursive: true, force: true });
       } catch (cleanupError) {
         // Recursive removal may already have deleted part of the source. The
         // destination is now the only complete copy, so never erase it while
         // trying to make this failed move look atomic.
-        throw new Error(
-          `Copied ${src} to ${dest}, but could not remove the source completely ` +
+        throw new MoveDestinationRetainedError(
+          `Copied ${src} to ${dest}, but could not remove the staged source at ` +
+            `${stagedSource} completely ` +
             `(${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}). ` +
             'The complete destination was retained for recovery.'
         );
@@ -400,13 +430,24 @@ async function claimArchiveDestination(
   archivePath: string,
   archiveName: string
 ): Promise<Awaited<ReturnType<typeof fs.open>>> {
+  const claimPath = `${archivePath}.lock`;
   try {
-    return await fs.open(`${archivePath}.lock`, 'wx');
+    const claim = await fs.open(claimPath, 'wx');
+    try {
+      await claim.writeFile(JSON.stringify({ pid: process.pid }));
+      await claim.sync();
+      return claim;
+    } catch (error) {
+      await claim.close().catch(() => undefined);
+      await fs.unlink(claimPath).catch(() => undefined);
+      throw error;
+    }
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
       throw new ArchiveBlockedError(
         'archive_target_exists',
-        `Archive '${archiveName}' is already being created.`
+        `Archive '${archiveName}' is already being created. If no archive process is running, ` +
+          `remove the stale claim at ${claimPath} and rerun.`
       );
     }
     throw error;
@@ -430,24 +471,97 @@ interface SpecMutation {
   rebuilt: string;
 }
 
+function statIdentity(value: {
+  dev: bigint;
+  ino: bigint;
+  mode: bigint;
+  size: bigint;
+  mtimeNs: bigint;
+  ctimeNs: bigint;
+}): string {
+  return `${value.dev}:${value.ino}:${value.mode}:${value.size}:${value.mtimeNs}:${value.ctimeNs}`;
+}
+
+function movableStatIdentity(value: {
+  dev: bigint;
+  ino: bigint;
+  mode: bigint;
+  size: bigint;
+}): string {
+  return `${value.dev}:${value.ino}:${value.mode}:${value.size}`;
+}
+
 async function fingerprintPath(filePath: string): Promise<string> {
   try {
-    const stat = await fs.lstat(filePath);
+    const stat = await fs.lstat(filePath, { bigint: true });
     const digest = async (): Promise<string> =>
       createHash('sha256').update(await fs.readFile(filePath)).digest('hex');
     if (stat.isSymbolicLink()) {
       const link = await fs.readlink(filePath);
       try {
-        return `symlink:${link}:${await digest()}`;
+        const referentBefore = await fs.stat(filePath, { bigint: true });
+        const hash = await digest();
+        const referentAfter = await fs.stat(filePath, { bigint: true });
+        const entryAfter = await fs.lstat(filePath, { bigint: true });
+        if (
+          statIdentity(stat) !== statIdentity(entryAfter) ||
+          statIdentity(referentBefore) !== statIdentity(referentAfter) ||
+          link !== (await fs.readlink(filePath))
+        ) {
+          throw new Error(`Path changed while archive was reading ${filePath}.`);
+        }
+        return `symlink:${statIdentity(stat)}:${link}:${statIdentity(referentAfter)}:${hash}`;
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-          return `symlink:${link}:missing`;
+          return `symlink:${statIdentity(stat)}:${link}:missing`;
         }
         throw error;
       }
     }
-    if (stat.isFile()) return `file:${await digest()}`;
-    return `other:${stat.mode}`;
+    if (stat.isFile()) {
+      const hash = await digest();
+      const after = await fs.lstat(filePath, { bigint: true });
+      if (statIdentity(stat) !== statIdentity(after)) {
+        throw new Error(`Path changed while archive was reading ${filePath}.`);
+      }
+      return `file:${statIdentity(after)}:${hash}`;
+    }
+    return `other:${statIdentity(stat)}`;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return 'missing';
+    throw error;
+  }
+}
+
+async function fingerprintMovablePath(filePath: string): Promise<string> {
+  try {
+    const entry = await fs.lstat(filePath, { bigint: true });
+    const hash = createHash('sha256')
+      .update(await fs.readFile(filePath))
+      .digest('hex');
+    if (entry.isSymbolicLink()) {
+      const referent = await fs.stat(filePath, { bigint: true });
+      return (
+        `symlink:${movableStatIdentity(entry)}:${await fs.readlink(filePath)}:` +
+        `${movableStatIdentity(referent)}:${hash}`
+      );
+    }
+    return `file:${movableStatIdentity(entry)}:${hash}`;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return 'missing';
+    throw error;
+  }
+}
+
+async function fingerprintPortableContent(filePath: string): Promise<string> {
+  try {
+    const entry = await fs.lstat(filePath);
+    const hash = createHash('sha256')
+      .update(await fs.readFile(filePath))
+      .digest('hex');
+    return entry.isSymbolicLink()
+      ? `symlink:${await fs.readlink(filePath)}:${hash}`
+      : `file:${hash}`;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return 'missing';
     throw error;
@@ -456,6 +570,35 @@ async function fingerprintPath(filePath: string): Promise<string> {
 
 async function fingerprintSpecInputs(update: SpecUpdate): Promise<string> {
   return `${await fingerprintPath(update.source)}\n${await fingerprintPath(update.target)}`;
+}
+
+async function mutationTargetIdentity(mutation: SpecMutation): Promise<string> {
+  try {
+    const stat = await fs.stat(mutation.update.target, { bigint: true });
+    return `${stat.dev}:${stat.ino}`;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      const parent = path.dirname(mutation.update.target);
+      const realParent = await fs.realpath(parent).catch(() => path.resolve(parent));
+      return `missing:${path.join(realParent, path.basename(mutation.update.target))}`;
+    }
+    throw error;
+  }
+}
+
+async function assertDistinctMutationTargets(mutations: SpecMutation[]): Promise<void> {
+  const owners = new Map<string, string>();
+  for (const mutation of mutations) {
+    const identity = await mutationTargetIdentity(mutation);
+    const existing = owners.get(identity);
+    if (existing !== undefined) {
+      throw new Error(
+        `Spec updates for '${existing}' and '${mutation.update.id}' resolve to the same target ` +
+          `${identity}. Replace the capability alias or combine the deltas before archiving.`
+      );
+    }
+    owners.set(identity, mutation.update.id);
+  }
 }
 
 async function captureSpecSnapshots(mutations: SpecMutation[]): Promise<SpecSnapshot[]> {
@@ -956,15 +1099,23 @@ export class ArchiveCommand {
           outcome: SpecOutcome;
           noRequirementBlocks: boolean;
           unaccountedContent: string[];
-          inputFingerprint: string;
+          sourceFingerprint: string;
+          sourceContentFingerprint: string;
+          targetFingerprint: string;
+          targetMovableFingerprint: string;
         }> = [];
         let prepareError: unknown;
         try {
           for (const update of specUpdates) {
-            const inputBeforeBuild = await fingerprintSpecInputs(update);
+            const sourceBeforeBuild = await fingerprintPath(update.source);
+            const targetBeforeBuild = await fingerprintPath(update.target);
             const built = await buildUpdatedSpec(update, changeName!, { silent: true });
-            const inputAfterBuild = await fingerprintSpecInputs(update);
-            if (inputBeforeBuild !== inputAfterBuild) {
+            const sourceAfterBuild = await fingerprintPath(update.source);
+            const targetAfterBuild = await fingerprintPath(update.target);
+            if (
+              sourceBeforeBuild !== sourceAfterBuild ||
+              targetBeforeBuild !== targetAfterBuild
+            ) {
               throw new Error(
                 `Spec inputs for '${update.id}' changed while archive was preparing the preview.`
               );
@@ -981,7 +1132,10 @@ export class ArchiveCommand {
               ),
               noRequirementBlocks: built.noRequirementBlocks,
               unaccountedContent: built.unaccountedContent,
-              inputFingerprint: inputAfterBuild,
+              sourceFingerprint: sourceAfterBuild,
+              sourceContentFingerprint: await fingerprintPortableContent(update.source),
+              targetFingerprint: targetAfterBuild,
+              targetMovableFingerprint: await fingerprintMovablePath(update.target),
             });
             specWarnings.push(...built.warnings);
           }
@@ -1050,7 +1204,10 @@ export class ArchiveCommand {
                     `The delta for '${proposed.update.id}' changed while archive was awaiting confirmation.`
                   );
                 }
-                if ((await fingerprintSpecInputs(current)) !== proposed.inputFingerprint) {
+                if (
+                  (await fingerprintPath(current.source)) !== proposed.sourceFingerprint ||
+                  (await fingerprintPath(current.target)) !== proposed.targetFingerprint
+                ) {
                   throw new Error(
                     `Spec inputs for '${proposed.update.id}' changed while archive was awaiting confirmation. ` +
                       'No files were changed; review the new content and rerun.'
@@ -1173,22 +1330,31 @@ export class ArchiveCommand {
           await assertArchiveDestinationAvailable(archivePath, archiveName);
           archiveClaim = await claimArchiveDestination(archivePath, archiveName);
           await assertArchiveDestinationAvailable(archivePath, archiveName);
-          const specSnapshots = await captureSpecSnapshots(
-            prepared
-              .filter(
-                ({ outcome, counts }) =>
-                  outcome === 'retire' ||
-                  (outcome === 'write' &&
-                    counts.added + counts.modified + counts.removed + counts.renamed > 0)
-              )
-              .map(({ update, outcome, rebuilt }) => ({
-                update,
-                outcome: outcome as 'write' | 'retire',
-                rebuilt,
-              }))
-          );
-          await moveDirectory(changeDir, archivePath);
-          changeArchived = true;
+          const mutations = prepared
+            .filter(
+              ({ outcome, counts }) =>
+                outcome === 'retire' ||
+                (outcome === 'write' &&
+                  counts.added + counts.modified + counts.removed + counts.renamed > 0)
+            )
+            .map(({ update, outcome, rebuilt }) => ({
+              update,
+              outcome: outcome as 'write' | 'retire',
+              rebuilt,
+            }));
+          await assertDistinctMutationTargets(mutations);
+          for (const proposed of prepared) {
+            if (
+              (await fingerprintPath(proposed.update.source)) !== proposed.sourceFingerprint ||
+              (await fingerprintPath(proposed.update.target)) !== proposed.targetFingerprint
+            ) {
+              throw new Error(
+                `Spec inputs for '${proposed.update.id}' changed before archive could apply them. ` +
+                  'No files were changed; review the new content and rerun.'
+              );
+            }
+          }
+          const specSnapshots = await captureSpecSnapshots(mutations);
 
           const mutationAttempts = new Set<string>();
           try {
@@ -1204,9 +1370,19 @@ export class ArchiveCommand {
               // only churn normalization differences into it.
               continue;
             }
-            mutationAttempts.add(p.update.target);
             await writeUpdatedSpec(p.update, p.rebuilt, p.counts, {
               silent: json,
+              beforeMutate: async () => {
+                if (
+                  (await fingerprintSpecInputs(p.update)) !==
+                  `${p.sourceFingerprint}\n${p.targetFingerprint}`
+                ) {
+                  throw new Error(
+                    `Spec inputs for '${p.update.id}' changed before archive could write them.`
+                  );
+                }
+                mutationAttempts.add(p.update.target);
+              },
               // Cross-root paths must be absolute when a store is selected.
               ...(isStoreSelectedRoot(root) ? { displayPath: p.update.target } : {}),
             });
@@ -1221,9 +1397,29 @@ export class ArchiveCommand {
             // later mutation fails, the snapshots below restore every target.
             for (const p of prepared) {
             if (p.outcome !== 'retire') continue;
-            mutationAttempts.add(p.update.target);
             const { retired, resolvedPath } = await retireSpec(p.update, mainSpecsDir, {
               silent: json,
+              beforeMutate: async () => {
+                if (
+                  (await fingerprintSpecInputs(p.update)) !==
+                  `${p.sourceFingerprint}\n${p.targetFingerprint}`
+                ) {
+                  throw new Error(
+                    `Spec inputs for '${p.update.id}' changed before archive could retire them.`
+                  );
+                }
+                mutationAttempts.add(p.update.target);
+              },
+              verifyDisplaced: async (displacedPath) => {
+                if (
+                  (await fingerprintMovablePath(displacedPath)) !==
+                  p.targetMovableFingerprint
+                ) {
+                  throw new Error(
+                    `Main spec '${p.update.id}' changed while archive was securing it for retirement.`
+                  );
+                }
+              },
               ...(isStoreSelectedRoot(root) ? { displayPath: p.update.target } : {}),
             });
             if (!retired) continue;
@@ -1311,7 +1507,59 @@ export class ArchiveCommand {
                 : 'Specs already in sync; no files changed.'
             );
             }
+
+            for (const proposed of prepared) {
+              if (
+                (await fingerprintPath(proposed.update.source)) !==
+                proposed.sourceFingerprint
+              ) {
+                throw new Error(
+                  `The delta for '${proposed.update.id}' changed before the change could be archived.`
+                );
+              }
+            }
+            const verifyArchivedDeltas = async (
+              stagedSource?: string
+            ): Promise<void> => {
+              for (const proposed of prepared) {
+                const archivedSource = path.join(
+                  archivePath,
+                  path.relative(changeDir, proposed.update.source)
+                );
+                if (
+                  (await fingerprintPortableContent(archivedSource)) !==
+                  proposed.sourceContentFingerprint
+                ) {
+                  throw new Error(
+                    `The archived delta for '${proposed.update.id}' changed during the final move.`
+                  );
+                }
+                if (stagedSource) {
+                  const stagedDelta = path.join(
+                    stagedSource,
+                    path.relative(changeDir, proposed.update.source)
+                  );
+                  if (
+                    (await fingerprintPortableContent(stagedDelta)) !==
+                    proposed.sourceContentFingerprint
+                  ) {
+                    throw new Error(
+                      `The active delta for '${proposed.update.id}' changed during the fallback copy.`
+                    );
+                  }
+                }
+              }
+            };
+            await moveDirectory(changeDir, archivePath, {
+              verifyCopiedDestination: verifyArchivedDeltas,
+            });
+            changeArchived = true;
+            await verifyArchivedDeltas();
           } catch (error) {
+            if (error instanceof MoveDestinationRetainedError) {
+              changeArchived = true;
+              throw error;
+            }
             const rollbackErrors: Error[] = [];
             try {
               await restoreSpecSnapshots(
@@ -1324,15 +1572,17 @@ export class ArchiveCommand {
                   : new Error(String(rollbackError))
               );
             }
-            try {
-              await moveDirectory(archivePath, changeDir);
-              changeArchived = false;
-            } catch (rollbackError) {
-              rollbackErrors.push(
-                rollbackError instanceof Error
-                  ? rollbackError
-                  : new Error(String(rollbackError))
-              );
+            if (changeArchived) {
+              try {
+                await moveDirectory(archivePath, changeDir);
+                changeArchived = false;
+              } catch (rollbackError) {
+                rollbackErrors.push(
+                  rollbackError instanceof Error
+                    ? rollbackError
+                    : new Error(String(rollbackError))
+                );
+              }
             }
             if (rollbackErrors.length > 0) {
               const original = error instanceof Error ? error.message : String(error);

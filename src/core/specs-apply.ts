@@ -6,6 +6,7 @@
  */
 
 import { promises as fs } from 'fs';
+import { randomUUID } from 'crypto';
 import path from 'path';
 import chalk from 'chalk';
 import {
@@ -713,7 +714,12 @@ function countOccurrences(haystack: string, needle: string): number {
 export async function retireSpec(
   update: SpecUpdate,
   mainSpecsDir: string,
-  options: { silent?: boolean; displayPath?: string } = {}
+  options: {
+    silent?: boolean;
+    displayPath?: string;
+    beforeMutate?: () => Promise<void>;
+    verifyDisplaced?: (displacedPath: string) => Promise<void>;
+  } = {}
 ): Promise<{ retired: boolean; resolvedPath?: string }> {
   // Resolved before the unlink, while the link still exists, so the report can
   // name the file that actually goes when a symlink points out of the tree.
@@ -751,7 +757,37 @@ export async function retireSpec(
   }
 
   try {
-    await fs.unlink(update.target);
+    await options.beforeMutate?.();
+    if (options.verifyDisplaced) {
+      const displaced = `${update.target}.openspec-retire-${randomUUID()}`;
+      await fs.rename(update.target, displaced);
+      try {
+        await options.verifyDisplaced(displaced);
+        try {
+          await fs.lstat(update.target);
+          throw new Error(
+            `A concurrent file appeared at ${update.target} while archive was retiring it.`
+          );
+        } catch (targetError) {
+          if ((targetError as NodeJS.ErrnoException).code !== 'ENOENT') throw targetError;
+        }
+        await fs.unlink(displaced);
+      } catch (error) {
+        try {
+          await fs.lstat(update.target);
+          throw new Error(
+            `${error instanceof Error ? error.message : String(error)} ` +
+              `A concurrent file now occupies ${update.target}; the displaced spec was retained at ${displaced}.`
+          );
+        } catch (targetError) {
+          if ((targetError as NodeJS.ErrnoException).code !== 'ENOENT') throw targetError;
+        }
+        await fs.rename(displaced, update.target);
+        throw error;
+      }
+    } else {
+      await fs.unlink(update.target);
+    }
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { retired: false };
     // A bare errno here reads as an internal failure; say what was being
@@ -845,13 +881,20 @@ export async function writeUpdatedSpec(
   update: SpecUpdate,
   rebuilt: string,
   counts: { added: number; modified: number; removed: number; renamed: number },
-  options: { silent?: boolean; displayPath?: string } = {}
+  options: {
+    silent?: boolean;
+    displayPath?: string;
+    beforeMutate?: () => Promise<void>;
+  } = {}
 ): Promise<void> {
   // Create target directory if needed
   const targetDir = path.dirname(update.target);
   await fs.mkdir(targetDir, { recursive: true });
+  await options.beforeMutate?.();
+  // Preserve the established in-place write semantics: symlink referents,
+  // hard-linked specs, ACLs, extended attributes, and filesystems without hard
+  // links must continue to behave as they did before capability retirement.
   await fs.writeFile(update.target, rebuilt);
-
   if (options.silent) return;
 
   const specName = update.id;

@@ -60,7 +60,9 @@ The agent SHALL reconcile main specs with delta specs using the delta operation 
 
 #### Scenario: Something is left in the spec
 - **WHEN** any of those conditions fails - unaccounted content remains anywhere in the file, the spec is malformed, or nothing was removed this run
-- **THEN** keep the file in place and report what is left, rather than deleting it
+- **THEN** do not modify the main spec and stop the sync for that capability
+- **AND** report the blocking condition and how the user can resolve it
+- **AND** never write or leave an empty `## Requirements` section
 
 #### Scenario: RENAMED requirements
 - **WHEN** delta contains `## RENAMED Requirements` with FROM:/TO: format

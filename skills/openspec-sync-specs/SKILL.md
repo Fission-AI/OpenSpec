@@ -119,10 +119,12 @@ This is an **agent-driven** operation - you will read delta specs and directly e
         5. the change's `.openspec.yaml` declares `retire_capabilities: true`;
         6. the `spec.md` resolves inside the real specs root (do not follow a
            capability-directory symlink to delete an external file).
-        Otherwise keep the file: report what is left and let the user decide. An empty
-        `## Requirements` fails `openspec validate`, so say so rather than saving
-        one silently. When only the marker is missing, say that too - it is the one
-        thing the user can add to make the retirement go through.
+        If removing the selected requirements would leave no requirement blocks and
+        any retirement condition is not satisfied, do not modify the main spec. Stop
+        the sync for that capability, report the blocking condition, and tell the user
+        how to resolve it. Never write or leave an empty `## Requirements` section.
+        When only the marker is missing, say that too - it is the one thing the user
+        can add to make the retirement go through.
       - Deleting the file also deletes its `## Purpose`; any other section blocks
         retirement. Name Purpose when you report the retirement. Include a pasteable
         `git checkout` only when the spec lived in the caller's checkout;
