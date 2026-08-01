@@ -568,6 +568,28 @@ async function fingerprintPortableContent(filePath: string): Promise<string> {
   }
 }
 
+/** Fail closed if the metadata authorizing a retirement leaves its snapshot. */
+async function assertRetirementAuthorization(
+  changeDir: string,
+  expectedFingerprint: string,
+  options: { verifyMarker?: boolean } = {}
+): Promise<void> {
+  const metadataPath = path.join(changeDir, METADATA_FILENAME);
+  const before = await fingerprintPortableContent(metadataPath);
+  const markerStillDeclared =
+    options.verifyMarker === false || readRetireCapabilitiesMarker(changeDir).declared;
+  const after = await fingerprintPortableContent(metadataPath);
+  if (
+    before !== expectedFingerprint ||
+    after !== expectedFingerprint ||
+    !markerStillDeclared
+  ) {
+    throw new Error(
+      `The ${METADATA_FILENAME} retirement authorization changed before archive could complete.`
+    );
+  }
+}
+
 async function fingerprintSpecInputs(update: SpecUpdate): Promise<string> {
   return `${await fingerprintPath(update.source)}\n${await fingerprintPath(update.target)}`;
 }
@@ -1059,6 +1081,9 @@ export class ArchiveCommand {
     // can never authorise a deletion.
     const retirementMarker = readRetireCapabilitiesMarker(changeDir);
     const retirementDeclared = retirementMarker.declared;
+    const retirementAuthorizationFingerprint = retirementDeclared
+      ? await fingerprintPortableContent(path.join(changeDir, METADATA_FILENAME))
+      : undefined;
 
     await assertArchiveDestinationAvailable(archivePath, archiveName);
     await fs.mkdir(archiveDir, { recursive: true });
@@ -1342,6 +1367,7 @@ export class ArchiveCommand {
               outcome: outcome as 'write' | 'retire',
               rebuilt,
             }));
+          const hasRetirements = mutations.some(({ outcome }) => outcome === 'retire');
           await assertDistinctMutationTargets(mutations);
           for (const proposed of prepared) {
             if (
@@ -1400,6 +1426,15 @@ export class ArchiveCommand {
             const { retired, resolvedPath } = await retireSpec(p.update, mainSpecsDir, {
               silent: json,
               beforeMutate: async () => {
+                if (retirementAuthorizationFingerprint === undefined) {
+                  throw new Error(
+                    `The ${METADATA_FILENAME} retirement authorization is unavailable.`
+                  );
+                }
+                await assertRetirementAuthorization(
+                  changeDir,
+                  retirementAuthorizationFingerprint
+                );
                 if (
                   (await fingerprintSpecInputs(p.update)) !==
                   `${p.sourceFingerprint}\n${p.targetFingerprint}`
@@ -1411,6 +1446,10 @@ export class ArchiveCommand {
                 mutationAttempts.add(p.update.target);
               },
               verifyDisplaced: async (displacedPath) => {
+                await assertRetirementAuthorization(
+                  changeDir,
+                  retirementAuthorizationFingerprint!
+                );
                 if (
                   (await fingerprintMovablePath(displacedPath)) !==
                   p.targetMovableFingerprint
@@ -1518,9 +1557,32 @@ export class ArchiveCommand {
                 );
               }
             }
+            if (hasRetirements) {
+              await assertRetirementAuthorization(
+                changeDir,
+                retirementAuthorizationFingerprint!
+              );
+            }
             const verifyArchivedDeltas = async (
               stagedSource?: string
             ): Promise<void> => {
+              if (hasRetirements) {
+                await assertRetirementAuthorization(
+                  archivePath,
+                  retirementAuthorizationFingerprint!,
+                  // Archived changes are nested one level deeper than active
+                  // changes, so the marker reader cannot resolve their schema.
+                  // Exact content equality proves this is the authorization
+                  // already validated at the active path.
+                  { verifyMarker: false }
+                );
+                if (stagedSource) {
+                  await assertRetirementAuthorization(
+                    stagedSource,
+                    retirementAuthorizationFingerprint!
+                  );
+                }
+              }
               for (const proposed of prepared) {
                 const archivedSource = path.join(
                   archivePath,

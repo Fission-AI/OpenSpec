@@ -4582,6 +4582,106 @@ The system SHALL preserve a concurrent requirement.
       await expect(fs.access(changeDir)).resolves.not.toThrow();
     });
 
+    it('does not retire when authorization is removed at the displacement boundary', async () => {
+      const changeName = 'retire-authorization-race-at-displacement';
+      const changeDir = await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const metadata = path.join(changeDir, '.openspec.yaml');
+      const targetDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      const target = path.join(targetDir, 'spec.md');
+      await fs.mkdir(targetDir, { recursive: true });
+      const original = mainSpec('legacy-layer');
+      await fs.writeFile(target, original);
+
+      const realRename = fs.rename.bind(fs);
+      onTestFinished(() => vi.restoreAllMocks());
+      let authorizationRemoved = false;
+      vi.spyOn(fs, 'rename').mockImplementation(async (source, destination) => {
+        if (
+          !authorizationRemoved &&
+          String(source).endsWith(
+            `${path.sep}openspec${path.sep}specs${path.sep}legacy-layer${path.sep}spec.md`
+          ) &&
+          String(destination).includes('.openspec-retire-')
+        ) {
+          authorizationRemoved = true;
+          await fs.writeFile(
+            metadata,
+            'schema: spec-driven\nretire_capabilities: false\n'
+          );
+        }
+        return realRename(source, destination);
+      });
+
+      let failure: unknown;
+      try {
+        await archiveCommand.execute(changeName, { yes: true });
+      } catch (error) {
+        failure = error;
+      }
+
+      expect(authorizationRemoved).toBe(true);
+      await expect(fs.readFile(target, 'utf-8')).resolves.toBe(original);
+      await expect(fs.readFile(metadata, 'utf-8')).resolves.toContain(
+        'retire_capabilities: false'
+      );
+      await expect(fs.access(changeDir)).resolves.not.toThrow();
+      expect(failure).toEqual(
+        expect.objectContaining({
+          message: expect.stringMatching(/retirement authorization changed/),
+        })
+      );
+    });
+
+    it('rolls back retirement when authorization changes during the final move', async () => {
+      const changeName = 'retire-authorization-race-at-final-move';
+      const changeDir = await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const metadata = path.join(changeDir, '.openspec.yaml');
+      const targetDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      const target = path.join(targetDir, 'spec.md');
+      await fs.mkdir(targetDir, { recursive: true });
+      const original = mainSpec('legacy-layer');
+      await fs.writeFile(target, original);
+
+      const realRename = fs.rename.bind(fs);
+      onTestFinished(() => vi.restoreAllMocks());
+      let authorizationRemoved = false;
+      vi.spyOn(fs, 'rename').mockImplementation(async (source, destination) => {
+        if (
+          !authorizationRemoved &&
+          String(source).endsWith(
+            `${path.sep}openspec${path.sep}changes${path.sep}${changeName}`
+          ) &&
+          String(destination).includes(`${path.sep}changes${path.sep}archive${path.sep}`)
+        ) {
+          authorizationRemoved = true;
+          await fs.writeFile(
+            metadata,
+            'schema: spec-driven\nretire_capabilities: false\n'
+          );
+        }
+        return realRename(source, destination);
+      });
+
+      let failure: unknown;
+      try {
+        await archiveCommand.execute(changeName, { yes: true });
+      } catch (error) {
+        failure = error;
+      }
+
+      expect(authorizationRemoved).toBe(true);
+      await expect(fs.readFile(target, 'utf-8')).resolves.toBe(original);
+      await expect(fs.readFile(metadata, 'utf-8')).resolves.toContain(
+        'retire_capabilities: false'
+      );
+      await expect(fs.access(changeDir)).resolves.not.toThrow();
+      expect(failure).toEqual(
+        expect.objectContaining({
+          message: expect.stringMatching(/retirement authorization changed/),
+        })
+      );
+    });
+
     it('restores a retired spec when the final archive move fails', async () => {
       const changeName = 'retire-final-move-failure';
       const changeDir = await createChange(changeName, 'legacy-layer', REMOVE_ALL);
