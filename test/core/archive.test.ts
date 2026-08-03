@@ -1942,33 +1942,38 @@ New feature description.
       await expect(fs.access(claimPath)).resolves.not.toThrow();
     });
 
-    it('does not unlink a claim entry replaced by another process', async () => {
-      const changeName = 'replaced-archive-claim';
-      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
-      await fs.mkdir(changeDir, { recursive: true });
-      const archiveName = `${formatLocalDate()}-${changeName}`;
-      const claimPath = archiveClaimPath(archiveName);
-      const realRename = fs.rename.bind(fs);
-      onTestFinished(() => vi.restoreAllMocks());
-      let replaced = false;
-      vi.spyOn(fs, 'rename').mockImplementation(async (source, destination) => {
-        if (
-          !replaced &&
-          String(source).endsWith(`${path.sep}changes${path.sep}${changeName}`) &&
-          String(destination).endsWith(`${path.sep}archive${path.sep}${archiveName}`)
-        ) {
-          replaced = true;
-          await fs.unlink(claimPath);
-          await fs.writeFile(claimPath, 'replacement claim\n');
-        }
-        return realRename(source, destination);
-      });
+    // Windows defers deletion of an open file until its original handle closes,
+    // so unlink-and-recreate cannot model a persistent replacement there.
+    it.skipIf(process.platform === 'win32')(
+      'does not unlink a claim entry replaced by another process',
+      async () => {
+        const changeName = 'replaced-archive-claim';
+        const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+        await fs.mkdir(changeDir, { recursive: true });
+        const archiveName = `${formatLocalDate()}-${changeName}`;
+        const claimPath = archiveClaimPath(archiveName);
+        const realRename = fs.rename.bind(fs);
+        onTestFinished(() => vi.restoreAllMocks());
+        let replaced = false;
+        vi.spyOn(fs, 'rename').mockImplementation(async (source, destination) => {
+          if (
+            !replaced &&
+            String(source).endsWith(`${path.sep}changes${path.sep}${changeName}`) &&
+            String(destination).endsWith(`${path.sep}archive${path.sep}${archiveName}`)
+          ) {
+            replaced = true;
+            await fs.unlink(claimPath);
+            await fs.writeFile(claimPath, 'replacement claim\n');
+          }
+          return realRename(source, destination);
+        });
 
-      await archiveCommand.execute(changeName, { yes: true, skipSpecs: true });
+        await archiveCommand.execute(changeName, { yes: true, skipSpecs: true });
 
-      expect(replaced).toBe(true);
-      await expect(fs.readFile(claimPath, 'utf-8')).resolves.toBe('replacement claim\n');
-    });
+        expect(replaced).toBe(true);
+        await expect(fs.readFile(claimPath, 'utf-8')).resolves.toBe('replacement claim\n');
+      }
+    );
 
     it('should handle changes without tasks.md', async () => {
       const changeName = 'no-tasks-feature';
