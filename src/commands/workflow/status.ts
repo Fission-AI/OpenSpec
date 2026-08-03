@@ -1,3 +1,4 @@
+import { printJson } from '../shared-output.js';
 /**
  * Status Command
  *
@@ -110,7 +111,7 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
     spinner?.stop();
 
     if (options.json) {
-      console.log(JSON.stringify({ ...status, root: rootOutput }, null, 2));
+      printJson({ ...status, root: rootOutput }, options?.json ? 'json' : 'json-pretty');
       return;
     }
 

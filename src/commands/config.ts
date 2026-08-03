@@ -1,3 +1,4 @@
+import { printJson } from './shared-output.js';
 import { Command } from 'commander';
 import { spawn } from 'node:child_process';
 import * as fs from 'node:fs';
@@ -237,7 +238,7 @@ export function registerConfigCommand(program: Command): void {
       const config = getGlobalConfig();
 
       if (options.json) {
-        console.log(JSON.stringify(config, null, 2));
+        printJson(config, (options as any)?.format ?? ((options as any)?.json ? 'json' : 'json-pretty'));
       } else {
         // Read raw config to determine which values are explicit vs defaults
         const configPath = getGlobalConfigPath();
@@ -282,7 +283,7 @@ export function registerConfigCommand(program: Command): void {
       }
 
       if (typeof value === 'object' && value !== null) {
-        console.log(JSON.stringify(value));
+        printJson(value, 'json-pretty');
       } else {
         console.log(String(value));
       }

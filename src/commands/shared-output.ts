@@ -6,8 +6,10 @@
  */
 import { StoreError, type StoreDiagnostic } from '../core/store/errors.js';
 
-export function printJson(payload: unknown): void {
-  console.log(JSON.stringify(payload, null, 2));
+import { formatAgentOutput, type OutputFormat } from '../core/format-output.js';
+
+export function printJson(payload: unknown, format: OutputFormat = 'json-pretty'): void {
+  console.log(formatAgentOutput(payload, format));
 }
 
 export function asErrorMessage(error: unknown): string {
@@ -45,23 +47,24 @@ export function asStatus(error: unknown, fallbackCode: string): StoreDiagnostic 
 }
 
 export function emitFailure(
-  json: boolean | undefined,
+  formatOptions: OutputFormat | boolean | undefined,
   payload: Record<string, unknown>,
   error: unknown,
   fallbackCode: string
 ): void {
   // Ctrl-C in a prompt is the user's choice, not an error: every
   // command group gets the Cancelled./130 convention through here.
-  if (!json && isPromptCancellationError(error)) {
+  if (!formatOptions && isPromptCancellationError(error)) {
     console.error('Cancelled.');
     process.exitCode = 130;
     return;
   }
 
   const status = asStatus(error, fallbackCode);
-  if (json) {
+  if (formatOptions) {
     const prior = Array.isArray(payload.status) ? payload.status : [];
-    printJson({ ...payload, status: [...prior, status] });
+    const format = typeof formatOptions === 'string' ? formatOptions : 'json-pretty';
+    printJson({ ...payload, status: [...prior, status] }, format);
     process.exitCode = 1;
     return;
   }

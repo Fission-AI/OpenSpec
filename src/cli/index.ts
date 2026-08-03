@@ -1,4 +1,5 @@
 import { asStatus } from '../commands/shared-output.js';
+import { formatAgentOutput, type OutputFormat } from '../core/format-output.js';
 import { Command, Option } from 'commander';
 import { createRequire } from 'module';
 import ora from 'ora';
@@ -67,16 +68,16 @@ function hiddenStorePathOption(): Option {
 
 function failWithError(
   error: unknown,
-  json?: { enabled: boolean | undefined; payload?: Record<string, unknown>; fallbackCode?: string }
+  formatOptions?: { format?: import('../core/format-output.js').OutputFormat | boolean | undefined; payload?: Record<string, unknown>; fallbackCode?: string }
 ): void {
   // The agent contract: every --json failure leaves exactly one JSON
   // document on stdout (the command's null-shape plus a status array).
-  if (json?.enabled) {
+  if (formatOptions?.format) {
+    const format = typeof formatOptions.format === 'string' ? formatOptions.format : 'json-pretty';
     console.log(
-      JSON.stringify(
-        { ...(json.payload ?? {}), status: [asStatus(error, json.fallbackCode ?? 'command_error')] },
-        null,
-        2
+      formatAgentOutput(
+        { ...(formatOptions.payload ?? {}), status: [asStatus(error, formatOptions.fallbackCode ?? 'command_error')] },
+        format
       )
     );
     process.exitCode = 1;
@@ -180,12 +181,26 @@ program
         }
       }
 
+      let agentOutputFormat: 'json' | 'toon' | undefined = undefined;
+      const { isInteractive } = await import('../utils/interactive.js');
+      if (isInteractive()) {
+        const { select } = await import('@inquirer/prompts');
+        agentOutputFormat = await select({
+          message: 'Default AI output format:',
+          choices: [
+            { name: 'JSON (minified for token efficiency)', value: 'json' },
+            { name: 'TOON (extreme token optimization, requires TOON-aware agent)', value: 'toon' },
+          ],
+        });
+      }
+
       const { InitCommand } = await import('../core/init.js');
       const initCommand = new InitCommand({
         tools: options?.tools,
         force: options?.force,
         profile: options?.profile,
         animation: options?.animation,
+        agentOutputFormat,
       });
       await initCommand.execute(targetPath);
     } catch (error) {
@@ -287,6 +302,8 @@ program
   .option('--changes', 'List changes explicitly (default)')
   .option('--sort <order>', 'Sort order: "recent" (default) or "name"', 'recent')
   .option('--json', 'Output as JSON (for programmatic use)')
+  .option('--json-pretty', 'Output as formatted JSON')
+  .option('--toon', 'Output in TOON format')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
   .action(async (options?: { specs?: boolean; changes?: boolean; sort?: string; json?: boolean; store?: string; storePath?: string }) => {
@@ -308,7 +325,7 @@ program
       });
     } catch (error) {
       failWithError(error, {
-        enabled: options?.json,
+        format: options?.json,
         payload: options?.specs ? { specs: [], root: null } : { changes: [], root: null },
         fallbackCode: 'list_error',
       });
@@ -352,6 +369,8 @@ changeCmd
   .command('show [change-name]')
   .description('Show a change proposal in JSON or markdown format')
   .option('--json', 'Output as JSON')
+  .option('--json-pretty', 'Output as formatted JSON')
+  .option('--toon', 'Output in TOON format')
   .option('--deltas-only', 'Show only deltas (JSON only)')
   .option('--requirements-only', 'Alias for --deltas-only (deprecated)')
   .option('--no-interactive', 'Disable interactive prompts')
@@ -369,6 +388,8 @@ changeCmd
   .command('list')
   .description('List all active changes (DEPRECATED: use "openspec list" instead)')
   .option('--json', 'Output as JSON')
+  .option('--json-pretty', 'Output as formatted JSON')
+  .option('--toon', 'Output in TOON format')
   .option('--long', 'Show id and title with counts')
   .action(async (options?: { json?: boolean; long?: boolean }) => {
     try {
@@ -386,6 +407,8 @@ changeCmd
   .description('Validate a change proposal')
   .option('--strict', 'Enable strict validation mode')
   .option('--json', 'Output validation report as JSON')
+  .option('--json-pretty', 'Output as formatted JSON')
+  .option('--toon', 'Output in TOON format')
   .option('--no-interactive', 'Disable interactive prompts')
   .action(async (changeName?: string, options?: { strict?: boolean; json?: boolean; noInteractive?: boolean }) => {
     try {
@@ -407,6 +430,8 @@ program
   .option('--skip-specs', 'Skip spec update operations (useful for infrastructure, tooling, or doc-only changes)')
   .option('--no-validate', 'Skip validation (not recommended, requires confirmation)')
   .option('--json', 'Output as JSON (non-interactive)')
+  .option('--json-pretty', 'Output as formatted JSON')
+  .option('--toon', 'Output in TOON format')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
   .action(async (changeName?: string, options?: ArchiveOptions) => {
@@ -437,6 +462,8 @@ program
   .option('--type <type>', 'Specify item type when ambiguous: change|spec')
   .option('--strict', 'Enable strict validation mode')
   .option('--json', 'Output validation results as JSON')
+  .option('--json-pretty', 'Output as formatted JSON')
+  .option('--toon', 'Output in TOON format')
   .option('--concurrency <n>', 'Max concurrent validations (defaults to env OPENSPEC_CONCURRENCY or 6)')
   .option('--no-interactive', 'Disable interactive prompts')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
@@ -446,7 +473,7 @@ program
       const validateCommand = new ValidateCommand();
       await validateCommand.execute(itemName, options);
     } catch (error) {
-      failWithError(error, { enabled: options?.json, fallbackCode: 'validate_error' });
+      failWithError(error, { format: options?.json, fallbackCode: 'validate_error' });
       process.exit(1);
     }
   });
@@ -456,6 +483,8 @@ program
   .command('show [item-name]')
   .description('Show a change or spec')
   .option('--json', 'Output as JSON')
+  .option('--json-pretty', 'Output as formatted JSON')
+  .option('--toon', 'Output in TOON format')
   .option('--type <type>', 'Specify item type when ambiguous: change|spec')
   .option('--no-interactive', 'Disable interactive prompts')
   // change-only flags
@@ -476,7 +505,7 @@ program
       const showCommand = new ShowCommand();
       await showCommand.execute(itemName, options ?? {});
     } catch (error) {
-      failWithError(error, { enabled: options?.json, fallbackCode: 'show_error' });
+      failWithError(error, { format: options?.json, fallbackCode: 'show_error' });
       process.exit(1);
     }
   });
@@ -567,13 +596,15 @@ program
   .option('--change <id>', 'Change name to show status for')
   .option('--schema <name>', 'Schema override (auto-detected from config.yaml)')
   .option('--json', 'Output as JSON')
+  .option('--json-pretty', 'Output as formatted JSON')
+  .option('--toon', 'Output in TOON format')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
   .action(async (options: StatusOptions) => {
     try {
       await statusCommand(options);
     } catch (error) {
-      failWithError(error, { enabled: options.json, fallbackCode: 'change_error' });
+      failWithError(error, { format: options.json, fallbackCode: 'change_error' });
       process.exit(1);
     }
   });
@@ -585,6 +616,8 @@ program
   .option('--change <id>', 'Change name')
   .option('--schema <name>', 'Schema override (auto-detected from config.yaml)')
   .option('--json', 'Output as JSON')
+  .option('--json-pretty', 'Output as formatted JSON')
+  .option('--toon', 'Output in TOON format')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
   .action(async (artifactId: string | undefined, options: InstructionsOptions) => {
@@ -598,7 +631,7 @@ program
         await instructionsCommand(artifactId, options);
       }
     } catch (error) {
-      failWithError(error, { enabled: options.json, fallbackCode: 'change_error' });
+      failWithError(error, { format: options.json, fallbackCode: 'change_error' });
       process.exit(1);
     }
   });
@@ -609,6 +642,8 @@ program
   .description('Show resolved template paths for all artifacts in a schema')
   .option('--schema <name>', `Schema to use (default: ${DEFAULT_SCHEMA})`)
   .option('--json', 'Output as JSON mapping artifact IDs to template paths')
+  .option('--json-pretty', 'Output as formatted JSON')
+  .option('--toon', 'Output in TOON format')
   .action(async (options: TemplatesOptions) => {
     try {
       await templatesCommand(options);
@@ -623,6 +658,8 @@ program
   .command('schemas')
   .description('List available workflow schemas with descriptions')
   .option('--json', 'Output as JSON (for agent use)')
+  .option('--json-pretty', 'Output as formatted JSON')
+  .option('--toon', 'Output in TOON format')
   .action(async (options: SchemasOptions) => {
     try {
       await schemasCommand(options);
@@ -642,6 +679,8 @@ newCmd
   .option('--goal <text>', 'Optional goal metadata to store with the change')
   .option('--schema <name>', `Workflow schema to use (default: ${DEFAULT_SCHEMA})`)
   .option('--json', 'Output as JSON')
+  .option('--json-pretty', 'Output as formatted JSON')
+  .option('--toon', 'Output in TOON format')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
   // Removed options kept registered (hidden) so users get a deliberate

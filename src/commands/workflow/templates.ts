@@ -1,3 +1,4 @@
+import { printJson } from '../shared-output.js';
 /**
  * Templates Command
  *
@@ -82,7 +83,7 @@ export async function templatesCommand(options: TemplatesOptions): Promise<void>
       for (const t of templates) {
         output[t.artifactId] = { path: t.templatePath, source: t.source };
       }
-      console.log(JSON.stringify(output, null, 2));
+      printJson(output, (options as any)?.format ?? ((options as any)?.json ? 'json' : 'json-pretty'));
       return;
     }
 

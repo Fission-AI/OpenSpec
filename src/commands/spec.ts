@@ -1,3 +1,4 @@
+import { printJson } from './shared-output.js';
 import { program } from 'commander';
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
@@ -116,7 +117,7 @@ export class SpecCommand {
         metadata: parsed.metadata ?? { version: '1.0.0', format: 'openspec' as const },
         ...(options.rootOutput ? { root: options.rootOutput } : {}),
       };
-      console.log(JSON.stringify(output, null, 2));
+      printJson(output, (options as any)?.format ?? ((options as any)?.json ? 'json' : 'json-pretty'));
       return;
     }
     printSpecTextRaw(specPath);
@@ -185,7 +186,7 @@ export function registerSpecCommand(rootProgram: typeof program) {
           .sort((a, b) => a.id.localeCompare(b.id));
 
         if (options.json) {
-          console.log(JSON.stringify(specs, null, 2));
+          printJson(specs, (options as any)?.format ?? ((options as any)?.json ? 'json' : 'json-pretty'));
         } else {
           if (specs.length === 0) {
             console.log('No items found');
@@ -237,7 +238,7 @@ export function registerSpecCommand(rootProgram: typeof program) {
         const report = await validator.validateSpec(specPath);
 
         if (options.json) {
-          console.log(JSON.stringify(report, null, 2));
+          printJson(report, (options as any)?.format ?? ((options as any)?.json ? 'json' : 'json-pretty'));
         } else {
           if (report.valid) {
             console.log(`Specification '${specId}' is valid`);

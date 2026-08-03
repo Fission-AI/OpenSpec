@@ -1,3 +1,4 @@
+import { printJson } from '../shared-output.js';
 /**
  * Schemas Command
  *
@@ -24,7 +25,7 @@ export async function schemasCommand(options: SchemasOptions): Promise<void> {
   const schemas = listSchemasWithInfo(projectRoot);
 
   if (options.json) {
-    console.log(JSON.stringify(schemas, null, 2));
+    printJson(schemas, (options as any)?.format ?? ((options as any)?.json ? 'json' : 'json-pretty'));
     return;
   }
 

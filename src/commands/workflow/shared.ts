@@ -70,8 +70,10 @@ export const DEFAULT_SCHEMA = 'spec-driven';
 // Utility Functions
 // -----------------------------------------------------------------------------
 
-export function printJson(payload: unknown): void {
-  console.log(JSON.stringify(payload, null, 2));
+import { formatAgentOutput, type OutputFormat } from '../../core/format-output.js';
+
+export function printJson(payload: unknown, format: OutputFormat = 'json-pretty'): void {
+  console.log(formatAgentOutput(payload, format));
 }
 
 export function statusFromError(error: unknown): ChangeCommandStatus {

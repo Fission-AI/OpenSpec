@@ -101,6 +101,7 @@ type InitCommandOptions = {
   profile?: string;
   /** Commander's --no-animation flag: false disables the welcome animation. */
   animation?: boolean;
+  agentOutputFormat?: 'json' | 'toon';
 };
 
 /**
@@ -121,6 +122,7 @@ export class InitCommand {
   private readonly interactiveOption?: boolean;
   private readonly profileOverride?: string;
   private readonly animation: boolean;
+  private readonly agentOutputFormat?: 'json' | 'toon';
 
   constructor(options: InitCommandOptions = {}) {
     this.toolsArg = options.tools;
@@ -128,6 +130,7 @@ export class InitCommand {
     this.interactiveOption = options.interactive;
     this.profileOverride = options.profile;
     this.animation = options.animation ?? true;
+    this.agentOutputFormat = options.agentOutputFormat;
   }
 
   async execute(targetPath: string): Promise<void> {
@@ -723,12 +726,19 @@ export class InitCommand {
             const skillFile = path.join(skillDir, 'SKILL.md');
 
             // Generate SKILL.md content with YAML frontmatter including generatedBy
-            const transformer = getTransformerForTool(
+            let transformer = getTransformerForTool(
               tool.value,
               delivery,
               resolveCommandSurfaceCapability(tool.value),
               resolveCommandInvocation(tool.value)
             );
+            if (this.agentOutputFormat === 'toon') {
+              const baseTransformer = transformer;
+              transformer = (instructions: string) => {
+                const transformed = baseTransformer ? baseTransformer(instructions) : instructions;
+                return transformed.replace(/--json/g, '--toon');
+              };
+            }
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
 
             // Write the skill file
@@ -802,7 +812,9 @@ export class InitCommand {
 
 
     try {
-      const yamlContent = serializeConfig({ schema: DEFAULT_SCHEMA });
+      let agentOutputFormat: 'json' | 'toon' = this.agentOutputFormat ?? 'json';
+
+      const yamlContent = serializeConfig({ schema: DEFAULT_SCHEMA, agentOutputFormat });
       await FileSystemUtils.writeFile(configPath, yamlContent);
       return 'created';
     } catch {

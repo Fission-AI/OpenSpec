@@ -17,6 +17,9 @@ importers:
       '@inquirer/prompts':
         specifier: ^7.10.1
         version: 7.10.1(@types/node@20.19.43)
+      '@toon-format/toon':
+        specifier: ^4.1.0
+        version: 4.1.0
       chalk:
         specifier: ^5.6.2
         version: 5.6.2
@@ -624,6 +627,9 @@ packages:
     resolution: {integrity: sha512-BfzEnDJOt9T8M989/lA37EcJgat01wLRnoi5dQf3QzOH7jzpqTAzdDbVfRljVr5r+jzKqpbHeyOfAaXxAd0PAA==}
     cpu: [x64]
     os: [win32]
+
+  '@toon-format/toon@4.1.0':
+    resolution: {integrity: sha512-dBB3pkEx9QYvHnHR6rtkaBAh+7x4W/oA5ONur4G0fh7Ow69PbPuM7OFxzNRABqyxC0t6SZ3RixiGbCuaFjPDAQ==}
 
   '@types/chai@5.2.2':
     resolution: {integrity: sha512-8kB30R7Hwqf40JPiKhVzodJs2Qc1ZJ5zuT3uzw5Hq/dhNCl3G3l83jfpdI1e20BP348+fV7VIL/+FxaXkqBmWg==}
@@ -2121,6 +2127,8 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.62.2':
     optional: true
+
+  '@toon-format/toon@4.1.0': {}
 
   '@types/chai@5.2.2':
     dependencies:

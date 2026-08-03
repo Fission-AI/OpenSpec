@@ -43,6 +43,12 @@ export const ProjectConfigSchema = z.object({
     .optional()
     .describe('Project context injected into all artifact instructions'),
 
+  // Optional: agent output format
+  agentOutputFormat: z
+    .enum(['json', 'toon'])
+    .optional()
+    .describe('Default output format for AI agents'),
+
   // Optional: per-artifact rules (additive to schema's built-in guidance)
   rules: z
     .record(

@@ -1,3 +1,4 @@
+import { printJson } from '../commands/shared-output.js';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { formatLocalDate } from '../utils/date.js';
@@ -267,7 +268,7 @@ export class ArchiveCommand {
         if (!result) {
           return;
         }
-        console.log(JSON.stringify({ archive: result, root: toRootOutput(root) }, null, 2));
+        printJson({ archive: result, root: toRootOutput(root) }, options?.json ? 'json' : 'json-pretty');
       } catch (error) {
         this.printJsonFailure(root, toArchiveDiagnostic(error));
       }

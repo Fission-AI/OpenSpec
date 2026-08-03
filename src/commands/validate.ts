@@ -1,3 +1,4 @@
+import { printJson } from './shared-output.js';
 import ora from 'ora';
 import path from 'path';
 import { Validator } from '../core/validation/validator.js';
@@ -215,7 +216,7 @@ export class ValidateCommand {
   private printReport(type: ItemType, id: string, report: { valid: boolean; issues: any[] }, durationMs: number, json: boolean, root: ResolvedOpenSpecRoot): void {
     if (json) {
       const out = { items: [{ id, type, valid: report.valid, issues: report.issues, durationMs }], summary: { totals: { items: 1, passed: report.valid ? 1 : 0, failed: report.valid ? 0 : 1 }, byType: { [type]: { items: 1, passed: report.valid ? 1 : 0, failed: report.valid ? 0 : 1 } } }, version: '1.0', root: toRootOutput(root) };
-      console.log(JSON.stringify(out, null, 2));
+      printJson(out, json ? 'json' : 'json-pretty');
       return;
     }
     if (report.valid) {
@@ -307,7 +308,7 @@ export class ValidateCommand {
 
       if (opts.json) {
         const out = { items: [] as BulkItemResult[], summary, version: '1.0', root: toRootOutput(root) };
-        console.log(JSON.stringify(out, null, 2));
+        printJson(out, opts.json ? 'json' : 'json-pretty');
       } else {
         console.log('No items found to validate.');
       }
@@ -363,7 +364,7 @@ export class ValidateCommand {
 
     if (opts.json) {
       const out = { items: results, summary, version: '1.0', root: toRootOutput(root) };
-      console.log(JSON.stringify(out, null, 2));
+      printJson(out, opts.json ? 'json' : 'json-pretty');
     } else {
       for (const res of results) {
         if (res.valid) console.log(`✓ ${res.type}/${res.id}`);

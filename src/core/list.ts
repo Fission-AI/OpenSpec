@@ -1,3 +1,4 @@
+import { printJson } from '../commands/shared-output.js';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
@@ -109,7 +110,7 @@ export class ListCommand {
 
       if (changeDirs.length === 0) {
         if (json) {
-          console.log(JSON.stringify({ changes: [], ...(root ? { root } : {}) }, null, 2));
+          printJson({ changes: [], ...(root ? { root } : {}) }, json ? 'json' : 'json-pretty');
         } else {
           console.log('No active changes found.');
         }
@@ -147,7 +148,7 @@ export class ListCommand {
           lastModified: c.lastModified.toISOString(),
           status: c.totalTasks === 0 ? 'no-tasks' : c.completedTasks === c.totalTasks ? 'complete' : 'in-progress'
         }));
-        console.log(JSON.stringify({ changes: jsonOutput, ...(root ? { root } : {}) }, null, 2));
+        printJson({ changes: jsonOutput, ...(root ? { root } : {}) }, json ? 'json' : 'json-pretty');
         return;
       }
 
@@ -170,7 +171,7 @@ export class ListCommand {
       await fs.access(specsDir);
     } catch {
       if (json) {
-        console.log(JSON.stringify({ specs: [], ...(root ? { root } : {}) }, null, 2));
+        printJson({ specs: [], ...(root ? { root } : {}) }, json ? 'json' : 'json-pretty');
       } else {
         console.log('No specs found.');
       }
@@ -180,7 +181,7 @@ export class ListCommand {
     const discovered = await discoverSpecFiles(specsDir);
     if (discovered.length === 0) {
       if (json) {
-        console.log(JSON.stringify({ specs: [], ...(root ? { root } : {}) }, null, 2));
+        printJson({ specs: [], ...(root ? { root } : {}) }, json ? 'json' : 'json-pretty');
       } else {
         console.log('No specs found.');
       }
@@ -204,7 +205,7 @@ export class ListCommand {
     specs.sort((a, b) => a.id.localeCompare(b.id));
 
     if (json) {
-      console.log(JSON.stringify({ specs, ...(root ? { root } : {}) }, null, 2));
+      printJson({ specs, ...(root ? { root } : {}) }, json ? 'json' : 'json-pretty');
       return;
     }
 

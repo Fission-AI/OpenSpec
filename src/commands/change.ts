@@ -1,3 +1,4 @@
+import { printJson } from './shared-output.js';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { JsonConverter } from '../core/converters/json-converter.js';
@@ -127,7 +128,7 @@ export class ChangeCommand {
         deltas,
         ...(options.rootOutput ? { root: options.rootOutput } : {}),
       };
-      console.log(JSON.stringify(output, null, 2));
+      printJson(output, (options as any)?.format ?? ((options as any)?.json ? 'json' : 'json-pretty'));
     } else {
       const content = await fs.readFile(proposalPath, 'utf-8');
       console.log(content);
@@ -185,7 +186,7 @@ export class ChangeCommand {
       );
       
       const sorted = changeDetails.sort((a, b) => a.id.localeCompare(b.id));
-      console.log(JSON.stringify(sorted, null, 2));
+      printJson(sorted, (options as any)?.format ?? ((options as any)?.json ? 'json' : 'json-pretty'));
     } else {
       if (changes.length === 0) {
         console.log('No items found');
@@ -263,7 +264,7 @@ export class ChangeCommand {
     });
     
     if (options?.json) {
-      console.log(JSON.stringify(report, null, 2));
+      printJson(report, (options as any)?.format ?? ((options as any)?.json ? 'json' : 'json-pretty'));
     } else {
       if (report.valid) {
         console.log(`Change "${changeName}" is valid`);

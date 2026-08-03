@@ -11,6 +11,10 @@ export function serializeConfig(config: Partial<ProjectConfig>): string {
 
   // Schema (required)
   lines.push(`schema: ${config.schema}`);
+  
+  if (config.agentOutputFormat) {
+    lines.push(`agentOutputFormat: ${config.agentOutputFormat}`);
+  }
   lines.push('');
 
   // Context section with comments

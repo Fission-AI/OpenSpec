@@ -1,3 +1,4 @@
+import { printJson } from '../shared-output.js';
 /**
  * Instructions Command
  *
@@ -168,7 +169,7 @@ export async function instructionsCommand(
     spinner?.stop();
 
     if (options.json) {
-      console.log(JSON.stringify({ ...instructions, root: toRootOutput(root) }, null, 2));
+      printJson({ ...instructions, root: toRootOutput(root) }, options?.json ? 'json' : 'json-pretty');
       return;
     }
 
@@ -511,7 +512,7 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
     spinner?.stop();
 
     if (options.json) {
-      console.log(JSON.stringify({ ...instructions, root: toRootOutput(root) }, null, 2));
+      printJson({ ...instructions, root: toRootOutput(root) }, options?.json ? 'json' : 'json-pretty');
       return;
     }
 
@@ -617,7 +618,7 @@ export async function archiveInstructionsCommand(
     spinner?.stop();
 
     if (options.json) {
-      console.log(JSON.stringify({ ...instructions, root: toRootOutput(root) }, null, 2));
+      printJson({ ...instructions, root: toRootOutput(root) }, options?.json ? 'json' : 'json-pretty');
       return;
     }
 
