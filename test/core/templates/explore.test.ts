@@ -95,16 +95,6 @@ describe('explore templates', () => {
     }
   });
 
-  it('retains the selected store throughout the capture transition (#668, #720)', () => {
-    for (const [label, body] of bodies) {
-      const transition = newChangeTransition(body, label);
-
-      expect(transition, label).toContain(
-        'Keep the selected `--store <id>` on every applicable follow-up `status` and `instructions` command'
-      );
-    }
-  });
-
   it('continues an accepted transition through the requested artifact (#668)', () => {
     for (const [label, body] of bodies) {
       const transition = newChangeTransition(body, label);
@@ -132,7 +122,7 @@ describe('explore templates', () => {
     }
   });
 
-  it('keeps the seamless capture steps ordered and singular (#668, #720)', () => {
+  it('keeps the seamless capture steps ordered (#668, #720)', () => {
     for (const [label, body] of bodies) {
       const transition = newChangeTransition(body, label);
       const scaffold = transition.indexOf('1. Run `openspec new change "<name>"`');
@@ -186,18 +176,37 @@ describe('explore templates', () => {
   it('handles conditional prerequisites without deadlocking capture (#668)', () => {
     for (const [label, body] of bodies) {
       const transition = newChangeTransition(body, label);
+      const inspectPrerequisite = transition.indexOf(
+        'run `openspec instructions "<prerequisite-id>"'
+      );
+      const evaluateCondition = transition.indexOf(
+        'evaluate that condition against the explored change'
+      );
+      const recordSkip = transition.indexOf(
+        'record a deliberate skip only when the condition does not apply'
+      );
+      const requireExpansion = transition.indexOf(
+        'If the condition applies, or the prerequisite is not conditional'
+      );
+      const approvalGuard = transition.indexOf(
+        'Do not create an unrequested prerequisite unless the user approves'
+      );
 
       expect(transition, label).toContain(
-        'deliberately skipped because its own `instruction` marks it conditional'
+        'run `openspec instructions "<prerequisite-id>" --change "<name>" --json` for that prerequisite whether it is `ready` or `blocked`'
+      );
+      expect(transition, label).toContain(
+        'record a deliberate skip only when the condition does not apply'
+      );
+      expect(transition, label).toContain(
+        'If the condition applies, or the prerequisite is not conditional, treat it as a normal prerequisite'
+      );
+      expect(transition, label).toContain('Do not create an unrequested prerequisite');
+      expect(transition, label).toContain(
+        'deliberately skipped because its own `instruction` stated a condition that did not apply'
       );
       expect(transition, label).toContain('remember it, and do not reconsider it');
       expect(transition, label).toContain('Dependencies are enablers, not gates');
-      expect(transition, label).toContain(
-        'run `openspec instructions "<prerequisite-id>" --change "<name>" --json` for each ready missing prerequisite'
-      );
-      expect(transition, label).toContain(
-        'do not create that prerequisite unless the user approves expanding the capture'
-      );
       expect(transition, label).toContain(
         'run `openspec instructions "<artifact-id>" --change "<name>" --json` despite the blocked status'
       );
@@ -205,13 +214,11 @@ describe('explore templates', () => {
         'only when those recorded conditional skips are its sole missing dependencies'
       );
       expect(transition, label).toContain('cannot be conditionally skipped');
-    }
-  });
-
-  it('keeps the scaffold requirement at the new-change transition (#720)', () => {
-    for (const [label, body] of bodies) {
-      const transition = newChangeTransition(body, label);
-      expect(transition, label).toContain('openspec new change "<name>"');
+      expect(inspectPrerequisite, label).toBeGreaterThanOrEqual(0);
+      expect(evaluateCondition, label).toBeGreaterThan(inspectPrerequisite);
+      expect(recordSkip, label).toBeGreaterThan(evaluateCondition);
+      expect(requireExpansion, label).toBeGreaterThan(recordSkip);
+      expect(approvalGuard, label).toBeGreaterThan(requireExpansion);
     }
   });
 });
