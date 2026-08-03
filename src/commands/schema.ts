@@ -13,6 +13,7 @@ import {
 } from '../core/artifact-graph/resolver.js';
 import { parseSchema, SchemaValidationError } from '../core/artifact-graph/schema.js';
 import type { SchemaYaml, Artifact } from '../core/artifact-graph/types.js';
+import { FileSystemUtils } from '../utils/file-system.js';
 
 /**
  * Schema source location type
@@ -205,12 +206,28 @@ function validateSchema(
     // Try templates subdirectory first (standard location), then root
     const templatePathInTemplates = path.join(schemaDir, 'templates', artifact.template);
     const templatePathInRoot = path.join(schemaDir, artifact.template);
+    const existingTemplatePath = fs.existsSync(templatePathInTemplates)
+      ? templatePathInTemplates
+      : fs.existsSync(templatePathInRoot)
+        ? templatePathInRoot
+        : null;
 
-    if (!fs.existsSync(templatePathInTemplates) && !fs.existsSync(templatePathInRoot)) {
+    if (existingTemplatePath === null) {
       issues.push({
         level: 'error',
         path: `artifacts.${artifact.id}.template`,
         message: `Template file '${artifact.template}' not found for artifact '${artifact.id}'`,
+      });
+      continue;
+    }
+
+    try {
+      FileSystemUtils.assertPathWithin(schemaDir, existingTemplatePath);
+    } catch {
+      issues.push({
+        level: 'error',
+        path: `artifacts.${artifact.id}.template`,
+        message: `Template file '${artifact.template}' points outside the schema directory`,
       });
     }
   }

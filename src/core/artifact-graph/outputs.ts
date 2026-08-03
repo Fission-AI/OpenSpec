@@ -10,16 +10,23 @@ export function isGlobPattern(pattern: string): boolean {
   return pattern.includes('*') || pattern.includes('?') || pattern.includes('[');
 }
 
+export function resolveArtifactOutputPath(changeDir: string, generates: string): string {
+  const outputPath = path.join(changeDir, generates);
+  FileSystemUtils.assertPathWithin(changeDir, outputPath);
+  return outputPath;
+}
+
 /**
  * Resolves an artifact's output path(s) to concrete files that currently exist.
  * Returns absolute file paths. Glob matches are sorted for deterministic output.
  */
 export function resolveArtifactOutputs(changeDir: string, generates: string): string[] {
+  const outputPath = resolveArtifactOutputPath(changeDir, generates);
+
   if (!isGlobPattern(generates)) {
-    const fullPath = path.join(changeDir, generates);
     try {
-      return fs.statSync(fullPath).isFile()
-        ? [FileSystemUtils.canonicalizeExistingPath(fullPath)]
+      return fs.statSync(outputPath).isFile()
+        ? [FileSystemUtils.canonicalizeExistingPath(outputPath)]
         : [];
     } catch {
       return [];
@@ -28,8 +35,17 @@ export function resolveArtifactOutputs(changeDir: string, generates: string): st
 
   const normalizedPattern = FileSystemUtils.toPosixPath(generates);
   const matches = fg
-    .sync(normalizedPattern, { cwd: changeDir, onlyFiles: true, absolute: true })
-    .map((match) => FileSystemUtils.canonicalizeExistingPath(path.normalize(match)));
+    .sync(normalizedPattern, {
+      cwd: changeDir,
+      onlyFiles: true,
+      absolute: true,
+      followSymbolicLinks: false,
+    })
+    .map((match) => {
+      const normalizedMatch = path.normalize(match);
+      FileSystemUtils.assertPathWithin(changeDir, normalizedMatch);
+      return FileSystemUtils.canonicalizeExistingPath(normalizedMatch);
+    });
 
   return Array.from(new Set(matches)).sort();
 }

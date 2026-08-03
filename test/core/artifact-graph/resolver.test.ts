@@ -118,6 +118,26 @@ artifacts:
       expect(schema.version).toBe(99);
     });
 
+    it('should not resolve a schema path outside the schema directories', () => {
+      const outsideSchemaDir = path.join(tempDir, 'openspec', 'escape');
+      fs.mkdirSync(outsideSchemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(outsideSchemaDir, 'schema.yaml'),
+        `
+name: escaped
+version: 1
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Escaped
+    template: proposal.md
+`
+      );
+
+      expect(getSchemaDir('../escape', tempDir)).toBeNull();
+      expect(() => resolveSchema('../escape', tempDir)).toThrow(/not found/u);
+    });
+
     it('should validate user override and throw on invalid schema', () => {
       process.env.XDG_DATA_HOME = tempDir;
       const userSchemaDir = path.join(tempDir, 'openspec', 'schemas', 'spec-driven');

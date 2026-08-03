@@ -22,6 +22,8 @@ import {
 import { discoverSpecFiles, hasAnyFileUnder } from '../utils/spec-discovery.js';
 import { readSkipSpecsMarker } from '../utils/change-metadata.js';
 import { isNonInteractivePromptError } from '../utils/interactive.js';
+import { FileSystemUtils } from '../utils/file-system.js';
+import { folderStyleNameProblem } from './id.js';
 
 function isMissingPathError(error: unknown): boolean {
   return (
@@ -217,8 +219,12 @@ async function copyDirRecursive(src: string, dest: string): Promise<void> {
     const destPath = path.join(dest, entry.name);
     if (entry.isDirectory()) {
       await copyDirRecursive(srcPath, destPath);
-    } else {
+    } else if (entry.isSymbolicLink()) {
+      await fs.symlink(await fs.readlink(srcPath), destPath);
+    } else if (entry.isFile()) {
       await fs.copyFile(srcPath, destPath);
+    } else {
+      throw new Error(`Cannot archive unsupported filesystem entry: ${srcPath}`);
     }
   }
 }
@@ -308,6 +314,21 @@ export class ArchiveCommand {
     const archiveDir = root.archiveDir;
     const mainSpecsDir = root.specsDir;
 
+    for (const [allowedDirectory, managedDir] of [
+      [root.path, changesDir],
+      [changesDir, archiveDir],
+      [root.path, mainSpecsDir],
+    ] as const) {
+      try {
+        FileSystemUtils.assertPathWithin(allowedDirectory, managedDir);
+      } catch {
+        throw new ArchiveBlockedError(
+          'archive_path_outside_root',
+          `Refusing to archive through a path outside the OpenSpec root: ${managedDir}`
+        );
+      }
+    }
+
     // Get change name interactively if not provided
     if (!changeName) {
       if (json) {
@@ -323,6 +344,11 @@ export class ArchiveCommand {
         return null;
       }
       changeName = selectedChange;
+    }
+
+    const changeNameProblem = folderStyleNameProblem(changeName, 'Change name');
+    if (changeNameProblem) {
+      throw new ArchiveBlockedError('archive_change_name_invalid', changeNameProblem);
     }
 
     const changeDir = path.join(changesDir, changeName);

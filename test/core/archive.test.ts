@@ -107,6 +107,77 @@ describe('ArchiveCommand', () => {
       await expect(fs.access(changeDir)).rejects.toThrow();
     });
 
+    it('preserves symlinks during the cross-device archive fallback', async () => {
+      if (process.platform === 'win32') return;
+
+      const changeName = 'linked-notes';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const outsideFile = path.join(tempDir, 'private-notes.md');
+      const linkedFile = path.join(changeDir, 'notes.md');
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1\n');
+      await fs.writeFile(outsideFile, 'do not copy me');
+      await fs.symlink(outsideFile, linkedFile);
+
+      const rename = vi.spyOn(fs, 'rename').mockRejectedValueOnce(
+        Object.assign(new Error('cross-device move'), { code: 'EXDEV' })
+      );
+      try {
+        await archiveCommand.execute(changeName, {
+          yes: true,
+          noValidate: true,
+          skipSpecs: true,
+        });
+      } finally {
+        rename.mockRestore();
+      }
+
+      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const [archiveName] = await fs.readdir(archiveDir);
+      const archivedLink = path.join(archiveDir, archiveName, 'notes.md');
+      expect((await fs.lstat(archivedLink)).isSymbolicLink()).toBe(true);
+      expect(await fs.readlink(archivedLink)).toBe(outsideFile);
+    });
+
+    it('rejects a change name that escapes the changes directory', async () => {
+      const outsideDir = path.join(tempDir, 'outside-change');
+      await fs.mkdir(outsideDir, { recursive: true });
+      await fs.writeFile(path.join(outsideDir, 'tasks.md'), '- [x] Task 1\n');
+
+      await expect(
+        archiveCommand.execute('../../outside-change', {
+          yes: true,
+          noValidate: true,
+          skipSpecs: true,
+        })
+      ).rejects.toThrow(/must not contain path separators/u);
+      await expect(fs.access(outsideDir)).resolves.not.toThrow();
+    });
+
+    it('rejects an archive directory symlink outside the OpenSpec root', async () => {
+      if (process.platform === 'win32') return;
+
+      const changeName = 'stay-inside';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const outsideDir = path.join(tempDir, 'outside-archive');
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1\n');
+      await fs.rm(archiveDir, { recursive: true, force: true });
+      await fs.mkdir(outsideDir);
+      await fs.symlink(outsideDir, archiveDir);
+
+      await expect(
+        archiveCommand.execute(changeName, {
+          yes: true,
+          noValidate: true,
+          skipSpecs: true,
+        })
+      ).rejects.toThrow(/outside the OpenSpec root/u);
+      await expect(fs.access(changeDir)).resolves.not.toThrow();
+      await expect(fs.readdir(outsideDir)).resolves.toEqual([]);
+    });
+
     it('should use the process local date across a UTC date boundary', async () => {
       process.env.TZ = 'Asia/Shanghai';
       vi.useFakeTimers();

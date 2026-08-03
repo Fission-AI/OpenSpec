@@ -67,13 +67,16 @@ export async function templatesCommand(options: TemplatesOptions): Promise<void>
       source = 'package';
     }
 
-    const templates: TemplateInfo[] = graph.getAllArtifacts().map((artifact) => ({
-      artifactId: artifact.id,
-      templatePath: FileSystemUtils.canonicalizeExistingPath(
-        path.join(schemaDir, 'templates', artifact.template)
-      ),
-      source,
-    }));
+    const templatesDir = path.join(schemaDir, 'templates');
+    const templates: TemplateInfo[] = graph.getAllArtifacts().map((artifact) => {
+      const templatePath = path.join(templatesDir, artifact.template);
+      FileSystemUtils.assertPathWithin(templatesDir, templatePath);
+      return {
+        artifactId: artifact.id,
+        templatePath: FileSystemUtils.canonicalizeExistingPath(templatePath),
+        source,
+      };
+    });
 
     spinner?.stop();
 

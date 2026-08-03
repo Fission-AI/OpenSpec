@@ -92,6 +92,18 @@ export function getSchemaDir(
   name: string,
   projectRoot?: string
 ): string | null {
+  if (
+    name.length === 0 ||
+    name === '.' ||
+    name === '..' ||
+    /[\\/]/u.test(name) ||
+    /^[A-Za-z]:/u.test(name) ||
+    path.posix.isAbsolute(name) ||
+    path.win32.isAbsolute(name)
+  ) {
+    return null;
+  }
+
   // 1. Check project-local directory (if projectRoot provided)
   if (projectRoot) {
     const projectDir = path.join(getProjectSchemasDir(projectRoot), name);

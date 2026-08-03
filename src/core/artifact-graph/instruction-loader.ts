@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import { getSchemaDir, resolveSchema, listSchemasWithInfo } from './resolver.js';
 import { ArtifactGraph } from './graph.js';
 import { detectCompleted } from './state.js';
-import { resolveArtifactOutputs } from './outputs.js';
+import { resolveArtifactOutputPath, resolveArtifactOutputs } from './outputs.js';
 import { readChangeMetadata, resolveSchemaForChange } from '../../utils/change-metadata.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import {
@@ -211,7 +211,17 @@ export function loadTemplate(
     );
   }
 
-  const templatePathOnDisk = path.join(schemaDir, 'templates', templatePath);
+  const templatesDir = path.join(schemaDir, 'templates');
+  const templatePathOnDisk = path.join(templatesDir, templatePath);
+
+  try {
+    FileSystemUtils.assertPathWithin(templatesDir, templatePathOnDisk);
+  } catch (error) {
+    throw new TemplateLoadError(
+      error instanceof Error ? error.message : String(error),
+      templatePathOnDisk
+    );
+  }
 
   if (!fs.existsSync(templatePathOnDisk)) {
     throw new TemplateLoadError(
@@ -377,7 +387,7 @@ export function generateInstructions(
     changeDir: context.changeDir,
     planningHome: summarizePlanningHome(context.planningHome),
     outputPath: artifact.generates,
-    resolvedOutputPath: path.join(context.changeDir, artifact.generates),
+    resolvedOutputPath: resolveArtifactOutputPath(context.changeDir, artifact.generates),
     existingOutputPaths: resolveArtifactOutputs(context.changeDir, artifact.generates),
     description: artifact.description,
     instruction: artifact.instruction,
@@ -455,7 +465,7 @@ export function formatChangeStatus(
   const artifactStatuses: ArtifactStatus[] = artifacts.map(artifact => {
     artifactPaths[artifact.id] = {
       outputPath: artifact.generates,
-      resolvedOutputPath: path.join(context.changeDir, artifact.generates),
+      resolvedOutputPath: resolveArtifactOutputPath(context.changeDir, artifact.generates),
       existingOutputPaths: resolveArtifactOutputs(context.changeDir, artifact.generates),
     };
 

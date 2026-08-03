@@ -106,6 +106,40 @@ describe('artifact-graph/outputs', () => {
     expect(artifactOutputExists(tempDir, 'specs/*/spec.md')).toBe(false);
   });
 
+  it('rejects a literal output symlink that escapes the change directory', () => {
+    if (process.platform === 'win32') return;
+
+    const outsideFile = path.join(path.dirname(tempDir), `${path.basename(tempDir)}-outside.md`);
+    fs.writeFileSync(outsideFile, 'private');
+    fs.symlinkSync(outsideFile, path.join(tempDir, 'proposal.md'));
+
+    try {
+      expect(() => resolveArtifactOutputs(tempDir, 'proposal.md')).toThrow(
+        /outside the allowed directory/u
+      );
+    } finally {
+      fs.rmSync(outsideFile, { force: true });
+    }
+  });
+
+  it('rejects a glob that traverses a symlinked directory outside the change', () => {
+    if (process.platform === 'win32') return;
+
+    const outsideDir = fs.mkdtempSync(
+      path.join(path.dirname(tempDir), `${path.basename(tempDir)}-outside-`)
+    );
+    fs.writeFileSync(path.join(outsideDir, 'secret.md'), 'private');
+    fs.symlinkSync(outsideDir, path.join(tempDir, 'specs'));
+
+    try {
+      expect(() => resolveArtifactOutputs(tempDir, 'specs/*.md')).toThrow(
+        /outside the allowed directory/u
+      );
+    } finally {
+      fs.rmSync(outsideDir, { recursive: true, force: true });
+    }
+  });
+
   describe('glob-special characters in directory paths', () => {
     it('resolves glob patterns when directory contains parentheses', () => {
       const dirWithParens = path.join(tempDir, 'project (work)');

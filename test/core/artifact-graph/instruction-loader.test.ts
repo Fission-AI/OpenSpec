@@ -41,6 +41,27 @@ describe('instruction-loader', () => {
         expect((err as TemplateLoadError).templatePath).toContain('nonexistent.md');
       }
     });
+
+    it('should reject a template symlink that escapes its schema', () => {
+      if (process.platform === 'win32') return;
+
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-template-boundary-'));
+      const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'custom');
+      const templatesDir = path.join(schemaDir, 'templates');
+      const outsideFile = path.join(tempDir, 'outside.md');
+      fs.mkdirSync(templatesDir, { recursive: true });
+      fs.writeFileSync(path.join(schemaDir, 'schema.yaml'), 'name: custom\n');
+      fs.writeFileSync(outsideFile, 'private');
+      fs.symlinkSync(outsideFile, path.join(templatesDir, 'proposal.md'));
+
+      try {
+        expect(() => loadTemplate('custom', 'proposal.md', tempDir)).toThrow(
+          /outside the allowed directory/u
+        );
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
   });
 
   describe('loadChangeContext', () => {
