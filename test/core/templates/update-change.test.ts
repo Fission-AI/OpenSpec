@@ -77,6 +77,24 @@ describe('update-change templates', () => {
     }
   });
 
+  it('explains the optional continue workflow before suggesting it', () => {
+    for (const [label, body] of bodies) {
+      const availabilityGuidance = body.indexOf(
+        '`/opsx:continue` is an expanded-profile workflow and may not be installed'
+      );
+      const firstSuggestion = body.indexOf('point the user to `/opsx:continue`');
+
+      expect(availabilityGuidance, label).toBeGreaterThanOrEqual(0);
+      expect(firstSuggestion, label).toBeGreaterThan(availabilityGuidance);
+      expect(body, label).toContain(
+        'If it is unavailable, `openspec status --change "<name>" --json` shows the next artifact'
+      );
+      expect(body, label).toContain(
+        '`openspec instructions <artifact-id> --change "<name>" --json` explains how to create it'
+      );
+    }
+  });
+
   it('confirms every edit and redirects intent changes to /opsx:new', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain('Write only after the user confirms');
