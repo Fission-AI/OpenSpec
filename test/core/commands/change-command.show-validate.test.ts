@@ -116,6 +116,46 @@ describe('ChangeCommand.show/validate', () => {
       await expect(cmd.show(traversal, { json: false })).rejects.not.toThrow(/has no proposal\.md yet/);
     });
 
+    it.skipIf(process.platform === 'win32')(
+      'does not read a proposal symlink outside changes/',
+      async () => {
+        const outsideProposal = path.join(tempRoot, 'outside-proposal.md');
+        const linkedProposal = path.join(
+          tempRoot,
+          'openspec',
+          'changes',
+          'linked-proposal',
+          'proposal.md'
+        );
+        await fs.writeFile(outsideProposal, '# Outside sentinel', 'utf-8');
+        await fs.mkdir(path.dirname(linkedProposal), { recursive: true });
+        await fs.symlink(outsideProposal, linkedProposal);
+
+        await expect(cmd.show('linked-proposal', { json: false })).rejects.toThrow(
+          /outside the allowed directory/u
+        );
+      }
+    );
+
+    it.skipIf(process.platform === 'win32')(
+      'allows a linked change directory as its own trust root',
+      async () => {
+        const sharedChange = path.join(tempRoot, 'shared-change');
+        await fs.mkdir(sharedChange);
+        await fs.writeFile(
+          path.join(sharedChange, 'proposal.md'),
+          '# Change: Shared safely\n\n## Why\n\nReuse a shared plan.\n\n## What Changes\n\n- Shared.\n',
+          'utf-8'
+        );
+        await fs.symlink(
+          sharedChange,
+          path.join(tempRoot, 'openspec', 'changes', 'shared-change')
+        );
+
+        await expect(cmd.show('shared-change', { json: false })).resolves.toBeUndefined();
+      }
+    );
+
     it('does not treat a nested name as a change', async () => {
       const nested = path.join('sample-change', 'specs');
       await fs.mkdir(path.join(tempRoot, 'openspec', 'changes', 'sample-change', 'specs'), { recursive: true });
@@ -143,5 +183,9 @@ describe('ChangeCommand.show/validate', () => {
     } finally {
       console.log = origLog;
     }
+  });
+
+  it('validate rejects a traversing change name', async () => {
+    await expect(cmd.validate(path.join('..', '..', 'outside'))).rejects.toThrow(/not found at/u);
   });
 });

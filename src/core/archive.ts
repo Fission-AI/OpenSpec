@@ -212,7 +212,10 @@ function toArchiveDiagnostic(error: unknown): ArchiveDiagnostic {
  * Recursively copy a directory. Used when fs.rename fails (e.g. EPERM on Windows).
  */
 async function copyDirRecursive(src: string, dest: string): Promise<void> {
-  await fs.mkdir(dest, { recursive: true });
+  // Every destination is new: exclusive directory creation prevents a
+  // symlink introduced after the archive target check from redirecting the
+  // cross-device fallback outside the archive.
+  await fs.mkdir(dest);
   const entries = await fs.readdir(src, { withFileTypes: true });
   for (const entry of entries) {
     const srcPath = path.join(src, entry.name);

@@ -377,7 +377,10 @@ export function generateInstructions(
 
   // Extract context and rules as separate fields (not prepended to template)
   const configContext = projectConfig?.context?.trim() || undefined;
-  const rulesForArtifact = projectConfig?.rules?.[artifactId];
+  const rulesForArtifact =
+    projectConfig?.rules && Object.hasOwn(projectConfig.rules, artifactId)
+      ? projectConfig.rules[artifactId]
+      : undefined;
   const configRules = rulesForArtifact && rulesForArtifact.length > 0 ? rulesForArtifact : undefined;
 
   return {

@@ -420,6 +420,19 @@ rules:
         expect(designInstructions.rules).toBeUndefined();
       });
 
+      it('should not inherit rules from the rule map prototype', () => {
+        const context = loadChangeContext(tempDir, 'my-change');
+        const inheritedRules = Object.create({
+          proposal: ['Inherited rule'],
+        }) as Record<string, string[]>;
+
+        const instructions = generateInstructions(context, 'proposal', tempDir, {
+          projectConfig: { rules: inheritedRules },
+        });
+
+        expect(instructions.rules).toBeUndefined();
+      });
+
       it('should return undefined rules when empty array', () => {
         // Create project config with empty rules array
         const configDir = path.join(tempDir, 'openspec');

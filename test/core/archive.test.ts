@@ -172,6 +172,39 @@ describe('ArchiveCommand', () => {
       );
     });
 
+    it('rejects a destination symlink introduced during the cross-device fallback', async () => {
+      if (process.platform === 'win32') return;
+
+      const changeName = 'raced-destination';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const outsideDir = path.join(tempDir, 'outside-archive');
+      const sentinel = path.join(outsideDir, 'sentinel.txt');
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.mkdir(outsideDir);
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1\n');
+      await fs.writeFile(sentinel, 'leave me alone');
+
+      const rename = vi.spyOn(fs, 'rename').mockImplementationOnce(async (_src, dest) => {
+        await fs.symlink(outsideDir, dest);
+        throw Object.assign(new Error('cross-device move'), { code: 'EXDEV' });
+      });
+      try {
+        await expect(
+          archiveCommand.execute(changeName, {
+            yes: true,
+            noValidate: true,
+            skipSpecs: true,
+          })
+        ).rejects.toMatchObject({ code: 'EEXIST' });
+      } finally {
+        rename.mockRestore();
+      }
+
+      await expect(fs.readFile(sentinel, 'utf8')).resolves.toBe('leave me alone');
+      await expect(fs.access(path.join(outsideDir, 'tasks.md'))).rejects.toThrow();
+      await expect(fs.access(changeDir)).resolves.not.toThrow();
+    });
+
     it('rejects a change name that escapes the changes directory', async () => {
       const outsideDir = path.join(tempDir, 'outside-change');
       await fs.mkdir(outsideDir, { recursive: true });

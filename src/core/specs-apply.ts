@@ -21,6 +21,7 @@ import { buildCodeFenceMask } from './parsers/code-fence.js';
 import { MarkdownParser } from './parsers/markdown-parser.js';
 import { MIN_PURPOSE_LENGTH } from './validation/constants.js';
 import { discoverSpecFiles } from '../utils/spec-discovery.js';
+import { FileSystemUtils } from '../utils/file-system.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -29,9 +30,47 @@ import { discoverSpecFiles } from '../utils/spec-discovery.js';
 export interface SpecUpdate {
   /** Capability id relative to the specs root, forward-slash separated (e.g. "web" or "platform/session-layout"). */
   id: string;
+  /** Allowed root for the delta source. */
+  sourceRoot: string;
   source: string;
+  /** Allowed root for the main-spec target. */
+  targetRoot: string;
   target: string;
   exists: boolean;
+}
+
+function isLexicallyWithin(allowedDirectory: string, targetPath: string): boolean {
+  const relative = path.relative(path.resolve(allowedDirectory), path.resolve(targetPath));
+  return (
+    relative === '' ||
+    (relative !== '..' &&
+      !relative.startsWith(`..${path.sep}`) &&
+      !path.isAbsolute(relative))
+  );
+}
+
+function resolveTrustedSpecPath(specsRoot: string, specPath: string): {
+  root: string;
+  file: string;
+} {
+  if (!isLexicallyWithin(specsRoot, specPath)) {
+    throw new Error(`Path is outside the allowed directory: ${specPath}`);
+  }
+
+  // Direct capability directories may intentionally be monorepo symlinks.
+  // Freeze their canonical location as the trust root so later swaps are
+  // rejected while a nested spec.md link still cannot escape.
+  const root = FileSystemUtils.canonicalizeExistingPath(path.dirname(specPath));
+  const file = path.join(root, path.basename(specPath));
+  FileSystemUtils.assertPathWithin(root, file);
+  return { root, file };
+}
+
+function assertTrustedSpecPath(root: string, specPath: string): void {
+  if (FileSystemUtils.canonicalizeExistingPath(root) !== path.resolve(root)) {
+    throw new Error(`Path is outside the allowed directory: ${specPath}`);
+  }
+  FileSystemUtils.assertPathWithin(root, specPath);
 }
 
 // -----------------------------------------------------------------------------
@@ -52,11 +91,13 @@ export async function findSpecUpdates(changeDir: string, mainSpecsDir: string): 
 
   for (const { id, specFile } of discovered) {
     const targetFile = path.join(mainSpecsDir, ...id.split('/'), 'spec.md');
+    const source = resolveTrustedSpecPath(changeSpecsDir, specFile);
+    const target = resolveTrustedSpecPath(mainSpecsDir, targetFile);
 
     // Check if target exists
     let exists = false;
     try {
-      await fs.access(targetFile);
+      await fs.access(target.file);
       exists = true;
     } catch {
       exists = false;
@@ -64,8 +105,10 @@ export async function findSpecUpdates(changeDir: string, mainSpecsDir: string): 
 
     updates.push({
       id,
-      source: specFile,
-      target: targetFile,
+      sourceRoot: source.root,
+      source: source.file,
+      targetRoot: target.root,
+      target: target.file,
       exists,
     });
   }
@@ -96,6 +139,7 @@ export async function buildUpdatedSpec(
     }
   };
   // Read change spec content (delta-format expected)
+  assertTrustedSpecPath(update.sourceRoot, update.source);
   const changeContent = await fs.readFile(update.source, 'utf-8');
 
   // Parse deltas from the change spec file
@@ -210,6 +254,7 @@ export async function buildUpdatedSpec(
   const deltaPurpose = extractPurposeSection(changeContent);
   let targetContent: string;
   let isNewSpec = false;
+  assertTrustedSpecPath(update.targetRoot, update.target);
   try {
     targetContent = await fs.readFile(update.target, 'utf-8');
     // A delta Purpose only seeds a spec that does not exist yet. Say so rather
@@ -522,6 +567,8 @@ export async function writeUpdatedSpec(
   counts: { added: number; modified: number; removed: number; renamed: number },
   options: { silent?: boolean; displayPath?: string } = {}
 ): Promise<void> {
+  assertTrustedSpecPath(update.targetRoot, update.target);
+
   // Create target directory if needed
   const targetDir = path.dirname(update.target);
   await fs.mkdir(targetDir, { recursive: true });

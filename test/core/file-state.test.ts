@@ -51,6 +51,16 @@ describe('file-state', () => {
       expect(fs.readFileSync(target, 'utf-8')).toBe('b\n');
       expect(fs.readdirSync(tempDir)).toEqual(['state.yaml']);
     });
+
+    itPosix('creates private state files and tightens replaced file permissions', async () => {
+      const target = path.join(tempDir, 'state.yaml');
+      fs.writeFileSync(target, 'old\n', { mode: 0o666 });
+      fs.chmodSync(target, 0o666);
+
+      await writeFileAtomically(target, 'new\n');
+
+      expect(fs.statSync(target).mode & 0o777).toBe(0o600);
+    });
   });
 
   describe('acquireFileLock', () => {
@@ -64,15 +74,30 @@ describe('file-state', () => {
       expect(fs.existsSync(lockPath)).toBe(false);
     });
 
-    it('steals a stale lock', async () => {
+    it('does not let an old owner remove a replacement lock', async () => {
       const lockPath = path.join(tempDir, 'state.yaml.lock');
-      fs.writeFileSync(lockPath, '');
-      const staleTime = new Date(Date.now() - 60_000);
-      fs.utimesSync(lockPath, staleTime, staleTime);
+      const oldLock = await acquireFileLock({ lockPath, errorFor });
+
+      // Model a stale owner whose lock was removed and replaced before its
+      // delayed cleanup finally runs.
+      await oldLock.close();
+      fs.rmSync(lockPath);
+      const replacementLock = await acquireFileLock({ lockPath, errorFor });
+      const replacementToken = fs.readFileSync(lockPath, 'utf-8');
+
+      await releaseFileLock(oldLock, lockPath);
+
+      expect(fs.readFileSync(lockPath, 'utf-8')).toBe(replacementToken);
+      await releaseFileLock(replacementLock, lockPath);
+      expect(fs.existsSync(lockPath)).toBe(false);
+    });
+
+    itPosix('creates lock files with private permissions', async () => {
+      const lockPath = path.join(tempDir, 'state.yaml.lock');
 
       const lock = await acquireFileLock({ lockPath, errorFor });
 
-      expect(fs.existsSync(lockPath)).toBe(true);
+      expect(fs.statSync(lockPath).mode & 0o777).toBe(0o600);
       await releaseFileLock(lock, lockPath);
     });
 
@@ -96,7 +121,7 @@ describe('file-state', () => {
   });
 
   describe('store registry delegation (byte-identical error shapes)', () => {
-    it('reports a fresh contended lock as busy after the deadline', async () => {
+    it('reports an aged contended lock as busy instead of racing to steal it', async () => {
       const globalDataDir = path.join(tempDir, 'data');
       const registryPath = path.join(
         globalDataDir,
@@ -106,6 +131,8 @@ describe('file-state', () => {
       const lockPath = `${registryPath}.lock`;
       fs.mkdirSync(path.dirname(registryPath), { recursive: true });
       fs.writeFileSync(lockPath, '');
+      const staleTime = new Date(Date.now() - 60_000);
+      fs.utimesSync(lockPath, staleTime, staleTime);
 
       const started = Date.now();
       try {

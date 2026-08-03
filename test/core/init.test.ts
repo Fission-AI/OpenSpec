@@ -151,6 +151,37 @@ describe('InitCommand', () => {
       }
     });
 
+    it.skipIf(process.platform === 'win32')('should not write generated artifacts through a tool directory symlink outside the project', async () => {
+      const outsideDir = path.join(configTempDir, 'outside-claude');
+      await fs.mkdir(outsideDir, { recursive: true });
+      await fs.symlink(outsideDir, path.join(testDir, '.claude'), 'dir');
+
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+      await initCommand.execute(testDir);
+
+      expect(await fs.readdir(outsideDir)).toEqual([]);
+    });
+
+    it.skipIf(process.platform === 'win32')('should not overwrite a generated artifact symlink outside the project', async () => {
+      const outsideFile = path.join(configTempDir, 'outside-skill.md');
+      const originalContent = 'keep me\n';
+      await fs.writeFile(outsideFile, originalContent);
+      const skillFile = path.join(
+        testDir,
+        '.claude',
+        'skills',
+        'openspec-propose',
+        'SKILL.md'
+      );
+      await fs.mkdir(path.dirname(skillFile), { recursive: true });
+      await fs.symlink(outsideFile, skillFile, 'file');
+
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+      await initCommand.execute(testDir);
+
+      expect(await fs.readFile(outsideFile, 'utf-8')).toBe(originalContent);
+    });
+
     it('should create skills in Cursor skills directory', async () => {
       const initCommand = new InitCommand({ tools: 'cursor', force: true });
 

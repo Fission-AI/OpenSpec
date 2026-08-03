@@ -1,6 +1,6 @@
 import { program } from 'commander';
 import { existsSync, readFileSync } from 'fs';
-import { join } from 'path';
+import path, { join } from 'path';
 import { MarkdownParser } from '../core/parsers/markdown-parser.js';
 import { Validator } from '../core/validation/validator.js';
 import type { Spec } from '../core/schemas/index.js';
@@ -8,8 +8,24 @@ import type { RootOutput } from '../core/root-selection.js';
 import { isInteractive } from '../utils/interactive.js';
 import { getSpecIds } from '../utils/item-discovery.js';
 import { discoverSpecFiles } from '../utils/spec-discovery.js';
+import { FileSystemUtils } from '../utils/file-system.js';
 
 const SPECS_DIR = 'openspec/specs';
+
+function assertSpecPath(specsDir: string, specPath: string): void {
+  const relativePath = path.relative(path.resolve(specsDir), path.resolve(specPath));
+  if (
+    relativePath === '..' ||
+    relativePath.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relativePath)
+  ) {
+    throw new Error(`Path is outside the allowed directory: ${specPath}`);
+  }
+
+  // A capability directory may intentionally be a monorepo symlink. Treat it
+  // as the trust root while still rejecting an outbound spec.md link.
+  FileSystemUtils.assertPathWithin(path.dirname(specPath), specPath);
+}
 
 interface ShowOptions {
   json?: boolean;
@@ -94,6 +110,7 @@ export class SpecCommand {
     }
 
     const specPath = join(this.specsDir, specId, 'spec.md');
+    assertSpecPath(this.specsDir, specPath);
     if (!existsSync(specPath)) {
       // Root-aware callers get the absolute path; the cwd-based noun form
       // keeps its historical forward-slash relative message on all platforms.
@@ -167,6 +184,7 @@ export function registerSpecCommand(rootProgram: typeof program) {
         const specs = discovered
           .map(({ id, specFile }) => {
             try {
+              assertSpecPath(SPECS_DIR, specFile);
               const spec = parseSpecFromFile(specFile, id);
 
               return {
@@ -228,6 +246,7 @@ export function registerSpecCommand(rootProgram: typeof program) {
         }
 
         const specPath = join(SPECS_DIR, specId, 'spec.md');
+        assertSpecPath(SPECS_DIR, specPath);
         
         if (!existsSync(specPath)) {
           throw new Error(`Spec '${specId}' not found at openspec/specs/${specId}/spec.md`);
