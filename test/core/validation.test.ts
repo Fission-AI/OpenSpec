@@ -701,6 +701,7 @@ The system will log all events.
         const report = await new Validator().validateChangeDeltaSpecs(changeDir);
         expect(report.valid).toBe(false);
         expect(report.summary.errors).toBe(1);
+        expect(report.summary.warnings).toBe(0);
         expect(report.issues).toContainEqual(
           expect.objectContaining({
             level: 'ERROR',
@@ -1057,6 +1058,7 @@ The system MUST support mixed case delta headers.
       const issues = shallIssues(report.issues);
       expect(report.valid).toBe(false);
       expect(report.summary.errors).toBe(1);
+      expect(report.summary.warnings).toBe(0);
       expect(issues).toHaveLength(1);
       expect(issues[0].level).toBe('ERROR');
       expect(issues[0].message).toContain('not only in the header');

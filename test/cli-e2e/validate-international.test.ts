@@ -6,6 +6,7 @@ import { runCLI } from '../helpers/run-cli.js';
 
 const tempRoots: string[] = [];
 
+/** Create a temporary project containing a non-English main spec. */
 async function prepareNonEnglishSpec(): Promise<string> {
   const projectDir = await fs.mkdtemp(path.join(tmpdir(), 'openspec-i18n-validation-'));
   tempRoots.push(projectDir);
@@ -31,6 +32,7 @@ async function prepareNonEnglishSpec(): Promise<string> {
   return projectDir;
 }
 
+/** Create a temporary project containing a non-English change delta. */
 async function prepareNonEnglishChange(): Promise<string> {
   const projectDir = await fs.mkdtemp(path.join(tmpdir(), 'openspec-i18n-change-validation-'));
   tempRoots.push(projectDir);
