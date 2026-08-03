@@ -25,6 +25,7 @@ import { StoreError } from '../core/store/errors.js';
 import { COMMAND_REGISTRY } from '../core/completions/command-registry.js';
 import { COMMON_FLAGS } from '../core/completions/shared-flags.js';
 import { emitFailure, printJson } from './shared-output.js';
+import { normalizeOptions, type OutputFormat } from '../core/format-output.js';
 import { gatherRelationshipData } from './shared-gather.js';
 
 const FAILURE_PAYLOAD = { root: null, members: [] };
@@ -181,7 +182,9 @@ export function registerContextCommand(program: Command): void {
         json?: boolean;
         codeWorkspace?: string;
         force?: boolean;
+        format?: OutputFormat;
       }) => {
+        options = normalizeOptions(options) as any;
         try {
           const root = await resolveRootForCommand(
             { store: options.store, storePath: options.storePath },
@@ -199,7 +202,7 @@ export function registerContextCommand(program: Command): void {
             if (options.codeWorkspace) {
               writeCodeWorkspace(workingSet, options.codeWorkspace, options.force === true);
             }
-            printJson(workingSet);
+            printJson(workingSet, options.format);
           } else {
             printHumanWorkingSet(workingSet, declaredReferenceCount);
             if (options.codeWorkspace) {
@@ -207,7 +210,7 @@ export function registerContextCommand(program: Command): void {
             }
           }
         } catch (error) {
-          emitFailure(options.json, FAILURE_PAYLOAD, error, 'context_failed');
+          emitFailure(options.format ?? options.json, FAILURE_PAYLOAD, error, 'context_failed');
         }
       }
     );

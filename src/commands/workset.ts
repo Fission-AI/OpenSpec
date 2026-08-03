@@ -49,6 +49,7 @@ import {
   isPromptCancellationError,
   printJson,
 } from './shared-output.js';
+import { normalizeOptions, type OutputFormat } from '../core/format-output.js';
 import {
   finalizeWorkset,
   firstInstalledAlternative,
@@ -81,16 +82,25 @@ interface WorksetCreateOptions {
   member?: string[];
   tool?: string;
   json?: boolean;
+  format?: OutputFormat;
+  jsonPretty?: boolean;
+  toon?: boolean;
 }
 
 interface WorksetOpenOptions {
   tool?: string;
   json?: boolean;
+  format?: OutputFormat;
+  jsonPretty?: boolean;
+  toon?: boolean;
 }
 
 interface WorksetRemoveOptions {
   yes?: boolean;
   json?: boolean;
+  format?: OutputFormat;
+  jsonPretty?: boolean;
+  toon?: boolean;
 }
 
 function readOpenerTable(): OpenerDefinition[] {
@@ -255,7 +265,7 @@ class WorksetCommand {
         `Open it any time with: openspec workset open ${workset.name}`
       );
     } catch (error) {
-      emitFailure(options.json, { workset: null, status: [] }, error, 'workset_error');
+      emitFailure(options.format ?? options.json, { workset: null, status: [] }, error, 'workset_error');
     }
   }
 
@@ -297,7 +307,7 @@ class WorksetCommand {
     return finalizeWorkset(name, members, options.tool, table);
   }
 
-  async list(options: { json?: boolean } = {}): Promise<void> {
+  async list(options: { json?: boolean; format?: OutputFormat; jsonPretty?: boolean; toon?: boolean; } = {}): Promise<void> {
     try {
       const state = await readWorksetsState();
       const worksets = listWorksets(state);
@@ -329,7 +339,7 @@ class WorksetCommand {
         }
       }
     } catch (error) {
-      emitFailure(options.json, { worksets: [], status: [] }, error, 'workset_error');
+      emitFailure(options.format ?? options.json, { worksets: [], status: [] }, error, 'workset_error');
     }
   }
 
@@ -484,7 +494,7 @@ class WorksetCommand {
         process.exitCode = exitCode;
       }
     } catch (error) {
-      emitFailure(options.json, { status: [] }, error, 'workset_error');
+      emitFailure(options.format ?? options.json, { status: [] }, error, 'workset_error');
 
       // Never strand the user: once the derived file is regenerated,
       // every failure (except a prompt cancellation) carries the
@@ -549,7 +559,7 @@ class WorksetCommand {
 
       console.log(`Removed workset '${name}'. Member folders were not touched.`);
     } catch (error) {
-      emitFailure(options.json, { removed: null, status: [] }, error, 'workset_error');
+      emitFailure(options.format ?? options.json, { removed: null, status: [] }, error, 'workset_error');
     }
   }
 }
@@ -583,7 +593,7 @@ export function registerWorksetCommand(program: Command): void {
     .option('--json-pretty', 'Output as formatted JSON')
     .option('--toon', 'Output in TOON format')
     .action(async (name: string | undefined, _options: WorksetCreateOptions, command: Command) => {
-      await worksetCommand.create(name, command.optsWithGlobals());
+      await worksetCommand.create(name, normalizeOptions(command.optsWithGlobals()));
     });
 
   workset
@@ -594,7 +604,7 @@ export function registerWorksetCommand(program: Command): void {
     .option('--json-pretty', 'Output as formatted JSON')
     .option('--toon', 'Output in TOON format')
     .action(async (_options: { json?: boolean }, command: Command) => {
-      await worksetCommand.list(command.optsWithGlobals());
+      await worksetCommand.list(normalizeOptions(command.optsWithGlobals()));
     });
 
   workset
@@ -608,7 +618,7 @@ export function registerWorksetCommand(program: Command): void {
       new Option('--json', 'Not supported for open').hideHelp()
     )
     .action(async (name: string, _options: WorksetOpenOptions, command: Command) => {
-      await worksetCommand.open(name, command.optsWithGlobals());
+      await worksetCommand.open(name, normalizeOptions(command.optsWithGlobals()));
     });
 
   workset
@@ -619,7 +629,7 @@ export function registerWorksetCommand(program: Command): void {
     .option('--json-pretty', 'Output as formatted JSON')
     .option('--toon', 'Output in TOON format')
     .action(async (name: string, _options: WorksetRemoveOptions, command: Command) => {
-      await worksetCommand.remove(name, command.optsWithGlobals());
+      await worksetCommand.remove(name, normalizeOptions(command.optsWithGlobals()));
     });
 
   const subcommandsLine = workset.commands

@@ -1,5 +1,6 @@
 import * as os from 'node:os';
 import { asErrorMessage, emitFailure, printJson } from './shared-output.js';
+import { normalizeOptions, type OutputFormat } from '../core/format-output.js';
 import * as path from 'node:path';
 import { Command } from 'commander';
 
@@ -32,6 +33,9 @@ interface StoreSetupOptions {
   path?: string;
   initGit?: boolean;
   json?: boolean;
+  format?: OutputFormat;
+  jsonPretty?: boolean;
+  toon?: boolean;
   remote?: string;
 }
 
@@ -39,15 +43,24 @@ interface StoreRegisterOptions {
   id?: string;
   yes?: boolean;
   json?: boolean;
+  format?: OutputFormat;
+  jsonPretty?: boolean;
+  toon?: boolean;
 }
 
 interface StoreRemoveOptions {
   yes?: boolean;
   json?: boolean;
+  format?: OutputFormat;
+  jsonPretty?: boolean;
+  toon?: boolean;
 }
 
 interface StoreJsonOptions {
   json?: boolean;
+  format?: OutputFormat;
+  jsonPretty?: boolean;
+  toon?: boolean;
 }
 
 interface ResolvedStoreSetupInput extends SetupStoreInput {
@@ -526,7 +539,7 @@ class StoreCommand {
       const payload = toMutationOutput(result);
 
       if (options.json) {
-        printJson(payload);
+        printJson(payload, options.format);
         return;
       }
 
@@ -565,7 +578,7 @@ class StoreCommand {
       const payload = toMutationOutput(result);
 
       if (options.json) {
-        printJson(payload);
+        printJson(payload, options.format);
         return;
       }
 
@@ -584,7 +597,7 @@ class StoreCommand {
       const payload = toCleanupOutput(await unregisterStore({ id }));
 
       if (options.json) {
-        printJson(payload);
+        printJson(payload, options.format);
         return;
       }
 
@@ -605,7 +618,7 @@ class StoreCommand {
       const payload = toCleanupOutput(await removeStore(target));
 
       if (options.json) {
-        printJson(payload);
+        printJson(payload, options.format);
         return;
       }
 
@@ -624,7 +637,7 @@ class StoreCommand {
       const payload = toListOutput(await listStores());
 
       if (options.json) {
-        printJson(payload);
+        printJson(payload, options.format);
         return;
       }
 
@@ -639,7 +652,7 @@ class StoreCommand {
       const payload = toDoctorOutput(await doctorStores(id));
 
       if (options.json) {
-        printJson(payload);
+        printJson(payload, options.format);
         return;
       }
 
@@ -677,7 +690,9 @@ export function registerStoreCommand(program: Command): void {
     .option('--json', 'Output as JSON')
     .option('--json-pretty', 'Output as formatted JSON')
     .option('--toon', 'Output in TOON format')
-    .action(async (id: string | undefined, options: StoreSetupOptions) => {
+    .action(
+      async (id: string | undefined, options: StoreSetupOptions) => {
+        options = normalizeOptions(options) as any;
       await storeCommand.setup(id, options);
     });
 
@@ -689,7 +704,9 @@ export function registerStoreCommand(program: Command): void {
     .option('--json', 'Output as JSON')
     .option('--json-pretty', 'Output as formatted JSON')
     .option('--toon', 'Output in TOON format')
-    .action(async (inputPath: string | undefined, options: StoreRegisterOptions) => {
+    .action(
+      async (inputPath: string | undefined, options: StoreRegisterOptions) => {
+        options = normalizeOptions(options) as any;
       await storeCommand.register(inputPath, options);
     });
 
@@ -699,7 +716,9 @@ export function registerStoreCommand(program: Command): void {
     .option('--json', 'Output as JSON')
     .option('--json-pretty', 'Output as formatted JSON')
     .option('--toon', 'Output in TOON format')
-    .action(async (id: string, options: StoreJsonOptions) => {
+    .action(
+      async (id: string, options: StoreJsonOptions) => {
+        options = normalizeOptions(options) as any;
       await storeCommand.unregister(id, options);
     });
 
@@ -710,7 +729,9 @@ export function registerStoreCommand(program: Command): void {
     .option('--json', 'Output as JSON')
     .option('--json-pretty', 'Output as formatted JSON')
     .option('--toon', 'Output in TOON format')
-    .action(async (id: string, options: StoreRemoveOptions) => {
+    .action(
+      async (id: string, options: StoreRemoveOptions) => {
+        options = normalizeOptions(options) as any;
       await storeCommand.remove(id, options);
     });
 
@@ -721,7 +742,9 @@ export function registerStoreCommand(program: Command): void {
     .option('--json', 'Output as JSON')
     .option('--json-pretty', 'Output as formatted JSON')
     .option('--toon', 'Output in TOON format')
-    .action(async (options: StoreJsonOptions) => {
+    .action(
+      async (options: StoreJsonOptions) => {
+        options = normalizeOptions(options) as any;
       await storeCommand.list(options);
     });
 
@@ -731,7 +754,9 @@ export function registerStoreCommand(program: Command): void {
     .option('--json', 'Output as JSON')
     .option('--json-pretty', 'Output as formatted JSON')
     .option('--toon', 'Output in TOON format')
-    .action(async (id: string | undefined, options: StoreJsonOptions) => {
+    .action(
+      async (id: string | undefined, options: StoreJsonOptions) => {
+        options = normalizeOptions(options) as any;
       await storeCommand.doctor(id, options);
     });
 

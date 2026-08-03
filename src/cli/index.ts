@@ -1,5 +1,5 @@
 import { asStatus } from '../commands/shared-output.js';
-import { formatAgentOutput, type OutputFormat } from '../core/format-output.js';
+import { formatAgentOutput, resolveOutputFormat, normalizeOptions, type OutputFormat } from '../core/format-output.js';
 import { Command, Option } from 'commander';
 import { createRequire } from 'module';
 import ora from 'ora';
@@ -66,23 +66,6 @@ function hiddenStorePathOption(): Option {
   ).hideHelp();
 }
 
-export function resolveOutputFormat(options?: { jsonPretty?: boolean; toon?: boolean; json?: boolean }): OutputFormat | undefined {
-  if (options?.jsonPretty) return 'json-pretty';
-  if (options?.toon) return 'toon';
-  if (options?.json) return 'json';
-  return undefined;
-}
-
-export function normalizeOptions<T extends { jsonPretty?: boolean; toon?: boolean; json?: boolean }>(
-  options?: T
-): (T extends undefined ? {} : T) & { format?: OutputFormat } {
-  const opts = options ?? ({} as unknown as T);
-  const format = resolveOutputFormat(opts);
-  if (format) {
-    opts.json = true;
-  }
-  return { ...opts, format } as any;
-}
 
 function failWithError(
   error: unknown,

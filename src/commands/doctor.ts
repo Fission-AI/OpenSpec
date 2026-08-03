@@ -26,6 +26,7 @@ import {
 import { COMMAND_REGISTRY } from '../core/completions/command-registry.js';
 import { COMMON_FLAGS } from '../core/completions/shared-flags.js';
 import { emitFailure, printJson } from './shared-output.js';
+import { normalizeOptions, type OutputFormat } from '../core/format-output.js';
 import * as path from 'node:path';
 
 const FAILURE_PAYLOAD = { root: null, store: null, references: [] };
@@ -197,7 +198,8 @@ export function registerDoctorCommand(program: Command): void {
     .option('--json', 'Output as JSON')
     .option('--json-pretty', 'Output as formatted JSON')
     .option('--toon', 'Output in TOON format')
-    .action(async (options: { store?: string; storePath?: string; json?: boolean }) => {
+    .action(async (options: { store?: string; storePath?: string; json?: boolean; format?: OutputFormat; jsonPretty?: boolean; toon?: boolean; }) => {
+      options = normalizeOptions(options) as any;
       try {
         const root = await resolveRootForCommand(
           { store: options.store, storePath: options.storePath },
@@ -215,7 +217,7 @@ export function registerDoctorCommand(program: Command): void {
         }
         printHumanHealth(health, declaredReferenceCount);
       } catch (error) {
-        emitFailure(options.json, FAILURE_PAYLOAD, error, 'doctor_failed');
+        emitFailure(options.format ?? options.json, FAILURE_PAYLOAD, error, 'doctor_failed');
       }
     });
 }
