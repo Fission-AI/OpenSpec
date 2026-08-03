@@ -187,8 +187,8 @@ ${STORE_SELECTION_GUIDANCE}
 
 **Graceful Degradation**
 
-- If only tasks.md exists: verify task completion only, skip spec/design checks
-- If tasks + specs exist: verify completeness and correctness, skip design
+- If only tasks.md exists: verify task completion and relevance against tasks, skip spec/design checks
+- If tasks + specs exist: verify completeness, correctness, and relevance against tasks and specs, skip design
 - If full artifacts: verify all four dimensions
 - If the implementation diff baseline or file set cannot be identified reliably: skip relevance and explain why
 - Always note which checks were skipped and why
@@ -389,8 +389,8 @@ ${STORE_SELECTION_GUIDANCE}
 
 **Graceful Degradation**
 
-- If only tasks.md exists: verify task completion only, skip spec/design checks
-- If tasks + specs exist: verify completeness and correctness, skip design
+- If only tasks.md exists: verify task completion and relevance against tasks, skip spec/design checks
+- If tasks + specs exist: verify completeness, correctness, and relevance against tasks and specs, skip design
 - If full artifacts: verify all four dimensions
 - If the implementation diff baseline or file set cannot be identified reliably: skip relevance and explain why
 - Always note which checks were skipped and why

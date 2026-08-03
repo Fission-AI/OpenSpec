@@ -52,11 +52,11 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getArchiveChangeSkillTemplate: '206a22b6778e97c30da9145ef51fdad449b8c995538f6fc25752ef551a37b675',
   getBulkArchiveChangeSkillTemplate: '2b74b1f73380ff32e35f580734780d843c6161a2748c39edb07f1e00453771b4',
   getOpsxSyncCommandTemplate: 'df0240a79f7b4943a54c7413ab088ee48f5bf5fe19f9347c170d695c8ec777a4',
-  getVerifyChangeSkillTemplate: 'b3b52456f6d06ea2e99b4f6616d6c69b89e0a140a2fa5d8fbb9cbab6fd679a0b',
+  getVerifyChangeSkillTemplate: '277caa5b08cc533538dcae009b2d1406fbc8017008adf3c62933a31c32dd5cd8',
   getOpsxArchiveCommandTemplate: '7dea65d0e2e17db366bb666ba6ae5e205ea02707b8c5c7707565200875c78916',
   getOpsxOnboardCommandTemplate: '16a68b8c9819e2a7bab013c3b49a3e49ea258b68c4e7f47f0d598e30815e0a80',
   getOpsxBulkArchiveCommandTemplate: 'da7be1a7318f15b915f5aae8eb638797a8a24a31e5fc7fc0a2bad01bba137686',
-  getOpsxVerifyCommandTemplate: '67353ed7549372bbaf060c8aaf042c0ea7cd1961106c09d5e0e7c05d10730e8f',
+  getOpsxVerifyCommandTemplate: 'f9c0937daf49e1c5256cdf0428f4c83257392187e1abf2049d80826667d90365',
   getOpsxProposeSkillTemplate: '57fb556a060e2eb246b500922837af7573a6e100a6ed7dfaa7bd4ce0f5daffd3',
   getOpsxProposeCommandTemplate: '434cae3ee20835725bb1d2ccb9698310a850c5b95ed669ea15fc7a0125371c59',
   getFeedbackSkillTemplate: 'd7d83c5f7fc2b92fe8f4588a5bf2d9cb315e4c73ec19bcd5ef28270906319a0d',
@@ -73,7 +73,7 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-sync-specs': '74de778dd8a8fd4987a09621147358cc32505bb58110492ab2b4ffe7f35aa48f',
   'openspec-archive-change': '64b1611dd7aee04ca268820d1b193e8bf0a39ff3672ec6ba21fb0a1bcb1786c2',
   'openspec-bulk-archive-change': '49d410bda408c0411decd584be9c2355335e3b3db760fc6a0adcd82c172a280f',
-  'openspec-verify-change': 'aa7c584bcf9771b762799736c15e0eda3dc4d4bd913f75682d123cfec98f2122',
+  'openspec-verify-change': '919f409727d45f0af62325ac9ddb10b8f0c3188569a10a3693d5db12e51cb8b3',
   'openspec-onboard': '1d581c12d4928d751eb79de099e275dabe9c99fc15dc1f502abebd99ad7cb7d2',
   'openspec-propose': '4638400113946f4f1ee9f0bd0e965aafb200bd89b64ec7f5406ef5e948e8e218',
   'openspec-update-change': '4e6669540bc5332b72db7dd432625cc4b45234ae7674f9b46fcd1309b9697b0d',
@@ -162,6 +162,22 @@ describe('skill templates split parity', () => {
     );
 
     expect(actualHashes).toEqual(EXPECTED_GENERATED_SKILL_CONTENT_HASHES);
+  });
+
+  it('runs relevance without requiring a design artifact', () => {
+    const variants: Array<[string, string]> = [
+      ['skill', generateSkillContent(getVerifyChangeSkillTemplate(), 'PARITY-BASELINE')],
+      ['opsx command', getOpsxVerifyCommandTemplate().content],
+    ];
+
+    for (const [variant, content] of variants) {
+      expect(content, variant).toContain(
+        'verify task completion and relevance against tasks, skip spec/design checks'
+      );
+      expect(content, variant).toContain(
+        'verify completeness, correctness, and relevance against tasks and specs, skip design'
+      );
+    }
   });
 
   // The assertion above only compares the skills this file already lists, so a
