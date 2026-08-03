@@ -148,6 +148,7 @@ artifacts:
       fs.symlinkSync(outsideSchema, path.join(schemaDir, 'schema.yaml'));
 
       expect(getSchemaDir('linked-file', tempDir)).toBeNull();
+      expect(() => resolveSchema('linked-file', tempDir)).toThrow(/not found/u);
     });
 
     it('should validate user override and throw on invalid schema', () => {
