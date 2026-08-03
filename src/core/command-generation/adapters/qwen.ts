@@ -10,7 +10,6 @@
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
-import { transformToHyphenCommands } from '../../../utils/command-references.js';
 import { escapeYamlValue } from '../yaml.js';
 
 /**
@@ -26,15 +25,11 @@ export const qwenAdapter: ToolCommandAdapter = {
   },
 
   formatFile(content: CommandContent): string {
-    // Qwen commands are invoked by filename (/opsx-<id>), so cross-references
-    // must use the hyphen form too.
-    const transformedBody = transformToHyphenCommands(content.body);
-
     return `---
 description: ${escapeYamlValue(content.description)}
 ---
 
-${transformedBody}
+${content.body}
 `;
   },
 };

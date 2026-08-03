@@ -1128,14 +1128,15 @@ operations:
       expect(output).toContain('Invalid tool(s): unknown-tool');
     });
 
-    it('errors for tool without skillsDir', async () => {
-      // Using 'agents' which doesn't have skillsDir configured
+    it('creates skills for the shared agents target', async () => {
       const result = await runCLI(['experimental', '--tool', 'agents'], {
         cwd: tempDir,
       });
-      expect(result.exitCode).toBe(1);
-      const output = getOutput(result);
-      expect(output).toContain('Invalid tool(s): agents');
+      expect(result.exitCode).toBe(0);
+
+      const skillFile = path.join(tempDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md');
+      const stat = await fs.stat(skillFile);
+      expect(stat.isFile()).toBe(true);
     });
 
     it('creates skills for Claude tool', async () => {
@@ -1173,17 +1174,17 @@ operations:
       expect(content).toContain('name: "/opsx-explore"');
     });
 
-    it('creates skills for Windsurf tool', async () => {
+    it('creates skills for the retired windsurf id, under Devin Desktop', async () => {
       const result = await runCLI(['experimental', '--tool', 'windsurf'], {
         cwd: tempDir,
       });
       expect(result.exitCode).toBe(0);
       const output = normalizePaths(getOutput(result));
-      expect(output).toContain('Windsurf');
-      expect(output).toContain('.windsurf/');
+      expect(output).toContain('Devin Desktop');
+      expect(output).toContain('.devin/');
 
       // Verify skill files were created
-      const skillFile = path.join(tempDir, '.windsurf', 'skills', 'openspec-explore', 'SKILL.md');
+      const skillFile = path.join(tempDir, '.devin', 'skills', 'openspec-explore', 'SKILL.md');
       const stat = await fs.stat(skillFile);
       expect(stat.isFile()).toBe(true);
     });

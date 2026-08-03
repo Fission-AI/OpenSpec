@@ -107,7 +107,7 @@ openspec init [path] [options]
 
 The welcome animation is also skipped when the `OPENSPEC_NO_ANIMATION` environment variable is set (any value, including empty), when `NO_COLOR` is set to a non-empty value, or when the OS reduced-motion preference is enabled (macOS Reduce Motion, GNOME animations disabled).
 
-**Supported tool IDs (`--tools`):** `amazon-q`, `antigravity`, `auggie`, `bob`, `claude`, `cline`, `codeartsagent`, `codex`, `forgecode`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `hermes`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `lingma`, `vibe`, `oh-my-pi`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `windsurf`, `zcode`
+**Supported tool IDs (`--tools`)** — `windsurf` is also accepted, as an alias for `devin`: `amazon-q`, `antigravity`, `auggie`, `bob`, `claude`, `cline`, `codeartsagent`, `codex`, `devin`, `forgecode`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `hermes`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `lingma`, `vibe`, `oh-my-pi`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `zcode`, `agents`
 
 > This list mirrors `AI_TOOLS` in `src/core/config.ts`. See [Supported Tools](supported-tools.md) for each tool's skill and command paths.
 
@@ -144,6 +144,7 @@ openspec/
 .claude/skills/         # Claude Code skills (if claude selected)
 .cursor/skills/         # Cursor skills (if cursor selected)
 .cursor/commands/       # Cursor OPSX commands (if delivery includes commands)
+.agents/skills/         # Shared skills for AGENTS.md-compatible tools (if agents selected)
 ... (other tool configs)
 ```
 
@@ -202,6 +203,16 @@ The offer appears only in an interactive terminal, and only when npm owns the in
 Whenever anything is printed, it names the directory the running CLI was loaded from — the thing to check when you did upgrade but a stale shim still owns your `PATH`.
 
 It asks the registry in `npm_config_registry` when npm exports it, and `https://registry.npmjs.org` otherwise. No `.npmrc` is read: letting file contents choose where an outbound request goes is a flow worth avoiding, and a project's `.npmrc` travels with the repository. On a private mirror, export `npm_config_registry` — or set `OPENSPEC_NO_UPDATE_CHECK` to skip the check entirely. The check is skipped when `CI` is set to anything but an explicit off-value (`false`, `0`, `no`, `off`, or empty), under `NODE_ENV=test`, and whenever `OPENSPEC_NO_UPDATE_CHECK` (any value), `DO_NOT_TRACK=1`, or `OPENSPEC_TELEMETRY=0` is set. It runs before the update and can delay it by at most 1.5 seconds — it gives up after that even when the network drops packets silently, and stays quiet when the registry is unreachable.
+
+**How "up to date" is decided:** skill files record the version that generated
+them, so OpenSpec compares that against the installed CLI. Command files carry no
+version stamp, so for a tool that has commands but no skills (delivery
+`commands`), OpenSpec compares the file contents against what it would generate
+now — edits to those files count as drift and are overwritten. With delivery
+`skills` or `both`, only the recorded version is checked, so a hand-edited file
+whose version still matches is left alone; use `--force` to rewrite it. Either
+way, generated files are OpenSpec's to own — keep your own instructions
+elsewhere.
 
 ---
 
@@ -516,7 +527,7 @@ openspec show add-dark-mode --json
 
 ### `openspec validate`
 
-Validate changes and specs for structural issues.
+Validate changes and specs for structural issues, and check a change's MODIFIED requirements against the main specs they would replace.
 
 ```
 openspec validate [item-name] [options]
@@ -611,26 +622,26 @@ openspec archive [change-name] [options]
 
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `change-name` | No | Change to archive (prompts if omitted) |
+| `change-name` | No | Change to archive (prompts if omitted; required when nothing can answer the prompt) |
 
 **Options:**
 
 | Option | Description |
 |--------|-------------|
-| `-y, --yes` | Skip confirmation prompts |
+| `-y, --yes` | Skip confirmation prompts. Required when nothing can answer them — an AI agent, a CI job, or any run with stdin closed |
 | `--skip-specs` | Skip spec updates for one archive run. A change that permanently has no spec deltas should declare `skip_specs: true` in its `.openspec.yaml` instead — it archives with no flag |
 | `--no-validate` | Skip validation (requires confirmation) |
 
 **Examples:**
 
 ```bash
-# Interactive archive
+# Interactive archive (asks which change, then confirms)
 openspec archive
 
 # Archive specific change
 openspec archive add-dark-mode
 
-# Archive without prompts (CI/scripts)
+# Archive without prompts (agents, CI, scripts)
 openspec archive add-dark-mode --yes
 
 # Archive a tooling change that doesn't affect specs
@@ -643,6 +654,11 @@ openspec archive update-ci-config --skip-specs
 2. Prompts for confirmation (unless `--yes`)
 3. Merges delta specs into `openspec/specs/`
 4. Moves change folder to `openspec/changes/archive/YYYY-MM-DD-<name>/`
+
+**Without a terminal:** an AI agent, a CI job, or any run with stdin closed cannot
+answer step 2, so archive stops before touching anything, exits 1, and names the
+command to rerun — `openspec archive <name> --yes`, carrying whatever other flags
+you passed. Pass `--yes` (and the change name) up front to skip the round trip.
 
 ---
 

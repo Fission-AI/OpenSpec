@@ -27,6 +27,14 @@ The command SHALL support both interactive and direct change selection methods.
 - **THEN** use that change directly
 - **AND** validate it exists
 
+#### Scenario: No change name and no answer available
+
+- **WHEN** no change-name is provided and the selection prompt cannot be answered
+- **THEN** report that a change name is required
+- **AND** state that no answer could be read from stdin
+- **AND** suggest a rerun naming the change and passing `--yes`
+- **AND** exit with a non-zero status code rather than reporting success for a run that archived nothing
+
 ### Requirement: Task Completion Check
 
 The command SHALL verify task completion status before archiving to prevent premature archival.
@@ -170,6 +178,21 @@ The command SHALL handle various error conditions gracefully.
   - Change not found
   - Archive target already exists
   - File system permissions issues
+  - A confirmation prompt that cannot be answered because no answer can be read from stdin
+
+#### Scenario: Confirmation cannot be answered
+
+- **WHEN** a confirmation prompt fails because no answer can be read from stdin
+- **THEN** report which decision needed an answer
+- **AND** suggest a rerun that adds `--yes` and reproduces the flags the caller already passed
+- **AND** make no filesystem change
+- **AND** exit with a non-zero status code
+
+#### Scenario: Cancellation is not treated as a missing answer
+
+- **WHEN** the user cancels a prompt with Ctrl-C
+- **THEN** treat it as a cancellation rather than an unanswerable prompt
+- **AND** preserve the existing cancellation behavior
 
 ### Requirement: Skip Specs Option
 

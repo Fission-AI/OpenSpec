@@ -40,8 +40,39 @@ describe('available-tools', () => {
       const toolValues = tools.map((t) => t.value);
       expect(toolValues).toContain('claude');
       expect(toolValues).toContain('cursor');
-      expect(toolValues).toContain('windsurf');
+      // Windsurf was rebranded to Devin Desktop, so .windsurf detects as devin
+      expect(toolValues).toContain('devin');
       expect(tools).toHaveLength(3);
+    });
+
+    it('should detect Devin Desktop when .devin directory exists', async () => {
+      await fs.mkdir(path.join(testDir, '.devin'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('devin');
+
+      const devinTool = tools.find((t) => t.value === 'devin');
+      expect(devinTool).toBeDefined();
+      expect(devinTool?.name).toBe('Devin Desktop (formerly Windsurf)');
+      expect(devinTool?.skillsDir).toBe('.devin');
+    });
+
+    it('should detect Devin Desktop from the legacy .windsurf directory', async () => {
+      // The rebrand moved the config dir; a project set up before it still has
+      // only .windsurf/, and that user must still be recognized.
+      await fs.mkdir(path.join(testDir, '.windsurf'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((t) => t.value)).toContain('devin');
+      expect(tools.find((t) => t.value === 'devin')?.skillsDir).toBe('.devin');
+    });
+
+    it('should not detect Devin Desktop when neither .devin nor .windsurf exists', async () => {
+      await fs.mkdir(path.join(testDir, '.cursor'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((t) => t.value)).not.toContain('devin');
     });
 
     it('should ignore files that are not directories', async () => {
@@ -53,14 +84,30 @@ describe('available-tools', () => {
     });
 
     it('should only return tools that have a skillsDir property', async () => {
-      // .agents value has no skillsDir in AI_TOOLS config
-      // Create directories for both a valid and the agents case
       await fs.mkdir(path.join(testDir, '.claude'), { recursive: true });
 
       const tools = getAvailableTools(testDir);
+      expect(tools.map((t) => t.value)).toContain('claude');
+      // The filter's contract: nothing without a skillsDir can ever be returned.
+      expect(tools.filter((t) => !t.skillsDir)).toEqual([]);
+    });
+
+    it('should detect the shared agents target from .agents/skills', async () => {
+      await fs.mkdir(path.join(testDir, '.agents', 'skills'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
       const toolValues = tools.map((t) => t.value);
-      expect(toolValues).toContain('claude');
-      expect(toolValues).not.toContain('agents');
+      expect(toolValues).toContain('agents');
+    });
+
+    it('should not detect the shared agents target from a bare .agents directory', async () => {
+      // Frameworks use `.agents/` for more than skills (rules, subagent definitions).
+      // The bare root therefore says nothing about whether this project keeps agent
+      // skills in the shared location, so it must not select the target.
+      await fs.mkdir(path.join(testDir, '.agents', 'some-other-framework'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((t) => t.value)).not.toContain('agents');
     });
 
     it('should return full AIToolOption objects', async () => {

@@ -419,7 +419,7 @@ Examples in this section use the expanded command set (`new`, `continue`, etc.);
 │                    ▼                                                        │
 │   Skill Files (.claude/skills/openspec-*/SKILL.md)                          │
 │                                                                             │
-│   • Cross-editor compatible (Claude Code, Cursor, Windsurf)                 │
+│   • Cross-editor compatible (Claude Code, Cursor, Devin)                    │
 │   • Skills query CLI for structured data                                    │
 │   • Fully customizable via schema files                                     │
 │                                                                             │

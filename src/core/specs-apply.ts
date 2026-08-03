@@ -10,6 +10,7 @@ import path from 'path';
 import chalk from 'chalk';
 import {
   extractRequirementsSection,
+  findMissingCurrentScenarios,
   foldRequirementName,
   parseDeltaSpec,
   normalizeRequirementName,
@@ -31,11 +32,6 @@ export interface SpecUpdate {
   source: string;
   target: string;
   exists: boolean;
-}
-
-interface ScenarioBlock {
-  name: string;
-  raw: string;
 }
 
 // -----------------------------------------------------------------------------
@@ -286,6 +282,7 @@ export async function buildUpdatedSpec(
   // Apply operations in order: RENAMED → REMOVED → MODIFIED → ADDED
   // RENAMED
   let renamedApplied = 0;
+  const renamedTargets = new Map<string, string>();
   for (const r of plan.renamed) {
     const from = normalizeRequirementName(r.from);
     const to = normalizeRequirementName(r.to);
@@ -294,6 +291,17 @@ export async function buildUpdatedSpec(
       // to the baseline (early-sync pattern) — re-applying it is a no-op,
       // not a failure. Only a missing source AND target is a genuine error.
       if (nameToBlock.has(to)) {
+        // Unless a case/whitespace variant of the source still exists (and is
+        // not the target itself, as in a case-only rename): that is a typo'd
+        // header, not an early-synced rename — same guard REMOVED applies.
+        const nearMiss = [...nameToBlock.keys()].find(
+          (k) => k !== to && foldRequirementName(k) === foldRequirementName(from)
+        );
+        if (nearMiss !== undefined) {
+          throw new Error(
+            `${specName} RENAMED failed for header "### Requirement: ${r.from}" - source not found, but "### Requirement: ${nameToBlock.get(nearMiss)!.name}" exists; fix the header to match it exactly`
+          );
+        }
         continue;
       }
       throw new Error(`${specName} RENAMED failed for header "### Requirement: ${r.from}" - source not found`);
@@ -312,6 +320,7 @@ export async function buildUpdatedSpec(
     };
     nameToBlock.delete(from);
     nameToBlock.set(to, renamedBlock);
+    renamedTargets.set(from, to);
     renamedApplied++;
   }
 
@@ -344,6 +353,7 @@ export async function buildUpdatedSpec(
   }
 
   // MODIFIED
+  let modifiedApplied = 0;
   for (const mod of plan.modified) {
     const key = normalizeRequirementName(mod.name);
     const currentBlock = nameToBlock.get(key);
@@ -362,6 +372,13 @@ export async function buildUpdatedSpec(
       throw new Error(
         `${specName} MODIFIED failed for header "### Requirement: ${mod.name}" - current spec contains scenario(s) not present in the modified block: ${missingScenarios.map(name => `"${name}"`).join(', ')}. Refresh the change spec before archiving to avoid dropping scenarios.`
       );
+    }
+    // Identical content means the modification was already synced to the
+    // baseline (early-sync pattern) — count only real replacements, so a
+    // fully synced change still takes the "already in sync" write skip
+    // instead of churning normalization differences into the file.
+    if (normalizeBlockRaw(currentBlock.raw) !== normalizeBlockRaw(mod.raw)) {
+      modifiedApplied++;
     }
     nameToBlock.set(key, mod);
   }
@@ -396,6 +413,31 @@ export async function buildUpdatedSpec(
       keptOrder.push(replacement);
       seen.add(key);
     }
+    // A block's raw runs to the next header the parser RECOGNISES, so a note
+    // under an unrecognized heading can be absorbed into the requirement.
+    // Warn only when the replacement from this same original block drops the
+    // full absorbed suffix. RENAMED carries the original raw content under a
+    // new map key, and MODIFIED may repeat the suffix deliberately; neither is
+    // data loss.
+    const renamedTarget = renamedTargets.get(key);
+    const replacementFromOriginal =
+      replacement ?? (renamedTarget ? nameToBlock.get(renamedTarget) : undefined);
+    if (replacementFromOriginal !== block) {
+      const foreign = firstForeignTail(block.raw);
+      const replacementRaw = replacementFromOriginal?.raw;
+      const normalizedForeign = foreign ? normalizeBlockRaw(foreign.raw) : '';
+      const keepsForeignTail =
+        foreign !== undefined &&
+        replacementRaw !== undefined &&
+        countOccurrences(normalizeBlockRaw(replacementRaw), normalizedForeign) >=
+          countOccurrences(normalizeBlockRaw(block.raw), normalizedForeign);
+      if (foreign && !keepsForeignTail) {
+        warn(
+          `${specName} - "${foreign.heading}" sits inside requirement "${block.name}" and goes with it. ` +
+            'Move it under its own requirement, or above `## Requirements`, to keep it.'
+        );
+      }
+    }
   }
   // Append any newly added that were not in original order
   for (const [key, block] of nameToBlock.entries()) {
@@ -419,7 +461,7 @@ export async function buildUpdatedSpec(
     rebuilt,
     counts: {
       added: addedApplied,
-      modified: plan.modified.length,
+      modified: modifiedApplied,
       removed: removedApplied,
       renamed: renamedApplied,
     },
@@ -427,8 +469,48 @@ export async function buildUpdatedSpec(
   };
 }
 
+/**
+ * The suffix of a requirement block that begins with content the requirement
+ * parser did not recognize as a boundary: a `#`, `##`, or `###` heading after
+ * the block's own header.
+ *
+ * `####` is excluded: a requirement's `#### Scenario:` headings are its own.
+ * Fenced lines are skipped, so a heading inside an example does not count.
+ *
+ * Approximate on purpose, and only ever used to WARN. A `#` line inside a
+ * scenario looks the same as a note written below the requirement, and no
+ * line-based rule separates them; a wrong warning costs a line of output, while
+ * acting on a wrong answer would rewrite the spec.
+ */
+function firstForeignTail(raw: string): { heading: string; raw: string } | undefined {
+  const lines = raw.replace(/\r\n?/g, '\n').split('\n');
+  const fenceMask = buildCodeFenceMask(lines);
+  for (let index = 1; index < lines.length; index++) {
+    if (fenceMask[index]) continue;
+    if (/^ {0,3}#{1,3}(?:[ \t]|$)/.test(lines[index])) {
+      return {
+        heading: lines[index].trim(),
+        raw: lines.slice(index).join('\n').trimEnd(),
+      };
+    }
+  }
+  return undefined;
+}
+
 function normalizeBlockRaw(raw: string): string {
   return raw.replace(/\r\n?/g, '\n').trim();
+}
+
+/** Count non-overlapping copies so one retained duplicate cannot mask another copy's loss. */
+function countOccurrences(haystack: string, needle: string): number {
+  if (!needle) return 0;
+  let count = 0;
+  let start = 0;
+  while ((start = haystack.indexOf(needle, start)) !== -1) {
+    count++;
+    start += needle.length;
+  }
+  return count;
 }
 
 /**
@@ -552,56 +634,3 @@ export function buildSpecSkeleton(specFolderName: string, changeName: string, pu
     purpose?.trim() || `TBD - created by archiving change ${changeName}. Update Purpose after archive.`;
   return `# ${titleBase} Specification\n\n## Purpose\n${purposeBody}\n\n## Requirements\n`;
 }
-
-function findMissingCurrentScenarios(current: RequirementBlock, incoming: RequirementBlock): string[] {
-  // Multiplicity-aware: a name present N times in current and M times in
-  // incoming means max(0, N - M) instances are missing. Set membership would
-  // treat N>M as fully covered and let archive silently drop duplicates
-  // (residual #1246 / duplicate-scenario-name blind spot).
-  const remainingIncoming = new Map<string, number>();
-  for (const scenario of parseScenarioBlocks(incoming.raw)) {
-    const name = scenario.name;
-    remainingIncoming.set(name, (remainingIncoming.get(name) ?? 0) + 1);
-  }
-
-  const missing: string[] = [];
-  for (const scenario of parseScenarioBlocks(current.raw)) {
-    const name = scenario.name;
-    const remaining = remainingIncoming.get(name) ?? 0;
-    if (remaining > 0) {
-      remainingIncoming.set(name, remaining - 1);
-    } else {
-      missing.push(name);
-    }
-  }
-  return missing;
-}
-
-function parseScenarioBlocks(requirementRaw: string): ScenarioBlock[] {
-  const lines = requirementRaw.replace(/\r\n?/g, '\n').split('\n');
-  const scenarios: ScenarioBlock[] = [];
-  let index = 0;
-
-  while (index < lines.length) {
-    const headerMatch = lines[index].match(/^####\s*Scenario:\s*(.+)\s*$/);
-    if (!headerMatch) {
-      index++;
-      continue;
-    }
-
-    const start = index;
-    const name = headerMatch[1].trim();
-    index++;
-    while (index < lines.length && !/^####\s*Scenario:\s*(.+)\s*$/.test(lines[index])) {
-      index++;
-    }
-
-    scenarios.push({
-      name,
-      raw: lines.slice(start, index).join('\n').trimEnd(),
-    });
-  }
-
-  return scenarios;
-}
-

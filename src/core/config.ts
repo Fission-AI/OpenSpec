@@ -28,6 +28,7 @@ export const AI_TOOLS: AIToolOption[] = [
   { name: 'Cline', value: 'cline', available: true, successLabel: 'Cline', skillsDir: '.cline' },
   { name: 'CodeArts', value: 'codeartsagent', available: true, successLabel: 'CodeArts', skillsDir: '.codeartsdoer' },
   { name: 'Codex', value: 'codex', available: true, successLabel: 'Codex', skillsDir: '.codex' },
+  { name: 'Devin Desktop (formerly Windsurf)', value: 'devin', available: true, successLabel: 'Devin Desktop', skillsDir: '.devin', detectionPaths: ['.devin', '.windsurf'] },
   { name: 'ForgeCode', value: 'forgecode', available: true, successLabel: 'ForgeCode', skillsDir: '.forge' },
   { name: 'CodeBuddy Code (CLI)', value: 'codebuddy', available: true, successLabel: 'CodeBuddy Code', skillsDir: '.codebuddy' },
   { name: 'Continue', value: 'continue', available: true, successLabel: 'Continue (VS Code / JetBrains / Cli)', skillsDir: '.continue' },
@@ -52,7 +53,29 @@ export const AI_TOOLS: AIToolOption[] = [
   { name: 'Qwen Code', value: 'qwen', available: true, successLabel: 'Qwen Code', skillsDir: '.qwen' },
   { name: 'Zoo Code', value: 'roocode', available: true, successLabel: 'Zoo Code', skillsDir: '.roo' },
   { name: 'Trae', value: 'trae', available: true, successLabel: 'Trae', skillsDir: '.trae' },
-  { name: 'Windsurf', value: 'windsurf', available: true, successLabel: 'Windsurf', skillsDir: '.windsurf' },
   { name: 'ZCode', value: 'zcode', available: true, successLabel: 'ZCode', skillsDir: '.zcode' },
-  { name: 'AGENTS.md (works with Amp, VS Code, …)', value: 'agents', available: false, successLabel: 'your AGENTS.md-compatible assistant' }
+  // Vendor-neutral target for assistants that read the shared `.agents` root.
+  // Detection keys off `.agents/skills` rather than the bare root: frameworks use
+  // `.agents/` for more than skills, so the root alone says nothing about skills.
+  // A project that does keep skills there is a project this target fits, the same
+  // way `.claude/` selects Claude Code — the signal is the user's setup, not
+  // OpenSpec's own files.
+  { name: 'Shared .agents skills', value: 'agents', available: true, successLabel: 'shared .agents skills', skillsDir: '.agents', detectionPaths: ['.agents/skills'] }
 ];
+
+/**
+ * Retired tool ids that still resolve, so a rebrand does not break scripted
+ * `--tools` invocations. Windsurf was rebranded to Devin Desktop on
+ * 2026-06-02 and its config directory moved from `.windsurf/` to `.devin/`;
+ * `--tools windsurf` therefore configures `devin`.
+ */
+export const TOOL_ID_ALIASES: Record<string, string> = {
+  windsurf: 'devin',
+};
+
+/**
+ * Resolves a tool id through TOOL_ID_ALIASES, leaving current ids untouched.
+ */
+export function resolveToolIdAlias(toolId: string): string {
+  return TOOL_ID_ALIASES[toolId] ?? toolId;
+}

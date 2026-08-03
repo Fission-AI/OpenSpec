@@ -37,6 +37,17 @@ describe('extractRequirementsSection', () => {
 });
 
 describe('parseDeltaSpec', () => {
+  it('strips a UTF-8 BOM so a delta section on the first line still parses', () => {
+    // Windows editors and PowerShell redirects prepend a BOM; without
+    // stripping it the first line never matches "## ADDED Requirements" and
+    // validate reports "No delta sections found" for a well-formed file.
+    const content = `﻿## ADDED Requirements\n### Requirement: BOM survivor\nThe system SHALL parse.\n\n#### Scenario: Parses\n- **WHEN** a BOM prefixes the file\n- **THEN** the delta is found\n`;
+    const result = parseDeltaSpec(content);
+    expect(result.sectionPresence.added).toBe(true);
+    expect(result.added.length).toBe(1);
+    expect(result.added[0].name).toBe('BOM survivor');
+  });
+
   it('regression: parses ###Requirement: header with no space in delta ADDED section', () => {
     const content = `## ADDED Requirements\n###Requirement: NoSpace\nThe system SHALL foo.\n`;
     const result = parseDeltaSpec(content);
