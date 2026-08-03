@@ -22,9 +22,14 @@ function assertSpecPath(specsDir: string, specPath: string): void {
     throw new Error(`Path is outside the allowed directory: ${specPath}`);
   }
 
-  // A capability directory may intentionally be a monorepo symlink. Treat it
-  // as the trust root while still rejecting an outbound spec.md link.
-  FileSystemUtils.assertPathWithin(path.dirname(specPath), specPath);
+  try {
+    // Preserve confined spec.md links, including links to a sibling capability.
+    FileSystemUtils.assertPathWithin(specsDir, specPath);
+  } catch {
+    // A capability directory may intentionally be a monorepo symlink. Treat it
+    // as the trust root while still rejecting a link outside that capability.
+    FileSystemUtils.assertPathWithin(path.dirname(specPath), specPath);
+  }
 }
 
 interface ShowOptions {

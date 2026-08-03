@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -99,6 +99,27 @@ describe('file-state', () => {
 
       expect(fs.statSync(lockPath).mode & 0o777).toBe(0o600);
       await releaseFileLock(lock, lockPath);
+    });
+
+    it('acquires a lock when the filesystem does not support fsync', async () => {
+      const lockPath = path.join(tempDir, 'state.yaml.lock');
+      const originalOpen = fs.promises.open.bind(fs.promises);
+      const openSpy = vi.spyOn(fs.promises, 'open').mockImplementationOnce(async (...args) => {
+        const handle = await originalOpen(...args);
+        vi.spyOn(handle, 'sync').mockRejectedValueOnce(
+          Object.assign(new Error('sync unsupported'), { code: 'ENOTSUP' })
+        );
+        return handle;
+      });
+
+      try {
+        const lock = await acquireFileLock({ lockPath, errorFor });
+        await releaseFileLock(lock, lockPath);
+      } finally {
+        openSpy.mockRestore();
+      }
+
+      expect(fs.existsSync(lockPath)).toBe(false);
     });
 
     itPosix('reports lock-create failures through the injected factory', async () => {

@@ -57,13 +57,25 @@ function resolveTrustedSpecPath(specsRoot: string, specPath: string): {
     throw new Error(`Path is outside the allowed directory: ${specPath}`);
   }
 
-  // Direct capability directories may intentionally be monorepo symlinks.
-  // Freeze their canonical location as the trust root so later swaps are
-  // rejected while a nested spec.md link still cannot escape.
-  const root = FileSystemUtils.canonicalizeExistingPath(path.dirname(specPath));
-  const file = path.join(root, path.basename(specPath));
-  FileSystemUtils.assertPathWithin(root, file);
-  return { root, file };
+  try {
+    // Preserve spec.md links that remain inside the overall specs tree.
+    FileSystemUtils.assertPathWithin(specsRoot, specPath);
+    const root = FileSystemUtils.canonicalizeExistingPath(specsRoot);
+    return {
+      root,
+      // Rebase onto the canonical root so missing targets also work when the
+      // project is reached through an OS path alias (for example /var on macOS).
+      file: path.join(root, path.relative(path.resolve(specsRoot), path.resolve(specPath))),
+    };
+  } catch {
+    // Direct capability directories may intentionally be monorepo symlinks.
+    // Freeze their canonical location as the trust root so later swaps are
+    // rejected while a nested spec.md link still cannot escape.
+    const root = FileSystemUtils.canonicalizeExistingPath(path.dirname(specPath));
+    const file = path.join(root, path.basename(specPath));
+    FileSystemUtils.assertPathWithin(root, file);
+    return { root, file };
+  }
 }
 
 function assertTrustedSpecPath(root: string, specPath: string): void {

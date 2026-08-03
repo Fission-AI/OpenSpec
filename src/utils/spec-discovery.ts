@@ -9,6 +9,16 @@ export interface DiscoveredSpec {
   specFile: string;
 }
 
+function assertDiscoveredSpecPath(specsRoot: string, capabilityDir: string, specFile: string): void {
+  try {
+    FileSystemUtils.assertPathWithin(specsRoot, specFile);
+  } catch {
+    // Direct capability directories may intentionally be external monorepo
+    // links. In that case, confine the file to the capability itself.
+    FileSystemUtils.assertPathWithin(capabilityDir, specFile);
+  }
+}
+
 /**
  * Recursively discover every `spec.md` under a specs root, so both the flat
  * `specs/<id>/spec.md` layout and nested `specs/<area>/<id>/spec.md` layouts
@@ -42,12 +52,12 @@ export async function discoverSpecFiles(specsRoot: string): Promise<DiscoveredSp
       } else if (entry.name === 'spec.md' && segments.length > 0) {
         const specFile = path.join(dir, entry.name);
         if (entry.isFile()) {
-          FileSystemUtils.assertPathWithin(dir, specFile);
+          assertDiscoveredSpecPath(specsRoot, dir, specFile);
           results.push({ id: segments.join('/'), specFile });
         } else if (entry.isSymbolicLink()) {
           try {
             if ((await fs.stat(specFile)).isFile()) {
-              FileSystemUtils.assertPathWithin(dir, specFile);
+              assertDiscoveredSpecPath(specsRoot, dir, specFile);
               results.push({ id: segments.join('/'), specFile });
             }
           } catch (err: any) {

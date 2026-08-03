@@ -62,4 +62,21 @@ describe('SpecCommand path boundaries', () => {
       await expect(new SpecCommand().show('shared')).resolves.toBeUndefined();
     }
   );
+
+  it.skipIf(process.platform === 'win32')(
+    'allows a spec file symlink elsewhere in the specs root',
+    async () => {
+      const specsDir = path.join(tempDir, 'openspec', 'specs');
+      const sharedSpec = path.join(specsDir, 'shared.md');
+      const linkedSpec = path.join(specsDir, 'linked', 'spec.md');
+      await fs.writeFile(
+        sharedSpec,
+        '# Shared\n\n## Purpose\n\nShared safely.\n\n## Requirements\n'
+      );
+      await fs.mkdir(path.dirname(linkedSpec), { recursive: true });
+      await fs.symlink(sharedSpec, linkedSpec);
+
+      await expect(new SpecCommand().show('linked')).resolves.toBeUndefined();
+    }
+  );
 });

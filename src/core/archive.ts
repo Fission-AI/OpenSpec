@@ -211,6 +211,17 @@ function toArchiveDiagnostic(error: unknown): ArchiveDiagnostic {
 /**
  * Recursively copy a directory. Used when fs.rename fails (e.g. EPERM on Windows).
  */
+async function copySymbolicLink(src: string, dest: string): Promise<void> {
+  const target = await fs.readlink(src);
+  const isWindowsDirectoryLink =
+    process.platform === 'win32' && (await fs.stat(src)).isDirectory();
+  const destinationTarget =
+    isWindowsDirectoryLink && !path.isAbsolute(target)
+      ? path.resolve(path.dirname(src), target)
+      : target;
+  await fs.symlink(destinationTarget, dest, isWindowsDirectoryLink ? 'junction' : undefined);
+}
+
 async function copyDirRecursive(src: string, dest: string): Promise<void> {
   // Every destination is new: exclusive directory creation prevents a
   // symlink introduced after the archive target check from redirecting the
@@ -223,7 +234,7 @@ async function copyDirRecursive(src: string, dest: string): Promise<void> {
     if (entry.isDirectory()) {
       await copyDirRecursive(srcPath, destPath);
     } else if (entry.isSymbolicLink()) {
-      await fs.symlink(await fs.readlink(srcPath), destPath);
+      await copySymbolicLink(srcPath, destPath);
     } else if (entry.isFile()) {
       await fs.copyFile(srcPath, destPath);
     } else {
@@ -247,7 +258,7 @@ async function moveDirectory(src: string, dest: string): Promise<void> {
       const sourceStat = await fs.lstat(src);
       if (sourceStat.isSymbolicLink()) {
         await fs.mkdir(path.dirname(dest), { recursive: true });
-        await fs.symlink(await fs.readlink(src), dest);
+        await copySymbolicLink(src, dest);
         await fs.unlink(src);
       } else {
         await copyDirRecursive(src, dest);

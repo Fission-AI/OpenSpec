@@ -80,6 +80,32 @@ describe('spec apply path boundaries', () => {
     );
   });
 
+  itWithSymlinks('supports a delta spec link elsewhere in the change specs root', async () => {
+    const sharedDelta = path.join(changeSpecsDir, 'shared-delta.md');
+    await fs.writeFile(
+      sharedDelta,
+      [
+        '## ADDED Requirements',
+        '',
+        '### Requirement: Shared safely',
+        'The system SHALL preserve confined spec links.',
+        '',
+        '#### Scenario: Apply',
+        '- **WHEN** the linked delta is archived',
+        '- **THEN** the spec is updated',
+        '',
+      ].join('\n')
+    );
+    const linkedDelta = path.join(changeSpecsDir, 'widgets', 'spec.md');
+    await fs.mkdir(path.dirname(linkedDelta), { recursive: true });
+    await fs.symlink(sharedDelta, linkedDelta);
+
+    const [update] = await findSpecUpdates(changeDir, mainSpecsDir);
+    const built = await buildUpdatedSpec(update, 'test-change', { silent: true });
+
+    expect(built.rebuilt).toContain('Shared safely');
+  });
+
   itWithSymlinks('rechecks the delta source immediately before reading it', async () => {
     const deltaPath = await writeDelta();
     const [update] = await findSpecUpdates(changeDir, mainSpecsDir);

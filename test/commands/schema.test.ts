@@ -316,6 +316,73 @@ artifacts:
         'Cannot fork schema with linked or unsupported entry'
       );
     });
+
+    it('should dereference a confined template link into an independent fork', async () => {
+      if (process.platform === 'win32') return;
+
+      const sourceDir = path.join(tempDir, 'openspec', 'schemas', 'linked-source');
+      const templatesDir = path.join(sourceDir, 'templates');
+      const destinationDir = path.join(tempDir, 'openspec', 'schemas', 'linked-copy');
+      fs.mkdirSync(templatesDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(sourceDir, 'schema.yaml'),
+        `name: linked-source
+version: 1
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Proposal
+    template: proposal.md
+`
+      );
+      fs.writeFileSync(path.join(templatesDir, 'shared.md'), '# Shared template\n');
+      fs.symlinkSync('shared.md', path.join(templatesDir, 'proposal.md'));
+
+      await runSchemaCommand(['fork', 'linked-source', 'linked-copy', '--json']);
+
+      expect(process.exitCode).not.toBe(1);
+      const copiedTemplate = path.join(destinationDir, 'templates', 'proposal.md');
+      expect(fs.lstatSync(copiedTemplate).isFile()).toBe(true);
+      expect(fs.readFileSync(copiedTemplate, 'utf8')).toBe('# Shared template\n');
+    });
+
+    it('should fork a linked schema root', async () => {
+      const realSourceDir = path.join(tempDir, 'shared-schema');
+      const linkedSourceDir = path.join(
+        tempDir,
+        'openspec',
+        'schemas',
+        'linked-source'
+      );
+      const templatesDir = path.join(realSourceDir, 'templates');
+      const destinationDir = path.join(tempDir, 'openspec', 'schemas', 'linked-copy');
+      fs.mkdirSync(templatesDir, { recursive: true });
+      fs.mkdirSync(path.dirname(linkedSourceDir), { recursive: true });
+      fs.writeFileSync(
+        path.join(realSourceDir, 'schema.yaml'),
+        `name: linked-source
+version: 1
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Proposal
+    template: proposal.md
+`
+      );
+      fs.writeFileSync(path.join(templatesDir, 'proposal.md'), '# Linked root\n');
+      fs.symlinkSync(
+        realSourceDir,
+        linkedSourceDir,
+        process.platform === 'win32' ? 'junction' : 'dir'
+      );
+
+      await runSchemaCommand(['fork', 'linked-source', 'linked-copy', '--json']);
+
+      expect(process.exitCode).not.toBe(1);
+      expect(
+        fs.readFileSync(path.join(destinationDir, 'templates', 'proposal.md'), 'utf8')
+      ).toBe('# Linked root\n');
+    });
   });
 
   describe('schema init', () => {

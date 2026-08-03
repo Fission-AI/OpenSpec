@@ -244,35 +244,79 @@ function isValidSchemaName(name: string): boolean {
 /**
  * Copy a directory recursively.
  */
-function copyDirRecursive(src: string, dest: string): void {
+function resolveSchemaCopyPath(allowedRoot: string, sourcePath: string): string {
+  try {
+    const canonicalRoot = fs.realpathSync(allowedRoot);
+    const canonicalPath = fs.realpathSync(sourcePath);
+    FileSystemUtils.assertPathWithin(canonicalRoot, canonicalPath);
+    return canonicalPath;
+  } catch {
+    throw new Error(`Cannot fork schema with linked or unsupported entry: ${sourcePath}`);
+  }
+}
+
+function copyDirRecursive(
+  src: string,
+  dest: string,
+  allowedRoot = src,
+  ancestors = new Set<string>()
+): void {
+  const canonicalSrc = resolveSchemaCopyPath(allowedRoot, src);
+  if (ancestors.has(canonicalSrc)) {
+    throw new Error(`Cannot fork schema with a linked directory cycle: ${src}`);
+  }
+  ancestors.add(canonicalSrc);
   fs.mkdirSync(dest, { recursive: true });
 
-  const entries = fs.readdirSync(src, { withFileTypes: true });
-  for (const entry of entries) {
-    const srcPath = path.join(src, entry.name);
-    const destPath = path.join(dest, entry.name);
+  try {
+    const entries = fs.readdirSync(src, { withFileTypes: true });
+    for (const entry of entries) {
+      const srcPath = path.join(src, entry.name);
+      const destPath = path.join(dest, entry.name);
+      const canonicalEntry = resolveSchemaCopyPath(allowedRoot, srcPath);
+      const stats = fs.statSync(canonicalEntry);
 
-    if (entry.isDirectory()) {
-      copyDirRecursive(srcPath, destPath);
-    } else if (entry.isFile()) {
-      fs.copyFileSync(srcPath, destPath);
-    } else {
-      throw new Error(`Cannot fork schema with linked or unsupported entry: ${srcPath}`);
+      if (stats.isDirectory()) {
+        copyDirRecursive(canonicalEntry, destPath, allowedRoot, ancestors);
+      } else if (stats.isFile()) {
+        // Dereference confined links so the fork is an independent schema.
+        fs.copyFileSync(canonicalEntry, destPath);
+      } else {
+        throw new Error(`Cannot fork schema with linked or unsupported entry: ${srcPath}`);
+      }
     }
+  } finally {
+    ancestors.delete(canonicalSrc);
   }
 }
 
 /**
  * Verifies a schema tree before replacing or creating the fork destination.
  */
-function assertSchemaTreeCanBeCopied(src: string): void {
-  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
-    const entryPath = path.join(src, entry.name);
-    if (entry.isDirectory()) {
-      assertSchemaTreeCanBeCopied(entryPath);
-    } else if (!entry.isFile()) {
-      throw new Error(`Cannot fork schema with linked or unsupported entry: ${entryPath}`);
+function assertSchemaTreeCanBeCopied(
+  src: string,
+  allowedRoot = src,
+  ancestors = new Set<string>()
+): void {
+  const canonicalSrc = resolveSchemaCopyPath(allowedRoot, src);
+  if (ancestors.has(canonicalSrc)) {
+    throw new Error(`Cannot fork schema with a linked directory cycle: ${src}`);
+  }
+  ancestors.add(canonicalSrc);
+
+  try {
+    for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+      const entryPath = path.join(src, entry.name);
+      const canonicalEntry = resolveSchemaCopyPath(allowedRoot, entryPath);
+      const stats = fs.statSync(canonicalEntry);
+      if (stats.isDirectory()) {
+        assertSchemaTreeCanBeCopied(canonicalEntry, allowedRoot, ancestors);
+      } else if (!stats.isFile()) {
+        throw new Error(`Cannot fork schema with linked or unsupported entry: ${entryPath}`);
+      }
     }
+  } finally {
+    ancestors.delete(canonicalSrc);
   }
 }
 
@@ -624,7 +668,8 @@ export function registerSchemaCommand(program: Command): void {
         const sourceLocation = sourceResolution?.source || 'package';
 
         // Validate the complete source before a forced fork removes anything.
-        assertSchemaTreeCanBeCopied(sourceDir);
+        const trustedSourceDir = fs.realpathSync(sourceDir);
+        assertSchemaTreeCanBeCopied(trustedSourceDir);
 
         // Check destination
         const destinationDir = path.join(getProjectSchemasDir(projectRoot), destinationName);
@@ -652,7 +697,7 @@ export function registerSchemaCommand(program: Command): void {
 
         // Copy schema
         if (spinner) spinner.start(`Forking '${source}' to '${destinationName}'...`);
-        copyDirRecursive(sourceDir, destinationDir);
+        copyDirRecursive(trustedSourceDir, destinationDir);
 
         // Update name in schema.yaml
         const destSchemaPath = path.join(destinationDir, 'schema.yaml');

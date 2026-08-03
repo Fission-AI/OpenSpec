@@ -142,7 +142,7 @@ Old instructions content
       consoleSpy.mockRestore();
     });
 
-    it.skipIf(process.platform === 'win32')('should not update generated artifacts through a tool directory symlink outside the project', async () => {
+    it('should not update generated artifacts through a linked tool directory outside the project', async () => {
       const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-update-outside-'));
       const skillFile = path.join(
         outsideDir,
@@ -163,9 +163,15 @@ Outside content
       await fs.writeFile(skillFile, oldSkillContent);
 
       try {
-        await fs.symlink(outsideDir, path.join(testDir, '.claude'), 'dir');
+        await fs.symlink(
+          outsideDir,
+          path.join(testDir, '.claude'),
+          process.platform === 'win32' ? 'junction' : 'dir'
+        );
 
-        await updateCommand.execute(testDir);
+        await expect(updateCommand.execute(testDir)).rejects.toThrow(
+          'OpenSpec update failed for: Claude Code'
+        );
 
         expect(await fs.readFile(skillFile, 'utf-8')).toBe(oldSkillContent);
         expect(await fs.readdir(path.join(outsideDir, 'skills'))).toEqual([
@@ -176,7 +182,7 @@ Outside content
       }
     });
 
-    it.skipIf(process.platform === 'win32')('should not delete generated artifacts through a tool directory symlink outside the project', async () => {
+    it('should not delete generated artifacts through a linked tool directory outside the project', async () => {
       setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
       const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-update-outside-'));
       const skillFile = path.join(
@@ -198,9 +204,15 @@ metadata:
       );
 
       try {
-        await fs.symlink(outsideDir, path.join(testDir, '.claude'), 'dir');
+        await fs.symlink(
+          outsideDir,
+          path.join(testDir, '.claude'),
+          process.platform === 'win32' ? 'junction' : 'dir'
+        );
 
-        await updateCommand.execute(testDir);
+        await expect(updateCommand.execute(testDir)).rejects.toThrow(
+          'OpenSpec update failed for: Claude Code'
+        );
 
         await expect(fs.stat(skillFile)).resolves.toBeDefined();
       } finally {
@@ -925,7 +937,7 @@ metadata:
   });
 
   describe('error handling', () => {
-    it('should handle tool update failures gracefully', async () => {
+    it('should report tool update failures to automation', async () => {
       // Set up a configured tool
       const skillsDir = path.join(testDir, '.claude', 'skills');
       await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
@@ -949,8 +961,9 @@ metadata:
 
       const consoleSpy = vi.spyOn(console, 'log');
 
-      // Should not throw
-      await updateCommand.execute(testDir);
+      await expect(updateCommand.execute(testDir)).rejects.toThrow(
+        'OpenSpec update failed for: Claude Code'
+      );
 
       // Should report failure
       expect(consoleSpy).toHaveBeenCalledWith(
@@ -994,7 +1007,9 @@ metadata:
 
       const consoleSpy = vi.spyOn(console, 'log');
 
-      await updateCommand.execute(testDir);
+      await expect(updateCommand.execute(testDir)).rejects.toThrow(
+        'OpenSpec update failed for: Claude Code'
+      );
 
       // Cursor should still be updated - check the actual format from ora spinner
       expect(consoleSpy).toHaveBeenCalledWith(

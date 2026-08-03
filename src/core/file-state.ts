@@ -65,6 +65,14 @@ const LOCK_POLL_MS = 25;
 const PRIVATE_FILE_MODE = 0o600;
 const lockOwnership = new WeakMap<nodeFs.promises.FileHandle, string>();
 
+function isUnsupportedSyncError(error: unknown): boolean {
+  return (
+    isNodeErrorCode(error, 'EINVAL') ||
+    isNodeErrorCode(error, 'ENOTSUP') ||
+    isNodeErrorCode(error, 'ENOSYS')
+  );
+}
+
 export function isNodeErrorCode(error: unknown, code: string): boolean {
   return (
     typeof error === 'object' &&
@@ -138,7 +146,16 @@ export async function acquireFileLock(
       const ownershipToken = `${process.pid}:${randomUUID()}`;
       try {
         await lock.writeFile(ownershipToken, 'utf-8');
-        await lock.sync();
+        try {
+          await lock.sync();
+        } catch (error) {
+          // Some FUSE and network filesystems support exclusive lock files but
+          // explicitly do not implement fsync. The token is still visible to
+          // cooperating processes, so do not make those projects unusable.
+          if (!isUnsupportedSyncError(error)) {
+            throw error;
+          }
+        }
       } catch (error) {
         await lock.close().catch(() => undefined);
         await fs.rm(lockPath, { force: true }).catch(() => undefined);

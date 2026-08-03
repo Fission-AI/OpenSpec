@@ -139,6 +139,43 @@ describe('ArchiveCommand', () => {
       expect(await fs.readlink(archivedLink)).toBe(outsideFile);
     });
 
+    it('preserves a linked directory during the cross-device archive fallback', async () => {
+      const changeName = 'linked-directory';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const sharedDir = path.join(tempDir, 'shared-notes');
+      const linkedDir = path.join(changeDir, 'notes');
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.mkdir(sharedDir);
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1\n');
+      await fs.writeFile(path.join(sharedDir, 'readme.md'), 'shared');
+      await fs.symlink(
+        sharedDir,
+        linkedDir,
+        process.platform === 'win32' ? 'junction' : 'dir'
+      );
+
+      const rename = vi.spyOn(fs, 'rename').mockRejectedValueOnce(
+        Object.assign(new Error('cross-device move'), { code: 'EXDEV' })
+      );
+      try {
+        await archiveCommand.execute(changeName, {
+          yes: true,
+          noValidate: true,
+          skipSpecs: true,
+        });
+      } finally {
+        rename.mockRestore();
+      }
+
+      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const [archiveName] = await fs.readdir(archiveDir);
+      const archivedLink = path.join(archiveDir, archiveName, 'notes');
+      expect((await fs.lstat(archivedLink)).isSymbolicLink()).toBe(true);
+      await expect(fs.readFile(path.join(archivedLink, 'readme.md'), 'utf8')).resolves.toBe(
+        'shared'
+      );
+    });
+
     it('preserves a linked change during the cross-device archive fallback', async () => {
       if (process.platform === 'win32') return;
 

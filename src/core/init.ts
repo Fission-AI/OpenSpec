@@ -233,6 +233,11 @@ export class InitCommand {
 
     // Display success message
     this.displaySuccessMessage(projectPath, validatedTools, results, configStatus);
+    if (results.failedTools.length > 0) {
+      throw new Error(
+        `OpenSpec setup failed for: ${results.failedTools.map((tool) => tool.name).join(', ')}`
+      );
+    }
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -833,7 +838,11 @@ export class InitCommand {
     configStatus: 'created' | 'exists' | 'skipped'
   ): void {
     console.log();
-    console.log(chalk.bold('OpenSpec Setup Complete'));
+    console.log(
+      chalk.bold(
+        results.failedTools.length > 0 ? 'OpenSpec Setup Incomplete' : 'OpenSpec Setup Complete'
+      )
+    );
     console.log();
 
     // Show created vs refreshed tools

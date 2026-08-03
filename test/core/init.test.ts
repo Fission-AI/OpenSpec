@@ -151,16 +151,25 @@ describe('InitCommand', () => {
       }
     });
 
-    it.skipIf(process.platform === 'win32')('should not write generated artifacts through a tool directory symlink outside the project', async () => {
+    it('should not write generated artifacts through a linked tool directory outside the project', async () => {
       const outsideDir = path.join(configTempDir, 'outside-claude');
       await fs.mkdir(outsideDir, { recursive: true });
-      await fs.symlink(outsideDir, path.join(testDir, '.claude'), 'dir');
+      await fs.symlink(
+        outsideDir,
+        path.join(testDir, '.claude'),
+        process.platform === 'win32' ? 'junction' : 'dir'
+      );
 
       const initCommand = new InitCommand({ tools: 'claude', force: true });
-      await initCommand.execute(testDir);
+      await expect(initCommand.execute(testDir)).rejects.toThrow(
+        'OpenSpec setup failed for: Claude Code'
+      );
 
       expect(await fs.readdir(outsideDir)).toEqual([]);
       expect((await fs.lstat(path.join(testDir, '.claude'))).isSymbolicLink()).toBe(true);
+      expect(vi.mocked(console.log).mock.calls.flat().join('\n')).toContain(
+        'OpenSpec Setup Incomplete'
+      );
     });
 
     it.skipIf(process.platform === 'win32')('should not overwrite a generated artifact symlink outside the project', async () => {
@@ -178,7 +187,9 @@ describe('InitCommand', () => {
       await fs.symlink(outsideFile, skillFile, 'file');
 
       const initCommand = new InitCommand({ tools: 'claude', force: true });
-      await initCommand.execute(testDir);
+      await expect(initCommand.execute(testDir)).rejects.toThrow(
+        'OpenSpec setup failed for: Claude Code'
+      );
 
       expect(await fs.readFile(outsideFile, 'utf-8')).toBe(originalContent);
       expect((await fs.lstat(skillFile)).isSymbolicLink()).toBe(true);
