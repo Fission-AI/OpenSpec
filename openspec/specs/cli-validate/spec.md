@@ -45,20 +45,20 @@ The validator SHALL recognize bulleted lines that look like scenarios (e.g., lin
 
 ### Requirement: Normative keyword guidance SHALL not require English
 
-The validator SHALL report a non-empty requirement body without the literal English keywords `SHALL` or `MUST` as a warning. Normal validation SHALL remain valid when that warning is the only issue, while strict validation SHALL remain invalid because strict mode treats warnings as failures.
+The validation report SHALL include a warning for a non-empty requirement body without the literal English keywords `SHALL` or `MUST`. Normal validation SHALL remain valid when that warning is the only issue, while strict validation SHALL remain invalid because strict mode treats warnings as failures.
 
-A requirement with no descriptive body text SHALL remain an error.
+A requirement with no body content before its scenarios SHALL remain an error.
 
 #### Scenario: Non-English main spec
 
 - **WHEN** a main spec has a non-empty requirement body written without the English keywords `SHALL` or `MUST`
-- **THEN** normal validation reports an RFC 2119 guidance warning
+- **THEN** the validation report includes an RFC 2119 guidance warning
 - **AND** normal validation succeeds
 
 #### Scenario: Non-English change delta
 
 - **WHEN** an ADDED or MODIFIED requirement has a non-empty body written without the English keywords `SHALL` or `MUST`
-- **THEN** normal validation reports an RFC 2119 guidance warning
+- **THEN** the validation report includes an RFC 2119 guidance warning
 - **AND** normal validation succeeds
 
 #### Scenario: Strict validation preserves keyword enforcement
@@ -68,7 +68,7 @@ A requirement with no descriptive body text SHALL remain an error.
 
 #### Scenario: Requirement body is missing
 
-- **WHEN** a requirement has no descriptive body text before its scenarios
+- **WHEN** a requirement has no body content before its scenarios
 - **THEN** validation reports an error
 
 ### Requirement: All issues SHALL include file paths and structured locations

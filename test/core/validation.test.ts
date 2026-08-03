@@ -679,6 +679,37 @@ The system will log all events.
       ).toBe(true);
     });
 
+    it.each(['ADDED', 'MODIFIED'] as const)(
+      'should keep missing requirement text as an error for %s requirements',
+      async operation => {
+        const changeDir = path.join(testDir, `test-change-missing-${operation.toLowerCase()}-text`);
+        const specsDir = path.join(changeDir, 'specs', 'test-spec');
+        await fs.mkdir(specsDir, { recursive: true });
+        await fs.writeFile(
+          path.join(specsDir, 'spec.md'),
+          `# Test Spec
+
+## ${operation} Requirements
+
+### Requirement: Logging Feature
+
+#### Scenario: Event occurs
+- **WHEN** an event occurs
+- **THEN** it is logged`
+        );
+
+        const report = await new Validator().validateChangeDeltaSpecs(changeDir);
+        expect(report.valid).toBe(false);
+        expect(report.summary.errors).toBe(1);
+        expect(report.issues).toContainEqual(
+          expect.objectContaining({
+            level: 'ERROR',
+            message: expect.stringContaining('missing requirement text'),
+          })
+        );
+      }
+    );
+
     it('should hint the author when ADDED requirement only has SHALL/MUST in the header', async () => {
       const changeDir = path.join(testDir, 'test-change-shall-in-header-added');
       const specsDir = path.join(changeDir, 'specs', 'test-spec');
@@ -1024,7 +1055,10 @@ The system MUST support mixed case delta headers.
       );
       const report = await new Validator().validateSpecContent('demo', content);
       const issues = shallIssues(report.issues);
+      expect(report.valid).toBe(false);
+      expect(report.summary.errors).toBe(1);
       expect(issues).toHaveLength(1);
+      expect(issues[0].level).toBe('ERROR');
       expect(issues[0].message).toContain('not only in the header');
     });
 
