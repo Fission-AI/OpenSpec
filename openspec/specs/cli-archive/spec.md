@@ -62,9 +62,11 @@ The archive operation SHALL follow a structured process to safely move changes t
   1. Create archive/ directory if it doesn't exist
   2. Generate target name as `YYYY-MM-DD-[change-name]` using current date, keeping the name as-is when it already starts with a `YYYY-MM-DD-` prefix
   3. Claim the target and verify that it does not already exist
-  4. Move the entire change directory to the archive location
-  5. Update main specs from the archived change's delta specs (see Spec Update Process below)
-  6. If a spec update fails, restore the specs and move the change back
+  4. Prepare and validate spec updates from the active change's delta specs
+  5. Apply the spec updates as a rollback-capable transaction
+  6. Move the entire change directory to the archive location
+  7. If a spec mutation or final move fails before a complete archive is secured, restore the spec transaction and leave or return the change at its active path
+  8. If a verified fallback copy completes but staged-source cleanup fails, retain the complete archive and committed spec state for recovery instead of risking the only complete copy
 
 #### Scenario: Archive already exists
 
@@ -79,7 +81,7 @@ The archive operation SHALL follow a structured process to safely move changes t
 
 ### Requirement: Spec Update Process
 
-After claiming and moving the change to its archive destination, the command SHALL apply delta changes to main specs to reflect the deployed reality, rolling both operations back when a spec update fails.
+After claiming the archive destination, the command SHALL apply delta changes to main specs to reflect the deployed reality, then move the change to its archive destination. It SHALL restore the spec transaction when a mutation or final move fails before a complete archive is secured. Once a verified fallback archive is complete, a staged-source cleanup failure SHALL retain that archive and committed spec state for recovery.
 
 #### Scenario: Applying delta changes
 
@@ -98,6 +100,12 @@ After claiming and moving the change to its archive destination, the command SHA
 - **WHEN** applying deltas would create duplicate requirement headers
 - **THEN** abort with error message showing the conflict
 - **AND** suggest manual resolution
+
+#### Scenario: Duplicate requirement already exists in the main spec
+
+- **WHEN** a main spec contains two canonical requirement headers with the same name
+- **THEN** reject the structurally ambiguous main spec before applying any delta
+- **AND** preserve the main spec and active change unchanged
 
 #### Scenario: New main spec inherits the delta's Purpose
 
@@ -334,6 +342,6 @@ The archive command SHALL validate changes before applying them to ensure data i
 **Task checking**: Prevents accidental archiving of incomplete work
 **Date prefixing**: Maintains chronological order and prevents naming conflicts; a name that already carries a date prefix keeps it, so archived names never stack dates
 **No overwrite**: Preserves historical archives and prevents data loss
-**Archive-first transaction**: The destination is claimed and the change is moved before main specs are mutated; if a spec update fails, both the specs and active change location are rolled back
+**Claim-first transaction**: The destination is claimed before main specs are mutated, spec changes are rollback-protected, and the active change is moved only after the spec transaction succeeds
 **Confirmation for spec updates**: Provides visibility into what will change, prevents accidental overwrites, and ensures users understand the impact before specs are modified
 **--yes flag for automation**: Allows CI/CD pipelines to archive without interactive prompts while maintaining safety by default for manual use

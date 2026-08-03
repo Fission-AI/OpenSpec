@@ -6,7 +6,7 @@ const DELTA_HEADER = /^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements\s*$/
 const REQUIREMENT_HEADER = /^###\s+Requirement:\s*(.+)\s*$/i;
 
 export interface MainSpecStructureIssue {
-  kind: 'delta-header' | 'requirement-outside-requirements';
+  kind: 'delta-header' | 'requirement-outside-requirements' | 'duplicate-requirement';
   line: number;
   header: string;
   message: string;
@@ -17,6 +17,7 @@ export function findMainSpecStructureIssues(content: string): MainSpecStructureI
   const stripped = stripFencedCodeBlocksPreservingLines(normalized);
   const lines = stripped.split('\n');
   const issues: MainSpecStructureIssue[] = [];
+  const requirementLines = new Map<string, number>();
 
   const requirementsHeaderIndex = lines.findIndex(line => REQUIREMENTS_SECTION_HEADER.test(line));
   let requirementsEndIndex = lines.length;
@@ -69,6 +70,22 @@ export function findMainSpecStructureIssues(content: string): MainSpecStructureI
           `Requirement header "${trimmed}" appears outside the main ## Requirements section. ` +
           'Main specs only parse requirements inside that section, so this requirement is currently invisible to validate, list, and archive.',
       });
+      continue;
+    }
+
+    const requirementName = requirementMatch[1].trim();
+    const previousLine = requirementLines.get(requirementName);
+    if (previousLine !== undefined) {
+      issues.push({
+        kind: 'duplicate-requirement',
+        line: i + 1,
+        header: trimmed,
+        message:
+          `Requirement header "${trimmed}" duplicates the requirement declared on line ${previousLine}. ` +
+          'Requirement names must be unique so spec updates cannot discard one block while updating another.',
+      });
+    } else {
+      requirementLines.set(requirementName, i + 1);
     }
   }
 

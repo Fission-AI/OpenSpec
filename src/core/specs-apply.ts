@@ -586,8 +586,13 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
         previousLine = line;
         continue;
       }
-      if (!titleSeen && !inPurpose && /^ {0,3}#\s+.+$/.test(line)) {
-        titleSeen = true;
+      if (/^ {0,3}#\s+.+$/.test(line)) {
+        if (!titleSeen && !inPurpose) {
+          titleSeen = true;
+        } else {
+          leftovers.push(line.trim());
+          inPurpose = false;
+        }
         previousLine = line;
         continue;
       }
@@ -719,8 +724,12 @@ export async function retireSpec(
     displayPath?: string;
     beforeMutate?: () => Promise<void>;
     verifyDisplaced?: (displacedPath: string) => Promise<void>;
+    deferDelete?: boolean;
   } = {}
-): Promise<{ retired: boolean; resolvedPath?: string }> {
+): Promise<{ retired: boolean; resolvedPath?: string; displacedPath?: string }> {
+  if (options.deferDelete && options.verifyDisplaced === undefined) {
+    throw new Error('Deferred retirement requires displaced-file verification.');
+  }
   // Resolved before the unlink, while the link still exists, so the report can
   // name the file that actually goes when a symlink points out of the tree.
   // A symlinked `spec.md` is excluded: `realpath` would follow it, but `unlink`
@@ -756,10 +765,12 @@ export async function retireSpec(
     }
   }
 
+  let displacedPath: string | undefined;
   try {
     await options.beforeMutate?.();
     if (options.verifyDisplaced) {
       const displaced = `${update.target}.openspec-retire-${randomUUID()}`;
+      displacedPath = displaced;
       await fs.rename(update.target, displaced);
       try {
         await options.verifyDisplaced(displaced);
@@ -771,7 +782,7 @@ export async function retireSpec(
         } catch (targetError) {
           if ((targetError as NodeJS.ErrnoException).code !== 'ENOENT') throw targetError;
         }
-        await fs.unlink(displaced);
+        if (!options.deferDelete) await fs.unlink(displaced);
       } catch (error) {
         try {
           await fs.lstat(update.target);
@@ -798,7 +809,9 @@ export async function retireSpec(
     );
   }
 
-  await pruneEmptyDirs(path.dirname(update.target), mainSpecsDir);
+  if (!options.deferDelete) {
+    await pruneEmptyDirs(path.dirname(update.target), mainSpecsDir);
+  }
 
   const nominal = options.displayPath ?? `openspec/specs/${update.id}/spec.md`;
   if (!options.silent) {
@@ -810,7 +823,17 @@ export async function retireSpec(
   return {
     retired: true,
     ...(realSource ? { resolvedPath: realSource } : {}),
+    ...(options.deferDelete && displacedPath ? { displacedPath } : {}),
   };
+}
+
+export async function finalizeRetiredSpec(
+  target: string,
+  displacedPath: string,
+  mainSpecsDir: string
+): Promise<void> {
+  await fs.unlink(displacedPath);
+  await pruneEmptyDirs(path.dirname(target), mainSpecsDir);
 }
 
 /** Whether `realPath` (already canonical) sits under the real `dir`. */

@@ -20,6 +20,7 @@ import {
   buildUpdatedSpec,
   writeUpdatedSpec,
   retireSpec,
+  finalizeRetiredSpec,
   type SpecUpdate,
 } from './specs-apply.js';
 import { discoverSpecFiles, hasAnyFileUnder } from '../utils/spec-discovery.js';
@@ -310,12 +311,16 @@ function toArchiveDiagnostic(error: unknown): ArchiveDiagnostic {
  * Recursively copy a directory. Used when fs.rename fails (e.g. EPERM on Windows).
  */
 async function copyDirContents(src: string, dest: string): Promise<void> {
+  const sourceStat = await fs.lstat(src);
+  // Keep group/other access no broader than the source while ensuring this
+  // process can populate even a read-only source directory.
+  await fs.chmod(dest, (sourceStat.mode & 0o7777) | 0o700);
   const entries = await fs.readdir(src, { withFileTypes: true });
   for (const entry of entries) {
     const srcPath = path.join(src, entry.name);
     const destPath = path.join(dest, entry.name);
     if (entry.isDirectory()) {
-      await fs.mkdir(destPath);
+      await fs.mkdir(destPath, { mode: 0o700 });
       await copyDirContents(srcPath, destPath);
     } else if (entry.isSymbolicLink()) {
       await fs.symlink(await fs.readlink(srcPath), destPath);
@@ -323,6 +328,7 @@ async function copyDirContents(src: string, dest: string): Promise<void> {
       await fs.copyFile(srcPath, destPath, constants.COPYFILE_EXCL);
     }
   }
+  await fs.chmod(dest, sourceStat.mode & 0o7777);
 }
 
 async function fingerprintDirectoryContents(root: string): Promise<string> {
@@ -350,8 +356,9 @@ async function fingerprintDirectoryContents(root: string): Promise<string> {
     if (!before.isDirectory()) {
       throw new Error(`Expected a directory while verifying ${dir}.`);
     }
+    updateHashField('directory-mode', (before.mode & 0o7777n).toString());
     const entries = (await fs.readdir(dir, { withFileTypes: true })).sort((a, b) =>
-      a.name.localeCompare(b.name)
+      a.name < b.name ? -1 : a.name > b.name ? 1 : 0
     );
 
     for (const entry of entries) {
@@ -378,6 +385,7 @@ async function fingerprintDirectoryContents(root: string): Promise<string> {
           throw new Error(`Path changed while archive was reading ${entryPath}.`);
         }
         updateHashField('type', 'file');
+        updateHashField('mode', (stat.mode & 0o7777n).toString());
         updateHashField('content-sha256', contentFingerprint);
       } else {
         updateHashField('type', 'other');
@@ -414,12 +422,14 @@ async function assertCopiedDirectoryUnchanged(
 }
 
 /**
- * Move a directory from src to dest. On Windows, fs.rename() often fails with
- * EPERM when the directory is non-empty or another process has it open (IDE,
- * file watcher, antivirus). Fall back to copy-then-remove when rename fails
- * with EPERM or EXDEV.
+ * Move a directory from src to dest. On Windows, fs.rename() can fail with
+ * EPERM, and cross-device moves fail with EXDEV. When the source can first be
+ * renamed to a private sibling, fall back to a verified copy-then-remove. A
+ * source that cannot be staged is left untouched rather than copied and deleted
+ * through a path another process may still be editing.
  */
 class MoveDestinationRetainedError extends Error {}
+class RetirementBackupsRetainedError extends Error {}
 
 async function moveDirectory(
   src: string,
@@ -441,7 +451,7 @@ async function moveDirectory(
       );
     }
     if (code === 'EPERM' || code === 'EXDEV') {
-      const stagedSource = `${src}.openspec-move-${randomUUID()}`;
+      const stagedSource = path.join(path.dirname(src), `.openspec-move-${randomUUID()}`);
       try {
         await fs.rename(src, stagedSource);
       } catch (stageError) {
@@ -455,7 +465,7 @@ async function moveDirectory(
       let stagedFingerprint: string;
       try {
         stagedFingerprint = await fingerprintDirectoryContents(stagedSource);
-        await fs.mkdir(dest);
+        await fs.mkdir(dest, { mode: 0o700 });
         destIsOurs = true;
         await copyDirContents(stagedSource, dest);
         await options.verifyCopiedDestination?.(stagedSource);
@@ -521,7 +531,7 @@ async function assertArchiveDestinationAvailable(
   archiveName: string
 ): Promise<void> {
   try {
-    await fs.access(archivePath);
+    await fs.lstat(archivePath);
     throw new ArchiveBlockedError(
       'archive_target_exists',
       `Archive '${archiveName}' already exists.`
@@ -532,11 +542,32 @@ async function assertArchiveDestinationAvailable(
   }
 }
 
+function archiveClaimPath(archivePath: string, _archiveName: string): string {
+  return path.join(path.dirname(archivePath), '.openspec-archive.lock');
+}
+
+async function releaseArchiveClaim(
+  claim: Awaited<ReturnType<typeof fs.open>>,
+  claimPath: string
+): Promise<void> {
+  const owned = await claim.stat({ bigint: true }).catch(() => undefined);
+  await claim.close().catch(() => undefined);
+  if (owned === undefined) return;
+  try {
+    const current = await fs.lstat(claimPath, { bigint: true });
+    if (current.dev === owned.dev && current.ino === owned.ino) {
+      await fs.unlink(claimPath);
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
+}
+
 async function claimArchiveDestination(
   archivePath: string,
   archiveName: string
 ): Promise<Awaited<ReturnType<typeof fs.open>>> {
-  const claimPath = `${archivePath}.lock`;
+  const claimPath = archiveClaimPath(archivePath, archiveName);
   try {
     const claim = await fs.open(claimPath, 'wx');
     try {
@@ -544,8 +575,7 @@ async function claimArchiveDestination(
       await claim.sync();
       return claim;
     } catch (error) {
-      await claim.close().catch(() => undefined);
-      await fs.unlink(claimPath).catch(() => undefined);
+      await releaseArchiveClaim(claim, claimPath).catch(() => undefined);
       throw error;
     }
   } catch (error) {
@@ -569,6 +599,8 @@ interface SpecSnapshot {
   contentExisted?: boolean;
   mode?: number;
   symlink?: string;
+  displacedPath?: string;
+  displacedFingerprint?: string;
 }
 
 interface SpecMutation {
@@ -646,11 +678,26 @@ async function fingerprintMovablePath(filePath: string): Promise<string> {
       .update(await fs.readFile(filePath))
       .digest('hex');
     if (entry.isSymbolicLink()) {
+      const link = await fs.readlink(filePath);
       const referent = await fs.stat(filePath, { bigint: true });
+      const entryAfter = await fs.lstat(filePath, { bigint: true });
+      const referentAfter = await fs.stat(filePath, { bigint: true });
+      const linkAfter = await fs.readlink(filePath);
+      if (
+        statIdentity(entry) !== statIdentity(entryAfter) ||
+        statIdentity(referent) !== statIdentity(referentAfter) ||
+        link !== linkAfter
+      ) {
+        throw new Error(`Path changed while archive was reading ${filePath}.`);
+      }
       return (
-        `symlink:${movableStatIdentity(entry)}:${await fs.readlink(filePath)}:` +
-        `${movableStatIdentity(referent)}:${hash}`
+        `symlink:${movableStatIdentity(entry)}:${link}:` +
+        `${movableStatIdentity(referentAfter)}:${hash}`
       );
+    }
+    const entryAfter = await fs.lstat(filePath, { bigint: true });
+    if (statIdentity(entry) !== statIdentity(entryAfter)) {
+      throw new Error(`Path changed while archive was reading ${filePath}.`);
     }
     return `file:${movableStatIdentity(entry)}:${hash}`;
   } catch (error) {
@@ -783,6 +830,20 @@ async function restoreSpecSnapshots(snapshots: SpecSnapshot[]): Promise<void> {
   for (const snapshot of [...snapshots].reverse()) {
     try {
       if (snapshot.outcome === 'retire') {
+        if (snapshot.displacedPath !== undefined) {
+          try {
+            await fs.lstat(snapshot.target);
+            throw new Error(
+              `Archive rollback would overwrite a concurrent change at ${snapshot.target}. ` +
+                `The displaced spec was retained at ${snapshot.displacedPath}.`
+            );
+          } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+          }
+          await fs.rename(snapshot.displacedPath, snapshot.target);
+          snapshot.displacedPath = undefined;
+          continue;
+        }
         try {
           const current = await fs.lstat(snapshot.target);
           const unchangedSymlink =
@@ -818,7 +879,9 @@ async function restoreSpecSnapshots(snapshots: SpecSnapshot[]): Promise<void> {
           (snapshot.symlink !== undefined &&
             (!current.isSymbolicLink() ||
               (await fs.readlink(snapshot.target)) !== snapshot.symlink)) ||
-          (snapshot.symlink === undefined && !current.isFile())
+          (snapshot.symlink === undefined &&
+            (!current.isFile() ||
+              (snapshot.mode !== undefined && current.mode !== snapshot.mode)))
         ) {
           throw new Error(
             `Archive rollback would overwrite a concurrent change at ${snapshot.target}.`
@@ -872,6 +935,37 @@ async function restoreSpecSnapshots(snapshots: SpecSnapshot[]): Promise<void> {
   }
   if (errors.length > 0) {
     throw new Error(errors.map(({ message }) => message).join(' '));
+  }
+}
+
+async function finalizeRetirementBackups(
+  snapshots: SpecSnapshot[],
+  mainSpecsDir: string
+): Promise<void> {
+  const errors: string[] = [];
+  for (const snapshot of snapshots) {
+    if (snapshot.outcome !== 'retire' || snapshot.displacedPath === undefined) continue;
+    const displacedPath = snapshot.displacedPath;
+    try {
+      if (
+        snapshot.displacedFingerprint === undefined ||
+        (await fingerprintMovablePath(displacedPath)) !== snapshot.displacedFingerprint
+      ) {
+        throw new Error('the displaced spec changed after retirement verification');
+      }
+      await finalizeRetiredSpec(snapshot.target, displacedPath, mainSpecsDir);
+      snapshot.displacedPath = undefined;
+    } catch (error) {
+      errors.push(
+        `Could not remove the committed retirement backup at ${displacedPath} ` +
+          `(${error instanceof Error ? error.message : String(error)}).`
+      );
+    }
+  }
+  if (errors.length > 0) {
+    throw new RetirementBackupsRetainedError(
+      `${errors.join(' ')} The change remains archived and each listed backup was retained for recovery.`
+    );
   }
 }
 
@@ -961,11 +1055,18 @@ export class ArchiveCommand {
 
     // Verify change exists
     try {
-      const stat = await fs.stat(changeDir);
+      const stat = await fs.lstat(changeDir);
+      if (stat.isSymbolicLink()) {
+        throw new ArchiveBlockedError(
+          'archive_change_symlink',
+          `Change '${changeName}' is a symbolic link. Replace it with a real directory before archiving.`
+        );
+      }
       if (!stat.isDirectory()) {
         throw new Error(`Change '${changeName}' not found.`);
       }
-    } catch {
+    } catch (error) {
+      if (error instanceof ArchiveBlockedError) throw error;
       const available = await listActiveChangeNames(changesDir);
       throw new ArchiveBlockedError(
         'archive_change_not_found',
@@ -1193,7 +1294,7 @@ export class ArchiveCommand {
 
     await assertArchiveDestinationAvailable(archivePath, archiveName);
     await fs.mkdir(archiveDir, { recursive: true });
-    const claimPath = `${archivePath}.lock`;
+    const claimPath = archiveClaimPath(archivePath, archiveName);
     let archiveClaim: Awaited<ReturnType<typeof fs.open>> | undefined;
 
     try {
@@ -1487,13 +1588,16 @@ export class ArchiveCommand {
             }
           }
           const specSnapshots = await captureSpecSnapshots(mutations);
+          const specSnapshotsByTarget = new Map(
+            specSnapshots.map((snapshot) => [snapshot.target, snapshot])
+          );
 
           const mutationAttempts = new Set<string>();
           try {
             // All validations passed; write files and display counts
             const writeTotals = { added: 0, modified: 0, removed: 0, renamed: 0 };
             let wroteAny = false;
-            for (const p of prepared) {
+          for (const p of prepared) {
             // Deletions are deferred to the loop below.
             if (p.outcome !== 'write') continue;
             const { added, modified, removed, renamed } = p.counts;
@@ -1523,51 +1627,64 @@ export class ArchiveCommand {
             writeTotals.modified += modified;
             writeTotals.removed += removed;
             writeTotals.renamed += renamed;
-            }
+          }
 
-            // Retirements run only after every write has succeeded. If any
-            // later mutation fails, the snapshots below restore every target.
-            for (const p of prepared) {
+          // Retirements run only after every write has succeeded. If any
+          // later mutation fails, the snapshots below restore every target.
+          for (const p of prepared) {
             if (p.outcome !== 'retire') continue;
-            const { retired, resolvedPath } = await retireSpec(p.update, mainSpecsDir, {
-              silent: json,
-              beforeMutate: async () => {
-                if (retirementAuthorizationFingerprint === undefined) {
-                  throw new Error(
-                    `The ${METADATA_FILENAME} retirement authorization is unavailable.`
+            const { retired, resolvedPath, displacedPath } = await retireSpec(
+              p.update,
+              mainSpecsDir,
+              {
+                silent: json,
+                deferDelete: true,
+                beforeMutate: async () => {
+                  if (retirementAuthorizationFingerprint === undefined) {
+                    throw new Error(
+                      `The ${METADATA_FILENAME} retirement authorization is unavailable.`
+                    );
+                  }
+                  await assertRetirementAuthorization(
+                    changeDir,
+                    retirementAuthorizationFingerprint
                   );
-                }
-                await assertRetirementAuthorization(
-                  changeDir,
-                  retirementAuthorizationFingerprint
-                );
-                if (
-                  (await fingerprintSpecInputs(p.update)) !==
-                  `${p.sourceFingerprint}\n${p.targetFingerprint}`
-                ) {
-                  throw new Error(
-                    `Spec inputs for '${p.update.id}' changed before archive could retire them.`
+                  if (
+                    (await fingerprintSpecInputs(p.update)) !==
+                    `${p.sourceFingerprint}\n${p.targetFingerprint}`
+                  ) {
+                    throw new Error(
+                      `Spec inputs for '${p.update.id}' changed before archive could retire them.`
+                    );
+                  }
+                  mutationAttempts.add(p.update.target);
+                },
+                verifyDisplaced: async (displacedPath) => {
+                  await assertRetirementAuthorization(
+                    changeDir,
+                    retirementAuthorizationFingerprint!
                   );
-                }
-                mutationAttempts.add(p.update.target);
-              },
-              verifyDisplaced: async (displacedPath) => {
-                await assertRetirementAuthorization(
-                  changeDir,
-                  retirementAuthorizationFingerprint!
-                );
-                if (
-                  (await fingerprintMovablePath(displacedPath)) !==
-                  p.targetMovableFingerprint
-                ) {
-                  throw new Error(
-                    `Main spec '${p.update.id}' changed while archive was securing it for retirement.`
-                  );
-                }
-              },
-              ...(isStoreSelectedRoot(root) ? { displayPath: p.update.target } : {}),
-            });
+                  if (
+                    (await fingerprintMovablePath(displacedPath)) !==
+                    p.targetMovableFingerprint
+                  ) {
+                    throw new Error(
+                      `Main spec '${p.update.id}' changed while archive was securing it for retirement.`
+                    );
+                  }
+                },
+                ...(isStoreSelectedRoot(root) ? { displayPath: p.update.target } : {}),
+              }
+            );
             if (!retired) continue;
+            const retirementSnapshot = specSnapshotsByTarget.get(p.update.target);
+            if (retirementSnapshot === undefined || displacedPath === undefined) {
+              throw new Error(
+                `Could not track the displaced main spec for '${p.update.id}' during retirement.`
+              );
+            }
+            retirementSnapshot.displacedPath = displacedPath;
+            retirementSnapshot.displacedFingerprint = p.targetMovableFingerprint;
             wroteAny = true;
             // A rename applied on the way to the retirement still happened;
             // folding every count in keeps the totals honest about the whole
@@ -1723,11 +1840,22 @@ export class ArchiveCommand {
             });
             changeArchived = true;
             await verifyArchivedDeltas();
+            await finalizeRetirementBackups(specSnapshots, mainSpecsDir);
           } catch (error) {
             if (error instanceof MoveDestinationRetainedError) {
               changeArchived = true;
+              try {
+                await finalizeRetirementBackups(specSnapshots, mainSpecsDir);
+              } catch (cleanupError) {
+                throw new RetirementBackupsRetainedError(
+                  `${error.message} ${
+                    cleanupError instanceof Error ? cleanupError.message : String(cleanupError)
+                  }`
+                );
+              }
               throw error;
             }
+            if (error instanceof RetirementBackupsRetainedError) throw error;
             const rollbackErrors: Error[] = [];
             try {
               await restoreSpecSnapshots(
@@ -1793,8 +1921,7 @@ export class ArchiveCommand {
         ...(specWarnings.length > 0 ? { warnings: specWarnings } : {}),
       };
     } finally {
-      await archiveClaim?.close().catch(() => undefined);
-      if (archiveClaim) await fs.unlink(claimPath).catch(() => undefined);
+      if (archiveClaim) await releaseArchiveClaim(archiveClaim, claimPath).catch(() => undefined);
     }
   }
 
