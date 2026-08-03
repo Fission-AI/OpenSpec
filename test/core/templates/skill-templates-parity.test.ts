@@ -211,6 +211,7 @@ describe('skill templates split parity', () => {
     expect(STORE_SELECTION_GUIDANCE).toContain(
       'append it to every applicable command below, even when the example does not repeat the flag'
     );
+    expect(STORE_SELECTION_GUIDANCE).toContain('`context`, `view`');
   });
 
   it('validates synced main specs before reporting success', () => {
