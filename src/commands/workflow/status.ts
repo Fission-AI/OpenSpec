@@ -1,4 +1,5 @@
 import { printJson } from '../shared-output.js';
+import type { OutputFormat } from '../../core/format-output.js';
 /**
  * Status Command
  *
@@ -38,6 +39,7 @@ export interface StatusOptions {
   store?: string;
   storePath?: string;
   json?: boolean;
+  format?: OutputFormat;
 }
 
 // -----------------------------------------------------------------------------
@@ -111,7 +113,7 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
     spinner?.stop();
 
     if (options.json) {
-      printJson({ ...status, root: rootOutput }, options?.json ? 'json' : 'json-pretty');
+      printJson({ ...status, root: rootOutput }, options.format);
       return;
     }
 

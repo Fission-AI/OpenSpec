@@ -22,6 +22,7 @@ import {
   isStoreSelectedRoot,
 } from '../../core/root-selection.js';
 import { printJson, statusFromError, validateSchemaExists } from './shared.js';
+import type { OutputFormat } from '../../core/format-output.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -36,6 +37,7 @@ export interface NewChangeOptions {
   initiative?: string;
   areas?: string;
   json?: boolean;
+  format?: OutputFormat;
 }
 
 interface NewChangeOutput {
@@ -147,7 +149,7 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
     };
 
     if (options.json) {
-      printJson(payload);
+      printJson(payload, options.format);
       return;
     }
 
@@ -159,7 +161,7 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
       printJson({
         change: null,
         status: [statusFromError(error)],
-      });
+      }, options.format);
       process.exitCode = 1;
       return;
     }

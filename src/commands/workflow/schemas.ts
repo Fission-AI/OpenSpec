@@ -1,4 +1,5 @@
 import { printJson } from '../shared-output.js';
+import type { OutputFormat } from '../../core/format-output.js';
 /**
  * Schemas Command
  *
@@ -14,6 +15,7 @@ import { listSchemasWithInfo } from '../../core/artifact-graph/index.js';
 
 export interface SchemasOptions {
   json?: boolean;
+  format?: OutputFormat;
 }
 
 // -----------------------------------------------------------------------------
@@ -25,7 +27,7 @@ export async function schemasCommand(options: SchemasOptions): Promise<void> {
   const schemas = listSchemasWithInfo(projectRoot);
 
   if (options.json) {
-    printJson(schemas, (options as any)?.format ?? ((options as any)?.json ? 'json' : 'json-pretty'));
+    printJson(schemas, options.format);
     return;
   }
 

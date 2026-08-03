@@ -1,3 +1,4 @@
+import type { OutputFormat } from '../core/format-output.js';
 import { printJson } from './shared-output.js';
 import { program } from 'commander';
 import { existsSync, readFileSync } from 'fs';
@@ -20,6 +21,7 @@ interface ShowOptions {
   requirement?: string; // JSON only
   noInteractive?: boolean;
   rootOutput?: RootOutput;
+  format?: OutputFormat;
 }
 
 function parseSpecFromFile(specPath: string, specId: string): Spec {
@@ -117,7 +119,7 @@ export class SpecCommand {
         metadata: parsed.metadata ?? { version: '1.0.0', format: 'openspec' as const },
         ...(options.rootOutput ? { root: options.rootOutput } : {}),
       };
-      printJson(output, (options as any)?.format ?? ((options as any)?.json ? 'json' : 'json-pretty'));
+      printJson(output, options?.format ?? (options?.json ? 'json' : 'json-pretty'));
       return;
     }
     printSpecTextRaw(specPath);
@@ -157,7 +159,7 @@ export function registerSpecCommand(rootProgram: typeof program) {
     .description('List all available specifications')
     .option('--json', 'Output as JSON')
     .option('--long', 'Show id and title with counts')
-    .action(async (options: { json?: boolean; long?: boolean }) => {
+    .action(async (options: { json?: boolean; long?: boolean; format?: OutputFormat }) => {
       try {
         if (!existsSync(SPECS_DIR)) {
           console.log('No items found');
@@ -186,7 +188,7 @@ export function registerSpecCommand(rootProgram: typeof program) {
           .sort((a, b) => a.id.localeCompare(b.id));
 
         if (options.json) {
-          printJson(specs, (options as any)?.format ?? ((options as any)?.json ? 'json' : 'json-pretty'));
+          printJson(specs, options?.format ?? (options?.json ? 'json' : 'json-pretty'));
         } else {
           if (specs.length === 0) {
             console.log('No items found');
@@ -212,7 +214,7 @@ export function registerSpecCommand(rootProgram: typeof program) {
     .option('--strict', 'Enable strict validation mode')
     .option('--json', 'Output validation report as JSON')
     .option('--no-interactive', 'Disable interactive prompts')
-    .action(async (specId: string | undefined, options: { strict?: boolean; json?: boolean; noInteractive?: boolean }) => {
+    .action(async (specId: string | undefined, options: { strict?: boolean; json?: boolean; noInteractive?: boolean; format?: OutputFormat }) => {
       try {
         if (!specId) {
           const canPrompt = isInteractive(options);
@@ -238,7 +240,7 @@ export function registerSpecCommand(rootProgram: typeof program) {
         const report = await validator.validateSpec(specPath);
 
         if (options.json) {
-          printJson(report, (options as any)?.format ?? ((options as any)?.json ? 'json' : 'json-pretty'));
+          printJson(report, options?.format ?? (options?.json ? 'json' : 'json-pretty'));
         } else {
           if (report.valid) {
             console.log(`Specification '${specId}' is valid`);

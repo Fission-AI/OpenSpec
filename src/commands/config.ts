@@ -1,3 +1,4 @@
+import type { OutputFormat } from '../core/format-output.js';
 import { printJson } from './shared-output.js';
 import { Command } from 'commander';
 import { spawn } from 'node:child_process';
@@ -234,11 +235,11 @@ export function registerConfigCommand(program: Command): void {
     .command('list')
     .description('Show all current settings')
     .option('--json', 'Output as JSON')
-    .action((options: { json?: boolean }) => {
+    .action((options: { json?: boolean; format?: OutputFormat }) => {
       const config = getGlobalConfig();
 
       if (options.json) {
-        printJson(config, (options as any)?.format ?? ((options as any)?.json ? 'json' : 'json-pretty'));
+        printJson(config, options?.format ?? (options?.json ? 'json' : 'json-pretty'));
       } else {
         // Read raw config to determine which values are explicit vs defaults
         const configPath = getGlobalConfigPath();
@@ -295,7 +296,7 @@ export function registerConfigCommand(program: Command): void {
     .description('Set a value (auto-coerce types)')
     .option('--string', 'Force value to be stored as string')
     .option('--allow-unknown', 'Allow setting unknown keys')
-    .action((key: string, value: string, options: { string?: boolean; allowUnknown?: boolean }) => {
+    .action((key: string, value: string, options: { string?: boolean; allowUnknown?: boolean; format?: OutputFormat }) => {
       const allowUnknown = Boolean(options.allowUnknown);
       const keyValidation = validateConfigKeyPath(key);
       // --allow-unknown relaxes the known-key check, but never the prototype-safety check.

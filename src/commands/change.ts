@@ -1,4 +1,5 @@
 import { printJson } from './shared-output.js';
+import type { OutputFormat } from '../core/format-output.js';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { JsonConverter } from '../core/converters/json-converter.js';
@@ -53,7 +54,7 @@ export class ChangeCommand {
    * - JSON mode: minimal object with deltas; --deltas-only returns same object with filtered deltas
    *   Note: --requirements-only is deprecated alias for --deltas-only
    */
-  async show(changeName?: string, options?: { json?: boolean; requirementsOnly?: boolean; deltasOnly?: boolean; noInteractive?: boolean; rootOutput?: RootOutput }): Promise<void> {
+  async show(changeName?: string, options?: { json?: boolean; requirementsOnly?: boolean; deltasOnly?: boolean; noInteractive?: boolean; rootOutput?: RootOutput; format?: OutputFormat }): Promise<void> {
     const changesPath = this.getChangesPath();
 
     if (!changeName) {
@@ -128,7 +129,7 @@ export class ChangeCommand {
         deltas,
         ...(options.rootOutput ? { root: options.rootOutput } : {}),
       };
-      printJson(output, (options as any)?.format ?? ((options as any)?.json ? 'json' : 'json-pretty'));
+      printJson(output, options?.format ?? (options?.json ? 'json' : 'json-pretty'));
     } else {
       const content = await fs.readFile(proposalPath, 'utf-8');
       console.log(content);
@@ -140,7 +141,7 @@ export class ChangeCommand {
    * - Text default: IDs only; --long prints minimal details (title, counts)
    * - JSON: array of { id, title, deltaCount, taskStatus }, sorted by id
    */
-  async list(options?: { json?: boolean; long?: boolean }): Promise<void> {
+  async list(options?: { json?: boolean; long?: boolean; format?: OutputFormat }): Promise<void> {
     const changesPath = path.join(process.cwd(), 'openspec', 'changes');
     
     // Same directory-based resolution as `openspec list`, the command this
@@ -186,7 +187,7 @@ export class ChangeCommand {
       );
       
       const sorted = changeDetails.sort((a, b) => a.id.localeCompare(b.id));
-      printJson(sorted, (options as any)?.format ?? ((options as any)?.json ? 'json' : 'json-pretty'));
+      printJson(sorted, options?.format ?? (options?.json ? 'json' : 'json-pretty'));
     } else {
       if (changes.length === 0) {
         console.log('No items found');
@@ -223,7 +224,7 @@ export class ChangeCommand {
     }
   }
 
-  async validate(changeName?: string, options?: { strict?: boolean; json?: boolean; noInteractive?: boolean }): Promise<void> {
+  async validate(changeName?: string, options?: { strict?: boolean; json?: boolean; noInteractive?: boolean; format?: OutputFormat }): Promise<void> {
     const changesPath = path.join(process.cwd(), 'openspec', 'changes');
     
     if (!changeName) {
@@ -264,7 +265,7 @@ export class ChangeCommand {
     });
     
     if (options?.json) {
-      printJson(report, (options as any)?.format ?? ((options as any)?.json ? 'json' : 'json-pretty'));
+      printJson(report, options?.format ?? (options?.json ? 'json' : 'json-pretty'));
     } else {
       if (report.valid) {
         console.log(`Change "${changeName}" is valid`);

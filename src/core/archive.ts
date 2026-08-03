@@ -1,4 +1,5 @@
 import { printJson } from '../commands/shared-output.js';
+import type { OutputFormat } from './format-output.js';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { formatLocalDate } from '../utils/date.js';
@@ -61,6 +62,7 @@ export interface ArchiveOptions {
   json?: boolean;
   store?: string;
   storePath?: string;
+  format?: OutputFormat;
 }
 
 interface ArchiveDiagnostic {
@@ -268,7 +270,7 @@ export class ArchiveCommand {
         if (!result) {
           return;
         }
-        printJson({ archive: result, root: toRootOutput(root) }, options?.json ? 'json' : 'json-pretty');
+        printJson({ archive: result, root: toRootOutput(root) }, options?.format ?? (options?.json ? 'json' : 'json-pretty'));
       } catch (error) {
         this.printJsonFailure(root, toArchiveDiagnostic(error));
       }

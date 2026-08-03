@@ -1,4 +1,5 @@
 import { printJson } from '../commands/shared-output.js';
+import type { OutputFormat } from './format-output.js';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
@@ -18,6 +19,7 @@ interface ListOptions {
   sort?: 'recent' | 'name';
   json?: boolean;
   root?: RootOutput;
+  format?: OutputFormat;
 }
 
 function isMissingPathError(error: unknown): boolean {
@@ -97,7 +99,7 @@ function formatRelativeTime(date: Date): string {
 
 export class ListCommand {
   async execute(targetPath: string = '.', mode: 'changes' | 'specs' = 'changes', options: ListOptions = {}): Promise<void> {
-    const { sort = 'recent', json = false, root } = options;
+    const { sort = 'recent', json = false, root, format } = options;
 
     if (mode === 'changes') {
       const changesDir = path.join(targetPath, 'openspec', 'changes');
@@ -110,7 +112,7 @@ export class ListCommand {
 
       if (changeDirs.length === 0) {
         if (json) {
-          printJson({ changes: [], ...(root ? { root } : {}) }, json ? 'json' : 'json-pretty');
+          printJson({ changes: [], ...(root ? { root } : {}) }, format ?? (json ? 'json' : 'json-pretty'));
         } else {
           console.log('No active changes found.');
         }
@@ -148,7 +150,7 @@ export class ListCommand {
           lastModified: c.lastModified.toISOString(),
           status: c.totalTasks === 0 ? 'no-tasks' : c.completedTasks === c.totalTasks ? 'complete' : 'in-progress'
         }));
-        printJson({ changes: jsonOutput, ...(root ? { root } : {}) }, json ? 'json' : 'json-pretty');
+        printJson({ changes: jsonOutput, ...(root ? { root } : {}) }, format ?? (json ? 'json' : 'json-pretty'));
         return;
       }
 
@@ -171,7 +173,7 @@ export class ListCommand {
       await fs.access(specsDir);
     } catch {
       if (json) {
-        printJson({ specs: [], ...(root ? { root } : {}) }, json ? 'json' : 'json-pretty');
+        printJson({ specs: [], ...(root ? { root } : {}) }, format ?? (json ? 'json' : 'json-pretty'));
       } else {
         console.log('No specs found.');
       }
@@ -181,7 +183,7 @@ export class ListCommand {
     const discovered = await discoverSpecFiles(specsDir);
     if (discovered.length === 0) {
       if (json) {
-        printJson({ specs: [], ...(root ? { root } : {}) }, json ? 'json' : 'json-pretty');
+        printJson({ specs: [], ...(root ? { root } : {}) }, format ?? (json ? 'json' : 'json-pretty'));
       } else {
         console.log('No specs found.');
       }
@@ -205,7 +207,7 @@ export class ListCommand {
     specs.sort((a, b) => a.id.localeCompare(b.id));
 
     if (json) {
-      printJson({ specs, ...(root ? { root } : {}) }, json ? 'json' : 'json-pretty');
+      printJson({ specs, ...(root ? { root } : {}) }, format ?? (json ? 'json' : 'json-pretty'));
       return;
     }
 

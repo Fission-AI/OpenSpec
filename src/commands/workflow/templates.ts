@@ -1,4 +1,5 @@
 import { printJson } from '../shared-output.js';
+import type { OutputFormat } from '../../core/format-output.js';
 /**
  * Templates Command
  *
@@ -22,6 +23,7 @@ import { validateSchemaExists, DEFAULT_SCHEMA } from './shared.js';
 export interface TemplatesOptions {
   schema?: string;
   json?: boolean;
+  format?: OutputFormat;
 }
 
 export interface TemplateInfo {
@@ -83,7 +85,7 @@ export async function templatesCommand(options: TemplatesOptions): Promise<void>
       for (const t of templates) {
         output[t.artifactId] = { path: t.templatePath, source: t.source };
       }
-      printJson(output, (options as any)?.format ?? ((options as any)?.json ? 'json' : 'json-pretty'));
+      printJson(output, options.format);
       return;
     }
 

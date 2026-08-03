@@ -1,4 +1,5 @@
 import { printJson } from '../shared-output.js';
+import type { OutputFormat } from '../../core/format-output.js';
 /**
  * Instructions Command
  *
@@ -59,6 +60,7 @@ export interface InstructionsOptions {
   store?: string;
   storePath?: string;
   json?: boolean;
+  format?: OutputFormat;
 }
 
 export interface ApplyInstructionsOptions {
@@ -67,6 +69,7 @@ export interface ApplyInstructionsOptions {
   store?: string;
   storePath?: string;
   json?: boolean;
+  format?: OutputFormat;
 }
 
 export type ArchiveInstructionsOptions = ApplyInstructionsOptions;
@@ -169,7 +172,7 @@ export async function instructionsCommand(
     spinner?.stop();
 
     if (options.json) {
-      printJson({ ...instructions, root: toRootOutput(root) }, options?.json ? 'json' : 'json-pretty');
+      printJson({ ...instructions, root: toRootOutput(root) }, options.format);
       return;
     }
 
@@ -512,7 +515,7 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
     spinner?.stop();
 
     if (options.json) {
-      printJson({ ...instructions, root: toRootOutput(root) }, options?.json ? 'json' : 'json-pretty');
+      printJson({ ...instructions, root: toRootOutput(root) }, options.format);
       return;
     }
 
@@ -618,7 +621,7 @@ export async function archiveInstructionsCommand(
     spinner?.stop();
 
     if (options.json) {
-      printJson({ ...instructions, root: toRootOutput(root) }, options?.json ? 'json' : 'json-pretty');
+      printJson({ ...instructions, root: toRootOutput(root) }, options.format);
       return;
     }
 

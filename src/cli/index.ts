@@ -66,6 +66,13 @@ function hiddenStorePathOption(): Option {
   ).hideHelp();
 }
 
+export function resolveOutputFormat(options?: { jsonPretty?: boolean; toon?: boolean; json?: boolean }): OutputFormat | undefined {
+  if (options?.jsonPretty) return 'json-pretty';
+  if (options?.toon) return 'toon';
+  if (options?.json) return 'json';
+  return undefined;
+}
+
 function failWithError(
   error: unknown,
   formatOptions?: { format?: import('../core/format-output.js').OutputFormat | boolean | undefined; payload?: Record<string, unknown>; fallbackCode?: string }
@@ -183,7 +190,7 @@ program
 
       let agentOutputFormat: 'json' | 'toon' | undefined = undefined;
       const { isInteractive } = await import('../utils/interactive.js');
-      if (isInteractive()) {
+      if (options?.tools === undefined && isInteractive({ interactive: (options as any)?.interactive })) {
         const { select } = await import('@inquirer/prompts');
         agentOutputFormat = await select({
           message: 'Default AI output format:',
@@ -306,10 +313,11 @@ program
   .option('--toon', 'Output in TOON format')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
-  .action(async (options?: { specs?: boolean; changes?: boolean; sort?: string; json?: boolean; store?: string; storePath?: string }) => {
+  .action(async (options?: { specs?: boolean; changes?: boolean; sort?: string; json?: boolean; store?: string; storePath?: string; jsonPretty?: boolean; toon?: boolean }) => {
     try {
+      const format = resolveOutputFormat(options);
       const root = await resolveRootForCommand(options ?? {}, {
-        json: options?.json,
+        json: format !== undefined,
         failurePayload: options?.specs ? { specs: [], root: null } : { changes: [], root: null },
       });
       if (!root) {
@@ -320,12 +328,13 @@ program
       const sort = options?.sort === 'name' ? 'name' : 'recent';
       await listCommand.execute(root.path, mode, {
         sort,
+        format,
         json: options?.json,
-        ...(options?.json ? { root: toRootOutput(root) } : {}),
+        ...(format !== undefined ? { root: toRootOutput(root) } : {}),
       });
     } catch (error) {
       failWithError(error, {
-        format: options?.json,
+        format: resolveOutputFormat(options) ?? options?.json,
         payload: options?.specs ? { specs: [], root: null } : { changes: [], root: null },
         fallbackCode: 'list_error',
       });
@@ -374,10 +383,10 @@ changeCmd
   .option('--deltas-only', 'Show only deltas (JSON only)')
   .option('--requirements-only', 'Alias for --deltas-only (deprecated)')
   .option('--no-interactive', 'Disable interactive prompts')
-  .action(async (changeName?: string, options?: { json?: boolean; requirementsOnly?: boolean; deltasOnly?: boolean; noInteractive?: boolean }) => {
+  .action(async (changeName?: string, options?: { json?: boolean; requirementsOnly?: boolean; deltasOnly?: boolean; noInteractive?: boolean; jsonPretty?: boolean; toon?: boolean }) => {
     try {
       const changeCommand = new ChangeCommand();
-      await changeCommand.show(changeName, options);
+      await changeCommand.show(changeName, { ...options, format: resolveOutputFormat(options) });
     } catch (error) {
       console.error(`Error: ${(error as Error).message}`);
       process.exitCode = 1;
@@ -391,11 +400,11 @@ changeCmd
   .option('--json-pretty', 'Output as formatted JSON')
   .option('--toon', 'Output in TOON format')
   .option('--long', 'Show id and title with counts')
-  .action(async (options?: { json?: boolean; long?: boolean }) => {
+  .action(async (options?: { json?: boolean; long?: boolean; jsonPretty?: boolean; toon?: boolean }) => {
     try {
       console.error('Warning: "openspec change list" is deprecated. Use "openspec list".');
       const changeCommand = new ChangeCommand();
-      await changeCommand.list(options);
+      await changeCommand.list({ ...options, format: resolveOutputFormat(options) });
     } catch (error) {
       console.error(`Error: ${(error as Error).message}`);
       process.exitCode = 1;
@@ -410,10 +419,10 @@ changeCmd
   .option('--json-pretty', 'Output as formatted JSON')
   .option('--toon', 'Output in TOON format')
   .option('--no-interactive', 'Disable interactive prompts')
-  .action(async (changeName?: string, options?: { strict?: boolean; json?: boolean; noInteractive?: boolean }) => {
+  .action(async (changeName?: string, options?: { strict?: boolean; json?: boolean; noInteractive?: boolean; jsonPretty?: boolean; toon?: boolean }) => {
     try {
       const changeCommand = new ChangeCommand();
-      await changeCommand.validate(changeName, options);
+      await changeCommand.validate(changeName, { ...options, format: resolveOutputFormat(options) });
       if (typeof process.exitCode === 'number' && process.exitCode !== 0) {
         process.exit(process.exitCode);
       }
@@ -434,10 +443,10 @@ program
   .option('--toon', 'Output in TOON format')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
-  .action(async (changeName?: string, options?: ArchiveOptions) => {
+  .action(async (changeName?: string, options?: ArchiveOptions & { jsonPretty?: boolean; toon?: boolean }) => {
     try {
       const archiveCommand = new ArchiveCommand();
-      await archiveCommand.execute(changeName, options);
+      await archiveCommand.execute(changeName, { ...options, format: resolveOutputFormat(options) });
     } catch (error) {
       failWithError(error);
       process.exit(1);
@@ -468,12 +477,12 @@ program
   .option('--no-interactive', 'Disable interactive prompts')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
-  .action(async (itemName?: string, options?: { all?: boolean; changes?: boolean; specs?: boolean; type?: string; strict?: boolean; json?: boolean; noInteractive?: boolean; concurrency?: string; store?: string; storePath?: string }) => {
+  .action(async (itemName?: string, options?: { all?: boolean; changes?: boolean; specs?: boolean; type?: string; strict?: boolean; json?: boolean; noInteractive?: boolean; concurrency?: string; store?: string; storePath?: string; jsonPretty?: boolean; toon?: boolean }) => {
     try {
       const validateCommand = new ValidateCommand();
-      await validateCommand.execute(itemName, options);
+      await validateCommand.execute(itemName, { ...options, format: resolveOutputFormat(options) });
     } catch (error) {
-      failWithError(error, { format: options?.json, fallbackCode: 'validate_error' });
+      failWithError(error, { format: resolveOutputFormat(options) ?? options?.json, fallbackCode: 'validate_error' });
       process.exit(1);
     }
   });
@@ -500,12 +509,12 @@ program
   .addOption(hiddenStorePathOption())
   // allow unknown options to pass-through to underlying command implementation
   .allowUnknownOption(true)
-  .action(async (itemName?: string, options?: { json?: boolean; type?: string; noInteractive?: boolean; [k: string]: any }) => {
+  .action(async (itemName?: string, options?: { json?: boolean; type?: string; noInteractive?: boolean; jsonPretty?: boolean; toon?: boolean; [k: string]: any }) => {
     try {
       const showCommand = new ShowCommand();
-      await showCommand.execute(itemName, options ?? {});
+      await showCommand.execute(itemName, { ...options, format: resolveOutputFormat(options) });
     } catch (error) {
-      failWithError(error, { format: options?.json, fallbackCode: 'show_error' });
+      failWithError(error, { format: resolveOutputFormat(options) ?? options?.json, fallbackCode: 'show_error' });
       process.exit(1);
     }
   });
@@ -600,11 +609,11 @@ program
   .option('--toon', 'Output in TOON format')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
-  .action(async (options: StatusOptions) => {
+  .action(async (options: StatusOptions & { jsonPretty?: boolean; toon?: boolean }) => {
     try {
-      await statusCommand(options);
+      await statusCommand({ ...options, format: resolveOutputFormat(options) });
     } catch (error) {
-      failWithError(error, { format: options.json, fallbackCode: 'change_error' });
+      failWithError(error, { format: resolveOutputFormat(options) ?? options.json, fallbackCode: 'change_error' });
       process.exit(1);
     }
   });
@@ -620,7 +629,7 @@ program
   .option('--toon', 'Output in TOON format')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
-  .action(async (artifactId: string | undefined, options: InstructionsOptions) => {
+  .action(async (artifactId: string | undefined, options: InstructionsOptions & { jsonPretty?: boolean; toon?: boolean }) => {
     try {
       // Workflow instruction surfaces are reserved command branches, not artifacts.
       if (artifactId === 'apply') {
@@ -628,10 +637,10 @@ program
       } else if (artifactId === 'archive') {
         await archiveInstructionsCommand(options);
       } else {
-        await instructionsCommand(artifactId, options);
+        await instructionsCommand(artifactId, { ...options, format: resolveOutputFormat(options) });
       }
     } catch (error) {
-      failWithError(error, { format: options.json, fallbackCode: 'change_error' });
+      failWithError(error, { format: resolveOutputFormat(options) ?? options.json, fallbackCode: 'workflow_error' });
       process.exit(1);
     }
   });
@@ -644,11 +653,11 @@ program
   .option('--json', 'Output as JSON mapping artifact IDs to template paths')
   .option('--json-pretty', 'Output as formatted JSON')
   .option('--toon', 'Output in TOON format')
-  .action(async (options: TemplatesOptions) => {
+  .action(async (options: TemplatesOptions & { jsonPretty?: boolean; toon?: boolean }) => {
     try {
-      await templatesCommand(options);
+      await templatesCommand({ ...options, format: resolveOutputFormat(options) });
     } catch (error) {
-      failWithError(error);
+      failWithError(error, { format: resolveOutputFormat(options) ?? options.json, fallbackCode: 'workflow_error' });
       process.exit(1);
     }
   });
@@ -660,11 +669,11 @@ program
   .option('--json', 'Output as JSON (for agent use)')
   .option('--json-pretty', 'Output as formatted JSON')
   .option('--toon', 'Output in TOON format')
-  .action(async (options: SchemasOptions) => {
+  .action(async (options: SchemasOptions & { jsonPretty?: boolean; toon?: boolean }) => {
     try {
-      await schemasCommand(options);
+      await schemasCommand({ ...options, format: resolveOutputFormat(options) });
     } catch (error) {
-      failWithError(error);
+      failWithError(error, { format: resolveOutputFormat(options) ?? options.json, fallbackCode: 'workflow_error' });
       process.exit(1);
     }
   });
@@ -687,11 +696,11 @@ newCmd
   // explanation instead of a generic unknown-option error.
   .addOption(new Option('--initiative <id>', 'No longer supported').hideHelp())
   .addOption(new Option('--areas <names>', 'No longer supported').hideHelp())
-  .action(async (name: string, options: NewChangeOptions) => {
+  .action(async (name: string, options: NewChangeOptions & { jsonPretty?: boolean; toon?: boolean }) => {
     try {
-      await newChangeCommand(name, options);
+      await newChangeCommand(name, { ...options, format: resolveOutputFormat(options) });
     } catch (error) {
-      failWithError(error);
+      failWithError(error, { format: resolveOutputFormat(options) ?? options.json, fallbackCode: 'workflow_error' });
       process.exit(1);
     }
   });

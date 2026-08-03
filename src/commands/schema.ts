@@ -1,3 +1,4 @@
+import type { OutputFormat } from '../core/format-output.js';
 import { printJson } from './shared-output.js';
 import { Command } from 'commander';
 import * as fs from 'node:fs';
@@ -305,7 +306,7 @@ export function registerSchemaCommand(program: Command): void {
     .description('Show where a schema resolves from')
     .option('--json', 'Output as JSON')
     .option('--all', 'List all schemas with their resolution sources')
-    .action(async (name?: string, options?: { json?: boolean; all?: boolean }) => {
+    .action(async (name?: string, options?: { json?: boolean; all?: boolean; format?: OutputFormat }) => {
       try {
         const projectRoot = process.cwd();
 
@@ -314,7 +315,7 @@ export function registerSchemaCommand(program: Command): void {
           const schemas = getAllSchemasWithResolution(projectRoot);
 
           if (options?.json) {
-            printJson(schemas, (options as any)?.format ?? ((options as any)?.json ? 'json' : 'json-pretty'));
+            printJson(schemas, options?.format ?? (options?.json ? 'json' : 'json-pretty'));
           } else {
             if (schemas.length === 0) {
               console.log('No schemas found.');
@@ -372,7 +373,7 @@ export function registerSchemaCommand(program: Command): void {
             printJson({
               error: `Schema '${name}' not found`,
               available,
-            }, options?.json ? 'json' : 'json-pretty');
+            }, options?.format ?? (options?.json ? 'json' : 'json-pretty'));
           } else {
             console.error(`Error: Schema '${name}' not found`);
             console.error(`Available schemas: ${available.join(', ')}`);
@@ -382,7 +383,7 @@ export function registerSchemaCommand(program: Command): void {
         }
 
         if (options?.json) {
-          printJson(resolution, (options as any)?.format ?? ((options as any)?.json ? 'json' : 'json-pretty'));
+          printJson(resolution, options?.format ?? (options?.json ? 'json' : 'json-pretty'));
         } else {
           console.log(`Schema: ${resolution.name}`);
           console.log(`Source: ${resolution.source}`);
@@ -407,7 +408,7 @@ export function registerSchemaCommand(program: Command): void {
     .description('Validate a schema structure and templates')
     .option('--json', 'Output as JSON')
     .option('--verbose', 'Show detailed validation steps')
-    .action(async (name?: string, options?: { json?: boolean; verbose?: boolean }) => {
+    .action(async (name?: string, options?: { json?: boolean; verbose?: boolean; format?: OutputFormat }) => {
       try {
         const projectRoot = process.cwd();
 
@@ -421,7 +422,7 @@ export function registerSchemaCommand(program: Command): void {
                 valid: true,
                 message: 'No project schemas directory found',
                 schemas: [],
-              }, options?.json ? 'json' : 'json-pretty');
+              }, options?.format ?? (options?.json ? 'json' : 'json-pretty'));
             } else {
               console.log('No project schemas directory found.');
             }
@@ -467,7 +468,7 @@ export function registerSchemaCommand(program: Command): void {
             printJson({
               valid: !anyInvalid,
               schemas: schemaResults,
-            }, options?.json ? 'json' : 'json-pretty');
+            }, options?.format ?? (options?.json ? 'json' : 'json-pretty'));
           } else {
             if (schemaResults.length === 0) {
               console.log('No schemas found in project.');
@@ -500,7 +501,7 @@ export function registerSchemaCommand(program: Command): void {
               valid: false,
               error: `Schema '${name}' not found`,
               available,
-            }, options?.json ? 'json' : 'json-pretty');
+            }, options?.format ?? (options?.json ? 'json' : 'json-pretty'));
           } else {
             console.error(`Error: Schema '${name}' not found`);
             console.error(`Available schemas: ${available.join(', ')}`);
@@ -521,7 +522,7 @@ export function registerSchemaCommand(program: Command): void {
             path: schemaDir,
             valid: result.valid,
             issues: result.issues,
-          }, options?.json ? 'json' : 'json-pretty');
+          }, options?.format ?? (options?.json ? 'json' : 'json-pretty'));
         } else {
           if (result.valid) {
             console.log(`✓ Schema '${name}' is valid`);
@@ -538,7 +539,7 @@ export function registerSchemaCommand(program: Command): void {
           printJson({
             valid: false,
             error: (error as Error).message,
-          }, options?.json ? 'json' : 'json-pretty');
+          }, options?.format ?? (options?.json ? 'json' : 'json-pretty'));
         } else {
           console.error(`Error: ${(error as Error).message}`);
         }
@@ -552,7 +553,7 @@ export function registerSchemaCommand(program: Command): void {
     .description('Copy an existing schema to project for customization')
     .option('--json', 'Output as JSON')
     .option('--force', 'Overwrite existing destination')
-    .action(async (source: string, name?: string, options?: { json?: boolean; force?: boolean }) => {
+    .action(async (source: string, name?: string, options?: { json?: boolean; force?: boolean; format?: OutputFormat }) => {
       const spinner = options?.json ? null : ora();
 
       try {
@@ -565,7 +566,7 @@ export function registerSchemaCommand(program: Command): void {
             printJson({
               forked: false,
               error: `Invalid schema name '${destinationName}'. Use kebab-case (e.g., my-workflow)`,
-            }, options?.json ? 'json' : 'json-pretty');
+            }, options?.format ?? (options?.json ? 'json' : 'json-pretty'));
           } else {
             console.error(`Error: Invalid schema name '${destinationName}'`);
             console.error('Schema names must be kebab-case (e.g., my-workflow)');
@@ -583,7 +584,7 @@ export function registerSchemaCommand(program: Command): void {
               forked: false,
               error: `Schema '${source}' not found`,
               available,
-            }, options?.json ? 'json' : 'json-pretty');
+            }, options?.format ?? (options?.json ? 'json' : 'json-pretty'));
           } else {
             console.error(`Error: Schema '${source}' not found`);
             console.error(`Available schemas: ${available.join(', ')}`);
@@ -606,7 +607,7 @@ export function registerSchemaCommand(program: Command): void {
                 forked: false,
                 error: `Schema '${destinationName}' already exists`,
                 suggestion: 'Use --force to overwrite',
-              }, options?.json ? 'json' : 'json-pretty');
+              }, options?.format ?? (options?.json ? 'json' : 'json-pretty'));
             } else {
               console.error(`Error: Schema '${destinationName}' already exists at ${destinationDir}`);
               console.error('Use --force to overwrite');
@@ -642,7 +643,7 @@ export function registerSchemaCommand(program: Command): void {
             sourceLocation,
             destination: destinationName,
             destinationPath: destinationDir,
-          }, options?.json ? 'json' : 'json-pretty');
+          }, options?.format ?? (options?.json ? 'json' : 'json-pretty'));
         } else {
           console.log(`\nSource: ${sourceDir} (${sourceLocation})`);
           console.log(`Destination: ${destinationDir}`);
@@ -655,7 +656,7 @@ export function registerSchemaCommand(program: Command): void {
           printJson({
             forked: false,
             error: (error as Error).message,
-          }, options?.json ? 'json' : 'json-pretty');
+          }, options?.format ?? (options?.json ? 'json' : 'json-pretty'));
         } else {
           console.error(`Error: ${(error as Error).message}`);
         }
@@ -681,6 +682,7 @@ export function registerSchemaCommand(program: Command): void {
         artifacts?: string;
         default?: boolean;
         force?: boolean;
+        format?: OutputFormat;
       }
     ) => {
       const spinner = options?.json ? null : ora();
@@ -694,7 +696,7 @@ export function registerSchemaCommand(program: Command): void {
             printJson({
               created: false,
               error: `Invalid schema name '${name}'. Use kebab-case (e.g., my-workflow)`,
-            }, options?.json ? 'json' : 'json-pretty');
+            }, options?.format ?? (options?.json ? 'json' : 'json-pretty'));
           } else {
             console.error(`Error: Invalid schema name '${name}'`);
             console.error('Schema names must be kebab-case (e.g., my-workflow)');
@@ -714,7 +716,7 @@ export function registerSchemaCommand(program: Command): void {
                 created: false,
                 error: `Schema '${name}' already exists`,
                 suggestion: 'Use --force to overwrite or "openspec schema fork" to copy',
-              }, options?.json ? 'json' : 'json-pretty');
+              }, options?.format ?? (options?.json ? 'json' : 'json-pretty'));
             } else {
               console.error(`Error: Schema '${name}' already exists at ${schemaDir}`);
               console.error('Use --force to overwrite or "openspec schema fork" to copy');
@@ -791,7 +793,7 @@ export function registerSchemaCommand(program: Command): void {
                     created: false,
                     error: `Unknown artifact '${id}'`,
                     valid: validIds,
-                  }, options?.json ? 'json' : 'json-pretty');
+                  }, options?.format ?? (options?.json ? 'json' : 'json-pretty'));
                 } else {
                   console.error(`Error: Unknown artifact '${id}'`);
                   console.error(`Valid artifacts: ${validIds.join(', ')}`);
@@ -907,7 +909,7 @@ export function registerSchemaCommand(program: Command): void {
             schema: name,
             artifacts: selectedArtifactIds,
             setAsDefault: options?.default || false,
-          }, options?.json ? 'json' : 'json-pretty');
+          }, options?.format ?? (options?.json ? 'json' : 'json-pretty'));
         } else {
           console.log(`\nSchema created at: ${schemaDir}`);
           console.log(`\nArtifacts: ${selectedArtifactIds.join(', ')}`);
@@ -925,7 +927,7 @@ export function registerSchemaCommand(program: Command): void {
           printJson({
             created: false,
             error: (error as Error).message,
-          }, options?.json ? 'json' : 'json-pretty');
+          }, options?.format ?? (options?.json ? 'json' : 'json-pretty'));
         } else {
           console.error(`Error: ${(error as Error).message}`);
         }

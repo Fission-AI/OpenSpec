@@ -1,4 +1,5 @@
 import { printJson } from './shared-output.js';
+import type { OutputFormat } from '../core/format-output.js';
 import ora from 'ora';
 import path from 'path';
 import { Validator } from '../core/validation/validator.js';
@@ -29,6 +30,7 @@ interface ExecuteOptions {
   concurrency?: string;
   store?: string;
   storePath?: string;
+  format?: OutputFormat;
 }
 
 interface BulkItemResult {
@@ -37,6 +39,14 @@ interface BulkItemResult {
   valid: boolean;
   issues: { level: 'ERROR' | 'WARNING' | 'INFO'; path: string; message: string }[];
   durationMs: number;
+}
+
+interface ValidationOptions {
+  strict: boolean;
+  json: boolean;
+  concurrency?: string;
+  noInteractive?: boolean;
+  format?: OutputFormat;
 }
 
 export class ValidateCommand {
@@ -53,14 +63,14 @@ export class ValidateCommand {
       await this.runBulkValidation(root, {
         changes: !!options.all || !!options.changes,
         specs: !!options.all || !!options.specs,
-      }, { strict: !!options.strict, json: !!options.json, concurrency: options.concurrency, noInteractive: resolveNoInteractive(options) });
+      }, { strict: !!options.strict, json: !!options.json, concurrency: options.concurrency, noInteractive: resolveNoInteractive(options), format: options.format });
       return;
     }
 
     // No item and no flags
     if (!itemName) {
       if (interactive) {
-        await this.runInteractiveSelector(root, { strict: !!options.strict, json: !!options.json, concurrency: options.concurrency });
+        await this.runInteractiveSelector(root, { strict: !!options.strict, json: !!options.json, concurrency: options.concurrency, format: options.format });
         return;
       }
       this.printNonInteractiveHint(root);
@@ -70,7 +80,7 @@ export class ValidateCommand {
 
     // Direct item validation with type detection or override
     const typeOverride = this.normalizeType(options.type);
-    await this.validateDirectItem(root, itemName, { typeOverride, strict: !!options.strict, json: !!options.json });
+    await this.validateDirectItem(root, itemName, { typeOverride, strict: !!options.strict, json: !!options.json, format: options.format });
   }
 
   private normalizeType(value?: string): ItemType | undefined {
@@ -92,7 +102,7 @@ export class ValidateCommand {
     return ids.sort();
   }
 
-  private async runInteractiveSelector(root: ResolvedOpenSpecRoot, opts: { strict: boolean; json: boolean; concurrency?: string }): Promise<void> {
+  private async runInteractiveSelector(root: ResolvedOpenSpecRoot, opts: ValidationOptions): Promise<void> {
     const { select } = await import('@inquirer/prompts');
     const choice = await select({
       message: 'What would you like to validate?',
@@ -131,7 +141,7 @@ export class ValidateCommand {
     console.error('Or run in an interactive terminal.');
   }
 
-  private async validateDirectItem(root: ResolvedOpenSpecRoot, itemName: string, opts: { typeOverride?: ItemType; strict: boolean; json: boolean }): Promise<void> {
+  private async validateDirectItem(root: ResolvedOpenSpecRoot, itemName: string, opts: ValidationOptions & { typeOverride?: ItemType }): Promise<void> {
     const [changes, specs] = await Promise.all([this.listChangeIds(root), getSpecIds(root.path)]);
     const isChange = changes.includes(itemName);
     const isSpec = specs.includes(itemName);
@@ -193,14 +203,14 @@ export class ValidateCommand {
     await this.validateByType(root, type, itemName, opts);
   }
 
-  private async validateByType(root: ResolvedOpenSpecRoot, type: ItemType, id: string, opts: { strict: boolean; json: boolean }): Promise<void> {
+  private async validateByType(root: ResolvedOpenSpecRoot, type: ItemType, id: string, opts: ValidationOptions): Promise<void> {
     const validator = new Validator(opts.strict);
     if (type === 'change') {
       const changeDir = path.join(root.changesDir, id);
       const start = Date.now();
       const report = await validator.validateChangeDeltaSpecs(changeDir, { mainSpecsDir: root.specsDir });
       const durationMs = Date.now() - start;
-      this.printReport('change', id, report, durationMs, opts.json, root);
+      this.printReport('change', id, report, durationMs, opts, root);
       // Non-zero exit if invalid (keeps enriched output test semantics)
       process.exitCode = report.valid ? 0 : 1;
       return;
@@ -209,14 +219,14 @@ export class ValidateCommand {
     const start = Date.now();
     const report = await validator.validateSpec(file);
     const durationMs = Date.now() - start;
-    this.printReport('spec', id, report, durationMs, opts.json, root);
+    this.printReport('spec', id, report, durationMs, opts, root);
     process.exitCode = report.valid ? 0 : 1;
   }
 
-  private printReport(type: ItemType, id: string, report: { valid: boolean; issues: any[] }, durationMs: number, json: boolean, root: ResolvedOpenSpecRoot): void {
-    if (json) {
+  private printReport(type: ItemType, id: string, report: { valid: boolean; issues: any[] }, durationMs: number, opts: ValidationOptions, root: ResolvedOpenSpecRoot): void {
+    if (opts.json) {
       const out = { items: [{ id, type, valid: report.valid, issues: report.issues, durationMs }], summary: { totals: { items: 1, passed: report.valid ? 1 : 0, failed: report.valid ? 0 : 1 }, byType: { [type]: { items: 1, passed: report.valid ? 1 : 0, failed: report.valid ? 0 : 1 } } }, version: '1.0', root: toRootOutput(root) };
-      printJson(out, json ? 'json' : 'json-pretty');
+      printJson(out, opts.format ?? 'json-pretty');
       return;
     }
     if (report.valid) {
@@ -263,7 +273,7 @@ export class ValidateCommand {
     bullets.forEach(b => console.error(`  ${b}`));
   }
 
-  private async runBulkValidation(root: ResolvedOpenSpecRoot, scope: { changes: boolean; specs: boolean }, opts: { strict: boolean; json: boolean; concurrency?: string; noInteractive?: boolean }): Promise<void> {
+  private async runBulkValidation(root: ResolvedOpenSpecRoot, scope: { changes: boolean; specs: boolean }, opts: ValidationOptions): Promise<void> {
     const spinner = !opts.json && !opts.noInteractive ? ora('Validating...').start() : undefined;
     const [changeIds, specIds] = await Promise.all([
       scope.changes ? this.listChangeIds(root) : Promise.resolve<string[]>([]),
@@ -308,7 +318,7 @@ export class ValidateCommand {
 
       if (opts.json) {
         const out = { items: [] as BulkItemResult[], summary, version: '1.0', root: toRootOutput(root) };
-        printJson(out, opts.json ? 'json' : 'json-pretty');
+        printJson(out, opts.format ?? (opts.json ? 'json' : 'json-pretty'));
       } else {
         console.log('No items found to validate.');
       }
@@ -364,7 +374,7 @@ export class ValidateCommand {
 
     if (opts.json) {
       const out = { items: results, summary, version: '1.0', root: toRootOutput(root) };
-      printJson(out, opts.json ? 'json' : 'json-pretty');
+      printJson(out, opts.format ?? (opts.json ? 'json' : 'json-pretty'));
     } else {
       for (const res of results) {
         if (res.valid) console.log(`✓ ${res.type}/${res.id}`);
