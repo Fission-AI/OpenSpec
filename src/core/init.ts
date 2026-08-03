@@ -64,20 +64,6 @@ import {
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
 
-function resolveProjectArtifactPath(projectPath: string, artifactPath: string): string {
-  if (path.isAbsolute(artifactPath)) {
-    throw new Error(`Refusing to manage an artifact outside the project: ${artifactPath}`);
-  }
-
-  const targetPath = path.join(projectPath, artifactPath);
-  FileSystemUtils.assertPathWithin(projectPath, targetPath);
-  return targetPath;
-}
-
-function assertProjectArtifactPath(projectPath: string, targetPath: string): void {
-  FileSystemUtils.assertPathWithin(projectPath, targetPath);
-}
-
 // -----------------------------------------------------------------------------
 // Constants
 // -----------------------------------------------------------------------------
@@ -651,7 +637,7 @@ export class InitCommand {
       ];
 
       for (const dir of directories) {
-        assertProjectArtifactPath(path.dirname(openspecPath), dir);
+        FileSystemUtils.assertProjectArtifactPath(path.dirname(openspecPath), dir);
         await FileSystemUtils.createDirectory(dir);
       }
       return;
@@ -667,7 +653,7 @@ export class InitCommand {
     ];
 
     for (const dir of directories) {
-      assertProjectArtifactPath(path.dirname(openspecPath), dir);
+      FileSystemUtils.assertProjectArtifactPath(path.dirname(openspecPath), dir);
       await FileSystemUtils.createDirectory(dir);
     }
 
@@ -748,7 +734,7 @@ export class InitCommand {
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
 
             // Write the skill file
-            assertProjectArtifactPath(projectPath, skillFile);
+            FileSystemUtils.assertProjectArtifactPath(projectPath, skillFile);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
         }
@@ -764,7 +750,7 @@ export class InitCommand {
             const generatedCommands = generateCommands(commandContents, adapter);
 
             for (const cmd of generatedCommands) {
-              const commandFile = resolveProjectArtifactPath(projectPath, cmd.path);
+              const commandFile = FileSystemUtils.resolveProjectArtifactPath(projectPath, cmd.path);
               await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
             }
           }
@@ -820,7 +806,7 @@ export class InitCommand {
 
     try {
       const yamlContent = serializeConfig({ schema: DEFAULT_SCHEMA });
-      assertProjectArtifactPath(path.dirname(openspecPath), configPath);
+      FileSystemUtils.assertProjectArtifactPath(path.dirname(openspecPath), configPath);
       await FileSystemUtils.writeFile(configPath, yamlContent);
       return 'created';
     } catch {
@@ -1044,7 +1030,7 @@ export class InitCommand {
 
       const skillDir = path.join(skillsDir, dirName);
       if (!fs.existsSync(skillDir)) continue;
-      assertProjectArtifactPath(projectPath, skillDir);
+      FileSystemUtils.assertProjectArtifactPath(projectPath, skillDir);
       try {
         await fs.promises.rm(skillDir, { recursive: true, force: true });
         removed++;
@@ -1063,7 +1049,7 @@ export class InitCommand {
 
     for (const workflow of ALL_WORKFLOWS) {
       const cmdPath = adapter.getFilePath(workflow);
-      const fullPath = resolveProjectArtifactPath(projectPath, cmdPath);
+      const fullPath = FileSystemUtils.resolveProjectArtifactPath(projectPath, cmdPath);
 
       try {
         if (fs.existsSync(fullPath)) {

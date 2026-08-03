@@ -37,7 +37,8 @@ interface ShowOptions {
   rootOutput?: RootOutput;
 }
 
-function parseSpecFromFile(specPath: string, specId: string): Spec {
+function parseSpecFromFile(specsDir: string, specPath: string, specId: string): Spec {
+  assertSpecPath(specsDir, specPath);
   const content = readFileSync(specPath, 'utf-8');
   const parser = new MarkdownParser(content);
   return parser.parseSpec(specId);
@@ -78,7 +79,8 @@ function filterSpec(spec: Spec, options: ShowOptions): Spec {
  * Print the raw markdown content for a spec file without any formatting.
  * Raw-first behavior ensures text mode is a passthrough for deterministic output.
  */
-function printSpecTextRaw(specPath: string): void {
+function printSpecTextRaw(specsDir: string, specPath: string): void {
+  assertSpecPath(specsDir, specPath);
   const content = readFileSync(specPath, 'utf-8');
   console.log(content);
 }
@@ -122,7 +124,7 @@ export class SpecCommand {
       if (options.requirements && options.requirement) {
         throw new Error('Options --requirements and --requirement cannot be used together');
       }
-      const parsed = parseSpecFromFile(specPath, specId);
+      const parsed = parseSpecFromFile(this.specsDir, specPath, specId);
       const filtered = filterSpec(parsed, options);
       const output = {
         id: specId,
@@ -136,7 +138,7 @@ export class SpecCommand {
       console.log(JSON.stringify(output, null, 2));
       return;
     }
-    printSpecTextRaw(specPath);
+    printSpecTextRaw(this.specsDir, specPath);
   }
 }
 
@@ -185,7 +187,7 @@ export function registerSpecCommand(rootProgram: typeof program) {
           .map(({ id, specFile }) => {
             try {
               assertSpecPath(SPECS_DIR, specFile);
-              const spec = parseSpecFromFile(specFile, id);
+              const spec = parseSpecFromFile(SPECS_DIR, specFile, id);
 
               return {
                 id,
@@ -253,6 +255,7 @@ export function registerSpecCommand(rootProgram: typeof program) {
         }
 
         const validator = new Validator(options.strict);
+        assertSpecPath(SPECS_DIR, specPath);
         const report = await validator.validateSpec(specPath);
 
         if (options.json) {

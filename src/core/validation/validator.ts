@@ -296,7 +296,8 @@ export class Validator {
               plan.modified,
               plan.renamed,
               mainSpecFile,
-              entryPath
+              entryPath,
+              path.dirname(mainSpecFile)
             ))
           );
         }
@@ -450,9 +451,11 @@ export class Validator {
     modified: RequirementBlock[],
     renamed: Array<{ from: string; to: string }>,
     mainSpecFile: string,
-    entryPath: string
+    entryPath: string,
+    mainSpecRoot: string
   ): Promise<ValidationIssue[]> {
     let mainContent: string;
+    FileSystemUtils.assertPathWithin(mainSpecRoot, mainSpecFile);
     try {
       mainContent = await fs.readFile(mainSpecFile, 'utf-8');
     } catch (error) {

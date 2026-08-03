@@ -124,6 +124,20 @@ export class FileSystemUtils {
     }
   }
 
+  static resolveProjectArtifactPath(projectPath: string, artifactPath: string): string {
+    if (path.isAbsolute(artifactPath)) {
+      throw new Error(`Refusing to manage an artifact outside the project: ${artifactPath}`);
+    }
+
+    const targetPath = path.join(projectPath, artifactPath);
+    this.assertPathWithin(projectPath, targetPath);
+    return targetPath;
+  }
+
+  static assertProjectArtifactPath(projectPath: string, targetPath: string): void {
+    this.assertPathWithin(projectPath, targetPath);
+  }
+
   private static isPathWithin(allowedDirectory: string, targetPath: string): boolean {
     const relative = path.relative(allowedDirectory, targetPath);
     return (

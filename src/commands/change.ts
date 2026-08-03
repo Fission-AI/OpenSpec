@@ -110,6 +110,7 @@ export class ChangeCommand {
     FileSystemUtils.assertPathWithin(path.dirname(proposalPath), proposalPath);
 
     if (options?.json) {
+      FileSystemUtils.assertPathWithin(changeDir, proposalPath);
       const jsonOutput = await this.converter.convertChangeToJson(proposalPath);
 
       if (options.requirementsOnly) {
@@ -117,6 +118,7 @@ export class ChangeCommand {
       }
 
       const parsed: Change = JSON.parse(jsonOutput);
+      FileSystemUtils.assertPathWithin(changeDir, proposalPath);
       const contentForTitle = await fs.readFile(proposalPath, 'utf-8');
       const title = this.extractTitle(contentForTitle, changeName);
       const id = parsed.name;
@@ -131,6 +133,7 @@ export class ChangeCommand {
       };
       console.log(JSON.stringify(output, null, 2));
     } else {
+      FileSystemUtils.assertPathWithin(changeDir, proposalPath);
       const content = await fs.readFile(proposalPath, 'utf-8');
       console.log(content);
     }

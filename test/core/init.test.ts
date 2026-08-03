@@ -160,6 +160,7 @@ describe('InitCommand', () => {
       await initCommand.execute(testDir);
 
       expect(await fs.readdir(outsideDir)).toEqual([]);
+      expect((await fs.lstat(path.join(testDir, '.claude'))).isSymbolicLink()).toBe(true);
     });
 
     it.skipIf(process.platform === 'win32')('should not overwrite a generated artifact symlink outside the project', async () => {
@@ -180,6 +181,7 @@ describe('InitCommand', () => {
       await initCommand.execute(testDir);
 
       expect(await fs.readFile(outsideFile, 'utf-8')).toBe(originalContent);
+      expect((await fs.lstat(skillFile)).isSymbolicLink()).toBe(true);
     });
 
     it('should create skills in Cursor skills directory', async () => {
