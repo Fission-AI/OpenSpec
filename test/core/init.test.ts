@@ -551,10 +551,13 @@ describe('InitCommand', () => {
         );
         expect(content, proposeFile).toContain('ambiguity that would materially affect scope');
         expect(content, proposeFile).toContain(
-          'ask the user before creating the affected artifact'
+          'ask the user before creating the change'
         );
         expect(content, proposeFile).toContain(
-          'stop and wait for a separate, explicit user request to implement'
+          'Any implementation or apply instruction in that request does not carry forward'
+        );
+        expect(content, proposeFile).toContain(
+          'wait for a new user request to start the apply workflow'
         );
       }
     });

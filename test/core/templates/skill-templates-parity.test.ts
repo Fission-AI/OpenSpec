@@ -57,8 +57,8 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getOpsxOnboardCommandTemplate: 'e04e4ab6c2f25122e6840212b4c22708812c36ceff9ec529c2bb1d1d035429e3',
   getOpsxBulkArchiveCommandTemplate: 'fbb4de58ed00861badd93cde9bdd3d7c52f966158a18a660152060076ea9723e',
   getOpsxVerifyCommandTemplate: 'ce0ee05b7a6b332e29db2298b9d5a928a1932caf516e35fd88f163154ffd43f4',
-  getOpsxProposeSkillTemplate: '1c02b015b142710c5ce02503b7ac23a14078c5c2aac5f872027ab421c4ee56a5',
-  getOpsxProposeCommandTemplate: 'f9084edbf5356ca589dddccaaa41843c5fc348c532d0079deb12ed83919edcb9',
+  getOpsxProposeSkillTemplate: 'ec20e8b85c104a75e7626ad7a1d11a133adfe264f78abaf5637c53ce59214ffb',
+  getOpsxProposeCommandTemplate: '5471318b573519e50644099f2cf8b7144c5f59311267b15302a5a6ec12644453',
   getFeedbackSkillTemplate: 'd7d83c5f7fc2b92fe8f4588a5bf2d9cb315e4c73ec19bcd5ef28270906319a0d',
   getUpdateChangeSkillTemplate: 'f85fbfb3a175e949becbef08be0eccfab97de5e7ad45105e999d2900dfafbaba',
   getOpsxUpdateCommandTemplate: '461edf06e92c0da3dab4f11d91d59d44b48ed30a0881c1f34a714b1813435af6',
@@ -75,7 +75,7 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-bulk-archive-change': 'c58e1d319a6587b52202434d5d769c94718aafc0f019276cef04cf8be473b6ce',
   'openspec-verify-change': '7cd65897d126f7c948620c0672ca62418620dbcb82ee73d890f758fb666a4ff8',
   'openspec-onboard': '80f39cf33a138aac8e508db25d7af2c9e9bd482f90e414770e806f966dd58c9c',
-  'openspec-propose': '7620d6b62b2da3de87a39f579574ba13d0d9e2a2039dd2e21529194401e560b3',
+  'openspec-propose': '1288b9ecfc9ec5aadd47393f0705ea11a40027ae1f1eae422e8a3a2a10efab77',
   'openspec-update-change': '95bb533105e49aee06c9ea164b63092de77644cf8f94fa38d3ee3c11b0ccb893',
 };
 
