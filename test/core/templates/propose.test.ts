@@ -153,6 +153,23 @@ describe('propose implementation boundary', () => {
   });
 });
 
+describe('propose schema selection', () => {
+  // #770: the CLI and new workflow already accept an explicit schema, but
+  // propose used to discard that request and always create with the default.
+  it('honors an explicitly requested workflow schema before creating the change (#770)', () => {
+    for (const [label, body] of proposeBodies) {
+      const schemaStep = body.indexOf('**Determine the workflow schema**');
+      const createStep = body.indexOf('**Create the change directory**');
+
+      expect(schemaStep, `${label} is missing schema selection`).toBeGreaterThanOrEqual(0);
+      expect(createStep, `${label} is missing change creation`).toBeGreaterThan(schemaStep);
+      expect(body, label).toContain('openspec schemas --json');
+      expect(body, label).toContain('Add `--schema <name>` only if the user requested a specific workflow');
+      expect(body, label).toContain('Otherwise, omit `--schema` to preserve the configured default');
+    }
+  });
+});
+
 describe('artifact loop guards (propose and ff)', () => {
   // `status` is file-existence based (detectCompleted), so writing tasks.md before
   // specs flips tasks to done and satisfies a bare applyRequires stop condition
@@ -258,8 +275,9 @@ describe('artifact loop guards (propose and ff)', () => {
     }
   });
 
-  // The step-4 TITLE must not use "apply-ready" either: in the prewritten-tasks
-  // case the change is already apply-ready when step 4 begins, so a title of
+  // The artifact-creation TITLE must not use "apply-ready" either: in the
+  // prewritten-tasks case the change is already apply-ready when this step
+  // begins, so a title of
   // "create ... until apply-ready" invites the exact early-stop this PR kills.
   it('titles the create step around the required set, not "apply-ready"', () => {
     for (const [label, body] of loopBodies) {

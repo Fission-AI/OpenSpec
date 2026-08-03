@@ -42,13 +42,24 @@ ${STORE_SELECTION_GUIDANCE}
 
    If the request contains ambiguity that would materially affect scope, externally observable behavior, compatibility, or acceptance criteria, ask the user before creating the change. For minor details, make a reasonable assumption and record it in the planning artifacts.
 
-2. **Create the change directory**
+2. **Determine the workflow schema**
+
+   Use the configured default schema unless the user explicitly requests a different workflow.
+
+   **Use a different schema only if the user mentions:**
+   - A specific schema name → use \`--schema <name>\`
+   - "show workflows" or "what workflows" → run \`openspec schemas --json\` and let them choose
+
+   Otherwise, omit \`--schema\` to preserve the configured default.
+
+3. **Create the change directory**
    \`\`\`bash
    openspec new change "<name>"
    \`\`\`
+   Add \`--schema <name>\` only if the user requested a specific workflow.
    This creates a scaffolded change in the planning home resolved by the CLI with \`.openspec.yaml\`.
 
-3. **Get the artifact build order**
+4. **Get the artifact build order**
    \`\`\`bash
    openspec status --change "<name>" --json
    \`\`\`
@@ -57,7 +68,7 @@ ${STORE_SELECTION_GUIDANCE}
    - \`artifacts\`: list of all artifacts, each with its \`status\` and its \`requires\` edges (the artifact IDs it directly depends on)
    - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context. Use these instead of assuming repo-local paths.
 
-4. **Create every artifact in the required set**
+5. **Create every artifact in the required set**
 
    Use a todo list to track progress through the artifacts.
 
@@ -96,7 +107,7 @@ ${STORE_SELECTION_GUIDANCE}
       - Ask the user to clarify
       - Then continue with creation
 
-5. **Show final status**
+6. **Show final status**
    \`\`\`bash
    openspec status --change "<name>"
    \`\`\`
@@ -170,13 +181,24 @@ ${STORE_SELECTION_GUIDANCE}
 
    If the request contains ambiguity that would materially affect scope, externally observable behavior, compatibility, or acceptance criteria, ask the user before creating the change. For minor details, make a reasonable assumption and record it in the planning artifacts.
 
-2. **Create the change directory**
+2. **Determine the workflow schema**
+
+   Use the configured default schema unless the user explicitly requests a different workflow.
+
+   **Use a different schema only if the user mentions:**
+   - A specific schema name → use \`--schema <name>\`
+   - "show workflows" or "what workflows" → run \`openspec schemas --json\` and let them choose
+
+   Otherwise, omit \`--schema\` to preserve the configured default.
+
+3. **Create the change directory**
    \`\`\`bash
    openspec new change "<name>"
    \`\`\`
+   Add \`--schema <name>\` only if the user requested a specific workflow.
    This creates a scaffolded change in the planning home resolved by the CLI with \`.openspec.yaml\`.
 
-3. **Get the artifact build order**
+4. **Get the artifact build order**
    \`\`\`bash
    openspec status --change "<name>" --json
    \`\`\`
@@ -185,7 +207,7 @@ ${STORE_SELECTION_GUIDANCE}
    - \`artifacts\`: list of all artifacts, each with its \`status\` and its \`requires\` edges (the artifact IDs it directly depends on)
    - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context. Use these instead of assuming repo-local paths.
 
-4. **Create every artifact in the required set**
+5. **Create every artifact in the required set**
 
    Use a todo list to track progress through the artifacts.
 
@@ -224,7 +246,7 @@ ${STORE_SELECTION_GUIDANCE}
       - Ask the user to clarify
       - Then continue with creation
 
-5. **Show final status**
+6. **Show final status**
    \`\`\`bash
    openspec status --change "<name>"
    \`\`\`
