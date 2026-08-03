@@ -54,7 +54,7 @@ ${STORE_SELECTION_GUIDANCE}
 
 3. **Create the change directory**
 
-   Run exactly one of these commands.
+   Choose one schema form below. If a registered store is selected, append \`--store "<store-id>"\` to that command and every follow-up command.
 
    Using the configured default:
    \`\`\`bash
@@ -201,7 +201,7 @@ ${STORE_SELECTION_GUIDANCE}
 
 3. **Create the change directory**
 
-   Run exactly one of these commands.
+   Choose one schema form below. If a registered store is selected, append \`--store "<store-id>"\` to that command and every follow-up command.
 
    Using the configured default:
    \`\`\`bash

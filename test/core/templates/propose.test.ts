@@ -167,11 +167,13 @@ describe('propose schema selection', () => {
       expect(statusStep, `${label} is missing status lookup`).toBeGreaterThan(createStep);
 
       const createSection = body.slice(createStep, statusStep);
-      expect(createSection, label).toContain('openspec new change "<name>"');
-      expect(createSection, label).toContain(
-        'openspec new change "<name>" --schema "<schema-name>"'
+      expect(createSection, label).toMatch(/^\s*openspec new change "<name>"\s*$/m);
+      expect(createSection, label).toMatch(
+        /^\s*openspec new change "<name>" --schema "<schema-name>"\s*$/m
       );
-      expect(createSection, label).toContain('Run exactly one of these commands');
+      expect(createSection, label).toContain(
+        'If a registered store is selected, append `--store "<store-id>"`'
+      );
       expect(body, label).toContain('Explicitly requests a specific schema by name');
       expect(body, label).toContain('Otherwise, omit `--schema` to preserve the configured default');
     }
