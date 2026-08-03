@@ -197,22 +197,15 @@ function validateSchema(
     return { valid: false, issues };
   }
 
-  // Check template files exist
-  // Templates can be in schemaDir directly or in a templates/ subdirectory
+  // Check template files exist in the same directory used at runtime.
   if (verbose) {
     console.log('  Checking template files...');
   }
   for (const artifact of schema.artifacts) {
-    // Try templates subdirectory first (standard location), then root
-    const templatePathInTemplates = path.join(schemaDir, 'templates', artifact.template);
-    const templatePathInRoot = path.join(schemaDir, artifact.template);
-    const existingTemplatePath = fs.existsSync(templatePathInTemplates)
-      ? templatePathInTemplates
-      : fs.existsSync(templatePathInRoot)
-        ? templatePathInRoot
-        : null;
+    const templatesDir = path.join(schemaDir, 'templates');
+    const existingTemplatePath = path.join(templatesDir, artifact.template);
 
-    if (existingTemplatePath === null) {
+    if (!fs.existsSync(existingTemplatePath)) {
       issues.push({
         level: 'error',
         path: `artifacts.${artifact.id}.template`,
@@ -222,12 +215,12 @@ function validateSchema(
     }
 
     try {
-      FileSystemUtils.assertPathWithin(schemaDir, existingTemplatePath);
+      FileSystemUtils.assertPathWithin(templatesDir, existingTemplatePath);
     } catch {
       issues.push({
         level: 'error',
         path: `artifacts.${artifact.id}.template`,
-        message: `Template file '${artifact.template}' points outside the schema directory`,
+        message: `Template file '${artifact.template}' points outside the schema templates directory`,
       });
     }
   }
@@ -261,8 +254,24 @@ function copyDirRecursive(src: string, dest: string): void {
 
     if (entry.isDirectory()) {
       copyDirRecursive(srcPath, destPath);
-    } else {
+    } else if (entry.isFile()) {
       fs.copyFileSync(srcPath, destPath);
+    } else {
+      throw new Error(`Cannot fork schema with linked or unsupported entry: ${srcPath}`);
+    }
+  }
+}
+
+/**
+ * Verifies a schema tree before replacing or creating the fork destination.
+ */
+function assertSchemaTreeCanBeCopied(src: string): void {
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    const entryPath = path.join(src, entry.name);
+    if (entry.isDirectory()) {
+      assertSchemaTreeCanBeCopied(entryPath);
+    } else if (!entry.isFile()) {
+      throw new Error(`Cannot fork schema with linked or unsupported entry: ${entryPath}`);
     }
   }
 }
@@ -498,10 +507,10 @@ export function registerSchemaCommand(program: Command): void {
                 console.log(`    ${issue.level}: ${issue.message}`);
               }
             }
+          }
 
-            if (anyInvalid) {
-              process.exitCode = 1;
-            }
+          if (anyInvalid) {
+            process.exitCode = 1;
           }
           return;
         }
@@ -546,8 +555,10 @@ export function registerSchemaCommand(program: Command): void {
             for (const issue of result.issues) {
               console.log(`  ${issue.level}: ${issue.message}`);
             }
-            process.exitCode = 1;
           }
+        }
+        if (!result.valid) {
+          process.exitCode = 1;
         }
       } catch (error) {
         if (options?.json) {
@@ -611,6 +622,9 @@ export function registerSchemaCommand(program: Command): void {
         // Determine source location
         const sourceResolution = getSchemaResolution(source, projectRoot);
         const sourceLocation = sourceResolution?.source || 'package';
+
+        // Validate the complete source before a forced fork removes anything.
+        assertSchemaTreeCanBeCopied(sourceDir);
 
         // Check destination
         const destinationDir = path.join(getProjectSchemasDir(projectRoot), destinationName);

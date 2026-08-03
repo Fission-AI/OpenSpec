@@ -138,6 +138,18 @@ artifacts:
       expect(() => resolveSchema('../escape', tempDir)).toThrow(/not found/u);
     });
 
+    it('should reject a schema file symlink that escapes its schema directory', () => {
+      if (process.platform === 'win32') return;
+
+      const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'linked-file');
+      const outsideSchema = path.join(tempDir, 'outside-schema.yaml');
+      fs.mkdirSync(schemaDir, { recursive: true });
+      fs.writeFileSync(outsideSchema, 'name: outside\nversion: 1\nartifacts: []\n');
+      fs.symlinkSync(outsideSchema, path.join(schemaDir, 'schema.yaml'));
+
+      expect(getSchemaDir('linked-file', tempDir)).toBeNull();
+    });
+
     it('should validate user override and throw on invalid schema', () => {
       process.env.XDG_DATA_HOME = tempDir;
       const userSchemaDir = path.join(tempDir, 'openspec', 'schemas', 'spec-driven');
@@ -744,6 +756,7 @@ artifacts:
 
       const schemas = listSchemas();
       expect(schemas).toContain('linked-schema');
+      expect(getSchemaDir('linked-schema')).toBe(path.join(userSchemasBase, 'linked-schema'));
     });
 
     it('should not include a symlink pointing at a schema file', () => {

@@ -158,6 +158,40 @@ artifacts:
       expect(fs.existsSync(templatePath)).toBe(false);
     });
 
+    it('should reject a template symlink outside the runtime templates directory', async () => {
+      if (process.platform === 'win32') return;
+
+      const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'linked-template');
+      const templatesDir = path.join(schemaDir, 'templates');
+      fs.mkdirSync(templatesDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(schemaDir, 'schema.yaml'),
+        `name: linked-template
+version: 1
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Proposal
+    template: proposal.md
+`
+      );
+      fs.symlinkSync('../schema.yaml', path.join(templatesDir, 'proposal.md'));
+
+      await runSchemaCommand(['validate', 'linked-template', '--json']);
+
+      expect(process.exitCode).toBe(1);
+      const output = consoleLogSpy.mock.calls.at(-1)?.[0];
+      expect(JSON.parse(output as string)).toMatchObject({
+        valid: false,
+        issues: [
+          {
+            path: 'artifacts.proposal.template',
+            message: expect.stringContaining('outside the schema templates directory'),
+          },
+        ],
+      });
+    });
+
     it('should detect circular dependencies', async () => {
       const { parseSchema, SchemaValidationError } = await import(
         '../../src/core/artifact-graph/schema.js'
@@ -249,6 +283,38 @@ artifacts:
       expect(isValidSchemaName('MySchema')).toBe(false);
       expect(isValidSchemaName('-my-schema')).toBe(false);
       expect(isValidSchemaName('123schema')).toBe(false);
+    });
+
+    it('should reject linked files without copying their contents', async () => {
+      if (process.platform === 'win32') return;
+
+      const sourceDir = path.join(tempDir, 'openspec', 'schemas', 'linked-source');
+      const templatesDir = path.join(sourceDir, 'templates');
+      const secretPath = path.join(tempDir, 'secret.txt');
+      const destinationDir = path.join(tempDir, 'openspec', 'schemas', 'linked-copy');
+      fs.mkdirSync(templatesDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(sourceDir, 'schema.yaml'),
+        `name: linked-source
+version: 1
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Proposal
+    template: proposal.md
+`
+      );
+      fs.writeFileSync(secretPath, 'keep this private');
+      fs.symlinkSync(secretPath, path.join(templatesDir, 'proposal.md'));
+
+      await runSchemaCommand(['fork', 'linked-source', 'linked-copy', '--json']);
+
+      expect(process.exitCode).toBe(1);
+      expect(fs.existsSync(destinationDir)).toBe(false);
+      const output = consoleLogSpy.mock.calls.at(-1)?.[0];
+      expect(JSON.parse(output as string).error).toContain(
+        'Cannot fork schema with linked or unsupported entry'
+      );
     });
   });
 

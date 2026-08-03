@@ -62,6 +62,14 @@ describe('instruction-loader', () => {
         fs.rmSync(tempDir, { recursive: true, force: true });
       }
     });
+
+    it('should reject Windows-style template traversal on Windows', () => {
+      if (process.platform !== 'win32') return;
+
+      expect(() => loadTemplate('spec-driven', '..\\outside.md')).toThrow(
+        TemplateLoadError
+      );
+    });
   });
 
   describe('loadChangeContext', () => {

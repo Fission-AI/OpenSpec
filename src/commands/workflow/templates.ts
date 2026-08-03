@@ -70,12 +70,18 @@ export async function templatesCommand(options: TemplatesOptions): Promise<void>
     const templatesDir = path.join(schemaDir, 'templates');
     const templates: TemplateInfo[] = graph.getAllArtifacts().map((artifact) => {
       const templatePath = path.join(templatesDir, artifact.template);
-      FileSystemUtils.assertPathWithin(templatesDir, templatePath);
-      return {
-        artifactId: artifact.id,
-        templatePath: FileSystemUtils.canonicalizeExistingPath(templatePath),
-        source,
-      };
+      try {
+        FileSystemUtils.assertPathWithin(templatesDir, templatePath);
+        return {
+          artifactId: artifact.id,
+          templatePath: FileSystemUtils.canonicalizeExistingPath(templatePath),
+          source,
+        };
+      } catch {
+        throw new Error(
+          `Template '${artifact.template}' for artifact '${artifact.id}' points outside the schema templates directory`
+        );
+      }
     });
 
     spinner?.stop();

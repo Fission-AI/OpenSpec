@@ -241,8 +241,15 @@ async function moveDirectory(src: string, dest: string): Promise<void> {
   } catch (err: any) {
     const code = err?.code;
     if (code === 'EPERM' || code === 'EXDEV') {
-      await copyDirRecursive(src, dest);
-      await fs.rm(src, { recursive: true, force: true });
+      const sourceStat = await fs.lstat(src);
+      if (sourceStat.isSymbolicLink()) {
+        await fs.mkdir(path.dirname(dest), { recursive: true });
+        await fs.symlink(await fs.readlink(src), dest);
+        await fs.unlink(src);
+      } else {
+        await copyDirRecursive(src, dest);
+        await fs.rm(src, { recursive: true, force: true });
+      }
     } else {
       throw err;
     }

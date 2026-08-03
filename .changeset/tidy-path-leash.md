@@ -2,4 +2,4 @@
 "@fission-ai/openspec": patch
 ---
 
-Keep custom schema paths inside their intended directories, and preserve symlinks when archive falls back to copying a change.
+Keep schema and archive paths in their intended yards without breaking linked monorepo workflows.

@@ -139,6 +139,39 @@ describe('ArchiveCommand', () => {
       expect(await fs.readlink(archivedLink)).toBe(outsideFile);
     });
 
+    it('preserves a linked change during the cross-device archive fallback', async () => {
+      if (process.platform === 'win32') return;
+
+      const changeName = 'linked-change';
+      const realChangeDir = path.join(tempDir, 'shared-change');
+      const linkedChangeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(realChangeDir);
+      await fs.writeFile(path.join(realChangeDir, 'tasks.md'), '- [x] Task 1\n');
+      await fs.symlink(realChangeDir, linkedChangeDir);
+
+      const rename = vi.spyOn(fs, 'rename').mockRejectedValueOnce(
+        Object.assign(new Error('cross-device move'), { code: 'EXDEV' })
+      );
+      try {
+        await archiveCommand.execute(changeName, {
+          yes: true,
+          noValidate: true,
+          skipSpecs: true,
+        });
+      } finally {
+        rename.mockRestore();
+      }
+
+      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const [archiveName] = await fs.readdir(archiveDir);
+      const archivedChange = path.join(archiveDir, archiveName);
+      expect((await fs.lstat(archivedChange)).isSymbolicLink()).toBe(true);
+      expect(await fs.readlink(archivedChange)).toBe(realChangeDir);
+      await expect(fs.readFile(path.join(realChangeDir, 'tasks.md'), 'utf8')).resolves.toContain(
+        'Task 1'
+      );
+    });
+
     it('rejects a change name that escapes the changes directory', async () => {
       const outsideDir = path.join(tempDir, 'outside-change');
       await fs.mkdir(outsideDir, { recursive: true });
@@ -176,6 +209,31 @@ describe('ArchiveCommand', () => {
       ).rejects.toThrow(/outside the OpenSpec root/u);
       await expect(fs.access(changeDir)).resolves.not.toThrow();
       await expect(fs.readdir(outsideDir)).resolves.toEqual([]);
+    });
+
+    it('archives normally when the project root is reached through a symlink alias', async () => {
+      if (process.platform === 'win32') return;
+
+      const aliasPath = path.join(tempDir, 'project-alias');
+      const changeName = 'aliased-root';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir);
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1\n');
+      await fs.symlink(tempDir, aliasPath);
+
+      process.chdir(aliasPath);
+      try {
+        await archiveCommand.execute(changeName, {
+          yes: true,
+          noValidate: true,
+          skipSpecs: true,
+        });
+      } finally {
+        process.chdir(tempDir);
+      }
+
+      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      await expect(fs.readdir(archiveDir)).resolves.toHaveLength(1);
     });
 
     it('should use the process local date across a UTC date boundary', async () => {
