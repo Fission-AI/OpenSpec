@@ -156,16 +156,34 @@ describe('propose implementation boundary', () => {
 describe('propose schema selection', () => {
   // #770: the CLI and new workflow already accept an explicit schema, but
   // propose used to discard that request and always create with the default.
-  it('honors an explicitly requested workflow schema before creating the change (#770)', () => {
+  it('shows both concrete creation forms after an explicit schema choice (#770)', () => {
     for (const [label, body] of proposeBodies) {
       const schemaStep = body.indexOf('**Determine the workflow schema**');
       const createStep = body.indexOf('**Create the change directory**');
+      const statusStep = body.indexOf('**Get the artifact build order**');
 
       expect(schemaStep, `${label} is missing schema selection`).toBeGreaterThanOrEqual(0);
       expect(createStep, `${label} is missing change creation`).toBeGreaterThan(schemaStep);
-      expect(body, label).toContain('openspec schemas --json');
-      expect(body, label).toContain('Add `--schema <name>` only if the user requested a specific workflow');
+      expect(statusStep, `${label} is missing status lookup`).toBeGreaterThan(createStep);
+
+      const createSection = body.slice(createStep, statusStep);
+      expect(createSection, label).toContain('openspec new change "<name>"');
+      expect(createSection, label).toContain(
+        'openspec new change "<name>" --schema "<schema-name>"'
+      );
+      expect(createSection, label).toContain('Run exactly one of these commands');
+      expect(body, label).toContain('Explicitly requests a specific schema by name');
       expect(body, label).toContain('Otherwise, omit `--schema` to preserve the configured default');
+    }
+  });
+
+  it('discovers schemas from the selected project or store root', () => {
+    for (const [label, body] of proposeBodies) {
+      expect(body, label).toContain('run `openspec schemas --json` with its working directory');
+      expect(body, label).toContain(
+        'use the store `root` returned by `openspec store list --json`'
+      );
+      expect(body, label).toContain('`schemas` does not accept `--store`');
     }
   });
 });

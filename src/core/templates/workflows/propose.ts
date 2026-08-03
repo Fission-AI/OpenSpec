@@ -46,17 +46,25 @@ ${STORE_SELECTION_GUIDANCE}
 
    Use the configured default schema unless the user explicitly requests a different workflow.
 
-   **Use a different schema only if the user mentions:**
-   - A specific schema name → use \`--schema <name>\`
-   - "show workflows" or "what workflows" → run \`openspec schemas --json\` and let them choose
+   **Use a different schema only if the user:**
+   - Explicitly requests a specific schema by name → use \`--schema <schema-name>\`
+   - Asks to "show workflows" or asks "what workflows" exist → identify the selected project or store root, then run \`openspec schemas --json\` with its working directory set to that root (the directory containing \`openspec/\`) and let them choose. For a registered store, use the store \`root\` returned by \`openspec store list --json\`; \`schemas\` does not accept \`--store\`
 
    Otherwise, omit \`--schema\` to preserve the configured default.
 
 3. **Create the change directory**
+
+   Run exactly one of these commands.
+
+   Using the configured default:
    \`\`\`bash
    openspec new change "<name>"
    \`\`\`
-   Add \`--schema <name>\` only if the user requested a specific workflow.
+
+   Using an explicitly requested schema:
+   \`\`\`bash
+   openspec new change "<name>" --schema "<schema-name>"
+   \`\`\`
    This creates a scaffolded change in the planning home resolved by the CLI with \`.openspec.yaml\`.
 
 4. **Get the artifact build order**
@@ -185,17 +193,25 @@ ${STORE_SELECTION_GUIDANCE}
 
    Use the configured default schema unless the user explicitly requests a different workflow.
 
-   **Use a different schema only if the user mentions:**
-   - A specific schema name → use \`--schema <name>\`
-   - "show workflows" or "what workflows" → run \`openspec schemas --json\` and let them choose
+   **Use a different schema only if the user:**
+   - Explicitly requests a specific schema by name → use \`--schema <schema-name>\`
+   - Asks to "show workflows" or asks "what workflows" exist → identify the selected project or store root, then run \`openspec schemas --json\` with its working directory set to that root (the directory containing \`openspec/\`) and let them choose. For a registered store, use the store \`root\` returned by \`openspec store list --json\`; \`schemas\` does not accept \`--store\`
 
    Otherwise, omit \`--schema\` to preserve the configured default.
 
 3. **Create the change directory**
+
+   Run exactly one of these commands.
+
+   Using the configured default:
    \`\`\`bash
    openspec new change "<name>"
    \`\`\`
-   Add \`--schema <name>\` only if the user requested a specific workflow.
+
+   Using an explicitly requested schema:
+   \`\`\`bash
+   openspec new change "<name>" --schema "<schema-name>"
+   \`\`\`
    This creates a scaffolded change in the planning home resolved by the CLI with \`.openspec.yaml\`.
 
 4. **Get the artifact build order**
