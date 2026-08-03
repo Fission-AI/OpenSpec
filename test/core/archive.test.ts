@@ -157,6 +157,58 @@ describe('ArchiveCommand', () => {
       );
     });
 
+    it('does not discard an artifact changed during the fallback copy', async () => {
+      const changeName = 'fallback-artifact-race';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const tasksPath = path.join(changeDir, 'tasks.md');
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(tasksPath, '- [x] Original task\n');
+
+      const realRename = fs.rename.bind(fs);
+      const realCopyFile = fs.copyFile.bind(fs);
+      onTestFinished(() => vi.restoreAllMocks());
+      vi.spyOn(fs, 'rename').mockImplementation(async (source, destination) => {
+        if (
+          String(source).endsWith(`${path.sep}changes${path.sep}${changeName}`) &&
+          String(destination).includes(`${path.sep}changes${path.sep}archive${path.sep}`)
+        ) {
+          throw Object.assign(new Error('cross-device move'), { code: 'EXDEV' });
+        }
+        return realRename(source, destination);
+      });
+      let edited = false;
+      vi.spyOn(fs, 'copyFile').mockImplementation(async (source, destination, mode) => {
+        await realCopyFile(source, destination, mode);
+        if (
+          !edited &&
+          String(source).includes(`${changeName}.openspec-move-`) &&
+          String(source).endsWith(`${path.sep}tasks.md`)
+        ) {
+          edited = true;
+          await fs.appendFile(source, '- [x] Concurrent task\n');
+        }
+      });
+
+      await expect(
+        archiveCommand.execute(changeName, { yes: true, skipSpecs: true })
+      ).rejects.toThrow(/changed during the fallback copy/);
+
+      expect(edited).toBe(true);
+      await expect(fs.readFile(tasksPath, 'utf-8')).resolves.toContain('Concurrent task');
+      await expect(fs.access(changeDir)).resolves.not.toThrow();
+      await expect(
+        fs.access(
+          path.join(
+            tempDir,
+            'openspec',
+            'changes',
+            'archive',
+            `${formatLocalDate()}-${changeName}`
+          )
+        )
+      ).rejects.toThrow();
+    });
+
     it('should use the process local date across a UTC date boundary', async () => {
       process.env.TZ = 'Asia/Shanghai';
       vi.useFakeTimers();

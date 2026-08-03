@@ -1,4 +1,4 @@
-import { constants, promises as fs } from 'fs';
+import { constants, createReadStream, promises as fs } from 'fs';
 import { createHash, randomUUID } from 'crypto';
 import path from 'path';
 import { formatLocalDate } from '../utils/date.js';
@@ -325,6 +325,94 @@ async function copyDirContents(src: string, dest: string): Promise<void> {
   }
 }
 
+async function fingerprintDirectoryContents(root: string): Promise<string> {
+  const hash = createHash('sha256');
+  const updateHashField = (label: string, value: string | Buffer): void => {
+    const labelBuffer = Buffer.from(label);
+    const valueBuffer = typeof value === 'string' ? Buffer.from(value) : value;
+    const lengths = Buffer.allocUnsafe(16);
+    lengths.writeBigUInt64BE(BigInt(labelBuffer.length), 0);
+    lengths.writeBigUInt64BE(BigInt(valueBuffer.length), 8);
+    hash.update(lengths);
+    hash.update(labelBuffer);
+    hash.update(valueBuffer);
+  };
+  const fingerprintFile = async (filePath: string): Promise<Buffer> => {
+    const fileHash = createHash('sha256');
+    for await (const chunk of createReadStream(filePath)) {
+      fileHash.update(chunk);
+    }
+    return fileHash.digest();
+  };
+
+  const visit = async (dir: string, relativeDir: string): Promise<void> => {
+    const before = await fs.lstat(dir, { bigint: true });
+    if (!before.isDirectory()) {
+      throw new Error(`Expected a directory while verifying ${dir}.`);
+    }
+    const entries = (await fs.readdir(dir, { withFileTypes: true })).sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
+
+    for (const entry of entries) {
+      const entryPath = path.join(dir, entry.name);
+      const relativePath = path.join(relativeDir, entry.name);
+      const stat = await fs.lstat(entryPath, { bigint: true });
+      updateHashField('path', relativePath);
+
+      if (stat.isDirectory()) {
+        updateHashField('type', 'directory');
+        await visit(entryPath, relativePath);
+      } else if (stat.isSymbolicLink()) {
+        const target = await fs.readlink(entryPath);
+        const after = await fs.lstat(entryPath, { bigint: true });
+        if (statIdentity(stat) !== statIdentity(after)) {
+          throw new Error(`Path changed while archive was reading ${entryPath}.`);
+        }
+        updateHashField('type', 'symlink');
+        updateHashField('target', target);
+      } else if (stat.isFile()) {
+        const contentFingerprint = await fingerprintFile(entryPath);
+        const after = await fs.lstat(entryPath, { bigint: true });
+        if (statIdentity(stat) !== statIdentity(after)) {
+          throw new Error(`Path changed while archive was reading ${entryPath}.`);
+        }
+        updateHashField('type', 'file');
+        updateHashField('content-sha256', contentFingerprint);
+      } else {
+        updateHashField('type', 'other');
+        updateHashField('mode', stat.mode.toString());
+        updateHashField('size', stat.size.toString());
+      }
+    }
+
+    const after = await fs.lstat(dir, { bigint: true });
+    if (statIdentity(before) !== statIdentity(after)) {
+      throw new Error(`Directory changed while archive was reading ${dir}.`);
+    }
+  };
+
+  await visit(root, '');
+  return hash.digest('hex');
+}
+
+async function assertCopiedDirectoryUnchanged(
+  stagedSource: string,
+  destination: string,
+  expectedFingerprint: string
+): Promise<void> {
+  const sourceFingerprint = await fingerprintDirectoryContents(stagedSource);
+  const destinationFingerprint = await fingerprintDirectoryContents(destination);
+  if (
+    sourceFingerprint !== expectedFingerprint ||
+    destinationFingerprint !== expectedFingerprint
+  ) {
+    throw new Error(
+      `Change directory contents changed during the fallback copy from ${stagedSource} to ${destination}.`
+    );
+  }
+}
+
 /**
  * Move a directory from src to dest. On Windows, fs.rename() often fails with
  * EPERM when the directory is non-empty or another process has it open (IDE,
@@ -364,11 +452,14 @@ async function moveDirectory(
         );
       }
       let destIsOurs = false;
+      let stagedFingerprint: string;
       try {
+        stagedFingerprint = await fingerprintDirectoryContents(stagedSource);
         await fs.mkdir(dest);
         destIsOurs = true;
         await copyDirContents(stagedSource, dest);
         await options.verifyCopiedDestination?.(stagedSource);
+        await assertCopiedDirectoryUnchanged(stagedSource, dest, stagedFingerprint);
       } catch (copyError) {
         if (destIsOurs) {
           await fs.rm(dest, { recursive: true, force: true }).catch(() => undefined);
@@ -392,6 +483,21 @@ async function moveDirectory(
       }
       try {
         await options.verifyCopiedDestination?.(stagedSource);
+        await assertCopiedDirectoryUnchanged(stagedSource, dest, stagedFingerprint);
+      } catch (verificationError) {
+        await fs.rm(dest, { recursive: true, force: true }).catch(() => undefined);
+        try {
+          await fs.rename(stagedSource, src);
+        } catch (restoreError) {
+          throw new Error(
+            `${verificationError instanceof Error ? verificationError.message : String(verificationError)} ` +
+              `Could not restore the staged source at ${stagedSource} ` +
+              `(${restoreError instanceof Error ? restoreError.message : String(restoreError)}).`
+          );
+        }
+        throw verificationError;
+      }
+      try {
         await fs.rm(stagedSource, { recursive: true, force: true });
       } catch (cleanupError) {
         // Recursive removal may already have deleted part of the source. The
