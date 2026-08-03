@@ -33,7 +33,7 @@ describe('update-change templates', () => {
       expect(body, label).toContain(STORE_SELECTION_GUIDANCE);
       expect(body, label).toContain('openspec list --json');
       expect(body, label).toContain('openspec status --change "<name>" --json');
-      expect(body, label).toContain('openspec instructions <artifact-id> --change "<name>" --json');
+      expect(body, label).toContain('openspec instructions "<artifact-id>" --change "<name>" --json');
     }
   });
 
@@ -90,7 +90,7 @@ describe('update-change templates', () => {
         'If it is unavailable, `openspec status --change "<name>" --json` shows the next artifact'
       );
       expect(body, label).toContain(
-        '`openspec instructions <artifact-id> --change "<name>" --json` explains how to create it'
+        '`openspec instructions "<artifact-id>" --change "<name>" --json` explains how to create it'
       );
     }
   });
@@ -101,6 +101,14 @@ describe('update-change templates', () => {
       expect(body, label).toContain('If the user rejects a revision, do not write it');
       expect(body, label).toContain('recommend starting fresh with `/opsx:new`');
       expect(body, label).toContain('Update vs. Start Fresh');
+      expect(body, label).toContain('openspec new change "<name>"');
+
+      const newAvailabilityCheck = body.indexOf(
+        'first verify whether the expanded-profile `/opsx:new` workflow is available'
+      );
+      const newRecommendation = body.indexOf('recommend starting fresh with `/opsx:new`');
+      expect(newAvailabilityCheck, label).toBeGreaterThanOrEqual(0);
+      expect(newRecommendation, label).toBeGreaterThan(newAvailabilityCheck);
     }
   });
 });
