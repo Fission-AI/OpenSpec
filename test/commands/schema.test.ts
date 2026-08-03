@@ -315,6 +315,7 @@ artifacts:
       expect(JSON.parse(output as string).error).toContain(
         'Cannot fork schema with linked or unsupported entry'
       );
+      expect(JSON.parse(output as string).error).toContain('Path is outside the allowed directory');
     });
 
     it('should dereference a confined template link into an independent fork', async () => {

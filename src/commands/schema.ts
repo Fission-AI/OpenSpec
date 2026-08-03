@@ -250,8 +250,12 @@ function resolveSchemaCopyPath(allowedRoot: string, sourcePath: string): string 
     const canonicalPath = fs.realpathSync(sourcePath);
     FileSystemUtils.assertPathWithin(canonicalRoot, canonicalPath);
     return canonicalPath;
-  } catch {
-    throw new Error(`Cannot fork schema with linked or unsupported entry: ${sourcePath}`);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Cannot fork schema with linked or unsupported entry: ${sourcePath}: ${detail}`,
+      { cause: error }
+    );
   }
 }
 
