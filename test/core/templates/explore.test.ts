@@ -65,4 +65,49 @@ describe('explore templates', () => {
       );
     }
   });
+
+  it('scaffolds a new change before capturing exploration artifacts (#668, #720)', () => {
+    for (const [label, body] of bodies) {
+      expect(body, label).toContain('openspec new change "<name>"');
+      expect(body, label).toContain(
+        'Never create a new change directory under `openspec/changes/` by hand'
+      );
+      expect(body, label).toContain('`.openspec.yaml`');
+      expect(body, label).not.toContain(
+        'Never create files or directories directly under `openspec/changes/`'
+      );
+    }
+  });
+
+  it('continues an accepted transition through the requested artifact (#668)', () => {
+    for (const [label, body] of bodies) {
+      expect(body, label).toContain('openspec status --change "<name>" --json');
+      expect(body, label).toContain(
+        'openspec instructions "<artifact-id>" --change "<name>" --json'
+      );
+      expect(body, label).toContain('Capture the artifact(s) the user requested');
+      expect(body, label).toContain('without asking them to invoke another workflow command');
+      expect(body, label).toContain('process the requested artifacts in dependency order');
+      expect(body, label).toContain(
+        'After creating each artifact, re-run `openspec status --change "<name>" --json`'
+      );
+      expect(body, label).toContain(
+        'If the instruction delegates creation to a specific skill or command'
+      );
+      expect(body, label).toContain('Verify that the selected concrete output exists');
+    }
+  });
+
+  it('keeps the scaffold requirement at the new-change transition (#720)', () => {
+    for (const [label, body] of bodies) {
+      const noChange = body.indexOf('### When no change exists');
+      const existingChange = body.indexOf('### When a change exists');
+      const scaffold = body.indexOf('openspec new change "<name>"');
+
+      expect(noChange, label).toBeGreaterThanOrEqual(0);
+      expect(existingChange, label).toBeGreaterThan(noChange);
+      expect(scaffold, label).toBeGreaterThan(noChange);
+      expect(scaffold, label).toBeLessThan(existingChange);
+    }
+  });
 });
