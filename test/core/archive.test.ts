@@ -3321,14 +3321,12 @@ The system SHALL log all events.`;
       const changeSpecDir = path.join(changeDir, 'specs', 'bad-capability');
       await fs.mkdir(changeSpecDir, { recursive: true });
 
-      // Delta spec missing required SHALL/MUST keyword -> validation error
+      // Delta spec missing requirement text -> validation error
       const specContent = `# Bad Capability - Changes
 
 ## ADDED Requirements
 
 ### Requirement: Logging Feature
-
-The system will log all events.
 
 #### Scenario: Event recorded
 - **WHEN** an event occurs
