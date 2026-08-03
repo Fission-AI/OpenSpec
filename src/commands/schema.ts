@@ -305,6 +305,8 @@ export function registerSchemaCommand(program: Command): void {
     .command('which [name]')
     .description('Show where a schema resolves from')
     .option('--json', 'Output as JSON')
+    .option('--json-pretty', 'Output as formatted JSON')
+    .option('--toon', 'Output in TOON format')
     .option('--all', 'List all schemas with their resolution sources')
     .action(async (name?: string, options?: { json?: boolean; all?: boolean; format?: OutputFormat }) => {
       try {
@@ -407,6 +409,8 @@ export function registerSchemaCommand(program: Command): void {
     .command('validate [name]')
     .description('Validate a schema structure and templates')
     .option('--json', 'Output as JSON')
+    .option('--json-pretty', 'Output as formatted JSON')
+    .option('--toon', 'Output in TOON format')
     .option('--verbose', 'Show detailed validation steps')
     .action(async (name?: string, options?: { json?: boolean; verbose?: boolean; format?: OutputFormat }) => {
       try {
@@ -552,6 +556,8 @@ export function registerSchemaCommand(program: Command): void {
     .command('fork <source> [name]')
     .description('Copy an existing schema to project for customization')
     .option('--json', 'Output as JSON')
+    .option('--json-pretty', 'Output as formatted JSON')
+    .option('--toon', 'Output in TOON format')
     .option('--force', 'Overwrite existing destination')
     .action(async (source: string, name?: string, options?: { json?: boolean; force?: boolean; format?: OutputFormat }) => {
       const spinner = options?.json ? null : ora();
@@ -669,6 +675,8 @@ export function registerSchemaCommand(program: Command): void {
     .command('init <name>')
     .description('Create a new project-local schema')
     .option('--json', 'Output as JSON')
+    .option('--json-pretty', 'Output as formatted JSON')
+    .option('--toon', 'Output in TOON format')
     .option('--description <text>', 'Schema description')
     .option('--artifacts <list>', 'Comma-separated artifact IDs (proposal,specs,design,tasks)')
     .option('--default', 'Set as project default schema')

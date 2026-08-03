@@ -140,6 +140,8 @@ export function registerSpecCommand(rootProgram: typeof program) {
     .command('show [spec-id]')
     .description('Display a specific specification')
     .option('--json', 'Output as JSON')
+    .option('--json-pretty', 'Output as formatted JSON')
+    .option('--toon', 'Output in TOON format')
     .option('--requirements', 'JSON only: Show only requirements (exclude scenarios)')
     .option('--no-scenarios', 'JSON only: Exclude scenario content')
     .option('-r, --requirement <id>', 'JSON only: Show specific requirement by ID (1-based)')
@@ -158,6 +160,8 @@ export function registerSpecCommand(rootProgram: typeof program) {
     .command('list')
     .description('List all available specifications')
     .option('--json', 'Output as JSON')
+    .option('--json-pretty', 'Output as formatted JSON')
+    .option('--toon', 'Output in TOON format')
     .option('--long', 'Show id and title with counts')
     .action(async (options: { json?: boolean; long?: boolean; format?: OutputFormat }) => {
       try {
@@ -213,6 +217,8 @@ export function registerSpecCommand(rootProgram: typeof program) {
     .description('Validate a specification structure')
     .option('--strict', 'Enable strict validation mode')
     .option('--json', 'Output validation report as JSON')
+    .option('--json-pretty', 'Output as formatted JSON')
+    .option('--toon', 'Output in TOON format')
     .option('--no-interactive', 'Disable interactive prompts')
     .action(async (specId: string | undefined, options: { strict?: boolean; json?: boolean; noInteractive?: boolean; format?: OutputFormat }) => {
       try {

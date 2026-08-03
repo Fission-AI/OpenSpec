@@ -61,6 +61,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         values: ['recent', 'name'],
       },
       COMMON_FLAGS.json,
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
       COMMON_FLAGS.store,
     ],
   },
@@ -93,6 +95,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
       COMMON_FLAGS.type,
       COMMON_FLAGS.strict,
       COMMON_FLAGS.jsonValidation,
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
       {
         name: 'concurrency',
         description: 'Max concurrent validations (defaults to env OPENSPEC_CONCURRENCY or 6)',
@@ -110,6 +114,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     positionals: [{ name: 'item-name', type: 'change-or-spec-id', optional: true }],
     flags: [
       COMMON_FLAGS.json,
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
       COMMON_FLAGS.type,
       COMMON_FLAGS.noInteractive,
       {
@@ -161,6 +167,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         name: 'json',
         description: 'Output as JSON (non-interactive)',
       },
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
       COMMON_FLAGS.store,
     ],
   },
@@ -179,6 +187,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         takesValue: true,
       },
       COMMON_FLAGS.json,
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
       COMMON_FLAGS.store,
     ],
   },
@@ -199,6 +209,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         takesValue: true,
       },
       COMMON_FLAGS.json,
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
       COMMON_FLAGS.store,
     ],
   },
@@ -212,6 +224,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         takesValue: true,
       },
       COMMON_FLAGS.json,
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
     ],
   },
   {
@@ -219,6 +233,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     description: 'List available workflow schemas with descriptions',
     flags: [
       COMMON_FLAGS.json,
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
     ],
   },
   {
@@ -248,6 +264,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             takesValue: true,
           },
           COMMON_FLAGS.json,
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
           COMMON_FLAGS.store,
         ],
       },
@@ -284,6 +302,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             takesValue: true,
           },
           COMMON_FLAGS.json,
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
         ],
       },
       {
@@ -302,6 +322,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             description: 'Confirm creating store identity metadata',
           },
           COMMON_FLAGS.json,
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
         ],
       },
       {
@@ -311,6 +333,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         positionals: [{ name: 'id' }],
         flags: [
           COMMON_FLAGS.json,
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
         ],
       },
       {
@@ -324,6 +348,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             description: 'Confirm local store folder deletion',
           },
           COMMON_FLAGS.json,
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
         ],
       },
       {
@@ -331,6 +357,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         description: 'List registered stores',
         flags: [
           COMMON_FLAGS.json,
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
         ],
       },
       {
@@ -338,6 +366,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         description: 'List registered stores',
         flags: [
           COMMON_FLAGS.json,
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
         ],
       },
       {
@@ -347,6 +377,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         positionals: [{ name: 'id', optional: true }],
         flags: [
           COMMON_FLAGS.json,
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
         ],
       },
     ],
@@ -356,6 +388,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     description: 'Print the working context for the resolved OpenSpec root',
     flags: [
       COMMON_FLAGS.json,
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
       COMMON_FLAGS.store,
       {
         name: 'code-workspace',
@@ -373,6 +407,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     description: 'Report relationship health for the resolved OpenSpec root',
     flags: [
       COMMON_FLAGS.json,
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
       COMMON_FLAGS.store,
     ],
   },
@@ -399,17 +435,19 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             takesValue: true,
           },
           COMMON_FLAGS.json,
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
         ],
       },
       {
         name: 'list',
         description: 'Show saved worksets with their members',
-        flags: [COMMON_FLAGS.json],
+        flags: [COMMON_FLAGS.json, COMMON_FLAGS.jsonPretty, COMMON_FLAGS.toon],
       },
       {
         name: 'ls',
         description: 'Show saved worksets with their members',
-        flags: [COMMON_FLAGS.json],
+        flags: [COMMON_FLAGS.json, COMMON_FLAGS.jsonPretty, COMMON_FLAGS.toon],
       },
       {
         name: 'open',
@@ -436,6 +474,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             description: 'Confirm removal non-interactively',
           },
           COMMON_FLAGS.json,
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
         ],
       },
     ],
@@ -466,6 +506,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         positionals: [{ name: 'change-name', type: 'change-id', optional: true }],
         flags: [
           COMMON_FLAGS.json,
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
           {
             name: 'deltas-only',
             description: 'Show only deltas (JSON only)',
@@ -482,6 +524,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         description: 'List all active changes (deprecated)',
         flags: [
           COMMON_FLAGS.json,
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
           {
             name: 'long',
             description: 'Show id and title with counts',
@@ -497,6 +541,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         flags: [
           COMMON_FLAGS.strict,
           COMMON_FLAGS.jsonValidation,
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
           COMMON_FLAGS.noInteractive,
         ],
       },
@@ -515,6 +561,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         positionals: [{ name: 'spec-id', type: 'spec-id', optional: true }],
         flags: [
           COMMON_FLAGS.json,
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
           {
             name: 'requirements',
             description: 'Show only requirements, exclude scenarios (JSON only)',
@@ -537,6 +585,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         description: 'List all specifications',
         flags: [
           COMMON_FLAGS.json,
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
           {
             name: 'long',
             description: 'Show id and title with counts',
@@ -552,6 +602,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         flags: [
           COMMON_FLAGS.strict,
           COMMON_FLAGS.jsonValidation,
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
           COMMON_FLAGS.noInteractive,
         ],
       },
@@ -621,6 +673,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         description: 'Show all current settings',
         flags: [
           COMMON_FLAGS.json,
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
         ],
       },
       {
@@ -695,6 +749,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         positionals: [{ name: 'name', type: 'schema-name', optional: true }],
         flags: [
           COMMON_FLAGS.json,
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
           {
             name: 'all',
             description: 'List all schemas with their resolution sources',
@@ -709,6 +765,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         positionals: [{ name: 'name', type: 'schema-name', optional: true }],
         flags: [
           COMMON_FLAGS.json,
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
           {
             name: 'verbose',
             description: 'Show detailed validation steps',
@@ -726,6 +784,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         ],
         flags: [
           COMMON_FLAGS.json,
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
           {
             name: 'force',
             description: 'Overwrite existing destination',
@@ -739,6 +799,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         positionals: [{ name: 'name' }],
         flags: [
           COMMON_FLAGS.json,
+      COMMON_FLAGS.jsonPretty,
+      COMMON_FLAGS.toon,
           {
             name: 'description',
             description: 'Schema description',

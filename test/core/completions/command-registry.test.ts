@@ -208,6 +208,8 @@ describe('command completion registry', () => {
       'goal',
       'schema',
       'json',
+      'json-pretty',
+      'toon',
       'store',
     ]);
 
@@ -248,12 +250,16 @@ describe('command completion registry', () => {
       'no-init-git',
       'remote',
       'json',
+      'json-pretty',
+      'toon',
     ]);
 
     const remove = store?.subcommands?.find((entry) => entry.name === 'remove');
     expect(remove?.flags.map((flag) => flag.name)).toEqual([
       'yes',
       'json',
+      'json-pretty',
+      'toon',
     ]);
   });
 });

@@ -195,6 +195,8 @@ export function registerDoctorCommand(program: Command): void {
       new Option('--store-path <path>', 'Removed; register the store and use --store').hideHelp()
     )
     .option('--json', 'Output as JSON')
+    .option('--json-pretty', 'Output as formatted JSON')
+    .option('--toon', 'Output in TOON format')
     .action(async (options: { store?: string; storePath?: string; json?: boolean }) => {
       try {
         const root = await resolveRootForCommand(

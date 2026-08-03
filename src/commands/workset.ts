@@ -580,6 +580,8 @@ export function registerWorksetCommand(program: Command): void {
     )
     .option('--tool <id>', 'Preferred tool to open this workset with')
     .option('--json', 'Output as JSON')
+    .option('--json-pretty', 'Output as formatted JSON')
+    .option('--toon', 'Output in TOON format')
     .action(async (name: string | undefined, _options: WorksetCreateOptions, command: Command) => {
       await worksetCommand.create(name, command.optsWithGlobals());
     });
@@ -589,6 +591,8 @@ export function registerWorksetCommand(program: Command): void {
     .alias('ls')
     .description('Show saved worksets with their members')
     .option('--json', 'Output as JSON')
+    .option('--json-pretty', 'Output as formatted JSON')
+    .option('--toon', 'Output in TOON format')
     .action(async (_options: { json?: boolean }, command: Command) => {
       await worksetCommand.list(command.optsWithGlobals());
     });
@@ -612,6 +616,8 @@ export function registerWorksetCommand(program: Command): void {
     .description('Delete a saved workset (member folders are never touched)')
     .option('--yes', 'Confirm removal non-interactively')
     .option('--json', 'Output as JSON')
+    .option('--json-pretty', 'Output as formatted JSON')
+    .option('--toon', 'Output in TOON format')
     .action(async (name: string, _options: WorksetRemoveOptions, command: Command) => {
       await worksetCommand.remove(name, command.optsWithGlobals());
     });

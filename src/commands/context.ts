@@ -170,6 +170,8 @@ export function registerContextCommand(program: Command): void {
       new Option('--store-path <path>', 'Removed; register the store and use --store').hideHelp()
     )
     .option('--json', 'Output the agent brief as JSON')
+    .option('--json-pretty', 'Output as formatted JSON')
+    .option('--toon', 'Output in TOON format')
     .option('--code-workspace <path>', 'Also write a VS Code workspace file for the set')
     .option('--force', 'Overwrite an existing --code-workspace file')
     .action(

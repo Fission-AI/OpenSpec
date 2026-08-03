@@ -675,6 +675,8 @@ export function registerStoreCommand(program: Command): void {
     .option('--no-init-git', 'Skip every Git action: no init, no initial commit')
     .option('--remote <url>', 'Canonical clone source recorded in store.yaml')
     .option('--json', 'Output as JSON')
+    .option('--json-pretty', 'Output as formatted JSON')
+    .option('--toon', 'Output in TOON format')
     .action(async (id: string | undefined, options: StoreSetupOptions) => {
       await storeCommand.setup(id, options);
     });
@@ -685,6 +687,8 @@ export function registerStoreCommand(program: Command): void {
     .option('--id <id>', 'Store id; defaults to metadata or folder name')
     .option('--yes', 'Confirm creating store identity metadata for a healthy OpenSpec root')
     .option('--json', 'Output as JSON')
+    .option('--json-pretty', 'Output as formatted JSON')
+    .option('--toon', 'Output in TOON format')
     .action(async (inputPath: string | undefined, options: StoreRegisterOptions) => {
       await storeCommand.register(inputPath, options);
     });
@@ -693,6 +697,8 @@ export function registerStoreCommand(program: Command): void {
     .command('unregister <id>')
     .description('Forget a local store registration without deleting files')
     .option('--json', 'Output as JSON')
+    .option('--json-pretty', 'Output as formatted JSON')
+    .option('--toon', 'Output in TOON format')
     .action(async (id: string, options: StoreJsonOptions) => {
       await storeCommand.unregister(id, options);
     });
@@ -702,6 +708,8 @@ export function registerStoreCommand(program: Command): void {
     .description('Forget a local store registration and delete its local folder')
     .option('--yes', 'Confirm local store folder deletion')
     .option('--json', 'Output as JSON')
+    .option('--json-pretty', 'Output as formatted JSON')
+    .option('--toon', 'Output in TOON format')
     .action(async (id: string, options: StoreRemoveOptions) => {
       await storeCommand.remove(id, options);
     });
@@ -711,6 +719,8 @@ export function registerStoreCommand(program: Command): void {
     .alias('ls')
     .description('List locally registered stores')
     .option('--json', 'Output as JSON')
+    .option('--json-pretty', 'Output as formatted JSON')
+    .option('--toon', 'Output in TOON format')
     .action(async (options: StoreJsonOptions) => {
       await storeCommand.list(options);
     });
@@ -719,6 +729,8 @@ export function registerStoreCommand(program: Command): void {
     .command('doctor [id]')
     .description('Check local store registration and metadata')
     .option('--json', 'Output as JSON')
+    .option('--json-pretty', 'Output as formatted JSON')
+    .option('--toon', 'Output in TOON format')
     .action(async (id: string | undefined, options: StoreJsonOptions) => {
       await storeCommand.doctor(id, options);
     });

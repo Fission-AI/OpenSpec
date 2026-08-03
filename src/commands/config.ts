@@ -235,6 +235,8 @@ export function registerConfigCommand(program: Command): void {
     .command('list')
     .description('Show all current settings')
     .option('--json', 'Output as JSON')
+    .option('--json-pretty', 'Output as formatted JSON')
+    .option('--toon', 'Output in TOON format')
     .action((options: { json?: boolean; format?: OutputFormat }) => {
       const config = getGlobalConfig();
 

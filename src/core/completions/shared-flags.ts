@@ -4,6 +4,14 @@ import type { FlagDefinition } from './types.js';
  * Common flags used across multiple commands.
  */
 export const COMMON_FLAGS = {
+  jsonPretty: {
+    name: 'json-pretty',
+    description: 'Output as formatted JSON',
+  } as FlagDefinition,
+  toon: {
+    name: 'toon',
+    description: 'Output in TOON format',
+  } as FlagDefinition,
   json: {
     name: 'json',
     description: 'Output as JSON',
