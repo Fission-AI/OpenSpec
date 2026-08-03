@@ -62,6 +62,35 @@ The CLI SHALL append a Next steps footer when the item is invalid and not using 
 - **WHEN** a change validation fails
 - **THEN** print "Next steps" with 2-3 targeted bullets and suggest `openspec change show <id> --json --deltas-only`
 
+### Requirement: Change validation SHALL report scenarios a MODIFIED block would drop
+
+The `validate` command SHALL compare every `MODIFIED` requirement in a change against the main specs and report, as an error naming the delta file, each scenario the main spec still has that the `MODIFIED` block omits. A `MODIFIED` requirement replaces the whole requirement block, so archive refuses to apply one that drops a scenario; this is the same check, run without writing anything.
+
+The comparison SHALL match archive's operation order, comparing a `MODIFIED` that names the new header of a rename against the renamed requirement's scenarios.
+
+The check SHALL be silent when the main spec file or the requirement header is absent, because a `MODIFIED` written against a base that has not landed yet is a separate condition that archive gates. A main spec that exists but cannot be read SHALL be reported instead, since archive fails on it too.
+
+Validation run inside `openspec archive` SHALL NOT report these issues, because archive enforces the same check when it applies the deltas.
+
+#### Scenario: MODIFIED omits an existing scenario
+
+- **GIVEN** the main spec's requirement has scenarios "A" and "B"
+- **WHEN** a change MODIFIES that requirement with only scenario "A" and `openspec validate <change>` runs
+- **THEN** report an error naming the delta file and scenario "B"
+- **AND** exit with code 1
+
+#### Scenario: MODIFIED names the new header of a rename
+
+- **GIVEN** the main spec has requirement "A" with scenarios "S1" and "S2"
+- **WHEN** a change renames "A" to "B" and MODIFIES "B" with only scenario "S1"
+- **THEN** report an error naming scenario "S2"
+
+#### Scenario: MODIFIED header is not in the main spec
+
+- **GIVEN** a change MODIFIES a requirement header the main spec does not contain
+- **WHEN** `openspec validate <change>` runs
+- **THEN** do not report a dropped-scenario error for that requirement
+
 ### Requirement: Top-level validate command
 
 The CLI SHALL provide a top-level `validate` command for validating changes and specs with flexible selection options.

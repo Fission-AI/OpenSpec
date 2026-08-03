@@ -172,7 +172,7 @@ async function createSearchableMultiSelect(): Promise<
         const actualIndex = startIndex + i;
         const isActive = actualIndex === cursor;
         const selected = selectedSet.has(item.value);
-        const icon = selected ? chalk.green('◉') : chalk.dim('○');
+        const icon = selected ? chalk.green('[x]') : chalk.dim('[ ]');
         const arrow = isActive ? chalk.cyan('›') : ' ';
         const name = isActive ? chalk.cyan(item.name) : item.name;
         const isRefresh = selected && item.configured;

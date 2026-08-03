@@ -132,6 +132,17 @@ describe('artifact-graph workflow integration', () => {
   });
 
   describe('build order consistency', () => {
+    it('should follow the documented proposal -> specs -> design -> tasks sequence', () => {
+      // specs and design are siblings (both require only proposal). Ordering
+      // them alphabetically put design first, contradicting the schema's own
+      // documented sequence and sending agents to design before specs existed.
+      const schema = resolveSchema('spec-driven');
+      const graph = ArtifactGraph.fromSchema(schema);
+
+      expect(graph.getBuildOrder()).toEqual(['proposal', 'specs', 'design', 'tasks']);
+      expect(graph.getNextArtifacts(new Set(['proposal']))).toEqual(['specs', 'design']);
+    });
+
     it('should return consistent build order across multiple calls', () => {
       const schema = resolveSchema('spec-driven');
       const graph = ArtifactGraph.fromSchema(schema);

@@ -160,13 +160,19 @@ describe('InitCommand', () => {
       expect(await fileExists(skillFile)).toBe(true);
     });
 
-    it('should create skills in Windsurf skills directory', async () => {
+    it('should route the retired windsurf id to Devin Desktop', async () => {
+      // Windsurf was rebranded to Devin Desktop; `--tools windsurf` still
+      // resolves so an existing setup script keeps working, but it configures
+      // the current tool and writes the current directory.
       const initCommand = new InitCommand({ tools: 'windsurf', force: true });
 
       await initCommand.execute(testDir);
 
-      const skillFile = path.join(testDir, '.windsurf', 'skills', 'openspec-explore', 'SKILL.md');
+      const skillFile = path.join(testDir, '.devin', 'skills', 'openspec-explore', 'SKILL.md');
       expect(await fileExists(skillFile)).toBe(true);
+      expect(
+        await fileExists(path.join(testDir, '.windsurf', 'skills', 'openspec-explore', 'SKILL.md'))
+      ).toBe(false);
     });
 
     it('should generate ZCode skills and commands under .zcode without creating .agents', async () => {
@@ -193,8 +199,33 @@ describe('InitCommand', () => {
       expect(cmdContent).toContain('category:');
       expect(cmdContent).toContain('tags:');
 
-      // .agents is a detection-only root and must never be created during generation
+      // ZCode writes only to its own root; selecting it must never create another
+      // tool's root, including the shared .agents target.
       expect(await directoryExists(path.join(testDir, '.agents'))).toBe(false);
+    });
+
+    it('should support the shared agents target as an adapterless skills-only tool', async () => {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'both',
+      });
+
+      const initCommand = new InitCommand({ tools: 'agents', force: true });
+      await initCommand.execute(testDir);
+
+      const skillFile = path.join(testDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
+
+      const commandsDir = path.join(testDir, '.agents', 'commands');
+      expect(await directoryExists(commandsDir)).toBe(false);
+
+      const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+      expect(
+        logCalls.some(
+          (entry) => entry.includes('Commands skipped for: agents') && entry.includes('(no adapter)'),
+        ),
+      ).toBe(true);
     });
 
     it('should support Kimi Code as an adapterless skills-only tool', async () => {
@@ -361,12 +392,12 @@ describe('InitCommand', () => {
       const claudeSkill = path.join(testDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md');
       const codeArtsSkill = path.join(testDir, '.codeartsdoer', 'skills', 'openspec-explore', 'SKILL.md');
       const cursorSkill = path.join(testDir, '.cursor', 'skills', 'openspec-explore', 'SKILL.md');
-      const windsurfSkill = path.join(testDir, '.windsurf', 'skills', 'openspec-explore', 'SKILL.md');
+      const devinSkill = path.join(testDir, '.devin', 'skills', 'openspec-explore', 'SKILL.md');
 
       expect(await fileExists(claudeSkill)).toBe(true);
       expect(await fileExists(codeArtsSkill)).toBe(true);
       expect(await fileExists(cursorSkill)).toBe(true);
-      expect(await fileExists(windsurfSkill)).toBe(true);
+      expect(await fileExists(devinSkill)).toBe(true);
     });
 
     it('should skip tool configuration with --tools none option', async () => {
@@ -599,12 +630,42 @@ describe('InitCommand', () => {
       expect(content).toContain('prompt =');
     });
 
-    it('should generate Windsurf commands', async () => {
+    it('should generate Devin workflows for the retired windsurf id', async () => {
       const initCommand = new InitCommand({ tools: 'windsurf', force: true });
       await initCommand.execute(testDir);
 
-      const cmdFile = path.join(testDir, '.windsurf', 'workflows', 'opsx-explore.md');
+      const cmdFile = path.join(testDir, '.devin', 'workflows', 'opsx-explore.md');
       expect(await fileExists(cmdFile)).toBe(true);
+    });
+
+    it('should generate Devin Desktop workflows that reference the hyphen form Devin registers', async () => {
+      const initCommand = new InitCommand({ tools: 'devin', force: true });
+      await initCommand.execute(testDir);
+
+      const cmdFile = path.join(testDir, '.devin', 'workflows', 'opsx-apply.md');
+      expect(await fileExists(cmdFile)).toBe(true);
+
+      const content = await fs.readFile(cmdFile, 'utf-8');
+      expect(content).toMatch(/^---\nname: "/);
+      expect(content).toContain('category: "Workflow"');
+      // Devin discovers `.devin/workflows/opsx-apply.md` as `/opsx-apply`.
+      expect(content).toContain('/opsx-');
+      expect(content).not.toContain('/opsx:');
+    });
+
+    it('should generate Devin Desktop skills that reference skills, not workflows', async () => {
+      const initCommand = new InitCommand({ tools: 'devin', force: true });
+      await initCommand.execute(testDir);
+
+      // The Devin Local agent has no workflows, so skill bodies must point at
+      // `/openspec-*` skills, which both Devin agents accept.
+      const skillFile = path.join(testDir, '.devin', 'skills', 'openspec-apply-change', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
+
+      const content = await fs.readFile(skillFile, 'utf-8');
+      expect(content).toContain('/openspec-apply-change');
+      expect(content).not.toContain('/opsx:');
+      expect(content).not.toContain('/opsx-');
     });
 
     it('should generate Continue prompt files', async () => {
@@ -615,7 +676,7 @@ describe('InitCommand', () => {
       expect(await fileExists(cmdFile)).toBe(true);
 
       const content = await fs.readFile(cmdFile, 'utf-8');
-      expect(content).toContain('name: opsx-explore');
+      expect(content).toContain('name: "opsx-explore"');
       expect(content).toContain('invokable: true');
     });
 
@@ -899,7 +960,7 @@ describe('InitCommand - profile and detection features', () => {
     expect(showWelcomeScreenMock).toHaveBeenCalled();
     // The welcome screen must be handed the profile's workflows, otherwise it
     // advertises commands this profile never installs.
-    expect(showWelcomeScreenMock).toHaveBeenCalledWith(['explore', 'new']);
+    expect(showWelcomeScreenMock).toHaveBeenCalledWith(['explore', 'new'], { animate: true });
     expect(confirmMock).not.toHaveBeenCalled();
 
     const exploreSkill = path.join(testDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md');
@@ -1024,26 +1085,57 @@ describe('InitCommand - profile and detection features', () => {
     }
   });
 
-  it('should print a syntax-neutral hint for codex (skills-invocable, no slash surface)', async () => {
-    // Codex has no slash-command surface: docs direct users to
-    // .codex/skills/openspec-*, so the hint must not advertise a slash form
+  it('should print the $-prefixed skill hint for codex (skills-invocable, no slash surface)', async () => {
+    // Codex has no slash-command surface: it invokes skills as $<name>, so the
+    // hint - and the generated skills - must use that form, never /opsx:*
     const initCommand = new InitCommand({ tools: 'codex', force: true });
     await initCommand.execute(testDir);
 
-    // Codex skill generation itself is deliberately untouched by #1155
-    // (codex reference rewriting is owned by a separate change)
     const skillFile = path.join(testDir, '.codex', 'skills', 'openspec-apply-change', 'SKILL.md');
     expect(await fileExists(skillFile)).toBe(true);
+    const skillContent = await fs.readFile(skillFile, 'utf-8');
+    expect(skillContent).not.toContain('/opsx:');
+    expect(skillContent).toContain('$openspec-');
 
     const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
     const startHint = logCalls.find((entry) => entry.includes('Start your first change'));
-    expect(startHint).toContain('with the openspec-propose skill');
+    expect(startHint).toContain('$openspec-propose');
     expect(startHint).not.toContain('/openspec-propose');
     expect(startHint).not.toContain('/opsx:propose');
 
     // No slash commands were generated, so the restart line must not claim any
     const restartHint = logCalls.find((entry) => entry.includes('Restart your IDE'));
     expect(restartHint).toContain('Restart your IDE for the new skills to take effect.');
+    expect(restartHint).not.toContain('slash commands');
+  });
+
+  it('should print the @-prefixed prompt hint for amazon-q (prompt library, no slash surface)', async () => {
+    // Amazon Q loads .amazonq/prompts/opsx-<id>.md into its prompt library,
+    // invoked as @opsx-<id>. It registers no slash command under any spelling,
+    // so neither the hint, the generated prompts, the skills, nor the restart
+    // line may name one.
+    const initCommand = new InitCommand({ tools: 'amazon-q', force: true });
+    await initCommand.execute(testDir);
+
+    const promptFile = path.join(testDir, '.amazonq', 'prompts', 'opsx-apply.md');
+    const skillFile = path.join(testDir, '.amazonq', 'skills', 'openspec-apply-change', 'SKILL.md');
+    for (const file of [promptFile, skillFile]) {
+      expect(await fileExists(file)).toBe(true);
+      const content = await fs.readFile(file, 'utf-8');
+      expect(content).toContain('@opsx-apply');
+      expect(content).not.toContain('/opsx:');
+      expect(content).not.toContain('/opsx-');
+    }
+
+    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+    const startHint = logCalls.find((entry) => entry.includes('Start your first change'));
+    expect(startHint).toContain('@opsx-propose');
+    expect(startHint).not.toContain('/opsx-propose');
+    expect(startHint).not.toContain('/opsx:propose');
+
+    // Commands were generated, but they are not slash commands.
+    const restartHint = logCalls.find((entry) => entry.includes('Restart your IDE'));
+    expect(restartHint).toContain('Restart your IDE for the new commands to take effect.');
     expect(restartHint).not.toContain('slash commands');
   });
 
@@ -1056,12 +1148,45 @@ describe('InitCommand - profile and detection features', () => {
     expect(startHints).toHaveLength(2);
     const codexHint = startHints.find((entry) => entry.includes('(Codex)'));
     const vibeHint = startHints.find((entry) => entry.includes('Mistral Vibe'));
-    expect(codexHint).toContain('with the openspec-propose skill');
+    expect(codexHint).toContain('$openspec-propose');
     expect(codexHint).not.toContain('/openspec-propose');
     expect(vibeHint).toContain('/openspec-propose');
     for (const hint of startHints) {
       expect(hint).not.toContain('/opsx:');
     }
+  });
+
+  it('should reference commands by the names each tool registers (cursor+claude)', async () => {
+    // Cursor registers commands by filename (.cursor/commands/opsx-apply.md ->
+    // /opsx-apply) while Claude namespaces them under opsx/ (-> /opsx:apply).
+    // Command bodies, skills and the onboarding hint must each follow the tool
+    // they are written for.
+    const initCommand = new InitCommand({ tools: 'cursor,claude', force: true });
+    await initCommand.execute(testDir);
+
+    const read = (...segments: string[]) => fs.readFile(path.join(testDir, ...segments), 'utf-8');
+
+    const cursorCommand = await read('.cursor', 'commands', 'opsx-apply.md');
+    // A body cross-reference, not the frontmatter name, which already
+    // carried the hyphen form before this behaviour existed.
+    expect(cursorCommand).toContain('/opsx-archive');
+    expect(cursorCommand).not.toContain('/opsx:');
+
+    const cursorSkill = await read('.cursor', 'skills', 'openspec-apply-change', 'SKILL.md');
+    expect(cursorSkill).not.toContain('/opsx:');
+
+    // Claude's namespaced commands are unchanged
+    const claudeCommand = await read('.claude', 'commands', 'opsx', 'apply.md');
+    expect(claudeCommand).toContain('/opsx:archive');
+    expect(claudeCommand).not.toContain('/opsx-');
+
+    const claudeSkill = await read('.claude', 'skills', 'openspec-apply-change', 'SKILL.md');
+    expect(claudeSkill).not.toContain('/opsx-');
+
+    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+    const startHints = logCalls.filter((entry) => entry.includes('Start your first change'));
+    expect(startHints.find((entry) => entry.includes('Cursor'))).toContain('/opsx-propose');
+    expect(startHints.find((entry) => entry.includes('Claude Code'))).toContain('/opsx:propose');
   });
 
   it('should print the hyphen command hint for filename-invoked tools (claude+qwen)', async () => {
@@ -1100,7 +1225,7 @@ describe('InitCommand - profile and detection features', () => {
     // Only the codex instruction may be advertised — a Kimi line would point
     // at skills that were never generated
     expect(startHints).toHaveLength(1);
-    expect(startHints[0]).toContain('with the openspec-propose skill');
+    expect(startHints[0]).toContain('$openspec-propose');
     expect(startHints[0]).not.toContain('Kimi');
     expect(logCalls.some((entry) => entry.includes('/skill:openspec-'))).toBe(false);
     // Kimi got zero artifacts, so it still deserves the configuration correction

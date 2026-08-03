@@ -13,11 +13,12 @@ import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { classifyOpenSpecDir, storePointerProblem } from './project-config.js';
 import { findRepoPlanningRootSync } from './planning-home.js';
-import { getSkillReferenceTransformer, getTransformerForTool, transformToSkillReferences } from '../utils/command-references.js';
+import { getSkillReferenceTransformer, getTransformerForTool } from '../utils/command-references.js';
 import {
   AI_TOOLS,
   OPENSPEC_DIR_NAME,
   AIToolOption,
+  resolveToolIdAlias,
 } from './config.js';
 import { PALETTE } from './styles/palette.js';
 import { isInteractive } from '../utils/interactive.js';
@@ -50,9 +51,10 @@ import {
 import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
 import { getProfileWorkflows, CORE_WORKFLOWS, ALL_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
-import { migrateIfNeeded, migrateLegacySkillDirs, scanInstalledWorkflows as scanInstalledWorkflowsShared } from './migration.js';
+import { migrateIfNeeded, migrateLegacyToolDirs, describeLegacyMigration, keptInPlaceNotice, hasMovableContent, scanInstalledWorkflows as scanInstalledWorkflowsShared } from './migration.js';
 import {
   resolveCommandSurfaceCapability,
+  resolveCommandInvocation,
   shouldGenerateCommandsForTool,
   shouldGenerateSkillsForTool,
   shouldReconcileCommandFilesForTool,
@@ -97,6 +99,8 @@ type InitCommandOptions = {
   force?: boolean;
   interactive?: boolean;
   profile?: string;
+  /** Commander's --no-animation flag: false disables the welcome animation. */
+  animation?: boolean;
 };
 
 /**
@@ -116,12 +120,14 @@ export class InitCommand {
   private readonly force: boolean;
   private readonly interactiveOption?: boolean;
   private readonly profileOverride?: string;
+  private readonly animation: boolean;
 
   constructor(options: InitCommandOptions = {}) {
     this.toolsArg = options.tools;
     this.force = options.force ?? false;
     this.interactiveOption = options.interactive;
     this.profileOverride = options.profile;
+    this.animation = options.animation ?? true;
   }
 
   async execute(targetPath: string): Promise<void> {
@@ -164,7 +170,7 @@ export class InitCommand {
 
     // Migrate OpenSpec-managed skills left in renamed tool directories
     // (e.g. .kimi -> .kimi-code) before detection so they stay recognized.
-    migrateLegacySkillDirs(projectPath);
+    migrateLegacyToolDirs(projectPath);
 
     // Detect available tools in the project (task 7.1)
     const detectedTools = getAvailableTools(projectPath);
@@ -184,7 +190,7 @@ export class InitCommand {
     const canPrompt = this.canPromptInteractively();
     if (canPrompt) {
       const { showWelcomeScreen } = await import('../ui/welcome-screen.js');
-      await showWelcomeScreen(this.getActiveWorkflows());
+      await showWelcomeScreen(this.getActiveWorkflows(), { animate: this.animation });
     }
 
     // Get tool states before processing
@@ -195,6 +201,20 @@ export class InitCommand {
 
     // Validate selected tools
     const validatedTools = this.validateTools(selectedToolIds, toolStates);
+
+    // Selecting a renamed tool is consent to leave its former directory:
+    // init is about to write the current one, and leaving OpenSpec content
+    // behind would give the user two installs of the same tool.
+    for (const migration of migrateLegacyToolDirs(
+      projectPath,
+      validatedTools.map((tool) => tool.value)
+    )) {
+      if (hasMovableContent(migration)) {
+        console.log(chalk.dim(`Migrated ${describeLegacyMigration(migration)}: ${migration.from} → ${migration.to}`));
+      }
+      const kept = keptInPlaceNotice(migration);
+      if (kept) console.log(chalk.dim(kept));
+    }
 
     // Create directory structure and config
     await this.createDirectoryStructure(openspecPath, extendMode);
@@ -539,7 +559,9 @@ export class InitCommand {
       );
     }
 
-    const normalizedTokens = tokens.map((token) => token.toLowerCase());
+    // Retired ids resolve to their current tool, so a rebrand does not break
+    // an existing `--tools windsurf` in someone's setup script.
+    const normalizedTokens = tokens.map((token) => resolveToolIdAlias(token.toLowerCase()));
 
     if (normalizedTokens.some((token) => token === 'all' || token === 'none')) {
       throw new Error('Cannot combine reserved values "all" or "none" with specific tool IDs.');
@@ -701,7 +723,12 @@ export class InitCommand {
             const skillFile = path.join(skillDir, 'SKILL.md');
 
             // Generate SKILL.md content with YAML frontmatter including generatedBy
-            const transformer = getTransformerForTool(tool.value, delivery, resolveCommandSurfaceCapability(tool.value));
+            const transformer = getTransformerForTool(
+              tool.value,
+              delivery,
+              resolveCommandSurfaceCapability(tool.value),
+              resolveCommandInvocation(tool.value)
+            );
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
 
             // Write the skill file
@@ -884,32 +911,28 @@ export class InitCommand {
     const commandsGenerated = successfulTools.some((tool) => shouldGenerateCommandsForTool(tool.value, activeDelivery));
     const skillsGenerated = successfulTools.some((tool) => shouldGenerateSkillsForTool(tool.value, activeDelivery));
     // Each hint line must be a usable instruction for the tool it serves.
-    // Tools that generated commands are told the /opsx:* command; tools that
-    // only got skills are told their documented skill invocation (Kimi Code:
-    // /skill:openspec-*; skills-invocable codex has no slash surface at all,
-    // so its hint names the skill; others: /openspec-*). Tools that got no
-    // artifacts are covered by the configuration correction instead. When
-    // the selection disagrees, print one line per distinct instruction,
-    // labeled with the tools it applies to.
+    // Tools that generated commands are told the command name their files
+    // answer to (/opsx:* when namespaced under opsx/, /opsx-* when the
+    // filename is the command); tools that only got skills are told their
+    // documented skill invocation (Kimi Code: /skill:openspec-*; Codex CLI:
+    // $openspec-*; others: /openspec-*). Tools that got no artifacts are
+    // covered by the configuration correction instead. When the selection
+    // disagrees, print one line per distinct instruction, labeled with the
+    // tools it applies to.
     const startHintLines = (command: string): string[] => {
-      const skillName = transformToSkillReferences(command).slice(1);
       const hintToTools = new Map<string, string[]>();
       for (const tool of successfulTools) {
         let hint: string;
         if (shouldGenerateCommandsForTool(tool.value, activeDelivery)) {
-          // Tools that invoke commands by filename (bob, qwen, ...) need the
-          // hyphen form here too, not just inside generated bodies.
           const transformer = getTransformerForTool(
             tool.value,
             activeDelivery,
-            resolveCommandSurfaceCapability(tool.value)
+            resolveCommandSurfaceCapability(tool.value),
+            resolveCommandInvocation(tool.value)
           );
           hint = `Start your first change: ${transformer ? transformer(command) : command} "your idea"`;
         } else if (shouldGenerateSkillsForTool(tool.value, activeDelivery)) {
-          hint =
-            resolveCommandSurfaceCapability(tool.value) === 'skills-invocable'
-              ? `Start your first change with the ${skillName} skill`
-              : `Start your first change: ${getSkillReferenceTransformer(tool.value)(command)} "your idea"`;
+          hint = `Start your first change: ${getSkillReferenceTransformer(tool.value)(command)} "your idea"`;
         } else {
           continue;
         }
@@ -968,13 +991,15 @@ export class InitCommand {
 
     // Restart instruction if any tools were configured and got a surface
     // (when nothing was generated there is nothing a restart would pick up);
-    // only mention slash commands when slash commands were actually generated
+    // only mention commands when commands were actually generated. Not "slash
+    // commands": Amazon Q's generated files are prompt-library entries invoked
+    // with @, so a restart line promising slash commands would be wrong for it.
     if ((results.createdTools.length > 0 || results.refreshedTools.length > 0) && (commandsGenerated || skillsGenerated)) {
       console.log();
       console.log(
         chalk.white(
           commandsGenerated
-            ? 'Restart your IDE for slash commands to take effect.'
+            ? 'Restart your IDE for the new commands to take effect.'
             : 'Restart your IDE for the new skills to take effect.'
         )
       );
