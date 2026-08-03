@@ -546,16 +546,29 @@ function archiveClaimPath(archivePath: string, _archiveName: string): string {
   return path.join(path.dirname(archivePath), '.openspec-archive.lock');
 }
 
+interface ArchiveClaim {
+  handle: Awaited<ReturnType<typeof fs.open>>;
+  contents: string;
+}
+
 async function releaseArchiveClaim(
-  claim: Awaited<ReturnType<typeof fs.open>>,
+  claim: ArchiveClaim,
   claimPath: string
 ): Promise<void> {
-  const owned = await claim.stat({ bigint: true }).catch(() => undefined);
-  await claim.close().catch(() => undefined);
+  const owned = await claim.handle.stat({ bigint: true }).catch(() => undefined);
+  await claim.handle.close().catch(() => undefined);
   if (owned === undefined) return;
   try {
     const current = await fs.lstat(claimPath, { bigint: true });
-    if (current.dev === owned.dev && current.ino === owned.ino) {
+    const contents = await fs.readFile(claimPath, 'utf8');
+    const currentAfterRead = await fs.lstat(claimPath, { bigint: true });
+    if (
+      current.dev === owned.dev &&
+      current.ino === owned.ino &&
+      current.dev === currentAfterRead.dev &&
+      current.ino === currentAfterRead.ino &&
+      contents === claim.contents
+    ) {
       await fs.unlink(claimPath);
     }
   } catch (error) {
@@ -566,13 +579,17 @@ async function releaseArchiveClaim(
 async function claimArchiveDestination(
   archivePath: string,
   archiveName: string
-): Promise<Awaited<ReturnType<typeof fs.open>>> {
+): Promise<ArchiveClaim> {
   const claimPath = archiveClaimPath(archivePath, archiveName);
   try {
-    const claim = await fs.open(claimPath, 'wx');
+    const handle = await fs.open(claimPath, 'wx');
+    const claim = {
+      handle,
+      contents: JSON.stringify({ pid: process.pid, nonce: randomUUID() }),
+    };
     try {
-      await claim.writeFile(JSON.stringify({ pid: process.pid }));
-      await claim.sync();
+      await handle.writeFile(claim.contents);
+      await handle.sync();
       return claim;
     } catch (error) {
       await releaseArchiveClaim(claim, claimPath).catch(() => undefined);
@@ -1295,7 +1312,7 @@ export class ArchiveCommand {
     await assertArchiveDestinationAvailable(archivePath, archiveName);
     await fs.mkdir(archiveDir, { recursive: true });
     const claimPath = archiveClaimPath(archivePath, archiveName);
-    let archiveClaim: Awaited<ReturnType<typeof fs.open>> | undefined;
+    let archiveClaim: ArchiveClaim | undefined;
 
     try {
       // Handle spec updates unless skipSpecs flag is set
