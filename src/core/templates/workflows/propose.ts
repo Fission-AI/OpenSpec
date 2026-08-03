@@ -13,6 +13,8 @@ export function getOpsxProposeSkillTemplate(): SkillTemplate {
     description: 'Propose a new change with all artifacts generated in one step. Use when the user wants to quickly describe what they want to build and get a complete proposal with design, specs, and tasks ready for implementation.',
     instructions: `Propose a new change - create the change and generate all artifacts in one step.
 
+**Planning boundary**: This workflow creates planning artifacts only. The user request that selected or triggered this workflow authorizes planning only, even if it asks to build or fix something. Do not edit project code. After the planning artifacts are complete, stop and wait for a separate, explicit user request to implement.
+
 I'll create a change with the artifacts your schema defines. With the default spec-driven schema that is:
 - proposal.md (what & why)
 - \`specs/<capability>/spec.md\` (what the system must do - a delta, not the main spec)
@@ -37,6 +39,8 @@ ${STORE_SELECTION_GUIDANCE}
    From their description, derive a kebab-case name (e.g., "add user authentication" → \`add-user-auth\`).
 
    **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
+
+   If the request contains ambiguity that would materially affect scope, externally observable behavior, compatibility, or acceptance criteria, ask the user before creating the affected artifact. For minor details, make a reasonable assumption and record it in the artifact.
 
 2. **Create the change directory**
    \`\`\`bash
@@ -103,7 +107,7 @@ After completing all artifacts, summarize:
 - Change name and location
 - List of artifacts created with brief descriptions, plus any conditional artifact you skipped and why
 - What's ready: "All artifacts needed for implementation are ready."
-- Prompt: "Run \`/opsx:apply\` or ask me to implement to start working on the tasks."
+- Prompt: "The artifacts are ready for review. When you are ready, run \`/opsx:apply\` or explicitly ask me to implement."
 
 **Artifact Creation Guidelines**
 
@@ -117,10 +121,10 @@ After completing all artifacts, summarize:
   - These guide what you write, but should never appear in the output
 
 **Guardrails**
-- Do NOT implement the change or edit project code. Stop after the planning artifacts are complete and wait for the user to start implementation separately
+- The request that invoked this workflow authorizes planning only. Do NOT implement the change, run \`/opsx:apply\`, or edit project code. After presenting the artifacts, stop and wait for a separate, explicit user request to implement
 - Create every artifact the apply phase transitively depends on, not just the ids listed in \`apply.requires\`
 - Always read dependency artifacts before creating a new one - re-read from disk, not from conversation memory (files may have changed since you last saw them)
-- If context is critically unclear, ask the user - but prefer making reasonable decisions to keep momentum
+- Ask about ambiguities that would materially change scope, externally observable behavior, compatibility, or acceptance criteria; for minor details, make reasonable assumptions and record them
 - If a change with that name already exists, ask if user wants to continue it or create a new one
 - Verify each artifact file exists after writing before proceeding to next`,
     license: 'MIT',
@@ -136,6 +140,8 @@ export function getOpsxProposeCommandTemplate(): CommandTemplate {
     category: 'Workflow',
     tags: ['workflow', 'artifacts', 'experimental'],
     content: `Propose a new change - create the change and generate all artifacts in one step.
+
+**Planning boundary**: This workflow creates planning artifacts only. The user request that selected or triggered this workflow authorizes planning only, even if it asks to build or fix something. Do not edit project code. After the planning artifacts are complete, stop and wait for a separate, explicit user request to implement.
 
 I'll create a change with the artifacts your schema defines. With the default spec-driven schema that is:
 - proposal.md (what & why)
@@ -162,6 +168,8 @@ ${STORE_SELECTION_GUIDANCE}
 
    **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
 
+   If the request contains ambiguity that would materially affect scope, externally observable behavior, compatibility, or acceptance criteria, ask the user before creating the affected artifact. For minor details, make a reasonable assumption and record it in the artifact.
+
 2. **Create the change directory**
    \`\`\`bash
    openspec new change "<name>"
@@ -227,7 +235,7 @@ After completing all artifacts, summarize:
 - Change name and location
 - List of artifacts created with brief descriptions, plus any conditional artifact you skipped and why
 - What's ready: "All artifacts needed for implementation are ready."
-- Prompt: "Run \`/opsx:apply\` to start implementing."
+- Prompt: "The artifacts are ready for review. When you are ready, run \`/opsx:apply\` or explicitly ask me to implement."
 
 **Artifact Creation Guidelines**
 
@@ -241,10 +249,10 @@ After completing all artifacts, summarize:
   - These guide what you write, but should never appear in the output
 
 **Guardrails**
-- Do NOT implement the change or edit project code. Stop after the planning artifacts are complete and wait for the user to start implementation separately
+- The request that invoked this workflow authorizes planning only. Do NOT implement the change, run \`/opsx:apply\`, or edit project code. After presenting the artifacts, stop and wait for a separate, explicit user request to implement
 - Create every artifact the apply phase transitively depends on, not just the ids listed in \`apply.requires\`
 - Always read dependency artifacts before creating a new one - re-read from disk, not from conversation memory (files may have changed since you last saw them)
-- If context is critically unclear, ask the user - but prefer making reasonable decisions to keep momentum
+- Ask about ambiguities that would materially change scope, externally observable behavior, compatibility, or acceptance criteria; for minor details, make reasonable assumptions and record them
 - If a change with that name already exists, ask if user wants to continue it or create a new one
 - Verify each artifact file exists after writing before proceeding to next`
   };

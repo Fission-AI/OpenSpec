@@ -521,6 +521,44 @@ describe('InitCommand', () => {
       expect(await fileExists(cursorSkill)).toBe(true);
     });
 
+    it('should deliver the propose boundary to tools named in the linked reports', async () => {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'both',
+      });
+
+      const initCommand = new InitCommand({
+        tools: 'factory,cursor,kilocode,pi,codex',
+        force: true,
+      });
+      await initCommand.execute(testDir);
+
+      const proposeFiles = [
+        path.join(testDir, '.factory', 'commands', 'opsx-propose.md'),
+        path.join(testDir, '.cursor', 'commands', 'opsx-propose.md'),
+        path.join(testDir, '.kilocode', 'workflows', 'opsx-propose.md'),
+        path.join(testDir, '.pi', 'prompts', 'opsx-propose.md'),
+        path.join(testDir, '.codex', 'skills', 'openspec-propose', 'SKILL.md'),
+      ];
+
+      for (const proposeFile of proposeFiles) {
+        expect(await fileExists(proposeFile), proposeFile).toBe(true);
+        const content = await fs.readFile(proposeFile, 'utf-8');
+        expect(content, proposeFile).toContain('**Planning boundary**');
+        expect(content, proposeFile).toContain(
+          'selected or triggered this workflow authorizes planning only'
+        );
+        expect(content, proposeFile).toContain('ambiguity that would materially affect scope');
+        expect(content, proposeFile).toContain(
+          'ask the user before creating the affected artifact'
+        );
+        expect(content, proposeFile).toContain(
+          'stop and wait for a separate, explicit user request to implement'
+        );
+      }
+    });
+
     it('should select all tools with --tools all option', async () => {
       const initCommand = new InitCommand({ tools: 'all', force: true });
 

@@ -9,6 +9,9 @@ import {
   getOpsxFfCommandTemplate,
 } from '../../../src/core/templates/skill-templates.js';
 import { loadSchema } from '../../../src/core/artifact-graph/schema.js';
+import { CommandAdapterRegistry } from '../../../src/core/command-generation/registry.js';
+import { generateCommand } from '../../../src/core/command-generation/generator.js';
+import { getCommandContents } from '../../../src/core/shared/skill-generation.js';
 
 const proposeBodies: Array<[string, string]> = [
   ['propose skill', getOpsxProposeSkillTemplate().instructions],
@@ -52,11 +55,58 @@ describe('propose preamble', () => {
 });
 
 describe('propose implementation boundary', () => {
-  it('stops after planning instead of editing project code (#262)', () => {
+  it('makes the planning-only boundary prominent (#232, #258, #262)', () => {
     for (const [label, body] of proposeBodies) {
-      expect(body, label).toContain('Do NOT implement the change or edit project code');
+      const boundary = body.indexOf('**Planning boundary**');
+      const steps = body.indexOf('**Steps**');
+      expect(boundary, `${label} is missing its planning boundary`).toBeGreaterThanOrEqual(0);
+      expect(boundary, `${label} boundary should appear before its steps`).toBeLessThan(steps);
       expect(body, label).toContain(
-        'wait for the user to start implementation separately'
+        'The user request that selected or triggered this workflow authorizes planning only'
+      );
+      expect(body, label).toContain('Do not edit project code');
+    }
+  });
+
+  it('ends by requiring a separate explicit implementation request (#258, #262)', () => {
+    for (const [label, body] of proposeBodies) {
+      expect(body, label).toContain(
+        'The request that invoked this workflow authorizes planning only'
+      );
+      expect(body, label).toContain('Do NOT implement the change');
+      expect(body, label).toContain('edit project code');
+      expect(body, label).toContain(
+        'stop and wait for a separate, explicit user request to implement'
+      );
+      expect(body.lastIndexOf('stop and wait'), `${label} should end with its stop guard`)
+        .toBeGreaterThan(body.indexOf('**Output**'));
+    }
+  });
+
+  it('asks before resolving ambiguity that could change user-visible outcomes (#258)', () => {
+    for (const [label, body] of proposeBodies) {
+      expect(body, label).toContain(
+        'scope, externally observable behavior, compatibility, or acceptance criteria'
+      );
+      expect(body, label).toContain('ask the user before creating the affected artifact');
+      expect(body, label).toContain(
+        'For minor details, make a reasonable assumption and record it in the artifact'
+      );
+    }
+  });
+
+  it('preserves both boundaries through every command adapter', () => {
+    const propose = getCommandContents(['propose'])[0];
+    expect(propose?.id).toBe('propose');
+
+    for (const adapter of CommandAdapterRegistry.getAll()) {
+      const generated = generateCommand(propose, adapter).fileContent;
+      expect(generated, adapter.toolId).toContain(
+        'selected or triggered this workflow authorizes planning only'
+      );
+      expect(generated, adapter.toolId).toContain('Do NOT implement the change');
+      expect(generated, adapter.toolId).toContain(
+        'stop and wait for a separate, explicit user request to implement'
       );
     }
   });
