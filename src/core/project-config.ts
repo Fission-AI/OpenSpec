@@ -306,6 +306,16 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
       }
     }
 
+    // Parse agentOutputFormat field using Zod
+    if (raw.agentOutputFormat !== undefined) {
+      const outputFormatResult = z.enum(['json', 'toon']).safeParse(raw.agentOutputFormat);
+      if (outputFormatResult.success) {
+        config.agentOutputFormat = outputFormatResult.data;
+      } else {
+        console.warn(`Invalid 'agentOutputFormat' field in config (must be 'json' or 'toon')`);
+      }
+    }
+
     // Parse rules field using Zod
     if (raw.rules !== undefined) {
       const rulesField = z.record(z.string(), z.array(z.string()));
