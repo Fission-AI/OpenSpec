@@ -51,6 +51,17 @@ describe('propose preamble', () => {
   });
 });
 
+describe('propose implementation boundary', () => {
+  it('stops after planning instead of editing project code (#262)', () => {
+    for (const [label, body] of proposeBodies) {
+      expect(body, label).toContain('Do NOT implement the change or edit project code');
+      expect(body, label).toContain(
+        'wait for the user to start implementation separately'
+      );
+    }
+  });
+});
+
 describe('artifact loop guards (propose and ff)', () => {
   // `status` is file-existence based (detectCompleted), so writing tasks.md before
   // specs flips tasks to done and satisfies a bare applyRequires stop condition
