@@ -68,7 +68,7 @@ ${STORE_SELECTION_GUIDANCE}
    - If the user rejects a revision, do not write it - leave that artifact unchanged.
    - When a substantial rewrite is needed, get that artifact's rules and template first:
      \`\`\`bash
-     openspec instructions <artifact-id> --change "<name>" --json
+     openspec instructions "<artifact-id>" --change "<name>" --json
      \`\`\`
 
 6. **Point to the next step (guidance only - NEVER act on it)**
@@ -89,7 +89,7 @@ After each invocation, show:
 - Edit only the concrete files in \`existingOutputPaths\`; never write to a glob \`resolvedOutputPath\`.
 - Do not advance the build frontier: no new artifacts, no new files under glob artifacts - that is \`/opsx:continue\`'s job.
 - Confirm every edit with the user before writing.
-- If the request changes the change's *intent* rather than refining it, first verify whether the expanded-profile \`/opsx:new\` workflow is available. If it is, recommend starting fresh with \`/opsx:new\` (the "Update vs. Start Fresh" heuristic). If it is unavailable, recommend starting a fresh change with \`openspec new change "<name>"\` instead.`,
+- If the request changes the change's *intent* rather than refining it, first verify whether the expanded-profile \`/opsx:new\` workflow is available. If it is, recommend starting fresh with \`/opsx:new\` (the "Update vs. Start Fresh" heuristic). If it is unavailable, ask for a distinct unused change name and recommend \`openspec new change "<new-change-name>"\` instead.`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
@@ -159,7 +159,7 @@ ${STORE_SELECTION_GUIDANCE}
    - If the user rejects a revision, do not write it - leave that artifact unchanged.
    - When a substantial rewrite is needed, get that artifact's rules and template first:
      \`\`\`bash
-     openspec instructions <artifact-id> --change "<name>" --json
+     openspec instructions "<artifact-id>" --change "<name>" --json
      \`\`\`
 
 6. **Point to the next step (guidance only - NEVER act on it)**
@@ -180,6 +180,6 @@ After each invocation, show:
 - Edit only the concrete files in \`existingOutputPaths\`; never write to a glob \`resolvedOutputPath\`.
 - Do not advance the build frontier: no new artifacts, no new files under glob artifacts - that is \`/opsx:continue\`'s job.
 - Confirm every edit with the user before writing.
-- If the request changes the change's *intent* rather than refining it, first verify whether the expanded-profile \`/opsx:new\` workflow is available. If it is, recommend starting fresh with \`/opsx:new\` (the "Update vs. Start Fresh" heuristic). If it is unavailable, recommend starting a fresh change with \`openspec new change "<name>"\` instead.`
+- If the request changes the change's *intent* rather than refining it, first verify whether the expanded-profile \`/opsx:new\` workflow is available. If it is, recommend starting fresh with \`/opsx:new\` (the "Update vs. Start Fresh" heuristic). If it is unavailable, ask for a distinct unused change name and recommend \`openspec new change "<new-change-name>"\` instead.`
   };
 }

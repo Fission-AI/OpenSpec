@@ -82,9 +82,13 @@ describe('update-change templates', () => {
       const availabilityGuidance = body.indexOf(
         '`/opsx:continue` is an expanded-profile workflow and may not be installed'
       );
-      const firstSuggestion = body.indexOf('point the user to `/opsx:continue`');
+      const firstSuggestion = body.indexOf(
+        '`/opsx:continue`',
+        availabilityGuidance + '`/opsx:continue`'.length
+      );
 
       expect(availabilityGuidance, label).toBeGreaterThanOrEqual(0);
+      expect(body.indexOf('`/opsx:continue`'), label).toBe(availabilityGuidance);
       expect(firstSuggestion, label).toBeGreaterThan(availabilityGuidance);
       expect(body, label).toContain(
         'If it is unavailable, `openspec status --change "<name>" --json` shows the next artifact'
@@ -101,13 +105,16 @@ describe('update-change templates', () => {
       expect(body, label).toContain('If the user rejects a revision, do not write it');
       expect(body, label).toContain('recommend starting fresh with `/opsx:new`');
       expect(body, label).toContain('Update vs. Start Fresh');
-      expect(body, label).toContain('openspec new change "<name>"');
+      expect(body, label).toContain('ask for a distinct unused change name');
+      expect(body, label).toContain('openspec new change "<new-change-name>"');
+      expect(body, label).not.toContain('openspec new change "<name>"');
 
       const newAvailabilityCheck = body.indexOf(
         'first verify whether the expanded-profile `/opsx:new` workflow is available'
       );
       const newRecommendation = body.indexOf('recommend starting fresh with `/opsx:new`');
       expect(newAvailabilityCheck, label).toBeGreaterThanOrEqual(0);
+      expect(body.slice(0, newAvailabilityCheck), label).not.toContain('`/opsx:new`');
       expect(newRecommendation, label).toBeGreaterThan(newAvailabilityCheck);
     }
   });

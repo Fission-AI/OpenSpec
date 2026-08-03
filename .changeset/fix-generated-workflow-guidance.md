@@ -2,4 +2,4 @@
 "@fission-ai/openspec": patch
 ---
 
-Keep generated workflows on the selected store, handle the optional continue workflow, and validate synced specs before reporting success.
+Keep generated workflows on the selected store, handle optional workflow fallbacks safely, and validate synced specs before reporting success.
