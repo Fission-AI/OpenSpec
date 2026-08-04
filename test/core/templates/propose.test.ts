@@ -172,20 +172,32 @@ describe('propose schema selection', () => {
         /^\s*openspec new change "<name>" --schema "<schema-name>"\s*$/m
       );
       expect(createSection, label).toContain(
-        'If a registered store is selected, append `--store "<store-id>"`'
+        'If a registered store is selected, append `--store "<store-id>"` to that command and each later OpenSpec command shown below that accepts `--store`'
       );
-      expect(body, label).toContain('Explicitly requests a specific schema by name');
-      expect(body, label).toContain('Otherwise, omit `--schema` to preserve the configured default');
+      expect(createSection, label).not.toContain('every follow-up command');
     }
   });
 
   it('discovers schemas from the selected project or store root', () => {
     for (const [label, body] of proposeBodies) {
-      expect(body, label).toContain('run `openspec schemas --json` with its working directory');
-      expect(body, label).toContain(
+      const schemaStep = body.indexOf('**Determine the workflow schema**');
+      const createStep = body.indexOf('**Create the change directory**');
+      const schemaSection = body.slice(schemaStep, createStep);
+
+      expect(schemaSection, label).toContain('Use the configured default schema');
+      expect(schemaSection, label).toContain('Explicitly requests a specific schema by name');
+      expect(schemaSection, label).toContain('selected project or store root');
+      expect(schemaSection, label).toContain(
+        'run `openspec schemas --json` with its working directory'
+      );
+      expect(schemaSection, label).toContain('the directory containing `openspec/`');
+      expect(schemaSection, label).toContain(
         'use the store `root` returned by `openspec store list --json`'
       );
-      expect(body, label).toContain('`schemas` does not accept `--store`');
+      expect(schemaSection, label).toContain('`schemas` does not accept `--store`');
+      expect(schemaSection, label).toContain(
+        'Otherwise, omit `--schema` to preserve the configured default'
+      );
     }
   });
 });

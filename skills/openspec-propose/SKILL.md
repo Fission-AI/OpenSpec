@@ -52,7 +52,7 @@ When the user is ready to implement, they must start the apply workflow explicit
 
 3. **Create the change directory**
 
-   Choose one schema form below. If a registered store is selected, append `--store "<store-id>"` to that command and every follow-up command.
+   Choose one schema form below. If a registered store is selected, append `--store "<store-id>"` to that command and each later OpenSpec command shown below that accepts `--store`.
 
    Using the configured default:
    ```bash
