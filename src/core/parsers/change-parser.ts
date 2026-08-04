@@ -1,7 +1,9 @@
 import { MarkdownParser, Section } from './markdown-parser.js';
+import { buildCodeFenceMask } from './requirement-text.js';
 import { Change, Delta, DeltaOperation, Requirement } from '../schemas/index.js';
 import path from 'path';
 import { promises as fs } from 'fs';
+import { discoverSpecFiles } from '../../utils/spec-discovery.js';
 
 interface DeltaSection {
   operation: DeltaOperation;
@@ -54,31 +56,46 @@ export class ChangeParser extends MarkdownParser {
 
   private async parseDeltaSpecs(specsDir: string): Promise<Delta[]> {
     const deltas: Delta[] = [];
-    
-    try {
-      const specDirs = await fs.readdir(specsDir, { withFileTypes: true });
-      
-      for (const dir of specDirs) {
-        if (!dir.isDirectory()) continue;
-        
-        const specName = dir.name;
-        const specFile = path.join(specsDir, specName, 'spec.md');
-        
-        try {
-          const content = await fs.readFile(specFile, 'utf-8');
-          const specDeltas = this.parseSpecDeltas(specName, content);
-          deltas.push(...specDeltas);
-        } catch (error) {
-          // Spec file might not exist, which is okay
-          continue;
-        }
+
+    // Discover delta specs recursively so nested layouts like
+    // specs/<area>/<capability>/spec.md are parsed too (#1353)
+    const specFiles = await discoverSpecFiles(specsDir);
+
+    for (const { id, specFile } of specFiles) {
+      try {
+        const content = await fs.readFile(specFile, 'utf-8');
+        const specDeltas = this.parseSpecDeltas(id, content);
+        deltas.push(...specDeltas);
+      } catch (error) {
+        // Spec file might not be readable, which is okay
+        continue;
       }
-    } catch (error) {
-      // Specs directory might not exist, which is okay
-      return [];
     }
-    
+
     return deltas;
+  }
+
+  /**
+   * Read requirements from a delta section, ignoring headers that are not
+   * `### Requirement: <name>`.
+   *
+   * A delta section often carries divider headers such as
+   * `### Documentation Requirements`. The base parser treats every child header
+   * as a requirement, which invented a scenario-less requirement that does not
+   * exist (#498): archive warned about a missing scenario, and `show --json`
+   * reported an extra delta. The delta reader already skips these headers and
+   * notes them, so this keeps the two readers in agreement.
+   *
+   * Overriding here rather than in MarkdownParser keeps main spec parsing —
+   * `view`, `list`, `spec --json`, spec validation — untouched.
+   */
+  protected parseRequirements(section: Section): Requirement[] {
+    return super.parseRequirements({
+      ...section,
+      children: section.children.filter((child) =>
+        /^Requirement:\s*\S/i.test(child.title.trim())
+      ),
+    });
   }
 
   private parseSpecDeltas(specName: string, content: string): Delta[] {
@@ -179,7 +196,7 @@ export class ChangeParser extends MarkdownParser {
   private parseSectionsFromContent(content: string): Section[] {
     const normalizedContent = ChangeParser.normalizeContent(content);
     const lines = normalizedContent.split('\n');
-    const codeFenceLineMask = ChangeParser.buildCodeFenceMask(lines);
+    const codeFenceLineMask = buildCodeFenceMask(lines);
     const sections: Section[] = [];
     const stack: Section[] = [];
     

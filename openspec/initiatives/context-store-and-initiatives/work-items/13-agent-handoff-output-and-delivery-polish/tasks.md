@@ -1,5 +1,18 @@
 # Agent Handoff Output And Delivery Polish Tasks
 
+Status: deferred. Do not implement these tasks until the handoff model is
+redesigned as contextual receipts or affordances rather than fixed linear
+"next step" guidance.
+
+- [ ] Revisit after Item 14 and Item 15 clarify the beta docs, sparse
+      initiative flow, and context-store project-root model.
+- [ ] Decide whether any deterministic receipt improvements, such as
+      `created_paths`, should be split into a smaller independent slice.
+- [ ] Decide whether delivery terminology belongs in a separate
+      command-surface/delivery item.
+
+## Deferred Original Tasks
+
 - [ ] Decide which existing commands should print a "Next for your agent"
       handoff block.
 - [ ] Define the minimal handoff content for context-store setup, initiative

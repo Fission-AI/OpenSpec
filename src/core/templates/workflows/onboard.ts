@@ -5,6 +5,7 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
+import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
 export function getOnboardSkillTemplate(): SkillTemplate {
   return {
@@ -19,6 +20,8 @@ export function getOnboardSkillTemplate(): SkillTemplate {
 
 function getOnboardInstructions(): string {
   return `Guide the user through their first complete OpenSpec workflow cycle. This is a teaching experience—you'll do real work in their codebase while explaining each step.
+
+${STORE_SELECTION_GUIDANCE}
 
 ---
 
@@ -217,6 +220,11 @@ I'll draft one based on our task.
 
 **DO:** Draft the proposal content (don't save yet):
 
+\`<capability-path>\` is the spec directory relative to \`specs/\` (for example,
+\`user-auth\` or \`identity/user-auth\`). Use the exact existing path for modified
+capabilities. For new capabilities, follow the project's established spec
+organization.
+
 \`\`\`
 Here's a draft proposal:
 
@@ -233,10 +241,11 @@ Here's a draft proposal:
 ## Capabilities
 
 ### New Capabilities
-- \`<capability-name>\`: [brief description]
+- \`<capability-path>\`: [brief description]
 
 ### Modified Capabilities
 <!-- If modifying existing behavior -->
+- \`<existing-capability-path>\`: [brief description]
 
 ## Impact
 
@@ -278,7 +287,7 @@ For a small task like this, we might only need one spec file.
 **DO:** Resolve where the spec file should be created:
 \`\`\`bash
 openspec instructions specs --change "<name>" --json
-# Use resolvedOutputPath from the JSON. If it is a glob, choose the concrete file path using the schema instruction and workspace planning context.
+# Use resolvedOutputPath from the JSON. If it is a glob, choose the concrete file path using the schema instruction and the change's context.
 \`\`\`
 
 Draft the spec content:
@@ -437,14 +446,14 @@ When a change is complete, we archive it. The archive path is derived from \`pla
 Archived changes become your project's decision history—you can always find them later to understand why something was built a certain way.
 \`\`\`
 
-**DO:**
+**DO:** Archive the change (\`--yes\` answers the confirmation prompts, which you cannot answer from a tool call):
 \`\`\`bash
-openspec archive "<name>"
+openspec archive "<name>" --yes
 \`\`\`
 
 **SHOW:**
 \`\`\`
-Archived to: \`<planningHome.changesDir>/archive/YYYY-MM-DD-<name>/\`
+Archived to: \`<planningHome.changesDir>/archive/<target-name>/\` (the target name prepends today's date, unless the name already starts with a \`YYYY-MM-DD-\` prefix — then it is kept as-is, no second date)
 
 The change is now part of your project's history. The code is in your codebase, the decision record is preserved.
 \`\`\`
@@ -482,7 +491,7 @@ This same rhythm works for any size change—a small fix or a major feature.
  | \`/opsx:apply\`   | Implement tasks from a change              |
  | \`/opsx:archive\` | Archive a completed change                 |
 
-**Additional commands:**
+**Additional commands** (only if installed - availability depends on your profile):
 
  | Command            | What it does                                             |
  |--------------------|----------------------------------------------------------|
@@ -510,7 +519,7 @@ If the user says they need to stop, want to pause, or seem disengaged:
 No problem! Your change is saved at the \`changeRoot\` reported by \`openspec status --change "<name>" --json\`.
 
 To pick up where we left off later:
-- \`/opsx:continue <name>\` - Resume artifact creation
+- \`/opsx:continue <name>\` - Resume artifact creation (if installed; otherwise \`openspec status --change "<name>" --json\` shows the next artifact)
 - \`/opsx:apply <name>\` - Jump to implementation (if tasks exist)
 
 The work won't be lost. Come back whenever you're ready.
@@ -534,7 +543,7 @@ If the user says they just want to see the commands or skip the tutorial:
  | \`/opsx:apply <name>\`   | Implement tasks                            |
  | \`/opsx:archive <name>\` | Archive when done                          |
 
-**Additional commands:**
+**Additional commands** (only if installed - availability depends on your profile):
 
  | Command                   | What it does                        |
  |---------------------------|-------------------------------------|

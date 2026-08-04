@@ -12,16 +12,42 @@ import {
   loadChangeContext,
   generateInstructions,
   resolveSchema,
+  resolveArtifactOutputPath,
   resolveArtifactOutputs,
   type ArtifactInstructions,
 } from '../../core/artifact-graph/index.js';
-import { getChangeDir, resolveCurrentPlanningHomeSync } from '../../core/planning-home.js';
+import {
+  getChangeDir,
+  resolveCurrentPlanningHomeSync,
+  type PlanningHome,
+} from '../../core/planning-home.js';
+import {
+  resolveRootForCommand,
+  withStoreFlag,
+  toPlanningHome,
+  toRootOutput,
+  type ResolvedOpenSpecRoot,
+} from '../../core/root-selection.js';
+import {
+  assembleReferenceIndex,
+  renderReferencedStoresBlock,
+  renderReferencedStoresSection,
+  type ReferenceIndexEntry,
+} from '../../core/references.js';
+import { readRegistrySnapshot } from '../../core/store/registry.js';
+import {
+  loadOperationInputs,
+  readProjectConfig,
+  type ProjectConfig,
+} from '../../core/project-config.js';
 import {
   validateChangeExists,
   validateSchemaExists,
   type TaskItem,
   type ApplyInstructions,
+  type ArchiveInstructions,
 } from './shared.js';
+import { parseTaskLines, type ParsedTask } from '../../utils/task-progress.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -30,32 +56,76 @@ import {
 export interface InstructionsOptions {
   change?: string;
   schema?: string;
+  store?: string;
+  storePath?: string;
   json?: boolean;
 }
 
 export interface ApplyInstructionsOptions {
   change?: string;
   schema?: string;
+  store?: string;
+  storePath?: string;
   json?: boolean;
 }
+
+export type ArchiveInstructionsOptions = ApplyInstructionsOptions;
 
 // -----------------------------------------------------------------------------
 // Artifact Instructions Command
 // -----------------------------------------------------------------------------
 
+/**
+ * Reads the resolved root's config once, assembles the referenced-store
+ * index when references are declared, and resolves the config path for
+ * fix text. Shared by both instruction surfaces.
+ */
+async function loadRootConfigContext(root: ResolvedOpenSpecRoot): Promise<{
+  projectConfig: ProjectConfig | null;
+  references: ReferenceIndexEntry[] | undefined;
+}> {
+  // readProjectConfig never throws: missing/unparseable configs are null.
+  const projectConfig = readProjectConfig(root.path);
+
+  // One registry read serves every relationship consumer in this
+  // output so it never carries a torn snapshot.
+  const snapshot = await readRegistrySnapshot();
+  const registryEntries = snapshot.entries;
+
+  const declared = projectConfig?.references ?? [];
+  const index =
+    declared.length > 0
+      ? await assembleReferenceIndex({ references: declared, resolvedRoot: root, registryEntries })
+      : [];
+
+  // Omitted, not empty: an index emptied by self-reference omission must
+  // look identical to an undeclared one in JSON.
+  return {
+    projectConfig,
+    references: index.length > 0 ? index : undefined,
+  };
+}
+
 export async function instructionsCommand(
   artifactId: string | undefined,
   options: InstructionsOptions
 ): Promise<void> {
+  // Resolve (and banner) before the spinner starts so stderr stays readable.
+  const root = await resolveRootForCommand(options, { json: options.json });
+  if (!root) {
+    return;
+  }
+
   const spinner = options.json ? undefined : ora('Generating instructions...').start();
 
   try {
-    const planningHome = resolveCurrentPlanningHomeSync();
-    const projectRoot = planningHome.root;
+    const planningHome = toPlanningHome(root);
+    const projectRoot = root.path;
     const changeName = await validateChangeExists(
       options.change,
       projectRoot,
-      planningHome.changesDir
+      root.changesDir,
+      { newChangeHint: withStoreFlag(root, 'openspec new change <name>') }
     );
 
     // Validate schema if explicitly provided
@@ -63,10 +133,13 @@ export async function instructionsCommand(
       validateSchemaExists(options.schema, projectRoot);
     }
 
+    const { projectConfig, references } = await loadRootConfigContext(root);
+
     // loadChangeContext will auto-detect schema from metadata if not provided
     const context = loadChangeContext(projectRoot, changeName, options.schema, {
       changeDir: getChangeDir(planningHome, changeName),
       planningHome,
+      projectConfig,
     });
 
     if (!artifactId) {
@@ -87,13 +160,16 @@ export async function instructionsCommand(
       );
     }
 
-    const instructions = generateInstructions(context, artifactId, projectRoot);
+    const instructions = generateInstructions(context, artifactId, projectRoot, {
+      projectConfig,
+      references,
+    });
     const isBlocked = instructions.dependencies.some((d) => !d.done);
 
     spinner?.stop();
 
     if (options.json) {
-      console.log(JSON.stringify(instructions, null, 2));
+      console.log(JSON.stringify({ ...instructions, root: toRootOutput(root) }, null, 2));
       return;
     }
 
@@ -110,7 +186,6 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
     changeName,
     schemaName,
     changeDir,
-    initiative,
     resolvedOutputPath,
     description,
     instruction,
@@ -125,9 +200,16 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
   console.log(`<artifact id="${artifactId}" change="${changeName}" schema="${schemaName}">`);
   console.log();
 
-  if (initiative) {
-    console.log(`<initiative store="${initiative.store}" id="${initiative.id}" />`);
+  // Artifacts skipped via skip_specs get no creation directive: emitting the
+  // task/template anyway would prompt an agent to write spec files that
+  // validate then rejects as conflicting with the marker.
+  if (instructions.skipped) {
+    console.log('<warning>');
+    console.log(instructions.warning ?? 'This artifact is skipped (skip_specs is set in .openspec.yaml).');
+    console.log('</warning>');
     console.log();
+    console.log('</artifact>');
+    return;
   }
 
   // Warning for blocked artifacts
@@ -156,6 +238,12 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
     console.log();
   }
 
+  // Referenced-store index (read-only upstream context)
+  if (instructions.references && instructions.references.length > 0) {
+    console.log(renderReferencedStoresBlock(instructions.references));
+    console.log();
+  }
+
   // Rules (AI constraint - do not include in output)
   if (rules && rules.length > 0) {
     console.log('<rules>');
@@ -170,9 +258,18 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
   // Dependencies (files to read for context)
   if (dependencies.length > 0) {
     console.log('<dependencies>');
-    console.log('Read these files for context before creating this artifact:');
+    console.log('Read the current contents of these files before creating this artifact (re-read them from disk even if you saw them earlier - they may have been edited):');
     console.log();
     for (const dep of dependencies) {
+      // A dependency satisfied via skip_specs has no files by design: telling
+      // the agent to read them (or calling them "done") would send it hunting
+      // for spec files that must not exist.
+      if (dep.skipped) {
+        console.log(`<dependency id="${dep.id}" status="skipped">`);
+        console.log(`  <description>Skipped: the change declares skip_specs, so this artifact has no files to read.</description>`);
+        console.log('</dependency>');
+        continue;
+      }
       const status = dep.done ? 'done' : 'missing';
       const fullPath = path.join(changeDir, dep.path);
       console.log(`<dependency id="${dep.id}" status="${status}">`);
@@ -228,29 +325,35 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
 // -----------------------------------------------------------------------------
 
 /**
- * Parses tasks.md content and extracts task items with their completion status.
+ * Turns parsed task lines into the listed task items.
+ *
+ * A checkbox with no text after it is left out of the list: this is work for an
+ * agent to act on and tick off, and a bare `- [ ]` gives it nothing to match.
+ * It still counts toward progress, which is taken from every parsed line, so
+ * this list can be shorter than the totals beside it but never disagrees with
+ * `openspec list` or archive about how much work is left. An empty list is also
+ * what puts apply in its "nothing to work on" state, so a file of nothing but
+ * text-less checkboxes asks to be rewritten instead of being called done.
  */
-function parseTasksFile(content: string): TaskItem[] {
+function toTaskItems(parsed: ParsedTask[]): TaskItem[] {
   const tasks: TaskItem[] = [];
-  const lines = content.split('\n');
-  let taskIndex = 0;
 
-  for (const line of lines) {
-    // Match checkbox patterns: - [ ] or - [x] or - [X]
-    const checkboxMatch = line.match(/^[-*]\s*\[([ xX])\]\s*(.+)\s*$/);
-    if (checkboxMatch) {
-      taskIndex++;
-      const done = checkboxMatch[1].toLowerCase() === 'x';
-      const description = checkboxMatch[2].trim();
-      tasks.push({
-        id: `${taskIndex}`,
-        description,
-        done,
-      });
-    }
+  for (const task of parsed) {
+    if (task.description.length === 0) continue;
+    tasks.push({
+      id: `${tasks.length + 1}`,
+      description: task.description,
+      done: task.done,
+    });
   }
 
   return tasks;
+}
+
+export interface GenerateApplyInstructionsOptions {
+  planningHome?: PlanningHome;
+  references?: ReferenceIndexEntry[];
+  projectConfig?: ProjectConfig | null;
 }
 
 /**
@@ -262,12 +365,16 @@ export async function generateApplyInstructions(
   projectRoot: string,
   changeName: string,
   schemaName?: string,
-  planningHome = resolveCurrentPlanningHomeSync({ startPath: projectRoot })
+  options: GenerateApplyInstructionsOptions = {}
 ): Promise<ApplyInstructions> {
+  const planningHome =
+    options.planningHome ?? resolveCurrentPlanningHomeSync({ startPath: projectRoot });
+  const references = options.references;
   // loadChangeContext will auto-detect schema from metadata if not provided
   const context = loadChangeContext(projectRoot, changeName, schemaName, {
     changeDir: getChangeDir(planningHome, changeName),
     planningHome,
+    projectConfig: options.projectConfig,
   });
   const changeDir = context.changeDir;
 
@@ -280,10 +387,16 @@ export async function generateApplyInstructions(
   const requiredArtifactIds = applyConfig?.requires ?? schema.artifacts.map((a) => a.id);
   const tracksFile = applyConfig?.tracks ?? null;
   const schemaInstruction = applyConfig?.instruction ?? null;
+  const operationInputs = loadOperationInputs(options.projectConfig ?? null, 'apply');
 
-  // Check which required artifacts are missing
+  // Check which required artifacts are missing. Artifacts the change skips
+  // via skip_specs count as present - their files must not exist, and
+  // status already reports them complete, so apply cannot block on them.
   const missingArtifacts: string[] = [];
   for (const artifactId of requiredArtifactIds) {
+    if (context.skippedArtifacts?.has(artifactId)) {
+      continue;
+    }
     const artifact = schema.artifacts.find((a) => a.id === artifactId);
     if (artifact && resolveArtifactOutputs(changeDir, artifact.generates).length === 0) {
       missingArtifacts.push(artifactId);
@@ -300,20 +413,22 @@ export async function generateApplyInstructions(
   }
 
   // Parse tasks if tracking file exists
-  let tasks: TaskItem[] = [];
+  let parsedTasks: ParsedTask[] = [];
   let tracksFileExists = false;
   if (tracksFile) {
-    const tracksPath = path.join(changeDir, tracksFile);
+    const tracksPath = resolveArtifactOutputPath(changeDir, tracksFile);
     tracksFileExists = fs.existsSync(tracksPath);
     if (tracksFileExists) {
       const tasksContent = await fs.promises.readFile(tracksPath, 'utf-8');
-      tasks = parseTasksFile(tasksContent);
+      parsedTasks = parseTaskLines(tasksContent);
     }
   }
+  const tasks = toTaskItems(parsedTasks);
 
-  // Calculate progress
-  const total = tasks.length;
-  const complete = tasks.filter((t) => t.done).length;
+  // Calculate progress over every checkbox in the file, listed or not, so these
+  // numbers match `openspec list` and archive's incomplete-task check.
+  const total = parsedTasks.length;
+  const complete = parsedTasks.filter((task) => task.done).length;
   const remaining = total - complete;
 
   // Determine state and instruction
@@ -328,11 +443,12 @@ export async function generateApplyInstructions(
     const tracksFilename = path.basename(tracksFile);
     state = 'blocked';
     instruction = `The ${tracksFilename} file is missing and must be created.\nUse openspec-continue-change to generate the tracking file.`;
-  } else if (tracksFile && tracksFileExists && total === 0) {
-    // Tracking file exists but contains no tasks
+  } else if (tracksFile && tracksFileExists && tasks.length === 0) {
+    // Tracking file exists but lists nothing an agent can work on: either no
+    // checkboxes at all, or only checkboxes with no text after them.
     const tracksFilename = path.basename(tracksFile);
     state = 'blocked';
-    instruction = `The ${tracksFilename} file exists but contains no tasks.\nAdd tasks to ${tracksFilename} or regenerate it with openspec-continue-change.`;
+    instruction = `The ${tracksFilename} file exists but contains no tasks to work on.\nAdd tasks to ${tracksFilename} or regenerate it with openspec-continue-change.`;
   } else if (tracksFile && remaining === 0 && total > 0) {
     state = 'all_done';
     instruction = 'All tasks are complete! This change is ready to be archived.\nConsider running tests and reviewing the changes before archiving.';
@@ -349,26 +465,34 @@ export async function generateApplyInstructions(
     changeName,
     changeDir,
     schemaName: context.schemaName,
-    ...(context.initiative ? { initiative: context.initiative } : {}),
     contextFiles,
     progress: { total, complete, remaining },
     tasks,
     state,
     missingArtifacts: missingArtifacts.length > 0 ? missingArtifacts : undefined,
     instruction,
+    ...(references !== undefined ? { references } : {}),
+    ...operationInputs,
   };
 }
 
 export async function applyInstructionsCommand(options: ApplyInstructionsOptions): Promise<void> {
+  // Resolve (and banner) before the spinner starts so stderr stays readable.
+  const root = await resolveRootForCommand(options, { json: options.json });
+  if (!root) {
+    return;
+  }
+
   const spinner = options.json ? undefined : ora('Generating apply instructions...').start();
 
   try {
-    const planningHome = resolveCurrentPlanningHomeSync();
-    const projectRoot = planningHome.root;
+    const planningHome = toPlanningHome(root);
+    const projectRoot = root.path;
     const changeName = await validateChangeExists(
       options.change,
       projectRoot,
-      planningHome.changesDir
+      root.changesDir,
+      { newChangeHint: withStoreFlag(root, 'openspec new change <name>') }
     );
 
     // Validate schema if explicitly provided
@@ -376,18 +500,19 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
       validateSchemaExists(options.schema, projectRoot);
     }
 
-    // generateApplyInstructions uses loadChangeContext which auto-detects schema
-    const instructions = await generateApplyInstructions(
-      projectRoot,
-      changeName,
-      options.schema,
-      planningHome
-    );
+    // One parsed config snapshot supplies schema fallback, references, context,
+    // and operation guidance for this command.
+    const { projectConfig, references } = await loadRootConfigContext(root);
+    const instructions = await generateApplyInstructions(projectRoot, changeName, options.schema, {
+      planningHome,
+      references,
+      projectConfig,
+    });
 
     spinner?.stop();
 
     if (options.json) {
-      console.log(JSON.stringify(instructions, null, 2));
+      console.log(JSON.stringify({ ...instructions, root: toRootOutput(root) }, null, 2));
       return;
     }
 
@@ -399,14 +524,16 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
 }
 
 export function printApplyInstructionsText(instructions: ApplyInstructions): void {
-  const { changeName, schemaName, initiative, contextFiles, progress, tasks, state, missingArtifacts, instruction } = instructions;
+  const { changeName, schemaName, contextFiles, progress, tasks, state, missingArtifacts, instruction } = instructions;
 
   console.log(`## Apply: ${changeName}`);
   console.log(`Schema: ${schemaName}`);
-  if (initiative) {
-    console.log(`Initiative: ${initiative.store}/${initiative.id}`);
-  }
   console.log();
+
+  if (instructions.references && instructions.references.length > 0) {
+    console.log(renderReferencedStoresSection(instructions.references));
+    console.log();
+  }
 
   // Warning for blocked state
   if (state === 'blocked' && missingArtifacts) {
@@ -453,4 +580,80 @@ export function printApplyInstructionsText(instructions: ApplyInstructions): voi
   // Instruction
   console.log('### Instruction');
   console.log(instruction);
+  console.log();
+
+  printOperationInputsText(instructions);
+}
+
+export function generateArchiveInstructions(
+  changeName: string,
+  projectConfig: ProjectConfig | null
+): ArchiveInstructions {
+  return {
+    changeName,
+    ...loadOperationInputs(projectConfig, 'archive'),
+  };
+}
+
+export async function archiveInstructionsCommand(
+  options: ArchiveInstructionsOptions
+): Promise<void> {
+  const root = await resolveRootForCommand(options, { json: options.json });
+  if (!root) {
+    return;
+  }
+
+  const spinner = options.json ? undefined : ora('Loading archive inputs...').start();
+
+  try {
+    const changeName = await validateChangeExists(
+      options.change,
+      root.path,
+      root.changesDir,
+      { newChangeHint: withStoreFlag(root, 'openspec new change <name>') }
+    );
+    const projectConfig = readProjectConfig(root.path);
+    const instructions = generateArchiveInstructions(changeName, projectConfig);
+
+    spinner?.stop();
+
+    if (options.json) {
+      console.log(JSON.stringify({ ...instructions, root: toRootOutput(root) }, null, 2));
+      return;
+    }
+
+    printArchiveInstructionsText(instructions);
+  } catch (error) {
+    spinner?.stop();
+    throw error;
+  }
+}
+
+export function printArchiveInstructionsText(instructions: ArchiveInstructions): void {
+  console.log(`## Archive Inputs: ${instructions.changeName}`);
+  console.log();
+  printOperationInputsText(instructions);
+}
+
+function printOperationInputsText(inputs: {
+  context?: string;
+  operationGuidance?: string[];
+}): void {
+  if (inputs.context) {
+    console.log('### Project Context (required instruction input)');
+    console.log(inputs.context);
+    console.log();
+  }
+
+  if (inputs.operationGuidance && inputs.operationGuidance.length > 0) {
+    console.log('### Operation Guidance (advisory)');
+    for (const guidance of inputs.operationGuidance) {
+      console.log(`- ${guidance}`);
+    }
+    console.log();
+  }
+
+  if (!inputs.context && !inputs.operationGuidance) {
+    console.log('No project context or operation guidance configured.');
+  }
 }

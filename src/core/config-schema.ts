@@ -21,6 +21,12 @@ export const GlobalConfigSchema = z
     workflows: z
       .array(z.string())
       .optional(),
+    defaultStore: z
+      .string()
+      .optional()
+      .describe(
+        'Store id used as fallback root when no explicit --store, local root, or project-level store: pointer resolves'
+      ),
   })
   .passthrough();
 
@@ -35,7 +41,25 @@ export const DEFAULT_CONFIG: GlobalConfigType = {
   delivery: 'both',
 };
 
-const KNOWN_TOP_LEVEL_KEYS = new Set([...Object.keys(DEFAULT_CONFIG), 'workflows']);
+const KNOWN_TOP_LEVEL_KEYS = new Set([...Object.keys(DEFAULT_CONFIG), 'workflows', 'defaultStore']);
+
+/**
+ * Key segments that would reach the prototype chain instead of the config object.
+ * Never valid as configuration keys, so rejecting them costs nothing.
+ */
+const UNSAFE_KEY_SEGMENTS = new Set(['__proto__', 'constructor', 'prototype']);
+
+function hasUnsafeSegment(keys: string[]): boolean {
+  return keys.some((key) => UNSAFE_KEY_SEGMENTS.has(key));
+}
+
+/**
+ * True when a dot-notation key path contains a prototype-reaching segment.
+ * Callers that bypass key validation (e.g. --allow-unknown) still must not bypass this.
+ */
+export function hasUnsafeKeySegment(path: string): boolean {
+  return hasUnsafeSegment(path.split('.'));
+}
 
 /**
  * Validate a config key path for CLI set operations.
@@ -46,6 +70,11 @@ export function validateConfigKeyPath(path: string): { valid: boolean; reason?: 
 
   if (rawKeys.length === 0 || rawKeys.some((key) => key.trim() === '')) {
     return { valid: false, reason: 'Key path must not be empty' };
+  }
+
+  const unsafeKey = rawKeys.find((key) => UNSAFE_KEY_SEGMENTS.has(key));
+  if (unsafeKey) {
+    return { valid: false, reason: `Key segment "${unsafeKey}" is not allowed` };
   }
 
   const rootKey = rawKeys[0];
@@ -76,6 +105,9 @@ export function validateConfigKeyPath(path: string): { valid: boolean; reason?: 
  */
 export function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
   const keys = path.split('.');
+  if (hasUnsafeSegment(keys)) {
+    return undefined;
+  }
   let current: unknown = obj;
 
   for (const key of keys) {
@@ -101,6 +133,16 @@ export function getNestedValue(obj: Record<string, unknown>, path: string): unkn
  */
 export function setNestedValue(obj: Record<string, unknown>, path: string, value: unknown): void {
   const keys = path.split('.');
+
+  // Compared literally rather than through a helper, so the guard is plain to a
+  // reader and to static analysis. Checked for the whole path before anything is
+  // written, so a rejected key never leaves half-created objects behind.
+  for (const key of keys) {
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+      return;
+    }
+  }
+
   let current: Record<string, unknown> = obj;
 
   for (let i = 0; i < keys.length - 1; i++) {
@@ -124,6 +166,13 @@ export function setNestedValue(obj: Record<string, unknown>, path: string, value
  */
 export function deleteNestedValue(obj: Record<string, unknown>, path: string): boolean {
   const keys = path.split('.');
+
+  for (const key of keys) {
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+      return false;
+    }
+  }
+
   let current: Record<string, unknown> = obj;
 
   for (let i = 0; i < keys.length - 1; i++) {
@@ -146,13 +195,17 @@ export function deleteNestedValue(obj: Record<string, unknown>, path: string): b
  * Coerce a string value to its appropriate type.
  * - "true" / "false" -> boolean
  * - Numeric strings -> number
+ * - JSON arrays/objects -> parsed containers
  * - Everything else -> string
  *
  * @param value - The string value to coerce
  * @param forceString - If true, always return the value as a string
  * @returns The coerced value
  */
-export function coerceValue(value: string, forceString: boolean = false): string | number | boolean {
+export function coerceValue(
+  value: string,
+  forceString: boolean = false
+): string | number | boolean | unknown[] | Record<string, unknown> {
   if (forceString) {
     return value;
   }
@@ -171,7 +224,37 @@ export function coerceValue(value: string, forceString: boolean = false): string
     return num;
   }
 
+  const jsonContainer = parseJsonContainer(value);
+  if (jsonContainer !== undefined) {
+    return jsonContainer;
+  }
+
   return value;
+}
+
+function parseJsonContainer(value: string): unknown[] | Record<string, unknown> | undefined {
+  const trimmed = value.trim();
+  const looksLikeContainer =
+    (trimmed.startsWith('[') && trimmed.endsWith(']')) ||
+    (trimmed.startsWith('{') && trimmed.endsWith('}'));
+
+  if (!looksLikeContainer) {
+    return undefined;
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+    if (Array.isArray(parsed)) {
+      return parsed;
+    }
+    if (parsed !== null && typeof parsed === 'object') {
+      return parsed as Record<string, unknown>;
+    }
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
 }
 
 /**

@@ -26,4 +26,10 @@ export const COMMON_FLAGS = {
     takesValue: true,
     values: ['change', 'spec'],
   } as FlagDefinition,
+  store: {
+    name: 'store',
+    description:
+      "Store id to use as the OpenSpec root (a store is a standalone OpenSpec repo you've registered)",
+    takesValue: true,
+  } as FlagDefinition,
 } as const;
