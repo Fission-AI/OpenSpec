@@ -43,6 +43,34 @@ The validator SHALL recognize bulleted lines that look like scenarios (e.g., lin
 - **AND** ...
 ```
 
+### Requirement: Normative keyword guidance SHALL not require English
+
+The validation report SHALL include a warning for a non-empty requirement body without the literal English keywords `SHALL` or `MUST`. Normal validation SHALL remain valid when that warning is the only issue, while strict validation SHALL remain invalid because strict mode treats warnings as failures.
+
+A requirement with no body content before its scenarios SHALL remain an error.
+
+#### Scenario: Non-English main spec
+
+- **WHEN** a main spec has a non-empty requirement body written without the English keywords `SHALL` or `MUST`
+- **THEN** the validation report includes an RFC 2119 guidance warning
+- **AND** normal validation succeeds
+
+#### Scenario: Non-English change delta
+
+- **WHEN** an ADDED or MODIFIED requirement has a non-empty body written without the English keywords `SHALL` or `MUST`
+- **THEN** the validation report includes an RFC 2119 guidance warning
+- **AND** normal validation succeeds
+
+#### Scenario: Strict validation preserves keyword enforcement
+
+- **WHEN** the same main spec or change is validated in strict mode
+- **THEN** the warning causes validation to fail
+
+#### Scenario: Requirement body is missing
+
+- **WHEN** a requirement has no body content before its scenarios
+- **THEN** validation reports an error
+
 ### Requirement: All issues SHALL include file paths and structured locations
 Error, warning, and info messages SHALL include:
 - Source file path (`openspec/changes/{id}/proposal.md`, `.../specs/{cap}/spec.md`)
@@ -245,4 +273,3 @@ The markdown parser SHALL correctly identify sections regardless of line ending 
 - **AND** the document contains `## Why` and `## What Changes`
 - **WHEN** running `openspec validate <change-id>`
 - **THEN** validation SHALL recognize the sections and NOT raise parsing errors
-
