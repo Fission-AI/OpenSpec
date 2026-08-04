@@ -195,6 +195,100 @@ describe('InitCommand', () => {
       expect((await fs.lstat(skillFile)).isSymbolicLink()).toBe(true);
     });
 
+    it('should generate safe Claude workflow guidance (#1493)', async () => {
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+
+      await initCommand.execute(testDir);
+
+      const generatedFiles = [
+        ...[
+          'openspec-propose',
+          'openspec-explore',
+          'openspec-apply-change',
+          'openspec-update-change',
+          'openspec-sync-specs',
+          'openspec-archive-change',
+        ].map((name) => path.join(testDir, '.claude', 'skills', name, 'SKILL.md')),
+        ...['propose', 'explore', 'apply', 'update', 'sync', 'archive'].map((name) =>
+          path.join(testDir, '.claude', 'commands', 'opsx', `${name}.md`)
+        ),
+      ];
+      const generatedContents = await Promise.all(
+        generatedFiles.map((file) => fs.readFile(file, 'utf-8'))
+      );
+
+      for (const content of generatedContents) {
+        expect(content).toContain(
+          'treat `--store <id>` as sticky for the rest of the workflow'
+        );
+        expect(content).toContain(
+          'openspec status --change "<name>" --json --store "<id>"'
+        );
+      }
+
+      const updateVariants: Array<[string, string]> = [
+        [
+          await fs.readFile(
+            path.join(
+              testDir,
+              '.claude',
+              'skills',
+              'openspec-update-change',
+              'SKILL.md'
+            ),
+            'utf-8'
+          ),
+          '`/opsx:continue`',
+        ],
+        [
+          await fs.readFile(
+            path.join(testDir, '.claude', 'commands', 'opsx', 'update.md'),
+            'utf-8'
+          ),
+          '`/opsx:continue`',
+        ],
+      ];
+
+      for (const [content, continueReference] of updateVariants) {
+        const availabilityGuidance = content.indexOf(
+          `${continueReference} is an expanded-profile workflow and may not be installed`
+        );
+        const nextReference = content.indexOf(
+          continueReference,
+          availabilityGuidance + continueReference.length
+        );
+
+        expect(availabilityGuidance).toBeGreaterThanOrEqual(0);
+        expect(content.indexOf(continueReference)).toBe(availabilityGuidance);
+        expect(nextReference).toBeGreaterThan(availabilityGuidance);
+        expect(content).toContain('openspec status --change "<name>" --json');
+        expect(content).toContain(
+          'openspec instructions "<artifact-id>" --change "<name>" --json'
+        );
+      }
+
+      const syncFiles = [
+        path.join(testDir, '.claude', 'skills', 'openspec-sync-specs', 'SKILL.md'),
+        path.join(testDir, '.claude', 'commands', 'opsx', 'sync.md'),
+      ];
+
+      for (const file of syncFiles) {
+        const content = await fs.readFile(file, 'utf-8');
+        const mutationsComplete = content.indexOf(
+          'Follow the **Main Spec Format Reference** below'
+        );
+        const validation = content.indexOf('openspec validate --specs');
+        const summary = content.indexOf('6. **Show summary**');
+
+        expect(mutationsComplete).toBeGreaterThanOrEqual(0);
+        expect(validation).toBeGreaterThan(mutationsComplete);
+        expect(summary).toBeGreaterThan(validation);
+        expect(content).toContain(
+          'If validation fails, report the problems and do not claim the sync succeeded'
+        );
+      }
+    });
+
     it('should create skills in Cursor skills directory', async () => {
       const initCommand = new InitCommand({ tools: 'cursor', force: true });
 

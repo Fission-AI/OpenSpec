@@ -146,7 +146,12 @@ ${STORE_SELECTION_GUIDANCE}
       - Add Requirements section with the ADDED requirements
       - Follow the **Main Spec Format Reference** below
 
-5. **Show summary**
+5. **Validate updated main specs**
+
+   Run \`openspec validate --specs\` with the same selected-root flags used earlier.
+   If validation fails, report the problems and do not claim the sync succeeded.
+
+6. **Show summary**
 
    After applying all changes, summarize:
    - Which capabilities were updated
@@ -399,7 +404,12 @@ ${STORE_SELECTION_GUIDANCE}
       - Add Requirements section with the ADDED requirements
       - Follow the **Main Spec Format Reference** below
 
-5. **Show summary**
+5. **Validate updated main specs**
+
+   Run \`openspec validate --specs\` with the same selected-root flags used earlier.
+   If validation fails, report the problems and do not claim the sync succeeded.
+
+6. **Show summary**
 
    After applying all changes, summarize:
    - Which capabilities were updated
