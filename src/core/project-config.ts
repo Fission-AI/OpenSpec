@@ -306,7 +306,11 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
 
       // First check if it's an object structure (guard against null since typeof null === 'object')
       if (typeof raw.rules === 'object' && raw.rules !== null && !Array.isArray(raw.rules)) {
-        const parsedRules: Record<string, string[]> = {};
+        // Artifact ids are intentionally not restricted to the built-in naming
+        // convention, so keys such as "constructor" remain valid for custom
+        // schemas. A null-prototype map preserves those keys as data without
+        // letting "__proto__" mutate the lookup object's prototype.
+        const parsedRules: Record<string, string[]> = Object.create(null);
         let hasValidRules = false;
 
         for (const [artifactId, rules] of Object.entries(raw.rules)) {

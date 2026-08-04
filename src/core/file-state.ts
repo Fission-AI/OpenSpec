@@ -1,5 +1,6 @@
 import * as nodeFs from 'node:fs';
 import * as path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { StoreError } from './store/errors.js';
 
@@ -59,9 +60,18 @@ export function makeLockErrorFactory(
   };
 }
 
-const STALE_LOCK_THRESHOLD_MS = 30_000;
 const LOCK_DEADLINE_MS = 5000;
 const LOCK_POLL_MS = 25;
+const PRIVATE_FILE_MODE = 0o600;
+const lockOwnership = new WeakMap<nodeFs.promises.FileHandle, string>();
+
+function isUnsupportedSyncError(error: unknown): boolean {
+  return (
+    isNodeErrorCode(error, 'EINVAL') ||
+    isNodeErrorCode(error, 'ENOTSUP') ||
+    isNodeErrorCode(error, 'ENOSYS')
+  );
+}
 
 export function isNodeErrorCode(error: unknown, code: string): boolean {
   return (
@@ -108,7 +118,10 @@ export async function writeFileAtomically(
   );
 
   try {
-    await fs.writeFile(tempPath, content, 'utf-8');
+    await fs.writeFile(tempPath, content, {
+      encoding: 'utf-8',
+      mode: PRIVATE_FILE_MODE,
+    });
     await fs.rename(tempPath, filePath);
   } catch (error) {
     await fs.rm(tempPath, { force: true }).catch(() => undefined);
@@ -129,34 +142,40 @@ export async function acquireFileLock(
 
   while (true) {
     try {
-      return await fs.open(lockPath, 'wx');
+      const lock = await fs.open(lockPath, 'wx', PRIVATE_FILE_MODE);
+      const ownershipToken = `${process.pid}:${randomUUID()}`;
+      try {
+        await lock.writeFile(ownershipToken, 'utf-8');
+        try {
+          await lock.sync();
+        } catch (error) {
+          // Some FUSE and network filesystems support exclusive lock files but
+          // explicitly do not implement fsync. The token is still visible to
+          // cooperating processes, so do not make those projects unusable.
+          if (!isUnsupportedSyncError(error)) {
+            throw error;
+          }
+        }
+      } catch (error) {
+        await lock.close().catch(() => undefined);
+        await fs.rm(lockPath, { force: true }).catch(() => undefined);
+        throw error;
+      }
+      lockOwnership.set(lock, ownershipToken);
+      return lock;
     } catch (error) {
       if (!isNodeErrorCode(error, 'EEXIST')) {
         // A permission or filesystem problem, not contention - say so.
         throw errorFor('create-failed', { lockPath, cause: error });
       }
 
-      // A crashed process leaves the lock behind forever; state-file
-      // writes are sub-second, so an old lock is an orphan - steal it.
-      let staleStolen = false;
-      try {
-        const lockStat = await fs.stat(lockPath);
-        if (Date.now() - lockStat.mtimeMs > STALE_LOCK_THRESHOLD_MS) {
-          await fs.rm(lockPath, { force: true });
-          staleStolen = true;
-        }
-      } catch {
-        // The holder released between open and stat - retry, but stay
-        // bounded: a persistently failing stat (EPERM, delete-pending)
-        // must hit the deadline instead of spinning forever.
+      // Never steal by age: unlinking a supposedly stale path can race with
+      // its replacement and erase a live owner's lock. The timeout diagnostic
+      // gives the user an explicit recovery path for genuinely orphaned locks.
+      if (Date.now() >= deadline) {
+        throw errorFor('timeout', { lockPath });
       }
-
-      if (!staleStolen) {
-        if (Date.now() >= deadline) {
-          throw errorFor('timeout', { lockPath });
-        }
-        await sleep(LOCK_POLL_MS);
-      }
+      await sleep(LOCK_POLL_MS);
     }
   }
 }
@@ -165,6 +184,21 @@ export async function releaseFileLock(
   lock: nodeFs.promises.FileHandle,
   lockPath: string
 ): Promise<void> {
+  const ownershipToken = lockOwnership.get(lock);
+  lockOwnership.delete(lock);
   await lock.close().catch(() => undefined);
-  await fs.rm(lockPath, { force: true }).catch(() => undefined);
+
+  if (ownershipToken === undefined) {
+    return;
+  }
+
+  try {
+    const currentToken = await fs.readFile(lockPath, 'utf-8');
+    if (currentToken === ownershipToken) {
+      await fs.rm(lockPath, { force: true });
+    }
+  } catch {
+    // The lock was already removed or replaced with an unreadable path.
+    // In either case, this owner must not remove anything else.
+  }
 }

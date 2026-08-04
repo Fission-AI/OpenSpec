@@ -285,12 +285,19 @@ export class Validator {
         // Run archive's scenario-loss check here too, so the change fails at
         // authoring time instead of days later at archive time (#1477).
         if (options.mainSpecsDir && plan.modified.length > 0) {
+          const mainSpecFile = path.join(
+            options.mainSpecsDir,
+            ...specId.split('/'),
+            'spec.md'
+          );
+          FileSystemUtils.assertPathWithin(path.dirname(mainSpecFile), mainSpecFile);
           issues.push(
             ...(await this.findScenarioLossIssues(
               plan.modified,
               plan.renamed,
-              path.join(options.mainSpecsDir, ...specId.split('/'), 'spec.md'),
-              entryPath
+              mainSpecFile,
+              entryPath,
+              path.dirname(mainSpecFile)
             ))
           );
         }
@@ -444,9 +451,11 @@ export class Validator {
     modified: RequirementBlock[],
     renamed: Array<{ from: string; to: string }>,
     mainSpecFile: string,
-    entryPath: string
+    entryPath: string,
+    mainSpecRoot: string
   ): Promise<ValidationIssue[]> {
     let mainContent: string;
+    FileSystemUtils.assertPathWithin(mainSpecRoot, mainSpecFile);
     try {
       mainContent = await fs.readFile(mainSpecFile, 'utf-8');
     } catch (error) {

@@ -22,6 +22,8 @@ import {
 import { discoverSpecFiles, hasAnyFileUnder } from '../utils/spec-discovery.js';
 import { readSkipSpecsMarker } from '../utils/change-metadata.js';
 import { isNonInteractivePromptError } from '../utils/interactive.js';
+import { FileSystemUtils } from '../utils/file-system.js';
+import { folderStyleNameProblem } from './id.js';
 
 function isMissingPathError(error: unknown): boolean {
   return (
@@ -209,16 +211,34 @@ function toArchiveDiagnostic(error: unknown): ArchiveDiagnostic {
 /**
  * Recursively copy a directory. Used when fs.rename fails (e.g. EPERM on Windows).
  */
+async function copySymbolicLink(src: string, dest: string): Promise<void> {
+  const target = await fs.readlink(src);
+  const isWindowsDirectoryLink =
+    process.platform === 'win32' && (await fs.stat(src)).isDirectory();
+  const destinationTarget =
+    isWindowsDirectoryLink && !path.isAbsolute(target)
+      ? path.resolve(path.dirname(src), target)
+      : target;
+  await fs.symlink(destinationTarget, dest, isWindowsDirectoryLink ? 'junction' : undefined);
+}
+
 async function copyDirRecursive(src: string, dest: string): Promise<void> {
-  await fs.mkdir(dest, { recursive: true });
+  // Every destination is new: exclusive directory creation prevents a
+  // symlink introduced after the archive target check from redirecting the
+  // cross-device fallback outside the archive.
+  await fs.mkdir(dest);
   const entries = await fs.readdir(src, { withFileTypes: true });
   for (const entry of entries) {
     const srcPath = path.join(src, entry.name);
     const destPath = path.join(dest, entry.name);
     if (entry.isDirectory()) {
       await copyDirRecursive(srcPath, destPath);
-    } else {
+    } else if (entry.isSymbolicLink()) {
+      await copySymbolicLink(srcPath, destPath);
+    } else if (entry.isFile()) {
       await fs.copyFile(srcPath, destPath);
+    } else {
+      throw new Error(`Cannot archive unsupported filesystem entry: ${srcPath}`);
     }
   }
 }
@@ -235,8 +255,15 @@ async function moveDirectory(src: string, dest: string): Promise<void> {
   } catch (err: any) {
     const code = err?.code;
     if (code === 'EPERM' || code === 'EXDEV') {
-      await copyDirRecursive(src, dest);
-      await fs.rm(src, { recursive: true, force: true });
+      const sourceStat = await fs.lstat(src);
+      if (sourceStat.isSymbolicLink()) {
+        await fs.mkdir(path.dirname(dest), { recursive: true });
+        await copySymbolicLink(src, dest);
+        await fs.unlink(src);
+      } else {
+        await copyDirRecursive(src, dest);
+        await fs.rm(src, { recursive: true, force: true });
+      }
     } else {
       throw err;
     }
@@ -308,6 +335,21 @@ export class ArchiveCommand {
     const archiveDir = root.archiveDir;
     const mainSpecsDir = root.specsDir;
 
+    for (const [allowedDirectory, managedDir] of [
+      [root.path, changesDir],
+      [changesDir, archiveDir],
+      [root.path, mainSpecsDir],
+    ] as const) {
+      try {
+        FileSystemUtils.assertPathWithin(allowedDirectory, managedDir);
+      } catch {
+        throw new ArchiveBlockedError(
+          'archive_path_outside_root',
+          `Refusing to archive through a path outside the OpenSpec root: ${managedDir}`
+        );
+      }
+    }
+
     // Get change name interactively if not provided
     if (!changeName) {
       if (json) {
@@ -323,6 +365,11 @@ export class ArchiveCommand {
         return null;
       }
       changeName = selectedChange;
+    }
+
+    const changeNameProblem = folderStyleNameProblem(changeName, 'Change name');
+    if (changeNameProblem) {
+      throw new ArchiveBlockedError('archive_change_name_invalid', changeNameProblem);
     }
 
     const changeDir = path.join(changesDir, changeName);
