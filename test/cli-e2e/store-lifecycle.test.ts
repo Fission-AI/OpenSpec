@@ -425,6 +425,13 @@ describe('standalone store lifecycle journey', () => {
     expect(status.exitCode).toBe(0);
     expect(status.stdout).toContain('All planning artifacts complete!');
 
+    const statusJson = await runCLI(
+      ['status', '--change', changeId, '--store', STORE_ID, '--json'],
+      { env: machineB, cwd: base }
+    );
+    expect(statusJson.exitCode).toBe(0);
+    expect(JSON.parse(statusJson.stdout).nextSteps[0]).toContain(`--store ${STORE_ID}`);
+
     const validated = await runCLI(
       ['validate', changeId, '--store', STORE_ID],
       { env: machineB, cwd: base }

@@ -266,7 +266,11 @@ describe('skill templates split parity', () => {
     ];
 
     for (const [variant, content] of variants) {
-      expect(content, variant).toContain('Once implementation and tasks are complete, archive it');
+      expect(content, variant).toContain('Planning is complete!');
+      expect(content, variant).toContain(
+        'Once implementation and any tracked work are complete, archive it'
+      );
+      expect(content, variant).not.toContain('All artifacts created!');
       expect(content, variant).not.toContain('or archive it');
     }
   });

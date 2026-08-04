@@ -168,6 +168,10 @@ describe('artifact-workflow CLI commands', () => {
       const apply = JSON.parse(applyResult.stdout);
       expect(status.isPlanningComplete).toBe(true);
       expect(status.isComplete).toBe(true);
+      expect(status.nextSteps[0]).toContain(
+        'openspec instructions apply --change "planned-change" --json'
+      );
+      expect(status.nextSteps[0]).not.toContain('before implementation');
       expect(apply.state).toBe('ready');
       expect(apply.progress.remaining).toBe(1);
     });
