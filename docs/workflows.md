@@ -42,10 +42,11 @@ flowchart LR
     Review -->|"Refine"| Update["/opsx:update"]
     Update --> Review
     Review -->|"Implement"| Apply["/opsx:apply"]
+    Apply --> Archive["/opsx:archive"]
     Apply --> Verify["/opsx:verify<br/>(optional, expanded profile)"]
     Apply --> Sync["/opsx:sync<br/>(optional before archive)"]
     Verify --> Sync
-    Verify --> Archive["/opsx:archive"]
+    Verify --> Archive
     Sync --> Archive
 ```
 
@@ -75,8 +76,20 @@ sequenceDiagram
 
     Human->>Assistant: /opsx:archive
     Assistant->>CLI: Check artifact and task status
-    Assistant->>Files: Sync accepted spec changes and archive the change
+    CLI-->>Assistant: Paths, completion state, and delta specs
+    opt Delta specs exist
+        Assistant-->>Human: Offer to sync before archiving
+        alt Sync accepted
+            Human->>Assistant: Confirm sync
+            Assistant->>Files: Merge accepted delta specs
+        else Sync skipped
+            Human->>Assistant: Archive without syncing
+        end
+    end
+    Assistant->>Files: Move the change into the archive
     Assistant-->>Human: Report archive location and sync result
+
+    Note over Human,CLI: Non-interactive: openspec archive change-name --yes accepts prompts and syncs
 ```
 
 ## Two Modes
