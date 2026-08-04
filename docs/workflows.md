@@ -34,7 +34,7 @@ The default workflow stays fluid: exploration and verification are optional, and
 you can update planning artifacts whenever implementation reveals something new.
 
 ```mermaid
-flowchart LR
+flowchart TD
     Idea["Idea or problem"] --> Explore["/opsx:explore<br/>(optional)"]
     Idea --> Propose["/opsx:propose"]
     Explore --> Propose
@@ -42,11 +42,15 @@ flowchart LR
     Review -->|"Refine"| Update["/opsx:update"]
     Update --> Review
     Review -->|"Implement"| Apply["/opsx:apply"]
+    Apply -->|"Plan changed"| Update
     Apply --> Archive["/opsx:archive"]
-    Apply --> Verify["/opsx:verify<br/>(optional, expanded profile)"]
+    Apply --> Verify["/opsx:verify<br/>(optional, custom selection)"]
     Apply --> Sync["/opsx:sync<br/>(optional before archive)"]
-    Verify --> Sync
-    Verify --> Archive
+    Verify --> Verified{"Ready to archive?"}
+    Verified -->|"Fix implementation"| Apply
+    Verified -->|"Revise plan"| Update
+    Verified -->|"Ready"| Sync
+    Verified -->|"Ready"| Archive
     Sync --> Archive
 ```
 
@@ -58,14 +62,14 @@ sequenceDiagram
     actor Human
     participant Assistant as AI assistant
     participant CLI as OpenSpec CLI
-    participant Files as Project files
+    participant Files as Planning and implementation files
 
     Human->>Assistant: /opsx:propose "change"
     Assistant->>CLI: openspec new change
     CLI->>Files: Scaffold change metadata
     Assistant->>CLI: Request status and artifact instructions
     CLI-->>Assistant: Build order, paths, and templates
-    Assistant->>Files: Write proposal, specs, design, and tasks
+    Assistant->>Files: Write schema-defined planning artifacts
     Assistant-->>Human: Present artifacts for review
 
     Human->>Assistant: /opsx:apply
@@ -75,13 +79,14 @@ sequenceDiagram
     Assistant-->>Human: Report implementation status
 
     Human->>Assistant: /opsx:archive
-    Assistant->>CLI: Check artifact and task status
-    CLI-->>Assistant: Paths, completion state, and delta specs
+    Assistant->>CLI: Request archive inputs and artifact status
+    CLI-->>Assistant: Planning paths and artifact completion
+    Assistant->>Files: Read task state and compare delta specs
     opt Delta specs exist
         Assistant-->>Human: Offer to sync before archiving
         alt Sync accepted
             Human->>Assistant: Confirm sync
-            Assistant->>Files: Merge accepted delta specs
+            Assistant->>Files: Merge delta specs into main specs
         else Sync skipped
             Human->>Assistant: Archive without syncing
         end
@@ -89,7 +94,7 @@ sequenceDiagram
     Assistant->>Files: Move the change into the archive
     Assistant-->>Human: Report archive location and sync result
 
-    Note over Human,CLI: Non-interactive: openspec archive change-name --yes accepts prompts and syncs
+    Note over Human,CLI: CLI alternative: openspec archive change-name --yes skips confirmation prompts; it still validates, then applies any delta specs and archives
 ```
 
 ## Two Modes
