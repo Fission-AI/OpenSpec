@@ -224,7 +224,7 @@ The system SHALL support multiple methods for reviewing proposed changes.
 - **WHEN** reviewing proposed changes
 - **THEN** reviewers can compare using:
 - GitHub PR diff view when changes are committed
-- Command line: `diff -u specs/[capability-path]/spec.md changes/[name]/specs/[capability-path]/spec.md`
+- Command line: `diff -u "specs/<capability-path>/spec.md" "changes/<name>/specs/<capability-path>/spec.md"`
 - Any visual diff tool comparing current vs future state
 
 ### Requirement: Structured Format Adoption

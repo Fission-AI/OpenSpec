@@ -301,6 +301,29 @@ describe('skill templates split parity', () => {
       expect(content, label).toContain(destination);
       expect(content, label).not.toContain('specs/<capability>/spec.md');
     }
+
+    const bulkArchiveVariants: Array<[string, string]> = [
+      [
+        'bulk archive skill',
+        generateSkillContent(getBulkArchiveChangeSkillTemplate(), 'PARITY-BASELINE'),
+      ],
+      ['bulk archive command', getOpsxBulkArchiveCommandTemplate().content],
+    ];
+
+    for (const [label, content] of bulkArchiveVariants) {
+      expect(content, label).toContain(
+        'Build a map keyed by `<capability-path>`, the exact path relative to `specs/`'
+      );
+      expect(content, label).toContain(
+        'billing/user-auth  -> [change-c]            <- OK (different full path)'
+      );
+      expect(content, label).toContain(
+        'the exact same `<capability-path>`'
+      );
+      expect(content, label).toContain(
+        'keyed by change and `<capability-path>`'
+      );
+    }
   });
 
   it('generates no workspace-planning residue in any workflow template (4.1)', () => {

@@ -85,14 +85,14 @@ ${STORE_SELECTION_GUIDANCE}
         batches where some schemas have no \`specs\` artifact.
 4. **Detect spec conflicts**
 
-   Build a map of \`capability -> [changes that touch it]\`:
+   Build a map keyed by \`<capability-path>\`, the exact path relative to \`specs/\`:
 
    \`\`\`text
-   auth -> [change-a, change-b]  <- CONFLICT (2+ changes)
-   api  -> [change-c]            <- OK (only 1 change)
+   identity/user-auth -> [change-a, change-b]  <- CONFLICT (2+ changes)
+   billing/user-auth  -> [change-c]            <- OK (different full path)
    \`\`\`
 
-   A conflict exists when 2+ selected changes have delta specs for the same capability.
+   A conflict exists when 2+ selected changes have delta specs for the exact same \`<capability-path>\`.
 
 5. **Resolve conflicts agentically**
 
@@ -110,7 +110,7 @@ ${STORE_SELECTION_GUIDANCE}
       - If neither implemented -> skip spec sync, warn user
 
    d. **Record resolution** for each conflict:
-      - An inclusion or exclusion decision for every delta spec, keyed by change and capability
+      - An inclusion or exclusion decision for every delta spec, keyed by change and \`<capability-path>\`
       - Which included delta specs to apply and in what order
       - Which delta specs to exclude from sync because their implementation is missing
       - Rationale (what was found in codebase)
@@ -425,14 +425,14 @@ ${STORE_SELECTION_GUIDANCE}
 
 4. **Detect spec conflicts**
 
-   Build a map of \`capability -> [changes that touch it]\`:
+   Build a map keyed by \`<capability-path>\`, the exact path relative to \`specs/\`:
 
    \`\`\`text
-   auth -> [change-a, change-b]  <- CONFLICT (2+ changes)
-   api  -> [change-c]            <- OK (only 1 change)
+   identity/user-auth -> [change-a, change-b]  <- CONFLICT (2+ changes)
+   billing/user-auth  -> [change-c]            <- OK (different full path)
    \`\`\`
 
-   A conflict exists when 2+ selected changes have delta specs for the same capability.
+   A conflict exists when 2+ selected changes have delta specs for the exact same \`<capability-path>\`.
 
 5. **Resolve conflicts agentically**
 
@@ -450,7 +450,7 @@ ${STORE_SELECTION_GUIDANCE}
       - If neither implemented -> skip spec sync, warn user
 
    d. **Record resolution** for each conflict:
-      - An inclusion or exclusion decision for every delta spec, keyed by change and capability
+      - An inclusion or exclusion decision for every delta spec, keyed by change and \`<capability-path>\`
       - Which included delta specs to apply and in what order
       - Which delta specs to exclude from sync because their implementation is missing
       - Rationale (what was found in codebase)
