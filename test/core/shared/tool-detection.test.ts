@@ -84,6 +84,15 @@ describe('tool-detection', () => {
       expect(status.skillCount).toBe(1);
     });
 
+    it('should detect legacy Codex skills before they are migrated', async () => {
+      const skillDir = path.join(testDir, '.codex', 'skills', 'openspec-explore');
+      await fs.mkdir(skillDir, { recursive: true });
+      await fs.writeFile(path.join(skillDir, 'SKILL.md'), 'legacy content');
+
+      expect(getToolSkillStatus(testDir, 'codex').configured).toBe(true);
+      expect(getConfiguredTools(testDir)).toContain('codex');
+    });
+
     it('should detect when all skills exist', async () => {
       for (const skillName of SKILL_NAMES) {
         const skillDir = path.join(testDir, '.claude', 'skills', skillName);
@@ -116,6 +125,18 @@ describe('tool-detection', () => {
       const states = getToolStates(testDir);
       expect(states.get('claude')?.configured).toBe(true);
       expect(states.get('cursor')?.configured).toBe(false);
+    });
+
+    it('should expose only the marked owner of a shared skill tree as configured', async () => {
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      const skillDir = path.join(skillsDir, 'openspec-explore');
+      await fs.mkdir(skillDir, { recursive: true });
+      await fs.writeFile(path.join(skillDir, 'SKILL.md'), 'test content');
+      await fs.writeFile(path.join(skillsDir, '.openspec-target'), 'agents\n');
+
+      const states = getToolStates(testDir);
+      expect(states.get('agents')?.configured).toBe(true);
+      expect(states.get('codex')?.configured).toBe(false);
     });
   });
 

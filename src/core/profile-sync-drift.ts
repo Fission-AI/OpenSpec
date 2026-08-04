@@ -11,6 +11,7 @@ import {
   shouldReconcileCommandFilesForTool,
   shouldRemoveSkillsForTool,
 } from './command-surface.js';
+import { readSharedSkillTarget } from './shared-skill-target.js';
 
 type WorkflowId = (typeof ALL_WORKFLOWS)[number];
 
@@ -69,6 +70,30 @@ export function hasToolProfileOrDeliveryDrift(
   const adapter = CommandAdapterRegistry.get(toolId);
   const shouldGenerateSkills = shouldGenerateSkillsForTool(toolId, delivery);
   const shouldGenerateCommands = shouldGenerateCommandsForTool(toolId, delivery);
+
+  const sharedTarget = readSharedSkillTarget(projectPath, tool.skillsDir);
+  for (const root of tool.legacySkillsDirs ?? []) {
+    for (const workflow of knownDesiredWorkflows) {
+      const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
+      const legacySkill = path.join(projectPath, root, 'skills', dirName, 'SKILL.md');
+      if (!fs.existsSync(legacySkill)) continue;
+
+      const currentSkill = path.join(skillsDir, dirName, 'SKILL.md');
+      if (!fs.existsSync(currentSkill) || sharedTarget !== toolId) {
+        return true;
+      }
+      try {
+        if (fs.realpathSync(legacySkill) === fs.realpathSync(currentSkill)) {
+          continue;
+        }
+        if (fs.readFileSync(legacySkill, 'utf-8') === fs.readFileSync(currentSkill, 'utf-8')) {
+          return true;
+        }
+      } catch {
+        return true;
+      }
+    }
+  }
 
   if (shouldGenerateSkills) {
     for (const workflow of knownDesiredWorkflows) {

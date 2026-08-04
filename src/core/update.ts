@@ -67,6 +67,7 @@ import {
   shouldReconcileCommandFilesForTool,
   shouldRemoveSkillsForTool,
 } from './command-surface.js';
+import { writeSharedSkillTarget } from './shared-skill-target.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
@@ -283,6 +284,7 @@ export class UpdateCommand {
             FileSystemUtils.assertProjectArtifactPath(resolvedProjectPath, skillFile);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
+          writeSharedSkillTarget(resolvedProjectPath, tool.value);
 
           removedDeselectedSkillCount += await this.removeUnselectedSkillDirs(
             resolvedProjectPath,
@@ -334,6 +336,16 @@ export class UpdateCommand {
 
         spinner.succeed(`Updated ${tool.name}`);
         updatedTools.push(tool.name);
+        for (const migration of migrateLegacyToolDirs(
+          resolvedProjectPath,
+          [tool.value],
+          'after-generation'
+        )) {
+          if (hasMovableContent(migration)) {
+            console.log(chalk.dim(`Migrated ${describeLegacyMigration(migration)}: ${migration.from} → ${migration.to}`));
+          }
+          this.reportKeptInPlace(migration);
+        }
       } catch (error) {
         spinner.fail(`Failed to update ${tool.name}`);
         failedTools.push({
@@ -1040,6 +1052,7 @@ export class UpdateCommand {
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
         }
+        writeSharedSkillTarget(projectPath, tool.value);
 
         // Create commands when delivery includes commands
         if (shouldGenerateCommands) {
@@ -1059,6 +1072,16 @@ export class UpdateCommand {
 
         spinner.succeed(`Setup complete for ${tool.name}`);
         newlyConfigured.push(toolId);
+        for (const migration of migrateLegacyToolDirs(
+          projectPath,
+          [tool.value],
+          'after-generation'
+        )) {
+          if (hasMovableContent(migration)) {
+            console.log(chalk.dim(`Migrated ${describeLegacyMigration(migration)}: ${migration.from} → ${migration.to}`));
+          }
+          this.reportKeptInPlace(migration);
+        }
       } catch (error) {
         spinner.fail(`Failed to set up ${tool.name}`);
         console.log(chalk.red(`  ${error instanceof Error ? error.message : String(error)}`));

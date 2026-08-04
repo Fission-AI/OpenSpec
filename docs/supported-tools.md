@@ -9,7 +9,7 @@ For each selected tool, OpenSpec can install:
 1. **Skills** (if delivery includes skills): `.../skills/openspec-*/SKILL.md`
 2. **Commands** (if delivery includes commands): tool-specific `opsx-*` command files
 
-Codex is skills-only: OpenSpec installs `.codex/skills/openspec-*/SKILL.md` for Codex even when delivery is set to `commands`, and it does not generate Codex custom prompt files.
+Codex is skills-only: OpenSpec installs `.agents/skills/openspec-*/SKILL.md` for Codex even when delivery is set to `commands`, and it does not generate Codex custom prompt files. Existing OpenSpec-managed skills under the legacy `.codex/skills` path are reconciled after their replacements are written; custom and divergent files are preserved.
 
 By default, OpenSpec uses the `core` profile, which includes:
 - `propose`
@@ -72,7 +72,7 @@ to read the hint.
 | Cline (`cline`) | `.cline/skills/openspec-*/SKILL.md` | `.clinerules/workflows/opsx-<id>.md` |
 | CodeArts (`codeartsagent`) | `.codeartsdoer/skills/openspec-*/SKILL.md` | Not generated (no command adapter; use skill-based `/openspec-*` invocations) |
 | CodeBuddy (`codebuddy`) | `.codebuddy/skills/openspec-*/SKILL.md` | `.codebuddy/commands/opsx/<id>.md` |
-| Codex (`codex`) | `.codex/skills/openspec-*/SKILL.md` | Not generated (skills-only; use `.codex/skills/openspec-*`) |
+| Codex (`codex`) | `.agents/skills/openspec-*/SKILL.md` | Not generated (skills-only; use `$openspec-*`) |
 | Devin Desktop, formerly Windsurf (`devin`) | `.devin/skills/openspec-*/SKILL.md` | `.devin/workflows/opsx-<id>.md`\*\*\*\* |
 | ForgeCode (`forgecode`) | `.forge/skills/openspec-*/SKILL.md` | Not generated (no command adapter; use skill-based `/openspec-*` invocations) |
 | Continue (`continue`) | `.continue/skills/openspec-*/SKILL.md` | `.continue/prompts/opsx-<id>.prompt` |
@@ -117,7 +117,11 @@ shared root many agent tools read, instead of a tool-specific directory.
 | Several agents on one repo, all reading `.agents/skills` | `agents` — one skill tree instead of one per tool |
 | Your tool isn't listed yet but reads `.agents/skills` | `agents` |
 
-Selecting it alongside a tool-specific ID is fine; each writes to its own root.
+Selecting it alongside a tool-specific ID is fine; each normally writes to its
+own root. Codex is the exception because it uses the same canonical `.agents`
+root. If both `codex` and `agents` are selected, OpenSpec keeps one
+Codex-rendered tree so `$openspec-*` references are not overwritten by the
+vendor-neutral form.
 OpenSpec also offers it automatically once a project has a `.agents/skills/`
 directory — a bare `.agents/` is not enough, since tools use that root for rules
 and subagent definitions too. Note `.agents` is not `.agent`: the singular
@@ -138,9 +142,11 @@ Two things to know:
 
 Because `.agents/skills/` is shared, it is worth knowing what OpenSpec claims there:
 it writes, refreshes, and removes only the `openspec-*` skill directories for your
-selected workflows. Anything else in that directory is left alone. Treat the
-`openspec-*` names as OpenSpec's — edits inside them are replaced on the next
-`openspec update`, the same as for every other tool.
+selected workflows, plus an `.openspec-target` marker that records whether Codex
+or the vendor-neutral target rendered that shared tree. Anything else in that
+directory is left alone. Treat the `openspec-*` names and marker as OpenSpec's —
+edits inside them are replaced on the next `openspec update`, the same as for
+every other tool.
 
 ## Non-Interactive Setup
 

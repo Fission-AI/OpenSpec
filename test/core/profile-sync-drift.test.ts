@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import {
   hasProjectConfigDrift,
+  hasToolProfileOrDeliveryDrift,
   WORKFLOW_TO_SKILL_DIR,
 } from '../../src/core/profile-sync-drift.js';
 import { CORE_WORKFLOWS } from '../../src/core/profiles.js';
@@ -88,5 +89,21 @@ describe('profile sync drift detection', () => {
 
     const hasDrift = hasProjectConfigDrift(tempDir, CORE_WORKFLOWS, 'both');
     expect(hasDrift).toBe(true);
+  });
+
+  it('does not report legacy Codex drift when both roots resolve to the same files', () => {
+    const skillsDir = path.join(tempDir, '.agents', 'skills');
+    for (const workflow of CORE_WORKFLOWS) {
+      const skillDirName = WORKFLOW_TO_SKILL_DIR[workflow];
+      const skillPath = path.join(skillsDir, skillDirName, 'SKILL.md');
+      fs.mkdirSync(path.dirname(skillPath), { recursive: true });
+      fs.writeFileSync(skillPath, `name: ${skillDirName}\n`);
+    }
+    fs.writeFileSync(path.join(skillsDir, '.openspec-target'), 'codex\n');
+    fs.symlinkSync('.agents', path.join(tempDir, '.codex'));
+
+    expect(
+      hasToolProfileOrDeliveryDrift(tempDir, 'codex', CORE_WORKFLOWS, 'skills')
+    ).toBe(false);
   });
 });

@@ -98,6 +98,7 @@ describe('available-tools', () => {
       const tools = getAvailableTools(testDir);
       const toolValues = tools.map((t) => t.value);
       expect(toolValues).toContain('agents');
+      expect(toolValues).not.toContain('codex');
     });
 
     it('should not detect the shared agents target from a bare .agents directory', async () => {
@@ -108,6 +109,42 @@ describe('available-tools', () => {
 
       const tools = getAvailableTools(testDir);
       expect(tools.map((t) => t.value)).not.toContain('agents');
+      expect(tools.map((t) => t.value)).not.toContain('codex');
+    });
+
+    it('should detect Codex from its legacy skill directory', async () => {
+      await fs.mkdir(path.join(testDir, '.codex', 'skills'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((tool) => tool.value)).toEqual(['codex']);
+      expect(tools[0].skillsDir).toBe('.agents');
+    });
+
+    it('should use the shared-root marker to distinguish Codex from agents', async () => {
+      await fs.mkdir(path.join(testDir, '.agents', 'skills'), { recursive: true });
+      await fs.writeFile(path.join(testDir, '.agents', 'skills', '.openspec-target'), 'codex\n');
+
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((tool) => tool.value)).toContain('codex');
+      expect(tools.map((tool) => tool.value)).not.toContain('agents');
+    });
+
+    it('should not let an unknown legacy skill supersede the shared agents target', async () => {
+      await fs.mkdir(path.join(testDir, '.agents', 'skills'), { recursive: true });
+      await fs.writeFile(path.join(testDir, '.agents', 'skills', '.openspec-target'), 'agents\n');
+      const customSkill = path.join(
+        testDir,
+        '.codex',
+        'skills',
+        'openspec-personal',
+        'SKILL.md'
+      );
+      await fs.mkdir(path.dirname(customSkill), { recursive: true });
+      await fs.writeFile(customSkill, 'user skill');
+
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((tool) => tool.value)).toContain('agents');
+      expect(tools.map((tool) => tool.value)).not.toContain('codex');
     });
 
     it('should return full AIToolOption objects', async () => {

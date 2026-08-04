@@ -8,6 +8,7 @@
 import path from 'path';
 import * as fs from 'fs';
 import { AI_TOOLS, type AIToolOption } from './config.js';
+import { reconcileSharedSkillTargets } from './shared-skill-target.js';
 
 /**
  * Scans the project path for AI tool configuration directories and returns
@@ -18,7 +19,7 @@ import { AI_TOOLS, type AIToolOption } from './config.js';
  * the project root. Only tools with a `skillsDir` property are considered.
  */
 export function getAvailableTools(projectPath: string): AIToolOption[] {
-  return AI_TOOLS.filter((tool) => {
+  const available = AI_TOOLS.filter((tool) => {
     if (!tool.skillsDir) return false;
 
     if (tool.detectionPaths && tool.detectionPaths.length > 0) {
@@ -40,4 +41,5 @@ export function getAvailableTools(projectPath: string): AIToolOption[] {
       return false;
     }
   });
+  return reconcileSharedSkillTargets(projectPath, available);
 }
