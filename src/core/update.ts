@@ -271,6 +271,7 @@ export class UpdateCommand {
 
       try {
         const skillsDir = resolveToolSkillsDir(resolvedProjectPath, tool);
+        const skillsRoot = hasGlobalSkillTarget(tool) ? skillsDir : resolvedProjectPath;
         const shouldGenerateSkills = shouldGenerateSkillsForTool(tool.value, delivery);
         const shouldGenerateCommands = shouldGenerateCommandsForTool(tool.value, delivery);
         const toolWorkflows = legacyWorkflowOverrides[tool.value] ?? desiredWorkflows;
@@ -290,15 +291,20 @@ export class UpdateCommand {
               resolveCommandInvocation(tool.value)
             );
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
+            FileSystemUtils.assertPathWithin(skillsRoot, skillFile);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
 
-          removedDeselectedSkillCount += await this.removeUnselectedSkillDirs(skillsDir, toolWorkflows);
+          removedDeselectedSkillCount += await this.removeUnselectedSkillDirs(
+            skillsRoot,
+            skillsDir,
+            toolWorkflows
+          );
         }
 
         // Delete skill directories if delivery is commands-only
         if (shouldRemoveSkillsForTool(tool.value, delivery) && !hasGlobalSkillTarget(tool)) {
-          removedSkillCount += await this.removeSkillDirs(skillsDir);
+          removedSkillCount += await this.removeSkillDirs(skillsRoot, skillsDir);
           // A tool with no command adapter now has zero OpenSpec artifacts;
           // say so like init does, rather than deleting its skills silently
           // and letting tool detection re-suggest an init that would also
@@ -315,7 +321,10 @@ export class UpdateCommand {
             const generatedCommands = generateCommands(commandContents, adapter);
 
             for (const cmd of generatedCommands) {
-              const commandFile = path.isAbsolute(cmd.path) ? cmd.path : path.join(resolvedProjectPath, cmd.path);
+              const commandFile = FileSystemUtils.resolveProjectArtifactPath(
+                resolvedProjectPath,
+                cmd.path
+              );
               await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
             }
 
@@ -450,6 +459,9 @@ export class UpdateCommand {
 
     console.log();
     console.log(chalk.dim('Restart your IDE for changes to take effect.'));
+    if (failedTools.length > 0) {
+      throw new Error(`OpenSpec update failed for: ${failedTools.map((tool) => tool.name).join(', ')}`);
+    }
   }
 
   /**
@@ -568,7 +580,7 @@ export class UpdateCommand {
    * Removes skill directories for workflows when delivery changed to commands-only.
    * Returns the number of directories removed.
    */
-  private async removeSkillDirs(skillsDir: string): Promise<number> {
+  private async removeSkillDirs(skillsRoot: string, skillsDir: string): Promise<number> {
     let removed = 0;
 
     for (const workflow of ALL_WORKFLOWS) {
@@ -576,11 +588,11 @@ export class UpdateCommand {
       if (!dirName) continue;
 
       const skillDir = path.join(skillsDir, dirName);
+      if (!fs.existsSync(skillDir)) continue;
+      FileSystemUtils.assertPathWithin(skillsRoot, skillDir);
       try {
-        if (fs.existsSync(skillDir)) {
-          await fs.promises.rm(skillDir, { recursive: true, force: true });
-          removed++;
-        }
+        await fs.promises.rm(skillDir, { recursive: true, force: true });
+        removed++;
       } catch {
         // Ignore errors
       }
@@ -594,6 +606,7 @@ export class UpdateCommand {
    * Returns the number of directories removed.
    */
   private async removeUnselectedSkillDirs(
+    skillsRoot: string,
     skillsDir: string,
     desiredWorkflows: readonly (typeof ALL_WORKFLOWS)[number][]
   ): Promise<number> {
@@ -606,11 +619,11 @@ export class UpdateCommand {
       if (!dirName) continue;
 
       const skillDir = path.join(skillsDir, dirName);
+      if (!fs.existsSync(skillDir)) continue;
+      FileSystemUtils.assertPathWithin(skillsRoot, skillDir);
       try {
-        if (fs.existsSync(skillDir)) {
-          await fs.promises.rm(skillDir, { recursive: true, force: true });
-          removed++;
-        }
+        await fs.promises.rm(skillDir, { recursive: true, force: true });
+        removed++;
       } catch {
         // Ignore errors
       }
@@ -634,7 +647,7 @@ export class UpdateCommand {
 
     for (const workflow of ALL_WORKFLOWS) {
       const cmdPath = adapter.getFilePath(workflow);
-      const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
+      const fullPath = FileSystemUtils.resolveProjectArtifactPath(projectPath, cmdPath);
 
       try {
         if (fs.existsSync(fullPath)) {
@@ -668,7 +681,7 @@ export class UpdateCommand {
     for (const workflow of ALL_WORKFLOWS) {
       if (desiredSet.has(workflow)) continue;
       const cmdPath = adapter.getFilePath(workflow);
-      const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
+      const fullPath = FileSystemUtils.resolveProjectArtifactPath(projectPath, cmdPath);
 
       try {
         if (fs.existsSync(fullPath)) {
@@ -1008,6 +1021,7 @@ export class UpdateCommand {
 
       try {
         const skillsDir = resolveToolSkillsDir(projectPath, tool);
+        const skillsRoot = hasGlobalSkillTarget(tool) ? skillsDir : projectPath;
         const shouldGenerateSkills = shouldGenerateSkillsForTool(tool.value, delivery);
         const shouldGenerateCommands = shouldGenerateCommandsForTool(tool.value, delivery);
         const toolWorkflows = (
@@ -1034,6 +1048,7 @@ export class UpdateCommand {
               resolveCommandInvocation(tool.value)
             );
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
+            FileSystemUtils.assertPathWithin(skillsRoot, skillFile);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
         }
@@ -1045,7 +1060,10 @@ export class UpdateCommand {
             const generatedCommands = generateCommands(commandContents, adapter);
 
             for (const cmd of generatedCommands) {
-              const commandFile = path.isAbsolute(cmd.path) ? cmd.path : path.join(projectPath, cmd.path);
+              const commandFile = FileSystemUtils.resolveProjectArtifactPath(
+                projectPath,
+                cmd.path
+              );
               await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
             }
           }

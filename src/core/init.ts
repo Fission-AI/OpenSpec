@@ -111,6 +111,7 @@ type ValidatedInitTool = {
   name: string;
   skillsDir?: string;
   skillsPath: string;
+  skillsRoot: string;
   isGlobalSkillTarget: boolean;
   wasConfigured: boolean;
 };
@@ -245,6 +246,11 @@ export class InitCommand {
 
     // Display success message
     this.displaySuccessMessage(projectPath, validatedTools, results, configStatus);
+    if (results.failedTools.length > 0) {
+      throw new Error(
+        `OpenSpec setup failed for: ${results.failedTools.map((tool) => tool.name).join(', ')}`
+      );
+    }
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -624,12 +630,15 @@ export class InitCommand {
       }
 
       const preState = toolStates.get(tool.value);
+      const skillsPath = resolveToolSkillsDir(projectPath, tool);
+      const isGlobalSkillTarget = hasGlobalSkillTarget(tool);
       validatedTools.push({
         value: tool.value,
         name: tool.name,
         skillsDir: tool.skillsDir,
-        skillsPath: resolveToolSkillsDir(projectPath, tool),
-        isGlobalSkillTarget: hasGlobalSkillTarget(tool),
+        skillsPath,
+        skillsRoot: isGlobalSkillTarget ? skillsPath : projectPath,
+        isGlobalSkillTarget,
         wasConfigured: preState?.configured ?? false,
       });
     }
@@ -652,6 +661,7 @@ export class InitCommand {
       ];
 
       for (const dir of directories) {
+        FileSystemUtils.assertProjectArtifactPath(path.dirname(openspecPath), dir);
         await FileSystemUtils.createDirectory(dir);
       }
       return;
@@ -667,6 +677,7 @@ export class InitCommand {
     ];
 
     for (const dir of directories) {
+      FileSystemUtils.assertProjectArtifactPath(path.dirname(openspecPath), dir);
       await FileSystemUtils.createDirectory(dir);
     }
 
@@ -744,11 +755,12 @@ export class InitCommand {
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
 
             // Write the skill file
+            FileSystemUtils.assertPathWithin(tool.skillsRoot, skillFile);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
         }
         if (shouldRemoveSkillsForTool(tool.value, delivery) && !tool.isGlobalSkillTarget) {
-          removedSkillCount += await this.removeSkillDirs(tool.skillsPath);
+          removedSkillCount += await this.removeSkillDirs(tool.skillsRoot, tool.skillsPath);
         }
 
         // Generate commands if delivery includes commands
@@ -758,7 +770,7 @@ export class InitCommand {
             const generatedCommands = generateCommands(commandContents, adapter);
 
             for (const cmd of generatedCommands) {
-              const commandFile = path.isAbsolute(cmd.path) ? cmd.path : path.join(projectPath, cmd.path);
+              const commandFile = FileSystemUtils.resolveProjectArtifactPath(projectPath, cmd.path);
               await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
             }
           }
@@ -814,6 +826,7 @@ export class InitCommand {
 
     try {
       const yamlContent = serializeConfig({ schema: DEFAULT_SCHEMA });
+      FileSystemUtils.assertProjectArtifactPath(path.dirname(openspecPath), configPath);
       await FileSystemUtils.writeFile(configPath, yamlContent);
       return 'created';
     } catch {
@@ -840,7 +853,11 @@ export class InitCommand {
     configStatus: 'created' | 'exists' | 'skipped'
   ): void {
     console.log();
-    console.log(chalk.bold('OpenSpec Setup Complete'));
+    console.log(
+      chalk.bold(
+        results.failedTools.length > 0 ? 'OpenSpec Setup Incomplete' : 'OpenSpec Setup Complete'
+      )
+    );
     console.log();
 
     // Show created vs refreshed tools
@@ -1075,7 +1092,7 @@ export class InitCommand {
     }).start();
   }
 
-  private async removeSkillDirs(skillsDir: string): Promise<number> {
+  private async removeSkillDirs(skillsRoot: string, skillsDir: string): Promise<number> {
     let removed = 0;
 
     for (const workflow of ALL_WORKFLOWS) {
@@ -1083,11 +1100,11 @@ export class InitCommand {
       if (!dirName) continue;
 
       const skillDir = path.join(skillsDir, dirName);
+      if (!fs.existsSync(skillDir)) continue;
+      FileSystemUtils.assertPathWithin(skillsRoot, skillDir);
       try {
-        if (fs.existsSync(skillDir)) {
-          await fs.promises.rm(skillDir, { recursive: true, force: true });
-          removed++;
-        }
+        await fs.promises.rm(skillDir, { recursive: true, force: true });
+        removed++;
       } catch {
         // Ignore errors
       }
@@ -1103,7 +1120,7 @@ export class InitCommand {
 
     for (const workflow of ALL_WORKFLOWS) {
       const cmdPath = adapter.getFilePath(workflow);
-      const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
+      const fullPath = FileSystemUtils.resolveProjectArtifactPath(projectPath, cmdPath);
 
       try {
         if (fs.existsSync(fullPath)) {

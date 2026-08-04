@@ -18,6 +18,9 @@ describe('instruction-loader', () => {
 
       expect(template).toContain('## Why');
       expect(template).toContain('## What Changes');
+      expect(template).toContain('specs/<capability-path>/spec.md');
+      expect(template).toContain('<existing-capability-path>');
+      expect(template).toContain('exact existing path under openspec/specs/');
     });
 
     it('should throw TemplateLoadError for non-existent template', () => {
@@ -40,6 +43,35 @@ describe('instruction-loader', () => {
         expect(err).toBeInstanceOf(TemplateLoadError);
         expect((err as TemplateLoadError).templatePath).toContain('nonexistent.md');
       }
+    });
+
+    it('should reject a template symlink that escapes its schema', () => {
+      if (process.platform === 'win32') return;
+
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-template-boundary-'));
+      const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'custom');
+      const templatesDir = path.join(schemaDir, 'templates');
+      const outsideFile = path.join(tempDir, 'outside.md');
+      fs.mkdirSync(templatesDir, { recursive: true });
+      fs.writeFileSync(path.join(schemaDir, 'schema.yaml'), 'name: custom\n');
+      fs.writeFileSync(outsideFile, 'private');
+      fs.symlinkSync(outsideFile, path.join(templatesDir, 'proposal.md'));
+
+      try {
+        expect(() => loadTemplate('custom', 'proposal.md', tempDir)).toThrow(
+          /outside the allowed directory/u
+        );
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it('should reject Windows-style template traversal on Windows', () => {
+      if (process.platform !== 'win32') return;
+
+      expect(() => loadTemplate('spec-driven', '..\\outside.md')).toThrow(
+        TemplateLoadError
+      );
     });
   });
 
@@ -391,6 +423,19 @@ rules:
         expect(designInstructions.rules).toBeUndefined();
       });
 
+      it('should not inherit rules from the rule map prototype', () => {
+        const context = loadChangeContext(tempDir, 'my-change');
+        const inheritedRules = Object.create({
+          proposal: ['Inherited rule'],
+        }) as Record<string, string[]>;
+
+        const instructions = generateInstructions(context, 'proposal', tempDir, {
+          projectConfig: { rules: inheritedRules },
+        });
+
+        expect(instructions.rules).toBeUndefined();
+      });
+
       it('should return undefined rules when empty array', () => {
         // Create project config with empty rules array
         const configDir = path.join(tempDir, 'openspec');
@@ -598,6 +643,7 @@ rules:
 
       expect(status.changeName).toBe('my-change');
       expect(status.schemaName).toBe('spec-driven');
+      expect(status.isPlanningComplete).toBe(false);
       expect(status.isComplete).toBe(false);
 
       // proposal has no deps, should be ready
@@ -637,7 +683,7 @@ rules:
       expect(specs?.outputPath).toBe('specs/**/*.md');
     });
 
-    it('should report isComplete true when all done', () => {
+    it('should report planning completion without removing the compatibility alias', () => {
       const changeDir = path.join(tempDir, 'openspec', 'changes', 'my-change');
       fs.mkdirSync(changeDir, { recursive: true });
       fs.mkdirSync(path.join(changeDir, 'specs'), { recursive: true });
@@ -651,8 +697,30 @@ rules:
       const context = loadChangeContext(tempDir, 'my-change');
       const status = formatChangeStatus(context);
 
+      expect(status.isPlanningComplete).toBe(true);
       expect(status.isComplete).toBe(true);
+      expect(status.isComplete).toBe(status.isPlanningComplete);
       expect(status.artifacts.every(a => a.status === 'done')).toBe(true);
+    });
+
+    it('should count skipped artifacts as planning-complete without creating them', () => {
+      const changeDir = path.join(tempDir, 'openspec', 'changes', 'my-change');
+      fs.mkdirSync(changeDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(changeDir, '.openspec.yaml'),
+        'schema: spec-driven\nskip_specs: true\n'
+      );
+      fs.writeFileSync(path.join(changeDir, 'proposal.md'), '# Proposal');
+      fs.writeFileSync(path.join(changeDir, 'design.md'), '# Design');
+      fs.writeFileSync(path.join(changeDir, 'tasks.md'), '# Tasks');
+
+      const context = loadChangeContext(tempDir, 'my-change');
+      const status = formatChangeStatus(context);
+
+      expect(status.isPlanningComplete).toBe(true);
+      expect(status.isComplete).toBe(true);
+      expect(status.artifacts.find(a => a.id === 'specs')?.status).toBe('skipped');
+      expect(fs.existsSync(path.join(changeDir, 'specs'))).toBe(false);
     });
 
     it('should show blocked artifacts with missing dependencies', () => {
