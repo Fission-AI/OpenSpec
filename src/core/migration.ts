@@ -19,6 +19,7 @@ import { ALL_WORKFLOWS } from './profiles.js';
 import { getSkillReferenceTransformer, getTransformerForTool } from '../utils/command-references.js';
 import path from 'path';
 import * as fs from 'fs';
+import { resolveToolSkillsDir, toolSupportsSkills } from './shared/skill-paths.js';
 
 export interface LegacyToolRoot {
   /** Former tool root, e.g. '.kimi' */
@@ -377,8 +378,8 @@ function scanInstalledWorkflowArtifacts(
   let hasCommands = false;
 
   for (const tool of tools) {
-    if (!tool.skillsDir) continue;
-    const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
+    if (!toolSupportsSkills(tool)) continue;
+    const skillsDir = resolveToolSkillsDir(projectPath, tool);
 
     for (const workflowId of ALL_WORKFLOWS) {
       const skillDirName = WORKFLOW_TO_SKILL_DIR[workflowId];

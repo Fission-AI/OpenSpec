@@ -46,6 +46,9 @@ import {
   getSkillTemplates,
   getCommandContents,
   generateSkillContent,
+  hasGlobalSkillTarget,
+  resolveToolSkillsDir,
+  toolSupportsSkills,
   type ToolSkillStatus,
 } from './shared/index.js';
 import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
@@ -101,6 +104,15 @@ type InitCommandOptions = {
   profile?: string;
   /** Commander's --no-animation flag: false disables the welcome animation. */
   animation?: boolean;
+};
+
+type ValidatedInitTool = {
+  value: string;
+  name: string;
+  skillsDir?: string;
+  skillsPath: string;
+  isGlobalSkillTarget: boolean;
+  wasConfigured: boolean;
 };
 
 /**
@@ -200,7 +212,7 @@ export class InitCommand {
     const selectedToolIds = await this.getSelectedTools(toolStates, extendMode, detectedTools, projectPath);
 
     // Validate selected tools
-    const validatedTools = this.validateTools(selectedToolIds, toolStates);
+    const validatedTools = this.validateTools(selectedToolIds, toolStates, projectPath);
 
     // Selecting a renamed tool is consent to leave its former directory:
     // init is about to write the current one, and leaving OpenSpec content
@@ -590,9 +602,10 @@ export class InitCommand {
 
   private validateTools(
     toolIds: string[],
-    toolStates: Map<string, ToolSkillStatus>
-  ): Array<{ value: string; name: string; skillsDir: string; wasConfigured: boolean }> {
-    const validatedTools: Array<{ value: string; name: string; skillsDir: string; wasConfigured: boolean }> = [];
+    toolStates: Map<string, ToolSkillStatus>,
+    projectPath: string
+  ): ValidatedInitTool[] {
+    const validatedTools: ValidatedInitTool[] = [];
 
     for (const toolId of toolIds) {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
@@ -603,7 +616,7 @@ export class InitCommand {
         );
       }
 
-      if (!tool.skillsDir) {
+      if (!toolSupportsSkills(tool)) {
         const validToolsWithSkills = getToolsWithSkillsDir();
         throw new Error(
           `Tool '${toolId}' does not support skill generation.\nTools with skill generation support:\n  ${validToolsWithSkills.join('\n  ')}`
@@ -615,6 +628,8 @@ export class InitCommand {
         value: tool.value,
         name: tool.name,
         skillsDir: tool.skillsDir,
+        skillsPath: resolveToolSkillsDir(projectPath, tool),
+        isGlobalSkillTarget: hasGlobalSkillTarget(tool),
         wasConfigured: preState?.configured ?? false,
       });
     }
@@ -675,7 +690,7 @@ export class InitCommand {
    */
   private async generateSkillsAndCommands(
     projectPath: string,
-    tools: Array<{ value: string; name: string; skillsDir: string; wasConfigured: boolean }>
+    tools: ValidatedInitTool[]
   ): Promise<{
     createdTools: typeof tools;
     refreshedTools: typeof tools;
@@ -714,12 +729,9 @@ export class InitCommand {
 
         // Generate skill files if the selected delivery and tool capability allow skills
         if (shouldGenerateSkills) {
-          // Use tool-specific skillsDir
-          const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
-
           // Create skill directories and SKILL.md files
           for (const { template, dirName } of skillTemplates) {
-            const skillDir = path.join(skillsDir, dirName);
+            const skillDir = path.join(tool.skillsPath, dirName);
             const skillFile = path.join(skillDir, 'SKILL.md');
 
             // Generate SKILL.md content with YAML frontmatter including generatedBy
@@ -735,9 +747,8 @@ export class InitCommand {
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
         }
-        if (shouldRemoveSkillsForTool(tool.value, delivery)) {
-          const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
-          removedSkillCount += await this.removeSkillDirs(skillsDir);
+        if (shouldRemoveSkillsForTool(tool.value, delivery) && !tool.isGlobalSkillTarget) {
+          removedSkillCount += await this.removeSkillDirs(tool.skillsPath);
         }
 
         // Generate commands if delivery includes commands
@@ -816,7 +827,7 @@ export class InitCommand {
 
   private displaySuccessMessage(
     projectPath: string,
-    tools: Array<{ value: string; name: string; skillsDir: string; wasConfigured: boolean }>,
+    tools: ValidatedInitTool[],
     results: {
       createdTools: typeof tools;
       refreshedTools: typeof tools;
@@ -847,19 +858,66 @@ export class InitCommand {
       const profile: Profile = (this.profileOverride as Profile) ?? globalConfig.profile ?? 'core';
       const delivery: Delivery = globalConfig.delivery ?? 'both';
       const workflows = getProfileWorkflows(profile, globalConfig.workflows);
-      const toolDirs = [...new Set(successfulTools.map((t) => t.skillsDir))].join(', ');
-      const skillCount = successfulTools.some((tool) => shouldGenerateSkillsForTool(tool.value, delivery))
-        ? getSkillTemplates(workflows).length
-        : 0;
-      const commandCount = successfulTools.some((tool) => shouldGenerateCommandsForTool(tool.value, delivery))
-        ? getCommandContents(workflows).length
-        : 0;
-      if (skillCount > 0 && commandCount > 0) {
-        console.log(`${skillCount} skills and ${commandCount} commands in ${toolDirs}/`);
-      } else if (skillCount > 0) {
-        console.log(`${skillCount} skills in ${toolDirs}/`);
-      } else if (commandCount > 0) {
-        console.log(`${commandCount} commands in ${toolDirs}/`);
+      const usesGlobalSkillTarget = successfulTools.some((tool) => tool.isGlobalSkillTarget);
+
+      if (!usesGlobalSkillTarget) {
+        const toolDirs = [
+          ...new Set(
+            successfulTools
+              .map((tool) => tool.skillsDir)
+              .filter((skillsDir): skillsDir is string => Boolean(skillsDir))
+          ),
+        ].join(', ');
+        const skillCount = successfulTools.some((tool) =>
+          shouldGenerateSkillsForTool(tool.value, delivery)
+        )
+          ? getSkillTemplates(workflows).length
+          : 0;
+        const commandCount = successfulTools.some((tool) =>
+          shouldGenerateCommandsForTool(tool.value, delivery)
+        )
+          ? getCommandContents(workflows).length
+          : 0;
+        if (skillCount > 0 && commandCount > 0) {
+          console.log(`${skillCount} skills and ${commandCount} commands in ${toolDirs}/`);
+        } else if (skillCount > 0) {
+          console.log(`${skillCount} skills in ${toolDirs}/`);
+        } else if (commandCount > 0) {
+          console.log(`${commandCount} commands in ${toolDirs}/`);
+        }
+      } else {
+        const skillTools = successfulTools.filter((tool) =>
+          shouldGenerateSkillsForTool(tool.value, delivery)
+        );
+        const skillCount = skillTools.length * getSkillTemplates(workflows).length;
+        if (skillCount > 0) {
+          const skillDirs = [...new Set(skillTools.map((tool) => tool.skillsPath))];
+          console.log(`${skillCount} skills in ${skillDirs.join(', ')}`);
+        }
+
+        const commandContents = getCommandContents(workflows);
+        const commandTools = successfulTools.filter((tool) =>
+          shouldGenerateCommandsForTool(tool.value, delivery)
+        );
+        const commandCount = commandTools.length * commandContents.length;
+        if (commandCount > 0) {
+          const commandDirs = [
+            ...new Set(
+              commandTools.flatMap((tool) => {
+                const adapter = CommandAdapterRegistry.get(tool.value);
+                if (!adapter) return [];
+                return commandContents.map((command) => {
+                  const commandPath = adapter.getFilePath(command.id);
+                  const absolutePath = path.isAbsolute(commandPath)
+                    ? commandPath
+                    : path.join(projectPath, commandPath);
+                  return path.dirname(absolutePath);
+                });
+              })
+            ),
+          ];
+          console.log(`${commandCount} commands in ${commandDirs.join(', ')}`);
+        }
       }
     }
 

@@ -133,9 +133,10 @@ describe('openspec CLI e2e basics', () => {
       await fs.mkdir(emptyProjectDir, { recursive: true });
 
       const codexHome = path.join(emptyProjectDir, '.codex');
+      const testHome = path.join(emptyProjectDir, 'home');
       const result = await runCLI(['init', '--tools', 'all'], {
         cwd: emptyProjectDir,
-        env: { CODEX_HOME: codexHome },
+        env: { CODEX_HOME: codexHome, HOME: testHome, USERPROFILE: testHome },
         timeoutMs: 20000,
       });
       expect(result.timedOut).toBe(false);
@@ -145,8 +146,13 @@ describe('openspec CLI e2e basics', () => {
       // Check that skills were created for multiple tools
       const claudeSkillPath = path.join(emptyProjectDir, '.claude/skills/openspec-explore/SKILL.md');
       const cursorSkillPath = path.join(emptyProjectDir, '.cursor/skills/openspec-explore/SKILL.md');
+      const minimaxSkillPath = path.join(
+        testHome,
+        '.minimax/skills/openspec-explore/SKILL.md'
+      );
       expect(await fileExists(claudeSkillPath)).toBe(true);
       expect(await fileExists(cursorSkillPath)).toBe(true);
+      expect(await fileExists(minimaxSkillPath)).toBe(true);
     }, 25000);
 
     it('initializes with --tools list option', async () => {

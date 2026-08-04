@@ -23,6 +23,9 @@ import {
   getCommandContents,
   generateSkillContent,
   getToolsWithSkillsDir,
+  hasGlobalSkillTarget,
+  resolveToolSkillsDir,
+  toolSupportsSkills,
   type ToolVersionStatus,
 } from './shared/index.js';
 import {
@@ -201,7 +204,14 @@ export class UpdateCommand {
 
     // 7. Smart update detection
     const toolsNeedingVersionUpdate = toolStatuses
-      .filter((s) => s.needsUpdate)
+      .filter((s) => {
+        if (!s.needsUpdate || delivery !== 'commands') {
+          return s.needsUpdate;
+        }
+
+        const tool = AI_TOOLS.find((candidate) => candidate.value === s.toolId);
+        return !tool || !hasGlobalSkillTarget(tool);
+      })
       .map((s) => s.toolId);
     const toolsNeedingConfigSync = getToolsNeedingProfileSync(
       resolvedProjectPath,
@@ -255,12 +265,12 @@ export class UpdateCommand {
 
     for (const toolId of toolsToUpdate) {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
-      if (!tool?.skillsDir) continue;
+      if (!tool || !toolSupportsSkills(tool)) continue;
 
       const spinner = ora(`Updating ${tool.name}...`).start();
 
       try {
-        const skillsDir = path.join(resolvedProjectPath, tool.skillsDir, 'skills');
+        const skillsDir = resolveToolSkillsDir(resolvedProjectPath, tool);
         const shouldGenerateSkills = shouldGenerateSkillsForTool(tool.value, delivery);
         const shouldGenerateCommands = shouldGenerateCommandsForTool(tool.value, delivery);
         const toolWorkflows = legacyWorkflowOverrides[tool.value] ?? desiredWorkflows;
@@ -287,7 +297,7 @@ export class UpdateCommand {
         }
 
         // Delete skill directories if delivery is commands-only
-        if (shouldRemoveSkillsForTool(tool.value, delivery)) {
+        if (shouldRemoveSkillsForTool(tool.value, delivery) && !hasGlobalSkillTarget(tool)) {
           removedSkillCount += await this.removeSkillDirs(skillsDir);
           // A tool with no command adapter now has zero OpenSpec artifacts;
           // say so like init does, rather than deleting its skills silently
@@ -992,12 +1002,12 @@ export class UpdateCommand {
 
     for (const toolId of selectedTools) {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
-      if (!tool?.skillsDir) continue;
+      if (!tool || !toolSupportsSkills(tool)) continue;
 
       const spinner = ora(`Setting up ${tool.name}...`).start();
 
       try {
-        const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
+        const skillsDir = resolveToolSkillsDir(projectPath, tool);
         const shouldGenerateSkills = shouldGenerateSkillsForTool(tool.value, delivery);
         const shouldGenerateCommands = shouldGenerateCommandsForTool(tool.value, delivery);
         const toolWorkflows = (
