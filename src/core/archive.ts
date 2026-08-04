@@ -574,6 +574,9 @@ async function releaseArchiveClaim(
   await claim.handle.close().catch(() => undefined);
   if (owned === undefined) return;
   try {
+    // Read between two lstats by design: the identity + content match below
+    // proves we still own this claim before unlinking it. This is a concurrent-
+    // change detector, not an fd-less race to "fix" (CodeQL js/file-system-race).
     const current = await fs.lstat(claimPath, { bigint: true });
     const contents = await fs.readFile(claimPath, 'utf8');
     const currentAfterRead = await fs.lstat(claimPath, { bigint: true });
@@ -706,6 +709,9 @@ async function fingerprintPath(filePath: string): Promise<string> {
 async function fingerprintMovablePath(filePath: string): Promise<string> {
   try {
     const entry = await fs.lstat(filePath, { bigint: true });
+    // Deliberate stat -> read -> re-stat: a concurrent change is DETECTED by the
+    // statIdentity comparison below and throws. Do not collapse to fd I/O, which
+    // would pin one inode and blind the detector (CodeQL js/file-system-race).
     const hash = createHash('sha256')
       .update(await fs.readFile(filePath))
       .digest('hex');
@@ -741,6 +747,9 @@ async function fingerprintMovablePath(filePath: string): Promise<string> {
 async function fingerprintPortableContent(filePath: string): Promise<string> {
   try {
     const entry = await fs.lstat(filePath);
+    // Point-in-time content hash by design (no re-stat): callers compare it
+    // against a prior fingerprint of the same bytes, so any concurrent change
+    // surfaces as a hash mismatch (CodeQL js/file-system-race is a false positive here).
     const hash = createHash('sha256')
       .update(await fs.readFile(filePath))
       .digest('hex');
@@ -818,6 +827,9 @@ async function captureSpecSnapshots(mutations: SpecMutation[]): Promise<SpecSnap
           let contentExisted = false;
           if (outcome === 'write') {
             try {
+              // Best-effort rollback snapshot; a concurrent edit is caught later
+              // by restoreSpecSnapshots refusing to overwrite non-matching content,
+              // not here (CodeQL js/file-system-race).
               content = await fs.readFile(update.target);
               contentExisted = true;
             } catch (error) {
@@ -839,6 +851,9 @@ async function captureSpecSnapshots(mutations: SpecMutation[]): Promise<SpecSnap
           existed: true,
           outcome,
           ...(outcome === 'write' ? { expectedContent: Buffer.from(rebuilt) } : {}),
+          // Snapshot read for rollback; restoreSpecSnapshots re-checks this
+          // content before restoring, so a mid-run change aborts instead of
+          // clobbering (CodeQL js/file-system-race).
           ...(stat.isFile() ? { content: await fs.readFile(update.target) } : {}),
           ...(stat.isFile() ? { mode: stat.mode } : {}),
         };
@@ -882,6 +897,9 @@ async function restoreSpecSnapshots(snapshots: SpecSnapshot[]): Promise<void> {
             snapshot.symlink !== undefined &&
             current.isSymbolicLink() &&
             (await fs.readlink(snapshot.target)) === snapshot.symlink;
+          // Re-read to confirm the target still holds the snapshot content; a
+          // mismatch means a concurrent edit, and rollback throws below rather
+          // than overwrite it (CodeQL js/file-system-race is intentional here).
           const unchangedFile =
             snapshot.symlink === undefined &&
             snapshot.content !== undefined &&
@@ -919,6 +937,9 @@ async function restoreSpecSnapshots(snapshots: SpecSnapshot[]): Promise<void> {
             `Archive rollback would overwrite a concurrent change at ${snapshot.target}.`
           );
         }
+        // Re-read at rollback: only restore when current content matches what
+        // archive wrote or snapshotted; otherwise abort to preserve a concurrent
+        // change (CodeQL js/file-system-race is intentional here).
         const currentContent = await fs.readFile(snapshot.target);
         const originalContent =
           snapshot.symlink !== undefined && !snapshot.contentExisted
