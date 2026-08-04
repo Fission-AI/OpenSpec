@@ -8,6 +8,7 @@ import {
   getFfChangeSkillTemplate,
   getOpsxFfCommandTemplate,
 } from '../../../src/core/templates/skill-templates.js';
+import { generateSkillContent } from '../../../src/core/shared/skill-generation.js';
 import { loadSchema } from '../../../src/core/artifact-graph/schema.js';
 import { CommandAdapterRegistry } from '../../../src/core/command-generation/registry.js';
 import { generateCommand } from '../../../src/core/command-generation/generator.js';
@@ -20,8 +21,8 @@ import { getCommandContents } from '../../../src/core/shared/skill-generation.js
 const proposeSkillBody = getOpsxProposeSkillTemplate().instructions;
 const proposeCommandBody = getOpsxProposeCommandTemplate().content;
 const proposeBodies: Array<[string, string]> = [
-  ['propose skill', proposeSkillBody],
-  ['propose command', proposeCommandBody],
+  ['propose skill', generateSkillContent(getOpsxProposeSkillTemplate(), 'TEST')],
+  ['propose command', getOpsxProposeCommandTemplate().content],
 ];
 
 // ff runs the byte-identical artifact loop, so it carries the identical guards.
@@ -153,6 +154,70 @@ describe('propose implementation boundary', () => {
   });
 });
 
+describe('propose schema selection', () => {
+  // #770: the CLI and new workflow already accept an explicit schema, but
+  // propose used to discard that request and always create with the default.
+  it('shows both concrete creation forms after an explicit schema choice (#770)', () => {
+    for (const [label, body] of proposeBodies) {
+      const schemaStep = body.indexOf('**Determine the workflow schema**');
+      const createStep = body.indexOf('**Create the change directory**');
+      const statusStep = body.indexOf('**Get the artifact build order**');
+
+      expect(schemaStep, `${label} is missing schema selection`).toBeGreaterThanOrEqual(0);
+      expect(createStep, `${label} is missing change creation`).toBeGreaterThan(schemaStep);
+      expect(statusStep, `${label} is missing status lookup`).toBeGreaterThan(createStep);
+
+      const createSection = body.slice(createStep, statusStep);
+      expect(createSection, label).toMatch(/^\s*openspec new change "<name>"\s*$/m);
+      expect(createSection, label).toMatch(
+        /^\s*openspec new change "<name>" --schema "<schema-name>"\s*$/m
+      );
+      expect(createSection, label).toContain(
+        'If a registered store is selected, append `--store "<store-id>"` to that command and each later OpenSpec command shown below that accepts `--store`'
+      );
+      expect(createSection, label).not.toContain('every follow-up command');
+    }
+  });
+
+  it('discovers schemas from the authoritative project or store root', () => {
+    for (const [label, body] of proposeBodies) {
+      const schemaStep = body.indexOf('**Determine the workflow schema**');
+      const createStep = body.indexOf('**Create the change directory**');
+      const schemaSection = body.slice(schemaStep, createStep);
+
+      expect(schemaSection, label).toContain('Use the configured default schema');
+      expect(schemaSection, label).toContain('Explicitly requests a specific schema by name');
+      const contextCommand = schemaSection.indexOf('`openspec context --json`');
+      const schemasCommand = schemaSection.indexOf('`openspec schemas --json`');
+      expect(contextCommand, `${label} is missing root resolution`).toBeGreaterThanOrEqual(0);
+      expect(schemasCommand, `${label} lists schemas before resolving the root`).toBeGreaterThan(
+        contextCommand
+      );
+      expect(schemaSection, label).toContain('from the current working directory');
+      expect(schemaSection, label).toContain(
+        '`openspec context --json --store "<store-id>"`'
+      );
+      expect(schemaSection, label).toContain(
+        'run `openspec schemas --json` with its working directory'
+      );
+      expect(schemaSection, label).toContain('returned `root.path`');
+      expect(schemaSection, label).toContain('local `store:` pointer');
+      expect(schemaSection, label).toContain('global `defaultStore`');
+      expect(schemaSection, label).toContain('`schemas` does not accept `--store`');
+      expect(schemaSection, label).toContain('context reports only `no_openspec_root`');
+      expect(schemaSection, label).toContain(
+        'run `openspec schemas --json` from the current working directory instead'
+      );
+      expect(schemaSection, label).toContain(
+        'Do not use this fallback for invalid or unavailable stores'
+      );
+      expect(schemaSection, label).toContain(
+        'Otherwise, omit `--schema` to preserve the configured default'
+      );
+    }
+  });
+});
+
 describe('artifact loop guards (propose and ff)', () => {
   // `status` is file-existence based (detectCompleted), so writing tasks.md before
   // specs flips tasks to done and satisfies a bare applyRequires stop condition
@@ -258,8 +323,9 @@ describe('artifact loop guards (propose and ff)', () => {
     }
   });
 
-  // The step-4 TITLE must not use "apply-ready" either: in the prewritten-tasks
-  // case the change is already apply-ready when step 4 begins, so a title of
+  // The artifact-creation TITLE must not use "apply-ready" either: in the
+  // prewritten-tasks case the change is already apply-ready when this step
+  // begins, so a title of
   // "create ... until apply-ready" invites the exact early-stop this PR kills.
   it('titles the create step around the required set, not "apply-ready"', () => {
     for (const [label, body] of loopBodies) {
