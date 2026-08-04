@@ -47,7 +47,7 @@ Only OpenSpec-managed files that are being replaced:
 - Cline: `.clinerules/workflows/openspec-*.md`
 - Roo: `.roo/commands/openspec-*.md`
 - GitHub Copilot: `.github/prompts/openspec-*.prompt.md` (IDE extensions only; not supported in Copilot CLI)
-- Codex: OpenSpec now uses the canonical `.agents/skills/openspec-*` path. OpenSpec-managed `SKILL.md` files under the former `.codex/skills` path are reconciled only after replacements exist; custom files and divergent copies stay in place. Legacy prompt cleanup still targets only OpenSpec's allowlisted filenames in `$CODEX_HOME/prompts` or `~/.codex/prompts`.
+- Codex: OpenSpec now uses the canonical `.agents/skills/openspec-*` path. OpenSpec-managed `SKILL.md` files under the former `.codex/skills` path are reconciled only after replacements exist; custom files and divergent copies stay in place. If an unmarked `.agents` tree already contains OpenSpec skills, OpenSpec preserves its existing Codex (`$openspec-*`) or generic (`/openspec-*`) rendering instead of guessing from the legacy directory. Select `codex` explicitly with `openspec init` to switch ownership. Legacy prompt cleanup still targets only OpenSpec's allowlisted filenames in `$CODEX_HOME/prompts` or `~/.codex/prompts`.
 - And others (Augment, Continue, Amazon Q, etc.)
 
 The migration detects whichever tools you have configured and cleans up their legacy files.

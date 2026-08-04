@@ -11,7 +11,14 @@ import { CommandAdapterRegistry, generateCommands } from '../command-generation/
 import { getCommandContents } from './skill-generation.js';
 import { getGlobalConfig } from '../global-config.js';
 import { getProfileWorkflows, ALL_WORKFLOWS } from '../profiles.js';
-import { reconcileSharedSkillTargets } from '../shared-skill-target.js';
+import {
+  readSharedSkillTarget,
+  reconcileSharedSkillTargets,
+} from '../shared-skill-target.js';
+import {
+  shouldGenerateCommandsForTool,
+  shouldGenerateSkillsForTool,
+} from '../command-surface.js';
 
 /**
  * Names of skill directories created by openspec init.
@@ -211,7 +218,13 @@ export function getToolStates(projectRoot: string): Map<string, ToolSkillStatus>
   const tools = AI_TOOLS.filter((t) => t.skillsDir);
 
   for (const tool of tools) {
-    states.set(tool.value, getToolSkillStatus(projectRoot, tool.value));
+    const skillStatus = getToolSkillStatus(projectRoot, tool.value);
+    states.set(
+      tool.value,
+      readSharedSkillTarget(projectRoot, tool.skillsDir!) === tool.value
+        ? { ...skillStatus, configured: true }
+        : skillStatus
+    );
   }
 
   const configuredTools = tools.filter((tool) => states.get(tool.value)?.configured);
@@ -303,13 +316,23 @@ export function getToolVersionStatus(
 
   const skillConfigured = getToolSkillStatus(projectRoot, toolId).configured;
   const commandConfigured = toolHasAnyConfiguredCommand(projectRoot, toolId);
-  const configured = skillConfigured || commandConfigured;
+  const markerConfigured = readSharedSkillTarget(projectRoot, tool.skillsDir) === toolId;
+  const configured = skillConfigured || commandConfigured || markerConfigured;
 
   // 2. Commands-only installs have no skill file to read a version from, so fall
   //    back to comparing the generated command content. Deliberately skipped when
   //    skill files exist: an unreadable version there must still force a rewrite.
   if (!skillConfigured && commandConfigured && areCommandFilesUpToDate(projectRoot, toolId, options)) {
     generatedByVersion = currentVersion;
+  }
+  if (!skillConfigured && !commandConfigured && markerConfigured) {
+    const delivery = getGlobalConfig().delivery ?? 'both';
+    if (
+      !shouldGenerateSkillsForTool(toolId, delivery) &&
+      !shouldGenerateCommandsForTool(toolId, delivery)
+    ) {
+      generatedByVersion = currentVersion;
+    }
   }
 
   const needsUpdate = configured && (generatedByVersion === null || generatedByVersion !== currentVersion);
@@ -330,7 +353,11 @@ export function getConfiguredTools(projectRoot: string): string[] {
   const configured = AI_TOOLS
     .filter((t) => {
       if (!t.skillsDir) return false;
-      return getToolSkillStatus(projectRoot, t.value).configured || toolHasAnyConfiguredCommand(projectRoot, t.value);
+      return (
+        getToolSkillStatus(projectRoot, t.value).configured ||
+        toolHasAnyConfiguredCommand(projectRoot, t.value) ||
+        readSharedSkillTarget(projectRoot, t.skillsDir) === t.value
+      );
     });
   return reconcileSharedSkillTargets(projectRoot, configured).map((t) => t.value);
 }

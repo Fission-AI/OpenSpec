@@ -138,6 +138,20 @@ describe('tool-detection', () => {
       expect(states.get('agents')?.configured).toBe(true);
       expect(states.get('codex')?.configured).toBe(false);
     });
+
+    it('should preserve marker-only ownership when delivery intentionally has no skills', async () => {
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      await fs.mkdir(skillsDir, { recursive: true });
+      await fs.writeFile(path.join(skillsDir, '.openspec-target'), 'agents\n');
+
+      const states = getToolStates(testDir);
+      expect(states.get('agents')).toEqual({
+        configured: true,
+        fullyConfigured: false,
+        skillCount: 0,
+      });
+      expect(states.get('codex')?.configured).toBe(false);
+    });
   });
 
   describe('extractGeneratedByVersion', () => {
@@ -530,6 +544,20 @@ metadata:
       const cursorStatus = statuses.find(s => s.toolId === 'cursor');
       expect(cursorStatus?.generatedByVersion).toBe('0.23.0');
       expect(cursorStatus?.needsUpdate).toBe(false);
+    });
+
+    it('should treat a marker-only target as configured', async () => {
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      await fs.mkdir(skillsDir, { recursive: true });
+      await fs.writeFile(path.join(skillsDir, '.openspec-target'), 'agents\n');
+
+      const statuses = getAllToolVersionStatus(testDir, '0.23.0');
+      expect(statuses).toHaveLength(1);
+      expect(statuses[0]).toMatchObject({
+        toolId: 'agents',
+        configured: true,
+        needsUpdate: true,
+      });
     });
   });
 });

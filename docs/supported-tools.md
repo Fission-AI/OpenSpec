@@ -120,8 +120,9 @@ shared root many agent tools read, instead of a tool-specific directory.
 Selecting it alongside a tool-specific ID is fine; each normally writes to its
 own root. Codex is the exception because it uses the same canonical `.agents`
 root. If both `codex` and `agents` are selected, OpenSpec keeps one
-Codex-rendered tree so `$openspec-*` references are not overwritten by the
-vendor-neutral form.
+Codex-led tree. Its handoffs name both `$openspec-*` for Codex and
+`/openspec-*` for other agents, so `--tools all` and existing multi-agent
+setups keep working without two writers overwriting the same files.
 OpenSpec also offers it automatically once a project has a `.agents/skills/`
 directory — a bare `.agents/` is not enough, since tools use that root for rules
 and subagent definitions too. Note `.agents` is not `.agent`: the singular

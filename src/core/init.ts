@@ -603,6 +603,13 @@ export class InitCommand {
     const reconciledToolIds = toolIds.includes('codex') && toolIds.includes('agents')
       ? toolIds.filter((toolId) => toolId !== 'agents')
       : toolIds;
+    if (reconciledToolIds.length !== toolIds.length) {
+      console.log(
+        chalk.dim(
+          'Codex and agents share .agents/skills; writing one tree with Codex and generic skill references.'
+        )
+      );
+    }
 
     for (const toolId of reconciledToolIds) {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
@@ -752,6 +759,9 @@ export class InitCommand {
         if (shouldRemoveSkillsForTool(tool.value, delivery)) {
           const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
           removedSkillCount += await this.removeSkillDirs(projectPath, skillsDir);
+          // Retain an explicit selection even when this delivery mode produces
+          // no skills, so a divergent legacy sibling cannot reclaim ownership.
+          writeSharedSkillTarget(projectPath, tool.value);
         }
 
         // Generate commands if delivery includes commands

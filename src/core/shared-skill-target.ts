@@ -5,28 +5,70 @@ import { FileSystemUtils } from '../utils/file-system.js';
 
 const TARGET_MARKER = '.openspec-target';
 
+/** Returns the ownership-marker path for one shared skills root. */
 function markerPath(projectPath: string, skillsDir: string): string {
   return path.join(projectPath, skillsDir, 'skills', TARGET_MARKER);
 }
 
+/** Reads a valid-looking marker value without letting linked roots escape. */
 export function readSharedSkillTarget(
   projectPath: string,
   skillsDir: string
 ): string | undefined {
   try {
-    return fs.readFileSync(markerPath(projectPath, skillsDir), 'utf-8').trim() || undefined;
+    const target = markerPath(projectPath, skillsDir);
+    FileSystemUtils.assertProjectArtifactPath(projectPath, target);
+    return fs.readFileSync(target, 'utf-8').trim() || undefined;
   } catch {
     return undefined;
   }
 }
 
+/** Whether a tool still has an allowlisted managed skill under an old root. */
 function hasLegacySkills(projectPath: string, tool: AIToolOption): boolean {
   return (tool.legacySkillsDirs ?? []).some((root) => {
     const skillsDir = path.join(projectPath, root, 'skills');
     try {
-      return OPENSPEC_SKILL_NAMES.some((skillName) =>
-        fs.existsSync(path.join(skillsDir, skillName, 'SKILL.md'))
-      );
+      return OPENSPEC_SKILL_NAMES.some((skillName) => {
+        const skillFile = path.join(skillsDir, skillName, 'SKILL.md');
+        FileSystemUtils.assertProjectArtifactPath(projectPath, skillFile);
+        return fs.existsSync(skillFile);
+      });
+    } catch {
+      return false;
+    }
+  });
+}
+
+/**
+ * Infers pre-marker ownership from generated invocation syntax. This preserves
+ * both existing generic `.agents` trees and Codex trees users moved manually.
+ */
+function inferSharedSkillTarget(projectPath: string, skillsDir: string): string | undefined {
+  let foundGenericReference = false;
+
+  for (const skillName of OPENSPEC_SKILL_NAMES) {
+    const skillFile = path.join(projectPath, skillsDir, 'skills', skillName, 'SKILL.md');
+    try {
+      FileSystemUtils.assertProjectArtifactPath(projectPath, skillFile);
+      const content = fs.readFileSync(skillFile, 'utf-8');
+      if (content.includes('$openspec-')) return 'codex';
+      if (content.includes('/openspec-')) foundGenericReference = true;
+    } catch {
+      // Missing, unreadable, or out-of-project files provide no ownership signal.
+    }
+  }
+
+  return foundGenericReference ? 'agents' : undefined;
+}
+
+/** Whether the canonical shared root already contains an OpenSpec skill. */
+function hasCurrentSkills(projectPath: string, skillsDir: string): boolean {
+  return OPENSPEC_SKILL_NAMES.some((skillName) => {
+    const skillFile = path.join(projectPath, skillsDir, 'skills', skillName, 'SKILL.md');
+    try {
+      FileSystemUtils.assertProjectArtifactPath(projectPath, skillFile);
+      return fs.existsSync(skillFile);
     } catch {
       return false;
     }
@@ -62,6 +104,30 @@ export function reconcileSharedSkillTargets(
     const markedTool = group.find((tool) => tool.value === marked);
     if (markedTool) {
       reconciled.push(markedTool);
+      continue;
+    }
+
+    const inferred = inferSharedSkillTarget(projectPath, root);
+    const legacyCodex = group.find(
+      (tool) => tool.value === 'codex' && hasLegacySkills(projectPath, tool)
+    );
+    if (inferred === 'agents' && legacyCodex) {
+      // Before ownership markers existed, selecting both targets produced a
+      // generic canonical tree plus a Codex-only legacy tree. Codex now emits
+      // a dual-syntax canonical tree, so it can safely consolidate that state.
+      reconciled.push(legacyCodex);
+      continue;
+    }
+    const inferredTool = group.find((tool) => tool.value === inferred);
+    if (inferredTool) {
+      reconciled.push(inferredTool);
+      continue;
+    }
+
+    // An unmarked canonical tree predates Codex's move into `.agents`; keep
+    // that established agents target instead of overwriting it from `.codex`.
+    if (hasCurrentSkills(projectPath, root)) {
+      reconciled.push(group.find((tool) => tool.value === 'agents') ?? group[0]);
       continue;
     }
 

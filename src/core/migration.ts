@@ -63,9 +63,9 @@ export interface LegacyToolMigration {
   /** Command files that moved, or would move */
   commandFiles: number;
   /**
-   * OpenSpec-managed files left under the legacy root because the copy there
-   * differs from the one that survives — the user edited it, so it is reported
-   * rather than dropped.
+ * OpenSpec-managed files left under the legacy root because the copy there
+ * differs materially from the one that survives, so it is reported rather
+ * than dropped.
    */
   keptInPlace: number;
   /** Whether this move needs the user's consent first */
@@ -74,17 +74,37 @@ export interface LegacyToolMigration {
 
 /**
  * Classifies one OpenSpec-managed file. `move` is the fast path (nothing at
- * the destination yet); `drop` means the destination already holds the same
- * bytes, so the legacy copy is redundant; `keep` means the two differ, which
- * only happens when the user edited one, and an edit is not ours to discard.
+ * the destination yet); `drop` means the destination already holds equivalent
+ * generated content, so the legacy copy is redundant; `keep` means the two
+ * differ materially and the legacy copy is not ours to discard.
  */
 type FileDisposition = 'move' | 'drop' | 'keep' | 'skip';
+
+/** Ignores generated version and supported invocation-syntax differences. */
+function normalizeGeneratedSkill(content: string): string {
+  return content
+    .replace(
+      /\$openspec-([a-z0-9-]+) \(Codex\) or \/openspec-\1 \(other agents\)/g,
+      '/openspec-$1'
+    )
+    .replace(/\$openspec-/g, '/openspec-')
+    .replace(
+      /^(\s*generatedBy:\s*)["']?[^"'\n]+["']?\s*$/m,
+      '$1"<generated-version>"'
+    );
+}
 
 function classifyManagedFile(source: string, destination: string): FileDisposition {
   if (isSamePath(source, destination)) return 'skip';
   if (!fs.existsSync(destination)) return 'move';
   try {
-    return fs.readFileSync(source, 'utf-8') === fs.readFileSync(destination, 'utf-8')
+    const sourceContent = fs.readFileSync(source, 'utf-8');
+    const destinationContent = fs.readFileSync(destination, 'utf-8');
+    const equivalentGeneratedSkills =
+      path.basename(source) === 'SKILL.md' &&
+      path.basename(destination) === 'SKILL.md' &&
+      normalizeGeneratedSkill(sourceContent) === normalizeGeneratedSkill(destinationContent);
+    return sourceContent === destinationContent || equivalentGeneratedSkills
       ? 'drop'
       : 'keep';
   } catch {
@@ -117,8 +137,11 @@ function legacyCommandPath(
  * Reports the OpenSpec content sitting under each tool's legacy root, without
  * moving anything. Callers use this to ask before a move that needs consent.
  */
-export function findLegacyToolMigrations(projectPath: string): LegacyToolMigration[] {
-  return collectLegacyToolMigrations(projectPath, false);
+export function findLegacyToolMigrations(
+  projectPath: string,
+  timing: 'before-generation' | 'after-generation' = 'before-generation'
+): LegacyToolMigration[] {
+  return collectLegacyToolMigrations(projectPath, false, undefined, timing);
 }
 
 /**
@@ -153,7 +176,8 @@ function collectLegacyToolMigrations(
     if (toolIds && !toolIds.includes(tool.value)) continue;
 
     for (const legacy of LEGACY_TOOL_ROOTS[tool.value] ?? []) {
-      if (apply && (legacy.timing ?? 'before-generation') !== timing) continue;
+      const legacyTiming = legacy.timing ?? 'before-generation';
+      if (legacyTiming !== timing) continue;
       if (legacy.root === tool.skillsDir) continue;
       // Without an explicit tool list, only moves that need no consent run.
       if (apply && !toolIds && legacy.needsConsent) continue;
@@ -177,7 +201,7 @@ function collectLegacyToolMigrations(
         tool.skillsDir,
         legacy.root,
         apply,
-        timing === 'after-generation'
+        legacyTiming === 'after-generation'
       );
       const commands = migrateCommandFiles(projectPath, tool, legacy.root, apply);
 

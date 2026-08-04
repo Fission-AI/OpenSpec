@@ -129,6 +129,59 @@ describe('available-tools', () => {
       expect(tools.map((tool) => tool.value)).not.toContain('agents');
     });
 
+    it('should infer an unmarked canonical Codex tree from its invocation syntax', async () => {
+      const skillFile = path.join(
+        testDir,
+        '.agents',
+        'skills',
+        'openspec-propose',
+        'SKILL.md'
+      );
+      await fs.mkdir(path.dirname(skillFile), { recursive: true });
+      await fs.writeFile(skillFile, 'Next: $openspec-apply-change');
+
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((tool) => tool.value)).toEqual(['codex']);
+    });
+
+    it.each(['', 'unknown'])(
+      'should preserve generic content when the shared marker is %j',
+      async (marker) => {
+        const skillsDir = path.join(testDir, '.agents', 'skills');
+        const skillFile = path.join(skillsDir, 'openspec-propose', 'SKILL.md');
+        await fs.mkdir(path.dirname(skillFile), { recursive: true });
+        await fs.writeFile(skillFile, 'Next: /openspec-apply-change');
+        await fs.writeFile(path.join(skillsDir, '.openspec-target'), `${marker}\n`);
+
+        const tools = getAvailableTools(testDir);
+        expect(tools.map((tool) => tool.value)).toEqual(['agents']);
+      }
+    );
+
+    it('should consolidate an unmarked generic tree when legacy Codex skills also exist', async () => {
+      const agentsSkill = path.join(
+        testDir,
+        '.agents',
+        'skills',
+        'openspec-propose',
+        'SKILL.md'
+      );
+      const codexSkill = path.join(
+        testDir,
+        '.codex',
+        'skills',
+        'openspec-propose',
+        'SKILL.md'
+      );
+      await fs.mkdir(path.dirname(agentsSkill), { recursive: true });
+      await fs.mkdir(path.dirname(codexSkill), { recursive: true });
+      await fs.writeFile(agentsSkill, 'Next: /openspec-apply-change');
+      await fs.writeFile(codexSkill, 'Next: $openspec-apply-change');
+
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((tool) => tool.value)).toEqual(['codex']);
+    });
+
     it('should not let an unknown legacy skill supersede the shared agents target', async () => {
       await fs.mkdir(path.join(testDir, '.agents', 'skills'), { recursive: true });
       await fs.writeFile(path.join(testDir, '.agents', 'skills', '.openspec-target'), 'agents\n');

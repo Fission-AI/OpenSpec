@@ -85,6 +85,19 @@ function replaceCommandsWithSkillReferences(text: string, prefix: string): strin
 }
 
 /**
+ * Keeps Codex's `$<name>` spelling first while making its canonical shared
+ * `.agents` tree usable by agents that invoke the same skills with `/<name>`.
+ */
+export function transformToCodexCompatibleSkillReferences(text: string): string {
+  return text.replace(/\/opsx:([a-z-]+)/g, (match, commandId: string) => {
+    const skillName = COMMAND_TO_SKILL_NAME[commandId];
+    return skillName === undefined
+      ? match
+      : `$${skillName} (Codex) or /${skillName} (other agents)`;
+  });
+}
+
+/**
  * Transforms command references to skill references using the default `/`
  * invocation prefix. Converts `/opsx:<command>` patterns to
  * `/openspec-<skill>` so that generated skills do not reference commands
@@ -164,7 +177,9 @@ export function getTransformerForTool(
   invocation: CommandInvocation | undefined
 ): ((text: string) => string) | undefined {
   if (delivery === 'skills' || capability !== 'adapter-backed') {
-    return getSkillReferenceTransformer(toolId);
+    return toolId === 'codex'
+      ? transformToCodexCompatibleSkillReferences
+      : getSkillReferenceTransformer(toolId);
   }
   if (toolId === 'devin' && delivery === 'both') {
     return getSkillReferenceTransformer(toolId);

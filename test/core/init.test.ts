@@ -512,7 +512,7 @@ describe('InitCommand', () => {
       }
     );
 
-    it('should reconcile Codex and the shared agents target to one Codex-rendered tree', async () => {
+    it('should reconcile Codex and agents to one tree both consumers can invoke', async () => {
       const initCommand = new InitCommand({ tools: 'codex,agents', force: true });
       await initCommand.execute(testDir);
 
@@ -522,7 +522,7 @@ describe('InitCommand', () => {
         'utf-8'
       );
       expect(proposeSkill).toContain('$openspec-apply-change');
-      expect(proposeSkill).not.toContain('/openspec-apply-change');
+      expect(proposeSkill).toContain('/openspec-apply-change');
       expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe('codex\n');
 
       const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls
@@ -530,6 +530,9 @@ describe('InitCommand', () => {
         .map(String);
       expect(logCalls.some((entry) => entry.includes('Created: Codex'))).toBe(true);
       expect(logCalls.some((entry) => entry.includes('Shared .agents skills'))).toBe(false);
+      expect(
+        logCalls.some((entry) => entry.includes('writing one tree with Codex and generic'))
+      ).toBe(true);
     });
 
     it('should migrate legacy Codex skills only after init writes their replacements', async () => {
@@ -619,6 +622,13 @@ describe('InitCommand', () => {
       expect(await fileExists(codeArtsSkill)).toBe(true);
       expect(await fileExists(cursorSkill)).toBe(true);
       expect(await fileExists(devinSkill)).toBe(true);
+
+      const sharedPropose = await fs.readFile(
+        path.join(testDir, '.agents', 'skills', 'openspec-propose', 'SKILL.md'),
+        'utf-8'
+      );
+      expect(sharedPropose).toContain('$openspec-apply-change');
+      expect(sharedPropose).toContain('/openspec-apply-change');
     });
 
     it('should skip tool configuration with --tools none option', async () => {

@@ -296,6 +296,9 @@ export class UpdateCommand {
         // Delete skill directories if delivery is commands-only
         if (shouldRemoveSkillsForTool(tool.value, delivery)) {
           removedSkillCount += await this.removeSkillDirs(resolvedProjectPath, skillsDir);
+          // Persist the selected owner even when commands-only delivery leaves
+          // this target with no generated skills.
+          writeSharedSkillTarget(resolvedProjectPath, tool.value);
           // A tool with no command adapter now has zero OpenSpec artifacts;
           // say so like init does, rather than deleting its skills silently
           // and letting tool detection re-suggest an init that would also
@@ -1051,8 +1054,8 @@ export class UpdateCommand {
             FileSystemUtils.assertProjectArtifactPath(projectPath, skillFile);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
+          writeSharedSkillTarget(projectPath, tool.value);
         }
-        writeSharedSkillTarget(projectPath, tool.value);
 
         // Create commands when delivery includes commands
         if (shouldGenerateCommands) {
