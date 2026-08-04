@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { FileSystemUtils } from './file-system.js';
 
 export interface DiscoveredSpec {
   /** Spec id relative to the specs root, forward-slash separated on every platform (e.g. "web" or "platform/session-layout"). */
@@ -8,16 +9,26 @@ export interface DiscoveredSpec {
   specFile: string;
 }
 
+function assertDiscoveredSpecPath(specsRoot: string, capabilityDir: string, specFile: string): void {
+  try {
+    FileSystemUtils.assertPathWithin(specsRoot, specFile);
+  } catch {
+    // Direct capability directories may intentionally be external monorepo
+    // links. In that case, confine the file to the capability itself.
+    FileSystemUtils.assertPathWithin(capabilityDir, specFile);
+  }
+}
+
 /**
  * Recursively discover every `spec.md` under a specs root, so both the flat
  * `specs/<id>/spec.md` layout and nested `specs/<area>/<id>/spec.md` layouts
  * are found (#1353). A `spec.md` sitting directly in the root is ignored,
  * matching the historical requirement that specs live in a capability folder.
  * Dot-directories are skipped and symlinked directories are not followed.
- * A symlinked `spec.md` IS resolved: `hasAnyFileUnder` and the artifact
- * graph's globs both count it as content, so dropping it here would silently
- * lose the delta on archive; a dangling link is skipped. Results are sorted
- * by id for deterministic output.
+ * An in-capability symlinked `spec.md` IS resolved: `hasAnyFileUnder` and the
+ * artifact graph's globs both count it as content, so dropping it here would
+ * silently lose the delta on archive. A link outside its capability is
+ * rejected and a dangling link is skipped. Results are sorted by id.
  *
  * A missing root (ENOENT) yields an empty list, but any other read failure
  * (EACCES, EIO, ...) is thrown rather than swallowed: since this feeds the
@@ -39,12 +50,14 @@ export async function discoverSpecFiles(specsRoot: string): Promise<DiscoveredSp
       if (entry.isDirectory()) {
         await walk(path.join(dir, entry.name), [...segments, entry.name]);
       } else if (entry.name === 'spec.md' && segments.length > 0) {
+        const specFile = path.join(dir, entry.name);
         if (entry.isFile()) {
-          results.push({ id: segments.join('/'), specFile: path.join(dir, entry.name) });
+          assertDiscoveredSpecPath(specsRoot, dir, specFile);
+          results.push({ id: segments.join('/'), specFile });
         } else if (entry.isSymbolicLink()) {
-          const specFile = path.join(dir, entry.name);
           try {
             if ((await fs.stat(specFile)).isFile()) {
+              assertDiscoveredSpecPath(specsRoot, dir, specFile);
               results.push({ id: segments.join('/'), specFile });
             }
           } catch (err: any) {

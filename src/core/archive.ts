@@ -26,6 +26,8 @@ import {
 import { discoverSpecFiles, hasAnyFileUnder } from '../utils/spec-discovery.js';
 import { METADATA_FILENAME, readRetireCapabilitiesMarker, readSkipSpecsMarker } from '../utils/change-metadata.js';
 import { isNonInteractivePromptError } from '../utils/interactive.js';
+import { FileSystemUtils } from '../utils/file-system.js';
+import { folderStyleNameProblem } from './id.js';
 
 function isMissingPathError(error: unknown): boolean {
   return (
@@ -310,6 +312,17 @@ function toArchiveDiagnostic(error: unknown): ArchiveDiagnostic {
 /**
  * Recursively copy a directory. Used when fs.rename fails (e.g. EPERM on Windows).
  */
+async function copySymbolicLink(src: string, dest: string): Promise<void> {
+  const target = await fs.readlink(src);
+  const isWindowsDirectoryLink =
+    process.platform === 'win32' && (await fs.stat(src)).isDirectory();
+  const destinationTarget =
+    isWindowsDirectoryLink && !path.isAbsolute(target)
+      ? path.resolve(path.dirname(src), target)
+      : target;
+  await fs.symlink(destinationTarget, dest, isWindowsDirectoryLink ? 'junction' : undefined);
+}
+
 async function copyDirContents(src: string, dest: string): Promise<void> {
   const sourceStat = await fs.lstat(src);
   // Keep group/other access no broader than the source while ensuring this
@@ -323,9 +336,11 @@ async function copyDirContents(src: string, dest: string): Promise<void> {
       await fs.mkdir(destPath, { mode: 0o700 });
       await copyDirContents(srcPath, destPath);
     } else if (entry.isSymbolicLink()) {
-      await fs.symlink(await fs.readlink(srcPath), destPath);
-    } else {
+      await copySymbolicLink(srcPath, destPath);
+    } else if (entry.isFile()) {
       await fs.copyFile(srcPath, destPath, constants.COPYFILE_EXCL);
+    } else {
+      throw new Error(`Cannot archive unsupported filesystem entry: ${srcPath}`);
     }
   }
   await fs.chmod(dest, sourceStat.mode & 0o7777);
@@ -1051,6 +1066,21 @@ export class ArchiveCommand {
     const archiveDir = root.archiveDir;
     const mainSpecsDir = root.specsDir;
 
+    for (const [allowedDirectory, managedDir] of [
+      [root.path, changesDir],
+      [changesDir, archiveDir],
+      [root.path, mainSpecsDir],
+    ] as const) {
+      try {
+        FileSystemUtils.assertPathWithin(allowedDirectory, managedDir);
+      } catch {
+        throw new ArchiveBlockedError(
+          'archive_path_outside_root',
+          `Refusing to archive through a path outside the OpenSpec root: ${managedDir}`
+        );
+      }
+    }
+
     // Get change name interactively if not provided
     if (!changeName) {
       if (json) {
@@ -1066,6 +1096,11 @@ export class ArchiveCommand {
         return null;
       }
       changeName = selectedChange;
+    }
+
+    const changeNameProblem = folderStyleNameProblem(changeName, 'Change name');
+    if (changeNameProblem) {
+      throw new ArchiveBlockedError('archive_change_name_invalid', changeNameProblem);
     }
 
     const changeDir = path.join(changesDir, changeName);

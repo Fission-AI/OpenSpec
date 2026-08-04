@@ -41,6 +41,35 @@ describe('instruction-loader', () => {
         expect((err as TemplateLoadError).templatePath).toContain('nonexistent.md');
       }
     });
+
+    it('should reject a template symlink that escapes its schema', () => {
+      if (process.platform === 'win32') return;
+
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-template-boundary-'));
+      const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'custom');
+      const templatesDir = path.join(schemaDir, 'templates');
+      const outsideFile = path.join(tempDir, 'outside.md');
+      fs.mkdirSync(templatesDir, { recursive: true });
+      fs.writeFileSync(path.join(schemaDir, 'schema.yaml'), 'name: custom\n');
+      fs.writeFileSync(outsideFile, 'private');
+      fs.symlinkSync(outsideFile, path.join(templatesDir, 'proposal.md'));
+
+      try {
+        expect(() => loadTemplate('custom', 'proposal.md', tempDir)).toThrow(
+          /outside the allowed directory/u
+        );
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it('should reject Windows-style template traversal on Windows', () => {
+      if (process.platform !== 'win32') return;
+
+      expect(() => loadTemplate('spec-driven', '..\\outside.md')).toThrow(
+        TemplateLoadError
+      );
+    });
   });
 
   describe('loadChangeContext', () => {
@@ -389,6 +418,19 @@ rules:
         // Check design artifact (no rules configured) has undefined rules
         const designInstructions = generateInstructions(context, 'design', tempDir);
         expect(designInstructions.rules).toBeUndefined();
+      });
+
+      it('should not inherit rules from the rule map prototype', () => {
+        const context = loadChangeContext(tempDir, 'my-change');
+        const inheritedRules = Object.create({
+          proposal: ['Inherited rule'],
+        }) as Record<string, string[]>;
+
+        const instructions = generateInstructions(context, 'proposal', tempDir, {
+          projectConfig: { rules: inheritedRules },
+        });
+
+        expect(instructions.rules).toBeUndefined();
       });
 
       it('should return undefined rules when empty array', () => {
