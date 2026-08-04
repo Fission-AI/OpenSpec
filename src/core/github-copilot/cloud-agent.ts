@@ -144,7 +144,6 @@ When the user wants to propose a new change:
 - \`openspec/\` — Root OpenSpec directory
 - \`openspec/changes/\` — Active changes with their artifacts
 - \`openspec/config.yaml\` — Project configuration
-- \`openspec/explorations/\` — Exploration documents
 
 ## Best Practices
 
@@ -216,11 +215,18 @@ When the user wants to propose a new change:
     '| `openspec status [--json]` | Show artifact progress for active changes |',
     'legacy status command row'
   );
-  return replaceRequired(
+  content = replaceRequired(
     content,
     '| `openspec instructions [artifact] [--change <name>] [--json]` | Get next-step instructions for a change |',
     '| `openspec instructions [--json]` | Get next-step instructions for a change |',
     'legacy instructions command row'
+  );
+  return replaceRequired(
+    content,
+    '- `openspec/config.yaml` — Project configuration',
+    `- \`openspec/config.yaml\` — Project configuration
+- \`openspec/explorations/\` — Exploration documents`,
+    'legacy exploration directory'
   );
 }
 
@@ -261,9 +267,10 @@ function isManagedCopilotCloudFile(
   relPath: (typeof COPILOT_CLOUD_FILES)[keyof typeof COPILOT_CLOUD_FILES],
   content: string
 ): boolean {
+  const normalizedContent = content.replace(/\r\n/g, '\n');
   return (
-    content === COPILOT_CLOUD_FILE_CONTENTS[relPath] ||
-    COPILOT_CLOUD_LEGACY_FILE_CONTENTS[relPath].includes(content)
+    normalizedContent === COPILOT_CLOUD_FILE_CONTENTS[relPath] ||
+    COPILOT_CLOUD_LEGACY_FILE_CONTENTS[relPath].includes(normalizedContent)
   );
 }
 

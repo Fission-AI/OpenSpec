@@ -94,6 +94,10 @@ describe('GitHub Copilot Cloud Agent', () => {
     return withoutMarker;
   }
 
+  function withCrLf(content: string): string {
+    return content.replace(/\n/g, '\r\n');
+  }
+
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-copilot-cloud-agent-'));
   });
@@ -272,6 +276,33 @@ describe('GitHub Copilot Cloud Agent', () => {
       expect(removed).toBe(2);
       await expect(fs.stat(setupStepsPath)).rejects.toMatchObject({ code: 'ENOENT' });
       await expect(fs.stat(agentPath)).rejects.toMatchObject({ code: 'ENOENT' });
+    });
+
+    it('removes current and legacy generated cloud files with CRLF line endings', async () => {
+      const setupStepsPath = path.join(tempDir, COPILOT_CLOUD_FILES.setupSteps);
+      const agentPath = path.join(tempDir, COPILOT_CLOUD_FILES.agent);
+      await fs.mkdir(path.dirname(setupStepsPath), { recursive: true });
+      await fs.mkdir(path.dirname(agentPath), { recursive: true });
+      await fs.writeFile(setupStepsPath, withCrLf(generateCopilotSetupSteps()));
+      await fs.writeFile(agentPath, withCrLf(MARKERLESS_LEGACY_COPILOT_AGENT_FILE));
+
+      const removed = await removeCopilotCloudFiles(tempDir);
+
+      expect(removed).toBe(2);
+      await expect(fs.stat(setupStepsPath)).rejects.toMatchObject({ code: 'ENOENT' });
+      await expect(fs.stat(agentPath)).rejects.toMatchObject({ code: 'ENOENT' });
+    });
+
+    it('keeps customized cloud files with CRLF line endings', async () => {
+      const agentPath = path.join(tempDir, COPILOT_CLOUD_FILES.agent);
+      const customizedContent = withCrLf(`${generateCopilotAgentFile()}\ncustom change\n`);
+      await fs.mkdir(path.dirname(agentPath), { recursive: true });
+      await fs.writeFile(agentPath, customizedContent);
+
+      const removed = await removeCopilotCloudFiles(tempDir);
+
+      expect(removed).toBe(0);
+      await expect(fs.readFile(agentPath, 'utf8')).resolves.toBe(customizedContent);
     });
   });
 });
