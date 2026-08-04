@@ -124,14 +124,14 @@ ${STORE_SELECTION_GUIDANCE}
    |---------------------|-----------|-------|---------|-----------|--------|
    | schema-management   | Done      | 5/5   | 2 delta | None      | Ready  |
    | project-config      | Done      | 3/3   | 1 delta | None      | Ready  |
-   | add-oauth           | Done      | 4/4   | 1 delta | auth (!)  | Ready* |
+   | add-oauth           | Done      | 4/4   | 1 delta | identity/user-auth (!) | Ready* |
    | add-verify-skill    | 1 left    | 2/5   | None    | None      | Warn   |
    \`\`\`
 
    For conflicts, show the resolution:
    \`\`\`text
    * Conflict resolution:
-     - auth spec: Will apply add-oauth then add-jwt (both implemented, chronological order)
+     - identity/user-auth spec: Will apply add-oauth then add-jwt (both implemented, chronological order)
    \`\`\`
 
    For incomplete changes, show warnings:
@@ -212,7 +212,7 @@ ${STORE_SELECTION_GUIDANCE}
       - Success: archived successfully
       - Failed: error during archive or spec verification (record error)
       - Skipped: user chose not to archive (if applicable)
-      - Sync skipped: for every delta in \`excludedDeltas\`, report \`sync skipped\` with the change, capability, and recorded reason. This is distinct from skipping the archive.
+      - Sync skipped: for every delta in \`excludedDeltas\`, report \`sync skipped\` with the change, \`<capability-path>\`, and recorded reason. This is distinct from skipping the archive.
 
 9. **Display summary**
 
@@ -231,8 +231,8 @@ ${STORE_SELECTION_GUIDANCE}
 
    Spec sync summary:
    - 4 delta specs synced to main specs
-   - 1 delta spec sync skipped (add-jwt/auth: implementation not found)
-   - 1 conflict resolved (auth: synced add-oauth, skipped add-jwt)
+   - 1 delta spec sync skipped (add-jwt, identity/user-auth: implementation not found)
+   - 1 conflict resolved (identity/user-auth: synced add-oauth, skipped add-jwt)
    \`\`\`
 
    If any failures:
@@ -464,14 +464,14 @@ ${STORE_SELECTION_GUIDANCE}
    |---------------------|-----------|-------|---------|-----------|--------|
    | schema-management   | Done      | 5/5   | 2 delta | None      | Ready  |
    | project-config      | Done      | 3/3   | 1 delta | None      | Ready  |
-   | add-oauth           | Done      | 4/4   | 1 delta | auth (!)  | Ready* |
+   | add-oauth           | Done      | 4/4   | 1 delta | identity/user-auth (!) | Ready* |
    | add-verify-skill    | 1 left    | 2/5   | None    | None      | Warn   |
    \`\`\`
 
    For conflicts, show the resolution:
    \`\`\`text
    * Conflict resolution:
-     - auth spec: Will apply add-oauth then add-jwt (both implemented, chronological order)
+     - identity/user-auth spec: Will apply add-oauth then add-jwt (both implemented, chronological order)
    \`\`\`
 
    For incomplete changes, show warnings:
@@ -552,7 +552,7 @@ ${STORE_SELECTION_GUIDANCE}
       - Success: archived successfully
       - Failed: error during archive or spec verification (record error)
       - Skipped: user chose not to archive (if applicable)
-      - Sync skipped: for every delta in \`excludedDeltas\`, report \`sync skipped\` with the change, capability, and recorded reason. This is distinct from skipping the archive.
+      - Sync skipped: for every delta in \`excludedDeltas\`, report \`sync skipped\` with the change, \`<capability-path>\`, and recorded reason. This is distinct from skipping the archive.
 
 9. **Display summary**
 
@@ -571,8 +571,8 @@ ${STORE_SELECTION_GUIDANCE}
 
    Spec sync summary:
    - 4 delta specs synced to main specs
-   - 1 delta spec sync skipped (add-jwt/auth: implementation not found)
-   - 1 conflict resolved (auth: synced add-oauth, skipped add-jwt)
+   - 1 delta spec sync skipped (add-jwt, identity/user-auth: implementation not found)
+   - 1 conflict resolved (identity/user-auth: synced add-oauth, skipped add-jwt)
    \`\`\`
 
    If any failures:

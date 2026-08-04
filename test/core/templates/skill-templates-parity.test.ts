@@ -323,6 +323,13 @@ describe('skill templates split parity', () => {
       expect(content, label).toContain(
         'keyed by change and `<capability-path>`'
       );
+      expect(content, label).toContain(
+        'identity/user-auth spec: Will apply add-oauth then add-jwt'
+      );
+      expect(content, label).toContain(
+        'add-jwt, identity/user-auth: implementation not found'
+      );
+      expect(content, label).not.toContain('add-jwt/auth:');
     }
   });
 
@@ -468,7 +475,7 @@ describe('skill templates split parity', () => {
       // The worked example must show the skip, or the agent has no model of
       // what a partially-synced batch report looks like.
       expect(content, variant).toContain(
-        '1 delta spec sync skipped (add-jwt/auth: implementation not found)'
+        '1 delta spec sync skipped (add-jwt, identity/user-auth: implementation not found)'
       );
     }
   });
@@ -486,7 +493,7 @@ describe('skill templates split parity', () => {
 
     for (const [variant, content] of variants) {
       expect(content, variant).toContain(
-        'A caller narrows it by naming an explicit list of delta spec paths to sync'
+        'A caller narrows it by naming an explicit list of complete entries from'
       );
       expect(content, variant).toContain(
         'sync only the named paths and leave the remaining delta specs untouched'
@@ -497,6 +504,10 @@ describe('skill templates split parity', () => {
       expect(content, variant).toContain(
         'Honor a caller-supplied subset of `existingOutputPaths`'
       );
+      expect(content, variant).toContain(
+        'only sync `specs/billing/invoices/spec.md`'
+      );
+      expect(content, variant).not.toContain('only sync the billing delta');
 
       // Step 4 is the operative loop. Narrowing step 3 alone left the loop
       // still iterating "each path returned by the CLI", which re-widens the
