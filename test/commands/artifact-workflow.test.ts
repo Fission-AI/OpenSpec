@@ -171,6 +171,31 @@ describe('artifact-workflow CLI commands', () => {
       expect(apply.progress.remaining).toBe(1);
     });
 
+    it('reports skipped planning artifacts as complete without creating them', async () => {
+      const changeDir = await createTestChange('skip-specs-change', [
+        'proposal',
+        'design',
+        'tasks',
+      ]);
+      await fs.writeFile(
+        path.join(changeDir, '.openspec.yaml'),
+        'schema: spec-driven\nskip_specs: true\n'
+      );
+
+      const result = await runCLI(['status', '--change', 'skip-specs-change', '--json'], {
+        cwd: tempDir,
+      });
+
+      expect(result.exitCode).toBe(0);
+      const status = JSON.parse(result.stdout);
+      expect(status.isPlanningComplete).toBe(true);
+      expect(status.isComplete).toBe(status.isPlanningComplete);
+      expect(status.artifacts.find((artifact: any) => artifact.id === 'specs')?.status).toBe(
+        'skipped'
+      );
+      await expect(fs.stat(path.join(changeDir, 'specs'))).rejects.toMatchObject({ code: 'ENOENT' });
+    });
+
     it('exits gracefully when no changes exist', async () => {
       const result = await runCLI(['status'], { cwd: tempDir });
       expect(result.exitCode).toBe(0);

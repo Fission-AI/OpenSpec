@@ -256,6 +256,21 @@ describe('skill templates split parity', () => {
     }
   });
 
+  it('does not suggest archiving when only planning is complete', () => {
+    const variants: Array<[string, string]> = [
+      [
+        'skill',
+        generateSkillContent(getContinueChangeSkillTemplate(), 'PARITY-BASELINE'),
+      ],
+      ['opsx command', getOpsxContinueCommandTemplate().content],
+    ];
+
+    for (const [variant, content] of variants) {
+      expect(content, variant).toContain('Once implementation and tasks are complete, archive it');
+      expect(content, variant).not.toContain('or archive it');
+    }
+  });
+
   it('gates the archive on a completed spec sync (#1393)', () => {
     const generatedSkill = generateSkillContent(getArchiveChangeSkillTemplate(), 'PARITY-BASELINE');
     const commandContent = getOpsxArchiveCommandTemplate().content;
