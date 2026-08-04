@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import { getSchemaDir, resolveSchema, listSchemasWithInfo } from './resolver.js';
 import { ArtifactGraph } from './graph.js';
 import { detectCompleted } from './state.js';
-import { resolveArtifactOutputs } from './outputs.js';
+import { resolveArtifactOutputPath, resolveArtifactOutputs } from './outputs.js';
 import { readChangeMetadata, resolveSchemaForChange } from '../../utils/change-metadata.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import {
@@ -175,7 +175,9 @@ export interface ChangeStatus {
   nextSteps: string[];
   /** Machine-readable action constraints for agents */
   actionContext: ActionContext;
-  /** Whether all artifacts are complete */
+  /** Whether all planning artifacts are complete */
+  isPlanningComplete: boolean;
+  /** Compatibility alias for isPlanningComplete */
   isComplete: boolean;
   /** Artifact IDs required before apply phase (from schema's apply.requires) */
   applyRequires: string[];
@@ -211,7 +213,17 @@ export function loadTemplate(
     );
   }
 
-  const templatePathOnDisk = path.join(schemaDir, 'templates', templatePath);
+  const templatesDir = path.join(schemaDir, 'templates');
+  const templatePathOnDisk = path.join(templatesDir, templatePath);
+
+  try {
+    FileSystemUtils.assertPathWithin(templatesDir, templatePathOnDisk);
+  } catch (error) {
+    throw new TemplateLoadError(
+      error instanceof Error ? error.message : String(error),
+      templatePathOnDisk
+    );
+  }
 
   if (!fs.existsSync(templatePathOnDisk)) {
     throw new TemplateLoadError(
@@ -367,7 +379,10 @@ export function generateInstructions(
 
   // Extract context and rules as separate fields (not prepended to template)
   const configContext = projectConfig?.context?.trim() || undefined;
-  const rulesForArtifact = projectConfig?.rules?.[artifactId];
+  const rulesForArtifact =
+    projectConfig?.rules && Object.hasOwn(projectConfig.rules, artifactId)
+      ? projectConfig.rules[artifactId]
+      : undefined;
   const configRules = rulesForArtifact && rulesForArtifact.length > 0 ? rulesForArtifact : undefined;
 
   return {
@@ -377,7 +392,7 @@ export function generateInstructions(
     changeDir: context.changeDir,
     planningHome: summarizePlanningHome(context.planningHome),
     outputPath: artifact.generates,
-    resolvedOutputPath: path.join(context.changeDir, artifact.generates),
+    resolvedOutputPath: resolveArtifactOutputPath(context.changeDir, artifact.generates),
     existingOutputPaths: resolveArtifactOutputs(context.changeDir, artifact.generates),
     description: artifact.description,
     instruction: artifact.instruction,
@@ -455,7 +470,7 @@ export function formatChangeStatus(
   const artifactStatuses: ArtifactStatus[] = artifacts.map(artifact => {
     artifactPaths[artifact.id] = {
       outputPath: artifact.generates,
-      resolvedOutputPath: path.join(context.changeDir, artifact.generates),
+      resolvedOutputPath: resolveArtifactOutputPath(context.changeDir, artifact.generates),
       existingOutputPaths: resolveArtifactOutputs(context.changeDir, artifact.generates),
     };
 
@@ -508,6 +523,7 @@ export function formatChangeStatus(
     planningHome: summarizePlanningHome(context.planningHome),
     changeRoot: context.changeDir,
     artifactPaths,
+    isPlanningComplete: isComplete,
     isComplete,
     applyRequires,
     nextSteps: buildNextSteps({
