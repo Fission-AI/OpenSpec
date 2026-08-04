@@ -108,6 +108,13 @@ describe('explore templates', () => {
 
       expect(retainStore, label).toBeGreaterThan(scaffold);
       expect(initialStatus, label).toBeGreaterThan(retainStore);
+      expect(
+        occurrenceCount(
+          transition,
+          '(append the confirmed `--store "<id>"` only for a registered standalone store)'
+        ),
+        label
+      ).toBe(5);
     }
   });
 
@@ -231,7 +238,7 @@ describe('explore templates', () => {
       );
 
       expect(transition, label).toContain(
-        'run `openspec instructions "<prerequisite-id>" --change "<name>" --json` for that prerequisite whether it is `ready` or `blocked`'
+        'run `openspec instructions "<prerequisite-id>" --change "<name>" --json` (append the confirmed `--store "<id>"` only for a registered standalone store) for that prerequisite whether it is `ready` or `blocked`'
       );
       expect(transition, label).toContain(
         'record a deliberate skip instead when the condition does not apply'
@@ -249,7 +256,7 @@ describe('explore templates', () => {
       expect(transition, label).toContain('remember it, and do not reconsider it');
       expect(transition, label).toContain('Dependencies are enablers, not gates');
       expect(transition, label).toContain(
-        'run `openspec instructions "<artifact-id>" --change "<name>" --json` despite the blocked status'
+        'run `openspec instructions "<artifact-id>" --change "<name>" --json` (append the confirmed `--store "<id>"` only for a registered standalone store) despite the blocked status'
       );
       expect(transition, label).toContain(
         'only when those recorded conditional skips are its sole missing dependencies'
