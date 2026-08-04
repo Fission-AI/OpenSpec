@@ -148,6 +148,23 @@ The pointer is a fallback, never an override: an explicit `--store` always
 wins, and if the repo grows real planning folders of its own, those win
 (with a warning to remove the stale pointer).
 
+**One default for every repo on your machine.** If you work across many
+code repos that all plan into the same store, set it once, globally,
+instead of adding the `store:` line to each repo:
+
+```bash
+openspec config set defaultStore team-plans
+```
+
+Now any command run outside a planning root — and with no `--store` and no
+project pointer — resolves to `team-plans`. It sits at the bottom of the
+precedence list, so `--store`, a local root, and a project `store:` pointer
+all still win. The root banner and JSON `root` block report
+`source: "global_default"` with the store id, so you can always tell a
+machine-wide default from a repo's own pointer. Clear it with
+`openspec config unset defaultStore`. If the id is not registered, commands
+error and tell you to register it or clear the stale default.
+
 ## Story: requirements that cross team lines
 
 A platform team owns the requirements. Product teams build against them,
@@ -289,7 +306,9 @@ Every normal command resolves its root the same way, in this order:
 2. nearest openspec/     a real planning root here     → this repo
    (walking up from cwd)
 3. store: pointer        config.yaml declares a store  → that store
-4. none of the above     stores registered on this     → error with a
+4. defaultStore          global config sets a machine  → that store
+                         default
+5. none of the above     stores registered on this     → error with a
                          machine?                        selection hint
                          no stores registered?         → the current
                                                           directory

@@ -21,8 +21,9 @@ The system SHALL provide an `/opsx:sync` skill that syncs delta specs from a cha
 
 #### Scenario: Change selection prompt
 - **WHEN** agent executes `/opsx:sync` without specifying a change
-- **THEN** the agent prompts user to select from available changes
-- **AND** shows changes that have delta specs
+- **THEN** the agent infers the change from conversation context, or auto-selects it when only one active change exists
+- **AND** when ambiguous, prompts user to select from available changes, showing changes that have delta specs
+- **AND** announces which change was selected and how to override
 
 ### Requirement: Delta Reconciliation Logic
 The agent SHALL reconcile main specs with delta specs using the delta operation headers.
@@ -55,6 +56,13 @@ The agent SHALL reconcile main specs with delta specs using the delta operation 
 #### Scenario: New capability spec
 - **WHEN** delta spec exists for a capability not in main specs
 - **THEN** create new main spec file at `openspec/specs/<capability>/spec.md`
+- **AND** copy the delta's `## Purpose` body into it when the delta has one, matching what `openspec archive` does
+- **AND** write a brief TBD placeholder Purpose only when the delta has none
+
+#### Scenario: Merged main spec keeps canonical structure
+- **WHEN** the agent writes a main spec during sync
+- **THEN** every requirement lives under a single `## Requirements` section
+- **AND** the main spec contains no delta operation headers (`## ADDED/MODIFIED/REMOVED/RENAMED Requirements`)
 
 ### Requirement: Skill Output
 The skill SHALL provide clear feedback on what was applied.

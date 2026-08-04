@@ -13,11 +13,12 @@ import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { classifyOpenSpecDir, storePointerProblem } from './project-config.js';
 import { findRepoPlanningRootSync } from './planning-home.js';
-import { transformToHyphenCommands } from '../utils/command-references.js';
+import { getSkillReferenceTransformer, getTransformerForTool } from '../utils/command-references.js';
 import {
   AI_TOOLS,
   OPENSPEC_DIR_NAME,
   AIToolOption,
+  resolveToolIdAlias,
 } from './config.js';
 import { PALETTE } from './styles/palette.js';
 import { isInteractive } from '../utils/interactive.js';
@@ -30,7 +31,11 @@ import {
   detectLegacyArtifacts,
   cleanupLegacyArtifacts,
   formatCleanupSummary,
+  formatDeferredGlobalPromptSummary,
   formatDetectionSummary,
+  getLegacyGlobalPromptMatches,
+  omitGlobalLegacyPromptFiles,
+  pickGlobalLegacyPromptFiles,
   type LegacyDetectionResult,
 } from './legacy-cleanup.js';
 import {
@@ -46,7 +51,15 @@ import {
 import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
 import { getProfileWorkflows, CORE_WORKFLOWS, ALL_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
-import { migrateIfNeeded } from './migration.js';
+import { migrateIfNeeded, migrateLegacyToolDirs, describeLegacyMigration, keptInPlaceNotice, hasMovableContent, scanInstalledWorkflows as scanInstalledWorkflowsShared } from './migration.js';
+import {
+  resolveCommandSurfaceCapability,
+  resolveCommandInvocation,
+  shouldGenerateCommandsForTool,
+  shouldGenerateSkillsForTool,
+  shouldReconcileCommandFilesForTool,
+  shouldRemoveSkillsForTool,
+} from './command-surface.js';
 import { includesGitHubCopilot, writeCopilotCloudFiles } from './github-copilot/cloud-agent.js';
 
 const require = createRequire(import.meta.url);
@@ -87,6 +100,16 @@ type InitCommandOptions = {
   force?: boolean;
   interactive?: boolean;
   profile?: string;
+  /** Commander's --no-animation flag: false disables the welcome animation. */
+  animation?: boolean;
+};
+
+/**
+ * Holds the global Codex prompt matches that must wait until replacement skills
+ * are generated before cleanup can continue.
+ */
+type DeferredLegacyCleanup = {
+  detection: LegacyDetectionResult;
 };
 
 // -----------------------------------------------------------------------------
@@ -98,12 +121,14 @@ export class InitCommand {
   private readonly force: boolean;
   private readonly interactiveOption?: boolean;
   private readonly profileOverride?: string;
+  private readonly animation: boolean;
 
   constructor(options: InitCommandOptions = {}) {
     this.toolsArg = options.tools;
     this.force = options.force ?? false;
     this.interactiveOption = options.interactive;
     this.profileOverride = options.profile;
+    this.animation = options.animation ?? true;
   }
 
   async execute(targetPath: string): Promise<void> {
@@ -142,7 +167,11 @@ export class InitCommand {
     }
 
     // Check for legacy artifacts and handle cleanup
-    await this.handleLegacyCleanup(projectPath, extendMode);
+    const deferredLegacyCleanup = await this.handleLegacyCleanup(projectPath, extendMode);
+
+    // Migrate OpenSpec-managed skills left in renamed tool directories
+    // (e.g. .kimi -> .kimi-code) before detection so they stay recognized.
+    migrateLegacyToolDirs(projectPath);
 
     // Detect available tools in the project (task 7.1)
     const detectedTools = getAvailableTools(projectPath);
@@ -152,16 +181,18 @@ export class InitCommand {
       migrateIfNeeded(projectPath, detectedTools);
     }
 
+    // Validate profile override early so invalid values fail before tool setup.
+    // The resolved value is consumed later when generation reads effective config.
+    // This runs ahead of the welcome screen so an invalid --profile does not make
+    // the user press Enter before seeing the error.
+    this.resolveProfileOverride();
+
     // Show animated welcome screen (interactive mode only)
     const canPrompt = this.canPromptInteractively();
     if (canPrompt) {
       const { showWelcomeScreen } = await import('../ui/welcome-screen.js');
-      await showWelcomeScreen();
+      await showWelcomeScreen(this.getActiveWorkflows(), { animate: this.animation });
     }
-
-    // Validate profile override early so invalid values fail before tool setup.
-    // The resolved value is consumed later when generation reads effective config.
-    this.resolveProfileOverride();
 
     // Get tool states before processing
     const toolStates = getToolStates(projectPath);
@@ -172,11 +203,31 @@ export class InitCommand {
     // Validate selected tools
     const validatedTools = this.validateTools(selectedToolIds, toolStates);
 
+    // Selecting a renamed tool is consent to leave its former directory:
+    // init is about to write the current one, and leaving OpenSpec content
+    // behind would give the user two installs of the same tool.
+    for (const migration of migrateLegacyToolDirs(
+      projectPath,
+      validatedTools.map((tool) => tool.value)
+    )) {
+      if (hasMovableContent(migration)) {
+        console.log(chalk.dim(`Migrated ${describeLegacyMigration(migration)}: ${migration.from} → ${migration.to}`));
+      }
+      const kept = keptInPlaceNotice(migration);
+      if (kept) console.log(chalk.dim(kept));
+    }
+
     // Create directory structure and config
     await this.createDirectoryStructure(openspecPath, extendMode);
 
     // Generate skills and commands for each tool
     const results = await this.generateSkillsAndCommands(projectPath, validatedTools);
+
+    // Legacy cleanup was deferred to avoid interfering with skill/command generation;
+    // now that outputs are written, finalize the cleanup (e.g. remove stale files).
+    if (deferredLegacyCleanup) {
+      await this.finalizeDeferredLegacyCleanup(projectPath, deferredLegacyCleanup);
+    }
 
     // Create config.yaml if needed
     const configStatus = await this.createConfig(openspecPath, extendMode);
@@ -220,22 +271,49 @@ export class InitCommand {
     throw new Error(`Invalid profile "${this.profileOverride}". Available profiles: core, custom`);
   }
 
+  /**
+   * Resolves the workflows the effective profile installs, so onboarding output
+   * only mentions commands that will actually exist.
+   */
+  private getActiveWorkflows(): string[] {
+    const globalCfg = getGlobalConfig();
+    const activeProfile: Profile = this.resolveProfileOverride() ?? globalCfg.profile ?? 'core';
+    return [...getProfileWorkflows(activeProfile, globalCfg.workflows)];
+  }
+
   // ═══════════════════════════════════════════════════════════
   // LEGACY CLEANUP
   // ═══════════════════════════════════════════════════════════
 
-  private async handleLegacyCleanup(projectPath: string, extendMode: boolean): Promise<void> {
+  /**
+   * Cleans repo-local legacy artifacts immediately and defers global Codex prompt
+   * cleanup until replacement skills have been installed.
+   */
+  private async handleLegacyCleanup(projectPath: string, extendMode: boolean): Promise<DeferredLegacyCleanup | null> {
     // Detect legacy artifacts
     const detection = await detectLegacyArtifacts(projectPath);
 
     if (!detection.hasLegacyArtifacts) {
-      return; // No legacy artifacts found
+      return null; // No legacy artifacts found
     }
 
+    const immediateDetection = omitGlobalLegacyPromptFiles(detection);
+
     // Show what was detected
-    console.log();
-    console.log(formatDetectionSummary(detection));
-    console.log();
+    const immediateSummary = formatDetectionSummary(immediateDetection);
+    if (immediateSummary) {
+      console.log();
+      console.log(immediateSummary);
+      console.log();
+    }
+
+    // Show which global prompts are deferred — they'll only be removed once
+    // the corresponding replacement skills are installed during generation.
+    const deferredSummary = formatDeferredGlobalPromptSummary(detection);
+    if (deferredSummary) {
+      console.log(deferredSummary);
+      console.log();
+    }
 
     const canPrompt = this.canPromptInteractively();
 
@@ -243,8 +321,8 @@ export class InitCommand {
       // --force flag or non-interactive mode: proceed with cleanup automatically.
       // Legacy slash commands are 100% OpenSpec-managed, and config file cleanup
       // only removes markers (never deletes files), so auto-cleanup is safe.
-      await this.performLegacyCleanup(projectPath, detection);
-      return;
+      await this.performImmediateLegacyCleanup(projectPath, detection);
+      return detection.globalSlashCommandFiles.length > 0 ? { detection } : null;
     }
 
     // Interactive mode: prompt for confirmation
@@ -260,7 +338,71 @@ export class InitCommand {
       process.exit(0);
     }
 
-    await this.performLegacyCleanup(projectPath, detection);
+    await this.performImmediateLegacyCleanup(projectPath, detection);
+    return detection.globalSlashCommandFiles.length > 0 ? { detection } : null;
+  }
+
+  /**
+   * Applies the safe subset of legacy cleanup that does not depend on newly
+   * generated Codex skills.
+   */
+  private async performImmediateLegacyCleanup(
+    projectPath: string,
+    detection: LegacyDetectionResult
+  ): Promise<void> {
+    const immediateDetection = omitGlobalLegacyPromptFiles(detection);
+    if (!immediateDetection.hasLegacyArtifacts) {
+      return;
+    }
+
+    await this.performLegacyCleanup(projectPath, immediateDetection);
+  }
+
+  /**
+   * Removes only the legacy global Codex prompts whose workflows now have
+   * replacement skills in the project.
+   */
+  private async finalizeDeferredLegacyCleanup(
+    projectPath: string,
+    deferredCleanup: DeferredLegacyCleanup
+  ): Promise<void> {
+    const availableCodexWorkflows = await this.getInstalledWorkflowsForTool(projectPath, 'codex');
+    const removableMatches = getLegacyGlobalPromptMatches(deferredCleanup.detection)
+      .filter((prompt) => prompt.workflowIds.every((workflowId) => availableCodexWorkflows.has(workflowId)));
+
+    if (removableMatches.length > 0) {
+      await this.performLegacyCleanup(
+        projectPath,
+        pickGlobalLegacyPromptFiles(
+          deferredCleanup.detection,
+          removableMatches.map((prompt) => prompt.path)
+        )
+      );
+    }
+
+    const blockedMatches = getLegacyGlobalPromptMatches(deferredCleanup.detection)
+      .filter((prompt) => !removableMatches.some((match) => match.path === prompt.path));
+
+    if (blockedMatches.length > 0) {
+      console.log(chalk.yellow('Preserved deferred global prompts without replacement skills:'));
+      for (const prompt of blockedMatches) {
+        console.log(chalk.dim(`  - ${prompt.toolId}: ${prompt.path}`));
+      }
+      console.log();
+    }
+  }
+
+  /**
+   * Reads the currently installed workflow IDs for a single tool from the
+   * generated skill layout on disk.
+   */
+  private async getInstalledWorkflowsForTool(projectPath: string, toolId: string): Promise<Set<string>> {
+    const tool = AI_TOOLS.find((candidate) => candidate.value === toolId);
+    if (!tool) {
+      return new Set<string>();
+    }
+
+    return new Set(scanInstalledWorkflowsShared(projectPath, [tool]));
   }
 
   private async performLegacyCleanup(projectPath: string, detection: LegacyDetectionResult): Promise<void> {
@@ -418,7 +560,9 @@ export class InitCommand {
       );
     }
 
-    const normalizedTokens = tokens.map((token) => token.toLowerCase());
+    // Retired ids resolve to their current tool, so a rebrand does not break
+    // an existing `--tools windsurf` in someone's setup script.
+    const normalizedTokens = tokens.map((token) => resolveToolIdAlias(token.toLowerCase()));
 
     if (normalizedTokens.some((token) => token === 'all' || token === 'none')) {
       throw new Error('Cannot combine reserved values "all" or "none" with specific tool IDs.');
@@ -522,6 +666,14 @@ export class InitCommand {
   // SKILL & COMMAND GENERATION
   // ═══════════════════════════════════════════════════════════
 
+  /**
+   * Generates skill files and slash commands for each selected tool,
+   * honoring the configured delivery mode (skills, commands, or both).
+   *
+   * @param projectPath - Absolute path to the project root
+   * @param tools - Selected tools with their skill directory metadata
+   * @returns Created, refreshed, and failed tools plus removed artifact counts
+   */
   private async generateSkillsAndCommands(
     projectPath: string,
     tools: Array<{ value: string; name: string; skillsDir: string; wasConfigured: boolean }>
@@ -530,6 +682,7 @@ export class InitCommand {
     refreshedTools: typeof tools;
     failedTools: Array<{ name: string; error: Error }>;
     commandsSkipped: string[];
+    skillsInvocableCommandSkips: string[];
     removedCommandCount: number;
     removedSkillCount: number;
   }> {
@@ -537,6 +690,7 @@ export class InitCommand {
     const refreshedTools: typeof tools = [];
     const failedTools: Array<{ name: string; error: Error }> = [];
     const commandsSkipped: string[] = [];
+    const skillsInvocableCommandSkips: string[] = [];
     let removedCommandCount = 0;
     let removedSkillCount = 0;
 
@@ -547,17 +701,19 @@ export class InitCommand {
     const workflows = getProfileWorkflows(profile, globalConfig.workflows);
 
     // Get skill and command templates filtered by profile workflows
-    const shouldGenerateSkills = delivery !== 'commands';
-    const shouldGenerateCommands = delivery !== 'skills';
-    const skillTemplates = shouldGenerateSkills ? getSkillTemplates(workflows) : [];
-    const commandContents = shouldGenerateCommands ? getCommandContents(workflows) : [];
+    const deliveryIncludesCommands = delivery !== 'skills';
+    const skillTemplates = getSkillTemplates(workflows);
+    const commandContents = getCommandContents(workflows);
 
     // Process each tool
     for (const tool of tools) {
       const spinner = ora(`Setting up ${tool.name}...`).start();
 
       try {
-        // Generate skill files if delivery includes skills
+        const shouldGenerateSkills = shouldGenerateSkillsForTool(tool.value, delivery);
+        const shouldGenerateCommands = shouldGenerateCommandsForTool(tool.value, delivery);
+
+        // Generate skill files if the selected delivery and tool capability allow skills
         if (shouldGenerateSkills) {
           // Use tool-specific skillsDir
           const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
@@ -568,15 +724,19 @@ export class InitCommand {
             const skillFile = path.join(skillDir, 'SKILL.md');
 
             // Generate SKILL.md content with YAML frontmatter including generatedBy
-            // Use hyphen-based command references for tools where filename === command name (oh-my-pi, opencode, pi)
-            const transformer = (tool.value === 'opencode' || tool.value === 'pi' || tool.value === 'oh-my-pi') ? transformToHyphenCommands : undefined;
+            const transformer = getTransformerForTool(
+              tool.value,
+              delivery,
+              resolveCommandSurfaceCapability(tool.value),
+              resolveCommandInvocation(tool.value)
+            );
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
 
             // Write the skill file
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
         }
-        if (!shouldGenerateSkills) {
+        if (shouldRemoveSkillsForTool(tool.value, delivery)) {
           const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
           removedSkillCount += await this.removeSkillDirs(skillsDir);
         }
@@ -591,11 +751,15 @@ export class InitCommand {
               const commandFile = path.isAbsolute(cmd.path) ? cmd.path : path.join(projectPath, cmd.path);
               await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
             }
+          }
+        } else if (deliveryIncludesCommands) {
+          if (resolveCommandSurfaceCapability(tool.value) === 'skills-invocable') {
+            skillsInvocableCommandSkips.push(tool.value);
           } else {
             commandsSkipped.push(tool.value);
           }
         }
-        if (!shouldGenerateCommands) {
+        if (shouldReconcileCommandFilesForTool(tool.value, delivery)) {
           removedCommandCount += await this.removeCommandFiles(projectPath, tool.value);
         }
 
@@ -616,8 +780,9 @@ export class InitCommand {
     if (includesGitHubCopilot(tools.map((t) => t.value))) {
       try {
         await writeCopilotCloudFiles(projectPath);
-      } catch {
-        // Non-fatal: don't block init if cloud agent files fail
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(`Warning: failed to generate Copilot cloud agent files: ${message}`);
       }
     }
 
@@ -626,6 +791,7 @@ export class InitCommand {
       refreshedTools,
       failedTools,
       commandsSkipped,
+      skillsInvocableCommandSkips,
       removedCommandCount,
       removedSkillCount,
     };
@@ -667,6 +833,7 @@ export class InitCommand {
       refreshedTools: typeof tools;
       failedTools: Array<{ name: string; error: Error }>;
       commandsSkipped: string[];
+      skillsInvocableCommandSkips: string[];
       removedCommandCount: number;
       removedSkillCount: number;
     },
@@ -692,8 +859,12 @@ export class InitCommand {
       const delivery: Delivery = globalConfig.delivery ?? 'both';
       const workflows = getProfileWorkflows(profile, globalConfig.workflows);
       const toolDirs = [...new Set(successfulTools.map((t) => t.skillsDir))].join(', ');
-      const skillCount = delivery !== 'commands' ? getSkillTemplates(workflows).length : 0;
-      const commandCount = delivery !== 'skills' ? getCommandContents(workflows).length : 0;
+      const skillCount = successfulTools.some((tool) => shouldGenerateSkillsForTool(tool.value, delivery))
+        ? getSkillTemplates(workflows).length
+        : 0;
+      const commandCount = successfulTools.some((tool) => shouldGenerateCommandsForTool(tool.value, delivery))
+        ? getCommandContents(workflows).length
+        : 0;
       if (skillCount > 0 && commandCount > 0) {
         console.log(`${skillCount} skills and ${commandCount} commands in ${toolDirs}/`);
       } else if (skillCount > 0) {
@@ -712,11 +883,22 @@ export class InitCommand {
     if (results.commandsSkipped.length > 0) {
       console.log(chalk.dim(`Commands skipped for: ${results.commandsSkipped.join(', ')} (no adapter)`));
     }
+    if (results.skillsInvocableCommandSkips.length > 0) {
+      console.log(chalk.dim(`Commands skipped for: ${results.skillsInvocableCommandSkips.join(', ')} (uses skills)`));
+    }
     if (results.removedCommandCount > 0) {
       console.log(chalk.dim(`Removed: ${results.removedCommandCount} command files (delivery: skills)`));
     }
     if (results.removedSkillCount > 0) {
       console.log(chalk.dim(`Removed: ${results.removedSkillCount} skill directories (delivery: commands)`));
+    }
+
+    // Show manual setup notes for tools that need extra configuration
+    for (const tool of successfulTools) {
+      const setupNote = AI_TOOLS.find((t) => t.value === tool.value)?.setupNote;
+      if (setupNote) {
+        console.log(chalk.yellow(`Setup required for ${tool.name}: ${setupNote}`));
+      }
     }
 
     // Config status
@@ -733,16 +915,82 @@ export class InitCommand {
     }
 
     // Getting started (task 7.6: show propose if in profile)
-    const globalCfg = getGlobalConfig();
-    const activeProfile: Profile = (this.profileOverride as Profile) ?? globalCfg.profile ?? 'core';
-    const activeWorkflows = [...getProfileWorkflows(activeProfile, globalCfg.workflows)];
+    const activeWorkflows = this.getActiveWorkflows();
+    // When no tool got /opsx:* commands, point at the skill instead of a
+    // command that does not exist.
+    const activeDelivery: Delivery = getGlobalConfig().delivery ?? 'both';
+    const commandsGenerated = successfulTools.some((tool) => shouldGenerateCommandsForTool(tool.value, activeDelivery));
+    const skillsGenerated = successfulTools.some((tool) => shouldGenerateSkillsForTool(tool.value, activeDelivery));
+    // Each hint line must be a usable instruction for the tool it serves.
+    // Tools that generated commands are told the command name their files
+    // answer to (/opsx:* when namespaced under opsx/, /opsx-* when the
+    // filename is the command); tools that only got skills are told their
+    // documented skill invocation (Kimi Code: /skill:openspec-*; Codex CLI:
+    // $openspec-*; others: /openspec-*). Tools that got no artifacts are
+    // covered by the configuration correction instead. When the selection
+    // disagrees, print one line per distinct instruction, labeled with the
+    // tools it applies to.
+    const startHintLines = (command: string): string[] => {
+      const hintToTools = new Map<string, string[]>();
+      for (const tool of successfulTools) {
+        let hint: string;
+        if (shouldGenerateCommandsForTool(tool.value, activeDelivery)) {
+          const transformer = getTransformerForTool(
+            tool.value,
+            activeDelivery,
+            resolveCommandSurfaceCapability(tool.value),
+            resolveCommandInvocation(tool.value)
+          );
+          hint = `Start your first change: ${transformer ? transformer(command) : command} "your idea"`;
+        } else if (shouldGenerateSkillsForTool(tool.value, activeDelivery)) {
+          hint = `Start your first change: ${getSkillReferenceTransformer(tool.value)(command)} "your idea"`;
+        } else {
+          continue;
+        }
+        hintToTools.set(hint, [...(hintToTools.get(hint) ?? []), tool.name]);
+      }
+      if (hintToTools.size === 0) {
+        // No successful tools: keep the generic command hint
+        return [`Start your first change: ${command} "your idea"`];
+      }
+      if (hintToTools.size === 1) {
+        return [[...hintToTools.keys()][0]];
+      }
+      return [...hintToTools.entries()].map(([hint, toolNames]) => `${hint} (${toolNames.join(', ')})`);
+    };
+    const printStartHints = (command: string): void => {
+      console.log(chalk.bold('Getting started:'));
+      for (const line of startHintLines(command)) {
+        console.log(`  ${line}`);
+      }
+    };
     console.log();
-    if (activeWorkflows.includes('propose')) {
-      console.log(chalk.bold('Getting started:'));
-      console.log('  Start your first change: /opsx:propose "your idea"');
+    // delivery=commands with tools that only support skills: those tools get
+    // no artifacts at all, so print a per-tool configuration correction
+    // rather than leave them with a dead (or missing) instruction — even
+    // when other selected tools did get commands or skills.
+    const zeroArtifactTools = successfulTools.filter(
+      (tool) =>
+        !shouldGenerateSkillsForTool(tool.value, activeDelivery) &&
+        !shouldGenerateCommandsForTool(tool.value, activeDelivery)
+    );
+    if (zeroArtifactTools.length > 0) {
+      const names = zeroArtifactTools.map((tool) => tool.name).join(', ');
+      console.log(
+        chalk.yellow(
+          `No skills or commands were generated for ${names}: delivery is set to 'commands' but ` +
+            `${zeroArtifactTools.length === 1 ? 'it supports' : 'they support'} only skills. ` +
+            `Run 'openspec config set delivery both' to generate skills.`
+        )
+      );
+    }
+    if (successfulTools.length > 0 && !commandsGenerated && !skillsGenerated) {
+      // Nothing was generated for any tool: the correction above is the
+      // whole story, so don't advertise an invocation that doesn't exist.
+    } else if (activeWorkflows.includes('propose')) {
+      printStartHints('/opsx:propose');
     } else if (activeWorkflows.includes('new')) {
-      console.log(chalk.bold('Getting started:'));
-      console.log('  Start your first change: /opsx:new "your idea"');
+      printStartHints('/opsx:new');
     } else {
       console.log("Done. Run 'openspec config profile' to configure your workflows.");
     }
@@ -752,10 +1000,20 @@ export class InitCommand {
     console.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
     console.log(`Feedback:   ${chalk.cyan('https://github.com/Fission-AI/OpenSpec/issues')}`);
 
-    // Restart instruction if any tools were configured
-    if (results.createdTools.length > 0 || results.refreshedTools.length > 0) {
+    // Restart instruction if any tools were configured and got a surface
+    // (when nothing was generated there is nothing a restart would pick up);
+    // only mention commands when commands were actually generated. Not "slash
+    // commands": Amazon Q's generated files are prompt-library entries invoked
+    // with @, so a restart line promising slash commands would be wrong for it.
+    if ((results.createdTools.length > 0 || results.refreshedTools.length > 0) && (commandsGenerated || skillsGenerated)) {
       console.log();
-      console.log(chalk.white('Restart your IDE for slash commands to take effect.'));
+      console.log(
+        chalk.white(
+          commandsGenerated
+            ? 'Restart your IDE for the new commands to take effect.'
+            : 'Restart your IDE for the new skills to take effect.'
+        )
+      );
     }
 
     console.log();

@@ -174,6 +174,7 @@ describe('command completion registry', () => {
       'show',
       'status',
       'validate',
+      'view',
     ]);
 
     // The store-selection guidance interpolated into every generated skill
@@ -218,7 +219,7 @@ describe('command completion registry', () => {
   });
 
   it('advertises --store on the supported root-selection commands', () => {
-    for (const name of ['list', 'show', 'validate', 'archive', 'status', 'instructions']) {
+    for (const name of ['list', 'show', 'validate', 'archive', 'status', 'instructions', 'view']) {
       const entry = command(name);
       const store = entry?.flags.find((flag) => flag.name === 'store');
       expect(store, `${name} --store flag`).toBeDefined();

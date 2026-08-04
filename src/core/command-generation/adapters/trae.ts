@@ -6,28 +6,7 @@
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
-
-/**
- * Escapes a string value for safe YAML output.
- * Quotes the string if it contains special YAML characters.
- */
-function escapeYamlValue(value: string): string {
-  if (value === '') {
-    return '""';
-  }
-  // Check if value needs quoting (contains special YAML characters or starts/ends with whitespace)
-  const needsQuoting = /[:\n\r#{}[\],&*!|>'"%@`]|^\s|\s$/.test(value);
-  if (needsQuoting) {
-    // Use double quotes and escape internal double quotes, backslashes, and newlines
-    const escaped = value
-      .replace(/\\/g, '\\\\')
-      .replace(/"/g, '\\"')
-      .replace(/\n/g, '\\n')
-      .replace(/\r/g, '\\r');
-    return `"${escaped}"`;
-  }
-  return value;
-}
+import { escapeYamlValue } from '../yaml.js';
 
 /**
  * Trae adapter for command generation.

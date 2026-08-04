@@ -125,17 +125,19 @@ OpenSpec is a structured change management system for codebases. It organizes wo
 
 When asked to work with OpenSpec, follow this pattern:
 
-1. **Check current state**: Run \`openspec status --json\` to understand what changes exist and their progress.
-2. **Follow instructions**: Run \`openspec instructions --json\` to get context-aware next steps.
-3. **Validate before completing**: Run \`openspec validate --all --json\` to ensure artifacts are correct.
+1. **Find the change**: Run \`openspec list --json\` to see active changes.
+2. **Check progress**: Run \`openspec status --change <name> --json\` for the selected change.
+3. **Follow instructions**: Run \`openspec instructions [artifact] --change <name> --json\` for the next artifact.
+4. **Validate before completing**: Run \`openspec validate <name> --json\`.
 
 ## Creating New Changes
 
 When the user wants to propose a new change:
 
-1. Create the change directory under \`openspec/changes/<change-name>/\`
-2. Generate the required planning artifacts based on the project's configured workflow schema
-3. Run \`openspec validate --json\` to verify the artifacts are well-formed
+1. Run \`openspec new change <name>\`.
+2. Run \`openspec status --change <name> --json\` to see the artifact sequence.
+3. Use \`openspec instructions [artifact] --change <name> --json\` before creating each artifact.
+4. Run \`openspec validate <name> --json\` when the artifacts are complete.
 
 ## Key Directories
 
@@ -155,6 +157,42 @@ When the user wants to propose a new change:
 
 function generateLegacyCopilotAgentFileBody(): string {
   let content = generateCopilotAgentFileBody();
+  content = replaceRequired(
+    content,
+    `## Workflow
+
+When asked to work with OpenSpec, follow this pattern:
+
+1. **Find the change**: Run \`openspec list --json\` to see active changes.
+2. **Check progress**: Run \`openspec status --change <name> --json\` for the selected change.
+3. **Follow instructions**: Run \`openspec instructions [artifact] --change <name> --json\` for the next artifact.
+4. **Validate before completing**: Run \`openspec validate <name> --json\`.
+
+## Creating New Changes
+
+When the user wants to propose a new change:
+
+1. Run \`openspec new change <name>\`.
+2. Run \`openspec status --change <name> --json\` to see the artifact sequence.
+3. Use \`openspec instructions [artifact] --change <name> --json\` before creating each artifact.
+4. Run \`openspec validate <name> --json\` when the artifacts are complete.`,
+    `## Workflow
+
+When asked to work with OpenSpec, follow this pattern:
+
+1. **Check current state**: Run \`openspec status --json\` to understand what changes exist and their progress.
+2. **Follow instructions**: Run \`openspec instructions --json\` to get context-aware next steps.
+3. **Validate before completing**: Run \`openspec validate --all --json\` to ensure artifacts are correct.
+
+## Creating New Changes
+
+When the user wants to propose a new change:
+
+1. Create the change directory under \`openspec/changes/<change-name>/\`
+2. Generate the required planning artifacts based on the project's configured workflow schema
+3. Run \`openspec validate --json\` to verify the artifacts are well-formed`,
+    'legacy workflow guidance'
+  );
   content = replaceRequired(
     content,
     `tools:

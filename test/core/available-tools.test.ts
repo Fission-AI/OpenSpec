@@ -2,15 +2,13 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
-import { randomUUID } from 'crypto';
 import { getAvailableTools } from '../../src/core/available-tools.js';
 
 describe('available-tools', () => {
   let testDir: string;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
-    await fs.mkdir(testDir, { recursive: true });
+    testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-test-'));
   });
 
   afterEach(async () => {
@@ -42,8 +40,39 @@ describe('available-tools', () => {
       const toolValues = tools.map((t) => t.value);
       expect(toolValues).toContain('claude');
       expect(toolValues).toContain('cursor');
-      expect(toolValues).toContain('windsurf');
+      // Windsurf was rebranded to Devin Desktop, so .windsurf detects as devin
+      expect(toolValues).toContain('devin');
       expect(tools).toHaveLength(3);
+    });
+
+    it('should detect Devin Desktop when .devin directory exists', async () => {
+      await fs.mkdir(path.join(testDir, '.devin'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('devin');
+
+      const devinTool = tools.find((t) => t.value === 'devin');
+      expect(devinTool).toBeDefined();
+      expect(devinTool?.name).toBe('Devin Desktop (formerly Windsurf)');
+      expect(devinTool?.skillsDir).toBe('.devin');
+    });
+
+    it('should detect Devin Desktop from the legacy .windsurf directory', async () => {
+      // The rebrand moved the config dir; a project set up before it still has
+      // only .windsurf/, and that user must still be recognized.
+      await fs.mkdir(path.join(testDir, '.windsurf'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((t) => t.value)).toContain('devin');
+      expect(tools.find((t) => t.value === 'devin')?.skillsDir).toBe('.devin');
+    });
+
+    it('should not detect Devin Desktop when neither .devin nor .windsurf exists', async () => {
+      await fs.mkdir(path.join(testDir, '.cursor'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((t) => t.value)).not.toContain('devin');
     });
 
     it('should ignore files that are not directories', async () => {
@@ -55,14 +84,30 @@ describe('available-tools', () => {
     });
 
     it('should only return tools that have a skillsDir property', async () => {
-      // .agents value has no skillsDir in AI_TOOLS config
-      // Create directories for both a valid and the agents case
       await fs.mkdir(path.join(testDir, '.claude'), { recursive: true });
 
       const tools = getAvailableTools(testDir);
+      expect(tools.map((t) => t.value)).toContain('claude');
+      // The filter's contract: nothing without a skillsDir can ever be returned.
+      expect(tools.filter((t) => !t.skillsDir)).toEqual([]);
+    });
+
+    it('should detect the shared agents target from .agents/skills', async () => {
+      await fs.mkdir(path.join(testDir, '.agents', 'skills'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
       const toolValues = tools.map((t) => t.value);
-      expect(toolValues).toContain('claude');
-      expect(toolValues).not.toContain('agents');
+      expect(toolValues).toContain('agents');
+    });
+
+    it('should not detect the shared agents target from a bare .agents directory', async () => {
+      // Frameworks use `.agents/` for more than skills (rules, subagent definitions).
+      // The bare root therefore says nothing about whether this project keeps agent
+      // skills in the shared location, so it must not select the target.
+      await fs.mkdir(path.join(testDir, '.agents', 'some-other-framework'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((t) => t.value)).not.toContain('agents');
     });
 
     it('should return full AIToolOption objects', async () => {
@@ -140,6 +185,42 @@ describe('available-tools', () => {
       expect(toolValues).toContain('github-copilot');
     });
 
+    it('should detect Hermes Agent when HERMES.md exists', async () => {
+      await fs.writeFile(path.join(testDir, 'HERMES.md'), '');
+
+      const tools = getAvailableTools(testDir);
+      const hermesTool = tools.find((t) => t.value === 'hermes');
+
+      expect(hermesTool).toMatchObject({
+        name: 'Hermes Agent',
+        skillsDir: '.hermes',
+      });
+    });
+
+    it('should detect Hermes Agent when .hermes.md exists', async () => {
+      await fs.writeFile(path.join(testDir, '.hermes.md'), '');
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('hermes');
+    });
+
+    it('should detect Hermes Agent when .hermes directory exists', async () => {
+      await fs.mkdir(path.join(testDir, '.hermes'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('hermes');
+    });
+
+    it('should not detect Hermes Agent from plain CONTEXT.md', async () => {
+      await fs.writeFile(path.join(testDir, 'CONTEXT.md'), '');
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).not.toContain('hermes');
+    });
+
     it('should still use skillsDir detection for tools without detectionPaths', async () => {
       // Claude Code has no detectionPaths, so .claude/ directory should still work
       await fs.mkdir(path.join(testDir, '.claude'), { recursive: true });
@@ -162,6 +243,58 @@ describe('available-tools', () => {
       expect(vibeTool).toBeDefined();
       expect(vibeTool?.name).toBe('Mistral Vibe');
       expect(vibeTool?.skillsDir).toBe('.vibe');
+    });
+
+    it('should detect CodeArts when .codeartsdoer directory exists', async () => {
+      await fs.mkdir(path.join(testDir, '.codeartsdoer'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const codeArtsTool = tools.find((t) => t.value === 'codeartsagent');
+      expect(codeArtsTool).toMatchObject({
+        name: 'CodeArts',
+        value: 'codeartsagent',
+        available: true,
+        skillsDir: '.codeartsdoer',
+      });
+    });
+
+    it('should not detect CodeArts when .codeartsdoer directory does not exist', () => {
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).not.toContain('codeartsagent');
+    });
+
+    it('should detect ZCode when .zcode directory exists', async () => {
+      await fs.mkdir(path.join(testDir, '.zcode'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const zcode = tools.find((t) => t.value === 'zcode');
+      expect(zcode).toBeDefined();
+      expect(zcode?.name).toBe('ZCode');
+      expect(zcode?.skillsDir).toBe('.zcode');
+    });
+
+    it('should not detect ZCode from a bare .agents directory', async () => {
+      // .agents is a generic directory used by many agent frameworks; a bare
+      // .agents must not trigger ZCode detection (mirrors the Copilot bare-.github rule).
+      await fs.mkdir(path.join(testDir, '.agents'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((t) => t.value)).not.toContain('zcode');
+    });
+
+    it('should detect ZCode from .zcode even when .agents is also present', async () => {
+      // A co-located .agents must not suppress real ZCode detection via .zcode
+      await fs.mkdir(path.join(testDir, '.zcode'), { recursive: true });
+      await fs.mkdir(path.join(testDir, '.agents'), { recursive: true });
+
+      const zcodeTools = getAvailableTools(testDir).filter((t) => t.value === 'zcode');
+      expect(zcodeTools).toHaveLength(1);
+    });
+
+    it('should not detect ZCode when .zcode is absent', async () => {
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((t) => t.value)).not.toContain('zcode');
     });
 
     it('should detect Oh My Pi when .omp directory exists', async () => {

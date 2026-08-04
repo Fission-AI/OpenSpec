@@ -1,8 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
-import { randomUUID } from 'crypto';
 import {
   SKILL_NAMES,
   getToolsWithSkillsDir,
@@ -18,11 +17,12 @@ describe('tool-detection', () => {
   let testDir: string;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
-    await fs.mkdir(testDir, { recursive: true });
+    testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-test-'));
+    vi.stubEnv('XDG_CONFIG_HOME', path.join(testDir, 'config'));
   });
 
   afterEach(async () => {
+    vi.unstubAllEnvs();
     await fs.rm(testDir, { recursive: true, force: true });
   });
 
@@ -48,8 +48,12 @@ describe('tool-detection', () => {
     it('should return tools that have skillsDir configured', () => {
       const tools = getToolsWithSkillsDir();
       expect(tools).toContain('claude');
+      expect(tools).toContain('codeartsagent');
       expect(tools).toContain('cursor');
-      expect(tools).toContain('windsurf');
+      expect(tools).toContain('devin');
+      // `--tools all` resolves to exactly this list, so `agents` being here is what
+      // puts the shared target in an `--tools all` run.
+      expect(tools).toContain('agents');
       expect(tools.length).toBeGreaterThan(0);
     });
   });
@@ -257,6 +261,182 @@ Content here
       expect(status.configured).toBe(true);
       expect(status.generatedByVersion).toBe('0.23.0');
       expect(status.needsUpdate).toBe(false);
+    });
+
+    it('should detect configured status and version match for commands-only setup', async () => {
+      const { InitCommand } = await import('../../../src/core/init.js');
+      const { saveGlobalConfig } = await import('../../../src/core/global-config.js');
+      saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+      await initCommand.execute(testDir);
+
+      const { version } = await import('../../../package.json');
+      const status = getToolVersionStatus(testDir, 'claude', version, {
+        workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'],
+      });
+
+      expect(status.configured).toBe(true);
+      expect(status.generatedByVersion).toBe(version);
+      expect(status.needsUpdate).toBe(false);
+    });
+
+    // Command paths vary in shape across adapters: a nested directory with a
+    // per-tool extension (gemini writes TOML), a flat opsx-* file, and — for
+    // cline — a directory that is not the tool's skillsDir at all.
+    it.each([
+      ['gemini', path.join('.gemini', 'commands', 'opsx', 'explore.toml')],
+      ['cursor', path.join('.cursor', 'commands', 'opsx-explore.md')],
+      ['cline', path.join('.clinerules', 'workflows', 'opsx-explore.md')],
+    ])('should fingerprint commands-only %s installs', async (toolId, explorePath) => {
+      const { InitCommand } = await import('../../../src/core/init.js');
+      const { saveGlobalConfig } = await import('../../../src/core/global-config.js');
+      saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+
+      const initCommand = new InitCommand({ tools: toolId, force: true });
+      await initCommand.execute(testDir);
+
+      const { version } = await import('../../../package.json');
+      const coreWorkflows = ['propose', 'explore', 'apply', 'update', 'sync', 'archive'];
+
+      // cline's commands live outside its skillsDir (.cline), so a commands-only
+      // install leaves that directory absent entirely.
+      expect(getConfiguredTools(testDir)).toContain(toolId);
+
+      const fresh = getToolVersionStatus(testDir, toolId, version, { workflows: coreWorkflows });
+      expect(fresh.configured).toBe(true);
+      expect(fresh.generatedByVersion).toBe(version);
+      expect(fresh.needsUpdate).toBe(false);
+
+      await fs.writeFile(path.join(testDir, explorePath), 'stale content');
+
+      const drifted = getToolVersionStatus(testDir, toolId, version, { workflows: coreWorkflows });
+      expect(drifted.generatedByVersion).toBeNull();
+      expect(drifted.needsUpdate).toBe(true);
+    });
+
+    it('should fingerprint a custom profile against its own workflow subset', async () => {
+      const { InitCommand } = await import('../../../src/core/init.js');
+      const { saveGlobalConfig } = await import('../../../src/core/global-config.js');
+      const customWorkflows = ['explore', 'apply'];
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'custom',
+        delivery: 'commands',
+        workflows: customWorkflows,
+      });
+
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+      await initCommand.execute(testDir);
+
+      const { version } = await import('../../../package.json');
+      const status = getToolVersionStatus(testDir, 'claude', version, {
+        workflows: customWorkflows,
+      });
+
+      expect(status.configured).toBe(true);
+      expect(status.generatedByVersion).toBe(version);
+      expect(status.needsUpdate).toBe(false);
+
+      // The core set is a superset of this profile, so comparing against it must
+      // report drift — the fingerprint has to use the workflows actually selected.
+      const againstCore = getToolVersionStatus(testDir, 'claude', version, {
+        workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'],
+      });
+      expect(againstCore.needsUpdate).toBe(true);
+    });
+
+    it('should treat CRLF line endings and a BOM as up to date, not as drift', async () => {
+      const { InitCommand } = await import('../../../src/core/init.js');
+      const { saveGlobalConfig } = await import('../../../src/core/global-config.js');
+      saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+      await initCommand.execute(testDir);
+
+      // A Windows clone with core.autocrlf re-materializes committed command
+      // files with CRLF endings; that is a checkout artifact, not content drift.
+      const commandsDir = path.join(testDir, '.claude', 'commands', 'opsx');
+      for (const entry of await fs.readdir(commandsDir)) {
+        const file = path.join(commandsDir, entry);
+        const content = await fs.readFile(file, 'utf-8');
+        await fs.writeFile(file, '\ufeff' + content.replace(/\r?\n/g, '\r\n'));
+      }
+
+      const { version } = await import('../../../package.json');
+      const status = getToolVersionStatus(testDir, 'claude', version, {
+        workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'],
+      });
+
+      expect(status.generatedByVersion).toBe(version);
+      expect(status.needsUpdate).toBe(false);
+    });
+
+    it('should detect needsUpdate when a deselected workflow left a command file behind', async () => {
+      const { InitCommand } = await import('../../../src/core/init.js');
+      const { saveGlobalConfig } = await import('../../../src/core/global-config.js');
+      saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+      await initCommand.execute(testDir);
+
+      // A workflow that is no longer selected still has a command file on disk
+      const strayFile = path.join(testDir, '.claude', 'commands', 'opsx', 'verify.md');
+      await fs.writeFile(strayFile, 'stray command from a previous profile');
+
+      const { version } = await import('../../../package.json');
+      const status = getToolVersionStatus(testDir, 'claude', version, {
+        workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'],
+      });
+
+      expect(status.configured).toBe(true);
+      expect(status.generatedByVersion).toBeNull();
+      expect(status.needsUpdate).toBe(true);
+    });
+
+    it('should not let matching command files mask an unreadable skill version', async () => {
+      const { InitCommand } = await import('../../../src/core/init.js');
+      const { saveGlobalConfig } = await import('../../../src/core/global-config.js');
+      saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both' });
+
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+      await initCommand.execute(testDir);
+
+      // Corrupt a skill file so its generatedBy version can no longer be read,
+      // while every command file still matches the current generated content.
+      const skillFile = path.join(testDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md');
+      await fs.writeFile(skillFile, 'truncated skill file');
+
+      const { version } = await import('../../../package.json');
+      const status = getToolVersionStatus(testDir, 'claude', version, {
+        workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'],
+      });
+
+      expect(status.configured).toBe(true);
+      expect(status.generatedByVersion).toBeNull();
+      expect(status.needsUpdate).toBe(true);
+    });
+
+    it('should detect needsUpdate when command file content differs in commands-only setup', async () => {
+      const { InitCommand } = await import('../../../src/core/init.js');
+      const { saveGlobalConfig } = await import('../../../src/core/global-config.js');
+      saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+      await initCommand.execute(testDir);
+
+      // Modify one command file
+      const cmdFile = path.join(testDir, '.claude', 'commands', 'opsx', 'explore.md');
+      await fs.writeFile(cmdFile, 'outdated content');
+
+      const { version } = await import('../../../package.json');
+      const status = getToolVersionStatus(testDir, 'claude', version, {
+        workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'],
+      });
+
+      expect(status.configured).toBe(true);
+      expect(status.generatedByVersion).toBeNull();
+      expect(status.needsUpdate).toBe(true);
     });
 
     it('should include tool name in status', async () => {

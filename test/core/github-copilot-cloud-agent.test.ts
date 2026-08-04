@@ -142,6 +142,10 @@ describe('GitHub Copilot Cloud Agent', () => {
       expect(content).toContain('edit');
       expect(content).toContain('# OpenSpec Agent');
       expect(content).toContain('openspec list');
+      expect(content).toContain('openspec new change <name>');
+      expect(content).toContain('openspec status --change <name> --json');
+      expect(content).toContain('openspec instructions [artifact] --change <name> --json');
+      expect(content).not.toContain('Create the change directory under');
       expect(content).toContain('openspec validate');
     });
   });

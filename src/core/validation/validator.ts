@@ -10,7 +10,14 @@ import {
   MAX_REQUIREMENT_TEXT_LENGTH,
   VALIDATION_MESSAGES
 } from './constants.js';
-import { parseDeltaSpec, normalizeRequirementName, extractRequirementsSection } from '../parsers/requirement-blocks.js';
+import {
+  parseDeltaSpec,
+  foldRequirementName,
+  normalizeRequirementName,
+  extractRequirementsSection,
+  findMissingCurrentScenarios,
+  type RequirementBlock,
+} from '../parsers/requirement-blocks.js';
 import {
   extractRequirementBody as extractRequirementBodyShared,
   containsShallOrMust as containsShallOrMustShared,
@@ -18,6 +25,8 @@ import {
 } from '../parsers/requirement-text.js';
 import { findMainSpecStructureIssues } from '../parsers/spec-structure.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
+import { discoverSpecFiles, hasAnyFileUnder } from '../../utils/spec-discovery.js';
+import { METADATA_FILENAME, readSkipSpecsMarker } from '../../utils/change-metadata.js';
 
 export class Validator {
   private strictMode: boolean;
@@ -84,13 +93,28 @@ export class Validator {
       const content = readFileSync(filePath, 'utf-8');
       const changeDir = path.dirname(filePath);
       const parser = new ChangeParser(content, changeDir);
-      
+
       const change = await parser.parseChangeWithDeltas(changeName);
-      
+
       const result = ChangeSchema.safeParse(change);
-      
+
+      const marker = readSkipSpecsMarker(changeDir);
+      if (marker.invalidReason) {
+        issues.push({ level: 'ERROR', path: METADATA_FILENAME, message: this.formatInvalidMarkerMessage(marker.invalidReason) });
+      }
+
       if (!result.success) {
-        issues.push(...this.convertZodErrors(result.error));
+        let zodIssues = this.convertZodErrors(result.error);
+        // Only the no-deltas error is marker-aware here: the marker+files
+        // conflict is validateChangeDeltaSpecs's job, and every caller of
+        // this proposal-level pass (archive's non-blocking warnings) pairs
+        // it with that gate.
+        if (marker.declared) {
+          zodIssues = zodIssues.filter(
+            issue => !issue.message.startsWith(VALIDATION_MESSAGES.CHANGE_NO_DELTAS)
+          );
+        }
+        issues.push(...zodIssues);
       }
       
       issues.push(...this.applyChangeRules(change, content));
@@ -116,21 +140,48 @@ export class Validator {
    * - REMOVED: names only; no scenario/description required
    * - RENAMED: pairs well-formed
    * - No duplicates within sections; no cross-section conflicts per spec
+   *
+   * When `options.mainSpecsDir` is given, MODIFIED blocks are also checked
+   * against the current main specs for the scenario loss archive refuses to
+   * apply (#1477). Omitting it keeps the change-only checks, so callers with
+   * no main specs root (and existing library callers) behave as before.
    */
-  async validateChangeDeltaSpecs(changeDir: string): Promise<ValidationReport> {
+  async validateChangeDeltaSpecs(
+    changeDir: string,
+    options: { mainSpecsDir?: string } = {}
+  ): Promise<ValidationReport> {
     const issues: ValidationIssue[] = [];
     const specsDir = path.join(changeDir, 'specs');
     let totalDeltas = 0;
+    let hasRootLevelSpec = false;
     const missingHeaderSpecs: string[] = [];
     const emptySectionSpecs: Array<{ path: string; sections: string[] }> = [];
 
     try {
-      // Discover delta specs at any depth so the nested multi-area layout
-      // (specs/<area>/<capability>/spec.md) is validated, not just the
-      // one-level specs/<capability>/spec.md layout (#1182b). The spec-driven
-      // specs glob is specs/**/*.md; delta files are always named spec.md.
-      const specFiles = await this.findDeltaSpecFiles(specsDir);
-      for (const specFile of specFiles) {
+      // Discover delta specs through the same helper the change parser, show,
+      // apply, and archive use, so validate never accepts a layout the merge
+      // path silently skips (#1385). It finds spec.md at any depth, covering
+      // both specs/<capability>/spec.md and the nested multi-area
+      // specs/<area>/<capability>/spec.md layout (#1182b).
+      const discoveredSpecs = await discoverSpecFiles(specsDir);
+
+      // A spec.md directly at the specs/ root has no capability folder, so the
+      // merge path drops it: without this error the change validates clean and
+      // archives while its requirements never reach openspec/specs/ (#1385).
+      // Only a regular file counts — a *directory* named spec.md is a capability
+      // folder like any other, and discoverSpecFiles reads it normally.
+      const rootSpecStat = await fs.stat(path.join(specsDir, 'spec.md')).catch(() => null);
+      hasRootLevelSpec = rootSpecStat?.isFile() === true;
+      if (hasRootLevelSpec) {
+        issues.push({
+          level: 'ERROR',
+          path: 'spec.md',
+          message:
+            'Delta spec found at specs/spec.md. Delta specs must live in a capability folder (e.g. specs/<capability>/spec.md) — a file at the specs/ root is ignored when the change is applied or archived.',
+        });
+      }
+
+      for (const { id: specId, specFile } of discoveredSpecs) {
         let content: string | undefined;
         try {
           content = await fs.readFile(specFile, 'utf-8');
@@ -231,6 +282,19 @@ export class Validator {
           }
         }
 
+        // Run archive's scenario-loss check here too, so the change fails at
+        // authoring time instead of days later at archive time (#1477).
+        if (options.mainSpecsDir && plan.modified.length > 0) {
+          issues.push(
+            ...(await this.findScenarioLossIssues(
+              plan.modified,
+              plan.renamed,
+              path.join(options.mainSpecsDir, ...specId.split('/'), 'spec.md'),
+              entryPath
+            ))
+          );
+        }
+
         // Validate REMOVED (names only)
         for (const name of plan.removed) {
           const key = normalizeRequirementName(name);
@@ -282,10 +346,32 @@ export class Validator {
           if (addedNames.has(toKey)) {
             issues.push({ level: 'ERROR', path: entryPath, message: `RENAMED TO collides with ADDED for "${to}"` });
           }
+          // Folded comparison: a case/whitespace variant of the FROM header
+          // in REMOVED is the same contradiction, not a different name.
+          const removedFoldMatch = [...removedNames].find(
+            (r) => foldRequirementName(r) === foldRequirementName(fromKey)
+          );
+          if (removedFoldMatch !== undefined) {
+            issues.push({
+              level: 'ERROR',
+              path: entryPath,
+              message:
+                `Requirement present in both RENAMED and REMOVED: "${from}"` +
+                (removedFoldMatch === fromKey ? '' : ` (REMOVED spells it "${removedFoldMatch}")`),
+            });
+          }
         }
       }
-    } catch {
-      // If no specs dir, treat as no deltas
+    } catch (error) {
+      // A missing specs dir (or a stray `specs` file) means no deltas;
+      // anything else (EACCES, EIO) must stay loud — discoverSpecFiles
+      // documents that silently dropping an unreadable capability recreates
+      // the data-loss class it prevents, and archive lets the same error
+      // propagate.
+      const code = (error as NodeJS.ErrnoException)?.code;
+      if (code !== 'ENOENT' && code !== 'ENOTDIR') {
+        throw error;
+      }
     }
 
     for (const { path: specPath, sections } of emptySectionSpecs) {
@@ -303,39 +389,143 @@ export class Validator {
       });
     }
 
-    if (totalDeltas === 0) {
-      issues.push({ level: 'ERROR', path: 'file', message: this.enrichTopLevelError('change', VALIDATION_MESSAGES.CHANGE_NO_DELTAS) });
+    const marker = readSkipSpecsMarker(changeDir);
+    if (marker.invalidReason) {
+      issues.push({ level: 'ERROR', path: METADATA_FILENAME, message: this.formatInvalidMarkerMessage(marker.invalidReason) });
+    }
+
+    // ANY file under specs/ contradicts the marker - not just parsed deltas.
+    // Headerless or stray files would be silently dropped at archive time (and
+    // some still satisfy the artifact graph's specs/**  glob) while the change
+    // claims to have nothing, so they must surface as an explicit conflict.
+    // Probed only when the marker is declared, and unreadable specs/ (a stray
+    // `specs` file, permission errors) fails closed as a conflict: the marker
+    // claims nothing is there, and validate must not crash where the
+    // historical path degraded to "no deltas".
+    const skipSpecs = marker.declared;
+    let specsDirHasFiles = false;
+    if (skipSpecs) {
+      try {
+        specsDirHasFiles = await hasAnyFileUnder(specsDir);
+      } catch {
+        specsDirHasFiles = true;
+      }
+    }
+    if (skipSpecs && specsDirHasFiles) {
+      issues.push({ level: 'ERROR', path: 'file', message: VALIDATION_MESSAGES.CHANGE_SKIP_SPECS_CONFLICT });
+    }
+
+    // The root-level error already names the file and the fix; adding "No
+    // deltas found" on top would contradict it, since the deltas are sitting in
+    // the file just reported.
+    if (totalDeltas === 0 && !hasRootLevelSpec) {
+      if (skipSpecs && !specsDirHasFiles) {
+        issues.push({ level: 'INFO', path: 'file', message: VALIDATION_MESSAGES.CHANGE_SKIP_SPECS_ACCEPTED });
+      } else if (!skipSpecs) {
+        issues.push({ level: 'ERROR', path: 'file', message: this.enrichTopLevelError('change', VALIDATION_MESSAGES.CHANGE_NO_DELTAS) });
+      }
     }
 
     return this.createReport(issues);
   }
 
   /**
-   * Recursively collect every delta `spec.md` under a change's specs directory,
-   * so both the one-level (specs/<capability>/spec.md) and nested multi-area
-   * (specs/<area>/<capability>/spec.md) layouts are discovered (#1182b).
-   * Returns absolute paths, sorted for deterministic issue ordering.
+   * Report MODIFIED requirements whose block omits a scenario the main spec
+   * still carries. Uses the same comparison archive applies, so validate can
+   * only report what archive would refuse.
+   *
+   * Silent when the main spec or the requirement header is absent: applying a
+   * MODIFIED against a base that is not there yet is a different failure (a
+   * sister change still in flight is the legitimate case), and archive is the
+   * gate for it. A spec that exists but cannot be read is not absent, though —
+   * archive aborts on it, so reporting it beats calling the change valid.
    */
-  private async findDeltaSpecFiles(specsDir: string): Promise<string[]> {
-    const results: string[] = [];
-    const walk = async (dir: string): Promise<void> => {
-      let entries;
-      try {
-        entries = await fs.readdir(dir, { withFileTypes: true });
-      } catch {
-        return;
+  private async findScenarioLossIssues(
+    modified: RequirementBlock[],
+    renamed: Array<{ from: string; to: string }>,
+    mainSpecFile: string,
+    entryPath: string
+  ): Promise<ValidationIssue[]> {
+    let mainContent: string;
+    try {
+      mainContent = await fs.readFile(mainSpecFile, 'utf-8');
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException)?.code;
+      // Reported only for the codes that mean the file itself is unusable, and
+      // will be just as unusable when archive reads it. Everything else -
+      // ENOENT/ENOTDIR ("no main spec"), and transient resource errors like
+      // EMFILE that say nothing about the file - stays silent rather than
+      // failing a change that is fine. `validate --all` reads six changes at
+      // once, so a resource error must never become a verdict.
+      const UNUSABLE = new Set(['EACCES', 'EPERM', 'EISDIR', 'ELOOP', 'ENAMETOOLONG']);
+      if (!code || !UNUSABLE.has(code)) return [];
+      return [
+        {
+          level: 'ERROR',
+          path: entryPath,
+          message:
+            `Could not read ${FileSystemUtils.toPosixPath(mainSpecFile)} to check the MODIFIED requirements against it ` +
+            `(${code}). Archive reads the same file, so fix the file before archiving.`,
+        },
+      ];
+    }
+
+    const currentBlocks = new Map<string, RequirementBlock>();
+    for (const block of extractRequirementsSection(mainContent).bodyBlocks) {
+      currentBlocks.set(normalizeRequirementName(block.name), block);
+    }
+    // Archive applies RENAMED before MODIFIED, so a MODIFIED naming the new
+    // header is compared against the renamed block's scenarios. Fall back to
+    // the old header, or a rename-plus-modify pair would skip the check.
+    const renamedFrom = new Map(
+      renamed.map(({ from, to }) => [normalizeRequirementName(to), normalizeRequirementName(from)])
+    );
+
+    // Walked, not looked up once: renames chain (A→B then B→C leaves C holding
+    // A's block), and the visited set stops a cycle from looping forever. Every
+    // name in a rename cycle is also a rename FROM, so the skip above already
+    // keeps the walk out of one; the guard stays because the cost of being
+    // wrong about that is a hung CLI, not a wrong message.
+    const currentBlockFor = (name: string): RequirementBlock | undefined => {
+      const visited = new Set<string>();
+      let key: string | undefined = name;
+      while (key !== undefined && !visited.has(key)) {
+        const block = currentBlocks.get(key);
+        if (block) return block;
+        visited.add(key);
+        key = renamedFrom.get(key);
       }
-      for (const entry of entries) {
-        const full = path.join(dir, entry.name);
-        if (entry.isDirectory()) {
-          await walk(full);
-        } else if (entry.isFile() && entry.name === 'spec.md') {
-          results.push(full);
-        }
-      }
+      return undefined;
     };
-    await walk(specsDir);
-    return results.sort();
+
+    // A MODIFIED naming a header the same delta renames away is already
+    // reported ("MODIFIED references old name from RENAMED"), and the block it
+    // would land on is not the one it names — so any scenario named here would
+    // send the author after the wrong requirement.
+    const renamedAway = new Set(renamed.map(({ from }) => normalizeRequirementName(from)));
+
+    const issues: ValidationIssue[] = [];
+    for (const block of modified) {
+      const key = normalizeRequirementName(block.name);
+      if (renamedAway.has(key)) continue;
+      const current = currentBlockFor(key);
+      if (!current) continue;
+      const missing = findMissingCurrentScenarios(current, block);
+      if (missing.length === 0) continue;
+      issues.push({
+        level: 'ERROR',
+        path: entryPath,
+        message:
+          `MODIFIED "${block.name}" omits scenario(s) the current spec still has: ` +
+          `${missing.map(name => `"${name}"`).join(', ')}. ` +
+          'Copy them into the MODIFIED block (a MODIFIED requirement replaces the whole block, so archive refuses to drop them).',
+      });
+    }
+    return issues;
+  }
+
+  private formatInvalidMarkerMessage(invalidReason: string): string {
+    return `${VALIDATION_MESSAGES.CHANGE_SKIP_SPECS_INVALID_METADATA} (${invalidReason})`;
   }
 
   private convertZodErrors(error: ZodError): ValidationIssue[] {

@@ -20,8 +20,7 @@ describe('config command integration', () => {
 
   beforeEach(() => {
     // Create unique temp directory for each test
-    tempDir = path.join(os.tmpdir(), `openspec-config-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-    fs.mkdirSync(tempDir, { recursive: true });
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-config-test-'));
 
     // Save original env and set XDG_CONFIG_HOME
     originalEnv = { ...process.env };
@@ -115,6 +114,20 @@ describe('config command integration', () => {
     expect(consoleLogSpy).toHaveBeenCalledWith(
       'Set workflows = new,ff,apply,archive'
     );
+  });
+
+  it('should set, get, and unset defaultStore', async () => {
+    await runConfigCommand(['set', 'defaultStore', 'team-plans']);
+
+    const { getGlobalConfig } = await import('../../src/core/global-config.js');
+    expect(getGlobalConfig().defaultStore).toBe('team-plans');
+    expect(consoleLogSpy).toHaveBeenCalledWith('Set defaultStore = "team-plans"');
+
+    await runConfigCommand(['get', 'defaultStore']);
+    expect(consoleLogSpy).toHaveBeenCalledWith('team-plans');
+
+    await runConfigCommand(['unset', 'defaultStore']);
+    expect(getGlobalConfig().defaultStore).toBeUndefined();
   });
 });
 
@@ -214,6 +227,16 @@ describe('config key validation', () => {
     const { validateConfigKeyPath } = await import('../../src/core/config-schema.js');
     expect(validateConfigKeyPath('workflows').valid).toBe(true);
   });
+
+  it('allows defaultStore key', async () => {
+    const { validateConfigKeyPath } = await import('../../src/core/config-schema.js');
+    expect(validateConfigKeyPath('defaultStore').valid).toBe(true);
+  });
+
+  it('rejects nested keys under defaultStore', async () => {
+    const { validateConfigKeyPath } = await import('../../src/core/config-schema.js');
+    expect(validateConfigKeyPath('defaultStore.nested').valid).toBe(false);
+  });
 });
 
 describe('config profile command', () => {
@@ -221,8 +244,7 @@ describe('config profile command', () => {
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(() => {
-    tempDir = path.join(os.tmpdir(), `openspec-profile-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-    fs.mkdirSync(tempDir, { recursive: true });
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-profile-test-'));
     originalEnv = { ...process.env };
     process.env.XDG_CONFIG_HOME = tempDir;
   });

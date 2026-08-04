@@ -8,7 +8,7 @@ OPSX replaces the old phase-locked workflow with a fluid, action-based approach.
 
 | Aspect | Legacy | OPSX |
 |--------|--------|------|
-| **Commands** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` | Default: `/opsx:propose`, `/opsx:apply`, `/opsx:sync`, `/opsx:archive` (expanded workflow commands optional) |
+| **Commands** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` | Default: `/opsx:propose`, `/opsx:explore`, `/opsx:apply`, `/opsx:update`, `/opsx:sync`, `/opsx:archive` (expanded workflow commands optional) |
 | **Workflow** | Create all artifacts at once | Create incrementally or all at once—your choice |
 | **Going back** | Awkward phase gates | Natural—update any artifact anytime |
 | **Customization** | Fixed structure | Schema-driven, fully hackable |
@@ -43,10 +43,11 @@ Only OpenSpec-managed files that are being replaced:
 
 - Claude Code: `.claude/commands/openspec/`
 - Cursor: `.cursor/commands/openspec-*.md`
-- Windsurf: `.windsurf/workflows/openspec-*.md`
+- Devin Desktop, formerly Windsurf: `.windsurf/workflows/openspec-*.md`
 - Cline: `.clinerules/workflows/openspec-*.md`
 - Roo: `.roo/commands/openspec-*.md`
 - GitHub Copilot: `.github/prompts/openspec-*.prompt.md` (IDE extensions only; not supported in Copilot CLI)
+- Codex: OpenSpec now uses `.codex/skills/openspec-*`; legacy cleanup only targets OpenSpec's allowlisted prompt filenames in `$CODEX_HOME/prompts` or `~/.codex/prompts`, and only removes them after replacement skills exist.
 - And others (Augment, Continue, Amazon Q, etc.)
 
 The migration detects whichever tools you have configured and cleans up their legacy files.
@@ -84,7 +85,7 @@ Don't worry about getting it perfect. We're still learning what works best here,
 
 Both `openspec init` and `openspec update` detect legacy files and guide you through the same cleanup process. Use whichever fits your situation:
 
-- New installs default to profile `core` (`propose`, `explore`, `apply`, `sync`, `archive`).
+- New installs default to profile `core` (`propose`, `explore`, `apply`, `update`, `sync`, `archive`).
 - Migrated installs preserve your previously installed workflows by writing a `custom` profile when needed.
 
 ### Using `openspec init`
@@ -155,6 +156,8 @@ openspec init --force --tools claude
 ```
 
 The `--force` flag skips prompts and auto-accepts cleanup.
+
+This includes cleanup of OpenSpec-managed Codex prompt files in the global Codex prompt directory. Cleanup only targets OpenSpec's allowlisted legacy Codex prompt filenames, removes them only after replacement `.codex/skills/openspec-*` skills exist, and preserves all other files.
 
 ---
 
@@ -287,6 +290,8 @@ Command availability is profile-dependent:
 | `/opsx:propose` | Create a change and generate planning artifacts in one step |
 | `/opsx:explore` | Think through ideas with no structure |
 | `/opsx:apply` | Implement tasks from tasks.md |
+| `/opsx:update` | Revise a change's planning artifacts and keep them coherent |
+| `/opsx:sync` | Merge delta specs into main specs |
 | `/opsx:archive` | Finalize and archive the change |
 
 **Expanded workflow (custom selection):**
@@ -297,7 +302,6 @@ Command availability is profile-dependent:
 | `/opsx:continue` | Create the next artifact (one at a time) |
 | `/opsx:ff` | Fast-forward—create planning artifacts at once |
 | `/opsx:verify` | Validate implementation matches specs |
-| `/opsx:sync` | Merge delta specs into main specs |
 | `/opsx:bulk-archive` | Archive multiple changes at once |
 | `/opsx:onboard` | Guided end-to-end onboarding workflow |
 
@@ -406,6 +410,8 @@ OPSX uses the emerging **skills** standard:
 ```
 
 Skills are recognized across multiple AI coding tools and provide richer metadata.
+
+Codex is skills-only in OPSX. OpenSpec no longer generates Codex custom prompt files; use the generated `.codex/skills/openspec-*` directories instead.
 
 ---
 
@@ -561,7 +567,9 @@ project/
 │       ├── openspec-propose/     # default core profile
 │       ├── openspec-explore/
 │       ├── openspec-apply-change/
+│       ├── openspec-update-change/
 │       ├── openspec-sync-specs/
+│       ├── openspec-archive-change/
 │       └── ...                   # expanded profile adds new/continue/ff/etc.
 ├── CLAUDE.md                     # OpenSpec markers removed, your content preserved
 └── AGENTS.md                     # OpenSpec markers removed, your content preserved
