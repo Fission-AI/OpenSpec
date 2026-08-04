@@ -140,13 +140,14 @@ describe('artifact-workflow CLI commands', () => {
       expect(json.nextSteps[0]).toContain('openspec instructions specs');
     });
 
-    it('shows complete status when all artifacts are done', async () => {
+    it('shows planning completion when all artifacts exist', async () => {
       await createTestChange('complete-change', ['proposal', 'design', 'specs', 'tasks']);
 
       const result = await runCLI(['status', '--change', 'complete-change'], { cwd: tempDir });
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('4/4 artifacts complete');
-      expect(result.stdout).toContain('All artifacts complete!');
+      expect(result.stdout).toContain('All planning artifacts complete!');
+      expect(result.stdout).not.toContain('All artifacts complete!');
     });
 
     it('distinguishes planning completion from implementation task completion', async () => {

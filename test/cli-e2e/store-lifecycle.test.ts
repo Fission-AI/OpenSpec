@@ -423,7 +423,7 @@ describe('standalone store lifecycle journey', () => {
       { env: machineB, cwd: base }
     );
     expect(status.exitCode).toBe(0);
-    expect(status.stdout).toContain('All artifacts complete!');
+    expect(status.stdout).toContain('All planning artifacts complete!');
 
     const validated = await runCLI(
       ['validate', changeId, '--store', STORE_ID],
