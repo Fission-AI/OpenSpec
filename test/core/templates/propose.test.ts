@@ -8,6 +8,7 @@ import {
   getFfChangeSkillTemplate,
   getOpsxFfCommandTemplate,
 } from '../../../src/core/templates/skill-templates.js';
+import { generateSkillContent } from '../../../src/core/shared/skill-generation.js';
 import { loadSchema } from '../../../src/core/artifact-graph/schema.js';
 import { CommandAdapterRegistry } from '../../../src/core/command-generation/registry.js';
 import { generateCommand } from '../../../src/core/command-generation/generator.js';
@@ -20,8 +21,8 @@ import { getCommandContents } from '../../../src/core/shared/skill-generation.js
 const proposeSkillBody = getOpsxProposeSkillTemplate().instructions;
 const proposeCommandBody = getOpsxProposeCommandTemplate().content;
 const proposeBodies: Array<[string, string]> = [
-  ['propose skill', proposeSkillBody],
-  ['propose command', proposeCommandBody],
+  ['propose skill', generateSkillContent(getOpsxProposeSkillTemplate(), 'TEST')],
+  ['propose command', getOpsxProposeCommandTemplate().content],
 ];
 
 // ff runs the byte-identical artifact loop, so it carries the identical guards.
@@ -203,6 +204,13 @@ describe('propose schema selection', () => {
       expect(schemaSection, label).toContain('local `store:` pointer');
       expect(schemaSection, label).toContain('global `defaultStore`');
       expect(schemaSection, label).toContain('`schemas` does not accept `--store`');
+      expect(schemaSection, label).toContain('context reports only `no_openspec_root`');
+      expect(schemaSection, label).toContain(
+        'run `openspec schemas --json` from the current working directory instead'
+      );
+      expect(schemaSection, label).toContain(
+        'Do not use this fallback for invalid or unavailable stores'
+      );
       expect(schemaSection, label).toContain(
         'Otherwise, omit `--schema` to preserve the configured default'
       );

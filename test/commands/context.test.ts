@@ -103,6 +103,7 @@ describe('openspec context (4.1)', () => {
     fs.writeFileSync(path.join(pointerRepo, 'openspec', 'config.yaml'), 'store: team-context\n');
     const declared = await runCLI(['context', '--json'], { cwd: pointerRepo, env });
     expect(parseJson(declared).root.source).toBe('declared');
+    expect(parseJson(declared).root.path).toBe(storeRoot);
     expect(parseJson(declared).members).toHaveLength(2);
 
     // Global-default session: no root, no pointer — provenance must name
@@ -116,6 +117,7 @@ describe('openspec context (4.1)', () => {
     fs.mkdirSync(scratch, { recursive: true });
     const fallback = await runCLI(['context', '--json'], { cwd: scratch, env });
     expect(parseJson(fallback).root.source).toBe('global_default');
+    expect(parseJson(fallback).root.path).toBe(storeRoot);
     expect(parseJson(fallback).root.store_id).toBe('team-context');
     expect(parseJson(fallback).members).toHaveLength(2);
   }, CONTEXT_MATRIX_TIMEOUT_MS);
