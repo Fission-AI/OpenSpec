@@ -13,7 +13,9 @@ Sync delta specs from a change to main specs.
 
 This is an **agent-driven** operation - you will read delta specs and directly edit main specs to apply the changes. This allows intelligent merging (e.g., adding a scenario without copying the entire requirement).
 
-**Store selection:** If the user names a store (a store is a standalone OpenSpec repo registered on this machine) or the work lives in one, run `openspec store list --json` to discover registered store ids, then pass `--store <id>` on the commands that read or write specs and changes (`new change`, `status`, `instructions`, `list`, `show`, `validate`, `archive`, `doctor`, `context`, `view`). Other commands do not take the flag. Hints printed by commands already carry the flag; keep it on follow-ups. Without a store, commands act on the nearest local `openspec/` root.
+**Store selection:** If the user names a store (a store is a standalone OpenSpec repo registered on this machine) or the work lives in one, run `openspec store list --json` to discover registered store ids, then pass `--store <id>` on the commands that read or write specs and changes (`new change`, `status`, `instructions`, `list`, `show`, `validate`, `archive`, `doctor`, `context`, `view`). Once selected, treat `--store <id>` as sticky for the rest of the workflow. Every unscoped example of those commands below is shorthand: before running it, append the flag. For example, run `openspec status --change "<name>" --json --store "<id>"`, not the unscoped form shown below. Other commands do not take the flag. Hints printed by commands already carry the flag; keep it on follow-ups. Without a store, commands act on the nearest local `openspec/` root.
+
+`<capability-path>` is the spec directory relative to `specs/` (for example, `user-auth` or `identity/user-auth`). Preserve the full path from each delta spec when resolving its main spec.
 
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
@@ -48,8 +50,10 @@ This is an **agent-driven** operation - you will read delta specs and directly e
    instructions or writing a main spec.
 
    Sync every path in `existingOutputPaths` unless the caller narrowed the set.
-   A caller narrows it by naming an explicit list of delta spec paths to sync —
-   archive does this inline, and a user can too ("only sync the billing delta").
+   A caller narrows it by naming an explicit list of complete entries from
+   `existingOutputPaths` — copy those absolute values verbatim. Archive does
+   this inline, and a user can too (for example, by selecting the entry ending
+   in `/specs/billing/invoices/spec.md`).
    Then sync only the named paths and leave the remaining delta specs untouched:
    bulk archive excludes a delta whose implementation it could not find, and
    syncing it anyway would write a main spec the caller deliberately withheld.
@@ -89,7 +93,7 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
    a. **Read the delta spec** to understand the intended changes
 
-   b. **Read the main spec** at `<planningHome.root>/openspec/specs/<capability>/spec.md` (may not exist yet)
+   b. **Read the main spec** at `<planningHome.root>/openspec/specs/<capability-path>/spec.md` (may not exist yet)
 
    c. **Apply changes intelligently**:
 
@@ -107,6 +111,28 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
       **REMOVED Requirements:**
       - Remove the entire requirement block from main spec
+      - Retiring the capability. Delete the whole `spec.md` - and the directory once
+        nothing else is left in it - only when ALL of these hold:
+        1. removing the requirements *this run* left no requirement blocks;
+        2. the rest of the spec is well-formed (it still has a `## Purpose`);
+        3. the main spec was not already empty before this sync - if you removed
+           nothing, change nothing;
+        4. every other nonblank line in the whole file is accounted for as the
+           title, Purpose, Requirements header, or a canonical requirement's
+           statement, scenarios, or fenced examples;
+        5. the change's `.openspec.yaml` declares `retire_capabilities: true`;
+        6. the `spec.md` resolves inside the real specs root (do not follow a
+           capability-directory symlink to delete an external file).
+        If removing the selected requirements would leave no requirement blocks and
+        any retirement condition is not satisfied, do not modify the main spec. Stop
+        the sync for that capability, report the blocking condition, and tell the user
+        how to resolve it. Never write or leave an empty `## Requirements` section.
+        When only the marker is missing, say that too - it is the one thing the user
+        can add to make the retirement go through.
+      - Deleting the file also deletes its `## Purpose`; any other section blocks
+        retirement. Name Purpose when you report the retirement. Include a pasteable
+        `git checkout` only when the spec lived in the caller's checkout;
+        otherwise give checkout-scoped recovery guidance.
 
       **RENAMED Requirements:**
       - Find the FROM requirement, rename to TO
@@ -116,19 +142,26 @@ This is an **agent-driven** operation - you will read delta specs and directly e
         (this is what `openspec archive` does; it warns and moves on)
 
    d. **Create new main spec** if capability doesn't exist yet:
-      - Create `<planningHome.root>/openspec/specs/<capability>/spec.md`
+      - Create `<planningHome.root>/openspec/specs/<capability-path>/spec.md`
       - Add Purpose section: copy the delta's `## Purpose` body verbatim when it has one
         (this is what `openspec archive` does); only write a brief TBD placeholder when it does not
       - Add Requirements section with the ADDED requirements
       - Follow the **Main Spec Format Reference** below
 
-5. **Show summary**
+5. **Validate updated main specs**
+
+   Run `openspec validate --specs` with the same selected-root flags used earlier.
+   If validation fails, report the problems and do not claim the sync succeeded.
+
+6. **Show summary**
 
    After applying all changes, summarize:
    - Which capabilities were updated
    - What changes were made (requirements added/modified/removed/renamed)
    - Any new main spec left with a TBD Purpose placeholder, so it gets written
      now rather than lingering
+   - Any capability retired, naming the deleted `spec.md`, its Purpose, and
+     either a pasteable `git checkout` or checkout-scoped recovery guidance
 
 **Delta Spec Format Reference**
 

@@ -57,6 +57,27 @@ rules:
         expect(consoleWarnSpy).not.toHaveBeenCalled();
       });
 
+      it('should preserve prototype-named rule keys as inert data', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `rules:
+  __proto__:
+    - Prototype rule
+  constructor:
+    - Constructor rule
+`
+        );
+
+        const rules = readProjectConfig(tempDir)?.rules;
+
+        expect(Object.getPrototypeOf(rules)).toBeNull();
+        expect(Object.hasOwn(rules!, '__proto__')).toBe(true);
+        expect(rules?.__proto__).toEqual(['Prototype rule']);
+        expect(rules?.constructor).toEqual(['Constructor rule']);
+      });
+
       it('should parse minimal config with schema only', () => {
         const configDir = path.join(tempDir, 'openspec');
         fs.mkdirSync(configDir, { recursive: true });

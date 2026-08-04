@@ -151,6 +151,144 @@ describe('InitCommand', () => {
       }
     });
 
+    it('should not write generated artifacts through a linked tool directory outside the project', async () => {
+      const outsideDir = path.join(configTempDir, 'outside-claude');
+      await fs.mkdir(outsideDir, { recursive: true });
+      await fs.symlink(
+        outsideDir,
+        path.join(testDir, '.claude'),
+        process.platform === 'win32' ? 'junction' : 'dir'
+      );
+
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+      await expect(initCommand.execute(testDir)).rejects.toThrow(
+        'OpenSpec setup failed for: Claude Code'
+      );
+
+      expect(await fs.readdir(outsideDir)).toEqual([]);
+      expect((await fs.lstat(path.join(testDir, '.claude'))).isSymbolicLink()).toBe(true);
+      expect(vi.mocked(console.log).mock.calls.flat().join('\n')).toContain(
+        'OpenSpec Setup Incomplete'
+      );
+    });
+
+    it.skipIf(process.platform === 'win32')('should not overwrite a generated artifact symlink outside the project', async () => {
+      const outsideFile = path.join(configTempDir, 'outside-skill.md');
+      const originalContent = 'keep me\n';
+      await fs.writeFile(outsideFile, originalContent);
+      const skillFile = path.join(
+        testDir,
+        '.claude',
+        'skills',
+        'openspec-propose',
+        'SKILL.md'
+      );
+      await fs.mkdir(path.dirname(skillFile), { recursive: true });
+      await fs.symlink(outsideFile, skillFile, 'file');
+
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+      await expect(initCommand.execute(testDir)).rejects.toThrow(
+        'OpenSpec setup failed for: Claude Code'
+      );
+
+      expect(await fs.readFile(outsideFile, 'utf-8')).toBe(originalContent);
+      expect((await fs.lstat(skillFile)).isSymbolicLink()).toBe(true);
+    });
+
+    it('should generate safe Claude workflow guidance (#1493)', async () => {
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+
+      await initCommand.execute(testDir);
+
+      const generatedFiles = [
+        ...[
+          'openspec-propose',
+          'openspec-explore',
+          'openspec-apply-change',
+          'openspec-update-change',
+          'openspec-sync-specs',
+          'openspec-archive-change',
+        ].map((name) => path.join(testDir, '.claude', 'skills', name, 'SKILL.md')),
+        ...['propose', 'explore', 'apply', 'update', 'sync', 'archive'].map((name) =>
+          path.join(testDir, '.claude', 'commands', 'opsx', `${name}.md`)
+        ),
+      ];
+      const generatedContents = await Promise.all(
+        generatedFiles.map((file) => fs.readFile(file, 'utf-8'))
+      );
+
+      for (const content of generatedContents) {
+        expect(content).toContain(
+          'treat `--store <id>` as sticky for the rest of the workflow'
+        );
+        expect(content).toContain(
+          'openspec status --change "<name>" --json --store "<id>"'
+        );
+      }
+
+      const updateVariants: Array<[string, string]> = [
+        [
+          await fs.readFile(
+            path.join(
+              testDir,
+              '.claude',
+              'skills',
+              'openspec-update-change',
+              'SKILL.md'
+            ),
+            'utf-8'
+          ),
+          '`/opsx:continue`',
+        ],
+        [
+          await fs.readFile(
+            path.join(testDir, '.claude', 'commands', 'opsx', 'update.md'),
+            'utf-8'
+          ),
+          '`/opsx:continue`',
+        ],
+      ];
+
+      for (const [content, continueReference] of updateVariants) {
+        const availabilityGuidance = content.indexOf(
+          `${continueReference} is an expanded-profile workflow and may not be installed`
+        );
+        const nextReference = content.indexOf(
+          continueReference,
+          availabilityGuidance + continueReference.length
+        );
+
+        expect(availabilityGuidance).toBeGreaterThanOrEqual(0);
+        expect(content.indexOf(continueReference)).toBe(availabilityGuidance);
+        expect(nextReference).toBeGreaterThan(availabilityGuidance);
+        expect(content).toContain('openspec status --change "<name>" --json');
+        expect(content).toContain(
+          'openspec instructions "<artifact-id>" --change "<name>" --json'
+        );
+      }
+
+      const syncFiles = [
+        path.join(testDir, '.claude', 'skills', 'openspec-sync-specs', 'SKILL.md'),
+        path.join(testDir, '.claude', 'commands', 'opsx', 'sync.md'),
+      ];
+
+      for (const file of syncFiles) {
+        const content = await fs.readFile(file, 'utf-8');
+        const mutationsComplete = content.indexOf(
+          'Follow the **Main Spec Format Reference** below'
+        );
+        const validation = content.indexOf('openspec validate --specs');
+        const summary = content.indexOf('6. **Show summary**');
+
+        expect(mutationsComplete).toBeGreaterThanOrEqual(0);
+        expect(validation).toBeGreaterThan(mutationsComplete);
+        expect(summary).toBeGreaterThan(validation);
+        expect(content).toContain(
+          'If validation fails, report the problems and do not claim the sync succeeded'
+        );
+      }
+    });
+
     it('should create skills in Cursor skills directory', async () => {
       const initCommand = new InitCommand({ tools: 'cursor', force: true });
 
@@ -381,6 +519,47 @@ describe('InitCommand', () => {
 
       expect(await fileExists(claudeSkill)).toBe(true);
       expect(await fileExists(cursorSkill)).toBe(true);
+    });
+
+    it('should deliver the propose boundary to tools named in the linked reports', async () => {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'both',
+      });
+
+      const initCommand = new InitCommand({
+        tools: 'factory,cursor,kilocode,pi,codex',
+        force: true,
+      });
+      await initCommand.execute(testDir);
+
+      const proposeFiles = [
+        path.join(testDir, '.factory', 'commands', 'opsx-propose.md'),
+        path.join(testDir, '.cursor', 'commands', 'opsx-propose.md'),
+        path.join(testDir, '.kilocode', 'workflows', 'opsx-propose.md'),
+        path.join(testDir, '.pi', 'prompts', 'opsx-propose.md'),
+        path.join(testDir, '.codex', 'skills', 'openspec-propose', 'SKILL.md'),
+      ];
+
+      for (const proposeFile of proposeFiles) {
+        expect(await fileExists(proposeFile), proposeFile).toBe(true);
+        const content = await fs.readFile(proposeFile, 'utf-8');
+        expect(content, proposeFile).toContain('**Planning boundary**');
+        expect(content, proposeFile).toContain(
+          'selected or triggered this workflow authorizes planning only'
+        );
+        expect(content, proposeFile).toContain('ambiguity that would materially affect scope');
+        expect(content, proposeFile).toContain(
+          'ask the user before creating the change'
+        );
+        expect(content, proposeFile).toContain(
+          'Any implementation or apply instruction in that request does not carry forward'
+        );
+        expect(content, proposeFile).toContain(
+          'wait for a new user request to start the apply workflow'
+        );
+      }
     });
 
     it('should select all tools with --tools all option', async () => {
