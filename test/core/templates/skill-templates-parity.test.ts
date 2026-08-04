@@ -39,14 +39,14 @@ import { STORE_SELECTION_GUIDANCE } from '../../../src/core/templates/workflows/
 const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getExploreSkillTemplate: 'fd45923f8d9eecb8896c17d5ce6d309302132e289132c680d5b3b4d6490501e8',
   getNewChangeSkillTemplate: '935f6335e2d4b7d1bd4f0538c88386350c25e8b16e11b627556262229583ca51',
-  getContinueChangeSkillTemplate: '1354a92b54d8b3c0e6979c46e3bd3b0fb4e619c4a775ae9d33c1e4dc809d709d',
+  getContinueChangeSkillTemplate: 'ed41e2356af7aad6ef760f60fad19c6843cefe436d8f90084dcba4dbc6bf7272',
   getApplyChangeSkillTemplate: 'e5fc093637d3100a61acf934553002a5e9f5bccab5110136d7680af4133f7351',
   getFfChangeSkillTemplate: 'fc2a45a08533ee9c7ab30fdab5f832b7d440070048e2a153f03db1620dc379bb',
   getSyncSpecsSkillTemplate: 'f90032dbeb3a647b451139e12624753057018986df000159499dadc2c3d0965a',
   getOnboardSkillTemplate: '0b0f9559e21e73a7acfb7e61b403b20080f10ba169d2330c6d55618ce1759a42',
   getOpsxExploreCommandTemplate: '0f9af4120cfa7a8f273eebe7c0ddb56fd7c8705b28d1b1d48e1964a26b91d02f',
   getOpsxNewCommandTemplate: '08e784e52ac2c146975a874257c589d88e93efbd83dc4d79253c8525f5c3064f',
-  getOpsxContinueCommandTemplate: 'a00664d4338219e85002f568756998ac4b7b53785d8fad2ff0c1261f3374ec44',
+  getOpsxContinueCommandTemplate: 'ae964cd00f6ca332fd7f9428a577ade75be279f50431d5f60ece8172e8d1a4b1',
   getOpsxApplyCommandTemplate: 'd879b0430f756b9dbc5a1a1348a34409b2fcd453eeae7add4bf9f421616c2ad1',
   getOpsxFfCommandTemplate: '012610f85576a7055dfec2aaabba6bfc245454ce91fb6214587ae9316dc2b864',
   getArchiveChangeSkillTemplate: 'b6dac476db882d5e2afea237e298c2aa98ed9f9cacbcf1a5000f00e67e8ca524',
@@ -60,14 +60,14 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getOpsxProposeSkillTemplate: '416200ae0277061405d17d5506243657ee26f7b883abe063844126c497d88f94',
   getOpsxProposeCommandTemplate: '8de5ce5fe15c0b13ee1801b6b18cb86dc16ddea66c34223fafb4360232d8424d',
   getFeedbackSkillTemplate: 'd7d83c5f7fc2b92fe8f4588a5bf2d9cb315e4c73ec19bcd5ef28270906319a0d',
-  getUpdateChangeSkillTemplate: 'f85fbfb3a175e949becbef08be0eccfab97de5e7ad45105e999d2900dfafbaba',
-  getOpsxUpdateCommandTemplate: '461edf06e92c0da3dab4f11d91d59d44b48ed30a0881c1f34a714b1813435af6',
+  getUpdateChangeSkillTemplate: 'e50b6cd5d38f0d8974172fd7ebd6e2139f3fe3782c71584d8a61cfdb54edff8e',
+  getOpsxUpdateCommandTemplate: '4f1530486fbe118d9d7d469083c5517b8ec341ed8e92282e0b6c5155fb945bfe',
 };
 
 const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-explore': '87a93d0d748c071982ed2199719f00b2885db94d4ac11ae9f12f79909777660c',
   'openspec-new-change': '579d432771703f947a331a6ed288bf9c6660ca015fcd376d76f19b6ac7683082',
-  'openspec-continue-change': '06a8e9df0c34de6e90e067d6d17e8e361d48ec08adb57786bc63c41dd03529e8',
+  'openspec-continue-change': '5c34be8194cdb4c5158335e47aece71143e8a22bfb4179dba47fd8aaf436d395',
   'openspec-apply-change': '1726319cd4305a47f9c827acaeb84a9de57f7e44aba9ed60869c1758338e18ae',
   'openspec-ff-change': '19315644df7c582d920acfb67f3c500ca4e06fccc900265b3ac39621d85f7cdb',
   'openspec-sync-specs': 'dbdc0528c5d59c1a9b3c8b3df01ab2bcf325ad2cb5d47e061c7a65106c058a3e',
@@ -76,7 +76,7 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-verify-change': '7cd65897d126f7c948620c0672ca62418620dbcb82ee73d890f758fb666a4ff8',
   'openspec-onboard': '80f39cf33a138aac8e508db25d7af2c9e9bd482f90e414770e806f966dd58c9c',
   'openspec-propose': '48b06cf0fa53be06c84fc3e79729fb16b7b9d8549cbed6d89616eb6ba1f7e325',
-  'openspec-update-change': '95bb533105e49aee06c9ea164b63092de77644cf8f94fa38d3ee3c11b0ccb893',
+  'openspec-update-change': '8654fc3ea1eb2f03e1dba3eaf1e8c884b1c71cc949294a070c2f966fb13c8e2a',
 };
 
 // Intentionally excludes getFeedbackSkillTemplate: this list only models templates
