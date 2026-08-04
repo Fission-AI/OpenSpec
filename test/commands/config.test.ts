@@ -1,18 +1,26 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { Command } from 'commander';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+
+async function runConfigCommand(args: string[]): Promise<void> {
+  const { registerConfigCommand } = await import('../../src/commands/config.js');
+  const program = new Command();
+  registerConfigCommand(program);
+  await program.parseAsync(['node', 'openspec', 'config', ...args]);
+}
 
 describe('config command integration', () => {
   // These tests use real file system operations with XDG_CONFIG_HOME override
   let tempDir: string;
   let originalEnv: NodeJS.ProcessEnv;
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+  let consoleLogSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     // Create unique temp directory for each test
-    tempDir = path.join(os.tmpdir(), `openspec-config-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-    fs.mkdirSync(tempDir, { recursive: true });
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-config-test-'));
 
     // Save original env and set XDG_CONFIG_HOME
     originalEnv = { ...process.env };
@@ -20,6 +28,7 @@ describe('config command integration', () => {
 
     // Spy on console.error
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -31,6 +40,7 @@ describe('config command integration', () => {
 
     // Restore spies
     consoleErrorSpy.mockRestore();
+    consoleLogSpy.mockRestore();
 
     // Reset module cache to pick up new XDG_CONFIG_HOME
     vi.resetModules();
@@ -88,6 +98,36 @@ describe('config command integration', () => {
     // Should return defaults
     expect(config.featureFlags).toEqual({});
     expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Invalid JSON'));
+  });
+
+  it('should set workflows from JSON array syntax', async () => {
+    await runConfigCommand([
+      'set',
+      'workflows',
+      '["new","ff","apply","archive"]',
+    ]);
+
+    const { getGlobalConfig } = await import('../../src/core/global-config.js');
+    const config = getGlobalConfig();
+
+    expect(config.workflows).toEqual(['new', 'ff', 'apply', 'archive']);
+    expect(consoleLogSpy).toHaveBeenCalledWith(
+      'Set workflows = new,ff,apply,archive'
+    );
+  });
+
+  it('should set, get, and unset defaultStore', async () => {
+    await runConfigCommand(['set', 'defaultStore', 'team-plans']);
+
+    const { getGlobalConfig } = await import('../../src/core/global-config.js');
+    expect(getGlobalConfig().defaultStore).toBe('team-plans');
+    expect(consoleLogSpy).toHaveBeenCalledWith('Set defaultStore = "team-plans"');
+
+    await runConfigCommand(['get', 'defaultStore']);
+    expect(consoleLogSpy).toHaveBeenCalledWith('team-plans');
+
+    await runConfigCommand(['unset', 'defaultStore']);
+    expect(getGlobalConfig().defaultStore).toBeUndefined();
   });
 });
 
@@ -187,6 +227,16 @@ describe('config key validation', () => {
     const { validateConfigKeyPath } = await import('../../src/core/config-schema.js');
     expect(validateConfigKeyPath('workflows').valid).toBe(true);
   });
+
+  it('allows defaultStore key', async () => {
+    const { validateConfigKeyPath } = await import('../../src/core/config-schema.js');
+    expect(validateConfigKeyPath('defaultStore').valid).toBe(true);
+  });
+
+  it('rejects nested keys under defaultStore', async () => {
+    const { validateConfigKeyPath } = await import('../../src/core/config-schema.js');
+    expect(validateConfigKeyPath('defaultStore.nested').valid).toBe(false);
+  });
 });
 
 describe('config profile command', () => {
@@ -194,8 +244,7 @@ describe('config profile command', () => {
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(() => {
-    tempDir = path.join(os.tmpdir(), `openspec-profile-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-    fs.mkdirSync(tempDir, { recursive: true });
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-profile-test-'));
     originalEnv = { ...process.env };
     process.env.XDG_CONFIG_HOME = tempDir;
   });
@@ -223,7 +272,7 @@ describe('config profile command', () => {
     const result = getGlobalConfig();
     expect(result.profile).toBe('core');
     expect(result.delivery).toBe('skills'); // preserved
-    expect(result.workflows).toEqual(['propose', 'explore', 'apply', 'sync', 'archive']);
+    expect(result.workflows).toEqual(['propose', 'explore', 'apply', 'update', 'sync', 'archive']);
   });
 
   it('custom workflow selection should set profile to custom', async () => {

@@ -1,14 +1,210 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { formatLocalDate } from '../utils/date.js';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
 import { Validator } from './validation/validator.js';
 import chalk from 'chalk';
+import {
+  emitStoreRootBanner,
+  isRootSelectionError,
+  resolveOpenSpecRoot,
+  toRootOutput,
+  withStoreFlag,
+  type ResolvedOpenSpecRoot,
+  isStoreSelectedRoot,
+} from './root-selection.js';
 import {
   findSpecUpdates,
   buildUpdatedSpec,
   writeUpdatedSpec,
   type SpecUpdate,
 } from './specs-apply.js';
+import { discoverSpecFiles, hasAnyFileUnder } from '../utils/spec-discovery.js';
+import { readSkipSpecsMarker } from '../utils/change-metadata.js';
+import { isNonInteractivePromptError } from '../utils/interactive.js';
+
+function isMissingPathError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as NodeJS.ErrnoException).code === 'ENOENT'
+  );
+}
+
+/**
+ * Matches the `YYYY-MM-DD-` prefix that archiving prepends to a change name.
+ * A change whose name already starts with one (a common authoring convention)
+ * is archived under its existing name so the prefix is never stacked (#1309).
+ */
+const ARCHIVE_DATE_PREFIX_PATTERN = /^\d{4}-\d{2}-\d{2}-/;
+
+async function listActiveChangeNames(changesDir: string): Promise<string[]> {
+  try {
+    const entries = await fs.readdir(changesDir, { withFileTypes: true });
+    return entries
+      .filter((entry) => entry.isDirectory() && entry.name !== 'archive')
+      .map((entry) => entry.name)
+      .sort();
+  } catch (error) {
+    if (!isMissingPathError(error)) throw error;
+    return [];
+  }
+}
+
+export interface ArchiveOptions {
+  yes?: boolean;
+  skipSpecs?: boolean;
+  noValidate?: boolean;
+  validate?: boolean;
+  json?: boolean;
+  store?: string;
+  storePath?: string;
+}
+
+interface ArchiveDiagnostic {
+  severity: 'error';
+  code: string;
+  message: string;
+  fix?: string;
+}
+
+interface ArchiveResult {
+  change: string;
+  archivedAs: string;
+  path: string;
+  specsUpdated: boolean;
+  totals?: { added: number; modified: number; removed: number; renamed: number };
+  /** Non-blocking spec-merge warnings (e.g. a REMOVED requirement that was already gone). */
+  warnings?: string[];
+}
+
+/**
+ * A decision point archive cannot get past on its own. Thrown wherever the
+ * flow needs an answer it has no way to obtain: in JSON mode, which never
+ * prompts at all, and in human mode when a prompt failed because nothing
+ * could answer it (#1479). Either way it carries a machine-readable
+ * diagnostic and exits non-zero.
+ */
+class ArchiveBlockedError extends Error {
+  readonly diagnostic: ArchiveDiagnostic;
+
+  constructor(code: string, message: string, fix?: string) {
+    super(message);
+    this.name = 'ArchiveBlockedError';
+    this.diagnostic = {
+      severity: 'error',
+      code,
+      message,
+      ...(fix ? { fix } : {}),
+    };
+  }
+}
+
+/**
+ * Quotes a change name for a `Fix:` line the reader is meant to paste.
+ * Archive resolves a change by stat-ing its directory, so the name is
+ * whatever the directory is called - including names with spaces or shell
+ * metacharacters, which pasted unquoted would run as a second command.
+ *
+ * Double quotes are the one form bash, zsh, PowerShell and cmd.exe all read
+ * the same way, so a POSIX-only `'...'` would be wrong on Windows. Characters
+ * that stay inert inside double quotes in every one of those shells are the
+ * limit of what can be quoted portably; a name containing anything else has
+ * no portable spelling, so the placeholder is named instead of emitting a
+ * command that might expand to something the reader did not intend.
+ *
+ * `%` and `!` are unquotable for the same reason even though POSIX shells
+ * leave them alone inside double quotes: cmd.exe expands `%NAME%` inside
+ * double quotes, and `!NAME!` expands there too under `setlocal
+ * enabledelayedexpansion` (as does `!` under bash's interactive history
+ * expansion). A change directory really can be named `%USERNAME%`, and a
+ * rerun that silently targets a different change is worse than one the reader
+ * has to fill in.
+ */
+function quoteChangeName(name: string): string {
+  if (/^[A-Za-z0-9._-]+$/.test(name)) return name;
+  if (!/["\\$`\r\n%!]/.test(name)) return `"${name}"`;
+  return '<change-name>';
+}
+
+/**
+ * Renders a change name inside a prose message. The name is a directory name,
+ * so it can hold control characters, and human mode prints the message
+ * verbatim: a raw CR or LF would let a change directory forge its own `Fix:`
+ * line, which is worse here than anywhere else because `quoteChangeName`
+ * degrades the real fix to the `<change-name>` placeholder for exactly those
+ * names - leaving the forged line as the only pasteable command on screen.
+ * An ESC could redraw the terminal. Neither survives.
+ */
+function describeChangeName(name: string): string {
+  return name.replace(/[\u0000-\u001f\u007f]/g, '?');
+}
+
+/**
+ * Builds the flags a blocked archive's suggested rerun has to reproduce. The
+ * caller's own flags are carried, because suggesting a bare `--yes` rerun for
+ * `archive x --skip-specs` would merge deltas into the main specs - the exact
+ * thing `--skip-specs` was passed to prevent.
+ */
+function rerunFlags(options: ArchiveOptions): string[] {
+  return [
+    ...(options.skipSpecs ? ['--skip-specs'] : []),
+    ...(options.validate === false || options.noValidate === true ? ['--no-validate'] : []),
+    '--yes',
+  ];
+}
+
+function rerunCommand(
+  root: ResolvedOpenSpecRoot,
+  changeName: string,
+  options: ArchiveOptions
+): string {
+  const flags = rerunFlags(options).join(' ');
+  // A name starting with a dash is read as an option wherever it sits, so it
+  // goes last, behind the `--` that ends option parsing. The store flag has
+  // to stay in front of that `--` to still be read as an option.
+  if (changeName.startsWith('-')) {
+    return `${withStoreFlag(root, `openspec archive ${flags}`)} -- ${quoteChangeName(changeName)}`;
+  }
+  return withStoreFlag(root, `openspec archive ${quoteChangeName(changeName)} ${flags}`);
+}
+
+/**
+ * Asks a yes/no question in human mode. When no answer can be read — the
+ * usual case for an AI agent or a script that runs the command with stdin
+ * closed — the raw @inquirer failure is replaced with guidance for this
+ * decision point, so the caller learns which flag to pass instead of reading
+ * `User force closed the prompt` (#1479).
+ */
+async function confirmOrBlock(
+  prompt: { message: string; default: boolean },
+  blocked: () => ArchiveBlockedError
+): Promise<boolean> {
+  const { confirm } = await import('@inquirer/prompts');
+  try {
+    return await confirm(prompt);
+  } catch (error) {
+    if (isNonInteractivePromptError(error)) {
+      throw blocked();
+    }
+    throw error;
+  }
+}
+
+function toArchiveDiagnostic(error: unknown): ArchiveDiagnostic {
+  if (error instanceof ArchiveBlockedError) {
+    return error.diagnostic;
+  }
+  if (isRootSelectionError(error)) {
+    return error.diagnostic;
+  }
+  return {
+    severity: 'error',
+    code: 'archive_error',
+    message: error instanceof Error ? error.message : String(error),
+  };
+}
 
 /**
  * Recursively copy a directory. Used when fs.rename fails (e.g. EPERM on Windows).
@@ -48,28 +244,83 @@ async function moveDirectory(src: string, dest: string): Promise<void> {
 }
 
 export class ArchiveCommand {
-  async execute(
-    changeName?: string,
-    options: { yes?: boolean; skipSpecs?: boolean; noValidate?: boolean; validate?: boolean } = {}
-  ): Promise<void> {
-    const targetPath = '.';
-    const changesDir = path.join(targetPath, 'openspec', 'changes');
-    const archiveDir = path.join(changesDir, 'archive');
-    const mainSpecsDir = path.join(targetPath, 'openspec', 'specs');
+  async execute(changeName?: string, options: ArchiveOptions = {}): Promise<void> {
+    const json = !!options.json;
 
-    // Check if changes directory exists
+    let root: ResolvedOpenSpecRoot;
     try {
-      await fs.access(changesDir);
-    } catch {
-      throw new Error("No OpenSpec changes directory found. Run 'openspec init' first.");
+      root = await resolveOpenSpecRoot({
+        ...(options.store !== undefined ? { store: options.store } : {}),
+        ...(options.storePath !== undefined ? { storePath: options.storePath } : {}),
+      });
+    } catch (error) {
+      if (json && isRootSelectionError(error)) {
+        this.printJsonFailure(undefined, toArchiveDiagnostic(error));
+        return;
+      }
+      throw error;
     }
+
+    if (json) {
+      try {
+        const result = await this.run(changeName, options, root, true);
+        if (!result) {
+          return;
+        }
+        console.log(JSON.stringify({ archive: result, root: toRootOutput(root) }, null, 2));
+      } catch (error) {
+        this.printJsonFailure(root, toArchiveDiagnostic(error));
+      }
+      return;
+    }
+
+    emitStoreRootBanner(root);
+    await this.run(changeName, options, root, false);
+  }
+
+  private printJsonFailure(root: ResolvedOpenSpecRoot | undefined, diagnostic: ArchiveDiagnostic): void {
+    console.log(
+      JSON.stringify(
+        {
+          archive: null,
+          ...(root ? { root: toRootOutput(root) } : {}),
+          status: [diagnostic],
+        },
+        null,
+        2
+      )
+    );
+    process.exitCode = 1;
+  }
+
+  /**
+   * Shared archive flow. In human mode (json=false) prompts and prose match
+   * the historical behavior and cancellations return null. In JSON mode no
+   * prose reaches stdout and every blocked path throws.
+   */
+  private async run(
+    changeName: string | undefined,
+    options: ArchiveOptions,
+    root: ResolvedOpenSpecRoot,
+    json: boolean
+  ): Promise<ArchiveResult | null> {
+    const changesDir = root.changesDir;
+    const archiveDir = root.archiveDir;
+    const mainSpecsDir = root.specsDir;
 
     // Get change name interactively if not provided
     if (!changeName) {
-      const selectedChange = await this.selectChange(changesDir);
+      if (json) {
+        throw new ArchiveBlockedError(
+          'archive_change_name_required',
+          'A change name is required: archive --json is non-interactive.',
+          withStoreFlag(root, 'openspec archive <change-name> --json')
+        );
+      }
+      const selectedChange = await this.selectChange(changesDir, root, options);
       if (!selectedChange) {
         console.log('No change selected. Aborting.');
-        return;
+        return null;
       }
       changeName = selectedChange;
     }
@@ -83,7 +334,13 @@ export class ArchiveCommand {
         throw new Error(`Change '${changeName}' not found.`);
       }
     } catch {
-      throw new Error(`Change '${changeName}' not found.`);
+      const available = await listActiveChangeNames(changesDir);
+      throw new ArchiveBlockedError(
+        'archive_change_not_found',
+        available.length > 0
+          ? `Change '${changeName}' not found. Available changes: ${available.join(', ')}`
+          : `Change '${changeName}' not found. No active changes exist in this root.`
+      );
     }
 
     const skipValidation = options.validate === false || options.noValidate === true;
@@ -93,100 +350,186 @@ export class ArchiveCommand {
       const validator = new Validator();
       let hasValidationErrors = false;
 
-      // Validate proposal.md (non-blocking unless strict mode desired in future)
-      const changeFile = path.join(changeDir, 'proposal.md');
-      try {
-        await fs.access(changeFile);
-        const changeReport = await validator.validateChange(changeFile);
-        // Proposal validation is informative only (do not block archive)
-        if (!changeReport.valid) {
-          console.log(chalk.yellow(`\nProposal warnings in proposal.md (non-blocking):`));
-          for (const issue of changeReport.issues) {
-            const symbol = issue.level === 'ERROR' ? '⚠' : (issue.level === 'WARNING' ? '⚠' : 'ℹ');
-            console.log(chalk.yellow(`  ${symbol} ${issue.message}`));
+      // Validate proposal.md (informative only; human mode prints warnings)
+      if (!json) {
+        const changeFile = path.join(changeDir, 'proposal.md');
+        try {
+          await fs.access(changeFile);
+          const changeReport = await validator.validateChange(changeFile);
+          // Proposal validation is informative only (do not block archive).
+          // `validateChange` parses the change together with its delta specs,
+          // so it also raises requirement-level issues under
+          // `deltas.<n>.requirement(s)`. Those
+          // are not proposal problems, and reporting them here was noisy and
+          // sometimes wrong (#498): the change parser records every requirement
+          // under both `requirement` and `requirements`, so each defect was
+          // printed twice, and REMOVED requirements — names-only by design —
+          // produced a "missing scenario" warning for a correct removal.
+          // Genuine delta defects are still caught below, by the delta spec
+          // validation and by the rebuilt-spec check that runs before any write.
+          const proposalIssues = changeReport.issues.filter(
+            (issue) => !/^deltas\.\d+\.requirements?\./.test(issue.path)
+          );
+          if (!changeReport.valid && proposalIssues.length > 0) {
+            console.log(chalk.yellow(`\nProposal warnings in proposal.md (non-blocking):`));
+            for (const issue of proposalIssues) {
+              const symbol = issue.level === 'ERROR' ? '⚠' : (issue.level === 'WARNING' ? '⚠' : 'ℹ');
+              console.log(chalk.yellow(`  ${symbol} ${issue.message}`));
+            }
           }
+        } catch {
+          // Change file doesn't exist, skip validation
         }
-      } catch {
-        // Change file doesn't exist, skip validation
       }
 
       // Validate delta-formatted spec files under the change directory if present
       const changeSpecsDir = path.join(changeDir, 'specs');
-      let hasDeltaSpecs = false;
-      try {
-        const candidates = await fs.readdir(changeSpecsDir, { withFileTypes: true });
-        for (const c of candidates) {
-          if (c.isDirectory()) {
-            try {
-              const candidatePath = path.join(changeSpecsDir, c.name, 'spec.md');
-              await fs.access(candidatePath);
-              const content = await fs.readFile(candidatePath, 'utf-8');
-              if (/^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements/m.test(content)) {
-                hasDeltaSpecs = true;
-                break;
-              }
-            } catch {}
+      // A spec.md at the specs/ root is never merged, so archiving a change
+      // that has one drops its content whether or not it carries delta headers
+      // (#1385). Its existence alone must run validation, which reports it and
+      // blocks the archive. A directory named spec.md is a normal capability
+      // folder, so only a regular file counts.
+      const rootSpecStat = await fs.stat(path.join(changeSpecsDir, 'spec.md')).catch(() => null);
+      let hasDeltaSpecs = rootSpecStat?.isFile() === true;
+      // A change that declares skip_specs must not carry any file under
+      // specs/ — validate reports that as a conflict, so archive has to run
+      // the same check instead of skipping validation because the files
+      // happen to have no delta headers. A marker that cannot be honored
+      // (skip_specs mentioned but the metadata fails the shared shape, or
+      // names a schema that does not resolve) also
+      // forces validation, so archive and validate always agree about the
+      // marker. Unreadable specs/ fails closed into validation too. (An
+      // UNMARKED zero-delta change still archives with only non-blocking
+      // proposal warnings — a gap that predates the marker and is left
+      // unchanged here.)
+      if (!hasDeltaSpecs) {
+        const marker = readSkipSpecsMarker(changeDir);
+        if (marker.invalidReason) {
+          hasDeltaSpecs = true;
+        } else if (marker.declared) {
+          let specsDirHasFiles = true;
+          try {
+            specsDirHasFiles = await hasAnyFileUnder(changeSpecsDir);
+          } catch {
+            // fall through with true: let validation surface the conflict
           }
+          hasDeltaSpecs = specsDirHasFiles;
         }
-      } catch {}
+      }
+      for (const { specFile } of hasDeltaSpecs ? [] : await discoverSpecFiles(changeSpecsDir)) {
+        try {
+          const content = await fs.readFile(specFile, 'utf-8');
+          // Case-insensitive to match the delta parser, so a lowercase header
+          // routes through the same delta validation that validate runs.
+          if (/^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements/im.test(content)) {
+            hasDeltaSpecs = true;
+            break;
+          }
+        } catch {}
+      }
       if (hasDeltaSpecs) {
+        // No mainSpecsDir here on purpose: the scenario-loss check standalone
+        // validate runs (#1477) is the same one buildUpdatedSpec enforces a few
+        // steps later, and reporting it here would relabel that failure.
         const deltaReport = await validator.validateChangeDeltaSpecs(changeDir);
         if (!deltaReport.valid) {
           hasValidationErrors = true;
-          console.log(chalk.red(`\nValidation errors in change delta specs:`));
-          for (const issue of deltaReport.issues) {
-            if (issue.level === 'ERROR') {
-              console.log(chalk.red(`  ✗ ${issue.message}`));
-            } else if (issue.level === 'WARNING') {
-              console.log(chalk.yellow(`  ⚠ ${issue.message}`));
+          if (!json) {
+            console.log(chalk.red(`\nValidation errors in change delta specs:`));
+            for (const issue of deltaReport.issues) {
+              if (issue.level === 'ERROR') {
+                console.log(chalk.red(`  ✗ ${issue.message}`));
+              } else if (issue.level === 'WARNING') {
+                console.log(chalk.yellow(`  ⚠ ${issue.message}`));
+              }
             }
           }
         }
       }
 
       if (hasValidationErrors) {
+        if (json) {
+          throw new ArchiveBlockedError(
+            'archive_validation_failed',
+            `Validation failed for change '${changeName}'.`,
+            `Run ${withStoreFlag(root, `openspec validate ${changeName}`)} for details, fix the errors, or rerun with --no-validate.`
+          );
+        }
         console.log(chalk.red('\nValidation failed. Please fix the errors before archiving.'));
         console.log(chalk.yellow('To skip validation (not recommended), use --no-validate flag.'));
-        return;
+        process.exitCode = 1;
+        return null;
+      }
+    } else if (json) {
+      if (!options.yes) {
+        throw new ArchiveBlockedError(
+          'archive_confirmation_required',
+          'Skipping validation requires confirmation: rerun with --yes.',
+          withStoreFlag(root, 'openspec archive <change-name> --json --no-validate --yes')
+        );
       }
     } else {
       // Log warning when validation is skipped
       const timestamp = new Date().toISOString();
-      
+
       if (!options.yes) {
-        const { confirm } = await import('@inquirer/prompts');
-        const proceed = await confirm({
-          message: chalk.yellow('⚠️  WARNING: Skipping validation may archive invalid specs. Continue? (y/N)'),
-          default: false
-        });
+        const proceed = await confirmOrBlock(
+          {
+            message: chalk.yellow('⚠️  WARNING: Skipping validation may archive invalid specs. Continue? (y/N)'),
+            default: false
+          },
+          () =>
+            new ArchiveBlockedError(
+              'archive_confirmation_required',
+              'Skipping validation requires confirmation, and no answer could be read from stdin.',
+              rerunCommand(root, changeName!, options)
+            )
+        );
         if (!proceed) {
           console.log('Archive cancelled.');
-          return;
+          return null;
         }
       } else {
         console.log(chalk.yellow(`\n⚠️  WARNING: Skipping validation may archive invalid specs.`));
       }
-      
+
       console.log(chalk.yellow(`[${timestamp}] Validation skipped for change: ${changeName}`));
       console.log(chalk.yellow(`Affected files: ${changeDir}`));
     }
 
     // Show progress and check for incomplete tasks
-    const progress = await getTaskProgressForChange(changesDir, changeName);
-    const status = formatTaskStatus(progress);
-    console.log(`Task status: ${status}`);
+    const progress = await getTaskProgressForChange(changesDir, changeName, path.resolve(changesDir, '..', '..'));
+    if (!json) {
+      const status = formatTaskStatus(progress);
+      console.log(`Task status: ${status}`);
+    }
 
     const incompleteTasks = Math.max(progress.total - progress.completed, 0);
     if (incompleteTasks > 0) {
-      if (!options.yes) {
-        const { confirm } = await import('@inquirer/prompts');
-        const proceed = await confirm({
-          message: `Warning: ${incompleteTasks} incomplete task(s) found. Continue?`,
-          default: false
-        });
+      if (json) {
+        if (!options.yes) {
+          throw new ArchiveBlockedError(
+            'archive_tasks_incomplete',
+            `${incompleteTasks} incomplete task(s) found for change '${changeName}'.`,
+            'Complete the tasks or rerun with --yes.'
+          );
+        }
+      } else if (!options.yes) {
+        const proceed = await confirmOrBlock(
+          {
+            message: `Warning: ${incompleteTasks} incomplete task(s) found. Continue?`,
+            default: false
+          },
+          () =>
+            new ArchiveBlockedError(
+              'archive_tasks_incomplete',
+              `${incompleteTasks} incomplete task(s) found for change '${describeChangeName(changeName!)}', and no answer could be read from stdin.`,
+              `Complete the tasks or rerun with ${rerunCommand(root, changeName!, options)}`
+            )
+        );
         if (!proceed) {
           console.log('Archive cancelled.');
-          return;
+          return null;
         }
       } else {
         console.log(`Warning: ${incompleteTasks} incomplete task(s) found. Continuing due to --yes flag.`);
@@ -194,88 +537,180 @@ export class ArchiveCommand {
     }
 
     // Handle spec updates unless skipSpecs flag is set
+    let specsUpdated = false;
+    let totals: ArchiveResult['totals'];
+    const specWarnings: string[] = [];
     if (options.skipSpecs) {
-      console.log('Skipping spec updates (--skip-specs flag provided).');
+      if (!json) {
+        console.log('Skipping spec updates (--skip-specs flag provided).');
+      }
     } else {
       // Find specs to update
       const specUpdates = await findSpecUpdates(changeDir, mainSpecsDir);
-      
+
       if (specUpdates.length > 0) {
-        console.log('\nSpecs to update:');
-        for (const update of specUpdates) {
-          const status = update.exists ? 'update' : 'create';
-          const capability = path.basename(path.dirname(update.target));
-          console.log(`  ${capability}: ${status}`);
+        if (!json) {
+          console.log('\nSpecs to update:');
+          for (const update of specUpdates) {
+            const status = update.exists ? 'update' : 'create';
+            const capability = update.id;
+            console.log(`  ${capability}: ${status}`);
+          }
+        }
+
+        // Build the proposed updates before asking permission to apply them.
+        // buildUpdatedSpec also reports content that the merge would drop, so
+        // the confirmation must come after this preview.
+        const prepared: Array<{
+          update: SpecUpdate;
+          rebuilt: string;
+          counts: { added: number; modified: number; removed: number; renamed: number };
+        }> = [];
+        let prepareError: unknown;
+        try {
+          for (const update of specUpdates) {
+            const built = await buildUpdatedSpec(update, changeName!, { silent: true });
+            prepared.push({ update, rebuilt: built.rebuilt, counts: built.counts });
+            specWarnings.push(...built.warnings);
+          }
+        } catch (err: unknown) {
+          // A user may still decline spec updates and archive the change, as
+          // before this preview existed. Defer the error until they accept.
+          prepareError = err;
+        }
+        if (prepareError === undefined && !json) {
+          for (const warning of specWarnings) {
+            console.log(chalk.yellow(`⚠️  Warning: ${warning}`));
+          }
         }
 
         let shouldUpdateSpecs = true;
         if (!options.yes) {
-          const { confirm } = await import('@inquirer/prompts');
-          shouldUpdateSpecs = await confirm({
-            message: 'Proceed with spec updates?',
-            default: true
-          });
+          if (json) {
+            throw new ArchiveBlockedError(
+              'archive_confirmation_required',
+              `Updating ${specUpdates.length} spec(s) requires confirmation: rerun with --yes.`,
+              withStoreFlag(root, 'openspec archive <change-name> --json --yes')
+            );
+          }
+          shouldUpdateSpecs = await confirmOrBlock(
+            {
+              message: 'Proceed with spec updates?',
+              default: true
+            },
+            () =>
+              new ArchiveBlockedError(
+                'archive_confirmation_required',
+                `Updating ${specUpdates.length} spec(s) requires confirmation, and no answer could be read from stdin.`,
+                rerunCommand(root, changeName!, options)
+              )
+          );
           if (!shouldUpdateSpecs) {
             console.log('Skipping spec updates. Proceeding with archive.');
           }
         }
 
         if (shouldUpdateSpecs) {
-          // Prepare all updates first (validation pass, no writes)
-          const prepared: Array<{ update: SpecUpdate; rebuilt: string; counts: { added: number; modified: number; removed: number; renamed: number } }> = [];
-          try {
-            for (const update of specUpdates) {
-              const built = await buildUpdatedSpec(update, changeName!);
-              prepared.push({ update, rebuilt: built.rebuilt, counts: built.counts });
+          if (prepareError !== undefined) {
+            const message =
+              prepareError instanceof Error ? prepareError.message : String(prepareError);
+            if (json) {
+              throw new ArchiveBlockedError(
+                'archive_spec_update_failed',
+                message,
+                'Fix the change delta specs and rerun. No files were changed.'
+              );
             }
-          } catch (err: any) {
-            console.log(String(err.message || err));
+            console.log(message);
             console.log('Aborted. No files were changed.');
-            return;
+            process.exitCode = 1;
+            return null;
           }
 
-          // All validations passed; pre-validate rebuilt full spec and then write files and display counts
-          let totals = { added: 0, modified: 0, removed: 0, renamed: 0 };
-          for (const p of prepared) {
-            const specName = path.basename(path.dirname(p.update.target));
-            if (!skipValidation) {
+          // Validate every rebuilt spec before writing any of them, so a late
+          // validation failure really does leave all targets unchanged.
+          if (!skipValidation) {
+            for (const p of prepared) {
+              const specName = p.update.id;
               const report = await new Validator().validateSpecContent(specName, p.rebuilt);
               if (!report.valid) {
+                if (json) {
+                  throw new ArchiveBlockedError(
+                    'archive_spec_validation_failed',
+                    `Rebuilt spec for '${specName}' failed validation. No files were changed.`,
+                    `Run ${withStoreFlag(root, `openspec validate ${specName}`)} after fixing the change deltas.`
+                  );
+                }
                 console.log(chalk.red(`\nValidation errors in rebuilt spec for ${specName} (will not write changes):`));
                 for (const issue of report.issues) {
                   if (issue.level === 'ERROR') console.log(chalk.red(`  ✗ ${issue.message}`));
                   else if (issue.level === 'WARNING') console.log(chalk.yellow(`  ⚠ ${issue.message}`));
                 }
                 console.log('Aborted. No files were changed.');
-                return;
+                process.exitCode = 1;
+                return null;
               }
             }
-            await writeUpdatedSpec(p.update, p.rebuilt, p.counts);
-            totals.added += p.counts.added;
-            totals.modified += p.counts.modified;
-            totals.removed += p.counts.removed;
-            totals.renamed += p.counts.renamed;
           }
-          console.log(
-            `Totals: + ${totals.added}, ~ ${totals.modified}, - ${totals.removed}, → ${totals.renamed}`
-          );
-          console.log('Specs updated successfully.');
+
+          // All validations passed; write files and display counts
+          const writeTotals = { added: 0, modified: 0, removed: 0, renamed: 0 };
+          let wroteAny = false;
+          for (const p of prepared) {
+            const { added, modified, removed, renamed } = p.counts;
+            if (added + modified + removed + renamed === 0) {
+              // Every operation was already synced: rewriting the file would
+              // only churn normalization differences into it.
+              continue;
+            }
+            await writeUpdatedSpec(p.update, p.rebuilt, p.counts, {
+              silent: json,
+              // Cross-root paths must be absolute when a store is selected.
+              ...(isStoreSelectedRoot(root) ? { displayPath: p.update.target } : {}),
+            });
+            wroteAny = true;
+            writeTotals.added += added;
+            writeTotals.modified += modified;
+            writeTotals.removed += removed;
+            writeTotals.renamed += renamed;
+          }
+          specsUpdated = wroteAny;
+          totals = writeTotals;
+          if (!json) {
+            console.log(
+              `Totals: + ${writeTotals.added}, ~ ${writeTotals.modified}, - ${writeTotals.removed}, → ${writeTotals.renamed}`
+            );
+            console.log(
+              wroteAny
+                ? 'Specs updated successfully.'
+                : 'Specs already in sync; no files changed.'
+            );
+          }
         }
       }
     }
 
-    // Create archive directory with date prefix
-    const archiveName = `${this.getArchiveDate()}-${changeName}`;
+    // Create archive directory with date prefix. Names that already carry
+    // one keep it: re-prefixing would stutter the name, and when the archive
+    // runs on a later day the folder would sort under a day on which the
+    // change did not happen (#1309).
+    const archiveName = ARCHIVE_DATE_PREFIX_PATTERN.test(changeName)
+      ? changeName
+      : `${formatLocalDate()}-${changeName}`;
     const archivePath = path.join(archiveDir, archiveName);
 
     // Check if archive already exists
+    let archiveExists = false;
     try {
       await fs.access(archivePath);
-      throw new Error(`Archive '${archiveName}' already exists.`);
+      archiveExists = true;
     } catch (error: any) {
       if (error.code !== 'ENOENT') {
         throw error;
       }
+    }
+    if (archiveExists) {
+      throw new ArchiveBlockedError('archive_target_exists', `Archive '${archiveName}' already exists.`);
     }
 
     // Create archive directory if needed
@@ -284,17 +719,27 @@ export class ArchiveCommand {
     // Move change to archive (uses copy+remove on EPERM/EXDEV, e.g. Windows)
     await moveDirectory(changeDir, archivePath);
 
-    console.log(`Change '${changeName}' archived as '${archiveName}'.`);
+    if (!json) {
+      console.log(`Change '${changeName}' archived as '${archiveName}'.`);
+    }
+
+    return {
+      change: changeName,
+      archivedAs: archiveName,
+      path: archivePath,
+      specsUpdated,
+      ...(totals ? { totals } : {}),
+      ...(specWarnings.length > 0 ? { warnings: specWarnings } : {}),
+    };
   }
 
-  private async selectChange(changesDir: string): Promise<string | null> {
+  private async selectChange(
+    changesDir: string,
+    root: ResolvedOpenSpecRoot,
+    options: ArchiveOptions
+  ): Promise<string | null> {
     const { select } = await import('@inquirer/prompts');
-    // Get all directories in changes (excluding archive)
-    const entries = await fs.readdir(changesDir, { withFileTypes: true });
-    const changeDirs = entries
-      .filter(entry => entry.isDirectory() && entry.name !== 'archive')
-      .map(entry => entry.name)
-      .sort();
+    const changeDirs = await listActiveChangeNames(changesDir);
 
     if (changeDirs.length === 0) {
       console.log('No active changes found.');
@@ -306,7 +751,7 @@ export class ArchiveCommand {
     try {
       const progressList: Array<{ id: string; status: string }> = [];
       for (const id of changeDirs) {
-        const progress = await getTaskProgressForChange(changesDir, id);
+        const progress = await getTaskProgressForChange(changesDir, id, path.resolve(changesDir, '..', '..'));
         const status = formatTaskStatus(progress);
         progressList.push({ id, status });
       }
@@ -327,13 +772,21 @@ export class ArchiveCommand {
       });
       return answer;
     } catch (error) {
+      // Nobody to pick from the list: reporting "No change selected" and
+      // exiting 0 told an agent the archive had succeeded when nothing
+      // happened (#1479). The suggested rerun carries --yes because the same
+      // caller cannot answer the confirmations further down either, and the
+      // caller's own flags because dropping --skip-specs here would suggest a
+      // rerun that merges the specs it was passed to leave alone.
+      if (isNonInteractivePromptError(error)) {
+        throw new ArchiveBlockedError(
+          'archive_change_name_required',
+          'A change name is required: no answer could be read from stdin.',
+          withStoreFlag(root, `openspec archive <change-name> ${rerunFlags(options).join(' ')}`)
+        );
+      }
       // User cancelled (Ctrl+C)
       return null;
     }
-  }
-
-  private getArchiveDate(): string {
-    // Returns date in YYYY-MM-DD format
-    return new Date().toISOString().split('T')[0];
   }
 }

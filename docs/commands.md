@@ -1,8 +1,13 @@
 # Commands
 
-This is the reference for OpenSpec's slash commands. These commands are invoked in your AI coding assistant's chat interface (e.g., Claude Code, Cursor, Windsurf).
+This is the reference for OpenSpec's slash commands. These commands are invoked in your AI coding assistant's chat interface (e.g., Claude Code, Cursor, Devin Desktop).
 
 For workflow patterns and when to use each command, see [Workflows](workflows.md). For CLI commands, see [CLI](cli.md).
+
+These pages use `/opsx:<command>` as the canonical name. Some tools spell it
+differently — Cursor and GitHub Copilot register `/opsx-propose`, Codex uses
+`$openspec-propose` — so check [How To Invoke](supported-tools.md#how-to-invoke)
+for your tool. The files OpenSpec generates already use the right form.
 
 ## Quick Reference
 
@@ -13,6 +18,7 @@ For workflow patterns and when to use each command, see [Workflows](workflows.md
 | `/opsx:propose` | Create a change and generate planning artifacts in one step |
 | `/opsx:explore` | Think through ideas before committing to a change |
 | `/opsx:apply` | Implement tasks from the change |
+| `/opsx:update` | Revise a change's planning artifacts and keep them coherent |
 | `/opsx:sync` | Merge delta specs into main specs |
 | `/opsx:archive` | Archive a completed change |
 
@@ -71,6 +77,8 @@ AI:  Created openspec/changes/add-dark-mode/
 ---
 
 ### `/opsx:explore`
+
+> **Start here when you're unsure.** Explore is a no-stakes thinking partner: it reads your codebase, compares options, and sharpens a fuzzy idea into a concrete plan before any change exists. It ships in the default profile. For the full case and more examples, see the [Explore First](explore.md) guide.
 
 Think through ideas, investigate problems, and clarify requirements before committing to a change.
 
@@ -202,7 +210,7 @@ AI:  Change: add-dark-mode
      ✓ proposal    (done)
      ◆ specs       (ready)
      ◆ design      (ready)
-     ○ tasks       (blocked - needs: specs)
+     ○ tasks       (blocked - needs: specs, design)
 
      Creating specs...
 
@@ -210,7 +218,7 @@ AI:  Change: add-dark-mode
 
      ✓ Created openspec/changes/add-dark-mode/specs/ui/spec.md
 
-     Now available: tasks
+     Now available: design
      Run /opsx:continue to create the next artifact.
 ```
 
@@ -312,6 +320,55 @@ AI:  Implementing add-dark-mode...
 - Can resume where you left off if interrupted
 - Use for parallel changes by specifying the change name
 - Completion state is tracked in `tasks.md` checkboxes
+
+---
+
+### `/opsx:update`
+
+Revise a change's existing planning artifacts and keep them coherent with one another. Planning artifacts only - it never edits code.
+
+**Syntax:**
+
+```text
+/opsx:update [change-name]
+```
+
+**Arguments:**
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `change-name` | No | Which change to update (inferred from context if not provided) |
+
+**What it does:**
+
+- Reads the change's artifacts via `openspec status --change <name> --json`
+- Applies your requested revision, or reviews the artifacts for contradictions if you didn't name one
+- Reconciles the other existing artifacts in any direction (a design edit may ripple back to the proposal)
+- Confirms every edit with you before writing, one artifact at a time
+- Ends by recommending the next step: `/opsx:continue` (artifacts missing), `/opsx:apply` (carry a revised plan into code), or `/opsx:archive` (all done)
+
+**Example:**
+
+```text
+You: /opsx:update add-dark-mode - we're storing the theme in a cookie now, not localStorage
+
+AI:  Reading add-dark-mode artifacts...
+
+     The design references localStorage in two places; tasks 1.3 covers
+     localStorage persistence; the proposal doesn't mention storage.
+
+     Proposed revisions:
+     1. design.md - swap localStorage decision for cookie storage
+     2. tasks.md - reword task 1.3 to cookie persistence
+
+     Apply revision 1? (design.md)
+```
+
+**Tips:**
+
+- It won't create missing artifacts - that's `/opsx:continue`
+- If the change was already implemented, follow up with `/opsx:apply` so the code matches the revised plan
+- If your revision changes the *intent* of the change, start fresh with a new change instead (see [When to Update vs. Start Fresh](opsx.md#when-to-update-vs-start-fresh))
 
 ---
 
@@ -612,16 +669,20 @@ AI:  Welcome to OpenSpec!
 
 Different AI tools use slightly different command syntax. Use the format that matches your tool:
 
-| Tool | Syntax Example |
-|------|----------------|
-| Claude Code | `/opsx:propose`, `/opsx:apply` |
-| Cursor | `/opsx-propose`, `/opsx-apply` |
-| Windsurf | `/opsx-propose`, `/opsx-apply` |
-| Copilot (IDE) | `/opsx-propose`, `/opsx-apply` |
-| Kimi CLI | Skill-based invocations such as `/skill:openspec-propose`, `/skill:openspec-apply-change` (no generated `opsx-*` command files) |
-| Trae | Skill-based invocations such as `/openspec-propose`, `/openspec-apply-change` (no generated `opsx-*` command files) |
+| Your tool's command file | Syntax example | Example tools |
+|--------------------------|----------------|---------------|
+| `.../commands/opsx/<id>.*` | `/opsx:propose`, `/opsx:apply` | Claude Code, Gemini CLI, Crush |
+| `.../opsx-<id>.*` | `/opsx-propose`, `/opsx-apply` | Cursor, Devin Desktop, Copilot (IDE), Trae, Oh My Pi |
+| none — skills only | `/openspec-propose`, `/openspec-apply-change` | CodeArts, ForgeCode, Hermes, Mistral Vibe, shared `.agents` |
+| none — Kimi Code | `/skill:openspec-propose` | Kimi Code |
+| none — Codex CLI | `$openspec-propose` | Codex |
 
-The intent is the same across tools, but how commands are surfaced can differ by integration.
+> **Devin Desktop vs Devin Local:** the `.devin/workflows/opsx-*.md` files give
+> Devin Desktop `/opsx-propose`. Devin Local has no workflows — use the skills
+> OpenSpec writes to `.devin/skills/`, e.g. `/openspec-propose`, which work on
+> both agents.
+
+The intent is the same across tools, but how commands are surfaced can differ by integration. [How To Invoke](supported-tools.md#how-to-invoke) lists every supported tool; this table shows only examples of each shape.
 
 > **Note:** GitHub Copilot commands (`.github/prompts/*.prompt.md`) are only available in IDE extensions (VS Code, JetBrains, Visual Studio). GitHub Copilot CLI does not currently support custom prompt files — see [Supported Tools](supported-tools.md) for details and workarounds.
 

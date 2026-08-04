@@ -43,7 +43,12 @@ The system SHALL compute a valid topological build order for artifacts.
 
 #### Scenario: Independent artifacts
 - **WHEN** artifacts have no dependencies
-- **THEN** getBuildOrder() returns them in a stable order
+- **THEN** getBuildOrder() returns them in the order the schema declares them
+
+#### Scenario: Simultaneously ready artifacts ordered by declaration
+- **WHEN** artifacts become ready at the same time (spec-driven's specs and design both require only proposal)
+- **THEN** getBuildOrder() returns them in the order the schema's artifacts list declares them, not alphabetically
+- **AND** an artifact already waiting to be built is not placed ahead of one the schema declares before it
 
 ### Requirement: State Detection
 The system SHALL detect artifact completion state by scanning the filesystem.
@@ -83,6 +88,10 @@ The system SHALL identify which artifacts are ready to be created based on depen
 - **WHEN** an artifact has uncompleted dependencies
 - **THEN** getNextArtifacts() does not include that artifact
 
+#### Scenario: Ready artifacts ordered by declaration
+- **WHEN** several artifacts are ready at once
+- **THEN** getNextArtifacts() returns them in the order the schema declares them, so the first entry is the artifact the schema recommends writing next
+
 ### Requirement: Completion Check
 The system SHALL determine when all artifacts in a graph are complete.
 
@@ -108,6 +117,7 @@ The system SHALL identify which artifacts are blocked and return all their unmet
 #### Scenario: Artifact blocked by all dependencies
 - **WHEN** artifact C requires A and B, and neither is complete
 - **THEN** getBlocked() returns `{ C: ['A', 'B'] }`
+- **AND** unmet dependencies are listed in the order the schema declares them
 
 ### Requirement: Schema Directory Structure
 The system SHALL support self-contained schema directories with co-located templates.
@@ -127,39 +137,4 @@ The system SHALL support self-contained schema directories with co-located templ
 #### Scenario: List available schemas
 - **WHEN** listing schemas
 - **THEN** the system returns schema names from both user and package directories
-
-### Requirement: Workspace planning schema
-The artifact graph SHALL provide a built-in workspace planning schema for workspace-scoped changes.
-
-#### Scenario: Built-in workspace planning schema is available
-- **WHEN** schemas are resolved from package built-ins
-- **THEN** a schema named `workspace-planning` SHALL be available
-- **AND** it SHALL describe the artifact structure for workspace-scoped planning
-
-#### Scenario: Workspace planning schema artifacts
-- **WHEN** the `workspace-planning` schema is loaded
-- **THEN** it SHALL include the normal planning artifacts for a shared proposal, workspace-scoped specs, cross-area design, and coordination tasks
-- **AND** it SHALL not require an additional area manifest outside those normal planning artifacts
-
-#### Scenario: Workspace planning schema supports nested specs
-- **WHEN** the `workspace-planning` schema defines its specs artifact
-- **THEN** the specs artifact SHALL resolve workspace-scoped spec files under `specs/**/*.md`
-- **AND** schema guidance SHALL describe `specs/<area-or-repo>/<capability>/spec.md` as the default convention for area-specific requirements
-
-#### Scenario: Workspace planning schema templates
-- **WHEN** artifact instructions are requested for the `workspace-planning` schema
-- **THEN** the schema SHALL provide templates that guide agents to write workspace-level planning content
-- **AND** those templates SHALL avoid instructing agents to create repo-local implementation artifacts
-- **AND** specs instructions SHALL support organizing area-specific requirements under workspace-scoped `specs/` paths
-
-#### Scenario: Workspace nested spec paths stay workspace-scoped
-- **GIVEN** a workspace change has spec files under `specs/<area-or-repo>/<capability>/spec.md`
-- **WHEN** OpenSpec reports status or artifact instructions for the workspace change
-- **THEN** it SHALL preserve the concrete nested workspace spec paths
-- **AND** it SHALL not treat those files as repo-local specs to sync or archive without an explicit affected-area implementation context
-
-#### Scenario: Workspace planning apply readiness
-- **WHEN** the `workspace-planning` schema defines apply readiness
-- **THEN** it SHALL require coordination tasks before implementation begins
-- **AND** the apply guidance SHALL direct agents to select an affected area before making implementation edits
 

@@ -2,21 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { randomUUID } from 'node:crypto';
 
-// Mock posthog-node before importing the module
-vi.mock('posthog-node', () => {
-  return {
-    PostHog: vi.fn().mockImplementation(() => ({
-      capture: vi.fn(),
-      shutdown: vi.fn().mockResolvedValue(undefined),
-    })),
-  };
-});
-
-// Import after mocking
 import { isTelemetryEnabled, maybeShowTelemetryNotice, shutdown, trackCommand } from '../../src/telemetry/index.js';
-import { PostHog } from 'posthog-node';
 
 describe('telemetry/index', () => {
   let tempDir: string;
@@ -26,8 +13,7 @@ describe('telemetry/index', () => {
 
   beforeEach(() => {
     // Create unique temp directory for each test using UUID
-    tempDir = path.join(os.tmpdir(), `openspec-telemetry-test-${randomUUID()}`);
-    fs.mkdirSync(tempDir, { recursive: true });
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-telemetry-test-'));
 
     // Save original env
     originalEnv = { ...process.env };
@@ -40,7 +26,10 @@ describe('telemetry/index', () => {
 
     // Spy on console.log for notice tests
     consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-    fetchSpy = vi.spyOn(globalThis, 'fetch');
+    // Telemetry must never reach the real network in tests
+    fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response(null, { status: 200 }));
   });
 
   afterEach(async () => {
@@ -60,6 +49,12 @@ describe('telemetry/index', () => {
     vi.restoreAllMocks();
   });
 
+  function enableTelemetry() {
+    delete process.env.OPENSPEC_TELEMETRY;
+    delete process.env.DO_NOT_TRACK;
+    delete process.env.CI;
+  }
+
   describe('isTelemetryEnabled', () => {
     it('should return false when OPENSPEC_TELEMETRY=0', () => {
       process.env.OPENSPEC_TELEMETRY = '0';
@@ -77,9 +72,7 @@ describe('telemetry/index', () => {
     });
 
     it('should return true when no opt-out is set', () => {
-      delete process.env.OPENSPEC_TELEMETRY;
-      delete process.env.DO_NOT_TRACK;
-      delete process.env.CI;
+      enableTelemetry();
       expect(isTelemetryEnabled()).toBe(true);
     });
 
@@ -102,118 +95,174 @@ describe('telemetry/index', () => {
   });
 
   describe('trackCommand', () => {
-    it('should not track when telemetry is disabled', async () => {
+    it('should send nothing when telemetry is disabled', async () => {
       process.env.OPENSPEC_TELEMETRY = '0';
 
       await trackCommand('test', '1.0.0');
+      await shutdown();
 
-      expect(PostHog).not.toHaveBeenCalled();
+      expect(fetchSpy).not.toHaveBeenCalled();
     });
 
-    it('should track when telemetry is enabled', async () => {
-      delete process.env.OPENSPEC_TELEMETRY;
-      delete process.env.DO_NOT_TRACK;
-      delete process.env.CI;
+    it('should post one capture event to the batch endpoint when enabled', async () => {
+      enableTelemetry();
 
       await trackCommand('test', '1.0.0');
+      await shutdown();
 
-      expect(PostHog).toHaveBeenCalled();
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      const [url, options] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe('https://edge.openspec.dev/batch/');
+      expect(options.method).toBe('POST');
+
+      const payload = JSON.parse(String(options.body));
+      expect(payload.api_key).toEqual(expect.any(String));
+      expect(payload.batch).toHaveLength(1);
+      const event = payload.batch[0];
+      expect(event.type).toBe('capture');
+      expect(event.event).toBe('command_executed');
+      expect(event.distinct_id).toMatch(/^[0-9a-f-]{36}$/);
+      expect(event.timestamp).toEqual(expect.any(String));
+      expect(event.properties).toEqual({
+        command: 'test',
+        version: '1.0.0',
+        surface: 'cli',
+        $ip: null,
+      });
     });
 
-    it('should construct PostHog with bounded silent-failure settings', async () => {
-      delete process.env.OPENSPEC_TELEMETRY;
-      delete process.env.DO_NOT_TRACK;
-      delete process.env.CI;
+    it('should bound the request with a timeout signal', async () => {
+      enableTelemetry();
 
       await trackCommand('test', '1.0.0');
+      await shutdown();
 
-      expect(PostHog).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          host: 'https://edge.openspec.dev',
-          flushAt: 1,
-          flushInterval: 0,
-          fetchRetryCount: 0,
-          requestTimeout: 1000,
-          preloadFeatureFlags: false,
-          disableRemoteConfig: true,
-          disableSurveys: true,
-          fetch: expect.any(Function),
-        })
-      );
+      const [, options] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(options.signal).toBeInstanceOf(AbortSignal);
     });
 
-    it('should return a synthetic success response when fetch throws a network error', async () => {
-      delete process.env.OPENSPEC_TELEMETRY;
-      delete process.env.DO_NOT_TRACK;
-      delete process.env.CI;
-      await trackCommand('test', '1.0.0');
-
-      const fetchFn = (PostHog as any).mock.calls[0][1].fetch as typeof fetch;
+    it('should swallow a network error silently', async () => {
+      enableTelemetry();
       fetchSpy.mockRejectedValueOnce(new Error('network down'));
 
-      const response = await fetchFn('https://edge.openspec.dev/batch/', { method: 'POST' });
-
-      expect(response.status).toBe(204);
+      await trackCommand('test', '1.0.0');
+      await expect(shutdown()).resolves.not.toThrow();
     });
 
-    it('should return a synthetic success response when fetch aborts', async () => {
-      delete process.env.OPENSPEC_TELEMETRY;
-      delete process.env.DO_NOT_TRACK;
-      delete process.env.CI;
-      await trackCommand('test', '1.0.0');
-
-      const fetchFn = (PostHog as any).mock.calls[0][1].fetch as typeof fetch;
+    it('should swallow an abort silently', async () => {
+      enableTelemetry();
       fetchSpy.mockRejectedValueOnce(new DOMException('This operation was aborted', 'AbortError'));
 
-      const response = await fetchFn('https://edge.openspec.dev/batch/', { method: 'POST' });
-
-      expect(response.status).toBe(204);
+      await trackCommand('test', '1.0.0');
+      await expect(shutdown()).resolves.not.toThrow();
     });
 
-    it('should return a synthetic success response for non-2xx responses', async () => {
-      delete process.env.OPENSPEC_TELEMETRY;
-      delete process.env.DO_NOT_TRACK;
-      delete process.env.CI;
-      await trackCommand('test', '1.0.0');
-
-      const fetchFn = (PostHog as any).mock.calls[0][1].fetch as typeof fetch;
+    it('should swallow a non-2xx response silently', async () => {
+      enableTelemetry();
       fetchSpy.mockResolvedValueOnce(new Response('forbidden', { status: 403 }));
 
-      const response = await fetchFn('https://edge.openspec.dev/batch/', { method: 'POST' });
-
-      expect(response.status).toBe(204);
+      await trackCommand('test', '1.0.0');
+      await expect(shutdown()).resolves.not.toThrow();
     });
 
-    it('should pass through successful responses from fetch', async () => {
-      delete process.env.OPENSPEC_TELEMETRY;
-      delete process.env.DO_NOT_TRACK;
-      delete process.env.CI;
+    it('should dispose the response body of a successful response before the event settles', async () => {
+      // Undici holds the connection until the body is consumed or canceled;
+      // an undisposed body would let the socket outlive shutdown().
+      enableTelemetry();
+      const response = new Response('{"status": 1}', { status: 200 });
+      fetchSpy.mockResolvedValueOnce(response);
+
       await trackCommand('test', '1.0.0');
+      await shutdown();
 
-      const fetchFn = (PostHog as any).mock.calls[0][1].fetch as typeof fetch;
-      const expectedResponse = new Response(null, { status: 200 });
-      fetchSpy.mockResolvedValueOnce(expectedResponse);
+      expect(response.bodyUsed).toBe(true);
+    });
 
-      const response = await fetchFn('https://edge.openspec.dev/batch/', { method: 'POST' });
+    it('should dispose the response body of a non-2xx response before the event settles', async () => {
+      enableTelemetry();
+      const response = new Response('rate limited', { status: 429 });
+      fetchSpy.mockResolvedValueOnce(response);
 
-      expect(response).toBe(expectedResponse);
+      await trackCommand('test', '1.0.0');
+      await shutdown();
+
+      expect(response.bodyUsed).toBe(true);
     });
   });
 
   describe('shutdown', () => {
-    it('should not throw when no client exists', async () => {
+    it('should not throw when nothing is pending', async () => {
       await expect(shutdown()).resolves.not.toThrow();
     });
 
-    it('should handle shutdown errors silently', async () => {
-      const mockPostHog = {
-        capture: vi.fn(),
-        shutdown: vi.fn().mockRejectedValue(new Error('Network error')),
-      };
-      (PostHog as any).mockImplementation(() => mockPostHog);
+    it('should flush an in-flight event before returning', async () => {
+      enableTelemetry();
 
-      await expect(shutdown()).resolves.not.toThrow();
+      let settle!: (response: Response) => void;
+      fetchSpy.mockImplementationOnce(
+        () => new Promise<Response>((resolve) => (settle = resolve))
+      );
+
+      await trackCommand('test', '1.0.0');
+
+      let flushed = false;
+      const flushing = shutdown().then(() => {
+        flushed = true;
+      });
+
+      // The event is still in flight, so shutdown must still be waiting.
+      await Promise.resolve();
+      expect(flushed).toBe(false);
+
+      settle(new Response(null, { status: 200 }));
+      await flushing;
+      expect(flushed).toBe(true);
+    });
+  });
+
+  describe('published dependency tree (#1390)', () => {
+    it('ships no posthog packages to consumers', () => {
+      // Downstream supply-chain age policies (pnpm minimumReleaseAge) broke
+      // installs whenever the posthog subtree had a release younger than the
+      // policy window — which, at posthog's publish cadence, was most days.
+      // Telemetry now speaks the wire format directly; nothing in the
+      // published manifest may reintroduce that tree.
+      const manifest = JSON.parse(
+        fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf-8')
+      ) as {
+        dependencies?: Record<string, string>;
+        optionalDependencies?: Record<string, string>;
+        peerDependencies?: Record<string, string>;
+      };
+
+      const shipped = {
+        ...manifest.dependencies,
+        ...manifest.optionalDependencies,
+        ...manifest.peerDependencies,
+      };
+      const posthogDeps = Object.keys(shipped).filter((name) =>
+        name.toLowerCase().includes('posthog')
+      );
+      expect(posthogDeps).toEqual([]);
+    });
+
+    it('imports no posthog module anywhere in src', () => {
+      const hits: string[] = [];
+      const walk = (dir: string): void => {
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+          const full = path.join(dir, entry.name);
+          if (entry.isDirectory()) {
+            walk(full);
+          } else if (entry.name.endsWith('.ts')) {
+            const content = fs.readFileSync(full, 'utf-8');
+            if (/from\s+['"](posthog|@posthog)/.test(content)) {
+              hits.push(full);
+            }
+          }
+        }
+      };
+      walk(path.join(process.cwd(), 'src'));
+      expect(hits).toEqual([]);
     });
   });
 });

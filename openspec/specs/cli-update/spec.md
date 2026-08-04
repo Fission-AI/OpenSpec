@@ -99,10 +99,16 @@ The update command SHALL refresh existing slash command files for configured too
 - **AND** skip creating missing files during update
 
 #### Scenario: Updating slash commands for OpenCode
-- **WHEN** `.opencode/command/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
+- **WHEN** `.opencode/commands/` contains OpenSpec-managed `opsx-*.md` command files for the configured profile (for example `opsx-propose.md`, `opsx-apply.md`, and `opsx-archive.md`)
 - **THEN** refresh each file using shared templates
+- **AND** transform command references to hyphen form (for example `/opsx-propose`), as for every tool whose command files are named `opsx-<id>`
 - **AND** ensure templates include instructions for the relevant workflow stage
 - **AND** ensure the archive command includes `$ARGUMENTS` placeholder in frontmatter for accepting change ID arguments
+
+#### Scenario: Legacy OpenCode command path cleanup
+- **WHEN** a project still has command files under the legacy singular path `.opencode/command/` (for example `opsx-*.md` or `openspec-*.md`)
+- **THEN** `openspec init` or legacy cleanup SHALL remove those files and generate replacements under `.opencode/commands/`
+- **AND** `openspec update` SHALL NOT refresh files that remain only under `.opencode/command/`
 
 #### Scenario: Updating slash commands for Windsurf
 - **WHEN** `.windsurf/workflows/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
@@ -165,65 +171,3 @@ The archive slash command template SHALL support optional change ID arguments fo
 - **THEN** include the `$ARGUMENTS` placeholder in the frontmatter
 - **AND** wrap it in a clear structure like `<ChangeId>\n  $ARGUMENTS\n</ChangeId>` to indicate the expected argument
 - **AND** include validation steps in the template body to check if the change ID is valid
-
-### Requirement: Repo update stays separate from workspace planning homes
-The repo-local `openspec update` command SHALL not silently treat a workspace planning home as a repo-local OpenSpec project.
-
-#### Scenario: Running update from a workspace root
-- **GIVEN** the command runs from an OpenSpec workspace root
-- **WHEN** the user runs `openspec update`
-- **THEN** OpenSpec SHALL not generate repo-local project files in the workspace root
-- **AND** it SHALL tell the user to run `openspec workspace update`
-
-#### Scenario: Running update from inside a workspace planning directory
-- **GIVEN** the command runs from a subdirectory of an OpenSpec workspace planning home
-- **WHEN** the user runs `openspec update`
-- **THEN** OpenSpec SHALL not run repo-local update behavior
-- **AND** it SHALL tell the user to run `openspec workspace update`
-
-#### Scenario: Running update from a repo-local project
-- **GIVEN** the command runs from inside a repo-local OpenSpec project
-- **WHEN** the user runs `openspec update`
-- **THEN** OpenSpec SHALL preserve existing repo-local update behavior
-
-#### Scenario: Updating a repo-local project nested below a workspace folder
-- **GIVEN** the target path contains repo-local OpenSpec state
-- **AND** an ancestor is an OpenSpec workspace root
-- **WHEN** the user runs `openspec update <path>`
-- **THEN** OpenSpec SHALL preserve repo-local update behavior for the target path
-- **AND** it SHALL not run workspace update behavior
-
-## Edge Cases
-
-### Error Handling
-
-The command SHALL handle edge cases gracefully.
-
-#### Scenario: File permission errors
-
-- **WHEN** file write fails
-- **THEN** let the error bubble up naturally with file path
-
-#### Scenario: Missing AI tool files
-
-- **WHEN** an AI tool configuration file doesn't exist
-- **THEN** skip updating that file
-- **AND** do not create it
-
-#### Scenario: Custom directory names
-
-- **WHEN** considering custom directory names
-- **THEN** not supported in this change
-- **AND** the default directory name `openspec` SHALL be used
-
-## Success Criteria
-
-Users SHALL be able to:
-- Update OpenSpec instructions with a single command
-- Get the latest AI agent instructions
-- See clear confirmation of the update
-
-The update process SHALL be:
-- Simple and fast (no version checking)
-- Predictable (same result every time)
-- Self-contained (no network required)

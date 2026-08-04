@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
-import { randomUUID } from 'crypto';
 import {
   writeChangeMetadata,
   readChangeMetadata,
@@ -24,6 +23,23 @@ describe('ChangeMetadataSchema', () => {
         expect(result.data.schema).toBe('spec-driven');
         expect(result.data.created).toBe('2025-01-05');
       }
+    });
+
+    it('should accept skip_specs boolean and reject non-boolean values', () => {
+      const withFlag = ChangeMetadataSchema.safeParse({
+        schema: 'spec-driven',
+        skip_specs: true,
+      });
+      expect(withFlag.success).toBe(true);
+      if (withFlag.success) {
+        expect(withFlag.data.skip_specs).toBe(true);
+      }
+
+      const nonBoolean = ChangeMetadataSchema.safeParse({
+        schema: 'spec-driven',
+        skip_specs: 'yes',
+      });
+      expect(nonBoolean.success).toBe(false);
     });
 
     it('should accept valid schema without created date', () => {
@@ -93,7 +109,7 @@ describe('ChangeMetadataSchema', () => {
         initiative: {
           store: 'platform',
           id: 'billing-launch',
-          path: '/tmp/context-store/initiatives/billing-launch',
+          path: '/tmp/store/initiatives/billing-launch',
           summary: 'Copied initiative prose',
         },
       });
@@ -124,7 +140,7 @@ describe('writeChangeMetadata', () => {
   let changeDir: string;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
+    testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-test-'));
     changeDir = path.join(testDir, 'openspec', 'changes', 'test-change');
     await fs.mkdir(changeDir, { recursive: true });
   });
@@ -161,7 +177,7 @@ describe('readChangeMetadata', () => {
   let changeDir: string;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
+    testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-test-'));
     changeDir = path.join(testDir, 'openspec', 'changes', 'test-change');
     await fs.mkdir(changeDir, { recursive: true });
   });
@@ -238,7 +254,7 @@ describe('resolveSchemaForChange', () => {
   let changeDir: string;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
+    testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-test-'));
     changeDir = path.join(testDir, 'openspec', 'changes', 'test-change');
     await fs.mkdir(changeDir, { recursive: true });
   });

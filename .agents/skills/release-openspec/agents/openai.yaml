@@ -1,0 +1,4 @@
+interface:
+  display_name: "Release OpenSpec"
+  short_description: "Audit, prepare, publish, and finalize releases"
+  default_prompt: "Use $release-openspec to audit the current release state and take the next safe release step."

@@ -2,21 +2,48 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { JsonConverter } from '../core/converters/json-converter.js';
 import { Validator } from '../core/validation/validator.js';
+import { VALIDATION_MESSAGES } from '../core/validation/constants.js';
 import { ChangeParser } from '../core/parsers/change-parser.js';
 import { Change } from '../core/schemas/index.js';
+import type { RootOutput } from '../core/root-selection.js';
 import { isInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds } from '../utils/item-discovery.js';
+import { getTaskProgressForChange } from '../utils/task-progress.js';
 
-// Constants for better maintainability
-const ARCHIVE_DIR = 'archive';
-const TASK_PATTERN = /^[-*]\s+\[[\sx]\]/i;
-const COMPLETED_TASK_PATTERN = /^[-*]\s+\[x\]/i;
+/**
+ * True only when `target` is definitively absent. An EACCES or I/O failure
+ * means existence cannot be determined, so callers fall through to their
+ * read-error path rather than claim the file was never written.
+ */
+async function isDefinitelyMissing(target: string): Promise<boolean> {
+  return fs
+    .access(target)
+    .then(() => false)
+    .catch((error: NodeJS.ErrnoException) => error?.code === 'ENOENT');
+}
+
+/**
+ * A change is a directory directly under changes/. Rejecting anything else up
+ * front keeps a traversing name (`../..`) from reading a proposal outside the
+ * changes directory, and keeps the missing-proposal message honest.
+ */
+function isChangeDirectoryName(changesPath: string, changeDir: string): boolean {
+  return path.dirname(path.resolve(changeDir)) === path.resolve(changesPath);
+}
 
 export class ChangeCommand {
   private converter: JsonConverter;
+  private rootPath?: string;
 
-  constructor() {
+  // rootPath is set only by root-aware callers (top-level `show`); the
+  // deprecated noun-form commands stay cwd-based.
+  constructor(rootPath?: string) {
     this.converter = new JsonConverter();
+    this.rootPath = rootPath;
+  }
+
+  private getChangesPath(): string {
+    return path.join(this.rootPath ?? process.cwd(), 'openspec', 'changes');
   }
 
   /**
@@ -25,12 +52,13 @@ export class ChangeCommand {
    * - JSON mode: minimal object with deltas; --deltas-only returns same object with filtered deltas
    *   Note: --requirements-only is deprecated alias for --deltas-only
    */
-  async show(changeName?: string, options?: { json?: boolean; requirementsOnly?: boolean; deltasOnly?: boolean; noInteractive?: boolean }): Promise<void> {
-    const changesPath = path.join(process.cwd(), 'openspec', 'changes');
+  async show(changeName?: string, options?: { json?: boolean; requirementsOnly?: boolean; deltasOnly?: boolean; noInteractive?: boolean; rootOutput?: RootOutput }): Promise<void> {
+    const changesPath = this.getChangesPath();
 
     if (!changeName) {
       const canPrompt = isInteractive(options);
-      const changes = await this.getActiveChanges(changesPath);
+      // Offer exactly the changes `show <name>` can resolve.
+      const changes = await getActiveChangeIds(this.rootPath ?? process.cwd());
       if (canPrompt && changes.length > 0) {
         const { select } = await import('@inquirer/prompts');
         const selected = await select({
@@ -50,11 +78,32 @@ export class ChangeCommand {
       }
     }
 
-    const proposalPath = path.join(changesPath, changeName, 'proposal.md');
+    const changeDir = path.join(changesPath, changeName);
+    const proposalPath = path.join(changeDir, 'proposal.md');
+
+    if (!isChangeDirectoryName(changesPath, changeDir)) {
+      throw new Error(`Change "${changeName}" not found at ${proposalPath}`);
+    }
 
     try {
       await fs.access(proposalPath);
     } catch {
+      // A change can exist without a proposal: `openspec new change` scaffolds
+      // only .openspec.yaml, and a custom schema need not define a proposal
+      // artifact. Say which of the two cases this is instead of reporting a
+      // change that does exist as missing. A stray file under changes/ is not a
+      // change, and naming it one would point the user at a `status --change`
+      // call that cannot work.
+      const isChangeDirectory = await fs
+        .stat(changeDir)
+        .then((stats) => stats.isDirectory())
+        .catch(() => false);
+      if (isChangeDirectory) {
+        throw new Error(
+          `Change "${changeName}" has no proposal.md yet. ` +
+            `Run "openspec status --change ${changeName}" to see which artifact comes next.`
+        );
+      }
       throw new Error(`Change "${changeName}" not found at ${proposalPath}`);
     }
 
@@ -71,18 +120,14 @@ export class ChangeCommand {
       const id = parsed.name;
       const deltas = parsed.deltas || [];
 
-      if (options.requirementsOnly || options.deltasOnly) {
-        const output = { id, title, deltaCount: deltas.length, deltas };
-        console.log(JSON.stringify(output, null, 2));
-      } else {
-        const output = {
-          id,
-          title,
-          deltaCount: deltas.length,
-          deltas,
-        };
-        console.log(JSON.stringify(output, null, 2));
-      }
+      const output = {
+        id,
+        title,
+        deltaCount: deltas.length,
+        deltas,
+        ...(options.rootOutput ? { root: options.rootOutput } : {}),
+      };
+      console.log(JSON.stringify(output, null, 2));
     } else {
       const content = await fs.readFile(proposalPath, 'utf-8');
       console.log(content);
@@ -97,44 +142,44 @@ export class ChangeCommand {
   async list(options?: { json?: boolean; long?: boolean }): Promise<void> {
     const changesPath = path.join(process.cwd(), 'openspec', 'changes');
     
-    const changes = await this.getActiveChanges(changesPath);
-    
+    // Same directory-based resolution as `openspec list`, the command this
+    // deprecated alias points users at. Every output path below already
+    // tolerates a change whose proposal.md is missing or unreadable.
+    const changes = await getActiveChangeIds();
+
     if (options?.json) {
       const changeDetails = await Promise.all(
         changes.map(async (changeName) => {
-          const proposalPath = path.join(changesPath, changeName, 'proposal.md');
-          const tasksPath = path.join(changesPath, changeName, 'tasks.md');
-          
+          const changeDir = path.join(changesPath, changeName);
+          const proposalPath = path.join(changeDir, 'proposal.md');
+
+          // Resolve task progress through the shared tracked-tasks helper so
+          // this deprecated noun-form list cannot re-fork the resolution
+          // (#1202). Tasks are independent of the proposal: a change can carry
+          // tasks before, or without, a proposal.md.
+          const taskStatus = await getTaskProgressForChange(changesPath, changeName, process.cwd());
+
+          // No proposal yet is an ordinary state (scaffolded change, or a
+          // schema with no proposal artifact), so name the change rather than
+          // labelling it Unknown. Unknown stays for a proposal that exists but
+          // cannot be read or parsed.
+          if (await isDefinitelyMissing(proposalPath)) {
+            return { id: changeName, title: changeName, deltaCount: 0, taskStatus };
+          }
+
           try {
             const content = await fs.readFile(proposalPath, 'utf-8');
-            const changeDir = path.join(changesPath, changeName);
             const parser = new ChangeParser(content, changeDir);
             const change = await parser.parseChangeWithDeltas(changeName);
-            
-            let taskStatus = { total: 0, completed: 0 };
-            try {
-              const tasksContent = await fs.readFile(tasksPath, 'utf-8');
-              taskStatus = this.countTasks(tasksContent);
-            } catch (error) {
-              // Tasks file may not exist, which is okay
-              if (process.env.DEBUG) {
-                console.error(`Failed to read tasks file at ${tasksPath}:`, error);
-              }
-            }
-            
+
             return {
               id: changeName,
               title: this.extractTitle(content, changeName),
               deltaCount: change.deltas.length,
               taskStatus,
             };
-          } catch (error) {
-            return {
-              id: changeName,
-              title: 'Unknown',
-              deltaCount: 0,
-              taskStatus: { total: 0, completed: 0 },
-            };
+          } catch {
+            return { id: changeName, title: 'Unknown', deltaCount: 0, taskStatus };
           }
         })
       );
@@ -155,28 +200,23 @@ export class ChangeCommand {
 
       // Long format: id: title and minimal counts
       for (const changeName of sorted) {
-        const proposalPath = path.join(changesPath, changeName, 'proposal.md');
-        const tasksPath = path.join(changesPath, changeName, 'tasks.md');
+        const changeDir = path.join(changesPath, changeName);
+        const proposalPath = path.join(changeDir, 'proposal.md');
+        const { total, completed } = await getTaskProgressForChange(changesPath, changeName, process.cwd());
+        const taskStatusText = total > 0 ? ` [tasks ${completed}/${total}]` : '';
+        if (await isDefinitelyMissing(proposalPath)) {
+          console.log(`${changeName}: (no proposal.md yet)${taskStatusText}`);
+          continue;
+        }
         try {
           const content = await fs.readFile(proposalPath, 'utf-8');
           const title = this.extractTitle(content, changeName);
-          let taskStatusText = '';
-          try {
-            const tasksContent = await fs.readFile(tasksPath, 'utf-8');
-            const { total, completed } = this.countTasks(tasksContent);
-            taskStatusText = ` [tasks ${completed}/${total}]`;
-          } catch (error) {
-            if (process.env.DEBUG) {
-              console.error(`Failed to read tasks file at ${tasksPath}:`, error);
-            }
-          }
-          const changeDir = path.join(changesPath, changeName);
-          const parser = new ChangeParser(await fs.readFile(proposalPath, 'utf-8'), changeDir);
+          const parser = new ChangeParser(content, changeDir);
           const change = await parser.parseChangeWithDeltas(changeName);
           const deltaCountText = ` [deltas ${change.deltas.length}]`;
           console.log(`${changeName}: ${title}${deltaCountText}${taskStatusText}`);
         } catch {
-          console.log(`${changeName}: (unable to read)`);
+          console.log(`${changeName}: (unable to read)${taskStatusText}`);
         }
       }
     }
@@ -216,7 +256,11 @@ export class ChangeCommand {
     }
     
     const validator = new Validator(options?.strict || false);
-    const report = await validator.validateChangeDeltaSpecs(changeDir);
+    const report = await validator.validateChangeDeltaSpecs(changeDir, {
+      // Derived from changesPath so the main specs come from the same root the
+      // change itself was resolved against.
+      mainSpecsDir: path.join(path.dirname(changesPath), 'specs'),
+    });
     
     if (options?.json) {
       console.log(JSON.stringify(report, null, 2));
@@ -231,31 +275,11 @@ export class ChangeCommand {
           console.error(`${prefix} [${label}] ${issue.path}: ${issue.message}`);
         });
         // Next steps footer to guide fixing issues
-        this.printNextSteps();
+        this.printNextSteps(report.issues);
         if (!options?.json) {
           process.exitCode = 1;
         }
       }
-    }
-  }
-
-  private async getActiveChanges(changesPath: string): Promise<string[]> {
-    try {
-      const entries = await fs.readdir(changesPath, { withFileTypes: true });
-      const result: string[] = [];
-      for (const entry of entries) {
-        if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === ARCHIVE_DIR) continue;
-        const proposalPath = path.join(changesPath, entry.name, 'proposal.md');
-        try {
-          await fs.access(proposalPath);
-          result.push(entry.name);
-        } catch {
-          // skip directories without proposal.md
-        }
-      }
-      return result.sort();
-    } catch {
-      return [];
     }
   }
 
@@ -264,28 +288,27 @@ export class ChangeCommand {
     return match ? match[1].trim() : changeName;
   }
 
-  private countTasks(content: string): { total: number; completed: number } {
-    const lines = content.split('\n');
-    let total = 0;
-    let completed = 0;
-    
-    for (const line of lines) {
-      if (line.match(TASK_PATTERN)) {
-        total++;
-        if (line.match(COMPLETED_TASK_PATTERN)) {
-          completed++;
-        }
-      }
-    }
-    
-    return { total, completed };
-  }
-
-  private printNextSteps(): void {
+  private printNextSteps(issues: Array<{ message: string }> = []): void {
     const bullets: string[] = [];
-    bullets.push('- Ensure change has deltas in specs/: use headers ## ADDED/MODIFIED/REMOVED/RENAMED Requirements');
-    bullets.push('- Each requirement MUST include at least one #### Scenario: block');
-    bullets.push('- Debug parsed deltas: openspec change show <id> --json --deltas-only');
+    // Branch on the exact marker messages: the generic no-deltas guidance
+    // also mentions skip_specs and must not trigger the marker bullets.
+    const conflictIssue = issues.some(i =>
+      i.message.includes(VALIDATION_MESSAGES.CHANGE_SKIP_SPECS_CONFLICT)
+    );
+    const invalidMarkerIssue = issues.some(i =>
+      i.message.includes(VALIDATION_MESSAGES.CHANGE_SKIP_SPECS_INVALID_METADATA)
+    );
+    if (conflictIssue) {
+      bullets.push('- This change declares skip_specs (no spec deltas): delete the files under specs/, or remove skip_specs from .openspec.yaml if requirements do change');
+      bullets.push('- skip_specs is only honored when .openspec.yaml is valid change metadata (schema: <name> is required)');
+    } else if (invalidMarkerIssue) {
+      bullets.push('- Fix .openspec.yaml so the skip_specs marker can be honored (schema: <name> is required)');
+      bullets.push('- Or remove skip_specs from .openspec.yaml and add delta specs instead');
+    } else {
+      bullets.push('- Ensure change has deltas in specs/: use headers ## ADDED/MODIFIED/REMOVED/RENAMED Requirements');
+      bullets.push('- Each requirement MUST include at least one #### Scenario: block');
+      bullets.push('- Debug parsed deltas: openspec change show <id> --json --deltas-only');
+    }
     console.error('Next steps:');
     bullets.forEach(b => console.error(`  ${b}`));
   }

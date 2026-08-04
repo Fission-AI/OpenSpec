@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 
 describe('validate command enriched human output', () => {
   const projectRoot = process.cwd();
@@ -31,7 +31,7 @@ describe('validate command enriched human output', () => {
       let code = 0;
       let stderr = '';
       try {
-        execSync(`node ${bin} change validate ${changeId}`, { encoding: 'utf-8', stdio: 'pipe' });
+        execFileSync('node', [bin, 'change', 'validate', changeId], { encoding: 'utf-8', stdio: 'pipe' });
       } catch (e: any) {
         code = e?.status ?? 1;
         stderr = e?.stderr?.toString?.() ?? '';

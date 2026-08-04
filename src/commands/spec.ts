@@ -1,11 +1,13 @@
 import { program } from 'commander';
-import { existsSync, readdirSync, readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { MarkdownParser } from '../core/parsers/markdown-parser.js';
 import { Validator } from '../core/validation/validator.js';
 import type { Spec } from '../core/schemas/index.js';
+import type { RootOutput } from '../core/root-selection.js';
 import { isInteractive } from '../utils/interactive.js';
 import { getSpecIds } from '../utils/item-discovery.js';
+import { discoverSpecFiles } from '../utils/spec-discovery.js';
 
 const SPECS_DIR = 'openspec/specs';
 
@@ -16,6 +18,7 @@ interface ShowOptions {
   scenarios?: boolean; // --no-scenarios sets this to false (JSON only)
   requirement?: string; // JSON only
   noInteractive?: boolean;
+  rootOutput?: RootOutput;
 }
 
 function parseSpecFromFile(specPath: string, specId: string): Spec {
@@ -65,12 +68,20 @@ function printSpecTextRaw(specPath: string): void {
 }
 
 export class SpecCommand {
-  private SPECS_DIR = 'openspec/specs';
+  private specsDir: string;
+  private rootPath?: string;
+
+  // rootPath is set only by root-aware callers (top-level `show`); the
+  // deprecated noun-form commands stay cwd-based.
+  constructor(rootPath?: string) {
+    this.rootPath = rootPath;
+    this.specsDir = rootPath ? join(rootPath, 'openspec', 'specs') : SPECS_DIR;
+  }
 
   async show(specId?: string, options: ShowOptions = {}): Promise<void> {
     if (!specId) {
       const canPrompt = isInteractive(options);
-      const specIds = await getSpecIds();
+      const specIds = await getSpecIds(this.rootPath ?? process.cwd());
       if (canPrompt && specIds.length > 0) {
         const { select } = await import('@inquirer/prompts');
         specId = await select({
@@ -82,9 +93,12 @@ export class SpecCommand {
       }
     }
 
-    const specPath = join(this.SPECS_DIR, specId, 'spec.md');
+    const specPath = join(this.specsDir, specId, 'spec.md');
     if (!existsSync(specPath)) {
-      throw new Error(`Spec '${specId}' not found at openspec/specs/${specId}/spec.md`);
+      // Root-aware callers get the absolute path; the cwd-based noun form
+      // keeps its historical forward-slash relative message on all platforms.
+      const displayPath = this.rootPath ? specPath : `openspec/specs/${specId}/spec.md`;
+      throw new Error(`Spec '${specId}' not found at ${displayPath}`);
     }
 
     if (options.json) {
@@ -100,6 +114,7 @@ export class SpecCommand {
         requirementCount: filtered.requirements.length,
         requirements: filtered.requirements,
         metadata: parsed.metadata ?? { version: '1.0.0', format: 'openspec' as const },
+        ...(options.rootOutput ? { root: options.rootOutput } : {}),
       };
       console.log(JSON.stringify(output, null, 2));
       return;
@@ -141,37 +156,32 @@ export function registerSpecCommand(rootProgram: typeof program) {
     .description('List all available specifications')
     .option('--json', 'Output as JSON')
     .option('--long', 'Show id and title with counts')
-    .action((options: { json?: boolean; long?: boolean }) => {
+    .action(async (options: { json?: boolean; long?: boolean }) => {
       try {
         if (!existsSync(SPECS_DIR)) {
           console.log('No items found');
           return;
         }
 
-        const specs = readdirSync(SPECS_DIR, { withFileTypes: true })
-          .filter(dirent => dirent.isDirectory())
-          .map(dirent => {
-            const specPath = join(SPECS_DIR, dirent.name, 'spec.md');
-            if (existsSync(specPath)) {
-              try {
-                const spec = parseSpecFromFile(specPath, dirent.name);
-                
-                return {
-                  id: dirent.name,
-                  title: spec.name,
-                  requirementCount: spec.requirements.length
-                };
-              } catch {
-                return {
-                  id: dirent.name,
-                  title: dirent.name,
-                  requirementCount: 0
-                };
-              }
+        const discovered = await discoverSpecFiles(SPECS_DIR);
+        const specs = discovered
+          .map(({ id, specFile }) => {
+            try {
+              const spec = parseSpecFromFile(specFile, id);
+
+              return {
+                id,
+                title: spec.name,
+                requirementCount: spec.requirements.length
+              };
+            } catch {
+              return {
+                id,
+                title: id,
+                requirementCount: 0
+              };
             }
-            return null;
           })
-          .filter((spec): spec is { id: string; title: string; requirementCount: number } => spec !== null)
           .sort((a, b) => a.id.localeCompare(b.id));
 
         if (options.json) {

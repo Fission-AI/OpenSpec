@@ -5,34 +5,14 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
+import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
-// ── Shared instruction body ───────────────────────────────────────────────────
-// Single source of truth for apply workflow instructions.
-// Parameterized by mode so skill-friendly references and command-specific
-// slash commands (/opsx:*) can differ without duplicating the entire body.
-// See: https://github.com/Fission-AI/OpenSpec/issues/1139
-/**
- * Returns the apply workflow instruction body for the given mode.
- * Skill mode uses skill-friendly references (e.g. openspec-continue-change skill).
- * Command mode uses slash command references (e.g. /opsx:continue, /opsx:archive).
- */
-function getApplyInstructions(mode: 'skill' | 'command'): string {
-  const continueRef = mode === 'command'
-    ? '`/opsx:continue`'
-    : 'the openspec-continue-change skill';
-  const archiveRef = mode === 'command'
-    ? 'You can archive this change with `/opsx:archive`.'
-    : 'Ready to archive this change.';
-  const inputExample = mode === 'command'
-    ? ' (e.g., `/opsx:apply add-auth`)'
-    : '';
-  const overrideExample = mode === 'command'
-  ? ' (e.g., `/opsx:apply <other>`)'
-  : '';
-
+function getApplyInstructions(): string {
   return `Implement tasks from an OpenSpec change.
 
-**Input**: Optionally specify a change name${inputExample}. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+${STORE_SELECTION_GUIDANCE}
+
+**Input**: Optionally specify a change name (e.g., \`/opsx:apply add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
@@ -41,9 +21,9 @@ function getApplyInstructions(mode: 'skill' | 'command'): string {
    If a name is provided, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
    - Auto-select if only one active change exists
-   - If ambiguous, run \`openspec list --json\` to get available changes and use the **AskUserQuestion tool** to let the user select
+   - If ambiguous, run \`openspec list --json\` to get available changes and ask the user to select one
 
-   Always announce: "Using change: <name>" and how to override${overrideExample}.
+   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:apply <other>\`).
 
 2. **Check status to understand the schema**
    \`\`\`bash
@@ -61,17 +41,32 @@ function getApplyInstructions(mode: 'skill' | 'command'): string {
    \`\`\`
 
    This returns:
-   - \`contextFiles\`: artifact ID -> array of concrete file paths (varies by schema - could be proposal/specs/design/tasks or spec/tests/implementation/docs)
+   - \`contextFiles\`: artifact ID -> array of concrete file paths (varies by schema)
    - Progress (total, complete, remaining)
    - Task list with status
    - Dynamic instruction based on current state
+   - Optional \`context\`: current required project instruction input from the selected root
+   - Optional \`operationGuidance\`: current advisory guidance for apply
 
    **Handle states:**
-   - If \`state: "blocked"\` (missing artifacts): show message, suggest using ${continueRef}
+   - If \`state: "blocked"\` (missing artifacts): show message, suggest using \`/opsx:continue\` (if it is not installed, run \`openspec status --change "<name>" --json\` to see the next artifact and \`openspec instructions <artifact-id> --change "<name>" --json\` for how to create it)
    - If \`state: "all_done"\`: congratulate, suggest archive
    - Otherwise: proceed to implementation
 
-   **Workspace guard:** If status JSON reports \`actionContext.mode: "workspace-planning"\` and \`allowedEditRoots\` is empty, explain that full workspace apply is not supported in this slice. Treat linked repos and folders as read-only context, ask the user to select an affected area through an explicit implementation workflow, and STOP before editing files.
+   Treat \`context\` as a required prompt-level input. Read and consider it, and
+   apply relevant project facts, conventions, and constraints while implementing.
+   Treat \`operationGuidance\` as optional additive advice. Read and consider every
+   entry, and follow entries that are applicable and compatible with the built-in
+   workflow.
+
+   Keep both fields separate from CLI-returned state, missing artifacts, tasks,
+   progress, \`contextFiles\`, and the built-in \`instruction\`. They are not
+   evidence of task completion, do not replace the built-in instruction, and do
+   not permit bypassing a blocked state. If context conflicts with the built-in
+   instruction, an explicit user choice, or a CLI-controlled value, report the
+   conflict and preserve the controlling value. If guidance is inapplicable or
+   conflicts with those controlling inputs, do not follow it and explain why.
+   These are prompt-level behavior contracts, not enforceable checks.
 
 4. **Read context files**
 
@@ -79,6 +74,9 @@ function getApplyInstructions(mode: 'skill' | 'command'): string {
    The files depend on the schema being used:
    - **spec-driven**: proposal, specs, design, tasks
    - Other schemas: follow the contextFiles from CLI output
+
+   Do not copy \`context\` or \`operationGuidance\` verbatim into implementation
+   files or planning artifacts unless the user separately asks for that content.
 
 5. **Show current progress**
 
@@ -139,7 +137,7 @@ Working on task 4/7: <task description>
 - [x] Task 2
 ...
 
-${archiveRef}
+All tasks complete! You can archive this change with \`/opsx:archive\`.
 \`\`\`
 
 **Output On Pause (Issue Encountered)**
@@ -171,6 +169,11 @@ What would you like to do?
 - Update task checkbox immediately after completing each task
 - Pause on errors, blockers, or unclear requirements - don't guess
 - Use contextFiles from CLI output, don't assume specific file names
+- Do not use context or operation guidance as proof that a task is complete
+- Apply relevant project context; report conflicts with controlling workflow inputs
+- Consider every guidance entry; explain any inapplicable or conflicting advice
+- Do not copy runtime context or operation guidance into implementation files or planning artifacts
+- Preserve CLI-controlled blocked/ready/all-done behavior and completion criteria
 
 **Fluid Workflow Integration**
 
@@ -180,31 +183,23 @@ This skill supports the "actions on a change" model:
 - **Allows artifact updates**: If implementation reveals design issues, suggest updating artifacts - not phase-locked, work fluidly`;
 }
 
-/**
- * Returns the skill template for the apply-change workflow.
- * Used by skills-only tools (e.g. Antigravity) via SKILL.md discovery.
- */
 export function getApplyChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-apply-change',
     description: 'Implement tasks from an OpenSpec change. Use when the user wants to start implementing, continue implementation, or work through tasks.',
-    instructions: getApplyInstructions('skill'),
+    instructions: getApplyInstructions(),
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
   };
 }
 
-/**
- * Returns the command template for the opsx apply workflow.
- * Used by Claude Code and other command-enabled tools via /opsx:apply.
- */
 export function getOpsxApplyCommandTemplate(): CommandTemplate {
   return {
     name: 'OPSX: Apply',
     description: 'Implement tasks from an OpenSpec change (Experimental)',
     category: 'Workflow',
     tags: ['workflow', 'artifacts', 'experimental'],
-    content: getApplyInstructions('command'),
+    content: getApplyInstructions(),
   };
 }

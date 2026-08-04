@@ -17,6 +17,7 @@ The `openspec/config.yaml` file is the easiest way to customize OpenSpec for you
 - **Set a default schema** - Skip `--schema` on every command
 - **Inject project context** - AI sees your tech stack, conventions, etc.
 - **Add per-artifact rules** - Custom rules for specific artifacts
+- **Add per-operation guidance** - Advisory preferences for apply and archive work
 
 ### Quick Setup
 
@@ -43,6 +44,14 @@ rules:
   specs:
     - Use Given/When/Then format
     - Reference existing patterns before inventing new ones
+
+operations:
+  apply:
+    guidance:
+      - Run focused tests before the full suite
+  archive:
+    guidance:
+      - Keep the completion summary concise
 ```
 
 ### How It Works
@@ -79,6 +88,60 @@ Tech stack: TypeScript, React, Node.js, PostgreSQL
 
 - **Context** appears in ALL artifacts
 - **Rules** ONLY appear for the matching artifact
+
+**Operation guidance:**
+
+`operations.apply.guidance` and `operations.archive.guidance` are optional arrays
+of advisory instructions for how an agent should conduct those operations. They
+are separate from `rules`: operation guidance does not constrain artifact content,
+and artifact rules are never relabeled as operation guidance.
+
+Apply and archive fetch these inputs at execution time:
+
+```bash
+openspec instructions apply --change my-feature --json
+openspec instructions archive --change my-feature --json
+```
+
+Both surfaces return current project `context` and matching
+`operationGuidance` as separate optional fields. Each invocation reads a fresh
+snapshot from the resolved root. When `--store <id>` is selected, the change,
+context, and guidance all come from that store rather than the current repository.
+The archive instruction command is read-only: it does not inspect or merge delta
+specs, write main specs, move the change, or run the static archive workflow.
+
+Project context is a required prompt-level input. Generated workflows read it and
+apply relevant project facts, conventions, and constraints. Operation guidance is
+optional additive advice: workflows consider every entry and follow entries that
+are applicable and compatible with the built-in workflow.
+
+Both fields remain separate from CLI-controlled state, resolved paths, built-in
+steps, explicit user choices, and artifact rules. A workflow reports context
+conflicts while preserving the controlling value. It does not follow inapplicable
+or conflicting guidance and explains why. Neither field is an enforceable check,
+and workflows do not copy their text into implementation files, specs, change
+artifacts, or summaries unless the user separately requests that content.
+
+**Archive and spec-sync input safety:**
+
+Archive, bulk archive, and standalone sync use
+`artifactPaths.specs.existingOutputPaths` from `openspec status --json` as the
+only delta-spec source. A schema without a `specs` artifact, or a change whose
+concrete output list is empty, has nothing to sync; other artifacts are not used
+to infer delta specs.
+
+Before a semantic merge writes a main spec, the workflow consumes current
+`openspec instructions specs --change <name> --json` output. The returned
+`specs` rules constrain only the main specs produced by that merge. Single archive
+passes that snapshot into inline sync, standalone sync fetches it directly, and
+bulk archive obtains every required snapshot before its first spec write. A
+non-zero or invalid JSON archive/specs instruction response is a lookup failure,
+not an empty input: the workflow stops before the affected spec write or change
+move (for bulk archive, before any batch write or move).
+
+This configuration does not change archive execution phases, user prompts,
+filesystem operations, semantic merge ownership, the direct `openspec archive`
+command, or the structure and output of artifact `rules`.
 
 ### Schema Resolution Order
 
@@ -196,6 +259,10 @@ apply:
 | `template` | Template file in `templates/` directory |
 | `instruction` | AI instructions for creating this artifact |
 | `requires` | Dependencies - which artifacts must exist first |
+
+List artifacts in the order you want them written. `requires` decides what is
+possible; the order of the `artifacts:` list decides what comes first when
+several artifacts are ready at once.
 
 ### Templates
 
@@ -345,7 +412,11 @@ Community schemas are not vendored into OpenSpec core — they live in their own
 
 | Schema | Maintainer | Repository | Description |
 |--------|-----------|-----------|-------------|
+| `intent-driven` | @harikrishnan83 | [intent-driven-dev/openspec-schemas](https://github.com/intent-driven-dev/openspec-schemas/tree/main/openspec/schemas/intent-driven) | Captures change intent, observable behaviour, technical design, and durable architectural decisions before implementation. Adds a change-local ADR review manifest and writes qualifying long-lived decisions as immutable, supersedable ADRs. |
 | `superpowers-bridge` | @JiangWay | [JiangWay/openspec-schemas](https://github.com/JiangWay/openspec-schemas/tree/main/superpowers-bridge) | Integrates OpenSpec's artifact governance with [obra/superpowers](https://github.com/obra/superpowers) execution skills (brainstorming, writing-plans, TDD via subagents, code review, finishing). Adds an evidence-first `retrospective` artifact filling a gap Superpowers does not natively cover. |
+| `nanopm` | @nmrtn | [nmrtn/nanopm](https://github.com/nmrtn/nanopm/tree/main/openspec-schema) | PM-first workflow. Runs [nanopm](https://github.com/nmrtn/nanopm)'s planning pipeline (audit → strategy → roadmap → PRD) upstream of implementation. Bridges product planning to OpenSpec's spec-driven engineering workflow. Artifacts read from `.nanopm/` if present — proposal sources the audit, design sources the strategy, and tasks source the PRD breakdown. |
+| `e2e-runbooks` | @Lukk17 | [Lukk17/openspec-schemas](https://github.com/Lukk17/openspec-schemas/tree/master/openspec/schemas/e2e-runbooks) | Capability-level end-to-end test runbooks. Each capability gets an immutable spec, an immutable tasks-template, and one timestamped run record per execution. Assertions are observable behaviour only (HTTP status, response body, persisted state — never log substrings); each run records start/end UTC, duration, and best-estimate LLM token consumption. |
+| `anvil` | @jikkujoyce | [jikkujoyce/openspec-schemas](https://github.com/jikkujoyce/openspec-schemas/tree/main/schemas/anvil) | Spec-driven workflow with TDD discipline and an adversarial review step. Flow: `proposal` → `specs` → `design` → `review` → `test-plan` → `tasks` → `apply` → `verify`. `review` is written by a fresh-context, read-only reviewer (a second model when one is available) and emits a `VERDICT:` line telling the agent to gate `test-plan`, `tasks`, and `apply`; OpenSpec only checks that artifacts exist, so enforce the gate with your own CI or hook. `test-plan` maps every spec scenario to a named test and doubles as a red/green ledger that `verify` audits. |
 
 > Want to contribute a community schema? Open an issue with a link to your repository, or submit a PR adding a row to this table.
 
