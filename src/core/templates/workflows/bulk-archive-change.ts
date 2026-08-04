@@ -192,7 +192,7 @@ ${STORE_SELECTION_GUIDANCE}
       - Verify that main specs are updated:
         - ADDED requirements present
         - MODIFIED requirements carrying scenario and description changes named in the delta, with their other scenarios intact
-        - REMOVED requirements gone
+        - REMOVED requirements gone — and where this sync retired a capability (removed its last requirement, leaving \`## Requirements\` empty), its main spec deleted rather than left empty; a spec the sync deliberately kept and reported is also a match
         - RENAMED requirements present under the new name and absent under the old one
       - Do not verify delta specs in \`excludedDeltas\`; they are intentionally left unsynced.
       - If sync failed or any capability does not match verification, report what differs and fail/skip moving that change's \`changeRoot\` — do not archive that change. \`changeRoot\` remains intact.
@@ -530,7 +530,7 @@ ${STORE_SELECTION_GUIDANCE}
       - Verify that main specs are updated:
         - ADDED requirements present
         - MODIFIED requirements carrying scenario and description changes named in the delta, with their other scenarios intact
-        - REMOVED requirements gone
+        - REMOVED requirements gone — and where this sync retired a capability (removed its last requirement, leaving \`## Requirements\` empty), its main spec deleted rather than left empty; a spec the sync deliberately kept and reported is also a match
         - RENAMED requirements present under the new name and absent under the old one
       - Do not verify delta specs in \`excludedDeltas\`; they are intentionally left unsynced.
       - If sync failed or any capability does not match verification, report what differs and fail/skip moving that change's \`changeRoot\` — do not archive that change. \`changeRoot\` remains intact.
