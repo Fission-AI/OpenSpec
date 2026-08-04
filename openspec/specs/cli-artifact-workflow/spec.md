@@ -25,13 +25,15 @@ The system SHALL display artifact completion status for a change, including scaf
 #### Scenario: Status JSON output
 
 - **WHEN** user runs `openspec status --change <id> --json`
-- **THEN** the system outputs JSON with changeName, schemaName, isComplete, and artifacts array
+- **THEN** the system outputs JSON with changeName, schemaName, isPlanningComplete, isComplete, and artifacts array
+- **AND** `isPlanningComplete` is true only when every planning artifact exists
+- **AND** `isComplete` remains a compatibility alias with the same value
 
 #### Scenario: Status JSON includes apply requirements
 
 - **WHEN** user runs `openspec status --change <id> --json`
 - **THEN** the system outputs JSON with:
-  - `changeName`, `schemaName`, `isComplete`, `artifacts` array
+  - `changeName`, `schemaName`, `isPlanningComplete`, `isComplete`, `artifacts` array
   - `applyRequires`: array of artifact IDs needed for apply phase
 
 #### Scenario: Status JSON exposes each artifact's dependency edges

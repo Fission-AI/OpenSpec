@@ -118,6 +118,7 @@ describe('artifact-workflow CLI commands', () => {
       const json = JSON.parse(result.stdout);
       expect(json.changeName).toBe('json-change');
       expect(json.schemaName).toBe('spec-driven');
+      expect(json.isPlanningComplete).toBe(false);
       expect(json.isComplete).toBe(false);
       expect(Array.isArray(json.artifacts)).toBe(true);
       expect(json.artifacts).toHaveLength(4);
@@ -146,6 +147,28 @@ describe('artifact-workflow CLI commands', () => {
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('4/4 artifacts complete');
       expect(result.stdout).toContain('All artifacts complete!');
+    });
+
+    it('distinguishes planning completion from implementation task completion', async () => {
+      await createTestChange('planned-change', ['proposal', 'design', 'specs', 'tasks']);
+
+      const statusResult = await runCLI(['status', '--change', 'planned-change', '--json'], {
+        cwd: tempDir,
+      });
+      const applyResult = await runCLI(
+        ['instructions', 'apply', '--change', 'planned-change', '--json'],
+        { cwd: tempDir }
+      );
+
+      expect(statusResult.exitCode).toBe(0);
+      expect(applyResult.exitCode).toBe(0);
+
+      const status = JSON.parse(statusResult.stdout);
+      const apply = JSON.parse(applyResult.stdout);
+      expect(status.isPlanningComplete).toBe(true);
+      expect(status.isComplete).toBe(true);
+      expect(apply.state).toBe('ready');
+      expect(apply.progress.remaining).toBe(1);
     });
 
     it('exits gracefully when no changes exist', async () => {

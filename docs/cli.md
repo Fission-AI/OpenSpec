@@ -750,6 +750,7 @@ A change that declares `skip_specs: true` shows its specs stage as `[~] specs (s
 {
   "changeName": "add-dark-mode",
   "schemaName": "spec-driven",
+  "isPlanningComplete": false,
   "isComplete": false,
   "applyRequires": ["tasks"],
   "artifacts": [
@@ -760,6 +761,10 @@ A change that declares `skip_specs: true` shows its specs stage as `[~] specs (s
   ]
 }
 ```
+
+`isPlanningComplete` reports whether all planning artifacts exist; it does not
+report whether implementation tasks are complete. `isComplete` is retained as
+a compatibility alias with the same value.
 
 Artifacts are listed in dependency order - a dependency never appears after
 something that requires it - and artifacts that become ready at the same time

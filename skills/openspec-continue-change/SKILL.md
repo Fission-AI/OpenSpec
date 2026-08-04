@@ -41,14 +41,14 @@ Continue working on a change by creating the next artifact.
    Parse the JSON to understand current state. The response includes:
    - `schemaName`: The workflow schema being used (e.g., "spec-driven")
    - `artifacts`: Array of artifacts with their status ("done", "skipped", "ready", "blocked")
-   - `isComplete`: Boolean indicating if all artifacts are complete
+   - `isPlanningComplete`: Boolean indicating if all planning artifacts are complete. Older CLI versions expose the same value as `isComplete`.
    - `planningHome`, `changeRoot`, `artifactPaths`, and `actionContext`: path and scope context. Use these instead of assuming repo-local paths.
 
 3. **Act based on status**:
 
    ---
 
-   **If all artifacts are complete (`isComplete: true`)**:
+   **If all planning artifacts are complete (`isPlanningComplete: true`, or legacy `isComplete: true`)**:
    - Congratulate the user
    - Show final status including the schema used
    - Suggest: "All artifacts created! You can now implement this change or archive it."

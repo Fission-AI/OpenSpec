@@ -640,6 +640,7 @@ rules:
 
       expect(status.changeName).toBe('my-change');
       expect(status.schemaName).toBe('spec-driven');
+      expect(status.isPlanningComplete).toBe(false);
       expect(status.isComplete).toBe(false);
 
       // proposal has no deps, should be ready
@@ -679,7 +680,7 @@ rules:
       expect(specs?.outputPath).toBe('specs/**/*.md');
     });
 
-    it('should report isComplete true when all done', () => {
+    it('should report planning completion without removing the compatibility alias', () => {
       const changeDir = path.join(tempDir, 'openspec', 'changes', 'my-change');
       fs.mkdirSync(changeDir, { recursive: true });
       fs.mkdirSync(path.join(changeDir, 'specs'), { recursive: true });
@@ -693,7 +694,9 @@ rules:
       const context = loadChangeContext(tempDir, 'my-change');
       const status = formatChangeStatus(context);
 
+      expect(status.isPlanningComplete).toBe(true);
       expect(status.isComplete).toBe(true);
+      expect(status.isComplete).toBe(status.isPlanningComplete);
       expect(status.artifacts.every(a => a.status === 'done')).toBe(true);
     });
 
