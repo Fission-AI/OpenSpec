@@ -28,6 +28,57 @@ OPSX (fluid actions):
 
 > **Customization:** OPSX workflows are driven by schemas that define artifact sequences. See [Customization](customization.md) for details on creating custom schemas.
 
+## Workflow at a Glance
+
+The default workflow stays fluid: exploration and verification are optional, and
+you can update planning artifacts whenever implementation reveals something new.
+
+```mermaid
+flowchart LR
+    Idea["Idea or problem"] --> Explore["/opsx:explore<br/>(optional)"]
+    Idea --> Propose["/opsx:propose"]
+    Explore --> Propose
+    Propose --> Review{"Planning artifacts<br/>ready?"}
+    Review -->|"Refine"| Update["/opsx:update"]
+    Update --> Review
+    Review -->|"Implement"| Apply["/opsx:apply"]
+    Apply --> Verify["/opsx:verify<br/>(optional, expanded profile)"]
+    Apply --> Sync["/opsx:sync<br/>(optional before archive)"]
+    Verify --> Sync
+    Verify --> Archive["/opsx:archive"]
+    Sync --> Archive
+```
+
+The AI assistant drives the workflow, while the CLI provides deterministic
+scaffolding, status, and artifact instructions:
+
+```mermaid
+sequenceDiagram
+    actor Human
+    participant Assistant as AI assistant
+    participant CLI as OpenSpec CLI
+    participant Files as Project files
+
+    Human->>Assistant: /opsx:propose "change"
+    Assistant->>CLI: openspec new change
+    CLI->>Files: Scaffold change metadata
+    Assistant->>CLI: Request status and artifact instructions
+    CLI-->>Assistant: Build order, paths, and templates
+    Assistant->>Files: Write proposal, specs, design, and tasks
+    Assistant-->>Human: Present artifacts for review
+
+    Human->>Assistant: /opsx:apply
+    Assistant->>CLI: Request apply instructions
+    CLI-->>Assistant: Context files and task state
+    Assistant->>Files: Implement tasks and update checkboxes
+    Assistant-->>Human: Report implementation status
+
+    Human->>Assistant: /opsx:archive
+    Assistant->>CLI: Check artifact and task status
+    Assistant->>Files: Sync accepted spec changes and archive the change
+    Assistant-->>Human: Report archive location and sync result
+```
+
 ## Two Modes
 
 ### Default Quick Path (`core` profile)
