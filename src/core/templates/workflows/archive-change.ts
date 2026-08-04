@@ -15,6 +15,8 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
 
 ${STORE_SELECTION_GUIDANCE}
 
+\`<capability-path>\` is the spec directory relative to \`specs/\` (for example, \`user-auth\` or \`identity/user-auth\`). Preserve the full path from each delta spec when resolving its main spec.
+
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
@@ -93,7 +95,7 @@ ${STORE_SELECTION_GUIDANCE}
    delta specs from other artifacts.
 
    **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at \`<planningHome.root>/openspec/specs/<capability>/spec.md\` (use the store-aware \`planningHome.root\` from step 2, not a hardcoded repo path)
+   - Compare each delta spec with its corresponding main spec at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` (use the store-aware \`planningHome.root\` from step 2, not a hardcoded repo path)
    - Determine what changes would be applied (adds, modifications, removals, renames)
    - Show a combined summary before prompting
 
@@ -195,6 +197,8 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
 
 ${STORE_SELECTION_GUIDANCE}
 
+\`<capability-path>\` is the spec directory relative to \`specs/\` (for example, \`user-auth\` or \`identity/user-auth\`). Preserve the full path from each delta spec when resolving its main spec.
+
 **Input**: Optionally specify a change name after \`/opsx:archive\` (e.g., \`/opsx:archive add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
@@ -273,7 +277,7 @@ ${STORE_SELECTION_GUIDANCE}
    delta specs from other artifacts.
 
    **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at \`<planningHome.root>/openspec/specs/<capability>/spec.md\` (use the store-aware \`planningHome.root\` from step 2, not a hardcoded repo path)
+   - Compare each delta spec with its corresponding main spec at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` (use the store-aware \`planningHome.root\` from step 2, not a hardcoded repo path)
    - Determine what changes would be applied (adds, modifications, removals, renames)
    - Show a combined summary before prompting
 

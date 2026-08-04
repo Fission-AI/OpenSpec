@@ -132,14 +132,16 @@ If the user mentions a change or you detect one is relevant:
 
 3. **Offer to capture when decisions are made**
 
-    | Insight Type               | Where to Capture               |
-    |----------------------------|--------------------------------|
-    | New requirement discovered | \`specs/<capability>/spec.md\` |
-    | Requirement changed        | \`specs/<capability>/spec.md\` |
-    | Design decision made       | \`design.md\`                  |
-    | Scope changed              | \`proposal.md\`                |
-    | New work identified        | \`tasks.md\`                   |
-    | Assumption invalidated     | Relevant artifact              |
+   \`<capability-path>\` is the spec directory relative to \`specs/\` (for example, \`user-auth\` or \`identity/user-auth\`). Preserve an existing capability's full path and follow the project's established organization for new capabilities.
+
+    | Insight Type               | Where to Capture                    |
+    |----------------------------|-------------------------------------|
+    | New requirement discovered | \`specs/<capability-path>/spec.md\` |
+    | Requirement changed        | \`specs/<capability-path>/spec.md\` |
+    | Design decision made       | \`design.md\`                       |
+    | Scope changed              | \`proposal.md\`                     |
+    | New work identified        | \`tasks.md\`                        |
+    | Assumption invalidated     | Relevant artifact                   |
 
    Example offers:
    - "That's a design decision. Capture it in design.md?"
@@ -447,14 +449,16 @@ If the user mentions a change or you detect one is relevant:
 
 3. **Offer to capture when decisions are made**
 
-    | Insight Type               | Where to Capture               |
-    |----------------------------|--------------------------------|
-    | New requirement discovered | \`specs/<capability>/spec.md\` |
-    | Requirement changed        | \`specs/<capability>/spec.md\` |
-    | Design decision made       | \`design.md\`                  |
-    | Scope changed              | \`proposal.md\`                |
-    | New work identified        | \`tasks.md\`                   |
-    | Assumption invalidated     | Relevant artifact              |
+   \`<capability-path>\` is the spec directory relative to \`specs/\` (for example, \`user-auth\` or \`identity/user-auth\`). Preserve an existing capability's full path and follow the project's established organization for new capabilities.
+
+    | Insight Type               | Where to Capture                    |
+    |----------------------------|-------------------------------------|
+    | New requirement discovered | \`specs/<capability-path>/spec.md\` |
+    | Requirement changed        | \`specs/<capability-path>/spec.md\` |
+    | Design decision made       | \`design.md\`                       |
+    | Scope changed              | \`proposal.md\`                     |
+    | New work identified        | \`tasks.md\`                        |
+    | Assumption invalidated     | Relevant artifact                   |
 
    Example offers:
    - "That's a design decision. Capture it in design.md?"

@@ -240,6 +240,69 @@ describe('skill templates split parity', () => {
     }
   });
 
+  it('preserves nested capability paths in spec-aware workflow guidance (#1459)', () => {
+    const capabilityPathDefinition =
+      '`<capability-path>` is the spec directory relative to `specs/`';
+    const pathAwareTemplates: Array<[string, string, string]> = [
+      [
+        'propose skill',
+        generateSkillContent(getOpsxProposeSkillTemplate(), 'PARITY-BASELINE'),
+        'specs/<capability-path>/spec.md',
+      ],
+      [
+        'propose command',
+        getOpsxProposeCommandTemplate().content,
+        'specs/<capability-path>/spec.md',
+      ],
+      [
+        'explore skill',
+        generateSkillContent(getExploreSkillTemplate(), 'PARITY-BASELINE'),
+        'specs/<capability-path>/spec.md',
+      ],
+      [
+        'explore command',
+        getOpsxExploreCommandTemplate().content,
+        'specs/<capability-path>/spec.md',
+      ],
+      [
+        'sync skill',
+        generateSkillContent(getSyncSpecsSkillTemplate(), 'PARITY-BASELINE'),
+        '<planningHome.root>/openspec/specs/<capability-path>/spec.md',
+      ],
+      [
+        'sync command',
+        getOpsxSyncCommandTemplate().content,
+        '<planningHome.root>/openspec/specs/<capability-path>/spec.md',
+      ],
+      [
+        'archive skill',
+        generateSkillContent(getArchiveChangeSkillTemplate(), 'PARITY-BASELINE'),
+        '<planningHome.root>/openspec/specs/<capability-path>/spec.md',
+      ],
+      [
+        'archive command',
+        getOpsxArchiveCommandTemplate().content,
+        '<planningHome.root>/openspec/specs/<capability-path>/spec.md',
+      ],
+      [
+        'bulk archive skill',
+        generateSkillContent(getBulkArchiveChangeSkillTemplate(), 'PARITY-BASELINE'),
+        '<planningHome.root>/openspec/specs/<capability-path>/spec.md',
+      ],
+      [
+        'bulk archive command',
+        getOpsxBulkArchiveCommandTemplate().content,
+        '<planningHome.root>/openspec/specs/<capability-path>/spec.md',
+      ],
+    ];
+
+    for (const [label, content, destination] of pathAwareTemplates) {
+      expect(content, label).toContain(capabilityPathDefinition);
+      expect(content, label).toContain(destination);
+      expect(content, label).not.toContain('specs/<capability>/spec.md');
+    }
+  });
+
   it('generates no workspace-planning residue in any workflow template (4.1)', () => {
     const allSkills: Array<[string, () => SkillTemplate]> = [
       ['openspec-apply-change', getApplyChangeSkillTemplate],
@@ -301,7 +364,7 @@ describe('skill templates split parity', () => {
       expect(content, variant).toContain('not only the ones the sync reports it touched');
 
       // Main spec paths are store-root aware
-      expect(content, variant).toContain('<planningHome.root>/openspec/specs/<capability>/spec.md');
+      expect(content, variant).toContain('<planningHome.root>/openspec/specs/<capability-path>/spec.md');
     }
   });
 
@@ -329,7 +392,7 @@ describe('skill templates split parity', () => {
       expect(content, variant).toContain('RENAMED requirements present under the new name and absent under the old one');
 
       // Main spec paths are store-root aware
-      expect(content, variant).toContain('<planningHome.root>/openspec/specs/<capability>/spec.md');
+      expect(content, variant).toContain('<planningHome.root>/openspec/specs/<capability-path>/spec.md');
     }
   });
 

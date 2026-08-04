@@ -178,7 +178,7 @@ export class Validator {
           level: 'ERROR',
           path: 'spec.md',
           message:
-            'Delta spec found at specs/spec.md. Delta specs must live in a capability folder (e.g. specs/<capability>/spec.md) — a file at the specs/ root is ignored when the change is applied or archived.',
+            'Delta spec found at specs/spec.md. Delta specs must live under a capability path (e.g. specs/<capability-path>/spec.md) — a file at the specs/ root is ignored when the change is applied or archived.',
         });
       }
 

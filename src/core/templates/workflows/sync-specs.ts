@@ -17,6 +17,8 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
 ${STORE_SELECTION_GUIDANCE}
 
+\`<capability-path>\` is the spec directory relative to \`specs/\` (for example, \`user-auth\` or \`identity/user-auth\`). Preserve the full path from each delta spec when resolving its main spec.
+
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
@@ -91,7 +93,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    a. **Read the delta spec** to understand the intended changes
 
-   b. **Read the main spec** at \`<planningHome.root>/openspec/specs/<capability>/spec.md\` (may not exist yet)
+   b. **Read the main spec** at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` (may not exist yet)
 
    c. **Apply changes intelligently**:
 
@@ -140,7 +142,7 @@ ${STORE_SELECTION_GUIDANCE}
         (this is what \`openspec archive\` does; it warns and moves on)
 
    d. **Create new main spec** if capability doesn't exist yet:
-      - Create \`<planningHome.root>/openspec/specs/<capability>/spec.md\`
+      - Create \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\`
       - Add Purpose section: copy the delta's \`## Purpose\` body verbatim when it has one
         (this is what \`openspec archive\` does); only write a brief TBD placeholder when it does not
       - Add Requirements section with the ADDED requirements
@@ -275,6 +277,8 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
 ${STORE_SELECTION_GUIDANCE}
 
+\`<capability-path>\` is the spec directory relative to \`specs/\` (for example, \`user-auth\` or \`identity/user-auth\`). Preserve the full path from each delta spec when resolving its main spec.
+
 **Input**: Optionally specify a change name after \`/opsx:sync\` (e.g., \`/opsx:sync add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
@@ -349,7 +353,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    a. **Read the delta spec** to understand the intended changes
 
-   b. **Read the main spec** at \`<planningHome.root>/openspec/specs/<capability>/spec.md\` (may not exist yet)
+   b. **Read the main spec** at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` (may not exist yet)
 
    c. **Apply changes intelligently**:
 
@@ -398,7 +402,7 @@ ${STORE_SELECTION_GUIDANCE}
         (this is what \`openspec archive\` does; it warns and moves on)
 
    d. **Create new main spec** if capability doesn't exist yet:
-      - Create \`<planningHome.root>/openspec/specs/<capability>/spec.md\`
+      - Create \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\`
       - Add Purpose section: copy the delta's \`## Purpose\` body verbatim when it has one
         (this is what \`openspec archive\` does); only write a brief TBD placeholder when it does not
       - Add Requirements section with the ADDED requirements

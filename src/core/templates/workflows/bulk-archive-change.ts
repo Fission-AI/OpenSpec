@@ -17,6 +17,8 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
 ${STORE_SELECTION_GUIDANCE}
 
+\`<capability-path>\` is the spec directory relative to \`specs/\` (for example, \`user-auth\` or \`identity/user-auth\`). Preserve the full path from each delta spec when resolving its main spec.
+
 **Input**: None required (prompts for selection)
 
 **Steps**
@@ -188,7 +190,7 @@ ${STORE_SELECTION_GUIDANCE}
       - If a change has no included delta specs, do not run the sync workflow for it.
 
    b. **Verify included delta specs before moving changeRoot**:
-      - Re-run the comparison only for delta specs in \`includedDeltas\` against main spec at \`<planningHome.root>/openspec/specs/<capability>/spec.md\` (use the store-aware \`planningHome.root\` from step 3 status JSON, not a hardcoded repo path).
+      - Re-run the comparison only for delta specs in \`includedDeltas\` against main spec at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` (use the store-aware \`planningHome.root\` from step 3 status JSON, not a hardcoded repo path).
       - Verify that main specs are updated:
         - ADDED requirements present
         - MODIFIED requirements carrying scenario and description changes named in the delta, with their other scenarios intact
@@ -325,7 +327,7 @@ No active changes found. Create a new change to get started.
 - If sync is requested, run the \`openspec-sync-specs\` workflow inline (agent-driven) for each change with included delta specs
 - Carry the per-delta \`includedDeltas\` and \`excludedDeltas\` decisions into execution; sync and verify only included deltas
 - Report every excluded delta as \`sync skipped\` without treating the archive itself as skipped
-- Never archive a change while a spec sync is still in flight — run the sync inline and verify main specs at \`<planningHome.root>/openspec/specs/<capability>/spec.md\` before moving \`changeRoot\`
+- Never archive a change while a spec sync is still in flight — run the sync inline and verify main specs at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` before moving \`changeRoot\`
 - Fetch archive inputs once per selected root before spec inspection or moves
 - Fetch all required specs-rule snapshots before the batch's first main-spec write or move
 - A failed archive-inputs lookup never blocks the batch; it proceeds with no context or guidance
@@ -353,6 +355,8 @@ export function getOpsxBulkArchiveCommandTemplate(): CommandTemplate {
 This skill allows you to batch-archive changes, handling spec conflicts intelligently by checking the codebase to determine what's actually implemented.
 
 ${STORE_SELECTION_GUIDANCE}
+
+\`<capability-path>\` is the spec directory relative to \`specs/\` (for example, \`user-auth\` or \`identity/user-auth\`). Preserve the full path from each delta spec when resolving its main spec.
 
 **Input**: None required (prompts for selection)
 
@@ -526,7 +530,7 @@ ${STORE_SELECTION_GUIDANCE}
       - If a change has no included delta specs, do not run the sync workflow for it.
 
    b. **Verify included delta specs before moving changeRoot**:
-      - Re-run the comparison only for delta specs in \`includedDeltas\` against main spec at \`<planningHome.root>/openspec/specs/<capability>/spec.md\` (use the store-aware \`planningHome.root\` from step 3 status JSON, not a hardcoded repo path).
+      - Re-run the comparison only for delta specs in \`includedDeltas\` against main spec at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` (use the store-aware \`planningHome.root\` from step 3 status JSON, not a hardcoded repo path).
       - Verify that main specs are updated:
         - ADDED requirements present
         - MODIFIED requirements carrying scenario and description changes named in the delta, with their other scenarios intact
@@ -663,7 +667,7 @@ No active changes found. Create a new change to get started.
 - If sync is requested, run the \`/opsx:sync\` workflow inline (agent-driven) for each change with included delta specs
 - Carry the per-delta \`includedDeltas\` and \`excludedDeltas\` decisions into execution; sync and verify only included deltas
 - Report every excluded delta as \`sync skipped\` without treating the archive itself as skipped
-- Never archive a change while a spec sync is still in flight — run the sync inline and verify main specs at \`<planningHome.root>/openspec/specs/<capability>/spec.md\` before moving \`changeRoot\`
+- Never archive a change while a spec sync is still in flight — run the sync inline and verify main specs at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` before moving \`changeRoot\`
 - Fetch archive inputs once per selected root before spec inspection or moves
 - Fetch all required specs-rule snapshots before the batch's first main-spec write or move
 - A failed archive-inputs lookup never blocks the batch; it proceeds with no context or guidance

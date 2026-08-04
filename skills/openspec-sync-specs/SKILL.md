@@ -15,6 +15,8 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
 **Store selection:** If the user names a store (a store is a standalone OpenSpec repo registered on this machine) or the work lives in one, run `openspec store list --json` to discover registered store ids, then pass `--store <id>` on the commands that read or write specs and changes (`new change`, `status`, `instructions`, `list`, `show`, `validate`, `archive`, `doctor`, `context`, `view`). Once selected, treat `--store <id>` as sticky for the rest of the workflow. Every unscoped example of those commands below is shorthand: before running it, append the flag. For example, run `openspec status --change "<name>" --json --store "<id>"`, not the unscoped form shown below. Other commands do not take the flag. Hints printed by commands already carry the flag; keep it on follow-ups. Without a store, commands act on the nearest local `openspec/` root.
 
+`<capability-path>` is the spec directory relative to `specs/` (for example, `user-auth` or `identity/user-auth`). Preserve the full path from each delta spec when resolving its main spec.
+
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
@@ -89,7 +91,7 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
    a. **Read the delta spec** to understand the intended changes
 
-   b. **Read the main spec** at `<planningHome.root>/openspec/specs/<capability>/spec.md` (may not exist yet)
+   b. **Read the main spec** at `<planningHome.root>/openspec/specs/<capability-path>/spec.md` (may not exist yet)
 
    c. **Apply changes intelligently**:
 
@@ -138,7 +140,7 @@ This is an **agent-driven** operation - you will read delta specs and directly e
         (this is what `openspec archive` does; it warns and moves on)
 
    d. **Create new main spec** if capability doesn't exist yet:
-      - Create `<planningHome.root>/openspec/specs/<capability>/spec.md`
+      - Create `<planningHome.root>/openspec/specs/<capability-path>/spec.md`
       - Add Purpose section: copy the delta's `## Purpose` body verbatim when it has one
         (this is what `openspec archive` does); only write a brief TBD placeholder when it does not
       - Add Requirements section with the ADDED requirements
