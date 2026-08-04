@@ -8,7 +8,7 @@ export function Mermaid({ chart }: { chart: string }) {
       bg: 'var(--color-fd-background)',
       fg: 'var(--color-fd-foreground)',
       transparent: true,
-    }).replace(/\s*@import url\([^)]*\);\s*/g, '');
+    }).replace(/^\s*@import url\(['"]https:\/\/fonts\.googleapis\.com\/[^)]*\);\s*$/m, '');
 
     return (
       <figure>
