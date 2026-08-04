@@ -48,7 +48,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    **Use a different schema only if the user:**
    - Explicitly requests a specific schema by name → use \`--schema <schema-name>\`
-   - Asks to "show workflows" or asks "what workflows" exist → identify the selected project or store root, then run \`openspec schemas --json\` with its working directory set to that root (the directory containing \`openspec/\`) and let them choose. For a registered store, use the store \`root\` returned by \`openspec store list --json\`; \`schemas\` does not accept \`--store\`
+   - Asks to "show workflows" or asks "what workflows" exist → resolve the authoritative root by running \`openspec context --json\` from the current working directory. If the user explicitly selected a registered store, use \`openspec context --json --store "<store-id>"\`. Then run \`openspec schemas --json\` with its working directory set to the returned \`root.path\` and let them choose. This preserves roots selected by a local \`store:\` pointer or the global \`defaultStore\`; \`schemas\` does not accept \`--store\`
 
    Otherwise, omit \`--schema\` to preserve the configured default.
 
@@ -195,7 +195,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    **Use a different schema only if the user:**
    - Explicitly requests a specific schema by name → use \`--schema <schema-name>\`
-   - Asks to "show workflows" or asks "what workflows" exist → identify the selected project or store root, then run \`openspec schemas --json\` with its working directory set to that root (the directory containing \`openspec/\`) and let them choose. For a registered store, use the store \`root\` returned by \`openspec store list --json\`; \`schemas\` does not accept \`--store\`
+   - Asks to "show workflows" or asks "what workflows" exist → resolve the authoritative root by running \`openspec context --json\` from the current working directory. If the user explicitly selected a registered store, use \`openspec context --json --store "<store-id>"\`. Then run \`openspec schemas --json\` with its working directory set to the returned \`root.path\` and let them choose. This preserves roots selected by a local \`store:\` pointer or the global \`defaultStore\`; \`schemas\` does not accept \`--store\`
 
    Otherwise, omit \`--schema\` to preserve the configured default.
 
