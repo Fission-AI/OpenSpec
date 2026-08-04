@@ -37,14 +37,14 @@ import {
 import { STORE_SELECTION_GUIDANCE } from '../../../src/core/templates/workflows/store-selection.js';
 
 const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
-  getExploreSkillTemplate: 'fd45923f8d9eecb8896c17d5ce6d309302132e289132c680d5b3b4d6490501e8',
+  getExploreSkillTemplate: 'ecfbf91e9e448cd760d02c710b93a41eaeab4a2f26316704afa4ca43859990b6',
   getNewChangeSkillTemplate: '935f6335e2d4b7d1bd4f0538c88386350c25e8b16e11b627556262229583ca51',
   getContinueChangeSkillTemplate: 'ed41e2356af7aad6ef760f60fad19c6843cefe436d8f90084dcba4dbc6bf7272',
   getApplyChangeSkillTemplate: 'e5fc093637d3100a61acf934553002a5e9f5bccab5110136d7680af4133f7351',
   getFfChangeSkillTemplate: 'fc2a45a08533ee9c7ab30fdab5f832b7d440070048e2a153f03db1620dc379bb',
   getSyncSpecsSkillTemplate: 'f90032dbeb3a647b451139e12624753057018986df000159499dadc2c3d0965a',
   getOnboardSkillTemplate: '0b0f9559e21e73a7acfb7e61b403b20080f10ba169d2330c6d55618ce1759a42',
-  getOpsxExploreCommandTemplate: '0f9af4120cfa7a8f273eebe7c0ddb56fd7c8705b28d1b1d48e1964a26b91d02f',
+  getOpsxExploreCommandTemplate: '1893639d2e95ae41ed537da97e9bbcc0f5f7c95626c94beec58ebb508f05f3b5',
   getOpsxNewCommandTemplate: '08e784e52ac2c146975a874257c589d88e93efbd83dc4d79253c8525f5c3064f',
   getOpsxContinueCommandTemplate: 'ae964cd00f6ca332fd7f9428a577ade75be279f50431d5f60ece8172e8d1a4b1',
   getOpsxApplyCommandTemplate: 'd879b0430f756b9dbc5a1a1348a34409b2fcd453eeae7add4bf9f421616c2ad1',
@@ -65,7 +65,7 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
 };
 
 const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
-  'openspec-explore': '87a93d0d748c071982ed2199719f00b2885db94d4ac11ae9f12f79909777660c',
+  'openspec-explore': '13c6e3a671258606c43a6c698344a1c77abcd7a8d174193d816043c3451b758f',
   'openspec-new-change': '579d432771703f947a331a6ed288bf9c6660ca015fcd376d76f19b6ac7683082',
   'openspec-continue-change': '5c34be8194cdb4c5158335e47aece71143e8a22bfb4179dba47fd8aaf436d395',
   'openspec-apply-change': '1726319cd4305a47f9c827acaeb84a9de57f7e44aba9ed60869c1758338e18ae',
