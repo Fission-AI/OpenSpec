@@ -60,7 +60,7 @@ import {
   shouldReconcileCommandFilesForTool,
   shouldRemoveSkillsForTool,
 } from './command-surface.js';
-import { includesGitHubCopilot, writeCopilotCloudFiles } from './github-copilot/cloud-agent.js';
+import { writeCopilotCloudFiles } from './github-copilot/cloud-agent.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
@@ -770,6 +770,9 @@ export class InitCommand {
         if (shouldReconcileCommandFilesForTool(tool.value, delivery)) {
           removedCommandCount += await this.removeCommandFiles(projectPath, tool.value);
         }
+        if (tool.value === 'github-copilot') {
+          await writeCopilotCloudFiles(projectPath);
+        }
 
         spinner.succeed(`Setup complete for ${tool.name}`);
 
@@ -781,16 +784,6 @@ export class InitCommand {
       } catch (error) {
         spinner.fail(`Failed for ${tool.name}`);
         failedTools.push({ name: tool.name, error: error as Error });
-      }
-    }
-
-    // Generate GitHub Copilot coding agent cloud files if github-copilot is selected
-    if (includesGitHubCopilot(tools.map((t) => t.value))) {
-      try {
-        await writeCopilotCloudFiles(projectPath);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        console.warn(`Warning: failed to generate Copilot cloud agent files: ${message}`);
       }
     }
 

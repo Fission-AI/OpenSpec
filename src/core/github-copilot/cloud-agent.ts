@@ -8,6 +8,7 @@
  */
 
 import path from 'path';
+import { promises as fs } from 'fs';
 import { FileSystemUtils } from '../../utils/file-system.js';
 
 const COPILOT_TOOL_ID = 'github-copilot';
@@ -70,15 +71,14 @@ jobs:
  * This tells the GitHub Copilot coding agent how to use the OpenSpec CLI.
  */
 export function generateCopilotAgentFile(): string {
-  return replaceRequired(
-    generateCopilotAgentFileBody(),
-    '\n# OpenSpec Agent',
-    `\n<!-- ${OPENSPEC_MANAGED_MARKER} -->\n\n# OpenSpec Agent`,
-    'agent heading'
-  );
+  return generateCopilotAgentFileBody(true);
 }
 
-function generateCopilotAgentFileBody(): string {
+function generateCopilotAgentFileBody(includeManagedMarker = false): string {
+  const managedMarker = includeManagedMarker
+    ? `<!-- ${OPENSPEC_MANAGED_MARKER} -->\n\n`
+    : '';
+
   return `---
 name: OpenSpec
 description: "Manages OpenSpec changes, specs, and workflows using the OpenSpec CLI. Use this agent for proposing changes, exploring ideas, validating artifacts, checking status, and archiving completed work."
@@ -89,9 +89,9 @@ tools:
   - "edit"
 ---
 
-# OpenSpec Agent
+${managedMarker}# OpenSpec Agent
 
-You are a specialized agent for managing OpenSpec workflows. You have access to the \`openspec\` CLI through shell commands, pre-installed in the development environment via \`copilot-setup-steps.yml\`.
+You are a specialized agent for managing OpenSpec workflows. Before using the \`openspec\` CLI, run \`openspec --version\`. If it is unavailable, install it with \`npm install -g @fission-ai/openspec\`.
 
 ## What is OpenSpec?
 
@@ -110,7 +110,7 @@ OpenSpec is a structured change management system for codebases. It organizes wo
 | \`openspec instructions [artifact] [--change <name>] [--json]\` | Get next-step instructions for a change |
 | \`openspec templates [--json]\` | List available templates |
 | \`openspec schemas [--json]\` | List available workflow schemas |
-| \`openspec archive <change>\` | Archive a completed change |
+| \`openspec archive <change> --json [--yes]\` | Archive a completed change; use \`--yes\` only after confirming all tasks are complete |
 
 ### Interactive CLI Commands (use when prompted by the user)
 
@@ -154,8 +154,35 @@ When the user wants to propose a new change:
 `;
 }
 
-function generateLegacyCopilotAgentFileBody(): string {
+function generatePreviousCopilotAgentFileBody(includeManagedMarker = false): string {
   let content = generateCopilotAgentFileBody();
+  content = replaceRequired(
+    content,
+    'You are a specialized agent for managing OpenSpec workflows. Before using the `openspec` CLI, run `openspec --version`. If it is unavailable, install it with `npm install -g @fission-ai/openspec`.',
+    'You are a specialized agent for managing OpenSpec workflows. You have access to the `openspec` CLI through shell commands, pre-installed in the development environment via `copilot-setup-steps.yml`.',
+    'previous CLI access sentence'
+  );
+  content = replaceRequired(
+    content,
+    '| `openspec archive <change> --json [--yes]` | Archive a completed change; use `--yes` only after confirming all tasks are complete |',
+    '| `openspec archive <change>` | Archive a completed change |',
+    'previous archive command row'
+  );
+
+  if (!includeManagedMarker) {
+    return content;
+  }
+
+  return replaceRequired(
+    content,
+    '\n# OpenSpec Agent',
+    `\n<!-- ${OPENSPEC_MANAGED_MARKER} -->\n\n# OpenSpec Agent`,
+    'previous agent heading'
+  );
+}
+
+function generateLegacyCopilotAgentFileBody(): string {
+  let content = generatePreviousCopilotAgentFileBody();
   content = replaceRequired(
     content,
     `## Workflow
@@ -250,57 +277,176 @@ export const COPILOT_CLOUD_FILES = {
   agent: path.join('.github', 'agents', 'openspec.agent.md'),
 } as const;
 
-const COPILOT_CLOUD_FILE_CONTENTS: Record<(typeof COPILOT_CLOUD_FILES)[keyof typeof COPILOT_CLOUD_FILES], string> = {
+const COPILOT_AGENT_ALTERNATE_FILE = path.join('.github', 'agents', 'openspec.md');
+
+type CopilotCloudFile = (typeof COPILOT_CLOUD_FILES)[keyof typeof COPILOT_CLOUD_FILES];
+
+const COPILOT_CLOUD_FILE_CONTENTS: Record<CopilotCloudFile, string> = {
   [COPILOT_CLOUD_FILES.setupSteps]: generateCopilotSetupSteps(),
   [COPILOT_CLOUD_FILES.agent]: generateCopilotAgentFile(),
 };
 
-const COPILOT_CLOUD_LEGACY_FILE_CONTENTS: Record<(typeof COPILOT_CLOUD_FILES)[keyof typeof COPILOT_CLOUD_FILES], string[]> = {
-  [COPILOT_CLOUD_FILES.setupSteps]: [generateCopilotSetupStepsBody()],
-  [COPILOT_CLOUD_FILES.agent]: [
-    generateCopilotAgentFileBody(),
-    generateLegacyCopilotAgentFileBody(),
-  ],
-};
+function getLegacyCopilotCloudFileContents(relPath: CopilotCloudFile): string[] {
+  if (relPath === COPILOT_CLOUD_FILES.setupSteps) {
+    return [generateCopilotSetupStepsBody()];
+  }
 
-function isManagedCopilotCloudFile(
-  relPath: (typeof COPILOT_CLOUD_FILES)[keyof typeof COPILOT_CLOUD_FILES],
+  return [
+    generateCopilotAgentFileBody(),
+    generatePreviousCopilotAgentFileBody(),
+    generatePreviousCopilotAgentFileBody(true),
+    generateLegacyCopilotAgentFileBody(),
+  ];
+}
+
+function normalizeLineEndings(content: string): string {
+  return content.replace(/\r\n/g, '\n');
+}
+
+function isCurrentCopilotCloudFile(
+  relPath: CopilotCloudFile,
   content: string
 ): boolean {
-  const normalizedContent = content.replace(/\r\n/g, '\n');
-  return (
-    normalizedContent === COPILOT_CLOUD_FILE_CONTENTS[relPath] ||
-    COPILOT_CLOUD_LEGACY_FILE_CONTENTS[relPath].includes(normalizedContent)
+  return normalizeLineEndings(content) === COPILOT_CLOUD_FILE_CONTENTS[relPath];
+}
+
+function isLegacyCopilotCloudFile(
+  relPath: CopilotCloudFile,
+  content: string
+): boolean {
+  return getLegacyCopilotCloudFileContents(relPath).includes(normalizeLineEndings(content));
+}
+
+function isManagedCopilotCloudFile(
+  relPath: CopilotCloudFile,
+  content: string
+): boolean {
+  return isCurrentCopilotCloudFile(relPath, content) || isLegacyCopilotCloudFile(relPath, content);
+}
+
+async function reconcileCopilotCloudFile(
+  fullPath: string,
+  relPath: CopilotCloudFile
+): Promise<boolean> {
+  const currentContent = COPILOT_CLOUD_FILE_CONTENTS[relPath];
+
+  if (!(await FileSystemUtils.fileExists(fullPath))) {
+    await FileSystemUtils.writeFile(fullPath, currentContent);
+    return true;
+  }
+
+  const existingContent = await FileSystemUtils.readFile(fullPath);
+  if (isCurrentCopilotCloudFile(relPath, existingContent)) {
+    return false;
+  }
+  if (!isLegacyCopilotCloudFile(relPath, existingContent)) {
+    return false;
+  }
+
+  await FileSystemUtils.writeFile(fullPath, currentContent);
+  return true;
+}
+
+async function assertCreatableFilePath(filePath: string): Promise<void> {
+  let candidate = path.dirname(filePath);
+
+  while (true) {
+    try {
+      const stats = await fs.stat(candidate);
+      if (!stats.isDirectory()) {
+        throw new Error(`Parent path is not a directory: ${candidate}`);
+      }
+      return;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw error;
+      }
+    }
+
+    const parent = path.dirname(candidate);
+    if (parent === candidate) {
+      throw new Error(`Cannot resolve a directory ancestor for: ${filePath}`);
+    }
+    candidate = parent;
+  }
+}
+
+async function assertMissingOrRegularFile(filePath: string): Promise<void> {
+  try {
+    const stats = await fs.stat(filePath);
+    if (!stats.isFile()) {
+      throw new Error(`Managed Copilot path is not a regular file: ${filePath}`);
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw error;
+    }
+  }
+}
+
+async function classifyCopilotAgentReconciliation(
+  agentPath: string,
+  alternateAgentPath: string
+): Promise<'reconcile' | 'skip' | 'remove-managed'> {
+  if (!(await FileSystemUtils.fileExists(alternateAgentPath))) {
+    return 'reconcile';
+  }
+  if (!(await FileSystemUtils.fileExists(agentPath))) {
+    return 'skip';
+  }
+
+  const existingContent = await FileSystemUtils.readFile(agentPath);
+  if (isManagedCopilotCloudFile(COPILOT_CLOUD_FILES.agent, existingContent)) {
+    return 'remove-managed';
+  }
+
+  throw new Error(
+    `Conflicting Copilot agent profiles: preserve either ${COPILOT_AGENT_ALTERNATE_FILE} or ${COPILOT_CLOUD_FILES.agent}`
   );
 }
 
 /**
- * Write copilot cloud agent files to the project directory.
- * Only writes if the files don't already exist (to avoid overwriting user customizations).
+ * Reconcile Copilot cloud agent files in the project directory.
+ * Creates missing files and refreshes recognized legacy generated files while
+ * preserving current generated content and user customizations.
  *
  * @returns Object indicating which files were written.
  */
 export async function writeCopilotCloudFiles(
-  projectPath: string,
-  options?: { force?: boolean }
+  projectPath: string
 ): Promise<{ setupStepsWritten: boolean; agentWritten: boolean }> {
-  const force = options?.force ?? false;
-  let setupStepsWritten = false;
+  const setupStepsPath = FileSystemUtils.resolveProjectArtifactPath(
+    projectPath,
+    COPILOT_CLOUD_FILES.setupSteps
+  );
+  const agentPath = FileSystemUtils.resolveProjectArtifactPath(
+    projectPath,
+    COPILOT_CLOUD_FILES.agent
+  );
+  const alternateAgentPath = FileSystemUtils.resolveProjectArtifactPath(
+    projectPath,
+    COPILOT_AGENT_ALTERNATE_FILE
+  );
+
+  await assertCreatableFilePath(setupStepsPath);
+  await assertCreatableFilePath(agentPath);
+  await assertMissingOrRegularFile(setupStepsPath);
+  await assertMissingOrRegularFile(agentPath);
+  await assertMissingOrRegularFile(alternateAgentPath);
+  const agentReconciliation = await classifyCopilotAgentReconciliation(
+    agentPath,
+    alternateAgentPath
+  );
+
+  const setupStepsWritten = await reconcileCopilotCloudFile(
+    setupStepsPath,
+    COPILOT_CLOUD_FILES.setupSteps
+  );
   let agentWritten = false;
-
-  const setupStepsPath = path.join(projectPath, COPILOT_CLOUD_FILES.setupSteps);
-  const agentPath = path.join(projectPath, COPILOT_CLOUD_FILES.agent);
-
-  // Write copilot-setup-steps.yml
-  if (force || !(await FileSystemUtils.fileExists(setupStepsPath))) {
-    await FileSystemUtils.writeFile(setupStepsPath, generateCopilotSetupSteps());
-    setupStepsWritten = true;
-  }
-
-  // Write openspec.agent.md
-  if (force || !(await FileSystemUtils.fileExists(agentPath))) {
-    await FileSystemUtils.writeFile(agentPath, generateCopilotAgentFile());
-    agentWritten = true;
+  if (agentReconciliation === 'reconcile') {
+    agentWritten = await reconcileCopilotCloudFile(agentPath, COPILOT_CLOUD_FILES.agent);
+  } else if (agentReconciliation === 'remove-managed') {
+    await fs.unlink(agentPath);
   }
 
   return { setupStepsWritten, agentWritten };
@@ -314,17 +460,22 @@ export async function writeCopilotCloudFiles(
  */
 export async function removeCopilotCloudFiles(projectPath: string): Promise<number> {
   let removed = 0;
+  const managedPaths = Object.values(COPILOT_CLOUD_FILES).map((relPath) => ({
+    relPath,
+    fullPath: FileSystemUtils.resolveProjectArtifactPath(projectPath, relPath),
+  }));
+  for (const { fullPath } of managedPaths) {
+    await assertMissingOrRegularFile(fullPath);
+  }
 
-  for (const relPath of Object.values(COPILOT_CLOUD_FILES)) {
-    const fullPath = path.join(projectPath, relPath);
+  for (const { relPath, fullPath } of managedPaths) {
     if (await FileSystemUtils.fileExists(fullPath)) {
       const content = await FileSystemUtils.readFile(fullPath);
       if (!isManagedCopilotCloudFile(relPath, content)) {
         continue;
       }
 
-      const fs = await import('fs');
-      await fs.promises.unlink(fullPath);
+      await fs.unlink(fullPath);
       removed++;
     }
   }
