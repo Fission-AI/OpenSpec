@@ -215,9 +215,10 @@ rely on a planner remembering source it happened to inspect.
 
 ### How does implementation start in each repo?
 
-A `store: team-plans` pointer means *all* OpenSpec commands in that repo act
-on the same store. It does not split one store task list by the directory from
-which `apply` was invoked. OpenSpec currently does not route tasks to repos.
+When no explicit `--store` or nearer `openspec/` root applies, a
+`store: team-plans` pointer routes commands to that store. It does not split
+one store task list by the directory from which `apply` was invoked. OpenSpec
+currently does not route tasks to repos.
 
 When each component needs an independently scoped apply/review cycle, give it
 a local OpenSpec root and reference the central store instead of pointing at
