@@ -411,7 +411,7 @@ describe('ArchiveCommand', () => {
       );
     });
 
-    it('preserves a linked change during the cross-device archive fallback', async () => {
+    it('rejects a linked change before the cross-device archive fallback', async () => {
       if (process.platform === 'win32') return;
 
       const changeName = 'linked-change';
@@ -421,24 +421,19 @@ describe('ArchiveCommand', () => {
       await fs.writeFile(path.join(realChangeDir, 'tasks.md'), '- [x] Task 1\n');
       await fs.symlink(realChangeDir, linkedChangeDir);
 
-      const rename = vi.spyOn(fs, 'rename').mockRejectedValueOnce(
-        Object.assign(new Error('cross-device move'), { code: 'EXDEV' })
-      );
-      try {
-        await archiveCommand.execute(changeName, {
+      await expect(
+        archiveCommand.execute(changeName, {
           yes: true,
           noValidate: true,
           skipSpecs: true,
-        });
-      } finally {
-        rename.mockRestore();
-      }
+        })
+      ).rejects.toMatchObject({
+        diagnostic: { code: 'archive_change_symlink' },
+      });
 
       const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
-      const [archiveName] = await fs.readdir(archiveDir);
-      const archivedChange = path.join(archiveDir, archiveName);
-      expect((await fs.lstat(archivedChange)).isSymbolicLink()).toBe(true);
-      expect(await fs.readlink(archivedChange)).toBe(realChangeDir);
+      await expect(fs.readdir(archiveDir)).resolves.toHaveLength(0);
+      expect((await fs.lstat(linkedChangeDir)).isSymbolicLink()).toBe(true);
       await expect(fs.readFile(path.join(realChangeDir, 'tasks.md'), 'utf8')).resolves.toContain(
         'Task 1'
       );
@@ -467,7 +462,9 @@ describe('ArchiveCommand', () => {
             noValidate: true,
             skipSpecs: true,
           })
-        ).rejects.toMatchObject({ code: 'EEXIST' });
+        ).rejects.toMatchObject({
+          diagnostic: { code: 'archive_target_exists' },
+        });
       } finally {
         rename.mockRestore();
       }
@@ -5950,13 +5947,13 @@ The system SHALL provide a new behavior.
           return realRename(source, destination);
         });
 
-        await expect(
-          archiveCommand.execute(changeName, { yes: true })
-        ).rejects.toThrow(/failed to delete/);
+        await expect(archiveCommand.execute(changeName, { yes: true })).rejects.toThrow(
+          /Path is outside the allowed directory/
+        );
 
         expect((await fs.lstat(linkedSpec)).isSymbolicLink()).toBe(true);
         expect(await fs.readlink(linkedSpec)).toBe(shared);
-        await expect(fs.readFile(shared, 'utf-8')).resolves.toBe('concurrent update\n');
+        await expect(fs.readFile(shared, 'utf-8')).resolves.toBe(mainSpec('a-layer'));
         await expect(fs.access(changeDir)).resolves.not.toThrow();
       }
     );
@@ -5999,11 +5996,13 @@ The system SHALL provide a new behavior.
           return realRename(source, destination);
         });
 
-        await expect(
-          archiveCommand.execute(changeName, { yes: true })
-        ).rejects.toThrow(/rollback would overwrite a concurrent change/);
+        await expect(archiveCommand.execute(changeName, { yes: true })).rejects.toThrow(
+          /Path is outside the allowed directory/
+        );
 
-        await expect(fs.readFile(linkedSpec, 'utf-8')).resolves.toBe('concurrent occupant\n');
+        expect((await fs.lstat(linkedSpec)).isSymbolicLink()).toBe(true);
+        expect(await fs.readlink(linkedSpec)).toBe(shared);
+        await expect(fs.readFile(shared, 'utf-8')).resolves.toBe(mainSpec('a-layer'));
         await expect(fs.access(changeDir)).resolves.not.toThrow();
       }
     );
@@ -6058,9 +6057,9 @@ The system SHALL provide a new behavior.
           return realRename(source, destination);
         });
 
-        await expect(
-          archiveCommand.execute(changeName, { yes: true })
-        ).rejects.toThrow(/permission denied/);
+        await expect(archiveCommand.execute(changeName, { yes: true })).rejects.toThrow(
+          /Path is outside the allowed directory/
+        );
 
         await expect(fs.readFile(shared, 'utf-8')).resolves.toBe(original);
         expect((await fs.lstat(linkedSpec)).isSymbolicLink()).toBe(true);
@@ -6457,11 +6456,10 @@ The system SHALL provide a new behavior.
 
         await archiveCommand.execute(changeName, { yes: true, json: true });
 
-        const warnings = JSON.parse(lastJsonPayload()).archive.warnings.join('\n');
-        // Canonicalized: the warning would print the resolved form, and on
-        // macOS tempDir lives under /var -> /private/var, so comparing the
-        // uncanonicalized path would pass no matter what the code did.
-        expect(warnings).not.toContain(await fs.realpath(shared));
+        const payload = JSON.parse(lastJsonPayload());
+        expect(payload.archive).toBeNull();
+        expect(payload.status[0].message).toContain('Path is outside the allowed directory');
+        expect((await fs.lstat(path.join(mainSpecDir, 'spec.md'))).isSymbolicLink()).toBe(true);
         // The shared file really is still there.
         await expect(fs.readFile(shared, 'utf-8')).resolves.toContain('### Requirement:');
       }
