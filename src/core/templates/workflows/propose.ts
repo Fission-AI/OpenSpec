@@ -17,9 +17,11 @@ export function getOpsxProposeSkillTemplate(): SkillTemplate {
 
 I'll create a change with the artifacts your schema defines. With the default spec-driven schema that is:
 - proposal.md (what & why)
-- \`specs/<capability>/spec.md\` (what the system must do - a delta, not the main spec)
+- \`specs/<capability-path>/spec.md\` (what the system must do - a delta, not the main spec)
 - design.md (how)
 - tasks.md (implementation steps)
+
+\`<capability-path>\` is the spec directory relative to \`specs/\` (for example, \`user-auth\` or \`identity/user-auth\`). Preserve an existing capability's full path and follow the project's established organization for new capabilities.
 
 When the user is ready to implement, they must start the apply workflow explicitly.
 
@@ -164,9 +166,11 @@ export function getOpsxProposeCommandTemplate(): CommandTemplate {
 
 I'll create a change with the artifacts your schema defines. With the default spec-driven schema that is:
 - proposal.md (what & why)
-- \`specs/<capability>/spec.md\` (what the system must do - a delta, not the main spec)
+- \`specs/<capability-path>/spec.md\` (what the system must do - a delta, not the main spec)
 - design.md (how)
 - tasks.md (implementation steps)
+
+\`<capability-path>\` is the spec directory relative to \`specs/\` (for example, \`user-auth\` or \`identity/user-auth\`). Preserve an existing capability's full path and follow the project's established organization for new capabilities.
 
 When the user is ready to implement, they must start the apply workflow explicitly.
 

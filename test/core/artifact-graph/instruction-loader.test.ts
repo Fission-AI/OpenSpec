@@ -18,6 +18,9 @@ describe('instruction-loader', () => {
 
       expect(template).toContain('## Why');
       expect(template).toContain('## What Changes');
+      expect(template).toContain('specs/<capability-path>/spec.md');
+      expect(template).toContain('<existing-capability-path>');
+      expect(template).toContain('exact existing path under openspec/specs/');
     });
 
     it('should throw TemplateLoadError for non-existent template', () => {

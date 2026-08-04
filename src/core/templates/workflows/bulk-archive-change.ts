@@ -17,6 +17,8 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
 ${STORE_SELECTION_GUIDANCE}
 
+\`<capability-path>\` is the spec directory relative to \`specs/\` (for example, \`user-auth\` or \`identity/user-auth\`). Preserve the full path from each delta spec when resolving its main spec.
+
 **Input**: None required (prompts for selection)
 
 **Steps**
@@ -83,14 +85,14 @@ ${STORE_SELECTION_GUIDANCE}
         batches where some schemas have no \`specs\` artifact.
 4. **Detect spec conflicts**
 
-   Build a map of \`capability -> [changes that touch it]\`:
+   Build a map keyed by \`<capability-path>\`, the exact path relative to \`specs/\`:
 
    \`\`\`text
-   auth -> [change-a, change-b]  <- CONFLICT (2+ changes)
-   api  -> [change-c]            <- OK (only 1 change)
+   identity/user-auth -> [change-a, change-b]  <- CONFLICT (2+ changes)
+   billing/user-auth  -> [change-c]            <- OK (different full path)
    \`\`\`
 
-   A conflict exists when 2+ selected changes have delta specs for the same capability.
+   A conflict exists when 2+ selected changes have delta specs for the exact same \`<capability-path>\`.
 
 5. **Resolve conflicts agentically**
 
@@ -108,7 +110,7 @@ ${STORE_SELECTION_GUIDANCE}
       - If neither implemented -> skip spec sync, warn user
 
    d. **Record resolution** for each conflict:
-      - An inclusion or exclusion decision for every delta spec, keyed by change and capability
+      - An inclusion or exclusion decision for every delta spec, keyed by change and \`<capability-path>\`
       - Which included delta specs to apply and in what order
       - Which delta specs to exclude from sync because their implementation is missing
       - Rationale (what was found in codebase)
@@ -122,14 +124,14 @@ ${STORE_SELECTION_GUIDANCE}
    |---------------------|-----------|-------|---------|-----------|--------|
    | schema-management   | Done      | 5/5   | 2 delta | None      | Ready  |
    | project-config      | Done      | 3/3   | 1 delta | None      | Ready  |
-   | add-oauth           | Done      | 4/4   | 1 delta | auth (!)  | Ready* |
+   | add-oauth           | Done      | 4/4   | 1 delta | identity/user-auth (!) | Ready* |
    | add-verify-skill    | 1 left    | 2/5   | None    | None      | Warn   |
    \`\`\`
 
    For conflicts, show the resolution:
    \`\`\`text
    * Conflict resolution:
-     - auth spec: Will apply add-oauth then add-jwt (both implemented, chronological order)
+     - identity/user-auth spec: Will apply add-oauth then add-jwt (both implemented, chronological order)
    \`\`\`
 
    For incomplete changes, show warnings:
@@ -188,7 +190,7 @@ ${STORE_SELECTION_GUIDANCE}
       - If a change has no included delta specs, do not run the sync workflow for it.
 
    b. **Verify included delta specs before moving changeRoot**:
-      - Re-run the comparison only for delta specs in \`includedDeltas\` against main spec at \`<planningHome.root>/openspec/specs/<capability>/spec.md\` (use the store-aware \`planningHome.root\` from step 3 status JSON, not a hardcoded repo path).
+      - Re-run the comparison only for delta specs in \`includedDeltas\` against main spec at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` (use the store-aware \`planningHome.root\` from step 3 status JSON, not a hardcoded repo path).
       - Verify that main specs are updated:
         - ADDED requirements present
         - MODIFIED requirements carrying scenario and description changes named in the delta, with their other scenarios intact
@@ -210,7 +212,7 @@ ${STORE_SELECTION_GUIDANCE}
       - Success: archived successfully
       - Failed: error during archive or spec verification (record error)
       - Skipped: user chose not to archive (if applicable)
-      - Sync skipped: for every delta in \`excludedDeltas\`, report \`sync skipped\` with the change, capability, and recorded reason. This is distinct from skipping the archive.
+      - Sync skipped: for every delta in \`excludedDeltas\`, report \`sync skipped\` with the change, \`<capability-path>\`, and recorded reason. This is distinct from skipping the archive.
 
 9. **Display summary**
 
@@ -229,8 +231,8 @@ ${STORE_SELECTION_GUIDANCE}
 
    Spec sync summary:
    - 4 delta specs synced to main specs
-   - 1 delta spec sync skipped (add-jwt/auth: implementation not found)
-   - 1 conflict resolved (auth: synced add-oauth, skipped add-jwt)
+   - 1 delta spec sync skipped (add-jwt, identity/user-auth: implementation not found)
+   - 1 conflict resolved (identity/user-auth: synced add-oauth, skipped add-jwt)
    \`\`\`
 
    If any failures:
@@ -325,7 +327,7 @@ No active changes found. Create a new change to get started.
 - If sync is requested, run the \`openspec-sync-specs\` workflow inline (agent-driven) for each change with included delta specs
 - Carry the per-delta \`includedDeltas\` and \`excludedDeltas\` decisions into execution; sync and verify only included deltas
 - Report every excluded delta as \`sync skipped\` without treating the archive itself as skipped
-- Never archive a change while a spec sync is still in flight — run the sync inline and verify main specs at \`<planningHome.root>/openspec/specs/<capability>/spec.md\` before moving \`changeRoot\`
+- Never archive a change while a spec sync is still in flight — run the sync inline and verify main specs at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` before moving \`changeRoot\`
 - Fetch archive inputs once per selected root before spec inspection or moves
 - Fetch all required specs-rule snapshots before the batch's first main-spec write or move
 - A failed archive-inputs lookup never blocks the batch; it proceeds with no context or guidance
@@ -353,6 +355,8 @@ export function getOpsxBulkArchiveCommandTemplate(): CommandTemplate {
 This skill allows you to batch-archive changes, handling spec conflicts intelligently by checking the codebase to determine what's actually implemented.
 
 ${STORE_SELECTION_GUIDANCE}
+
+\`<capability-path>\` is the spec directory relative to \`specs/\` (for example, \`user-auth\` or \`identity/user-auth\`). Preserve the full path from each delta spec when resolving its main spec.
 
 **Input**: None required (prompts for selection)
 
@@ -421,14 +425,14 @@ ${STORE_SELECTION_GUIDANCE}
 
 4. **Detect spec conflicts**
 
-   Build a map of \`capability -> [changes that touch it]\`:
+   Build a map keyed by \`<capability-path>\`, the exact path relative to \`specs/\`:
 
    \`\`\`text
-   auth -> [change-a, change-b]  <- CONFLICT (2+ changes)
-   api  -> [change-c]            <- OK (only 1 change)
+   identity/user-auth -> [change-a, change-b]  <- CONFLICT (2+ changes)
+   billing/user-auth  -> [change-c]            <- OK (different full path)
    \`\`\`
 
-   A conflict exists when 2+ selected changes have delta specs for the same capability.
+   A conflict exists when 2+ selected changes have delta specs for the exact same \`<capability-path>\`.
 
 5. **Resolve conflicts agentically**
 
@@ -446,7 +450,7 @@ ${STORE_SELECTION_GUIDANCE}
       - If neither implemented -> skip spec sync, warn user
 
    d. **Record resolution** for each conflict:
-      - An inclusion or exclusion decision for every delta spec, keyed by change and capability
+      - An inclusion or exclusion decision for every delta spec, keyed by change and \`<capability-path>\`
       - Which included delta specs to apply and in what order
       - Which delta specs to exclude from sync because their implementation is missing
       - Rationale (what was found in codebase)
@@ -460,14 +464,14 @@ ${STORE_SELECTION_GUIDANCE}
    |---------------------|-----------|-------|---------|-----------|--------|
    | schema-management   | Done      | 5/5   | 2 delta | None      | Ready  |
    | project-config      | Done      | 3/3   | 1 delta | None      | Ready  |
-   | add-oauth           | Done      | 4/4   | 1 delta | auth (!)  | Ready* |
+   | add-oauth           | Done      | 4/4   | 1 delta | identity/user-auth (!) | Ready* |
    | add-verify-skill    | 1 left    | 2/5   | None    | None      | Warn   |
    \`\`\`
 
    For conflicts, show the resolution:
    \`\`\`text
    * Conflict resolution:
-     - auth spec: Will apply add-oauth then add-jwt (both implemented, chronological order)
+     - identity/user-auth spec: Will apply add-oauth then add-jwt (both implemented, chronological order)
    \`\`\`
 
    For incomplete changes, show warnings:
@@ -526,7 +530,7 @@ ${STORE_SELECTION_GUIDANCE}
       - If a change has no included delta specs, do not run the sync workflow for it.
 
    b. **Verify included delta specs before moving changeRoot**:
-      - Re-run the comparison only for delta specs in \`includedDeltas\` against main spec at \`<planningHome.root>/openspec/specs/<capability>/spec.md\` (use the store-aware \`planningHome.root\` from step 3 status JSON, not a hardcoded repo path).
+      - Re-run the comparison only for delta specs in \`includedDeltas\` against main spec at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` (use the store-aware \`planningHome.root\` from step 3 status JSON, not a hardcoded repo path).
       - Verify that main specs are updated:
         - ADDED requirements present
         - MODIFIED requirements carrying scenario and description changes named in the delta, with their other scenarios intact
@@ -548,7 +552,7 @@ ${STORE_SELECTION_GUIDANCE}
       - Success: archived successfully
       - Failed: error during archive or spec verification (record error)
       - Skipped: user chose not to archive (if applicable)
-      - Sync skipped: for every delta in \`excludedDeltas\`, report \`sync skipped\` with the change, capability, and recorded reason. This is distinct from skipping the archive.
+      - Sync skipped: for every delta in \`excludedDeltas\`, report \`sync skipped\` with the change, \`<capability-path>\`, and recorded reason. This is distinct from skipping the archive.
 
 9. **Display summary**
 
@@ -567,8 +571,8 @@ ${STORE_SELECTION_GUIDANCE}
 
    Spec sync summary:
    - 4 delta specs synced to main specs
-   - 1 delta spec sync skipped (add-jwt/auth: implementation not found)
-   - 1 conflict resolved (auth: synced add-oauth, skipped add-jwt)
+   - 1 delta spec sync skipped (add-jwt, identity/user-auth: implementation not found)
+   - 1 conflict resolved (identity/user-auth: synced add-oauth, skipped add-jwt)
    \`\`\`
 
    If any failures:
@@ -663,7 +667,7 @@ No active changes found. Create a new change to get started.
 - If sync is requested, run the \`/opsx:sync\` workflow inline (agent-driven) for each change with included delta specs
 - Carry the per-delta \`includedDeltas\` and \`excludedDeltas\` decisions into execution; sync and verify only included deltas
 - Report every excluded delta as \`sync skipped\` without treating the archive itself as skipped
-- Never archive a change while a spec sync is still in flight — run the sync inline and verify main specs at \`<planningHome.root>/openspec/specs/<capability>/spec.md\` before moving \`changeRoot\`
+- Never archive a change while a spec sync is still in flight — run the sync inline and verify main specs at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` before moving \`changeRoot\`
 - Fetch archive inputs once per selected root before spec inspection or moves
 - Fetch all required specs-rule snapshots before the batch's first main-spec write or move
 - A failed archive-inputs lookup never blocks the batch; it proceeds with no context or guidance

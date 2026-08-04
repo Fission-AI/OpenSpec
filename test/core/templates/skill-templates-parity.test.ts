@@ -37,45 +37,45 @@ import {
 import { STORE_SELECTION_GUIDANCE } from '../../../src/core/templates/workflows/store-selection.js';
 
 const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
-  getExploreSkillTemplate: 'ecfbf91e9e448cd760d02c710b93a41eaeab4a2f26316704afa4ca43859990b6',
+  getExploreSkillTemplate: 'fec38ba01c5c20695aca0ec7eff78c26e278ead21459cab8ec1562af51053427',
   getNewChangeSkillTemplate: '935f6335e2d4b7d1bd4f0538c88386350c25e8b16e11b627556262229583ca51',
   getContinueChangeSkillTemplate: 'ed41e2356af7aad6ef760f60fad19c6843cefe436d8f90084dcba4dbc6bf7272',
   getApplyChangeSkillTemplate: 'e5fc093637d3100a61acf934553002a5e9f5bccab5110136d7680af4133f7351',
   getFfChangeSkillTemplate: 'fc2a45a08533ee9c7ab30fdab5f832b7d440070048e2a153f03db1620dc379bb',
-  getSyncSpecsSkillTemplate: 'f90032dbeb3a647b451139e12624753057018986df000159499dadc2c3d0965a',
-  getOnboardSkillTemplate: '0b0f9559e21e73a7acfb7e61b403b20080f10ba169d2330c6d55618ce1759a42',
-  getOpsxExploreCommandTemplate: '1893639d2e95ae41ed537da97e9bbcc0f5f7c95626c94beec58ebb508f05f3b5',
+  getSyncSpecsSkillTemplate: 'd43b112a3c74bc951b094d220c8e75cca26bb00640d404b78af0752af1ff7bd9',
+  getOnboardSkillTemplate: 'a9f6134b187ec4f3a5aa6c7c181e51a15fec11b7ac1044a076fdfe79b47fbc80',
+  getOpsxExploreCommandTemplate: 'e2d470148708a9070675edddd1e783f1c71c96625d08cff4fe7a9994e0d292c0',
   getOpsxNewCommandTemplate: '08e784e52ac2c146975a874257c589d88e93efbd83dc4d79253c8525f5c3064f',
   getOpsxContinueCommandTemplate: 'ae964cd00f6ca332fd7f9428a577ade75be279f50431d5f60ece8172e8d1a4b1',
   getOpsxApplyCommandTemplate: 'd879b0430f756b9dbc5a1a1348a34409b2fcd453eeae7add4bf9f421616c2ad1',
   getOpsxFfCommandTemplate: '012610f85576a7055dfec2aaabba6bfc245454ce91fb6214587ae9316dc2b864',
-  getArchiveChangeSkillTemplate: 'b6dac476db882d5e2afea237e298c2aa98ed9f9cacbcf1a5000f00e67e8ca524',
-  getBulkArchiveChangeSkillTemplate: 'da2bd729048acb64fbac46ab6a45b51174b1b1486f53cfb365499247f0cd4e18',
-  getOpsxSyncCommandTemplate: '2361cb11e0da0f3ecfded43441edaba8dab6c88ffeb0a217e60c9a3d446bef93',
+  getArchiveChangeSkillTemplate: '5ef19163f73997fdda1c69dc8bca710c16c50b052b481821d916f4084bb42a64',
+  getBulkArchiveChangeSkillTemplate: '03cc44a0ce9bdb3ba2668a9d43946596308901600aa29a728c4a71fc76e86de3',
+  getOpsxSyncCommandTemplate: '361c9e6e063116ae454ecbc9fac90dc44d876f909e2bdd9c4904580a73ce790c',
   getVerifyChangeSkillTemplate: 'eb2c0f1b46c1be12750965a3a122efd5944d2b25781d714224c6e62a0efdc7fd',
-  getOpsxArchiveCommandTemplate: 'ce4f2863463a49e206cc6e51ca74e779a36c714e0b9a5233ac4d99535cb29101',
-  getOpsxOnboardCommandTemplate: 'e04e4ab6c2f25122e6840212b4c22708812c36ceff9ec529c2bb1d1d035429e3',
-  getOpsxBulkArchiveCommandTemplate: 'fbb4de58ed00861badd93cde9bdd3d7c52f966158a18a660152060076ea9723e',
+  getOpsxArchiveCommandTemplate: 'e94cbee572231c4a876177bc1cd88b326beeb989c51ee662c703e7b59166f5bb',
+  getOpsxOnboardCommandTemplate: '3e0da93fb03cec2a8583c47d05359ffefce5e88cb0148ac3686c2ec49a289045',
+  getOpsxBulkArchiveCommandTemplate: '7d415e6b1ebb5da93bf74bc3d667cf7a5e7f3ec7031d7a61d525b7950ef91863',
   getOpsxVerifyCommandTemplate: 'ce0ee05b7a6b332e29db2298b9d5a928a1932caf516e35fd88f163154ffd43f4',
-  getOpsxProposeSkillTemplate: '416200ae0277061405d17d5506243657ee26f7b883abe063844126c497d88f94',
-  getOpsxProposeCommandTemplate: '8de5ce5fe15c0b13ee1801b6b18cb86dc16ddea66c34223fafb4360232d8424d',
+  getOpsxProposeSkillTemplate: '16822ea0f2405962a585ebc2ef470cbe7f6990f7fbcd553ad68b145580d393ff',
+  getOpsxProposeCommandTemplate: '69e1d017765695612bdeb9b3e0ae10986d18f5c3f9305014b79720eef797a951',
   getFeedbackSkillTemplate: 'd7d83c5f7fc2b92fe8f4588a5bf2d9cb315e4c73ec19bcd5ef28270906319a0d',
   getUpdateChangeSkillTemplate: 'e50b6cd5d38f0d8974172fd7ebd6e2139f3fe3782c71584d8a61cfdb54edff8e',
   getOpsxUpdateCommandTemplate: '4f1530486fbe118d9d7d469083c5517b8ec341ed8e92282e0b6c5155fb945bfe',
 };
 
 const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
-  'openspec-explore': '13c6e3a671258606c43a6c698344a1c77abcd7a8d174193d816043c3451b758f',
+  'openspec-explore': '80109dec3abf1505ab1037f7196baac4fcdf175ca954411e8d439e5da881bf62',
   'openspec-new-change': '579d432771703f947a331a6ed288bf9c6660ca015fcd376d76f19b6ac7683082',
   'openspec-continue-change': '5c34be8194cdb4c5158335e47aece71143e8a22bfb4179dba47fd8aaf436d395',
   'openspec-apply-change': '1726319cd4305a47f9c827acaeb84a9de57f7e44aba9ed60869c1758338e18ae',
   'openspec-ff-change': '19315644df7c582d920acfb67f3c500ca4e06fccc900265b3ac39621d85f7cdb',
-  'openspec-sync-specs': 'dbdc0528c5d59c1a9b3c8b3df01ab2bcf325ad2cb5d47e061c7a65106c058a3e',
-  'openspec-archive-change': 'b7432016dd7f56e75da6c21945fa68f6946a4b20abb92788fe633850061e791c',
-  'openspec-bulk-archive-change': 'c58e1d319a6587b52202434d5d769c94718aafc0f019276cef04cf8be473b6ce',
+  'openspec-sync-specs': '6e85521de10858bb020885eb657aa843e5746b2f09c846aa44545694f456cda9',
+  'openspec-archive-change': '019d580a13eee5892cc9233a899919b572a3abfc6a05c1f0aabf9c4ba9bf3d4d',
+  'openspec-bulk-archive-change': '6082df91e91fa57fbb88f05ca7834437bfad51561e72657a67a41c355d557646',
   'openspec-verify-change': '7cd65897d126f7c948620c0672ca62418620dbcb82ee73d890f758fb666a4ff8',
-  'openspec-onboard': '80f39cf33a138aac8e508db25d7af2c9e9bd482f90e414770e806f966dd58c9c',
-  'openspec-propose': '48b06cf0fa53be06c84fc3e79729fb16b7b9d8549cbed6d89616eb6ba1f7e325',
+  'openspec-onboard': 'c104afb286e7c274a6914cb2042047705e42468a2df16246ff6337692828e12a',
+  'openspec-propose': '2414a289c9541b233b80e4a5dcfe75a128bd4c37db421a1f066bf54788afaa97',
   'openspec-update-change': '8654fc3ea1eb2f03e1dba3eaf1e8c884b1c71cc949294a070c2f966fb13c8e2a',
 };
 
@@ -240,6 +240,147 @@ describe('skill templates split parity', () => {
     }
   });
 
+  it('preserves nested capability paths in spec-aware workflow guidance (#1459)', () => {
+    const capabilityPathDefinition =
+      '`<capability-path>` is the spec directory relative to `specs/`';
+    const pathAwareTemplates: Array<[string, string, string, string]> = [
+      [
+        'propose skill',
+        generateSkillContent(getOpsxProposeSkillTemplate(), 'PARITY-BASELINE'),
+        'specs/<capability-path>/spec.md',
+        "Preserve an existing capability's full path",
+      ],
+      [
+        'propose command',
+        getOpsxProposeCommandTemplate().content,
+        'specs/<capability-path>/spec.md',
+        "Preserve an existing capability's full path",
+      ],
+      [
+        'explore skill',
+        generateSkillContent(getExploreSkillTemplate(), 'PARITY-BASELINE'),
+        'specs/<capability-path>/spec.md',
+        "Preserve an existing capability's full path",
+      ],
+      [
+        'explore command',
+        getOpsxExploreCommandTemplate().content,
+        'specs/<capability-path>/spec.md',
+        "Preserve an existing capability's full path",
+      ],
+      [
+        'onboard skill',
+        generateSkillContent(getOnboardSkillTemplate(), 'PARITY-BASELINE'),
+        '<existing-capability-path>',
+        'Use the exact existing path for modified',
+      ],
+      [
+        'onboard command',
+        getOpsxOnboardCommandTemplate().content,
+        '<existing-capability-path>',
+        'Use the exact existing path for modified',
+      ],
+      [
+        'sync skill',
+        generateSkillContent(getSyncSpecsSkillTemplate(), 'PARITY-BASELINE'),
+        '<planningHome.root>/openspec/specs/<capability-path>/spec.md',
+        'Preserve the full path from each delta spec',
+      ],
+      [
+        'sync command',
+        getOpsxSyncCommandTemplate().content,
+        '<planningHome.root>/openspec/specs/<capability-path>/spec.md',
+        'Preserve the full path from each delta spec',
+      ],
+      [
+        'archive skill',
+        generateSkillContent(getArchiveChangeSkillTemplate(), 'PARITY-BASELINE'),
+        '<planningHome.root>/openspec/specs/<capability-path>/spec.md',
+        'Preserve the full path from each delta spec',
+      ],
+      [
+        'archive command',
+        getOpsxArchiveCommandTemplate().content,
+        '<planningHome.root>/openspec/specs/<capability-path>/spec.md',
+        'Preserve the full path from each delta spec',
+      ],
+      [
+        'bulk archive skill',
+        generateSkillContent(getBulkArchiveChangeSkillTemplate(), 'PARITY-BASELINE'),
+        '<planningHome.root>/openspec/specs/<capability-path>/spec.md',
+        'Preserve the full path from each delta spec',
+      ],
+      [
+        'bulk archive command',
+        getOpsxBulkArchiveCommandTemplate().content,
+        '<planningHome.root>/openspec/specs/<capability-path>/spec.md',
+        'Preserve the full path from each delta spec',
+      ],
+    ];
+
+    for (const [label, content, destination, preservationGuidance] of pathAwareTemplates) {
+      expect(content, label).toContain(capabilityPathDefinition);
+      expect(content, label).toContain(destination);
+      expect(content, label).toContain(preservationGuidance);
+      expect(content, label).not.toContain('specs/<capability>/spec.md');
+    }
+
+    const onboardVariants: Array<[string, string]> = [
+      [
+        'onboard skill',
+        generateSkillContent(getOnboardSkillTemplate(), 'PARITY-BASELINE'),
+      ],
+      ['onboard command', getOpsxOnboardCommandTemplate().content],
+    ];
+
+    for (const [label, content] of onboardVariants) {
+      expect(content, label).toContain(
+        '- `<capability-path>`: [brief description]'
+      );
+      expect(content, label).not.toContain('<capability-name>');
+    }
+
+    const bulkArchiveVariants: Array<[string, string]> = [
+      [
+        'bulk archive skill',
+        generateSkillContent(getBulkArchiveChangeSkillTemplate(), 'PARITY-BASELINE'),
+      ],
+      ['bulk archive command', getOpsxBulkArchiveCommandTemplate().content],
+    ];
+
+    for (const [label, content] of bulkArchiveVariants) {
+      expect(content, label).toContain(
+        'Build a map keyed by `<capability-path>`, the exact path relative to `specs/`'
+      );
+      expect(content, label).toContain(
+        'billing/user-auth  -> [change-c]            <- OK (different full path)'
+      );
+      expect(content, label).toContain(
+        'identity/user-auth -> [change-a, change-b]  <- CONFLICT'
+      );
+      expect(content, label).toContain('identity/user-auth (!)');
+      expect(content, label).toContain(
+        'the exact same `<capability-path>`'
+      );
+      expect(content, label).toContain(
+        'keyed by change and `<capability-path>`'
+      );
+      expect(content, label).toContain(
+        'identity/user-auth spec: Will apply add-oauth then add-jwt'
+      );
+      expect(content, label).toContain(
+        'add-jwt, identity/user-auth: implementation not found'
+      );
+      expect(content, label).toContain(
+        '1 conflict resolved (identity/user-auth: synced add-oauth, skipped add-jwt)'
+      );
+      expect(content, label).not.toContain('\n   auth -> [change-a');
+      expect(content, label).not.toContain('| auth (!)');
+      expect(content, label).not.toContain('(auth: synced');
+      expect(content, label).not.toContain('add-jwt/auth:');
+    }
+  });
+
   it('generates no workspace-planning residue in any workflow template (4.1)', () => {
     const allSkills: Array<[string, () => SkillTemplate]> = [
       ['openspec-apply-change', getApplyChangeSkillTemplate],
@@ -301,7 +442,7 @@ describe('skill templates split parity', () => {
       expect(content, variant).toContain('not only the ones the sync reports it touched');
 
       // Main spec paths are store-root aware
-      expect(content, variant).toContain('<planningHome.root>/openspec/specs/<capability>/spec.md');
+      expect(content, variant).toContain('<planningHome.root>/openspec/specs/<capability-path>/spec.md');
     }
   });
 
@@ -329,7 +470,7 @@ describe('skill templates split parity', () => {
       expect(content, variant).toContain('RENAMED requirements present under the new name and absent under the old one');
 
       // Main spec paths are store-root aware
-      expect(content, variant).toContain('<planningHome.root>/openspec/specs/<capability>/spec.md');
+      expect(content, variant).toContain('<planningHome.root>/openspec/specs/<capability-path>/spec.md');
     }
   });
 
@@ -382,7 +523,7 @@ describe('skill templates split parity', () => {
       // The worked example must show the skip, or the agent has no model of
       // what a partially-synced batch report looks like.
       expect(content, variant).toContain(
-        '1 delta spec sync skipped (add-jwt/auth: implementation not found)'
+        '1 delta spec sync skipped (add-jwt, identity/user-auth: implementation not found)'
       );
     }
   });
@@ -400,7 +541,7 @@ describe('skill templates split parity', () => {
 
     for (const [variant, content] of variants) {
       expect(content, variant).toContain(
-        'A caller narrows it by naming an explicit list of delta spec paths to sync'
+        'A caller narrows it by naming an explicit list of complete entries from'
       );
       expect(content, variant).toContain(
         'sync only the named paths and leave the remaining delta specs untouched'
@@ -411,6 +552,13 @@ describe('skill templates split parity', () => {
       expect(content, variant).toContain(
         'Honor a caller-supplied subset of `existingOutputPaths`'
       );
+      expect(content, variant).toContain(
+        'copy those absolute values verbatim'
+      );
+      expect(content, variant).toContain('selecting the entry ending');
+      expect(content, variant).toContain('/specs/billing/invoices/spec.md');
+      expect(content, variant).not.toContain('only sync the billing delta');
+      expect(content, variant).not.toContain('only sync `specs/billing/invoices/spec.md`');
 
       // Step 4 is the operative loop. Narrowing step 3 alone left the loop
       // still iterating "each path returned by the CLI", which re-widens the

@@ -45,7 +45,7 @@ export function findMainSpecStructureIssues(content: string): MainSpecStructureI
         header: trimmed,
         message:
           `Main spec contains delta header "${trimmed}". ` +
-          'Delta headers are only valid inside openspec/changes/<name>/specs/<capability>/spec.md ' +
+          'Delta headers are only valid inside openspec/changes/<name>/specs/<capability-path>/spec.md ' +
           'and truncate the parsed ## Requirements section.',
       });
       continue;

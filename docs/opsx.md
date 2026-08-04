@@ -478,7 +478,7 @@ Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, no
   │  • Create proposal.md                   │
   │  • Create tasks.md                      │
   │  • Create design.md                     │
-  │  • Create specs/<capability>/spec.md    │
+  │  • Create delta spec files              │
   │                                         │
   │  No awareness of what exists or         │
   │  dependencies between artifacts         │
