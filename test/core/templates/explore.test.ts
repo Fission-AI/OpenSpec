@@ -95,6 +95,22 @@ describe('explore templates', () => {
     }
   });
 
+  it('retains the selected store throughout the capture transition (#668, #720)', () => {
+    for (const [label, body] of bodies) {
+      const transition = newChangeTransition(body, label);
+      const scaffold = transition.indexOf('1. Run `openspec new change "<name>"`');
+      const retainStore = transition.indexOf(
+        'Keep the selected `--store <id>` on every applicable follow-up `status` and `instructions` command'
+      );
+      const initialStatus = transition.indexOf(
+        '2. Run `openspec status --change "<name>" --json`'
+      );
+
+      expect(retainStore, label).toBeGreaterThan(scaffold);
+      expect(initialStatus, label).toBeGreaterThan(retainStore);
+    }
+  });
+
   it('continues an accepted transition through the requested artifact (#668)', () => {
     for (const [label, body] of bodies) {
       const transition = newChangeTransition(body, label);
@@ -149,6 +165,22 @@ describe('explore templates', () => {
         occurrenceCount(transition, 'openspec status --change "<name>" --json'),
         label
       ).toBe(2);
+      expect(
+        occurrenceCount(transition, 'openspec instructions "<artifact-id>"'),
+        label
+      ).toBe(2);
+      expect(
+        occurrenceCount(transition, 'openspec instructions "<prerequisite-id>"'),
+        label
+      ).toBe(1);
+      expect(
+        occurrenceCount(transition, 'Verify that the selected concrete output exists'),
+        label
+      ).toBe(1);
+      expect(
+        occurrenceCount(transition, 'After creating each artifact, re-run `openspec status'),
+        label
+      ).toBe(1);
     }
   });
 
@@ -176,6 +208,12 @@ describe('explore templates', () => {
   it('handles conditional prerequisites without deadlocking capture (#668)', () => {
     for (const [label, body] of bodies) {
       const transition = newChangeTransition(body, label);
+      const requestedInstructions = transition.indexOf(
+        'For each requested artifact that is `ready`, run `openspec instructions'
+      );
+      const evaluateRequestedCondition = transition.indexOf(
+        'Before creating a requested artifact, evaluate any condition in its own `instruction`'
+      );
       const inspectPrerequisite = transition.indexOf(
         'run `openspec instructions "<prerequisite-id>"'
       );
@@ -196,6 +234,9 @@ describe('explore templates', () => {
         'run `openspec instructions "<prerequisite-id>" --change "<name>" --json` for that prerequisite whether it is `ready` or `blocked`'
       );
       expect(transition, label).toContain(
+        'record a deliberate skip instead when the condition does not apply'
+      );
+      expect(transition, label).toContain(
         'record a deliberate skip only when the condition does not apply'
       );
       expect(transition, label).toContain(
@@ -214,7 +255,9 @@ describe('explore templates', () => {
         'only when those recorded conditional skips are its sole missing dependencies'
       );
       expect(transition, label).toContain('cannot be conditionally skipped');
-      expect(inspectPrerequisite, label).toBeGreaterThanOrEqual(0);
+      expect(requestedInstructions, label).toBeGreaterThanOrEqual(0);
+      expect(evaluateRequestedCondition, label).toBeGreaterThan(requestedInstructions);
+      expect(inspectPrerequisite, label).toBeGreaterThan(evaluateRequestedCondition);
       expect(evaluateCondition, label).toBeGreaterThan(inspectPrerequisite);
       expect(recordSkip, label).toBeGreaterThan(evaluateCondition);
       expect(requireExpansion, label).toBeGreaterThan(recordSkip);
