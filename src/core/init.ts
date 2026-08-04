@@ -233,6 +233,11 @@ export class InitCommand {
 
     // Display success message
     this.displaySuccessMessage(projectPath, validatedTools, results, configStatus);
+    if (results.failedTools.length > 0) {
+      throw new Error(
+        `OpenSpec setup failed for: ${results.failedTools.map((tool) => tool.name).join(', ')}`
+      );
+    }
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -637,6 +642,7 @@ export class InitCommand {
       ];
 
       for (const dir of directories) {
+        FileSystemUtils.assertProjectArtifactPath(path.dirname(openspecPath), dir);
         await FileSystemUtils.createDirectory(dir);
       }
       return;
@@ -652,6 +658,7 @@ export class InitCommand {
     ];
 
     for (const dir of directories) {
+      FileSystemUtils.assertProjectArtifactPath(path.dirname(openspecPath), dir);
       await FileSystemUtils.createDirectory(dir);
     }
 
@@ -732,12 +739,13 @@ export class InitCommand {
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
 
             // Write the skill file
+            FileSystemUtils.assertProjectArtifactPath(projectPath, skillFile);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
         }
         if (shouldRemoveSkillsForTool(tool.value, delivery)) {
           const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
-          removedSkillCount += await this.removeSkillDirs(skillsDir);
+          removedSkillCount += await this.removeSkillDirs(projectPath, skillsDir);
         }
 
         // Generate commands if delivery includes commands
@@ -747,7 +755,7 @@ export class InitCommand {
             const generatedCommands = generateCommands(commandContents, adapter);
 
             for (const cmd of generatedCommands) {
-              const commandFile = path.isAbsolute(cmd.path) ? cmd.path : path.join(projectPath, cmd.path);
+              const commandFile = FileSystemUtils.resolveProjectArtifactPath(projectPath, cmd.path);
               await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
             }
           }
@@ -803,6 +811,7 @@ export class InitCommand {
 
     try {
       const yamlContent = serializeConfig({ schema: DEFAULT_SCHEMA });
+      FileSystemUtils.assertProjectArtifactPath(path.dirname(openspecPath), configPath);
       await FileSystemUtils.writeFile(configPath, yamlContent);
       return 'created';
     } catch {
@@ -829,7 +838,11 @@ export class InitCommand {
     configStatus: 'created' | 'exists' | 'skipped'
   ): void {
     console.log();
-    console.log(chalk.bold('OpenSpec Setup Complete'));
+    console.log(
+      chalk.bold(
+        results.failedTools.length > 0 ? 'OpenSpec Setup Incomplete' : 'OpenSpec Setup Complete'
+      )
+    );
     console.log();
 
     // Show created vs refreshed tools
@@ -1017,7 +1030,7 @@ export class InitCommand {
     }).start();
   }
 
-  private async removeSkillDirs(skillsDir: string): Promise<number> {
+  private async removeSkillDirs(projectPath: string, skillsDir: string): Promise<number> {
     let removed = 0;
 
     for (const workflow of ALL_WORKFLOWS) {
@@ -1025,11 +1038,11 @@ export class InitCommand {
       if (!dirName) continue;
 
       const skillDir = path.join(skillsDir, dirName);
+      if (!fs.existsSync(skillDir)) continue;
+      FileSystemUtils.assertProjectArtifactPath(projectPath, skillDir);
       try {
-        if (fs.existsSync(skillDir)) {
-          await fs.promises.rm(skillDir, { recursive: true, force: true });
-          removed++;
-        }
+        await fs.promises.rm(skillDir, { recursive: true, force: true });
+        removed++;
       } catch {
         // Ignore errors
       }
@@ -1045,7 +1058,7 @@ export class InitCommand {
 
     for (const workflow of ALL_WORKFLOWS) {
       const cmdPath = adapter.getFilePath(workflow);
-      const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
+      const fullPath = FileSystemUtils.resolveProjectArtifactPath(projectPath, cmdPath);
 
       try {
         if (fs.existsSync(fullPath)) {

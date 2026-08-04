@@ -136,7 +136,8 @@ export class Validator {
    * Validate delta-formatted spec files under a change directory.
    * Enforces:
    * - At least one delta across all files
-   * - ADDED/MODIFIED: each requirement has SHALL/MUST and at least one scenario
+   * - ADDED/MODIFIED: each requirement has at least one scenario; missing
+   *   English SHALL/MUST keywords are guidance unless strict mode is enabled
    * - REMOVED: names only; no scenario/description required
    * - RENAMED: pairs well-formed
    * - No duplicates within sections; no cross-section conflicts per spec
@@ -177,7 +178,7 @@ export class Validator {
           level: 'ERROR',
           path: 'spec.md',
           message:
-            'Delta spec found at specs/spec.md. Delta specs must live in a capability folder (e.g. specs/<capability>/spec.md) — a file at the specs/ root is ignored when the change is applied or archived.',
+            'Delta spec found at specs/spec.md. Delta specs must live under a capability path (e.g. specs/<capability-path>/spec.md) — a file at the specs/ root is ignored when the change is applied or archived.',
         });
       }
 
@@ -247,7 +248,15 @@ export class Validator {
                 : `ADDED "${block.name}" is missing requirement text`,
             });
           } else if (!this.containsShallOrMust(requirementText)) {
-            issues.push({ level: 'ERROR', path: entryPath, message: this.buildMissingShallOrMustMessage(`ADDED "${block.name}"`, block.name) });
+            issues.push({
+              level: 'WARNING',
+              path: entryPath,
+              message: this.buildMissingShallOrMustMessage(
+                `ADDED "${block.name}"`,
+                block.name,
+                true
+              ),
+            });
           }
           const scenarioCount = this.countScenarios(block.raw);
           if (scenarioCount < 1) {
@@ -274,7 +283,15 @@ export class Validator {
                 : `MODIFIED "${block.name}" is missing requirement text`,
             });
           } else if (!this.containsShallOrMust(requirementText)) {
-            issues.push({ level: 'ERROR', path: entryPath, message: this.buildMissingShallOrMustMessage(`MODIFIED "${block.name}"`, block.name) });
+            issues.push({
+              level: 'WARNING',
+              path: entryPath,
+              message: this.buildMissingShallOrMustMessage(
+                `MODIFIED "${block.name}"`,
+                block.name,
+                true
+              ),
+            });
           }
           const scenarioCount = this.countScenarios(block.raw);
           if (scenarioCount < 1) {
@@ -285,12 +302,19 @@ export class Validator {
         // Run archive's scenario-loss check here too, so the change fails at
         // authoring time instead of days later at archive time (#1477).
         if (options.mainSpecsDir && plan.modified.length > 0) {
+          const mainSpecFile = path.join(
+            options.mainSpecsDir,
+            ...specId.split('/'),
+            'spec.md'
+          );
+          FileSystemUtils.assertPathWithin(path.dirname(mainSpecFile), mainSpecFile);
           issues.push(
             ...(await this.findScenarioLossIssues(
               plan.modified,
               plan.renamed,
-              path.join(options.mainSpecsDir, ...specId.split('/'), 'spec.md'),
-              entryPath
+              mainSpecFile,
+              entryPath,
+              path.dirname(mainSpecFile)
             ))
           );
         }
@@ -444,9 +468,11 @@ export class Validator {
     modified: RequirementBlock[],
     renamed: Array<{ from: string; to: string }>,
     mainSpecFile: string,
-    entryPath: string
+    entryPath: string,
+    mainSpecRoot: string
   ): Promise<ValidationIssue[]> {
     let mainContent: string;
+    FileSystemUtils.assertPathWithin(mainSpecRoot, mainSpecFile);
     try {
       mainContent = await fs.readFile(mainSpecFile, 'utf-8');
     } catch (error) {
@@ -580,20 +606,29 @@ export class Validator {
       }
     });
 
-    // SHALL/MUST body-keyword enforcement for main specs (#1156). The main-spec
+    // SHALL/MUST body-keyword guidance for main specs (#1156, #243). The main-spec
     // parser collapses the requirement header into `text`, so we recover the
     // header+body pairs here (the same source the delta path trusts) and reuse
-    // the delta detection: a body that omits the keyword errors, with the
-    // targeted "move it to the body line" hint when the keyword is in the header
-    // only and the generic message otherwise. Emitted exactly once per
+    // the delta detection. A non-empty body that omits the English keyword gets
+    // guidance, while a missing body remains an error. Emitted exactly once per
     // requirement (the Zod refine that used to emit a generic error is removed).
     extractRequirementsSection(content).bodyBlocks.forEach((block, index) => {
       const requirementText = this.extractRequirementText(block.raw);
-      if (!requirementText || !this.containsShallOrMust(requirementText)) {
+      if (!requirementText) {
         issues.push({
           level: 'ERROR',
           path: `requirements[${index}]`,
           message: this.buildMissingShallOrMustMessage(`Requirement "${block.name}"`, block.name),
+        });
+      } else if (!this.containsShallOrMust(requirementText)) {
+        issues.push({
+          level: 'WARNING',
+          path: `requirements[${index}]`,
+          message: this.buildMissingShallOrMustMessage(
+            `Requirement "${block.name}"`,
+            block.name,
+            true
+          ),
         });
       }
     });
@@ -700,7 +735,7 @@ export class Validator {
   }
 
   /**
-   * Build an error message for a requirement block whose body lacks SHALL/MUST.
+   * Build a message for a requirement block whose body lacks SHALL/MUST.
    *
    * When the SHALL/MUST keyword already appears in the requirement header (e.g.
    * `### Requirement: The system SHALL ...`) the original generic error
@@ -709,12 +744,17 @@ export class Validator {
    * on the requirement body line (the line right after the header), so we point
    * the author at that exact fix when the keyword is found in the header only.
    */
-  private buildMissingShallOrMustMessage(prefix: string, blockName: string): string {
-    const base = `${prefix} must contain SHALL or MUST`;
+  private buildMissingShallOrMustMessage(
+    prefix: string,
+    blockName: string,
+    guidanceOnly = false
+  ): string {
+    const base = `${prefix} ${guidanceOnly ? 'should' : 'must'} contain SHALL or MUST`;
+    const suffix = guidanceOnly ? ' (RFC 2119 best practice for English specs)' : '';
     if (this.containsShallOrMust(blockName)) {
-      return `${base} in the requirement body, not only in the header. Move the SHALL/MUST statement to the line immediately after the "### Requirement: ..." header.`;
+      return `${base} in the requirement body, not only in the header. Move the SHALL/MUST statement to the line immediately after the "### Requirement: ..." header.${suffix}`;
     }
-    return base;
+    return `${base}${suffix}`;
   }
 
   private countScenarios(blockRaw: string): number {

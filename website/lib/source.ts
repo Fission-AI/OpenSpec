@@ -1,4 +1,5 @@
 import { docs } from 'collections/server';
+import { renderPlaceholder } from 'fumadocs-core/mdx-plugins/remark-llms.runtime';
 import { loader } from 'fumadocs-core/source';
 import { icons } from 'lucide-react';
 import { createElement } from 'react';
@@ -37,8 +38,17 @@ export function getPageMarkdownUrl(page: (typeof source)['$inferPage']) {
 
 export async function getLLMText(page: (typeof source)['$inferPage']) {
   const processed = await page.data.getText('processed');
+  const markdown = await renderPlaceholder(processed, {
+    Mermaid({ attributes }) {
+      if (typeof attributes.chart !== 'string') return '';
+
+      return `\`\`\`mermaid
+${attributes.chart}
+\`\`\``;
+    },
+  });
 
   return `# ${page.data.title} (${page.url})
 
-${processed}`;
+${markdown}`;
 }
