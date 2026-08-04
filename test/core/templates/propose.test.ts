@@ -9,10 +9,19 @@ import {
   getOpsxFfCommandTemplate,
 } from '../../../src/core/templates/skill-templates.js';
 import { loadSchema } from '../../../src/core/artifact-graph/schema.js';
+import { CommandAdapterRegistry } from '../../../src/core/command-generation/registry.js';
+import { generateCommand } from '../../../src/core/command-generation/generator.js';
+import {
+  formatCommandInvocation,
+  getInvocationForAdapter,
+} from '../../../src/core/command-generation/invocation.js';
+import { getCommandContents } from '../../../src/core/shared/skill-generation.js';
 
+const proposeSkillBody = getOpsxProposeSkillTemplate().instructions;
+const proposeCommandBody = getOpsxProposeCommandTemplate().content;
 const proposeBodies: Array<[string, string]> = [
-  ['propose skill', getOpsxProposeSkillTemplate().instructions],
-  ['propose command', getOpsxProposeCommandTemplate().content],
+  ['propose skill', proposeSkillBody],
+  ['propose command', proposeCommandBody],
 ];
 
 // ff runs the byte-identical artifact loop, so it carries the identical guards.
@@ -28,7 +37,7 @@ const defaultSchema = loadSchema(path.join(repoRoot, 'schemas', 'spec-driven', '
 /** The opening list that tells the agent which artifacts propose will produce. */
 function artifactPreamble(body: string): string {
   const start = body.indexOf("I'll create a change with");
-  const end = body.indexOf('When ready to implement');
+  const end = body.indexOf('When the user is ready to implement');
   expect(start).toBeGreaterThanOrEqual(0);
   expect(end).toBeGreaterThan(start);
   return body.slice(start, end);
@@ -47,6 +56,99 @@ describe('propose preamble', () => {
       for (const id of ids) {
         expect(preamble, `${label} preamble is missing the "${id}" artifact`).toContain(id);
       }
+    }
+  });
+});
+
+describe('propose implementation boundary', () => {
+  it('makes the planning-only boundary prominent (#232, #258, #262)', () => {
+    for (const [label, body] of proposeBodies) {
+      const boundary = body.indexOf('**Planning boundary**');
+      const steps = body.indexOf('**Steps**');
+      expect(boundary, `${label} is missing its planning boundary`).toBeGreaterThanOrEqual(0);
+      expect(boundary, `${label} boundary should appear before its steps`).toBeLessThan(steps);
+      expect(body, label).toContain(
+        'The user request that selected or triggered this workflow authorizes planning only'
+      );
+      expect(body, label).toContain('Do not edit project code');
+    }
+  });
+
+  it('ends by requiring a separate apply workflow (#258, #262)', () => {
+    for (const [label, body] of proposeBodies) {
+      expect(body, label).toContain(
+        'The request that invoked this workflow authorizes planning only'
+      );
+      expect(body, label).toContain('Do NOT implement the change');
+      expect(body, label).toContain('edit project code');
+      expect(body, label).toContain(
+        'Do not start implementation in the same response'
+      );
+      expect(body, label).toContain(
+        'Any implementation or apply instruction in that request does not carry forward'
+      );
+      expect(body, label).toContain(
+        'wait for a new user request to start the apply workflow'
+      );
+      expect(
+        body.lastIndexOf('After presenting the artifacts, stop'),
+        `${label} should end with its stop guard`
+      ).toBeGreaterThan(body.indexOf('**Output**'));
+    }
+  });
+
+  it('asks before resolving ambiguity that could change user-visible outcomes (#258)', () => {
+    for (const [label, body] of proposeBodies) {
+      expect(body, label).toContain(
+        'scope, externally observable behavior, compatibility, or acceptance criteria'
+      );
+      expect(body, label).toContain('ask the user before creating the change');
+      expect(body, label).toContain(
+        'For minor details, make a reasonable assumption and record it in the planning artifacts'
+      );
+      expect(body.indexOf('ask the user before creating the change'), label)
+        .toBeLessThan(body.indexOf('**Create the change directory**'));
+    }
+  });
+
+  it('hands command-only tools to apply instead of advertising direct coding (#258)', () => {
+    expect(proposeCommandBody).toContain('When you are ready, run `/opsx:apply`.');
+    expect(proposeCommandBody).not.toContain('ask me to implement');
+    expect(proposeCommandBody).not.toContain('ask me to apply this change');
+
+    expect(proposeSkillBody).toContain(
+      'run `/opsx:apply` or ask me to apply this change'
+    );
+    expect(proposeSkillBody).not.toContain('ask me to implement');
+  });
+
+  it('preserves both boundaries through every command adapter', () => {
+    const propose = getCommandContents(['propose'])[0];
+    expect(propose?.id).toBe('propose');
+
+    for (const adapter of CommandAdapterRegistry.getAll()) {
+      const generated = generateCommand(propose, adapter).fileContent;
+      const applyInvocation = formatCommandInvocation(
+        getInvocationForAdapter(adapter),
+        'apply'
+      );
+      expect(generated, adapter.toolId).toContain(
+        'selected or triggered this workflow authorizes planning only'
+      );
+      expect(generated, adapter.toolId).toContain('Do NOT implement the change');
+      expect(generated, adapter.toolId).toContain(
+        'Do not start implementation in the same response'
+      );
+      expect(generated, adapter.toolId).toContain(
+        'Any implementation or apply instruction in that request does not carry forward'
+      );
+      expect(generated, adapter.toolId).toContain(
+        'wait for a new user request to start the apply workflow'
+      );
+      expect(generated, adapter.toolId).toContain(
+        `When you are ready, run \`${applyInvocation}\`.`
+      );
+      expect(generated, adapter.toolId).not.toContain('ask me to implement');
     }
   });
 });
