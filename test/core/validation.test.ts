@@ -279,9 +279,11 @@ The system SHALL do B.
       const report = await new Validator().validateSpec(specPath);
 
       expect(report.valid).toBe(false);
-      expect(
-        report.issues.some(i => i.level === 'ERROR' && i.message.includes('Main spec contains delta header'))
-      ).toBe(true);
+      const deltaHeaderIssue = report.issues.find(
+        i => i.level === 'ERROR' && i.message.includes('Main spec contains delta header')
+      );
+      expect(deltaHeaderIssue).toBeDefined();
+      expect(deltaHeaderIssue?.message).toContain('specs/<capability-path>/spec.md');
       expect(
         report.issues.some(i => i.level === 'ERROR' && i.message.includes('Requirement header "### Requirement: B" appears outside'))
       ).toBe(true);
@@ -586,9 +588,11 @@ The system SHALL record request metrics.
       const report = await validator.validateChangeDeltaSpecs(changeDir);
 
       expect(report.valid).toBe(false);
-      expect(
-        report.issues.some(i => i.message.includes('Delta spec found at specs/spec.md'))
-      ).toBe(true);
+      const rootDeltaIssue = report.issues.find(
+        i => i.message.includes('Delta spec found at specs/spec.md')
+      );
+      expect(rootDeltaIssue).toBeDefined();
+      expect(rootDeltaIssue?.message).toContain('specs/<capability-path>/spec.md');
       // The precise error replaces the generic one, which would otherwise say
       // "No deltas found" about a file it just named.
       expect(report.issues.some(i => i.message.includes('No deltas found'))).toBe(false);

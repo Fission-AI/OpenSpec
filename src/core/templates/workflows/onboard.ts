@@ -220,6 +220,11 @@ I'll draft one based on our task.
 
 **DO:** Draft the proposal content (don't save yet):
 
+\`<capability-path>\` is the spec directory relative to \`specs/\` (for example,
+\`user-auth\` or \`identity/user-auth\`). Use the exact existing path for modified
+capabilities. For new capabilities, follow the project's established spec
+organization.
+
 \`\`\`
 Here's a draft proposal:
 
@@ -236,10 +241,11 @@ Here's a draft proposal:
 ## Capabilities
 
 ### New Capabilities
-- \`<capability-name>\`: [brief description]
+- \`<capability-path>\`: [brief description]
 
 ### Modified Capabilities
 <!-- If modifying existing behavior -->
+- \`<existing-capability-path>\`: [brief description]
 
 ## Impact
 

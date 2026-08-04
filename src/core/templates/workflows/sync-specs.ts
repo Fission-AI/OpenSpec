@@ -53,8 +53,9 @@ ${STORE_SELECTION_GUIDANCE}
 
    Sync every path in \`existingOutputPaths\` unless the caller narrowed the set.
    A caller narrows it by naming an explicit list of complete entries from
-   \`existingOutputPaths\` — archive does this inline, and a user can too
-   ("only sync \`specs/billing/invoices/spec.md\`").
+   \`existingOutputPaths\` — copy those absolute values verbatim. Archive does
+   this inline, and a user can too (for example, by selecting the entry ending
+   in \`/specs/billing/invoices/spec.md\`).
    Then sync only the named paths and leave the remaining delta specs untouched:
    bulk archive excludes a delta whose implementation it could not find, and
    syncing it anyway would write a main spec the caller deliberately withheld.
@@ -314,8 +315,9 @@ ${STORE_SELECTION_GUIDANCE}
 
    Sync every path in \`existingOutputPaths\` unless the caller narrowed the set.
    A caller narrows it by naming an explicit list of complete entries from
-   \`existingOutputPaths\` — archive does this inline, and a user can too
-   ("only sync \`specs/billing/invoices/spec.md\`").
+   \`existingOutputPaths\` — copy those absolute values verbatim. Archive does
+   this inline, and a user can too (for example, by selecting the entry ending
+   in \`/specs/billing/invoices/spec.md\`).
    Then sync only the named paths and leave the remaining delta specs untouched:
    bulk archive excludes a delta whose implementation it could not find, and
    syncing it anyway would write a main spec the caller deliberately withheld.

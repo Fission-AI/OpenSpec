@@ -243,63 +243,101 @@ describe('skill templates split parity', () => {
   it('preserves nested capability paths in spec-aware workflow guidance (#1459)', () => {
     const capabilityPathDefinition =
       '`<capability-path>` is the spec directory relative to `specs/`';
-    const pathAwareTemplates: Array<[string, string, string]> = [
+    const pathAwareTemplates: Array<[string, string, string, string]> = [
       [
         'propose skill',
         generateSkillContent(getOpsxProposeSkillTemplate(), 'PARITY-BASELINE'),
         'specs/<capability-path>/spec.md',
+        "Preserve an existing capability's full path",
       ],
       [
         'propose command',
         getOpsxProposeCommandTemplate().content,
         'specs/<capability-path>/spec.md',
+        "Preserve an existing capability's full path",
       ],
       [
         'explore skill',
         generateSkillContent(getExploreSkillTemplate(), 'PARITY-BASELINE'),
         'specs/<capability-path>/spec.md',
+        "Preserve an existing capability's full path",
       ],
       [
         'explore command',
         getOpsxExploreCommandTemplate().content,
         'specs/<capability-path>/spec.md',
+        "Preserve an existing capability's full path",
+      ],
+      [
+        'onboard skill',
+        generateSkillContent(getOnboardSkillTemplate(), 'PARITY-BASELINE'),
+        '<existing-capability-path>',
+        'Use the exact existing path for modified',
+      ],
+      [
+        'onboard command',
+        getOpsxOnboardCommandTemplate().content,
+        '<existing-capability-path>',
+        'Use the exact existing path for modified',
       ],
       [
         'sync skill',
         generateSkillContent(getSyncSpecsSkillTemplate(), 'PARITY-BASELINE'),
         '<planningHome.root>/openspec/specs/<capability-path>/spec.md',
+        'Preserve the full path from each delta spec',
       ],
       [
         'sync command',
         getOpsxSyncCommandTemplate().content,
         '<planningHome.root>/openspec/specs/<capability-path>/spec.md',
+        'Preserve the full path from each delta spec',
       ],
       [
         'archive skill',
         generateSkillContent(getArchiveChangeSkillTemplate(), 'PARITY-BASELINE'),
         '<planningHome.root>/openspec/specs/<capability-path>/spec.md',
+        'Preserve the full path from each delta spec',
       ],
       [
         'archive command',
         getOpsxArchiveCommandTemplate().content,
         '<planningHome.root>/openspec/specs/<capability-path>/spec.md',
+        'Preserve the full path from each delta spec',
       ],
       [
         'bulk archive skill',
         generateSkillContent(getBulkArchiveChangeSkillTemplate(), 'PARITY-BASELINE'),
         '<planningHome.root>/openspec/specs/<capability-path>/spec.md',
+        'Preserve the full path from each delta spec',
       ],
       [
         'bulk archive command',
         getOpsxBulkArchiveCommandTemplate().content,
         '<planningHome.root>/openspec/specs/<capability-path>/spec.md',
+        'Preserve the full path from each delta spec',
       ],
     ];
 
-    for (const [label, content, destination] of pathAwareTemplates) {
+    for (const [label, content, destination, preservationGuidance] of pathAwareTemplates) {
       expect(content, label).toContain(capabilityPathDefinition);
       expect(content, label).toContain(destination);
+      expect(content, label).toContain(preservationGuidance);
       expect(content, label).not.toContain('specs/<capability>/spec.md');
+    }
+
+    const onboardVariants: Array<[string, string]> = [
+      [
+        'onboard skill',
+        generateSkillContent(getOnboardSkillTemplate(), 'PARITY-BASELINE'),
+      ],
+      ['onboard command', getOpsxOnboardCommandTemplate().content],
+    ];
+
+    for (const [label, content] of onboardVariants) {
+      expect(content, label).toContain(
+        '- `<capability-path>`: [brief description]'
+      );
+      expect(content, label).not.toContain('<capability-name>');
     }
 
     const bulkArchiveVariants: Array<[string, string]> = [
@@ -318,6 +356,10 @@ describe('skill templates split parity', () => {
         'billing/user-auth  -> [change-c]            <- OK (different full path)'
       );
       expect(content, label).toContain(
+        'identity/user-auth -> [change-a, change-b]  <- CONFLICT'
+      );
+      expect(content, label).toContain('identity/user-auth (!)');
+      expect(content, label).toContain(
         'the exact same `<capability-path>`'
       );
       expect(content, label).toContain(
@@ -329,6 +371,12 @@ describe('skill templates split parity', () => {
       expect(content, label).toContain(
         'add-jwt, identity/user-auth: implementation not found'
       );
+      expect(content, label).toContain(
+        '1 conflict resolved (identity/user-auth: synced add-oauth, skipped add-jwt)'
+      );
+      expect(content, label).not.toContain('\n   auth -> [change-a');
+      expect(content, label).not.toContain('| auth (!)');
+      expect(content, label).not.toContain('(auth: synced');
       expect(content, label).not.toContain('add-jwt/auth:');
     }
   });
@@ -505,9 +553,12 @@ describe('skill templates split parity', () => {
         'Honor a caller-supplied subset of `existingOutputPaths`'
       );
       expect(content, variant).toContain(
-        'only sync `specs/billing/invoices/spec.md`'
+        'copy those absolute values verbatim'
       );
+      expect(content, variant).toContain('selecting the entry ending');
+      expect(content, variant).toContain('/specs/billing/invoices/spec.md');
       expect(content, variant).not.toContain('only sync the billing delta');
+      expect(content, variant).not.toContain('only sync `specs/billing/invoices/spec.md`');
 
       // Step 4 is the operative loop. Narrowing step 3 alone left the loop
       // still iterating "each path returned by the CLI", which re-widens the
