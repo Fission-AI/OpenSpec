@@ -700,6 +700,26 @@ rules:
       expect(status.artifacts.every(a => a.status === 'done')).toBe(true);
     });
 
+    it('should count skipped artifacts as planning-complete without creating them', () => {
+      const changeDir = path.join(tempDir, 'openspec', 'changes', 'my-change');
+      fs.mkdirSync(changeDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(changeDir, '.openspec.yaml'),
+        'schema: spec-driven\nskip_specs: true\n'
+      );
+      fs.writeFileSync(path.join(changeDir, 'proposal.md'), '# Proposal');
+      fs.writeFileSync(path.join(changeDir, 'design.md'), '# Design');
+      fs.writeFileSync(path.join(changeDir, 'tasks.md'), '# Tasks');
+
+      const context = loadChangeContext(tempDir, 'my-change');
+      const status = formatChangeStatus(context);
+
+      expect(status.isPlanningComplete).toBe(true);
+      expect(status.isComplete).toBe(true);
+      expect(status.artifacts.find(a => a.id === 'specs')?.status).toBe('skipped');
+      expect(fs.existsSync(path.join(changeDir, 'specs'))).toBe(false);
+    });
+
     it('should show blocked artifacts with missing dependencies', () => {
       const context = loadChangeContext(tempDir, 'my-change');
       const status = formatChangeStatus(context);

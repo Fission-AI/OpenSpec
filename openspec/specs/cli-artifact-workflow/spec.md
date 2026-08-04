@@ -26,7 +26,8 @@ The system SHALL display artifact completion status for a change, including scaf
 
 - **WHEN** user runs `openspec status --change <id> --json`
 - **THEN** the system outputs JSON with changeName, schemaName, isPlanningComplete, isComplete, and artifacts array
-- **AND** `isPlanningComplete` is true only when every planning artifact exists
+- **AND** `isPlanningComplete` is true only when every non-skipped planning artifact exists
+- **AND** a skipped artifact counts as satisfied without being created
 - **AND** `isComplete` remains a compatibility alias with the same value
 
 #### Scenario: Status JSON includes apply requirements
