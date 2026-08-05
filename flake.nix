@@ -39,6 +39,7 @@
                 ./test
                 ./package.json
                 ./pnpm-lock.yaml
+                ./pnpm-workspace.yaml
                 ./tsconfig.json
                 ./build.js
                 ./vitest.config.ts

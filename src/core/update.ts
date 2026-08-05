@@ -23,6 +23,9 @@ import {
   getCommandContents,
   generateSkillContent,
   getToolsWithSkillsDir,
+  hasGlobalSkillTarget,
+  resolveToolSkillsDir,
+  toolSupportsSkills,
   type ToolVersionStatus,
 } from './shared/index.js';
 import {
@@ -67,6 +70,8 @@ import {
   shouldReconcileCommandFilesForTool,
   shouldRemoveSkillsForTool,
 } from './command-surface.js';
+import { writeSharedSkillTarget } from './shared-skill-target.js';
+import { includesGitHubCopilot, writeCopilotCloudFiles, removeCopilotCloudFiles } from './github-copilot/cloud-agent.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
@@ -163,6 +168,7 @@ export class UpdateCommand {
 
     // 5. Find configured tools
     const configuredTools = getConfiguredToolsForProfileSync(resolvedProjectPath);
+    const configuredAndNewTools = [...new Set([...configuredTools, ...newlyConfiguredTools])];
 
     if (configuredTools.length === 0 && newlyConfiguredTools.length === 0) {
       if (deferredGlobalCleanup) {
@@ -184,6 +190,7 @@ export class UpdateCommand {
         }
         return;
       }
+      await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
       console.log(chalk.yellow('No configured tools found.'));
       console.log(chalk.dim('Run "openspec init" to set up tools.'));
       return;
@@ -201,7 +208,14 @@ export class UpdateCommand {
 
     // 7. Smart update detection
     const toolsNeedingVersionUpdate = toolStatuses
-      .filter((s) => s.needsUpdate)
+      .filter((s) => {
+        if (!s.needsUpdate || delivery !== 'commands') {
+          return s.needsUpdate;
+        }
+
+        const tool = AI_TOOLS.find((candidate) => candidate.value === s.toolId);
+        return !tool || !hasGlobalSkillTarget(tool);
+      })
       .map((s) => s.toolId);
     const toolsNeedingConfigSync = getToolsNeedingProfileSync(
       resolvedProjectPath,
@@ -221,6 +235,7 @@ export class UpdateCommand {
       }
       // All tools are up to date
       this.displayUpToDateMessage(toolStatuses);
+      await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
 
       // Still check for new tool directories and extra workflows
       this.detectNewTools(resolvedProjectPath, configuredTools);
@@ -255,12 +270,13 @@ export class UpdateCommand {
 
     for (const toolId of toolsToUpdate) {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
-      if (!tool?.skillsDir) continue;
+      if (!tool || !toolSupportsSkills(tool)) continue;
 
       const spinner = ora(`Updating ${tool.name}...`).start();
 
       try {
-        const skillsDir = path.join(resolvedProjectPath, tool.skillsDir, 'skills');
+        const skillsDir = resolveToolSkillsDir(resolvedProjectPath, tool);
+        const skillsRoot = hasGlobalSkillTarget(tool) ? skillsDir : resolvedProjectPath;
         const shouldGenerateSkills = shouldGenerateSkillsForTool(tool.value, delivery);
         const shouldGenerateCommands = shouldGenerateCommandsForTool(tool.value, delivery);
         const toolWorkflows = legacyWorkflowOverrides[tool.value] ?? desiredWorkflows;
@@ -280,20 +296,24 @@ export class UpdateCommand {
               resolveCommandInvocation(tool.value)
             );
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
-            FileSystemUtils.assertProjectArtifactPath(resolvedProjectPath, skillFile);
+            FileSystemUtils.assertPathWithin(skillsRoot, skillFile);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
+          writeSharedSkillTarget(resolvedProjectPath, tool.value);
 
           removedDeselectedSkillCount += await this.removeUnselectedSkillDirs(
-            resolvedProjectPath,
+            skillsRoot,
             skillsDir,
             toolWorkflows
           );
         }
 
         // Delete skill directories if delivery is commands-only
-        if (shouldRemoveSkillsForTool(tool.value, delivery)) {
-          removedSkillCount += await this.removeSkillDirs(resolvedProjectPath, skillsDir);
+        if (shouldRemoveSkillsForTool(tool.value, delivery) && !hasGlobalSkillTarget(tool)) {
+          removedSkillCount += await this.removeSkillDirs(skillsRoot, skillsDir);
+          // Persist the selected owner even when commands-only delivery leaves
+          // this target with no generated skills.
+          writeSharedSkillTarget(resolvedProjectPath, tool.value);
           // A tool with no command adapter now has zero OpenSpec artifacts;
           // say so like init does, rather than deleting its skills silently
           // and letting tool detection re-suggest an init that would also
@@ -334,6 +354,16 @@ export class UpdateCommand {
 
         spinner.succeed(`Updated ${tool.name}`);
         updatedTools.push(tool.name);
+        for (const migration of migrateLegacyToolDirs(
+          resolvedProjectPath,
+          [tool.value],
+          'after-generation'
+        )) {
+          if (hasMovableContent(migration)) {
+            console.log(chalk.dim(`Migrated ${describeLegacyMigration(migration)}: ${migration.from} → ${migration.to}`));
+          }
+          this.reportKeptInPlace(migration);
+        }
       } catch (error) {
         spinner.fail(`Failed to update ${tool.name}`);
         failedTools.push({
@@ -430,7 +460,7 @@ export class UpdateCommand {
       console.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
     }
 
-    const configuredAndNewTools = [...new Set([...configuredTools, ...newlyConfiguredTools])];
+    await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
 
     // 13. Detect new tool directories not currently configured
     this.detectNewTools(resolvedProjectPath, configuredAndNewTools);
@@ -450,6 +480,23 @@ export class UpdateCommand {
     console.log(chalk.dim('Restart your IDE for changes to take effect.'));
     if (failedTools.length > 0) {
       throw new Error(`OpenSpec update failed for: ${failedTools.map((tool) => tool.name).join(', ')}`);
+    }
+  }
+
+  private async syncCopilotCloudFiles(projectPath: string, configuredTools: string[]): Promise<void> {
+    try {
+      if (includesGitHubCopilot(configuredTools)) {
+        await writeCopilotCloudFiles(projectPath);
+        return;
+      }
+
+      const removed = await removeCopilotCloudFiles(projectPath);
+      if (removed > 0) {
+        console.log(chalk.dim(`Removed: ${removed} Copilot cloud agent file(s) (github-copilot not configured)`));
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`Warning: failed to sync Copilot cloud agent files: ${message}`);
     }
   }
 
@@ -569,7 +616,7 @@ export class UpdateCommand {
    * Removes skill directories for workflows when delivery changed to commands-only.
    * Returns the number of directories removed.
    */
-  private async removeSkillDirs(projectPath: string, skillsDir: string): Promise<number> {
+  private async removeSkillDirs(skillsRoot: string, skillsDir: string): Promise<number> {
     let removed = 0;
 
     for (const workflow of ALL_WORKFLOWS) {
@@ -578,7 +625,7 @@ export class UpdateCommand {
 
       const skillDir = path.join(skillsDir, dirName);
       if (!fs.existsSync(skillDir)) continue;
-      FileSystemUtils.assertProjectArtifactPath(projectPath, skillDir);
+      FileSystemUtils.assertPathWithin(skillsRoot, skillDir);
       try {
         await fs.promises.rm(skillDir, { recursive: true, force: true });
         removed++;
@@ -595,7 +642,7 @@ export class UpdateCommand {
    * Returns the number of directories removed.
    */
   private async removeUnselectedSkillDirs(
-    projectPath: string,
+    skillsRoot: string,
     skillsDir: string,
     desiredWorkflows: readonly (typeof ALL_WORKFLOWS)[number][]
   ): Promise<number> {
@@ -609,7 +656,7 @@ export class UpdateCommand {
 
       const skillDir = path.join(skillsDir, dirName);
       if (!fs.existsSync(skillDir)) continue;
-      FileSystemUtils.assertProjectArtifactPath(projectPath, skillDir);
+      FileSystemUtils.assertPathWithin(skillsRoot, skillDir);
       try {
         await fs.promises.rm(skillDir, { recursive: true, force: true });
         removed++;
@@ -1004,12 +1051,13 @@ export class UpdateCommand {
 
     for (const toolId of selectedTools) {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
-      if (!tool?.skillsDir) continue;
+      if (!tool || !toolSupportsSkills(tool)) continue;
 
       const spinner = ora(`Setting up ${tool.name}...`).start();
 
       try {
-        const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
+        const skillsDir = resolveToolSkillsDir(projectPath, tool);
+        const skillsRoot = hasGlobalSkillTarget(tool) ? skillsDir : projectPath;
         const shouldGenerateSkills = shouldGenerateSkillsForTool(tool.value, delivery);
         const shouldGenerateCommands = shouldGenerateCommandsForTool(tool.value, delivery);
         const toolWorkflows = (
@@ -1036,9 +1084,10 @@ export class UpdateCommand {
               resolveCommandInvocation(tool.value)
             );
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
-            FileSystemUtils.assertProjectArtifactPath(projectPath, skillFile);
+            FileSystemUtils.assertPathWithin(skillsRoot, skillFile);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
+          writeSharedSkillTarget(projectPath, tool.value);
         }
 
         // Create commands when delivery includes commands
@@ -1059,6 +1108,16 @@ export class UpdateCommand {
 
         spinner.succeed(`Setup complete for ${tool.name}`);
         newlyConfigured.push(toolId);
+        for (const migration of migrateLegacyToolDirs(
+          projectPath,
+          [tool.value],
+          'after-generation'
+        )) {
+          if (hasMovableContent(migration)) {
+            console.log(chalk.dim(`Migrated ${describeLegacyMigration(migration)}: ${migration.from} → ${migration.to}`));
+          }
+          this.reportKeptInPlace(migration);
+        }
       } catch (error) {
         spinner.fail(`Failed to set up ${tool.name}`);
         console.log(chalk.red(`  ${error instanceof Error ? error.message : String(error)}`));

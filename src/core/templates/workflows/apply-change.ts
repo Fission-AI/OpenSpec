@@ -15,7 +15,7 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
 
 ${STORE_SELECTION_GUIDANCE}
 
-**Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Input**: Optionally specify a change name (e.g., \`/opsx:apply add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
@@ -52,7 +52,7 @@ ${STORE_SELECTION_GUIDANCE}
    - Optional \`operationGuidance\`: current advisory guidance for apply
 
    **Handle states:**
-   - If \`state: "blocked"\` (missing artifacts): show message, suggest using openspec-continue-change (if it is not installed, run \`openspec status --change "<name>" --json\` to see the next artifact and \`openspec instructions <artifact-id> --change "<name>" --json\` for how to create it)
+   - If \`state: "blocked"\` (missing artifacts): show message, suggest using \`/opsx:continue\` (if it is not installed, run \`openspec status --change "<name>" --json\` to see the next artifact and \`openspec instructions <artifact-id> --change "<name>" --json\` for how to create it)
    - If \`state: "all_done"\`: congratulate, suggest archive
    - Otherwise: proceed to implementation
 
@@ -140,7 +140,7 @@ Working on task 4/7: <task description>
 - [x] Task 2
 ...
 
-All tasks complete! Ready to archive this change.
+All tasks complete! You can archive this change with \`/opsx:archive\`.
 \`\`\`
 
 **Output On Pause (Issue Encountered)**
