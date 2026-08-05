@@ -1,7 +1,7 @@
 import { OPENSPEC_SKILL_NAMES } from '../config.js';
 
 const GENERATED_VERSION =
-  /\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?/;
+  /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 const OPENSPEC_SKILL_NAME_SET = new Set<string>(OPENSPEC_SKILL_NAMES);
 
 /**
@@ -14,13 +14,22 @@ function normalizeGeneratedSkill(content: string): string {
   const frontmatter = normalized.match(/^---\n[\s\S]*?\n---(?:\n|$)/)?.[0];
   if (!frontmatter) return normalized;
 
-  const versionLine = new RegExp(
-    `^(\\s*generatedBy:\\s*)["']?${GENERATED_VERSION.source}["']?\\s*$`,
-    'm'
-  );
+  const versionLine =
+    /^(\s*generatedBy:\s*)(?:"([^"\n]+)"|'([^'\n]+)'|([^\s"'#]+))\s*$/m;
   const normalizedFrontmatter = frontmatter.replace(
     versionLine,
-    '$1"<generated-version>"'
+    (
+      line: string,
+      prefix: string,
+      doubleQuoted: string | undefined,
+      singleQuoted: string | undefined,
+      bare: string | undefined
+    ) => {
+      const version = doubleQuoted ?? singleQuoted ?? bare;
+      return version && GENERATED_VERSION.test(version)
+        ? `${prefix}"<generated-version>"`
+        : line;
+    }
   );
   return normalizedFrontmatter + normalized.slice(frontmatter.length);
 }
