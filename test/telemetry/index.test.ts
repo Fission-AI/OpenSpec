@@ -58,6 +58,7 @@ describe('telemetry/index', () => {
     delete process.env.CI;
   }
 
+  /** Write an isolated global telemetry section for synchronous gate tests. */
   function writeTelemetryConfig(telemetry: Record<string, unknown>): void {
     const configDir = path.join(tempDir, 'openspec');
     fs.mkdirSync(configDir, { recursive: true });
