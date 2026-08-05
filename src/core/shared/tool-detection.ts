@@ -12,6 +12,7 @@ import { getCommandContents } from './skill-generation.js';
 import { getGlobalConfig } from '../global-config.js';
 import { getProfileWorkflows, ALL_WORKFLOWS } from '../profiles.js';
 import {
+  isSharedSkillTargetActive,
   readSharedSkillTarget,
   reconcileSharedSkillTargets,
 } from '../shared-skill-target.js';
@@ -92,6 +93,9 @@ export function getToolsWithSkillsDir(): string[] {
 export function getToolSkillStatus(projectRoot: string, toolId: string): ToolSkillStatus {
   const tool = AI_TOOLS.find((t) => t.value === toolId);
   if (!tool?.skillsDir) {
+    return { configured: false, fullyConfigured: false, skillCount: 0 };
+  }
+  if (!isSharedSkillTargetActive(projectRoot, toolId)) {
     return { configured: false, fullyConfigured: false, skillCount: 0 };
   }
 

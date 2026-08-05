@@ -360,6 +360,37 @@ metadata:
       ).toBe(true);
     });
 
+    it('should retry interrupted equivalent Codex cleanup without force', async () => {
+      await new InitCommand({ tools: 'codex', force: true }).execute(testDir);
+      const canonicalSkills = path.join(testDir, '.agents', 'skills');
+      const legacySkills = path.join(testDir, '.codex', 'skills');
+      await fs.cp(canonicalSkills, legacySkills, { recursive: true });
+      await fs.rm(path.join(legacySkills, '.openspec-target'));
+
+      for (const entry of await fs.readdir(legacySkills, { withFileTypes: true })) {
+        if (!entry.isDirectory() || !entry.name.startsWith('openspec-')) continue;
+        const skillFile = path.join(legacySkills, entry.name, 'SKILL.md');
+        const legacyContent = (await fs.readFile(skillFile, 'utf-8'))
+          .replace(
+            /\$openspec-([a-z0-9-]+) \(Codex\) or \/openspec-\1 \(other agents\)/g,
+            '$openspec-$1'
+          )
+          .replace(/generatedBy:\s*"[^"]+"/, 'generatedBy: "0.1.0"')
+          .replace(/\n/g, '\r\n');
+        await fs.writeFile(skillFile, `\uFEFF${legacyContent}`);
+      }
+
+      await updateCommand.execute(testDir);
+
+      await expect(
+        fs.access(path.join(legacySkills, 'openspec-propose', 'SKILL.md'))
+      ).rejects.toThrow();
+      expect(await fs.readFile(
+        path.join(canonicalSkills, 'openspec-propose', 'SKILL.md'),
+        'utf-8'
+      )).toContain('$openspec-apply-change');
+    });
+
     it('should preserve and report a divergent legacy Codex skill', async () => {
       await new InitCommand({ tools: 'codex', force: true }).execute(testDir);
       await fs.rename(path.join(testDir, '.agents'), path.join(testDir, '.codex'));

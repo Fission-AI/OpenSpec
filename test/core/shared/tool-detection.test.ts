@@ -137,6 +137,9 @@ describe('tool-detection', () => {
       const states = getToolStates(testDir);
       expect(states.get('agents')?.configured).toBe(true);
       expect(states.get('codex')?.configured).toBe(false);
+      expect(getToolSkillStatus(testDir, 'agents').configured).toBe(true);
+      expect(getToolSkillStatus(testDir, 'codex').configured).toBe(false);
+      expect(getToolVersionStatus(testDir, 'codex', '0.23.0').configured).toBe(false);
     });
 
     it('should preserve marker-only ownership when delivery intentionally has no skills', async () => {

@@ -182,6 +182,29 @@ describe('available-tools', () => {
       expect(tools.map((tool) => tool.value)).toEqual(['codex']);
     });
 
+    it('should detect valid legacy Codex skills beside an escaped managed link', async () => {
+      const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-legacy-outside-'));
+      try {
+        const legacySkills = path.join(testDir, '.codex', 'skills');
+        await fs.mkdir(path.join(legacySkills, 'openspec-propose'), { recursive: true });
+        await fs.writeFile(
+          path.join(legacySkills, 'openspec-propose', 'SKILL.md'),
+          'Next: $openspec-apply-change'
+        );
+        await fs.mkdir(outsideDir, { recursive: true });
+        await fs.symlink(
+          outsideDir,
+          path.join(legacySkills, 'openspec-explore'),
+          process.platform === 'win32' ? 'junction' : 'dir'
+        );
+
+        const tools = getAvailableTools(testDir);
+        expect(tools.map((tool) => tool.value)).toEqual(['codex']);
+      } finally {
+        await fs.rm(outsideDir, { recursive: true, force: true });
+      }
+    });
+
     it('should not let an unknown legacy skill supersede the shared agents target', async () => {
       await fs.mkdir(path.join(testDir, '.agents', 'skills'), { recursive: true });
       await fs.writeFile(path.join(testDir, '.agents', 'skills', '.openspec-target'), 'agents\n');

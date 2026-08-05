@@ -13,6 +13,7 @@ import {
 } from './command-surface.js';
 import { readSharedSkillTarget } from './shared-skill-target.js';
 import { FileSystemUtils } from '../utils/file-system.js';
+import { areGeneratedSkillContentsEquivalent } from './shared/skill-content-equivalence.js';
 
 type WorkflowId = (typeof ALL_WORKFLOWS)[number];
 
@@ -90,10 +91,16 @@ export function hasToolProfileOrDeliveryDrift(
         ) {
           continue;
         }
-        // Equal distinct copies are actionable: migration can safely remove
-        // the redundant legacy file. Divergent copies are user-owned and stay
-        // in place without forcing an update on every run.
-        if (fs.readFileSync(legacySkill, 'utf-8') === fs.readFileSync(currentSkill, 'utf-8')) {
+        // Equivalent generated copies are actionable: migration can safely
+        // remove the redundant legacy file even when version, line endings,
+        // or supported invocation syntax changed. Materially divergent copies
+        // stay in place without forcing an update on every run.
+        if (
+          areGeneratedSkillContentsEquivalent(
+            fs.readFileSync(legacySkill, 'utf-8'),
+            fs.readFileSync(currentSkill, 'utf-8')
+          )
+        ) {
           return true;
         }
       } catch {

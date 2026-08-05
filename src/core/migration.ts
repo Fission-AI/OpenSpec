@@ -18,6 +18,8 @@ import { COMMAND_IDS } from './shared/tool-detection.js';
 import { ALL_WORKFLOWS } from './profiles.js';
 import { getSkillReferenceTransformer, getTransformerForTool } from '../utils/command-references.js';
 import { FileSystemUtils } from '../utils/file-system.js';
+import { isSharedSkillTargetActive } from './shared-skill-target.js';
+import { areGeneratedSkillContentsEquivalent } from './shared/skill-content-equivalence.js';
 import path from 'path';
 import * as fs from 'fs';
 
@@ -63,9 +65,9 @@ export interface LegacyToolMigration {
   /** Command files that moved, or would move */
   commandFiles: number;
   /**
- * OpenSpec-managed files left under the legacy root because the copy there
- * differs materially from the one that survives, so it is reported rather
- * than dropped.
+   * OpenSpec-managed files left under the legacy root because the copy there
+   * differs materially from the one that survives, so it is reported rather
+   * than dropped.
    */
   keptInPlace: number;
   /** Whether this move needs the user's consent first */
@@ -80,20 +82,6 @@ export interface LegacyToolMigration {
  */
 type FileDisposition = 'move' | 'drop' | 'keep' | 'skip';
 
-/** Ignores generated version and supported invocation-syntax differences. */
-function normalizeGeneratedSkill(content: string): string {
-  return content
-    .replace(
-      /\$openspec-([a-z0-9-]+) \(Codex\) or \/openspec-\1 \(other agents\)/g,
-      '/openspec-$1'
-    )
-    .replace(/\$openspec-/g, '/openspec-')
-    .replace(
-      /^(\s*generatedBy:\s*)["']?[^"'\n]+["']?\s*$/m,
-      '$1"<generated-version>"'
-    );
-}
-
 function classifyManagedFile(source: string, destination: string): FileDisposition {
   if (isSamePath(source, destination)) return 'skip';
   if (!fs.existsSync(destination)) return 'move';
@@ -103,7 +91,7 @@ function classifyManagedFile(source: string, destination: string): FileDispositi
     const equivalentGeneratedSkills =
       path.basename(source) === 'SKILL.md' &&
       path.basename(destination) === 'SKILL.md' &&
-      normalizeGeneratedSkill(sourceContent) === normalizeGeneratedSkill(destinationContent);
+      areGeneratedSkillContentsEquivalent(sourceContent, destinationContent);
     return sourceContent === destinationContent || equivalentGeneratedSkills
       ? 'drop'
       : 'keep';
@@ -456,18 +444,20 @@ function scanInstalledWorkflowArtifacts(
 
   for (const tool of tools) {
     if (!tool.skillsDir) continue;
-    const skillRoots = includeLegacySkills
-      ? [tool.skillsDir, ...(tool.legacySkillsDirs ?? [])]
-      : [tool.skillsDir];
-    for (const root of skillRoots) {
-      const skillsDir = path.join(projectPath, root, 'skills');
+    if (isSharedSkillTargetActive(projectPath, tool.value)) {
+      const skillRoots = includeLegacySkills
+        ? [tool.skillsDir, ...(tool.legacySkillsDirs ?? [])]
+        : [tool.skillsDir];
+      for (const root of skillRoots) {
+        const skillsDir = path.join(projectPath, root, 'skills');
 
-      for (const workflowId of ALL_WORKFLOWS) {
-        const skillDirName = WORKFLOW_TO_SKILL_DIR[workflowId];
-        const skillFile = path.join(skillsDir, skillDirName, 'SKILL.md');
-        if (fs.existsSync(skillFile)) {
-          installed.add(workflowId);
-          hasSkills = true;
+        for (const workflowId of ALL_WORKFLOWS) {
+          const skillDirName = WORKFLOW_TO_SKILL_DIR[workflowId];
+          const skillFile = path.join(skillsDir, skillDirName, 'SKILL.md');
+          if (fs.existsSync(skillFile)) {
+            installed.add(workflowId);
+            hasSkills = true;
+          }
         }
       }
     }

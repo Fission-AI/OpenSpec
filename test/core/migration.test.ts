@@ -317,4 +317,16 @@ describe('migration', () => {
     migrateIfNeeded(projectDir, [ensureClaudeTool()]);
     expect(fs.existsSync(getGlobalConfigPath())).toBe(false);
   });
+
+  it('does not count generic shared skills as installed Codex workflows', async () => {
+    await writeSkill(projectDir, 'openspec-explore', '.agents');
+    await fsp.writeFile(
+      path.join(projectDir, '.agents', 'skills', '.openspec-target'),
+      'agents\n',
+      'utf-8'
+    );
+
+    expect(scanInstalledWorkflows(projectDir, [requireTool('codex')])).toEqual([]);
+    expect(scanInstalledWorkflows(projectDir, [requireTool('agents')])).toEqual(['explore']);
+  });
 });

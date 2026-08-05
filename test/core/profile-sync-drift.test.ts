@@ -134,6 +134,31 @@ describe('profile sync drift detection', () => {
     ).toBe(true);
   });
 
+  it('reports generated-only Codex differences that migration can remove', () => {
+    const skillsDir = setupCodexCoreSkills(tempDir);
+    const currentSkill = path.join(skillsDir, 'openspec-explore', 'SKILL.md');
+    const legacySkill = path.join(
+      tempDir,
+      '.codex',
+      'skills',
+      'openspec-explore',
+      'SKILL.md'
+    );
+    fs.writeFileSync(
+      currentSkill,
+      '---\nmetadata:\n  generatedBy: "1.7.0"\n---\nUse $openspec-apply-change (Codex) or /openspec-apply-change (other agents).\n'
+    );
+    fs.mkdirSync(path.dirname(legacySkill), { recursive: true });
+    fs.writeFileSync(
+      legacySkill,
+      '\uFEFF---\r\nmetadata:\r\n  generatedBy: "0.1.0"\r\n---\r\nUse $openspec-apply-change.\r\n'
+    );
+
+    expect(
+      hasToolProfileOrDeliveryDrift(tempDir, 'codex', CORE_WORKFLOWS, 'skills')
+    ).toBe(true);
+  });
+
   it('does not repeatedly report a divergent legacy Codex copy', () => {
     setupCodexCoreSkills(tempDir);
     const legacySkill = path.join(

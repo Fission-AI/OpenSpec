@@ -28,15 +28,15 @@ export function readSharedSkillTarget(
 function hasLegacySkills(projectPath: string, tool: AIToolOption): boolean {
   return (tool.legacySkillsDirs ?? []).some((root) => {
     const skillsDir = path.join(projectPath, root, 'skills');
-    try {
-      return OPENSPEC_SKILL_NAMES.some((skillName) => {
+    return OPENSPEC_SKILL_NAMES.some((skillName) => {
+      try {
         const skillFile = path.join(skillsDir, skillName, 'SKILL.md');
         FileSystemUtils.assertProjectArtifactPath(projectPath, skillFile);
         return fs.existsSync(skillFile);
-      });
-    } catch {
-      return false;
-    }
+      } catch {
+        return false;
+      }
+    });
   });
 }
 
@@ -143,6 +143,19 @@ export function reconcileSharedSkillTargets(
   }
 
   return reconciled;
+}
+
+/**
+ * Returns whether a tool is the active writer for its physical skills root.
+ * Non-shared roots are always active.
+ */
+export function isSharedSkillTargetActive(projectPath: string, toolId: string): boolean {
+  const tool = AI_TOOLS.find((candidate) => candidate.value === toolId);
+  if (!tool?.skillsDir) return false;
+  const sharingRoot = AI_TOOLS.filter((candidate) => candidate.skillsDir === tool.skillsDir);
+  if (sharingRoot.length < 2) return true;
+  return reconcileSharedSkillTargets(projectPath, sharingRoot)
+    .some((candidate) => candidate.value === toolId);
 }
 
 export function writeSharedSkillTarget(projectPath: string, toolId: string): void {

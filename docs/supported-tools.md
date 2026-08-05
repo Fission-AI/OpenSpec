@@ -149,6 +149,11 @@ directory is left alone. Treat the `openspec-*` names and marker as OpenSpec's â
 edits inside them are replaced on the next `openspec update`, the same as for
 every other tool.
 
+For pre-marker projects, OpenSpec infers ownership from managed skill references:
+`$openspec-*` means Codex and `/openspec-*` means the vendor-neutral target. A
+generic canonical tree alongside legacy `.codex/skills` is treated as an older
+dual-target install and consolidated into the compatible shared tree.
+
 ## Non-Interactive Setup
 
 For CI/CD or scripted setup, use `--tools` (and optionally `--profile`):

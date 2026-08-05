@@ -1034,6 +1034,22 @@ describe('InitCommand - profile and detection features', () => {
     )).toBe(true);
   });
 
+  it('should preserve global Codex prompts when only generic agents skills are installed', async () => {
+    const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
+    const legacyPrompt = path.join(promptDir, 'opsx-apply.md');
+    await fs.mkdir(promptDir, { recursive: true });
+    await fs.writeFile(legacyPrompt, 'legacy apply prompt');
+
+    const initCommand = new InitCommand({ tools: 'agents' });
+    await initCommand.execute(testDir);
+
+    expect(await fileExists(legacyPrompt)).toBe(true);
+    expect(await fs.readFile(
+      path.join(testDir, '.agents', 'skills', '.openspec-target'),
+      'utf-8'
+    )).toBe('agents\n');
+  });
+
   it('should preserve legacy Codex prompts without replacement skills during non-interactive init', async () => {
     const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
     const legacyPrompt = path.join(promptDir, 'opsx-onboard.md');
