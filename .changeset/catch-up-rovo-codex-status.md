@@ -9,4 +9,4 @@
 ### Bug Fixes
 
 - **Codex skills now live in the shared `.agents` directory** — `openspec init` and `openspec update` install Codex skills under `.agents/skills/` (the canonical location assistants read) and migrate an existing `.codex` skills directory in place. Files you customized are preserved, not overwritten.
-- **`openspec status` separates planning from implementation** — status now reports `isPlanningComplete` (every planning artifact is written) distinctly from overall progress, and its messages no longer imply a change is finished before it has been implemented. `isComplete` is kept as a compatibility alias, so existing scripts keep working.
+- **`openspec status` separates planning from implementation** — status now reports `isPlanningComplete` (every non-skipped planning artifact exists; skipped artifacts count as satisfied without being written) distinctly from overall progress, and its messages no longer imply a change is finished before it has been implemented. `isComplete` is kept as a compatibility alias, so existing scripts keep working.
