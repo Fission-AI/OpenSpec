@@ -650,6 +650,27 @@ context: |
         await expect(persistCopilotCloudOptIn(tempDir, true)).resolves.toBeUndefined();
         expect(readCopilotCloudOptIn(tempDir)).toBe(true);
       });
+
+      it('does not throw when the githubCopilot node itself is not a map', async () => {
+        // Root is a valid map, but `githubCopilot` holds a scalar/null/sequence:
+        // descending into it with setIn used to throw. Each must be replaced
+        // with a map, keeping the rest of the config (and its comments) intact.
+        for (const bad of [
+          'githubCopilot: false',
+          'githubCopilot: null',
+          'githubCopilot:\n  - a\n  - b',
+        ]) {
+          await writeConfig(`schema: spec-driven\n# keep me\n${bad}\n`);
+          await expect(persistCopilotCloudOptIn(tempDir, true)).resolves.toBeUndefined();
+          expect(readCopilotCloudOptIn(tempDir)).toBe(true);
+          const written = await fs.readFile(
+            path.join(tempDir, 'openspec', 'config.yaml'),
+            'utf8'
+          );
+          expect(written).toContain('# keep me');
+          expect(written).toContain('schema: spec-driven');
+        }
+      });
     });
 
     describe('listManagedCloudFiles', () => {

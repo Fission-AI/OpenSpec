@@ -9,7 +9,7 @@
 
 import path from 'path';
 import { promises as fs } from 'fs';
-import { Document, parseDocument, isMap } from 'yaml';
+import { Document, YAMLMap, parseDocument, isMap } from 'yaml';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import { readProjectConfig, resolveConfigFilePath } from '../project-config.js';
 
@@ -570,6 +570,13 @@ export async function persistCopilotCloudOptIn(
   // while keeping the comments — so only a non-map root is discarded.
   const doc: Document =
     parsed.contents === null || isMap(parsed.contents) ? parsed : new Document();
+  // The root is a map now, but the `githubCopilot` node itself may be a stray
+  // scalar/sequence/null (e.g. `githubCopilot: false`) — descending into that
+  // with setIn also throws. Replace any non-map node with an empty map first.
+  const section = doc.getIn([COPILOT_CONFIG_KEY], true);
+  if (section !== undefined && !isMap(section)) {
+    doc.setIn([COPILOT_CONFIG_KEY], new YAMLMap());
+  }
   doc.setIn([COPILOT_CONFIG_KEY, COPILOT_CLOUD_AGENT_KEY], value);
   await FileSystemUtils.writeFile(configPath, doc.toString());
 }
