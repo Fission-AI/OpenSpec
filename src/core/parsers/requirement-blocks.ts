@@ -362,27 +362,45 @@ export function findMissingCurrentScenarios(current: RequirementBlock, incoming:
   return missing;
 }
 
+/** Any non-fenced level-4 header on the given (masked) line. */
+function scenarioHeaderAt(lines: string[], mask: boolean[], index: number): boolean {
+  return !mask[index] && /^####\s+/.test(lines[index]);
+}
+
+/**
+ * The scenario name for a `#### ` header, matching the label the author reads:
+ * the header text with an optional `Scenario:` prefix stripped. Both the
+ * current and incoming blocks run through here, so the comparison in
+ * findMissingCurrentScenarios stays internally consistent regardless of label.
+ */
+function scenarioNameAt(line: string): string {
+  return line.replace(/^####\s+/, '').replace(/^Scenario:\s*/i, '').trim();
+}
+
 function parseScenarioBlocks(requirementRaw: string): ScenarioBlock[] {
   const lines = requirementRaw.replace(/\r\n?/g, '\n').split('\n');
-  // A `#### Scenario:` inside a fenced example is not a real scenario. The
-  // validator's countScenarios already ignores fenced lines; the drift check
-  // must agree with it, or a fenced sample can false-abort an archive (or
-  // mask a genuinely dropped scenario).
+  // A scenario is ANY non-fenced `#### ` header, matching the spec path's
+  // SCENARIO_HEADER / countScenarios (requirement-text.ts) exactly — not only
+  // `#### Scenario:`. The two MUST agree: a level-4 child whose header is not
+  // literally `Scenario:` (e.g. `#### Edge case`) is still a scenario the spec
+  // path counts, so a MODIFIED block that drops it would otherwise slip past
+  // this loss check and be deleted by archive with no error (the parity the
+  // SCENARIO_HEADER comment warns not to break). A `####` inside a fenced
+  // example is masked out, matching countScenarios.
   const mask = buildCodeFenceMask(lines);
   const scenarios: ScenarioBlock[] = [];
   let index = 0;
 
   while (index < lines.length) {
-    const headerMatch = mask[index] ? null : lines[index].match(/^####\s*Scenario:\s*(.+)\s*$/);
-    if (!headerMatch) {
+    if (!scenarioHeaderAt(lines, mask, index)) {
       index++;
       continue;
     }
 
     const start = index;
-    const name = headerMatch[1].trim();
+    const name = scenarioNameAt(lines[index]);
     index++;
-    while (index < lines.length && (mask[index] || !/^####\s*Scenario:\s*(.+)\s*$/.test(lines[index]))) {
+    while (index < lines.length && !scenarioHeaderAt(lines, mask, index)) {
       index++;
     }
 
