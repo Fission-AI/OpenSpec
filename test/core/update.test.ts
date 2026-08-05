@@ -4,7 +4,7 @@ import { InitCommand } from '../../src/core/init.js';
 import { FileSystemUtils } from '../../src/utils/file-system.js';
 import { OPENSPEC_MARKERS } from '../../src/core/config.js';
 import type { GlobalConfig } from '../../src/core/global-config.js';
-import { generateCopilotSetupSteps } from '../../src/core/github-copilot/cloud-agent.js';
+import { generateCopilotSetupSteps, persistCopilotCloudOptIn } from '../../src/core/github-copilot/cloud-agent.js';
 import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
@@ -1780,6 +1780,33 @@ metadata:
       await new UpdateCommand({ force: true }).execute(testDir);
 
       await expect(fs.readFile(setupStepsPath, 'utf8')).resolves.toBe(generateCopilotSetupSteps());
+    });
+
+    it('should remove managed cloud files on update when the user has opted out', async () => {
+      await new InitCommand({ tools: 'github-copilot', force: true, copilotCloud: true }).execute(testDir);
+      const setupStepsPath = path.join(testDir, '.github', 'workflows', 'copilot-setup-steps.yml');
+      const agentPath = path.join(testDir, '.github', 'agents', 'openspec.agent.md');
+      expect(await fs.stat(setupStepsPath)).toBeTruthy();
+
+      await persistCopilotCloudOptIn(testDir, false); // explicit opt-out
+
+      await new UpdateCommand({ force: true }).execute(testDir);
+
+      await expect(fs.stat(setupStepsPath)).rejects.toMatchObject({ code: 'ENOENT' });
+      await expect(fs.stat(agentPath)).rejects.toMatchObject({ code: 'ENOENT' });
+    });
+
+    it('should preserve a customized cloud file on update even when opted out', async () => {
+      await new InitCommand({ tools: 'github-copilot', force: true, copilotCloud: true }).execute(testDir);
+      const setupStepsPath = path.join(testDir, '.github', 'workflows', 'copilot-setup-steps.yml');
+      await fs.writeFile(setupStepsPath, 'name: my own workflow\n');
+
+      await persistCopilotCloudOptIn(testDir, false); // explicit opt-out
+
+      await new UpdateCommand({ force: true }).execute(testDir);
+
+      // A user-customized file is never removed, even on opt-out.
+      await expect(fs.readFile(setupStepsPath, 'utf8')).resolves.toBe('name: my own workflow\n');
     });
 
     it('should warn when GitHub Copilot cloud files cannot be synchronized', async () => {

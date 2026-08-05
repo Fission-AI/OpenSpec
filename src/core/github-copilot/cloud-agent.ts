@@ -9,7 +9,7 @@
 
 import path from 'path';
 import { promises as fs } from 'fs';
-import { parseDocument } from 'yaml';
+import { Document, parseDocument, isCollection } from 'yaml';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import { readProjectConfig, resolveConfigFilePath } from '../project-config.js';
 
@@ -561,7 +561,37 @@ export async function persistCopilotCloudOptIn(
     return;
   }
   const existing = await FileSystemUtils.readFile(configPath);
-  const doc = parseDocument(existing);
+  const parsed = parseDocument(existing);
+  // A config whose top-level node is a scalar (e.g. the file contains literally
+  // `null` or a bare string) has no map to set a key on, and `setIn` throws on
+  // it. Such a file is already invalid (readProjectConfig rejects it), so start
+  // fresh rather than crash. An empty or comment-only file parses to null
+  // contents, which setIn fills in while keeping the comments — so only a
+  // genuine scalar is discarded.
+  const doc: Document =
+    parsed.contents !== null && !isCollection(parsed.contents) ? new Document() : parsed;
   doc.setIn([COPILOT_CONFIG_KEY, COPILOT_CLOUD_AGENT_KEY], value);
   await FileSystemUtils.writeFile(configPath, doc.toString());
+}
+
+/**
+ * Return the managed cloud-file paths (relative to the project root) that
+ * currently hold user-owned, non-managed content — i.e. files OpenSpec will
+ * deliberately leave untouched. Used to tell an opted-in user that we preserved
+ * their existing file rather than silently doing nothing, which is the honest
+ * answer to "will this affect my existing Copilot cloud setup?".
+ */
+export async function findUnmanagedCloudFiles(projectPath: string): Promise<string[]> {
+  const collisions: string[] = [];
+  for (const relPath of Object.values(COPILOT_CLOUD_FILES)) {
+    const fullPath = FileSystemUtils.resolveProjectArtifactPath(projectPath, relPath);
+    if (!(await FileSystemUtils.fileExists(fullPath))) {
+      continue;
+    }
+    const content = await FileSystemUtils.readFile(fullPath);
+    if (!isManagedCopilotCloudFile(relPath, content)) {
+      collisions.push(relPath);
+    }
+  }
+  return collisions;
 }

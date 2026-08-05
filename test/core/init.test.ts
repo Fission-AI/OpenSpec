@@ -1385,6 +1385,75 @@ describe('InitCommand - profile and detection features', () => {
     expect(githubCopilot?.preSelected).toBe(true);
   });
 
+  it('interactive init: confirming the cloud prompt writes files and persists the opt-in', async () => {
+    searchableMultiSelectMock.mockResolvedValue(['github-copilot']);
+    confirmMock.mockImplementation(({ message }: { message: string }) =>
+      Promise.resolve(String(message).includes('Copilot cloud coding-agent'))
+    );
+
+    const initCommand = new InitCommand({});
+    vi.spyOn(initCommand as any, 'canPromptInteractively').mockReturnValue(true);
+    await initCommand.execute(testDir);
+
+    expect(
+      await fileExists(path.join(testDir, '.github', 'workflows', 'copilot-setup-steps.yml'))
+    ).toBe(true);
+    const config = await fs.readFile(path.join(testDir, 'openspec', 'config.yaml'), 'utf8');
+    expect(config).toContain('cloudAgent: true');
+    expect(confirmMock).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining('copilot-setup-steps.yml') })
+    );
+  });
+
+  it('interactive init: declining the cloud prompt writes no cloud files but keeps local ones', async () => {
+    searchableMultiSelectMock.mockResolvedValue(['github-copilot']);
+    confirmMock.mockResolvedValue(false);
+
+    const initCommand = new InitCommand({});
+    vi.spyOn(initCommand as any, 'canPromptInteractively').mockReturnValue(true);
+    await initCommand.execute(testDir);
+
+    await expect(
+      fs.stat(path.join(testDir, '.github', 'workflows', 'copilot-setup-steps.yml'))
+    ).rejects.toMatchObject({ code: 'ENOENT' });
+    // Local Copilot prompt files are unaffected by the cloud decision.
+    expect(
+      await fileExists(path.join(testDir, '.github', 'prompts', 'opsx-explore.prompt.md'))
+    ).toBe(true);
+    const config = await fs.readFile(path.join(testDir, 'openspec', 'config.yaml'), 'utf8');
+    expect(config).toContain('cloudAgent: false');
+  });
+
+  it('re-init with --no-copilot-cloud removes previously generated managed cloud files', async () => {
+    const setupStepsPath = path.join(testDir, '.github', 'workflows', 'copilot-setup-steps.yml');
+    await new InitCommand({ tools: 'github-copilot', force: true, copilotCloud: true }).execute(testDir);
+    expect(await fileExists(setupStepsPath)).toBe(true);
+
+    await new InitCommand({ tools: 'github-copilot', force: true, copilotCloud: false }).execute(testDir);
+
+    expect(await fileExists(setupStepsPath)).toBe(false);
+    const config = await fs.readFile(path.join(testDir, 'openspec', 'config.yaml'), 'utf8');
+    expect(config).toContain('cloudAgent: false');
+  });
+
+  it('re-init without a flag honors the persisted opt-in', async () => {
+    const setupStepsPath = path.join(testDir, '.github', 'workflows', 'copilot-setup-steps.yml');
+    await new InitCommand({ tools: 'github-copilot', force: true, copilotCloud: true }).execute(testDir);
+    await fs.rm(setupStepsPath, { force: true });
+
+    // No flag this run: the persisted cloudAgent: true must drive the write.
+    await new InitCommand({ tools: 'github-copilot', force: true }).execute(testDir);
+
+    expect(await fileExists(setupStepsPath)).toBe(true);
+  });
+
+  it('warns when --copilot-cloud is passed but github-copilot is not selected', async () => {
+    await new InitCommand({ tools: 'claude', force: true, copilotCloud: true }).execute(testDir);
+
+    const out = vi.mocked(console.log).mock.calls.flat().join('\n');
+    expect(out).toContain('was ignored because the github-copilot tool was not selected');
+  });
+
   it('should respect custom profile from global config', async () => {
     saveGlobalConfig({
       featureFlags: {},

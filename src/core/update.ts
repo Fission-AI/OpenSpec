@@ -71,7 +71,7 @@ import {
   shouldRemoveSkillsForTool,
 } from './command-surface.js';
 import { writeSharedSkillTarget } from './shared-skill-target.js';
-import { includesGitHubCopilot, writeCopilotCloudFiles, removeCopilotCloudFiles, isCopilotCloudEnabled } from './github-copilot/cloud-agent.js';
+import { includesGitHubCopilot, writeCopilotCloudFiles, removeCopilotCloudFiles, isCopilotCloudEnabled, readCopilotCloudOptIn, findUnmanagedCloudFiles } from './github-copilot/cloud-agent.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
@@ -493,6 +493,35 @@ export class UpdateCommand {
         // step, never a silent side effect of running update.
         if (await isCopilotCloudEnabled(projectPath)) {
           await writeCopilotCloudFiles(projectPath);
+          const collisions = await findUnmanagedCloudFiles(projectPath);
+          if (collisions.length > 0) {
+            console.log(
+              chalk.dim(
+                `Left your existing ${collisions.join(' and ')} untouched — add the OpenSpec ` +
+                  `install step by hand so the Copilot cloud agent can run openspec.`
+              )
+            );
+          }
+          return;
+        }
+
+        // Explicit opt-out (githubCopilot.cloudAgent: false) means "not here":
+        // remove any managed files a prior opt-in left behind (customized files
+        // are preserved). If the user simply never decided, stay quiet unless
+        // we're at an interactive terminal, where a one-line hint aids discovery.
+        if (readCopilotCloudOptIn(projectPath) === false) {
+          const removed = await removeCopilotCloudFiles(projectPath);
+          if (removed > 0) {
+            console.log(
+              chalk.dim(`Removed: ${removed} Copilot cloud agent file(s) (opted out of cloud files)`)
+            );
+          }
+        } else if (isInteractive()) {
+          console.log(
+            chalk.dim(
+              "GitHub Copilot cloud coding-agent files are available (opt-in). Enable with 'openspec init --copilot-cloud'."
+            )
+          );
         }
         return;
       }

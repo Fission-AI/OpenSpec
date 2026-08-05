@@ -18,6 +18,7 @@ The `openspec/config.yaml` file is the easiest way to customize OpenSpec for you
 - **Inject project context** - AI sees your tech stack, conventions, etc.
 - **Add per-artifact rules** - Custom rules for specific artifacts
 - **Add per-operation guidance** - Advisory preferences for apply and archive work
+- **Remember integration choices** - e.g. the [GitHub Copilot cloud coding agent](supported-tools.md#github-copilot-cloud-coding-agent) opt-in
 
 ### Quick Setup
 
@@ -52,6 +53,11 @@ operations:
   archive:
     guidance:
       - Keep the completion summary concise
+
+# Set by `openspec init` when you choose (or decline) the GitHub Copilot
+# cloud coding agent; controls whether `init`/`update` generate its files.
+githubCopilot:
+  cloudAgent: false
 ```
 
 ### How It Works

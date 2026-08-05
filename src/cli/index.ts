@@ -161,8 +161,8 @@ program
   .option('--force', 'Auto-cleanup legacy files without prompting')
   .option('--profile <profile>', 'Override global config profile (core or custom)')
   .option('--no-animation', 'Show a static welcome screen instead of the animated one')
-  .option('--copilot-cloud', 'Generate GitHub Copilot cloud coding-agent files (opt-in; default: prompt)')
-  .option('--no-copilot-cloud', 'Skip generating GitHub Copilot cloud coding-agent files')
+  .option('--copilot-cloud', 'Set up GitHub Copilot cloud coding-agent files without prompting')
+  .option('--no-copilot-cloud', 'Skip GitHub Copilot cloud coding-agent files without prompting')
   .action(async (targetPath = '.', options?: { tools?: string; force?: boolean; profile?: string; animation?: boolean; copilotCloud?: boolean }) => {
     try {
       // Validate that the path is a valid directory
