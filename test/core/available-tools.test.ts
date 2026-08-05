@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
@@ -9,9 +9,12 @@ describe('available-tools', () => {
 
   beforeEach(async () => {
     testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-test-'));
+    vi.stubEnv('HOME', path.join(testDir, 'home'));
+    vi.stubEnv('USERPROFILE', path.join(testDir, 'home'));
   });
 
   afterEach(async () => {
+    vi.unstubAllEnvs();
     await fs.rm(testDir, { recursive: true, force: true });
   });
 
@@ -29,6 +32,34 @@ describe('available-tools', () => {
       expect(tools[0].value).toBe('claude');
       expect(tools[0].name).toBe('Claude Code');
       expect(tools[0].skillsDir).toBe('.claude');
+    });
+
+    it('should detect MiniMax Code only from managed skills in the user-home target', async () => {
+      const globalSkill = path.join(
+        testDir,
+        'home',
+        '.minimax',
+        'skills',
+        'openspec-explore',
+        'SKILL.md'
+      );
+      await fs.mkdir(path.dirname(globalSkill), { recursive: true });
+      await fs.writeFile(globalSkill, 'content');
+
+      expect(getAvailableTools(testDir).map((tool) => tool.value)).toContain('minimax-code');
+
+      await fs.rm(path.join(testDir, 'home'), { recursive: true, force: true });
+      const localSkill = path.join(
+        testDir,
+        '.minimax',
+        'skills',
+        'openspec-explore',
+        'SKILL.md'
+      );
+      await fs.mkdir(path.dirname(localSkill), { recursive: true });
+      await fs.writeFile(localSkill, 'content');
+
+      expect(getAvailableTools(testDir).map((tool) => tool.value)).not.toContain('minimax-code');
     });
 
     it('should detect multiple tool directories', async () => {

@@ -19,6 +19,8 @@ describe('tool-detection', () => {
   beforeEach(async () => {
     testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-test-'));
     vi.stubEnv('XDG_CONFIG_HOME', path.join(testDir, 'config'));
+    vi.stubEnv('HOME', path.join(testDir, 'home'));
+    vi.stubEnv('USERPROFILE', path.join(testDir, 'home'));
   });
 
   afterEach(async () => {
@@ -54,6 +56,7 @@ describe('tool-detection', () => {
       // `--tools all` resolves to exactly this list, so `agents` being here is what
       // puts the shared target in an `--tools all` run.
       expect(tools).toContain('agents');
+      expect(tools).toContain('minimax-code');
       expect(tools.length).toBeGreaterThan(0);
     });
   });
@@ -95,6 +98,38 @@ describe('tool-detection', () => {
       expect(status.configured).toBe(true);
       expect(status.fullyConfigured).toBe(true);
       expect(status.skillCount).toBe(SKILL_NAMES.length);
+    });
+
+    it('should detect MiniMax Code only from its global OpenSpec skill target', async () => {
+      const globalSkill = path.join(
+        testDir,
+        'home',
+        '.minimax',
+        'skills',
+        'openspec-explore',
+        'SKILL.md'
+      );
+      await fs.mkdir(path.dirname(globalSkill), { recursive: true });
+      await fs.writeFile(globalSkill, 'test content');
+
+      expect(getToolSkillStatus(testDir, 'minimax-code')).toMatchObject({
+        configured: true,
+        fullyConfigured: false,
+        skillCount: 1,
+      });
+
+      await fs.rm(path.join(testDir, 'home'), { recursive: true, force: true });
+      const localSkill = path.join(
+        testDir,
+        '.minimax',
+        'skills',
+        'openspec-explore',
+        'SKILL.md'
+      );
+      await fs.mkdir(path.dirname(localSkill), { recursive: true });
+      await fs.writeFile(localSkill, 'test content');
+
+      expect(getToolSkillStatus(testDir, 'minimax-code').configured).toBe(false);
     });
   });
 

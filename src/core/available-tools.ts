@@ -8,6 +8,8 @@
 import path from 'path';
 import * as fs from 'fs';
 import { AI_TOOLS, type AIToolOption } from './config.js';
+import { SKILL_NAMES } from './shared/tool-detection.js';
+import { resolveToolSkillsDir, toolSupportsSkills } from './shared/skill-paths.js';
 
 /**
  * Scans the project path for AI tool configuration directories and returns
@@ -19,6 +21,15 @@ import { AI_TOOLS, type AIToolOption } from './config.js';
  */
 export function getAvailableTools(projectPath: string): AIToolOption[] {
   return AI_TOOLS.filter((tool) => {
+    if (!toolSupportsSkills(tool)) return false;
+
+    if (tool.globalSkillsDir) {
+      const skillsDir = resolveToolSkillsDir(projectPath, tool);
+      return SKILL_NAMES.some((skillName) =>
+        fs.existsSync(path.join(skillsDir, skillName, 'SKILL.md'))
+      );
+    }
+
     if (!tool.skillsDir) return false;
 
     if (tool.detectionPaths && tool.detectionPaths.length > 0) {
