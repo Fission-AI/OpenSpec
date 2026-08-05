@@ -70,7 +70,7 @@ import {
   shouldReconcileCommandFilesForTool,
   shouldRemoveSkillsForTool,
 } from './command-surface.js';
-import { writeSharedSkillTarget } from './shared-skill-target.js';
+import { writeSharedSkillTarget, sharedSkillRootOwnedByOther } from './shared-skill-target.js';
 import { includesGitHubCopilot, writeCopilotCloudFiles, removeCopilotCloudFiles, isCopilotCloudEnabled, readCopilotCloudOptIn, findUnmanagedCloudFiles } from './github-copilot/cloud-agent.js';
 
 const require = createRequire(import.meta.url);
@@ -1106,6 +1106,20 @@ export class UpdateCommand {
         }
         const skillTemplates = getSkillTemplates(toolWorkflows);
         const commandContents = getCommandContents(toolWorkflows);
+
+        // A shared skills root (e.g. `.agents`) already owned by another tool
+        // must not be overwritten by a tool inferred from legacy artifacts: a
+        // Codex install detected only from global `~/.codex/prompts` would
+        // otherwise rewrite an existing vendor-neutral `agents` tree with
+        // Codex-specific syntax and flip its ownership marker `agents → codex`.
+        // Leave the established owner in place. (init applies the same
+        // one-writer rule up front when both targets are selected.)
+        if (shouldGenerateSkills && sharedSkillRootOwnedByOther(projectPath, tool.value)) {
+          spinner.info(
+            `Skipped ${tool.name}: ${tool.skillsDir}/skills is already managed by another tool.`
+          );
+          continue;
+        }
 
         // Create skill files when delivery includes skills
         if (shouldGenerateSkills) {
