@@ -102,6 +102,8 @@ openspec init [path] [options]
 | `--force` | Auto-cleanup legacy files without prompting |
 | `--profile <profile>` | Override global profile for this init run (`core` or `custom`) |
 | `--no-animation` | Show a static welcome screen instead of the animated one |
+| `--copilot-cloud` | Set up GitHub Copilot [cloud coding-agent files](supported-tools.md#github-copilot-cloud-coding-agent) without prompting |
+| `--no-copilot-cloud` | Skip GitHub Copilot cloud coding-agent files without prompting |
 
 `--profile custom` uses whatever workflows are currently selected in global config (`openspec config profile`).
 
