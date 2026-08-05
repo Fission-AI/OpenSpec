@@ -13,7 +13,7 @@ import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { classifyOpenSpecDir, storePointerProblem } from './project-config.js';
 import { findRepoPlanningRootSync } from './planning-home.js';
-import { getSkillReferenceTransformer, getTransformerForTool } from '../utils/command-references.js';
+import { getSkillReferenceTransformer, getTransformerForTool, usesNaturalLanguageSkillReferences } from '../utils/command-references.js';
 import {
   AI_TOOLS,
   OPENSPEC_DIR_NAME,
@@ -1127,7 +1127,13 @@ export class InitCommand {
           );
           hint = `Start your first change: ${transformer ? transformer(command) : command} "your idea"`;
         } else if (shouldGenerateSkillsForTool(tool.value, activeDelivery)) {
-          hint = `Start your first change: ${getSkillReferenceTransformer(tool.value)(command)} "your idea"`;
+          const skillReference = getSkillReferenceTransformer(tool.value)(command);
+          // Tools with no slash surface (e.g. Rovo Dev) reference skills as
+          // prose ("the openspec-propose skill"); phrase the hint so it reads
+          // as an instruction rather than a dead command with an argument.
+          hint = usesNaturalLanguageSkillReferences(tool.value)
+            ? `Start your first change: ask ${tool.name} to use ${skillReference} with "your idea"`
+            : `Start your first change: ${skillReference} "your idea"`;
         } else {
           continue;
         }
