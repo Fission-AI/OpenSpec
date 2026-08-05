@@ -8,13 +8,15 @@ import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
 /**
- * The apply workflow instructions are shared by the skill and command
- * surfaces and authored once here, so the two outputs cannot silently drift.
- * Each surface renders this body with its own `contextFiles` note — the only
- * intentional wording difference between them — and can add further per-surface
- * parameters here as the surfaces evolve.
+ * The apply workflow instructions, authored once and rendered by both the
+ * skill and command surfaces. The surfaces are intentionally distinct, but
+ * they differ only in how they are invoked — the generation transformers
+ * rewrite the canonical `/opsx:<id>` tokens per surface downstream (see
+ * command-references.ts). The instruction text itself is shared, so the two
+ * cannot silently drift. Should a surface ever need genuinely different
+ * wording, add a parameter here and pass it from that surface's template.
  */
-function getApplyInstructions(contextFilesNote: string): string {
+export function getApplyInstructions(): string {
   return `Implement tasks from an OpenSpec change.
 
 ${STORE_SELECTION_GUIDANCE}
@@ -48,7 +50,7 @@ ${STORE_SELECTION_GUIDANCE}
    \`\`\`
 
    This returns:
-   - \`contextFiles\`: artifact ID -> array of concrete file paths (${contextFilesNote})
+   - \`contextFiles\`: artifact ID -> array of concrete file paths (varies by schema - could be proposal/specs/design/tasks or spec/tests/implementation/docs)
    - Progress (total, complete, remaining)
    - Task list with status
    - Dynamic instruction based on current state
@@ -190,18 +192,11 @@ This skill supports the "actions on a change" model:
 - **Allows artifact updates**: If implementation reveals design issues, suggest updating artifacts - not phase-locked, work fluidly`;
 }
 
-/** Skill surface spells out example artifact sets in the contextFiles note. */
-const APPLY_SKILL_CONTEXT_FILES_NOTE =
-  'varies by schema - could be proposal/specs/design/tasks or spec/tests/implementation/docs';
-
-/** Command surface keeps the contextFiles note terse. */
-const APPLY_COMMAND_CONTEXT_FILES_NOTE = 'varies by schema';
-
 export function getApplyChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-apply-change',
     description: 'Implement tasks from an OpenSpec change. Use when the user wants to start implementing, continue implementation, or work through tasks.',
-    instructions: getApplyInstructions(APPLY_SKILL_CONTEXT_FILES_NOTE),
+    instructions: getApplyInstructions(),
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
@@ -214,6 +209,6 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
     description: 'Implement tasks from an OpenSpec change (Experimental)',
     category: 'Workflow',
     tags: ['workflow', 'artifacts', 'experimental'],
-    content: getApplyInstructions(APPLY_COMMAND_CONTEXT_FILES_NOTE),
+    content: getApplyInstructions(),
   };
 }

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   type SkillTemplate,
+  getApplyInstructions,
   getApplyChangeSkillTemplate,
   getArchiveChangeSkillTemplate,
   getBulkArchiveChangeSkillTemplate,
@@ -47,7 +48,7 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getOpsxExploreCommandTemplate: 'e2d470148708a9070675edddd1e783f1c71c96625d08cff4fe7a9994e0d292c0',
   getOpsxNewCommandTemplate: '08e784e52ac2c146975a874257c589d88e93efbd83dc4d79253c8525f5c3064f',
   getOpsxContinueCommandTemplate: 'ae964cd00f6ca332fd7f9428a577ade75be279f50431d5f60ece8172e8d1a4b1',
-  getOpsxApplyCommandTemplate: 'd879b0430f756b9dbc5a1a1348a34409b2fcd453eeae7add4bf9f421616c2ad1',
+  getOpsxApplyCommandTemplate: 'd27ad905657dd3797571eccee2b6416495fa9b39759d36b43a9871a301757979',
   getOpsxFfCommandTemplate: '012610f85576a7055dfec2aaabba6bfc245454ce91fb6214587ae9316dc2b864',
   getArchiveChangeSkillTemplate: '5ef19163f73997fdda1c69dc8bca710c16c50b052b481821d916f4084bb42a64',
   getBulkArchiveChangeSkillTemplate: '03cc44a0ce9bdb3ba2668a9d43946596308901600aa29a728c4a71fc76e86de3',
@@ -952,26 +953,15 @@ describe('skill templates split parity', () => {
 });
 
 describe('apply skill/command shared instruction core', () => {
-  // The apply skill and command render one shared instruction body. The only
-  // intentional wording difference is how fully the `contextFiles` note spells
-  // out possible artifact sets. This pins that contract: it fails if the body
-  // drifts between surfaces (accidental divergence) and equally fails if the
-  // note is flattened to a single form (erasing the intentional difference).
-  const SKILL_NOTE =
-    'varies by schema - could be proposal/specs/design/tasks or spec/tests/implementation/docs';
-  const COMMAND_NOTE = 'varies by schema';
-
-  it('differs only in the contextFiles note', () => {
-    const skill = getApplyChangeSkillTemplate().instructions;
-    const command = getOpsxApplyCommandTemplate().content;
-    expect(skill.replace(SKILL_NOTE, COMMAND_NOTE)).toBe(command);
-  });
-
-  it('keeps the intentional per-surface contextFiles difference', () => {
-    const skill = getApplyChangeSkillTemplate().instructions;
-    const command = getOpsxApplyCommandTemplate().content;
-    expect(skill).toContain(SKILL_NOTE);
-    expect(command).toContain(`(${COMMAND_NOTE})`);
-    expect(command).not.toContain(SKILL_NOTE);
+  // The apply skill and command are intentionally distinct surfaces, but they
+  // differ only in how they are invoked — the generation transformers rewrite
+  // the canonical `/opsx:<id>` tokens per surface downstream (asserted in
+  // test/utils/command-references.test.ts). The instruction text itself is
+  // shared, so this pins the contract: both surfaces render the one canonical
+  // core and cannot silently drift apart at the template level.
+  it('renders both apply surfaces from the shared instruction core', () => {
+    const core = getApplyInstructions();
+    expect(getApplyChangeSkillTemplate().instructions).toBe(core);
+    expect(getOpsxApplyCommandTemplate().content).toBe(core);
   });
 });
