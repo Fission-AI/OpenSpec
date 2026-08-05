@@ -524,6 +524,31 @@ describe('InitCommand', () => {
       ).toBe(true);
     });
 
+    it('should support Rovo Dev CLI as an adapterless skills-only tool', async () => {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'both',
+      });
+
+      const initCommand = new InitCommand({ tools: 'rovodev', force: true });
+      await initCommand.execute(testDir);
+
+      const skillFile = path.join(testDir, '.rovodev', 'skills', 'openspec-explore', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
+
+      const commandsDir = path.join(testDir, '.rovodev', 'commands');
+      expect(await directoryExists(commandsDir)).toBe(false);
+
+      const rovoLogCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+      expect(rovoLogCalls.some((entry) => entry.includes('Created: Rovo Dev CLI'))).toBe(true);
+      expect(
+        rovoLogCalls.some(
+          (entry) => entry.includes('Commands skipped for: rovodev') && entry.includes('(no adapter)'),
+        ),
+      ).toBe(true);
+    });
+
     it('should support Hermes Agent as an adapterless skills-only tool with a setup note', async () => {
       saveGlobalConfig({
         featureFlags: {},
