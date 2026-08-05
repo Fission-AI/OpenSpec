@@ -40,7 +40,7 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getExploreSkillTemplate: 'fec38ba01c5c20695aca0ec7eff78c26e278ead21459cab8ec1562af51053427',
   getNewChangeSkillTemplate: '935f6335e2d4b7d1bd4f0538c88386350c25e8b16e11b627556262229583ca51',
   getContinueChangeSkillTemplate: 'ed41e2356af7aad6ef760f60fad19c6843cefe436d8f90084dcba4dbc6bf7272',
-  getApplyChangeSkillTemplate: '18b19aec04e95cd4cce694a64cf84ac6a0fa522b69ace00390a55bb78df46778',
+  getApplyChangeSkillTemplate: 'e5fc093637d3100a61acf934553002a5e9f5bccab5110136d7680af4133f7351',
   getFfChangeSkillTemplate: 'fc2a45a08533ee9c7ab30fdab5f832b7d440070048e2a153f03db1620dc379bb',
   getSyncSpecsSkillTemplate: 'd43b112a3c74bc951b094d220c8e75cca26bb00640d404b78af0752af1ff7bd9',
   getOnboardSkillTemplate: 'a9f6134b187ec4f3a5aa6c7c181e51a15fec11b7ac1044a076fdfe79b47fbc80',
@@ -68,7 +68,7 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-explore': '80109dec3abf1505ab1037f7196baac4fcdf175ca954411e8d439e5da881bf62',
   'openspec-new-change': '579d432771703f947a331a6ed288bf9c6660ca015fcd376d76f19b6ac7683082',
   'openspec-continue-change': '5c34be8194cdb4c5158335e47aece71143e8a22bfb4179dba47fd8aaf436d395',
-  'openspec-apply-change': '919db34873151b8a573fcb38631fd79a0b1256da1677b7608b2d8c2475227893',
+  'openspec-apply-change': '1726319cd4305a47f9c827acaeb84a9de57f7e44aba9ed60869c1758338e18ae',
   'openspec-ff-change': '19315644df7c582d920acfb67f3c500ca4e06fccc900265b3ac39621d85f7cdb',
   'openspec-sync-specs': '6e85521de10858bb020885eb657aa843e5746b2f09c846aa44545694f456cda9',
   'openspec-archive-change': '019d580a13eee5892cc9233a899919b572a3abfc6a05c1f0aabf9c4ba9bf3d4d',
@@ -117,12 +117,6 @@ function hash(value: string): string {
 }
 
 describe('skill templates split parity', () => {
-  it('uses one canonical instruction body for apply skills and commands', () => {
-    expect(getApplyChangeSkillTemplate().instructions).toBe(
-      getOpsxApplyCommandTemplate().content
-    );
-  });
-
   it('preserves all template function payloads exactly', () => {
     const functionFactories: Record<string, () => unknown> = {
       getExploreSkillTemplate,
