@@ -9,7 +9,7 @@ For each selected tool, OpenSpec can install:
 1. **Skills** (if delivery includes skills): `.../skills/openspec-*/SKILL.md`
 2. **Commands** (if delivery includes commands): tool-specific `opsx-*` command files
 
-Codex is skills-only: OpenSpec installs `.codex/skills/openspec-*/SKILL.md` for Codex even when delivery is set to `commands`, and it does not generate Codex custom prompt files.
+Codex is skills-only: OpenSpec installs `.agents/skills/openspec-*/SKILL.md` for Codex even when delivery is set to `commands`, and it does not generate Codex custom prompt files. Existing OpenSpec-managed skills under the legacy `.codex/skills` path are reconciled after their replacements are written; custom and divergent files are preserved.
 
 By default, OpenSpec uses the `core` profile, which includes:
 - `propose`
@@ -33,7 +33,7 @@ way it loads the file OpenSpec wrote. Find your tool's command path in the
 | `.../opsx-<id>.*` — the filename is the command | `/opsx-<id>` | Every other tool with generated command files, except Amazon Q and Devin |
 | `.devin/workflows/opsx-<id>.md` — read by only one of Devin's two agents | `/opsx-<id>` on Devin Desktop, `/openspec-<skill>` on Devin Local | Devin Desktop\*\*\*\* |
 | `.amazonq/prompts/opsx-<id>.md` — a prompt, not a command | `@opsx-<id>` | Amazon Q Developer |
-| none — skills only | `/openspec-<skill>` | CodeArts, ForgeCode, Hermes, Mistral Vibe, shared `.agents` |
+| none — skills only | `/openspec-<skill>` | CodeArts, ForgeCode, Hermes, MiniMax Code, Mistral Vibe, shared `.agents` |
 | none — Kimi Code | `/skill:openspec-<skill>` | Kimi Code |
 | none — Codex CLI | `$openspec-<skill>` | Codex ([`/openspec-<skill>` is not recognized](https://github.com/openai/codex/issues/11817)) |
 
@@ -72,7 +72,7 @@ to read the hint.
 | Cline (`cline`) | `.cline/skills/openspec-*/SKILL.md` | `.clinerules/workflows/opsx-<id>.md` |
 | CodeArts (`codeartsagent`) | `.codeartsdoer/skills/openspec-*/SKILL.md` | Not generated (no command adapter; use skill-based `/openspec-*` invocations) |
 | CodeBuddy (`codebuddy`) | `.codebuddy/skills/openspec-*/SKILL.md` | `.codebuddy/commands/opsx/<id>.md` |
-| Codex (`codex`) | `.codex/skills/openspec-*/SKILL.md` | Not generated (skills-only; use `.codex/skills/openspec-*`) |
+| Codex (`codex`) | `.agents/skills/openspec-*/SKILL.md` | Not generated (skills-only; use `$openspec-*`) |
 | Devin Desktop, formerly Windsurf (`devin`) | `.devin/skills/openspec-*/SKILL.md` | `.devin/workflows/opsx-<id>.md`\*\*\*\* |
 | ForgeCode (`forgecode`) | `.forge/skills/openspec-*/SKILL.md` | Not generated (no command adapter; use skill-based `/openspec-*` invocations) |
 | Continue (`continue`) | `.continue/skills/openspec-*/SKILL.md` | `.continue/prompts/opsx-<id>.prompt` |
@@ -89,6 +89,7 @@ to read the hint.
 | Kimi Code (`kimi`) | `.kimi-code/skills/openspec-*/SKILL.md` | Not generated (no command adapter; use skill-based `/skill:openspec-*` invocations) |
 | Kiro (`kiro`) | `.kiro/skills/openspec-*/SKILL.md` | `.kiro/prompts/opsx-<id>.prompt.md` |
 | Lingma (`lingma`) | `.lingma/skills/openspec-*/SKILL.md` | `.lingma/commands/opsx/<id>.md` |
+| MiniMax Code (`minimax-code`) | `~/.minimax/skills/openspec-*/SKILL.md` | Not generated (no command adapter; use MiniMax Code skills) |
 | Mistral Vibe (`vibe`) | `.vibe/skills/openspec-*/SKILL.md` | Not generated (no command adapter; use skill-based `/openspec-*` invocations) |
 | Oh My Pi (`oh-my-pi`) | `.omp/skills/openspec-*/SKILL.md` | `.omp/commands/opsx-<id>.md` |
 | OpenCode (`opencode`) | `.opencode/skills/openspec-*/SKILL.md` | `.opencode/commands/opsx-<id>.md` |
@@ -106,6 +107,12 @@ to read the hint.
 
 \*\*\*\* Windsurf was [rebranded to Devin Desktop](https://docs.devin.ai/desktop/devin-desktop-faq) on June 2, 2026, and its config directory moved: `.devin/` is the preferred read + write location, `.windsurf/` a legacy read-only fallback. OpenSpec follows the rename — the tool id is `devin`, and `--tools windsurf` still resolves to it so existing setup scripts keep working. A project still holding OpenSpec files in `.windsurf/` is offered the move on the next `openspec update`; declining leaves them in place, and files you wrote yourself are never touched. Workflows are invoked by filename, so `.devin/workflows/opsx-apply.md` is `/opsx-apply`. The [Devin Local agent does not support workflows](https://docs.devin.ai/desktop/devin-local) — only skills, and it does not read `.windsurf/` at all — so whenever OpenSpec writes Devin skills it keeps their bodies, and the getting-started hint, on `/openspec-*` skill invocations, which work on both agents. Under commands-only delivery no skills are written and both fall back to `/opsx-*`.
 
+MiniMax Code is a global skills-only integration. OpenSpec writes only its
+`openspec-*` directories under `~/.minimax/skills/`; it does not create
+repo-local `.minimax` or `.mavis` directories. Commands-only delivery leaves
+existing global MiniMax Code skills untouched so one project's delivery setting
+cannot remove skills used by another project.
+
 ### When to pick the shared `.agents` target
 
 `agents` is the vendor-neutral option: it writes skills to `.agents/skills/`, the
@@ -117,7 +124,12 @@ shared root many agent tools read, instead of a tool-specific directory.
 | Several agents on one repo, all reading `.agents/skills` | `agents` — one skill tree instead of one per tool |
 | Your tool isn't listed yet but reads `.agents/skills` | `agents` |
 
-Selecting it alongside a tool-specific ID is fine; each writes to its own root.
+Selecting it alongside a tool-specific ID is fine; each normally writes to its
+own root. Codex is the exception because it uses the same canonical `.agents`
+root. If both `codex` and `agents` are selected, OpenSpec keeps one
+Codex-led tree. Its handoffs name both `$openspec-*` for Codex and
+`/openspec-*` for other agents, so `--tools all` and existing multi-agent
+setups keep working without two writers overwriting the same files.
 OpenSpec also offers it automatically once a project has a `.agents/skills/`
 directory — a bare `.agents/` is not enough, since tools use that root for rules
 and subagent definitions too. Note `.agents` is not `.agent`: the singular
@@ -138,9 +150,16 @@ Two things to know:
 
 Because `.agents/skills/` is shared, it is worth knowing what OpenSpec claims there:
 it writes, refreshes, and removes only the `openspec-*` skill directories for your
-selected workflows. Anything else in that directory is left alone. Treat the
-`openspec-*` names as OpenSpec's — edits inside them are replaced on the next
-`openspec update`, the same as for every other tool.
+selected workflows, plus an `.openspec-target` marker that records whether Codex
+or the vendor-neutral target rendered that shared tree. Anything else in that
+directory is left alone. Treat the `openspec-*` names and marker as OpenSpec's —
+edits inside them are replaced on the next `openspec update`, the same as for
+every other tool.
+
+For pre-marker projects, OpenSpec infers ownership from managed skill references:
+`$openspec-*` means Codex and `/openspec-*` means the vendor-neutral target. A
+generic canonical tree alongside legacy `.codex/skills` is treated as an older
+dual-target install and consolidated into the compatible shared tree.
 
 ## Non-Interactive Setup
 
@@ -160,7 +179,7 @@ openspec init --tools none
 openspec init --profile core
 ```
 
-**Available tool IDs (`--tools`)** — `windsurf` is also accepted, as an alias for `devin`: `amazon-q`, `antigravity`, `auggie`, `bob`, `claude`, `cline`, `codeartsagent`, `codex`, `devin`, `forgecode`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `hermes`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `lingma`, `vibe`, `oh-my-pi`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `zcode`, `agents`
+**Available tool IDs (`--tools`)** — `windsurf` is also accepted, as an alias for `devin`: `amazon-q`, `antigravity`, `auggie`, `bob`, `claude`, `cline`, `codeartsagent`, `codex`, `devin`, `forgecode`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `hermes`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `lingma`, `minimax-code`, `vibe`, `oh-my-pi`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `zcode`, `agents`
 
 ## Workflow-Dependent Installation
 

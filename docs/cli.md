@@ -107,7 +107,7 @@ openspec init [path] [options]
 
 The welcome animation is also skipped when the `OPENSPEC_NO_ANIMATION` environment variable is set (any value, including empty), when `NO_COLOR` is set to a non-empty value, or when the OS reduced-motion preference is enabled (macOS Reduce Motion, GNOME animations disabled).
 
-**Supported tool IDs (`--tools`)** — `windsurf` is also accepted, as an alias for `devin`: `amazon-q`, `antigravity`, `auggie`, `bob`, `claude`, `cline`, `codeartsagent`, `codex`, `devin`, `forgecode`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `hermes`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `lingma`, `vibe`, `oh-my-pi`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `zcode`, `agents`
+**Supported tool IDs (`--tools`)** — `windsurf` is also accepted, as an alias for `devin`: `amazon-q`, `antigravity`, `auggie`, `bob`, `claude`, `cline`, `codeartsagent`, `codex`, `devin`, `forgecode`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `hermes`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `lingma`, `minimax-code`, `vibe`, `oh-my-pi`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `zcode`, `agents`
 
 > This list mirrors `AI_TOOLS` in `src/core/config.ts`. See [Supported Tools](supported-tools.md) for each tool's skill and command paths.
 
@@ -122,6 +122,9 @@ openspec init ./my-project
 
 # Non-interactive: configure for Claude and Cursor
 openspec init --tools claude,cursor
+
+# Non-interactive: configure global MiniMax Code skills
+openspec init --tools minimax-code
 
 # Configure for all supported tools
 openspec init --tools all
@@ -630,7 +633,7 @@ openspec archive [change-name] [options]
 |--------|-------------|
 | `-y, --yes` | Skip confirmation prompts. Required when nothing can answer them — an AI agent, a CI job, or any run with stdin closed |
 | `--skip-specs` | Skip spec updates for one archive run. A change that permanently has no spec deltas should declare `skip_specs: true` in its `.openspec.yaml` instead — it archives with no flag |
-| `--no-validate` | Skip validation (requires confirmation) |
+| `--no-validate` | Skip validation (requires confirmation). Also disables capability retirement — with no validator verdict, nothing is retired |
 
 **Examples:**
 
@@ -652,8 +655,11 @@ openspec archive update-ci-config --skip-specs
 
 1. Validates the change (unless `--no-validate`)
 2. Prompts for confirmation (unless `--yes`)
-3. Merges delta specs into `openspec/specs/`
-4. Moves change folder to `openspec/changes/archive/YYYY-MM-DD-<name>/`
+3. Claims the archive destination before changing any main spec
+4. Validates and merges the active delta specs into `openspec/specs/` — a capability whose last requirement the change removes is retired, and its spec file deleted, but only when the change's `.openspec.yaml` declares `retire_capabilities: true` next to its `schema:`
+5. Moves the change folder to `openspec/changes/archive/YYYY-MM-DD-<name>/`
+6. If a spec mutation or final move fails before a complete archive is secured, restores the specs and leaves or returns the change at its active path
+7. If a verified fallback copy completes but staged-source cleanup fails, retains the complete archive and committed spec state for recovery
 
 **Without a terminal:** an AI agent, a CI job, or any run with stdin closed cannot
 answer step 2, so archive stops before touching anything, exits 1, and names the
@@ -747,6 +753,7 @@ A change that declares `skip_specs: true` shows its specs stage as `[~] specs (s
 {
   "changeName": "add-dark-mode",
   "schemaName": "spec-driven",
+  "isPlanningComplete": false,
   "isComplete": false,
   "applyRequires": ["tasks"],
   "artifacts": [
@@ -757,6 +764,11 @@ A change that declares `skip_specs: true` shows its specs stage as `[~] specs (s
   ]
 }
 ```
+
+`isPlanningComplete` reports whether every non-skipped planning artifact exists;
+skipped artifacts count as satisfied without being created. It does not report
+whether implementation tasks are complete. `isComplete` is retained as a
+compatibility alias with the same value.
 
 Artifacts are listed in dependency order - a dependency never appears after
 something that requires it - and artifacts that become ready at the same time

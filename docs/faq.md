@@ -108,7 +108,7 @@ A spec that describes only what's changing, using `ADDED`, `MODIFIED`, and `REMO
 
 ### Where do archived changes go?
 
-To `openspec/changes/archive/YYYY-MM-DD-<name>/`, with all artifacts preserved. Nothing is deleted; the change just moves out of your active list.
+To `openspec/changes/archive/YYYY-MM-DD-<name>/`, with all change artifacts preserved. The change moves out of your active list. A change that explicitly declares `retire_capabilities: true` can also delete a main capability spec when it removes that capability's final requirement.
 
 ## Configuration and customization
 

@@ -28,6 +28,75 @@ OPSX (fluid actions):
 
 > **Customization:** OPSX workflows are driven by schemas that define artifact sequences. See [Customization](customization.md) for details on creating custom schemas.
 
+## Workflow at a Glance
+
+The default workflow stays fluid: exploration and verification are optional, and
+you can update planning artifacts whenever implementation reveals something new.
+
+```mermaid
+flowchart TD
+    Idea["Idea or problem"] --> Explore["/opsx:explore<br/>(optional)"]
+    Idea --> Propose["/opsx:propose"]
+    Explore --> Propose
+    Propose --> Review{"Planning artifacts<br/>ready?"}
+    Review -->|"Refine"| Update["/opsx:update"]
+    Update --> Review
+    Review -->|"Implement"| Apply["/opsx:apply"]
+    Apply -->|"Plan changed"| Update
+    Apply --> Archive["/opsx:archive"]
+    Apply --> Verify["/opsx:verify<br/>(optional, custom selection)"]
+    Apply --> Sync["/opsx:sync<br/>(optional before archive)"]
+    Verify --> Verified{"Ready to archive?"}
+    Verified -->|"Fix implementation"| Apply
+    Verified -->|"Revise plan"| Update
+    Verified -->|"Ready"| Sync
+    Verified -->|"Ready"| Archive
+    Sync --> Archive
+```
+
+The AI assistant drives the workflow, while the CLI provides deterministic
+scaffolding, status, and artifact instructions:
+
+```mermaid
+sequenceDiagram
+    actor Human
+    participant Assistant as AI assistant
+    participant CLI as OpenSpec CLI
+    participant Files as Planning and implementation files
+
+    Human->>Assistant: /opsx:propose "change"
+    Assistant->>CLI: openspec new change
+    CLI->>Files: Scaffold change metadata
+    Assistant->>CLI: Request status and artifact instructions
+    CLI-->>Assistant: Build order, paths, and templates
+    Assistant->>Files: Write schema-defined planning artifacts
+    Assistant-->>Human: Present artifacts for review
+
+    Human->>Assistant: /opsx:apply
+    Assistant->>CLI: Request apply instructions
+    CLI-->>Assistant: Context files and task state
+    Assistant->>Files: Implement tasks and update checkboxes
+    Assistant-->>Human: Report implementation status
+
+    Human->>Assistant: /opsx:archive
+    Assistant->>CLI: Request archive inputs and artifact status
+    CLI-->>Assistant: Planning paths and artifact completion
+    Assistant->>Files: Read task state and compare delta specs
+    opt Delta specs exist
+        Assistant-->>Human: Offer to sync before archiving
+        alt Sync accepted
+            Human->>Assistant: Confirm sync
+            Assistant->>Files: Merge delta specs into main specs
+        else Sync skipped
+            Human->>Assistant: Archive without syncing
+        end
+    end
+    Assistant->>Files: Move the change into the archive
+    Assistant-->>Human: Report archive location and sync result
+
+    Note over Human,CLI: CLI alternative: openspec archive change-name --yes skips confirmation prompts; it still validates, then applies any delta specs and archives
+```
+
 ## Two Modes
 
 ### Default Quick Path (`core` profile)

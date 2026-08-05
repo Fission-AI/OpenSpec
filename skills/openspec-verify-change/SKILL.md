@@ -11,7 +11,7 @@ metadata:
 
 Verify that an implementation matches the change artifacts (specs, tasks, design).
 
-**Store selection:** If the user names a store (a store is a standalone OpenSpec repo registered on this machine) or the work lives in one, run `openspec store list --json` to discover registered store ids, then pass `--store <id>` on the commands that read or write specs and changes (`new change`, `status`, `instructions`, `list`, `show`, `validate`, `archive`, `doctor`, `context`, `view`). Other commands do not take the flag. Hints printed by commands already carry the flag; keep it on follow-ups. Without a store, commands act on the nearest local `openspec/` root.
+**Store selection:** If the user names a store (a store is a standalone OpenSpec repo registered on this machine) or the work lives in one, run `openspec store list --json` to discover registered store ids, then pass `--store <id>` on the commands that read or write specs and changes (`new change`, `status`, `instructions`, `list`, `show`, `validate`, `archive`, `doctor`, `context`, `view`). Once selected, treat `--store <id>` as sticky for the rest of the workflow. Every unscoped example of those commands below is shorthand: before running it, append the flag. For example, run `openspec status --change "<name>" --json --store "<id>"`, not the unscoped form shown below. Other commands do not take the flag. Hints printed by commands already carry the flag; keep it on follow-ups. Without a store, commands act on the nearest local `openspec/` root.
 
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
@@ -51,7 +51,7 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
 
    Determine the complete implementation diff before evaluating relevance:
    - Identify the change's version-control baseline from repository context (for example, its target branch or merge base). If the baseline is ambiguous, ask the user instead of guessing.
-   - List every file added, modified, deleted, or renamed between that baseline and the current working state. Include committed, staged, and unstaged changes when applicable.
+   - Use an available read-only version-control or file-inventory capability to list every file added, modified, deleted, or renamed between that baseline and the current working state. Include committed, staged, unstaged, and untracked files when applicable; untracked files require a separate inventory because they do not appear in ordinary diffs.
    - Record the baseline and the changed-file discovery method so the audit scope is reproducible.
    - Separate implementation files (source, tests, configuration, scripts, and other runtime-affecting files) from OpenSpec change artifacts. Save the implementation file set for the relevance audit.
    - Do not derive this file set from requirement keyword searches. Those searches find supporting evidence, but cannot detect disconnected implementation.
@@ -130,7 +130,7 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
    - Review every file in the implementation file set established from the version-control diff
    - For each new API, function, type field, state value, helper, branch, or mapping, identify the requirement, task, design decision, or necessary enabling role it serves
    - Look for residue from superseded planning assumptions: unused elements, unreachable branches, placeholder or mock code, duplicated mappings, and extension points disconnected from any requirement or task
-   - Trace references and data flow before flagging an element as residue
+   - Before reporting a candidate, confirm from the baseline diff hunks that the element was added or modified by this change, then trace references and data flow before flagging it as residue
    - If an element has no traceable purpose:
      - Add WARNING: "Planning residue: <element and evidence>"
      - Recommendation: "Remove <element> or show the requirement/task it serves"

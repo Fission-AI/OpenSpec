@@ -205,19 +205,22 @@ export function resolveSchemaForChange(
   return 'spec-driven';
 }
 
-export interface SkipSpecsMarker {
+export interface MetadataMarker {
   /**
    * True when the metadata parses under ChangeMetadataSchema, sets
-   * skip_specs: true, and names a schema that loads.
+   * the requested boolean marker to true, and names a schema that loads.
    */
   declared: boolean;
   /**
-   * Set when the marker cannot be honored: skip_specs appears in a file that
+   * Set when the marker cannot be honored: it appears in a file that
    * fails the metadata contract, or the metadata file exists but cannot be
    * read at all (so whether the marker is set cannot even be determined).
    */
   invalidReason?: string;
 }
+
+/** @deprecated Use MetadataMarker. */
+export type SkipSpecsMarker = MetadataMarker;
 
 /**
  * Non-throwing read of the skip_specs marker. The marker only counts when the
@@ -232,7 +235,33 @@ export interface SkipSpecsMarker {
  * Missing metadata means "not declared"; a marker that cannot be honored
  * yields invalidReason so callers can say why.
  */
-export function readSkipSpecsMarker(changeDir: string): SkipSpecsMarker {
+export function readSkipSpecsMarker(changeDir: string): MetadataMarker {
+  return readBooleanMarker(changeDir, 'skip_specs');
+}
+
+/**
+ * Non-throwing read of the retire_capabilities marker, with exactly the
+ * semantics `readSkipSpecsMarker` documents above.
+ *
+ * Gates the one archive action that removes a file from `openspec/specs/`: when
+ * a change's REMOVED entries take a capability's last requirement, archive
+ * deletes the emptied main spec rather than aborting on a spec it cannot write
+ * (#1302). Declared rather than inferred because the delete is recoverable only
+ * from git, so it is the author's call.
+ */
+export function readRetireCapabilitiesMarker(changeDir: string): MetadataMarker {
+  return readBooleanMarker(changeDir, 'retire_capabilities');
+}
+
+/**
+ * Shared implementation for the boolean change-metadata markers, keyed by field
+ * name. One body rather than two, so a marker can never drift into honoring
+ * metadata the other rejects - the whole point of the contract described above.
+ */
+function readBooleanMarker(
+  changeDir: string,
+  key: 'skip_specs' | 'retire_capabilities'
+): MetadataMarker {
   let raw: string;
   try {
     raw = fs.readFileSync(path.join(changeDir, METADATA_FILENAME), 'utf-8');
@@ -258,14 +287,15 @@ export function readSkipSpecsMarker(changeDir: string): SkipSpecsMarker {
   } catch {
     // Anchored so a comment like "# maybe add skip_specs later" does not
     // claim the marker was set.
-    return /^\s*(['"]?)skip_specs\1\s*:/m.test(raw)
+    const mentioned = new RegExp(`^\\s*(['"]?)${key}\\1\\s*:`, 'm').test(raw);
+    return mentioned
       ? { declared: false, invalidReason: 'the file is not valid YAML' }
       : { declared: false };
   }
 
   const result = ChangeMetadataSchema.safeParse(parsed);
   if (result.success) {
-    if (result.data.skip_specs !== true) {
+    if (result.data[key] !== true) {
       return { declared: false };
     }
     // Schema loading is checked only when the marker is set: a broken schema
@@ -299,8 +329,8 @@ export function readSkipSpecsMarker(changeDir: string): SkipSpecsMarker {
   const markerMentioned =
     typeof parsed === 'object' &&
     parsed !== null &&
-    'skip_specs' in parsed &&
-    (parsed as Record<string, unknown>).skip_specs !== false;
+    key in parsed &&
+    (parsed as Record<string, unknown>)[key] !== false;
   if (markerMentioned) {
     const first = result.error.issues[0];
     const where = first.path.length > 0 ? `${first.path.join('.')}: ` : '';

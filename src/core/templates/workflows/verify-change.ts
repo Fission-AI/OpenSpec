@@ -53,7 +53,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    Determine the complete implementation diff before evaluating relevance:
    - Identify the change's version-control baseline from repository context (for example, its target branch or merge base). If the baseline is ambiguous, ask the user instead of guessing.
-   - List every file added, modified, deleted, or renamed between that baseline and the current working state. Include committed, staged, and unstaged changes when applicable.
+   - Use an available read-only version-control or file-inventory capability to list every file added, modified, deleted, or renamed between that baseline and the current working state. Include committed, staged, unstaged, and untracked files when applicable; untracked files require a separate inventory because they do not appear in ordinary diffs.
    - Record the baseline and the changed-file discovery method so the audit scope is reproducible.
    - Separate implementation files (source, tests, configuration, scripts, and other runtime-affecting files) from OpenSpec change artifacts. Save the implementation file set for the relevance audit.
    - Do not derive this file set from requirement keyword searches. Those searches find supporting evidence, but cannot detect disconnected implementation.
@@ -132,7 +132,7 @@ ${STORE_SELECTION_GUIDANCE}
    - Review every file in the implementation file set established from the version-control diff
    - For each new API, function, type field, state value, helper, branch, or mapping, identify the requirement, task, design decision, or necessary enabling role it serves
    - Look for residue from superseded planning assumptions: unused elements, unreachable branches, placeholder or mock code, duplicated mappings, and extension points disconnected from any requirement or task
-   - Trace references and data flow before flagging an element as residue
+   - Before reporting a candidate, confirm from the baseline diff hunks that the element was added or modified by this change, then trace references and data flow before flagging it as residue
    - If an element has no traceable purpose:
      - Add WARNING: "Planning residue: <element and evidence>"
      - Recommendation: "Remove <element> or show the requirement/task it serves"
@@ -258,7 +258,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    Determine the complete implementation diff before evaluating relevance:
    - Identify the change's version-control baseline from repository context (for example, its target branch or merge base). If the baseline is ambiguous, ask the user instead of guessing.
-   - List every file added, modified, deleted, or renamed between that baseline and the current working state. Include committed, staged, and unstaged changes when applicable.
+   - Use an available read-only version-control or file-inventory capability to list every file added, modified, deleted, or renamed between that baseline and the current working state. Include committed, staged, unstaged, and untracked files when applicable; untracked files require a separate inventory because they do not appear in ordinary diffs.
    - Record the baseline and the changed-file discovery method so the audit scope is reproducible.
    - Separate implementation files (source, tests, configuration, scripts, and other runtime-affecting files) from OpenSpec change artifacts. Save the implementation file set for the relevance audit.
    - Do not derive this file set from requirement keyword searches. Those searches find supporting evidence, but cannot detect disconnected implementation.
@@ -337,7 +337,7 @@ ${STORE_SELECTION_GUIDANCE}
    - Review every file in the implementation file set established from the version-control diff
    - For each new API, function, type field, state value, helper, branch, or mapping, identify the requirement, task, design decision, or necessary enabling role it serves
    - Look for residue from superseded planning assumptions: unused elements, unreachable branches, placeholder or mock code, duplicated mappings, and extension points disconnected from any requirement or task
-   - Trace references and data flow before flagging an element as residue
+   - Before reporting a candidate, confirm from the baseline diff hunks that the element was added or modified by this change, then trace references and data flow before flagging it as residue
    - If an element has no traceable purpose:
      - Add WARNING: "Planning residue: <element and evidence>"
      - Recommendation: "Remove <element> or show the requirement/task it serves"
