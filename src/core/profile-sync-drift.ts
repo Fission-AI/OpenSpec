@@ -13,7 +13,7 @@ import {
 } from './command-surface.js';
 import { readSharedSkillTarget } from './shared-skill-target.js';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { areGeneratedSkillContentsEquivalent } from './shared/skill-content-equivalence.js';
+import { isLegacyCodexSkillEquivalentToCurrent } from './shared/skill-content-equivalence.js';
 
 type WorkflowId = (typeof ALL_WORKFLOWS)[number];
 
@@ -96,7 +96,7 @@ export function hasToolProfileOrDeliveryDrift(
         // or supported invocation syntax changed. Materially divergent copies
         // stay in place without forcing an update on every run.
         if (
-          areGeneratedSkillContentsEquivalent(
+          isLegacyCodexSkillEquivalentToCurrent(
             fs.readFileSync(legacySkill, 'utf-8'),
             fs.readFileSync(currentSkill, 'utf-8')
           )

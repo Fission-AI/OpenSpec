@@ -19,7 +19,7 @@ import { ALL_WORKFLOWS } from './profiles.js';
 import { getSkillReferenceTransformer, getTransformerForTool } from '../utils/command-references.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { isSharedSkillTargetActive } from './shared-skill-target.js';
-import { areGeneratedSkillContentsEquivalent } from './shared/skill-content-equivalence.js';
+import { isLegacyCodexSkillEquivalentToCurrent } from './shared/skill-content-equivalence.js';
 import path from 'path';
 import * as fs from 'fs';
 
@@ -91,7 +91,7 @@ function classifyManagedFile(source: string, destination: string): FileDispositi
     const equivalentGeneratedSkills =
       path.basename(source) === 'SKILL.md' &&
       path.basename(destination) === 'SKILL.md' &&
-      areGeneratedSkillContentsEquivalent(sourceContent, destinationContent);
+      isLegacyCodexSkillEquivalentToCurrent(sourceContent, destinationContent);
     return sourceContent === destinationContent || equivalentGeneratedSkills
       ? 'drop'
       : 'keep';
