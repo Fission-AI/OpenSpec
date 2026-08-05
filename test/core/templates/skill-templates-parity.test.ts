@@ -950,3 +950,28 @@ describe('skill templates split parity', () => {
     }
   });
 });
+
+describe('apply skill/command shared instruction core', () => {
+  // The apply skill and command render one shared instruction body. The only
+  // intentional wording difference is how fully the `contextFiles` note spells
+  // out possible artifact sets. This pins that contract: it fails if the body
+  // drifts between surfaces (accidental divergence) and equally fails if the
+  // note is flattened to a single form (erasing the intentional difference).
+  const SKILL_NOTE =
+    'varies by schema - could be proposal/specs/design/tasks or spec/tests/implementation/docs';
+  const COMMAND_NOTE = 'varies by schema';
+
+  it('differs only in the contextFiles note', () => {
+    const skill = getApplyChangeSkillTemplate().instructions;
+    const command = getOpsxApplyCommandTemplate().content;
+    expect(skill.replace(SKILL_NOTE, COMMAND_NOTE)).toBe(command);
+  });
+
+  it('keeps the intentional per-surface contextFiles difference', () => {
+    const skill = getApplyChangeSkillTemplate().instructions;
+    const command = getOpsxApplyCommandTemplate().content;
+    expect(skill).toContain(SKILL_NOTE);
+    expect(command).toContain(`(${COMMAND_NOTE})`);
+    expect(command).not.toContain(SKILL_NOTE);
+  });
+});
