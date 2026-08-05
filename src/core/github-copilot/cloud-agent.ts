@@ -562,6 +562,13 @@ export async function persistCopilotCloudOptIn(
   }
   const existing = await FileSystemUtils.readFile(configPath);
   const parsed = parseDocument(existing);
+  // A file YAML can't parse cleanly — a multi-document stream, a tab-indented
+  // syntax error — can't be edited without corrupting it, and toString() would
+  // throw. Leave it untouched rather than clobber or crash; such a file is
+  // already invalid, so readProjectConfig ignores it anyway.
+  if (parsed.errors.length > 0) {
+    return;
+  }
   // `setIn(['githubCopilot', ...])` needs a top-level map. A config whose root
   // is anything else — a scalar (`null`, a bare string) or even a sequence —
   // has no map to set a key on and makes setIn throw. Such a file is already

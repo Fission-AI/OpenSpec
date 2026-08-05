@@ -651,6 +651,17 @@ context: |
         expect(readCopilotCloudOptIn(tempDir)).toBe(true);
       });
 
+      it('leaves an unparseable config untouched instead of throwing', async () => {
+        // A multi-document stream can't be edited without corrupting it; persist
+        // must skip it (no throw, no clobber) rather than crash.
+        const malformed = '---\na: 1\n---\nb: 2\n';
+        const configPath = await writeConfig(malformed);
+
+        await expect(persistCopilotCloudOptIn(tempDir, true)).resolves.toBeUndefined();
+
+        expect(await fs.readFile(configPath, 'utf8')).toBe(malformed);
+      });
+
       it('does not throw when the githubCopilot node itself is not a map', async () => {
         // Root is a valid map, but `githubCopilot` holds a scalar/null/sequence:
         // descending into it with setIn used to throw. Each must be replaced
