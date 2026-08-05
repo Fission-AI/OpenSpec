@@ -34,10 +34,14 @@
     "typescript": "^6.0.3"
   },
   "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ],
     "overrides": {
       "postcss": "^8.5.22",
       "sharp": "^0.35.3",
-      "brace-expansion@<=5.0.7": ">=5.0.8"
+      "brace-expansion@<=5.0.8": ">=5.0.9 <6",
+      "fast-uri@<3.1.5": "^3.1.5"
     }
   }
 }

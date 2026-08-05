@@ -6,6 +6,7 @@ on:
     paths:
       - '**/package.json'
       - '**/pnpm-lock.yaml'
+      - '**/pnpm-workspace.yaml'
       - '.github/workflows/security.yml'
   pull_request:
     branches: [main]
@@ -88,3 +89,32 @@ jobs:
         if: ${{ !cancelled() }}
         continue-on-error: ${{ github.event_name == 'pull_request' }}
         run: pnpm audit --audit-level high --dir website
+
+  # The website keeps its own lockfile and is never installed or built elsewhere
+  # in CI, so a website/package.json change — e.g. a security override — that is
+  # not reflected in website/pnpm-lock.yaml goes unnoticed: the override you think
+  # patches an advisory may not be in the committed graph at all, and `pnpm audit`
+  # would happily audit the stale (possibly still-vulnerable) tree. A frozen-lockfile
+  # install fails fast on that drift. Root drift is already caught by the
+  # `--frozen-lockfile` installs in ci.yml; this closes the same gap for the website.
+  # `--ignore-scripts` skips sharp's native build (irrelevant to lockfile validation
+  # and the usual source of install flake).
+  website-lockfile:
+    name: Website Lockfile Drift
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '20.19.0'
+
+      - name: Verify website lockfile matches package.json
+        run: pnpm install --frozen-lockfile --ignore-scripts --dir website

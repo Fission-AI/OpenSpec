@@ -5,9 +5,11 @@ on:
     branches: [main]
   workflow_dispatch: # manually cut a beta prerelease from main
 
+# Floor for both jobs. The prepare job widens this to pull-requests: write for
+# the Version Packages PR; the beta job only tags/releases + publishes via OIDC
+# and needs no PR access, so it inherits this narrower default.
 permissions:
   contents: write
-  pull-requests: write
   id-token: write # Required for npm OIDC trusted publishing
 
 concurrency:
@@ -18,6 +20,10 @@ jobs:
   prepare:
     if: github.repository == 'Fission-AI/OpenSpec' && github.event_name == 'push'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write # changesets opens/updates the Version Packages PR
+      id-token: write # Required for npm OIDC trusted publishing
     steps:
       # Generate GitHub App token first - used for checkout and changesets
       # This allows git operations to trigger CI workflows on the version PR
