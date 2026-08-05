@@ -22,6 +22,7 @@ import { isSharedSkillTargetActive } from './shared-skill-target.js';
 import { isLegacyCodexSkillEquivalentToCurrent } from './shared/skill-content-equivalence.js';
 import path from 'path';
 import * as fs from 'fs';
+import { resolveToolSkillsDir, toolSupportsSkills } from './shared/skill-paths.js';
 
 export interface LegacyToolRoot {
   /** Former tool root, e.g. '.kimi' */
@@ -443,21 +444,29 @@ function scanInstalledWorkflowArtifacts(
   let hasCommands = false;
 
   for (const tool of tools) {
-    if (!tool.skillsDir) continue;
-    if (isSharedSkillTargetActive(projectPath, tool.value)) {
-      const skillRoots = includeLegacySkills
-        ? [tool.skillsDir, ...(tool.legacySkillsDirs ?? [])]
-        : [tool.skillsDir];
-      for (const root of skillRoots) {
-        const skillsDir = path.join(projectPath, root, 'skills');
+    if (!toolSupportsSkills(tool)) continue;
 
-        for (const workflowId of ALL_WORKFLOWS) {
-          const skillDirName = WORKFLOW_TO_SKILL_DIR[workflowId];
-          const skillFile = path.join(skillsDir, skillDirName, 'SKILL.md');
-          if (fs.existsSync(skillFile)) {
-            installed.add(workflowId);
-            hasSkills = true;
-          }
+    const skillsDirs: string[] = [];
+    if (tool.globalSkillsDir) {
+      skillsDirs.push(resolveToolSkillsDir(projectPath, tool));
+    } else if (isSharedSkillTargetActive(projectPath, tool.value)) {
+      skillsDirs.push(resolveToolSkillsDir(projectPath, tool));
+      if (includeLegacySkills) {
+        skillsDirs.push(
+          ...(tool.legacySkillsDirs ?? []).map((root) =>
+            path.join(projectPath, root, 'skills')
+          )
+        );
+      }
+    }
+
+    for (const skillsDir of skillsDirs) {
+      for (const workflowId of ALL_WORKFLOWS) {
+        const skillDirName = WORKFLOW_TO_SKILL_DIR[workflowId];
+        const skillFile = path.join(skillsDir, skillDirName, 'SKILL.md');
+        if (fs.existsSync(skillFile)) {
+          installed.add(workflowId);
+          hasSkills = true;
         }
       }
     }

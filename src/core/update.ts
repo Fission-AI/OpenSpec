@@ -23,6 +23,9 @@ import {
   getCommandContents,
   generateSkillContent,
   getToolsWithSkillsDir,
+  hasGlobalSkillTarget,
+  resolveToolSkillsDir,
+  toolSupportsSkills,
   type ToolVersionStatus,
 } from './shared/index.js';
 import {
@@ -205,7 +208,14 @@ export class UpdateCommand {
 
     // 7. Smart update detection
     const toolsNeedingVersionUpdate = toolStatuses
-      .filter((s) => s.needsUpdate)
+      .filter((s) => {
+        if (!s.needsUpdate || delivery !== 'commands') {
+          return s.needsUpdate;
+        }
+
+        const tool = AI_TOOLS.find((candidate) => candidate.value === s.toolId);
+        return !tool || !hasGlobalSkillTarget(tool);
+      })
       .map((s) => s.toolId);
     const toolsNeedingConfigSync = getToolsNeedingProfileSync(
       resolvedProjectPath,
@@ -260,12 +270,13 @@ export class UpdateCommand {
 
     for (const toolId of toolsToUpdate) {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
-      if (!tool?.skillsDir) continue;
+      if (!tool || !toolSupportsSkills(tool)) continue;
 
       const spinner = ora(`Updating ${tool.name}...`).start();
 
       try {
-        const skillsDir = path.join(resolvedProjectPath, tool.skillsDir, 'skills');
+        const skillsDir = resolveToolSkillsDir(resolvedProjectPath, tool);
+        const skillsRoot = hasGlobalSkillTarget(tool) ? skillsDir : resolvedProjectPath;
         const shouldGenerateSkills = shouldGenerateSkillsForTool(tool.value, delivery);
         const shouldGenerateCommands = shouldGenerateCommandsForTool(tool.value, delivery);
         const toolWorkflows = legacyWorkflowOverrides[tool.value] ?? desiredWorkflows;
@@ -285,21 +296,21 @@ export class UpdateCommand {
               resolveCommandInvocation(tool.value)
             );
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
-            FileSystemUtils.assertProjectArtifactPath(resolvedProjectPath, skillFile);
+            FileSystemUtils.assertPathWithin(skillsRoot, skillFile);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
           writeSharedSkillTarget(resolvedProjectPath, tool.value);
 
           removedDeselectedSkillCount += await this.removeUnselectedSkillDirs(
-            resolvedProjectPath,
+            skillsRoot,
             skillsDir,
             toolWorkflows
           );
         }
 
         // Delete skill directories if delivery is commands-only
-        if (shouldRemoveSkillsForTool(tool.value, delivery)) {
-          removedSkillCount += await this.removeSkillDirs(resolvedProjectPath, skillsDir);
+        if (shouldRemoveSkillsForTool(tool.value, delivery) && !hasGlobalSkillTarget(tool)) {
+          removedSkillCount += await this.removeSkillDirs(skillsRoot, skillsDir);
           // Persist the selected owner even when commands-only delivery leaves
           // this target with no generated skills.
           writeSharedSkillTarget(resolvedProjectPath, tool.value);
@@ -605,7 +616,7 @@ export class UpdateCommand {
    * Removes skill directories for workflows when delivery changed to commands-only.
    * Returns the number of directories removed.
    */
-  private async removeSkillDirs(projectPath: string, skillsDir: string): Promise<number> {
+  private async removeSkillDirs(skillsRoot: string, skillsDir: string): Promise<number> {
     let removed = 0;
 
     for (const workflow of ALL_WORKFLOWS) {
@@ -614,7 +625,7 @@ export class UpdateCommand {
 
       const skillDir = path.join(skillsDir, dirName);
       if (!fs.existsSync(skillDir)) continue;
-      FileSystemUtils.assertProjectArtifactPath(projectPath, skillDir);
+      FileSystemUtils.assertPathWithin(skillsRoot, skillDir);
       try {
         await fs.promises.rm(skillDir, { recursive: true, force: true });
         removed++;
@@ -631,7 +642,7 @@ export class UpdateCommand {
    * Returns the number of directories removed.
    */
   private async removeUnselectedSkillDirs(
-    projectPath: string,
+    skillsRoot: string,
     skillsDir: string,
     desiredWorkflows: readonly (typeof ALL_WORKFLOWS)[number][]
   ): Promise<number> {
@@ -645,7 +656,7 @@ export class UpdateCommand {
 
       const skillDir = path.join(skillsDir, dirName);
       if (!fs.existsSync(skillDir)) continue;
-      FileSystemUtils.assertProjectArtifactPath(projectPath, skillDir);
+      FileSystemUtils.assertPathWithin(skillsRoot, skillDir);
       try {
         await fs.promises.rm(skillDir, { recursive: true, force: true });
         removed++;
@@ -1040,12 +1051,13 @@ export class UpdateCommand {
 
     for (const toolId of selectedTools) {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
-      if (!tool?.skillsDir) continue;
+      if (!tool || !toolSupportsSkills(tool)) continue;
 
       const spinner = ora(`Setting up ${tool.name}...`).start();
 
       try {
-        const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
+        const skillsDir = resolveToolSkillsDir(projectPath, tool);
+        const skillsRoot = hasGlobalSkillTarget(tool) ? skillsDir : projectPath;
         const shouldGenerateSkills = shouldGenerateSkillsForTool(tool.value, delivery);
         const shouldGenerateCommands = shouldGenerateCommandsForTool(tool.value, delivery);
         const toolWorkflows = (
@@ -1072,7 +1084,7 @@ export class UpdateCommand {
               resolveCommandInvocation(tool.value)
             );
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
-            FileSystemUtils.assertProjectArtifactPath(projectPath, skillFile);
+            FileSystemUtils.assertPathWithin(skillsRoot, skillFile);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
           writeSharedSkillTarget(projectPath, tool.value);

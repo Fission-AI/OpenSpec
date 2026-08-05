@@ -35,6 +35,8 @@ describe('InitCommand', () => {
     configTempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-config-init-'));
     process.env.XDG_CONFIG_HOME = configTempDir;
     process.env.CODEX_HOME = path.join(testDir, 'codex-home');
+    process.env.HOME = path.join(testDir, 'home');
+    process.env.USERPROFILE = path.join(testDir, 'home');
 
     // Mock console.log to suppress output during tests
     vi.spyOn(console, 'log').mockImplementation(() => { });
@@ -216,6 +218,30 @@ describe('InitCommand', () => {
       expect((await fs.lstat(skillFile)).isSymbolicLink()).toBe(true);
     });
 
+    it('should not write MiniMax skills through a linked directory outside the global skills root', async () => {
+      const outsideDir = path.join(configTempDir, 'outside-minimax');
+      const skillsRoot = path.join(testDir, 'home', '.minimax', 'skills');
+      const linkedSkillDir = path.join(skillsRoot, 'openspec-propose');
+      await fs.mkdir(outsideDir, { recursive: true });
+      await fs.mkdir(skillsRoot, { recursive: true });
+      await fs.symlink(
+        outsideDir,
+        linkedSkillDir,
+        process.platform === 'win32' ? 'junction' : 'dir'
+      );
+
+      const initCommand = new InitCommand({ tools: 'minimax-code', force: true });
+      await expect(initCommand.execute(testDir)).rejects.toThrow(
+        'OpenSpec setup failed for: MiniMax Code'
+      );
+
+      expect(await fs.readdir(outsideDir)).toEqual([]);
+      expect((await fs.lstat(linkedSkillDir)).isSymbolicLink()).toBe(true);
+      expect(vi.mocked(console.log).mock.calls.flat().join('\n')).toContain(
+        'OpenSpec Setup Incomplete'
+      );
+    });
+
     it('should generate safe Claude workflow guidance (#1493)', async () => {
       const initCommand = new InitCommand({ tools: 'claude', force: true });
 
@@ -385,6 +411,68 @@ describe('InitCommand', () => {
           (entry) => entry.includes('Commands skipped for: agents') && entry.includes('(no adapter)'),
         ),
       ).toBe(true);
+    });
+
+    it('should install MiniMax Code skills only in the user-home target', async () => {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'both',
+      });
+
+      const initCommand = new InitCommand({ tools: 'minimax-code', force: true });
+      await initCommand.execute(testDir);
+
+      const skillFile = path.join(
+        testDir,
+        'home',
+        '.minimax',
+        'skills',
+        'openspec-explore',
+        'SKILL.md'
+      );
+      expect(await fileExists(skillFile)).toBe(true);
+      expect(await directoryExists(path.join(testDir, '.minimax'))).toBe(false);
+      expect(await directoryExists(path.join(testDir, '.mavis'))).toBe(false);
+
+      const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls
+        .flat()
+        .map(String);
+      expect(
+        logCalls.some(
+          (entry) =>
+            entry.includes('Commands skipped for: minimax-code') &&
+            entry.includes('(no adapter)')
+        )
+      ).toBe(true);
+      expect(
+        logCalls.some((entry) => entry.includes('commands in') && entry.includes('.minimax'))
+      ).toBe(false);
+    });
+
+    it('should preserve global MiniMax Code skills for commands-only delivery', async () => {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'commands',
+      });
+
+      const skillFile = path.join(
+        testDir,
+        'home',
+        '.minimax',
+        'skills',
+        'openspec-explore',
+        'SKILL.md'
+      );
+      await fs.mkdir(path.dirname(skillFile), { recursive: true });
+      await fs.writeFile(skillFile, 'existing global skill');
+
+      const initCommand = new InitCommand({ tools: 'minimax-code', force: true });
+      await initCommand.execute(testDir);
+
+      expect(await fs.readFile(skillFile, 'utf-8')).toBe('existing global skill');
+      expect(await directoryExists(path.join(testDir, '.minimax'))).toBe(false);
     });
 
     it('should support Kimi Code as an adapterless skills-only tool', async () => {
@@ -984,6 +1072,8 @@ describe('InitCommand - profile and detection features', () => {
     configTempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-config-test-'));
     process.env.XDG_CONFIG_HOME = configTempDir;
     process.env.CODEX_HOME = path.join(testDir, 'codex-home');
+    process.env.HOME = path.join(testDir, 'home');
+    process.env.USERPROFILE = path.join(testDir, 'home');
     vi.spyOn(console, 'log').mockImplementation(() => {});
     confirmMock.mockReset();
     confirmMock.mockResolvedValue(true);

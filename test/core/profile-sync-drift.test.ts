@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -56,9 +56,12 @@ describe('profile sync drift detection', () => {
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-profile-sync-drift-test-'));
     fs.mkdirSync(path.join(tempDir, 'openspec'), { recursive: true });
+    vi.stubEnv('HOME', path.join(tempDir, 'home'));
+    vi.stubEnv('USERPROFILE', path.join(tempDir, 'home'));
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
@@ -76,6 +79,21 @@ describe('profile sync drift detection', () => {
 
     const hasDrift = hasProjectConfigDrift(tempDir, CORE_WORKFLOWS, 'commands');
     expect(hasDrift).toBe(true);
+  });
+
+  it('does not remove global MiniMax Code skills for commands-only delivery', () => {
+    const skillPath = path.join(
+      tempDir,
+      'home',
+      '.minimax',
+      'skills',
+      'openspec-explore',
+      'SKILL.md'
+    );
+    fs.mkdirSync(path.dirname(skillPath), { recursive: true });
+    fs.writeFileSync(skillPath, 'name: openspec-explore\n');
+
+    expect(hasProjectConfigDrift(tempDir, CORE_WORKFLOWS, 'commands')).toBe(false);
   });
 
   it('detects drift when required profile workflow files are missing', () => {

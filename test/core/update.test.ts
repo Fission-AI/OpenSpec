@@ -53,6 +53,8 @@ describe('UpdateCommand', () => {
     // Create a temporary test directory
     testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-test-'));
     process.env.CODEX_HOME = path.join(testDir, 'codex-home');
+    process.env.HOME = path.join(testDir, 'home');
+    process.env.USERPROFILE = path.join(testDir, 'home');
 
     // Create openspec directory
     const openspecDir = path.join(testDir, 'openspec');
@@ -160,6 +162,97 @@ Old instructions content
       );
 
       consoleSpy.mockRestore();
+    });
+
+    it('should update MiniMax Code skills without touching unrelated global skills', async () => {
+      const skillsDir = path.join(testDir, 'home', '.minimax', 'skills');
+      const exploreSkill = path.join(skillsDir, 'openspec-explore', 'SKILL.md');
+      const customSkill = path.join(skillsDir, 'my-custom-skill', 'SKILL.md');
+      await fs.mkdir(path.dirname(exploreSkill), { recursive: true });
+      await fs.writeFile(exploreSkill, 'old content');
+      await fs.mkdir(path.dirname(customSkill), { recursive: true });
+      await fs.writeFile(customSkill, 'custom content');
+
+      await updateCommand.execute(testDir);
+
+      expect(await fs.readFile(exploreSkill, 'utf-8')).toContain('name: openspec-explore');
+      expect(await fs.readFile(customSkill, 'utf-8')).toBe('custom content');
+      expect(await FileSystemUtils.directoryExists(path.join(testDir, '.minimax'))).toBe(false);
+      expect(await FileSystemUtils.directoryExists(path.join(testDir, '.mavis'))).toBe(false);
+    });
+
+    it('should not update MiniMax skills through a linked directory outside the global skills root', async () => {
+      const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-minimax-outside-'));
+      const skillsRoot = path.join(testDir, 'home', '.minimax', 'skills');
+      const linkedSkillDir = path.join(skillsRoot, 'openspec-explore');
+      const skillFile = path.join(outsideDir, 'SKILL.md');
+      const oldSkillContent = `---
+name: openspec-explore
+metadata:
+  author: openspec
+  version: "0.9"
+---
+
+Outside content
+`;
+      await fs.mkdir(skillsRoot, { recursive: true });
+      await fs.writeFile(skillFile, oldSkillContent);
+
+      try {
+        await fs.symlink(
+          outsideDir,
+          linkedSkillDir,
+          process.platform === 'win32' ? 'junction' : 'dir'
+        );
+
+        await expect(updateCommand.execute(testDir)).rejects.toThrow(
+          'OpenSpec update failed for: MiniMax Code'
+        );
+
+        expect(await fs.readFile(skillFile, 'utf-8')).toBe(oldSkillContent);
+      } finally {
+        await fs.rm(outsideDir, { recursive: true, force: true });
+      }
+    });
+
+    it('should not delete MiniMax skills through a linked directory outside the global skills root', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'custom',
+        workflows: ['propose'],
+        delivery: 'skills',
+      });
+      const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-minimax-outside-'));
+      const skillsRoot = path.join(testDir, 'home', '.minimax', 'skills');
+      const linkedSkillDir = path.join(skillsRoot, 'openspec-explore');
+      const skillFile = path.join(outsideDir, 'SKILL.md');
+      const oldSkillContent = `---
+name: openspec-explore
+metadata:
+  author: openspec
+  version: "0.9"
+---
+
+Outside content
+`;
+      await fs.mkdir(skillsRoot, { recursive: true });
+      await fs.writeFile(skillFile, oldSkillContent);
+
+      try {
+        await fs.symlink(
+          outsideDir,
+          linkedSkillDir,
+          process.platform === 'win32' ? 'junction' : 'dir'
+        );
+
+        await expect(updateCommand.execute(testDir)).rejects.toThrow(
+          'OpenSpec update failed for: MiniMax Code'
+        );
+
+        expect(await fs.readFile(skillFile, 'utf-8')).toBe(oldSkillContent);
+      } finally {
+        await fs.rm(outsideDir, { recursive: true, force: true });
+      }
     });
 
     it('should not update generated artifacts through a linked tool directory outside the project', async () => {
@@ -2971,6 +3064,35 @@ More user content after markers.
       expect(await FileSystemUtils.fileExists(
         path.join(skillsDir, 'openspec-explore', 'SKILL.md')
       )).toBe(true);
+    });
+
+    it('should preserve global MiniMax Code skills in commands-only delivery', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'commands',
+      });
+
+      const skillFile = path.join(
+        testDir,
+        'home',
+        '.minimax',
+        'skills',
+        'openspec-explore',
+        'SKILL.md'
+      );
+      await fs.mkdir(path.dirname(skillFile), { recursive: true });
+      await fs.writeFile(skillFile, 'existing global skill');
+
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      await updateCommand.execute(testDir);
+
+      expect(await fs.readFile(skillFile, 'utf-8')).toBe('existing global skill');
+      expect(await FileSystemUtils.directoryExists(path.join(testDir, '.minimax'))).toBe(false);
+      const output = consoleSpy.mock.calls.flat().join('\n');
+      expect(output).toContain('up to date');
+      expect(output).not.toContain('Updated: MiniMax Code');
+      consoleSpy.mockRestore();
     });
 
     it('should remove skills for configured tools without command adapters in commands-only delivery', async () => {
