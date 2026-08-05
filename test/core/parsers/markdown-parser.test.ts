@@ -199,6 +199,38 @@ We need to implement user authentication to secure the application and protect u
       expect(change.deltas[2].operation).toBe('REMOVED');
     });
 
+    it('classifies deltas by the first operation keyword, ignoring hyphen-joined words', () => {
+      // Each of these was previously misclassified: a fixed type-priority let an
+      // incidental later keyword outrank the real verb, and unbounded matching let
+      // "add-ons"/"new-user" match "add"/"new".
+      //   - "Remove the add-ons page..." -> REMOVED (not ADDED via "add-ons")
+      //   - "Add a rename button..."      -> ADDED   (not RENAMED via "rename")
+      //   - "Remove the new-user flow..." -> REMOVED (not ADDED via "new-user")
+      const content = `# Reclassify Deltas
+
+## Why
+We need to confirm delta operations are classified by the leading verb, not by an incidental keyword appearing later in the sentence.
+
+## What Changes
+- **settings:** Remove the add-ons page from settings
+- **toolbar:** Add a rename button to the toolbar
+- **onboarding:** Remove the new-user onboarding flow`;
+
+      const parser = new MarkdownParser(content);
+      const change = parser.parseChange('reclassify-deltas');
+
+      expect(change.deltas).toHaveLength(3);
+
+      expect(change.deltas[0].spec).toBe('settings');
+      expect(change.deltas[0].operation).toBe('REMOVED');
+
+      expect(change.deltas[1].spec).toBe('toolbar');
+      expect(change.deltas[1].operation).toBe('ADDED');
+
+      expect(change.deltas[2].spec).toBe('onboarding');
+      expect(change.deltas[2].operation).toBe('REMOVED');
+    });
+
     it('should throw error for missing why section', () => {
       const content = `# Test Change
 
