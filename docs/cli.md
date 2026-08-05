@@ -1123,7 +1123,7 @@ openspec config list
 # Get a specific value
 openspec config get telemetry.enabled
 
-# Set a value
+# Set a value (disable anonymous usage telemetry)
 openspec config set telemetry.enabled false
 
 # Set a string value explicitly
@@ -1148,6 +1148,11 @@ openspec config profile
 # Fast preset: switch workflows to core (keeps delivery mode)
 openspec config profile core
 ```
+
+**Telemetry opt-out:** `telemetry.enabled` defaults to on when unset (opt-out model).
+Set it to `false` to disable anonymous usage stats and the `openspec update` version check.
+Environment variables take precedence over config: `OPENSPEC_TELEMETRY=0`, `DO_NOT_TRACK=1`,
+and a truthy `CI` value (e.g. `true`/`1`/`yes`) always disable telemetry regardless of the config value.
 
 `openspec config profile` starts with a current-state summary, then lets you choose:
 - Change delivery + workflows
@@ -1258,8 +1263,8 @@ openspec completion uninstall
 
 | Variable | Description |
 |----------|-------------|
-| `OPENSPEC_TELEMETRY` | Set to `0` to disable telemetry and the `openspec update` version check |
-| `DO_NOT_TRACK` | Set to `1` to disable telemetry and the `openspec update` version check (standard DNT signal) |
+| `OPENSPEC_TELEMETRY` | Set to `0` to disable telemetry and the `openspec update` version check (overrides `telemetry.enabled` in global config) |
+| `DO_NOT_TRACK` | Set to `1` to disable telemetry and the `openspec update` version check (standard DNT signal; overrides config) |
 | `OPENSPEC_CONCURRENCY` | Default concurrency for bulk validation (default: 6) |
 | `EDITOR` or `VISUAL` | Editor for `openspec config edit` |
 | `NO_COLOR` | Disable color output when set |

@@ -129,6 +129,53 @@ describe('config command integration', () => {
     await runConfigCommand(['unset', 'defaultStore']);
     expect(getGlobalConfig().defaultStore).toBeUndefined();
   });
+
+  it('should set, get, and unset telemetry.enabled without wiping identity fields', async () => {
+    const { getGlobalConfigDir, getGlobalConfig } = await import('../../src/core/global-config.js');
+    const configDir = getGlobalConfigDir();
+    fs.mkdirSync(configDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(configDir, 'config.json'),
+      JSON.stringify({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'both',
+        telemetry: { anonymousId: 'keep-id', noticeSeen: true },
+      })
+    );
+
+    await runConfigCommand(['set', 'telemetry.enabled', 'false']);
+    expect(consoleLogSpy).toHaveBeenCalledWith('Set telemetry.enabled = false');
+    expect(getGlobalConfig().telemetry).toEqual({
+      anonymousId: 'keep-id',
+      noticeSeen: true,
+      enabled: false,
+    });
+
+    await runConfigCommand(['get', 'telemetry.enabled']);
+    expect(consoleLogSpy).toHaveBeenCalledWith('false');
+
+    await runConfigCommand(['unset', 'telemetry.enabled']);
+    expect(getGlobalConfig().telemetry).toEqual({
+      anonymousId: 'keep-id',
+      noticeSeen: true,
+    });
+  });
+
+  it('should reject unknown nested telemetry keys without --allow-unknown', async () => {
+    const previousExitCode = process.exitCode;
+    process.exitCode = undefined;
+
+    try {
+      await runConfigCommand(['set', 'telemetry.anonymousId', 'x']);
+      expect(process.exitCode).toBe(1);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Invalid configuration key "telemetry.anonymousId"')
+      );
+    } finally {
+      process.exitCode = previousExitCode;
+    }
+  });
 });
 
 describe('config command shell completion registry', () => {
@@ -236,6 +283,22 @@ describe('config key validation', () => {
   it('rejects nested keys under defaultStore', async () => {
     const { validateConfigKeyPath } = await import('../../src/core/config-schema.js');
     expect(validateConfigKeyPath('defaultStore.nested').valid).toBe(false);
+  });
+
+  it('allows telemetry.enabled', async () => {
+    const { validateConfigKeyPath } = await import('../../src/core/config-schema.js');
+    expect(validateConfigKeyPath('telemetry.enabled').valid).toBe(true);
+  });
+
+  it('rejects bare telemetry key', async () => {
+    const { validateConfigKeyPath } = await import('../../src/core/config-schema.js');
+    expect(validateConfigKeyPath('telemetry').valid).toBe(false);
+  });
+
+  it('rejects unknown nested telemetry keys', async () => {
+    const { validateConfigKeyPath } = await import('../../src/core/config-schema.js');
+    expect(validateConfigKeyPath('telemetry.anonymousId').valid).toBe(false);
+    expect(validateConfigKeyPath('telemetry.foo').valid).toBe(false);
   });
 });
 
