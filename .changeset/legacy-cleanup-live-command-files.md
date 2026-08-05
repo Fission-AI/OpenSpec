@@ -1,7 +1,0 @@
----
-'@fission-ai/openspec': patch
----
-
-`openspec init` and `openspec update` no longer delete the CoStrict and Junie command files they just generated. Legacy cleanup removes artifacts older OpenSpec versions left behind, and two of its patterns named paths the current adapters still write to. CoStrict's was a whole-directory removal of `.cospec/openspec/commands/`, the folder the adapter writes `opsx-<id>.md` into, so every run wiped the directory — including any file the user kept there — while the banner above it read `No user content to preserve`. Junie's `.junie/commands/opsx-*.md` listed its own current output. Cleanup runs before the config migration, so on a config that has no `profile` key yet the missing command files make delivery detection read the project as skills-only and persist that to the global config: the files are not regenerated, and the preference changes for every other project too.
-
-CoStrict is now a file pattern, `.cospec/openspec/commands/openspec-*.md`, matching the three commands the pre-`opsx` CoStrict integration wrote there (`openspec-proposal.md`, `openspec-apply.md`, `openspec-archive.md`) and the same shape every other file-based tool already uses. Junie's entry is removed outright: Junie support arrived after the slash configurators that wrote `openspec-*` files were deleted, so no OpenSpec version ever created those files there. Genuinely legacy files are still detected and removed, and no other tool's patterns change — they never overlapped their adapter's current output.
