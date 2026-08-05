@@ -60,6 +60,7 @@ import {
   shouldReconcileCommandFilesForTool,
   shouldRemoveSkillsForTool,
 } from './command-surface.js';
+import { writeCopilotCloudFiles } from './github-copilot/cloud-agent.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
@@ -768,6 +769,9 @@ export class InitCommand {
         }
         if (shouldReconcileCommandFilesForTool(tool.value, delivery)) {
           removedCommandCount += await this.removeCommandFiles(projectPath, tool.value);
+        }
+        if (tool.value === 'github-copilot') {
+          await writeCopilotCloudFiles(projectPath);
         }
 
         spinner.succeed(`Setup complete for ${tool.name}`);

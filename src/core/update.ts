@@ -67,6 +67,7 @@ import {
   shouldReconcileCommandFilesForTool,
   shouldRemoveSkillsForTool,
 } from './command-surface.js';
+import { includesGitHubCopilot, writeCopilotCloudFiles, removeCopilotCloudFiles } from './github-copilot/cloud-agent.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
@@ -163,6 +164,7 @@ export class UpdateCommand {
 
     // 5. Find configured tools
     const configuredTools = getConfiguredToolsForProfileSync(resolvedProjectPath);
+    const configuredAndNewTools = [...new Set([...configuredTools, ...newlyConfiguredTools])];
 
     if (configuredTools.length === 0 && newlyConfiguredTools.length === 0) {
       if (deferredGlobalCleanup) {
@@ -184,6 +186,7 @@ export class UpdateCommand {
         }
         return;
       }
+      await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
       console.log(chalk.yellow('No configured tools found.'));
       console.log(chalk.dim('Run "openspec init" to set up tools.'));
       return;
@@ -221,6 +224,7 @@ export class UpdateCommand {
       }
       // All tools are up to date
       this.displayUpToDateMessage(toolStatuses);
+      await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
 
       // Still check for new tool directories and extra workflows
       this.detectNewTools(resolvedProjectPath, configuredTools);
@@ -430,7 +434,7 @@ export class UpdateCommand {
       console.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
     }
 
-    const configuredAndNewTools = [...new Set([...configuredTools, ...newlyConfiguredTools])];
+    await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
 
     // 13. Detect new tool directories not currently configured
     this.detectNewTools(resolvedProjectPath, configuredAndNewTools);
@@ -450,6 +454,23 @@ export class UpdateCommand {
     console.log(chalk.dim('Restart your IDE for changes to take effect.'));
     if (failedTools.length > 0) {
       throw new Error(`OpenSpec update failed for: ${failedTools.map((tool) => tool.name).join(', ')}`);
+    }
+  }
+
+  private async syncCopilotCloudFiles(projectPath: string, configuredTools: string[]): Promise<void> {
+    try {
+      if (includesGitHubCopilot(configuredTools)) {
+        await writeCopilotCloudFiles(projectPath);
+        return;
+      }
+
+      const removed = await removeCopilotCloudFiles(projectPath);
+      if (removed > 0) {
+        console.log(chalk.dim(`Removed: ${removed} Copilot cloud agent file(s) (github-copilot not configured)`));
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`Warning: failed to sync Copilot cloud agent files: ${message}`);
     }
   }
 

@@ -172,6 +172,27 @@ describe('InitCommand', () => {
       );
     });
 
+    it('should not create Copilot cloud files when GitHub Copilot setup fails', async () => {
+      const outsideDir = path.join(configTempDir, 'outside-github');
+      await fs.mkdir(outsideDir, { recursive: true });
+      await fs.symlink(
+        outsideDir,
+        path.join(testDir, '.github'),
+        process.platform === 'win32' ? 'junction' : 'dir'
+      );
+
+      const initCommand = new InitCommand({ tools: 'github-copilot', force: true });
+      await expect(initCommand.execute(testDir)).rejects.toThrow(
+        'OpenSpec setup failed for: GitHub Copilot'
+      );
+
+      expect(await fs.readdir(outsideDir)).toEqual([]);
+      expect((await fs.lstat(path.join(testDir, '.github'))).isSymbolicLink()).toBe(true);
+      expect(vi.mocked(console.log).mock.calls.flat().join('\n')).toContain(
+        'OpenSpec Setup Incomplete'
+      );
+    });
+
     it.skipIf(process.platform === 'win32')('should not overwrite a generated artifact symlink outside the project', async () => {
       const outsideFile = path.join(configTempDir, 'outside-skill.md');
       const originalContent = 'keep me\n';
@@ -873,6 +894,28 @@ describe('InitCommand', () => {
 
       const cmdFile = path.join(testDir, '.github', 'prompts', 'opsx-explore.prompt.md');
       expect(await fileExists(cmdFile)).toBe(true);
+    });
+
+    it('should fail GitHub Copilot setup without partially creating cloud files', async () => {
+      const agentsPath = path.join(testDir, '.github', 'agents');
+      const setupStepsPath = path.join(
+        testDir,
+        '.github',
+        'workflows',
+        'copilot-setup-steps.yml'
+      );
+      await fs.mkdir(path.dirname(agentsPath), { recursive: true });
+      await fs.writeFile(agentsPath, 'blocks the generated agent directory');
+
+      const initCommand = new InitCommand({ tools: 'github-copilot', force: true });
+      await expect(initCommand.execute(testDir)).rejects.toThrow(
+        'OpenSpec setup failed for: GitHub Copilot'
+      );
+
+      await expect(fs.stat(setupStepsPath)).rejects.toMatchObject({ code: 'ENOENT' });
+      expect(vi.mocked(console.log).mock.calls.flat().join('\n')).toContain(
+        'OpenSpec Setup Incomplete'
+      );
     });
   });
 });
