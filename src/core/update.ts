@@ -70,6 +70,7 @@ import {
   shouldReconcileCommandFilesForTool,
   shouldRemoveSkillsForTool,
 } from './command-surface.js';
+import { writeSharedSkillTarget } from './shared-skill-target.js';
 import { includesGitHubCopilot, writeCopilotCloudFiles, removeCopilotCloudFiles } from './github-copilot/cloud-agent.js';
 
 const require = createRequire(import.meta.url);
@@ -298,6 +299,7 @@ export class UpdateCommand {
             FileSystemUtils.assertPathWithin(skillsRoot, skillFile);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
+          writeSharedSkillTarget(resolvedProjectPath, tool.value);
 
           removedDeselectedSkillCount += await this.removeUnselectedSkillDirs(
             skillsRoot,
@@ -309,6 +311,9 @@ export class UpdateCommand {
         // Delete skill directories if delivery is commands-only
         if (shouldRemoveSkillsForTool(tool.value, delivery) && !hasGlobalSkillTarget(tool)) {
           removedSkillCount += await this.removeSkillDirs(skillsRoot, skillsDir);
+          // Persist the selected owner even when commands-only delivery leaves
+          // this target with no generated skills.
+          writeSharedSkillTarget(resolvedProjectPath, tool.value);
           // A tool with no command adapter now has zero OpenSpec artifacts;
           // say so like init does, rather than deleting its skills silently
           // and letting tool detection re-suggest an init that would also
@@ -349,6 +354,16 @@ export class UpdateCommand {
 
         spinner.succeed(`Updated ${tool.name}`);
         updatedTools.push(tool.name);
+        for (const migration of migrateLegacyToolDirs(
+          resolvedProjectPath,
+          [tool.value],
+          'after-generation'
+        )) {
+          if (hasMovableContent(migration)) {
+            console.log(chalk.dim(`Migrated ${describeLegacyMigration(migration)}: ${migration.from} → ${migration.to}`));
+          }
+          this.reportKeptInPlace(migration);
+        }
       } catch (error) {
         spinner.fail(`Failed to update ${tool.name}`);
         failedTools.push({
@@ -1072,6 +1087,7 @@ export class UpdateCommand {
             FileSystemUtils.assertPathWithin(skillsRoot, skillFile);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
+          writeSharedSkillTarget(projectPath, tool.value);
         }
 
         // Create commands when delivery includes commands
@@ -1092,6 +1108,16 @@ export class UpdateCommand {
 
         spinner.succeed(`Setup complete for ${tool.name}`);
         newlyConfigured.push(toolId);
+        for (const migration of migrateLegacyToolDirs(
+          projectPath,
+          [tool.value],
+          'after-generation'
+        )) {
+          if (hasMovableContent(migration)) {
+            console.log(chalk.dim(`Migrated ${describeLegacyMigration(migration)}: ${migration.from} → ${migration.to}`));
+          }
+          this.reportKeptInPlace(migration);
+        }
       } catch (error) {
         spinner.fail(`Failed to set up ${tool.name}`);
         console.log(chalk.red(`  ${error instanceof Error ? error.message : String(error)}`));

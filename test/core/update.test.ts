@@ -38,6 +38,11 @@ function resetMockConfig() {
   mockState.config = { featureFlags: {}, profile: 'core', delivery: 'both' };
 }
 
+async function markCodexTarget(skillsDir: string): Promise<void> {
+  await fs.mkdir(skillsDir, { recursive: true });
+  await fs.writeFile(path.join(skillsDir, '.openspec-target'), 'codex\n');
+}
+
 describe('UpdateCommand', () => {
   let testDir: string;
   let updateCommand: UpdateCommand;
@@ -426,6 +431,380 @@ metadata:
       await expect(fs.access(path.join(testDir, '.kimi'))).rejects.toThrow();
       const migratedSkill = path.join(testDir, '.kimi-code', 'skills', 'openspec-explore', 'SKILL.md');
       await expect(fs.access(migratedSkill)).resolves.toBeUndefined();
+    });
+
+    it('should migrate legacy Codex skills after writing replacements and preserve user files', async () => {
+      await new InitCommand({ tools: 'codex', force: true }).execute(testDir);
+      await fs.rename(path.join(testDir, '.agents'), path.join(testDir, '.codex'));
+      await fs.rm(path.join(testDir, '.codex', 'skills', '.openspec-target'));
+
+      const userSkill = path.join(testDir, '.codex', 'skills', 'my-custom-skill', 'SKILL.md');
+      await fs.mkdir(path.dirname(userSkill), { recursive: true });
+      await fs.writeFile(userSkill, 'user skill');
+      await fs.writeFile(path.join(testDir, '.codex', 'config.toml'), 'user config');
+
+      const consoleSpy = vi.spyOn(console, 'log');
+      await updateCommand.execute(testDir);
+
+      const currentSkill = path.join(
+        testDir,
+        '.agents',
+        'skills',
+        'openspec-propose',
+        'SKILL.md'
+      );
+      expect(await fs.readFile(currentSkill, 'utf-8')).toContain('$openspec-apply-change');
+      await expect(
+        fs.access(path.join(testDir, '.codex', 'skills', 'openspec-propose', 'SKILL.md'))
+      ).rejects.toThrow();
+      expect(await fs.readFile(userSkill, 'utf-8')).toBe('user skill');
+      expect(await fs.readFile(path.join(testDir, '.codex', 'config.toml'), 'utf-8')).toBe(
+        'user config'
+      );
+      expect(
+        consoleSpy.mock.calls.flat().map(String).some((entry) =>
+          entry.includes('.codex → .agents')
+        )
+      ).toBe(true);
+    });
+
+    it('should retry interrupted equivalent Codex cleanup without force', async () => {
+      await new InitCommand({ tools: 'codex', force: true }).execute(testDir);
+      const canonicalSkills = path.join(testDir, '.agents', 'skills');
+      const legacySkills = path.join(testDir, '.codex', 'skills');
+      await fs.cp(canonicalSkills, legacySkills, { recursive: true });
+      await fs.rm(path.join(legacySkills, '.openspec-target'));
+
+      for (const entry of await fs.readdir(legacySkills, { withFileTypes: true })) {
+        if (!entry.isDirectory() || !entry.name.startsWith('openspec-')) continue;
+        const skillFile = path.join(legacySkills, entry.name, 'SKILL.md');
+        const legacyContent = (await fs.readFile(skillFile, 'utf-8'))
+          .replace(
+            /\$openspec-([a-z0-9-]+) \(Codex\) or \/openspec-\1 \(other agents\)/g,
+            '$openspec-$1'
+          )
+          .replace(/generatedBy:\s*"[^"]+"/, 'generatedBy: "0.1.0"')
+          .replace(/\n/g, '\r\n');
+        await fs.writeFile(skillFile, `\uFEFF${legacyContent}`);
+      }
+
+      await updateCommand.execute(testDir);
+
+      await expect(
+        fs.access(path.join(legacySkills, 'openspec-propose', 'SKILL.md'))
+      ).rejects.toThrow();
+      expect(await fs.readFile(
+        path.join(canonicalSkills, 'openspec-propose', 'SKILL.md'),
+        'utf-8'
+      )).toContain('$openspec-apply-change');
+    });
+
+    it('should preserve and report a divergent legacy Codex skill', async () => {
+      await new InitCommand({ tools: 'codex', force: true }).execute(testDir);
+      await fs.rename(path.join(testDir, '.agents'), path.join(testDir, '.codex'));
+      await fs.rm(path.join(testDir, '.codex', 'skills', '.openspec-target'));
+      const legacySkill = path.join(
+        testDir,
+        '.codex',
+        'skills',
+        'openspec-propose',
+        'SKILL.md'
+      );
+      await fs.appendFile(legacySkill, '\nUser edit\n');
+
+      const consoleSpy = vi.spyOn(console, 'log');
+      await updateCommand.execute(testDir);
+
+      expect(await fs.readFile(legacySkill, 'utf-8')).toContain('User edit');
+      expect(
+        consoleSpy.mock.calls.flat().map(String).some((entry) =>
+          entry.includes('Left 1 file in .codex/')
+        )
+      ).toBe(true);
+
+      consoleSpy.mockClear();
+      await updateCommand.execute(testDir);
+      const secondRunLogs = consoleSpy.mock.calls.flat().map(String);
+      expect(secondRunLogs.some((entry) => entry.includes('up to date'))).toBe(true);
+      expect(secondRunLogs.some((entry) => entry.includes('Left 1 file in .codex/'))).toBe(false);
+    });
+
+    it('should not restore legacy Codex workflows excluded by the active profile', async () => {
+      await new InitCommand({ tools: 'codex', force: true }).execute(testDir);
+      await fs.rename(path.join(testDir, '.agents'), path.join(testDir, '.codex'));
+      await fs.rm(path.join(testDir, '.codex', 'skills', '.openspec-target'));
+      setMockConfig({
+        featureFlags: {},
+        profile: 'custom',
+        delivery: 'skills',
+        workflows: ['explore'],
+      });
+
+      await updateCommand.execute(testDir);
+
+      expect(
+        await FileSystemUtils.fileExists(
+          path.join(testDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md')
+        )
+      ).toBe(true);
+      expect(
+        await FileSystemUtils.fileExists(
+          path.join(testDir, '.agents', 'skills', 'openspec-apply-change', 'SKILL.md')
+        )
+      ).toBe(false);
+      expect(
+        await FileSystemUtils.fileExists(
+          path.join(testDir, '.codex', 'skills', 'openspec-apply-change', 'SKILL.md')
+        )
+      ).toBe(true);
+
+      const consoleSpy = vi.spyOn(console, 'log');
+      await updateCommand.execute(testDir);
+      expect(
+        consoleSpy.mock.calls.flat().map(String).some((entry) => entry.includes('up to date'))
+      ).toBe(true);
+    });
+
+    it('should keep Codex as the sole writer of its marked shared skill tree', async () => {
+      await new InitCommand({ tools: 'codex,agents', force: true }).execute(testDir);
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await new UpdateCommand({ force: true }).execute(testDir);
+
+      const proposeSkill = await fs.readFile(
+        path.join(testDir, '.agents', 'skills', 'openspec-propose', 'SKILL.md'),
+        'utf-8'
+      );
+      expect(proposeSkill).toContain('$openspec-apply-change');
+      expect(proposeSkill).toContain('/openspec-apply-change');
+      expect(
+        consoleSpy.mock.calls.flat().map(String).some((entry) =>
+          entry.includes('Force updating 1 tool(s): codex')
+        )
+      ).toBe(true);
+    });
+
+    it('should keep an explicit agents target despite preserved legacy Codex skills', async () => {
+      await new InitCommand({ tools: 'codex', force: true }).execute(testDir);
+      await fs.rename(path.join(testDir, '.agents'), path.join(testDir, '.codex'));
+      await fs.rm(path.join(testDir, '.codex', 'skills', '.openspec-target'));
+      await fs.appendFile(
+        path.join(testDir, '.codex', 'skills', 'openspec-propose', 'SKILL.md'),
+        '\nUser edit\n'
+      );
+      await new InitCommand({ tools: 'agents', force: true }).execute(testDir);
+
+      await updateCommand.execute(testDir);
+
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe('agents\n');
+      expect(
+        await fs.readFile(path.join(skillsDir, 'openspec-propose', 'SKILL.md'), 'utf-8')
+      ).toContain('/openspec-apply-change');
+      expect(
+        await fs.readFile(
+          path.join(testDir, '.codex', 'skills', 'openspec-propose', 'SKILL.md'),
+          'utf-8'
+        )
+      ).toContain('User edit');
+    });
+
+    it('should let an explicit Codex init take ownership of an agents tree', async () => {
+      await new InitCommand({ tools: 'agents', force: true }).execute(testDir);
+
+      await new InitCommand({ tools: 'codex', force: true }).execute(testDir);
+
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe('codex\n');
+      const proposeSkill = await fs.readFile(
+        path.join(skillsDir, 'openspec-propose', 'SKILL.md'),
+        'utf-8'
+      );
+      expect(proposeSkill).toContain('$openspec-apply-change');
+      expect(proposeSkill).toContain('/openspec-apply-change');
+    });
+
+    it('should consolidate an existing unmarked agents tree with legacy Codex skills', async () => {
+      await new InitCommand({ tools: 'codex', force: true }).execute(testDir);
+      await fs.rename(path.join(testDir, '.agents'), path.join(testDir, '.codex'));
+      await fs.rm(path.join(testDir, '.codex', 'skills', '.openspec-target'));
+      await new InitCommand({ tools: 'agents', force: true }).execute(testDir);
+      await fs.rm(path.join(testDir, '.agents', 'skills', '.openspec-target'));
+      const legacyPropose = path.join(
+        testDir,
+        '.codex',
+        'skills',
+        'openspec-propose',
+        'SKILL.md'
+      );
+      await fs.writeFile(
+        legacyPropose,
+        (await fs.readFile(legacyPropose, 'utf-8')).replace(
+          /generatedBy:\s*"[^"]+"/,
+          'generatedBy: "0.1.0"'
+        )
+      );
+
+      await new UpdateCommand({ force: true }).execute(testDir);
+
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe('codex\n');
+      const proposeSkill = await fs.readFile(
+        path.join(skillsDir, 'openspec-propose', 'SKILL.md'),
+        'utf-8'
+      );
+      expect(proposeSkill).toContain('$openspec-apply-change');
+      expect(proposeSkill).toContain('/openspec-apply-change');
+      await expect(
+        fs.access(path.join(testDir, '.codex', 'skills', 'openspec-propose', 'SKILL.md'))
+      ).rejects.toThrow();
+    });
+
+    it('should infer an unmarked canonical Codex tree that was moved manually', async () => {
+      await new InitCommand({ tools: 'codex', force: true }).execute(testDir);
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      await fs.rm(path.join(skillsDir, '.openspec-target'));
+
+      await new UpdateCommand({ force: true }).execute(testDir);
+
+      expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe('codex\n');
+      const proposeSkill = await fs.readFile(
+        path.join(skillsDir, 'openspec-propose', 'SKILL.md'),
+        'utf-8'
+      );
+      expect(proposeSkill).toContain('$openspec-apply-change');
+      expect(proposeSkill).toContain('/openspec-apply-change');
+    });
+
+    it('should preserve agents ownership when it switches to commands-only', async () => {
+      await new InitCommand({ tools: 'codex', force: true }).execute(testDir);
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+
+      await new InitCommand({ tools: 'agents', force: true }).execute(testDir);
+
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe('agents\n');
+      await expect(
+        fs.access(path.join(skillsDir, 'openspec-propose', 'SKILL.md'))
+      ).rejects.toThrow();
+    });
+
+    it('should not resurrect divergent legacy Codex skills after agents switches to commands-only', async () => {
+      await new InitCommand({ tools: 'agents', force: true }).execute(testDir);
+      const canonicalSkills = path.join(testDir, '.agents', 'skills');
+      const legacySkills = path.join(testDir, '.codex', 'skills');
+      await fs.cp(canonicalSkills, legacySkills, { recursive: true });
+      await fs.writeFile(
+        path.join(legacySkills, 'openspec-propose', 'SKILL.md'),
+        'divergent legacy Codex skill\n'
+      );
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+
+      await updateCommand.execute(testDir);
+      await updateCommand.execute(testDir);
+
+      expect(await fs.readFile(path.join(canonicalSkills, '.openspec-target'), 'utf-8')).toBe(
+        'agents\n'
+      );
+      await expect(
+        fs.access(path.join(canonicalSkills, 'openspec-propose', 'SKILL.md'))
+      ).rejects.toThrow();
+      expect(
+        await fs.readFile(path.join(legacySkills, 'openspec-propose', 'SKILL.md'), 'utf-8')
+      ).toBe('divergent legacy Codex skill\n');
+    });
+
+    it('should migrate legacy Codex skills under commands-only delivery', async () => {
+      await new InitCommand({ tools: 'codex', force: true }).execute(testDir);
+      await fs.rename(path.join(testDir, '.agents'), path.join(testDir, '.codex'));
+      await fs.rm(path.join(testDir, '.codex', 'skills', '.openspec-target'));
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+
+      await updateCommand.execute(testDir);
+
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe('codex\n');
+      const proposeSkill = await fs.readFile(
+        path.join(skillsDir, 'openspec-propose', 'SKILL.md'),
+        'utf-8'
+      );
+      expect(proposeSkill).toContain('$openspec-apply-change');
+      expect(proposeSkill).toContain('/openspec-apply-change');
+      await expect(
+        fs.access(path.join(testDir, '.codex', 'skills', 'openspec-propose', 'SKILL.md'))
+      ).rejects.toThrow();
+    });
+
+    it('should not migrate legacy Codex skills through a symlink outside the project', async () => {
+      const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-codex-outside-'));
+      try {
+        await new InitCommand({ tools: 'codex', force: true }).execute(testDir);
+        const outsideSkill = path.join(
+          outsideDir,
+          'skills',
+          'openspec-propose',
+          'SKILL.md'
+        );
+        await fs.mkdir(path.dirname(outsideSkill), { recursive: true });
+        await fs.copyFile(
+          path.join(testDir, '.agents', 'skills', 'openspec-propose', 'SKILL.md'),
+          outsideSkill
+        );
+        await fs.symlink(
+          outsideDir,
+          path.join(testDir, '.codex'),
+          process.platform === 'win32' ? 'junction' : 'dir'
+        );
+        const warningSpy = vi.spyOn(console, 'warn');
+
+        await new UpdateCommand({ force: true }).execute(testDir);
+
+        await expect(fs.readFile(outsideSkill, 'utf-8')).resolves.toContain(
+          'name: openspec-propose'
+        );
+        expect(
+          warningSpy.mock.calls.flat().map(String).some((entry) =>
+            entry.includes('resolves outside this project')
+          )
+        ).toBe(true);
+      } finally {
+        await fs.rm(outsideDir, { recursive: true, force: true });
+      }
+    });
+
+    it('should not migrate a nested legacy Codex skill symlink outside the project', async () => {
+      const outsideDir = await fs.mkdtemp(
+        path.join(os.tmpdir(), 'openspec-codex-skill-outside-')
+      );
+      try {
+        await new InitCommand({ tools: 'codex', force: true }).execute(testDir);
+        const outsideSkill = path.join(outsideDir, 'SKILL.md');
+        await fs.copyFile(
+          path.join(testDir, '.agents', 'skills', 'openspec-propose', 'SKILL.md'),
+          outsideSkill
+        );
+        const legacySkillsDir = path.join(testDir, '.codex', 'skills');
+        await fs.mkdir(legacySkillsDir, { recursive: true });
+        await fs.symlink(
+          outsideDir,
+          path.join(legacySkillsDir, 'openspec-propose'),
+          process.platform === 'win32' ? 'junction' : 'dir'
+        );
+        const warningSpy = vi.spyOn(console, 'warn');
+
+        await new UpdateCommand({ force: true }).execute(testDir);
+
+        await expect(fs.readFile(outsideSkill, 'utf-8')).resolves.toContain(
+          'name: openspec-propose'
+        );
+        expect(
+          warningSpy.mock.calls.flat().map(String).some((entry) =>
+            entry.includes('resolves outside this project')
+          )
+        ).toBe(true);
+      } finally {
+        await fs.rm(outsideDir, { recursive: true, force: true });
+      }
     });
 
     it('should update core profile skill files when tool is configured', async () => {
@@ -1045,6 +1424,37 @@ metadata:
   });
 
   describe('error handling', () => {
+    it('should preserve legacy Codex skills and prompts when canonical generation fails', async () => {
+      const legacySkill = path.join(
+        testDir,
+        '.codex',
+        'skills',
+        'openspec-explore',
+        'SKILL.md'
+      );
+      const legacyContent = 'legacy Codex skill';
+      await fs.mkdir(path.dirname(legacySkill), { recursive: true });
+      await fs.writeFile(legacySkill, legacyContent);
+
+      const prompt = path.join(process.env.CODEX_HOME!, 'prompts', 'opsx-explore.md');
+      await fs.mkdir(path.dirname(prompt), { recursive: true });
+      await fs.writeFile(prompt, 'legacy prompt');
+
+      const originalWriteFile = FileSystemUtils.writeFile.bind(FileSystemUtils);
+      vi.spyOn(FileSystemUtils, 'writeFile').mockImplementation(async (filePath, content) => {
+        if (filePath.includes(`${path.sep}.agents${path.sep}`) && filePath.endsWith('SKILL.md')) {
+          throw new Error('EACCES: permission denied');
+        }
+        return originalWriteFile(filePath, content);
+      });
+
+      await expect(new UpdateCommand({ force: true }).execute(testDir)).rejects.toThrow(
+        'OpenSpec update failed for: Codex'
+      );
+      expect(await fs.readFile(legacySkill, 'utf-8')).toBe(legacyContent);
+      expect(await FileSystemUtils.fileExists(prompt)).toBe(true);
+    });
+
     it('should report tool update failures to automation', async () => {
       // Set up a configured tool
       const skillsDir = path.join(testDir, '.claude', 'skills');
@@ -1654,7 +2064,8 @@ ${OPENSPEC_MARKERS.end}
         delivery: 'commands',
       });
 
-      const skillsDir = path.join(testDir, '.codex', 'skills');
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      await markCodexTarget(skillsDir);
       await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
         recursive: true,
       });
@@ -1715,13 +2126,13 @@ ${OPENSPEC_MARKERS.end}
 
       expect(await FileSystemUtils.fileExists(managedPrompt)).toBe(false);
       expect(await FileSystemUtils.fileExists(
-        path.join(testDir, '.codex', 'skills', 'openspec-explore', 'SKILL.md')
+        path.join(testDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md')
       )).toBe(true);
       expect(await FileSystemUtils.fileExists(
-        path.join(testDir, '.codex', 'skills', 'openspec-apply-change', 'SKILL.md')
+        path.join(testDir, '.agents', 'skills', 'openspec-apply-change', 'SKILL.md')
       )).toBe(false);
       expect(await FileSystemUtils.fileExists(
-        path.join(testDir, '.codex', 'skills', 'openspec-archive-change', 'SKILL.md')
+        path.join(testDir, '.agents', 'skills', 'openspec-archive-change', 'SKILL.md')
       )).toBe(false);
     });
 
@@ -1793,7 +2204,8 @@ ${OPENSPEC_MARKERS.end}
         delivery: 'skills',
       });
 
-      const skillsDir = path.join(testDir, '.codex', 'skills');
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      await markCodexTarget(skillsDir);
       await fs.mkdir(path.join(skillsDir, 'openspec-explore'), { recursive: true });
       await fs.writeFile(path.join(skillsDir, 'openspec-explore', 'SKILL.md'), 'old');
 
@@ -1807,7 +2219,7 @@ ${OPENSPEC_MARKERS.end}
 
       expect(await FileSystemUtils.fileExists(managedPrompt)).toBe(true);
       expect(await FileSystemUtils.fileExists(
-        path.join(testDir, '.codex', 'skills', 'openspec-onboard', 'SKILL.md')
+        path.join(testDir, '.agents', 'skills', 'openspec-onboard', 'SKILL.md')
       )).toBe(false);
     });
 
@@ -1818,7 +2230,8 @@ ${OPENSPEC_MARKERS.end}
         delivery: 'commands',
       });
 
-      const skillsDir = path.join(testDir, '.codex', 'skills');
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      await markCodexTarget(skillsDir);
       await fs.mkdir(path.join(skillsDir, 'openspec-explore'), { recursive: true });
       await fs.writeFile(path.join(skillsDir, 'openspec-explore', 'SKILL.md'), 'old');
 
@@ -2585,7 +2998,8 @@ More user content after markers.
           delivery,
         });
 
-        const skillsDir = path.join(testDir, '.codex', 'skills');
+        const skillsDir = path.join(testDir, '.agents', 'skills');
+        await markCodexTarget(skillsDir);
         await fs.mkdir(path.join(skillsDir, 'openspec-explore'), { recursive: true });
         await fs.writeFile(path.join(skillsDir, 'openspec-explore', 'SKILL.md'), 'old');
 
@@ -2608,7 +3022,8 @@ More user content after markers.
         delivery: 'both',
       });
 
-      const skillsDir = path.join(testDir, '.codex', 'skills');
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      await markCodexTarget(skillsDir);
       await fs.mkdir(path.join(skillsDir, 'openspec-explore'), { recursive: true });
       await fs.writeFile(path.join(skillsDir, 'openspec-explore', 'SKILL.md'), 'old');
 
@@ -2633,7 +3048,8 @@ More user content after markers.
         delivery: 'skills',
       });
 
-      const skillsDir = path.join(testDir, '.codex', 'skills');
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      await markCodexTarget(skillsDir);
       await fs.mkdir(path.join(skillsDir, 'openspec-explore'), { recursive: true });
       await fs.writeFile(path.join(skillsDir, 'openspec-explore', 'SKILL.md'), 'old');
 

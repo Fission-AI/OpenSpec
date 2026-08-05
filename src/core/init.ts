@@ -54,6 +54,7 @@ import {
 import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
 import { getProfileWorkflows, CORE_WORKFLOWS, ALL_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
+import { writeSharedSkillTarget } from './shared-skill-target.js';
 import { migrateIfNeeded, migrateLegacyToolDirs, describeLegacyMigration, keptInPlaceNotice, hasMovableContent, scanInstalledWorkflows as scanInstalledWorkflowsShared } from './migration.js';
 import {
   resolveCommandSurfaceCapability,
@@ -614,7 +615,18 @@ export class InitCommand {
   ): ValidatedInitTool[] {
     const validatedTools: ValidatedInitTool[] = [];
 
-    for (const toolId of toolIds) {
+    const reconciledToolIds = toolIds.includes('codex') && toolIds.includes('agents')
+      ? toolIds.filter((toolId) => toolId !== 'agents')
+      : toolIds;
+    if (reconciledToolIds.length !== toolIds.length) {
+      console.log(
+        chalk.dim(
+          'Codex and agents share .agents/skills; writing one tree with Codex and generic skill references.'
+        )
+      );
+    }
+
+    for (const toolId of reconciledToolIds) {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
       if (!tool) {
         const validToolIds = getToolsWithSkillsDir();
@@ -759,9 +771,13 @@ export class InitCommand {
             FileSystemUtils.assertPathWithin(tool.skillsRoot, skillFile);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
+          writeSharedSkillTarget(projectPath, tool.value);
         }
         if (shouldRemoveSkillsForTool(tool.value, delivery) && !tool.isGlobalSkillTarget) {
           removedSkillCount += await this.removeSkillDirs(tool.skillsRoot, tool.skillsPath);
+          // Retain an explicit selection even when this delivery mode produces
+          // no skills, so a divergent legacy sibling cannot reclaim ownership.
+          writeSharedSkillTarget(projectPath, tool.value);
         }
 
         // Generate commands if delivery includes commands
@@ -799,6 +815,20 @@ export class InitCommand {
       } catch (error) {
         spinner.fail(`Failed for ${tool.name}`);
         failedTools.push({ name: tool.name, error: error as Error });
+      }
+    }
+
+    for (const tool of [...createdTools, ...refreshedTools]) {
+      for (const migration of migrateLegacyToolDirs(
+        projectPath,
+        [tool.value],
+        'after-generation'
+      )) {
+        if (hasMovableContent(migration)) {
+          console.log(chalk.dim(`Migrated ${describeLegacyMigration(migration)}: ${migration.from} → ${migration.to}`));
+        }
+        const kept = keptInPlaceNotice(migration);
+        if (kept) console.log(chalk.dim(kept));
       }
     }
 

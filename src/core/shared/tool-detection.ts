@@ -6,11 +6,20 @@
 
 import path from 'path';
 import * as fs from 'fs';
-import { AI_TOOLS } from '../config.js';
+import { AI_TOOLS, OPENSPEC_SKILL_NAMES } from '../config.js';
 import { CommandAdapterRegistry, generateCommands } from '../command-generation/index.js';
 import { getCommandContents } from './skill-generation.js';
 import { getGlobalConfig } from '../global-config.js';
 import { getProfileWorkflows, ALL_WORKFLOWS } from '../profiles.js';
+import {
+  isSharedSkillTargetActive,
+  readSharedSkillTarget,
+  reconcileSharedSkillTargets,
+} from '../shared-skill-target.js';
+import {
+  shouldGenerateCommandsForTool,
+  shouldGenerateSkillsForTool,
+} from '../command-surface.js';
 import {
   getSkillCapableTools,
   resolveToolSkillsDir,
@@ -20,20 +29,7 @@ import {
 /**
  * Names of skill directories created by openspec init.
  */
-export const SKILL_NAMES = [
-  'openspec-explore',
-  'openspec-new-change',
-  'openspec-continue-change',
-  'openspec-apply-change',
-  'openspec-update-change',
-  'openspec-ff-change',
-  'openspec-sync-specs',
-  'openspec-archive-change',
-  'openspec-bulk-archive-change',
-  'openspec-verify-change',
-  'openspec-onboard',
-  'openspec-propose',
-] as const;
+export const SKILL_NAMES = OPENSPEC_SKILL_NAMES;
 
 export type SkillName = (typeof SKILL_NAMES)[number];
 
@@ -104,13 +100,22 @@ export function getToolSkillStatus(projectRoot: string, toolId: string): ToolSki
   if (!tool || !toolSupportsSkills(tool)) {
     return { configured: false, fullyConfigured: false, skillCount: 0 };
   }
+  if (tool.skillsDir && !isSharedSkillTargetActive(projectRoot, toolId)) {
+    return { configured: false, fullyConfigured: false, skillCount: 0 };
+  }
 
-  const skillsDir = resolveToolSkillsDir(projectRoot, tool);
+  const skillsDirs = [
+    resolveToolSkillsDir(projectRoot, tool),
+    ...(tool.legacySkillsDirs ?? []).map((root) =>
+      path.join(projectRoot, root, 'skills')
+    ),
+  ];
   let skillCount = 0;
 
   for (const skillName of SKILL_NAMES) {
-    const skillFile = path.join(skillsDir, skillName, 'SKILL.md');
-    if (fs.existsSync(skillFile)) {
+    if (skillsDirs.some((skillsDir) =>
+      fs.existsSync(path.join(skillsDir, skillName, 'SKILL.md'))
+    )) {
       skillCount++;
     }
   }
@@ -223,10 +228,31 @@ export function areCommandFilesUpToDate(
  */
 export function getToolStates(projectRoot: string): Map<string, ToolSkillStatus> {
   const states = new Map<string, ToolSkillStatus>();
-  const toolIds = getToolsWithSkillsDir();
+  const tools = getSkillCapableTools();
 
-  for (const toolId of toolIds) {
-    states.set(toolId, getToolSkillStatus(projectRoot, toolId));
+  for (const tool of tools) {
+    const skillStatus = getToolSkillStatus(projectRoot, tool.value);
+    const markerConfigured =
+      Boolean(tool.skillsDir) &&
+      readSharedSkillTarget(projectRoot, tool.skillsDir!) === tool.value;
+    states.set(
+      tool.value,
+      markerConfigured
+        ? { ...skillStatus, configured: true }
+        : skillStatus
+    );
+  }
+
+  const configuredTools = tools.filter(
+    (tool) => tool.skillsDir && states.get(tool.value)?.configured
+  );
+  const activeSharedTargets = new Set(
+    reconcileSharedSkillTargets(projectRoot, configuredTools).map((tool) => tool.value)
+  );
+  for (const tool of configuredTools) {
+    if (!activeSharedTargets.has(tool.value)) {
+      states.set(tool.value, { configured: false, fullyConfigured: false, skillCount: 0 });
+    }
   }
 
   return states;
@@ -288,27 +314,49 @@ export function getToolVersionStatus(
     };
   }
 
-  const skillsDir = resolveToolSkillsDir(projectRoot, tool);
+  const skillsDirs = [
+    resolveToolSkillsDir(projectRoot, tool),
+    ...(tool.legacySkillsDirs ?? []).map((root) =>
+      path.join(projectRoot, root, 'skills')
+    ),
+  ];
   let generatedByVersion: string | null = null;
+  let foundSkill = false;
 
   // 1. Find the first skill file that exists and read its version
   for (const skillName of SKILL_NAMES) {
-    const skillFile = path.join(skillsDir, skillName, 'SKILL.md');
-    if (fs.existsSync(skillFile)) {
-      generatedByVersion = extractGeneratedByVersion(skillFile);
-      break;
+    for (const skillsDir of skillsDirs) {
+      const skillFile = path.join(skillsDir, skillName, 'SKILL.md');
+      if (fs.existsSync(skillFile)) {
+        generatedByVersion = extractGeneratedByVersion(skillFile);
+        foundSkill = true;
+        break;
+      }
     }
+    if (foundSkill) break;
   }
 
   const skillConfigured = getToolSkillStatus(projectRoot, toolId).configured;
   const commandConfigured = toolHasAnyConfiguredCommand(projectRoot, toolId);
-  const configured = skillConfigured || commandConfigured;
+  const markerConfigured =
+    Boolean(tool.skillsDir) &&
+    readSharedSkillTarget(projectRoot, tool.skillsDir!) === toolId;
+  const configured = skillConfigured || commandConfigured || markerConfigured;
 
   // 2. Commands-only installs have no skill file to read a version from, so fall
   //    back to comparing the generated command content. Deliberately skipped when
   //    skill files exist: an unreadable version there must still force a rewrite.
   if (!skillConfigured && commandConfigured && areCommandFilesUpToDate(projectRoot, toolId, options)) {
     generatedByVersion = currentVersion;
+  }
+  if (!skillConfigured && !commandConfigured && markerConfigured) {
+    const delivery = getGlobalConfig().delivery ?? 'both';
+    if (
+      !shouldGenerateSkillsForTool(toolId, delivery) &&
+      !shouldGenerateCommandsForTool(toolId, delivery)
+    ) {
+      generatedByVersion = currentVersion;
+    }
   }
 
   const needsUpdate = configured && (generatedByVersion === null || generatedByVersion !== currentVersion);
@@ -326,12 +374,25 @@ export function getToolVersionStatus(
  * Gets all configured tools in the project (configured via skills or commands).
  */
 export function getConfiguredTools(projectRoot: string): string[] {
-  return AI_TOOLS
+  const configured = AI_TOOLS
     .filter((t) => {
       if (!toolSupportsSkills(t)) return false;
-      return getToolSkillStatus(projectRoot, t.value).configured || toolHasAnyConfiguredCommand(projectRoot, t.value);
-    })
-    .map((t) => t.value);
+      return (
+        getToolSkillStatus(projectRoot, t.value).configured ||
+        toolHasAnyConfiguredCommand(projectRoot, t.value) ||
+        (Boolean(t.skillsDir) &&
+          readSharedSkillTarget(projectRoot, t.skillsDir!) === t.value)
+      );
+    });
+  const activeProjectTools = new Set(
+    reconcileSharedSkillTargets(
+      projectRoot,
+      configured.filter((tool) => tool.skillsDir)
+    ).map((tool) => tool.value)
+  );
+  return configured
+    .filter((tool) => tool.globalSkillsDir || activeProjectTools.has(tool.value))
+    .map((tool) => tool.value);
 }
 
 /**
