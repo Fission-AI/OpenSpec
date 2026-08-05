@@ -524,6 +524,55 @@ describe('InitCommand', () => {
       ).toBe(true);
     });
 
+    it('should support Rovo Dev CLI as an adapterless skills-only tool', async () => {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'both',
+      });
+
+      const initCommand = new InitCommand({ tools: 'rovodev', force: true });
+      await initCommand.execute(testDir);
+
+      const skillFile = path.join(testDir, '.rovodev', 'skills', 'openspec-explore', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
+
+      const commandsDir = path.join(testDir, '.rovodev', 'commands');
+      expect(await directoryExists(commandsDir)).toBe(false);
+
+      // Rovo has no slash-command surface: skills are invoked by natural
+      // language, so no generated skill may tell the user to type a
+      // `/openspec-*` or `/opsx…` command that its CLI never registers.
+      const skillsRoot = path.join(testDir, '.rovodev', 'skills');
+      const skillDirs = await fs.readdir(skillsRoot);
+      expect(skillDirs.length).toBeGreaterThan(0);
+      for (const dir of skillDirs) {
+        const body = await fs.readFile(path.join(skillsRoot, dir, 'SKILL.md'), 'utf-8');
+        expect(body, `${dir}/SKILL.md should not reference /openspec-* commands`).not.toMatch(/\/openspec-/);
+        expect(body, `${dir}/SKILL.md should not reference /opsx commands`).not.toMatch(/\/opsx[:-]/);
+      }
+      // The apply skill hands off to other workflows; confirm the handoff is
+      // spelled as a natural-language skill reference.
+      const applyBody = await fs.readFile(
+        path.join(skillsRoot, 'openspec-apply-change', 'SKILL.md'),
+        'utf-8',
+      );
+      expect(applyBody).toMatch(/the openspec-archive-change skill/);
+
+      const rovoLogCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+      expect(rovoLogCalls.some((entry) => entry.includes('Created: Rovo Dev CLI'))).toBe(true);
+      expect(
+        rovoLogCalls.some(
+          (entry) => entry.includes('Commands skipped for: rovodev') && entry.includes('(no adapter)'),
+        ),
+      ).toBe(true);
+      // The getting-started hint must not advertise a dead slash command.
+      const hintLine = rovoLogCalls.find((entry) => entry.includes('Start your first change'));
+      expect(hintLine).toBeDefined();
+      expect(hintLine).not.toMatch(/\/openspec-/);
+      expect(hintLine).toContain('the openspec-propose skill');
+    });
+
     it('should support Hermes Agent as an adapterless skills-only tool with a setup note', async () => {
       saveGlobalConfig({
         featureFlags: {},
