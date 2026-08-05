@@ -18,8 +18,11 @@ describe('telemetry/index', () => {
     // Save original env
     originalEnv = { ...process.env };
 
-    // Mock HOME to point to temp dir
+    // Isolate global config to the temp dir via XDG (same path getGlobalConfig uses)
+    process.env.XDG_CONFIG_HOME = tempDir;
     process.env.HOME = tempDir;
+    process.env.USERPROFILE = tempDir;
+    process.env.APPDATA = path.join(tempDir, 'appdata');
 
     // Clear all mocks
     vi.clearAllMocks();
@@ -55,6 +58,16 @@ describe('telemetry/index', () => {
     delete process.env.CI;
   }
 
+  /** Write an isolated global telemetry section for synchronous gate tests. */
+  function writeTelemetryConfig(telemetry: Record<string, unknown>): void {
+    const configDir = path.join(tempDir, 'openspec');
+    fs.mkdirSync(configDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(configDir, 'config.json'),
+      JSON.stringify({ telemetry })
+    );
+  }
+
   describe('isTelemetryEnabled', () => {
     it('should return false when OPENSPEC_TELEMETRY=0', () => {
       process.env.OPENSPEC_TELEMETRY = '0';
@@ -71,6 +84,23 @@ describe('telemetry/index', () => {
       expect(isTelemetryEnabled()).toBe(false);
     });
 
+    it.each(['1', 'yes', 'TRUE', 'on'])(
+      'should return false for CI=%s (same rule as version-check)',
+      (value) => {
+        process.env.CI = value;
+        expect(isTelemetryEnabled()).toBe(false);
+      }
+    );
+
+    it.each(['false', '0', 'no', 'off', ''])(
+      'should return true when CI=%s (explicitly off)',
+      (value) => {
+        enableTelemetry();
+        process.env.CI = value;
+        expect(isTelemetryEnabled()).toBe(true);
+      }
+    );
+
     it('should return true when no opt-out is set', () => {
       enableTelemetry();
       expect(isTelemetryEnabled()).toBe(true);
@@ -80,6 +110,52 @@ describe('telemetry/index', () => {
       process.env.OPENSPEC_TELEMETRY = '0';
       delete process.env.DO_NOT_TRACK;
       delete process.env.CI;
+      expect(isTelemetryEnabled()).toBe(false);
+    });
+
+    it('should return false when telemetry.enabled is false in global config', () => {
+      enableTelemetry();
+      writeTelemetryConfig({ enabled: false });
+
+      expect(isTelemetryEnabled()).toBe(false);
+    });
+
+    it('should return true when telemetry.enabled is missing (opt-out default)', () => {
+      enableTelemetry();
+      writeTelemetryConfig({ anonymousId: 'id-only' });
+
+      expect(isTelemetryEnabled()).toBe(true);
+    });
+
+    it('should return true when telemetry.enabled is true', () => {
+      enableTelemetry();
+      writeTelemetryConfig({ enabled: true });
+
+      expect(isTelemetryEnabled()).toBe(true);
+    });
+
+    it('should let OPENSPEC_TELEMETRY=0 win over telemetry.enabled true', () => {
+      process.env.OPENSPEC_TELEMETRY = '0';
+      delete process.env.DO_NOT_TRACK;
+      delete process.env.CI;
+      writeTelemetryConfig({ enabled: true });
+
+      expect(isTelemetryEnabled()).toBe(false);
+    });
+
+    it('should let DO_NOT_TRACK=1 win over telemetry.enabled true', () => {
+      enableTelemetry();
+      process.env.DO_NOT_TRACK = '1';
+      writeTelemetryConfig({ enabled: true });
+
+      expect(isTelemetryEnabled()).toBe(false);
+    });
+
+    it('should let CI win over telemetry.enabled true', () => {
+      enableTelemetry();
+      process.env.CI = '1';
+      writeTelemetryConfig({ enabled: true });
+
       expect(isTelemetryEnabled()).toBe(false);
     });
   });
@@ -92,11 +168,30 @@ describe('telemetry/index', () => {
 
       expect(consoleLogSpy).not.toHaveBeenCalled();
     });
+
+    it('should not show notice when telemetry.enabled is false', async () => {
+      enableTelemetry();
+      writeTelemetryConfig({ enabled: false });
+
+      await maybeShowTelemetryNotice();
+
+      expect(consoleLogSpy).not.toHaveBeenCalled();
+    });
   });
 
   describe('trackCommand', () => {
     it('should send nothing when telemetry is disabled', async () => {
       process.env.OPENSPEC_TELEMETRY = '0';
+
+      await trackCommand('test', '1.0.0');
+      await shutdown();
+
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('should send nothing when telemetry.enabled is false', async () => {
+      enableTelemetry();
+      writeTelemetryConfig({ enabled: false, anonymousId: 'keep-me' });
 
       await trackCommand('test', '1.0.0');
       await shutdown();

@@ -360,6 +360,44 @@ describe('config-schema', () => {
       const result = GlobalConfigSchema.parse({});
       expect(result.featureFlags).toEqual({});
     });
+
+    it('should accept telemetry.enabled with passthrough identity fields', () => {
+      const result = GlobalConfigSchema.safeParse({
+        telemetry: {
+          enabled: false,
+          anonymousId: 'keep-me',
+          noticeSeen: true,
+        },
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.telemetry).toEqual({
+          enabled: false,
+          anonymousId: 'keep-me',
+          noticeSeen: true,
+        });
+      }
+    });
+
+    it('should reject non-boolean telemetry.enabled', () => {
+      const result = GlobalConfigSchema.safeParse({
+        telemetry: { enabled: 'nope' },
+      });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('validateConfigKeyPath telemetry', () => {
+    it('allows telemetry.enabled only', () => {
+      expect(validateConfigKeyPath('telemetry.enabled')).toEqual({ valid: true });
+    });
+
+    it('rejects bare telemetry and unknown leaves', () => {
+      expect(validateConfigKeyPath('telemetry').valid).toBe(false);
+      expect(validateConfigKeyPath('telemetry.anonymousId').valid).toBe(false);
+      expect(validateConfigKeyPath('telemetry.noticeSeen').valid).toBe(false);
+      expect(validateConfigKeyPath('telemetry.enabled.extra').valid).toBe(false);
+    });
   });
 
   describe('DEFAULT_CONFIG', () => {
