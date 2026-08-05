@@ -233,6 +233,17 @@ describe('getSkillReferenceTransformer', () => {
     expect(transformer('/opsx:propose')).toBe('$openspec-propose');
     expect(transformer('/opsx:unknown-command')).toBe('/opsx:unknown-command');
   });
+
+  it('uses natural-language references for Rovo Dev, which has no slash surface', () => {
+    const transformer = getSkillReferenceTransformer('rovodev');
+    expect(transformer('/opsx:propose')).toBe('the openspec-propose skill');
+    expect(transformer('Run `/opsx:apply` then /opsx:archive')).toBe(
+      'Run `the openspec-apply-change skill` then the openspec-archive-change skill'
+    );
+    // No `/openspec-*` or other slash-command form is ever emitted.
+    expect(transformer('/opsx:propose')).not.toMatch(/\/openspec-/);
+    expect(transformer('/opsx:unknown-command')).toBe('/opsx:unknown-command');
+  });
 });
 
 describe('getTransformerForTool', () => {
