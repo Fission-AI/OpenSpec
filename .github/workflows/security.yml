@@ -6,6 +6,7 @@ on:
     paths:
       - '**/package.json'
       - '**/pnpm-lock.yaml'
+      - '**/pnpm-workspace.yaml'
       - '.github/workflows/security.yml'
   pull_request:
     branches: [main]

@@ -34,6 +34,9 @@
     "typescript": "^6.0.3"
   },
   "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ],
     "overrides": {
       "postcss": "^8.5.22",
       "sharp": "^0.35.3",
