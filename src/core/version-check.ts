@@ -4,6 +4,8 @@ import https from 'https';
 import path from 'path';
 import { createRequire } from 'module';
 import chalk from 'chalk';
+import { isCiEnvironment } from '../utils/ci.js';
+import { getGlobalConfig } from './global-config.js';
 
 const require = createRequire(import.meta.url);
 const { name: PACKAGE_NAME, version: OPENSPEC_VERSION } = require('../../package.json');
@@ -13,18 +15,6 @@ const REQUEST_TIMEOUT_MS = 1500;
 const MAX_RESPONSE_BYTES = 256 * 1024;
 const VERSION_PROBE_TIMEOUT_MS = 5000;
 const MAX_REDIRECTS = 3;
-
-/**
- * `CI` set to anything meaningful means CI. Providers use "true", "1", "yes";
- * only an explicit off-value counts as "not CI", so a value we do not know
- * still suppresses the request rather than surprising a build.
- */
-const CI_DISABLED_VALUES = new Set(['', 'false', '0', 'no', 'off']);
-
-function isCiEnvironment(): boolean {
-  const value = process.env.CI;
-  return value !== undefined && !CI_DISABLED_VALUES.has(value.trim().toLowerCase());
-}
 
 /**
  * A version we are willing to print. The registry only ever serves SemVer here,
@@ -38,7 +28,7 @@ const SAFE_VERSION = /^\d{1,10}\.\d{1,10}\.\d{1,10}(?:-[0-9A-Za-z.-]{1,64})?(?:\
  * The check is opt-out and must never get in the way: no network in CI or
  * tests, an explicit escape hatch for anyone offline or air-gapped, and the
  * same privacy signals telemetry already honors — a user who set DO_NOT_TRACK
- * did not agree to a different outbound request.
+ * or telemetry.enabled false did not agree to a different outbound request.
  */
 function isCheckEnabled(): boolean {
   if (process.env.OPENSPEC_NO_UPDATE_CHECK !== undefined) return false;
@@ -46,6 +36,8 @@ function isCheckEnabled(): boolean {
   if (process.env.OPENSPEC_TELEMETRY === '0') return false;
   if (isCiEnvironment()) return false;
   if (process.env.NODE_ENV === 'test') return false;
+  // Same config opt-out as telemetry (env remains the hard override above).
+  if (getGlobalConfig().telemetry?.enabled === false) return false;
   return true;
 }
 

@@ -278,6 +278,30 @@ describe('getAvailableCliUpdate', () => {
     expect(requests).toHaveLength(0);
   });
 
+  it('sends nothing when telemetry.enabled is false in global config', async () => {
+    const xdgHome = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-vc-telemetry-'));
+    const previousXdg = process.env.XDG_CONFIG_HOME;
+    try {
+      process.env.XDG_CONFIG_HOME = xdgHome;
+      const configDir = path.join(xdgHome, 'openspec');
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(configDir, 'config.json'),
+        JSON.stringify({ telemetry: { enabled: false } })
+      );
+
+      await expect(getAvailableCliUpdate()).resolves.toBeNull();
+      expect(requests).toHaveLength(0);
+    } finally {
+      if (previousXdg === undefined) {
+        delete process.env.XDG_CONFIG_HOME;
+      } else {
+        process.env.XDG_CONFIG_HOME = previousXdg;
+      }
+      fs.rmSync(xdgHome, { recursive: true, force: true });
+    }
+  });
+
   it('still runs when CI is explicitly switched off', async () => {
     for (const value of ['false', '0', 'no', '']) {
       process.env.CI = value;
