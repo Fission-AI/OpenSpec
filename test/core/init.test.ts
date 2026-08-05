@@ -183,7 +183,11 @@ describe('InitCommand', () => {
         process.platform === 'win32' ? 'junction' : 'dir'
       );
 
-      const initCommand = new InitCommand({ tools: 'github-copilot', force: true });
+      const initCommand = new InitCommand({
+        tools: 'github-copilot',
+        force: true,
+        copilotCloud: true,
+      });
       await expect(initCommand.execute(testDir)).rejects.toThrow(
         'OpenSpec setup failed for: GitHub Copilot'
       );
@@ -1047,7 +1051,11 @@ describe('InitCommand', () => {
       await fs.mkdir(path.dirname(agentsPath), { recursive: true });
       await fs.writeFile(agentsPath, 'blocks the generated agent directory');
 
-      const initCommand = new InitCommand({ tools: 'github-copilot', force: true });
+      const initCommand = new InitCommand({
+        tools: 'github-copilot',
+        force: true,
+        copilotCloud: true,
+      });
       await expect(initCommand.execute(testDir)).rejects.toThrow(
         'OpenSpec setup failed for: GitHub Copilot'
       );
@@ -1056,6 +1064,57 @@ describe('InitCommand', () => {
       expect(vi.mocked(console.log).mock.calls.flat().join('\n')).toContain(
         'OpenSpec Setup Incomplete'
       );
+    });
+
+    it('does not write cloud files by default (opt-in) but still installs local Copilot files', async () => {
+      const initCommand = new InitCommand({ tools: 'github-copilot', force: true });
+      await initCommand.execute(testDir);
+
+      // Local Copilot command files are unaffected by the cloud opt-in.
+      expect(
+        await fileExists(path.join(testDir, '.github', 'prompts', 'opsx-explore.prompt.md'))
+      ).toBe(true);
+      // Cloud files are NOT written without an explicit opt-in.
+      await expect(
+        fs.stat(path.join(testDir, '.github', 'workflows', 'copilot-setup-steps.yml'))
+      ).rejects.toMatchObject({ code: 'ENOENT' });
+      await expect(
+        fs.stat(path.join(testDir, '.github', 'agents', 'openspec.agent.md'))
+      ).rejects.toMatchObject({ code: 'ENOENT' });
+      // An undecided run leaves config untouched (no githubCopilot key).
+      const config = await fs.readFile(path.join(testDir, 'openspec', 'config.yaml'), 'utf8');
+      expect(config).not.toContain('githubCopilot');
+    });
+
+    it('writes cloud files and persists the opt-in when --copilot-cloud is passed', async () => {
+      const initCommand = new InitCommand({
+        tools: 'github-copilot',
+        force: true,
+        copilotCloud: true,
+      });
+      await initCommand.execute(testDir);
+
+      await expect(
+        fs.readFile(path.join(testDir, '.github', 'workflows', 'copilot-setup-steps.yml'), 'utf8')
+      ).resolves.toContain('copilot-setup-steps:');
+      const config = await fs.readFile(path.join(testDir, 'openspec', 'config.yaml'), 'utf8');
+      expect(config).toContain('githubCopilot:');
+      expect(config).toContain('cloudAgent: true');
+    });
+
+    it('persists an explicit opt-out and writes no cloud files with --no-copilot-cloud', async () => {
+      const initCommand = new InitCommand({
+        tools: 'github-copilot',
+        force: true,
+        copilotCloud: false,
+      });
+      await initCommand.execute(testDir);
+
+      await expect(
+        fs.stat(path.join(testDir, '.github', 'workflows', 'copilot-setup-steps.yml'))
+      ).rejects.toMatchObject({ code: 'ENOENT' });
+      const config = await fs.readFile(path.join(testDir, 'openspec', 'config.yaml'), 'utf8');
+      expect(config).toContain('cloudAgent: false');
     });
   });
 });

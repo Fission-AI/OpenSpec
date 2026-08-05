@@ -161,7 +161,9 @@ program
   .option('--force', 'Auto-cleanup legacy files without prompting')
   .option('--profile <profile>', 'Override global config profile (core or custom)')
   .option('--no-animation', 'Show a static welcome screen instead of the animated one')
-  .action(async (targetPath = '.', options?: { tools?: string; force?: boolean; profile?: string; animation?: boolean }) => {
+  .option('--copilot-cloud', 'Generate GitHub Copilot cloud coding-agent files (opt-in; default: prompt)')
+  .option('--no-copilot-cloud', 'Skip generating GitHub Copilot cloud coding-agent files')
+  .action(async (targetPath = '.', options?: { tools?: string; force?: boolean; profile?: string; animation?: boolean; copilotCloud?: boolean }) => {
     try {
       // Validate that the path is a valid directory
       const resolvedPath = path.resolve(targetPath);
@@ -188,6 +190,7 @@ program
         force: options?.force,
         profile: options?.profile,
         animation: options?.animation,
+        copilotCloud: options?.copilotCloud,
       });
       await initCommand.execute(targetPath);
     } catch (error) {

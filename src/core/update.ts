@@ -71,7 +71,7 @@ import {
   shouldRemoveSkillsForTool,
 } from './command-surface.js';
 import { writeSharedSkillTarget } from './shared-skill-target.js';
-import { includesGitHubCopilot, writeCopilotCloudFiles, removeCopilotCloudFiles } from './github-copilot/cloud-agent.js';
+import { includesGitHubCopilot, writeCopilotCloudFiles, removeCopilotCloudFiles, isCopilotCloudEnabled } from './github-copilot/cloud-agent.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
@@ -486,7 +486,14 @@ export class UpdateCommand {
   private async syncCopilotCloudFiles(projectPath: string, configuredTools: string[]): Promise<void> {
     try {
       if (includesGitHubCopilot(configuredTools)) {
-        await writeCopilotCloudFiles(projectPath);
+        // Cloud files are opt-in (see cloud-agent.ts). `update` never prompts,
+        // so it only refreshes files the user has already opted into (via
+        // `openspec init` or a `githubCopilot.cloudAgent: true` config), or that
+        // a pre-opt-in project already has. Opting in is a deliberate init/config
+        // step, never a silent side effect of running update.
+        if (await isCopilotCloudEnabled(projectPath)) {
+          await writeCopilotCloudFiles(projectPath);
+        }
         return;
       }
 
