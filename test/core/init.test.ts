@@ -1454,6 +1454,24 @@ describe('InitCommand - profile and detection features', () => {
     expect(out).toContain('was ignored because the github-copilot tool was not selected');
   });
 
+  it('opting in over a user-owned cloud file never claims that file was written', async () => {
+    const setupRel = path.join('.github', 'workflows', 'copilot-setup-steps.yml');
+    const agentRel = path.join('.github', 'agents', 'openspec.agent.md');
+    const setupStepsPath = path.join(testDir, setupRel);
+    await fs.mkdir(path.dirname(setupStepsPath), { recursive: true });
+    await fs.writeFile(setupStepsPath, 'name: my own workflow\n');
+
+    await new InitCommand({ tools: 'github-copilot', force: true, copilotCloud: true }).execute(testDir);
+
+    const out = vi.mocked(console.log).mock.calls.flat().join('\n');
+    // Only the agent file was actually written; the workflow was left untouched.
+    expect(out).toContain(`GitHub Copilot cloud files: ${agentRel}`);
+    expect(out).not.toContain(`cloud files: ${setupRel}`);
+    expect(out).toContain(`Left your existing ${setupRel} untouched`);
+    // And the user's own file is preserved verbatim.
+    await expect(fs.readFile(setupStepsPath, 'utf8')).resolves.toBe('name: my own workflow\n');
+  });
+
   it('should respect custom profile from global config', async () => {
     saveGlobalConfig({
       featureFlags: {},

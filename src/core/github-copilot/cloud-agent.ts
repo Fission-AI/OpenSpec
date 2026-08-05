@@ -9,7 +9,7 @@
 
 import path from 'path';
 import { promises as fs } from 'fs';
-import { Document, parseDocument, isCollection } from 'yaml';
+import { Document, parseDocument, isMap } from 'yaml';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import { readProjectConfig, resolveConfigFilePath } from '../project-config.js';
 
@@ -562,14 +562,14 @@ export async function persistCopilotCloudOptIn(
   }
   const existing = await FileSystemUtils.readFile(configPath);
   const parsed = parseDocument(existing);
-  // A config whose top-level node is a scalar (e.g. the file contains literally
-  // `null` or a bare string) has no map to set a key on, and `setIn` throws on
-  // it. Such a file is already invalid (readProjectConfig rejects it), so start
-  // fresh rather than crash. An empty or comment-only file parses to null
-  // contents, which setIn fills in while keeping the comments — so only a
-  // genuine scalar is discarded.
+  // `setIn(['githubCopilot', ...])` needs a top-level map. A config whose root
+  // is anything else — a scalar (`null`, a bare string) or even a sequence —
+  // has no map to set a key on and makes setIn throw. Such a file is already
+  // invalid (readProjectConfig rejects it), so start fresh rather than crash.
+  // An empty or comment-only file parses to null contents, which setIn fills in
+  // while keeping the comments — so only a non-map root is discarded.
   const doc: Document =
-    parsed.contents !== null && !isCollection(parsed.contents) ? new Document() : parsed;
+    parsed.contents === null || isMap(parsed.contents) ? parsed : new Document();
   doc.setIn([COPILOT_CONFIG_KEY, COPILOT_CLOUD_AGENT_KEY], value);
   await FileSystemUtils.writeFile(configPath, doc.toString());
 }
@@ -594,4 +594,25 @@ export async function findUnmanagedCloudFiles(projectPath: string): Promise<stri
     }
   }
   return collisions;
+}
+
+/**
+ * Return the managed cloud-file paths (relative to the project root) that
+ * currently exist and hold OpenSpec-generated content. Callers report this
+ * rather than the intended paths, so output never claims a file that a write
+ * skipped (user already owns it) or that reconciliation removed.
+ */
+export async function listManagedCloudFiles(projectPath: string): Promise<string[]> {
+  const present: string[] = [];
+  for (const relPath of Object.values(COPILOT_CLOUD_FILES)) {
+    const fullPath = FileSystemUtils.resolveProjectArtifactPath(projectPath, relPath);
+    if (!(await FileSystemUtils.fileExists(fullPath))) {
+      continue;
+    }
+    const content = await FileSystemUtils.readFile(fullPath);
+    if (isManagedCopilotCloudFile(relPath, content)) {
+      present.push(relPath);
+    }
+  }
+  return present;
 }

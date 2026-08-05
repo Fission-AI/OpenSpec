@@ -71,7 +71,7 @@ import {
   persistCopilotCloudOptIn,
   removeCopilotCloudFiles,
   findUnmanagedCloudFiles,
-  COPILOT_CLOUD_FILES,
+  listManagedCloudFiles,
 } from './github-copilot/cloud-agent.js';
 
 const require = createRequire(import.meta.url);
@@ -287,28 +287,34 @@ export class InitCommand {
     // An explicit opt-out means "no cloud files here": clean up any that a
     // previous run (or an older OpenSpec) generated. Only OpenSpec-managed
     // files are removed — a user-customized file is preserved.
+    let copilotRemoved = 0;
     if (copilotDecision.optedOut) {
       try {
-        await removeCopilotCloudFiles(projectPath);
+        copilotRemoved = await removeCopilotCloudFiles(projectPath);
       } catch {
-        // Non-fatal: nothing was written this run, so there is nothing to undo.
+        // Non-fatal: removal targets files from a prior run; a failure here
+        // just leaves them for the next `openspec update` to clean up.
       }
     }
 
-    // If the user opted in but already had their own (non-managed) cloud file,
-    // we left it untouched. Surface that so the write never looks like it
-    // silently did nothing — and tell them what to do about it.
+    // Report the cloud outcome from what is actually on disk after the write,
+    // not from the decision alone: writing over a user-owned file is a no-op,
+    // and the alternate-agent path can remove a managed file — so list only
+    // managed files that exist, and separately flag any left-untouched ones.
     const copilotSucceeded = [...results.createdTools, ...results.refreshedTools].some(
       (tool) => tool.value === 'github-copilot'
     );
-    const copilotCollisions =
-      copilotDecision.write && copilotSucceeded ? await findUnmanagedCloudFiles(projectPath) : [];
+    const wroteCloud = copilotDecision.write && copilotSucceeded;
+    const copilotPresent = wroteCloud ? await listManagedCloudFiles(projectPath) : [];
+    const copilotCollisions = wroteCloud ? await findUnmanagedCloudFiles(projectPath) : [];
 
     // Display success message
     this.displaySuccessMessage(projectPath, validatedTools, results, configStatus, {
       write: copilotDecision.write,
       skippedUndecided: copilotDecision.skippedUndecided,
+      present: copilotPresent,
       collisions: copilotCollisions,
+      removed: copilotRemoved,
     });
     if (results.failedTools.length > 0) {
       throw new Error(
@@ -1015,7 +1021,13 @@ export class InitCommand {
       removedSkillCount: number;
     },
     configStatus: 'created' | 'exists' | 'skipped',
-    copilot: { write: boolean; skippedUndecided: boolean; collisions: string[] }
+    copilot: {
+      write: boolean;
+      skippedUndecided: boolean;
+      present: string[];
+      collisions: string[];
+      removed: number;
+    }
   ): void {
     console.log();
     console.log(
@@ -1122,13 +1134,15 @@ export class InitCommand {
       console.log(chalk.dim(`Removed: ${results.removedSkillCount} skill directories (delivery: commands)`));
     }
 
-    // GitHub Copilot cloud files are opt-in — say plainly whether they were
-    // written, and (when skipped for want of a signal) how to turn them on.
+    // GitHub Copilot cloud files are opt-in — report what is actually on disk:
+    // list the managed files that now exist (never files we didn't write), flag
+    // any user-owned file we left untouched, note an opt-out cleanup, or (when
+    // skipped for want of a signal) say how to turn them on.
     const copilotSucceeded = successfulTools.some((tool) => tool.value === 'github-copilot');
     if (copilotSucceeded && copilot.write) {
-      console.log(
-        `GitHub Copilot cloud files: ${COPILOT_CLOUD_FILES.setupSteps}, ${COPILOT_CLOUD_FILES.agent}`
-      );
+      if (copilot.present.length > 0) {
+        console.log(`GitHub Copilot cloud files: ${copilot.present.join(', ')}`);
+      }
       if (copilot.collisions.length > 0) {
         console.log(
           chalk.dim(
@@ -1137,6 +1151,10 @@ export class InitCommand {
           )
         );
       }
+    } else if (copilotSucceeded && copilot.removed > 0) {
+      console.log(
+        chalk.dim(`Removed: ${copilot.removed} Copilot cloud agent file(s) (opted out of cloud files)`)
+      );
     } else if (copilotSucceeded && copilot.skippedUndecided) {
       console.log(
         chalk.dim("Skipped GitHub Copilot cloud files (opt-in). Enable with 'openspec init --copilot-cloud'.")
