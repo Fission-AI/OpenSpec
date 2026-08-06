@@ -256,6 +256,18 @@ describe('interactive utilities', () => {
       expect(no).toBe(false);
     });
 
+    it('reads Windows CRLF-terminated input (y\\r\\n) as a clean yes', async () => {
+      // The bug was reported on Windows, where a piped answer often arrives as
+      // `y\r\n`. readline splits on \n, leaving `y\r`; trim() drops the \r.
+      const output = captureOutput();
+      const result = await confirmPrompt(
+        { message: 'Continue?', default: false },
+        { input: pipedInput('y\r\n'), output }
+      );
+      expect(result).toBe(true);
+      expect(output.text()).not.toContain('');
+    });
+
     it('matches @inquirer prefix parsing (yeah/nope), preserving old behavior', async () => {
       // @inquirer/confirm parses with /^(y|yes)/i and /^(n|no)/i. On the
       // spec-update prompt (default true), a prefix-`n` answer must stay false
@@ -288,6 +300,25 @@ describe('interactive utilities', () => {
       expect(emptyTrue).toBe(true);
       expect(emptyFalse).toBe(false);
       expect(garbage).toBe(true);
+    });
+
+    it('blocks (does not hang) on a second prompt after stdin was already drained', async () => {
+      // archive asks up to three questions; only one piped answer was ever
+      // supported. The first read drains stdin, so a later prompt must reject
+      // promptly (→ #1479 "rerun with --yes") rather than hang and exit as a
+      // no-op. This exercises the input.readableEnded guard.
+      const input = pipedInput('y\n');
+      const first = await confirmPrompt(
+        { message: 'First?', default: false },
+        { input, output: captureOutput() }
+      );
+      expect(first).toBe(true);
+      await expect(
+        confirmPrompt(
+          { message: 'Second?', default: false },
+          { input, output: captureOutput() }
+        )
+      ).rejects.toMatchObject({ name: 'ExitPromptError' });
     });
 
     it('rejects with an ExitPromptError when no answer can be read (EOF)', async () => {

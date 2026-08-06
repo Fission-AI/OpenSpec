@@ -129,6 +129,8 @@ openspec archive <change-name> --yes
 
 Keep any flags you were already passing — `--skip-specs` and `--no-validate` change what archive does, so a bare `--yes` rerun is not the same command. Current versions name the flag for you and print a `Fix:` line you can paste. If you meant to pick from a list, pass the change name explicitly: the picker needs an answer too.
 
+If you instead ran archive with its output redirected to a file or captured by a tool and *did* pipe an answer (`printf 'y\n' | openspec archive …`), older versions wrote terminal escape codes into that capture while drawing the prompt — in some environments enough to bloat the file badly. Current versions print prompts as plain text whenever stdout is not a terminal, so redirected and agent runs stay clean. Passing `--yes` still skips the prompts entirely.
+
 ## Configuration
 
 ### My `config.yaml` isn't being applied
