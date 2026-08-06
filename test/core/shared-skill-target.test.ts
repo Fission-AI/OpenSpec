@@ -2,7 +2,10 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
-import { sharedSkillRootOwnedByOther } from '../../src/core/shared-skill-target.js';
+import {
+  sharedSkillRootOwnedByOther,
+  sharedSkillRootOwner,
+} from '../../src/core/shared-skill-target.js';
 
 /**
  * `.agents` is shared by the vendor-neutral `agents` target and Codex. When a
@@ -63,5 +66,22 @@ describe('sharedSkillRootOwnedByOther', () => {
     await writeAgentsSkill('agents');
     // Claude writes to its own `.claude` root, never `.agents`.
     expect(sharedSkillRootOwnedByOther(projectPath, 'claude')).toBe(false);
+  });
+
+  it('treats an existing tree with no marker and no inferable syntax as agents-owned', async () => {
+    // Neither `$openspec-` nor `/openspec-` in the content and no marker:
+    // ownership can't be inferred, so reconciliation keeps the established
+    // `agents` target rather than letting Codex claim the existing tree.
+    const skillDir = path.join(projectPath, '.agents', 'skills', 'openspec-propose');
+    await fs.mkdir(skillDir, { recursive: true });
+    await fs.writeFile(path.join(skillDir, 'SKILL.md'), '# openspec-propose\n\nNo invocation syntax here.\n');
+    expect(sharedSkillRootOwnedByOther(projectPath, 'codex')).toBe(true);
+  });
+
+  it('names the owning tool via sharedSkillRootOwner', async () => {
+    await writeAgentsSkill('agents');
+    expect(sharedSkillRootOwner(projectPath, 'codex')).toBe('agents');
+    // The owner is never "owned by another"; an unclaimed root has no owner.
+    expect(sharedSkillRootOwner(projectPath, 'agents')).toBeUndefined();
   });
 });

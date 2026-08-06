@@ -613,6 +613,31 @@ metadata:
       ).toContain('User edit');
     });
 
+    it('does not let a legacy Codex global prompt hijack an established agents target', async () => {
+      // Regression for the hijack this PR fixes: the guard must actually be
+      // invoked by the update flow, not merely be correct in isolation.
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'skills' });
+      // The vendor-neutral `agents` target owns `.agents` (marker + generic skills).
+      await new InitCommand({ tools: 'agents', force: true }).execute(testDir);
+      // A leftover global Codex install, detected only from `~/.codex/prompts`.
+      const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
+      await fs.mkdir(promptDir, { recursive: true });
+      await fs.writeFile(path.join(promptDir, 'opsx-explore.md'), 'legacy explore prompt');
+
+      await new UpdateCommand({ force: true }).execute(testDir);
+
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      // Ownership marker is not flipped to codex...
+      expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe('agents\n');
+      // ...and the tree keeps generic `/openspec-` syntax, never Codex `$openspec-`.
+      const propose = await fs.readFile(
+        path.join(skillsDir, 'openspec-propose', 'SKILL.md'),
+        'utf-8'
+      );
+      expect(propose).not.toContain('$openspec-');
+      expect(propose).toContain('/openspec-');
+    });
+
     it('should let an explicit Codex init take ownership of an agents tree', async () => {
       await new InitCommand({ tools: 'agents', force: true }).execute(testDir);
 

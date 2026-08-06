@@ -70,7 +70,7 @@ import {
   shouldReconcileCommandFilesForTool,
   shouldRemoveSkillsForTool,
 } from './command-surface.js';
-import { writeSharedSkillTarget, sharedSkillRootOwnedByOther } from './shared-skill-target.js';
+import { writeSharedSkillTarget, sharedSkillRootOwner } from './shared-skill-target.js';
 import { includesGitHubCopilot, writeCopilotCloudFiles, removeCopilotCloudFiles, isCopilotCloudEnabled, readCopilotCloudOptIn, findUnmanagedCloudFiles } from './github-copilot/cloud-agent.js';
 
 const require = createRequire(import.meta.url);
@@ -1114,9 +1114,19 @@ export class UpdateCommand {
         // Codex-specific syntax and flip its ownership marker `agents → codex`.
         // Leave the established owner in place. (init applies the same
         // one-writer rule up front when both targets are selected.)
-        if (shouldGenerateSkills && sharedSkillRootOwnedByOther(projectPath, tool.value)) {
+        //
+        // Skipping here means the tool is never recorded as configured, so a
+        // persistent legacy signal (global `~/.codex/prompts`, which update does
+        // not auto-remove) re-offers it on later runs. That repeat is idempotent
+        // and harmless — the alternative is the silent hijack this prevents.
+        const sharedOwner = shouldGenerateSkills
+          ? sharedSkillRootOwner(projectPath, tool.value)
+          : undefined;
+        if (sharedOwner) {
+          const ownerName =
+            AI_TOOLS.find((candidate) => candidate.value === sharedOwner)?.name ?? sharedOwner;
           spinner.info(
-            `Skipped ${tool.name}: ${tool.skillsDir}/skills is already managed by another tool.`
+            `Skipped ${tool.name}: ${tool.skillsDir}/skills is already managed by another tool (${ownerName}).`
           );
           continue;
         }
