@@ -26,9 +26,14 @@ import {
 import { findMainSpecStructureIssues } from '../parsers/spec-structure.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import { discoverSpecFiles, hasAnyFileUnder } from '../../utils/spec-discovery.js';
-import { METADATA_FILENAME, readSkipSpecsMarker } from '../../utils/change-metadata.js';
+import {
+  METADATA_FILENAME,
+  readSkipSpecsMarker,
+  resolveSchemaForChange,
+} from '../../utils/change-metadata.js';
 import { resolveTaskFilesForChange } from '../../utils/task-progress.js';
 import { findTaskNumberingIssues } from './task-numbering.js';
+import { getPackageSchemasDir, getSchemaDir } from '../artifact-graph/index.js';
 
 export class Validator {
   private strictMode: boolean;
@@ -464,6 +469,25 @@ export class Validator {
     changeDir: string,
     projectRoot: string
   ): Promise<ValidationIssue[]> {
+    try {
+      const schemaName = resolveSchemaForChange(changeDir, undefined, projectRoot).replace(
+        /\.ya?ml$/,
+        ''
+      );
+      const schemaDir = getSchemaDir(schemaName, projectRoot);
+      const builtInSchemaDir = path.join(getPackageSchemasDir(), 'spec-driven');
+      if (
+        schemaName !== 'spec-driven' ||
+        schemaDir === null ||
+        FileSystemUtils.canonicalizeExistingPath(schemaDir) !==
+          FileSystemUtils.canonicalizeExistingPath(builtInSchemaDir)
+      ) {
+        return [];
+      }
+    } catch {
+      return [];
+    }
+
     let taskFiles: string[];
     try {
       taskFiles = resolveTaskFilesForChange(changeDir, projectRoot);
@@ -474,7 +498,7 @@ export class Validator {
       taskFiles = [path.join(changeDir, 'tasks.md')];
     }
 
-    const issues: ValidationIssue[] = [];
+    const documents: Array<{ path: string; content: string }> = [];
     for (const taskFile of taskFiles) {
       let content: string;
       try {
@@ -483,17 +507,19 @@ export class Validator {
         continue;
       }
 
-      const entryPath = FileSystemUtils.toPosixPath(path.relative(changeDir, taskFile));
-      for (const issue of findTaskNumberingIssues(content)) {
-        issues.push({
-          level: 'WARNING',
-          path: entryPath,
-          line: issue.line,
-          message: issue.message,
-        });
-      }
+      documents.push({
+        path: FileSystemUtils.toPosixPath(path.relative(changeDir, taskFile)),
+        content,
+      });
     }
-    return issues;
+
+    documents.sort((left, right) => left.path.localeCompare(right.path));
+    return findTaskNumberingIssues(documents).map((issue) => ({
+      level: 'WARNING',
+      path: issue.path,
+      line: issue.line,
+      message: issue.message,
+    }));
   }
 
   /**

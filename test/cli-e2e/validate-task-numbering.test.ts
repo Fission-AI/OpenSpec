@@ -181,28 +181,21 @@ describe('openspec validate checks task numbering (#1520)', () => {
     );
     expect(byId['bad-numbering']).toBe(false);
     expect(byId['valid-numbering']).toBe(true);
-    expect(byId['nested-numbering']).toBe(false);
+    expect(byId['nested-numbering']).toBe(true);
   });
 
-  it('validates every task file selected by the schema glob', async () => {
+  it('does not apply the built-in numbering grammar to a custom schema', async () => {
     const result = await runCLI(
       ['validate', '--type', 'change', 'nested-numbering', '--strict', '--json'],
       { cwd: projectDir }
     );
 
-    expect(result.exitCode).toBe(1);
+    expect(result.exitCode).toBe(0);
     const report = JSON.parse(result.stdout);
     const taskIssues = report.items[0].issues.filter(
       (issue: { path: string }) => issue.path.endsWith('tasks.md')
     );
-    expect(taskIssues).toEqual([
-      expect.objectContaining({
-        level: 'WARNING',
-        path: 'backend/tasks.md',
-        line: 2,
-        message: expect.stringContaining('3.1'),
-      }),
-    ]);
+    expect(taskIssues).toEqual([]);
   });
 
   it('applies the same warnings to the deprecated change validate command', async () => {
