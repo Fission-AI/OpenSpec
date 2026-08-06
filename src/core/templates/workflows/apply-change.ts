@@ -107,7 +107,7 @@ ${STORE_SELECTION_GUIDANCE}
    **Pause if:**
    - Task is unclear → ask for clarification
    - Implementation reveals a design issue → suggest updating artifacts
-   - Task turns out more complex than the spec assumed → surface the added scope and ask; do not silently narrow, defer, or simplify the work to fit what you already know how to do
+   - A task needs work beyond what the spec and tasks describe, or you are tempted to drop, narrow, or defer specified behavior to make it fit → surface the added scope and ask; do not absorb it silently
    - Error or blocker encountered → report and wait for guidance
    - User interrupts
 
@@ -178,8 +178,8 @@ What would you like to do?
 - Keep code changes minimal and scoped to each task
 - Update task checkbox immediately after completing each task
 - Pause on errors, blockers, or unclear requirements - don't guess
-- If a task proves more complex than expected, surface the added scope and pause - never silently simplify, defer, or accept partial work as a completed task
-- Only mark a task \`- [x]\` when it is fully implemented as specified, not when it is partially done or deferred
+- When a task needs work beyond what the spec describes, surface the added scope and pause - never silently narrow, defer, or simplify away specified behavior
+- Only mark a task \`- [x]\` when its specified behavior is fully implemented, not when it is partially done or deferred
 - Use contextFiles from CLI output, don't assume specific file names
 - Do not use context or operation guidance as proof that a task is complete
 - Apply relevant project context; report conflicts with controlling workflow inputs

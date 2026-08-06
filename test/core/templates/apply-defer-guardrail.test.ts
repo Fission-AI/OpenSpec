@@ -13,11 +13,14 @@ describe('apply instructions surface deferred scope (#1529)', () => {
 
   it('tells the agent to surface added scope rather than defer or simplify', () => {
     expect(instructions).toContain('surface the added scope');
-    expect(instructions).toMatch(/never silently simplify, defer/);
+    expect(instructions).toContain('beyond what the spec describes');
+    expect(instructions).toMatch(/never silently narrow, defer/);
   });
 
   it('forbids marking a task complete when it is only partially done', () => {
-    expect(instructions).toMatch(/Only mark a task .* when it is fully implemented/);
+    expect(instructions).toMatch(
+      /Only mark a task .* when its specified behavior is fully implemented/
+    );
   });
 
   it('carries the same guidance on both the skill and command surfaces', () => {
