@@ -16,6 +16,15 @@ vi.mock('@inquirer/prompts', () => ({
   confirm: vi.fn()
 }));
 
+// Archive now reads yes/no through confirmPrompt (which avoids @inquirer's
+// ANSI rendering on non-TTY stdout, #1526). Mock that seam instead of confirm,
+// keeping the real isNonInteractivePromptError so the #1479 blocked-path tests
+// still classify ExitPromptError exactly as production does.
+vi.mock('../../src/utils/interactive.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/utils/interactive.js')>();
+  return { ...actual, confirmPrompt: vi.fn() };
+});
+
 describe('ArchiveCommand', () => {
   let tempDir: string;
   let archiveCommand: ArchiveCommand;
@@ -2375,7 +2384,7 @@ The system will log all events.
     });
 
     it('should proceed with archive when user declines spec updates', async () => {
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       
       const changeName = 'decline-specs-feature';
@@ -2428,7 +2437,7 @@ Then expected result happens`;
     });
 
     it('warns about absorbed content before asking to apply the destructive spec update', async () => {
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       const changeName = 'warn-before-spec-update';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
@@ -2492,7 +2501,7 @@ The system SHALL survive.
     });
 
     it('does not apply a stale retirement decision when discarded content changes at the prompt', async () => {
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       const changeName = 'retirement-changed-at-prompt';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
@@ -2556,7 +2565,7 @@ The system SHALL preserve legacy behavior.
     });
 
     it('does not use retirement authorization that changed at the prompt', async () => {
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       const changeName = 'retirement-marker-changed-at-prompt';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
@@ -3581,7 +3590,7 @@ The system SHALL do the thing differently.
     });
 
     it('should use confirm prompt for task warnings', async () => {
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       
       const changeName = 'incomplete-interactive';
@@ -3606,7 +3615,7 @@ The system SHALL do the thing differently.
     });
 
     it('should cancel when user declines task warning', async () => {
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       
       const changeName = 'cancel-test';
@@ -3636,7 +3645,7 @@ The system SHALL do the thing differently.
       // The other half of the gate: without --yes the user is asked, and
       // declining leaves the change in place. Before the fix there was no
       // question to answer - the sub-task was invisible and archive ran.
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
 
       const changeName = 'subtask-prompt';
@@ -4755,7 +4764,7 @@ The system SHALL do the thing differently.
 
 
     it('deletes nothing when the user declines the spec update', async () => {
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       vi.mocked(confirm).mockResolvedValue(false);
       const changeName = 'retire-declined';
       await createChange(changeName, 'legacy-layer', REMOVE_ALL);
@@ -6480,7 +6489,7 @@ The system SHALL provide a new behavior.
         `${formatLocalDate()}-${changeName}`
       );
       // Claim the destination while the confirmation prompt is open.
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       onTestFinished(() => vi.mocked(confirm).mockReset());
       vi.mocked(confirm).mockImplementation(async () => {
         await fs.mkdir(archived, { recursive: true });
@@ -6634,7 +6643,8 @@ The system SHALL provide a new behavior.
       // vi.clearAllMocks() clears recorded calls but leaves queued
       // `...Once` answers from earlier tests behind; drain them so each
       // prompt here rejects the way a closed stdin makes it reject.
-      const { confirm, select } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
+      const { select } = await import('@inquirer/prompts');
       (confirm as unknown as ReturnType<typeof vi.fn>).mockReset();
       (select as unknown as ReturnType<typeof vi.fn>).mockReset();
     });
@@ -6672,7 +6682,7 @@ This change exists to document greeting behavior thoroughly for the team, which 
     }
 
     it('names the flag when the spec-update confirmation cannot be answered', async () => {
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       mockConfirm.mockRejectedValueOnce(exitPromptError());
 
@@ -6695,7 +6705,7 @@ This change exists to document greeting behavior thoroughly for the team, which 
     });
 
     it('names the flag when the incomplete-task confirmation cannot be answered', async () => {
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       mockConfirm.mockRejectedValueOnce(exitPromptError());
 
@@ -6718,7 +6728,7 @@ This change exists to document greeting behavior thoroughly for the team, which 
       // Suggesting a bare `--yes` rerun for `archive x --skip-specs` would
       // merge deltas into the main specs - the exact thing --skip-specs was
       // passed to prevent.
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       mockConfirm.mockRejectedValue(exitPromptError());
 
@@ -6763,7 +6773,7 @@ This change exists to document greeting behavior thoroughly for the team, which 
     // directory this needs cannot exist there - which is also why the hole it
     // covers is POSIX-only.
     it.skipIf(process.platform === 'win32')('cannot let a change directory forge its own Fix line', async () => {
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       mockConfirm.mockRejectedValue(exitPromptError());
 
@@ -6789,7 +6799,7 @@ This change exists to document greeting behavior thoroughly for the team, which 
     });
 
     it('quotes a change name that would not paste back as one argument', async () => {
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       mockConfirm.mockRejectedValue(exitPromptError());
 
@@ -6838,7 +6848,7 @@ This change exists to document greeting behavior thoroughly for the team, which 
       // Only the "nobody could answer" failure earns the guidance. Anything
       // else - an IO error, a bug in a future prompt refactor - must surface
       // as itself rather than be relabelled "rerun with --yes".
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       mockConfirm.mockRejectedValueOnce(new Error('EACCES: permission denied'));
 
@@ -6854,7 +6864,7 @@ This change exists to document greeting behavior thoroughly for the team, which 
     });
 
     it('names the flag when the skip-validation confirmation cannot be answered', async () => {
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       mockConfirm.mockRejectedValueOnce(exitPromptError());
 
@@ -6947,7 +6957,7 @@ This change exists to document greeting behavior thoroughly for the team, which 
       process.env.CI = 'true';
 
       try {
-        const { confirm } = await import('@inquirer/prompts');
+        const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
         const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
         mockConfirm.mockRejectedValueOnce(exitPromptError());
 
@@ -6966,7 +6976,7 @@ This change exists to document greeting behavior thoroughly for the team, which 
     });
 
     it('leaves JSON mode untouched', async () => {
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
 
       const changeName = 'non-interactive-json';

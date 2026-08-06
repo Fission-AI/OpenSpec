@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { Readable, Writable } from 'node:stream';
 import {
+  confirmPrompt,
   isInteractive,
   isNonInteractivePromptError,
   resolveNoInteractive,
@@ -195,6 +197,117 @@ describe('interactive utilities', () => {
       expect(isNonInteractivePromptError(new Error('disk full'))).toBe(false);
       expect(isNonInteractivePromptError('not an error')).toBe(false);
       expect(isNonInteractivePromptError(undefined)).toBe(false);
+    });
+  });
+
+  describe('confirmPrompt (non-TTY reader, #1526)', () => {
+    // A writable that keeps every byte written, so a test can assert the exact
+    // bytes an archive run would append to a redirected log.
+    function captureOutput(): Writable & { text: () => string } {
+      const chunks: string[] = [];
+      const stream = new Writable({
+        write(chunk, _encoding, callback) {
+          chunks.push(chunk.toString());
+          callback();
+        },
+      }) as Writable & { text: () => string };
+      stream.text = () => chunks.join('');
+      return stream;
+    }
+
+    // A non-TTY input carrying `data`, or an already-ended stream for the EOF case.
+    function pipedInput(data: string | null): Readable {
+      return Readable.from(data === null ? [] : [data]);
+    }
+
+    it('reads a piped "y" without emitting any ANSI escape sequences', async () => {
+      const output = captureOutput();
+      const result = await confirmPrompt(
+        { message: 'Continue?', default: false },
+        { input: pipedInput('y\n'), output }
+      );
+      expect(result).toBe(true);
+      // The disk-fill bug was @inquirer writing cursor-move escapes to a
+      // non-TTY stdout; the plain reader must write none.
+      expect(output.text()).not.toContain('\u001b'); // no ANSI escape byte
+      expect(output.text()).toBe('Continue? (y/N) \n');
+    });
+
+    it('reads a piped "n" as false', async () => {
+      const output = captureOutput();
+      const result = await confirmPrompt(
+        { message: 'Continue?', default: true },
+        { input: pipedInput('n\n'), output }
+      );
+      expect(result).toBe(false);
+      expect(output.text()).not.toContain('\u001b'); // no ANSI escape byte
+    });
+
+    it('accepts long forms (yes/no), case-insensitively and trimmed', async () => {
+      const yes = await confirmPrompt(
+        { message: 'Q?', default: false },
+        { input: pipedInput('  YES \n'), output: captureOutput() }
+      );
+      const no = await confirmPrompt(
+        { message: 'Q?', default: true },
+        { input: pipedInput('No\n'), output: captureOutput() }
+      );
+      expect(yes).toBe(true);
+      expect(no).toBe(false);
+    });
+
+    it('matches @inquirer prefix parsing (yeah/nope), preserving old behavior', async () => {
+      // @inquirer/confirm parses with /^(y|yes)/i and /^(n|no)/i. On the
+      // spec-update prompt (default true), a prefix-`n` answer must stay false
+      // rather than fall through to the default and write specs anyway.
+      const yeah = await confirmPrompt(
+        { message: 'Q?', default: false },
+        { input: pipedInput('yeah\n'), output: captureOutput() }
+      );
+      const nope = await confirmPrompt(
+        { message: 'Q?', default: true },
+        { input: pipedInput('nope\n'), output: captureOutput() }
+      );
+      expect(yeah).toBe(true);
+      expect(nope).toBe(false);
+    });
+
+    it('falls back to the default on an empty or unrecognized answer', async () => {
+      const emptyTrue = await confirmPrompt(
+        { message: 'Q?', default: true },
+        { input: pipedInput('\n'), output: captureOutput() }
+      );
+      const emptyFalse = await confirmPrompt(
+        { message: 'Q?', default: false },
+        { input: pipedInput('\n'), output: captureOutput() }
+      );
+      const garbage = await confirmPrompt(
+        { message: 'Q?', default: true },
+        { input: pipedInput('maybe\n'), output: captureOutput() }
+      );
+      expect(emptyTrue).toBe(true);
+      expect(emptyFalse).toBe(false);
+      expect(garbage).toBe(true);
+    });
+
+    it('rejects with an ExitPromptError when no answer can be read (EOF)', async () => {
+      // This is the seam the #1479 guidance hangs off: confirmOrBlock catches it
+      // via isNonInteractivePromptError and tells the user to rerun with --yes.
+      await expect(
+        confirmPrompt(
+          { message: 'Continue?', default: false },
+          { input: pipedInput(null), output: captureOutput() }
+        )
+      ).rejects.toMatchObject({ name: 'ExitPromptError' });
+    });
+
+    it('produces an error isNonInteractivePromptError classifies as non-interactive', async () => {
+      Object.defineProperty(process.stdin, 'isTTY', { value: false, writable: true, configurable: true });
+      const error = await confirmPrompt(
+        { message: 'Continue?', default: false },
+        { input: pipedInput(null), output: captureOutput() }
+      ).catch((e) => e);
+      expect(isNonInteractivePromptError(error)).toBe(true);
     });
   });
 });
