@@ -182,6 +182,56 @@ operations:
         );
       });
 
+      it('should parse githubCopilot.cloudAgent', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+githubCopilot:
+  cloudAgent: true
+`
+        );
+
+        expect(readProjectConfig(tempDir)?.githubCopilot?.cloudAgent).toBe(true);
+        expect(consoleWarnSpy).not.toHaveBeenCalled();
+      });
+
+      it('should warn on a non-boolean cloudAgent and keep the rest of the config', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+githubCopilot:
+  cloudAgent: "yes"
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+        expect(config?.schema).toBe('spec-driven');
+        expect(config?.githubCopilot).toBeUndefined();
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid 'githubCopilot.cloudAgent' field")
+        );
+      });
+
+      it('should warn on a non-object githubCopilot field', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+githubCopilot: true
+`
+        );
+
+        expect(readProjectConfig(tempDir)?.schema).toBe('spec-driven');
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid 'githubCopilot' field")
+        );
+      });
+
       it('should ignore malformed operation entries independently', () => {
         const configDir = path.join(tempDir, 'openspec');
         fs.mkdirSync(configDir, { recursive: true });

@@ -96,12 +96,13 @@ to read the hint.
 | Pi (`pi`) | `.pi/skills/openspec-*/SKILL.md` | `.pi/prompts/opsx-<id>.md` |
 | Qoder (`qoder`) | `.qoder/skills/openspec-*/SKILL.md` | `.qoder/commands/opsx/<id>.md` |
 | Qwen Code (`qwen`) | `.qwen/skills/openspec-*/SKILL.md` | `.qwen/commands/opsx-<id>.md` |
+| [Rovo Dev CLI](https://support.atlassian.com/rovo/docs/use-rovo-dev-cli/) (`rovodev`) | `.rovodev/skills/openspec-*/SKILL.md` | Not generated. Rovo has no slash-command surface — it matches skills automatically or by prompt (e.g. "use the openspec-propose skill"); `/skills` only manages them. Generated content references skills by name, never as `/openspec-*` commands. |
 | [Zoo Code](https://github.com/Zoo-Code-Org/Zoo-Code) (`roocode`) | `.roo/skills/openspec-*/SKILL.md` | `.roo/commands/opsx-<id>.md` |
 | Trae (`trae`) | `.trae/skills/openspec-*/SKILL.md` | `.trae/commands/opsx-<id>.md` |
 | ZCode (`zcode`) | `.zcode/skills/openspec-*/SKILL.md` | `.zcode/commands/opsx/<id>.md` |
 | Shared `.agents` skills (`agents`) | `.agents/skills/openspec-*/SKILL.md` | Not generated (no command adapter; use skill-based `/openspec-*` invocations) |
 
-\*\* GitHub Copilot prompt files are recognized as custom slash commands in IDE extensions (VS Code, JetBrains, Visual Studio). Copilot CLI does not currently consume `.github/prompts/*.prompt.md` directly.
+\*\* GitHub Copilot prompt files are recognized as custom slash commands in IDE extensions (VS Code, JetBrains, Visual Studio). Copilot CLI does not currently consume `.github/prompts/*.prompt.md` directly. Selecting `github-copilot` can also set up the GitHub-hosted **cloud coding agent** — see [GitHub Copilot cloud coding agent](#github-copilot-cloud-coding-agent) below.
 
 \*\*\* Hermes loads skills from `~/.hermes/skills/` by default. To use project-local OpenSpec skills, add the project `.hermes/skills/` directory to `skills.external_dirs` in `~/.hermes/config.yaml`; Hermes then exposes skills with user-facing slash invocations such as `/openspec-propose`.
 
@@ -112,6 +113,24 @@ MiniMax Code is a global skills-only integration. OpenSpec writes only its
 repo-local `.minimax` or `.mavis` directories. Commands-only delivery leaves
 existing global MiniMax Code skills untouched so one project's delivery setting
 cannot remove skills used by another project.
+
+### GitHub Copilot cloud coding agent
+
+GitHub's [Copilot coding agent](https://docs.github.com/en/copilot/using-github-copilot/coding-agent) runs on GitHub in a GitHub Actions environment — separate from Copilot in your editor. OpenSpec can set it up to use the OpenSpec CLI by generating two files:
+
+- `.github/workflows/copilot-setup-steps.yml` — installs `@fission-ai/openspec` in the agent's environment
+- `.github/agents/openspec.agent.md` — tells the agent how to drive OpenSpec
+
+Because this writes a GitHub Actions workflow into your repository, it is **opt-in**:
+
+| How | Behavior |
+|-----|----------|
+| `openspec init` (interactive) | Asks whether to set up cloud files. Default is **No**. |
+| `openspec init --copilot-cloud` | Sets them up without prompting (for scripts/CI). |
+| `openspec init --no-copilot-cloud` | Skips them without prompting, and removes any previously generated ones. |
+| `openspec update` | Never prompts. Refreshes the files only if you opted in (or the project already has them). If you opted out, it removes OpenSpec-managed cloud files. |
+
+Your choice is saved in `openspec/config.yaml` as `githubCopilot.cloudAgent: true|false`, so non-interactive updates honor it. OpenSpec only ever writes or removes files whose content it generated — if you customize `copilot-setup-steps.yml` or `openspec.agent.md`, or already have your own, it is left untouched (and `init`/`update` tell you so).
 
 ### When to pick the shared `.agents` target
 

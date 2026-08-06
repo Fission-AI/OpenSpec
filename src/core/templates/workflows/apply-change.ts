@@ -7,7 +7,16 @@
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
-function getApplyInstructions(): string {
+/**
+ * The apply workflow instructions, authored once and rendered by both the
+ * skill and command surfaces. The surfaces are intentionally distinct, but
+ * they differ only in how they are invoked — the generation transformers
+ * rewrite the canonical `/opsx:<id>` tokens per surface downstream (see
+ * command-references.ts). The instruction text itself is shared, so the two
+ * cannot silently drift. Should a surface ever need genuinely different
+ * wording, add a parameter here and pass it from that surface's template.
+ */
+export function getApplyInstructions(): string {
   return `Implement tasks from an OpenSpec change.
 
 ${STORE_SELECTION_GUIDANCE}
@@ -41,7 +50,7 @@ ${STORE_SELECTION_GUIDANCE}
    \`\`\`
 
    This returns:
-   - \`contextFiles\`: artifact ID -> array of concrete file paths (varies by schema)
+   - \`contextFiles\`: artifact ID -> array of concrete file paths (varies by schema - could be proposal/specs/design/tasks or spec/tests/implementation/docs)
    - Progress (total, complete, remaining)
    - Task list with status
    - Dynamic instruction based on current state

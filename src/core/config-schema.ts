@@ -27,6 +27,14 @@ export const GlobalConfigSchema = z
       .describe(
         'Store id used as fallback root when no explicit --store, local root, or project-level store: pointer resolves'
       ),
+    // passthrough keeps runtime-managed fields (anonymousId, noticeSeen) valid
+    // under CLI validate when users only set telemetry.enabled.
+    telemetry: z
+      .object({
+        enabled: z.boolean().optional(),
+      })
+      .passthrough()
+      .optional(),
   })
   .passthrough();
 
@@ -41,7 +49,15 @@ export const DEFAULT_CONFIG: GlobalConfigType = {
   delivery: 'both',
 };
 
-const KNOWN_TOP_LEVEL_KEYS = new Set([...Object.keys(DEFAULT_CONFIG), 'workflows', 'defaultStore']);
+const KNOWN_TOP_LEVEL_KEYS = new Set([
+  ...Object.keys(DEFAULT_CONFIG),
+  'workflows',
+  'defaultStore',
+  'telemetry',
+]);
+
+/** Nested keys users may set under `telemetry` via the CLI. */
+const TELEMETRY_SETTABLE_KEYS = new Set(['enabled']);
 
 /**
  * Key segments that would reach the prototype chain instead of the config object.
@@ -85,6 +101,19 @@ export function validateConfigKeyPath(path: string): { valid: boolean; reason?: 
   if (rootKey === 'featureFlags') {
     if (rawKeys.length > 2) {
       return { valid: false, reason: 'featureFlags values are booleans and do not support nested keys' };
+    }
+    return { valid: true };
+  }
+
+  if (rootKey === 'telemetry') {
+    if (rawKeys.length === 1) {
+      return { valid: false, reason: 'Set nested keys under telemetry (e.g. telemetry.enabled)' };
+    }
+    if (rawKeys.length !== 2 || !TELEMETRY_SETTABLE_KEYS.has(rawKeys[1])) {
+      return {
+        valid: false,
+        reason: `Unknown telemetry key "${rawKeys.slice(1).join('.')}" (allowed: enabled)`,
+      };
     }
     return { valid: true };
   }

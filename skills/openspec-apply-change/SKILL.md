@@ -42,7 +42,7 @@ Implement tasks from an OpenSpec change.
    ```
 
    This returns:
-   - `contextFiles`: artifact ID -> array of concrete file paths (varies by schema)
+   - `contextFiles`: artifact ID -> array of concrete file paths (varies by schema - could be proposal/specs/design/tasks or spec/tests/implementation/docs)
    - Progress (total, complete, remaining)
    - Task list with status
    - Dynamic instruction based on current state

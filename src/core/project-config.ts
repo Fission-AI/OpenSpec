@@ -73,6 +73,16 @@ export const ProjectConfigSchema = z.object({
     .string()
     .optional()
     .describe('Store id used as the OpenSpec root when no local planning shape exists'),
+
+  // Optional: GitHub Copilot integration preferences. `cloudAgent` is the
+  // opt-in for generating the Copilot cloud coding-agent files (a GitHub
+  // Actions workflow + agent file); absent means "not yet decided".
+  githubCopilot: z
+    .object({
+      cloudAgent: z.boolean().optional(),
+    })
+    .optional()
+    .describe('GitHub Copilot integration preferences'),
 });
 
 /** Normalized in-memory shape of a referenced store declaration. */
@@ -363,6 +373,24 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
         console.warn(
           `Warning: ignoring invalid store: field in ${configPathForWarnings(projectRoot)} (must be a single store id string).`
         );
+      }
+    }
+
+    // Parse githubCopilot preferences (only cloudAgent is recognized today).
+    if (raw.githubCopilot !== undefined) {
+      if (
+        typeof raw.githubCopilot === 'object' &&
+        raw.githubCopilot !== null &&
+        !Array.isArray(raw.githubCopilot)
+      ) {
+        const cloudAgent = (raw.githubCopilot as Record<string, unknown>).cloudAgent;
+        if (typeof cloudAgent === 'boolean') {
+          config.githubCopilot = { cloudAgent };
+        } else if (cloudAgent !== undefined) {
+          console.warn(`Invalid 'githubCopilot.cloudAgent' field in config (must be a boolean)`);
+        }
+      } else {
+        console.warn(`Invalid 'githubCopilot' field in config (must be an object)`);
       }
     }
 
