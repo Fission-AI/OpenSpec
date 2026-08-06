@@ -180,6 +180,13 @@ For pre-marker projects, OpenSpec infers ownership from managed skill references
 generic canonical tree alongside legacy `.codex/skills` is treated as an older
 dual-target install and consolidated into the compatible shared tree.
 
+`openspec update` honors this ownership too. If a project owns `.agents` as the
+vendor-neutral target and a leftover Codex install is detected only from stray
+prompt files, the update leaves the established `agents` tree in place instead of
+rewriting it with Codex syntax, and preserves those legacy prompt files rather
+than deleting them. To hand the shared tree to Codex, run `openspec init --tools
+codex` explicitly.
+
 ## Non-Interactive Setup
 
 For CI/CD or scripted setup, use `--tools` (and optionally `--profile`):

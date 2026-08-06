@@ -38,6 +38,7 @@ import {
   getLegacyWorkflowIdsForTool,
   getToolsFromLegacyArtifacts,
   omitGlobalLegacyPromptFiles,
+  omitToolLegacyArtifacts,
   pickGlobalLegacyPromptFiles,
   type LegacyDetectionResult,
 } from './legacy-cleanup.js';
@@ -84,6 +85,12 @@ type LegacyUpgradeResult = {
   newlyConfiguredTools: string[];
   workflowOverrides: Partial<Record<string, readonly (typeof ALL_WORKFLOWS)[number][]>>;
   deferredGlobalCleanup?: LegacyDetectionResult;
+  /**
+   * Tools whose skill generation was skipped because another tool already owns
+   * their shared skills root. Their repo-local legacy artifacts must be exempt
+   * from immediate cleanup — no replacement was written to justify deleting them.
+   */
+  skippedSharedSkillTools?: string[];
 };
 
 /**
@@ -886,7 +893,11 @@ export class UpdateCommand {
         desiredWorkflows,
         delivery
       );
-      await this.performImmediateLegacyCleanup(projectPath, detection);
+      await this.performImmediateLegacyCleanup(
+        projectPath,
+        detection,
+        legacyUpgrade.skippedSharedSkillTools
+      );
       return {
         ...legacyUpgrade,
         deferredGlobalCleanup: pickGlobalLegacyPromptFiles(
@@ -919,7 +930,11 @@ export class UpdateCommand {
         desiredWorkflows,
         delivery
       );
-      await this.performImmediateLegacyCleanup(projectPath, detection);
+      await this.performImmediateLegacyCleanup(
+        projectPath,
+        detection,
+        legacyUpgrade.skippedSharedSkillTools
+      );
       return {
         ...legacyUpgrade,
         deferredGlobalCleanup: pickGlobalLegacyPromptFiles(
@@ -939,9 +954,15 @@ export class UpdateCommand {
    */
   private async performImmediateLegacyCleanup(
     projectPath: string,
-    detection: LegacyDetectionResult
+    detection: LegacyDetectionResult,
+    skippedSharedSkillTools: readonly string[] = []
   ): Promise<void> {
-    const immediateDetection = omitGlobalLegacyPromptFiles(detection);
+    // Tools whose upgrade was skipped (shared root owned by another) had no
+    // replacement written, so their repo-local legacy files must be preserved.
+    const immediateDetection = omitToolLegacyArtifacts(
+      omitGlobalLegacyPromptFiles(detection),
+      skippedSharedSkillTools
+    );
     if (immediateDetection.hasLegacyArtifacts) {
       await this.performLegacyCleanup(projectPath, immediateDetection);
     }
@@ -1083,6 +1104,7 @@ export class UpdateCommand {
 
     // Create skills/commands for selected tools using effective profile+delivery.
     const newlyConfigured: string[] = [];
+    const skippedSharedSkillTools: string[] = [];
     const workflowOverrides: LegacyUpgradeResult['workflowOverrides'] = {};
 
     for (const toolId of selectedTools) {
@@ -1116,9 +1138,12 @@ export class UpdateCommand {
         // one-writer rule up front when both targets are selected.)
         //
         // Skipping here means the tool is never recorded as configured, so a
-        // persistent legacy signal (global `~/.codex/prompts`, which update does
-        // not auto-remove) re-offers it on later runs. That repeat is idempotent
-        // and harmless — the alternative is the silent hijack this prevents.
+        // persistent legacy signal re-offers it on later runs. Because no
+        // replacement is written, this tool is also exempted from immediate
+        // legacy cleanup (see skippedSharedSkillTools) — otherwise a repo-local
+        // `.codex/prompts` would be deleted with nothing put in its place. That
+        // repeat is idempotent and harmless — the alternative is the silent
+        // hijack this prevents.
         const sharedOwner = shouldGenerateSkills
           ? sharedSkillRootOwner(projectPath, tool.value)
           : undefined;
@@ -1128,6 +1153,7 @@ export class UpdateCommand {
           spinner.info(
             `Skipped ${tool.name}: ${tool.skillsDir}/skills is already managed by another tool (${ownerName}).`
           );
+          skippedSharedSkillTools.push(tool.value);
           continue;
         }
 
@@ -1188,6 +1214,6 @@ export class UpdateCommand {
       console.log();
     }
 
-    return { newlyConfiguredTools: newlyConfigured, workflowOverrides };
+    return { newlyConfiguredTools: newlyConfigured, workflowOverrides, skippedSharedSkillTools };
   }
 }

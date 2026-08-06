@@ -17,6 +17,7 @@ import {
   formatDetectionSummary,
   formatProjectMdMigrationHint,
   getToolsFromLegacyArtifacts,
+  omitToolLegacyArtifacts,
   LEGACY_CONFIG_FILES,
   LEGACY_GLOBAL_SLASH_COMMAND_PATHS,
   LEGACY_SLASH_COMMAND_PATHS,
@@ -1477,6 +1478,44 @@ ${OPENSPEC_MARKERS.end}`);
 
       const tools = getToolsFromLegacyArtifacts(detection);
       expect(tools).toHaveLength(0);
+    });
+  });
+
+  describe('omitToolLegacyArtifacts', () => {
+    const baseDetection = () => ({
+      configFiles: [],
+      configFilesToUpdate: [],
+      slashCommandDirs: ['.claude/commands/openspec'],
+      slashCommandFiles: ['.codex/prompts/openspec-explore.md', '.cursor/commands/openspec-apply.md'],
+      globalSlashCommandFiles: [],
+      hasOpenspecAgents: false,
+      hasProjectMd: false,
+      hasRootAgentsWithMarkers: false,
+      hasLegacyArtifacts: true,
+    });
+
+    it('removes only the named tool\'s repo-local artifacts', () => {
+      const result = omitToolLegacyArtifacts(baseDetection(), ['codex']);
+      expect(result.slashCommandFiles).toEqual(['.cursor/commands/openspec-apply.md']);
+      // Other tools' files and directories are untouched.
+      expect(result.slashCommandDirs).toEqual(['.claude/commands/openspec']);
+      expect(result.hasLegacyArtifacts).toBe(true);
+    });
+
+    it('recomputes hasLegacyArtifacts to false when nothing is left', () => {
+      const detection = {
+        ...baseDetection(),
+        slashCommandDirs: [],
+        slashCommandFiles: ['.codex/prompts/openspec-explore.md'],
+      };
+      const result = omitToolLegacyArtifacts(detection, ['codex']);
+      expect(result.slashCommandFiles).toEqual([]);
+      expect(result.hasLegacyArtifacts).toBe(false);
+    });
+
+    it('returns the detection unchanged when no tools are skipped', () => {
+      const detection = baseDetection();
+      expect(omitToolLegacyArtifacts(detection, [])).toBe(detection);
     });
   });
 });

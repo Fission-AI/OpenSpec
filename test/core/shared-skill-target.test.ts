@@ -76,6 +76,8 @@ describe('sharedSkillRootOwnedByOther', () => {
     await fs.mkdir(skillDir, { recursive: true });
     await fs.writeFile(path.join(skillDir, 'SKILL.md'), '# openspec-propose\n\nNo invocation syntax here.\n');
     expect(sharedSkillRootOwnedByOther(projectPath, 'codex')).toBe(true);
+    // The established `agents` target is the resolved owner of the ambiguous tree.
+    expect(sharedSkillRootOwner(projectPath, 'codex')).toBe('agents');
   });
 
   it('names the owning tool via sharedSkillRootOwner', async () => {

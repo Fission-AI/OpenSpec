@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { UpdateCommand, scanInstalledWorkflows } from '../../src/core/update.js';
 import { InitCommand } from '../../src/core/init.js';
+import { getConfiguredToolsForProfileSync } from '../../src/core/profile-sync-drift.js';
 import { FileSystemUtils } from '../../src/utils/file-system.js';
 import { OPENSPEC_MARKERS } from '../../src/core/config.js';
 import type { GlobalConfig } from '../../src/core/global-config.js';
@@ -624,7 +625,18 @@ metadata:
       await fs.mkdir(promptDir, { recursive: true });
       await fs.writeFile(path.join(promptDir, 'opsx-explore.md'), 'legacy explore prompt');
 
+      // The skip message is emitted via an ora spinner, which writes to the
+      // process streams rather than through console.log.
+      let streamOutput = '';
+      const capture = (chunk: unknown) => {
+        streamOutput += String(chunk);
+        return true;
+      };
+      const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(capture as never);
+      const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(capture as never);
       await new UpdateCommand({ force: true }).execute(testDir);
+      stdoutSpy.mockRestore();
+      stderrSpy.mockRestore();
 
       const skillsDir = path.join(testDir, '.agents', 'skills');
       // Ownership marker is not flipped to codex...
@@ -636,6 +648,60 @@ metadata:
       );
       expect(propose).not.toContain('$openspec-');
       expect(propose).toContain('/openspec-');
+      // Generation AND configuration are skipped: Codex is never recorded as a
+      // configured tool, so a stray global prompt cannot flip ownership later.
+      const configured = getConfiguredToolsForProfileSync(testDir);
+      expect(configured).toContain('agents');
+      expect(configured).not.toContain('codex');
+      // The skip names the established owner so the user understands why.
+      expect(streamOutput).toMatch(/Skipped Codex/);
+      expect(streamOutput).toMatch(/managed by another tool \(Shared \.agents skills\)/);
+    });
+
+    it('lets a first-time legacy Codex upgrade claim an unowned agents root', async () => {
+      // Inverse of the hijack guard: with no `.agents` tree yet, nothing is
+      // owned, so the real update path must still generate Codex skills and
+      // stamp the `codex` marker — proving the guard is not over-broad.
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'skills' });
+      const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
+      await fs.mkdir(promptDir, { recursive: true });
+      await fs.writeFile(path.join(promptDir, 'opsx-explore.md'), 'legacy explore prompt');
+
+      await new UpdateCommand({ force: true }).execute(testDir);
+
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      // The codex marker is written (writeSharedSkillTarget on the non-owned path).
+      expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe('codex\n');
+      // A single opsx-explore prompt infers only the `explore` workflow, and the
+      // generated skill carries Codex `$openspec-` syntax.
+      const explore = await fs.readFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        'utf-8'
+      );
+      expect(explore).toContain('$openspec-');
+      // Codex is now recorded as configured (mirrors the negative check above).
+      expect(getConfiguredToolsForProfileSync(testDir)).toContain('codex');
+    });
+
+    it('preserves a skipped tool\'s repo-local legacy prompts instead of deleting them', async () => {
+      // When the guard skips Codex (agents owns `.agents`), no replacement skill
+      // is written — so Codex's repo-local `.codex/prompts` must NOT be cleaned
+      // up. Deleting them would strip the legacy signal with nothing in its place.
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'skills' });
+      await new InitCommand({ tools: 'agents', force: true }).execute(testDir);
+      const legacyPrompts = path.join(testDir, '.codex', 'prompts');
+      await fs.mkdir(legacyPrompts, { recursive: true });
+      await fs.writeFile(path.join(legacyPrompts, 'openspec-explore.md'), 'legacy repo-local prompt');
+
+      await new UpdateCommand({ force: true }).execute(testDir);
+
+      // agents tree preserved, and the repo-local legacy prompt survives.
+      expect(
+        await fs.readFile(path.join(testDir, '.agents', 'skills', '.openspec-target'), 'utf-8')
+      ).toBe('agents\n');
+      expect(
+        await FileSystemUtils.fileExists(path.join(legacyPrompts, 'openspec-explore.md'))
+      ).toBe(true);
     });
 
     it('should let an explicit Codex init take ownership of an agents tree', async () => {
