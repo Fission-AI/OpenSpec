@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { extractRequirementsSection, parseDeltaSpec } from '../../../src/core/parsers/requirement-blocks.js';
+import {
+  extractRequirementsSection,
+  parseDeltaSpec,
+  findMissingCurrentScenarios,
+  type RequirementBlock,
+} from '../../../src/core/parsers/requirement-blocks.js';
 
 describe('extractRequirementsSection', () => {
   it('parses canonical ### Requirement: headers', () => {
@@ -129,5 +134,55 @@ describe('extractRequirementsSection (fenced code blocks)', () => {
 
     const result = extractRequirementsSection(content);
     expect(result.bodyBlocks.map((b) => b.name)).toEqual(['Real requirement']);
+  });
+});
+
+describe('findMissingCurrentScenarios: level-4 header parity', () => {
+  // Only .raw is read; a minimal block keeps these focused on scenario parsing.
+  const block = (raw: string): RequirementBlock => ({ headerLine: raw.split('\n')[0], name: '', raw });
+  const req = (...scenarios: string[]) =>
+    block(['### Requirement: Widget state', 'The system SHALL report it.', '', ...scenarios].join('\n'));
+
+  it('does not treat a level-5 (#####) header as a dropped scenario', () => {
+    // `#### ` requires exactly four hashes then whitespace, matching countScenarios;
+    // `##### Deep detail` is body, not a scenario, so dropping it is no loss.
+    const current = req('#### Scenario: Kept', '- **WHEN** a', '- **THEN** b', '', '##### Deep detail', '- a nested note');
+    const incoming = req('#### Scenario: Kept', '- **WHEN** a', '- **THEN** b');
+    expect(findMissingCurrentScenarios(current, incoming)).toEqual([]);
+  });
+
+  it('does not treat an unlabeled #### header inside a fence as a scenario', () => {
+    const current = req(
+      '#### Scenario: Real',
+      '- **WHEN** a',
+      '- **THEN** b',
+      '',
+      '```markdown',
+      '#### Edge case',
+      '- only an example',
+      '```'
+    );
+    const incoming = req('#### Scenario: Real', '- **WHEN** a', '- **THEN** b');
+    expect(findMissingCurrentScenarios(current, incoming)).toEqual([]);
+  });
+
+  it('normalizes an optional Scenario: label, so relabeling is not a loss', () => {
+    const current = req('#### Edge case', '- **WHEN** a', '- **THEN** b');
+    const incoming = req('#### Scenario: Edge case', '- **WHEN** a', '- **THEN** b');
+    expect(findMissingCurrentScenarios(current, incoming)).toEqual([]);
+  });
+
+  it('counts unlabeled scenarios by multiplicity, like labeled ones', () => {
+    const current = req(
+      '#### Edge case',
+      '- **WHEN** a',
+      '- **THEN** b',
+      '',
+      '#### Edge case',
+      '- **WHEN** c',
+      '- **THEN** d'
+    );
+    const incoming = req('#### Edge case', '- **WHEN** a', '- **THEN** b');
+    expect(findMissingCurrentScenarios(current, incoming)).toEqual(['Edge case']);
   });
 });

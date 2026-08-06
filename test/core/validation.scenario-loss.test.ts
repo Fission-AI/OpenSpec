@@ -402,6 +402,28 @@ describe('validate: MODIFIED blocks that would drop a main-spec scenario (#1477)
     expect(await archiveError(changeDir)).toContain('Edge case');
   });
 
+  it('detects a dropped labeled scenario even when an unlabeled sibling is kept', async () => {
+    // The reverse of the case above: labels and non-labels are counted the same
+    // way, in both directions, so dropping the labeled one is still caught.
+    await writeMainSpec(
+      'widgets',
+      mainSpec(
+        `### Requirement: Widget state\nThe system SHALL report the widget state.\n\n#### Scenario: Labeled\n- **WHEN** queried\n- **THEN** the state is reported\n\n#### Unlabeled\n- **WHEN** idle\n- **THEN** idle is reported`
+      )
+    );
+    const changeDir = await writeChange(
+      'drop-labeled-keep-unlabeled',
+      'widgets',
+      `## MODIFIED Requirements\n\n### Requirement: Widget state\nThe system SHALL report the widget state.\n\n#### Unlabeled\n- **WHEN** idle\n- **THEN** idle is reported\n`
+    );
+
+    const report = await validate(changeDir);
+
+    expect(report.valid).toBe(false);
+    expect(lossIssue(report)?.message).toContain('"Labeled"');
+    expect(await archiveError(changeDir)).toContain('Labeled');
+  });
+
   it('does not name scenarios for a MODIFIED the same delta renames away', async () => {
     // The block this MODIFIED would land on is not the one it names, so any
     // scenario reported here would send the author after the wrong requirement.

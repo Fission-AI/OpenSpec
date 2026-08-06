@@ -1,4 +1,4 @@
-import { buildCodeFenceMask } from './requirement-text.js';
+import { buildCodeFenceMask, SCENARIO_HEADER } from './requirement-text.js';
 
 export interface RequirementBlock {
   headerLine: string; // e.g., '### Requirement: Something'
@@ -362,9 +362,12 @@ export function findMissingCurrentScenarios(current: RequirementBlock, incoming:
   return missing;
 }
 
-/** Any non-fenced level-4 header on the given (masked) line. */
+/**
+ * Any non-fenced level-4 header on the given (masked) line. Reuses the spec
+ * path's SCENARIO_HEADER so the two counters cannot drift apart.
+ */
 function scenarioHeaderAt(lines: string[], mask: boolean[], index: number): boolean {
-  return !mask[index] && /^####\s+/.test(lines[index]);
+  return !mask[index] && SCENARIO_HEADER.test(lines[index]);
 }
 
 /**
@@ -374,7 +377,7 @@ function scenarioHeaderAt(lines: string[], mask: boolean[], index: number): bool
  * findMissingCurrentScenarios stays internally consistent regardless of label.
  */
 function scenarioNameAt(line: string): string {
-  return line.replace(/^####\s+/, '').replace(/^Scenario:\s*/i, '').trim();
+  return line.replace(SCENARIO_HEADER, '').replace(/^Scenario:\s*/i, '').trim();
 }
 
 function parseScenarioBlocks(requirementRaw: string): ScenarioBlock[] {
