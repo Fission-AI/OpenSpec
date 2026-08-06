@@ -185,4 +185,32 @@ describe('findMissingCurrentScenarios: level-4 header parity', () => {
     const incoming = req('#### Edge case', '- **WHEN** a', '- **THEN** b');
     expect(findMissingCurrentScenarios(current, incoming)).toEqual(['Edge case']);
   });
+
+  it('does not let a fenced #### in the incoming block satisfy a real scenario', () => {
+    // Symmetry with the current-side fence test: masking must apply to the
+    // incoming block too, or a fenced sample in the MODIFIED delta would count
+    // as coverage and hide a genuine drop (validate passes, archive deletes).
+    const current = req('#### Scenario: Real', '- **WHEN** a', '- **THEN** b');
+    const incoming = req(
+      '```markdown',
+      '#### Scenario: Real',
+      '- only an example',
+      '```'
+    );
+    expect(findMissingCurrentScenarios(current, incoming)).toEqual(['Real']);
+  });
+
+  it('normalizes a lowercase scenario: label the same as Scenario:', () => {
+    const current = req('#### Scenario: Edge case', '- **WHEN** a', '- **THEN** b');
+    const incoming = req('#### scenario: Edge case', '- **WHEN** a', '- **THEN** b');
+    expect(findMissingCurrentScenarios(current, incoming)).toEqual([]);
+  });
+
+  it('treats an ATX-closed header as the same scenario as its open form', () => {
+    // `#### Foo ####` renders as `Foo` in CommonMark; the loss guard must fold
+    // the two so relabeling one side does not read as a dropped scenario.
+    const current = req('#### Scenario: Edge case', '- **WHEN** a', '- **THEN** b');
+    const incoming = req('#### Scenario: Edge case ####', '- **WHEN** a', '- **THEN** b');
+    expect(findMissingCurrentScenarios(current, incoming)).toEqual([]);
+  });
 });

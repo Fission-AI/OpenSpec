@@ -372,12 +372,19 @@ function scenarioHeaderAt(lines: string[], mask: boolean[], index: number): bool
 
 /**
  * The scenario name for a `#### ` header, matching the label the author reads:
- * the header text with an optional `Scenario:` prefix stripped. Both the
- * current and incoming blocks run through here, so the comparison in
- * findMissingCurrentScenarios stays internally consistent regardless of label.
+ * the header text with the leading `####`, an optional CommonMark closing `#`
+ * run (`#### Foo ####` renders as `Foo`), and an optional `Scenario:` prefix
+ * stripped. Both the current and incoming blocks run through here, so the
+ * comparison in findMissingCurrentScenarios stays internally consistent
+ * regardless of label — and two headers that render to the same title (one
+ * ATX-closed, one not) are not mistaken for a dropped scenario.
  */
 function scenarioNameAt(line: string): string {
-  return line.replace(SCENARIO_HEADER, '').replace(/^Scenario:\s*/i, '').trim();
+  return line
+    .replace(SCENARIO_HEADER, '')
+    .replace(/\s+#+\s*$/, '') // optional ATX closing sequence (space-preceded)
+    .replace(/^Scenario:\s*/i, '')
+    .trim();
 }
 
 function parseScenarioBlocks(requirementRaw: string): ScenarioBlock[] {
