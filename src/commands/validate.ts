@@ -197,7 +197,10 @@ export class ValidateCommand {
     if (type === 'change') {
       const changeDir = path.join(root.changesDir, id);
       const start = Date.now();
-      const report = await validator.validateChangeDeltaSpecs(changeDir, { mainSpecsDir: root.specsDir });
+      const report = await validator.validateChangeDeltaSpecs(changeDir, {
+        mainSpecsDir: root.specsDir,
+        projectRoot: root.path,
+      });
       const durationMs = Date.now() - start;
       this.printReport('change', id, report, durationMs, opts.json, root);
       // Non-zero exit if invalid (keeps enriched output test semantics)
@@ -279,7 +282,10 @@ export class ValidateCommand {
       queue.push(async () => {
         const start = Date.now();
         const changeDir = path.join(root.changesDir, id);
-        const report = await validator.validateChangeDeltaSpecs(changeDir, { mainSpecsDir: root.specsDir });
+        const report = await validator.validateChangeDeltaSpecs(changeDir, {
+          mainSpecsDir: root.specsDir,
+          projectRoot: root.path,
+        });
         const durationMs = Date.now() - start;
         return { id, type: 'change' as const, valid: report.valid, issues: report.issues, durationMs };
       });
