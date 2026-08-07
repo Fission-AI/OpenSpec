@@ -1276,19 +1276,33 @@ export class InitCommand {
     console.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
     console.log(`Feedback:   ${chalk.cyan('https://github.com/Fission-AI/OpenSpec/issues')}`);
 
-    // Restart instruction only for tools whose commands/skills are loaded by an
-    // IDE/editor process (CLI tools pick up the generated files immediately, so a
-    // restart line would be wrong for them — see #1067), and only when a surface
-    // was actually generated (nothing generated means nothing a restart picks up);
-    // only mention commands when commands were actually generated. Not "slash
-    // commands": Amazon Q's generated files are prompt-library entries invoked
-    // with @, so a restart line promising slash commands would be wrong for it.
-    const anyRequiresIdeRestart = successfulTools.some((tool) => tool.requiresIdeRestart);
-    if (anyRequiresIdeRestart && (commandsGenerated || skillsGenerated)) {
+    // Restart instruction only when at least one IDE/editor-resident tool
+    // actually received a generated surface. Two conditions, coupled to the SAME
+    // tool: (1) its commands/skills are loaded by a long-running editor process
+    // (CLI tools pick the files up immediately, so a restart line would be wrong
+    // for them — see #1067), and (2) a surface was actually generated for it
+    // under the active delivery (an IDE tool that generated nothing has nothing a
+    // restart would pick up, even if a co-configured CLI tool did generate).
+    // Wording follows what the IDE tool itself generated, not the global
+    // aggregate: it must not say "commands" when the IDE tool only got skills
+    // while a co-configured CLI tool got commands. Not "slash commands" either:
+    // Amazon Q's generated files are prompt-library entries invoked with @, so a
+    // restart line promising slash commands would be wrong for it.
+    const restartCommandsGenerated = successfulTools.some(
+      (tool) =>
+        tool.requiresIdeRestart &&
+        shouldGenerateCommandsForTool(tool.value, activeDelivery)
+    );
+    const restartSkillsGenerated = successfulTools.some(
+      (tool) =>
+        tool.requiresIdeRestart &&
+        shouldGenerateSkillsForTool(tool.value, activeDelivery)
+    );
+    if (restartCommandsGenerated || restartSkillsGenerated) {
       console.log();
       console.log(
         chalk.white(
-          commandsGenerated
+          restartCommandsGenerated
             ? 'Restart your IDE for the new commands to take effect.'
             : 'Restart your IDE for the new skills to take effect.'
         )

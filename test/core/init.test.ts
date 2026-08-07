@@ -732,6 +732,17 @@ describe('InitCommand', () => {
       expect(getConsoleOutput()).toContain('Restart your IDE');
     });
 
+    it('should suggest an IDE restart when a mix of CLI and IDE tools is configured', async () => {
+      // One IDE-resident tool (cursor) among CLI tools (claude) is enough: the
+      // hint targets the tool that needs it, so the gate must not require every
+      // configured tool to be IDE-resident.
+      const initCommand = new InitCommand({ tools: 'claude,cursor', force: true });
+
+      await initCommand.execute(testDir);
+
+      expect(getConsoleOutput()).toContain('Restart your IDE');
+    });
+
     it('should create skills for multiple tools at once', async () => {
       const initCommand = new InitCommand({ tools: 'claude,cursor', force: true });
 
