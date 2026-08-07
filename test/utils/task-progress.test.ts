@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { promises as fs } from 'fs';
+import { promises as fs, realpathSync } from 'fs';
 import path from 'path';
 import os from 'os';
 import {
@@ -338,12 +338,18 @@ describe('getTaskProgressDetailForChange (#205 unreadable reporting)', () => {
   it('records a task file that exists but cannot be read (EISDIR)', async () => {
     // A tasks.md that is a directory yields a non-ENOENT read error on every
     // platform, standing in for a genuinely unreadable file.
-    await fs.mkdir(path.join(changesDir, 'bad', 'tasks.md'), { recursive: true });
+    const badTasks = path.join(changesDir, 'bad', 'tasks.md');
+    await fs.mkdir(badTasks, { recursive: true });
 
     const detail = await getTaskProgressDetailForChange(changesDir, 'bad', root);
     expect(detail.total).toBe(0);
     expect(detail.completed).toBe(0);
     expect(detail.unreadable).toHaveLength(1);
+    // The reported path is the file that could not be read (both canonicalized
+    // so a /var vs /private/var symlink difference does not fail the identity).
+    expect(realpathSync.native(detail.unreadable[0])).toBe(
+      realpathSync.native(badTasks)
+    );
   });
 
   it('treats a missing tasks.md as zero tasks, not unreadable', async () => {

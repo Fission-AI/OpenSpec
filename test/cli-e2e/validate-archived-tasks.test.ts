@@ -128,7 +128,11 @@ describe('openspec validate --archived checks archived task completion (#205)', 
     await fs.mkdir(
       path.join(
         dir,
-        'openspec/changes/archive/unreadable-change/tasks.md'
+        'openspec',
+        'changes',
+        'archive',
+        'unreadable-change',
+        'tasks.md'
       ),
       { recursive: true }
     );
