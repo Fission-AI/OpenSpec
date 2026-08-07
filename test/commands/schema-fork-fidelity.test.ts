@@ -182,19 +182,12 @@ describe('schema fork fidelity (PR #1130)', () => {
     // directory this run created. Without --force an existing destination is
     // rejected BEFORE any copy, so a user's directory (and its files) must be
     // left completely untouched.
-    const invalidDir = path.join(tempDir, 'openspec', 'schemas', 'invalid-schema');
-    fs.mkdirSync(invalidDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(invalidDir, 'schema.yaml'),
-      ['name: invalid-schema', 'version: 1', 'artifacts:', '  - id: proposal', ''].join('\n')
-    );
-
-    const destDir = path.join(tempDir, 'openspec', 'schemas', 'forked-invalid');
+    const destDir = path.join(tempDir, 'openspec', 'schemas', 'my-dest');
     fs.mkdirSync(destDir, { recursive: true });
     const sentinel = path.join(destDir, 'sentinel.txt');
     fs.writeFileSync(sentinel, 'do not delete me');
 
-    await runSchemaCommand(['fork', 'invalid-schema', 'forked-invalid', '--json']);
+    await runSchemaCommand(['fork', 'src-schema', 'my-dest', '--json']);
 
     const output = consoleLogSpy.mock.calls.map((c) => String(c[0])).join('\n');
     expect(process.exitCode).toBeTruthy();
@@ -202,6 +195,46 @@ describe('schema fork fidelity (PR #1130)', () => {
     // The pre-existing directory and its contents survive intact.
     expect(fs.existsSync(sentinel)).toBe(true);
     expect(fs.readFileSync(sentinel, 'utf-8')).toBe('do not delete me');
+  });
+
+  it('does not destroy a valid destination when --force forks an invalid source', async () => {
+    // Atomicity: `fork --force` must validate the source BEFORE removing the
+    // existing destination, so an unusable source can never leave the user with
+    // nothing. The source is validated up front (before the --force removal),
+    // so the prior destination survives untouched.
+    const invalidDir = path.join(tempDir, 'openspec', 'schemas', 'invalid-schema');
+    fs.mkdirSync(invalidDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(invalidDir, 'schema.yaml'),
+      ['name: invalid-schema', 'version: 1', 'artifacts:', '  - id: proposal', ''].join('\n')
+    );
+
+    // A valid, pre-existing destination the user does not want to lose.
+    const destDir = path.join(tempDir, 'openspec', 'schemas', 'keep-me');
+    fs.mkdirSync(destDir, { recursive: true });
+    const existing = path.join(destDir, 'schema.yaml');
+    const existingContent = [
+      'name: keep-me',
+      'version: 3',
+      'artifacts:',
+      '  - id: proposal',
+      '    generates: proposal.md',
+      '    description: Keep this',
+      '    template: proposal.md',
+      '    requires: []',
+      '',
+    ].join('\n');
+    fs.writeFileSync(existing, existingContent);
+
+    await runSchemaCommand(['fork', 'invalid-schema', 'keep-me', '--force', '--json']);
+
+    const output = consoleLogSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(process.exitCode).toBeTruthy();
+    expect(output).toContain('"forked": false');
+    expect(output).toMatch(/Invalid schema/i);
+    // The valid destination was NOT destroyed by the --force removal.
+    expect(fs.existsSync(existing)).toBe(true);
+    expect(fs.readFileSync(existing, 'utf-8')).toBe(existingContent);
   });
 
   it('writes YAML-ambiguous names as strings, not booleans/null', async () => {
