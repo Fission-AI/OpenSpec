@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import ora from 'ora';
-import { stringify as stringifyYaml } from 'yaml';
+import { stringify as stringifyYaml, parseDocument } from 'yaml';
 import {
   getSchemaDir,
   getProjectSchemasDir,
@@ -675,6 +675,15 @@ export function registerSchemaCommand(program: Command): void {
         const trustedSourceDir = fs.realpathSync(sourceDir);
         assertSchemaTreeCanBeCopied(trustedSourceDir);
 
+        // Validate the source's schema content up front too, so a structurally
+        // invalid source is rejected before the --force path can remove an
+        // existing destination. This keeps `fork --force` atomic — an unusable
+        // source never destroys a valid destination — matching `schema init`,
+        // which likewise validates before it overwrites.
+        parseSchema(
+          fs.readFileSync(path.join(trustedSourceDir, 'schema.yaml'), 'utf-8')
+        );
+
         // Check destination
         const destinationDir = path.join(getProjectSchemasDir(projectRoot), destinationName);
 
@@ -705,11 +714,31 @@ export function registerSchemaCommand(program: Command): void {
 
         // Update name in schema.yaml
         const destSchemaPath = path.join(destinationDir, 'schema.yaml');
-        const schemaContent = fs.readFileSync(destSchemaPath, 'utf-8');
-        const schema = parseSchema(schemaContent);
-        schema.name = destinationName;
-
-        fs.writeFileSync(destSchemaPath, stringifyYaml(schema));
+        try {
+          // Rename via yaml's Document API instead of re-serializing the parsed
+          // object, so block scalars, comments, and key order in the source
+          // schema.yaml survive the fork. (The source was already validated
+          // above, before any files were copied.)
+          const schemaContent = fs.readFileSync(destSchemaPath, 'utf-8');
+          const doc = parseDocument(schemaContent);
+          doc.set('name', destinationName);
+          fs.writeFileSync(destSchemaPath, doc.toString());
+        } catch (error) {
+          // copyDirRecursive created destinationDir fresh this run (the
+          // existing-destination path without --force returns before the copy,
+          // and the --force path removes the prior directory first), so removing
+          // it here can only delete the partial fork we just made — never a
+          // pre-existing user directory. Guard the cleanup in its own try/catch
+          // so a failed removal (e.g. a locked file on Windows) can never mask
+          // the original error, then rethrow so the real failure still drives
+          // the JSON/exit-code reporting.
+          try {
+            fs.rmSync(destinationDir, { recursive: true, force: true });
+          } catch {
+            // Best-effort cleanup; the original error below is what matters.
+          }
+          throw error;
+        }
 
         if (spinner) spinner.succeed(`Forked '${source}' to '${destinationName}'`);
 
