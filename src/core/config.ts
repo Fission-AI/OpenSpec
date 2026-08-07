@@ -34,7 +34,13 @@ export interface AIToolOption {
   globalSkillsDir?: string; // e.g., '.minimax' - /skills suffix, resolved from the user's home directory
   detectionPaths?: string[]; // Override skillsDir for auto-detection; any path existing triggers detection
   setupNote?: string; // Manual setup required before the tool picks up generated files; shown after init/update
-  requiresIdeRestart?: boolean; // True when slash commands are loaded by an IDE/editor process
+  // True when the tool's commands/skills are loaded by a long-running IDE/editor
+  // process that must be restarted to pick up newly written files; false/omitted
+  // for terminal CLIs that read them fresh each run (see #1067). Flagged by the
+  // tool's primary surface: a few tools ship both an IDE extension and a CLI
+  // (e.g. Continue, Amazon Q), and a per-tool boolean cannot tell which variant
+  // is installed — they are flagged as IDE since that is the common case.
+  requiresIdeRestart?: boolean;
 }
 
 export const AI_TOOLS: AIToolOption[] = [

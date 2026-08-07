@@ -743,6 +743,27 @@ describe('InitCommand', () => {
       expect(getConsoleOutput()).toContain('Restart your IDE');
     });
 
+    it('should word the restart hint for commands when an IDE tool gets a command surface', async () => {
+      // Default delivery generates commands for an adapter-backed IDE tool, so the
+      // hint must name commands, driven by the IDE tool's own generated surface.
+      const initCommand = new InitCommand({ tools: 'cursor', force: true });
+
+      await initCommand.execute(testDir);
+
+      expect(getConsoleOutput()).toContain('Restart your IDE for the new commands to take effect.');
+    });
+
+    it('should word the restart hint for skills when an IDE tool gets only a skill surface', async () => {
+      // Skills-only delivery generates no commands, so the same IDE tool must be
+      // told about skills, not commands.
+      saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'skills' });
+      const initCommand = new InitCommand({ tools: 'cursor', force: true });
+
+      await initCommand.execute(testDir);
+
+      expect(getConsoleOutput()).toContain('Restart your IDE for the new skills to take effect.');
+    });
+
     it('should create skills for multiple tools at once', async () => {
       const initCommand = new InitCommand({ tools: 'claude,cursor', force: true });
 
