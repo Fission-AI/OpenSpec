@@ -3561,32 +3561,44 @@ The system SHALL do the thing differently.
     it('should use select prompt for change selection', async () => {
       const { select } = await import('@inquirer/prompts');
       const mockSelect = select as unknown as ReturnType<typeof vi.fn>;
-      
-      // Create test changes
-      const change1 = 'feature-a';
-      const change2 = 'feature-b';
-      await fs.mkdir(path.join(tempDir, 'openspec', 'changes', change1), { recursive: true });
-      await fs.mkdir(path.join(tempDir, 'openspec', 'changes', change2), { recursive: true });
-      
-      // Mock select to return first change
-      mockSelect.mockResolvedValueOnce(change1);
-      
-      // Execute without change name
-      await archiveCommand.execute(undefined, { yes: true });
-      
-      // Verify select was called with correct options (values matter, names may include progress)
-      expect(mockSelect).toHaveBeenCalledWith(expect.objectContaining({
-        message: 'Select a change to archive',
-        choices: expect.arrayContaining([
-          expect.objectContaining({ value: change1 }),
-          expect.objectContaining({ value: change2 })
-        ])
-      }));
-      
-      // Verify the selected change was archived
-      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
-      const archives = await fs.readdir(archiveDir);
-      expect(archives[0]).toContain(change1);
+
+      // The interactive picker only runs at a real terminal (both streams TTY);
+      // otherwise archive refuses up front rather than render a menu into a pipe.
+      const originalStdinIsTty = process.stdin.isTTY;
+      const originalStdoutIsTty = process.stdout.isTTY;
+      Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true, writable: true });
+      Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true, writable: true });
+
+      try {
+        // Create test changes
+        const change1 = 'feature-a';
+        const change2 = 'feature-b';
+        await fs.mkdir(path.join(tempDir, 'openspec', 'changes', change1), { recursive: true });
+        await fs.mkdir(path.join(tempDir, 'openspec', 'changes', change2), { recursive: true });
+
+        // Mock select to return first change
+        mockSelect.mockResolvedValueOnce(change1);
+
+        // Execute without change name
+        await archiveCommand.execute(undefined, { yes: true });
+
+        // Verify select was called with correct options (values matter, names may include progress)
+        expect(mockSelect).toHaveBeenCalledWith(expect.objectContaining({
+          message: 'Select a change to archive',
+          choices: expect.arrayContaining([
+            expect.objectContaining({ value: change1 }),
+            expect.objectContaining({ value: change2 })
+          ])
+        }));
+
+        // Verify the selected change was archived
+        const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+        const archives = await fs.readdir(archiveDir);
+        expect(archives[0]).toContain(change1);
+      } finally {
+        Object.defineProperty(process.stdin, 'isTTY', { value: originalStdinIsTty, configurable: true, writable: true });
+        Object.defineProperty(process.stdout, 'isTTY', { value: originalStdoutIsTty, configurable: true, writable: true });
+      }
     });
 
     it('should use confirm prompt for task warnings', async () => {
@@ -6916,6 +6928,23 @@ This change exists to document greeting behavior thoroughly for the team, which 
         },
       });
       expect(console.log).not.toHaveBeenCalledWith('No change selected. Aborting.');
+    });
+
+    it('never renders the picker into a non-terminal, asking for a name instead (#1526)', async () => {
+      // The change picker uses @inquirer's select, which writes ANSI escapes to
+      // stdout even when redirected. A non-terminal run must refuse before any
+      // render — the select must never be reached — so a captured stdout stays
+      // clean instead of filling with cursor-move sequences.
+      const { select } = await import('@inquirer/prompts');
+      const mockSelect = select as unknown as ReturnType<typeof vi.fn>;
+      await fs.mkdir(path.join(tempDir, 'openspec', 'changes', 'some-change'), {
+        recursive: true,
+      });
+
+      await expect(archiveCommand.execute(undefined, { yes: true })).rejects.toMatchObject({
+        diagnostic: { code: 'archive_change_name_required' },
+      });
+      expect(mockSelect).not.toHaveBeenCalled();
     });
 
     it('carries the caller\'s flags into the change-name request too', async () => {

@@ -2010,6 +2010,19 @@ export class ArchiveCommand {
       return null;
     }
 
+    // A picker needs a real terminal, and @inquirer's `select` writes ANSI
+    // cursor escapes to stdout even when it is redirected — the same #1526
+    // mechanism the confirm prompts were fixed for. When either stream is not a
+    // TTY, refuse up front with the guidance the caught ExitPromptError would
+    // give, rather than render an escape-spewing menu into a pipe or file.
+    if (!process.stdin.isTTY || !process.stdout.isTTY) {
+      throw new ArchiveBlockedError(
+        'archive_change_name_required',
+        'A change name is required: no terminal is available to choose one from a list.',
+        withStoreFlag(root, `openspec archive <change-name> ${rerunFlags(options).join(' ')}`)
+      );
+    }
+
     // Build choices with progress inline to avoid duplicate lists
     let choices: Array<{ name: string; value: string }> = changeDirs.map(name => ({ name, value: name }));
     try {

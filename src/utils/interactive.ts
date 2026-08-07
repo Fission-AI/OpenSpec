@@ -112,15 +112,32 @@ function readYesNo(
 ): Promise<boolean> {
   return new Promise((resolve, reject) => {
     let settled = false;
+    // Detach the input-stream error listener on settle: `input` is the
+    // long-lived process.stdin, so a leftover listener would accumulate across
+    // archive's successive prompts and swallow a later, unrelated stdin error.
+    const cleanup = () => {
+      input.removeListener('error', onError);
+    };
     const blockOnNoAnswer = () => {
       if (settled) return;
       settled = true;
+      cleanup();
       // No line could be read (stdin closed / EOF). Mirror @inquirer's failure
       // so callers that classify it — isNonInteractivePromptError, the #1479
       // "rerun with --yes" guidance — keep working unchanged.
       const error = new Error('User force closed the prompt');
       error.name = 'ExitPromptError';
       reject(error);
+    };
+    // A stdin error surfaces on the interface (readline forwards input-stream
+    // errors since Node 16). Without a handler the promise would hang and the
+    // 'error' would go unhandled; settle it with the real fault instead.
+    const onError = (err: unknown) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      rl?.close();
+      reject(err instanceof Error ? err : new Error(String(err)));
     };
     // An earlier prompt may have already drained stdin (only one piped answer
     // was ever supported). A fresh readline over an ended stream never emits
@@ -133,20 +150,12 @@ function readYesNo(
     // terminal:false guarantees readline never emits its own line-editing
     // escapes — an escape-free read is the whole point here.
     const rl = createInterface({ input, terminal: false });
-    // A stdin error surfaces on the interface (readline forwards input-stream
-    // errors since Node 16). Without a handler the promise would hang and the
-    // 'error' would go unhandled; settle it with the real fault instead.
-    const onError = (err: unknown) => {
-      if (settled) return;
-      settled = true;
-      rl.close();
-      reject(err instanceof Error ? err : new Error(String(err)));
-    };
-    rl.once('error', onError);
     input.once('error', onError);
+    rl.once('error', onError);
     rl.once('line', (line) => {
       if (settled) return;
       settled = true;
+      cleanup();
       rl.close();
       output.write('\n');
       // Mirror @inquirer/confirm's parser (prefix match on y/yes and n/no,
