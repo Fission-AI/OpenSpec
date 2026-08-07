@@ -4,7 +4,7 @@ import { createRequire } from 'module';
 import ora from 'ora';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { promises as fs } from 'fs';
+import { existsSync, promises as fs } from 'fs';
 import { AI_TOOLS, TOOL_ID_ALIASES } from '../core/config.js';
 import { UpdateCommand } from '../core/update.js';
 import {
@@ -299,6 +299,9 @@ program
       const root = await resolveRootForCommand(options ?? {}, {
         json: options?.json,
         failurePayload: options?.specs ? { specs: [], root: null } : { changes: [], root: null },
+        // Preserve the cwd fallback for pre-config.yaml projects. The resolver
+        // still lets a registered/default store take precedence over it.
+        allowImplicitRoot: existsSync(path.join(process.cwd(), 'openspec', 'project.md')),
       });
       if (!root) {
         return;
