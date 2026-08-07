@@ -105,6 +105,12 @@ async function countSingleTopLevelTasksFile(changeDir: string): Promise<TaskProg
   }
 }
 
+/** Resolves the task files selected by the schema's apply tracking rule. */
+export function resolveTaskFilesForChange(changeDir: string, projectRoot: string): string[] {
+  const generates = resolveTrackedTasksGlob(changeDir, projectRoot);
+  return generates ? resolveArtifactOutputs(changeDir, generates) : [];
+}
+
 /**
  * Computes a change's task progress by resolving its tracked-tasks artifact and
  * counting checkboxes across every file matched by that artifact's `generates`
@@ -120,25 +126,21 @@ export async function getTaskProgressForChange(
   projectRoot: string
 ): Promise<TaskProgress> {
   const changeDir = path.join(changesDir, changeName);
-
-  const generates = resolveTrackedTasksGlob(changeDir, projectRoot);
-  if (generates) {
-    const files = resolveArtifactOutputs(changeDir, generates);
-    if (files.length > 0) {
-      let total = 0;
-      let completed = 0;
-      for (const file of files) {
-        try {
-          const content = await fs.readFile(file, 'utf-8');
-          const progress = countTasksFromContent(content);
-          total += progress.total;
-          completed += progress.completed;
-        } catch {
-          // Swallow files that vanish between glob and read, as before.
-        }
+  const files = resolveTaskFilesForChange(changeDir, projectRoot);
+  if (files.length > 0) {
+    let total = 0;
+    let completed = 0;
+    for (const file of files) {
+      try {
+        const content = await fs.readFile(file, 'utf-8');
+        const progress = countTasksFromContent(content);
+        total += progress.total;
+        completed += progress.completed;
+      } catch {
+        // Swallow files that vanish between glob and read, as before.
       }
-      return { total, completed };
     }
+    return { total, completed };
   }
 
   return countSingleTopLevelTasksFile(changeDir);
