@@ -95,20 +95,38 @@ function resolveTrackedTasksGlob(changeDir: string, projectRoot: string): string
   }
 }
 
-async function countSingleTopLevelTasksFile(changeDir: string): Promise<TaskProgress> {
-  const tasksPath = path.join(changeDir, 'tasks.md');
-  try {
-    const content = await fs.readFile(tasksPath, 'utf-8');
-    return countTasksFromContent(content);
-  } catch {
-    return { total: 0, completed: 0 };
-  }
-}
-
 /** Resolves the task files selected by the schema's apply tracking rule. */
 export function resolveTaskFilesForChange(changeDir: string, projectRoot: string): string[] {
   const generates = resolveTrackedTasksGlob(changeDir, projectRoot);
   return generates ? resolveArtifactOutputs(changeDir, generates) : [];
+}
+
+export interface TaskProgressDetail extends TaskProgress {
+  /**
+   * Task files that exist but could not be read (any error other than ENOENT).
+   * `getTaskProgressForChange` discards this list to preserve its behavior;
+   * callers that must fail loudly on an unreadable tasks file — e.g.
+   * `openspec validate --archived` — read it so an unreadable file is never
+   * silently counted as "no tasks" (#205).
+   */
+  unreadable: string[];
+}
+
+/**
+ * Reads one task file and counts its checkboxes. ENOENT (a glob file that
+ * vanished between resolve and read, or the absent single top-level `tasks.md`)
+ * means zero tasks, exactly as before. Any other error (permissions, I/O,
+ * ENOTDIR) is recorded in `unreadable` so a caller can surface it; the count
+ * still contributes zero, so existing callers see no change.
+ */
+async function countTaskFile(file: string, unreadable: string[]): Promise<TaskProgress> {
+  try {
+    const content = await fs.readFile(file, 'utf-8');
+    return countTasksFromContent(content);
+  } catch (error: any) {
+    if (error?.code !== 'ENOENT') unreadable.push(file);
+    return { total: 0, completed: 0 };
+  }
 }
 
 /**
@@ -118,32 +136,44 @@ export function resolveTaskFilesForChange(changeDir: string, projectRoot: string
  * artifact (`resolveArtifactOutputs`) — so progress is no longer blind to nested
  * `tasks.md` files (#1202). Falls back to a single top-level `tasks.md` (exactly
  * as before) when the schema is unresolvable, no tracked-tasks artifact is found,
- * or the glob matches no file. Never throws.
+ * or the glob matches no file. Also reports task files that exist but could not
+ * be read. Never throws.
+ */
+export async function getTaskProgressDetailForChange(
+  changesDir: string,
+  changeName: string,
+  projectRoot: string
+): Promise<TaskProgressDetail> {
+  const changeDir = path.join(changesDir, changeName);
+  const files = resolveTaskFilesForChange(changeDir, projectRoot);
+  const targets = files.length > 0 ? files : [path.join(changeDir, 'tasks.md')];
+  const unreadable: string[] = [];
+  let total = 0;
+  let completed = 0;
+  for (const file of targets) {
+    const progress = await countTaskFile(file, unreadable);
+    total += progress.total;
+    completed += progress.completed;
+  }
+  return { total, completed, unreadable };
+}
+
+/**
+ * The task-completion counter `status`, `list`, and `archive` share. Delegates
+ * to `getTaskProgressDetailForChange` and drops the `unreadable` detail, so its
+ * returned totals are unchanged. Never throws.
  */
 export async function getTaskProgressForChange(
   changesDir: string,
   changeName: string,
   projectRoot: string
 ): Promise<TaskProgress> {
-  const changeDir = path.join(changesDir, changeName);
-  const files = resolveTaskFilesForChange(changeDir, projectRoot);
-  if (files.length > 0) {
-    let total = 0;
-    let completed = 0;
-    for (const file of files) {
-      try {
-        const content = await fs.readFile(file, 'utf-8');
-        const progress = countTasksFromContent(content);
-        total += progress.total;
-        completed += progress.completed;
-      } catch {
-        // Swallow files that vanish between glob and read, as before.
-      }
-    }
-    return { total, completed };
-  }
-
-  return countSingleTopLevelTasksFile(changeDir);
+  const { total, completed } = await getTaskProgressDetailForChange(
+    changesDir,
+    changeName,
+    projectRoot
+  );
+  return { total, completed };
 }
 
 export function formatTaskStatus(progress: TaskProgress): string {

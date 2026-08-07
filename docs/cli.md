@@ -553,7 +553,7 @@ A change with zero spec deltas fails validation unless its `.openspec.yaml` decl
 | `--all` | Validate all changes and specs |
 | `--changes` | Validate all changes |
 | `--specs` | Validate all specs |
-| `--archived` | Check that archived changes have all tasks completed (for pre-commit linting) |
+| `--archived` | Validate that archived changes have all tasks completed (for pre-commit linting) |
 | `--type <type>` | Specify type when name is ambiguous: `change` or `spec` |
 | `--strict` | Enable strict validation mode |
 | `--json` | Output as JSON |

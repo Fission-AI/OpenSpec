@@ -14,7 +14,7 @@ import { getSpecIds } from '../utils/item-discovery.js';
 import { getAvailableChanges } from './workflow/shared.js';
 import { nearestMatches } from '../utils/match.js';
 import { promises as fs } from 'fs';
-import { getTaskProgressForChange } from '../utils/task-progress.js';
+import { getTaskProgressDetailForChange } from '../utils/task-progress.js';
 
 type ItemType = 'change' | 'spec';
 
@@ -407,6 +407,11 @@ export class ValidateCommand {
    * Lists archived change ids from the resolved root's archive directory,
    * mirroring `getArchivedChangeIds` but store-aware (uses `root.archiveDir`
    * rather than a cwd-relative path). Directories only, hidden entries skipped.
+   *
+   * Only a missing archive directory (ENOENT) is an empty list; a permission
+   * error, an I/O error, or an `archive` path that is a file (ENOTDIR) is a real
+   * failure and must not read as "no archived changes" — that would let a
+   * pre-commit lint pass without inspecting anything (#205).
    */
   private async listArchivedChangeIds(root: ResolvedOpenSpecRoot): Promise<string[]> {
     try {
@@ -415,8 +420,9 @@ export class ValidateCommand {
         .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
         .map((entry) => entry.name)
         .sort();
-    } catch {
-      return [];
+    } catch (error: any) {
+      if (error?.code === 'ENOENT') return [];
+      throw error;
     }
   }
 
@@ -434,8 +440,10 @@ export class ValidateCommand {
     root: ResolvedOpenSpecRoot,
     opts: { json: boolean; noInteractive?: boolean }
   ): Promise<void> {
-    const spinner = !opts.json && !opts.noInteractive ? ora('Validating archived changes...').start() : undefined;
+    // List first (may throw on a real archive-read failure), then start the
+    // spinner so a thrown error never leaves a spinner spinning.
     const ids = await this.listArchivedChangeIds(root);
+    const spinner = !opts.json && !opts.noInteractive ? ora('Validating archived changes...').start() : undefined;
 
     const results: BulkItemResult[] = [];
     let passed = 0;
@@ -444,7 +452,19 @@ export class ValidateCommand {
       const start = Date.now();
       const issues: BulkItemResult['issues'] = [];
       try {
-        const progress = await getTaskProgressForChange(root.archiveDir, id, root.path);
+        const progress = await getTaskProgressDetailForChange(root.archiveDir, id, root.path);
+        // A tasks file that exists but cannot be read must fail loudly, not be
+        // silently counted as "no tasks" and pass.
+        if (progress.unreadable.length > 0) {
+          const files = progress.unreadable
+            .map((file) => path.relative(root.path, file))
+            .join(', ');
+          issues.push({
+            level: 'ERROR',
+            path: 'tasks',
+            message: `could not read task file${progress.unreadable.length === 1 ? '' : 's'}: ${files}`,
+          });
+        }
         const incomplete = Math.max(progress.total - progress.completed, 0);
         if (incomplete > 0) {
           issues.push({

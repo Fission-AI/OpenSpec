@@ -101,4 +101,55 @@ describe('openspec validate --archived checks archived task completion (#205)', 
     expect(result.stdout).toContain('No archived changes found.');
     await fs.rm(emptyDir, { recursive: true, force: true });
   });
+
+  it('fails instead of passing silently when the archive path is not a directory', async () => {
+    const dir = await fs.mkdtemp(path.join(tmpdir(), 'openspec-archive-notdir-e2e-'));
+    await fs.mkdir(path.join(dir, 'openspec', 'changes'), { recursive: true });
+    await fs.mkdir(path.join(dir, 'openspec', 'specs'), { recursive: true });
+    // A real read failure (ENOTDIR) must not read as "no archived changes".
+    await fs.writeFile(
+      path.join(dir, 'openspec', 'changes', 'archive'),
+      'not a directory\n'
+    );
+
+    const result = await runCLI(['validate', '--archived'], { cwd: dir });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).not.toContain('No archived changes found.');
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  it('fails when an archived tasks file exists but cannot be read', async () => {
+    const dir = await fs.mkdtemp(path.join(tmpdir(), 'openspec-archive-unreadable-e2e-'));
+    await fs.mkdir(path.join(dir, 'openspec', 'specs'), { recursive: true });
+    // A tasks.md that is a directory triggers a non-ENOENT read error (EISDIR)
+    // on every platform, standing in for a genuinely unreadable file. It must
+    // be reported, not silently counted as "no tasks".
+    await fs.mkdir(
+      path.join(
+        dir,
+        'openspec/changes/archive/unreadable-change/tasks.md'
+      ),
+      { recursive: true }
+    );
+
+    const result = await runCLI(['validate', '--archived', '--json'], {
+      cwd: dir,
+    });
+
+    expect(result.exitCode).toBe(1);
+    const report = JSON.parse(result.stdout);
+    const item = report.items.find(
+      (i: { id: string }) => i.id === 'unreadable-change'
+    );
+    expect(item.valid).toBe(false);
+    expect(item.issues[0]).toEqual(
+      expect.objectContaining({
+        level: 'ERROR',
+        path: 'tasks',
+        message: expect.stringContaining('could not read'),
+      })
+    );
+    await fs.rm(dir, { recursive: true, force: true });
+  });
 });
