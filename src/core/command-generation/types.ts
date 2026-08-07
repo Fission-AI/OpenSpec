@@ -40,6 +40,13 @@ export interface ToolCommandAdapter {
    */
   getFilePath(commandId: string): string;
   /**
+   * What the user types before the command name, when it is not the default
+   * `/`. Amazon Q loads these files into its prompt library, which is invoked
+   * with `@` (`@opsx-propose`), so its adapter sets '@'. The name itself is
+   * still derived from getFilePath — see invocation.ts.
+   */
+  invocationPrefix?: string;
+  /**
    * Formats the complete file content including frontmatter.
    * @param content - The tool-agnostic command content
    * @returns Complete file content ready to write

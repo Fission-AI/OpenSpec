@@ -279,9 +279,11 @@ The system SHALL do B.
       const report = await new Validator().validateSpec(specPath);
 
       expect(report.valid).toBe(false);
-      expect(
-        report.issues.some(i => i.level === 'ERROR' && i.message.includes('Main spec contains delta header'))
-      ).toBe(true);
+      const deltaHeaderIssue = report.issues.find(
+        i => i.level === 'ERROR' && i.message.includes('Main spec contains delta header')
+      );
+      expect(deltaHeaderIssue).toBeDefined();
+      expect(deltaHeaderIssue?.message).toContain('specs/<capability-path>/spec.md');
       expect(
         report.issues.some(i => i.level === 'ERROR' && i.message.includes('Requirement header "### Requirement: B" appears outside'))
       ).toBe(true);
@@ -446,6 +448,63 @@ Then result`;
   });
 
   describe('validateChangeDeltaSpecs with metadata', () => {
+    it('rejects a delta that both renames and removes the same requirement', async () => {
+      // Parity with archive: apply-time rejects this contradiction, so
+      // validate must flag it too instead of reporting the change as valid.
+      const changeDir = path.join(testDir, 'rename-remove-conflict');
+      const specsDir = path.join(changeDir, 'specs', 'test-spec');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      const deltaSpec = `# Test Spec
+
+## RENAMED Requirements
+
+- FROM: \`### Requirement: Old name\`
+- TO: \`### Requirement: New name\`
+
+## REMOVED Requirements
+
+### Requirement: Old name`;
+
+      await fs.writeFile(path.join(specsDir, 'spec.md'), deltaSpec);
+
+      const validator = new Validator(true);
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(false);
+      const msg = report.issues.map((i) => i.message).join('\n');
+      expect(msg).toContain('Requirement present in both RENAMED and REMOVED: "Old name"');
+    });
+
+    it('rejects a case/whitespace variant of the renamed FROM header in REMOVED', async () => {
+      // The contradiction is the same when REMOVED spells the FROM header
+      // with different case or spacing - the folded identity must catch it.
+      const changeDir = path.join(testDir, 'rename-remove-case-conflict');
+      const specsDir = path.join(changeDir, 'specs', 'test-spec');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      const deltaSpec = `# Test Spec
+
+## RENAMED Requirements
+
+- FROM: \`### Requirement: Old Name\`
+- TO: \`### Requirement: New Name\`
+
+## REMOVED Requirements
+
+### Requirement: old   name`;
+
+      await fs.writeFile(path.join(specsDir, 'spec.md'), deltaSpec);
+
+      const validator = new Validator(true);
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(false);
+      const msg = report.issues.map((i) => i.message).join('\n');
+      expect(msg).toContain('Requirement present in both RENAMED and REMOVED: "Old Name"');
+      expect(msg).toContain('(REMOVED spells it "old   name")');
+    });
+
     it('should validate requirement with metadata before SHALL/MUST text', async () => {
       const changeDir = path.join(testDir, 'test-change');
       const specsDir = path.join(changeDir, 'specs', 'test-spec');
@@ -529,9 +588,11 @@ The system SHALL record request metrics.
       const report = await validator.validateChangeDeltaSpecs(changeDir);
 
       expect(report.valid).toBe(false);
-      expect(
-        report.issues.some(i => i.message.includes('Delta spec found at specs/spec.md'))
-      ).toBe(true);
+      const rootDeltaIssue = report.issues.find(
+        i => i.message.includes('Delta spec found at specs/spec.md')
+      );
+      expect(rootDeltaIssue).toBeDefined();
+      expect(rootDeltaIssue?.message).toContain('specs/<capability-path>/spec.md');
       // The precise error replaces the generic one, which would otherwise say
       // "No deltas found" about a file it just named.
       expect(report.issues.some(i => i.message.includes('No deltas found'))).toBe(false);
@@ -584,7 +645,7 @@ The system SHALL record request metrics.
       expect(report.summary.errors).toBe(0);
     });
 
-    it('should fail when requirement text lacks SHALL/MUST', async () => {
+    it('should fail strict validation when requirement text lacks SHALL/MUST', async () => {
       const changeDir = path.join(testDir, 'test-change-3');
       const specsDir = path.join(changeDir, 'specs', 'test-spec');
       await fs.mkdir(specsDir, { recursive: true });
@@ -606,13 +667,53 @@ The system will log all events.
       const specPath = path.join(specsDir, 'spec.md');
       await fs.writeFile(specPath, deltaSpec);
 
-      const validator = new Validator(true);
-      const report = await validator.validateChangeDeltaSpecs(changeDir);
+      const normalReport = await new Validator().validateChangeDeltaSpecs(changeDir);
+      expect(normalReport.valid).toBe(true);
+      expect(normalReport.summary.errors).toBe(0);
+      expect(normalReport.summary.warnings).toBe(1);
 
+      const report = await new Validator(true).validateChangeDeltaSpecs(changeDir);
       expect(report.valid).toBe(false);
-      expect(report.summary.errors).toBeGreaterThan(0);
-      expect(report.issues.some(i => i.message.includes('must contain SHALL or MUST'))).toBe(true);
+      expect(report.summary.errors).toBe(0);
+      expect(report.summary.warnings).toBe(1);
+      expect(
+        report.issues.some(
+          i => i.level === 'WARNING' && i.message.includes('should contain SHALL or MUST')
+        )
+      ).toBe(true);
     });
+
+    it.each(['ADDED', 'MODIFIED'] as const)(
+      'should keep missing requirement text as an error for %s requirements',
+      async operation => {
+        const changeDir = path.join(testDir, `test-change-missing-${operation.toLowerCase()}-text`);
+        const specsDir = path.join(changeDir, 'specs', 'test-spec');
+        await fs.mkdir(specsDir, { recursive: true });
+        await fs.writeFile(
+          path.join(specsDir, 'spec.md'),
+          `# Test Spec
+
+## ${operation} Requirements
+
+### Requirement: Logging Feature
+
+#### Scenario: Event occurs
+- **WHEN** an event occurs
+- **THEN** it is logged`
+        );
+
+        const report = await new Validator().validateChangeDeltaSpecs(changeDir);
+        expect(report.valid).toBe(false);
+        expect(report.summary.errors).toBe(1);
+        expect(report.summary.warnings).toBe(0);
+        expect(report.issues).toContainEqual(
+          expect.objectContaining({
+            level: 'ERROR',
+            message: expect.stringContaining('missing requirement text'),
+          })
+        );
+      }
+    );
 
     it('should hint the author when ADDED requirement only has SHALL/MUST in the header', async () => {
       const changeDir = path.join(testDir, 'test-change-shall-in-header-added');
@@ -638,7 +739,8 @@ Error handling logic goes here.
       const report = await validator.validateChangeDeltaSpecs(changeDir);
 
       expect(report.valid).toBe(false);
-      const shallMessage = report.issues.find(i => i.message.includes('must contain SHALL or MUST'));
+      const shallMessage = report.issues.find(i => i.message.includes('should contain SHALL or MUST'));
+      expect(shallMessage?.level).toBe('WARNING');
       expect(shallMessage?.message).toContain('not only in the header');
       expect(shallMessage?.message).toContain('### Requirement:');
     });
@@ -667,12 +769,13 @@ Please describe how validation should work here.
       const report = await validator.validateChangeDeltaSpecs(changeDir);
 
       expect(report.valid).toBe(false);
-      const shallMessage = report.issues.find(i => i.message.includes('must contain SHALL or MUST'));
+      const shallMessage = report.issues.find(i => i.message.includes('should contain SHALL or MUST'));
+      expect(shallMessage?.level).toBe('WARNING');
       expect(shallMessage?.message).toContain('not only in the header');
       expect(shallMessage?.message).toContain('### Requirement:');
     });
 
-    it('should keep the generic SHALL/MUST error when neither header nor body contain the keyword', async () => {
+    it('should keep generic SHALL/MUST guidance when neither header nor body contain the keyword', async () => {
       const changeDir = path.join(testDir, 'test-change-shall-nowhere');
       const specsDir = path.join(changeDir, 'specs', 'test-spec');
       await fs.mkdir(specsDir, { recursive: true });
@@ -696,7 +799,8 @@ The system will log all events.
       const report = await validator.validateChangeDeltaSpecs(changeDir);
 
       expect(report.valid).toBe(false);
-      const shallMessage = report.issues.find(i => i.message.includes('must contain SHALL or MUST'));
+      const shallMessage = report.issues.find(i => i.message.includes('should contain SHALL or MUST'));
+      expect(shallMessage?.level).toBe('WARNING');
       expect(shallMessage?.message).not.toContain('not only in the header');
     });
 
@@ -861,7 +965,7 @@ The system MUST support mixed case delta headers.
   // actionable sentence byte-identical to the change-delta path, emitted once.
   describe('main-spec SHALL/MUST body-keyword hint (#1156)', () => {
     const ACTIONABLE_SENTENCE =
-      'must contain SHALL or MUST in the requirement body, not only in the header. Move the SHALL/MUST statement to the line immediately after the "### Requirement: ..." header.';
+      'should contain SHALL or MUST in the requirement body, not only in the header. Move the SHALL/MUST statement to the line immediately after the "### Requirement: ..." header. (RFC 2119 best practice for English specs)';
 
     const buildSpec = (requirementBlock: string): string =>
       [
@@ -910,7 +1014,7 @@ The system MUST support mixed case delta headers.
       expect(deltaMsg.startsWith('ADDED "The system SHALL log"')).toBe(true);
     });
 
-    it('keeps a generic missing-keyword error when neither header nor body has the keyword', async () => {
+    it('keeps generic missing-keyword guidance when neither header nor body has the keyword', async () => {
       const content = buildSpec(
         '### Requirement: Logging\nThe system will log all events.\n\n#### Scenario: S\n- **WHEN** x\n- **THEN** y'
       );
@@ -918,6 +1022,20 @@ The system MUST support mixed case delta headers.
       const issues = shallIssues(report.issues);
       expect(issues).toHaveLength(1);
       expect(issues[0].message).not.toContain('not only in the header');
+    });
+
+    it('allows non-English requirement text in normal mode and warns about English keywords', async () => {
+      const content = buildSpec(
+        '### Requirement: 事件记录\n系统必须记录应用程序中的重要事件。\n\n#### Scenario: 事件发生\n- **WHEN** 应用程序生成重要事件\n- **THEN** 系统保存该事件'
+      );
+      const report = await new Validator().validateSpecContent('demo', content);
+      const issues = report.issues.filter(i => i.message.includes('SHALL or MUST'));
+
+      expect(report.valid).toBe(true);
+      expect(report.summary.errors).toBe(0);
+      expect(issues).toHaveLength(1);
+      expect(issues[0].level).toBe('WARNING');
+      expect(issues[0].message).toContain('best practice for English specs');
     });
 
     it('does not flag a requirement whose body line contains the keyword', async () => {
@@ -942,7 +1060,11 @@ The system MUST support mixed case delta headers.
       );
       const report = await new Validator().validateSpecContent('demo', content);
       const issues = shallIssues(report.issues);
+      expect(report.valid).toBe(false);
+      expect(report.summary.errors).toBe(1);
+      expect(report.summary.warnings).toBe(0);
       expect(issues).toHaveLength(1);
+      expect(issues[0].level).toBe('ERROR');
       expect(issues[0].message).toContain('not only in the header');
     });
 
@@ -1183,7 +1305,9 @@ ${body}`;
       // The metadata IS the body when nothing else remains, so the failure is
       // the missing keyword, not missing text.
       expect(
-        report.issues.some(i => i.message.includes('must contain SHALL or MUST'))
+        report.issues.some(
+          i => i.level === 'WARNING' && i.message.includes('should contain SHALL or MUST')
+        )
       ).toBe(true);
     });
 
@@ -1270,7 +1394,9 @@ These notes explain that the system MUST NOT be read as requirement text.
       // and the skipped divider is surfaced as INFO.
       expect(report.valid).toBe(false);
       expect(
-        report.issues.some(i => i.level === 'ERROR' && i.message.includes('must contain SHALL or MUST'))
+        report.issues.some(
+          i => i.level === 'WARNING' && i.message.includes('should contain SHALL or MUST')
+        )
       ).toBe(true);
       expect(
         report.issues.some(i => i.level === 'INFO' && i.message.includes('"### Background"'))

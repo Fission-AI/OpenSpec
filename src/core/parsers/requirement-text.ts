@@ -9,60 +9,10 @@
  * `validate <change>`, `validate <spec>`, and `archive`.
  */
 
-/**
- * Build a per-line mask marking lines that fall inside a fenced code block
- * (``` ``` ``` or ``` ~~~ ```), including the fence lines themselves. Mirrors the
- * fence rules markdown uses: a fence opens on the first ```` ```/~~~ ```` of
- * length >= 3 and closes on a line of the same marker whose length is >= the
- * opening length, with nothing but whitespace after it.
- */
-export function buildCodeFenceMask(lines: string[]): boolean[] {
-  const mask = new Array(lines.length).fill(false);
-  let activeFence: { marker: '`' | '~'; length: number } | null = null;
-
-  for (let i = 0; i < lines.length; i++) {
-    const fence = getFenceMarker(lines[i]);
-
-    if (!activeFence) {
-      if (fence) {
-        activeFence = fence;
-        mask[i] = true;
-      }
-      continue;
-    }
-
-    mask[i] = true;
-    if (isClosingFence(lines[i], activeFence)) {
-      activeFence = null;
-    }
-  }
-
-  return mask;
-}
-
-function getFenceMarker(line: string): { marker: '`' | '~'; length: number } | null {
-  const fenceMatch = line.match(/^\s*(`{3,}|~{3,})/);
-  if (!fenceMatch) {
-    return null;
-  }
-
-  return {
-    marker: fenceMatch[1][0] as '`' | '~',
-    length: fenceMatch[1].length,
-  };
-}
-
-function isClosingFence(
-  line: string,
-  activeFence: { marker: '`' | '~'; length: number }
-): boolean {
-  const fenceMatch = line.match(/^\s*(`{3,}|~{3,})\s*$/);
-  return Boolean(
-    fenceMatch &&
-    fenceMatch[1][0] === activeFence.marker &&
-    fenceMatch[1].length >= activeFence.length
-  );
-}
+// Re-exported so existing importers keep working; the single implementation
+// lives in code-fence.ts.
+export { buildCodeFenceMask } from './code-fence.js';
+import { buildCodeFenceMask } from './code-fence.js';
 
 /** Lines that look like `**ID**: ...` / `**Priority**: ...` metadata. */
 const METADATA_LINE = /^\*\*[^*]+\*\*:/;

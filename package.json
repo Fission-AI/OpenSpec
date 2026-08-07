@@ -1,6 +1,6 @@
 {
   "name": "@fission-ai/openspec",
-  "version": "1.6.0",
+  "version": "1.8.0",
   "description": "AI-native system for spec-driven development",
   "keywords": [
     "openspec",
@@ -43,6 +43,7 @@
     "lint": "eslint src/",
     "build": "node build.js",
     "generate:skills": "node scripts/generate-skillssh.mjs",
+    "regen:parity-hashes": "node scripts/regen-parity-hashes.mjs",
     "dev": "tsc --watch",
     "dev:cli": "pnpm build && node bin/openspec.js",
     "test": "vitest run",
@@ -62,25 +63,34 @@
     "node": ">=20.19.0"
   },
   "devDependencies": {
-    "@changesets/changelog-github": "^0.5.2",
-    "@changesets/cli": "^2.27.7",
-    "@types/node": "^24.2.0",
+    "@changesets/changelog-github": "^0.7.0",
+    "@changesets/cli": "^2.31.1",
+    "@types/node": "^20.19.43",
     "@vitest/ui": "^3.2.6",
-    "eslint": "^9.39.2",
-    "typescript": "^5.9.3",
-    "typescript-eslint": "^8.62.0",
+    "eslint": "^10.5.0",
+    "smol-toml": "^1.7.1",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.65.0",
     "vitest": "^3.2.6"
   },
   "dependencies": {
     "@inquirer/core": "^10.3.2",
     "@inquirer/prompts": "^7.10.1",
-    "chalk": "^5.5.0",
+    "chalk": "^5.6.2",
     "commander": "^14.0.0",
     "cross-spawn": "7.0.6",
     "fast-glob": "^3.3.3",
-    "ora": "^8.2.0",
-    "posthog-node": "^5.20.0",
-    "yaml": "^2.8.2",
-    "zod": "^4.0.17"
+    "ora": "^9.4.1",
+    "yaml": "^2.8.3",
+    "zod": "^4.4.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ],
+    "overrides": {
+      "brace-expansion@<=5.0.8": ">=5.0.9 <6",
+      "postcss@<8.5.23": ">=8.5.23 <9"
+    }
   }
 }

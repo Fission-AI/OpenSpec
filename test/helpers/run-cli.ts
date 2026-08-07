@@ -1,5 +1,6 @@
 import { type ChildProcess, spawn } from 'child_process';
-import { existsSync } from 'fs';
+import { existsSync, promises as fs } from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -138,6 +139,11 @@ export async function runCLI(args: string[] = [], options: RunCLIOptions = {}): 
 
   const finalArgs = Array.isArray(args) ? args : [args];
   const invocation = [cliEntry, ...finalArgs].join(' ');
+  const explicitConfigHome = options.env?.XDG_CONFIG_HOME;
+  const isolatedConfigHome =
+    explicitConfigHome !== undefined
+      ? undefined
+      : await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-cli-config-'));
 
   return new Promise<RunCLIResult>((resolve, reject) => {
     const timeoutMs = options.timeoutMs ?? DEFAULT_CLI_TIMEOUT_MS;
@@ -148,6 +154,7 @@ export async function runCLI(args: string[] = [], options: RunCLIOptions = {}): 
         {
           OPENSPEC_TELEMETRY: '0',
           OPEN_SPEC_INTERACTIVE: '0',
+          XDG_CONFIG_HOME: explicitConfigHome ?? isolatedConfigHome,
         },
         options.env
       ),
@@ -224,6 +231,11 @@ export async function runCLI(args: string[] = [], options: RunCLIOptions = {}): 
       child.stdin.end(options.input);
     } else if (child.stdin) {
       child.stdin.end();
+    }
+  }).finally(async () => {
+    if (isolatedConfigHome) {
+      // Never let cleanup replace the CLI result or a genuine CLI failure.
+      await fs.rm(isolatedConfigHome, { recursive: true, force: true }).catch(() => {});
     }
   });
 }

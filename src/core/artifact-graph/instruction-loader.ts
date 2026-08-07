@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import { getSchemaDir, resolveSchema, listSchemasWithInfo } from './resolver.js';
 import { ArtifactGraph } from './graph.js';
 import { detectCompleted } from './state.js';
-import { resolveArtifactOutputs } from './outputs.js';
+import { resolveArtifactOutputPath, resolveArtifactOutputs } from './outputs.js';
 import { readChangeMetadata, resolveSchemaForChange } from '../../utils/change-metadata.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import {
@@ -55,11 +55,19 @@ export interface ChangeContext {
   planningHome?: PlanningHome;
   /** Parsed change metadata, when present */
   metadata?: ChangeMetadata;
+  /**
+   * Artifact IDs counted as complete only because the change declares
+   * skip_specs, not because their files exist. Kept separate so status can
+   * render them as skipped rather than done.
+   */
+  skippedArtifacts?: Set<string>;
 }
 
 export interface LoadChangeContextOptions {
   changeDir?: string;
   planningHome?: PlanningHome;
+  /** Pre-read project config; suppresses schema resolution's fallback config read. */
+  projectConfig?: ProjectConfig | null;
 }
 
 /**
@@ -98,7 +106,20 @@ export interface ArtifactInstructions {
   dependencies: DependencyInfo[];
   /** Artifacts that become available after completing this one */
   unlocks: string[];
+  /** True when the change declares skip_specs and this artifact is skipped */
+  skipped?: boolean;
+  /** Present only when skipped: tells the consumer not to create the artifact */
+  warning?: string;
 }
+
+/**
+ * Warning attached to instructions for an artifact skipped via skip_specs.
+ * Carried in the JSON payload too, so agents driving the CLI with --json see
+ * the same do-not-create signal as the text output.
+ */
+export const SKIP_SPECS_INSTRUCTIONS_WARNING =
+  'This change declares skip_specs: true in .openspec.yaml (no spec-level behavior changes), so this artifact is skipped.\n' +
+  'Do not create spec files - they will conflict with that marker. If requirements now change, remove skip_specs from .openspec.yaml and rerun this command.';
 
 /**
  * Dependency information including path and description.
@@ -112,6 +133,8 @@ export interface DependencyInfo {
   path: string;
   /** Description of the dependency artifact */
   description: string;
+  /** True when the dependency is satisfied via skip_specs - no files exist to read */
+  skipped?: boolean;
 }
 
 /**
@@ -122,8 +145,13 @@ export interface ArtifactStatus {
   id: string;
   /** Output path pattern */
   outputPath: string;
-  /** Status: done, ready, or blocked */
-  status: 'done' | 'ready' | 'blocked';
+  /** Status: done, skipped (via skip_specs), ready, or blocked */
+  status: 'done' | 'skipped' | 'ready' | 'blocked';
+  /** Artifact IDs this artifact directly requires (its `requires` edges).
+   * Present for every status so callers can compute the transitive required
+   * set even when the artifact is already `done` (file-existence status does
+   * not imply its dependencies exist). */
+  requires: string[];
   /** Missing dependencies (only for blocked) */
   missingDeps?: string[];
 }
@@ -147,7 +175,9 @@ export interface ChangeStatus {
   nextSteps: string[];
   /** Machine-readable action constraints for agents */
   actionContext: ActionContext;
-  /** Whether all artifacts are complete */
+  /** Whether all planning artifacts are complete */
+  isPlanningComplete: boolean;
+  /** Compatibility alias for isPlanningComplete */
   isComplete: boolean;
   /** Artifact IDs required before apply phase (from schema's apply.requires) */
   applyRequires: string[];
@@ -183,7 +213,17 @@ export function loadTemplate(
     );
   }
 
-  const templatePathOnDisk = path.join(schemaDir, 'templates', templatePath);
+  const templatesDir = path.join(schemaDir, 'templates');
+  const templatePathOnDisk = path.join(templatesDir, templatePath);
+
+  try {
+    FileSystemUtils.assertPathWithin(templatesDir, templatePathOnDisk);
+  } catch (error) {
+    throw new TemplateLoadError(
+      error instanceof Error ? error.message : String(error),
+      templatePathOnDisk
+    );
+  }
 
   if (!fs.existsSync(templatePathOnDisk)) {
     throw new TemplateLoadError(
@@ -231,11 +271,31 @@ export function loadChangeContext(
   const metadata = readChangeMetadata(changeDir, projectRoot) ?? undefined;
   const resolvedSchemaName = resolveSchemaForChange(changeDir, schemaName, projectRoot, {
     metadata: metadata ?? null,
+    projectConfig: options.projectConfig,
   });
 
   const schema = resolveSchema(resolvedSchemaName, projectRoot);
   const graph = ArtifactGraph.fromSchema(schema);
   const completed = detectCompleted(graph, changeDir);
+
+  // A change that declares skip_specs has no spec deltas by design, so
+  // artifacts generating into specs/ count as complete; otherwise the graph
+  // would block their dependents (e.g. tasks) on files that must not exist.
+  // Tracked separately so status renders them as skipped, not done.
+  const skippedArtifacts = new Set<string>();
+  if (metadata?.skip_specs) {
+    for (const artifact of graph.getAllArtifacts()) {
+      // A schema may write generates as './specs/...' - the globs treat that
+      // identically to 'specs/...', so the skip set must too, or validate
+      // would honor the marker while instructions tell the agent to create
+      // the very files the conflict gate polices.
+      const generates = artifact.generates.replace(/^(?:\.\/)+/, '');
+      if (generates.startsWith('specs/') && !completed.has(artifact.id)) {
+        completed.add(artifact.id);
+        skippedArtifacts.add(artifact.id);
+      }
+    }
+  }
 
   return {
     graph,
@@ -246,6 +306,7 @@ export function loadChangeContext(
     projectRoot,
     ...(options.planningHome ? { planningHome: options.planningHome } : {}),
     ...(metadata ? { metadata } : {}),
+    ...(skippedArtifacts.size > 0 ? { skippedArtifacts } : {}),
   };
 }
 
@@ -282,7 +343,7 @@ export function generateInstructions(
   }
 
   const templateContent = loadTemplate(context.schemaName, artifact.template, context.projectRoot);
-  const dependencies = getDependencyInfo(artifact, context.graph, context.completed);
+  const dependencies = getDependencyInfo(artifact, context.graph, context.completed, context.skippedArtifacts);
   const unlocks = getUnlockedArtifacts(context.graph, artifactId);
 
   // Use projectRoot from context if not explicitly provided
@@ -318,7 +379,10 @@ export function generateInstructions(
 
   // Extract context and rules as separate fields (not prepended to template)
   const configContext = projectConfig?.context?.trim() || undefined;
-  const rulesForArtifact = projectConfig?.rules?.[artifactId];
+  const rulesForArtifact =
+    projectConfig?.rules && Object.hasOwn(projectConfig.rules, artifactId)
+      ? projectConfig.rules[artifactId]
+      : undefined;
   const configRules = rulesForArtifact && rulesForArtifact.length > 0 ? rulesForArtifact : undefined;
 
   return {
@@ -328,13 +392,16 @@ export function generateInstructions(
     changeDir: context.changeDir,
     planningHome: summarizePlanningHome(context.planningHome),
     outputPath: artifact.generates,
-    resolvedOutputPath: path.join(context.changeDir, artifact.generates),
+    resolvedOutputPath: resolveArtifactOutputPath(context.changeDir, artifact.generates),
     existingOutputPaths: resolveArtifactOutputs(context.changeDir, artifact.generates),
     description: artifact.description,
     instruction: artifact.instruction,
     context: configContext,
     rules: configRules,
     ...(options.references !== undefined ? { references: options.references } : {}),
+    ...(context.skippedArtifacts?.has(artifact.id)
+      ? { skipped: true, warning: SKIP_SPECS_INSTRUCTIONS_WARNING }
+      : {}),
     template: templateContent,
     dependencies,
     unlocks,
@@ -347,7 +414,8 @@ export function generateInstructions(
 function getDependencyInfo(
   artifact: Artifact,
   graph: ArtifactGraph,
-  completed: CompletedSet
+  completed: CompletedSet,
+  skippedArtifacts?: Set<string>
 ): DependencyInfo[] {
   return artifact.requires.map(id => {
     const depArtifact = graph.getArtifact(id);
@@ -356,12 +424,17 @@ function getDependencyInfo(
       done: completed.has(id),
       path: depArtifact?.generates ?? id,
       description: depArtifact?.description ?? '',
+      ...(skippedArtifacts?.has(id) ? { skipped: true } : {}),
     };
   });
 }
 
 /**
  * Gets artifacts that become available after completing the given artifact.
+ *
+ * `getAllArtifacts()` already yields the schema's declaration order, so the list
+ * is returned as collected: sorting it alphabetically would have `unlocks` name
+ * the artifacts in a different order than `status` recommends them.
  */
 function getUnlockedArtifacts(graph: ArtifactGraph, artifactId: string): string[] {
   const unlocks: string[] = [];
@@ -372,7 +445,7 @@ function getUnlockedArtifacts(graph: ArtifactGraph, artifactId: string): string[
     }
   }
 
-  return unlocks.sort();
+  return unlocks;
 }
 
 /**
@@ -397,15 +470,25 @@ export function formatChangeStatus(
   const artifactStatuses: ArtifactStatus[] = artifacts.map(artifact => {
     artifactPaths[artifact.id] = {
       outputPath: artifact.generates,
-      resolvedOutputPath: path.join(context.changeDir, artifact.generates),
+      resolvedOutputPath: resolveArtifactOutputPath(context.changeDir, artifact.generates),
       existingOutputPaths: resolveArtifactOutputs(context.changeDir, artifact.generates),
     };
+
+    if (context.skippedArtifacts?.has(artifact.id)) {
+      return {
+        id: artifact.id,
+        outputPath: artifact.generates,
+        status: 'skipped' as const,
+        requires: artifact.requires,
+      };
+    }
 
     if (context.completed.has(artifact.id)) {
       return {
         id: artifact.id,
         outputPath: artifact.generates,
         status: 'done' as const,
+        requires: artifact.requires,
       };
     }
 
@@ -414,6 +497,7 @@ export function formatChangeStatus(
         id: artifact.id,
         outputPath: artifact.generates,
         status: 'ready' as const,
+        requires: artifact.requires,
       };
     }
 
@@ -421,6 +505,7 @@ export function formatChangeStatus(
       id: artifact.id,
       outputPath: artifact.generates,
       status: 'blocked' as const,
+      requires: artifact.requires,
       missingDeps: blocked[artifact.id] ?? [],
     };
   });
@@ -438,6 +523,7 @@ export function formatChangeStatus(
     planningHome: summarizePlanningHome(context.planningHome),
     changeRoot: context.changeDir,
     artifactPaths,
+    isPlanningComplete: isComplete,
     isComplete,
     applyRequires,
     nextSteps: buildNextSteps({

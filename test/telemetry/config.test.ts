@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { randomUUID } from 'node:crypto';
 
 import {
   getConfigPath,
@@ -35,8 +34,7 @@ describe('telemetry/config', () => {
 
   beforeEach(() => {
     // Create temp directory for tests
-    tempDir = path.join(os.tmpdir(), `openspec-telemetry-test-${randomUUID()}`);
-    fs.mkdirSync(tempDir, { recursive: true });
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-telemetry-test-'));
 
     // Mock HOME/USERPROFILE to point to temp dir
     // On POSIX, os.homedir() uses HOME; on Windows it uses USERPROFILE
@@ -293,6 +291,44 @@ describe('telemetry/config', () => {
       const parsed = JSON.parse(content);
       expect(parsed.telemetry.anonymousId).toBe('existing-id');
       expect(parsed.telemetry.noticeSeen).toBe(true);
+    });
+
+    it('should preserve anonymousId and noticeSeen when setting enabled', async () => {
+      const configDir = defaultConfigDir();
+      const configPath = defaultConfigPath();
+
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(configPath, JSON.stringify({
+        telemetry: { anonymousId: 'keep-id', noticeSeen: true },
+      }));
+
+      await updateTelemetryConfig({ enabled: false });
+
+      const parsed = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      expect(parsed.telemetry).toEqual({
+        anonymousId: 'keep-id',
+        noticeSeen: true,
+        enabled: false,
+      });
+    });
+
+    it('should preserve enabled when updating noticeSeen', async () => {
+      const configDir = defaultConfigDir();
+      const configPath = defaultConfigPath();
+
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(configPath, JSON.stringify({
+        telemetry: { enabled: false, anonymousId: 'keep-id' },
+      }));
+
+      await updateTelemetryConfig({ noticeSeen: true });
+
+      const parsed = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      expect(parsed.telemetry).toEqual({
+        enabled: false,
+        anonymousId: 'keep-id',
+        noticeSeen: true,
+      });
     });
   });
 });

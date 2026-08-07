@@ -47,7 +47,7 @@ openspec/
 ├── project.md              # Project-specific context
 ├── AGENTS.md               # AI assistant instructions
 ├── specs/                  # Current deployed capabilities
-│   └── [capability]/       # Single, focused capability
+│   └── <capability-path>/  # One or more directories for a focused capability
 │       ├── spec.md         # WHAT and WHY
 │       └── design.md       # HOW (optional, for established patterns)
 └── changes/                # Proposed changes
@@ -56,7 +56,7 @@ openspec/
     │   ├── tasks.md        # Implementation checklist
     │   ├── design.md       # Technical decisions (optional)
     │   └── specs/          # Complete future state
-    │       └── [capability]/
+    │       └── <capability-path>/
     │           └── spec.md # Clean markdown (no diff syntax)
     └── archive/            # Completed changes
         └── YYYY-MM-DD-[name]/
@@ -150,9 +150,17 @@ Change proposals SHALL store only the additions, modifications, and removals to 
 The `changes/[name]/specs/` directory SHALL contain:
 - Delta files showing only what changes
 - Sections for ADDED, MODIFIED, REMOVED, and RENAMED requirements
+- An optional `## Purpose` section on deltas that introduce a new capability
 - Normalized header matching for requirement identification
 - Complete requirements using the structured format
 - Clear indication of change type for each requirement
+
+#### Scenario: Introducing a new capability
+
+- **WHEN** a delta introduces a capability that has no main spec yet
+- **THEN** the delta MAY open with a `## Purpose` section describing the capability
+- **AND** that Purpose SHALL seed the main spec created for it
+- **AND** a delta for a capability that already has a main spec SHOULD NOT carry a `## Purpose`, because the existing Purpose is authoritative and the delta's is ignored
 
 #### Scenario: Using standard output symbols
 
@@ -175,8 +183,10 @@ The archive process SHALL programmatically apply delta changes to current specif
   2. Parse REMOVED sections and remove by normalized header match
   3. Parse MODIFIED sections and replace by normalized header match (using new names if renamed)
   4. Parse ADDED sections and append new requirements
-- **AND** validate that all MODIFIED/REMOVED headers exist in current spec
-- **AND** validate that ADDED headers don't already exist
+- **AND** validate that all MODIFIED headers exist in current spec
+- **AND** treat a REMOVED header that is already absent as already removed (warn and continue; a REMOVED header that names the FROM side of a RENAMED in the same delta — compared case- and whitespace-insensitively — or that differs only in case or whitespace from an existing requirement, is a conflict)
+- **AND** treat an ADDED header that already exists with identical content as already synced (differing content is a conflict)
+- **AND** treat a RENAMED whose source is gone but target present as already synced
 - **AND** generate the updated spec in the main specs/ directory
 
 #### Scenario: Handling conflicts during archive
@@ -214,7 +224,7 @@ The system SHALL support multiple methods for reviewing proposed changes.
 - **WHEN** reviewing proposed changes
 - **THEN** reviewers can compare using:
 - GitHub PR diff view when changes are committed
-- Command line: `diff -u specs/[capability]/spec.md changes/[name]/specs/[capability]/spec.md`
+- Command line: `diff -u "specs/<capability-path>/spec.md" "changes/<name>/specs/<capability-path>/spec.md"`
 - Any visual diff tool comparing current vs future state
 
 ### Requirement: Structured Format Adoption

@@ -198,6 +198,12 @@ describe('FeedbackCommand', () => {
       expect(consoleLogSpy).toHaveBeenCalledWith(
         expect.stringContaining(issueUrl)
       );
+
+      // Only one attempt, and no note about a dropped label
+      expect(mockExecFileSync).toHaveBeenCalledTimes(1);
+      expect(consoleLogSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining("without the 'feedback' label")
+      );
     });
 
     it('should include --body flag when body is provided', async () => {
@@ -327,16 +333,156 @@ describe('FeedbackCommand', () => {
         throw error;
       });
 
-      try {
-        await feedbackCommand.execute('Test');
-      } catch (error: any) {
-        // Should exit with the same code as gh CLI
-        expect(error.message).toBe('process.exit(1)');
-      }
+      await expect(feedbackCommand.execute('Test')).rejects.toThrow(
+        'process.exit(1)'
+      );
 
       // Should display the error from gh CLI
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining('Network connectivity issue')
+      );
+
+      // A non-label failure must NOT be retried
+      expect(mockExecFileSync).toHaveBeenCalledTimes(1);
+
+      // ...and must not discard the typed feedback: the manual-submission
+      // fallback (formatted text + pre-filled URL) is shown like the
+      // missing-gh and unauthenticated flows.
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Please submit your feedback manually:')
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining('github.com/Fission-AI/OpenSpec/issues/new')
+      );
+    });
+
+    it('should not retry when the feedback text mentions the label error', async () => {
+      mockExecSync.mockImplementation((cmd: string, options?: any) => {
+        if (cmd === 'which gh' || cmd === 'where gh') {
+          return Buffer.from('/usr/local/bin/gh');
+        }
+        if (cmd === 'gh auth status') {
+          return Buffer.from('Logged in');
+        }
+        return '';
+      });
+
+      // gh fails for an unrelated reason. Node puts the whole command line —
+      // including the user's own words — into error.message, so only stderr
+      // may decide whether this was a label failure.
+      mockExecFileSync.mockImplementation((_cmd: string, args: string[]) => {
+        const error: any = new Error(
+          `Command failed: gh ${args.join(' ')}\nerror connecting to api.github.com`
+        );
+        error.status = 1;
+        error.stderr = Buffer.from('error connecting to api.github.com');
+        throw error;
+      });
+
+      await expect(
+        feedbackCommand.execute('gh could not add label bug report')
+      ).rejects.toThrow('process.exit(1)');
+
+      expect(mockExecFileSync).toHaveBeenCalledTimes(1);
+      expect(consoleLogSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining("without the 'feedback' label")
+      );
+    });
+
+    it('should retry without the label when the repo does not define it', async () => {
+      const issueUrl = 'https://github.com/Fission-AI/OpenSpec/issues/129';
+
+      mockExecSync.mockImplementation((cmd: string, options?: any) => {
+        if (cmd === 'which gh' || cmd === 'where gh') {
+          return Buffer.from('/usr/local/bin/gh');
+        }
+        if (cmd === 'gh auth status') {
+          return Buffer.from('Logged in');
+        }
+        return '';
+      });
+
+      // gh resolves label names before creating the issue, so a repo without
+      // the label fails with no issue created
+      mockExecFileSync.mockImplementation((_cmd: string, args: string[]) => {
+        if (args.includes('--label')) {
+          const error: any = new Error('gh failed');
+          error.status = 1;
+          error.stderr = Buffer.from(
+            'could not add label: labels not found: feedback'
+          );
+          throw error;
+        }
+        return `${issueUrl}\n`;
+      });
+
+      await feedbackCommand.execute('Test');
+
+      expect(mockExecFileSync).toHaveBeenCalledTimes(2);
+
+      // First attempt asks for the label
+      expect(mockExecFileSync).toHaveBeenNthCalledWith(
+        1,
+        'gh',
+        expect.arrayContaining(['--label', 'feedback']),
+        expect.any(Object)
+      );
+
+      // Retry drops it
+      expect(mockExecFileSync).toHaveBeenNthCalledWith(
+        2,
+        'gh',
+        expect.not.arrayContaining(['--label']),
+        expect.any(Object)
+      );
+
+      // The feedback still lands as an issue, and the user is told the label
+      // was not applied
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Feedback submitted successfully')
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining(issueUrl)
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining("without the 'feedback' label")
+      );
+    });
+
+    it('should preserve gh exit code when the unlabeled retry also fails', async () => {
+      mockExecSync.mockImplementation((cmd: string, options?: any) => {
+        if (cmd === 'which gh' || cmd === 'where gh') {
+          return Buffer.from('/usr/local/bin/gh');
+        }
+        if (cmd === 'gh auth status') {
+          return Buffer.from('Logged in');
+        }
+        return '';
+      });
+
+      mockExecFileSync.mockImplementation((_cmd: string, args: string[]) => {
+        const error: any = new Error('gh failed');
+
+        if (args.includes('--label')) {
+          error.status = 1;
+          error.stderr = Buffer.from(
+            'could not add label: labels not found: feedback'
+          );
+        } else {
+          error.status = 4;
+          error.stderr = Buffer.from('Error: issues are disabled');
+        }
+
+        throw error;
+      });
+
+      await expect(feedbackCommand.execute('Test')).rejects.toThrow(
+        'process.exit(4)'
+      );
+
+      expect(mockExecFileSync).toHaveBeenCalledTimes(2);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('issues are disabled')
       );
     });
 
@@ -413,10 +559,23 @@ describe('FeedbackCommand', () => {
         // Expected to exit
       }
 
-      // Verify URL is shown
-      const urlCall = consoleLogSpy.mock.calls.find((call: any[]) =>
-        call[0]?.includes('https://github.com/Fission-AI/OpenSpec/issues/new')
-      );
+      // Verify URL is shown. Match on the parsed origin and path rather than a
+      // substring, so a lookalike host in the output cannot satisfy the check.
+      const urlCall = consoleLogSpy.mock.calls.find((call: any[]) => {
+        const found = /https?:\/\/\S+/.exec(String(call[0] ?? ''));
+        if (!found) {
+          return false;
+        }
+        try {
+          const parsed = new URL(found[0]);
+          return (
+            parsed.origin === 'https://github.com' &&
+            parsed.pathname === '/Fission-AI/OpenSpec/issues/new'
+          );
+        } catch {
+          return false;
+        }
+      });
       expect(urlCall).toBeDefined();
 
       // Verify URL has proper parameters
