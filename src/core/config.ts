@@ -34,44 +34,51 @@ export interface AIToolOption {
   globalSkillsDir?: string; // e.g., '.minimax' - /skills suffix, resolved from the user's home directory
   detectionPaths?: string[]; // Override skillsDir for auto-detection; any path existing triggers detection
   setupNote?: string; // Manual setup required before the tool picks up generated files; shown after init/update
+  // True when the tool's commands/skills are loaded by a long-running IDE/editor
+  // process that must be restarted to pick up newly written files; false/omitted
+  // for terminal CLIs that read them fresh each run (see #1067). Flagged by the
+  // tool's primary surface: a few tools ship both an IDE extension and a CLI
+  // (e.g. Continue, Amazon Q), and a per-tool boolean cannot tell which variant
+  // is installed — they are flagged as IDE since that is the common case.
+  requiresIdeRestart?: boolean;
 }
 
 export const AI_TOOLS: AIToolOption[] = [
-  { name: 'Amazon Q Developer', value: 'amazon-q', available: true, successLabel: 'Amazon Q Developer', skillsDir: '.amazonq' },
-  { name: 'Antigravity', value: 'antigravity', available: true, successLabel: 'Antigravity', skillsDir: '.agent' },
+  { name: 'Amazon Q Developer', value: 'amazon-q', available: true, successLabel: 'Amazon Q Developer', skillsDir: '.amazonq', requiresIdeRestart: true },
+  { name: 'Antigravity', value: 'antigravity', available: true, successLabel: 'Antigravity', skillsDir: '.agent', requiresIdeRestart: true },
   { name: 'Auggie (Augment CLI)', value: 'auggie', available: true, successLabel: 'Auggie', skillsDir: '.augment' },
   { name: 'Bob Shell', value: 'bob', available: true, successLabel: 'Bob Shell', skillsDir: '.bob' },
   { name: 'Claude Code', value: 'claude', available: true, successLabel: 'Claude Code', skillsDir: '.claude' },
-  { name: 'Cline', value: 'cline', available: true, successLabel: 'Cline', skillsDir: '.cline' },
+  { name: 'Cline', value: 'cline', available: true, successLabel: 'Cline', skillsDir: '.cline', requiresIdeRestart: true },
   { name: 'CodeArts', value: 'codeartsagent', available: true, successLabel: 'CodeArts', skillsDir: '.codeartsdoer' },
   { name: 'Codex', value: 'codex', available: true, successLabel: 'Codex', skillsDir: '.agents', legacySkillsDirs: ['.codex'], detectionPaths: ['.agents/skills', '.codex/skills'] },
-  { name: 'Devin Desktop (formerly Windsurf)', value: 'devin', available: true, successLabel: 'Devin Desktop', skillsDir: '.devin', detectionPaths: ['.devin', '.windsurf'] },
+  { name: 'Devin Desktop (formerly Windsurf)', value: 'devin', available: true, successLabel: 'Devin Desktop', skillsDir: '.devin', detectionPaths: ['.devin', '.windsurf'], requiresIdeRestart: true },
   { name: 'ForgeCode', value: 'forgecode', available: true, successLabel: 'ForgeCode', skillsDir: '.forge' },
   { name: 'CodeBuddy Code (CLI)', value: 'codebuddy', available: true, successLabel: 'CodeBuddy Code', skillsDir: '.codebuddy' },
-  { name: 'Continue', value: 'continue', available: true, successLabel: 'Continue (VS Code / JetBrains / Cli)', skillsDir: '.continue' },
-  { name: 'CoStrict', value: 'costrict', available: true, successLabel: 'CoStrict', skillsDir: '.cospec' },
+  { name: 'Continue', value: 'continue', available: true, successLabel: 'Continue (VS Code / JetBrains / Cli)', skillsDir: '.continue', requiresIdeRestart: true },
+  { name: 'CoStrict', value: 'costrict', available: true, successLabel: 'CoStrict', skillsDir: '.cospec', requiresIdeRestart: true },
   { name: 'Crush', value: 'crush', available: true, successLabel: 'Crush', skillsDir: '.crush' },
-  { name: 'Cursor', value: 'cursor', available: true, successLabel: 'Cursor', skillsDir: '.cursor' },
+  { name: 'Cursor', value: 'cursor', available: true, successLabel: 'Cursor', skillsDir: '.cursor', requiresIdeRestart: true },
   { name: 'Factory Droid', value: 'factory', available: true, successLabel: 'Factory Droid', skillsDir: '.factory' },
   { name: 'Gemini CLI', value: 'gemini', available: true, successLabel: 'Gemini CLI', skillsDir: '.gemini' },
-  { name: 'GitHub Copilot', value: 'github-copilot', available: true, successLabel: 'GitHub Copilot', skillsDir: '.github', detectionPaths: ['.github/copilot-instructions.md', '.github/instructions', '.github/workflows/copilot-setup-steps.yml', '.github/prompts', '.github/agents', '.github/skills', '.github/.mcp.json'] },
+  { name: 'GitHub Copilot', value: 'github-copilot', available: true, successLabel: 'GitHub Copilot', skillsDir: '.github', detectionPaths: ['.github/copilot-instructions.md', '.github/instructions', '.github/workflows/copilot-setup-steps.yml', '.github/prompts', '.github/agents', '.github/skills', '.github/.mcp.json'], requiresIdeRestart: true },
   { name: 'Hermes Agent', value: 'hermes', available: true, successLabel: 'Hermes Agent', skillsDir: '.hermes', detectionPaths: ['.hermes', 'HERMES.md', '.hermes.md'], setupNote: "Hermes only loads skills from ~/.hermes/skills by default. Add this project's .hermes/skills directory to skills.external_dirs in ~/.hermes/config.yaml so Hermes picks up the generated OpenSpec skills." },
   { name: 'iFlow', value: 'iflow', available: true, successLabel: 'iFlow', skillsDir: '.iflow' },
-  { name: 'Junie', value: 'junie', available: true, successLabel: 'Junie', skillsDir: '.junie' },
-  { name: 'Kilo Code', value: 'kilocode', available: true, successLabel: 'Kilo Code', skillsDir: '.kilocode' },
+  { name: 'Junie', value: 'junie', available: true, successLabel: 'Junie', skillsDir: '.junie', requiresIdeRestart: true },
+  { name: 'Kilo Code', value: 'kilocode', available: true, successLabel: 'Kilo Code', skillsDir: '.kilocode', requiresIdeRestart: true },
   { name: 'Kimi Code', value: 'kimi', available: true, successLabel: 'Kimi Code', skillsDir: '.kimi-code', detectionPaths: ['.kimi-code', '.kimi'] },
-  { name: 'Kiro', value: 'kiro', available: true, successLabel: 'Kiro', skillsDir: '.kiro' },
-  { name: 'Lingma', value: 'lingma', available: true, successLabel: 'Lingma', skillsDir: '.lingma' },
+  { name: 'Kiro', value: 'kiro', available: true, successLabel: 'Kiro', skillsDir: '.kiro', requiresIdeRestart: true },
+  { name: 'Lingma', value: 'lingma', available: true, successLabel: 'Lingma', skillsDir: '.lingma', requiresIdeRestart: true },
   { name: 'MiniMax Code', value: 'minimax-code', available: true, successLabel: 'MiniMax Code', globalSkillsDir: '.minimax' },
   { name: 'Mistral Vibe', value: 'vibe', available: true, successLabel: 'Mistral Vibe', skillsDir: '.vibe' },
   { name: 'Oh My Pi', value: 'oh-my-pi', available: true, successLabel: 'Oh My Pi', skillsDir: '.omp' },
   { name: 'OpenCode', value: 'opencode', available: true, successLabel: 'OpenCode', skillsDir: '.opencode' },
   { name: 'Pi', value: 'pi', available: true, successLabel: 'Pi', skillsDir: '.pi' },
-  { name: 'Qoder', value: 'qoder', available: true, successLabel: 'Qoder', skillsDir: '.qoder' },
+  { name: 'Qoder', value: 'qoder', available: true, successLabel: 'Qoder', skillsDir: '.qoder', requiresIdeRestart: true },
   { name: 'Qwen Code', value: 'qwen', available: true, successLabel: 'Qwen Code', skillsDir: '.qwen' },
   { name: 'Rovo Dev CLI', value: 'rovodev', available: true, successLabel: 'Rovo Dev CLI', skillsDir: '.rovodev', detectionPaths: ['.rovodev/skills', '.rovodev'] },
-  { name: 'Zoo Code', value: 'roocode', available: true, successLabel: 'Zoo Code', skillsDir: '.roo' },
-  { name: 'Trae', value: 'trae', available: true, successLabel: 'Trae', skillsDir: '.trae' },
+  { name: 'Zoo Code', value: 'roocode', available: true, successLabel: 'Zoo Code', skillsDir: '.roo', requiresIdeRestart: true },
+  { name: 'Trae', value: 'trae', available: true, successLabel: 'Trae', skillsDir: '.trae', requiresIdeRestart: true },
   { name: 'ZCode', value: 'zcode', available: true, successLabel: 'ZCode', skillsDir: '.zcode' },
   // Vendor-neutral target for assistants that read the shared `.agents` root.
   // Detection keys off `.agents/skills` rather than the bare root: frameworks use
