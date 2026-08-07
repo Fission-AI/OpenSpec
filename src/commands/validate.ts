@@ -40,7 +40,11 @@ interface BulkItemResult {
 
 export class ValidateCommand {
   async execute(itemName: string | undefined, options: ExecuteOptions = {}): Promise<void> {
-    const root = await resolveRootForCommand(options, { json: options.json });
+    const bulk = options.all || options.changes || options.specs;
+    const root = await resolveRootForCommand(options, {
+      json: options.json,
+      ...(bulk ? { allowImplicitRoot: false } : {}),
+    });
     if (!root) {
       return;
     }
@@ -48,7 +52,7 @@ export class ValidateCommand {
     const interactive = isInteractive(options);
 
     // Handle bulk flags first
-    if (options.all || options.changes || options.specs) {
+    if (bulk) {
       await this.runBulkValidation(root, {
         changes: !!options.all || !!options.changes,
         specs: !!options.all || !!options.specs,

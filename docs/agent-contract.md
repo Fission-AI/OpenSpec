@@ -33,7 +33,7 @@ All root-resolving commands (`list`, `show`, `validate`, `status`, `instructions
 2. Otherwise, nearest ancestor with `openspec/`: planning shape → `source: "nearest"` (a `store:` pointer is ignored with a stderr warning); config-only dir with a valid `store:` pointer → that store, `source: "declared"`.
 3. No nearest root + global `defaultStore` set (`openspec config set defaultStore <id>`) → that store, `source: "global_default"`; a stale id fails with the underlying store error and a `fix` naming `openspec config unset defaultStore`.
 4. No nearest root, no default + registered stores exist → error `no_root_with_registered_stores`.
-5. No root, no default, no stores: scaffolding commands treat the cwd as `source: "implicit"`; diagnostic commands (`doctor`, `context`) fail with `no_openspec_root` instead — they inspect, never scaffold.
+5. No root, no default, no stores: commands may treat the cwd as `source: "implicit"`; `doctor`, `context`, `list`, and bulk `validate` instead fail with `no_openspec_root`. `list` preserves the implicit fallback for legacy projects with `openspec/project.md`.
 
 Successful JSON payloads embed the root:
 
