@@ -269,6 +269,7 @@ export class ChangeCommand {
       // Derived from changesPath so the main specs come from the same root the
       // change itself was resolved against.
       mainSpecsDir: path.join(path.dirname(changesPath), 'specs'),
+      projectRoot: path.dirname(path.dirname(changesPath)),
     });
     
     if (options?.json) {
