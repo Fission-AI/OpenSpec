@@ -26,7 +26,14 @@ import {
 import { findMainSpecStructureIssues } from '../parsers/spec-structure.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import { discoverSpecFiles, hasAnyFileUnder } from '../../utils/spec-discovery.js';
-import { METADATA_FILENAME, readSkipSpecsMarker } from '../../utils/change-metadata.js';
+import {
+  METADATA_FILENAME,
+  readSkipSpecsMarker,
+  resolveSchemaForChange,
+} from '../../utils/change-metadata.js';
+import { resolveTaskFilesForChange } from '../../utils/task-progress.js';
+import { findTaskNumberingIssues } from './task-numbering.js';
+import { getPackageSchemasDir, getSchemaDir } from '../artifact-graph/index.js';
 
 export class Validator {
   private strictMode: boolean;
@@ -144,12 +151,13 @@ export class Validator {
    *
    * When `options.mainSpecsDir` is given, MODIFIED blocks are also checked
    * against the current main specs for the scenario loss archive refuses to
-   * apply (#1477). Omitting it keeps the change-only checks, so callers with
-   * no main specs root (and existing library callers) behave as before.
+   * apply (#1477). When `options.projectRoot` is given, the schema's tracked
+   * task files are checked for ambiguous numbering (#1520). Omitting either
+   * option keeps existing library and archive callers behaving as before.
    */
   async validateChangeDeltaSpecs(
     changeDir: string,
-    options: { mainSpecsDir?: string } = {}
+    options: { mainSpecsDir?: string; projectRoot?: string } = {}
   ): Promise<ValidationReport> {
     const issues: ValidationIssue[] = [];
     const specsDir = path.join(changeDir, 'specs');
@@ -450,7 +458,68 @@ export class Validator {
       }
     }
 
+    if (options.projectRoot) {
+      issues.push(...await this.collectTaskNumberingIssues(changeDir, options.projectRoot));
+    }
+
     return this.createReport(issues);
+  }
+
+  private async collectTaskNumberingIssues(
+    changeDir: string,
+    projectRoot: string
+  ): Promise<ValidationIssue[]> {
+    try {
+      const schemaName = resolveSchemaForChange(changeDir, undefined, projectRoot).replace(
+        /\.ya?ml$/,
+        ''
+      );
+      const schemaDir = getSchemaDir(schemaName, projectRoot);
+      const builtInSchemaDir = path.join(getPackageSchemasDir(), 'spec-driven');
+      if (
+        schemaName !== 'spec-driven' ||
+        schemaDir === null ||
+        FileSystemUtils.canonicalizeExistingPath(schemaDir) !==
+          FileSystemUtils.canonicalizeExistingPath(builtInSchemaDir)
+      ) {
+        return [];
+      }
+    } catch {
+      return [];
+    }
+
+    let taskFiles: string[];
+    try {
+      taskFiles = resolveTaskFilesForChange(changeDir, projectRoot);
+    } catch {
+      return [];
+    }
+    if (taskFiles.length === 0) {
+      taskFiles = [path.join(changeDir, 'tasks.md')];
+    }
+
+    const documents: Array<{ path: string; content: string }> = [];
+    for (const taskFile of taskFiles) {
+      let content: string;
+      try {
+        content = await fs.readFile(taskFile, 'utf-8');
+      } catch {
+        continue;
+      }
+
+      documents.push({
+        path: FileSystemUtils.toPosixPath(path.relative(changeDir, taskFile)),
+        content,
+      });
+    }
+
+    documents.sort((left, right) => left.path.localeCompare(right.path));
+    return findTaskNumberingIssues(documents).map((issue) => ({
+      level: 'WARNING',
+      path: issue.path,
+      line: issue.line,
+      message: issue.message,
+    }));
   }
 
   /**
