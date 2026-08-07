@@ -136,7 +136,7 @@ function readYesNo(
       if (settled) return;
       settled = true;
       cleanup();
-      rl?.close();
+      rl.close();
       reject(err instanceof Error ? err : new Error(String(err)));
     };
     // An earlier prompt may have already drained stdin (only one piped answer
