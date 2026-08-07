@@ -133,10 +133,16 @@ program.hook('preAction', async (thisCommand, actionCommand) => {
     process.env.NO_COLOR = '1';
   }
 
-  // Show first-run telemetry notice (if not seen). Suppress it in --json mode
-  // so stdout stays valid JSON for programmatic consumers. `--json` is a
-  // per-command flag, so read it from actionCommand (the executing subcommand).
-  const isJson = actionCommand.opts().json === true;
+  // Show first-run telemetry notice (if not seen). Suppress it whenever the run
+  // asked for JSON so stdout stays a single valid JSON document for programmatic
+  // consumers. We detect --json from the raw argv rather than a parsed option
+  // because the flag reaches commands three different ways: on the leaf
+  // (`status --json`), on a parent group read via optsWithGlobals
+  // (`workset --json list`), and from residual args on permissive groups that
+  // never declare the option (`openspec store --json`). Suppressing is always
+  // safe: the disclosure is only deferred to the next non-JSON run (never lost),
+  // whereas printing it on a JSON run would corrupt stdout.
+  const isJson = process.argv.includes('--json');
   await maybeShowTelemetryNotice({ silent: isJson });
 
   // Track command execution (use actionCommand to get the actual subcommand)

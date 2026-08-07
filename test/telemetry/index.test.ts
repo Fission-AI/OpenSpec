@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 
 import { isTelemetryEnabled, maybeShowTelemetryNotice, shutdown, trackCommand } from '../../src/telemetry/index.js';
+import { getTelemetryConfig } from '../../src/telemetry/config.js';
 
 describe('telemetry/index', () => {
   let tempDir: string;
@@ -198,6 +199,9 @@ describe('telemetry/index', () => {
       // A first-ever run in --json mode must not pollute stdout.
       await maybeShowTelemetryNotice({ silent: true });
       expect(consoleLogSpy).not.toHaveBeenCalled();
+
+      // The disclosure must be deferred, not consumed: noticeSeen stays unset.
+      expect((await getTelemetryConfig()).noticeSeen).toBeFalsy();
 
       // Disclosure is only deferred, not skipped: the next non-JSON run shows it.
       await maybeShowTelemetryNotice();

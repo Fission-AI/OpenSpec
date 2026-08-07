@@ -19,12 +19,22 @@ image.
 - `maybeShowTelemetryNotice()` accepts a `silent` option. When silent, it prints
   nothing **and** leaves `noticeSeen` unset, so the disclosure is deferred rather
   than skipped.
-- The `preAction` hook reads the executing command's `--json` flag
-  (`actionCommand.opts().json`) and passes `silent: true` when it is set.
+- The `preAction` hook detects `--json` from the raw argv and passes
+  `silent: true` when present. Raw argv is used deliberately: `--json` reaches
+  commands three ways — on the leaf (`status --json`), on a parent group read via
+  `optsWithGlobals` (`workset --json list`), and from residual args on permissive
+  groups that never declare the option (`openspec store --json`). A single parsed
+  option (`actionCommand.opts().json`) would miss the last two.
 
-Net effect: `--json` runs never emit the notice on stdout; the user still sees
-the disclosure on their first later non-JSON run. Telemetry remains opt-out and
-otherwise unchanged.
+Net effect: any `--json` invocation never emits the notice on stdout; the user
+still sees the disclosure on their first later non-JSON run. Suppressing is
+always safe — worst case the disclosure defers one run. Telemetry remains opt-out
+and otherwise unchanged.
+
+Out of scope: a few commands write scriptable output to stdout without a `--json`
+flag (`completion generate`, `config get`, `config path`, the hidden `__complete`).
+Their first-run notice pollution is a separate, pre-existing issue not addressed
+here.
 
 ## Impact
 
