@@ -561,6 +561,26 @@ operations:
       expect(json.root.source).toBe('implicit');
     });
 
+    it('keeps list working for a legacy project.md root when no stores are registered', async () => {
+      const isolatedEnv = {
+        ...env,
+        XDG_DATA_HOME: path.join(tempDir, 'data-empty'),
+      };
+      fs.mkdirSync(path.join(appRepo, 'openspec'), { recursive: true });
+      fs.writeFileSync(path.join(appRepo, 'openspec', 'project.md'), '# Project\n');
+
+      const result = await runCLI(['list', '--json'], { cwd: appRepo, env: isolatedEnv });
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toBe('');
+
+      const json = parseJson(result);
+      expect(json.changes).toEqual([]);
+      expect({
+        ...json.root,
+        path: fs.realpathSync.native(json.root.path),
+      }).toEqual({ path: fs.realpathSync.native(appRepo), source: 'implicit' });
+    });
+
     it('rejects implicit roots for bulk validation and listing', async () => {
       const isolatedEnv = {
         ...env,
@@ -637,7 +657,10 @@ operations:
       const json = parseJson(result);
       expect(json.items).toEqual([]);
       expect(json.summary.totals).toEqual({ items: 0, passed: 0, failed: 0 });
-      expect(json.root).toEqual({ path: appRepo, source: 'nearest' });
+      expect({
+        ...json.root,
+        path: fs.realpathSync.native(json.root.path),
+      }).toEqual({ path: fs.realpathSync.native(appRepo), source: 'nearest' });
     });
 
     it('preserves direct validation behavior without a root', async () => {
