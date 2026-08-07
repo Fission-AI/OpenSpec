@@ -1517,5 +1517,18 @@ ${OPENSPEC_MARKERS.end}`);
       const detection = baseDetection();
       expect(omitToolLegacyArtifacts(detection, [])).toBe(detection);
     });
+
+    it('omits backslash-delimited paths for the skipped tool (Windows)', () => {
+      // Defensive: `legacyToolIdForFile` normalizes separators, so a
+      // Windows-style path must map to `codex` and be filtered too.
+      const detection = {
+        ...baseDetection(),
+        slashCommandDirs: [],
+        slashCommandFiles: ['.codex\\prompts\\openspec-explore.md'],
+      };
+      const result = omitToolLegacyArtifacts(detection, ['codex']);
+      expect(result.slashCommandFiles).toEqual([]);
+      expect(result.hasLegacyArtifacts).toBe(false);
+    });
   });
 });

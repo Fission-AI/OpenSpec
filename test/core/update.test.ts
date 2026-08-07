@@ -622,11 +622,13 @@ metadata:
       await new InitCommand({ tools: 'agents', force: true }).execute(testDir);
       // A leftover global Codex install, detected only from `~/.codex/prompts`.
       const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
+      const globalPrompt = path.join(promptDir, 'opsx-explore.md');
       await fs.mkdir(promptDir, { recursive: true });
-      await fs.writeFile(path.join(promptDir, 'opsx-explore.md'), 'legacy explore prompt');
+      await fs.writeFile(globalPrompt, 'legacy explore prompt');
 
       // The skip message is emitted via an ora spinner, which writes to the
-      // process streams rather than through console.log.
+      // process streams rather than through console.log. Restore the spies in a
+      // finally so a throw can never swallow stdout for the rest of the suite.
       let streamOutput = '';
       const capture = (chunk: unknown) => {
         streamOutput += String(chunk);
@@ -634,9 +636,12 @@ metadata:
       };
       const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(capture as never);
       const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(capture as never);
-      await new UpdateCommand({ force: true }).execute(testDir);
-      stdoutSpy.mockRestore();
-      stderrSpy.mockRestore();
+      try {
+        await new UpdateCommand({ force: true }).execute(testDir);
+      } finally {
+        stdoutSpy.mockRestore();
+        stderrSpy.mockRestore();
+      }
 
       const skillsDir = path.join(testDir, '.agents', 'skills');
       // Ownership marker is not flipped to codex...
@@ -656,6 +661,12 @@ metadata:
       // The skip names the established owner so the user understands why.
       expect(streamOutput).toMatch(/Skipped Codex/);
       expect(streamOutput).toMatch(/managed by another tool \(Shared \.agents skills\)/);
+      // The legacy signal must survive: because Codex was skipped, no
+      // replacement skill exists, so the deferred global-prompt cleanup must
+      // preserve `~/.codex/prompts` untouched (byte-for-byte) rather than
+      // delete it — otherwise the skip could never re-offer Codex later.
+      expect(await FileSystemUtils.fileExists(globalPrompt)).toBe(true);
+      expect(await fs.readFile(globalPrompt, 'utf-8')).toBe('legacy explore prompt');
     });
 
     it('lets a first-time legacy Codex upgrade claim an unowned agents root', async () => {
@@ -695,13 +706,15 @@ metadata:
 
       await new UpdateCommand({ force: true }).execute(testDir);
 
-      // agents tree preserved, and the repo-local legacy prompt survives.
+      // agents tree preserved, and the repo-local legacy prompt survives
+      // byte-for-byte — asserting content, not mere existence, distinguishes
+      // "left untouched" from "deleted then rewritten".
       expect(
         await fs.readFile(path.join(testDir, '.agents', 'skills', '.openspec-target'), 'utf-8')
       ).toBe('agents\n');
-      expect(
-        await FileSystemUtils.fileExists(path.join(legacyPrompts, 'openspec-explore.md'))
-      ).toBe(true);
+      const preservedPrompt = path.join(legacyPrompts, 'openspec-explore.md');
+      expect(await FileSystemUtils.fileExists(preservedPrompt)).toBe(true);
+      expect(await fs.readFile(preservedPrompt, 'utf-8')).toBe('legacy repo-local prompt');
     });
 
     it('should let an explicit Codex init take ownership of an agents tree', async () => {
