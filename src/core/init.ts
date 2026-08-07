@@ -130,6 +130,7 @@ type ValidatedInitTool = {
   skillsRoot: string;
   isGlobalSkillTarget: boolean;
   wasConfigured: boolean;
+  requiresIdeRestart?: boolean;
 };
 
 /**
@@ -788,6 +789,7 @@ export class InitCommand {
         skillsRoot: isGlobalSkillTarget ? skillsPath : projectPath,
         isGlobalSkillTarget,
         wasConfigured: preState?.configured ?? false,
+        requiresIdeRestart: tool.requiresIdeRestart,
       });
     }
 
@@ -1012,8 +1014,8 @@ export class InitCommand {
     projectPath: string,
     tools: ValidatedInitTool[],
     results: {
-      createdTools: typeof tools;
-      refreshedTools: typeof tools;
+      createdTools: ValidatedInitTool[];
+      refreshedTools: ValidatedInitTool[];
       failedTools: Array<{ name: string; error: Error }>;
       commandsSkipped: string[];
       skillsInvocableCommandSkips: string[];
@@ -1274,12 +1276,15 @@ export class InitCommand {
     console.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
     console.log(`Feedback:   ${chalk.cyan('https://github.com/Fission-AI/OpenSpec/issues')}`);
 
-    // Restart instruction if any tools were configured and got a surface
-    // (when nothing was generated there is nothing a restart would pick up);
+    // Restart instruction only for tools whose commands/skills are loaded by an
+    // IDE/editor process (CLI tools pick up the generated files immediately, so a
+    // restart line would be wrong for them — see #1067), and only when a surface
+    // was actually generated (nothing generated means nothing a restart picks up);
     // only mention commands when commands were actually generated. Not "slash
     // commands": Amazon Q's generated files are prompt-library entries invoked
     // with @, so a restart line promising slash commands would be wrong for it.
-    if ((results.createdTools.length > 0 || results.refreshedTools.length > 0) && (commandsGenerated || skillsGenerated)) {
+    const anyRequiresIdeRestart = successfulTools.some((tool) => tool.requiresIdeRestart);
+    if (anyRequiresIdeRestart && (commandsGenerated || skillsGenerated)) {
       console.log();
       console.log(
         chalk.white(

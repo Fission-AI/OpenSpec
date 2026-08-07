@@ -716,6 +716,22 @@ describe('InitCommand', () => {
       expect(await fs.readFile(customSkill, 'utf-8')).toBe('user skill');
     });
 
+    it('should not suggest an IDE restart for CLI-only tools', async () => {
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+
+      await initCommand.execute(testDir);
+
+      expect(getConsoleOutput()).not.toContain('Restart your IDE');
+    });
+
+    it('should suggest an IDE restart for IDE-resident tools', async () => {
+      const initCommand = new InitCommand({ tools: 'cursor', force: true });
+
+      await initCommand.execute(testDir);
+
+      expect(getConsoleOutput()).toContain('Restart your IDE');
+    });
+
     it('should create skills for multiple tools at once', async () => {
       const initCommand = new InitCommand({ tools: 'claude,cursor', force: true });
 
@@ -1678,10 +1694,10 @@ describe('InitCommand - profile and detection features', () => {
     expect(startHint).not.toContain('/openspec-propose');
     expect(startHint).not.toContain('/opsx:propose');
 
-    // No slash commands were generated, so the restart line must not claim any
+    // Codex is a CLI tool: its skills load as soon as the files exist, with no
+    // IDE process to restart, so the restart line must not appear at all (#1067).
     const restartHint = logCalls.find((entry) => entry.includes('Restart your IDE'));
-    expect(restartHint).toContain('Restart your IDE for the new skills to take effect.');
-    expect(restartHint).not.toContain('slash commands');
+    expect(restartHint).toBeUndefined();
   });
 
   it('should print the @-prefixed prompt hint for amazon-q (prompt library, no slash surface)', async () => {
@@ -1955,4 +1971,11 @@ async function directoryExists(dirPath: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+function getConsoleOutput(): string {
+  return (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls
+    .flat()
+    .map(String)
+    .join('\n');
 }
