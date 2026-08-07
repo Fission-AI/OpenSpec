@@ -17,6 +17,11 @@ describe('apply instructions surface deferred scope (#1529)', () => {
     expect(instructions).toMatch(/never silently narrow, defer/);
   });
 
+  it('requires pausing, not just reporting and continuing', () => {
+    // The agent must hand control back, not surface the scope and press on.
+    expect(instructions).toContain('surface the added scope and pause');
+  });
+
   it('forbids marking a task complete when it is only partially done', () => {
     expect(instructions).toMatch(
       /Only mark a task .* when its specified behavior is fully implemented/
