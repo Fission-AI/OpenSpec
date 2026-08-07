@@ -92,6 +92,7 @@ Validation checks your specs and changes for structural problems. Read the messa
 openspec validate <name>           # validate one item
 openspec validate --all            # validate everything
 openspec validate --all --strict   # stricter checks, good for CI
+openspec validate --archived       # fail if archived changes have unchecked tasks
 ```
 
 Common causes are a missing required section (like a spec with no scenarios) or a malformed delta header. Fix the file and re-run. The [CLI reference](cli.md#openspec-validate) documents the output format.
