@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "openspec-docs-router",
+  "main": "worker.js",
+  "compatibility_date": "2026-07-10",
+  "routes": [
+    { "pattern": "openspec.dev/docs*", "zone_name": "openspec.dev" },
+    { "pattern": "openspec.dev/docs/*", "zone_name": "openspec.dev" },
+    { "pattern": "openspec.dev/_next/*", "zone_name": "openspec.dev" },
+    { "pattern": "openspec.dev/api/search*", "zone_name": "openspec.dev" },
+    { "pattern": "openspec.dev/og/docs/*", "zone_name": "openspec.dev" },
+    { "pattern": "openspec.dev/llms*", "zone_name": "openspec.dev" },
+    { "pattern": "openspec.dev/llms.mdx/docs/*", "zone_name": "openspec.dev" },
+    { "pattern": "openspec.dev/icon.svg*", "zone_name": "openspec.dev" }
+  ]
+}

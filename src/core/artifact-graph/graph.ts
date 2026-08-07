@@ -8,10 +8,33 @@ import { loadSchema, parseSchema } from './schema.js';
 export class ArtifactGraph {
   private artifacts: Map<string, Artifact>;
   private schema: SchemaYaml;
+  /** Artifact id -> its position in the schema's `artifacts:` list. */
+  private declarationOrder: Map<string, number>;
 
   private constructor(schema: SchemaYaml) {
     this.schema = schema;
     this.artifacts = new Map(schema.artifacts.map(a => [a.id, a]));
+    this.declarationOrder = new Map(schema.artifacts.map((a, index) => [a.id, index]));
+  }
+
+  /**
+   * Orders artifact ids by where the schema declares them.
+   *
+   * The dependency graph leaves siblings tied - spec-driven's `specs` and
+   * `design` both require only `proposal`, so both become ready at the same
+   * time. Ties used to be broken alphabetically, which put `design` ahead of
+   * `specs` and made the CLI recommend the artifacts in an order that
+   * contradicted the schema's own documented sequence
+   * (proposal -> specs -> design -> tasks). Breaking ties by declaration order
+   * follows the sequence the schema author wrote, for built-in and custom
+   * schemas alike, and stays just as deterministic. Ids not in the schema sort
+   * last so the comparator stays total.
+   */
+  private compareByDeclarationOrder(a: string, b: string): number {
+    return (
+      (this.declarationOrder.get(a) ?? Number.MAX_SAFE_INTEGER) -
+      (this.declarationOrder.get(b) ?? Number.MAX_SAFE_INTEGER)
+    );
   }
 
   /**
@@ -86,10 +109,10 @@ export class ArtifactGraph {
       }
     }
 
-    // Start with roots (in-degree 0), sorted for determinism
+    // Start with roots (in-degree 0), in declaration order for determinism
     const queue = [...this.artifacts.keys()]
       .filter(id => inDegree.get(id) === 0)
-      .sort();
+      .sort((a, b) => this.compareByDeclarationOrder(a, b));
 
     const result: string[] = [];
 
@@ -106,7 +129,10 @@ export class ArtifactGraph {
           newlyReady.push(dep);
         }
       }
-      queue.push(...newlyReady.sort());
+      // Re-sort the whole queue, not just the new arrivals: an artifact that
+      // has been waiting can be declared after one that just became ready.
+      queue.push(...newlyReady);
+      queue.sort((a, b) => this.compareByDeclarationOrder(a, b));
     }
 
     return result;
@@ -129,8 +155,9 @@ export class ArtifactGraph {
       }
     }
 
-    // Sort for deterministic ordering
-    return ready.sort();
+    // Declaration order: deterministic, and the first entry is the artifact the
+    // schema wants written next.
+    return ready.sort((a, b) => this.compareByDeclarationOrder(a, b));
   }
 
   /**
@@ -158,7 +185,7 @@ export class ArtifactGraph {
 
       const unmetDeps = artifact.requires.filter(req => !completed.has(req));
       if (unmetDeps.length > 0) {
-        blocked[artifact.id] = unmetDeps.sort();
+        blocked[artifact.id] = unmetDeps.sort((a, b) => this.compareByDeclarationOrder(a, b));
       }
     }
 

@@ -1,13 +1,26 @@
-import { Command } from 'commander';
+import { asStatus } from '../commands/shared-output.js';
+import { Command, Option } from 'commander';
 import { createRequire } from 'module';
 import ora from 'ora';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { promises as fs } from 'fs';
-import { AI_TOOLS } from '../core/config.js';
+import { AI_TOOLS, TOOL_ID_ALIASES } from '../core/config.js';
 import { UpdateCommand } from '../core/update.js';
+import {
+  getAvailableCliUpdate,
+  displayCliUpdateNote,
+  shouldOfferUpgrade,
+  getInstallDir,
+  offerCliUpgrade,
+  rerunUpdateWithUpgradedCli,
+  displayUpgradeCommand,
+  isSourceCheckout,
+} from '../core/version-check.js';
 import { ListCommand } from '../core/list.js';
-import { ArchiveCommand } from '../core/archive.js';
+import { ArchiveCommand, type ArchiveOptions } from '../core/archive.js';
 import { ViewCommand } from '../core/view.js';
+import { resolveRootForCommand, toRootOutput } from '../core/root-selection.js';
 import { registerSpecCommand } from '../commands/spec.js';
 import { ChangeCommand } from '../commands/change.js';
 import { ValidateCommand } from '../commands/validate.js';
@@ -16,10 +29,15 @@ import { CompletionCommand } from '../commands/completion.js';
 import { FeedbackCommand } from '../commands/feedback.js';
 import { registerConfigCommand } from '../commands/config.js';
 import { registerSchemaCommand } from '../commands/schema.js';
+import { registerStoreCommand } from '../commands/store.js';
+import { registerDoctorCommand } from '../commands/doctor.js';
+import { registerContextCommand } from '../commands/context.js';
+import { registerWorksetCommand } from '../commands/workset.js';
 import {
   statusCommand,
   instructionsCommand,
   applyInstructionsCommand,
+  archiveInstructionsCommand,
   templatesCommand,
   schemasCommand,
   newChangeCommand,
@@ -31,6 +49,47 @@ import {
   type NewChangeOptions,
 } from '../commands/workflow/index.js';
 import { maybeShowTelemetryNotice, trackCommand, shutdown } from '../telemetry/index.js';
+import { COMMON_FLAGS } from '../core/completions/shared-flags.js';
+import { isInteractive } from '../utils/interactive.js';
+
+const STORE_OPTION_DESCRIPTION = COMMON_FLAGS.store.description;
+
+// Deliberate rejection path: --store-path stays registered (hidden) so the
+// resolver can explain that registering the path is the supported route,
+// instead of Commander emitting a generic unknown-option error (or, for
+// `show`, silently ignoring it via allowUnknownOption).
+function hiddenStorePathOption(): Option {
+  return new Option(
+    '--store-path <path>',
+    'Not supported; register the path with "openspec store register <path>" and use --store <id>'
+  ).hideHelp();
+}
+
+function failWithError(
+  error: unknown,
+  json?: { enabled: boolean | undefined; payload?: Record<string, unknown>; fallbackCode?: string }
+): void {
+  // The agent contract: every --json failure leaves exactly one JSON
+  // document on stdout (the command's null-shape plus a status array).
+  if (json?.enabled) {
+    console.log(
+      JSON.stringify(
+        { ...(json.payload ?? {}), status: [asStatus(error, json.fallbackCode ?? 'command_error')] },
+        null,
+        2
+      )
+    );
+    process.exitCode = 1;
+    return;
+  }
+  ora().fail(`Error: ${(error as Error).message}`);
+  // Resolution and store errors carry a pasteable fix - never drop it.
+  const fix = (error as { diagnostic?: { fix?: string } }).diagnostic?.fix;
+  if (fix) {
+    console.error(`Fix: ${fix}`);
+  }
+  process.exitCode = process.exitCode ?? 1;
+}
 
 const program = new Command();
 const require = createRequire(import.meta.url);
@@ -40,7 +99,7 @@ const { version } = require('../../package.json');
  * Get the full command path for nested commands.
  * For example: 'change show' -> 'change:show'
  */
-function getCommandPath(command: Command): string {
+export function getCommandPath(command: Command): string {
   const names: string[] = [];
   let current: Command | null = command;
 
@@ -87,8 +146,13 @@ program.hook('postAction', async () => {
   await shutdown();
 });
 
-const availableToolIds = AI_TOOLS.filter((tool) => tool.skillsDir).map((tool) => tool.value);
-const toolsOptionDescription = `Configure AI tools non-interactively. Use "all", "none", or a comma-separated list of: ${availableToolIds.join(', ')}`;
+const availableToolIds = AI_TOOLS
+  .filter((tool) => tool.skillsDir || tool.globalSkillsDir)
+  .map((tool) => tool.value);
+const toolAliasNote = Object.entries(TOOL_ID_ALIASES)
+  .map(([retired, current]) => `${retired} (now ${current})`)
+  .join(', ');
+const toolsOptionDescription = `Configure AI tools non-interactively. Use "all", "none", or a comma-separated list of: ${availableToolIds.join(', ')}. Also accepted: ${toolAliasNote}`;
 
 program
   .command('init [path]')
@@ -96,7 +160,10 @@ program
   .option('--tools <tools>', toolsOptionDescription)
   .option('--force', 'Auto-cleanup legacy files without prompting')
   .option('--profile <profile>', 'Override global config profile (core or custom)')
-  .action(async (targetPath = '.', options?: { tools?: string; force?: boolean; profile?: string }) => {
+  .option('--no-animation', 'Show a static welcome screen instead of the animated one')
+  .option('--copilot-cloud', 'Set up GitHub Copilot cloud coding-agent files without prompting')
+  .option('--no-copilot-cloud', 'Skip GitHub Copilot cloud coding-agent files without prompting')
+  .action(async (targetPath = '.', options?: { tools?: string; force?: boolean; profile?: string; animation?: boolean; copilotCloud?: boolean }) => {
     try {
       // Validate that the path is a valid directory
       const resolvedPath = path.resolve(targetPath);
@@ -122,11 +189,12 @@ program
         tools: options?.tools,
         force: options?.force,
         profile: options?.profile,
+        animation: options?.animation,
+        copilotCloud: options?.copilotCloud,
       });
       await initCommand.execute(targetPath);
     } catch (error) {
-      console.log(); // Empty line for spacing
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error);
       process.exit(1);
     }
   });
@@ -147,8 +215,7 @@ program
       });
       await initCommand.execute('.');
     } catch (error) {
-      console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error);
       process.exit(1);
     }
   });
@@ -159,12 +226,61 @@ program
   .option('--force', 'Force update even when tools are up to date')
   .action(async (targetPath = '.', options?: { force?: boolean }) => {
     try {
-      const resolvedPath = path.resolve(targetPath);
+      const installDir = getInstallDir();
+      // Running from a clone: the version is whatever the branch says, so any
+      // upgrade advice would be noise. Decided before the request, so a
+      // contributor never waits on an answer that gets thrown away.
+      const latestVersion = isSourceCheckout(installDir) ? null : await getAvailableCliUpdate();
+      const announce = latestVersion !== null;
+      // Offer to upgrade first: this process generates files from its own
+      // templates, so upgrading afterwards would leave the old ones on disk.
+      // Both streams must be a terminal — with stdout redirected the question
+      // lands in the file and the user waits at a blank screen forever.
+      const canOffer =
+        announce &&
+        shouldOfferUpgrade({
+          installDir,
+          projectPath: targetPath,
+          interactive: isInteractive(),
+          stdoutIsTty: Boolean(process.stdout.isTTY),
+        });
+
+      let declined = false;
+      if (latestVersion && canOffer) {
+        displayCliUpdateNote(latestVersion, targetPath, { withCommand: false });
+        const outcome = await offerCliUpgrade(latestVersion);
+
+        // Set the code and return rather than process.exit: exiting here would
+        // skip commander's postAction hook, killing the telemetry flush
+        // mid-request.
+        if (outcome === 'cancelled') {
+          // Ctrl-C means stop the command, not fall through to more prompts.
+          process.exitCode = 130;
+          return;
+        }
+        if (outcome === 'upgraded') {
+          process.exitCode = await rerunUpdateWithUpgradedCli(targetPath, {
+            force: options?.force,
+          });
+          return;
+        }
+        // Declined, failed, or upgraded-but-unreachable: fall through to the
+        // update, then leave the command on screen underneath it.
+        declined = true;
+      }
+
       const updateCommand = new UpdateCommand({ force: options?.force });
-      await updateCommand.execute(resolvedPath);
+      await updateCommand.execute(targetPath);
+
+      if (declined) {
+        // The headline was printed before the prompt; only the manual route is
+        // still owed, and it belongs where the user is looking now.
+        displayUpgradeCommand(targetPath);
+      } else if (latestVersion) {
+        displayCliUpdateNote(latestVersion, targetPath);
+      }
     } catch (error) {
-      console.log(); // Empty line for spacing
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error);
       process.exit(1);
     }
   });
@@ -176,15 +292,31 @@ program
   .option('--changes', 'List changes explicitly (default)')
   .option('--sort <order>', 'Sort order: "recent" (default) or "name"', 'recent')
   .option('--json', 'Output as JSON (for programmatic use)')
-  .action(async (options?: { specs?: boolean; changes?: boolean; sort?: string; json?: boolean }) => {
+  .option('--store <id>', STORE_OPTION_DESCRIPTION)
+  .addOption(hiddenStorePathOption())
+  .action(async (options?: { specs?: boolean; changes?: boolean; sort?: string; json?: boolean; store?: string; storePath?: string }) => {
     try {
+      const root = await resolveRootForCommand(options ?? {}, {
+        json: options?.json,
+        failurePayload: options?.specs ? { specs: [], root: null } : { changes: [], root: null },
+      });
+      if (!root) {
+        return;
+      }
       const listCommand = new ListCommand();
       const mode: 'changes' | 'specs' = options?.specs ? 'specs' : 'changes';
       const sort = options?.sort === 'name' ? 'name' : 'recent';
-      await listCommand.execute('.', mode, { sort, json: options?.json });
+      await listCommand.execute(root.path, mode, {
+        sort,
+        json: options?.json,
+        ...(options?.json ? { root: toRootOutput(root) } : {}),
+      });
     } catch (error) {
-      console.log(); // Empty line for spacing
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error, {
+        enabled: options?.json,
+        payload: options?.specs ? { specs: [], root: null } : { changes: [], root: null },
+        fallbackCode: 'list_error',
+      });
       process.exit(1);
     }
   });
@@ -192,13 +324,21 @@ program
 program
   .command('view')
   .description('Display an interactive dashboard of specs and changes')
-  .action(async () => {
+  .option('--store <id>', STORE_OPTION_DESCRIPTION)
+  .addOption(hiddenStorePathOption())
+  .action(async (options?: { store?: string; storePath?: string }) => {
     try {
+      // Implicit cwd fallback stays enabled so `view` keeps accepting the same
+      // directories as `list`/`status` — notably pre-config.yaml `openspec/`
+      // dirs. ViewCommand still reports a missing openspec/ directory itself.
+      const root = await resolveRootForCommand(options ?? {});
+      if (!root) {
+        return;
+      }
       const viewCommand = new ViewCommand();
-      await viewCommand.execute('.');
+      await viewCommand.execute(root.path);
     } catch (error) {
-      console.log(); // Empty line for spacing
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error);
       process.exit(1);
     }
   });
@@ -271,13 +411,15 @@ program
   .option('-y, --yes', 'Skip confirmation prompts')
   .option('--skip-specs', 'Skip spec update operations (useful for infrastructure, tooling, or doc-only changes)')
   .option('--no-validate', 'Skip validation (not recommended, requires confirmation)')
-  .action(async (changeName?: string, options?: { yes?: boolean; skipSpecs?: boolean; noValidate?: boolean; validate?: boolean }) => {
+  .option('--json', 'Output as JSON (non-interactive)')
+  .option('--store <id>', STORE_OPTION_DESCRIPTION)
+  .addOption(hiddenStorePathOption())
+  .action(async (changeName?: string, options?: ArchiveOptions) => {
     try {
       const archiveCommand = new ArchiveCommand();
       await archiveCommand.execute(changeName, options);
     } catch (error) {
-      console.log(); // Empty line for spacing
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error);
       process.exit(1);
     }
   });
@@ -285,6 +427,10 @@ program
 registerSpecCommand(program);
 registerConfigCommand(program);
 registerSchemaCommand(program);
+registerStoreCommand(program);
+registerDoctorCommand(program);
+registerContextCommand(program);
+registerWorksetCommand(program);
 
 // Top-level validate command
 program
@@ -298,13 +444,14 @@ program
   .option('--json', 'Output validation results as JSON')
   .option('--concurrency <n>', 'Max concurrent validations (defaults to env OPENSPEC_CONCURRENCY or 6)')
   .option('--no-interactive', 'Disable interactive prompts')
-  .action(async (itemName?: string, options?: { all?: boolean; changes?: boolean; specs?: boolean; type?: string; strict?: boolean; json?: boolean; noInteractive?: boolean; concurrency?: string }) => {
+  .option('--store <id>', STORE_OPTION_DESCRIPTION)
+  .addOption(hiddenStorePathOption())
+  .action(async (itemName?: string, options?: { all?: boolean; changes?: boolean; specs?: boolean; type?: string; strict?: boolean; json?: boolean; noInteractive?: boolean; concurrency?: string; store?: string; storePath?: string }) => {
     try {
       const validateCommand = new ValidateCommand();
       await validateCommand.execute(itemName, options);
     } catch (error) {
-      console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error, { enabled: options?.json, fallbackCode: 'validate_error' });
       process.exit(1);
     }
   });
@@ -323,6 +470,10 @@ program
   .option('--requirements', 'JSON only: Show only requirements (exclude scenarios)')
   .option('--no-scenarios', 'JSON only: Exclude scenario content')
   .option('-r, --requirement <id>', 'JSON only: Show specific requirement by ID (1-based)')
+  .option('--store <id>', STORE_OPTION_DESCRIPTION)
+  // Explicit registration required: allowUnknownOption would otherwise
+  // silently swallow --store-path instead of rejecting it deliberately.
+  .addOption(hiddenStorePathOption())
   // allow unknown options to pass-through to underlying command implementation
   .allowUnknownOption(true)
   .action(async (itemName?: string, options?: { json?: boolean; type?: string; noInteractive?: boolean; [k: string]: any }) => {
@@ -330,8 +481,7 @@ program
       const showCommand = new ShowCommand();
       await showCommand.execute(itemName, options ?? {});
     } catch (error) {
-      console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error, { enabled: options?.json, fallbackCode: 'show_error' });
       process.exit(1);
     }
   });
@@ -346,8 +496,7 @@ program
       const feedbackCommand = new FeedbackCommand();
       await feedbackCommand.execute(message, options);
     } catch (error) {
-      console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error);
       process.exit(1);
     }
   });
@@ -365,8 +514,7 @@ completionCmd
       const completionCommand = new CompletionCommand();
       await completionCommand.generate({ shell });
     } catch (error) {
-      console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error);
       process.exit(1);
     }
   });
@@ -380,8 +528,7 @@ completionCmd
       const completionCommand = new CompletionCommand();
       await completionCommand.install({ shell, verbose: options?.verbose });
     } catch (error) {
-      console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error);
       process.exit(1);
     }
   });
@@ -395,8 +542,7 @@ completionCmd
       const completionCommand = new CompletionCommand();
       await completionCommand.uninstall({ shell, yes: options?.yes });
     } catch (error) {
-      console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error);
       process.exit(1);
     }
   });
@@ -426,12 +572,13 @@ program
   .option('--change <id>', 'Change name to show status for')
   .option('--schema <name>', 'Schema override (auto-detected from config.yaml)')
   .option('--json', 'Output as JSON')
+  .option('--store <id>', STORE_OPTION_DESCRIPTION)
+  .addOption(hiddenStorePathOption())
   .action(async (options: StatusOptions) => {
     try {
       await statusCommand(options);
     } catch (error) {
-      console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error, { enabled: options.json, fallbackCode: 'change_error' });
       process.exit(1);
     }
   });
@@ -439,21 +586,24 @@ program
 // Instructions command
 program
   .command('instructions [artifact]')
-  .description('Output enriched instructions for creating an artifact or applying tasks')
+  .description('Output enriched instructions for artifacts, apply, or archive')
   .option('--change <id>', 'Change name')
   .option('--schema <name>', 'Schema override (auto-detected from config.yaml)')
   .option('--json', 'Output as JSON')
+  .option('--store <id>', STORE_OPTION_DESCRIPTION)
+  .addOption(hiddenStorePathOption())
   .action(async (artifactId: string | undefined, options: InstructionsOptions) => {
     try {
-      // Special case: "apply" is not an artifact, but a command to get apply instructions
+      // Workflow instruction surfaces are reserved command branches, not artifacts.
       if (artifactId === 'apply') {
         await applyInstructionsCommand(options);
+      } else if (artifactId === 'archive') {
+        await archiveInstructionsCommand(options);
       } else {
         await instructionsCommand(artifactId, options);
       }
     } catch (error) {
-      console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error, { enabled: options.json, fallbackCode: 'change_error' });
       process.exit(1);
     }
   });
@@ -468,8 +618,7 @@ program
     try {
       await templatesCommand(options);
     } catch (error) {
-      console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error);
       process.exit(1);
     }
   });
@@ -483,8 +632,7 @@ program
     try {
       await schemasCommand(options);
     } catch (error) {
-      console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error);
       process.exit(1);
     }
   });
@@ -496,15 +644,30 @@ newCmd
   .command('change <name>')
   .description('Create a new change directory')
   .option('--description <text>', 'Description to add to README.md')
+  .option('--goal <text>', 'Optional goal metadata to store with the change')
   .option('--schema <name>', `Workflow schema to use (default: ${DEFAULT_SCHEMA})`)
+  .option('--json', 'Output as JSON')
+  .option('--store <id>', STORE_OPTION_DESCRIPTION)
+  .addOption(hiddenStorePathOption())
+  // Removed options kept registered (hidden) so users get a deliberate
+  // explanation instead of a generic unknown-option error.
+  .addOption(new Option('--initiative <id>', 'No longer supported').hideHelp())
+  .addOption(new Option('--areas <names>', 'No longer supported').hideHelp())
   .action(async (name: string, options: NewChangeOptions) => {
     try {
       await newChangeCommand(name, options);
     } catch (error) {
-      console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      failWithError(error);
       process.exit(1);
     }
   });
 
-program.parse();
+export { program };
+
+export function runCli(argv = process.argv): void {
+  program.parse(argv);
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  runCli();
+}

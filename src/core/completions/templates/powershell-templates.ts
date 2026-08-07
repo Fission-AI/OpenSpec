@@ -22,4 +22,13 @@ function Get-OpenSpecSpecs {
         }
     }
 }
+
+function Get-OpenSpecSchemas {
+    $output = openspec __complete schemas 2>$null
+    if ($output) {
+        $output | ForEach-Object {
+            ($_ -split "\\t")[0]
+        }
+    }
+}
 `;

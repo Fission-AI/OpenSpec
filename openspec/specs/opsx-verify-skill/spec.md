@@ -14,8 +14,9 @@ The system SHALL provide an `/opsx:verify` skill that validates implementation a
 
 #### Scenario: Verify without change name
 - **WHEN** agent executes `/opsx:verify` without a change name
-- **THEN** the agent prompts user to select from available changes
-- **AND** shows only changes that have implementation tasks
+- **THEN** the agent infers the change from conversation context, or auto-selects it when only one active change exists
+- **AND** when ambiguous, prompts user to select from available changes, showing only changes that have implementation tasks
+- **AND** announces which change was selected and how to override
 
 #### Scenario: Change has no tasks
 - **WHEN** selected change has no tasks.md or tasks are empty
