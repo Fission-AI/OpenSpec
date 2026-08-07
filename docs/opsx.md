@@ -219,17 +219,7 @@ Revises the change's existing planning artifacts and keeps them coherent - in an
 ```text
 /opsx:sync
 ```
-Merges delta specs from the current change into main specs. Optional—archive will prompt to sync if needed.
-
-**What it does:**
-- Reads delta specs from change folder
-- Merges changes into main `openspec/specs/` directory
-- Does not archive the change (remains active)
-
-**When to use:**
-- You want to update main specs before archiving
-- Multiple changes need to see each other's specs
-- You're iterating on specs and want to test integration
+Merges the current change's delta specs into your main `openspec/specs/` without archiving — the change stays active. It applies the whole delta: a requirement under `## REMOVED` is deleted from the main spec and a renamed one is retitled in place, while content the delta doesn't mention is left untouched. Syncing is optional — archive prompts you to sync first if you haven't. Reach for it when you want main specs updated before archiving, when a parallel change needs to build on specs this one just added, or when you want to review the merged main spec before archiving.
 
 ### Finish up
 ```
