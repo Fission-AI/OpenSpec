@@ -23,10 +23,11 @@ const HEADER_LINE = /^#{1,6}\s/;
 /**
  * A level-4 header. Deliberately matches ANY `####` header, not only
  * `#### Scenario:` — the spec path treats every level-4 child of a requirement
- * as a scenario, so the delta counter must too (parity). Don't tighten this to
- * `Scenario:` without changing both paths together.
+ * as a scenario, so the delta counter must too (parity). The delta/loss path
+ * reuses this exact constant via `scenarioHeaderAt` in requirement-blocks.ts;
+ * keep both paths on it rather than reintroducing a separate `Scenario:` regex.
  */
-const SCENARIO_HEADER = /^####\s+/;
+export const SCENARIO_HEADER = /^####\s+/;
 
 /**
  * The one predicate for normative-keyword detection. Matches `SHALL` or `MUST`
