@@ -12,12 +12,14 @@ describe('interactive utilities', () => {
   let originalOpenSpecInteractive: string | undefined;
   let originalCI: string | undefined;
   let originalStdinIsTTY: boolean | undefined;
+  let originalStdoutIsTTY: boolean | undefined;
 
   beforeEach(() => {
     // Save original environment
     originalOpenSpecInteractive = process.env.OPEN_SPEC_INTERACTIVE;
     originalCI = process.env.CI;
     originalStdinIsTTY = process.stdin.isTTY;
+    originalStdoutIsTTY = process.stdout.isTTY;
 
     // Clear environment for clean testing
     delete process.env.OPEN_SPEC_INTERACTIVE;
@@ -39,6 +41,12 @@ describe('interactive utilities', () => {
     // Restore stdin.isTTY
     Object.defineProperty(process.stdin, 'isTTY', {
       value: originalStdinIsTTY,
+      writable: true,
+      configurable: true,
+    });
+    // Restore stdout.isTTY
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: originalStdoutIsTTY,
       writable: true,
       configurable: true,
     });
@@ -135,6 +143,10 @@ describe('interactive utilities', () => {
       Object.defineProperty(process.stdin, 'isTTY', { value, writable: true, configurable: true });
     }
 
+    function setStdoutIsTTY(value: boolean): void {
+      Object.defineProperty(process.stdout, 'isTTY', { value, writable: true, configurable: true });
+    }
+
     function exitPromptError(message: string): Error {
       const error = new Error(message);
       error.name = 'ExitPromptError';
@@ -176,9 +188,9 @@ describe('interactive utilities', () => {
     it('honors the same non-interactive signals as isInteractive()', () => {
       const failure = exitPromptError('User force closed the prompt with 0 null');
 
-      // A pty-allocating CI runner: a terminal exists, but CI declares that
-      // nobody is watching it.
+      // A full terminal: both streams are TTYs, so nobody-can-answer is false.
       setStdinIsTTY(true);
+      setStdoutIsTTY(true);
       expect(isNonInteractivePromptError(failure)).toBe(false);
 
       process.env.CI = 'true';
@@ -190,6 +202,18 @@ describe('interactive utilities', () => {
       delete process.env.OPEN_SPEC_INTERACTIVE;
 
       expect(isNonInteractivePromptError(failure, { interactive: false })).toBe(true);
+    });
+
+    it('classifies EOF as non-interactive when stdout is redirected, even with a TTY stdin', () => {
+      // confirmPrompt drops to the plain reader whenever either stream is not a
+      // TTY. A stdin-TTY-but-stdout-redirected run that reaches EOF must be
+      // classified the same way it was prompted, so the caller gets the #1479
+      // "rerun with --yes" guidance instead of a raw ExitPromptError.
+      setStdinIsTTY(true);
+      setStdoutIsTTY(false);
+      expect(
+        isNonInteractivePromptError(exitPromptError('User force closed the prompt with 0 null'))
+      ).toBe(true);
     });
 
     it('ignores unrelated failures', () => {
@@ -339,6 +363,23 @@ describe('interactive utilities', () => {
         { input: pipedInput(null), output: captureOutput() }
       ).catch((e) => e);
       expect(isNonInteractivePromptError(error)).toBe(true);
+    });
+
+    it('settles (does not hang) when the input stream errors', async () => {
+      // readline forwards an input-stream error to its 'error' event; without a
+      // handler the promise would hang and the error would go unhandled. It must
+      // reject with the underlying fault instead.
+      const input = new Readable({
+        read() {
+          this.destroy(new Error('stdin exploded'));
+        },
+      });
+      await expect(
+        confirmPrompt(
+          { message: 'Continue?', default: false },
+          { input, output: captureOutput() }
+        )
+      ).rejects.toThrow('stdin exploded');
     });
   });
 });

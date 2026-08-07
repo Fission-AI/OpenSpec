@@ -6623,9 +6623,18 @@ The system SHALL provide a new behavior.
     // picker, swallow it and exit 0 - which told the caller nothing about
     // which flag to pass.
     const originalIsTty = process.stdin.isTTY;
+    const originalStdoutIsTty = process.stdout.isTTY;
 
     function setStdinIsTty(value: boolean | undefined): void {
       Object.defineProperty(process.stdin, 'isTTY', {
+        value,
+        configurable: true,
+        writable: true,
+      });
+    }
+
+    function setStdoutIsTty(value: boolean | undefined): void {
+      Object.defineProperty(process.stdout, 'isTTY', {
         value,
         configurable: true,
         writable: true,
@@ -6640,6 +6649,9 @@ The system SHALL provide a new behavior.
 
     beforeEach(async () => {
       setStdinIsTty(false);
+      // A redirected/captured stdout is the other half of "nobody can answer";
+      // default these tests to it so classification matches a closed stdin.
+      setStdoutIsTty(false);
       // vi.clearAllMocks() clears recorded calls but leaves queued
       // `...Once` answers from earlier tests behind; drain them so each
       // prompt here rejects the way a closed stdin makes it reject.
@@ -6651,6 +6663,7 @@ The system SHALL provide a new behavior.
 
     afterEach(() => {
       setStdinIsTty(originalIsTty);
+      setStdoutIsTty(originalStdoutIsTty);
     });
 
     async function createChangeWithDeltaSpec(changeName: string): Promise<string> {
@@ -6923,8 +6936,10 @@ This change exists to document greeting behavior thoroughly for the team, which 
 
     it('leaves a prompt that failed at a usable terminal alone', async () => {
       // The terminal is what proves an answer was possible. Losing that leg
-      // would relabel a failure a human could have answered.
+      // would relabel a failure a human could have answered. A usable terminal
+      // means both streams are TTYs.
       setStdinIsTty(true);
+      setStdoutIsTty(true);
       const originalCi = process.env.CI;
       const originalOpenSpecInteractive = process.env.OPEN_SPEC_INTERACTIVE;
       delete process.env.CI;

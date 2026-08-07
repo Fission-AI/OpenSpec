@@ -50,7 +50,12 @@ export function isInteractive(value?: boolean | InteractiveOptions): boolean {
  *   somebody was there and chose to quit.
  *
  * Beyond that it defers to `isInteractive()`, so `CI`, `OPEN_SPEC_INTERACTIVE=0`
- * and `--no-interactive` count even when a runner allocated a pty.
+ * and `--no-interactive` count even when a runner allocated a pty. It also
+ * counts a redirected stdout: `confirmPrompt` drops to the plain reader whenever
+ * *either* stream is not a TTY, so a stdin-TTY-but-stdout-redirected run
+ * (`openspec archive x > log.txt` from a terminal) that hits EOF must classify
+ * the same way the prompt was selected — otherwise it would leak the raw
+ * `ExitPromptError` instead of the `--yes` guidance.
  */
 export function isNonInteractivePromptError(
   error: unknown,
@@ -61,7 +66,7 @@ export function isNonInteractivePromptError(
     error.name === 'ExitPromptError' || error.message.includes('force closed the prompt');
   if (!failedPrompt) return false;
   if (error.message.includes('SIGINT')) return false;
-  return !isInteractive(value);
+  return !isInteractive(value) || !process.stdout.isTTY;
 }
 
 export type ConfirmPrompt = {
@@ -106,7 +111,10 @@ function readYesNo(
   output: Writable
 ): Promise<boolean> {
   return new Promise((resolve, reject) => {
+    let settled = false;
     const blockOnNoAnswer = () => {
+      if (settled) return;
+      settled = true;
       // No line could be read (stdin closed / EOF). Mirror @inquirer's failure
       // so callers that classify it — isNonInteractivePromptError, the #1479
       // "rerun with --yes" guidance — keep working unchanged.
@@ -125,9 +133,20 @@ function readYesNo(
     // terminal:false guarantees readline never emits its own line-editing
     // escapes — an escape-free read is the whole point here.
     const rl = createInterface({ input, terminal: false });
-    let answered = false;
+    // A stdin error surfaces on the interface (readline forwards input-stream
+    // errors since Node 16). Without a handler the promise would hang and the
+    // 'error' would go unhandled; settle it with the real fault instead.
+    const onError = (err: unknown) => {
+      if (settled) return;
+      settled = true;
+      rl.close();
+      reject(err instanceof Error ? err : new Error(String(err)));
+    };
+    rl.once('error', onError);
+    input.once('error', onError);
     rl.once('line', (line) => {
-      answered = true;
+      if (settled) return;
+      settled = true;
       rl.close();
       output.write('\n');
       // Mirror @inquirer/confirm's parser (prefix match on y/yes and n/no,
@@ -143,7 +162,6 @@ function readYesNo(
       }
     });
     rl.once('close', () => {
-      if (answered) return;
       blockOnNoAnswer();
     });
   });
