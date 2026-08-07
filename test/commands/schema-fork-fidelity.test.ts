@@ -155,6 +155,79 @@ describe('schema fork fidelity (PR #1130)', () => {
       .join('\n');
     expect(output).toContain('"forked": false');
     expect(output).toMatch(/Invalid schema/i);
+
+    // Hardening: a failed fork must not litter a partial destination. The
+    // freshly-copied dir is removed, so a corrected retry is not blocked by a
+    // spurious "already exists".
+    const destDir = path.join(
+      tempDir,
+      'openspec',
+      'schemas',
+      'forked-invalid'
+    );
+    expect(fs.existsSync(destDir)).toBe(false);
+
+    // A second fork of the same (still invalid) source fails for the RIGHT
+    // reason — invalid schema — not because a leftover directory exists.
+    process.exitCode = undefined;
+    consoleLogSpy.mockClear();
+    await runSchemaCommand(['fork', 'invalid-schema', 'forked-invalid', '--json']);
+    const retry = consoleLogSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(retry).toMatch(/Invalid schema/i);
+    expect(retry).not.toMatch(/already exists/i);
+  });
+
+  it('never removes a pre-existing destination when --force is absent', async () => {
+    // Guards the safety invariant of the failure cleanup: it may only delete a
+    // directory this run created. Without --force an existing destination is
+    // rejected BEFORE any copy, so a user's directory (and its files) must be
+    // left completely untouched.
+    const invalidDir = path.join(tempDir, 'openspec', 'schemas', 'invalid-schema');
+    fs.mkdirSync(invalidDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(invalidDir, 'schema.yaml'),
+      ['name: invalid-schema', 'version: 1', 'artifacts:', '  - id: proposal', ''].join('\n')
+    );
+
+    const destDir = path.join(tempDir, 'openspec', 'schemas', 'forked-invalid');
+    fs.mkdirSync(destDir, { recursive: true });
+    const sentinel = path.join(destDir, 'sentinel.txt');
+    fs.writeFileSync(sentinel, 'do not delete me');
+
+    await runSchemaCommand(['fork', 'invalid-schema', 'forked-invalid', '--json']);
+
+    const output = consoleLogSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(process.exitCode).toBeTruthy();
+    expect(output).toMatch(/already exists/i);
+    // The pre-existing directory and its contents survive intact.
+    expect(fs.existsSync(sentinel)).toBe(true);
+    expect(fs.readFileSync(sentinel, 'utf-8')).toBe('do not delete me');
+  });
+
+  it('writes YAML-ambiguous names as strings, not booleans/null', async () => {
+    // Lock-in for the Document-API rename: forking to a kebab-valid but
+    // YAML-ambiguous name (true/false/null/off) must round-trip as a STRING, so
+    // the forked schema still loads. Guards against a future yaml core-schema
+    // change that would emit these unquoted.
+    const { parse } = await import('yaml');
+    for (const name of ['true', 'false', 'null', 'off']) {
+      process.exitCode = undefined;
+      await runSchemaCommand(['fork', 'src-schema', name, '--json']);
+      expect(process.exitCode).toBeFalsy();
+
+      const destPath = path.join(
+        tempDir,
+        'openspec',
+        'schemas',
+        name,
+        'schema.yaml'
+      );
+      const parsed = parse(fs.readFileSync(destPath, 'utf-8')) as {
+        name: unknown;
+      };
+      expect(parsed.name).toBe(name);
+      expect(typeof parsed.name).toBe('string');
+    }
   });
 
   it('demonstrates the pre-#1130 object round trip dropped comments', async () => {

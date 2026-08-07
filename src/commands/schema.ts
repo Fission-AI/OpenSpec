@@ -705,18 +705,29 @@ export function registerSchemaCommand(program: Command): void {
 
         // Update name in schema.yaml
         const destSchemaPath = path.join(destinationDir, 'schema.yaml');
-        const schemaContent = fs.readFileSync(destSchemaPath, 'utf-8');
+        try {
+          const schemaContent = fs.readFileSync(destSchemaPath, 'utf-8');
 
-        // Validate the structure before mutating, so an invalid source is
-        // rejected here just as the pre-Document-API path did.
-        parseSchema(schemaContent);
+          // Validate the structure before mutating, so an invalid source is
+          // rejected here just as the pre-Document-API path did.
+          parseSchema(schemaContent);
 
-        // Rename via yaml's Document API instead of re-serializing the parsed
-        // object, so block scalars, comments, and key order in the source
-        // schema.yaml survive the fork.
-        const doc = parseDocument(schemaContent);
-        doc.set('name', destinationName);
-        fs.writeFileSync(destSchemaPath, doc.toString());
+          // Rename via yaml's Document API instead of re-serializing the parsed
+          // object, so block scalars, comments, and key order in the source
+          // schema.yaml survive the fork.
+          const doc = parseDocument(schemaContent);
+          doc.set('name', destinationName);
+          fs.writeFileSync(destSchemaPath, doc.toString());
+        } catch (error) {
+          // copyDirRecursive created destinationDir fresh this run (the
+          // existing-destination path without --force returns before the copy,
+          // and the --force path removes the prior directory first), so removing
+          // it here can only delete the partial fork we just made — never a
+          // pre-existing user directory. Rethrow so the original error still
+          // reaches the outer handler and drives the JSON/exit-code reporting.
+          fs.rmSync(destinationDir, { recursive: true, force: true });
+          throw error;
+        }
 
         if (spinner) spinner.succeed(`Forked '${source}' to '${destinationName}'`);
 
