@@ -1,0 +1,281 @@
+name: spec-driven-tdd
+version: 1
+description: Fusão de spec-driven + qa - proposal → BDD specs → design → tasks TDD (test-first) → apply
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Initial proposal document outlining the change
+    template: proposal.md
+    instruction: |
+      Create the proposal document that establishes WHY this change is needed.
+
+      Sections:
+      - **Why**: 1-2 sentences on the problem or opportunity. What problem does this solve? Why now?
+      - **What Changes**: Bullet list of changes. Be specific about new capabilities, modifications, or removals. Mark breaking changes with **BREAKING**.
+      - **Capabilities**: Identify which specs will be created or modified:
+        - **New Capabilities**: List capabilities being introduced. Each becomes a new `specs/<name>/spec.md`. Use kebab-case names (e.g., `user-auth`, `data-export`).
+        - **Modified Capabilities**: List existing capabilities whose REQUIREMENTS are changing. Only include if spec-level behavior changes (not just implementation details). Each needs a delta spec file. Check `openspec/specs/` for existing spec names. Leave empty if no requirement changes.
+      - **Impact**: Affected code, APIs, dependencies, or systems.
+      - **Contracts / Boundaries** (OBRIGATÓRIO): Liste TODA fronteira cross-component que esta
+        change lê ou escreve. Uma fronteira é qualquer ponto onde dois componentes (serviços,
+        processos, camadas, cliente↔servidor) trocam dados sob um formato acordado. Cubra, quando
+        houver: shape/formato de dado, contrato de identificador, protocolo de streaming/progresso,
+        ciclo de vida de sessão/estado, formato de mensagem entre serviços. Cada item vira um
+        Contract Requirement nas specs. Se não houver nenhuma, escreva explicitamente
+        "Boundaries: none".
+      - **Scope / Build Gate**: Classifique o tamanho da change e declare se exige BUILD + SMOKE ao final.
+        Marque como **LARGE** (build gate obrigatório) se QUALQUER um se aplica:
+        - toca múltiplos módulos/serviços (cross-cutting);
+        - adiciona/atualiza dependência;
+        - altera API pública ou schema de dados.
+        - toca QUALQUER contrato entre componentes (qualquer boundary ≠ none listado em
+          `Contracts / Boundaries`) — contrato interno entre componentes NÃO pode ser SMALL.
+        Caso contrário, marque **SMALL** (build gate dispensado; testes + cobertura continuam obrigatórios).
+        Escreva explicitamente uma linha: `Scope: LARGE` ou `Scope: SMALL` — tasks e apply leem esse marcador.
+
+      IMPORTANT: The Capabilities section is critical. It creates the contract between
+      proposal and specs phases. Research existing specs before filling this in.
+      Each capability listed here will need a corresponding spec file.
+
+      Keep it concise (1-2 pages). Focus on the "why" not the "how" -
+      implementation details belong in design.md.
+
+      This is the foundation - specs, design, and tasks all build on this.
+    requires: []
+
+  - id: specs
+    generates: "specs/**/*.md"
+    description: Detailed BDD specifications and test scenarios (source of the tests)
+    template: spec.md
+    instruction: |
+      Você é um QA Sênior especialista em BDD escrevendo specs que servirão de
+      FONTE DIRETA para os testes automatizados (test-first / TDD).
+
+      Create one spec file per capability listed in the proposal's Capabilities section.
+      - New capabilities: use the exact kebab-case name from the proposal (specs/<capability>/spec.md).
+      - Modified capabilities: use the existing spec folder name from openspec/specs/<capability>/ when creating the delta spec at specs/<capability>/spec.md.
+
+      REGRAS:
+      1. Use linguagem clara e objetiva.
+      2. Cada requisito deve ter pelo menos um cenário GIVEN-WHEN-THEN.
+      3. Inclua cenários de erro e exceções (o teste RED começa por eles).
+      4. Defina dados de teste explícitos — eles viram fixtures.
+      5. Use SHALL/MUST para requisitos normativos (evite should/may).
+      6. **CRÍTICO**: Scenarios DEVEM usar exatamente 4 hashtags (`####`). 3 hashtags ou bullets falham silenciosamente.
+      7. Cada cenário será rastreável 1:1 por uma task de teste na fase tasks.
+      8. Para CADA boundary listado em `Contracts / Boundaries` da proposal, escreva ao menos um
+         Requirement de CONTRATO no formato Requirement NORMAL (### Requirement: → #### Scenario:,
+         4 hashtags, inline no spec.md — NÃO invente header de delta novo), com um #### Scenario
+         POSITIVO e um #### Scenario NEGATIVO cobrindo o contrato na fronteira (ex.: shape
+         aceito/rejeitado, identificador válido/inválido, evento de progresso/stream conforme/violado,
+         estado de sessão válido/inválido).
+      9. **ORÁCULO DO CONTRATO (CRÍTICO)**: O oráculo do scenario de contrato vem do formato
+         ESPECIFICADO/ALVO do contrato, NUNCA do output que o componente produz hoje. Snapshotar o
+         comportamento atual congela o bug como se fosse contrato.
+
+      Delta operations (use ## headers):
+      - **ADDED Requirements**: New capabilities
+      - **MODIFIED Requirements**: Changed behavior - MUST include full updated content
+      - **REMOVED Requirements**: Deprecated features - MUST include **Reason** e **Migration**
+      - **RENAMED Requirements**: Name changes only - use FROM:/TO: format
+
+      ESTRUTURA de cada spec:
+
+      ## ADDED Requirements
+
+      ### Requirement: [Nome do Requisito]
+      - Descrição clara do comportamento esperado (SHALL/MUST).
+
+      #### Scenario: [Cenário Positivo]
+      - **GIVEN** [estado inicial]
+      - **WHEN** [ação]
+      - **THEN** [resultado esperado]
+
+      #### Scenario: [Cenário Negativo]
+      - **GIVEN** [estado inicial]
+      - **WHEN** [ação inválida]
+      - **THEN** [erro/comportamento esperado]
+
+      ## Edge Cases
+      - Liste cenários de borda (limites, caracteres especiais, timeout, concorrência).
+
+      ## Test Data
+      - Exemplos de dados válidos e inválidos para uso nos testes.
+
+      ## Contracts
+      - Seção AUXILIAR (mesmo nível de ## Edge Cases / ## Test Data — NÃO é um tipo de delta e NÃO
+        substitui os Contract Requirements da regra 8).
+      - Para cada boundary da proposal, descreva o shape/formato do contrato de forma DECLARATIVA e
+        verificável: campos, tipos lógicos, obrigatoriedade, formato de identificador, ordem/semântica
+        dos eventos de stream, estados válidos de sessão. Descreva o CONTRATO, não a tecnologia que o
+        fixa — a REPRESENTAÇÃO CONCRETA (schema de validação, tipo estático, contrato de serialização)
+        é escolhida na camada design conforme a stack do projeto.
+
+      MODIFIED requirements workflow:
+      1. Localize o requisito existente em openspec/specs/<capability>/spec.md
+      2. Copie o bloco INTEIRO (de `### Requirement:` até todos os scenarios)
+      3. Cole sob `## MODIFIED Requirements` e edite o novo comportamento
+      4. Garanta que o header bate exatamente (whitespace-insensitive)
+    requires:
+      - proposal
+
+  - id: design
+    generates: design.md
+    description: Technical design document with implementation details
+    template: design.md
+    instruction: |
+      Create the design document that explains HOW to implement the change.
+
+      When to include design.md (create only if any apply):
+      - Cross-cutting change (multiple services/modules) or new architectural pattern
+      - New external dependency or significant data model changes
+      - Security, performance, or migration complexity
+      - Ambiguity that benefits from technical decisions before coding
+      - The test strategy is non-trivial (test doubles, contract tests, fixtures pesados)
+
+      Sections:
+      - **Context**: Background, current state, constraints, stakeholders
+      - **Goals / Non-Goals**: What this design achieves and explicitly excludes
+      - **Decisions**: Key technical choices with rationale (why X over Y?). Include alternatives considered.
+      - **Test Strategy** (OBRIGATÓRIA nesta workflow):
+        - **Framework de teste**: declare explicitamente o framework/runner que será usado (ex: pytest, Jest, JUnit) e como rodar a suite LOCALMENTE (comando exato).
+        - **Ferramenta de cobertura**: declare a ferramenta (ex: pytest-cov, jest --coverage, JaCoCo) e o comando para gerar o relatório.
+        - **Meta de cobertura**: FIXA em **≥ 80% de linha E de branch**. A change não é considerada concluída abaixo disso.
+        - **Níveis de teste**: unit/integração/e2e, uso de mocks/fakes, e como cada `#### Scenario` das specs mapeia para um teste automatizado.
+        - **Contract tests de fronteira** (OBRIGATÓRIO se a proposal declarar boundaries ≠ none):
+          para TODO boundary listado em `Contracts / Boundaries`, um contract test é OBRIGATÓRIO —
+          não "integração opcional com mocks". Declare, conforme a stack do projeto:
+          (a) a ferramenta/mecanismo que FIXA o contrato na fronteira — a escolha é do projeto;
+              exemplos ILUSTRATIVOS (não normativos): biblioteca de validação de schema, tipos
+              estáticos, contract testing (estilo pact), IDL (estilo Protobuf/JSON Schema);
+          (b) a FONTE da fixture: payload real validado contra o formato ESPECIFICADO do contrato
+              (o alvo declarado na spec), NUNCA capturado do output atual do componente.
+        - **Cobertura não basta sozinha**: a meta ≥ 80% de linha E branch é NECESSÁRIA mas
+          INSUFICIENTE — ela não enxerga a costura entre componentes. Adicione um gate de
+          **boundary-coverage**: todo boundary declarado na proposal tem ≥ 1 contract test passando.
+          A change NÃO conclui se faltar qualquer um.
+        - **Build & Smoke** (obrigatório se o proposal marcou `Scope: LARGE`): declare o comando de BUILD
+          da aplicação (ex: `npm run build`, `mvn package`, `cargo build`) e o comando/procedimento de
+          SMOKE TEST (subir a app minimamente e confirmar boot sem crash, ex: `npm start` + healthcheck).
+      - **Risks / Trade-offs**: Known limitations. Format: [Risk] → Mitigation
+      - **Migration Plan**: Steps to deploy, rollback strategy (if applicable)
+      - **Open Questions**: Outstanding decisions or unknowns to resolve
+
+      Focus on architecture and approach, not line-by-line implementation.
+      Reference the proposal for motivation and specs for requirements.
+    requires:
+      - proposal
+
+  - id: tasks
+    generates: tasks.md
+    description: Implementation checklist following the test-first (TDD) cycle
+    template: tasks.md
+    instruction: |
+      Create the task list that breaks down the implementation work using a
+      TEST-FIRST (TDD) discipline.
+
+      **IMPORTANT: Follow the template format exactly.** The apply phase parses
+      checkbox format to track progress. Tasks not using `- [ ]` won't be tracked.
+
+      Regras de ordenação TDD (test-first por grupo):
+      - Agrupe as tasks por Requirement/capacidade sob ## numbered headings.
+      - A PRIMEIRA task de cada grupo escreve os testes (estado RED) cobrindo TODOS
+        os Scenarios daquele Requirement, incluindo os cenários negativos e edge cases.
+        Rotule-a com `(RED)`. Ela deve falhar por ausência de implementação.
+      - Se o grupo TOCA um boundary de `Contracts / Boundaries`, a PRIMEIRA task do grupo é
+        `(CONTRACT-RED)`: escreve o contract test da fronteira ANTES do `(RED)` unitário (o oráculo
+        é o formato ESPECIFICADO do contrato, não o output atual). Só então segue o ciclo
+        `(RED)`→`(GREEN)`→`(REFACTOR)` unitário do grupo.
+      - As tasks seguintes implementam o mínimo para deixar os testes verdes (GREEN)
+        e, ao final do grupo, uma task de limpeza/refatoração (REFACTOR) mantendo verde.
+      - Ordene os grupos por dependência (o que precisa existir primeiro?).
+      - Cada task deve caber em uma sessão e ser verificável.
+
+      OBRIGATÓRIO: o ÚLTIMO grupo de tasks deve ser um portão de qualidade (Quality Gate) com:
+      - uma task que confirma a suite inteira VERDE rodando localmente (comando do design);
+      - uma task `(COVERAGE)` que roda a ferramenta de cobertura declarada no design e
+        garante **≥ 80% de linha E de branch**;
+      - uma task `(BOUNDARY-COVERAGE)` que cruza a lista `Contracts / Boundaries` da proposal contra
+        os contract tests existentes e FALHA o gate se algum boundary (≠ none) não tiver um contract
+        test VERDE;
+      - SOMENTE se o proposal marcou `Scope: LARGE`, adicione também:
+        - uma task `(BUILD)` que roda o comando de build do design e exige build sem erro;
+        - uma task `(SMOKE)` que sobe a app minimamente e confirma boot sem crash.
+
+      Exemplo:
+      ```
+      ## 1. Export CSV
+
+      - [ ] 1.1 (RED) Escrever testes dos Scenarios "export ok" e "export sem dados" — devem falhar
+      - [ ] 1.2 (GREEN) Implementar função de export
+      - [ ] 1.3 (GREEN) Adicionar formatação CSV até os testes passarem
+      - [ ] 1.4 (REFACTOR) Extrair utilitários e limpar, mantendo tudo verde
+
+      ## 2. Validação de entrada
+
+      - [ ] 2.1 (RED) Escrever testes dos edge cases (campos vazios, caracteres especiais)
+      - [ ] 2.2 (GREEN) Implementar validação
+
+      ## 3. Quality Gate
+
+      - [ ] 3.1 Rodar a suite completa localmente — tudo verde
+      - [ ] 3.2 (COVERAGE) Gerar relatório de cobertura e garantir ≥ 80% linha E branch
+      - [ ] 3.3 (BOUNDARY-COVERAGE) Cruzar Contracts/Boundaries × contract tests — falha se algum boundary ≠ none sem teste verde
+      - [ ] 3.4 (BUILD) Rodar o build da aplicação — sem erro    # só se Scope: LARGE
+      - [ ] 3.5 (SMOKE) Subir a app minimamente e confirmar boot sem crash    # só se Scope: LARGE
+      ```
+
+      Reference specs para o QUE testar/construir, design para o COMO (framework, comando e meta de cobertura).
+    requires:
+      - specs
+      - design
+
+apply:
+  requires: [tasks]
+  tracks: tasks.md
+  instruction: |
+    Trabalhe as tasks em ordem seguindo o ciclo TDD:
+    1. Na task (RED): escreva o teste e RODE-O, confirmando que ele FALHA pelo motivo certo.
+    2. Nas tasks (GREEN): implemente o mínimo necessário e rode os testes até passarem.
+    3. Na task (REFACTOR): melhore o código mantendo todos os testes verdes.
+    Marque cada task como completa ao terminar. Nunca marque GREEN sem ter visto o teste passar.
+
+    TRATAMENTO DE FALHA (aplica-se SEMPRE que algo falhar: um teste, o BUILD ou o SMOKE):
+    Este é o comportamento padrão — NUNCA apenas barre. Ao encontrar uma falha, ENTRE no ciclo
+    diagnosticar→corrigir→rodar antes de considerar o gate reprovado.
+    1. Diagnostique a causa real lendo a mensagem de erro / stack trace / log de build completo.
+    2. Corrija o CÓDIGO DE PRODUÇÃO. NUNCA enfraqueça, marque como skip/xfail, comente
+       ou apague um teste só para forçar verde — o teste reflete o spec. Se suspeitar que
+       o próprio teste está errado, volte ao spec/design e confirme o comportamento esperado
+       ANTES de alterar o teste. (No build: corrija imports/tipos/config; no smoke: corrija boot,
+       dependências, variáveis de ambiente — sem desabilitar a verificação.)
+    3. Rode novamente o que falhou. Repita o ciclo diagnosticar→corrigir→rodar.
+    4. Limite de 5 tentativas por item que falha (teste, build ou smoke). Como estamos lidando
+       com um LLM no loop, reexecute para distinguir falha determinística de CÓDIGO de variação
+       de comportamento do MODELO (flakiness): se falha de forma consistente nas tentativas, é
+       código; se oscila verde/vermelho, registre como não-determinístico.
+    5. Só se após 5 tentativas continuar falhando, PARE e reporte ao usuário com o
+       diagnóstico (erro, hipótese código vs. modelo, e o que já tentou) — não prossiga
+       marcando tasks nem mascare a falha.
+
+    QUALITY GATE (obrigatório para concluir a change):
+    Em cada verificação abaixo, se FALHAR, primeiro aplique o TRATAMENTO DE FALHA (corrigir + até 5
+    tentativas). Só reprove/pare se as 5 tentativas se esgotarem. "Barrar" é o último recurso, não o primeiro.
+    - Rode a suite de testes COMPLETA localmente (comando do design) — deve estar 100% verde.
+      Se algum teste falhar → TRATAMENTO DE FALHA até verde.
+    - Rode a ferramenta de cobertura declarada no design e confirme **≥ 80% de linha E de branch**.
+      Se abaixo de 80%, adicione testes (novo ciclo RED→GREEN) até atingir a meta.
+    - Se o proposal marcou `Scope: LARGE`, rode também o BUILD GATE:
+      - Execute o comando de BUILD do design. Se falhar → TRATAMENTO DE FALHA: diagnostique o log,
+        corrija o código, rode de novo, até 5 tentativas. Não desista na primeira falha.
+      - Execute o SMOKE TEST do design (app inicia sem crash). Se falhar → TRATAMENTO DE FALHA:
+        corrija boot/deps/env, rode de novo, até 5 tentativas.
+      - **SMOKE atravessa a fronteira**: se a change toca boundary (≠ none), o SMOKE NÃO pode ser só
+        "bootar sem crash" — deve ATRAVESSAR o caminho cross-component real (o fluxo end-to-end
+        passando pela fronteira declarada) e confirmar o contrato na costura. Se falhar → TRATAMENTO
+        DE FALHA (corrija o código, até 5 tentativas).
+    - Só conclua/arquive quando: todos os testes verdes E cobertura ≥ 80% E (se LARGE) build e smoke
+      passando. Se algo esgotar as 5 tentativas, PARE e reporte — não conclua com o sistema quebrado.
+      Reporte os números finais (verde/total, % de cobertura, status do build e do smoke, e quantas
+      tentativas cada correção exigiu).
+    Pause se encontrar bloqueios ou precisar de esclarecimento.
