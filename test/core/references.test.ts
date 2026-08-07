@@ -413,4 +413,32 @@ describe('extractFirstPurposeLine', () => {
   it('accepts CommonMark closing hashes', () => {
     expect(extractFirstPurposeLine('## Purpose ##\n\nClosed heading.\n')).toBe('Closed heading.');
   });
+
+  it('follows CommonMark on heading edge cases', () => {
+    // A closing run only counts when whitespace precedes it.
+    expect(extractFirstPurposeLine('## Purpose ###\nx\n')).toBe('x');
+    expect(extractFirstPurposeLine('## Purpose###\nx\n')).toBe('');
+    expect(extractFirstPurposeLine('## Purpose\t##\nx\n')).toBe('x');
+
+    // Seven hashes is not a heading, and neither is a missing space.
+    expect(extractFirstPurposeLine('####### Purpose\nx\n')).toBe('');
+    expect(extractFirstPurposeLine('#Purpose\nx\n')).toBe('');
+
+    // Padding collapses; a title of only hashes keeps them.
+    expect(extractFirstPurposeLine('##   Purpose   ##  \nx\n')).toBe('x');
+    expect(extractFirstPurposeLine('## Purpose   \nx\n')).toBe('x');
+    expect(extractFirstPurposeLine('## ###\nx\n')).toBe('');
+
+    expect(extractFirstPurposeLine('## Purpose\r\nx\r\n')).toBe('x');
+  });
+
+  it('parses whitespace-padded headings in linear time', () => {
+    // The previous regex backtracked quadratically here: 10k padding took 60ms,
+    // 100k would take roughly six seconds.
+    const padded = `## a${' '.repeat(100_000)}#x\n\n## Purpose\n\nFound.\n`;
+
+    const started = performance.now();
+    expect(extractFirstPurposeLine(padded)).toBe('Found.');
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
 });

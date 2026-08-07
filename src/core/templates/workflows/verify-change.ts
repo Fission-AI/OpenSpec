@@ -19,15 +19,18 @@ ${STORE_SELECTION_GUIDANCE}
 
 **Steps**
 
-1. **If no change name provided, prompt for selection**
+1. **Select the change**
 
-   Run \`openspec list --json\` to get available changes. Use the **AskUserQuestion tool** to let the user select.
+   If a name is provided, use it. Otherwise:
+   - Infer from conversation context if the user mentioned a change
+   - Auto-select if only one active change exists
+   - If ambiguous, run \`openspec list --json\` to get available changes and ask the user to select one
 
-   Show changes that have implementation tasks (tasks artifact exists).
+   When prompting, show changes that have implementation tasks (tasks artifact exists).
    Include the schema used for each change if available.
    Mark changes with incomplete tasks as "(In Progress)".
 
-   **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
+   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:verify <other>\`).
 
 2. **Check status to understand the schema**
    \`\`\`bash
@@ -115,7 +118,7 @@ ${STORE_SELECTION_GUIDANCE}
 8. **Generate Verification Report**
 
    **Summary Scorecard**:
-   \`\`\`
+   \`\`\`markdown
    ## Verification Report: <change-name>
 
    ### Summary
@@ -191,15 +194,18 @@ ${STORE_SELECTION_GUIDANCE}
 
 **Steps**
 
-1. **If no change name provided, prompt for selection**
+1. **Select the change**
 
-   Run \`openspec list --json\` to get available changes. Use the **AskUserQuestion tool** to let the user select.
+   If a name is provided, use it. Otherwise:
+   - Infer from conversation context if the user mentioned a change
+   - Auto-select if only one active change exists
+   - If ambiguous, run \`openspec list --json\` to get available changes and ask the user to select one
 
-   Show changes that have implementation tasks (tasks artifact exists).
+   When prompting, show changes that have implementation tasks (tasks artifact exists).
    Include the schema used for each change if available.
    Mark changes with incomplete tasks as "(In Progress)".
 
-   **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
+   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:verify <other>\`).
 
 2. **Check status to understand the schema**
    \`\`\`bash
@@ -287,7 +293,7 @@ ${STORE_SELECTION_GUIDANCE}
 8. **Generate Verification Report**
 
    **Summary Scorecard**:
-   \`\`\`
+   \`\`\`markdown
    ## Verification Report: <change-name>
 
    ### Summary

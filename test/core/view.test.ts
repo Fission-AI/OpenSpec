@@ -12,8 +12,7 @@ describe('ViewCommand', () => {
   let logOutput: string[] = [];
 
   beforeEach(async () => {
-    tempDir = path.join(os.tmpdir(), `openspec-view-test-${Date.now()}`);
-    await fs.mkdir(tempDir, { recursive: true });
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-view-test-'));
 
     originalLog = console.log;
     console.log = (...args: any[]) => {
@@ -173,6 +172,22 @@ describe('ViewCommand', () => {
     const draftLines = logOutput.map(stripAnsi).filter(line => line.includes('○'));
     expect(draftLines.some(line => line.includes('nested-change'))).toBe(false);
     expect(output).toContain('60%');
+  });
+
+  it('keeps a change with unfinished sub-tasks in Active, not Completed (#1485)', async () => {
+    const changesDir = path.join(tempDir, 'openspec', 'changes');
+    await fs.mkdir(path.join(changesDir, 'subtask-change'), { recursive: true });
+    await fs.writeFile(
+      path.join(changesDir, 'subtask-change', 'tasks.md'),
+      '- [x] 1.1 Parent task\n  - [ ] 1.1.1 Unfinished sub-task\n'
+    );
+
+    await new ViewCommand().execute(tempDir);
+
+    const activeLines = logOutput.map(stripAnsi).filter(line => line.includes('◉'));
+    expect(activeLines.some(line => line.includes('subtask-change'))).toBe(true);
+    const completedLines = logOutput.map(stripAnsi).filter(line => line.includes('✓'));
+    expect(completedLines.some(line => line.includes('subtask-change'))).toBe(false);
   });
 });
 

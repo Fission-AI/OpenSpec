@@ -1,6 +1,6 @@
 # Examples & Recipes
 
-Real changes, start to finish. Each recipe shows the commands you'd type and what you'd see back, so you can match your situation to a pattern and copy it. These use the default **core** commands (`propose`, `explore`, `apply`, `sync`, `archive`); where the expanded set helps, it's noted.
+Real changes, start to finish. Each recipe shows the commands you'd type and what you'd see back, so you can match your situation to a pattern and copy it. These use the default **core** commands (`propose`, `explore`, `apply`, `update`, `sync`, `archive`); where the expanded set helps, it's noted.
 
 A reminder before you start: slash commands like `/opsx:propose` go in your **AI assistant's chat**, and `openspec` commands go in your **terminal**. If that's new, read [How Commands Work](how-commands-work.md) first. In the transcripts below, `You:` and `AI:` are the chat, and lines starting with `$` are the terminal.
 
@@ -140,7 +140,16 @@ AI:  Created the change. The proposal states the goal (split the
      Ready for implementation.
 ```
 
-When you archive a change that doesn't touch specs, you can tell the terminal command to skip the spec step:
+Declare the empty delta explicitly by setting `skip_specs: true` in the change's `.openspec.yaml`:
+
+```yaml
+schema: spec-driven
+skip_specs: true
+```
+
+Without the marker, `openspec validate` rejects a change with zero deltas (so a forgotten specs phase still gets caught); with it, validation passes and `openspec status` shows the specs stage as explicitly skipped rather than pending. If the refactor turns out to change behavior after all, remove `skip_specs` from `.openspec.yaml` and write the delta specs — validate treats the marker plus spec files as a conflict, so the stale marker can't linger silently.
+
+Archiving a marked change needs no extra flags (there are no deltas to merge). Independently, the `--skip-specs` flag tells the terminal command to skip the spec step explicitly:
 
 ```bash
 $ openspec archive refactor-payment-module --skip-specs

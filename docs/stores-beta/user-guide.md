@@ -148,6 +148,115 @@ The pointer is a fallback, never an override: an explicit `--store` always
 wins, and if the repo grows real planning folders of its own, those win
 (with a warning to remove the stale pointer).
 
+**One default for every repo on your machine.** If you work across many
+code repos that all plan into the same store, set it once, globally,
+instead of adding the `store:` line to each repo:
+
+```bash
+openspec config set defaultStore team-plans
+```
+
+Now any command run outside a planning root — and with no `--store` and no
+project pointer — resolves to `team-plans`. It sits at the bottom of the
+precedence list, so `--store`, a local root, and a project `store:` pointer
+all still win. The root banner and JSON `root` block report
+`source: "global_default"` with the store id, so you can always tell a
+machine-wide default from a repo's own pointer. Clear it with
+`openspec config unset defaultStore`. If the id is not registered, commands
+error and tell you to register it or clear the stale default.
+
+## Example: one feature, two component repos
+
+Suppose `add-checkout-promo` changes both `checkout-api` and
+`checkout-web`. The team wants one shared product contract, while each code
+repo still needs its own implementation tasks, branch, and review.
+
+Use two layers:
+
+1. Keep the shared behavior in `team-plans`.
+2. Keep implementation plans in each component repo and reference the store
+   as read-only upstream context.
+
+First, plan the shared contract in the store:
+
+```bash
+openspec new change add-checkout-promo --store team-plans
+openspec status --change add-checkout-promo --store team-plans
+```
+
+The proposal and specs should describe the behavior at the boundary between
+the components — for example, the promotion fields returned by the service
+and how the frontend handles an ineligible checkout. Review this change in
+the store repo like any other branch and pull request.
+
+### What context does planning see?
+
+Selecting a store changes the OpenSpec root; it does not discover or read
+every code repo that uses that store. Store instructions see the artifacts
+and configured context in the store. They see component code only when those
+folders are also available to the agent or editor and the agent reads them.
+
+A workset is a convenient way to open the planning store and both code repos
+together:
+
+```bash
+openspec workset create checkout-promo \
+  --member ~/openspec/team-plans \
+  --member ~/src/checkout-api \
+  --member ~/src/checkout-web \
+  --tool code
+openspec workset open checkout-promo
+```
+
+This makes the folders visible in one IDE workspace. It does not copy source
+context into the store, select affected repos, or grant an agent permission
+to edit them. Put durable cross-component facts in the shared specs; do not
+rely on a planner remembering source it happened to inspect.
+
+### How does implementation start in each repo?
+
+When no explicit `--store` or nearer `openspec/` root applies, a
+`store: team-plans` pointer routes commands to that store. It does not split
+one store task list by the directory from which `apply` was invoked. OpenSpec
+currently does not route tasks to repos.
+
+When each component needs an independently scoped apply/review cycle, give it
+a local OpenSpec root and reference the central store instead of pointing at
+it:
+
+```yaml
+# checkout-api/openspec/config.yaml (and likewise in checkout-web)
+schema: spec-driven
+references:
+  - team-plans
+```
+
+After the shared contract is approved and available in the store's main
+specs, create a small local change for the component's part:
+
+```bash
+cd ~/src/checkout-api
+openspec new change implement-checkout-promo-api
+
+cd ~/src/checkout-web
+openspec new change implement-checkout-promo-ui
+```
+
+The reference index in each repo's instructions supplies the store spec's
+summary and exact `openspec show ... --store team-plans` fetch command. Each
+local proposal cites that shared contract, and its tasks describe only work
+in that component. Then run `/opsx:apply` in each repo separately; root
+resolution keeps the artifacts and implementation edits scoped to that repo.
+The service and frontend changes can now be tested, reviewed, merged, and
+archived independently.
+
+If implementation must begin while the shared store change is still active,
+fetch it explicitly with
+`openspec show add-checkout-promo --store team-plans`; reference indexes list
+canonical store specs, not active store changes. Keep the store branch and
+component branches linked in their pull-request descriptions so reviewers
+can see which version of the contract each implementation follows.
+
 ## Story: requirements that cross team lines
 
 A platform team owns the requirements. Product teams build against them,
@@ -289,7 +398,9 @@ Every normal command resolves its root the same way, in this order:
 2. nearest openspec/     a real planning root here     → this repo
    (walking up from cwd)
 3. store: pointer        config.yaml declares a store  → that store
-4. none of the above     stores registered on this     → error with a
+4. defaultStore          global config sets a machine  → that store
+                         default
+5. none of the above     stores registered on this     → error with a
                          machine?                        selection hint
                          no stores registered?         → the current
                                                           directory

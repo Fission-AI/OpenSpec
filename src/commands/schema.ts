@@ -8,10 +8,12 @@ import {
   getProjectSchemasDir,
   getUserSchemasDir,
   getPackageSchemasDir,
+  isSchemaDir,
   listSchemas,
 } from '../core/artifact-graph/resolver.js';
 import { parseSchema, SchemaValidationError } from '../core/artifact-graph/schema.js';
 import type { SchemaYaml, Artifact } from '../core/artifact-graph/types.js';
+import { FileSystemUtils } from '../utils/file-system.js';
 
 /**
  * Schema source location type
@@ -195,21 +197,30 @@ function validateSchema(
     return { valid: false, issues };
   }
 
-  // Check template files exist
-  // Templates can be in schemaDir directly or in a templates/ subdirectory
+  // Check template files exist in the same directory used at runtime.
   if (verbose) {
     console.log('  Checking template files...');
   }
   for (const artifact of schema.artifacts) {
-    // Try templates subdirectory first (standard location), then root
-    const templatePathInTemplates = path.join(schemaDir, 'templates', artifact.template);
-    const templatePathInRoot = path.join(schemaDir, artifact.template);
+    const templatesDir = path.join(schemaDir, 'templates');
+    const existingTemplatePath = path.join(templatesDir, artifact.template);
 
-    if (!fs.existsSync(templatePathInTemplates) && !fs.existsSync(templatePathInRoot)) {
+    if (!fs.existsSync(existingTemplatePath)) {
       issues.push({
         level: 'error',
         path: `artifacts.${artifact.id}.template`,
         message: `Template file '${artifact.template}' not found for artifact '${artifact.id}'`,
+      });
+      continue;
+    }
+
+    try {
+      FileSystemUtils.assertPathWithin(templatesDir, existingTemplatePath);
+    } catch {
+      issues.push({
+        level: 'error',
+        path: `artifacts.${artifact.id}.template`,
+        message: `Template file '${artifact.template}' points outside the schema templates directory`,
       });
     }
   }
@@ -233,19 +244,83 @@ function isValidSchemaName(name: string): boolean {
 /**
  * Copy a directory recursively.
  */
-function copyDirRecursive(src: string, dest: string): void {
+function resolveSchemaCopyPath(allowedRoot: string, sourcePath: string): string {
+  try {
+    const canonicalRoot = fs.realpathSync(allowedRoot);
+    const canonicalPath = fs.realpathSync(sourcePath);
+    FileSystemUtils.assertPathWithin(canonicalRoot, canonicalPath);
+    return canonicalPath;
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Cannot fork schema with linked or unsupported entry: ${sourcePath}: ${detail}`,
+      { cause: error }
+    );
+  }
+}
+
+function copyDirRecursive(
+  src: string,
+  dest: string,
+  allowedRoot = src,
+  ancestors = new Set<string>()
+): void {
+  const canonicalSrc = resolveSchemaCopyPath(allowedRoot, src);
+  if (ancestors.has(canonicalSrc)) {
+    throw new Error(`Cannot fork schema with a linked directory cycle: ${src}`);
+  }
+  ancestors.add(canonicalSrc);
   fs.mkdirSync(dest, { recursive: true });
 
-  const entries = fs.readdirSync(src, { withFileTypes: true });
-  for (const entry of entries) {
-    const srcPath = path.join(src, entry.name);
-    const destPath = path.join(dest, entry.name);
+  try {
+    const entries = fs.readdirSync(src, { withFileTypes: true });
+    for (const entry of entries) {
+      const srcPath = path.join(src, entry.name);
+      const destPath = path.join(dest, entry.name);
+      const canonicalEntry = resolveSchemaCopyPath(allowedRoot, srcPath);
+      const stats = fs.statSync(canonicalEntry);
 
-    if (entry.isDirectory()) {
-      copyDirRecursive(srcPath, destPath);
-    } else {
-      fs.copyFileSync(srcPath, destPath);
+      if (stats.isDirectory()) {
+        copyDirRecursive(canonicalEntry, destPath, allowedRoot, ancestors);
+      } else if (stats.isFile()) {
+        // Dereference confined links so the fork is an independent schema.
+        fs.copyFileSync(canonicalEntry, destPath);
+      } else {
+        throw new Error(`Cannot fork schema with linked or unsupported entry: ${srcPath}`);
+      }
     }
+  } finally {
+    ancestors.delete(canonicalSrc);
+  }
+}
+
+/**
+ * Verifies a schema tree before replacing or creating the fork destination.
+ */
+function assertSchemaTreeCanBeCopied(
+  src: string,
+  allowedRoot = src,
+  ancestors = new Set<string>()
+): void {
+  const canonicalSrc = resolveSchemaCopyPath(allowedRoot, src);
+  if (ancestors.has(canonicalSrc)) {
+    throw new Error(`Cannot fork schema with a linked directory cycle: ${src}`);
+  }
+  ancestors.add(canonicalSrc);
+
+  try {
+    for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+      const entryPath = path.join(src, entry.name);
+      const canonicalEntry = resolveSchemaCopyPath(allowedRoot, entryPath);
+      const stats = fs.statSync(canonicalEntry);
+      if (stats.isDirectory()) {
+        assertSchemaTreeCanBeCopied(canonicalEntry, allowedRoot, ancestors);
+      } else if (!stats.isFile()) {
+        throw new Error(`Cannot fork schema with linked or unsupported entry: ${entryPath}`);
+      }
+    }
+  } finally {
+    ancestors.delete(canonicalSrc);
   }
 }
 
@@ -437,7 +512,7 @@ export function registerSchemaCommand(program: Command): void {
           let anyInvalid = false;
 
           for (const entry of entries) {
-            if (!entry.isDirectory()) continue;
+            if (!isSchemaDir(projectSchemasDir, entry)) continue;
 
             const schemaDir = path.join(projectSchemasDir, entry.name);
             const schemaPath = path.join(schemaDir, 'schema.yaml');
@@ -480,10 +555,10 @@ export function registerSchemaCommand(program: Command): void {
                 console.log(`    ${issue.level}: ${issue.message}`);
               }
             }
+          }
 
-            if (anyInvalid) {
-              process.exitCode = 1;
-            }
+          if (anyInvalid) {
+            process.exitCode = 1;
           }
           return;
         }
@@ -528,8 +603,10 @@ export function registerSchemaCommand(program: Command): void {
             for (const issue of result.issues) {
               console.log(`  ${issue.level}: ${issue.message}`);
             }
-            process.exitCode = 1;
           }
+        }
+        if (!result.valid) {
+          process.exitCode = 1;
         }
       } catch (error) {
         if (options?.json) {
@@ -594,6 +671,10 @@ export function registerSchemaCommand(program: Command): void {
         const sourceResolution = getSchemaResolution(source, projectRoot);
         const sourceLocation = sourceResolution?.source || 'package';
 
+        // Validate the complete source before a forced fork removes anything.
+        const trustedSourceDir = fs.realpathSync(sourceDir);
+        assertSchemaTreeCanBeCopied(trustedSourceDir);
+
         // Check destination
         const destinationDir = path.join(getProjectSchemasDir(projectRoot), destinationName);
 
@@ -620,7 +701,7 @@ export function registerSchemaCommand(program: Command): void {
 
         // Copy schema
         if (spinner) spinner.start(`Forking '${source}' to '${destinationName}'...`);
-        copyDirRecursive(sourceDir, destinationDir);
+        copyDirRecursive(trustedSourceDir, destinationDir);
 
         // Update name in schema.yaml
         const destSchemaPath = path.join(destinationDir, 'schema.yaml');
@@ -703,8 +784,9 @@ export function registerSchemaCommand(program: Command): void {
 
         const schemaDir = path.join(getProjectSchemasDir(projectRoot), name);
 
-        // Check if exists
-        if (fs.existsSync(schemaDir)) {
+        // Check overwrite permission without mutating the destination
+        const schemaExists = fs.existsSync(schemaDir);
+        if (schemaExists) {
           if (!options?.force) {
             if (options?.json) {
               console.log(JSON.stringify({
@@ -719,9 +801,6 @@ export function registerSchemaCommand(program: Command): void {
             process.exitCode = 1;
             return;
           }
-
-          if (spinner) spinner.start(`Removing existing schema '${name}'...`);
-          fs.rmSync(schemaDir, { recursive: true });
         }
 
         // Determine artifacts and description
@@ -749,6 +828,12 @@ export function registerSchemaCommand(program: Command): void {
 
           selectedArtifactIds = await checkbox({
             message: 'Select artifacts to include:',
+            theme: {
+              icon: {
+                checked: '[x]',
+                unchecked: '[ ]',
+              },
+            },
             choices: artifactChoices,
           });
 
@@ -800,10 +885,6 @@ export function registerSchemaCommand(program: Command): void {
           }
         }
 
-        // Create schema directory
-        if (spinner) spinner.start(`Creating schema '${name}'...`);
-        fs.mkdirSync(schemaDir, { recursive: true });
-
         // Build artifacts array with proper dependencies
         const selectedArtifacts = selectedArtifactIds.map((id) => {
           const template = DEFAULT_ARTIFACTS.find((a) => a.id === id)!;
@@ -845,6 +926,16 @@ export function registerSchemaCommand(program: Command): void {
             tracks: 'tasks.md',
           };
         }
+
+        // Replace only after all inputs have been collected and validated
+        if (schemaExists) {
+          if (spinner) spinner.start(`Removing existing schema '${name}'...`);
+          fs.rmSync(schemaDir, { recursive: true });
+        }
+
+        // Create schema directory
+        if (spinner) spinner.start(`Creating schema '${name}'...`);
+        fs.mkdirSync(schemaDir, { recursive: true });
 
         fs.writeFileSync(
           path.join(schemaDir, 'schema.yaml'),

@@ -21,7 +21,7 @@ That second one matters more than it looks. OpenSpec has two halves: a command l
 
 **I have a big existing codebase.** You don't document all of it. [Using OpenSpec in an Existing Project](existing-projects.md) shows how to start on real, brownfield code without boiling the ocean.
 
-**I just want to get it working.** [Install](installation.md), run `openspec init`, then read [How Commands Work](how-commands-work.md) so your first slash command lands in the right place.
+**I just want to get it working.** [Install](installation.md), run `openspec init`, then read [How Commands Work](how-commands-work.md) so your first slash command lands in the right place. Or hand the setup to your assistant with the [AI-assisted install prompt](installation.md#install-with-your-ai-assistant).
 
 **I learn by example.** The [Examples & Recipes](examples.md) page walks through real changes start to finish: a small feature, a bug fix, a refactor, an exploration.
 
@@ -45,7 +45,7 @@ That second one matters more than it looks. OpenSpec has two halves: a command l
 | [Explore First](explore.md) | Use `/opsx:explore` to think through an idea before you commit |
 | [How Commands Work](how-commands-work.md) | Where slash commands run, what "interactive mode" means, terminal vs chat |
 | [Core Concepts at a Glance](overview.md) | The whole mental model on one page: specs, changes, deltas, archive |
-| [Installation](installation.md) | npm, pnpm, yarn, bun, Nix, and how to verify it worked |
+| [Installation](installation.md) | npm, pnpm, yarn, bun, Nix, a prompt that hands setup to your AI assistant, and how to verify it worked |
 
 ### Use it day to day
 
@@ -75,7 +75,7 @@ That second one matters more than it looks. OpenSpec has two halves: a command l
 |-----|-------------------|
 | [Customization](customization.md) | Project config, custom schemas, shared context |
 | [Multi-Language](multi-language.md) | Generate artifacts in languages other than English |
-| [Supported Tools](supported-tools.md) | The 25+ AI tools OpenSpec integrates with, and where files land |
+| [Supported Tools](supported-tools.md) | The 30+ AI tools OpenSpec integrates with, and where files land |
 
 ### When you need help
 

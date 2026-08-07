@@ -37,10 +37,97 @@ describe('extractRequirementsSection', () => {
 });
 
 describe('parseDeltaSpec', () => {
+  it('strips a UTF-8 BOM so a delta section on the first line still parses', () => {
+    // Windows editors and PowerShell redirects prepend a BOM; without
+    // stripping it the first line never matches "## ADDED Requirements" and
+    // validate reports "No delta sections found" for a well-formed file.
+    const content = `﻿## ADDED Requirements\n### Requirement: BOM survivor\nThe system SHALL parse.\n\n#### Scenario: Parses\n- **WHEN** a BOM prefixes the file\n- **THEN** the delta is found\n`;
+    const result = parseDeltaSpec(content);
+    expect(result.sectionPresence.added).toBe(true);
+    expect(result.added.length).toBe(1);
+    expect(result.added[0].name).toBe('BOM survivor');
+  });
+
   it('regression: parses ###Requirement: header with no space in delta ADDED section', () => {
     const content = `## ADDED Requirements\n###Requirement: NoSpace\nThe system SHALL foo.\n`;
     const result = parseDeltaSpec(content);
     expect(result.added.length).toBe(1);
     expect(result.added[0].name).toBe('NoSpace');
+  });
+
+  it('ignores requirement headers and delta sections inside fenced code blocks', () => {
+    const content = [
+      '## ADDED Requirements',
+      '',
+      '### Requirement: Real requirement',
+      'The system SHALL do the thing.',
+      '',
+      '#### Scenario: It works',
+      '- **WHEN** a user acts',
+      '- **THEN** it succeeds',
+      '',
+      'Authors may document the delta format like this:',
+      '',
+      '```markdown',
+      '## ADDED Requirements',
+      '### Requirement: Example only',
+      '#### Scenario: Example scenario',
+      '```',
+      '',
+    ].join('\n');
+
+    const result = parseDeltaSpec(content);
+    expect(result.added.map((b) => b.name)).toEqual(['Real requirement']);
+    // The fenced example stays inside the real requirement block instead of
+    // becoming a phantom requirement.
+    expect(result.added[0].raw).toContain('```markdown');
+  });
+
+  it('ignores REMOVED bullets and RENAMED pairs inside fenced code blocks', () => {
+    const content = [
+      '## REMOVED Requirements',
+      '- `### Requirement: Actually removed`',
+      '',
+      '```markdown',
+      '- `### Requirement: Documented example`',
+      '```',
+      '',
+      '## RENAMED Requirements',
+      '- FROM: `### Requirement: Old name`',
+      '- TO: `### Requirement: New name`',
+      '',
+      '```markdown',
+      '- FROM: `### Requirement: Example old`',
+      '- TO: `### Requirement: Example new`',
+      '```',
+      '',
+    ].join('\n');
+
+    const result = parseDeltaSpec(content);
+    expect(result.removed).toEqual(['Actually removed']);
+    expect(result.renamed).toEqual([{ from: 'Old name', to: 'New name' }]);
+  });
+});
+
+describe('extractRequirementsSection (fenced code blocks)', () => {
+  it('does not treat requirement headers inside fenced code blocks as real requirements', () => {
+    const content = [
+      '# Spec',
+      '',
+      '## Requirements',
+      '',
+      '### Requirement: Real requirement',
+      'The system SHALL do the thing.',
+      '',
+      'Example of the format authors should follow:',
+      '',
+      '```markdown',
+      '### Requirement: Example only',
+      '```',
+      '',
+    ].join('\n');
+
+    const result = extractRequirementsSection(content);
+    expect(result.bodyBlocks.map((b) => b.name)).toEqual(['Real requirement']);
   });
 });
