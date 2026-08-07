@@ -382,7 +382,13 @@ function scenarioHeaderAt(lines: string[], mask: boolean[], index: number): bool
 function scenarioNameAt(line: string): string {
   return line
     .replace(SCENARIO_HEADER, '')
-    .replace(/\s+#+\s*$/, '') // optional ATX closing sequence (space-preceded)
+    // Optional ATX closing sequence. CommonMark only treats a trailing `#` run
+    // as a close when it is preceded by a space or tab — not any Unicode space —
+    // so this uses `[ \t]`, not `\s`. A looser `\s` could strip a `#` run after
+    // an exotic space (e.g. NBSP) that CommonMark keeps, folding two distinct
+    // scenario names into one and masking a real loss. `[ \t]` keeps the fold
+    // faithful to how the header actually renders.
+    .replace(/[ \t]+#+[ \t]*$/, '')
     .replace(/^Scenario:\s*/i, '')
     .trim();
 }
