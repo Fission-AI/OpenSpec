@@ -80,24 +80,47 @@ function findTrackedTasksArtifact(schema: SchemaYaml): Artifact | undefined {
 }
 
 /**
+ * Run-scoped memo mapping a schema name to its tracked-tasks `generates` glob.
+ * When one command resolves progress for many changes under a constant
+ * `projectRoot` — e.g. `validate --archived` over an append-only archive — this
+ * avoids re-reading and re-parsing (YAML + Zod) the same `schema.yaml` once per
+ * change. Keyed by schema name alone, which is safe *only* because a single run
+ * holds `projectRoot` constant; never reuse one cache across differing roots.
+ */
+export type SchemaGlobCache = Map<string, string | undefined>;
+
+/**
  * Resolves the tracked-tasks artifact's output glob for a change, or undefined
  * when the schema cannot be resolved or no tracked-tasks artifact exists.
  * `resolveSchema` throws on an unresolvable/misnamed schema; we swallow that so
  * the caller falls back to a single top-level `tasks.md` and never crashes.
+ * A `schemaGlobCache`, when supplied, memoizes the schema-name → glob lookup for
+ * the duration of one run.
  */
-function resolveTrackedTasksGlob(changeDir: string, projectRoot: string): string | undefined {
+function resolveTrackedTasksGlob(
+  changeDir: string,
+  projectRoot: string,
+  schemaGlobCache?: SchemaGlobCache
+): string | undefined {
   try {
     const schemaName = resolveSchemaForChange(changeDir, undefined, projectRoot);
+    if (schemaGlobCache?.has(schemaName)) return schemaGlobCache.get(schemaName);
     const schema = resolveSchema(schemaName, projectRoot);
-    return findTrackedTasksArtifact(schema)?.generates;
+    const generates = findTrackedTasksArtifact(schema)?.generates;
+    schemaGlobCache?.set(schemaName, generates);
+    return generates;
   } catch {
     return undefined;
   }
 }
 
 /** Resolves the task files selected by the schema's apply tracking rule. */
-export function resolveTaskFilesForChange(changeDir: string, projectRoot: string): string[] {
-  const generates = resolveTrackedTasksGlob(changeDir, projectRoot);
+export function resolveTaskFilesForChange(
+  changeDir: string,
+  projectRoot: string,
+  schemaGlobCache?: SchemaGlobCache
+): string[] {
+  const generates = resolveTrackedTasksGlob(changeDir, projectRoot, schemaGlobCache);
   return generates ? resolveArtifactOutputs(changeDir, generates) : [];
 }
 
@@ -137,15 +160,19 @@ async function countTaskFile(file: string, unreadable: string[]): Promise<TaskPr
  * `tasks.md` files (#1202). Falls back to a single top-level `tasks.md` (exactly
  * as before) when the schema is unresolvable, no tracked-tasks artifact is found,
  * or the glob matches no file. Also reports task files that exist but could not
- * be read. Never throws.
+ * be read. Per-file read errors are captured (never thrown); the only throw path
+ * is a malformed/unsafe schema whose glob resolution rejects (path traversal or
+ * a linked-directory cycle in `resolveArtifactOutputs`). Pass `schemaGlobCache`
+ * to memoize schema→glob resolution across many changes in one run.
  */
 export async function getTaskProgressDetailForChange(
   changesDir: string,
   changeName: string,
-  projectRoot: string
+  projectRoot: string,
+  schemaGlobCache?: SchemaGlobCache
 ): Promise<TaskProgressDetail> {
   const changeDir = path.join(changesDir, changeName);
-  const files = resolveTaskFilesForChange(changeDir, projectRoot);
+  const files = resolveTaskFilesForChange(changeDir, projectRoot, schemaGlobCache);
   const targets = files.length > 0 ? files : [path.join(changeDir, 'tasks.md')];
   const unreadable: string[] = [];
   let total = 0;
@@ -161,7 +188,9 @@ export async function getTaskProgressDetailForChange(
 /**
  * The task-completion counter `status`, `list`, and `archive` share. Delegates
  * to `getTaskProgressDetailForChange` and drops the `unreadable` detail, so its
- * returned totals are unchanged. Never throws.
+ * returned totals are unchanged. Throws only on the same malformed/unsafe-schema
+ * glob-resolution path as that function (existing behavior; callers guard it as
+ * they did before).
  */
 export async function getTaskProgressForChange(
   changesDir: string,

@@ -116,6 +116,25 @@ describe('getTaskProgressForChange (#1202 tracked-tasks resolution)', () => {
     expect(progress).toEqual({ total: 2, completed: 1 });
   });
 
+  it('memoizes schema→glob resolution across changes via the shared cache (#205)', async () => {
+    await writeGlobSchema();
+    await writeChange('c1', { 'backend/tasks.md': '- [x] a\n' });
+    await writeChange('c2', { 'backend/tasks.md': '- [ ] b\n' });
+
+    const cache = new Map<string, string | undefined>();
+    const d1 = await getTaskProgressDetailForChange(changesDir, 'c1', projectRoot, cache);
+    // The schema→glob lookup is now cached under the resolved schema name.
+    expect(cache.get('glob-tasks')).toBe('**/tasks.md');
+    expect(cache.size).toBe(1);
+
+    // A second change on the same schema reuses the entry (no new key added),
+    // and results are still correct.
+    const d2 = await getTaskProgressDetailForChange(changesDir, 'c2', projectRoot, cache);
+    expect(cache.size).toBe(1);
+    expect(d1).toEqual({ total: 1, completed: 1, unreadable: [] });
+    expect(d2).toEqual({ total: 1, completed: 0, unreadable: [] });
+  });
+
   it('identifies the tracked artifact by apply.tracks even when it is not named "tasks"', async () => {
     const schemaDir = path.join(projectRoot, 'openspec', 'schemas', 'custom-track');
     await fs.mkdir(schemaDir, { recursive: true });

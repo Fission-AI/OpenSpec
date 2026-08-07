@@ -69,7 +69,7 @@ describe('openspec validate --archived checks archived task completion (#205)', 
     expect(incomplete.issues[0]).toEqual(
       expect.objectContaining({
         level: 'ERROR',
-        path: 'tasks',
+        path: 'tasks.md',
         message: expect.stringContaining('2 incomplete tasks (1/3 completed)'),
       })
     );
@@ -87,7 +87,7 @@ describe('openspec validate --archived checks archived task completion (#205)', 
     const result = await runCLI(['validate', '--archived'], { cwd: projectDir });
 
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain('✓ archived/2026-01-01-done-change');
+    expect(result.stdout).toContain('✓ change/2026-01-01-done-change');
   });
 
   it('exits 0 with a friendly message when there is no archive directory', async () => {
@@ -150,8 +150,9 @@ describe('openspec validate --archived checks archived task completion (#205)', 
     expect(item.issues[0]).toEqual(
       expect.objectContaining({
         level: 'ERROR',
-        path: 'tasks',
-        message: expect.stringContaining('could not read'),
+        // Pathed like every other validate issue: POSIX, root-relative.
+        path: 'openspec/changes/archive/unreadable-change/tasks.md',
+        message: 'could not read task file',
       })
     );
     await fs.rm(dir, { recursive: true, force: true });

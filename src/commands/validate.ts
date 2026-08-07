@@ -14,7 +14,8 @@ import { getSpecIds } from '../utils/item-discovery.js';
 import { getAvailableChanges } from './workflow/shared.js';
 import { nearestMatches } from '../utils/match.js';
 import { promises as fs } from 'fs';
-import { getTaskProgressDetailForChange } from '../utils/task-progress.js';
+import { getTaskProgressDetailForChange, type SchemaGlobCache } from '../utils/task-progress.js';
+import { FileSystemUtils } from '../utils/file-system.js';
 
 type ItemType = 'change' | 'spec';
 
@@ -445,6 +446,14 @@ export class ValidateCommand {
     const ids = await this.listArchivedChangeIds(root);
     const spinner = !opts.json && !opts.noInteractive ? ora('Validating archived changes...').start() : undefined;
 
+    // The archive is append-only and can hold thousands of changes; a single
+    // run resolves them all under one constant projectRoot (root.path), so
+    // memoize the schema→glob lookup to avoid re-parsing the same schema.yaml
+    // once per change. The loop is intentionally sequential: the per-change work
+    // is dominated by synchronous schema/config resolution, which a promise pool
+    // cannot overlap on Node's single thread — a pool would add complexity for
+    // no real gain here.
+    const schemaGlobCache: SchemaGlobCache = new Map();
     const results: BulkItemResult[] = [];
     let passed = 0;
     let failed = 0;
@@ -452,29 +461,30 @@ export class ValidateCommand {
       const start = Date.now();
       const issues: BulkItemResult['issues'] = [];
       try {
-        const progress = await getTaskProgressDetailForChange(root.archiveDir, id, root.path);
+        // The explicit root.path override is load-bearing: an archived change
+        // lives one directory deeper (changes/archive/<id>), so the default
+        // "../../.." projectRoot derivation would be wrong without it.
+        const progress = await getTaskProgressDetailForChange(root.archiveDir, id, root.path, schemaGlobCache);
         // A tasks file that exists but cannot be read must fail loudly, not be
-        // silently counted as "no tasks" and pass.
-        if (progress.unreadable.length > 0) {
-          const files = progress.unreadable
-            .map((file) => path.relative(root.path, file))
-            .join(', ');
+        // silently counted as "no tasks" and pass. Report one issue per file,
+        // pathed like every other validate issue (POSIX, root-relative).
+        for (const file of progress.unreadable) {
           issues.push({
             level: 'ERROR',
-            path: 'tasks',
-            message: `could not read task file${progress.unreadable.length === 1 ? '' : 's'}: ${files}`,
+            path: FileSystemUtils.toPosixPath(path.relative(root.path, file)),
+            message: 'could not read task file',
           });
         }
         const incomplete = Math.max(progress.total - progress.completed, 0);
         if (incomplete > 0) {
           issues.push({
             level: 'ERROR',
-            path: 'tasks',
+            path: 'tasks.md',
             message: `${incomplete} incomplete task${incomplete === 1 ? '' : 's'} (${progress.completed}/${progress.total} completed)`,
           });
         }
       } catch (error: any) {
-        issues.push({ level: 'ERROR', path: 'tasks', message: error?.message || 'Unknown error' });
+        issues.push({ level: 'ERROR', path: 'tasks.md', message: error?.message || 'Unknown error' });
       }
       const valid = issues.length === 0;
       if (valid) passed++; else failed++;
@@ -501,11 +511,13 @@ export class ValidateCommand {
       return;
     }
 
+    // Use the same `<type>/<id>` prefix bulk validation prints, so the plain
+    // output maps to the JSON `type` ('change') and stays greppable the same way.
     for (const res of results) {
       if (res.valid) {
-        console.log(`✓ archived/${res.id}`);
+        console.log(`✓ change/${res.id}`);
       } else {
-        console.error(`✗ archived/${res.id}`);
+        console.error(`✗ change/${res.id}`);
         for (const issue of res.issues) {
           const prefix = issue.level === 'ERROR' ? '✗' : issue.level === 'WARNING' ? '⚠' : 'ℹ';
           console.error(`  ${prefix} ${issue.message}`);
