@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
-import { randomUUID } from 'crypto';
 import { BashInstaller } from '../../../../src/core/completions/installers/bash-installer.js';
 
 describe('BashInstaller', () => {
@@ -11,8 +10,7 @@ describe('BashInstaller', () => {
 
   beforeEach(async () => {
     // Create a temporary home directory for testing
-    testHomeDir = path.join(os.tmpdir(), `openspec-bash-test-${randomUUID()}`);
-    await fs.mkdir(testHomeDir, { recursive: true });
+    testHomeDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-bash-test-'));
     installer = new BashInstaller(testHomeDir);
   });
 
@@ -208,8 +206,7 @@ describe('BashInstaller', () => {
 
     it('should handle paths with spaces in .bashrc config', async () => {
       // Create a test home directory with spaces
-      const testHomeDirWithSpaces = path.join(os.tmpdir(), `openspec bash test ${randomUUID()}`);
-      await fs.mkdir(testHomeDirWithSpaces, { recursive: true });
+      const testHomeDirWithSpaces = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec bash test '));
       const installerWithSpaces = new BashInstaller(testHomeDirWithSpaces);
 
       try {

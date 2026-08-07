@@ -39,11 +39,13 @@ export const LEGACY_SLASH_COMMAND_PATHS: Record<string, LegacySlashCommandPatter
   'lingma': { type: 'directory', path: '.lingma/commands/openspec' },
   'crush': { type: 'directory', path: '.crush/commands/openspec' },
   'gemini': { type: 'directory', path: '.gemini/commands/openspec' },
-  'costrict': { type: 'directory', path: '.cospec/openspec/commands' },
 
   // File-based: individual openspec-*.md files in a commands/workflows/prompts folder
   'cursor': { type: 'files', pattern: '.cursor/commands/openspec-*.md' },
-  'windsurf': { type: 'files', pattern: '.windsurf/workflows/openspec-*.md' },
+  // Keyed by the tool id these map back to, so the pre-opsx Windsurf files
+  // belong to `devin` — the id Windsurf became. Only `.windsurf/` is listed:
+  // `.devin/` postdates the opsx rename and never held `openspec-*` files.
+  'devin': { type: 'files', pattern: '.windsurf/workflows/openspec-*.md' },
   'kilocode': { type: 'files', pattern: '.kilocode/workflows/openspec-*.md' },
   'kiro': { type: 'files', pattern: '.kiro/prompts/openspec-*.prompt.md' },
   'github-copilot': { type: 'files', pattern: '.github/prompts/openspec-*.prompt.md' },
@@ -56,9 +58,12 @@ export const LEGACY_SLASH_COMMAND_PATHS: Record<string, LegacySlashCommandPatter
   'continue': { type: 'files', pattern: '.continue/prompts/openspec-*.prompt' },
   'antigravity': { type: 'files', pattern: '.agent/workflows/openspec-*.md' },
   'iflow': { type: 'files', pattern: '.iflow/commands/openspec-*.md' },
-  'junie': { type: 'files', pattern: ['.junie/commands/opsx-*.md', '.junie/commands/openspec-*.md'] },
   'qwen': { type: 'files', pattern: ['.qwen/commands/opsx-*.toml', '.qwen/commands/openspec-*.toml'] },
   'codex': { type: 'files', pattern: '.codex/prompts/openspec-*.md' },
+  // Keep this file-scoped: the CoStrict adapter writes `opsx-*.md` into the
+  // same folder, so a directory entry removes the live command files — and
+  // anything else the user keeps there — on every run.
+  'costrict': { type: 'files', pattern: '.cospec/openspec/commands/openspec-*.md' },
 };
 
 /**
@@ -623,7 +628,7 @@ export function formatCleanupSummary(result: CleanupResult): string {
     }
 
     for (const dir of result.deletedDirs) {
-      lines.push(`  ✓ Removed ${dir}/ (replaced by /opsx:*)`);
+      lines.push(`  ✓ Removed ${dir}/ (replaced by OpenSpec skills and commands)`);
     }
 
     for (const file of result.modifiedFiles) {

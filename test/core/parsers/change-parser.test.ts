@@ -69,4 +69,73 @@ describe('ChangeParser', () => {
       expect(change.deltas[0].operation).toBe('ADDED');
     });
   });
+
+  // A divider header inside a delta section used to be parsed as a requirement,
+  // inventing a scenario-less delta that does not exist (#498).
+  it('ignores delta headers that are not "### Requirement:" (#498)', async () => {
+    await withTempDir(async (dir) => {
+      const specDir = path.join(dir, 'specs', 'docs');
+      await fs.mkdir(specDir, { recursive: true });
+
+      const content = `# Test Change\n\n## Why\nWe need it because reasons that are sufficiently long.\n\n## What Changes\n- Add docs`;
+      const deltaSpec = [
+        '# Docs Delta',
+        '',
+        '## ADDED Requirements',
+        '',
+        '### Documentation Requirements',
+        '',
+        '### Requirement: AI Application Documentation',
+        'Teams building AI applications SHALL document agent definitions.',
+        '',
+        '#### Scenario: Agent Definition Documentation',
+        '- **WHEN** a team ships an agent',
+        '- **THEN** the agent definition is documented',
+      ].join('\n');
+
+      await fs.writeFile(path.join(specDir, 'spec.md'), deltaSpec, 'utf8');
+
+      const parser = new ChangeParser(content, dir);
+      const change = await parser.parseChangeWithDeltas('test-change');
+
+      expect(change.deltas.length).toBe(1);
+      expect(change.deltas[0].requirement?.text).toBe(
+        'Teams building AI applications SHALL document agent definitions.'
+      );
+      expect(change.deltas[0].requirement?.scenarios.length).toBe(1);
+    });
+  });
+
+  // A nameless "### Requirement:" header carries no requirement to validate,
+  // and the delta reader skips it too.
+  it('ignores a nameless "### Requirement:" delta header (#498)', async () => {
+    await withTempDir(async (dir) => {
+      const specDir = path.join(dir, 'specs', 'docs');
+      await fs.mkdir(specDir, { recursive: true });
+
+      const content = `# Test Change\n\n## Why\nWe need it because reasons that are sufficiently long.\n\n## What Changes\n- Add docs`;
+      const deltaSpec = [
+        '# Docs Delta',
+        '',
+        '## ADDED Requirements',
+        '',
+        '### Requirement:',
+        '',
+        '### Requirement: Real One',
+        'The system SHALL do a thing.',
+        '',
+        '#### Scenario: It works',
+        '- **WHEN** invoked',
+        '- **THEN** it works',
+      ].join('\n');
+
+      await fs.writeFile(path.join(specDir, 'spec.md'), deltaSpec, 'utf8');
+
+      const parser = new ChangeParser(content, dir);
+      const change = await parser.parseChangeWithDeltas('test-change');
+
+      expect(change.deltas.length).toBe(1);
+      expect(change.deltas[0].requirement?.text).toBe('The system SHALL do a thing.');
+    });
+  });
 });
