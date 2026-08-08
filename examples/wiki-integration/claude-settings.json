@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Skill",
+        "if": "Skill(openspec-explore) || Skill(openspec-propose)",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Before starting, query the Wiki for relevant background information and existing features to avoid duplicate work and leverage existing design decisions: Read openspec/docs/wiki/index.md and openspec/docs/wiki/log.md, then search for relevant pages based on user intent."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Skill",
+        "if": "Skill(openspec-archive-change)",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "/openspec-wiki-ingest"
+          }
+        ]
+      }
+    ]
+  }
+}
