@@ -503,6 +503,35 @@ describe('InitCommand', () => {
       ).toBe(true);
     });
 
+    it('should support Command Code as an adapterless skills-only tool', async () => {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'both',
+      });
+
+      const initCommand = new InitCommand({ tools: 'command-code', force: true });
+      await initCommand.execute(testDir);
+
+      const skillFile = path.join(testDir, '.commandcode', 'skills', 'openspec-explore', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
+
+      // Command Code documents /openspec-* skill invocations (no /skill: prefix)
+      const skill = await fs.readFile(skillFile, 'utf-8');
+      expect(skill).toContain('/openspec-');
+      expect(skill).not.toContain('/skill:');
+
+      const commandsDir = path.join(testDir, '.commandcode', 'commands');
+      expect(await directoryExists(commandsDir)).toBe(false);
+
+      const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+      expect(
+        logCalls.some(
+          (entry) => entry.includes('Commands skipped for: command-code') && entry.includes('(no adapter)'),
+        ),
+      ).toBe(true);
+    });
+
     it('should support CodeArts as an adapterless skills-only tool', async () => {
       saveGlobalConfig({
         featureFlags: {},
