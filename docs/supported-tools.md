@@ -33,7 +33,7 @@ way it loads the file OpenSpec wrote. Find your tool's command path in the
 | `.../opsx-<id>.*` — the filename is the command | `/opsx-<id>` | Every other tool with generated command files, except Amazon Q and Devin |
 | `.devin/workflows/opsx-<id>.md` — read by only one of Devin's two agents | `/opsx-<id>` on Devin Desktop, `/openspec-<skill>` on Devin Local | Devin Desktop\*\*\*\* |
 | `.amazonq/prompts/opsx-<id>.md` — a prompt, not a command | `@opsx-<id>` | Amazon Q Developer |
-| none — skills only | `/openspec-<skill>` | CodeArts, ForgeCode, Hermes, MiniMax Code, Mistral Vibe, shared `.agents` |
+| none — skills only | `/openspec-<skill>` | Command Code, CodeArts, ForgeCode, Hermes, MiniMax Code, Mistral Vibe, shared `.agents` |
 | none — Kimi Code | `/skill:openspec-<skill>` | Kimi Code |
 | none — Codex CLI | `$openspec-<skill>` | Codex ([`/openspec-<skill>` is not recognized](https://github.com/openai/codex/issues/11817)) |
 
