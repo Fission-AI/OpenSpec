@@ -1,15 +1,15 @@
 import * as fs from 'node:fs';
 import type { CompletedSet } from './types.js';
 import type { ArtifactGraph } from './graph.js';
-import { artifactOutputExists } from './outputs.js';
+import { artifactOutputComplete } from './outputs.js';
 
 /**
- * Detects which artifacts are completed by checking file existence in the change directory.
+ * Detects which artifacts are completed by checking output files in the change directory.
  * Returns a Set of completed artifact IDs.
  *
  * @param graph - The artifact graph to check
  * @param changeDir - The change directory to scan for files
- * @returns Set of artifact IDs whose generated files exist
+ * @returns Set of artifact IDs whose generated files exist and contain content
  */
 export function detectCompleted(graph: ArtifactGraph, changeDir: string): CompletedSet {
   const completed = new Set<string>();
@@ -29,9 +29,9 @@ export function detectCompleted(graph: ArtifactGraph, changeDir: string): Comple
 }
 
 /**
- * Checks if an artifact is complete by checking if its generated file(s) exist.
+ * Checks if an artifact is complete by checking if its generated file(s) exist and contain content.
  * Supports both simple paths and glob patterns.
  */
 function isArtifactComplete(generates: string, changeDir: string): boolean {
-  return artifactOutputExists(changeDir, generates);
+  return artifactOutputComplete(changeDir, generates);
 }
