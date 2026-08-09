@@ -10,6 +10,8 @@ import { cleanupTempPath } from '../helpers/temp-cleanup.js';
 
 interface SchemaOutput {
   name: string;
+  description: string;
+  artifacts: string[];
   source: 'project' | 'user' | 'package';
 }
 
@@ -116,9 +118,16 @@ describe('openspec schemas root selection', () => {
 
     expect(json.exitCode).toBe(0);
     expect(json.stderr).toBe('');
-    const names = schemaNames(parseSchemas(json));
+    const schemas = parseSchemas(json);
+    const names = schemaNames(schemas);
     expect(names).toContain('store-only');
     expect(names).not.toContain('local-only');
+    expect(schemas).toContainEqual({
+      name: 'store-only',
+      description: 'Store-only workflow',
+      artifacts: ['proposal'],
+      source: 'project',
+    });
 
     const human = await runCLI(['schemas', '--store', 'team-context'], {
       cwd: localRoot,
