@@ -22,10 +22,10 @@ The mismatch was reproduced against the built CLI with distinct `local-only` and
 **Non-Goals:**
 
 - Change schema resolution precedence within a resolved root.
-- Change schema descriptions, semantic selection policy, or generated workflow skills.
+- Change schema descriptions, semantic selection policy, or workflow-specific behavior beyond correcting stale `schemas --store` guidance.
 - Add a raw filesystem-root flag or expose a resolved path in successful JSON output.
 - Modify `context`, `templates`, change creation, or the root resolver itself.
-- Refactor the existing `propose` workflow workaround in this fix.
+- Refactor the existing `propose` compatibility sequence; only its stale flag-support claim changes.
 
 ## Decisions
 
@@ -37,7 +37,7 @@ Resolving inside `listSchemasWithInfo()` was rejected because that function is a
 
 ### 2. Add the standard store option and rejection path
 
-The Commander registration for `schemas` will add `--store <id>` using `COMMON_FLAGS.store` and the shared hidden `--store-path` option. `SchemasOptions` will carry `store` and `storePath`, and command-completion metadata will add the same common store flag.
+The Commander registration for `schemas` will add `--store <id>` using `COMMON_FLAGS.store` and the shared hidden `--store-path` option. `SchemasOptions` will carry `store` and `storePath`, and command-completion metadata will add the same common store flag. Because the repository enforces that every command exposing `--store` is named by the shared store-selection guidance, that shared command list, committed generated skill snapshots, and generated-content parity hashes will be updated to include `schemas`. Formal CLI/JSON agent-contract references will be synchronized, and the existing `propose` compatibility flow will only lose its now-false assertion that `schemas` cannot accept the flag; its root-resolution sequence remains unchanged.
 
 A raw `--root` or `--cwd` flag was rejected because it would bypass registry validation, store identity checks, canonicalization, and existing diagnostics. Asking an Agent to run `cd <root.path> && openspec schemas` was rejected because generated tool permissions and working-directory support differ across Agents.
 
@@ -69,11 +69,11 @@ The tests will use Node path utilities and canonical fixture helpers, following 
 - **Users with registered stores but no selected root can no longer use `schemas` as an unscoped built-in-only listing.** → Return the same actionable selection diagnostic as other root-scoped commands; selecting a store or entering a root makes the result authoritative.
 - **Adding root resolution introduces new JSON failure paths.** → Assert one-document failure output and non-zero exit behavior explicitly.
 - **Store roots containing spaces or platform-specific separators could expose path assumptions.** → Resolve paths internally and add a real CLI fixture with a spaced store path; never compose a shell command.
-- **The feature PR still needs to pass `--store` when it explicitly selects one.** → Keep that integration change in the feature PR after this independent CLI fix merges; do not mix generated skill changes into this branch.
+- **The feature PR still needs to integrate its schema-selection flow with explicit store choice.** → This fix synchronizes shared guidance and the existing `propose` compatibility wording, but leaves feature-specific selection/confirmation behavior to that branch after this independent CLI fix merges.
 
 ## Migration Plan
 
 1. Ship the root-aware `schemas` command and `--store` option.
-2. Update dependent workflow guidance in its own branch to pass `--store` when selected.
+2. Update dependent feature-specific schema-selection guidance in its own branch; the shared store-capable command list and existing `propose` compatibility wording already support `schemas --store` after this fix.
 3. Existing successful unscoped output remains compatible; scripts targeting a registered store should add `--store <id>`.
 4. Rollback removes the option and returns `schemasCommand()` to `process.cwd()` without changing schema files or registered-store state.
