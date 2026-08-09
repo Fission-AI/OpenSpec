@@ -5,6 +5,7 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
+import { SCHEMA_SELECTION_GUIDANCE } from './schema-selection.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
 export function getNewChangeSkillTemplate(): SkillTemplate {
@@ -28,21 +29,13 @@ ${STORE_SELECTION_GUIDANCE}
 
    **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
 
-2. **Determine the workflow schema**
-
-   Use the default schema (omit \`--schema\`) unless the user explicitly requests a different workflow.
-
-   **Use a different schema only if the user mentions:**
-   - A specific schema name → use \`--schema <name>\`
-   - "show workflows" or "what workflows" → run \`openspec schemas --json\` and let them choose
-
-   **Otherwise**: Omit \`--schema\` to use the default.
+${SCHEMA_SELECTION_GUIDANCE}
 
 3. **Create the change directory**
    \`\`\`bash
-   openspec new change "<name>"
+   openspec new change "<name>" --schema "<schema-name>"
    \`\`\`
-   Add \`--schema <name>\` only if the user requested a specific workflow.
+   Here, \`<schema-name>\` is the confirmed selection, or the unique recommendation whose confirmation was clearly waived.
    This creates a scaffolded change in the planning home resolved by the CLI.
 
 4. **Show the artifact status**
@@ -75,7 +68,7 @@ After completing the steps, summarize:
 - Do NOT advance beyond showing the first artifact template
 - If the name is invalid (not kebab-case), ask for a valid name
 - If a change with that name already exists, suggest continuing that change instead
-- Pass --schema if using a non-default workflow`,
+- Always pass the selected schema with \`--schema\``,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
@@ -105,21 +98,13 @@ ${STORE_SELECTION_GUIDANCE}
 
    **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
 
-2. **Determine the workflow schema**
-
-   Use the default schema (omit \`--schema\`) unless the user explicitly requests a different workflow.
-
-   **Use a different schema only if the user mentions:**
-   - A specific schema name → use \`--schema <name>\`
-   - "show workflows" or "what workflows" → run \`openspec schemas --json\` and let them choose
-
-   **Otherwise**: Omit \`--schema\` to use the default.
+${SCHEMA_SELECTION_GUIDANCE}
 
 3. **Create the change directory**
    \`\`\`bash
-   openspec new change "<name>"
+   openspec new change "<name>" --schema "<schema-name>"
    \`\`\`
-   Add \`--schema <name>\` only if the user requested a specific workflow.
+   Here, \`<schema-name>\` is the confirmed selection, or the unique recommendation whose confirmation was clearly waived.
    This creates a scaffolded change in the planning home resolved by the CLI.
 
 4. **Show the artifact status**
@@ -151,6 +136,6 @@ After completing the steps, summarize:
 - Do NOT advance beyond showing the first artifact template
 - If the name is invalid (not kebab-case), ask for a valid name
 - If a change with that name already exists, suggest using \`/opsx:continue\` instead
-- Pass --schema if using a non-default workflow`
+- Always pass the selected schema with \`--schema\``
   };
 }

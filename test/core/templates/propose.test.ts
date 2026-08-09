@@ -155,11 +155,11 @@ describe('propose implementation boundary', () => {
 });
 
 describe('propose schema selection', () => {
-  // #770: the CLI and new workflow already accept an explicit schema, but
-  // propose used to discard that request and always create with the default.
-  it('shows both concrete creation forms after an explicit schema choice (#770)', () => {
+  // #770: propose used to discard an explicit schema request. Every path now
+  // resolves one confirmed schema and persists it explicitly.
+  it('creates with the confirmed schema and preserves the selected store (#770)', () => {
     for (const [label, body] of proposeBodies) {
-      const schemaStep = body.indexOf('**Determine the workflow schema**');
+      const schemaStep = body.indexOf('**Select and confirm the workflow schema**');
       const createStep = body.indexOf('**Create the change directory**');
       const statusStep = body.indexOf('**Get the artifact build order**');
 
@@ -168,12 +168,12 @@ describe('propose schema selection', () => {
       expect(statusStep, `${label} is missing status lookup`).toBeGreaterThan(createStep);
 
       const createSection = body.slice(createStep, statusStep);
-      expect(createSection, label).toMatch(/^\s*openspec new change "<name>"\s*$/m);
       expect(createSection, label).toMatch(
         /^\s*openspec new change "<name>" --schema "<schema-name>"\s*$/m
       );
+      expect(createSection, label).not.toMatch(/^\s*openspec new change "<name>"\s*$/m);
       expect(createSection, label).toContain(
-        'If a registered store is selected, append `--store "<store-id>"` to that command and each later OpenSpec command shown below that accepts `--store`'
+        'If a registered store is selected, append `--store "<store-id>"` to this command and each later OpenSpec command shown below that accepts `--store`'
       );
       expect(createSection, label).not.toContain('every follow-up command');
     }
@@ -181,12 +181,11 @@ describe('propose schema selection', () => {
 
   it('discovers schemas from the authoritative project or store root', () => {
     for (const [label, body] of proposeBodies) {
-      const schemaStep = body.indexOf('**Determine the workflow schema**');
+      const schemaStep = body.indexOf('**Select and confirm the workflow schema**');
       const createStep = body.indexOf('**Create the change directory**');
       const schemaSection = body.slice(schemaStep, createStep);
 
-      expect(schemaSection, label).toContain('Use the configured default schema');
-      expect(schemaSection, label).toContain('Explicitly requests a specific schema by name');
+      expect(schemaSection, label).toContain('explicitly names a schema');
       const contextCommand = schemaSection.indexOf('`openspec context --json`');
       const schemasCommand = schemaSection.indexOf('`openspec schemas --json`');
       expect(contextCommand, `${label} is missing root resolution`).toBeGreaterThanOrEqual(0);
@@ -211,9 +210,9 @@ describe('propose schema selection', () => {
       expect(schemaSection, label).toContain(
         'Do not use this fallback for invalid or unavailable stores'
       );
-      expect(schemaSection, label).toContain(
-        'Otherwise, omit `--schema` to preserve the configured default'
-      );
+      expect(schemaSection, label).toContain('Never silently use the default schema');
+      expect(schemaSection, label).not.toContain('Use the configured default schema');
+      expect(schemaSection, label).not.toContain('omit `--schema`');
     }
   });
 });
