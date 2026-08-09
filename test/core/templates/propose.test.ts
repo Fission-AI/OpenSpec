@@ -330,7 +330,7 @@ describe('artifact loop guards (propose and ff)', () => {
     for (const [label, body] of loopBodies) {
       expect(body, label).toContain('**Create every artifact in the required set**');
       expect(body, label).not.toContain('Create artifacts in sequence until apply-ready');
-      expect(body, label).not.toMatch(/^\s*4\.\s.*apply-ready/m);
+      expect(body, label).not.toMatch(/^\s*5\.\s.*apply-ready/m);
     }
   });
 
