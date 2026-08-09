@@ -27,7 +27,7 @@
 - Create: `test/core/templates/schema-selection.test.ts`
 - Create: `src/core/templates/workflows/schema-selection.ts`
 
-- [ ] 1.1 Add a focused test for the complete shared instruction contract.
+- [x] 1.1 Add a focused test for the complete shared instruction contract.
 
 Create `test/core/templates/schema-selection.test.ts` with the contract assertions first:
 
@@ -60,7 +60,7 @@ describe('schema selection guidance', () => {
 });
 ```
 
-- [ ] 1.2 Run the focused test and verify the expected RED state.
+- [x] 1.2 Run the focused test and verify the expected RED state.
 
 Run:
 
@@ -70,7 +70,7 @@ pnpm exec vitest run test/core/templates/schema-selection.test.ts
 
 Expected: FAIL because `src/core/templates/workflows/schema-selection.ts` does not exist. If it fails for another reason, fix the test setup before adding production code.
 
-- [ ] 1.3 Add the minimal shared guidance implementation.
+- [x] 1.3 Add the minimal shared guidance implementation.
 
 Create `src/core/templates/workflows/schema-selection.ts`:
 
@@ -100,7 +100,7 @@ export const SCHEMA_SELECTION_GUIDANCE = `2. **Select and confirm the workflow s
    Do not continue until one schema is confirmed or confirmation has been clearly waived. Use the selected schema name in the create command below.`;
 ```
 
-- [ ] 1.4 Run the focused test and verify the GREEN state.
+- [x] 1.4 Run the focused test and verify the GREEN state.
 
 Run:
 
@@ -110,7 +110,7 @@ pnpm exec vitest run test/core/templates/schema-selection.test.ts
 
 Expected: PASS, 1 test.
 
-- [ ] 1.5 Commit the shared contract.
+- [x] 1.5 Commit the shared contract.
 
 ```bash
 git add src/core/templates/workflows/schema-selection.ts test/core/templates/schema-selection.test.ts
@@ -128,7 +128,7 @@ git commit -m "feat(workflows): define schema selection guidance"
 - Modify: `src/core/templates/workflows/propose.ts`
 - Modify: `src/core/templates/workflows/ff-change.ts`
 
-- [ ] 2.1 Extend the focused test to enumerate both delivery forms for all three workflows.
+- [x] 2.1 Extend the focused test to enumerate both delivery forms for all three workflows.
 
 Add these imports and fixtures to `test/core/templates/schema-selection.test.ts`:
 
@@ -177,7 +177,7 @@ it('always creates with the selected schema explicitly', () => {
 });
 ```
 
-- [ ] 2.2 Run the focused test and verify the expected RED state.
+- [x] 2.2 Run the focused test and verify the expected RED state.
 
 Run:
 
@@ -187,7 +187,7 @@ pnpm exec vitest run test/core/templates/schema-selection.test.ts
 
 Expected: the contract test remains green, while the two new integration tests fail because none of the six bodies contains the new guidance or explicit schema command yet.
 
-- [ ] 2.3 Replace the old `new` default-selection prose with the shared protocol.
+- [x] 2.3 Replace the old `new` default-selection prose with the shared protocol.
 
 In `src/core/templates/workflows/new-change.ts`:
 
@@ -203,7 +203,7 @@ openspec new change "<name>" --schema "<schema-name>"
 5. Remove the obsolete conditional `--schema` explanation and replace it with one sentence stating that `<schema-name>` is the confirmed or clearly waived selection.
 6. Replace the final non-default-only guardrail with `Always pass the selected schema with --schema`.
 
-- [ ] 2.4 Add the shared protocol to `propose` and renumber its existing steps.
+- [x] 2.4 Add the shared protocol to `propose` and renumber its existing steps.
 
 In `src/core/templates/workflows/propose.ts`:
 
@@ -218,7 +218,7 @@ openspec new change "<name>" --schema "<schema-name>"
 
 5. State immediately below the command that `<schema-name>` is the confirmed or clearly waived selection.
 
-- [ ] 2.5 Add the shared protocol to `ff` and renumber its existing steps.
+- [x] 2.5 Add the shared protocol to `ff` and renumber its existing steps.
 
 In `src/core/templates/workflows/ff-change.ts`, perform the same six-body symmetry work as `propose.ts`:
 
@@ -228,7 +228,7 @@ In `src/core/templates/workflows/ff-change.ts`, perform the same six-body symmet
 4. Add `--schema "<schema-name>"` to both creation commands.
 5. Document `<schema-name>` as the confirmed or clearly waived selection.
 
-- [ ] 2.6 Run focused behavioral and regression tests.
+- [x] 2.6 Run focused behavioral and regression tests.
 
 Run:
 
@@ -241,7 +241,7 @@ pnpm exec vitest run \
 
 Expected: the new behavior tests and existing propose/ff artifact-loop tests pass. `skillssh-parity.test.ts` may still report stale committed generated skills until task 3; if so, confirm its only diffs are the three expected creation skills and continue to regeneration.
 
-- [ ] 2.7 Commit the six-template integration.
+- [x] 2.7 Commit the six-template integration.
 
 ```bash
 git add \
@@ -263,7 +263,7 @@ git commit -m "feat(workflows): select schemas before change creation"
 - Modify: `skills/openspec-ff-change/SKILL.md`
 - Modify: `test/core/templates/skill-templates-parity.test.ts`
 
-- [ ] 3.1 Prove the golden parity test detects the intended template changes.
+- [x] 3.1 Prove the golden parity test detects the intended template changes.
 
 Run before updating hashes:
 
@@ -273,7 +273,7 @@ pnpm exec vitest run test/core/templates/skill-templates-parity.test.ts
 
 Expected: FAIL only for the changed `new`, `propose`, and `ff` skill/command function payload hashes and the three changed generated-skill content hashes. Investigate any unrelated hash movement before proceeding.
 
-- [ ] 3.2 Build from the edited TypeScript sources.
+- [x] 3.2 Build from the edited TypeScript sources.
 
 ```bash
 pnpm run build
@@ -281,7 +281,7 @@ pnpm run build
 
 Expected: build succeeds, ensuring the generator and hash script read fresh `dist/` output.
 
-- [ ] 3.3 Regenerate committed skills and verify the generated-file scope.
+- [x] 3.3 Regenerate committed skills and verify the generated-file scope.
 
 ```bash
 pnpm run generate:skills
@@ -299,7 +299,7 @@ skills/openspec-propose/SKILL.md
 
 If another generated skill changes, stop and determine why before accepting the diff.
 
-- [ ] 3.4 Regenerate parity hashes using the repository helper.
+- [x] 3.4 Regenerate parity hashes using the repository helper.
 
 ```bash
 pnpm run regen:parity-hashes
@@ -326,7 +326,7 @@ openspec-ff-change
 
 No unrelated hash may be accepted without explanation.
 
-- [ ] 3.5 Verify generated skills and parity together.
+- [x] 3.5 Verify generated skills and parity together.
 
 ```bash
 pnpm exec vitest run \
@@ -338,7 +338,7 @@ pnpm exec vitest run \
 
 Expected: all focused tests pass.
 
-- [ ] 3.6 Inspect generated prose for accidental drift.
+- [x] 3.6 Inspect generated prose for accidental drift.
 
 ```bash
 git diff --check
@@ -351,7 +351,7 @@ git diff -- \
 
 Confirm each generated skill has exactly one selection block, it precedes `openspec new change`, the creation command always has `--schema`, and unrelated workflow instructions are unchanged.
 
-- [ ] 3.7 Commit generated distribution updates.
+- [x] 3.7 Commit generated distribution updates.
 
 ```bash
 git add \
@@ -370,7 +370,7 @@ git commit -m "chore(skills): regenerate schema selection workflows"
 
 - Modify: `openspec/changes/add-workflow-schema-selection/tasks.md`
 
-- [ ] 4.1 Run static checks and a clean build.
+- [x] 4.1 Run static checks and a clean build.
 
 ```bash
 pnpm run lint
@@ -380,7 +380,7 @@ git diff --check
 
 Expected: all commands exit 0.
 
-- [ ] 4.2 Run the focused workflow suite once more from fresh build output.
+- [x] 4.2 Run the focused workflow suite once more from fresh build output.
 
 ```bash
 pnpm exec vitest run \
@@ -392,7 +392,7 @@ pnpm exec vitest run \
 
 Expected: all focused tests pass with no snapshots or hashes rewritten during the run.
 
-- [ ] 4.3 Run the full test suite.
+- [x] 4.3 Run the full test suite.
 
 ```bash
 pnpm test
@@ -400,7 +400,7 @@ pnpm test
 
 Expected: the complete Vitest suite passes.
 
-- [ ] 4.4 Validate the OpenSpec change strictly.
+- [x] 4.4 Validate the OpenSpec change strictly.
 
 ```bash
 node bin/openspec.js validate add-workflow-schema-selection --strict
@@ -412,7 +412,7 @@ Expected:
 Change 'add-workflow-schema-selection' is valid
 ```
 
-- [ ] 4.5 Audit scope and forbidden leftovers.
+- [x] 4.5 Audit scope and forbidden leftovers.
 
 ```bash
 git diff main...HEAD --name-only
@@ -427,7 +427,7 @@ Confirm:
 - Only the approved proposal, shared guidance, three workflow sources, focused/parity tests, and three generated skills are in scope.
 - `output/` and `tmp/` remain untouched and untracked.
 
-- [ ] 4.6 Mark every completed checkbox in this file and commit the final checklist state.
+- [x] 4.6 Mark every completed checkbox in this file and commit the final checklist state.
 
 ```bash
 git add openspec/changes/add-workflow-schema-selection/tasks.md
