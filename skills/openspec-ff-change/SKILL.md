@@ -26,13 +26,32 @@ Fast-forward through artifact creation - generate everything needed to start imp
 
    **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
 
-2. **Create the change directory**
+2. **Select and confirm the workflow schema**
+
+   Before creating the change, determine the schema as follows:
+
+   - If the user explicitly names a schema, use it and treat that choice as confirmed. If they also explicitly ask you to confirm it, stop and wait for confirmation.
+   - Otherwise, resolve the authoritative root by running `openspec context --json` from the current working directory. If the user explicitly selected a registered store, use `openspec context --json --store "<store-id>"`. Then run `openspec schemas --json` with its working directory set to the returned `root.path` and inspect each schema's `name`, `description`, and `artifacts`. This preserves roots selected by a local `store:` pointer or the global `defaultStore`; `schemas` does not accept `--store`. If context reports only `no_openspec_root`, run `openspec schemas --json` from the current working directory instead. Do not use this fallback for invalid or unavailable stores.
+   - Use `description` as the authority for matching the request. Use `name` and `artifacts` only to identify, display, and explain candidates.
+   - Select a schema only when exactly one is a clear match.
+     - Normally, present the recommendation and a concise reason, then stop and wait for confirmation.
+     - Skip that confirmation only when the user's current request or the selected schema's description clearly and unambiguously says no further confirmation is needed.
+     - If the user explicitly asks for confirmation, always wait even if the selected schema's description waives it.
+   - If no unique recommendation is possible, stop before creating the change, list the relevant candidates with their descriptions, and ask the user to choose. Never silently use the default schema.
+   - If the user rejects a recommendation, stop and list the relevant candidates so they can choose.
+   - If root resolution or `openspec schemas --json` fails, cannot be parsed, or returns no schemas, stop and report the problem. Do not fall back to the default.
+   - After the user selects a listed candidate, treat that choice as confirmed.
+
+   Do not continue until one schema is confirmed or confirmation has been clearly waived. Use the selected schema name in the create command below.
+
+3. **Create the change directory**
    ```bash
-   openspec new change "<name>"
+   openspec new change "<name>" --schema "<schema-name>"
    ```
+   Here, `<schema-name>` is the confirmed selection, or the unique recommendation whose confirmation was clearly waived.
    This creates a scaffolded change in the planning home resolved by the CLI.
 
-3. **Get the artifact build order**
+4. **Get the artifact build order**
    ```bash
    openspec status --change "<name>" --json
    ```
@@ -41,7 +60,7 @@ Fast-forward through artifact creation - generate everything needed to start imp
    - `artifacts`: list of all artifacts, each with its `status` and its `requires` edges (the artifact IDs it directly depends on)
    - `planningHome`, `changeRoot`, `artifactPaths`, and `actionContext`: path and scope context. Use these instead of assuming repo-local paths.
 
-4. **Create every artifact in the required set**
+5. **Create every artifact in the required set**
 
    Use a todo list to track progress through the artifacts.
 
@@ -80,7 +99,7 @@ Fast-forward through artifact creation - generate everything needed to start imp
       - Ask the user to clarify
       - Then continue with creation
 
-5. **Show final status**
+6. **Show final status**
    ```bash
    openspec status --change "<name>"
    ```
