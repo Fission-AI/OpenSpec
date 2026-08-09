@@ -19,6 +19,11 @@ const creationBodies: Array<[string, string]> = [
   ['ff command', getOpsxFfCommandTemplate().content],
 ];
 
+const proposeBodies = creationBodies.filter(([label]) => label.startsWith('propose'));
+const nonProposeBodies = creationBodies.filter(
+  ([label]) => !label.startsWith('propose')
+);
+
 function occurrences(body: string, fragment: string): number {
   return body.split(fragment).length - 1;
 }
@@ -26,18 +31,9 @@ function occurrences(body: string, fragment: string): number {
 describe('schema selection guidance', () => {
   it('defines the complete fail-closed selection and confirmation contract', () => {
     expect(SCHEMA_SELECTION_GUIDANCE).toContain('openspec schemas --json');
-    expect(SCHEMA_SELECTION_GUIDANCE).toContain('openspec context --json');
-    expect(SCHEMA_SELECTION_GUIDANCE).toContain(
-      'openspec context --json --store "<store-id>"'
-    );
-    expect(SCHEMA_SELECTION_GUIDANCE).toContain('returned `root.path`');
-    expect(SCHEMA_SELECTION_GUIDANCE).toContain('local `store:` pointer');
-    expect(SCHEMA_SELECTION_GUIDANCE).toContain('global `defaultStore`');
-    expect(SCHEMA_SELECTION_GUIDANCE).toContain('`schemas` does not accept `--store`');
-    expect(SCHEMA_SELECTION_GUIDANCE).toContain('no_openspec_root');
-    expect(SCHEMA_SELECTION_GUIDANCE).toContain(
-      'Do not use this fallback for invalid or unavailable stores'
-    );
+    expect(SCHEMA_SELECTION_GUIDANCE).not.toContain('openspec context --json');
+    expect(SCHEMA_SELECTION_GUIDANCE).not.toContain('root.path');
+    expect(SCHEMA_SELECTION_GUIDANCE).not.toContain('defaultStore');
     expect(SCHEMA_SELECTION_GUIDANCE).toContain('`description` as the authority');
     expect(SCHEMA_SELECTION_GUIDANCE).toContain(
       '`name` and `artifacts` only to identify, display, and explain candidates'
@@ -51,10 +47,37 @@ describe('schema selection guidance', () => {
     expect(SCHEMA_SELECTION_GUIDANCE).toContain('clearly and unambiguously');
     expect(SCHEMA_SELECTION_GUIDANCE).toContain('explicitly asks for confirmation');
     expect(SCHEMA_SELECTION_GUIDANCE).toContain('Never silently use the default schema');
-    expect(SCHEMA_SELECTION_GUIDANCE).toContain('rejects a recommendation');
+    expect(SCHEMA_SELECTION_GUIDANCE).toContain(
+      'If no unique recommendation is possible, stop before creating the change'
+    );
+    expect(SCHEMA_SELECTION_GUIDANCE).toContain(
+      'list the relevant candidates with their descriptions'
+    );
+    expect(SCHEMA_SELECTION_GUIDANCE).toContain('ask the user to choose');
+    expect(SCHEMA_SELECTION_GUIDANCE).toContain(
+      'If the user rejects a recommendation, stop and list the relevant candidates'
+    );
+    expect(SCHEMA_SELECTION_GUIDANCE).toContain(
+      'If `openspec schemas --json` fails'
+    );
+    expect(SCHEMA_SELECTION_GUIDANCE).toContain('stop and report the problem');
     expect(SCHEMA_SELECTION_GUIDANCE).toContain('cannot be parsed');
     expect(SCHEMA_SELECTION_GUIDANCE).toContain('returns no schemas');
     expect(SCHEMA_SELECTION_GUIDANCE).toContain('Do not fall back to the default');
+  });
+
+  it('keeps authoritative-root discovery compatibility scoped to propose', () => {
+    for (const [label, body] of proposeBodies) {
+      expect(body, label).toContain('**Schema-discovery root for this workflow:**');
+      expect(body, label).toContain('openspec context --json');
+      expect(body, label).toContain('root.path');
+    }
+
+    for (const [label, body] of nonProposeBodies) {
+      expect(body, label).not.toContain('**Schema-discovery root for this workflow:**');
+      expect(body, label).not.toContain('openspec context --json');
+      expect(body, label).not.toContain('root.path');
+    }
   });
 
   it('appears exactly once before creation in every skill and command body', () => {

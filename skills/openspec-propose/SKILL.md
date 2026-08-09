@@ -42,12 +42,14 @@ When the user is ready to implement, they must start the apply workflow explicit
 
    If the request contains ambiguity that would materially affect scope, externally observable behavior, compatibility, or acceptance criteria, ask the user before creating the change. For minor details, make a reasonable assumption and record it in the planning artifacts.
 
+**Schema-discovery root for this workflow:** When schema discovery is needed in step 2 below, first resolve the authoritative root by running `openspec context --json` from the current working directory. If the user explicitly selected a registered store, use `openspec context --json --store "<store-id>"`. Then run `openspec schemas --json` with its working directory set to the returned `root.path`. This preserves roots selected by a local `store:` pointer or the global `defaultStore`; `schemas` does not accept `--store`. If context reports only `no_openspec_root`, run `openspec schemas --json` from the current working directory instead. Do not use this fallback for invalid or unavailable stores.
+
 2. **Select and confirm the workflow schema**
 
    Before creating the change, determine the schema as follows:
 
    - If the user explicitly names a schema, use it and treat that choice as confirmed. If they also explicitly ask you to confirm it, stop and wait for confirmation.
-   - Otherwise, resolve the authoritative root by running `openspec context --json` from the current working directory. If the user explicitly selected a registered store, use `openspec context --json --store "<store-id>"`. Then run `openspec schemas --json` with its working directory set to the returned `root.path` and inspect each schema's `name`, `description`, and `artifacts`. This preserves roots selected by a local `store:` pointer or the global `defaultStore`; `schemas` does not accept `--store`. If context reports only `no_openspec_root`, run `openspec schemas --json` from the current working directory instead. Do not use this fallback for invalid or unavailable stores.
+   - Otherwise, run `openspec schemas --json` and inspect each schema's `name`, `description`, and `artifacts`.
    - Use `description` as the authority for matching the request. Use `name` and `artifacts` only to identify, display, and explain candidates.
    - Select a schema only when exactly one is a clear match.
      - Normally, present the recommendation and a concise reason, then stop and wait for confirmation.
@@ -55,7 +57,7 @@ When the user is ready to implement, they must start the apply workflow explicit
      - If the user explicitly asks for confirmation, always wait even if the selected schema's description waives it.
    - If no unique recommendation is possible, stop before creating the change, list the relevant candidates with their descriptions, and ask the user to choose. Never silently use the default schema.
    - If the user rejects a recommendation, stop and list the relevant candidates so they can choose.
-   - If root resolution or `openspec schemas --json` fails, cannot be parsed, or returns no schemas, stop and report the problem. Do not fall back to the default.
+   - If `openspec schemas --json` fails, cannot be parsed, or returns no schemas, stop and report the problem. Do not fall back to the default.
    - After the user selects a listed candidate, treat that choice as confirmed.
 
    Do not continue until one schema is confirmed or confirmation has been clearly waived. Use the selected schema name in the create command below.

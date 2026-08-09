@@ -181,10 +181,15 @@ describe('propose schema selection', () => {
 
   it('discovers schemas from the authoritative project or store root', () => {
     for (const [label, body] of proposeBodies) {
+      const rootGuidance = body.indexOf('**Schema-discovery root for this workflow:**');
       const schemaStep = body.indexOf('**Select and confirm the workflow schema**');
       const createStep = body.indexOf('**Create the change directory**');
-      const schemaSection = body.slice(schemaStep, createStep);
+      const schemaSection = body.slice(rootGuidance, createStep);
 
+      expect(rootGuidance, `${label} is missing propose root guidance`).toBeGreaterThanOrEqual(0);
+      expect(schemaStep, `${label} selects a schema before resolving its root`).toBeGreaterThan(
+        rootGuidance
+      );
       expect(schemaSection, label).toContain('explicitly names a schema');
       const contextCommand = schemaSection.indexOf('`openspec context --json`');
       const schemasCommand = schemaSection.indexOf('`openspec schemas --json`');

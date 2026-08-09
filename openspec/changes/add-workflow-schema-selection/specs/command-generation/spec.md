@@ -18,9 +18,7 @@ The system SHALL generate `new`, `propose`, and `ff` skill and slash-command wor
 #### Scenario: Workflow discovers schemas for an implicit choice
 
 - **WHEN** the user has not explicitly named a schema
-- **THEN** the workflow SHALL resolve the authoritative root with `openspec context --json`, including an explicitly selected registered store when present
-- **AND** it SHALL run `openspec schemas --json` from the returned `root.path` before `openspec new change`
-- **AND** it MAY run schema discovery from the current working directory only when context reports `no_openspec_root`
+- **THEN** the workflow SHALL run `openspec schemas --json` before `openspec new change`
 - **AND** it SHALL use schema descriptions as the authority for semantic recommendation
 - **AND** it SHALL use schema names and artifact lists only to identify, display, and explain candidates
 
@@ -73,7 +71,7 @@ The system SHALL generate `new`, `propose`, and `ff` skill and slash-command wor
 
 #### Scenario: Schema discovery fails
 
-- **WHEN** authoritative-root resolution or `openspec schemas --json` fails or its output cannot be interpreted
+- **WHEN** `openspec schemas --json` fails or its output cannot be interpreted
 - **THEN** the workflow SHALL stop before creating the change and report the failure
 - **AND** it SHALL NOT fall back to the project default schema
 

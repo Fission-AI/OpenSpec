@@ -28,11 +28,9 @@ Add `src/core/templates/workflows/schema-selection.ts` exporting `SCHEMA_SELECTI
 
 This follows the existing `STORE_SELECTION_GUIDANCE` pattern. Keeping six independent copies was rejected because their confirmation and failure rules would drift. A separate routing skill was rejected because command-only delivery cannot assume that extra skill is installed.
 
-### 2. Resolve the authoritative root, then use descriptions as the only selection authority
+### 2. Use descriptions as the only selection authority
 
-When the user has not named a schema, the Agent first resolves the authoritative root with `openspec context --json`, including `--store "<store-id>"` when the user explicitly selected a registered store. It then runs `openspec schemas --json` from the returned `root.path`. This preserves a local `store:` pointer and the global `defaultStore` even though `schemas` does not accept `--store`. Only `no_openspec_root` permits discovery from the current working directory; invalid or unavailable stores fail closed.
-
-The Agent semantically compares the current request with each discovered schema's existing `description`. Schema names and artifact lists may identify, display, and explain candidates but do not replace an insufficient description.
+When the user has not named a schema, the Agent always runs `openspec schemas --json`. It semantically compares the current request with each schema's existing `description`. Schema names and artifact lists may identify, display, and explain candidates but do not replace an insufficient description.
 
 The Agent must identify one unique clear recommendation. If it cannot, it lists relevant candidates and stops. It never treats the configured default as a semantic recommendation. This avoids inventing policy from schema names or artifact shapes.
 
@@ -64,7 +62,6 @@ Template-function and generated-content parity hashes are regenerated intentiona
 ## Risks / Trade-offs
 
 - **Agents can interpret natural-language descriptions differently** → Require one clear recommendation and stop on ambiguity.
-- **Schema discovery can target the wrong project or store root** → Resolve `root.path` through `context --json` before discovery and preserve explicit or configured store selection.
 - **The normal implicit path adds discovery and confirmation interactions** → Explicit schema selection and clear waiver language provide intentional shortcuts.
 - **Existing descriptions may not contain enough selection guidance** → Surface candidates rather than inventing policy or silently using the default.
 - **Tests cannot execute every model's semantic judgment** → Verify the complete instruction contract and generated distribution, while keeping user confirmation as the runtime safety boundary.

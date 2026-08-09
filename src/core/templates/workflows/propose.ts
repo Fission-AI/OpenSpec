@@ -8,6 +8,8 @@ import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { SCHEMA_SELECTION_GUIDANCE } from './schema-selection.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
+const PROPOSE_SCHEMA_DISCOVERY_ROOT_GUIDANCE = `**Schema-discovery root for this workflow:** When schema discovery is needed in step 2 below, first resolve the authoritative root by running \`openspec context --json\` from the current working directory. If the user explicitly selected a registered store, use \`openspec context --json --store "<store-id>"\`. Then run \`openspec schemas --json\` with its working directory set to the returned \`root.path\`. This preserves roots selected by a local \`store:\` pointer or the global \`defaultStore\`; \`schemas\` does not accept \`--store\`. If context reports only \`no_openspec_root\`, run \`openspec schemas --json\` from the current working directory instead. Do not use this fallback for invalid or unavailable stores.`;
+
 export function getOpsxProposeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-propose',
@@ -44,6 +46,8 @@ ${STORE_SELECTION_GUIDANCE}
    **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
 
    If the request contains ambiguity that would materially affect scope, externally observable behavior, compatibility, or acceptance criteria, ask the user before creating the change. For minor details, make a reasonable assumption and record it in the planning artifacts.
+
+${PROPOSE_SCHEMA_DISCOVERY_ROOT_GUIDANCE}
 
 ${SCHEMA_SELECTION_GUIDANCE}
 
@@ -180,6 +184,8 @@ ${STORE_SELECTION_GUIDANCE}
    **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
 
    If the request contains ambiguity that would materially affect scope, externally observable behavior, compatibility, or acceptance criteria, ask the user before creating the change. For minor details, make a reasonable assumption and record it in the planning artifacts.
+
+${PROPOSE_SCHEMA_DISCOVERY_ROOT_GUIDANCE}
 
 ${SCHEMA_SELECTION_GUIDANCE}
 
