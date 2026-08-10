@@ -9,12 +9,27 @@
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
-import { escapeYamlValue } from '../yaml.js';
+
+const COMMAND_CODE_INPUT_HEADING = /^\*\*Input\*\*:[^\n]*$/m;
+
+function injectCommandCodeArgs(body: string): string {
+  if (/^\*\*Provided arguments\*\*:\s*(?:\$(?:ARGUMENTS|@)|\$\{(?:ARGUMENTS|@)\})\s*$/m.test(body)) {
+    return body;
+  }
+
+  return body.replace(
+    COMMAND_CODE_INPUT_HEADING,
+    (heading) => `${heading}\n**Provided arguments**: $ARGUMENTS`
+  );
+}
 
 /**
  * Command Code adapter for command generation.
  * File path: .commandcode/commands/opsx-<id>.md
- * Frontmatter: description
+ * Format: plain Markdown with $ARGUMENTS injected after the input contract
+ *
+ * Command Code executes the full trimmed file body and substitutes invocation
+ * arguments only where the body includes one of its argument placeholders.
  */
 export const commandCodeAdapter: ToolCommandAdapter = {
   toolId: 'command-code',
@@ -24,11 +39,6 @@ export const commandCodeAdapter: ToolCommandAdapter = {
   },
 
   formatFile(content: CommandContent): string {
-    return `---
-description: ${escapeYamlValue(content.description)}
----
-
-${content.body}
-`;
+    return `${injectCommandCodeArgs(content.body)}\n`;
   },
 };

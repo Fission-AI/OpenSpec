@@ -521,6 +521,9 @@ describe('InitCommand', () => {
       // .commandcode/commands/opsx-<id>.md, invoked as /opsx-<id>.
       const commandFile = path.join(testDir, '.commandcode', 'commands', 'opsx-explore.md');
       expect(await fileExists(commandFile)).toBe(true);
+      const commandContent = await fs.readFile(commandFile, 'utf-8');
+      expect(commandContent).toContain('**Provided arguments**: $ARGUMENTS');
+      expect(commandContent).not.toMatch(/^---\n/);
     });
 
     it('should support CodeArts as an adapterless skills-only tool', async () => {
