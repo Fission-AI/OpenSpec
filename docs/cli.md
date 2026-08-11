@@ -50,7 +50,7 @@ These commands support `--json` output for programmatic use by AI agents and scr
 | `openspec status` | See artifact progress | `--json` for structured status |
 | `openspec instructions` | Get next steps | `--json` for agent instructions |
 | `openspec templates` | Find template paths | `--json` for path resolution |
-| `openspec schemas` | List available schemas | `--json` for schema discovery |
+| `openspec schemas` | List available schemas | `--json` for schema discovery; `--store <id>` to select a registered root |
 | `openspec store setup <id>` | Create and register a local store | `--json` with explicit inputs for structured setup output |
 | `openspec store register <path>` | Register an existing store | `--json` for structured registration output |
 | `openspec store unregister <id>` | Forget a local store registration | `--json` for structured cleanup output |
@@ -910,6 +910,7 @@ openspec schemas [options]
 | Option | Description |
 |--------|-------------|
 | `--json` | Output as JSON |
+| `--store <id>` | Use a registered store as the OpenSpec root |
 
 **Example:**
 
