@@ -503,6 +503,49 @@ describe('InitCommand', () => {
       ).toBe(true);
     });
 
+    it('should support Command Code with both skills and generated commands', async () => {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'both',
+      });
+
+      const initCommand = new InitCommand({ tools: 'command-code', force: true });
+      await initCommand.execute(testDir);
+
+      // Skills install under .commandcode/skills (Command Code's native skill surface)
+      const skillFile = path.join(testDir, '.commandcode', 'skills', 'openspec-explore', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
+
+      // Adapter-backed: Command Code reads custom slash commands from
+      // .commandcode/commands/opsx-<id>.md, invoked as /opsx-<id>.
+      const commandFile = path.join(testDir, '.commandcode', 'commands', 'opsx-explore.md');
+      expect(await fileExists(commandFile)).toBe(true);
+      const commandContent = await fs.readFile(commandFile, 'utf-8');
+      expect(commandContent).toContain('**Provided arguments**: $ARGUMENTS');
+      expect(commandContent).not.toMatch(/^---\n/);
+    });
+
+    it('should generate Command Code commands and skip skills under delivery=commands', async () => {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'commands',
+      });
+
+      const initCommand = new InitCommand({ tools: 'command-code', force: true });
+      await initCommand.execute(testDir);
+
+      // commands-only delivery: the adapter still writes commands...
+      const commandFile = path.join(testDir, '.commandcode', 'commands', 'opsx-explore.md');
+      expect(await fileExists(commandFile)).toBe(true);
+      const commandContent = await fs.readFile(commandFile, 'utf-8');
+      expect(commandContent).toContain('**Provided arguments**: $ARGUMENTS');
+
+      // ...but no skills are installed
+      expect(await directoryExists(path.join(testDir, '.commandcode', 'skills'))).toBe(false);
+    });
+
     it('should support CodeArts as an adapterless skills-only tool', async () => {
       saveGlobalConfig({
         featureFlags: {},

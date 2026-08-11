@@ -394,6 +394,19 @@ describe('available-tools', () => {
       expect(toolValues).toContain('claude');
     });
 
+    it('should detect Command Code when .commandcode directory exists', async () => {
+      await fs.mkdir(path.join(testDir, '.commandcode'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('command-code');
+
+      const commandCodeTool = tools.find((t) => t.value === 'command-code');
+      expect(commandCodeTool).toBeDefined();
+      expect(commandCodeTool?.name).toBe('Command Code');
+      expect(commandCodeTool?.skillsDir).toBe('.commandcode');
+    });
+
     it('should detect Mistral Vibe when .vibe directory exists', async () => {
       // Mistral Vibe uses skillsDir: '.vibe' without detectionPaths
       // This test ensures path semantics do not drift for Vibe skill detection
