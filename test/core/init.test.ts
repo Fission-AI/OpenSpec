@@ -526,6 +526,26 @@ describe('InitCommand', () => {
       expect(commandContent).not.toMatch(/^---\n/);
     });
 
+    it('should generate Command Code commands and skip skills under delivery=commands', async () => {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'commands',
+      });
+
+      const initCommand = new InitCommand({ tools: 'command-code', force: true });
+      await initCommand.execute(testDir);
+
+      // commands-only delivery: the adapter still writes commands...
+      const commandFile = path.join(testDir, '.commandcode', 'commands', 'opsx-explore.md');
+      expect(await fileExists(commandFile)).toBe(true);
+      const commandContent = await fs.readFile(commandFile, 'utf-8');
+      expect(commandContent).toContain('**Provided arguments**: $ARGUMENTS');
+
+      // ...but no skills are installed
+      expect(await directoryExists(path.join(testDir, '.commandcode', 'skills'))).toBe(false);
+    });
+
     it('should support CodeArts as an adapterless skills-only tool', async () => {
       saveGlobalConfig({
         featureFlags: {},
