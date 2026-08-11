@@ -795,6 +795,22 @@ export function registerSchemaCommand(program: Command): void {
           doc.set('name', destinationName);
           fs.writeFileSync(stagedSchemaPath, doc.toString());
 
+          // Authoritative gate: validate the COMPLETED staged schema — the exact
+          // bytes we are about to install — not just the source at the pre-check.
+          // The source files copyDirRecursive reads can change mid-copy, so a
+          // source that was valid up front can still produce an invalid staged
+          // fork. Validating here, before ANY destructive step, guarantees we
+          // never install an invalid fork or delete a valid destination for one.
+          try {
+            parseSchema(fs.readFileSync(stagedSchemaPath, 'utf-8'));
+          } catch (validationError) {
+            throw new Error(
+              `The staged fork of '${source}' is not a valid schema (the source may have changed during copy); ` +
+                `aborted, '${destinationName}' was not modified.`,
+              { cause: validationError }
+            );
+          }
+
           // Swap the staged fork into place. When a destination already exists,
           // move it aside to a sibling backup FIRST, then install the staged
           // fork; only once the install succeeds is the backup discarded. If the

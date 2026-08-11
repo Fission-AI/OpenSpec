@@ -19,6 +19,10 @@ const fsControl = vi.hoisted(() => ({
   // destination is moved aside (dest -> backup), overwrite the backup's
   // schema.yaml with `content`.
   mutateBackupContent: null as null | string,
+  // When set, simulate the source changing mid-copy so the STAGED schema.yaml
+  // ends up invalid: after it is copied into staging, overwrite it with
+  // `content` (structurally invalid).
+  corruptStagedSchema: null as null | string,
 }));
 
 vi.mock('node:fs', async (importOriginal) => {
@@ -36,6 +40,17 @@ vi.mock('node:fs', async (importOriginal) => {
         const { path: target, content } = fsControl.mutateOnCopy;
         fsControl.mutateOnCopy = null; // one-shot
         actual.writeFileSync(target, content);
+      }
+      // Corrupt the staged schema.yaml right after it is copied into staging, to
+      // simulate the source having changed to invalid content during the copy.
+      if (
+        fsControl.corruptStagedSchema !== null &&
+        String(args[1]).includes('.fork-staging-') &&
+        String(args[1]).endsWith('schema.yaml')
+      ) {
+        const content = fsControl.corruptStagedSchema;
+        fsControl.corruptStagedSchema = null; // one-shot
+        actual.writeFileSync(String(args[1]), content);
       }
       return result;
     },
@@ -586,6 +601,64 @@ describe('schema fork fidelity (PR #1130)', () => {
         'utf-8'
       )
     ).toBe('name: keep-me\nversion: 4-touched-in-backup\n');
+  });
+
+  it('aborts and preserves the destination when the source becomes invalid during staging', async () => {
+    // The gap alfred reproduced: the up-front parseSchema checks the SOURCE, but
+    // copyDirRecursive reads source files that can change mid-copy, so the STAGED
+    // result can be invalid even though the source was valid at the pre-check.
+    // The completed staged schema must be validated before any destructive step;
+    // an invalid staged fork must abort and leave a valid destination untouched.
+    const destDir = path.join(tempDir, 'openspec', 'schemas', 'keep-me');
+    fs.mkdirSync(destDir, { recursive: true });
+    const existing = path.join(destDir, 'schema.yaml');
+    const existingContent = [
+      'name: keep-me',
+      'version: 3',
+      'artifacts:',
+      '  - id: proposal',
+      '    generates: proposal.md',
+      '    description: Keep this valid schema',
+      '    template: proposal.md',
+      '    requires: []',
+      '',
+    ].join('\n');
+    fs.writeFileSync(existing, existingContent);
+
+    // Structurally invalid but valid YAML (artifact missing required fields), so
+    // parseDocument + doc.set succeed but parseSchema rejects the staged result.
+    const invalidStaged = [
+      'name: keep-me',
+      'version: 1',
+      'artifacts:',
+      '  - id: proposal',
+      '',
+    ].join('\n');
+    fsControl.corruptStagedSchema = invalidStaged;
+    try {
+      await runSchemaCommand(['fork', 'src-schema', 'keep-me', '--force', '--json']);
+    } finally {
+      fsControl.corruptStagedSchema = null;
+    }
+
+    const output = consoleLogSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(process.exitCode).toBeTruthy();
+    expect(output).toContain('"forked": false');
+    expect(output).toMatch(/not a valid schema|aborted/i);
+
+    // The valid destination is preserved byte-identical — never overwritten by
+    // the invalid staged fork nor deleted for it.
+    expect(fs.existsSync(existing)).toBe(true);
+    expect(fs.readFileSync(existing, 'utf-8')).toBe(existingContent);
+
+    // No staging or backup leftovers remain — the abort happened before any move.
+    const leftovers = fs
+      .readdirSync(path.join(tempDir, 'openspec', 'schemas'))
+      .filter(
+        (entry) =>
+          entry.startsWith('.fork-staging-') || entry.includes('.fork-backup-')
+      );
+    expect(leftovers).toEqual([]);
   });
 
   it('writes YAML-ambiguous names as strings, not booleans/null', async () => {
