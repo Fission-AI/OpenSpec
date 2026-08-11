@@ -1,5 +1,14 @@
 version: 2
 
+# Dependabot does not manage two dependency surfaces in this repo:
+#   1. pnpm `overrides` (pnpm-workspace.yaml + package.json, root and website) —
+#      transitive version pins that remediate advisories Dependabot can't otherwise
+#      reach. It never bumps or removes these; each carries an inline advisory
+#      comment noting the removal condition (see pnpm-workspace.yaml).
+#   2. The Nix flake (flake.nix / flake.lock). Update nixpkgs manually with
+#      `nix flake update`; there is no Dependabot ecosystem for Nix. Note that the
+#      pnpmDeps FOD hash in flake.nix must be regenerated on any root lockfile change.
+
 updates:
   # Published CLI package
   - package-ecosystem: npm
