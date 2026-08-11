@@ -4,11 +4,14 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 
-// Deterministic, cross-platform hook to fail the fork's file copy without
-// relying on filesystem permissions or symlink support (ESM forbids spying on
-// node:fs's namespace exports directly). Only copyFileSync is wrapped; every
-// other fs call passes straight through to the real implementation.
-const fsControl = vi.hoisted(() => ({ failCopyFileSync: false }));
+// Deterministic, cross-platform hooks to fail specific fork filesystem steps
+// without relying on permissions or symlink support (ESM forbids spying on
+// node:fs's namespace exports directly). Only the wrapped calls are affected;
+// every other fs call passes straight through to the real implementation.
+const fsControl = vi.hoisted(() => ({
+  failCopyFileSync: false,
+  failStagingInstall: false,
+}));
 
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
@@ -20,6 +23,18 @@ vi.mock('node:fs', async (importOriginal) => {
         throw new Error('simulated copy failure');
       }
       return actual.copyFileSync(...args);
+    },
+    renameSync: (...args: Parameters<typeof actual.renameSync>) => {
+      // Fail ONLY the final staging->destination install move, leaving the
+      // earlier destination->backup move and the backup->destination restore
+      // to run for real.
+      if (
+        fsControl.failStagingInstall &&
+        String(args[0]).includes('.fork-staging-')
+      ) {
+        throw new Error('simulated install rename failure');
+      }
+      return actual.renameSync(...args);
     },
   };
 });
@@ -325,6 +340,55 @@ describe('schema fork fidelity (PR #1130)', () => {
     const leftovers = fs
       .readdirSync(path.join(tempDir, 'openspec', 'schemas'))
       .filter((entry) => entry.startsWith('.fork-staging-'));
+    expect(leftovers).toEqual([]);
+  });
+
+  it('restores the destination when the final install move fails', async () => {
+    // Atomicity for the swap itself: `fork --force` moves the existing
+    // destination to a sibling backup, installs the staged fork, and only then
+    // discards the backup. If the install move fails (e.g. a Windows lock), the
+    // backup must be moved back so the original destination is never lost.
+    const destDir = path.join(tempDir, 'openspec', 'schemas', 'keep-me');
+    fs.mkdirSync(destDir, { recursive: true });
+    const existing = path.join(destDir, 'schema.yaml');
+    const existingContent = [
+      'name: keep-me',
+      'version: 3',
+      'artifacts:',
+      '  - id: proposal',
+      '    generates: proposal.md',
+      '    description: Keep this',
+      '    template: proposal.md',
+      '    requires: []',
+      '',
+    ].join('\n');
+    fs.writeFileSync(existing, existingContent);
+
+    fsControl.failStagingInstall = true;
+    try {
+      await runSchemaCommand(['fork', 'src-schema', 'keep-me', '--force', '--json']);
+    } finally {
+      fsControl.failStagingInstall = false;
+    }
+
+    const output = consoleLogSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(process.exitCode).toBeTruthy();
+    expect(output).toContain('"forked": false');
+    expect(output).toMatch(/simulated install rename failure/i);
+
+    // The original destination was moved to backup, the install failed, and the
+    // backup was moved back — so the destination is byte-identical.
+    expect(fs.existsSync(existing)).toBe(true);
+    expect(fs.readFileSync(existing, 'utf-8')).toBe(existingContent);
+
+    // No staging or backup leftovers linger in the schemas directory.
+    const leftovers = fs
+      .readdirSync(path.join(tempDir, 'openspec', 'schemas'))
+      .filter(
+        (entry) =>
+          entry.startsWith('.fork-staging-') ||
+          entry.includes('.fork-backup-')
+      );
     expect(leftovers).toEqual([]);
   });
 

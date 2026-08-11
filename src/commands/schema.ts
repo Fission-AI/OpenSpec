@@ -740,14 +740,31 @@ export function registerSchemaCommand(program: Command): void {
           doc.set('name', destinationName);
           fs.writeFileSync(stagedSchemaPath, doc.toString());
 
-          // Swap the staged fork into place. Only now — with a complete, valid
-          // fork ready — is any existing destination removed, so a failure above
-          // can never leave the user without their original.
+          // Swap the staged fork into place. When a destination already exists,
+          // move it aside to a sibling backup FIRST, then install the staged
+          // fork; only once the install succeeds is the backup discarded. If the
+          // install rename itself fails (e.g. a Windows lock), the backup is
+          // moved back so the user's original destination is never lost.
           if (destinationExists) {
             if (spinner) spinner.text = `Replacing existing schema '${destinationName}'...`;
-            fs.rmSync(destinationDir, { recursive: true, force: true });
+            const backupDir = `${destinationDir}.fork-backup-${process.pid}-${Date.now()}`;
+            fs.renameSync(destinationDir, backupDir);
+            try {
+              fs.renameSync(stagingDir, destinationDir);
+            } catch (installError) {
+              // Restore the original destination, then rethrow. Guard the
+              // restore so a failed rename-back cannot mask the real error.
+              try {
+                fs.renameSync(backupDir, destinationDir);
+              } catch {
+                // Best-effort restore; the original error below is what matters.
+              }
+              throw installError;
+            }
+            fs.rmSync(backupDir, { recursive: true, force: true });
+          } else {
+            fs.renameSync(stagingDir, destinationDir);
           }
-          fs.renameSync(stagingDir, destinationDir);
         } catch (error) {
           // Remove only the staging directory we created this run; the source
           // and any existing destination are left exactly as we found them.
