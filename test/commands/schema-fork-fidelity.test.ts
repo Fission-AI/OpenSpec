@@ -12,10 +12,18 @@ const fsControl = vi.hoisted(() => ({
   failCopyFileSync: false,
   failStagingInstall: false,
   failBackupRestore: false,
+  // When set, simulate a concurrent process editing the fork destination: after
+  // the next real file copy during staging, overwrite `path` with `content`.
+  mutateOnCopy: null as null | { path: string; content: string },
+  // When set, simulate a concurrent write to the backup dir: after the
+  // destination is moved aside (dest -> backup), overwrite the backup's
+  // schema.yaml with `content`.
+  mutateBackupContent: null as null | string,
 }));
 
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
+  const nodePath = await import('node:path');
   return {
     ...actual,
     default: actual,
@@ -23,7 +31,13 @@ vi.mock('node:fs', async (importOriginal) => {
       if (fsControl.failCopyFileSync) {
         throw new Error('simulated copy failure');
       }
-      return actual.copyFileSync(...args);
+      const result = actual.copyFileSync(...args);
+      if (fsControl.mutateOnCopy) {
+        const { path: target, content } = fsControl.mutateOnCopy;
+        fsControl.mutateOnCopy = null; // one-shot
+        actual.writeFileSync(target, content);
+      }
+      return result;
     },
     renameSync: (...args: Parameters<typeof actual.renameSync>) => {
       // Fail ONLY the final staging->destination install move, leaving the
@@ -42,7 +56,21 @@ vi.mock('node:fs', async (importOriginal) => {
       ) {
         throw new Error('simulated restore rename failure');
       }
-      return actual.renameSync(...args);
+      const result = actual.renameSync(...args);
+      // After the destination is moved aside to the backup dir, simulate a
+      // concurrent write into that backup before it is (potentially) deleted.
+      if (
+        fsControl.mutateBackupContent !== null &&
+        String(args[1]).includes('.fork-backup-')
+      ) {
+        const content = fsControl.mutateBackupContent;
+        fsControl.mutateBackupContent = null; // one-shot
+        actual.writeFileSync(
+          nodePath.join(String(args[1]), 'schema.yaml'),
+          content
+        );
+      }
+      return result;
     },
   };
 });
@@ -465,6 +493,99 @@ describe('schema fork fidelity (PR #1130)', () => {
     const infoNames = listSchemasWithInfo(tempDir).map((s) => s.name);
     expect(infoNames).toContain('src-schema');
     expect(infoNames.some((n) => n.includes('.fork-'))).toBe(false);
+  });
+
+  it('aborts and preserves a destination edited concurrently during staging', async () => {
+    // The race alfred reproduced: between authorizing the --force overwrite and
+    // the destructive swap, another process edits the destination. The fork must
+    // fingerprint the authorized destination, re-check it before moving it aside,
+    // and ABORT if it changed — never clobbering the concurrent edit.
+    const destDir = path.join(tempDir, 'openspec', 'schemas', 'keep-me');
+    fs.mkdirSync(destDir, { recursive: true });
+    const existing = path.join(destDir, 'schema.yaml');
+    const originalContent = [
+      'name: keep-me',
+      'version: 3',
+      'artifacts:',
+      '  - id: proposal',
+      '    generates: proposal.md',
+      '    description: Original',
+      '    template: proposal.md',
+      '    requires: []',
+      '',
+    ].join('\n');
+    fs.writeFileSync(existing, originalContent);
+
+    // Simulate the concurrent edit landing DURING the staging copy (after the
+    // destination fingerprint was captured, before the destructive move).
+    const concurrentContent = originalContent.replace(
+      'description: Original',
+      'description: Edited by a concurrent process'
+    );
+    fsControl.mutateOnCopy = { path: existing, content: concurrentContent };
+    try {
+      await runSchemaCommand(['fork', 'src-schema', 'keep-me', '--force', '--json']);
+    } finally {
+      fsControl.mutateOnCopy = null;
+    }
+
+    const output = consoleLogSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(process.exitCode).toBeTruthy();
+    expect(output).toContain('"forked": false');
+    expect(output).toMatch(/changed on disk|concurrent|aborted/i);
+
+    // The concurrent edit is preserved — NOT overwritten by the fork. The
+    // destination still has the concurrent content, and is not the fork's copy
+    // (which would carry src-schema's `description: The proposal`).
+    expect(fs.existsSync(existing)).toBe(true);
+    expect(fs.readFileSync(existing, 'utf-8')).toBe(concurrentContent);
+
+    // No staging or backup leftovers remain — the abort happened before any move.
+    const leftovers = fs
+      .readdirSync(path.join(tempDir, 'openspec', 'schemas'))
+      .filter(
+        (entry) =>
+          entry.startsWith('.fork-staging-') || entry.includes('.fork-backup-')
+      );
+    expect(leftovers).toEqual([]);
+  });
+
+  it('keeps the backup when it is modified during the install window', async () => {
+    // Second window: after the original is moved aside to the backup, a
+    // concurrent write lands in the backup before it is discarded. The fork must
+    // re-fingerprint the backup before deleting it and, on mismatch, keep it and
+    // surface its location rather than silently deleting changed content.
+    const destDir = path.join(tempDir, 'openspec', 'schemas', 'keep-me');
+    fs.mkdirSync(destDir, { recursive: true });
+    const existing = path.join(destDir, 'schema.yaml');
+    fs.writeFileSync(existing, 'name: keep-me\nversion: 3\n');
+
+    fsControl.mutateBackupContent = 'name: keep-me\nversion: 4-touched-in-backup\n';
+    try {
+      await runSchemaCommand(['fork', 'src-schema', 'keep-me', '--force', '--json']);
+    } finally {
+      fsControl.mutateBackupContent = null;
+    }
+
+    // The fork itself succeeds (the install path was untouched by the race).
+    const errOutput = consoleErrorSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(process.exitCode).toBeFalsy();
+    // The install landed the fork at the destination.
+    expect(fs.readFileSync(existing, 'utf-8')).toMatch(/^name: keep-me$/m);
+
+    // The changed backup was NOT deleted, and its location is surfaced.
+    expect(errOutput).toMatch(/was NOT deleted/i);
+    expect(errOutput).toMatch(/\.fork-backup-/);
+    const backupDir = fs
+      .readdirSync(path.join(tempDir, 'openspec', 'schemas'))
+      .find((entry) => entry.includes('.fork-backup-'));
+    expect(backupDir).toBeTruthy();
+    expect(
+      fs.readFileSync(
+        path.join(tempDir, 'openspec', 'schemas', backupDir!, 'schema.yaml'),
+        'utf-8'
+      )
+    ).toBe('name: keep-me\nversion: 4-touched-in-backup\n');
   });
 
   it('writes YAML-ambiguous names as strings, not booleans/null', async () => {

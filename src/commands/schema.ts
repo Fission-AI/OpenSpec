@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { createHash } from 'node:crypto';
 import ora from 'ora';
 import { stringify as stringifyYaml, parseDocument } from 'yaml';
 import {
@@ -322,6 +323,49 @@ function assertSchemaTreeCanBeCopied(
   } finally {
     ancestors.delete(canonicalSrc);
   }
+}
+
+/**
+ * Produces a stable content fingerprint of a directory: a SHA-256 over every
+ * file's relative path AND its bytes (plus directory paths), walked in sorted
+ * order. Two directories with byte-identical trees produce the same digest, and
+ * ANY change to a file's contents, size, or the set of paths changes it. Used to
+ * detect a concurrent modification of a fork destination between the moment the
+ * overwrite is authorized and the moment it is actually moved/deleted, so those
+ * changes are never silently destroyed.
+ */
+function fingerprintDir(dir: string): string {
+  const hash = createHash('sha256');
+  const walk = (current: string, rel: string): void => {
+    const entries = fs
+      .readdirSync(current, { withFileTypes: true })
+      .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+    for (const entry of entries) {
+      const abs = path.join(current, entry.name);
+      const relPath = rel ? `${rel}/${entry.name}` : entry.name;
+      const stats = fs.lstatSync(abs);
+      if (stats.isDirectory()) {
+        hash.update(`D:${relPath}\n`);
+        walk(abs, relPath);
+      } else if (stats.isFile()) {
+        hash.update(`F:${relPath}:${stats.size}:`);
+        hash.update(fs.readFileSync(abs));
+        hash.update('\n');
+      } else {
+        // Symlinks / other entry types: record the type + path (and the link
+        // target when readable) so a swap of one for another is still detected.
+        let target = '';
+        try {
+          target = fs.readlinkSync(abs);
+        } catch {
+          // Non-symlink or unreadable target; the type marker below suffices.
+        }
+        hash.update(`O:${relPath}:${target}\n`);
+      }
+    }
+  };
+  walk(dir, '');
+  return hash.digest('hex');
 }
 
 /**
@@ -719,6 +763,14 @@ export function registerSchemaCommand(program: Command): void {
           return;
         }
 
+        // Fingerprint the destination the user authorized us to overwrite, BEFORE
+        // we spend time staging. Staging can take a while, and a concurrent
+        // process may edit the destination in that window; the fingerprint lets
+        // us detect such a change and abort rather than clobber it.
+        const authorizedDestinationFingerprint = destinationExists
+          ? fingerprintDir(destinationDir)
+          : null;
+
         // Stage the complete fork in a temporary sibling directory first, then
         // swap it into place. This keeps `fork --force` atomic: an existing
         // destination is only removed once the new fork has been fully copied,
@@ -747,6 +799,22 @@ export function registerSchemaCommand(program: Command): void {
           // moved back so the user's original destination is never lost.
           if (destinationExists) {
             if (spinner) spinner.text = `Replacing existing schema '${destinationName}'...`;
+
+            // Revalidate immediately before the destructive move: if the
+            // destination changed on disk while we were staging (or was removed),
+            // its fingerprint no longer matches what the user authorized. Abort
+            // WITHOUT touching it, so the concurrent changes are preserved. The
+            // outer catch cleans up staging.
+            const currentFingerprint = fs.existsSync(destinationDir)
+              ? fingerprintDir(destinationDir)
+              : null;
+            if (currentFingerprint !== authorizedDestinationFingerprint) {
+              throw new Error(
+                `Schema '${destinationName}' at ${destinationDir} changed on disk while the fork was being prepared. ` +
+                  `Aborted to preserve those concurrent changes; nothing was overwritten. Re-run the fork to overwrite the current contents.`
+              );
+            }
+
             const backupDir = `${destinationDir}.fork-backup-${process.pid}-${Date.now()}`;
             fs.renameSync(destinationDir, backupDir);
             try {
@@ -769,7 +837,20 @@ export function registerSchemaCommand(program: Command): void {
               }
               throw installError;
             }
-            fs.rmSync(backupDir, { recursive: true, force: true });
+
+            // Revalidate before discarding the backup: only delete it if it is
+            // still byte-for-byte the original destination we moved aside. If it
+            // changed during the install window (a concurrent write to the
+            // moved-aside directory), do NOT delete it — leave it in place and
+            // surface where it is so nothing is lost.
+            if (fingerprintDir(backupDir) === authorizedDestinationFingerprint) {
+              fs.rmSync(backupDir, { recursive: true, force: true });
+            } else {
+              console.error(
+                `Warning: the previous '${destinationName}' changed during the fork and was NOT deleted; ` +
+                  `its pre-fork copy is preserved at ${backupDir}.`
+              );
+            }
           } else {
             fs.renameSync(stagingDir, destinationDir);
           }
