@@ -4,7 +4,7 @@
 The system SHALL display a one-line telemetry disclosure notice on the first command execution, before any telemetry is sent. In `--json` mode the system SHALL NOT display the notice on that run and SHALL leave `noticeSeen` unset, deferring the disclosure to the first later non-JSON run.
 
 #### Scenario: First command execution
-- **WHEN** a user runs their first openspec command
+- **WHEN** a user runs their first openspec command without `--json`
 - **AND** telemetry is enabled
 - **THEN** the system displays: "Note: OpenSpec collects anonymous usage stats. Opt out: OPENSPEC_TELEMETRY=0"
 
