@@ -245,10 +245,10 @@ OpenSpec CLI design SHALL use verbs as top-level commands with nouns provided as
 - **THEN** the verb communicates the action clearly
 - **AND** nouns refine scope via flags or arguments (e.g., `--changes`, `--specs`)
 
-#### Scenario: Backward compatibility for noun commands
-- **WHEN** users run noun-prefixed commands such as `openspec spec ...` or `openspec change ...`
-- **THEN** the CLI SHALL continue to support them for at least one release
-- **AND** display a deprecation warning that points to verb-first alternatives
+#### Scenario: Removed noun command groups
+- **WHEN** users need to show, list, or validate changes and specs
+- **THEN** they SHALL use the canonical verb-first commands `openspec show`, `openspec list`, and `openspec validate`
+- **AND** the removed noun-form command groups `openspec spec ...` and `openspec change ...` SHALL NOT be presented as supported entry points
 
 #### Scenario: Disambiguation guidance
 - **WHEN** item names are ambiguous between changes and specs

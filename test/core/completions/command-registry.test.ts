@@ -147,6 +147,10 @@ describe('command completion registry', () => {
     assertRegistryParity(program, COMMAND_REGISTRY);
   });
 
+  it('does not register removed noun-form command groups', () => {
+    expect(COMMAND_REGISTRY.some((entry) => entry.name === 'change' || entry.name === 'spec')).toBe(false);
+  });
+
   it('uses one --store description on every lifecycle command', () => {
     const expected = COMMON_FLAGS.store.description;
     const seen: string[] = [];

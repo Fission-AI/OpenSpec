@@ -138,4 +138,4 @@ Recorded by the capstone audit; published-key renames are product decisions defe
 5. `list --json` reuses the `status` key as a string enum per change.
 6. Only `validate` output carries a `version` field.
 7. `schemas`/`templates` ignore root selection (cwd-based, no `--store`).
-8. Deprecated noun forms (`change`/`spec` subcommands) emit unenveloped payloads without `root`/`status`.
+8. Deprecated noun-form `change`/`spec` command groups are removed; the root-aware verb-first `list`, `show`, and `validate` shapes above are the supported CLI contracts.

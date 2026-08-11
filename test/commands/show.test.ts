@@ -43,8 +43,8 @@ describe('top-level show command', () => {
       const stderr = err.stderr.toString();
       expect(stderr).toContain('Nothing to show.');
       expect(stderr).toContain('openspec show <item>');
-      expect(stderr).toContain('openspec change show');
-      expect(stderr).toContain('openspec spec show');
+      expect(stderr).toContain('openspec show <item> --type change');
+      expect(stderr).toContain('openspec show <item> --type spec');
     } finally {
       process.chdir(originalCwd);
       process.env = originalEnv;
@@ -98,6 +98,51 @@ describe('top-level show command', () => {
     }
   });
 
+  it('prints spec markdown unchanged in text mode', async () => {
+    const output = execFileSync('node', [openspecBin, 'show', 'auth', '--type', 'spec'], {
+      cwd: testDir,
+      encoding: 'utf-8',
+    });
+    const raw = await fs.readFile(path.join(specsDir, 'auth', 'spec.md'), 'utf-8');
+
+    expect(output.trim()).toBe(raw.trim());
+  });
+
+  it('excludes spec scenarios with --no-scenarios', () => {
+    const output = execFileSync(
+      'node',
+      [openspecBin, 'show', 'auth', '--type', 'spec', '--json', '--no-scenarios'],
+      { cwd: testDir, encoding: 'utf-8' }
+    );
+    const json = JSON.parse(output);
+
+    expect(json.requirements).toHaveLength(1);
+    expect(json.requirements[0].scenarios).toHaveLength(0);
+  });
+
+  it('selects a specific spec requirement with --requirement', () => {
+    const output = execFileSync(
+      'node',
+      [openspecBin, 'show', 'auth', '--type', 'spec', '--json', '--requirement', '1'],
+      { cwd: testDir, encoding: 'utf-8' }
+    );
+    const json = JSON.parse(output);
+
+    expect(json.requirements).toHaveLength(1);
+    expect(json.requirements[0].text).toContain('Text');
+  });
+
+  it('rejects an unknown spec with a not-found error', () => {
+    const result = spawnSync(
+      'node',
+      [openspecBin, 'show', 'missing-spec', '--type', 'spec'],
+      { cwd: testDir, encoding: 'utf-8' }
+    );
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("Spec 'missing-spec' not found");
+  });
+
   it('handles ambiguity and suggests --type', async () => {
     // create matching spec and change named 'foo'
     await fs.mkdir(path.join(changesDir, 'foo'), { recursive: true });
@@ -143,29 +188,6 @@ describe('top-level show command', () => {
       expect(stderr).toContain('openspec status --change scaffolded');
     } finally {
       process.chdir(originalCwd);
-    }
-  });
-
-  it('offers a scaffolded change when "change show" is called without a name', async () => {
-    await fs.mkdir(path.join(changesDir, 'scaffolded'), { recursive: true });
-    await fs.writeFile(path.join(changesDir, 'scaffolded', '.openspec.yaml'), 'schema: spec-driven\n', 'utf-8');
-
-    const originalCwd = process.cwd();
-    const originalEnv = { ...process.env };
-    try {
-      process.chdir(testDir);
-      process.env.OPEN_SPEC_INTERACTIVE = '0';
-      let err: any;
-      try {
-        execFileSync('node', [openspecBin, 'change', 'show'], { encoding: 'utf-8' });
-      } catch (e) { err = e; }
-      expect(err).toBeDefined();
-      const stderr = err.stderr.toString();
-      expect(stderr).toContain('Available IDs:');
-      expect(stderr).toContain('scaffolded');
-    } finally {
-      process.chdir(originalCwd);
-      process.env = originalEnv;
     }
   });
 

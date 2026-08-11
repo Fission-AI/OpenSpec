@@ -198,9 +198,9 @@ describe('openspec validate checks task numbering (#1520)', () => {
     expect(taskIssues).toEqual([]);
   });
 
-  it('applies the same warnings to the deprecated change validate command', async () => {
+  it('applies the same warnings with an explicit change type', async () => {
     const result = await runCLI(
-      ['change', 'validate', 'bad-numbering', '--strict'],
+      ['validate', 'bad-numbering', '--type', 'change', '--strict'],
       { cwd: projectDir }
     );
 

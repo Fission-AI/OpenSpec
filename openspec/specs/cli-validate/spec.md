@@ -13,7 +13,7 @@ Validation output SHALL include specific guidance to fix each error, including e
   - Explain that change specs must include `## ADDED Requirements`, `## MODIFIED Requirements`, `## REMOVED Requirements`, or `## RENAMED Requirements`
   - Remind authors that files must live under `openspec/changes/{id}/specs/<capability-path>/spec.md`
   - Include an explicit note: "Spec delta files cannot start with titles before the operation headers"
-  - Suggest running `openspec change show {id} --json --deltas-only` for debugging
+  - Suggest running `openspec show {id} --type change --json --deltas-only` for debugging
 
 #### Scenario: Missing required sections
 - **WHEN** a required section is missing
@@ -88,7 +88,7 @@ The CLI SHALL append a Next steps footer when the item is invalid and not using 
 
 #### Scenario: Change invalid summary
 - **WHEN** a change validation fails
-- **THEN** print "Next steps" with 2-3 targeted bullets and suggest `openspec change show <id> --json --deltas-only`
+- **THEN** print "Next steps" with 2-3 targeted bullets and suggest `openspec show <id> --type change --json --deltas-only`
 
 ### Requirement: Change validation SHALL report scenarios a MODIFIED block would drop
 
@@ -235,7 +235,7 @@ The validate command SHALL handle ambiguous names and explicit type overrides to
 - **GIVEN** `<item-name>` exists both as a change and as a spec
 - **WHEN** executing `openspec validate <item-name>`
 - **THEN** print an ambiguity error explaining both matches
-- **AND** suggest passing `--type change` or `--type spec`, or using `openspec change validate` / `openspec spec validate`
+- **AND** suggest passing `--type change` or `--type spec`
 - **AND** exit with code 1 without performing validation
 
 #### Scenario: Unknown item name

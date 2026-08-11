@@ -1,92 +1,31 @@
 # cli-change Specification
 
 ## Purpose
-Define `openspec change` command behavior for showing, listing, and validating change proposals and deltas.
+Document the removal of the deprecated noun-form `openspec change ...` command group and the canonical verb-first replacements.
 
 ## Requirements
-### Requirement: Change Command
+### Requirement: Deprecated change command group is removed
+The CLI SHALL NOT register a top-level `change` command group.
 
-The system SHALL provide a `change` command with subcommands for displaying, listing, and validating change proposals.
+#### Scenario: Removed change command is unavailable
+- **WHEN** executing `openspec change ...`
+- **THEN** the command SHALL fail without running a change command action or emitting the former deprecation warning
+- **AND** users SHALL use `openspec show`, `openspec list`, or `openspec validate` instead
 
-#### Scenario: Show change as JSON
+### Requirement: Canonical change operations remain available
+The CLI SHALL provide change operations through the canonical verb-first commands.
 
-- **WHEN** executing `openspec change show update-error --json`
-- **THEN** parse the markdown change file
-- **AND** extract change structure and deltas
-- **AND** output valid JSON to stdout
+#### Scenario: Show a change
+- **WHEN** executing `openspec show <change-id> --type change`
+- **THEN** display the change using the existing top-level show behavior
 
-#### Scenario: List all changes
+#### Scenario: List changes
+- **WHEN** executing `openspec list` or `openspec list --changes`
+- **THEN** display active changes using the existing list behavior
 
-- **WHEN** executing `openspec change list`
-- **THEN** scan the openspec/changes directory
-- **AND** return list of all pending changes
-- **AND** support JSON output with `--json` flag
+#### Scenario: Validate a change
+- **WHEN** executing `openspec validate <change-id> --type change`
+- **THEN** validate the change using the existing top-level validate behavior
 
-#### Scenario: Show only requirement changes
-
-- **WHEN** executing `openspec change show update-error --requirements-only`
-- **THEN** display only the requirement changes (ADDED/MODIFIED/REMOVED/RENAMED)
-- **AND** exclude why and what changes sections
-
-#### Scenario: Validate change structure
-
-- **WHEN** executing `openspec change validate update-error`
-- **THEN** parse the change file
-- **AND** validate against Zod schema
-- **AND** ensure deltas are well-formed
-
-### Requirement: Legacy Compatibility
-
-The system SHALL maintain backward compatibility with the existing `list` command while showing deprecation notices.
-
-#### Scenario: Legacy list command
-
-- **WHEN** executing `openspec list`
-- **THEN** display current list of changes (existing behavior)
-- **AND** show deprecation notice: "Note: 'openspec list' is deprecated. Use 'openspec change list' instead."
-
-#### Scenario: Legacy list with --all flag
-
-- **WHEN** executing `openspec list --all`
-- **THEN** display all changes (existing behavior)
-- **AND** show same deprecation notice
-
-### Requirement: Interactive show selection
-
-The change show command SHALL support interactive selection when no change name is provided.
-
-#### Scenario: Interactive change selection for show
-
-- **WHEN** executing `openspec change show` without arguments
-- **THEN** display an interactive list of available changes
-- **AND** allow the user to select a change to show
-- **AND** display the selected change content
-- **AND** maintain all existing show options (--json, --deltas-only)
-
-#### Scenario: Non-interactive fallback keeps current behavior
-
-- **GIVEN** stdin is not a TTY or `--no-interactive` is provided or environment variable `OPEN_SPEC_INTERACTIVE=0`
-- **WHEN** executing `openspec change show` without a change name
-- **THEN** do not prompt interactively
-- **AND** print the existing hint including available change IDs
-- **AND** set `process.exitCode = 1`
-
-### Requirement: Interactive validation selection
-
-The change validate command SHALL support interactive selection when no change name is provided.
-
-#### Scenario: Interactive change selection for validation
-
-- **WHEN** executing `openspec change validate` without arguments
-- **THEN** display an interactive list of available changes
-- **AND** allow the user to select a change to validate
-- **AND** validate the selected change
-
-#### Scenario: Non-interactive fallback keeps current behavior
-
-- **GIVEN** stdin is not a TTY or `--no-interactive` is provided or environment variable `OPEN_SPEC_INTERACTIVE=0`
-- **WHEN** executing `openspec change validate` without a change name
-- **THEN** do not prompt interactively
-- **AND** print the existing hint including available change IDs
-- **AND** set `process.exitCode = 1`
-
+### Requirement: Change data is preserved
+Removing the command group SHALL NOT delete or migrate change directories, proposals, delta specs, tasks, or archived changes.

@@ -21,8 +21,6 @@ import { ListCommand } from '../core/list.js';
 import { ArchiveCommand, type ArchiveOptions } from '../core/archive.js';
 import { ViewCommand } from '../core/view.js';
 import { resolveRootForCommand, toRootOutput } from '../core/root-selection.js';
-import { registerSpecCommand } from '../commands/spec.js';
-import { ChangeCommand } from '../commands/change.js';
 import { ValidateCommand } from '../commands/validate.js';
 import { ShowCommand } from '../commands/show.js';
 import { CompletionCommand } from '../commands/completion.js';
@@ -97,7 +95,7 @@ const { version } = require('../../package.json');
 
 /**
  * Get the full command path for nested commands.
- * For example: 'change show' -> 'change:show'
+ * For example: 'store add' -> 'store:add'
  */
 export function getCommandPath(command: Command): string {
   const names: string[] = [];
@@ -343,68 +341,6 @@ program
     }
   });
 
-// Change command with subcommands
-const changeCmd = program
-  .command('change')
-  .description('Manage OpenSpec change proposals');
-
-// Deprecation notice for noun-based commands
-changeCmd.hook('preAction', () => {
-  console.error('Warning: The "openspec change ..." commands are deprecated. Prefer verb-first commands (e.g., "openspec list", "openspec validate --changes").');
-});
-
-changeCmd
-  .command('show [change-name]')
-  .description('Show a change proposal in JSON or markdown format')
-  .option('--json', 'Output as JSON')
-  .option('--deltas-only', 'Show only deltas (JSON only)')
-  .option('--requirements-only', 'Alias for --deltas-only (deprecated)')
-  .option('--no-interactive', 'Disable interactive prompts')
-  .action(async (changeName?: string, options?: { json?: boolean; requirementsOnly?: boolean; deltasOnly?: boolean; noInteractive?: boolean }) => {
-    try {
-      const changeCommand = new ChangeCommand();
-      await changeCommand.show(changeName, options);
-    } catch (error) {
-      console.error(`Error: ${(error as Error).message}`);
-      process.exitCode = 1;
-    }
-  });
-
-changeCmd
-  .command('list')
-  .description('List all active changes (DEPRECATED: use "openspec list" instead)')
-  .option('--json', 'Output as JSON')
-  .option('--long', 'Show id and title with counts')
-  .action(async (options?: { json?: boolean; long?: boolean }) => {
-    try {
-      console.error('Warning: "openspec change list" is deprecated. Use "openspec list".');
-      const changeCommand = new ChangeCommand();
-      await changeCommand.list(options);
-    } catch (error) {
-      console.error(`Error: ${(error as Error).message}`);
-      process.exitCode = 1;
-    }
-  });
-
-changeCmd
-  .command('validate [change-name]')
-  .description('Validate a change proposal')
-  .option('--strict', 'Enable strict validation mode')
-  .option('--json', 'Output validation report as JSON')
-  .option('--no-interactive', 'Disable interactive prompts')
-  .action(async (changeName?: string, options?: { strict?: boolean; json?: boolean; noInteractive?: boolean }) => {
-    try {
-      const changeCommand = new ChangeCommand();
-      await changeCommand.validate(changeName, options);
-      if (typeof process.exitCode === 'number' && process.exitCode !== 0) {
-        process.exit(process.exitCode);
-      }
-    } catch (error) {
-      console.error(`Error: ${(error as Error).message}`);
-      process.exitCode = 1;
-    }
-  });
-
 program
   .command('archive [change-name]')
   .description('Archive a completed change and update main specs')
@@ -424,7 +360,6 @@ program
     }
   });
 
-registerSpecCommand(program);
 registerConfigCommand(program);
 registerSchemaCommand(program);
 registerStoreCommand(program);

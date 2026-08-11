@@ -4,7 +4,7 @@ import path from 'path';
 import { promises as fs } from 'fs';
 import os from 'os';
 
-describe('ChangeCommand.show/validate', () => {
+describe('ChangeCommand.show', () => {
   let cmd: ChangeCommand;
   let changeName: string;
   let tempRoot: string;
@@ -165,27 +165,4 @@ describe('ChangeCommand.show/validate', () => {
     });
   });
 
-  it('validate --strict --json returns a report with valid boolean', async () => {
-    const logs: string[] = [];
-    const origLog = console.log;
-    try {
-      console.log = (msg?: any, ...args: any[]) => {
-        logs.push([msg, ...args].filter(Boolean).join(' '));
-      };
-
-      await cmd.validate(changeName, { strict: true, json: true });
-
-      const output = logs.join('\n');
-      const parsed = JSON.parse(output);
-      expect(parsed).toHaveProperty('valid');
-      expect(parsed).toHaveProperty('issues');
-      expect(Array.isArray(parsed.issues)).toBe(true);
-    } finally {
-      console.log = origLog;
-    }
-  });
-
-  it('validate rejects a traversing change name', async () => {
-    await expect(cmd.validate(path.join('..', '..', 'outside'))).rejects.toThrow(/not found at/u);
-  });
 });

@@ -179,11 +179,10 @@ export class ValidateCommand {
         return;
       }
       console.error(`Ambiguous item '${itemName}' matches both a change and a spec.`);
-      // The noun-form commands are cwd-based and cannot reach a selected store.
       if (isStoreSelectedRoot(root)) {
         console.error('Pass --type change|spec.');
       } else {
-        console.error('Pass --type change|spec, or use: openspec change validate / openspec spec validate');
+        console.error('Pass --type change|spec, or use: openspec validate <item> --type change|spec');
       }
       process.exitCode = 1;
       return;
@@ -255,7 +254,7 @@ export class ValidateCommand {
     } else if (type === 'change') {
       bullets.push('- Ensure change has deltas in specs/: use headers ## ADDED/MODIFIED/REMOVED/RENAMED Requirements');
       bullets.push('- Each requirement MUST include at least one #### Scenario: block');
-      bullets.push(`- Debug parsed deltas: ${withStoreFlag(root, `openspec show ${id} --json --deltas-only`)}`);
+      bullets.push(`- Debug parsed deltas: ${withStoreFlag(root, `openspec show ${id} --type change --json --deltas-only`)}`);
     } else {
       bullets.push('- Ensure spec includes ## Purpose and ## Requirements sections');
       bullets.push('- Each requirement MUST include at least one #### Scenario: block');
