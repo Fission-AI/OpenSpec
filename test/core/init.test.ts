@@ -302,7 +302,7 @@ describe('InitCommand', () => {
 
       for (const [content, continueReference] of updateVariants) {
         const availabilityGuidance = content.indexOf(
-          `${continueReference} is an expanded-profile workflow and may not be installed`
+          `${continueReference} is an optional workflow and may not be installed`
         );
         const nextReference = content.indexOf(
           continueReference,
