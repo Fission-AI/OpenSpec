@@ -179,7 +179,6 @@ export class ValidateCommand {
         return;
       }
       console.error(`Ambiguous item '${itemName}' matches both a change and a spec.`);
-      // The noun-form commands are cwd-based and cannot reach a selected store.
       if (isStoreSelectedRoot(root)) {
         console.error('Pass --type change|spec.');
       } else {

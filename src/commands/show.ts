@@ -167,7 +167,6 @@ export class ShowCommand {
         return;
       }
       console.error(`Ambiguous item '${itemName}' matches both a change and a spec.`);
-      // The noun-form commands are cwd-based and cannot reach a selected store.
       if (isStoreSelectedRoot(root)) {
         console.error('Pass --type change|spec.');
       } else {
@@ -191,7 +190,6 @@ export class ShowCommand {
     console.error('Nothing to show. Try one of:');
     console.error(`  ${withStoreFlag(root, 'openspec show <item>')}`);
     if (isStoreSelectedRoot(root)) {
-      // The noun-form commands are cwd-based and cannot reach a selected store.
       console.error(`  ${withStoreFlag(root, 'openspec show <item> --type change')}`);
       console.error(`  ${withStoreFlag(root, 'openspec show <item> --type spec')}`);
     } else {

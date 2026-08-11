@@ -78,7 +78,7 @@ export interface CommandDefinition {
   flags: FlagDefinition[];
 
   /**
-   * Subcommands (e.g., "change show", "spec validate")
+   * Subcommands (e.g., "store add", "config profile")
    */
   subcommands?: CommandDefinition[];
 

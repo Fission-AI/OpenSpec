@@ -475,8 +475,8 @@ export function toRootOutput(root: ResolvedOpenSpecRoot): RootOutput {
 
 /**
  * A store-selected root — explicit `--store`, a declared pointer, or the
- * global default. Cross-root behavior (absolute paths, --store hints,
- * suppressed noun-form suggestions) keys on this, never on `source` directly.
+ * global default. Cross-root behavior (absolute paths and --store hints) keys
+ * on this, never on `source` directly.
  */
 export function isStoreSelectedRoot(
   root: ResolvedOpenSpecRoot
