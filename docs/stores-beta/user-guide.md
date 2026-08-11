@@ -427,9 +427,10 @@ tells you which case you're in.
   `openspec/config.yaml` declares `store: <id>` is treated as externalized
   planning, not as a store checkout to register. Remove the `store:` line first
   if you intentionally want to convert that repo into a local store root.
-- **Some commands stay where they are.** `view`, `templates`, `schemas`,
-  and the deprecated noun forms (`openspec change show`, ...) act on the
-  current directory only — no `--store`.
+- **Some commands stay where they are.** `view`, `templates`, and `schemas`
+  act on the current directory only — no `--store`. The deprecated noun-form
+  command groups (`openspec change ...` and `openspec spec ...`) are removed;
+  use the root-aware verb-first commands instead.
 - **Per-machine state is per-machine.** The store registry and worksets
   are local settings. Nothing about your machine's layout is
   ever committed to shared planning.

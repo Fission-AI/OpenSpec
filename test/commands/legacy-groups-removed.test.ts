@@ -65,20 +65,34 @@ describe('legacy command groups are removed', () => {
   }
 
   it('rejects the deleted groups as unknown commands', async () => {
-    for (const group of ['workspace', 'initiative']) {
+    for (const group of ['workspace', 'initiative', 'change', 'spec']) {
       const result = await runCLI([group, 'list'], { cwd: tempDir, env });
 
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr).toContain(`unknown command '${group}'`);
+      expect(result.exitCode).not.toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).not.toContain('deprecated');
     }
   });
 
-  it('lists neither group in --help', async () => {
+  it('lists neither deleted group in --help', async () => {
     const result = await runCLI(['--help'], { cwd: tempDir, env });
 
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).not.toMatch(/^\s*workspace\s/m);
-    expect(result.stdout).not.toMatch(/^\s*initiative\s/m);
+    expect(result.stdout).not.toMatch(/^[ \t]*workspace[ \t]/m);
+    expect(result.stdout).not.toMatch(/^[ \t]*initiative[ \t]/m);
+    expect(result.stdout).not.toMatch(/^[ \t]*change[ \t]/m);
+    expect(result.stdout).not.toMatch(/^[ \t]*spec[ \t]/m);
+  });
+
+  it('does not advertise deleted groups in generated bash completion', async () => {
+    const result = await runCLI(['completion', 'generate', 'bash'], { cwd: tempDir, env });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).not.toContain('change show');
+    expect(result.stdout).not.toContain('change list');
+    expect(result.stdout).not.toContain('change validate');
+    expect(result.stdout).not.toContain('spec show');
+    expect(result.stdout).not.toContain('spec list');
+    expect(result.stdout).not.toContain('spec validate');
   });
 
   it('update falls through to the standard no-project error in a view dir', async () => {

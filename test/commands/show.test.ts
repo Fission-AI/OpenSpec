@@ -43,8 +43,8 @@ describe('top-level show command', () => {
       const stderr = err.stderr.toString();
       expect(stderr).toContain('Nothing to show.');
       expect(stderr).toContain('openspec show <item>');
-      expect(stderr).toContain('openspec change show');
-      expect(stderr).toContain('openspec spec show');
+      expect(stderr).toContain('openspec show <item> --type change');
+      expect(stderr).toContain('openspec show <item> --type spec');
     } finally {
       process.chdir(originalCwd);
       process.env = originalEnv;
@@ -143,29 +143,6 @@ describe('top-level show command', () => {
       expect(stderr).toContain('openspec status --change scaffolded');
     } finally {
       process.chdir(originalCwd);
-    }
-  });
-
-  it('offers a scaffolded change when "change show" is called without a name', async () => {
-    await fs.mkdir(path.join(changesDir, 'scaffolded'), { recursive: true });
-    await fs.writeFile(path.join(changesDir, 'scaffolded', '.openspec.yaml'), 'schema: spec-driven\n', 'utf-8');
-
-    const originalCwd = process.cwd();
-    const originalEnv = { ...process.env };
-    try {
-      process.chdir(testDir);
-      process.env.OPEN_SPEC_INTERACTIVE = '0';
-      let err: any;
-      try {
-        execFileSync('node', [openspecBin, 'change', 'show'], { encoding: 'utf-8' });
-      } catch (e) { err = e; }
-      expect(err).toBeDefined();
-      const stderr = err.stderr.toString();
-      expect(stderr).toContain('Available IDs:');
-      expect(stderr).toContain('scaffolded');
-    } finally {
-      process.chdir(originalCwd);
-      process.env = originalEnv;
     }
   });
 

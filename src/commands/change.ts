@@ -73,7 +73,7 @@ export class ChangeCommand {
         } else {
           console.error(`No change specified. Available IDs: ${changes.join(', ')}`);
         }
-        console.error('Hint: use "openspec change list" to view available changes.');
+        console.error('Hint: use "openspec list" to view available changes.');
         process.exitCode = 1;
         return;
       }
@@ -248,7 +248,7 @@ export class ChangeCommand {
         } else {
           console.error(`No change specified. Available IDs: ${changes.join(', ')}`);
         }
-        console.error('Hint: use "openspec change list" to view available changes.');
+        console.error('Hint: use "openspec list" to view available changes.');
         process.exitCode = 1;
         return;
       }
@@ -317,7 +317,7 @@ export class ChangeCommand {
     } else {
       bullets.push('- Ensure change has deltas in specs/: use headers ## ADDED/MODIFIED/REMOVED/RENAMED Requirements');
       bullets.push('- Each requirement MUST include at least one #### Scenario: block');
-      bullets.push('- Debug parsed deltas: openspec change show <id> --json --deltas-only');
+      bullets.push('- Debug parsed deltas: openspec show <id> --type change --json --deltas-only');
     }
     console.error('Next steps:');
     bullets.forEach(b => console.error(`  ${b}`));

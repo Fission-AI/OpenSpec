@@ -86,8 +86,11 @@ describe('openspec validate reports scenarios a MODIFIED block would drop (#1477
     expect(byId['keeps-every-scenario']).toBe(true);
   });
 
-  it('reports it through the deprecated `change validate` command', async () => {
-    const result = await runCLI(['change', 'validate', 'drops-a-scenario'], { cwd: projectDir });
+  it('reports it through explicit change validation', async () => {
+    const result = await runCLI(
+      ['validate', 'drops-a-scenario', '--type', 'change'],
+      { cwd: projectDir }
+    );
 
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain('omits scenario(s)');
