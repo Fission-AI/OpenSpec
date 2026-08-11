@@ -685,55 +685,77 @@ export function registerSchemaCommand(program: Command): void {
         );
 
         // Check destination
-        const destinationDir = path.join(getProjectSchemasDir(projectRoot), destinationName);
+        const schemasDir = getProjectSchemasDir(projectRoot);
+        const destinationDir = path.join(schemasDir, destinationName);
 
-        if (fs.existsSync(destinationDir)) {
-          if (!options?.force) {
-            if (options?.json) {
-              console.log(JSON.stringify({
-                forked: false,
-                error: `Schema '${destinationName}' already exists`,
-                suggestion: 'Use --force to overwrite',
-              }, null, 2));
-            } else {
-              console.error(`Error: Schema '${destinationName}' already exists at ${destinationDir}`);
-              console.error('Use --force to overwrite');
-            }
-            process.exitCode = 1;
-            return;
-          }
-
-          // Remove existing
-          if (spinner) spinner.start(`Removing existing schema '${destinationName}'...`);
-          fs.rmSync(destinationDir, { recursive: true });
+        // Reject a self-fork. Forking a schema onto itself with --force would
+        // otherwise remove the source at the replacement step below and then
+        // fail the copy, destroying the only copy of the schema. Resolve both
+        // sides to their real paths (realpathSync follows symlinks; path.resolve
+        // is a fallback only for a destination that does not exist yet) so a
+        // symlink or a `.`/`..` spelling of the same directory is still caught.
+        const resolvedDestination = fs.existsSync(destinationDir)
+          ? fs.realpathSync(destinationDir)
+          : path.resolve(destinationDir);
+        if (resolvedDestination === trustedSourceDir) {
+          throw new Error(
+            `Cannot fork schema '${source}' onto itself; choose a different destination name`
+          );
         }
 
-        // Copy schema
-        if (spinner) spinner.start(`Forking '${source}' to '${destinationName}'...`);
-        copyDirRecursive(trustedSourceDir, destinationDir);
+        const destinationExists = fs.existsSync(destinationDir);
+        if (destinationExists && !options?.force) {
+          if (options?.json) {
+            console.log(JSON.stringify({
+              forked: false,
+              error: `Schema '${destinationName}' already exists`,
+              suggestion: 'Use --force to overwrite',
+            }, null, 2));
+          } else {
+            console.error(`Error: Schema '${destinationName}' already exists at ${destinationDir}`);
+            console.error('Use --force to overwrite');
+          }
+          process.exitCode = 1;
+          return;
+        }
 
-        // Update name in schema.yaml
-        const destSchemaPath = path.join(destinationDir, 'schema.yaml');
+        // Stage the complete fork in a temporary sibling directory first, then
+        // swap it into place. This keeps `fork --force` atomic: an existing
+        // destination is only removed once the new fork has been fully copied,
+        // name-updated, and (via the up-front parseSchema above) validated. Any
+        // failure while staging leaves both the source and the existing
+        // destination exactly as they were.
+        if (spinner) spinner.start(`Forking '${source}' to '${destinationName}'...`);
+        fs.mkdirSync(schemasDir, { recursive: true });
+        const stagingDir = fs.mkdtempSync(path.join(schemasDir, '.fork-staging-'));
         try {
-          // Rename via yaml's Document API instead of re-serializing the parsed
-          // object, so block scalars, comments, and key order in the source
-          // schema.yaml survive the fork. (The source was already validated
-          // above, before any files were copied.)
-          const schemaContent = fs.readFileSync(destSchemaPath, 'utf-8');
+          copyDirRecursive(trustedSourceDir, stagingDir);
+
+          // Update name in the staged schema.yaml via yaml's Document API
+          // instead of re-serializing the parsed object, so block scalars,
+          // comments, and key order in the source schema.yaml survive the fork.
+          const stagedSchemaPath = path.join(stagingDir, 'schema.yaml');
+          const schemaContent = fs.readFileSync(stagedSchemaPath, 'utf-8');
           const doc = parseDocument(schemaContent);
           doc.set('name', destinationName);
-          fs.writeFileSync(destSchemaPath, doc.toString());
-        } catch (error) {
-          // copyDirRecursive created destinationDir fresh this run (the
-          // existing-destination path without --force returns before the copy,
-          // and the --force path removes the prior directory first), so removing
-          // it here can only delete the partial fork we just made — never a
-          // pre-existing user directory. Guard the cleanup in its own try/catch
-          // so a failed removal (e.g. a locked file on Windows) can never mask
-          // the original error, then rethrow so the real failure still drives
-          // the JSON/exit-code reporting.
-          try {
+          fs.writeFileSync(stagedSchemaPath, doc.toString());
+
+          // Swap the staged fork into place. Only now — with a complete, valid
+          // fork ready — is any existing destination removed, so a failure above
+          // can never leave the user without their original.
+          if (destinationExists) {
+            if (spinner) spinner.text = `Replacing existing schema '${destinationName}'...`;
             fs.rmSync(destinationDir, { recursive: true, force: true });
+          }
+          fs.renameSync(stagingDir, destinationDir);
+        } catch (error) {
+          // Remove only the staging directory we created this run; the source
+          // and any existing destination are left exactly as we found them.
+          // Guard the cleanup in its own try/catch so a failed removal (e.g. a
+          // locked file on Windows) can never mask the original error, then
+          // rethrow so the real failure still drives the JSON/exit-code report.
+          try {
+            fs.rmSync(stagingDir, { recursive: true, force: true });
           } catch {
             // Best-effort cleanup; the original error below is what matters.
           }

@@ -4,6 +4,26 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 
+// Deterministic, cross-platform hook to fail the fork's file copy without
+// relying on filesystem permissions or symlink support (ESM forbids spying on
+// node:fs's namespace exports directly). Only copyFileSync is wrapped; every
+// other fs call passes straight through to the real implementation.
+const fsControl = vi.hoisted(() => ({ failCopyFileSync: false }));
+
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs')>();
+  return {
+    ...actual,
+    default: actual,
+    copyFileSync: (...args: Parameters<typeof actual.copyFileSync>) => {
+      if (fsControl.failCopyFileSync) {
+        throw new Error('simulated copy failure');
+      }
+      return actual.copyFileSync(...args);
+    },
+  };
+});
+
 // Regression coverage for PR #1130: `schema fork` must preserve the source
 // schema.yaml verbatim (block scalars, comments, key order) except for the
 // updated top-level `name`. The prior implementation round-tripped through
@@ -235,6 +255,77 @@ describe('schema fork fidelity (PR #1130)', () => {
     // The valid destination was NOT destroyed by the --force removal.
     expect(fs.existsSync(existing)).toBe(true);
     expect(fs.readFileSync(existing, 'utf-8')).toBe(existingContent);
+  });
+
+  it('rejects a self-fork and leaves the source intact', async () => {
+    // Data-loss guard: forking a schema onto itself with --force must be
+    // rejected UP FRONT. The old flow removed the destination (which is the
+    // source) before copying, so the copy then read from a directory it had
+    // just deleted — destroying the only copy of the schema. Nothing may be
+    // removed, and the source schema.yaml must be byte-identical afterward.
+    await runSchemaCommand(['fork', 'src-schema', 'src-schema', '--force', '--json']);
+
+    const output = consoleLogSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(process.exitCode).toBeTruthy();
+    expect(output).toContain('"forked": false');
+    expect(output).toMatch(/onto itself/i);
+
+    // The source survives untouched, comments and block scalars included.
+    const srcPath = path.join(
+      tempDir,
+      'openspec',
+      'schemas',
+      'src-schema',
+      'schema.yaml'
+    );
+    expect(fs.existsSync(srcPath)).toBe(true);
+    expect(fs.readFileSync(srcPath, 'utf-8')).toBe(SOURCE_SCHEMA);
+  });
+
+  it('preserves an existing --force destination when the copy fails', async () => {
+    // Atomicity for a mid-copy failure: the fork is staged in a temporary
+    // sibling directory and only swapped into place once complete, so a failure
+    // WHILE copying must never remove the existing destination. Here the source
+    // is valid (passes the up-front parseSchema), but the file copy itself is
+    // forced to fail; the pre-existing destination must be left fully intact.
+    const destDir = path.join(tempDir, 'openspec', 'schemas', 'keep-me');
+    fs.mkdirSync(destDir, { recursive: true });
+    const existing = path.join(destDir, 'schema.yaml');
+    const existingContent = [
+      'name: keep-me',
+      'version: 3',
+      'artifacts:',
+      '  - id: proposal',
+      '    generates: proposal.md',
+      '    description: Keep this',
+      '    template: proposal.md',
+      '    requires: []',
+      '',
+    ].join('\n');
+    fs.writeFileSync(existing, existingContent);
+
+    fsControl.failCopyFileSync = true;
+    try {
+      await runSchemaCommand(['fork', 'src-schema', 'keep-me', '--force', '--json']);
+    } finally {
+      fsControl.failCopyFileSync = false;
+    }
+
+    const output = consoleLogSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(process.exitCode).toBeTruthy();
+    expect(output).toContain('"forked": false');
+    expect(output).toMatch(/simulated copy failure/i);
+
+    // The existing destination was never removed — the copy failed while still
+    // staging, before any replacement.
+    expect(fs.existsSync(existing)).toBe(true);
+    expect(fs.readFileSync(existing, 'utf-8')).toBe(existingContent);
+
+    // And no staging leftovers linger in the schemas directory.
+    const leftovers = fs
+      .readdirSync(path.join(tempDir, 'openspec', 'schemas'))
+      .filter((entry) => entry.startsWith('.fork-staging-'));
+    expect(leftovers).toEqual([]);
   });
 
   it('writes YAML-ambiguous names as strings, not booleans/null', async () => {
