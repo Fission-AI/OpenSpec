@@ -395,3 +395,24 @@ describe('config profile command', () => {
     expect(result.success).toBe(false);
   });
 });
+
+describe('workflow picker labels', () => {
+  it('gives every workflow a friendly label instead of the raw-id fallback', async () => {
+    const { WORKFLOW_PROMPT_META } = await import('../../src/commands/config.js');
+    const { ALL_WORKFLOWS } = await import('../../src/core/profiles.js');
+
+    for (const workflow of ALL_WORKFLOWS) {
+      const meta = WORKFLOW_PROMPT_META[workflow];
+      // A missing entry is exactly what made `update` render as its raw id
+      // with a `Workflow: update` placeholder in the config picker (#1627).
+      expect(meta, `missing picker metadata for "${workflow}"`).toBeDefined();
+      expect(meta!.name, `label for "${workflow}" must not be the raw id`).not.toBe(workflow);
+      expect(meta!.name.length, `label for "${workflow}" must be non-empty`).toBeGreaterThan(0);
+      expect(
+        meta!.description.startsWith('Workflow:'),
+        `description for "${workflow}" must not be the placeholder`
+      ).toBe(false);
+      expect(meta!.description.length, `description for "${workflow}" must be non-empty`).toBeGreaterThan(0);
+    }
+  });
+});
