@@ -1200,6 +1200,34 @@ metadata:
       expect(content).toContain('description:');
     });
 
+    it('should update Command Code tool and regenerate its flat command', async () => {
+      // A configured Command Code install is detected by its skills dir
+      const commandCodeSkillsDir = path.join(testDir, '.commandcode', 'skills');
+      await fs.mkdir(path.join(commandCodeSkillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(commandCodeSkillsDir, 'openspec-explore', 'SKILL.md'),
+        'old'
+      );
+
+      await updateCommand.execute(testDir);
+
+      // Adapter-backed: update regenerates .commandcode/commands/opsx-<id>.md
+      const commandCodeCmd = path.join(
+        testDir,
+        '.commandcode',
+        'commands',
+        'opsx-explore.md'
+      );
+      expect(await FileSystemUtils.fileExists(commandCodeCmd)).toBe(true);
+
+      // Plain Markdown (no frontmatter) with the argument placeholder injected
+      const content = await fs.readFile(commandCodeCmd, 'utf-8');
+      expect(content).not.toMatch(/^---\n/);
+      expect(content).toContain('**Provided arguments**: $ARGUMENTS');
+    });
+
     it('should migrate a legacy .windsurf install to .devin, preserving user files', async () => {
       // A project set up before the Devin Desktop rebrand: OpenSpec skills and
       // workflows under .windsurf/, alongside files the user wrote themselves.
