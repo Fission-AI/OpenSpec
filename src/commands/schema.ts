@@ -343,13 +343,16 @@ function fingerprintDir(dir: string): string {
     for (const entry of entries) {
       const abs = path.join(current, entry.name);
       const relPath = rel ? `${rel}/${entry.name}` : entry.name;
-      const stats = fs.lstatSync(abs);
-      if (stats.isDirectory()) {
+      // Use the entry type from readdir (no separate lstat), then read the file
+      // directly — avoiding a stat-then-read check/use gap. Size is derived from
+      // the bytes actually read, so the digest still covers content and length.
+      if (entry.isDirectory()) {
         hash.update(`D:${relPath}\n`);
         walk(abs, relPath);
-      } else if (stats.isFile()) {
-        hash.update(`F:${relPath}:${stats.size}:`);
-        hash.update(fs.readFileSync(abs));
+      } else if (entry.isFile()) {
+        const contents = fs.readFileSync(abs);
+        hash.update(`F:${relPath}:${contents.length}:`);
+        hash.update(contents);
         hash.update('\n');
       } else {
         // Symlinks / other entry types: record the type + path (and the link
