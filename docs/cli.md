@@ -553,11 +553,14 @@ A change with zero spec deltas fails validation unless its `.openspec.yaml` decl
 | `--all` | Validate all changes and specs |
 | `--changes` | Validate all changes |
 | `--specs` | Validate all specs |
+| `--archived` | Validate that archived changes have all tasks completed (for pre-commit linting) |
 | `--type <type>` | Specify type when name is ambiguous: `change` or `spec` |
 | `--strict` | Enable strict validation mode |
 | `--json` | Output as JSON |
 | `--concurrency <n>` | Max parallel validations (default: 6, or `OPENSPEC_CONCURRENCY` env) |
 | `--no-interactive` | Disable prompts |
+
+`--archived` is its own scope: it does not validate spec deltas (already applied at archive time), it verifies that every change under `changes/archive/` has all of its `tasks.md` checkboxes ticked, exiting non-zero if any are unchecked. This catches changes that were archived with unfinished work — handy in a pre-commit hook.
 
 **Examples:**
 
@@ -576,6 +579,9 @@ openspec validate --all --json
 
 # Strict validation with increased parallelism
 openspec validate --all --strict --concurrency 12
+
+# Fail if any archived change still has unchecked tasks
+openspec validate --archived
 ```
 
 **Output (text):**
