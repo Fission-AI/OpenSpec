@@ -177,7 +177,9 @@ export async function trackCommand(commandName: string, version: string): Promis
 /**
  * Show first-run telemetry notice if not already seen.
  */
-export async function maybeShowTelemetryNotice(): Promise<void> {
+export async function maybeShowTelemetryNotice(
+  options: { silent?: boolean } = {}
+): Promise<void> {
   if (!isTelemetryEnabled()) {
     return;
   }
@@ -185,6 +187,13 @@ export async function maybeShowTelemetryNotice(): Promise<void> {
   try {
     const config = await getTelemetryConfig();
     if (config.noticeSeen) {
+      return;
+    }
+
+    // In --json mode the notice would pollute stdout and break parsers, so
+    // defer it: skip the notice AND leave noticeSeen unset so the disclosure
+    // still appears on the user's first later non-JSON run.
+    if (options.silent) {
       return;
     }
 
