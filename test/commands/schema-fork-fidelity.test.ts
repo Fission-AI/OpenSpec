@@ -11,6 +11,7 @@ import * as os from 'node:os';
 const fsControl = vi.hoisted(() => ({
   failCopyFileSync: false,
   failStagingInstall: false,
+  failBackupRestore: false,
 }));
 
 vi.mock('node:fs', async (importOriginal) => {
@@ -33,6 +34,13 @@ vi.mock('node:fs', async (importOriginal) => {
         String(args[0]).includes('.fork-staging-')
       ) {
         throw new Error('simulated install rename failure');
+      }
+      // Fail the backup->destination restore move (source is the backup dir).
+      if (
+        fsControl.failBackupRestore &&
+        String(args[0]).includes('.fork-backup-')
+      ) {
+        throw new Error('simulated restore rename failure');
       }
       return actual.renameSync(...args);
     },
@@ -390,6 +398,73 @@ describe('schema fork fidelity (PR #1130)', () => {
           entry.includes('.fork-backup-')
       );
     expect(leftovers).toEqual([]);
+  });
+
+  it('surfaces the backup location when a failed install cannot be restored', async () => {
+    // Worst case: the install move fails AND the restore move back also fails.
+    // The original destination is now stranded in the backup dir. The command
+    // must NOT silently swallow this — it must throw an error naming the backup
+    // path so the user can recover manually, with the install error attached.
+    const destDir = path.join(tempDir, 'openspec', 'schemas', 'keep-me');
+    fs.mkdirSync(destDir, { recursive: true });
+    const existing = path.join(destDir, 'schema.yaml');
+    fs.writeFileSync(existing, 'name: keep-me\nversion: 3\n');
+
+    fsControl.failStagingInstall = true;
+    fsControl.failBackupRestore = true;
+    try {
+      await runSchemaCommand(['fork', 'src-schema', 'keep-me', '--force', '--json']);
+    } finally {
+      fsControl.failStagingInstall = false;
+      fsControl.failBackupRestore = false;
+    }
+
+    const output = consoleLogSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(process.exitCode).toBeTruthy();
+    expect(output).toContain('"forked": false');
+    // The destination loss is surfaced, not silent: the error names a
+    // `.fork-backup-` directory and how to restore it.
+    expect(output).toMatch(/\.fork-backup-/);
+    expect(output).toMatch(/preserved at/i);
+    expect(output).toMatch(/could not restore/i);
+
+    // The original content really is still on disk in the backup dir the error
+    // points at (recovery is genuinely possible).
+    const backupDir = fs
+      .readdirSync(path.join(tempDir, 'openspec', 'schemas'))
+      .find((entry) => entry.includes('.fork-backup-'));
+    expect(backupDir).toBeTruthy();
+    const rescued = fs.readFileSync(
+      path.join(tempDir, 'openspec', 'schemas', backupDir!, 'schema.yaml'),
+      'utf-8'
+    );
+    expect(rescued).toBe('name: keep-me\nversion: 3\n');
+  });
+
+  it('excludes fork staging/backup temp dirs from schema discovery', async () => {
+    // The transient dirs `schema fork` creates live inside the schemas dir, so a
+    // concurrent `openspec schema list`/validate scan must never treat them as
+    // real schemas. Simulate both a staging and a backup dir mid-fork.
+    const schemasDir = path.join(tempDir, 'openspec', 'schemas');
+    for (const tempName of ['.fork-staging-abc123', 'keep-me.fork-backup-999-1700000000000']) {
+      const dir = path.join(schemasDir, tempName);
+      fs.mkdirSync(dir, { recursive: true });
+      // Give them a valid-looking schema.yaml so only the name filter can
+      // exclude them (not a missing file).
+      fs.writeFileSync(path.join(dir, 'schema.yaml'), SOURCE_SCHEMA);
+    }
+
+    const { listSchemas, listSchemasWithInfo } = await import(
+      '../../src/core/artifact-graph/resolver.js'
+    );
+
+    const names = listSchemas(tempDir);
+    expect(names).toContain('src-schema');
+    expect(names.some((n) => n.includes('.fork-'))).toBe(false);
+
+    const infoNames = listSchemasWithInfo(tempDir).map((s) => s.name);
+    expect(infoNames).toContain('src-schema');
+    expect(infoNames.some((n) => n.includes('.fork-'))).toBe(false);
   });
 
   it('writes YAML-ambiguous names as strings, not booleans/null', async () => {

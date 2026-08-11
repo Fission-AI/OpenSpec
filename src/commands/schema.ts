@@ -752,12 +752,20 @@ export function registerSchemaCommand(program: Command): void {
             try {
               fs.renameSync(stagingDir, destinationDir);
             } catch (installError) {
-              // Restore the original destination, then rethrow. Guard the
-              // restore so a failed rename-back cannot mask the real error.
+              // Install failed after the original was moved aside. Try to move
+              // it back. If that restore ALSO fails, the original is stranded in
+              // the backup dir — surface an error naming both the backup and the
+              // destination so the user can recover manually, and attach the
+              // original install error as the cause. Never swallow this.
               try {
                 fs.renameSync(backupDir, destinationDir);
-              } catch {
-                // Best-effort restore; the original error below is what matters.
+              } catch (restoreError) {
+                throw new Error(
+                  `Failed to install the forked schema and could not restore the previous '${destinationName}'. ` +
+                    `Your previous schema is preserved at ${backupDir}; move it back to ${destinationDir} to restore. ` +
+                    `Restore error: ${(restoreError as Error).message}`,
+                  { cause: installError }
+                );
               }
               throw installError;
             }
