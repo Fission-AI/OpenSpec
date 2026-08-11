@@ -427,7 +427,7 @@ tells you which case you're in.
   `openspec/config.yaml` declares `store: <id>` is treated as externalized
   planning, not as a store checkout to register. Remove the `store:` line first
   if you intentionally want to convert that repo into a local store root.
-- **Some commands stay where they are.** `view`, `templates`, and the
+- **Some commands stay where they are.** `templates` and the
   deprecated noun forms (`openspec change show`, ...) act on the current
   directory only — no `--store`. `schemas` follows the canonical root-selection
   precedence and accepts `--store <id>` while keeping its successful JSON array
