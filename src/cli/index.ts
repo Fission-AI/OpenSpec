@@ -654,11 +654,17 @@ program
   .command('schemas')
   .description('List available workflow schemas with descriptions')
   .option('--json', 'Output as JSON (for agent use)')
+  .option('--store <id>', STORE_OPTION_DESCRIPTION)
+  .addOption(hiddenStorePathOption())
   .action(async (options: SchemasOptions) => {
     try {
       await schemasCommand(options);
     } catch (error) {
-      failWithError(error);
+      failWithError(error, {
+        enabled: options.json,
+        payload: { schemas: [], root: null },
+        fallbackCode: 'schemas_error',
+      });
       process.exit(1);
     }
   });
