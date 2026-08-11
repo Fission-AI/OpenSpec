@@ -5,7 +5,7 @@ allowBuilds:
   esbuild@0.28.1: true
 
 overrides:
-  postcss: ^8.5.22
+  postcss: ^8.5.26
   sharp: ^0.35.3
   brace-expansion@<=5.0.8: '>=5.0.9 <6'
   fast-uri@<3.1.5: ^3.1.5
