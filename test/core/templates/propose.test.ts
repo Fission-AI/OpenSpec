@@ -211,12 +211,25 @@ describe('propose schema selection', () => {
         'append `--store "<store-id>"` to `openspec schemas --json` as well'
       );
       expect(schemaSection, label).not.toContain('`schemas` does not accept `--store`');
-      expect(schemaSection, label).toContain('context reports only `no_openspec_root`');
+      const contextFailure = schemaSection.indexOf(
+        'If `openspec context --json` cannot be run, its output cannot be parsed, or it reports any problem other than a single `no_openspec_root` diagnostic, stop and report the problem'
+      );
+      const rootlessFallback = schemaSection.indexOf(
+        'If its parseable output reports only `no_openspec_root`'
+      );
+      expect(
+        contextFailure,
+        `${label} does not fail closed on context errors`
+      ).toBeGreaterThanOrEqual(0);
+      expect(
+        rootlessFallback,
+        `${label} permits the rootless fallback before validating context output`
+      ).toBeGreaterThan(contextFailure);
       expect(schemaSection, label).toContain(
-        'run `openspec schemas --json` from the current working directory instead'
+        'Do not run schema discovery from the current working directory'
       );
       expect(schemaSection, label).toContain(
-        'Do not use this fallback for invalid or unavailable stores'
+        'run `openspec schemas --json` from the current working directory instead'
       );
       expect(schemaSection, label).toContain('Never silently use the default schema');
       expect(schemaSection, label).not.toContain('Use the configured default schema');
