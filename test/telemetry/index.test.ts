@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 
 import { isTelemetryEnabled, maybeShowTelemetryNotice, shutdown, trackCommand } from '../../src/telemetry/index.js';
+import { getTelemetryConfig } from '../../src/telemetry/config.js';
 
 describe('telemetry/index', () => {
   let tempDir: string;
@@ -176,6 +177,38 @@ describe('telemetry/index', () => {
       await maybeShowTelemetryNotice();
 
       expect(consoleLogSpy).not.toHaveBeenCalled();
+    });
+
+    it('should show notice on the first non-silent run, then never repeat it', async () => {
+      enableTelemetry();
+
+      await maybeShowTelemetryNotice();
+      expect(consoleLogSpy).toHaveBeenCalledTimes(1);
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining('OpenSpec collects anonymous usage stats')
+      );
+
+      // noticeSeen is now persisted: a second run stays quiet.
+      await maybeShowTelemetryNotice();
+      expect(consoleLogSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('should suppress the notice in silent (--json) mode and defer the disclosure', async () => {
+      enableTelemetry();
+
+      // A first-ever run in --json mode must not pollute stdout.
+      await maybeShowTelemetryNotice({ silent: true });
+      expect(consoleLogSpy).not.toHaveBeenCalled();
+
+      // The disclosure must be deferred, not consumed: noticeSeen stays unset.
+      expect((await getTelemetryConfig()).noticeSeen).toBeFalsy();
+
+      // Disclosure is only deferred, not skipped: the next non-JSON run shows it.
+      await maybeShowTelemetryNotice();
+      expect(consoleLogSpy).toHaveBeenCalledTimes(1);
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining('OpenSpec collects anonymous usage stats')
+      );
     });
   });
 
