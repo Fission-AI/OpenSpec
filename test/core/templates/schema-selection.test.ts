@@ -24,6 +24,7 @@ const nonProposeBodies = creationBodies.filter(
   ([label]) => !label.startsWith('propose')
 );
 
+/** Count non-overlapping occurrences of a fragment in a generated workflow body. */
 function occurrences(body: string, fragment: string): number {
   return body.split(fragment).length - 1;
 }
