@@ -1,101 +1,87 @@
 ## Why
 
-OpenSpec installation paths are currently inconsistent:
-
-- Most skills and commands are written to project-local directories.
-- Codex commands are already global (`$CODEX_HOME/prompts` or `~/.codex/prompts`).
-- Users cannot choose a consistent install scope strategy across tools.
-
-This creates friction for users who prefer user-level setup and expect tool artifacts to be managed globally by default.
+OpenSpec still installs most generated workflows inside each project, so users who use the same AI tools across many repositories must run `openspec update` in every repository. The current path model also mixes project-only targets, the global-only MiniMax target, and the shared `.agents/skills` target without a user-selectable installation strategy.
 
 ## What Changes
 
-### 1. Add install scope preference with legacy-safe defaults
+### 1. Add an install scope preference with legacy-safe defaults
 
-Introduce a global install scope setting with two modes:
+Introduce a user-level `installScope` preference with two values:
 
-- `global` (default for newly created configs)
-- `project`
+- `global` for artifacts shared across projects
+- `project` for artifacts stored in the current repository
 
-The setting is stored in global config and can be overridden per command run.
-For schema-evolved legacy configs where `installScope` is absent, effective default remains `project` until users opt in to global scope.
+Newly created global configs persist `global`. Existing config files that predate the field continue to resolve to `project` until the user opts in, so upgrading does not silently relocate existing project artifacts.
 
-### 2. Add scope-aware path resolution for skills and commands
+### 2. Declare scope support per tool surface
 
-Refactor path resolution so both `init` and `update` compute install targets from:
+Extend AI tool metadata with explicit scope support for each generated surface:
 
-- selected scope preference (`global` or `project`)
-- tool capability metadata (which scopes each tool/surface supports)
-- runtime context (project root, home directories, env overrides)
+- `skills: InstallScope[]`
+- `commands: InstallScope[]`
 
-### 3. Add per-tool capability metadata for scope support
+Missing metadata remains project-only for backward compatibility. Scope is resolved independently per surface because upstream tools do not always expose the same scopes for skills and commands. For example, GitHub Copilot supports personal skills but OpenSpec's generated Copilot prompt-file surface remains project-scoped.
 
-Extend tool metadata to explicitly declare scope support per surface:
+### 3. Resolve scope-aware tool paths
 
-- skills scope support
-- commands scope support
+Refactor path resolution so `init`, `update`, detection, drift checks, generation, and cleanup use the same requested-scope context. Project and global paths use each tool's documented conventions; global path overrides are declared only when a tool's user-level layout differs from its project layout.
 
-When preferred scope is unsupported for a tool/surface, the system uses deterministic fallback rules and reports the effective scope in output.
+The initial support matrix is intentionally closed:
 
-### 4. Make command generation context-aware
+- Codex and `agents`: project or global skills under the corresponding `.agents/skills` root, with one shared writer
+- MiniMax Code: global-only skills under the user's `.minimax/skills` root
+- GitHub Copilot: project or global skills, with project-scoped generated prompt files
+- every other existing skills surface: project-only
+- every existing adapter-backed commands surface: project-only
 
-Extend command adapter path resolution so adapters receive install context (scope + environment context), instead of only command ID. This removes special-case handling and allows consistent scope behavior across tools.
+Future global declarations require a separate documented matrix update rather than an implementation-time path guess.
 
-### 5. Update init/update UX and behavior
+### 4. Add scope control to init, update, and config UX
 
-- `openspec init`:
-  - accepts scope override flag
-  - uses configured scope or migration-aware default (new configs default global; legacy configs preserve project until migration)
-  - applies scope-aware generation and cleanup planning
-- `openspec update`:
-  - applies current scope preference
-  - syncs artifacts in effective scope per tool/surface
-  - tracks last successful effective scope per tool/surface for deterministic scope-drift detection
-  - reports effective scope decisions clearly
+- `openspec init` and `openspec update` accept `--scope global|project` as a run-only target override.
+- Without an override, both commands use the persisted preference or its migration-aware default.
+- `openspec config profile` can change the persisted install scope alongside the existing profile and delivery settings.
+- Any config operation that changes the effective persisted scope reports the old and new values, warns that a later durable migration may clean managed artifacts from the previous scope, and does not itself remove tool artifacts.
+- `openspec config list` reports the effective value and whether it is explicit, a new-config default, or a legacy default.
+- Command summaries show requested and effective scope per affected tool surface, including fallback paths and any other-scope copies deliberately preserved by a run-only override.
 
-### 6. Extend config UX and docs
+### 5. Separate persistent scope transitions from run-only targeting
 
-- Add install scope control in `openspec config profile` interactive flow.
-- Extend `openspec config list` output with install scope source (`explicit`, `new-default`, `legacy-default`).
-- Add explicit migration guidance and prompt path so legacy users can opt into `global` scope.
-- Update supported tools and CLI docs to explain scope behavior and fallback rules.
+Before writing, validate every path that the run may mutate. A run without `--scope` reconciles toward the persisted or migration-aware default and may perform a scope transition in either direction. When that transition would clean managed artifacts from the previous scope, interactive runs first show the project/global direction and concrete source and destination paths, warn when shared global artifacts will be removed, and require confirmation; `--force` supplies the same authorization for non-interactive runs, which otherwise fail before mutation. After authorization, the run writes and verifies replacement artifacts first, then removes only explicitly known OpenSpec-managed artifacts from non-effective targets. A run-only `--scope` override writes or refreshes its effective target but preserves managed artifacts in every other scope, so a temporary invocation cannot delete an installation shared by other projects. Persisting the preference and running init/update without an override is the supported way to migrate and clean old scopes.
 
-### 7. Coordinate with command-surface capability delivery rules
+### 6. Compose scope with the current delivery and command-surface model
 
-`cli-init` and `cli-update` planning SHALL compose:
+Planning for `init` and `update` composes:
 
 - install scope (`global | project`)
 - delivery mode (`both | skills | commands`)
-- command surface capability (`adapter | skills-invocable | none`)
+- command surface (`adapter-backed | skills-invocable | none`)
 
-This proposal remains focused on scope resolution, but implementation and test coverage should include mixed-tool cases to avoid regressions when combined with `add-tool-command-surface-capabilities`.
+The plan classifies surfaces as desired, cleanup-only, or preserved according to the current delivery/capability behavior. Desired surfaces receive normal effective-scope resolution. Cleanup-only surfaces use deterministic exact-path planning and preflight without becoming generation compatibility requirements. Codex remains skills-invocable and does not regain generated custom prompts.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `installation-scope`: Scope preference model and effective scope resolution for tool artifact installation.
+- `installation-scope`: User preference, effective-scope resolution, fallback reporting, and safe scope transitions for generated workflow artifacts.
 
 ### Modified Capabilities
 
-- `global-config`: Persist install scope preference with schema evolution defaults.
-- `cli-config`: Configure and inspect install scope preferences.
-- `ai-tool-paths`: Add tool-level scope support metadata and path strategy.
-- `command-generation`: Scope-aware adapter path resolution via install context.
-- `cli-init`: Scope-aware initialization planning and output.
-- `cli-update`: Scope-aware update sync, drift detection, and output.
-- `migration`: Scope-aware migration scanning with install-scope-aware workflow lookup.
+- `global-config`: Persist install scope and distinguish new-config defaults from legacy schema evolution.
+- `cli-config`: Configure and inspect install scope through the existing config UX.
+- `ai-tool-paths`: Declare scope support and resolve documented project/global skill targets.
+- `command-generation`: Resolve adapter paths using install context without changing tool-specific formatting or invocation spelling.
+- `cli-init`: Plan, generate, report, and reconcile artifacts using effective scopes.
+- `cli-update`: Detect, refresh, migrate, and clean artifacts using effective scopes.
 
 ## Impact
 
-- `src/core/global-config.ts` - new install scope fields and defaults
-- `src/core/config-schema.ts` - validation support for install scope config keys
-- `src/commands/config.ts` - interactive profile/config UX additions for install scope
-- `src/core/config.ts` - tool scope capability metadata
-- `src/core/available-tools.ts` and `src/core/shared/tool-detection.ts` - scope-aware configured detection
-- `src/core/command-generation/types.ts` and adapter implementations - context-aware file path resolution
-- `src/core/init.ts` - scope-aware generation/removal planning
-- `src/core/update.ts` - scope-aware sync/removal/drift planning
-- `src/core/migration.ts` - scope-aware workflow scanning support
-- `docs/supported-tools.md` and `docs/cli.md` - install scope behavior documentation
-- `test/core/init.test.ts`, `test/core/update.test.ts`, adapter tests, config tests - scope coverage
+- `src/core/global-config.ts`, `src/core/config-schema.ts`, `src/telemetry/config.ts` - default/source-aware config creation and validation
+- `src/commands/config.ts` - action-first install-scope configuration and reporting
+- `src/core/config.ts`, `src/core/shared/skill-paths.ts` - scope metadata and skill target resolution
+- `src/core/shared-skill-target.ts`, `src/core/available-tools.ts`, `src/core/shared/tool-detection.ts` - scope-aware ownership and detection
+- `src/core/command-generation/*` - install-context-aware adapter paths and invocation derivation
+- `src/core/command-surface.ts`, `src/core/profile-sync-drift.ts` - composition with delivery/capability planning and drift detection
+- `src/core/init.ts`, `src/core/update.ts`, `src/cli/index.ts`, command completions - CLI options, preflight, generation, cleanup, and upgrade reruns
+- `docs/supported-tools.md`, `docs/cli.md`, `docs/migration-guide.md` - path matrix, fallback behavior, and migration guidance
+- config, resolver, adapter, init, update, detection, migration, safety, and cross-platform tests

@@ -1,28 +1,113 @@
 ## ADDED Requirements
 
 ### Requirement: Init install scope selection
-The init command SHALL support install scope selection for generated artifacts.
+The init command SHALL choose a preferred install scope from its run-only option or the source-aware global preference.
 
-#### Scenario: Scope defaults to global
-- **WHEN** user runs `openspec init` without explicit scope override
-- **THEN** init SHALL use global config install scope
-- **AND** if unset, SHALL resolve migration-aware default (`global` for newly created configs, `project` for legacy schema-evolved configs)
+#### Scenario: New-config global default
+- **WHEN** the user runs `openspec init` without `--scope`
+- **AND** no global config file exists
+- **THEN** init SHALL prefer `global`
+
+#### Scenario: Legacy-config project default
+- **WHEN** the user runs `openspec init` without `--scope`
+- **AND** an existing global config lacks `installScope`
+- **THEN** init SHALL prefer `project`
 
 #### Scenario: Scope override via flag
-- **WHEN** user runs `openspec init --scope project`
-- **THEN** init SHALL use `project` as preferred scope for that run
-- **AND** SHALL NOT mutate persisted global config unless user explicitly changes config
+- **WHEN** the user runs `openspec init --scope project`
+- **THEN** init SHALL prefer `project` for that run
+- **AND** SHALL NOT change persisted global config
+- **AND** SHALL preserve managed artifacts that exist in other scopes
 
-### Requirement: Init uses effective scope resolution
-The init command SHALL resolve effective scope per tool surface before generating files.
+#### Scenario: Invalid scope flag
+- **WHEN** the user provides a scope other than `global` or `project`
+- **THEN** init SHALL fail with a usage error before filesystem mutation
 
-#### Scenario: Effective scope with fallback
-- **WHEN** selected tool/surface does not support preferred scope
-- **AND** supports alternate scope
-- **THEN** init SHALL generate files at alternate effective scope
-- **AND** SHALL display fallback note in summary
+### Requirement: Init composes enabled surfaces with effective scope
+The init command SHALL resolve scope only for surfaces enabled by the selected tools, profile, delivery, and command-surface capabilities, and SHALL complete preflight before mutation.
 
-#### Scenario: Unsupported scope selection
-- **WHEN** selected tool/surface supports neither preferred nor alternate scope
-- **THEN** init SHALL fail before writing files
-- **AND** SHALL provide clear error guidance
+#### Scenario: GitHub Copilot split scope
+- **WHEN** GitHub Copilot is selected
+- **AND** both skills and commands are enabled
+- **AND** preferred scope is `global`
+- **THEN** Copilot skills SHALL be installed in its documented user-level skills target
+- **AND** Copilot prompt files SHALL be installed in the project target through project fallback
+- **AND** the split result SHALL be reported
+
+#### Scenario: Global-only MiniMax with project preference
+- **WHEN** MiniMax Code is selected
+- **AND** preferred scope is `project`
+- **THEN** its skills SHALL fall back to its global target
+- **AND** init SHALL report the fallback
+
+#### Scenario: Incompatible mixed selection
+- **WHEN** any enabled selected surface cannot resolve a safe supported target
+- **THEN** init SHALL fail before creating the OpenSpec-managed tool artifacts for any selected tool
+
+#### Scenario: Cleanup-only surface is deterministic
+- **WHEN** delivery behavior disables generation for an existing managed surface and classifies it as cleanup-only
+- **THEN** init SHALL preflight the exact cleanup targets authorized for that run
+- **AND** SHALL remove only those exact managed artifacts after desired writes are verified
+
+#### Scenario: Run-only override limits cleanup-only scope
+- **WHEN** init uses `--scope`
+- **AND** a surface is cleanup-only
+- **THEN** init SHALL limit that cleanup to the scope that would be effective under the override
+- **AND** SHALL preserve managed copies in other scopes
+
+#### Scenario: Durable scope transition requires confirmation
+- **WHEN** init runs without `--scope`
+- **AND** its preflighted plan would remove managed artifacts from the previous project or global scope
+- **THEN** init SHALL show the transition direction and concrete destination and cleanup paths before mutation
+- **AND** SHALL warn when global cleanup may affect other projects
+- **AND** SHALL require interactive confirmation unless `--force` is present
+
+#### Scenario: Durable scope transition is declined
+- **WHEN** the user declines init's cross-scope cleanup confirmation
+- **THEN** init SHALL exit without writing or removing scoped artifacts
+
+#### Scenario: Non-interactive durable scope transition
+- **WHEN** non-interactive init would perform cross-scope cleanup without `--force`
+- **THEN** init SHALL fail before mutation with an actionable authorization error
+- **AND** rerunning with `--force` SHALL authorize the displayed transition without prompting
+
+### Requirement: Init manages shared scoped skill roots
+Init SHALL maintain one OpenSpec writer for Codex and the vendor-neutral `agents` target at each resolved `.agents/skills` root.
+
+#### Scenario: Codex global skills
+- **WHEN** Codex is selected with effective skills scope `global`
+- **THEN** skills SHALL be written under the user's `.agents/skills` root
+- **AND** the ownership marker SHALL be written in that global physical root
+
+#### Scenario: Codex and agents selected globally
+- **WHEN** Codex and `agents` are both selected with effective skills scope `global`
+- **THEN** init SHALL write one compatible OpenSpec skill tree
+- **AND** SHALL record one active writer for that global root
+
+#### Scenario: Project and global roots both exist
+- **WHEN** the selected writer already owns a project `.agents/skills` root
+- **AND** init resolves the new effective skills scope to `global`
+- **AND** init is using the persisted or migration-aware default without `--scope`
+- **AND** the user confirms cleanup or supplies `--force`
+- **THEN** the global root SHALL be written and verified before managed project-scope copies are cleaned
+- **AND** unrelated project files SHALL be preserved
+
+### Requirement: Init reports scoped outcomes
+Init SHALL report effective scope and concrete paths when global installation, fallback, split scopes, or migration cleanup affects the result.
+
+#### Scenario: Global artifacts are created
+- **WHEN** init successfully creates or refreshes a global surface
+- **THEN** the success summary SHALL identify the tool and global target
+- **AND** SHALL explain that the artifact is shared across projects
+
+#### Scenario: Scope transition cannot clean an old target
+- **WHEN** new-target artifacts were verified
+- **AND** old-target cleanup fails
+- **THEN** init SHALL retain the new artifacts
+- **AND** SHALL fail with the exact leftover old paths
+
+#### Scenario: Run-only override preserves another scope
+- **WHEN** init succeeds with a run-only scope override
+- **AND** managed artifacts exist in another scope
+- **THEN** init SHALL report the preserved paths
+- **AND** SHALL direct the user to persist the preference and run without `--scope` for a durable migration
