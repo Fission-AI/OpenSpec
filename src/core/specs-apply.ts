@@ -545,9 +545,15 @@ export async function buildUpdatedSpec(
     .join('\n\n')
     .trimEnd();
 
-  const rebuilt = [parts.before.trimEnd(), parts.headerLine, reqBody, parts.after]
-    .filter((s, idx) => !(idx === 0 && s === ''))
-    .join('\n')
+  // The blank lines surrounding `## Requirements` belong to no slice: `before`
+  // and `after` carry at most one trailing/leading '\n' by construction, and
+  // the body is trimEnd()ed. Joining the slices with a bare '\n' therefore
+  // glued the heading to the Purpose paragraph and the first requirement, so
+  // every archive rewrote a well-formatted spec into that shape. Separate
+  // non-empty slices with one blank line instead.
+  const rebuilt = [parts.before.trimEnd(), parts.headerLine, reqBody, parts.after.trim()]
+    .filter((s) => s !== '')
+    .join('\n\n')
     .replace(/\n{3,}/g, '\n\n')
     .trimEnd() + '\n';
 

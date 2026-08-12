@@ -90,4 +90,43 @@ describe('spec serialization', () => {
     expectOneFinalLf(result.rebuilt);
     expect(result.rebuilt).toContain('## Notes\n\nKeep this later section.\n');
   });
+
+  it('keeps the blank lines around ## Requirements when the target has them', async () => {
+    const blankLinedSpec = [
+      '# demo Specification',
+      '',
+      '## Purpose',
+      '',
+      'Demonstrates blank-line preservation.',
+      '',
+      '## Requirements',
+      '',
+      ORIGINAL_REQUIREMENT,
+      '',
+    ].join('\n');
+
+    const result = await build(blankLinedSpec);
+
+    expectOneFinalLf(result.rebuilt);
+    expect(result.rebuilt).toContain(
+      'blank-line preservation.\n\n## Requirements\n\n### Requirement: Existing behavior'
+    );
+  });
+
+  it('separates a ## Requirements heading glued to its neighbors', async () => {
+    const gluedSpec = [
+      '# demo Specification',
+      '',
+      '## Purpose',
+      'Demonstrates deterministic serializer output.',
+      '## Requirements',
+      ORIGINAL_REQUIREMENT,
+    ].join('\n');
+
+    const result = await build(gluedSpec);
+
+    expect(result.rebuilt).toContain(
+      'serializer output.\n\n## Requirements\n\n### Requirement: Existing behavior'
+    );
+  });
 });
