@@ -44,7 +44,7 @@ interface WorkflowPromptMeta {
   description: string;
 }
 
-const WORKFLOW_PROMPT_META: Record<string, WorkflowPromptMeta> = {
+export const WORKFLOW_PROMPT_META: Record<string, WorkflowPromptMeta> = {
   propose: {
     name: 'Propose change',
     description: 'Create proposal, design, and tasks from a request',
@@ -64,6 +64,10 @@ const WORKFLOW_PROMPT_META: Record<string, WorkflowPromptMeta> = {
   apply: {
     name: 'Apply tasks',
     description: 'Implement tasks from the current change',
+  },
+  update: {
+    name: 'Update change',
+    description: 'Revise the planning artifacts of an existing change',
   },
   ff: {
     name: 'Fast-forward',

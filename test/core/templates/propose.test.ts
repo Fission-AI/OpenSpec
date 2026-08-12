@@ -207,7 +207,10 @@ describe('propose schema selection', () => {
       expect(schemaSection, label).toContain('returned `root.path`');
       expect(schemaSection, label).toContain('local `store:` pointer');
       expect(schemaSection, label).toContain('global `defaultStore`');
-      expect(schemaSection, label).toContain('`schemas` does not accept `--store`');
+      expect(schemaSection, label).toContain(
+        'append `--store "<store-id>"` to `openspec schemas --json` as well'
+      );
+      expect(schemaSection, label).not.toContain('`schemas` does not accept `--store`');
       expect(schemaSection, label).toContain('context reports only `no_openspec_root`');
       expect(schemaSection, label).toContain(
         'run `openspec schemas --json` from the current working directory instead'

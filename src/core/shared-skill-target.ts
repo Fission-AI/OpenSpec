@@ -158,6 +158,38 @@ export function isSharedSkillTargetActive(projectPath: string, toolId: string): 
     .some((candidate) => candidate.value === toolId);
 }
 
+/**
+ * The tool that already owns `toolId`'s shared skills root, when a DIFFERENT
+ * one does. Returns the owner's tool id only when the root already carries an
+ * ownership signal (a marker or generated skills) AND reconciliation resolves
+ * it to another tool. An empty or unclaimed root returns undefined, so a
+ * genuine first-time legacy upgrade — e.g. a Codex-only user with no `.agents`
+ * yet — is never reported as owned.
+ */
+export function sharedSkillRootOwner(projectPath: string, toolId: string): string | undefined {
+  const tool = AI_TOOLS.find((candidate) => candidate.value === toolId);
+  if (!tool?.skillsDir) return undefined;
+  const sharingRoot = AI_TOOLS.filter((candidate) => candidate.skillsDir === tool.skillsDir);
+  if (sharingRoot.length < 2) return undefined;
+
+  const hasOwnerSignal =
+    readSharedSkillTarget(projectPath, tool.skillsDir) !== undefined ||
+    hasCurrentSkills(projectPath, tool.skillsDir);
+  if (!hasOwnerSignal) return undefined;
+
+  const owner = reconcileSharedSkillTargets(projectPath, sharingRoot)[0]?.value;
+  return owner && owner !== toolId ? owner : undefined;
+}
+
+/**
+ * Whether generating `toolId` into its shared skills root would clobber a tree
+ * a DIFFERENT tool already owns — the guard the legacy-upgrade path uses before
+ * writing skills. See {@link sharedSkillRootOwner} for the ownership rules.
+ */
+export function sharedSkillRootOwnedByOther(projectPath: string, toolId: string): boolean {
+  return sharedSkillRootOwner(projectPath, toolId) !== undefined;
+}
+
 export function writeSharedSkillTarget(projectPath: string, toolId: string): void {
   const tool = AI_TOOLS.find((candidate) => candidate.value === toolId);
   if (!tool?.skillsDir) return;

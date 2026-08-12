@@ -548,7 +548,8 @@ export async function buildUpdatedSpec(
   const rebuilt = [parts.before.trimEnd(), parts.headerLine, reqBody, parts.after]
     .filter((s, idx) => !(idx === 0 && s === ''))
     .join('\n')
-    .replace(/\n{3,}/g, '\n\n');
+    .replace(/\n{3,}/g, '\n\n')
+    .trimEnd() + '\n';
 
   return {
     rebuilt,
