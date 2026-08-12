@@ -18,7 +18,7 @@ This design adds selectable installation scope without undoing those boundaries.
 
 **Non-Goals:**
 
-- Defining global paths for tools whose upstream conventions are not documented.
+- Inventing a new tool-specific layout when upstream conventions are not documented; those entries deliberately reuse the current relative layout below the selected user root.
 - Restoring Codex custom-prompt generation.
 - Adding project-local profile, delivery, or install-scope configuration.
 - Adding a path-keyed global project registry or a new checked-in tool manifest.
@@ -92,6 +92,7 @@ interface AIToolOption {
   // existing fields
   skillsDir?: string;
   globalSkillsDir?: string;
+  globalSkillsBase?: 'home' | 'user-config';
   scopeSupport?: ToolInstallScopeSupport;
 }
 ```
@@ -101,23 +102,65 @@ The fields have distinct roles:
 - `scopeSupport.skills` / `scopeSupport.commands` declare which scopes are supported.
 - `skillsDir` is the project-relative skill container and the default home-relative container when both scopes use the same layout.
 - `globalSkillsDir` is only a global path override when the documented user layout differs from the project layout; it no longer implies global-only support by itself.
+- `globalSkillsBase` selects the platform-correct base for exceptional user-config layouts (`XDG_CONFIG_HOME` or its default on Unix, `%APPDATA%` on Windows); it defaults to `home`.
 - Command adapters resolve their own documented layout from install context because command formats and global bases vary by tool.
 
-Missing support metadata for an existing surface means `['project']`. Arrays are support sets, not preference order; the requested scope supplies preference.
+Arrays are support sets, not preference order; the requested scope supplies preference. Compatibility defaults differ by surface kind:
 
-The initial release uses this complete matrix:
+- an existing skills surface with `skillsDir` and no narrower declaration supports `global` and `project`; the project path remains its current path and the global path uses `globalSkillsDir` when present or the same relative container below the resolved user root
+- MiniMax Code explicitly declares global-only skills and has no command surface
+- a registered command adapter supports `global` and `project` unless the matrix explicitly narrows it; the adapter is responsible for returning a concrete path for both contexts
+- no adapter means no generated command-file surface; a `skills-invocable` surface continues to inherit the skill scope instead
 
-| Tool surface | Supported scopes | Path rule |
+An unverified upstream convention does not implicitly narrow support. The existing relative layout is retained below the selected root, or the adapter returns its compatibility path. This avoids both a silent project fallback and an unsupported/unresolved result. Only an explicit single-scope matrix entry can trigger fallback.
+
+In the matrix below, `<P>` is the canonical project root and `<G>` is the platform-correct user root selected by skill metadata or the adapter. A path pair separated by `/` is project then global. `adapter G/P` means the adapter owns both concrete roots and paths; the shown directories are the compatibility or documented layouts it must preserve.
+
+| Tool | Skills scopes and targets | Command surface, scopes, and target rule |
 | --- | --- | --- |
-| Codex skills | `global`, `project` | `.agents/skills` below the selected root |
-| `agents` skills | `global`, `project` | `.agents/skills` below the selected root |
-| MiniMax Code skills | `global` | `~/.minimax/skills` |
-| GitHub Copilot skills | `global`, `project` | project `.github/skills`; global `~/.copilot/skills` |
-| GitHub Copilot commands | `project` | existing `.github/prompts` adapter layout |
-| Every other existing skills surface | `project` | existing `skillsDir` project layout |
-| Every other existing adapter-backed commands surface | `project` | existing adapter project layout |
+| Amazon Q | G/P: `<P>/.amazonq/skills` / `<G>/.amazonq/skills` | adapter G/P: `.amazonq/prompts` below the selected root |
+| Antigravity | G/P: `<P>/.agent/skills` / `<G>/.gemini/config/skills` | adapter G/P: `<P>/.agent/workflows` / `<G>/.gemini/config/global_workflows` |
+| Auggie | G/P: `.augment/skills` below the selected root | adapter G/P: `.augment/commands` below the selected root |
+| Bob | G/P: `.bob/skills` below the selected root | adapter G/P: `.bob/commands` below the selected root |
+| Claude | G/P: `.claude/skills` below the selected root | adapter G/P: `.claude/commands` below the selected root |
+| Cline | G/P: `.cline/skills` below the selected root | adapter G/P: `<P>/.clinerules/workflows` / `<G>/.cline/data/workflows` |
+| CodeArts Agent | G/P: `.codeartsdoer/skills` below the selected root | none; no adapter is added by this change |
+| Codex | G/P: `.agents/skills` below the selected root | skills-invocable; inherits the skills target and does not generate command files |
+| Devin Desktop | G/P: `<P>/.devin/skills` / Unix `${XDG_CONFIG_HOME:-<G>/.config}/devin/skills` or Windows `%APPDATA%/devin/skills` | adapter G/P: `.devin/workflows` below the selected root |
+| ForgeCode | G/P: `<P>/.forge/skills` / `<G>/forge/skills` | none; no adapter is added by this change |
+| CodeBuddy | G/P: `.codebuddy/skills` below the selected root | adapter G/P: `.codebuddy/commands` below the selected root |
+| Continue | G/P: `.continue/skills` below the selected root | adapter G/P: `.continue/prompts` below the selected root |
+| CoStrict | G/P: `.cospec/skills` compatibility layout below the selected root | adapter G/P: `.cospec/openspec/commands` below the selected root |
+| Crush | G/P: `<P>/.crush/skills` / `<G>/.config/crush/skills` | adapter G/P: `.crush/commands` below the selected root |
+| Cursor | G/P: `.cursor/skills` below the selected root | adapter G/P: `.cursor/commands` below the selected root |
+| Factory | G/P: `.factory/skills` below the selected root | adapter G/P: `.factory/commands` below the selected root |
+| Gemini CLI | G/P: `.gemini/skills` below the selected root | adapter G/P: `.gemini/commands` below the selected root |
+| GitHub Copilot | G/P: `<P>/.github/skills` / `<G>/.copilot/skills` | adapter G/P: `.github/prompts` below the selected root |
+| Hermes Agent | G/P: `.hermes/skills` below the selected root; project use retains the existing external-dir setup note | none |
+| iFlow | G/P: `.iflow/skills` below the selected root, preserving the current integration | adapter G/P: `.iflow/commands` below the selected root, preserving the current integration |
+| Junie | G/P: `.junie/skills` below the selected root | adapter G/P: `.junie/commands` below the selected root |
+| Kilo Code | G/P: `<P>/.kilocode/skills` / `<G>/.kilo/skills` | adapter G/P: `<P>/.kilocode/workflows` / `<G>/.config/kilo/commands` |
+| Kimi Code | G/P: `.kimi-code/skills` below the selected root | none; current command-surface capability remains unchanged |
+| Kiro | G/P: `.kiro/skills` below the selected root | adapter G/P: `.kiro/prompts` below the selected root |
+| Lingma | G/P: `.lingma/skills` below the selected root | adapter G/P: `.lingma/commands` below the selected root |
+| MiniMax Code | G only: `<G>/.minimax/skills` | none |
+| Mistral Vibe | G/P: `.vibe/skills` below the selected root | none; current command-surface capability remains unchanged |
+| Oh My Pi | G/P: `<P>/.omp/skills` / `<G>/.omp/agent/skills` | adapter G/P: `<P>/.omp/commands` / `<G>/.omp/agent/commands` |
+| OpenCode | G/P: `<P>/.opencode/skills` / `<G>/.config/opencode/skills` | adapter G/P: `<P>/.opencode/commands` / `<G>/.config/opencode/commands` |
+| Pi | G/P: `<P>/.pi/skills` / `<G>/.pi/agent/skills` | adapter G/P: `<P>/.pi/prompts` / `<G>/.pi/agent/prompts` |
+| Qoder | G/P: `.qoder/skills` below the selected root | adapter G/P: `.qoder/commands` below the selected root |
+| Qwen Code | G/P: `.qwen/skills` below the selected root | adapter G/P: `.qwen/commands` below the selected root |
+| Rovo Dev | G/P: `.rovodev/skills` below the selected root | none |
+| Zoo Code | G/P: `.roo/skills` below the selected root | adapter G/P: `.roo/commands` below the selected root |
+| Trae | G/P: `.trae/skills` below the selected root | adapter G/P: `.trae/commands` below the selected root |
+| ZCode | G/P: `.zcode/skills` below the selected root | adapter G/P: `.zcode/commands` below the selected root |
+| `agents` | G/P: `.agents/skills` below the selected root | none; invocation depends on the consuming agent |
 
-There are no global command-file surfaces in the initial release. The corresponding metadata is represented by these entries and the project-only default:
+The compatibility-preserved entries are deliberate. Amazon Q and Continue skills retain their current relative skill layout; iFlow remains supported with its current layout; adapters without a separately verified user-level override use their current relative layout below the selected user root. These entries are still G/P for this change and therefore do not produce fallback or unresolved diagnostics.
+
+The matrix was audited against upstream material on 2026-08-12. The path overrides that differ materially from the current relative layout are grounded in the official [Antigravity skills](https://antigravity.google/docs/skills) and [workflow](https://antigravity.google/docs/rules-workflows) docs, [Cline configuration](https://docs.cline.bot/getting-started/config), [Devin CLI skills](https://docs.devin.ai/cli/extensibility/skills/overview), [ForgeCode skills](https://forgecode.dev/docs/skills/), [Crush](https://github.com/charmbracelet/crush), [GitHub Copilot skills](https://docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/customize-cloud-agent/add-skills), [Kilo skills](https://kilo.ai/docs/customize/skills) and [workflows](https://kilo.ai/docs/customize/workflows), [Oh My Pi configuration](https://github.com/can1357/oh-my-pi/blob/main/docs/config-usage.md), [OpenCode skills](https://opencode.ai/docs/skills/) and [commands](https://opencode.ai/docs/commands/), and [Pi](https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/README.md). Amazon Q skills, Continue skills, iFlow, and adapter paths without a verified special user directory are explicitly compatibility-based rather than presented as an upstream guarantee.
+
+The corresponding metadata is represented by explicit exceptions and surface defaults:
 
 ```ts
 // Same relative container in both scopes
@@ -127,21 +170,26 @@ There are no global command-file surfaces in the initial release. The correspond
 // Global-only, same relative container model
 { value: 'minimax-code', skillsDir: '.minimax', scopeSupport: { skills: ['global'] } }
 
-// Different documented project and user containers
+// Different project and user containers
 {
   value: 'github-copilot',
   skillsDir: '.github',
   globalSkillsDir: '.copilot',
-  scopeSupport: {
-    skills: ['global', 'project'],
-    commands: ['project'],
-  },
+  scopeSupport: { skills: ['global', 'project'] },
+}
+
+// Platform user-config base rather than the home directory
+{
+  value: 'devin',
+  skillsDir: '.devin',
+  globalSkillsDir: 'devin',
+  globalSkillsBase: 'user-config',
 }
 ```
 
-Every global declaration must be backed by a documented upstream location. Adding global support for another surface later requires an explicit matrix/spec/documentation update; implementation work for this change does not discover or add further global targets.
+Documented user-level overrides are preferred. Where upstream documentation is incomplete, the table records the compatibility rule explicitly rather than guessing that the surface is unsupported. Adding or narrowing a surface later requires an explicit matrix/spec/documentation update.
 
-Alternative considered: a single tool-level scope list. Rejected because GitHub Copilot already has user-level skills while OpenSpec's generated prompt files are workspace-scoped.
+Alternative considered: a single tool-level scope list. Rejected because skills and adapter-backed commands can use different directories and command capability may be `adapter-backed`, `skills-invocable`, or `none`.
 
 ### 3. Separate scope decisions from surface-specific target paths
 
@@ -158,10 +206,11 @@ It returns:
 It does not construct a command or skill path. Resolution rules are:
 
 1. Use requested scope when the surface supports it.
-2. Otherwise use the alternate scope when supported and record fallback.
-3. Fail compatibility preflight when an enabled desired surface supports neither scope.
+2. Use compatibility defaults for existing undeclared skill metadata and registered adapters: both mean `global` and `project`, so an uncertain upstream convention does not become a fallback or compatibility error.
+3. Only when the matrix explicitly declares a single supported scope, use that alternate scope and record fallback. MiniMax Code therefore resolves a project request to its global-only skill target.
+4. Fail preflight only when a declared target cannot be resolved or validated safely, not because upstream documentation was inconclusive.
 
-This intentionally permits split results. With requested `global`, GitHub Copilot skills can resolve globally while its generated prompt files fall back to the project.
+This still permits split results when a future explicit matrix entry narrows one surface independently. The initial matrix does not split any adapter-backed command from its requested scope.
 
 After scope resolution, a surface-specific planner produces mutation targets:
 
@@ -173,10 +222,10 @@ All skill paths are built with `path.join`/`path.resolve`:
 
 ```text
 project: <projectRoot>/<skillsDir>/skills
-global:  <homeDir>/<globalSkillsDir ?? skillsDir>/skills
+global:  <resolvedGlobalBase>/<globalSkillsDir ?? skillsDir>/skills
 ```
 
-The skill target resolver returns the concrete skills root together with its containment root. Windows uses the resolved Windows home and `path.win32` semantics in platform-mocked tests; it never embeds POSIX home syntax into a Windows result.
+`resolvedGlobalBase` is `homeDir` by default or the platform-resolved user config directory when metadata selects `user-config`. The skill target resolver returns the concrete skills root together with its containment root. Windows uses the resolved Windows home or `%APPDATA%` as declared and `path.win32` semantics in platform-mocked tests; it never embeds POSIX home syntax into a Windows result.
 
 ### 4. Classify desired, cleanup-only, and preserved surfaces before scope planning
 
@@ -224,11 +273,11 @@ getInstallRoot(context: InstallContext): string;
 getFilePath(commandId: string, context: InstallContext): string;
 ```
 
-Both methods return concrete absolute paths. The file path must be contained by the installation root returned for the same context. For the initial matrix every effective command scope is `project`, so the installation root must be within `projectRoot`; a future global command declaration must add a documented adapter root before it can pass preflight.
+Both methods return concrete absolute paths. The file path must be contained by the installation root returned for the same context. Every registered adapter in the initial matrix accepts both contexts: project results must be contained by `projectRoot`, while global results must be contained by the adapter's platform-correct user root derived from `homeDir`, `platform`, and `env`. An adapter with a documented distinct user-level layout returns that layout; otherwise it preserves its existing relative layout below the user root.
 
 `generateCommand(s)`, command invocation derivation, configured-command detection, content equality checks, profile drift, and cleanup all receive the same resolved context and reuse the adapter-returned root/path pair. They do not prepend roots or reconstruct paths. Adapters remain responsible for formatting and invocation spelling; only path resolution changes.
 
-Alternative considered: have callers prepend project/home roots to an adapter's existing relative path. Rejected because adapter layouts already vary in nesting and filename structure, and any future global command support must keep its documented user root in the adapter contract rather than duplicating it in callers.
+Alternative considered: have callers prepend project/home roots to an adapter's existing relative path. Rejected because adapter layouts vary in base directory, nesting, filename structure, and platform behavior. The adapter must remain the only authority for both project and global command targets.
 
 ### 6. Keep filesystem-as-truth and scan only explicit managed targets
 
@@ -301,14 +350,14 @@ When `--scope` is present, managed artifacts in other scopes are not cleanup can
 
 `config list` reports both value and source. `config get/set/unset installScope` uses the existing schema validation rules. Any profile, set, unset, or reset operation that changes the effective persisted install scope reports the old and new values and warns that the next durable init/update may remove managed artifacts from the previous scope after replacement verification. Config mutation itself never writes or removes tool artifacts. The config command's existing `--scope` flag continues to mean which config store is being edited; install scope is the `installScope` key and the `init/update --scope` option.
 
-`init/update --scope` is run-only and does not persist or authorize cross-scope cleanup. Any self-upgrade rerun of `update` forwards it. Persisting `installScope` and accepting the profile flow's apply-now update runs without an override and therefore performs the durable transition. Summaries report only meaningful decisions, with concrete paths when fallback, split surfaces, or preserved other-scope copies occur.
+`init/update --scope` is run-only and does not persist or authorize cross-scope cleanup. Any self-upgrade rerun of `update` forwards it. Persisting `installScope` and accepting the profile flow's apply-now update runs without an override and therefore performs the durable transition. Summaries report only meaningful decisions, with concrete paths for explicit single-scope fallback, shared global mutations, or preserved other-scope copies.
 
 ## Risks / Trade-offs
 
 - **[Risk] A background telemetry write changes config provenance or replaces a damaged config.** -> Snapshot provenance before telemetry, patch only the latest valid raw document through the shared protocol, and skip background persistence for invalid documents.
 - **[Risk] A global update affects every project using that tool.** -> Always show global target paths and document that one shared workflow version/profile is being updated.
-- **[Risk] Skills and commands for one tool can land in different scopes.** -> Report effective scope per surface and test split-scope tools such as GitHub Copilot.
-- **[Risk] Upstream global path conventions change.** -> Require explicit metadata and adapter tests; leave unverified surfaces project-only.
+- **[Risk] Skills and commands for one tool can use different directory layouts.** -> Resolve and report each surface independently while keeping the requested scope unless the matrix explicitly narrows it.
+- **[Risk] Upstream global path conventions change or remain undocumented.** -> Test every documented override; for compatibility-preserved entries, keep the existing relative layout below the selected root and record that rule in the matrix rather than silently falling back.
 - **[Risk] Two project runs request different content for one global target.** -> The most recent successful global run wins, matching the user-level profile/delivery model; output identifies the shared mutation.
 - **[Risk] Scope cleanup can touch user directories.** -> Use canonical containment checks and explicit generated-name lookup, preview concrete paths, require confirmation or `--force`, and never clean before replacement verification.
 - **[Risk] A temporary scope override leaves duplicate managed copies.** -> Preserve them deliberately, report their paths, and direct users to persist the preference and run without `--scope` when they want a durable migration.
@@ -317,9 +366,9 @@ When `--scope` is present, managed artifacts in other scopes are not cleanup can
 ## Migration Plan
 
 1. Consolidate config types, schema, defaults, document reads, validated patches, telemetry state, and profile migration behind the source-aware global-config protocol; ensure every first patch-created config records `installScope: global` without materializing unrelated defaults.
-2. Replace the global-only skill special case with the fixed initial scope matrix and a shared scope-decision resolver; migrate MiniMax metadata without changing its path.
+2. Replace the global-only skill special case with the complete initial scope matrix and a shared scope-decision resolver; migrate MiniMax metadata without changing its path and preserve compatibility layouts for the explicitly identified entries.
 3. Make shared target ownership accept resolved roots.
-4. Pass install context through adapters, invocation derivation, detection, and drift checks.
+4. Pass project/global install context through every registered adapter, invocation derivation, detection, and drift checks, and implement the adapter-specific user roots listed in the matrix.
 5. Integrate desired/cleanup-only/preserved planning, mutation authority, transition preview/confirmation, preflight, generation, verification, reporting, and cleanup into init/update.
 6. Add CLI/config UX, completions, documentation, and cross-platform coverage.
 7. Validate existing project behavior with legacy-default `project`, then smoke-test new-config `global` and explicit overrides.

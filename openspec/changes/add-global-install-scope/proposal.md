@@ -20,21 +20,21 @@ Extend AI tool metadata with explicit scope support for each generated surface:
 - `skills: InstallScope[]`
 - `commands: InstallScope[]`
 
-Missing metadata remains project-only for backward compatibility. Scope is resolved independently per surface because upstream tools do not always expose the same scopes for skills and commands. For example, GitHub Copilot supports personal skills but OpenSpec's generated Copilot prompt-file surface remains project-scoped.
+Scope is resolved independently per surface because skill and command layouts can differ. Existing skill integrations support both scopes using their documented user/project locations where those locations are known and otherwise preserve their current relative layout below the selected root. MiniMax Code remains the one global-only skill integration and has no command surface. Every registered command adapter supports both scopes and owns the concrete path for each install context; a tool without an adapter does not gain a command-file surface.
 
 ### 3. Resolve scope-aware tool paths
 
 Refactor path resolution so `init`, `update`, detection, drift checks, generation, and cleanup use the same requested-scope context. Project and global paths use each tool's documented conventions; global path overrides are declared only when a tool's user-level layout differs from its project layout.
 
-The initial support matrix is intentionally closed:
+The initial support matrix is complete and explicit for every currently supported AI tool:
 
 - Codex and `agents`: project or global skills under the corresponding `.agents/skills` root, with one shared writer
-- MiniMax Code: global-only skills under the user's `.minimax/skills` root
-- GitHub Copilot: project or global skills, with project-scoped generated prompt files
-- every other existing skills surface: project-only
-- every existing adapter-backed commands surface: project-only
+- MiniMax Code: global-only skills under the user's `.minimax/skills` root and no command surface
+- every other existing skills surface: project or global, using a documented override when the user-level layout differs and otherwise retaining the current relative layout below the selected root
+- every existing adapter-backed command surface: project or global, using the exact installation root and file path returned by that adapter for the requested install context
+- tools without a registered adapter: no generated command-file surface; existing skills-invocable behavior remains unchanged
 
-Future global declarations require a separate documented matrix update rather than an implementation-time path guess.
+An uncertain upstream convention is not treated as an unsupported scope. The compatibility path already represented by the tool metadata or adapter is used instead, so global mode does not silently fall back to project and does not emit unsupported/unresolved diagnostics. A fallback is allowed only when the matrix explicitly declares that the requested scope is unsupported.
 
 ### 4. Add scope control to init, update, and config UX
 
@@ -43,7 +43,7 @@ Future global declarations require a separate documented matrix update rather th
 - `openspec config profile` can change the persisted install scope alongside the existing profile and delivery settings.
 - Any config operation that changes the effective persisted scope reports the old and new values, warns that a later durable migration may clean managed artifacts from the previous scope, and does not itself remove tool artifacts.
 - `openspec config list` reports the effective value and whether it is explicit, a new-config default, or a legacy default.
-- Command summaries show requested and effective scope per affected tool surface, including fallback paths and any other-scope copies deliberately preserved by a run-only override.
+- Command summaries show requested and effective scope per affected tool surface, including explicit single-scope fallback paths and any other-scope copies deliberately preserved by a run-only override.
 
 ### 5. Separate persistent scope transitions from run-only targeting
 
@@ -63,7 +63,7 @@ The plan classifies surfaces as desired, cleanup-only, or preserved according to
 
 ### New Capabilities
 
-- `installation-scope`: User preference, effective-scope resolution, fallback reporting, and safe scope transitions for generated workflow artifacts.
+- `installation-scope`: User preference, effective-scope resolution, explicit single-scope fallback reporting, and safe scope transitions for generated workflow artifacts.
 
 ### Modified Capabilities
 

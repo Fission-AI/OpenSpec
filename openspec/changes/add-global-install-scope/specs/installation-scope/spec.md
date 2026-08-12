@@ -40,11 +40,18 @@ The system SHALL resolve effective scope independently for each enabled skills o
 
 #### Scenario: Different surfaces resolve differently
 - **WHEN** a tool's skills support `global` and `project`
-- **AND** its commands support only `project`
+- **AND** its commands are explicitly declared to support only `project`
 - **AND** the run prefers `global` with both surfaces enabled
 - **THEN** skills SHALL use effective scope `global`
 - **AND** commands SHALL use effective scope `project`
 - **AND** command output SHALL identify the command-surface fallback
+
+#### Scenario: Registered adapter accepts the requested scope
+- **WHEN** a selected tool has a registered command adapter
+- **AND** its command surface is not explicitly narrowed to one scope
+- **THEN** the command surface SHALL use the requested `global` or `project` scope
+- **AND** the adapter SHALL return the concrete target for that install context
+- **AND** the result SHALL NOT be reported as a fallback, unsupported surface, or unresolved convention
 
 #### Scenario: Surface disabled for generation
 - **WHEN** delivery or command-surface capability disables a tool surface
@@ -67,17 +74,23 @@ The system SHALL resolve effective scope independently for each enabled skills o
 - **THEN** its enabled skills surface SHALL be resolved using skills scope support
 - **AND** no command-file scope SHALL be invented
 
-### Requirement: Deterministic fallback and preflight
-The system SHALL fall back to an alternate supported scope for desired surfaces and SHALL validate every desired mutation and authorized cleanup-only target before performing filesystem mutations.
+### Requirement: Explicit fallback and deterministic preflight
+The system SHALL fall back only when the complete tool matrix explicitly declares that a desired surface does not support the requested scope, and SHALL validate every desired mutation and authorized cleanup-only target before performing filesystem mutations.
 
 #### Scenario: Preferred scope is unsupported but alternate is supported
-- **WHEN** an enabled surface does not support the preferred scope
+- **WHEN** an enabled surface is explicitly declared not to support the preferred scope
 - **AND** it supports the alternate scope
 - **THEN** the alternate scope SHALL become effective
 - **AND** a fallback reason SHALL be included in user-facing output
 
-#### Scenario: Neither scope is usable
-- **WHEN** an enabled surface supports neither available scope or its declared target cannot be resolved safely
+#### Scenario: Compatibility layout is not treated as unsupported
+- **WHEN** an existing skill integration or registered adapter has no separately verified user-level override
+- **THEN** global mode SHALL use the compatibility layout recorded in the complete matrix
+- **AND** SHALL NOT fall back to project
+- **AND** SHALL NOT report that surface as unsupported or unresolved
+
+#### Scenario: Declared target is unsafe
+- **WHEN** an enabled surface's declared target cannot be resolved safely
 - **THEN** the command SHALL fail before writing or removing files
 - **AND** the error SHALL identify the tool, surface, requested scope, and remediation
 
@@ -86,7 +99,7 @@ The system SHALL fall back to an alternate supported scope for desired surfaces 
 - **THEN** preflight SHALL fail the run before any selected tool is mutated
 
 ### Requirement: Effective scope reporting
-The system SHALL make shared global mutations, fallbacks, and split-scope results visible with concrete target paths.
+The system SHALL make shared global mutations, explicit single-scope fallbacks, and split-scope results visible with concrete target paths.
 
 #### Scenario: Global target is used
 - **WHEN** an enabled surface resolves to `global`

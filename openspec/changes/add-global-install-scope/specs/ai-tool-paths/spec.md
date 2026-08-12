@@ -2,7 +2,7 @@
 
 ### Requirement: AIToolOption skillsDir field
 
-The `AIToolOption` interface SHALL include skill path metadata and MAY include explicit install-scope support and a documented global path override.
+The `AIToolOption` interface SHALL include skill path metadata and MAY include explicit install-scope support and a matrix-recorded global path override.
 
 #### Scenario: Interface includes skillsDir field
 
@@ -17,16 +17,19 @@ The `AIToolOption` interface SHALL include skill path metadata and MAY include e
 
 #### Scenario: Scope support metadata is present
 
-- **WHEN** a tool surface supports a documented scope
+- **WHEN** the complete matrix explicitly declares scope support for a tool surface
 - **THEN** its entry MAY declare that support as `scopeSupport.skills` or `scopeSupport.commands`
 - **AND** each declared value SHALL be `global` or `project`
 - **AND** the support array SHALL NOT determine preference order
 
 #### Scenario: Scope support metadata is absent
 
-- **WHEN** a tool surface exists but omits its scope support metadata
-- **THEN** that surface SHALL be treated as project-only
-- **AND** no global path SHALL be inferred from the tool name
+- **WHEN** an existing skills surface has `skillsDir` but omits narrower scope support metadata
+- **THEN** that surface SHALL support `global` and `project`
+- **AND** its current relative container SHALL be resolved below the selected root unless a global override is declared
+- **WHEN** a registered command adapter omits narrower scope support metadata
+- **THEN** that adapter-backed surface SHALL support `global` and `project`
+- **AND** the adapter SHALL resolve the concrete path for the requested install context
 
 #### Scenario: Project and global skill containers match
 
@@ -42,21 +45,28 @@ The `AIToolOption` interface SHALL include skill path metadata and MAY include e
 - **THEN** `globalSkillsDir` SHALL declare that override
 - **AND** the override SHALL NOT by itself declare global scope support
 
+#### Scenario: Global skill base uses platform user configuration
+
+- **WHEN** a matrix entry locates global skills in the platform user-config directory rather than directly below the home directory
+- **THEN** `globalSkillsBase` SHALL declare `user-config`
+- **AND** Unix resolution SHALL honor `XDG_CONFIG_HOME` with its platform default
+- **AND** Windows resolution SHALL use `%APPDATA%`
+
 ### Requirement: Path configuration for supported tools
 
-The `AI_TOOLS` array SHALL include skill path and scope metadata that matches each supported tool's documented installation locations, while command scope SHALL remain independent from skill scope.
+The `AI_TOOLS` array SHALL include the complete skill path and scope matrix for every supported tool, using documented installation locations where available and an explicitly recorded compatibility layout otherwise, while command capability and paths remain adapter-owned and independent from skill scope.
 
 #### Scenario: Claude Code paths defined
 
 - **WHEN** looking up the `claude` tool
 - **THEN** `skillsDir` SHALL be `.claude`
-- **AND** its skills and adapter-backed commands SHALL be project-only in the initial support matrix
+- **AND** its skills and adapter-backed commands SHALL support `global` and `project`
 
 #### Scenario: Cursor paths defined
 
 - **WHEN** looking up the `cursor` tool
 - **THEN** `skillsDir` SHALL be `.cursor`
-- **AND** its skills and adapter-backed commands SHALL be project-only in the initial support matrix
+- **AND** its skills and adapter-backed commands SHALL support `global` and `project`
 
 #### Scenario: Windsurf paths defined
 
@@ -103,6 +113,7 @@ The `AI_TOOLS` array SHALL include skill path and scope metadata that matches ea
 - **WHEN** looking up the `minimax-code` tool
 - **THEN** `skillsDir` SHALL be `.minimax`
 - **AND** skills SHALL declare support for `global` only
+- **AND** no command-file scope SHALL be declared
 - **AND** project preference SHALL use normal fallback rather than create a project `.minimax` skill tree
 
 #### Scenario: GitHub Copilot uses different skill containers
@@ -111,19 +122,28 @@ The `AI_TOOLS` array SHALL include skill path and scope metadata that matches ea
 - **THEN** project skills SHALL use the `.github` container
 - **AND** personal skills SHALL use the documented `.copilot` global override
 - **AND** skills SHALL declare `global` and `project` support
-- **AND** generated Copilot prompt files SHALL declare project-only command scope
+- **AND** its registered prompt adapter SHALL resolve both global and project install contexts
 
-#### Scenario: Other existing skill surfaces remain project-only
+#### Scenario: Existing skill surfaces support both selected roots
 
 - **WHEN** looking up an existing skills surface other than Codex, `agents`, MiniMax Code, or GitHub Copilot
-- **THEN** that skills surface SHALL support `project` only in the initial support matrix
-- **AND** no user-level path SHALL be inferred during implementation
+- **THEN** that skills surface SHALL support `global` and `project` in the initial support matrix
+- **AND** a documented `globalSkillsDir` override SHALL be used when its user-level container differs
+- **AND** an entry whose user-level convention remains unverified SHALL retain its current relative container below the selected user root without fallback or unresolved diagnostics
 
-#### Scenario: Existing adapter-backed commands remain project-only
+#### Scenario: Existing adapter-backed commands support both scopes
 
 - **WHEN** looking up any existing adapter-backed commands surface, including GitHub Copilot prompt files
-- **THEN** that commands surface SHALL support `project` only in the initial support matrix
-- **AND** no existing adapter SHALL write command files globally
+- **THEN** that commands surface SHALL support `global` and `project`
+- **AND** the adapter SHALL be the only component that selects its concrete installation root and file path
+- **AND** an unverified user-level convention SHALL retain the adapter's current relative layout below its selected user root without fallback or unresolved diagnostics
+
+#### Scenario: Current compatibility integrations remain available
+
+- **WHEN** looking up Amazon Q, Continue, or iFlow
+- **THEN** their existing skill containers SHALL remain unchanged
+- **AND** iFlow SHALL remain a selectable supported tool
+- **AND** any registered adapter for those tools SHALL support both install contexts using its adapter-owned layout
 
 ## ADDED Requirements
 
@@ -150,6 +170,13 @@ The system SHALL resolve skill targets from effective scope, platform context, a
 - **AND** `globalSkillsDir` is defined
 - **THEN** the target SHALL resolve to `<homeDir>/<globalSkillsDir>/skills`
 - **AND** `skillsDir` SHALL remain the project-scope container
+
+#### Scenario: Global skill target with a user-config base
+
+- **WHEN** effective skills scope is `global`
+- **AND** `globalSkillsBase` is `user-config`
+- **THEN** the target SHALL resolve below the platform-correct user configuration directory
+- **AND** `globalSkillsDir` SHALL be interpreted relative to that base
 
 #### Scenario: Windows skill target
 

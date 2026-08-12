@@ -26,13 +26,20 @@ The init command SHALL choose a preferred install scope from its run-only option
 ### Requirement: Init composes enabled surfaces with effective scope
 The init command SHALL resolve scope only for surfaces enabled by the selected tools, profile, delivery, and command-surface capabilities, and SHALL complete preflight before mutation.
 
-#### Scenario: GitHub Copilot split scope
+#### Scenario: GitHub Copilot uses global adapter context
 - **WHEN** GitHub Copilot is selected
 - **AND** both skills and commands are enabled
 - **AND** preferred scope is `global`
 - **THEN** Copilot skills SHALL be installed in its documented user-level skills target
-- **AND** Copilot prompt files SHALL be installed in the project target through project fallback
-- **AND** the split result SHALL be reported
+- **AND** Copilot prompt files SHALL be installed at the global path returned by its adapter
+- **AND** neither surface SHALL be reported as a fallback
+
+#### Scenario: Compatibility adapter uses global context
+- **WHEN** a selected tool has a registered adapter whose user-level convention remains unverified
+- **AND** preferred scope is `global`
+- **THEN** init SHALL use the adapter-returned global installation root and command paths
+- **AND** SHALL NOT install those commands in the project through fallback
+- **AND** SHALL NOT report them as unsupported or unresolved
 
 #### Scenario: Global-only MiniMax with project preference
 - **WHEN** MiniMax Code is selected

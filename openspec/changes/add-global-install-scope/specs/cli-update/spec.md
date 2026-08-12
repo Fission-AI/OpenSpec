@@ -80,9 +80,16 @@ Update SHALL validate all desired surfaces and every authorized cleanup-only tar
 - **AND** rerunning with `--force` SHALL authorize the displayed transition without prompting
 
 #### Scenario: Surface falls back
-- **WHEN** a configured enabled surface does not support preferred scope but supports the alternate
+- **WHEN** a configured enabled surface is explicitly declared not to support preferred scope but supports the alternate
 - **THEN** update SHALL synchronize the alternate target
 - **AND** SHALL report requested scope, effective scope, reason, and path
+
+#### Scenario: Adapter-backed command remains in requested global scope
+- **WHEN** a configured enabled command surface has a registered adapter
+- **AND** preferred scope is `global`
+- **THEN** update SHALL detect, compare, and synchronize commands at the adapter-returned global target
+- **AND** SHALL NOT substitute a project target because the user-level convention is unverified
+- **AND** SHALL NOT report that surface as unsupported or unresolved
 
 #### Scenario: Any configured surface is incompatible
 - **WHEN** any configured enabled surface cannot resolve a safe supported target

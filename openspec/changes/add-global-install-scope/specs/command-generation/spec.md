@@ -43,14 +43,23 @@ The system SHALL define a `ToolCommandAdapter` interface for per-tool formatting
 #### Scenario: Project-scoped adapter path
 
 - **WHEN** effective command scope is `project`
-- **THEN** the adapter SHALL return its documented concrete project installation root and file path
+- **THEN** the adapter SHALL return its matrix-recorded concrete project installation root and file path
 - **AND** the caller SHALL validate both paths within the project root
 
 #### Scenario: Global-scoped adapter path
 
-- **WHEN** a future adapter-backed surface declares effective command scope `global`
-- **THEN** its adapter SHALL return the documented concrete user-level installation root and file path from install context
-- **AND** preflight SHALL reject the declaration unless both paths are contained within an allowed user directory
+- **WHEN** any registered adapter receives effective command scope `global`
+- **THEN** it SHALL return the concrete user-level installation root and file path from install context
+- **AND** a documented user-level layout SHALL take precedence when one is recorded in the matrix
+- **AND** otherwise the adapter SHALL preserve its existing relative layout below its selected user root
+- **AND** the caller SHALL NOT substitute project fallback or report the adapter as unsupported or unresolved
+- **AND** preflight SHALL reject the returned target unless both paths are contained within the adapter's allowed user directory
+
+#### Scenario: Adapter command scopes are complete
+
+- **WHEN** enumerating the currently registered command adapters
+- **THEN** every adapter-backed surface SHALL accept `global` and `project` install contexts
+- **AND** tools without a registered adapter SHALL NOT gain a command-file surface from install-scope resolution
 
 ### Requirement: Command generator function
 

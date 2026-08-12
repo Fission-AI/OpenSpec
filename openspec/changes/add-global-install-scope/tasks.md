@@ -12,15 +12,15 @@
 
 ## 2. Tool Scope Metadata and Skill Resolution
 
-- [ ] 2.1 Add per-surface `scopeSupport.skills` / `scopeSupport.commands` metadata and default missing surface metadata to project-only
-- [ ] 2.2 Redefine `skillsDir` as the default relative skill container and `globalSkillsDir` as an optional differing global-container override rather than an implicit global-only marker
+- [ ] 2.1 Add per-surface `scopeSupport.skills` / `scopeSupport.commands` metadata; default existing `skillsDir` surfaces and registered adapters to global/project unless the complete matrix explicitly narrows them
+- [ ] 2.2 Redefine `skillsDir` as the default relative skill container, `globalSkillsDir` as an optional differing global-container override rather than an implicit global-only marker, and `globalSkillsBase` as the exceptional home/user-config base selector with XDG and Windows `%APPDATA%` handling
 - [ ] 2.3 Migrate MiniMax to `skillsDir: '.minimax'` with global-only skills support without changing its effective target
-- [ ] 2.4 Declare Codex and `agents` skills support for global/project, and declare GitHub Copilot's global/project skills plus project-only commands and `.copilot` global override
-- [ ] 2.5 Encode and test the closed initial matrix: every other existing skills surface and every existing adapter-backed commands surface remains project-only, with no implementation-time global path additions
+- [ ] 2.4 Declare Codex and `agents` skills support for global/project, and declare GitHub Copilot's global/project skills, global/project adapter commands, and `.copilot` global skill override
+- [ ] 2.5 Encode and test the complete 37-tool matrix: MiniMax remains global-only skill-only, every other existing skill target supports global/project, all 28 registered adapters support global/project, tools without adapters keep their current command-surface capability, and Amazon Q/Continue/iFlow compatibility layouts remain unchanged
 - [ ] 2.6 Implement a shared per-surface scope-decision resolver returning requested/effective scope, fallback state, and reason without constructing paths
 - [ ] 2.7 Make the skill target resolver the sole producer of scoped skill roots and containment roots from project/home/platform/env context
 - [ ] 2.8 Add canonical project/global containment validation, dangling/escaping symlink rejection, and allowed-root collision checks before mutation
-- [ ] 2.9 Add scope-decision and skill-target tests for the complete matrix, same/override containers, global-only fallback, unsupported targets, mixed surfaces, Windows paths, home inputs, and symlink escapes
+- [ ] 2.9 Add scope-decision and skill-target tests for every matrix row, same/override containers, MiniMax global-only fallback, compatibility layouts without fallback, invalid targets, mixed surfaces, Windows paths, home inputs, and symlink escapes
 
 ## 3. Shared Skill Ownership and Filesystem Detection
 
@@ -35,11 +35,11 @@
 ## 4. Command Generation Install Context
 
 - [ ] 4.1 Add the shared `InstallContext` contract and update `ToolCommandAdapter` with context-aware `getInstallRoot` and `getFilePath` methods returning concrete absolute paths
-- [ ] 4.2 Update every registered adapter to be the sole producer of its project installation root and file paths while preserving formatting and invocation names; do not add global command support in this change
+- [ ] 4.2 Update every registered adapter to be the sole producer of both project and global installation roots and file paths while preserving formatting and invocation names; use documented user-level overrides where listed and otherwise retain the adapter's current relative layout below the selected user root
 - [ ] 4.3 Pass install context through `generateCommand`, `generateCommands`, invocation derivation, and generated skill/getting-started command reference transformation
 - [ ] 4.4 Pass and reuse the same adapter-returned installation root/path pair through configured-command detection, freshness comparison, drift checks, reporting, and cleanup lookup without caller-side path reconstruction
-- [ ] 4.5 Add adapter contract tests for absolute project roots/paths, containment, invocation parity, and project-only fallback
-- [ ] 4.6 Add focused tests proving GitHub Copilot split scope still sends its prompt adapter project context and that no existing adapter writes commands globally
+- [ ] 4.5 Add adapter contract tests for absolute project/global roots and paths, platform-correct user bases, containment, invocation parity, and compatibility layouts without project fallback or unsupported/unresolved diagnostics
+- [ ] 4.6 Add focused tests proving GitHub Copilot and every other registered adapter receive global context in global mode, while MiniMax and tools without adapters do not invent command files
 
 ## 5. Shared Scope Planning, Cleanup Authority, and Transition Safety
 
@@ -60,7 +60,7 @@
 - [ ] 6.4 For runs without a scope override, preview and confirm cross-scope cleanup before writing scoped skills/commands and ownership markers in write-verify-clean order
 - [ ] 6.5 Report transition direction, concrete destination/cleanup paths, shared-global warnings, per-surface fallback, split scopes, and other-scope copies preserved by a run-only override
 - [ ] 6.6 Preserve GitHub Copilot cloud-agent opt-in behavior and tool setup notes independently from install scope
-- [ ] 6.7 Add init tests for new/legacy/explicit defaults, both persisted transition directions, confirmation accept/decline, `--force` and non-interactive refusal, run-only overrides preserving other scopes, cleanup-only targets, global Codex/agents, MiniMax fallback, Copilot split scope, mixed-tool preflight, symlink safety, and idempotency
+- [ ] 6.7 Add init tests for new/legacy/explicit defaults, both persisted transition directions, confirmation accept/decline, `--force` and non-interactive refusal, run-only overrides preserving other scopes, cleanup-only targets, global Codex/agents, MiniMax fallback, global Copilot prompt generation, compatibility adapters without fallback, mixed-tool preflight, symlink safety, and idempotency
 
 ## 7. Update Scope Support
 
@@ -71,7 +71,7 @@
 - [ ] 7.5 Report transition direction, concrete destination/cleanup paths, shared-global warnings, per-surface fallback, split scopes, override-preserved other-scope paths, preserved old paths after failures, and cleanup leftovers
 - [ ] 7.6 Keep allowlisted legacy global Codex prompt cleanup separate and replacement-gated, and never recreate a Codex command surface
 - [ ] 7.7 Preserve global-only shared skills under existing delivery rules so one project does not remove artifacts shared by other projects
-- [ ] 7.8 Add update tests for global-only configured tools, project/global duplicates, both persisted transition directions, confirmation accept/decline, `--force` and non-interactive refusal, override preservation, split scope, cleanup-only surfaces, commands-only installs, shared ownership, interrupted transitions, cleanup failures, self-upgrade forwarding, and repeat-run idempotency
+- [ ] 7.8 Add update tests for global-only configured tools, project/global duplicates, both persisted transition directions, confirmation accept/decline, `--force` and non-interactive refusal, override preservation, adapter-backed global commands, compatibility layouts without fallback, cleanup-only surfaces, commands-only installs, shared ownership, interrupted transitions, cleanup failures, self-upgrade forwarding, and repeat-run idempotency
 
 ## 8. Config UX
 
@@ -84,7 +84,7 @@
 
 ## 9. Documentation and Release Note
 
-- [ ] 9.1 Update `docs/supported-tools.md` with the closed initial project/global per-surface matrix, including Copilot split scope, Codex/agents shared ownership, and the rule that every unlisted existing surface is project-only
+- [ ] 9.1 Update `docs/supported-tools.md` with the same complete 37-tool project/global per-surface matrix from the design, including exact documented overrides, compatibility-preserved layouts, MiniMax global-only skill-only behavior, adapter-backed global commands, and Codex/agents shared ownership
 - [ ] 9.2 Update `docs/cli.md` and command help examples for persisted scope, init/update overrides, cross-scope confirmation, and `--force` authorization
 - [ ] 9.3 Update `docs/migration-guide.md` with legacy-default behavior, explicit opt-in, symmetric durable transitions, cleanup previews/confirmation, run-only override preservation, duplicate cleanup guidance, and global shared-state implications
 - [ ] 9.4 Clarify that `$CODEX_HOME/prompts` is legacy cleanup only and that install scope never restores Codex custom prompts
@@ -97,4 +97,4 @@
 - [ ] 10.3 Run `pnpm lint`, `pnpm build`, and the full `pnpm test` suite
 - [ ] 10.4 Verify Windows CI covers home resolution, path overrides, separators, case behavior, containment, and project/global scope transitions
 - [ ] 10.5 Manually smoke-test a new config defaulting global, a legacy config remaining project, both persisted migration directions with accept/decline/`--force` and non-interactive refusal, and both init/update run-only overrides preserving other scopes in isolated HOME/XDG/CODEX_HOME directories
-- [ ] 10.6 Manually smoke-test global Codex/agents ownership, MiniMax global-only fallback, GitHub Copilot split scope, deterministic cleanup-only behavior, and cleanup recovery after an injected failure
+- [ ] 10.6 Manually smoke-test global Codex/agents ownership, MiniMax global-only fallback, GitHub Copilot global prompt generation, one same-layout compatibility adapter, one differing-layout adapter, deterministic cleanup-only behavior, and cleanup recovery after an injected failure
