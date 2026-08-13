@@ -159,6 +159,7 @@ Install scope resolution and mutation SHALL use platform-correct paths and keep 
 - **AND** an existing ancestor changes before a write, rename, marker update, or removal
 - **THEN** the command SHALL repeat canonical containment validation immediately before that operation
 - **AND** SHALL reject a dangling, replaced, or escaping symbolic link without mutating through it
+- **AND** protection against another local process replacing an ancestor after that final validation but before the pathname operation SHALL be outside the first-version threat model
 
 #### Scenario: Verified global command path remains adapter-owned
 - **WHEN** a command surface declares global support and resolves to effective scope `global`
@@ -227,6 +228,13 @@ Scope reconciliation SHALL establish and verify replacement artifacts before rem
 - **AND** the run supplies `--scope`
 - **THEN** cleanup SHALL be limited to the scope that would be effective for that surface under the override
 - **AND** managed copies in other scopes SHALL be preserved
+
+#### Scenario: Skipped shared-root legacy integration is preserved
+- **WHEN** a legacy tool is skipped because another tool owns its resolved shared skills root
+- **AND** no replacement is generated for the skipped tool
+- **THEN** the skipped tool SHALL NOT be recorded as configured for that run
+- **AND** its repository-local legacy artifacts SHALL be excluded from immediate cleanup
+- **AND** tools that were not skipped SHALL retain ordinary replacement-gated cleanup behavior
 
 #### Scenario: Cleanup uses explicit managed names
 - **WHEN** previous-scope cleanup runs
