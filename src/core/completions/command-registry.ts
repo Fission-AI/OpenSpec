@@ -98,6 +98,10 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         name: 'specs',
         description: 'Validate all specs',
       },
+      {
+        name: 'archived',
+        description: 'Validate that archived changes have all tasks completed (for pre-commit linting)',
+      },
       COMMON_FLAGS.type,
       COMMON_FLAGS.strict,
       COMMON_FLAGS.jsonValidation,
@@ -227,6 +231,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     description: 'List available workflow schemas with descriptions',
     flags: [
       COMMON_FLAGS.json,
+      COMMON_FLAGS.store,
     ],
   },
   {

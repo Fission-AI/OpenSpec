@@ -130,7 +130,7 @@ describe('command-generation/registry', () => {
       };
 
       // Tools that don't use YAML frontmatter (markdown headers or TOML or plain)
-      const noYamlFrontmatter = ['cline', 'kilocode', 'roocode', 'gemini'];
+      const noYamlFrontmatter = ['cline', 'command-code', 'kilocode', 'roocode', 'gemini'];
 
       const adapters = CommandAdapterRegistry.getAll();
       for (const adapter of adapters) {

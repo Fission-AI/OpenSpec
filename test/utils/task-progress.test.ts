@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { promises as fs } from 'fs';
+import { promises as fs, realpathSync } from 'fs';
 import path from 'path';
 import os from 'os';
 import {
   countTasksFromContent,
   getTaskProgressForChange,
+  getTaskProgressDetailForChange,
   parseTaskLines,
 } from '../../src/utils/task-progress.js';
 import { resolveArtifactOutputs } from '../../src/core/artifact-graph/index.js';
@@ -113,6 +114,25 @@ describe('getTaskProgressForChange (#1202 tracked-tasks resolution)', () => {
 
     const progress = await getTaskProgressForChange(changesDir, 'target', projectRoot);
     expect(progress).toEqual({ total: 2, completed: 1 });
+  });
+
+  it('memoizes schema→glob resolution across changes via the shared cache (#205)', async () => {
+    await writeGlobSchema();
+    await writeChange('c1', { 'backend/tasks.md': '- [x] a\n' });
+    await writeChange('c2', { 'backend/tasks.md': '- [ ] b\n' });
+
+    const cache = new Map<string, string | undefined>();
+    const d1 = await getTaskProgressDetailForChange(changesDir, 'c1', projectRoot, cache);
+    // The schema→glob lookup is now cached under the resolved schema name.
+    expect(cache.get('glob-tasks')).toBe('**/tasks.md');
+    expect(cache.size).toBe(1);
+
+    // A second change on the same schema reuses the entry (no new key added),
+    // and results are still correct.
+    const d2 = await getTaskProgressDetailForChange(changesDir, 'c2', projectRoot, cache);
+    expect(cache.size).toBe(1);
+    expect(d1).toEqual({ total: 1, completed: 1, unreadable: [] });
+    expect(d2).toEqual({ total: 1, completed: 0, unreadable: [] });
   });
 
   it('identifies the tracked artifact by apply.tracks even when it is not named "tasks"', async () => {
@@ -303,5 +323,58 @@ describe('countTasksFromContent', () => {
     ].join('\n');
 
     expect(countTasksFromContent(content)).toEqual({ total: 6, completed: 3 });
+  });
+});
+
+/**
+ * #205 — `getTaskProgressDetailForChange` mirrors `getTaskProgressForChange`
+ * but also reports task files that exist yet cannot be read, so a lint can fail
+ * loudly instead of silently counting an unreadable file as "no tasks".
+ */
+describe('getTaskProgressDetailForChange (#205 unreadable reporting)', () => {
+  let root: string;
+  let changesDir: string;
+
+  beforeEach(async () => {
+    root = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-taskdetail-'));
+    changesDir = path.join(root, 'openspec', 'changes');
+    await fs.mkdir(changesDir, { recursive: true });
+  });
+
+  afterEach(async () => {
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it('reports no unreadable files for a normal tasks.md and counts as before', async () => {
+    const changeDir = path.join(changesDir, 'ok');
+    await fs.mkdir(changeDir, { recursive: true });
+    await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] a\n- [ ] b\n', 'utf-8');
+
+    const detail = await getTaskProgressDetailForChange(changesDir, 'ok', root);
+    expect(detail).toEqual({ total: 2, completed: 1, unreadable: [] });
+  });
+
+  it('records a task file that exists but cannot be read (EISDIR)', async () => {
+    // A tasks.md that is a directory yields a non-ENOENT read error on every
+    // platform, standing in for a genuinely unreadable file.
+    const badTasks = path.join(changesDir, 'bad', 'tasks.md');
+    await fs.mkdir(badTasks, { recursive: true });
+
+    const detail = await getTaskProgressDetailForChange(changesDir, 'bad', root);
+    expect(detail.total).toBe(0);
+    expect(detail.completed).toBe(0);
+    expect(detail.unreadable).toHaveLength(1);
+    // The reported path is the file that could not be read (both canonicalized
+    // so a /var vs /private/var symlink difference does not fail the identity).
+    expect(realpathSync.native(detail.unreadable[0])).toBe(
+      realpathSync.native(badTasks)
+    );
+  });
+
+  it('treats a missing tasks.md as zero tasks, not unreadable', async () => {
+    await fs.mkdir(path.join(changesDir, 'empty'), { recursive: true });
+
+    const detail = await getTaskProgressDetailForChange(changesDir, 'empty', root);
+    expect(detail).toEqual({ total: 0, completed: 0, unreadable: [] });
   });
 });
