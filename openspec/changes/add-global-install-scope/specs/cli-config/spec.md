@@ -36,7 +36,7 @@ The action-first `openspec config profile` workflow SHALL display and allow inde
 - **WHEN** install scope changed and was saved inside an OpenSpec project
 - **THEN** the existing apply-now prompt SHALL offer to run update for that project
 - **AND** an accepted update SHALL use the newly persisted install scope without a run-only override
-- **AND** the update SHALL be authorized to complete a durable cross-scope transition after replacement verification
+- **AND** the update MAY complete a durable cross-scope transition after replacement verification only within the cleanup authority explicitly supplied to that update invocation
 
 #### Scenario: Profile preset preserves install scope
 - **WHEN** the user applies a profile preset shortcut
@@ -96,7 +96,7 @@ The config command SHALL expose install scope through the existing list, get, se
 - **WHEN** the existing global config is invalid
 - **AND** the user confirms `config reset --all`
 - **THEN** the command SHALL replace it with the complete current defaults
-- **AND** the resulting `installScope` SHALL be explicit `global`
+- **AND** the resulting `installScope` SHALL be explicit `project`
 
 #### Scenario: Config storage scope flag remains distinct
 - **WHEN** the user invokes the config command's existing `--scope` option

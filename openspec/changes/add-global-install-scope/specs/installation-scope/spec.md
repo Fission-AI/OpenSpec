@@ -9,7 +9,7 @@ The system SHALL support a user-level preferred install scope with values `globa
 
 #### Scenario: New user default
 - **WHEN** no global config file exists and no run-only override is provided
-- **THEN** the preferred install scope SHALL be `global`
+- **THEN** the preferred install scope SHALL be `project`
 - **AND** the source SHALL be reported as `new-default`
 
 #### Scenario: Legacy user default
@@ -48,7 +48,7 @@ The system SHALL resolve effective scope independently for each enabled skills o
 
 #### Scenario: Registered adapter accepts the requested scope
 - **WHEN** a selected tool has a registered command adapter
-- **AND** its command surface is not explicitly narrowed to one scope
+- **AND** its command surface explicitly declares the requested scope
 - **THEN** the command surface SHALL use the requested `global` or `project` scope
 - **AND** the adapter SHALL return the concrete target for that install context
 - **AND** the result SHALL NOT be reported as a fallback, unsupported surface, or unresolved convention
@@ -83,11 +83,11 @@ The system SHALL fall back only when the complete tool matrix explicitly declare
 - **THEN** the alternate scope SHALL become effective
 - **AND** a fallback reason SHALL be included in user-facing output
 
-#### Scenario: Compatibility layout is not treated as unsupported
-- **WHEN** an existing skill integration or registered adapter has no separately verified user-level override
-- **THEN** global mode SHALL use the compatibility layout recorded in the complete matrix
-- **AND** SHALL NOT fall back to project
-- **AND** SHALL NOT report that surface as unsupported or unresolved
+#### Scenario: Unverified global layout is unsupported
+- **WHEN** an existing skill integration or registered adapter has no officially verified user-level path
+- **AND** the run requests global scope
+- **THEN** that surface SHALL NOT construct a global target from its project-relative layout
+- **AND** it SHALL fall back to its declared project target with an explicit reason when project is supported
 
 #### Scenario: Declared target is unsafe
 - **WHEN** an enabled surface's declared target cannot be resolved safely
@@ -121,6 +121,21 @@ The system SHALL make shared global mutations, explicit single-scope fallbacks, 
 - **WHEN** every enabled surface uses requested scope `project` without fallback
 - **THEN** output MAY use a compact project-scope summary without repeating every surface
 
+### Requirement: Global target uses a single-mutating-invocation model
+Each physical global target SHALL represent one user-level generated artifact set. The first version SHALL support one mutating OpenSpec invocation at a time for that target and SHALL treat simultaneous `init` or `update` mutation as outside the supported execution model without introducing a cross-process lock, global manifest, or downgrade prohibition.
+
+#### Scenario: Later sequential update applies current user configuration
+- **WHEN** two `init` or `update` invocations mutate the same global target sequentially
+- **AND** each invocation completes successfully before the next begins
+- **THEN** the later invocation SHALL reconcile the target to its running CLI and the current user-level profile, delivery, and workflow selection
+- **AND** a legitimate later configuration change SHALL NOT be rejected as a version or ownership conflict
+
+#### Scenario: Ordinary update recovers after unsupported competition stops
+- **WHEN** an interruption or simultaneous mutation left a global target incomplete or internally inconsistent
+- **AND** no competing OpenSpec process is still mutating that target
+- **THEN** an ordinary `openspec update` with the intended CLI SHALL detect drift across the complete expected managed-artifact set
+- **AND** SHALL reconcile the target without requiring `--force`
+
 ### Requirement: Cross-platform and contained path behavior
 Install scope resolution and mutation SHALL use platform-correct paths and keep every target within its declared project or user directory.
 
@@ -139,14 +154,29 @@ Install scope resolution and mutation SHALL use platform-correct paths and keep 
 - **WHEN** a global target or an existing parent resolves outside its allowed user directory
 - **THEN** the command SHALL fail before writing or removing artifacts through that path
 
+#### Scenario: Containment is revalidated at mutation time
+- **WHEN** a target passed whole-run preflight
+- **AND** an existing ancestor changes before a write, rename, marker update, or removal
+- **THEN** the command SHALL repeat canonical containment validation immediately before that operation
+- **AND** SHALL reject a dangling, replaced, or escaping symbolic link without mutating through it
+
+#### Scenario: Verified global command path remains adapter-owned
+- **WHEN** a command surface declares global support and resolves to effective scope `global`
+- **THEN** the owning adapter SHALL receive that effective scope in install context
+- **AND** SHALL return its matrix-recorded user-level installation root and command path
+- **AND** the command path SHALL be contained within the returned installation root
+- **AND** the installation root SHALL be contained within the documented platform-correct user root for that adapter
+- **AND** callers SHALL NOT reconstruct the global command path or grant global support through explicit `--tools` selection
+
 ### Requirement: Cleanup safety and migration authority
-Scope reconciliation SHALL establish and verify replacement artifacts before removing explicitly known OpenSpec-managed artifacts, and SHALL allow cross-scope cleanup only when the run uses the persisted or migration-aware default rather than a run-only override and has explicit migration confirmation.
+Scope reconciliation SHALL establish and verify replacement artifacts before removing explicitly known OpenSpec-managed artifacts. Project cleanup requires explicit transition confirmation, and every global cleanup additionally requires `--allow-global-cleanup`.
 
 #### Scenario: Durable transition previews cleanup in either direction
 - **WHEN** a run without `--scope` plans a `project` to `global` or `global` to `project` transition
 - **AND** managed artifacts at the previous scope would be removed
 - **THEN** the command SHALL complete path preflight and display the transition direction, destination paths, and cleanup paths before mutation
 - **AND** SHALL warn when a cleanup path is global and may be shared by other projects
+- **AND** a global cleanup path SHALL remain preserved unless `--allow-global-cleanup` was supplied
 - **AND** an interactive run SHALL request confirmation with a default of No
 
 #### Scenario: User declines durable transition cleanup
@@ -162,12 +192,21 @@ Scope reconciliation SHALL establish and verify replacement artifacts before rem
 
 #### Scenario: Force authorizes durable transition cleanup
 - **WHEN** a durable transition is run with `--force`
-- **THEN** the command SHALL treat the transition cleanup as confirmed without prompting
+- **THEN** the command SHALL treat authorized project cleanup as confirmed without prompting
+- **AND** `--force` alone SHALL NOT authorize removal of a global target
 - **AND** SHALL still report the transition direction and concrete paths
+
+#### Scenario: Global cleanup receives additional authorization
+- **WHEN** a durable transition or cleanup-only surface includes a global managed target
+- **AND** `--allow-global-cleanup` is supplied
+- **THEN** that exact global target MAY enter the cleanup plan
+- **AND** interactive execution SHALL still require the default-No confirmation unless `--force` is also supplied
+- **AND** non-interactive execution SHALL require both `--allow-global-cleanup` and `--force`
 
 #### Scenario: Successful durable scope transition
 - **WHEN** a run without `--scope` resolves an enabled surface to a different scope from existing managed artifacts
 - **AND** cross-scope cleanup has been confirmed interactively or authorized with `--force`
+- **AND** any global cleanup target has also been authorized with `--allow-global-cleanup`
 - **THEN** the system SHALL write all desired artifacts at the new target
 - **AND** SHALL verify the expected managed artifact list there
 - **AND** only then SHALL remove managed artifacts from the previous target
@@ -180,7 +219,8 @@ Scope reconciliation SHALL establish and verify replacement artifacts before rem
 #### Scenario: Cleanup-only surface without a run-only override
 - **WHEN** ordinary delivery behavior classifies a surface as cleanup-only
 - **AND** the run does not supply `--scope`
-- **THEN** exact managed artifacts SHALL be removed from every declared scope authorized by that delivery cleanup after whole-run preflight
+- **THEN** exact managed project artifacts MAY be removed after whole-run preflight and explicit confirmation
+- **AND** exact managed global artifacts SHALL be preserved unless global cleanup has the additional authorization described above
 
 #### Scenario: Cleanup-only surface with a run-only override
 - **WHEN** ordinary delivery behavior classifies a surface as cleanup-only
@@ -204,3 +244,11 @@ Scope reconciliation SHALL establish and verify replacement artifacts before rem
 - **AND** cleanup of an old managed target fails
 - **THEN** the command SHALL retain the new artifacts
 - **AND** SHALL return an actionable failure listing leftover old paths
+
+#### Scenario: Invalid config cannot authorize durable cleanup
+- **WHEN** config storage is malformed, unreadable, or schema-invalid
+- **AND** no run-only scope is supplied
+- **THEN** the conservatively reported project scope SHALL NOT authorize migration or cleanup
+- **AND** the command SHALL require repair before durable reconciliation
+- **WHEN** an explicit run-only scope is supplied
+- **THEN** the command MAY write that target while preserving all other-scope managed artifacts

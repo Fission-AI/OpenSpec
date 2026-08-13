@@ -3,10 +3,10 @@
 ### Requirement: Init install scope selection
 The init command SHALL choose a preferred install scope from its run-only option or the source-aware global preference.
 
-#### Scenario: New-config global default
+#### Scenario: New-config project default
 - **WHEN** the user runs `openspec init` without `--scope`
 - **AND** no global config file exists
-- **THEN** init SHALL prefer `global`
+- **THEN** init SHALL prefer `project`
 
 #### Scenario: Legacy-config project default
 - **WHEN** the user runs `openspec init` without `--scope`
@@ -26,20 +26,20 @@ The init command SHALL choose a preferred install scope from its run-only option
 ### Requirement: Init composes enabled surfaces with effective scope
 The init command SHALL resolve scope only for surfaces enabled by the selected tools, profile, delivery, and command-surface capabilities, and SHALL complete preflight before mutation.
 
-#### Scenario: GitHub Copilot uses global adapter context
+#### Scenario: GitHub Copilot uses split global and project scopes
 - **WHEN** GitHub Copilot is selected
 - **AND** both skills and commands are enabled
 - **AND** preferred scope is `global`
 - **THEN** Copilot skills SHALL be installed in its documented user-level skills target
-- **AND** Copilot prompt files SHALL be installed at the global path returned by its adapter
-- **AND** neither surface SHALL be reported as a fallback
+- **AND** Copilot prompt files SHALL be installed at the existing project path returned by its adapter
+- **AND** init SHALL report requested global command scope, effective project command scope, the fallback reason, and both concrete targets
 
-#### Scenario: Compatibility adapter uses global context
+#### Scenario: Unverified adapter falls back to project
 - **WHEN** a selected tool has a registered adapter whose user-level convention remains unverified
 - **AND** preferred scope is `global`
-- **THEN** init SHALL use the adapter-returned global installation root and command paths
-- **AND** SHALL NOT install those commands in the project through fallback
-- **AND** SHALL NOT report them as unsupported or unresolved
+- **THEN** init SHALL NOT invent a user-level command path
+- **AND** SHALL use the declared project target when project is supported
+- **AND** SHALL report the fallback reason and concrete project path
 
 #### Scenario: Global-only MiniMax with project preference
 - **WHEN** MiniMax Code is selected
@@ -68,6 +68,7 @@ The init command SHALL resolve scope only for surfaces enabled by the selected t
 - **THEN** init SHALL show the transition direction and concrete destination and cleanup paths before mutation
 - **AND** SHALL warn when global cleanup may affect other projects
 - **AND** SHALL require interactive confirmation unless `--force` is present
+- **AND** SHALL preserve every global cleanup target unless `--allow-global-cleanup` is also present
 
 #### Scenario: Durable scope transition is declined
 - **WHEN** the user declines init's cross-scope cleanup confirmation
@@ -77,6 +78,15 @@ The init command SHALL resolve scope only for surfaces enabled by the selected t
 - **WHEN** non-interactive init would perform cross-scope cleanup without `--force`
 - **THEN** init SHALL fail before mutation with an actionable authorization error
 - **AND** rerunning with `--force` SHALL authorize the displayed transition without prompting
+- **AND** removal of any displayed global target SHALL additionally require `--allow-global-cleanup`
+
+#### Scenario: Invalid config blocks durable init reconciliation
+- **WHEN** init reads malformed, unreadable, or schema-invalid global config
+- **AND** no run-only scope is supplied
+- **THEN** init SHALL NOT treat the conservative project value as cleanup authority
+- **AND** SHALL require repair before durable migration
+- **WHEN** a run-only scope is supplied
+- **THEN** init MAY write that target and SHALL preserve every other scope
 
 ### Requirement: Init manages shared scoped skill roots
 Init SHALL maintain one OpenSpec writer for Codex and the vendor-neutral `agents` target at each resolved `.agents/skills` root.

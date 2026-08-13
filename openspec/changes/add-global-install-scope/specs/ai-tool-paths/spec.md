@@ -25,11 +25,9 @@ The `AIToolOption` interface SHALL include skill path metadata and MAY include e
 #### Scenario: Scope support metadata is absent
 
 - **WHEN** an existing skills surface has `skillsDir` but omits narrower scope support metadata
-- **THEN** that surface SHALL support `global` and `project`
-- **AND** its current relative container SHALL be resolved below the selected root unless a global override is declared
+- **THEN** that surface SHALL support `project` only
 - **WHEN** a registered command adapter omits narrower scope support metadata
-- **THEN** that adapter-backed surface SHALL support `global` and `project`
-- **AND** the adapter SHALL resolve the concrete path for the requested install context
+- **THEN** that adapter-backed surface SHALL support `project` only
 
 #### Scenario: Project and global skill containers match
 
@@ -54,19 +52,19 @@ The `AIToolOption` interface SHALL include skill path metadata and MAY include e
 
 ### Requirement: Path configuration for supported tools
 
-The `AI_TOOLS` array SHALL include the complete skill path and scope matrix for every supported tool, using documented installation locations where available and an explicitly recorded compatibility layout otherwise, while command capability and paths remain adapter-owned and independent from skill scope.
+The `AI_TOOLS` array SHALL include the complete per-surface scope matrix for every supported tool. Global support SHALL be declared only for user-level locations verified from official upstream material, while command capability and paths remain adapter-owned and independent from skill scope.
 
 #### Scenario: Claude Code paths defined
 
 - **WHEN** looking up the `claude` tool
 - **THEN** `skillsDir` SHALL be `.claude`
-- **AND** its skills and adapter-backed commands SHALL support `global` and `project`
+- **AND** its skills and adapter-backed commands SHALL support `project` only until official user-level paths are recorded in the matrix
 
 #### Scenario: Cursor paths defined
 
 - **WHEN** looking up the `cursor` tool
 - **THEN** `skillsDir` SHALL be `.cursor`
-- **AND** its skills and adapter-backed commands SHALL support `global` and `project`
+- **AND** its skills and adapter-backed commands SHALL support `project` only until official user-level paths are recorded in the matrix
 
 #### Scenario: Windsurf paths defined
 
@@ -122,28 +120,29 @@ The `AI_TOOLS` array SHALL include the complete skill path and scope matrix for 
 - **THEN** project skills SHALL use the `.github` container
 - **AND** personal skills SHALL use the documented `.copilot` global override
 - **AND** skills SHALL declare `global` and `project` support
-- **AND** its registered prompt adapter SHALL resolve both global and project install contexts
+- **AND** its registered prompt adapter SHALL remain project-only until an official personal prompt-file path is recorded
 
-#### Scenario: Existing skill surfaces support both selected roots
+#### Scenario: Existing skill surfaces require verified global paths
 
 - **WHEN** looking up an existing skills surface other than Codex, `agents`, MiniMax Code, or GitHub Copilot
-- **THEN** that skills surface SHALL support `global` and `project` in the initial support matrix
-- **AND** a documented `globalSkillsDir` override SHALL be used when its user-level container differs
-- **AND** an entry whose user-level convention remains unverified SHALL retain its current relative container below the selected user root without fallback or unresolved diagnostics
+- **THEN** that skills surface SHALL retain its existing project target
+- **AND** it SHALL support global scope only when the matrix records an official user-level path
+- **AND** an unverified user-level convention SHALL remain unsupported rather than reuse the project-relative container below the selected user root
 
-#### Scenario: Existing adapter-backed commands support both scopes
+#### Scenario: Existing adapter-backed commands require verified global paths
 
 - **WHEN** looking up any existing adapter-backed commands surface, including GitHub Copilot prompt files
-- **THEN** that commands surface SHALL support `global` and `project`
+- **THEN** that commands surface SHALL retain its existing project support
 - **AND** the adapter SHALL be the only component that selects its concrete installation root and file path
-- **AND** an unverified user-level convention SHALL retain the adapter's current relative layout below its selected user root without fallback or unresolved diagnostics
+- **AND** global commands SHALL be supported only when the matrix records an official user-level command path
+- **AND** an unverified user-level convention SHALL remain unsupported
 
 #### Scenario: Current compatibility integrations remain available
 
 - **WHEN** looking up Amazon Q, Continue, or iFlow
 - **THEN** their existing skill containers SHALL remain unchanged
 - **AND** iFlow SHALL remain a selectable supported tool
-- **AND** any registered adapter for those tools SHALL support both install contexts using its adapter-owned layout
+- **AND** their unverified global skill and adapter paths SHALL remain unsupported
 
 ## ADDED Requirements
 

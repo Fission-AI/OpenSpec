@@ -10,7 +10,7 @@ The global config SHALL support `installScope` values `global` and `project` and
 
 #### Scenario: No config file exists
 - **WHEN** the global config file does not exist
-- **THEN** effective install scope SHALL be `global`
+- **THEN** effective install scope SHALL be `project`
 - **AND** its source SHALL be `new-default`
 - **AND** reading config SHALL NOT create a file
 
@@ -26,6 +26,7 @@ The global config SHALL support `installScope` values `global` and `project` and
 - **THEN** an invalid-config warning SHALL be emitted
 - **AND** effective install scope SHALL conservatively resolve to `project`
 - **AND** its source SHALL be `legacy-default`
+- **AND** storage state SHALL remain `invalid` rather than becoming authoritative project configuration
 - **AND** reading config SHALL NOT mutate the file
 
 #### Scenario: Existing install scope is schema-invalid
@@ -33,6 +34,7 @@ The global config SHALL support `installScope` values `global` and `project` and
 - **THEN** a validation warning SHALL identify the invalid field
 - **AND** effective install scope SHALL conservatively resolve to `project`
 - **AND** its source SHALL be `legacy-default`
+- **AND** storage state SHALL remain `invalid` rather than becoming authoritative project configuration
 - **AND** reading config SHALL NOT mutate the file
 
 ### Requirement: New config creation records install-scope provenance
@@ -40,29 +42,29 @@ Whenever a config patch creates the user-level global config for the first time,
 
 #### Scenario: Config mutation creates the file
 - **WHEN** config set, profile, or another targeted config mutation creates a previously absent global config
-- **THEN** the file SHALL include `installScope: global`
+- **THEN** the file SHALL include `installScope: project`
 - **AND** SHALL include the fields explicitly changed by that mutation
 - **AND** SHALL NOT materialize unrelated default fields
 
 #### Scenario: Telemetry creates the file first
 - **WHEN** no global config file exists
 - **AND** telemetry state causes OpenSpec to create it
-- **THEN** the created file SHALL include `installScope: global`
+- **THEN** the created file SHALL include `installScope: project`
 - **AND** SHALL preserve the telemetry state being written
 - **AND** SHALL NOT materialize unrelated defaults such as `profile`, `delivery`, or `workflows`
-- **AND** install scope observed by the current CLI invocation SHALL remain `global` from `new-default`
+- **AND** install scope observed by the current CLI invocation SHALL remain `project` from `new-default`
 - **AND** a later CLI invocation SHALL observe the persisted value as `explicit`
 
 #### Scenario: Legacy telemetry migration creates the file first
 - **WHEN** no current global config file exists
 - **AND** telemetry identity or notice state is migrated from the legacy config location
 - **THEN** the new global config SHALL contain the migrated telemetry state
-- **AND** SHALL contain `installScope: global`
+- **AND** SHALL contain `installScope: project`
 - **AND** SHALL NOT materialize unrelated default fields
 
 #### Scenario: Config reset writes defaults
 - **WHEN** the user resets global config to current defaults
-- **THEN** the resulting config SHALL explicitly contain `installScope: global`
+- **THEN** the resulting config SHALL explicitly contain `installScope: project`
 
 ### Requirement: Provenance-preserving global config updates
 Every OpenSpec feature that updates global config SHALL preserve the raw existing document and install-scope provenance unless that operation explicitly changes or resets `installScope`.
@@ -102,7 +104,15 @@ Every OpenSpec feature that updates global config SHALL preserve the raw existin
 #### Scenario: Confirmed reset recovers invalid config
 - **WHEN** the user confirms `config reset --all` for an invalid global config
 - **THEN** reset SHALL be allowed to replace the invalid document
-- **AND** the replacement SHALL contain the complete current defaults including `installScope: global`
+- **AND** the replacement SHALL contain the complete current defaults including `installScope: project`
+
+#### Scenario: Invalid storage cannot authorize durable cleanup
+- **WHEN** an existing global config is malformed, unreadable, or schema-invalid
+- **AND** init or update runs without a scope override
+- **THEN** the conservative reported project scope SHALL NOT authorize durable migration or cleanup in any scope
+- **AND** the command SHALL require the config to be repaired before durable reconciliation
+- **WHEN** the same command receives an explicit run-only scope
+- **THEN** it MAY generate at that run-only target while preserving managed artifacts in every other scope
 
 ### Requirement: Install scope validation
 Global config validation SHALL accept only supported install scope values and SHALL preserve the existing valid file when a write is rejected.

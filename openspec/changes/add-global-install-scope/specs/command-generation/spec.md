@@ -48,18 +48,26 @@ The system SHALL define a `ToolCommandAdapter` interface for per-tool formatting
 
 #### Scenario: Global-scoped adapter path
 
-- **WHEN** any registered adapter receives effective command scope `global`
+- **WHEN** a registered adapter whose command surface declares global support receives effective command scope `global`
 - **THEN** it SHALL return the concrete user-level installation root and file path from install context
-- **AND** a documented user-level layout SHALL take precedence when one is recorded in the matrix
-- **AND** otherwise the adapter SHALL preserve its existing relative layout below its selected user root
-- **AND** the caller SHALL NOT substitute project fallback or report the adapter as unsupported or unresolved
-- **AND** preflight SHALL reject the returned target unless both paths are contained within the adapter's allowed user directory
+- **AND** the returned layout SHALL be the officially verified user-level layout recorded in the matrix
+- **AND** the installation root SHALL be contained within the documented platform-correct user root for that adapter
+- **AND** preflight SHALL reject the returned command path unless it is contained within the installation root returned for the same context
 
 #### Scenario: Adapter command scopes are complete
 
 - **WHEN** enumerating the currently registered command adapters
-- **THEN** every adapter-backed surface SHALL accept `global` and `project` install contexts
+- **THEN** every adapter-backed surface SHALL accept `project` install context
+- **AND** only adapters with an officially verified user-level command path SHALL accept `global` install context
 - **AND** tools without a registered adapter SHALL NOT gain a command-file surface from install-scope resolution
+
+#### Scenario: Project-only adapter falls back before path resolution
+
+- **WHEN** requested command scope is `global`
+- **AND** the selected registered adapter does not declare global command support
+- **THEN** the shared scope resolver SHALL select its declared project scope with an explicit fallback reason before constructing install context
+- **AND** the adapter SHALL receive effective command scope `project`
+- **AND** explicit `--tools` selection SHALL NOT bypass the matrix or opt the adapter into unverified global support
 
 ### Requirement: Command generator function
 
@@ -84,9 +92,19 @@ The system SHALL provide `generateCommand` and `generateCommands` functions that
 
 - **WHEN** an adapter declares an `invocationPrefix` because its files are not invoked with a slash
 - **THEN** `generateCommand` SHALL rewrite `/opsx:<id>` references in the body to `<prefix>opsx-<id>` by replacing the leading slash
-- **AND** generated skills and init/update getting-started hints SHALL use the same form
+- **AND** tool-installed skill artifacts and init/update getting-started hints SHALL use that same adapter-registered form only when the resolved install plan also generates the referenced adapter-backed commands for that tool
+- **AND** when those command files are not generated, tool-installed skill artifacts and hints SHALL use the applicable skill-reference transformation instead of pointing to nonexistent commands
 - **WHEN** an adapter declares no `invocationPrefix`
 - **THEN** the prefix SHALL default to `/`
+
+#### Scenario: Committed skill distribution and source templates remain canonical
+
+- **WHEN** generating the committed `skills/<skill-name>/SKILL.md` distribution
+- **THEN** generation SHALL continue to use `transformToSkillReferences`
+- **AND** SHALL NOT apply an adapter-specific `invocationPrefix` or install-scope transformation
+- **WHEN** authoring or storing command and workflow source templates
+- **THEN** their bodies SHALL retain canonical `/opsx:<id>` references
+- **AND** adapter-specific transformation SHALL occur only while producing tool-installed artifacts or init/update getting-started hints, without modifying the source templates
 
 #### Scenario: Generate multiple commands
 
@@ -102,5 +120,5 @@ The system SHALL provide `generateCommand` and `generateCommands` functions that
 #### Scenario: Scoped path is used by all command consumers
 
 - **WHEN** generated commands are detected, compared for freshness, reported, or removed
-- **THEN** those consumers SHALL reuse the adapter-returned installation root and command path with the same effective install context
+- **THEN** those consumers SHALL reuse the adapter-returned installation root and command path from the same resolved install plan
 - **AND** SHALL NOT fall back to an unscoped `getFilePath` call

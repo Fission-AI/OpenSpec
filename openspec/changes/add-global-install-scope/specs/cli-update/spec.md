@@ -25,10 +25,10 @@ The update command SHALL choose a preferred install scope from its run-only opti
 
 #### Scenario: Self-upgrade reruns update
 - **WHEN** update upgrades the OpenSpec CLI and reruns itself
-- **THEN** the rerun SHALL preserve the original path, force option, and scope override
+- **THEN** the rerun SHALL preserve the original path, force option, scope override, and global-cleanup authorization
 
 ### Requirement: Scope-aware detection and drift
-Update SHALL detect configured tools and configuration drift across exact managed targets in every supported scope using the same resolved install context as generation.
+Update SHALL construct one resolved install plan and use it for configured-tool detection, version and profile-drift checks, generation, verification, reporting, and cleanup. The plan SHALL contain the effective target for each surface and the canonical physical shared-skill root. Freshness SHALL be determined from the complete expected managed-artifact set rather than from one representative skill.
 
 #### Scenario: Tool is configured only globally
 - **WHEN** a known OpenSpec-managed artifact exists only at a tool's resolved global target
@@ -43,7 +43,8 @@ Update SHALL detect configured tools and configuration drift across exact manage
 - **WHEN** exact managed artifacts exist at project and global targets
 - **AND** update runs without `--scope`
 - **THEN** update SHALL refresh and verify the desired effective target
-- **AND** SHALL plan cleanup of the non-effective managed copy
+- **AND** SHALL plan cleanup of a non-effective project copy only after ordinary transition authorization
+- **AND** SHALL preserve a non-effective global copy unless `--allow-global-cleanup` is supplied
 
 #### Scenario: Both scopes contain managed copies during an override
 - **WHEN** exact managed artifacts exist at project and global targets
@@ -55,10 +56,29 @@ Update SHALL detect configured tools and configuration drift across exact manage
 - **WHEN** a commands-only installation is checked for freshness
 - **THEN** generated command comparison SHALL use the adapter path resolved for the effective install context
 
+#### Scenario: Mixed skill versions require ordinary synchronization
+- **WHEN** all desired skill files exist at the effective target
+- **AND** at least one desired skill records a `generatedBy` version different from the running CLI
+- **THEN** update SHALL treat the tool as requiring synchronization even when another desired skill already records the current version
+- **AND** an ordinary update without `--force` SHALL regenerate and verify the complete desired skill set
+
+#### Scenario: Ordinary update recovers an incomplete or competing result
+- **WHEN** no other OpenSpec process is still mutating the effective target
+- **AND** a previous interruption or unsupported competing run left desired artifacts missing, mixed-version skills, stale generated commands, deselected managed artifacts, or an inconsistent shared ownership marker
+- **THEN** an ordinary update without `--force` SHALL detect the mismatch from the resolved install plan
+- **AND** SHALL reconcile the target to the running CLI and current user-level configuration
+- **AND** `--force` SHALL remain an optional unconditional rewrite rather than a required recovery step
+
 #### Scenario: Shared skill ownership is scoped
 - **WHEN** Codex or `agents` uses a shared `.agents/skills` root
 - **THEN** configured-tool detection SHALL use the marker and managed files at that physical effective root
 - **AND** SHALL NOT use the marker from the other scope as ownership of the effective root
+
+#### Scenario: Skipped shared-root legacy integration is preserved
+- **WHEN** legacy reconciliation skips a tool because another enabled tool owns the resolved physical shared-skill root
+- **THEN** update SHALL NOT record the skipped tool as configured for that run
+- **AND** SHALL exclude that tool's repository-local legacy slash-command artifacts from immediate cleanup
+- **AND** SHALL preserve ordinary replacement and cleanup behavior for tools that were not skipped
 
 ### Requirement: Scope-aware update preflight and synchronization
 Update SHALL validate all desired surfaces and every authorized cleanup-only target before mutation and SHALL synchronize each desired surface using its independently resolved effective scope.
@@ -69,6 +89,7 @@ Update SHALL validate all desired surfaces and every authorized cleanup-only tar
 - **THEN** update SHALL show the transition direction and concrete destination and cleanup paths before mutation
 - **AND** SHALL warn when global cleanup may affect other projects
 - **AND** SHALL require interactive confirmation unless `--force` is present
+- **AND** SHALL preserve every global cleanup target unless `--allow-global-cleanup` is also present
 
 #### Scenario: Durable scope transition is declined
 - **WHEN** the user declines update's cross-scope cleanup confirmation
@@ -78,18 +99,24 @@ Update SHALL validate all desired surfaces and every authorized cleanup-only tar
 - **WHEN** non-interactive update would perform cross-scope cleanup without `--force`
 - **THEN** update SHALL fail before mutation with an actionable authorization error
 - **AND** rerunning with `--force` SHALL authorize the displayed transition without prompting
+- **AND** removal of any displayed global target SHALL additionally require `--allow-global-cleanup`
 
 #### Scenario: Surface falls back
 - **WHEN** a configured enabled surface is explicitly declared not to support preferred scope but supports the alternate
 - **THEN** update SHALL synchronize the alternate target
 - **AND** SHALL report requested scope, effective scope, reason, and path
 
-#### Scenario: Adapter-backed command remains in requested global scope
-- **WHEN** a configured enabled command surface has a registered adapter
+#### Scenario: Verified adapter-backed command remains in requested global scope
+- **WHEN** a configured enabled command surface has a registered adapter that declares verified global support
 - **AND** preferred scope is `global`
 - **THEN** update SHALL detect, compare, and synchronize commands at the adapter-returned global target
-- **AND** SHALL NOT substitute a project target because the user-level convention is unverified
-- **AND** SHALL NOT report that surface as unsupported or unresolved
+- **AND** SHALL NOT reconstruct that path from its project layout
+
+#### Scenario: Unverified adapter-backed command falls back to project
+- **WHEN** a configured enabled command surface supports project but has no verified global path
+- **AND** preferred scope is `global`
+- **THEN** update SHALL synchronize its declared project target
+- **AND** SHALL report the requested global scope, effective project scope, fallback reason, and path
 
 #### Scenario: Any configured surface is incompatible
 - **WHEN** any configured enabled surface cannot resolve a safe supported target
@@ -112,6 +139,14 @@ Update SHALL validate all desired surfaces and every authorized cleanup-only tar
 - **AND** cleanup of a non-effective managed target fails
 - **THEN** update SHALL retain the effective-target artifacts
 - **AND** SHALL return an actionable failure listing leftovers
+
+#### Scenario: Invalid config blocks durable update reconciliation
+- **WHEN** update reads malformed, unreadable, or schema-invalid global config
+- **AND** no run-only scope is supplied
+- **THEN** update SHALL NOT treat the conservative project value as cleanup authority
+- **AND** SHALL require repair before durable migration
+- **WHEN** a run-only scope is supplied
+- **THEN** update MAY synchronize that target and SHALL preserve every other scope
 
 ### Requirement: Scope behavior preserves current command-surface migrations
 Install scope behavior SHALL preserve Codex skills-only behavior and keep legacy global Codex prompt cleanup separate from ordinary scope reconciliation.
