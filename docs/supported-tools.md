@@ -170,7 +170,10 @@ Two things to know:
   version, `openspec update` strips them — see the [Migration Guide](migration-guide.md).
 
 Zed support here is for the built-in Zed Agent. Zed External Agents and Terminal
-Threads use their own integrations.
+Threads use their own integrations. Agent Skills require
+[Zed v1.4.2](https://github.com/zed-industries/zed/releases/tag/v1.4.2) or newer.
+Project-local skills are unavailable in an untrusted worktree until you
+[grant trust](https://zed.dev/docs/worktree-trust).
 
 Because `.agents/skills/` is shared by Codex, Zed Agent, and the vendor-neutral target,
 it is worth knowing what OpenSpec claims there:

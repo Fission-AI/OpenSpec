@@ -194,6 +194,7 @@ describe('openspec CLI e2e basics', () => {
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('OpenSpec Setup Complete');
       expect(result.stdout).toContain('Zed Agent');
+      expect(result.stdout).not.toContain('Restart your IDE');
 
       const skillPath = path.join(emptyProjectDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md');
       expect(await fileExists(skillPath)).toBe(true);
