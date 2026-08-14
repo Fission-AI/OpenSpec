@@ -4,6 +4,7 @@ import { writeChangeMetadata, validateSchemaName } from './change-metadata.js';
 import { formatLocalDate } from './date.js';
 import { readProjectConfig } from '../core/project-config.js';
 import { isKebabId } from '../core/id.js';
+import { resolveSchema } from '../core/artifact-graph/resolver.js';
 import type { ChangeMetadata } from '../core/change-metadata/index.js';
 
 const DEFAULT_SCHEMA = 'spec-driven';
@@ -156,6 +157,10 @@ export async function createChange(
 
   // Validate the resolved schema
   validateSchemaName(schemaName, projectRoot);
+  const schema = resolveSchema(schemaName, projectRoot);
+  const skipsSpecs = !schema.artifacts.some(artifact =>
+    artifact.generates.replace(/^(?:\.\/)+/, '').startsWith('specs/')
+  );
 
   // Build the change directory path
   const changeDir = path.join(options.changesDir ?? path.join(projectRoot, 'openspec', 'changes'), name);
@@ -190,6 +195,7 @@ export async function createChange(
   writeChangeMetadata(changeDir, {
     schema: schemaName,
     created: formatLocalDate(),
+    ...(skipsSpecs ? { skip_specs: true } : {}),
     ...options.metadata,
   }, projectRoot);
 

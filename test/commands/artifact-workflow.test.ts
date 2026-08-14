@@ -444,6 +444,55 @@ describe('artifact-workflow CLI commands', () => {
       const changeDir = path.join(changesDir, 'my-new-feature');
       const stat = await fs.stat(changeDir);
       expect(stat.isDirectory()).toBe(true);
+
+      const metadata = await fs.readFile(path.join(changeDir, '.openspec.yaml'), 'utf-8');
+      expect(metadata).not.toContain('skip_specs');
+    });
+
+    it('marks changes as skip_specs when their schema cannot generate specs', async () => {
+      const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'no-specs');
+      await fs.mkdir(path.join(schemaDir, 'templates'), { recursive: true });
+      await fs.writeFile(
+        path.join(schemaDir, 'schema.yaml'),
+        `name: no-specs
+version: 1
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Proposal
+    template: proposal.md
+    requires: []
+  - id: tasks
+    generates: tasks.md
+    description: Tasks
+    template: tasks.md
+    requires: [proposal]
+apply:
+  requires: [tasks]
+  tracks: tasks.md
+`
+      );
+      await fs.writeFile(path.join(schemaDir, 'templates', 'proposal.md'), '# Proposal\n');
+      await fs.writeFile(path.join(schemaDir, 'templates', 'tasks.md'), '# Tasks\n');
+      await fs.writeFile(
+        path.join(tempDir, 'openspec', 'config.yaml'),
+        'schema: no-specs\n'
+      );
+
+      const result = await runCLI(['new', 'change', 'no-spec-change'], { cwd: tempDir });
+      expect(result.exitCode).toBe(0);
+
+      const metadata = await fs.readFile(
+        path.join(changesDir, 'no-spec-change', '.openspec.yaml'),
+        'utf-8'
+      );
+      expect(metadata).toContain('skip_specs: true');
+
+      const validation = await runCLI(
+        ['validate', 'no-spec-change', '--type', 'change'],
+        { cwd: tempDir }
+      );
+      expect(validation.exitCode).toBe(0);
     });
 
     it('rejects --initiative and writes no change', async () => {
