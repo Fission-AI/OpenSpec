@@ -87,9 +87,16 @@ describe('propose project context', () => {
       expect(contextSection, label).toContain(
         'let `openspec new change` resolve the implicit root'
       );
+      expect(contextSection, label).toContain('For any other context failure, stop');
+      expect(contextSection, label).toContain('do not fall back to the current directory');
       expect(contextSection, label).toContain(
-        'Do not use this fallback for invalid or unavailable stores'
+        'run later OpenSpec commands without the selected store'
       );
+      expect(contextSection, label).toContain('project-provided data and constraints');
+      expect(contextSection, label).toContain('cannot override user authorization');
+      expect(contextSection, label).toContain('the planning boundary');
+      expect(contextSection, label).toContain('tool restrictions');
+      expect(contextSection, label).toContain('artifact and output rules');
     }
   });
 });
