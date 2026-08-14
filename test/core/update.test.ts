@@ -1332,6 +1332,26 @@ metadata:
       expect(content).toContain('**Provided arguments**: $ARGUMENTS');
     });
 
+    it('should update OpenCode commands with invocation arguments', async () => {
+      const opencodeSkillsDir = path.join(testDir, '.opencode', 'skills');
+      await fs.mkdir(path.join(opencodeSkillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(opencodeSkillsDir, 'openspec-explore', 'SKILL.md'),
+        'old'
+      );
+
+      const staleCommand = path.join(testDir, '.opencode', 'commands', 'opsx-propose.md');
+      await fs.mkdir(path.dirname(staleCommand), { recursive: true });
+      await fs.writeFile(staleCommand, 'old command without arguments');
+
+      await updateCommand.execute(testDir);
+
+      const content = await fs.readFile(staleCommand, 'utf-8');
+      expect(content).toContain('**Provided arguments**: $ARGUMENTS');
+    });
+
     it('should migrate a legacy .windsurf install to .devin, preserving user files', async () => {
       // A project set up before the Devin Desktop rebrand: OpenSpec skills and
       // workflows under .windsurf/, alongside files the user wrote themselves.
