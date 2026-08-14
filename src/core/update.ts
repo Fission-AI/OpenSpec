@@ -1100,7 +1100,12 @@ export class UpdateCommand {
       }
     }
 
-    const inferredCodexWorkflows = getLegacyWorkflowIdsForTool(detection, 'codex');
+    const inferredCodexWorkflows = getProfileWorkflows(
+      'custom',
+      getLegacyWorkflowIdsForTool(detection, 'codex')
+    ).filter((workflow): workflow is (typeof ALL_WORKFLOWS)[number] =>
+      (ALL_WORKFLOWS as readonly string[]).includes(workflow)
+    );
 
     // Create skills/commands for selected tools using effective profile+delivery.
     const newlyConfigured: string[] = [];

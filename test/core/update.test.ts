@@ -2333,6 +2333,33 @@ ${OPENSPEC_MARKERS.end}
       )).toBe(false);
     });
 
+    it.each([
+      ['opsx-archive.md', 'openspec-archive-change'],
+      ['opsx-bulk-archive.md', 'openspec-bulk-archive-change'],
+    ])('should include sync when replacing legacy Codex %s', async (promptName, archiveSkill) => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'skills',
+      });
+
+      const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
+      const managedPrompt = path.join(promptDir, promptName);
+      await fs.mkdir(promptDir, { recursive: true });
+      await fs.writeFile(managedPrompt, 'legacy archive prompt');
+
+      const forceUpdateCommand = new UpdateCommand({ force: true });
+      await forceUpdateCommand.execute(testDir);
+
+      expect(await FileSystemUtils.fileExists(managedPrompt)).toBe(false);
+      expect(await FileSystemUtils.fileExists(
+        path.join(testDir, '.agents', 'skills', archiveSkill, 'SKILL.md')
+      )).toBe(true);
+      expect(await FileSystemUtils.fileExists(
+        path.join(testDir, '.agents', 'skills', 'openspec-sync-specs', 'SKILL.md')
+      )).toBe(true);
+    });
+
     it('should print a skill-based getting-started menu when a legacy upgrade newly configures codex', async () => {
       setMockConfig({
         featureFlags: {},
@@ -3003,40 +3030,63 @@ More user content after markers.
       )).toBe(false);
     });
 
-    it('should install sync for an archive profile while listing other missing core workflows', async () => {
-      setMockConfig({
-        featureFlags: {},
-        profile: 'custom',
-        delivery: 'both',
-        workflows: ['propose', 'explore', 'apply', 'archive'],
-      });
+    it.each(['skills', 'commands', 'both'] as const)(
+      'should repair an archive profile missing sync with %s delivery',
+      async (delivery) => {
+        setMockConfig({
+          featureFlags: {},
+          profile: 'custom',
+          delivery,
+          workflows: ['propose', 'explore', 'apply', 'archive'],
+        });
 
-      const initCommand = new InitCommand({ tools: 'claude', force: true });
-      await initCommand.execute(testDir);
+        const archiveSkill = path.join(
+          testDir,
+          '.claude',
+          'skills',
+          'openspec-archive-change',
+          'SKILL.md'
+        );
+        const archiveCommand = path.join(
+          testDir,
+          '.claude',
+          'commands',
+          'opsx',
+          'archive.md'
+        );
+        if (delivery !== 'commands') {
+          await fs.mkdir(path.dirname(archiveSkill), { recursive: true });
+          await fs.writeFile(archiveSkill, 'old archive skill');
+        }
+        if (delivery !== 'skills') {
+          await fs.mkdir(path.dirname(archiveCommand), { recursive: true });
+          await fs.writeFile(archiveCommand, 'old archive command');
+        }
 
-      const consoleSpy = vi.spyOn(console, 'log');
+        const consoleSpy = vi.spyOn(console, 'log');
 
-      await updateCommand.execute(testDir);
+        await updateCommand.execute(testDir);
 
-      const calls = consoleSpy.mock.calls.map(call =>
-        call.map(arg => String(arg)).join(' ')
-      );
-      expect(calls.some(call =>
-        call.includes('Your custom profile is missing 1 core workflow: update')
-      )).toBe(true);
-      expect(calls.some(call =>
-        call.includes('openspec config profile core')
-      )).toBe(true);
+        const calls = consoleSpy.mock.calls.map(call =>
+          call.map(arg => String(arg)).join(' ')
+        );
+        expect(calls.some(call =>
+          call.includes('Your custom profile is missing 1 core workflow: update')
+        )).toBe(true);
+        expect(calls.some(call =>
+          call.includes('openspec config profile core')
+        )).toBe(true);
 
-      expect(await FileSystemUtils.fileExists(
-        path.join(testDir, '.claude', 'skills', 'openspec-sync-specs', 'SKILL.md')
-      )).toBe(true);
-      expect(await FileSystemUtils.fileExists(
-        path.join(testDir, '.claude', 'commands', 'opsx', 'sync.md')
-      )).toBe(true);
+        expect(await FileSystemUtils.fileExists(
+          path.join(testDir, '.claude', 'skills', 'openspec-sync-specs', 'SKILL.md')
+        )).toBe(delivery !== 'commands');
+        expect(await FileSystemUtils.fileExists(
+          path.join(testDir, '.claude', 'commands', 'opsx', 'sync.md')
+        )).toBe(delivery !== 'skills');
 
-      consoleSpy.mockRestore();
-    });
+        consoleSpy.mockRestore();
+      }
+    );
 
     it('should list a single missing core workflow when custom profile lacks only update', async () => {
       setMockConfig({
