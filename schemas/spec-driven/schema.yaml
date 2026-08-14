@@ -183,9 +183,9 @@ artifacts:
       - Tasks should be small enough to complete in one session
       - Order tasks by dependency (what must be done first?)
       - Each task MUST state how to verify completion (a test, command,
-        observable behavior, or delivered artifact). Keep the verification in
-        the same checkbox description; do not create a second checkbox solely
-        to verify the preceding task.
+        observable behavior, or delivered artifact). Keep each verification in
+        the checkbox for the work it verifies; do not create any checkbox whose
+        sole purpose is to verify one or more other tasks.
 
       Example:
       ```

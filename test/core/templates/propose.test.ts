@@ -70,12 +70,18 @@ describe('default task guidance', () => {
       /a test, command,\s+observable behavior, or delivered artifact/
     );
     expect(tasks!.instruction).toMatch(
-      /Keep the verification in\s+the same checkbox description/
+      /Keep each verification in\s+the checkbox for the work it verifies/
     );
     expect(tasks!.instruction).toMatch(
-      /do not create a second checkbox solely\s+to verify the preceding task/
+      /do not create any checkbox whose\s+sole purpose is to verify one or more other tasks/
     );
-    expect(tasks!.instruction).not.toMatch(/- \[ \] \d+\.\d+ verify\b/i);
+
+    const example = tasks!.instruction.match(/```\s*([\s\S]*?)```/)?.[1];
+    expect(example).toBeDefined();
+    const numberedTasks = example!.split('\n').filter(line => /^- \[ \] \d+\.\d+ /.test(line));
+    expect(numberedTasks).toHaveLength(4);
+    expect(numberedTasks.every(line => /\bverify\b/i.test(line))).toBe(true);
+    expect(example).not.toMatch(/^- \[ \] \d+\.\d+ (?:verify|run (?:the )?verification)\b/im);
   });
 });
 
