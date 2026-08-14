@@ -10,7 +10,7 @@ import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 export function getArchiveChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-archive-change',
-    description: 'Archive a completed change in the experimental workflow. Use when the user wants to finalize and archive a change after implementation is complete.',
+    description: 'Archive a completed change in the experimental workflow. Use only when the current project has an openspec/ directory or the user explicitly asks to use OpenSpec.',
     instructions: `Archive a completed change in the experimental workflow.
 
 ${STORE_SELECTION_GUIDANCE}

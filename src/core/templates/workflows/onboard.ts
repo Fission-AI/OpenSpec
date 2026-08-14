@@ -10,7 +10,7 @@ import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 export function getOnboardSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-onboard',
-    description: 'Guided onboarding for OpenSpec - walk through a complete workflow cycle with narration and real codebase work.',
+    description: 'Guided onboarding for OpenSpec - walk through a complete workflow cycle with narration and real codebase work. Use only when the current project has an openspec/ directory or the user explicitly asks to use OpenSpec.',
     instructions: getOnboardInstructions(),
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
