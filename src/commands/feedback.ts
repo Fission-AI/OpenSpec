@@ -3,6 +3,8 @@ import { createRequire } from 'module';
 import os from 'os';
 
 const require = createRequire(import.meta.url);
+const MAX_TITLE_LENGTH = 72;
+const TITLE_PREFIX = 'Feedback: ';
 
 /**
  * Check if gh CLI is installed and available in PATH
@@ -75,21 +77,31 @@ Submitted via OpenSpec CLI
  * Format the feedback title
  */
 function formatTitle(message: string): string {
-  return `Feedback: ${message}`;
+  const normalizedMessage = message.replace(/\s+/g, ' ').trim();
+  const title = `${TITLE_PREFIX}${normalizedMessage}`;
+
+  if (Array.from(title).length <= MAX_TITLE_LENGTH) {
+    return title;
+  }
+
+  const availableLength = MAX_TITLE_LENGTH - TITLE_PREFIX.length - 1;
+  const candidate = Array.from(normalizedMessage).slice(0, availableLength).join('').trimEnd();
+  const lastSpace = candidate.lastIndexOf(' ');
+  const summary = lastSpace > 0 ? candidate.slice(0, lastSpace) : candidate;
+  return `${TITLE_PREFIX}${summary}…`;
 }
 
 /**
  * Format the full feedback body
  */
-function formatBody(bodyText?: string): string {
-  const parts: string[] = [];
+function formatBody(message: string, bodyText?: string): string {
+  const parts = ['## Summary', '', message.trim()];
 
   if (bodyText) {
-    parts.push(bodyText);
-    parts.push(''); // Empty line before metadata
+    parts.push('', '## Details', '', bodyText.trim());
   }
 
-  parts.push(generateMetadata());
+  parts.push('', generateMetadata());
 
   return parts.join('\n');
 }
@@ -247,7 +259,7 @@ export class FeedbackCommand {
   async execute(message: string, options?: { body?: string }): Promise<void> {
     // Format title and body once for all code paths
     const title = formatTitle(message);
-    const body = formatBody(options?.body);
+    const body = formatBody(message, options?.body);
 
     // Check if gh CLI is installed
     if (!isGhInstalled()) {

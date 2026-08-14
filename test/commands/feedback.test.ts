@@ -228,10 +228,41 @@ describe('FeedbackCommand', () => {
         'gh',
         expect.arrayContaining([
           '--body',
-          expect.stringContaining('Detailed description'),
+          expect.stringMatching(
+            /## Summary\n\nTitle here[\s\S]*## Details\n\nDetailed description/
+          ),
         ]),
         expect.any(Object)
       );
+    });
+
+    it('should preserve the full message in the body and shorten a long title', async () => {
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd === 'which gh' || cmd === 'where gh') {
+          return Buffer.from('/usr/local/bin/gh');
+        }
+        if (cmd === 'gh auth status') {
+          return Buffer.from('Logged in');
+        }
+        return '';
+      });
+
+      mockExecFileSync.mockReturnValue('https://github.com/Fission-AI/OpenSpec/issues/125\n');
+
+      const message =
+        'Generated workflows declare too few allowed tools,\nso headless runs cannot write files and silently fail.';
+      await feedbackCommand.execute(message);
+
+      const args = mockExecFileSync.mock.calls[0][1] as string[];
+      const title = args[args.indexOf('--title') + 1];
+      const body = args[args.indexOf('--body') + 1];
+
+      expect(title).toBe(
+        'Feedback: Generated workflows declare too few allowed tools, so…'
+      );
+      expect(title.length).toBeLessThanOrEqual(72);
+      expect(title).not.toMatch(/[\r\n]/);
+      expect(body).toContain(`## Summary\n\n${message}`);
     });
 
     it('should format title with "Feedback:" prefix', async () => {
@@ -525,8 +556,11 @@ describe('FeedbackCommand', () => {
         }
       });
 
+      const message =
+        'Generated workflows declare too few allowed tools,\nso headless runs cannot write files and silently fail.';
+
       try {
-        await feedbackCommand.execute('Test message', { body: 'Test body' });
+        await feedbackCommand.execute(message, { body: 'Test body' });
       } catch (error: any) {
         // Expected to exit
       }
@@ -536,13 +570,18 @@ describe('FeedbackCommand', () => {
         expect.stringContaining('--- FORMATTED FEEDBACK ---')
       );
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Title: Feedback: Test message')
+        expect.stringContaining(
+          'Title: Feedback: Generated workflows declare too few allowed tools, so…'
+        )
       );
       expect(consoleLogSpy).toHaveBeenCalledWith(
         expect.stringContaining('Labels: feedback')
       );
       expect(consoleLogSpy).toHaveBeenCalledWith(
         expect.stringContaining('--- END FEEDBACK ---')
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining(`## Summary\n\n${message}`)
       );
     });
 

@@ -1204,13 +1204,13 @@ openspec feedback <message> [options]
 
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `message` | Yes | Feedback message |
+| `message` | Yes | Feedback summary; long text is shortened in the issue title and preserved in the body |
 
 **Options:**
 
 | Option | Description |
 |--------|-------------|
-| `--body <text>` | Detailed description |
+| `--body <text>` | Additional details included after the summary |
 
 **Requirements:** GitHub CLI (`gh`) must be installed and authenticated.
 
