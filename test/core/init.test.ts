@@ -1349,6 +1349,8 @@ describe('InitCommand - profile and detection features', () => {
     // New commands should be at the correct plural path
     const newCommandsDir = path.join(testDir, '.opencode', 'commands');
     expect(await directoryExists(newCommandsDir)).toBe(true);
+    const proposeCommand = await fs.readFile(path.join(newCommandsDir, 'opsx-propose.md'), 'utf-8');
+    expect(proposeCommand).toContain('**Provided arguments**: $ARGUMENTS');
   });
 
   it('should remove managed global Codex prompts in non-interactive mode', async () => {
