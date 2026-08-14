@@ -267,6 +267,7 @@ export class UpdateCommand {
     // 10. Update tools (all if force, otherwise only those needing update)
     const toolsToUpdate = this.force ? configuredTools : [...toolsToUpdateSet];
     const updatedTools: string[] = [];
+    const updatedToolIds: string[] = [];
     const failedTools: Array<{ name: string; error: string }> = [];
     const skillsInvocableCommandSkips: string[] = [];
     const zeroArtifactTools: string[] = [];
@@ -361,6 +362,7 @@ export class UpdateCommand {
 
         spinner.succeed(`Updated ${tool.name}`);
         updatedTools.push(tool.name);
+        updatedToolIds.push(tool.value);
         for (const migration of migrateLegacyToolDirs(
           resolvedProjectPath,
           [tool.value],
@@ -484,7 +486,20 @@ export class UpdateCommand {
     }
 
     console.log();
-    console.log(chalk.dim('Restart your IDE for changes to take effect.'));
+    const affectedToolIds = [...new Set([...newlyConfiguredTools, ...updatedToolIds])];
+    const shouldRestartIde = affectedToolIds.some((toolId) => {
+      const tool = AI_TOOLS.find((candidate) => candidate.value === toolId);
+      return Boolean(
+        tool?.requiresIdeRestart &&
+        (
+          shouldGenerateCommandsForTool(toolId, delivery) ||
+          shouldGenerateSkillsForTool(toolId, delivery)
+        )
+      );
+    });
+    if (shouldRestartIde) {
+      console.log(chalk.dim('Restart your IDE for changes to take effect.'));
+    }
     if (failedTools.length > 0) {
       throw new Error(`OpenSpec update failed for: ${failedTools.map((tool) => tool.name).join(', ')}`);
     }
