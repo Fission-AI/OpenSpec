@@ -495,6 +495,63 @@ apply:
       expect(validation.exitCode).toBe(0);
     });
 
+    it('does not mark spec-producing schemas that use Windows separators', async () => {
+      const schemaName = 'windows-specs';
+      const generates = String.raw`specs\**\*.md`;
+      const schemaDir = path.join(tempDir, 'openspec', 'schemas', schemaName);
+      await fs.mkdir(path.join(schemaDir, 'templates'), { recursive: true });
+      await fs.writeFile(
+        path.join(schemaDir, 'schema.yaml'),
+        `name: ${schemaName}
+version: 1
+artifacts:
+  - id: specs
+    generates: '${generates}'
+    description: Specs
+    template: spec.md
+    requires: []
+`
+      );
+      await fs.writeFile(path.join(schemaDir, 'templates', 'spec.md'), '# Spec\n');
+      await fs.writeFile(
+        path.join(tempDir, 'openspec', 'config.yaml'),
+        `schema: ${schemaName}\n`
+      );
+
+      const changeName = `${schemaName}-change`;
+      const result = await runCLI(['new', 'change', changeName], { cwd: tempDir });
+      expect(result.exitCode).toBe(0);
+
+      const changeDir = path.join(changesDir, changeName);
+      const metadata = await fs.readFile(path.join(changeDir, '.openspec.yaml'), 'utf-8');
+      expect(metadata).not.toContain('skip_specs');
+
+      const specDir = path.join(changeDir, 'specs', 'example');
+      await fs.mkdir(specDir, { recursive: true });
+      await fs.writeFile(
+        path.join(specDir, 'spec.md'),
+        `## ADDED Requirements
+### Requirement: Example behavior
+The system SHALL support the example behavior.
+
+#### Scenario: Example succeeds
+- **WHEN** the example runs
+- **THEN** it succeeds
+`
+      );
+
+      const status = await runCLI(['status', '--change', changeName, '--json'], {
+        cwd: tempDir,
+      });
+      expect(status.exitCode).toBe(0);
+      expect(JSON.parse(status.stdout).artifacts[0].status).toBe('done');
+
+      const validation = await runCLI(['validate', changeName, '--type', 'change'], {
+        cwd: tempDir,
+      });
+      expect(validation.exitCode).toBe(0);
+    });
+
     it('rejects --initiative and writes no change', async () => {
       const result = await runCLI(
         ['new', 'change', 'linked-change', '--initiative', 'billing-launch'],

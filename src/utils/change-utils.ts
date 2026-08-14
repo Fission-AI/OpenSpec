@@ -5,6 +5,7 @@ import { formatLocalDate } from './date.js';
 import { readProjectConfig } from '../core/project-config.js';
 import { isKebabId } from '../core/id.js';
 import { resolveSchema } from '../core/artifact-graph/resolver.js';
+import { isSpecsArtifactPath } from '../core/artifact-graph/outputs.js';
 import type { ChangeMetadata } from '../core/change-metadata/index.js';
 
 const DEFAULT_SCHEMA = 'spec-driven';
@@ -157,10 +158,6 @@ export async function createChange(
 
   // Validate the resolved schema
   validateSchemaName(schemaName, projectRoot);
-  const schema = resolveSchema(schemaName, projectRoot);
-  const skipsSpecs = !schema.artifacts.some(artifact =>
-    artifact.generates.replace(/^(?:\.\/)+/, '').startsWith('specs/')
-  );
 
   // Build the change directory path
   const changeDir = path.join(options.changesDir ?? path.join(projectRoot, 'openspec', 'changes'), name);
@@ -169,6 +166,11 @@ export async function createChange(
   if (await FileSystemUtils.directoryExists(changeDir)) {
     throw new Error(`Change '${name}' already exists at ${changeDir}`);
   }
+
+  const schema = resolveSchema(schemaName, projectRoot);
+  const skipsSpecs = !schema.artifacts.some(artifact =>
+    isSpecsArtifactPath(artifact.generates)
+  );
 
   // Creating a change may scaffold or complete the root itself (an
   // implicit root, or a config-only/incomplete clone). Never leave a
