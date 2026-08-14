@@ -54,6 +54,16 @@ describe('profiles', () => {
       expect(result).toEqual(customWorkflows);
     });
 
+    it('should include sync when a custom profile selects archive', () => {
+      const result = getProfileWorkflows('custom', ['propose', 'explore', 'apply', 'archive']);
+      expect(result).toEqual(['propose', 'explore', 'apply', 'sync', 'archive']);
+    });
+
+    it('should include sync when a custom profile selects bulk archive', () => {
+      const result = getProfileWorkflows('custom', ['explore', 'bulk-archive']);
+      expect(result).toEqual(['explore', 'sync', 'bulk-archive']);
+    });
+
     it('should return empty array for custom profile with no customWorkflows', () => {
       const result = getProfileWorkflows('custom');
       expect(result).toEqual([]);

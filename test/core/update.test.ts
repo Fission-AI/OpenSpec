@@ -3003,7 +3003,7 @@ More user content after markers.
       )).toBe(false);
     });
 
-    it('should list missing core workflows when custom profile preserves the old core workflow set', async () => {
+    it('should install sync for an archive profile while listing other missing core workflows', async () => {
       setMockConfig({
         featureFlags: {},
         profile: 'custom',
@@ -3022,7 +3022,7 @@ More user content after markers.
         call.map(arg => String(arg)).join(' ')
       );
       expect(calls.some(call =>
-        call.includes('Your custom profile is missing 2 core workflows: update, sync')
+        call.includes('Your custom profile is missing 1 core workflow: update')
       )).toBe(true);
       expect(calls.some(call =>
         call.includes('openspec config profile core')
@@ -3030,10 +3030,10 @@ More user content after markers.
 
       expect(await FileSystemUtils.fileExists(
         path.join(testDir, '.claude', 'skills', 'openspec-sync-specs', 'SKILL.md')
-      )).toBe(false);
+      )).toBe(true);
       expect(await FileSystemUtils.fileExists(
         path.join(testDir, '.claude', 'commands', 'opsx', 'sync.md')
-      )).toBe(false);
+      )).toBe(true);
 
       consoleSpy.mockRestore();
     });

@@ -247,7 +247,7 @@ export class UpdateCommand {
       // Still check for new tool directories and extra workflows
       this.detectNewTools(resolvedProjectPath, configuredTools);
       this.displayExtraWorkflowsNote(resolvedProjectPath, configuredTools, desiredWorkflows);
-      this.displayMissingCoreWorkflowsNote(profile, globalConfig.workflows);
+      this.displayMissingCoreWorkflowsNote(profile, desiredWorkflows);
       this.displaySetupNotes(configuredTools);
       return;
     }
@@ -474,7 +474,7 @@ export class UpdateCommand {
 
     // 14. Display note about extra workflows not in profile
     this.displayExtraWorkflowsNote(resolvedProjectPath, configuredAndNewTools, desiredWorkflows);
-    this.displayMissingCoreWorkflowsNote(profile, globalConfig.workflows);
+    this.displayMissingCoreWorkflowsNote(profile, desiredWorkflows);
     this.displaySetupNotes(configuredAndNewTools);
 
     // 15. List affected tools
