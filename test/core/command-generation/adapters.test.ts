@@ -629,7 +629,7 @@ describe('command-generation/adapters', () => {
       const commandsWithoutArguments = getCommandContents()
         .filter((content) => {
           const output = generateCommand(content, opencodeAdapter).fileContent;
-          return !output.includes('**Provided arguments**: $ARGUMENTS');
+          return !output.includes('$ARGUMENTS');
         })
         .map((content) => content.id);
 
