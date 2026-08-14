@@ -1,6 +1,6 @@
 ---
 name: openspec-ff-change
-description: Fast-forward through OpenSpec artifact creation. Use only when the current project has an openspec/ directory or the user explicitly asks to use OpenSpec.
+description: Use only for OpenSpec work when the current project has an openspec/ directory, a configured or user-selected OpenSpec store applies, or the user explicitly invokes this skill or asks to use OpenSpec. Fast-forward through OpenSpec artifact creation. Use when the user wants to quickly create all artifacts needed for implementation without stepping through each one individually.
 allowed-tools: Bash(openspec:*)
 license: MIT
 compatibility: Requires openspec CLI.
@@ -8,6 +8,8 @@ metadata:
   author: openspec
   version: "1.0"
 ---
+
+**Activation check:** Use this skill only for OpenSpec work. Before continuing, confirm at least one of these conditions: the current project has an `openspec/` directory; `openspec context --json` resolves a configured OpenSpec store; the user selected a registered OpenSpec store; or the user explicitly invoked this skill or asked to use OpenSpec. If none applies, stop using this skill and continue with the user's request normally.
 
 Fast-forward through artifact creation - generate everything needed to start implementation in one go.
 

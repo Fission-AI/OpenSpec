@@ -6,6 +6,7 @@
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+import { SKILL_ACTIVATION_GUARD } from './skill-activation.js';
 
 /**
  * The apply workflow instructions, authored once and rendered by both the
@@ -198,8 +199,8 @@ This skill supports the "actions on a change" model:
 export function getApplyChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-apply-change',
-    description: 'Implement tasks from an OpenSpec change. Use only when the current project has an openspec/ directory or the user explicitly asks to use OpenSpec.',
-    instructions: getApplyInstructions(),
+    description: 'Use only for OpenSpec work when the current project has an openspec/ directory, a configured or user-selected OpenSpec store applies, or the user explicitly invokes this skill or asks to use OpenSpec. Implement tasks from an OpenSpec change. Use when the user wants to start implementing, continue implementation, or work through tasks.',
+    instructions: `${SKILL_ACTIVATION_GUARD}\n\n${getApplyInstructions()}`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },

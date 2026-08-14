@@ -6,12 +6,13 @@
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+import { SKILL_ACTIVATION_GUARD } from './skill-activation.js';
 
 export function getBulkArchiveChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-bulk-archive-change',
-    description: 'Archive multiple completed changes at once. Use only when the current project has an openspec/ directory or the user explicitly asks to use OpenSpec.',
-    instructions: `Archive multiple completed changes in a single operation.
+    description: 'Use only for OpenSpec work when the current project has an openspec/ directory, a configured or user-selected OpenSpec store applies, or the user explicitly invokes this skill or asks to use OpenSpec. Archive multiple completed changes at once. Use when archiving several parallel changes.',
+    instructions: `${SKILL_ACTIVATION_GUARD}\n\nArchive multiple completed changes in a single operation.
 
 This skill allows you to batch-archive changes, handling spec conflicts intelligently by checking the codebase to determine what's actually implemented.
 

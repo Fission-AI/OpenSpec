@@ -6,12 +6,13 @@
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+import { SKILL_ACTIVATION_GUARD } from './skill-activation.js';
 
 export function getSyncSpecsSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-sync-specs',
-    description: 'Sync delta specs from a change to main specs. Use only when the current project has an openspec/ directory or the user explicitly asks to use OpenSpec.',
-    instructions: `Sync delta specs from a change to main specs.
+    description: 'Use only for OpenSpec work when the current project has an openspec/ directory, a configured or user-selected OpenSpec store applies, or the user explicitly invokes this skill or asks to use OpenSpec. Sync delta specs from a change to main specs. Use when the user wants to update main specs with changes from a delta spec, without archiving the change.',
+    instructions: `${SKILL_ACTIVATION_GUARD}\n\nSync delta specs from a change to main specs.
 
 This is an **agent-driven** operation - you will read delta specs and directly edit main specs to apply the changes. This allows intelligent merging (e.g., adding a scenario without copying the entire requirement).
 

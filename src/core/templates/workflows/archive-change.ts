@@ -6,12 +6,13 @@
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+import { SKILL_ACTIVATION_GUARD } from './skill-activation.js';
 
 export function getArchiveChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-archive-change',
-    description: 'Archive a completed change in the experimental workflow. Use only when the current project has an openspec/ directory or the user explicitly asks to use OpenSpec.',
-    instructions: `Archive a completed change in the experimental workflow.
+    description: 'Use only for OpenSpec work when the current project has an openspec/ directory, a configured or user-selected OpenSpec store applies, or the user explicitly invokes this skill or asks to use OpenSpec. Archive a completed change in the experimental workflow. Use when the user wants to finalize and archive a change after implementation is complete.',
+    instructions: `${SKILL_ACTIVATION_GUARD}\n\nArchive a completed change in the experimental workflow.
 
 ${STORE_SELECTION_GUIDANCE}
 

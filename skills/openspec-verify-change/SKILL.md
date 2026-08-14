@@ -1,6 +1,6 @@
 ---
 name: openspec-verify-change
-description: Verify implementation matches change artifacts. Use only when the current project has an openspec/ directory or the user explicitly asks to use OpenSpec.
+description: Use only for OpenSpec work when the current project has an openspec/ directory, a configured or user-selected OpenSpec store applies, or the user explicitly invokes this skill or asks to use OpenSpec. Verify implementation matches change artifacts. Use when the user wants to validate that implementation is complete, correct, and coherent before archiving.
 allowed-tools: Bash(openspec:*)
 license: MIT
 compatibility: Requires openspec CLI.
@@ -8,6 +8,8 @@ metadata:
   author: openspec
   version: "1.0"
 ---
+
+**Activation check:** Use this skill only for OpenSpec work. Before continuing, confirm at least one of these conditions: the current project has an `openspec/` directory; `openspec context --json` resolves a configured OpenSpec store; the user selected a registered OpenSpec store; or the user explicitly invoked this skill or asked to use OpenSpec. If none applies, stop using this skill and continue with the user's request normally.
 
 Verify that an implementation matches the change artifacts (specs, tasks, design).
 

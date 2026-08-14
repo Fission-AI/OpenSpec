@@ -6,12 +6,13 @@
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+import { SKILL_ACTIVATION_GUARD } from './skill-activation.js';
 
 export function getOnboardSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-onboard',
-    description: 'Guided onboarding for OpenSpec - walk through a complete workflow cycle with narration and real codebase work. Use only when the current project has an openspec/ directory or the user explicitly asks to use OpenSpec.',
-    instructions: getOnboardInstructions(),
+    description: 'Use only for OpenSpec work when the current project has an openspec/ directory, a configured or user-selected OpenSpec store applies, or the user explicitly invokes this skill or asks to use OpenSpec. Guided onboarding for OpenSpec - walk through a complete workflow cycle with narration and real codebase work.',
+    instructions: `${SKILL_ACTIVATION_GUARD}\n\n${getOnboardInstructions()}`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },

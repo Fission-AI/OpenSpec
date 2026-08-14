@@ -6,12 +6,13 @@
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+import { SKILL_ACTIVATION_GUARD } from './skill-activation.js';
 
 export function getContinueChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-continue-change',
-    description: 'Continue working on an OpenSpec change by creating the next artifact. Use only when the current project has an openspec/ directory or the user explicitly asks to use OpenSpec.',
-    instructions: `Continue working on a change by creating the next artifact.
+    description: 'Use only for OpenSpec work when the current project has an openspec/ directory, a configured or user-selected OpenSpec store applies, or the user explicitly invokes this skill or asks to use OpenSpec. Continue working on an OpenSpec change by creating the next artifact. Use when the user wants to progress their change, create the next artifact, or continue their workflow.',
+    instructions: `${SKILL_ACTIVATION_GUARD}\n\nContinue working on a change by creating the next artifact.
 
 ${STORE_SELECTION_GUIDANCE}
 

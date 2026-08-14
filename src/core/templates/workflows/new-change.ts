@@ -6,12 +6,13 @@
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+import { SKILL_ACTIVATION_GUARD } from './skill-activation.js';
 
 export function getNewChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-new-change',
-    description: 'Start a new OpenSpec change using the experimental artifact workflow. Use only when the current project has an openspec/ directory or the user explicitly asks to use OpenSpec.',
-    instructions: `Start a new change using the experimental artifact-driven approach.
+    description: 'Use only for OpenSpec work when the current project has an openspec/ directory, a configured or user-selected OpenSpec store applies, or the user explicitly invokes this skill or asks to use OpenSpec. Start a new OpenSpec change using the experimental artifact workflow. Use when the user wants to create a new feature, fix, or modification with a structured step-by-step approach.',
+    instructions: `${SKILL_ACTIVATION_GUARD}\n\nStart a new change using the experimental artifact-driven approach.
 
 ${STORE_SELECTION_GUIDANCE}
 

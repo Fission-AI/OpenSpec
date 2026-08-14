@@ -1,6 +1,6 @@
 ---
 name: openspec-propose
-description: Propose a new change with all artifacts generated in one step. Use only when the current project has an openspec/ directory or the user explicitly asks to use OpenSpec.
+description: Use only for OpenSpec work when the current project has an openspec/ directory, a configured or user-selected OpenSpec store applies, or the user explicitly invokes this skill or asks to use OpenSpec. Propose a new change with all artifacts generated in one step. Use when the user wants to quickly describe what they want to build and get a complete proposal with design, specs, and tasks ready for implementation.
 allowed-tools: Bash(openspec:*)
 license: MIT
 compatibility: Requires openspec CLI.
@@ -8,6 +8,8 @@ metadata:
   author: openspec
   version: "1.0"
 ---
+
+**Activation check:** Use this skill only for OpenSpec work. Before continuing, confirm at least one of these conditions: the current project has an `openspec/` directory; `openspec context --json` resolves a configured OpenSpec store; the user selected a registered OpenSpec store; or the user explicitly invoked this skill or asked to use OpenSpec. If none applies, stop using this skill and continue with the user's request normally.
 
 Propose a new change - create the change and generate all artifacts in one step.
 
