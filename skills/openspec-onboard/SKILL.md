@@ -373,12 +373,12 @@ Here are the implementation tasks:
 
 ## 1. [Category or file]
 
-- [ ] 1.1 [Specific task]
-- [ ] 1.2 [Specific task]
+- [ ] 1.1 [Specific task] — verify: [test, command, observable behavior, or delivered artifact]
+- [ ] 1.2 [Specific task] — verify: [test, command, observable behavior, or delivered artifact]
 
-## 2. Verify
+## 2. Integration Verification
 
-- [ ] 2.1 [Verification step]
+- [ ] 2.1 Verify [broader integration or system behavior] with [end-to-end test or observable result]
 
 ---
 

@@ -70,10 +70,10 @@ describe('default task guidance', () => {
       /a test, command,\s+observable behavior, or delivered artifact/
     );
     expect(tasks!.instruction).toMatch(
-      /Keep each verification in\s+the checkbox for the work it verifies/
+      /Put the verification in\s+that task's checkbox description/
     );
     expect(tasks!.instruction).toMatch(
-      /do not create any checkbox whose\s+sole purpose is to verify one or more other tasks/
+      /Use a separate verification task only\s+when it checks broader integration or system behavior that spans\s+multiple implementation tasks/
     );
 
     const example = tasks!.instruction.match(/```\s*([\s\S]*?)```/)?.[1];
@@ -81,6 +81,10 @@ describe('default task guidance', () => {
     const numberedTasks = example!.split('\n').filter(line => /^- \[ \] \d+\.\d+ /.test(line));
     expect(numberedTasks).toHaveLength(4);
     expect(numberedTasks.every(line => /\bverify\b/i.test(line))).toBe(true);
+    expect(numberedTasks[0]).toContain('expected files are present');
+    expect(numberedTasks[1]).toContain('package installation succeeds');
+    expect(numberedTasks[2]).toContain('export test passes');
+    expect(numberedTasks[3]).toContain('unit tests cover quoting and delimiters');
     expect(example).not.toMatch(/^- \[ \] \d+\.\d+ (?:verify|run (?:the )?verification)\b/im);
   });
 });
