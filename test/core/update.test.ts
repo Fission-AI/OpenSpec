@@ -1675,8 +1675,42 @@ metadata:
         expect.stringContaining('Failed')
       );
 
+      // Cursor succeeded, so its IDE process still needs to reload the changes.
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Restart your IDE')
+      );
+
       writeSpy.mockRestore();
       consoleSpy.mockRestore();
+    });
+
+    it('should not suggest an IDE restart when only the IDE tool fails', async () => {
+      const claudeSkill = path.join(testDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md');
+      const cursorSkill = path.join(testDir, '.cursor', 'skills', 'openspec-explore', 'SKILL.md');
+      await fs.mkdir(path.dirname(claudeSkill), { recursive: true });
+      await fs.mkdir(path.dirname(cursorSkill), { recursive: true });
+      await fs.writeFile(claudeSkill, 'old');
+      await fs.writeFile(cursorSkill, 'old');
+
+      const originalWriteFile = FileSystemUtils.writeFile.bind(FileSystemUtils);
+      vi.spyOn(FileSystemUtils, 'writeFile').mockImplementation(async (filePath, content) => {
+        if (filePath.includes('.cursor') && filePath.includes('SKILL.md')) {
+          throw new Error('EACCES: permission denied');
+        }
+        return originalWriteFile(filePath, content);
+      });
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await expect(updateCommand.execute(testDir)).rejects.toThrow(
+        'OpenSpec update failed for: Cursor'
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Updated: Claude Code')
+      );
+      expect(consoleSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining('Restart your IDE')
+      );
     });
   });
 
@@ -2220,6 +2254,11 @@ metadata:
         expect.stringContaining('Already up to date: cursor')
       );
 
+      // A configured IDE tool that was not affected must not cause the hint.
+      expect(consoleSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining('Restart your IDE')
+      );
+
       consoleSpy.mockRestore();
     });
   });
@@ -2413,6 +2452,7 @@ ${OPENSPEC_MARKERS.end}
       expect(menuLines).toHaveLength(1);
       expect(menuLines[0]).toContain('/opsx-propose');
       expect(logCalls.some((entry) => entry.includes('/opsx:propose'))).toBe(false);
+      expect(logCalls.some((entry) => entry.includes('Restart your IDE'))).toBe(true);
     });
 
     it('should preserve legacy Codex prompts when a configured Codex tool lacks the replacement workflow', async () => {
@@ -2712,6 +2752,7 @@ More user content after markers.
         .join('\n');
       expect(gettingStartedCalls).not.toContain('/opsx:new');
       expect(gettingStartedCalls).not.toContain('/opsx:continue');
+      expect(gettingStartedCalls).not.toContain('Restart your IDE');
 
       // Skills should be created
       const skillFile = path.join(testDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md');
