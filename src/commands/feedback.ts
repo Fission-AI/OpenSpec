@@ -85,7 +85,22 @@ function formatTitle(message: string): string {
   }
 
   const availableLength = MAX_TITLE_LENGTH - TITLE_PREFIX.length - 1;
-  const candidate = Array.from(normalizedMessage).slice(0, availableLength).join('').trimEnd();
+  let candidate = '';
+  let candidateLength = 0;
+  const segments = new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(
+    normalizedMessage
+  );
+
+  for (const { segment } of segments) {
+    const segmentLength = Array.from(segment).length;
+    if (candidateLength + segmentLength > availableLength) {
+      break;
+    }
+    candidate += segment;
+    candidateLength += segmentLength;
+  }
+
+  candidate = candidate.trimEnd();
   const lastSpace = candidate.lastIndexOf(' ');
   const summary = lastSpace > 0 ? candidate.slice(0, lastSpace) : candidate;
   return `${TITLE_PREFIX}${summary}…`;
@@ -95,10 +110,10 @@ function formatTitle(message: string): string {
  * Format the full feedback body
  */
 function formatBody(message: string, bodyText?: string): string {
-  const parts = ['## Summary', '', message.trim()];
+  const parts = ['## Summary', '', message];
 
   if (bodyText) {
-    parts.push('', '## Details', '', bodyText.trim());
+    parts.push('', '## Details', '', bodyText);
   }
 
   parts.push('', generateMetadata());
