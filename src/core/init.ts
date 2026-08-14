@@ -751,13 +751,34 @@ export class InitCommand {
   ): ValidatedInitTool[] {
     const validatedTools: ValidatedInitTool[] = [];
 
-    const reconciledToolIds = toolIds.includes('codex') && toolIds.includes('agents')
-      ? toolIds.filter((toolId) => toolId !== 'agents')
+    const sharedAgentsTargets = ['codex', 'zed', 'agents'];
+    const selectedSharedTargets = sharedAgentsTargets.filter((toolId) => toolIds.includes(toolId));
+    // A Codex-rendered tree already serves Zed. Keep it when Zed is added later
+    // so Codex users do not lose the `$openspec-*` references they require.
+    const preserveConfiguredCodex = selectedSharedTargets.includes('zed') &&
+      toolStates.get('codex')?.configured;
+    const sharedTargetCandidates = preserveConfiguredCodex
+      ? [...new Set([...selectedSharedTargets, 'codex'])]
+      : selectedSharedTargets;
+    const sharedTargetOwner = sharedTargetCandidates.includes('codex')
+      ? 'codex'
+      : selectedSharedTargets.includes('zed')
+        ? 'zed'
+        : selectedSharedTargets[0];
+    const firstSharedIndex = toolIds.findIndex((id) => sharedAgentsTargets.includes(id));
+    const reconciledToolIds = sharedTargetCandidates.length > 1
+      ? toolIds.flatMap((toolId, index) => {
+          if (!sharedAgentsTargets.includes(toolId)) return [toolId];
+          return index === firstSharedIndex && sharedTargetOwner ? [sharedTargetOwner] : [];
+        })
       : toolIds;
-    if (reconciledToolIds.length !== toolIds.length) {
+    if (
+      reconciledToolIds.length !== toolIds.length ||
+      reconciledToolIds.some((toolId, index) => toolId !== toolIds[index])
+    ) {
       console.log(
         chalk.dim(
-          'Codex and agents share .agents/skills; writing one tree with Codex and generic skill references.'
+          `Codex, Zed, and agents share .agents/skills; writing one tree for ${sharedTargetOwner}.`
         )
       );
     }

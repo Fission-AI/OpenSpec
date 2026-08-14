@@ -185,6 +185,34 @@ describe('openspec CLI e2e basics', () => {
       expect(await fileExists(skillPath)).toBe(true);
     });
 
+    it('initializes with --tools zed option', async () => {
+      const projectDir = await prepareFixture('tmp-init');
+      const emptyProjectDir = path.join(projectDir, '..', 'empty-project');
+      await fs.mkdir(emptyProjectDir, { recursive: true });
+
+      const result = await runCLI(['init', '--tools', 'zed'], { cwd: emptyProjectDir });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('OpenSpec Setup Complete');
+      expect(result.stdout).toContain('Zed Agent');
+
+      const skillPath = path.join(emptyProjectDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md');
+      expect(await fileExists(skillPath)).toBe(true);
+      expect(await fs.readFile(
+        path.join(emptyProjectDir, '.agents', 'skills', '.openspec-target'),
+        'utf-8'
+      )).toBe('zed\n');
+
+      const updateResult = await runCLI(['update'], { cwd: emptyProjectDir });
+      expect(updateResult.exitCode).toBe(0);
+      expect(await fs.readFile(
+        path.join(emptyProjectDir, '.agents', 'skills', '.openspec-target'),
+        'utf-8'
+      )).toBe('zed\n');
+      const updatedSkill = await fs.readFile(skillPath, 'utf-8');
+      expect(updatedSkill).toContain('/openspec-explore');
+      expect(updatedSkill).not.toContain('$openspec-explore');
+    });
+
     it('initializes with --tools none option', async () => {
       const projectDir = await prepareFixture('tmp-init');
       const emptyProjectDir = path.join(projectDir, '..', 'empty-project');
