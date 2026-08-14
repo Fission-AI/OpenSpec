@@ -389,6 +389,23 @@ describe('skill templates split parity', () => {
     ];
 
     for (const [label, content] of variants) {
+      const taskBlock = content.match(
+        /Here are the implementation tasks:([\s\S]*?)Each checkbox becomes a unit of work/
+      )?.[1];
+      expect(taskBlock, label).toBeDefined();
+      const checkboxes = taskBlock!
+        .split('\n')
+        .filter(line => /^- \[ \] \d+\.\d+ /.test(line));
+      expect(checkboxes, label).toHaveLength(3);
+      expect(
+        checkboxes.every(
+          line =>
+            line.endsWith(
+              '[Specific task] — verify: [test, command, observable behavior, or delivered artifact]'
+            ) || / Verify .+ with \[.+\]$/.test(line)
+        ),
+        label
+      ).toBe(true);
       expect(content, label).toContain(
         '[Specific task] — verify: [test, command, observable behavior, or delivered artifact]'
       );
