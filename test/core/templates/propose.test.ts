@@ -61,6 +61,34 @@ describe('propose preamble', () => {
   });
 });
 
+describe('propose project context', () => {
+  it('loads project context before creating the change (#1651)', () => {
+    for (const [label, body] of proposeBodies) {
+      const contextStep = body.indexOf('**Load project context**');
+      const schemaStep = body.indexOf('**Determine the workflow schema**');
+      const createStep = body.indexOf('**Create the change directory**');
+
+      expect(contextStep, `${label} is missing the early context step`).toBeGreaterThanOrEqual(0);
+      expect(contextStep, `${label} loads context after schema selection`).toBeLessThan(schemaStep);
+      expect(contextStep, `${label} loads context after creating the change`).toBeLessThan(createStep);
+
+      const contextSection = body.slice(contextStep, schemaStep);
+      expect(contextSection, label).toContain('`openspec context --json`');
+      expect(contextSection, label).toContain('returned `root.path`');
+      expect(contextSection, label).toContain('`<root.path>/openspec/config.yaml`');
+      expect(contextSection, label).toContain('`config.yml`');
+      expect(contextSection, label).toContain('before exploring the codebase');
+      expect(contextSection, label).toContain('context reports only `no_openspec_root`');
+      expect(contextSection, label).toContain(
+        'let `openspec new change` resolve the implicit root'
+      );
+      expect(contextSection, label).toContain(
+        'Do not use this fallback for invalid or unavailable stores'
+      );
+    }
+  });
+});
+
 describe('propose implementation boundary', () => {
   it('makes the planning-only boundary prominent (#232, #258, #262)', () => {
     for (const [label, body] of proposeBodies) {

@@ -42,7 +42,13 @@ When the user is ready to implement, they must start the apply workflow explicit
 
    If the request contains ambiguity that would materially affect scope, externally observable behavior, compatibility, or acceptance criteria, ask the user before creating the change. For minor details, make a reasonable assumption and record it in the planning artifacts.
 
-2. **Determine the workflow schema**
+2. **Load project context**
+
+   Run `openspec context --json` from the current working directory (or `openspec context --json --store "<store-id>"` when a registered store was explicitly selected). Use the returned `root.path` as the authoritative OpenSpec root. If context reports only `no_openspec_root`, continue without project context and let `openspec new change` resolve the implicit root. Do not use this fallback for invalid or unavailable stores.
+
+   Read `<root.path>/openspec/config.yaml` (or `config.yml` if that is the existing file) and apply its `context` field before exploring the codebase or making planning decisions. If neither config file exists, continue without project context. Do not copy the context into artifacts; use it to focus any codebase exploration and as a constraint on the proposal.
+
+3. **Determine the workflow schema**
 
    Use the configured default schema unless the user explicitly requests a different workflow.
 
@@ -52,7 +58,7 @@ When the user is ready to implement, they must start the apply workflow explicit
 
    Otherwise, omit `--schema` to preserve the configured default.
 
-3. **Create the change directory**
+4. **Create the change directory**
 
    Choose one schema form below. If a registered store is selected, append `--store "<store-id>"` to that command and each later OpenSpec command shown below that accepts `--store`.
 
@@ -67,7 +73,7 @@ When the user is ready to implement, they must start the apply workflow explicit
    ```
    This creates a scaffolded change in the planning home resolved by the CLI with `.openspec.yaml`.
 
-4. **Get the artifact build order**
+5. **Get the artifact build order**
    ```bash
    openspec status --change "<name>" --json
    ```
@@ -76,7 +82,7 @@ When the user is ready to implement, they must start the apply workflow explicit
    - `artifacts`: list of all artifacts, each with its `status` and its `requires` edges (the artifact IDs it directly depends on)
    - `planningHome`, `changeRoot`, `artifactPaths`, and `actionContext`: path and scope context. Use these instead of assuming repo-local paths.
 
-5. **Create every artifact in the required set**
+6. **Create every artifact in the required set**
 
    Use a todo list to track progress through the artifacts.
 
@@ -115,7 +121,7 @@ When the user is ready to implement, they must start the apply workflow explicit
       - Ask the user to clarify
       - Then continue with creation
 
-6. **Show final status**
+7. **Show final status**
    ```bash
    openspec status --change "<name>"
    ```
