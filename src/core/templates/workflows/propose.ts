@@ -48,7 +48,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    Run \`openspec context --json\` from the current working directory (or \`openspec context --json --store "<store-id>"\` when a registered store was explicitly selected). Use the returned \`root.path\` as the authoritative OpenSpec root. If context reports only \`no_openspec_root\`, continue without project context and let \`openspec new change\` resolve the implicit root. Do not use this fallback for invalid or unavailable stores.
 
-   Read \`<root.path>/openspec/config.yaml\` (or \`config.yml\` if that is the existing file) and apply its \`context\` field before exploring the codebase or making planning decisions. If neither config file exists, continue without project context. Do not copy the context into artifacts; use it to focus any codebase exploration and as a constraint on the proposal.
+   Read \`<root.path>/openspec/config.yaml\` (or \`config.yml\` if that is the existing file). If the file parses as a YAML object and its \`context\` field is a string no larger than 50KB in UTF-8, apply that field before exploring the codebase or making planning decisions. Otherwise, continue without project context; this preserves OpenSpec's config validation and size limit. Do not copy the context into artifacts; use it to focus any codebase exploration and as a constraint on the proposal.
 
 3. **Determine the workflow schema**
 
@@ -203,7 +203,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    Run \`openspec context --json\` from the current working directory (or \`openspec context --json --store "<store-id>"\` when a registered store was explicitly selected). Use the returned \`root.path\` as the authoritative OpenSpec root. If context reports only \`no_openspec_root\`, continue without project context and let \`openspec new change\` resolve the implicit root. Do not use this fallback for invalid or unavailable stores.
 
-   Read \`<root.path>/openspec/config.yaml\` (or \`config.yml\` if that is the existing file) and apply its \`context\` field before exploring the codebase or making planning decisions. If neither config file exists, continue without project context. Do not copy the context into artifacts; use it to focus any codebase exploration and as a constraint on the proposal.
+   Read \`<root.path>/openspec/config.yaml\` (or \`config.yml\` if that is the existing file). If the file parses as a YAML object and its \`context\` field is a string no larger than 50KB in UTF-8, apply that field before exploring the codebase or making planning decisions. Otherwise, continue without project context; this preserves OpenSpec's config validation and size limit. Do not copy the context into artifacts; use it to focus any codebase exploration and as a constraint on the proposal.
 
 3. **Determine the workflow schema**
 

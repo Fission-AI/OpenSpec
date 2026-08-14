@@ -77,7 +77,11 @@ describe('propose project context', () => {
       expect(contextSection, label).toContain('returned `root.path`');
       expect(contextSection, label).toContain('`<root.path>/openspec/config.yaml`');
       expect(contextSection, label).toContain('`config.yml`');
-      expect(contextSection, label).toContain('apply its `context` field');
+      expect(contextSection, label).toContain('parses as a YAML object');
+      expect(contextSection, label).toContain('`context` field is a string');
+      expect(contextSection, label).toContain('no larger than 50KB in UTF-8');
+      expect(contextSection, label).toContain('apply that field');
+      expect(contextSection, label).toContain("preserves OpenSpec's config validation and size limit");
       expect(contextSection, label).toContain('before exploring the codebase');
       expect(contextSection, label).toContain('context reports only `no_openspec_root`');
       expect(contextSection, label).toContain(
