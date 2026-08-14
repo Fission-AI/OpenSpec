@@ -61,6 +61,24 @@ describe('propose preamble', () => {
   });
 });
 
+describe('default task guidance', () => {
+  it('requires a concrete verification method in each task (#345)', () => {
+    const tasks = defaultSchema.artifacts.find(artifact => artifact.id === 'tasks');
+    expect(tasks).toBeDefined();
+    expect(tasks!.instruction).toContain('Each task MUST state how to verify completion');
+    expect(tasks!.instruction).toMatch(
+      /a test, command,\s+observable behavior, or delivered artifact/
+    );
+    expect(tasks!.instruction).toMatch(
+      /Keep the verification in\s+the same checkbox description/
+    );
+    expect(tasks!.instruction).toMatch(
+      /do not create a second checkbox solely\s+to verify the preceding task/
+    );
+    expect(tasks!.instruction).not.toMatch(/- \[ \] \d+\.\d+ verify\b/i);
+  });
+});
+
 describe('propose implementation boundary', () => {
   it('makes the planning-only boundary prominent (#232, #258, #262)', () => {
     for (const [label, body] of proposeBodies) {
