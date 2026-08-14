@@ -5,8 +5,9 @@
   "description": "Documentation site for OpenSpec, built with Fumadocs and deployable to Cloudflare Pages.",
   "scripts": {
     "sync:docs": "node scripts/sync-docs.mjs",
+    "sync:docs:watch": "node --watch-path=../docs --watch-path=../docs-lab --watch-path=docs.sync.config.mjs --watch-preserve-output scripts/sync-docs.mjs",
     "build": "pnpm run sync:docs && fumadocs-mdx && next build",
-    "dev": "pnpm run sync:docs && next dev",
+    "dev": "pnpm run sync:docs && (pnpm run sync:docs:watch & next dev)",
     "start": "serve out",
     "types:check": "pnpm run sync:docs && fumadocs-mdx && next typegen && tsc --noEmit"
   },
