@@ -659,7 +659,7 @@ export class Validator {
       issues.push({
         level: 'WARNING',
         path: 'overview',
-        ...(placeholder.line === undefined ? {} : { line: placeholder.line }),
+        line: placeholder.line,
         message: VALIDATION_MESSAGES.PURPOSE_IS_PLACEHOLDER,
       });
     } else if (spec.overview.length < MIN_PURPOSE_LENGTH) {
