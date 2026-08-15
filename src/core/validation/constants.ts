@@ -11,6 +11,15 @@ export const MAX_WHY_SECTION_LENGTH = 1000;
 export const MAX_REQUIREMENT_TEXT_LENGTH = 500;
 export const MAX_DELTAS_PER_CHANGE = 10;
 
+// The Purpose `openspec archive` writes into a main spec it creates when the
+// delta introduced the capability without a usable `## Purpose`. Named here, and
+// composed from these two halves at the write site, so validation recognises the
+// placeholder through the same definition that produces it: a second, hand-copied
+// spelling would stop matching the day the wording changed, and a check that
+// matches nothing looks exactly like a check that found nothing.
+export const PURPOSE_PLACEHOLDER_PREFIX = 'TBD - created by archiving change ';
+export const PURPOSE_PLACEHOLDER_SUFFIX = '. Update Purpose after archive.';
+
 // Validation messages
 export const VALIDATION_MESSAGES = {
   // Required content
@@ -38,6 +47,10 @@ export const VALIDATION_MESSAGES = {
   
   // Warnings
   PURPOSE_TOO_BRIEF: `Purpose section is too brief (less than ${MIN_PURPOSE_LENGTH} characters)`,
+  PURPOSE_IS_PLACEHOLDER:
+    'Purpose section is still the placeholder archive writes for a new capability, not a Purpose anyone wrote. ' +
+    'Replace it with what this capability is for, editing the main spec directly: a `## Purpose` in a delta is ' +
+    'read only when the capability is created, so it cannot replace this one.',
   REQUIREMENT_TOO_LONG: `Requirement text is very long (>${MAX_REQUIREMENT_TEXT_LENGTH} characters). Consider breaking it down.`,
   DELTA_DESCRIPTION_TOO_BRIEF: 'Delta description is too brief',
   DELTA_MISSING_REQUIREMENTS: 'Delta should include requirements',
