@@ -79,10 +79,14 @@ describe('findPurposePlaceholderIssue', () => {
       expect(findPurposePlaceholderIssue(purpose, specWith(purpose))).toBeNull();
     });
 
-    it('does not report half of the generated sentence', () => {
-      // The prefix alone is not the placeholder - the suffix must follow it, or
-      // any Purpose mentioning archiving a change would be reported.
-      const purpose = 'Explains what happens when archiving change my-change runs twice.';
+    it('does not report the generated sentence when only its opening half is present', () => {
+      // Quoting the placeholder's opening is not carrying the placeholder. The
+      // suffix has to follow the prefix, or a Purpose that documents the message
+      // archive writes would be reported as being that message.
+      const purpose = `Explains the ${PURPOSE_PLACEHOLDER_PREFIX}<name> message archive writes, and how to replace it.`;
+      expect(purpose).toContain(PURPOSE_PLACEHOLDER_PREFIX);
+      expect(purpose).not.toContain(PURPOSE_PLACEHOLDER_SUFFIX);
+
       expect(findPurposePlaceholderIssue(purpose, specWith(purpose))).toBeNull();
     });
 

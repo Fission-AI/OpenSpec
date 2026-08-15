@@ -52,14 +52,17 @@ function containsGeneratedPlaceholder(text: string): boolean {
  * it reads as authored content.
  *
  * An empty Purpose is not reported here — `SPEC_PURPOSE_EMPTY` already covers
- * it, and reporting both would put two findings on one line.
+ * it, and reporting both would put two findings on one line. That falls out of
+ * the two rules rather than needing a case of its own.
  */
 export function findPurposePlaceholderIssue(
   overview: string,
   content?: string
 ): PurposePlaceholderIssue | null {
+  // An empty Purpose needs no branch of its own: neither rule matches empty
+  // text, so it falls through to null on the line below. An early return for it
+  // would be a guard no test could hold, which is worse than none.
   const trimmed = overview.trim();
-  if (!trimmed) return null;
   if (!containsGeneratedPlaceholder(trimmed) && !LEADING_TBD.test(trimmed)) return null;
   return { line: content === undefined ? undefined : findPlaceholderLine(content) };
 }
