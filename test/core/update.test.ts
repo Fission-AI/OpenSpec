@@ -1332,24 +1332,42 @@ metadata:
       expect(content).toContain('**Provided arguments**: $ARGUMENTS');
     });
 
-    it('should update OpenCode commands with invocation arguments', async () => {
-      const opencodeSkillsDir = path.join(testDir, '.opencode', 'skills');
-      await fs.mkdir(path.join(opencodeSkillsDir, 'openspec-explore'), {
-        recursive: true,
-      });
-      await fs.writeFile(
-        path.join(opencodeSkillsDir, 'openspec-explore', 'SKILL.md'),
-        'old'
-      );
-
-      const staleCommand = path.join(testDir, '.opencode', 'commands', 'opsx-propose.md');
-      await fs.mkdir(path.dirname(staleCommand), { recursive: true });
-      await fs.writeFile(staleCommand, 'old command without arguments');
+    it('should repair stale OpenCode commands-only installs once', async () => {
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+      const commandsDir = path.join(testDir, '.opencode', 'commands');
+      const coreCommandIds = [
+        'explore',
+        'apply',
+        'update',
+        'sync',
+        'archive',
+        'propose',
+      ];
+      await fs.mkdir(commandsDir, { recursive: true });
+      for (const commandId of coreCommandIds) {
+        await fs.writeFile(
+          path.join(commandsDir, `opsx-${commandId}.md`),
+          'old command without arguments'
+        );
+      }
 
       await updateCommand.execute(testDir);
 
-      const content = await fs.readFile(staleCommand, 'utf-8');
-      expect(content).toContain('**Provided arguments**: $ARGUMENTS');
+      for (const commandId of coreCommandIds) {
+        const content = await fs.readFile(
+          path.join(commandsDir, `opsx-${commandId}.md`),
+          'utf-8'
+        );
+        expect(content.match(/\$ARGUMENTS/g)).toHaveLength(1);
+      }
+
+      const consoleSpy = vi.spyOn(console, 'log');
+      await updateCommand.execute(testDir);
+
+      const logCalls = consoleSpy.mock.calls.flat().map(String);
+      expect(logCalls.some((entry) => entry.includes('up to date'))).toBe(true);
+      expect(logCalls.some((entry) => entry.includes('Updating 1 tool(s)'))).toBe(false);
+      consoleSpy.mockRestore();
     });
 
     it('should migrate a legacy .windsurf install to .devin, preserving user files', async () => {
