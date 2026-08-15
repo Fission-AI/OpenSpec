@@ -92,6 +92,12 @@ written by agents and authors, not generated here, so there is no list to consul
 It is kept to a single anchored marker at a known position precisely to stay as
 close to a lookup as the input allows.
 
+It also covers a case the constant match cannot. A markdown formatter that
+rewraps the generated sentence across two lines breaks the constant lookup, and
+the marker rule still catches it, because every spelling of the placeholder opens
+with `TBD`. So the fallback is not only for agent-written placeholders — it is
+what keeps detection working when the generated one is reformatted.
+
 ### The placeholder finding replaces the brevity finding
 
 A bare `TBD` is both a placeholder and under the length floor. Reporting both puts
@@ -100,12 +106,21 @@ in" tells the author what to do, "your Purpose is under 50 characters" does not.
 The placeholder check therefore runs first and the brevity check runs only when it
 does not fire.
 
-### Locating the line is best-effort
+### Locating the line follows the rule that matched
 
-The warning names the first non-blank line of the `## Purpose` section. When the
-section cannot be located — the parsed Purpose and the file disagree — the finding
-is reported without a line rather than with a guessed one, since a wrong line
-number is worse than none.
+The warning names the line carrying the placeholder, and which line that is
+depends on which rule fired. A leading `TBD` is the section's first non-blank line
+by definition. The generated sentence is not: it can sit below prose somebody
+wrote, so it is located by its own text.
+
+Naming the first non-blank line in that second case points at the authored prose —
+a line the reader can see is fine, which reads as the check being wrong rather
+than the Purpose being unwritten. When both rules match the leading marker wins,
+because it is the earlier of the two.
+
+When the placeholder cannot be located — no section header, or a generated
+sentence no single line carries — the finding is reported without a line rather
+than with a guessed one, since a wrong line number is worse than none.
 
 Line endings are normalised before counting, so a spec saved on Windows reports
 the same line number as the same spec saved on macOS or Linux.

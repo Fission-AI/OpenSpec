@@ -63,27 +63,40 @@ export function findPurposePlaceholderIssue(
   // text, so it falls through to null on the line below. An early return for it
   // would be a guard no test could hold, which is worse than none.
   const trimmed = overview.trim();
-  if (!containsGeneratedPlaceholder(trimmed) && !LEADING_TBD.test(trimmed)) return null;
-  return { line: content === undefined ? undefined : findPlaceholderLine(content) };
+  const leading = LEADING_TBD.test(trimmed);
+  if (!leading && !containsGeneratedPlaceholder(trimmed)) return null;
+  // Which rule matched decides where the placeholder is, so the locator is told.
+  // When both match the leading marker wins: it sits at or above the generated
+  // sentence, and the earliest marker is the one a reader scanning down meets.
+  return { line: content === undefined ? undefined : findPlaceholderLine(content, leading) };
 }
 
 /**
- * The first non-blank line of the `## Purpose` section, so the warning points at
- * the text to replace rather than at the file. Undefined when the section cannot
- * be located: the caller reports the finding without a line rather than with a
- * guessed one, since a wrong line number is worse than none.
+ * The line inside the `## Purpose` section carrying the placeholder, so the
+ * warning points at the text to replace rather than at the file.
+ *
+ * Which line that is depends on the rule that matched. A leading `TBD` is the
+ * section's first non-blank line by definition. The generated sentence is not:
+ * it can follow prose somebody wrote, and naming the first non-blank line then
+ * points at that prose — a line the reader can see is fine, which reads as the
+ * check being wrong rather than the Purpose being unwritten.
+ *
+ * Undefined when the placeholder cannot be located — no section header, or a
+ * generated sentence no single line carries. The caller then reports the finding
+ * without a line rather than with a guessed one, since a wrong line number is
+ * worse than none.
  *
  * Line endings are normalised first, so the same spec reports the same line
  * whether it was saved on Windows or on macOS/Linux.
  */
-function findPlaceholderLine(content: string): number | undefined {
+function findPlaceholderLine(content: string, leading: boolean): number | undefined {
   const lines = content.replace(/\r\n?/g, '\n').split('\n');
   const headerIndex = lines.findIndex((line) => PURPOSE_HEADER.test(line));
   if (headerIndex === -1) return undefined;
 
   for (let i = headerIndex + 1; i < lines.length; i++) {
     if (TOP_LEVEL_HEADER.test(lines[i])) return undefined;
-    if (lines[i].trim()) return i + 1;
+    if (leading ? lines[i].trim() : lines[i].includes(PURPOSE_PLACEHOLDER_PREFIX)) return i + 1;
   }
   return undefined;
 }
