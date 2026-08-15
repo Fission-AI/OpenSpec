@@ -53,6 +53,7 @@ describe('tool-detection', () => {
       expect(tools).toContain('codeartsagent');
       expect(tools).toContain('cursor');
       expect(tools).toContain('devin');
+      expect(tools).toContain('dsh');
       // `--tools all` resolves to exactly this list, so `agents` being here is what
       // puts the shared target in an `--tools all` run.
       expect(tools).toContain('agents');
@@ -139,6 +140,19 @@ describe('tool-detection', () => {
       await fs.writeFile(localSkill, 'test content');
 
       expect(getToolSkillStatus(testDir, 'minimax-code').configured).toBe(false);
+    });
+
+    it('should detect DeepSeek Harness skills under project .dsh/skills', async () => {
+      const skillDir = path.join(testDir, '.dsh', 'skills', 'openspec-explore');
+      await fs.mkdir(skillDir, { recursive: true });
+      await fs.writeFile(path.join(skillDir, 'SKILL.md'), 'test content');
+
+      expect(getToolSkillStatus(testDir, 'dsh')).toMatchObject({
+        configured: true,
+        fullyConfigured: false,
+        skillCount: 1,
+      });
+      expect(getConfiguredTools(testDir)).toEqual(['dsh']);
     });
   });
 

@@ -620,6 +620,59 @@ describe('InitCommand', () => {
       expect(hintLine).toContain('the openspec-propose skill');
     });
 
+    it('should support DeepSeek Harness as an adapterless skills-only tool', async () => {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'both',
+      });
+
+      const initCommand = new InitCommand({ tools: 'dsh', force: true });
+      await initCommand.execute(testDir);
+
+      const skillFile = path.join(testDir, '.dsh', 'skills', 'openspec-explore', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
+
+      const commandsDir = path.join(testDir, '.dsh', 'commands');
+      expect(await directoryExists(commandsDir)).toBe(false);
+
+      // dsh is fail-closed about frontmatter shape: the first line must be
+      // exactly `---`, name must be kebab-case, and description non-empty.
+      const exploreBody = await fs.readFile(skillFile, 'utf-8');
+      expect(exploreBody.startsWith('---\n')).toBe(true);
+      expect(exploreBody).toMatch(/name: openspec-explore/);
+      expect(exploreBody).toMatch(/description: \S/);
+
+      // dsh's user-facing `/name` gesture answers to `/openspec-*`, so no
+      // generated skill may reference `/opsx:` commands that dsh never loads.
+      const skillsRoot = path.join(testDir, '.dsh', 'skills');
+      const skillDirs = await fs.readdir(skillsRoot);
+      expect(skillDirs.length).toBeGreaterThan(0);
+      for (const dir of skillDirs) {
+        const body = await fs.readFile(path.join(skillsRoot, dir, 'SKILL.md'), 'utf-8');
+        expect(body, `${dir}/SKILL.md should not reference /opsx commands`).not.toMatch(/\/opsx[:-]/);
+      }
+      const applyBody = await fs.readFile(
+        path.join(skillsRoot, 'openspec-apply-change', 'SKILL.md'),
+        'utf-8',
+      );
+      expect(applyBody).toMatch(/\/openspec-archive-change/);
+
+      const dshLogCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+      expect(dshLogCalls.some((entry) => entry.includes('Created: DeepSeek Harness'))).toBe(true);
+      expect(
+        dshLogCalls.some(
+          (entry) => entry.includes('Commands skipped for: dsh') && entry.includes('(no adapter)'),
+        ),
+      ).toBe(true);
+      // The getting-started hint must use the skill name dsh actually loads
+      // when the user types it (`/openspec-propose`).
+      const hintLine = dshLogCalls.find((entry) => entry.includes('Start your first change'));
+      expect(hintLine).toBeDefined();
+      expect(hintLine).toContain('/openspec-propose');
+      expect(hintLine).not.toContain('/opsx:');
+    });
+
     it('should support Hermes Agent as an adapterless skills-only tool with a setup note', async () => {
       saveGlobalConfig({
         featureFlags: {},

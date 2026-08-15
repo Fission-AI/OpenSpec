@@ -169,6 +169,40 @@ Old instructions content
       consoleSpy.mockRestore();
     });
 
+    it('should refresh configured DeepSeek Harness skills and stay idempotent', async () => {
+      const skillsDir = path.join(testDir, '.dsh', 'skills');
+      const skillFile = path.join(skillsDir, 'openspec-explore', 'SKILL.md');
+      await fs.mkdir(path.dirname(skillFile), { recursive: true });
+
+      const oldSkillContent = `---
+name: openspec-explore (old)
+description: Old description
+license: MIT
+compatibility: Requires openspec CLI.
+metadata:
+  author: openspec
+  version: "0.9"
+---
+
+Old instructions content
+`;
+      await fs.writeFile(skillFile, oldSkillContent);
+
+      await updateCommand.execute(testDir);
+
+      const refreshed = await fs.readFile(skillFile, 'utf-8');
+      expect(refreshed).toContain('name: openspec-explore');
+      expect(refreshed).not.toContain('Old instructions content');
+      expect(refreshed).toContain('license: MIT');
+
+      const consoleSpy = vi.spyOn(console, 'log');
+      await updateCommand.execute(testDir);
+      expect(consoleSpy.mock.calls.flat().map(String).join('\n')).toContain('up to date');
+      consoleSpy.mockRestore();
+
+      expect(await fs.readFile(skillFile, 'utf-8')).toBe(refreshed);
+    });
+
     it('should update MiniMax Code skills without touching unrelated global skills', async () => {
       const skillsDir = path.join(testDir, 'home', '.minimax', 'skills');
       const exploreSkill = path.join(skillsDir, 'openspec-explore', 'SKILL.md');
