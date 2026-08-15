@@ -62,5 +62,23 @@
 - [x] 5.3 Run lint, typecheck, and the build
 - [ ] 5.4 Confirm the cross-platform CI matrix passes, since the check counts
       lines in files that may carry either line ending
+      (blocked: needs a pushed branch — line endings are covered locally by
+      tests asserting a CRLF spec and an LF spec produce identical findings)
 - [x] 5.5 Add a `.changeset/` entry describing the new warning, its severity, the
       detection boundary, and that archive is unaffected
+
+## 6. Prove the tests hold the behaviour
+
+Added during implementation, not planned. A passing suite says the code works on
+the cases someone thought to write; it does not say a guard is load-bearing. Two
+were not, and only reverting them one at a time showed it.
+
+- [x] 6.1 Revert each guard in turn and record which tests die, so every guard is
+      known to be held by a test rather than assumed to be
+- [x] 6.2 Fix the prefix/suffix test, which named the suffix guard but used a
+      Purpose containing neither half of the generated sentence — it passed
+      whether or not the suffix was required, so the mutation killed nothing
+- [x] 6.3 Remove the empty-Purpose early return, which no test could hold:
+      neither rule matches empty text, so the branch changed no behaviour.
+      The requirement that an empty Purpose goes unreported is unchanged and
+      still asserted; it now falls out of the two rules instead of a third branch
