@@ -1359,6 +1359,8 @@ metadata:
           'utf-8'
         );
         expect(content.match(/\$ARGUMENTS/g)).toHaveLength(1);
+        expect(content).toContain('**Provided arguments**: $ARGUMENTS');
+        expect(content).not.toContain('old command without arguments');
       }
 
       const consoleSpy = vi.spyOn(console, 'log');
