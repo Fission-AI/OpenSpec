@@ -1800,9 +1800,9 @@ metadata:
       consoleSpy.mockRestore();
     });
 
-    it('should suggest IDE restart after update', async () => {
-      // Set up a configured tool
-      const skillsDir = path.join(testDir, '.claude', 'skills');
+    it('should suggest IDE restart after updating an IDE-resident tool', async () => {
+      // Cursor loads generated files in the editor process (requiresIdeRestart)
+      const skillsDir = path.join(testDir, '.cursor', 'skills');
       await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
         recursive: true,
       });
@@ -1816,6 +1816,29 @@ metadata:
       await updateCommand.execute(testDir);
 
       expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Restart your IDE')
+      );
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should not suggest IDE restart after updating only CLI tools', async () => {
+      // Claude Code reads generated files on its next invocation, so a restart
+      // hint is noise for it (#1067, #1608)
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        'old'
+      );
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      expect(consoleSpy).not.toHaveBeenCalledWith(
         expect.stringContaining('Restart your IDE')
       );
 

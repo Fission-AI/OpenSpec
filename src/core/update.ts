@@ -12,7 +12,7 @@ import * as fs from 'fs';
 import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { getSkillReferenceTransformer, getTransformerForTool, transformToSkillReferences } from '../utils/command-references.js';
-import { AI_TOOLS, OPENSPEC_DIR_NAME } from './config.js';
+import { AI_TOOLS, OPENSPEC_DIR_NAME, type AIToolOption } from './config.js';
 import {
   generateCommands,
   CommandAdapterRegistry,
@@ -266,7 +266,7 @@ export class UpdateCommand {
     const deliveryIncludesCommands = delivery !== 'skills';
     // 10. Update tools (all if force, otherwise only those needing update)
     const toolsToUpdate = this.force ? configuredTools : [...toolsToUpdateSet];
-    const updatedTools: string[] = [];
+    const updatedTools: AIToolOption[] = [];
     const failedTools: Array<{ name: string; error: string }> = [];
     const skillsInvocableCommandSkips: string[] = [];
     const zeroArtifactTools: string[] = [];
@@ -360,7 +360,7 @@ export class UpdateCommand {
         }
 
         spinner.succeed(`Updated ${tool.name}`);
-        updatedTools.push(tool.name);
+        updatedTools.push(tool);
         for (const migration of migrateLegacyToolDirs(
           resolvedProjectPath,
           [tool.value],
@@ -387,7 +387,9 @@ export class UpdateCommand {
     // 11. Summary
     console.log();
     if (updatedTools.length > 0) {
-      console.log(chalk.green(`✓ Updated: ${updatedTools.join(', ')} (v${OPENSPEC_VERSION})`));
+      console.log(
+        chalk.green(`✓ Updated: ${updatedTools.map((tool) => tool.name).join(', ')} (v${OPENSPEC_VERSION})`)
+      );
     }
     if (failedTools.length > 0) {
       console.log(chalk.red(`✗ Failed: ${failedTools.map(f => `${f.name} (${f.error})`).join(', ')}`));
@@ -479,12 +481,16 @@ export class UpdateCommand {
 
     // 15. List affected tools
     if (updatedTools.length > 0) {
-      const toolDisplayNames = updatedTools;
+      const toolDisplayNames = updatedTools.map((tool) => tool.name);
       console.log(chalk.dim(`Tools: ${toolDisplayNames.join(', ')}`));
     }
 
-    console.log();
-    console.log(chalk.dim('Restart your IDE for changes to take effect.'));
+    // Only IDE-resident tools reload generated files on restart; a CLI picks
+    // them up on its next invocation, so the hint is noise there (#1067).
+    if (updatedTools.some((tool) => tool.requiresIdeRestart)) {
+      console.log();
+      console.log(chalk.dim('Restart your IDE for changes to take effect.'));
+    }
     if (failedTools.length > 0) {
       throw new Error(`OpenSpec update failed for: ${failedTools.map((tool) => tool.name).join(', ')}`);
     }
