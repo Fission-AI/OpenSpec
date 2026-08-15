@@ -60,10 +60,11 @@
       still passes, including the two specs that mention `TBD` inside scenarios
       rather than in a Purpose
 - [x] 5.3 Run lint, typecheck, and the build
-- [ ] 5.4 Confirm the cross-platform CI matrix passes, since the check counts
+- [x] 5.4 Confirm the cross-platform CI matrix passes, since the check counts
       lines in files that may carry either line ending
-      (blocked: needs a pushed branch — line endings are covered locally by
-      tests asserting a CRLF spec and an LF spec produce identical findings)
+      (green on linux-bash, macos-bash and windows-pwsh, plus lint & typecheck;
+      run by `workflow_dispatch` on the fork, so the upstream pull-request run
+      is still the gate that counts)
 - [x] 5.5 Add a `.changeset/` entry describing the new warning, its severity, the
       detection boundary, and that archive is unaffected
 
