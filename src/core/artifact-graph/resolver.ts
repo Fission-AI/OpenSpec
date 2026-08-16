@@ -58,7 +58,22 @@ export function getProjectSchemasDir(projectRoot: string): string {
  * @param parentDir - The directory containing the entry
  * @param entry - The directory entry from `fs.readdirSync(..., { withFileTypes: true })`
  */
+/**
+ * Directories `schema fork` creates transiently while swapping a fork into
+ * place: a staging copy (`.fork-staging-<rand>`, created via mkdtemp) and a
+ * backup of the previous destination (`<name>.fork-backup-<pid>-<ts>`). Either
+ * can briefly coexist with real schemas in the schemas dir, so discovery must
+ * never surface them. Real schema names are kebab-case (no dots), so excluding
+ * these dot-bearing temp names can never hide a legitimate schema.
+ */
+function isOwnedForkTempDir(name: string): boolean {
+  return name.startsWith('.fork-staging-') || name.includes('.fork-backup-');
+}
+
 export function isSchemaDir(parentDir: string, entry: fs.Dirent): boolean {
+  if (isOwnedForkTempDir(entry.name)) {
+    return false;
+  }
   if (entry.isDirectory()) {
     return true;
   }

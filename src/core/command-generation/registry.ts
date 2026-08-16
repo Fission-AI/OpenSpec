@@ -13,6 +13,7 @@ import { avianAdapter } from './adapters/avian.js';
 import { bobAdapter } from './adapters/bob.js';
 import { claudeAdapter } from './adapters/claude.js';
 import { clineAdapter } from './adapters/cline.js';
+import { commandCodeAdapter } from './adapters/command-code.js';
 import { devinAdapter } from './adapters/devin.js';
 import { codebuddyAdapter } from './adapters/codebuddy.js';
 import { continueAdapter } from './adapters/continue.js';
@@ -51,6 +52,7 @@ export class CommandAdapterRegistry {
     CommandAdapterRegistry.register(bobAdapter);
     CommandAdapterRegistry.register(claudeAdapter);
     CommandAdapterRegistry.register(clineAdapter);
+    CommandAdapterRegistry.register(commandCodeAdapter);
     CommandAdapterRegistry.register(devinAdapter);
     CommandAdapterRegistry.register(codebuddyAdapter);
     CommandAdapterRegistry.register(continueAdapter);

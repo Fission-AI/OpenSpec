@@ -1,3 +1,6 @@
+import { createInterface } from 'node:readline';
+import type { Readable, Writable } from 'node:stream';
+
 export type InteractiveOptions = {
   /**
    * Explicit "disable prompts" flag passed by internal callers.
@@ -47,7 +50,12 @@ export function isInteractive(value?: boolean | InteractiveOptions): boolean {
  *   somebody was there and chose to quit.
  *
  * Beyond that it defers to `isInteractive()`, so `CI`, `OPEN_SPEC_INTERACTIVE=0`
- * and `--no-interactive` count even when a runner allocated a pty.
+ * and `--no-interactive` count even when a runner allocated a pty. It also
+ * counts a redirected stdout: `confirmPrompt` drops to the plain reader whenever
+ * *either* stream is not a TTY, so a stdin-TTY-but-stdout-redirected run
+ * (`openspec archive x > log.txt` from a terminal) that hits EOF must classify
+ * the same way the prompt was selected — otherwise it would leak the raw
+ * `ExitPromptError` instead of the `--yes` guidance.
  */
 export function isNonInteractivePromptError(
   error: unknown,
@@ -58,6 +66,113 @@ export function isNonInteractivePromptError(
     error.name === 'ExitPromptError' || error.message.includes('force closed the prompt');
   if (!failedPrompt) return false;
   if (error.message.includes('SIGINT')) return false;
-  return !isInteractive(value);
+  return !isInteractive(value) || !process.stdout.isTTY;
+}
+
+export type ConfirmPrompt = {
+  message: string;
+  default: boolean;
+};
+
+/**
+ * Ask a yes/no question. A real terminal gets @inquirer's rich prompt;
+ * everything else — a pipe, a file redirect, an agent that captures stdout —
+ * reads one plain line instead.
+ *
+ * @inquirer renders `confirm` by writing ANSI cursor-movement escape sequences,
+ * and it emits them even when stdout is not a TTY. Redirected to a file those
+ * sequences are noise, and in some non-TTY hosts the render loop never settles
+ * and repeats `ESC[NNG` cursor moves until the disk fills (#1526). Reading
+ * the answer ourselves keeps the single piped answer @inquirer ever supported
+ * working (`printf 'y\n' | openspec archive ...`) without emitting any escapes.
+ *
+ * `io` overrides the streams; it exists for tests and mirrors @inquirer's own
+ * `{ input, output }` context. Production callers pass only the prompt.
+ */
+export async function confirmPrompt(
+  prompt: ConfirmPrompt,
+  io: { input?: Readable; output?: Writable } = {}
+): Promise<boolean> {
+  const input = io.input ?? process.stdin;
+  const output = io.output ?? process.stdout;
+  const isTerminal =
+    Boolean((input as { isTTY?: boolean }).isTTY) &&
+    Boolean((output as { isTTY?: boolean }).isTTY);
+  if (isTerminal) {
+    const { confirm } = await import('@inquirer/prompts');
+    return confirm(prompt);
+  }
+  return readYesNo(prompt, input, output);
+}
+
+function readYesNo(
+  prompt: ConfirmPrompt,
+  input: Readable,
+  output: Writable
+): Promise<boolean> {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    // Detach the input-stream error listener on settle: `input` is the
+    // long-lived process.stdin, so a leftover listener would accumulate across
+    // archive's successive prompts and swallow a later, unrelated stdin error.
+    const cleanup = () => {
+      input.removeListener('error', onError);
+    };
+    const blockOnNoAnswer = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      // No line could be read (stdin closed / EOF). Mirror @inquirer's failure
+      // so callers that classify it — isNonInteractivePromptError, the #1479
+      // "rerun with --yes" guidance — keep working unchanged.
+      const error = new Error('User force closed the prompt');
+      error.name = 'ExitPromptError';
+      reject(error);
+    };
+    // A stdin error surfaces on the interface (readline forwards input-stream
+    // errors since Node 16). Without a handler the promise would hang and the
+    // 'error' would go unhandled; settle it with the real fault instead.
+    const onError = (err: unknown) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      rl.close();
+      reject(err instanceof Error ? err : new Error(String(err)));
+    };
+    // An earlier prompt may have already drained stdin (only one piped answer
+    // was ever supported). A fresh readline over an ended stream never emits
+    // 'close', so guard here rather than hang and exit as a no-op.
+    if (input.readableEnded) {
+      blockOnNoAnswer();
+      return;
+    }
+    output.write(`${prompt.message} ${prompt.default ? '(Y/n)' : '(y/N)'} `);
+    // terminal:false guarantees readline never emits its own line-editing
+    // escapes — an escape-free read is the whole point here.
+    const rl = createInterface({ input, terminal: false });
+    input.once('error', onError);
+    rl.once('error', onError);
+    rl.once('line', (line) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      rl.close();
+      output.write('\n');
+      // Mirror @inquirer/confirm's parser (prefix match on y/yes and n/no,
+      // otherwise the default) so a piped answer resolves identically to the
+      // interactive prompt it replaces.
+      const answer = line.trim();
+      if (/^(y|yes)/i.test(answer)) {
+        resolve(true);
+      } else if (/^(n|no)/i.test(answer)) {
+        resolve(false);
+      } else {
+        resolve(prompt.default);
+      }
+    });
+    rl.once('close', () => {
+      blockOnNoAnswer();
+    });
+  });
 }
 
