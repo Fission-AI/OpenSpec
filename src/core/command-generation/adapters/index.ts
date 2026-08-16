@@ -7,6 +7,7 @@
 export { amazonQAdapter } from './amazon-q.js';
 export { antigravityAdapter } from './antigravity.js';
 export { auggieAdapter } from './auggie.js';
+export { avianAdapter } from './avian.js';
 export { bobAdapter } from './bob.js';
 export { claudeAdapter } from './claude.js';
 export { clineAdapter } from './cline.js';
