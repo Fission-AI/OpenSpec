@@ -78,6 +78,41 @@ describe('InitCommand', () => {
       expect(content).toContain('schema: spec-driven');
     });
 
+    it('should add the requested artifact language to a new config', async () => {
+      const initCommand = new InitCommand({
+        tools: 'none',
+        force: true,
+        language: 'Portuguese (pt-BR)',
+      });
+
+      await initCommand.execute(testDir);
+
+      const configPath = path.join(testDir, 'openspec', 'config.yaml');
+      const content = await fs.readFile(configPath, 'utf-8');
+      expect(content).toContain('context: |');
+      expect(content).toContain('  Language: Portuguese (pt-BR)');
+      expect(content).toContain('  All artifacts must be written in Portuguese (pt-BR).');
+
+      await initCommand.execute(testDir);
+      expect(await fs.readFile(configPath, 'utf-8')).toBe(content);
+    });
+
+    it('should not overwrite an existing config when --language is used', async () => {
+      const openspecPath = path.join(testDir, 'openspec');
+      await fs.mkdir(path.join(openspecPath, 'changes', 'archive'), { recursive: true });
+      await fs.mkdir(path.join(openspecPath, 'specs'), { recursive: true });
+      const configPath = path.join(openspecPath, 'config.yaml');
+      const originalConfig = 'schema: spec-driven\ncontext: |\n  Keep this context exactly.\n';
+      await fs.writeFile(configPath, originalConfig, 'utf-8');
+
+      const initCommand = new InitCommand({ tools: 'none', force: true, language: 'French' });
+
+      await expect(initCommand.execute(testDir)).rejects.toThrow(
+        '--language does not overwrite an existing OpenSpec config',
+      );
+      expect(await fs.readFile(configPath, 'utf-8')).toBe(originalConfig);
+    });
+
     it('should create core profile skills for Claude Code by default', async () => {
       const initCommand = new InitCommand({ tools: 'claude', force: true });
 
