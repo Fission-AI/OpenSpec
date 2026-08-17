@@ -138,6 +138,19 @@ artifacts:
     expect(proposal.source).toBe('package');
   });
 
+  it('canonicalizes a confined user template alias', () => {
+    const userSchemaDir = writeOverlay('patchVersion: 1\n');
+    const templatesDir = path.join(userSchemaDir, 'templates');
+    const tasksPath = path.join(templatesDir, 'tasks.md');
+    fs.mkdirSync(templatesDir, { recursive: true });
+    fs.writeFileSync(tasksPath, '# Personal tasks\n');
+
+    const tasks = resolveSchemaTemplate('spec-driven', 'nested/../tasks.md');
+
+    expect(tasks.source).toBe('user');
+    expect(tasks.path).toBe(fs.realpathSync.native(tasksPath));
+  });
+
   it('rejects a user template symlink that escapes the overlay template root', () => {
     if (process.platform === 'win32') return;
 

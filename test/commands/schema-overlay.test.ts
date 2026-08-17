@@ -110,6 +110,23 @@ describe('schema overlay commands', () => {
     expect(fs.existsSync(path.join(path.dirname(overlayPath()), 'templates'))).toBe(false);
   });
 
+  it('does not overwrite an overlay created during initial installation', async () => {
+    const concurrentContent = 'patchVersion: 1\ndescription: Concurrent creation\n';
+    fsControl.mutateDestinationAfterStaging = {
+      path: overlayPath(),
+      content: concurrentContent,
+    };
+
+    await runSchemaCommand(['override', 'spec-driven', '--json']);
+
+    expect(process.exitCode).toBe(1);
+    expect(lastJsonLog()).toMatchObject({
+      created: false,
+      error: expect.stringContaining('Schema override already exists'),
+    });
+    expect(fs.readFileSync(overlayPath(), 'utf-8')).toBe(concurrentContent);
+  });
+
   it('preserves an existing overlay unless force is supplied', async () => {
     await runSchemaCommand(['override', 'spec-driven', '--json']);
     fs.writeFileSync(overlayPath(), 'patchVersion: 1\ndescription: Keep me\n');

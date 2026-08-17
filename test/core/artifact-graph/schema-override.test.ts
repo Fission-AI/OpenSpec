@@ -96,7 +96,8 @@ artifacts:
 
   it('normalizes blank boundary lines and omits whitespace-only text segments', () => {
     const base = baseSchema();
-    base.artifacts[2].instruction = '\nPackaged tasks instruction\n\n  ';
+    base.artifacts[2].instruction =
+      '\nPackaged  tasks instruction\n\nKeep  internal spacing\n\n  ';
     const override = parseSchemaOverride(`
 patchVersion: 1
 artifacts:
@@ -107,7 +108,7 @@ artifacts:
 `);
 
     expect(applySchemaOverride(base, override).artifacts[2].instruction).toBe(
-      'Personal preface\n\nPackaged tasks instruction'
+      'Personal preface\n\nPackaged  tasks instruction\n\nKeep  internal spacing'
     );
   });
 

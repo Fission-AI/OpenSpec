@@ -514,7 +514,19 @@ function installSchemaOverrideFile(
     parseSchemaOverride(fs.readFileSync(stagingPath, 'utf-8'));
 
     if (!destinationExists) {
-      fs.renameSync(stagingPath, destinationPath);
+      try {
+        // A same-directory hard link commits the staged inode atomically and
+        // fails instead of replacing a destination created after our check.
+        fs.linkSync(stagingPath, destinationPath);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+          throw new Error(
+            `Schema override already exists at ${destinationPath}. Use --force to replace it.`
+          );
+        }
+        throw error;
+      }
+      fs.rmSync(stagingPath, { force: true });
       return;
     }
 
