@@ -24,12 +24,17 @@ schema: spec-driven
 context: |
   Language: Portuguese (pt-BR)
   All artifacts must be written in Brazilian Portuguese.
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
 
   # Your other project context below...
   Tech stack: TypeScript, React, Node.js
 ```
 
 That's it. All generated artifacts will now be in Portuguese.
+
+OpenSpec's document structure and normative `SHALL`/`MUST` keywords remain in
+English because validation relies on them. The surrounding requirement and
+scenario prose can use your selected language.
 
 ## Language Examples
 

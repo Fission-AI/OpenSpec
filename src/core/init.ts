@@ -11,7 +11,12 @@ import ora from 'ora';
 import * as fs from 'fs';
 import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { classifyOpenSpecDir, readProjectConfig, storePointerProblem } from './project-config.js';
+import {
+  classifyOpenSpecDir,
+  MAX_CONTEXT_SIZE,
+  readProjectConfig,
+  storePointerProblem,
+} from './project-config.js';
 import { findRepoPlanningRootSync } from './planning-home.js';
 import { getSkillReferenceTransformer, getTransformerForTool, usesNaturalLanguageSkillReferences } from '../utils/command-references.js';
 import {
@@ -82,6 +87,14 @@ const { version: OPENSPEC_VERSION } = require('../../package.json');
 // -----------------------------------------------------------------------------
 
 const DEFAULT_SCHEMA = 'spec-driven';
+
+function formatLanguageContext(language: string): string {
+  return [
+    `Language: ${language}`,
+    `All artifacts must be written in ${language}.`,
+    'Keep OpenSpec structural headings and SHALL/MUST keywords in English.',
+  ].join('\n');
+}
 
 const PROGRESS_SPINNER = {
   interval: 80,
@@ -170,8 +183,6 @@ export class InitCommand {
     const openspecDir = OPENSPEC_DIR_NAME;
     const openspecPath = path.join(projectPath, openspecDir);
 
-    this.assertLanguageCanBeApplied(projectPath, openspecPath);
-
     // Validation happens silently in the background
     const extendMode = await this.validate(projectPath, openspecPath);
 
@@ -201,6 +212,8 @@ export class InitCommand {
         }
       }
     }
+
+    this.assertLanguageCanBeApplied(projectPath, openspecPath);
 
     // Check for legacy artifacts and handle cleanup
     const deferredLegacyCleanup = await this.handleLegacyCleanup(projectPath, extendMode);
@@ -997,15 +1010,21 @@ export class InitCommand {
     if (!normalized) {
       throw new Error('The --language option requires a non-empty value.');
     }
-    if (/[\r\n]/.test(normalized)) {
-      throw new Error('The --language option must be a single line.');
+    if (/\p{Cc}|[\u2028\u2029]/u.test(normalized)) {
+      throw new Error('The --language option must be a single line without control characters.');
+    }
+    const serializedContext = `${formatLanguageContext(normalized)}\n`;
+    if (Buffer.byteLength(serializedContext, 'utf8') > MAX_CONTEXT_SIZE) {
+      throw new Error(
+        `The --language option is too long for OpenSpec's ${MAX_CONTEXT_SIZE / 1024}KB project context limit.`
+      );
     }
     return normalized;
   }
 
   private languageContext(): string | undefined {
     if (!this.language) return undefined;
-    return `Language: ${this.language}\nAll artifacts must be written in ${this.language}.`;
+    return formatLanguageContext(this.language);
   }
 
   private assertLanguageCanBeApplied(projectPath: string, openspecPath: string): void {
