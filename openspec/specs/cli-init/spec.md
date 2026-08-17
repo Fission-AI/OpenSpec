@@ -272,6 +272,12 @@ The command SHALL let users configure the artifact language during initializatio
 - **THEN** fail before creating OpenSpec files
 - **AND** explain why the value is invalid
 
+#### Scenario: Language config cannot be written
+
+- **WHEN** the user runs `openspec init --language <language>` and the new config cannot be written
+- **THEN** fail instead of reporting successful initialization
+- **AND** avoid creating unrelated tool files when writability can be determined in advance
+
 ### Requirement: Experimental Command Alias
 
 The command SHALL maintain backward compatibility with the experimental command.

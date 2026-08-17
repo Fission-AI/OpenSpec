@@ -213,7 +213,7 @@ export class InitCommand {
       }
     }
 
-    this.assertLanguageCanBeApplied(projectPath, openspecPath);
+    await this.assertLanguageCanBeApplied(projectPath, openspecPath);
 
     // Check for legacy artifacts and handle cleanup
     const deferredLegacyCleanup = await this.handleLegacyCleanup(projectPath, extendMode);
@@ -1010,8 +1010,10 @@ export class InitCommand {
     if (!normalized) {
       throw new Error('The --language option requires a non-empty value.');
     }
-    if (/\p{Cc}|[\u2028\u2029]/u.test(normalized)) {
-      throw new Error('The --language option must be a single line without control characters.');
+    if (/\p{Cc}|\p{Bidi_Control}|[\u200B\u2028\u2029\uFEFF]/u.test(normalized)) {
+      throw new Error(
+        'The --language option must be a single line without control or invisible formatting characters.'
+      );
     }
     const serializedContext = `${formatLanguageContext(normalized)}\n`;
     if (Buffer.byteLength(serializedContext, 'utf8') > MAX_CONTEXT_SIZE) {
@@ -1027,13 +1029,30 @@ export class InitCommand {
     return formatLanguageContext(this.language);
   }
 
-  private assertLanguageCanBeApplied(projectPath: string, openspecPath: string): void {
+  private async assertLanguageCanBeApplied(
+    projectPath: string,
+    openspecPath: string
+  ): Promise<void> {
     const languageContext = this.languageContext();
     if (!languageContext) return;
 
-    const hasConfig = fs.existsSync(path.join(openspecPath, 'config.yaml')) ||
+    const configPath = path.join(openspecPath, 'config.yaml');
+    const hasConfig = fs.existsSync(configPath) ||
       fs.existsSync(path.join(openspecPath, 'config.yml'));
-    if (!hasConfig) return;
+    if (!hasConfig) {
+      try {
+        FileSystemUtils.assertProjectArtifactPath(projectPath, configPath);
+      } catch (error) {
+        const reason = error instanceof Error ? `: ${error.message}` : '';
+        throw new Error(`Cannot create openspec/config.yaml for --language${reason}`);
+      }
+      if (!(await FileSystemUtils.canWriteFile(configPath))) {
+        throw new Error(
+          'Cannot create openspec/config.yaml for --language: the destination is not writable.'
+        );
+      }
+      return;
+    }
 
     const existingContext = readProjectConfig(projectPath)?.context;
     if (existingContext?.includes(languageContext)) return;
@@ -1063,7 +1082,11 @@ export class InitCommand {
       FileSystemUtils.assertProjectArtifactPath(path.dirname(openspecPath), configPath);
       await FileSystemUtils.writeFile(configPath, yamlContent);
       return 'created';
-    } catch {
+    } catch (error) {
+      if (this.language) {
+        const reason = error instanceof Error ? `: ${error.message}` : '';
+        throw new Error(`Failed to create openspec/config.yaml for --language${reason}`);
+      }
       return 'skipped';
     }
   }
