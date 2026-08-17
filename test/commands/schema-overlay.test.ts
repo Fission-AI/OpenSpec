@@ -156,7 +156,7 @@ artifacts:
 
     expect(lastJsonLog()).toMatchObject({
       tasks: {
-        path: path.join(userTemplatesDir, 'tasks.md'),
+        path: fs.realpathSync.native(path.join(userTemplatesDir, 'tasks.md')),
         source: 'user',
       },
       proposal: {
