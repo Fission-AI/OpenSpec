@@ -159,17 +159,20 @@ describe('schema overlay commands', () => {
     expect(fs.readFileSync(overlayPath(), 'utf-8')).toBe(concurrentContent);
   });
 
-  it('rejects invalid staged content without installing a partial overlay', async () => {
+  it('rejects invalid staged content without replacing the existing overlay', async () => {
+    const existingContent = 'patchVersion: 1\ndescription: Keep me\n';
+    fs.mkdirSync(path.dirname(overlayPath()), { recursive: true });
+    fs.writeFileSync(overlayPath(), existingContent);
     fsControl.replaceStagingContent = 'patchVersion: invalid\n';
 
-    await runSchemaCommand(['override', 'spec-driven', '--json']);
+    await runSchemaCommand(['override', 'spec-driven', '--force', '--json']);
 
     expect(process.exitCode).toBe(1);
     expect(lastJsonLog()).toMatchObject({
       created: false,
       error: expect.stringContaining('Invalid schema override'),
     });
-    expect(fs.existsSync(overlayPath())).toBe(false);
+    expect(fs.readFileSync(overlayPath(), 'utf-8')).toBe(existingContent);
     expect(
       fs.readdirSync(path.dirname(overlayPath())).filter((entry) =>
         entry.startsWith('.override-staging-')
