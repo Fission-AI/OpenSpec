@@ -1029,7 +1029,7 @@ When the source has an active layered user override, the fork materializes the e
 
 Create a layered user override for a packaged schema. Unlike `schema fork`, this command does not copy `schema.yaml` or its templates; packaged updates remain active for fields and templates you do not override.
 
-```
+```text
 openspec schema override <name> [options]
 ```
 
@@ -1044,7 +1044,7 @@ openspec schema override <name> [options]
 | Option | Description |
 |--------|-------------|
 | `--force` | Replace an existing layered override with a new starter file |
-| `--json` | Output `created`, `schema`, `path`, and `basePath` as JSON |
+| `--json` | Output `created`, `schema`, `path`, and `basePath` as JSON; adds `projectSchemaTakesPrecedence: true` when the current project shadows the new override |
 
 **Example:**
 
@@ -1093,7 +1093,7 @@ openspec schema validate
 
 Show where a schema resolves from (useful for debugging precedence).
 
-```
+```text
 openspec schema which [name] [options]
 ```
 
@@ -1119,7 +1119,7 @@ openspec schema which spec-driven
 
 **Package-only output:**
 
-```
+```text
 Schema: spec-driven
 Source: package
 Path: /usr/local/lib/node_modules/@fission-ai/openspec/schemas/spec-driven
@@ -1127,7 +1127,7 @@ Path: /usr/local/lib/node_modules/@fission-ai/openspec/schemas/spec-driven
 
 **Layered output:**
 
-```
+```text
 Schema: spec-driven
 Source: package + user overlay
 Path: /usr/local/lib/node_modules/@fission-ai/openspec/schemas/spec-driven

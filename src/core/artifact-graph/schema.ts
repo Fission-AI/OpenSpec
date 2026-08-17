@@ -77,6 +77,19 @@ export function parseSchemaOverride(yamlContent: string): SchemaOverrideYaml {
   return result.data;
 }
 
+/** Removes blank boundary lines while preserving the content and indentation inside a segment. */
+function normalizeTextSegment(segment: string | undefined): string | undefined {
+  if (segment === undefined) return undefined;
+
+  const lines = segment.split(/\r?\n/u);
+  while (lines.length > 0 && lines[0].trim().length === 0) lines.shift();
+  while (lines.length > 0 && lines[lines.length - 1].trim().length === 0) lines.pop();
+
+  const normalized = lines.join('\n');
+  return normalized.trim().length > 0 ? normalized : undefined;
+}
+
+/** Applies one explicit instruction-text operation to an optional base value. */
 function applyTextOverride(
   base: string | undefined,
   operation: TextOverrideOperation
@@ -85,12 +98,13 @@ function applyTextOverride(
     return operation.replace;
   }
 
-  const segments = [operation.prepend, base, operation.append].filter(
-    (segment): segment is string => segment !== undefined && segment.length > 0
-  );
+  const segments = [operation.prepend, base, operation.append]
+    .map(normalizeTextSegment)
+    .filter((segment): segment is string => segment !== undefined);
   return segments.length > 0 ? segments.join('\n\n') : undefined;
 }
 
+/** Applies a deterministic replace or remove-then-add operation to a string collection. */
 function applyCollectionOverride(
   base: string[],
   operation: StringCollectionOverride,

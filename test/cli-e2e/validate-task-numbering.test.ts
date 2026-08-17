@@ -198,6 +198,33 @@ describe('openspec validate checks task numbering (#1520)', () => {
     expect(taskIssues).toEqual([]);
   });
 
+  it('retains built-in numbering warnings with an instruction-only user overlay', async () => {
+    const xdgDataHome = path.join(projectDir, 'overlay-user-data');
+    await write(
+      'overlay-user-data/openspec/schemas/spec-driven/schema.override.yaml',
+      [
+        'patchVersion: 1',
+        'artifacts:',
+        '  tasks:',
+        '    instruction:',
+        '      append: Personal task guidance',
+        '',
+      ].join('\n')
+    );
+
+    const result = await runCLI(
+      ['validate', '--type', 'change', 'bad-numbering', '--strict', '--json'],
+      { cwd: projectDir, env: { XDG_DATA_HOME: xdgDataHome } }
+    );
+
+    expect(result.exitCode).toBe(1);
+    const report = JSON.parse(result.stdout);
+    const taskIssues = report.items[0].issues.filter(
+      (issue: { path: string }) => issue.path === 'tasks.md'
+    );
+    expect(taskIssues).toHaveLength(3);
+  });
+
   it('applies the same warnings to the deprecated change validate command', async () => {
     const result = await runCLI(
       ['change', 'validate', 'bad-numbering', '--strict'],

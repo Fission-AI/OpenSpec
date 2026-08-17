@@ -111,7 +111,7 @@ instruction:
   append: text after the packaged instruction
 ```
 
-`prepend` and `append` may be used together. Non-empty segments are joined with one blank line. `replace` is mutually exclusive with both:
+`prepend` and `append` may be used together. Before joining, leading and trailing blank or whitespace-only lines are removed from each prepend, packaged, and append segment; whitespace-only segments are omitted. The remaining segments are joined with exactly one blank line while their internal whitespace is preserved. `replace` is mutually exclusive with both and retains its supplied text exactly:
 
 ```yaml
 instruction:

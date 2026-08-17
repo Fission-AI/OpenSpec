@@ -94,6 +94,23 @@ artifacts:
     );
   });
 
+  it('normalizes blank boundary lines and omits whitespace-only text segments', () => {
+    const base = baseSchema();
+    base.artifacts[2].instruction = '\nPackaged tasks instruction\n\n  ';
+    const override = parseSchemaOverride(`
+patchVersion: 1
+artifacts:
+  tasks:
+    instruction:
+      prepend: "\\n\\nPersonal preface\\n\\n"
+      append: "  \\n\\t\\n"
+`);
+
+    expect(applySchemaOverride(base, override).artifacts[2].instruction).toBe(
+      'Personal preface\n\nPackaged tasks instruction'
+    );
+  });
+
   it('replaces instruction text without retaining the packaged value', () => {
     const override = parseSchemaOverride(`
 patchVersion: 1

@@ -357,6 +357,10 @@ User schemas live under the OpenSpec data directory:
 - `~/.local/share/openspec/schemas/` on Unix and macOS by default
 - `%LOCALAPPDATA%\openspec\schemas\` on Windows by default
 
+In the directory examples below, `<OpenSpec data directory>` means
+`$XDG_DATA_HOME/openspec`, `~/.local/share/openspec`, or
+`%LOCALAPPDATA%\openspec`, depending on the platform and environment.
+
 Project schemas in `openspec/schemas/` remain higher priority than either user mode because they represent version-controlled team intent.
 
 ### Layered Global Customization
@@ -370,7 +374,7 @@ openspec schema override spec-driven
 This creates only:
 
 ```text
-~/.local/share/openspec/schemas/spec-driven/
+<OpenSpec data directory>/schemas/spec-driven/
 └── schema.override.yaml
 ```
 
@@ -424,7 +428,7 @@ Use either `replace`, or `add`/`remove`, for one dependency field. Layered overr
 You do not need to copy the packaged templates. Add only the templates you want to replace:
 
 ```text
-~/.local/share/openspec/schemas/spec-driven/
+<OpenSpec data directory>/schemas/spec-driven/
 ├── schema.override.yaml
 └── templates/
     └── tasks.md             # user version
@@ -442,7 +446,7 @@ In this example, `tasks.md` is user-owned while proposal, specs, and design temp
 The existing global replacement behavior remains available. Copy a complete schema bundle to the user data directory:
 
 ```text
-~/.local/share/openspec/schemas/spec-driven/
+<OpenSpec data directory>/schemas/spec-driven/
 ├── schema.yaml
 └── templates/
     ├── proposal.md

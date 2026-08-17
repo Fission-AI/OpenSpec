@@ -35,6 +35,7 @@
 #### Scenario: User replacement and overlay conflict
 
 - **GIVEN** the user schema directory contains both `schema.yaml` and `schema.override.yaml`
+- **AND** no higher-priority project schema of the same name exists
 - **WHEN** the user validates that schema
 - **THEN** validation SHALL fail and explain the two mutually exclusive customization modes
 

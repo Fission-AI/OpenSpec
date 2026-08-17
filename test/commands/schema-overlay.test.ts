@@ -4,6 +4,39 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
+const fsControl = vi.hoisted(() => ({
+  mutateDestinationAfterStaging: null as null | { path: string; content: string },
+  replaceStagingContent: null as string | null,
+}));
+
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs')>();
+  return {
+    ...actual,
+    default: actual,
+    writeFileSync: (...args: Parameters<typeof actual.writeFileSync>) => {
+      const result = actual.writeFileSync(...args);
+      if (
+        fsControl.replaceStagingContent !== null &&
+        String(args[0]).includes('.override-staging-')
+      ) {
+        const replacement = fsControl.replaceStagingContent;
+        fsControl.replaceStagingContent = null;
+        actual.writeFileSync(args[0], replacement);
+      }
+      if (
+        fsControl.mutateDestinationAfterStaging &&
+        String(args[0]).includes('.override-staging-')
+      ) {
+        const mutation = fsControl.mutateDestinationAfterStaging;
+        fsControl.mutateDestinationAfterStaging = null;
+        actual.writeFileSync(mutation.path, mutation.content);
+      }
+      return result;
+    },
+  };
+});
+
 async function runSchemaCommand(args: string[]): Promise<void> {
   const { registerSchemaCommand } = await import('../../src/commands/schema.js');
   const program = new Command();
@@ -20,7 +53,9 @@ describe('schema overlay commands', () => {
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-schema-overlay-command-'));
+    tempDir = fs.realpathSync.native(
+      fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-schema-overlay-command-'))
+    );
     originalCwd = process.cwd();
     originalEnv = { ...process.env };
     originalExitCode = process.exitCode;
@@ -39,6 +74,8 @@ describe('schema overlay commands', () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
     consoleLogSpy.mockRestore();
     consoleErrorSpy.mockRestore();
+    fsControl.mutateDestinationAfterStaging = null;
+    fsControl.replaceStagingContent = null;
     vi.resetModules();
   });
 
@@ -102,6 +139,44 @@ describe('schema overlay commands', () => {
     ).toEqual([]);
   });
 
+  it('preserves a concurrently modified overlay during force replacement', async () => {
+    await runSchemaCommand(['override', 'spec-driven', '--json']);
+    const concurrentContent = 'patchVersion: 1\ndescription: Concurrent edit\n';
+    fsControl.mutateDestinationAfterStaging = {
+      path: overlayPath(),
+      content: concurrentContent,
+    };
+    consoleLogSpy.mockClear();
+    process.exitCode = undefined;
+
+    await runSchemaCommand(['override', 'spec-driven', '--force', '--json']);
+
+    expect(process.exitCode).toBe(1);
+    expect(lastJsonLog()).toMatchObject({
+      created: false,
+      error: expect.stringContaining('changed while the replacement was being prepared'),
+    });
+    expect(fs.readFileSync(overlayPath(), 'utf-8')).toBe(concurrentContent);
+  });
+
+  it('rejects invalid staged content without installing a partial overlay', async () => {
+    fsControl.replaceStagingContent = 'patchVersion: invalid\n';
+
+    await runSchemaCommand(['override', 'spec-driven', '--json']);
+
+    expect(process.exitCode).toBe(1);
+    expect(lastJsonLog()).toMatchObject({
+      created: false,
+      error: expect.stringContaining('Invalid schema override'),
+    });
+    expect(fs.existsSync(overlayPath())).toBe(false);
+    expect(
+      fs.readdirSync(path.dirname(overlayPath())).filter((entry) =>
+        entry.startsWith('.override-staging-')
+      )
+    ).toEqual([]);
+  });
+
   it('refuses to combine an overlay with a complete user replacement', async () => {
     const userSchemaDir = path.dirname(overlayPath());
     fs.mkdirSync(userSchemaDir, { recursive: true });
@@ -110,9 +185,54 @@ describe('schema overlay commands', () => {
     await runSchemaCommand(['override', 'spec-driven', '--json']);
 
     expect(process.exitCode).toBe(1);
-    expect(lastJsonLog()).toMatchObject({ created: false });
-    expect((lastJsonLog().error as string)).toContain('complete user schema');
+    const output = lastJsonLog();
+    expect(output).toMatchObject({ created: false });
+    expect(output.error as string).toContain('complete user schema');
     expect(fs.existsSync(overlayPath())).toBe(false);
+  });
+
+  it('normalizes a YAML extension before reporting schema resolution', async () => {
+    fs.mkdirSync(path.dirname(overlayPath()), { recursive: true });
+    fs.writeFileSync(overlayPath(), 'patchVersion: 1\n');
+
+    await runSchemaCommand(['which', 'spec-driven.yaml', '--json']);
+
+    expect(lastJsonLog()).toMatchObject({
+      name: 'spec-driven',
+      source: 'package',
+      overlay: { path: overlayPath() },
+    });
+  });
+
+  it('continues listing usable schemas when one user schema conflicts', async () => {
+    const conflictingDir = path.join(
+      tempDir,
+      'xdg-data',
+      'openspec',
+      'schemas',
+      'conflicting'
+    );
+    fs.mkdirSync(conflictingDir, { recursive: true });
+    fs.writeFileSync(path.join(conflictingDir, 'schema.yaml'), `
+name: conflicting
+version: 1
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Proposal
+    template: proposal.md
+`);
+    fs.writeFileSync(path.join(conflictingDir, 'schema.override.yaml'), 'patchVersion: 1\n');
+
+    await runSchemaCommand(['which', '--all', '--json']);
+
+    const value = consoleLogSpy.mock.calls.at(-1)?.[0];
+    const output = JSON.parse(String(value)) as Array<{ name: string }>;
+    expect(output.map((schema) => schema.name)).toContain('spec-driven');
+    expect(output.map((schema) => schema.name)).not.toContain('conflicting');
+    expect(consoleErrorSpy.mock.calls.flat().join('\n')).toContain(
+      "Warning: skipped 'conflicting'"
+    );
   });
 
   it('reports and validates a composed package schema', async () => {
@@ -216,6 +336,40 @@ artifacts:
           message: expect.stringContaining('both a complete user replacement'),
         }),
       ],
+    });
+  });
+
+  it('validates a project schema despite an inactive conflicting user layer', async () => {
+    const userSchemaDir = path.dirname(overlayPath());
+    fs.mkdirSync(userSchemaDir, { recursive: true });
+    fs.writeFileSync(overlayPath(), 'patchVersion: 1\n');
+    fs.writeFileSync(path.join(userSchemaDir, 'schema.yaml'), 'name: conflicting-user\n');
+
+    const projectSchemaDir = path.join(
+      tempDir,
+      'openspec',
+      'schemas',
+      'spec-driven'
+    );
+    fs.mkdirSync(path.join(projectSchemaDir, 'templates'), { recursive: true });
+    fs.writeFileSync(path.join(projectSchemaDir, 'schema.yaml'), `
+name: spec-driven
+version: 1
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Proposal
+    template: proposal.md
+`);
+    fs.writeFileSync(path.join(projectSchemaDir, 'templates', 'proposal.md'), '# Proposal\n');
+
+    await runSchemaCommand(['validate', 'spec-driven', '--json']);
+
+    expect(process.exitCode).toBeUndefined();
+    expect(lastJsonLog()).toMatchObject({
+      name: 'spec-driven',
+      valid: true,
+      issues: [],
     });
   });
 

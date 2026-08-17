@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import ora from 'ora';
 import { stringify as stringifyYaml, parseDocument } from 'yaml';
 import {
@@ -108,14 +108,20 @@ function getSchemaResolution(
   name: string,
   projectRoot: string
 ): SchemaResolution | null {
-  const sources = resolveSchemaSources(name, projectRoot);
+  const normalizedName = normalizeSchemaLookupName(name);
+  const sources = resolveSchemaSources(normalizedName, projectRoot);
   if (!sources) return null;
 
-  const locations = checkAllLocations(name, projectRoot);
+  const locations = checkAllLocations(normalizedName, projectRoot);
   const existingLocations = locations.filter((loc) => loc.exists);
   const activeIndex = existingLocations.findIndex(
     (location) => location.source === sources.base.source && location.path === sources.base.dir
   );
+  if (activeIndex === -1) {
+    throw new Error(
+      `Schema resolution invariant failed for '${normalizedName}': active source was not found among known locations`
+    );
+  }
   const shadows = existingLocations.slice(activeIndex + 1).map((loc) => ({
     source: loc.source,
     path: loc.path,
@@ -123,13 +129,13 @@ function getSchemaResolution(
 
   const userOverlayPath = path.join(
     getUserSchemasDir(),
-    name,
+    normalizedName,
     SCHEMA_OVERRIDE_FILE_NAME
   );
   const hasUserOverlay = fs.existsSync(userOverlayPath);
 
   return {
-    name,
+    name: normalizedName,
     source: sources.base.source,
     path: sources.base.dir,
     shadows,
@@ -152,9 +158,14 @@ function getAllSchemasWithResolution(
   const results: SchemaResolution[] = [];
 
   for (const name of schemaNames) {
-    const resolution = getSchemaResolution(name, projectRoot);
-    if (resolution) {
-      results.push(resolution);
+    try {
+      const resolution = getSchemaResolution(name, projectRoot);
+      if (resolution) {
+        results.push(resolution);
+      }
+    } catch (error) {
+      if (!(error instanceof SchemaLoadError)) throw error;
+      console.error(`Warning: skipped '${name}': ${error.message}`);
     }
   }
 
@@ -331,6 +342,11 @@ function isValidSchemaName(name: string): boolean {
   return /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(name);
 }
 
+/** Matches resolver compatibility by accepting a trailing YAML extension. */
+function normalizeSchemaLookupName(name: string): string {
+  return name.replace(/\.ya?ml$/u, '');
+}
+
 /**
  * Copy a directory recursively.
  */
@@ -470,10 +486,12 @@ const EMPTY_SCHEMA_OVERRIDE = `# Layered user customization for the packaged sch
 patchVersion: 1
 `;
 
+/** Returns a stable digest used to detect replacement races. */
 function fingerprintFile(filePath: string): string {
   return createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
 }
 
+/** Atomically installs a validated overlay while preserving concurrent user edits. */
 function installSchemaOverrideFile(
   destinationPath: string,
   content: string,
@@ -488,7 +506,7 @@ function installSchemaOverrideFile(
     : null;
   const stagingPath = path.join(
     destinationDir,
-    `.override-staging-${process.pid}-${Date.now()}.yaml`
+    `.override-staging-${process.pid}-${randomUUID()}.yaml`
   );
 
   try {
@@ -625,10 +643,7 @@ export function registerSchemaCommand(program: Command): void {
                 const shadowInfo = schema.shadows.length > 0
                   ? ` (shadows: ${schema.shadows.map((s) => s.source).join(', ')})`
                   : '';
-                const overlayInfo = schema.inactiveOverlays?.length
-                  ? ' (inactive user overlay)'
-                  : '';
-                console.log(`  ${schema.name}${shadowInfo}${overlayInfo}`);
+                console.log(`  ${schema.name}${shadowInfo}`);
               }
             }
 
@@ -789,33 +804,15 @@ export function registerSchemaCommand(program: Command): void {
         }
 
         // Validate a specific effective schema, including a user overlay.
-        let sources: ResolvedSchemaSources | null;
+        let sources: ResolvedSchemaSources | null = null;
+        let sourceResolutionFailed = false;
         try {
           sources = resolveSchemaSources(name, projectRoot);
         } catch {
-          const result = validateEffectiveSchema(
-            name,
-            projectRoot,
-            options?.verbose && !options?.json
-          );
-          if (options?.json) {
-            console.log(JSON.stringify({
-              name,
-              path: result.path,
-              valid: false,
-              issues: result.issues,
-            }, null, 2));
-          } else {
-            console.log(`✗ Schema '${name}' has errors:`);
-            for (const issue of result.issues) {
-              console.log(`  ${issue.level}: ${issue.message}`);
-            }
-          }
-          process.exitCode = 1;
-          return;
+          sourceResolutionFailed = true;
         }
 
-        if (!sources) {
+        if (!sources && !sourceResolutionFailed) {
           const available = listSchemas(projectRoot);
           if (options?.json) {
             console.log(JSON.stringify({
@@ -842,10 +839,12 @@ export function registerSchemaCommand(program: Command): void {
         );
 
         if (options?.json) {
+          const effectivePath = result.path ?? sources?.base.dir;
+          const effectiveBasePath = result.basePath ?? sources?.base.schemaPath;
           console.log(JSON.stringify({
             name,
-            path: result.path ?? sources.base.dir,
-            basePath: result.basePath ?? sources.base.schemaPath,
+            ...(effectivePath ? { path: effectivePath } : {}),
+            ...(effectiveBasePath ? { basePath: effectiveBasePath } : {}),
             ...(result.overlayPath ? { overlayPath: result.overlayPath } : {}),
             valid: result.valid,
             issues: result.issues,
@@ -885,6 +884,7 @@ export function registerSchemaCommand(program: Command): void {
     .action(async (name: string, options?: { json?: boolean; force?: boolean }) => {
       const spinner = options?.json ? null : ora();
       try {
+        const projectRoot = process.cwd();
         if (!isValidSchemaName(name)) {
           throw new Error(
             `Invalid schema name '${name}'. Schema names must be kebab-case (e.g., spec-driven)`
@@ -918,7 +918,7 @@ export function registerSchemaCommand(program: Command): void {
         if (spinner) spinner.succeed(`Created global overlay for '${name}'`);
 
         const projectSchemaPath = path.join(
-          getProjectSchemasDir(process.cwd()),
+          getProjectSchemasDir(projectRoot),
           name,
           SCHEMA_FILE_NAME
         );

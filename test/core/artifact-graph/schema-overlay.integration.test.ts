@@ -16,7 +16,9 @@ describe('layered global schema overlays', () => {
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-overlay-test-'));
+    tempDir = fs.realpathSync.native(
+      fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-overlay-test-'))
+    );
     originalEnv = { ...process.env };
     process.env.XDG_DATA_HOME = tempDir;
   });
@@ -129,8 +131,26 @@ artifacts:
     const proposal = resolveSchemaTemplate('spec-driven', 'proposal.md');
 
     expect(tasks.source).toBe('user');
+    expect(tasks.path).toBe(
+      fs.realpathSync.native(path.join(templatesDir, 'tasks.md'))
+    );
     expect(fs.readFileSync(tasks.path, 'utf-8')).toContain('Personal tasks');
     expect(proposal.source).toBe('package');
+  });
+
+  it('rejects a user template symlink that escapes the overlay template root', () => {
+    if (process.platform === 'win32') return;
+
+    const userSchemaDir = writeOverlay('patchVersion: 1\n');
+    const templatesDir = path.join(userSchemaDir, 'templates');
+    const outsideTemplate = path.join(tempDir, 'outside-tasks.md');
+    fs.mkdirSync(templatesDir, { recursive: true });
+    fs.writeFileSync(outsideTemplate, '# Outside\n');
+    fs.symlinkSync(outsideTemplate, path.join(templatesDir, 'tasks.md'));
+
+    expect(() => resolveSchemaTemplate('spec-driven', 'tasks.md')).toThrow(
+      /outside the allowed directory/u
+    );
   });
 
   it('does not give complete user replacements package template fallback', () => {

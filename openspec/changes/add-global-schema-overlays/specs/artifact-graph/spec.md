@@ -23,6 +23,15 @@ The system SHALL apply a valid user overlay to existing artifacts in a packaged 
 - **THEN** the effective instruction SHALL order the non-empty segments as prepend, packaged, append
 - **AND** it SHALL separate adjacent segments with one blank line
 
+#### Scenario: Text operation boundary normalization
+
+- **GIVEN** prepend, packaged, or append text has leading or trailing blank lines
+- **AND** one supplied segment contains only whitespace
+- **WHEN** the overlay is composed
+- **THEN** blank boundary lines SHALL be removed and the whitespace-only segment omitted
+- **AND** the remaining segments SHALL be separated by exactly one blank line
+- **AND** internal whitespace SHALL remain unchanged
+
 #### Scenario: Replace artifact instruction
 
 - **GIVEN** an overlay specifies `artifacts.tasks.instruction.replace`
