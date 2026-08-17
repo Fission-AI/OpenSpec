@@ -1,11 +1,26 @@
 import * as fs from 'node:fs';
 import { parse as parseYaml } from 'yaml';
-import { SchemaYamlSchema, type SchemaYaml, type Artifact } from './types.js';
+import {
+  SchemaOverrideYamlSchema,
+  SchemaYamlSchema,
+  type Artifact,
+  type SchemaOverrideYaml,
+  type SchemaYaml,
+  type StringCollectionOverride,
+  type TextOverrideOperation,
+} from './types.js';
 
 export class SchemaValidationError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'SchemaValidationError';
+  }
+}
+
+export class SchemaOverrideValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SchemaOverrideValidationError';
   }
 }
 
@@ -23,8 +38,13 @@ export function loadSchema(filePath: string): SchemaYaml {
 export function parseSchema(yamlContent: string): SchemaYaml {
   const parsed = parseYaml(yamlContent);
 
-  // Validate with Zod
-  const result = SchemaYamlSchema.safeParse(parsed);
+  return validateSchemaValue(parsed);
+}
+
+/** Validates an already-parsed schema value and its dependency graph. */
+export function validateSchemaValue(value: unknown): SchemaYaml {
+  const result = SchemaYamlSchema.safeParse(value);
+
   if (!result.success) {
     const errors = result.error.issues.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
     throw new SchemaValidationError(`Invalid schema: ${errors}`);
@@ -42,6 +62,137 @@ export function parseSchema(yamlContent: string): SchemaYaml {
   validateNoCycles(schema.artifacts);
 
   return schema;
+}
+
+/** Parses and validates a layered user schema override. */
+export function parseSchemaOverride(yamlContent: string): SchemaOverrideYaml {
+  const parsed = parseYaml(yamlContent);
+  const result = SchemaOverrideYamlSchema.safeParse(parsed);
+  if (!result.success) {
+    const errors = result.error.issues
+      .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+      .join(', ');
+    throw new SchemaOverrideValidationError(`Invalid schema override: ${errors}`);
+  }
+  return result.data;
+}
+
+function applyTextOverride(
+  base: string | undefined,
+  operation: TextOverrideOperation
+): string | undefined {
+  if (operation.replace !== undefined) {
+    return operation.replace;
+  }
+
+  const segments = [operation.prepend, base, operation.append].filter(
+    (segment): segment is string => segment !== undefined && segment.length > 0
+  );
+  return segments.length > 0 ? segments.join('\n\n') : undefined;
+}
+
+function applyCollectionOverride(
+  base: string[],
+  operation: StringCollectionOverride,
+  fieldPath: string
+): string[] {
+  if (operation.replace) {
+    return [...operation.replace];
+  }
+
+  const result = [...base];
+  for (const value of operation.remove ?? []) {
+    const index = result.indexOf(value);
+    if (index === -1) {
+      throw new SchemaOverrideValidationError(
+        `${fieldPath}.remove cannot remove '${value}' because it is not present in the base value`
+      );
+    }
+    result.splice(index, 1);
+  }
+  for (const value of operation.add ?? []) {
+    if (result.includes(value)) {
+      throw new SchemaOverrideValidationError(
+        `${fieldPath}.add cannot add duplicate value '${value}'`
+      );
+    }
+    result.push(value);
+  }
+  return result;
+}
+
+/** Applies a validated user override and validates the complete effective schema. */
+export function applySchemaOverride(
+  base: SchemaYaml,
+  override: SchemaOverrideYaml
+): SchemaYaml {
+  const artifacts = base.artifacts.map((artifact) => ({
+    ...artifact,
+    requires: [...artifact.requires],
+  }));
+  const artifactsById = new Map(artifacts.map((artifact) => [artifact.id, artifact]));
+
+  for (const [artifactId, patch] of Object.entries(override.artifacts ?? {})) {
+    const artifact = artifactsById.get(artifactId);
+    if (!artifact) {
+      throw new SchemaOverrideValidationError(
+        `artifacts.${artifactId}: unknown artifact ID in packaged schema '${base.name}'`
+      );
+    }
+
+    if (patch.generates !== undefined) artifact.generates = patch.generates;
+    if (patch.description !== undefined) artifact.description = patch.description;
+    if (patch.template !== undefined) artifact.template = patch.template;
+    if (patch.instruction !== undefined) {
+      artifact.instruction = applyTextOverride(artifact.instruction, patch.instruction);
+    }
+    if (patch.requires !== undefined) {
+      artifact.requires = applyCollectionOverride(
+        artifact.requires,
+        patch.requires,
+        `artifacts.${artifactId}.requires`
+      );
+    }
+  }
+
+  let apply = base.apply
+    ? { ...base.apply, requires: [...base.apply.requires] }
+    : undefined;
+  if (override.apply) {
+    apply ??= { requires: [] };
+    if (override.apply.requires !== undefined) {
+      apply.requires = applyCollectionOverride(
+        apply.requires,
+        override.apply.requires,
+        'apply.requires'
+      );
+    }
+    if (override.apply.tracks !== undefined) {
+      apply.tracks = override.apply.tracks;
+    }
+    if (override.apply.instruction !== undefined) {
+      apply.instruction = applyTextOverride(
+        apply.instruction,
+        override.apply.instruction
+      );
+    }
+  }
+
+  const effective = {
+    ...base,
+    description: override.description ?? base.description,
+    artifacts,
+    ...(apply ? { apply } : {}),
+  };
+
+  try {
+    return validateSchemaValue(effective);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new SchemaOverrideValidationError(
+      `Effective schema is invalid after applying override: ${detail}`
+    );
+  }
 }
 
 /**

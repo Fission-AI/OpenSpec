@@ -1,15 +1,27 @@
 // Types
 export {
   ArtifactSchema,
+  SchemaOverrideYamlSchema,
   SchemaYamlSchema,
   type Artifact,
+  type SchemaOverrideYaml,
   type SchemaYaml,
+  type StringCollectionOverride,
+  type TextOverrideOperation,
   type CompletedSet,
   type BlockedArtifacts,
 } from './types.js';
 
 // Schema loading and validation
-export { loadSchema, parseSchema, SchemaValidationError } from './schema.js';
+export {
+  applySchemaOverride,
+  loadSchema,
+  parseSchema,
+  parseSchemaOverride,
+  validateSchemaValue,
+  SchemaOverrideValidationError,
+  SchemaValidationError,
+} from './schema.js';
 
 // Graph operations
 export { ArtifactGraph } from './graph.js';
@@ -31,7 +43,19 @@ export {
   getSchemaDir,
   getPackageSchemasDir,
   getUserSchemasDir,
+  getProjectSchemasDir,
+  resolveSchemaSources,
+  resolveSchemaTemplate,
+  SCHEMA_FILE_NAME,
+  SCHEMA_OVERRIDE_FILE_NAME,
   SchemaLoadError,
+  type ResolvedSchemaSources,
+  type ResolvedTemplate,
+  type SchemaOverlayLocation,
+  type SchemaResolutionMode,
+  type SchemaSource,
+  type SchemaSourceLocation,
+  type SchemaTemplateRoot,
   type SchemaInfo,
 } from './resolver.js';
 

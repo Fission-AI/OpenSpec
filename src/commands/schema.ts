@@ -11,8 +11,19 @@ import {
   getPackageSchemasDir,
   isSchemaDir,
   listSchemas,
+  resolveSchema,
+  resolveSchemaSources,
+  resolveSchemaTemplate,
+  SCHEMA_FILE_NAME,
+  SCHEMA_OVERRIDE_FILE_NAME,
+  SchemaLoadError,
+  type ResolvedSchemaSources,
 } from '../core/artifact-graph/resolver.js';
-import { parseSchema, SchemaValidationError } from '../core/artifact-graph/schema.js';
+import {
+  parseSchema,
+  parseSchemaOverride,
+  SchemaValidationError,
+} from '../core/artifact-graph/schema.js';
 import type { SchemaYaml, Artifact } from '../core/artifact-graph/types.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 
@@ -38,6 +49,8 @@ interface SchemaResolution {
   source: SchemaSource;
   path: string;
   shadows: Array<{ source: SchemaSource; path: string }>;
+  overlay?: { source: 'user'; path: string };
+  inactiveOverlays?: Array<{ source: 'user'; path: string }>;
 }
 
 /**
@@ -95,24 +108,37 @@ function getSchemaResolution(
   name: string,
   projectRoot: string
 ): SchemaResolution | null {
+  const sources = resolveSchemaSources(name, projectRoot);
+  if (!sources) return null;
+
   const locations = checkAllLocations(name, projectRoot);
   const existingLocations = locations.filter((loc) => loc.exists);
-
-  if (existingLocations.length === 0) {
-    return null;
-  }
-
-  const active = existingLocations[0];
-  const shadows = existingLocations.slice(1).map((loc) => ({
+  const activeIndex = existingLocations.findIndex(
+    (location) => location.source === sources.base.source && location.path === sources.base.dir
+  );
+  const shadows = existingLocations.slice(activeIndex + 1).map((loc) => ({
     source: loc.source,
     path: loc.path,
   }));
 
+  const userOverlayPath = path.join(
+    getUserSchemasDir(),
+    name,
+    SCHEMA_OVERRIDE_FILE_NAME
+  );
+  const hasUserOverlay = fs.existsSync(userOverlayPath);
+
   return {
     name,
-    source: active.source,
-    path: active.path,
+    source: sources.base.source,
+    path: sources.base.dir,
     shadows,
+    ...(sources.overlay
+      ? { overlay: { source: 'user' as const, path: sources.overlay.path } }
+      : {}),
+    ...(!sources.overlay && hasUserOverlay
+      ? { inactiveOverlays: [{ source: 'user' as const, path: userOverlayPath }] }
+      : {}),
   };
 }
 
@@ -233,6 +259,69 @@ function validateSchema(
   }
 
   return { valid: issues.length === 0, issues };
+}
+
+function validateEffectiveSchema(
+  name: string,
+  projectRoot: string,
+  verbose: boolean = false
+): {
+  valid: boolean;
+  path?: string;
+  basePath?: string;
+  overlayPath?: string;
+  issues: ValidationIssue[];
+} {
+  const issues: ValidationIssue[] = [];
+
+  try {
+    if (verbose) console.log('  Resolving schema sources...');
+    const sources = resolveSchemaSources(name, projectRoot);
+    if (!sources) {
+      return {
+        valid: false,
+        issues: [{ level: 'error', path: name, message: `Schema '${name}' not found` }],
+      };
+    }
+
+    if (verbose && sources.overlay) console.log('  Applying schema.override.yaml...');
+    const schema = resolveSchema(name, projectRoot);
+
+    if (verbose) console.log('  Checking effective template files...');
+    for (const artifact of schema.artifacts) {
+      try {
+        resolveSchemaTemplate(name, artifact.template, projectRoot);
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        issues.push({
+          level: 'error',
+          path: `artifacts.${artifact.id}.template`,
+          message: detail.includes('outside the allowed directory')
+            ? `Template file '${artifact.template}' points outside the schema templates directory`
+            : detail,
+        });
+      }
+    }
+
+    return {
+      valid: issues.length === 0,
+      path: sources.base.dir,
+      basePath: sources.base.schemaPath,
+      ...(sources.overlay ? { overlayPath: sources.overlay.path } : {}),
+      issues,
+    };
+  } catch (error) {
+    const issuePath = error instanceof SchemaLoadError ? error.schemaPath : name;
+    return {
+      valid: false,
+      path: error instanceof SchemaLoadError ? path.dirname(error.schemaPath) : undefined,
+      issues: [{
+        level: 'error',
+        path: issuePath,
+        message: error instanceof Error ? error.message : String(error),
+      }],
+    };
+  }
 }
 
 /**
@@ -371,6 +460,75 @@ function fingerprintDir(dir: string): string {
   return hash.digest('hex');
 }
 
+const EMPTY_SCHEMA_OVERRIDE = `# Layered user customization for the packaged schema.
+# Example:
+# artifacts:
+#   tasks:
+#     instruction:
+#       append: |
+#         Add your global task guidance here.
+patchVersion: 1
+`;
+
+function fingerprintFile(filePath: string): string {
+  return createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+}
+
+function installSchemaOverrideFile(
+  destinationPath: string,
+  content: string,
+  force: boolean
+): void {
+  const destinationDir = path.dirname(destinationPath);
+  fs.mkdirSync(destinationDir, { recursive: true });
+
+  const destinationExists = fs.existsSync(destinationPath);
+  const authorizedFingerprint = destinationExists
+    ? fingerprintFile(destinationPath)
+    : null;
+  const stagingPath = path.join(
+    destinationDir,
+    `.override-staging-${process.pid}-${Date.now()}.yaml`
+  );
+
+  try {
+    fs.writeFileSync(stagingPath, content, { flag: 'wx' });
+    parseSchemaOverride(fs.readFileSync(stagingPath, 'utf-8'));
+
+    if (!destinationExists) {
+      fs.renameSync(stagingPath, destinationPath);
+      return;
+    }
+
+    if (!force) {
+      throw new Error(`Schema override already exists at ${destinationPath}`);
+    }
+
+    const currentFingerprint = fs.existsSync(destinationPath)
+      ? fingerprintFile(destinationPath)
+      : null;
+    if (currentFingerprint !== authorizedFingerprint) {
+      throw new Error(
+        `Schema override at ${destinationPath} changed while the replacement was being prepared; nothing was overwritten.`
+      );
+    }
+
+    const backupPath = `${destinationPath}.override-backup-${process.pid}-${Date.now()}`;
+    fs.renameSync(destinationPath, backupPath);
+    try {
+      fs.renameSync(stagingPath, destinationPath);
+      fs.rmSync(backupPath, { force: true });
+    } catch (error) {
+      if (!fs.existsSync(destinationPath) && fs.existsSync(backupPath)) {
+        fs.renameSync(backupPath, destinationPath);
+      }
+      throw error;
+    }
+  } finally {
+    if (fs.existsSync(stagingPath)) fs.rmSync(stagingPath, { force: true });
+  }
+}
+
 /**
  * Default artifacts with descriptions for schema init.
  */
@@ -454,7 +612,10 @@ export function registerSchemaCommand(program: Command): void {
                 const shadowInfo = schema.shadows.length > 0
                   ? ` (shadows: ${schema.shadows.map((s) => s.source).join(', ')})`
                   : '';
-                console.log(`  ${schema.name}${shadowInfo}`);
+                const overlayInfo = schema.inactiveOverlays?.length
+                  ? ' (inactive user overlay)'
+                  : '';
+                console.log(`  ${schema.name}${shadowInfo}${overlayInfo}`);
               }
             }
 
@@ -464,14 +625,18 @@ export function registerSchemaCommand(program: Command): void {
                 const shadowInfo = schema.shadows.length > 0
                   ? ` (shadows: ${schema.shadows.map((s) => s.source).join(', ')})`
                   : '';
-                console.log(`  ${schema.name}${shadowInfo}`);
+                const overlayInfo = schema.inactiveOverlays?.length
+                  ? ' (inactive user overlay)'
+                  : '';
+                console.log(`  ${schema.name}${shadowInfo}${overlayInfo}`);
               }
             }
 
             if (bySource.package.length > 0) {
               console.log('\nPackage schemas:');
               for (const schema of bySource.package) {
-                console.log(`  ${schema.name}`);
+                const overlayInfo = schema.overlay ? ' (user overlay)' : '';
+                console.log(`  ${schema.name}${overlayInfo}`);
               }
             }
           }
@@ -505,13 +670,26 @@ export function registerSchemaCommand(program: Command): void {
           console.log(JSON.stringify(resolution, null, 2));
         } else {
           console.log(`Schema: ${resolution.name}`);
-          console.log(`Source: ${resolution.source}`);
+          console.log(
+            `Source: ${resolution.overlay ? 'package + user overlay' : resolution.source}`
+          );
           console.log(`Path: ${resolution.path}`);
+
+          if (resolution.overlay) {
+            console.log(`Overlay: ${resolution.overlay.path}`);
+          }
 
           if (resolution.shadows.length > 0) {
             console.log('\nShadows:');
             for (const shadow of resolution.shadows) {
               console.log(`  ${shadow.source}: ${shadow.path}`);
+            }
+          }
+
+          if (resolution.inactiveOverlays?.length) {
+            console.log('\nInactive overlays:');
+            for (const overlay of resolution.inactiveOverlays) {
+              console.log(`  ${overlay.source}: ${overlay.path}`);
             }
           }
         }
@@ -610,10 +788,34 @@ export function registerSchemaCommand(program: Command): void {
           return;
         }
 
-        // Validate specific schema
-        const schemaDir = getSchemaDir(name, projectRoot);
+        // Validate a specific effective schema, including a user overlay.
+        let sources: ResolvedSchemaSources | null;
+        try {
+          sources = resolveSchemaSources(name, projectRoot);
+        } catch {
+          const result = validateEffectiveSchema(
+            name,
+            projectRoot,
+            options?.verbose && !options?.json
+          );
+          if (options?.json) {
+            console.log(JSON.stringify({
+              name,
+              path: result.path,
+              valid: false,
+              issues: result.issues,
+            }, null, 2));
+          } else {
+            console.log(`✗ Schema '${name}' has errors:`);
+            for (const issue of result.issues) {
+              console.log(`  ${issue.level}: ${issue.message}`);
+            }
+          }
+          process.exitCode = 1;
+          return;
+        }
 
-        if (!schemaDir) {
+        if (!sources) {
           const available = listSchemas(projectRoot);
           if (options?.json) {
             console.log(JSON.stringify({
@@ -633,12 +835,18 @@ export function registerSchemaCommand(program: Command): void {
           console.log(`Validating ${name}...`);
         }
 
-        const result = validateSchema(schemaDir, options?.verbose && !options?.json);
+        const result = validateEffectiveSchema(
+          name,
+          projectRoot,
+          options?.verbose && !options?.json
+        );
 
         if (options?.json) {
           console.log(JSON.stringify({
             name,
-            path: schemaDir,
+            path: result.path ?? sources.base.dir,
+            basePath: result.basePath ?? sources.base.schemaPath,
+            ...(result.overlayPath ? { overlayPath: result.overlayPath } : {}),
             valid: result.valid,
             issues: result.issues,
           }, null, 2));
@@ -663,6 +871,86 @@ export function registerSchemaCommand(program: Command): void {
           }, null, 2));
         } else {
           console.error(`Error: ${(error as Error).message}`);
+        }
+        process.exitCode = 1;
+      }
+    });
+
+  // schema override
+  schemaCmd
+    .command('override <name>')
+    .description('Create a layered user override for a packaged schema')
+    .option('--json', 'Output as JSON')
+    .option('--force', 'Overwrite an existing layered override')
+    .action(async (name: string, options?: { json?: boolean; force?: boolean }) => {
+      const spinner = options?.json ? null : ora();
+      try {
+        if (!isValidSchemaName(name)) {
+          throw new Error(
+            `Invalid schema name '${name}'. Schema names must be kebab-case (e.g., spec-driven)`
+          );
+        }
+
+        const packageSchemaDir = path.join(getPackageSchemasDir(), name);
+        const packageSchemaPath = path.join(packageSchemaDir, SCHEMA_FILE_NAME);
+        if (!fs.existsSync(packageSchemaPath)) {
+          throw new Error(
+            `Packaged schema '${name}' not found. Layered overrides can only customize packaged schemas.`
+          );
+        }
+
+        const userSchemaDir = path.join(getUserSchemasDir(), name);
+        const completeUserSchemaPath = path.join(userSchemaDir, SCHEMA_FILE_NAME);
+        const destinationPath = path.join(userSchemaDir, SCHEMA_OVERRIDE_FILE_NAME);
+        if (fs.existsSync(completeUserSchemaPath)) {
+          throw new Error(
+            `Cannot create a layered override while complete user schema '${completeUserSchemaPath}' exists. Remove it first or keep using complete replacement.`
+          );
+        }
+        if (fs.existsSync(destinationPath) && !options?.force) {
+          throw new Error(
+            `Schema override already exists at ${destinationPath}. Use --force to replace it.`
+          );
+        }
+
+        if (spinner) spinner.start(`Creating global overlay for '${name}'...`);
+        installSchemaOverrideFile(destinationPath, EMPTY_SCHEMA_OVERRIDE, options?.force ?? false);
+        if (spinner) spinner.succeed(`Created global overlay for '${name}'`);
+
+        const projectSchemaPath = path.join(
+          getProjectSchemasDir(process.cwd()),
+          name,
+          SCHEMA_FILE_NAME
+        );
+        const projectSchemaTakesPrecedence = fs.existsSync(projectSchemaPath);
+
+        if (options?.json) {
+          console.log(JSON.stringify({
+            created: true,
+            schema: name,
+            path: destinationPath,
+            basePath: packageSchemaPath,
+            ...(projectSchemaTakesPrecedence ? { projectSchemaTakesPrecedence: true } : {}),
+          }, null, 2));
+        } else {
+          console.log(`\nBase: ${packageSchemaPath}`);
+          console.log(`Override: ${destinationPath}`);
+          console.log('Packaged fields and templates remain active unless explicitly overridden.');
+          if (projectSchemaTakesPrecedence) {
+            console.log(
+              `Note: ${projectSchemaPath} remains higher priority in the current project.`
+            );
+          }
+        }
+      } catch (error) {
+        if (spinner) spinner.fail('Override creation failed');
+        if (options?.json) {
+          console.log(JSON.stringify({
+            created: false,
+            error: error instanceof Error ? error.message : String(error),
+          }, null, 2));
+        } else {
+          console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
         }
         process.exitCode = 1;
       }
@@ -717,6 +1005,7 @@ export function registerSchemaCommand(program: Command): void {
         // Determine source location
         const sourceResolution = getSchemaResolution(source, projectRoot);
         const sourceLocation = sourceResolution?.source || 'package';
+        const sourceSources = resolveSchemaSources(source, projectRoot)!;
 
         // Validate the complete source before a forced fork removes anything.
         const trustedSourceDir = fs.realpathSync(sourceDir);
@@ -727,9 +1016,15 @@ export function registerSchemaCommand(program: Command): void {
         // existing destination. This keeps `fork --force` atomic — an unusable
         // source never destroys a valid destination — matching `schema init`,
         // which likewise validates before it overwrites.
-        parseSchema(
-          fs.readFileSync(path.join(trustedSourceDir, 'schema.yaml'), 'utf-8')
-        );
+        const effectiveSourceSchema = resolveSchema(source, projectRoot);
+        if (sourceSources.overlay) {
+          // A composed fork must become self-contained, so every effective
+          // template needs to resolve before staging. Complete-schema forks
+          // preserve the historical behavior of copying their tree as-is.
+          for (const artifact of effectiveSourceSchema.artifacts) {
+            resolveSchemaTemplate(source, artifact.template, projectRoot);
+          }
+        }
 
         // Check destination
         const schemasDir = getProjectSchemasDir(projectRoot);
@@ -786,14 +1081,29 @@ export function registerSchemaCommand(program: Command): void {
         try {
           copyDirRecursive(trustedSourceDir, stagingDir);
 
-          // Update name in the staged schema.yaml via yaml's Document API
-          // instead of re-serializing the parsed object, so block scalars,
-          // comments, and key order in the source schema.yaml survive the fork.
           const stagedSchemaPath = path.join(stagingDir, 'schema.yaml');
-          const schemaContent = fs.readFileSync(stagedSchemaPath, 'utf-8');
-          const doc = parseDocument(schemaContent);
-          doc.set('name', destinationName);
-          fs.writeFileSync(stagedSchemaPath, doc.toString());
+          if (sourceSources.overlay) {
+            // Materialize the effective composed schema into a self-contained
+            // project fork. User templates replace same-named package files;
+            // untouched package templates remain available in the staged tree.
+            if (fs.existsSync(sourceSources.overlay.templatesDir)) {
+              copyDirRecursive(
+                sourceSources.overlay.templatesDir,
+                path.join(stagingDir, 'templates'),
+                sourceSources.overlay.templatesDir
+              );
+            }
+            fs.writeFileSync(stagedSchemaPath, stringifyYaml({
+              ...effectiveSourceSchema,
+              name: destinationName,
+            }));
+          } else {
+            // Preserve formatting for ordinary complete-schema forks.
+            const schemaContent = fs.readFileSync(stagedSchemaPath, 'utf-8');
+            const doc = parseDocument(schemaContent);
+            doc.set('name', destinationName);
+            fs.writeFileSync(stagedSchemaPath, doc.toString());
+          }
 
           // Authoritative gate: validate the COMPLETED staged schema — the exact
           // bytes we are about to install — not just the source at the pre-check.
@@ -895,6 +1205,7 @@ export function registerSchemaCommand(program: Command): void {
             source,
             sourcePath: sourceDir,
             sourceLocation,
+            ...(sourceSources.overlay ? { overlayPath: sourceSources.overlay.path } : {}),
             destination: destinationName,
             destinationPath: destinationDir,
           }, null, 2));

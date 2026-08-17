@@ -47,6 +47,8 @@ export async function schemasCommand(options: SchemasOptions): Promise<void> {
       sourceLabel = chalk.cyan(' (project)');
     } else if (schema.source === 'user') {
       sourceLabel = chalk.dim(' (user override)');
+    } else if (schema.overlay) {
+      sourceLabel = chalk.dim(' (package + user overlay)');
     }
     console.log(`  ${chalk.bold(schema.name)}${sourceLabel}`);
     console.log(`    ${schema.description}`);

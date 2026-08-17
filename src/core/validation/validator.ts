@@ -33,7 +33,7 @@ import {
 } from '../../utils/change-metadata.js';
 import { resolveTaskFilesForChange } from '../../utils/task-progress.js';
 import { findTaskNumberingIssues } from './task-numbering.js';
-import { getPackageSchemasDir, getSchemaDir } from '../artifact-graph/index.js';
+import { resolveSchemaSources } from '../artifact-graph/index.js';
 
 export class Validator {
   private strictMode: boolean;
@@ -474,13 +474,10 @@ export class Validator {
         /\.ya?ml$/,
         ''
       );
-      const schemaDir = getSchemaDir(schemaName, projectRoot);
-      const builtInSchemaDir = path.join(getPackageSchemasDir(), 'spec-driven');
+      const schemaSources = resolveSchemaSources(schemaName, projectRoot);
       if (
         schemaName !== 'spec-driven' ||
-        schemaDir === null ||
-        FileSystemUtils.canonicalizeExistingPath(schemaDir) !==
-          FileSystemUtils.canonicalizeExistingPath(builtInSchemaDir)
+        schemaSources?.mode !== 'package'
       ) {
         return [];
       }

@@ -5,13 +5,12 @@
  */
 
 import ora from 'ora';
-import path from 'path';
 import {
   resolveSchema,
-  getSchemaDir,
+  resolveSchemaSources,
+  resolveSchemaTemplate,
   ArtifactGraph,
 } from '../../core/artifact-graph/index.js';
-import { FileSystemUtils } from '../../utils/file-system.js';
 import { validateSchemaExists, DEFAULT_SCHEMA } from './shared.js';
 
 // -----------------------------------------------------------------------------
@@ -41,45 +40,24 @@ export async function templatesCommand(options: TemplatesOptions): Promise<void>
     const schemaName = validateSchemaExists(options.schema ?? DEFAULT_SCHEMA, projectRoot);
     const schema = resolveSchema(schemaName, projectRoot);
     const graph = ArtifactGraph.fromSchema(schema);
-    const schemaDir = getSchemaDir(schemaName, projectRoot)!;
-
-    // Determine the source (project, user, or package)
-    const {
-      getUserSchemasDir,
-      getProjectSchemasDir,
-    } = await import('../../core/artifact-graph/resolver.js');
-    const projectSchemasDir = getProjectSchemasDir(projectRoot);
-    const userSchemasDir = getUserSchemasDir();
-
-    // Determine source by checking if schemaDir is inside each base directory
-    // Using path.relative is more robust than startsWith for path comparisons
-    const isInsideDir = (child: string, parent: string): boolean => {
-      const relative = path.relative(parent, child);
-      return !relative.startsWith('..') && !path.isAbsolute(relative);
-    };
-
-    let source: 'project' | 'user' | 'package';
-    if (isInsideDir(schemaDir, projectSchemasDir)) {
-      source = 'project';
-    } else if (isInsideDir(schemaDir, userSchemasDir)) {
-      source = 'user';
-    } else {
-      source = 'package';
-    }
-
-    const templatesDir = path.join(schemaDir, 'templates');
+    const sources = resolveSchemaSources(schemaName, projectRoot)!;
+    const source = sources.base.source;
     const templates: TemplateInfo[] = graph.getAllArtifacts().map((artifact) => {
-      const templatePath = path.join(templatesDir, artifact.template);
       try {
-        FileSystemUtils.assertPathWithin(templatesDir, templatePath);
+        const resolution = resolveSchemaTemplate(
+          schemaName,
+          artifact.template,
+          projectRoot
+        );
         return {
           artifactId: artifact.id,
-          templatePath: FileSystemUtils.canonicalizeExistingPath(templatePath),
-          source,
+          templatePath: resolution.path,
+          source: resolution.source,
         };
-      } catch {
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
         throw new Error(
-          `Template '${artifact.template}' for artifact '${artifact.id}' points outside the schema templates directory`
+          `Template '${artifact.template}' for artifact '${artifact.id}' could not be resolved: ${detail}`
         );
       }
     });
@@ -96,12 +74,13 @@ export async function templatesCommand(options: TemplatesOptions): Promise<void>
     }
 
     console.log(`Schema: ${schemaName}`);
-    console.log(`Source: ${source}`);
+    console.log(`Source: ${sources.overlay ? 'package + user overlay' : source}`);
     console.log();
 
     for (const t of templates) {
       console.log(`${t.artifactId}:`);
-      console.log(`  ${t.templatePath}`);
+      console.log(`  Path: ${t.templatePath}`);
+      console.log(`  Source: ${t.source}`);
     }
   } catch (error) {
     spinner?.stop();

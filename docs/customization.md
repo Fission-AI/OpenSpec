@@ -342,7 +342,130 @@ Path: /path/to/project/openspec/schemas/my-workflow
 
 ---
 
-> **Note:** OpenSpec also supports user-level schemas at `~/.local/share/openspec/schemas/` for sharing across projects, but project-level schemas in `openspec/schemas/` are recommended since they're version-controlled with your code.
+## Global Overrides
+
+OpenSpec has two user-level customization modes. Choose one mode per schema name:
+
+| Mode | File | Update behavior |
+|------|------|-----------------|
+| **Layered override** | `schema.override.yaml` | Keeps packaged fields and templates unless explicitly changed |
+| **Complete replacement** | `schema.yaml` plus `templates/` | Freezes a self-contained copy that fully shadows the package |
+
+User schemas live under the OpenSpec data directory:
+
+- `$XDG_DATA_HOME/openspec/schemas/` when `XDG_DATA_HOME` is set
+- `~/.local/share/openspec/schemas/` on Unix and macOS by default
+- `%LOCALAPPDATA%\openspec\schemas\` on Windows by default
+
+Project schemas in `openspec/schemas/` remain higher priority than either user mode because they represent version-controlled team intent.
+
+### Layered Global Customization
+
+Create a starter override for a packaged schema:
+
+```bash
+openspec schema override spec-driven
+```
+
+This creates only:
+
+```text
+~/.local/share/openspec/schemas/spec-driven/
+└── schema.override.yaml
+```
+
+The packaged `schema.yaml` remains the base. For example, keep OpenSpec's task guidance and append personal rules:
+
+```yaml
+patchVersion: 1
+
+artifacts:
+  tasks:
+    instruction:
+      append: |
+        Additional rules:
+        - Include verification commands in every task group.
+        - Mention the affected package in each task.
+```
+
+Text fields use explicit operations:
+
+```yaml
+artifacts:
+  tasks:
+    instruction:
+      prepend: Read the repository contribution guide first.
+      append: Include focused and full verification commands.
+```
+
+`prepend` and `append` may be combined. Use `replace` by itself only when you intend to discard the packaged instruction:
+
+```yaml
+artifacts:
+  tasks:
+    instruction:
+      replace: Write tasks using my personal workflow.
+```
+
+Plain `description`, `generates`, and `template` values replace the matching packaged value. Dependency lists use explicit operations:
+
+```yaml
+artifacts:
+  tasks:
+    requires:
+      remove: [design]
+      add: [proposal]
+```
+
+Use either `replace`, or `add`/`remove`, for one dependency field. Layered overrides modify existing artifacts only; use a complete schema fork to add, remove, or reorder artifacts.
+
+### Optional Template Overrides
+
+You do not need to copy the packaged templates. Add only the templates you want to replace:
+
+```text
+~/.local/share/openspec/schemas/spec-driven/
+├── schema.override.yaml
+└── templates/
+    └── tasks.md             # user version
+```
+
+For a layered schema, each template resolves independently:
+
+1. User `templates/<file>`
+2. Packaged `templates/<file>`
+
+In this example, `tasks.md` is user-owned while proposal, specs, and design templates continue following package updates. Template files are whole-file replacements; their Markdown contents are not merged.
+
+### Complete Global Replacement
+
+The existing global replacement behavior remains available. Copy a complete schema bundle to the user data directory:
+
+```text
+~/.local/share/openspec/schemas/spec-driven/
+├── schema.yaml
+└── templates/
+    ├── proposal.md
+    ├── spec.md
+    ├── design.md
+    └── tasks.md
+```
+
+This directory is self-contained. It receives no packaged schema or template updates, and missing templates do not fall back to the package. You must manually compare and rebase it when OpenSpec changes the built-in workflow.
+
+Do not put `schema.yaml` and `schema.override.yaml` in the same user schema directory. OpenSpec rejects that conflict instead of guessing which customization you intended.
+
+### Inspect and Validate
+
+```bash
+openspec schema which spec-driven
+openspec schema validate spec-driven
+openspec templates --schema spec-driven
+```
+
+For a layered schema, `which` reports both package and user paths, validation checks the composed schema and every effective template, and `templates` shows whether each concrete template came from the user or package directory.
+
+If you later need structural changes, `openspec schema fork spec-driven my-workflow` materializes the effective packaged-plus-user schema and templates into a self-contained project schema.
 
 ---
 

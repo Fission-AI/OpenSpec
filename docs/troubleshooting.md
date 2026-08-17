@@ -166,6 +166,24 @@ openspec schema init <name>         # create a custom one
 
 See [Customization](customization.md#custom-schemas).
 
+### My global schema stopped receiving built-in updates
+
+A user-level `schema.yaml` is a complete replacement. Its schema and templates intentionally shadow the packaged bundle, so OpenSpec cannot automatically apply newer built-in guidance.
+
+If you only need additive personal customization, use a layered override instead:
+
+```bash
+openspec schema override spec-driven
+openspec schema validate spec-driven
+openspec schema which spec-driven
+```
+
+Move your changes into `schema.override.yaml`, keep only templates you intentionally replace, and remove the complete user `schema.yaml` after preserving any custom content you still need. See [Global Overrides](customization.md#global-overrides).
+
+### Complete replacement conflicts with layered override
+
+One user schema directory cannot contain both `schema.yaml` and `schema.override.yaml`. Keep `schema.yaml` for a self-contained frozen workflow, or keep `schema.override.yaml` to inherit packaged updates. `openspec schema which <name>` shows which source is active.
+
 ## Migration from the legacy workflow
 
 ### "Legacy files detected in non-interactive mode"
