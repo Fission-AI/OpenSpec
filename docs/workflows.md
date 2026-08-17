@@ -388,18 +388,20 @@ AI:  Archiving add-auth...
      ✓ design.md exists
      ✓ tasks.md exists (12/12 tasks complete)
 
-     Delta specs: Not yet synced to main
-     → Would you like to sync now?
+     Delta specs: Not yet applied to current specs
+     → Apply them to current specs now?
 
 You: Yes
 
-AI:  ✓ Synced specs to openspec/specs/auth/spec.md
+AI:  ✓ Applied delta specs to openspec/specs/auth/spec.md
      ✓ Moved to openspec/changes/archive/2025-01-24-add-auth/
 
      Change archived successfully.
 ```
 
-Archive will prompt if specs aren't synced. It won't block on incomplete tasks, but it will warn you.
+Archive will prompt if delta specs have not been applied to the current specs. For a new capability,
+this application creates the first current spec; it does not require a pre-existing main spec. It
+won't block on incomplete tasks, but it will warn you.
 
 ## When to Use What
 

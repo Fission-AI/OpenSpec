@@ -95,27 +95,27 @@ ${STORE_SELECTION_GUIDANCE}
    delta specs from other artifacts.
 
    **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` (use the store-aware \`planningHome.root\` from step 2, not a hardcoded repo path)
+   - Compare each delta spec with its corresponding current spec at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` (use the store-aware \`planningHome.root\` from step 2, not a hardcoded repo path). If the capability is new, the current spec does not exist yet and the delta will create it.
    - Determine what changes would be applied (adds, modifications, removals, renames)
    - Show a combined summary before prompting
 
    **Prompt options:**
-   - If changes needed: "Sync now (recommended)", "Archive without syncing"
-   - If already synced: "Archive now", "Sync anyway", "Cancel"
+   - If changes needed: "Apply to current specs now (recommended)", "Archive without applying"
+   - If already applied: "Archive now", "Apply again", "Cancel"
 
    Route on the answer:
    - "Cancel" — stop, do not archive
-   - "Archive without syncing" or "Archive now" — proceed to archive
-   - "Sync now" or "Sync anyway" — sync, then verify (below)
+   - "Archive without applying" or "Archive now" — proceed to archive
+   - "Apply to current specs now" or "Apply again" — apply, then verify (below)
    - Anything else — ask again rather than archiving
 
-   Before a selected sync writes any main spec, run
+   Before a selected application writes any current spec, run
    \`openspec instructions specs --change "<name>" --json\` once with the same
    selected-root flags. Require a zero exit status and valid artifact-instruction
    JSON. If the lookup fails or returns invalid JSON, report the error and stop
-   before writing any main spec or moving the change. A valid response with omitted
+   before writing any current spec or moving the change. A valid response with omitted
    \`rules\` is the no-rules case. Apply returned \`rules\` only to the content and
-   form of main specs produced by this merge; do not use them as archive guidance,
+   form of current specs produced by this application; do not use them as archive guidance,
    change CLI behavior, or copy the rule text into any output file.
 
    Then run the \`openspec-sync-specs\` workflow inline (agent-driven intelligent merge) for change '<name>', passing the delta spec analysis and the fetched specs-rule snapshot from above, and wait for it to finish. The inline sync must reuse that snapshot without fetching \`specs\` instructions again. Do not delegate it to a background task — step 5 would move \`changeRoot\` out from under a sync that is still reading it, leaving the change archived and the main specs never updated. If your agent can only run it by delegation, delegate synchronously and wait for the result.
@@ -162,7 +162,7 @@ ${STORE_SELECTION_GUIDANCE}
 **Change:** <change-name>
 **Schema:** <schema-name>
 **Archived to:** the archive path derived from \`planningHome.changesDir\`/<target-name>/
-**Specs:** <"✓ Synced to main specs" only if the step 4 verification passed; otherwise "No delta specs" or "Sync skipped">
+**Specs:** <"✓ Applied to current specs" only if the step 4 verification passed; otherwise "No delta specs" or "Application skipped">
 
 <"All artifacts complete. All tasks complete." — or, if archived with warnings, list them instead (e.g. "Archived with 2 incomplete tasks")>
 \`\`\`
@@ -277,27 +277,27 @@ ${STORE_SELECTION_GUIDANCE}
    delta specs from other artifacts.
 
    **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` (use the store-aware \`planningHome.root\` from step 2, not a hardcoded repo path)
+   - Compare each delta spec with its corresponding current spec at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` (use the store-aware \`planningHome.root\` from step 2, not a hardcoded repo path). If the capability is new, the current spec does not exist yet and the delta will create it.
    - Determine what changes would be applied (adds, modifications, removals, renames)
    - Show a combined summary before prompting
 
    **Prompt options:**
-   - If changes needed: "Sync now (recommended)", "Archive without syncing"
-   - If already synced: "Archive now", "Sync anyway", "Cancel"
+   - If changes needed: "Apply to current specs now (recommended)", "Archive without applying"
+   - If already applied: "Archive now", "Apply again", "Cancel"
 
    Route on the answer:
    - "Cancel" — stop, do not archive
-   - "Archive without syncing" or "Archive now" — proceed to archive
-   - "Sync now" or "Sync anyway" — sync, then verify (below)
+   - "Archive without applying" or "Archive now" — proceed to archive
+   - "Apply to current specs now" or "Apply again" — apply, then verify (below)
    - Anything else — ask again rather than archiving
 
-   Before a selected sync writes any main spec, run
+   Before a selected application writes any current spec, run
    \`openspec instructions specs --change "<name>" --json\` once with the same
    selected-root flags. Require a zero exit status and valid artifact-instruction
    JSON. If the lookup fails or returns invalid JSON, report the error and stop
-   before writing any main spec or moving the change. A valid response with omitted
+   before writing any current spec or moving the change. A valid response with omitted
    \`rules\` is the no-rules case. Apply returned \`rules\` only to the content and
-   form of main specs produced by this merge; do not use them as archive guidance,
+   form of current specs produced by this application; do not use them as archive guidance,
    change CLI behavior, or copy the rule text into any output file.
 
    Then run the \`/opsx:sync\` workflow inline (agent-driven intelligent merge) for change '<name>', passing the delta spec analysis and the fetched specs-rule snapshot from above, and wait for it to finish. The inline sync must reuse that snapshot without fetching \`specs\` instructions again. Do not delegate it to a background task — step 5 would move \`changeRoot\` out from under a sync that is still reading it, leaving the change archived and the main specs never updated. If your agent can only run it by delegation, delegate synchronously and wait for the result.
@@ -344,7 +344,7 @@ ${STORE_SELECTION_GUIDANCE}
 **Change:** <change-name>
 **Schema:** <schema-name>
 **Archived to:** the archive path derived from \`planningHome.changesDir\`/<target-name>/
-**Specs:** ✓ Synced to main specs
+**Specs:** ✓ Applied to current specs
 
 All artifacts complete. All tasks complete.
 \`\`\`
@@ -370,12 +370,12 @@ All artifacts complete. All tasks complete.
 **Change:** <change-name>
 **Schema:** <schema-name>
 **Archived to:** the archive path derived from \`planningHome.changesDir\`/<target-name>/
-**Specs:** Sync skipped (user chose to skip)
+**Specs:** Application skipped (user chose to skip)
 
 **Warnings:**
 - Archived with 2 incomplete artifacts
 - Archived with 3 incomplete tasks
-- Delta spec sync was skipped (user chose to skip)
+- Applying the delta specs was skipped (user chose to skip)
 
 Review the archive if this was not intentional.
 \`\`\`

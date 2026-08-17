@@ -14,7 +14,7 @@ Terms are grouped by topic, then alphabetized within each group.
 
 **Artifact.** A document inside a change. The standard artifacts are the proposal, the delta specs, the design, and the tasks. They're created in dependency order and feed into each other.
 
-**Delta spec.** A spec inside a change that describes only what's changing, using `ADDED`, `MODIFIED`, and `REMOVED` sections, rather than restating the entire spec. This is what lets OpenSpec edit existing systems cleanly. See [Concepts](concepts.md#delta-specs).
+**Delta spec.** A spec inside a change that describes only what's changing, using `ADDED`, `MODIFIED`, and `REMOVED` sections, rather than restating the entire current spec. A delta is a proposed edit, not a second copy of the destination. This is what lets OpenSpec edit existing systems cleanly. See [Concepts](concepts.md#delta-specs).
 
 **Domain.** A logical grouping for specs, like `auth/`, `payments/`, or `ui/`. You choose domains that match how you think about your system.
 
@@ -36,9 +36,9 @@ Terms are grouped by topic, then alphabetized within each group.
 
 ## The lifecycle
 
-**Archive.** The act of finishing a change. Its delta specs merge into the main specs, and the change folder moves to `openspec/changes/archive/YYYY-MM-DD-<name>/`. After archiving, your specs describe the new reality. See [Concepts](concepts.md#archive).
+**Archive.** The act of finishing a change. Its delta specs are applied to the current specs; for a brand-new capability this creates the first current spec, while an existing capability is updated. The change folder then moves to `openspec/changes/archive/YYYY-MM-DD-<name>/`. After archiving, your specs describe the new reality. See [Concepts](concepts.md#archive).
 
-**Sync.** Merging a change's delta specs into the main specs *without* archiving the change. Usually automatic (archive offers to do it), but available on its own as `/opsx:sync` for long-running changes. See [Commands](commands.md#opsxsync).
+**Sync.** Applying a change's delta specs to the current specs *without* archiving the change. If the capability is new, this creates its first current spec; it is not a requirement that a pre-existing spec already exists. Usually automatic (archive offers to do it), but available on its own as `/opsx:sync` for long-running changes. See [Commands](commands.md#opsxsync).
 
 ## Workflow and commands
 
