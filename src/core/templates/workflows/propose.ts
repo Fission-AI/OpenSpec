@@ -44,7 +44,19 @@ ${STORE_SELECTION_GUIDANCE}
 
    If the request contains ambiguity that would materially affect scope, externally observable behavior, compatibility, or acceptance criteria, ask the user before creating the change. For minor details, make a reasonable assumption and record it in the planning artifacts.
 
-2. **Determine the workflow schema**
+2. **Load prior lessons**
+
+   <!-- LOCAL PATCH (iwe-lesson-retrieval): re-apply after openspec upgrades that regenerate skills -->
+
+   Before creating artifacts, retrieve the repo's prior lessons for this topic: run
+   \`iwe find --lexical "<topic>" --limit 5 --add-fields 'body=$content' --max-document-tokens 400\`
+   over \`docs/retros/\` and fold the surfaced lessons (titles/paths + capped content) into the
+   proposal context. When \`iwe\` is absent OR fails on the host (e.g. a projection/quoting
+   error), fall back to \`rg -l -i "<topic>" docs/retros\` and NOTE the fallback: report
+   the iwe error and the fallback in your summary — never fall back silently (2026-08-17
+   lesson: a silent fallback hides retrieval-pipeline health from the human).
+
+3. **Determine the workflow schema**
 
    Use the configured default schema unless the user explicitly requests a different workflow.
 
@@ -54,7 +66,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    Otherwise, omit \`--schema\` to preserve the configured default.
 
-3. **Create the change directory**
+4. **Create the change directory**
 
    Choose one schema form below. If a registered store is selected, append \`--store "<store-id>"\` to that command and each later OpenSpec command shown below that accepts \`--store\`.
 
@@ -117,7 +129,23 @@ ${STORE_SELECTION_GUIDANCE}
       - Ask the user to clarify
       - Then continue with creation
 
-6. **Show final status**
+6. **Run the validation and coherence gate** — do NOT claim the artifacts are ready until this step is green
+   <!-- LOCAL PATCH (proposal-validation-gate): re-apply after openspec upgrades that regenerate skills -->
+   a. **Change-scoped validation gate.** Run:
+      \`\`\`bash
+      openspec validate "<name>" --type change --strict --json --no-interactive
+      \`\`\`
+      (append \`--store "<id>"\` when a store is selected. The item name is positional — \`validate\` has NO \`--change\` flag. \`--no-interactive\` is required so an agent-driven run can't hang on an interactive prompt — upstream Fission-AI/OpenSpec#492.)
+      - Parse the JSON: the change passes when the item reports \`"valid": true\` (equivalently \`summary.totals.failed === 0\`). On failure, fix the reported issues in the artifacts and re-run before proceeding.
+      - \`openspec validate --all\` is informational only — an unrelated failing change elsewhere must NOT block this proposal's summary.
+   b. **Deterministic coherence gate.** Run, and re-run until it exits 0:
+      \`\`\`bash
+      bun scripts/check-proposal-coherence.ts "<name>"
+      \`\`\`
+      The checker verifies mechanically: every \`file:line\` anchor cited in design/tasks resolves against the real file; every grep/regression-guard string in tasks matches the prescribed phrasing verbatim; delta-spec requirement names do not collide with the main spec; every deliverable named in proposal.md (What Changes/Impact) has a delivering task or is declared a non-goal. Fix any violation in the artifacts, then re-run.
+   c. Only after both gates are green, proceed to the final status step. \`status: "done"\` (or an artifact showing \`done\`) means the FILE exists — it does NOT mean the artifact is correct; this step is the mechanical correctness check, and the depth-pass review remains the semantic check for high-stakes changes (see Output).
+
+7. **Show final status**
    \`\`\`bash
    openspec status --change "<name>"
    \`\`\`
@@ -127,6 +155,7 @@ ${STORE_SELECTION_GUIDANCE}
 After completing all artifacts, summarize:
 - Change name and location
 - List of artifacts created with brief descriptions, plus any conditional artifact you skipped and why
+- Gate result: state that the proposal passed \`openspec validate --strict\` (change-scoped) and the coherence checker (\`bun scripts/check-proposal-coherence.ts\`)
 - What's ready: "All artifacts needed for implementation are ready."
 - Prompt: "The artifacts are ready for review. When you are ready, run \`/opsx:apply\` or ask me to apply this change."
 
@@ -143,6 +172,7 @@ After completing all artifacts, summarize:
 
 **Guardrails**
 - The request that invoked this workflow authorizes planning only. Any implementation or apply instruction in that request does not carry forward. Do NOT implement the change, start the apply workflow, or edit project code during this workflow. After presenting the artifacts, stop and wait for a new user request to start the apply workflow
+- \`status: "done"\` on an artifact means the FILE exists, NOT that it is correct — the validation + coherence gate (step 6) is the mechanical correctness check and MUST be green before presenting the "ready for review" summary. The depth-pass review remains the semantic check for high-stakes changes
 - Create every artifact the apply phase transitively depends on, not just the ids listed in \`apply.requires\`
 - Always read dependency artifacts before creating a new one - re-read from disk, not from conversation memory (files may have changed since you last saw them)
 - Ask about ambiguities that would materially change scope, externally observable behavior, compatibility, or acceptance criteria; for minor details, make reasonable assumptions and record them
@@ -193,7 +223,19 @@ ${STORE_SELECTION_GUIDANCE}
 
    If the request contains ambiguity that would materially affect scope, externally observable behavior, compatibility, or acceptance criteria, ask the user before creating the change. For minor details, make a reasonable assumption and record it in the planning artifacts.
 
-2. **Determine the workflow schema**
+2. **Load prior lessons**
+
+   <!-- LOCAL PATCH (iwe-lesson-retrieval): re-apply after openspec upgrades that regenerate skills -->
+
+   Before creating artifacts, retrieve the repo's prior lessons for this topic: run
+   \`iwe find --lexical "<topic>" --limit 5 --add-fields 'body=$content' --max-document-tokens 400\`
+   over \`docs/retros/\` and fold the surfaced lessons (titles/paths + capped content) into the
+   proposal context. When \`iwe\` is absent OR fails on the host (e.g. a projection/quoting
+   error), fall back to \`rg -l -i "<topic>" docs/retros\` and NOTE the fallback: report
+   the iwe error and the fallback in your summary — never fall back silently (2026-08-17
+   lesson: a silent fallback hides retrieval-pipeline health from the human).
+
+3. **Determine the workflow schema**
 
    Use the configured default schema unless the user explicitly requests a different workflow.
 
@@ -203,7 +245,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    Otherwise, omit \`--schema\` to preserve the configured default.
 
-3. **Create the change directory**
+4. **Create the change directory**
 
    Choose one schema form below. If a registered store is selected, append \`--store "<store-id>"\` to that command and each later OpenSpec command shown below that accepts \`--store\`.
 
@@ -218,7 +260,7 @@ ${STORE_SELECTION_GUIDANCE}
    \`\`\`
    This creates a scaffolded change in the planning home resolved by the CLI with \`.openspec.yaml\`.
 
-4. **Get the artifact build order**
+5. **Get the artifact build order**
    \`\`\`bash
    openspec status --change "<name>" --json
    \`\`\`
@@ -227,7 +269,7 @@ ${STORE_SELECTION_GUIDANCE}
    - \`artifacts\`: list of all artifacts, each with its \`status\` and its \`requires\` edges (the artifact IDs it directly depends on)
    - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context. Use these instead of assuming repo-local paths.
 
-5. **Create every artifact in the required set**
+6. **Create every artifact in the required set**
 
    Use a todo list to track progress through the artifacts.
 
@@ -266,7 +308,23 @@ ${STORE_SELECTION_GUIDANCE}
       - Ask the user to clarify
       - Then continue with creation
 
-6. **Show final status**
+7. **Run the validation and coherence gate** — do NOT claim the artifacts are ready until this step is green
+   <!-- LOCAL PATCH (proposal-validation-gate): re-apply after openspec upgrades that regenerate skills -->
+   a. **Change-scoped validation gate.** Run:
+      \`\`\`bash
+      openspec validate "<name>" --type change --strict --json --no-interactive
+      \`\`\`
+      (append \`--store "<id>"\` when a store is selected. The item name is positional — \`validate\` has NO \`--change\` flag. \`--no-interactive\` is required so an agent-driven run can't hang on an interactive prompt — upstream Fission-AI/OpenSpec#492.)
+      - Parse the JSON: the change passes when the item reports \`"valid": true\` (equivalently \`summary.totals.failed === 0\`). On failure, fix the reported issues in the artifacts and re-run before proceeding.
+      - \`openspec validate --all\` is informational only — an unrelated failing change elsewhere must NOT block this proposal's summary.
+   b. **Deterministic coherence gate.** Run, and re-run until it exits 0:
+      \`\`\`bash
+      bun scripts/check-proposal-coherence.ts "<name>"
+      \`\`\`
+      The checker verifies mechanically: every \`file:line\` anchor cited in design/tasks resolves against the real file; every grep/regression-guard string in tasks matches the prescribed phrasing verbatim; delta-spec requirement names do not collide with the main spec; every deliverable named in proposal.md (What Changes/Impact) has a delivering task or is declared a non-goal. Fix any violation in the artifacts, then re-run.
+   c. Only after both gates are green, proceed to the final status step. \`status: "done"\` (or an artifact showing \`done\`) means the FILE exists — it does NOT mean the artifact is correct; this step is the mechanical correctness check, and the depth-pass review remains the semantic check for high-stakes changes (see Output).
+
+8. **Show final status**
    \`\`\`bash
    openspec status --change "<name>"
    \`\`\`
@@ -276,6 +334,7 @@ ${STORE_SELECTION_GUIDANCE}
 After completing all artifacts, summarize:
 - Change name and location
 - List of artifacts created with brief descriptions, plus any conditional artifact you skipped and why
+- Gate result: state that the proposal passed \`openspec validate --strict\` (change-scoped) and the coherence checker (\`bun scripts/check-proposal-coherence.ts\`)
 - What's ready: "All artifacts needed for implementation are ready."
 - Prompt: "The artifacts are ready for review. When you are ready, run \`/opsx:apply\`."
 
@@ -292,6 +351,7 @@ After completing all artifacts, summarize:
 
 **Guardrails**
 - The request that invoked this workflow authorizes planning only. Any implementation or apply instruction in that request does not carry forward. Do NOT implement the change, start the apply workflow, or edit project code during this workflow. After presenting the artifacts, stop and wait for a new user request to start the apply workflow
+- \`status: "done"\` on an artifact means the FILE exists, NOT that it is correct — the validation + coherence gate (step 6) is the mechanical correctness check and MUST be green before presenting the "ready for review" summary. The depth-pass review remains the semantic check for high-stakes changes
 - Create every artifact the apply phase transitively depends on, not just the ids listed in \`apply.requires\`
 - Always read dependency artifacts before creating a new one - re-read from disk, not from conversation memory (files may have changed since you last saw them)
 - Ask about ambiguities that would materially change scope, externally observable behavior, compatibility, or acceptance criteria; for minor details, make reasonable assumptions and record them
