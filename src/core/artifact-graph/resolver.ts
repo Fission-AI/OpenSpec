@@ -90,6 +90,7 @@ function isOwnedSchemaTempDir(name: string): boolean {
   );
 }
 
+/** Reports whether a directory entry is a usable schema directory rather than command-owned state. */
 export function isSchemaDir(parentDir: string, entry: fs.Dirent): boolean {
   if (isOwnedSchemaTempDir(entry.name)) return false;
   if (entry.isDirectory()) return true;
@@ -103,10 +104,12 @@ export function isSchemaDir(parentDir: string, entry: fs.Dirent): boolean {
   return false;
 }
 
+/** Removes an optional YAML extension accepted by schema lookup APIs. */
 function normalizeSchemaName(name: string): string {
   return name.replace(/\.ya?ml$/u, '');
 }
 
+/** Rejects empty and path-like values before joining a schema name to trusted roots. */
 function isValidLookupName(name: string): boolean {
   return !(
     name.length === 0 ||
@@ -140,6 +143,7 @@ function getSchemaCandidateFile(
   }
 }
 
+/** Describes a located schema file and its containing source directory. */
 function locationFor(
   source: SchemaSource,
   schemaPath: string
@@ -256,6 +260,7 @@ export function getSchemaDir(name: string, projectRoot?: string): string | null 
   return resolveSchemaSources(name, projectRoot)?.base.dir ?? null;
 }
 
+/** Reads and validates one complete schema while preserving file-specific error context. */
 function readSchemaFile(schemaPath: string): SchemaYaml {
   let content: string;
   try {
@@ -323,6 +328,7 @@ export function resolveSchema(name: string, projectRoot?: string): SchemaYaml {
   }
 }
 
+/** Adds complete schema directory names from one precedence root to a shared set. */
 function addSchemaDirectoryNames(schemas: Set<string>, schemasDir: string): void {
   if (!fs.existsSync(schemasDir)) return;
   for (const entry of fs.readdirSync(schemasDir, { withFileTypes: true })) {

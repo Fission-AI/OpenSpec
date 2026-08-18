@@ -272,6 +272,7 @@ function validateSchema(
   return { valid: issues.length === 0, issues };
 }
 
+/** Validates a composed schema and every template selected by its effective artifacts. */
 function validateEffectiveSchema(
   name: string,
   projectRoot: string,
