@@ -713,12 +713,13 @@ schemas:
           expect(instructions.context).toBeUndefined();
           expect(instructions.rules).toBeUndefined();
 
-          // ...but it must not fail silently - the user should learn why.
+          // ...but it must not fail silently - the user should learn why,
+          // including which schema name they probably meant.
           expect(consoleWarnSpy).toHaveBeenCalledWith(
             expect.stringContaining("Unknown schema 'typo-ed-schema-name' in config 'schemas'")
           );
           expect(consoleWarnSpy).toHaveBeenCalledWith(
-            expect.stringContaining('Known schemas:')
+            expect.stringContaining('Known schemas: spec-driven')
           );
         } finally {
           consoleWarnSpy.mockRestore();
