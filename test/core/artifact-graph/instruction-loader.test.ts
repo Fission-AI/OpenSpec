@@ -687,6 +687,43 @@ schemas:
           consoleWarnSpy.mockRestore();
         }
       });
+
+      it('warns when a schemas.<name> entry names no available schema, instead of silently dropping it', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+schemas:
+  typo-ed-schema-name:
+    context: This never applies to anything
+    rules:
+      proposal:
+        - This never applies either
+`
+        );
+        const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+        try {
+          const context = loadChangeContext(tempDir, 'my-change', 'spec-driven');
+          const instructions = generateInstructions(context, 'proposal', tempDir);
+
+          // The typo'd override matches no real schema, so it never affects
+          // the resolved instructions...
+          expect(instructions.context).toBeUndefined();
+          expect(instructions.rules).toBeUndefined();
+
+          // ...but it must not fail silently - the user should learn why.
+          expect(consoleWarnSpy).toHaveBeenCalledWith(
+            expect.stringContaining("Unknown schema 'typo-ed-schema-name' in config 'schemas'")
+          );
+          expect(consoleWarnSpy).toHaveBeenCalledWith(
+            expect.stringContaining('Known schemas:')
+          );
+        } finally {
+          consoleWarnSpy.mockRestore();
+        }
+      });
     });
 
     describe('validation and warnings', () => {

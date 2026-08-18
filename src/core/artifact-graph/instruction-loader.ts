@@ -386,7 +386,18 @@ export function generateInstructions(
       );
       for (const [scopedSchemaName, scoped] of Object.entries(projectConfig.schemas)) {
         const scopedValidIds = artifactIdsBySchema.get(scopedSchemaName);
-        if (scoped.rules && scopedValidIds) {
+        if (!scopedValidIds) {
+          // A typo'd or removed schema name here never matches any active
+          // schema, so its context/rules silently never apply - warn instead
+          // of leaving that dead config unexplained.
+          const knownSchemas = Array.from(artifactIdsBySchema.keys()).sort().join(', ');
+          warnings.push(
+            `Unknown schema '${scopedSchemaName}' in config 'schemas'. ` +
+              `It matches no available schema, so its context/rules overrides are ignored. Known schemas: ${knownSchemas}`
+          );
+          continue;
+        }
+        if (scoped.rules) {
           warnings.push(...validateConfigRules(scoped.rules, scopedValidIds, scopedSchemaName));
         }
       }
