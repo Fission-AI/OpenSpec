@@ -8,6 +8,8 @@ import {
   readProjectConfig,
   validateConfigRules,
   suggestSchemas,
+  resolveEffectiveContext,
+  resolveEffectiveRules,
 } from '../../src/core/project-config.js';
 
 describe('project-config', () => {
@@ -832,6 +834,254 @@ rules:
         ]);
       });
     });
+
+    describe('schemas field (schema-scoped context/rules overrides)', () => {
+      it('should parse per-schema context and rules, keyed by schema name', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+schemas:
+  custom-schema:
+    context: Custom schema background
+    rules:
+      proposal:
+        - Custom schema rule
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config?.schemas).toEqual({
+          'custom-schema': {
+            context: 'Custom schema background',
+            rules: { proposal: ['Custom schema rule'] },
+          },
+        });
+        expect(consoleWarnSpy).not.toHaveBeenCalled();
+      });
+
+      it('should support multiple scoped schemas independently', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+schemas:
+  schema-a:
+    rules:
+      proposal:
+        - Rule for schema-a
+  schema-b:
+    context: Background for schema-b
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config?.schemas).toEqual({
+          'schema-a': { rules: { proposal: ['Rule for schema-a'] } },
+          'schema-b': { context: 'Background for schema-b' },
+        });
+      });
+
+      it('should return undefined for schemas when absent', () => {
+        fs.mkdirSync(path.join(tempDir, 'openspec'), { recursive: true });
+        fs.writeFileSync(path.join(tempDir, 'openspec', 'config.yaml'), 'schema: spec-driven\n');
+
+        expect(readProjectConfig(tempDir)?.schemas).toBeUndefined();
+      });
+
+      it('should warn and drop schemas when not an object', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          'schema: spec-driven\nschemas: ["not", "an", "object"]\n'
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config?.schemas).toBeUndefined();
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid 'schemas' field")
+        );
+      });
+
+      it('should warn and drop a single schema entry that is not an object, keeping others', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+schemas:
+  broken-schema: "not an object"
+  good-schema:
+    context: Fine
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config?.schemas).toEqual({ 'good-schema': { context: 'Fine' } });
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid 'schemas.broken-schema' field")
+        );
+      });
+
+      it('should warn about unknown fields inside a schema override', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+schemas:
+  custom-schema:
+    unknownField: nope
+    context: Fine
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config?.schemas?.['custom-schema']).toEqual({ context: 'Fine' });
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Unknown field(s) in 'schemas.custom-schema': unknownField")
+        );
+      });
+
+      it('should enforce the context size limit per scoped schema', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        const largeContext = 'a'.repeat(51 * 1024);
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven\nschemas:\n  custom-schema:\n    context: "${largeContext}"\n`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config?.schemas).toBeUndefined();
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Context too large in 'schemas.custom-schema.context'")
+        );
+      });
+
+      it('should filter out empty string rules within a scoped schema', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+schemas:
+  custom-schema:
+    rules:
+      proposal:
+        - ""
+        - Real rule
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config?.schemas?.['custom-schema']?.rules).toEqual({ proposal: ['Real rule'] });
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Some rules for 'proposal' in 'schemas.custom-schema.rules'")
+        );
+      });
+
+      it('should preserve prototype-named schema names as inert data', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+schemas:
+  __proto__:
+    context: Prototype schema context
+`
+        );
+
+        const schemas = readProjectConfig(tempDir)?.schemas;
+
+        expect(Object.getPrototypeOf(schemas)).toBeNull();
+        expect(Object.hasOwn(schemas!, '__proto__')).toBe(true);
+        expect(schemas?.__proto__).toEqual({ context: 'Prototype schema context' });
+      });
+    });
+  });
+
+  describe('resolveEffectiveContext', () => {
+    it('returns the global context when no schema override exists', () => {
+      const config = { schema: 'spec-driven', context: 'Global background' };
+      expect(resolveEffectiveContext(config, 'spec-driven')).toBe('Global background');
+    });
+
+    it('returns only the scoped context when no global context exists', () => {
+      const config = {
+        schema: 'spec-driven',
+        schemas: { 'custom-schema': { context: 'Scoped background' } },
+      };
+      expect(resolveEffectiveContext(config, 'custom-schema')).toBe('Scoped background');
+    });
+
+    it('combines global and scoped context for the matching schema', () => {
+      const config = {
+        schema: 'spec-driven',
+        context: 'Global background',
+        schemas: { 'custom-schema': { context: 'Scoped background' } },
+      };
+      expect(resolveEffectiveContext(config, 'custom-schema')).toBe(
+        'Global background\n\nScoped background'
+      );
+    });
+
+    it('does not leak a scoped context into a different schema', () => {
+      const config = {
+        schema: 'spec-driven',
+        schemas: { 'custom-schema': { context: 'Scoped background' } },
+      };
+      expect(resolveEffectiveContext(config, 'spec-driven')).toBeUndefined();
+    });
+
+    it('returns undefined when there is no context at all', () => {
+      expect(resolveEffectiveContext(null, 'spec-driven')).toBeUndefined();
+      expect(resolveEffectiveContext({ schema: 'spec-driven' }, 'spec-driven')).toBeUndefined();
+    });
+  });
+
+  describe('resolveEffectiveRules', () => {
+    it('returns global rules for an artifact when no schema override exists', () => {
+      const config = { schema: 'spec-driven', rules: { proposal: ['Global rule'] } };
+      expect(resolveEffectiveRules(config, 'spec-driven', 'proposal')).toEqual(['Global rule']);
+    });
+
+    it('does not leak a scoped rule into a different schema', () => {
+      const config = {
+        schema: 'spec-driven',
+        schemas: { 'custom-schema': { rules: { proposal: ['Scoped rule'] } } },
+      };
+      expect(resolveEffectiveRules(config, 'spec-driven', 'proposal')).toBeUndefined();
+      expect(resolveEffectiveRules(config, 'custom-schema', 'proposal')).toEqual(['Scoped rule']);
+    });
+
+    it('appends scoped rules after global rules for the same artifact', () => {
+      const config = {
+        schema: 'spec-driven',
+        rules: { proposal: ['Global rule'] },
+        schemas: { 'custom-schema': { rules: { proposal: ['Scoped rule'] } } },
+      };
+      expect(resolveEffectiveRules(config, 'custom-schema', 'proposal')).toEqual([
+        'Global rule',
+        'Scoped rule',
+      ]);
+    });
+
+    it('returns undefined when neither global nor scoped rules exist for the artifact', () => {
+      const config = { schema: 'spec-driven', rules: { specs: ['Other artifact rule'] } };
+      expect(resolveEffectiveRules(config, 'spec-driven', 'proposal')).toBeUndefined();
+    });
   });
 
   describe('loadOperationInputs', () => {
@@ -941,6 +1191,18 @@ rules:
       const warnings = validateConfigRules(rules, validIds);
 
       expect(warnings).toEqual([]);
+    });
+
+    it('should word the warning for a specific schema when schemaName is passed', () => {
+      const rules = { 'unknown-artifact': ['Rule 1'] };
+      const validIds = new Set(['proposal', 'specs']);
+
+      const warnings = validateConfigRules(rules, validIds, 'custom-schema');
+
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain('Unknown artifact ID in rules: "unknown-artifact"');
+      expect(warnings[0]).toContain("schema 'custom-schema'");
+      expect(warnings[0]).not.toContain('any available schema');
     });
   });
 

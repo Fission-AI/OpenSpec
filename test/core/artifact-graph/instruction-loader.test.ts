@@ -532,6 +532,163 @@ rules:
       });
     });
 
+    describe('multi-schema projects (schema-scoped context/rules)', () => {
+      // A project-local schema that reuses the 'proposal' artifact id from
+      // the built-in spec-driven schema - the common case from the bug
+      // report, since 'proposal' is part of the default workflow shape.
+      function createCustomSchemaWithProposal(tempDir: string): void {
+        const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'custom-schema');
+        const templatesDir = path.join(schemaDir, 'templates');
+        fs.mkdirSync(templatesDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(schemaDir, 'schema.yaml'),
+          `name: custom-schema
+version: 1
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Custom proposal
+    template: proposal.md
+`
+        );
+        fs.writeFileSync(path.join(templatesDir, 'proposal.md'), '# Custom Proposal Template\n');
+      }
+
+      it('reproduces the reported leak: a global rule meant for one schema also applies to the other', () => {
+        // This is the exact scenario from the bug report: two schemas share
+        // the 'proposal' artifact id, and a rule intended for only the
+        // custom schema is added to the flat, schema-agnostic `rules` map
+        // because there is no scoping mechanism.
+        createCustomSchemaWithProposal(tempDir);
+        const configDir = path.join(tempDir, 'openspec');
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+rules:
+  proposal:
+    - Meant only for custom-schema
+`
+        );
+
+        const specDrivenContext = loadChangeContext(tempDir, 'my-change', 'spec-driven');
+        const specDrivenInstructions = generateInstructions(specDrivenContext, 'proposal', tempDir);
+
+        // Documents today's (intentionally unchanged) behavior: a bare
+        // `rules.proposal` entry is global and applies to every schema's
+        // 'proposal' artifact, spec-driven included, even though the author
+        // only meant it for custom-schema.
+        expect(specDrivenInstructions.rules).toEqual(['Meant only for custom-schema']);
+      });
+
+      it('scopes a rule to only the intended schema via schemas.<name>.rules, fixing the leak', () => {
+        createCustomSchemaWithProposal(tempDir);
+        const configDir = path.join(tempDir, 'openspec');
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+schemas:
+  custom-schema:
+    rules:
+      proposal:
+        - Custom-schema-only rule
+`
+        );
+
+        const specDrivenContext = loadChangeContext(tempDir, 'my-change', 'spec-driven');
+        const specDrivenInstructions = generateInstructions(specDrivenContext, 'proposal', tempDir);
+        expect(specDrivenInstructions.rules).toBeUndefined();
+
+        const customContext = loadChangeContext(tempDir, 'my-change', 'custom-schema');
+        const customInstructions = generateInstructions(customContext, 'proposal', tempDir);
+        expect(customInstructions.rules).toEqual(['Custom-schema-only rule']);
+      });
+
+      it('layers scoped rules on top of global rules for the same artifact', () => {
+        createCustomSchemaWithProposal(tempDir);
+        const configDir = path.join(tempDir, 'openspec');
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+rules:
+  proposal:
+    - Applies to every schema
+schemas:
+  custom-schema:
+    rules:
+      proposal:
+        - Applies only to custom-schema
+`
+        );
+
+        const specDrivenContext = loadChangeContext(tempDir, 'my-change', 'spec-driven');
+        expect(generateInstructions(specDrivenContext, 'proposal', tempDir).rules).toEqual([
+          'Applies to every schema',
+        ]);
+
+        const customContext = loadChangeContext(tempDir, 'my-change', 'custom-schema');
+        expect(generateInstructions(customContext, 'proposal', tempDir).rules).toEqual([
+          'Applies to every schema',
+          'Applies only to custom-schema',
+        ]);
+      });
+
+      it('layers scoped context on top of global context, scoped to just the intended schema', () => {
+        createCustomSchemaWithProposal(tempDir);
+        const configDir = path.join(tempDir, 'openspec');
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+context: Project-wide background
+schemas:
+  custom-schema:
+    context: Custom-schema-only background
+`
+        );
+
+        const specDrivenContext = loadChangeContext(tempDir, 'my-change', 'spec-driven');
+        expect(generateInstructions(specDrivenContext, 'proposal', tempDir).context).toBe(
+          'Project-wide background'
+        );
+
+        const customContext = loadChangeContext(tempDir, 'my-change', 'custom-schema');
+        const customInstructions = generateInstructions(customContext, 'proposal', tempDir);
+        expect(customInstructions.context).toContain('Project-wide background');
+        expect(customInstructions.context).toContain('Custom-schema-only background');
+      });
+
+      it('validates schema-scoped rules against that schema\'s own artifacts, not the global union', () => {
+        createCustomSchemaWithProposal(tempDir);
+        const configDir = path.join(tempDir, 'openspec');
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+schemas:
+  custom-schema:
+    rules:
+      unknown-in-custom-schema-only:
+        - Some rule
+`
+        );
+        const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+        try {
+          const customContext = loadChangeContext(tempDir, 'my-change', 'custom-schema');
+          generateInstructions(customContext, 'proposal', tempDir);
+
+          expect(consoleWarnSpy).toHaveBeenCalledWith(
+            expect.stringContaining(
+              'Unknown artifact ID in rules: "unknown-in-custom-schema-only"'
+            )
+          );
+          expect(consoleWarnSpy).toHaveBeenCalledWith(
+            expect.stringContaining("schema 'custom-schema'")
+          );
+        } finally {
+          consoleWarnSpy.mockRestore();
+        }
+      });
+    });
+
     describe('validation and warnings', () => {
       let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
 
