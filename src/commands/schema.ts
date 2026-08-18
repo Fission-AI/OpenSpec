@@ -73,7 +73,7 @@ function checkAllLocations(
 
   // Project location
   const projectDir = path.join(getProjectSchemasDir(projectRoot), name);
-  const projectSchemaPath = path.join(projectDir, 'schema.yaml');
+  const projectSchemaPath = path.join(projectDir, SCHEMA_FILE_NAME);
   locations.push({
     source: 'project',
     path: projectDir,
@@ -82,7 +82,7 @@ function checkAllLocations(
 
   // User location
   const userDir = path.join(getUserSchemasDir(), name);
-  const userSchemaPath = path.join(userDir, 'schema.yaml');
+  const userSchemaPath = path.join(userDir, SCHEMA_FILE_NAME);
   locations.push({
     source: 'user',
     path: userDir,
@@ -91,7 +91,7 @@ function checkAllLocations(
 
   // Package location
   const packageDir = path.join(getPackageSchemasDir(), name);
-  const packageSchemaPath = path.join(packageDir, 'schema.yaml');
+  const packageSchemaPath = path.join(packageDir, SCHEMA_FILE_NAME);
   locations.push({
     source: 'package',
     path: packageDir,
@@ -180,7 +180,7 @@ function validateSchema(
   verbose: boolean = false
 ): { valid: boolean; issues: ValidationIssue[] } {
   const issues: ValidationIssue[] = [];
-  const schemaPath = path.join(schemaDir, 'schema.yaml');
+  const schemaPath = path.join(schemaDir, SCHEMA_FILE_NAME);
 
   // Check schema.yaml exists
   if (verbose) {
@@ -512,7 +512,8 @@ function installSchemaOverrideFile(
 
   try {
     fs.writeFileSync(stagingPath, content, { flag: 'wx' });
-    parseSchemaOverride(fs.readFileSync(stagingPath, 'utf-8'));
+    const stagedContent = fs.readFileSync(stagingPath, 'utf-8');
+    parseSchemaOverride(stagedContent);
 
     if (!destinationExists) {
       try {
@@ -520,12 +521,24 @@ function installSchemaOverrideFile(
         // fails instead of replacing a destination created after our check.
         fs.linkSync(stagingPath, destinationPath);
       } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+        const errorCode = (error as NodeJS.ErrnoException).code;
+        if (errorCode === 'EEXIST') {
           throw new Error(
             `Schema override already exists at ${destinationPath}. Use --force to replace it.`
           );
         }
-        throw error;
+        if (!['EPERM', 'ENOSYS', 'EXDEV'].includes(errorCode ?? '')) throw error;
+
+        try {
+          fs.writeFileSync(destinationPath, stagedContent, { flag: 'wx' });
+        } catch (fallbackError) {
+          if ((fallbackError as NodeJS.ErrnoException).code === 'EEXIST') {
+            throw new Error(
+              `Schema override already exists at ${destinationPath}. Use --force to replace it.`
+            );
+          }
+          throw fallbackError;
+        }
       }
       fs.rmSync(stagingPath, { force: true });
       return;
@@ -817,10 +830,11 @@ export function registerSchemaCommand(program: Command): void {
         }
 
         // Validate a specific effective schema, including a user overlay.
+        const normalizedName = normalizeSchemaLookupName(name);
         let sources: ResolvedSchemaSources | null = null;
         let sourceResolutionFailed = false;
         try {
-          sources = resolveSchemaSources(name, projectRoot);
+          sources = resolveSchemaSources(normalizedName, projectRoot);
         } catch {
           sourceResolutionFailed = true;
         }
@@ -830,11 +844,11 @@ export function registerSchemaCommand(program: Command): void {
           if (options?.json) {
             console.log(JSON.stringify({
               valid: false,
-              error: `Schema '${name}' not found`,
+              error: `Schema '${normalizedName}' not found`,
               available,
             }, null, 2));
           } else {
-            console.error(`Error: Schema '${name}' not found`);
+            console.error(`Error: Schema '${normalizedName}' not found`);
             console.error(`Available schemas: ${available.join(', ')}`);
           }
           process.exitCode = 1;
@@ -842,11 +856,11 @@ export function registerSchemaCommand(program: Command): void {
         }
 
         if (options?.verbose && !options?.json) {
-          console.log(`Validating ${name}...`);
+          console.log(`Validating ${normalizedName}...`);
         }
 
         const result = validateEffectiveSchema(
-          name,
+          normalizedName,
           projectRoot,
           options?.verbose && !options?.json
         );
@@ -855,7 +869,7 @@ export function registerSchemaCommand(program: Command): void {
           const effectivePath = result.path ?? sources?.base.dir;
           const effectiveBasePath = result.basePath ?? sources?.base.schemaPath;
           console.log(JSON.stringify({
-            name,
+            name: normalizedName,
             ...(effectivePath ? { path: effectivePath } : {}),
             ...(effectiveBasePath ? { basePath: effectiveBasePath } : {}),
             ...(result.overlayPath ? { overlayPath: result.overlayPath } : {}),
@@ -864,9 +878,9 @@ export function registerSchemaCommand(program: Command): void {
           }, null, 2));
         } else {
           if (result.valid) {
-            console.log(`✓ Schema '${name}' is valid`);
+            console.log(`✓ Schema '${normalizedName}' is valid`);
           } else {
-            console.log(`✗ Schema '${name}' has errors:`);
+            console.log(`✗ Schema '${normalizedName}' has errors:`);
             for (const issue of result.issues) {
               console.log(`  ${issue.level}: ${issue.message}`);
             }

@@ -172,13 +172,25 @@ A user-level `schema.yaml` is a complete replacement. Its schema and templates i
 
 If you only need additive personal customization, use a layered override instead:
 
+1. Back up the complete user schema, then move or rename its `schema.yaml` outside
+   the active user schema directory.
+2. Create the layered override:
+
 ```bash
 openspec schema override spec-driven
+```
+
+3. Port supported customizations into `schema.override.yaml`, keep only templates
+   you intentionally replace, and remove the old complete `schema.yaml` after
+   preserving any custom content you still need.
+4. Check the effective result:
+
+```bash
 openspec schema validate spec-driven
 openspec schema which spec-driven
 ```
 
-Move your changes into `schema.override.yaml`, keep only templates you intentionally replace, and remove the complete user `schema.yaml` after preserving any custom content you still need. See [Global Overrides](customization.md#global-overrides).
+See [Global Overrides](customization.md#global-overrides).
 
 ### Complete replacement conflicts with layered override
 

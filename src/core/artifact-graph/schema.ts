@@ -56,7 +56,7 @@ export function validateSchemaValue(value: unknown): SchemaYaml {
   validateNoDuplicateIds(schema.artifacts);
 
   // Check that all requires references are valid
-  validateRequiresReferences(schema.artifacts);
+  validateRequiresReferences(schema.artifacts, schema.apply?.requires);
 
   // Check for cycles
   validateNoCycles(schema.artifacts);
@@ -225,7 +225,10 @@ function validateNoDuplicateIds(artifacts: Artifact[]): void {
 /**
  * Validates that all `requires` references point to valid artifact IDs.
  */
-function validateRequiresReferences(artifacts: Artifact[]): void {
+function validateRequiresReferences(
+  artifacts: Artifact[],
+  applyRequires: string[] = []
+): void {
   const validIds = new Set(artifacts.map(a => a.id));
 
   for (const artifact of artifacts) {
@@ -235,6 +238,14 @@ function validateRequiresReferences(artifacts: Artifact[]): void {
           `Invalid dependency reference in artifact '${artifact.id}': '${req}' does not exist`
         );
       }
+    }
+  }
+
+  for (const req of applyRequires) {
+    if (!validIds.has(req)) {
+      throw new SchemaValidationError(
+        `Invalid dependency reference in apply: '${req}' does not exist`
+      );
     }
   }
 }

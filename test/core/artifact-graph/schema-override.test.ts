@@ -177,18 +177,36 @@ artifacts:
   });
 
   it('applies additive dependency operations in deterministic order', () => {
+    const base = baseSchema();
+    base.artifacts[2].requires = ['proposal'];
     const override = parseSchemaOverride(`
 patchVersion: 1
 artifacts:
   tasks:
     requires:
       remove: [proposal]
-      add: []
+      add: [design]
 `);
 
-    expect(applySchemaOverride(baseSchema(), override).artifacts[2].requires).toEqual([
+    expect(applySchemaOverride(base, override).artifacts[2].requires).toEqual([
       'design',
     ]);
+  });
+
+  it.each([
+    ['add', 'add: [unknown]'],
+    ['replace', 'replace: [unknown]'],
+  ])('rejects unknown apply prerequisites from %s operations', (_operation, yaml) => {
+    const override = parseSchemaOverride(`
+patchVersion: 1
+apply:
+  requires:
+    ${yaml}
+`);
+
+    expect(() => applySchemaOverride(baseSchema(), override)).toThrow(
+      /Invalid dependency reference in apply: 'unknown' does not exist/u
+    );
   });
 
   it('rejects ambiguous and misspelled operations', () => {

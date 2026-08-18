@@ -5,6 +5,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 
 const fsControl = vi.hoisted(() => ({
+  linkErrorCode: null as string | null,
   mutateDestinationAfterStaging: null as null | { path: string; content: string },
   replaceStagingContent: null as string | null,
 }));
@@ -14,6 +15,15 @@ vi.mock('node:fs', async (importOriginal) => {
   return {
     ...actual,
     default: actual,
+    linkSync: (...args: Parameters<typeof actual.linkSync>) => {
+      if (fsControl.linkErrorCode !== null) {
+        const error = new Error('Mocked hard-link failure') as NodeJS.ErrnoException;
+        error.code = fsControl.linkErrorCode;
+        fsControl.linkErrorCode = null;
+        throw error;
+      }
+      return actual.linkSync(...args);
+    },
     writeFileSync: (...args: Parameters<typeof actual.writeFileSync>) => {
       const result = actual.writeFileSync(...args);
       if (
@@ -74,6 +84,7 @@ describe('schema overlay commands', () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
     consoleLogSpy.mockRestore();
     consoleErrorSpy.mockRestore();
+    fsControl.linkErrorCode = null;
     fsControl.mutateDestinationAfterStaging = null;
     fsControl.replaceStagingContent = null;
     vi.resetModules();
@@ -126,6 +137,19 @@ describe('schema overlay commands', () => {
     });
     expect(fs.readFileSync(overlayPath(), 'utf-8')).toBe(concurrentContent);
   });
+
+  it.each(['EPERM', 'ENOSYS', 'EXDEV'])(
+    'falls back to exclusive creation when hard links fail with %s',
+    async (errorCode) => {
+      fsControl.linkErrorCode = errorCode;
+
+      await runSchemaCommand(['override', 'spec-driven', '--json']);
+
+      expect(process.exitCode).toBeUndefined();
+      expect(lastJsonLog()).toMatchObject({ created: true, path: overlayPath() });
+      expect(fs.readFileSync(overlayPath(), 'utf-8')).toContain('patchVersion: 1');
+    }
+  );
 
   it('preserves an existing overlay unless force is supplied', async () => {
     await runSchemaCommand(['override', 'spec-driven', '--json']);
@@ -211,7 +235,7 @@ describe('schema overlay commands', () => {
     expect(fs.existsSync(overlayPath())).toBe(false);
   });
 
-  it('normalizes a YAML extension before reporting schema resolution', async () => {
+  it('normalizes YAML extensions in schema resolution and validation output', async () => {
     fs.mkdirSync(path.dirname(overlayPath()), { recursive: true });
     fs.writeFileSync(overlayPath(), 'patchVersion: 1\n');
 
@@ -222,6 +246,37 @@ describe('schema overlay commands', () => {
       source: 'package',
       overlay: { path: overlayPath() },
     });
+
+    consoleLogSpy.mockClear();
+    await runSchemaCommand(['validate', 'spec-driven.yml', '--json']);
+
+    expect(lastJsonLog()).toMatchObject({
+      name: 'spec-driven',
+      valid: true,
+      overlayPath: overlayPath(),
+    });
+  });
+
+  it('labels active and inactive overlays in the human schema listing', async () => {
+    fs.mkdirSync(path.dirname(overlayPath()), { recursive: true });
+    fs.writeFileSync(overlayPath(), 'patchVersion: 1\n');
+
+    await runSchemaCommand(['which', '--all']);
+
+    expect(consoleLogSpy.mock.calls.flat().join('\n')).toContain(
+      'spec-driven (user overlay)'
+    );
+
+    const projectSchemaDir = path.join(tempDir, 'openspec', 'schemas', 'spec-driven');
+    fs.mkdirSync(projectSchemaDir, { recursive: true });
+    fs.writeFileSync(path.join(projectSchemaDir, 'schema.yaml'), 'name: spec-driven\n');
+    consoleLogSpy.mockClear();
+
+    await runSchemaCommand(['which', '--all']);
+
+    expect(consoleLogSpy.mock.calls.flat().join('\n')).toContain(
+      'spec-driven (shadows: package) (inactive user overlay)'
+    );
   });
 
   it('continues listing usable schemas when one user schema conflicts', async () => {

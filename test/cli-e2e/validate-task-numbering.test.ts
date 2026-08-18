@@ -212,6 +212,24 @@ describe('openspec validate checks task numbering (#1520)', () => {
       ].join('\n')
     );
 
+    const whichResult = await runCLI(
+      ['schema', 'which', 'spec-driven', '--json'],
+      { cwd: projectDir, env: { XDG_DATA_HOME: xdgDataHome } }
+    );
+
+    expect(whichResult.exitCode).toBe(0);
+    expect(JSON.parse(whichResult.stdout)).toMatchObject({
+      overlay: {
+        path: path.join(
+          xdgDataHome,
+          'openspec',
+          'schemas',
+          'spec-driven',
+          'schema.override.yaml'
+        ),
+      },
+    });
+
     const result = await runCLI(
       ['validate', '--type', 'change', 'bad-numbering', '--strict', '--json'],
       { cwd: projectDir, env: { XDG_DATA_HOME: xdgDataHome } }

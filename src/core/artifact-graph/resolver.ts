@@ -239,6 +239,7 @@ export function resolveSchemaSources(
   }
 
   const overlayDir = path.dirname(userOverlayPath);
+  const overlayTemplatesDir = path.join(overlayDir, 'templates');
   return {
     name: normalizedName,
     mode: 'package-with-user-overlay',
@@ -246,10 +247,10 @@ export function resolveSchemaSources(
     overlay: {
       source: 'user',
       path: userOverlayPath,
-      templatesDir: path.join(overlayDir, 'templates'),
+      templatesDir: overlayTemplatesDir,
     },
     templateRoots: [
-      { source: 'user', dir: path.join(overlayDir, 'templates') },
+      { source: 'user', dir: overlayTemplatesDir },
       { source: 'package', dir: path.join(base.dir, 'templates') },
     ],
   };
