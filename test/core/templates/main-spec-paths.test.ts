@@ -90,12 +90,17 @@ describe('main spec paths in the specs instruction (#1702)', () => {
       expect(planningHome.root, 'planningHome has no root field').toBeTypeOf('string');
 
       const [operation] = mainSpecOperations(instructionFor('specs'));
-      const template = operation.match(/<planningHome\.root>\/\S*?spec\.md/)?.[0];
-      expect(template, `no main-spec path found in: ${operation.trim()}`).toBeDefined();
+      const suffix = operation.match(/<planningHome\.root>\/(\S*?spec\.md)/)?.[1];
+      expect(suffix, `no main-spec path found in: ${operation.trim()}`).toBeDefined();
 
-      const resolved = (template as string)
-        .replace('<planningHome.root>', planningHome.root)
-        .replace('<capability-path>', capability);
+      // Join as path segments rather than substituting into the string. The
+      // instruction spells its suffix with forward slashes while
+      // `planningHome.root` carries native separators, so a plain replace would
+      // hand Windows a mixed-separator path and lean on Node accepting it.
+      const resolved = path.join(
+        planningHome.root,
+        ...(suffix as string).replace('<capability-path>', capability).split('/')
+      );
 
       expect(fs.existsSync(resolved), `composed path does not exist: ${resolved}`).toBe(true);
     });
