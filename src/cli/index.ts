@@ -49,6 +49,7 @@ import {
   type NewChangeOptions,
 } from '../commands/workflow/index.js';
 import { maybeShowTelemetryNotice, trackCommand, shutdown } from '../telemetry/index.js';
+import { maybeShowCompletionTip } from '../core/completion-tip.js';
 import { COMMON_FLAGS } from '../core/completions/shared-flags.js';
 import { isInteractive } from '../utils/interactive.js';
 
@@ -160,6 +161,13 @@ program.hook('preAction', async (thisCommand, actionCommand) => {
 
   // Track command execution (use actionCommand to get the actual subcommand)
   const commandPath = getCommandPath(actionCommand);
+
+  // Show the first-run shell-completions tip (on stderr, so piped stdout stays
+  // clean). Deferred on JSON runs, whose consumers read stderr for failures, and
+  // on `openspec completion ...` runs, where the tip would just be noise.
+  maybeShowCompletionTip({
+    silent: isJsonRun(actionCommand) || commandPath.split(':')[0] === 'completion',
+  });
   await trackCommand(commandPath, version);
 });
 
