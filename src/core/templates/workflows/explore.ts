@@ -95,6 +95,12 @@ This tells you:
 - Their names, schemas, and status
 - What the user might be working on
 
+That is the *change* list - work in flight. It does not include the project's durable capabilities, so list those too:
+\`\`\`bash
+openspec list --specs
+\`\`\`
+Add \`--json\` for ids and requirement counts, and \`--store "<id>"\` when a registered store is selected. This is the inventory of what the project already claims to do, and \`openspec list\` on its own never shows it. Read \`<root.path>/openspec/specs/<capability-path>/spec.md\` for any capability that looks related before proposing new behavior.
+
 Then read the project's own context from the resolved root - \`<root.path>/openspec/config.yaml\` (or \`config.yml\`). Use the \`root.path\` returned above, and skip this if neither file exists:
 - \`context\`: project background - tech stack, conventions, constraints
 - \`rules\`: keyed by artifact id - the entries for an artifact apply only when you write that artifact
@@ -409,6 +415,12 @@ This tells you:
 - If there are active changes
 - Their names, schemas, and status
 - What the user might be working on
+
+That is the *change* list - work in flight. It does not include the project's durable capabilities, so list those too:
+\`\`\`bash
+openspec list --specs
+\`\`\`
+Add \`--json\` for ids and requirement counts, and \`--store "<id>"\` when a registered store is selected. This is the inventory of what the project already claims to do, and \`openspec list\` on its own never shows it. Read \`<root.path>/openspec/specs/<capability-path>/spec.md\` for any capability that looks related before proposing new behavior.
 
 Then read the project's own context from the resolved root - \`<root.path>/openspec/config.yaml\` (or \`config.yml\`). Use the \`root.path\` returned above, and skip this if neither file exists:
 - \`context\`: project background - tech stack, conventions, constraints
