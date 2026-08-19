@@ -82,6 +82,13 @@ The agent SHALL reconcile main specs with delta specs using the delta operation 
 - **AND** never invent the missing requirement
 - **AND** skip any `## REMOVED Requirements` with a warning, since there is nothing to remove
 
+#### Scenario: Nothing to put in a new spec
+- **WHEN** a delta targets a capability with no main spec
+- **AND** the delta has no `## ADDED Requirements` to seed it with
+- **THEN** create no main spec and leave the specs directory untouched
+- **AND** report it, matching `openspec archive`, which aborts the same case with `Spec must have at least one requirement`
+- **AND** never write an empty `## Requirements` section
+
 #### Scenario: Merged main spec keeps canonical structure
 - **WHEN** the agent writes a main spec during sync
 - **THEN** every requirement lives under a single `## Requirements` section

@@ -43,7 +43,7 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getContinueChangeSkillTemplate: '012136f6411a99c8fa228e2f9444cb64b0a89e0f56fdeac2fe03b2f5bee0c5d7',
   getApplyChangeSkillTemplate: 'd1e7d5ceb85193c0964057dbb88e9651526754bd33f84020e2440ff0621d5dbb',
   getFfChangeSkillTemplate: '5501740e7ec36ab23ab8c3a0d6dd0655a5e2f35433c7b90e82904fef5e7a326a',
-  getSyncSpecsSkillTemplate: 'd09df989123f2e1fe3115910b449dda3cd423646365cac66851858a6099cd842',
+  getSyncSpecsSkillTemplate: '5b6da3170398f6f8c2d6ab58e985d2771023e644e7d1bde74d2c29ea07f2b1bf',
   getOnboardSkillTemplate: '29b1d825179cff92fbc7b790694c1baef138575ea3de56848715e27d7e367946',
   getOpsxExploreCommandTemplate: 'd2f70d11588f902c15c1e5ce9908cc4124c6b82fe78dc766ac5c3599c9e2a6f1',
   getOpsxNewCommandTemplate: 'f2d30e569798a4c92ba932859d6ba4e0ad10e18feccbade1cfee0957597b3463',
@@ -52,7 +52,7 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getOpsxFfCommandTemplate: 'e603bc0996604e6c17a3140943ea642a32d0fc65565e25424bf956e124c55772',
   getArchiveChangeSkillTemplate: 'fefb60130185c97761567f537ca7b91e53b4675c45634496f43545e0d614a825',
   getBulkArchiveChangeSkillTemplate: '93875998cade5322d95b43299fba794bc1da754e917dd63a770406386a6d295d',
-  getOpsxSyncCommandTemplate: '406cc9eb7818b8ba054ada2c67ce979bc312210b3e6c0070d1d7af7eef8ce8ea',
+  getOpsxSyncCommandTemplate: '382c724044c0532b5174b111cba220d20d4ff6519caad5b1849c1831530d3eb5',
   getVerifyChangeSkillTemplate: '223b7ffd99299a7d430e13092b9a0a3421b39f0d3217232f46c39d79b5f619ff',
   getOpsxArchiveCommandTemplate: 'a794e6c3da28a771e42c811b753e87ac6eff94865163545320e82c6398a626ee',
   getOpsxOnboardCommandTemplate: '7e251da66e2fdf539a09326463ee3ed0d01fe665ecb1d8f36f941fed00a01891',
@@ -71,7 +71,7 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-continue-change': 'bb6194a16c54891cdb253678e8f70ce53b2af86735243980f366ce551d37e42e',
   'openspec-apply-change': '81ea96d9fa6ec8536cd23c1fe561ed28e1cc1cad0a8ceb700588e08974cc0e49',
   'openspec-ff-change': '217c78da2b6e8358f609ac57dcd02266aaec3354ce26dc6ec2fc9c2174673ab4',
-  'openspec-sync-specs': '1ce9170b46b5205adb4a5abbb47c0eb96eb47fcf974a3a7b82b1ae999c06f25a',
+  'openspec-sync-specs': '5fcd207922b55a78b19fbc2872690c104ef83be09f1369de8b4b48778a234d75',
   'openspec-archive-change': '698e8b45ab4ced57afaf96564488e595b3da6110d503c3f6780631ed69865e38',
   'openspec-bulk-archive-change': '2039b9ecf6e64339dffe0e16272507a386d9fe326f419ff758315aa736fdd96c',
   'openspec-verify-change': 'af9be013dcbe8c6d8f6d9ab10c893fbd03f4c62933c384d82f63894dd0ceb84f',
@@ -495,6 +495,22 @@ describe('skill templates split parity', () => {
       expect(readStep, variant).toContain('MODIFIED and RENAMED have no requirement to act on');
       expect(readStep, variant).toContain('never invent the missing requirement');
       expect(readStep, variant).toContain('REMOVED has nothing to');
+
+      // ...and the creation step must not then write the empty spec the CLI refuses:
+      // a REMOVED-only delta against a capability with no main spec aborts with
+      // "Spec must have at least one requirement" and leaves the tree untouched.
+      const createStart = content.indexOf("d. **Create new main spec**");
+      const createEnd = content.indexOf('**Validate updated main specs**');
+      expect(createStart, variant).toBeGreaterThan(-1);
+      expect(createEnd, variant).toBeGreaterThan(createStart);
+      const createStep = content.slice(createStart, createEnd);
+
+      expect(createStep, variant).toContain(
+        'Only when the delta has ADDED requirements to put in it'
+      );
+      expect(createStep, variant).toContain('create nothing');
+      expect(createStep, variant).toContain('Spec must have at least one requirement');
+      expect(createStep, variant).toContain('Never write an empty');
     }
   });
 
