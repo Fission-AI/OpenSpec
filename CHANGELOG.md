@@ -1,5 +1,25 @@
 # @fission-ai/openspec
 
+## 1.10.0
+
+### Minor Changes
+
+- [#1685](https://github.com/Fission-AI/OpenSpec/pull/1685) [`c747ed1`](https://github.com/Fission-AI/OpenSpec/commit/c747ed1f34459ca6bc15d43ad9f68dfdf7750875) Thanks [@clay-good](https://github.com/clay-good)! - Add `openspec init --language <language>` to configure the language used for artifacts in new projects.
+
+### Patch Changes
+
+- [#1704](https://github.com/Fission-AI/OpenSpec/pull/1704) [`7276c6c`](https://github.com/Fission-AI/OpenSpec/commit/7276c6c26832f699a63544302d38b1af8ddb9844) Thanks [@clay-good](https://github.com/clay-good)! - Drop the npm `postinstall` script. Its only job was printing a one-line tip about opt-in shell completions, but shipping any install script made `npm install -g @fission-ai/openspec` emit an `allow-scripts` warning that reads as a packaging fault (and `npm approve-scripts` then fails with `ENOMATCH` on a global install, since it looks in the local project). The tip now prints from the CLI on its first run — to stderr, in an interactive terminal, once, and not at all if you already have completions installed — and the published package declares no `preinstall`/`install`/`postinstall` script, so a registry install runs no OpenSpec code. Suppress the tip with `OPENSPEC_NO_COMPLETIONS=1`.
+
+- [#1656](https://github.com/Fission-AI/OpenSpec/pull/1656) [`a72a74d`](https://github.com/Fission-AI/OpenSpec/commit/a72a74de6571c26fd79a193bb33fa3b8e1a767fb) Thanks [@clay-good](https://github.com/clay-good)! - ### Bug Fixes
+
+  - `openspec update` now suggests restarting an IDE only when it updates an IDE-resident tool. CLI tools such as Claude Code, Codex, and Gemini CLI no longer show an unnecessary restart hint.
+
+- [#1703](https://github.com/Fission-AI/OpenSpec/pull/1703) [`9643888`](https://github.com/Fission-AI/OpenSpec/commit/9643888a7525467c7a076bfec9bb075910e78bb8) Thanks [@clay-good](https://github.com/clay-good)! - Point the spec-driven `specs` instruction's main-spec read and edit at the store-aware root. It named `openspec/specs/<capability-path>/spec.md`, a path relative to the current directory, for both step 1 of the MODIFIED workflow ("locate the existing requirement") and the edit that fixes a leftover `TBD` Purpose. When the change lives in a store — whether selected with `--store`, a project `store:` pointer, or a global default store — the main spec is under the store root, so that read missed it, or silently returned a different capability when a local one happened to share the name, and the MODIFIED block was then copied from the wrong requirement. Both operations now use `<planningHome.root>/openspec/specs/...`, the root already returned by `openspec instructions ... --json` and the same convention the sync and archive workflows use. Fixes [#1702](https://github.com/Fission-AI/OpenSpec/issues/1702).
+
+- [#1699](https://github.com/Fission-AI/OpenSpec/pull/1699) [`18688c8`](https://github.com/Fission-AI/OpenSpec/commit/18688c8b27820da3435a47a7f11e90073724b728) Thanks [@clay-good](https://github.com/clay-good)! - archive: tell the author how to retire a capability when the emptied spec also holds content the merge cannot account for. That combination printed only "Spec must have at least one requirement" and no guidance at all; the abort now names the blocking lines and reports a `retire_capabilities` marker that is present but cannot be honored. Authored content quoted in those messages - the blocking lines, and the marker's own reason, which `openspec validate` prints too - is stripped of control characters and bounded in length before it reaches the terminal.
+
+- [#1660](https://github.com/Fission-AI/OpenSpec/pull/1660) [`7da3f34`](https://github.com/Fission-AI/OpenSpec/commit/7da3f34fb66d602bd987caa7dddcf3d6621e7d44) Thanks [@clay-good](https://github.com/clay-good)! - Require generated tasks to state how their completion can be verified.
+
 ## 1.9.0
 
 ### Minor Changes
