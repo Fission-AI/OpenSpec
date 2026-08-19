@@ -89,6 +89,7 @@ The skill SHALL prompt to sync delta specs before archiving if specs exist.
 - **THEN** count that capability as needing sync rather than as already synced
 - **AND** name it in the summary as a main spec the sync will create
 - **AND** never treat the missing main spec as nothing to apply
+- **AND** when that delta has no `## ADDED Requirements` to seed the new spec with, report that nothing can be created and stop instead of prompting to sync, since the verification pass would re-read the same missing spec
 
 #### Scenario: No delta specs
 
