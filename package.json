@@ -74,8 +74,8 @@
     "vitest": "^3.2.6"
   },
   "dependencies": {
-    "@inquirer/core": "^10.3.2",
-    "@inquirer/prompts": "^7.10.1",
+    "@inquirer/core": "^11.2.1",
+    "@inquirer/prompts": "^8.5.2",
     "chalk": "^5.6.2",
     "commander": "^14.0.0",
     "cross-spawn": "7.0.6",
