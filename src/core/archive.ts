@@ -69,21 +69,6 @@ export async function isRetirableSpec(specName: string, rebuilt: string): Promis
 }
 
 /**
- * The sentence that names the marker. Single-sourced because it is now said in
- * two places - when the marker is the only thing missing, and when it is
- * missing alongside content that would block the retirement anyway (#1696).
- */
-function retirementMarkerSentence(specName: string, invalidReason?: string): string {
-  return (
-    `This change removes the last requirement '${specName}' has. To retire the` +
-    ` capability and delete its spec, add \`retire_capabilities: true\` to the` +
-    ` change's ${METADATA_FILENAME} (alongside its \`schema:\`, which that file` +
-    ` requires), then rerun.` +
-    (invalidReason ? ` The marker present now cannot be honored (${invalidReason}).` : '')
-  );
-}
-
-/**
  * How much of one blocking line the abort is willing to show. A line long
  * enough to fill the screen would push the way out of the abort off it.
  */
@@ -1614,8 +1599,11 @@ export class ArchiveCommand {
               if (!report.valid) {
                 // This run is what emptied the capability, and "no
                 // requirements" is the only thing wrong with the spec that
-                // would be written. Retiring is the fix in every such case;
-                // what differs is what is still standing in the way.
+                // would be written - so retiring it is what archive would do,
+                // and what stands in the way of that is worth saying. Not
+                // always the *only* fix: a live requirement can be hiding in a
+                // second `## Requirements` section the validator never reaches,
+                // and merging the sections fixes that spec without a deletion.
                 const emptiedByThisRun =
                   p.update.exists &&
                   p.counts.removed > 0 &&
@@ -1629,7 +1617,13 @@ export class ArchiveCommand {
                 // sends someone after a marker that would not have helped.
                 const retirementHint =
                   !retirementDeclared && emptiedByThisRun && p.unaccountedContent.length === 0
-                    ? retirementMarkerSentence(specName, retirementMarker.invalidReason)
+                    ? `This change removes the last requirement '${specName}' has. To retire the` +
+                      ` capability and delete its spec, add \`retire_capabilities: true\` to the` +
+                      ` change's ${METADATA_FILENAME} (alongside its \`schema:\`, which that file` +
+                      ` requires), then rerun.` +
+                      (retirementMarker.invalidReason
+                        ? ` The marker present now cannot be honored (${retirementMarker.invalidReason}).`
+                        : '')
                     : undefined;
                 // #1696: the marker is missing AND the file holds content a
                 // retirement cannot account for, so this abort said nothing at
