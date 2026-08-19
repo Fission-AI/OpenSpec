@@ -93,9 +93,11 @@ artifacts:
       existing capability's Purpose - including a leftover `TBD` placeholder -
       edit `<planningHome.root>/openspec/specs/<capability-path>/spec.md`
       directly. `planningHome.root` comes from the `openspec instructions ...
-      --json` response; it is the store-aware root, so use it rather than a
-      repo-relative path - when a store is selected it points at the store,
-      not the current repository.
+      --json` response. Always use it rather than a repo-relative path: it
+      resolves to the store whenever the change lives in one - whether that
+      came from `--store`, a project `store:` pointer, or a global default
+      store - and to the current repository otherwise. Do not try to work out
+      which case applies; the field already has.
 
       MODIFIED requirements workflow:
       1. Locate the existing requirement in `<planningHome.root>/openspec/specs/<capability-path>/spec.md` (the same store-aware root as above)

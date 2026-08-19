@@ -1,8 +1,11 @@
+import * as fs from 'node:fs';
+import * as os from 'node:os';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { loadSchema } from '../../../src/core/artifact-graph/schema.js';
+import { resolveCurrentPlanningHomeSync } from '../../../src/core/planning-home.js';
 
 // #1702: the `specs` instruction sent main-spec reads and edits to
 // `openspec/specs/<capability-path>/spec.md`, a cwd-relative path. When the
@@ -58,5 +61,43 @@ describe('main spec paths in the specs instruction (#1702)', () => {
     const instruction = instructionFor('specs');
     expect(instruction).toContain('openspec instructions');
     expect(instruction).toContain('store-aware root');
+  });
+
+  // The text guards above pin the placeholder. This pins the other half of the
+  // contract: that `planningHome.root` is a real field whose value, joined with
+  // the literal suffix the instruction spells out, lands on the main spec. A
+  // renamed field or a wrong suffix leaves the substitution pointing at nothing.
+  describe('the composed path resolves', () => {
+    const tempDirs: string[] = [];
+
+    afterEach(() => {
+      for (const dir of tempDirs.splice(0)) {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('lands on the main spec when the placeholder is substituted', () => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-main-spec-path-'));
+      tempDirs.push(tempDir);
+
+      const capability = 'identity/user-auth';
+      const specDir = path.join(tempDir, 'openspec', 'specs', ...capability.split('/'));
+      fs.mkdirSync(specDir, { recursive: true });
+      fs.mkdirSync(path.join(tempDir, 'openspec', 'changes'), { recursive: true });
+      fs.writeFileSync(path.join(specDir, 'spec.md'), '# spec\n');
+
+      const planningHome = resolveCurrentPlanningHomeSync({ startPath: tempDir });
+      expect(planningHome.root, 'planningHome has no root field').toBeTypeOf('string');
+
+      const [operation] = mainSpecOperations(instructionFor('specs'));
+      const template = operation.match(/<planningHome\.root>\/\S*?spec\.md/)?.[0];
+      expect(template, `no main-spec path found in: ${operation.trim()}`).toBeDefined();
+
+      const resolved = (template as string)
+        .replace('<planningHome.root>', planningHome.root)
+        .replace('<capability-path>', capability);
+
+      expect(fs.existsSync(resolved), `composed path does not exist: ${resolved}`).toBe(true);
+    });
   });
 });
