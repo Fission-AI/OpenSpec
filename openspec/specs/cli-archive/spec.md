@@ -196,8 +196,7 @@ A delta whose REMOVED entries cover every requirement a capability has SHALL ret
 
 - **WHEN** the spec holds any non-blank line the merge cannot name - anywhere in the file, including above the requirements section and inside a requirement block, where content the parser did not read as a new header rides along
 - **THEN** refuse the retirement, because deleting the file would take that content with it
-- **AND** say which lines stood in the way whether or not the change declared the marker, rather than aborting on the bare validation error
-- **AND** name the marker only when adding it would let the archive through, so an author whose spec still holds such content is pointed at that content first
+- **AND** say which lines stood in the way when the change declared the marker, rather than aborting on the bare validation error
 
 #### Scenario: Main spec is already gone
 
