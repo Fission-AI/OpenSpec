@@ -717,8 +717,8 @@ describe('InitCommand', () => {
       }
     );
 
-    it('should reconcile Codex and agents to one tree both consumers can invoke', async () => {
-      const initCommand = new InitCommand({ tools: 'codex,agents', force: true });
+    it('should reconcile Codex, Zed, and agents to one tree all consumers can invoke', async () => {
+      const initCommand = new InitCommand({ tools: 'codex,zed,agents', force: true });
       await initCommand.execute(testDir);
 
       const skillsDir = path.join(testDir, '.agents', 'skills');
@@ -734,10 +734,25 @@ describe('InitCommand', () => {
         .flat()
         .map(String);
       expect(logCalls.some((entry) => entry.includes('Created: Codex'))).toBe(true);
+      expect(logCalls.some((entry) => entry.includes('Created: Zed'))).toBe(false);
       expect(logCalls.some((entry) => entry.includes('Shared .agents skills'))).toBe(false);
       expect(
-        logCalls.some((entry) => entry.includes('writing one tree with Codex and generic'))
+        logCalls.some((entry) => entry.includes('writing one tree for codex'))
       ).toBe(true);
+    });
+
+    it('should keep a configured Codex tree compatible when Zed is added later', async () => {
+      await new InitCommand({ tools: 'codex', force: true }).execute(testDir);
+      await new InitCommand({ tools: 'zed', force: true }).execute(testDir);
+
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      const proposeSkill = await fs.readFile(
+        path.join(skillsDir, 'openspec-propose', 'SKILL.md'),
+        'utf-8'
+      );
+      expect(proposeSkill).toContain('$openspec-apply-change');
+      expect(proposeSkill).toContain('/openspec-apply-change');
+      expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe('codex\n');
     });
 
     it('should migrate legacy Codex skills only after init writes their replacements', async () => {
@@ -1380,6 +1395,28 @@ describe('InitCommand - profile and detection features', () => {
       path.join(testDir, '.agents', 'skills', '.openspec-target'),
       'utf-8'
     )).toBe('agents\n');
+  });
+
+  it('should generate Zed skills in the shared .agents directory', async () => {
+    const initCommand = new InitCommand({ tools: 'zed,agents', force: true });
+
+    await initCommand.execute(testDir);
+
+    const skillFile = path.join(
+      testDir,
+      '.agents',
+      'skills',
+      'openspec-apply-change',
+      'SKILL.md'
+    );
+    expect(await fileExists(skillFile)).toBe(true);
+    const skillContent = await fs.readFile(skillFile, 'utf-8');
+    expect(skillContent).toContain('/openspec-archive-change');
+    expect(skillContent).not.toContain('$openspec-archive-change');
+    expect(await fs.readFile(
+      path.join(testDir, '.agents', 'skills', '.openspec-target'),
+      'utf-8'
+    )).toBe('zed\n');
   });
 
   it('should preserve legacy Codex prompts without replacement skills during non-interactive init', async () => {
