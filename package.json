@@ -1,6 +1,6 @@
 {
   "name": "@fission-ai/openspec",
-  "version": "1.9.0",
+  "version": "1.10.0",
   "description": "AI-native system for spec-driven development",
   "keywords": [
     "openspec",
