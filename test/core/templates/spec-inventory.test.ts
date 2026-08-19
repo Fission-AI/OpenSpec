@@ -76,4 +76,29 @@ describe('spec inventory vocabulary (#1689)', () => {
   it('names the spec inventory where a delta must match an existing path', () => {
     expect(instructionFor('specs')).toContain(SPEC_INVENTORY);
   });
+
+  // A bare `openspec list --specs` reads the local inventory, so under a
+  // selected store it confirms a capability path against the wrong root.
+  // Every site that names the command must carry the store qualifier with it.
+  it('carries the store qualifier everywhere it names the command', () => {
+    const sites: Array<[string, string]> = [
+      ...exploreBodies,
+      ['proposal instruction', instructionFor('proposal')],
+      ['specs instruction', instructionFor('specs')],
+    ];
+
+    for (const [label, body] of sites) {
+      const start = body.indexOf(SPEC_INVENTORY);
+      expect(start, label).toBeGreaterThanOrEqual(0);
+
+      // Scoped to the passage that names the command: every explore body
+      // already carries the store qualifier in its unrelated capture steps,
+      // so a whole-body match would pass even with the qualifier dropped here.
+      const passage = body.slice(start, start + 400);
+      expect(passage, `${label} names the command without its store qualifier`).toContain(
+        'registered standalone store'
+      );
+      expect(passage, label).toContain('--store "<id>"');
+    }
+  });
 });
