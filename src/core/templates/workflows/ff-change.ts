@@ -6,12 +6,13 @@
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+import { SKILL_ACTIVATION_GUARD } from './skill-activation.js';
 
 export function getFfChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-ff-change',
-    description: 'Fast-forward through OpenSpec artifact creation. Use when the user wants to quickly create all artifacts needed for implementation without stepping through each one individually.',
-    instructions: `Fast-forward through artifact creation - generate everything needed to start implementation in one go.
+    description: 'Use only for OpenSpec work when the current project has an openspec/ directory, a configured or user-selected OpenSpec store applies, or the user explicitly invokes this skill or asks to use OpenSpec. Fast-forward through OpenSpec artifact creation. Use when the user wants to quickly create all artifacts needed for implementation without stepping through each one individually.',
+    instructions: `${SKILL_ACTIVATION_GUARD}\n\nFast-forward through artifact creation - generate everything needed to start implementation in one go.
 
 ${STORE_SELECTION_GUIDANCE}
 
