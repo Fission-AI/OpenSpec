@@ -3869,8 +3869,8 @@ The system SHALL do the thing differently.
         expect(console.log).toHaveBeenCalledWith(
           expect.stringContaining(VALIDATION_MESSAGES.SPEC_NO_REQUIREMENTS)
         );
-        // The abort now says what has to happen: retiring is the way through,
-        // and here is the line standing in its way.
+        // The abort now says what archive would do with the emptied spec, and
+        // names the line standing in the way of it.
         expect(console.log).toHaveBeenCalledWith(
           expect.stringContaining('Retiring the capability is what archive does instead')
         );
