@@ -88,6 +88,10 @@ Default behavior uses global config defaults: profile `core`, delivery `both`, w
 openspec init [path] [options]
 ```
 
+Use `--language <language>` to add a language instruction to a new project's
+`openspec/config.yaml`. For an existing project, edit the config's `context`
+field so OpenSpec never overwrites project-specific guidance.
+
 **Arguments:**
 
 | Argument | Required | Description |
@@ -99,6 +103,7 @@ openspec init [path] [options]
 | Option | Description |
 |--------|-------------|
 | `--tools <list>` | Configure AI tools non-interactively. Use `all`, `none`, or comma-separated list |
+| `--language <language>` | Write artifacts in this language when creating a new config |
 | `--force` | Auto-cleanup legacy files without prompting |
 | `--profile <profile>` | Override global profile for this init run (`core` or `custom`) |
 | `--no-animation` | Show a static welcome screen instead of the animated one |

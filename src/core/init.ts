@@ -11,7 +11,12 @@ import ora from 'ora';
 import * as fs from 'fs';
 import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { classifyOpenSpecDir, storePointerProblem } from './project-config.js';
+import {
+  classifyOpenSpecDir,
+  MAX_CONTEXT_SIZE,
+  readProjectConfig,
+  storePointerProblem,
+} from './project-config.js';
 import { findRepoPlanningRootSync } from './planning-home.js';
 import { getSkillReferenceTransformer, getTransformerForTool, usesNaturalLanguageSkillReferences } from '../utils/command-references.js';
 import {
@@ -83,6 +88,14 @@ const { version: OPENSPEC_VERSION } = require('../../package.json');
 
 const DEFAULT_SCHEMA = 'spec-driven';
 
+function formatLanguageContext(language: string): string {
+  return [
+    `Language: ${language}`,
+    `All artifacts must be written in ${language}.`,
+    'Keep OpenSpec structural headings and SHALL/MUST keywords in English.',
+  ].join('\n');
+}
+
 const PROGRESS_SPINNER = {
   interval: 80,
   frames: ['░░░', '▒░░', '▒▒░', '▒▒▒', '▓▒▒', '▓▓▒', '▓▓▓', '▒▓▓', '░▒▓'],
@@ -109,6 +122,7 @@ const WORKFLOW_TO_SKILL_DIR: Record<string, string> = {
 
 type InitCommandOptions = {
   tools?: string;
+  language?: string;
   force?: boolean;
   interactive?: boolean;
   profile?: string;
@@ -147,6 +161,7 @@ type DeferredLegacyCleanup = {
 
 export class InitCommand {
   private readonly toolsArg?: string;
+  private readonly language?: string;
   private readonly force: boolean;
   private readonly interactiveOption?: boolean;
   private readonly profileOverride?: string;
@@ -155,6 +170,7 @@ export class InitCommand {
 
   constructor(options: InitCommandOptions = {}) {
     this.toolsArg = options.tools;
+    this.language = this.normalizeLanguage(options.language);
     this.force = options.force ?? false;
     this.interactiveOption = options.interactive;
     this.profileOverride = options.profile;
@@ -196,6 +212,8 @@ export class InitCommand {
         }
       }
     }
+
+    await this.assertLanguageCanBeApplied(projectPath, openspecPath);
 
     // Check for legacy artifacts and handle cleanup
     const deferredLegacyCleanup = await this.handleLegacyCleanup(projectPath, extendMode);
@@ -1006,6 +1024,66 @@ export class InitCommand {
   // CONFIG FILE
   // ═══════════════════════════════════════════════════════════
 
+  private normalizeLanguage(language: string | undefined): string | undefined {
+    if (language === undefined) return undefined;
+
+    const normalized = language.trim();
+    if (!normalized) {
+      throw new Error('The --language option requires a non-empty value.');
+    }
+    if (/\p{Cc}|\p{Bidi_Control}|[\u200B\u2028\u2029\uFEFF]/u.test(normalized)) {
+      throw new Error(
+        'The --language option must be a single line without control or invisible formatting characters.'
+      );
+    }
+    const serializedContext = `${formatLanguageContext(normalized)}\n`;
+    if (Buffer.byteLength(serializedContext, 'utf8') > MAX_CONTEXT_SIZE) {
+      throw new Error(
+        `The --language option is too long for OpenSpec's ${MAX_CONTEXT_SIZE / 1024}KB project context limit.`
+      );
+    }
+    return normalized;
+  }
+
+  private languageContext(): string | undefined {
+    if (!this.language) return undefined;
+    return formatLanguageContext(this.language);
+  }
+
+  private async assertLanguageCanBeApplied(
+    projectPath: string,
+    openspecPath: string
+  ): Promise<void> {
+    const languageContext = this.languageContext();
+    if (!languageContext) return;
+
+    const configPath = path.join(openspecPath, 'config.yaml');
+    const hasConfig = fs.existsSync(configPath) ||
+      fs.existsSync(path.join(openspecPath, 'config.yml'));
+    if (!hasConfig) {
+      try {
+        FileSystemUtils.assertProjectArtifactPath(projectPath, configPath);
+      } catch (error) {
+        const reason = error instanceof Error ? `: ${error.message}` : '';
+        throw new Error(`Cannot create openspec/config.yaml for --language${reason}`);
+      }
+      if (!(await FileSystemUtils.canWriteFile(configPath))) {
+        throw new Error(
+          'Cannot create openspec/config.yaml for --language: the destination is not writable.'
+        );
+      }
+      return;
+    }
+
+    const existingContext = readProjectConfig(projectPath)?.context;
+    if (existingContext?.includes(languageContext)) return;
+
+    throw new Error(
+      '--language does not overwrite an existing OpenSpec config. ' +
+      'Add the language instruction to its context field instead.'
+    );
+  }
+
   private async createConfig(openspecPath: string, extendMode: boolean): Promise<'created' | 'exists' | 'skipped'> {
     const configPath = path.join(openspecPath, 'config.yaml');
     const configYmlPath = path.join(openspecPath, 'config.yml');
@@ -1018,11 +1096,18 @@ export class InitCommand {
 
 
     try {
-      const yamlContent = serializeConfig({ schema: DEFAULT_SCHEMA });
+      const yamlContent = serializeConfig({
+        schema: DEFAULT_SCHEMA,
+        context: this.languageContext(),
+      });
       FileSystemUtils.assertProjectArtifactPath(path.dirname(openspecPath), configPath);
       await FileSystemUtils.writeFile(configPath, yamlContent);
       return 'created';
-    } catch {
+    } catch (error) {
+      if (this.language) {
+        const reason = error instanceof Error ? `: ${error.message}` : '';
+        throw new Error(`Failed to create openspec/config.yaml for --language${reason}`);
+      }
       return 'skipped';
     }
   }

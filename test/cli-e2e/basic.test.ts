@@ -58,6 +58,7 @@ describe('openspec CLI e2e basics', () => {
     expect(normalizedOutput).toContain(
       `Use "all", "none", or a comma-separated list of: ${expectedTools}`
     );
+    expect(normalizedOutput).toContain('--language <language>');
   });
 
   it('reports the package version', async () => {
@@ -127,6 +128,37 @@ describe('openspec CLI e2e basics', () => {
   });
 
   describe('init command non-interactive options', () => {
+    it('initializes artifact language non-interactively', async () => {
+      const projectDir = await prepareFixture('tmp-init');
+      const emptyProjectDir = path.join(projectDir, '..', 'language-project');
+      await fs.mkdir(emptyProjectDir, { recursive: true });
+
+      const result = await runCLI(
+        ['init', '--tools', 'none', '--language', 'French', '--no-animation'],
+        { cwd: emptyProjectDir },
+      );
+
+      expect(result.exitCode).toBe(0);
+      const config = await fs.readFile(
+        path.join(emptyProjectDir, 'openspec', 'config.yaml'),
+        'utf-8',
+      );
+      expect(config).toContain('Language: French');
+      expect(config).toContain('All artifacts must be written in French.');
+      expect(config).toContain('Keep OpenSpec structural headings and SHALL/MUST keywords in English.');
+
+      const created = await runCLI(['new', 'change', 'language-check'], {
+        cwd: emptyProjectDir,
+      });
+      expect(created.exitCode).toBe(0);
+      const instructions = await runCLI(
+        ['instructions', 'proposal', '--change', 'language-check', '--json'],
+        { cwd: emptyProjectDir },
+      );
+      expect(instructions.exitCode).toBe(0);
+      expect(JSON.parse(instructions.stdout).context).toContain('Language: French');
+    });
+
     it('initializes with --tools all option', async () => {
       const projectDir = await prepareFixture('tmp-init');
       const emptyProjectDir = path.join(projectDir, '..', 'empty-project');
