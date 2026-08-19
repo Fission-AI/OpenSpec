@@ -69,6 +69,32 @@ export async function isRetirableSpec(specName: string, rebuilt: string): Promis
 }
 
 /**
+ * The sentence that names the marker. Single-sourced because it is now said in
+ * two places - when the marker is the only thing missing, and when it is
+ * missing alongside content that would block the retirement anyway (#1696).
+ */
+function retirementMarkerSentence(specName: string, invalidReason?: string): string {
+  return (
+    `This change removes the last requirement '${specName}' has. To retire the` +
+    ` capability and delete its spec, add \`retire_capabilities: true\` to the` +
+    ` change's ${METADATA_FILENAME} (alongside its \`schema:\`, which that file` +
+    ` requires), then rerun.` +
+    (invalidReason ? ` The marker present now cannot be honored (${invalidReason}).` : '')
+  );
+}
+
+/**
+ * The first few lines a retirement would delete without being able to name
+ * them, quoted, with a count for the rest. Capped so a long tail cannot bury
+ * the rest of the abort.
+ */
+function describeUnaccountedContent(lines: string[]): string {
+  const shown = lines.slice(0, 3).map((line) => `"${line}"`).join(', ');
+  const rest = lines.length > 3 ? `, and ${lines.length - 3} more line(s)` : '';
+  return `${shown}${rest}`;
+}
+
+/**
  * What this run should do with a rebuilt spec: write it as usual, retire the
  * capability because the delta removed its last requirement (#1302), or do
  * nothing because there is no spec to write and none to retire.
@@ -1568,26 +1594,40 @@ export class ArchiveCommand {
               const specName = p.update.id;
               const report = await new Validator().validateSpecContent(specName, p.rebuilt);
               if (!report.valid) {
+                // This run is what emptied the capability, and "no
+                // requirements" is the only thing wrong with the spec that
+                // would be written. Retiring is the fix in every such case;
+                // what differs is what is still standing in the way.
+                const emptiedByThisRun =
+                  p.update.exists &&
+                  p.counts.removed > 0 &&
+                  p.noRequirementBlocks &&
+                  (await isRetirableSpec(specName, p.rebuilt));
                 // The dead end #1302 describes: the rebuilt spec is unwritable
                 // for exactly one reason, and retiring the capability is the
                 // fix - but only the author can authorise deleting the spec, so
                 // the abort names the marker instead of just rejecting. Says so
                 // only when the marker is the ONLY thing missing, so it never
                 // sends someone after a marker that would not have helped.
-                const retirementWouldFix =
-                  !retirementDeclared &&
-                  p.update.exists &&
-                  p.counts.removed > 0 &&
-                  (await isRetirementCandidate(p.update, p, false));
-                const retirementHint = retirementWouldFix
-                  ? `This change removes the last requirement '${specName}' has. To retire the` +
-                    ` capability and delete its spec, add \`retire_capabilities: true\` to the` +
-                    ` change's ${METADATA_FILENAME} (alongside its \`schema:\`, which that file` +
-                    ` requires), then rerun.` +
-                    (retirementMarker.invalidReason
-                      ? ` The marker present now cannot be honored (${retirementMarker.invalidReason}).`
-                      : '')
-                  : undefined;
+                const retirementHint =
+                  !retirementDeclared && emptiedByThisRun && p.unaccountedContent.length === 0
+                    ? retirementMarkerSentence(specName, retirementMarker.invalidReason)
+                    : undefined;
+                // #1696: the marker is missing AND the file holds content a
+                // retirement cannot account for, so this abort said nothing at
+                // all - just "must have at least one requirement", with no way
+                // forward. It names the content instead of the marker, on
+                // purpose: the marker is only ever named when adding it would
+                // really let the archive through, and here it would not. Once
+                // the content is resolved the rerun names the marker.
+                const blockedRetirementHint =
+                  !retirementDeclared && emptiedByThisRun && p.unaccountedContent.length > 0
+                    ? `This change removes the last requirement '${specName}' has, so the rebuilt ` +
+                      `spec cannot be written. Retiring the capability is the way through, but the ` +
+                      `spec holds content the merge cannot safely account for and deleting the file ` +
+                      `would take with it: ${describeUnaccountedContent(p.unaccountedContent)}. ` +
+                      'Move it into `## Purpose` or a canonical requirement, or delete the spec by hand, then rerun.'
+                    : undefined;
                 // The marker was set and retirement was still refused. Saying
                 // nothing left the author who did exactly what the docs asked
                 // back in the original dead end with no signal that their
@@ -1600,8 +1640,7 @@ export class ArchiveCommand {
                   (await isRetirableSpec(specName, p.rebuilt))
                     ? `'${specName}' declares retire_capabilities, but the spec holds content the merge ` +
                       `cannot safely account for and deleting the file would take with it: ` +
-                      `${p.unaccountedContent.slice(0, 3).map((line) => `"${line}"`).join(', ')}` +
-                      `${p.unaccountedContent.length > 3 ? `, and ${p.unaccountedContent.length - 3} more line(s)` : ''}. ` +
+                      `${describeUnaccountedContent(p.unaccountedContent)}. ` +
                       'Move it into `## Purpose` or a canonical requirement, or delete the spec by hand.'
                     : undefined;
                 if (json) {
@@ -1610,6 +1649,7 @@ export class ArchiveCommand {
                     `Rebuilt spec for '${specName}' failed validation. No files were changed.`,
                     refusalReason ??
                       retirementHint ??
+                      blockedRetirementHint ??
                       `Run ${withStoreFlag(root, `openspec validate ${specName}`)} after fixing the change deltas.`
                   );
                 }
@@ -1619,6 +1659,7 @@ export class ArchiveCommand {
                   else if (issue.level === 'WARNING') console.log(chalk.yellow(`  ⚠ ${issue.message}`));
                 }
                 if (retirementHint) console.log(chalk.yellow(`  → ${retirementHint}`));
+                if (blockedRetirementHint) console.log(chalk.yellow(`  → ${blockedRetirementHint}`));
                 if (refusalReason) console.log(chalk.yellow(`  → ${refusalReason}`));
                 console.log('Aborted. No files were changed.');
                 process.exitCode = 1;
