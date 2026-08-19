@@ -84,12 +84,30 @@ function retirementMarkerSentence(specName: string, invalidReason?: string): str
 }
 
 /**
+ * How much of one blocking line the abort is willing to show. A line long
+ * enough to fill the screen would push the way out of the abort off it.
+ */
+const UNACCOUNTED_LINE_MAX = 200;
+
+/**
  * The first few lines a retirement would delete without being able to name
  * them, quoted, with a count for the rest. Capped so a long tail cannot bury
  * the rest of the abort.
+ *
+ * The lines are authored spec content printed verbatim to a terminal, so they
+ * get the same treatment as a change directory name (`describeChangeName`): a
+ * raw CR could forge a line of its own, and an ESC could redraw the screen.
+ * Truncation counts code points so a cut never leaves half a surrogate pair.
  */
 function describeUnaccountedContent(lines: string[]): string {
-  const shown = lines.slice(0, 3).map((line) => `"${line}"`).join(', ');
+  const shown = lines
+    .slice(0, 3)
+    .map((line) => {
+      const safe = [...line.replace(/[\u0000-\u001f\u007f]/g, '?')];
+      const clipped = safe.slice(0, UNACCOUNTED_LINE_MAX).join('');
+      return `"${safe.length > UNACCOUNTED_LINE_MAX ? `${clipped}\u2026` : clipped}"`;
+    })
+    .join(', ');
   const rest = lines.length > 3 ? `, and ${lines.length - 3} more line(s)` : '';
   return `${shown}${rest}`;
 }
@@ -1623,9 +1641,10 @@ export class ArchiveCommand {
                 const blockedRetirementHint =
                   !retirementDeclared && emptiedByThisRun && p.unaccountedContent.length > 0
                     ? `This change removes the last requirement '${specName}' has, so the rebuilt ` +
-                      `spec cannot be written. Retiring the capability is the way through, but the ` +
-                      `spec holds content the merge cannot safely account for and deleting the file ` +
-                      `would take with it: ${describeUnaccountedContent(p.unaccountedContent)}. ` +
+                      `spec has none left and cannot be written. Retiring the capability is what ` +
+                      `archive does instead, and it is refused while the spec holds content the ` +
+                      `merge cannot safely account for and deleting the file would take with it: ` +
+                      `${describeUnaccountedContent(p.unaccountedContent)}. ` +
                       'Move it into `## Purpose` or a canonical requirement, or delete the spec by hand, then rerun.'
                     : undefined;
                 // The marker was set and retirement was still refused. Saying

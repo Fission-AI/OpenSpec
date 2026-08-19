@@ -3872,7 +3872,7 @@ The system SHALL do the thing differently.
         // The abort now says what has to happen: retiring is the way through,
         // and here is the line standing in its way.
         expect(console.log).toHaveBeenCalledWith(
-          expect.stringContaining('Retiring the capability is the way through')
+          expect.stringContaining('Retiring the capability is what archive does instead')
         );
         expect(console.log).toHaveBeenCalledWith(
           expect.stringContaining('"Owned by the platform team."')
@@ -3886,6 +3886,34 @@ The system SHALL do the thing differently.
         // Still a refusal: nothing is written and nothing is deleted.
         await expect(fs.readFile(target, 'utf-8')).resolves.toBe(original);
         await expect(fs.access(changeDir)).resolves.not.toThrow();
+      });
+
+      // The blocking lines are authored file content echoed to a terminal. A
+      // spec that arrives with a checkout can carry an ESC, and one very long
+      // line could push the way out of the abort off the screen.
+      it('renders blocking lines safely and boundedly', async () => {
+        await createChange('retire-unmarked-hostile', 'legacy-layer', REMOVE_ALL, {
+          declareRetirement: false,
+        });
+        const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+        await fs.mkdir(mainSpecDir, { recursive: true });
+        const longLine = `L${'o'.repeat(400)}ng`;
+        await fs.writeFile(
+          path.join(mainSpecDir, 'spec.md'),
+          `${mainSpec('legacy-layer')}\n## Notes\n\nOwned by \u001b[31mthe platform team.\n\n${longLine}\n`
+        );
+
+        await archiveCommand.execute('retire-unmarked-hostile', { yes: true });
+
+        expect(process.exitCode).toBe(1);
+        const printed = (console.log as unknown as ReturnType<typeof vi.fn>).mock.calls
+          .map((call) => String(call[0]))
+          .join('\n');
+        // The escape never reaches the terminal, but the line is still findable.
+        expect(printed).toContain('Owned by ?[31mthe platform team.');
+        expect(printed).not.toContain('\u001b[31m');
+        // The long line is named, then cut.
+        expect(printed).toContain(`"L${'o'.repeat(199)}…"`);
       });
 
       it('carries the blocked-retirement guidance into --json', async () => {
@@ -3906,7 +3934,7 @@ The system SHALL do the thing differently.
         const payload = JSON.parse(lastJsonPayload());
         expect(payload.archive).toBeNull();
         const status = JSON.stringify(payload.status);
-        expect(status).toContain('Retiring the capability is the way through');
+        expect(status).toContain('Retiring the capability is what archive does instead');
         expect(status).toContain('Owned by the platform team.');
       });
 
