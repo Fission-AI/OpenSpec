@@ -588,8 +588,11 @@ export function registerConfigCommand(program: Command): void {
           };
 
           const selectedWorkflows = await checkbox<string>({
+            // The `instructions` option was removed in @inquirer/checkbox v5.
+            // Its replacement, the built-in keys help tip, renders
+            // "↑↓ navigate • space select • ⏎ submit" by default — a superset of
+            // the hint this used to pass — so no theme override is needed here.
             message: 'Select workflows to make available:',
-            instructions: 'Space to toggle, Enter to confirm',
             pageSize: ALL_WORKFLOWS.length,
             theme: {
               icon: {
