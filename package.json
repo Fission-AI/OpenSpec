@@ -34,7 +34,6 @@
     "dist",
     "bin",
     "schemas",
-    "scripts/postinstall.js",
     "!dist/**/*.test.js",
     "!dist/**/__tests__",
     "!dist/**/*.map"
@@ -50,10 +49,8 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "test:postinstall": "node scripts/postinstall.js",
     "prepare": "pnpm run build",
     "prepublishOnly": "pnpm run build",
-    "postinstall": "node scripts/postinstall.js",
     "check:pack-version": "node scripts/pack-version-check.mjs",
     "release": "pnpm run release:ci",
     "release:ci": "pnpm run check:pack-version && pnpm exec changeset publish",
@@ -74,8 +71,8 @@
     "vitest": "^3.2.6"
   },
   "dependencies": {
-    "@inquirer/core": "^10.3.2",
-    "@inquirer/prompts": "^7.10.1",
+    "@inquirer/core": "^11.2.1",
+    "@inquirer/prompts": "^8.5.2",
     "chalk": "^5.6.2",
     "commander": "^14.0.0",
     "cross-spawn": "7.0.6",
