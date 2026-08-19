@@ -28,16 +28,24 @@ no guidance at all — the dead end the marker exists to close, still reachable
   adding it would really let the archive through; a spec with a second
   `## Requirements` section holding a live requirement must not be pointed toward
   a deletion. Once the content is resolved, the rerun names the marker.
+- A marker that is present but cannot be honored is reported alongside the
+  blocking content. An author who wrote `retire_capabilities: yes-please`
+  believes they authorised the deletion; making them clear the content first,
+  only to then learn the marker was never read, is two aborts for one mistake.
 - The blocking lines are authored file content printed to a terminal, so they are
   rendered with control characters replaced and their length bounded — the same
   treatment a change directory name already gets. This also hardens the
   marker-declared refusal, which echoed them verbatim.
+- The marker's own reason gets the same treatment, at its source in
+  `readBooleanMarker`, because every reason quotes something the author wrote —
+  a schema name, a parser message carrying one, a filesystem error carrying a
+  path. Fixing it there covers `openspec validate`, which prints the same reason.
 
 No change to what archive writes, deletes, or refuses. Message paths only.
 
 ## Impact
 
 - Affected specs: `cli-archive` (MODIFIED: Capability Retirement)
-- Affected code: `src/core/archive.ts`
+- Affected code: `src/core/archive.ts`, `src/utils/change-metadata.ts`
 - Affected docs: `docs/writing-specs.md` (states the second refusal condition,
   which was true before this change but undocumented)
