@@ -1,6 +1,6 @@
 ---
 name: openspec-verify-change
-description: Verify implementation matches change artifacts. Use when the user wants to validate that implementation is complete, correct, and coherent before archiving.
+description: Verify implementation matches change artifacts. Use when the user wants to validate that implementation is complete, correct, coherent, and relevant before archiving.
 allowed-tools: Bash(openspec:*)
 license: MIT
 compatibility: Requires openspec CLI.
@@ -47,16 +47,27 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
 
    This returns the change directory and `contextFiles` (artifact ID -> array of concrete file paths). Read all available artifacts from `contextFiles`.
 
-4. **Initialize verification report structure**
+4. **Establish implementation scope**
 
-   Create a report structure with three dimensions:
+   Determine the complete implementation diff before evaluating relevance:
+   - Identify the change's version-control baseline from repository context (for example, its target branch or merge base). If the baseline is ambiguous, ask the user instead of guessing.
+   - Use an available read-only version-control or file-inventory capability to list every file added, modified, deleted, or renamed between that baseline and the current working state. Include committed, staged, unstaged, and untracked files when applicable; untracked files require a separate inventory because they do not appear in ordinary diffs.
+   - Record the baseline and the changed-file discovery method so the audit scope is reproducible.
+   - Separate implementation files (source, tests, configuration, scripts, and other runtime-affecting files) from OpenSpec change artifacts. Save the implementation file set for the relevance audit.
+   - Do not derive this file set from requirement keyword searches. Those searches find supporting evidence, but cannot detect disconnected implementation.
+   - If version-control information is unavailable or no reliable baseline can be established, state the limitation and skip the relevance audit rather than inspecting the entire repository as though it were part of the change.
+
+5. **Initialize verification report structure**
+
+   Create a report structure with four dimensions:
    - **Completeness**: Track tasks and spec coverage
    - **Correctness**: Track requirement implementation and scenario coverage
    - **Coherence**: Track design adherence and pattern consistency
+   - **Relevance**: Track semantic residue and unnecessary scope
 
    Each dimension can have CRITICAL, WARNING, or SUGGESTION issues.
 
-5. **Verify Completeness**
+6. **Verify Completeness**
 
    **Task Completion**:
    - If `contextFiles.tasks` exists, read every file path in it
@@ -76,7 +87,7 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
        - Add CRITICAL issue: "Requirement not found: <requirement name>"
        - Recommendation: "Implement requirement X: <description>"
 
-6. **Verify Correctness**
+7. **Verify Correctness**
 
    **Requirement Implementation Mapping**:
    - For each requirement from delta specs:
@@ -95,7 +106,7 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
        - Add WARNING: "Scenario not covered: <scenario name>"
        - Recommendation: "Add test or implementation for scenario: <description>"
 
-7. **Verify Coherence**
+8. **Verify Coherence**
 
    **Design Adherence**:
    - If `contextFiles.design` exists:
@@ -113,7 +124,22 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
      - Add SUGGESTION: "Code pattern deviation: <details>"
      - Recommendation: "Consider following project pattern: <example>"
 
-8. **Generate Verification Report**
+9. **Verify Relevance**
+
+   **Semantic Residue Audit**:
+   - Review every file in the implementation file set established from the version-control diff
+   - For each new API, function, type field, state value, helper, branch, or mapping, identify the requirement, task, design decision, or necessary enabling role it serves
+   - Look for residue from superseded planning assumptions: unused elements, unreachable branches, placeholder or mock code, duplicated mappings, and extension points disconnected from any requirement or task
+   - Before reporting a candidate, confirm from the baseline diff hunks that the element was added or modified by this change, then trace references and data flow before flagging it as residue
+   - If an element has no traceable purpose:
+     - Add WARNING: "Planning residue: <element and evidence>"
+     - Recommendation: "Remove <element> or show the requirement/task it serves"
+   - If the purpose is uncertain:
+     - Add SUGGESTION: "Possibly irrelevant code: <element>"
+     - Recommendation: "Confirm whether <element> is required"
+   - Pre-existing debt is out of scope; keep findings limited to code introduced or changed for this change
+
+10. **Generate Verification Report**
 
    **Summary Scorecard**:
    ```markdown
@@ -125,6 +151,7 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
    | Completeness | X/Y tasks, N reqs|
    | Correctness  | M/N reqs covered |
    | Coherence    | Followed/Issues  |
+   | Relevance    | Clean/N residue  |
    ```
 
    **Issues by Priority**:
@@ -137,6 +164,7 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
    2. **WARNING** (Should fix):
       - Spec/design divergences
       - Missing scenario coverage
+      - Confirmed planning residue
       - Each with specific recommendation
 
    3. **SUGGESTION** (Nice to fix):
@@ -154,14 +182,16 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
 - **Completeness**: Focus on objective checklist items (checkboxes, requirements list)
 - **Correctness**: Use keyword search, file path analysis, reasonable inference - don't require perfect certainty
 - **Coherence**: Look for glaring inconsistencies, don't nitpick style
+- **Relevance**: Require reference and data-flow evidence that a changed element serves no requirement, task, design decision, or necessary enabling role
 - **False Positives**: When uncertain, prefer SUGGESTION over WARNING, WARNING over CRITICAL
 - **Actionability**: Every issue must have a specific recommendation with file/line references where applicable
 
 **Graceful Degradation**
 
-- If only tasks.md exists: verify task completion only, skip spec/design checks
-- If tasks + specs exist: verify completeness and correctness, skip design
-- If full artifacts: verify all three dimensions
+- If only tasks.md exists: verify task completion and relevance against tasks, skip spec/design checks
+- If tasks + specs exist: verify completeness, correctness, and relevance against tasks and specs, skip design
+- If full artifacts: verify all four dimensions
+- If the implementation diff baseline or file set cannot be identified reliably: skip relevance and explain why
 - Always note which checks were skipped and why
 
 **Output Format**
