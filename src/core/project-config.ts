@@ -29,12 +29,25 @@ const OperationConfigSchema = z.object({
  * - Single source of truth for type and validation
  * - Consistent with other OpenSpec schemas
  */
+export const LIFECYCLE_MODES = ['archive', 'status'] as const;
+export type LifecycleMode = (typeof LIFECYCLE_MODES)[number];
+
 export const ProjectConfigSchema = z.object({
   // Required: which schema to use (e.g., "spec-driven", or project-local schema name)
   schema: z
     .string()
     .min(1)
     .describe('The workflow schema to use (e.g., "spec-driven")'),
+
+  // Optional, experimental: how a change's lifecycle state is recorded.
+  // 'archive' (default) is the existing behavior: finishing a change moves it
+  // to changes/archive/. 'status' records state in the change's .openspec.yaml
+  // `status` field instead; nothing ever moves, and `openspec sync` folds
+  // shipped changes' deltas into specs/ as a standalone, idempotent step.
+  lifecycle: z
+    .enum(LIFECYCLE_MODES)
+    .optional()
+    .describe('Experimental: "status" records change state as data instead of moving folders'),
 
   // Optional: project context (injected into all artifact instructions)
   // Max size: 50KB (enforced during parsing)
@@ -264,6 +277,16 @@ export const MAX_CONTEXT_SIZE = 50 * 1024; // 50KB hard limit, shared with the r
  * @param projectRoot - The root directory of the project (where `openspec/` lives)
  * @returns Parsed config or null if file doesn't exist
  */
+/**
+ * The project's lifecycle mode. 'archive' unless openspec/config.yaml
+ * explicitly opts into 'status'; a missing or unreadable config means the
+ * default, never an error — mode resolution must not add a failure surface
+ * to commands that only need to know which workflow applies.
+ */
+export function resolveLifecycle(projectRoot: string): LifecycleMode {
+  return readProjectConfig(projectRoot)?.lifecycle ?? 'archive';
+}
+
 export function readProjectConfig(projectRoot: string): ProjectConfig | null {
   const configPath = resolveConfigFilePath(projectRoot);
   if (configPath === null) {
@@ -288,6 +311,18 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
       config.schema = schemaResult.data;
     } else if (raw.schema !== undefined) {
       console.warn(`Invalid 'schema' field in config (must be non-empty string)`);
+    }
+
+    // Parse lifecycle field. Invalid values warn and fall back to the default
+    // ('archive'), like other resilient fields — a typo here must not silently
+    // change which workflow the project runs.
+    const lifecycleResult = z.enum(LIFECYCLE_MODES).safeParse(raw.lifecycle);
+    if (lifecycleResult.success) {
+      config.lifecycle = lifecycleResult.data;
+    } else if (raw.lifecycle !== undefined) {
+      console.warn(
+        `Invalid 'lifecycle' field in config (must be one of: ${LIFECYCLE_MODES.join(', ')})`
+      );
     }
 
     // Parse context field with size limit
