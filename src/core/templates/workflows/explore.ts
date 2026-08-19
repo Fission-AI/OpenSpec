@@ -95,6 +95,12 @@ This tells you:
 - Their names, schemas, and status
 - What the user might be working on
 
+That is the *change* list - work in flight. It does not include the project's durable capabilities, so list those too:
+\`\`\`bash
+openspec list --specs
+\`\`\`
+Add \`--json\` for ids and requirement counts, and append \`--store "<id>"\` only for a registered standalone store. This is the inventory of what the project already claims to do, and \`openspec list\` on its own never shows it. To look at one, run \`openspec show "<spec-id>" --type spec --json --no-scenarios\` (same \`--store\` rule) - it returns that capability's purpose and requirement texts without pulling the whole spec file into context, and \`--type spec\` stops a change of the same name from making it ambiguous.
+
 Then read the project's own context from the resolved root - \`<root.path>/openspec/config.yaml\` (or \`config.yml\`). Use the \`root.path\` returned above, and skip this if neither file exists:
 - \`context\`: project background - tech stack, conventions, constraints
 - \`rules\`: keyed by artifact id - the entries for an artifact apply only when you write that artifact
@@ -409,6 +415,12 @@ This tells you:
 - If there are active changes
 - Their names, schemas, and status
 - What the user might be working on
+
+That is the *change* list - work in flight. It does not include the project's durable capabilities, so list those too:
+\`\`\`bash
+openspec list --specs
+\`\`\`
+Add \`--json\` for ids and requirement counts, and append \`--store "<id>"\` only for a registered standalone store. This is the inventory of what the project already claims to do, and \`openspec list\` on its own never shows it. To look at one, run \`openspec show "<spec-id>" --type spec --json --no-scenarios\` (same \`--store\` rule) - it returns that capability's purpose and requirement texts without pulling the whole spec file into context, and \`--type spec\` stops a change of the same name from making it ambiguous.
 
 Then read the project's own context from the resolved root - \`<root.path>/openspec/config.yaml\` (or \`config.yml\`). Use the \`root.path\` returned above, and skip this if neither file exists:
 - \`context\`: project background - tech stack, conventions, constraints
