@@ -19,12 +19,14 @@ artifacts:
 
       IMPORTANT: The Capabilities section is critical. It creates the contract between
       proposal and specs phases. Research existing specs before filling this in:
-      run `openspec list --specs` for the project's capability inventory (add
-      `--json` for ids and requirement counts, and `--store "<id>"` only for a
-      registered standalone store), then read
-      `openspec/specs/<capability-path>/spec.md` for any that look related.
-      `openspec list` without `--specs` lists in-flight changes, not specs - it
-      never shows what the project already covers. Reuse an existing
+      run `openspec list --specs` for the project's capability inventory, then
+      `openspec show "<spec-id>" --type spec --json --no-scenarios` for any that
+      look related - that returns a capability's purpose and requirement texts
+      without pulling whole spec files into context. Append `--store "<id>"` to
+      both commands only for a registered standalone store, and keep `--type
+      spec`: a change and a spec sharing a name is otherwise an ambiguous-item
+      error. `openspec list` without `--specs` lists in-flight changes, not
+      specs - it never shows what the project already covers. Reuse an existing
       capability's exact path instead of introducing a near-duplicate name.
       Each capability listed here will need a corresponding spec file.
 
