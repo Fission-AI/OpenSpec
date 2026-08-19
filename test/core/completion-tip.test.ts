@@ -116,17 +116,23 @@ describe('core/completion-tip', () => {
   });
 
   it('stays silent rather than repeating when the flag cannot be persisted', async () => {
+    // The unwritable condition is created by occupying the config directory's
+    // path with a FILE, not by chmod-ing the directory: on Windows a mode of
+    // 0o555 does not stop a write, so the chmod form silenced nothing there and
+    // this test failed on windows-pwsh only. `mkdirSync(..., recursive: true)`
+    // tolerates an existing directory but throws on an existing file, on every
+    // platform, so `markTipSeen` fails exactly where it would for a real
+    // permission error - before anything is printed.
     const configDir = path.dirname(getGlobalConfigPath());
-    fs.mkdirSync(configDir, { recursive: true });
-    fs.chmodSync(configDir, 0o555);
+    fs.mkdirSync(path.dirname(configDir), { recursive: true });
+    fs.writeFileSync(configDir, 'not a directory');
 
-    try {
-      await maybeShowCompletionTip();
-      await maybeShowCompletionTip();
-      expect(printedTip()).toBe(false);
-    } finally {
-      fs.chmodSync(configDir, 0o755);
-    }
+    await maybeShowCompletionTip();
+    await maybeShowCompletionTip();
+
+    expect(printedTip()).toBe(false);
+    // Still a file: nothing partially wrote through the failure.
+    expect(fs.statSync(configDir).isFile()).toBe(true);
   });
 
   it('retires the tip quietly when completions are already installed', async () => {
