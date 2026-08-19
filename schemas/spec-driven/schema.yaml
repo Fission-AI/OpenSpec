@@ -91,10 +91,14 @@ artifacts:
       by hand. Do NOT add `## Purpose` to a delta for an existing capability -
       that spec already has one and the delta's is ignored. To change an
       existing capability's Purpose - including a leftover `TBD` placeholder -
-      edit `openspec/specs/<capability-path>/spec.md` directly.
+      edit `<planningHome.root>/openspec/specs/<capability-path>/spec.md`
+      directly. `planningHome.root` comes from the `openspec instructions ...
+      --json` response; it is the store-aware root, so use it rather than a
+      repo-relative path - when a store is selected it points at the store,
+      not the current repository.
 
       MODIFIED requirements workflow:
-      1. Locate the existing requirement in openspec/specs/<capability-path>/spec.md
+      1. Locate the existing requirement in `<planningHome.root>/openspec/specs/<capability-path>/spec.md` (the same store-aware root as above)
       2. Copy the ENTIRE requirement block (from `### Requirement:` through all scenarios)
       3. Paste under `## MODIFIED Requirements` and edit to reflect new behavior
       4. Ensure header text matches exactly (whitespace-insensitive)
