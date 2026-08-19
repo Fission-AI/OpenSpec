@@ -1639,7 +1639,13 @@ export class ArchiveCommand {
                       `archive does instead, and it is refused while the spec holds content the ` +
                       `merge cannot safely account for and deleting the file would take with it: ` +
                       `${describeUnaccountedContent(p.unaccountedContent)}. ` +
-                      'Move it into `## Purpose` or a canonical requirement, or delete the spec by hand, then rerun.'
+                      'Move it into `## Purpose` or a canonical requirement, or delete the spec by hand, then rerun.' +
+                      // Said here too, because an author looking at a marker they
+                      // believe authorises the deletion should not have to clear
+                      // the content first to find out it was never read.
+                      (retirementMarker.invalidReason
+                        ? ` A marker is present but cannot be honored (${retirementMarker.invalidReason}).`
+                        : '')
                     : undefined;
                 // The marker was set and retirement was still refused. Saying
                 // nothing left the author who did exactly what the docs asked

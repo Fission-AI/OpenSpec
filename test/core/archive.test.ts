@@ -3916,6 +3916,42 @@ The system SHALL do the thing differently.
         expect(printed).toContain(`"L${'o'.repeat(199)}…"`);
       });
 
+      // An author who set a marker that cannot be honored believes they have
+      // authorised the deletion. Clearing the blocking content first, only to
+      // then learn the marker was never read, is two aborts for one mistake.
+      it('reports an unhonorable marker alongside the blocking content', async () => {
+        const changeDir = await createChange(
+          'retire-bad-marker-with-notes',
+          'legacy-layer',
+          REMOVE_ALL,
+          { declareRetirement: false }
+        );
+        await fs.writeFile(
+          path.join(changeDir, '.openspec.yaml'),
+          'schema: spec-driven\nretire_capabilities: yes-please\n'
+        );
+        const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+        await fs.mkdir(mainSpecDir, { recursive: true });
+        await fs.writeFile(
+          path.join(mainSpecDir, 'spec.md'),
+          `${mainSpec('legacy-layer')}\n## Notes\n\nOwned by the platform team.\n`
+        );
+
+        await archiveCommand.execute('retire-bad-marker-with-notes', { yes: true });
+
+        expect(process.exitCode).toBe(1);
+        expect(console.log).toHaveBeenCalledWith(
+          expect.stringContaining('"Owned by the platform team."')
+        );
+        expect(console.log).toHaveBeenCalledWith(
+          expect.stringContaining('cannot be honored')
+        );
+        // Still no invitation to add one - the content blocks it either way.
+        expect(console.log).not.toHaveBeenCalledWith(
+          expect.stringContaining('add `retire_capabilities: true`')
+        );
+      });
+
       it('carries the blocked-retirement guidance into --json', async () => {
         await createChange('retire-unmarked-notes-json', 'legacy-layer', REMOVE_ALL, {
           declareRetirement: false,

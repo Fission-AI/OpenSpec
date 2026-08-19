@@ -22,7 +22,7 @@ A delta whose REMOVED entries cover every requirement a capability has SHALL ret
 - **WHEN** a rebuilt spec is retirable but the change does not declare `retire_capabilities: true` in its metadata, or declares it in metadata that cannot be honored
 - **THEN** write the spec as any other, so the archive aborts on it exactly as it did before this behavior existed
 - **AND** name the marker as the fix in that abort, and say when a marker that is present cannot be honored
-- **AND** say nothing about the marker when retiring would not have made the spec writable anyway
+- **AND** say nothing about adding the marker when retiring would not have made the spec writable anyway, while still reporting a marker that is present but cannot be honored
 
 #### Scenario: Delta removes the capability's last requirement
 
