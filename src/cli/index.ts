@@ -19,6 +19,8 @@ import {
 } from '../core/version-check.js';
 import { ListCommand } from '../core/list.js';
 import { ArchiveCommand, type ArchiveOptions } from '../core/archive.js';
+import { SyncCommand, ShipCommand } from '../core/sync.js';
+import { MigrateCommand } from '../core/lifecycle-migrate.js';
 import { ViewCommand } from '../core/view.js';
 import { resolveRootForCommand, toRootOutput } from '../core/root-selection.js';
 import { registerSpecCommand } from '../commands/spec.js';
@@ -355,10 +357,11 @@ program
   .option('--specs', 'List specs instead of changes')
   .option('--changes', 'List changes explicitly (default)')
   .option('--sort <order>', 'Sort order: "recent" (default) or "name"', 'recent')
+  .option('--status <state>', 'Filter changes by lifecycle status (proposed, shipped)')
   .option('--json', 'Output as JSON (for programmatic use)')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
-  .action(async (options?: { specs?: boolean; changes?: boolean; sort?: string; json?: boolean; store?: string; storePath?: string }) => {
+  .action(async (options?: { specs?: boolean; changes?: boolean; sort?: string; status?: string; json?: boolean; store?: string; storePath?: string }) => {
     try {
       const root = await resolveRootForCommand(options ?? {}, {
         json: options?.json,
@@ -376,6 +379,7 @@ program
       await listCommand.execute(root.path, mode, {
         sort,
         json: options?.json,
+        ...(options?.status ? { status: options.status } : {}),
         ...(options?.json ? { root: toRootOutput(root) } : {}),
       });
     } catch (error) {
@@ -487,6 +491,72 @@ program
     try {
       const archiveCommand = new ArchiveCommand();
       await archiveCommand.execute(changeName, options);
+    } catch (error) {
+      failWithError(error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('sync [change-name]')
+  .description(
+    "Fold shipped changes' spec deltas into main specs (projects with `lifecycle: status`)"
+  )
+  .option('--check', 'Verify only: exit 1 if a shipped change has unfolded deltas')
+  .option('--json', 'Output as JSON (non-interactive)')
+  .action(async (changeName?: string, options?: { check?: boolean; json?: boolean }) => {
+    try {
+      const report = await new SyncCommand().execute(changeName, '.', options ?? {});
+      if (!report.clean) {
+        process.exitCode = 1;
+      }
+    } catch (error) {
+      failWithError(error, { enabled: options?.json, fallbackCode: 'sync_error' });
+      process.exit(1);
+    }
+  });
+
+program
+  .command('ship <change-name>')
+  .description(
+    'Declare a change shipped and fold its deltas into main specs, as one diff (projects with `lifecycle: status`)'
+  )
+  .option('--json', 'Output as JSON (non-interactive)')
+  .action(async (changeName: string, options?: { json?: boolean }) => {
+    try {
+      const report = await new ShipCommand().execute(changeName, '.', options ?? {});
+      if (!report.clean) {
+        process.exitCode = 1;
+      }
+    } catch (error) {
+      failWithError(error, { enabled: options?.json, fallbackCode: 'ship_error' });
+      process.exit(1);
+    }
+  });
+
+program
+  .command('migrate')
+  .description(
+    'Migrate this project between lifecycle modes (default: to `lifecycle: status`). Both directions move only bookkeeping; nothing is deleted and no spec text changes'
+  )
+  .option('--to <mode>', 'Target lifecycle mode: "status" (default) or "archive"', 'status')
+  .option('--dry-run', 'Print the migration plan without writing anything')
+  .action(async (options?: { to?: string; dryRun?: boolean }) => {
+    try {
+      const to = options?.to ?? 'status';
+      if (to !== 'status' && to !== 'archive') {
+        throw new Error(`Unknown lifecycle mode '${to}' (expected 'status' or 'archive')`);
+      }
+      // Resolved rather than assumed: migrating rewrites a project's layout, so
+      // it must act on the root the rest of the CLI reports on, not on whichever
+      // directory the user happened to be standing in. No `--store` yet: that
+      // flag's surface is mirrored in generated skill guidance, so adding it
+      // here belongs in its own change.
+      const root = await resolveRootForCommand({});
+      if (!root) {
+        return;
+      }
+      await new MigrateCommand().execute(root.path, { to, dryRun: options?.dryRun });
     } catch (error) {
       failWithError(error);
       process.exit(1);

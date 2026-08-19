@@ -73,6 +73,12 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         takesValue: true,
         values: ['recent', 'name'],
       },
+      {
+        name: 'status',
+        description: 'Filter changes by lifecycle status (proposed, shipped)',
+        takesValue: true,
+        values: ['proposed', 'shipped'],
+      },
       COMMON_FLAGS.json,
       COMMON_FLAGS.store,
     ],
@@ -179,6 +185,52 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         description: 'Output as JSON (non-interactive)',
       },
       COMMON_FLAGS.store,
+    ],
+  },
+  {
+    name: 'sync',
+    description: "Fold shipped changes' spec deltas into main specs (lifecycle: status projects)",
+    acceptsPositional: true,
+    positionalType: 'change-id',
+    positionals: [{ name: 'change-name', type: 'change-id', optional: true }],
+    flags: [
+      {
+        name: 'check',
+        description: 'Verify only: exit 1 if a shipped change has unfolded deltas',
+      },
+      {
+        name: 'json',
+        description: 'Output as JSON (non-interactive)',
+      },
+    ],
+  },
+  {
+    name: 'ship',
+    description: 'Declare a change shipped and fold its deltas into main specs (lifecycle: status projects)',
+    acceptsPositional: true,
+    positionalType: 'change-id',
+    positionals: [{ name: 'change-name', type: 'change-id' }],
+    flags: [
+      {
+        name: 'json',
+        description: 'Output as JSON (non-interactive)',
+      },
+    ],
+  },
+  {
+    name: 'migrate',
+    description: 'Migrate between lifecycle modes (default: to lifecycle: status)',
+    flags: [
+      {
+        name: 'to',
+        description: 'Target lifecycle mode',
+        takesValue: true,
+        values: ['status', 'archive'],
+      },
+      {
+        name: 'dry-run',
+        description: 'Print the migration plan without writing anything',
+      },
     ],
   },
   {
