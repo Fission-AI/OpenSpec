@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 
 import { maybeShowCompletionTip, COMPLETION_TIP_MESSAGE } from '../../src/core/completion-tip.js';
-import { getGlobalConfig, getGlobalConfigPath } from '../../src/core/global-config.js';
+import { getGlobalConfigPath } from '../../src/core/global-config.js';
 
 describe('core/completion-tip', () => {
   let tempDir: string;
@@ -21,6 +21,12 @@ describe('core/completion-tip', () => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-completion-tip-'));
     originalEnv = { ...process.env };
     process.env.XDG_CONFIG_HOME = path.join(tempDir, 'config');
+    // HOME too: the already-installed probe reads the shell's completion dirs,
+    // so without this the developer's own installed completions would silence
+    // the tip and quietly turn these tests vacuous.
+    process.env.HOME = tempDir;
+    process.env.USERPROFILE = tempDir;
+    process.env.SHELL = '/bin/zsh';
     delete process.env.CI;
     delete process.env.OPENSPEC_NO_COMPLETIONS;
     errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -35,29 +41,37 @@ describe('core/completion-tip', () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('prints the tip on the first run and records that it was seen', () => {
-    maybeShowCompletionTip();
+  it('names a command that actually exists', async () => {
+    // Asserting the literal, not the imported constant: comparing the message
+    // against itself would pass even if the tip advertised a typo'd command.
+    expect(COMPLETION_TIP_MESSAGE).toBe(
+      "Tip: Run 'openspec completion install' for shell completions"
+    );
+  });
+
+  it('prints the tip on the first run and records that it was seen', async () => {
+    await maybeShowCompletionTip();
 
     expect(printedTip()).toBe(true);
-    expect(getGlobalConfig().completionTipSeen).toBe(true);
+    expect(JSON.parse(fs.readFileSync(getGlobalConfigPath(), 'utf-8')).completionTipSeen).toBe(true);
   });
 
-  it('does not print the tip again on later runs', () => {
-    maybeShowCompletionTip();
+  it('does not print the tip again on later runs', async () => {
+    await maybeShowCompletionTip();
     errorSpy.mockClear();
 
-    maybeShowCompletionTip();
+    await maybeShowCompletionTip();
 
     expect(printedTip()).toBe(false);
   });
 
-  it('defers the tip on silent runs without consuming it', () => {
-    maybeShowCompletionTip({ silent: true });
+  it('defers the tip on silent runs without consuming it', async () => {
+    await maybeShowCompletionTip({ silent: true });
 
     expect(printedTip()).toBe(false);
-    expect(getGlobalConfig().completionTipSeen).toBeUndefined();
+    expect(fs.existsSync(getGlobalConfigPath())).toBe(false);
 
-    maybeShowCompletionTip();
+    await maybeShowCompletionTip();
 
     expect(printedTip()).toBe(true);
   });
@@ -66,16 +80,79 @@ describe('core/completion-tip', () => {
     ['CI', 'true'],
     ['CI', '1'],
     ['OPENSPEC_NO_COMPLETIONS', '1'],
-  ])('stays silent when %s=%s', (key, value) => {
+  ])('stays silent when %s=%s', async (key, value) => {
     process.env[key] = value;
 
-    maybeShowCompletionTip();
+    await maybeShowCompletionTip();
 
     expect(printedTip()).toBe(false);
     expect(fs.existsSync(getGlobalConfigPath())).toBe(false);
   });
 
-  it('preserves unrelated config fields when recording the flag', () => {
+  it('does not materialize default config fields when recording the flag', async () => {
+    // Regression guard: writing a defaults-merged config would stamp `profile`
+    // into config.json, and migrateIfNeeded treats a raw `profile` as "already
+    // migrated" — permanently suppressing the one-time profile migration and
+    // deleting the user's installed workflow skills.
+    await maybeShowCompletionTip();
+
+    const raw = JSON.parse(fs.readFileSync(getGlobalConfigPath(), 'utf-8'));
+    expect(raw).toEqual({ completionTipSeen: true });
+    expect(raw.profile).toBeUndefined();
+    expect(raw.delivery).toBeUndefined();
+    expect(raw.featureFlags).toBeUndefined();
+  });
+
+  it('leaves an unparsable config untouched and stays silent', async () => {
+    const configPath = getGlobalConfigPath();
+    const corrupt = '{"defaultStore":"acme","profile":"custom",  }';
+    fs.mkdirSync(path.dirname(configPath), { recursive: true });
+    fs.writeFileSync(configPath, corrupt);
+
+    await maybeShowCompletionTip();
+
+    expect(printedTip()).toBe(false);
+    expect(fs.readFileSync(configPath, 'utf-8')).toBe(corrupt);
+  });
+
+  it('stays silent rather than repeating when the flag cannot be persisted', async () => {
+    const configDir = path.dirname(getGlobalConfigPath());
+    fs.mkdirSync(configDir, { recursive: true });
+    fs.chmodSync(configDir, 0o555);
+
+    try {
+      await maybeShowCompletionTip();
+      await maybeShowCompletionTip();
+      expect(printedTip()).toBe(false);
+    } finally {
+      fs.chmodSync(configDir, 0o755);
+    }
+  });
+
+  it('retires the tip quietly when completions are already installed', async () => {
+    // Without this the CLI tells people to install completions they already
+    // have — including on the very next command after `completion install`,
+    // whose own run only defers the tip.
+    process.env.SHELL = '/bin/fish';
+    const installed = path.join(tempDir, '.config', 'fish', 'completions', 'openspec.fish');
+    fs.mkdirSync(path.dirname(installed), { recursive: true });
+    fs.writeFileSync(installed, '# completions');
+
+    await maybeShowCompletionTip();
+
+    expect(printedTip()).toBe(false);
+    expect(JSON.parse(fs.readFileSync(getGlobalConfigPath(), 'utf-8')).completionTipSeen).toBe(true);
+  });
+
+  it('still shows the tip when that shell has no completions installed', async () => {
+    process.env.SHELL = '/bin/fish';
+
+    await maybeShowCompletionTip();
+
+    expect(printedTip()).toBe(true);
+  });
+
+  it('preserves unrelated config fields when recording the flag', async () => {
     const configPath = getGlobalConfigPath();
     fs.mkdirSync(path.dirname(configPath), { recursive: true });
     fs.writeFileSync(
@@ -83,18 +160,11 @@ describe('core/completion-tip', () => {
       JSON.stringify({ defaultStore: 'acme', telemetry: { anonymousId: 'abc' } }, null, 2)
     );
 
-    maybeShowCompletionTip();
+    await maybeShowCompletionTip();
 
-    const config = getGlobalConfig();
-    expect(config.completionTipSeen).toBe(true);
-    expect(config.defaultStore).toBe('acme');
-    expect(config.telemetry?.anonymousId).toBe('abc');
-  });
-
-  it('never throws when the config directory cannot be written', () => {
-    process.env.XDG_CONFIG_HOME = path.join(tempDir, 'file-in-the-way', 'config');
-    fs.writeFileSync(path.join(tempDir, 'file-in-the-way'), 'not a directory');
-
-    expect(() => maybeShowCompletionTip()).not.toThrow();
+    const raw = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    expect(raw.completionTipSeen).toBe(true);
+    expect(raw.defaultStore).toBe('acme');
+    expect(raw.telemetry.anonymousId).toBe('abc');
   });
 });

@@ -1257,6 +1257,11 @@ openspec completion generate bash > ~/.bash_completion.d/openspec
 openspec completion uninstall
 ```
 
+Completions are opt-in. The CLI mentions them once, on stderr, the first time you
+run a command in an interactive terminal, and never again — it also stays quiet
+if you already have completions installed. Set `OPENSPEC_NO_COMPLETIONS=1` to
+suppress that tip entirely.
+
 ---
 
 ## Exit Codes
@@ -1278,6 +1283,7 @@ openspec completion uninstall
 | `EDITOR` or `VISUAL` | Editor for `openspec config edit` |
 | `NO_COLOR` | Disable color output when set |
 | `OPENSPEC_NO_ANIMATION` | Disable the `openspec init` welcome animation when set |
+| `OPENSPEC_NO_COMPLETIONS` | Set to `1` to suppress the one-time tip about shell completions |
 | `OPENSPEC_NO_UPDATE_CHECK` | Disable the `openspec update` check for a newer published CLI when set (any value, including empty). Also skipped when `CI` is set (unless `false`/`0`/`no`/`off`) or `NODE_ENV=test` |
 | `npm_config_registry` | Registry the `openspec update` version check asks. Must be an `http(s)` URL or it falls back to `https://registry.npmjs.org`. No `.npmrc` file is read |
 

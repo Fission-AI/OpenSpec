@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Command, Option } from 'commander';
 
-import { isJsonRun } from '../../src/cli/index.js';
+import { isJsonRun, isCompletionRun, shouldDeferCompletionTip } from '../../src/cli/index.js';
 
 /**
  * Reproduce the three ways `--json` reaches a command in the real CLI, so a
@@ -75,5 +75,61 @@ describe('isJsonRun', () => {
 
   it('is false for a bare group with unrelated residual args', async () => {
     expect(isJsonRun(await actionCommandFor(['store', 'bogus']))).toBe(false);
+  });
+});
+
+describe('isCompletionRun', () => {
+  /**
+   * The completions tip must never fire for the commands that serve completions
+   * themselves. `__complete` is the important one: generated completion scripts
+   * call it on every Tab press with stderr redirected to /dev/null, so an
+   * unsuppressed tip would be consumed invisibly and the user would never see it.
+   */
+  it.each([
+    'completion',
+    'completion:install',
+    'completion:uninstall',
+    'completion:generate',
+    '__complete',
+  ])('suppresses the completions tip for "%s"', (commandPath) => {
+    expect(isCompletionRun(commandPath)).toBe(true);
+  });
+
+  it.each(['list', 'init', 'update', 'change:show', 'completions'])(
+    'does not suppress the completions tip for "%s"',
+    (commandPath) => {
+      expect(isCompletionRun(commandPath)).toBe(false);
+    }
+  );
+});
+
+describe('shouldDeferCompletionTip', () => {
+  /**
+   * The tip must survive every run that cannot display it. Deferring (rather
+   * than consuming) is what makes the one-shot hint actually reach a human:
+   * agents and CI pipelines run this CLI far more often than people do.
+   */
+  function commandFor(argv: string[]): Command {
+    let captured: Command | undefined;
+    const program = buildProgram((command) => {
+      captured = command;
+    });
+    program.parse(argv, { from: 'user' });
+    if (!captured) {
+      throw new Error(`no command captured for ${argv.join(' ')}`);
+    }
+    return captured;
+  }
+
+  it('shows the tip on a plain interactive run', () => {
+    expect(shouldDeferCompletionTip(commandFor(['status']), true)).toBe(false);
+  });
+
+  it('defers when stderr is not a terminal', () => {
+    expect(shouldDeferCompletionTip(commandFor(['status']), false)).toBe(true);
+  });
+
+  it('defers on a JSON run even with a terminal', () => {
+    expect(shouldDeferCompletionTip(commandFor(['status', '--json']), true)).toBe(true);
   });
 });

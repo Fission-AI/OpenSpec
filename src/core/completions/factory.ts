@@ -32,6 +32,8 @@ export interface InstallationResult {
 export interface CompletionInstaller {
   install(script: string): Promise<InstallationResult>;
   uninstall(): Promise<{ success: boolean; message: string }>;
+  /** True when a completion script is already present at the install path. */
+  isInstalled(): Promise<boolean>;
 }
 
 /**

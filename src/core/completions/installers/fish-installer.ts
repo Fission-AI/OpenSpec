@@ -25,6 +25,21 @@ export class FishInstaller {
   }
 
   /**
+   * Check if a completion script is currently installed.
+   * Mirrors ZshInstaller.isInstalled so callers can ask any installer.
+   *
+   * @returns true if the completion script exists
+   */
+  async isInstalled(): Promise<boolean> {
+    try {
+      await fs.access(this.getInstallationPath());
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Backup an existing completion file if it exists
    *
    * @param targetPath - Path to the file to backup

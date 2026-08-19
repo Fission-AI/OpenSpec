@@ -137,6 +137,29 @@ export function isJsonRun(command: Command): boolean {
   );
 }
 
+/**
+ * True for the commands that exist to serve shell completions: the user-facing
+ * `openspec completion ...` group and the hidden `__complete` resolver that
+ * generated completion scripts call on every Tab press. Tipping either about
+ * completions is noise, and `__complete` would burn the one-shot tip invisibly.
+ */
+export function isCompletionRun(commandPath: string): boolean {
+  return commandPath.split(':')[0] === 'completion' || commandPath === '__complete';
+}
+
+/**
+ * True when the first-run completions tip must be deferred rather than shown.
+ *
+ * Deferring keeps the tip unconsumed, so it still reaches the user on a later
+ * run that can actually carry it. All three cases are runs nobody would read a
+ * hint from: JSON output, the completion machinery itself, and a stderr that is
+ * not a terminal — pipes and the agent-driven runs that dominate this CLI's
+ * usage would otherwise burn the user's one-shot tip into a log nobody opens.
+ */
+export function shouldDeferCompletionTip(command: Command, stderrIsTty: boolean): boolean {
+  return isJsonRun(command) || isCompletionRun(getCommandPath(command)) || !stderrIsTty;
+}
+
 program
   .name('openspec')
   .description('AI-native system for spec-driven development')
@@ -162,17 +185,20 @@ program.hook('preAction', async (thisCommand, actionCommand) => {
   // Track command execution (use actionCommand to get the actual subcommand)
   const commandPath = getCommandPath(actionCommand);
 
-  // Show the first-run shell-completions tip (on stderr, so piped stdout stays
-  // clean). Deferred on JSON runs, whose consumers read stderr for failures, and
-  // on `openspec completion ...` runs, where the tip would just be noise.
-  maybeShowCompletionTip({
-    silent: isJsonRun(actionCommand) || commandPath.split(':')[0] === 'completion',
-  });
   await trackCommand(commandPath, version);
 });
 
 // Shutdown telemetry after command completes
-program.hook('postAction', async () => {
+program.hook('postAction', async (_thisCommand, actionCommand) => {
+  // Show the first-run shell-completions tip (on stderr, so piped stdout stays
+  // clean). postAction, not preAction: the tip trails the command's own output
+  // instead of pushing an error message or `init`'s setup summary down the
+  // screen. Deferred — not consumed — whenever nobody would read it: JSON runs,
+  // `openspec completion ...`, and a stderr that is not a terminal (agents and
+  // pipes would otherwise silently burn the user's one-shot tip).
+  await maybeShowCompletionTip({
+    silent: shouldDeferCompletionTip(actionCommand, Boolean(process.stderr.isTTY)),
+  });
   await shutdown();
 });
 
