@@ -6,7 +6,7 @@
 
 import ora from 'ora';
 import chalk from 'chalk';
-import { getChangeDir } from '../../core/planning-home.js';
+import { resolvePlanningChangeDir } from '../../core/planning-home.js';
 import {
   resolveRootForCommand,
   toPlanningHome,
@@ -99,7 +99,7 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
 
     // loadChangeContext will auto-detect schema from metadata if not provided
     const context = loadChangeContext(projectRoot, changeName, options.schema, {
-      changeDir: getChangeDir(planningHome, changeName),
+      changeDir: await resolvePlanningChangeDir(planningHome, changeName),
       planningHome,
     });
     const status = formatChangeStatus(

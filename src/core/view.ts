@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
 import { MarkdownParser } from './parsers/markdown-parser.js';
 import { discoverSpecFiles } from '../utils/spec-discovery.js';
+import { discoverChanges } from './change-discovery.js';
 
 export class ViewCommand {
   async execute(targetPath: string = '.'): Promise<void> {
@@ -94,22 +95,22 @@ export class ViewCommand {
     const active: Array<{ name: string; progress: { total: number; completed: number } }> = [];
     const completed: Array<{ name: string }> = [];
 
-    const entries = fs.readdirSync(changesDir, { withFileTypes: true });
+    // Both layouts: the task-progress helper joins changesDir with the
+    // segment it gets, so sharded changes pass their relative path while
+    // displaying the id.
+    for (const change of await discoverChanges(changesDir)) {
+      const relPath = path.relative(changesDir, change.dir);
+      const progress = await getTaskProgressForChange(changesDir, relPath, path.dirname(openspecDir));
 
-    for (const entry of entries) {
-      if (entry.isDirectory() && entry.name !== 'archive') {
-        const progress = await getTaskProgressForChange(changesDir, entry.name, path.dirname(openspecDir));
-
-        if (progress.total === 0) {
-          // No tasks defined yet - still in planning/draft phase
-          draft.push({ name: entry.name });
-        } else if (progress.completed === progress.total) {
-          // All tasks complete
-          completed.push({ name: entry.name });
-        } else {
-          // Has tasks but not all complete
-          active.push({ name: entry.name, progress });
-        }
+      if (progress.total === 0) {
+        // No tasks defined yet - still in planning/draft phase
+        draft.push({ name: change.id });
+      } else if (progress.completed === progress.total) {
+        // All tasks complete
+        completed.push({ name: change.id });
+      } else {
+        // Has tasks but not all complete
+        active.push({ name: change.id, progress });
       }
     }
 

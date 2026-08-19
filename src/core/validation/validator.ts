@@ -5,6 +5,7 @@ import { SpecSchema, ChangeSchema, Spec, Change } from '../schemas/index.js';
 import { MarkdownParser } from '../parsers/markdown-parser.js';
 import { ChangeParser } from '../parsers/change-parser.js';
 import { ValidationReport, ValidationIssue, ValidationLevel } from './types.js';
+import { itemNameFromPath } from '../change-discovery.js';
 import {
   MIN_PURPOSE_LENGTH,
   MAX_REQUIREMENT_TEXT_LENGTH,
@@ -747,22 +748,7 @@ export class Validator {
   }
 
   private extractNameFromPath(filePath: string): string {
-    const normalizedPath = FileSystemUtils.toPosixPath(filePath);
-    const parts = normalizedPath.split('/');
-    
-    // Look for the directory name after 'specs' or 'changes'
-    for (let i = parts.length - 1; i >= 0; i--) {
-      if (parts[i] === 'specs' || parts[i] === 'changes') {
-        if (i < parts.length - 1) {
-          return parts[i + 1];
-        }
-      }
-    }
-    
-    // Fallback to filename without extension if not in expected structure
-    const fileName = parts[parts.length - 1] ?? '';
-    const dotIndex = fileName.lastIndexOf('.');
-    return dotIndex > 0 ? fileName.slice(0, dotIndex) : fileName;
+    return itemNameFromPath(filePath);
   }
 
   private createReport(issues: ValidationIssue[]): ValidationReport {
