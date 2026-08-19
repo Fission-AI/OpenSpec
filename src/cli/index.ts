@@ -196,10 +196,15 @@ program.hook('postAction', async (_thisCommand, actionCommand) => {
   // screen. Deferred — not consumed — whenever nobody would read it: JSON runs,
   // `openspec completion ...`, and a stderr that is not a terminal (agents and
   // pipes would otherwise silently burn the user's one-shot tip).
-  await maybeShowCompletionTip({
-    silent: shouldDeferCompletionTip(actionCommand, Boolean(process.stderr.isTTY)),
-  });
-  await shutdown();
+  try {
+    await maybeShowCompletionTip({
+      silent: shouldDeferCompletionTip(actionCommand, Boolean(process.stderr.isTTY)),
+    });
+  } finally {
+    // The flush runs even if the hint throws: parse() is synchronous, so a
+    // rejection here has no catch anywhere above it.
+    await shutdown();
+  }
 });
 
 const availableToolIds = AI_TOOLS
@@ -454,10 +459,12 @@ changeCmd
   .action(async (changeName?: string, options?: { strict?: boolean; json?: boolean; noInteractive?: boolean }) => {
     try {
       const changeCommand = new ChangeCommand();
+      // validate() already sets process.exitCode, and Node honours it at
+      // natural exit. Calling process.exit() here would skip commander's
+      // postAction hook — the same trap called out for `update` below — which
+      // kills the telemetry flush and the first-run completions tip on what is
+      // a routine outcome, not an error: a change that fails validation.
       await changeCommand.validate(changeName, options);
-      if (typeof process.exitCode === 'number' && process.exitCode !== 0) {
-        process.exit(process.exitCode);
-      }
     } catch (error) {
       console.error(`Error: ${(error as Error).message}`);
       process.exitCode = 1;
