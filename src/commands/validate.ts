@@ -16,6 +16,7 @@ import { nearestMatches } from '../utils/match.js';
 import { promises as fs } from 'fs';
 import { getTaskProgressDetailForChange, type SchemaGlobCache } from '../utils/task-progress.js';
 import { FileSystemUtils } from '../utils/file-system.js';
+import { detectChangeOverlaps, type RequirementOverlap } from '../core/change-overlap.js';
 
 type ItemType = 'change' | 'spec';
 
@@ -332,7 +333,15 @@ export class ValidateCommand {
       } as const;
 
       if (opts.json) {
-        const out = { items: [] as BulkItemResult[], summary, version: '1.0', root: toRootOutput(root) };
+        const out = {
+          items: [] as BulkItemResult[],
+          summary,
+          // Present whenever changes are in scope, so a consumer sees the same
+          // shape here as on the path that actually validated something.
+          ...(scope.changes ? { overlaps: [] as RequirementOverlap[] } : {}),
+          version: '1.0',
+          root: toRootOutput(root),
+        };
         console.log(JSON.stringify(out, null, 2));
       } else {
         console.log('No items found to validate.');
@@ -387,8 +396,22 @@ export class ValidateCommand {
       },
     } as const;
 
+    // Every check above compares one change against the *current* main spec, so
+    // none of them can see two open changes converging on the same requirement:
+    // each is individually consistent with a spec neither has landed in yet.
+    // Report that here, only when changes are in scope, and only as
+    // information — overlap is often deliberate (a stacked pair, sequenced
+    // work), so it never fails the run or moves the exit code.
+    const overlaps = scope.changes ? await this.detectOverlaps(root, changeIds) : undefined;
+
     if (opts.json) {
-      const out = { items: results, summary, version: '1.0', root: toRootOutput(root) };
+      const out = {
+        items: results,
+        summary,
+        ...(overlaps ? { overlaps } : {}),
+        version: '1.0',
+        root: toRootOutput(root),
+      };
       console.log(JSON.stringify(out, null, 2));
     } else {
       for (const res of results) {
@@ -403,9 +426,53 @@ export class ValidateCommand {
           `Details: openspec validate ${firstFailure.id} --type ${firstFailure.type}${storeFlag}`
         );
       }
+      this.printOverlaps(overlaps ?? []);
     }
 
     process.exitCode = failed > 0 ? 1 : 0;
+  }
+
+  /**
+   * Cross-change overlap for the changes this run already resolved.
+   *
+   * Scoped to `root.changesDir` rather than a path rebuilt from the project
+   * root, so a `--store` run scans the store it selected. A single change can
+   * never overlap anything, so the scan is skipped entirely below two.
+   */
+  private async detectOverlaps(
+    root: ResolvedOpenSpecRoot,
+    changeIds: string[]
+  ): Promise<RequirementOverlap[]> {
+    if (changeIds.length < 2) return [];
+    try {
+      return await detectChangeOverlaps({
+        changesDir: root.changesDir,
+        specsDir: root.specsDir,
+        changeIds,
+      });
+    } catch {
+      // Advisory output must never be the thing that fails a validate run:
+      // every delta this reads is also read by the per-change validation
+      // above, which reports its own errors on its own path.
+      return [];
+    }
+  }
+
+  private printOverlaps(overlaps: RequirementOverlap[]): void {
+    if (overlaps.length === 0) return;
+    const label = overlaps.length === 1 ? 'requirement is' : 'requirements are';
+    console.log('');
+    console.log(`⚠ ${overlaps.length} ${label} claimed by more than one active change:`);
+    for (const overlap of overlaps) {
+      const base = overlap.inMainSpec ? 'in the main spec' : 'not in the main spec yet';
+      console.log(`  ${overlap.specId}: ${overlap.requirement} (${base})`);
+      console.log(
+        `    ${overlap.claimants.map((c) => `${c.changeId} ${c.operation}`).join(', ')}`
+      );
+    }
+    console.log(
+      'Whichever of these archives second lands on a spec the first one changed; re-read it before archiving.'
+    );
   }
 
   /**
