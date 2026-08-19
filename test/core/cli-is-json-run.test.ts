@@ -39,6 +39,9 @@ function buildProgram(capture: (command: Command) => void): Command {
     .option('--json', 'Output as JSON')
     .action(() => {});
 
+  // 4. The completion group, whose runs must never carry the first-run tip.
+  program.command('completion').command('install').action(() => {});
+
   return program;
 }
 
@@ -131,5 +134,11 @@ describe('shouldDeferCompletionTip', () => {
 
   it('defers on a JSON run even with a terminal', () => {
     expect(shouldDeferCompletionTip(commandFor(['status', '--json']), true)).toBe(true);
+  });
+
+  it('defers on the completion commands themselves', () => {
+    // isCompletionRun is unit-tested above, but nothing proved the policy
+    // function actually consults it.
+    expect(shouldDeferCompletionTip(commandFor(['completion', 'install']), true)).toBe(true);
   });
 });

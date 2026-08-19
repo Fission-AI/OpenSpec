@@ -32,8 +32,8 @@ export class FishInstaller {
    */
   async isInstalled(): Promise<boolean> {
     try {
-      await fs.access(this.getInstallationPath());
-      return true;
+      // stat, not access: a directory at the install path is not a script.
+      return (await fs.stat(this.getInstallationPath())).isFile();
     } catch {
       return false;
     }

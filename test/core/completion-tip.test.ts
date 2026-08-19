@@ -23,7 +23,10 @@ describe('core/completion-tip', () => {
     process.env.XDG_CONFIG_HOME = path.join(tempDir, 'config');
     // HOME too: the already-installed probe reads the shell's completion dirs,
     // so without this the developer's own installed completions would silence
-    // the tip and quietly turn these tests vacuous.
+    // the tip and quietly turn these tests vacuous. This works because the
+    // installers resolve home via os.homedir(), which honours $HOME in a
+    // process — vitest.config.ts pins `pool: 'forks'`; under a thread pool the
+    // native call would ignore this assignment and the sandbox would leak.
     process.env.HOME = tempDir;
     process.env.USERPROFILE = tempDir;
     process.env.SHELL = '/bin/zsh';
@@ -79,6 +82,11 @@ describe('core/completion-tip', () => {
   it.each([
     ['CI', 'true'],
     ['CI', '1'],
+    // The values a plain `CI === 'true'` check would miss — the whole reason
+    // this uses the repo's isCiEnvironment().
+    ['CI', 'True'],
+    ['CI', 'yes'],
+    ['CI', 'on'],
     ['OPENSPEC_NO_COMPLETIONS', '1'],
   ])('stays silent when %s=%s', async (key, value) => {
     process.env[key] = value;
@@ -133,6 +141,32 @@ describe('core/completion-tip', () => {
     expect(printedTip()).toBe(false);
     // Still a file: nothing partially wrote through the failure.
     expect(fs.statSync(configDir).isFile()).toBe(true);
+  });
+
+  it('retires the tip quietly on a shell the installer would reject', async () => {
+    // `openspec completion install` exits 1 for unsupported shells, so sending
+    // these users there is a dead end — and this tip is the only thing that
+    // would ever mention completions to them.
+    process.env.SHELL = '/bin/tcsh';
+    delete process.env.PSModulePath;
+
+    await maybeShowCompletionTip();
+
+    expect(printedTip()).toBe(false);
+    expect(JSON.parse(fs.readFileSync(getGlobalConfigPath(), 'utf-8')).completionTipSeen).toBe(true);
+  });
+
+  it('leaves a config that is valid JSON but not an object untouched', async () => {
+    // JSON.parse succeeds here, so only the shape guard stops the write from
+    // turning the file into {"0":"a","completionTipSeen":true}.
+    const configPath = getGlobalConfigPath();
+    fs.mkdirSync(path.dirname(configPath), { recursive: true });
+    fs.writeFileSync(configPath, '["a"]');
+
+    await maybeShowCompletionTip();
+
+    expect(printedTip()).toBe(false);
+    expect(fs.readFileSync(configPath, 'utf-8')).toBe('["a"]');
   });
 
   it('retires the tip quietly when completions are already installed', async () => {

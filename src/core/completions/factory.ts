@@ -32,7 +32,16 @@ export interface InstallationResult {
 export interface CompletionInstaller {
   install(script: string): Promise<InstallationResult>;
   uninstall(): Promise<{ success: boolean; message: string }>;
-  /** True when a completion script is already present at the install path. */
+  /**
+   * True when a completion script file is present at the install path.
+   *
+   * Deliberately just the script: bash and PowerShell also need a sourcing
+   * line in the user's profile, and `install()` adds that on a best-effort
+   * basis (it is skipped by OPENSPEC_NO_AUTO_CONFIG=1 or an unwritable
+   * profile, printing manual instructions instead). Someone in that state has
+   * already met the installer, so callers that use this to decide whether to
+   * *advertise* completions should not advertise again.
+   */
   isInstalled(): Promise<boolean>;
 }
 

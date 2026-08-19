@@ -12,7 +12,8 @@
  * The tip is suppressed when:
  * - CI is set (any value npm/telemetry would treat as CI)
  * - OPENSPEC_NO_COMPLETIONS=1
- * - completions are already installed for the user's shell
+ * - completions are already installed, or the shell is one the installer would
+ *   reject
  * - the caller passes `silent` — JSON runs, `openspec completion ...`, and
  *   non-TTY runs, which are deferred rather than consumed (see `silent`)
  */
@@ -42,22 +43,35 @@ function isSuppressedByEnv(): boolean {
 }
 
 /**
- * True when the user's shell already has an OpenSpec completion script.
+ * Whether the tip is worth showing, once we know it is owed and readable.
  *
- * Without this the tip tells people to install completions they installed long
- * ago — including on the run right after `openspec completion install`, whose
- * own run only defers the tip. Costs one `stat`, and only until the tip is
- * consumed. Unknown or unsupported shells fall through to showing the tip.
+ * "retire" consumes the tip without printing: the user either already has
+ * completions, or is on a shell `openspec completion install` would refuse.
+ *
+ * Without the installed check the tip tells people to install completions they
+ * installed long ago — including on the run right after `completion install`,
+ * whose own run only defers the tip. An undetected or unsupported shell retires
+ * it too: `completion install` exits 1 for those users, so pointing them at it
+ * is a dead end, and this tip is the only message about completions they would
+ * ever get.
+ *
+ * Not free: detectShell() forks `ps` to read the parent process (except on
+ * Windows), so this costs a spawn plus a stat. It runs only on interactive runs
+ * that still owe the tip, which is normally exactly one — but a config that
+ * cannot be written never records the flag, and then every interactive run pays
+ * it. On any unexpected error we show the tip rather than swallow it.
  */
-async function completionsAlreadyInstalled(): Promise<boolean> {
+async function decideTip(): Promise<'show' | 'retire'> {
   try {
     const { shell } = detectShell();
     if (!shell) {
-      return false;
+      return 'retire';
     }
-    return await CompletionFactory.createInstaller(shell).isInstalled();
+    return (await CompletionFactory.createInstaller(shell).isInstalled())
+      ? 'retire'
+      : 'show';
   } catch {
-    return false;
+    return 'show';
   }
 }
 
@@ -86,14 +100,27 @@ function readRawConfig(): Record<string, unknown> | null {
   return parsed as Record<string, unknown>;
 }
 
-function markTipSeen(raw: Record<string, unknown>): void {
+/**
+ * Record the flag, re-reading the config first and replacing the file by rename.
+ *
+ * Deciding whether to show the tip costs a `ps` spawn and a stat, and a sibling
+ * `openspec` process can write the same file in that window — on a first run
+ * that is exactly when telemetry mints `anonymousId`. Re-reading here keeps the
+ * write down to this one key, and the rename keeps a reader from ever seeing a
+ * half-written config.
+ */
+function markTipSeen(): void {
   const configPath = getGlobalConfigPath();
+  const current = readRawConfig() ?? {};
+  const tempPath = `${configPath}.${process.pid}.tmp`;
+
   fs.mkdirSync(path.dirname(configPath), { recursive: true });
   fs.writeFileSync(
-    configPath,
-    JSON.stringify({ ...raw, completionTipSeen: true }, null, 2) + '\n',
+    tempPath,
+    JSON.stringify({ ...current, completionTipSeen: true }, null, 2) + '\n',
     'utf-8'
   );
+  fs.renameSync(tempPath, configPath);
 }
 
 /**
@@ -117,16 +144,14 @@ export async function maybeShowCompletionTip(
       return;
     }
 
-    // Already installed: retire the tip quietly rather than advertising it again.
-    if (await completionsAlreadyInstalled()) {
-      markTipSeen(raw);
-      return;
-    }
+    const decision = await decideTip();
 
     // Record before printing: if the flag cannot be persisted, staying quiet
     // beats reprinting the tip on every future run.
-    markTipSeen(raw);
-    console.error(`\n${COMPLETION_TIP_MESSAGE}`);
+    markTipSeen();
+    if (decision === 'show') {
+      console.error(`\n${COMPLETION_TIP_MESSAGE}`);
+    }
   } catch {
     // Silent failure - a hint should never break the CLI.
   }

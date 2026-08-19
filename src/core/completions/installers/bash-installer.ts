@@ -72,8 +72,8 @@ export class BashInstaller {
    */
   async isInstalled(): Promise<boolean> {
     try {
-      await fs.access(await this.getInstallationPath());
-      return true;
+      // stat, not access: a directory at the install path is not a script.
+      return (await fs.stat(await this.getInstallationPath())).isFile();
     } catch {
       return false;
     }
