@@ -154,8 +154,9 @@ program.hook('preAction', async (thisCommand, actionCommand) => {
     process.env.NO_COLOR = '1';
   }
 
-  // Show first-run telemetry notice (if not seen). Suppress it whenever the run
-  // asked for JSON so stdout stays a single valid JSON document (see isJsonRun).
+  // Show first-run telemetry notice (if not seen). It's written to stderr, so it
+  // never pollutes stdout — but --json runs still defer it (see isJsonRun) so the
+  // very first invocation stays free of any incidental output on either stream.
   await maybeShowTelemetryNotice({ silent: isJsonRun(actionCommand) });
 
   // Track command execution (use actionCommand to get the actual subcommand)
