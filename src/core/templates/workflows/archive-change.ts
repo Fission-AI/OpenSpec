@@ -96,6 +96,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    **If delta specs exist:**
    - Compare each delta spec with its corresponding main spec at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` (use the store-aware \`planningHome.root\` from step 2, not a hardcoded repo path)
+   - A main spec that does not exist yet is **not** "already synced". For a new capability the main spec is an *output* of the sync, not an input: it gets created from the delta's ADDED requirements, exactly as \`openspec archive\` does. Count that capability as changes needed and name it in the summary (\`<capability-path>: new main spec will be created\`). Never read a missing main spec as nothing to apply.
    - Determine what changes would be applied (adds, modifications, removals, renames)
    - Show a combined summary before prompting
 
@@ -278,6 +279,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    **If delta specs exist:**
    - Compare each delta spec with its corresponding main spec at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` (use the store-aware \`planningHome.root\` from step 2, not a hardcoded repo path)
+   - A main spec that does not exist yet is **not** "already synced". For a new capability the main spec is an *output* of the sync, not an input: it gets created from the delta's ADDED requirements, exactly as \`openspec archive\` does. Count that capability as changes needed and name it in the summary (\`<capability-path>: new main spec will be created\`). Never read a missing main spec as nothing to apply.
    - Determine what changes would be applied (adds, modifications, removals, renames)
    - Show a combined summary before prompting
 

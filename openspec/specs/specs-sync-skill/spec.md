@@ -75,6 +75,13 @@ The agent SHALL reconcile main specs with delta specs using the delta operation 
 - **AND** copy the delta's `## Purpose` body into it when the delta has one, matching what `openspec archive` does
 - **AND** write a brief TBD placeholder Purpose only when the delta has none
 
+#### Scenario: MODIFIED or RENAMED against a capability with no main spec
+- **WHEN** delta contains `## MODIFIED Requirements` or `## RENAMED Requirements`
+- **AND** the capability has no main spec yet
+- **THEN** stop the sync for that capability and report that only ADDED requirements are allowed for a new spec, matching what `openspec archive` does
+- **AND** never invent the missing requirement
+- **AND** skip any `## REMOVED Requirements` with a warning, since there is nothing to remove
+
 #### Scenario: Merged main spec keeps canonical structure
 - **WHEN** the agent writes a main spec during sync
 - **THEN** every requirement lives under a single `## Requirements` section
