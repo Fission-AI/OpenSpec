@@ -16,7 +16,7 @@ Terms are grouped by topic, then alphabetized within each group.
 
 **Delta spec.** A spec inside a change that describes only what's changing, using `ADDED`, `MODIFIED`, and `REMOVED` sections, rather than restating the entire spec. This is what lets OpenSpec edit existing systems cleanly. See [Concepts](concepts.md#delta-specs).
 
-**Main spec.** The spec in `openspec/specs/` that a delta spec edits — the durable, current-state counterpart to a change's delta. For a capability that already exists, the main spec is the file the delta merges into. For a brand-new capability, there is nothing to merge into yet: the main spec is *created* by the archive from the delta's `ADDED` requirements. It is an output of finishing a change, not something you write up front.
+**Main spec.** The spec in `openspec/specs/` that a delta spec edits — the durable, current-state counterpart to a change's delta. For a capability that already exists, the main spec is the file the delta merges into. For a brand-new capability, there is nothing to merge into yet: the main spec is *created* from the delta's `ADDED` requirements — by the archive, or by a standalone sync before you archive. It is an output of the work, not something you write up front.
 
 **Domain.** A logical grouping for specs, like `auth/`, `payments/`, or `ui/`. You choose domains that match how you think about your system.
 
