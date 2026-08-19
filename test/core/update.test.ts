@@ -1332,6 +1332,46 @@ metadata:
       expect(content).toContain('**Provided arguments**: $ARGUMENTS');
     });
 
+    it('should repair stale OpenCode commands-only installs once', async () => {
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+      const commandsDir = path.join(testDir, '.opencode', 'commands');
+      const coreCommandIds = [
+        'explore',
+        'apply',
+        'update',
+        'sync',
+        'archive',
+        'propose',
+      ];
+      await fs.mkdir(commandsDir, { recursive: true });
+      for (const commandId of coreCommandIds) {
+        await fs.writeFile(
+          path.join(commandsDir, `opsx-${commandId}.md`),
+          'old command without arguments'
+        );
+      }
+
+      await updateCommand.execute(testDir);
+
+      for (const commandId of coreCommandIds) {
+        const content = await fs.readFile(
+          path.join(commandsDir, `opsx-${commandId}.md`),
+          'utf-8'
+        );
+        expect(content.match(/\$ARGUMENTS/g)).toHaveLength(1);
+        expect(content).toContain('**Provided arguments**: $ARGUMENTS');
+        expect(content).not.toContain('old command without arguments');
+      }
+
+      const consoleSpy = vi.spyOn(console, 'log');
+      await updateCommand.execute(testDir);
+
+      const logCalls = consoleSpy.mock.calls.flat().map(String);
+      expect(logCalls.some((entry) => entry.includes('up to date'))).toBe(true);
+      expect(logCalls.some((entry) => entry.includes('Updating 1 tool(s)'))).toBe(false);
+      consoleSpy.mockRestore();
+    });
+
     it('should migrate a legacy .windsurf install to .devin, preserving user files', async () => {
       // A project set up before the Devin Desktop rebrand: OpenSpec skills and
       // workflows under .windsurf/, alongside files the user wrote themselves.
