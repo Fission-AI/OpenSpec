@@ -1644,7 +1644,7 @@ export class ArchiveCommand {
                       // believe authorises the deletion should not have to clear
                       // the content first to find out it was never read.
                       (retirementMarker.invalidReason
-                        ? ` A marker is present but cannot be honored (${retirementMarker.invalidReason}).`
+                        ? ` The marker present now cannot be honored (${retirementMarker.invalidReason}).`
                         : '')
                     : undefined;
                 // The marker was set and retirement was still refused. Saying
