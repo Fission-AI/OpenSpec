@@ -118,6 +118,34 @@ describe('InitCommand', () => {
       }
     });
 
+    it.each([
+      ['archive', 'openspec-archive-change'],
+      ['bulk-archive', 'openspec-bulk-archive-change'],
+    ] as const)(
+      'should install the sync workflow required by %s in a custom profile',
+      async (archiveWorkflow, archiveSkill) => {
+        saveGlobalConfig({
+          featureFlags: {},
+          profile: 'custom',
+          delivery: 'both',
+          workflows: ['propose', 'explore', 'apply', archiveWorkflow],
+        });
+
+        const initCommand = new InitCommand({ tools: 'claude', force: true });
+        await initCommand.execute(testDir);
+
+        await expect(
+          fs.access(path.join(testDir, '.claude', 'skills', archiveSkill, 'SKILL.md'))
+        ).resolves.toBeUndefined();
+        await expect(
+          fs.access(path.join(testDir, '.claude', 'skills', 'openspec-sync-specs', 'SKILL.md'))
+        ).resolves.toBeUndefined();
+        await expect(
+          fs.access(path.join(testDir, '.claude', 'commands', 'opsx', 'sync.md'))
+        ).resolves.toBeUndefined();
+      }
+    );
+
     it('should create core profile commands for Claude Code by default', async () => {
       const initCommand = new InitCommand({ tools: 'claude', force: true });
 
