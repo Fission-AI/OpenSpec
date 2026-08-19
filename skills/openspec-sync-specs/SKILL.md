@@ -95,6 +95,13 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
    b. **Read the main spec** at `<planningHome.root>/openspec/specs/<capability-path>/spec.md` (may not exist yet)
 
+      **If it does not exist yet** (a new capability), match what `openspec archive` does:
+      only ADDED requirements may be applied - step d creates the spec from them.
+      MODIFIED and RENAMED have no requirement to act on, so stop the sync for that
+      capability and report that its main spec does not exist and only ADDED is allowed
+      for a new spec; never invent the missing requirement. REMOVED has nothing to
+      remove - skip it and warn.
+
    c. **Apply changes intelligently**:
 
       **ADDED Requirements:**
@@ -142,6 +149,11 @@ This is an **agent-driven** operation - you will read delta specs and directly e
         (this is what `openspec archive` does; it warns and moves on)
 
    d. **Create new main spec** if capability doesn't exist yet:
+      - Only when the delta has ADDED requirements to put in it. With nothing to add -
+        a REMOVED-only delta against a capability that has no main spec - create nothing,
+        leave the specs directory untouched, and report it; `openspec archive` aborts the
+        same case with `Spec must have at least one requirement`. Never write an empty
+        `## Requirements` section.
       - Create `<planningHome.root>/openspec/specs/<capability-path>/spec.md`
       - Add Purpose section: copy the delta's `## Purpose` body verbatim when it has one
         (this is what `openspec archive` does); only write a brief TBD placeholder when it does not

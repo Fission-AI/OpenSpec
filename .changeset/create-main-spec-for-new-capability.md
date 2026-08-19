@@ -1,0 +1,5 @@
+---
+"@fission-ai/openspec": patch
+---
+
+The agent-driven archive and sync workflows now create a capability's main spec when it does not exist yet. The archive workflow told agents to compare each delta spec against its main spec but said nothing about a main spec that is not there; comparing against nothing read as "already synced", so the agent archived the change and the new capability's main spec was never written — in a greenfield project every change archived with `openspec/specs/` still empty. A missing main spec now counts as work the sync must do and is named in the summary as a spec that will be created. The sync workflow gained the matching rules `openspec archive` has always enforced: `MODIFIED` and `RENAMED` have no requirement to act on when there is no main spec, so the sync stops and reports instead of inventing one, and a `REMOVED`-only delta creates nothing rather than writing a spec with an empty `## Requirements` section. The docs now define "main spec" and state that for a new capability it is created by the archive rather than written up front. Fixes #1222. Fixes #1264.
