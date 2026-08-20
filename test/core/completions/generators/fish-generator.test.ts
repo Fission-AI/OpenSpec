@@ -165,17 +165,17 @@ describe('FishGenerator', () => {
     it('should allow file completion for path flags', () => {
       const commands: CommandDefinition[] = [
         {
-          name: 'context-store',
-          description: 'Set up and inspect context stores',
+          name: 'store',
+          description: 'Create and manage stores',
           flags: [],
           subcommands: [
             {
               name: 'setup',
-              description: 'Create or register a local context store',
+              description: 'Create or register a local store',
               flags: [
                 {
                   name: 'path',
-                  description: 'Directory to use for the context store',
+                  description: 'Directory to use for the store',
                   takesValue: true,
                   completionType: 'path',
                 },
@@ -425,11 +425,46 @@ describe('FishGenerator', () => {
       const secondLine = completionLine(script, '__fish_openspec_positional_index 1 2 --workspace');
 
       expect(firstLine).toContain('-f');
-      expect(secondLine).toContain('complete -c openspec -n');
       expect(secondLine).toContain('__fish_openspec_using_subcommand workspace');
       expect(secondLine).toContain('__fish_openspec_using_subcommand relink');
       expect(secondLine).toContain('__fish_openspec_positional_index 1 2 --workspace');
-      expect(secondLine).not.toContain('-f');
+      // -F, not a bare rule: the sibling subcommand rules below carry -f, and
+      // Fish only restores filesystem completion with --force-files.
+      expect(secondLine).toContain('-F');
+      expect(secondLine).not.toContain(' -f');
+    });
+
+    it('should force file completion for a path positional whose siblings suppress files', () => {
+      const commands: CommandDefinition[] = [
+        {
+          name: 'store',
+          description: 'Manage stores',
+          flags: [],
+          subcommands: [
+            {
+              name: 'register',
+              description: 'Register an existing store directory',
+              acceptsPositional: true,
+              positionals: [{ name: 'path', type: 'path', optional: true }],
+              flags: [],
+            },
+            {
+              name: 'list',
+              description: 'List registered stores',
+              flags: [],
+            },
+          ],
+        },
+      ];
+
+      const script = generator.generate(commands);
+      const siblingLine = completionLine(script, "-a 'list'");
+      const pathLine = completionLine(script, '__fish_openspec_positional_index 0 2');
+
+      // The sibling rule matches while `store register <TAB>` is being completed
+      // and suppresses files, so the path rule has to force them back on.
+      expect(siblingLine).toContain('-f');
+      expect(pathLine).toContain('-F');
     });
 
     it('should generate dynamic completion helper for changes', () => {

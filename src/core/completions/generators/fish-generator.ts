@@ -164,8 +164,9 @@ ${commandCompletions}`;
         lines.push(`complete -c openspec -n '${condition}' -a 'zsh bash fish powershell' -f`);
         break;
       case 'path':
-        // Emit the rule without -f so Fish can offer filesystem completions.
-        lines.push(`complete -c openspec -n '${condition}'`);
+        // -F re-enables filesystem completion: sibling rules in the same
+        // context carry -f, and Fish never restores files without --force-files.
+        lines.push(`complete -c openspec -n '${condition}' -F`);
         break;
       default:
         lines.push(`complete -c openspec -n '${condition}' -f`);
