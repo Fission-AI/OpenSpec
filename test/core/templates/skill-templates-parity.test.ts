@@ -44,7 +44,7 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getApplyChangeSkillTemplate: 'd1e7d5ceb85193c0964057dbb88e9651526754bd33f84020e2440ff0621d5dbb',
   getFfChangeSkillTemplate: 'a2f049212b764b51ff8b9e3ce3a2828b932c35ea9951398d400f86617b84f6e9',
   getSyncSpecsSkillTemplate: 'b099e2ff31859c9b10d928066e662524f9aad9ecf2be12fceacb732d718c4146',
-  getOnboardSkillTemplate: '29b1d825179cff92fbc7b790694c1baef138575ea3de56848715e27d7e367946',
+  getOnboardSkillTemplate: '3a836faae463d88c289a1c129cb7ee556a563b7e53e1a52a4711ff152a3b51f7',
   getOpsxExploreCommandTemplate: 'd2f70d11588f902c15c1e5ce9908cc4124c6b82fe78dc766ac5c3599c9e2a6f1',
   getOpsxNewCommandTemplate: '3202921cb8e8f750c0804e09dc60b1f9e06595d2858b1d692d4d2a779cfa7eb1',
   getOpsxContinueCommandTemplate: 'e50e50266efa1b8e64ff9b6274ee8254f0a240d6adc1b862d126e2f1c9d3a559',
@@ -55,12 +55,12 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getOpsxSyncCommandTemplate: '0d2427efb79986e8fff3f96bd075a739c80d45eb29159fae717e950030da8202',
   getVerifyChangeSkillTemplate: '223b7ffd99299a7d430e13092b9a0a3421b39f0d3217232f46c39d79b5f619ff',
   getOpsxArchiveCommandTemplate: '9f973c819b11620985b03322945f0e0a92a02a2ef455b94e74482f5e6292ac5d',
-  getOpsxOnboardCommandTemplate: '7e251da66e2fdf539a09326463ee3ed0d01fe665ecb1d8f36f941fed00a01891',
+  getOpsxOnboardCommandTemplate: 'ee99aa99252c602720fbb8c63fb3ac438a5bd4e952fd961ddf1ae956cbfc2c8f',
   getOpsxBulkArchiveCommandTemplate: '9fa8cdebe2f5667ebfc37bdc023396762c59d5b038c771dac2d8fd2c19e2627b',
   getOpsxVerifyCommandTemplate: '1efcf7eff0671f48e9d9420f50865c563dd3079ee60f8c380bb7a90dd0102696',
   getOpsxProposeSkillTemplate: '62392137f9516bc39be9993cfbadee11ac2ef2178470ba7130da3ff85f1ed634',
   getOpsxProposeCommandTemplate: 'ce4a432703de03d045aa6f4886759bf09b698d00a7d4487e5428923f3566e961',
-  getFeedbackSkillTemplate: 'd7d83c5f7fc2b92fe8f4588a5bf2d9cb315e4c73ec19bcd5ef28270906319a0d',
+  getFeedbackSkillTemplate: 'dabeb5e825b9349abc8156c3e7b8608f27987912a6d9bf47ef29addde6138133',
   getUpdateChangeSkillTemplate: '7dc8abc6f64c58bf34d7581ed4ab095a3b7a53cb372349bee2d840db58622819',
   getOpsxUpdateCommandTemplate: 'e2388521b22f92f74561df9a0c2f98e1fa4d265af93b5ba26f42fb47a6c5bfed',
 };
@@ -75,7 +75,7 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-archive-change': '7c65053d674ba4e1e20e2bf73ba7e5a7f94baef2eaa9b33cee48d4cadea51b7a',
   'openspec-bulk-archive-change': '2039b9ecf6e64339dffe0e16272507a386d9fe326f419ff758315aa736fdd96c',
   'openspec-verify-change': 'af9be013dcbe8c6d8f6d9ab10c893fbd03f4c62933c384d82f63894dd0ceb84f',
-  'openspec-onboard': 'd53403b4910ab64307862ccf97e70bd8f7174ee44508088fb239c880f0939331',
+  'openspec-onboard': 'f6f59476acaf5e4d65dbb180da4cef62432612f3cecf207d471a951295e2003a',
   'openspec-propose': '5c94edd8dde60c255284cdb28eef6286baa7b6e962424105a6d6919e9fc2309a',
   'openspec-update-change': '586547406aca94422dfeb3ffedce6c01049429b743f57ce829baa79ebc714d51',
 };
@@ -379,6 +379,40 @@ describe('skill templates split parity', () => {
       expect(content, label).not.toContain('| auth (!)');
       expect(content, label).not.toContain('(auth: synced');
       expect(content, label).not.toContain('add-jwt/auth:');
+    }
+  });
+
+  it('keeps onboarding task examples aligned with concrete verification guidance (#345)', () => {
+    const variants: Array<[string, string]> = [
+      ['onboard skill', generateSkillContent(getOnboardSkillTemplate(), 'PARITY-BASELINE')],
+      ['onboard command', getOpsxOnboardCommandTemplate().content],
+    ];
+
+    for (const [label, content] of variants) {
+      const taskBlock = content.match(
+        /Here are the implementation tasks:([\s\S]*?)Each checkbox becomes a unit of work/
+      )?.[1];
+      expect(taskBlock, label).toBeDefined();
+      const checkboxes = taskBlock!
+        .split('\n')
+        .filter(line => /^- \[ \] \d+\.\d+ /.test(line));
+      expect(checkboxes, label).toHaveLength(3);
+      expect(
+        checkboxes.every(
+          line =>
+            line.endsWith(
+              '[Specific task] — verify: [test, command, observable behavior, or delivered artifact]'
+            ) || / Verify .+ with \[.+\]$/.test(line)
+        ),
+        label
+      ).toBe(true);
+      expect(content, label).toContain(
+        '[Specific task] — verify: [test, command, observable behavior, or delivered artifact]'
+      );
+      expect(content, label).toContain(
+        'Verify [broader integration or system behavior] with [end-to-end test or observable result]'
+      );
+      expect(content, label).not.toContain('[Verification step]');
     }
   });
 

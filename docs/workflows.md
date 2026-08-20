@@ -94,7 +94,7 @@ sequenceDiagram
     Assistant->>Files: Move the change into the archive
     Assistant-->>Human: Report archive location and sync result
 
-    Note over Human,CLI: CLI alternative: openspec archive change-name --yes skips confirmation prompts; it still validates, then applies any delta specs and archives
+    Note over Human,CLI: CLI alternative: openspec archive change-name --yes skips confirmation prompts. It still validates, then applies any delta specs and archives
 ```
 
 ## Two Modes

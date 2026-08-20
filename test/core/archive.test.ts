@@ -3840,6 +3840,140 @@ The system SHALL do the thing differently.
         expect(JSON.stringify(payload.status)).toContain('retire_capabilities: true');
       });
 
+      // #1696: the marker is missing AND the file holds a line the merge cannot
+      // account for. Both hints were suppressed - the marker hint because
+      // retirement would still be refused, the refusal reason because it only
+      // spoke to authors who had already set the marker - so the archive aborted
+      // on "must have at least one requirement" with no way forward at all.
+      it('names the content blocking a retirement instead of aborting bare', async () => {
+        const changeDir = await createChange(
+          'retire-unmarked-with-notes',
+          'legacy-layer',
+          REMOVE_ALL,
+          { declareRetirement: false }
+        );
+        const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+        await fs.mkdir(mainSpecDir, { recursive: true });
+        const target = path.join(mainSpecDir, 'spec.md');
+        // An ordinary hand-written section. It keeps the spec valid, so the only
+        // error is still the empty rebuild - but deleting the file would take it.
+        await fs.writeFile(
+          target,
+          `${mainSpec('legacy-layer')}\n## Notes\n\nOwned by the platform team.\n`
+        );
+        const original = await fs.readFile(target, 'utf-8');
+
+        await archiveCommand.execute('retire-unmarked-with-notes', { yes: true });
+
+        expect(process.exitCode).toBe(1);
+        expect(console.log).toHaveBeenCalledWith(
+          expect.stringContaining(VALIDATION_MESSAGES.SPEC_NO_REQUIREMENTS)
+        );
+        // The abort now says what archive would do with the emptied spec, and
+        // names the line standing in the way of it.
+        expect(console.log).toHaveBeenCalledWith(
+          expect.stringContaining('Retiring the capability is what archive does instead')
+        );
+        expect(console.log).toHaveBeenCalledWith(
+          expect.stringContaining('"Owned by the platform team."')
+        );
+        // Not the marker, though: adding it would not have let this through,
+        // and the marker is only ever named when it really is the one thing
+        // missing.
+        expect(console.log).not.toHaveBeenCalledWith(
+          expect.stringContaining('add `retire_capabilities: true`')
+        );
+        // Still a refusal: nothing is written and nothing is deleted.
+        await expect(fs.readFile(target, 'utf-8')).resolves.toBe(original);
+        await expect(fs.access(changeDir)).resolves.not.toThrow();
+      });
+
+      // The blocking lines are authored file content echoed to a terminal. A
+      // spec that arrives with a checkout can carry an ESC, and one very long
+      // line could push the way out of the abort off the screen.
+      it('renders blocking lines safely and boundedly', async () => {
+        await createChange('retire-unmarked-hostile', 'legacy-layer', REMOVE_ALL, {
+          declareRetirement: false,
+        });
+        const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+        await fs.mkdir(mainSpecDir, { recursive: true });
+        const longLine = `L${'o'.repeat(400)}ng`;
+        await fs.writeFile(
+          path.join(mainSpecDir, 'spec.md'),
+          `${mainSpec('legacy-layer')}\n## Notes\n\nOwned by \u001b[31mthe platform team.\n\n${longLine}\n`
+        );
+
+        await archiveCommand.execute('retire-unmarked-hostile', { yes: true });
+
+        expect(process.exitCode).toBe(1);
+        const printed = (console.log as unknown as ReturnType<typeof vi.fn>).mock.calls
+          .map((call) => String(call[0]))
+          .join('\n');
+        // The escape never reaches the terminal, but the line is still findable.
+        expect(printed).toContain('Owned by ?[31mthe platform team.');
+        expect(printed).not.toContain('\u001b[31m');
+        // The long line is named, then cut.
+        expect(printed).toContain(`"L${'o'.repeat(199)}…"`);
+      });
+
+      // An author who set a marker that cannot be honored believes they have
+      // authorised the deletion. Clearing the blocking content first, only to
+      // then learn the marker was never read, is two aborts for one mistake.
+      it('reports an unhonorable marker alongside the blocking content', async () => {
+        const changeDir = await createChange(
+          'retire-bad-marker-with-notes',
+          'legacy-layer',
+          REMOVE_ALL,
+          { declareRetirement: false }
+        );
+        await fs.writeFile(
+          path.join(changeDir, '.openspec.yaml'),
+          'schema: spec-driven\nretire_capabilities: yes-please\n'
+        );
+        const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+        await fs.mkdir(mainSpecDir, { recursive: true });
+        await fs.writeFile(
+          path.join(mainSpecDir, 'spec.md'),
+          `${mainSpec('legacy-layer')}\n## Notes\n\nOwned by the platform team.\n`
+        );
+
+        await archiveCommand.execute('retire-bad-marker-with-notes', { yes: true });
+
+        expect(process.exitCode).toBe(1);
+        expect(console.log).toHaveBeenCalledWith(
+          expect.stringContaining('"Owned by the platform team."')
+        );
+        expect(console.log).toHaveBeenCalledWith(
+          expect.stringContaining('cannot be honored')
+        );
+        // Still no invitation to add one - the content blocks it either way.
+        expect(console.log).not.toHaveBeenCalledWith(
+          expect.stringContaining('add `retire_capabilities: true`')
+        );
+      });
+
+      it('carries the blocked-retirement guidance into --json', async () => {
+        await createChange('retire-unmarked-notes-json', 'legacy-layer', REMOVE_ALL, {
+          declareRetirement: false,
+        });
+        const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+        await fs.mkdir(mainSpecDir, { recursive: true });
+        await fs.writeFile(
+          path.join(mainSpecDir, 'spec.md'),
+          `${mainSpec('legacy-layer')}\n## Notes\n\nOwned by the platform team.\n`
+        );
+
+        await archiveCommand
+          .execute('retire-unmarked-notes-json', { yes: true, json: true })
+          .catch(() => undefined);
+
+        const payload = JSON.parse(lastJsonPayload());
+        expect(payload.archive).toBeNull();
+        const status = JSON.stringify(payload.status);
+        expect(status).toContain('Retiring the capability is what archive does instead');
+        expect(status).toContain('Owned by the platform team.');
+      });
+
       it('does not name the marker when retirement would not have fixed it', async () => {
         // A spec broken in some further way is not a retirement candidate, so
         // pointing at the marker would send the author after the wrong fix.
