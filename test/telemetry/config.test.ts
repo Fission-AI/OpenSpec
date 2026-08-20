@@ -292,5 +292,43 @@ describe('telemetry/config', () => {
       expect(parsed.telemetry.anonymousId).toBe('existing-id');
       expect(parsed.telemetry.noticeSeen).toBe(true);
     });
+
+    it('should preserve anonymousId and noticeSeen when setting enabled', async () => {
+      const configDir = defaultConfigDir();
+      const configPath = defaultConfigPath();
+
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(configPath, JSON.stringify({
+        telemetry: { anonymousId: 'keep-id', noticeSeen: true },
+      }));
+
+      await updateTelemetryConfig({ enabled: false });
+
+      const parsed = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      expect(parsed.telemetry).toEqual({
+        anonymousId: 'keep-id',
+        noticeSeen: true,
+        enabled: false,
+      });
+    });
+
+    it('should preserve enabled when updating noticeSeen', async () => {
+      const configDir = defaultConfigDir();
+      const configPath = defaultConfigPath();
+
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(configPath, JSON.stringify({
+        telemetry: { enabled: false, anonymousId: 'keep-id' },
+      }));
+
+      await updateTelemetryConfig({ noticeSeen: true });
+
+      const parsed = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      expect(parsed.telemetry).toEqual({
+        enabled: false,
+        anonymousId: 'keep-id',
+        noticeSeen: true,
+      });
+    });
   });
 });

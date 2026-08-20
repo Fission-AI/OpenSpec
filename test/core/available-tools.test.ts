@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
@@ -9,9 +9,12 @@ describe('available-tools', () => {
 
   beforeEach(async () => {
     testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-test-'));
+    vi.stubEnv('HOME', path.join(testDir, 'home'));
+    vi.stubEnv('USERPROFILE', path.join(testDir, 'home'));
   });
 
   afterEach(async () => {
+    vi.unstubAllEnvs();
     await fs.rm(testDir, { recursive: true, force: true });
   });
 
@@ -29,6 +32,34 @@ describe('available-tools', () => {
       expect(tools[0].value).toBe('claude');
       expect(tools[0].name).toBe('Claude Code');
       expect(tools[0].skillsDir).toBe('.claude');
+    });
+
+    it('should detect MiniMax Code only from managed skills in the user-home target', async () => {
+      const globalSkill = path.join(
+        testDir,
+        'home',
+        '.minimax',
+        'skills',
+        'openspec-explore',
+        'SKILL.md'
+      );
+      await fs.mkdir(path.dirname(globalSkill), { recursive: true });
+      await fs.writeFile(globalSkill, 'content');
+
+      expect(getAvailableTools(testDir).map((tool) => tool.value)).toContain('minimax-code');
+
+      await fs.rm(path.join(testDir, 'home'), { recursive: true, force: true });
+      const localSkill = path.join(
+        testDir,
+        '.minimax',
+        'skills',
+        'openspec-explore',
+        'SKILL.md'
+      );
+      await fs.mkdir(path.dirname(localSkill), { recursive: true });
+      await fs.writeFile(localSkill, 'content');
+
+      expect(getAvailableTools(testDir).map((tool) => tool.value)).not.toContain('minimax-code');
     });
 
     it('should detect multiple tool directories', async () => {
@@ -83,15 +114,179 @@ describe('available-tools', () => {
       expect(tools).toEqual([]);
     });
 
-    it('should only return tools that have a skillsDir property', async () => {
-      // .agents value has no skillsDir in AI_TOOLS config
-      // Create directories for both a valid and the agents case
+    it('should return tools that support project-local or global skills', async () => {
       await fs.mkdir(path.join(testDir, '.claude'), { recursive: true });
 
       const tools = getAvailableTools(testDir);
+      expect(tools.map((t) => t.value)).toContain('claude');
+      expect(tools.every((tool) => tool.skillsDir || tool.globalSkillsDir)).toBe(true);
+    });
+
+    it('should detect the shared agents target from .agents/skills', async () => {
+      await fs.mkdir(path.join(testDir, '.agents', 'skills'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
       const toolValues = tools.map((t) => t.value);
-      expect(toolValues).toContain('claude');
-      expect(toolValues).not.toContain('agents');
+      expect(toolValues).toContain('agents');
+      expect(toolValues).not.toContain('codex');
+      expect(toolValues).not.toContain('zed');
+    });
+
+    it('should detect Zed Agent from its project configuration directory', async () => {
+      await fs.mkdir(path.join(testDir, '.zed'), { recursive: true });
+
+      expect(getAvailableTools(testDir).map((tool) => tool.value)).toEqual(['zed']);
+    });
+
+    it('should not detect the shared agents target from a bare .agents directory', async () => {
+      // Frameworks use `.agents/` for more than skills (rules, subagent definitions).
+      // The bare root therefore says nothing about whether this project keeps agent
+      // skills in the shared location, so it must not select the target.
+      await fs.mkdir(path.join(testDir, '.agents', 'some-other-framework'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((t) => t.value)).not.toContain('agents');
+      expect(tools.map((t) => t.value)).not.toContain('codex');
+    });
+
+    it('should detect Codex from its legacy skill directory', async () => {
+      await fs.mkdir(path.join(testDir, '.codex', 'skills'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((tool) => tool.value)).toEqual(['codex']);
+      expect(tools[0].skillsDir).toBe('.agents');
+    });
+
+    it('should use the shared-root marker to distinguish Codex from agents', async () => {
+      await fs.mkdir(path.join(testDir, '.agents', 'skills'), { recursive: true });
+      await fs.writeFile(path.join(testDir, '.agents', 'skills', '.openspec-target'), 'codex\n');
+
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((tool) => tool.value)).toContain('codex');
+      expect(tools.map((tool) => tool.value)).not.toContain('agents');
+      expect(tools.map((tool) => tool.value)).not.toContain('zed');
+    });
+
+    it('should use the shared-root marker to detect a configured Zed Agent target', async () => {
+      await fs.mkdir(path.join(testDir, '.agents', 'skills'), { recursive: true });
+      await fs.writeFile(path.join(testDir, '.agents', 'skills', '.openspec-target'), 'zed\n');
+
+      expect(getAvailableTools(testDir).map((tool) => tool.value)).toEqual(['zed']);
+    });
+
+    it('should preserve a global tool while reconciling a shared project root', async () => {
+      const sharedSkills = path.join(testDir, '.agents', 'skills');
+      const globalSkill = path.join(
+        testDir,
+        'home',
+        '.minimax',
+        'skills',
+        'openspec-explore',
+        'SKILL.md'
+      );
+      await fs.mkdir(sharedSkills, { recursive: true });
+      await fs.writeFile(path.join(sharedSkills, '.openspec-target'), 'agents\n');
+      await fs.mkdir(path.dirname(globalSkill), { recursive: true });
+      await fs.writeFile(globalSkill, 'content');
+
+      expect(getAvailableTools(testDir).map((tool) => tool.value)).toEqual([
+        'minimax-code',
+        'agents',
+      ]);
+    });
+
+    it('should infer an unmarked canonical Codex tree from its invocation syntax', async () => {
+      const skillFile = path.join(
+        testDir,
+        '.agents',
+        'skills',
+        'openspec-propose',
+        'SKILL.md'
+      );
+      await fs.mkdir(path.dirname(skillFile), { recursive: true });
+      await fs.writeFile(skillFile, 'Next: $openspec-apply-change');
+
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((tool) => tool.value)).toEqual(['codex']);
+    });
+
+    it.each(['', 'unknown'])(
+      'should preserve generic content when the shared marker is %j',
+      async (marker) => {
+        const skillsDir = path.join(testDir, '.agents', 'skills');
+        const skillFile = path.join(skillsDir, 'openspec-propose', 'SKILL.md');
+        await fs.mkdir(path.dirname(skillFile), { recursive: true });
+        await fs.writeFile(skillFile, 'Next: /openspec-apply-change');
+        await fs.writeFile(path.join(skillsDir, '.openspec-target'), `${marker}\n`);
+
+        const tools = getAvailableTools(testDir);
+        expect(tools.map((tool) => tool.value)).toEqual(['agents']);
+      }
+    );
+
+    it('should consolidate an unmarked generic tree when legacy Codex skills also exist', async () => {
+      const agentsSkill = path.join(
+        testDir,
+        '.agents',
+        'skills',
+        'openspec-propose',
+        'SKILL.md'
+      );
+      const codexSkill = path.join(
+        testDir,
+        '.codex',
+        'skills',
+        'openspec-propose',
+        'SKILL.md'
+      );
+      await fs.mkdir(path.dirname(agentsSkill), { recursive: true });
+      await fs.mkdir(path.dirname(codexSkill), { recursive: true });
+      await fs.writeFile(agentsSkill, 'Next: /openspec-apply-change');
+      await fs.writeFile(codexSkill, 'Next: $openspec-apply-change');
+
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((tool) => tool.value)).toEqual(['codex']);
+    });
+
+    it('should detect valid legacy Codex skills beside an escaped managed link', async () => {
+      const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-legacy-outside-'));
+      try {
+        const legacySkills = path.join(testDir, '.codex', 'skills');
+        await fs.mkdir(path.join(legacySkills, 'openspec-propose'), { recursive: true });
+        await fs.writeFile(
+          path.join(legacySkills, 'openspec-propose', 'SKILL.md'),
+          'Next: $openspec-apply-change'
+        );
+        await fs.mkdir(outsideDir, { recursive: true });
+        await fs.symlink(
+          outsideDir,
+          path.join(legacySkills, 'openspec-explore'),
+          process.platform === 'win32' ? 'junction' : 'dir'
+        );
+
+        const tools = getAvailableTools(testDir);
+        expect(tools.map((tool) => tool.value)).toEqual(['codex']);
+      } finally {
+        await fs.rm(outsideDir, { recursive: true, force: true });
+      }
+    });
+
+    it('should not let an unknown legacy skill supersede the shared agents target', async () => {
+      await fs.mkdir(path.join(testDir, '.agents', 'skills'), { recursive: true });
+      await fs.writeFile(path.join(testDir, '.agents', 'skills', '.openspec-target'), 'agents\n');
+      const customSkill = path.join(
+        testDir,
+        '.codex',
+        'skills',
+        'openspec-personal',
+        'SKILL.md'
+      );
+      await fs.mkdir(path.dirname(customSkill), { recursive: true });
+      await fs.writeFile(customSkill, 'user skill');
+
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((tool) => tool.value)).toContain('agents');
+      expect(tools.map((tool) => tool.value)).not.toContain('codex');
     });
 
     it('should return full AIToolOption objects', async () => {
@@ -212,6 +407,19 @@ describe('available-tools', () => {
       const tools = getAvailableTools(testDir);
       const toolValues = tools.map((t) => t.value);
       expect(toolValues).toContain('claude');
+    });
+
+    it('should detect Command Code when .commandcode directory exists', async () => {
+      await fs.mkdir(path.join(testDir, '.commandcode'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('command-code');
+
+      const commandCodeTool = tools.find((t) => t.value === 'command-code');
+      expect(commandCodeTool).toBeDefined();
+      expect(commandCodeTool?.name).toBe('Command Code');
+      expect(commandCodeTool?.skillsDir).toBe('.commandcode');
     });
 
     it('should detect Mistral Vibe when .vibe directory exists', async () => {

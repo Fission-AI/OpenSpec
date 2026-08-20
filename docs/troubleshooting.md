@@ -59,7 +59,7 @@ If `/opsx:propose` (or your tool's equivalent) doesn't appear or doesn't do anyt
 
 5. **Check you initialized this project.** Skills are written per project. If you cloned a repo or switched folders, run `openspec init` (or `openspec update`) there.
 
-6. **Confirm your tool supports command files.** Codex, CodeArts, ForgeCode, Hermes, Kimi Code and Mistral Vibe don't get generated `opsx-*` command files; they use skill-based invocations instead, so `/opsx` will never autocomplete for them. Type `$openspec-propose` in Codex, `/skill:openspec-propose` in Kimi Code, and `/openspec-propose` in the rest. Amazon Q does get command files, but loads them into its prompt library rather than its slash menu — type `@opsx-propose` there, not `/opsx`. Every tool's form is listed in [How To Invoke](supported-tools.md#how-to-invoke).
+6. **Confirm your tool supports command files.** Codex, CodeArts, ForgeCode, Hermes, Kimi Code, Mistral Vibe, Zed Agent, and the shared `.agents` target don't get generated `opsx-*` command files; they use skill-based invocations instead, so `/opsx` will never autocomplete for them. Type `$openspec-propose` in Codex, `/skill:openspec-propose` in Kimi Code, and `/openspec-propose` in the rest. The shared `.agents` target is vendor-neutral, so `/openspec-propose` is the common form rather than a guaranteed one — if your assistant does not answer to it, check its own docs for how it invokes a skill. Amazon Q does get command files, but loads them into its prompt library rather than its slash menu — type `@opsx-propose` there, not `/opsx`. Every tool's form is listed in [How To Invoke](supported-tools.md#how-to-invoke).
 
 ## Working with changes
 
@@ -92,9 +92,18 @@ Validation checks your specs and changes for structural problems. Read the messa
 openspec validate <name>           # validate one item
 openspec validate --all            # validate everything
 openspec validate --all --strict   # stricter checks, good for CI
+openspec validate --archived       # fail if archived changes have unchecked tasks
 ```
 
 Common causes are a missing required section (like a spec with no scenarios) or a malformed delta header. Fix the file and re-run. The [CLI reference](cli.md#openspec-validate) documents the output format.
+
+One message deserves its own note:
+
+```text
+MODIFIED "<requirement>" omits scenario(s) the current spec still has: "<scenario>"
+```
+
+A `MODIFIED` requirement replaces the whole requirement block, so it has to carry every scenario that survives the change, not only the ones you edited. Copy the named scenarios from `openspec/specs/<capability-path>/spec.md` back into the delta, preserving any domain directories in the path. This often appears on an older change after someone else's change added a scenario to the same requirement — archive refuses that change either way, and validation now says so before you implement it.
 
 ### The AI created incomplete or wrong artifacts
 
@@ -108,6 +117,20 @@ The AI didn't have enough context. A few levers help:
 ### Archive won't finish, or warns about incomplete tasks
 
 Archive won't *block* on incomplete tasks, but it warns you, because archiving usually means the work is done. If tasks remain on purpose (you're filing a partial change), proceed. Otherwise finish the tasks first. Archive will also offer to sync your delta specs into the main specs if you haven't synced yet; say yes unless you have a reason not to.
+
+### "User force closed the prompt with 0 null"
+
+Something ran `openspec archive` where nothing can answer a question — an AI agent calling it from a tool, a CI job, or any shell with stdin closed. Archive asks up to three confirmations, and an unanswerable one used to fail with that raw message.
+
+Pass `--yes` to answer them up front:
+
+```bash
+openspec archive <change-name> --yes
+```
+
+Keep any flags you were already passing — `--skip-specs` and `--no-validate` change what archive does, so a bare `--yes` rerun is not the same command. Current versions name the flag for you and print a `Fix:` line you can paste. If you meant to pick from a list, pass the change name explicitly: the picker needs an answer too.
+
+If you instead ran archive with its output redirected to a file or captured by a tool and *did* pipe an answer (`printf 'y\n' | openspec archive …`), older versions wrote terminal escape codes into that capture while drawing the prompt — in some environments enough to bloat the file badly. Current versions read the confirmation prompts as plain text whenever stdout is not a terminal, and a no-argument `openspec archive` (which would otherwise draw an interactive change picker) asks you to pass a change name up front instead of rendering a menu into the capture. Either way, redirected and agent runs stay clean; passing `--yes` (with a change name) skips the prompts entirely.
 
 ## Configuration
 
@@ -153,7 +176,7 @@ You're in CI or a non-interactive shell, and OpenSpec found old files to clean u
 openspec init --force
 ```
 
-For Codex, OpenSpec may detect old managed prompt files in `$CODEX_HOME/prompts` or `~/.codex/prompts`. That cleanup is limited to OpenSpec's allowlisted legacy Codex prompt filenames, and non-interactive `openspec init` removes only the files whose replacement `.codex/skills/openspec-*` skills exist. Non-interactive `openspec update` leaves all legacy cleanup untouched unless you pass `--force`.
+For Codex, OpenSpec may detect old managed prompt files in `$CODEX_HOME/prompts` or `~/.codex/prompts`. That cleanup is limited to OpenSpec's allowlisted legacy Codex prompt filenames, and non-interactive `openspec init` removes only the files whose replacement `.agents/skills/openspec-*` skills exist. Non-interactive `openspec update` leaves all legacy cleanup untouched unless you pass `--force`.
 
 ### Commands didn't appear after migrating
 

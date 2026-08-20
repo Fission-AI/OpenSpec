@@ -78,7 +78,7 @@ The intent is identical everywhere. The spelling follows the file your tool load
 | `.../commands/opsx/<id>.*` | `/opsx:propose` | Claude Code, Gemini CLI, Crush |
 | `.../opsx-<id>.*` | `/opsx-propose` | Cursor, GitHub Copilot (IDE), Devin Desktop, Trae, Oh My Pi |
 | `.amazonq/prompts/opsx-<id>.md` | `@opsx-propose` | Amazon Q Developer |
-| none — skills only | `/openspec-propose` | CodeArts, ForgeCode, Hermes, Mistral Vibe |
+| none — skills only | `/openspec-propose` | CodeArts, ForgeCode, Hermes, Mistral Vibe, Zed Agent, shared `.agents` |
 | none — Kimi Code | `/skill:openspec-propose` | Kimi Code |
 | none — Codex CLI | `$openspec-propose` | Codex |
 
@@ -104,7 +104,7 @@ works too, for the tools that surface slash commands at all.
 When you run `openspec init` (or `openspec update`), OpenSpec writes small files into your project so your AI tool can find the workflow. Depending on your tool and settings, these are **skills**, **commands**, or both.
 
 - **Skills** live in places like `.claude/skills/openspec-*/SKILL.md`. They're the emerging cross-tool standard: a folder of instructions your assistant auto-detects.
-- **Commands** live in places like `.cursor/commands/opsx-<id>.md` or `.claude/commands/opsx/<id>.md` — the layout is the tool's, and it decides how you type the command. They're the older per-tool slash command files. Codex does not get generated command files; use `.codex/skills/openspec-*`.
+- **Commands** live in places like `.cursor/commands/opsx-<id>.md` or `.claude/commands/opsx/<id>.md` — the layout is the tool's, and it decides how you type the command. They're the older per-tool slash command files. Codex does not get generated command files; use `.agents/skills/openspec-*`.
 
 You don't have to care which one your tool uses. You just type the slash command and it works. But knowing these files exist helps when something goes wrong: if your commands vanish, it usually means these files are missing or stale, and `openspec update` regenerates them.
 
@@ -114,7 +114,7 @@ See [Supported Tools](supported-tools.md) for the exact paths per tool, and [Mig
 
 Quick checks, fastest first:
 
-1. **Type a slash in your AI chat.** Start typing `/opsx` and watch for autocomplete suggestions. If they appear, you're set. On a skills-only tool (Codex, Kimi Code, CodeArts, ForgeCode, Hermes, Mistral Vibe) `/opsx` never completes even on a healthy install — try the skill name from the table above instead.
+1. **Type a slash in your AI chat.** Start typing `/opsx` and watch for autocomplete suggestions. If they appear, you're set. On a skills-only tool (Codex, Kimi Code, CodeArts, ForgeCode, Hermes, Mistral Vibe, Zed Agent, or the shared `.agents` target) `/opsx` never completes even on a healthy install — try the skill name from the table above instead.
 2. **Look for the files.** For Claude Code, check that `.claude/skills/` contains `openspec-*` folders. Other tools use their own directories ([Supported Tools](supported-tools.md) lists them).
 3. **Re-run setup.** From your project root, run `openspec update`. This regenerates the skill and command files for whatever tools you configured.
 4. **Restart your assistant.** Many tools scan for skills and commands at startup, so a fresh window can be the missing step.

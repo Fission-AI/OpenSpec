@@ -11,6 +11,7 @@ import { getActiveChangeIds } from '../utils/item-discovery.js';
 import { getTaskProgressForChange } from '../utils/task-progress.js';
 import type { SchemaResolutionTarget } from '../core/artifact-graph/index.js';
 import type { ProjectConfig } from '../core/project-config.js';
+import { FileSystemUtils } from '../utils/file-system.js';
 
 /**
  * True only when `target` is definitively absent. An EACCES or I/O failure
@@ -116,8 +117,10 @@ export class ChangeCommand {
       }
       throw new Error(`Change "${changeName}" not found at ${proposalPath}`);
     }
+    FileSystemUtils.assertPathWithin(path.dirname(proposalPath), proposalPath);
 
     if (options?.json) {
+      FileSystemUtils.assertPathWithin(changeDir, proposalPath);
       const jsonOutput = await this.converter.convertChangeToJson(proposalPath);
 
       if (options.requirementsOnly) {
@@ -125,6 +128,7 @@ export class ChangeCommand {
       }
 
       const parsed: Change = JSON.parse(jsonOutput);
+      FileSystemUtils.assertPathWithin(changeDir, proposalPath);
       const contentForTitle = await fs.readFile(proposalPath, 'utf-8');
       const title = this.extractTitle(contentForTitle, changeName);
       const id = parsed.name;
@@ -139,6 +143,7 @@ export class ChangeCommand {
       };
       console.log(JSON.stringify(output, null, 2));
     } else {
+      FileSystemUtils.assertPathWithin(changeDir, proposalPath);
       const content = await fs.readFile(proposalPath, 'utf-8');
       console.log(content);
     }
@@ -185,6 +190,7 @@ export class ChangeCommand {
           }
 
           try {
+            FileSystemUtils.assertPathWithin(changeDir, proposalPath);
             const content = await fs.readFile(proposalPath, 'utf-8');
             const parser = new ChangeParser(content, changeDir);
             const change = await parser.parseChangeWithDeltas(changeName);
@@ -232,6 +238,7 @@ export class ChangeCommand {
           continue;
         }
         try {
+          FileSystemUtils.assertPathWithin(changeDir, proposalPath);
           const content = await fs.readFile(proposalPath, 'utf-8');
           const title = this.extractTitle(content, changeName);
           const parser = new ChangeParser(content, changeDir);
@@ -272,7 +279,9 @@ export class ChangeCommand {
     }
     
     const changeDir = path.join(changesPath, changeName);
-    
+    if (!isChangeDirectoryName(changesPath, changeDir)) {
+      throw new Error(`Change "${changeName}" not found at ${changeDir}`);
+    }
     try {
       await fs.access(changeDir);
     } catch {
@@ -280,7 +289,12 @@ export class ChangeCommand {
     }
     
     const validator = new Validator(options?.strict || false, this.schemaTarget);
-    const report = await validator.validateChangeDeltaSpecs(changeDir);
+    const report = await validator.validateChangeDeltaSpecs(changeDir, {
+      // Derived from changesPath so the main specs come from the same root the
+      // change itself was resolved against.
+      mainSpecsDir: path.join(path.dirname(changesPath), 'specs'),
+      projectRoot: path.dirname(path.dirname(changesPath)),
+    });
     
     if (options?.json) {
       console.log(JSON.stringify(report, null, 2));

@@ -118,6 +118,7 @@ describe('artifact-workflow CLI commands', () => {
       const json = JSON.parse(result.stdout);
       expect(json.changeName).toBe('json-change');
       expect(json.schemaName).toBe('spec-driven');
+      expect(json.isPlanningComplete).toBe(false);
       expect(json.isComplete).toBe(false);
       expect(Array.isArray(json.artifacts)).toBe(true);
       expect(json.artifacts).toHaveLength(4);
@@ -139,13 +140,65 @@ describe('artifact-workflow CLI commands', () => {
       expect(json.nextSteps[0]).toContain('openspec instructions specs');
     });
 
-    it('shows complete status when all artifacts are done', async () => {
+    it('shows planning completion when all artifacts exist', async () => {
       await createTestChange('complete-change', ['proposal', 'design', 'specs', 'tasks']);
 
       const result = await runCLI(['status', '--change', 'complete-change'], { cwd: tempDir });
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('4/4 artifacts complete');
-      expect(result.stdout).toContain('All artifacts complete!');
+      expect(result.stdout).toContain('All planning artifacts complete!');
+      expect(result.stdout).not.toContain('All artifacts complete!');
+    });
+
+    it('distinguishes planning completion from implementation task completion', async () => {
+      await createTestChange('planned-change', ['proposal', 'design', 'specs', 'tasks']);
+
+      const statusResult = await runCLI(['status', '--change', 'planned-change', '--json'], {
+        cwd: tempDir,
+      });
+      const applyResult = await runCLI(
+        ['instructions', 'apply', '--change', 'planned-change', '--json'],
+        { cwd: tempDir }
+      );
+
+      expect(statusResult.exitCode).toBe(0);
+      expect(applyResult.exitCode).toBe(0);
+
+      const status = JSON.parse(statusResult.stdout);
+      const apply = JSON.parse(applyResult.stdout);
+      expect(status.isPlanningComplete).toBe(true);
+      expect(status.isComplete).toBe(true);
+      expect(status.nextSteps[0]).toContain(
+        'openspec instructions apply --change "planned-change" --json'
+      );
+      expect(status.nextSteps[0]).not.toContain('before implementation');
+      expect(apply.state).toBe('ready');
+      expect(apply.progress.remaining).toBe(1);
+    });
+
+    it('reports skipped planning artifacts as complete without creating them', async () => {
+      const changeDir = await createTestChange('skip-specs-change', [
+        'proposal',
+        'design',
+        'tasks',
+      ]);
+      await fs.writeFile(
+        path.join(changeDir, '.openspec.yaml'),
+        'schema: spec-driven\nskip_specs: true\n'
+      );
+
+      const result = await runCLI(['status', '--change', 'skip-specs-change', '--json'], {
+        cwd: tempDir,
+      });
+
+      expect(result.exitCode).toBe(0);
+      const status = JSON.parse(result.stdout);
+      expect(status.isPlanningComplete).toBe(true);
+      expect(status.isComplete).toBe(status.isPlanningComplete);
+      expect(status.artifacts.find((artifact: any) => artifact.id === 'specs')?.status).toBe(
+        'skipped'
+      );
+      await expect(fs.stat(path.join(changeDir, 'specs'))).rejects.toMatchObject({ code: 'ENOENT' });
     });
 
     it('exits gracefully when no changes exist', async () => {
@@ -391,6 +444,112 @@ describe('artifact-workflow CLI commands', () => {
       const changeDir = path.join(changesDir, 'my-new-feature');
       const stat = await fs.stat(changeDir);
       expect(stat.isDirectory()).toBe(true);
+
+      const metadata = await fs.readFile(path.join(changeDir, '.openspec.yaml'), 'utf-8');
+      expect(metadata).not.toContain('skip_specs');
+    });
+
+    it('marks changes as skip_specs when their schema cannot generate specs', async () => {
+      const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'no-specs');
+      await fs.mkdir(path.join(schemaDir, 'templates'), { recursive: true });
+      await fs.writeFile(
+        path.join(schemaDir, 'schema.yaml'),
+        `name: no-specs
+version: 1
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Proposal
+    template: proposal.md
+    requires: []
+  - id: tasks
+    generates: tasks.md
+    description: Tasks
+    template: tasks.md
+    requires: [proposal]
+apply:
+  requires: [tasks]
+  tracks: tasks.md
+`
+      );
+      await fs.writeFile(path.join(schemaDir, 'templates', 'proposal.md'), '# Proposal\n');
+      await fs.writeFile(path.join(schemaDir, 'templates', 'tasks.md'), '# Tasks\n');
+      await fs.writeFile(
+        path.join(tempDir, 'openspec', 'config.yaml'),
+        'schema: no-specs\n'
+      );
+
+      const result = await runCLI(['new', 'change', 'no-spec-change'], { cwd: tempDir });
+      expect(result.exitCode).toBe(0);
+
+      const metadata = await fs.readFile(
+        path.join(changesDir, 'no-spec-change', '.openspec.yaml'),
+        'utf-8'
+      );
+      expect(metadata).toContain('skip_specs: true');
+
+      const validation = await runCLI(
+        ['validate', 'no-spec-change', '--type', 'change'],
+        { cwd: tempDir }
+      );
+      expect(validation.exitCode).toBe(0);
+    });
+
+    it('does not mark spec-producing schemas that use Windows separators', async () => {
+      const schemaName = 'windows-specs';
+      const generates = String.raw`specs\**\*.md`;
+      const schemaDir = path.join(tempDir, 'openspec', 'schemas', schemaName);
+      await fs.mkdir(path.join(schemaDir, 'templates'), { recursive: true });
+      await fs.writeFile(
+        path.join(schemaDir, 'schema.yaml'),
+        `name: ${schemaName}
+version: 1
+artifacts:
+  - id: specs
+    generates: '${generates}'
+    description: Specs
+    template: spec.md
+    requires: []
+`
+      );
+      await fs.writeFile(path.join(schemaDir, 'templates', 'spec.md'), '# Spec\n');
+      await fs.writeFile(
+        path.join(tempDir, 'openspec', 'config.yaml'),
+        `schema: ${schemaName}\n`
+      );
+
+      const changeName = `${schemaName}-change`;
+      const result = await runCLI(['new', 'change', changeName], { cwd: tempDir });
+      expect(result.exitCode).toBe(0);
+
+      const changeDir = path.join(changesDir, changeName);
+      const metadata = await fs.readFile(path.join(changeDir, '.openspec.yaml'), 'utf-8');
+      expect(metadata).not.toContain('skip_specs');
+
+      const specDir = path.join(changeDir, 'specs', 'example');
+      await fs.mkdir(specDir, { recursive: true });
+      await fs.writeFile(
+        path.join(specDir, 'spec.md'),
+        `## ADDED Requirements
+### Requirement: Example behavior
+The system SHALL support the example behavior.
+
+#### Scenario: Example succeeds
+- **WHEN** the example runs
+- **THEN** it succeeds
+`
+      );
+
+      const status = await runCLI(['status', '--change', changeName, '--json'], {
+        cwd: tempDir,
+      });
+      expect(status.exitCode).toBe(0);
+      expect(JSON.parse(status.stdout).artifacts[0].status).toBe('done');
+
+      const validation = await runCLI(['validate', changeName, '--type', 'change'], {
+        cwd: tempDir,
+      });
+      expect(validation.exitCode).toBe(0);
     });
 
     it('rejects --initiative and writes no change', async () => {
@@ -1128,14 +1287,15 @@ operations:
       expect(output).toContain('Invalid tool(s): unknown-tool');
     });
 
-    it('errors for tool without skillsDir', async () => {
-      // Using 'agents' which doesn't have skillsDir configured
+    it('creates skills for the shared agents target', async () => {
       const result = await runCLI(['experimental', '--tool', 'agents'], {
         cwd: tempDir,
       });
-      expect(result.exitCode).toBe(1);
-      const output = getOutput(result);
-      expect(output).toContain('Invalid tool(s): agents');
+      expect(result.exitCode).toBe(0);
+
+      const skillFile = path.join(tempDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md');
+      const stat = await fs.stat(skillFile);
+      expect(stat.isFile()).toBe(true);
     });
 
     it('creates skills for Claude tool', async () => {

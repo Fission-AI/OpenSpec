@@ -4,6 +4,8 @@ import { writeChangeMetadata, validateSchemaName } from './change-metadata.js';
 import { formatLocalDate } from './date.js';
 import { readProjectConfig } from '../core/project-config.js';
 import { isKebabId } from '../core/id.js';
+import { resolveSchema } from '../core/artifact-graph/resolver.js';
+import { isSpecsArtifactPath } from '../core/artifact-graph/outputs.js';
 import type { ChangeMetadata } from '../core/change-metadata/index.js';
 import type { SchemaResolutionTarget } from '../core/artifact-graph/resolver.js';
 import type { ProjectConfig } from '../core/project-config.js';
@@ -174,6 +176,11 @@ export async function createChange(
     throw new Error(`Change '${name}' already exists at ${changeDir}`);
   }
 
+  const schema = resolveSchema(schemaName, options.schemaTarget ?? projectRoot);
+  const skipsSpecs = !schema.artifacts.some(artifact =>
+    isSpecsArtifactPath(artifact.generates)
+  );
+
   // Creating a change may scaffold or complete the root itself (an
   // implicit root, or a config-only/incomplete clone). Never leave a
   // half-root behind that doctor immediately calls unhealthy: ensure
@@ -199,6 +206,7 @@ export async function createChange(
   writeChangeMetadata(changeDir, {
     schema: schemaName,
     created: formatLocalDate(),
+    ...(skipsSpecs ? { skip_specs: true } : {}),
     ...options.metadata,
   }, options.schemaTarget ?? projectRoot);
 

@@ -76,16 +76,25 @@ export async function templatesCommand(options: TemplatesOptions): Promise<void>
       source = 'package';
     }
 
-    const templates: TemplateInfo[] = graph.getAllArtifacts().map((artifact) => ({
-      artifactId: artifact.id,
-      templatePath: FileSystemUtils.canonicalizeExistingPath(
-        path.join(schemaDir, 'templates', artifact.template)
-      ),
-      source,
-      ...(source === 'store' && root.schemaContext.storeId
-        ? { storeId: root.schemaContext.storeId }
-        : {}),
-    }));
+    const templatesDir = path.join(schemaDir, 'templates');
+    const templates: TemplateInfo[] = graph.getAllArtifacts().map((artifact) => {
+      const templatePath = path.join(templatesDir, artifact.template);
+      try {
+        FileSystemUtils.assertPathWithin(templatesDir, templatePath);
+        return {
+          artifactId: artifact.id,
+          templatePath: FileSystemUtils.canonicalizeExistingPath(templatePath),
+          source,
+          ...(source === 'store' && root.schemaContext.storeId
+            ? { storeId: root.schemaContext.storeId }
+            : {}),
+        };
+      } catch {
+        throw new Error(
+          `Template '${artifact.template}' for artifact '${artifact.id}' points outside the schema templates directory`
+        );
+      }
+    });
 
     spinner?.stop();
 

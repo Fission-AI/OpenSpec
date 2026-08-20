@@ -19,6 +19,8 @@ describe('tool-detection', () => {
   beforeEach(async () => {
     testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-test-'));
     vi.stubEnv('XDG_CONFIG_HOME', path.join(testDir, 'config'));
+    vi.stubEnv('HOME', path.join(testDir, 'home'));
+    vi.stubEnv('USERPROFILE', path.join(testDir, 'home'));
   });
 
   afterEach(async () => {
@@ -51,6 +53,10 @@ describe('tool-detection', () => {
       expect(tools).toContain('codeartsagent');
       expect(tools).toContain('cursor');
       expect(tools).toContain('devin');
+      // `--tools all` resolves to exactly this list, so `agents` being here is what
+      // puts the shared target in an `--tools all` run.
+      expect(tools).toContain('agents');
+      expect(tools).toContain('minimax-code');
       expect(tools.length).toBeGreaterThan(0);
     });
   });
@@ -81,6 +87,15 @@ describe('tool-detection', () => {
       expect(status.skillCount).toBe(1);
     });
 
+    it('should detect legacy Codex skills before they are migrated', async () => {
+      const skillDir = path.join(testDir, '.codex', 'skills', 'openspec-explore');
+      await fs.mkdir(skillDir, { recursive: true });
+      await fs.writeFile(path.join(skillDir, 'SKILL.md'), 'legacy content');
+
+      expect(getToolSkillStatus(testDir, 'codex').configured).toBe(true);
+      expect(getConfiguredTools(testDir)).toContain('codex');
+    });
+
     it('should detect when all skills exist', async () => {
       for (const skillName of SKILL_NAMES) {
         const skillDir = path.join(testDir, '.claude', 'skills', skillName);
@@ -92,6 +107,38 @@ describe('tool-detection', () => {
       expect(status.configured).toBe(true);
       expect(status.fullyConfigured).toBe(true);
       expect(status.skillCount).toBe(SKILL_NAMES.length);
+    });
+
+    it('should detect MiniMax Code only from its global OpenSpec skill target', async () => {
+      const globalSkill = path.join(
+        testDir,
+        'home',
+        '.minimax',
+        'skills',
+        'openspec-explore',
+        'SKILL.md'
+      );
+      await fs.mkdir(path.dirname(globalSkill), { recursive: true });
+      await fs.writeFile(globalSkill, 'test content');
+
+      expect(getToolSkillStatus(testDir, 'minimax-code')).toMatchObject({
+        configured: true,
+        fullyConfigured: false,
+        skillCount: 1,
+      });
+
+      await fs.rm(path.join(testDir, 'home'), { recursive: true, force: true });
+      const localSkill = path.join(
+        testDir,
+        '.minimax',
+        'skills',
+        'openspec-explore',
+        'SKILL.md'
+      );
+      await fs.mkdir(path.dirname(localSkill), { recursive: true });
+      await fs.writeFile(localSkill, 'test content');
+
+      expect(getToolSkillStatus(testDir, 'minimax-code').configured).toBe(false);
     });
   });
 
@@ -113,6 +160,59 @@ describe('tool-detection', () => {
       const states = getToolStates(testDir);
       expect(states.get('claude')?.configured).toBe(true);
       expect(states.get('cursor')?.configured).toBe(false);
+    });
+
+    it('should expose only the marked owner of a shared skill tree as configured', async () => {
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      const skillDir = path.join(skillsDir, 'openspec-explore');
+      await fs.mkdir(skillDir, { recursive: true });
+      await fs.writeFile(path.join(skillDir, 'SKILL.md'), 'test content');
+      await fs.writeFile(path.join(skillsDir, '.openspec-target'), 'agents\n');
+
+      const states = getToolStates(testDir);
+      expect(states.get('agents')?.configured).toBe(true);
+      expect(states.get('codex')?.configured).toBe(false);
+      expect(getToolSkillStatus(testDir, 'agents').configured).toBe(true);
+      expect(getToolSkillStatus(testDir, 'codex').configured).toBe(false);
+      expect(getToolVersionStatus(testDir, 'codex', '0.23.0').configured).toBe(false);
+    });
+
+    it('should preserve global tool state while reconciling a shared project root', async () => {
+      const sharedSkills = path.join(testDir, '.agents', 'skills');
+      const sharedSkill = path.join(sharedSkills, 'openspec-explore', 'SKILL.md');
+      const globalSkill = path.join(
+        testDir,
+        'home',
+        '.minimax',
+        'skills',
+        'openspec-explore',
+        'SKILL.md'
+      );
+      await fs.mkdir(path.dirname(sharedSkill), { recursive: true });
+      await fs.writeFile(sharedSkill, 'content');
+      await fs.writeFile(path.join(sharedSkills, '.openspec-target'), 'agents\n');
+      await fs.mkdir(path.dirname(globalSkill), { recursive: true });
+      await fs.writeFile(globalSkill, 'content');
+
+      const states = getToolStates(testDir);
+      expect(states.get('agents')?.configured).toBe(true);
+      expect(states.get('codex')?.configured).toBe(false);
+      expect(states.get('minimax-code')?.configured).toBe(true);
+      expect(getConfiguredTools(testDir)).toEqual(['minimax-code', 'agents']);
+    });
+
+    it('should preserve marker-only ownership when delivery intentionally has no skills', async () => {
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      await fs.mkdir(skillsDir, { recursive: true });
+      await fs.writeFile(path.join(skillsDir, '.openspec-target'), 'agents\n');
+
+      const states = getToolStates(testDir);
+      expect(states.get('agents')).toEqual({
+        configured: true,
+        fullyConfigured: false,
+        skillCount: 0,
+      });
+      expect(states.get('codex')?.configured).toBe(false);
     });
   });
 
@@ -506,6 +606,20 @@ metadata:
       const cursorStatus = statuses.find(s => s.toolId === 'cursor');
       expect(cursorStatus?.generatedByVersion).toBe('0.23.0');
       expect(cursorStatus?.needsUpdate).toBe(false);
+    });
+
+    it('should treat a marker-only target as configured', async () => {
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      await fs.mkdir(skillsDir, { recursive: true });
+      await fs.writeFile(path.join(skillsDir, '.openspec-target'), 'agents\n');
+
+      const statuses = getAllToolVersionStatus(testDir, '0.23.0');
+      expect(statuses).toHaveLength(1);
+      expect(statuses[0]).toMatchObject({
+        toolId: 'agents',
+        configured: true,
+        needsUpdate: true,
+      });
     });
   });
 });

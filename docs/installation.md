@@ -98,6 +98,23 @@ yarn global add @fission-ai/openspec@latest
 
 Yarn 2 and later (Berry) removed the `global` command. On those versions, install OpenSpec with npm, pnpm, or bun instead — a global CLI doesn't need to share your project's package manager.
 
+### deno
+
+Deno sometimes has issues parsing the @latest tag, but we can specify a version while installing initially.
+If that happens, you could try to change the @latest tag with the version, something like `@^1.3.1`
+
+```bash
+deno install --global \
+  --allow-read --allow-write --allow-env --allow-sys=cpus,homedir --allow-net=edge.openspec.dev \
+  npm:@fission-ai/openspec@latest
+# or
+deno install --global \
+  --allow-read --allow-write --allow-env --allow-sys=cpus,homedir --allow-net=edge.openspec.dev \
+  npm:@fission-ai/openspec@^1.3.1
+```
+
+Note: If your subcommands launch external tools, like config edit, feedback, or workspace open, you may need a scoped --allow-run=<program>.
+
 ### bun
 
 Bun can install OpenSpec globally, but OpenSpec currently runs on Node.js.

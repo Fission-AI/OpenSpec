@@ -6,6 +6,7 @@ import {
   transformToSkillReferences,
 } from '../../src/utils/command-references.js';
 import type { CommandInvocation } from '../../src/core/command-generation/invocation.js';
+import { getApplyChangeSkillTemplate } from '../../src/core/templates/workflows/apply-change.js';
 
 const FLAT_SLASH: CommandInvocation = { style: 'flat', prefix: '/' };
 const FLAT_AT: CommandInvocation = { style: 'flat', prefix: '@' };
@@ -226,6 +227,23 @@ describe('getSkillReferenceTransformer', () => {
     );
     expect(transformer('/opsx:unknown-command')).toBe('/opsx:unknown-command');
   });
+
+  it('uses $<name> for direct Codex invocation hints', () => {
+    const transformer = getSkillReferenceTransformer('codex');
+    expect(transformer('/opsx:propose')).toBe('$openspec-propose');
+    expect(transformer('/opsx:unknown-command')).toBe('/opsx:unknown-command');
+  });
+
+  it('uses natural-language references for Rovo Dev, which has no slash surface', () => {
+    const transformer = getSkillReferenceTransformer('rovodev');
+    expect(transformer('/opsx:propose')).toBe('the openspec-propose skill');
+    expect(transformer('Run `/opsx:apply` then /opsx:archive')).toBe(
+      'Run `the openspec-apply-change skill` then the openspec-archive-change skill'
+    );
+    // No `/openspec-*` or other slash-command form is ever emitted.
+    expect(transformer('/opsx:propose')).not.toMatch(/\/openspec-/);
+    expect(transformer('/opsx:unknown-command')).toBe('/opsx:unknown-command');
+  });
 });
 
 describe('getTransformerForTool', () => {
@@ -300,12 +318,51 @@ describe('getTransformerForTool', () => {
     expect(getTransformerForTool('claude', 'commands', 'adapter-backed', NAMESPACED_SLASH)).toBeUndefined();
   });
 
-  it('selects $-prefixed skill references for codex, which registers no slash commands', () => {
-    // Codex CLI invokes skills as $<name>; the /<name> form is unrecognized.
+  it('selects shared-tree-safe Codex skill references in every delivery mode', () => {
+    // Codex needs $<name>, while generic consumers of the same canonical
+    // .agents tree need /<name>. Keep both explicit so neither target breaks.
     for (const delivery of ['both', 'commands', 'skills'] as const) {
       const transformer = getTransformerForTool('codex', delivery, 'skills-invocable', undefined);
-      expect(transformer?.('/opsx:propose')).toBe('$openspec-propose');
-      expect(transformer?.('Run /opsx:apply next')).toBe('Run $openspec-apply-change next');
+      expect(transformer?.('/opsx:propose')).toBe(
+        '$openspec-propose (Codex) or /openspec-propose (other agents)'
+      );
+      expect(transformer?.('Run /opsx:apply next')).toBe(
+        'Run $openspec-apply-change (Codex) or /openspec-apply-change (other agents) next'
+      );
     }
   });
+});
+
+// Regression for #1153/#1514: the apply skill template must author its
+// continue/apply/archive references as canonical /opsx:* tokens so the
+// generator can rewrite them per target. Bare "openspec-continue-change"
+// prose is invisible to the transformers, which left skills.sh, Codex, and
+// Kimi with dead text and no archive/input invocation after a naive revert.
+describe('apply skill template generates valid per-target invocations', () => {
+  const skill = getApplyChangeSkillTemplate().instructions;
+
+  it('authors invocation references as transformable /opsx:* tokens', () => {
+    expect(skill).toContain('/opsx:apply add-auth');
+    expect(skill).toContain('suggest using `/opsx:continue`');
+    expect(skill).toContain('archive this change with `/opsx:archive`');
+    // No bare, non-transformable skill-name prose remains.
+    expect(skill).not.toContain('suggest using openspec-continue-change');
+  });
+
+  const cases = [
+    { tool: 'default (skills.sh)', transform: transformToSkillReferences, cont: '/openspec-continue-change', arch: '/openspec-archive-change', apply: '/openspec-apply-change' },
+    { tool: 'codex', transform: getSkillReferenceTransformer('codex'), cont: '$openspec-continue-change', arch: '$openspec-archive-change', apply: '$openspec-apply-change' },
+    { tool: 'kimi', transform: getSkillReferenceTransformer('kimi'), cont: '/skill:openspec-continue-change', arch: '/skill:openspec-archive-change', apply: '/skill:openspec-apply-change' },
+  ];
+
+  for (const { tool, transform, cont, arch, apply } of cases) {
+    it(`emits ${tool} skill invocations for continue, apply, and archive`, () => {
+      const out = transform(skill);
+      expect(out).toContain(cont);
+      expect(out).toContain(arch);
+      expect(out).toContain(`${apply} add-auth`);
+      // No canonical token survives the rewrite.
+      expect(out).not.toMatch(/\/opsx:(continue|apply|archive)/);
+    });
+  }
 });

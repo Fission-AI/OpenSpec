@@ -687,7 +687,7 @@ export async function resolveRootForCommand(
   output: {
     json?: boolean;
     failurePayload?: Record<string, unknown>;
-    /** Diagnostic commands inspect what exists; they never scaffold. */
+    /** Commands that require an existing root set this to false. */
     allowImplicitRoot?: boolean;
   } = {}
 ): Promise<ResolvedOpenSpecRoot | null> {
