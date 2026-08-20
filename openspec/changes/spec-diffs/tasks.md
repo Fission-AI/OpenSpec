@@ -1,6 +1,6 @@
 ## 1. Add diff dependency
 
-- [x] 1.1 Install the `diff` npm package: `pnpm add diff` and `pnpm add -D @types/diff`
+- [x] 1.1 Install the `diff` npm package: `pnpm add diff` (v9 ships its own types, so no `@types/diff`)
 
 ## 2. Requirement block extraction
 
@@ -23,7 +23,7 @@
 
 - [x] 5.1 In `src/commands/change.ts` `show()` method, when `options.diff` is set and `options.json` is not set: use `ChangeParser.parseDeltaSpecs()` to get deltas grouped by capability, then for each delta: display ADDED (green label + full text), REMOVED (red label + removal notice), RENAMED (cyan label + FROM:/TO:); for MODIFIED, read the base spec, extract the matching requirement block, compute the diff, and print colorized output (green for `+` lines, red for `-` lines, dim for headers/context lines)
 - [x] 5.2 Build a rename map from the parsed RENAMED entries for the current spec. For MODIFIED requirements whose normalized name matches a RENAMED TO name, look up the base block using the RENAMED FROM name instead of the MODIFIED name
-- [x] 5.3 Handle the no-delta-specs case: print a message like "No delta specs found for change '<name>'" and return (exit code 0)
+- [x] 5.3 Handle the no-delta-specs case: print "No delta specs to diff for change '<name>'" and return (exit code 0)
 - [x] 5.4 Handle the MODIFIED-no-base-match case: print the full MODIFIED requirement text with a warning that no matching base requirement was found
 - [x] 5.5 Add integration test: text mode diff with a change that has one MODIFIED and one ADDED requirement
 - [x] 5.6 Add integration test: text mode RENAMED + MODIFIED on the same requirement — shows both the rename label and the body diff, with the base block looked up by the old name
@@ -41,3 +41,14 @@
 - [x] 7.2 Ensure unit tests use `path.join()` for expected path values, not hardcoded slash strings
 - [x] 7.3 Verify all existing tests pass (`pnpm test`)
 - [ ] 7.4 Verify Windows CI passes (no path-separator issues in requirement matching or file discovery)
+
+## 8. Review follow-ups
+
+- [x] 8.1 Keep `openspec show <change>` without `--diff` a raw proposal passthrough; `--diff` is purely additive
+- [x] 8.2 Print the no-delta-specs message instead of returning silently, and cover it with a test
+- [x] 8.3 Keep the authored Reason/Migration body of a REMOVED requirement: `parseDeltaSpec` now returns `removedBlocks` alongside `removed`
+- [x] 8.4 Resolve main specs through the command's root (`--store <id>`), not `process.cwd()`, with a store-scoped regression test
+- [x] 8.5 Collect text-mode and JSON-mode diffs in one shared pass so the two surfaces cannot drift
+- [x] 8.6 Drive the CLI in tests with `execFileSync`/`spawnSync` argv arrays from a `mkdtemp` project instead of interpolated shell strings and an in-repo temp directory
+- [x] 8.7 Register `--diff` in the completion command registry so shell completions offer it
+- [x] 8.8 Drop the stray `package-lock.json`; the repo is pnpm-only

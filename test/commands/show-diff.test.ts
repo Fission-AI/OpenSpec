@@ -1,18 +1,28 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
+import os from 'os';
 import path from 'path';
-import { execSync } from 'child_process';
+import { execFileSync, spawnSync } from 'child_process';
 
 describe('openspec show --diff', () => {
-  const projectRoot = process.cwd();
-  const testDir = path.join(projectRoot, 'test-show-diff-tmp');
-  const changesDir = path.join(testDir, 'openspec', 'changes');
-  const specsDir = path.join(testDir, 'openspec', 'specs');
-  const openspecBin = path.join(projectRoot, 'bin', 'openspec.js');
+  const openspecBin = path.join(process.cwd(), 'bin', 'openspec.js');
+  // A fresh temp directory per test keeps concurrent test files from sharing a
+  // project, and lets every run pass `cwd` instead of chdir-ing the process.
+  let testDir: string;
+  let changesDir: string;
+  let specsDir: string;
 
   beforeEach(async () => {
+    testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-show-diff-'));
+    changesDir = path.join(testDir, 'openspec', 'changes');
+    specsDir = path.join(testDir, 'openspec', 'specs');
     await fs.mkdir(changesDir, { recursive: true });
     await fs.mkdir(specsDir, { recursive: true });
+    await fs.writeFile(
+      path.join(testDir, 'openspec', 'project.md'),
+      '# Test project\n',
+      'utf-8'
+    );
 
     // Base spec: auth capability with one requirement
     const baseSpec = [
@@ -97,39 +107,28 @@ describe('openspec show --diff', () => {
     await fs.rm(testDir, { recursive: true, force: true });
   });
 
-  function run(args: string): string {
-    const originalCwd = process.cwd();
-    try {
-      process.chdir(testDir);
-      return execSync(`node ${openspecBin} ${args}`, {
-        encoding: 'utf-8',
-        env: { ...process.env, NO_COLOR: '1' },
-      });
-    } finally {
-      process.chdir(originalCwd);
-    }
+  // Arguments go through as an argv array: no shell, so a path or requirement
+  // name with a space in it cannot be re-split or interpreted.
+  function run(args: string[]): string {
+    return execFileSync(process.execPath, [openspecBin, ...args], {
+      encoding: 'utf-8',
+      cwd: testDir,
+      env: { ...process.env, NO_COLOR: '1' },
+    });
   }
 
-  function runWithStderr(args: string): { stdout: string; stderr: string } {
-    const originalCwd = process.cwd();
-    try {
-      process.chdir(testDir);
-      const stdout = execSync(`node ${openspecBin} ${args}`, {
-        encoding: 'utf-8',
-        env: { ...process.env, NO_COLOR: '1' },
-        stdio: ['pipe', 'pipe', 'pipe'],
-      });
-      return { stdout, stderr: '' };
-    } catch (e: any) {
-      return { stdout: e.stdout?.toString() ?? '', stderr: e.stderr?.toString() ?? '' };
-    } finally {
-      process.chdir(originalCwd);
-    }
+  function runWithStderr(args: string[]): { stdout: string; stderr: string } {
+    const result = spawnSync(process.execPath, [openspecBin, ...args], {
+      encoding: 'utf-8',
+      cwd: testDir,
+      env: { ...process.env, NO_COLOR: '1' },
+    });
+    return { stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
   }
 
   // Task 5.5: text mode diff with MODIFIED and ADDED
   it('text mode: shows proposal then MODIFIED diff and ADDED full text', () => {
-    const output = run('show auth-update --type change --diff');
+    const output = run(['show', 'auth-update', '--type', 'change', '--diff']);
 
     // Proposal should appear first
     expect(output).toContain('Improve auth.');
@@ -145,17 +144,17 @@ describe('openspec show --diff', () => {
     expect(output).toContain('The system SHALL support MFA via TOTP.');
   });
 
-  it('text mode: without --diff shows proposal then full spec content', () => {
-    const output = run('show auth-update --type change');
+  it('text mode: without --diff the output is the proposal, unchanged', async () => {
+    const output = run(['show', 'auth-update', '--type', 'change']);
+    const proposal = await fs.readFile(
+      path.join(changesDir, 'auth-update', 'proposal.md'),
+      'utf-8'
+    );
 
-    // Proposal
-    expect(output).toContain('Improve auth.');
-
-    // Full delta spec content (not diffed)
-    expect(output).toContain('MODIFIED Requirements');
-    expect(output).toContain('ADDED Requirements');
-    expect(output).toContain('The system SHALL allow users to log in with email, password, or SSO.');
-    expect(output).toContain('The system SHALL support MFA via TOTP.');
+    // `show <change>` stays a raw proposal passthrough: --diff is additive, so
+    // anything already parsing this output keeps seeing exactly what it saw.
+    expect(output.trimEnd()).toBe(proposal.trimEnd());
+    expect(output).not.toContain('Specifications Changed');
   });
 
   // Task 5.7: MODIFIED with no matching base
@@ -188,13 +187,13 @@ describe('openspec show --diff', () => {
       'utf-8',
     );
 
-    const output = run('show no-match --type change --diff');
+    const output = run(['show', 'no-match', '--type', 'change', '--diff']);
     expect(output).toContain('MODIFIED: Nonexistent base');
     expect(output).toContain('No matching base requirement found');
   });
 
-  // Task 5.3: no delta specs — proposal is still shown, no spec section
-  it('text mode: shows only proposal when change has no delta specs', async () => {
+  // Task 5.3: no delta specs — say so rather than printing an empty heading
+  it('text mode: reports when the change has no delta specs to diff', async () => {
     const changeDir = path.join(changesDir, 'empty-change');
     await fs.mkdir(changeDir, { recursive: true });
     await fs.writeFile(
@@ -203,14 +202,50 @@ describe('openspec show --diff', () => {
       'utf-8',
     );
 
-    const output = run('show empty-change --type change --diff');
+    const output = run(['show', 'empty-change', '--type', 'change', '--diff']);
     expect(output).toContain('Test reason.');
+    expect(output).toContain('No delta specs to diff for change "empty-change".');
     expect(output).not.toContain('Specifications Changed');
+  });
+
+  it('text mode: keeps the Reason and Migration text of a REMOVED requirement', async () => {
+    const removedDelta = [
+      '## REMOVED Requirements',
+      '',
+      '### Requirement: Session management',
+      '',
+      '**Reason**: Sessions moved to the token service.',
+      '',
+      '**Migration**: Callers switch to `POST /tokens`.',
+      '',
+    ].join('\n');
+
+    const changeDir = path.join(changesDir, 'drop-sessions');
+    await fs.mkdir(path.join(changeDir, 'specs', 'auth'), { recursive: true });
+    await fs.writeFile(
+      path.join(changeDir, 'proposal.md'),
+      '## Why\nSessions move.\n\n## What Changes\n- **auth:** Remove session management\n',
+      'utf-8'
+    );
+    await fs.writeFile(path.join(changeDir, 'specs', 'auth', 'spec.md'), removedDelta, 'utf-8');
+
+    const output = run(['show', 'drop-sessions', '--type', 'change', '--diff']);
+    expect(output).toContain('REMOVED: Session management');
+    expect(output).toContain('Sessions moved to the token service.');
+    expect(output).toContain('Callers switch to `POST /tokens`.');
+  });
+
+  it('warns and ignores --diff when the item is a spec', async () => {
+    const { stdout, stderr } = runWithStderr(['show', 'auth', '--type', 'spec', '--diff']);
+    expect(stderr).toContain('Ignoring flags not applicable to spec');
+    expect(stderr).toContain('diff');
+    expect(stdout).toContain('### Requirement: User login');
+    expect(stdout).not.toContain('Specifications Changed');
   });
 
   // Task 6.2: JSON mode includes diff on MODIFIED only
   it('JSON mode: includes diff field on MODIFIED, not on ADDED', () => {
-    const output = run('show auth-update --type change --diff --json');
+    const output = run(['show', 'auth-update', '--type', 'change', '--diff', '--json']);
     const json = JSON.parse(output);
 
     // --json --diff uses the same top-level structure as --json alone
@@ -231,8 +266,8 @@ describe('openspec show --diff', () => {
   });
 
   it('JSON mode: --json --diff is backwards-compatible with --json', () => {
-    const jsonOnly = JSON.parse(run('show auth-update --type change --json'));
-    const jsonDiff = JSON.parse(run('show auth-update --type change --json --diff'));
+    const jsonOnly = JSON.parse(run(['show', 'auth-update', '--type', 'change', '--json']));
+    const jsonDiff = JSON.parse(run(['show', 'auth-update', '--type', 'change', '--json', '--diff']));
 
     // Same top-level keys
     expect(Object.keys(jsonDiff).sort()).toEqual(Object.keys(jsonOnly).sort());
@@ -282,7 +317,7 @@ describe('openspec show --diff', () => {
       'utf-8',
     );
 
-    const output = run('show rename-change --type change --diff');
+    const output = run(['show', 'rename-change', '--type', 'change', '--diff']);
 
     // Proposal shown first
     expect(output).toContain('Rename.');
@@ -331,7 +366,7 @@ describe('openspec show --diff', () => {
       'utf-8',
     );
 
-    const output = run('show rename-json --type change --diff --json');
+    const output = run(['show', 'rename-json', '--type', 'change', '--diff', '--json']);
     const json = JSON.parse(output);
 
     expect(json.id).toBe('rename-json');
