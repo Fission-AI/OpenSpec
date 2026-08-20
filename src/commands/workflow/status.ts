@@ -159,10 +159,12 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
         return;
       }
 
-      // Changes exist but --change not provided
+      // Changes exist but neither --change nor --all provided. Name --all
+      // here too: it is the other way to answer this prompt, and a caller
+      // who wants every change should not have to find it in --help.
       spinner?.stop();
       throw new Error(
-        `Missing required option --change. Available changes:\n  ${available.join('\n  ')}`
+        `Missing required option --change (or --all for every active change). Available changes:\n  ${available.join('\n  ')}`
       );
     }
 

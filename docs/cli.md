@@ -728,7 +728,7 @@ openspec status [options]
 
 | Option | Description |
 |--------|-------------|
-| `--change <id>` | Change name (prompts if omitted) |
+| `--change <id>` | Change name (required unless `--all` is given) |
 | `--all` | Show status for all active changes (mutually exclusive with `--change`) |
 | `--schema <name>` | Schema override (auto-detected from change's config) |
 | `--json` | Output as JSON |
@@ -736,7 +736,7 @@ openspec status [options]
 **Examples:**
 
 ```bash
-# Interactive status check
+# No target given: lists the active changes and asks for --change or --all
 openspec status
 
 # Status for specific change

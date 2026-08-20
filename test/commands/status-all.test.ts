@@ -120,6 +120,15 @@ describe('status --all', () => {
     expect(getOutput(result)).toContain('mutually exclusive');
   });
 
+  it('offers --all when neither --change nor --all is given', async () => {
+    await createTestChange('some-change');
+
+    const result = await runCLI(['status'], { cwd: tempDir });
+    expect(result.exitCode).toBe(1);
+    expect(getOutput(result)).toContain('--all');
+    expect(getOutput(result)).toContain('some-change');
+  });
+
   it('honors the JSON null-shape when root selection fails under --all', async () => {
     const result = await runCLI(['status', '--all', '--json', '--store', 'no-such-store'], {
       cwd: tempDir,
