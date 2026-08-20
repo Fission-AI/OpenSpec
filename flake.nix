@@ -39,6 +39,7 @@
                 ./test
                 ./package.json
                 ./pnpm-lock.yaml
+                ./pnpm-workspace.yaml
                 ./tsconfig.json
                 ./build.js
                 ./vitest.config.ts
@@ -51,7 +52,7 @@
               inherit (finalAttrs) pname version src;
               pnpm = pkgs.pnpm_9;
               fetcherVersion = 3;
-              hash = "sha256-AHPKWjhrk4aTJvp9uqTJk15vASEZyRUoSw0W9oV2650=";
+              hash = "sha256-fzQ9rIQi5RdbKZdcGUynbmo6eX8JEjx78CurnolOGgw=";
             };
 
             nativeBuildInputs = with pkgs; [

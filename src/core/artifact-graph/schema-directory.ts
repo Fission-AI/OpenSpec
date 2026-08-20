@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { normalizeBundlePath } from '../remote-schema/bundle.js';
+import { FileSystemUtils } from '../../utils/file-system.js';
 import { inspectSchema } from './schema.js';
 import type { SchemaYaml } from './types.js';
 
@@ -166,27 +167,35 @@ function inspectSchemaDirectoryWithMode(
     }
 
     const templateSegments =
-      mode === 'remote-bundle'
-        ? normalizedTemplate.split('/')
-        : [artifact.template];
-    const candidates = mode === 'remote-bundle'
-      ? [path.join(templatesDir, ...templateSegments)]
-      : [
-          path.join(templatesDir, artifact.template),
-          path.join(schemaDir, artifact.template),
-        ];
-    const templatePath = candidates.find((candidate) => {
-      if (!fs.existsSync(candidate)) return false;
-      if (mode === 'legacy-local') return true;
-      const stat = fs.lstatSync(candidate);
-      return stat.isFile() && !stat.isSymbolicLink();
-    });
-    if (!templatePath) {
+      mode === 'remote-bundle' ? normalizedTemplate.split('/') : [artifact.template];
+    const templatePath = path.join(templatesDir, ...templateSegments);
+    if (!fs.existsSync(templatePath)) {
       issues.push({
         path: `templates/${normalizedTemplate}`,
         message: `Template file '${artifact.template}' not found for artifact '${artifact.id}'`,
       });
       continue;
+    }
+
+    if (mode === 'legacy-local') {
+      try {
+        FileSystemUtils.assertPathWithin(templatesDir, templatePath);
+      } catch {
+        issues.push({
+          path: `artifacts.${artifact.id}.template`,
+          message: `Template '${artifact.template}' for artifact '${artifact.id}' resolves outside the schema templates directory`,
+        });
+        continue;
+      }
+    } else {
+      const stat = fs.lstatSync(templatePath);
+      if (!stat.isFile() || stat.isSymbolicLink()) {
+        issues.push({
+          path: `templates/${normalizedTemplate}`,
+          message: `Template file '${artifact.template}' not found for artifact '${artifact.id}'`,
+        });
+        continue;
+      }
     }
     templatePaths[artifact.id] = templatePath;
   }

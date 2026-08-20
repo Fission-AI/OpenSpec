@@ -6,7 +6,7 @@
 
 import chalk from 'chalk';
 import { listSchemasWithInfo } from '../../core/artifact-graph/index.js';
-import { resolveSchemaConsumerRoot } from '../../core/remote-schema/consumer-root.js';
+import { resolveRootForCommand } from '../../core/root-selection.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -14,6 +14,8 @@ import { resolveSchemaConsumerRoot } from '../../core/remote-schema/consumer-roo
 
 export interface SchemasOptions {
   json?: boolean;
+  store?: string;
+  storePath?: string;
 }
 
 // -----------------------------------------------------------------------------
@@ -21,8 +23,18 @@ export interface SchemasOptions {
 // -----------------------------------------------------------------------------
 
 export async function schemasCommand(options: SchemasOptions): Promise<void> {
-  const projectRoot = resolveSchemaConsumerRoot(process.cwd()) ?? process.cwd();
-  const schemas = listSchemasWithInfo(projectRoot);
+  const root = await resolveRootForCommand(options, {
+    json: options.json,
+    failurePayload: { schemas: [], root: null },
+  });
+  if (!root) {
+    return;
+  }
+
+  // `schemas --store` is an explicit inspection of the selected root. Schema
+  // ownership for workflow execution remains on `root.schemaRoot`, but this
+  // discovery command must preserve the selected-store listing contract.
+  const schemas = listSchemasWithInfo(root.path);
 
   if (options.json) {
     console.log(JSON.stringify(schemas, null, 2));

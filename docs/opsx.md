@@ -165,7 +165,7 @@ rules:
 | `/opsx:apply` | Implement tasks, updating artifacts as needed |
 | `/opsx:update` | Revise a change's planning artifacts and keep them coherent |
 | `/opsx:verify` | Validate implementation against artifacts (expanded workflow) |
-| `/opsx:sync` | Sync delta specs to main (default workflow, optional) |
+| `/opsx:sync` | Merge delta specs into main specs (optional) |
 | `/opsx:archive` | Archive when done |
 | `/opsx:bulk-archive` | Archive multiple completed changes (expanded workflow) |
 | `/opsx:onboard` | Guided walkthrough of an end-to-end change (expanded workflow) |
@@ -214,6 +214,12 @@ Works through tasks, checking them off as you go. If you're juggling multiple ch
 /opsx:update add-dark-mode - we're storing the theme in a cookie now
 ```
 Revises the change's existing planning artifacts and keeps them coherent - in any direction (a design edit may ripple back to the proposal). Planning artifacts only: it never edits code, and it never creates missing artifacts (that's `/opsx:continue`). Every edit is confirmed with you first. If the change was already implemented, it recommends `/opsx:apply` so the code catches up with the revised plan. If your revision changes the change's *intent*, start fresh instead - see [When to Update vs. Start Fresh](#when-to-update-vs-start-fresh).
+
+### Sync delta specs
+```text
+/opsx:sync
+```
+Merges the current change's delta specs into your main `openspec/specs/` without archiving — the change stays active. It applies the whole delta: a requirement under `## REMOVED` is deleted from the main spec and a renamed one is retitled in place, while content the delta doesn't mention is left untouched. Syncing is optional — archive prompts you to sync first if you haven't. Reach for it when you want main specs updated before archiving, when a parallel change needs to build on specs this one just added, or when you want to review the merged main spec before archiving.
 
 ### Finish up
 ```
@@ -478,7 +484,7 @@ Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, no
   │  • Create proposal.md                   │
   │  • Create tasks.md                      │
   │  • Create design.md                     │
-  │  • Create specs/<capability>/spec.md    │
+  │  • Create delta spec files              │
   │                                         │
   │  No awareness of what exists or         │
   │  dependencies between artifacts         │

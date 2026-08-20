@@ -28,14 +28,14 @@ The system SHALL preserve project-local, user override, then package built-in pr
 - **AND** a same-named user schema exists
 - **THEN** the system SHALL return the verified remote cache path
 
-#### Scenario: Falls back to user override when no project-local or declared remote schema
+#### Scenario: Falls back to user override when no project-local schema
 - **WHEN** no schema named "my-workflow" exists at `./openspec/schemas/my-workflow/`
 - **AND** project configuration does not declare a remote source named "my-workflow"
 - **AND** a schema named "my-workflow" exists at `~/.local/share/openspec/schemas/my-workflow/schema.yaml`
 - **AND** `getSchemaDir("my-workflow", projectRoot)` is called
 - **THEN** the system SHALL return the user override path
 
-#### Scenario: Falls back to package built-in when no higher-priority schema exists
+#### Scenario: Falls back to package built-in when no project-local or user schema
 - **WHEN** no project-local, declared remote, or user schema named "spec-driven" exists
 - **AND** "spec-driven" is a package built-in schema
 - **AND** `getSchemaDir("spec-driven", projectRoot)` is called

@@ -64,7 +64,7 @@ describe('validateSchemaDirectory', () => {
     ).toBe(path.join(schemaDir, 'templates', 'nested', 'proposal.md'));
   });
 
-  it('preserves legacy project-local template lookup outside templates/', () => {
+  it('rejects project-local template lookup outside templates/', () => {
     const sharedTemplate = path.join(path.dirname(schemaDir), 'shared-proposal.md');
     fs.writeFileSync(sharedTemplate, '# Shared\n');
     fs.writeFileSync(
@@ -73,11 +73,9 @@ describe('validateSchemaDirectory', () => {
     );
 
     try {
-      expect(
-        fs.realpathSync.native(
-          validateLocalSchemaDirectory(schemaDir).templatePaths.proposal
-        )
-      ).toBe(fs.realpathSync.native(sharedTemplate));
+      expect(() => validateLocalSchemaDirectory(schemaDir)).toThrow(
+        /relative path inside its allowed directory/
+      );
     } finally {
       fs.rmSync(sharedTemplate, { force: true });
     }
@@ -109,14 +107,11 @@ artifacts:
     } catch (error) {
       expect(error).toBeInstanceOf(SchemaDirectoryValidationError);
       const validationError = error as SchemaDirectoryValidationError;
-      expect(validationError.issues).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ message: expect.stringMatching(/declared-name.*wrong-name/) }),
-          expect.objectContaining({ message: expect.stringMatching(/unsafe template path/) }),
-          expect.objectContaining({ message: expect.stringMatching(/missing.md.*not found/) }),
-        ])
-      );
-      expect(validationError.issues).toHaveLength(3);
+      expect(validationError.issues).toEqual([
+        expect.objectContaining({
+          message: expect.stringMatching(/relative path inside its allowed directory/),
+        }),
+      ]);
     }
   });
 
@@ -124,8 +119,8 @@ artifacts:
     ['missing schema', false, true, 'proposal.md', /schema.yaml not found/],
     ['missing templates directory', true, false, 'proposal.md', /templates directory not found/],
     ['missing referenced template', true, true, 'missing.md', /Template file 'missing.md' not found/],
-    ['parent template escape', true, true, '../outside.md', /unsafe template path/],
-    ['absolute template escape', true, true, '/outside.md', /unsafe template path/],
+    ['parent template escape', true, true, '../outside.md', /relative path inside its allowed directory/],
+    ['absolute template escape', true, true, '/outside.md', /relative path inside its allowed directory/],
     ['backslash template path', true, true, String.raw`nested\proposal.md`, /unsafe template path/],
   ])('rejects %s', (_name, withSchema, withTemplates, template, expected) => {
     if (withSchema) {

@@ -3,7 +3,11 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { FileSystemUtils } from '../../../src/utils/file-system.js';
-import { artifactOutputExists, resolveArtifactOutputs } from '../../../src/core/artifact-graph/outputs.js';
+import {
+  artifactOutputExists,
+  isSpecsArtifactPath,
+  resolveArtifactOutputs,
+} from '../../../src/core/artifact-graph/outputs.js';
 
 describe('artifact-graph/outputs', () => {
   let tempDir: string;
@@ -16,6 +20,18 @@ describe('artifact-graph/outputs', () => {
 
   afterEach(() => {
     fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it.each([
+    ['specs/**/*.md', true],
+    ['./specs/**/*.md', true],
+    ['.//specs/**/*.md', true],
+    [String.raw`specs\**\*.md`, true],
+    [String.raw`.\specs\**\*.md`, true],
+    ['docs/specs/**/*.md', false],
+    ['specs-note.md', false],
+  ])('classifies specs artifact path %s', (generates, expected) => {
+    expect(isSpecsArtifactPath(generates)).toBe(expected);
   });
 
   it('resolves a direct file path when it exists', () => {
@@ -101,9 +117,145 @@ describe('artifact-graph/outputs', () => {
     ]);
   });
 
+  it('resolves glob outputs through a confined linked directory', () => {
+    const realDir = path.join(tempDir, 'real');
+    const linkedDir = path.join(tempDir, 'content', 'linked');
+    const filePath = path.join(realDir, 'spec.md');
+    fs.mkdirSync(realDir, { recursive: true });
+    fs.mkdirSync(path.dirname(linkedDir), { recursive: true });
+    fs.writeFileSync(filePath, 'content');
+    fs.symlinkSync(realDir, linkedDir, process.platform === 'win32' ? 'junction' : 'dir');
+
+    expect(resolveArtifactOutputs(tempDir, 'content/**/*.md')).toEqual([
+      canonical(filePath),
+    ]);
+  });
+
   it('returns an empty list when no files match the artifact output', () => {
     expect(resolveArtifactOutputs(tempDir, 'specs/*/spec.md')).toEqual([]);
     expect(artifactOutputExists(tempDir, 'specs/*/spec.md')).toBe(false);
+  });
+
+  it('rejects a literal output symlink that escapes the change directory', () => {
+    if (process.platform === 'win32') return;
+
+    const outsideFile = path.join(path.dirname(tempDir), `${path.basename(tempDir)}-outside.md`);
+    fs.writeFileSync(outsideFile, 'private');
+    fs.symlinkSync(outsideFile, path.join(tempDir, 'proposal.md'));
+
+    try {
+      expect(() => resolveArtifactOutputs(tempDir, 'proposal.md')).toThrow(
+        /outside the allowed directory/u
+      );
+    } finally {
+      fs.rmSync(outsideFile, { force: true });
+    }
+  });
+
+  it('rejects a glob that traverses a symlinked directory outside the change', () => {
+    if (process.platform === 'win32') return;
+
+    const outsideDir = fs.mkdtempSync(
+      path.join(path.dirname(tempDir), `${path.basename(tempDir)}-outside-`)
+    );
+    fs.writeFileSync(path.join(outsideDir, 'secret.md'), 'private');
+    fs.symlinkSync(outsideDir, path.join(tempDir, 'specs'));
+
+    try {
+      expect(() => resolveArtifactOutputs(tempDir, 'specs/*.md')).toThrow(
+        /outside the allowed directory/u
+      );
+    } finally {
+      fs.rmSync(outsideDir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects an outbound linked directory below a recursive glob', () => {
+    const outsideDir = fs.mkdtempSync(
+      path.join(path.dirname(tempDir), `${path.basename(tempDir)}-outside-`)
+    );
+    const specsDir = path.join(tempDir, 'specs');
+    fs.mkdirSync(specsDir);
+    fs.writeFileSync(path.join(outsideDir, 'sentinel.txt'), 'private');
+    fs.symlinkSync(
+      outsideDir,
+      path.join(specsDir, 'linked'),
+      process.platform === 'win32' ? 'junction' : 'dir'
+    );
+
+    try {
+      expect(() => resolveArtifactOutputs(tempDir, 'specs/**/*.md')).toThrow(
+        /outside the allowed directory/u
+      );
+    } finally {
+      fs.rmSync(outsideDir, { recursive: true, force: true });
+    }
+  });
+
+  it('ignores outbound links below directories the glob cannot visit', () => {
+    const matchingDir = path.join(tempDir, 'content', 'matching');
+    const ignoredDir = path.join(tempDir, 'content', 'ignored', 'deep');
+    const outsideDir = fs.mkdtempSync(
+      path.join(path.dirname(tempDir), `${path.basename(tempDir)}-outside-`)
+    );
+    const matchingFile = path.join(matchingDir, 'result.md');
+    fs.mkdirSync(matchingDir, { recursive: true });
+    fs.mkdirSync(ignoredDir, { recursive: true });
+    fs.writeFileSync(matchingFile, 'content');
+    fs.symlinkSync(
+      outsideDir,
+      path.join(ignoredDir, 'linked'),
+      process.platform === 'win32' ? 'junction' : 'dir'
+    );
+
+    try {
+      expect(resolveArtifactOutputs(tempDir, 'content/*/*.md')).toEqual([
+        canonical(matchingFile),
+      ]);
+    } finally {
+      fs.rmSync(outsideDir, { recursive: true, force: true });
+    }
+  });
+
+  it('ignores outbound links under dot-directories excluded by the glob', () => {
+    const matchingDir = path.join(tempDir, 'content', 'matching');
+    const ignoredDir = path.join(tempDir, 'content', '.ignored');
+    const outsideDir = fs.mkdtempSync(
+      path.join(path.dirname(tempDir), `${path.basename(tempDir)}-outside-`)
+    );
+    const matchingFile = path.join(matchingDir, 'result.md');
+    fs.mkdirSync(matchingDir, { recursive: true });
+    fs.mkdirSync(ignoredDir, { recursive: true });
+    fs.writeFileSync(matchingFile, 'content');
+    fs.symlinkSync(
+      outsideDir,
+      path.join(ignoredDir, 'linked'),
+      process.platform === 'win32' ? 'junction' : 'dir'
+    );
+
+    try {
+      expect(resolveArtifactOutputs(tempDir, 'content/*/*.md')).toEqual([
+        canonical(matchingFile),
+      ]);
+    } finally {
+      fs.rmSync(outsideDir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects a linked directory cycle before glob traversal', () => {
+    const specsDir = path.join(tempDir, 'specs');
+    const capabilityDir = path.join(specsDir, 'capability');
+    fs.mkdirSync(capabilityDir, { recursive: true });
+    fs.writeFileSync(path.join(capabilityDir, 'spec.md'), 'content');
+    fs.symlinkSync(
+      specsDir,
+      path.join(capabilityDir, 'loop'),
+      process.platform === 'win32' ? 'junction' : 'dir'
+    );
+
+    expect(() => resolveArtifactOutputs(tempDir, 'specs/**/*.md')).toThrow(
+      /linked directory cycle/u
+    );
   });
 
   describe('glob-special characters in directory paths', () => {

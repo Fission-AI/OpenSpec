@@ -3,7 +3,11 @@ import * as path from 'node:path';
 import { getSchemaDir, resolveSchema, listSchemasWithInfo } from './resolver.js';
 import { ArtifactGraph } from './graph.js';
 import { detectCompleted } from './state.js';
-import { resolveArtifactOutputs } from './outputs.js';
+import {
+  isSpecsArtifactPath,
+  resolveArtifactOutputPath,
+  resolveArtifactOutputs,
+} from './outputs.js';
 import { readChangeMetadata, resolveSchemaForChange } from '../../utils/change-metadata.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import {
@@ -68,8 +72,10 @@ export interface ChangeContext {
 export interface LoadChangeContextOptions {
   changeDir?: string;
   planningHome?: PlanningHome;
-  /** Pre-read project config; suppresses schema resolution's fallback config read. */
+  /** Pre-read planning-root config used for instruction context and rules. */
   projectConfig?: ProjectConfig | null;
+  /** Pre-read consumer-root config used for schema selection and resolution. */
+  schemaConfig?: ProjectConfig | null;
   schemaRoot?: string;
 }
 
@@ -178,7 +184,9 @@ export interface ChangeStatus {
   nextSteps: string[];
   /** Machine-readable action constraints for agents */
   actionContext: ActionContext;
-  /** Whether all artifacts are complete */
+  /** Whether all planning artifacts are complete */
+  isPlanningComplete: boolean;
+  /** Compatibility alias for isPlanningComplete */
   isComplete: boolean;
   /** Artifact IDs required before apply phase (from schema's apply.requires) */
   applyRequires: string[];
@@ -215,7 +223,17 @@ export function loadTemplate(
     );
   }
 
-  const templatePathOnDisk = path.join(schemaDir, 'templates', templatePath);
+  const templatesDir = path.join(schemaDir, 'templates');
+  const templatePathOnDisk = path.join(templatesDir, templatePath);
+
+  try {
+    FileSystemUtils.assertPathWithin(templatesDir, templatePathOnDisk);
+  } catch (error) {
+    throw new TemplateLoadError(
+      error instanceof Error ? error.message : String(error),
+      templatePathOnDisk
+    );
+  }
 
   if (!fs.existsSync(templatePathOnDisk)) {
     throw new TemplateLoadError(
@@ -257,18 +275,19 @@ export function loadChangeContext(
   options: LoadChangeContextOptions = {}
 ): ChangeContext {
   const schemaRoot = options.schemaRoot ?? projectRoot;
+  const schemaConfig =
+    options.schemaConfig !== undefined ? options.schemaConfig : options.projectConfig;
   const changeDir = FileSystemUtils.canonicalizeExistingPath(
     options.changeDir ?? path.join(projectRoot, 'openspec', 'changes', changeName)
   );
 
-  const metadata =
-    readChangeMetadata(changeDir, schemaRoot, options.projectConfig) ?? undefined;
+  const metadata = readChangeMetadata(changeDir, schemaRoot, schemaConfig) ?? undefined;
   const resolvedSchemaName = resolveSchemaForChange(changeDir, schemaName, schemaRoot, {
     metadata: metadata ?? null,
-    projectConfig: options.projectConfig,
+    projectConfig: schemaConfig,
   });
 
-  const schema = resolveSchema(resolvedSchemaName, schemaRoot, options.projectConfig);
+  const schema = resolveSchema(resolvedSchemaName, schemaRoot, schemaConfig);
   const graph = ArtifactGraph.fromSchema(schema);
   const completed = detectCompleted(graph, changeDir);
 
@@ -279,12 +298,7 @@ export function loadChangeContext(
   const skippedArtifacts = new Set<string>();
   if (metadata?.skip_specs) {
     for (const artifact of graph.getAllArtifacts()) {
-      // A schema may write generates as './specs/...' - the globs treat that
-      // identically to 'specs/...', so the skip set must too, or validate
-      // would honor the marker while instructions tell the agent to create
-      // the very files the conflict gate polices.
-      const generates = artifact.generates.replace(/^(?:\.\/)+/, '');
-      if (generates.startsWith('specs/') && !completed.has(artifact.id)) {
+      if (isSpecsArtifactPath(artifact.generates) && !completed.has(artifact.id)) {
         completed.add(artifact.id);
         skippedArtifacts.add(artifact.id);
       }
@@ -320,8 +334,10 @@ export function loadChangeContext(
  * @throws Error if artifact not found
  */
 export interface GenerateInstructionsOptions {
-  /** Pre-read project config; suppresses the internal read (no double read). */
+  /** Pre-read planning-root config for context, rules, and operation guidance. */
   projectConfig?: ProjectConfig | null;
+  /** Pre-read consumer-root config for schema and template resolution. */
+  schemaConfig?: ProjectConfig | null;
   /** Referenced-store index assembled at the command boundary. */
   references?: ReferenceIndexEntry[];
 }
@@ -337,11 +353,13 @@ export function generateInstructions(
     throw new Error(`Artifact '${artifactId}' not found in schema '${context.schemaName}'`);
   }
 
+  const schemaConfig =
+    options.schemaConfig !== undefined ? options.schemaConfig : options.projectConfig;
   const templateContent = loadTemplate(
     context.schemaName,
     artifact.template,
     context.schemaRoot,
-    options.projectConfig
+    schemaConfig
   );
   const dependencies = getDependencyInfo(artifact, context.graph, context.completed, context.skippedArtifacts);
   const unlocks = getUnlockedArtifacts(context.graph, artifactId);
@@ -364,7 +382,7 @@ export function generateInstructions(
   // key is only "unknown" when it matches no artifact in ANY available schema.
   if (projectConfig?.rules) {
     const validArtifactIds = new Set(
-      listSchemasWithInfo(context.schemaRoot, options.projectConfig).flatMap((s) => s.artifacts)
+      listSchemasWithInfo(context.schemaRoot, schemaConfig).flatMap((s) => s.artifacts)
     );
     const warnings = validateConfigRules(projectConfig.rules, validArtifactIds);
 
@@ -379,7 +397,10 @@ export function generateInstructions(
 
   // Extract context and rules as separate fields (not prepended to template)
   const configContext = projectConfig?.context?.trim() || undefined;
-  const rulesForArtifact = projectConfig?.rules?.[artifactId];
+  const rulesForArtifact =
+    projectConfig?.rules && Object.hasOwn(projectConfig.rules, artifactId)
+      ? projectConfig.rules[artifactId]
+      : undefined;
   const configRules = rulesForArtifact && rulesForArtifact.length > 0 ? rulesForArtifact : undefined;
 
   return {
@@ -389,7 +410,7 @@ export function generateInstructions(
     changeDir: context.changeDir,
     planningHome: summarizePlanningHome(context.planningHome),
     outputPath: artifact.generates,
-    resolvedOutputPath: path.join(context.changeDir, artifact.generates),
+    resolvedOutputPath: resolveArtifactOutputPath(context.changeDir, artifact.generates),
     existingOutputPaths: resolveArtifactOutputs(context.changeDir, artifact.generates),
     description: artifact.description,
     instruction: artifact.instruction,
@@ -467,7 +488,7 @@ export function formatChangeStatus(
   const artifactStatuses: ArtifactStatus[] = artifacts.map(artifact => {
     artifactPaths[artifact.id] = {
       outputPath: artifact.generates,
-      resolvedOutputPath: path.join(context.changeDir, artifact.generates),
+      resolvedOutputPath: resolveArtifactOutputPath(context.changeDir, artifact.generates),
       existingOutputPaths: resolveArtifactOutputs(context.changeDir, artifact.generates),
     };
 
@@ -520,6 +541,7 @@ export function formatChangeStatus(
     planningHome: summarizePlanningHome(context.planningHome),
     changeRoot: context.changeDir,
     artifactPaths,
+    isPlanningComplete: isComplete,
     isComplete,
     applyRequires,
     nextSteps: buildNextSteps({

@@ -12,6 +12,7 @@ import {
   loadChangeContext,
   generateInstructions,
   resolveSchema,
+  resolveArtifactOutputPath,
   resolveArtifactOutputs,
   type ArtifactInstructions,
 } from '../../core/artifact-graph/index.js';
@@ -46,6 +47,7 @@ import {
   type ApplyInstructions,
   type ArchiveInstructions,
 } from './shared.js';
+import { parseTaskLines, type ParsedTask } from '../../utils/task-progress.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -80,10 +82,13 @@ export type ArchiveInstructionsOptions = ApplyInstructionsOptions;
  */
 async function loadRootConfigContext(root: ResolvedOpenSpecRoot): Promise<{
   projectConfig: ProjectConfig | null;
+  schemaConfig: ProjectConfig | null;
   references: ReferenceIndexEntry[] | undefined;
 }> {
   // readProjectConfig never throws: missing/unparseable configs are null.
   const projectConfig = readProjectConfig(root.path);
+  const schemaConfig =
+    root.schemaRoot === root.path ? projectConfig : readProjectConfig(root.schemaRoot);
 
   // One registry read serves every relationship consumer in this
   // output so it never carries a torn snapshot.
@@ -100,6 +105,7 @@ async function loadRootConfigContext(root: ResolvedOpenSpecRoot): Promise<{
   // look identical to an undeclared one in JSON.
   return {
     projectConfig,
+    schemaConfig,
     references: index.length > 0 ? index : undefined,
   };
 }
@@ -132,13 +138,14 @@ export async function instructionsCommand(
       validateSchemaExists(options.schema, schemaRoot);
     }
 
-    const { projectConfig, references } = await loadRootConfigContext(root);
+    const { projectConfig, schemaConfig, references } = await loadRootConfigContext(root);
 
     // loadChangeContext will auto-detect schema from metadata if not provided
     const context = loadChangeContext(projectRoot, changeName, options.schema, {
       changeDir: getChangeDir(planningHome, changeName),
       planningHome,
       projectConfig,
+      schemaConfig,
       schemaRoot,
     });
 
@@ -162,6 +169,7 @@ export async function instructionsCommand(
 
     const instructions = generateInstructions(context, artifactId, projectRoot, {
       projectConfig,
+      schemaConfig,
       references,
     });
     const isBlocked = instructions.dependencies.some((d) => !d.done);
@@ -325,26 +333,26 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
 // -----------------------------------------------------------------------------
 
 /**
- * Parses tasks.md content and extracts task items with their completion status.
+ * Turns parsed task lines into the listed task items.
+ *
+ * A checkbox with no text after it is left out of the list: this is work for an
+ * agent to act on and tick off, and a bare `- [ ]` gives it nothing to match.
+ * It still counts toward progress, which is taken from every parsed line, so
+ * this list can be shorter than the totals beside it but never disagrees with
+ * `openspec list` or archive about how much work is left. An empty list is also
+ * what puts apply in its "nothing to work on" state, so a file of nothing but
+ * text-less checkboxes asks to be rewritten instead of being called done.
  */
-function parseTasksFile(content: string): TaskItem[] {
+function toTaskItems(parsed: ParsedTask[]): TaskItem[] {
   const tasks: TaskItem[] = [];
-  const lines = content.split('\n');
-  let taskIndex = 0;
 
-  for (const line of lines) {
-    // Match checkbox patterns: - [ ] or - [x] or - [X]
-    const checkboxMatch = line.match(/^[-*]\s*\[([ xX])\]\s*(.+)\s*$/);
-    if (checkboxMatch) {
-      taskIndex++;
-      const done = checkboxMatch[1].toLowerCase() === 'x';
-      const description = checkboxMatch[2].trim();
-      tasks.push({
-        id: `${taskIndex}`,
-        description,
-        done,
-      });
-    }
+  for (const task of parsed) {
+    if (task.description.length === 0) continue;
+    tasks.push({
+      id: `${tasks.length + 1}`,
+      description: task.description,
+      done: task.done,
+    });
   }
 
   return tasks;
@@ -354,6 +362,7 @@ export interface GenerateApplyInstructionsOptions {
   planningHome?: PlanningHome;
   references?: ReferenceIndexEntry[];
   projectConfig?: ProjectConfig | null;
+  schemaConfig?: ProjectConfig | null;
   schemaRoot?: string;
 }
 
@@ -376,6 +385,7 @@ export async function generateApplyInstructions(
     changeDir: getChangeDir(planningHome, changeName),
     planningHome,
     projectConfig: options.projectConfig,
+    schemaConfig: options.schemaConfig,
     schemaRoot: options.schemaRoot,
   });
   const changeDir = context.changeDir;
@@ -384,7 +394,7 @@ export async function generateApplyInstructions(
   const schema = resolveSchema(
     context.schemaName,
     context.schemaRoot,
-    options.projectConfig
+    options.schemaConfig !== undefined ? options.schemaConfig : options.projectConfig
   );
   const applyConfig = schema.apply;
 
@@ -419,20 +429,22 @@ export async function generateApplyInstructions(
   }
 
   // Parse tasks if tracking file exists
-  let tasks: TaskItem[] = [];
+  let parsedTasks: ParsedTask[] = [];
   let tracksFileExists = false;
   if (tracksFile) {
-    const tracksPath = path.join(changeDir, tracksFile);
+    const tracksPath = resolveArtifactOutputPath(changeDir, tracksFile);
     tracksFileExists = fs.existsSync(tracksPath);
     if (tracksFileExists) {
       const tasksContent = await fs.promises.readFile(tracksPath, 'utf-8');
-      tasks = parseTasksFile(tasksContent);
+      parsedTasks = parseTaskLines(tasksContent);
     }
   }
+  const tasks = toTaskItems(parsedTasks);
 
-  // Calculate progress
-  const total = tasks.length;
-  const complete = tasks.filter((t) => t.done).length;
+  // Calculate progress over every checkbox in the file, listed or not, so these
+  // numbers match `openspec list` and archive's incomplete-task check.
+  const total = parsedTasks.length;
+  const complete = parsedTasks.filter((task) => task.done).length;
   const remaining = total - complete;
 
   // Determine state and instruction
@@ -447,11 +459,12 @@ export async function generateApplyInstructions(
     const tracksFilename = path.basename(tracksFile);
     state = 'blocked';
     instruction = `The ${tracksFilename} file is missing and must be created.\nUse openspec-continue-change to generate the tracking file.`;
-  } else if (tracksFile && tracksFileExists && total === 0) {
-    // Tracking file exists but contains no tasks
+  } else if (tracksFile && tracksFileExists && tasks.length === 0) {
+    // Tracking file exists but lists nothing an agent can work on: either no
+    // checkboxes at all, or only checkboxes with no text after them.
     const tracksFilename = path.basename(tracksFile);
     state = 'blocked';
-    instruction = `The ${tracksFilename} file exists but contains no tasks.\nAdd tasks to ${tracksFilename} or regenerate it with openspec-continue-change.`;
+    instruction = `The ${tracksFilename} file exists but contains no tasks to work on.\nAdd tasks to ${tracksFilename} or regenerate it with openspec-continue-change.`;
   } else if (tracksFile && remaining === 0 && total > 0) {
     state = 'all_done';
     instruction = 'All tasks are complete! This change is ready to be archived.\nConsider running tests and reviewing the changes before archiving.';
@@ -504,13 +517,14 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
       validateSchemaExists(options.schema, schemaRoot);
     }
 
-    // One parsed config snapshot supplies schema fallback, references, context,
-    // and operation guidance for this command.
-    const { projectConfig, references } = await loadRootConfigContext(root);
+    // Planning-root config supplies references, context, and operation guidance;
+    // consumer-root config independently owns schema resolution.
+    const { projectConfig, schemaConfig, references } = await loadRootConfigContext(root);
     const instructions = await generateApplyInstructions(projectRoot, changeName, options.schema, {
       planningHome,
       references,
       projectConfig,
+      schemaConfig,
       schemaRoot,
     });
 

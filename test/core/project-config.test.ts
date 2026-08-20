@@ -57,6 +57,27 @@ rules:
         expect(consoleWarnSpy).not.toHaveBeenCalled();
       });
 
+      it('should preserve prototype-named rule keys as inert data', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `rules:
+  __proto__:
+    - Prototype rule
+  constructor:
+    - Constructor rule
+`
+        );
+
+        const rules = readProjectConfig(tempDir)?.rules;
+
+        expect(Object.getPrototypeOf(rules)).toBeNull();
+        expect(Object.hasOwn(rules!, '__proto__')).toBe(true);
+        expect(rules?.__proto__).toEqual(['Prototype rule']);
+        expect(rules?.constructor).toEqual(['Constructor rule']);
+      });
+
       it('should parse minimal config with schema only', () => {
         const configDir = path.join(tempDir, 'openspec');
         fs.mkdirSync(configDir, { recursive: true });
@@ -158,6 +179,56 @@ operations:
         });
         expect(consoleWarnSpy).toHaveBeenCalledWith(
           expect.stringContaining("Invalid 'operations' field")
+        );
+      });
+
+      it('should parse githubCopilot.cloudAgent', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+githubCopilot:
+  cloudAgent: true
+`
+        );
+
+        expect(readProjectConfig(tempDir)?.githubCopilot?.cloudAgent).toBe(true);
+        expect(consoleWarnSpy).not.toHaveBeenCalled();
+      });
+
+      it('should warn on a non-boolean cloudAgent and keep the rest of the config', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+githubCopilot:
+  cloudAgent: "yes"
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+        expect(config?.schema).toBe('spec-driven');
+        expect(config?.githubCopilot).toBeUndefined();
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid 'githubCopilot.cloudAgent' field")
+        );
+      });
+
+      it('should warn on a non-object githubCopilot field', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+githubCopilot: true
+`
+        );
+
+        expect(readProjectConfig(tempDir)?.schema).toBe('spec-driven');
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid 'githubCopilot' field")
         );
       });
 

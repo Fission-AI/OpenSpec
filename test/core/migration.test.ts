@@ -6,7 +6,11 @@ import { promises as fsp } from 'node:fs';
 import { AI_TOOLS, type AIToolOption } from '../../src/core/config.js';
 import { CommandAdapterRegistry } from '../../src/core/command-generation/index.js';
 import { saveGlobalConfig, getGlobalConfigPath } from '../../src/core/global-config.js';
-import { migrateIfNeeded, scanInstalledWorkflows } from '../../src/core/migration.js';
+import {
+  findLegacyToolMigrations,
+  migrateIfNeeded,
+  scanInstalledWorkflows,
+} from '../../src/core/migration.js';
 
 const CLAUDE_TOOL = AI_TOOLS.find((tool) => tool.value === 'claude') as AIToolOption | undefined;
 
@@ -92,6 +96,21 @@ describe('migration', () => {
     expect(config.workflows).toEqual(['explore', 'apply']);
   });
 
+  it('keeps dry-run legacy results aligned with migration timing', async () => {
+    await writeSkill(projectDir, 'openspec-explore', '.codex');
+    await writeSkill(projectDir, 'openspec-explore', '.agents');
+
+    expect(findLegacyToolMigrations(projectDir)).toEqual([]);
+    expect(findLegacyToolMigrations(projectDir, 'after-generation')).toEqual([
+      expect.objectContaining({
+        toolId: 'codex',
+        from: '.codex',
+        to: '.agents',
+        skillDirs: 1,
+      }),
+    ]);
+  });
+
   it('migrates to custom commands delivery when only managed commands are detected', async () => {
     await writeManagedCommand(projectDir, 'explore');
     await writeManagedCommand(projectDir, 'archive');
@@ -156,8 +175,7 @@ describe('migration', () => {
 
   it('prints the $-prefixed propose reference when migrating a codex-only project', async () => {
     // Codex is skills-invocable with no slash surface: it invokes skills as
-    // $<name>, so the migration message must not advertise a /openspec-* or
-    // /opsx:* form
+    // Migration hints target the selected tool, so keep Codex's $<name> form.
     await writeSkill(projectDir, 'openspec-propose', '.codex');
 
     const message = captureMigrationLogs(projectDir, [requireTool('codex')]).find((entry) =>
@@ -298,5 +316,17 @@ describe('migration', () => {
 
     migrateIfNeeded(projectDir, [ensureClaudeTool()]);
     expect(fs.existsSync(getGlobalConfigPath())).toBe(false);
+  });
+
+  it('does not count generic shared skills as installed Codex workflows', async () => {
+    await writeSkill(projectDir, 'openspec-explore', '.agents');
+    await fsp.writeFile(
+      path.join(projectDir, '.agents', 'skills', '.openspec-target'),
+      'agents\n',
+      'utf-8'
+    );
+
+    expect(scanInstalledWorkflows(projectDir, [requireTool('codex')])).toEqual([]);
+    expect(scanInstalledWorkflows(projectDir, [requireTool('agents')])).toEqual(['explore']);
   });
 });

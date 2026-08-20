@@ -110,7 +110,12 @@ function malformedParticipantExpired(
   timeoutMs: number
 ): boolean {
   try {
-    return Date.now() - fs.statSync(filePath).mtimeMs >= timeoutMs;
+    // Date.now() has integer-millisecond precision while filesystem mtimes may
+    // retain fractional milliseconds. Compare on the same precision so a file
+    // created just before acquisition expires at the bounded deadline instead
+    // of surviving it by a sub-millisecond rounding artifact.
+    const modifiedAtMs = Math.floor(fs.statSync(filePath).mtimeMs);
+    return Date.now() - modifiedAtMs >= timeoutMs;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       return false;
@@ -192,29 +197,49 @@ function ensureSelfIgnoredLockDirectory(lockPath: string): void {
 function createParticipantFile(
   lockPath: string,
   fileName: string,
-  participant: SchemaSyncParticipant
+  participant: SchemaSyncParticipant,
+  deadline: number
 ): string {
   const filePath = path.join(lockPath, fileName);
   while (true) {
-    ensureSelfIgnoredLockDirectory(lockPath);
-    const stagingPath = path.join(
-      lockPath,
-      `.participant-${randomUUID()}.tmp`
-    );
+    let stagingPath: string | undefined;
     try {
+      ensureSelfIgnoredLockDirectory(lockPath);
+      stagingPath = path.join(
+        lockPath,
+        `.participant-${randomUUID()}.tmp`
+      );
       fs.writeFileSync(stagingPath, JSON.stringify(participant), {
         encoding: 'utf8',
         flag: 'wx',
       });
-      fs.linkSync(stagingPath, filePath);
+      try {
+        fs.linkSync(stagingPath, filePath);
+      } catch (linkError) {
+        const code = (linkError as NodeJS.ErrnoException).code;
+        if (code === 'ENOENT' || code === 'EEXIST') {
+          throw linkError;
+        }
+        // Some filesystems do not support hard links. The participant name
+        // contains a fresh UUID, so rename remains an atomic no-overwrite
+        // publication in practice while preserving cleanup of the staging file.
+        fs.renameSync(stagingPath, filePath);
+      }
       return filePath;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        if (Date.now() >= deadline) {
+          throw new SchemaSyncLockError(
+            `schema_sync_locked: timed out creating a participant in '${lockPath}'`
+          );
+        }
         continue;
       }
       throw error;
     } finally {
-      fs.rmSync(stagingPath, { force: true });
+      if (stagingPath) {
+        fs.rmSync(stagingPath, { force: true });
+      }
     }
   }
 }
@@ -250,7 +275,8 @@ async function acquireSchemaSyncLock(
   const choosingPath = createParticipantFile(
     lockPath,
     `claim-${token}${CHOOSING_SUFFIX}`,
-    baseParticipant
+    baseParticipant,
+    deadline
   );
   let ticketPath: string | null = null;
 
@@ -272,7 +298,8 @@ async function acquireSchemaSyncLock(
     ticketPath = createParticipantFile(
       lockPath,
       `claim-${token}${TICKET_SUFFIX}`,
-      participant
+      participant,
+      deadline
     );
     removeOwnFile(choosingPath, token);
 
@@ -296,6 +323,28 @@ async function acquireSchemaSyncLock(
         return { lockPath, token, ticketPath };
       }
       if (Date.now() >= deadline) {
+        // Time can cross the deadline between the scans above and this check.
+        // Give malformed participants one final expiry/reclamation sweep before
+        // reporting a live owner; otherwise a participant expiring exactly at
+        // the deadline is incorrectly treated as still holding the lock.
+        const choosingAfterDeadline = listParticipantFiles(
+          lockPath,
+          CHOOSING_SUFFIX,
+          timeoutMs
+        ).some((entry) => entry.participant?.token !== token);
+        const predecessorAfterDeadline = listParticipantFiles(
+          lockPath,
+          TICKET_SUFFIX,
+          timeoutMs
+        ).some(
+          (entry) =>
+            entry.participant === null ||
+            (entry.participant.token !== token &&
+              precedes(entry.participant, participant))
+        );
+        if (!choosingAfterDeadline && !predecessorAfterDeadline) {
+          return { lockPath, token, ticketPath };
+        }
         throw new SchemaSyncLockError(
           `schema_sync_locked: another schema synchronization owns '${lockPath}'`
         );

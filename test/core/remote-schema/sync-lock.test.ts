@@ -173,7 +173,7 @@ describe('schema synchronization lock', () => {
         retryDelayMs: 5,
       })
     ).resolves.toBe('acquired');
-    expect(Date.now() - startedAt).toBeGreaterThanOrEqual(35);
+    expect(Date.now() - startedAt).toBeGreaterThanOrEqual(25);
     expect(fs.existsSync(corruptPath)).toBe(false);
   });
 

@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import {
   getGlobalDataDir,
@@ -33,6 +35,22 @@ const REMOVED_ONLY_DELTA_SPEC = `## REMOVED Requirements
 
 ### Requirement: Old billing SHALL go away
 `;
+
+const gitEnv = {
+  ...process.env,
+  GIT_AUTHOR_NAME: 'OpenSpec Test',
+  GIT_AUTHOR_EMAIL: 'openspec@example.test',
+  GIT_COMMITTER_NAME: 'OpenSpec Test',
+  GIT_COMMITTER_EMAIL: 'openspec@example.test',
+};
+
+function git(cwd: string, ...args: string[]): void {
+  execFileSync('git', args, {
+    cwd,
+    env: gitEnv,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+}
 
 // MODIFIED deltas against a spec that does not exist make buildUpdatedSpec
 // throw during the prepare pass.
@@ -276,6 +294,95 @@ artifacts:
       expect(parseJson(instructions)).toMatchObject({
         schemaName: 'consumer-flow',
         template: '# Proposal\n',
+      });
+    });
+
+    it('keeps remote schema resolution in the consumer while instructions use store context', async () => {
+      const localRepo = path.join(tempDir, 'remote-schema-consumer');
+      const remoteRepo = path.join(tempDir, 'remote-schema-source');
+      const remoteSchemaDir = path.join(remoteRepo, 'schemas', 'remote-flow');
+      createOpenSpecRoot(localRepo);
+      fs.mkdirSync(path.join(remoteSchemaDir, 'templates'), { recursive: true });
+      fs.writeFileSync(
+        path.join(remoteSchemaDir, 'schema.yaml'),
+        `name: remote-flow
+version: 1
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Remote proposal
+    template: proposal.md
+    requires: []
+`
+      );
+      fs.writeFileSync(
+        path.join(remoteSchemaDir, 'templates', 'proposal.md'),
+        '# Remote Proposal\n'
+      );
+      git(remoteRepo, 'init', '-b', 'main');
+      git(remoteRepo, 'add', '-A');
+      git(remoteRepo, 'commit', '-m', 'remote schema');
+
+      fs.writeFileSync(
+        path.join(localRepo, 'openspec', 'config.yaml'),
+        `schema: remote-flow
+schemaSources:
+  remote-flow:
+    git: ${pathToFileURL(remoteRepo).href}
+    ref: main
+    path: schemas/remote-flow
+`
+      );
+      fs.writeFileSync(
+        path.join(storeRoot, 'openspec', 'config.yaml'),
+        `schema: spec-driven
+context: Store planning context
+rules:
+  proposal:
+    - Keep the store rule
+`
+      );
+
+      const sync = await runCLI(['schema', 'sync', 'remote-flow', '--json'], {
+        cwd: localRepo,
+        env,
+      });
+      expect(sync.exitCode).toBe(0);
+      expect(parseJson(sync)).toMatchObject({ synced: true });
+      expect(
+        fs.existsSync(path.join(localRepo, 'openspec', 'schemas.lock.yaml'))
+      ).toBe(true);
+      expect(
+        fs.existsSync(path.join(storeRoot, 'openspec', 'schemas.lock.yaml'))
+      ).toBe(false);
+
+      const nested = path.join(localRepo, 'src', 'nested');
+      fs.mkdirSync(nested, { recursive: true });
+      const created = await runCLI(
+        ['new', 'change', 'remote-schema-change', '--store', 'team-context', '--json'],
+        { cwd: nested, env }
+      );
+      expect(created.exitCode).toBe(0);
+      expect(parseJson(created).change).toMatchObject({ schema: 'remote-flow' });
+
+      const instructions = await runCLI(
+        [
+          'instructions',
+          'proposal',
+          '--change',
+          'remote-schema-change',
+          '--store',
+          'team-context',
+          '--json',
+        ],
+        { cwd: nested, env }
+      );
+      expect(instructions.exitCode).toBe(0);
+      expect(parseJson(instructions)).toMatchObject({
+        schemaName: 'remote-flow',
+        template: '# Remote Proposal\n',
+        context: 'Store planning context',
+        rules: ['Keep the store rule'],
       });
     });
 
@@ -657,6 +764,123 @@ operations:
       const json = parseJson(result);
       expect(json.changes).toEqual([]);
       expect(json.root.source).toBe('implicit');
+    });
+
+    it('keeps list working for a legacy project.md root when no stores are registered', async () => {
+      const isolatedEnv = {
+        ...env,
+        XDG_DATA_HOME: path.join(tempDir, 'data-empty'),
+      };
+      fs.mkdirSync(path.join(appRepo, 'openspec'), { recursive: true });
+      fs.writeFileSync(path.join(appRepo, 'openspec', 'project.md'), '# Project\n');
+
+      const result = await runCLI(['list', '--json'], { cwd: appRepo, env: isolatedEnv });
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toBe('');
+
+      const json = parseJson(result);
+      expect(json.changes).toEqual([]);
+      expect({
+        ...json.root,
+        path: fs.realpathSync.native(json.root.path),
+      }).toEqual({ path: fs.realpathSync.native(appRepo), source: 'implicit' });
+    });
+
+    it('rejects implicit roots for bulk validation and listing', async () => {
+      const isolatedEnv = {
+        ...env,
+        XDG_DATA_HOME: path.join(tempDir, 'data-empty'),
+      };
+
+      for (const args of [
+        ['validate', '--all'],
+        ['validate', '--changes'],
+        ['validate', '--specs'],
+        ['list'],
+        ['list', '--specs'],
+      ]) {
+        const result = await runCLI(args, { cwd: appRepo, env: isolatedEnv });
+        expect(result.exitCode).toBe(1);
+        expect(result.stdout).toBe('');
+        expect(result.stderr).toContain(
+          'Error: No OpenSpec root found from the current directory.'
+        );
+        expect(result.stderr).not.toContain('No items found to validate.');
+        expect(result.stderr).not.toContain('No active changes found.');
+        expect(result.stderr).not.toContain('No specs found.');
+      }
+    });
+
+    it('reports missing roots as JSON instead of fabricating an implicit root', async () => {
+      const isolatedEnv = {
+        ...env,
+        XDG_DATA_HOME: path.join(tempDir, 'data-empty'),
+      };
+
+      for (const args of [
+        ['validate', '--all', '--json'],
+        ['validate', '--changes', '--json'],
+        ['validate', '--specs', '--json'],
+        ['list', '--json'],
+        ['list', '--specs', '--json'],
+      ]) {
+        const result = await runCLI(args, { cwd: appRepo, env: isolatedEnv });
+        expect(result.exitCode).toBe(1);
+        expect(result.stderr).toBe('');
+
+        const json = parseJson(result);
+        if (args[0] === 'validate') {
+          expect(json).not.toHaveProperty('root');
+        } else {
+          expect(json.root).toBeNull();
+          expect(json[args.includes('--specs') ? 'specs' : 'changes']).toEqual([]);
+        }
+        expect(json.status[0]).toEqual(
+          expect.objectContaining({
+            severity: 'error',
+            code: 'no_openspec_root',
+            message: 'No OpenSpec root found from the current directory.',
+          })
+        );
+      }
+    });
+
+    it('still accepts an existing root with no items', async () => {
+      const isolatedEnv = {
+        ...env,
+        XDG_DATA_HOME: path.join(tempDir, 'data-empty'),
+      };
+      createOpenSpecRoot(appRepo);
+
+      const result = await runCLI(['validate', '--all', '--json'], {
+        cwd: appRepo,
+        env: isolatedEnv,
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toBe('');
+
+      const json = parseJson(result);
+      expect(json.items).toEqual([]);
+      expect(json.summary.totals).toEqual({ items: 0, passed: 0, failed: 0 });
+      expect({
+        ...json.root,
+        path: fs.realpathSync.native(json.root.path),
+      }).toEqual({ path: fs.realpathSync.native(appRepo), source: 'nearest' });
+    });
+
+    it('preserves direct validation behavior without a root', async () => {
+      const isolatedEnv = {
+        ...env,
+        XDG_DATA_HOME: path.join(tempDir, 'data-empty'),
+      };
+
+      const result = await runCLI(['validate', 'missing'], {
+        cwd: appRepo,
+        env: isolatedEnv,
+      });
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain("Unknown item 'missing'.");
+      expect(result.stderr).not.toContain('No OpenSpec root found');
     });
   });
 
