@@ -32,7 +32,7 @@ function occurrenceCount(body: string, value: string): number {
 // East Asian "Ambiguous Width" glyphs: box drawing, block elements,
 // geometric shapes, arrows, bullets, and the check/cross dingbats. Many
 // terminals render these two columns wide.
-const AMBIGUOUS_WIDTH = /[\u2022\u2190-\u21FF\u2500-\u25FF\u2713\u2717]/;
+const AMBIGUOUS_WIDTH = /[\u2022\u2190-\u21FF\u2500-\u25FF\u2713-\u2718]/;
 
 function fencedBlockLines(body: string): Array<[number, string]> {
   const lines: Array<[number, string]> = [];
