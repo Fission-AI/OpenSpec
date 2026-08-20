@@ -72,12 +72,8 @@ Depending on what the user brings, you might:
 +------------------------------------------+
 \`\`\`
 
-**Important — use plain ASCII for all diagram characters:**
-- Box borders: \`+\`, \`-\`, \`|\` instead of \`┌\`, \`─\`, \`│\`
-- Arrows: \`-->\`, \`<--\`, \`^\`, \`v\` instead of \`→\`, \`←\`, \`↑\`, \`↓\`
-- Connections: \`|\` instead of \`│\`
-
-Unicode box-drawing and arrow characters (→, ←, ─, │, ┌, etc.) are "Ambiguous Width" in the Unicode standard — they render as double-width columns in many terminal configurations. Inside fixed-width padded boxes this causes the right border to appear misaligned or detached, since lines with different numbers of these characters end up at different visual widths.
+**Draw with plain ASCII only** — borders \`+\` \`-\` \`|\`, arrows \`-->\` \`<--\` \`^\` \`v\`, markers \`*\` \`x\`.
+Unicode box-drawing, arrow, and bullet glyphs (─ │ ┌ → ← • ✓) are East Asian "Ambiguous Width": many terminals render them two columns wide, so a padded box or aligned table drifts and its right edge detaches.
 
 **Surface risks and unknowns**
 - Identify what could go wrong
@@ -258,14 +254,14 @@ You: That changes everything.
      +-------------------------------------------------+
 
      Key constraints:
-     • No daemon running
-     • Must work offline
-     • Single user
+     - No daemon running
+     - Must work offline
+     - Single user
 
                   SQLite          Postgres
-     Deployment   embedded ✓      needs server ✗
-     Offline      yes ✓           no ✗
-     Single file  yes ✓           no ✗
+     Deployment   embedded        needs server
+     Offline      yes             no
+     Single file  yes             no
 
      SQLite. Not even close.
 
@@ -394,12 +390,8 @@ Depending on what the user brings, you might:
 +------------------------------------------+
 \`\`\`
 
-**Important — use plain ASCII for all diagram characters:**
-- Box borders: \`+\`, \`-\`, \`|\` instead of \`┌\`, \`─\`, \`│\`
-- Arrows: \`-->\`, \`<--\`, \`^\`, \`v\` instead of \`→\`, \`←\`, \`↑\`, \`↓\`
-- Connections: \`|\` instead of \`│\`
-
-Unicode box-drawing and arrow characters (→, ←, ─, │, ┌, etc.) are "Ambiguous Width" in the Unicode standard — they render as double-width columns in many terminal configurations. Inside fixed-width padded boxes this causes the right border to appear misaligned or detached, since lines with different numbers of these characters end up at different visual widths.
+**Draw with plain ASCII only** — borders \`+\` \`-\` \`|\`, arrows \`-->\` \`<--\` \`^\` \`v\`, markers \`*\` \`x\`.
+Unicode box-drawing, arrow, and bullet glyphs (─ │ ┌ → ← • ✓) are East Asian "Ambiguous Width": many terminals render them two columns wide, so a padded box or aligned table drifts and its right edge detaches.
 
 **Surface risks and unknowns**
 - Identify what could go wrong
