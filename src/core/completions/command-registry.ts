@@ -14,6 +14,11 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         takesValue: true,
       },
       {
+        name: 'language',
+        description: 'Write new OpenSpec artifacts in this language',
+        takesValue: true,
+      },
+      {
         name: 'force',
         description: 'Auto-cleanup legacy files without prompting',
       },
