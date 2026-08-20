@@ -3,10 +3,11 @@
 ### Requirement: Spec validation SHALL report a Purpose left as the archive placeholder
 
 The `validate` command SHALL report, as a warning against the spec's Purpose, a
-`## Purpose` that is still the placeholder `openspec archive` writes for a new
-capability rather than a Purpose someone wrote. The report SHALL name the line
-the placeholder is on when it can be located, and SHALL omit the line rather than
-point at the wrong text when it cannot.
+`## Purpose` that is still a placeholder rather than a Purpose someone wrote:
+the sentence `openspec archive` writes for a new capability, or a marker left in
+its place. The report SHALL name the line the placeholder is on when it can be
+located, and SHALL omit the line rather than point at the wrong text when it
+cannot.
 
 The remediation SHALL say to edit the main spec directly, because a `## Purpose`
 in a delta is read only when a capability is created and therefore cannot replace
@@ -22,9 +23,16 @@ open question is not a placeholder:
 
 - the sentence archive itself writes SHALL be reported wherever it appears in the
   Purpose, since nobody writes it by accident;
-- otherwise only a `TBD` marker opening the Purpose SHALL be reported;
-- a `TBD` appearing inside a sentence SHALL NOT be reported;
+- otherwise only a `TBD` or `TODO` marker opening the Purpose SHALL be reported.
+  The two words SHALL be read the same way, because which one got typed says
+  nothing about whether the Purpose was written;
+- a marker appearing inside a sentence SHALL NOT be reported;
 - a word that merely begins with those letters SHALL NOT be reported.
+
+Text inside a fenced code block SHALL NOT be read as the Purpose speaking, for
+either rule. A Purpose that quotes the placeholder is documenting it rather than
+carrying it, and a check that fails the document explaining the placeholder
+teaches its readers to ignore the warning.
 
 An empty Purpose SHALL NOT be reported by this requirement, which the
 empty-Purpose error already covers. A Purpose reported as a placeholder SHALL NOT
@@ -56,9 +64,23 @@ passed before this requirement existed.
 - **THEN** report no placeholder warning, because the marker does not open the Purpose
 - **AND** the spec is reported valid
 
+#### Scenario: A Purpose left as a TODO is reported like a TBD
+
+- **GIVEN** a Purpose consisting only of "TODO"
+- **WHEN** `openspec validate --specs --strict` runs
+- **THEN** report the placeholder warning, the same finding a bare "TBD" reports
+
+#### Scenario: A Purpose quoting the placeholder inside a fence is not reported
+
+- **GIVEN** a Purpose that explains the placeholder and shows it inside a fenced
+  code block
+- **WHEN** `openspec validate --specs --strict` runs
+- **THEN** report no placeholder warning
+- **AND** the spec is reported valid
+
 #### Scenario: A word beginning with the marker is not reported
 
-- **GIVEN** a Purpose opening "TBDs raised during design review are tracked in the linked issue."
+- **GIVEN** a Purpose opening "TBDs raised during design review are tracked in the linked issue.", or the same sentence opening with "TODOs"
 - **WHEN** `openspec validate --specs --strict` runs
 - **THEN** report no placeholder warning
 

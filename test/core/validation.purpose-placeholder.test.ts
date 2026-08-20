@@ -107,6 +107,36 @@ describe('Purpose placeholder validation', () => {
       expect(found).toHaveLength(1);
       expect(found[0].message).toBe(VALIDATION_MESSAGES.PURPOSE_IS_PLACEHOLDER);
     });
+
+    it('reports a bare TODO the same way, since it is the same non-answer', async () => {
+      const report = await new Validator(true).validateSpecContent('widgets', specWith('TODO'));
+
+      const found = purposeIssues(report.issues);
+      expect(found).toHaveLength(1);
+      expect(found[0].message).toBe(VALIDATION_MESSAGES.PURPOSE_IS_PLACEHOLDER);
+    });
+  });
+
+  describe('a Purpose that documents the placeholder is not one', () => {
+    it('passes --strict while quoting the sentence archive writes inside a fence', async () => {
+      // OpenSpec's own docs are the population most likely to quote this text.
+      // A check that fails the document explaining what the placeholder is
+      // teaches people that the warning is noise, which costs more than the one
+      // finding it adds.
+      const purpose = [
+        'Documents the Purpose `openspec archive` writes for a capability a delta introduced',
+        'without one, and what to replace it with:',
+        '',
+        '```',
+        ARCHIVE_TEXT,
+        '```',
+      ].join('\n');
+
+      const report = await new Validator(true).validateSpecContent('widgets', specWith(purpose));
+
+      expect(report.valid).toBe(true);
+      expect(purposeIssues(report.issues)).toEqual([]);
+    });
   });
 
   describe('archive is unaffected', () => {

@@ -653,7 +653,8 @@ export class Validator {
     // The placeholder is longer than MIN_PURPOSE_LENGTH, so the brevity check
     // below cannot reach it; it is reported on its own terms instead. Checked
     // first because a hand-written "TBD" is both a placeholder and too brief,
-    // and only one of those two tells the author what to do.
+    // and only one of those two tells the author what to do. (A "TODO" opening
+    // the Purpose reads the same way, so it is the same finding.)
     const placeholder = findPurposePlaceholderIssue(spec.overview, content);
     if (placeholder) {
       issues.push({

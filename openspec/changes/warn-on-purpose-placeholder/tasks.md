@@ -83,3 +83,29 @@ were not, and only reverting them one at a time showed it.
       neither rule matches empty text, so the branch changed no behaviour.
       The requirement that an empty Purpose goes unreported is unchanged and
       still asserted; it now falls out of the two rules instead of a third branch
+
+## 7. Answer the two questions the issue left open
+
+#1670 asked whether the finding should be an error and whether `TODO` should
+count. Warning stands, for the upgrade-safety reason in section 1. The rest is
+what changed after review.
+
+- [x] 7.1 Read a `TODO` opening the Purpose as the same finding as a `TBD`.
+      Nothing OpenSpec writes produces one, but the marker an author leaves is
+      whichever word they reach for, and a Purpose reading `TODO: fill in` is as
+      unwritten as one reading `TBD`. The narrow rule is unchanged: only the
+      opening position counts, so `TODOs are tracked in the issue` and a `TODO`
+      raised mid-sentence are still authored prose
+- [x] 7.2 Read fenced code in the Purpose as quoted material rather than as the
+      Purpose speaking, through the `buildCodeFenceMask` the requirement and
+      structure parsers already share. Without it a Purpose that documents the
+      placeholder is reported as being one, which fails the document that
+      explains the check to the person reading the check's output
+- [x] 7.3 Skip fenced lines when locating the placeholder too, so a `## Purpose`
+      or `## Requirements` quoted in a fence can neither be mistaken for the
+      section header nor end the section early
+- [x] 7.4 Widen the message to name both what archive writes and a marker left in
+      its place, since one message now covers both
+- [x] 7.5 Mutation-check every new guard by reverting it in turn: dropping `TODO`
+      kills 3 tests, unmasking detection kills 2, unmasking the line locator
+      kills 3, and unmasking the header search kills 1

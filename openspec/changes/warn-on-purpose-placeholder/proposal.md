@@ -28,8 +28,10 @@ been instructions, which is the mechanism that report described as unreliable.
   delta is read only when a capability is created and cannot replace an existing
   one.
 - Detection stays narrow: the sentence archive itself writes counts wherever it
-  appears in the Purpose, and otherwise only a `TBD` opening the Purpose counts.
-  A `TBD` inside a sentence is authored prose and is left alone.
+  appears in the Purpose, and otherwise only a `TBD` or `TODO` opening the
+  Purpose counts. A marker inside a sentence is authored prose and is left alone,
+  and so is anything inside a fenced code block, which is a Purpose quoting the
+  placeholder rather than carrying it.
 - A Purpose reported as a placeholder is no longer also reported as too brief, so
   a bare `TBD` yields one finding rather than two.
 - Not breaking: the finding is a warning, so a project that already carries

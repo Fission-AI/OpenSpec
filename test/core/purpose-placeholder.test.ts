@@ -55,6 +55,20 @@ describe('findPurposePlaceholderIssue', () => {
       expect(findPurposePlaceholderIssue(purpose, specWith(purpose))).not.toBeNull();
     });
 
+    it('reports a bare TODO, the other word for the same non-answer', () => {
+      expect(findPurposePlaceholderIssue('TODO', specWith('TODO'))).toEqual({ line: 4 });
+    });
+
+    it('reports a TODO opening a longer placeholder sentence', () => {
+      const purpose = 'TODO: describe what this capability is for.';
+      expect(findPurposePlaceholderIssue(purpose, specWith(purpose))).toEqual({ line: 4 });
+    });
+
+    it('ignores case in a leading TODO too', () => {
+      const purpose = 'todo - write this later';
+      expect(findPurposePlaceholderIssue(purpose, specWith(purpose))).not.toBeNull();
+    });
+
     it('reports the archive sentence even when it does not open the Purpose', () => {
       // Someone typed a line above the placeholder and left it in place. The
       // sentence is archive's own output wherever it sits, so it still counts.
@@ -86,6 +100,17 @@ describe('findPurposePlaceholderIssue', () => {
       expect(findPurposePlaceholderIssue(purpose, specWith(purpose))).toBeNull();
     });
 
+    it('does not report a word that merely starts with TODO', () => {
+      const purpose = 'TODOs raised during design review are tracked in the linked issue.';
+      expect(findPurposePlaceholderIssue(purpose, specWith(purpose))).toBeNull();
+    });
+
+    it('does not report a TODO raised mid-sentence', () => {
+      const purpose =
+        'Bounds how often a failed delivery is retried. Tuning the budget is a TODO for the load tests.';
+      expect(findPurposePlaceholderIssue(purpose, specWith(purpose))).toBeNull();
+    });
+
     it('does not report the generated sentence when only its opening half is present', () => {
       // Quoting the placeholder's opening is not carrying the placeholder. The
       // suffix has to follow the prefix, or a Purpose that documents the message
@@ -104,6 +129,87 @@ describe('findPurposePlaceholderIssue', () => {
 
     it('does not report an ordinary short Purpose, which PURPOSE_TOO_BRIEF covers', () => {
       expect(findPurposePlaceholderIssue('Does stuff.', specWith('Does stuff.'))).toBeNull();
+    });
+  });
+
+  describe('reads fenced code as quoted material, not as the Purpose', () => {
+    const fenced = (body: string) => ['```', body, '```'].join('\n');
+
+    it('does not report a Purpose that quotes the generated sentence in a fence', () => {
+      // A spec documenting the placeholder carries the sentence without being
+      // it. Reporting that is the check failing the one document that explains
+      // what it is for.
+      const purpose = [
+        'Documents the Purpose `openspec archive` writes for a new capability:',
+        '',
+        fenced(ARCHIVE_TEXT),
+      ].join('\n');
+
+      expect(findPurposePlaceholderIssue(purpose, specWith(purpose))).toBeNull();
+    });
+
+    it('does not report a fenced marker that opens the fence but not the Purpose', () => {
+      const purpose = ['Shows the marker an unfinished spec carries:', '', fenced('TBD')].join('\n');
+
+      expect(findPurposePlaceholderIssue(purpose, specWith(purpose))).toBeNull();
+    });
+
+    it('does not report a tilde fence either, since both spellings are fences', () => {
+      const purpose = ['Documents the placeholder:', '', '~~~', ARCHIVE_TEXT, '~~~'].join('\n');
+
+      expect(findPurposePlaceholderIssue(purpose, specWith(purpose))).toBeNull();
+    });
+
+    it('still reports a placeholder that sits outside the fence', () => {
+      // The exemption is for what a fence contains, not for a Purpose that
+      // happens to contain a fence.
+      const purpose = [fenced('an unrelated example'), '', ARCHIVE_TEXT].join('\n');
+
+      expect(findPurposePlaceholderIssue(purpose, specWith(purpose))).toEqual({ line: 8 });
+    });
+
+    it('names the unfenced line, skipping a fenced copy above it', () => {
+      const purpose = [fenced(ARCHIVE_TEXT), '', ARCHIVE_TEXT].join('\n');
+
+      expect(findPurposePlaceholderIssue(purpose, specWith(purpose))).toEqual({ line: 8 });
+    });
+
+    it('finds the real Purpose header, not one quoted in a fence above it', () => {
+      // A spec whose preamble shows what a spec looks like has a `## Purpose`
+      // in it that is not this spec's. Starting the scan there walks straight
+      // into the real header and reports no line at all.
+      const content = [
+        '# widgets Specification',
+        '',
+        'Every capability spec opens like this:',
+        '',
+        '```',
+        '## Purpose',
+        'TBD',
+        '```',
+        '',
+        '## Purpose',
+        ARCHIVE_TEXT,
+        '',
+        '## Requirements',
+        '### Requirement: Retries are bounded',
+        'The system SHALL stop retrying a delivery after the configured budget.',
+        '',
+        '#### Scenario: Budget exhausted',
+        '- **WHEN** the budget is exhausted',
+        '- **THEN** the delivery is abandoned',
+        '',
+      ].join('\n');
+
+      expect(findPurposePlaceholderIssue(ARCHIVE_TEXT, content)).toEqual({ line: 11 });
+    });
+
+    it('does not let a fenced heading end the Purpose section early', () => {
+      // `## Requirements` inside a fence is an example of a spec, not the start
+      // of this one's requirements - so the locator must read past it.
+      const purpose = [fenced('## Requirements'), '', ARCHIVE_TEXT].join('\n');
+
+      expect(findPurposePlaceholderIssue(purpose, specWith(purpose))).toEqual({ line: 8 });
     });
   });
 
