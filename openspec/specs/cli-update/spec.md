@@ -103,7 +103,7 @@ The update command SHALL refresh existing slash command files for configured too
 - **THEN** refresh each file using shared templates
 - **AND** transform command references to hyphen form (for example `/opsx-propose`), as for every tool whose command files are named `opsx-<id>`
 - **AND** ensure templates include instructions for the relevant workflow stage
-- **AND** ensure the archive command includes `$ARGUMENTS` placeholder in frontmatter for accepting change ID arguments
+- **AND** ensure the archive command includes the `$ARGUMENTS` placeholder in the file body for accepting change ID arguments
 
 #### Scenario: Legacy OpenCode command path cleanup
 - **WHEN** a project still has command files under the legacy singular path `.opencode/command/` (for example `opsx-*.md` or `openspec-*.md`)

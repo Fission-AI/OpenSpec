@@ -90,7 +90,7 @@ The system SHALL validate artifact IDs in rules against the schema when instruct
 
 #### Scenario: Unknown artifact ID in rules
 - **WHEN** instructions loaded and config has `rules: { unknownartifact: [...] }`
-- **THEN** warning emitted: "Unknown artifact ID in rules: 'unknownartifact'. Valid IDs for schema 'spec-driven': design, proposal, specs, tasks"
+- **THEN** warning emitted: "Unknown artifact ID in rules: \"unknownartifact\". It matches no artifact in any available schema. Known artifact IDs: design, proposal, specs, tasks"
 
 #### Scenario: Multiple unknown artifact IDs
 - **WHEN** instructions loaded and config has multiple unknown artifact IDs
@@ -99,4 +99,3 @@ The system SHALL validate artifact IDs in rules against the schema when instruct
 #### Scenario: Validation warnings shown once per session
 - **WHEN** instructions loaded multiple times in same CLI session
 - **THEN** each unique validation warning is shown only once (cached)
-
