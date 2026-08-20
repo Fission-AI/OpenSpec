@@ -40,23 +40,46 @@ describe('extractRequirementBlock', () => {
   it('returns the full block for an exact name match', () => {
     const block = extractRequirementBlock(SAMPLE_SPEC, 'Load project config');
     expect(block).not.toBeNull();
-    expect(block).toContain('### Requirement: Load project config');
-    expect(block).toContain('The system SHALL read config.');
-    expect(block).toContain('#### Scenario: Valid config');
+    expect(block!.exact).toBe(true);
+    expect(block!.name).toBe('Load project config');
+    expect(block!.raw).toContain('### Requirement: Load project config');
+    expect(block!.raw).toContain('The system SHALL read config.');
+    expect(block!.raw).toContain('#### Scenario: Valid config');
     // Should NOT contain the next requirement
-    expect(block).not.toContain('Support .yml alias');
+    expect(block!.raw).not.toContain('Support .yml alias');
   });
 
-  it('matches case-insensitively', () => {
+  it('matches case-insensitively, and reports the match as inexact', () => {
     const block = extractRequirementBlock(SAMPLE_SPEC, 'load PROJECT config');
     expect(block).not.toBeNull();
-    expect(block).toContain('### Requirement: Load project config');
+    expect(block!.raw).toContain('### Requirement: Load project config');
+    // Archive matches names exactly, so the caller has to be able to say so.
+    expect(block!.exact).toBe(false);
+    expect(block!.name).toBe('Load project config');
   });
 
-  it('matches with extra whitespace', () => {
+  it('matches with extra outer whitespace and stays exact', () => {
     const block = extractRequirementBlock(SAMPLE_SPEC, '  Load project config  ');
     expect(block).not.toBeNull();
-    expect(block).toContain('### Requirement: Load project config');
+    expect(block!.raw).toContain('### Requirement: Load project config');
+    expect(block!.exact).toBe(true);
+  });
+
+  it('matches through interior whitespace, and reports the match as inexact', () => {
+    const block = extractRequirementBlock(SAMPLE_SPEC, 'Load  project   config');
+    expect(block).not.toBeNull();
+    expect(block!.raw).toContain('### Requirement: Load project config');
+    expect(block!.exact).toBe(false);
+  });
+
+  it('prefers the exact match over a fold match', () => {
+    const spec = SAMPLE_SPEC.replace(
+      '### Requirement: Enforce size limit',
+      '### Requirement: LOAD PROJECT CONFIG'
+    );
+    const block = extractRequirementBlock(spec, 'Load project config');
+    expect(block!.exact).toBe(true);
+    expect(block!.raw).toContain('The system SHALL read config.');
   });
 
   it('returns null when name does not match', () => {
@@ -67,8 +90,8 @@ describe('extractRequirementBlock', () => {
   it('extracts the last requirement in a file (no following header)', () => {
     const block = extractRequirementBlock(SAMPLE_SPEC, 'Enforce size limit');
     expect(block).not.toBeNull();
-    expect(block).toContain('### Requirement: Enforce size limit');
-    expect(block).toContain('#### Scenario: Over limit');
+    expect(block!.raw).toContain('### Requirement: Enforce size limit');
+    expect(block!.raw).toContain('#### Scenario: Over limit');
   });
 
   it('does not match requirement headers outside the Requirements section', () => {
@@ -97,14 +120,14 @@ The system SHALL do something.
 
     const realBlock = extractRequirementBlock(specWithPreamble, 'Real requirement');
     expect(realBlock).not.toBeNull();
-    expect(realBlock).toContain('The system SHALL do something.');
+    expect(realBlock!.raw).toContain('The system SHALL do something.');
   });
 
   it('handles Windows-style line endings', () => {
     const windowsSpec = SAMPLE_SPEC.replace(/\n/g, '\r\n');
     const block = extractRequirementBlock(windowsSpec, 'Load project config');
     expect(block).not.toBeNull();
-    expect(block).toContain('### Requirement: Load project config');
+    expect(block!.raw).toContain('### Requirement: Load project config');
   });
 });
 

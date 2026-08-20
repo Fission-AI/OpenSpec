@@ -189,7 +189,7 @@ describe('openspec show --diff', () => {
 
     const output = run(['show', 'no-match', '--type', 'change', '--diff']);
     expect(output).toContain('MODIFIED: Nonexistent base');
-    expect(output).toContain('No matching base requirement found');
+    expect(output).toContain('No matching main requirement found');
   });
 
   // Task 5.3: no delta specs — say so rather than printing an empty heading
@@ -233,6 +233,77 @@ describe('openspec show --diff', () => {
     expect(output).toContain('REMOVED: Session management');
     expect(output).toContain('Sessions moved to the token service.');
     expect(output).toContain('Callers switch to `POST /tokens`.');
+  });
+
+  it('flags a MODIFIED header that differs from the main spec only in spacing', async () => {
+    const changeDir = path.join(changesDir, 'near-miss');
+    await fs.mkdir(path.join(changeDir, 'specs', 'auth'), { recursive: true });
+    await fs.writeFile(
+      path.join(changeDir, 'proposal.md'),
+      '## Why\nTypo.\n\n## What Changes\n- **auth:** Modify login\n',
+      'utf-8'
+    );
+    await fs.writeFile(
+      path.join(changeDir, 'specs', 'auth', 'spec.md'),
+      [
+        '## MODIFIED Requirements',
+        '',
+        '### Requirement: User  login',
+        '',
+        'The system SHALL allow users to log in with a passkey.',
+        '',
+        '#### Scenario: Valid credentials',
+        '- **WHEN** user presents a passkey',
+        '- **THEN** system authenticates the user',
+        '',
+      ].join('\n'),
+      'utf-8'
+    );
+
+    const output = run(['show', 'near-miss', '--type', 'change', '--diff']);
+    // The diff the author meant is still shown...
+    expect(output).toContain('+The system SHALL allow users to log in with a passkey.');
+    // ...along with the mismatch archive would reject.
+    expect(output).toContain('only in case or spacing');
+    expect(output).toContain('"User login"');
+  });
+
+  it('warns instead of inventing a diff when a MODIFIED spec has no main spec', async () => {
+    const changeDir = path.join(changesDir, 'no-main-spec');
+    await fs.mkdir(path.join(changeDir, 'specs', 'billing'), { recursive: true });
+    await fs.writeFile(
+      path.join(changeDir, 'proposal.md'),
+      '## Why\nBilling.\n\n## What Changes\n- **billing:** Modify billing\n',
+      'utf-8'
+    );
+    await fs.writeFile(
+      path.join(changeDir, 'specs', 'billing', 'spec.md'),
+      [
+        '## MODIFIED Requirements',
+        '',
+        '### Requirement: Billing',
+        '',
+        'The system SHALL bill monthly.',
+        '',
+        '#### Scenario: Monthly',
+        '- **WHEN** a month ends',
+        '- **THEN** a bill is sent',
+        '',
+      ].join('\n'),
+      'utf-8'
+    );
+
+    const output = run(['show', 'no-main-spec', '--type', 'change', '--diff']);
+    expect(output).toContain('MODIFIED: Billing');
+    expect(output).toContain('No main spec at openspec/specs/billing/spec.md');
+    // The requirement text is still shown, but not dressed up as a diff.
+    expect(output).toContain('The system SHALL bill monthly.');
+    expect(output).not.toContain('+The system SHALL bill monthly.');
+
+    const json = JSON.parse(run(['show', 'no-main-spec', '--type', 'change', '--diff', '--json']));
+    const modified = json.deltas.find((d: any) => d.operation === 'MODIFIED');
+    expect(modified.diff).toBeUndefined();
+    expect(modified.warning).toContain('No main spec at openspec/specs/billing/spec.md');
   });
 
   it('diffs a nested capability (specs/<area>/<id>/spec.md)', async () => {

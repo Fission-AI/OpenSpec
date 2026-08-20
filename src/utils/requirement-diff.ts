@@ -1,28 +1,53 @@
 import { structuredPatch } from 'diff';
 import {
   extractRequirementsSection,
+  foldRequirementName,
   normalizeRequirementName,
 } from '../core/parsers/requirement-blocks.js';
 
+/** A main-spec requirement block, and how its header matched the delta's. */
+export interface MatchedRequirementBlock {
+  raw: string;
+  /** The header name as the main spec spells it. */
+  name: string;
+  /**
+   * False when the two headers differ only in case or interior spacing. Archive
+   * matches names exactly, so an inexact match is a real problem to report even
+   * though the diff below it is still the one the author meant.
+   */
+  exact: boolean;
+}
+
 /**
- * Extract the raw markdown block for a requirement by name from a spec file.
+ * Find the raw markdown block for a requirement by name in a spec file.
  *
  * Delegates to extractRequirementsSection() which already handles code fences,
- * section boundaries, and requirement header parsing. We just look up by name.
+ * section boundaries, and requirement header parsing. We just look up by name:
+ * exactly first, then falling back to the shared case/whitespace fold so a
+ * header that differs only in spelling still shows its diff, flagged inexact.
  *
- * Returns null if no matching requirement header is found.
+ * Returns null if no requirement header matches either way.
  */
-export function extractRequirementBlock(specContent: string, requirementName: string): string | null {
+export function extractRequirementBlock(
+  specContent: string,
+  requirementName: string
+): MatchedRequirementBlock | null {
   const parts = extractRequirementsSection(specContent);
-  const targetName = normalizeRequirementName(requirementName).toLowerCase();
+  const targetName = normalizeRequirementName(requirementName);
+  const foldedTarget = foldRequirementName(targetName);
+  let folded: MatchedRequirementBlock | null = null;
 
   for (const block of parts.bodyBlocks) {
-    if (normalizeRequirementName(block.name).toLowerCase() === targetName) {
-      return block.raw;
+    const name = normalizeRequirementName(block.name);
+    if (name === targetName) {
+      return { raw: block.raw, name, exact: true };
+    }
+    if (!folded && foldRequirementName(name) === foldedTarget) {
+      folded = { raw: block.raw, name, exact: false };
     }
   }
 
-  return null;
+  return folded;
 }
 
 /**
@@ -53,7 +78,7 @@ function ensureTrailingNewline(s: string): string {
 export function buildRenameMap(renames: Array<{ from: string; to: string }>): Map<string, string> {
   const map = new Map<string, string>();
   for (const r of renames) {
-    map.set(normalizeRequirementName(r.to).toLowerCase(), normalizeRequirementName(r.from));
+    map.set(foldRequirementName(r.to), normalizeRequirementName(r.from));
   }
   return map;
 }

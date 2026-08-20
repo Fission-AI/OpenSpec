@@ -13,8 +13,8 @@ import { getTaskProgressForChange } from '../utils/task-progress.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { discoverSpecFiles } from '../utils/spec-discovery.js';
 import {
+  foldRequirementName,
   parseDeltaSpec,
-  normalizeRequirementName,
 } from '../core/parsers/requirement-blocks.js';
 import {
   extractRequirementBlock,
@@ -233,10 +233,10 @@ export class ChangeCommand {
       // Prefer the authored REMOVED block so its Reason/Migration text reaches
       // the reader; the bullet-list form carries a name and nothing else.
       const removedBlocks = new Map(
-        plan.removedBlocks.map(block => [normalizeRequirementName(block.name).toLowerCase(), block.raw])
+        plan.removedBlocks.map(block => [foldRequirementName(block.name), block.raw])
       );
       for (const name of plan.removed) {
-        const raw = removedBlocks.get(normalizeRequirementName(name).toLowerCase());
+        const raw = removedBlocks.get(foldRequirementName(name));
         results.push({
           capability,
           operation: 'REMOVED',
@@ -259,18 +259,29 @@ export class ChangeCommand {
 
         // A requirement renamed and modified in the same delta still lives in
         // the main spec under its old name, so look it up there.
-        const oldName = renameMap.get(normalizeRequirementName(block.name).toLowerCase());
+        const oldName = renameMap.get(foldRequirementName(block.name));
         const lookupName = oldName ?? block.name;
 
-        if (baseContent) {
-          const baseBlock = extractRequirementBlock(baseContent, lookupName);
-          if (baseBlock) {
-            entry.diff = diffRequirementBlock(baseBlock, block.raw, `${capability}/${block.name}`);
-          } else {
-            entry.warning = `No matching base requirement found for "${block.name}" in ${capability}`;
+        const match = baseContent ? extractRequirementBlock(baseContent, lookupName) : null;
+        if (match) {
+          entry.diff = diffRequirementBlock(match.raw, block.raw, `${capability}/${block.name}`);
+          if (!match.exact) {
+            // Archive matches requirement names exactly, so a header that
+            // differs only in case or spacing will not merge. Show the diff the
+            // author meant, and name the mismatch while it is still cheap to fix.
+            entry.warning =
+              `Header differs from the main spec's "${match.name}" only in case or spacing; ` +
+              `archive matches names exactly, so reconcile them before archiving`;
           }
+        } else if (baseContent) {
+          entry.warning = `No matching main requirement found for "${lookupName}" in ${capability}`;
         } else {
-          entry.diff = diffRequirementBlock(null, block.raw, `${capability}/${block.name}`);
+          // A MODIFIED requirement names a block that should already exist, so a
+          // missing main spec is an authoring error, not a new capability.
+          // Rendering it as all-additions would hide what archive will reject.
+          entry.warning =
+            `No main spec at openspec/specs/${capability}/spec.md, ` +
+            `so MODIFIED requirement "${block.name}" has nothing to diff against`;
         }
 
         results.push(entry);
@@ -376,10 +387,14 @@ export class ChangeCommand {
           console.log(chalk.yellow.bold(`  MODIFIED: ${r.requirementName}`));
           if (r.warning) {
             console.log(chalk.yellow(`    ⚠ ${r.warning}`));
+          }
+          // A near-miss header carries both: the warning about the mismatch and
+          // the diff against the block it almost matched.
+          if (!r.diff) {
             for (const line of r.raw.split('\n')) {
               console.log(`    ${line}`);
             }
-          } else if (r.diff) {
+          } else {
             for (const line of r.diff.split('\n')) {
               if (line.startsWith('+')) {
                 console.log(chalk.green(`    ${line}`));

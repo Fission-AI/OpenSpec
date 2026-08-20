@@ -53,3 +53,5 @@
 - [x] 8.7 Register `--diff` in the completion command registry so shell completions offer it
 - [x] 8.8 Drop the stray `package-lock.json`; the repo is pnpm-only
 - [x] 8.9 Enumerate delta specs with the shared `discoverSpecFiles()` so nested capabilities (`specs/<area>/<id>/spec.md`) are diffed, with a regression test
+- [x] 8.10 Warn instead of rendering all-additions when a MODIFIED requirement's capability has no main spec — that combination is an authoring error archive will reject, not a new capability
+- [x] 8.11 Match requirement headers exactly first and fall back to the shared case/whitespace fold, reporting a folded match as inexact so the diff still shows but the mismatch is named

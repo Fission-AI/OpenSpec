@@ -35,7 +35,9 @@ The show command SHALL support various output formats consistent with existing c
 - **AND** for RENAMED requirements, display the FROM:/TO: with a cyan "RENAMED" label
 - **AND** for MODIFIED requirements, extract the matching requirement block from the main spec at `openspec/specs/<cap>/spec.md` by `### Requirement:` header name, compute a unified diff of the main block vs the delta block, and display it colorized (green for `+` lines, red for `-` lines, plain for context lines)
 - **AND** when a MODIFIED requirement's name matches a RENAMED entry's TO name in the same spec, the system SHALL look up the main block using the RENAMED entry's FROM name instead
+- **AND** when a MODIFIED requirement's header matches a main requirement only after folding case and interior whitespace, display the diff together with a warning that archive matches names exactly
 - **AND** if a MODIFIED requirement has no matching main requirement (and no corresponding RENAMED entry), display the full text with a warning
+- **AND** if the capability has no main spec at all, display the full text with a warning naming the missing spec, rather than rendering the requirement as an addition
 
 #### Scenario: Diff output in JSON mode
 
@@ -44,7 +46,8 @@ The show command SHALL support various output formats consistent with existing c
 - **AND** for each MODIFIED delta, the delta object SHALL include an additional `diff` string field containing the unified diff of the main requirement block vs the delta requirement block
 - **AND** when a MODIFIED requirement corresponds to a RENAMED entry, the main block SHALL be looked up using the RENAMED FROM name
 - **AND** ADDED, REMOVED, and RENAMED deltas SHALL NOT have a `diff` field
-- **AND** if a MODIFIED requirement has no matching main requirement, the delta object SHALL include a `warning` string field instead of `diff`
+- **AND** if a MODIFIED requirement has no matching main requirement, or its capability has no main spec, the delta object SHALL include a `warning` string field instead of `diff`
+- **AND** if a MODIFIED requirement matched only after folding case and interior whitespace, the delta object SHALL include both `diff` and `warning`
 
 #### Scenario: Diff with no delta specs
 
@@ -67,11 +70,17 @@ The system SHALL extract raw markdown text for individual requirement blocks fro
 
 - **WHEN** a requirement name is provided and a spec file contains a matching `### Requirement: <name>` header
 - **THEN** the system SHALL return the raw markdown text from the `### Requirement:` header line through all content until the next `###` header at the same or higher level (or end of file)
-- **AND** matching SHALL be case-insensitive and whitespace-insensitive
+
+#### Scenario: Requirement name matching
+
+- **WHEN** a requirement name matches a `### Requirement:` header exactly (after trimming)
+- **THEN** the system SHALL return that block and report the match as exact
+- **AND** when only a case- or interior-whitespace-folded match exists, the system SHALL return that block, report the match as inexact, and report the name as the main spec spells it
+- **AND** an exact match SHALL take precedence over a folded one
 
 #### Scenario: Requirement name not found in the main spec
 
-- **WHEN** a MODIFIED delta requirement name does not match any `### Requirement:` header in the main spec
+- **WHEN** a MODIFIED delta requirement name does not match any `### Requirement:` header in the main spec, exactly or folded
 - **THEN** the system SHALL return null for the main block
 - **AND** the caller SHALL display the full MODIFIED requirement text with a warning that no main requirement was found
 
