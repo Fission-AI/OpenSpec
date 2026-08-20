@@ -84,6 +84,12 @@ Nothing in the prompt is vendor-specific: it's plain instructions plus the same 
 npm install -g @fission-ai/openspec@latest
 ```
 
+### Homebrew (macOS / Linux)
+
+```bash
+brew install openspec
+```
+
 ### pnpm
 
 ```bash
