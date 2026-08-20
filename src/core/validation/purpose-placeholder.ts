@@ -39,11 +39,15 @@ export interface PurposePlaceholderIssue {
 }
 
 /**
- * A `TBD` or `TODO` opening the Purpose. `\b` keeps it off a longer word that
- * merely begins with those letters, like "TBDs" or "TODOs", while still
- * allowing the punctuation a marker is usually written with: `TODO:`, `TBD -`.
+ * A `TBD` or `TODO` opening the Purpose. The lookahead keeps it off a longer
+ * word that merely begins with those letters, like "TBDs" or "TODOs", while
+ * still allowing the punctuation a marker is usually written with: `TODO:`,
+ * `TBD -`. It rejects any letter, digit or combining mark rather than only the
+ * ASCII ones `\b` knows about, because a Purpose is prose and prose is not
+ * always written in Latin script - `TBD` followed by an Arabic-Indic digit is
+ * as much a longer word as `TBDs` is.
  */
-const LEADING_MARKER = /^(?:TBD|TODO)\b/i;
+const LEADING_MARKER = /^(?:TBD|TODO)(?![\p{L}\p{N}\p{M}_])/iu;
 
 const PURPOSE_HEADER = /^ {0,3}##(?!#)[ \t]+Purpose[ \t]*$/i;
 const TOP_LEVEL_HEADER = /^ {0,3}#{1,2}(?!#)[ \t]+/;

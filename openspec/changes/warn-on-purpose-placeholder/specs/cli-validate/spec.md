@@ -27,7 +27,8 @@ open question is not a placeholder:
   The two words SHALL be read the same way, because which one got typed says
   nothing about whether the Purpose was written;
 - a marker appearing inside a sentence SHALL NOT be reported;
-- a word that merely begins with those letters SHALL NOT be reported.
+- a longer word that merely begins with those letters SHALL NOT be reported,
+  in any script.
 
 Text inside a fenced code block SHALL NOT be read as the Purpose speaking, for
 either rule. A Purpose that quotes the placeholder is documenting it rather than

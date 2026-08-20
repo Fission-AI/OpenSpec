@@ -86,8 +86,8 @@ were not, and only reverting them one at a time showed it.
 
 ## 7. Answer the two questions the issue left open
 
-#1670 asked whether the finding should be an error and whether `TODO` should
-count. Warning stands, for the upgrade-safety reason in section 1. The rest is
+Issue #1670 asked whether the finding should be an error and whether `TODO`
+should count. Warning stands, for the upgrade-safety reason in section 1. The rest is
 what changed after review.
 
 - [x] 7.1 Read a `TODO` opening the Purpose as the same finding as a `TBD`.
@@ -109,3 +109,9 @@ what changed after review.
 - [x] 7.5 Mutation-check every new guard by reverting it in turn: dropping `TODO`
       kills 3 tests, unmasking detection kills 2, unmasking the line locator
       kills 3, and unmasking the header search kills 1
+- [x] 7.6 Make the marker boundary Unicode-aware, after review pointed out that
+      `\b` is ASCII and so read `TODOé` and `TBD١` as markers followed by
+      punctuation. A Purpose is prose, and prose is not always Latin script.
+      Held in both directions: loosening it back to `\b` kills 1 test, tightening
+      it to reject punctuation kills 4
+

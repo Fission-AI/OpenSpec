@@ -105,6 +105,23 @@ describe('findPurposePlaceholderIssue', () => {
       expect(findPurposePlaceholderIssue(purpose, specWith(purpose))).toBeNull();
     });
 
+    it('does not report a longer word in a script `\\b` cannot see', () => {
+      // A Purpose is prose, and prose is not always Latin script. `\\b` is ASCII,
+      // so it reads the boundary between "TODO" and any non-ASCII letter as the
+      // end of the marker and reports a word nobody meant as one.
+      for (const purpose of ['TODOé is a word here, not a marker.', 'TBD١ names the first budget.']) {
+        expect(findPurposePlaceholderIssue(purpose, specWith(purpose))).toBeNull();
+      }
+    });
+
+    it('still reads the punctuation a marker is written with', () => {
+      // The boundary must reject letters without rejecting `TODO:` or `TBD -`,
+      // which is how the marker actually gets typed.
+      for (const purpose of ['TODO(owner): describe this.', 'TBD.', 'TBD, pending a rewrite.']) {
+        expect(findPurposePlaceholderIssue(purpose, specWith(purpose))).not.toBeNull();
+      }
+    });
+
     it('does not report a TODO raised mid-sentence', () => {
       const purpose =
         'Bounds how often a failed delivery is retried. Tuning the budget is a TODO for the load tests.';
