@@ -11,7 +11,7 @@ import { isInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds } from '../utils/item-discovery.js';
 import { getTaskProgressForChange } from '../utils/task-progress.js';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { discoverSpecFiles } from '../utils/spec-discovery.js';
+import { discoverSpecFiles, type DiscoveredSpec } from '../utils/spec-discovery.js';
 import {
   foldRequirementName,
   parseDeltaSpec,
@@ -195,7 +195,7 @@ export class ChangeCommand {
     // Same discovery ChangeParser uses, so a nested capability (specs/<area>/<id>)
     // is diffed rather than silently skipped, and the ids here match the `spec`
     // field of the JSON deltas.
-    let discovered;
+    let discovered: DiscoveredSpec[];
     try {
       discovered = await discoverSpecFiles(specsDir);
     } catch {
@@ -213,14 +213,14 @@ export class ChangeCommand {
         continue;
       }
 
-      const baseSpecPath = path.join(mainSpecsDir, ...capability.split('/'), 'spec.md');
-      let baseContent: string | null = null;
+      const mainSpecPath = path.join(mainSpecsDir, ...capability.split('/'), 'spec.md');
+      let mainContent: string | null = null;
       try {
-        FileSystemUtils.assertPathWithin(mainSpecsDir, baseSpecPath);
-        baseContent = await fs.readFile(baseSpecPath, 'utf-8');
+        FileSystemUtils.assertPathWithin(mainSpecsDir, mainSpecPath);
+        mainContent = await fs.readFile(mainSpecPath, 'utf-8');
       } catch {
-        // No main spec on disk: the capability is new, so every requirement in
-        // the delta reads as an addition rather than an error.
+        // No main spec on disk. For ADDED requirements that is the ordinary new
+        // capability case; MODIFIED requirements are handled as a mismatch below.
       }
 
       const plan = parseDeltaSpec(deltaContent);
@@ -262,7 +262,7 @@ export class ChangeCommand {
         const oldName = renameMap.get(foldRequirementName(block.name));
         const lookupName = oldName ?? block.name;
 
-        const match = baseContent ? extractRequirementBlock(baseContent, lookupName) : null;
+        const match = mainContent ? extractRequirementBlock(mainContent, lookupName) : null;
         if (match) {
           entry.diff = diffRequirementBlock(match.raw, block.raw, `${capability}/${block.name}`);
           if (!match.exact) {
@@ -273,7 +273,7 @@ export class ChangeCommand {
               `Header differs from the main spec's "${match.name}" only in case or spacing; ` +
               `archive matches names exactly, so reconcile them before archiving`;
           }
-        } else if (baseContent) {
+        } else if (mainContent) {
           entry.warning = `No matching main requirement found for "${lookupName}" in ${capability}`;
         } else {
           // A MODIFIED requirement names a block that should already exist, so a
