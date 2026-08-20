@@ -6,6 +6,7 @@
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
+import { escapeYamlValue } from '../yaml.js';
 
 /**
  * Factory adapter for command generation.
@@ -21,7 +22,7 @@ export const factoryAdapter: ToolCommandAdapter = {
 
   formatFile(content: CommandContent): string {
     return `---
-description: ${content.description}
+description: ${escapeYamlValue(content.description)}
 argument-hint: command arguments
 ---
 

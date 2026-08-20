@@ -8,8 +8,12 @@ import {
 
 describe('profiles', () => {
   describe('CORE_WORKFLOWS', () => {
-    it('should contain the four core workflows', () => {
-      expect(CORE_WORKFLOWS).toEqual(['propose', 'explore', 'apply', 'archive']);
+    it('should contain the default core workflows', () => {
+      expect(CORE_WORKFLOWS).toEqual(['propose', 'explore', 'apply', 'update', 'sync', 'archive']);
+    });
+
+    it('should include update in the core profile (default install, not expanded-only)', () => {
+      expect(CORE_WORKFLOWS).toContain('update');
     });
 
     it('should be a subset of ALL_WORKFLOWS', () => {
@@ -20,13 +24,13 @@ describe('profiles', () => {
   });
 
   describe('ALL_WORKFLOWS', () => {
-    it('should contain all 11 workflows', () => {
-      expect(ALL_WORKFLOWS).toHaveLength(11);
+    it('should contain all 12 workflows', () => {
+      expect(ALL_WORKFLOWS).toHaveLength(12);
     });
 
     it('should contain expected workflow IDs', () => {
       const expected = [
-        'propose', 'explore', 'new', 'continue', 'apply',
+        'propose', 'explore', 'new', 'continue', 'apply', 'update',
         'ff', 'sync', 'archive', 'bulk-archive', 'verify', 'onboard',
       ];
       expect([...ALL_WORKFLOWS]).toEqual(expected);
@@ -48,6 +52,32 @@ describe('profiles', () => {
       const customWorkflows = ['explore', 'new', 'apply', 'ff'];
       const result = getProfileWorkflows('custom', customWorkflows);
       expect(result).toEqual(customWorkflows);
+    });
+
+    it('should include sync when a custom profile selects archive', () => {
+      const result = getProfileWorkflows('custom', ['propose', 'explore', 'apply', 'archive']);
+      expect(result).toEqual(['propose', 'explore', 'apply', 'sync', 'archive']);
+    });
+
+    it('should include sync when a custom profile selects bulk archive', () => {
+      const result = getProfileWorkflows('custom', ['explore', 'bulk-archive']);
+      expect(result).toEqual(['explore', 'sync', 'bulk-archive']);
+    });
+
+    it('should not duplicate or reorder an existing sync dependency', () => {
+      const workflows = ['sync', 'archive', 'bulk-archive'];
+      const result = getProfileWorkflows('custom', workflows);
+
+      expect(result).toEqual(workflows);
+      expect(result).toBe(workflows);
+    });
+
+    it('should not mutate the custom workflow selection when adding sync', () => {
+      const workflows = ['archive', 'bulk-archive'];
+      const result = getProfileWorkflows('custom', workflows);
+
+      expect(result).toEqual(['sync', 'archive', 'bulk-archive']);
+      expect(workflows).toEqual(['archive', 'bulk-archive']);
     });
 
     it('should return empty array for custom profile with no customWorkflows', () => {

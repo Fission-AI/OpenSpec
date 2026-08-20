@@ -6,6 +6,14 @@
 
 import ora from 'ora';
 import chalk from 'chalk';
+import { getChangeDir } from '../../core/planning-home.js';
+import {
+  resolveRootForCommand,
+  toPlanningHome,
+  toRootOutput,
+  withStoreFlag,
+  isStoreSelectedRoot,
+} from '../../core/root-selection.js';
 import {
   loadChangeContext,
   formatChangeStatus,
@@ -26,6 +34,8 @@ import {
 export interface StatusOptions {
   change?: string;
   schema?: string;
+  store?: string;
+  storePath?: string;
   json?: boolean;
 }
 
@@ -34,22 +44,38 @@ export interface StatusOptions {
 // -----------------------------------------------------------------------------
 
 export async function statusCommand(options: StatusOptions): Promise<void> {
+  // The root resolves (and the store banner prints) before the spinner starts
+  // so the two do not fight over stderr.
+  const root = await resolveRootForCommand(options, { json: options.json });
+  if (!root) {
+    return;
+  }
+
   const spinner = options.json ? undefined : ora('Loading change status...').start();
 
   try {
-    const projectRoot = process.cwd();
+    const planningHome = toPlanningHome(root);
+    const projectRoot = root.path;
+    const rootOutput = toRootOutput(root);
+    const newChangeHint = withStoreFlag(root, 'openspec new change <name>');
 
     // Handle no-changes case gracefully — status is informational,
     // so "no changes" is a valid state, not an error.
     if (!options.change) {
-      const available = await getAvailableChanges(projectRoot);
+      const available = await getAvailableChanges(projectRoot, root.changesDir);
       if (available.length === 0) {
         spinner?.stop();
         if (options.json) {
-          console.log(JSON.stringify({ changes: [], message: 'No active changes.' }, null, 2));
+          console.log(
+            JSON.stringify(
+              { changes: [], message: 'No active changes.', root: rootOutput },
+              null,
+              2
+            )
+          );
           return;
         }
-        console.log('No active changes. Create one with: openspec new change <name>');
+        console.log(`No active changes. Create one with: ${newChangeHint}`);
         return;
       }
       // Changes exist but --change not provided
@@ -59,7 +85,12 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
       );
     }
 
-    const changeName = await validateChangeExists(options.change, projectRoot);
+    const changeName = await validateChangeExists(
+      options.change,
+      projectRoot,
+      root.changesDir,
+      { newChangeHint }
+    );
 
     // Validate schema if explicitly provided
     if (options.schema) {
@@ -67,13 +98,19 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
     }
 
     // loadChangeContext will auto-detect schema from metadata if not provided
-    const context = loadChangeContext(projectRoot, changeName, options.schema);
-    const status = formatChangeStatus(context);
+    const context = loadChangeContext(projectRoot, changeName, options.schema, {
+      changeDir: getChangeDir(planningHome, changeName),
+      planningHome,
+    });
+    const status = formatChangeStatus(
+      context,
+      isStoreSelectedRoot(root) ? { storeId: root.storeId } : {}
+    );
 
     spinner?.stop();
 
     if (options.json) {
-      console.log(JSON.stringify(status, null, 2));
+      console.log(JSON.stringify({ ...status, root: rootOutput }, null, 2));
       return;
     }
 
@@ -86,17 +123,26 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
 
 export function printStatusText(status: ChangeStatus): void {
   const doneCount = status.artifacts.filter((a) => a.status === 'done').length;
-  const total = status.artifacts.length;
+  const skippedCount = status.artifacts.filter((a) => a.status === 'skipped').length;
+  const total = status.artifacts.length - skippedCount;
 
   console.log(`Change: ${status.changeName}`);
   console.log(`Schema: ${status.schemaName}`);
-  console.log(`Progress: ${doneCount}/${total} artifacts complete`);
+  if (status.changeRoot) {
+    console.log(`Change root: ${status.changeRoot}`);
+  }
+  const skippedSuffix = skippedCount > 0 ? ` (${skippedCount} skipped)` : '';
+  console.log(`Progress: ${doneCount}/${total} artifacts complete${skippedSuffix}`);
   console.log();
 
   for (const artifact of status.artifacts) {
     const indicator = getStatusIndicator(artifact.status);
     const color = getStatusColor(artifact.status);
     let line = `${indicator} ${artifact.id}`;
+
+    if (artifact.status === 'skipped') {
+      line += color(' (skipped: change declares skip_specs)');
+    }
 
     if (artifact.status === 'blocked' && artifact.missingDeps && artifact.missingDeps.length > 0) {
       line += color(` (blocked by: ${artifact.missingDeps.join(', ')})`);
@@ -105,8 +151,8 @@ export function printStatusText(status: ChangeStatus): void {
     console.log(line);
   }
 
-  if (status.isComplete) {
+  if (status.isPlanningComplete) {
     console.log();
-    console.log(chalk.green('All artifacts complete!'));
+    console.log(chalk.green('All planning artifacts complete!'));
   }
 }
