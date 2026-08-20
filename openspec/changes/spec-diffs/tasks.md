@@ -52,3 +52,4 @@
 - [x] 8.6 Drive the CLI in tests with `execFileSync`/`spawnSync` argv arrays from a `mkdtemp` project instead of interpolated shell strings and an in-repo temp directory
 - [x] 8.7 Register `--diff` in the completion command registry so shell completions offer it
 - [x] 8.8 Drop the stray `package-lock.json`; the repo is pnpm-only
+- [x] 8.9 Enumerate delta specs with the shared `discoverSpecFiles()` so nested capabilities (`specs/<area>/<id>/spec.md`) are diffed, with a regression test

@@ -11,6 +11,7 @@ import { isInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds } from '../utils/item-discovery.js';
 import { getTaskProgressForChange } from '../utils/task-progress.js';
 import { FileSystemUtils } from '../utils/file-system.js';
+import { discoverSpecFiles } from '../utils/spec-discovery.js';
 import {
   parseDeltaSpec,
   normalizeRequirementName,
@@ -191,27 +192,28 @@ export class ChangeCommand {
     const specsDir = path.join(changesPath, changeName, 'specs');
     const mainSpecsDir = this.getSpecsPath();
 
-    let capabilities: string[];
+    // Same discovery ChangeParser uses, so a nested capability (specs/<area>/<id>)
+    // is diffed rather than silently skipped, and the ids here match the `spec`
+    // field of the JSON deltas.
+    let discovered;
     try {
-      const entries = await fs.readdir(specsDir, { withFileTypes: true });
-      capabilities = entries.filter(e => e.isDirectory()).map(e => e.name).sort();
+      discovered = await discoverSpecFiles(specsDir);
     } catch {
       return { capabilities: [], results: [] };
     }
 
+    const capabilities = discovered.map(spec => spec.id);
     const results: RequirementDiff[] = [];
 
-    for (const capability of capabilities) {
-      const deltaSpecPath = path.join(specsDir, capability, 'spec.md');
+    for (const { id: capability, specFile: deltaSpecPath } of discovered) {
       let deltaContent: string;
       try {
-        FileSystemUtils.assertPathWithin(specsDir, deltaSpecPath);
         deltaContent = await fs.readFile(deltaSpecPath, 'utf-8');
       } catch {
         continue;
       }
 
-      const baseSpecPath = path.join(mainSpecsDir, capability, 'spec.md');
+      const baseSpecPath = path.join(mainSpecsDir, ...capability.split('/'), 'spec.md');
       let baseContent: string | null = null;
       try {
         FileSystemUtils.assertPathWithin(mainSpecsDir, baseSpecPath);

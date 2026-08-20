@@ -235,6 +235,65 @@ describe('openspec show --diff', () => {
     expect(output).toContain('Callers switch to `POST /tokens`.');
   });
 
+  it('diffs a nested capability (specs/<area>/<id>/spec.md)', async () => {
+    await fs.mkdir(path.join(specsDir, 'platform', 'session-layout'), { recursive: true });
+    await fs.writeFile(
+      path.join(specsDir, 'platform', 'session-layout', 'spec.md'),
+      [
+        '# session-layout Specification',
+        '',
+        '## Purpose',
+        'Session layout.',
+        '',
+        '## Requirements',
+        '### Requirement: Layout',
+        '',
+        'The system SHALL render two panes.',
+        '',
+        '#### Scenario: Two panes',
+        '- **WHEN** the session opens',
+        '- **THEN** two panes render',
+        '',
+      ].join('\n'),
+      'utf-8'
+    );
+
+    const changeDir = path.join(changesDir, 'nested-change');
+    await fs.mkdir(path.join(changeDir, 'specs', 'platform', 'session-layout'), { recursive: true });
+    await fs.writeFile(
+      path.join(changeDir, 'proposal.md'),
+      '## Why\nMore panes.\n\n## What Changes\n- **platform/session-layout:** Add a pane\n',
+      'utf-8'
+    );
+    await fs.writeFile(
+      path.join(changeDir, 'specs', 'platform', 'session-layout', 'spec.md'),
+      [
+        '## MODIFIED Requirements',
+        '',
+        '### Requirement: Layout',
+        '',
+        'The system SHALL render three panes.',
+        '',
+        '#### Scenario: Two panes',
+        '- **WHEN** the session opens',
+        '- **THEN** three panes render',
+        '',
+      ].join('\n'),
+      'utf-8'
+    );
+
+    const output = run(['show', 'nested-change', '--type', 'change', '--diff']);
+    expect(output).toContain('platform/session-layout');
+    expect(output).toContain('MODIFIED: Layout');
+    expect(output).toContain('-The system SHALL render two panes.');
+    expect(output).toContain('+The system SHALL render three panes.');
+
+    const json = JSON.parse(run(['show', 'nested-change', '--type', 'change', '--diff', '--json']));
+    const modified = json.deltas.find((d: any) => d.operation === 'MODIFIED');
+    expect(modified.spec).toBe('platform/session-layout');
+    expect(modified.diff).toContain('+The system SHALL render three panes.');
+  });
+
   it('warns and ignores --diff when the item is a spec', async () => {
     const { stdout, stderr } = runWithStderr(['show', 'auth', '--type', 'spec', '--diff']);
     expect(stderr).toContain('Ignoring flags not applicable to spec');
