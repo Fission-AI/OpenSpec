@@ -265,6 +265,56 @@ describe('openspec show --diff', () => {
     expect(added.diff).toBeUndefined();
   });
 
+  it('JSON mode: attaches each diff to its own requirement when one spec has several', async () => {
+    // Two MODIFIED requirements in one delta file: the JSON deltas and the
+    // parsed blocks are paired by source order, so a mismatch here would show a
+    // reviewer one requirement's changes under another's name.
+    const deltaSpec = [
+      '## MODIFIED Requirements',
+      '',
+      '### Requirement: Session management',
+      '',
+      'The system SHALL manage user sessions for 60 minutes.',
+      '',
+      '#### Scenario: Session timeout',
+      '- **WHEN** session is idle for 60 minutes',
+      '- **THEN** system expires the session',
+      '',
+      '### Requirement: User login',
+      '',
+      'The system SHALL allow users to log in with a passkey.',
+      '',
+      '#### Scenario: Valid credentials',
+      '- **WHEN** user presents a passkey',
+      '- **THEN** system authenticates the user',
+      '',
+    ].join('\n');
+
+    const changeDir = path.join(changesDir, 'two-mods');
+    await fs.mkdir(path.join(changeDir, 'specs', 'auth'), { recursive: true });
+    await fs.writeFile(
+      path.join(changeDir, 'proposal.md'),
+      '## Why\nTwo edits.\n\n## What Changes\n- **auth:** Modify login and sessions\n',
+      'utf-8'
+    );
+    await fs.writeFile(path.join(changeDir, 'specs', 'auth', 'spec.md'), deltaSpec, 'utf-8');
+
+    const json = JSON.parse(run(['show', 'two-mods', '--type', 'change', '--diff', '--json']));
+    const modified = json.deltas.filter((d: any) => d.operation === 'MODIFIED');
+    expect(modified).toHaveLength(2);
+
+    for (const delta of modified) {
+      expect(delta.diff).toBeDefined();
+      if (delta.description.includes('passkey')) {
+        expect(delta.diff).toContain('+The system SHALL allow users to log in with a passkey.');
+        expect(delta.diff).not.toContain('60 minutes');
+      } else {
+        expect(delta.diff).toContain('+The system SHALL manage user sessions for 60 minutes.');
+        expect(delta.diff).not.toContain('passkey');
+      }
+    }
+  });
+
   it('JSON mode: --json --diff is backwards-compatible with --json', () => {
     const jsonOnly = JSON.parse(run(['show', 'auth-update', '--type', 'change', '--json']));
     const jsonDiff = JSON.parse(run(['show', 'auth-update', '--type', 'change', '--json', '--diff']));

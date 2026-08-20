@@ -26,8 +26,9 @@ export function extractRequirementBlock(specContent: string, requirementName: st
 }
 
 /**
- * Compute a unified diff between a base requirement block and a delta requirement block.
- * When baseBlock is null, diffs against empty string (all additions).
+ * Compute a unified diff between a main-spec requirement block and the delta
+ * block that replaces it. A null main block (new capability) diffs against the
+ * empty string, so every line reads as an addition.
  *
  * Uses structuredPatch to get only the hunk content lines (context/add/remove)
  * without any header matter, since the caller provides its own labeling.
@@ -46,8 +47,8 @@ function ensureTrailingNewline(s: string): string {
 
 /**
  * Build a map from normalized RENAMED TO name -> normalized RENAMED FROM name.
- * Used to look up the base block under the old name when a requirement is both
- * renamed and modified.
+ * Used to look up the main-spec block under the old name when a requirement is
+ * both renamed and modified in the same delta.
  */
 export function buildRenameMap(renames: Array<{ from: string; to: string }>): Map<string, string> {
   const map = new Map<string, string>();
