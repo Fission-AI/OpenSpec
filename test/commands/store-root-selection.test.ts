@@ -229,6 +229,20 @@ describe('store root selection for normal commands', () => {
         store_id: 'team-context',
       });
 
+      // The batch sweep must select the same root and carry the same store
+      // context per change as the single-change path above.
+      const batch = await runCLI(['status', '--all', '--store', 'team-context', '--json'], {
+        cwd: appRepo,
+        env,
+      });
+      expect(batch.exitCode).toBe(0);
+      const batchJson = parseJson(batch);
+      expect(batchJson.root).toEqual(statusJson.root);
+      expect(batchJson.changes.map((change: { changeName: string }) => change.changeName)).toEqual([
+        'store-change',
+      ]);
+      expect(batchJson.changes[0]).toEqual({ ...statusJson, root: undefined });
+
       const instructions = await runCLI(
         ['instructions', 'design', '--change', 'store-change', '--store', 'team-context', '--json'],
         { cwd: appRepo, env }
