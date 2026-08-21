@@ -40,5 +40,6 @@ planned `reference/file-formats.md`).
 ## Cutover
 
 Point `website/docs.sync.config.mjs` here, add old-to-new redirects in
-`website/cloudflare/router/worker.js`, verify `llms.txt` / `llms-full.txt` /
-per-page markdown routes, then this folder replaces `docs/`.
+`website/public/_redirects`, and verify `llms.txt` / `llms-full.txt` /
+per-page markdown routes. `docs/` stays in place, untouched. The site just
+stops reading it.

@@ -55,7 +55,13 @@ for (const page of pages) {
 const written = new Set();
 function writeOutputFile(path, content) {
   written.add(path);
-  if (existsSync(path) && readFileSync(path, 'utf8') === content) return;
+  let current = null;
+  try {
+    current = readFileSync(path, 'utf8');
+  } catch {
+    // Missing (or unreadable) file: write it.
+  }
+  if (current === content) return;
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, content, 'utf8');
 }

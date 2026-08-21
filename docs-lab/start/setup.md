@@ -73,6 +73,8 @@ These are the OpenSpec workflows, the actions you'll use as you work. Here they 
 └── openspec-bulk-archive-change/  archive several changes at once (not included by default)
 ```
 
+This is the default set plus two optional workflows. [Profiles](../customize/profiles.md) lists all twelve.
+
 By default each workflow installs in two forms:
 
 - **Skill** (`openspec-apply-change`): instructions your agent picks up on its own when you ask for the work.

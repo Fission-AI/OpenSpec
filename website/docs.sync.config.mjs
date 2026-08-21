@@ -118,8 +118,13 @@ export const sections = [
           { source: 'reference/configuration/config-yaml.md', slug: 'configuration/config-yaml' },
           { source: 'reference/configuration/change-metadata.md', slug: 'configuration/change-metadata' },
           { source: 'reference/configuration/config-json.md', slug: 'configuration/config-json' },
-          { source: 'reference/configuration/environment-variables.md', slug: 'configuration/environment-variables' },
-          { source: 'reference/configuration/stores.md', slug: 'configuration/stores' },
+          // TODO (held back 2026-08-21): Environment variables and Stores are
+          // headings only, so they stay out of the nav until written. The
+          // markdown stays in docs-lab/reference/configuration/. Links to them
+          // from published pages fall back to their GitHub source. Re-publish
+          // by moving the lines out of this comment.
+          // { source: 'reference/configuration/environment-variables.md', slug: 'configuration/environment-variables' },
+          // { source: 'reference/configuration/stores.md', slug: 'configuration/stores' },
         ],
       },
       { source: 'reference/supported-tools.md', slug: 'supported-tools' },
