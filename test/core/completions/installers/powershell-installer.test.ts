@@ -3,7 +3,6 @@ import { PowerShellInstaller } from '../../../../src/core/completions/installers
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
-import { randomUUID } from 'crypto';
 
 describe('PowerShellInstaller', () => {
   let testHomeDir: string;
@@ -20,8 +19,7 @@ describe('PowerShellInstaller', () => {
   };
 
   beforeEach(async () => {
-    testHomeDir = path.join(os.tmpdir(), `openspec-powershell-test-${randomUUID()}`);
-    await fs.mkdir(testHomeDir, { recursive: true });
+    testHomeDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-powershell-test-'));
     installer = new PowerShellInstaller(testHomeDir);
     originalPlatform = process.platform;
     originalEnv = { ...process.env };
@@ -519,8 +517,7 @@ Register-ArgumentCompleter -CommandName openspec -ScriptBlock $openspecCompleter
     });
 
     it('should handle installation with paths containing spaces', async () => {
-      const spacedHomeDir = path.join(os.tmpdir(), `openspec powershell test ${randomUUID()}`);
-      await fs.mkdir(spacedHomeDir, { recursive: true });
+      const spacedHomeDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec powershell test '));
 
       const spacedInstaller = new PowerShellInstaller(spacedHomeDir);
       const result = await spacedInstaller.install(mockCompletionScript);
@@ -868,6 +865,34 @@ Register-ArgumentCompleter -CommandName openspec -ScriptBlock $openspecCompleter
 
       expect(result.success).toBe(false);
       expect(result.message).toBe('Completion script is not installed');
+    });
+  });
+
+
+  describe('isInstalled', () => {
+    // Drives the first-run completions tip: a false positive silences a hint
+    // the user needs, a false negative nags someone who is already set up.
+    async function installPath(): Promise<string> {
+      return installer.getInstallationPath();
+    }
+
+    it('is false when nothing is installed', async () => {
+      expect(await installer.isInstalled()).toBe(false);
+    });
+
+    it('is true once the completion script exists', async () => {
+      const target = await installPath();
+      await fs.mkdir(path.dirname(target), { recursive: true });
+      await fs.writeFile(target, '# completions');
+
+      expect(await installer.isInstalled()).toBe(true);
+    });
+
+    it('is false when a directory sits at the install path', async () => {
+      const target = await installPath();
+      await fs.mkdir(target, { recursive: true });
+
+      expect(await installer.isInstalled()).toBe(false);
     });
   });
 

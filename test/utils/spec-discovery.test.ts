@@ -108,17 +108,68 @@ describe('discoverSpecFiles', () => {
     });
   });
 
-  it('does not follow symlinked directories', async () => {
+  it.skipIf(process.platform === 'win32')('discovers an in-capability symlinked spec.md file', async () => {
+    await withTempDir(async (dir) => {
+      // hasAnyFileUnder and the artifact graph's globs both count a symlinked
+      // spec.md as content, so discovery must not silently drop it.
+      await fs.mkdir(path.join(dir, 'auth'), { recursive: true });
+      const target = path.join(dir, 'auth', 'shared-delta.md');
+      await fs.writeFile(target, '# Spec\n', 'utf8');
+      await fs.symlink(target, path.join(dir, 'auth', 'spec.md'), 'file');
+
+      const found = await discoverSpecFiles(dir);
+      expect(found.map((s) => s.id)).toEqual(['auth']);
+      expect(found[0].specFile).toBe(path.join(dir, 'auth', 'spec.md'));
+    });
+  });
+
+  it.skipIf(process.platform === 'win32')('discovers a spec.md symlink elsewhere in the specs root', async () => {
+    await withTempDir(async (dir) => {
+      const target = path.join(dir, 'shared.md');
+      await fs.writeFile(target, '# Shared\n', 'utf8');
+      await fs.mkdir(path.join(dir, 'auth'), { recursive: true });
+      await fs.symlink(target, path.join(dir, 'auth', 'spec.md'), 'file');
+
+      const found = await discoverSpecFiles(dir);
+      expect(found.map((s) => s.id)).toEqual(['auth']);
+    });
+  });
+
+  it.skipIf(process.platform === 'win32')('rejects a spec.md symlink outside the specs root', async () => {
+    await withTempDir(async (dir) => {
+      const target = path.join(path.dirname(dir), `${path.basename(dir)}-outside.md`);
+      await fs.writeFile(target, '# Outside\n', 'utf8');
+      await fs.mkdir(path.join(dir, 'auth'), { recursive: true });
+      await fs.symlink(target, path.join(dir, 'auth', 'spec.md'), 'file');
+
+      await expect(discoverSpecFiles(dir)).rejects.toThrow(
+        'Path is outside the allowed directory'
+      );
+      await fs.rm(target, { force: true });
+    });
+  });
+
+  it.skipIf(process.platform === 'win32')('skips a dangling spec.md symlink', async () => {
+    await withTempDir(async (dir) => {
+      await writeSpec(dir, 'real');
+      await fs.mkdir(path.join(dir, 'ghost'), { recursive: true });
+      await fs.symlink(
+        path.join(dir, 'missing-target.md'),
+        path.join(dir, 'ghost', 'spec.md'),
+        'file'
+      );
+
+      const found = await discoverSpecFiles(dir);
+      expect(found.map((s) => s.id)).toEqual(['real']);
+    });
+  });
+
+  it.skipIf(process.platform === 'win32')('does not follow symlinked directories', async () => {
     await withTempDir(async (dir) => {
       await writeSpec(dir, 'real');
       const target = path.join(dir, 'real');
       const link = path.join(dir, 'linked');
-      try {
-        await fs.symlink(target, link, 'dir');
-      } catch {
-        // Symlink creation can be unavailable (e.g. Windows without dev mode).
-        return;
-      }
+      await fs.symlink(target, link, 'dir');
 
       const found = await discoverSpecFiles(dir);
       expect(found.map((s) => s.id)).toEqual(['real']);

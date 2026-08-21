@@ -1,6 +1,6 @@
 import { program } from 'commander';
 import { existsSync, readFileSync } from 'fs';
-import { join } from 'path';
+import path, { join } from 'path';
 import { MarkdownParser } from '../core/parsers/markdown-parser.js';
 import { Validator } from '../core/validation/validator.js';
 import type { Spec } from '../core/schemas/index.js';
@@ -8,8 +8,29 @@ import type { RootOutput } from '../core/root-selection.js';
 import { isInteractive } from '../utils/interactive.js';
 import { getSpecIds } from '../utils/item-discovery.js';
 import { discoverSpecFiles } from '../utils/spec-discovery.js';
+import { FileSystemUtils } from '../utils/file-system.js';
 
 const SPECS_DIR = 'openspec/specs';
+
+function assertSpecPath(specsDir: string, specPath: string): void {
+  const relativePath = path.relative(path.resolve(specsDir), path.resolve(specPath));
+  if (
+    relativePath === '..' ||
+    relativePath.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relativePath)
+  ) {
+    throw new Error(`Path is outside the allowed directory: ${specPath}`);
+  }
+
+  try {
+    // Preserve confined spec.md links, including links to a sibling capability.
+    FileSystemUtils.assertPathWithin(specsDir, specPath);
+  } catch {
+    // A capability directory may intentionally be a monorepo symlink. Treat it
+    // as the trust root while still rejecting a link outside that capability.
+    FileSystemUtils.assertPathWithin(path.dirname(specPath), specPath);
+  }
+}
 
 interface ShowOptions {
   json?: boolean;
@@ -21,7 +42,8 @@ interface ShowOptions {
   rootOutput?: RootOutput;
 }
 
-function parseSpecFromFile(specPath: string, specId: string): Spec {
+function parseSpecFromFile(specsDir: string, specPath: string, specId: string): Spec {
+  assertSpecPath(specsDir, specPath);
   const content = readFileSync(specPath, 'utf-8');
   const parser = new MarkdownParser(content);
   return parser.parseSpec(specId);
@@ -62,7 +84,8 @@ function filterSpec(spec: Spec, options: ShowOptions): Spec {
  * Print the raw markdown content for a spec file without any formatting.
  * Raw-first behavior ensures text mode is a passthrough for deterministic output.
  */
-function printSpecTextRaw(specPath: string): void {
+function printSpecTextRaw(specsDir: string, specPath: string): void {
+  assertSpecPath(specsDir, specPath);
   const content = readFileSync(specPath, 'utf-8');
   console.log(content);
 }
@@ -94,6 +117,7 @@ export class SpecCommand {
     }
 
     const specPath = join(this.specsDir, specId, 'spec.md');
+    assertSpecPath(this.specsDir, specPath);
     if (!existsSync(specPath)) {
       // Root-aware callers get the absolute path; the cwd-based noun form
       // keeps its historical forward-slash relative message on all platforms.
@@ -105,7 +129,7 @@ export class SpecCommand {
       if (options.requirements && options.requirement) {
         throw new Error('Options --requirements and --requirement cannot be used together');
       }
-      const parsed = parseSpecFromFile(specPath, specId);
+      const parsed = parseSpecFromFile(this.specsDir, specPath, specId);
       const filtered = filterSpec(parsed, options);
       const output = {
         id: specId,
@@ -119,7 +143,7 @@ export class SpecCommand {
       console.log(JSON.stringify(output, null, 2));
       return;
     }
-    printSpecTextRaw(specPath);
+    printSpecTextRaw(this.specsDir, specPath);
   }
 }
 
@@ -167,7 +191,8 @@ export function registerSpecCommand(rootProgram: typeof program) {
         const specs = discovered
           .map(({ id, specFile }) => {
             try {
-              const spec = parseSpecFromFile(specFile, id);
+              assertSpecPath(SPECS_DIR, specFile);
+              const spec = parseSpecFromFile(SPECS_DIR, specFile, id);
 
               return {
                 id,
@@ -228,12 +253,14 @@ export function registerSpecCommand(rootProgram: typeof program) {
         }
 
         const specPath = join(SPECS_DIR, specId, 'spec.md');
+        assertSpecPath(SPECS_DIR, specPath);
         
         if (!existsSync(specPath)) {
           throw new Error(`Spec '${specId}' not found at openspec/specs/${specId}/spec.md`);
         }
 
         const validator = new Validator(options.strict);
+        assertSpecPath(SPECS_DIR, specPath);
         const report = await validator.validateSpec(specPath);
 
         if (options.json) {

@@ -1,4 +1,4 @@
-import { buildCodeFenceMask } from './requirement-text.js';
+import { buildCodeFenceMask, SCENARIO_HEADER } from './requirement-text.js';
 
 export interface RequirementBlock {
   headerLine: string; // e.g., '### Requirement: Something'
@@ -16,6 +16,17 @@ export interface RequirementsSectionParts {
 
 export function normalizeRequirementName(name: string): string {
   return name.trim();
+}
+
+/**
+ * Case- and whitespace-insensitive fold of a requirement name. Requirement
+ * matching itself is case-sensitive (normalizeRequirementName); this fold
+ * exists only for typo detection - near-miss REMOVED headers and the
+ * RENAMED+REMOVED cross-section conflict - where two spellings that differ
+ * only in case or interior whitespace mean a mistake, never two requirements.
+ */
+export function foldRequirementName(name: string): string {
+  return normalizeRequirementName(name).toLowerCase().replace(/\s+/g, ' ');
 }
 
 /** The canonical requirement header the delta reader recognizes. */
@@ -130,7 +141,9 @@ export interface DeltaPlan {
 }
 
 function normalizeLineEndings(content: string): string {
-  return content.replace(/\r\n?/g, '\n');
+  // Strip a UTF-8 BOM: Windows editors and PowerShell redirects prepend one,
+  // and it would keep the first line's `## ADDED Requirements` from matching.
+  return content.replace(/^﻿/, '').replace(/\r\n?/g, '\n');
 }
 
 /**
@@ -309,4 +322,109 @@ function parseRenamedPairs(sectionBody: SectionBody): Array<{ from: string; to: 
     }
   }
   return pairs;
+}
+
+interface ScenarioBlock {
+  name: string;
+  raw: string;
+}
+
+/**
+ * Scenario names the current requirement block has and the incoming
+ * (MODIFIED) block does not. A MODIFIED requirement replaces the whole block,
+ * so every name reported here would be dropped from the main spec.
+ *
+ * Shared by archive (which refuses to apply the block) and validate (which
+ * reports the same loss at authoring time, #1477), so the two cannot disagree
+ * about what counts as a dropped scenario.
+ */
+export function findMissingCurrentScenarios(current: RequirementBlock, incoming: RequirementBlock): string[] {
+  // Multiplicity-aware: a name present N times in current and M times in
+  // incoming means max(0, N - M) instances are missing. Set membership would
+  // treat N>M as fully covered and let archive silently drop duplicates
+  // (residual #1246 / duplicate-scenario-name blind spot).
+  const remainingIncoming = new Map<string, number>();
+  for (const scenario of parseScenarioBlocks(incoming.raw)) {
+    const name = scenario.name;
+    remainingIncoming.set(name, (remainingIncoming.get(name) ?? 0) + 1);
+  }
+
+  const missing: string[] = [];
+  for (const scenario of parseScenarioBlocks(current.raw)) {
+    const name = scenario.name;
+    const remaining = remainingIncoming.get(name) ?? 0;
+    if (remaining > 0) {
+      remainingIncoming.set(name, remaining - 1);
+    } else {
+      missing.push(name);
+    }
+  }
+  return missing;
+}
+
+/**
+ * Any non-fenced level-4 header on the given (masked) line. Reuses the spec
+ * path's SCENARIO_HEADER so the two counters cannot drift apart.
+ */
+function scenarioHeaderAt(lines: string[], mask: boolean[], index: number): boolean {
+  return !mask[index] && SCENARIO_HEADER.test(lines[index]);
+}
+
+/**
+ * The scenario name for a `#### ` header, matching the label the author reads:
+ * the header text with the leading `####`, an optional CommonMark closing `#`
+ * run (`#### Foo ####` renders as `Foo`), and an optional `Scenario:` prefix
+ * stripped. Both the current and incoming blocks run through here, so the
+ * comparison in findMissingCurrentScenarios stays internally consistent
+ * regardless of label — and two headers that render to the same title (one
+ * ATX-closed, one not) are not mistaken for a dropped scenario.
+ */
+function scenarioNameAt(line: string): string {
+  return line
+    .replace(SCENARIO_HEADER, '')
+    // Optional ATX closing sequence. CommonMark only treats a trailing `#` run
+    // as a close when it is preceded by a space or tab — not any Unicode space —
+    // so this uses `[ \t]`, not `\s`. A looser `\s` could strip a `#` run after
+    // an exotic space (e.g. NBSP) that CommonMark keeps, folding two distinct
+    // scenario names into one and masking a real loss. `[ \t]` keeps the fold
+    // faithful to how the header actually renders.
+    .replace(/[ \t]+#+[ \t]*$/, '')
+    .replace(/^Scenario:\s*/i, '')
+    .trim();
+}
+
+function parseScenarioBlocks(requirementRaw: string): ScenarioBlock[] {
+  const lines = requirementRaw.replace(/\r\n?/g, '\n').split('\n');
+  // A scenario is ANY non-fenced `#### ` header, matching the spec path's
+  // SCENARIO_HEADER / countScenarios (requirement-text.ts) exactly — not only
+  // `#### Scenario:`. The two MUST agree: a level-4 child whose header is not
+  // literally `Scenario:` (e.g. `#### Edge case`) is still a scenario the spec
+  // path counts, so a MODIFIED block that drops it would otherwise slip past
+  // this loss check and be deleted by archive with no error (the parity the
+  // SCENARIO_HEADER comment warns not to break). A `####` inside a fenced
+  // example is masked out, matching countScenarios.
+  const mask = buildCodeFenceMask(lines);
+  const scenarios: ScenarioBlock[] = [];
+  let index = 0;
+
+  while (index < lines.length) {
+    if (!scenarioHeaderAt(lines, mask, index)) {
+      index++;
+      continue;
+    }
+
+    const start = index;
+    const name = scenarioNameAt(lines[index]);
+    index++;
+    while (index < lines.length && !scenarioHeaderAt(lines, mask, index)) {
+      index++;
+    }
+
+    scenarios.push({
+      name,
+      raw: lines.slice(start, index).join('\n').trimEnd(),
+    });
+  }
+
+  return scenarios;
 }

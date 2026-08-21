@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getGlobalDataDir } from '../global-config.js';
+import { FileSystemUtils } from '../../utils/file-system.js';
 import { parseSchema, SchemaValidationError } from './schema.js';
 import type { SchemaYaml } from './types.js';
 
@@ -57,7 +58,22 @@ export function getProjectSchemasDir(projectRoot: string): string {
  * @param parentDir - The directory containing the entry
  * @param entry - The directory entry from `fs.readdirSync(..., { withFileTypes: true })`
  */
+/**
+ * Directories `schema fork` creates transiently while swapping a fork into
+ * place: a staging copy (`.fork-staging-<rand>`, created via mkdtemp) and a
+ * backup of the previous destination (`<name>.fork-backup-<pid>-<ts>`). Either
+ * can briefly coexist with real schemas in the schemas dir, so discovery must
+ * never surface them. Real schema names are kebab-case (no dots), so excluding
+ * these dot-bearing temp names can never hide a legitimate schema.
+ */
+function isOwnedForkTempDir(name: string): boolean {
+  return name.startsWith('.fork-staging-') || name.includes('.fork-backup-');
+}
+
 export function isSchemaDir(parentDir: string, entry: fs.Dirent): boolean {
+  if (isOwnedForkTempDir(entry.name)) {
+    return false;
+  }
   if (entry.isDirectory()) {
     return true;
   }
@@ -71,6 +87,26 @@ export function isSchemaDir(parentDir: string, entry: fs.Dirent): boolean {
     }
   }
   return false;
+}
+
+/**
+ * Returns a schema directory only when its schema file stays within that
+ * directory's canonical trust boundary. The directory itself may be a symlink;
+ * external user schema links are an intentionally supported workflow.
+ */
+function getSchemaCandidateDir(schemasDir: string, name: string): string | null {
+  const schemaDir = path.join(schemasDir, name);
+  const schemaPath = path.join(schemaDir, 'schema.yaml');
+  if (!fs.existsSync(schemaPath)) {
+    return null;
+  }
+
+  try {
+    FileSystemUtils.assertPathWithin(schemaDir, schemaPath);
+    return schemaDir;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -92,26 +128,35 @@ export function getSchemaDir(
   name: string,
   projectRoot?: string
 ): string | null {
+  if (
+    name.length === 0 ||
+    name === '.' ||
+    name === '..' ||
+    /[\\/]/u.test(name) ||
+    /^[A-Za-z]:/u.test(name) ||
+    path.posix.isAbsolute(name) ||
+    path.win32.isAbsolute(name)
+  ) {
+    return null;
+  }
+
   // 1. Check project-local directory (if projectRoot provided)
   if (projectRoot) {
-    const projectDir = path.join(getProjectSchemasDir(projectRoot), name);
-    const projectSchemaPath = path.join(projectDir, 'schema.yaml');
-    if (fs.existsSync(projectSchemaPath)) {
+    const projectDir = getSchemaCandidateDir(getProjectSchemasDir(projectRoot), name);
+    if (projectDir) {
       return projectDir;
     }
   }
 
   // 2. Check user override directory
-  const userDir = path.join(getUserSchemasDir(), name);
-  const userSchemaPath = path.join(userDir, 'schema.yaml');
-  if (fs.existsSync(userSchemaPath)) {
+  const userDir = getSchemaCandidateDir(getUserSchemasDir(), name);
+  if (userDir) {
     return userDir;
   }
 
   // 3. Check package built-in directory
-  const packageDir = path.join(getPackageSchemasDir(), name);
-  const packageSchemaPath = path.join(packageDir, 'schema.yaml');
-  if (fs.existsSync(packageSchemaPath)) {
+  const packageDir = getSchemaCandidateDir(getPackageSchemasDir(), name);
+  if (packageDir) {
     return packageDir;
   }
 

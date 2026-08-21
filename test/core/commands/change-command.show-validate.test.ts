@@ -13,7 +13,7 @@ describe('ChangeCommand.show/validate', () => {
   beforeAll(async () => {
     cmd = new ChangeCommand();
     originalCwd = process.cwd();
-    tempRoot = path.join(os.tmpdir(), `openspec-change-command-${Date.now()}`);
+    tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-change-command-'));
     const changesDir = path.join(tempRoot, 'openspec', 'changes', 'sample-change');
     await fs.mkdir(changesDir, { recursive: true });
     const proposal = `# Change: Sample Change\n\n## Why\nConsistency in tests.\n\n## What Changes\n- **auth:** Add requirement`;
@@ -89,6 +89,82 @@ describe('ChangeCommand.show/validate', () => {
     }
   });
 
+  describe('resolving a change that has no proposal.md', () => {
+    it('names the missing proposal and points at status', async () => {
+      await fs.mkdir(path.join(tempRoot, 'openspec', 'changes', 'scaffolded'), { recursive: true });
+
+      await expect(cmd.show('scaffolded', { json: false })).rejects.toThrow(
+        /Change "scaffolded" has no proposal\.md yet\..*openspec status --change scaffolded/s
+      );
+    });
+
+    it('does not treat a stray file under changes/ as a change', async () => {
+      await fs.writeFile(path.join(tempRoot, 'openspec', 'changes', 'notes.md'), 'not a change', 'utf-8');
+
+      // Must stay the plain not-found error: `status --change notes.md` cannot work.
+      await expect(cmd.show('notes.md', { json: false })).rejects.toThrow(/not found at/);
+      await expect(cmd.show('notes.md', { json: false })).rejects.not.toThrow(/has no proposal\.md yet/);
+    });
+
+    it('does not read a proposal outside changes/ via a traversing name', async () => {
+      // Reachable target: openspec/changes/../../proposal.md is tempRoot/proposal.md.
+      // Without containment this resolves and the file is printed verbatim.
+      await fs.writeFile(path.join(tempRoot, 'proposal.md'), '# Outside the changes directory', 'utf-8');
+      const traversal = path.join('..', '..');
+
+      await expect(cmd.show(traversal, { json: false })).rejects.toThrow(/not found at/);
+      await expect(cmd.show(traversal, { json: false })).rejects.not.toThrow(/has no proposal\.md yet/);
+    });
+
+    it.skipIf(process.platform === 'win32')(
+      'does not read a proposal symlink outside changes/',
+      async () => {
+        const outsideProposal = path.join(tempRoot, 'outside-proposal.md');
+        const linkedProposal = path.join(
+          tempRoot,
+          'openspec',
+          'changes',
+          'linked-proposal',
+          'proposal.md'
+        );
+        await fs.writeFile(outsideProposal, '# Outside sentinel', 'utf-8');
+        await fs.mkdir(path.dirname(linkedProposal), { recursive: true });
+        await fs.symlink(outsideProposal, linkedProposal);
+
+        await expect(cmd.show('linked-proposal', { json: false })).rejects.toThrow(
+          /outside the allowed directory/u
+        );
+      }
+    );
+
+    it.skipIf(process.platform === 'win32')(
+      'allows a linked change directory as its own trust root',
+      async () => {
+        const sharedChange = path.join(tempRoot, 'shared-change');
+        await fs.mkdir(sharedChange);
+        await fs.writeFile(
+          path.join(sharedChange, 'proposal.md'),
+          '# Change: Shared safely\n\n## Why\n\nReuse a shared plan.\n\n## What Changes\n\n- Shared.\n',
+          'utf-8'
+        );
+        await fs.symlink(
+          sharedChange,
+          path.join(tempRoot, 'openspec', 'changes', 'shared-change')
+        );
+
+        await expect(cmd.show('shared-change', { json: false })).resolves.toBeUndefined();
+      }
+    );
+
+    it('does not treat a nested name as a change', async () => {
+      const nested = path.join('sample-change', 'specs');
+      await fs.mkdir(path.join(tempRoot, 'openspec', 'changes', 'sample-change', 'specs'), { recursive: true });
+
+      await expect(cmd.show(nested, { json: false })).rejects.toThrow(/not found at/);
+      await expect(cmd.show(nested, { json: false })).rejects.not.toThrow(/has no proposal\.md yet/);
+    });
+  });
+
   it('validate --strict --json returns a report with valid boolean', async () => {
     const logs: string[] = [];
     const origLog = console.log;
@@ -107,5 +183,9 @@ describe('ChangeCommand.show/validate', () => {
     } finally {
       console.log = origLog;
     }
+  });
+
+  it('validate rejects a traversing change name', async () => {
+    await expect(cmd.validate(path.join('..', '..', 'outside'))).rejects.toThrow(/not found at/u);
   });
 });

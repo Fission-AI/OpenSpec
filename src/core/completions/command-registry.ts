@@ -14,6 +14,11 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         takesValue: true,
       },
       {
+        name: 'language',
+        description: 'Write new OpenSpec artifacts in this language',
+        takesValue: true,
+      },
+      {
         name: 'force',
         description: 'Auto-cleanup legacy files without prompting',
       },
@@ -22,6 +27,18 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         description: 'Override global config profile (core or custom)',
         takesValue: true,
         values: ['core', 'custom'],
+      },
+      {
+        name: 'no-animation',
+        description: 'Show a static welcome screen instead of the animated one',
+      },
+      {
+        name: 'copilot-cloud',
+        description: 'Generate GitHub Copilot cloud coding-agent files (opt-in; default: prompt)',
+      },
+      {
+        name: 'no-copilot-cloud',
+        description: 'Skip generating GitHub Copilot cloud coding-agent files',
       },
     ],
   },
@@ -63,7 +80,9 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
   {
     name: 'view',
     description: 'Display an interactive dashboard of specs and changes',
-    flags: [],
+    flags: [
+      COMMON_FLAGS.store,
+    ],
   },
   {
     name: 'validate',
@@ -83,6 +102,10 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
       {
         name: 'specs',
         description: 'Validate all specs',
+      },
+      {
+        name: 'archived',
+        description: 'Validate that archived changes have all tasks completed (for pre-commit linting)',
       },
       COMMON_FLAGS.type,
       COMMON_FLAGS.strict,
@@ -178,7 +201,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
   },
   {
     name: 'instructions',
-    description: 'Output enriched instructions for creating an artifact or applying tasks',
+    description: 'Output enriched instructions for artifacts, apply, or archive',
     acceptsPositional: true,
     positionals: [{ name: 'artifact', optional: true }],
     flags: [
@@ -213,6 +236,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     description: 'List available workflow schemas with descriptions',
     flags: [
       COMMON_FLAGS.json,
+      COMMON_FLAGS.store,
     ],
   },
   {

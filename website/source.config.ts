@@ -1,5 +1,6 @@
 import { defineConfig, defineDocs } from 'fumadocs-mdx/config';
 import { metaSchema, pageSchema } from 'fumadocs-core/source/schema';
+import { remarkMdxMermaid } from 'fumadocs-core/mdx-plugins';
 import { z } from 'zod';
 
 // You can customize Zod schemas for frontmatter and `meta.json` here
@@ -12,7 +13,9 @@ export const docs = defineDocs({
     // page" link opens the real source rather than the generated mirror.
     schema: pageSchema.extend({ githubSource: z.string().optional() }),
     postprocess: {
-      includeProcessedMarkdown: true,
+      includeProcessedMarkdown: {
+        mdxAsPlaceholder: ['Mermaid'],
+      },
     },
   },
   meta: {
@@ -22,6 +25,6 @@ export const docs = defineDocs({
 
 export default defineConfig({
   mdxOptions: {
-    // MDX options
+    remarkPlugins: [remarkMdxMermaid],
   },
 });
