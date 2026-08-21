@@ -57,8 +57,8 @@ Your agent runs most of these during the workflow.
 
 | Command | What it does |
 |---|---|
-| [`openspec change`](#openspec-change) | Noun form of show, list, and validate for changes; the CLI warns and points to the verb-first commands. |
-| [`openspec spec`](#openspec-spec) | Noun form of show, list, and validate for specs; same warning. |
+| [`openspec change`](#openspec-change) | Noun form of show, list, and validate for changes. The CLI warns and points to the verb-first commands. |
+| [`openspec spec`](#openspec-spec) | Noun form of show, list, and validate for specs, with the same warning. |
 
 Every command takes `-h, --help`. The bare `openspec` command also takes:
 
@@ -75,7 +75,7 @@ openspec init --tools claude,cursor  # set up specific tools, no prompts
 openspec init --tools none           # openspec/ structure only, no tool files
 ```
 
-With no `--tools`, init prompts you to pick tools in an interactive terminal. Outside one, it sets up the tools it detects in the project; with none detected it exits 1 and lists the valid ids.
+With no `--tools`, init prompts you to pick tools in an interactive terminal. Outside one, it sets up the tools it detects in the project. With none detected it exits 1 and lists the valid ids.
 
 **Arguments**
 
@@ -128,7 +128,7 @@ openspec update           # refresh tools whose files are older than the CLI
 openspec update --force   # rewrite files even when they're current
 ```
 
-update finds the tools init configured and compares their generated files against the CLI's version. When a newer OpenSpec release exists, it first offers to upgrade the CLI, then reruns with the upgraded version; set `OPENSPEC_NO_UPDATE_CHECK=1` to skip the check.
+update finds the tools init configured and compares their generated files against the CLI's version. When a newer OpenSpec release exists, it first offers to upgrade the CLI, then reruns with the upgraded version. Set `OPENSPEC_NO_UPDATE_CHECK=1` to skip the check.
 
 **Arguments**
 
@@ -198,7 +198,7 @@ openspec config profile               # interactive workflow picker
 | `edit` | Open the config file in `$EDITOR`. |
 | `profile [preset]` | Configure delivery mode and workflows. |
 
-Config is global to your machine, stored as JSON where `config path` points: `$XDG_CONFIG_HOME/openspec/config.json` if set, else `~/.config/openspec/config.json` (macOS, Linux) or `%APPDATA%\openspec\config.json` (Windows). Every subcommand accepts `--scope <scope>`, but only `global` works today; any other scope exits 1 with `Error: Project-local config is not yet implemented`.
+Config is global to your machine, stored as JSON where `config path` points: `$XDG_CONFIG_HOME/openspec/config.json` if set, else `~/.config/openspec/config.json` (macOS, Linux) or `%APPDATA%\openspec\config.json` (Windows). Every subcommand accepts `--scope <scope>`, but only `global` works today. Any other scope exits 1 with `Error: Project-local config is not yet implemented`.
 
 ### openspec config path
 
@@ -261,7 +261,7 @@ both
 **Exit codes**
 
 - `0`: value printed.
-- `1`: key has no value; nothing is printed.
+- `1`: key has no value, and nothing is printed.
 
 ### openspec config set
 
@@ -350,7 +350,7 @@ Without `--all` it exits 1 and prints the usage line.
 openspec config edit
 ```
 
-Opens the config file in `$EDITOR` (falling back to `$VISUAL`), creating it with defaults first if missing. When the editor closes, the file is validated; invalid JSON or an invalid config exits 1. With no editor configured it exits 1:
+Opens the config file in `$EDITOR` (falling back to `$VISUAL`), creating it with defaults first if missing. When the editor closes, the file is validated. Invalid JSON or an invalid config exits 1. With no editor configured it exits 1:
 
 ```
 Error: No editor configured
@@ -369,7 +369,7 @@ openspec config profile core   # apply the core preset directly
 
 | Argument | What it is |
 |---|---|
-| `preset` | Optional preset name. Only `core` exists; it selects the core workflows and keeps your delivery setting. |
+| `preset` | Optional preset name. Only `core` exists. It selects the core workflows and keeps your delivery setting. |
 
 With no preset, an interactive picker shows your current delivery and workflows, lets you change either or both (delivery: both, skills only, or commands only; workflows: a checkbox list), prints the diff, and inside an OpenSpec project offers to run `openspec update` for you. Outside a terminal it exits 1:
 
@@ -576,7 +576,7 @@ Prints a one-screen dashboard of specs and changes.
 openspec view   # project summary in one screen
 ```
 
-view prints the dashboard once and exits; it reads no keystrokes. Changes group by task progress: Draft (no tasks yet), Active (tasks underway, with a progress bar and percent), Completed (every task checked). Specs list with requirement counts, largest first.
+view prints the dashboard once and exits. It reads no keystrokes. Changes group by task progress: Draft (no tasks yet), Active (tasks underway, with a progress bar and percent), Completed (every task checked). Specs list with requirement counts, largest first.
 
 **Options**
 
@@ -649,7 +649,7 @@ With no name and no bulk flag, validate prompts you to pick items. Outside an in
 
 **Output**
 
-One line per item; bulk runs end with totals:
+One line per item. Bulk runs end with totals:
 
 ```
 ✓ change/add-rate-limit
@@ -733,7 +733,7 @@ With no name, archive prompts you to pick a change. Outside an interactive termi
 |---|---|
 | `-y, --yes` | Answer yes to every confirmation: spec updates, incomplete tasks, skipped validation. |
 | `--skip-specs` | Archive without touching the main specs (infrastructure, tooling, or doc-only changes). |
-| `--no-validate` | Skip validation. Archive asks you to confirm first; `-y` answers it. |
+| `--no-validate` | Skip validation. Archive asks you to confirm first, and `-y` answers it. |
 | `--json` | Print a structured result instead of text. Needs `--yes` to confirm spec updates. |
 | `--store <id>` | Use a registered store as the OpenSpec root instead of the current project. |
 
@@ -753,7 +753,7 @@ Specs updated successfully.
 Change 'add-rate-limit' archived as '2026-08-11-add-rate-limit'.
 ```
 
-The change folder moves whole to `openspec/changes/archive/2026-08-11-add-rate-limit/`, today's date prefixed to its name. Each delta merges into its main spec: the ADDED requirement above was appended to `openspec/specs/api/spec.md`. Without `-y`, archive shows the preview and asks before updating; declining still archives the change and leaves the specs alone.
+The change folder moves whole to `openspec/changes/archive/2026-08-11-add-rate-limit/`, today's date prefixed to its name. Each delta merges into its main spec: the ADDED requirement above was appended to `openspec/specs/api/spec.md`. Without `-y`, archive shows the preview and asks before updating. Declining still archives the change and leaves the specs alone.
 
 With `--json --yes`:
 
@@ -788,7 +788,7 @@ Validation failed. Please fix the errors before archiving.
 To skip validation (not recommended), use --no-validate flag.
 ```
 
-Incomplete tasks warn but don't block. Interactively archive asks whether to continue; `-y` continues on its own:
+Incomplete tasks warn but don't block. Interactively archive asks whether to continue, and `-y` continues on its own:
 
 ```
 Task status: 1/2 tasks
@@ -1023,7 +1023,7 @@ Pause if you hit blockers or need clarification.
 No project context or operation guidance configured.
 ```
 
-When required artifacts are missing, `apply` reports `### ⚠️ Blocked` and names them instead. `archive` prints the change name plus any project context and operation guidance from config; with none configured it says so and nothing more.
+When required artifacts are missing, `apply` reports `### ⚠️ Blocked` and names them instead. `archive` prints the change name plus any project context and operation guidance from config. With none configured it says so and nothing more.
 
 With `--json`, each form returns one object. The artifact form starts:
 
@@ -1128,7 +1128,7 @@ Available schemas:
     Artifacts: proposal → specs → design → tasks
 ```
 
-Schemas from your project are labeled `(project)`; global overrides are labeled `(user override)`.
+Schemas from your project are labeled `(project)`, and global overrides are labeled `(user override)`.
 
 ```json
 [
@@ -1153,7 +1153,7 @@ Schemas from your project are labeled `(project)`; global overrides are labeled 
 
 ## openspec schema
 
-Inspects, forks, or creates a schema (experimental). The CLI marks the whole group experimental: every subcommand first prints `Note: Schema commands are experimental and may change.` on stderr.
+Inspects, forks, or creates a schema (experimental). Every subcommand first prints `Note: Schema commands are experimental and may change.` on stderr.
 
 ```bash
 openspec schema which spec-driven          # where a schema resolves from
@@ -1189,7 +1189,7 @@ openspec schema which --all        # every schema, grouped by source
 
 | Argument | What it is |
 |---|---|
-| `name` | The schema to look up. Required unless `--all` is set; without either, which exits 1. |
+| `name` | The schema to look up. Required unless `--all` is set. Without either, which exits 1. |
 
 **Options**
 
@@ -1317,7 +1317,7 @@ With no `--description` and no `--artifacts` in an interactive terminal, init pr
 |---|---|
 | `--description <text>` | Schema description. Default: `Custom workflow schema for <name>`. |
 | `--artifacts <list>` | Comma-separated artifact IDs from `proposal`, `specs`, `design`, `tasks`. Default: all four. |
-| `--default` | Make the schema the project default: writes `defaultSchema` to `openspec/config.yaml`. |
+| `--default` | Writes `defaultSchema` to `openspec/config.yaml`. Nothing reads that key. To make the schema the default, set `schema: <name>` there yourself. |
 | `--no-default` | Skip the prompt about the default. |
 | `--force` | Overwrite an existing schema with the same name. |
 | `--json` | Print the result as JSON. |
@@ -1444,7 +1444,7 @@ Registers an existing store folder, for example a teammate's store you cloned.
 openspec store register ~/stores/design-system
 ```
 
-The folder must contain a healthy `openspec/` root. With `.openspec-store/store.yaml` present, register reuses the recorded id. Without it, register asks before creating that metadata; outside an interactive terminal that needs `--yes`. One checkout per store id on a machine: a second path under the same id, or the same path under a second id, exits 1.
+The folder must contain a healthy `openspec/` root. With `.openspec-store/store.yaml` present, register reuses the recorded id. Without it, register asks before creating that metadata. Outside an interactive terminal, pass `--yes` instead. A machine can register one checkout per store id. A second path under the same id, or the same path under a second id, exits 1.
 
 **Arguments**
 
@@ -1456,7 +1456,7 @@ The folder must contain a healthy `openspec/` root. With `.openspec-store/store.
 
 | Flag | Effect |
 |---|---|
-| `--id <id>` | Store id; defaults to metadata or folder name. |
+| `--id <id>` | Store id. Defaults to metadata or folder name. |
 | `--yes` | Confirm creating store identity metadata for a healthy OpenSpec root. |
 
 **Output**
@@ -1750,7 +1750,7 @@ openspec workset create checkout \
   --member web=~/projects/checkout-web
 ```
 
-In an interactive terminal, create prompts for whatever the flags didn't provide: the name, folders one at a time, a tool, then an offer to open the workset now. Outside one, a missing name or member is an error. A name that's already saved is always an error; remove it first.
+In an interactive terminal, create prompts for whatever the flags didn't provide: the name, folders one at a time, a tool, then an offer to open the workset now. Outside one, a missing name or member is an error. A name that's already saved is always an error. Remove it first.
 
 **Arguments**
 
@@ -1762,8 +1762,8 @@ In an interactive terminal, create prompts for whatever the flags didn't provide
 
 | Flag | Effect |
 |---|---|
-| `--member <member>` | Member folder as `<path>` or `<name>=<path>`; repeatable, the first is the primary. The path must be an existing folder; the label defaults to the folder's own name. |
-| `--tool <id>` | Preferred tool to open this workset with. Built-in ids: `code` (VS Code), `cursor` (Cursor); `claude` and `codex` are temporarily disabled. |
+| `--member <member>` | Member folder as `<path>` or `<name>=<path>`, repeatable. The first is the primary. The path must be an existing folder, and the label defaults to the folder's own name. |
+| `--tool <id>` | Preferred tool to open this workset with. Built-in ids: `code` (VS Code), `cursor` (Cursor). `claude` and `codex` are temporarily disabled. |
 | `--json` | Print the saved workset as JSON. |
 
 **Output**
@@ -1824,7 +1824,7 @@ With `--json`:
 
 ### openspec workset open
 
-Opens a saved workset in your tool. Editor tools (`code`, `cursor`) get a generated `.code-workspace` file: a window opens and the command returns. CLI agent tools (`claude`, `codex`) would take over this terminal with every member attached; they are temporarily disabled while that flow is reworked, so worksets open in an IDE for now.
+Opens a saved workset in your tool. Editor tools (`code`, `cursor`) get a generated `.code-workspace` file. A window opens and the command returns. CLI agent tools (`claude`, `codex`) would take over this terminal with every member attached. They are temporarily disabled while that flow is reworked, so worksets open in an IDE for now.
 
 ```bash
 openspec workset open checkout                # saved tool, or a prompt
@@ -1843,7 +1843,7 @@ openspec workset open checkout --tool cursor  # this tool just this once
 |---|---|
 | `--tool <id>` | Open with this tool just this once. |
 
-With no `--tool` and no saved tool, open prompts you to pick an installed tool; outside an interactive terminal it exits 1 instead.
+With no `--tool` and no saved tool, open prompts you to pick an installed tool. Outside an interactive terminal it exits 1 instead.
 
 - A member folder that no longer exists is skipped with a warning. When the primary is missing, the next surviving member becomes the primary for this open. When no member folder exists, the open fails.
 - `--json` is rejected: open hands the terminal to the tool and has no JSON mode.
@@ -1886,7 +1886,7 @@ openspec feedback "Validate output is hard to scan"
 openspec feedback "Archive fails on Windows" --body "Steps: init, propose, archive. Error: EPERM."
 ```
 
-The CLI files your message as a GitHub issue on the `Fission-AI/OpenSpec` repo through your `gh` CLI. The title becomes `Feedback: <message>`. The body holds your `--body` text plus a footer with CLI version, platform, and timestamp. The issue gets the `feedback` label; if the repo doesn't define that label, the CLI retries without it and says so.
+The CLI files your message as a GitHub issue on the `Fission-AI/OpenSpec` repo through your `gh` CLI. The title becomes `Feedback: <message>`. The body holds your `--body` text plus a footer with CLI version, platform, and timestamp. The issue gets the `feedback` label. If the repo doesn't define that label, the CLI retries without it and says so.
 
 **Arguments**
 
@@ -1926,7 +1926,7 @@ openspec completion install        # detect your shell, install, wire up config
 openspec completion generate zsh   # print the script to stdout
 ```
 
-Supported shells: `zsh`, `bash`, `fish`, `powershell`. Every subcommand takes an optional shell argument; omit it and the CLI detects your shell from the environment.
+Supported shells: `zsh`, `bash`, `fish`, `powershell`. Every subcommand takes an optional shell argument. Omit it and the CLI detects your shell from the environment.
 
 | Subcommand | What it does |
 |---|---|
@@ -1936,7 +1936,7 @@ Supported shells: `zsh`, `bash`, `fish`, `powershell`. Every subcommand takes an
 
 ### openspec completion generate
 
-Prints the script; nothing is written.
+Prints the script and writes nothing.
 
 ```
 #compdef openspec
@@ -1995,7 +1995,7 @@ Removes the script and the marked config block. It asks before touching your con
 
 **Exit codes**
 
-- `0`: script generated, installed, or removed; also a cancelled uninstall.
+- `0`: script generated, installed, or removed. A cancelled uninstall also exits 0.
 - `1`: shell not supported or not detected, or an install or uninstall step failed.
 
 ## openspec change

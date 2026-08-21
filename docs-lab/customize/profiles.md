@@ -2,7 +2,7 @@
 
 > Choose which workflows are installed, and whether they install as skills, commands, or both.
 
-A profile is your preference for which OpenSpec workflows (the [skills and commands](../start/setup.md#the-workflow-files-skills-and-commands) in your AI tool) are installed across your machine. The default profile is `core`; include or exclude workflows and your selection is saved as the `custom` profile.
+A profile is your preference for which OpenSpec workflows (the [skills and commands](../start/setup.md#the-workflow-files-skills-and-commands) in your AI tool) are installed across your machine. The default profile is `core`. Include or exclude workflows and your selection is saved as the `custom` profile.
 
 ## The core set
 
@@ -66,7 +66,7 @@ Config changes:
 openspec config set delivery skills   # or: both, commands
 ```
 
-Delivery never changes the profile name: `core` and `custom` describe the workflow set only, and switching back to `core` keeps your delivery setting.
+Delivery never changes the profile name. `core` and `custom` describe the workflow set only, and switching back to `core` keeps your delivery setting.
 
 ## Switching profiles
 

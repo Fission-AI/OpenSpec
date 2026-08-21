@@ -17,17 +17,17 @@ Each OpenSpec project keeps its config file at `openspec/config.yaml`, in the pr
 | `store` | string | No | Fallback OpenSpec root when this openspec/ is config-only |
 | `references` | list | No | Stores whose specs are indexed into instructions |
 
-Invalid fields never fail a command: each field is validated on its own, and a bad value is dropped with a warning.
+Invalid fields never fail a command. Each field is validated on its own, and a bad value is dropped with a warning.
 
 What to write in these fields is covered in [Project configuration](../../customize/project-config.md).
 
 ### schema
 
-The workflow schema every change in this project follows. Valid values are `spec-driven` or a schema name the project defines; the names are listed in [Schemas](../schemas/index.md).
+The workflow schema every change in this project follows. Valid values are `spec-driven` or a schema name the project defines. The names are listed in [Schemas](../schemas/index.md).
 
 ### context
 
-Free text injected into every artifact's instructions. The limit is 50KB; a larger value is ignored with a warning.
+Free text injected into every artifact's instructions. The limit is 50KB, and a larger value is ignored with a warning.
 
 ### rules
 
@@ -56,11 +56,11 @@ Only `apply` and `archive` are read.
 
 ### store
 
-A store id used as the OpenSpec root, consulted only when this openspec/ directory is config-only (no specs/ or changes/). It is a fallback, never an override; the full ladder is [Root resolution](stores.md#root-resolution).
+A store id used as the OpenSpec root, consulted only when this openspec/ directory is config-only (no specs/ or changes/). It is a fallback, never an override. The full ladder is [Root resolution](stores.md#root-resolution).
 
 ### references
 
-Store ids whose specs this project's work draws on. An index of each store's specs (id, summary, fetch command) is added to instructions output; spec content is never inlined, and root resolution is never affected. An entry is a store id or a map with `id` and an optional `remote` clone source:
+Store ids whose specs this project's work draws on. An index of each store's specs (id, summary, fetch command) is added to instructions output. Spec content is never inlined, and root resolution is never affected. An entry is a store id or a map with `id` and an optional `remote` clone source:
 
 ```yaml
 references:

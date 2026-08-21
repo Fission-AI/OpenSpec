@@ -29,14 +29,25 @@ export const sections = [
   {
     label: 'Start',
     pages: [
-      // The `index` slug is a router requirement (it serves /docs); the
-      // authored source file is overview.md.
-      { source: 'start/overview.md', slug: 'index' },
+      // TEMPORARY (2026-08-21): the Overview page is pulled from the site while
+      // docs-lab/start/overview.md is rewritten from scratch (it's a TODO stub).
+      // Until it returns, /docs redirects to Installation: see public/_redirects
+      // (Cloudflare) and the empty-slug fallback in app/docs/[[...slug]]/page.tsx
+      // (local dev and static export). To restore: uncomment the line below and
+      // remove both redirects. The `index` slug is a router requirement (it
+      // serves /docs); the authored source file is overview.md.
+      // { source: 'start/overview.md', slug: 'index' },
       { source: 'start/installation.md', slug: 'installation' },
       { source: 'start/setup.md', slug: 'setup' },
       { source: 'start/quickstart.md', slug: 'quickstart' },
     ],
   },
+  // Guides are held back until the pages are drafted. Re-publish one by moving
+  // its entry out of this comment, keeping its folder wrapper so the slug stays
+  // `<folder>/<name>`. Links to a held-back guide fall back to its source on
+  // GitHub (see rewriteLinks in scripts/sync-docs.mjs). The Guides navbar tab
+  // returns on its own once this section exists again (lib/source.ts).
+  /*
   {
     label: 'Guides',
     pages: [
@@ -68,6 +79,7 @@ export const sections = [
       },
     ],
   },
+  */
   {
     label: 'Customize',
     pages: [
@@ -79,7 +91,10 @@ export const sections = [
   },
   {
     label: 'Multi-repo (beta)',
-    pages: [{ source: 'multi-repo/stores.md', slug: 'stores' }],
+    pages: [
+      { source: 'multi-repo/stores.md', slug: 'stores' },
+      { source: 'multi-repo/worksets.md', slug: 'worksets' },
+    ],
   },
   {
     label: 'Reference',
@@ -109,6 +124,12 @@ export const sections = [
       },
       { source: 'reference/supported-tools.md', slug: 'supported-tools' },
       { source: 'reference/glossary.md', slug: 'glossary' },
+      // TODO (held back 2026-08-21): Architecture is not written yet (all three
+      // pages are headings only), so the group is hidden until we get to it.
+      // The markdown stays in docs-lab/reference/architecture/. Links to these
+      // pages from published pages fall back to their GitHub source. Re-publish
+      // by moving the folder entry out of this comment.
+      /*
       {
         folder: 'architecture',
         label: 'Architecture',
@@ -118,8 +139,16 @@ export const sections = [
           { source: 'reference/architecture/design-decisions.md', slug: 'architecture/design-decisions' },
         ],
       },
+      */
     ],
   },
+  // TODO (held back 2026-08-21): Help and Legacy are not written yet (FAQ has one
+  // answer, Troubleshooting and Migration are headings only), so both sections
+  // are hidden from the site until we get to them. The markdown stays in
+  // docs-lab/help/. Links to these pages from published pages fall back to
+  // their GitHub source (rewriteLinks in scripts/sync-docs.mjs). Re-publish by
+  // moving the entries out of this comment, same as Guides above.
+  /*
   {
     label: 'Help',
     pages: [
@@ -131,6 +160,7 @@ export const sections = [
     label: 'Legacy',
     pages: [{ source: 'help/legacy/migration.md', slug: 'migration' }],
   },
+  */
 ];
 
 /** Flat list of every published route (folder entries expanded recursively). */

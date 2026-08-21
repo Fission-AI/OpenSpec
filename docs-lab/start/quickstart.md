@@ -17,17 +17,17 @@ flowchart LR
     archive -. "next change" .-> explore
 ```
 
-Every prompt below goes in your AI chat, the same place you ask for code. Each invokes an OpenSpec skill by name, the same spelling in every tool. A plain ask works too ("propose a change to add rate limiting"); some tools add shorter command aliases (`/opsx:propose` in Claude Code, [other tools vary](../reference/supported-tools.md)).
+Every prompt below goes in your AI chat, the same place you ask for code. Each invokes an OpenSpec skill by name, the same spelling in every tool. A plain ask works too ("propose a change to add rate limiting"). Some tools add shorter command aliases (`/opsx:propose` in Claude Code, [other tools vary](../reference/supported-tools.md)).
 
 ## Step 1: Explore
 
-Don't start with a plan. Start by thinking the idea through with your agent. In your AI chat:
+Think the idea through with your agent before you ask for a plan. In your AI chat:
 
 ```text
 /openspec-explore how rate limiting should work in this app
 ```
 
-Explore is a thinking mode, not a writing mode: the agent investigates your codebase, asks the questions that matter, sketches options, and challenges assumptions. It writes no code and no files; the output is a sharper idea.
+Explore is a thinking mode. The agent investigates your codebase, asks the questions that matter, sketches options, and challenges assumptions. It writes no code and no files. The output is a sharper idea.
 
 Stay here as long as the problem needs. When the shape feels right, hand it off:
 
@@ -35,7 +35,7 @@ Stay here as long as the problem needs. When the shape feels right, hand it off:
 /openspec-propose
 ```
 
-That line is the handoff: it starts propose for you, carrying everything you settled. Skip the first prompt in step 2.
+That line starts propose for you, carrying everything you settled. Skip the first prompt in step 2.
 
 ## Step 2: Propose
 
@@ -59,7 +59,7 @@ No code yet. Propose stops at the plan.
 
 ## Step 3: Review and correct the plan
 
-Fix the plan while it's still words: nothing is built yet. Read in this order:
+Fix the plan while it's still words and nothing is built yet. Read in this order:
 
 - **`proposal.md`**: is this the right problem, at the right size?
 - **`specs/`**: the highest-value read. Would you accept these requirements as done?
@@ -72,7 +72,7 @@ To fix something, either works:
 
 ## Step 4: Apply
 
-Apply turns the plan into code. Start a fresh chat session; implementation goes better on a clean context window. In your AI chat:
+Apply turns the plan into code. Start a fresh chat session, since implementation goes better on a clean context window. In your AI chat:
 
 ```text
 /openspec-apply-change add-rate-limiting
@@ -146,7 +146,7 @@ Step through what archiving does:
           └── 2026-08-08-add-rate-limiting/
 ```
 
-Git is a separate concern: commit the change folder with the code, and nothing else about your workflow changes. When to archive relative to a PR is a team convention; the [Teams](../guides/teams.md) guide has the tradeoff.
+Git is a separate concern. Commit the change folder with the code, and nothing else about your workflow changes. When to archive relative to a PR is a team convention; the [Teams](../guides/teams.md) guide has the tradeoff.
 
 ## Going further
 

@@ -78,11 +78,11 @@ By default each workflow installs in two forms:
 - **Skill** (`openspec-apply-change`): instructions your agent picks up on its own when you ask for the work.
 - **Command** (`/opsx:apply` in Claude Code): a typed entry point for the same workflow, under a shorter name.
 
-The two are functionally identical: a workflow's skill and its command carry the same instructions.
+The two are functionally identical. A workflow's skill and its command carry the same instructions.
 
 Why two: commands came first, and every tool spells them its own way. Skills are the newer standard shared across tools, but not every tool can invoke a skill directly, so commands stay as those tools' entry point.
 
-Some tools install in skill form only: where the tool runs skills directly, init skips commands and says so (`Commands skipped for: codex (uses skills)`).
+Some tools install in skill form only. Where the tool runs skills directly, init skips commands and says so (`Commands skipped for: codex (uses skills)`).
 
 We prefer skills and expect to retire commands eventually.
 
@@ -108,6 +108,6 @@ Config changes:
 ? Apply changes to this project now? (Y/n) y
 ```
 
-Answering yes applies it to the current project on the spot; other projects pick it up on their next `openspec update`. The setting is global, per machine.
+Answering yes applies it to the current project on the spot. Other projects pick it up on their next `openspec update`. The setting is global, per machine.
 
 Setup is done. The [Quickstart](quickstart.md) takes your first change from here.

@@ -21,8 +21,8 @@ and the redirect list at cutover. The target structure is the page index in
 | team-workflow.md | `guides/teams.md` |
 | examples.md | parked: `guides/examples.md` skeleton kept off the index and sync config until real archived changes exist (see README TODOs) |
 | customization.md | `customize/project-config.md` + `customize/schemas.md` + `customize/overview.md` (decision ladder) · schema.yaml fields to `reference/schemas/schema-yaml.md` |
-| multi-language.md | `customize/project-config.md` §Language and conventions |
-| stores-beta/user-guide.md | `multi-repo/stores.md` |
+| multi-language.md | `customize/project-config.md` §context, the "Another language" note |
+| stores-beta/user-guide.md | `multi-repo/stores.md` · worksets section to `multi-repo/worksets.md` |
 | commands.md | `reference/skills.md` (legacy `/openspec:*` section removed) |
 | cli.md | `reference/cli.md` (minus install, which moves to `start/installation.md`) |
 | supported-tools.md | `reference/supported-tools.md` |

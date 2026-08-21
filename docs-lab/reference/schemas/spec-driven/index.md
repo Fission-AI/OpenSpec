@@ -2,7 +2,7 @@
 
 > The default workflow's artifacts: their order, their formats, and the change folder they produce.
 
-`spec-driven` is OpenSpec's built-in default schema; [schema.yaml](../schema-yaml.md) defines the fields it sets.
+`spec-driven` is OpenSpec's built-in default schema. [schema.yaml](../schema-yaml.md) defines the fields it sets.
 
 ## Artifacts
 
@@ -120,7 +120,7 @@ This is the foundation - specs, design, and tasks all build on this.
 
 ## Delta specs (spec.md)
 
-Defines what behavior changes: one delta spec per capability the proposal lists.
+Defines what behavior changes, with one delta spec per capability the proposal lists.
 
 ### Structure
 
@@ -234,7 +234,7 @@ Specs should be testable - each scenario is a potential test case.
 
 ## design.md
 
-Explains how to implement the change; drafted only when the change needs one.
+Explains how to implement the change. Drafted only when the change needs one.
 
 ### Structure
 
@@ -298,7 +298,7 @@ Good design docs explain the "why" behind technical decisions.
 
 ## tasks.md
 
-Breaks the implementation into checkable tasks; [apply](#apply) tracks progress here.
+Breaks the implementation into checkable tasks. [apply](#apply) tracks progress here.
 
 ### Structure
 
@@ -355,11 +355,11 @@ Each task should be verifiable - you know when it's done.
 
 ## Apply
 
-The handoff from planning to implementation. Apply isn't an artifact; it's the phase that works through `tasks.md`.
+The handoff from planning to implementation. Apply is the phase that works through `tasks.md`, not an artifact.
 
 - **Starts**: once `tasks.md` exists and lists at least one task.
-- **Tracks**: the checkboxes in `tasks.md`; checking them off is the progress record.
-- **Ends**: every checkbox checked; OpenSpec then suggests archiving the change.
+- **Tracks**: the checkboxes in `tasks.md`. Checking them off is the progress record.
+- **Ends**: every checkbox checked. OpenSpec then suggests archiving the change.
 
 ### Settings
 
@@ -383,7 +383,7 @@ Pause if you hit blockers or need clarification.
 
 ## schema.yaml
 
-The complete [schema.yaml](https://github.com/Fission-AI/OpenSpec/blob/main/schemas/spec-driven/schema.yaml), with instruction bodies elided; each is shown in full in its section above.
+The complete [schema.yaml](https://github.com/Fission-AI/OpenSpec/blob/main/schemas/spec-driven/schema.yaml), with instruction bodies elided. Each is shown in full in its section above.
 
 ```yaml
 name: spec-driven

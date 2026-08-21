@@ -34,14 +34,14 @@ curl -fsSL https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/install.md
 That fetches [install.md at the repo root](https://github.com/Fission-AI/OpenSpec/blob/main/install.md), a prompt written for any agent that can run shell commands (a few IDE integrations can't). Expect your assistant to:
 
 1. Check your Node version, and stop if it's older than 20.19.0.
-2. Skip the install if the CLI is already on your machine; otherwise show you the install command and wait for your confirmation before running it.
+2. Skip the install if the CLI is already on your machine. Otherwise, show you the install command and wait for your confirmation before running it.
 3. Verify `openspec` is on your PATH.
 4. Name the folder it thinks you mean, suggest the AI tool you're already talking to, and ask which others you use, then run `openspec init` there (the [project setup](setup.md) step).
 5. Report what init created and the exact spelling to invoke OpenSpec in your tool.
 
-It stops before anything privileged and never edits your shell startup files. The [manual methods below](#install-methods) are the source of truth; the prompt runs them for you.
+It stops before anything privileged and never edits your shell startup files. The [manual methods below](#install-methods) are the source of truth, and the prompt runs them for you.
 
-This install method is new and can have varying results depending on model used. Only use if you're comfortable correcting AI mistakes - otherwise we reccomend following the standard method below.
+This install method is new and can have varying results depending on model used. Only use if you're comfortable correcting AI mistakes. Otherwise we recommend following the standard method below.
 
 ## Install methods
 
@@ -55,11 +55,11 @@ npm install -g @fission-ai/openspec@latest
 
 ### Yarn
 
-`yarn global add` is Yarn Classic (1.x) only. Modern Yarn removed global installs, so use npm, pnpm, or bun instead: a global CLI doesn't have to share your project's package manager.
+`yarn global add` is Yarn Classic (1.x) only. Modern Yarn removed global installs, so use npm, pnpm, or bun instead. A global CLI doesn't have to share your project's package manager.
 
 ### Bun
 
-Bun installs OpenSpec but doesn't run it: you still need Node on your machine (the [prerequisite](#prerequisites) above). Without it, every command fails with `env: node: No such file or directory`. Bun treats [every Node CLI](https://bun.com/docs/pm/bunx#shebangs) this way.
+Bun installs OpenSpec but doesn't run it, so you still need Node on your machine (the [prerequisite](#prerequisites) above). Without it, every command fails with `env: node: No such file or directory`. Bun treats [every Node CLI](https://bun.com/docs/pm/bunx#shebangs) this way.
 
 ### Deno
 
@@ -78,7 +78,7 @@ Some commands launch another program: [`openspec config edit`](../reference/cli.
 
 ### Nix
 
-The OpenSpec repo ships a Nix flake. Install it into your profile; in your terminal:
+The OpenSpec repo ships a Nix flake. Install it into your profile. In your terminal:
 
 ```bash
 nix profile install github:Fission-AI/OpenSpec
@@ -104,7 +104,7 @@ openspec --version
 
 If that prints a version number, the CLI is on your PATH. It installs once per machine.
 
-Next, [set up your project](setup.md); if your assistant already ran init, that page shows what it wrote and how to adjust it.
+Next, [set up your project](setup.md). If your assistant already ran init, that page shows what it wrote and how to adjust it.
 
 ## Updating
 
@@ -121,7 +121,7 @@ When a newer CLI is out, [`openspec update`](../reference/cli.md#openspec-update
 > On Deno, re-run the [Deno install](#deno) with `-f`; it won't overwrite the installed command without it. On Nix, use `nix profile upgrade openspec`.
 
 > [!NOTE]
-> A global npm install belongs to one Node installation. Switch Node versions with nvm and the `openspec` command doesn't come along; install it again under the new version.
+> A global npm install belongs to one Node installation. Switch Node versions with nvm and the `openspec` command doesn't come along, so install it again under the new version.
 
 ## Uninstalling
 

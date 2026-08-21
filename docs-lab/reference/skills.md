@@ -60,9 +60,9 @@ Think through an idea before it becomes a change proposal.
 
 | Contract | Description |
 |---|---|
-| **Arguments** | A topic: an idea, a problem, a comparison, or the name of an existing change proposal to explore in context. With nothing given it just enters explore mode. |
-| **Creates** | Nothing by default; it reads and investigates only. On request it captures insights: a new change proposal under `openspec/changes/<name>/`, or updates to an existing one's proposal, design, specs, or tasks. Never code. |
-| **Response** | An open conversation with no required output. When thinking crystallizes it summarizes the problem, approach, open questions, and next steps, and offers to capture them; you decide. Implementation never starts here. |
+| **Arguments** | A topic: an idea, a problem, a comparison, or the name of an existing change proposal to explore in context. With nothing given it enters explore mode. |
+| **Creates** | Nothing by default. It reads and investigates only. On request it captures insights: a new change proposal under `openspec/changes/<name>/`, or updates to an existing one's proposal, design, specs, or tasks. Never code. |
+| **Response** | An open conversation with no required output. When thinking crystallizes it summarizes the problem, approach, open questions, and next steps, and offers to capture them. You decide. Implementation never starts here. |
 
 ## openspec-propose
 
@@ -92,7 +92,7 @@ other.
 | Contract | Description |
 |---|---|
 | **Arguments** | A change proposal name, optional, plus the revision you want. With no revision stated it runs a coherence review: artifacts checked against each other for contradictions, gaps, and duplication. |
-| **Creates** | Nothing new. Edits only artifact files that already exist; missing artifacts are `openspec-continue-change`'s job. Never code. |
+| **Creates** | Nothing new. Edits only artifact files that already exist. Missing artifacts are `openspec-continue-change`'s job. Never code. |
 | **Response** | Shows each proposed revision and writes it only after you confirm, one artifact at a time. Ends with what was revised and the next step; implementation waits for `openspec-apply-change`. |
 
 ## openspec-sync-specs
@@ -101,7 +101,7 @@ Merge a change proposal's spec updates into `specs/` without archiving it.
 
 | Contract | Description |
 |---|---|
-| **Arguments** | A change proposal name, optional. You can also name a subset of its delta specs; only those sync. |
+| **Arguments** | A change proposal name, optional. You can also name a subset of its delta specs, and only those sync. |
 | **Creates** | Edits or creates `openspec/specs/<capability-path>/spec.md` for each delta spec, merging added, modified, removed, and renamed requirements into the main spec. Never code. |
 | **Response** | A per-capability summary of requirements added, modified, removed, or renamed, after the updated specs validate. The change proposal stays active; archiving waits for `openspec-archive-change`. |
 
@@ -141,7 +141,7 @@ Create a change proposal and every planning artifact implementation needs, in on
 
 | Contract | Description |
 |---|---|
-| **Arguments** | A kebab-case name or a plain description. Asks if you give neither; if the named change proposal already exists it suggests continuing it instead. |
+| **Arguments** | A kebab-case name or a plain description. Asks if you give neither. If the named change proposal already exists it suggests continuing it instead. |
 | **Creates** | `openspec/changes/<name>/` and every planning artifact implementation requires, in dependency order (spec-driven: proposal, specs, design, tasks), leaving out only artifacts marked skipped or conditional. Never code. |
 | **Response** | The change proposal's name and location, each artifact created, and any conditional artifact skipped and why. Stops there; implementation waits for `openspec-apply-change`. |
 
@@ -152,7 +152,7 @@ Check that the implementation matches the change proposal's artifacts.
 | Contract | Description |
 |---|---|
 | **Arguments** | A change proposal name, optional. When ambiguous it asks, listing change proposals that have a tasks artifact. |
-| **Creates** | Nothing. It reads the change proposal's artifacts and the codebase; verification is report-only. |
+| **Creates** | Nothing. It reads the change proposal's artifacts and the codebase. Verification is report-only. |
 | **Response** | A report: a scorecard for Completeness, Correctness, and Coherence, then CRITICAL, WARNING, and SUGGESTION issues with recommendations, and a final archive-readiness assessment. It changes nothing and does not archive. |
 
 ## openspec-bulk-archive-change
@@ -161,7 +161,7 @@ Archive several change proposals at once.
 
 | Contract | Description |
 |---|---|
-| **Arguments** | None. It lists the active change proposals and asks you to select any number, with an option for all; if none are active it says so and stops. |
+| **Arguments** | None. It lists the active change proposals and asks you to select any number, with an option for all. If none are active it says so and stops. |
 | **Creates** | `openspec/changes/archive/YYYY-MM-DD-<name>/` per archived change proposal (already-dated names keep their prefix). Each one's spec deltas sync first via `openspec-sync-specs`. Never code. |
 | **Response** | A status table per change proposal and one confirmation for the whole batch, then a summary of archived, skipped, and failed, plus spec sync results. When two change proposals touch the same spec it checks the codebase and syncs implemented deltas oldest first. |
 

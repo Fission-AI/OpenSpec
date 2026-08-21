@@ -3,13 +3,13 @@
 > Which AI coding tools OpenSpec supports, and each one's command syntax.
 
 Every tool in the matrix runs the same OpenSpec workflows. A skill and its command are
-the same workflow instructions; the only difference is what you type. Which form init
+the same workflow instructions. The only difference is what you type. Which form init
 installs is the delivery setting, covered in
 [Set up your project](../start/setup.md#the-workflow-files-skills-and-commands).
 
 ## Support matrix
 
-Invocations are shown for the apply workflow; every workflow follows the same shape.
+Invocations are shown for the apply workflow. Every workflow follows the same shape.
 The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
 
 | Tool | `--tools` id | Skills | Skill invocation | Commands | Command invocation |
@@ -53,7 +53,7 @@ The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
 
 - **Skill invocation**: whether a tool registers skills as typed entries is the tool's
   own behavior. The column shows the spelling OpenSpec uses in generated files and in
-  the hint init prints; check your tool's docs if typing it does nothing.
+  the hint init prints. Check your tool's docs if typing it does nothing.
 - **Command file formats**: most tools take `.md` command files. Gemini CLI takes
   `.toml`, Continue `.prompt`, Kiro and GitHub Copilot `.prompt.md`. The spelling you
   type is the same either way.
@@ -110,7 +110,7 @@ init prints this reminder after install.
 
 - **When it fits**: any tool that reads the shared `.agents/skills/` folder,
   including tools with no row in the matrix.
-- **Alongside other targets**: fine; each target writes its own folder. Codex
+- **Alongside other targets**: fine, since each target writes its own folder. Codex
   shares this one; see the [Codex note](#codex).
 - **What OpenSpec claims**: only the `openspec-*` folders and the
   `.openspec-target` marker. Anything else under `.agents/` is left alone.

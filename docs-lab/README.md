@@ -11,16 +11,31 @@ reverse view, from a job or message to the page that owns it, is
 write them (style, voice, formatting) is the `write-openspec-docs` skill's
 [writing.md](../.agents/skills/write-openspec-docs/writing.md).
 
+## The bar for every page
+
+Every page in docs-lab is written by hand, from scratch. The old `docs/` tree is source
+material for facts, never text to carry over.
+
+What we're after is that the reader gets the idea: every page reads well and makes sense
+to anyone, whatever their level of skill, and above all it is simple. The worst thing we
+can ship is documentation that is cognitively expensive to understand, and that cost
+comes from complicated words, metaphors that don't make sense, random terminology that
+isn't explained, and formatting that gets in the way of reading. Every sentence has a
+purpose and is easy to read and comprehend. If a sentence doesn't pass that test, rewrite
+it or cut it.
+
 ## Structure rules
 
 **Folders are the areas.** Every page lives in its area's folder (`start/`,
 `guides/`, `customize/`, `multi-repo/`, `reference/`, `help/`); the root holds only this
-README, `message-map.md`, `sources.md`, and `diagrams/`. Most folders publish as one
+README, `message-map.md`, and `sources.md`. Most folders publish as one
 sidebar group; `guides/` publishes as the Guides group, holding three collapsible
 subgroups (Understanding OpenSpec, Using OpenSpec, Adopting OpenSpec), all expanded
-by default. Reference holds three nested
-folders — `reference/architecture/`, `reference/schemas/`, and
-`reference/configuration/` — each publishing as a collapsible group with `index.md` as
+by default (held back from the site until the pages are drafted: the whole section is
+commented out in `website/docs.sync.config.mjs`, and links to a guide fall back to its
+source on GitHub until it's re-listed). Reference holds three nested
+folders (`reference/architecture/`, `reference/schemas/`, and
+`reference/configuration/`), each publishing as a collapsible group with `index.md` as
 its landing page; the spec-driven schema publishes as a single page
 (`reference/schemas/spec-driven/index.md`) inside the Schemas group. Labels and URLs come from
 `website/docs.sync.config.mjs`, so moving a file never moves a URL.
@@ -78,7 +93,7 @@ the page or rewriting the goal in both places, never letting them drift.
 
 | Page | Goal |
 |---|---|
-| [Overview](start/overview.md) | OpenSpec gives you and your coding agent a shared, reviewable plan before code is written. |
+| [Overview](start/overview.md) | _TODO: emptied 2026-08-21 for a from-scratch rewrite and pulled from the site (`/docs` redirects to Installation meanwhile); the old goal line was dropped as too weak a pitch. Brief in Notes.md._ |
 | [Installation](start/installation.md) | Install the `openspec` CLI on your machine, update it, and uninstall it. |
 | [Set up your project](start/setup.md) | Add OpenSpec to a project: run init, see what it wrote, and adjust it. |
 | [Quickstart](start/quickstart.md) | Your first change on your existing repo, from idea to archived. |
@@ -101,14 +116,15 @@ the page or rewriting the goal in both places, never letting them drift.
 |---|---|
 | [Overview](customize/overview.md) | Your options for customizing OpenSpec. |
 | [Profiles](customize/profiles.md) | Choose which workflows are installed, and whether they install as skills, commands, or both. |
-| [Project configuration](customize/project-config.md) | Teach OpenSpec your project in config.yaml: context, rules, and conventions. |
-| [Schemas](customize/schemas.md) | Change what the workflows produce: artifact schemas and templates. |
+| [Project configuration](customize/project-config.md) | Make the workflows plan changes the way you want with a few lines in config.yaml. |
+| [Schemas](customize/schemas.md) | Change what OpenSpec produces: the artifacts, their order, and their templates. |
 
 ### Multi-repo (beta): plan across repository boundaries
 
 | Page | Goal |
 |---|---|
 | [Stores (beta)](multi-repo/stores.md) | Plan changes that span repositories: one store, many repos. |
+| [Worksets (beta)](multi-repo/worksets.md) | Open the store and the repos that use it in one editor window, so your agent sees both. |
 
 ### Reference: look it up, exact and complete
 
@@ -127,18 +143,18 @@ the page or rewriting the goal in both places, never letting them drift.
 | [Configuration › Stores](reference/configuration/stores.md) | The files behind multi-repo stores: registry.yaml and store.yaml, and which root a command uses. |
 | [Supported tools](reference/supported-tools.md) | Which AI coding tools OpenSpec supports, and each one's command syntax. |
 | [Glossary](reference/glossary.md) | Every OpenSpec term, one line each. |
-| [Architecture](reference/architecture/index.md) | How OPSX is built: internals for the curious. |
+| [Architecture](reference/architecture/index.md) (held back from the site until drafted) | How OPSX is built: internals for the curious. |
 | [Architecture › Workflow runs](reference/architecture/workflow-runs.md) | How a workflow run executes, from invocation to written artifacts. |
 | [Architecture › Design decisions](reference/architecture/design-decisions.md) | Why OPSX works the way it does. |
 
-### Help: get unstuck
+### Help: get unstuck (held back from the site until drafted, see Open TODOs)
 
 | Page | Goal |
 |---|---|
 | [FAQ](help/faq.md) | Short answers to the questions that don't need a page. |
 | [Troubleshooting](help/troubleshooting.md) | When OpenSpec doesn't do what you expected: symptoms and their fixes. |
 
-### Legacy: land the old workflow safely
+### Legacy: land the old workflow safely (held back from the site until drafted, see Open TODOs)
 
 | Page | Goal |
 |---|---|
@@ -146,17 +162,68 @@ the page or rewriting the goal in both places, never letting them drift.
 
 ## Old docs
 
+The `docs/` tree is legacy, and the plan is to remove it once docs-lab covers what it
+owns. It has become a bit of an AI slop mess, so nothing from it is carried over as text
+(see The bar for every page). Until it's removed it stays untouched: fixes land in
+docs-lab, never in `docs/`.
+
 [`sources.md`](sources.md) maps every current `docs/` page to its destination here: the
 source material while drafting, the redirect list at cutover. Cutover steps are in that
 file's [Cutover](sources.md#cutover) section.
 
 ## Open TODOs
 
+- Not started: the Architecture pages (`reference/architecture/index.md`,
+  `workflow-runs.md`, `design-decisions.md`). All three are headings only, so we hid the
+  group from the site on 2026-08-21 (folder entry commented out in
+  `website/docs.sync.config.mjs`). The files stay on disk with a WIP comment. Published
+  pages that link to them (`reference/glossary.md` to the Overview,
+  `customize/project-config.md` to Workflow runs) fall back to the GitHub source until
+  the group is re-listed.
+- Not started: the Help and Legacy pages (`help/faq.md`, `help/troubleshooting.md`,
+  `help/legacy/migration.md`). FAQ has one answer and the other two are headings only, so
+  we hid both sections from the site on 2026-08-21 (commented out in
+  `website/docs.sync.config.mjs`, same mechanism as Guides). The files stay on disk with
+  a WIP comment. Published pages that link to them (`start/setup.md` to FAQ,
+  `reference/glossary.md` to Migration) fall back to the GitHub source until the
+  sections are re-listed.
+- Not started: `start/overview.md` is empty on purpose. We cleared the skeleton
+  (headings, narrative beats, diagram gallery) on 2026-08-21 to rewrite the landing page
+  from scratch. The old pitch ("a shared, reviewable plan before code is written")
+  undersells OpenSpec now that plan mode is everywhere; the rewrite should sell keeping
+  larger features on track and aligned (teams, git-native, intended vs implemented
+  behavior, control-loop framing). Brief in `Notes.md` ("Start > Overview"); the diagram
+  candidates went with the gallery and live in git history. Until the rewrite lands the
+  page is off the site: its entry is commented out in `website/docs.sync.config.mjs` and
+  `/docs` redirects to Installation (`website/public/_redirects` plus a fallback in the
+  docs page route). Restoring it is one uncomment plus removing the two redirects. The
+  Teach-once rule still applies: the loop appears here as pitch only.
 - Product feedback, not a docs task: spec-driven's design `instruction` lists six
   sections (including Migration Plan and Open Questions) but
   `schemas/spec-driven/templates/design.md` carries only four headers. The docs show
   both verbatim; the mismatch belongs upstream. Noted 2026-08-14 while consolidating
   the spec-driven page.
+- Product feedback, not a docs task: `openspec store setup --remote` writes the URL
+  into `store.yaml` but never configures a git `origin`, so "setup --remote, then
+  `git push -u origin main`" fails as written; the Stores page shows `git remote add`
+  instead. The pasteable missing-store fix in `openspec doctor` is powered by
+  `references:` remotes, not `store.yaml`. Noted 2026-08-21 while porting the Stores
+  page.
+- Style guide follow-up (`.agents/skills/write-openspec-docs/writing.md`), from the
+  Stores page's review rounds, 2026-08-21: never use a term the page hasn't shown
+  (say "the `store:` line", not "the pointer"; define by showing the artifact first);
+  when behavior depends on the reader's starting state, enumerate the states and walk
+  each to its outcome; sentence subjects are you, OpenSpec, or your agent, never an
+  implementation unit ("the resolver picks") or a class of things ("store-only
+  projects make..."); when a defined term is reused a section later, re-gloss it in
+  one parenthetical at the point of use.
+- Fence convention follow-up, 2026-08-21: the Stores page puts commands in `bash`
+  fences with a one-line `#` comment and OpenSpec output in a separate `yaml` fence.
+  `customize/schemas.md` still uses `console` fences with `$` prompts (lines 78, 114,
+  137, 145; prompts at 24 and 115); the style guide should name the convention and
+  that page should adopt it.
+- Monorepo: message-map row 37 is still a Gap. "Packages treated as separate repos"
+  may land on the Stores page later; not part of the current page.
 
 - `reference/cli.md` is fully drafted: the command table plus one section per real
   command, facts captured from working-tree runs (2026-08-11). The `delivery` key that
