@@ -13,6 +13,9 @@ import { isInteractive, resolveNoInteractive } from '../utils/interactive.js';
 import { getSpecIds } from '../utils/item-discovery.js';
 import { getAvailableChanges } from './workflow/shared.js';
 import { nearestMatches } from '../utils/match.js';
+import { promises as fs } from 'fs';
+import { getTaskProgressDetailForChange, type SchemaGlobCache } from '../utils/task-progress.js';
+import { FileSystemUtils } from '../utils/file-system.js';
 
 type ItemType = 'change' | 'spec';
 
@@ -20,6 +23,7 @@ interface ExecuteOptions {
   all?: boolean;
   changes?: boolean;
   specs?: boolean;
+  archived?: boolean;
   type?: string;
   strict?: boolean;
   json?: boolean;
@@ -40,15 +44,31 @@ interface BulkItemResult {
 
 export class ValidateCommand {
   async execute(itemName: string | undefined, options: ExecuteOptions = {}): Promise<void> {
-    const root = await resolveRootForCommand(options, { json: options.json });
+    const bulk = options.all || options.changes || options.specs;
+    const root = await resolveRootForCommand(options, {
+      json: options.json,
+      ...(bulk ? { allowImplicitRoot: false } : {}),
+    });
     if (!root) {
       return;
     }
 
     const interactive = isInteractive(options);
 
+    // Archived-task linting is its own scope: it checks task completion of
+    // already-archived changes, not delta specs (whose operations are already
+    // applied). Handled before the other bulk flags so `--archived` is explicit
+    // and never alters an existing invocation's behavior (#205).
+    if (options.archived) {
+      await this.runArchivedTaskValidation(root, {
+        json: !!options.json,
+        noInteractive: resolveNoInteractive(options),
+      });
+      return;
+    }
+
     // Handle bulk flags first
-    if (options.all || options.changes || options.specs) {
+    if (bulk) {
       await this.runBulkValidation(root, {
         changes: !!options.all || !!options.changes,
         specs: !!options.all || !!options.specs,
@@ -197,7 +217,10 @@ export class ValidateCommand {
     if (type === 'change') {
       const changeDir = path.join(root.changesDir, id);
       const start = Date.now();
-      const report = await validator.validateChangeDeltaSpecs(changeDir, { mainSpecsDir: root.specsDir });
+      const report = await validator.validateChangeDeltaSpecs(changeDir, {
+        mainSpecsDir: root.specsDir,
+        projectRoot: root.path,
+      });
       const durationMs = Date.now() - start;
       this.printReport('change', id, report, durationMs, opts.json, root);
       // Non-zero exit if invalid (keeps enriched output test semantics)
@@ -279,7 +302,10 @@ export class ValidateCommand {
       queue.push(async () => {
         const start = Date.now();
         const changeDir = path.join(root.changesDir, id);
-        const report = await validator.validateChangeDeltaSpecs(changeDir, { mainSpecsDir: root.specsDir });
+        const report = await validator.validateChangeDeltaSpecs(changeDir, {
+          mainSpecsDir: root.specsDir,
+          projectRoot: root.path,
+        });
         const durationMs = Date.now() - start;
         return { id, type: 'change' as const, valid: report.valid, issues: report.issues, durationMs };
       });
@@ -379,6 +405,130 @@ export class ValidateCommand {
       }
     }
 
+    process.exitCode = failed > 0 ? 1 : 0;
+  }
+
+  /**
+   * Lists archived change ids from the resolved root's archive directory,
+   * mirroring `getArchivedChangeIds` but store-aware (uses `root.archiveDir`
+   * rather than a cwd-relative path). Directories only, hidden entries skipped.
+   *
+   * Only a missing archive directory (ENOENT) is an empty list; a permission
+   * error, an I/O error, or an `archive` path that is a file (ENOTDIR) is a real
+   * failure and must not read as "no archived changes" — that would let a
+   * pre-commit lint pass without inspecting anything (#205).
+   */
+  private async listArchivedChangeIds(root: ResolvedOpenSpecRoot): Promise<string[]> {
+    try {
+      const entries = await fs.readdir(root.archiveDir, { withFileTypes: true });
+      return entries
+        .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
+        .map((entry) => entry.name)
+        .sort();
+    } catch (error: any) {
+      if (error?.code === 'ENOENT') return [];
+      throw error;
+    }
+  }
+
+  /**
+   * Validates that every archived change has all of its tasks completed.
+   *
+   * An archived change is expected to be finished; an archived change with
+   * unchecked tasks is a real integrity problem the normal validate flow never
+   * surfaces, because active-change discovery excludes the archive directory
+   * (#205). Reuses the same task-progress counting `status`, `list`, and
+   * `archive` rely on, so what counts as a task never forks. Changes with no
+   * tasks pass (nothing to complete).
+   */
+  private async runArchivedTaskValidation(
+    root: ResolvedOpenSpecRoot,
+    opts: { json: boolean; noInteractive?: boolean }
+  ): Promise<void> {
+    // List first (may throw on a real archive-read failure), then start the
+    // spinner so a thrown error never leaves a spinner spinning.
+    const ids = await this.listArchivedChangeIds(root);
+    const spinner = !opts.json && !opts.noInteractive ? ora('Validating archived changes...').start() : undefined;
+
+    // The archive is append-only and can hold thousands of changes; a single
+    // run resolves them all under one constant projectRoot (root.path), so
+    // memoize the schema→glob lookup to avoid re-parsing the same schema.yaml
+    // once per change. The loop is intentionally sequential: the per-change work
+    // is dominated by synchronous schema/config resolution, which a promise pool
+    // cannot overlap on Node's single thread — a pool would add complexity for
+    // no real gain here.
+    const schemaGlobCache: SchemaGlobCache = new Map();
+    const results: BulkItemResult[] = [];
+    let passed = 0;
+    let failed = 0;
+    for (const id of ids) {
+      const start = Date.now();
+      const issues: BulkItemResult['issues'] = [];
+      try {
+        // The explicit root.path override is load-bearing: an archived change
+        // lives one directory deeper (changes/archive/<id>), so the default
+        // "../../.." projectRoot derivation would be wrong without it.
+        const progress = await getTaskProgressDetailForChange(root.archiveDir, id, root.path, schemaGlobCache);
+        // A tasks file that exists but cannot be read must fail loudly, not be
+        // silently counted as "no tasks" and pass. Report one issue per file,
+        // pathed like every other validate issue (POSIX, root-relative).
+        for (const file of progress.unreadable) {
+          issues.push({
+            level: 'ERROR',
+            path: FileSystemUtils.toPosixPath(path.relative(root.path, file)),
+            message: 'could not read task file',
+          });
+        }
+        const incomplete = Math.max(progress.total - progress.completed, 0);
+        if (incomplete > 0) {
+          issues.push({
+            level: 'ERROR',
+            path: 'tasks.md',
+            message: `${incomplete} incomplete task${incomplete === 1 ? '' : 's'} (${progress.completed}/${progress.total} completed)`,
+          });
+        }
+      } catch (error: any) {
+        issues.push({ level: 'ERROR', path: 'tasks.md', message: error?.message || 'Unknown error' });
+      }
+      const valid = issues.length === 0;
+      if (valid) passed++; else failed++;
+      results.push({ id, type: 'change', valid, issues, durationMs: Date.now() - start });
+    }
+
+    spinner?.stop();
+
+    const summary = {
+      totals: { items: results.length, passed, failed },
+      byType: { change: summarizeType(results, 'change') },
+    } as const;
+
+    if (opts.json) {
+      const out = { items: results, summary, version: '1.0', root: toRootOutput(root) };
+      console.log(JSON.stringify(out, null, 2));
+      process.exitCode = failed > 0 ? 1 : 0;
+      return;
+    }
+
+    if (results.length === 0) {
+      console.log('No archived changes found.');
+      process.exitCode = 0;
+      return;
+    }
+
+    // Use the same `<type>/<id>` prefix bulk validation prints, so the plain
+    // output maps to the JSON `type` ('change') and stays greppable the same way.
+    for (const res of results) {
+      if (res.valid) {
+        console.log(`✓ change/${res.id}`);
+      } else {
+        console.error(`✗ change/${res.id}`);
+        for (const issue of res.issues) {
+          const prefix = issue.level === 'ERROR' ? '✗' : issue.level === 'WARNING' ? '⚠' : 'ℹ';
+          console.error(`  ${prefix} ${issue.message}`);
+        }
+      }
+    }
+    console.log(`Totals: ${summary.totals.passed} passed, ${summary.totals.failed} failed (${summary.totals.items} items)`);
     process.exitCode = failed > 0 ? 1 : 0;
   }
 }

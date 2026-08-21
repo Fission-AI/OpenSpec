@@ -38,6 +38,7 @@ import {
   getLegacyWorkflowIdsForTool,
   getToolsFromLegacyArtifacts,
   omitGlobalLegacyPromptFiles,
+  omitToolLegacyArtifacts,
   pickGlobalLegacyPromptFiles,
   type LegacyDetectionResult,
 } from './legacy-cleanup.js';
@@ -70,8 +71,8 @@ import {
   shouldReconcileCommandFilesForTool,
   shouldRemoveSkillsForTool,
 } from './command-surface.js';
-import { writeSharedSkillTarget } from './shared-skill-target.js';
-import { includesGitHubCopilot, writeCopilotCloudFiles, removeCopilotCloudFiles } from './github-copilot/cloud-agent.js';
+import { writeSharedSkillTarget, sharedSkillRootOwner } from './shared-skill-target.js';
+import { includesGitHubCopilot, writeCopilotCloudFiles, removeCopilotCloudFiles, isCopilotCloudEnabled, readCopilotCloudOptIn, findUnmanagedCloudFiles } from './github-copilot/cloud-agent.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
@@ -84,6 +85,12 @@ type LegacyUpgradeResult = {
   newlyConfiguredTools: string[];
   workflowOverrides: Partial<Record<string, readonly (typeof ALL_WORKFLOWS)[number][]>>;
   deferredGlobalCleanup?: LegacyDetectionResult;
+  /**
+   * Tools whose skill generation was skipped because another tool already owns
+   * their shared skills root. Their repo-local legacy artifacts must be exempt
+   * from immediate cleanup — no replacement was written to justify deleting them.
+   */
+  skippedSharedSkillTools?: string[];
 };
 
 /**
@@ -240,7 +247,7 @@ export class UpdateCommand {
       // Still check for new tool directories and extra workflows
       this.detectNewTools(resolvedProjectPath, configuredTools);
       this.displayExtraWorkflowsNote(resolvedProjectPath, configuredTools, desiredWorkflows);
-      this.displayMissingCoreWorkflowsNote(profile, globalConfig.workflows);
+      this.displayMissingCoreWorkflowsNote(profile, desiredWorkflows);
       this.displaySetupNotes(configuredTools);
       return;
     }
@@ -260,6 +267,7 @@ export class UpdateCommand {
     // 10. Update tools (all if force, otherwise only those needing update)
     const toolsToUpdate = this.force ? configuredTools : [...toolsToUpdateSet];
     const updatedTools: string[] = [];
+    const updatedToolIds: string[] = [];
     const failedTools: Array<{ name: string; error: string }> = [];
     const skillsInvocableCommandSkips: string[] = [];
     const zeroArtifactTools: string[] = [];
@@ -354,6 +362,7 @@ export class UpdateCommand {
 
         spinner.succeed(`Updated ${tool.name}`);
         updatedTools.push(tool.name);
+        updatedToolIds.push(tool.value);
         for (const migration of migrateLegacyToolDirs(
           resolvedProjectPath,
           [tool.value],
@@ -467,7 +476,7 @@ export class UpdateCommand {
 
     // 14. Display note about extra workflows not in profile
     this.displayExtraWorkflowsNote(resolvedProjectPath, configuredAndNewTools, desiredWorkflows);
-    this.displayMissingCoreWorkflowsNote(profile, globalConfig.workflows);
+    this.displayMissingCoreWorkflowsNote(profile, desiredWorkflows);
     this.displaySetupNotes(configuredAndNewTools);
 
     // 15. List affected tools
@@ -477,7 +486,20 @@ export class UpdateCommand {
     }
 
     console.log();
-    console.log(chalk.dim('Restart your IDE for changes to take effect.'));
+    const affectedToolIds = [...new Set([...newlyConfiguredTools, ...updatedToolIds])];
+    const shouldRestartIde = affectedToolIds.some((toolId) => {
+      const tool = AI_TOOLS.find((candidate) => candidate.value === toolId);
+      return Boolean(
+        tool?.requiresIdeRestart &&
+        (
+          shouldGenerateCommandsForTool(toolId, delivery) ||
+          shouldGenerateSkillsForTool(toolId, delivery)
+        )
+      );
+    });
+    if (shouldRestartIde) {
+      console.log(chalk.dim('Restart your IDE for changes to take effect.'));
+    }
     if (failedTools.length > 0) {
       throw new Error(`OpenSpec update failed for: ${failedTools.map((tool) => tool.name).join(', ')}`);
     }
@@ -486,7 +508,43 @@ export class UpdateCommand {
   private async syncCopilotCloudFiles(projectPath: string, configuredTools: string[]): Promise<void> {
     try {
       if (includesGitHubCopilot(configuredTools)) {
-        await writeCopilotCloudFiles(projectPath);
+        // Cloud files are opt-in (see cloud-agent.ts). `update` never prompts,
+        // so it only refreshes files the user has already opted into (via
+        // `openspec init` or a `githubCopilot.cloudAgent: true` config), or that
+        // a pre-opt-in project already has. Opting in is a deliberate init/config
+        // step, never a silent side effect of running update.
+        if (await isCopilotCloudEnabled(projectPath)) {
+          await writeCopilotCloudFiles(projectPath);
+          const collisions = await findUnmanagedCloudFiles(projectPath);
+          if (collisions.length > 0) {
+            console.log(
+              chalk.dim(
+                `Left your existing ${collisions.join(' and ')} untouched — add the OpenSpec ` +
+                  `install step by hand so the Copilot cloud agent can run openspec.`
+              )
+            );
+          }
+          return;
+        }
+
+        // Explicit opt-out (githubCopilot.cloudAgent: false) means "not here":
+        // remove any managed files a prior opt-in left behind (customized files
+        // are preserved). If the user simply never decided, stay quiet unless
+        // we're at an interactive terminal, where a one-line hint aids discovery.
+        if (readCopilotCloudOptIn(projectPath) === false) {
+          const removed = await removeCopilotCloudFiles(projectPath);
+          if (removed > 0) {
+            console.log(
+              chalk.dim(`Removed: ${removed} Copilot cloud agent file(s) (opted out of cloud files)`)
+            );
+          }
+        } else if (isInteractive()) {
+          console.log(
+            chalk.dim(
+              "GitHub Copilot cloud coding-agent files are available (opt-in). Enable with 'openspec init --copilot-cloud'."
+            )
+          );
+        }
         return;
       }
 
@@ -850,7 +908,11 @@ export class UpdateCommand {
         desiredWorkflows,
         delivery
       );
-      await this.performImmediateLegacyCleanup(projectPath, detection);
+      await this.performImmediateLegacyCleanup(
+        projectPath,
+        detection,
+        legacyUpgrade.skippedSharedSkillTools
+      );
       return {
         ...legacyUpgrade,
         deferredGlobalCleanup: pickGlobalLegacyPromptFiles(
@@ -883,7 +945,11 @@ export class UpdateCommand {
         desiredWorkflows,
         delivery
       );
-      await this.performImmediateLegacyCleanup(projectPath, detection);
+      await this.performImmediateLegacyCleanup(
+        projectPath,
+        detection,
+        legacyUpgrade.skippedSharedSkillTools
+      );
       return {
         ...legacyUpgrade,
         deferredGlobalCleanup: pickGlobalLegacyPromptFiles(
@@ -903,9 +969,15 @@ export class UpdateCommand {
    */
   private async performImmediateLegacyCleanup(
     projectPath: string,
-    detection: LegacyDetectionResult
+    detection: LegacyDetectionResult,
+    skippedSharedSkillTools: readonly string[] = []
   ): Promise<void> {
-    const immediateDetection = omitGlobalLegacyPromptFiles(detection);
+    // Tools whose upgrade was skipped (shared root owned by another) had no
+    // replacement written, so their repo-local legacy files must be preserved.
+    const immediateDetection = omitToolLegacyArtifacts(
+      omitGlobalLegacyPromptFiles(detection),
+      skippedSharedSkillTools
+    );
     if (immediateDetection.hasLegacyArtifacts) {
       await this.performLegacyCleanup(projectPath, immediateDetection);
     }
@@ -1043,10 +1115,16 @@ export class UpdateCommand {
       }
     }
 
-    const inferredCodexWorkflows = getLegacyWorkflowIdsForTool(detection, 'codex');
+    const inferredCodexWorkflows = getProfileWorkflows(
+      'custom',
+      getLegacyWorkflowIdsForTool(detection, 'codex')
+    ).filter((workflow): workflow is (typeof ALL_WORKFLOWS)[number] =>
+      (ALL_WORKFLOWS as readonly string[]).includes(workflow)
+    );
 
     // Create skills/commands for selected tools using effective profile+delivery.
     const newlyConfigured: string[] = [];
+    const skippedSharedSkillTools: string[] = [];
     const workflowOverrides: LegacyUpgradeResult['workflowOverrides'] = {};
 
     for (const toolId of selectedTools) {
@@ -1070,6 +1148,34 @@ export class UpdateCommand {
         }
         const skillTemplates = getSkillTemplates(toolWorkflows);
         const commandContents = getCommandContents(toolWorkflows);
+
+        // A shared skills root (e.g. `.agents`) already owned by another tool
+        // must not be overwritten by a tool inferred from legacy artifacts: a
+        // Codex install detected only from global `~/.codex/prompts` would
+        // otherwise rewrite an existing vendor-neutral `agents` tree with
+        // Codex-specific syntax and flip its ownership marker `agents → codex`.
+        // Leave the established owner in place. (init applies the same
+        // one-writer rule up front when both targets are selected.)
+        //
+        // Skipping here means the tool is never recorded as configured, so a
+        // persistent legacy signal re-offers it on later runs. Because no
+        // replacement is written, this tool is also exempted from immediate
+        // legacy cleanup (see skippedSharedSkillTools) — otherwise a repo-local
+        // `.codex/prompts` would be deleted with nothing put in its place. That
+        // repeat is idempotent and harmless — the alternative is the silent
+        // hijack this prevents.
+        const sharedOwner = shouldGenerateSkills
+          ? sharedSkillRootOwner(projectPath, tool.value)
+          : undefined;
+        if (sharedOwner) {
+          const ownerName =
+            AI_TOOLS.find((candidate) => candidate.value === sharedOwner)?.name ?? sharedOwner;
+          spinner.info(
+            `Skipped ${tool.name}: ${tool.skillsDir}/skills is already managed by another tool (${ownerName}).`
+          );
+          skippedSharedSkillTools.push(tool.value);
+          continue;
+        }
 
         // Create skill files when delivery includes skills
         if (shouldGenerateSkills) {
@@ -1128,6 +1234,6 @@ export class UpdateCommand {
       console.log();
     }
 
-    return { newlyConfiguredTools: newlyConfigured, workflowOverrides };
+    return { newlyConfiguredTools: newlyConfigured, workflowOverrides, skippedSharedSkillTools };
   }
 }

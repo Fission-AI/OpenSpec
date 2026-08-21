@@ -129,6 +129,13 @@ describe('available-tools', () => {
       const toolValues = tools.map((t) => t.value);
       expect(toolValues).toContain('agents');
       expect(toolValues).not.toContain('codex');
+      expect(toolValues).not.toContain('zed');
+    });
+
+    it('should detect Zed Agent from its project configuration directory', async () => {
+      await fs.mkdir(path.join(testDir, '.zed'), { recursive: true });
+
+      expect(getAvailableTools(testDir).map((tool) => tool.value)).toEqual(['zed']);
     });
 
     it('should not detect the shared agents target from a bare .agents directory', async () => {
@@ -157,6 +164,14 @@ describe('available-tools', () => {
       const tools = getAvailableTools(testDir);
       expect(tools.map((tool) => tool.value)).toContain('codex');
       expect(tools.map((tool) => tool.value)).not.toContain('agents');
+      expect(tools.map((tool) => tool.value)).not.toContain('zed');
+    });
+
+    it('should use the shared-root marker to detect a configured Zed Agent target', async () => {
+      await fs.mkdir(path.join(testDir, '.agents', 'skills'), { recursive: true });
+      await fs.writeFile(path.join(testDir, '.agents', 'skills', '.openspec-target'), 'zed\n');
+
+      expect(getAvailableTools(testDir).map((tool) => tool.value)).toEqual(['zed']);
     });
 
     it('should preserve a global tool while reconciling a shared project root', async () => {
@@ -392,6 +407,19 @@ describe('available-tools', () => {
       const tools = getAvailableTools(testDir);
       const toolValues = tools.map((t) => t.value);
       expect(toolValues).toContain('claude');
+    });
+
+    it('should detect Command Code when .commandcode directory exists', async () => {
+      await fs.mkdir(path.join(testDir, '.commandcode'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('command-code');
+
+      const commandCodeTool = tools.find((t) => t.value === 'command-code');
+      expect(commandCodeTool).toBeDefined();
+      expect(commandCodeTool?.name).toBe('Command Code');
+      expect(commandCodeTool?.skillsDir).toBe('.commandcode');
     });
 
     it('should detect Mistral Vibe when .vibe directory exists', async () => {

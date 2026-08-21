@@ -25,7 +25,7 @@ import {
 } from './specs-apply.js';
 import { discoverSpecFiles, hasAnyFileUnder } from '../utils/spec-discovery.js';
 import { METADATA_FILENAME, readRetireCapabilitiesMarker, readSkipSpecsMarker } from '../utils/change-metadata.js';
-import { isNonInteractivePromptError } from '../utils/interactive.js';
+import { confirmPrompt, isNonInteractivePromptError } from '../utils/interactive.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { folderStyleNameProblem } from './id.js';
 
@@ -66,6 +66,35 @@ export async function isRetirableSpec(specName: string, rebuilt: string): Promis
     errors.length > 0 &&
     errors.every((issue) => issue.message === VALIDATION_MESSAGES.SPEC_NO_REQUIREMENTS)
   );
+}
+
+/**
+ * How much of one blocking line the abort is willing to show. A line long
+ * enough to fill the screen would push the way out of the abort off it.
+ */
+const UNACCOUNTED_LINE_MAX = 200;
+
+/**
+ * The first few lines a retirement would delete without being able to name
+ * them, quoted, with a count for the rest. Capped so a long tail cannot bury
+ * the rest of the abort.
+ *
+ * The lines are authored spec content printed verbatim to a terminal, so they
+ * get the same treatment as a change directory name (`describeChangeName`): a
+ * raw CR could forge a line of its own, and an ESC could redraw the screen.
+ * Truncation counts code points so a cut never leaves half a surrogate pair.
+ */
+function describeUnaccountedContent(lines: string[]): string {
+  const shown = lines
+    .slice(0, 3)
+    .map((line) => {
+      const safe = [...line.replace(/[\u0000-\u001f\u007f]/g, '?')];
+      const clipped = safe.slice(0, UNACCOUNTED_LINE_MAX).join('');
+      return `"${safe.length > UNACCOUNTED_LINE_MAX ? `${clipped}\u2026` : clipped}"`;
+    })
+    .join(', ');
+  const rest = lines.length > 3 ? `, and ${lines.length - 3} more line(s)` : '';
+  return `${shown}${rest}`;
 }
 
 /**
@@ -284,9 +313,8 @@ async function confirmOrBlock(
   prompt: { message: string; default: boolean },
   blocked: () => ArchiveBlockedError
 ): Promise<boolean> {
-  const { confirm } = await import('@inquirer/prompts');
   try {
-    return await confirm(prompt);
+    return await confirmPrompt(prompt);
   } catch (error) {
     if (isNonInteractivePromptError(error)) {
       throw blocked();
@@ -1569,26 +1597,56 @@ export class ArchiveCommand {
               const specName = p.update.id;
               const report = await new Validator().validateSpecContent(specName, p.rebuilt);
               if (!report.valid) {
+                // This run is what emptied the capability, and "no
+                // requirements" is the only thing wrong with the spec that
+                // would be written - so retiring it is what archive would do,
+                // and what stands in the way of that is worth saying. Not
+                // always the *only* fix: a live requirement can be hiding in a
+                // second `## Requirements` section the validator never reaches,
+                // and merging the sections fixes that spec without a deletion.
+                const emptiedByThisRun =
+                  p.update.exists &&
+                  p.counts.removed > 0 &&
+                  p.noRequirementBlocks &&
+                  (await isRetirableSpec(specName, p.rebuilt));
                 // The dead end #1302 describes: the rebuilt spec is unwritable
                 // for exactly one reason, and retiring the capability is the
                 // fix - but only the author can authorise deleting the spec, so
                 // the abort names the marker instead of just rejecting. Says so
                 // only when the marker is the ONLY thing missing, so it never
                 // sends someone after a marker that would not have helped.
-                const retirementWouldFix =
-                  !retirementDeclared &&
-                  p.update.exists &&
-                  p.counts.removed > 0 &&
-                  (await isRetirementCandidate(p.update, p, false));
-                const retirementHint = retirementWouldFix
-                  ? `This change removes the last requirement '${specName}' has. To retire the` +
-                    ` capability and delete its spec, add \`retire_capabilities: true\` to the` +
-                    ` change's ${METADATA_FILENAME} (alongside its \`schema:\`, which that file` +
-                    ` requires), then rerun.` +
-                    (retirementMarker.invalidReason
-                      ? ` The marker present now cannot be honored (${retirementMarker.invalidReason}).`
-                      : '')
-                  : undefined;
+                const retirementHint =
+                  !retirementDeclared && emptiedByThisRun && p.unaccountedContent.length === 0
+                    ? `This change removes the last requirement '${specName}' has. To retire the` +
+                      ` capability and delete its spec, add \`retire_capabilities: true\` to the` +
+                      ` change's ${METADATA_FILENAME} (alongside its \`schema:\`, which that file` +
+                      ` requires), then rerun.` +
+                      (retirementMarker.invalidReason
+                        ? ` The marker present now cannot be honored (${retirementMarker.invalidReason}).`
+                        : '')
+                    : undefined;
+                // #1696: the marker is missing AND the file holds content a
+                // retirement cannot account for, so this abort said nothing at
+                // all - just "must have at least one requirement", with no way
+                // forward. It names the content instead of the marker, on
+                // purpose: the marker is only ever named when adding it would
+                // really let the archive through, and here it would not. Once
+                // the content is resolved the rerun names the marker.
+                const blockedRetirementHint =
+                  !retirementDeclared && emptiedByThisRun && p.unaccountedContent.length > 0
+                    ? `This change removes the last requirement '${specName}' has, so the rebuilt ` +
+                      `spec has none left and cannot be written. Retiring the capability is what ` +
+                      `archive does instead, and it is refused while the spec holds content the ` +
+                      `merge cannot safely account for and deleting the file would take with it: ` +
+                      `${describeUnaccountedContent(p.unaccountedContent)}. ` +
+                      'Move it into `## Purpose` or a canonical requirement, or delete the spec by hand, then rerun.' +
+                      // Said here too, because an author looking at a marker they
+                      // believe authorises the deletion should not have to clear
+                      // the content first to find out it was never read.
+                      (retirementMarker.invalidReason
+                        ? ` The marker present now cannot be honored (${retirementMarker.invalidReason}).`
+                        : '')
+                    : undefined;
                 // The marker was set and retirement was still refused. Saying
                 // nothing left the author who did exactly what the docs asked
                 // back in the original dead end with no signal that their
@@ -1601,8 +1659,7 @@ export class ArchiveCommand {
                   (await isRetirableSpec(specName, p.rebuilt))
                     ? `'${specName}' declares retire_capabilities, but the spec holds content the merge ` +
                       `cannot safely account for and deleting the file would take with it: ` +
-                      `${p.unaccountedContent.slice(0, 3).map((line) => `"${line}"`).join(', ')}` +
-                      `${p.unaccountedContent.length > 3 ? `, and ${p.unaccountedContent.length - 3} more line(s)` : ''}. ` +
+                      `${describeUnaccountedContent(p.unaccountedContent)}. ` +
                       'Move it into `## Purpose` or a canonical requirement, or delete the spec by hand.'
                     : undefined;
                 if (json) {
@@ -1611,6 +1668,7 @@ export class ArchiveCommand {
                     `Rebuilt spec for '${specName}' failed validation. No files were changed.`,
                     refusalReason ??
                       retirementHint ??
+                      blockedRetirementHint ??
                       `Run ${withStoreFlag(root, `openspec validate ${specName}`)} after fixing the change deltas.`
                   );
                 }
@@ -1620,6 +1678,7 @@ export class ArchiveCommand {
                   else if (issue.level === 'WARNING') console.log(chalk.yellow(`  ⚠ ${issue.message}`));
                 }
                 if (retirementHint) console.log(chalk.yellow(`  → ${retirementHint}`));
+                if (blockedRetirementHint) console.log(chalk.yellow(`  → ${blockedRetirementHint}`));
                 if (refusalReason) console.log(chalk.yellow(`  → ${refusalReason}`));
                 console.log('Aborted. No files were changed.');
                 process.exitCode = 1;
@@ -2009,6 +2068,19 @@ export class ArchiveCommand {
     if (changeDirs.length === 0) {
       console.log('No active changes found.');
       return null;
+    }
+
+    // A picker needs a real terminal, and @inquirer's `select` writes ANSI
+    // cursor escapes to stdout even when it is redirected — the same #1526
+    // mechanism the confirm prompts were fixed for. When either stream is not a
+    // TTY, refuse up front with the guidance the caught ExitPromptError would
+    // give, rather than render an escape-spewing menu into a pipe or file.
+    if (!process.stdin.isTTY || !process.stdout.isTTY) {
+      throw new ArchiveBlockedError(
+        'archive_change_name_required',
+        'A change name is required: no terminal is available to choose one from a list.',
+        withStoreFlag(root, `openspec archive <change-name> ${rerunFlags(options).join(' ')}`)
+      );
     }
 
     // Build choices with progress inline to avoid duplicate lists

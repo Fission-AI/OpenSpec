@@ -44,7 +44,7 @@ interface WorkflowPromptMeta {
   description: string;
 }
 
-const WORKFLOW_PROMPT_META: Record<string, WorkflowPromptMeta> = {
+export const WORKFLOW_PROMPT_META: Record<string, WorkflowPromptMeta> = {
   propose: {
     name: 'Propose change',
     description: 'Create proposal, design, and tasks from a request',
@@ -64,6 +64,10 @@ const WORKFLOW_PROMPT_META: Record<string, WorkflowPromptMeta> = {
   apply: {
     name: 'Apply tasks',
     description: 'Implement tasks from the current change',
+  },
+  update: {
+    name: 'Update change',
+    description: 'Revise the planning artifacts of an existing change',
   },
   ff: {
     name: 'Fast-forward',
@@ -535,6 +539,7 @@ export function registerConfigCommand(program: Command): void {
           delivery: currentState.delivery,
           workflows: [...currentState.workflows],
         };
+        let workflowSelectionChanged = false;
 
         if (action === 'both' || action === 'delivery') {
           const deliveryChoices: { value: Delivery; name: string; description: string }[] = [
@@ -583,8 +588,11 @@ export function registerConfigCommand(program: Command): void {
           };
 
           const selectedWorkflows = await checkbox<string>({
+            // The `instructions` option was removed in @inquirer/checkbox v5.
+            // Its replacement, the built-in keys help tip, renders
+            // "↑↓ navigate • space select • ⏎ submit" by default — a superset of
+            // the hint this used to pass — so no theme override is needed here.
             message: 'Select workflows to make available:',
-            instructions: 'Space to toggle, Enter to confirm',
             pageSize: ALL_WORKFLOWS.length,
             theme: {
               icon: {
@@ -595,7 +603,12 @@ export function registerConfigCommand(program: Command): void {
             choices: ALL_WORKFLOWS.map(formatWorkflowChoice),
           });
           nextState.workflows = selectedWorkflows;
-          nextState.profile = deriveProfileFromWorkflowSelection(selectedWorkflows);
+          workflowSelectionChanged =
+            selectedWorkflows.length !== currentState.workflows.length ||
+            selectedWorkflows.some((workflow) => !currentState.workflows.includes(workflow));
+          nextState.profile = workflowSelectionChanged
+            ? deriveProfileFromWorkflowSelection(selectedWorkflows)
+            : currentState.profile;
         }
 
         const diff = diffProfileState(currentState, nextState);
@@ -613,7 +626,9 @@ export function registerConfigCommand(program: Command): void {
 
         config.profile = nextState.profile;
         config.delivery = nextState.delivery;
-        config.workflows = nextState.workflows;
+        if (currentState.profile !== 'custom' || workflowSelectionChanged) {
+          config.workflows = nextState.workflows;
+        }
         saveGlobalConfig(config);
 
         // Check if inside an OpenSpec project

@@ -16,6 +16,15 @@ vi.mock('@inquirer/prompts', () => ({
   confirm: vi.fn()
 }));
 
+// Archive now reads yes/no through confirmPrompt (which avoids @inquirer's
+// ANSI rendering on non-TTY stdout, #1526). Mock that seam instead of confirm,
+// keeping the real isNonInteractivePromptError so the #1479 blocked-path tests
+// still classify ExitPromptError exactly as production does.
+vi.mock('../../src/utils/interactive.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/utils/interactive.js')>();
+  return { ...actual, confirmPrompt: vi.fn() };
+});
+
 describe('ArchiveCommand', () => {
   let tempDir: string;
   let archiveCommand: ArchiveCommand;
@@ -2375,7 +2384,7 @@ The system will log all events.
     });
 
     it('should proceed with archive when user declines spec updates', async () => {
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       
       const changeName = 'decline-specs-feature';
@@ -2428,7 +2437,7 @@ Then expected result happens`;
     });
 
     it('warns about absorbed content before asking to apply the destructive spec update', async () => {
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       const changeName = 'warn-before-spec-update';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
@@ -2492,7 +2501,7 @@ The system SHALL survive.
     });
 
     it('does not apply a stale retirement decision when discarded content changes at the prompt', async () => {
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       const changeName = 'retirement-changed-at-prompt';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
@@ -2556,7 +2565,7 @@ The system SHALL preserve legacy behavior.
     });
 
     it('does not use retirement authorization that changed at the prompt', async () => {
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       const changeName = 'retirement-marker-changed-at-prompt';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
@@ -3552,36 +3561,48 @@ The system SHALL do the thing differently.
     it('should use select prompt for change selection', async () => {
       const { select } = await import('@inquirer/prompts');
       const mockSelect = select as unknown as ReturnType<typeof vi.fn>;
-      
-      // Create test changes
-      const change1 = 'feature-a';
-      const change2 = 'feature-b';
-      await fs.mkdir(path.join(tempDir, 'openspec', 'changes', change1), { recursive: true });
-      await fs.mkdir(path.join(tempDir, 'openspec', 'changes', change2), { recursive: true });
-      
-      // Mock select to return first change
-      mockSelect.mockResolvedValueOnce(change1);
-      
-      // Execute without change name
-      await archiveCommand.execute(undefined, { yes: true });
-      
-      // Verify select was called with correct options (values matter, names may include progress)
-      expect(mockSelect).toHaveBeenCalledWith(expect.objectContaining({
-        message: 'Select a change to archive',
-        choices: expect.arrayContaining([
-          expect.objectContaining({ value: change1 }),
-          expect.objectContaining({ value: change2 })
-        ])
-      }));
-      
-      // Verify the selected change was archived
-      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
-      const archives = await fs.readdir(archiveDir);
-      expect(archives[0]).toContain(change1);
+
+      // The interactive picker only runs at a real terminal (both streams TTY);
+      // otherwise archive refuses up front rather than render a menu into a pipe.
+      const originalStdinIsTty = process.stdin.isTTY;
+      const originalStdoutIsTty = process.stdout.isTTY;
+      Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true, writable: true });
+      Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true, writable: true });
+
+      try {
+        // Create test changes
+        const change1 = 'feature-a';
+        const change2 = 'feature-b';
+        await fs.mkdir(path.join(tempDir, 'openspec', 'changes', change1), { recursive: true });
+        await fs.mkdir(path.join(tempDir, 'openspec', 'changes', change2), { recursive: true });
+
+        // Mock select to return first change
+        mockSelect.mockResolvedValueOnce(change1);
+
+        // Execute without change name
+        await archiveCommand.execute(undefined, { yes: true });
+
+        // Verify select was called with correct options (values matter, names may include progress)
+        expect(mockSelect).toHaveBeenCalledWith(expect.objectContaining({
+          message: 'Select a change to archive',
+          choices: expect.arrayContaining([
+            expect.objectContaining({ value: change1 }),
+            expect.objectContaining({ value: change2 })
+          ])
+        }));
+
+        // Verify the selected change was archived
+        const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+        const archives = await fs.readdir(archiveDir);
+        expect(archives[0]).toContain(change1);
+      } finally {
+        Object.defineProperty(process.stdin, 'isTTY', { value: originalStdinIsTty, configurable: true, writable: true });
+        Object.defineProperty(process.stdout, 'isTTY', { value: originalStdoutIsTty, configurable: true, writable: true });
+      }
     });
 
     it('should use confirm prompt for task warnings', async () => {
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       
       const changeName = 'incomplete-interactive';
@@ -3606,7 +3627,7 @@ The system SHALL do the thing differently.
     });
 
     it('should cancel when user declines task warning', async () => {
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       
       const changeName = 'cancel-test';
@@ -3636,7 +3657,7 @@ The system SHALL do the thing differently.
       // The other half of the gate: without --yes the user is asked, and
       // declining leaves the change in place. Before the fix there was no
       // question to answer - the sub-task was invisible and archive ran.
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
 
       const changeName = 'subtask-prompt';
@@ -3817,6 +3838,140 @@ The system SHALL do the thing differently.
         const payload = JSON.parse(lastJsonPayload());
         expect(payload.archive).toBeNull();
         expect(JSON.stringify(payload.status)).toContain('retire_capabilities: true');
+      });
+
+      // #1696: the marker is missing AND the file holds a line the merge cannot
+      // account for. Both hints were suppressed - the marker hint because
+      // retirement would still be refused, the refusal reason because it only
+      // spoke to authors who had already set the marker - so the archive aborted
+      // on "must have at least one requirement" with no way forward at all.
+      it('names the content blocking a retirement instead of aborting bare', async () => {
+        const changeDir = await createChange(
+          'retire-unmarked-with-notes',
+          'legacy-layer',
+          REMOVE_ALL,
+          { declareRetirement: false }
+        );
+        const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+        await fs.mkdir(mainSpecDir, { recursive: true });
+        const target = path.join(mainSpecDir, 'spec.md');
+        // An ordinary hand-written section. It keeps the spec valid, so the only
+        // error is still the empty rebuild - but deleting the file would take it.
+        await fs.writeFile(
+          target,
+          `${mainSpec('legacy-layer')}\n## Notes\n\nOwned by the platform team.\n`
+        );
+        const original = await fs.readFile(target, 'utf-8');
+
+        await archiveCommand.execute('retire-unmarked-with-notes', { yes: true });
+
+        expect(process.exitCode).toBe(1);
+        expect(console.log).toHaveBeenCalledWith(
+          expect.stringContaining(VALIDATION_MESSAGES.SPEC_NO_REQUIREMENTS)
+        );
+        // The abort now says what archive would do with the emptied spec, and
+        // names the line standing in the way of it.
+        expect(console.log).toHaveBeenCalledWith(
+          expect.stringContaining('Retiring the capability is what archive does instead')
+        );
+        expect(console.log).toHaveBeenCalledWith(
+          expect.stringContaining('"Owned by the platform team."')
+        );
+        // Not the marker, though: adding it would not have let this through,
+        // and the marker is only ever named when it really is the one thing
+        // missing.
+        expect(console.log).not.toHaveBeenCalledWith(
+          expect.stringContaining('add `retire_capabilities: true`')
+        );
+        // Still a refusal: nothing is written and nothing is deleted.
+        await expect(fs.readFile(target, 'utf-8')).resolves.toBe(original);
+        await expect(fs.access(changeDir)).resolves.not.toThrow();
+      });
+
+      // The blocking lines are authored file content echoed to a terminal. A
+      // spec that arrives with a checkout can carry an ESC, and one very long
+      // line could push the way out of the abort off the screen.
+      it('renders blocking lines safely and boundedly', async () => {
+        await createChange('retire-unmarked-hostile', 'legacy-layer', REMOVE_ALL, {
+          declareRetirement: false,
+        });
+        const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+        await fs.mkdir(mainSpecDir, { recursive: true });
+        const longLine = `L${'o'.repeat(400)}ng`;
+        await fs.writeFile(
+          path.join(mainSpecDir, 'spec.md'),
+          `${mainSpec('legacy-layer')}\n## Notes\n\nOwned by \u001b[31mthe platform team.\n\n${longLine}\n`
+        );
+
+        await archiveCommand.execute('retire-unmarked-hostile', { yes: true });
+
+        expect(process.exitCode).toBe(1);
+        const printed = (console.log as unknown as ReturnType<typeof vi.fn>).mock.calls
+          .map((call) => String(call[0]))
+          .join('\n');
+        // The escape never reaches the terminal, but the line is still findable.
+        expect(printed).toContain('Owned by ?[31mthe platform team.');
+        expect(printed).not.toContain('\u001b[31m');
+        // The long line is named, then cut.
+        expect(printed).toContain(`"L${'o'.repeat(199)}…"`);
+      });
+
+      // An author who set a marker that cannot be honored believes they have
+      // authorised the deletion. Clearing the blocking content first, only to
+      // then learn the marker was never read, is two aborts for one mistake.
+      it('reports an unhonorable marker alongside the blocking content', async () => {
+        const changeDir = await createChange(
+          'retire-bad-marker-with-notes',
+          'legacy-layer',
+          REMOVE_ALL,
+          { declareRetirement: false }
+        );
+        await fs.writeFile(
+          path.join(changeDir, '.openspec.yaml'),
+          'schema: spec-driven\nretire_capabilities: yes-please\n'
+        );
+        const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+        await fs.mkdir(mainSpecDir, { recursive: true });
+        await fs.writeFile(
+          path.join(mainSpecDir, 'spec.md'),
+          `${mainSpec('legacy-layer')}\n## Notes\n\nOwned by the platform team.\n`
+        );
+
+        await archiveCommand.execute('retire-bad-marker-with-notes', { yes: true });
+
+        expect(process.exitCode).toBe(1);
+        expect(console.log).toHaveBeenCalledWith(
+          expect.stringContaining('"Owned by the platform team."')
+        );
+        expect(console.log).toHaveBeenCalledWith(
+          expect.stringContaining('cannot be honored')
+        );
+        // Still no invitation to add one - the content blocks it either way.
+        expect(console.log).not.toHaveBeenCalledWith(
+          expect.stringContaining('add `retire_capabilities: true`')
+        );
+      });
+
+      it('carries the blocked-retirement guidance into --json', async () => {
+        await createChange('retire-unmarked-notes-json', 'legacy-layer', REMOVE_ALL, {
+          declareRetirement: false,
+        });
+        const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+        await fs.mkdir(mainSpecDir, { recursive: true });
+        await fs.writeFile(
+          path.join(mainSpecDir, 'spec.md'),
+          `${mainSpec('legacy-layer')}\n## Notes\n\nOwned by the platform team.\n`
+        );
+
+        await archiveCommand
+          .execute('retire-unmarked-notes-json', { yes: true, json: true })
+          .catch(() => undefined);
+
+        const payload = JSON.parse(lastJsonPayload());
+        expect(payload.archive).toBeNull();
+        const status = JSON.stringify(payload.status);
+        expect(status).toContain('Retiring the capability is what archive does instead');
+        expect(status).toContain('Owned by the platform team.');
       });
 
       it('does not name the marker when retirement would not have fixed it', async () => {
@@ -4755,7 +4910,7 @@ The system SHALL do the thing differently.
 
 
     it('deletes nothing when the user declines the spec update', async () => {
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       vi.mocked(confirm).mockResolvedValue(false);
       const changeName = 'retire-declined';
       await createChange(changeName, 'legacy-layer', REMOVE_ALL);
@@ -6480,7 +6635,7 @@ The system SHALL provide a new behavior.
         `${formatLocalDate()}-${changeName}`
       );
       // Claim the destination while the confirmation prompt is open.
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       onTestFinished(() => vi.mocked(confirm).mockReset());
       vi.mocked(confirm).mockImplementation(async () => {
         await fs.mkdir(archived, { recursive: true });
@@ -6614,9 +6769,18 @@ The system SHALL provide a new behavior.
     // picker, swallow it and exit 0 - which told the caller nothing about
     // which flag to pass.
     const originalIsTty = process.stdin.isTTY;
+    const originalStdoutIsTty = process.stdout.isTTY;
 
     function setStdinIsTty(value: boolean | undefined): void {
       Object.defineProperty(process.stdin, 'isTTY', {
+        value,
+        configurable: true,
+        writable: true,
+      });
+    }
+
+    function setStdoutIsTty(value: boolean | undefined): void {
+      Object.defineProperty(process.stdout, 'isTTY', {
         value,
         configurable: true,
         writable: true,
@@ -6631,16 +6795,21 @@ The system SHALL provide a new behavior.
 
     beforeEach(async () => {
       setStdinIsTty(false);
+      // A redirected/captured stdout is the other half of "nobody can answer";
+      // default these tests to it so classification matches a closed stdin.
+      setStdoutIsTty(false);
       // vi.clearAllMocks() clears recorded calls but leaves queued
       // `...Once` answers from earlier tests behind; drain them so each
       // prompt here rejects the way a closed stdin makes it reject.
-      const { confirm, select } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
+      const { select } = await import('@inquirer/prompts');
       (confirm as unknown as ReturnType<typeof vi.fn>).mockReset();
       (select as unknown as ReturnType<typeof vi.fn>).mockReset();
     });
 
     afterEach(() => {
       setStdinIsTty(originalIsTty);
+      setStdoutIsTty(originalStdoutIsTty);
     });
 
     async function createChangeWithDeltaSpec(changeName: string): Promise<string> {
@@ -6672,7 +6841,7 @@ This change exists to document greeting behavior thoroughly for the team, which 
     }
 
     it('names the flag when the spec-update confirmation cannot be answered', async () => {
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       mockConfirm.mockRejectedValueOnce(exitPromptError());
 
@@ -6695,7 +6864,7 @@ This change exists to document greeting behavior thoroughly for the team, which 
     });
 
     it('names the flag when the incomplete-task confirmation cannot be answered', async () => {
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       mockConfirm.mockRejectedValueOnce(exitPromptError());
 
@@ -6718,7 +6887,7 @@ This change exists to document greeting behavior thoroughly for the team, which 
       // Suggesting a bare `--yes` rerun for `archive x --skip-specs` would
       // merge deltas into the main specs - the exact thing --skip-specs was
       // passed to prevent.
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       mockConfirm.mockRejectedValue(exitPromptError());
 
@@ -6763,7 +6932,7 @@ This change exists to document greeting behavior thoroughly for the team, which 
     // directory this needs cannot exist there - which is also why the hole it
     // covers is POSIX-only.
     it.skipIf(process.platform === 'win32')('cannot let a change directory forge its own Fix line', async () => {
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       mockConfirm.mockRejectedValue(exitPromptError());
 
@@ -6789,7 +6958,7 @@ This change exists to document greeting behavior thoroughly for the team, which 
     });
 
     it('quotes a change name that would not paste back as one argument', async () => {
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       mockConfirm.mockRejectedValue(exitPromptError());
 
@@ -6838,7 +7007,7 @@ This change exists to document greeting behavior thoroughly for the team, which 
       // Only the "nobody could answer" failure earns the guidance. Anything
       // else - an IO error, a bug in a future prompt refactor - must surface
       // as itself rather than be relabelled "rerun with --yes".
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       mockConfirm.mockRejectedValueOnce(new Error('EACCES: permission denied'));
 
@@ -6854,7 +7023,7 @@ This change exists to document greeting behavior thoroughly for the team, which 
     });
 
     it('names the flag when the skip-validation confirmation cannot be answered', async () => {
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       mockConfirm.mockRejectedValueOnce(exitPromptError());
 
@@ -6895,6 +7064,23 @@ This change exists to document greeting behavior thoroughly for the team, which 
       expect(console.log).not.toHaveBeenCalledWith('No change selected. Aborting.');
     });
 
+    it('never renders the picker into a non-terminal, asking for a name instead (#1526)', async () => {
+      // The change picker uses @inquirer's select, which writes ANSI escapes to
+      // stdout even when redirected. A non-terminal run must refuse before any
+      // render — the select must never be reached — so a captured stdout stays
+      // clean instead of filling with cursor-move sequences.
+      const { select } = await import('@inquirer/prompts');
+      const mockSelect = select as unknown as ReturnType<typeof vi.fn>;
+      await fs.mkdir(path.join(tempDir, 'openspec', 'changes', 'some-change'), {
+        recursive: true,
+      });
+
+      await expect(archiveCommand.execute(undefined, { yes: true })).rejects.toMatchObject({
+        diagnostic: { code: 'archive_change_name_required' },
+      });
+      expect(mockSelect).not.toHaveBeenCalled();
+    });
+
     it('carries the caller\'s flags into the change-name request too', async () => {
       const { select } = await import('@inquirer/prompts');
       const mockSelect = select as unknown as ReturnType<typeof vi.fn>;
@@ -6913,8 +7099,10 @@ This change exists to document greeting behavior thoroughly for the team, which 
 
     it('leaves a prompt that failed at a usable terminal alone', async () => {
       // The terminal is what proves an answer was possible. Losing that leg
-      // would relabel a failure a human could have answered.
+      // would relabel a failure a human could have answered. A usable terminal
+      // means both streams are TTYs.
       setStdinIsTty(true);
+      setStdoutIsTty(true);
       const originalCi = process.env.CI;
       const originalOpenSpecInteractive = process.env.OPEN_SPEC_INTERACTIVE;
       delete process.env.CI;
@@ -6947,7 +7135,7 @@ This change exists to document greeting behavior thoroughly for the team, which 
       process.env.CI = 'true';
 
       try {
-        const { confirm } = await import('@inquirer/prompts');
+        const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
         const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
         mockConfirm.mockRejectedValueOnce(exitPromptError());
 
@@ -6966,7 +7154,7 @@ This change exists to document greeting behavior thoroughly for the team, which 
     });
 
     it('leaves JSON mode untouched', async () => {
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
 
       const changeName = 'non-interactive-json';

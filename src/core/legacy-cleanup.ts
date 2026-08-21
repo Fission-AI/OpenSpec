@@ -801,35 +801,14 @@ export function formatDeferredGlobalPromptSummary(detection: LegacyDetectionResu
 export function getToolsFromLegacyArtifacts(detection: LegacyDetectionResult): string[] {
   const tools = new Set<string>();
 
-  // Match directories to tool IDs
   for (const dir of detection.slashCommandDirs) {
-    for (const [toolId, pattern] of Object.entries(LEGACY_SLASH_COMMAND_PATHS)) {
-      if (pattern.type === 'directory' && pattern.path === dir) {
-        tools.add(toolId);
-        break;
-      }
-    }
+    const toolId = legacyToolIdForDir(dir);
+    if (toolId) tools.add(toolId);
   }
 
-  // Match files to tool IDs using glob patterns
   for (const file of detection.slashCommandFiles) {
-    // Normalize file path to use forward slashes for consistent matching (Windows compatibility)
-    const normalizedFile = normalizePathForMatch(file);
-    for (const [toolId, pattern] of Object.entries(LEGACY_SLASH_COMMAND_PATHS)) {
-      if (pattern.type === 'files' && pattern.pattern) {
-        const patterns = Array.isArray(pattern.pattern) ? pattern.pattern : [pattern.pattern];
-        let matched = false;
-        for (const p of patterns) {
-          const regex = globToRegex(p);
-          if (regex.test(normalizedFile)) {
-            tools.add(toolId);
-            matched = true;
-            break;
-          }
-        }
-        if (matched) break;
-      }
-    }
+    const toolId = legacyToolIdForFile(file);
+    if (toolId) tools.add(toolId);
   }
 
   for (const prompt of getLegacyGlobalPromptMatches(detection)) {
@@ -837,6 +816,26 @@ export function getToolsFromLegacyArtifacts(detection: LegacyDetectionResult): s
   }
 
   return Array.from(tools);
+}
+
+/** The tool that owns a repo-local legacy slash-command directory, if any. */
+function legacyToolIdForDir(dir: string): string | undefined {
+  for (const [toolId, pattern] of Object.entries(LEGACY_SLASH_COMMAND_PATHS)) {
+    if (pattern.type === 'directory' && pattern.path === dir) return toolId;
+  }
+  return undefined;
+}
+
+/** The tool that owns a repo-local legacy slash-command file, if any. */
+function legacyToolIdForFile(file: string): string | undefined {
+  // Normalize to forward slashes so the glob patterns match on Windows too.
+  const normalizedFile = normalizePathForMatch(file);
+  for (const [toolId, pattern] of Object.entries(LEGACY_SLASH_COMMAND_PATHS)) {
+    if (pattern.type !== 'files' || !pattern.pattern) continue;
+    const patterns = Array.isArray(pattern.pattern) ? pattern.pattern : [pattern.pattern];
+    if (patterns.some((p) => globToRegex(p).test(normalizedFile))) return toolId;
+  }
+  return undefined;
 }
 
 /**
@@ -897,6 +896,34 @@ export function omitGlobalLegacyPromptFiles(detection: LegacyDetectionResult): L
     ...detection,
     globalSlashCommandFiles: [],
     globalSlashCommandDetails: [],
+  };
+  nextDetection.hasLegacyArtifacts = hasLegacyArtifacts(nextDetection);
+  return nextDetection;
+}
+
+/**
+ * Returns a detection snapshot with the repo-local slash-command artifacts of
+ * the given tools removed. The legacy-upgrade path uses this to skip cleaning a
+ * tool's legacy files when its replacement was deliberately NOT written — e.g. a
+ * Codex upgrade suppressed because the shared `.agents` root is already owned by
+ * another tool. Deleting the legacy prompt without writing its replacement would
+ * violate the cleanup contract ("remove X because replacement Y now exists") and
+ * strip the tool's only OpenSpec integration.
+ */
+export function omitToolLegacyArtifacts(
+  detection: LegacyDetectionResult,
+  toolIds: readonly string[]
+): LegacyDetectionResult {
+  if (toolIds.length === 0) return detection;
+  const skip = new Set(toolIds);
+  const nextDetection: LegacyDetectionResult = {
+    ...detection,
+    slashCommandDirs: detection.slashCommandDirs.filter(
+      (dir) => !skip.has(legacyToolIdForDir(dir) ?? '')
+    ),
+    slashCommandFiles: detection.slashCommandFiles.filter(
+      (file) => !skip.has(legacyToolIdForFile(file) ?? '')
+    ),
   };
   nextDetection.hasLegacyArtifacts = hasLegacyArtifacts(nextDetection);
   return nextDetection;

@@ -27,15 +27,16 @@ Diagnostics appear in two positions: **status arrays** (`status: StoreDiagnostic
 
 ## 3. Root selection and `RootOutput`
 
-All root-resolving commands (`list`, `show`, `validate`, `status`, `instructions`, `instructions apply`, `instructions archive`, `new change`, `archive`, `doctor`, `context`) resolve one OpenSpec root with one precedence:
+All root-resolving commands (`list`, `show`, `validate`, `status`, `instructions`, `instructions apply`, `instructions archive`, `new change`, `archive`, `doctor`, `context`, `schemas`) resolve one OpenSpec root with one precedence:
 
 1. `--store <id>` → the registered store's root (`source: "store"`).
 2. Otherwise, nearest ancestor with `openspec/`: planning shape → `source: "nearest"` (a `store:` pointer is ignored with a stderr warning); config-only dir with a valid `store:` pointer → that store, `source: "declared"`.
 3. No nearest root + global `defaultStore` set (`openspec config set defaultStore <id>`) → that store, `source: "global_default"`; a stale id fails with the underlying store error and a `fix` naming `openspec config unset defaultStore`.
 4. No nearest root, no default + registered stores exist → error `no_root_with_registered_stores`.
-5. No root, no default, no stores: scaffolding commands treat the cwd as `source: "implicit"`; diagnostic commands (`doctor`, `context`) fail with `no_openspec_root` instead — they inspect, never scaffold.
+5. No root, no default, no stores: commands may treat the cwd as `source: "implicit"`; `doctor`, `context`, `list`, and bulk `validate` instead fail with `no_openspec_root`. `list` preserves the implicit fallback for legacy projects with `openspec/project.md`.
 
-Successful JSON payloads embed the root:
+Successful JSON payloads normally embed the root; successful `schemas --json`
+deliberately remains the compatibility bare array documented in §4.13:
 
 ```json
 "root": { "path": "/abs/path", "source": "store" | "declared" | "global_default" | "nearest" | "implicit", "store_id": "id (only when store-selected)" }
@@ -84,7 +85,7 @@ Success: `{ "archive": { "change", "archivedAs": "YYYY-MM-DD-name", "path", "spe
 setup/register: `{ "store": {id, root, metadata_path?}, "registry": {path, registered, already_registered}, "git": {is_repository, initialized, committed}, "created_files": [], "status": [] }`. unregister/remove: `{ "store", "registry": {path, removed}, "files": {deleted, deleted_path, left_on_disk}, "status": [] }`. list: `{ "stores": [{id, root}], "status": [] }`. doctor: `{ "stores": [ { id, root, metadata_path?, openspec_root: {...healthy, status}, metadata: {present, valid, id?, remote}, git: {is_repository, has_commits, has_uncommitted_changes, has_remote, origin_url}, status } ], "status": [] }` (`null` = unknown/not probed). Health findings exit 0; failures exit 1 with the matching null-shape. Prompt cancellation exits 130.
 
 ### 4.13 `schemas --json` / `templates --json`
-`schemas`: bare array `[ {name, description, artifacts, source} ]`. `templates`: keyed object `{ "<artifactId>": {path, source} }`. Both cwd-based, no root/status keys.
+`schemas`: success remains a bare array `[ {name, description, artifacts, source} ]`; it resolves the canonical root-selection precedence and accepts `--store <id>`. Root-selection failure: `{ "schemas": [], "root": null, "status": [d] }`, exit 1. `templates`: keyed object `{ "<artifactId>": {path, source} }`, still cwd-based with no root/status keys.
 
 ## 5. Exit-code contract
 
@@ -137,5 +138,5 @@ Recorded by the capstone audit; published-key renames are product decisions defe
 4. Four parallel envelope type declarations exist in src; archive diagnostics never carry `target`.
 5. `list --json` reuses the `status` key as a string enum per change.
 6. Only `validate` output carries a `version` field.
-7. `schemas`/`templates` ignore root selection (cwd-based, no `--store`).
+7. `templates` ignores root selection (cwd-based, no `--store`).
 8. Deprecated noun forms (`change`/`spec` subcommands) emit unenveloped payloads without `root`/`status`.
