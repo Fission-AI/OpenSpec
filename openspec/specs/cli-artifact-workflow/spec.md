@@ -188,7 +188,7 @@ The system SHALL implement artifact workflow commands in isolation for easy remo
 
 #### Scenario: Single file implementation
 - **WHEN** artifact workflow feature is implemented
-- **THEN** all commands are in `src/commands/workflow`
+- **THEN** all commands are in `src/commands/workflow/*`
 
 #### Scenario: Help text marking
 - **WHEN** user runs `--help` on any artifact workflow command
