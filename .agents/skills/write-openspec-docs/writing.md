@@ -81,7 +81,7 @@ Paragraphs are glue between anchors, not containers for facts.
 - Short sentences, active voice. Default subject is "you" or the tool by name.
 - No preamble. The first sentence of any unit states the thing itself, never wind-up ("Before we get into...", "It's worth understanding that...").
 - No em dashes anywhere in these docs. Use a colon, a comma, parentheses, or two sentences.
-- Write the sentence you would say out loud. A draft that splices clauses with semicolons or colon-stacked fragments ("different documents: fewer of them, different names, different structure") gets rewritten as the spoken version ("when you want these to be different documents, whether that means fewer of them, different names, or a different structure"). Colons still introduce lists, fences, and labels; they don't splice prose.
+- Write the sentence you would say out loud. A draft that splices clauses with semicolons or colon-stacked fragments ("different documents: fewer of them, different names, different structure") gets rewritten as the spoken version ("when you want these to be different documents, whether that means fewer of them, different names, or a different structure"). Colons still introduce lists, fences, and labels. They don't splice prose.
 - Contractions are fine ("you're set", "doesn't come along"). These docs talk, they don't proclaim.
 - Inside narrative paragraphs, vary sentence length so the prose doesn't read staccato. Paragraphs only; list items stay parallel even when the cadence repeats.
 

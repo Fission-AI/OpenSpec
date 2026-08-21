@@ -15,7 +15,7 @@ Fork a schema when you want these to be different documents, whether that means 
 OpenSpec looks for a schema in three places, in order, and uses the first one it finds:
 
 1. **Your project**: `openspec/schemas/`, committed with the repo so your whole team gets it.
-2. **Your machine**: `~/.local/share/openspec/schemas` on macOS and Linux, or `%LOCALAPPDATA%\openspec\schemas` on Windows. Schemas here are available in every project you work in.
+2. **Your machine**: `~/.local/share/openspec/schemas` on macOS and Linux (or under `$XDG_DATA_HOME` if you set it), or `%LOCALAPPDATA%\openspec\schemas` on Windows. Schemas here are available in every project you work in.
 3. **The package**: the built-ins, like `spec-driven`, ship inside openspec itself.
 
 The same name can exist in more than one place, and the more specific location wins. `openspec schema which` shows which copy is in use:
