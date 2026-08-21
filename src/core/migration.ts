@@ -198,7 +198,13 @@ function collectLegacyToolMigrations(
         apply,
         legacyTiming === 'after-generation'
       );
-      const commands = migrateCommandFiles(projectPath, tool, legacy.root, apply);
+      const commands = migrateCommandFiles(
+        projectPath,
+        tool,
+        legacy.root,
+        apply,
+        legacyTiming === 'after-generation'
+      );
 
       if (apply) {
         removeDirIfEmpty(path.join(legacyRootPath, 'skills'));
@@ -293,7 +299,8 @@ function migrateCommandFiles(
   projectPath: string,
   tool: AIToolOption,
   legacyRoot: string,
-  apply: boolean
+  apply: boolean,
+  requireDestination = false
 ): { moved: number; kept: number } {
   const adapter = CommandAdapterRegistry.get(tool.value);
   if (!adapter || !tool.skillsDir) return { moved: 0, kept: 0 };
@@ -309,6 +316,11 @@ function migrateCommandFiles(
     if (!fs.existsSync(source)) continue;
 
     const destination = path.join(projectPath, currentPath);
+    // An after-generation move runs once the tool has written its replacement.
+    // No replacement means this command is not one OpenSpec installs now — a
+    // skills-only delivery or a deselected workflow — so relocating the legacy
+    // file would resurrect it under the current root.
+    if (requireDestination && !fs.existsSync(destination)) continue;
     if (!areProjectArtifacts(projectPath, source, destination)) {
       console.warn(
         `Skipping legacy ${legacyPath} migration because it resolves outside this project.`
