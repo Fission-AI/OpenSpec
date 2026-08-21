@@ -728,7 +728,7 @@ Then expected result happens`;
       const updatedContent = await fs.readFile(mainSpecPath, 'utf-8');
       expect(updatedContent).toContain('# test-capability Specification');
       expect(updatedContent).toContain('## Purpose');
-      expect(updatedContent).toContain(`created by archiving change ${changeName}`);
+      expect(updatedContent).toContain(`created from change ${changeName}`);
       expect(updatedContent).toContain('## Requirements');
       expect(updatedContent).toContain('### Requirement: The system SHALL provide test capability');
       expect(updatedContent).toContain('#### Scenario: Basic test');
@@ -1206,7 +1206,7 @@ The system SHALL award loyalty points on each completed order.
       const mainSpecPath = path.join(tempDir, 'openspec', 'specs', 'loyalty', 'spec.md');
       const updatedContent = await fs.readFile(mainSpecPath, 'utf-8');
       expect(updatedContent).toContain('Tracks loyalty points earned and redeemed across the storefront.');
-      expect(updatedContent).not.toContain('TBD - created by archiving change');
+      expect(updatedContent).not.toContain('TBD - created from change');
       expect(updatedContent).toContain('### Requirement: Earn Points');
     });
 
@@ -1242,7 +1242,7 @@ The system SHALL normalize config files on load.
       // The fenced example is part of the authored Purpose - masking fenced
       // lines out of the body would silently truncate it.
       expect(updatedContent).toContain('retries: 3');
-      expect(updatedContent).not.toContain('TBD - created by archiving change');
+      expect(updatedContent).not.toContain('TBD - created from change');
     });
 
     it('should keep the TBD Purpose placeholder when the delta has no Purpose (issue #1413)', async () => {
@@ -1266,7 +1266,7 @@ The system SHALL send a referral invite.
       const mainSpecPath = path.join(tempDir, 'openspec', 'specs', 'referrals', 'spec.md');
       const updatedContent = await fs.readFile(mainSpecPath, 'utf-8');
       expect(updatedContent).toContain(
-        `TBD - created by archiving change ${changeName}. Update Purpose after archive.`
+        `TBD - created from change ${changeName}. Update Purpose.`
       );
     });
 
@@ -1296,7 +1296,7 @@ Illustration only - not this capability's purpose.
       const mainSpecPath = path.join(tempDir, 'openspec', 'specs', 'payouts', 'spec.md');
       const updatedContent = await fs.readFile(mainSpecPath, 'utf-8');
       expect(updatedContent).toContain(
-        `TBD - created by archiving change ${changeName}. Update Purpose after archive.`
+        `TBD - created from change ${changeName}. Update Purpose.`
       );
       expect(updatedContent).not.toContain("Illustration only - not this capability's purpose.\n## Requirements");
     });
@@ -1324,7 +1324,7 @@ The system SHALL send a notification.
       const mainSpecPath = path.join(tempDir, 'openspec', 'specs', 'notifications', 'spec.md');
       const updatedContent = await fs.readFile(mainSpecPath, 'utf-8');
       expect(updatedContent).toContain(
-        `TBD - created by archiving change ${changeName}. Update Purpose after archive.`
+        `TBD - created from change ${changeName}. Update Purpose.`
       );
     });
 
@@ -1358,7 +1358,7 @@ The system SHALL handle widgets.
       const mainSpecPath = path.join(tempDir, 'openspec', 'specs', 'widgets', 'spec.md');
       const updatedContent = await fs.readFile(mainSpecPath, 'utf-8');
       expect(updatedContent).toContain(
-        `TBD - created by archiving change ${changeName}. Update Purpose after archive.`
+        `TBD - created from change ${changeName}. Update Purpose.`
       );
       expect(updatedContent).not.toContain('### Requirement: Stray header');
       expect(updatedContent).toContain('### Requirement: Real Requirement');
@@ -1401,7 +1401,7 @@ The system SHALL handle gadgets.
         'utf-8'
       );
       expect(updatedContent).toContain(
-        `TBD - created by archiving change ${changeName}. Update Purpose after archive.`
+        `TBD - created from change ${changeName}. Update Purpose.`
       );
       expect(updatedContent).not.toContain('# Not a spec title');
       expect(console.log).toHaveBeenCalledWith(
@@ -1444,7 +1444,7 @@ retries: 3
         'utf-8'
       );
       expect(updatedContent).toContain(
-        `TBD - created by archiving change ${changeName}. Update Purpose after archive.`
+        `TBD - created from change ${changeName}. Update Purpose.`
       );
       // Exactly one Requirements section, and the requirement is still visible.
       expect(updatedContent.match(/^## Requirements$/gm)).toHaveLength(1);
@@ -1566,7 +1566,7 @@ The system SHALL track widgets.
         // lands in the file, where it can hide the headers the parsers rely on
         // and blank the document out in a markdown renderer.
         expect(updatedContent).toContain(
-          `TBD - created by archiving change ${changeName}. Update Purpose after archive.`
+          `TBD - created from change ${changeName}. Update Purpose.`
         );
         expect(updatedContent).not.toContain('<!--');
         expect(console.log).toHaveBeenCalledWith(
@@ -1617,7 +1617,7 @@ The system SHALL route events.
           'utf-8'
         );
         expect(updatedContent).toContain(
-          `TBD - created by archiving change ${changeName}. Update Purpose after archive.`
+          `TBD - created from change ${changeName}. Update Purpose.`
         );
         expect(updatedContent).not.toContain('Old abandoned purpose text');
         const report = await new Validator().validateSpecContent(`co-${label}`, updatedContent);
@@ -1654,7 +1654,7 @@ The system SHALL route events through the pipeline.
         'utf-8'
       );
       expect(updatedContent).toContain('ingest --> transform --> sink');
-      expect(updatedContent).not.toContain('TBD - created by archiving change');
+      expect(updatedContent).not.toContain('TBD - created from change');
     });
 
     it('should keep the TBD placeholder when the delta Purpose is only a code fence (issue #1413)', async () => {
@@ -1688,7 +1688,7 @@ The system SHALL retry failed requests.
         'utf-8'
       );
       expect(updatedContent).toContain(
-        `TBD - created by archiving change ${changeName}. Update Purpose after archive.`
+        `TBD - created from change ${changeName}. Update Purpose.`
       );
       expect(updatedContent).not.toContain('retries: 3');
     });
@@ -1763,7 +1763,7 @@ The system SHALL do the thing.
         'utf-8'
       );
       expect(updatedContent).toContain(
-        `TBD - created by archiving change ${changeName}. Update Purpose after archive.`
+        `TBD - created from change ${changeName}. Update Purpose.`
       );
       expect(updatedContent).not.toContain('New capabilities only');
     });

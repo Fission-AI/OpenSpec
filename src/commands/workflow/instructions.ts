@@ -17,7 +17,7 @@ import {
   type ArtifactInstructions,
 } from '../../core/artifact-graph/index.js';
 import {
-  getChangeDir,
+  resolvePlanningChangeDir,
   resolveCurrentPlanningHomeSync,
   type PlanningHome,
 } from '../../core/planning-home.js';
@@ -137,7 +137,7 @@ export async function instructionsCommand(
 
     // loadChangeContext will auto-detect schema from metadata if not provided
     const context = loadChangeContext(projectRoot, changeName, options.schema, {
-      changeDir: getChangeDir(planningHome, changeName),
+      changeDir: await resolvePlanningChangeDir(planningHome, changeName),
       planningHome,
       projectConfig,
     });
@@ -372,7 +372,7 @@ export async function generateApplyInstructions(
   const references = options.references;
   // loadChangeContext will auto-detect schema from metadata if not provided
   const context = loadChangeContext(projectRoot, changeName, schemaName, {
-    changeDir: getChangeDir(planningHome, changeName),
+    changeDir: await resolvePlanningChangeDir(planningHome, changeName),
     planningHome,
     projectConfig: options.projectConfig,
   });

@@ -8,6 +8,7 @@ import { Change } from '../core/schemas/index.js';
 import type { RootOutput } from '../core/root-selection.js';
 import { isInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds } from '../utils/item-discovery.js';
+import { discoverChanges, resolveChangeDir } from '../core/change-discovery.js';
 import { getTaskProgressForChange } from '../utils/task-progress.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 
@@ -21,15 +22,6 @@ async function isDefinitelyMissing(target: string): Promise<boolean> {
     .access(target)
     .then(() => false)
     .catch((error: NodeJS.ErrnoException) => error?.code === 'ENOENT');
-}
-
-/**
- * A change is a directory directly under changes/. Rejecting anything else up
- * front keeps a traversing name (`../..`) from reading a proposal outside the
- * changes directory, and keeps the missing-proposal message honest.
- */
-function isChangeDirectoryName(changesPath: string, changeDir: string): boolean {
-  return path.dirname(path.resolve(changeDir)) === path.resolve(changesPath);
 }
 
 export class ChangeCommand {
@@ -79,12 +71,16 @@ export class ChangeCommand {
       }
     }
 
-    const changeDir = path.join(changesPath, changeName);
-    const proposalPath = path.join(changeDir, 'proposal.md');
-
-    if (!isChangeDirectoryName(changesPath, changeDir)) {
-      throw new Error(`Change "${changeName}" not found at ${proposalPath}`);
+    // Resolution decides what is addressable, in either layout. A refusal is
+    // final: falling back to a flat join would re-admit exactly the ids the
+    // resolver exists to reject — a bare year shard, `archive`, a hidden name.
+    const changeDir = await resolveChangeDir(changesPath, changeName);
+    if (changeDir === null) {
+      throw new Error(
+        `Change "${changeName}" not found at ${path.join(changesPath, changeName, 'proposal.md')}`
+      );
     }
+    const proposalPath = path.join(changeDir, 'proposal.md');
 
     try {
       await fs.access(proposalPath);
@@ -146,23 +142,29 @@ export class ChangeCommand {
    */
   async list(options?: { json?: boolean; long?: boolean }): Promise<void> {
     const changesPath = path.join(process.cwd(), 'openspec', 'changes');
-    
+
     // Same directory-based resolution as `openspec list`, the command this
     // deprecated alias points users at. Every output path below already
     // tolerates a change whose proposal.md is missing or unreadable.
-    const changes = await getActiveChangeIds();
+    // Not caught: discoverChanges already treats an absent changes/ as empty,
+    // so anything it throws is a tree this command could not read.
+    const discovered = await discoverChanges(changesPath);
 
     if (options?.json) {
       const changeDetails = await Promise.all(
-        changes.map(async (changeName) => {
-          const changeDir = path.join(changesPath, changeName);
+        discovered.map(async ({ id: changeName, dir: changeDir }) => {
           const proposalPath = path.join(changeDir, 'proposal.md');
 
           // Resolve task progress through the shared tracked-tasks helper so
           // this deprecated noun-form list cannot re-fork the resolution
           // (#1202). Tasks are independent of the proposal: a change can carry
-          // tasks before, or without, a proposal.md.
-          const taskStatus = await getTaskProgressForChange(changesPath, changeName, process.cwd());
+          // tasks before, or without, a proposal.md. Sharded changes pass
+          // their relative path; the helper joins changesPath with it.
+          const taskStatus = await getTaskProgressForChange(
+            changesPath,
+            path.relative(changesPath, changeDir),
+            process.cwd()
+          );
 
           // No proposal yet is an ordinary state (scaffolded change, or a
           // schema with no proposal artifact), so name the change rather than
@@ -193,22 +195,27 @@ export class ChangeCommand {
       const sorted = changeDetails.sort((a, b) => a.id.localeCompare(b.id));
       console.log(JSON.stringify(sorted, null, 2));
     } else {
-      if (changes.length === 0) {
+      if (discovered.length === 0) {
         console.log('No items found');
         return;
       }
-      const sorted = [...changes].sort();
+      // Sorted as entries, not as bare ids: two directories can share an id,
+      // and collapsing them by name would report both under one directory.
+      const sorted = [...discovered].sort((a, b) => a.id.localeCompare(b.id));
       if (!options?.long) {
         // IDs only
-        sorted.forEach(id => console.log(id));
+        sorted.forEach(({ id }) => console.log(id));
         return;
       }
 
       // Long format: id: title and minimal counts
-      for (const changeName of sorted) {
-        const changeDir = path.join(changesPath, changeName);
+      for (const { id: changeName, dir: changeDir } of sorted) {
         const proposalPath = path.join(changeDir, 'proposal.md');
-        const { total, completed } = await getTaskProgressForChange(changesPath, changeName, process.cwd());
+        const { total, completed } = await getTaskProgressForChange(
+          changesPath,
+          path.relative(changesPath, changeDir),
+          process.cwd()
+        );
         const taskStatusText = total > 0 ? ` [tasks ${completed}/${total}]` : '';
         if (await isDefinitelyMissing(proposalPath)) {
           console.log(`${changeName}: (no proposal.md yet)${taskStatusText}`);
@@ -254,9 +261,11 @@ export class ChangeCommand {
       }
     }
     
-    const changeDir = path.join(changesPath, changeName);
-    if (!isChangeDirectoryName(changesPath, changeDir)) {
-      throw new Error(`Change "${changeName}" not found at ${changeDir}`);
+    const changeDir = await resolveChangeDir(changesPath, changeName);
+    if (changeDir === null) {
+      throw new Error(
+        `Change "${changeName}" not found at ${path.join(changesPath, changeName)}`
+      );
     }
     try {
       await fs.access(changeDir);

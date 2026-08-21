@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 import { FileSystemUtils } from '../utils/file-system.js';
+import { resolveChangeDir } from './change-discovery.js';
 
 export type PlanningHomeKind = 'repo';
 
@@ -91,6 +92,21 @@ export function resolveCurrentPlanningHomeSync(
 
 export function getChangeDir(planningHome: PlanningHome, changeName: string): string {
   return FileSystemUtils.joinPath(planningHome.changesDir, changeName);
+}
+
+/**
+ * Shard-aware variant of `getChangeDir`: resolves the change in either layout
+ * (flat or creation-date sharded), falling back to the flat join so callers
+ * on a not-yet-created change still get a path to report.
+ */
+export async function resolvePlanningChangeDir(
+  planningHome: PlanningHome,
+  changeName: string
+): Promise<string> {
+  return (
+    (await resolveChangeDir(planningHome.changesDir, changeName)) ??
+    getChangeDir(planningHome, changeName)
+  );
 }
 
 export function formatChangeLocation(planningHome: PlanningHome, changeName: string): string {

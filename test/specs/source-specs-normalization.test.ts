@@ -13,7 +13,7 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..', '..');
 const specsRoot = path.join(projectRoot, 'openspec', 'specs');
 
-const PURPOSE_PLACEHOLDER_PATTERN = /TBD - created by archiving change .*?\. Update Purpose after archive\./;
+const PURPOSE_PLACEHOLDER_PATTERN = /TBD - created from change .*?\. Update Purpose\./;
 const REQUIREMENT_HEADER_PATTERN = /^###\s+Requirement:/gm;
 
 async function getSpecFiles(): Promise<string[]> {

@@ -3,7 +3,7 @@ import path from 'path';
 import { MarkdownParser } from '../parsers/markdown-parser.js';
 import { ChangeParser } from '../parsers/change-parser.js';
 import { Spec, Change } from '../schemas/index.js';
-import { FileSystemUtils } from '../../utils/file-system.js';
+import { itemNameFromPath } from '../change-discovery.js';
 
 export class JsonConverter {
   convertSpecToJson(filePath: string): string {
@@ -44,19 +44,6 @@ export class JsonConverter {
   }
 
   private extractNameFromPath(filePath: string): string {
-    const normalizedPath = FileSystemUtils.toPosixPath(filePath);
-    const parts = normalizedPath.split('/');
-    
-    for (let i = parts.length - 1; i >= 0; i--) {
-      if (parts[i] === 'specs' || parts[i] === 'changes') {
-        if (i < parts.length - 1) {
-          return parts[i + 1];
-        }
-      }
-    }
-    
-    const fileName = parts[parts.length - 1] ?? '';
-    const dotIndex = fileName.lastIndexOf('.');
-    return dotIndex > 0 ? fileName.slice(0, dotIndex) : fileName;
+    return itemNameFromPath(filePath);
   }
 }

@@ -1,7 +1,9 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
-import { readFileSync, type Dirent } from 'fs';
+import { readFileSync } from 'fs';
+import { parse as parseYaml } from 'yaml';
+import { discoverChanges } from './change-discovery.js';
 import { MarkdownParser } from './parsers/markdown-parser.js';
 import type { RootOutput } from './root-selection.js';
 import { discoverSpecFiles } from '../utils/spec-discovery.js';
@@ -11,12 +13,31 @@ interface ChangeInfo {
   completedTasks: number;
   totalTasks: number;
   lastModified: Date;
+  lifecycle?: string;
 }
 
 interface ListOptions {
   sort?: 'recent' | 'name';
   json?: boolean;
   root?: RootOutput;
+  /** Filter changes by lifecycle status (projects with `lifecycle: status`). */
+  status?: string;
+}
+
+const LIFECYCLE_STATES = new Set(['proposed', 'shipped']);
+
+// Non-throwing: list must render even when a change's metadata would fail the
+// stricter contract readChangeMetadata enforces — a broken change is status's
+// problem to report, not a reason to hide the whole list.
+function readLifecycleStatus(changePath: string): string | undefined {
+  try {
+    const raw = readFileSync(path.join(changePath, '.openspec.yaml'), 'utf-8');
+    const parsed = parseYaml(raw) as Record<string, unknown> | null;
+    const status = parsed?.['status'];
+    return typeof status === 'string' && LIFECYCLE_STATES.has(status) ? status : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function isMissingPathError(error: unknown): boolean {
@@ -26,15 +47,6 @@ function isMissingPathError(error: unknown): boolean {
     'code' in error &&
     (error as NodeJS.ErrnoException).code === 'ENOENT'
   );
-}
-
-async function readChangeDirectoryEntries(changesDir: string): Promise<Dirent[]> {
-  try {
-    return await fs.readdir(changesDir, { withFileTypes: true });
-  } catch (error) {
-    if (isMissingPathError(error)) return [];
-    throw error;
-  }
 }
 
 /**
@@ -98,16 +110,20 @@ export class ListCommand {
   async execute(targetPath: string = '.', mode: 'changes' | 'specs' = 'changes', options: ListOptions = {}): Promise<void> {
     const { sort = 'recent', json = false, root } = options;
 
+    if (options.status && !LIFECYCLE_STATES.has(options.status)) {
+      throw new Error(
+        `Unknown status '${options.status}' — expected one of: ${[...LIFECYCLE_STATES].join(', ')}.`
+      );
+    }
+
     if (mode === 'changes') {
       const changesDir = path.join(targetPath, 'openspec', 'changes');
 
-      // Get all directories in changes (excluding archive)
-      const entries = await readChangeDirectoryEntries(changesDir);
-      const changeDirs = entries
-        .filter(entry => entry.isDirectory() && entry.name !== 'archive')
-        .map(entry => entry.name);
+      // Both layouts: flat (changes/<name>) and creation-date sharded
+      // (changes/YYYY/MM/DD-<name>), enumerated by the shared discovery.
+      const discovered = await discoverChanges(changesDir);
 
-      if (changeDirs.length === 0) {
+      if (discovered.length === 0) {
         if (json) {
           console.log(JSON.stringify({ changes: [], ...(root ? { root } : {}) }, null, 2));
         } else {
@@ -119,16 +135,34 @@ export class ListCommand {
       // Collect information about each change
       const changes: ChangeInfo[] = [];
 
-      for (const changeDir of changeDirs) {
-        const progress = await getTaskProgressForChange(changesDir, changeDir, targetPath);
-        const changePath = path.join(changesDir, changeDir);
-        const lastModified = await getLastModified(changePath);
+      for (const change of discovered) {
+        // Task-progress helpers join changesDir with the segment they get, so
+        // sharded changes pass their relative path while displaying the id.
+        const relPath = path.relative(changesDir, change.dir);
+        const progress = await getTaskProgressForChange(changesDir, relPath, targetPath);
+        const lastModified = await getLastModified(change.dir);
+        const lifecycle = readLifecycleStatus(change.dir);
+        if (options.status && lifecycle !== options.status) {
+          continue;
+        }
         changes.push({
-          name: changeDir,
+          name: change.id,
           completedTasks: progress.completed,
           totalTasks: progress.total,
-          lastModified
+          lastModified,
+          ...(lifecycle ? { lifecycle } : {})
         });
+      }
+
+      if (changes.length === 0) {
+        if (json) {
+          console.log(JSON.stringify({ changes: [], ...(root ? { root } : {}) }, null, 2));
+        } else {
+          console.log(
+            options.status ? `No changes with status '${options.status}'.` : 'No active changes found.'
+          );
+        }
+        return;
       }
 
       // Sort by preference (default: recent first)
@@ -145,7 +179,10 @@ export class ListCommand {
           completedTasks: c.completedTasks,
           totalTasks: c.totalTasks,
           lastModified: c.lastModified.toISOString(),
-          status: c.totalTasks === 0 ? 'no-tasks' : c.completedTasks === c.totalTasks ? 'complete' : 'in-progress'
+          status: c.totalTasks === 0 ? 'no-tasks' : c.completedTasks === c.totalTasks ? 'complete' : 'in-progress',
+          // `lifecycle`, not `status`: the task-progress field above already
+          // owns that name in this payload.
+          ...(c.lifecycle ? { lifecycle: c.lifecycle } : {})
         }));
         console.log(JSON.stringify({ changes: jsonOutput, ...(root ? { root } : {}) }, null, 2));
         return;
@@ -159,7 +196,8 @@ export class ListCommand {
         const paddedName = change.name.padEnd(nameWidth);
         const status = formatTaskStatus({ total: change.totalTasks, completed: change.completedTasks });
         const timeAgo = formatRelativeTime(change.lastModified);
-        console.log(`${padding}${paddedName}     ${status.padEnd(12)}  ${timeAgo}`);
+        const lifecycle = change.lifecycle ? `  [${change.lifecycle}]` : '';
+        console.log(`${padding}${paddedName}     ${status.padEnd(12)}  ${timeAgo}${lifecycle}`);
       }
       return;
     }

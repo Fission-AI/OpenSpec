@@ -48,6 +48,71 @@ describe('ListCommand', () => {
       expect(logOutput).toEqual(['No active changes found.']);
     });
 
+    it('filters changes by lifecycle status and reports an empty match honestly', async () => {
+      const changesDir = path.join(tempDir, 'openspec', 'changes');
+      for (const [name, status] of [['add-oauth', 'shipped'], ['add-billing', 'proposed']]) {
+        await fs.mkdir(path.join(changesDir, name), { recursive: true });
+        await fs.writeFile(
+          path.join(changesDir, name, '.openspec.yaml'),
+          `schema: spec-driven\nstatus: ${status}\n`
+        );
+        await fs.writeFile(path.join(changesDir, name, 'tasks.md'), '- [x] 1.1 done\n');
+      }
+
+      const listCommand = new ListCommand();
+
+      await listCommand.execute(tempDir, 'changes', { status: 'shipped' });
+      expect(logOutput.join('\n')).toContain('add-oauth');
+      expect(logOutput.join('\n')).not.toContain('add-billing');
+
+      logOutput = [];
+      await listCommand.execute(tempDir, 'changes', { status: 'proposed' });
+      expect(logOutput.join('\n')).toContain('add-billing');
+      expect(logOutput.join('\n')).not.toContain('add-oauth');
+    });
+
+    it('says so when a valid status matches nothing', async () => {
+      const changesDir = path.join(tempDir, 'openspec', 'changes');
+      await fs.mkdir(path.join(changesDir, 'add-oauth'), { recursive: true });
+      await fs.writeFile(
+        path.join(changesDir, 'add-oauth', '.openspec.yaml'),
+        'schema: spec-driven\nstatus: shipped\n'
+      );
+
+      const listCommand = new ListCommand();
+      await listCommand.execute(tempDir, 'changes', { status: 'proposed' });
+
+      expect(logOutput.join('\n')).toContain("No changes with status 'proposed'");
+    });
+
+    it('keeps task status and lifecycle as separate JSON fields', async () => {
+      const changesDir = path.join(tempDir, 'openspec', 'changes');
+      await fs.mkdir(path.join(changesDir, 'add-oauth'), { recursive: true });
+      await fs.writeFile(
+        path.join(changesDir, 'add-oauth', '.openspec.yaml'),
+        'schema: spec-driven\nstatus: shipped\n'
+      );
+      await fs.writeFile(path.join(changesDir, 'add-oauth', 'tasks.md'), '- [x] 1.1 done\n');
+
+      const listCommand = new ListCommand();
+      await listCommand.execute(tempDir, 'changes', { json: true });
+
+      const payload = JSON.parse(logOutput.join('\n'));
+      expect(payload.changes[0].status).toBe('complete');
+      expect(payload.changes[0].lifecycle).toBe('shipped');
+    });
+
+    it('rejects an unknown --status value instead of silently matching nothing', async () => {
+      const changesDir = path.join(tempDir, 'openspec', 'changes');
+      await fs.mkdir(changesDir, { recursive: true });
+
+      const listCommand = new ListCommand();
+
+      await expect(
+        listCommand.execute(tempDir, 'changes', { status: 'bogus' })
+      ).rejects.toThrow(/Unknown status 'bogus'/);
+    });
+
     it('should not report a malformed openspec/changes path as empty', async () => {
       await fs.mkdir(path.join(tempDir, 'openspec'), { recursive: true });
       await fs.writeFile(path.join(tempDir, 'openspec', 'changes'), 'not a directory\n');
