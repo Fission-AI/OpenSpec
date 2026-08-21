@@ -35,7 +35,7 @@ The `AI_TOOLS` array SHALL include `skillsDir` for tools that support the Agent 
 #### Scenario: Windsurf paths defined
 
 - **WHEN** looking up the `windsurf` tool
-- **THEN** `skillsDir` SHALL be `.windsurf`
+- **THEN** `skillsDir` SHALL be `.devin`
 
 #### Scenario: Kimi Code paths defined
 

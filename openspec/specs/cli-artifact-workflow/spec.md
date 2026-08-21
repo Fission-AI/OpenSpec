@@ -188,7 +188,7 @@ The system SHALL implement artifact workflow commands in isolation for easy remo
 
 #### Scenario: Single file implementation
 - **WHEN** artifact workflow feature is implemented
-- **THEN** all commands are in `src/commands/artifact-workflow.ts`
+- **THEN** all commands are in `src/cli/index.ts`
 
 #### Scenario: Help text marking
 - **WHEN** user runs `--help` on any artifact workflow command
@@ -209,7 +209,7 @@ The system SHALL support an `apply` block in schema definitions that controls wh
 
 - **WHEN** a schema has no `apply` block
 - **THEN** the system requires all artifacts to exist before apply is available
-- **AND** uses default instruction: "All artifacts complete. Proceed with implementation."
+- **AND** uses default instruction: "All required artifacts complete. Proceed with implementation."
 
 ### Requirement: Apply Instructions Command
 

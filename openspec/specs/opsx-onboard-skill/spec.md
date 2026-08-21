@@ -156,7 +156,7 @@ The skill SHALL handle users who want to stop mid-way.
 - **WHEN** user indicates they want to stop during onboarding
 - **THEN** agent acknowledges gracefully
 - **AND** notes that the in-progress change is saved
-- **AND** explains how to continue later with `/opsx:continue <name>`
+- **AND** explains how to continue later with `/openspec-continue-change <name>`
 - **AND** exits without pressure
 
 #### Scenario: User wants quick reference only
@@ -164,4 +164,3 @@ The skill SHALL handle users who want to stop mid-way.
 - **WHEN** user says they just want to see the commands
 - **THEN** agent provides command cheat sheet
 - **AND** exits gracefully with encouragement to try `/opsx:new`
-
