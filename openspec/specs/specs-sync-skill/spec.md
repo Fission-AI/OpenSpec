@@ -93,4 +93,4 @@ The skill SHALL provide clear feedback on what was applied.
 
 #### Scenario: No changes needed
 - **WHEN** main specs already match delta specs
-- **THEN** display "Specs already in sync; no files changed."
+- **THEN** display "Specs already in sync - no changes needed"
