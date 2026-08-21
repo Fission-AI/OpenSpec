@@ -39,7 +39,12 @@ export interface AIToolOption {
 
 export const AI_TOOLS: AIToolOption[] = [
   { name: 'Amazon Q Developer', value: 'amazon-q', available: true, successLabel: 'Amazon Q Developer', skillsDir: '.amazonq', requiresIdeRestart: true },
-  { name: 'Antigravity', value: 'antigravity', available: true, successLabel: 'Antigravity', skillsDir: '.agents', requiresIdeRestart: true },
+  // Antigravity moved workspace skills and workflows from `.agent` to the
+  // shared `.agents` root in v1.20.5. Detection keys off `.agent` and
+  // `.agents/workflows` rather than the bare `.agents` root: that root is
+  // shared with Codex, Zed, and the vendor-neutral target, so its presence
+  // alone says nothing about Antigravity.
+  { name: 'Antigravity', value: 'antigravity', available: true, successLabel: 'Antigravity', skillsDir: '.agents', legacySkillsDirs: ['.agent'], detectionPaths: ['.agent', '.agents/workflows'], requiresIdeRestart: true },
   { name: 'Auggie (Augment CLI)', value: 'auggie', available: true, successLabel: 'Auggie', skillsDir: '.augment' },
   { name: 'Bob Shell', value: 'bob', available: true, successLabel: 'Bob Shell', skillsDir: '.bob' },
   { name: 'Claude Code', value: 'claude', available: true, successLabel: 'Claude Code', skillsDir: '.claude' },

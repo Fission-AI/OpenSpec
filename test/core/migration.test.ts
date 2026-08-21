@@ -9,6 +9,7 @@ import { saveGlobalConfig, getGlobalConfigPath } from '../../src/core/global-con
 import {
   findLegacyToolMigrations,
   migrateIfNeeded,
+  migrateLegacyToolDirs,
   scanInstalledWorkflows,
 } from '../../src/core/migration.js';
 
@@ -328,5 +329,83 @@ describe('migration', () => {
 
     expect(scanInstalledWorkflows(projectDir, [requireTool('codex')])).toEqual([]);
     expect(scanInstalledWorkflows(projectDir, [requireTool('agents')])).toEqual(['explore']);
+  });
+  describe('Antigravity .agent -> .agents', () => {
+    it('moves managed skills and commands once the replacement exists', async () => {
+      await writeSkill(projectDir, 'openspec-explore', '.agent');
+      const legacyCommand = path.join(projectDir, '.agent', 'workflows', 'opsx-explore.md');
+      await fsp.mkdir(path.dirname(legacyCommand), { recursive: true });
+      await fsp.writeFile(legacyCommand, '# command\n', 'utf-8');
+
+      // Nothing moves before the tool has generated its replacement tree.
+      expect(findLegacyToolMigrations(projectDir)).toEqual([]);
+
+      await writeSkill(projectDir, 'openspec-explore', '.agents');
+
+      expect(
+        migrateLegacyToolDirs(projectDir, ['antigravity'], 'after-generation')
+      ).toEqual([
+        expect.objectContaining({
+          toolId: 'antigravity',
+          from: '.agent',
+          to: '.agents',
+          skillDirs: 1,
+          commandFiles: 1,
+          keptInPlace: 0,
+        }),
+      ]);
+
+      expect(fs.existsSync(legacyCommand)).toBe(false);
+      expect(
+        fs.existsSync(path.join(projectDir, '.agent', 'skills', 'openspec-explore', 'SKILL.md'))
+      ).toBe(false);
+      expect(
+        fs.existsSync(path.join(projectDir, '.agents', 'workflows', 'opsx-explore.md'))
+      ).toBe(true);
+    });
+
+    it('keeps a divergent legacy skill instead of dropping it', async () => {
+      const legacySkill = path.join(
+        projectDir,
+        '.agent',
+        'skills',
+        'openspec-explore',
+        'SKILL.md'
+      );
+      await fsp.mkdir(path.dirname(legacySkill), { recursive: true });
+      await fsp.writeFile(legacySkill, '# hand-edited\n', 'utf-8');
+      await writeSkill(projectDir, 'openspec-explore', '.agents');
+
+      expect(
+        migrateLegacyToolDirs(projectDir, ['antigravity'], 'after-generation')
+      ).toEqual([
+        expect.objectContaining({ toolId: 'antigravity', skillDirs: 0, keptInPlace: 1 }),
+      ]);
+      expect(fs.readFileSync(legacySkill, 'utf-8')).toBe('# hand-edited\n');
+    });
+
+    it('keeps commands delivery when the command files still sit under .agent', async () => {
+      // The commands are only findable at the legacy root until migration runs.
+      // Inferring `skills` here would make the next update delete them.
+      await writeSkill(projectDir, 'openspec-explore', '.agent');
+      const legacyCommand = path.join(projectDir, '.agent', 'workflows', 'opsx-explore.md');
+      await fsp.mkdir(path.dirname(legacyCommand), { recursive: true });
+      await fsp.writeFile(legacyCommand, '# command\n', 'utf-8');
+
+      migrateIfNeeded(projectDir, [requireTool('antigravity')]);
+
+      expect(readRawConfig().delivery).toBe('both');
+    });
+
+    it('leaves files the user keeps under .agent alone', async () => {
+      const userFile = path.join(projectDir, '.agent', 'workflows', 'my-workflow.md');
+      await fsp.mkdir(path.dirname(userFile), { recursive: true });
+      await fsp.writeFile(userFile, '# mine\n', 'utf-8');
+      await writeSkill(projectDir, 'openspec-explore', '.agents');
+
+      migrateLegacyToolDirs(projectDir, ['antigravity'], 'after-generation');
+
+      expect(fs.existsSync(userFile)).toBe(true);
+    });
   });
 });
