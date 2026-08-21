@@ -217,6 +217,8 @@ describe('getSkillReferenceTransformer', () => {
   it('uses the default /<name> form for tools without a custom prefix', () => {
     expect(getSkillReferenceTransformer('vibe')).toBe(transformToSkillReferences);
     expect(getSkillReferenceTransformer('hermes')('/opsx:apply')).toBe('/openspec-apply-change');
+    // dsh supports the user-facing /<name> gesture, so it keeps the default.
+    expect(getSkillReferenceTransformer('dsh')('/opsx:apply')).toBe('/openspec-apply-change');
   });
 
   it('uses /skill:<name> for Kimi Code, per its documented invocation syntax', () => {
