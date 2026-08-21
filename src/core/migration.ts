@@ -53,6 +53,12 @@ export const LEGACY_TOOL_ROOTS: Record<string, LegacyToolRoot[]> = {
   // Codex now reads the canonical shared .agents root. Generate the current
   // replacement first so a divergent legacy file is preserved, not overwritten.
   codex: [{ root: '.codex', needsConsent: false, timing: 'after-generation' }],
+  // Antigravity v1.20.5 moved workspace skills and workflows to `.agents` and
+  // reads the old `.agent` root only as a fallback, so leaving a copy there
+  // just gives the agent two of everything. Same after-generation timing as
+  // Codex: the replacement is written first, so a divergent legacy file is
+  // reported and kept rather than overwritten.
+  antigravity: [{ root: '.agent', needsConsent: false, timing: 'after-generation' }],
 };
 
 export interface LegacyToolMigration {
@@ -192,7 +198,13 @@ function collectLegacyToolMigrations(
         apply,
         legacyTiming === 'after-generation'
       );
-      const commands = migrateCommandFiles(projectPath, tool, legacy.root, apply);
+      const commands = migrateCommandFiles(
+        projectPath,
+        tool,
+        legacy.root,
+        apply,
+        legacyTiming === 'after-generation'
+      );
 
       if (apply) {
         removeDirIfEmpty(path.join(legacyRootPath, 'skills'));
@@ -287,7 +299,8 @@ function migrateCommandFiles(
   projectPath: string,
   tool: AIToolOption,
   legacyRoot: string,
-  apply: boolean
+  apply: boolean,
+  requireDestination = false
 ): { moved: number; kept: number } {
   const adapter = CommandAdapterRegistry.get(tool.value);
   if (!adapter || !tool.skillsDir) return { moved: 0, kept: 0 };
@@ -303,6 +316,11 @@ function migrateCommandFiles(
     if (!fs.existsSync(source)) continue;
 
     const destination = path.join(projectPath, currentPath);
+    // An after-generation move runs once the tool has written its replacement.
+    // No replacement means this command is not one OpenSpec installs now — a
+    // skills-only delivery or a deselected workflow — so relocating the legacy
+    // file would resurrect it under the current root.
+    if (requireDestination && !fs.existsSync(destination)) continue;
     if (!areProjectArtifacts(projectPath, source, destination)) {
       console.warn(
         `Skipping legacy ${legacyPath} migration because it resolves outside this project.`
@@ -437,7 +455,7 @@ interface InstalledWorkflowArtifacts {
 function scanInstalledWorkflowArtifacts(
   projectPath: string,
   tools: AIToolOption[],
-  includeLegacySkills = false
+  includeLegacyRoots = false
 ): InstalledWorkflowArtifacts {
   const installed = new Set<string>();
   let hasSkills = false;
@@ -451,7 +469,7 @@ function scanInstalledWorkflowArtifacts(
       skillsDirs.push(resolveToolSkillsDir(projectPath, tool));
     } else if (isSharedSkillTargetActive(projectPath, tool.value)) {
       skillsDirs.push(resolveToolSkillsDir(projectPath, tool));
-      if (includeLegacySkills) {
+      if (includeLegacyRoots) {
         skillsDirs.push(
           ...(tool.legacySkillsDirs ?? []).map((root) =>
             path.join(projectPath, root, 'skills')
@@ -474,14 +492,32 @@ function scanInstalledWorkflowArtifacts(
     const adapter = CommandAdapterRegistry.get(tool.value);
     if (!adapter) continue;
 
+    // A root the tool has moved away from still holds the command files the
+    // user installed there. Reading only the current root would report a
+    // commands install as skills-only, and delivery inferred from that answer
+    // deletes those commands on the next update.
+    const legacyRoots = includeLegacyRoots
+      ? (LEGACY_TOOL_ROOTS[tool.value] ?? []).map((legacy) => legacy.root)
+      : [];
+
     for (const workflowId of ALL_WORKFLOWS) {
       const commandPath = adapter.getFilePath(workflowId);
-      const fullPath = path.isAbsolute(commandPath)
-        ? commandPath
-        : path.join(projectPath, commandPath);
-      if (fs.existsSync(fullPath)) {
-        installed.add(workflowId);
-        hasCommands = true;
+      const candidates = [commandPath];
+      if (tool.skillsDir) {
+        for (const root of legacyRoots) {
+          const legacyPath = legacyCommandPath(commandPath, tool.skillsDir, root);
+          if (legacyPath) candidates.push(legacyPath);
+        }
+      }
+      for (const candidate of candidates) {
+        const fullPath = path.isAbsolute(candidate)
+          ? candidate
+          : path.join(projectPath, candidate);
+        if (fs.existsSync(fullPath)) {
+          installed.add(workflowId);
+          hasCommands = true;
+          break;
+        }
       }
     }
   }
