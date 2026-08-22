@@ -63,7 +63,7 @@ The `validate` command SHALL support `--report full` and `--report findings` for
 - **WHEN** validation runs with `--json --report findings`
 - **THEN** stdout SHALL contain exactly one parseable JSON document and stderr SHALL be empty
 - **AND** `report.kind` SHALL equal `validation-findings`
-- **AND** `report.version` SHALL equal `1.0`
+- **AND** `report.version` SHALL be the JSON string `"1.0"`
 - **AND** `report` SHALL include canonical `scope`, `returnedItems`, and `totalItems`
 - **AND** `summary` SHALL contain totals for the complete requested scope
 - **AND** `root` SHALL retain the current resolved-root envelope
@@ -115,32 +115,32 @@ The `validate` command SHALL support `--report full` and `--report findings` for
 - **THEN** `itemFindings` SHALL be empty, item counts and summary totals SHALL be zero, and scope and root SHALL remain explicit
 - **AND** validation SHALL preserve the current successful empty-scope exit status
 
-#### Scenario: Human findings use defined sections and streams
+#### Scenario: Human findings use independently ordered streams
 
 - **GIVEN** a bulk scope with issue-bearing and clean item records
 - **WHEN** validation runs with `--report findings` and without `--json`
-- **THEN** the final report SHALL emit a `Scope:` line to stdout first
-- **AND** SHALL emit item-finding blocks to stderr in full item order, with each item heading followed by all issues in issue order
+- **THEN** within stdout the final report SHALL emit `Scope:` first, followed by complete-scope `Totals:`, followed by any existing active-scope first-failure `Details:` command
+- **AND** within stderr the final report SHALL emit item-finding blocks in full item order, with each item heading followed by all issues in issue order
 - **AND** `ERROR`, `WARNING`, and `INFO` labels, paths, and messages SHALL all be emitted to stderr
 - **AND** clean item rows SHALL be omitted
-- **AND** any explicitly named advisory section SHALL be emitted to stderr after item findings
-- **AND** complete-scope `Totals:` SHALL be emitted to stdout after diagnostic sections
-- **AND** any existing active-scope first-failure `Details:` command SHALL be emitted to stdout after totals
+- **AND** within stderr any explicitly named advisory section SHALL be emitted after item-finding blocks
 - **AND** archived scope SHALL NOT gain a new details command
+- **AND** no relative ordering between stdout and stderr sections SHALL be required
 
 #### Scenario: Human output distinguishes no item findings from advisories
 
 - **GIVEN** no item record has an issue
 - **WHEN** validation runs with `--report findings` and without `--json`
-- **THEN** `No item findings.` SHALL be emitted to stdout after `Scope:`
-- **AND** any explicitly named advisory section SHALL still be emitted separately to stderr before totals
+- **THEN** within stdout `No item findings.` SHALL be emitted after `Scope:` and before `Totals:`
+- **AND** any explicitly named advisory section SHALL still be emitted separately to stderr
 - **AND** `No item findings.` SHALL NOT assert that no top-level advisory exists
+- **AND** no relative ordering between that stderr advisory and stdout sections SHALL be required
 
 #### Scenario: Human empty scope is explicit and successful
 
 - **GIVEN** the selected bulk scope contains no items
 - **WHEN** validation runs with `--report findings` and without `--json`
-- **THEN** stdout SHALL contain zero-item `Scope:`, `No item findings.`, and zero `Totals:` in that order
+- **THEN** within stdout the report SHALL contain zero-item `Scope:`, `No item findings.`, and zero `Totals:` in that order
 - **AND** validation SHALL preserve the current successful empty-scope exit status
 
 #### Scenario: Full and findings verdicts remain equal

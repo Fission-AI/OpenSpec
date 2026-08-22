@@ -8,8 +8,8 @@
 ## 2. Shared item projection and renderers
 
 - [ ] 2.1 Define one typed projector used by active and archived validation that derives `itemFindings` with `full.items.filter(item => item.issues.length > 0)`, preserving full item order, issue order, and whole item records including additive fields; verify both paths use it rather than filtering independently
-- [ ] 2.2 Produce the exact findings JSON contract with `report.kind: "validation-findings"`, report version/scope/item counts, `itemFindings`, complete `summary`, and `root`; omit full-v1 top-level `items` and `version`
-- [ ] 2.3 Implement human findings sections in the specified order and streams: scope stdout; all item blocks/severities stderr or `No item findings.` stdout; explicitly named advisories stderr; totals stdout; existing active details stdout; no new archived details
+- [ ] 2.2 Produce the exact findings JSON contract with `report.kind: "validation-findings"`, JSON-string `report.version: "1.0"`, scope/item counts, `itemFindings`, complete `summary`, and `root`; omit full-v1 top-level `items` and `version`
+- [ ] 2.3 Implement human findings with independently ordered streams: stdout `Scope:` -> optional `No item findings.` -> `Totals:` -> existing active `Details:`; stderr item blocks/all severities -> explicitly named advisories; add tests that capture each stream independently and make no merged stdout/stderr ordering assertion
 - [ ] 2.4 Preserve full-scope validation work, totals, root, strictness, and exit status in findings mode, and verify ERROR-, WARNING-, INFO-only, no-item-finding, empty-scope, failure, active, archived, and selected-store cases
 
 ## 3. Rebase and compatibility gate
@@ -17,11 +17,11 @@
 - [ ] 3.1 Rebase before implementation, inventory the then-current typed full-result top-level sections, and update proposal/design/spec/tasks to name every additional section included in findings mode rather than generically copying unknown fields
 - [ ] 3.2 If #1698 has landed, add `overlaps` as an explicitly named top-level advisory JSON field and human stderr section that does not affect item counts; if #1710 has landed, verify INFO-bearing full item records appear unchanged in `itemFindings`
 - [ ] 3.3 Add human-byte and normalized-JSON compatibility tests proving omitted `--report` and explicit bulk `--report full` preserve current output for active, spec, archived, empty, and selected-store scopes while ignoring expected timing-field variation between runs
-- [ ] 3.4 Add contract tests proving findings output does not conform to the documented full-v1 shape requiring top-level `version: "1.0"` and complete `items`; do not assert failure behavior for arbitrary undocumented parsers
+- [ ] 3.4 Add contract tests proving `report.version` is exactly the JSON string `"1.0"` and findings output does not conform to the documented full-v1 shape requiring top-level `version: "1.0"` and complete `items`; do not assert failure behavior for arbitrary undocumented parsers
 
 ## 4. Documentation and release tracking
 
-- [ ] 4.1 Document report-versus-serialization semantics, canonical/invalid scope combinations, human section streams/order, the exact findings JSON and invalid-request JSON documents, item/advisory distinction, exit codes, and the unchanged full-v1 contract
+- [ ] 4.1 Document report-versus-serialization semantics, canonical/invalid scope combinations, independent within-stream human section ordering, the exact findings JSON and invalid-request JSON documents, item/advisory distinction, exit codes, and the unchanged full-v1 contract
 - [ ] 4.2 Document external `jq` and PowerShell filtering as compatible alternatives for existing releases and explain that findings mode reduces emitted output but does not claim faster validation
 - [ ] 4.3 Add the appropriate release changeset with the implementation PR and verify release tracking passes; do not add a changeset to the proposal-only PR
 

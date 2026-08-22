@@ -7,7 +7,7 @@ Bulk validation currently prints one result for every item in scope, including c
 - Add an opt-in `--report <full|findings>` mode to explicit bulk validation scopes: `--all`, `--changes`, `--specs`, and `--archived`.
 - Keep the current human and JSON output unchanged when `--report` is omitted or set to `full`.
 - In findings mode, project complete item records whose `issues.length > 0` into `itemFindings`, preserving full-report order, every issue severity, and all current or future additive item fields.
-- Give JSON findings an exact `report.kind: "validation-findings"` discriminator and its own version. It does not reuse the full-v1 `items` field or claim conformance with that document.
+- Give JSON findings an exact `report.kind: "validation-findings"` discriminator and exact JSON-string `report.version: "1.0"`. It does not reuse the full-v1 `items` field or claim conformance with that document.
 - Keep top-level advisories distinct from item findings and explicitly name any such sections that exist after the required implementation rebase.
 - Require an explicit, non-conflicting bulk scope for either report value. Invalid JSON/report combinations return one stable structured diagnostic before root selection, prompts, spinners, or validation.
 

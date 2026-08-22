@@ -112,24 +112,29 @@ The `code` is stable. The message may identify the specific conflict while retai
 
 The typed projection is exactly the full result's item records filtered by `item.issues.length > 0`. It preserves full-report order and returns each selected record whole rather than rebuilding a fixed field list, so current fields and future additive item fields survive. `report.returnedItems` equals `itemFindings.length`; `report.totalItems` equals `summary.totals.items`. `ERROR`, `WARNING`, and `INFO` all count as item findings, regardless of whether the item's `valid` field is true.
 
-The findings document has no top-level `items` or top-level `version`, and it carries the exact `report.kind: "validation-findings"` discriminator. Tests assert that it does not conform to the documented full-v1 contract, which requires top-level `version: "1.0"` and a complete `items` array. No claim is made about how arbitrary permissive parsers behave.
+The findings document has no top-level `items` or top-level `version`, and it carries the exact `report.kind: "validation-findings"` discriminator and exact JSON-string `report.version: "1.0"`. Contract tests assert the version value and its string type. Tests also assert that the document does not conform to the documented full-v1 contract, which requires top-level `version: "1.0"` and a complete `items` array. No claim is made about how arbitrary permissive parsers behave.
 
 Live main has no additional top-level advisory collection to include. The implementation does not generically spread unknown full-result fields. At the rebase gate, each then-current top-level section must be inventoried and either explicitly named in the findings contract or deliberately excluded with maintainer review. If #1698 has landed, `overlaps` must remain a separate top-level advisory collection; it is not renamed to `itemFindings` and does not affect `returnedItems`.
 
 JSON findings emit exactly one document on stdout and no stderr text.
 
-### 5. Define human findings sections and streams
+### 5. Define human findings sections and order each stream independently
 
-Human findings emit final report sections in this logical order:
+Human findings preserve stream ownership, but stdout and stderr may be buffered or interleaved by the caller. The contract therefore defines ordering independently within each stream and makes no relative-order promise between a stdout section and a stderr section.
 
-1. `Scope:` line to stdout.
-2. Item-finding blocks in full-report item order to stderr. Each block prints its item heading once, followed by every issue in issue order with its original `ERROR`, `WARNING`, or `INFO` label, path, and message. All three severities use stderr.
-3. If `itemFindings` is empty, `No item findings.` to stdout instead of item blocks.
-4. Any advisory section explicitly named at the implementation rebase gate to stderr, after item findings and before totals. If #1698 lands, the `overlaps` section occupies this position and remains distinct from item findings.
-5. `Totals:` for the complete scope to stdout.
-6. The existing first-failure `Details:` command to stdout after totals for active scopes when one is currently provided; findings mode does not invent a details line for archived scope.
+Within stdout, sections appear in this order:
 
-Clean item rows are omitted. `No item findings.` says nothing about separately rendered advisories. A valid findings request may retain the existing interactive progress behavior before these final sections; the invalid-request path never renders progress UI.
+1. `Scope:` line.
+2. If `itemFindings` is empty, `No item findings.`; otherwise there is no item row or item block on stdout.
+3. `Totals:` for the complete scope.
+4. The existing first-failure `Details:` command for active scopes when one is currently provided; findings mode does not invent a details line for archived scope.
+
+Within stderr, sections appear in this order:
+
+1. Item-finding blocks in full-report item order. Each block prints its item heading once, followed by every issue in issue order with its original `ERROR`, `WARNING`, or `INFO` label, path, and message. All three severities use stderr.
+2. Any advisory section explicitly named at the implementation rebase gate. If #1698 lands, the `overlaps` section follows item-finding blocks on stderr and remains distinct from item findings.
+
+Clean item rows are omitted. `No item findings.` says nothing about separately rendered advisories. Tests capture and assert each stream independently rather than asserting a merged stdout/stderr sequence. A valid findings request may retain existing progress behavior, which is outside this final-report per-stream ordering contract; the invalid-request path never renders progress UI.
 
 ### 6. Use one typed projector for active and archived results
 
