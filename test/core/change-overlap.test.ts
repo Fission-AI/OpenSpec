@@ -227,6 +227,26 @@ describe('findOverlaps', () => {
     ]);
     expect(overlaps[1].claimants.map((c) => c.changeId)).toEqual(['a-change', 'z-change']);
   });
+
+  it('orders non-ASCII names by code point, not by the process locale', () => {
+    // 'ä' (U+00E4) sorts after 'z' by code point but before it under most ICU
+    // collations, so a locale-sensitive sort would reorder these depending on
+    // the machine the run happens on.
+    const overlaps = findOverlaps(
+      [
+        claim('a', 'MODIFIED', { specId: 'ändern', key: 'Ähnlich', requirement: 'Ähnlich' }),
+        claim('b', 'MODIFIED', { specId: 'ändern', key: 'Ähnlich', requirement: 'Ähnlich' }),
+        claim('a', 'MODIFIED', { specId: 'zebra', key: 'Zulu', requirement: 'Zulu' }),
+        claim('b', 'MODIFIED', { specId: 'zebra', key: 'Zulu', requirement: 'Zulu' }),
+        claim('ä-change', 'MODIFIED'),
+        claim('z-change', 'MODIFIED'),
+      ],
+      PRESENT
+    );
+
+    expect(overlaps.map((o) => o.specId)).toEqual(['tools', 'zebra', 'ändern']);
+    expect(overlaps[0].claimants.map((c) => c.changeId)).toEqual(['z-change', 'ä-change']);
+  });
 });
 
 describe('loadBaseRequirements', () => {
