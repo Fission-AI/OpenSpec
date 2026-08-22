@@ -387,6 +387,64 @@ artifacts:
   });
 
   describe('schema init', () => {
+    it('makes the new schema the one the config loader resolves when --default is given', async () => {
+      const { readProjectConfig } = await import('../../src/core/project-config.js');
+
+      await runSchemaCommand([
+        'init',
+        'my-workflow',
+        '--artifacts',
+        'proposal,specs,tasks',
+        '--default',
+        '--json',
+      ]);
+
+      expect(process.exitCode).toBeUndefined();
+      // Asserted through the loader, not the raw YAML: --default's whole job is
+      // that the next `new change` picks the schema up, and the key it has to
+      // write to make that happen is the one readProjectConfig looks at (#1708).
+      expect(readProjectConfig(tempDir)?.schema).toBe('my-workflow');
+    });
+
+    it('keeps the rest of an existing config when --default rewrites it', async () => {
+      const { readProjectConfig } = await import('../../src/core/project-config.js');
+      const configPath = path.join(tempDir, 'openspec', 'config.yaml');
+      fs.writeFileSync(configPath, 'schema: spec-driven\ncontext: keep me\n');
+
+      await runSchemaCommand([
+        'init',
+        'my-workflow',
+        '--artifacts',
+        'proposal,specs,tasks',
+        '--default',
+        '--json',
+      ]);
+
+      const config = readProjectConfig(tempDir);
+      expect(config?.schema).toBe('my-workflow');
+      expect(config?.context).toBe('keep me');
+    });
+
+    it('clears the dead defaultSchema key a previous run left behind', async () => {
+      const configPath = path.join(tempDir, 'openspec', 'config.yaml');
+      fs.writeFileSync(configPath, 'defaultSchema: stale-workflow\n');
+
+      await runSchemaCommand([
+        'init',
+        'my-workflow',
+        '--artifacts',
+        'proposal,specs,tasks',
+        '--default',
+        '--json',
+      ]);
+
+      // Both keys present would leave the file naming two different defaults,
+      // one of which does nothing.
+      const written = fs.readFileSync(configPath, 'utf-8');
+      expect(written).toContain('schema: my-workflow');
+      expect(written).not.toContain('defaultSchema');
+    });
+
     it('should preserve an existing schema when forced init rejects an artifact', async () => {
       const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'tdd-driven');
       const schemaPath = path.join(schemaDir, 'schema.yaml');

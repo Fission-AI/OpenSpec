@@ -1317,7 +1317,7 @@ With no `--description` and no `--artifacts` in an interactive terminal, init pr
 |---|---|
 | `--description <text>` | Schema description. Default: `Custom workflow schema for <name>`. |
 | `--artifacts <list>` | Comma-separated artifact IDs from `proposal`, `specs`, `design`, `tasks`. Default: all four. |
-| `--default` | Writes `defaultSchema` to `openspec/config.yaml`. Nothing reads that key. To make the schema the default, set `schema: <name>` there yourself. |
+| `--default` | Sets `schema: <name>` in `openspec/config.yaml`, so new changes use this schema. |
 | `--no-default` | Skip the prompt about the default. |
 | `--force` | Overwrite an existing schema with the same name. |
 | `--json` | Print the result as JSON. |
