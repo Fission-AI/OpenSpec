@@ -29,6 +29,28 @@ function occurrenceCount(body: string, value: string): number {
   return body.split(value).length - 1;
 }
 
+// East Asian "Ambiguous Width" glyphs: box drawing, block elements,
+// geometric shapes, arrows, bullets, and the check/cross dingbats. Many
+// terminals render these two columns wide.
+const AMBIGUOUS_WIDTH = /[\u2022\u2190-\u21FF\u2500-\u25FF\u2713-\u2718]/;
+
+function fencedBlockLines(body: string): Array<[number, string]> {
+  const lines: Array<[number, string]> = [];
+  let inFence = false;
+
+  body.split('\n').forEach((line, index) => {
+    if (line.trimStart().startsWith('```')) {
+      inFence = !inFence;
+      return;
+    }
+    if (inFence) {
+      lines.push([index + 1, line]);
+    }
+  });
+
+  return lines;
+}
+
 describe('explore templates', () => {
   // Regression for #696: explore never loaded the project's declared
   // context, so it reasoned without the tech stack, conventions, and
@@ -188,6 +210,28 @@ describe('explore templates', () => {
         occurrenceCount(transition, 'After creating each artifact, re-run `openspec status'),
         label
       ).toBe(1);
+    }
+  });
+
+  // Regression for #983: the worked examples drew boxes and tables with
+  // Unicode box-drawing, arrow, and marker glyphs. Agents copy those
+  // examples verbatim, and on terminals that render the glyphs
+  // double-width the right border of every padded box drifted loose.
+  it('draws every fenced example with plain ASCII only (#983)', () => {
+    for (const [label, body] of bodies) {
+      const offenders = fencedBlockLines(body)
+        .filter(([, line]) => AMBIGUOUS_WIDTH.test(line.normalize('NFC')))
+        .map(([lineNumber, line]) => `${lineNumber}: ${line}`);
+
+      expect(offenders, `${label} fenced examples must be pure ASCII`).toEqual([]);
+    }
+  });
+
+  it('tells the agent to draw with ASCII and says why (#983)', () => {
+    for (const [label, body] of bodies) {
+      expect(body, label).toContain('**Draw with plain ASCII only**');
+      expect(body, label).toContain('Ambiguous Width');
+      expect(body, label).toContain('two columns wide');
     }
   });
 
