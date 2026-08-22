@@ -1141,7 +1141,11 @@ export function registerSchemaCommand(program: Command): void {
             const { parse: parseYaml, stringify: stringifyYaml2 } = await import('yaml');
             const configContent = fs.readFileSync(configPath, 'utf-8');
             const config = parseYaml(configContent) || {};
-            config.defaultSchema = name;
+            config.schema = name;
+            // Drop the key earlier versions wrote here: nothing has ever read
+            // `defaultSchema`, so leaving it behind would sit in the file
+            // contradicting the `schema` that now takes effect.
+            delete config.defaultSchema;
             fs.writeFileSync(configPath, stringifyYaml2(config));
           } else {
             // Create config file
@@ -1149,7 +1153,7 @@ export function registerSchemaCommand(program: Command): void {
             if (!fs.existsSync(configDir)) {
               fs.mkdirSync(configDir, { recursive: true });
             }
-            fs.writeFileSync(configPath, stringifyYaml({ defaultSchema: name }));
+            fs.writeFileSync(configPath, stringifyYaml({ schema: name }));
           }
         }
 
