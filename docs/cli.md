@@ -506,6 +506,7 @@ openspec show [item-name] [options]
 | Option | Description |
 |--------|-------------|
 | `--deltas-only` | Show only delta specs (JSON mode) |
+| `--diff` | Diff each delta requirement against the main spec instead of reprinting it |
 
 **Spec-specific options:**
 
@@ -526,6 +527,9 @@ openspec show add-dark-mode
 
 # Show a specific spec
 openspec show auth --type spec
+
+# Review what a change actually alters, requirement by requirement
+openspec show add-dark-mode --diff
 
 # JSON output for parsing
 openspec show add-dark-mode --json
