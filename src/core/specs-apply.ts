@@ -371,11 +371,13 @@ export async function buildUpdatedSpec(
   for (const block of parts.bodyBlocks) {
     nameToBlock.set(normalizeRequirementName(block.name), block);
   }
+  // Keep source blocks immutable for loss attribution. This parallel key list
+  // carries only positional identity as renames change lookup keys.
+  const orderedKeys = parts.bodyBlocks.map((block) => normalizeRequirementName(block.name));
 
   // Apply operations in order: RENAMED → REMOVED → MODIFIED → ADDED
   // RENAMED
   let renamedApplied = 0;
-  const renamedTargets = new Map<string, string>();
   for (const r of plan.renamed) {
     const from = normalizeRequirementName(r.from);
     const to = normalizeRequirementName(r.to);
@@ -413,7 +415,12 @@ export async function buildUpdatedSpec(
     };
     nameToBlock.delete(from);
     nameToBlock.set(to, renamedBlock);
-    renamedTargets.set(from, to);
+    // A Map delete+set moves the renamed block to insertion-order tail. Carry
+    // its new key in the source slot instead; chained renames update it again.
+    const orderIndex = orderedKeys.indexOf(from);
+    if (orderIndex >= 0) {
+      orderedKeys[orderIndex] = to;
+    }
     renamedApplied++;
   }
 
@@ -499,8 +506,9 @@ export async function buildUpdatedSpec(
   // Recompose requirements section preserving original ordering where possible
   const keptOrder: RequirementBlock[] = [];
   const seen = new Set<string>();
-  for (const block of parts.bodyBlocks) {
-    const key = normalizeRequirementName(block.name);
+  for (let index = 0; index < parts.bodyBlocks.length; index++) {
+    const block = parts.bodyBlocks[index];
+    const key = orderedKeys[index];
     const replacement = nameToBlock.get(key);
     if (replacement) {
       keptOrder.push(replacement);
@@ -512,9 +520,7 @@ export async function buildUpdatedSpec(
     // full absorbed suffix. RENAMED carries the original raw content under a
     // new map key, and MODIFIED may repeat the suffix deliberately; neither is
     // data loss.
-    const renamedTarget = renamedTargets.get(key);
-    const replacementFromOriginal =
-      replacement ?? (renamedTarget ? nameToBlock.get(renamedTarget) : undefined);
+    const replacementFromOriginal = replacement;
     if (replacementFromOriginal !== block) {
       const foreign = firstForeignTail(block.raw);
       const replacementRaw = replacementFromOriginal?.raw;
