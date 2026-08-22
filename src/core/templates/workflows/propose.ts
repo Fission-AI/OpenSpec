@@ -5,7 +5,10 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
+import { SCHEMA_SELECTION_GUIDANCE } from './schema-selection.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+
+const PROPOSE_SCHEMA_DISCOVERY_ROOT_GUIDANCE = `**Schema-discovery root for this workflow:** When schema discovery is needed in step 2 below, first resolve the authoritative root by running \`openspec context --json\` from the current working directory. If the user explicitly selected a registered store, use \`openspec context --json --store "<store-id>"\`. Then run \`openspec schemas --json\` with its working directory set to the returned \`root.path\`. This preserves roots selected by a local \`store:\` pointer or the global \`defaultStore\`; when a registered store was explicitly selected, append \`--store "<store-id>"\` to \`openspec schemas --json\` as well. If \`openspec context --json\` cannot be run, its output cannot be parsed, or it reports any problem other than a single \`no_openspec_root\` diagnostic, stop and report the problem. This includes invalid or unavailable stores. Do not run schema discovery from the current working directory. If its parseable output reports only \`no_openspec_root\`, run \`openspec schemas --json\` from the current working directory instead.`;
 
 export function getOpsxProposeSkillTemplate(): SkillTemplate {
   return {
@@ -44,29 +47,18 @@ ${STORE_SELECTION_GUIDANCE}
 
    If the request contains ambiguity that would materially affect scope, externally observable behavior, compatibility, or acceptance criteria, ask the user before creating the change. For minor details, make a reasonable assumption and record it in the planning artifacts.
 
-2. **Determine the workflow schema**
+${PROPOSE_SCHEMA_DISCOVERY_ROOT_GUIDANCE}
 
-   Use the configured default schema unless the user explicitly requests a different workflow.
-
-   **Use a different schema only if the user:**
-   - Explicitly requests a specific schema by name → use \`--schema <schema-name>\`
-   - Asks to "show workflows" or asks "what workflows" exist → resolve the authoritative root by running \`openspec context --json\` from the current working directory. If the user explicitly selected a registered store, use \`openspec context --json --store "<store-id>"\`. Then run \`openspec schemas --json\` with its working directory set to the returned \`root.path\` and let them choose. This preserves roots selected by a local \`store:\` pointer or the global \`defaultStore\`; when a registered store was explicitly selected, append \`--store "<store-id>"\` to \`openspec schemas --json\` as well. If context reports only \`no_openspec_root\`, run \`openspec schemas --json\` from the current working directory instead. Do not use this fallback for invalid or unavailable stores.
-
-   Otherwise, omit \`--schema\` to preserve the configured default.
+${SCHEMA_SELECTION_GUIDANCE}
 
 3. **Create the change directory**
 
-   Choose one schema form below. If a registered store is selected, append \`--store "<store-id>"\` to that command and each later OpenSpec command shown below that accepts \`--store\`.
+   If a registered store is selected, append \`--store "<store-id>"\` to this command and each later OpenSpec command shown below that accepts \`--store\`.
 
-   Using the configured default:
-   \`\`\`bash
-   openspec new change "<name>"
-   \`\`\`
-
-   Using an explicitly requested schema:
    \`\`\`bash
    openspec new change "<name>" --schema "<schema-name>"
    \`\`\`
+   Here, \`<schema-name>\` is the confirmed selection, or the unique recommendation whose confirmation was clearly waived.
    This creates a scaffolded change in the planning home resolved by the CLI with \`.openspec.yaml\`.
 
 4. **Get the artifact build order**
@@ -193,29 +185,18 @@ ${STORE_SELECTION_GUIDANCE}
 
    If the request contains ambiguity that would materially affect scope, externally observable behavior, compatibility, or acceptance criteria, ask the user before creating the change. For minor details, make a reasonable assumption and record it in the planning artifacts.
 
-2. **Determine the workflow schema**
+${PROPOSE_SCHEMA_DISCOVERY_ROOT_GUIDANCE}
 
-   Use the configured default schema unless the user explicitly requests a different workflow.
-
-   **Use a different schema only if the user:**
-   - Explicitly requests a specific schema by name → use \`--schema <schema-name>\`
-   - Asks to "show workflows" or asks "what workflows" exist → resolve the authoritative root by running \`openspec context --json\` from the current working directory. If the user explicitly selected a registered store, use \`openspec context --json --store "<store-id>"\`. Then run \`openspec schemas --json\` with its working directory set to the returned \`root.path\` and let them choose. This preserves roots selected by a local \`store:\` pointer or the global \`defaultStore\`; when a registered store was explicitly selected, append \`--store "<store-id>"\` to \`openspec schemas --json\` as well. If context reports only \`no_openspec_root\`, run \`openspec schemas --json\` from the current working directory instead. Do not use this fallback for invalid or unavailable stores.
-
-   Otherwise, omit \`--schema\` to preserve the configured default.
+${SCHEMA_SELECTION_GUIDANCE}
 
 3. **Create the change directory**
 
-   Choose one schema form below. If a registered store is selected, append \`--store "<store-id>"\` to that command and each later OpenSpec command shown below that accepts \`--store\`.
+   If a registered store is selected, append \`--store "<store-id>"\` to this command and each later OpenSpec command shown below that accepts \`--store\`.
 
-   Using the configured default:
-   \`\`\`bash
-   openspec new change "<name>"
-   \`\`\`
-
-   Using an explicitly requested schema:
    \`\`\`bash
    openspec new change "<name>" --schema "<schema-name>"
    \`\`\`
+   Here, \`<schema-name>\` is the confirmed selection, or the unique recommendation whose confirmation was clearly waived.
    This creates a scaffolded change in the planning home resolved by the CLI with \`.openspec.yaml\`.
 
 4. **Get the artifact build order**
