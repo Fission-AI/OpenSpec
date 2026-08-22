@@ -26,15 +26,15 @@ The system SHALL inject the context field from project config into instructions 
 
 ### Requirement: Format context with XML-style tags
 
-The system SHALL wrap context content in `<context>` opening and `</context>` closing tags with content on separate lines.
+The system SHALL wrap context content in `<project_context>` opening and `</project_context>` closing tags with content on separate lines.
 
 #### Scenario: Context tag structure
 - **WHEN** context is injected into instructions
-- **THEN** format is exactly `<context>\n{content}\n</context>\n\n`
+- **THEN** format is exactly `<project_context>\n{content}\n</project_context>\n\n`
 
 #### Scenario: Context appears before template
 - **WHEN** instructions are generated with context
-- **THEN** `<context>` section appears before the `<template>` section
+- **THEN** `<project_context>` section appears before the `<template>` section
 
 ### Requirement: Preserve context content exactly as provided
 

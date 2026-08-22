@@ -106,7 +106,7 @@ The command SHALL use consistent exit codes to indicate different failure modes.
   - 0: Success
   - 1: General error (including when OpenSpec directory already exists)
   - 2: Insufficient permissions (reserved for future use)
-  - 3: User cancelled operation (reserved for future use)
+  - 130: User cancelled operation
 
 ### Requirement: Additional AI Tool Initialization
 `openspec init` SHALL allow users to add configuration files for new AI coding assistants after the initial setup.
