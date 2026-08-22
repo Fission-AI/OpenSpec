@@ -31,7 +31,7 @@ export async function schemasCommand(options: SchemasOptions): Promise<void> {
     return;
   }
 
-  const schemas = listSchemasWithInfo(root.path);
+  const schemas = listSchemasWithInfo(root.schemaContext);
 
   if (options.json) {
     console.log(JSON.stringify(schemas, null, 2));
@@ -45,6 +45,8 @@ export async function schemasCommand(options: SchemasOptions): Promise<void> {
     let sourceLabel = '';
     if (schema.source === 'project') {
       sourceLabel = chalk.cyan(' (project)');
+    } else if (schema.source === 'store') {
+      sourceLabel = chalk.cyan(` (Store: ${schema.storeId})`);
     } else if (schema.source === 'user') {
       sourceLabel = chalk.dim(' (user override)');
     }

@@ -189,5 +189,66 @@ describe('ViewCommand', () => {
     const completedLines = logOutput.map(stripAnsi).filter(line => line.includes('✓'));
     expect(completedLines.some(line => line.includes('subtask-change'))).toBe(false);
   });
-});
 
+  it('uses the resolved schema Store context for task progress', async () => {
+    const changesDir = path.join(tempDir, 'openspec', 'changes');
+    const changeDir = path.join(changesDir, 'store-schema-change');
+    await fs.mkdir(changeDir, { recursive: true });
+    await fs.writeFile(
+      path.join(changeDir, '.openspec.yaml'),
+      'schema: department-flow\n'
+    );
+    await fs.writeFile(
+      path.join(changeDir, 'department-tasks.md'),
+      '- [ ] Store-backed task\n'
+    );
+
+    const schemaStoreRoot = path.join(tempDir, 'department-schemas');
+    const schemaDir = path.join(
+      schemaStoreRoot,
+      'openspec',
+      'schemas',
+      'department-flow'
+    );
+    await fs.mkdir(schemaDir, { recursive: true });
+    await fs.writeFile(
+      path.join(schemaDir, 'schema.yaml'),
+      `name: department-flow
+version: 1
+artifacts:
+  - id: tasks
+    generates: department-tasks.md
+    description: Department tasks
+    template: tasks.md
+apply:
+  requires: [tasks]
+  tracks: department-tasks.md
+`
+    );
+
+    await new ViewCommand().execute(tempDir, {
+      schemaTarget: {
+        root: schemaStoreRoot,
+        source: 'store',
+        storeId: 'department-schemas',
+        visibleSchemas: '*',
+      },
+      projectConfig: {
+        schema: 'department-flow',
+      },
+    });
+
+    const activeLines = logOutput.map(stripAnsi).filter((line) =>
+      line.includes('◉')
+    );
+    expect(
+      activeLines.some((line) => line.includes('store-schema-change'))
+    ).toBe(true);
+    const draftLines = logOutput.map(stripAnsi).filter((line) =>
+      line.includes('○')
+    );
+    expect(
+      draftLines.some((line) => line.includes('store-schema-change'))
+    ).toBe(false);
+  });
+});

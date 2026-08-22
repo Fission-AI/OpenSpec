@@ -33,13 +33,22 @@ import {
 } from '../../utils/change-metadata.js';
 import { resolveTaskFilesForChange } from '../../utils/task-progress.js';
 import { findTaskNumberingIssues } from './task-numbering.js';
-import { getPackageSchemasDir, getSchemaDir } from '../artifact-graph/index.js';
+import {
+  getPackageSchemasDir,
+  getSchemaDir,
+  type SchemaResolutionTarget,
+} from '../artifact-graph/index.js';
 
 export class Validator {
   private strictMode: boolean;
+  private schemaTarget?: SchemaResolutionTarget;
 
-  constructor(strictMode: boolean = false) {
+  constructor(
+    strictMode: boolean = false,
+    schemaTarget?: SchemaResolutionTarget
+  ) {
     this.strictMode = strictMode;
+    this.schemaTarget = schemaTarget;
   }
 
   async validateSpec(filePath: string): Promise<ValidationReport> {
@@ -105,7 +114,7 @@ export class Validator {
 
       const result = ChangeSchema.safeParse(change);
 
-      const marker = readSkipSpecsMarker(changeDir);
+      const marker = readSkipSpecsMarker(changeDir, this.schemaTarget);
       if (marker.invalidReason) {
         issues.push({ level: 'ERROR', path: METADATA_FILENAME, message: this.formatInvalidMarkerMessage(marker.invalidReason) });
       }
@@ -421,7 +430,7 @@ export class Validator {
       });
     }
 
-    const marker = readSkipSpecsMarker(changeDir);
+    const marker = readSkipSpecsMarker(changeDir, this.schemaTarget);
     if (marker.invalidReason) {
       issues.push({ level: 'ERROR', path: METADATA_FILENAME, message: this.formatInvalidMarkerMessage(marker.invalidReason) });
     }
@@ -470,11 +479,11 @@ export class Validator {
     projectRoot: string
   ): Promise<ValidationIssue[]> {
     try {
-      const schemaName = resolveSchemaForChange(changeDir, undefined, projectRoot).replace(
-        /\.ya?ml$/,
-        ''
-      );
-      const schemaDir = getSchemaDir(schemaName, projectRoot);
+      const schemaTarget = this.schemaTarget ?? projectRoot;
+      const schemaName = resolveSchemaForChange(changeDir, undefined, projectRoot, {
+        schemaTarget,
+      }).replace(/\.ya?ml$/, '');
+      const schemaDir = getSchemaDir(schemaName, schemaTarget);
       const builtInSchemaDir = path.join(getPackageSchemasDir(), 'spec-driven');
       if (
         schemaName !== 'spec-driven' ||
@@ -490,7 +499,12 @@ export class Validator {
 
     let taskFiles: string[];
     try {
-      taskFiles = resolveTaskFilesForChange(changeDir, projectRoot);
+      taskFiles = resolveTaskFilesForChange(
+        changeDir,
+        projectRoot,
+        undefined,
+        this.schemaTarget ?? projectRoot
+      );
     } catch {
       return [];
     }

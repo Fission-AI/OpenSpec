@@ -4,9 +4,19 @@ import chalk from 'chalk';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
 import { MarkdownParser } from './parsers/markdown-parser.js';
 import { discoverSpecFiles } from '../utils/spec-discovery.js';
+import type { SchemaResolutionTarget } from './artifact-graph/index.js';
+import type { ProjectConfig } from './project-config.js';
+
+export interface ViewOptions {
+  schemaTarget?: SchemaResolutionTarget;
+  projectConfig?: ProjectConfig | null;
+}
 
 export class ViewCommand {
-  async execute(targetPath: string = '.'): Promise<void> {
+  async execute(
+    targetPath: string = '.',
+    options: ViewOptions = {}
+  ): Promise<void> {
     const openspecDir = path.join(targetPath, 'openspec');
     
     if (!fs.existsSync(openspecDir)) {
@@ -18,7 +28,7 @@ export class ViewCommand {
     console.log('═'.repeat(60));
 
     // Get changes and specs data
-    const changesData = await this.getChangesData(openspecDir);
+    const changesData = await this.getChangesData(openspecDir, options);
     const specsData = await this.getSpecsData(openspecDir);
 
     // Display summary metrics
@@ -79,7 +89,10 @@ export class ViewCommand {
     console.log(chalk.dim(`\nUse ${chalk.white('openspec list --changes')} or ${chalk.white('openspec list --specs')} for detailed views`));
   }
 
-  private async getChangesData(openspecDir: string): Promise<{
+  private async getChangesData(
+    openspecDir: string,
+    options: ViewOptions
+  ): Promise<{
     draft: Array<{ name: string }>;
     active: Array<{ name: string; progress: { total: number; completed: number } }>;
     completed: Array<{ name: string }>;
@@ -98,7 +111,14 @@ export class ViewCommand {
 
     for (const entry of entries) {
       if (entry.isDirectory() && entry.name !== 'archive') {
-        const progress = await getTaskProgressForChange(changesDir, entry.name, path.dirname(openspecDir));
+        const projectRoot = path.dirname(openspecDir);
+        const progress = await getTaskProgressForChange(
+          changesDir,
+          entry.name,
+          projectRoot,
+          options.schemaTarget ?? projectRoot,
+          options.projectConfig
+        );
 
         if (progress.total === 0) {
           // No tasks defined yet - still in planning/draft phase

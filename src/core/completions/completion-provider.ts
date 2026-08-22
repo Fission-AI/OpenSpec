@@ -1,5 +1,6 @@
 import { getActiveChangeIds, getSpecIds } from '../../utils/item-discovery.js';
 import { listSchemas } from '../artifact-graph/index.js';
+import type { SchemaResolutionTarget } from '../artifact-graph/index.js';
 
 /**
  * Cache entry for completion data
@@ -7,6 +8,22 @@ import { listSchemas } from '../artifact-graph/index.js';
 interface CacheEntry<T> {
   data: T;
   timestamp: number;
+}
+
+function schemaTargetCacheKey(target: SchemaResolutionTarget): string {
+  if (typeof target === 'string') {
+    return JSON.stringify({ root: target, source: 'project', visibleSchemas: '*' });
+  }
+
+  return JSON.stringify({
+    root: target.root,
+    source: target.source,
+    storeId: target.storeId,
+    visibleSchemas:
+      target.visibleSchemas === '*'
+        ? '*'
+        : [...target.visibleSchemas].sort(),
+  });
 }
 
 /**
@@ -19,6 +36,7 @@ export class CompletionProvider {
   private changeCache: CacheEntry<string[]> | null = null;
   private specCache: CacheEntry<string[]> | null = null;
   private schemaCache: CacheEntry<string[]> | null = null;
+  private schemaCacheKey: string | null = null;
 
   /**
    * Creates a new completion provider
@@ -28,7 +46,8 @@ export class CompletionProvider {
    */
   constructor(
     private readonly cacheTTLMs: number = 2000,
-    private readonly projectRoot: string = process.cwd()
+    private readonly projectRoot: string = process.cwd(),
+    private readonly schemaTarget?: SchemaResolutionTarget
   ) {
     this.cacheTTL = cacheTTLMs;
   }
@@ -88,22 +107,31 @@ export class CompletionProvider {
    *
    * @returns Array of schema names
    */
-  async getSchemaNames(): Promise<string[]> {
+  async getSchemaNames(
+    schemaTarget: SchemaResolutionTarget | undefined = this.schemaTarget
+  ): Promise<string[]> {
     const now = Date.now();
+    const effectiveTarget = schemaTarget ?? this.projectRoot;
+    const cacheKey = schemaTargetCacheKey(effectiveTarget);
 
     // Check if cache is valid
-    if (this.schemaCache && now - this.schemaCache.timestamp < this.cacheTTL) {
+    if (
+      this.schemaCache &&
+      this.schemaCacheKey === cacheKey &&
+      now - this.schemaCache.timestamp < this.cacheTTL
+    ) {
       return this.schemaCache.data;
     }
 
     // Fetch fresh data
-    const schemaNames = listSchemas(this.projectRoot);
+    const schemaNames = listSchemas(effectiveTarget);
 
     // Update cache
     this.schemaCache = {
       data: schemaNames,
       timestamp: now,
     };
+    this.schemaCacheKey = cacheKey;
 
     return schemaNames;
   }
@@ -129,6 +157,7 @@ export class CompletionProvider {
     this.changeCache = null;
     this.specCache = null;
     this.schemaCache = null;
+    this.schemaCacheKey = null;
   }
 
   /**

@@ -52,6 +52,7 @@ import { maybeShowTelemetryNotice, trackCommand, shutdown } from '../telemetry/i
 import { maybeShowCompletionTip } from '../core/completion-tip.js';
 import { COMMON_FLAGS } from '../core/completions/shared-flags.js';
 import { isInteractive } from '../utils/interactive.js';
+import { readResolvedProjectConfig } from '../core/root-selection.js';
 
 const STORE_OPTION_DESCRIPTION = COMMON_FLAGS.store.description;
 
@@ -376,6 +377,8 @@ program
       await listCommand.execute(root.path, mode, {
         sort,
         json: options?.json,
+        schemaTarget: root.schemaContext,
+        projectConfig: readResolvedProjectConfig(root),
         ...(options?.json ? { root: toRootOutput(root) } : {}),
       });
     } catch (error) {
@@ -403,7 +406,10 @@ program
         return;
       }
       const viewCommand = new ViewCommand();
-      await viewCommand.execute(root.path);
+      await viewCommand.execute(root.path, {
+        schemaTarget: root.schemaContext,
+        projectConfig: readResolvedProjectConfig(root),
+      });
     } catch (error) {
       failWithError(error);
       process.exit(1);
@@ -445,7 +451,13 @@ changeCmd
   .action(async (options?: { json?: boolean; long?: boolean }) => {
     try {
       console.error('Warning: "openspec change list" is deprecated. Use "openspec list".');
-      const changeCommand = new ChangeCommand();
+      const root = await resolveRootForCommand({}, { json: options?.json });
+      if (!root) return;
+      const changeCommand = new ChangeCommand(
+        root.path,
+        root.schemaContext,
+        readResolvedProjectConfig(root)
+      );
       await changeCommand.list(options);
     } catch (error) {
       console.error(`Error: ${(error as Error).message}`);
@@ -461,7 +473,13 @@ changeCmd
   .option('--no-interactive', 'Disable interactive prompts')
   .action(async (changeName?: string, options?: { strict?: boolean; json?: boolean; noInteractive?: boolean }) => {
     try {
-      const changeCommand = new ChangeCommand();
+      const root = await resolveRootForCommand({}, { json: options?.json });
+      if (!root) return;
+      const changeCommand = new ChangeCommand(
+        root.path,
+        root.schemaContext,
+        readResolvedProjectConfig(root)
+      );
       // validate() already sets process.exitCode, and Node honours it at
       // natural exit. Calling process.exit() here would skip commander's
       // postAction hook — the same trap called out for `update` below — which

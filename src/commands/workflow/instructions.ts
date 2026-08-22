@@ -15,6 +15,7 @@ import {
   resolveArtifactOutputPath,
   resolveArtifactOutputs,
   type ArtifactInstructions,
+  type SchemaResolutionTarget,
 } from '../../core/artifact-graph/index.js';
 import {
   getChangeDir,
@@ -23,6 +24,7 @@ import {
 } from '../../core/planning-home.js';
 import {
   resolveRootForCommand,
+  readResolvedProjectConfig,
   withStoreFlag,
   toPlanningHome,
   toRootOutput,
@@ -37,7 +39,6 @@ import {
 import { readRegistrySnapshot } from '../../core/store/registry.js';
 import {
   loadOperationInputs,
-  readProjectConfig,
   type ProjectConfig,
 } from '../../core/project-config.js';
 import {
@@ -85,7 +86,7 @@ async function loadRootConfigContext(root: ResolvedOpenSpecRoot): Promise<{
   references: ReferenceIndexEntry[] | undefined;
 }> {
   // readProjectConfig never throws: missing/unparseable configs are null.
-  const projectConfig = readProjectConfig(root.path);
+  const projectConfig = readResolvedProjectConfig(root);
 
   // One registry read serves every relationship consumer in this
   // output so it never carries a torn snapshot.
@@ -130,7 +131,7 @@ export async function instructionsCommand(
 
     // Validate schema if explicitly provided
     if (options.schema) {
-      validateSchemaExists(options.schema, projectRoot);
+      validateSchemaExists(options.schema, root.schemaContext);
     }
 
     const { projectConfig, references } = await loadRootConfigContext(root);
@@ -140,6 +141,7 @@ export async function instructionsCommand(
       changeDir: getChangeDir(planningHome, changeName),
       planningHome,
       projectConfig,
+      schemaTarget: root.schemaContext,
     });
 
     if (!artifactId) {
@@ -354,6 +356,7 @@ export interface GenerateApplyInstructionsOptions {
   planningHome?: PlanningHome;
   references?: ReferenceIndexEntry[];
   projectConfig?: ProjectConfig | null;
+  schemaTarget?: SchemaResolutionTarget;
 }
 
 /**
@@ -375,11 +378,12 @@ export async function generateApplyInstructions(
     changeDir: getChangeDir(planningHome, changeName),
     planningHome,
     projectConfig: options.projectConfig,
+    schemaTarget: options.schemaTarget,
   });
   const changeDir = context.changeDir;
 
   // Get the full schema to access the apply phase configuration
-  const schema = resolveSchema(context.schemaName, projectRoot);
+  const schema = resolveSchema(context.schemaName, context.schemaTarget);
   const applyConfig = schema.apply;
 
   // Determine required artifacts and tracking file from schema
@@ -497,7 +501,7 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
 
     // Validate schema if explicitly provided
     if (options.schema) {
-      validateSchemaExists(options.schema, projectRoot);
+      validateSchemaExists(options.schema, root.schemaContext);
     }
 
     // One parsed config snapshot supplies schema fallback, references, context,
@@ -507,6 +511,7 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
       planningHome,
       references,
       projectConfig,
+      schemaTarget: root.schemaContext,
     });
 
     spinner?.stop();
@@ -612,7 +617,7 @@ export async function archiveInstructionsCommand(
       root.changesDir,
       { newChangeHint: withStoreFlag(root, 'openspec new change <name>') }
     );
-    const projectConfig = readProjectConfig(root.path);
+    const projectConfig = readResolvedProjectConfig(root);
     const instructions = generateArchiveInstructions(changeName, projectConfig);
 
     spinner?.stop();

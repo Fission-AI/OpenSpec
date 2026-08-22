@@ -4,6 +4,10 @@ import { COMMAND_REGISTRY } from '../core/completions/command-registry.js';
 import { detectShell, SupportedShell } from '../utils/shell-detection.js';
 import { CompletionProvider } from '../core/completions/completion-provider.js';
 import { getArchivedChangeIds } from '../utils/item-discovery.js';
+import {
+  isRootSelectionError,
+  resolveOpenSpecRoot,
+} from '../core/root-selection.js';
 
 interface GenerateOptions {
   shell?: string;
@@ -28,9 +32,11 @@ interface CompleteOptions {
  */
 export class CompletionCommand {
   private completionProvider: CompletionProvider;
+  private readonly projectRoot: string;
 
-  constructor() {
-    this.completionProvider = new CompletionProvider();
+  constructor(projectRoot: string = process.cwd()) {
+    this.projectRoot = projectRoot;
+    this.completionProvider = new CompletionProvider(2000, projectRoot);
   }
   /**
    * Resolve shell parameter or exit with error
@@ -280,7 +286,22 @@ export class CompletionCommand {
           break;
         }
         case 'schemas': {
-          const schemaNames = await this.completionProvider.getSchemaNames();
+          let schemaContext;
+          try {
+            const root = await resolveOpenSpecRoot({
+              startPath: this.projectRoot,
+            });
+            schemaContext = root.schemaContext;
+          } catch (error) {
+            if (
+              !isRootSelectionError(error) ||
+              error.diagnostic.code !== 'no_root_with_registered_stores'
+            ) {
+              throw error;
+            }
+          }
+          const schemaNames =
+            await this.completionProvider.getSchemaNames(schemaContext);
           for (const name of schemaNames) {
             console.log(`${name}\tschema`);
           }
