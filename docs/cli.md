@@ -839,9 +839,9 @@ openspec instructions design --change add-dark-mode --json
 **Output includes:**
 
 - Template content for the artifact
-- Project context from config
+- Project context from config, plus any `schemas.<name>.context` override for the resolved schema (see [Customization](customization.md#project-configuration))
 - Content from dependency artifacts
-- Per-artifact rules from config
+- Per-artifact rules from config, plus any matching `schemas.<name>.rules` override for the resolved schema
 - Current project context and matching operation guidance for `apply`/`archive`
 
 Operation inputs are read from the resolved repo or selected store on every
