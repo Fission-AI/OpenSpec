@@ -567,6 +567,19 @@ A change with zero spec deltas fails validation unless its `.openspec.yaml` decl
 
 `--archived` is its own scope: it does not validate spec deltas (already applied at archive time), it verifies that every change under `changes/archive/` has all of its `tasks.md` checkboxes ticked, exiting non-zero if any are unchecked. This catches changes that were archived with unfinished work — handy in a pre-commit hook.
 
+When changes are in scope (`--changes` or `--all`), validation also reports requirements that more than one active change claims. Each change is validated against the current main spec, so two changes converging on one requirement are both valid until the first archives — this surfaces that collision before it lands.
+
+Each entry names the claiming changes and what each one does to the requirement (`ADDED`, `MODIFIED`, `REMOVED`, `RENAMED_FROM`, `RENAMED_TO`), and whether the main spec holds that requirement today — two changes editing shared text is a different situation from two changes each proposing it. Overlap is often deliberate (a stacked pair, sequenced work), so the report is informational: it never changes the exit code and makes no claim about which change is wrong.
+
+```text
+⚠ 1 requirement is claimed by more than one active change:
+  tools: Slash Command Configuration (in the main spec)
+    add-kilocode-workflows MODIFIED, add-windsurf-workflows MODIFIED
+Whichever of these archives second lands on a spec the first one changed; re-read it before archiving.
+```
+
+Under `--json` the same entries appear in an `overlaps` array alongside `items` and `summary`, present (possibly empty) whenever changes are in scope.
+
 **Examples:**
 
 ```bash
