@@ -1,0 +1,9 @@
+---
+name: openspec-wiki-query
+description: Query LLM Wiki for relevant information, context, and background knowledge before starting work
+license: MIT
+compatibility: Works with any project using OpenSpec + LLM Wiki integration
+metadata:
+  author: openspec-community
+  version: "1.0"
+---
