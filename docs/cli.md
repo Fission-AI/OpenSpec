@@ -571,7 +571,7 @@ When changes are in scope (`--changes` or `--all`), validation also reports requ
 
 Each entry names the claiming changes and what each one does to the requirement (`ADDED`, `MODIFIED`, `REMOVED`, `RENAMED_FROM`, `RENAMED_TO`), and whether the main spec holds that requirement today — two changes editing shared text is a different situation from two changes each proposing it. Overlap is often deliberate (a stacked pair, sequenced work), so the report is informational: it never changes the exit code and makes no claim about which change is wrong.
 
-```
+```text
 ⚠ 1 requirement is claimed by more than one active change:
   tools: Slash Command Configuration (in the main spec)
     add-kilocode-workflows MODIFIED, add-windsurf-workflows MODIFIED
