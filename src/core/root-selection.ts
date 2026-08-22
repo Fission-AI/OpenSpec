@@ -60,6 +60,8 @@ export interface ResolveOpenSpecRootOptions extends StoreSelectorOptions {
 
 export interface ResolvedOpenSpecRoot {
   path: string;
+  /** Consumer repository that owns schema config, locks, and local schemas. */
+  schemaRoot: string;
   changesDir: string;
   specsDir: string;
   archiveDir: string;
@@ -117,10 +119,12 @@ function doctorFix(id: string): string {
 function makeRoot(
   rootPath: string,
   source: OpenSpecRootSource,
-  storeId?: string
+  storeId?: string,
+  schemaRoot = rootPath
 ): ResolvedOpenSpecRoot {
   return {
     path: rootPath,
+    schemaRoot,
     changesDir: path.join(rootPath, 'openspec', 'changes'),
     specsDir: path.join(rootPath, 'openspec', 'specs'),
     archiveDir: path.join(rootPath, 'openspec', 'changes', 'archive'),
@@ -145,7 +149,8 @@ function canonicalDirectory(startPath: string): string {
 async function resolveStoreRoot(
   id: string,
   globalDataDir?: string,
-  source: OpenSpecRootSource = 'store'
+  source: OpenSpecRootSource = 'store',
+  schemaRoot?: string
 ): Promise<ResolvedOpenSpecRoot> {
   try {
     validateStoreId(id);
@@ -213,7 +218,12 @@ async function resolveStoreRoot(
         { target: 'openspec.root', fix: doctorFix(id) }
       );
     case 'ok':
-      return makeRoot(inspection.canonicalRoot, source, id);
+      return makeRoot(
+        inspection.canonicalRoot,
+        source,
+        id,
+        schemaRoot ?? inspection.canonicalRoot
+      );
     default: {
       // Exhaustiveness guard: a new inspection kind must be handled
       // here explicitly, not fall through to an undefined root.
@@ -332,7 +342,12 @@ async function resolveNearestOrDeclaredRoot(
   }
 
   try {
-    return await resolveStoreRoot(pointer.value, globalDataDir, 'declared');
+    return await resolveStoreRoot(
+      pointer.value,
+      globalDataDir,
+      'declared',
+      nearestRoot
+    );
   } catch (error) {
     if (error instanceof RootSelectionError) {
       // Rewrap with the declaration origin. The unknown-store fix is
@@ -403,11 +418,18 @@ export async function resolveOpenSpecRoot(
     );
   }
 
+  const startPath = options.startPath ?? process.cwd();
+  const consumerRoot = findRepoPlanningRootSync(startPath);
+
   if (options.store !== undefined) {
-    return resolveStoreRoot(options.store, options.globalDataDir);
+    return resolveStoreRoot(
+      options.store,
+      options.globalDataDir,
+      'store',
+      consumerRoot ?? undefined
+    );
   }
 
-  const startPath = options.startPath ?? process.cwd();
   const nearestRoot = findQualifyingRootSync(startPath);
   if (nearestRoot) {
     return resolveNearestOrDeclaredRoot(nearestRoot, options.globalDataDir);

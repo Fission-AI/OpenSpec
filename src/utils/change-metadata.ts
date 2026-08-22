@@ -93,7 +93,8 @@ export function writeChangeMetadata(
  */
 export function readChangeMetadata(
   changeDir: string,
-  projectRoot?: string
+  projectRoot?: string,
+  projectConfig?: ProjectConfig | null
 ): ChangeMetadata | null {
   const metaPath = path.join(changeDir, METADATA_FILENAME);
 
@@ -135,7 +136,7 @@ export function readChangeMetadata(
   }
 
   // Validate that the schema exists
-  const availableSchemas = listSchemas(projectRoot);
+  const availableSchemas = listSchemas(projectRoot, projectConfig);
   if (!availableSchemas.includes(parseResult.data.schema)) {
     throw new ChangeMetadataError(
       `Unknown schema '${parseResult.data.schema}'. Available: ${availableSchemas.join(', ')}`,
@@ -235,8 +236,11 @@ export type SkipSpecsMarker = MetadataMarker;
  * Missing metadata means "not declared"; a marker that cannot be honored
  * yields invalidReason so callers can say why.
  */
-export function readSkipSpecsMarker(changeDir: string): MetadataMarker {
-  return readBooleanMarker(changeDir, 'skip_specs');
+export function readSkipSpecsMarker(
+  changeDir: string,
+  schemaRoot?: string
+): SkipSpecsMarker {
+  return readBooleanMarker(changeDir, 'skip_specs', schemaRoot);
 }
 
 /**
@@ -249,8 +253,11 @@ export function readSkipSpecsMarker(changeDir: string): MetadataMarker {
  * (#1302). Declared rather than inferred because the delete is recoverable only
  * from git, so it is the author's call.
  */
-export function readRetireCapabilitiesMarker(changeDir: string): MetadataMarker {
-  return readBooleanMarker(changeDir, 'retire_capabilities');
+export function readRetireCapabilitiesMarker(
+  changeDir: string,
+  schemaRoot?: string
+): MetadataMarker {
+  return readBooleanMarker(changeDir, 'retire_capabilities', schemaRoot);
 }
 
 /**
@@ -273,7 +280,8 @@ function unhonorable(reason: string): MetadataMarker {
 
 function readBooleanMarker(
   changeDir: string,
-  key: 'skip_specs' | 'retire_capabilities'
+  key: 'skip_specs' | 'retire_capabilities',
+  schemaRoot?: string
 ): MetadataMarker {
   let raw: string;
   try {
@@ -314,7 +322,7 @@ function readBooleanMarker(
     // resolveSchema alone would normalize and accept); resolveSchema then
     // proves the schema actually parses. Any failure fails closed.
     try {
-      const projectRoot = path.resolve(changeDir, '../../..');
+      const projectRoot = schemaRoot ?? path.resolve(changeDir, '../../..');
       if (!listSchemas(projectRoot).includes(result.data.schema)) {
         return unhonorable(`schema: unknown schema '${result.data.schema}'`);
       }

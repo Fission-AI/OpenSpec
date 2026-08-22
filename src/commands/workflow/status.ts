@@ -56,6 +56,7 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
   try {
     const planningHome = toPlanningHome(root);
     const projectRoot = root.path;
+    const schemaRoot = root.schemaRoot;
     const rootOutput = toRootOutput(root);
     const newChangeHint = withStoreFlag(root, 'openspec new change <name>');
 
@@ -94,13 +95,14 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
 
     // Validate schema if explicitly provided
     if (options.schema) {
-      validateSchemaExists(options.schema, projectRoot);
+      validateSchemaExists(options.schema, schemaRoot);
     }
 
     // loadChangeContext will auto-detect schema from metadata if not provided
     const context = loadChangeContext(projectRoot, changeName, options.schema, {
       changeDir: getChangeDir(planningHome, changeName),
       planningHome,
+      schemaRoot,
     });
     const status = formatChangeStatus(
       context,

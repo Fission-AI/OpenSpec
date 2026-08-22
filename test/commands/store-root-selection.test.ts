@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import {
   getGlobalDataDir,
@@ -33,6 +35,22 @@ const REMOVED_ONLY_DELTA_SPEC = `## REMOVED Requirements
 
 ### Requirement: Old billing SHALL go away
 `;
+
+const gitEnv = {
+  ...process.env,
+  GIT_AUTHOR_NAME: 'OpenSpec Test',
+  GIT_AUTHOR_EMAIL: 'openspec@example.test',
+  GIT_COMMITTER_NAME: 'OpenSpec Test',
+  GIT_COMMITTER_EMAIL: 'openspec@example.test',
+};
+
+function git(cwd: string, ...args: string[]): void {
+  execFileSync('git', args, {
+    cwd,
+    env: gitEnv,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+}
 
 // MODIFIED deltas against a spec that does not exist make buildUpdatedSpec
 // throw during the prepare pass.
@@ -179,6 +197,193 @@ describe('store root selection for normal commands', () => {
       expect(names).toContain('store-change');
       expect(names).not.toContain('local-change');
       expect(json.root.store_id).toBe('team-context');
+    });
+
+    it('keeps schema ownership in the consumer repository when planning uses a store', async () => {
+      const localRepo = path.join(tempDir, 'schema-consumer');
+      const schemaDir = path.join(
+        localRepo,
+        'openspec',
+        'schemas',
+        'consumer-flow'
+      );
+      createOpenSpecRoot(localRepo);
+      fs.mkdirSync(path.join(schemaDir, 'templates'), { recursive: true });
+      fs.writeFileSync(
+        path.join(schemaDir, 'schema.yaml'),
+        `name: consumer-flow
+version: 1
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Proposal
+    template: proposal.md
+    requires: []
+`
+      );
+      fs.writeFileSync(
+        path.join(schemaDir, 'templates', 'proposal.md'),
+        '# Proposal\n'
+      );
+      const nested = path.join(localRepo, 'src', 'nested');
+      fs.mkdirSync(nested, { recursive: true });
+
+      const result = await runCLI(
+        [
+          'new',
+          'change',
+          'consumer-schema-change',
+          '--schema',
+          'consumer-flow',
+          '--store',
+          'team-context',
+          '--json',
+        ],
+        { cwd: nested, env }
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(parseJson(result).change).toMatchObject({
+        schema: 'consumer-flow',
+        path: path.join(
+          storeRoot,
+          'openspec',
+          'changes',
+          'consumer-schema-change'
+        ),
+      });
+      expect(
+        fs.existsSync(
+          path.join(
+            storeRoot,
+            'openspec',
+            'changes',
+            'consumer-schema-change',
+            '.openspec.yaml'
+          )
+        )
+      ).toBe(true);
+
+      const status = await runCLI(
+        [
+          'status',
+          '--change',
+          'consumer-schema-change',
+          '--store',
+          'team-context',
+          '--json',
+        ],
+        { cwd: nested, env }
+      );
+      expect(status.exitCode).toBe(0);
+      expect(parseJson(status).schemaName).toBe('consumer-flow');
+
+      const instructions = await runCLI(
+        [
+          'instructions',
+          'proposal',
+          '--change',
+          'consumer-schema-change',
+          '--store',
+          'team-context',
+          '--json',
+        ],
+        { cwd: nested, env }
+      );
+      expect(instructions.exitCode).toBe(0);
+      expect(parseJson(instructions)).toMatchObject({
+        schemaName: 'consumer-flow',
+        template: '# Proposal\n',
+      });
+    });
+
+    it('keeps remote schema resolution in the consumer while instructions use store context', async () => {
+      const localRepo = path.join(tempDir, 'remote-schema-consumer');
+      const remoteRepo = path.join(tempDir, 'remote-schema-source');
+      const remoteSchemaDir = path.join(remoteRepo, 'schemas', 'remote-flow');
+      createOpenSpecRoot(localRepo);
+      fs.mkdirSync(path.join(remoteSchemaDir, 'templates'), { recursive: true });
+      fs.writeFileSync(
+        path.join(remoteSchemaDir, 'schema.yaml'),
+        `name: remote-flow
+version: 1
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Remote proposal
+    template: proposal.md
+    requires: []
+`
+      );
+      fs.writeFileSync(
+        path.join(remoteSchemaDir, 'templates', 'proposal.md'),
+        '# Remote Proposal\n'
+      );
+      git(remoteRepo, 'init', '-b', 'main');
+      git(remoteRepo, 'add', '-A');
+      git(remoteRepo, 'commit', '-m', 'remote schema');
+
+      fs.writeFileSync(
+        path.join(localRepo, 'openspec', 'config.yaml'),
+        `schema: remote-flow
+schemaSources:
+  remote-flow:
+    git: ${pathToFileURL(remoteRepo).href}
+    ref: main
+    path: schemas/remote-flow
+`
+      );
+      fs.writeFileSync(
+        path.join(storeRoot, 'openspec', 'config.yaml'),
+        `schema: spec-driven
+context: Store planning context
+rules:
+  proposal:
+    - Keep the store rule
+`
+      );
+
+      const sync = await runCLI(['schema', 'sync', 'remote-flow', '--json'], {
+        cwd: localRepo,
+        env,
+      });
+      expect(sync.exitCode).toBe(0);
+      expect(parseJson(sync)).toMatchObject({ synced: true });
+      expect(
+        fs.existsSync(path.join(localRepo, 'openspec', 'schemas.lock.yaml'))
+      ).toBe(true);
+      expect(
+        fs.existsSync(path.join(storeRoot, 'openspec', 'schemas.lock.yaml'))
+      ).toBe(false);
+
+      const nested = path.join(localRepo, 'src', 'nested');
+      fs.mkdirSync(nested, { recursive: true });
+      const created = await runCLI(
+        ['new', 'change', 'remote-schema-change', '--store', 'team-context', '--json'],
+        { cwd: nested, env }
+      );
+      expect(created.exitCode).toBe(0);
+      expect(parseJson(created).change).toMatchObject({ schema: 'remote-flow' });
+
+      const instructions = await runCLI(
+        [
+          'instructions',
+          'proposal',
+          '--change',
+          'remote-schema-change',
+          '--store',
+          'team-context',
+          '--json',
+        ],
+        { cwd: nested, env }
+      );
+      expect(instructions.exitCode).toBe(0);
+      expect(parseJson(instructions)).toMatchObject({
+        schemaName: 'remote-flow',
+        template: '# Remote Proposal\n',
+        context: 'Store planning context',
+        rules: ['Keep the store rule'],
+      });
     });
 
     it('lists an empty team store before any changes exist', async () => {
