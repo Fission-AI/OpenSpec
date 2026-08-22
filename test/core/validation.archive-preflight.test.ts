@@ -163,6 +163,28 @@ describe('validate: deltas archive would refuse (#1112)', () => {
     }
   });
 
+  it('does not restate a delta with no parsed sections, reported after the loop', async () => {
+    // missingHeaderSpecs / emptySectionSpecs are collected inside the loop but
+    // their errors are pushed after it, so a preflight keyed on issues raised
+    // so far would not see them and would add a second finding for a file the
+    // validator is about to name properly.
+    await writeMainSpec('widgets', REQUIREMENT);
+    const changeDir = await writeChange('c1', 'widgets', '# notes\n\nNo delta headers here.\n');
+
+    const report = await validate(changeDir);
+    expect(report.issues.some((i) => i.message.startsWith('No delta sections found'))).toBe(true);
+    expect(blocker(report)).toBeUndefined();
+  });
+
+  it('does not restate a section that parsed no requirement entries', async () => {
+    await writeMainSpec('widgets', REQUIREMENT);
+    const changeDir = await writeChange('c1', 'widgets', '## ADDED Requirements\n\nNothing here.\n');
+
+    const report = await validate(changeDir);
+    expect(report.issues.some((i) => i.message.includes('no requirement entries parsed'))).toBe(true);
+    expect(blocker(report)).toBeUndefined();
+  });
+
   it('does not restate a failure the delta checks already named', async () => {
     // The scenario-loss check reports this one in wording that names the
     // dropped scenario; buildUpdatedSpec throws on it too, a few steps later.

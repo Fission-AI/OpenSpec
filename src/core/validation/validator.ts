@@ -404,11 +404,16 @@ export class Validator {
       // weeks after the implementing PR shipped (#1112).
       if (options.mainSpecsDir) {
         issues.push(
-          ...(await this.findArchiveBlockers(
-            changeDir,
-            options.mainSpecsDir,
-            new Set(issues.filter((issue) => issue.level === 'ERROR').map((issue) => issue.path))
-          ))
+          ...(await this.findArchiveBlockers(changeDir, options.mainSpecsDir, [
+            ...issues.filter((issue) => issue.level === 'ERROR').map((issue) => issue.path),
+            // Collected in the loop above but not turned into issues until
+            // after this try block, so they are invisible to the filter. A
+            // delta with no parsed sections has nothing for the merge to
+            // apply, which it reports as a failure of its own - on top of the
+            // error that actually names the mistake.
+            ...missingHeaderSpecs,
+            ...emptySectionSpecs.map((spec) => spec.path),
+          ]))
         );
       }
     } catch (error) {
@@ -811,8 +816,9 @@ export class Validator {
   private async findArchiveBlockers(
     changeDir: string,
     mainSpecsDir: string,
-    alreadyReported: Set<string>
+    alreadyReportedPaths: string[]
   ): Promise<ValidationIssue[]> {
+    const alreadyReported = new Set(alreadyReportedPaths);
     // Only ever reaches a generated skeleton's placeholder Purpose, which this
     // dry run discards.
     const changeName = path.basename(changeDir);
