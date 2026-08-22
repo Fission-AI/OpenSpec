@@ -15,7 +15,7 @@ The OpenSpec CLI (`openspec`) provides terminal commands for project setup, vali
 | **Validation** | `validate` | Check changes and specs for issues |
 | **Lifecycle** | `archive` | Finalize completed changes |
 | **Workflow** | `new change`, `status`, `instructions`, `templates`, `schemas` | Artifact-driven workflow support |
-| **Schemas** | `schema init`, `schema fork`, `schema validate`, `schema which` | Create and manage custom workflows |
+| **Schemas** | `schema init`, `schema fork`, `schema override`, `schema validate`, `schema which` | Create and manage custom workflows |
 | **Config** | `config` | View and modify settings |
 | **Utility** | `feedback`, `completion` | Feedback and shell integration |
 
@@ -892,12 +892,14 @@ openspec templates --json
 
 ```
 Schema: spec-driven
+Source: package + user overlay
 
-Templates:
-  proposal  → ~/.openspec/schemas/spec-driven/templates/proposal.md
-  specs     → ~/.openspec/schemas/spec-driven/templates/specs.md
-  design    → ~/.openspec/schemas/spec-driven/templates/design.md
-  tasks     → ~/.openspec/schemas/spec-driven/templates/tasks.md
+proposal:
+  Path: /usr/local/lib/node_modules/@fission-ai/openspec/schemas/spec-driven/templates/proposal.md
+  Source: package
+tasks:
+  Path: /home/user/.local/share/openspec/schemas/spec-driven/templates/tasks.md
+  Source: user
 ```
 
 ---
@@ -1024,6 +1026,39 @@ openspec schema fork <source> [name] [options]
 openspec schema fork spec-driven my-workflow
 ```
 
+When the source has an active layered user override, the fork materializes the effective schema and effective user/package templates into a self-contained project bundle.
+
+---
+
+### `openspec schema override`
+
+Create a layered user override for a packaged schema. Unlike `schema fork`, this command does not copy `schema.yaml` or its templates; packaged updates remain active for fields and templates you do not override.
+
+```text
+openspec schema override <name> [options]
+```
+
+**Arguments:**
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `name` | Yes | Packaged schema to customize |
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--force` | Replace an existing layered override with a new starter file |
+| `--json` | Output `created`, `schema`, `path`, and `basePath` as JSON; adds `projectSchemaTakesPrecedence: true` when the current project shadows the new override |
+
+**Example:**
+
+```bash
+openspec schema override spec-driven
+```
+
+This creates `schema.override.yaml` in the user OpenSpec data directory. See [Global Overrides](customization.md#global-overrides) for the patch format, template fallback, and platform-specific paths.
+
 ---
 
 ### `openspec schema validate`
@@ -1063,7 +1098,7 @@ openspec schema validate
 
 Show where a schema resolves from (useful for debugging precedence).
 
-```
+```text
 openspec schema which [name] [options]
 ```
 
@@ -1087,18 +1122,29 @@ openspec schema which [name] [options]
 openspec schema which spec-driven
 ```
 
-**Output:**
+**Package-only output:**
 
+```text
+Schema: spec-driven
+Source: package
+Path: /usr/local/lib/node_modules/@fission-ai/openspec/schemas/spec-driven
 ```
-spec-driven resolves from: package
-  Source: /usr/local/lib/node_modules/@fission-ai/openspec/schemas/spec-driven
+
+**Layered output:**
+
+```text
+Schema: spec-driven
+Source: package + user overlay
+Path: /usr/local/lib/node_modules/@fission-ai/openspec/schemas/spec-driven
+Overlay: /home/user/.local/share/openspec/schemas/spec-driven/schema.override.yaml
 ```
 
 **Schema precedence:**
 
-1. Project: `openspec/schemas/<name>/`
-2. User: `~/.local/share/openspec/schemas/<name>/`
-3. Package: Built-in schemas
+1. Complete project schema: `openspec/schemas/<name>/schema.yaml`
+2. Complete user schema: `~/.local/share/openspec/schemas/<name>/schema.yaml`
+3. Packaged schema plus optional user `schema.override.yaml`
+4. Packaged schema unchanged
 
 ---
 

@@ -1,6 +1,10 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { getSchemaDir, resolveSchema, listSchemasWithInfo } from './resolver.js';
+import {
+  resolveSchema,
+  resolveSchemaTemplate,
+  listSchemasWithInfo,
+} from './resolver.js';
 import { ArtifactGraph } from './graph.js';
 import { detectCompleted } from './state.js';
 import {
@@ -209,30 +213,13 @@ export function loadTemplate(
   templatePath: string,
   projectRoot?: string
 ): string {
-  const schemaDir = getSchemaDir(schemaName, projectRoot);
-  if (!schemaDir) {
-    throw new TemplateLoadError(
-      `Schema '${schemaName}' not found`,
-      templatePath
-    );
-  }
-
-  const templatesDir = path.join(schemaDir, 'templates');
-  const templatePathOnDisk = path.join(templatesDir, templatePath);
-
+  let templatePathOnDisk: string;
   try {
-    FileSystemUtils.assertPathWithin(templatesDir, templatePathOnDisk);
+    templatePathOnDisk = resolveSchemaTemplate(schemaName, templatePath, projectRoot).path;
   } catch (error) {
     throw new TemplateLoadError(
       error instanceof Error ? error.message : String(error),
-      templatePathOnDisk
-    );
-  }
-
-  if (!fs.existsSync(templatePathOnDisk)) {
-    throw new TemplateLoadError(
-      `Template not found: ${templatePathOnDisk}`,
-      templatePathOnDisk
+      templatePath
     );
   }
 
