@@ -50,11 +50,13 @@ The CLI SHALL offer to set the newly created schema as the project default.
 #### Scenario: Set as default interactively
 - **WHEN** user runs `openspec schema init my-workflow` in interactive mode
 - **AND** user confirms setting as default
-- **THEN** system updates `openspec/config.yaml` with `schema: my-workflow`
+- **THEN** system updates an existing `openspec/config.yaml` or `openspec/config.yml` in place with `schema: my-workflow`
+- **AND** creates `openspec/config.yaml` when neither configuration file exists
 
 #### Scenario: Set as default via flag
 - **WHEN** user runs `openspec schema init my-workflow --default`
-- **THEN** system creates schema and updates `openspec/config.yaml` with `schema: my-workflow`
+- **THEN** system creates the schema and updates an existing `openspec/config.yaml` or `openspec/config.yml` in place with `schema: my-workflow`
+- **AND** creates `openspec/config.yaml` when neither configuration file exists
 
 #### Scenario: Skip setting default
 - **WHEN** user runs `openspec schema init my-workflow --no-default`
