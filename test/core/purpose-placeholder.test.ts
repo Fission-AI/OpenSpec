@@ -83,6 +83,26 @@ describe('findPurposePlaceholderIssue', () => {
       expect(findPurposePlaceholderIssue(purpose, specWith(purpose))).toEqual({ line: 6 });
     });
 
+    it('does not point at an authored prefix above the complete placeholder', () => {
+      const purpose = [
+        `Documents the ${PURPOSE_PLACEHOLDER_PREFIX}<name> message.`,
+        '',
+        ARCHIVE_TEXT,
+      ].join('\n');
+
+      expect(findPurposePlaceholderIssue(purpose, specWith(purpose))).toEqual({ line: 6 });
+    });
+
+    it('does not pair an unrelated suffix above the complete placeholder', () => {
+      const purpose = [
+        `Documents the closing text ${PURPOSE_PLACEHOLDER_SUFFIX}`,
+        '',
+        ARCHIVE_TEXT,
+      ].join('\n');
+
+      expect(findPurposePlaceholderIssue(purpose, specWith(purpose))).toEqual({ line: 6 });
+    });
+
     it('reports a placeholder the author padded with whitespace', () => {
       expect(findPurposePlaceholderIssue('   TBD   ', specWith('   TBD   '))).not.toBeNull();
     });

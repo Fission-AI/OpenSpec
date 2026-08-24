@@ -72,10 +72,18 @@ function unfencedLines(text: string): string[] {
  * fixed halves in order, because the change name between them varies - so the
  * check follows the writer's own definition instead of a second copy of it.
  */
-function containsGeneratedPlaceholder(text: string): boolean {
-  const prefixAt = text.indexOf(PURPOSE_PLACEHOLDER_PREFIX);
-  if (prefixAt === -1) return false;
-  return text.indexOf(PURPOSE_PLACEHOLDER_SUFFIX, prefixAt + PURPOSE_PLACEHOLDER_PREFIX.length) !== -1;
+function generatedPlaceholderPrefixIndex(text: string): number | undefined {
+  let suffixAt = text.indexOf(PURPOSE_PLACEHOLDER_SUFFIX);
+  while (suffixAt !== -1) {
+    // Use the closest prefix before this suffix. An authored explanation can
+    // mention the prefix above the real placeholder; choosing the first prefix
+    // would then point the diagnostic at the explanation instead of the text
+    // the user needs to replace.
+    const prefixAt = text.lastIndexOf(PURPOSE_PLACEHOLDER_PREFIX, suffixAt);
+    if (prefixAt !== -1) return prefixAt;
+    suffixAt = text.indexOf(PURPOSE_PLACEHOLDER_SUFFIX, suffixAt + 1);
+  }
+  return undefined;
 }
 
 /**
@@ -97,7 +105,7 @@ export function findPurposePlaceholderIssue(
   // is left to the brevity and empty-Purpose rules for the same reason.
   const prose = unfencedLines(overview).join('\n').trim();
   const leading = LEADING_MARKER.test(prose);
-  if (!leading && !containsGeneratedPlaceholder(prose)) return null;
+  if (!leading && generatedPlaceholderPrefixIndex(prose) === undefined) return null;
   // Which rule matched decides where the placeholder is, so the locator is told.
   // When both match the leading marker wins: it sits at or above the generated
   // sentence, and the earliest marker is the one a reader scanning down meets.
@@ -131,10 +139,19 @@ function findPlaceholderLine(content: string, leading: boolean): number | undefi
   const headerIndex = lines.findIndex((line, index) => !fenced[index] && PURPOSE_HEADER.test(line));
   if (headerIndex === -1) return undefined;
 
+  const purposeLines: Array<{ line: number; text: string }> = [];
   for (let i = headerIndex + 1; i < lines.length; i++) {
     if (fenced[i]) continue;
-    if (TOP_LEVEL_HEADER.test(lines[i])) return undefined;
-    if (leading ? lines[i].trim() : lines[i].includes(PURPOSE_PLACEHOLDER_PREFIX)) return i + 1;
+    if (TOP_LEVEL_HEADER.test(lines[i])) break;
+    if (leading && lines[i].trim()) return i + 1;
+    purposeLines.push({ line: i + 1, text: lines[i] });
   }
-  return undefined;
+
+  if (leading) return undefined;
+
+  const purpose = purposeLines.map(({ text }) => text).join('\n');
+  const prefixAt = generatedPlaceholderPrefixIndex(purpose);
+  if (prefixAt === undefined) return undefined;
+  const lineOffset = purpose.slice(0, prefixAt).split('\n').length - 1;
+  return purposeLines[lineOffset]?.line;
 }
