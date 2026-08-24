@@ -82,14 +82,29 @@ The skill SHALL prompt to sync delta specs before archiving if specs exist.
 - **AND** stop without archiving if the sync fails or any capability does not verify
 - **AND** archive only after verification passes, or when the user explicitly chose to archive without syncing or to archive already-synced specs
 
-#### Scenario: Delta spec whose main spec does not exist yet
+#### Scenario: Applicable ADDED delta whose main spec does not exist yet
 
 - **WHEN** agent compares a delta spec against its main spec at `openspec/specs/<capability-path>/spec.md`
 - **AND** that main spec does not exist yet
+- **AND** the delta has `## ADDED Requirements`
+- **AND** the delta has no `## MODIFIED Requirements` or `## RENAMED Requirements`
 - **THEN** count that capability as needing sync rather than as already synced
 - **AND** name it in the summary as a main spec the sync will create
 - **AND** never treat the missing main spec as nothing to apply
-- **AND** when that delta has no `## ADDED Requirements` to seed the new spec with, report that nothing can be created and stop instead of prompting to sync, since the verification pass would re-read the same missing spec
+
+#### Scenario: Unsupported delta operation whose main spec does not exist yet
+
+- **WHEN** a delta targets a capability whose main spec does not exist yet
+- **AND** the delta has `## MODIFIED Requirements` or `## RENAMED Requirements`
+- **THEN** report that only ADDED requirements can create a new main spec
+- **AND** stop instead of prompting to sync
+
+#### Scenario: Nothing to put in a missing main spec
+
+- **WHEN** a delta targets a capability whose main spec does not exist yet
+- **AND** the delta has no `## ADDED Requirements`
+- **THEN** report that nothing can be created
+- **AND** stop instead of prompting to sync, since the verification pass would re-read the same missing spec
 
 #### Scenario: No delta specs
 

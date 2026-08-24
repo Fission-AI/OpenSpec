@@ -96,7 +96,10 @@ ${STORE_SELECTION_GUIDANCE}
 
    **If delta specs exist:**
    - Compare each delta spec with its corresponding main spec at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` (use the store-aware \`planningHome.root\` from step 2, not a hardcoded repo path)
-   - A main spec that does not exist yet is **not** "already synced". For a new capability the main spec is an *output* of the sync, not an input: it gets created from the delta's ADDED requirements, exactly as \`openspec archive\` does. Count that capability as changes needed and name it in the summary (\`<capability-path>: new main spec will be created\`). Never read a missing main spec as nothing to apply. The one case a sync cannot fix is a delta with no ADDED requirements to seed the new spec with: nothing can be created, so report that and stop rather than prompting to sync and re-checking the same missing spec - \`openspec archive\` refuses it too, with \`Spec must have at least one requirement\`.
+   - A main spec that does not exist yet is **not** "already synced". For a new capability, the main spec is an *output* of the sync, not an input:
+     - If the delta has MODIFIED or RENAMED requirements, report that only ADDED requirements can create a new main spec and stop instead of prompting to sync. Never invent a requirement that has no current version.
+     - If the delta has no ADDED requirements, report that nothing can be created and stop instead of prompting to sync. \`openspec archive\` refuses the same case with \`Spec must have at least one requirement\`.
+     - Otherwise, count the capability as needing sync and name it in the summary (\`<capability-path>: new main spec will be created\`). The sync creates it from the delta's ADDED requirements, exactly as \`openspec archive\` does.
    - Determine what changes would be applied (adds, modifications, removals, renames)
    - Show a combined summary before prompting
 
@@ -279,7 +282,10 @@ ${STORE_SELECTION_GUIDANCE}
 
    **If delta specs exist:**
    - Compare each delta spec with its corresponding main spec at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` (use the store-aware \`planningHome.root\` from step 2, not a hardcoded repo path)
-   - A main spec that does not exist yet is **not** "already synced". For a new capability the main spec is an *output* of the sync, not an input: it gets created from the delta's ADDED requirements, exactly as \`openspec archive\` does. Count that capability as changes needed and name it in the summary (\`<capability-path>: new main spec will be created\`). Never read a missing main spec as nothing to apply. The one case a sync cannot fix is a delta with no ADDED requirements to seed the new spec with: nothing can be created, so report that and stop rather than prompting to sync and re-checking the same missing spec - \`openspec archive\` refuses it too, with \`Spec must have at least one requirement\`.
+   - A main spec that does not exist yet is **not** "already synced". For a new capability, the main spec is an *output* of the sync, not an input:
+     - If the delta has MODIFIED or RENAMED requirements, report that only ADDED requirements can create a new main spec and stop instead of prompting to sync. Never invent a requirement that has no current version.
+     - If the delta has no ADDED requirements, report that nothing can be created and stop instead of prompting to sync. \`openspec archive\` refuses the same case with \`Spec must have at least one requirement\`.
+     - Otherwise, count the capability as needing sync and name it in the summary (\`<capability-path>: new main spec will be created\`). The sync creates it from the delta's ADDED requirements, exactly as \`openspec archive\` does.
    - Determine what changes would be applied (adds, modifications, removals, renames)
    - Show a combined summary before prompting
 

@@ -16,8 +16,6 @@ Terms are grouped by topic, then alphabetized within each group.
 
 **Delta spec.** A spec inside a change that describes only what's changing, using `ADDED`, `MODIFIED`, and `REMOVED` sections, rather than restating the entire spec. This is what lets OpenSpec edit existing systems cleanly. See [Concepts](concepts.md#delta-specs).
 
-**Main spec.** The spec in `openspec/specs/` that a delta spec edits — the durable, current-state counterpart to a change's delta. For a capability that already exists, the main spec is the file the delta merges into. For a brand-new capability, there is nothing to merge into yet: the main spec is *created* from the delta's `ADDED` requirements — by the archive, or by a standalone sync before you archive. It is an output of the work, not something you write up front.
-
 **Domain.** A logical grouping for specs, like `auth/`, `payments/`, or `ui/`. You choose domains that match how you think about your system.
 
 ## Inside a spec
@@ -40,7 +38,7 @@ Terms are grouped by topic, then alphabetized within each group.
 
 **Archive.** The act of finishing a change. Its delta specs merge into the main specs, and the change folder moves to `openspec/changes/archive/YYYY-MM-DD-<name>/`. After archiving, your specs describe the new reality. See [Concepts](concepts.md#archive).
 
-**Sync.** Merging a change's delta specs into the main specs *without* archiving the change — creating a main spec from scratch when the change introduces a capability that has none yet. Usually automatic (archive offers to do it), but available on its own as `/opsx:sync` for long-running changes. See [Commands](commands.md#opsxsync).
+**Sync.** Merging a change's delta specs into the main specs *without* archiving the change. Usually automatic (archive offers to do it), but available on its own as `/opsx:sync` for long-running changes. See [Commands](commands.md#opsxsync).
 
 ## Workflow and commands
 

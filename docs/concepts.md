@@ -390,8 +390,8 @@ The system MUST expire sessions after 15 minutes of inactivity.
 
 | Section | Meaning | What Happens on Archive |
 |---------|---------|------------------------|
-| `## ADDED Requirements` | New behavior | Appended to the main spec, which is created when the capability is new |
-| `## MODIFIED Requirements` | Changed behavior | Replaces existing requirement; rejected when the capability has no main spec yet |
+| `## ADDED Requirements` | New behavior | Appended to main spec |
+| `## MODIFIED Requirements` | Changed behavior | Replaces existing requirement |
 | `## REMOVED Requirements` | Deprecated behavior | Deleted from main spec; removing the last requirement retires the capability and deletes its spec file, when the change declares `retire_capabilities: true` |
 | `## Purpose` | What a brand-new capability is for | Seeds the Purpose of the main spec being created; ignored when the spec already exists |
 
@@ -542,7 +542,7 @@ openspec/
 
 ### The Archive Process
 
-1. **Merge deltas.** Each delta spec section (ADDED/MODIFIED/REMOVED) is applied to the corresponding main spec. When the change introduces a capability that has no main spec yet, the archive creates it from the delta's ADDED requirements — the main spec is an output of this step, not something that must already exist.
+1. **Merge deltas.** Each delta spec section (ADDED/MODIFIED/REMOVED) is applied to the corresponding main spec.
 
 2. **Move to archive.** The change folder moves to `changes/archive/` with a date prefix for chronological ordering.
 
