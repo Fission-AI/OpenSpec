@@ -3,21 +3,36 @@
  * These are Fish-specific helper functions that never change.
  */
 
-export const FISH_STATIC_HELPERS = `# Helper function to check if a subcommand is present
-function __fish_openspec_using_subcommand
-    set -l cmd (commandline -opc)
-    set -e cmd[1]
-    for i in $argv
-        if contains -- $i $cmd
-            return 0
+export const FISH_STATIC_HELPERS = `# Helper function to match the command path at the start of the invocation
+function __fish_openspec_using_command_path
+    set -l tokens (commandline -opc)
+    set -e tokens[1]
+    set -l path
+    for token in $tokens
+        if test "$token" = --no-color
+            continue
+        end
+        set -a path $token
+        if test (count $path) -eq (count $argv)
+            break
         end
     end
-    return 1
+    test (count $path) -eq (count $argv); or return 1
+    for index in (seq (count $argv))
+        test "$path[$index]" = "$argv[$index]"; or return 1
+    end
+    return 0
 end
 
 function __fish_openspec_no_subcommand
-    set -l cmd (commandline -opc)
-    test (count $cmd) -eq 1
+    set -l tokens (commandline -opc)
+    set -e tokens[1]
+    for token in $tokens
+        if test "$token" != --no-color
+            return 1
+        end
+    end
+    return 0
 end
 
 function __fish_openspec_completing_option_value
@@ -31,6 +46,15 @@ function __fish_openspec_completing_option_value
     set -l tokens (commandline -opc)
     test (count $tokens) -gt 0; or return 1
     contains -- $tokens[-1] $argv
+end
+
+function __fish_openspec_complete_attached_short_path
+    set -l option $argv[1]
+    set -l current (commandline -ct)
+    test "$current" != "$option"; or return 1
+    string match -q -- "$option*" "$current"; or return 1
+    set -l value (string sub -s (math (string length -- "$option") + 1) -- "$current")
+    __fish_complete_path "$value"
 end
 
 function __fish_openspec_positional_index

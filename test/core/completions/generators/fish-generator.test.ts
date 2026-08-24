@@ -59,9 +59,11 @@ describe('FishGenerator', () => {
 
       const script = generator.generate(commands);
 
-      expect(script).toContain('function __fish_openspec_using_subcommand');
+      expect(script).toContain('function __fish_openspec_using_command_path');
       expect(script).toContain('function __fish_openspec_no_subcommand');
+      expect(script).toContain("complete -c openspec -l no-color -f -d 'Disable color output'");
       expect(script).toContain('function __fish_openspec_completing_option_value');
+      expect(script).toContain('function __fish_openspec_complete_attached_short_path');
       expect(script).toContain('string match -q -- "$option=*" "$current"');
       expect(script).toContain('function __fish_openspec_positional_index');
       expect(script).toContain('if test "$token" = --');
@@ -187,6 +189,7 @@ describe('FishGenerator', () => {
               flags: [
                 {
                   name: 'path',
+                  short: 'p',
                   description: 'Directory to use for the store',
                   takesValue: true,
                   completionType: 'path',
@@ -203,12 +206,15 @@ describe('FishGenerator', () => {
       const valueLine = pathLines.find((line) => line.includes('__fish_openspec_completing_option_value'));
 
       expect(script).toContain(
-        "complete -c openspec -n '__fish_openspec_using_subcommand store; and __fish_openspec_using_subcommand setup' -f"
+        "complete -c openspec -n '__fish_openspec_using_command_path store setup' -f"
       );
       expect(optionLine).toContain('-r -f');
-      expect(valueLine).toContain('__fish_openspec_completing_option_value --path');
+      expect(valueLine).toContain('__fish_openspec_completing_option_value --path -p');
       expect(valueLine).toContain('-r -F');
       expect(valueLine).not.toContain(' -f');
+      expect(pathLines).toContainEqual(
+        expect.stringContaining("-a '(__fish_openspec_complete_attached_short_path -p)'")
+      );
     });
 
     it('should force path completion for every registry-backed path flag', () => {
@@ -299,8 +305,9 @@ describe('FishGenerator', () => {
       expect(script).toContain("'change'");
       expect(script).toContain("-f -a 'show'");
       expect(script).toContain("-f -a 'list'");
-      expect(script).toContain("__fish_openspec_using_subcommand change");
-      expect(script).toContain('not __fish_openspec_using_subcommand show list');
+      expect(script).toContain("__fish_openspec_using_command_path change");
+      expect(script).toContain('not __fish_openspec_using_command_path change show');
+      expect(script).toContain('not __fish_openspec_using_command_path change list');
     });
 
     it('should handle positional arguments for change-id', () => {
@@ -460,8 +467,7 @@ describe('FishGenerator', () => {
       const secondLine = completionLine(script, '__fish_openspec_positional_index 1 2 --workspace');
 
       expect(firstLine).toContain('-f');
-      expect(secondLine).toContain('__fish_openspec_using_subcommand workspace');
-      expect(secondLine).toContain('__fish_openspec_using_subcommand relink');
+      expect(secondLine).toContain('__fish_openspec_using_command_path workspace relink');
       expect(secondLine).toContain('__fish_openspec_positional_index 1 2 --workspace');
       // -F, not a bare rule: the sibling subcommand rules below carry -f, and
       // Fish only restores filesystem completion with --force-files.
@@ -722,17 +728,17 @@ describe('FishGenerator', () => {
       const commands: CommandDefinition[] = [
         {
           name: 'test',
-          description: "Dangerous: $(rm -rf /) `cat /etc/passwd` $HOME 'quoted'",
+          description: "Dangerous: $(rm -rf /) `cat /etc/passwd` $HOME 'first' and 'second' \\ path",
           flags: [],
         },
       ];
 
       const script = generator.generate(commands);
+      const line = completionLine(script, "-a 'test'");
 
-      expect(script).toContain('$(rm -rf /)');
-      expect(script).toContain('`cat /etc/passwd`');
-      expect(script).toContain('$HOME');
-      expect(script).toContain("\\'quoted\\'");
+      expect(line).toBe(
+        "complete -c openspec -n '__fish_openspec_no_subcommand' -f -a 'test' -d 'Dangerous: $(rm -rf /) `cat /etc/passwd` $HOME \\'first\\' and \\'second\\' \\\\ path'"
+      );
     });
   });
 });
