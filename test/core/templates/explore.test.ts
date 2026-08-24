@@ -80,6 +80,34 @@ describe('explore templates', () => {
     }
   });
 
+  it('requires separate confirmation before any file-writing action (#1715)', () => {
+    for (const [label, body] of bodies) {
+      expect(body, label).toContain(
+        'before the first action that could create, edit, move, or delete a file'
+      );
+      expect(body, label).toContain('including running an OpenSpec command');
+      expect(body, label).toContain('ask a direct yes/no question');
+      expect(body, label).toContain("wait for the user's confirmation in a separate message");
+      expect(body, label).toContain(
+        'Answers to design or clarifying questions are never consent to write'
+      );
+    }
+  });
+
+  it('treats workflow configuration and write-capable commands as changes (#1715)', () => {
+    for (const [label, body] of bodies) {
+      expect(body, label).toContain(
+        'creating or editing schemas, templates, or `openspec/config.yaml` is a change'
+      );
+      expect(body, label).toContain(
+        'including running `openspec new change` or another command that writes files'
+      );
+      expect(body, label).toContain(
+        'Creating OpenSpec artifacts once the user confirms is fine, writing anything else is not'
+      );
+    }
+  });
+
   it('scaffolds a new change before capturing exploration artifacts (#668, #720)', () => {
     for (const [label, body] of bodies) {
       const transition = newChangeTransition(body, label);

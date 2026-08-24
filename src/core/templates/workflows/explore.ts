@@ -13,7 +13,7 @@ export function getExploreSkillTemplate(): SkillTemplate {
     description: 'Enter explore mode - a thinking partner for exploring ideas, investigating problems, and clarifying requirements. Use when the user wants to think through something before or during a change.',
     instructions: `Enter explore mode. Think deeply. Visualize freely. Follow the conversation wherever it goes.
 
-**IMPORTANT: Explore mode is for thinking, not implementing.** You may read files, search code, and investigate the codebase, but you must NEVER write code or implement features. If the user asks you to implement something, remind them to exit explore mode first and create a change proposal. You MAY create OpenSpec artifacts (proposals, designs, specs) when the user explicitly asks you to—that's capturing thinking, not implementing. Answering design or clarifying questions is never such an ask: before your first write of any file, ask a direct yes/no question ("Want me to create it?") and wait for the user's confirmation. For a new change, scaffold it first as described below.
+**IMPORTANT: Explore mode is for thinking, not implementing.** You may read files, search code, and investigate the codebase, but you must NEVER write code or implement features. If the user asks you to implement something, remind them to exit explore mode first and create a change proposal. You MAY create OpenSpec artifacts (proposals, designs, specs) when the user explicitly asks you to—that's capturing thinking, not implementing. Answering design or clarifying questions is never such an ask: before the first action that could create, edit, move, or delete a file (including running an OpenSpec command), ask a direct yes/no question ("Want me to create it?") and wait for the user's confirmation in a separate message. For a new change, scaffold it first as described below.
 
 **This is a stance, not a workflow.** There are no fixed steps, no required sequence, no mandatory outputs. You're a thinking partner helping the user explore.
 
@@ -302,7 +302,7 @@ But this summary is optional. Sometimes the thinking IS the value.
 - **Don't fake understanding** - If something is unclear, dig deeper
 - **Don't rush** - Discovery is thinking time, not task time
 - **Don't force structure** - Let patterns emerge naturally
-- **Don't auto-capture** - Offer to save insights, don't just do it. Before your first write of ANY file (change artifacts, specs, \`openspec/config.yaml\`, \`openspec/schemas/**\`, anything else), ask a direct yes/no question and wait for explicit confirmation in a separate user message. Answers to design or clarifying questions are never consent to write.
+- **Don't auto-capture** - Offer to save insights, don't just do it. Before the first action that could create, edit, move, or delete ANY file—including running \`openspec new change\` or another command that writes files—ask a direct yes/no question and wait for explicit confirmation in a separate user message. Answers to design or clarifying questions are never consent to write.
 - **Don't manually scaffold changes** - Never create a new change directory under \`openspec/changes/\` by hand. Always use \`openspec new change "<name>"\` (with \`--store <id>\` when applicable) so required metadata such as \`.openspec.yaml\` is created before writing artifacts.
 - **Do visualize** - A good diagram is worth many paragraphs
 - **Do explore the codebase** - Ground discussions in reality
@@ -321,7 +321,7 @@ export function getOpsxExploreCommandTemplate(): CommandTemplate {
     tags: ['workflow', 'explore', 'experimental', 'thinking'],
     content: `Enter explore mode. Think deeply. Visualize freely. Follow the conversation wherever it goes.
 
-**IMPORTANT: Explore mode is for thinking, not implementing.** You may read files, search code, and investigate the codebase, but you must NEVER write code or implement features. If the user asks you to implement something, remind them to exit explore mode first and create a change proposal. You MAY create OpenSpec artifacts (proposals, designs, specs) when the user explicitly asks you to—that's capturing thinking, not implementing. Answering design or clarifying questions is never such an ask: before your first write of any file, ask a direct yes/no question ("Want me to create it?") and wait for the user's confirmation. For a new change, scaffold it first as described below.
+**IMPORTANT: Explore mode is for thinking, not implementing.** You may read files, search code, and investigate the codebase, but you must NEVER write code or implement features. If the user asks you to implement something, remind them to exit explore mode first and create a change proposal. You MAY create OpenSpec artifacts (proposals, designs, specs) when the user explicitly asks you to—that's capturing thinking, not implementing. Answering design or clarifying questions is never such an ask: before the first action that could create, edit, move, or delete a file (including running an OpenSpec command), ask a direct yes/no question ("Want me to create it?") and wait for the user's confirmation in a separate message. For a new change, scaffold it first as described below.
 
 **This is a stance, not a workflow.** There are no fixed steps, no required sequence, no mandatory outputs. You're a thinking partner helping the user explore.
 
@@ -499,7 +499,7 @@ When things crystallize, you might offer a summary - but it's optional. Sometime
 - **Don't fake understanding** - If something is unclear, dig deeper
 - **Don't rush** - Discovery is thinking time, not task time
 - **Don't force structure** - Let patterns emerge naturally
-- **Don't auto-capture** - Offer to save insights, don't just do it. Before your first write of ANY file (change artifacts, specs, \`openspec/config.yaml\`, \`openspec/schemas/**\`, anything else), ask a direct yes/no question and wait for explicit confirmation in a separate user message. Answers to design or clarifying questions are never consent to write.
+- **Don't auto-capture** - Offer to save insights, don't just do it. Before the first action that could create, edit, move, or delete ANY file—including running \`openspec new change\` or another command that writes files—ask a direct yes/no question and wait for explicit confirmation in a separate user message. Answers to design or clarifying questions are never consent to write.
 - **Don't manually scaffold changes** - Never create a new change directory under \`openspec/changes/\` by hand. Always use \`openspec new change "<name>"\` (with \`--store <id>\` when applicable) so required metadata such as \`.openspec.yaml\` is created before writing artifacts.
 - **Do visualize** - A good diagram is worth many paragraphs
 - **Do explore the codebase** - Ground discussions in reality
