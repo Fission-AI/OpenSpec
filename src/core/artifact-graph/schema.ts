@@ -9,6 +9,17 @@ export class SchemaValidationError extends Error {
   }
 }
 
+export interface SchemaIssue {
+  path: string;
+  message: string;
+}
+
+export interface SchemaInspection {
+  schema?: SchemaYaml;
+  issues: SchemaIssue[];
+  parseError?: Error;
+}
+
 /**
  * Loads and validates an artifact schema from a YAML file.
  */
@@ -21,64 +32,118 @@ export function loadSchema(filePath: string): SchemaYaml {
  * Parses and validates an artifact schema from YAML content.
  */
 export function parseSchema(yamlContent: string): SchemaYaml {
-  const parsed = parseYaml(yamlContent);
+  const inspection = inspectSchema(yamlContent);
+  if (inspection.parseError) {
+    throw inspection.parseError;
+  }
+  if (!inspection.schema || inspection.issues.length > 0) {
+    throw new SchemaValidationError(
+      inspection.issues.map((issue) => issue.message).join(', ')
+    );
+  }
+  return inspection.schema;
+}
 
-  // Validate with Zod
+/**
+ * Parse a schema and collect independent validation failures for diagnostic
+ * commands. Callers that need fail-fast behavior should use parseSchema().
+ */
+export function inspectSchema(yamlContent: string): SchemaInspection {
+  let parsed: unknown;
+  try {
+    parsed = parseYaml(yamlContent);
+  } catch (error) {
+    const parseError = error instanceof Error ? error : new Error(String(error));
+    return {
+      issues: [{
+        path: 'schema.yaml',
+        message: `Invalid schema YAML: ${parseError.message}`,
+      }],
+      parseError,
+    };
+  }
+
   const result = SchemaYamlSchema.safeParse(parsed);
   if (!result.success) {
-    const errors = result.error.issues.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
-    throw new SchemaValidationError(`Invalid schema: ${errors}`);
+    return {
+      issues: result.error.issues.map((issue) => ({
+        path: issue.path.length > 0 ? `schema.yaml:${issue.path.join('.')}` : 'schema.yaml',
+        message: `Invalid schema: ${issue.path.join('.')}: ${issue.message}`,
+      })),
+    };
   }
 
   const schema = result.data;
+  const issues: SchemaIssue[] = [];
 
-  // Check for duplicate artifact IDs
-  validateNoDuplicateIds(schema.artifacts);
+  const duplicateIds = findDuplicateIds(schema.artifacts);
+  for (const id of duplicateIds) {
+    issues.push({
+      path: 'schema.yaml',
+      message: `Duplicate artifact ID: ${id}`,
+    });
+  }
 
-  // Check that all requires references are valid
-  validateRequiresReferences(schema.artifacts);
+  const invalidReferences = findInvalidRequiresReferences(schema.artifacts);
+  for (const { artifactId, requiredId } of invalidReferences) {
+    issues.push({
+      path: 'schema.yaml',
+      message: `Invalid dependency reference in artifact '${artifactId}': '${requiredId}' does not exist`,
+    });
+  }
 
-  // Check for cycles
-  validateNoCycles(schema.artifacts);
+  if (duplicateIds.length === 0 && invalidReferences.length === 0) {
+    const cycle = findCycle(schema.artifacts);
+    if (cycle) {
+      issues.push({
+        path: 'schema.yaml',
+        message: `Cyclic dependency detected: ${cycle}`,
+      });
+    }
+  }
 
-  return schema;
+  return { schema, issues };
 }
 
 /**
  * Validates that there are no duplicate artifact IDs.
  */
-function validateNoDuplicateIds(artifacts: Artifact[]): void {
+function findDuplicateIds(artifacts: Artifact[]): string[] {
   const seen = new Set<string>();
+  const duplicates = new Set<string>();
   for (const artifact of artifacts) {
     if (seen.has(artifact.id)) {
-      throw new SchemaValidationError(`Duplicate artifact ID: ${artifact.id}`);
+      duplicates.add(artifact.id);
     }
     seen.add(artifact.id);
   }
+  return [...duplicates];
 }
 
 /**
  * Validates that all `requires` references point to valid artifact IDs.
  */
-function validateRequiresReferences(artifacts: Artifact[]): void {
+function findInvalidRequiresReferences(
+  artifacts: Artifact[]
+): Array<{ artifactId: string; requiredId: string }> {
   const validIds = new Set(artifacts.map(a => a.id));
+  const invalid: Array<{ artifactId: string; requiredId: string }> = [];
 
   for (const artifact of artifacts) {
     for (const req of artifact.requires) {
       if (!validIds.has(req)) {
-        throw new SchemaValidationError(
-          `Invalid dependency reference in artifact '${artifact.id}': '${req}' does not exist`
-        );
+        invalid.push({ artifactId: artifact.id, requiredId: req });
       }
     }
   }
+  return invalid;
 }
 
 /**
  * Validates that there are no cyclic dependencies.
  * Uses DFS to detect cycles and reports the full cycle path.
  */
-function validateNoCycles(artifacts: Artifact[]): void {
+function findCycle(artifacts: Artifact[]): string | null {
   const artifactMap = new Map(artifacts.map(a => [a.id, a]));
   const visited = new Set<string>();
   const inStack = new Set<string>();
@@ -117,8 +182,9 @@ function validateNoCycles(artifacts: Artifact[]): void {
     if (!visited.has(artifact.id)) {
       const cycle = dfs(artifact.id);
       if (cycle) {
-        throw new SchemaValidationError(`Cyclic dependency detected: ${cycle}`);
+        return cycle;
       }
     }
   }
+  return null;
 }

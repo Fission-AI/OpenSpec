@@ -31,6 +31,9 @@ export async function schemasCommand(options: SchemasOptions): Promise<void> {
     return;
   }
 
+  // `schemas --store` is an explicit inspection of the selected root. Schema
+  // ownership for workflow execution remains on `root.schemaRoot`, but this
+  // discovery command must preserve the selected-store listing contract.
   const schemas = listSchemasWithInfo(root.path);
 
   if (options.json) {
@@ -45,10 +48,23 @@ export async function schemasCommand(options: SchemasOptions): Promise<void> {
     let sourceLabel = '';
     if (schema.source === 'project') {
       sourceLabel = chalk.cyan(' (project)');
+    } else if (schema.source === 'remote') {
+      sourceLabel = schema.available === false
+        ? chalk.yellow(' (remote, unavailable)')
+        : chalk.cyan(' (remote)');
     } else if (schema.source === 'user') {
       sourceLabel = chalk.dim(' (user override)');
     }
     console.log(`  ${chalk.bold(schema.name)}${sourceLabel}`);
+    if (schema.available === false) {
+      const diagnostic = schema.status?.[0];
+      const message = diagnostic
+        ? `${diagnostic.code}: ${diagnostic.message}`
+        : schema.error ?? 'Remote schema is unavailable';
+      console.log(`    ${chalk.yellow(message)}`);
+      console.log();
+      continue;
+    }
     console.log(`    ${schema.description}`);
     console.log(`    Artifacts: ${schema.artifacts.join(' → ')}`);
     console.log();

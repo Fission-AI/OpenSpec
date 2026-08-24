@@ -1,0 +1,385 @@
+import { randomUUID } from 'node:crypto';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+
+interface SchemaSyncParticipant {
+  token: string;
+  pid: number;
+  hostname: string;
+  startedAt: string;
+  number?: number;
+}
+
+export interface SchemaSyncLockOptions {
+  timeoutMs?: number;
+  retryDelayMs?: number;
+}
+
+export class SchemaSyncLockError extends Error {
+  readonly code = 'schema_sync_locked';
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'SchemaSyncLockError';
+  }
+}
+
+const DEFAULT_TIMEOUT_MS = 30_000;
+const DEFAULT_RETRY_DELAY_MS = 50;
+const CHOOSING_SUFFIX = '.choosing.json';
+const TICKET_SUFFIX = '.ticket.json';
+const SELF_IGNORE_FILE = '.gitignore';
+const SELF_IGNORE_CONTENT = '*\n';
+
+export function getSchemaSyncLockPath(projectRoot: string): string {
+  return path.join(projectRoot, 'openspec', '.schemas.lock');
+}
+
+function readParticipant(filePath: string): SchemaSyncParticipant | null {
+  try {
+    const value = JSON.parse(
+      fs.readFileSync(filePath, 'utf8')
+    ) as Partial<SchemaSyncParticipant>;
+    if (
+      typeof value.token !== 'string' ||
+      typeof value.pid !== 'number' ||
+      typeof value.hostname !== 'string' ||
+      typeof value.startedAt !== 'string' ||
+      (value.number !== undefined &&
+        (!Number.isSafeInteger(value.number) || value.number < 1))
+    ) {
+      return null;
+    }
+    if (
+      filePath.endsWith(TICKET_SUFFIX) &&
+      value.number === undefined
+    ) {
+      return null;
+    }
+    return value as SchemaSyncParticipant;
+  } catch {
+    return null;
+  }
+}
+
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code !== 'ESRCH';
+  }
+}
+
+function isAbandonedSameHost(
+  participant: SchemaSyncParticipant | null
+): boolean {
+  return (
+    participant !== null &&
+    participant.hostname === os.hostname() &&
+    !isProcessAlive(participant.pid)
+  );
+}
+
+function removeOwnFile(filePath: string, token: string): void {
+  if (readParticipant(filePath)?.token === token) {
+    try {
+      fs.unlinkSync(filePath);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw error;
+      }
+    }
+  }
+}
+
+function removeParticipantFile(filePath: string): void {
+  try {
+    fs.unlinkSync(filePath);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code !== 'ENOENT') {
+      throw error;
+    }
+  }
+}
+
+function malformedParticipantExpired(
+  filePath: string,
+  timeoutMs: number
+): boolean {
+  try {
+    // Date.now() has integer-millisecond precision while filesystem mtimes may
+    // retain fractional milliseconds. Compare on the same precision so a file
+    // created just before acquisition expires at the bounded deadline instead
+    // of surviving it by a sub-millisecond rounding artifact.
+    const modifiedAtMs = Math.floor(fs.statSync(filePath).mtimeMs);
+    return Date.now() - modifiedAtMs >= timeoutMs;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return false;
+    }
+    throw error;
+  }
+}
+
+function listParticipantFiles(
+  lockPath: string,
+  suffix: string,
+  timeoutMs: number
+): Array<{ filePath: string; participant: SchemaSyncParticipant | null }> {
+  let names: string[];
+  try {
+    names = fs.readdirSync(lockPath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return [];
+    }
+    throw error;
+  }
+
+  const participants: Array<{
+    filePath: string;
+    participant: SchemaSyncParticipant | null;
+  }> = [];
+  for (const name of names.filter((candidate) => candidate.endsWith(suffix))) {
+    const filePath = path.join(lockPath, name);
+    const participant = readParticipant(filePath);
+    if (isAbandonedSameHost(participant)) {
+      removeOwnFile(filePath, participant!.token);
+      continue;
+    }
+    if (
+      participant === null &&
+      malformedParticipantExpired(filePath, timeoutMs)
+    ) {
+      removeParticipantFile(filePath);
+      continue;
+    }
+    participants.push({ filePath, participant });
+  }
+  return participants;
+}
+
+function ensureSelfIgnoredLockDirectory(lockPath: string): void {
+  fs.mkdirSync(lockPath, { recursive: true });
+  const ignorePath = path.join(lockPath, SELF_IGNORE_FILE);
+  try {
+    fs.writeFileSync(ignorePath, SELF_IGNORE_CONTENT, {
+      encoding: 'utf8',
+      flag: 'wx',
+    });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
+      throw error;
+    }
+  }
+  if (fs.readFileSync(ignorePath, 'utf8') === SELF_IGNORE_CONTENT) {
+    return;
+  }
+
+  const stagingPath = path.join(
+    lockPath,
+    `.self-ignore-${randomUUID()}.tmp`
+  );
+  try {
+    fs.writeFileSync(stagingPath, SELF_IGNORE_CONTENT, {
+      encoding: 'utf8',
+      flag: 'wx',
+    });
+    fs.renameSync(stagingPath, ignorePath);
+  } finally {
+    fs.rmSync(stagingPath, { force: true });
+  }
+}
+
+function createParticipantFile(
+  lockPath: string,
+  fileName: string,
+  participant: SchemaSyncParticipant,
+  deadline: number
+): string {
+  const filePath = path.join(lockPath, fileName);
+  while (true) {
+    let stagingPath: string | undefined;
+    try {
+      ensureSelfIgnoredLockDirectory(lockPath);
+      stagingPath = path.join(
+        lockPath,
+        `.participant-${randomUUID()}.tmp`
+      );
+      fs.writeFileSync(stagingPath, JSON.stringify(participant), {
+        encoding: 'utf8',
+        flag: 'wx',
+      });
+      try {
+        fs.linkSync(stagingPath, filePath);
+      } catch (linkError) {
+        const code = (linkError as NodeJS.ErrnoException).code;
+        if (code === 'ENOENT' || code === 'EEXIST') {
+          throw linkError;
+        }
+        // Some filesystems do not support hard links. The participant name
+        // contains a fresh UUID, so rename remains an atomic no-overwrite
+        // publication in practice while preserving cleanup of the staging file.
+        fs.renameSync(stagingPath, filePath);
+      }
+      return filePath;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        if (Date.now() >= deadline) {
+          throw new SchemaSyncLockError(
+            `schema_sync_locked: timed out creating a participant in '${lockPath}'`
+          );
+        }
+        continue;
+      }
+      throw error;
+    } finally {
+      if (stagingPath) {
+        fs.rmSync(stagingPath, { force: true });
+      }
+    }
+  }
+}
+
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function precedes(
+  left: SchemaSyncParticipant,
+  right: SchemaSyncParticipant
+): boolean {
+  const numberDifference = left.number! - right.number!;
+  return numberDifference < 0 ||
+    (numberDifference === 0 && left.token < right.token);
+}
+
+async function acquireSchemaSyncLock(
+  projectRoot: string,
+  options: SchemaSyncLockOptions
+): Promise<{ lockPath: string; token: string; ticketPath: string }> {
+  const lockPath = getSchemaSyncLockPath(projectRoot);
+  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const retryDelayMs = options.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS;
+  const deadline = Date.now() + timeoutMs;
+  const token = randomUUID();
+  const baseParticipant = {
+    token,
+    pid: process.pid,
+    hostname: os.hostname(),
+    startedAt: new Date().toISOString(),
+  };
+  const choosingPath = createParticipantFile(
+    lockPath,
+    `claim-${token}${CHOOSING_SUFFIX}`,
+    baseParticipant,
+    deadline
+  );
+  let ticketPath: string | null = null;
+
+  try {
+    const highestNumber = listParticipantFiles(
+      lockPath,
+      TICKET_SUFFIX,
+      timeoutMs
+    )
+      .reduce(
+        (highest, entry) =>
+          Math.max(highest, entry.participant?.number ?? 0),
+        0
+      );
+    const participant = {
+      ...baseParticipant,
+      number: highestNumber + 1,
+    };
+    ticketPath = createParticipantFile(
+      lockPath,
+      `claim-${token}${TICKET_SUFFIX}`,
+      participant,
+      deadline
+    );
+    removeOwnFile(choosingPath, token);
+
+    while (true) {
+      const anotherIsChoosing = listParticipantFiles(
+        lockPath,
+        CHOOSING_SUFFIX,
+        timeoutMs
+      ).some((entry) => entry.participant?.token !== token);
+      const predecessorExists = listParticipantFiles(
+        lockPath,
+        TICKET_SUFFIX,
+        timeoutMs
+      ).some(
+        (entry) =>
+          entry.participant === null ||
+          (entry.participant.token !== token &&
+            precedes(entry.participant, participant))
+      );
+      if (!anotherIsChoosing && !predecessorExists) {
+        return { lockPath, token, ticketPath };
+      }
+      if (Date.now() >= deadline) {
+        // Time can cross the deadline between the scans above and this check.
+        // Give malformed participants one final expiry/reclamation sweep before
+        // reporting a live owner; otherwise a participant expiring exactly at
+        // the deadline is incorrectly treated as still holding the lock.
+        const choosingAfterDeadline = listParticipantFiles(
+          lockPath,
+          CHOOSING_SUFFIX,
+          timeoutMs
+        ).some((entry) => entry.participant?.token !== token);
+        const predecessorAfterDeadline = listParticipantFiles(
+          lockPath,
+          TICKET_SUFFIX,
+          timeoutMs
+        ).some(
+          (entry) =>
+            entry.participant === null ||
+            (entry.participant.token !== token &&
+              precedes(entry.participant, participant))
+        );
+        if (!choosingAfterDeadline && !predecessorAfterDeadline) {
+          return { lockPath, token, ticketPath };
+        }
+        throw new SchemaSyncLockError(
+          `schema_sync_locked: another schema synchronization owns '${lockPath}'`
+        );
+      }
+      await delay(retryDelayMs);
+    }
+  } catch (error) {
+    removeOwnFile(choosingPath, token);
+    if (ticketPath) {
+      removeOwnFile(ticketPath, token);
+    }
+    throw error;
+  }
+}
+
+function releaseSchemaSyncLock(
+  lockPath: string,
+  ticketPath: string,
+  token: string
+): void {
+  removeOwnFile(ticketPath, token);
+}
+
+export async function withSchemaSyncLock<T>(
+  projectRoot: string,
+  callback: () => Promise<T>,
+  options: SchemaSyncLockOptions = {}
+): Promise<T> {
+  const { lockPath, token, ticketPath } = await acquireSchemaSyncLock(
+    projectRoot,
+    options
+  );
+  try {
+    return await callback();
+  } finally {
+    releaseSchemaSyncLock(lockPath, ticketPath, token);
+  }
+}

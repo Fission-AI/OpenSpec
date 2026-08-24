@@ -109,10 +109,11 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
     }
 
     const projectRoot = root.path;
+    const schemaRoot = root.schemaRoot;
 
     // Validate schema if provided
     if (options.schema) {
-      validateSchemaExists(options.schema, projectRoot);
+      validateSchemaExists(options.schema, schemaRoot);
     }
 
     const resolvedSchema = options.schema ?? root.defaultSchema;
@@ -124,6 +125,7 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
       schema: options.schema,
       defaultSchema: root.defaultSchema,
       changesDir: root.changesDir,
+      schemaRoot,
       metadata: {
         ...(options.goal ? { goal: options.goal } : {}),
       },

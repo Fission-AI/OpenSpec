@@ -82,10 +82,13 @@ export type ArchiveInstructionsOptions = ApplyInstructionsOptions;
  */
 async function loadRootConfigContext(root: ResolvedOpenSpecRoot): Promise<{
   projectConfig: ProjectConfig | null;
+  schemaConfig: ProjectConfig | null;
   references: ReferenceIndexEntry[] | undefined;
 }> {
   // readProjectConfig never throws: missing/unparseable configs are null.
   const projectConfig = readProjectConfig(root.path);
+  const schemaConfig =
+    root.schemaRoot === root.path ? projectConfig : readProjectConfig(root.schemaRoot);
 
   // One registry read serves every relationship consumer in this
   // output so it never carries a torn snapshot.
@@ -102,6 +105,7 @@ async function loadRootConfigContext(root: ResolvedOpenSpecRoot): Promise<{
   // look identical to an undeclared one in JSON.
   return {
     projectConfig,
+    schemaConfig,
     references: index.length > 0 ? index : undefined,
   };
 }
@@ -121,6 +125,7 @@ export async function instructionsCommand(
   try {
     const planningHome = toPlanningHome(root);
     const projectRoot = root.path;
+    const schemaRoot = root.schemaRoot;
     const changeName = await validateChangeExists(
       options.change,
       projectRoot,
@@ -130,16 +135,18 @@ export async function instructionsCommand(
 
     // Validate schema if explicitly provided
     if (options.schema) {
-      validateSchemaExists(options.schema, projectRoot);
+      validateSchemaExists(options.schema, schemaRoot);
     }
 
-    const { projectConfig, references } = await loadRootConfigContext(root);
+    const { projectConfig, schemaConfig, references } = await loadRootConfigContext(root);
 
     // loadChangeContext will auto-detect schema from metadata if not provided
     const context = loadChangeContext(projectRoot, changeName, options.schema, {
       changeDir: getChangeDir(planningHome, changeName),
       planningHome,
       projectConfig,
+      schemaConfig,
+      schemaRoot,
     });
 
     if (!artifactId) {
@@ -162,6 +169,7 @@ export async function instructionsCommand(
 
     const instructions = generateInstructions(context, artifactId, projectRoot, {
       projectConfig,
+      schemaConfig,
       references,
     });
     const isBlocked = instructions.dependencies.some((d) => !d.done);
@@ -354,6 +362,8 @@ export interface GenerateApplyInstructionsOptions {
   planningHome?: PlanningHome;
   references?: ReferenceIndexEntry[];
   projectConfig?: ProjectConfig | null;
+  schemaConfig?: ProjectConfig | null;
+  schemaRoot?: string;
 }
 
 /**
@@ -375,11 +385,17 @@ export async function generateApplyInstructions(
     changeDir: getChangeDir(planningHome, changeName),
     planningHome,
     projectConfig: options.projectConfig,
+    schemaConfig: options.schemaConfig,
+    schemaRoot: options.schemaRoot,
   });
   const changeDir = context.changeDir;
 
   // Get the full schema to access the apply phase configuration
-  const schema = resolveSchema(context.schemaName, projectRoot);
+  const schema = resolveSchema(
+    context.schemaName,
+    context.schemaRoot,
+    options.schemaConfig !== undefined ? options.schemaConfig : options.projectConfig
+  );
   const applyConfig = schema.apply;
 
   // Determine required artifacts and tracking file from schema
@@ -488,6 +504,7 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
   try {
     const planningHome = toPlanningHome(root);
     const projectRoot = root.path;
+    const schemaRoot = root.schemaRoot;
     const changeName = await validateChangeExists(
       options.change,
       projectRoot,
@@ -497,16 +514,18 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
 
     // Validate schema if explicitly provided
     if (options.schema) {
-      validateSchemaExists(options.schema, projectRoot);
+      validateSchemaExists(options.schema, schemaRoot);
     }
 
-    // One parsed config snapshot supplies schema fallback, references, context,
-    // and operation guidance for this command.
-    const { projectConfig, references } = await loadRootConfigContext(root);
+    // Planning-root config supplies references, context, and operation guidance;
+    // consumer-root config independently owns schema resolution.
+    const { projectConfig, schemaConfig, references } = await loadRootConfigContext(root);
     const instructions = await generateApplyInstructions(projectRoot, changeName, options.schema, {
       planningHome,
       references,
       projectConfig,
+      schemaConfig,
+      schemaRoot,
     });
 
     spinner?.stop();
