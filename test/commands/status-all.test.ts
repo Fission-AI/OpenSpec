@@ -138,6 +138,7 @@ describe('status --all', () => {
     // The failure document must still carry the batch null-shape.
     const json = JSON.parse(result.stdout);
     expect(json.changes).toEqual([]);
+    expect(json.root).toBeNull();
     expect(Array.isArray(json.status)).toBe(true);
     expect(json.status[0].severity).toBe('error');
   });
@@ -154,6 +155,7 @@ describe('status --all', () => {
     // Exactly one JSON document: null-shape plus status array
     const json = JSON.parse(result.stdout);
     expect(json.changes).toEqual([]);
+    expect(json.root).toBeNull();
     expect(Array.isArray(json.status)).toBe(true);
     expect(json.status[0].severity).toBe('error');
     expect(json.status[0].message).toContain('mutually exclusive');
@@ -169,10 +171,14 @@ describe('status --all', () => {
     );
 
     const result = await runCLI(['status', '--all', '--json'], { cwd: tempDir });
-    expect(result.exitCode).toBe(0);
+    expect(result.exitCode).toBe(1);
 
     const json = JSON.parse(result.stdout);
     expect(json.changes).toHaveLength(2);
+    expect(json.changes.map((c: any) => c.changeName)).toEqual([
+      'broken-change',
+      'good-change',
+    ]);
 
     const broken = json.changes.find((c: any) => c.changeName === 'broken-change');
     expect(Array.isArray(broken.status)).toBe(true);
@@ -244,6 +250,7 @@ describe('status --all', () => {
 
       const json = JSON.parse(result.stdout);
       expect(json.changes).toEqual([]);
+      expect(json.root).toBeNull();
       expect(Array.isArray(json.status)).toBe(true);
       expect(json.status[0].severity).toBe('error');
       expect(json.status[0].message).toContain("'no-such-schema' not found");
@@ -258,6 +265,7 @@ describe('status --all', () => {
 
       const json = JSON.parse(result.stdout);
       expect(json.changes).toEqual([]);
+      expect(json.root).toBeNull();
       expect(json.status[0].message).toContain("'no-such-schema' not found");
     });
 
@@ -291,7 +299,7 @@ describe('status --all', () => {
         ['status', '--all', '--schema', 'spec-driven', '--json'],
         { cwd: tempDir }
       );
-      expect(result.exitCode).toBe(0);
+      expect(result.exitCode).toBe(1);
 
       const json = JSON.parse(result.stdout);
       const broken = json.changes.find((c: any) => c.changeName === 'broken-change');

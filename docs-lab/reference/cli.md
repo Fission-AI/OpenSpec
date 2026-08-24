@@ -31,7 +31,7 @@ Your agent runs most of these during the workflow.
 | Command | What it does |
 |---|---|
 | [`openspec new`](#openspec-new) | Create a new change directory. |
-| [`openspec status`](#openspec-status) | Artifact completion status for a change. |
+| [`openspec status`](#openspec-status) | Artifact completion status for one or every active change. |
 | [`openspec instructions`](#openspec-instructions) | Instructions for creating an artifact, applying, or archiving. |
 | [`openspec templates`](#openspec-templates) | Resolved template paths for a schema's artifacts. |
 | [`openspec schemas`](#openspec-schemas) | List available workflow schemas. |
@@ -866,17 +866,19 @@ With `--json`:
 
 ## openspec status
 
-Reports artifact completion status for a change.
+Reports artifact completion status for one change or every active change.
 
 ```bash
 openspec status --change add-rate-limit          # checklist view
 openspec status --change add-rate-limit --json   # structured report
+openspec status --all                            # every active change
+openspec status --all --json                     # one batch report
 ```
 
-`--change` is required. Without it, status exits 1 and lists the available changes, even when only one exists:
+Use exactly one of `--change` or `--all`. Without either, status exits 1 and lists the available changes, even when only one exists:
 
 ```
-✖ Error: Missing required option --change. Available changes:
+✖ Error: Missing required option --change (or --all for every active change). Available changes:
   add-rate-limit
 ```
 
@@ -885,6 +887,7 @@ openspec status --change add-rate-limit --json   # structured report
 | Flag | Effect |
 |---|---|
 | `--change <id>` | The change to report on, by folder name. |
+| `--all` | Report every active change, sorted by name. Can't be combined with `--change`. |
 | `--schema <name>` | Override the schema auto-detected from `openspec/config.yaml`. An unknown name is an error. |
 | `--json` | Print a structured report instead of text. |
 | `--store <id>` | Use a registered store as the OpenSpec root instead of the current project. |
@@ -946,10 +949,30 @@ Progress: 2/4 artifacts complete
 }
 ```
 
+With `--all --json`, `changes` contains the same status object for each change, without a per-change `root`. The selected root appears once on the envelope:
+
+```json
+{
+  "changes": [
+    {
+      "changeName": "add-rate-limit",
+      "schemaName": "spec-driven",
+      "artifacts": []
+    }
+  ],
+  "root": {
+    "path": "/Users/you/projects/my-app",
+    "source": "nearest"
+  }
+}
+```
+
+If one change can't load, the batch continues. Its entry contains `changeName` and a `status` diagnostic while the other entries remain available. The command exits 1, including in JSON mode, so CI doesn't accept an incomplete report as successful. JSON output remains one parseable document.
+
 **Exit codes**
 
-- `0`: status printed.
-- `1`: `--change` missing, the change doesn't exist, or the schema override is unknown.
+- `0`: every requested status printed; an empty `--all` report also exits 0.
+- `1`: a requested change failed to load, `--change` or `--all` is missing, the two flags were combined, the change doesn't exist, or the schema override is unknown.
 
 ## openspec instructions
 

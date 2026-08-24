@@ -53,7 +53,10 @@ type BatchStatusEntry = ChangeStatus | { changeName: string; status: StoreDiagno
 // The --all --json failure null-shape. Root-selection failures (handled in
 // resolveRootForCommand) and thrown errors (caught by the CLI wrapper) must
 // emit the same shape, so both call sites reference this one constant.
-export const BATCH_STATUS_FAILURE_PAYLOAD: Record<string, unknown> = { changes: [] };
+export const BATCH_STATUS_FAILURE_PAYLOAD: Record<string, unknown> = {
+  changes: [],
+  root: null,
+};
 
 export async function statusCommand(options: StatusOptions): Promise<void> {
   if (options.all && options.change) {
@@ -132,13 +135,16 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
         }
 
         spinner?.stop();
+        const failed = entries.some((entry) => !('artifacts' in entry));
 
         if (options.json) {
           console.log(JSON.stringify({ changes: entries, root: rootOutput }, null, 2));
+          if (failed) {
+            process.exitCode = 1;
+          }
           return;
         }
 
-        let failed = false;
         entries.forEach((entry, index) => {
           if (index > 0) {
             console.log();
@@ -146,13 +152,12 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
           if ('artifacts' in entry) {
             printStatusText(entry);
           } else {
-            failed = true;
             console.log(chalk.red(`✗ ${entry.changeName}: ${entry.status[0]?.message}`));
           }
         });
-        // Text mode signals load failures via the exit code (like
-        // validate --all); JSON mode instead exits 0 and carries the
-        // per-change diagnostics so the sweep result stays parseable.
+        // A partial load is still a failed command in both output modes;
+        // JSON callers can parse the complete envelope independently of
+        // the process exit code.
         if (failed) {
           process.exitCode = 1;
         }
