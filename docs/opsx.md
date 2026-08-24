@@ -583,6 +583,9 @@ openspec schema init my-workflow
 # Or fork an existing schema as a starting point
 openspec schema fork spec-driven my-workflow
 
+# Or add personal guidance while retaining packaged updates
+openspec schema override spec-driven
+
 # Validate your schema structure
 openspec schema validate my-workflow
 
@@ -590,7 +593,7 @@ openspec schema validate my-workflow
 openspec schema which my-workflow
 ```
 
-Schemas are stored in `openspec/schemas/` (project-local, version controlled) or `~/.local/share/openspec/schemas/` (user global).
+Schemas are stored in `openspec/schemas/` (project-local, version controlled) or `~/.local/share/openspec/schemas/` (user global). A user `schema.yaml` is a complete replacement; a user `schema.override.yaml` is layered over the packaged schema and may provide only selected templates. See [Customization](customization.md#global-overrides).
 
 **Schema structure:**
 ```

@@ -3,12 +3,56 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getGlobalDataDir } from '../global-config.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
-import { parseSchema, SchemaValidationError } from './schema.js';
+import {
+  applySchemaOverride,
+  parseSchema,
+  parseSchemaOverride,
+  SchemaOverrideValidationError,
+  SchemaValidationError,
+} from './schema.js';
 import type { SchemaYaml } from './types.js';
 
-/**
- * Error thrown when loading a schema fails.
- */
+export const SCHEMA_FILE_NAME = 'schema.yaml';
+export const SCHEMA_OVERRIDE_FILE_NAME = 'schema.override.yaml';
+
+export type SchemaSource = 'project' | 'user' | 'package';
+export type SchemaResolutionMode =
+  | 'project'
+  | 'user-replacement'
+  | 'package'
+  | 'package-with-user-overlay';
+
+export interface SchemaSourceLocation {
+  source: SchemaSource;
+  dir: string;
+  schemaPath: string;
+}
+
+export interface SchemaOverlayLocation {
+  source: 'user';
+  path: string;
+  templatesDir: string;
+}
+
+export interface SchemaTemplateRoot {
+  source: SchemaSource;
+  dir: string;
+}
+
+export interface ResolvedSchemaSources {
+  name: string;
+  mode: SchemaResolutionMode;
+  base: SchemaSourceLocation;
+  overlay?: SchemaOverlayLocation;
+  templateRoots: SchemaTemplateRoot[];
+}
+
+export interface ResolvedTemplate {
+  path: string;
+  source: SchemaSource;
+}
+
+/** Error thrown when loading a schema or schema overlay fails. */
 export class SchemaLoadError extends Error {
   constructor(
     message: string,
@@ -20,115 +64,54 @@ export class SchemaLoadError extends Error {
   }
 }
 
-/**
- * Gets the package's built-in schemas directory path.
- * Uses import.meta.url to resolve relative to the current module.
- */
+/** Gets the package's built-in schemas directory path. */
 export function getPackageSchemasDir(): string {
   const currentFile = fileURLToPath(import.meta.url);
-  // Navigate from dist/core/artifact-graph/ to package root's schemas/
   return path.join(path.dirname(currentFile), '..', '..', '..', 'schemas');
 }
 
-/**
- * Gets the user's schema override directory path.
- */
+/** Gets the user's schema data directory path. */
 export function getUserSchemasDir(): string {
   return path.join(getGlobalDataDir(), 'schemas');
 }
 
-/**
- * Gets the project-local schemas directory path.
- * @param projectRoot - The project root directory
- * @returns The path to the project's schemas directory
- */
+/** Gets the project-local schemas directory path. */
 export function getProjectSchemasDir(projectRoot: string): string {
   return path.join(projectRoot, 'openspec', 'schemas');
 }
 
-/**
- * Determines whether a directory entry represents a schema directory candidate.
- *
- * Returns true for real directories and for symlinks whose target is a
- * directory. `fs.Dirent.isDirectory()` reports the raw entry type, so a symlink
- * (even one pointing at a directory) has `isDirectory() === false`; we
- * dereference such entries via `fs.statSync` to admit symlinked schema dirs
- * while still rejecting symlinks-to-files and broken/dangling symlinks.
- *
- * @param parentDir - The directory containing the entry
- * @param entry - The directory entry from `fs.readdirSync(..., { withFileTypes: true })`
- */
-/**
- * Directories `schema fork` creates transiently while swapping a fork into
- * place: a staging copy (`.fork-staging-<rand>`, created via mkdtemp) and a
- * backup of the previous destination (`<name>.fork-backup-<pid>-<ts>`). Either
- * can briefly coexist with real schemas in the schemas dir, so discovery must
- * never surface them. Real schema names are kebab-case (no dots), so excluding
- * these dot-bearing temp names can never hide a legitimate schema.
- */
-function isOwnedForkTempDir(name: string): boolean {
-  return name.startsWith('.fork-staging-') || name.includes('.fork-backup-');
+/** Directories temporarily owned by the schema fork/override commands. */
+function isOwnedSchemaTempDir(name: string): boolean {
+  return (
+    name.startsWith('.fork-staging-') ||
+    name.includes('.fork-backup-') ||
+    name.startsWith('.override-staging-') ||
+    name.includes('.override-backup-')
+  );
 }
 
+/** Reports whether a directory entry is a usable schema directory rather than command-owned state. */
 export function isSchemaDir(parentDir: string, entry: fs.Dirent): boolean {
-  if (isOwnedForkTempDir(entry.name)) {
-    return false;
-  }
-  if (entry.isDirectory()) {
-    return true;
-  }
+  if (isOwnedSchemaTempDir(entry.name)) return false;
+  if (entry.isDirectory()) return true;
   if (entry.isSymbolicLink()) {
     try {
-      // statSync follows the link; isDirectory() reflects the target type.
       return fs.statSync(path.join(parentDir, entry.name)).isDirectory();
     } catch {
-      // Broken symlink (dangling target) — statSync throws; treat as non-dir.
       return false;
     }
   }
   return false;
 }
 
-/**
- * Returns a schema directory only when its schema file stays within that
- * directory's canonical trust boundary. The directory itself may be a symlink;
- * external user schema links are an intentionally supported workflow.
- */
-function getSchemaCandidateDir(schemasDir: string, name: string): string | null {
-  const schemaDir = path.join(schemasDir, name);
-  const schemaPath = path.join(schemaDir, 'schema.yaml');
-  if (!fs.existsSync(schemaPath)) {
-    return null;
-  }
-
-  try {
-    FileSystemUtils.assertPathWithin(schemaDir, schemaPath);
-    return schemaDir;
-  } catch {
-    return null;
-  }
+/** Removes an optional YAML extension accepted by schema lookup APIs. */
+function normalizeSchemaName(name: string): string {
+  return name.replace(/\.ya?ml$/u, '');
 }
 
-/**
- * Resolves a schema name to its directory path.
- *
- * Resolution order (when projectRoot is provided):
- * 1. Project-local: <projectRoot>/openspec/schemas/<name>/schema.yaml
- * 2. User override: ${XDG_DATA_HOME}/openspec/schemas/<name>/schema.yaml
- * 3. Package built-in: <package>/schemas/<name>/schema.yaml
- *
- * When projectRoot is not provided, only user override and package built-in are checked
- * (backward compatible behavior).
- *
- * @param name - Schema name (e.g., "spec-driven")
- * @param projectRoot - Optional project root directory for project-local schema resolution
- * @returns The path to the schema directory, or null if not found
- */
-export function getSchemaDir(
-  name: string,
-  projectRoot?: string
-): string | null {
-  if (
+/** Rejects empty and path-like values before joining a schema name to trusted roots. */
+function isValidLookupName(name: string): boolean {
+  return !(
     name.length === 0 ||
     name === '.' ||
     name === '..' ||
@@ -136,69 +119,155 @@ export function getSchemaDir(
     /^[A-Za-z]:/u.test(name) ||
     path.posix.isAbsolute(name) ||
     path.win32.isAbsolute(name)
-  ) {
-    return null;
-  }
-
-  // 1. Check project-local directory (if projectRoot provided)
-  if (projectRoot) {
-    const projectDir = getSchemaCandidateDir(getProjectSchemasDir(projectRoot), name);
-    if (projectDir) {
-      return projectDir;
-    }
-  }
-
-  // 2. Check user override directory
-  const userDir = getSchemaCandidateDir(getUserSchemasDir(), name);
-  if (userDir) {
-    return userDir;
-  }
-
-  // 3. Check package built-in directory
-  const packageDir = getSchemaCandidateDir(getPackageSchemasDir(), name);
-  if (packageDir) {
-    return packageDir;
-  }
-
-  return null;
+  );
 }
 
 /**
- * Resolves a schema name to a SchemaYaml object.
- *
- * Resolution order (when projectRoot is provided):
- * 1. Project-local: <projectRoot>/openspec/schemas/<name>/schema.yaml
- * 2. User override: ${XDG_DATA_HOME}/openspec/schemas/<name>/schema.yaml
- * 3. Package built-in: <package>/schemas/<name>/schema.yaml
- *
- * When projectRoot is not provided, only user override and package built-in are checked
- * (backward compatible behavior).
- *
- * @param name - Schema name (e.g., "spec-driven")
- * @param projectRoot - Optional project root directory for project-local schema resolution
- * @returns The resolved schema object
- * @throws Error if schema is not found in any location
+ * Returns a schema-owned file only when it remains inside the canonical schema
+ * directory. The schema directory itself may be a symlink.
  */
-export function resolveSchema(name: string, projectRoot?: string): SchemaYaml {
-  // Normalize name (remove .yaml extension if provided)
-  const normalizedName = name.replace(/\.ya?ml$/, '');
+function getSchemaCandidateFile(
+  schemasDir: string,
+  name: string,
+  fileName: string
+): string | null {
+  const schemaDir = path.join(schemasDir, name);
+  const filePath = path.join(schemaDir, fileName);
+  if (!fs.existsSync(filePath)) return null;
 
-  const schemaDir = getSchemaDir(normalizedName, projectRoot);
-  if (!schemaDir) {
-    const availableSchemas = listSchemas(projectRoot);
-    throw new Error(
-      `Schema '${normalizedName}' not found. Available schemas: ${availableSchemas.join(', ')}`
+  try {
+    FileSystemUtils.assertPathWithin(schemaDir, filePath);
+    return filePath;
+  } catch {
+    return null;
+  }
+}
+
+/** Describes a located schema file and its containing source directory. */
+function locationFor(
+  source: SchemaSource,
+  schemaPath: string
+): SchemaSourceLocation {
+  return { source, dir: path.dirname(schemaPath), schemaPath };
+}
+
+/**
+ * Resolves every source participating in an effective schema.
+ *
+ * Precedence:
+ * 1. complete project schema
+ * 2. complete user schema
+ * 3. package schema plus optional user overlay
+ */
+export function resolveSchemaSources(
+  name: string,
+  projectRoot?: string
+): ResolvedSchemaSources | null {
+  const normalizedName = normalizeSchemaName(name);
+  if (!isValidLookupName(normalizedName)) return null;
+
+  if (projectRoot) {
+    const projectSchemaPath = getSchemaCandidateFile(
+      getProjectSchemasDir(projectRoot),
+      normalizedName,
+      SCHEMA_FILE_NAME
+    );
+    if (projectSchemaPath) {
+      const base = locationFor('project', projectSchemaPath);
+      return {
+        name: normalizedName,
+        mode: 'project',
+        base,
+        templateRoots: [{ source: 'project', dir: path.join(base.dir, 'templates') }],
+      };
+    }
+  }
+
+  const userSchemasDir = getUserSchemasDir();
+  const userSchemaPath = getSchemaCandidateFile(
+    userSchemasDir,
+    normalizedName,
+    SCHEMA_FILE_NAME
+  );
+  const userOverlayPath = getSchemaCandidateFile(
+    userSchemasDir,
+    normalizedName,
+    SCHEMA_OVERRIDE_FILE_NAME
+  );
+
+  if (userSchemaPath && userOverlayPath) {
+    throw new SchemaLoadError(
+      `Schema '${normalizedName}' has both a complete user replacement (${userSchemaPath}) and a layered override (${userOverlayPath}). Remove one and choose either complete replacement or layered customization.`,
+      userOverlayPath
     );
   }
 
-  const schemaPath = path.join(schemaDir, 'schema.yaml');
+  if (userSchemaPath) {
+    const base = locationFor('user', userSchemaPath);
+    return {
+      name: normalizedName,
+      mode: 'user-replacement',
+      base,
+      templateRoots: [{ source: 'user', dir: path.join(base.dir, 'templates') }],
+    };
+  }
 
-  // Load and parse the schema
+  const packageSchemaPath = getSchemaCandidateFile(
+    getPackageSchemasDir(),
+    normalizedName,
+    SCHEMA_FILE_NAME
+  );
+
+  if (!packageSchemaPath) {
+    if (userOverlayPath) {
+      throw new SchemaLoadError(
+        `Schema override '${userOverlayPath}' has no packaged schema '${normalizedName}' to extend. Layered overrides can only customize packaged schemas.`,
+        userOverlayPath
+      );
+    }
+    return null;
+  }
+
+  const base = locationFor('package', packageSchemaPath);
+  if (!userOverlayPath) {
+    return {
+      name: normalizedName,
+      mode: 'package',
+      base,
+      templateRoots: [{ source: 'package', dir: path.join(base.dir, 'templates') }],
+    };
+  }
+
+  const overlayDir = path.dirname(userOverlayPath);
+  const overlayTemplatesDir = path.join(overlayDir, 'templates');
+  return {
+    name: normalizedName,
+    mode: 'package-with-user-overlay',
+    base,
+    overlay: {
+      source: 'user',
+      path: userOverlayPath,
+      templatesDir: overlayTemplatesDir,
+    },
+    templateRoots: [
+      { source: 'user', dir: overlayTemplatesDir },
+      { source: 'package', dir: path.join(base.dir, 'templates') },
+    ],
+  };
+}
+
+/** Compatibility helper returning the complete base schema directory. */
+export function getSchemaDir(name: string, projectRoot?: string): string | null {
+  return resolveSchemaSources(name, projectRoot)?.base.dir ?? null;
+}
+
+/** Reads and validates one complete schema while preserving file-specific error context. */
+function readSchemaFile(schemaPath: string): SchemaYaml {
   let content: string;
   try {
     content = fs.readFileSync(schemaPath, 'utf-8');
-  } catch (err) {
-    const ioError = err instanceof Error ? err : new Error(String(err));
+  } catch (error) {
+    const ioError = error instanceof Error ? error : new Error(String(error));
     throw new SchemaLoadError(
       `Failed to read schema at '${schemaPath}': ${ioError.message}`,
       schemaPath,
@@ -208,168 +277,133 @@ export function resolveSchema(name: string, projectRoot?: string): SchemaYaml {
 
   try {
     return parseSchema(content);
-  } catch (err) {
-    if (err instanceof SchemaValidationError) {
-      throw new SchemaLoadError(
-        `Invalid schema at '${schemaPath}': ${err.message}`,
-        schemaPath,
-        err
-      );
-    }
-    const parseError = err instanceof Error ? err : new Error(String(err));
+  } catch (error) {
+    const parseError = error instanceof Error ? error : new Error(String(error));
+    const prefix = error instanceof SchemaValidationError ? 'Invalid schema' : 'Failed to parse schema';
     throw new SchemaLoadError(
-      `Failed to parse schema at '${schemaPath}': ${parseError.message}`,
+      `${prefix} at '${schemaPath}': ${parseError.message}`,
       schemaPath,
       parseError
     );
   }
 }
 
-/**
- * Lists all available schema names.
- * Combines project-local, user override, and package built-in schemas.
- *
- * @param projectRoot - Optional project root directory for project-local schema resolution
- */
+/** Resolves and loads the effective schema, including a user overlay when active. */
+export function resolveSchema(name: string, projectRoot?: string): SchemaYaml {
+  const normalizedName = normalizeSchemaName(name);
+  const sources = resolveSchemaSources(normalizedName, projectRoot);
+  if (!sources) {
+    const availableSchemas = listSchemas(projectRoot);
+    throw new Error(
+      `Schema '${normalizedName}' not found. Available schemas: ${availableSchemas.join(', ')}`
+    );
+  }
+
+  const base = readSchemaFile(sources.base.schemaPath);
+  if (!sources.overlay) return base;
+
+  let overrideContent: string;
+  try {
+    overrideContent = fs.readFileSync(sources.overlay.path, 'utf-8');
+  } catch (error) {
+    const ioError = error instanceof Error ? error : new Error(String(error));
+    throw new SchemaLoadError(
+      `Failed to read schema override at '${sources.overlay.path}': ${ioError.message}`,
+      sources.overlay.path,
+      ioError
+    );
+  }
+
+  try {
+    return applySchemaOverride(base, parseSchemaOverride(overrideContent));
+  } catch (error) {
+    const overrideError = error instanceof Error ? error : new Error(String(error));
+    const prefix = error instanceof SchemaOverrideValidationError
+      ? 'Invalid schema override'
+      : 'Failed to apply schema override';
+    throw new SchemaLoadError(
+      `${prefix} at '${sources.overlay.path}': ${overrideError.message}`,
+      sources.overlay.path,
+      overrideError
+    );
+  }
+}
+
+/** Adds complete schema directory names from one precedence root to a shared set. */
+function addSchemaDirectoryNames(schemas: Set<string>, schemasDir: string): void {
+  if (!fs.existsSync(schemasDir)) return;
+  for (const entry of fs.readdirSync(schemasDir, { withFileTypes: true })) {
+    if (!isSchemaDir(schemasDir, entry)) continue;
+    const schemaPath = path.join(schemasDir, entry.name, SCHEMA_FILE_NAME);
+    if (fs.existsSync(schemaPath)) schemas.add(entry.name);
+  }
+}
+
+/** Lists complete schema names. Overlay-only names are supplied by package discovery. */
 export function listSchemas(projectRoot?: string): string[] {
   const schemas = new Set<string>();
-
-  // Add package built-in schemas
-  const packageDir = getPackageSchemasDir();
-  if (fs.existsSync(packageDir)) {
-    for (const entry of fs.readdirSync(packageDir, { withFileTypes: true })) {
-      if (isSchemaDir(packageDir, entry)) {
-        const schemaPath = path.join(packageDir, entry.name, 'schema.yaml');
-        if (fs.existsSync(schemaPath)) {
-          schemas.add(entry.name);
-        }
-      }
-    }
-  }
-
-  // Add user override schemas (may override package schemas)
-  const userDir = getUserSchemasDir();
-  if (fs.existsSync(userDir)) {
-    for (const entry of fs.readdirSync(userDir, { withFileTypes: true })) {
-      if (isSchemaDir(userDir, entry)) {
-        const schemaPath = path.join(userDir, entry.name, 'schema.yaml');
-        if (fs.existsSync(schemaPath)) {
-          schemas.add(entry.name);
-        }
-      }
-    }
-  }
-
-  // Add project-local schemas (if projectRoot provided)
-  if (projectRoot) {
-    const projectDir = getProjectSchemasDir(projectRoot);
-    if (fs.existsSync(projectDir)) {
-      for (const entry of fs.readdirSync(projectDir, { withFileTypes: true })) {
-        if (isSchemaDir(projectDir, entry)) {
-          const schemaPath = path.join(projectDir, entry.name, 'schema.yaml');
-          if (fs.existsSync(schemaPath)) {
-            schemas.add(entry.name);
-          }
-        }
-      }
-    }
-  }
-
+  addSchemaDirectoryNames(schemas, getPackageSchemasDir());
+  addSchemaDirectoryNames(schemas, getUserSchemasDir());
+  if (projectRoot) addSchemaDirectoryNames(schemas, getProjectSchemasDir(projectRoot));
   return Array.from(schemas).sort();
 }
 
-/**
- * Schema info with metadata (name, description, artifacts).
- */
 export interface SchemaInfo {
   name: string;
   description: string;
   artifacts: string[];
-  source: 'project' | 'user' | 'package';
+  source: SchemaSource;
+  overlay?: { source: 'user'; path: string };
 }
 
-/**
- * Lists all available schemas with their descriptions and artifact lists.
- * Useful for agent skills to present schema selection to users.
- *
- * @param projectRoot - Optional project root directory for project-local schema resolution
- */
+/** Lists available schemas using their effective composed metadata. */
 export function listSchemasWithInfo(projectRoot?: string): SchemaInfo[] {
   const schemas: SchemaInfo[] = [];
-  const seenNames = new Set<string>();
-
-  // Add project-local schemas first (highest priority, if projectRoot provided)
-  if (projectRoot) {
-    const projectDir = getProjectSchemasDir(projectRoot);
-    if (fs.existsSync(projectDir)) {
-      for (const entry of fs.readdirSync(projectDir, { withFileTypes: true })) {
-        if (isSchemaDir(projectDir, entry)) {
-          const schemaPath = path.join(projectDir, entry.name, 'schema.yaml');
-          if (fs.existsSync(schemaPath)) {
-            try {
-              const schema = parseSchema(fs.readFileSync(schemaPath, 'utf-8'));
-              schemas.push({
-                name: entry.name,
-                description: schema.description || '',
-                artifacts: schema.artifacts.map((a) => a.id),
-                source: 'project',
-              });
-              seenNames.add(entry.name);
-            } catch {
-              // Skip invalid schemas
-            }
-          }
-        }
-      }
+  for (const name of listSchemas(projectRoot)) {
+    try {
+      const sources = resolveSchemaSources(name, projectRoot);
+      if (!sources) continue;
+      const schema = resolveSchema(name, projectRoot);
+      schemas.push({
+        name,
+        description: schema.description ?? '',
+        artifacts: schema.artifacts.map((artifact) => artifact.id),
+        source: sources.base.source,
+        ...(sources.overlay
+          ? { overlay: { source: 'user' as const, path: sources.overlay.path } }
+          : {}),
+      });
+    } catch {
+      // Preserve existing discovery behavior: invalid schemas are omitted.
+      // Explicit resolution and validation surface the detailed error.
     }
   }
-
-  // Add user override schemas (if not overridden by project)
-  const userDir = getUserSchemasDir();
-  if (fs.existsSync(userDir)) {
-    for (const entry of fs.readdirSync(userDir, { withFileTypes: true })) {
-      if (isSchemaDir(userDir, entry) && !seenNames.has(entry.name)) {
-        const schemaPath = path.join(userDir, entry.name, 'schema.yaml');
-        if (fs.existsSync(schemaPath)) {
-          try {
-            const schema = parseSchema(fs.readFileSync(schemaPath, 'utf-8'));
-            schemas.push({
-              name: entry.name,
-              description: schema.description || '',
-              artifacts: schema.artifacts.map((a) => a.id),
-              source: 'user',
-            });
-            seenNames.add(entry.name);
-          } catch {
-            // Skip invalid schemas
-          }
-        }
-      }
-    }
-  }
-
-  // Add package built-in schemas (if not overridden by project or user)
-  const packageDir = getPackageSchemasDir();
-  if (fs.existsSync(packageDir)) {
-    for (const entry of fs.readdirSync(packageDir, { withFileTypes: true })) {
-      if (isSchemaDir(packageDir, entry) && !seenNames.has(entry.name)) {
-        const schemaPath = path.join(packageDir, entry.name, 'schema.yaml');
-        if (fs.existsSync(schemaPath)) {
-          try {
-            const schema = parseSchema(fs.readFileSync(schemaPath, 'utf-8'));
-            schemas.push({
-              name: entry.name,
-              description: schema.description || '',
-              artifacts: schema.artifacts.map((a) => a.id),
-              source: 'package',
-            });
-          } catch {
-            // Skip invalid schemas
-          }
-        }
-      }
-    }
-  }
-
   return schemas.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Resolves one concrete template from the effective schema's trusted roots. */
+export function resolveSchemaTemplate(
+  schemaName: string,
+  templatePath: string,
+  projectRoot?: string
+): ResolvedTemplate {
+  const sources = resolveSchemaSources(schemaName, projectRoot);
+  if (!sources) {
+    throw new Error(`Schema '${normalizeSchemaName(schemaName)}' not found`);
+  }
+
+  const checked: string[] = [];
+  for (const root of sources.templateRoots) {
+    const candidate = path.join(root.dir, templatePath);
+    checked.push(candidate);
+    FileSystemUtils.assertPathWithin(root.dir, candidate);
+    if (!fs.existsSync(candidate)) continue;
+    if (!fs.statSync(candidate).isFile()) continue;
+    return {
+      path: FileSystemUtils.canonicalizeExistingPath(candidate),
+      source: root.source,
+    };
+  }
+
+  throw new Error(`Template not found. Checked: ${checked.join(', ')}`);
 }

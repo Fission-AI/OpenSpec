@@ -734,6 +734,20 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         ],
       },
       {
+        name: 'override',
+        description: 'Create a layered user override for a packaged schema',
+        acceptsPositional: true,
+        positionalType: 'schema-name',
+        positionals: [{ name: 'name', type: 'schema-name' }],
+        flags: [
+          COMMON_FLAGS.json,
+          {
+            name: 'force',
+            description: 'Overwrite an existing layered override',
+          },
+        ],
+      },
+      {
         name: 'fork',
         description: 'Copy an existing schema to project for customization',
         acceptsPositional: true,
