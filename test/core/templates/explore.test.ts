@@ -29,10 +29,7 @@ function occurrenceCount(body: string, value: string): number {
   return body.split(value).length - 1;
 }
 
-// East Asian "Ambiguous Width" glyphs: box drawing, block elements,
-// geometric shapes, arrows, bullets, and the check/cross dingbats. Many
-// terminals render these two columns wide.
-const AMBIGUOUS_WIDTH = /[\u2022\u2190-\u21FF\u2500-\u25FF\u2713-\u2718]/;
+const NON_ASCII = /[^\x00-\x7F]/;
 
 function fencedBlockLines(body: string): Array<[number, string]> {
   const lines: Array<[number, string]> = [];
@@ -98,6 +95,38 @@ describe('explore templates', () => {
       expect(body, label).toContain('constraints for you to follow');
       expect(body, label).toContain(
         'do NOT copy them into the conversation or into any artifact you create'
+      );
+    }
+  });
+
+  it('requires separate confirmation before any file-writing action (#1715)', () => {
+    for (const [label, body] of bodies) {
+      expect(body, label).toContain(
+        'Before the first write-capable action'
+      );
+      expect(body, label).toContain('name the artifacts or files you would change');
+      expect(body, label).toContain('ask a direct yes/no question');
+      expect(body, label).toContain("wait for the user's confirmation in a separate message");
+      expect(body, label).toContain(
+        'Answering design or clarifying questions is never consent to write'
+      );
+      expect(body, label).toContain('run read-only commands or tools without confirmation');
+      expect(body, label).toContain(
+        'Confirmation covers only the scope you described; ask again before expanding it'
+      );
+    }
+  });
+
+  it('treats workflow configuration and write-capable commands as changes (#1715)', () => {
+    for (const [label, body] of bodies) {
+      expect(body, label).toContain(
+        'creating or editing schemas, templates, or `openspec/config.yaml` is a change'
+      );
+      expect(body, label).toContain(
+        'including `openspec new change` or another command that writes files'
+      );
+      expect(body, label).toContain(
+        'Creating or updating OpenSpec change artifacts within the confirmed scope is fine, writing anything else is not'
       );
     }
   });
@@ -220,7 +249,7 @@ describe('explore templates', () => {
   it('draws every fenced example with plain ASCII only (#983)', () => {
     for (const [label, body] of bodies) {
       const offenders = fencedBlockLines(body)
-        .filter(([, line]) => AMBIGUOUS_WIDTH.test(line.normalize('NFC')))
+        .filter(([, line]) => NON_ASCII.test(line))
         .map(([lineNumber, line]) => `${lineNumber}: ${line}`);
 
       expect(offenders, `${label} fenced examples must be pure ASCII`).toEqual([]);
@@ -230,8 +259,8 @@ describe('explore templates', () => {
   it('tells the agent to draw with ASCII and says why (#983)', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain('**Draw with plain ASCII only**');
-      expect(body, label).toContain('Ambiguous Width');
-      expect(body, label).toContain('two columns wide');
+      expect(body, label).toContain('render at different widths');
+      expect(body, label).toContain('Keep every diagram character ASCII');
     }
   });
 
