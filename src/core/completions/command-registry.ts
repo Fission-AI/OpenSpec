@@ -412,6 +412,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             description:
               'Member folder as <path> or <name>=<path>; repeatable, first is the primary',
             takesValue: true,
+            completionType: 'path',
           },
           {
             name: 'tool',

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { FishGenerator } from '../../../../src/core/completions/generators/fish-generator.js';
 import { CommandDefinition } from '../../../../src/core/completions/types.js';
+import { COMMAND_REGISTRY } from '../../../../src/core/completions/command-registry.js';
 
 describe('FishGenerator', () => {
   let generator: FishGenerator;
@@ -190,6 +191,14 @@ describe('FishGenerator', () => {
 
       expect(pathLine).toContain('-r');
       expect(pathLine).not.toContain('-f');
+    });
+
+    it('should preserve path completion for registry-backed workset members', () => {
+      const script = generator.generate(COMMAND_REGISTRY);
+      const memberLine = completionLine(script, '-l member');
+
+      expect(memberLine).toContain('-r');
+      expect(memberLine).not.toContain('-f');
     });
 
     it('should not use -r flag for boolean flags', () => {
