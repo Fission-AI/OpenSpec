@@ -64,6 +64,20 @@ The CLI SHALL offer to set the newly created schema as the project default.
 - **WHEN** user runs `openspec schema init my-workflow --no-default`
 - **THEN** system creates schema without modifying `openspec/config.yaml`
 
+#### Scenario: Invalid config prevents schema creation
+- **GIVEN** `openspec/config.yaml` or `openspec/config.yml` is invalid YAML, is not a YAML object, is not a regular file, or is not writable
+- **WHEN** user runs `openspec schema init my-workflow --default`
+- **THEN** the command exits with a non-zero status
+- **AND** does not create `openspec/schemas/my-workflow/`
+- **AND** leaves the config byte-for-byte unchanged
+
+#### Scenario: Config failure preserves a schema during forced replacement
+- **GIVEN** `openspec/schemas/my-workflow/` already contains user-authored files
+- **AND** the project config cannot be validated or atomically replaced
+- **WHEN** user runs `openspec schema init my-workflow --force --default`
+- **THEN** the command exits with a non-zero status
+- **AND** restores the existing schema and config byte-for-byte
+
 ### Requirement: Schema init outputs JSON format
 The CLI SHALL support `--json` flag for machine-readable output.
 
