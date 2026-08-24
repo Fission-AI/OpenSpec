@@ -51,9 +51,10 @@ ${commandCompletions}`;
     const lines: string[] = [];
 
     if (cmd.subcommands && cmd.subcommands.length > 0) {
+      const noSubcommandCondition = `not __fish_openspec_using_subcommand ${cmd.subcommands.map((subcmd) => subcmd.name).join(' ')}`;
       for (const subcmd of cmd.subcommands) {
         lines.push(
-          `complete -c openspec -n '__fish_openspec_using_subcommand ${cmd.name}; and not __fish_openspec_using_subcommand ${subcmd.name}' -f -a '${subcmd.name}' -d '${this.escapeDescription(subcmd.description)}'`
+          `complete -c openspec -n '__fish_openspec_using_subcommand ${cmd.name}; and ${noSubcommandCondition}' -f -a '${subcmd.name}' -d '${this.escapeDescription(subcmd.description)}'`
         );
       }
       lines.push('');
@@ -129,7 +130,7 @@ ${commandCompletions}`;
     if (flag.takesValue && flag.values) {
       for (const value of flag.values) {
         lines.push(
-          `complete -c openspec -n '${condition}' ${flagOptions} -f -a '${value}' -d '${description}'`
+          `complete -c openspec -n '${condition}' ${flagOptions} -r -f -a '${value}' -d '${description}'`
         );
       }
     } else if (flag.takesValue) {
@@ -225,8 +226,6 @@ ${commandCompletions}`;
   private escapeDescription(description: string): string {
     return description
       .replace(/\\/g, '\\\\') // Backslashes first
-      .replace(/'/g, "\\'") // Single quotes
-      .replace(/\$/g, '\\$') // Dollar signs (prevents $())
-      .replace(/`/g, '\\`'); // Backticks
+      .replace(/'/g, "\\'"); // Single quotes
   }
 }

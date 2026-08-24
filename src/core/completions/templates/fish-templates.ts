@@ -27,21 +27,29 @@ function __fish_openspec_positional_index
     set -l tokens (commandline -opc)
     set -e tokens[1]
     set -l count 0
+    set -l options 1
     set -l skip 0
     for token in $tokens
         if test $skip -eq 1
             set skip 0
             continue
         end
-        if contains -- $token $value_flags
-            set skip 1
-            continue
-        end
-        if string match -q -- '-*' $token
-            continue
+        if test $options -eq 1
+            if test "$token" = --
+                set options 0
+                continue
+            end
+            if contains -- $token $value_flags
+                set skip 1
+                continue
+            end
+            if string match -q -- '-*' $token
+                continue
+            end
         end
         set count (math $count + 1)
     end
+    test $skip -eq 0; or return 1
     test $count -eq (math $target + $depth)
 end`;
 
