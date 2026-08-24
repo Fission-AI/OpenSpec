@@ -403,6 +403,35 @@ describe('migration', () => {
       ).toBe(false);
     });
 
+    it('migrates commands when an adapter returns Windows separators', async () => {
+      const adapter = CommandAdapterRegistry.get('antigravity');
+      if (!adapter) throw new Error('antigravity adapter not found');
+      const getFilePath = vi.spyOn(adapter, 'getFilePath').mockImplementation(
+        (commandId) => `.agents\\workflows\\opsx-${commandId}.md`
+      );
+      const legacyCommand = path.join(projectDir, '.agent', 'workflows', 'opsx-explore.md');
+      const currentCommand = path.join(
+        projectDir,
+        '.agents\\workflows\\opsx-explore.md'
+      );
+
+      try {
+        await fsp.mkdir(path.dirname(legacyCommand), { recursive: true });
+        await fsp.writeFile(legacyCommand, '# command\n', 'utf-8');
+        await fsp.writeFile(currentCommand, '# command\n', 'utf-8');
+
+        expect(
+          migrateLegacyToolDirs(projectDir, ['antigravity'], 'after-generation')
+        ).toEqual([
+          expect.objectContaining({ toolId: 'antigravity', commandFiles: 1 }),
+        ]);
+        expect(fs.existsSync(legacyCommand)).toBe(false);
+        expect(fs.existsSync(currentCommand)).toBe(true);
+      } finally {
+        getFilePath.mockRestore();
+      }
+    });
+
     it('keeps commands delivery when the command files still sit under .agent', async () => {
       // The commands are only findable at the legacy root until migration runs.
       // Inferring `skills` here would make the next update delete them.
