@@ -310,6 +310,22 @@ describe('FishGenerator', () => {
       expect(script).toContain('not __fish_openspec_using_command_path change list');
     });
 
+    it('should find subcommands after parent options that consume values', () => {
+      const commands: CommandDefinition[] = [
+        {
+          name: 'config',
+          description: 'Manage config',
+          flags: [{ name: 'scope', description: 'Config scope', takesValue: true }],
+          subcommands: [{ name: 'get', description: 'Get a value', flags: [] }],
+        },
+      ];
+
+      const script = generator.generate(commands);
+
+      expect(script).toContain('__fish_openspec_using_command_path config get -- --scope');
+      expect(script).toContain('not __fish_openspec_using_command_path config get -- --scope');
+    });
+
     it('should handle positional arguments for change-id', () => {
       const commands: CommandDefinition[] = [
         {

@@ -52,9 +52,10 @@ ${commandCompletions}`;
     const lines: string[] = [];
 
     if (cmd.subcommands && cmd.subcommands.length > 0) {
-      const commandCondition = `__fish_openspec_using_command_path ${cmd.name}`;
+      const commandCondition = this.commandPathCondition([cmd.name]);
+      const parentValueFlags = this.collectValueFlags(cmd.flags);
       const noSubcommandCondition = cmd.subcommands
-        .map((subcmd) => `not __fish_openspec_using_command_path ${cmd.name} ${subcmd.name}`)
+        .map((subcmd) => `not ${this.commandPathCondition([cmd.name, subcmd.name], parentValueFlags)}`)
         .join('; and ');
       for (const subcmd of cmd.subcommands) {
         lines.push(
@@ -68,7 +69,7 @@ ${commandCompletions}`;
       }
 
       for (const subcmd of cmd.subcommands) {
-        const subcommandCondition = `__fish_openspec_using_command_path ${cmd.name} ${subcmd.name}`;
+        const subcommandCondition = this.commandPathCondition([cmd.name, subcmd.name], parentValueFlags);
         lines.push(`# ${cmd.name} ${subcmd.name} flags`);
         lines.push(`complete -c openspec -n '${subcommandCondition}' -f`);
         for (const flag of subcmd.flags) {
@@ -226,6 +227,14 @@ ${commandCompletions}`;
     }
 
     return [...flags];
+  }
+
+  /**
+   * Build a Fish condition that matches command words in their actual slots.
+   */
+  private commandPathCondition(path: string[], valueFlags: string[] = []): string {
+    const valueFlagArguments = valueFlags.length ? ` -- ${valueFlags.join(' ')}` : '';
+    return `__fish_openspec_using_command_path ${path.join(' ')}${valueFlagArguments}`;
   }
 
   /**

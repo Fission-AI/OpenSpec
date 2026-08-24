@@ -5,21 +5,48 @@
 
 export const FISH_STATIC_HELPERS = `# Helper function to match the command path at the start of the invocation
 function __fish_openspec_using_command_path
+    set -l expected
+    set -l value_flags
+    set -l reading_value_flags 0
+    for argument in $argv
+        if test "$argument" = --
+            set reading_value_flags 1
+            continue
+        end
+        if test $reading_value_flags -eq 1
+            set -a value_flags $argument
+        else
+            set -a expected $argument
+        end
+    end
+
     set -l tokens (commandline -opc)
     set -e tokens[1]
     set -l path
+    set -l skip 0
     for token in $tokens
+        if test $skip -eq 1
+            set skip 0
+            continue
+        end
         if test "$token" = --no-color
             continue
         end
+        if contains -- $token $value_flags
+            set skip 1
+            continue
+        end
+        if string match -q -- '-*' $token
+            continue
+        end
         set -a path $token
-        if test (count $path) -eq (count $argv)
+        if test (count $path) -eq (count $expected)
             break
         end
     end
-    test (count $path) -eq (count $argv); or return 1
-    for index in (seq (count $argv))
-        test "$path[$index]" = "$argv[$index]"; or return 1
+    test (count $path) -eq (count $expected); or return 1
+    for index in (seq (count $expected))
+        test "$path[$index]" = "$expected[$index]"; or return 1
     end
     return 0
 end
