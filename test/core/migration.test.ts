@@ -412,11 +412,14 @@ describe('migration', () => {
       const legacyCommand = path.join(projectDir, '.agent', 'workflows', 'opsx-explore.md');
       const currentCommand = path.join(
         projectDir,
-        '.agents\\workflows\\opsx-explore.md'
+        '.agents',
+        'workflows',
+        'opsx-explore.md'
       );
 
       try {
         await fsp.mkdir(path.dirname(legacyCommand), { recursive: true });
+        await fsp.mkdir(path.dirname(currentCommand), { recursive: true });
         await fsp.writeFile(legacyCommand, '# command\n', 'utf-8');
         await fsp.writeFile(currentCommand, '# command\n', 'utf-8');
 

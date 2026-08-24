@@ -74,7 +74,6 @@ import {
 import {
   resolveSharedSkillWriters,
   writeSharedSkillTarget,
-  sharedSkillRootOwner,
 } from './shared-skill-target.js';
 import { includesGitHubCopilot, writeCopilotCloudFiles, removeCopilotCloudFiles, isCopilotCloudEnabled, readCopilotCloudOptIn, findUnmanagedCloudFiles } from './github-copilot/cloud-agent.js';
 
@@ -1141,6 +1140,10 @@ export class UpdateCommand {
     const newlyConfigured: string[] = [];
     const skippedSharedSkillTools: string[] = [];
     const workflowOverrides: LegacyUpgradeResult['workflowOverrides'] = {};
+    const arbitrationTools = [...new Set([...configuredTools, ...selectedTools])]
+      .map((toolId) => AI_TOOLS.find((tool) => tool.value === toolId))
+      .filter((tool): tool is NonNullable<typeof tool> => tool !== undefined);
+    const sharedSkillWriters = resolveSharedSkillWriters(projectPath, arbitrationTools);
 
     for (const toolId of selectedTools) {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
@@ -1153,6 +1156,7 @@ export class UpdateCommand {
         const skillsRoot = hasGlobalSkillTarget(tool) ? skillsDir : projectPath;
         const shouldGenerateSkills = shouldGenerateSkillsForTool(tool.value, delivery);
         const shouldGenerateCommands = shouldGenerateCommandsForTool(tool.value, delivery);
+        const writesSkills = !tool.skillsDir || sharedSkillWriters.has(tool.value);
         const toolWorkflows = (
           tool.value === 'codex' && inferredCodexWorkflows.length > 0
             ? inferredCodexWorkflows
@@ -1169,8 +1173,12 @@ export class UpdateCommand {
         // is how a legacy Antigravity install gains `.agents/workflows` beside
         // Codex-owned `.agents/skills`. A skills-only tool has no safe artifact
         // to install, so preserve its legacy files and re-offer it later.
-        const sharedOwner = shouldGenerateSkills
-          ? sharedSkillRootOwner(projectPath, tool.value)
+        const sharedOwner = shouldGenerateSkills && !writesSkills
+          ? arbitrationTools.find(
+              (candidate) =>
+                candidate.skillsDir === tool.skillsDir &&
+                sharedSkillWriters.has(candidate.value)
+            )?.value
           : undefined;
         if (sharedOwner && !shouldGenerateCommands) {
           const ownerName =
@@ -1183,7 +1191,7 @@ export class UpdateCommand {
         }
 
         // Create skill files when delivery includes skills
-        if (shouldGenerateSkills && !sharedOwner) {
+        if (shouldGenerateSkills && writesSkills) {
           for (const { template, dirName } of skillTemplates) {
             const skillDir = path.join(skillsDir, dirName);
             const skillFile = path.join(skillDir, 'SKILL.md');

@@ -942,6 +942,21 @@ describe('InitCommand', () => {
       ).toBe(true);
     });
 
+    it('preserves a Codex-owned shared tree when the agents target is added', async () => {
+      await new InitCommand({ tools: 'codex', force: true }).execute(testDir);
+
+      await new InitCommand({ tools: 'agents', force: true }).execute(testDir);
+
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe('codex\n');
+      const proposeSkill = await fs.readFile(
+        path.join(skillsDir, 'openspec-propose', 'SKILL.md'),
+        'utf-8'
+      );
+      expect(proposeSkill).toContain('$openspec-apply-change');
+      expect(proposeSkill).toContain('/openspec-apply-change');
+    });
+
     it('upgrades an Antigravity-owned shared tree when Codex is added', async () => {
       await new InitCommand({ tools: 'antigravity', force: true }).execute(testDir);
       expect(

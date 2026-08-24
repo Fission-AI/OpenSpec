@@ -2919,6 +2919,34 @@ More user content after markers.
       consoleSpy.mockRestore();
     });
 
+    it('arbitrates legacy Antigravity and Codex before writing the shared tree', async () => {
+      const antigravityLegacy = path.join(
+        testDir,
+        '.agent',
+        'workflows',
+        'openspec-propose.md'
+      );
+      const codexLegacy = path.join(testDir, '.codex', 'prompts', 'openspec-propose.md');
+      await fs.mkdir(path.dirname(antigravityLegacy), { recursive: true });
+      await fs.mkdir(path.dirname(codexLegacy), { recursive: true });
+      await fs.writeFile(antigravityLegacy, 'legacy Antigravity command');
+      await fs.writeFile(codexLegacy, 'legacy Codex prompt');
+
+      await new UpdateCommand({ force: true }).execute(testDir);
+
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe('codex\n');
+      const proposeSkill = await fs.readFile(
+        path.join(skillsDir, 'openspec-propose', 'SKILL.md'),
+        'utf-8'
+      );
+      expect(proposeSkill).toContain('$openspec-apply-change');
+      expect(proposeSkill).toContain('/openspec-apply-change');
+      await expect(
+        fs.access(path.join(testDir, '.agents', 'workflows', 'opsx-propose.md'))
+      ).resolves.toBeUndefined();
+    });
+
     it('should not upgrade legacy tools already configured', async () => {
       // Set up a configured Claude tool with skills
       const skillsDir = path.join(testDir, '.claude', 'skills');

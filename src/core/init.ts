@@ -61,6 +61,7 @@ import { getProfileWorkflows, CORE_WORKFLOWS, ALL_WORKFLOWS } from './profiles.j
 import { getAvailableTools } from './available-tools.js';
 import {
   resolveSharedSkillWriters,
+  sharedSkillRootOwner,
   writeSharedSkillTarget,
 } from './shared-skill-target.js';
 import { migrateIfNeeded, migrateLegacyToolDirs, describeLegacyMigration, keptInPlaceNotice, hasMovableContent, scanInstalledWorkflows as scanInstalledWorkflowsShared } from './migration.js';
@@ -795,22 +796,18 @@ export class InitCommand {
     // configured owner. Include that owner in the refresh without dropping the
     // selected tool: it may still have an independent command surface.
     const generationTools = [...selectedTools];
+    const delivery: Delivery = getGlobalConfig().delivery ?? 'both';
     for (const selected of selectedTools) {
       if (!selected.skillsDir) continue;
-      const selectedAtRoot = selectedTools.filter(
-        (candidate) => candidate.skillsDir === selected.skillsDir
-      );
-      const selectedNeedsCompatibleOwner = selectedAtRoot.every(
-        (candidate) => resolveCommandSurfaceCapability(candidate.value) === 'adapter-backed'
-      );
+      const selectedOwner = selected.value === 'codex' ||
+        !shouldGenerateSkillsForTool(selected.value, delivery)
+        ? undefined
+        : sharedSkillRootOwner(projectPath, selected.value);
       for (const candidate of AI_TOOLS) {
         if (
           candidate.skillsDir === selected.skillsDir &&
           toolStates.get(candidate.value)?.configured &&
-          (
-            selectedNeedsCompatibleOwner ||
-            (candidate.value === 'codex' && selectedAtRoot.some((tool) => tool.value === 'zed'))
-          ) &&
+          candidate.value === selectedOwner &&
           !generationTools.includes(candidate)
         ) {
           generationTools.push(candidate);

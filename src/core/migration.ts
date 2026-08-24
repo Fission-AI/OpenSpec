@@ -312,10 +312,13 @@ function migrateCommandFiles(
     const legacyPath = legacyCommandPath(currentPath, tool.skillsDir, legacyRoot);
     if (!legacyPath) continue;
 
-    const source = path.join(projectPath, legacyPath);
+    const source = FileSystemUtils.resolveProjectArtifactPath(projectPath, legacyPath);
     if (!fs.existsSync(source)) continue;
 
-    const destination = path.join(projectPath, currentPath);
+    const destination = FileSystemUtils.resolveProjectArtifactPath(
+      projectPath,
+      currentPath.split(/[\\/]/).join(path.sep)
+    );
     // An after-generation move runs once the tool has written its replacement.
     // No replacement means this command is not one OpenSpec installs now — a
     // skills-only delivery or a deselected workflow — so relocating the legacy
