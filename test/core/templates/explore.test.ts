@@ -83,13 +83,17 @@ describe('explore templates', () => {
   it('requires separate confirmation before any file-writing action (#1715)', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain(
-        'before the first action that could create, edit, move, or delete a file'
+        'Before the first write-capable action'
       );
-      expect(body, label).toContain('including running an OpenSpec command');
+      expect(body, label).toContain('name the artifacts or files you would change');
       expect(body, label).toContain('ask a direct yes/no question');
       expect(body, label).toContain("wait for the user's confirmation in a separate message");
       expect(body, label).toContain(
-        'Answers to design or clarifying questions are never consent to write'
+        'Answering design or clarifying questions is never consent to write'
+      );
+      expect(body, label).toContain('run read-only commands or tools without confirmation');
+      expect(body, label).toContain(
+        'Confirmation covers only the scope you described; ask again before expanding it'
       );
     }
   });
@@ -100,10 +104,10 @@ describe('explore templates', () => {
         'creating or editing schemas, templates, or `openspec/config.yaml` is a change'
       );
       expect(body, label).toContain(
-        'including running `openspec new change` or another command that writes files'
+        'including `openspec new change` or another command that writes files'
       );
       expect(body, label).toContain(
-        'Creating OpenSpec artifacts once the user confirms is fine, writing anything else is not'
+        'Creating or updating OpenSpec change artifacts within the confirmed scope is fine, writing anything else is not'
       );
     }
   });
