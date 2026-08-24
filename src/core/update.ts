@@ -71,7 +71,11 @@ import {
   shouldReconcileCommandFilesForTool,
   shouldRemoveSkillsForTool,
 } from './command-surface.js';
-import { writeSharedSkillTarget, sharedSkillRootOwner } from './shared-skill-target.js';
+import {
+  resolveSharedSkillWriters,
+  writeSharedSkillTarget,
+  sharedSkillRootOwner,
+} from './shared-skill-target.js';
 import { includesGitHubCopilot, writeCopilotCloudFiles, removeCopilotCloudFiles, isCopilotCloudEnabled, readCopilotCloudOptIn, findUnmanagedCloudFiles } from './github-copilot/cloud-agent.js';
 
 const require = createRequire(import.meta.url);
@@ -266,6 +270,12 @@ export class UpdateCommand {
     const deliveryIncludesCommands = delivery !== 'skills';
     // 10. Update tools (all if force, otherwise only those needing update)
     const toolsToUpdate = this.force ? configuredTools : [...toolsToUpdateSet];
+    const sharedSkillWriters = resolveSharedSkillWriters(
+      resolvedProjectPath,
+      configuredAndNewTools
+        .map((toolId) => AI_TOOLS.find((tool) => tool.value === toolId))
+        .filter((tool): tool is NonNullable<typeof tool> => tool !== undefined)
+    );
     const updatedTools: string[] = [];
     const updatedToolIds: string[] = [];
     const failedTools: Array<{ name: string; error: string }> = [];
@@ -287,12 +297,13 @@ export class UpdateCommand {
         const skillsRoot = hasGlobalSkillTarget(tool) ? skillsDir : resolvedProjectPath;
         const shouldGenerateSkills = shouldGenerateSkillsForTool(tool.value, delivery);
         const shouldGenerateCommands = shouldGenerateCommandsForTool(tool.value, delivery);
+        const writesSkills = !tool.skillsDir || sharedSkillWriters.has(tool.value);
         const toolWorkflows = legacyWorkflowOverrides[tool.value] ?? desiredWorkflows;
         const skillTemplates = getSkillTemplates(toolWorkflows);
         const commandContents = getCommandContents(toolWorkflows);
 
         // Generate skill files if delivery includes skills
-        if (shouldGenerateSkills) {
+        if (shouldGenerateSkills && writesSkills) {
           for (const { template, dirName } of skillTemplates) {
             const skillDir = path.join(skillsDir, dirName);
             const skillFile = path.join(skillDir, 'SKILL.md');
@@ -317,7 +328,11 @@ export class UpdateCommand {
         }
 
         // Delete skill directories if delivery is commands-only
-        if (shouldRemoveSkillsForTool(tool.value, delivery) && !hasGlobalSkillTarget(tool)) {
+        if (
+          shouldRemoveSkillsForTool(tool.value, delivery) &&
+          writesSkills &&
+          !hasGlobalSkillTarget(tool)
+        ) {
           removedSkillCount += await this.removeSkillDirs(skillsRoot, skillsDir);
           // Persist the selected owner even when commands-only delivery leaves
           // this target with no generated skills.
@@ -1149,25 +1164,15 @@ export class UpdateCommand {
         const skillTemplates = getSkillTemplates(toolWorkflows);
         const commandContents = getCommandContents(toolWorkflows);
 
-        // A shared skills root (e.g. `.agents`) already owned by another tool
-        // must not be overwritten by a tool inferred from legacy artifacts: a
-        // Codex install detected only from global `~/.codex/prompts` would
-        // otherwise rewrite an existing vendor-neutral `agents` tree with
-        // Codex-specific syntax and flip its ownership marker `agents → codex`.
-        // Leave the established owner in place. (init applies the same
-        // one-writer rule up front when both targets are selected.)
-        //
-        // Skipping here means the tool is never recorded as configured, so a
-        // persistent legacy signal re-offers it on later runs. Because no
-        // replacement is written, this tool is also exempted from immediate
-        // legacy cleanup (see skippedSharedSkillTools) — otherwise a repo-local
-        // `.codex/prompts` would be deleted with nothing put in its place. That
-        // repeat is idempotent and harmless — the alternative is the silent
-        // hijack this prevents.
+        // Never overwrite a shared skills root owned by another tool. A tool
+        // with its own command surface can still install those commands: this
+        // is how a legacy Antigravity install gains `.agents/workflows` beside
+        // Codex-owned `.agents/skills`. A skills-only tool has no safe artifact
+        // to install, so preserve its legacy files and re-offer it later.
         const sharedOwner = shouldGenerateSkills
           ? sharedSkillRootOwner(projectPath, tool.value)
           : undefined;
-        if (sharedOwner) {
+        if (sharedOwner && !shouldGenerateCommands) {
           const ownerName =
             AI_TOOLS.find((candidate) => candidate.value === sharedOwner)?.name ?? sharedOwner;
           spinner.info(
@@ -1178,7 +1183,7 @@ export class UpdateCommand {
         }
 
         // Create skill files when delivery includes skills
-        if (shouldGenerateSkills) {
+        if (shouldGenerateSkills && !sharedOwner) {
           for (const { template, dirName } of skillTemplates) {
             const skillDir = path.join(skillsDir, dirName);
             const skillFile = path.join(skillDir, 'SKILL.md');

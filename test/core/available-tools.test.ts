@@ -147,6 +147,20 @@ describe('available-tools', () => {
       expect(getAvailableTools(testDir).map((tool) => tool.value)).toEqual(['antigravity']);
     });
 
+    it('should retain Antigravity when another tool owns the shared skills root', async () => {
+      await fs.mkdir(path.join(testDir, '.agents', 'skills'), { recursive: true });
+      await fs.mkdir(path.join(testDir, '.agents', 'workflows'), { recursive: true });
+      await fs.writeFile(
+        path.join(testDir, '.agents', 'skills', '.openspec-target'),
+        'codex\n'
+      );
+
+      expect(getAvailableTools(testDir).map((tool) => tool.value)).toEqual([
+        'antigravity',
+        'codex',
+      ]);
+    });
+
     it('should detect Zed Agent from its project configuration directory', async () => {
       await fs.mkdir(path.join(testDir, '.zed'), { recursive: true });
 

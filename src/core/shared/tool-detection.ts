@@ -13,12 +13,14 @@ import { getGlobalConfig } from '../global-config.js';
 import { getProfileWorkflows, ALL_WORKFLOWS } from '../profiles.js';
 import {
   isSharedSkillTargetActive,
+  hasLegacySkills,
   readSharedSkillTarget,
   reconcileSharedSkillTargets,
 } from '../shared-skill-target.js';
 import {
   shouldGenerateCommandsForTool,
   shouldGenerateSkillsForTool,
+  resolveCommandSurfaceCapability,
 } from '../command-surface.js';
 import {
   getSkillCapableTools,
@@ -380,6 +382,10 @@ export function getConfiguredTools(projectRoot: string): string[] {
       return (
         getToolSkillStatus(projectRoot, t.value).configured ||
         toolHasAnyConfiguredCommand(projectRoot, t.value) ||
+        (
+          resolveCommandSurfaceCapability(t.value) === 'adapter-backed' &&
+          hasLegacySkills(projectRoot, t)
+        ) ||
         (Boolean(t.skillsDir) &&
           readSharedSkillTarget(projectRoot, t.skillsDir!) === t.value)
       );
@@ -391,7 +397,16 @@ export function getConfiguredTools(projectRoot: string): string[] {
     ).map((tool) => tool.value)
   );
   return configured
-    .filter((tool) => tool.globalSkillsDir || activeProjectTools.has(tool.value))
+    .filter(
+      (tool) =>
+        tool.globalSkillsDir ||
+        toolHasAnyConfiguredCommand(projectRoot, tool.value) ||
+        (
+          resolveCommandSurfaceCapability(tool.value) === 'adapter-backed' &&
+          hasLegacySkills(projectRoot, tool)
+        ) ||
+        activeProjectTools.has(tool.value)
+    )
     .map((tool) => tool.value);
 }
 

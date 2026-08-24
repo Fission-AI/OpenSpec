@@ -2,4 +2,4 @@
 "@fission-ai/openspec": patch
 ---
 
-Write Antigravity skills and workflows to `.agents/`, the root Antigravity has used since v1.20.5, and move an existing `.agent/` install there.
+Write Antigravity skills and workflows to `.agents/`, arbitrate its shared skill tree with other tools, and safely migrate an existing `.agent/` install.

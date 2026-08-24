@@ -65,7 +65,7 @@ to read the hint.
 | Tool (ID) | Skills path pattern | Command path pattern |
 |-----------|---------------------|----------------------|
 | Amazon Q Developer (`amazon-q`) | `.amazonq/skills/openspec-*/SKILL.md` | `.amazonq/prompts/opsx-<id>.md` |
-| Antigravity (`antigravity`) | `.agents/skills/openspec-*/SKILL.md` | `.agents/workflows/opsx-<id>.md` |
+| Antigravity (`antigravity`) | `.agent/skills/openspec-*/SKILL.md` | `.agent/workflows/opsx-<id>.md` |
 | Auggie (`auggie`) | `.augment/skills/openspec-*/SKILL.md` | `.augment/commands/opsx-<id>.md` |
 | IBM Bob Shell (`bob`) | `.bob/skills/openspec-*/SKILL.md` | `.bob/commands/opsx-<id>.md` |
 | Claude Code (`claude`) | `.claude/skills/openspec-*/SKILL.md` | `.claude/commands/opsx/<id>.md` |
@@ -175,11 +175,11 @@ Threads use their own integrations. Agent Skills require
 Project-local skills are unavailable in an untrusted worktree until you
 [grant trust](https://zed.dev/docs/worktree-trust).
 
-Because `.agents/skills/` is shared by Antigravity, Codex, Zed Agent, and the vendor-neutral target,
+Because `.agents/skills/` is shared by Codex, Zed Agent, and the vendor-neutral target,
 it is worth knowing what OpenSpec claims there:
 it writes, refreshes, and removes only the `openspec-*` skill directories for your
-selected workflows, plus an `.openspec-target` marker that records whether
-Antigravity, Codex, Zed Agent, or the vendor-neutral target rendered that shared tree. Anything else in that
+selected workflows, plus an `.openspec-target` marker that records whether Codex,
+Zed Agent, or the vendor-neutral target rendered that shared tree. Anything else in that
 directory is left alone. Treat the `openspec-*` names and marker as OpenSpec's —
 edits inside them are replaced on the next `openspec update`, the same as for
 every other tool.
