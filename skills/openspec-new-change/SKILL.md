@@ -26,21 +26,29 @@ Start a new change using the experimental artifact-driven approach.
 
    **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
 
-2. **Determine the workflow schema**
+2. **Select and confirm the workflow schema**
 
-   Use the default schema (omit `--schema`) unless the user explicitly requests a different workflow.
+   Before creating the change, determine the schema as follows:
 
-   **Use a different schema only if the user mentions:**
-   - A specific schema name → use `--schema <name>`
-   - "show workflows" or "what workflows" → run `openspec schemas --json` and let them choose
+   - If the user explicitly names a schema, use it and treat that choice as confirmed. If they also explicitly ask you to confirm it, stop and wait for confirmation.
+   - Otherwise, run `openspec schemas --json` and inspect each schema's `name`, `description`, and `artifacts`.
+   - Use `description` as the authority for matching the request. Use `name` and `artifacts` only to identify, display, and explain candidates.
+   - Select a schema only when exactly one is a clear match.
+     - Normally, present the recommendation and a concise reason, then stop and wait for confirmation.
+     - Skip that confirmation only when the user's current request or the selected schema's description clearly and unambiguously says no further confirmation is needed.
+     - If the user explicitly asks for confirmation, always wait even if the selected schema's description waives it.
+   - If no unique recommendation is possible, stop before creating the change, list the relevant candidates with their descriptions, and ask the user to choose. Never silently use the default schema.
+   - If the user rejects a recommendation, stop and list the relevant candidates so they can choose.
+   - If `openspec schemas --json` fails, cannot be parsed, or returns no schemas, stop and report the problem. Do not fall back to the default.
+   - After the user selects a listed candidate, treat that choice as confirmed.
 
-   **Otherwise**: Omit `--schema` to use the default.
+   Do not continue until one schema is confirmed or confirmation has been clearly waived. Use the selected schema name in the create command below.
 
 3. **Create the change directory**
    ```bash
-   openspec new change "<name>"
+   openspec new change "<name>" --schema "<schema-name>"
    ```
-   Add `--schema <name>` only if the user requested a specific workflow.
+   Here, `<schema-name>` is the confirmed selection, or the unique recommendation whose confirmation was clearly waived.
    This creates a scaffolded change in the planning home resolved by the CLI.
 
 4. **Show the artifact status**
@@ -73,4 +81,4 @@ After completing the steps, summarize:
 - Do NOT advance beyond showing the first artifact template
 - If the name is invalid (not kebab-case), ask for a valid name
 - If a change with that name already exists, suggest continuing that change instead
-- Pass --schema if using a non-default workflow
+- Always pass the selected schema with `--schema`
