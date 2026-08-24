@@ -875,12 +875,14 @@ openspec status --all                            # every active change
 openspec status --all --json                     # one batch report
 ```
 
-Use exactly one of `--change` or `--all`. Without either, status exits 1 and lists the available changes, even when only one exists:
+When active changes exist, use exactly one of `--change` or `--all`. Without either, status exits 1 and lists the available changes, even when only one exists:
 
-```
+```text
 ✖ Error: Missing required option --change (or --all for every active change). Available changes:
   add-rate-limit
 ```
+
+When the project has no active changes, status prints `No active changes. Create one with: openspec new change <name>` and exits 0 even without either flag. With `--all --json`, the same empty state is `{ "changes": [], "message": "No active changes.", "root": ... }`.
 
 **Options**
 
@@ -949,7 +951,7 @@ Progress: 2/4 artifacts complete
 }
 ```
 
-With `--all --json`, `changes` contains the same status object for each change, without a per-change `root`. The selected root appears once on the envelope:
+With `--all --json`, `changes` contains the same status object for each change, without a per-change `root`. The selected root appears once on the envelope. This example trims the per-change status fields shown above:
 
 ```json
 {
