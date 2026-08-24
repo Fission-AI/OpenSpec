@@ -1,4 +1,4 @@
-import { structuredPatch } from 'diff';
+import { formatPatch, OMIT_HEADERS, structuredPatch } from 'diff';
 import {
   extractRequirementsSection,
   foldRequirementName,
@@ -55,15 +55,15 @@ export function extractRequirementBlock(
  * block that replaces it. A null main block (new capability) diffs against the
  * empty string, so every line reads as an addition.
  *
- * Uses structuredPatch to get only the hunk content lines (context/add/remove)
- * without any header matter, since the caller provides its own labeling.
+ * Uses structuredPatch to retain unified-diff hunk ranges while omitting the
+ * synthetic file headers, since the caller provides its own labeling.
  */
 export function diffRequirementBlock(baseBlock: string | null, deltaBlock: string, label: string): string {
   const base = ensureTrailingNewline(baseBlock ?? '');
   const delta = ensureTrailingNewline(deltaBlock);
   const patch = structuredPatch(label, label, base, delta);
 
-  return patch.hunks.flatMap(h => h.lines).join('\n').trimEnd();
+  return formatPatch(patch, OMIT_HEADERS).trimEnd();
 }
 
 function ensureTrailingNewline(s: string): string {

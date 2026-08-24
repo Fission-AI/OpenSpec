@@ -139,11 +139,26 @@ describe('diffRequirementBlock', () => {
     const diff = diffRequirementBlock(base, delta, 'test');
     expect(diff).toContain('-The system SHALL do A.');
     expect(diff).toContain('+The system SHALL do B.');
-    // Should not contain header lines
+    // Keep range headers that locate each hunk, but omit synthetic file headers.
     expect(diff).not.toContain('Index:');
     expect(diff).not.toContain('---');
     expect(diff).not.toContain('+++');
-    expect(diff).not.toContain('@@');
+    expect(diff).toContain('@@');
+  });
+
+  it('keeps separate range headers for distant changes', () => {
+    const baseLines = Array.from({ length: 20 }, (_, i) => `Line ${i + 1}`);
+    const deltaLines = [...baseLines];
+    deltaLines[0] = 'Changed first line';
+    deltaLines[19] = 'Changed last line';
+
+    const diff = diffRequirementBlock(baseLines.join('\n'), deltaLines.join('\n'), 'test');
+
+    expect(diff.match(/^@@/gm)).toHaveLength(2);
+    expect(diff).toContain('-Line 1');
+    expect(diff).toContain('+Changed first line');
+    expect(diff).toContain('-Line 20');
+    expect(diff).toContain('+Changed last line');
   });
 
   it('shows all additions when base is null', () => {
@@ -161,8 +176,8 @@ describe('diffRequirementBlock', () => {
 
     const diff = diffRequirementBlock(base, delta, 'test');
     const lines = diff.split('\n');
-    const firstNonEmpty = lines.find(l => l.length > 0)!;
-    expect(firstNonEmpty.startsWith(' ')).toBe(true);
+    const contextLine = lines.find(l => l.endsWith('Line one.'))!;
+    expect(contextLine.startsWith(' ')).toBe(true);
   });
 
   it('produces empty output for identical blocks', () => {
