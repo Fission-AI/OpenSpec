@@ -16,6 +16,12 @@ describe('FishGenerator', () => {
       .find((line) => line.includes('complete -c openspec') && line.includes(needle));
   }
 
+  function completionLines(script: string, needle: string): string[] {
+    return script
+      .split('\n')
+      .filter((line) => line.includes('complete -c openspec') && line.includes(needle));
+  }
+
   describe('interface compliance', () => {
     it('should have shell property set to "fish"', () => {
       expect(generator.shell).toBe('fish');
@@ -55,6 +61,8 @@ describe('FishGenerator', () => {
 
       expect(script).toContain('function __fish_openspec_using_subcommand');
       expect(script).toContain('function __fish_openspec_no_subcommand');
+      expect(script).toContain('function __fish_openspec_completing_option_value');
+      expect(script).toContain('string match -q -- "$option=*" "$current"');
       expect(script).toContain('function __fish_openspec_positional_index');
       expect(script).toContain('if test "$token" = --');
       expect(script).toContain('set options 0');
@@ -190,21 +198,31 @@ describe('FishGenerator', () => {
       ];
 
       const script = generator.generate(commands);
-      const pathLine = completionLine(script, '-l path');
+      const pathLines = completionLines(script, '-l path');
+      const optionLine = pathLines.find((line) => !line.includes('__fish_openspec_completing_option_value'));
+      const valueLine = pathLines.find((line) => line.includes('__fish_openspec_completing_option_value'));
 
-      expect(pathLine).toContain('-r');
-      expect(pathLine).toContain('-F');
-      expect(pathLine).not.toContain('-f');
+      expect(script).toContain(
+        "complete -c openspec -n '__fish_openspec_using_subcommand store; and __fish_openspec_using_subcommand setup' -f"
+      );
+      expect(optionLine).toContain('-r -f');
+      expect(valueLine).toContain('__fish_openspec_completing_option_value --path');
+      expect(valueLine).toContain('-r -F');
+      expect(valueLine).not.toContain(' -f');
     });
 
     it('should force path completion for every registry-backed path flag', () => {
       const script = generator.generate(COMMAND_REGISTRY);
 
       for (const flag of ['path', 'code-workspace', 'member']) {
-        const line = completionLine(script, `-l ${flag}`);
-        expect(line).toContain('-r');
-        expect(line).toContain('-F');
-        expect(line).not.toContain('-f');
+        const lines = completionLines(script, `-l ${flag}`);
+        const optionLine = lines.find((line) => !line.includes('__fish_openspec_completing_option_value'));
+        const valueLine = lines.find((line) => line.includes('__fish_openspec_completing_option_value'));
+
+        expect(optionLine).toContain('-r -f');
+        expect(valueLine).toContain(`__fish_openspec_completing_option_value --${flag}`);
+        expect(valueLine).toContain('-r -F');
+        expect(valueLine).not.toContain(' -f');
       }
     });
 

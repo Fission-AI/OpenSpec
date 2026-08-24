@@ -20,6 +20,19 @@ function __fish_openspec_no_subcommand
     test (count $cmd) -eq 1
 end
 
+function __fish_openspec_completing_option_value
+    set -l current (commandline -ct)
+    for option in $argv
+        if string match -q -- "$option=*" "$current"
+            return 0
+        end
+    end
+
+    set -l tokens (commandline -opc)
+    test (count $tokens) -gt 0; or return 1
+    contains -- $tokens[-1] $argv
+end
+
 function __fish_openspec_positional_index
     set -l target $argv[1]
     set -l depth $argv[2]

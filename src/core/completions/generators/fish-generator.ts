@@ -64,21 +64,18 @@ ${commandCompletions}`;
       }
 
       for (const subcmd of cmd.subcommands) {
+        const subcommandCondition = `__fish_openspec_using_subcommand ${cmd.name}; and __fish_openspec_using_subcommand ${subcmd.name}`;
         lines.push(`# ${cmd.name} ${subcmd.name} flags`);
+        lines.push(`complete -c openspec -n '${subcommandCondition}' -f`);
         for (const flag of subcmd.flags) {
-          lines.push(
-            ...this.generateFlagCompletion(
-              flag,
-              `__fish_openspec_using_subcommand ${cmd.name}; and __fish_openspec_using_subcommand ${subcmd.name}`
-            )
-          );
+          lines.push(...this.generateFlagCompletion(flag, subcommandCondition));
         }
 
         if (subcmd.positionals?.length) {
           lines.push(
             ...this.generateIndexedPositionalCompletions(
               subcmd.positionals,
-              `__fish_openspec_using_subcommand ${cmd.name}; and __fish_openspec_using_subcommand ${subcmd.name}`,
+              subcommandCondition,
               this.collectValueFlags(cmd.flags, subcmd.flags),
               2
             )
@@ -87,13 +84,14 @@ ${commandCompletions}`;
           lines.push(
             ...this.generatePositionalCompletion(
               subcmd.positionalType,
-              `__fish_openspec_using_subcommand ${cmd.name}; and __fish_openspec_using_subcommand ${subcmd.name}`
+              subcommandCondition
             )
           );
         }
       }
     } else {
       lines.push(`# ${cmd.name} flags`);
+      lines.push(`complete -c openspec -n '__fish_openspec_using_subcommand ${cmd.name}' -f`);
       for (const flag of cmd.flags) {
         lines.push(...this.generateFlagCompletion(flag, `__fish_openspec_using_subcommand ${cmd.name}`));
       }
@@ -123,9 +121,6 @@ ${commandCompletions}`;
     const description = this.escapeDescription(flag.description);
     const shortFlag = flag.short ? `-s ${flag.short} ` : '';
     const flagOptions = `${shortFlag}-l ${flag.name}`;
-    // Applicable sibling rules suppress files with -f. Path-valued options must
-    // explicitly restore filesystem completion; -r only requires an argument.
-    const fileFallback = flag.completionType === 'path' ? '-r -F' : '-r -f';
 
     if (flag.takesValue && flag.values) {
       for (const value of flag.values) {
@@ -134,9 +129,13 @@ ${commandCompletions}`;
         );
       }
     } else if (flag.takesValue) {
-      lines.push(
-        `complete -c openspec -n '${condition}' ${flagOptions} ${fileFallback} -d '${description}'`
-      );
+      lines.push(`complete -c openspec -n '${condition}' ${flagOptions} -r -f -d '${description}'`);
+      if (flag.completionType === 'path') {
+        const optionNames = [`--${flag.name}`, ...(flag.short ? [`-${flag.short}`] : [])];
+        lines.push(
+          `complete -c openspec -n '${condition}; and __fish_openspec_completing_option_value ${optionNames.join(' ')}' ${flagOptions} -r -F -d '${description}'`
+        );
+      }
     } else {
       lines.push(`complete -c openspec -n '${condition}' ${flagOptions} -f -d '${description}'`);
     }
