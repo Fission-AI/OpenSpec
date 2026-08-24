@@ -20,6 +20,7 @@ import { loadSchema } from '../../../src/core/artifact-graph/schema.js';
 // was taught, gets the in-flight change list, and reports the step complete
 // against the wrong object.
 const SPEC_INVENTORY = 'openspec list --specs';
+const SPEC_READ = 'openspec show "<spec-id>" --type spec --json --no-scenarios';
 
 // Assertions about the guidance attached to the command are scoped to a window
 // after it rather than to the whole body, so an unrelated occurrence elsewhere
@@ -125,7 +126,16 @@ describe('spec inventory vocabulary (#1689)', () => {
       // disambiguates a same-named change, JSON makes the result structured,
       // and --no-scenarios avoids pulling every scenario into context.
       expect(passage, `${label} does not name the complete store-aware read`).toContain(
-        'openspec show "<spec-id>" --type spec --json --no-scenarios'
+        SPEC_READ
+      );
+
+      // Tie the conditional store qualifier to the read itself. A separate
+      // --store mention for the inventory list must not let a local-root read
+      // pass this guard.
+      const readStart = passage.indexOf(SPEC_READ);
+      const readContext = passage.slice(readStart, readStart + 350);
+      expect(readContext, `${label} does not apply the store rule to the read`).toMatch(
+        /(?:same `--store` rule|Append `--store "<id>"` to\s+both commands only for a registered standalone store)/
       );
     }
   });
