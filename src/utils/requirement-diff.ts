@@ -71,14 +71,17 @@ function ensureTrailingNewline(s: string): string {
 }
 
 /**
- * Build a map from normalized RENAMED TO name -> normalized RENAMED FROM name.
- * Used to look up the main-spec block under the old name when a requirement is
- * both renamed and modified in the same delta.
+ * Build a map from folded RENAMED TO name to the original main-spec name.
+ * Renames apply in source order, so a chain such as A -> B -> C maps C back to
+ * A. That is the block a later MODIFIED C replaces.
  */
 export function buildRenameMap(renames: Array<{ from: string; to: string }>): Map<string, string> {
   const map = new Map<string, string>();
   for (const r of renames) {
-    map.set(foldRequirementName(r.to), normalizeRequirementName(r.from));
+    const from = foldRequirementName(r.from);
+    const original = map.get(from) ?? normalizeRequirementName(r.from);
+    map.delete(from);
+    map.set(foldRequirementName(r.to), original);
   }
   return map;
 }

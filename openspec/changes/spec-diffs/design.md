@@ -38,13 +38,13 @@ The delta spec format already categorizes requirements by operation (`## ADDED`,
 
 ### 2. Diff library: `diff` (npm)
 
-**Choice:** Use the `diff` npm package (MIT, ~40KB, zero dependencies, widely used) for the MODIFIED requirement case.
+**Choice:** Use the `diff` npm package (BSD-3-Clause, zero runtime dependencies, about 1 MB unpacked) for the MODIFIED requirement case.
 
 **Alternatives considered:**
 - **Implement from scratch** — Unified diff is well-specified but subtle (context lines, hunk headers). A library avoids bugs and maintenance burden.
 - **Shell out to `diff` command** — Not cross-platform (Windows lacks `diff` by default). Violates the project's cross-platform requirements.
 
-The `diff` package provides `createPatch()` which generates standard unified diff output from two strings.
+The `diff` package provides `structuredPatch()`, which generates structured unified-diff hunks from two strings. OpenSpec renders those hunks without synthetic file headers.
 
 ### 3. Requirement block extraction
 
@@ -53,15 +53,17 @@ The `diff` package provides `createPatch()` which generates standard unified dif
 2. Collecting all lines until the next `###` header at the same or higher level (or EOF)
 3. Including the header line itself in the extracted block
 
-This reuses the section-parsing logic already in `MarkdownParser` but needs a function that returns the raw markdown text (not the parsed `Requirement` object) so the diff is human-readable.
+This reuses `MarkdownParser.extractRequirementsSection()` to limit matching to the requirements section, then scans raw markdown so the diff remains human-readable.
 
-**Matching:** Requirement names are matched case-insensitively and whitespace-insensitively, consistent with how the archive step matches requirements. When a MODIFIED requirement's name matches a RENAMED entry's TO name in the same spec, the base block is looked up using the RENAMED FROM name instead — mirroring the archive step's behavior where RENAMED is applied before MODIFIED.
+**Matching:** Requirement names are matched exactly after trimming. A case- or interior-whitespace-folded match is used only to produce a useful preview together with a warning, because archive matching is exact. When a MODIFIED requirement follows one or more RENAMED entries, the rename lineage resolves back to the original main-spec name.
 
 ### 4. Integration point: `ChangeCommand.show()`
 
 **Choice:** Add diff logic to `ChangeCommand.show()` in `src/commands/change.ts`. When `--diff` is set:
-- In text mode: iterate delta specs, group output by capability, show each requirement with its operation and (for MODIFIED) the colorized diff
-- In JSON mode: add a `diff` field to each MODIFIED delta in the output object
+- Discover delta files with the shared `discoverSpecFiles()` helper and parse each one with `parseDeltaSpec()`
+- In text mode: group output by capability and show each requirement with its operation and, for MODIFIED, the colorized diff
+- In JSON mode: enrich each MODIFIED delta with its available `diff` and `warning` fields
+- Propagate discovery and read failures so an unreadable spec cannot appear as an empty or partial diff
 
 **Alternative:** A separate `openspec diff` command. Rejected because the diff is about *viewing* a change, which is what `show` does. Adding a flag is more discoverable and consistent.
 
@@ -70,9 +72,9 @@ This reuses the section-parsing logic already in `MarkdownParser` but needs a fu
 **Text mode:** Per capability, per requirement:
 - Header: capability name and operation
 - ADDED/REMOVED/RENAMED: display the requirement text as-is (prefixed with operation label)
-- MODIFIED: unified diff of the requirement block, colorized with chalk (green for `+`, red for `-`, dim for headers/context)
+- MODIFIED: unified diff of the requirement block, colorized with chalk (green for `+`, red for `-`, dim for headers/context). A textually identical block prints `(no textual changes)`.
 
-**JSON mode:** `--json --diff` extends the existing `--json` output (same `{ id, title, deltaCount, deltas }` structure). For each MODIFIED delta, a `diff` string field is added containing the raw unified diff text. ADDED/REMOVED/RENAMED deltas are unchanged. This is backwards-compatible: consumers that don't look for `diff` see the same shape they always did.
+**JSON mode:** `--json --diff` extends the existing `--json` output (same `{ id, title, deltaCount, deltas }` structure). A MODIFIED delta receives each diagnostic that applies: `diff`, `warning`, or both. ADDED/REMOVED/RENAMED deltas are unchanged. This is backwards-compatible: consumers that do not request `--diff` receive the existing shape.
 
 ### 6. Flag registration
 
@@ -84,6 +86,7 @@ Add `'diff'` to the `CHANGE_FLAG_KEYS` set in `src/commands/show.ts` so it trigg
 
 ## Risks / Trade-offs
 
-- **\[New dependency\]** Adding `diff` increases the dependency footprint slightly. → The package is small, zero-dep, and MIT. Acceptable for the functionality gained.
-- **\[Requirement name mismatch\]** If a MODIFIED requirement's `### Requirement:` header doesn't match the base spec (after whitespace normalization), the diff can't find the base block. → Fall back to showing the full MODIFIED text with a warning. Note: `openspec validate` does not currently check this — the mismatch is only caught at archive time by `buildUpdatedSpec()`. The `--diff` warning becomes a useful early signal of the problem.
+- **\[New dependency\]** Adding `diff` increases the installed package set by about 1 MB unpacked. → It has no runtime dependencies and uses the BSD-3-Clause license. The lockfile and Nix dependency hash pin the package.
+- **\[Requirement name mismatch\]** If a MODIFIED requirement's `### Requirement:` header does not match the base spec exactly, archive will reject it. → Show a folded near-match diff when possible, but retain a warning in both text and JSON output. Otherwise show the full MODIFIED text with a warning.
+- **\[Unreadable input\]** Suppressing a discovery or read error could produce a misleading partial diff. → Propagate all discovery and delta-read errors, and suppress only `ENOENT` when probing for an absent main spec.
 - **\[Path display on Windows\]** Capability names derived from directory names are platform-safe already. Paths used in diff headers should use forward slashes for readability. → Normalize display paths using `.replace(/\\/g, '/')` for display only; use `path.join()` for all filesystem operations.

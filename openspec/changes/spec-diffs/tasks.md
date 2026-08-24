@@ -4,15 +4,15 @@
 
 ## 2. Requirement block extraction
 
-- [x] 2.1 Create `src/utils/requirement-block.ts` with a function `extractRequirementBlock(specContent: string, requirementName: string): string | null` that finds the `### Requirement: <name>` header (case/whitespace insensitive match) and returns the raw markdown from that header through all content until the next `###` header at the same or higher level (or EOF). Returns null if no match.
+- [x] 2.1 In `src/utils/requirement-diff.ts`, add `extractRequirementBlock(specContent, requirementName): MatchedRequirementBlock | null`. Match exactly first, then report a folded case/whitespace match as inexact, and return raw markdown through the next peer or higher header.
 - [x] 2.2 Add unit tests for `extractRequirementBlock`: exact match, case-insensitive match, whitespace-insensitive match, no match returns null, last requirement in file (no following header), requirement inside code fence is not matched
 
 ## 3. Per-requirement diff utility
 
-- [x] 3.1 In `src/utils/requirement-block.ts`, add function `diffRequirementBlock(baseBlock: string | null, deltaBlock: string, label: string): string` that uses `createPatch` from the `diff` package to produce a unified diff. When `baseBlock` is null, diff against empty string (all additions).
+- [x] 3.1 In `src/utils/requirement-diff.ts`, add `diffRequirementBlock(baseBlock, deltaBlock): string` using `structuredPatch()` from `diff`, rendering only unified-diff hunks.
 - [x] 3.2 Add unit tests: base exists (expect removals + additions), base is null (all additions), identical blocks (empty/minimal diff)
 - [x] 3.3 Add function `buildRenameMap(renames: Array<{ from: string; to: string }>): Map<string, string>` that returns a map from normalized TO name → normalized FROM name, for use when looking up base blocks for MODIFIED requirements that were also renamed
-- [x] 3.4 Add unit tests for `buildRenameMap`: single rename, multiple renames, empty list
+- [x] 3.4 Add unit tests for `buildRenameMap`: single rename, multiple renames, chained renames, empty list
 
 ## 4. CLI flag registration
 
@@ -21,7 +21,7 @@
 
 ## 5. Text mode diff display
 
-- [x] 5.1 In `src/commands/change.ts` `show()` method, when `options.diff` is set and `options.json` is not set: use `ChangeParser.parseDeltaSpecs()` to get deltas grouped by capability, then for each delta: display ADDED (green label + full text), REMOVED (red label + removal notice), RENAMED (cyan label + FROM:/TO:); for MODIFIED, read the base spec, extract the matching requirement block, compute the diff, and print colorized output (green for `+` lines, red for `-` lines, dim for headers/context lines)
+- [x] 5.1 In `src/commands/change.ts` `show()` method, discover files with `discoverSpecFiles()` and parse them with `parseDeltaSpec()`. Display ADDED, REMOVED, and RENAMED content directly; for MODIFIED, read the selected root's main spec, extract the matching block, and print a colorized unified diff.
 - [x] 5.2 Build a rename map from the parsed RENAMED entries for the current spec. For MODIFIED requirements whose normalized name matches a RENAMED TO name, look up the base block using the RENAMED FROM name instead of the MODIFIED name
 - [x] 5.3 Handle the no-delta-specs case: print "No delta specs to diff for change '<name>'" and return (exit code 0)
 - [x] 5.4 Handle the MODIFIED-no-base-match case: print the full MODIFIED requirement text with a warning that no matching base requirement was found
@@ -40,7 +40,7 @@
 - [x] 7.1 Ensure all path operations in new code use `path.join()` or `path.resolve()`; display paths normalize to forward slashes
 - [x] 7.2 Ensure unit tests use `path.join()` for expected path values, not hardcoded slash strings
 - [x] 7.3 Verify all existing tests pass (`pnpm test`)
-- [ ] 7.4 Verify Windows CI passes (no path-separator issues in requirement matching or file discovery)
+- [x] 7.4 Verify Windows CI passes (no path-separator issues in requirement matching or file discovery)
 
 ## 8. Review follow-ups
 
@@ -55,3 +55,8 @@
 - [x] 8.9 Enumerate delta specs with the shared `discoverSpecFiles()` so nested capabilities (`specs/<area>/<id>/spec.md`) are diffed, with a regression test
 - [x] 8.10 Warn instead of rendering all-additions when a MODIFIED requirement's capability has no main spec — that combination is an authoring error archive will reject, not a new capability
 - [x] 8.11 Match requirement headers exactly first and fall back to the shared case/whitespace fold, reporting a folded match as inexact so the diff still shows but the mismatch is named
+- [x] 8.12 Preserve both `diff` and `warning` in JSON when a folded match provides both diagnostics
+- [x] 8.13 Propagate discovery, delta-read, and non-`ENOENT` main-read failures instead of returning partial output
+- [x] 8.14 Resolve chained renames back to the original main requirement
+- [x] 8.15 Distinguish a textually empty MODIFIED diff from a missing main block in text and JSON output
+- [x] 8.16 Document `--diff` in the canonical `docs-lab` CLI reference and leave the legacy CLI page unchanged

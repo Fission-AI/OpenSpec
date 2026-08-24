@@ -35,9 +35,11 @@ The show command SHALL support various output formats consistent with existing c
 - **AND** for RENAMED requirements, display the FROM:/TO: with a cyan "RENAMED" label
 - **AND** for MODIFIED requirements, extract the matching requirement block from the main spec at `openspec/specs/<cap>/spec.md` by `### Requirement:` header name, compute a unified diff of the main block vs the delta block, and display it colorized (green for `+` lines, red for `-` lines, plain for context lines)
 - **AND** when a MODIFIED requirement's name matches a RENAMED entry's TO name in the same spec, the system SHALL look up the main block using the RENAMED entry's FROM name instead
+- **AND** when multiple RENAMED entries form a chain, the system SHALL resolve the MODIFIED name back to the original main requirement
 - **AND** when a MODIFIED requirement's header matches a main requirement only after folding case and interior whitespace, display the diff together with a warning that archive matches names exactly
 - **AND** if a MODIFIED requirement has no matching main requirement (and no corresponding RENAMED entry), display the full text with a warning
 - **AND** if the capability has no main spec at all, display the full text with a warning naming the missing spec, rather than rendering the requirement as an addition
+- **AND** if the MODIFIED block is textually identical to the matching main block, display `(no textual changes)`
 
 #### Scenario: Diff output in JSON mode
 
@@ -48,6 +50,13 @@ The show command SHALL support various output formats consistent with existing c
 - **AND** ADDED, REMOVED, and RENAMED deltas SHALL NOT have a `diff` field
 - **AND** if a MODIFIED requirement has no matching main requirement, or its capability has no main spec, the delta object SHALL include a `warning` string field instead of `diff`
 - **AND** if a MODIFIED requirement matched only after folding case and interior whitespace, the delta object SHALL include both `diff` and `warning`
+- **AND** a textually identical MODIFIED block SHALL include `diff` as an empty string
+
+#### Scenario: Diff input cannot be read
+
+- **WHEN** delta discovery fails, a delta spec cannot be read, or a main spec exists but cannot be read
+- **THEN** the command SHALL exit with an error
+- **AND** the command SHALL NOT present the result as an empty delta set, a missing main spec, or a partial diff
 
 #### Scenario: Diff with no delta specs
 

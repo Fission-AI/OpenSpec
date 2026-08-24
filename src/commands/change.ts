@@ -11,7 +11,7 @@ import { isInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds } from '../utils/item-discovery.js';
 import { getTaskProgressForChange } from '../utils/task-progress.js';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { discoverSpecFiles, type DiscoveredSpec } from '../utils/spec-discovery.js';
+import { discoverSpecFiles } from '../utils/spec-discovery.js';
 import {
   foldRequirementName,
   parseDeltaSpec,
@@ -195,30 +195,21 @@ export class ChangeCommand {
     // Same discovery ChangeParser uses, so a nested capability (specs/<area>/<id>)
     // is diffed rather than silently skipped, and the ids here match the `spec`
     // field of the JSON deltas.
-    let discovered: DiscoveredSpec[];
-    try {
-      discovered = await discoverSpecFiles(specsDir);
-    } catch {
-      return { capabilities: [], results: [] };
-    }
+    const discovered = await discoverSpecFiles(specsDir);
 
     const capabilities = discovered.map(spec => spec.id);
     const results: RequirementDiff[] = [];
 
     for (const { id: capability, specFile: deltaSpecPath } of discovered) {
-      let deltaContent: string;
-      try {
-        deltaContent = await fs.readFile(deltaSpecPath, 'utf-8');
-      } catch {
-        continue;
-      }
+      const deltaContent = await fs.readFile(deltaSpecPath, 'utf-8');
 
       const mainSpecPath = path.join(mainSpecsDir, ...capability.split('/'), 'spec.md');
       let mainContent: string | null = null;
       try {
         FileSystemUtils.assertPathWithin(mainSpecsDir, mainSpecPath);
         mainContent = await fs.readFile(mainSpecPath, 'utf-8');
-      } catch {
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') throw error;
         // No main spec on disk. For ADDED requirements that is the ordinary new
         // capability case; MODIFIED requirements are handled as a mismatch below.
       }
@@ -324,7 +315,8 @@ export class ChangeCommand {
         const entry = entries[i];
         if (entry.diff !== undefined) {
           (modifiedDeltas[i] as DeltaWithDiff).diff = entry.diff;
-        } else if (entry.warning !== undefined) {
+        }
+        if (entry.warning !== undefined) {
           (modifiedDeltas[i] as DeltaWithDiff).warning = entry.warning;
         }
       }
@@ -390,10 +382,12 @@ export class ChangeCommand {
           }
           // A near-miss header carries both: the warning about the mismatch and
           // the diff against the block it almost matched.
-          if (!r.diff) {
+          if (r.diff === undefined) {
             for (const line of r.raw.split('\n')) {
               console.log(`    ${line}`);
             }
+          } else if (r.diff === '') {
+            console.log(chalk.dim('    (no textual changes)'));
           } else {
             for (const line of r.diff.split('\n')) {
               if (line.startsWith('+')) {

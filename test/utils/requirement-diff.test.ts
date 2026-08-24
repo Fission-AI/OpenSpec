@@ -189,6 +189,16 @@ describe('buildRenameMap', () => {
     expect(map.get('delta')).toBe('Charlie');
   });
 
+  it('maps a rename chain back to the original main requirement', () => {
+    const map = buildRenameMap([
+      { from: 'Alpha', to: 'Bravo' },
+      { from: 'Bravo', to: 'Charlie' },
+    ]);
+    expect(map.size).toBe(1);
+    expect(map.get('charlie')).toBe('Alpha');
+    expect(map.has('bravo')).toBe(false);
+  });
+
   it('returns empty map for empty list', () => {
     const map = buildRenameMap([]);
     expect(map.size).toBe(0);

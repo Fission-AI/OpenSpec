@@ -117,13 +117,13 @@ describe('openspec show --diff', () => {
     });
   }
 
-  function runWithStderr(args: string[]): { stdout: string; stderr: string } {
+  function runWithStderr(args: string[]): { stdout: string; stderr: string; status: number | null } {
     const result = spawnSync(process.execPath, [openspecBin, ...args], {
       encoding: 'utf-8',
       cwd: testDir,
       env: { ...process.env, NO_COLOR: '1' },
     });
-    return { stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
+    return { stdout: result.stdout ?? '', stderr: result.stderr ?? '', status: result.status };
   }
 
   // Task 5.5: text mode diff with MODIFIED and ADDED
@@ -266,6 +266,38 @@ describe('openspec show --diff', () => {
     // ...along with the mismatch archive would reject.
     expect(output).toContain('only in case or spacing');
     expect(output).toContain('"User login"');
+
+    const json = JSON.parse(run(['show', 'near-miss', '--type', 'change', '--diff', '--json']));
+    const modified = json.deltas.find((delta: any) => delta.operation === 'MODIFIED');
+    expect(modified.diff).toContain('+The system SHALL allow users to log in with a passkey.');
+    expect(modified.warning).toContain('only in case or spacing');
+  });
+
+  it('propagates delta discovery failures instead of reporting no delta specs', async () => {
+    const changeDir = path.join(changesDir, 'broken-discovery');
+    await fs.mkdir(changeDir, { recursive: true });
+    await fs.writeFile(
+      path.join(changeDir, 'proposal.md'),
+      '## Why\nTest.\n\n## What Changes\n- inspect discovery failures\n',
+      'utf-8'
+    );
+    await fs.writeFile(path.join(changeDir, 'specs'), 'not a directory', 'utf-8');
+
+    const result = runWithStderr(['show', 'broken-discovery', '--type', 'change', '--diff']);
+    expect(result.status).toBe(1);
+    expect(result.stderr).not.toBe('');
+    expect(result.stdout).not.toContain('No delta specs to diff');
+  });
+
+  it('propagates main-spec read failures instead of reporting the spec missing', async () => {
+    const mainSpecPath = path.join(specsDir, 'auth', 'spec.md');
+    await fs.rm(mainSpecPath);
+    await fs.mkdir(mainSpecPath);
+
+    const result = runWithStderr(['show', 'auth-update', '--type', 'change', '--diff']);
+    expect(result.status).toBe(1);
+    expect(result.stderr).not.toBe('');
+    expect(result.stdout).not.toContain('No main spec at');
   });
 
   it('warns instead of inventing a diff when a MODIFIED spec has no main spec', async () => {
@@ -445,6 +477,43 @@ describe('openspec show --diff', () => {
     }
   });
 
+  it('text mode: distinguishes an empty diff from a missing base', async () => {
+    const changeDir = path.join(changesDir, 'unchanged-modification');
+    await fs.mkdir(path.join(changeDir, 'specs', 'auth'), { recursive: true });
+    await fs.writeFile(
+      path.join(changeDir, 'proposal.md'),
+      '## Why\nReview an unchanged block.\n\n## What Changes\n- **auth:** Restate sessions\n',
+      'utf-8'
+    );
+    await fs.writeFile(
+      path.join(changeDir, 'specs', 'auth', 'spec.md'),
+      [
+        '## MODIFIED Requirements',
+        '',
+        '### Requirement: Session management',
+        '',
+        'The system SHALL manage user sessions.',
+        '',
+        '#### Scenario: Session timeout',
+        '- **WHEN** session is idle for 30 minutes',
+        '- **THEN** system expires the session',
+        '',
+      ].join('\n'),
+      'utf-8'
+    );
+
+    const output = run(['show', 'unchanged-modification', '--type', 'change', '--diff']);
+    expect(output).toContain('MODIFIED: Session management');
+    expect(output).toContain('(no textual changes)');
+
+    const json = JSON.parse(
+      run(['show', 'unchanged-modification', '--type', 'change', '--diff', '--json'])
+    );
+    const modified = json.deltas.find((delta: any) => delta.operation === 'MODIFIED');
+    expect(modified.diff).toBe('');
+    expect(modified.warning).toBeUndefined();
+  });
+
   it('JSON mode: --json --diff is backwards-compatible with --json', () => {
     const jsonOnly = JSON.parse(run(['show', 'auth-update', '--type', 'change', '--json']));
     const jsonDiff = JSON.parse(run(['show', 'auth-update', '--type', 'change', '--json', '--diff']));
@@ -560,5 +629,44 @@ describe('openspec show --diff', () => {
     expect(modified.diff).toBeDefined();
     expect(modified.diff).toContain('-The system SHALL manage user sessions.');
     expect(modified.diff).toContain('+The system SHALL manage user sessions with configurable timeout.');
+  });
+
+  it('RENAMED chain plus MODIFIED diffs against the original main name', async () => {
+    const changeDir = path.join(changesDir, 'rename-chain');
+    await fs.mkdir(path.join(changeDir, 'specs', 'auth'), { recursive: true });
+    await fs.writeFile(
+      path.join(changeDir, 'proposal.md'),
+      '## Why\nRename twice.\n\n## What Changes\n- **auth:** Rename session management\n',
+      'utf-8'
+    );
+    await fs.writeFile(
+      path.join(changeDir, 'specs', 'auth', 'spec.md'),
+      [
+        '## RENAMED Requirements',
+        '',
+        'FROM: ### Requirement: Session management',
+        'TO: ### Requirement: Session lifecycle',
+        '',
+        'FROM: ### Requirement: Session lifecycle',
+        'TO: ### Requirement: Session policy',
+        '',
+        '## MODIFIED Requirements',
+        '',
+        '### Requirement: Session policy',
+        '',
+        'The system SHALL manage sessions with a configurable timeout.',
+        '',
+        '#### Scenario: Session timeout',
+        '- **WHEN** the configured timeout elapses',
+        '- **THEN** system expires the session',
+        '',
+      ].join('\n'),
+      'utf-8'
+    );
+
+    const output = run(['show', 'rename-chain', '--type', 'change', '--diff']);
+    expect(output).toContain('-The system SHALL manage user sessions.');
+    expect(output).toContain('+The system SHALL manage sessions with a configurable timeout.');
+    expect(output).not.toContain('No matching main requirement found');
   });
 });
