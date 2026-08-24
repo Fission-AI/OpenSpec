@@ -50,11 +50,11 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getOpsxContinueCommandTemplate: 'e50e50266efa1b8e64ff9b6274ee8254f0a240d6adc1b862d126e2f1c9d3a559',
   getOpsxApplyCommandTemplate: 'e3579ac78f2e2c75fa3d3a7ac7dc3e49c395e96f7323398f0f041d94f8de9bb0',
   getOpsxFfCommandTemplate: 'e603bc0996604e6c17a3140943ea642a32d0fc65565e25424bf956e124c55772',
-  getArchiveChangeSkillTemplate: 'ab9f73a319c73bf66168883ed766e97748460d41599eb8b6f54df4f404885624',
+  getArchiveChangeSkillTemplate: '5eac76fa2e9ae19136b8d4246bb5cfe4e8ac7925f2e253a93c86856b15ce9f16',
   getBulkArchiveChangeSkillTemplate: '93875998cade5322d95b43299fba794bc1da754e917dd63a770406386a6d295d',
   getOpsxSyncCommandTemplate: '382c724044c0532b5174b111cba220d20d4ff6519caad5b1849c1831530d3eb5',
   getVerifyChangeSkillTemplate: '223b7ffd99299a7d430e13092b9a0a3421b39f0d3217232f46c39d79b5f619ff',
-  getOpsxArchiveCommandTemplate: 'fced8b751cbe0654ed56f34c167b627a6113b9353b24bc424e9154549e06a82a',
+  getOpsxArchiveCommandTemplate: '5e754505e7baf80f8c6959a6fa5cacfabc6b50f8bf5ec94428e82095abf5d361',
   getOpsxOnboardCommandTemplate: 'ee99aa99252c602720fbb8c63fb3ac438a5bd4e952fd961ddf1ae956cbfc2c8f',
   getOpsxBulkArchiveCommandTemplate: '9fa8cdebe2f5667ebfc37bdc023396762c59d5b038c771dac2d8fd2c19e2627b',
   getOpsxVerifyCommandTemplate: '1efcf7eff0671f48e9d9420f50865c563dd3079ee60f8c380bb7a90dd0102696',
@@ -72,7 +72,7 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-apply-change': '81ea96d9fa6ec8536cd23c1fe561ed28e1cc1cad0a8ceb700588e08974cc0e49',
   'openspec-ff-change': '217c78da2b6e8358f609ac57dcd02266aaec3354ce26dc6ec2fc9c2174673ab4',
   'openspec-sync-specs': '5fcd207922b55a78b19fbc2872690c104ef83be09f1369de8b4b48778a234d75',
-  'openspec-archive-change': 'f562fb03ce265fed7c27cbf73d452e12db67a963314820a5f403328b1651809a',
+  'openspec-archive-change': '238c6e04cca29ab8b8635bafd39d836b40f8290ccec110a2e6ed1bf8618773bf',
   'openspec-bulk-archive-change': '2039b9ecf6e64339dffe0e16272507a386d9fe326f419ff758315aa736fdd96c',
   'openspec-verify-change': 'af9be013dcbe8c6d8f6d9ab10c893fbd03f4c62933c384d82f63894dd0ceb84f',
   'openspec-onboard': 'f6f59476acaf5e4d65dbb180da4cef62432612f3cecf207d471a951295e2003a',
@@ -509,10 +509,17 @@ describe('skill templates split parity', () => {
       expect(assessStep, variant).toContain('only ADDED requirements can create');
       expect(assessStep, variant).toContain('Never invent a requirement');
       expect(assessStep, variant).toContain('If the delta has no ADDED requirements');
+      expect(assessStep, variant).toContain('report that no sync is possible');
+      expect(assessStep, variant).toContain('For a REMOVED-only delta');
+      expect(assessStep, variant).toContain('leave the main-spec tree unchanged');
       expect(assessStep, variant).toContain('stop instead of prompting to sync');
       expect(assessStep, variant).toContain('Spec must have at least one requirement');
       expect(assessStep, variant).toContain('Otherwise, count the capability as needing sync');
-      expect(assessStep, variant).toContain("creates it from the delta's ADDED requirements");
+      expect(assessStep, variant).toContain('If the delta also has REMOVED requirements');
+      expect(assessStep, variant).toContain('warn that they will be ignored');
+      expect(assessStep, variant).toContain(
+        "creates the main spec from only the delta's ADDED requirements"
+      );
     }
 
     // The sync itself must not invent a requirement that has no base to modify:

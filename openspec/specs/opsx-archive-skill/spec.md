@@ -91,6 +91,8 @@ The skill SHALL prompt to sync delta specs before archiving if specs exist.
 - **THEN** count that capability as needing sync rather than as already synced
 - **AND** name it in the summary as a main spec the sync will create
 - **AND** never treat the missing main spec as nothing to apply
+- **AND** if the delta also has `## REMOVED Requirements`, warn that they will be ignored because there is no main spec to remove them from
+- **AND** create the main spec from only the delta's `## ADDED Requirements`
 
 #### Scenario: Unsupported delta operation whose main spec does not exist yet
 
@@ -103,7 +105,8 @@ The skill SHALL prompt to sync delta specs before archiving if specs exist.
 
 - **WHEN** a delta targets a capability whose main spec does not exist yet
 - **AND** the delta has no `## ADDED Requirements`
-- **THEN** report that nothing can be created
+- **THEN** report that no sync is possible
+- **AND** if the delta has only `## REMOVED Requirements`, warn that there is no main spec to remove them from and leave the main-spec tree unchanged
 - **AND** stop instead of prompting to sync, since the verification pass would re-read the same missing spec
 
 #### Scenario: No delta specs
