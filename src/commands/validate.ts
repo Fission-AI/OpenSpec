@@ -213,7 +213,7 @@ export class ValidateCommand {
   }
 
   private async validateByType(root: ResolvedOpenSpecRoot, type: ItemType, id: string, opts: { strict: boolean; json: boolean }): Promise<void> {
-    const validator = new Validator(opts.strict);
+    const validator = new Validator(opts.strict, root.schemaContext);
     if (type === 'change') {
       const changeDir = path.join(root.changesDir, id);
       const start = Date.now();
@@ -295,7 +295,7 @@ export class ValidateCommand {
     const DEFAULT_CONCURRENCY = 6;
     const maxSuggestions = 5; // used by nearestMatches
     const concurrency = normalizeConcurrency(opts.concurrency) ?? normalizeConcurrency(process.env.OPENSPEC_CONCURRENCY) ?? DEFAULT_CONCURRENCY;
-    const validator = new Validator(opts.strict);
+    const validator = new Validator(opts.strict, root.schemaContext);
     const queue: Array<() => Promise<BulkItemResult>> = [];
 
     for (const id of changeIds) {
@@ -468,7 +468,13 @@ export class ValidateCommand {
         // The explicit root.path override is load-bearing: an archived change
         // lives one directory deeper (changes/archive/<id>), so the default
         // "../../.." projectRoot derivation would be wrong without it.
-        const progress = await getTaskProgressDetailForChange(root.archiveDir, id, root.path, schemaGlobCache);
+        const progress = await getTaskProgressDetailForChange(
+          root.archiveDir,
+          id,
+          root.path,
+          schemaGlobCache,
+          root.schemaContext
+        );
         // A tasks file that exists but cannot be read must fail loudly, not be
         // silently counted as "no tasks" and pass. Report one issue per file,
         // pathed like every other validate issue (POSIX, root-relative).

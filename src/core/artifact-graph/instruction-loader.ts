@@ -1,6 +1,11 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { getSchemaDir, resolveSchema, listSchemasWithInfo } from './resolver.js';
+import {
+  getSchemaDir,
+  resolveSchema,
+  listSchemasWithInfo,
+  type SchemaResolutionTarget,
+} from './resolver.js';
 import { ArtifactGraph } from './graph.js';
 import { detectCompleted } from './state.js';
 import {
@@ -55,6 +60,8 @@ export interface ChangeContext {
   changeDir: string;
   /** Project root directory */
   projectRoot: string;
+  /** Project or schema Store authority used throughout this loaded context. */
+  schemaTarget: SchemaResolutionTarget;
   /** Resolved planning home for this change */
   planningHome?: PlanningHome;
   /** Parsed change metadata, when present */
@@ -72,6 +79,8 @@ export interface LoadChangeContextOptions {
   planningHome?: PlanningHome;
   /** Pre-read project config; suppresses schema resolution's fallback config read. */
   projectConfig?: ProjectConfig | null;
+  /** Project or schema Store authority for schema and template resolution. */
+  schemaTarget?: SchemaResolutionTarget;
 }
 
 /**
@@ -207,9 +216,9 @@ export interface ArtifactPathSummary {
 export function loadTemplate(
   schemaName: string,
   templatePath: string,
-  projectRoot?: string
+  schemaTarget?: SchemaResolutionTarget
 ): string {
-  const schemaDir = getSchemaDir(schemaName, projectRoot);
+  const schemaDir = getSchemaDir(schemaName, schemaTarget);
   if (!schemaDir) {
     throw new TemplateLoadError(
       `Schema '${schemaName}' not found`,
@@ -272,13 +281,15 @@ export function loadChangeContext(
     options.changeDir ?? path.join(projectRoot, 'openspec', 'changes', changeName)
   );
 
-  const metadata = readChangeMetadata(changeDir, projectRoot) ?? undefined;
+  const schemaTarget = options.schemaTarget ?? projectRoot;
+  const metadata = readChangeMetadata(changeDir, schemaTarget) ?? undefined;
   const resolvedSchemaName = resolveSchemaForChange(changeDir, schemaName, projectRoot, {
     metadata: metadata ?? null,
     projectConfig: options.projectConfig,
+    schemaTarget,
   });
 
-  const schema = resolveSchema(resolvedSchemaName, projectRoot);
+  const schema = resolveSchema(resolvedSchemaName, schemaTarget);
   const graph = ArtifactGraph.fromSchema(schema);
   const completed = detectCompleted(graph, changeDir);
 
@@ -303,6 +314,7 @@ export function loadChangeContext(
     changeName,
     changeDir,
     projectRoot,
+    schemaTarget,
     ...(options.planningHome ? { planningHome: options.planningHome } : {}),
     ...(metadata ? { metadata } : {}),
     ...(skippedArtifacts.size > 0 ? { skippedArtifacts } : {}),
@@ -341,7 +353,11 @@ export function generateInstructions(
     throw new Error(`Artifact '${artifactId}' not found in schema '${context.schemaName}'`);
   }
 
-  const templateContent = loadTemplate(context.schemaName, artifact.template, context.projectRoot);
+  const templateContent = loadTemplate(
+    context.schemaName,
+    artifact.template,
+    context.schemaTarget
+  );
   const dependencies = getDependencyInfo(artifact, context.graph, context.completed, context.skippedArtifacts);
   const unlocks = getUnlockedArtifacts(context.graph, artifactId);
 
@@ -363,7 +379,7 @@ export function generateInstructions(
   // key is only "unknown" when it matches no artifact in ANY available schema.
   if (projectConfig?.rules) {
     const validArtifactIds = new Set(
-      listSchemasWithInfo(effectiveProjectRoot ?? undefined).flatMap((s) => s.artifacts)
+      listSchemasWithInfo(context.schemaTarget).flatMap((s) => s.artifacts)
     );
     const warnings = validateConfigRules(projectConfig.rules, validArtifactIds);
 
@@ -458,7 +474,7 @@ export function formatChangeStatus(
   options: { storeId?: string } = {}
 ): ChangeStatus {
   // Load schema to get apply phase configuration
-  const schema = resolveSchema(context.schemaName, context.projectRoot);
+  const schema = resolveSchema(context.schemaName, context.schemaTarget);
   const applyRequires = schema.apply?.requires ?? schema.artifacts.map(a => a.id);
 
   const artifacts = context.graph.getAllArtifacts();

@@ -2,6 +2,8 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import type { Artifact, SchemaYaml } from '../core/artifact-graph/index.js';
 import { resolveArtifactOutputs, resolveSchema } from '../core/artifact-graph/index.js';
+import type { SchemaResolutionTarget } from '../core/artifact-graph/index.js';
+import type { ProjectConfig } from '../core/project-config.js';
 import { resolveSchemaForChange } from './change-metadata.js';
 
 /**
@@ -100,12 +102,17 @@ export type SchemaGlobCache = Map<string, string | undefined>;
 function resolveTrackedTasksGlob(
   changeDir: string,
   projectRoot: string,
+  schemaTarget: SchemaResolutionTarget = projectRoot,
+  projectConfig?: ProjectConfig | null,
   schemaGlobCache?: SchemaGlobCache
 ): string | undefined {
   try {
-    const schemaName = resolveSchemaForChange(changeDir, undefined, projectRoot);
+    const schemaName = resolveSchemaForChange(changeDir, undefined, projectRoot, {
+      schemaTarget,
+      ...(projectConfig !== undefined ? { projectConfig } : {}),
+    });
     if (schemaGlobCache?.has(schemaName)) return schemaGlobCache.get(schemaName);
-    const schema = resolveSchema(schemaName, projectRoot);
+    const schema = resolveSchema(schemaName, schemaTarget);
     const generates = findTrackedTasksArtifact(schema)?.generates;
     schemaGlobCache?.set(schemaName, generates);
     return generates;
@@ -118,9 +125,17 @@ function resolveTrackedTasksGlob(
 export function resolveTaskFilesForChange(
   changeDir: string,
   projectRoot: string,
-  schemaGlobCache?: SchemaGlobCache
+  schemaGlobCache?: SchemaGlobCache,
+  schemaTarget: SchemaResolutionTarget = projectRoot,
+  projectConfig?: ProjectConfig | null
 ): string[] {
-  const generates = resolveTrackedTasksGlob(changeDir, projectRoot, schemaGlobCache);
+  const generates = resolveTrackedTasksGlob(
+    changeDir,
+    projectRoot,
+    schemaTarget,
+    projectConfig,
+    schemaGlobCache
+  );
   return generates ? resolveArtifactOutputs(changeDir, generates) : [];
 }
 
@@ -169,10 +184,18 @@ export async function getTaskProgressDetailForChange(
   changesDir: string,
   changeName: string,
   projectRoot: string,
-  schemaGlobCache?: SchemaGlobCache
+  schemaGlobCache?: SchemaGlobCache,
+  schemaTarget: SchemaResolutionTarget = projectRoot,
+  projectConfig?: ProjectConfig | null
 ): Promise<TaskProgressDetail> {
   const changeDir = path.join(changesDir, changeName);
-  const files = resolveTaskFilesForChange(changeDir, projectRoot, schemaGlobCache);
+  const files = resolveTaskFilesForChange(
+    changeDir,
+    projectRoot,
+    schemaGlobCache,
+    schemaTarget,
+    projectConfig
+  );
   const targets = files.length > 0 ? files : [path.join(changeDir, 'tasks.md')];
   const unreadable: string[] = [];
   let total = 0;
@@ -195,12 +218,17 @@ export async function getTaskProgressDetailForChange(
 export async function getTaskProgressForChange(
   changesDir: string,
   changeName: string,
-  projectRoot: string
+  projectRoot: string,
+  schemaTarget: SchemaResolutionTarget = projectRoot,
+  projectConfig?: ProjectConfig | null
 ): Promise<TaskProgress> {
   const { total, completed } = await getTaskProgressDetailForChange(
     changesDir,
     changeName,
-    projectRoot
+    projectRoot,
+    undefined,
+    schemaTarget,
+    projectConfig
   );
   return { total, completed };
 }
@@ -210,5 +238,3 @@ export function formatTaskStatus(progress: TaskProgress): string {
   if (progress.completed === progress.total) return '✓ Complete';
   return `${progress.completed}/${progress.total} tasks`;
 }
-
-

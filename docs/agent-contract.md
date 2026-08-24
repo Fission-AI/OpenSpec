@@ -138,5 +138,5 @@ Recorded by the capstone audit; published-key renames are product decisions defe
 4. Four parallel envelope type declarations exist in src; archive diagnostics never carry `target`.
 5. `list --json` reuses the `status` key as a string enum per change.
 6. Only `validate` output carries a `version` field.
-7. `templates` ignores root selection (cwd-based, no `--store`).
+7. `schemas` accepts `--store`; `templates` does not. Both resolve schema authority from the selected consumer config, including its `schemaStore`.
 8. Deprecated noun forms (`change`/`spec` subcommands) emit unenveloped payloads without `root`/`status`.

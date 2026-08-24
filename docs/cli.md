@@ -372,6 +372,24 @@ store: team-context
 
 Normal commands then resolve to the declared store automatically; the root banner and JSON `root` block report `source: "declared"` with the store id, and printed hints still carry `--store <id>`. The declaration is a fallback, never an override: explicit `--store` always wins, and a directory with real planning folders ignores the pointer (with a warning). To convert a pointer repo into a local OpenSpec root, remove the `store:` line and run `openspec init` — init refuses to scaffold while the declaration is present.
 
+Select a registered Store as the schema and template source without changing
+the planning root:
+
+```yaml
+schema: qeda-sdd
+schemaStore:
+  id: department-schemas
+  schemas: [qeda-sdd, frontend-sdd]
+```
+
+`schemaStore: department-schemas`, an omitted `schemas` field, and
+`schemas: ["*"]` all expose every schema. An exact list exposes only those
+Store schemas; hidden names can still fall back to user or package schemas.
+Schema Store entries take precedence over user and package entries, and replace
+consumer-local schemas while configured. `schemas`, `schema which`, schema
+validation/forking, templates, and workflow commands all apply the same filter.
+JSON source reporting uses `source: "store"` plus `storeId`.
+
 A machine-level variant covers every repo at once: `openspec config set defaultStore <id>` (see Configuration). It is consulted only after `--store`, a local root, and a project pointer have all failed to resolve; the root banner and JSON `root` block then report `source: "global_default"`.
 
 ## Doctor (relationship health)
@@ -947,6 +965,10 @@ Commands for creating and managing custom workflow schemas.
 
 Create a new project-local schema.
 
+This command refuses to create an invisible project-local schema when
+`schemaStore` is configured. Edit the registered Schema Store directly, or
+remove `schemaStore` first.
+
 ```
 openspec schema init <name> [options]
 ```
@@ -998,6 +1020,10 @@ openspec/schemas/<name>/
 ### `openspec schema fork`
 
 Copy an existing schema to your project for customization.
+
+This command refuses to create an invisible project-local schema when
+`schemaStore` is configured. Edit the registered Schema Store directly, or
+remove `schemaStore` first.
 
 ```
 openspec schema fork <source> [name] [options]

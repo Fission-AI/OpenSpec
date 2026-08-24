@@ -9,6 +9,8 @@ import type { RootOutput } from '../core/root-selection.js';
 import { isInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds } from '../utils/item-discovery.js';
 import { getTaskProgressForChange } from '../utils/task-progress.js';
+import type { SchemaResolutionTarget } from '../core/artifact-graph/index.js';
+import type { ProjectConfig } from '../core/project-config.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 
 /**
@@ -35,12 +37,20 @@ function isChangeDirectoryName(changesPath: string, changeDir: string): boolean 
 export class ChangeCommand {
   private converter: JsonConverter;
   private rootPath?: string;
+  private schemaTarget?: SchemaResolutionTarget;
+  private projectConfig?: ProjectConfig | null;
 
-  // rootPath is set only by root-aware callers (top-level `show`); the
-  // deprecated noun-form commands stay cwd-based.
-  constructor(rootPath?: string) {
+  // rootPath and schemaTarget let both verb-first and deprecated noun-form
+  // callers use the same planning and schema authorities.
+  constructor(
+    rootPath?: string,
+    schemaTarget?: SchemaResolutionTarget,
+    projectConfig?: ProjectConfig | null
+  ) {
     this.converter = new JsonConverter();
     this.rootPath = rootPath;
+    this.schemaTarget = schemaTarget;
+    this.projectConfig = projectConfig;
   }
 
   private getChangesPath(): string {
@@ -145,12 +155,13 @@ export class ChangeCommand {
    * - JSON: array of { id, title, deltaCount, taskStatus }, sorted by id
    */
   async list(options?: { json?: boolean; long?: boolean }): Promise<void> {
-    const changesPath = path.join(process.cwd(), 'openspec', 'changes');
+    const projectRoot = this.rootPath ?? process.cwd();
+    const changesPath = this.getChangesPath();
     
     // Same directory-based resolution as `openspec list`, the command this
     // deprecated alias points users at. Every output path below already
     // tolerates a change whose proposal.md is missing or unreadable.
-    const changes = await getActiveChangeIds();
+    const changes = await getActiveChangeIds(projectRoot);
 
     if (options?.json) {
       const changeDetails = await Promise.all(
@@ -162,7 +173,13 @@ export class ChangeCommand {
           // this deprecated noun-form list cannot re-fork the resolution
           // (#1202). Tasks are independent of the proposal: a change can carry
           // tasks before, or without, a proposal.md.
-          const taskStatus = await getTaskProgressForChange(changesPath, changeName, process.cwd());
+          const taskStatus = await getTaskProgressForChange(
+            changesPath,
+            changeName,
+            projectRoot,
+            this.schemaTarget ?? projectRoot,
+            this.projectConfig
+          );
 
           // No proposal yet is an ordinary state (scaffolded change, or a
           // schema with no proposal artifact), so name the change rather than
@@ -208,7 +225,13 @@ export class ChangeCommand {
       for (const changeName of sorted) {
         const changeDir = path.join(changesPath, changeName);
         const proposalPath = path.join(changeDir, 'proposal.md');
-        const { total, completed } = await getTaskProgressForChange(changesPath, changeName, process.cwd());
+        const { total, completed } = await getTaskProgressForChange(
+          changesPath,
+          changeName,
+          projectRoot,
+          this.schemaTarget ?? projectRoot,
+          this.projectConfig
+        );
         const taskStatusText = total > 0 ? ` [tasks ${completed}/${total}]` : '';
         if (await isDefinitelyMissing(proposalPath)) {
           console.log(`${changeName}: (no proposal.md yet)${taskStatusText}`);
@@ -230,11 +253,12 @@ export class ChangeCommand {
   }
 
   async validate(changeName?: string, options?: { strict?: boolean; json?: boolean; noInteractive?: boolean }): Promise<void> {
-    const changesPath = path.join(process.cwd(), 'openspec', 'changes');
+    const projectRoot = this.rootPath ?? process.cwd();
+    const changesPath = this.getChangesPath();
     
     if (!changeName) {
       const canPrompt = isInteractive(options);
-      const changes = await getActiveChangeIds();
+      const changes = await getActiveChangeIds(projectRoot);
       if (canPrompt && changes.length > 0) {
         const { select } = await import('@inquirer/prompts');
         const selected = await select({
@@ -264,7 +288,7 @@ export class ChangeCommand {
       throw new Error(`Change "${changeName}" not found at ${changeDir}`);
     }
     
-    const validator = new Validator(options?.strict || false);
+    const validator = new Validator(options?.strict || false, this.schemaTarget);
     const report = await validator.validateChangeDeltaSpecs(changeDir, {
       // Derived from changesPath so the main specs come from the same root the
       // change itself was resolved against.

@@ -24,7 +24,13 @@ import {
   type SpecUpdate,
 } from './specs-apply.js';
 import { discoverSpecFiles, hasAnyFileUnder } from '../utils/spec-discovery.js';
-import { METADATA_FILENAME, readRetireCapabilitiesMarker, readSkipSpecsMarker } from '../utils/change-metadata.js';
+import { type ProjectConfig } from './project-config.js';
+import { readResolvedProjectConfig } from './root-selection.js';
+import {
+  METADATA_FILENAME,
+  readRetireCapabilitiesMarker,
+  readSkipSpecsMarker,
+} from '../utils/change-metadata.js';
 import { confirmPrompt, isNonInteractivePromptError } from '../utils/interactive.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { folderStyleNameProblem } from './id.js';
@@ -794,12 +800,16 @@ async function fingerprintPortableContent(filePath: string): Promise<string> {
 async function assertRetirementAuthorization(
   changeDir: string,
   expectedFingerprint: string,
-  options: { verifyMarker?: boolean } = {}
+  options: {
+    verifyMarker?: boolean;
+    schemaTarget?: ResolvedOpenSpecRoot['schemaContext'];
+  } = {}
 ): Promise<void> {
   const metadataPath = path.join(changeDir, METADATA_FILENAME);
   const before = await fingerprintPortableContent(metadataPath);
   const markerStillDeclared =
-    options.verifyMarker === false || readRetireCapabilitiesMarker(changeDir).declared;
+    options.verifyMarker === false ||
+    readRetireCapabilitiesMarker(changeDir, options.schemaTarget).declared;
   const after = await fingerprintPortableContent(metadataPath);
   if (
     before !== expectedFingerprint ||
@@ -1114,6 +1124,7 @@ export class ArchiveCommand {
     const changesDir = root.changesDir;
     const archiveDir = root.archiveDir;
     const mainSpecsDir = root.specsDir;
+    const projectConfig = readResolvedProjectConfig(root);
 
     for (const [allowedDirectory, managedDir] of [
       [root.path, changesDir],
@@ -1139,7 +1150,12 @@ export class ArchiveCommand {
           withStoreFlag(root, 'openspec archive <change-name> --json')
         );
       }
-      const selectedChange = await this.selectChange(changesDir, root, options);
+      const selectedChange = await this.selectChange(
+        changesDir,
+        root,
+        options,
+        projectConfig
+      );
       if (!selectedChange) {
         console.log('No change selected. Aborting.');
         return null;
@@ -1181,7 +1197,7 @@ export class ArchiveCommand {
 
     // Validate specs and change before archiving
     if (!skipValidation) {
-      const validator = new Validator();
+      const validator = new Validator(false, root.schemaContext);
       let hasValidationErrors = false;
 
       // Validate proposal.md (informative only; human mode prints warnings)
@@ -1237,7 +1253,7 @@ export class ArchiveCommand {
       // proposal warnings — a gap that predates the marker and is left
       // unchanged here.)
       if (!hasDeltaSpecs) {
-        const marker = readSkipSpecsMarker(changeDir);
+        const marker = readSkipSpecsMarker(changeDir, root.schemaContext);
         if (marker.invalidReason) {
           hasDeltaSpecs = true;
         } else if (marker.declared) {
@@ -1332,7 +1348,13 @@ export class ArchiveCommand {
     }
 
     // Show progress and check for incomplete tasks
-    const progress = await getTaskProgressForChange(changesDir, changeName, path.resolve(changesDir, '..', '..'));
+    const progress = await getTaskProgressForChange(
+      changesDir,
+      changeName,
+      root.path,
+      root.schemaContext,
+      projectConfig
+    );
     if (!json) {
       const status = formatTaskStatus(progress);
       console.log(`Task status: ${status}`);
@@ -1387,7 +1409,10 @@ export class ArchiveCommand {
     // retire a capability at all. An unhonorable marker counts as undeclared,
     // exactly as skip_specs treats one, so metadata the rest of the CLI rejects
     // can never authorise a deletion.
-    const retirementMarker = readRetireCapabilitiesMarker(changeDir);
+    const retirementMarker = readRetireCapabilitiesMarker(
+      changeDir,
+      root.schemaContext
+    );
     const retirementDeclared = retirementMarker.declared;
     const retirementAuthorizationFingerprint = retirementDeclared
       ? await fingerprintPortableContent(path.join(changeDir, METADATA_FILENAME))
@@ -1516,7 +1541,10 @@ export class ArchiveCommand {
           // delete a requirement added while the prompt was waiting.
           if (prepareError === undefined) {
             try {
-              const currentRetirementMarker = readRetireCapabilitiesMarker(changeDir);
+              const currentRetirementMarker = readRetireCapabilitiesMarker(
+                changeDir,
+                root.schemaContext
+              );
               if (
                 currentRetirementMarker.declared !== retirementMarker.declared ||
                 currentRetirementMarker.invalidReason !== retirementMarker.invalidReason
@@ -1595,7 +1623,10 @@ export class ArchiveCommand {
               // so re-reporting that one error would just abort the fix (#1302).
               if (p.outcome !== 'write') continue;
               const specName = p.update.id;
-              const report = await new Validator().validateSpecContent(specName, p.rebuilt);
+              const report = await new Validator(
+                false,
+                root.schemaContext
+              ).validateSpecContent(specName, p.rebuilt);
               if (!report.valid) {
                 // This run is what emptied the capability, and "no
                 // requirements" is the only thing wrong with the spec that
@@ -1779,7 +1810,8 @@ export class ArchiveCommand {
                   }
                   await assertRetirementAuthorization(
                     changeDir,
-                    retirementAuthorizationFingerprint
+                    retirementAuthorizationFingerprint,
+                    { schemaTarget: root.schemaContext }
                   );
                   if (
                     (await fingerprintSpecInputs(p.update)) !==
@@ -1794,7 +1826,8 @@ export class ArchiveCommand {
                 verifyDisplaced: async (displacedPath) => {
                   await assertRetirementAuthorization(
                     changeDir,
-                    retirementAuthorizationFingerprint!
+                    retirementAuthorizationFingerprint!,
+                    { schemaTarget: root.schemaContext }
                   );
                   if (
                     (await fingerprintMovablePath(displacedPath)) !==
@@ -1915,7 +1948,8 @@ export class ArchiveCommand {
             if (hasRetirements) {
               await assertRetirementAuthorization(
                 changeDir,
-                retirementAuthorizationFingerprint!
+                retirementAuthorizationFingerprint!,
+                { schemaTarget: root.schemaContext }
               );
             }
             const verifyArchivedDeltas = async (
@@ -1934,7 +1968,8 @@ export class ArchiveCommand {
                 if (stagedSource) {
                   await assertRetirementAuthorization(
                     stagedSource,
-                    retirementAuthorizationFingerprint!
+                    retirementAuthorizationFingerprint!,
+                    { schemaTarget: root.schemaContext }
                   );
                 }
               }
@@ -2060,7 +2095,8 @@ export class ArchiveCommand {
   private async selectChange(
     changesDir: string,
     root: ResolvedOpenSpecRoot,
-    options: ArchiveOptions
+    options: ArchiveOptions,
+    projectConfig: ProjectConfig | null
   ): Promise<string | null> {
     const { select } = await import('@inquirer/prompts');
     const changeDirs = await listActiveChangeNames(changesDir);
@@ -2088,7 +2124,13 @@ export class ArchiveCommand {
     try {
       const progressList: Array<{ id: string; status: string }> = [];
       for (const id of changeDirs) {
-        const progress = await getTaskProgressForChange(changesDir, id, path.resolve(changesDir, '..', '..'));
+        const progress = await getTaskProgressForChange(
+          changesDir,
+          id,
+          root.path,
+          root.schemaContext,
+          projectConfig
+        );
         const status = formatTaskStatus(progress);
         progressList.push({ id, status });
       }

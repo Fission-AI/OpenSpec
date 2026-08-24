@@ -9,6 +9,7 @@ import chalk from 'chalk';
 import path from 'path';
 import * as fs from 'fs';
 import { getSchemaDir, listSchemas } from '../../core/artifact-graph/index.js';
+import type { SchemaResolutionTarget } from '../../core/artifact-graph/index.js';
 import type { ReferenceIndexEntry } from '../../core/references.js';
 import { isRootSelectionError } from '../../core/root-selection.js';
 
@@ -232,10 +233,13 @@ export async function validateChangeExists(
  * @param schemaName - The schema name to validate
  * @param projectRoot - Optional project root for project-local schema resolution
  */
-export function validateSchemaExists(schemaName: string, projectRoot?: string): string {
-  const schemaDir = getSchemaDir(schemaName, projectRoot);
+export function validateSchemaExists(
+  schemaName: string,
+  schemaTarget?: SchemaResolutionTarget
+): string {
+  const schemaDir = getSchemaDir(schemaName, schemaTarget);
   if (!schemaDir) {
-    const availableSchemas = listSchemas(projectRoot);
+    const availableSchemas = listSchemas(schemaTarget);
     throw new Error(
       `Schema '${schemaName}' not found. Available schemas:\n  ${availableSchemas.join('\n  ')}`
     );

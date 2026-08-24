@@ -6,6 +6,43 @@ import { FileSystemUtils } from '../../utils/file-system.js';
 import { parseSchema, SchemaValidationError } from './schema.js';
 import type { SchemaYaml } from './types.js';
 
+export interface SchemaResolutionContext {
+  /** Project or registered Store root whose openspec/schemas directory is used. */
+  root: string;
+  source: 'project' | 'store';
+  storeId?: string;
+  visibleSchemas: '*' | readonly string[];
+}
+
+export type SchemaResolutionTarget = string | SchemaResolutionContext;
+
+function toSchemaContext(
+  target?: SchemaResolutionTarget
+): SchemaResolutionContext | undefined {
+  if (target === undefined) {
+    return undefined;
+  }
+  if (typeof target === 'string') {
+    return {
+      root: target,
+      source: 'project',
+      visibleSchemas: '*',
+    };
+  }
+  return target;
+}
+
+function isVisibleFromPrimarySource(
+  name: string,
+  context: SchemaResolutionContext
+): boolean {
+  return (
+    context.source === 'project' ||
+    context.visibleSchemas === '*' ||
+    context.visibleSchemas.includes(name)
+  );
+}
+
 /**
  * Error thrown when loading a schema fails.
  */
@@ -126,7 +163,7 @@ function getSchemaCandidateDir(schemasDir: string, name: string): string | null 
  */
 export function getSchemaDir(
   name: string,
-  projectRoot?: string
+  target?: SchemaResolutionTarget
 ): string | null {
   if (
     name.length === 0 ||
@@ -140,9 +177,11 @@ export function getSchemaDir(
     return null;
   }
 
-  // 1. Check project-local directory (if projectRoot provided)
-  if (projectRoot) {
-    const projectDir = getSchemaCandidateDir(getProjectSchemasDir(projectRoot), name);
+  const context = toSchemaContext(target);
+
+  // 1. Check the active project layer (local project or configured schema Store).
+  if (context && isVisibleFromPrimarySource(name, context)) {
+    const projectDir = getSchemaCandidateDir(getProjectSchemasDir(context.root), name);
     if (projectDir) {
       return projectDir;
     }
@@ -179,13 +218,16 @@ export function getSchemaDir(
  * @returns The resolved schema object
  * @throws Error if schema is not found in any location
  */
-export function resolveSchema(name: string, projectRoot?: string): SchemaYaml {
+export function resolveSchema(
+  name: string,
+  target?: SchemaResolutionTarget
+): SchemaYaml {
   // Normalize name (remove .yaml extension if provided)
   const normalizedName = name.replace(/\.ya?ml$/, '');
 
-  const schemaDir = getSchemaDir(normalizedName, projectRoot);
+  const schemaDir = getSchemaDir(normalizedName, target);
   if (!schemaDir) {
-    const availableSchemas = listSchemas(projectRoot);
+    const availableSchemas = listSchemas(target);
     throw new Error(
       `Schema '${normalizedName}' not found. Available schemas: ${availableSchemas.join(', ')}`
     );
@@ -231,8 +273,9 @@ export function resolveSchema(name: string, projectRoot?: string): SchemaYaml {
  *
  * @param projectRoot - Optional project root directory for project-local schema resolution
  */
-export function listSchemas(projectRoot?: string): string[] {
+export function listSchemas(target?: SchemaResolutionTarget): string[] {
   const schemas = new Set<string>();
+  const context = toSchemaContext(target);
 
   // Add package built-in schemas
   const packageDir = getPackageSchemasDir();
@@ -260,12 +303,15 @@ export function listSchemas(projectRoot?: string): string[] {
     }
   }
 
-  // Add project-local schemas (if projectRoot provided)
-  if (projectRoot) {
-    const projectDir = getProjectSchemasDir(projectRoot);
+  // Add schemas from the active project layer (project or schema Store).
+  if (context) {
+    const projectDir = getProjectSchemasDir(context.root);
     if (fs.existsSync(projectDir)) {
       for (const entry of fs.readdirSync(projectDir, { withFileTypes: true })) {
-        if (isSchemaDir(projectDir, entry)) {
+        if (
+          isVisibleFromPrimarySource(entry.name, context) &&
+          isSchemaDir(projectDir, entry)
+        ) {
           const schemaPath = path.join(projectDir, entry.name, 'schema.yaml');
           if (fs.existsSync(schemaPath)) {
             schemas.add(entry.name);
@@ -285,7 +331,8 @@ export interface SchemaInfo {
   name: string;
   description: string;
   artifacts: string[];
-  source: 'project' | 'user' | 'package';
+  source: 'project' | 'store' | 'user' | 'package';
+  storeId?: string;
 }
 
 /**
@@ -294,16 +341,22 @@ export interface SchemaInfo {
  *
  * @param projectRoot - Optional project root directory for project-local schema resolution
  */
-export function listSchemasWithInfo(projectRoot?: string): SchemaInfo[] {
+export function listSchemasWithInfo(
+  target?: SchemaResolutionTarget
+): SchemaInfo[] {
   const schemas: SchemaInfo[] = [];
   const seenNames = new Set<string>();
+  const context = toSchemaContext(target);
 
-  // Add project-local schemas first (highest priority, if projectRoot provided)
-  if (projectRoot) {
-    const projectDir = getProjectSchemasDir(projectRoot);
+  // Add the active project layer first (local project or schema Store).
+  if (context) {
+    const projectDir = getProjectSchemasDir(context.root);
     if (fs.existsSync(projectDir)) {
       for (const entry of fs.readdirSync(projectDir, { withFileTypes: true })) {
-        if (isSchemaDir(projectDir, entry)) {
+        if (
+          isVisibleFromPrimarySource(entry.name, context) &&
+          isSchemaDir(projectDir, entry)
+        ) {
           const schemaPath = path.join(projectDir, entry.name, 'schema.yaml');
           if (fs.existsSync(schemaPath)) {
             try {
@@ -312,7 +365,10 @@ export function listSchemasWithInfo(projectRoot?: string): SchemaInfo[] {
                 name: entry.name,
                 description: schema.description || '',
                 artifacts: schema.artifacts.map((a) => a.id),
-                source: 'project',
+                source: context.source,
+                ...(context.source === 'store' && context.storeId
+                  ? { storeId: context.storeId }
+                  : {}),
               });
               seenNames.add(entry.name);
             } catch {
