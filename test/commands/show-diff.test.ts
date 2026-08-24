@@ -132,6 +132,9 @@ describe('openspec show --diff', () => {
 
     // Proposal should appear first
     expect(output).toContain('Improve auth.');
+    expect(output.indexOf('Improve auth.')).toBeLessThan(
+      output.indexOf('Specifications Changed (diffs)')
+    );
 
     // MODIFIED should show unified diff with changes
     expect(output).toContain('MODIFIED: User login');
@@ -570,6 +573,9 @@ describe('openspec show --diff', () => {
 
     // Proposal shown first
     expect(output).toContain('Rename.');
+    expect(output.indexOf('Rename.')).toBeLessThan(
+      output.indexOf('Specifications Changed (diffs)')
+    );
 
     // RENAMED should appear
     expect(output).toContain('RENAMED: Session management');
