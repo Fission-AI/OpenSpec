@@ -122,7 +122,9 @@ ${commandCompletions}`;
     const description = this.escapeDescription(flag.description);
     const shortFlag = flag.short ? `-s ${flag.short} ` : '';
     const flagOptions = `${shortFlag}-l ${flag.name}`;
-    const fileFallback = flag.completionType === 'path' ? '-r' : '-r -f';
+    // Applicable sibling rules suppress files with -f. Path-valued options must
+    // explicitly restore filesystem completion; -r only requires an argument.
+    const fileFallback = flag.completionType === 'path' ? '-r -F' : '-r -f';
 
     if (flag.takesValue && flag.values) {
       for (const value of flag.values) {

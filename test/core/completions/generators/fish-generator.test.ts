@@ -163,7 +163,7 @@ describe('FishGenerator', () => {
       expect(script).toContain("-r -f");
     });
 
-    it('should allow file completion for path flags', () => {
+    it('should force file completion for path flags when sibling rules suppress it', () => {
       const commands: CommandDefinition[] = [
         {
           name: 'store',
@@ -190,15 +190,19 @@ describe('FishGenerator', () => {
       const pathLine = completionLine(script, '-l path');
 
       expect(pathLine).toContain('-r');
+      expect(pathLine).toContain('-F');
       expect(pathLine).not.toContain('-f');
     });
 
-    it('should preserve path completion for registry-backed workset members', () => {
+    it('should force path completion for every registry-backed path flag', () => {
       const script = generator.generate(COMMAND_REGISTRY);
-      const memberLine = completionLine(script, '-l member');
 
-      expect(memberLine).toContain('-r');
-      expect(memberLine).not.toContain('-f');
+      for (const flag of ['path', 'code-workspace', 'member']) {
+        const line = completionLine(script, `-l ${flag}`);
+        expect(line).toContain('-r');
+        expect(line).toContain('-F');
+        expect(line).not.toContain('-f');
+      }
     });
 
     it('should not use -r flag for boolean flags', () => {
