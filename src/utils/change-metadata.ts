@@ -258,6 +258,19 @@ export function readRetireCapabilitiesMarker(changeDir: string): MetadataMarker 
  * name. One body rather than two, so a marker can never drift into honoring
  * metadata the other rejects - the whole point of the contract described above.
  */
+/**
+ * A marker that cannot be honored, with its reason made safe to print.
+ *
+ * Every reason quotes something the author wrote - a schema name, a parser
+ * message carrying one, a filesystem error carrying a path - and callers print
+ * it straight to a terminal (`openspec archive`, `openspec validate`). A raw CR
+ * could forge a line of its own and an ESC could redraw the screen, so control
+ * characters never leave this function.
+ */
+function unhonorable(reason: string): MetadataMarker {
+  return { declared: false, invalidReason: reason.replace(/[\u0000-\u001f\u007f]/g, '?') };
+}
+
 function readBooleanMarker(
   changeDir: string,
   key: 'skip_specs' | 'retire_capabilities'
@@ -275,10 +288,7 @@ function readBooleanMarker(
     // the change as unmarked while every metadata-reading surface errors.
     const message =
       err instanceof Error ? err.message : String(err);
-    return {
-      declared: false,
-      invalidReason: `the metadata file cannot be read (${message})`,
-    };
+    return unhonorable(`the metadata file cannot be read (${message})`);
   }
 
   let parsed: unknown;
@@ -288,9 +298,7 @@ function readBooleanMarker(
     // Anchored so a comment like "# maybe add skip_specs later" does not
     // claim the marker was set.
     const mentioned = new RegExp(`^\\s*(['"]?)${key}\\1\\s*:`, 'm').test(raw);
-    return mentioned
-      ? { declared: false, invalidReason: 'the file is not valid YAML' }
-      : { declared: false };
+    return mentioned ? unhonorable('the file is not valid YAML') : { declared: false };
   }
 
   const result = ChangeMetadataSchema.safeParse(parsed);
@@ -308,15 +316,12 @@ function readBooleanMarker(
     try {
       const projectRoot = path.resolve(changeDir, '../../..');
       if (!listSchemas(projectRoot).includes(result.data.schema)) {
-        return {
-          declared: false,
-          invalidReason: `schema: unknown schema '${result.data.schema}'`,
-        };
+        return unhonorable(`schema: unknown schema '${result.data.schema}'`);
       }
       resolveSchema(result.data.schema, projectRoot);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      return { declared: false, invalidReason: message };
+      return unhonorable(message);
     }
     return { declared: true };
   }
@@ -334,7 +339,7 @@ function readBooleanMarker(
   if (markerMentioned) {
     const first = result.error.issues[0];
     const where = first.path.length > 0 ? `${first.path.join('.')}: ` : '';
-    return { declared: false, invalidReason: `${where}${first.message}` };
+    return unhonorable(`${where}${first.message}`);
   }
   return { declared: false };
 }

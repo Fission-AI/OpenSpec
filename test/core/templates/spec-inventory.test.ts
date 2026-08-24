@@ -121,10 +121,12 @@ describe('spec inventory vocabulary (#1689)', () => {
     for (const [label, body] of sites) {
       const start = body.indexOf(SPEC_INVENTORY);
       const passage = body.slice(start, start + PASSAGE_WINDOW);
-      expect(passage, `${label} does not name a store-aware read`).toContain('openspec show');
-      // A change and a spec may share a name; without --type that is an
-      // ambiguous-item error rather than the spec the agent asked for.
-      expect(passage, `${label} omits the --type spec disambiguator`).toContain('--type spec');
+      // Pin the complete low-context read. Each flag is load-bearing: --type
+      // disambiguates a same-named change, JSON makes the result structured,
+      // and --no-scenarios avoids pulling every scenario into context.
+      expect(passage, `${label} does not name the complete store-aware read`).toContain(
+        'openspec show "<spec-id>" --type spec --json --no-scenarios'
+      );
     }
   });
 });
