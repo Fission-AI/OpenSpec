@@ -114,4 +114,3 @@ what changed after review.
       punctuation. A Purpose is prose, and prose is not always Latin script.
       Held in both directions: loosening it back to `\b` kills 1 test, tightening
       it to reject punctuation kills 4
-
