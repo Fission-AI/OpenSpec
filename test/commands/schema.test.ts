@@ -425,6 +425,55 @@ artifacts:
       expect(config?.context).toBe('keep me');
     });
 
+    it('updates config.yml in place without hiding its settings behind a new config.yaml', async () => {
+      const { readProjectConfig } = await import('../../src/core/project-config.js');
+      const configPath = path.join(tempDir, 'openspec', 'config.yml');
+      fs.writeFileSync(
+        configPath,
+        '# project context\nschema: spec-driven\ncontext: keep me\n'
+      );
+
+      await runSchemaCommand([
+        'init',
+        'my-workflow',
+        '--artifacts',
+        'proposal,specs,tasks',
+        '--default',
+        '--json',
+      ]);
+
+      expect(fs.existsSync(path.join(tempDir, 'openspec', 'config.yaml'))).toBe(false);
+      expect(fs.readFileSync(configPath, 'utf-8')).toContain('# project context');
+      expect(readProjectConfig(tempDir)).toMatchObject({
+        schema: 'my-workflow',
+        context: 'keep me',
+      });
+    });
+
+    it('does not set the default through a config symlink outside the project', async () => {
+      const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-schema-config-'));
+      const outsideConfig = path.join(outsideDir, 'config.yaml');
+      const configPath = path.join(tempDir, 'openspec', 'config.yaml');
+      fs.writeFileSync(outsideConfig, 'schema: untouched\n');
+      fs.symlinkSync(outsideConfig, configPath, 'file');
+
+      try {
+        await runSchemaCommand([
+          'init',
+          'my-workflow',
+          '--artifacts',
+          'proposal,specs,tasks',
+          '--default',
+          '--json',
+        ]);
+
+        expect(process.exitCode).toBe(1);
+        expect(fs.readFileSync(outsideConfig, 'utf-8')).toBe('schema: untouched\n');
+      } finally {
+        fs.rmSync(outsideDir, { recursive: true, force: true });
+      }
+    });
+
     it('clears the dead defaultSchema key a previous run left behind', async () => {
       const configPath = path.join(tempDir, 'openspec', 'config.yaml');
       fs.writeFileSync(configPath, 'defaultSchema: stale-workflow\n');

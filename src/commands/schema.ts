@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { createHash } from 'node:crypto';
 import ora from 'ora';
-import { stringify as stringifyYaml, parseDocument } from 'yaml';
+import { stringify as stringifyYaml, parseDocument, isMap } from 'yaml';
 import {
   getSchemaDir,
   getProjectSchemasDir,
@@ -14,6 +14,7 @@ import {
 } from '../core/artifact-graph/resolver.js';
 import { parseSchema, SchemaValidationError } from '../core/artifact-graph/schema.js';
 import type { SchemaYaml, Artifact } from '../core/artifact-graph/types.js';
+import { resolveConfigFilePath } from '../core/project-config.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 
 /**
@@ -1135,18 +1136,30 @@ export function registerSchemaCommand(program: Command): void {
 
         // Update config if --default
         if (options?.default) {
-          const configPath = path.join(projectRoot, 'openspec', 'config.yaml');
+          const configPath =
+            resolveConfigFilePath(projectRoot) ??
+            path.join(projectRoot, 'openspec', 'config.yaml');
+          FileSystemUtils.assertProjectArtifactPath(projectRoot, configPath);
 
           if (fs.existsSync(configPath)) {
-            const { parse: parseYaml, stringify: stringifyYaml2 } = await import('yaml');
             const configContent = fs.readFileSync(configPath, 'utf-8');
-            const config = parseYaml(configContent) || {};
-            config.schema = name;
+            const config = parseDocument(configContent);
+            if (config.errors.length > 0) {
+              throw new Error(
+                `Cannot set the default schema: ${path.basename(configPath)} is invalid YAML`
+              );
+            }
+            if (config.contents !== null && !isMap(config.contents)) {
+              throw new Error(
+                `Cannot set the default schema: ${path.basename(configPath)} must contain a YAML object`
+              );
+            }
+            config.set('schema', name);
             // Drop the key earlier versions wrote here: nothing has ever read
             // `defaultSchema`, so leaving it behind would sit in the file
             // contradicting the `schema` that now takes effect.
-            delete config.defaultSchema;
-            fs.writeFileSync(configPath, stringifyYaml2(config));
+            config.delete('defaultSchema');
+            fs.writeFileSync(configPath, config.toString());
           } else {
             // Create config file
             const configDir = path.dirname(configPath);
