@@ -55,6 +55,42 @@ export const LEGACY_TOOL_ROOTS: Record<string, LegacyToolRoot[]> = {
   codex: [{ root: '.codex', needsConsent: false, timing: 'after-generation' }],
 };
 
+/**
+ * Deletes the previously managed Bob command files from `.bob/commands/`.
+ * Bob no longer uses slash commands; skills are the supported surface.
+ * Files are only removed when a replacement skill exists for the same workflow,
+ * so a partial or failed skills install leaves the old commands intact.
+ *
+ * @param projectPath - Project root
+ * @returns Number of command files deleted
+ */
+export function cleanupLegacyBobCommandFiles(projectPath: string): number {
+  let removed = 0;
+  const bobCommandsDir = path.join(projectPath, '.bob', 'commands');
+  if (!fs.existsSync(bobCommandsDir)) return 0;
+
+  const bobSkillsDir = path.join(projectPath, '.bob', 'skills');
+
+  for (const workflowId of ALL_WORKFLOWS) {
+    const skillDirName = WORKFLOW_TO_SKILL_DIR[workflowId];
+    const skillFile = path.join(bobSkillsDir, skillDirName, 'SKILL.md');
+    if (!fs.existsSync(skillFile)) continue;
+
+    const commandFile = path.join(bobCommandsDir, `opsx-${workflowId}.md`);
+    if (!fs.existsSync(commandFile)) continue;
+
+    try {
+      fs.rmSync(commandFile, { force: true });
+      removed++;
+    } catch {
+      // Leave in place if removal fails
+    }
+  }
+
+  removeDirIfEmpty(bobCommandsDir);
+  return removed;
+}
+
 export interface LegacyToolMigration {
   toolId: string;
   /** Legacy tool root, e.g. '.windsurf' */
