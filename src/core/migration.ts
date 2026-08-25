@@ -69,6 +69,9 @@ export function cleanupLegacyBobCommandFiles(projectPath: string): number {
   const bobCommandsDir = path.join(projectPath, '.bob', 'commands');
   if (!fs.existsSync(bobCommandsDir)) return 0;
 
+  // Reject .bob/commands/ if it resolves outside the project root via a symlink.
+  if (!areProjectArtifacts(projectPath, bobCommandsDir)) return 0;
+
   const bobSkillsDir = path.join(projectPath, '.bob', 'skills');
 
   for (const workflowId of ALL_WORKFLOWS) {
@@ -78,6 +81,18 @@ export function cleanupLegacyBobCommandFiles(projectPath: string): number {
 
     const commandFile = path.join(bobCommandsDir, `opsx-${workflowId}.md`);
     if (!fs.existsSync(commandFile)) continue;
+
+    // Reject any command file path that resolves outside the project root.
+    if (!areProjectArtifacts(projectPath, commandFile)) continue;
+
+    // Only remove files that carry the OpenSpec-generated Bob frontmatter.
+    // User-authored files with matching names are left in place.
+    try {
+      const content = fs.readFileSync(commandFile, 'utf-8');
+      if (!content.includes('argument-hint:')) continue;
+    } catch {
+      continue;
+    }
 
     try {
       fs.rmSync(commandFile, { force: true });

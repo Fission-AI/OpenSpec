@@ -241,6 +241,11 @@ export class UpdateCommand {
       if (deferredGlobalCleanup) {
         await this.performDeferredGlobalPromptCleanup(resolvedProjectPath, deferredGlobalCleanup);
       }
+      // All tools are up to date, but still run Bob legacy command cleanup in
+      // case stale .bob/commands/ files were left from a previous version.
+      if (configuredAndNewTools.includes('bob')) {
+        cleanupLegacyBobCommandFiles(resolvedProjectPath);
+      }
       // All tools are up to date
       this.displayUpToDateMessage(toolStatuses);
       await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
