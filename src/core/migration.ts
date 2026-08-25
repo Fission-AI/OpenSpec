@@ -86,10 +86,13 @@ export function cleanupLegacyBobCommandFiles(projectPath: string): number {
     if (!areProjectArtifacts(projectPath, commandFile)) continue;
 
     // Only remove files that carry the OpenSpec-generated Bob frontmatter.
-    // User-authored files with matching names are left in place.
+    // Check only the opening YAML block — not the Markdown body — so a
+    // user-authored file that happens to mention argument-hint: in its content
+    // is never matched.
     try {
       const content = fs.readFileSync(commandFile, 'utf-8');
-      if (!content.includes('argument-hint:')) continue;
+      const frontmatter = content.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)?.[1];
+      if (!frontmatter || !/^argument-hint:/m.test(frontmatter)) continue;
     } catch {
       continue;
     }
