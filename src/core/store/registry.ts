@@ -77,8 +77,8 @@ function normalizePathForComparison(targetPath: string): string {
   try {
     return FileSystemUtils.canonicalizeExistingPath(targetPath);
   } catch {
-    // Nonexistent (e.g. stale) paths still deserve a resolved compare;
-    // aligns with the operations.ts sibling fallback.
+    // 不存在的（如过时的）路径仍需要解析比较；
+    // 与 operations.ts 中的兄弟回退逻辑保持一致。
     return path.resolve(targetPath);
   }
 }
@@ -99,22 +99,22 @@ export function assertNoRegisteredStoreConflict(
 
     if (entry.id === id) {
       throw new StoreError(
-        `Store '${id}' is already registered at ${getStoreRootForBackend(entry.backend)}. One checkout per store id is supported on this machine.`,
+        `Store '${id}' 已在 ${getStoreRootForBackend(entry.backend)} 注册。此机器上每个 store id 仅支持一个签出。`,
         'store_id_conflict',
         {
           target: 'store.id',
-          fix: `Use the existing registration, or run openspec store unregister ${id} first to switch this id to a different checkout.`,
+          fix: `使用已有注册，或先运行 openspec store unregister ${id} 将此 id 切换到其他签出。`,
         }
       );
     }
 
     if (entryPath === nextPath) {
       throw new StoreError(
-        `Store path is already registered as '${entry.id}'.`,
+        `Store 路径已作为 '${entry.id}' 注册。`,
         'store_path_conflict',
         {
           target: 'store.root',
-          fix: `Use the existing '${entry.id}' registration or choose a different path.`,
+          fix: `使用已有的 '${entry.id}' 注册或选择其他路径。`,
         }
       );
     }
@@ -149,9 +149,9 @@ function getRegisteredStoreOrThrow(
 ): StoreRegistryEntry {
   const entry = registry?.stores[id];
   if (!entry) {
-    throw new StoreError(`Unknown store '${id}'`, 'store_not_found', {
+    throw new StoreError(`未知的 store '${id}'`, 'store_not_found', {
       target: 'store.id',
-      fix: 'Run openspec store list to see registered stores.',
+      fix: '运行 openspec store list 查看已注册的 store。',
     });
   }
 
@@ -161,7 +161,7 @@ function getRegisteredStoreOrThrow(
   };
 }
 
-/** Same checkout: type, canonical path, and branch — remote excluded. */
+/** 相同签出：类型、规范路径和分支 — 不包含 remote。 */
 function sameCheckout(
   actual: StoreGitBackendConfig,
   expected: StoreGitBackendConfig
@@ -189,11 +189,11 @@ function assertExpectedRegisteredBackend(
   if (!expected || storeBackendsMatch(actual, expected)) return;
 
   throw new StoreError(
-    `Store '${id}' changed before cleanup completed.`,
+    `Store '${id}' 在清理完成前已发生变更。`,
     'store_registry_changed',
     {
       target: 'store.registry',
-      fix: 'Retry the cleanup command after reviewing the current store registration.',
+      fix: '查看当前 store 注册后重试清理命令。',
     }
   );
 }
@@ -229,11 +229,11 @@ async function ensureStoreMetadata(
   if (!metadata) {
     if (!options.writeIfMissing) {
       throw new StoreError(
-        `Registered store '${id}' is missing metadata at ${getStoreMetadataPath(storeRoot)}`,
+        `已注册的 store '${id}' 在 ${getStoreMetadataPath(storeRoot)} 缺少元数据`,
         'store_metadata_missing',
         {
           target: 'store.metadata',
-          fix: `Create ${getStoreMetadataPath(storeRoot)} or rerun "openspec store register <path>".`,
+          fix: `创建 ${getStoreMetadataPath(storeRoot)} 或重新运行 "openspec store register <path>"。`,
         }
       );
     }
@@ -247,11 +247,11 @@ async function ensureStoreMetadata(
 
   if (metadata.id !== id) {
     throw new StoreError(
-      `Store metadata id '${metadata.id}' does not match registered id '${id}'`,
+      `Store 元数据 id '${metadata.id}' 与注册的 id '${id}' 不匹配`,
       'store_metadata_id_mismatch',
       {
         target: 'store.metadata',
-        fix: 'Repair the local registry or store metadata so the ids match.',
+        fix: '修复本地注册表或 store 元数据使 id 匹配。',
       }
     );
   }
@@ -279,9 +279,8 @@ export async function commitStoreRegistration(
     });
     const existing = registry?.stores[id];
     const existingBackend = existing?.backend as StoreGitBackendConfig | undefined;
-    // Same checkout = a rerun for an already-registered store (the 1.3
-    // reporting contract), whether or not the observed remote changed;
-    // only a remote change needs the registry write (the refresh).
+    // 相同签出 = 对已注册 store 的重新运行（1.3 版本的报告约定），
+    // 无论观察到的 remote 是否变更；仅 remote 变更需要写入注册表（刷新）。
     isRerun = existingBackend !== undefined && sameCheckout(existingBackend, backend);
     const upToDate =
       isRerun && existingBackend !== undefined && storeBackendsMatch(existingBackend, backend);
@@ -295,9 +294,8 @@ export async function commitStoreRegistration(
     }
   } catch (error) {
     if (metadataCreated) {
-      // A concurrent registration may have read our metadata as
-      // pre-existing and committed against it - never delete metadata a
-      // committed registry entry depends on.
+      // 并发注册可能已将我们的元数据读取为
+      // 预存数据并提交了它 — 永远不要删除已提交注册表条目依赖的元数据。
       const current = await readStoreRegistryState({
         globalDataDir: input.globalDataDir,
       }).catch(() => null);
@@ -348,13 +346,13 @@ export async function registerStore(
 }
 
 export interface RegistrySnapshot {
-  /** null = the registry is unreadable; [] = empty or absent. */
+  /** null = 注册表不可读；[] = 空或不存在。 */
   entries: StoreRegistryEntry[] | null;
   unreadable: boolean;
 }
 
 /**
- * One registry read serving every consumer in a command.
+ * 一次注册表读取服务命令中的所有消费者。
  */
 export async function readRegistrySnapshot(
   options: { globalDataDir?: string } = {}
@@ -422,9 +420,9 @@ export async function unregisterStoreRegistration(
   );
 
   if (!removed) {
-    throw new StoreError(`Unknown store '${id}'`, 'store_not_found', {
+    throw new StoreError(`未知的 store '${id}'`, 'store_not_found', {
       target: 'store.id',
-      fix: 'Run openspec store list to see registered stores.',
+      fix: '运行 openspec store list 查看已注册的 store。',
     });
   }
 
@@ -443,9 +441,9 @@ export async function resolveRegisteredStore(
   });
 
   if (!registry) {
-    throw new StoreError('No store registry found', 'no_store_registry', {
+    throw new StoreError('未找到 store 注册表', 'no_store_registry', {
       target: 'store.id',
-      fix: 'Register a store with openspec store register <path>, then select it with --store <id>.',
+      fix: '使用 openspec store register <path> 注册一个 store，然后使用 --store <id> 选择它。',
     });
   }
 

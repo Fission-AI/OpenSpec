@@ -68,7 +68,7 @@ export interface StoreInfo {
 
 export interface StoreMutationResult {
   store: StoreInfo;
-  /** Clone-source knowledge for human sharing guidance; never in JSON. */
+  /** 用于人工分享指导的克隆源信息；绝不写入 JSON。 */
   remotes?: {
     canonical?: string;
     observed?: string;
@@ -116,7 +116,7 @@ export interface StoreInspection extends StoreInfo {
     present: boolean | null;
     valid: boolean | null;
     id?: string;
-    /** Canonical clone source from store.yaml; null when absent. */
+    /** 来自 store.yaml 的规范克隆源；不存在时为 null。 */
     remote: string | null;
   };
   git: {
@@ -124,7 +124,7 @@ export interface StoreInspection extends StoreInfo {
     hasCommits: boolean | null;
     hasUncommittedChanges: boolean | null;
     hasRemote: boolean | null;
-    /** Observed origin URL, live-probed; null when none. */
+    /** 观察到的 origin URL，实时探测；不存在时为 null。 */
     originUrl: string | null;
   };
   diagnostics: StoreDiagnostic[];
@@ -135,7 +135,7 @@ export interface SetupStoreInput {
   path?: string;
   initGit?: boolean;
   allowInsideGitRepository?: boolean;
-  /** Canonical clone source written into store.yaml (slice 3.3). */
+  /** 写入 store.yaml 的规范克隆源（切片 3.3）。 */
   remote?: string;
 }
 
@@ -202,7 +202,7 @@ async function readStoreMetadataForOperation(storeRoot: string) {
       'invalid_store_metadata',
       {
         target: 'store.metadata',
-        fix: `Repair ${getStoreMetadataPath(storeRoot)}.`,
+        fix: `修复 ${getStoreMetadataPath(storeRoot)}。`,
       }
     );
   }
@@ -217,7 +217,7 @@ function alreadyRegisteredDiagnostic(id: string): StoreDiagnostic {
   return makeStoreDiagnostic(
     'info',
     'store_already_registered',
-    `Store '${id}' is already registered at this path.`,
+    `Store '${id}' 已在此路径注册。`,
     {
       target: 'store.registry',
     }
@@ -230,22 +230,22 @@ function assertNotConfigOnlyPointerRoot(storeRoot: string): void {
 
   if (pointer.malformed) {
     throw new StoreError(
-      `The store declaration in ${pointer.filePath} is invalid (${storePointerProblem(pointer.malformed)}).`,
+      `${pointer.filePath} 中的 store 声明无效（${storePointerProblem(pointer.malformed)}）。`,
       'invalid_store_pointer',
       {
         target: 'store.pointer',
-        fix: `Fix or remove the store: line in ${pointer.filePath} before registering this path as a store.`,
+        fix: `在将此路径注册为 store 之前，修复或删除 ${pointer.filePath} 中的 store: 行。`,
       }
     );
   }
 
   if (pointer.value !== undefined) {
     throw new StoreError(
-      `This repo's planning is externalized to store '${pointer.value}' (${pointer.filePath}); it is not itself a store root.`,
+      `此仓库的规划已外部化到 store '${pointer.value}'（${pointer.filePath}）；它本身不是 store 根目录。`,
       'store_root_pointer_declared',
       {
         target: 'store.pointer',
-        fix: 'Register the checkout for the declared store, or remove the store: line first to convert this repo into a local store root.',
+        fix: '注册已声明 store 的签出，或先删除 store: 行将此仓库转换为本地 store 根目录。',
       }
     );
   }
@@ -322,11 +322,11 @@ async function assertSetupPathIsNotNestedInGitRepo(
   if (!containingGitRoot) return;
 
   throw new StoreError(
-    `Store setup path is inside another Git repository: ${containingGitRoot}`,
+    `Store 初始化路径位于另一个 Git 仓库内：${containingGitRoot}`,
     'store_setup_inside_git_repo',
     {
       target: 'store.root',
-      fix: 'Choose a path outside that Git repository.',
+      fix: '选择该 Git 仓库之外的路径。',
     }
   );
 }
@@ -342,10 +342,10 @@ export function expandUserPath(inputPath: string): string {
 }
 
 function resolveSetupRoot(id: string, inputPath: string | undefined): string {
-  // A store is a repo the user places; setup never silently picks app data.
+  // Store 是用户放置的仓库；初始化永远不会静默选择应用数据。
   if (inputPath === undefined || inputPath.trim().length === 0) {
     throw new StoreError(
-      'Pass --path with the folder where this store should live.',
+      '使用 --path 指定此 store 应放置的文件夹。',
       'store_setup_path_required',
       {
         target: 'store.root',
@@ -359,7 +359,7 @@ function resolveSetupRoot(id: string, inputPath: string | undefined): string {
 
 function resolveRegisterRoot(inputPath: string | undefined): string {
   if (inputPath === undefined || inputPath.trim().length === 0) {
-    throw new StoreError('Pass a store path.', 'store_path_required', {
+    throw new StoreError('传入 store 路径。', 'store_path_required', {
       target: 'store.root',
       fix: 'openspec store register /path/to/store',
     });
@@ -429,20 +429,19 @@ function mutationPayload(
 
 function remoteRequiresHandEditError(id: string, storeRoot: string): StoreError {
   return new StoreError(
-    `Store '${id}' already has an identity file; --remote cannot change it.`,
+    `Store '${id}' 已有身份文件；--remote 无法修改它。`,
     'store_remote_requires_hand_edit',
     {
       target: 'store.metadata',
-      fix: `Edit ${getStoreMetadataPath(storeRoot)} and commit it.`,
+      fix: `编辑 ${getStoreMetadataPath(storeRoot)} 并提交它。`,
     }
   );
 }
 
 /**
- * Backend config carrying the observed origin. Guarded by an at-root
- * repository check: `git -C` discovers repositories by walking UP the
- * tree, so probing a non-repo store folder nested inside another repo
- * would record the ENCLOSING repo's origin.
+ * 带有观察到的 origin 的后端配置。由根目录仓库检查保护：
+ * `git -C` 通过向上遍历目录树发现仓库，因此探测嵌套在另一个仓库内
+ * 的非仓库 store 文件夹会记录到外层仓库的 origin。
  */
 async function resolveBackendWithObservedOrigin(
   storeRoot: string
@@ -461,9 +460,9 @@ async function prepareSetupPlan(
 ): Promise<StoreSetupPlan> {
   const id = validateStoreId(input.id ?? '');
   if (input.remote !== undefined && input.remote.length === 0) {
-    throw new StoreError('Store remote must not be empty when provided.', 'store_remote_empty', {
+    throw new StoreError('Store remote 提供时不能为空。', 'store_remote_empty', {
       target: 'store.metadata',
-      fix: 'Pass a clone URL: --remote <url>.',
+      fix: '传入克隆 URL：--remote <url>。',
     });
   }
   const storeRoot = resolveSetupRoot(id, input.path);
@@ -471,17 +470,17 @@ async function prepareSetupPlan(
 
   if (kind === 'file' || kind === 'other') {
     throw new StoreError(
-      `Store setup path is not a directory: ${storeRoot}`,
+      `Store 初始化路径不是目录：${storeRoot}`,
       'store_setup_path_not_directory',
       {
         target: 'store.root',
-        fix: 'Choose an empty directory or an existing healthy OpenSpec root.',
+        fix: '选择一个空目录或已存在的健康 OpenSpec 根目录。',
       }
     );
   }
 
-  // Stores may be Git-backed, but creating one inside an implementation
-  // repo is almost always an accidental nested-repo setup.
+  // Store 可以是 Git 后端的，但在实现仓库内创建一个几乎总是
+  // 意外的嵌套仓库设置。
   await assertSetupPathIsNotNestedInGitRepo(storeRoot, {
     allowInsideGitRepository: input.allowInsideGitRepository,
   });
@@ -496,17 +495,17 @@ async function prepareSetupPlan(
     if (metadata) {
       if (metadata.id !== id) {
         throw new StoreError(
-          `Store metadata id '${metadata.id}' does not match requested id '${id}'.`,
+          `Store 元数据 id '${metadata.id}' 与请求的 id '${id}' 不匹配。`,
           'store_metadata_id_mismatch',
           {
             target: 'store.metadata',
-            fix: `Use id '${metadata.id}' or choose a different setup path.`,
+            fix: `使用 id '${metadata.id}' 或选择其他初始化路径。`,
           }
         );
       }
       if (input.remote !== undefined) {
-        // Silent acceptance is the forbidden outcome: the identity file
-        // already exists, so --remote cannot reach the committed shape.
+        // 静默接受是禁止的结果：身份文件
+        // 已存在，因此 --remote 无法达到已提交的形态。
         throw remoteRequiresHandEditError(id, storeRoot);
       }
     } else {
@@ -514,11 +513,11 @@ async function prepareSetupPlan(
       const safeFreshDirectory = await isDirectoryEmpty(storeRoot) || await isGitOnlyDirectory(storeRoot);
       if (!openspecRoot.healthy && !safeFreshDirectory) {
         throw new StoreError(
-          'Store setup does not support initializing a non-empty folder that is not a healthy OpenSpec root.',
+          'Store 初始化不支持初始化非空且不是健康 OpenSpec 根目录的文件夹。',
           'store_setup_non_empty_directory',
           {
             target: 'store.root',
-            fix: 'Choose an empty folder, a Git-only folder, or an existing healthy OpenSpec root.',
+            fix: '选择一个空文件夹、纯 Git 文件夹或已存在的健康 OpenSpec 根目录。',
           }
         );
       }
@@ -545,9 +544,9 @@ async function prepareSetupPlan(
 }
 
 /**
- * Resolves the effective Git mode for a prepared setup: on by default for new
- * stores, off for reruns of an already-registered store (which must stay
- * no-ops), and always honoring an explicit --init-git/--no-init-git.
+ * 为准备好的初始化解析有效的 Git 模式：新 store 默认开启，
+ * 已注册 store 的重新运行关闭（必须保持无操作），
+ * 并始终遵循显式的 --init-git/--no-init-git。
  */
 export function resolveSetupGitEnabled(
   prepared: PreparedStoreSetup,
@@ -585,17 +584,17 @@ export async function setupPreparedStore(
   const { id, storeRoot, kind, registry } = plan;
   let { backend } = plan;
 
-  // The prepare/execute split can span an unbounded interactive
-  // confirmation. Re-assert the prepare-time directory facts: if the
-  // path appeared in the gap, the plan (and its rollback policy) no
-  // longer describes reality - refuse and let a rerun re-prepare.
+  // prepare/execute 拆分可能跨越无限的交互式
+  // 确认。重新断言准备时的目录事实：如果
+  // 路径在等待期间出现，计划（及其回滚策略）不再
+  // 描述现实 — 拒绝并让重新运行重新准备。
   if (kind === 'missing' && (await fs.access(storeRoot).then(() => true, () => false))) {
     throw new StoreError(
-      `The path ${storeRoot} was created while setup was waiting for confirmation.`,
+      `路径 ${storeRoot} 在初始化等待确认期间被创建。`,
       'store_setup_path_changed',
       {
         target: 'store.root',
-        fix: 'Rerun openspec store setup to re-evaluate the directory.',
+        fix: '重新运行 openspec store setup 以重新评估目录。',
       }
     );
   }
@@ -605,18 +604,18 @@ export async function setupPreparedStore(
   let gitInitialized = false;
   let committed = false;
 
-  // Reruns for an already-registered store stay strict no-ops: no anchor
-  // retrofit, no git init, no new commit, no identity requirement. Only an
-  // explicit --init-git overrides that for the git side.
+  // 已注册 store 的重新运行保持严格无操作：不进行锚点
+  // 改造、不初始化 git、不创建新提交、不要求身份信息。仅
+  // 显式的 --init-git 会为 git 部分覆盖此行为。
   const alreadyRegisteredHere = isRegisteredAtPath(registry, id, storeRoot);
 
-  // --no-init-git opts out of every Git action: no preflight, no init, no
-  // commit, even when the target is already a repository.
+  // --no-init-git 选择退出所有 Git 操作：不预检、不初始化、不
+  // 提交，即使目标已是一个仓库。
   const gitEnabled = input.initGit ?? !alreadyRegisteredHere;
   const repoExisted = await isGitRepositoryAtRoot(storeRoot);
 
-  // Identity preflight runs before anything is created so a missing identity
-  // never leaves half-made state behind.
+  // 身份预检在创建任何内容之前运行，以便缺失的身份信息
+  // 永远不会留下半成品状态。
   if (gitEnabled) {
     await assertGitCommitIdentity(
       (await nearestExistingDirectory(storeRoot)) ?? process.cwd()
@@ -632,12 +631,12 @@ export async function setupPreparedStore(
     backend ??= await resolveBackendWithObservedOrigin(storeRoot);
     assertNoRegisteredStoreConflict(registry, id, backend);
 
-    // The identity file is written before the initial commit so clones carry
-    // it; without it, register falls back to the conversion prompt.
+    // 身份文件在初始提交之前写入，以便克隆时携带它；
+    // 没有它，注册会回退到转换提示。
     const existingMetadata = await readStoreMetadataForOperation(storeRoot);
     if (existingMetadata && prepared.remote !== undefined) {
-      // Re-assert the prepare-phase refusal: metadata that materialized
-      // between prepare and execute must not silently swallow --remote.
+      // 重新断言准备阶段的拒绝：在准备和执行之间
+      // 出现的元数据不得静默接受 --remote。
       throw remoteRequiresHandEditError(id, storeRoot);
     }
     if (!existingMetadata) {
@@ -661,11 +660,10 @@ export async function setupPreparedStore(
 
     gitInitialized = gitEnabled ? await initGitRepository(storeRoot) : false;
     const isRepository = gitInitialized || repoExisted;
-    // "Files created for rollback" and "files a clone needs" are different
-    // sets: when setup initialized the repository itself, the initial commit
-    // must contain the full store shape or clones of a converted root would
-    // be unhealthy. In a pre-existing repo the user owns the history, so
-    // setup commits only what it created.
+    // "为回滚创建的文件"和"克隆需要的文件"是不同的集合：
+    // 当初始化自己初始化仓库时，初始提交必须包含完整的 store 结构，
+    // 否则已转换根目录的克隆将不健康。在已存在的仓库中，用户拥有历史，
+    // 因此初始化只提交它创建的内容。
     const commitPathspecs = gitInitialized
       ? [OPENSPEC_ROOT_DIR, STORE_METADATA_DIR_NAME]
       : createdPaths
@@ -675,8 +673,8 @@ export async function setupPreparedStore(
       ? await commitStoreFiles(storeRoot, id, commitPathspecs)
       : false;
 
-    // Identity creation is setup's job (done above, before the commit);
-    // registration only verifies it and records the machine-local entry.
+    // 身份创建是初始化的工作（上文已完成，在提交之前）；
+    // 注册仅验证它并记录机器本地条目。
     const registered = await commitStoreRegistration({
       id,
       backend,
@@ -699,9 +697,9 @@ export async function setupPreparedStore(
       ...(backend.remote ? { observed: backend.remote } : {}),
     });
   } catch (error) {
-    // Once the initial commit landed in a (possibly user-owned) repository,
-    // the files are durable state; deleting them would orphan the commit.
-    // The only remaining failure is the registry write, which is retryable.
+    // 一旦初始提交进入（可能是用户自有的）仓库，
+    // 文件就是持久状态；删除它们会使提交成为孤立。
+    // 唯一剩下的失败是注册表写入，它可以重试。
     if (committed) {
       throw error;
     }
@@ -709,16 +707,16 @@ export async function setupPreparedStore(
     if (createdPaths.length > 0) {
       await rollbackCreatedPaths(createdPaths);
     }
-    // G14: a half-made .git is never durable state pre-commit - clean it
-    // up regardless of whether the ledger recorded other creations, or a
-    // rerun registers a commitless store.
+    // G14：半成品 .git 在提交前永远不是持久状态 — 无论
+    // 账本是否记录了其他创建，都要清理它，或者重新运行
+    // 注册一个无提交的 store。
     if (gitInitialized) {
       await fs.rm(path.join(storeRoot, '.git'), { recursive: true, force: true }).catch(() => undefined);
     }
     if (kind === 'missing') {
-      // Non-recursive both ways: never delete content this operation did
-      // not create (the execute-time re-check guarantees kind is accurate,
-      // but rmdir is the belt to that suspender).
+      // 双向非递归：永远不删除此操作未创建的内容
+      // （执行时的重新检查保证了 kind 的准确性，
+      // 但 rmdir 是该悬挂的保险措施）。
       await fs.rmdir(storeRoot).catch(() => undefined);
     }
 
@@ -742,22 +740,22 @@ export async function registerExistingStore(
 
   if (kind === 'missing') {
     throw new StoreError(
-      `Store path does not exist: ${storeRoot}`,
+      `Store 路径不存在：${storeRoot}`,
       'store_path_missing',
       {
         target: 'store.root',
-        fix: 'Clone or create the store folder before registering it.',
+        fix: '在注册之前克隆或创建 store 文件夹。',
       }
     );
   }
 
   if (kind !== 'directory') {
     throw new StoreError(
-      `Store path is not a directory: ${storeRoot}`,
+      `Store 路径不是目录：${storeRoot}`,
       'store_path_not_directory',
       {
         target: 'store.root',
-        fix: 'Pass an existing store directory.',
+        fix: '传入一个已存在的 store 目录。',
       }
     );
   }
@@ -767,22 +765,22 @@ export async function registerExistingStore(
   if (!openspecRoot.healthy) {
     const problems =
       openspecRoot.diagnostics.map((diagnostic) => diagnostic.message).join(' ') ||
-      'The OpenSpec root is missing or incomplete.';
+      'OpenSpec 根目录缺失或不完整。';
     const isEmptyCloneSuspect =
       (await isGitRepositoryAtRoot(storeRoot)) &&
       (await gitHasCommits(storeRoot)) === false;
     const emptyCloneHint = isEmptyCloneSuspect
-      ? ' This folder is a Git repository with no commits — if it is a clone, the origin store needs an initial commit before the clone has any files.'
+      ? ' 此文件夹是一个没有提交的 Git 仓库 — 如果它是克隆，源 store 需要先有初始提交，克隆后才有文件。'
       : '';
 
     throw new StoreError(
-      `Store register requires an existing healthy OpenSpec root. ${problems}${emptyCloneHint}`,
+      `Store 注册需要已存在的健康 OpenSpec 根目录。${problems}${emptyCloneHint}`,
       'store_register_root_unhealthy',
       {
         target: 'openspec.root',
         fix: isEmptyCloneSuspect
-          ? 'If this is a store clone: commit and push the origin store, pull it into this clone, then rerun register.'
-          : 'Run openspec store setup for a new store, or point register at a checkout whose openspec/ files are present.',
+          ? '如果这是 store 克隆：提交并推送源 store，将其拉到此克隆中，然后重新运行注册。'
+          : '运行 openspec store setup 创建新 store，或将注册指向 openspec/ 文件已存在的签出。',
       }
     );
   }
@@ -791,21 +789,21 @@ export async function registerExistingStore(
   const explicitId = input.id !== undefined ? validateStoreId(input.id) : undefined;
 
   if (metadata && explicitId !== undefined && metadata.id !== explicitId) {
-    // The fix must account for whether the metadata id is already registered,
-    // so following it never lands on the already-registered error.
+    // 修复必须考虑元数据 id 是否已注册，
+    // 因此遵循它永远不会导致已注册错误。
     const currentRegistry = await readStoreRegistryState();
     const registeredElsewhere =
       currentRegistry?.stores?.[metadata.id] !== undefined &&
       !isRegisteredAtPath(currentRegistry, metadata.id, storeRoot);
 
     throw new StoreError(
-      `Store metadata id '${metadata.id}' does not match --id '${explicitId}'. The id comes from the store's committed .openspec-store/store.yaml.`,
+      `Store 元数据 id '${metadata.id}' 与 --id '${explicitId}' 不匹配。id 来自 store 已提交的 .openspec-store/store.yaml。`,
       'store_metadata_id_mismatch',
       {
         target: 'store.id',
         fix: registeredElsewhere
-          ? `One checkout per store id is supported, and '${metadata.id}' is already registered. Run openspec store unregister ${metadata.id} first to register this checkout instead.`
-          : `Use --id ${metadata.id} or register a different folder.`,
+          ? `每个 store id 仅支持一个签出，且 '${metadata.id}' 已被注册。先运行 openspec store unregister ${metadata.id} 来注册此签出。`
+          : `使用 --id ${metadata.id} 或注册其他文件夹。`,
       }
     );
   }
@@ -813,11 +811,11 @@ export async function registerExistingStore(
   const id = metadata?.id ?? explicitId ?? inferStoreIdFromPath(storeRoot);
   if (!metadata && !input.allowCreateIdentity) {
     throw new StoreError(
-      `Turn this OpenSpec root into store '${id}'?`,
+      `将此 OpenSpec 根目录转换为 store '${id}'？`,
       'store_register_identity_confirmation_required',
       {
         target: 'store.metadata',
-        fix: `Run interactively or pass --yes to create ${getStoreMetadataPath(storeRoot)}.`,
+        fix: `以交互方式运行或传入 --yes 来创建 ${getStoreMetadataPath(storeRoot)}。`,
       }
     );
   }
@@ -840,7 +838,7 @@ export async function registerExistingStore(
     ? [alreadyRegisteredDiagnostic(id)]
     : [];
 
-  // Register never commits; converted roots are the user's repo to commit.
+  // 注册永远不提交；已转换的根目录是用户要提交的仓库。
   return mutationPayload(id, registered.storeRoot, {
     isRepository,
     initialized: false,
@@ -913,11 +911,11 @@ async function assertSafeToDeleteStoreRoot(storeRoot: string, id: string): Promi
 
   if (kind !== 'directory') {
     throw new StoreError(
-      `Store path is not a directory: ${storeRoot}`,
+      `Store 路径不是目录：${storeRoot}`,
       'store_remove_path_not_directory',
       {
         target: 'store.root',
-        fix: 'Run "openspec store unregister <id>" if you only want to forget this local registry entry.',
+        fix: '运行 "openspec store unregister <id>" 如果你只想忘记此本地注册条目。',
       }
     );
   }
@@ -925,22 +923,22 @@ async function assertSafeToDeleteStoreRoot(storeRoot: string, id: string): Promi
   const metadata = await readStoreMetadataForOperation(storeRoot);
   if (!metadata) {
     throw new StoreError(
-      'Store remove refuses to delete a folder without store metadata.',
+      'Store 删除拒绝删除没有 store 元数据的文件夹。',
       'store_remove_metadata_missing',
       {
         target: 'store.metadata',
-        fix: 'Run "openspec store unregister <id>" if you only want to forget this local registry entry.',
+        fix: '运行 "openspec store unregister <id>" 如果你只想忘记此本地注册条目。',
       }
     );
   }
 
   if (metadata.id !== id) {
     throw new StoreError(
-      `Store metadata id '${metadata.id}' does not match requested id '${id}'.`,
+      `Store 元数据 id '${metadata.id}' 与请求的 id '${id}' 不匹配。`,
       'store_metadata_id_mismatch',
       {
         target: 'store.metadata',
-        fix: 'Repair the registry or run store unregister instead of deleting this folder.',
+        fix: '修复注册表或运行 store unregister 而非删除此文件夹。',
       }
     );
   }
@@ -955,9 +953,9 @@ export async function removeStore(
   const diagnostics: StoreDiagnostic[] = [];
   let deleted = false;
 
-  // Order matters: the registry entry goes first, the files second. A
-  // failed file deletion leaves recoverable orphan files; the reverse
-  // order would leave a phantom registration pointing at nothing.
+  // 顺序很重要：先处理注册表条目，再处理文件。
+  // 文件删除失败会留下可恢复的孤立文件；相反的顺序
+  // 会留下指向空处的幽灵注册。
   let rootMissing = false;
   const removed = await unregisterStoreRegistration({
     id,
@@ -973,7 +971,7 @@ export async function removeStore(
     diagnostics.push(makeStoreDiagnostic(
       'warning',
       'store_root_missing',
-      'Store files were already missing.',
+      'Store 文件已不存在。',
       {
         target: 'store.root',
       }
@@ -986,10 +984,10 @@ export async function removeStore(
       diagnostics.push(makeStoreDiagnostic(
         'warning',
         'store_files_left_on_disk',
-        `The registration was removed, but deleting ${removed.storeRoot} failed (${(error as Error).message}).`,
+        `注册已移除，但删除 ${removed.storeRoot} 失败（${(error as Error).message}）。`,
         {
           target: 'store.root',
-          fix: `Delete the folder manually: ${removed.storeRoot}`,
+          fix: `手动删除文件夹：${removed.storeRoot}`,
         }
       ));
     }
@@ -1067,20 +1065,20 @@ async function inspectStore(entry: {
     diagnostics.push(makeStoreDiagnostic(
       'error',
       'store_root_missing',
-      'Store location does not exist.',
+      'Store 位置不存在。',
       {
         target: 'store.root',
-        fix: `Run openspec store register /path/to/${entry.id} --id ${entry.id}.`,
+        fix: `运行 openspec store register /path/to/${entry.id} --id ${entry.id}。`,
       }
     ));
   } else if (kind !== 'directory') {
     diagnostics.push(makeStoreDiagnostic(
       'error',
       'store_root_not_directory',
-      'Store location is not a directory.',
+      'Store 位置不是目录。',
       {
         target: 'store.root',
-        fix: 'Register a directory path for this store.',
+        fix: '为此 store 注册一个目录路径。',
       }
     ));
   } else {
@@ -1094,10 +1092,10 @@ async function inspectStore(entry: {
         diagnostics.push(makeStoreDiagnostic(
           'error',
           'store_metadata_missing',
-          'Store metadata is missing.',
+          'Store 元数据缺失。',
           {
             target: 'store.metadata',
-            fix: `Create ${metadataPath} or rerun store register.`,
+            fix: `创建 ${metadataPath} 或重新运行 store register。`,
           }
         ));
       } else if (parsed.id !== entry.id) {
@@ -1105,10 +1103,10 @@ async function inspectStore(entry: {
         diagnostics.push(makeStoreDiagnostic(
           'error',
           'store_metadata_id_mismatch',
-          `Store metadata id '${parsed.id}' does not match registry id '${entry.id}'.`,
+          `Store 元数据 id '${parsed.id}' 与注册表 id '${entry.id}' 不匹配。`,
           {
             target: 'store.metadata',
-            fix: 'Repair the local registry or store metadata so the ids match.',
+            fix: '修复本地注册表或 store 元数据使 id 匹配。',
           }
         ));
       } else {
@@ -1125,7 +1123,7 @@ async function inspectStore(entry: {
         error,
         'store_metadata_invalid',
         'store.metadata',
-        `Repair ${metadataPath}.`
+        `修复 ${metadataPath}。`
       ));
     }
 
@@ -1138,7 +1136,7 @@ async function inspectStore(entry: {
       originUrl: null,
     };
 
-    // Read-only Git facts; doctor reports and never repairs.
+    // 只读 Git 事实；doctor 报告但从不修复。
     if (isRepository) {
       git.hasCommits = await gitHasCommits(root);
       git.hasUncommittedChanges = await gitHasUncommittedChanges(root);
@@ -1149,10 +1147,10 @@ async function inspectStore(entry: {
         diagnostics.push(makeStoreDiagnostic(
           'warning',
           'store_git_no_commits',
-          'Git repository has no commits yet; clones of this store will be empty until an initial commit exists.',
+          'Git 仓库尚无提交；此 store 的克隆在有初始提交之前将是空的。',
           {
             target: 'store.git',
-            fix: 'Commit the store files, then push to share them.',
+            fix: '提交 store 文件，然后推送以分享它们。',
           }
         ));
       } else if (git.hasCommits === true) {
@@ -1169,10 +1167,10 @@ async function inspectStore(entry: {
           diagnostics.push(makeStoreDiagnostic(
             'warning',
             'store_clone_fragile_directories',
-            `These directories contain no tracked files and will be lost in clones: ${fragileDirs.join(', ')}.`,
+            `这些目录不包含任何已跟踪的文件，在克隆中将丢失：${fragileDirs.join(', ')}。`,
             {
               target: 'store.git',
-              fix: `Track a file in each directory (for example ${DIRECTORY_ANCHOR_FILE_NAME}) and commit it.`,
+              fix: `在每个目录中跟踪一个文件（例如 ${DIRECTORY_ANCHOR_FILE_NAME}）并提交它。`,
             }
           ));
         }
@@ -1197,9 +1195,9 @@ export async function doctorStores(id?: string): Promise<StoreDoctorResult> {
 
   if (!registry) {
     if (selectedId !== undefined) {
-      throw new StoreError(`Unknown store '${selectedId}'.`, 'store_not_found', {
+      throw new StoreError(`未知的 store '${selectedId}'`, 'store_not_found', {
         target: 'store.id',
-        fix: 'Run openspec store list to see registered stores.',
+        fix: '运行 openspec store list 查看已注册的 store。',
       });
     }
 
@@ -1212,9 +1210,9 @@ export async function doctorStores(id?: string): Promise<StoreDoctorResult> {
     : entries;
 
   if (selectedId && selected.length === 0) {
-    throw new StoreError(`Unknown store '${selectedId}'.`, 'store_not_found', {
+    throw new StoreError(`未知的 store '${selectedId}'`, 'store_not_found', {
       target: 'store.id',
-      fix: 'Run openspec store list to see registered stores.',
+      fix: '运行 openspec store list 查看已注册的 store。',
     });
   }
 

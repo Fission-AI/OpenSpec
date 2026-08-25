@@ -1,7 +1,7 @@
 /**
- * Schemas Command
+ * Schemas 命令
  *
- * Lists available workflow schemas with descriptions.
+ * 列出可用的工作流 schema 及其描述。
  */
 
 import chalk from 'chalk';
@@ -9,7 +9,7 @@ import { listSchemasWithInfo } from '../../core/artifact-graph/index.js';
 import { resolveRootForCommand } from '../../core/root-selection.js';
 
 // -----------------------------------------------------------------------------
-// Types
+// 类型
 // -----------------------------------------------------------------------------
 
 export interface SchemasOptions {
@@ -19,7 +19,7 @@ export interface SchemasOptions {
 }
 
 // -----------------------------------------------------------------------------
-// Command Implementation
+// 命令实现
 // -----------------------------------------------------------------------------
 
 export async function schemasCommand(options: SchemasOptions): Promise<void> {
@@ -38,19 +38,19 @@ export async function schemasCommand(options: SchemasOptions): Promise<void> {
     return;
   }
 
-  console.log('Available schemas:');
+  console.log('可用的 schema：');
   console.log();
 
   for (const schema of schemas) {
     let sourceLabel = '';
     if (schema.source === 'project') {
-      sourceLabel = chalk.cyan(' (project)');
+      sourceLabel = chalk.cyan(' (项目)');
     } else if (schema.source === 'user') {
-      sourceLabel = chalk.dim(' (user override)');
+      sourceLabel = chalk.dim(' (用户覆盖)');
     }
     console.log(`  ${chalk.bold(schema.name)}${sourceLabel}`);
     console.log(`    ${schema.description}`);
-    console.log(`    Artifacts: ${schema.artifacts.join(' → ')}`);
+    console.log(`    制品：${schema.artifacts.join(' → ')}`);
     console.log();
   }
 }

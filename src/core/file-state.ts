@@ -7,18 +7,18 @@ import { StoreError } from './store/errors.js';
 const fs = nodeFs.promises;
 
 /**
- * Shared machine-local state-file mechanics (extracted from the store
- * registry in slice 7.1, its second consumer). Callers own the
- * diagnostic data (code, target, wording); the factory owns the
- * shared mechanics - the fix strings describe the lock's own
- * behavior (stale-steal, creation), so their templates live here.
+ * 共享的机器本地状态文件机制（从 slice 7.1 中的 store
+ * 注册表提取，是其第二个使用者）。调用方拥有
+ * 诊断数据（代码、目标、措辞）；工厂拥有
+ * 共享机制 - 修复字符串描述锁本身的
+ * 行为（过期-窃取、创建），因此它们的模板位于此处。
  */
 
 export type FileLockErrorKind = 'create-failed' | 'timeout';
 
 export interface FileLockErrorInfo {
   lockPath: string;
-  /** The original errno error for 'create-failed'. */
+  /** 'create-failed' 的原始 errno 错误。 */
   cause?: unknown;
 }
 
@@ -28,34 +28,34 @@ export interface FileLockOptions {
 }
 
 export interface LockErrorData {
-  /** Noun phrase for the create-failed message, e.g. "the registry lock file". */
+  /** create-failed 消息的名词短语，例如"注册表锁文件"。 */
   createSubject: string;
-  /** The full timeout message, e.g. "Store registry is busy." */
+  /** 完整的超时消息，例如"Store 注册表正忙。" */
   busyMessage: string;
   code: string;
   target: string;
 }
 
-/** One template for lock diagnostics; callers supply the data. */
+/** 锁诊断的一个模板；调用方提供数据。 */
 export function makeLockErrorFactory(
   data: LockErrorData
 ): (kind: FileLockErrorKind, info: FileLockErrorInfo) => StoreError {
   return (kind, info) => {
     if (kind === 'create-failed') {
-      // A permission or filesystem problem, not contention - say so.
+      // 权限或文件系统问题，不是竞争 - 说明原因。
       return new StoreError(
-        `Cannot create ${data.createSubject} ${info.lockPath} (${(info.cause as NodeJS.ErrnoException)?.code ?? info.cause}).`,
+        `无法创建 ${data.createSubject} ${info.lockPath} (${(info.cause as NodeJS.ErrnoException)?.code ?? info.cause})。`,
         data.code,
         {
           target: data.target,
-          fix: `Check permissions on ${path.dirname(info.lockPath)}.`,
+          fix: `检查 ${path.dirname(info.lockPath)} 上的权限。`,
         }
       );
     }
 
     return new StoreError(data.busyMessage, data.code, {
       target: data.target,
-      fix: `Retry shortly; if this persists, delete the stale lock file ${info.lockPath}.`,
+      fix: `稍后重试；如果持续存在，删除过期的锁文件 ${info.lockPath}。`,
     });
   };
 }
@@ -90,10 +90,10 @@ export async function pathIsFile(filePath: string): Promise<boolean> {
   }
 }
 
-// Deliberately not FileSystemUtils.directoryExists: that variant
-// debug-logs non-ENOENT failures, which is noise inside prompt
-// validators, and pathIsFile has no FileSystemUtils equivalent - the
-// silent symmetric pair lives here.
+// 故意不使用 FileSystemUtils.directoryExists：那个变体
+// 会对非 ENOENT 失败进行调试日志记录，这在 prompt
+// 验证器中是噪音，pathIsFile 没有 FileSystemUtils 等效方法 -
+// 静默的对称对存在于此。
 export async function pathIsDirectory(dirPath: string): Promise<boolean> {
   try {
     return (await fs.stat(dirPath)).isDirectory();
@@ -149,9 +149,9 @@ export async function acquireFileLock(
         try {
           await lock.sync();
         } catch (error) {
-          // Some FUSE and network filesystems support exclusive lock files but
-          // explicitly do not implement fsync. The token is still visible to
-          // cooperating processes, so do not make those projects unusable.
+          // 一些 FUSE 和网络文件系统支持排他锁文件，但
+          // 明确不实现 fsync。该 token 对
+          // 协作进程仍然可见，因此不要让这些项目变得不可用。
           if (!isUnsupportedSyncError(error)) {
             throw error;
           }
@@ -165,13 +165,13 @@ export async function acquireFileLock(
       return lock;
     } catch (error) {
       if (!isNodeErrorCode(error, 'EEXIST')) {
-        // A permission or filesystem problem, not contention - say so.
+        // 权限或文件系统问题，不是竞争 - 说明原因。
         throw errorFor('create-failed', { lockPath, cause: error });
       }
 
-      // Never steal by age: unlinking a supposedly stale path can race with
-      // its replacement and erase a live owner's lock. The timeout diagnostic
-      // gives the user an explicit recovery path for genuinely orphaned locks.
+      // 永远不要按年龄窃取：取消链接一个被认为过期的路径可能会与其替换项竞争
+      // 并清除存活所有者的锁。超时诊断
+      // 为真正孤立的锁提供了明确的恢复路径。
       if (Date.now() >= deadline) {
         throw errorFor('timeout', { lockPath });
       }
@@ -198,7 +198,7 @@ export async function releaseFileLock(
       await fs.rm(lockPath, { force: true });
     }
   } catch {
-    // The lock was already removed or replaced with an unreadable path.
-    // In either case, this owner must not remove anything else.
+    // 锁已经被移除或替换为不可读的路径。
+    // 在这两种情况下，此所有者都不得移除其他任何东西。
   }
 }

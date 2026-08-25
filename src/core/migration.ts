@@ -180,7 +180,7 @@ function collectLegacyToolMigrations(
         );
       } catch {
         console.warn(
-          `Skipping legacy ${legacy.root}/ migration because the directory resolves outside this project.`
+          `跳过遗留的 ${legacy.root}/ 迁移，因为目录解析到此项目之外。`
         );
         continue;
       }
@@ -245,7 +245,7 @@ function migrateSkillDirs(
     if (requireDestination && !fs.existsSync(destinationSkill)) continue;
     if (!areProjectArtifacts(projectPath, sourceSkill, destinationSkill)) {
       console.warn(
-        `Skipping legacy ${legacyRoot}/skills/${dirName} migration because it resolves outside this project.`
+        `跳过遗留的 ${legacyRoot}/skills/${dirName} 迁移，因为目录解析到此项目之外。`
       );
       continue;
     }
@@ -305,7 +305,7 @@ function migrateCommandFiles(
     const destination = path.join(projectPath, currentPath);
     if (!areProjectArtifacts(projectPath, source, destination)) {
       console.warn(
-        `Skipping legacy ${legacyPath} migration because it resolves outside this project.`
+        `跳过遗留的 ${legacyPath} 迁移，因为目录解析到此项目之外。`
       );
       continue;
     }
@@ -557,7 +557,7 @@ export function migrateIfNeeded(projectPath: string, tools: AIToolOption[]): voi
   }
   saveGlobalConfig(config);
 
-  console.log(`Migrated: custom profile with ${installedWorkflows.length} workflows`);
+  console.log(`已迁移：包含 ${installedWorkflows.length} 个工作流的自定义 profile`);
   // Each detected tool resolves to a propose reference for its surface: the
   // command name its generated files answer to when commands will exist for it
   // under the effective delivery (/opsx:propose when namespaced under opsx/,
@@ -582,5 +582,5 @@ export function migrateIfNeeded(projectPath: string, tools: AIToolOption[]): voi
   );
   const proposeReference =
     proposeReferences.size === 1 ? [...proposeReferences][0] : 'the openspec-propose skill';
-  console.log(`New in this version: ${proposeReference}. Try 'openspec config profile core' for the streamlined experience.`);
+  console.log(`本版本新增：${proposeReference}。尝试 'openspec config profile core' 以获得更简化的体验。`);
 }

@@ -83,7 +83,7 @@ export function resolveCurrentPlanningHomeSync(
   }
 
   if (options.allowImplicitRepoRoot === false) {
-    throw new Error('No OpenSpec planning home found from the current directory.');
+    throw new Error('未从当前目录找到 OpenSpec 规划根目录。');
   }
 
   return repoPlanningHome(FileSystemUtils.canonicalizeExistingPath(searchStart));

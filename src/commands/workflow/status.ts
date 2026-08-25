@@ -1,7 +1,7 @@
 /**
- * Status Command
+ * Status 命令
  *
- * Displays artifact completion status for a change.
+ * 显示 change 的制品完成状态。
  */
 
 import ora from 'ora';
@@ -28,7 +28,7 @@ import {
 } from './shared.js';
 
 // -----------------------------------------------------------------------------
-// Types
+// 类型
 // -----------------------------------------------------------------------------
 
 export interface StatusOptions {
@@ -40,18 +40,18 @@ export interface StatusOptions {
 }
 
 // -----------------------------------------------------------------------------
-// Command Implementation
+// 命令实现
 // -----------------------------------------------------------------------------
 
 export async function statusCommand(options: StatusOptions): Promise<void> {
-  // The root resolves (and the store banner prints) before the spinner starts
-  // so the two do not fight over stderr.
+  // 根目录解析（以及存储横幅打印）在 spinner 启动之前完成，
+  // 这样两者不会在 stderr 上冲突。
   const root = await resolveRootForCommand(options, { json: options.json });
   if (!root) {
     return;
   }
 
-  const spinner = options.json ? undefined : ora('Loading change status...').start();
+  const spinner = options.json ? undefined : ora('正在加载 change 状态...').start();
 
   try {
     const planningHome = toPlanningHome(root);
@@ -59,8 +59,8 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
     const rootOutput = toRootOutput(root);
     const newChangeHint = withStoreFlag(root, 'openspec new change <name>');
 
-    // Handle no-changes case gracefully — status is informational,
-    // so "no changes" is a valid state, not an error.
+    // 优雅地处理无 change 的情况——status 是信息性的，
+    // 因此"无 change"是有效状态，不是错误。
     if (!options.change) {
       const available = await getAvailableChanges(projectRoot, root.changesDir);
       if (available.length === 0) {
@@ -68,20 +68,20 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
         if (options.json) {
           console.log(
             JSON.stringify(
-              { changes: [], message: 'No active changes.', root: rootOutput },
+              { changes: [], message: '无活动 change。', root: rootOutput },
               null,
               2
             )
           );
           return;
         }
-        console.log(`No active changes. Create one with: ${newChangeHint}`);
+        console.log(`无活动 change。使用以下命令创建一个：${newChangeHint}`);
         return;
       }
-      // Changes exist but --change not provided
+      // 存在 change 但未提供 --change
       spinner?.stop();
       throw new Error(
-        `Missing required option --change. Available changes:\n  ${available.join('\n  ')}`
+        `缺少必需的 --change 选项。可用的 change：\n  ${available.join('\n  ')}`
       );
     }
 
@@ -92,12 +92,12 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
       { newChangeHint }
     );
 
-    // Validate schema if explicitly provided
+    // 如果显式提供了 schema 则验证
     if (options.schema) {
       validateSchemaExists(options.schema, projectRoot);
     }
 
-    // loadChangeContext will auto-detect schema from metadata if not provided
+    // loadChangeContext 将从元数据自动检测 schema（如未提供）
     const context = loadChangeContext(projectRoot, changeName, options.schema, {
       changeDir: getChangeDir(planningHome, changeName),
       planningHome,
@@ -126,13 +126,13 @@ export function printStatusText(status: ChangeStatus): void {
   const skippedCount = status.artifacts.filter((a) => a.status === 'skipped').length;
   const total = status.artifacts.length - skippedCount;
 
-  console.log(`Change: ${status.changeName}`);
-  console.log(`Schema: ${status.schemaName}`);
+  console.log(`Change：${status.changeName}`);
+  console.log(`Schema：${status.schemaName}`);
   if (status.changeRoot) {
-    console.log(`Change root: ${status.changeRoot}`);
+    console.log(`Change 根目录：${status.changeRoot}`);
   }
-  const skippedSuffix = skippedCount > 0 ? ` (${skippedCount} skipped)` : '';
-  console.log(`Progress: ${doneCount}/${total} artifacts complete${skippedSuffix}`);
+  const skippedSuffix = skippedCount > 0 ? ` (${skippedCount} 个已跳过)` : '';
+  console.log(`进度：${doneCount}/${total} 个制品已完成${skippedSuffix}`);
   console.log();
 
   for (const artifact of status.artifacts) {
@@ -141,11 +141,11 @@ export function printStatusText(status: ChangeStatus): void {
     let line = `${indicator} ${artifact.id}`;
 
     if (artifact.status === 'skipped') {
-      line += color(' (skipped: change declares skip_specs)');
+      line += color(' (已跳过：change 声明了 skip_specs)');
     }
 
     if (artifact.status === 'blocked' && artifact.missingDeps && artifact.missingDeps.length > 0) {
-      line += color(` (blocked by: ${artifact.missingDeps.join(', ')})`);
+      line += color(` (被以下阻塞：${artifact.missingDeps.join(', ')})`);
     }
 
     console.log(line);
@@ -153,6 +153,6 @@ export function printStatusText(status: ChangeStatus): void {
 
   if (status.isPlanningComplete) {
     console.log();
-    console.log(chalk.green('All planning artifacts complete!'));
+    console.log(chalk.green('所有规划制品已完成！'));
   }
 }

@@ -38,8 +38,8 @@ async function readChangeDirectoryEntries(changesDir: string): Promise<Dirent[]>
 }
 
 /**
- * Get the most recent modification time of any file in a directory (recursive).
- * Falls back to the directory's own mtime if no files are found.
+ * 获取目录中任何文件的最近修改时间（递归）。
+ * 如果没有找到文件，则回退到目录自身的 mtime。
  */
 async function getLastModified(dirPath: string): Promise<Date> {
   let latest: Date | null = null;
@@ -71,7 +71,7 @@ async function getLastModified(dirPath: string): Promise<Date> {
 }
 
 /**
- * Format a date as relative time (e.g., "2 hours ago", "3 days ago")
+ * 将日期格式化为相对时间（例如"2 小时前"、"3 天前"）
  */
 function formatRelativeTime(date: Date): string {
   const now = new Date();
@@ -84,13 +84,13 @@ function formatRelativeTime(date: Date): string {
   if (diffDays > 30) {
     return date.toLocaleDateString();
   } else if (diffDays > 0) {
-    return `${diffDays}d ago`;
+    return `${diffDays}天前`;
   } else if (diffHours > 0) {
-    return `${diffHours}h ago`;
+    return `${diffHours}小时前`;
   } else if (diffMins > 0) {
-    return `${diffMins}m ago`;
+    return `${diffMins}分钟前`;
   } else {
-    return 'just now';
+    return '刚刚';
   }
 }
 
@@ -101,7 +101,7 @@ export class ListCommand {
     if (mode === 'changes') {
       const changesDir = path.join(targetPath, 'openspec', 'changes');
 
-      // Get all directories in changes (excluding archive)
+      // 获取 changes 中的所有目录（排除 archive）
       const entries = await readChangeDirectoryEntries(changesDir);
       const changeDirs = entries
         .filter(entry => entry.isDirectory() && entry.name !== 'archive')
@@ -111,12 +111,12 @@ export class ListCommand {
         if (json) {
           console.log(JSON.stringify({ changes: [], ...(root ? { root } : {}) }, null, 2));
         } else {
-          console.log('No active changes found.');
+          console.log('未找到活动变更。');
         }
         return;
       }
 
-      // Collect information about each change
+      // 收集每个变更的信息
       const changes: ChangeInfo[] = [];
 
       for (const changeDir of changeDirs) {
@@ -131,14 +131,14 @@ export class ListCommand {
         });
       }
 
-      // Sort by preference (default: recent first)
+      // 按偏好排序（默认：最近优先）
       if (sort === 'recent') {
         changes.sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime());
       } else {
         changes.sort((a, b) => a.name.localeCompare(b.name));
       }
 
-      // JSON output for programmatic use
+      // 用于编程使用的 JSON 输出
       if (json) {
         const jsonOutput = changes.map(c => ({
           name: c.name,
@@ -151,8 +151,8 @@ export class ListCommand {
         return;
       }
 
-      // Display results
-      console.log('Changes:');
+      // 显示结果
+      console.log('变更：');
       const padding = '  ';
       const nameWidth = Math.max(...changes.map(c => c.name.length));
       for (const change of changes) {
@@ -164,7 +164,7 @@ export class ListCommand {
       return;
     }
 
-    // specs mode
+    // specs 模式
     const specsDir = path.join(targetPath, 'openspec', 'specs');
     try {
       await fs.access(specsDir);
@@ -172,7 +172,7 @@ export class ListCommand {
       if (json) {
         console.log(JSON.stringify({ specs: [], ...(root ? { root } : {}) }, null, 2));
       } else {
-        console.log('No specs found.');
+        console.log('未找到规范。');
       }
       return;
     }
@@ -182,7 +182,7 @@ export class ListCommand {
       if (json) {
         console.log(JSON.stringify({ specs: [], ...(root ? { root } : {}) }, null, 2));
       } else {
-        console.log('No specs found.');
+        console.log('未找到规范。');
       }
       return;
     }
@@ -196,7 +196,7 @@ export class ListCommand {
         const spec = parser.parseSpec(id);
         specs.push({ id, requirementCount: spec.requirements.length });
       } catch {
-        // If spec cannot be read or parsed, include with 0 count
+        // 如果规范无法读取或解析，则以 0 计数包含
         specs.push({ id, requirementCount: 0 });
       }
     }
@@ -208,12 +208,12 @@ export class ListCommand {
       return;
     }
 
-    console.log('Specs:');
+    console.log('规范：');
     const padding = '  ';
     const nameWidth = Math.max(...specs.map(s => s.id.length));
     for (const spec of specs) {
       const padded = spec.id.padEnd(nameWidth);
-      console.log(`${padding}${padded}     requirements ${spec.requirementCount}`);
+      console.log(`${padding}${padded}     需求 ${spec.requirementCount}`);
     }
   }
 }

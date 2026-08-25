@@ -114,19 +114,19 @@ export class FileSystemUtils {
     const resolvedTarget = path.resolve(targetPath);
 
     if (!this.isPathWithin(resolvedDirectory, resolvedTarget)) {
-      throw new Error(`Path is outside the allowed directory: ${targetPath}`);
+      throw new Error(`路径不在允许的目录内：${targetPath}`);
     }
 
     const canonicalDirectory = this.canonicalizePotentialPath(resolvedDirectory);
     const canonicalTarget = this.canonicalizePotentialPath(resolvedTarget);
     if (!this.isPathWithin(canonicalDirectory, canonicalTarget)) {
-      throw new Error(`Path is outside the allowed directory: ${targetPath}`);
+      throw new Error(`路径不在允许的目录内：${targetPath}`);
     }
   }
 
   static resolveProjectArtifactPath(projectPath: string, artifactPath: string): string {
     if (path.isAbsolute(artifactPath)) {
-      throw new Error(`Refusing to manage an artifact outside the project: ${artifactPath}`);
+      throw new Error(`拒绝管理项目外的制品：${artifactPath}`);
     }
 
     const targetPath = path.join(projectPath, artifactPath);
@@ -167,7 +167,7 @@ export class FileSystemUtils {
 
         try {
           if (nodeFs.lstatSync(existingPath).isSymbolicLink()) {
-            throw new Error(`Cannot verify dangling symbolic link: ${existingPath}`);
+            throw new Error(`无法验证悬空符号链接：${existingPath}`);
           }
         } catch (lstatError) {
           if ((lstatError as NodeJS.ErrnoException).code !== 'ENOENT') {
@@ -177,7 +177,7 @@ export class FileSystemUtils {
 
         const parent = path.dirname(existingPath);
         if (parent === existingPath) {
-          throw new Error(`Cannot resolve an existing parent for ${targetPath}`);
+          throw new Error(`无法解析 ${targetPath} 的现有父目录`);
         }
         missingSegments.unshift(path.basename(existingPath));
         existingPath = parent;
@@ -337,7 +337,7 @@ export class FileSystemUtils {
       if (startIndex !== -1 && endIndex !== -1) {
         if (endIndex < startIndex) {
           throw new Error(
-            `Invalid marker state in ${filePath}. End marker appears before start marker.`
+            `${filePath} 中的标记状态无效。结束标记出现在开始标记之前。`
           );
         }
 
@@ -347,7 +347,7 @@ export class FileSystemUtils {
       } else if (startIndex === -1 && endIndex === -1) {
         existingContent = startMarker + '\n' + content + '\n' + endMarker + '\n\n' + existingContent;
       } else {
-        throw new Error(`Invalid marker state in ${filePath}. Found start: ${startIndex !== -1}, Found end: ${endIndex !== -1}`);
+        throw new Error(`${filePath} 中的标记状态无效。找到开始：${startIndex !== -1}，找到结束：${endIndex !== -1}`);
       }
     } else {
       existingContent = startMarker + '\n' + content + '\n' + endMarker;

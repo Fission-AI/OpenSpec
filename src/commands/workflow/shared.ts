@@ -1,8 +1,7 @@
 /**
- * Shared Types and Utilities for Artifact Workflow Commands
+ * 制品工作流命令的共享类型和工具函数
  *
- * This module contains types, constants, and validation helpers used across
- * multiple artifact workflow commands.
+ * 本模块包含在多个制品工作流命令中使用的类型、常量和验证辅助函数。
  */
 
 import chalk from 'chalk';
@@ -13,7 +12,7 @@ import type { ReferenceIndexEntry } from '../../core/references.js';
 import { isRootSelectionError } from '../../core/root-selection.js';
 
 // -----------------------------------------------------------------------------
-// Types
+// 类型
 // -----------------------------------------------------------------------------
 
 export interface ChangeCommandStatus {
@@ -44,30 +43,30 @@ export interface ApplyInstructions {
   state: 'blocked' | 'all_done' | 'ready';
   missingArtifacts?: string[];
   instruction: string;
-  /** Referenced-store index (read-only upstream context; omitted when none declared) */
+  /** 引用存储索引（只读上游上下文；未声明时省略） */
   references?: ReferenceIndexEntry[];
-  /** Current project background from the selected root. */
+  /** 选定根目录中的当前项目背景。 */
   context?: string;
-  /** Current advisory guidance for apply. */
+  /** apply 的当前咨询指导。 */
   operationGuidance?: string[];
 }
 
 export interface ArchiveInstructions {
   changeName: string;
-  /** Current project background from the selected root. */
+  /** 选定根目录中的当前项目背景。 */
   context?: string;
-  /** Current advisory guidance for archive. */
+  /** archive 的当前咨询指导。 */
   operationGuidance?: string[];
 }
 
 // -----------------------------------------------------------------------------
-// Constants
+// 常量
 // -----------------------------------------------------------------------------
 
 export const DEFAULT_SCHEMA = 'spec-driven';
 
 // -----------------------------------------------------------------------------
-// Utility Functions
+// 工具函数
 // -----------------------------------------------------------------------------
 
 export function printJson(payload: unknown): void {
@@ -87,14 +86,14 @@ export function statusFromError(error: unknown): ChangeCommandStatus {
 }
 
 /**
- * Checks if color output is disabled via NO_COLOR env or --no-color flag.
+ * 检查是否通过 NO_COLOR 环境变量或 --no-color 禁用了彩色输出。
  */
 export function isColorDisabled(): boolean {
   return process.env.NO_COLOR === '1' || process.env.NO_COLOR === 'true';
 }
 
 /**
- * Gets the color function based on status.
+ * 根据状态获取对应的颜色函数。
  */
 export function getStatusColor(status: 'done' | 'skipped' | 'ready' | 'blocked'): (text: string) => string {
   if (isColorDisabled()) {
@@ -113,7 +112,7 @@ export function getStatusColor(status: 'done' | 'skipped' | 'ready' | 'blocked')
 }
 
 /**
- * Gets the status indicator for an artifact.
+ * 获取制品的状态指示器。
  */
 export function getStatusIndicator(status: 'done' | 'skipped' | 'ready' | 'blocked'): string {
   const color = getStatusColor(status);
@@ -130,8 +129,8 @@ export function getStatusIndicator(status: 'done' | 'skipped' | 'ready' | 'block
 }
 
 /**
- * Returns the list of available change directory names under openspec/changes/.
- * Excludes the archive directory and hidden directories.
+ * 返回 openspec/changes/ 下可用的 change 目录名列表。
+ * 排除 archive 目录和隐藏目录。
  */
 export async function getAvailableChanges(
   projectRoot: string,
@@ -150,36 +149,36 @@ export async function getAvailableChanges(
 }
 
 /**
- * Validates a change name used to look up an existing change directory.
- * Lookup accepts any directory name that `getAvailableChanges` could return
- * (the kebab-case convention in `validateChangeName` applies at creation
- * time only); it only rejects names that would escape the changes directory
- * or address entries `getAvailableChanges` excludes (hidden dirs, archive).
+ * 验证用于查找现有 change 目录的 change 名称。
+ * 查找接受 `getAvailableChanges` 能返回的任何目录名
+ * （`validateChangeName` 中的 kebab-case 约定仅在创建时应用）；
+ * 它仅拒绝会转义 changes 目录的名称
+ * 或 `getAvailableChanges` 排除的条目（隐藏目录、archive）。
  *
- * @returns An error message, or undefined if the name is safe to look up
+ * @returns 错误消息，如果名称可安全查找则返回 undefined
  */
 function validateChangeLookupName(changeName: string): string | undefined {
   if (changeName === '.' || changeName === '..') {
-    return 'Change name cannot be a relative path segment';
+    return 'change 名称不能是相对路径段';
   }
   if (changeName.includes('/') || changeName.includes('\\')) {
-    return 'Change name cannot contain path separators';
+    return 'change 名称不能包含路径分隔符';
   }
   if (changeName.includes('\0')) {
-    return 'Change name cannot contain null characters';
+    return 'change 名称不能包含空字符';
   }
   if (changeName.startsWith('.')) {
-    return 'Change name cannot start with a dot';
+    return 'change 名称不能以点开头';
   }
   if (changeName === 'archive') {
-    return "'archive' is reserved for archived changes";
+    return "'archive' 已预留给已归档的 change";
   }
   return undefined;
 }
 
 /**
- * Validates that a change exists and returns available changes if not.
- * Checks directory existence directly to support scaffolded changes (without proposal.md).
+ * 验证 change 存在，不存在时返回可用的 change 列表。
+ * 直接检查目录存在性以支持脚手架搭建的 change（无 proposal.md）。
  */
 export async function validateChangeExists(
   changeName: string | undefined,
@@ -187,27 +186,27 @@ export async function validateChangeExists(
   changesDir = path.join(projectRoot, 'openspec', 'changes'),
   hints: { newChangeHint?: string } = {}
 ): Promise<string> {
-  // Hints must stay pasteable: callers with a selected store pass a
-  // store-carrying hint so following it lands in the same root.
+  // 提示必须保持可复制性：选定存储的调用者传递
+  // 携带存储的提示，以便后续操作在同一根目录中。
   const newChangeHint = hints.newChangeHint ?? 'openspec new change <name>';
 
   if (!changeName) {
     const available = await getAvailableChanges(projectRoot, changesDir);
     if (available.length === 0) {
-      throw new Error(`No changes found. Create one with: ${newChangeHint}`);
+      throw new Error(`未找到 change。使用以下命令创建一个：${newChangeHint}`);
     }
     throw new Error(
-      `Missing required option --change. Available changes:\n  ${available.join('\n  ')}`
+      `缺少必需的 --change 选项。可用的 change：\n  ${available.join('\n  ')}`
     );
   }
 
-  // Validate change name format to prevent path traversal
+  // 验证 change 名称格式以防止路径遍历
   const lookupError = validateChangeLookupName(changeName);
   if (lookupError) {
-    throw new Error(`Invalid change name '${changeName}': ${lookupError}`);
+    throw new Error(`无效的 change 名称 '${changeName}'：${lookupError}`);
   }
 
-  // Check directory existence directly
+  // 直接检查目录存在性
   const changePath = path.join(changesDir, changeName);
   const exists = fs.existsSync(changePath) && fs.statSync(changePath).isDirectory();
 
@@ -215,11 +214,11 @@ export async function validateChangeExists(
     const available = await getAvailableChanges(projectRoot, changesDir);
     if (available.length === 0) {
       throw new Error(
-        `Change '${changeName}' not found. No changes exist. Create one with: ${newChangeHint}`
+        `未找到 change '${changeName}'。不存在任何 change。使用以下命令创建一个：${newChangeHint}`
       );
     }
     throw new Error(
-      `Change '${changeName}' not found. Available changes:\n  ${available.join('\n  ')}`
+      `未找到 change '${changeName}'。可用的 change：\n  ${available.join('\n  ')}`
     );
   }
 
@@ -227,17 +226,17 @@ export async function validateChangeExists(
 }
 
 /**
- * Validates that a schema exists and returns available schemas if not.
+ * 验证 schema 存在，不存在时返回可用的 schema 列表。
  *
- * @param schemaName - The schema name to validate
- * @param projectRoot - Optional project root for project-local schema resolution
+ * @param schemaName - 要验证的 schema 名称
+ * @param projectRoot - 可选的项目根目录，用于项目本地 schema 解析
  */
 export function validateSchemaExists(schemaName: string, projectRoot?: string): string {
   const schemaDir = getSchemaDir(schemaName, projectRoot);
   if (!schemaDir) {
     const availableSchemas = listSchemas(projectRoot);
     throw new Error(
-      `Schema '${schemaName}' not found. Available schemas:\n  ${availableSchemas.join('\n  ')}`
+      `未找到 schema '${schemaName}'。可用的 schema：\n  ${availableSchemas.join('\n  ')}`
     );
   }
   return schemaName;

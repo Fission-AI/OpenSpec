@@ -24,7 +24,7 @@ interface CompleteOptions {
 }
 
 /**
- * Command for managing shell completions for OpenSpec CLI
+ * 管理 OpenSpec CLI 的 shell 补全命令
  */
 export class CompletionCommand {
   private completionProvider: CompletionProvider;
@@ -33,12 +33,12 @@ export class CompletionCommand {
     this.completionProvider = new CompletionProvider();
   }
   /**
-   * Resolve shell parameter or exit with error
-   *
-   * @param shell - The shell parameter (may be undefined)
-   * @param operationName - Name of the operation (for error messages)
-   * @returns Resolved shell or null if should exit
-   */
+ * 解析 shell 参数或退出并报错
+ *
+ * @param shell - shell 参数（可能为 undefined）
+ * @param operationName - 操作名称（用于错误消息）
+ * @returns 解析后的 shell 或 null（如应退出）
+ */
   private resolveShellOrExit(shell: string | undefined, operationName: string): SupportedShell | null {
     const normalizedShell = this.normalizeShell(shell);
 
@@ -49,23 +49,23 @@ export class CompletionCommand {
         return detectionResult.shell;
       }
 
-      // Shell was detected but not supported
+      // 检测到 shell 但不受支持
       if (detectionResult.detected && !detectionResult.shell) {
-        console.error(`Error: Shell '${detectionResult.detected}' is not supported yet. Currently supported: ${CompletionFactory.getSupportedShells().join(', ')}`);
+        console.error(`错误：检测到 shell '${detectionResult.detected}' 但尚未支持。当前支持：${CompletionFactory.getSupportedShells().join(', ')}`);
         process.exitCode = 1;
         return null;
       }
 
-      // No shell specified and cannot auto-detect
-      console.error('Error: Could not auto-detect shell. Please specify shell explicitly.');
-      console.error(`Usage: openspec completion ${operationName} [shell]`);
-      console.error(`Currently supported: ${CompletionFactory.getSupportedShells().join(', ')}`);
+      // 未指定 shell 且无法自动检测
+      console.error('错误：无法自动检测 shell。请明确指定 shell。');
+      console.error(`用法：openspec completion ${operationName} [shell]`);
+      console.error(`当前支持：${CompletionFactory.getSupportedShells().join(', ')}`);
       process.exitCode = 1;
       return null;
     }
 
     if (!CompletionFactory.isSupported(normalizedShell)) {
-      console.error(`Error: Shell '${normalizedShell}' is not supported yet. Currently supported: ${CompletionFactory.getSupportedShells().join(', ')}`);
+      console.error(`错误：shell '${normalizedShell}' 尚未支持。当前支持：${CompletionFactory.getSupportedShells().join(', ')}`);
       process.exitCode = 1;
       return null;
     }
@@ -74,10 +74,10 @@ export class CompletionCommand {
   }
 
   /**
-   * Generate completion script and output to stdout
-   *
-   * @param options - Options for generation (shell type)
-   */
+ * 生成补全脚本并输出到标准输出
+ *
+ * @param options - 生成选项（shell 类型）
+ */
   async generate(options: GenerateOptions = {}): Promise<void> {
     const shell = this.resolveShellOrExit(options.shell, 'generate');
     if (!shell) return;
@@ -86,10 +86,10 @@ export class CompletionCommand {
   }
 
   /**
-   * Install completion script to the appropriate location
-   *
-   * @param options - Options for installation (shell type, verbose output)
-   */
+ * 安装补全脚本到适当位置
+ *
+ * @param options - 安装选项（shell 类型、详细输出）
+ */
   async install(options: InstallOptions = {}): Promise<void> {
     const shell = this.resolveShellOrExit(options.shell, 'install');
     if (!shell) return;
@@ -98,10 +98,10 @@ export class CompletionCommand {
   }
 
   /**
-   * Uninstall completion script from the installation location
-   *
-   * @param options - Options for uninstallation (shell type, yes flag)
-   */
+ * 从安装位置卸载补全脚本
+ *
+ * @param options - 卸载选项（shell 类型、yes 标志）
+ */
   async uninstall(options: UninstallOptions = {}): Promise<void> {
     const shell = this.resolveShellOrExit(options.shell, 'uninstall');
     if (!shell) return;
@@ -110,8 +110,8 @@ export class CompletionCommand {
   }
 
   /**
-   * Generate completion script for a specific shell
-   */
+ * 为特定 shell 生成补全脚本
+ */
   private async generateForShell(shell: SupportedShell): Promise<void> {
     const generator = CompletionFactory.createGenerator(shell);
     const script = generator.generate(COMMAND_REGISTRY);
@@ -119,19 +119,19 @@ export class CompletionCommand {
   }
 
   /**
-   * Install completion script for a specific shell
-   */
+ * 为特定 shell 安装补全脚本
+ */
   private async installForShell(shell: SupportedShell, verbose: boolean): Promise<void> {
     const generator = CompletionFactory.createGenerator(shell);
     const installer = CompletionFactory.createInstaller(shell);
 
-    const spinner = ora(`Installing ${shell} completion script...`).start();
+    const spinner = ora(`正在安装 ${shell} 补全脚本...`).start();
 
     try {
-      // Generate the completion script
+      // 生成补全脚本
       const script = generator.generate(COMMAND_REGISTRY);
 
-      // Install it
+      // 安装它
       const result = await installer.install(script);
 
       spinner.stop();
@@ -140,12 +140,12 @@ export class CompletionCommand {
         console.log(`✓ ${result.message}`);
 
         if (verbose && result.installedPath) {
-          console.log(`  Installed to: ${result.installedPath}`);
+          console.log(`  已安装到：${result.installedPath}`);
           if (result.backupPath) {
-            console.log(`  Backup created: ${result.backupPath}`);
+            console.log(`  备份创建于：${result.backupPath}`);
           }
 
-          // Check if any shell config was updated
+          // 检查是否有 shell 配置被更新
           const configWasUpdated = result.zshrcConfigured || result.bashrcConfigured || result.profileConfigured;
 
           if (configWasUpdated) {
@@ -156,11 +156,11 @@ export class CompletionCommand {
               powershell: '$PROFILE',
             };
             const configPath = configPaths[shell] || 'config file';
-            console.log(`  ${configPath} configured automatically`);
+            console.log(`  ${configPath} 已自动配置`);
           }
         }
 
-        // Display warnings if present
+        // 显示警告（如有）
         if (result.warnings && result.warnings.length > 0) {
           console.log('');
           for (const warning of result.warnings) {
@@ -168,20 +168,20 @@ export class CompletionCommand {
           }
         }
 
-        // Print instructions (only shown if .zshrc wasn't auto-configured)
+        // 打印操作说明（仅在 .zshrc 未自动配置时显示）
         if (result.instructions && result.instructions.length > 0) {
           console.log('');
           for (const instruction of result.instructions) {
             console.log(instruction);
           }
         } else {
-          // Check if any shell config was updated (InstallationResult has: zshrcConfigured, bashrcConfigured, profileConfigured)
+          // 检查是否有 shell 配置被更新（InstallationResult 包含：zshrcConfigured、bashrcConfigured、profileConfigured）
           const configWasUpdated = result.zshrcConfigured || result.bashrcConfigured || result.profileConfigured;
 
           if (configWasUpdated) {
             console.log('');
 
-            // Shell-specific reload instructions
+            // shell 特定的重新加载指令
             const reloadCommands: Record<string, string> = {
               zsh: 'exec zsh',
               bash: 'exec bash',
@@ -190,7 +190,7 @@ export class CompletionCommand {
             };
             const reloadCmd = reloadCommands[shell] || `restart your ${shell} shell`;
 
-            console.log(`Restart your shell or run: ${reloadCmd}`);
+            console.log(`重启您的 shell 或运行：${reloadCmd}`);
           }
         }
       } else {
@@ -199,42 +199,42 @@ export class CompletionCommand {
       }
     } catch (error) {
       spinner.stop();
-      console.error(`✗ Failed to install completion script: ${error instanceof Error ? error.message : String(error)}`);
+      console.error(`✗ 安装补全脚本失败：${error instanceof Error ? error.message : String(error)}`);
       process.exitCode = 1;
     }
   }
 
   /**
-   * Uninstall completion script for a specific shell
-   */
+ * 为特定 shell 卸载补全脚本
+ */
   private async uninstallForShell(shell: SupportedShell, skipConfirmation: boolean): Promise<void> {
     const installer = CompletionFactory.createInstaller(shell);
 
-    // Prompt for confirmation unless --yes flag is provided
+    // 提示确认（除非提供了 --yes 标志）
     if (!skipConfirmation) {
       const { confirm } = await import('@inquirer/prompts');
 
-      // Get shell-specific config file path
+      // 获取 shell 特定的配置文件路径
       const configPaths: Record<string, string> = {
         zsh: '~/.zshrc',
         bash: '~/.bashrc',
-        fish: 'Fish configuration',  // Fish doesn't modify profile, just removes script file
+        fish: 'Fish 配置文件',  // Fish 不修改 profile，仅删除脚本文件
         powershell: '$PROFILE',
       };
-      const configPath = configPaths[shell] || `${shell} configuration`;
+      const configPath = configPaths[shell] || `${shell} 配置`;
 
       const confirmed = await confirm({
-        message: `Remove OpenSpec configuration from ${configPath}?`,
+        message: `是否从 ${configPath} 中移除 OpenSpec 配置？`,
         default: false,
       });
 
       if (!confirmed) {
-        console.log('Uninstall cancelled.');
+        console.log('卸载已取消。');
         return;
       }
     }
 
-    const spinner = ora(`Uninstalling ${shell} completion script...`).start();
+    const spinner = ora(`正在卸载 ${shell} 补全脚本...`).start();
 
     try {
       const result = await installer.uninstall();
@@ -249,17 +249,17 @@ export class CompletionCommand {
       }
     } catch (error) {
       spinner.stop();
-      console.error(`✗ Failed to uninstall completion script: ${error instanceof Error ? error.message : String(error)}`);
+      console.error(`✗ 卸载补全脚本失败：${error instanceof Error ? error.message : String(error)}`);
       process.exitCode = 1;
     }
   }
 
   /**
-   * Output machine-readable completion data for shell consumption
-   * Format: tab-separated "id\tdescription" per line
-   *
-   * @param options - Options specifying completion type
-   */
+ * 输出机器可读的补全数据供 shell 使用
+ * 格式：每行以制表符分隔的 "id\tdescription"
+ *
+ * @param options - 指定补全类型的选项
+ */
   async complete(options: CompleteOptions): Promise<void> {
     const type = options.type.toLowerCase();
 
@@ -294,19 +294,19 @@ export class CompletionCommand {
           break;
         }
         default:
-          // Invalid type - silently exit with no output for graceful shell completion failure
+          // 无效类型 - 静默退出，无输出以实现优雅的 shell 补全失败
           process.exitCode = 1;
           break;
       }
     } catch {
-      // Silently fail for graceful shell completion experience
+      // 静默失败以实现优雅的 shell 补全体验
       process.exitCode = 1;
     }
   }
 
   /**
-   * Normalize shell parameter to lowercase
-   */
+ * 将 shell 参数规范化为小写
+ */
   private normalizeShell(shell?: string): string | undefined {
     return shell?.toLowerCase();
   }

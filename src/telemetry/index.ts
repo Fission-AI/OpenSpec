@@ -1,52 +1,50 @@
 /**
- * Telemetry module for anonymous usage analytics.
+ * 匿名使用分析的遥测模块。
  *
- * Privacy-first design:
- * - Only tracks command name and version
- * - No arguments, file paths, or content
- * - Opt-out via OPENSPEC_TELEMETRY=0, DO_NOT_TRACK=1, or
- *   `openspec config set telemetry.enabled false`
- * - Auto-disabled in CI environments
- * - Anonymous ID is a random UUID with no relation to the user
+ * 隐私优先设计：
+ * - 仅跟踪命令名称和版本
+ * - 不跟踪参数、文件路径或内容
+ * - 通过 OPENSPEC_TELEMETRY=0、DO_NOT_TRACK=1 或
+ *   `openspec config set telemetry.enabled false` 选择退出
+ * - 在 CI 环境中自动禁用
+ * - 匿名 ID 是与用户无关的随机 UUID
  *
- * Events are sent with a plain fetch to PostHog's stable public `/batch/`
- * endpoint — the same one posthog-node used — instead of through the SDK.
- * The SDK's only remaining job here was the wire format: every reliability
- * knob was already forced to "send one event immediately, time-bounded,
- * never retry, never throw". Carrying `posthog-node` for that shipped its
- * fast-moving transitive tree (`@posthog/core`, `@posthog/types`, multiple
- * releases per day) to every downstream consumer, where supply-chain age
- * policies such as pnpm's `minimumReleaseAge` rejected the freshly published
- * versions and broke installs (#1390).
+ * 事件通过普通的 fetch 发送到 PostHog 稳定的公共 `/batch/`
+ * 端点 —— 与 posthog-node 使用的相同端点 —— 而不是通过 SDK。
+ * SDK 在这里唯一剩余的工作是有线格式：每个可靠性旋钮
+ * 都已被强制为"立即发送一个事件、时间受限、永不重试、永不抛错"。
+ * 为携带 `posthog-node`，其快速变化的传递依赖树
+ * （`@posthog/core`、`@posthog/types`、每天多个发布版本）
+ * 到每个下游消费者，在供应链老化策略如 pnpm 的 `minimumReleaseAge`
+ * 中会拒绝刚发布的版本并破坏安装 (#1390)。
  */
 import { randomUUID } from 'crypto';
 import { getGlobalConfig } from '../core/global-config.js';
 import { isCiEnvironment } from '../utils/ci.js';
 import { getTelemetryConfig, updateTelemetryConfig } from './config.js';
 
-// PostHog API key - public key for client-side analytics
-// This is safe to embed as it only allows sending events, not reading data
+// PostHog API 密钥 - 客户端分析的公钥
+// 嵌入此密钥是安全的，因为它只允许发送事件，而不是读取数据
 const POSTHOG_API_KEY = 'phc_Hthu8YvaIJ9QaFKyTG4TbVwkbd5ktcAFzVTKeMmoW2g';
-// Using reverse proxy to avoid ad blockers and keep traffic on our domain
+// 使用反向代理以避免广告拦截器并保持流量在我们的域名上
 const POSTHOG_HOST = 'https://edge.openspec.dev';
 const TELEMETRY_REQUEST_TIMEOUT_MS = 1000;
 
 let anonymousId: string | null = null;
 
 /**
- * Requests started by trackCommand and not yet settled, so shutdown can
- * flush them before the process exits. Each request is individually
- * time-bounded, so awaiting them cannot stall exit for more than the
- * request timeout.
+ * 由 trackCommand 启动且尚未结算的请求，以便关闭前可以在进程退出前刷新它们。
+ * 每个请求都有单独的时间限制，因此等待它们不会将退出时间延长到
+ * 请求超时以上。
  */
 const pendingEvents = new Set<Promise<void>>();
 
 async function safeTelemetryFetch(url: string, options: RequestInit): Promise<Response> {
   try {
     const response = await fetch(url, options);
-    // Telemetry never reads the body, but undici keeps the connection
-    // occupied until the body is consumed or canceled — dispose of it on
-    // every path so no socket outlives shutdown().
+    // 遥测从不读取正文，但 undici 会保持连接
+    // 直到正文被消费或取消 —— 在每个路径上释放它，
+    // 确保没有 socket 存活到 shutdown() 之后。
     if (response.body) {
       await response.body.cancel();
     }
@@ -54,42 +52,42 @@ async function safeTelemetryFetch(url: string, options: RequestInit): Promise<Re
       return response;
     }
   } catch {
-    // Silent failure - telemetry should never surface network noise
+    // 静默失败 - 遥测不应暴露网络噪音
   }
 
   return new Response(null, { status: 204 });
 }
 
 /**
- * Check if telemetry is enabled.
+ * 检查遥测是否已启用。
  *
- * Precedence (first match wins):
- * 1. OPENSPEC_TELEMETRY=0 → disabled
- * 2. DO_NOT_TRACK=1 → disabled
- * 3. CI set to a truthy/on value → disabled (same rule as version-check)
- * 4. global config telemetry.enabled === false → disabled
- * 5. otherwise enabled (unset config means on; opt-out model)
+ * 优先级（第一个匹配生效）：
+ * 1. OPENSPEC_TELEMETRY=0 → 禁用
+ * 2. DO_NOT_TRACK=1 → 禁用
+ * 3. CI 设置为真值/开启值 → 禁用（与 version-check 规则相同）
+ * 4. 全局配置 telemetry.enabled === false → 禁用
+ * 5. 其他情况启用（未设置配置表示开启；选择退出模式）
  *
- * Kept synchronous so call sites need not become async. Reads config via
- * sync getGlobalConfig() rather than async getTelemetryConfig().
+ * 保持同步以便调用点不需要变为异步。
+ * 通过同步的 getGlobalConfig() 而不是异步的 getTelemetryConfig() 读取配置。
  */
 export function isTelemetryEnabled(): boolean {
-  // Check explicit opt-out
+  // 检查显式选择退出
   if (process.env.OPENSPEC_TELEMETRY === '0') {
     return false;
   }
 
-  // Respect DO_NOT_TRACK standard
+  // 遵循 DO_NOT_TRACK 标准
   if (process.env.DO_NOT_TRACK === '1') {
     return false;
   }
 
-  // Auto-disable in CI environments (providers use true/1/yes/…)
+  // 在 CI 环境中自动禁用（提供商使用 true/1/yes/…）
   if (isCiEnvironment()) {
     return false;
   }
 
-  // Global config opt-out (env/CI remain hard overrides above)
+  // 全局配置选择退出（环境变量/CI 仍然是硬覆盖）
   if (getGlobalConfig().telemetry?.enabled === false) {
     return false;
   }
@@ -98,31 +96,31 @@ export function isTelemetryEnabled(): boolean {
 }
 
 /**
- * Get or create the anonymous user ID.
- * Lazily generates a UUID on first call and persists it.
+ * 获取或创建匿名用户 ID。
+ * 首次调用时懒加载生成 UUID 并持久化。
  */
 export async function getOrCreateAnonymousId(): Promise<string> {
-  // Return cached value if available
+  // 如果可用则返回缓存值
   if (anonymousId) {
     return anonymousId;
   }
 
-  // Try to load from config
+  // 尝试从配置加载
   const config = await getTelemetryConfig();
   if (config.anonymousId) {
     anonymousId = config.anonymousId;
     return anonymousId;
   }
 
-  // Generate new UUID and persist
+  // 生成新的 UUID 并持久化
   anonymousId = randomUUID();
   await updateTelemetryConfig({ anonymousId });
   return anonymousId;
 }
 
 /**
- * Send one capture event to PostHog's batch endpoint. Fire-and-forget:
- * bounded by the request timeout, never throws, never retries.
+ * 向 PostHog 的批量端点发送一个捕获事件。即发即忘：
+ * 受请求超时限制，永不抛错，永不重试。
  */
 function sendEvent(distinctId: string, event: string, properties: Record<string, unknown>): void {
   const body = JSON.stringify({
@@ -150,10 +148,10 @@ function sendEvent(distinctId: string, event: string, properties: Record<string,
 }
 
 /**
- * Track a command execution.
+ * 跟踪命令执行。
  *
- * @param commandName - The command name (e.g., 'init', 'change:apply')
- * @param version - The OpenSpec version
+ * @param commandName - 命令名称（如 'init'、'change:apply'）
+ * @param version - OpenSpec 版本
  */
 export async function trackCommand(commandName: string, version: string): Promise<void> {
   if (!isTelemetryEnabled()) {
@@ -167,15 +165,15 @@ export async function trackCommand(commandName: string, version: string): Promis
       command: commandName,
       version: version,
       surface: 'cli',
-      $ip: null, // Explicitly disable IP tracking
+      $ip: null, // 显式禁用 IP 跟踪
     });
   } catch {
-    // Silent failure - telemetry should never break CLI
+    // 静默失败 - 遥测不应破坏 CLI
   }
 }
 
 /**
- * Show first-run telemetry notice if not already seen.
+ * 如果尚未显示，则显示首次运行的遥测通知。
  */
 export async function maybeShowTelemetryNotice(
   options: { silent?: boolean } = {}
@@ -190,29 +188,29 @@ export async function maybeShowTelemetryNotice(
       return;
     }
 
-    // In --json mode the notice would pollute stdout and break parsers, so
-    // defer it: skip the notice AND leave noticeSeen unset so the disclosure
-    // still appears on the user's first later non-JSON run.
+    // 在 --json 模式下，通知会污染 stdout 并破坏解析器，因此
+    // 延迟它：跳过通知并保持 noticeSeen 未设置，以便披露
+    // 仍会在用户首次后续非 JSON 运行时出现。
     if (options.silent) {
       return;
     }
 
-    // Display notice on stderr, not stdout: stdout is reserved for command
-    // output (raw passthrough text, JSON, etc.) and must stay parser/pipe-safe.
+    // 在 stderr 上显示通知，而不是 stdout：stdout 专为命令
+    // 输出（原始透传文本、JSON 等）保留，必须保持解析器/管道安全。
     console.error(
-      'Note: OpenSpec collects anonymous usage stats. Opt out: OPENSPEC_TELEMETRY=0 or openspec config set telemetry.enabled false'
+      '注意：OpenSpec 收集匿名使用统计。选择退出：OPENSPEC_TELEMETRY=0 或 openspec config set telemetry.enabled false'
     );
 
-    // Mark as seen
+    // 标记为已见
     await updateTelemetryConfig({ noticeSeen: true });
   } catch {
-    // Silent failure - telemetry should never break CLI
+    // 静默失败 - 遥测不应破坏 CLI
   }
 }
 
 /**
- * Flush pending telemetry events.
- * Call this before CLI exit.
+ * 刷新待处理的遥测事件。
+ * 在 CLI 退出前调用。
  */
 export async function shutdown(): Promise<void> {
   if (pendingEvents.size === 0) {
@@ -222,7 +220,7 @@ export async function shutdown(): Promise<void> {
   try {
     await Promise.allSettled([...pendingEvents]);
   } catch {
-    // Silent failure - telemetry should never break CLI exit
+    // 静默失败 - 遥测不应破坏 CLI 退出
   } finally {
     pendingEvents.clear();
   }

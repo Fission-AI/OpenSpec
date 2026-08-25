@@ -1,56 +1,52 @@
 /**
- * Shared, fence-aware requirement-reading helpers.
+ * 共享的、围栏感知的需求读取辅助函数。
  *
- * The requirement reader used to be implemented twice — once for main specs
- * (`MarkdownParser.parseRequirements`) and once for change deltas
- * (`Validator.extractRequirementText` / `countScenarios`) — and the two drifted
- * apart. These helpers are the single source of truth for requirement-body
- * extraction, scenario counting, and `SHALL`/`MUST` detection in
- * `validate <change>`, `validate <spec>`, and `archive`.
+ * 需求读取器以前实现了两次 — 一次用于主 spec
+ * （`MarkdownParser.parseRequirements`），一次用于 change delta
+ * （`Validator.extractRequirementText` / `countScenarios`）— 两者发生了偏差。
+ * 这些辅助函数是需求体提取、场景计数和 `SHALL`/`MUST` 检测的
+ * 唯一可信来源，用于 `validate <change>`、`validate <spec>` 和 `archive`。
  */
 
-// Re-exported so existing importers keep working; the single implementation
-// lives in code-fence.ts.
+// 重新导出以便现有导入器继续工作；唯一实现
+// 位于 code-fence.ts。
 export { buildCodeFenceMask } from './code-fence.js';
 import { buildCodeFenceMask } from './code-fence.js';
 
-/** Lines that look like `**ID**: ...` / `**Priority**: ...` metadata. */
+/** 看起来像 `**ID**: ...` / `**Priority**: ...` 元数据的行。 */
 const METADATA_LINE = /^\*\*[^*]+\*\*:/;
 
-/** Any markdown header line — the boundary where a requirement body ends. */
+/** 任意 markdown 标题行 — 需求体结束的边界。 */
 const HEADER_LINE = /^#{1,6}\s/;
 
 /**
- * A level-4 header. Deliberately matches ANY `####` header, not only
- * `#### Scenario:` — the spec path treats every level-4 child of a requirement
- * as a scenario, so the delta counter must too (parity). The delta/loss path
- * reuses this exact constant via `scenarioHeaderAt` in requirement-blocks.ts;
- * keep both paths on it rather than reintroducing a separate `Scenario:` regex.
+ * 四级标题。故意匹配任何 `####` 标题，而不仅仅是
+ * `#### Scenario:` — spec 路径将需求的每个四级子项都当作
+ * 场景处理，因此 delta 计数器也必须这样做（对等性）。delta/loss 路径
+ * 通过 requirement-blocks.ts 中的 `scenarioHeaderAt` 重用此常量；
+ * 保持两条路径使用它，而不是重新引入单独的 `Scenario:` 正则。
  */
 export const SCENARIO_HEADER = /^####\s+/;
 
 /**
- * The one predicate for normative-keyword detection. Matches `SHALL` or `MUST`
- * as whole words so the change-delta reader and the schema-based reader accept
- * and reject identical text.
+ * 规范关键词检测的唯一谓词。匹配 `SHALL` 或 `MUST`
+ * 作为完整单词，以便 change-delta 读取器和基于 schema 的读取器接受
+ * 和拒绝相同的文本。
  */
 export function containsShallOrMust(text: string): boolean {
   return /\b(SHALL|MUST)\b/.test(text);
 }
 
 /**
- * Extract the full requirement body from the lines that follow a
- * `### Requirement:` header (the lines may include scenarios and fenced code).
+ * 从 `### Requirement:` 标题后的行中提取完整需求体
+ * （行中可能包含场景和围栏代码）。
  *
- * Captures every body line from the start up to the first header found on a
- * non-fenced line — usually the first `#### Scenario:`, but also a stray `###`
- * divider the delta reader absorbed into the block — skipping blank lines and
- * any line inside a fenced code block. `**metadata**:` lines are skipped only
- * when other body text remains: a requirement written entirely as
- * `**Constraint**: The system MUST ...` keeps that line as its body. Captured
- * lines are trimmed and joined with newlines so a requirement whose text wraps
- * across lines — or whose `SHALL`/`MUST` lands on a later line — is read in
- * full.
+ * 捕获从开头到非围栏行上第一个标题的所有正文行 —
+ * 通常是第一个 `#### Scenario:`，但也包括 delta 读取器吸收到块中的
+ * 零散 `###` 分隔符 — 跳过空行和围栏代码块内的任何行。`**metadata**:`
+ * 行仅在还有其他正文文本时跳过；完全以 `**Constraint**: The system MUST ...`
+ * 编写的需求将该行保留为正文。捕获的行被修剪并用换行符连接，因此文本跨行
+ * 换行的需求 — 或其 `SHALL`/`MUST` 出现在后续行 — 被完整读取。
  */
 export function extractRequirementBody(bodyLines: string[]): string {
   const mask = buildCodeFenceMask(bodyLines);
@@ -58,11 +54,11 @@ export function extractRequirementBody(bodyLines: string[]): string {
   const metadata: string[] = [];
 
   for (let i = 0; i < bodyLines.length; i++) {
-    if (mask[i]) continue; // inside a fenced code block
+    if (mask[i]) continue; // 在围栏代码块内
     const line = bodyLines[i];
-    if (HEADER_LINE.test(line)) break; // first scenario or stray divider
+    if (HEADER_LINE.test(line)) break; // 第一个场景或零散分隔符
     const trimmed = line.trim();
-    if (trimmed.length === 0) continue; // blank
+    if (trimmed.length === 0) continue; // 空行
     if (METADATA_LINE.test(trimmed)) {
       metadata.push(trimmed); // **ID**: / **Priority**: ...
       continue;
@@ -71,7 +67,7 @@ export function extractRequirementBody(bodyLines: string[]): string {
   }
 
   if (captured.length > 0) return captured.join('\n');
-  return metadata.join('\n'); // metadata-only body: the metadata IS the body
+  return metadata.join('\n'); // 仅元数据的正文：元数据即正文
 }
 
 /**

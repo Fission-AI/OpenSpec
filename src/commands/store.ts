@@ -226,7 +226,7 @@ async function promptStoreId(): Promise<string> {
   const { input } = await import('@inquirer/prompts');
 
   return input({
-    message: 'Store name',
+    message: '存储名称',
     required: true,
     validate(value: string) {
       try {
@@ -241,11 +241,11 @@ async function promptStoreId(): Promise<string> {
 
 async function promptStorePath(id: string): Promise<string> {
   const { input } = await import('@inquirer/prompts');
-  // Suggest a visible, user-owned location — never the managed XDG data dir.
+  // 建议一个可见的、用户自有的位置——绝不是托管的 XDG 数据目录。
   const defaultPath = ['~', 'openspec', id].join('/');
 
   return input({
-    message: 'Where should this store live?',
+    message: '此存储应位于何处？',
     default: defaultPath,
     prefill: 'editable',
     required: true,
@@ -260,7 +260,7 @@ async function resolveSetupInput(
 
   if (!id && !interactive) {
     throw new StoreError(
-      'Pass a store name.',
+      '传递存储名称。',
       'store_setup_id_required',
       {
         target: 'store.id',
@@ -306,25 +306,25 @@ async function confirmSetup(
   const { confirm } = await import('@inquirer/prompts');
 
   console.log('');
-  console.log('OpenSpec will create:');
+  console.log('OpenSpec 将创建：');
   console.log('');
-  console.log(`  Store: ${prepared.id}`);
-  console.log(`  Location: ${formatPathForHuman(prepared.root)}`);
-  console.log(`  Git: ${initGit ? 'initialized' : 'not initialized'}`);
+  console.log(`  存储：${prepared.id}`);
+  console.log(`  位置：${formatPathForHuman(prepared.root)}`);
+  console.log(`  Git：${initGit ? '已初始化' : '未初始化'}`);
   console.log('');
 
   const confirmed = await confirm({
-    message: 'Create this store?',
+    message: '创建此存储？',
     default: true,
   });
 
   if (!confirmed) {
     throw new StoreError(
-      'Store setup cancelled.',
+      '存储设置已取消。',
       'store_setup_cancelled',
       {
         target: 'store.root',
-        fix: 'Rerun setup when you are ready.',
+        fix: '准备好后重新运行设置。',
       }
     );
   }
@@ -335,7 +335,7 @@ async function confirmRemove(id: string, root: string, options: StoreRemoveOptio
 
   if (options.json || !isInteractive()) {
     throw new StoreError(
-      'Pass --yes to delete store files non-interactively.',
+      '使用 --yes 非交互式删除存储文件。',
       'store_remove_confirmation_required',
       {
         target: 'store.root',
@@ -398,21 +398,21 @@ function printMutationHuman(
   }
 
   console.log(`${title}: ${payload.store.id}`);
-  console.log(`Location: ${formatPathForHuman(payload.store.root)}`);
-  console.log('OpenSpec root: ready');
-  console.log(`Registry: ${payload.registry.already_registered ? 'already registered' : 'registered'}`);
+  console.log(`位置：${formatPathForHuman(payload.store.root)}`);
+  console.log('OpenSpec 根目录：就绪');
+  console.log(`注册表：${payload.registry.already_registered ? '已注册' : '已注册'}`);
   for (const status of payload.status) {
-    console.log(`${status.severity === 'error' ? 'Issue' : 'Note'}: ${status.message}`);
+    console.log(`${status.severity === 'error' ? '问题' : '提示'}：${status.message}`);
   }
   console.log('');
-  console.log('Next: run normal OpenSpec commands against this store, for example:');
+  console.log('后续：对此存储运行常规的 OpenSpec 命令，例如：');
   console.log(`  openspec new change <change-id> --store ${payload.store.id}`);
   if (payload.git.is_repository) {
     const shareRemote = remotes?.canonical ?? remotes?.observed;
     console.log(
       shareRemote
-        ? `Share it: teammates clone ${shareRemote} and run openspec store register <path>.`
-        : 'Share this store by committing and pushing it like any Git repo.'
+        ? '分享给队友：他们克隆后运行 openspec store register <path>。'
+        : '通过像任何 Git 仓库一样提交和推送来分享此存储。'
     );
   }
 }
@@ -425,89 +425,89 @@ function printCleanupHuman(title: string, payload: StoreCleanupOutput): void {
   console.log(`${title}: ${payload.store.id}`);
 
   if (payload.files.deleted_path) {
-    console.log(`Deleted: ${formatPathForHuman(payload.files.deleted_path)}`);
+    console.log(`已删除：${formatPathForHuman(payload.files.deleted_path)}`);
   } else if (payload.files.left_on_disk) {
-    console.log(`Files kept at: ${formatPathForHuman(payload.files.left_on_disk)}`);
+    console.log(`保留的文件：${formatPathForHuman(payload.files.left_on_disk)}`);
   } else if (!payload.files.deleted) {
-    console.log(`Files were already missing: ${formatPathForHuman(payload.store.root)}`);
+    console.log(`文件已经缺失：${formatPathForHuman(payload.store.root)}`);
   }
 
   for (const status of payload.status) {
-    console.log(`${status.severity === 'error' ? 'Issue' : 'Note'}: ${status.message}`);
+    console.log(`${status.severity === 'error' ? '问题' : '提示'}：${status.message}`);
   }
 }
 
 function printListHuman(payload: StoreListOutput): void {
   if (payload.stores.length === 0) {
-    console.log('No stores registered.');
+    console.log('未注册任何存储。');
     console.log('');
-    console.log('Next:');
+    console.log('后续：');
     console.log('  openspec store setup team-context --path ~/openspec/team-context');
     console.log('  openspec store register /path/to/store');
     return;
   }
 
-  console.log(`OpenSpec stores (${payload.stores.length})`);
+  console.log(`OpenSpec 存储（${payload.stores.length}）`);
   console.log('');
-  console.log(`${'ID'.padEnd(16)}Location`);
+  console.log(`${'ID'.padEnd(16)}位置`);
   for (const store of payload.stores) {
     console.log(`${store.id.padEnd(16)}${store.root}`);
   }
 }
 
 function formatMetadataHuman(store: StoreDoctorOutput['stores'][number]): string {
-  if (store.metadata.valid) return 'ok';
-  if (store.metadata.present === false) return 'missing';
-  if (store.metadata.present === null) return 'unknown';
-  return 'invalid';
+  if (store.metadata.valid) return '正常';
+  if (store.metadata.present === false) return '缺失';
+  if (store.metadata.present === null) return '未知';
+  return '无效';
 }
 
 function formatDoctorGitHuman(store: StoreDoctorOutput['stores'][number]): string {
-  if (store.git.is_repository === null) return 'unknown';
-  if (!store.git.is_repository) return 'not detected';
+  if (store.git.is_repository === null) return '未知';
+  if (!store.git.is_repository) return '未检测到';
 
   const fact = (value: boolean | null, yes: string, no: string): string =>
-    value === null ? 'unknown' : value ? yes : no;
+    value === null ? '未知' : value ? yes : no;
 
-  return `repository detected (commits: ${fact(store.git.has_commits, 'yes', 'none')}, uncommitted changes: ${fact(store.git.has_uncommitted_changes, 'yes', 'no')}, remote: ${fact(store.git.has_remote, 'yes', 'none')})`;
+  return `检测到仓库（提交：${fact(store.git.has_commits, '是', '无')}，未提交更改：${fact(store.git.has_uncommitted_changes, '是', '否')}，远程：${fact(store.git.has_remote, '是', '无')}）`;
 }
 
 function formatOpenSpecRootHuman(store: StoreDoctorOutput['stores'][number]): string {
-  if (store.openspec_root.healthy) return 'ok';
-  if (store.openspec_root.present === false) return 'missing';
-  if (store.openspec_root.present === null) return 'unknown';
-  return 'incomplete';
+  if (store.openspec_root.healthy) return '正常';
+  if (store.openspec_root.present === false) return '缺失';
+  if (store.openspec_root.present === null) return '未知';
+  return '不完整';
 }
 
 function printDoctorHuman(payload: StoreDoctorOutput): void {
   if (payload.stores.length === 0) {
-    console.log('No stores registered.');
+    console.log('未注册任何存储。');
     return;
   }
 
-  console.log('Store doctor');
+  console.log('存储诊断');
   for (const store of payload.stores) {
     console.log('');
     console.log(store.id);
-    console.log(`  Location: ${store.root}`);
-    console.log(`  OpenSpec root: ${formatOpenSpecRootHuman(store)}`);
-    console.log(`  Metadata: ${formatMetadataHuman(store)}`);
+    console.log(`  位置：${store.root}`);
+    console.log(`  OpenSpec 根目录：${formatOpenSpecRootHuman(store)}`);
+    console.log(`  元数据：${formatMetadataHuman(store)}`);
     const remoteLine = store.metadata.remote ?? store.git.origin_url;
     if (remoteLine) {
-      console.log(`  Remote: ${remoteLine}`);
+      console.log(`  远程：${remoteLine}`);
     }
-    console.log(`  Git: ${formatDoctorGitHuman(store)}`);
+    console.log(`  Git：${formatDoctorGitHuman(store)}`);
 
     if (store.status.length === 0) {
-      console.log('  Issues: none');
+      console.log('  问题：无');
       continue;
     }
 
-    console.log('  Issues:');
+    console.log('  问题：');
     for (const status of store.status) {
       console.log(`    - ${status.message}`);
       if (status.fix) {
-        console.log(`      Fix: ${status.fix}`);
+        console.log(`      修复：${status.fix}`);
       }
     }
   }

@@ -1,9 +1,9 @@
 /**
- * `openspec context` (slice 4.1): the working set a root's declarations
- * describe, as an agent brief (JSON), a human listing, or an editor
- * view (`--code-workspace`). Assembly is presentation over the Phase 3
- * relationship data; doctor is the health surface. The only write this
- * command can perform is the explicitly requested workspace file.
+ * `openspec context`（切片 4.1）：root 的工作集声明
+ * 以 agent 简报（JSON）、人类可读列表或编辑器
+ * 视图（--code-workspace）的形式描述。组装是对 Phase 3
+ * 关系数据的呈现层；doctor 是健康检查层。此命令唯一能执行的写入
+ * 操作是显式请求的工作区文件。
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -34,9 +34,8 @@ async function gatherWorkingSet(
 ): Promise<{ workingSet: WorkingSet; declaredReferenceCount: number }> {
   const data = await gatherRelationshipData(root);
 
-  // Reuse the 3.6 composition for member classification; the
-  // doctor-only wrong-turn detections and store facts are deliberately
-  // absent — doctor is the health surface.
+  // 复用 3.6 组合进行成员分类；有意忽略
+  // 仅 doctor 的错误转向检测和存储事实——doctor 才是健康检查层。
   const health = inspectRelationships({
     root,
     rootHealthy: data.rootInspection.healthy,
@@ -61,9 +60,9 @@ function memberLine(member: WorkingSetMember): string {
 
 function printHumanWorkingSet(workingSet: WorkingSet, declaredReferenceCount: number): void {
   const rootLabel = workingSet.root.store_id ?? path.basename(workingSet.root.path);
-  console.log(`Working context for ${rootLabel} (${workingSet.root.path})`);
+  console.log(`${rootLabel} 的工作上下文（${workingSet.root.path}）`);
   console.log('');
-  console.log('OpenSpec root');
+  console.log('OpenSpec 根目录');
   console.log(`  ${rootLabel}  ${workingSet.root.path}`);
 
   const availableStores = workingSet.members.filter(
@@ -73,45 +72,45 @@ function printHumanWorkingSet(workingSet: WorkingSet, declaredReferenceCount: nu
 
   if (availableStores.length > 0) {
     console.log('');
-    console.log('Referenced stores');
+    console.log('引用的存储');
     for (const member of availableStores) {
       console.log(memberLine(member));
       if (member.fetch) {
-        console.log(`    Fetch: ${member.fetch}`);
+        console.log(`    Fetch：${member.fetch}`);
       }
     }
   }
 
   if (workingSet.members.length === 0) {
     console.log('');
-    // Self-references are silently omitted from the index; an
-    // emptied-by-omission set must not claim nothing was declared.
+    // 自引用会在索引中静默省略；
+    // 因省略而变空的集合不应声称未声明任何内容。
     console.log(
       declaredReferenceCount > 0
-        ? 'Declared references all resolve to this root; the working set is this root alone.'
-        : 'No references declared; the working set is this root alone.'
+        ? '声明的引用都解析到此根目录；工作集仅包含此根目录。'
+        : '未声明任何引用；工作集仅包含此根目录。'
     );
   }
 
   if (unavailable.length > 0 || workingSet.status.length > 0) {
     console.log('');
-    console.log('Not available on this machine');
+    console.log('本机上不可用');
     for (const member of unavailable) {
       if (member.status.length === 0) {
         console.log(`  - ${member.id}`);
         continue;
       }
       for (const diagnostic of member.status) {
-        console.log(`  - ${member.id}: ${diagnostic.message}`);
+        console.log(`  - ${member.id}：${diagnostic.message}`);
         if (diagnostic.fix) {
-          console.log(`    Fix: ${diagnostic.fix}`);
+          console.log(`    修复：${diagnostic.fix}`);
         }
       }
     }
     for (const diagnostic of workingSet.status) {
-      console.log(`  Note: ${diagnostic.message}`);
+      console.log(`  提示：${diagnostic.message}`);
       if (diagnostic.fix) {
-        console.log(`  Fix: ${diagnostic.fix}`);
+        console.log(`  修复：${diagnostic.fix}`);
       }
     }
   }
@@ -125,20 +124,20 @@ function writeCodeWorkspace(
   const resolved = path.resolve(outputPath);
   if (fs.existsSync(resolved) && !force) {
     throw new StoreError(
-      `Refusing to overwrite ${resolved}.`,
+      `拒绝覆盖 ${resolved}。`,
       'context_file_exists',
       {
         target: 'context.output',
-        fix: `Pass --force to overwrite, or choose a different path.`,
+        fix: '传递 --force 以覆盖，或选择其他路径。',
       }
     );
   }
   const parent = path.dirname(resolved);
   if (!fs.existsSync(parent)) {
     throw new StoreError(
-      `Output directory does not exist: ${parent}.`,
+      `输出目录不存在：${parent}。`,
       'context_output_dir_missing',
-      { target: 'context.output', fix: 'Create the directory first, or choose another path.' }
+      { target: 'context.output', fix: '先创建目录，或选择其他路径。' }
     );
   }
 
@@ -151,27 +150,27 @@ function writeCodeWorkspace(
     .map((member) => member.id);
   const summary =
     skipped.length > 0
-      ? `Wrote ${resolved} (${available + 1} folders; not available: ${skipped.join(', ')})`
-      : `Wrote ${resolved} (${available + 1} folders)`;
-  // stderr keeps JSON stdout pure; for humans it reads inline.
+      ? `已写入 ${resolved}（${available + 1} 个文件夹；不可用：${skipped.join(', ')}）`
+      : `已写入 ${resolved}（${available + 1} 个文件夹）`;
+  // stderr 保持 JSON stdout 纯净；对人类用户以内联方式读取。
   console.error(summary);
 }
 
 export function registerContextCommand(program: Command): void {
   const description =
     COMMAND_REGISTRY.find((entry) => entry.name === 'context')?.description ??
-    'Print the working context for the resolved OpenSpec root';
+    '打印已解析的 OpenSpec 根目录的工作上下文';
 
   program
     .command('context')
     .description(description)
     .option('--store <id>', COMMON_FLAGS.store.description)
     .addOption(
-      new Option('--store-path <path>', 'Removed; register the store and use --store').hideHelp()
+      new Option('--store-path <path>', '已移除；请注册存储并使用 --store').hideHelp()
     )
-    .option('--json', 'Output the agent brief as JSON')
-    .option('--code-workspace <path>', 'Also write a VS Code workspace file for the set')
-    .option('--force', 'Overwrite an existing --code-workspace file')
+    .option('--json', '以 JSON 格式输出 agent 简报')
+    .option('--code-workspace <path>', '同时为该集合写入 VS Code 工作区文件')
+    .option('--force', '覆盖已有的 --code-workspace 文件')
     .action(
       async (options: {
         store?: string;
@@ -192,8 +191,8 @@ export function registerContextCommand(program: Command): void {
           const { workingSet, declaredReferenceCount } = await gatherWorkingSet(root);
 
           if (options.json) {
-            // The write runs FIRST: a write failure must leave stdout
-            // holding exactly one JSON document (the failure payload).
+            // 写入先执行：写入失败时 stdout
+            // 必须正好包含一个 JSON 文档（失败载荷）。
             if (options.codeWorkspace) {
               writeCodeWorkspace(workingSet, options.codeWorkspace, options.force === true);
             }

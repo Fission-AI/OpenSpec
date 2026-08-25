@@ -3,15 +3,15 @@ import path from 'path';
 import { discoverSpecFiles } from './spec-discovery.js';
 
 /**
- * Returns the ids of active changes: every directory under openspec/changes/
- * except the archive and hidden directories.
+ * 返回活跃 change 的 id：openspec/changes/ 下的每个目录，
+ * 除了 archive 和隐藏目录。
  *
- * A change is resolved by its directory alone - the same rule `list`,
- * `status`, `instructions` and `validate` use (`getAvailableChanges`).
- * Requiring proposal.md here made `openspec show` and shell completion miss
- * changes those commands resolve: `openspec new change <name>` scaffolds only
- * `.openspec.yaml`, and a custom schema need not define a proposal artifact at
- * all (#1161).
+ * change 仅通过其目录来解析 —— 与 `list`、`status`、`instructions`
+ * 和 `validate` 使用的规则相同（`getAvailableChanges`）。
+ * 在此处要求 proposal.md 会使 `openspec show` 和 shell completion
+ * 错过这些命令解析的 change：`openspec new change <name>` 仅搭建
+ * `.openspec.yaml`，而自定义 schema 可能根本不需要定义 proposal artifact
+ * (#1161)。
  */
 export async function getActiveChangeIds(root: string = process.cwd()): Promise<string[]> {
   const changesPath = path.join(root, 'openspec', 'changes');
@@ -33,12 +33,12 @@ export async function getSpecIds(root: string = process.cwd()): Promise<string[]
 }
 
 /**
- * Returns the ids of archived changes: every directory under
- * openspec/changes/archive/ except hidden directories.
+ * 返回已归档 change 的 id：openspec/changes/archive/ 下的每个目录，
+ * 除了隐藏目录。
  *
- * Resolved by directory for the same reason as `getActiveChangeIds`: a change
- * archived from a schema without a proposal artifact has no proposal.md, and
- * gating on it hid those entries from shell completion.
+ * 通过目录解析的原因与 `getActiveChangeIds` 相同：
+ * 从没有 proposal artifact 的 schema 归档的 change 没有 proposal.md，
+ * 以其为条件会将这些条目从 shell completion 中隐藏。
  */
 export async function getArchivedChangeIds(root: string = process.cwd()): Promise<string[]> {
   const archivePath = path.join(root, 'openspec', 'changes', 'archive');

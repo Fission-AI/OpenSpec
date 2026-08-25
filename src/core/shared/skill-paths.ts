@@ -34,5 +34,5 @@ export function resolveToolSkillsDir(
     return path.join(projectRoot, tool.skillsDir, 'skills');
   }
 
-  throw new Error(`Tool '${tool.value}' does not support skill generation.`);
+  throw new Error(`工具 '${tool.value}' 不支持 skill 生成。`);
 }

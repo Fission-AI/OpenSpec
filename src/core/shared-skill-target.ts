@@ -5,12 +5,12 @@ import { FileSystemUtils } from '../utils/file-system.js';
 
 const TARGET_MARKER = '.openspec-target';
 
-/** Returns the ownership-marker path for one shared skills root. */
+/** 返回一个共享 skill 根的所有权标记路径。 */
 function markerPath(projectPath: string, skillsDir: string): string {
   return path.join(projectPath, skillsDir, 'skills', TARGET_MARKER);
 }
 
-/** Reads a valid-looking marker value without letting linked roots escape. */
+/** 读取一个看起来有效的标记值，不让链接的根逃逸。 */
 export function readSharedSkillTarget(
   projectPath: string,
   skillsDir: string
@@ -24,7 +24,7 @@ export function readSharedSkillTarget(
   }
 }
 
-/** Whether a tool still has an allowlisted managed skill under an old root. */
+/** 工具是否在旧根下仍有允许列表中受管的 skill。 */
 function hasLegacySkills(projectPath: string, tool: AIToolOption): boolean {
   return (tool.legacySkillsDirs ?? []).some((root) => {
     const skillsDir = path.join(projectPath, root, 'skills');
@@ -41,8 +41,8 @@ function hasLegacySkills(projectPath: string, tool: AIToolOption): boolean {
 }
 
 /**
- * Infers pre-marker ownership from generated invocation syntax. This preserves
- * both existing generic `.agents` trees and Codex trees users moved manually.
+ * 从生成的调用语法推断标记前的所有权。这样保留了
+ * 现有的通用 `.agents` 树和用户手动移动的 Codex 树。
  */
 function inferSharedSkillTarget(projectPath: string, skillsDir: string): string | undefined {
   let foundGenericReference = false;
@@ -55,7 +55,7 @@ function inferSharedSkillTarget(projectPath: string, skillsDir: string): string 
       if (content.includes('$openspec-')) return 'codex';
       if (content.includes('/openspec-')) foundGenericReference = true;
     } catch {
-      // Missing, unreadable, or out-of-project files provide no ownership signal.
+      // 缺失、不可读或项目外的文件不提供所有权信号。
     }
   }
 

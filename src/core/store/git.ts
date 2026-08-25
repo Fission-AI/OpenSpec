@@ -9,10 +9,10 @@ const fs = nodeFs.promises;
 const execFileAsync = promisify(execFile);
 
 /**
- * Git mechanics for stores: repository detection, setup-time init and
- * commit, and the read-only facts doctor reports. Nothing here clones, pulls,
- * pushes, or syncs — setup-time `git init` plus one initial commit is the
- * entire write surface.
+ * Store 的 Git 机制：仓库检测、初始化时的 init 和
+ * 提交，以及 doctor 报告的只读事实。这里不包含克隆、拉取、
+ * 推送或同步 — 初始化时的 `git init` 加上一个初始提交就是
+ * 全部写入操作。
  */
 
 function isSpawnNotFoundError(error: unknown): boolean {
@@ -42,11 +42,11 @@ export async function initGitRepository(storeRoot: string): Promise<boolean> {
     await execFileAsync('git', ['init'], { cwd: storeRoot });
   } catch (error) {
     throw new StoreError(
-      `Failed to initialize Git repository: ${error instanceof Error ? error.message : String(error)}`,
+      `初始化 Git 仓库失败：${error instanceof Error ? error.message : String(error)}`,
       'store_git_init_failed',
       {
         target: 'store.git',
-        fix: 'Install Git or rerun setup with --no-init-git.',
+        fix: '安装 Git 或使用 --no-init-git 重新运行初始化。',
       }
     );
   }
@@ -55,8 +55,8 @@ export async function initGitRepository(storeRoot: string): Promise<boolean> {
 }
 
 /**
- * `git var` resolves identity exactly as `git commit` would (config, env vars,
- * auto-detection), so this fails precisely when the initial commit would.
+ * `git var` 解析身份信息的方式与 `git commit` 完全一致（配置、环境变量、
+ * 自动检测），因此当初始提交会失败时这里也会失败。
  */
 export async function assertGitCommitIdentity(probeCwd: string): Promise<void> {
   for (const identVar of ['GIT_COMMITTER_IDENT', 'GIT_AUTHOR_IDENT']) {
@@ -65,21 +65,21 @@ export async function assertGitCommitIdentity(probeCwd: string): Promise<void> {
     } catch (error) {
       if (isSpawnNotFoundError(error)) {
         throw new StoreError(
-          'Git is not available, so setup cannot create the initial store commit.',
+          'Git 不可用，因此初始化无法创建初始 store 提交。',
           'store_git_init_failed',
           {
             target: 'store.git',
-            fix: 'Install Git or rerun setup with --no-init-git.',
+            fix: '安装 Git 或使用 --no-init-git 重新运行初始化。',
           }
         );
       }
 
       throw new StoreError(
-        'No usable Git commit identity is configured, so setup cannot create the initial store commit.',
+        '未配置可用的 Git 提交身份信息，因此初始化无法创建初始 store 提交。',
         'store_git_identity_missing',
         {
           target: 'store.git',
-          fix: 'Run git config --global user.name "Your Name" and git config --global user.email "you@example.com", or rerun setup with --no-init-git.',
+          fix: '运行 git config --global user.name "您的姓名" 和 git config --global user.email "you@example.com"，或使用 --no-init-git 重新运行初始化。',
         }
       );
     }
@@ -87,9 +87,9 @@ export async function assertGitCommitIdentity(probeCwd: string): Promise<void> {
 }
 
 /**
- * Index-preserving initial commit: the pathspec on `git commit` keeps files
- * the user had already staged out of setup's commit and leaves them staged.
- * Pathspecs may be files or directories.
+ * 保留索引的初始提交：`git commit` 的 pathspec 保持了用户
+ * 已暂存的文件不被初始化提交影响，保持暂存状态。
+ * Pathspec 可以是文件或目录。
  */
 export async function commitStoreFiles(
   storeRoot: string,
@@ -108,18 +108,18 @@ export async function commitStoreFiles(
       { cwd: storeRoot }
     );
   } catch (error) {
-    // Best-effort unstage so a failed commit (gpg signing, hooks) does not
-    // leave setup's files in the user's index after rollback deletes them.
+    // 尽力取消暂存，使失败的提交（gpg 签名、钩子）不会
+    // 在回滚删除文件后将初始化创建的文件留在用户索引中。
     await execFileAsync('git', ['rm', '--cached', '-r', '-f', '-q', '--', ...pathspecs], {
       cwd: storeRoot,
     }).catch(() => undefined);
 
     throw new StoreError(
-      `Failed to create the initial store commit: ${error instanceof Error ? error.message : String(error)}`,
+      `创建初始 store 提交失败：${error instanceof Error ? error.message : String(error)}`,
       'store_git_commit_failed',
       {
         target: 'store.git',
-        fix: 'Commit the created files manually, or rerun setup with --no-init-git.',
+        fix: '手动提交创建的文件，或使用 --no-init-git 重新运行初始化。',
       }
     );
   }
@@ -160,8 +160,8 @@ export async function gitHasRemote(storeRoot: string): Promise<boolean | null> {
 }
 
 /**
- * The configured origin URL, read from local Git config only — never a
- * network touch. Null when there is no repository or no origin.
+ * 配置的 origin URL，仅从本地 Git 配置读取 — 永不触发网络请求。
+ * 当没有仓库或没有 origin 时返回 null。
  */
 export async function gitOriginUrl(storeRoot: string): Promise<string | null> {
   const stdout = await gitProbe(storeRoot, ['remote', 'get-url', 'origin']);
@@ -175,12 +175,12 @@ export interface GitTrackingDrift {
 }
 
 /**
- * Ahead/behind counts of HEAD against its configured upstream tracking
- * ref, read from local refs only — no fetch, no network. The comparison
- * is therefore against the current local upstream ref (typically last
- * updated by fetch, but it may be a local branch), not the live remote.
- * Null when there is no repository, no upstream, a detached HEAD, or Git
- * is unavailable: the absence of a comparison is not drift.
+ * HEAD 与其配置的上游跟踪引用之间的超前/滞后计数，
+ * 仅从本地引用读取 — 不进行 fetch，不触发网络。
+ * 因此比较针对的是当前本地上游引用（通常由 fetch 更新，
+ * 但也可能是本地分支），而非远程实时状态。
+ * 当没有仓库、没有上游、HEAD 分离或 Git 不可用时返回 null：
+ * 没有比较不代表漂移。
  */
 export async function gitTrackingDrift(storeRoot: string): Promise<GitTrackingDrift | null> {
   const stdout = await gitProbe(storeRoot, [
@@ -192,8 +192,8 @@ export async function gitTrackingDrift(storeRoot: string): Promise<GitTrackingDr
   if (stdout === null) return null;
   const match = stdout.trim().match(/^(\d+)\s+(\d+)$/);
   if (!match) return null;
-  // `--left-right` orders the counts by side of the `...`: left is @{upstream}
-  // (commits we lack = behind), right is HEAD (commits upstream lacks = ahead).
+  // `--left-right` 按 `...` 的两侧排序计数：左侧是 @{upstream}
+  // （我们缺少的提交 = 滞后），右侧是 HEAD（上游缺少的提交 = 超前）。
   return { behind: Number(match[1]), ahead: Number(match[2]) };
 }
 

@@ -26,7 +26,7 @@ export interface ChangeNextStepsInput {
   changeName: string;
   artifactStatuses: ChangeStatusPolicyArtifact[];
   allArtifactsComplete: boolean;
-  /** Selected store id; next-step commands must carry it. */
+  /** 选定的 store id；后续步骤命令必须携带它。 */
   storeId?: string;
 }
 
@@ -58,7 +58,7 @@ export function buildActionContext(input: ActionContextInput): ActionContext {
     linkedContext: [],
     allowedEditRoots: [input.projectRoot],
     requiresAffectedAreaSelection: false,
-    constraints: ['Repo-local change artifacts and implementation edits are scoped to this project.'],
+    constraints: ['仓库本地 change artifact 和实现编辑仅限于此项目。'],
   };
 }
 
@@ -69,11 +69,11 @@ export function buildNextSteps(input: ChangeNextStepsInput): string[] {
 
   if (readyArtifact) {
     steps.push(
-      `Run openspec instructions ${readyArtifact.id} --change "${input.changeName}"${storeFlag} --json before writing that artifact.`
+      `在编写该 artifact 之前，运行 openspec instructions ${readyArtifact.id} --change "${input.changeName}"${storeFlag} --json。`
     );
   } else if (input.allArtifactsComplete) {
     steps.push(
-      `All planning artifacts are complete. Run openspec instructions apply --change "${input.changeName}"${storeFlag} --json to inspect implementation progress.`
+      `所有规划 artifact 均已完成。运行 openspec instructions apply --change "${input.changeName}"${storeFlag} --json 以检查实现进度。`
     );
   }
 

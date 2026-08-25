@@ -28,7 +28,7 @@ interface ExecuteOptions {
   strict?: boolean;
   json?: boolean;
   noInteractive?: boolean;
-  interactive?: boolean; // Commander sets this to false when --no-interactive is used
+  interactive?: boolean; // Commander 在使用 --no-interactive 时将其设置为 false
   concurrency?: string;
   store?: string;
   storePath?: string;
@@ -114,12 +114,12 @@ export class ValidateCommand {
   private async runInteractiveSelector(root: ResolvedOpenSpecRoot, opts: { strict: boolean; json: boolean; concurrency?: string }): Promise<void> {
     const { select } = await import('@inquirer/prompts');
     const choice = await select({
-      message: 'What would you like to validate?',
+      message: '请选择要验证的内容：',
       choices: [
-        { name: 'All (changes + specs)', value: 'all' },
-        { name: 'All changes', value: 'changes' },
-        { name: 'All specs', value: 'specs' },
-        { name: 'Pick a specific change or spec', value: 'one' },
+        { name: '全部（changes + specs）', value: 'all' },
+        { name: '所有 changes', value: 'changes' },
+        { name: '所有 specs', value: 'specs' },
+        { name: '选择特定的 change 或 spec', value: 'one' },
       ],
     });
 
@@ -133,21 +133,21 @@ export class ValidateCommand {
     items.push(...changes.map(id => ({ name: `change/${id}`, value: { type: 'change' as const, id } })));
     items.push(...specs.map(id => ({ name: `spec/${id}`, value: { type: 'spec' as const, id } })));
     if (items.length === 0) {
-      console.error('No items found to validate.');
+      console.error('未找到可验证的项目。');
       process.exitCode = 1;
       return;
     }
-    const picked = await select<{ type: ItemType; id: string }>({ message: 'Pick an item', choices: items });
+    const picked = await select<{ type: ItemType; id: string }>({ message: '选择一个项目', choices: items });
     await this.validateByType(root, picked.type, picked.id, opts);
   }
 
   private printNonInteractiveHint(root: ResolvedOpenSpecRoot): void {
-    console.error('Nothing to validate. Try one of:');
+    console.error('没有可验证的内容。请尝试以下方法：');
     console.error(`  ${withStoreFlag(root, 'openspec validate --all')}`);
     console.error(`  ${withStoreFlag(root, 'openspec validate --changes')}`);
     console.error(`  ${withStoreFlag(root, 'openspec validate --specs')}`);
     console.error(`  ${withStoreFlag(root, 'openspec validate <item-name>')}`);
-    console.error('Or run in an interactive terminal.');
+    console.error('或在交互式终端中运行。');
   }
 
   private async validateDirectItem(root: ResolvedOpenSpecRoot, itemName: string, opts: { typeOverride?: ItemType; strict: boolean; json: boolean }): Promise<void> {
@@ -160,8 +160,8 @@ export class ValidateCommand {
     if (!type) {
       const suggestions = nearestMatches(itemName, [...changes, ...specs]);
       const message = suggestions.length
-        ? `Unknown item '${itemName}'. Did you mean: ${suggestions.join(', ')}?`
-        : `Unknown item '${itemName}'.`;
+        ? `未知项目 '${itemName}'。您是否指：${suggestions.join(', ')}？`
+        : `未知项目 '${itemName}'。`;
       if (opts.json) {
         console.log(
           JSON.stringify(
@@ -186,8 +186,8 @@ export class ValidateCommand {
                 {
                   severity: 'error',
                   code: 'ambiguous_item',
-                  message: `Ambiguous item '${itemName}' matches both a change and a spec.`,
-                  fix: 'Pass --type change|spec.',
+                  message: `歧义项目 '${itemName}' 同时匹配 change 和 spec。`,
+                  fix: '请传递 --type change|spec。',
                 },
               ],
             },
@@ -198,12 +198,12 @@ export class ValidateCommand {
         process.exitCode = 1;
         return;
       }
-      console.error(`Ambiguous item '${itemName}' matches both a change and a spec.`);
-      // The noun-form commands are cwd-based and cannot reach a selected store.
+      console.error(`歧义项目 '${itemName}' 同时匹配 change 和 spec。`);
+      // 名词形式的命令基于当前工作目录，无法访问已选存储。
       if (isStoreSelectedRoot(root)) {
-        console.error('Pass --type change|spec.');
+        console.error('请传递 --type change|spec。');
       } else {
-        console.error('Pass --type change|spec, or use: openspec change validate / openspec spec validate');
+        console.error('请传递 --type change|spec，或使用：openspec change validate / openspec spec validate');
       }
       process.exitCode = 1;
       return;
@@ -242,11 +242,11 @@ export class ValidateCommand {
       return;
     }
     if (report.valid) {
-      console.log(`${type === 'change' ? 'Change' : 'Specification'} '${id}' is valid`);
+      console.log(`${type === 'change' ? 'Change' : 'Specification'} '${id}' 有效`);
     } else {
-      console.error(`${type === 'change' ? 'Change' : 'Specification'} '${id}' has issues`);
+      console.error(`${type === 'change' ? 'Change' : 'Specification'} '${id}' 存在问题`);
       for (const issue of report.issues) {
-        const label = issue.level === 'ERROR' ? 'ERROR' : issue.level;
+        const label = issue.level === 'ERROR' ? '错误' : issue.level;
         const prefix = issue.level === 'ERROR' ? '✗' : issue.level === 'WARNING' ? '⚠' : 'ℹ';
         console.error(`${prefix} [${label}] ${issue.path}: ${issue.message}`);
       }
@@ -267,26 +267,26 @@ export class ValidateCommand {
       i.message.includes(VALIDATION_MESSAGES.CHANGE_SKIP_SPECS_INVALID_METADATA)
     );
     if (type === 'change' && conflictIssue) {
-      bullets.push('- This change declares skip_specs (no spec deltas): delete the files under specs/, or remove skip_specs from .openspec.yaml if requirements do change');
-      bullets.push('- skip_specs is only honored when .openspec.yaml is valid change metadata (schema: <name> naming a known schema is required)');
+      bullets.push('- 此 change 声明了 skip_specs（无 spec 增量）：删除 specs/ 下的文件，或在 requirements 确实变更时从 .openspec.yaml 中移除 skip_specs');
+      bullets.push('- skip_specs 仅在 .openspec.yaml 是有效的 change 元数据时生效（需要 schema: <name> 来命名已知 schema）');
     } else if (type === 'change' && invalidMarkerIssue) {
-      bullets.push('- Fix .openspec.yaml so the skip_specs marker can be honored (schema: <name> naming a known schema is required)');
-      bullets.push('- Or remove skip_specs from .openspec.yaml and add delta specs instead');
+      bullets.push('- 修复 .openspec.yaml 以便 skip_specs 标记可以生效（需要 schema: <name> 来命名已知 schema）');
+      bullets.push('- 或从 .openspec.yaml 中移除 skip_specs 并添加 spec 增量');
     } else if (type === 'change') {
-      bullets.push('- Ensure change has deltas in specs/: use headers ## ADDED/MODIFIED/REMOVED/RENAMED Requirements');
-      bullets.push('- Each requirement MUST include at least one #### Scenario: block');
-      bullets.push(`- Debug parsed deltas: ${withStoreFlag(root, `openspec show ${id} --json --deltas-only`)}`);
+      bullets.push('- 确保 change 在 specs/ 中有增量：使用 ## ADDED/MODIFIED/REMOVED/RENAMED Requirements 标题');
+      bullets.push('- 每个需求必须至少包含一个 #### Scenario: 块');
+      bullets.push(`- 调试解析的增量：${withStoreFlag(root, `openspec show ${id} --json --deltas-only`)}`);
     } else {
-      bullets.push('- Ensure spec includes ## Purpose and ## Requirements sections');
-      bullets.push('- Each requirement MUST include at least one #### Scenario: block');
-      bullets.push('- Re-run with --json to see structured report');
+      bullets.push('- 确保 spec 包含 ## 目的 和 ## 需求 部分');
+      bullets.push('- 每个需求必须至少包含一个 #### Scenario: 块');
+      bullets.push('- 使用 --json 重新运行以查看结构化报告');
     }
-    console.error('Next steps:');
+    console.error('后续步骤：');
     bullets.forEach(b => console.error(`  ${b}`));
   }
 
   private async runBulkValidation(root: ResolvedOpenSpecRoot, scope: { changes: boolean; specs: boolean }, opts: { strict: boolean; json: boolean; concurrency?: string; noInteractive?: boolean }): Promise<void> {
-    const spinner = !opts.json && !opts.noInteractive ? ora('Validating...').start() : undefined;
+    const spinner = !opts.json && !opts.noInteractive ? ora('正在验证...').start() : undefined;
     const [changeIds, specIds] = await Promise.all([
       scope.changes ? this.listChangeIds(root) : Promise.resolve<string[]>([]),
       scope.specs ? getSpecIds(root.path) : Promise.resolve<string[]>([]),
@@ -335,7 +335,7 @@ export class ValidateCommand {
         const out = { items: [] as BulkItemResult[], summary, version: '1.0', root: toRootOutput(root) };
         console.log(JSON.stringify(out, null, 2));
       } else {
-        console.log('No items found to validate.');
+        console.log('未找到可验证的项目。');
       }
 
       process.exitCode = 0;
@@ -354,7 +354,7 @@ export class ValidateCommand {
           const currentIndex = index++;
           const task = queue[currentIndex];
           running++;
-          if (spinner) spinner.text = `Validating (${currentIndex + 1}/${queue.length})...`;
+          if (spinner) spinner.text = `正在验证（${currentIndex + 1}/${queue.length}）...`;
           task()
             .then(res => {
               results.push(res);
@@ -395,12 +395,12 @@ export class ValidateCommand {
         if (res.valid) console.log(`✓ ${res.type}/${res.id}`);
         else console.error(`✗ ${res.type}/${res.id}`);
       }
-      console.log(`Totals: ${summary.totals.passed} passed, ${summary.totals.failed} failed (${summary.totals.items} items)`);
+      console.log(`总计：${summary.totals.passed} 通过，${summary.totals.failed} 失败（${summary.totals.items} 个项目）`);
       const firstFailure = results.find((res) => !res.valid);
       if (firstFailure) {
         const storeFlag = isStoreSelectedRoot(root) ? ` --store ${root.storeId}` : '';
         console.log(
-          `Details: openspec validate ${firstFailure.id} --type ${firstFailure.type}${storeFlag}`
+          `详情：openspec validate ${firstFailure.id} --type ${firstFailure.type}${storeFlag}`
         );
       }
     }
@@ -448,7 +448,7 @@ export class ValidateCommand {
     // List first (may throw on a real archive-read failure), then start the
     // spinner so a thrown error never leaves a spinner spinning.
     const ids = await this.listArchivedChangeIds(root);
-    const spinner = !opts.json && !opts.noInteractive ? ora('Validating archived changes...').start() : undefined;
+    const spinner = !opts.json && !opts.noInteractive ? ora('正在验证已归档的 changes...').start() : undefined;
 
     // The archive is append-only and can hold thousands of changes; a single
     // run resolves them all under one constant projectRoot (root.path), so
@@ -476,7 +476,7 @@ export class ValidateCommand {
           issues.push({
             level: 'ERROR',
             path: FileSystemUtils.toPosixPath(path.relative(root.path, file)),
-            message: 'could not read task file',
+            message: '无法读取任务文件',
           });
         }
         const incomplete = Math.max(progress.total - progress.completed, 0);
@@ -484,7 +484,7 @@ export class ValidateCommand {
           issues.push({
             level: 'ERROR',
             path: 'tasks.md',
-            message: `${incomplete} incomplete task${incomplete === 1 ? '' : 's'} (${progress.completed}/${progress.total} completed)`,
+            message: `${incomplete} 个未完成的任务（${progress.completed}/${progress.total} 已完成）`,
           });
         }
       } catch (error: any) {

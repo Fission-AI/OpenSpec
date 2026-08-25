@@ -12,9 +12,9 @@ import { getTaskProgressForChange } from '../utils/task-progress.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 
 /**
- * True only when `target` is definitively absent. An EACCES or I/O failure
- * means existence cannot be determined, so callers fall through to their
- * read-error path rather than claim the file was never written.
+ * 仅当 `target` 明确不存在时才返回 true。EACCES 或 I/O 失败
+ * 表示无法确定存在性，因此调用者会进入读取错误路径，而不是
+ * 声称文件从未被写入。
  */
 async function isDefinitelyMissing(target: string): Promise<boolean> {
   return fs
@@ -24,9 +24,9 @@ async function isDefinitelyMissing(target: string): Promise<boolean> {
 }
 
 /**
- * A change is a directory directly under changes/. Rejecting anything else up
- * front keeps a traversing name (`../..`) from reading a proposal outside the
- * changes directory, and keeps the missing-proposal message honest.
+ * change 是 changes/ 下的直接子目录。在此拒绝其他任何内容
+ * 可防止遍历名称（`../..`）读取 changes 目录外的提案，
+ * 并保持缺失的提案提示真实。
  */
 function isChangeDirectoryName(changesPath: string, changeDir: string): boolean {
   return path.dirname(path.resolve(changeDir)) === path.resolve(changesPath);
@@ -36,8 +36,8 @@ export class ChangeCommand {
   private converter: JsonConverter;
   private rootPath?: string;
 
-  // rootPath is set only by root-aware callers (top-level `show`); the
-  // deprecated noun-form commands stay cwd-based.
+  // rootPath 仅由根感知调用者（顶层 `show`）设置；
+  // 已弃用的名词形式命令保持基于 cwd。
   constructor(rootPath?: string) {
     this.converter = new JsonConverter();
     this.rootPath = rootPath;
@@ -48,32 +48,32 @@ export class ChangeCommand {
   }
 
   /**
-   * Show a change proposal.
-   * - Text mode: raw markdown passthrough (no filters)
-   * - JSON mode: minimal object with deltas; --deltas-only returns same object with filtered deltas
-   *   Note: --requirements-only is deprecated alias for --deltas-only
+   * 显示变更提案。
+   * - 文本模式：原始 markdown 透传（无过滤器）
+   * - JSON 模式：包含增量的最小对象；--deltas-only 返回相同对象（过滤增量）
+   *   注意：--requirements-only 是 --deltas-only 的已弃用别名
    */
   async show(changeName?: string, options?: { json?: boolean; requirementsOnly?: boolean; deltasOnly?: boolean; noInteractive?: boolean; rootOutput?: RootOutput }): Promise<void> {
     const changesPath = this.getChangesPath();
 
     if (!changeName) {
       const canPrompt = isInteractive(options);
-      // Offer exactly the changes `show <name>` can resolve.
+      // 恰好提供 `show <name>` 能解析的变更。
       const changes = await getActiveChangeIds(this.rootPath ?? process.cwd());
       if (canPrompt && changes.length > 0) {
         const { select } = await import('@inquirer/prompts');
         const selected = await select({
-          message: 'Select a change to show',
+          message: '选择要显示的变更',
           choices: changes.map(id => ({ name: id, value: id })),
         });
         changeName = selected;
       } else {
         if (changes.length === 0) {
-          console.error('No change specified. No active changes found.');
+          console.error('未指定变更。未找到活动变更。');
         } else {
-          console.error(`No change specified. Available IDs: ${changes.join(', ')}`);
+          console.error(`未指定变更。可用 ID：${changes.join(', ')}`);
         }
-        console.error('Hint: use "openspec change list" to view available changes.');
+        console.error('提示：使用 "openspec change list" 查看可用变更。');
         process.exitCode = 1;
         return;
       }
@@ -83,29 +83,28 @@ export class ChangeCommand {
     const proposalPath = path.join(changeDir, 'proposal.md');
 
     if (!isChangeDirectoryName(changesPath, changeDir)) {
-      throw new Error(`Change "${changeName}" not found at ${proposalPath}`);
+      throw new Error(`未找到 change "${changeName}"，路径：${proposalPath}`);
     }
 
     try {
       await fs.access(proposalPath);
     } catch {
-      // A change can exist without a proposal: `openspec new change` scaffolds
-      // only .openspec.yaml, and a custom schema need not define a proposal
-      // artifact. Say which of the two cases this is instead of reporting a
-      // change that does exist as missing. A stray file under changes/ is not a
-      // change, and naming it one would point the user at a `status --change`
-      // call that cannot work.
+      // change 可以在没有 proposal 的情况下存在：`openspec new change` 仅搭建
+      // .openspec.yaml 的脚手架，自定义 schema 也不必定义 proposal 制品。
+      // 请说明这两种情况中的哪一种，而不是报告一个确实存在的 change 为
+      // 缺失。changes/ 下的孤立文件不是 change，将其命名为 change 会引导
+      // 用户使用无法工作的 `status --change` 命令。
       const isChangeDirectory = await fs
         .stat(changeDir)
         .then((stats) => stats.isDirectory())
         .catch(() => false);
       if (isChangeDirectory) {
         throw new Error(
-          `Change "${changeName}" has no proposal.md yet. ` +
-            `Run "openspec status --change ${changeName}" to see which artifact comes next.`
+          `change "${changeName}" 尚未有 proposal.md。` +
+            `运行 "openspec status --change ${changeName}" 查看接下来需要哪个制品。`
         );
       }
-      throw new Error(`Change "${changeName}" not found at ${proposalPath}`);
+      throw new Error(`未找到 change "${changeName}"，路径：${proposalPath}`);
     }
     FileSystemUtils.assertPathWithin(path.dirname(proposalPath), proposalPath);
 
@@ -114,7 +113,7 @@ export class ChangeCommand {
       const jsonOutput = await this.converter.convertChangeToJson(proposalPath);
 
       if (options.requirementsOnly) {
-        console.error('Flag --requirements-only is deprecated; use --deltas-only instead.');
+        console.error('标志 --requirements-only 已弃用；请改用 --deltas-only。');
       }
 
       const parsed: Change = JSON.parse(jsonOutput);
@@ -140,16 +139,16 @@ export class ChangeCommand {
   }
 
   /**
-   * List active changes.
-   * - Text default: IDs only; --long prints minimal details (title, counts)
-   * - JSON: array of { id, title, deltaCount, taskStatus }, sorted by id
+   * 列出活动 change。
+   * - 文本默认：仅显示 ID；--long 打印最小详情（标题、计数）
+   * - JSON：{ id, title, deltaCount, taskStatus } 数组，按 ID 排序
    */
   async list(options?: { json?: boolean; long?: boolean }): Promise<void> {
     const changesPath = path.join(process.cwd(), 'openspec', 'changes');
     
-    // Same directory-based resolution as `openspec list`, the command this
-    // deprecated alias points users at. Every output path below already
-    // tolerates a change whose proposal.md is missing or unreadable.
+    // 与 `openspec list` 相同的基于目录的解析方式，该命令是此已弃用别名
+    // 指向的用户入口。下面的每个输出路径都已能容忍缺失或无法读取
+    // proposal.md 的 change。
     const changes = await getActiveChangeIds();
 
     if (options?.json) {
@@ -158,16 +157,14 @@ export class ChangeCommand {
           const changeDir = path.join(changesPath, changeName);
           const proposalPath = path.join(changeDir, 'proposal.md');
 
-          // Resolve task progress through the shared tracked-tasks helper so
-          // this deprecated noun-form list cannot re-fork the resolution
-          // (#1202). Tasks are independent of the proposal: a change can carry
-          // tasks before, or without, a proposal.md.
+          // 通过共享的已追踪任务辅助器解析任务进度，确保此已弃用的
+          // 名词形式列表不会重新分叉解析逻辑（#1202）。任务独立于
+          // proposal：change 可以在有或没有 proposal.md 的情况下携带任务。
           const taskStatus = await getTaskProgressForChange(changesPath, changeName, process.cwd());
 
-          // No proposal yet is an ordinary state (scaffolded change, or a
-          // schema with no proposal artifact), so name the change rather than
-          // labelling it Unknown. Unknown stays for a proposal that exists but
-          // cannot be read or parsed.
+          // 尚无 proposal 是普通状态（脚手架搭建的 change，或不含
+          // proposal 制品的 schema），因此以 change 命名而不是标记为
+          // Unknown。Unknown 用于存在但无法读取或解析的 proposal。
           if (await isDefinitelyMissing(proposalPath)) {
             return { id: changeName, title: changeName, deltaCount: 0, taskStatus };
           }
@@ -185,7 +182,7 @@ export class ChangeCommand {
               taskStatus,
             };
           } catch {
-            return { id: changeName, title: 'Unknown', deltaCount: 0, taskStatus };
+            return { id: changeName, title: '未知', deltaCount: 0, taskStatus };
           }
         })
       );
@@ -194,24 +191,24 @@ export class ChangeCommand {
       console.log(JSON.stringify(sorted, null, 2));
     } else {
       if (changes.length === 0) {
-        console.log('No items found');
+        console.log('未找到项目');
         return;
       }
       const sorted = [...changes].sort();
       if (!options?.long) {
-        // IDs only
+        // 仅显示 ID
         sorted.forEach(id => console.log(id));
         return;
       }
 
-      // Long format: id: title and minimal counts
+      // 长格式：id: 标题 和最小计数
       for (const changeName of sorted) {
         const changeDir = path.join(changesPath, changeName);
         const proposalPath = path.join(changeDir, 'proposal.md');
         const { total, completed } = await getTaskProgressForChange(changesPath, changeName, process.cwd());
-        const taskStatusText = total > 0 ? ` [tasks ${completed}/${total}]` : '';
+        const taskStatusText = total > 0 ? ` [任务 ${completed}/${total}]` : '';
         if (await isDefinitelyMissing(proposalPath)) {
-          console.log(`${changeName}: (no proposal.md yet)${taskStatusText}`);
+          console.log(`${changeName}: （尚无 proposal.md）${taskStatusText}`);
           continue;
         }
         try {
@@ -220,10 +217,10 @@ export class ChangeCommand {
           const title = this.extractTitle(content, changeName);
           const parser = new ChangeParser(content, changeDir);
           const change = await parser.parseChangeWithDeltas(changeName);
-          const deltaCountText = ` [deltas ${change.deltas.length}]`;
+          const deltaCountText = ` [增量 ${change.deltas.length}]`;
           console.log(`${changeName}: ${title}${deltaCountText}${taskStatusText}`);
         } catch {
-          console.log(`${changeName}: (unable to read)${taskStatusText}`);
+          console.log(`${changeName}: （无法读取）${taskStatusText}`);
         }
       }
     }
@@ -238,17 +235,17 @@ export class ChangeCommand {
       if (canPrompt && changes.length > 0) {
         const { select } = await import('@inquirer/prompts');
         const selected = await select({
-          message: 'Select a change to validate',
+          message: '选择要验证的 change',
           choices: changes.map(id => ({ name: id, value: id })),
         });
         changeName = selected;
       } else {
         if (changes.length === 0) {
-          console.error('No change specified. No active changes found.');
+          console.error('未指定 change。未找到活动 change。');
         } else {
-          console.error(`No change specified. Available IDs: ${changes.join(', ')}`);
+          console.error(`未指定 change。可用 ID：${changes.join(', ')}`);
         }
-        console.error('Hint: use "openspec change list" to view available changes.');
+        console.error('提示：使用 "openspec change list" 查看可用 change。');
         process.exitCode = 1;
         return;
       }
@@ -256,18 +253,17 @@ export class ChangeCommand {
     
     const changeDir = path.join(changesPath, changeName);
     if (!isChangeDirectoryName(changesPath, changeDir)) {
-      throw new Error(`Change "${changeName}" not found at ${changeDir}`);
+      throw new Error(`未找到 change "${changeName}"，路径：${changeDir}`);
     }
     try {
       await fs.access(changeDir);
     } catch {
-      throw new Error(`Change "${changeName}" not found at ${changeDir}`);
+      throw new Error(`未找到 change "${changeName}"，路径：${changeDir}`);
     }
     
     const validator = new Validator(options?.strict || false);
     const report = await validator.validateChangeDeltaSpecs(changeDir, {
-      // Derived from changesPath so the main specs come from the same root the
-      // change itself was resolved against.
+      // 从 changesPath 派生，使主 specs 来自解析 change 的同一根目录。
       mainSpecsDir: path.join(path.dirname(changesPath), 'specs'),
       projectRoot: path.dirname(path.dirname(changesPath)),
     });
@@ -276,15 +272,15 @@ export class ChangeCommand {
       console.log(JSON.stringify(report, null, 2));
     } else {
       if (report.valid) {
-        console.log(`Change "${changeName}" is valid`);
+        console.log(`change "${changeName}" 有效`);
       } else {
-        console.error(`Change "${changeName}" has issues`);
+        console.error(`change "${changeName}" 存在问题`);
         report.issues.forEach(issue => {
-          const label = issue.level === 'ERROR' ? 'ERROR' : 'WARNING';
+          const label = issue.level === 'ERROR' ? '错误' : '警告';
           const prefix = issue.level === 'ERROR' ? '✗' : '⚠';
           console.error(`${prefix} [${label}] ${issue.path}: ${issue.message}`);
         });
-        // Next steps footer to guide fixing issues
+        // 后续步骤页脚，指导修复问题
         this.printNextSteps(report.issues);
         if (!options?.json) {
           process.exitCode = 1;
@@ -300,8 +296,8 @@ export class ChangeCommand {
 
   private printNextSteps(issues: Array<{ message: string }> = []): void {
     const bullets: string[] = [];
-    // Branch on the exact marker messages: the generic no-deltas guidance
-    // also mentions skip_specs and must not trigger the marker bullets.
+    // 根据确切的标记消息分支：通用的无增量指导也会提到 skip_specs，
+    // 不应触发标记子弹。
     const conflictIssue = issues.some(i =>
       i.message.includes(VALIDATION_MESSAGES.CHANGE_SKIP_SPECS_CONFLICT)
     );
@@ -309,17 +305,17 @@ export class ChangeCommand {
       i.message.includes(VALIDATION_MESSAGES.CHANGE_SKIP_SPECS_INVALID_METADATA)
     );
     if (conflictIssue) {
-      bullets.push('- This change declares skip_specs (no spec deltas): delete the files under specs/, or remove skip_specs from .openspec.yaml if requirements do change');
-      bullets.push('- skip_specs is only honored when .openspec.yaml is valid change metadata (schema: <name> is required)');
+      bullets.push('- 此 change 声明了 skip_specs（无 spec 增量）：删除 specs/ 下的文件，或在 requirements 确实变更时从 .openspec.yaml 中移除 skip_specs');
+      bullets.push('- skip_specs 仅在 .openspec.yaml 是有效的 change 元数据时生效（需要 schema: <name> 来命名已知 schema）');
     } else if (invalidMarkerIssue) {
-      bullets.push('- Fix .openspec.yaml so the skip_specs marker can be honored (schema: <name> is required)');
-      bullets.push('- Or remove skip_specs from .openspec.yaml and add delta specs instead');
+      bullets.push('- 修复 .openspec.yaml 以便 skip_specs 标记可以生效（需要 schema: <name> 来命名已知 schema）');
+      bullets.push('- 或从 .openspec.yaml 中移除 skip_specs 并添加 spec 增量');
     } else {
-      bullets.push('- Ensure change has deltas in specs/: use headers ## ADDED/MODIFIED/REMOVED/RENAMED Requirements');
-      bullets.push('- Each requirement MUST include at least one #### Scenario: block');
-      bullets.push('- Debug parsed deltas: openspec change show <id> --json --deltas-only');
+      bullets.push('- 确保 change 在 specs/ 中有增量：使用 ## ADDED/MODIFIED/REMOVED/RENAMED Requirements 标题');
+      bullets.push('- 每个 requirement 必须至少包含一个 #### Scenario: 块');
+      bullets.push('- 调试解析的增量：openspec change show <id> --json --deltas-only');
     }
-    console.error('Next steps:');
+    console.error('后续步骤：');
     bullets.forEach(b => console.error(`  ${b}`));
   }
 }

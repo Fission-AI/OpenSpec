@@ -17,12 +17,12 @@ import type { SchemaYaml, Artifact } from '../core/artifact-graph/types.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 
 /**
- * Schema source location type
+ * Schema 源位置类型
  */
 type SchemaSource = 'project' | 'user' | 'package';
 
 /**
- * Result of checking a schema location
+ * 检查 schema 位置的结果
  */
 interface SchemaLocation {
   source: SchemaSource;
@@ -31,7 +31,7 @@ interface SchemaLocation {
 }
 
 /**
- * Schema resolution info with shadowing details
+ * Schema 解析信息，包含覆盖（shadowing）详情
  */
 interface SchemaResolution {
   name: string;
@@ -41,7 +41,7 @@ interface SchemaResolution {
 }
 
 /**
- * Validation issue structure
+ * 验证问题结构
  */
 interface ValidationIssue {
   level: 'error' | 'warning';
@@ -50,7 +50,7 @@ interface ValidationIssue {
 }
 
 /**
- * Check all three locations for a schema and return which ones exist.
+ * 检查三个位置中的所有 schema，并返回哪些存在。
  */
 function checkAllLocations(
   name: string,
@@ -58,7 +58,7 @@ function checkAllLocations(
 ): SchemaLocation[] {
   const locations: SchemaLocation[] = [];
 
-  // Project location
+  // 项目位置
   const projectDir = path.join(getProjectSchemasDir(projectRoot), name);
   const projectSchemaPath = path.join(projectDir, 'schema.yaml');
   locations.push({
@@ -67,7 +67,7 @@ function checkAllLocations(
     exists: fs.existsSync(projectSchemaPath),
   });
 
-  // User location
+  // 用户位置
   const userDir = path.join(getUserSchemasDir(), name);
   const userSchemaPath = path.join(userDir, 'schema.yaml');
   locations.push({
@@ -76,7 +76,7 @@ function checkAllLocations(
     exists: fs.existsSync(userSchemaPath),
   });
 
-  // Package location
+  // 包位置
   const packageDir = path.join(getPackageSchemasDir(), name);
   const packageSchemaPath = path.join(packageDir, 'schema.yaml');
   locations.push({
@@ -89,7 +89,7 @@ function checkAllLocations(
 }
 
 /**
- * Get resolution info for a schema including shadow detection.
+ * 获取 schema 的解析信息，包括覆盖检测。
  */
 function getSchemaResolution(
   name: string,
@@ -117,7 +117,7 @@ function getSchemaResolution(
 }
 
 /**
- * Get all schemas with resolution info.
+ * 获取所有 schema 及其解析信息。
  */
 function getAllSchemasWithResolution(
   projectRoot: string
@@ -136,7 +136,7 @@ function getAllSchemasWithResolution(
 }
 
 /**
- * Validate a schema and return issues.
+ * 验证 schema 并返回问题。
  */
 function validateSchema(
   schemaDir: string,
@@ -145,22 +145,22 @@ function validateSchema(
   const issues: ValidationIssue[] = [];
   const schemaPath = path.join(schemaDir, 'schema.yaml');
 
-  // Check schema.yaml exists
+  // 检查 schema.yaml 是否存在
   if (verbose) {
-    console.log('  Checking schema.yaml exists...');
+    console.log('  正在检查 schema.yaml 是否存在...');
   }
   if (!fs.existsSync(schemaPath)) {
     issues.push({
       level: 'error',
       path: 'schema.yaml',
-      message: 'schema.yaml not found',
+      message: '未找到 schema.yaml',
     });
     return { valid: false, issues };
   }
 
-  // Parse YAML
+  // 解析 YAML
   if (verbose) {
-    console.log('  Parsing YAML...');
+    console.log('  正在解析 YAML...');
   }
   let content: string;
   try {
@@ -169,14 +169,14 @@ function validateSchema(
     issues.push({
       level: 'error',
       path: 'schema.yaml',
-      message: `Failed to read file: ${(err as Error).message}`,
+      message: `读取文件失败：${(err as Error).message}`,
     });
     return { valid: false, issues };
   }
 
-  // Validate against Zod schema
+  // 根据 Zod schema 验证
   if (verbose) {
-    console.log('  Validating schema structure...');
+    console.log('  正在验证 schema 结构...');
   }
   let schema: SchemaYaml;
   try {
@@ -192,15 +192,15 @@ function validateSchema(
       issues.push({
         level: 'error',
         path: 'schema.yaml',
-        message: `Parse error: ${(err as Error).message}`,
+        message: `解析错误：${(err as Error).message}`,
       });
     }
     return { valid: false, issues };
   }
 
-  // Check template files exist in the same directory used at runtime.
+  // 检查模板文件是否存在于运行时使用的同一目录中。
   if (verbose) {
-    console.log('  Checking template files...');
+    console.log('  正在检查模板文件...');
   }
   for (const artifact of schema.artifacts) {
     const templatesDir = path.join(schemaDir, 'templates');
@@ -210,7 +210,7 @@ function validateSchema(
       issues.push({
         level: 'error',
         path: `artifacts.${artifact.id}.template`,
-        message: `Template file '${artifact.template}' not found for artifact '${artifact.id}'`,
+        message: `找不到 artifact '${artifact.id}' 的模板文件 '${artifact.template}'`,
       });
       continue;
     }
@@ -221,29 +221,29 @@ function validateSchema(
       issues.push({
         level: 'error',
         path: `artifacts.${artifact.id}.template`,
-        message: `Template file '${artifact.template}' points outside the schema templates directory`,
+        message: `模板文件 '${artifact.template}' 指向了 schema 模板目录之外的路径`,
       });
     }
   }
 
-  // Dependency graph validation is already done by parseSchema
-  // (it throws on cycles and invalid references)
+  // 依赖图验证已由 parseSchema 完成
+  // （它会在循环引用和无效引用时抛出异常）
   if (verbose) {
-    console.log('  Dependency graph validation passed (via parseSchema)');
+    console.log('  依赖图验证通过（通过 parseSchema）');
   }
 
   return { valid: issues.length === 0, issues };
 }
 
 /**
- * Validate schema name format (kebab-case).
+ * 验证 schema 名称格式（kebab-case）。
  */
 function isValidSchemaName(name: string): boolean {
   return /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(name);
 }
 
 /**
- * Copy a directory recursively.
+ * 递归复制目录。
  */
 function resolveSchemaCopyPath(allowedRoot: string, sourcePath: string): string {
   try {
@@ -254,7 +254,7 @@ function resolveSchemaCopyPath(allowedRoot: string, sourcePath: string): string 
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     throw new Error(
-      `Cannot fork schema with linked or unsupported entry: ${sourcePath}: ${detail}`,
+      `无法 fork 具有链接或不支持条目的 schema：${sourcePath}：${detail}`,
       { cause: error }
     );
   }
@@ -268,7 +268,7 @@ function copyDirRecursive(
 ): void {
   const canonicalSrc = resolveSchemaCopyPath(allowedRoot, src);
   if (ancestors.has(canonicalSrc)) {
-    throw new Error(`Cannot fork schema with a linked directory cycle: ${src}`);
+    throw new Error(`无法 fork 具有链接目录循环的 schema：${src}`);
   }
   ancestors.add(canonicalSrc);
   fs.mkdirSync(dest, { recursive: true });
@@ -284,10 +284,10 @@ function copyDirRecursive(
       if (stats.isDirectory()) {
         copyDirRecursive(canonicalEntry, destPath, allowedRoot, ancestors);
       } else if (stats.isFile()) {
-        // Dereference confined links so the fork is an independent schema.
+        // 解引用受限链接，使 fork 成为独立的 schema。
         fs.copyFileSync(canonicalEntry, destPath);
       } else {
-        throw new Error(`Cannot fork schema with linked or unsupported entry: ${srcPath}`);
+        throw new Error(`无法 fork 具有链接或不支持条目的 schema：${srcPath}`);
       }
     }
   } finally {
@@ -296,7 +296,7 @@ function copyDirRecursive(
 }
 
 /**
- * Verifies a schema tree before replacing or creating the fork destination.
+ * 在替换或创建 fork 目标之前验证 schema 树。
  */
 function assertSchemaTreeCanBeCopied(
   src: string,
@@ -305,7 +305,7 @@ function assertSchemaTreeCanBeCopied(
 ): void {
   const canonicalSrc = resolveSchemaCopyPath(allowedRoot, src);
   if (ancestors.has(canonicalSrc)) {
-    throw new Error(`Cannot fork schema with a linked directory cycle: ${src}`);
+    throw new Error(`无法 fork 具有链接目录循环的 schema：${src}`);
   }
   ancestors.add(canonicalSrc);
 
@@ -326,13 +326,12 @@ function assertSchemaTreeCanBeCopied(
 }
 
 /**
- * Produces a stable content fingerprint of a directory: a SHA-256 over every
- * file's relative path AND its bytes (plus directory paths), walked in sorted
- * order. Two directories with byte-identical trees produce the same digest, and
- * ANY change to a file's contents, size, or the set of paths changes it. Used to
- * detect a concurrent modification of a fork destination between the moment the
- * overwrite is authorized and the moment it is actually moved/deleted, so those
- * changes are never silently destroyed.
+ * 生成目录的稳定内容指纹：对每个文件的相对路径
+ * 及其字节内容（加上目录路径）进行 SHA-256 哈希，按排序顺序遍历。
+ * 具有字节级相同树的两个目录会产生相同的摘要，
+ * 并且文件内容、大小或路径集合的任何更改都会改变摘要。
+ * 用于检测在授权覆盖和实际移动/删除之间，fork 目标是否被并发修改，
+ * 以确保这些更改永远不会被静默销毁。
  */
 function fingerprintDir(dir: string): string {
   const hash = createHash('sha256');
@@ -343,9 +342,9 @@ function fingerprintDir(dir: string): string {
     for (const entry of entries) {
       const abs = path.join(current, entry.name);
       const relPath = rel ? `${rel}/${entry.name}` : entry.name;
-      // Use the entry type from readdir (no separate lstat), then read the file
-      // directly — avoiding a stat-then-read check/use gap. Size is derived from
-      // the bytes actually read, so the digest still covers content and length.
+      // 使用 readdir 的条目类型（无需单独的 lstat），然后直接读取文件
+      // —— 避免了 stat-then-read 的检查/使用竞争。大小从实际读取的字节派生，
+      // 因此摘要仍覆盖内容和长度。
       if (entry.isDirectory()) {
         hash.update(`D:${relPath}\n`);
         walk(abs, relPath);
@@ -355,13 +354,13 @@ function fingerprintDir(dir: string): string {
         hash.update(contents);
         hash.update('\n');
       } else {
-        // Symlinks / other entry types: record the type + path (and the link
-        // target when readable) so a swap of one for another is still detected.
+        // 符号链接/其他条目类型：记录类型 + 路径（以及可读时的链接
+        // 目标），以便即使将一个替换为另一个也能被检测到。
         let target = '';
         try {
           target = fs.readlinkSync(abs);
         } catch {
-          // Non-symlink or unreadable target; the type marker below suffices.
+          // 非符号链接或无法读取的目标；下面的类型标记已足够。
         }
         hash.update(`O:${relPath}:${target}\n`);
       }
@@ -372,7 +371,7 @@ function fingerprintDir(dir: string): string {
 }
 
 /**
- * Default artifacts with descriptions for schema init.
+ * schema 初始化的默认 artifact 及其描述。
  */
 const DEFAULT_ARTIFACTS: Array<{
   id: string;
@@ -382,66 +381,66 @@ const DEFAULT_ARTIFACTS: Array<{
 }> = [
   {
     id: 'proposal',
-    description: 'High-level description of the change, its motivation, and scope',
+    description: '变更的高层描述、动机和范围',
     generates: 'proposal.md',
     template: 'proposal.md',
   },
   {
     id: 'specs',
-    description: 'Detailed specifications with requirements and scenarios',
+    description: '包含需求和场景的详细规范',
     generates: 'specs/**/*.md',
     template: 'specs/spec.md',
   },
   {
     id: 'design',
-    description: 'Technical design decisions and implementation approach',
+    description: '技术设计决策和实现方法',
     generates: 'design.md',
     template: 'design.md',
   },
   {
     id: 'tasks',
-    description: 'Implementation checklist with trackable tasks',
+    description: '带有可跟踪任务的实现清单',
     generates: 'tasks.md',
     template: 'tasks.md',
   },
 ];
 
 /**
- * Register the schema command and all its subcommands.
+ * 注册 schema 命令及其所有子命令。
  */
 export function registerSchemaCommand(program: Command): void {
   const schemaCmd = program
     .command('schema')
-    .description('Manage workflow schemas [experimental]');
+    .description('管理 workflow schema [实验性]');
 
-  // Experimental warning
+  // 实验性警告
   schemaCmd.hook('preAction', () => {
-    console.error('Note: Schema commands are experimental and may change.');
+    console.error('注意：Schema 命令是实验性的，可能会发生变化。');
   });
 
   // schema which
   schemaCmd
     .command('which [name]')
-    .description('Show where a schema resolves from')
-    .option('--json', 'Output as JSON')
-    .option('--all', 'List all schemas with their resolution sources')
+    .description('显示 schema 从哪里解析')
+    .option('--json', '以 JSON 格式输出')
+    .option('--all', '列出所有 schema 及其解析来源')
     .action(async (name?: string, options?: { json?: boolean; all?: boolean }) => {
       try {
         const projectRoot = process.cwd();
 
         if (options?.all) {
-          // List all schemas
+          // 列出所有 schema
           const schemas = getAllSchemasWithResolution(projectRoot);
 
           if (options?.json) {
             console.log(JSON.stringify(schemas, null, 2));
           } else {
             if (schemas.length === 0) {
-              console.log('No schemas found.');
+              console.log('未找到任何 schema。');
               return;
             }
 
-            // Group by source
+            // 按来源分组
             const bySource = {
               project: schemas.filter((s) => s.source === 'project'),
               user: schemas.filter((s) => s.source === 'user'),
@@ -449,27 +448,27 @@ export function registerSchemaCommand(program: Command): void {
             };
 
             if (bySource.project.length > 0) {
-              console.log('\nProject schemas:');
+              console.log('\n项目 schema：');
               for (const schema of bySource.project) {
                 const shadowInfo = schema.shadows.length > 0
-                  ? ` (shadows: ${schema.shadows.map((s) => s.source).join(', ')})`
+                  ? ` (覆盖：${schema.shadows.map((s) => s.source).join(', ')})`
                   : '';
                 console.log(`  ${schema.name}${shadowInfo}`);
               }
             }
 
             if (bySource.user.length > 0) {
-              console.log('\nUser schemas:');
+              console.log('\n用户 schema：');
               for (const schema of bySource.user) {
                 const shadowInfo = schema.shadows.length > 0
-                  ? ` (shadows: ${schema.shadows.map((s) => s.source).join(', ')})`
+                  ? ` (覆盖：${schema.shadows.map((s) => s.source).join(', ')})`
                   : '';
                 console.log(`  ${schema.name}${shadowInfo}`);
               }
             }
 
             if (bySource.package.length > 0) {
-              console.log('\nPackage schemas:');
+              console.log('\n包 schema：');
               for (const schema of bySource.package) {
                 console.log(`  ${schema.name}`);
               }
@@ -479,7 +478,7 @@ export function registerSchemaCommand(program: Command): void {
         }
 
         if (!name) {
-          console.error('Error: Schema name is required (or use --all to list all schemas)');
+          console.error('错误：需要 schema 名称（或使用 --all 列出所有 schema）');
           process.exitCode = 1;
           return;
         }
@@ -490,12 +489,12 @@ export function registerSchemaCommand(program: Command): void {
           const available = listSchemas(projectRoot);
           if (options?.json) {
             console.log(JSON.stringify({
-              error: `Schema '${name}' not found`,
+              error: `未找到 schema '${name}'`,
               available,
             }, null, 2));
           } else {
-            console.error(`Error: Schema '${name}' not found`);
-            console.error(`Available schemas: ${available.join(', ')}`);
+            console.error(`错误：未找到 schema '${name}'`);
+            console.error(`可用的 schema：${available.join(', ')}`);
           }
           process.exitCode = 1;
           return;
@@ -504,19 +503,19 @@ export function registerSchemaCommand(program: Command): void {
         if (options?.json) {
           console.log(JSON.stringify(resolution, null, 2));
         } else {
-          console.log(`Schema: ${resolution.name}`);
-          console.log(`Source: ${resolution.source}`);
-          console.log(`Path: ${resolution.path}`);
+          console.log(`Schema：${resolution.name}`);
+          console.log(`来源：${resolution.source}`);
+          console.log(`路径：${resolution.path}`);
 
           if (resolution.shadows.length > 0) {
-            console.log('\nShadows:');
+            console.log('\n覆盖：');
             for (const shadow of resolution.shadows) {
               console.log(`  ${shadow.source}: ${shadow.path}`);
             }
           }
         }
       } catch (error) {
-        console.error(`Error: ${(error as Error).message}`);
+        console.error(`错误：${(error as Error).message}`);
         process.exitCode = 1;
       }
     });
@@ -524,26 +523,26 @@ export function registerSchemaCommand(program: Command): void {
   // schema validate
   schemaCmd
     .command('validate [name]')
-    .description('Validate a schema structure and templates')
-    .option('--json', 'Output as JSON')
-    .option('--verbose', 'Show detailed validation steps')
+    .description('验证 schema 结构和模板')
+    .option('--json', '以 JSON 格式输出')
+    .option('--verbose', '显示详细验证步骤')
     .action(async (name?: string, options?: { json?: boolean; verbose?: boolean }) => {
       try {
         const projectRoot = process.cwd();
 
         if (!name) {
-          // Validate all project schemas
+          // 验证所有项目 schema
           const projectSchemasDir = getProjectSchemasDir(projectRoot);
 
           if (!fs.existsSync(projectSchemasDir)) {
             if (options?.json) {
               console.log(JSON.stringify({
                 valid: true,
-                message: 'No project schemas directory found',
+                message: '未找到项目 schema 目录',
                 schemas: [],
               }, null, 2));
             } else {
-              console.log('No project schemas directory found.');
+              console.log('未找到项目 schema 目录。');
             }
             return;
           }
@@ -567,7 +566,7 @@ export function registerSchemaCommand(program: Command): void {
             if (!fs.existsSync(schemaPath)) continue;
 
             if (options?.verbose && !options?.json) {
-              console.log(`\nValidating ${entry.name}...`);
+              console.log(`\n正在验证 ${entry.name}...`);
             }
 
             const result = validateSchema(schemaDir, options?.verbose && !options?.json);
@@ -590,11 +589,11 @@ export function registerSchemaCommand(program: Command): void {
             }, null, 2));
           } else {
             if (schemaResults.length === 0) {
-              console.log('No schemas found in project.');
+              console.log('项目中未找到 schema。');
               return;
             }
 
-            console.log('\nValidation Results:');
+            console.log('\n验证结果：');
             for (const result of schemaResults) {
               const status = result.valid ? '✓' : '✗';
               console.log(`  ${status} ${result.name}`);
@@ -610,7 +609,7 @@ export function registerSchemaCommand(program: Command): void {
           return;
         }
 
-        // Validate specific schema
+        // 验证特定 schema
         const schemaDir = getSchemaDir(name, projectRoot);
 
         if (!schemaDir) {
@@ -618,19 +617,19 @@ export function registerSchemaCommand(program: Command): void {
           if (options?.json) {
             console.log(JSON.stringify({
               valid: false,
-              error: `Schema '${name}' not found`,
+              error: `未找到 schema '${name}'`,
               available,
             }, null, 2));
           } else {
-            console.error(`Error: Schema '${name}' not found`);
-            console.error(`Available schemas: ${available.join(', ')}`);
+            console.error(`错误：未找到 schema '${name}'`);
+            console.error(`可用的 schema：${available.join(', ')}`);
           }
           process.exitCode = 1;
           return;
         }
 
         if (options?.verbose && !options?.json) {
-          console.log(`Validating ${name}...`);
+          console.log(`正在验证 ${name}...`);
         }
 
         const result = validateSchema(schemaDir, options?.verbose && !options?.json);
@@ -644,9 +643,9 @@ export function registerSchemaCommand(program: Command): void {
           }, null, 2));
         } else {
           if (result.valid) {
-            console.log(`✓ Schema '${name}' is valid`);
+            console.log(`✓ schema '${name}' 有效`);
           } else {
-            console.log(`✗ Schema '${name}' has errors:`);
+            console.log(`✗ schema '${name}' 有错误：`);
             for (const issue of result.issues) {
               console.log(`  ${issue.level}: ${issue.message}`);
             }
@@ -662,7 +661,7 @@ export function registerSchemaCommand(program: Command): void {
             error: (error as Error).message,
           }, null, 2));
         } else {
-          console.error(`Error: ${(error as Error).message}`);
+          console.error(`错误：${(error as Error).message}`);
         }
         process.exitCode = 1;
       }
@@ -671,9 +670,9 @@ export function registerSchemaCommand(program: Command): void {
   // schema fork
   schemaCmd
     .command('fork <source> [name]')
-    .description('Copy an existing schema to project for customization')
-    .option('--json', 'Output as JSON')
-    .option('--force', 'Overwrite existing destination')
+    .description('复制现有 schema 到项目中进行自定义')
+    .option('--json', '以 JSON 格式输出')
+    .option('--force', '覆盖现有目标')
     .action(async (source: string, name?: string, options?: { json?: boolean; force?: boolean }) => {
       const spinner = options?.json ? null : ora();
 
@@ -681,72 +680,69 @@ export function registerSchemaCommand(program: Command): void {
         const projectRoot = process.cwd();
         const destinationName = name || `${source}-custom`;
 
-        // Validate destination name
+        // 验证目标名称
         if (!isValidSchemaName(destinationName)) {
           if (options?.json) {
             console.log(JSON.stringify({
               forked: false,
-              error: `Invalid schema name '${destinationName}'. Use kebab-case (e.g., my-workflow)`,
+              error: `无效的 schema 名称 '${destinationName}'。请使用 kebab-case（如 my-workflow）`,
             }, null, 2));
           } else {
-            console.error(`Error: Invalid schema name '${destinationName}'`);
-            console.error('Schema names must be kebab-case (e.g., my-workflow)');
+            console.error(`错误：无效的 schema 名称 '${destinationName}'`);
+            console.error('Schema 名称必须为 kebab-case（如 my-workflow）');
           }
           process.exitCode = 1;
           return;
         }
 
-        // Find source schema
+        // 查找源 schema
         const sourceDir = getSchemaDir(source, projectRoot);
         if (!sourceDir) {
           const available = listSchemas(projectRoot);
           if (options?.json) {
             console.log(JSON.stringify({
               forked: false,
-              error: `Schema '${source}' not found`,
+              error: `未找到 schema '${source}'`,
               available,
             }, null, 2));
           } else {
-            console.error(`Error: Schema '${source}' not found`);
-            console.error(`Available schemas: ${available.join(', ')}`);
+            console.error(`错误：未找到 schema '${source}'`);
+            console.error(`可用的 schema：${available.join(', ')}`);
           }
           process.exitCode = 1;
           return;
         }
 
-        // Determine source location
+        // 确定源位置
         const sourceResolution = getSchemaResolution(source, projectRoot);
         const sourceLocation = sourceResolution?.source || 'package';
 
-        // Validate the complete source before a forced fork removes anything.
+        // 在强制 fork 删除任何内容之前，先验证完整的源。
         const trustedSourceDir = fs.realpathSync(sourceDir);
         assertSchemaTreeCanBeCopied(trustedSourceDir);
 
-        // Validate the source's schema content up front too, so a structurally
-        // invalid source is rejected before the --force path can remove an
-        // existing destination. This keeps `fork --force` atomic — an unusable
-        // source never destroys a valid destination — matching `schema init`,
-        // which likewise validates before it overwrites.
+        // 也预先验证源的 schema 内容，以便在 --force 路径可能删除
+        // 现有目标之前拒绝结构无效的源。这使 `fork --force` 保持原子性——
+        // 不可用的源永远不会破坏有效的目标——与 `schema init` 行为一致，
+        // 它在覆盖之前也进行验证。
         parseSchema(
           fs.readFileSync(path.join(trustedSourceDir, 'schema.yaml'), 'utf-8')
         );
 
-        // Check destination
+        // 检查目标
         const schemasDir = getProjectSchemasDir(projectRoot);
         const destinationDir = path.join(schemasDir, destinationName);
 
-        // Reject a self-fork. Forking a schema onto itself with --force would
-        // otherwise remove the source at the replacement step below and then
-        // fail the copy, destroying the only copy of the schema. Resolve both
-        // sides to their real paths (realpathSync follows symlinks; path.resolve
-        // is a fallback only for a destination that does not exist yet) so a
-        // symlink or a `.`/`..` spelling of the same directory is still caught.
+        // 拒绝自我 fork。将 schema fork 到自身并使用 --force 会
+        // 在下面的替换步骤中删除源，然后复制失败，从而破坏 schema 的唯一副本。
+        // 将两侧解析为实际路径（realpathSync 遵循符号链接；path.resolve
+        // 仅用于尚不存在的目标的回退），以便仍能捕获符号链接或 `.`/`..` 拼写的同一目录。
         const resolvedDestination = fs.existsSync(destinationDir)
           ? fs.realpathSync(destinationDir)
           : path.resolve(destinationDir);
         if (resolvedDestination === trustedSourceDir) {
           throw new Error(
-            `Cannot fork schema '${source}' onto itself; choose a different destination name`
+            `无法将 schema '${source}' fork 到自身；请选择不同的目标名称`
           );
         }
 
@@ -755,82 +751,77 @@ export function registerSchemaCommand(program: Command): void {
           if (options?.json) {
             console.log(JSON.stringify({
               forked: false,
-              error: `Schema '${destinationName}' already exists`,
-              suggestion: 'Use --force to overwrite',
+              error: `schema '${destinationName}' 已存在`,
+              suggestion: '使用 --force 覆盖',
             }, null, 2));
           } else {
-            console.error(`Error: Schema '${destinationName}' already exists at ${destinationDir}`);
-            console.error('Use --force to overwrite');
+            console.error(`错误：schema '${destinationName}' 在 ${destinationDir} 已存在`);
+            console.error('使用 --force 覆盖');
           }
           process.exitCode = 1;
           return;
         }
 
-        // Fingerprint the destination the user authorized us to overwrite, BEFORE
-        // we spend time staging. Staging can take a while, and a concurrent
-        // process may edit the destination in that window; the fingerprint lets
-        // us detect such a change and abort rather than clobber it.
+        // 在我们花时间暂存之前，先对用户授权覆盖的目标进行指纹识别。
+        // 暂存可能需要一段时间，在此期间并发进程可能会编辑目标；
+        // 指纹使我们能够检测到这种变化并中止，而不是悄悄覆盖它。
         const authorizedDestinationFingerprint = destinationExists
           ? fingerprintDir(destinationDir)
           : null;
 
-        // Stage the complete fork in a temporary sibling directory first, then
-        // swap it into place. This keeps `fork --force` atomic: an existing
-        // destination is only removed once the new fork has been fully copied,
-        // name-updated, and (via the up-front parseSchema above) validated. Any
-        // failure while staging leaves both the source and the existing
-        // destination exactly as they were.
-        if (spinner) spinner.start(`Forking '${source}' to '${destinationName}'...`);
+        // 首先在临时兄弟目录中暂存完整的 fork，然后
+        // 将其交换到位。这使 `fork --force` 保持原子性：现有
+        // 目标仅在新 fork 完全复制、名称更新并（通过上面的预先 parseSchema）
+        // 验证后才会被移除。暂存期间的任何失败都使源和现有目标保持原样。
+        if (spinner) spinner.start(`正在将 '${source}' fork 到 '${destinationName}'...`);
         fs.mkdirSync(schemasDir, { recursive: true });
         const stagingDir = fs.mkdtempSync(path.join(schemasDir, '.fork-staging-'));
         try {
           copyDirRecursive(trustedSourceDir, stagingDir);
 
-          // Update name in the staged schema.yaml via yaml's Document API
-          // instead of re-serializing the parsed object, so block scalars,
-          // comments, and key order in the source schema.yaml survive the fork.
+          // 通过 yaml 的 Document API 更新暂存的 schema.yaml 中的名称
+          // 而不是重新序列化解析后的对象，以便源 schema.yaml 中的
+          // 块标量、注释和键顺序在 fork 后得以保留。
           const stagedSchemaPath = path.join(stagingDir, 'schema.yaml');
           const schemaContent = fs.readFileSync(stagedSchemaPath, 'utf-8');
           const doc = parseDocument(schemaContent);
           doc.set('name', destinationName);
           fs.writeFileSync(stagedSchemaPath, doc.toString());
 
-          // Authoritative gate: validate the COMPLETED staged schema — the exact
-          // bytes we are about to install — not just the source at the pre-check.
-          // The source files copyDirRecursive reads can change mid-copy, so a
-          // source that was valid up front can still produce an invalid staged
-          // fork. Validating here, before ANY destructive step, guarantees we
-          // never install an invalid fork or delete a valid destination for one.
+          // 权威关卡：验证完整的暂存 schema —— 我们即将安装的确切字节，
+          // 而不仅仅是预检查时的源。copyDirRecursive 读取的源文件
+          // 可能在复制过程中发生变化，因此最初有效的源仍可能产生
+          // 无效的暂存 fork。在此处验证，在任何破坏性步骤之前，
+          // 确保我们永远不会安装无效的 fork 或为其删除有效的目标。
           try {
             parseSchema(fs.readFileSync(stagedSchemaPath, 'utf-8'));
           } catch (validationError) {
             throw new Error(
-              `The staged fork of '${source}' is not a valid schema (the source may have changed during copy); ` +
-                `aborted, '${destinationName}' was not modified.`,
+              `'${source}' 的暂存 fork 不是有效的 schema（源可能在复制过程中发生了变化）；` +
+                `已中止，'${destinationName}' 未被修改。`,
               { cause: validationError }
             );
           }
 
-          // Swap the staged fork into place. When a destination already exists,
-          // move it aside to a sibling backup FIRST, then install the staged
-          // fork; only once the install succeeds is the backup discarded. If the
-          // install rename itself fails (e.g. a Windows lock), the backup is
-          // moved back so the user's original destination is never lost.
+          // 将暂存的 fork 交换到位。当目标已存在时，
+          // 先将其移至兄弟备份位置，然后安装暂存的
+          // fork；仅在安装成功后才丢弃备份。如果
+          // 安装重命名本身失败（例如 Windows 锁），则将备份
+          // 移回，使用户的原始目标永不丢失。
           if (destinationExists) {
-            if (spinner) spinner.text = `Replacing existing schema '${destinationName}'...`;
+            if (spinner) spinner.text = `正在替换现有 schema '${destinationName}'...`;
 
-            // Revalidate immediately before the destructive move: if the
-            // destination changed on disk while we were staging (or was removed),
-            // its fingerprint no longer matches what the user authorized. Abort
-            // WITHOUT touching it, so the concurrent changes are preserved. The
-            // outer catch cleans up staging.
+            // 在破坏性移动之前立即重新验证：如果
+            // 目标在我们暂存期间在磁盘上发生了变化（或被删除），
+            // 其指纹不再与用户授权的内容匹配。中止，
+            // 不触碰它，以保留并发更改。外层 catch 清理暂存。
             const currentFingerprint = fs.existsSync(destinationDir)
               ? fingerprintDir(destinationDir)
               : null;
             if (currentFingerprint !== authorizedDestinationFingerprint) {
               throw new Error(
-                `Schema '${destinationName}' at ${destinationDir} changed on disk while the fork was being prepared. ` +
-                  `Aborted to preserve those concurrent changes; nothing was overwritten. Re-run the fork to overwrite the current contents.`
+                `schema '${destinationName}' 在 fork 准备期间在磁盘上发生了变化。` +
+                  `已中止以保留这些并发更改；未覆盖任何内容。请重新运行 fork 以覆盖当前内容。`
               );
             }
 
@@ -839,55 +830,54 @@ export function registerSchemaCommand(program: Command): void {
             try {
               fs.renameSync(stagingDir, destinationDir);
             } catch (installError) {
-              // Install failed after the original was moved aside. Try to move
-              // it back. If that restore ALSO fails, the original is stranded in
-              // the backup dir — surface an error naming both the backup and the
-              // destination so the user can recover manually, and attach the
-              // original install error as the cause. Never swallow this.
+              // 安装在原始文件被移开后失败。尝试将其
+              // 移回。如果恢复也失败了，原始文件将被遗弃在
+              // 备份目录中——显示错误，同时提供备份和
+              // 目标路径，以便用户可以手动恢复，并附加
+              // 原始安装错误作为原因。永远不要吞没这个错误。
               try {
                 fs.renameSync(backupDir, destinationDir);
               } catch (restoreError) {
                 throw new Error(
-                  `Failed to install the forked schema and could not restore the previous '${destinationName}'. ` +
-                    `Your previous schema is preserved at ${backupDir}; move it back to ${destinationDir} to restore. ` +
-                    `Restore error: ${(restoreError as Error).message}`,
+                  `安装 fork 的 schema 失败，且无法恢复之前的 '${destinationName}'。` +
+                    `您之前的 schema 保留在 ${backupDir}；将其移回 ${destinationDir} 以恢复。` +
+                    `恢复错误：${(restoreError as Error).message}`,
                   { cause: installError }
                 );
               }
               throw installError;
             }
 
-            // Revalidate before discarding the backup: only delete it if it is
-            // still byte-for-byte the original destination we moved aside. If it
-            // changed during the install window (a concurrent write to the
-            // moved-aside directory), do NOT delete it — leave it in place and
-            // surface where it is so nothing is lost.
+            // 在丢弃备份前重新验证：仅当它仍然是
+            // 我们移开的原始目标的逐字节副本时才删除它。如果它
+            // 在安装窗口期间发生了变化（写入移开的目录），
+            // 则不要删除它——保留原位并显示其位置，以确保无丢失。
             if (fingerprintDir(backupDir) === authorizedDestinationFingerprint) {
               fs.rmSync(backupDir, { recursive: true, force: true });
             } else {
               console.error(
-                `Warning: the previous '${destinationName}' changed during the fork and was NOT deleted; ` +
-                  `its pre-fork copy is preserved at ${backupDir}.`
+                `警告：之前的 '${destinationName}' 在 fork 期间发生了变化，未被删除；` +
+                  `其 fork 前副本保留在 ${backupDir}。`
               );
             }
           } else {
             fs.renameSync(stagingDir, destinationDir);
           }
         } catch (error) {
-          // Remove only the staging directory we created this run; the source
-          // and any existing destination are left exactly as we found them.
-          // Guard the cleanup in its own try/catch so a failed removal (e.g. a
-          // locked file on Windows) can never mask the original error, then
-          // rethrow so the real failure still drives the JSON/exit-code report.
-          try {
-            fs.rmSync(stagingDir, { recursive: true, force: true });
-          } catch {
-            // Best-effort cleanup; the original error below is what matters.
-          }
-          throw error;
+        // 仅删除本次运行中创建的暂存目录；源
+        // 和任何现有目标都保持我们发现时的状态。
+        // 将清理操作放在自己的 try/catch 中，以便失败的删除（例如
+        // Windows 上的锁定文件）永远不会掩盖原始错误，然后
+        // 重新抛出，使真正的失败仍能驱动 JSON/退出码报告。
+        try {
+          fs.rmSync(stagingDir, { recursive: true, force: true });
+        } catch {
+          // 尽力清理；下面的原始错误才是关键。
         }
+        throw error;
+      }
 
-        if (spinner) spinner.succeed(`Forked '${source}' to '${destinationName}'`);
+      if (spinner) spinner.succeed(`已将 '${source}' fork 为 '${destinationName}'`);
 
         if (options?.json) {
           console.log(JSON.stringify({
@@ -899,20 +889,20 @@ export function registerSchemaCommand(program: Command): void {
             destinationPath: destinationDir,
           }, null, 2));
         } else {
-          console.log(`\nSource: ${sourceDir} (${sourceLocation})`);
-          console.log(`Destination: ${destinationDir}`);
-          console.log(`\nYou can now customize the schema at:`);
+          console.log(`\n源：${sourceDir} (${sourceLocation})`);
+          console.log(`目标：${destinationDir}`);
+          console.log(`\n现在可以在以下位置自定义 schema：`);
           console.log(`  ${destinationDir}/schema.yaml`);
         }
       } catch (error) {
-        if (spinner) spinner.fail(`Fork failed`);
+        if (spinner) spinner.fail(`Fork 失败`);
         if (options?.json) {
           console.log(JSON.stringify({
             forked: false,
             error: (error as Error).message,
           }, null, 2));
         } else {
-          console.error(`Error: ${(error as Error).message}`);
+          console.error(`错误：${(error as Error).message}`);
         }
         process.exitCode = 1;
       }
@@ -921,13 +911,13 @@ export function registerSchemaCommand(program: Command): void {
   // schema init
   schemaCmd
     .command('init <name>')
-    .description('Create a new project-local schema')
-    .option('--json', 'Output as JSON')
-    .option('--description <text>', 'Schema description')
-    .option('--artifacts <list>', 'Comma-separated artifact IDs (proposal,specs,design,tasks)')
-    .option('--default', 'Set as project default schema')
-    .option('--no-default', 'Do not prompt to set as default')
-    .option('--force', 'Overwrite existing schema')
+    .description('创建新的项目本地 schema')
+    .option('--json', '以 JSON 格式输出')
+    .option('--description <text>', 'schema 描述')
+    .option('--artifacts <list>', '逗号分隔的 artifact ID（proposal,specs,design,tasks）')
+    .option('--default', '设为项目默认 schema')
+    .option('--no-default', '不提示设为默认')
+    .option('--force', '覆盖现有 schema')
     .action(async (
       name: string,
       options?: {
@@ -943,16 +933,16 @@ export function registerSchemaCommand(program: Command): void {
       try {
         const projectRoot = process.cwd();
 
-        // Validate name
+        // 验证名称
         if (!isValidSchemaName(name)) {
           if (options?.json) {
             console.log(JSON.stringify({
               created: false,
-              error: `Invalid schema name '${name}'. Use kebab-case (e.g., my-workflow)`,
+              error: `无效的 schema 名称 '${name}'。请使用 kebab-case（如 my-workflow）`,
             }, null, 2));
           } else {
-            console.error(`Error: Invalid schema name '${name}'`);
-            console.error('Schema names must be kebab-case (e.g., my-workflow)');
+            console.error(`错误：无效的 schema 名称 '${name}'`);
+            console.error('Schema 名称必须为 kebab-case（如 my-workflow）');
           }
           process.exitCode = 1;
           return;
@@ -960,40 +950,40 @@ export function registerSchemaCommand(program: Command): void {
 
         const schemaDir = path.join(getProjectSchemasDir(projectRoot), name);
 
-        // Check overwrite permission without mutating the destination
+        // 检查覆盖权限，不修改目标
         const schemaExists = fs.existsSync(schemaDir);
         if (schemaExists) {
           if (!options?.force) {
             if (options?.json) {
               console.log(JSON.stringify({
                 created: false,
-                error: `Schema '${name}' already exists`,
-                suggestion: 'Use --force to overwrite or "openspec schema fork" to copy',
+                error: `schema '${name}' 已存在`,
+                suggestion: '使用 --force 覆盖或使用 "openspec schema fork" 复制',
               }, null, 2));
             } else {
-              console.error(`Error: Schema '${name}' already exists at ${schemaDir}`);
-              console.error('Use --force to overwrite or "openspec schema fork" to copy');
+              console.error(`错误：schema '${name}' 在 ${schemaDir} 已存在`);
+              console.error('使用 --force 覆盖或使用 "openspec schema fork" 复制');
             }
             process.exitCode = 1;
             return;
           }
         }
 
-        // Determine artifacts and description
+        // 确定 artifacts 和描述
         let description: string;
         let selectedArtifactIds: string[];
 
-        // Check if we have explicit flags (non-interactive mode)
+        // 检查是否有明确的标志（非交互模式）
         const hasExplicitOptions = options?.description !== undefined || options?.artifacts !== undefined;
         const isInteractive = !options?.json && !hasExplicitOptions && process.stdout.isTTY;
 
         if (isInteractive) {
-          // Interactive mode
+          // 交互模式
           const { input, checkbox, confirm } = await import('@inquirer/prompts');
 
           description = await input({
-            message: 'Schema description:',
-            default: `Custom workflow schema for ${name}`,
+            message: 'Schema 描述：',
+            default: `${name} 的自定义 workflow schema`,
           });
 
           const artifactChoices = DEFAULT_ARTIFACTS.map((a) => ({
@@ -1003,7 +993,7 @@ export function registerSchemaCommand(program: Command): void {
           }));
 
           selectedArtifactIds = await checkbox({
-            message: 'Select artifacts to include:',
+            message: '选择要包含的 artifacts：',
             theme: {
               icon: {
                 checked: '[x]',
@@ -1014,15 +1004,15 @@ export function registerSchemaCommand(program: Command): void {
           });
 
           if (selectedArtifactIds.length === 0) {
-            console.error('Error: At least one artifact must be selected');
+            console.error('错误：必须至少选择一个 artifact');
             process.exitCode = 1;
             return;
           }
 
-          // Ask about setting as default (unless --no-default was passed)
+          // 询问是否设为默认（除非传递了 --no-default）
           if (options?.default === undefined) {
             const setAsDefault = await confirm({
-              message: 'Set as project default schema?',
+              message: '是否设为项目默认 schema？',
               default: false,
             });
 
@@ -1031,32 +1021,32 @@ export function registerSchemaCommand(program: Command): void {
             }
           }
         } else {
-          // Non-interactive mode
-          description = options?.description || `Custom workflow schema for ${name}`;
+          // 非交互模式
+          description = options?.description || `${name} 的自定义 workflow schema`;
 
           if (options?.artifacts) {
             selectedArtifactIds = options.artifacts.split(',').map((a) => a.trim());
 
-            // Validate artifact IDs
+            // 验证 artifact ID
             const validIds = DEFAULT_ARTIFACTS.map((a) => a.id);
             for (const id of selectedArtifactIds) {
               if (!validIds.includes(id)) {
                 if (options?.json) {
                   console.log(JSON.stringify({
                     created: false,
-                    error: `Unknown artifact '${id}'`,
+                    error: `未知的 artifact '${id}'`,
                     valid: validIds,
                   }, null, 2));
                 } else {
-                  console.error(`Error: Unknown artifact '${id}'`);
-                  console.error(`Valid artifacts: ${validIds.join(', ')}`);
+                  console.error(`错误：未知的 artifact '${id}'`);
+                  console.error(`有效的 artifacts：${validIds.join(', ')}`);
                 }
                 process.exitCode = 1;
                 return;
               }
             }
           } else {
-            // Default to all artifacts
+            // 默认使用所有 artifacts
             selectedArtifactIds = DEFAULT_ARTIFACTS.map((a) => a.id);
           }
         }
@@ -1072,7 +1062,7 @@ export function registerSchemaCommand(program: Command): void {
             requires: [],
           };
 
-          // Set up dependencies based on typical workflow
+          // 根据典型 workflow 建立依赖关系
           if (id === 'specs' && selectedArtifactIds.includes('proposal')) {
             artifact.requires = ['proposal'];
           } else if (id === 'design' && selectedArtifactIds.includes('specs')) {
@@ -1087,7 +1077,7 @@ export function registerSchemaCommand(program: Command): void {
           return artifact;
         });
 
-        // Create schema.yaml
+        // 创建 schema.yaml
         const schema: SchemaYaml = {
           name,
           version: 1,
@@ -1095,7 +1085,7 @@ export function registerSchemaCommand(program: Command): void {
           artifacts: selectedArtifacts,
         };
 
-        // Add apply phase if tasks is included
+        // 如果包含 tasks，则添加 apply 阶段
         if (selectedArtifactIds.includes('tasks')) {
           schema.apply = {
             requires: ['tasks'],
@@ -1103,14 +1093,14 @@ export function registerSchemaCommand(program: Command): void {
           };
         }
 
-        // Replace only after all inputs have been collected and validated
+        // 在收集并验证所有输入后才替换
         if (schemaExists) {
-          if (spinner) spinner.start(`Removing existing schema '${name}'...`);
+          if (spinner) spinner.start(`正在删除现有 schema '${name}'...`);
           fs.rmSync(schemaDir, { recursive: true });
         }
 
-        // Create schema directory
-        if (spinner) spinner.start(`Creating schema '${name}'...`);
+        // 创建 schema 目录
+        if (spinner) spinner.start(`正在创建 schema '${name}'...`);
         fs.mkdirSync(schemaDir, { recursive: true });
 
         fs.writeFileSync(
@@ -1118,7 +1108,7 @@ export function registerSchemaCommand(program: Command): void {
           stringifyYaml(schema)
         );
 
-        // Create template files in templates/ subdirectory (standard location)
+        // 在 templates/ 子目录中创建模板文件（标准位置）
         const templatesDir = path.join(schemaDir, 'templates');
         for (const artifact of selectedArtifacts) {
           const templatePath = path.join(templatesDir, artifact.template);
@@ -1128,12 +1118,12 @@ export function registerSchemaCommand(program: Command): void {
             fs.mkdirSync(templateDir, { recursive: true });
           }
 
-          // Create default template content
+          // 创建默认模板内容
           const templateContent = createDefaultTemplate(artifact.id);
           fs.writeFileSync(templatePath, templateContent);
         }
 
-        // Update config if --default
+        // 如果 --default，则更新配置
         if (options?.default) {
           const configPath = path.join(projectRoot, 'openspec', 'config.yaml');
 
@@ -1144,7 +1134,7 @@ export function registerSchemaCommand(program: Command): void {
             config.defaultSchema = name;
             fs.writeFileSync(configPath, stringifyYaml2(config));
           } else {
-            // Create config file
+            // 创建配置文件
             const configDir = path.dirname(configPath);
             if (!fs.existsSync(configDir)) {
               fs.mkdirSync(configDir, { recursive: true });
@@ -1153,7 +1143,7 @@ export function registerSchemaCommand(program: Command): void {
           }
         }
 
-        if (spinner) spinner.succeed(`Created schema '${name}'`);
+        if (spinner) spinner.succeed(`已创建 schema '${name}'`);
 
         if (options?.json) {
           console.log(JSON.stringify({
@@ -1164,25 +1154,25 @@ export function registerSchemaCommand(program: Command): void {
             setAsDefault: options?.default || false,
           }, null, 2));
         } else {
-          console.log(`\nSchema created at: ${schemaDir}`);
-          console.log(`\nArtifacts: ${selectedArtifactIds.join(', ')}`);
+          console.log(`\nSchema 创建于：${schemaDir}`);
+          console.log(`\nArtifacts：${selectedArtifactIds.join(', ')}`);
           if (options?.default) {
-            console.log(`\nSet as project default schema.`);
+            console.log(`\n已设为项目默认 schema。`);
           }
-          console.log(`\nNext steps:`);
-          console.log(`  1. Edit ${schemaDir}/schema.yaml to customize artifacts`);
-          console.log(`  2. Modify templates in the schema directory`);
-          console.log(`  3. Use with: openspec new --schema ${name}`);
+          console.log(`\n后续步骤：`);
+          console.log(`  1. 编辑 ${schemaDir}/schema.yaml 以自定义 artifacts`);
+          console.log(`  2. 修改 schema 目录中的模板`);
+          console.log(`  3. 使用方式：openspec new --schema ${name}`);
         }
       } catch (error) {
-        if (spinner) spinner.fail(`Creation failed`);
+        if (spinner) spinner.fail(`创建失败`);
         if (options?.json) {
           console.log(JSON.stringify({
             created: false,
             error: (error as Error).message,
           }, null, 2));
         } else {
-          console.error(`Error: ${(error as Error).message}`);
+          console.error(`错误：${(error as Error).message}`);
         }
         process.exitCode = 1;
       }
@@ -1190,7 +1180,7 @@ export function registerSchemaCommand(program: Command): void {
 }
 
 /**
- * Create default template content for an artifact.
+ * 为 artifact 创建默认模板内容。
  */
 function createDefaultTemplate(artifactId: string): string {
   switch (artifactId) {

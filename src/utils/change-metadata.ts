@@ -8,7 +8,7 @@ import { readProjectConfig, type ProjectConfig } from '../core/project-config.js
 export const METADATA_FILENAME = '.openspec.yaml';
 
 /**
- * Error thrown when change metadata validation fails.
+ * change 元数据验证失败时抛出的错误。
  */
 export class ChangeMetadataError extends Error {
   constructor(
@@ -22,12 +22,12 @@ export class ChangeMetadataError extends Error {
 }
 
 /**
- * Validates that a schema name is valid (exists in available schemas).
+ * 验证 schema 名称是否有效（存在于可用 schema 中）。
  *
- * @param schemaName - The schema name to validate
- * @param projectRoot - Optional project root for project-local schema resolution
- * @returns The validated schema name
- * @throws Error if schema is not found
+ * @param schemaName - 要验证的 schema 名称
+ * @param projectRoot - 可选的项目根目录，用于项目级 schema 解析
+ * @returns 已验证的 schema 名称
+ * @throws Error 如果未找到 schema
  */
 export function validateSchemaName(
   schemaName: string,
@@ -36,19 +36,19 @@ export function validateSchemaName(
   const availableSchemas = listSchemas(projectRoot);
   if (!availableSchemas.includes(schemaName)) {
     throw new Error(
-      `Unknown schema '${schemaName}'. Available: ${availableSchemas.join(', ')}`
+      `未知的 schema '${schemaName}'。可用的：${availableSchemas.join(', ')}`
     );
   }
   return schemaName;
 }
 
 /**
- * Writes change metadata to .openspec.yaml in the change directory.
+ * 将 change 元数据写入 change 目录中的 .openspec.yaml。
  *
- * @param changeDir - The path to the change directory
- * @param metadata - The metadata to write
- * @param projectRoot - Optional project root for project-local schema resolution
- * @throws ChangeMetadataError if validation fails or write fails
+ * @param changeDir - change 目录的路径
+ * @param metadata - 要写入的元数据
+ * @param projectRoot - 可选的项目根目录，用于项目级 schema 解析
+ * @throws ChangeMetadataError 如果验证失败或写入失败
  */
 export function writeChangeMetadata(
   changeDir: string,
@@ -57,10 +57,10 @@ export function writeChangeMetadata(
 ): void {
   const metaPath = path.join(changeDir, METADATA_FILENAME);
 
-  // Validate schema exists
+  // 验证 schema 是否存在
   validateSchemaName(metadata.schema, projectRoot);
 
-  // Validate with Zod
+  // 使用 Zod 验证
   const parseResult = ChangeMetadataSchema.safeParse(metadata);
   if (!parseResult.success) {
     throw new ChangeMetadataError(
@@ -84,12 +84,12 @@ export function writeChangeMetadata(
 }
 
 /**
- * Reads change metadata from .openspec.yaml in the change directory.
+ * 从 change 目录中的 .openspec.yaml 读取 change 元数据。
  *
- * @param changeDir - The path to the change directory
- * @param projectRoot - Optional project root for project-local schema resolution
- * @returns The validated metadata, or null if no metadata file exists
- * @throws ChangeMetadataError if the file exists but is invalid
+ * @param changeDir - change 目录的路径
+ * @param projectRoot - 可选的项目根目录，用于项目级 schema 解析
+ * @returns 已验证的元数据，如果不存在元数据文件则返回 null
+ * @throws ChangeMetadataError 如果文件存在但无效
  */
 export function readChangeMetadata(
   changeDir: string,
@@ -125,7 +125,7 @@ export function readChangeMetadata(
     );
   }
 
-  // Validate with Zod
+  // 使用 Zod 验证
   const parseResult = ChangeMetadataSchema.safeParse(parsed);
   if (!parseResult.success) {
     throw new ChangeMetadataError(
@@ -134,7 +134,7 @@ export function readChangeMetadata(
     );
   }
 
-  // Validate that the schema exists
+  // 验证 schema 是否存在
   const availableSchemas = listSchemas(projectRoot);
   if (!availableSchemas.includes(parseResult.data.schema)) {
     throw new ChangeMetadataError(
@@ -153,17 +153,17 @@ export interface ResolveSchemaForChangeOptions {
 }
 
 /**
- * Resolves the schema for a change, with explicit override taking precedence.
+ * 为 change 解析 schema，显式覆盖优先。
  *
- * Resolution order:
- * 1. Explicit schema (if provided)
- * 2. Schema from .openspec.yaml metadata (if exists)
- * 3. Schema from openspec/config.yaml (if exists)
- * 4. Default 'spec-driven'
+ * 解析顺序：
+ * 1. 显式 schema（如果提供）
+ * 2. 来自 .openspec.yaml 元数据的 schema（如果存在）
+ * 3. 来自 openspec/config.yaml 的 schema（如果存在）
+ * 4. 默认 'spec-driven'
  *
- * @param changeDir - The path to the change directory
- * @param explicitSchema - Optional explicit schema override
- * @returns The resolved schema name
+ * @param changeDir - change 目录的路径
+ * @param explicitSchema - 可选的显式 schema 覆盖
+ * @returns 解析后的 schema 名称
  */
 export function resolveSchemaForChange(
   changeDir: string,
@@ -171,10 +171,10 @@ export function resolveSchemaForChange(
   projectRootOverride?: string,
   options: ResolveSchemaForChangeOptions = {}
 ): string {
-  // Derive project root from changeDir (changeDir is typically projectRoot/openspec/changes/change-name)
+  // 从 changeDir 推导项目根目录（changeDir 通常为 projectRoot/openspec/changes/change-name）
   const projectRoot = projectRootOverride ?? path.resolve(changeDir, '../../..');
 
-  // 1. Explicit override wins
+  // 1. 显式覆盖优先
   if (explicitSchema) {
     return explicitSchema;
   }
@@ -185,7 +185,7 @@ export function resolveSchemaForChange(
     return metadata.schema;
   }
 
-  // 3. Try reading from project config when metadata is absent.
+  // 3. 当元数据缺失时尝试从项目配置读取。
   if (options.projectConfig !== undefined) {
     if (options.projectConfig?.schema) {
       return options.projectConfig.schema;
@@ -197,24 +197,23 @@ export function resolveSchemaForChange(
         return config.schema;
       }
     } catch {
-      // If config read fails, fall back to default
+      // 如果配置读取失败，回退到默认值
     }
   }
 
-  // 4. Default
+  // 4. 默认值
   return 'spec-driven';
 }
 
 export interface MetadataMarker {
   /**
-   * True when the metadata parses under ChangeMetadataSchema, sets
-   * the requested boolean marker to true, and names a schema that loads.
+   * 当元数据在 ChangeMetadataSchema 下解析、将请求的布尔标志设置为 true，
+   * 并命名一个能加载的 schema 时为 true。
    */
   declared: boolean;
   /**
-   * Set when the marker cannot be honored: it appears in a file that
-   * fails the metadata contract, or the metadata file exists but cannot be
-   * read at all (so whether the marker is set cannot even be determined).
+   * 当标志无法被遵守时设置：它出现在未通过元数据契约的文件中，
+   * 或元数据文件存在但完全无法读取（因此标志是否被设置甚至无法确定）。
    */
   invalidReason?: string;
 }
@@ -223,49 +222,43 @@ export interface MetadataMarker {
 export type SkipSpecsMarker = MetadataMarker;
 
 /**
- * Non-throwing read of the skip_specs marker. The marker only counts when the
- * metadata would load for status/instructions: the file parses under
- * ChangeMetadataSchema, its schema name passes readChangeMetadata's
- * listSchemas membership check, AND the schema itself loads via resolveSchema
- * (a schema.yaml that exists but does not parse fails status just the same).
- * Validate and archive must never honor metadata the rest of the CLI rejects,
- * in either direction. The project root for schema resolution is derived from
- * changeDir exactly like resolveSchemaForChange (changeDir is
- * <root>/openspec/changes/<name> for every root type, including store roots).
- * Missing metadata means "not declared"; a marker that cannot be honored
- * yields invalidReason so callers can say why.
+ * 非抛错读取 skip_specs 标志。该标志仅在元数据能被加载以用于 status/instructions 时才算数：
+ * 文件在 ChangeMetadataSchema 下解析，其 schema 名称通过 readChangeMetadata 的
+ * listSchemas 成员检查，并且 schema 本身通过 resolveSchema 加载
+ * （存在但无法解析的 schema.yaml 同样会使 status 失败）。
+ * Validate 和 archive 永远不能遵守 CLI 其余部分拒绝的元数据，无论方向如何。
+ * schema 解析的项目根目录从 changeDir 推导，与 resolveSchemaForChange 完全相同
+ * （对于每种根类型，changeDir 为 <root>/openspec/changes/<name>，包括 store 根）。
+ * 缺失的元数据表示"未声明"；无法被遵守的标志会产生 invalidReason，以便调用方说明原因。
  */
 export function readSkipSpecsMarker(changeDir: string): MetadataMarker {
   return readBooleanMarker(changeDir, 'skip_specs');
 }
 
 /**
- * Non-throwing read of the retire_capabilities marker, with exactly the
- * semantics `readSkipSpecsMarker` documents above.
+ * 非抛错读取 retire_capabilities 标志，语义与 `readSkipSpecsMarker` 文档完全相同。
  *
- * Gates the one archive action that removes a file from `openspec/specs/`: when
- * a change's REMOVED entries take a capability's last requirement, archive
- * deletes the emptied main spec rather than aborting on a spec it cannot write
- * (#1302). Declared rather than inferred because the delete is recoverable only
- * from git, so it is the author's call.
+ * 门控 archive 操作中从 `openspec/specs/` 删除文件的那一个：当 change 的 REMOVED 条目
+ * 移除了某个 capability 的最后一个需求时，archive 会删除清空的主 spec，
+ * 而不是在无法写入的 spec 上中止 (#1302)。
+ * 之所以声明而非推断，是因为删除只能从 git 恢复，所以由作者决定。
  */
 export function readRetireCapabilitiesMarker(changeDir: string): MetadataMarker {
   return readBooleanMarker(changeDir, 'retire_capabilities');
 }
 
 /**
- * Shared implementation for the boolean change-metadata markers, keyed by field
- * name. One body rather than two, so a marker can never drift into honoring
- * metadata the other rejects - the whole point of the contract described above.
+ * 布尔 change-metadata 标志的共享实现，通过字段名进行键控。
+ * 使用一个函数体而不是两个，以确保一个标志永远不会偏离另一个拒绝的元数据 ——
+ * 这是上述契约描述的全部意义。
  */
 /**
- * A marker that cannot be honored, with its reason made safe to print.
+ * 无法被遵守的标志，其原因已安全处理以供打印。
  *
- * Every reason quotes something the author wrote - a schema name, a parser
- * message carrying one, a filesystem error carrying a path - and callers print
- * it straight to a terminal (`openspec archive`, `openspec validate`). A raw CR
- * could forge a line of its own and an ESC could redraw the screen, so control
- * characters never leave this function.
+ * 每个原因都引用了作者写的内容 —— schema 名称、带有该名称的解析器消息、
+ * 带有路径的文件系统错误 —— 调用方直接将其打印到终端
+ * （`openspec archive`、`openspec validate`）。
+ * 原始 CR 可能伪造自己的行，ESC 可能重绘屏幕，因此控制字符永远不会离开此函数。
  */
 function unhonorable(reason: string): MetadataMarker {
   return { declared: false, invalidReason: reason.replace(/[\u0000-\u001f\u007f]/g, '?') };
@@ -282,23 +275,22 @@ function readBooleanMarker(
     if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') {
       return { declared: false };
     }
-    // The file exists but cannot be read (EACCES, EISDIR, ...). Status and
-    // instructions reject the change outright here, and whether a marker is
-    // set cannot be determined - fail closed rather than let archive treat
-    // the change as unmarked while every metadata-reading surface errors.
+    // 文件存在但无法读取（EACCES、EISDIR 等）。Status 和 instructions 在此直接拒绝 change，
+    // 标志是否被设置无法确定 —— 失败关闭而不是让 archive 将 change 视为未标记，
+    // 而每个元数据读取表面都会报错。
     const message =
       err instanceof Error ? err.message : String(err);
-    return unhonorable(`the metadata file cannot be read (${message})`);
+    return unhonorable(`元数据文件无法读取（${message}）`);
   }
 
   let parsed: unknown;
   try {
     parsed = yaml.parse(raw);
   } catch {
-    // Anchored so a comment like "# maybe add skip_specs later" does not
-    // claim the marker was set.
+    // 锚定以便像 "# maybe add skip_specs later" 这样的注释不会
+    // 声称标志已被设置。
     const mentioned = new RegExp(`^\\s*(['"]?)${key}\\1\\s*:`, 'm').test(raw);
-    return mentioned ? unhonorable('the file is not valid YAML') : { declared: false };
+    return mentioned ? unhonorable('文件不是有效的 YAML') : { declared: false };
   }
 
   const result = ChangeMetadataSchema.safeParse(parsed);
@@ -306,13 +298,11 @@ function readBooleanMarker(
     if (result.data[key] !== true) {
       return { declared: false };
     }
-    // Schema loading is checked only when the marker is set: a broken schema
-    // on an ordinary change is status's problem to report, but honoring a
-    // marker that status rejects would let validate/archive pass what the
-    // rest of the CLI refuses to load. The membership check mirrors
-    // readChangeMetadata (which rejects names like 'spec-driven.yaml' that
-    // resolveSchema alone would normalize and accept); resolveSchema then
-    // proves the schema actually parses. Any failure fails closed.
+    // 仅在标志被设置时才检查 schema 加载：普通 change 上的损坏 schema
+    // 由 status 报告，但遵守 status 拒绝的标志会让 validate/archive 通过
+    // CLI 其余部分拒绝加载的内容。成员检查与 readChangeMetadata 镜像
+    // （拒绝 'spec-driven.yaml' 等名称，而 resolveSchema 单独会规范化并接受它们）；
+    // resolveSchema 随后证明 schema 确实能解析。任何失败都失败关闭。
     try {
       const projectRoot = path.resolve(changeDir, '../../..');
       if (!listSchemas(projectRoot).includes(result.data.schema)) {
@@ -326,11 +316,10 @@ function readBooleanMarker(
     return { declared: true };
   }
 
-  // Key presence, not value: skip_specs: "yes" must surface as unhonorable,
-  // not vanish while the zero-delta guidance tells the user to set the very
-  // marker they set. An explicit skip_specs: false is the opposite of setting
-  // the marker, so it must not drag unrelated metadata problems into
-  // validate - the change simply is not marked.
+  // 键的存在，而不是值：skip_specs: "yes" 必须显示为不可尊重，
+  // 而不是在零增量指导告诉用户设置他们已设置的标志时消失。
+  // 显式的 skip_specs: false 与设置标志相反，因此不得将不相关的元数据问题
+  // 拖入 validate —— change 只是没有被标记。
   const markerMentioned =
     typeof parsed === 'object' &&
     parsed !== null &&

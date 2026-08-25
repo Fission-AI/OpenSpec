@@ -1,10 +1,10 @@
 /**
- * The `workset` command group (slice 7.1): compose, keep, and open
- * personal working views. A workset is purely local and personal -
- * never committed, never shared, never derived from declarations, and
- * never a membership truth. Opening hands the view to the user's tool:
- * editors get the generated .code-workspace; CLI agents take over this
- * terminal with every member attached and no starter prompt.
+ * `workset` 命令组（切片 7.1）：组合、保存和打开
+ * 个人工作视图。workset 纯粹是本地的和个人的——
+ * 永远不提交、永远不共享、永远不从声明派生、
+ * 永远不是成员关系的真值。打开时将视图交给用户的工具：
+ * 编辑器获取生成的 .code-workspace；CLI agent 接管此
+ * 终端，附加所有成员且不显示初始提示。
  */
 import * as os from 'node:os';
 import { createRequire } from 'node:module';
@@ -66,8 +66,8 @@ import {
 } from './workset-prompts.js';
 import { COMMAND_REGISTRY } from '../core/completions/command-registry.js';
 
-// cross-spawn is CJS with no types and only `workset open` needs it -
-// loaded lazily so every other CLI invocation skips its module graph.
+// cross-spawn 是 CJS 且无类型定义，只有 `workset open` 需要它——
+// 懒加载，以便所有其他 CLI 调用跳过其模块图谱。
 let cachedSpawn: typeof nodeSpawn | undefined;
 function defaultSpawn(): typeof nodeSpawn {
   if (cachedSpawn === undefined) {
@@ -102,11 +102,11 @@ function worksetCliOpenerDisabledError(
   name: string
 ): StoreError {
   return new StoreError(
-    `Opening a workset in ${opener.label} is temporarily disabled while CLI-agent opening is reworked. Worksets open in an IDE for now.`,
+    `在 ${opener.label} 中打开 workset 暂时禁用，因为 CLI-agent 打开功能正在重新开发。目前请在 IDE 中打开 workset。`,
     'workset_cli_opener_disabled',
     {
       target: 'workset.tool',
-      fix: `Open in VS Code or Cursor: openspec workset open ${name} --tool code`,
+      fix: `在 VS Code 或 Cursor 中打开：openspec workset open ${name} --tool code`,
     }
   );
 }
@@ -121,13 +121,13 @@ export interface LaunchOptions {
 }
 
 /**
- * Spawns the opener with this terminal's stdio. Resolves with the
- * child's exit facts (never rejects for a nonzero exit - for a
- * terminal handoff, the session is the command); rejects with
- * workset_launch_failed only when the spawn itself fails. While the
- * child runs, SIGINT/SIGTERM are ignored in this parent: the terminal
- * delivers Ctrl-C to the child, and the parent must survive to report
- * the child's real exit facts (the 128+n contract).
+ * 使用此终端的 stdio 生成打开器。以子进程的
+ * 退出事实解析（对于非零退出从不拒绝——对于
+ * 终端交接，会话即是命令）；仅当 spawn 本身失败时
+ * 以 workset_launch_failed 拒绝。当子进程运行时，
+ * 父进程忽略 SIGINT/SIGTERM：终端
+ * 将 Ctrl-C 传递给子进程，父进程必须存活以报告
+ * 子进程的真实退出事实（128+n 约定）。
  */
 export function launchOpenerCommand(
   command: LaunchCommand,
@@ -138,11 +138,11 @@ export function launchOpenerCommand(
   return new Promise((resolve, reject) => {
     const launchFailure = (error: unknown): StoreError =>
       new StoreError(
-        `Could not launch ${command.label}: ${asErrorMessage(error)}`,
+        `无法启动 ${command.label}：${asErrorMessage(error)}`,
         'workset_launch_failed',
         {
           target: 'workset.tool',
-          fix: `Check that '${command.executable}' runs from this terminal, or pass --tool with another installed tool.`,
+          fix: `检查 '${command.executable}' 是否可从此终端运行，或使用 --tool 传递其他已安装的工具。`,
         }
       );
 
@@ -154,8 +154,8 @@ export function launchOpenerCommand(
         shell: false,
       });
     } catch (error) {
-      // Some spawn failures throw synchronously (platform-dependent);
-      // they are the same launch failure.
+      // 某些 spawn 失败同步抛出（因平台而异）；
+      // 它们属于同一启动失败。
       reject(launchFailure(error));
       return;
     }
@@ -180,7 +180,7 @@ export function launchOpenerCommand(
   });
 }
 
-/** 130 for SIGINT, 143 for SIGTERM - the shell's 128+n convention. */
+/** SIGINT 为 130，SIGTERM 为 143——shell 的 128+n 约定。 */
 export function exitCodeForLaunch(result: LaunchResult): number {
   if (result.signal !== null) {
     const signalNumber =
@@ -228,7 +228,7 @@ class WorksetCommand {
 
       console.log('');
       console.log(
-        `Saved workset '${workset.name}' (${workset.members.length} member${workset.members.length === 1 ? '' : 's'}) to your machine.`
+        `已保存 workset '${workset.name}'（${workset.members.length} 个成员）到本机。`
       );
 
       if (interactive && workset.tool !== undefined && table !== undefined) {
@@ -237,8 +237,8 @@ class WorksetCommand {
         try {
           openNow = await promptOpenNow(label);
         } catch (error) {
-          // The workset is already durably saved: Ctrl-C here declines
-          // the offer, it does not cancel the create.
+          // workset 已经持久保存：此处的 Ctrl-C 只是拒绝
+          // 该提议，不会取消创建操作。
           if (!isPromptCancellationError(error)) {
             throw error;
           }
@@ -252,7 +252,7 @@ class WorksetCommand {
       }
 
       console.log(
-        `Open it any time with: openspec workset open ${workset.name}`
+        `随时使用以下命令打开：openspec workset open ${workset.name}`
       );
     } catch (error) {
       emitFailure(options.json, { workset: null, status: [] }, error, 'workset_error');
@@ -264,7 +264,7 @@ class WorksetCommand {
     options: WorksetCreateOptions
   ): Promise<Workset> {
     if (!name) {
-      throw new StoreError('Pass a workset name.', 'workset_name_required', {
+      throw new StoreError('传递 workset 名称。', 'workset_name_required', {
         target: 'workset.name',
         fix: 'openspec workset create <name> --member <path>',
       });
@@ -275,7 +275,7 @@ class WorksetCommand {
     const memberFlags = options.member ?? [];
     if (memberFlags.length === 0) {
       throw new StoreError(
-        'Pass at least one member folder.',
+        '至少传递一个成员文件夹。',
         'workset_members_required',
         {
           target: 'workset.member',
@@ -285,8 +285,8 @@ class WorksetCommand {
     }
 
     const members = await resolveMemberFlags(memberFlags);
-    // The opener table is read only when a tool is actually named - a
-    // tool-less scripted create must not fail on unrelated config rows.
+    // 仅当工具被指定时才读取打开器表——
+    // 无工具的脚本化创建不应因无关的配置行而失败。
     const table = options.tool !== undefined ? readOpenerTable() : [];
     if (options.tool !== undefined) {
       const chosen = findOpener(table, options.tool);
@@ -309,19 +309,20 @@ class WorksetCommand {
 
       if (worksets.length === 0) {
         console.log(
-          'No worksets saved. Create one with: openspec workset create'
+          '未保存任何 workset。使用以下命令创建一个：openspec workset create'
         );
         return;
       }
 
-      // The table is consulted only to render tool labels.
+      // 仅查阅该表以渲染工具标签。
       const table = worksets.some((workset) => workset.tool !== undefined)
         ? readOpenerTable()
         : [];
       for (const workset of worksets) {
+        const label = findOpener(table, workset.tool)?.label ?? workset.tool;
         const toolLabel =
           workset.tool !== undefined
-            ? `  (opens in ${findOpener(table, workset.tool)?.label ?? workset.tool})`
+            ? ` （在 ${label} 中打开）`
             : '';
         console.log(`${workset.name}${toolLabel}`);
         for (const row of formatMemberRows(workset.members)) {
@@ -339,17 +340,17 @@ class WorksetCommand {
     try {
       if (options.json) {
         throw new StoreError(
-          'workset open hands this terminal to the chosen tool and has no JSON mode.',
+          'workset open 会将此终端交给所选工具，不支持 JSON 模式。',
           'workset_open_json_unsupported',
           {
             target: 'workset.tool',
-            fix: 'Inspect worksets with: openspec workset list --json',
+            fix: '使用以下命令检查 workset：openspec workset list --json',
           }
         );
       }
 
-      // Regenerate the derived file FIRST (under the lock), so every
-      // cannot-drive failure below can name an existing, current file.
+      // 先重新生成派生文件（在锁下），以便下面
+      // 每个无法驱动的失败都能指向一个已存在的、当前的文件。
       prepared = await withWorksetsLock(async (state): Promise<PreparedOpen> => {
         const workset = getWorkset(state, name);
         if (workset === null) {
@@ -371,11 +372,11 @@ class WorksetCommand {
 
         if (surviving.length === 0) {
           throw new StoreError(
-            `No member folder of workset '${name}' exists on this machine.`,
+            `workset '${name}' 中没有成员文件夹存在于本机。`,
             'workset_no_members_available',
             {
               target: 'workset.member',
-              fix: `Recompose it: openspec workset remove ${name} --yes && openspec workset create ${name} --member <path>`,
+              fix: `重新组合：openspec workset remove ${name} --yes && openspec workset create ${name} --member <path>`,
             }
           );
         }
@@ -391,24 +392,24 @@ class WorksetCommand {
 
       for (const member of prepared.skipped) {
         console.error(
-          `Skipped '${member.name}' (${member.path} is not available).`
+          `已跳过 '${member.name}'（${member.path} 不可用）。`
         );
       }
       if (prepared.workset.members[0] !== prepared.surviving[0]) {
         const primary = prepared.surviving[0];
         console.error(
-          `Using '${primary.name}' (${primary.path}) as the primary for this open.`
+          `使用 '${primary.name}'（${primary.path}）作为此次打开的主要成员。`
         );
       }
 
       const table = readOpenerTable();
 
-      const toolId = options.tool ?? prepared.workset.tool;
+      const tool = options.tool ?? prepared.workset.tool;
       let opener: OpenerDefinition;
-      if (toolId !== undefined) {
-        const found = findOpener(table, toolId);
+      if (tool !== undefined) {
+        const found = findOpener(table, tool);
         if (found === null) {
-          throw toolUnknownError(toolId, table);
+          throw toolUnknownError(tool, table);
         }
         if (!isOpenerEnabled(found)) {
           throw worksetCliOpenerDisabledError(found, name);
@@ -420,7 +421,7 @@ class WorksetCommand {
       } else {
         if (!isInteractive()) {
           throw new StoreError(
-            `Workset '${name}' has no saved tool.`,
+            `workset '${name}' 没有保存的工具。`,
             'workset_tool_required',
             {
               target: 'workset.tool',
@@ -429,8 +430,8 @@ class WorksetCommand {
           );
         }
 
-        // The prompt offers only available openers, so the selection
-        // needs no second scan.
+        // 提示仅提供可用的打开器，因此选择
+        // 无需二次扫描。
         const available = listOpenerChoices(table).filter(
           (choice) => choice.available
         );
@@ -450,11 +451,11 @@ class WorksetCommand {
 
       if (opener.style === 'workspace-file') {
         console.log(
-          `Opening '${name}' in ${opener.label} (a window opens; this command returns).`
+          `在 ${opener.label} 中打开 '${name}'（将打开一个窗口；此命令返回）。`
         );
       } else {
         console.log(
-          `Handing this terminal to ${opener.label} for '${name}' (the session ends when you exit).`
+          `将此终端交给 ${opener.label} 处理 '${name}'（退出时会话结束）。`
         );
       }
 
@@ -462,8 +463,8 @@ class WorksetCommand {
       try {
         result = await launchOpenerCommand(launch);
       } catch (error) {
-        // Make the launch-failure fix pasteable when an alternative is
-        // installed (the launcher itself does not know the table).
+        // 当有替代方案已安装时，使启动失败的修复方案可直接复制
+        // （启动器本身不知道该表）。
         if (
           error instanceof StoreError &&
           error.diagnostic.code === 'workset_launch_failed'
@@ -472,7 +473,7 @@ class WorksetCommand {
           if (alternative !== null) {
             throw new StoreError(error.message, 'workset_launch_failed', {
               target: 'workset.tool',
-              fix: `Run: openspec workset open ${name} --tool ${alternative}`,
+              fix: `运行：openspec workset open ${name} --tool ${alternative}`,
             });
           }
         }
@@ -486,17 +487,17 @@ class WorksetCommand {
     } catch (error) {
       emitFailure(options.json, { status: [] }, error, 'workset_error');
 
-      // Never strand the user: once the derived file is regenerated,
-      // every failure (except a prompt cancellation) carries the
-      // manual route - the file path plus the members it contains.
+      // 永远不要让用户陷入困境：一旦派生文件被重新生成，
+      // 每个失败（除了提示取消）都带有
+      // 手动路径——文件路径及其包含的成员。
       if (
         !options.json &&
         prepared !== undefined &&
         !isPromptCancellationError(error)
       ) {
-        console.error('Open manually:');
-        console.error(`  Workspace file: ${prepared.codeWorkspacePath}`);
-        console.error('  Members:');
+        console.error('手动打开：');
+        console.error(`  工作区文件：${prepared.codeWorkspacePath}`);
+        console.error('  成员：');
         for (const row of formatMemberRows(prepared.surviving)) {
           console.error(`    ${row}`);
         }
@@ -507,9 +508,8 @@ class WorksetCommand {
   async remove(name: string, options: WorksetRemoveOptions = {}): Promise<void> {
     try {
       if (!options.yes) {
-        // The pre-read serves the not-found priority and the confirm
-        // display; the --yes path skips it (removeWorkset re-checks
-        // under the lock anyway).
+        // 预读取用于找不到优先级和确认
+        // 显示；--yes 路径跳过（removeWorkset 无论如何在锁下重新检查）。
         const state = await readWorksetsState();
         const workset = getWorkset(state, name);
         if (workset === null) {
@@ -518,7 +518,7 @@ class WorksetCommand {
 
         if (options.json || !isInteractive()) {
           throw new StoreError(
-            'Pass --yes to remove a workset non-interactively.',
+            '传递 --yes 以非交互式删除 workset。',
             'workset_remove_confirmation_required',
             {
               target: 'workset.name',
@@ -530,11 +530,11 @@ class WorksetCommand {
         const confirmed = await confirmRemoveInteractively(workset);
         if (!confirmed) {
           throw new StoreError(
-            'Workset remove cancelled.',
+            'Workset 删除已取消。',
             'workset_remove_cancelled',
             {
               target: 'workset.name',
-              fix: 'Rerun remove when you are ready.',
+              fix: '准备好后重新运行删除操作。',
             }
           );
         }
@@ -547,7 +547,7 @@ class WorksetCommand {
         return;
       }
 
-      console.log(`Removed workset '${name}'. Member folders were not touched.`);
+      console.log(`已删除 workset '${name}'。成员文件夹未受影响。`);
     } catch (error) {
       emitFailure(options.json, { removed: null, status: [] }, error, 'workset_error');
     }
@@ -562,24 +562,24 @@ export function registerWorksetCommand(program: Command): void {
   const worksetCommand = new WorksetCommand();
   const groupDescription =
     COMMAND_REGISTRY.find((entry) => entry.name === 'workset')?.description ??
-    'Compose, keep, and open personal working views (purely local)';
+    '组合、保存和打开个人工作视图（纯本地）';
   const workset = program.command('workset').description(groupDescription);
-  // Parsed at the group level so `openspec workset --json` keeps the
-  // one-JSON-document contract instead of a raw Commander error. The
-  // parent option matches anywhere; actions read optsWithGlobals().
-  workset.addOption(new Option('--json', 'Output as JSON').hideHelp());
+  // 在组级别解析，以便 `openspec workset --json` 保持
+  // 一个 JSON 文档的约定，而不是原始 Commander 错误。
+  // 父级选项在任意位置匹配；action 使用 optsWithGlobals() 读取。
+  workset.addOption(new Option('--json', '以 JSON 格式输出').hideHelp());
 
   workset
     .command('create [name]')
-    .description('Compose and save a named working view of folders you choose')
+    .description('组合并保存您选择的文件夹的命名工作视图')
     .option(
       '--member <member>',
-      'Member folder as <path> or <name>=<path>; repeatable, first is the primary',
+      '成员文件夹，格式为 <path> 或 <name>=<path>；可重复，第一个为主要成员',
       collectMember,
       [] as string[]
     )
-    .option('--tool <id>', 'Preferred tool to open this workset with')
-    .option('--json', 'Output as JSON')
+    .option('--tool <id>', '打开此 workset 的首选工具')
+    .option('--json', '以 JSON 格式输出')
     .action(async (name: string | undefined, _options: WorksetCreateOptions, command: Command) => {
       await worksetCommand.create(name, command.optsWithGlobals());
     });
@@ -587,21 +587,21 @@ export function registerWorksetCommand(program: Command): void {
   workset
     .command('list')
     .alias('ls')
-    .description('Show saved worksets with their members')
-    .option('--json', 'Output as JSON')
+    .description('显示已保存的 workset 及其成员')
+    .option('--json', '以 JSON 格式输出')
     .action(async (_options: { json?: boolean }, command: Command) => {
       await worksetCommand.list(command.optsWithGlobals());
     });
 
   workset
     .command('open <name>')
-    .description('Open a saved workset in your tool (editor window or agent session)')
-    .option('--tool <id>', 'Open with this tool just this once')
+    .description('在您的工具中打开已保存的 workset（编辑器窗口或 agent 会话）')
+    .option('--tool <id>', '仅此一次使用此工具打开')
     .addOption(
-      // Parsed so Commander never owns the error; rejected in the
-      // action with one JSON document. Hidden because help should not
-      // advertise a mode that only rejects.
-      new Option('--json', 'Not supported for open').hideHelp()
+      // 解析，这样 Commander 永远不会拥有该错误；在
+      // action 中以一个 JSON 文档拒绝。隐藏是因为帮助不应
+      // 宣传仅拒绝的模式。
+      new Option('--json', 'open 不支持').hideHelp()
     )
     .action(async (name: string, _options: WorksetOpenOptions, command: Command) => {
       await worksetCommand.open(name, command.optsWithGlobals());
@@ -609,9 +609,9 @@ export function registerWorksetCommand(program: Command): void {
 
   workset
     .command('remove <name>')
-    .description('Delete a saved workset (member folders are never touched)')
-    .option('--yes', 'Confirm removal non-interactively')
-    .option('--json', 'Output as JSON')
+    .description('删除已保存的 workset（成员文件夹不受影响）')
+    .option('--yes', '非交互式确认删除')
+    .option('--json', '以 JSON 格式输出')
     .action(async (name: string, _options: WorksetRemoveOptions, command: Command) => {
       await worksetCommand.remove(name, command.optsWithGlobals());
     });
@@ -620,15 +620,15 @@ export function registerWorksetCommand(program: Command): void {
     .map((subcommand) => {
       const aliases = subcommand.aliases();
       return aliases.length > 0
-        ? `${subcommand.name()} (${aliases.join(', ')})`
+        ? `${subcommand.name()}（${aliases.join(', ')}）`
         : subcommand.name();
     })
     .join(', ');
 
-  // One handler owns missing AND unknown subcommands: known
-  // subcommands dispatch above; everything else lands in this action
-  // (allowExcessArguments routes the unknown operand here), keeping
-  // the one-JSON-document contract for `--json` probes.
+  // 一个处理器同时处理缺失和未知的子命令：已知
+  // 子命令在上面分发；其他所有内容都进入此 action
+  // （allowExcessArguments 将未知操作数路由到此），保持
+  // `--json` 探测的一个 JSON 文档约定。
   workset.allowExcessArguments(true);
   workset.action(() => {
     const attempted = workset.args.filter(
@@ -636,8 +636,8 @@ export function registerWorksetCommand(program: Command): void {
     );
     const message =
       attempted.length > 0
-        ? `Unknown command '${attempted[0]}' for 'openspec workset'. Workset subcommands: ${subcommandsLine}.`
-        : `Missing subcommand for 'openspec workset'. Workset subcommands: ${subcommandsLine}.`;
+        ? `'openspec workset' 的未知命令 '${attempted[0]}'。Workset 子命令：${subcommandsLine}。`
+        : `'openspec workset' 缺少子命令。Workset 子命令：${subcommandsLine}。`;
     if (workset.opts().json) {
       printJson({
         status: [
@@ -645,12 +645,12 @@ export function registerWorksetCommand(program: Command): void {
             severity: 'error',
             code: 'unknown_workset_subcommand',
             message,
-            fix: 'Run one of the workset subcommands.',
+            fix: '运行 workset 子命令之一。',
           } satisfies StoreDiagnostic,
         ],
       });
     } else {
-      console.error(`Error: ${message}`);
+      console.error(`错误：${message}`);
     }
     process.exitCode = 1;
   });

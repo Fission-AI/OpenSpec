@@ -1,15 +1,14 @@
 /**
- * CI environment detection shared by telemetry and the version check.
+ * 遥测和版本检查共用的 CI 环境检测。
  *
- * Providers set CI to "true", "1", "yes", etc. Only an explicit off-value
- * counts as "not CI", so an unknown value still suppresses outbound requests
- * rather than surprising a build.
+ * 提供商将 CI 设置为 "true"、"1"、"yes" 等。只有显式的关闭值才会被视为"非 CI"，
+ * 因此未知值仍会抑制出站请求，而不是让构建产生意外。
  */
 
 const CI_DISABLED_VALUES = new Set(['', 'false', '0', 'no', 'off']);
 
 /**
- * True when `CI` is set to anything other than an explicit off-value.
+ * 当 `CI` 被设置为除显式关闭值之外的任何值时返回 true。
  */
 export function isCiEnvironment(
   env: NodeJS.ProcessEnv = process.env

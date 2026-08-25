@@ -1,8 +1,8 @@
 /**
- * Init Command
+ * Init 命令
  *
- * Sets up OpenSpec with Agent Skills and /opsx:* slash commands.
- * This is the unified setup command that replaces both the old init and experimental commands.
+ * 使用 Agent 技能和 /opsx:* 斜杠命令设置 OpenSpec。
+ * 这是统一的设置命令，替代了旧的 init 和 experimental 命令。
  */
 
 import path from 'path';
@@ -83,16 +83,16 @@ const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
 
 // -----------------------------------------------------------------------------
-// Constants
+// 常量
 // -----------------------------------------------------------------------------
 
 const DEFAULT_SCHEMA = 'spec-driven';
 
 function formatLanguageContext(language: string): string {
   return [
-    `Language: ${language}`,
-    `All artifacts must be written in ${language}.`,
-    'Keep OpenSpec structural headings and SHALL/MUST keywords in English.',
+    `语言：${language}`,
+    `所有制品必须以 ${language} 编写。`,
+    '保持 OpenSpec 结构化标题和 SHALL/MUST 关键词为英文。',
   ].join('\n');
 }
 
@@ -117,7 +117,7 @@ const WORKFLOW_TO_SKILL_DIR: Record<string, string> = {
 };
 
 // -----------------------------------------------------------------------------
-// Types
+// 类型
 // -----------------------------------------------------------------------------
 
 type InitCommandOptions = {
@@ -126,12 +126,12 @@ type InitCommandOptions = {
   force?: boolean;
   interactive?: boolean;
   profile?: string;
-  /** Commander's --no-animation flag: false disables the welcome animation. */
+  /** Commander 的 --no-animation 标志：false 禁用欢迎动画。 */
   animation?: boolean;
   /**
-   * Explicit opt-in/out for GitHub Copilot cloud coding-agent files.
-   * `--copilot-cloud` sets true, `--no-copilot-cloud` sets false; undefined
-   * leaves the decision to config, migration, or an interactive prompt.
+   * GitHub Copilot 云编码代理文件的显式选择/排除。
+   * `--copilot-cloud` 设置为 true，`--no-copilot-cloud` 设置为 false；
+   * undefined 则留给配置、迁移或交互式提示决定。
    */
   copilotCloud?: boolean;
 };
@@ -148,15 +148,14 @@ type ValidatedInitTool = {
 };
 
 /**
- * Holds the global Codex prompt matches that must wait until replacement skills
- * are generated before cleanup can continue.
+ * 保存必须等到替换技能生成后才能继续清理的全局 Codex 提示匹配。
  */
 type DeferredLegacyCleanup = {
   detection: LegacyDetectionResult;
 };
 
 // -----------------------------------------------------------------------------
-// Init Command Class
+// Init 命令类
 // -----------------------------------------------------------------------------
 
 export class InitCommand {
@@ -183,31 +182,31 @@ export class InitCommand {
     const openspecDir = OPENSPEC_DIR_NAME;
     const openspecPath = path.join(projectPath, openspecDir);
 
-    // Validation happens silently in the background
+    // 验证在后台静默进行
     const extendMode = await this.validate(projectPath, openspecPath);
 
-    // Pointer guard (slice 3.2): a config-only openspec/ with a store:
-    // declaration is externalized planning, not a root to extend — and a
-    // subdirectory of such a repo must not silently grow a nested root.
-    // Refuse before legacy cleanup, migration, or prompts touch anything.
-    // In extend mode the walk finds projectPath itself; otherwise it
-    // finds the nearest ancestor root (so pointer-repo subdirectories
-    // refuse exactly where a normal command would resolve the pointer).
+    // 指针守卫（第 3.2 切片）：带有 store: 声明的纯配置 openspec/
+    // 是外部化规划，而非要扩展的根目录——此类仓库的子目录
+    // 不得悄悄产生嵌套根目录。
+    // 在遗留清理、迁移或提示触碰任何内容之前拒绝。
+    // 在扩展模式下，遍历会找到 projectPath 本身；否则它会找到
+    // 最近的祖先根目录（因此指针仓库的子目录会在普通命令解析
+    // 指针的位置精确地拒绝）。
     const guardRoot = findRepoPlanningRootSync(projectPath);
     if (guardRoot) {
       const { hasPlanningShape, pointer } = classifyOpenSpecDir(guardRoot);
       if (!hasPlanningShape) {
         if (pointer.malformed) {
           throw new Error(
-            `The store declaration in ${pointer.filePath} is invalid (` +
+            `${pointer.filePath} 中的存储声明无效（` +
               storePointerProblem(pointer.malformed) +
-              `). Fix or remove the store: line before running openspec init.`
+              `）。请先修复或移除 store: 行，然后再运行 openspec init。`
           );
         }
         if (pointer.value !== undefined) {
           throw new Error(
-            `This repo's planning is externalized to store '${pointer.value}' (${pointer.filePath}). ` +
-              `Remove the store: line first to convert this repo to a local OpenSpec root.`
+            `此仓库的规划已外部化到存储 '${pointer.value}'（${pointer.filePath}）。` +
+              `请先移除 store: 行，将此仓库转换为本地 OpenSpec 根目录。`
           );
         }
       }
@@ -215,111 +214,109 @@ export class InitCommand {
 
     await this.assertLanguageCanBeApplied(projectPath, openspecPath);
 
-    // Check for legacy artifacts and handle cleanup
+    // 检查遗留制品并处理清理
     const deferredLegacyCleanup = await this.handleLegacyCleanup(projectPath, extendMode);
 
-    // Migrate OpenSpec-managed skills left in renamed tool directories
-    // (e.g. .kimi -> .kimi-code) before detection so they stay recognized.
+    // 将 OpenSpec 管理的技能迁移到重命名的工具目录
+    // （如 .kimi -> .kimi-code），在检测之前使其保持可识别。
     migrateLegacyToolDirs(projectPath);
 
-    // Detect available tools in the project (task 7.1)
+    // 检测项目中的可用工具（第 7.1 任务）
     const detectedTools = getAvailableTools(projectPath);
 
-    // Migration check: migrate existing projects to profile system (task 7.3)
+    // 迁移检查：将现有项目迁移到配置文件系统（第 7.3 任务）
     if (extendMode) {
       migrateIfNeeded(projectPath, detectedTools);
     }
 
-    // Validate profile override early so invalid values fail before tool setup.
-    // The resolved value is consumed later when generation reads effective config.
-    // This runs ahead of the welcome screen so an invalid --profile does not make
-    // the user press Enter before seeing the error.
+    // 提前验证配置文件覆盖，确保无效值在工具设置之前失败。
+    // 解析后的值在生成读取有效配置时被使用。
+    // 这在欢迎界面之前运行，使无效的 --profile 不会让用户
+    // 先按 Enter 再看到错误。
     this.resolveProfileOverride();
 
-    // Show animated welcome screen (interactive mode only)
+    // 显示动画欢迎界面（仅交互模式）
     const canPrompt = this.canPromptInteractively();
     if (canPrompt) {
       const { showWelcomeScreen } = await import('../ui/welcome-screen.js');
       await showWelcomeScreen(this.getActiveWorkflows(), { animate: this.animation });
     }
 
-    // Get tool states before processing
+    // 在处理前获取工具状态
     const toolStates = getToolStates(projectPath);
 
-    // Get tool selection (pass detected tools for pre-selection)
+    // 获取工具选择（传递检测到的工具用于预选）
     const selectedToolIds = await this.getSelectedTools(toolStates, extendMode, detectedTools, projectPath);
 
-    // Validate selected tools
+    // 验证选定的工具
     const validatedTools = this.validateTools(selectedToolIds, toolStates, projectPath);
 
-    // Selecting a renamed tool is consent to leave its former directory:
-    // init is about to write the current one, and leaving OpenSpec content
-    // behind would give the user two installs of the same tool.
+    // 选择重命名的工具意味着同意离开其以前的目录：
+    // init 即将写入当前目录，而留下 OpenSpec 内容会给用户
+    // 同一工具的两次安装。
     for (const migration of migrateLegacyToolDirs(
       projectPath,
       validatedTools.map((tool) => tool.value)
     )) {
       if (hasMovableContent(migration)) {
-        console.log(chalk.dim(`Migrated ${describeLegacyMigration(migration)}: ${migration.from} → ${migration.to}`));
+        console.log(chalk.dim(`已迁移 ${describeLegacyMigration(migration)}：${migration.from} → ${migration.to}`));
       }
       const kept = keptInPlaceNotice(migration);
       if (kept) console.log(chalk.dim(kept));
     }
 
-    // Decide whether to generate GitHub Copilot cloud files. This is opt-in
-    // (see cloud-agent.ts): selecting the Copilot tool no longer silently
-    // writes a GitHub Actions workflow into the user's .github/. The decision
-    // is made before generation so the write can be gated, and persisted after
-    // config.yaml exists so future non-interactive updates honor it.
+    // 决定是否生成 GitHub Copilot 云文件。这是选择加入的
+    //（参见 cloud-agent.ts）：选择 Copilot 工具不再静默地
+    // 将 GitHub Actions 工作流写入用户的 .github/ 目录。该决定
+    // 在生成之前做出，以便可以控制写入，在 config.yaml 存在后持久化，
+    // 以便未来的非交互式更新也遵循它。
     const copilotDecision = await this.resolveCopilotCloudDecision(projectPath, validatedTools);
 
-    // Create directory structure and config
+    // 创建目录结构和配置
     await this.createDirectoryStructure(openspecPath, extendMode);
 
-    // Generate skills and commands for each tool
+    // 为每个工具生成技能和命令
     const results = await this.generateSkillsAndCommands(
       projectPath,
       validatedTools,
       copilotDecision.write
     );
 
-    // Legacy cleanup was deferred to avoid interfering with skill/command generation;
-    // now that outputs are written, finalize the cleanup (e.g. remove stale files).
+    // 遗留清理被推迟以避免干扰技能/命令生成；
+    // 现在输出已写入，完成清理（如移除过时文件）。
     if (deferredLegacyCleanup) {
       await this.finalizeDeferredLegacyCleanup(projectPath, deferredLegacyCleanup);
     }
 
-    // Create config.yaml if needed
+    // 如需要，创建 config.yaml
     const configStatus = await this.createConfig(openspecPath, extendMode);
 
-    // Persist an explicit Copilot cloud decision so `openspec update` (which
-    // never prompts) honors it. Best-effort: a config-write failure must not
-    // fail an otherwise-successful init.
+    // 持久化显式的 Copilot 云决定，使 `openspec update`（从不提示）
+    // 遵循它。尽力而为：配置写入失败不应使本来成功的初始化失败。
     if (copilotDecision.persist !== undefined) {
       try {
         await persistCopilotCloudOptIn(projectPath, copilotDecision.persist);
       } catch {
-        // Non-fatal: the files (if any) were still written correctly.
+        // 非致命：文件（如果有）仍已正确写入。
       }
     }
 
-    // An explicit opt-out means "no cloud files here": clean up any that a
-    // previous run (or an older OpenSpec) generated. Only OpenSpec-managed
-    // files are removed — a user-customized file is preserved.
+    // 显式选择退出意味着"这里没有云文件"：清理之前运行（或更旧的 OpenSpec）
+    // 生成的任何文件。只移除 OpenSpec 管理的文件 — 用户自定义的文件会被保留。
     let copilotRemoved = 0;
     if (copilotDecision.optedOut) {
       try {
         copilotRemoved = await removeCopilotCloudFiles(projectPath);
       } catch {
-        // Non-fatal: removal targets files from a prior run; a failure here
-        // just leaves them for the next `openspec update` to clean up.
+        // 非致命：移除目标来自之前运行的文件；此处的失败
+        // 只是将它们留给下一次 `openspec update` 清理。
       }
     }
 
-    // Report the cloud outcome from what is actually on disk after the write,
-    // not from the decision alone: writing over a user-owned file is a no-op,
-    // and the alternate-agent path can remove a managed file — so list only
-    // managed files that exist, and separately flag any left-untouched ones.
+    // 写入后报告磁盘上实际的云结果，
+    // 而不是仅根据决定：覆盖用户自有文件是空操作，
+    // 替代代理路径可能移除托管文件 — 因此仅列出存在的托管文件，
+    // 并单独标记任何保持不变的文件。
     const copilotSucceeded = [...results.createdTools, ...results.refreshedTools].some(
       (tool) => tool.value === 'github-copilot'
     );
@@ -327,7 +324,7 @@ export class InitCommand {
     const copilotPresent = wroteCloud ? await listManagedCloudFiles(projectPath) : [];
     const copilotCollisions = wroteCloud ? await findUnmanagedCloudFiles(projectPath) : [];
 
-    // Display success message
+    // 显示成功消息
     this.displaySuccessMessage(projectPath, validatedTools, results, configStatus, {
       write: copilotDecision.write,
       skippedUndecided: copilotDecision.skippedUndecided,
@@ -343,7 +340,7 @@ export class InitCommand {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // VALIDATION & SETUP
+  // 验证与设置
   // ═══════════════════════════════════════════════════════════
 
   private async validate(
@@ -352,9 +349,9 @@ export class InitCommand {
   ): Promise<boolean> {
     const extendMode = await FileSystemUtils.directoryExists(openspecPath);
 
-    // Check write permissions
+    // 检查写入权限
     if (!(await FileSystemUtils.ensureWritePermissions(projectPath))) {
-      throw new Error(`Insufficient permissions to write to ${projectPath}`);
+      throw new Error(`没有写入 ${projectPath} 的权限`);
     }
     return extendMode;
   }
@@ -366,19 +363,18 @@ export class InitCommand {
   }
 
   /**
-   * Decide whether to generate GitHub Copilot cloud files, and whether to
-   * persist that decision. Precedence:
-   *   1. `--copilot-cloud` / `--no-copilot-cloud` flag (explicit this run)
-   *   2. persisted opt-in in config.yaml
-   *   3. managed files already present (migration for pre-opt-in projects)
-   *   4. interactive confirm (default No)
-   *   5. non-interactive with no signal: skip, and don't persist a default
+   * 决定是否生成 GitHub Copilot 云代理文件，以及是否持久化该决定。
+   * 优先级：
+   *   1. `--copilot-cloud` / `--no-copilot-cloud` 标志（本次显式设置）
+   *   2. config.yaml 中持久化的选择加入
+   *   3. 已存在的托管文件（为预选择加入的项目迁移）
+   *   4. 交互式确认（默认否）
+   *   5. 非交互模式且无信号：跳过，且不持久化默认值
    *
-   * @returns `write` — generate the files this run; `persist` — value to write
-   *   back to config (undefined = leave config untouched); `optedOut` — the user
-   *   explicitly declined, so any already-generated managed files should be
-   *   removed; `skippedUndecided` — selected but no signal and couldn't ask, so
-   *   the caller can hint that the opt-in exists.
+   * @returns `write` — 本次生成文件；`persist` — 写回配置的值
+   *   （undefined = 保持配置不变）；`optedOut` — 用户明确拒绝，
+   *   已生成的托管文件应被移除；`skippedUndecided` — 已选择但无信号
+   *   且无法询问，调用方可提示存在选择加入。
    */
   private async resolveCopilotCloudDecision(
     projectPath: string,
@@ -386,11 +382,11 @@ export class InitCommand {
   ): Promise<{ write: boolean; persist?: boolean; optedOut: boolean; skippedUndecided: boolean }> {
     const copilotSelected = tools.some((tool) => tool.value === 'github-copilot');
     if (!copilotSelected) {
-      // A flag that can't apply is a likely mistake — say so rather than no-op.
+      // 不适用的标志可能是个错误 — 说明原因而不是静默执行
       if (this.copilotCloudOption !== undefined) {
         console.log(
           chalk.yellow(
-            '--copilot-cloud/--no-copilot-cloud was ignored because the github-copilot tool was not selected.'
+            '已忽略 --copilot-cloud/--no-copilot-cloud，因为未选择 github-copilot 工具。'
           )
         );
       }
@@ -419,16 +415,16 @@ export class InitCommand {
       const { confirm } = await import('@inquirer/prompts');
       const answer = await confirm({
         message:
-          'Set up GitHub Copilot cloud coding-agent files? This is for the GitHub-hosted ' +
-          'Copilot coding agent (github.com), not Copilot in your editor. It writes two files: ' +
-          '.github/workflows/copilot-setup-steps.yml and .github/agents/openspec.agent.md.',
+          '是否设置 GitHub Copilot 云编码代理文件？这是为 GitHub 托管的 ' +
+          'Copilot 编码代理（github.com），而非编辑器中的 Copilot。将写入两个文件：' +
+          '.github/workflows/copilot-setup-steps.yml 和 .github/agents/openspec.agent.md.',
         default: false,
       });
       return { write: answer, persist: answer, optedOut: !answer, skippedUndecided: false };
     }
 
-    // Non-interactive with no explicit signal: don't write, and leave the
-    // decision unpersisted so a later interactive run can still prompt.
+    // 非交互模式且无显式信号：不写入，且不持久化该决定，
+    // 以便后续交互式运行仍可提示。
     return { write: false, optedOut: false, skippedUndecided: true };
   }
 
@@ -441,12 +437,12 @@ export class InitCommand {
       return this.profileOverride;
     }
 
-    throw new Error(`Invalid profile "${this.profileOverride}". Available profiles: core, custom`);
+    throw new Error(`无效的 profile "${this.profileOverride}"。可用的 profile：core, custom`);
   }
 
   /**
-   * Resolves the workflows the effective profile installs, so onboarding output
-   * only mentions commands that will actually exist.
+   * 解析有效 profile 安装的 workflows，使初始化输出
+   * 仅提及实际存在的命令。
    */
   private getActiveWorkflows(): string[] {
     const globalCfg = getGlobalConfig();
@@ -455,24 +451,24 @@ export class InitCommand {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // LEGACY CLEANUP
+  // 遗留清理
   // ═══════════════════════════════════════════════════════════
 
   /**
-   * Cleans repo-local legacy artifacts immediately and defers global Codex prompt
-   * cleanup until replacement skills have been installed.
+   * 立即清理仓库本地的遗留制品，并将全局 Codex 提示清理
+   * 推迟到替换技能安装完成之后。
    */
   private async handleLegacyCleanup(projectPath: string, extendMode: boolean): Promise<DeferredLegacyCleanup | null> {
-    // Detect legacy artifacts
+    // 检测遗留制品
     const detection = await detectLegacyArtifacts(projectPath);
 
     if (!detection.hasLegacyArtifacts) {
-      return null; // No legacy artifacts found
+      return null; // 未发现遗留制品
     }
 
     const immediateDetection = omitGlobalLegacyPromptFiles(detection);
 
-    // Show what was detected
+    // 显示检测到的内容
     const immediateSummary = formatDetectionSummary(immediateDetection);
     if (immediateSummary) {
       console.log();
@@ -480,8 +476,8 @@ export class InitCommand {
       console.log();
     }
 
-    // Show which global prompts are deferred — they'll only be removed once
-    // the corresponding replacement skills are installed during generation.
+    // 显示哪些全局提示被推迟 — 它们仅在对应替换技能
+    // 生成时才会被移除。
     const deferredSummary = formatDeferredGlobalPromptSummary(detection);
     if (deferredSummary) {
       console.log(deferredSummary);
@@ -491,23 +487,23 @@ export class InitCommand {
     const canPrompt = this.canPromptInteractively();
 
     if (this.force || !canPrompt) {
-      // --force flag or non-interactive mode: proceed with cleanup automatically.
-      // Legacy slash commands are 100% OpenSpec-managed, and config file cleanup
-      // only removes markers (never deletes files), so auto-cleanup is safe.
+      // --force 标志或非交互模式：自动进行清理。
+      // 遗留斜杠命令 100% 由 OpenSpec 管理，配置文件清理
+      // 仅移除标记（永不删除文件），因此自动清理是安全的。
       await this.performImmediateLegacyCleanup(projectPath, detection);
       return detection.globalSlashCommandFiles.length > 0 ? { detection } : null;
     }
 
-    // Interactive mode: prompt for confirmation
+    // 交互模式：提示确认
     const { confirm } = await import('@inquirer/prompts');
     const shouldCleanup = await confirm({
-      message: 'Upgrade and clean up legacy files?',
+      message: '是否升级并清理遗留文件？',
       default: true,
     });
 
     if (!shouldCleanup) {
-      console.log(chalk.dim('Initialization cancelled.'));
-      console.log(chalk.dim('Run with --force to skip this prompt, or manually remove legacy files.'));
+      console.log(chalk.dim('初始化已取消。'));
+      console.log(chalk.dim('使用 --force 跳过此提示，或手动删除遗留文件。'));
       process.exit(0);
     }
 
@@ -516,8 +512,7 @@ export class InitCommand {
   }
 
   /**
-   * Applies the safe subset of legacy cleanup that does not depend on newly
-   * generated Codex skills.
+   * 应用不依赖新生成 Codex 技能的安全遗留清理子集。
    */
   private async performImmediateLegacyCleanup(
     projectPath: string,
@@ -532,8 +527,7 @@ export class InitCommand {
   }
 
   /**
-   * Removes only the legacy global Codex prompts whose workflows now have
-   * replacement skills in the project.
+   * 仅移除那些 workflows 已有替换技能的遗留全局 Codex 提示。
    */
   private async finalizeDeferredLegacyCleanup(
     projectPath: string,
@@ -557,7 +551,7 @@ export class InitCommand {
       .filter((prompt) => !removableMatches.some((match) => match.path === prompt.path));
 
     if (blockedMatches.length > 0) {
-      console.log(chalk.yellow('Preserved deferred global prompts without replacement skills:'));
+      console.log(chalk.yellow('保留无替换技能的推迟全局提示：'));
       for (const prompt of blockedMatches) {
         console.log(chalk.dim(`  - ${prompt.toolId}: ${prompt.path}`));
       }
@@ -566,8 +560,7 @@ export class InitCommand {
   }
 
   /**
-   * Reads the currently installed workflow IDs for a single tool from the
-   * generated skill layout on disk.
+   * 从磁盘上生成的技能布局中读取单个工具当前安装的 workflow ID。
    */
   private async getInstalledWorkflowsForTool(projectPath: string, toolId: string): Promise<Set<string>> {
     const tool = AI_TOOLS.find((candidate) => candidate.value === toolId);
@@ -579,11 +572,11 @@ export class InitCommand {
   }
 
   private async performLegacyCleanup(projectPath: string, detection: LegacyDetectionResult): Promise<void> {
-    const spinner = ora('Cleaning up legacy files...').start();
+    const spinner = ora('正在清理遗留文件...').start();
 
     const result = await cleanupLegacyArtifacts(projectPath, detection);
 
-    spinner.succeed('Legacy files cleaned up');
+    spinner.succeed('遗留文件清理完成');
 
     const summary = formatCleanupSummary(result);
     if (summary) {
@@ -595,7 +588,7 @@ export class InitCommand {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // TOOL SELECTION
+  // 工具选择
   // ═══════════════════════════════════════════════════════════
 
   private async getSelectedTools(
@@ -604,7 +597,7 @@ export class InitCommand {
     detectedTools: AIToolOption[],
     projectPath: string
   ): Promise<string[]> {
-    // Check for --tools flag first
+    // 首先检查 --tools 标志
     const nonInteractiveSelection = this.resolveToolsArg();
     if (nonInteractiveSelection !== null) {
       return nonInteractiveSelection;
@@ -620,26 +613,26 @@ export class InitCommand {
     const shouldPreselectDetected = !extendMode && configuredToolIds.size === 0;
     const canPrompt = this.canPromptInteractively();
 
-    // Non-interactive mode: use detected tools as fallback (task 7.8)
+    // 非交互模式：使用检测到的工具作为备选（任务 7.8）
     if (!canPrompt) {
       if (detectedToolIds.size > 0) {
         return [...detectedToolIds];
       }
       throw new Error(
-        `No tools detected and no --tools flag provided. Valid tools:\n  ${validTools.join('\n  ')}\n\nUse --tools all, --tools none, or --tools claude,cursor,...`
+        `未检测到工具且未提供 --tools 标志。可用工具：\n  ${validTools.join('\n  ')}\n\n使用 --tools all、--tools none 或 --tools claude,cursor,...`
       );
     }
 
     if (validTools.length === 0) {
       throw new Error(
-        `No tools available for skill generation.`
+        `没有可用于生成技能的工具。`
       );
     }
 
-    // Interactive mode: show searchable multi-select
+    // 交互模式：显示可搜索的多选框
     const { searchableMultiSelect } = await import('../prompts/searchable-multi-select.js');
 
-    // Build choices: pre-select configured tools; keep detected tools visible but unselected.
+    // 构建选项：预选已配置的工具；保持检测到的工具可见但未选中。
     const sortedChoices = validTools
       .map((toolId) => {
         const tool = AI_TOOLS.find((t) => t.value === toolId);
@@ -656,7 +649,7 @@ export class InitCommand {
         };
       })
       .sort((a, b) => {
-        // Configured tools first, then detected (not configured), then everything else.
+        // 已配置的工具优先，然后是检测到的（未配置），最后是其他。
         if (a.configured && !b.configured) return -1;
         if (!a.configured && b.configured) return 1;
         if (a.detected && !b.detected) return -1;
@@ -669,7 +662,7 @@ export class InitCommand {
       .map((toolId) => AI_TOOLS.find((t) => t.value === toolId)?.name || toolId);
 
     if (configuredNames.length > 0) {
-      console.log(`OpenSpec configured: ${configuredNames.join(', ')} (pre-selected)`);
+      console.log(`OpenSpec 已配置：${configuredNames.join(', ')}（已预选）`);
     }
 
     const detectedOnlyNames = detectedTools
@@ -678,20 +671,20 @@ export class InitCommand {
 
     if (detectedOnlyNames.length > 0) {
       const detectionLabel = shouldPreselectDetected
-        ? 'pre-selected for first-time setup'
-        : 'not pre-selected';
-      console.log(`Detected tool directories: ${detectedOnlyNames.join(', ')} (${detectionLabel})`);
+        ? '已预选用于首次设置'
+        : '未预选';
+      console.log(`检测到的工具目录：${detectedOnlyNames.join(', ')}（${detectionLabel}）`);
     }
 
     const selectedTools = await searchableMultiSelect({
-      message: `Select tools to set up (${validTools.length} available)`,
+      message: `选择要设置的工具（共 ${validTools.length} 个可用）`,
       pageSize: 15,
       choices: sortedChoices,
-      validate: (selected: string[]) => selected.length > 0 || 'Select at least one tool',
+      validate: (selected: string[]) => selected.length > 0 || '至少选择一个工具',
     });
 
     if (selectedTools.length === 0) {
-      throw new Error('At least one tool must be selected');
+      throw new Error('必须至少选择一个工具');
     }
 
     return selectedTools;
@@ -705,7 +698,7 @@ export class InitCommand {
     const raw = this.toolsArg.trim();
     if (raw.length === 0) {
       throw new Error(
-        'The --tools option requires a value. Use "all", "none", or a comma-separated list of tool IDs.'
+        '--tools 选项需要一个值。使用 "all"、"none" 或逗号分隔的工具 ID 列表。'
       );
     }
 
@@ -729,16 +722,16 @@ export class InitCommand {
 
     if (tokens.length === 0) {
       throw new Error(
-        'The --tools option requires at least one tool ID when not using "all" or "none".'
+        '--tools 选项在未使用 "all" 或 "none" 时至少需要一个工具 ID。'
       );
     }
 
-    // Retired ids resolve to their current tool, so a rebrand does not break
-    // an existing `--tools windsurf` in someone's setup script.
+    // 已废弃的 ID 解析到其当前工具，因此品牌重命名不会破坏
+    // 现有设置脚本中的 `--tools windsurf`。
     const normalizedTokens = tokens.map((token) => resolveToolIdAlias(token.toLowerCase()));
 
     if (normalizedTokens.some((token) => token === 'all' || token === 'none')) {
-      throw new Error('Cannot combine reserved values "all" or "none" with specific tool IDs.');
+      throw new Error('不能将保留值 "all" 或 "none" 与特定工具 ID 组合使用。');
     }
 
     const invalidTokens = tokens.filter(
@@ -747,11 +740,11 @@ export class InitCommand {
 
     if (invalidTokens.length > 0) {
       throw new Error(
-        `Invalid tool(s): ${invalidTokens.join(', ')}. Available values: ${availableList}`
+        `无效的工具：${invalidTokens.join(', ')}。可用值：${availableList}`
       );
     }
 
-    // Deduplicate while preserving order
+    // 去重的同时保持顺序
     const deduped: string[] = [];
     for (const token of normalizedTokens) {
       if (!deduped.includes(token)) {
@@ -771,8 +764,8 @@ export class InitCommand {
 
     const sharedAgentsTargets = ['codex', 'zed', 'agents'];
     const selectedSharedTargets = sharedAgentsTargets.filter((toolId) => toolIds.includes(toolId));
-    // A Codex-rendered tree already serves Zed. Keep it when Zed is added later
-    // so Codex users do not lose the `$openspec-*` references they require.
+    // Codex 渲染的树已经服务于 Zed。当 Zed 稍后被添加时保留它，
+    // 以便 Codex 用户不会丢失他们需要的 `$openspec-*` 引用。
     const preserveConfiguredCodex = selectedSharedTargets.includes('zed') &&
       toolStates.get('codex')?.configured;
     const sharedTargetCandidates = preserveConfiguredCodex
@@ -796,7 +789,7 @@ export class InitCommand {
     ) {
       console.log(
         chalk.dim(
-          `Codex, Zed, and agents share .agents/skills; writing one tree for ${sharedTargetOwner}.`
+          `Codex、Zed 和 agents 共享 .agents/skills；为 ${sharedTargetOwner} 生成一个目录。`
         )
       );
     }
@@ -806,14 +799,14 @@ export class InitCommand {
       if (!tool) {
         const validToolIds = getToolsWithSkillsDir();
         throw new Error(
-          `Unknown tool '${toolId}'. Valid tools:\n  ${validToolIds.join('\n  ')}`
+          `未知工具 '${toolId}'。可用工具：\n  ${validToolIds.join('\n  ')}`
         );
       }
 
       if (!toolSupportsSkills(tool)) {
         const validToolsWithSkills = getToolsWithSkillsDir();
         throw new Error(
-          `Tool '${toolId}' does not support skill generation.\nTools with skill generation support:\n  ${validToolsWithSkills.join('\n  ')}`
+          `工具 '${toolId}' 不支持技能生成。\n支持技能生成的工具：\n  ${validToolsWithSkills.join('\n  ')}`
         );
       }
 
@@ -836,12 +829,12 @@ export class InitCommand {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // DIRECTORY STRUCTURE
+  // 目录结构
   // ═══════════════════════════════════════════════════════════
 
   private async createDirectoryStructure(openspecPath: string, extendMode: boolean): Promise<void> {
     if (extendMode) {
-      // In extend mode, just ensure directories exist without spinner
+      // 在扩展模式下，仅确保目录存在，不显示加载动画
       const directories = [
         openspecPath,
         path.join(openspecPath, 'specs'),
@@ -856,7 +849,7 @@ export class InitCommand {
       return;
     }
 
-    const spinner = this.startSpinner('Creating OpenSpec structure...');
+    const spinner = this.startSpinner('正在创建 OpenSpec 结构...');
 
     const directories = [
       openspecPath,
@@ -872,21 +865,21 @@ export class InitCommand {
 
     spinner.stopAndPersist({
       symbol: PALETTE.white('▌'),
-      text: PALETTE.white('OpenSpec structure created'),
+      text: PALETTE.white('OpenSpec 结构已创建'),
     });
   }
 
   // ═══════════════════════════════════════════════════════════
-  // SKILL & COMMAND GENERATION
+  // 技能与命令生成
   // ═══════════════════════════════════════════════════════════
 
   /**
-   * Generates skill files and slash commands for each selected tool,
-   * honoring the configured delivery mode (skills, commands, or both).
+   * 为每个选定的工具生成技能文件和斜杠命令，
+   * 遵循配置的交付模式（技能、命令或两者）。
    *
-   * @param projectPath - Absolute path to the project root
-   * @param tools - Selected tools with their skill directory metadata
-   * @returns Created, refreshed, and failed tools plus removed artifact counts
+   * @param projectPath - 项目根目录的绝对路径
+   * @param tools - 选定的工具及其技能目录元数据
+   * @returns 已创建、已刷新和失败的工具及已移除的制品数量
    */
   private async generateSkillsAndCommands(
     projectPath: string,
@@ -909,33 +902,33 @@ export class InitCommand {
     let removedCommandCount = 0;
     let removedSkillCount = 0;
 
-    // Read global config for profile and delivery settings (use --profile override if set)
+    // 读取全局配置获取 profile 和交付设置（如有 --profile 覆盖则使用）
     const globalConfig = getGlobalConfig();
     const profile: Profile = this.resolveProfileOverride() ?? globalConfig.profile ?? 'core';
     const delivery: Delivery = globalConfig.delivery ?? 'both';
     const workflows = getProfileWorkflows(profile, globalConfig.workflows);
 
-    // Get skill and command templates filtered by profile workflows
+    // 按 profile workflow 过滤获取技能和命令模板
     const deliveryIncludesCommands = delivery !== 'skills';
     const skillTemplates = getSkillTemplates(workflows);
     const commandContents = getCommandContents(workflows);
 
-    // Process each tool
+    // 处理每个工具
     for (const tool of tools) {
-      const spinner = ora(`Setting up ${tool.name}...`).start();
+      const spinner = ora(`正在设置 ${tool.name}...`).start();
 
       try {
         const shouldGenerateSkills = shouldGenerateSkillsForTool(tool.value, delivery);
         const shouldGenerateCommands = shouldGenerateCommandsForTool(tool.value, delivery);
 
-        // Generate skill files if the selected delivery and tool capability allow skills
+        // 如果选定的交付模式和工具能力允许技能，则生成技能文件
         if (shouldGenerateSkills) {
-          // Create skill directories and SKILL.md files
+          // 创建技能目录和 SKILL.md 文件
           for (const { template, dirName } of skillTemplates) {
             const skillDir = path.join(tool.skillsPath, dirName);
             const skillFile = path.join(skillDir, 'SKILL.md');
 
-            // Generate SKILL.md content with YAML frontmatter including generatedBy
+            // 使用包含 generatedBy 的 YAML frontmatter 生成 SKILL.md 内容
             const transformer = getTransformerForTool(
               tool.value,
               delivery,
@@ -944,7 +937,7 @@ export class InitCommand {
             );
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
 
-            // Write the skill file
+            // 写入技能文件
             FileSystemUtils.assertPathWithin(tool.skillsRoot, skillFile);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
@@ -952,12 +945,12 @@ export class InitCommand {
         }
         if (shouldRemoveSkillsForTool(tool.value, delivery) && !tool.isGlobalSkillTarget) {
           removedSkillCount += await this.removeSkillDirs(tool.skillsRoot, tool.skillsPath);
-          // Retain an explicit selection even when this delivery mode produces
-          // no skills, so a divergent legacy sibling cannot reclaim ownership.
+          // 保留显式选择，即使此交付模式不产生技能，
+          // 以防不同的遗留兄弟抢占所有权。
           writeSharedSkillTarget(projectPath, tool.value);
         }
 
-        // Generate commands if delivery includes commands
+        // 如果交付模式包含命令，则生成命令
         if (shouldGenerateCommands) {
           const adapter = CommandAdapterRegistry.get(tool.value);
           if (adapter) {
@@ -982,7 +975,7 @@ export class InitCommand {
           await writeCopilotCloudFiles(projectPath);
         }
 
-        spinner.succeed(`Setup complete for ${tool.name}`);
+        spinner.succeed(`${tool.name} 设置完成`);
 
         if (tool.wasConfigured) {
           refreshedTools.push(tool);
@@ -990,7 +983,7 @@ export class InitCommand {
           createdTools.push(tool);
         }
       } catch (error) {
-        spinner.fail(`Failed for ${tool.name}`);
+        spinner.fail(`${tool.name} 设置失败`);
         failedTools.push({ name: tool.name, error: error as Error });
       }
     }
@@ -1002,7 +995,7 @@ export class InitCommand {
         'after-generation'
       )) {
         if (hasMovableContent(migration)) {
-          console.log(chalk.dim(`Migrated ${describeLegacyMigration(migration)}: ${migration.from} → ${migration.to}`));
+          console.log(chalk.dim(`已迁移 ${describeLegacyMigration(migration)}：${migration.from} → ${migration.to}`));
         }
         const kept = keptInPlaceNotice(migration);
         if (kept) console.log(chalk.dim(kept));
@@ -1021,7 +1014,7 @@ export class InitCommand {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // CONFIG FILE
+  // 配置文件
   // ═══════════════════════════════════════════════════════════
 
   private normalizeLanguage(language: string | undefined): string | undefined {
@@ -1029,17 +1022,17 @@ export class InitCommand {
 
     const normalized = language.trim();
     if (!normalized) {
-      throw new Error('The --language option requires a non-empty value.');
+      throw new Error('--language 选项需要一个非空值。');
     }
     if (/\p{Cc}|\p{Bidi_Control}|[\u200B\u2028\u2029\uFEFF]/u.test(normalized)) {
       throw new Error(
-        'The --language option must be a single line without control or invisible formatting characters.'
+        '--language 选项必须是单行文本，不能包含控制字符或不可见的格式化字符。'
       );
     }
     const serializedContext = `${formatLanguageContext(normalized)}\n`;
     if (Buffer.byteLength(serializedContext, 'utf8') > MAX_CONTEXT_SIZE) {
       throw new Error(
-        `The --language option is too long for OpenSpec's ${MAX_CONTEXT_SIZE / 1024}KB project context limit.`
+        `--language 选项对于 OpenSpec 的 ${MAX_CONTEXT_SIZE / 1024}KB 项目上下文限制来说太长。`
       );
     }
     return normalized;
@@ -1065,11 +1058,11 @@ export class InitCommand {
         FileSystemUtils.assertProjectArtifactPath(projectPath, configPath);
       } catch (error) {
         const reason = error instanceof Error ? `: ${error.message}` : '';
-        throw new Error(`Cannot create openspec/config.yaml for --language${reason}`);
+        throw new Error(`无法为 --language 创建 openspec/config.yaml${reason}`);
       }
       if (!(await FileSystemUtils.canWriteFile(configPath))) {
         throw new Error(
-          'Cannot create openspec/config.yaml for --language: the destination is not writable.'
+          '无法为 --language 创建 openspec/config.yaml：目标位置不可写。'
         );
       }
       return;
@@ -1079,8 +1072,8 @@ export class InitCommand {
     if (existingContext?.includes(languageContext)) return;
 
     throw new Error(
-      '--language does not overwrite an existing OpenSpec config. ' +
-      'Add the language instruction to its context field instead.'
+      '--language 不会覆盖已存在的 OpenSpec 配置。' +
+      '请改为将语言指令添加到其 context 字段中。'
     );
   }
 
@@ -1106,14 +1099,14 @@ export class InitCommand {
     } catch (error) {
       if (this.language) {
         const reason = error instanceof Error ? `: ${error.message}` : '';
-        throw new Error(`Failed to create openspec/config.yaml for --language${reason}`);
+        throw new Error(`为 --language 创建 openspec/config.yaml 失败${reason}`);
       }
       return 'skipped';
     }
   }
 
   // ═══════════════════════════════════════════════════════════
-  // UI & OUTPUT
+  // 界面与输出
   // ═══════════════════════════════════════════════════════════
 
   private displaySuccessMessage(
@@ -1140,20 +1133,20 @@ export class InitCommand {
     console.log();
     console.log(
       chalk.bold(
-        results.failedTools.length > 0 ? 'OpenSpec Setup Incomplete' : 'OpenSpec Setup Complete'
+        results.failedTools.length > 0 ? 'OpenSpec 设置未完成' : 'OpenSpec 设置完成'
       )
     );
     console.log();
 
-    // Show created vs refreshed tools
+    // 显示已创建 vs 已刷新的工具
     if (results.createdTools.length > 0) {
-      console.log(`Created: ${results.createdTools.map((t) => t.name).join(', ')}`);
+      console.log(`已创建：${results.createdTools.map((t) => t.name).join(', ')}`);
     }
     if (results.refreshedTools.length > 0) {
-      console.log(`Refreshed: ${results.refreshedTools.map((t) => t.name).join(', ')}`);
+      console.log(`已刷新：${results.refreshedTools.map((t) => t.name).join(', ')}`);
     }
 
-    // Show counts (respecting profile filter)
+    // 显示计数（遵循 profile 过滤器）
     const successfulTools = [...results.createdTools, ...results.refreshedTools];
     if (successfulTools.length > 0) {
       const globalConfig = getGlobalConfig();
@@ -1181,11 +1174,11 @@ export class InitCommand {
           ? getCommandContents(workflows).length
           : 0;
         if (skillCount > 0 && commandCount > 0) {
-          console.log(`${skillCount} skills and ${commandCount} commands in ${toolDirs}/`);
+          console.log(`${skillCount} 个技能和 ${commandCount} 个命令在 ${toolDirs}/`);
         } else if (skillCount > 0) {
-          console.log(`${skillCount} skills in ${toolDirs}/`);
+          console.log(`${skillCount} 个技能在 ${toolDirs}/`);
         } else if (commandCount > 0) {
-          console.log(`${commandCount} commands in ${toolDirs}/`);
+          console.log(`${commandCount} 个命令在 ${toolDirs}/`);
         }
       } else {
         const skillTools = successfulTools.filter((tool) =>
@@ -1194,7 +1187,7 @@ export class InitCommand {
         const skillCount = skillTools.length * getSkillTemplates(workflows).length;
         if (skillCount > 0) {
           const skillDirs = [...new Set(skillTools.map((tool) => tool.skillsPath))];
-          console.log(`${skillCount} skills in ${skillDirs.join(', ')}`);
+          console.log(`${skillCount} 个技能在 ${skillDirs.join(', ')}`);
         }
 
         const commandContents = getCommandContents(workflows);
@@ -1218,94 +1211,91 @@ export class InitCommand {
               })
             ),
           ];
-          console.log(`${commandCount} commands in ${commandDirs.join(', ')}`);
+          console.log(`${commandCount} 个命令在 ${commandDirs.join(', ')}`);
         }
       }
     }
 
-    // Show failures
+    // 显示失败项
     if (results.failedTools.length > 0) {
-      console.log(chalk.red(`Failed: ${results.failedTools.map((f) => `${f.name} (${f.error.message})`).join(', ')}`));
+      console.log(chalk.red(`失败：${results.failedTools.map((f) => `${f.name} (${f.error.message})`).join(', ')}`));
     }
 
-    // Show skipped commands
+    // 显示跳过的命令
     if (results.commandsSkipped.length > 0) {
-      console.log(chalk.dim(`Commands skipped for: ${results.commandsSkipped.join(', ')} (no adapter)`));
+      console.log(chalk.dim(`为以下工具跳过命令：${results.commandsSkipped.join(', ')}（无适配器）`));
     }
     if (results.skillsInvocableCommandSkips.length > 0) {
-      console.log(chalk.dim(`Commands skipped for: ${results.skillsInvocableCommandSkips.join(', ')} (uses skills)`));
+      console.log(chalk.dim(`为以下工具跳过命令：${results.skillsInvocableCommandSkips.join(', ')}（使用技能）`));
     }
     if (results.removedCommandCount > 0) {
-      console.log(chalk.dim(`Removed: ${results.removedCommandCount} command files (delivery: skills)`));
+      console.log(chalk.dim(`已移除：${results.removedCommandCount} 个命令文件（交付：技能）`));
     }
     if (results.removedSkillCount > 0) {
-      console.log(chalk.dim(`Removed: ${results.removedSkillCount} skill directories (delivery: commands)`));
+      console.log(chalk.dim(`已移除：${results.removedSkillCount} 个技能目录（交付：命令）`));
     }
 
-    // GitHub Copilot cloud files are opt-in — report what is actually on disk:
-    // list the managed files that now exist (never files we didn't write), flag
-    // any user-owned file we left untouched, note an opt-out cleanup, or (when
-    // skipped for want of a signal) say how to turn them on.
+    // GitHub Copilot 云文件是选择加入的 — 报告磁盘上实际的内容：
+    // 列出现在存在的托管文件（从不报告我们未写入的文件），标记
+    // 我们保持不变的用户自有文件，说明选择退出的清理，或（当
+    // 因缺少信号而跳过时）说明如何启用。
     const copilotSucceeded = successfulTools.some((tool) => tool.value === 'github-copilot');
     if (copilotSucceeded && copilot.write) {
       if (copilot.present.length > 0) {
-        console.log(`GitHub Copilot cloud files: ${copilot.present.join(', ')}`);
+        console.log(`GitHub Copilot 云文件：${copilot.present.join(', ')}`);
       }
       if (copilot.collisions.length > 0) {
         console.log(
           chalk.dim(
-            `Left your existing ${copilot.collisions.join(' and ')} untouched — add the OpenSpec ` +
-              `install step by hand so the Copilot cloud agent can run openspec.`
+            `保留了您现有的 ${copilot.collisions.join(' 和 ')} 不变 — 请手动添加 OpenSpec ` +
+              `安装步骤，以便 Copilot 云代理可以运行 openspec。`
           )
         );
       }
     } else if (copilotSucceeded && copilot.removed > 0) {
       console.log(
-        chalk.dim(`Removed: ${copilot.removed} Copilot cloud agent file(s) (opted out of cloud files)`)
+        chalk.dim(`已移除：${copilot.removed} 个 Copilot 云代理文件（选择退出云文件）`)
       );
     } else if (copilotSucceeded && copilot.skippedUndecided) {
       console.log(
-        chalk.dim("Skipped GitHub Copilot cloud files (opt-in). Enable with 'openspec init --copilot-cloud'.")
+        chalk.dim("已跳过 GitHub Copilot 云文件（选择加入）。使用 'openspec init --copilot-cloud' 启用。")
       );
     }
 
-    // Show manual setup notes for tools that need extra configuration
+    // 显示需要额外配置的工具的手动设置说明
     for (const tool of successfulTools) {
       const setupNote = AI_TOOLS.find((t) => t.value === tool.value)?.setupNote;
       if (setupNote) {
-        console.log(chalk.yellow(`Setup required for ${tool.name}: ${setupNote}`));
+        console.log(chalk.yellow(`需要为 ${tool.name} 进行设置：${setupNote}`));
       }
     }
 
-    // Config status
+    // 配置状态
     if (configStatus === 'created') {
-      console.log(`Config: openspec/config.yaml (schema: ${DEFAULT_SCHEMA})`);
+      console.log(`配置：openspec/config.yaml（schema：${DEFAULT_SCHEMA}）`);
     } else if (configStatus === 'exists') {
-      // Show actual filename (config.yaml or config.yml)
+      // 显示实际文件名（config.yaml 或 config.yml）
       const configYaml = path.join(projectPath, OPENSPEC_DIR_NAME, 'config.yaml');
       const configYml = path.join(projectPath, OPENSPEC_DIR_NAME, 'config.yml');
       const configName = fs.existsSync(configYaml) ? 'config.yaml' : fs.existsSync(configYml) ? 'config.yml' : 'config.yaml';
-      console.log(`Config: openspec/${configName} (exists)`);
+      console.log(`配置：openspec/${configName}（已存在）`);
     } else {
-      console.log(chalk.dim(`Config: skipped (non-interactive mode)`));
+      console.log(chalk.dim(`配置：已跳过（非交互模式）`));
     }
 
-    // Getting started (task 7.6: show propose if in profile)
+    // 入门指南（任务 7.6：如果在 profile 中则显示 propose）
     const activeWorkflows = this.getActiveWorkflows();
-    // When no tool got /opsx:* commands, point at the skill instead of a
-    // command that does not exist.
+    // 当没有工具获得 /opsx:* 命令时，指向技能而不是不存在的命令。
     const activeDelivery: Delivery = getGlobalConfig().delivery ?? 'both';
     const commandsGenerated = successfulTools.some((tool) => shouldGenerateCommandsForTool(tool.value, activeDelivery));
     const skillsGenerated = successfulTools.some((tool) => shouldGenerateSkillsForTool(tool.value, activeDelivery));
-    // Each hint line must be a usable instruction for the tool it serves.
-    // Tools that generated commands are told the command name their files
-    // answer to (/opsx:* when namespaced under opsx/, /opsx-* when the
-    // filename is the command); tools that only got skills are told their
-    // documented skill invocation (Kimi Code: /skill:openspec-*; Codex CLI:
-    // $openspec-*; others: /openspec-*). Tools that got no artifacts are
-    // covered by the configuration correction instead. When the selection
-    // disagrees, print one line per distinct instruction, labeled with the
-    // tools it applies to.
+    // 每个提示行必须是其服务工具可用的指令。
+    // 生成了命令的工具会被告知其文件对应的命令名
+    //（在 opsx/ 下命名空间时为 /opsx:*，文件名是命令时为 /opsx-*）；
+    // 只获得技能的工具会被告知其文档化的技能调用方式
+    //（Kimi Code: /skill:openspec-*；Codex CLI: $openspec-*；其他：/openspec-*）。
+    // 没有获得制品的工具则通过配置更正来处理。当选择不一致时，
+    // 为每个适用工具打印一行独立的指令。
     const startHintLines = (command: string): string[] => {
       const hintToTools = new Map<string, string[]>();
       for (const tool of successfulTools) {
@@ -1317,23 +1307,23 @@ export class InitCommand {
             resolveCommandSurfaceCapability(tool.value),
             resolveCommandInvocation(tool.value)
           );
-          hint = `Start your first change: ${transformer ? transformer(command) : command} "your idea"`;
+          hint = `开始你的第一个 change：${transformer ? transformer(command) : command} "你的想法"`;
         } else if (shouldGenerateSkillsForTool(tool.value, activeDelivery)) {
           const skillReference = getSkillReferenceTransformer(tool.value)(command);
-          // Tools with no slash surface (e.g. Rovo Dev) reference skills as
-          // prose ("the openspec-propose skill"); phrase the hint so it reads
-          // as an instruction rather than a dead command with an argument.
+          // 没有斜杠表面的工具（如 Rovo Dev）通过自然语言引用技能
+          //（"openspec-propose 技能"）；措辞要使其读起来像指令
+          // 而不是带有参数的死命令。
           hint = usesNaturalLanguageSkillReferences(tool.value)
-            ? `Start your first change: ask ${tool.name} to use ${skillReference} with "your idea"`
-            : `Start your first change: ${skillReference} "your idea"`;
+            ? `开始你的第一个 change：让 ${tool.name} 使用 ${skillReference} 并输入 "你的想法"`
+            : `开始你的第一个 change：${skillReference} "你的想法"`;
         } else {
           continue;
         }
         hintToTools.set(hint, [...(hintToTools.get(hint) ?? []), tool.name]);
       }
       if (hintToTools.size === 0) {
-        // No successful tools: keep the generic command hint
-        return [`Start your first change: ${command} "your idea"`];
+        // 没有成功的工具：保留通用命令提示
+        return [`开始你的第一个 change：${command} "你的想法"`];
       }
       if (hintToTools.size === 1) {
         return [[...hintToTools.keys()][0]];
@@ -1341,16 +1331,15 @@ export class InitCommand {
       return [...hintToTools.entries()].map(([hint, toolNames]) => `${hint} (${toolNames.join(', ')})`);
     };
     const printStartHints = (command: string): void => {
-      console.log(chalk.bold('Getting started:'));
+      console.log(chalk.bold('入门指南：'));
       for (const line of startHintLines(command)) {
         console.log(`  ${line}`);
       }
     };
     console.log();
-    // delivery=commands with tools that only support skills: those tools get
-    // no artifacts at all, so print a per-tool configuration correction
-    // rather than leave them with a dead (or missing) instruction — even
-    // when other selected tools did get commands or skills.
+    // delivery=commands 但工具只支持技能：这些工具根本得不到制品，
+    // 因此打印每个工具的配置更正，而不是给它们留下死的（或缺失的）指令——
+    // 即使其他选定工具确实获得了命令或技能。
     const zeroArtifactTools = successfulTools.filter(
       (tool) =>
         !shouldGenerateSkillsForTool(tool.value, activeDelivery) &&
@@ -1360,40 +1349,38 @@ export class InitCommand {
       const names = zeroArtifactTools.map((tool) => tool.name).join(', ');
       console.log(
         chalk.yellow(
-          `No skills or commands were generated for ${names}: delivery is set to 'commands' but ` +
-            `${zeroArtifactTools.length === 1 ? 'it supports' : 'they support'} only skills. ` +
-            `Run 'openspec config set delivery both' to generate skills.`
+          `没有为 ${names} 生成技能或命令：交付模式设置为 'commands' 但` +
+            `${zeroArtifactTools.length === 1 ? '它支持' : '它们支持'} 仅技能。` +
+            `运行 'openspec config set delivery both' 来生成技能。`
         )
       );
     }
     if (successfulTools.length > 0 && !commandsGenerated && !skillsGenerated) {
-      // Nothing was generated for any tool: the correction above is the
-      // whole story, so don't advertise an invocation that doesn't exist.
+      // 没有为任何工具生成内容：上面的更正就是全部内容，
+      // 因此不要宣传一个不存在的调用方式。
     } else if (activeWorkflows.includes('propose')) {
       printStartHints('/opsx:propose');
     } else if (activeWorkflows.includes('new')) {
       printStartHints('/opsx:new');
     } else {
-      console.log("Done. Run 'openspec config profile' to configure your workflows.");
+      console.log("完成。运行 'openspec config profile' 来配置你的 workflows。");
     }
 
-    // Links
+    // 链接
     console.log();
-    console.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
-    console.log(`Feedback:   ${chalk.cyan('https://github.com/Fission-AI/OpenSpec/issues')}`);
+    console.log(`了解更多：${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
+    console.log(`反馈：   ${chalk.cyan('https://github.com/Fission-AI/OpenSpec/issues')}`);
 
-    // Restart instruction only when at least one IDE/editor-resident tool
-    // actually received a generated surface. Two conditions, coupled to the SAME
-    // tool: (1) its commands/skills are loaded by a long-running editor process
-    // (CLI tools pick the files up immediately, so a restart line would be wrong
-    // for them — see #1067), and (2) a surface was actually generated for it
-    // under the active delivery (an IDE tool that generated nothing has nothing a
-    // restart would pick up, even if a co-configured CLI tool did generate).
-    // Wording follows what the IDE tool itself generated, not the global
-    // aggregate: it must not say "commands" when the IDE tool only got skills
-    // while a co-configured CLI tool got commands. Not "slash commands" either:
-    // Amazon Q's generated files are prompt-library entries invoked with @, so a
-    // restart line promising slash commands would be wrong for it.
+    // 仅当至少一个 IDE/编辑器内置工具实际接收到生成的表面时，
+    // 才显示重启说明。两个条件，与同一个工具耦合：
+    //（1）其命令/技能由长时间运行的编辑器进程加载
+    //（CLI 工具会立即获取文件，因此重启提示对它们来说是错误的 — 见 #1067）；
+    //（2）该表面确实为活动交付生成了（一个什么都没生成的 IDE 工具
+    // 不会有重启能获取的内容，即使一个配套配置的 CLI 工具确实生成了）。
+    // 措辞遵循 IDE 工具本身生成的内容，而不是全局汇总：
+    // 当 IDE 工具只获得了技能时，绝不能说"命令"。
+    // 也不能说"斜杠命令"：Amazon Q 生成的文件是通过 @ 调用的提示库条目，
+    // 因此承诺斜杠命令的重启提示对它来说是错误的。
     const restartCommandsGenerated = successfulTools.some(
       (tool) =>
         tool.requiresIdeRestart &&
@@ -1409,8 +1396,8 @@ export class InitCommand {
       console.log(
         chalk.white(
           restartCommandsGenerated
-            ? 'Restart your IDE for the new commands to take effect.'
-            : 'Restart your IDE for the new skills to take effect.'
+            ? '重启你的 IDE 以使新命令生效。'
+            : '重启你的 IDE 以使新技能生效。'
         )
       );
     }
@@ -1441,7 +1428,7 @@ export class InitCommand {
         await fs.promises.rm(skillDir, { recursive: true, force: true });
         removed++;
       } catch {
-        // Ignore errors
+        // 忽略错误
       }
     }
 
@@ -1463,7 +1450,7 @@ export class InitCommand {
           removed++;
         }
       } catch {
-        // Ignore errors
+        // 忽略错误
       }
     }
 

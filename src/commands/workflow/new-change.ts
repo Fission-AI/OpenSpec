@@ -1,10 +1,9 @@
 /**
- * New Change Command
+ * New Change 命令
  *
- * Creates a new change directory with optional description and schema in the
- * resolved OpenSpec root. `--store <id>` selects a registered store's
- * root; initiative linking and workspace affected areas are no longer part of
- * this command.
+ * 在已解析的 OpenSpec 根目录中创建带有可选描述和 schema 的
+ * 新 change 目录。`--store <id>` 选择已注册存储的
+ * 根目录；initiative 链接和 workspace 受影响区域不再是此命令的一部分。
  */
 
 import ora from 'ora';
