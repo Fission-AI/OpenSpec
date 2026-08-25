@@ -46,52 +46,52 @@ interface WorkflowPromptMeta {
 
 export const WORKFLOW_PROMPT_META: Record<string, WorkflowPromptMeta> = {
   propose: {
-    name: 'Propose change',
-    description: 'Create proposal, design, and tasks from a request',
+    name: '提案 change',
+    description: '根据请求创建提案、设计和任务',
   },
   explore: {
-    name: 'Explore ideas',
-    description: 'Investigate a problem before implementation',
+    name: '探索想法',
+    description: '在实现之前调查问题',
   },
   new: {
-    name: 'New change',
-    description: 'Create a new change scaffold quickly',
+    name: '新建 change',
+    description: '快速创建新的 change 脚手架',
   },
   continue: {
-    name: 'Continue change',
-    description: 'Resume work on an existing change',
+    name: '继续 change',
+    description: '恢复现有 change 的工作',
   },
   apply: {
-    name: 'Apply tasks',
-    description: 'Implement tasks from the current change',
+    name: '应用任务',
+    description: '实施当前 change 中的任务',
   },
   update: {
-    name: 'Update change',
-    description: 'Revise the planning artifacts of an existing change',
+    name: '更新 change',
+    description: '修订现有 change 的规划制品',
   },
   ff: {
-    name: 'Fast-forward',
-    description: 'Run a faster implementation workflow',
+    name: '快进',
+    description: '运行更快的实现工作流',
   },
   sync: {
-    name: 'Sync specs',
-    description: 'Sync change artifacts with specs',
+    name: '同步 specs',
+    description: '将 change 制品与 specs 同步',
   },
   archive: {
-    name: 'Archive change',
-    description: 'Finalize and archive a completed change',
+    name: '归档 change',
+    description: '完成并归档已完成的 change',
   },
   'bulk-archive': {
-    name: 'Bulk archive',
-    description: 'Archive multiple completed changes together',
+    name: '批量归档',
+    description: '将多个已完成的 change 一起归档',
   },
   verify: {
-    name: 'Verify change',
-    description: 'Run verification checks against a change',
+    name: '验证 change',
+    description: '对 change 运行验证检查',
   },
   onboard: {
-    name: 'Onboard',
-    description: 'Guided onboarding flow for OpenSpec',
+    name: '入门引导',
+    description: 'OpenSpec 的引导式入门流程',
   },
 };
 
@@ -199,11 +199,11 @@ function maybeWarnProjectConfigDrift(
   if (!hasProjectConfigDrift(projectDir, state.workflows, state.delivery)) {
     return;
   }
-  console.log(colorize('Warning: Global config is not applied to this project. Run `openspec update` to sync.'));
+  console.log(colorize('警告：全局配置未应用到此项目。请运行 `openspec update` 进行同步。'));
 }
 
 function printConfigProfileApplyGuidance(): void {
-  console.log('Config updated. Run `openspec update` in your projects to apply.');
+  console.log('配置已更新。请在项目中运行 `openspec update` 以应用。');
 }
 
 /**
@@ -214,12 +214,12 @@ function printConfigProfileApplyGuidance(): void {
 export function registerConfigCommand(program: Command): void {
   const configCmd = program
     .command('config')
-    .description('View and modify global OpenSpec configuration')
-    .option('--scope <scope>', 'Config scope (only "global" supported currently)')
+    .description('查看和修改全局 OpenSpec 配置')
+    .option('--scope <scope>', '配置范围（目前仅支持 "global"）')
     .hook('preAction', (thisCommand) => {
       const opts = thisCommand.opts();
       if (opts.scope && opts.scope !== 'global') {
-        console.error('Error: Project-local config is not yet implemented');
+        console.error('错误：项目本地配置尚未实现');
         process.exit(1);
       }
     });
@@ -227,7 +227,7 @@ export function registerConfigCommand(program: Command): void {
   // config path
   configCmd
     .command('path')
-    .description('Show config file location')
+    .description('显示配置文件位置')
     .action(() => {
       console.log(getGlobalConfigPath());
     });
@@ -235,15 +235,15 @@ export function registerConfigCommand(program: Command): void {
   // config list
   configCmd
     .command('list')
-    .description('Show all current settings')
-    .option('--json', 'Output as JSON')
+    .description('显示所有当前设置')
+    .option('--json', '以 JSON 格式输出')
     .action((options: { json?: boolean }) => {
       const config = getGlobalConfig();
 
       if (options.json) {
         console.log(JSON.stringify(config, null, 2));
       } else {
-        // Read raw config to determine which values are explicit vs defaults
+        // 读取原始配置以确定哪些值是显式设置的还是默认的
         const configPath = getGlobalConfigPath();
         let rawConfig: Record<string, unknown> = {};
         try {
@@ -251,23 +251,23 @@ export function registerConfigCommand(program: Command): void {
             rawConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
           }
         } catch {
-          // If reading fails, treat all as defaults
+          // 如果读取失败，则全部视为默认值
         }
 
         console.log(formatValueYaml(config));
 
-        // Annotate profile settings
-        const profileSource = rawConfig.profile !== undefined ? '(explicit)' : '(default)';
-        const deliverySource = rawConfig.delivery !== undefined ? '(explicit)' : '(default)';
-        console.log(`\nProfile settings:`);
+        // 标注 profile 设置
+        const profileSource = rawConfig.profile !== undefined ? '（显式）' : '（默认）';
+        const deliverySource = rawConfig.delivery !== undefined ? '（显式）' : '（默认）';
+        console.log(`\nProfile 设置：`);
         console.log(`  profile: ${config.profile} ${profileSource}`);
         console.log(`  delivery: ${config.delivery} ${deliverySource}`);
         if (config.profile === 'core') {
-          console.log(`  workflows: ${CORE_WORKFLOWS.join(', ')} (from core profile)`);
+          console.log(`  workflows: ${CORE_WORKFLOWS.join(', ')} （来自 core profile）`);
         } else if (config.workflows && config.workflows.length > 0) {
-          console.log(`  workflows: ${config.workflows.join(', ')} (explicit)`);
+          console.log(`  workflows: ${config.workflows.join(', ')} （显式）`);
         } else {
-          console.log(`  workflows: (none)`);
+          console.log(`  workflows: （无）`);
         }
       }
     });

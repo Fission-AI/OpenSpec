@@ -3,9 +3,9 @@ import path from 'path';
 import { FileSystemUtils } from './file-system.js';
 
 export interface DiscoveredSpec {
-  /** Spec id relative to the specs root, forward-slash separated on every platform (e.g. "web" or "platform/session-layout"). */
+  /** 相对于 specs 根的 spec id，在每个平台上使用正斜杠分隔（如 "web" 或 "platform/session-layout"）。 */
   id: string;
-  /** Path to the spec.md file (absolute if the specs root is absolute). */
+  /** spec.md 文件的路径（如果 specs 根是绝对路径，则为绝对路径）。 */
   specFile: string;
 }
 
@@ -13,27 +13,26 @@ function assertDiscoveredSpecPath(specsRoot: string, capabilityDir: string, spec
   try {
     FileSystemUtils.assertPathWithin(specsRoot, specFile);
   } catch {
-    // Direct capability directories may intentionally be external monorepo
-    // links. In that case, confine the file to the capability itself.
+    // 直接的 capability 目录可能有意是外部 monorepo 链接。
+    // 在这种情况下，将文件限制在 capability 本身内。
     FileSystemUtils.assertPathWithin(capabilityDir, specFile);
   }
 }
 
 /**
- * Recursively discover every `spec.md` under a specs root, so both the flat
- * `specs/<id>/spec.md` layout and nested `specs/<area>/<id>/spec.md` layouts
- * are found (#1353). A `spec.md` sitting directly in the root is ignored,
- * matching the historical requirement that specs live in a capability folder.
- * Dot-directories are skipped and symlinked directories are not followed.
- * An in-capability symlinked `spec.md` IS resolved: `hasAnyFileUnder` and the
- * artifact graph's globs both count it as content, so dropping it here would
- * silently lose the delta on archive. A link outside its capability is
- * rejected and a dangling link is skipped. Results are sorted by id.
+ * 递归发现 specs 根目录下的每个 `spec.md`，以便同时找到扁平的
+ * `specs/<id>/spec.md` 布局和嵌套的 `specs/<area>/<id>/spec.md` 布局
+ * (#1353)。直接位于根目录的 `spec.md` 会被忽略，
+ * 这与历史要求一致，即 spec 必须位于 capability 文件夹中。
+ * 点目录会被跳过，符号链接目录不会被跟踪。
+ * capability 内通过符号链接的 `spec.md` 会被解析：`hasAnyFileUnder` 和
+ * artifact 图的 glob 都将其视为内容，因此在此处丢弃它会静默丢失 archive 上的增量。
+ * 位于其 capability 之外的链接会被拒绝，悬挂链接会被跳过。结果按 id 排序。
  *
- * A missing root (ENOENT) yields an empty list, but any other read failure
- * (EACCES, EIO, ...) is thrown rather than swallowed: since this feeds the
- * archive/apply merge path, silently dropping an unreadable capability would
- * recreate the exact data-loss class #1353 is closing.
+ * 缺失的根目录（ENOENT）产生空列表，但任何其他读取失败
+ * （EACCES、EIO 等）会被抛出而不是吞没：由于这会为
+ * archive/apply 合并路径提供数据，静默丢弃不可读的 capability
+ * 会重现 #1353 正在修复的确切数据丢失类别。
  */
 export async function discoverSpecFiles(specsRoot: string): Promise<DiscoveredSpec[]> {
   const results: DiscoveredSpec[] = [];
@@ -61,7 +60,7 @@ export async function discoverSpecFiles(specsRoot: string): Promise<DiscoveredSp
               results.push({ id: segments.join('/'), specFile });
             }
           } catch (err: any) {
-            // A dangling link is not content; anything else fails loudly.
+            // 悬挂链接不是内容；其他任何错误都会大声抛出。
             if (err?.code !== 'ENOENT') throw err;
           }
         }
@@ -69,26 +68,23 @@ export async function discoverSpecFiles(specsRoot: string): Promise<DiscoveredSp
     }
   };
   await walk(specsRoot, []);
-  // Plain code-point comparison, not localeCompare: the latter follows the
-  // process's ICU locale, so ordering could vary by OS/CI. Code-point ordering
-  // guarantees the deterministic output the docstring promises.
+  // 纯码点比较，不是 localeCompare：后者遵循进程的 ICU locale，
+  // 因此排序可能因 OS/CI 而异。码点排序保证文档字符串承诺的确定性输出。
   return results.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
 /**
- * True when any regular non-dot file exists anywhere under the given
- * directory. Used by validate/archive to detect content under a change's
- * specs/ that contradicts a declared skip_specs marker - including files that
- * discoverSpecFiles ignores (a root spec.md, stray non-spec.md notes), since
- * anything there would be silently dropped or misread while the change claims
- * to have nothing. Dot entries (.DS_Store, .gitkeep, dot-directories) are
- * skipped to match discoverSpecFiles - they are invisible to every other
- * code path, so they must not count as spec content. Symlinks DO count
- * (without being followed): the artifact graph's globs follow them, so a
- * symlinked spec would read as existing content while the change claims to
- * have none - it contradicts the marker like any regular file. A missing
- * directory returns false; other read failures are thrown for the caller to
- * decide.
+ * 当给定目录下存在任何常规非点文件时返回 true。
+ * 被 validate/archive 用于检测 change 的 specs/ 下与已声明的
+ * skip_specs 标志矛盾的内容 —— 包括 discoverSpecFiles 忽略的文件
+ * （根 spec.md、游离的非 spec.md 笔记），因为那里的任何内容都会被
+ * 静默丢弃或误读，而 change 声称没有任何内容。
+ * 点条目（.DS_Store、.gitkeep、点目录）被跳过以匹配 discoverSpecFiles ——
+ * 它们对每个其他代码路径都是不可见的，因此不得计入 spec 内容。
+ * 符号链接会计入（不被跟踪）：artifact 图的 glob 会跟踪它们，
+ * 因此符号链接的 spec 会被读取为现有内容，而 change 声称没有 ——
+ * 这与任何常规文件一样与标志矛盾。
+ * 缺失的目录返回 false；其他读取失败会被抛出供调用方决定。
  */
 export async function hasAnyFileUnder(dirPath: string): Promise<boolean> {
   let entries;

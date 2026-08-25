@@ -1,7 +1,7 @@
 /**
- * Templates Command
+ * Templates 命令
  *
- * Shows resolved template paths for all artifacts in a schema.
+ * 显示 schema 中所有制品已解析的模板路径。
  */
 
 import ora from 'ora';
@@ -15,7 +15,7 @@ import { FileSystemUtils } from '../../utils/file-system.js';
 import { validateSchemaExists, DEFAULT_SCHEMA } from './shared.js';
 
 // -----------------------------------------------------------------------------
-// Types
+// 类型
 // -----------------------------------------------------------------------------
 
 export interface TemplatesOptions {
@@ -30,11 +30,11 @@ export interface TemplateInfo {
 }
 
 // -----------------------------------------------------------------------------
-// Command Implementation
+// 命令实现
 // -----------------------------------------------------------------------------
 
 export async function templatesCommand(options: TemplatesOptions): Promise<void> {
-  const spinner = options.json ? undefined : ora('Loading templates...').start();
+  const spinner = options.json ? undefined : ora('正在加载模板...').start();
 
   try {
     const projectRoot = process.cwd();
@@ -43,7 +43,7 @@ export async function templatesCommand(options: TemplatesOptions): Promise<void>
     const graph = ArtifactGraph.fromSchema(schema);
     const schemaDir = getSchemaDir(schemaName, projectRoot)!;
 
-    // Determine the source (project, user, or package)
+    // 确定来源（project、user 或 package）
     const {
       getUserSchemasDir,
       getProjectSchemasDir,
@@ -51,8 +51,8 @@ export async function templatesCommand(options: TemplatesOptions): Promise<void>
     const projectSchemasDir = getProjectSchemasDir(projectRoot);
     const userSchemasDir = getUserSchemasDir();
 
-    // Determine source by checking if schemaDir is inside each base directory
-    // Using path.relative is more robust than startsWith for path comparisons
+    // 通过检查 schemaDir 是否在每个基础目录内来确定来源
+    // 使用 path.relative 比 startsWith 更健壮的路径比较
     const isInsideDir = (child: string, parent: string): boolean => {
       const relative = path.relative(parent, child);
       return !relative.startsWith('..') && !path.isAbsolute(relative);
@@ -79,7 +79,7 @@ export async function templatesCommand(options: TemplatesOptions): Promise<void>
         };
       } catch {
         throw new Error(
-          `Template '${artifact.template}' for artifact '${artifact.id}' points outside the schema templates directory`
+          `制品 '${artifact.id}' 的模板 '${artifact.template}' 指向了 schema 模板目录之外的位置`
         );
       }
     });
@@ -95,12 +95,12 @@ export async function templatesCommand(options: TemplatesOptions): Promise<void>
       return;
     }
 
-    console.log(`Schema: ${schemaName}`);
-    console.log(`Source: ${source}`);
+    console.log(`Schema：${schemaName}`);
+    console.log(`来源：${source}`);
     console.log();
 
     for (const t of templates) {
-      console.log(`${t.artifactId}:`);
+      console.log(`${t.artifactId}：`);
       console.log(`  ${t.templatePath}`);
     }
   } catch (error) {

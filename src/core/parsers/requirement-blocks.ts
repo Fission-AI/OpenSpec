@@ -19,21 +19,21 @@ export function normalizeRequirementName(name: string): string {
 }
 
 /**
- * Case- and whitespace-insensitive fold of a requirement name. Requirement
- * matching itself is case-sensitive (normalizeRequirementName); this fold
- * exists only for typo detection - near-miss REMOVED headers and the
- * RENAMED+REMOVED cross-section conflict - where two spellings that differ
- * only in case or interior whitespace mean a mistake, never two requirements.
+ * 对需求名称进行大小写和空格不敏感的折叠。需求匹配
+ * 本身是区分大小写的（normalizeRequirementName）；此折叠
+ * 仅用于拼写检测 — 近似的 REMOVED 标题和
+ * RENAMED+REMOVED 跨章节冲突 — 其中两个仅在大小写或内部空格上不同的
+ * 拼写意味着一个错误，而不是两个需求。
  */
 export function foldRequirementName(name: string): string {
   return normalizeRequirementName(name).toLowerCase().replace(/\s+/g, ' ');
 }
 
-/** The canonical requirement header the delta reader recognizes. */
+/** delta 读取器识别的规范需求标题。 */
 const REQUIREMENT_HEADER_REGEX = /^###\s*Requirement:\s*(.+)\s*$/i;
 
 /**
- * Extracts the Requirements section from a spec file and parses requirement blocks.
+ * 从 spec 文件中提取 Requirements 章节并解析需求块。
  */
 export function extractRequirementsSection(content: string): RequirementsSectionParts {
   const normalized = normalizeLineEndings(content);
@@ -42,7 +42,7 @@ export function extractRequirementsSection(content: string): RequirementsSection
   const reqHeaderIndex = lines.findIndex((l, i) => !fenceMask[i] && /^##\s+Requirements\s*$/i.test(l));
 
   if (reqHeaderIndex === -1) {
-    // No requirements section; create an empty one at the end
+    // 没有需求章节；在末尾创建一个空的
     const before = content.trimEnd();
     const headerLine = '## Requirements';
     return {
@@ -54,7 +54,7 @@ export function extractRequirementsSection(content: string): RequirementsSection
     };
   }
 
-  // Find end of this section: next line that starts with '## ' at same or higher level
+  // 找到本章节的结束：以相同或更高级别 '## ' 开头的下一行
   let endIndex = lines.length;
   for (let i = reqHeaderIndex + 1; i < lines.length; i++) {
     if (!fenceMask[i] && /^##\s+/.test(lines[i])) {
@@ -72,12 +72,12 @@ export function extractRequirementsSection(content: string): RequirementsSection
   const isTopLevelHeader = (cursor: number): boolean =>
     !sectionBodyMask[cursor] && /^##\s+/.test(sectionBodyLines[cursor]);
 
-  // Parse requirement blocks within section body
+  // 在章节正文中解析需求块
   const blocks: RequirementBlock[] = [];
   let cursor = 0;
   let preambleLines: string[] = [];
 
-  // Collect preamble lines until first requirement header
+  // 收集前导行直到第一个需求标题
   while (cursor < sectionBodyLines.length && !isRequirementHeader(cursor)) {
     preambleLines.push(sectionBodyLines[cursor]);
     cursor++;
@@ -86,14 +86,14 @@ export function extractRequirementsSection(content: string): RequirementsSection
   while (cursor < sectionBodyLines.length) {
     const headerLineCandidate = sectionBodyLines[cursor];
     if (!isRequirementHeader(cursor)) {
-      // Not a requirement header; skip line defensively
+      // 不是需求标题；防御性地跳过行
       cursor++;
       continue;
     }
     const headerMatch = headerLineCandidate.match(REQUIREMENT_HEADER_REGEX)!;
     const name = normalizeRequirementName(headerMatch[1]);
     cursor++;
-    // Gather lines until next requirement header or end of section
+    // 收集行直到下一个需求标题或章节结束
     const bodyLines: string[] = [headerLineCandidate];
     while (cursor < sectionBodyLines.length && !isRequirementHeader(cursor) && !isTopLevelHeader(cursor)) {
       bodyLines.push(sectionBodyLines[cursor]);
@@ -116,9 +116,9 @@ export function extractRequirementsSection(content: string): RequirementsSection
 }
 
 /**
- * A level-3 header inside `## ADDED`/`## MODIFIED Requirements` that is not a
- * canonical `### Requirement:` header, recorded at the moment the delta reader
- * skips over it. Surfaced as an INFO note by `validate <change>` (#498).
+ * `## ADDED`/`## MODIFIED Requirements` 中的三级标题，
+ * 不是规范的 `### Requirement:` 标题，在 delta 读取器
+ * 跳过时被记录。作为 INFO 提示由 `validate <change>` 输出（#498）。
  */
 export interface SkippedHeader {
   header: string; // header text without the leading ###
@@ -141,15 +141,14 @@ export interface DeltaPlan {
 }
 
 function normalizeLineEndings(content: string): string {
-  // Strip a UTF-8 BOM: Windows editors and PowerShell redirects prepend one,
-  // and it would keep the first line's `## ADDED Requirements` from matching.
+  // 去除 UTF-8 BOM：Windows 编辑器和 PowerShell 重定向会添加一个，
+  // 这会阻止第一行的 `## ADDED Requirements` 匹配。
   return content.replace(/^﻿/, '').replace(/\r\n?/g, '\n');
 }
 
 /**
- * A slice of a document represented as its lines plus a parallel mask marking
- * lines that live inside fenced code blocks (which must be ignored when
- * detecting Markdown structure).
+ * 以行表示的文档切片，加上标记围栏代码块内行的并行掩码
+ * （检测 Markdown 结构时必须忽略）。
  */
 interface SectionBody {
   lines: string[];
@@ -158,7 +157,7 @@ interface SectionBody {
 }
 
 /**
- * Parse a delta-formatted spec change file content into a DeltaPlan with raw blocks.
+ * 将 delta 格式的 spec 变更文件内容解析为带有原始块的 DeltaPlan。
  */
 export function parseDeltaSpec(content: string): DeltaPlan {
   const normalized = normalizeLineEndings(content);
@@ -330,19 +329,18 @@ interface ScenarioBlock {
 }
 
 /**
- * Scenario names the current requirement block has and the incoming
- * (MODIFIED) block does not. A MODIFIED requirement replaces the whole block,
- * so every name reported here would be dropped from the main spec.
+ * 当前需求块中存在但即将（MODIFIED）块中没有的场景名称。
+ * MODIFIED 需求替换整个块，因此这里报告的每个名称
+ * 都会从主 spec 中删除。
  *
- * Shared by archive (which refuses to apply the block) and validate (which
- * reports the same loss at authoring time, #1477), so the two cannot disagree
- * about what counts as a dropped scenario.
+ * 由 archive（拒绝应用该块）和 validate（在编写时报告相同的丢失，#1477）
+ * 共享，因此两者不能对什么算作丢失的场景产生分歧。
  */
 export function findMissingCurrentScenarios(current: RequirementBlock, incoming: RequirementBlock): string[] {
-  // Multiplicity-aware: a name present N times in current and M times in
-  // incoming means max(0, N - M) instances are missing. Set membership would
-  // treat N>M as fully covered and let archive silently drop duplicates
-  // (residual #1246 / duplicate-scenario-name blind spot).
+  // 多重性感知：一个名称在当前块中出现 N 次，在即将到来的块中出现
+  // M 次，意味着缺少 max(0, N - M) 个实例。集合成员会将 N>M 视为
+  // 完全覆盖，让 archive 静默删除重复项
+  // （残余 #1246 / 重复场景名盲区）。
   const remainingIncoming = new Map<string, number>();
   for (const scenario of parseScenarioBlocks(incoming.raw)) {
     const name = scenario.name;
@@ -363,31 +361,31 @@ export function findMissingCurrentScenarios(current: RequirementBlock, incoming:
 }
 
 /**
- * Any non-fenced level-4 header on the given (masked) line. Reuses the spec
- * path's SCENARIO_HEADER so the two counters cannot drift apart.
+ * 给定（掩码）行上的任意非围栏四级标题。复用 spec 路径的
+ * SCENARIO_HEADER，使两个计数器不会产生偏差。
  */
 function scenarioHeaderAt(lines: string[], mask: boolean[], index: number): boolean {
   return !mask[index] && SCENARIO_HEADER.test(lines[index]);
 }
 
 /**
- * The scenario name for a `#### ` header, matching the label the author reads:
- * the header text with the leading `####`, an optional CommonMark closing `#`
- * run (`#### Foo ####` renders as `Foo`), and an optional `Scenario:` prefix
- * stripped. Both the current and incoming blocks run through here, so the
- * comparison in findMissingCurrentScenarios stays internally consistent
- * regardless of label — and two headers that render to the same title (one
- * ATX-closed, one not) are not mistaken for a dropped scenario.
+ * `#### ` 标题的场景名称，匹配作者读取的标签：
+ * 带有前导 `####` 的标题文本、可选的 CommonMark 闭合 `#`
+ * 序列（`#### Foo ####` 渲染为 `Foo`），以及可选的 `Scenario:` 前缀
+ * 被去除。当前和即将到来的块都通过此处运行，因此
+ * findMissingCurrentScenarios 中的比较在内部保持一致
+ * 无论标签如何 — 两个渲染为相同标题的标题（一个
+ * ATX 闭合，一个没有）不会被误认为丢失的场景。
  */
 function scenarioNameAt(line: string): string {
   return line
     .replace(SCENARIO_HEADER, '')
-    // Optional ATX closing sequence. CommonMark only treats a trailing `#` run
-    // as a close when it is preceded by a space or tab — not any Unicode space —
-    // so this uses `[ \t]`, not `\s`. A looser `\s` could strip a `#` run after
-    // an exotic space (e.g. NBSP) that CommonMark keeps, folding two distinct
-    // scenario names into one and masking a real loss. `[ \t]` keeps the fold
-    // faithful to how the header actually renders.
+    // 可选的 ATX 闭合序列。CommonMark 仅在尾部 `#` 运行
+    // 前面有空格或制表符时才将其视为闭合 — 不是任何 Unicode 空格 —
+    // 因此这里使用 `[ \t]`，而不是 `\s`。更宽松的 `\s` 可能会在
+    // 异域空格（如 NBSP）后去除 `#` 运行，CommonMark 保留这些空格，
+    // 将两个不同的场景名称折叠为一个并掩盖真实丢失。`[ \t]` 保持折叠
+    // 忠实于标题的实际渲染方式。
     .replace(/[ \t]+#+[ \t]*$/, '')
     .replace(/^Scenario:\s*/i, '')
     .trim();
@@ -395,14 +393,14 @@ function scenarioNameAt(line: string): string {
 
 function parseScenarioBlocks(requirementRaw: string): ScenarioBlock[] {
   const lines = requirementRaw.replace(/\r\n?/g, '\n').split('\n');
-  // A scenario is ANY non-fenced `#### ` header, matching the spec path's
-  // SCENARIO_HEADER / countScenarios (requirement-text.ts) exactly — not only
-  // `#### Scenario:`. The two MUST agree: a level-4 child whose header is not
-  // literally `Scenario:` (e.g. `#### Edge case`) is still a scenario the spec
-  // path counts, so a MODIFIED block that drops it would otherwise slip past
-  // this loss check and be deleted by archive with no error (the parity the
-  // SCENARIO_HEADER comment warns not to break). A `####` inside a fenced
-  // example is masked out, matching countScenarios.
+  // 场景是任何非围栏的 `#### ` 标题，匹配 spec 路径的
+  // SCENARIO_HEADER / countScenarios（requirement-text.ts）完全一致 — 不仅仅是
+  // `#### Scenario:`。两者必须一致：标题不是字面意义上的
+  // `Scenario:` 的四级子项（如 `#### Edge case`）仍然是 spec 路径
+  // 计数的场景，因此删除它的 MODIFIED 块否则会绕过
+  // 此丢失检查并被 archive 无错误删除（即
+  // SCENARIO_HEADER 注释警告不要破坏的对等性）。围栏内的 `####`
+  // 示例被掩码排除，匹配 countScenarios。
   const mask = buildCodeFenceMask(lines);
   const scenarios: ScenarioBlock[] = [];
   let index = 0;

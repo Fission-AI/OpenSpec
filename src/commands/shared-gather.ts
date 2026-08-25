@@ -1,8 +1,8 @@
 /**
- * The relationship-data gather shared by doctor and context (4.1): one
- * registry snapshot, the health-mode reference index, and the root
- * inspection. Doctor layers its health-only inputs (store facts,
- * wrong-turn detection) on top.
+ * doctor 和 context 共用的关系数据收集（4.1）：
+ * 一个注册表快照、健康模式的引用索引和根目录
+ * 检查。Doctor 在其上叠加仅健康检查的输入（存储事实、
+ * 错误转向检测）。
  */
 import * as path from 'node:path';
 

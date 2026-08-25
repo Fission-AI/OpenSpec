@@ -1,8 +1,8 @@
 /**
- * Instructions Command
+ * Instructions 命令
  *
- * Generates enriched instructions for creating artifacts or applying tasks.
- * Includes both artifact instructions and apply instructions.
+ * 为创建制品或应用任务生成增强的指令。
+ * 包括制品指令和应用指令。
  */
 
 import ora from 'ora';

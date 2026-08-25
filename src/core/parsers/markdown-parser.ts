@@ -21,7 +21,7 @@ export class MarkdownParser {
   }
 
   protected static normalizeContent(content: string): string {
-    // Strip a UTF-8 BOM so a header on the first line still matches.
+    // 去除 UTF-8 BOM，使第一行的标题仍能匹配。
     return content.replace(/^﻿/, '').replace(/\r\n?/g, '\n');
   }
 
@@ -32,11 +32,11 @@ export class MarkdownParser {
     const requirementsSection = this.findSection(sections, 'Requirements');
     
     if (!purpose) {
-      throw new Error('Spec must have a Purpose section');
+      throw new Error('Spec 必须包含 Purpose 章节');
     }
     
     if (!requirementsSection) {
-      throw new Error('Spec must have a Requirements section');
+      throw new Error('Spec 必须包含 Requirements 章节');
     }
 
     const requirements = this.parseRequirements(requirementsSection);
@@ -58,11 +58,11 @@ export class MarkdownParser {
     const whatChanges = this.findSection(sections, 'What Changes')?.content || '';
     
     if (!why) {
-      throw new Error('Change must have a Why section');
+      throw new Error('Change 必须包含 Why 章节');
     }
     
     if (!whatChanges) {
-      throw new Error('Change must have a What Changes section');
+      throw new Error('Change 必须包含 What Changes 章节');
     }
 
     const deltas = this.parseDeltas(whatChanges);
@@ -153,8 +153,8 @@ export class MarkdownParser {
     const requirements: Requirement[] = [];
 
     for (const child of section.children) {
-      // Read the requirement text via the shared reader (multi-line, fence- and
-      // metadata-aware, with the shared header-title fallback for empty bodies).
+      // 通过共享的读取器读取需求文本（多行、围栏和元数据感知，
+      // 带有空正文的共享标题回退）。
       const text = extractRequirementText(child.title, child.content.split('\n'));
 
       const scenarios = this.parseScenarios(child);
@@ -172,7 +172,7 @@ export class MarkdownParser {
     const scenarios: Scenario[] = [];
     
     for (const scenarioSection of requirementSection.children) {
-      // Store the raw text content of the scenario section
+      // 存储场景章节的原始文本内容
       if (scenarioSection.content.trim()) {
         scenarios.push({
           rawText: scenarioSection.content
@@ -189,7 +189,7 @@ export class MarkdownParser {
     const lines = content.split('\n');
     
     for (const line of lines) {
-      // Match both formats: **spec:** and **spec**:
+      // 匹配两种格式：**spec:** 和 **spec**:
       const deltaMatch = line.match(/^\s*-\s*\*\*([^*:]+)(?::\*\*|\*\*:)\s*(.+)$/);
       if (deltaMatch) {
         const specName = deltaMatch[1].trim();
@@ -198,8 +198,8 @@ export class MarkdownParser {
         let operation: DeltaOperation = 'MODIFIED';
         const lowerDesc = description.toLowerCase();
         
-        // Use word boundaries to avoid false matches (e.g., "address" matching "add")
-        // Check RENAMED first since it's more specific than patterns containing "new"
+        // 使用词边界避免错误匹配（例如 "address" 匹配 "add"）
+        // 先检查 RENAMED，因为它比包含 "new" 的模式更具体
         if (/\brename(s|d|ing)?\b/.test(lowerDesc) || /\brenamed\s+(to|from)\b/.test(lowerDesc)) {
           operation = 'RENAMED';
         } else if (/\badd(s|ed|ing)?\b/.test(lowerDesc) || /\bcreate(s|d|ing)?\b/.test(lowerDesc) || /\bnew\b/.test(lowerDesc)) {

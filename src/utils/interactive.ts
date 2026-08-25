@@ -3,19 +3,19 @@ import type { Readable, Writable } from 'node:stream';
 
 export type InteractiveOptions = {
   /**
-   * Explicit "disable prompts" flag passed by internal callers.
+   * 内部调用方传递的显式"禁用提示"标志。
    */
   noInteractive?: boolean;
   /**
-   * Commander-style negated option: `--no-interactive` sets this to false.
+   * Commander 风格的否定选项：`--no-interactive` 将此设置为 false。
    */
   interactive?: boolean;
 };
 
 /**
- * Resolves whether non-interactive mode is requested.
- * Handles both explicit `noInteractive: true` and Commander.js style `interactive: false`.
- * Use this helper instead of manually checking options.noInteractive to avoid bugs.
+ * 解析是否请求了非交互模式。
+ * 同时处理显式的 `noInteractive: true` 和 Commander.js 风格的 `interactive: false`。
+ * 使用此帮助函数而不是手动检查 options.noInteractive 以避免 bug。
  */
 export function resolveNoInteractive(value?: boolean | InteractiveOptions): boolean {
   if (typeof value === 'boolean') return value;
@@ -25,37 +25,31 @@ export function resolveNoInteractive(value?: boolean | InteractiveOptions): bool
 export function isInteractive(value?: boolean | InteractiveOptions): boolean {
   if (resolveNoInteractive(value)) return false;
   if (process.env.OPEN_SPEC_INTERACTIVE === '0') return false;
-  // Respect the standard CI environment variable (set by GitHub Actions, GitLab CI, Travis, etc.)
+  // 遵循标准的 CI 环境变量（由 GitHub Actions、GitLab CI、Travis 等设置）
   if ('CI' in process.env) return false;
   return !!process.stdin.isTTY;
 }
 
 /**
- * True when a prompt failed because no answer could be read — an agent or a
- * script that ran the command with stdin closed, a CI job, or a shell whose
- * stdin is not a terminal. @inquirer rejects those with `User force closed
- * the prompt with 0 null`, which is accurate and useless: it names no flag
- * and no next step (#1479).
+ * 当提示因无法读取答案而失败时返回 true —— 例如 agent 或脚本在关闭 stdin 的情况下运行命令、
+ * CI 任务、或 stdin 不是终端的 shell。@inquirer 将这些情况以
+ * `User force closed the prompt with 0 null` 拒绝，这个描述准确但无用：
+ * 没有提到任何标志或后续步骤 (#1479)。
  *
- * Two things it deliberately is not:
+ * 它刻意不是以下两种情况：
  *
- * - It is not a substitute for `isInteractive()`. This classifies a prompt
- *   that has *already failed*, so piped answers are unaffected: an answer
- *   that arrives resolves the prompt and never reaches this check. Refusing
- *   to prompt up front would break `printf 'y\n' | openspec archive ...`,
- *   which works today.
- * - It is not a cancellation check. Ctrl-C raises the same error class, and
- *   it reaches a process whose stdin is a pipe just as easily as one at a
- *   terminal, so the SIGINT signal - not the terminal - is what proves
- *   somebody was there and chose to quit.
+ * - 它不是 `isInteractive()` 的替代品。它用于分类一个*已经失败*的提示，
+ *   因此通过管道传入的答案不受影响：到达的答案会解析提示且永远不会到此检查。
+ *   预先拒绝提示会破坏 `printf 'y\n' | openspec archive ...`，而这个命令目前是可用的。
+ * - 它不是取消检测。Ctrl-C 会引发相同的错误类，并且在 stdin 为管道的进程和终端的进程中同样容易触发，
+ *   因此 SIGINT 信号 - 而不是终端 - 才是证明有人在那里并选择退出的证据。
  *
- * Beyond that it defers to `isInteractive()`, so `CI`, `OPEN_SPEC_INTERACTIVE=0`
- * and `--no-interactive` count even when a runner allocated a pty. It also
- * counts a redirected stdout: `confirmPrompt` drops to the plain reader whenever
- * *either* stream is not a TTY, so a stdin-TTY-but-stdout-redirected run
- * (`openspec archive x > log.txt` from a terminal) that hits EOF must classify
- * the same way the prompt was selected — otherwise it would leak the raw
- * `ExitPromptError` instead of the `--yes` guidance.
+ * 除此之外，它依赖于 `isInteractive()`，因此 `CI`、`OPEN_SPEC_INTERACTIVE=0`
+ * 和 `--no-interactive` 即使在运行器分配了 pty 的情况下也算数。
+ * 它还算重定向的 stdout：`confirmPrompt` 在*任一*流不是 TTY 时都会降级到普通读取器，
+ * 因此 stdin 为 TTY 但 stdout 被重定向的运行
+ * （从终端执行的 `openspec archive x > log.txt`）遇到 EOF 时必须以与选择提示相同的方式分类 ——
+ * 否则会泄露原始的 `ExitPromptError` 而不是 `--yes` 指引。
  */
 export function isNonInteractivePromptError(
   error: unknown,
@@ -75,19 +69,17 @@ export type ConfirmPrompt = {
 };
 
 /**
- * Ask a yes/no question. A real terminal gets @inquirer's rich prompt;
- * everything else — a pipe, a file redirect, an agent that captures stdout —
- * reads one plain line instead.
+ * 提出一个是/否问题。真正的终端使用 @inquirer 的丰富提示；
+ * 其他一切 —— 管道、文件重定向、捕获 stdout 的 agent —— 改为读取一行普通文本。
  *
- * @inquirer renders `confirm` by writing ANSI cursor-movement escape sequences,
- * and it emits them even when stdout is not a TTY. Redirected to a file those
- * sequences are noise, and in some non-TTY hosts the render loop never settles
- * and repeats `ESC[NNG` cursor moves until the disk fills (#1526). Reading
- * the answer ourselves keeps the single piped answer @inquirer ever supported
- * working (`printf 'y\n' | openspec archive ...`) without emitting any escapes.
+ * @inquirer 通过写入 ANSI 光标移动转义序列来渲染 `confirm`，
+ * 即使 stdout 不是 TTY 时也会输出这些序列。重定向到文件时这些序列就是噪音，
+ * 在某些非 TTY 主机上渲染循环永远不会停止，会重复输出 `ESC[NNG` 光标移动直到磁盘填满 (#1526)。
+ * 自行读取答案可以保持 @inquirer 曾支持的单一管道答案
+ * （`printf 'y\n' | openspec archive ...`）正常工作，且不会输出任何转义序列。
  *
- * `io` overrides the streams; it exists for tests and mirrors @inquirer's own
- * `{ input, output }` context. Production callers pass only the prompt.
+ * `io` 覆盖流；这是为测试存在的，模仿 @inquirer 自己的 `{ input, output }` 上下文。
+ * 生产调用方只传递提示。
  */
 export async function confirmPrompt(
   prompt: ConfirmPrompt,
@@ -112,9 +104,8 @@ function readYesNo(
 ): Promise<boolean> {
   return new Promise((resolve, reject) => {
     let settled = false;
-    // Detach the input-stream error listener on settle: `input` is the
-    // long-lived process.stdin, so a leftover listener would accumulate across
-    // archive's successive prompts and swallow a later, unrelated stdin error.
+    // 在结算时分离输入流错误监听器：`input` 是长期存在的 process.stdin，
+    // 残留的监听器会在 archive 连续的提示中累积，吞掉后续不相关的 stdin 错误。
     const cleanup = () => {
       input.removeListener('error', onError);
     };
@@ -122,16 +113,16 @@ function readYesNo(
       if (settled) return;
       settled = true;
       cleanup();
-      // No line could be read (stdin closed / EOF). Mirror @inquirer's failure
-      // so callers that classify it — isNonInteractivePromptError, the #1479
-      // "rerun with --yes" guidance — keep working unchanged.
+      // 无法读取任何行（stdin 关闭 / EOF）。模仿 @inquirer 的失败行为，
+      // 以便分类它的调用方 —— isNonInteractivePromptError、#1479
+      // "使用 --yes 重新运行" 指引 —— 保持不变。
       const error = new Error('User force closed the prompt');
       error.name = 'ExitPromptError';
       reject(error);
     };
-    // A stdin error surfaces on the interface (readline forwards input-stream
-    // errors since Node 16). Without a handler the promise would hang and the
-    // 'error' would go unhandled; settle it with the real fault instead.
+    // stdin 错误会在接口上传达（readline 自 Node 16 起转发输入流错误）。
+    // 没有处理器的话 Promise 会挂起，'error' 也不会被处理；
+    // 用真正的错误来结算它。
     const onError = (err: unknown) => {
       if (settled) return;
       settled = true;
@@ -139,16 +130,16 @@ function readYesNo(
       rl.close();
       reject(err instanceof Error ? err : new Error(String(err)));
     };
-    // An earlier prompt may have already drained stdin (only one piped answer
-    // was ever supported). A fresh readline over an ended stream never emits
-    // 'close', so guard here rather than hang and exit as a no-op.
+    // 之前的提示可能已经耗尽了 stdin（只支持过一个管道答案）。
+    // 对已结束的流创建新的 readline 永远不会发出 'close'，
+    // 所以在此处守卫而不是挂起并以无操作退出。
     if (input.readableEnded) {
       blockOnNoAnswer();
       return;
     }
     output.write(`${prompt.message} ${prompt.default ? '(Y/n)' : '(y/N)'} `);
-    // terminal:false guarantees readline never emits its own line-editing
-    // escapes — an escape-free read is the whole point here.
+    // terminal:false 确保 readline 永远不会发出自己的行编辑转义序列 ——
+    // 无转义的读取才是关键所在。
     const rl = createInterface({ input, terminal: false });
     input.once('error', onError);
     rl.once('error', onError);
@@ -158,9 +149,8 @@ function readYesNo(
       cleanup();
       rl.close();
       output.write('\n');
-      // Mirror @inquirer/confirm's parser (prefix match on y/yes and n/no,
-      // otherwise the default) so a piped answer resolves identically to the
-      // interactive prompt it replaces.
+      // 模仿 @inquirer/confirm 的解析器（y/yes 和 n/no 的前缀匹配，
+      // 否则使用默认值），以便管道答案与它所替代的交互式提示以相同方式解析。
       const answer = line.trim();
       if (/^(y|yes)/i.test(answer)) {
         resolve(true);

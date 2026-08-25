@@ -19,25 +19,25 @@ function assertSpecPath(specsDir: string, specPath: string): void {
     relativePath.startsWith(`..${path.sep}`) ||
     path.isAbsolute(relativePath)
   ) {
-    throw new Error(`Path is outside the allowed directory: ${specPath}`);
+    throw new Error(`路径不在允许的目录内：${specPath}`);
   }
 
   try {
-    // Preserve confined spec.md links, including links to a sibling capability.
+    // 保留受限的 spec.md 链接，包括指向同级 capability 的链接。
     FileSystemUtils.assertPathWithin(specsDir, specPath);
   } catch {
-    // A capability directory may intentionally be a monorepo symlink. Treat it
-    // as the trust root while still rejecting a link outside that capability.
+    // capability 目录可能故意是 monorepo 符号链接。将其视为
+    // 信任根，同时拒绝该 capability 外部的链接。
     FileSystemUtils.assertPathWithin(path.dirname(specPath), specPath);
   }
 }
 
 interface ShowOptions {
   json?: boolean;
-  // JSON-only filters (raw-first text has no filters)
+  // 仅 JSON 过滤器（原始优先的文本模式无过滤器）
   requirements?: boolean;
-  scenarios?: boolean; // --no-scenarios sets this to false (JSON only)
-  requirement?: string; // JSON only
+  scenarios?: boolean; // --no-scenarios 将此设为 false（仅 JSON）
+  requirement?: string; // 仅 JSON
   noInteractive?: boolean;
   rootOutput?: RootOutput;
 }
@@ -53,9 +53,9 @@ function validateRequirementIndex(spec: Spec, requirementOpt?: string): number |
   if (!requirementOpt) return undefined;
   const index = Number.parseInt(requirementOpt, 10);
   if (!Number.isInteger(index) || index < 1 || index > spec.requirements.length) {
-    throw new Error(`Requirement ${requirementOpt} not found`);
+    throw new Error(`未找到 requirement ${requirementOpt}`);
   }
-  return index - 1; // convert to 0-based
+  return index - 1; // 转换为从 0 开始
 }
 
 function filterSpec(spec: Spec, options: ShowOptions): Spec {
@@ -81,8 +81,8 @@ function filterSpec(spec: Spec, options: ShowOptions): Spec {
 }
 
 /**
- * Print the raw markdown content for a spec file without any formatting.
- * Raw-first behavior ensures text mode is a passthrough for deterministic output.
+ * 打印 spec 文件的原始 markdown 内容，不做任何格式化。
+ * 原始优先行为确保文本模式是透传的，以实现确定性输出。
  */
 function printSpecTextRaw(specsDir: string, specPath: string): void {
   assertSpecPath(specsDir, specPath);
@@ -94,8 +94,8 @@ export class SpecCommand {
   private specsDir: string;
   private rootPath?: string;
 
-  // rootPath is set only by root-aware callers (top-level `show`); the
-  // deprecated noun-form commands stay cwd-based.
+  // rootPath 仅由根感知调用者（顶层 `show`）设置；
+  // 已弃用的名词形式命令保持基于 cwd。
   constructor(rootPath?: string) {
     this.rootPath = rootPath;
     this.specsDir = rootPath ? join(rootPath, 'openspec', 'specs') : SPECS_DIR;
@@ -108,26 +108,26 @@ export class SpecCommand {
       if (canPrompt && specIds.length > 0) {
         const { select } = await import('@inquirer/prompts');
         specId = await select({
-          message: 'Select a spec to show',
+          message: '选择要显示的 spec',
           choices: specIds.map(id => ({ name: id, value: id })),
         });
       } else {
-        throw new Error('Missing required argument <spec-id>');
+        throw new Error('缺少必需的参数 <spec-id>');
       }
     }
 
     const specPath = join(this.specsDir, specId, 'spec.md');
     assertSpecPath(this.specsDir, specPath);
     if (!existsSync(specPath)) {
-      // Root-aware callers get the absolute path; the cwd-based noun form
-      // keeps its historical forward-slash relative message on all platforms.
+      // 根感知调用者获取绝对路径；基于 cwd 的名词形式
+      // 在所有平台上保留其历史的正斜杠相对路径消息。
       const displayPath = this.rootPath ? specPath : `openspec/specs/${specId}/spec.md`;
-      throw new Error(`Spec '${specId}' not found at ${displayPath}`);
+      throw new Error(`未找到 spec '${specId}'，路径：${displayPath}`);
     }
 
     if (options.json) {
       if (options.requirements && options.requirement) {
-        throw new Error('Options --requirements and --requirement cannot be used together');
+        throw new Error('选项 --requirements 和 --requirement 不能同时使用');
       }
       const parsed = parseSpecFromFile(this.specsDir, specPath, specId);
       const filtered = filterSpec(parsed, options);
@@ -150,40 +150,40 @@ export class SpecCommand {
 export function registerSpecCommand(rootProgram: typeof program) {
   const specCommand = rootProgram
     .command('spec')
-    .description('Manage and view OpenSpec specifications');
+    .description('管理和查看 OpenSpec 规格');
 
-  // Deprecation notice for noun-based commands
+  // 名词形式命令的弃用通知
   specCommand.hook('preAction', () => {
-    console.error('Warning: The "openspec spec ..." commands are deprecated. Prefer verb-first commands (e.g., "openspec show", "openspec validate --specs").');
+    console.error('警告："openspec spec ..." 命令已弃用。请优先使用动词优先的命令（例如 "openspec show"、"openspec validate --specs"）。');
   });
 
   specCommand
     .command('show [spec-id]')
-    .description('Display a specific specification')
-    .option('--json', 'Output as JSON')
-    .option('--requirements', 'JSON only: Show only requirements (exclude scenarios)')
-    .option('--no-scenarios', 'JSON only: Exclude scenario content')
-    .option('-r, --requirement <id>', 'JSON only: Show specific requirement by ID (1-based)')
-    .option('--no-interactive', 'Disable interactive prompts')
+    .description('显示特定规格')
+    .option('--json', '以 JSON 格式输出')
+    .option('--requirements', '仅 JSON：仅显示 requirements（排除 scenarios）')
+    .option('--no-scenarios', '仅 JSON：排除场景内容')
+    .option('-r, --requirement <id>', '仅 JSON：按 ID 显示特定 requirement（从 1 开始）')
+    .option('--no-interactive', '禁用交互式提示')
     .action(async (specId: string | undefined, options: ShowOptions & { noInteractive?: boolean }) => {
       try {
         const cmd = new SpecCommand();
         await cmd.show(specId, options as any);
       } catch (error) {
-        console.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        console.error(`错误：${error instanceof Error ? error.message : '未知错误'}`);
         process.exitCode = 1;
       }
     });
 
   specCommand
     .command('list')
-    .description('List all available specifications')
-    .option('--json', 'Output as JSON')
-    .option('--long', 'Show id and title with counts')
+    .description('列出所有可用规格')
+    .option('--json', '以 JSON 格式输出')
+    .option('--long', '显示 ID 和标题及计数')
     .action(async (options: { json?: boolean; long?: boolean }) => {
       try {
         if (!existsSync(SPECS_DIR)) {
-          console.log('No items found');
+          console.log('未找到项目');
           return;
         }
 
@@ -213,7 +213,7 @@ export function registerSpecCommand(rootProgram: typeof program) {
           console.log(JSON.stringify(specs, null, 2));
         } else {
           if (specs.length === 0) {
-            console.log('No items found');
+            console.log('未找到项目');
             return;
           }
           if (!options.long) {
@@ -225,17 +225,17 @@ export function registerSpecCommand(rootProgram: typeof program) {
           });
         }
       } catch (error) {
-        console.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        console.error(`错误：${error instanceof Error ? error.message : '未知错误'}`);
         process.exitCode = 1;
       }
     });
 
   specCommand
     .command('validate [spec-id]')
-    .description('Validate a specification structure')
-    .option('--strict', 'Enable strict validation mode')
-    .option('--json', 'Output validation report as JSON')
-    .option('--no-interactive', 'Disable interactive prompts')
+    .description('验证规格结构')
+    .option('--strict', '启用严格验证模式')
+    .option('--json', '以 JSON 格式输出验证报告')
+    .option('--no-interactive', '禁用交互式提示')
     .action(async (specId: string | undefined, options: { strict?: boolean; json?: boolean; noInteractive?: boolean }) => {
       try {
         if (!specId) {
@@ -244,11 +244,11 @@ export function registerSpecCommand(rootProgram: typeof program) {
           if (canPrompt && specIds.length > 0) {
             const { select } = await import('@inquirer/prompts');
             specId = await select({
-              message: 'Select a spec to validate',
+              message: '选择要验证的 spec',
               choices: specIds.map(id => ({ name: id, value: id })),
             });
           } else {
-            throw new Error('Missing required argument <spec-id>');
+            throw new Error('缺少必需的参数 <spec-id>');
           }
         }
 
@@ -256,7 +256,7 @@ export function registerSpecCommand(rootProgram: typeof program) {
         assertSpecPath(SPECS_DIR, specPath);
         
         if (!existsSync(specPath)) {
-          throw new Error(`Spec '${specId}' not found at openspec/specs/${specId}/spec.md`);
+          throw new Error(`未找到 spec '${specId}'，路径：openspec/specs/${specId}/spec.md`);
         }
 
         const validator = new Validator(options.strict);
@@ -267,11 +267,11 @@ export function registerSpecCommand(rootProgram: typeof program) {
           console.log(JSON.stringify(report, null, 2));
         } else {
           if (report.valid) {
-            console.log(`Specification '${specId}' is valid`);
+            console.log(`规格 '${specId}' 有效`);
           } else {
-            console.error(`Specification '${specId}' has issues`);
+            console.error(`规格 '${specId}' 存在问题`);
             report.issues.forEach(issue => {
-              const label = issue.level === 'ERROR' ? 'ERROR' : issue.level;
+              const label = issue.level === 'ERROR' ? '错误' : issue.level;
               const prefix = issue.level === 'ERROR' ? '✗' : issue.level === 'WARNING' ? '⚠' : 'ℹ';
               console.error(`${prefix} [${label}] ${issue.path}: ${issue.message}`);
             });
@@ -279,7 +279,7 @@ export function registerSpecCommand(rootProgram: typeof program) {
         }
         process.exitCode = report.valid ? 0 : 1;
       } catch (error) {
-        console.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        console.error(`错误：${error instanceof Error ? error.message : '未知错误'}`);
         process.exitCode = 1;
       }
     });

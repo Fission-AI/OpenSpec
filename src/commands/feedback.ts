@@ -4,11 +4,11 @@ import os from 'os';
 
 const require = createRequire(import.meta.url);
 const MAX_TITLE_LENGTH = 72;
-const TITLE_PREFIX = 'Feedback: ';
+const TITLE_PREFIX = '反馈：';
 
 /**
- * Check if gh CLI is installed and available in PATH
- * Uses platform-appropriate command: 'where' on Windows, 'which' on Unix/macOS
+ * 检查 gh CLI 是否已安装并在 PATH 中可用
+ * 使用平台适当的命令：Windows 上的 'where'，Unix/macOS 上的 'which'
  */
 function isGhInstalled(): boolean {
   try {
@@ -21,7 +21,7 @@ function isGhInstalled(): boolean {
 }
 
 /**
- * Check if gh CLI is authenticated
+ * 检查 gh CLI 是否已认证
  */
 function isGhAuthenticated(): boolean {
   try {
@@ -33,33 +33,33 @@ function isGhAuthenticated(): boolean {
 }
 
 /**
- * Get OpenSpec version from package.json
+ * 从 package.json 获取 OpenSpec 版本
  */
 function getVersion(): string {
   try {
     const { version } = require('../../package.json');
     return version;
   } catch {
-    return 'unknown';
+    return '未知';
   }
 }
 
 /**
- * Get platform name
+ * 获取平台名称
  */
 function getPlatform(): string {
   return os.platform();
 }
 
 /**
- * Get current timestamp in ISO format
+ * 获取 ISO 格式的当前时间戳
  */
 function getTimestamp(): string {
   return new Date().toISOString();
 }
 
 /**
- * Generate metadata footer for feedback
+ * 生成反馈的元数据页脚
  */
 function generateMetadata(): string {
   const version = getVersion();
@@ -67,14 +67,14 @@ function generateMetadata(): string {
   const timestamp = getTimestamp();
 
   return `---
-Submitted via OpenSpec CLI
-- Version: ${version}
-- Platform: ${platform}
-- Timestamp: ${timestamp}`;
+通过 OpenSpec CLI 提交
+- 版本：${version}
+- 平台：${platform}
+- 时间戳：${timestamp}`;
 }
 
 /**
- * Format the feedback title
+ * 格式化反馈标题
  */
 function formatTitle(message: string): string {
   const normalizedMessage = message.replace(/\s+/g, ' ').trim();
@@ -107,13 +107,13 @@ function formatTitle(message: string): string {
 }
 
 /**
- * Format the full feedback body
+ * 格式化完整的反馈正文
  */
 function formatBody(message: string, bodyText?: string): string {
-  const parts = ['## Summary', '', message];
+  const parts = ['## 摘要', '', message];
 
   if (bodyText) {
-    parts.push('', '## Details', '', bodyText);
+    parts.push('', '## 详情', '', bodyText);
   }
 
   parts.push('', generateMetadata());
@@ -122,7 +122,7 @@ function formatBody(message: string, bodyText?: string): string {
 }
 
 /**
- * Generate a pre-filled GitHub issue URL for manual submission
+ * 为手动提交生成预填的 GitHub issue URL
  */
 function generateManualSubmissionUrl(title: string, body: string): string {
   const repo = 'Fission-AI/OpenSpec';
@@ -134,38 +134,38 @@ function generateManualSubmissionUrl(title: string, body: string): string {
 }
 
 /**
- * Display formatted feedback content for manual submission
+ * 显示格式化的反馈内容以便手动提交
  */
 function displayFormattedFeedback(title: string, body: string): void {
-  console.log('\n--- FORMATTED FEEDBACK ---');
-  console.log(`Title: ${title}`);
-  console.log(`Labels: feedback`);
-  console.log('\nBody:');
+  console.log('\n--- 格式化反馈 ---');
+  console.log(`标题：${title}`);
+  console.log(`标签：feedback`);
+  console.log('\n正文：');
   console.log(body);
-  console.log('--- END FEEDBACK ---\n');
+  console.log('--- 反馈结束 ---\n');
 }
 
 /**
- * Check whether gh refused the issue because the repository does not define
- * the label. gh resolves label names before creating the issue, so this
- * failure means no issue was created.
+ * 检查 gh 是否因为仓库未定义标签而拒绝了该 issue。
+ * gh 在创建 issue 之前解析标签名称，因此此失败
+ * 意味着没有创建任何 issue。
  *
- * Only gh's stderr is inspected. The error message also embeds the command
- * line, which carries the user's own feedback text.
+ * 仅检查 gh 的 stderr。错误消息还嵌入了命令
+ * 行，其中包含用户自己的反馈文本。
  */
 function isMissingLabelError(error: any): boolean {
   return /could not add label/i.test(error?.stderr?.toString() ?? '');
 }
 
 /**
- * Report a gh CLI failure and exit, preserving gh's exit code.
+ * 报告 gh CLI 失败并退出，保留 gh 的退出码。
  *
- * gh failed after the user already typed their feedback (issues disabled,
- * network, rate limit, ...), so show the same manual-submission path the
- * missing-gh and unauthenticated flows get instead of discarding the text.
+ * gh 在用户已经输入反馈后失败（issues 被禁用、
+ * 网络、速率限制等），因此显示与无 gh 和未认证流程
+ * 相同的手动提交路径，而不是丢弃文本。
  */
 function reportGhFailure(error: any, title: string, body: string): void {
-  // Display the error output from gh CLI
+  // 显示 gh CLI 的错误输出
   if (error.stderr) {
     console.error(error.stderr.toString());
   } else if (error.message) {
@@ -175,16 +175,16 @@ function reportGhFailure(error: any, title: string, body: string): void {
   displayFormattedFeedback(title, body);
 
   const manualUrl = generateManualSubmissionUrl(title, body);
-  console.log('Please submit your feedback manually:');
+  console.log('请手动提交您的反馈：');
   console.log(manualUrl);
 
-  // Exit with the same code as gh CLI
+  // 使用与 gh CLI 相同的退出码退出
   process.exit(error.status ?? 1);
 }
 
 /**
- * Create the feedback issue via gh CLI
- * Uses execFileSync to prevent shell injection vulnerabilities
+ * 通过 gh CLI 创建反馈 issue
+ * 使用 execFileSync 以防止 shell 注入漏洞
  */
 function createIssue(title: string, body: string, labels: string[]): string {
   const args = [
@@ -208,7 +208,7 @@ function createIssue(title: string, body: string, labels: string[]): string {
 }
 
 /**
- * Submit feedback via gh CLI
+ * 通过 gh CLI 提交反馈
  */
 function submitViaGhCli(title: string, body: string): void {
   let issueUrl: string;
@@ -222,8 +222,8 @@ function submitViaGhCli(title: string, body: string): void {
       return;
     }
 
-    // The repository does not define the 'feedback' label. Nothing was
-    // created, so retry unlabeled rather than dropping the feedback.
+    // 仓库未定义 'feedback' 标签。没有创建任何内容，
+    // 因此尝试不带标签重新提交，而不是丢弃反馈。
     try {
       issueUrl = createIssue(title, body, []);
       labelApplied = false;
@@ -233,62 +233,62 @@ function submitViaGhCli(title: string, body: string): void {
     }
   }
 
-  console.log(`\n✓ Feedback submitted successfully!`);
-  console.log(`Issue URL: ${issueUrl}\n`);
+  console.log(`\n✓ 反馈提交成功！`);
+  console.log(`Issue URL：${issueUrl}\n`);
 
   if (!labelApplied) {
     console.log(
-      "Note: created without the 'feedback' label because the repository does not define it.\n"
+      '注意：创建时未添加 'feedback' 标签，因为仓库未定义此标签。\n'
     );
   }
 }
 
 /**
- * Handle fallback when gh CLI is not available or not authenticated
+ * 处理 gh CLI 不可用或未认证时的回退方案
  */
 function handleFallback(title: string, body: string, reason: 'missing' | 'unauthenticated'): void {
   if (reason === 'missing') {
-    console.log('⚠️  GitHub CLI not found. Manual submission required.');
+    console.log('⚠️  未找到 GitHub CLI。需要手动提交。');
   } else {
-    console.log('⚠️  GitHub authentication required. Manual submission required.');
+    console.log('⚠️  需要 GitHub 认证。需要手动提交。');
   }
 
   displayFormattedFeedback(title, body);
 
   const manualUrl = generateManualSubmissionUrl(title, body);
-  console.log('Please submit your feedback manually:');
+  console.log('请手动提交您的反馈：');
   console.log(manualUrl);
 
   if (reason === 'unauthenticated') {
-    console.log('\nTo auto-submit in the future: gh auth login');
+    console.log('\n如需自动提交：gh auth login');
   }
 
-  // Exit with success code (fallback is successful)
+  // 以成功码退出（回退方案是成功的）
   process.exit(0);
 }
 
 /**
- * Feedback command implementation
+ * 反馈命令实现
  */
 export class FeedbackCommand {
   async execute(message: string, options?: { body?: string }): Promise<void> {
-    // Format title and body once for all code paths
+    // 一次性格式化标题和正文，用于所有代码路径
     const title = formatTitle(message);
     const body = formatBody(message, options?.body);
 
-    // Check if gh CLI is installed
+    // 检查 gh CLI 是否已安装
     if (!isGhInstalled()) {
       handleFallback(title, body, 'missing');
       return;
     }
 
-    // Check if gh CLI is authenticated
+    // 检查 gh CLI 是否已认证
     if (!isGhAuthenticated()) {
       handleFallback(title, body, 'unauthenticated');
       return;
     }
 
-    // Submit via gh CLI
+    // 通过 gh CLI 提交
     submitViaGhCli(title, body);
   }
 }

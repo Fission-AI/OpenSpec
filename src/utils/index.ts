@@ -1,8 +1,8 @@
-// Shared utilities
+// 共享工具
 export { validateChangeName, createChange } from './change-utils.js';
 export type { ValidationResult, CreateChangeOptions } from './change-utils.js';
 
-// Change metadata utilities
+// change 元数据工具
 export {
   readChangeMetadata,
   writeChangeMetadata,
@@ -11,10 +11,10 @@ export {
   ChangeMetadataError,
 } from './change-metadata.js';
 
-// File system utilities
+// 文件系统工具
 export { FileSystemUtils, removeMarkerBlock } from './file-system.js';
 
-// Command reference utilities
+// 命令引用工具
 export {
   transformCommandInvocations,
   transformToSkillReferences,

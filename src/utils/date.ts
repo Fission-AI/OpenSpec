@@ -1,8 +1,7 @@
 /**
- * Formats a date using the effective local time zone of the Node.js process.
+ * 使用 Node.js 进程的有效本地时区格式化日期。
  *
- * The result is locale-independent and suitable for date-only metadata and
- * path prefixes.
+ * 结果与区域设置无关，适用于纯日期元数据和路径前缀。
  */
 export function formatLocalDate(date: Date = new Date()): string {
   const year = date.getFullYear();

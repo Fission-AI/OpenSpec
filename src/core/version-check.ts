@@ -17,18 +17,18 @@ const VERSION_PROBE_TIMEOUT_MS = 5000;
 const MAX_REDIRECTS = 3;
 
 /**
- * A version we are willing to print. The registry only ever serves SemVer here,
- * so anything else is either a broken mirror or a hostile response — and since
- * this string lands in the terminal next to an install command, an unvalidated
- * one could smuggle ANSI cursor controls and repaint the lines around it.
+ * 我们愿意打印的版本。注册表在这里只提供 SemVer，
+ * 所以其他任何内容要么是损坏的镜像，要么是恶意响应 — 由于
+ * 这个字符串会落在安装命令旁边的终端中，未经验证的版本
+ * 可能会走私 ANSI 光标控件并重绘其周围的行。
  */
 const SAFE_VERSION = /^\d{1,10}\.\d{1,10}\.\d{1,10}(?:-[0-9A-Za-z.-]{1,64})?(?:\+[0-9A-Za-z.-]{1,64})?$/;
 
 /**
- * The check is opt-out and must never get in the way: no network in CI or
- * tests, an explicit escape hatch for anyone offline or air-gapped, and the
- * same privacy signals telemetry already honors — a user who set DO_NOT_TRACK
- * or telemetry.enabled false did not agree to a different outbound request.
+ * 检查是选择退出的，绝不能造成阻碍：CI 或测试中不进行网络请求，
+ * 为离线或隔离环境的用户提供明确的逃生舱，以及
+ * telemetry 已经遵守的相同隐私信号 — 设置了 DO_NOT_TRACK
+ * 或 telemetry.enabled false 的用户并未同意另一个出站请求。
  */
 function isCheckEnabled(): boolean {
   if (process.env.OPENSPEC_NO_UPDATE_CHECK !== undefined) return false;
@@ -36,18 +36,18 @@ function isCheckEnabled(): boolean {
   if (process.env.OPENSPEC_TELEMETRY === '0') return false;
   if (isCiEnvironment()) return false;
   if (process.env.NODE_ENV === 'test') return false;
-  // Same config opt-out as telemetry (env remains the hard override above).
+  // 与 telemetry 相同的配置选择退出（环境变量仍是上面的硬覆盖）。
   if (getGlobalConfig().telemetry?.enabled === false) return false;
   return true;
 }
 
 /**
- * The registry to ask: only the environment variable npm exports (under
- * `npm run`, or an explicit export). Deliberately not a `registry=` line from
- * any .npmrc — letting file contents choose the destination of an outbound
- * request is a flow worth avoiding for a convenience this small, and a project
- * file would travel with a cloned repository. Anyone on a private mirror can
- * export `npm_config_registry`, or turn the check off entirely.
+ * 要查询的注册表：仅使用环境变量 npm 导出的注册表
+ *（通过 `npm run`，或显式导出）。特意不使用任何 .npmrc 中的
+ * `registry=` 行 — 让文件内容决定出站请求的目的地
+ * 对于这么小的便利性来说是值得避免的流程，而且项目文件会
+ * 随克隆的仓库一起传播。任何使用私有镜像的人可以
+ * 导出 `npm_config_registry`，或完全关闭该检查。
  */
 export function registryUrl(): string {
   const configured = process.env.npm_config_registry?.trim();
@@ -56,9 +56,9 @@ export function registryUrl(): string {
 }
 
 /**
- * Compares two prerelease tags per SemVer: dot-separated identifiers compared
- * one by one, numeric identifiers numerically (so beta.10 > beta.2), numeric
- * ranking below alphanumeric, and a longer identifier list winning ties.
+ * 按 SemVer 比较两个预发布标签：逐段比较以点分隔的标识符，
+ * 数字标识符按数值比较（因此 beta.10 > beta.2），数字排名低于
+ * 字母数字，较长的标识符列表获胜。
  */
 function comparePrerelease(a: string, b: string): number {
   if (a === b) return 0;
@@ -90,8 +90,8 @@ function comparePrerelease(a: string, b: string): number {
 }
 
 /**
- * Compares two semver-ish versions. Returns 1 when a > b, -1 when a < b, 0
- * otherwise. Prereleases sort below their release (1.7.0-beta.1 < 1.7.0).
+ * 比较两个类 semver 的版本。当 a > b 时返回 1，a < b 时返回 -1，
+ * 否则返回 0。预发布版本排在其发布版本下方（1.7.0-beta.1 < 1.7.0）。
  */
 export function compareVersions(a: string, b: string): number {
   const parse = (version: string) => {
@@ -118,14 +118,14 @@ export function compareVersions(a: string, b: string): number {
 }
 
 /**
- * Reads the `latest` dist-tag. Sends no custom Accept header: the registry
- * answers `/<pkg>/latest` with 406 for npm's abbreviated-metadata type, which
- * it only serves on the full packument.
+ * 读取 `latest` 分发标签。不发送自定义 Accept 头：注册表
+ * 对 `/<pkg>/latest` 使用 npm 缩写元数据类型时返回 406，
+ * 它仅在完整的包文档中提供。
  *
- * Uses node:http(s) rather than fetch so the timeout can destroy the socket.
- * Aborting a fetch that is still completing its TCP handshake — a firewall
- * dropping packets, a captive portal — leaves the connect handle open and the
- * CLI cannot exit until the OS gives up, long after the hint has printed.
+ * 使用 node:http(s) 而不是 fetch，以便超时可以销毁套接字。
+ * 中止仍在完成 TCP 握手的 fetch —— 防火墙
+ * 丢弃数据包、强制门户 —— 会让连接句柄保持打开状态，CLI
+ * 在操作系统放弃之前无法退出，远远超出提示打印的时间。
  */
 function fetchLatestVersion(): Promise<string | null> {
   return new Promise((resolve) => {
@@ -146,14 +146,14 @@ function fetchLatestVersion(): Promise<string | null> {
       return;
     }
 
-    // Mirrors and corporate front-ends redirect; without following one the
-    // check would be permanently and silently dead for them.
+    // 镜像和企业前端会重定向；不跟随重定向的话
+    // 对于它们来说检查将永久静默失效。
     let redirectsLeft = MAX_REDIRECTS;
 
-    // The budget timer must tear down whichever request is open when it
-    // fires. Closing over the first hop's request would leave a redirected
-    // socket alive: a target that trickles bytes keeps resetting its idle
-    // timeout, and only the body-size cap would end it.
+    // 预算计时器在触发时必须销毁当前打开的请求。
+    // 关闭第一跳的请求会让重定向的
+    // 套接字保持活动状态：涓滴传输数据的目标会不断重置其空闲
+    // 超时，只有正文大小上限能结束它。
     let activeRequest: http.ClientRequest | undefined;
 
     const send = (target: URL): void => {
@@ -174,15 +174,15 @@ function fetchLatestVersion(): Promise<string | null> {
             redirectsLeft -= 1;
             try {
               const next = new URL(location, target);
-              // Never follow a downgrade to plain http: a MITM on the reply
-              // would control the "newer version" answer.
+              // 从不跟随降级到纯 http：对回复的 MITM 攻击
+              // 会控制"更新版本"的答案。
               const downgrade = target.protocol === 'https:' && next.protocol === 'http:';
               if (!downgrade && (next.protocol === 'http:' || next.protocol === 'https:')) {
                 send(next);
                 return;
               }
             } catch {
-              // Unparseable Location.
+              // 无法解析的 Location。
             }
             finish(null);
             return;
@@ -199,7 +199,7 @@ function fetchLatestVersion(): Promise<string | null> {
           response.setEncoding('utf-8');
           response.on('data', (chunk: string) => {
             body += chunk;
-            // The dist-tag document is small; refuse to buffer a firehose.
+            // 分发标签文档很小；拒绝缓冲大量数据。
             if (body.length > MAX_RESPONSE_BYTES) {
               request.destroy();
               finish(null);
@@ -226,7 +226,7 @@ function fetchLatestVersion(): Promise<string | null> {
       });
       request.on('error', () => finish(null));
 
-      // One budget for the whole exchange, redirects included.
+      // 整个交换过程（包括重定向）只有一个预算计时器。
       if (!timer) {
         timer = setTimeout(() => {
           activeRequest?.destroy();
@@ -240,8 +240,8 @@ function fetchLatestVersion(): Promise<string | null> {
 }
 
 /**
- * Returns the published version when the installed CLI is behind it, otherwise
- * null. Never throws and never blocks for longer than the request timeout.
+ * 当已安装的 CLI 落后于已发布版本时返回该版本，否则
+ * 返回 null。永不抛出，阻塞时间不超过请求超时。
  */
 export async function getAvailableCliUpdate(): Promise<string | null> {
   if (!isCheckEnabled()) return null;
@@ -256,10 +256,10 @@ export async function getAvailableCliUpdate(): Promise<string | null> {
 }
 
 /**
- * Directory the running CLI was loaded from, or null when it cannot be
- * resolved. Shown in the upgrade hint so anyone who upgraded but still runs an
- * old binary — a stale pnpm/volta/npx shim, or two installs on PATH — can see
- * which copy is actually answering.
+ * 当前运行的 CLI 加载自的目录，无法解析时返回 null。
+ * 在升级提示中显示，以便升级了但仍运行旧二进制文件的用户
+ * —— 过时的 pnpm/volta/npx 垫片，或 PATH 上的两次安装 —— 可以看到
+ * 实际是哪份副本在响应。
  */
 export function getInstallDir(): string | null {
   try {
@@ -270,12 +270,12 @@ export function getInstallDir(): string | null {
 }
 
 /**
- * True when the running CLI resolves from a `node_modules` belonging to the
- * project being updated or any ancestor of it — the hoisted-root layout npm and
- * pnpm workspaces produce. Anchored on the target path rather than the working
- * directory, since `openspec update <path>` and running from a sub-package are
- * both normal. Never throws: process.cwd() fails when the directory has been
- * deleted, and a wrong upgrade hint must not take down a successful update.
+ * 当运行的 CLI 解析自被更新项目所属的 `node_modules`
+ * 或其任何祖先目录时返回 true —— npm 和 pnpm 工作区
+ * 产生的提升根布局。基于目标路径而非工作目录定位，
+ * 因为 `openspec update <path>` 和从子包运行都是正常的。
+ * 永不抛出：当目录已被删除时 process.cwd() 会失败，
+ * 错误的升级提示不应让成功的更新失败。
  */
 export function isProjectLocalInstall(
   installDir: string | null,
@@ -283,7 +283,7 @@ export function isProjectLocalInstall(
 ): boolean {
   if (!installDir) return false;
 
-  // Windows paths differ in case and drive-letter casing between sources.
+  // Windows 路径在不同来源的大小写和盘符大小写方面有所不同。
   const normalize = (value: string) =>
     process.platform === 'win32' ? value.toLowerCase() : value;
 
@@ -305,9 +305,8 @@ export function isProjectLocalInstall(
 }
 
 /**
- * True for the throwaway caches npx/pnpm dlx/bunx unpack into. Telling those
- * users to install globally would create the second copy on PATH they were
- * deliberately avoiding.
+ * npx/pnpm dlx/bunx 解压到的临时缓存返回 true。告诉这些
+ * 用户全局安装会在 PATH 上创建他们故意避免的第二个副本。
  */
 export function isEphemeralRunnerInstall(installDir: string | null): boolean {
   if (!installDir) return false;
@@ -316,19 +315,19 @@ export function isEphemeralRunnerInstall(installDir: string | null): boolean {
     (segment, i) =>
       segment === '_npx' ||
       segment === '_bunx' ||
-      // Only a package manager's own cache, never a user directory that
-      // happens to be called "dlx". Windows uses pnpm-cache for the same job.
+      // 仅包管理器自己的缓存，而不是恰好
+      // 被称为 "dlx" 的用户目录。Windows 使用 pnpm-cache 做同样的事情。
       (segment === 'dlx' &&
         ['pnpm', 'bun', '.pnpm', 'pnpm-cache', 'bun-cache'].includes(segments[i - 1] ?? ''))
   );
 }
 
 /**
- * Directories npm installs global packages into. Derived from the running node
- * rather than by shelling out to `npm prefix -g`, which would cost more than
- * the version check itself. Only a hint: `process.execPath` is realpath'd, so
- * on Homebrew it lands in the Cellar rather than the brew prefix — which is
- * why the install's own layout is the primary signal below.
+ * npm 安装全局包的目录。从运行中的 node 派生，
+ * 而不是通过 shell 调用 `npm prefix -g`，这比版本检查本身成本更高。
+ * 只是一个提示：`process.execPath` 被解析为真实路径，因此
+ * 在 Homebrew 中它会落在 Cellar 而不是 brew 前缀 —— 这就是
+ * 为什么安装自己的布局是下面主要的信号。
  */
 export function npmGlobalRoots(): string[] {
   const roots: string[] = [];
@@ -356,11 +355,10 @@ export function npmGlobalRoots(): string[] {
 }
 
 /**
- * The prefix of an npm global install, read from the install's own shape:
- * `<prefix>/lib/node_modules/<pkg>` on POSIX, `<prefix>/node_modules/<pkg>` on
- * Windows. Self-describing, so it holds for Homebrew, nvm, Debian and anywhere
- * else npm's prefix is not derivable from the node binary. Null when the
- * layout does not match.
+ * npm 全局安装的前缀，从安装自身的形状读取：
+ * POSIX 上为 `<prefix>/lib/node_modules/<pkg>`，Windows 上为
+ * `<prefix>/node_modules/<pkg>`。自描述，因此适用于 Homebrew、nvm、Debian
+ * 和其他 npm 前缀无法从 node 二进制派生的任何地方。布局不匹配时返回 null。
  */
 export function npmPrefixFromInstallDir(installDir: string | null): string | null {
   if (!installDir) return null;
@@ -375,22 +373,22 @@ export function npmPrefixFromInstallDir(installDir: string | null): string | nul
 
   const container = path.dirname(dir);
   if (process.platform === 'win32') return container;
-  // POSIX npm always nests the root under lib/.
+  // POSIX npm 总是将根嵌套在 lib/ 下。
   return path.basename(container).toLowerCase() === 'lib' ? path.dirname(container) : null;
 }
 
 /**
- * True only when npm itself owns this copy. Everything else — a pnpm, bun,
- * yarn or volta global — would be made worse by `npm install -g`, which adds a
- * second copy that may not even be the one on PATH.
+ * 仅当 npm 本身拥有此副本时返回 true。其他情况 — pnpm、bun、
+ * yarn 或 volta 全局 — 使用 `npm install -g` 只会更糟，因为会添加
+ * 可能不是 PATH 上那个的第二个副本。
  */
 export function isNpmGlobalInstall(
   installDir: string | null,
   roots: string[] = npmGlobalRoots()
 ): boolean {
   if (!installDir) return false;
-  // Another manager's layout can still look like npm's (volta nests a whole
-  // node install), so who owns it is decided before where it sits.
+  // 另一个管理器的布局可能看起来仍像 npm 的（volta 嵌套了整个
+  // node 安装），所以谁拥有它在确定其位置之前决定。
   if (detectPackageManager(installDir) !== 'npm') return false;
 
   const normalize = (value: string) =>
@@ -398,16 +396,15 @@ export function isNpmGlobalInstall(
   const target = normalize(installDir);
   if (roots.some((root) => target.startsWith(normalize(root + path.sep)))) return true;
 
-  // The derived roots miss any prefix that is not beside the node binary, so
-  // fall back to the install's own shape plus the bin directory npm would
-  // have written the shim into.
+  // 派生的根目录可能遗漏了不在 node 二进制旁边的前缀，因此
+  // 回退到安装自身的形状加上 npm 写入垫片的 bin 目录。
   const prefix = npmPrefixFromInstallDir(installDir);
   if (!prefix) return false;
   try {
-    // Corroborate with something npm itself wrote: the bin dir on POSIX, the
-    // .cmd shim on Windows. The prefix alone proves nothing — it is just the
-    // parent of the node_modules dir the CLI resolved from, so a hand-copied
-    // portable tree would pass and be offered an npm upgrade it never had.
+    // 用 npm 自己写的东西来佐证：POSIX 上的 bin 目录，
+    // Windows 上的 .cmd 垫片。仅前缀并不能证明什么 — 它只是 CLI
+    // 解析自的 node_modules 目录的父级，因此手动复制的
+    // 可移植树会通过并被提供它从未有过的 npm 升级。
     return fs.existsSync(
       process.platform === 'win32' ? path.join(prefix, 'openspec.cmd') : path.join(prefix, 'bin')
     );
@@ -473,7 +470,7 @@ export function buildCliUpdateLines(
   projectPath: string,
   options: { withCommand?: boolean } = {}
 ): string[] {
-  const lines = [`A newer OpenSpec CLI is available (v${OPENSPEC_VERSION} → v${latestVersion}).`];
+  const lines = [`有新版本的 OpenSpec CLI 可用 (v${OPENSPEC_VERSION} → v${latestVersion})。`];
 
   // Omitted when we are about to offer to run it — printing a command and then
   // asking to run that same command reads like the user has to do both.
@@ -481,7 +478,7 @@ export function buildCliUpdateLines(
     lines.push(...buildUpgradeCommandLines(installDir, projectPath));
   }
   if (installDir) {
-    lines.push(`  Running from: ${installDir}`);
+    lines.push(`  运行位置：${installDir}`);
   }
 
   return lines;
@@ -498,19 +495,19 @@ export function buildUpgradeCommandLines(
   const lines: string[] = [];
 
   if (isEphemeralRunnerInstall(installDir)) {
-    // That command *is* the update, so there is nothing to run afterwards.
+    // 该命令 *即* 更新，之后无需再运行任何操作。
     lines.push(`  npx ${PACKAGE_NAME}@latest update`);
     return lines;
   }
 
   if (isProjectLocalInstall(installDir, projectPath)) {
-    // Its package manager owns the lockfile; naming npm could be wrong.
-    lines.push(`  Update the ${PACKAGE_NAME} dependency in this project.`);
+    // 其包管理器拥有 lockfile；指定 npm 可能不正确。
+    lines.push(`  更新此项目中的 ${PACKAGE_NAME} 依赖。`);
   } else {
     lines.push(`  ${GLOBAL_UPGRADE_COMMANDS[detectPackageManager(installDir)]}`);
   }
 
-  lines.push('  Then run "openspec update" again to pick up new workflows.');
+  lines.push('  然后再次运行 "openspec update" 以获取新的 workflows。');
   return lines;
 }
 
@@ -686,7 +683,7 @@ export async function offerCliUpgrade(latestVersion: string): Promise<UpgradeOut
   let accepted = false;
   try {
     accepted = await confirm({
-      message: `Upgrade to v${latestVersion} now?`,
+      message: `是否立即升级到 v${latestVersion}？`,
       default: true,
     });
   } catch (error) {
@@ -700,8 +697,8 @@ export async function offerCliUpgrade(latestVersion: string): Promise<UpgradeOut
   console.log();
 
   if (!installed) {
-    console.log(chalk.yellow('The upgrade did not complete. A global install may need'));
-    console.log(chalk.yellow('elevated permissions, or a different package manager.'));
+    console.log(chalk.yellow('升级未完成。全局安装可能需要'));
+    console.log(chalk.yellow('提升权限，或使用不同的包管理器。'));
     return 'failed';
   }
 
@@ -709,23 +706,23 @@ export async function offerCliUpgrade(latestVersion: string): Promise<UpgradeOut
   const version = await readCliVersion(binPath ?? 'openspec');
 
   if (!version) {
-    console.log(chalk.yellow('Upgrade finished, but no "openspec" could be run to confirm it.'));
+    console.log(chalk.yellow('升级完成，但无法运行 "openspec" 来确认。'));
     return 'not-on-path';
   }
   if (compareVersions(version, OPENSPEC_VERSION) <= 0) {
-    console.log(chalk.yellow(`Upgrade finished, but "openspec" still reports v${version}.`));
+    console.log(chalk.yellow(`升级完成，但 "openspec" 仍报告 v${version}。`));
     console.log(
       chalk.dim(
         binPath
-          ? // We asked the installed copy directly, so PATH is not the story.
-            `  npm reported success, but ${binPath} did not change.`
-          : '  Another install earlier on your PATH is answering first.'
+          ? // 我们直接询问已安装的副本，所以 PATH 不是原因。
+            `  npm 报告成功，但 ${binPath} 没有变化。`
+          : '  PATH 上之前的另一次安装优先响应。'
       )
     );
     return 'not-on-path';
   }
 
-  console.log(chalk.green(`✓ Upgraded to v${version}.`));
+  console.log(chalk.green(`✓ 已升级到 v${version}。`));
   return 'upgraded';
 }
 
@@ -763,10 +760,10 @@ export async function rerunUpdateWithUpgradedCli(
       },
     });
     child.on('error', () => {
-      // Nothing to hand off to: the upgrade landed but the instruction files
-      // are still the old ones, so this run did not do what was asked.
-      console.log(chalk.yellow('Instruction files were not regenerated.'));
-      console.log(chalk.dim('  Run "openspec update" to pick up the new workflows.'));
+      // 没有东西可以交接：升级完成但指令文件仍然是旧的，
+      // 所以此次运行没有完成所要求的操作。
+      console.log(chalk.yellow('指令文件未重新生成。'));
+      console.log(chalk.dim('  运行 "openspec update" 以获取新的 workflows。'));
       resolve(1);
     });
     // A child killed by a signal reports no code; that is not success.

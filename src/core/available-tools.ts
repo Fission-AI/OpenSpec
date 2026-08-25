@@ -1,8 +1,7 @@
 /**
- * Available Tools Detection
+ * 可用工具检测
  *
- * Detects which AI tools are available in a project by scanning
- * for their configuration directories.
+ * 通过扫描 AI 工具的配置目录来检测项目中可用的工具。
  */
 
 import path from 'path';
@@ -13,12 +12,12 @@ import { SKILL_NAMES } from './shared/tool-detection.js';
 import { resolveToolSkillsDir, toolSupportsSkills } from './shared/skill-paths.js';
 
 /**
- * Scans the project path for AI tool configuration directories and returns
- * the tools that are present.
+ * 扫描项目路径中的 AI 工具配置目录并返回
+ * 存在的工具。
  *
- * For tools with `detectionPaths`, checks those specific paths (files or
- * directories). Otherwise checks the project's `skillsDir`, or managed skill
- * files in the user's home directory for a global skill target.
+ * 对于具有 `detectionPaths` 的工具，检查那些特定的路径（文件或
+ * 目录）。否则检查项目的 `skillsDir`，或用户主目录中
+ * 用于全局 skill 目标的受管 skill 文件。
  */
 export function getAvailableTools(projectPath: string): AIToolOption[] {
   const available = AI_TOOLS.filter((tool) => {
@@ -34,7 +33,7 @@ export function getAvailableTools(projectPath: string): AIToolOption[] {
     if (!tool.skillsDir) return false;
 
     if (tool.detectionPaths && tool.detectionPaths.length > 0) {
-      // statSync without .isDirectory() — detection paths can be files or directories
+      // statSync 不使用 .isDirectory() — 检测路径可以是文件或目录
       return tool.detectionPaths.some((p) => {
         try {
           fs.statSync(path.join(projectPath, p));

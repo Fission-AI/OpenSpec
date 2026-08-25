@@ -18,8 +18,8 @@ interface Config {
 }
 
 /**
- * Create the searchable multi-select prompt.
- * Uses dynamic import to prevent pre-commit hook hangs (see #367).
+ * 创建可搜索的多选提示组件。
+ * 使用动态导入以防止 pre-commit hook 挂起（参见 #367）。
  */
 async function createSearchableMultiSelect(): Promise<
   (config: Config) => Promise<string[]>
@@ -49,7 +49,7 @@ async function createSearchableMultiSelect(): Promise<
 
     const prefix = usePrefix({ status });
 
-    // Filter choices by search
+    // 根据搜索过滤选项
     const filteredChoices = useMemo(() => {
       if (!searchText.trim()) return choices;
       const term = searchText.toLowerCase();
@@ -69,7 +69,7 @@ async function createSearchableMultiSelect(): Promise<
     useKeypress((key) => {
       if (status === 'done') return;
 
-      // Enter to confirm/submit
+      // Enter 键确认/提交
       if (isEnterKey(key)) {
         if (validate) {
           const result = validate(selectedValues);
@@ -83,7 +83,7 @@ async function createSearchableMultiSelect(): Promise<
         return;
       }
 
-      // Space to toggle selection
+      // 空格键切换选中状态
       if (key.name === 'space') {
         const choice = filteredChoices[cursor];
         if (choice) {
@@ -96,7 +96,7 @@ async function createSearchableMultiSelect(): Promise<
         return;
       }
 
-      // Backspace to remove or delete search char
+      // Backspace 键删除选中项或搜索字符
       if (isBackspaceKey(key)) {
         if (searchText === '' && selectedValues.length > 0) {
           setSelectedValues(selectedValues.slice(0, -1));
@@ -107,7 +107,7 @@ async function createSearchableMultiSelect(): Promise<
         return;
       }
 
-      // Navigation
+      // 导航
       if (isUpKey(key)) {
         setCursor(Math.max(0, cursor - 1));
         return;
@@ -117,49 +117,49 @@ async function createSearchableMultiSelect(): Promise<
         return;
       }
 
-      // Character input - handle printable characters
+      // 字符输入 - 处理可打印字符
       if (key.name && key.name.length === 1 && !key.ctrl) {
         setSearchText(searchText + key.name);
         setCursor(0);
       }
     });
 
-    // Render done state
+    // 渲染完成状态
     if (status === 'done') {
       const names = selectedValues
         .map((v) => choiceMap.get(v)?.name ?? v)
         .join(', ');
-      return `${prefix} ${chalk.bold(message)} ${chalk.cyan(names || '(none)')}`;
+      return `${prefix} ${chalk.bold(message)} ${chalk.cyan(names || '(无)')}`;
     }
 
-    // Render active state
+    // 渲染活动状态
     const lines: string[] = [];
     lines.push(`${prefix} ${chalk.bold(message)}`);
 
-    // Selected chips
+    // 已选项标签
     const chips =
       selectedValues.length > 0
         ? selectedValues
             .map((v) => chalk.bgCyan.black(` ${choiceMap.get(v)?.name} `))
             .join(' ')
-        : chalk.dim('(none selected)');
-    lines.push(`  Selected: ${chips}`);
+        : chalk.dim('(未选择)');
+    lines.push(`  已选择: ${chips}`);
 
-    // Search box
+    // 搜索框
     lines.push(
-      `  Search: ${chalk.yellow('[')}${searchText || chalk.dim('type to filter')}${chalk.yellow(']')}`
+      `  搜索: ${chalk.yellow('[')}${searchText || chalk.dim('输入以过滤')}${chalk.yellow(']')}`
     );
 
-    // Instructions
+    // 操作提示
     lines.push(
-      `  ${chalk.cyan('↑↓')} navigate • ${chalk.cyan('Space')} toggle • ${chalk.cyan('Backspace')} remove • ${chalk.cyan('Enter')} confirm`
+      `  ${chalk.cyan('↑↓')} 导航 • ${chalk.cyan('Space')} 切换 • ${chalk.cyan('Backspace')} 删除 • ${chalk.cyan('Enter')} 确认`
     );
 
-    // List
+    // 列表
     if (filteredChoices.length === 0) {
-      lines.push(chalk.yellow('  No matches'));
+      lines.push(chalk.yellow('  无匹配'));
     } else {
-      // Calculate pagination
+      // 计算分页
       const startIndex = Math.max(
         0,
         Math.min(cursor - Math.floor(pageSize / 2), filteredChoices.length - pageSize)
@@ -178,18 +178,18 @@ async function createSearchableMultiSelect(): Promise<
         const isRefresh = selected && item.configured;
         const statusLabel = !selected
           ? item.configured
-            ? ' (configured)'
+            ? ' (已配置)'
             : item.detected
-              ? ' (detected)'
+              ? ' (已检测)'
               : ''
           : '';
         const suffix = selected
-          ? chalk.dim(isRefresh ? ' (refresh)' : ' (selected)')
+          ? chalk.dim(isRefresh ? ' (刷新)' : ' (已选中)')
           : chalk.dim(statusLabel);
         lines.push(`  ${arrow} ${icon} ${name}${suffix}`);
       }
 
-      // Show pagination indicator if needed
+      // 显示分页指示器（如需要）
       if (filteredChoices.length > pageSize) {
         const currentPage = Math.floor(cursor / pageSize) + 1;
         const totalPages = Math.ceil(filteredChoices.length / pageSize);
@@ -203,14 +203,14 @@ async function createSearchableMultiSelect(): Promise<
 }
 
 /**
- * A searchable multi-select prompt with visible search box,
- * selected items display, and intuitive keyboard navigation.
+ * 可搜索的多选提示组件，带有可见搜索框、
+ * 已选项显示和直观的键盘导航。
  *
- * - Type to filter choices
- * - ↑↓ to navigate
- * - Space to toggle highlighted item selection
- * - Backspace to remove last selected item (or delete search char)
- * - Enter to confirm selections
+ * - 输入以过滤选项
+ * - ↑↓ 键导航
+ * - 空格键切换高亮项的选中状态
+ * - Backspace 键删除最后选中项（或删除搜索字符）
+ * - Enter 键确认选择
  */
 export async function searchableMultiSelect(config: Config): Promise<string[]> {
   const prompt = await createSearchableMultiSelect();

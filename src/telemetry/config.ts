@@ -1,6 +1,6 @@
 /**
- * Global configuration for telemetry state.
- * Stores anonymous ID and notice-seen flag in the platform-appropriate config directory.
+ * 遥测状态的全局配置。
+ * 将匿名 ID 和通知已见标志存储在平台相应的配置目录中。
  */
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -12,16 +12,16 @@ import {
   type TelemetryConfig,
 } from '../core/global-config.js';
 
-// Constants
+// 常量
 export const CONFIG_DIR_NAME = GLOBAL_CONFIG_DIR_NAME;
 export const CONFIG_FILE_NAME = GLOBAL_CONFIG_FILE_NAME;
 
-/** Re-export shared telemetry section type (single source of truth in global-config). */
+/** 重新导出共享的遥测段类型（global-config 中的单一事实来源）。 */
 export type { TelemetryConfig };
 
 export interface GlobalConfig {
   telemetry?: TelemetryConfig;
-  [key: string]: unknown; // Preserve other fields
+  [key: string]: unknown; // 保留其他字段
 }
 
 type ConfigReadResult =
@@ -45,7 +45,7 @@ async function readConfigFile(configPath: string): Promise<ConfigReadResult> {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       return { status: 'missing' };
     }
-    // If parse fails or another read error occurs, ignore the file.
+    // 如果解析失败或发生其他读取错误，忽略该文件。
     return { status: 'invalid', config: {} };
   }
 }
@@ -112,7 +112,7 @@ async function migrateLegacyTelemetryConfig(
     try {
       await writeConfigFile(configPath, migrated);
     } catch {
-      // Preserve telemetry for this run even if the one-time migration cannot be persisted.
+      // 即使一次性迁移无法持久化，也保留本次运行的遥测数据。
     }
   }
 
@@ -120,12 +120,12 @@ async function migrateLegacyTelemetryConfig(
 }
 
 /**
- * Get the path to the global config file.
- * Follows XDG Base Directory Specification and platform conventions.
+ * 获取全局配置文件的路径。
+ * 遵循 XDG 基本目录规范和平台约定。
  *
- * - All platforms: $XDG_CONFIG_HOME/openspec/ if XDG_CONFIG_HOME is set
- * - Unix/macOS fallback: ~/.config/openspec/
- * - Windows fallback: %APPDATA%/openspec/
+ * - 所有平台：如果设置了 XDG_CONFIG_HOME，则使用 $XDG_CONFIG_HOME/openspec/
+ * - Unix/macOS 回退：~/.config/openspec/
+ * - Windows 回退：%APPDATA%/openspec/
  */
 export function getConfigPath(): string {
   const configDir = getConfigDir();
@@ -133,8 +133,8 @@ export function getConfigPath(): string {
 }
 
 /**
- * Read the global config file.
- * Returns an empty object if the file doesn't exist.
+ * 读取全局配置文件。
+ * 如果文件不存在则返回空对象。
  */
 export async function readConfig(): Promise<GlobalConfig> {
   const configPath = getConfigPath();
@@ -144,17 +144,17 @@ export async function readConfig(): Promise<GlobalConfig> {
 }
 
 /**
- * Write to the global config file.
- * Preserves existing fields and merges in new values.
+ * 写入全局配置文件。
+ * 保留现有字段并合并新值。
  */
 export async function writeConfig(updates: Partial<GlobalConfig>): Promise<void> {
   const configPath = getConfigPath();
 
-  // Read existing config and merge
+  // 读取现有配置并合并
   const existing = await readConfig();
   const merged = { ...existing, ...updates };
 
-  // Deep merge for telemetry object
+  // 遥测对象的深度合并
   if (updates.telemetry && existing.telemetry) {
     merged.telemetry = { ...existing.telemetry, ...updates.telemetry };
   }
@@ -163,7 +163,7 @@ export async function writeConfig(updates: Partial<GlobalConfig>): Promise<void>
 }
 
 /**
- * Get the telemetry config section.
+ * 获取遥测配置段。
  */
 export async function getTelemetryConfig(): Promise<TelemetryConfig> {
   const config = await readConfig();
@@ -171,7 +171,7 @@ export async function getTelemetryConfig(): Promise<TelemetryConfig> {
 }
 
 /**
- * Update the telemetry config section.
+ * 更新遥测配置段。
  */
 export async function updateTelemetryConfig(updates: Partial<TelemetryConfig>): Promise<void> {
   const existing = await getTelemetryConfig();

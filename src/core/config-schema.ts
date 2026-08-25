@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 /**
- * Zod schema for global OpenSpec configuration.
- * Uses passthrough() to preserve unknown fields for forward compatibility.
+ * 全局 OpenSpec 配置的 Zod schema。
+ * 使用 passthrough() 保留未知字段以确保向前兼容。
  */
 export const GlobalConfigSchema = z
   .object({
@@ -27,24 +27,22 @@ export const GlobalConfigSchema = z
       .describe(
         'Store id used as fallback root when no explicit --store, local root, or project-level store: pointer resolves'
       ),
-    // passthrough keeps runtime-managed fields (anonymousId, noticeSeen) valid
-    // under CLI validate when users only set telemetry.enabled.
+    // passthrough 使运行时管理的字段（anonymousId、noticeSeen）在
+    // 用户仅设置 telemetry.enabled 时仍能通过 CLI validate。
     telemetry: z
       .object({
         enabled: z.boolean().optional(),
       })
       .passthrough()
       .optional(),
-    // Runtime-managed (like telemetry.noticeSeen); not user-settable via CLI set.
+    // 运行时管理（如 telemetry.noticeSeen）；CLI set 不可由用户设置。
     completionTipSeen: z.boolean().optional(),
   })
   .passthrough();
 
 export type GlobalConfigType = z.infer<typeof GlobalConfigSchema>;
 
-/**
- * Default configuration values.
- */
+/** 默认配置值。 */
 export const DEFAULT_CONFIG: GlobalConfigType = {
   featureFlags: {},
   profile: 'core',
@@ -58,12 +56,12 @@ const KNOWN_TOP_LEVEL_KEYS = new Set([
   'telemetry',
 ]);
 
-/** Nested keys users may set under `telemetry` via the CLI. */
+/** 用户可通过 CLI 在 `telemetry` 下设置的嵌套键。 */
 const TELEMETRY_SETTABLE_KEYS = new Set(['enabled']);
 
 /**
- * Key segments that would reach the prototype chain instead of the config object.
- * Never valid as configuration keys, so rejecting them costs nothing.
+ * 会到达原型链而不是配置对象的键段。
+ * 永远不能作为配置键，因此拒绝它们没有任何成本。
  */
 const UNSAFE_KEY_SEGMENTS = new Set(['__proto__', 'constructor', 'prototype']);
 
@@ -72,67 +70,67 @@ function hasUnsafeSegment(keys: string[]): boolean {
 }
 
 /**
- * True when a dot-notation key path contains a prototype-reaching segment.
- * Callers that bypass key validation (e.g. --allow-unknown) still must not bypass this.
+ * 当点号表示的键路径包含到达原型链的段时返回 true。
+ * 绕过键验证的调用方（如 --allow-unknown）仍不得绕过此检查。
  */
 export function hasUnsafeKeySegment(path: string): boolean {
   return hasUnsafeSegment(path.split('.'));
 }
 
 /**
- * Validate a config key path for CLI set operations.
- * Unknown top-level keys are rejected unless explicitly allowed by the caller.
+ * 验证 CLI set 操作的配置键路径。
+ * 未知的顶层键会被拒绝，除非调用方显式允许。
  */
 export function validateConfigKeyPath(path: string): { valid: boolean; reason?: string } {
   const rawKeys = path.split('.');
 
   if (rawKeys.length === 0 || rawKeys.some((key) => key.trim() === '')) {
-    return { valid: false, reason: 'Key path must not be empty' };
+    return { valid: false, reason: '键路径不能为空' };
   }
 
   const unsafeKey = rawKeys.find((key) => UNSAFE_KEY_SEGMENTS.has(key));
   if (unsafeKey) {
-    return { valid: false, reason: `Key segment "${unsafeKey}" is not allowed` };
+    return { valid: false, reason: `键段 "${unsafeKey}" 不允许` };
   }
 
   const rootKey = rawKeys[0];
   if (!KNOWN_TOP_LEVEL_KEYS.has(rootKey)) {
-    return { valid: false, reason: `Unknown top-level key "${rootKey}"` };
+    return { valid: false, reason: `未知的顶层键 "${rootKey}"` };
   }
 
   if (rootKey === 'featureFlags') {
     if (rawKeys.length > 2) {
-      return { valid: false, reason: 'featureFlags values are booleans and do not support nested keys' };
+      return { valid: false, reason: 'featureFlags 的值为布尔值，不支持嵌套键' };
     }
     return { valid: true };
   }
 
   if (rootKey === 'telemetry') {
     if (rawKeys.length === 1) {
-      return { valid: false, reason: 'Set nested keys under telemetry (e.g. telemetry.enabled)' };
+      return { valid: false, reason: '在 telemetry 下设置嵌套键（如 telemetry.enabled）' };
     }
     if (rawKeys.length !== 2 || !TELEMETRY_SETTABLE_KEYS.has(rawKeys[1])) {
       return {
         valid: false,
-        reason: `Unknown telemetry key "${rawKeys.slice(1).join('.')}" (allowed: enabled)`,
+        reason: `未知的 telemetry 键 "${rawKeys.slice(1).join('.')}"（允许：enabled）`,
       };
     }
     return { valid: true };
   }
 
   if (rawKeys.length > 1) {
-    return { valid: false, reason: `"${rootKey}" does not support nested keys` };
+    return { valid: false, reason: `"${rootKey}" 不支持嵌套键` };
   }
 
   return { valid: true };
 }
 
 /**
- * Get a nested value from an object using dot notation.
+ * 使用点号表示法获取对象中的嵌套值。
  *
- * @param obj - The object to access
- * @param path - Dot-separated path (e.g., "featureFlags.someFlag")
- * @returns The value at the path, or undefined if not found
+ * @param obj - 要访问的对象
+ * @param path - 点号分隔的路径（如 "featureFlags.someFlag"）
+ * @returns 路径处的值，如果未找到则返回 undefined
  */
 export function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
   const keys = path.split('.');
@@ -155,19 +153,18 @@ export function getNestedValue(obj: Record<string, unknown>, path: string): unkn
 }
 
 /**
- * Set a nested value in an object using dot notation.
- * Creates intermediate objects as needed.
+ * 使用点号表示法在对象中设置嵌套值。
+ * 根据需要创建中间对象。
  *
- * @param obj - The object to modify (mutated in place)
- * @param path - Dot-separated path (e.g., "featureFlags.someFlag")
- * @param value - The value to set
+ * @param obj - 要修改的对象（原地变更）
+ * @param path - 点号分隔的路径（如 "featureFlags.someFlag"）
+ * @param value - 要设置的值
  */
 export function setNestedValue(obj: Record<string, unknown>, path: string, value: unknown): void {
   const keys = path.split('.');
 
-  // Compared literally rather than through a helper, so the guard is plain to a
-  // reader and to static analysis. Checked for the whole path before anything is
-  // written, so a rejected key never leaves half-created objects behind.
+  // 字面比较而不是通过辅助函数，以便守卫对读者和静态分析都是显而易见的。
+  // 在写入任何内容之前检查整个路径，以便被拒绝的键不会留下半创建的对象。
   for (const key of keys) {
     if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
       return;
@@ -189,11 +186,11 @@ export function setNestedValue(obj: Record<string, unknown>, path: string, value
 }
 
 /**
- * Delete a nested value from an object using dot notation.
+ * 使用点号表示法从对象中删除嵌套值。
  *
- * @param obj - The object to modify (mutated in place)
- * @param path - Dot-separated path (e.g., "featureFlags.someFlag")
- * @returns true if the key existed and was deleted, false otherwise
+ * @param obj - 要修改的对象（原地变更）
+ * @param path - 点号分隔的路径（如 "featureFlags.someFlag"）
+ * @returns 如果键存在并被删除则返回 true，否则返回 false
  */
 export function deleteNestedValue(obj: Record<string, unknown>, path: string): boolean {
   const keys = path.split('.');
@@ -223,15 +220,15 @@ export function deleteNestedValue(obj: Record<string, unknown>, path: string): b
 }
 
 /**
- * Coerce a string value to its appropriate type.
- * - "true" / "false" -> boolean
- * - Numeric strings -> number
- * - JSON arrays/objects -> parsed containers
- * - Everything else -> string
+ * 将字符串值强制转换为适当的类型。
+ * - "true" / "false" -> 布尔值
+ * - 数字字符串 -> 数字
+ * - JSON 数组/对象 -> 解析后的容器
+ * - 其他一切 -> 字符串
  *
- * @param value - The string value to coerce
- * @param forceString - If true, always return the value as a string
- * @returns The coerced value
+ * @param value - 要强制转换的字符串值
+ * @param forceString - 如果为 true，始终将值作为字符串返回
+ * @returns 强制转换后的值
  */
 export function coerceValue(
   value: string,
@@ -241,7 +238,7 @@ export function coerceValue(
     return value;
   }
 
-  // Boolean coercion
+  // 布尔值强制转换
   if (value === 'true') {
     return true;
   }
@@ -249,7 +246,7 @@ export function coerceValue(
     return false;
   }
 
-  // Number coercion - must be a valid finite number
+  // 数字强制转换 - 必须是有效的有限数字
   const num = Number(value);
   if (!isNaN(num) && isFinite(num) && value.trim() !== '') {
     return num;
@@ -289,11 +286,11 @@ function parseJsonContainer(value: string): unknown[] | Record<string, unknown> 
 }
 
 /**
- * Format a value for YAML-like display.
+ * 格式化值以类似 YAML 的方式显示。
  *
- * @param value - The value to format
- * @param indent - Current indentation level
- * @returns Formatted string
+ * @param value - 要格式化的值
+ * @param indent - 当前缩进级别
+ * @returns 格式化后的字符串
  */
 export function formatValueYaml(value: unknown, indent: number = 0): string {
   const indentStr = '  '.repeat(indent);
@@ -337,10 +334,10 @@ export function formatValueYaml(value: unknown, indent: number = 0): string {
 }
 
 /**
- * Validate a configuration object against the schema.
+ * 根据 schema 验证配置对象。
  *
- * @param config - The configuration to validate
- * @returns Validation result with success status and optional error message
+ * @param config - 要验证的配置
+ * @returns 包含成功状态和可选错误信息的验证结果
  */
 export function validateConfig(config: unknown): { success: boolean; error?: string } {
   try {
@@ -352,6 +349,6 @@ export function validateConfig(config: unknown): { success: boolean; error?: str
       const messages = zodError.issues.map((e) => `${e.path.join('.')}: ${e.message}`);
       return { success: false, error: messages.join('; ') };
     }
-    return { success: false, error: 'Unknown validation error' };
+    return { success: false, error: '未知的验证错误' };
   }
 }

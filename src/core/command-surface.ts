@@ -5,9 +5,9 @@ import type { Delivery } from './global-config.js';
 export type CommandSurfaceCapability = 'adapter-backed' | 'skills-invocable' | 'none';
 
 /**
- * How the tool spells its OpenSpec commands: the name from the command files
- * its adapter writes, the prefix the adapter declares. Returns undefined for
- * tools with no command adapter, which have no command names to spell.
+ * 工具拼写 OpenSpec 命令的方式：来自命令文件的名称
+ * 由其适配器写入，适配器声明的前缀。对于
+ * 没有命令适配器的工具返回 undefined，这些工具没有要拼写的命令名称。
  */
 export function resolveCommandInvocation(toolId: string): CommandInvocation | undefined {
   const adapter = CommandAdapterRegistry.get(toolId);

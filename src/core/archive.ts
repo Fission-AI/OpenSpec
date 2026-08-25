@@ -39,24 +39,23 @@ function isMissingPathError(error: unknown): boolean {
 }
 
 /**
- * Matches the `YYYY-MM-DD-` prefix that archiving prepends to a change name.
- * A change whose name already starts with one (a common authoring convention)
- * is archived under its existing name so the prefix is never stacked (#1309).
+ * 匹配归档附加到 change 名称前的 `YYYY-MM-DD-` 前缀。
+ * 已以前缀开头的 change（常见的作者约定）会保留其名称归档，
+ * 避免前缀重复叠加（#1309）。
  */
 const ARCHIVE_DATE_PREFIX_PATTERN = /^\d{4}-\d{2}-\d{2}-/;
 
 /**
- * True when the ONLY thing wrong with a rebuilt spec is that it has no
- * requirements. That is the exact failure retiring a capability replaces
- * (#1302); anything else means the spec is broken in a way the author still has
- * to fix, so archive must abort exactly as it always did instead of retiring.
+ * 当重建的 spec 唯一的问题是没有需求时返回 true。
+ * 这正是退休能力替换的精确失败条件（#1302）；其他任何情况意味着
+ * spec 有作者仍需修复的问题，因此归档必须像以往一样中止，
+ * 而不是执行退休。
  *
- * Asking the validator - rather than counting requirement blocks a second time -
- * is what makes "this spec could not have been written anyway" true by
- * construction. The two counts genuinely disagree: `MarkdownParser` accepts any
- * `###` heading under `## Requirements` as a requirement, while the delta block
- * parser only indexes canonical `### Requirement:` headers and sweeps the rest
- * into the preamble, which survives into the rebuilt spec.
+ * 让验证器检查 — 而不是再次统计需求块 — 才是"这个 spec 本来就不可能
+ * 被正确写入"为真的原因。两者的计数确实会有差异：`MarkdownParser`
+ * 将 `## Requirements` 下的任何 `###` 标题都接受为需求，而增量块解析器
+ * 仅索引规范化的 `### Requirement:` 标题，其余的归入前言，
+ * 在前言中会保留到重建的 spec 中。
  */
 export async function isRetirableSpec(specName: string, rebuilt: string): Promise<boolean> {
   const report = await new Validator().validateSpecContent(specName, rebuilt);
@@ -69,20 +68,20 @@ export async function isRetirableSpec(specName: string, rebuilt: string): Promis
 }
 
 /**
- * How much of one blocking line the abort is willing to show. A line long
- * enough to fill the screen would push the way out of the abort off it.
+ * 中止操作愿意显示的阻塞行数量。足够长的行
+ * 会填满屏幕，将退出路径挤出视线。
  */
 const UNACCOUNTED_LINE_MAX = 200;
 
 /**
- * The first few lines a retirement would delete without being able to name
- * them, quoted, with a count for the rest. Capped so a long tail cannot bury
- * the rest of the abort.
+ * 退休操作将删除但无法单独命名的前几行内容，
+ * 加上引号显示，并给出其余行的数量。限制长度以防尾部内容
+ * 淹没其余的中止信息。
  *
- * The lines are authored spec content printed verbatim to a terminal, so they
- * get the same treatment as a change directory name (`describeChangeName`): a
- * raw CR could forge a line of its own, and an ESC could redraw the screen.
- * Truncation counts code points so a cut never leaves half a surrogate pair.
+ * 这些行是原封不动打印到终端的 spec 内容，因此与 change 目录名
+ * （`describeChangeName`）采用相同处理方式：
+ * 原始回车符可能伪造一行内容，转义符可能重绘屏幕。
+ * 截断按码点计数，确保不会截断代理对的一半。
  */
 function describeUnaccountedContent(lines: string[]): string {
   const shown = lines
@@ -93,14 +92,13 @@ function describeUnaccountedContent(lines: string[]): string {
       return `"${safe.length > UNACCOUNTED_LINE_MAX ? `${clipped}\u2026` : clipped}"`;
     })
     .join(', ');
-  const rest = lines.length > 3 ? `, and ${lines.length - 3} more line(s)` : '';
+  const rest = lines.length > 3 ? `，还有 ${lines.length - 3} 行` : '';
   return `${shown}${rest}`;
 }
 
 /**
- * What this run should do with a rebuilt spec: write it as usual, retire the
- * capability because the delta removed its last requirement (#1302), or do
- * nothing because there is no spec to write and none to retire.
+ * 本次运行对重建的 spec 应执行的操作：照常写入、因增量删除了最后一个
+ * 需求而退休 capability（#1302），或因无需写入也无需退休而跳过。
  */
 type SpecOutcome = 'write' | 'retire' | 'skip';
 
@@ -126,35 +124,32 @@ async function decideSpecOutcome(
   skipValidation: boolean,
   retirementDeclared: boolean
 ): Promise<SpecOutcome> {
-  // The author has to have asked. Without the marker this falls through to the
-  // ordinary write, which fails validation exactly as it always did - and the
-  // abort names the marker, so the dead end #1302 describes now comes with its
-  // own way out instead of just a rejected spec.
+  // 作者必须主动请求。没有标记时回退到普通写入，
+  // 验证会一如既往地失败 — 中止操作现在会提及该标记，
+  // 因此 #1302 描述的死胡同现在有了出路，而不仅是被拒绝的 spec。
   if (!retirementDeclared) return 'write';
 
-  // Retirement is decided by the validator, never by a second opinion about
-  // what counts as a requirement: the block parser sweeps some shapes the
-  // validator accepts into the preamble, so "no blocks left" alone would retire
-  // specs that validate fine.
+  // 退休由验证器决定，永不通过关于什么算作需求的二次判断：
+  // 块解析器将验证器接受的某些形状归入前言，因此"剩余零块"本身
+  // 会让能通过验证的 spec 也被退休。
   //
-  // Residual `###` headings veto it outright. The validator can be talked out of
-  // seeing them - a stray `### Requirements` under Purpose captures its section
-  // lookup - but a reader cannot, and deleting the file would take them with it.
+  // 残留的 `###` 标题会彻底否决。验证器可能将其忽略 — 例如
+  // 目的下多余的 `### Requirements` 会被其区块查找捕获 —
+  // 但读者无法忽略，删除文件会将它们一并带走。
   //
-  // Under --no-validate there is no verdict to lean on, so nothing is retired:
-  // the author opted out of the check that makes this safe, and the old
-  // behavior (write the spec) loses nothing.
-  // Nothing in the file may sit outside the parts the merge understands. Asked
-  // as "did anything land outside the parts I understand" rather than "does
-  // anything look like a requirement" - the second question is the one six
-  // review rounds each found a new way to answer wrongly.
+  // 使用 --no-validate 时没有可依赖的验证结论，因此不会退休：
+  // 作者选择不进行使此操作安全的检查，旧行为（写入 spec）
+  // 不会有任何损失。
+  // 文件中任何内容都不得位于合并器无法理解的部分之外。
+  // 以"是否有内容落在我理解的部分之外"代替"是否有内容像需求"来询问 —
+  // 后者在六轮审查中每次都找到新的错误答案。
   const retirable = await isRetirementCandidate(update, built, skipValidation);
 
   if (!retirable) return 'write';
-  // Nothing on disk to write or retire: the capability is already retired.
+  // 磁盘上没有可写入或退休的内容：capability 已经退休。
   if (!update.exists) return 'skip';
-  // A spec that was already requirement-less and lost nothing this run is still
-  // the author's to fix, so it takes the same abort it has always produced.
+  // 已经无需求的 spec 本次没有丢失任何内容，仍需作者修复，
+  // 因此走与以往相同的中止流程。
   return built.counts.removed > 0 ? 'retire' : 'write';
 }
 
@@ -194,16 +189,15 @@ interface ArchiveResult {
   path: string;
   specsUpdated: boolean;
   totals?: { added: number; modified: number; removed: number; renamed: number };
-  /** Non-blocking spec-merge warnings (e.g. a REMOVED requirement that was already gone). */
+  /** 非阻塞的 spec 合并警告（例如已被删除的 REMOVED 需求）。 */
   warnings?: string[];
 }
 
 /**
- * A decision point archive cannot get past on its own. Thrown wherever the
- * flow needs an answer it has no way to obtain: in JSON mode, which never
- * prompts at all, and in human mode when a prompt failed because nothing
- * could answer it (#1479). Either way it carries a machine-readable
- * diagnostic and exits non-zero.
+ * 归档操作自身无法逾越的决策点。在以下情况下抛出：
+ * 流程需要答案但无法获取 — JSON 模式下完全不提示，
+ * 人工模式下提示失败因无人能回答（#1479）。
+ * 无论哪种情况都携带机器可读的诊断信息并以非零状态退出。
  */
 class ArchiveBlockedError extends Error {
   readonly diagnostic: ArchiveDiagnostic;
@@ -221,38 +215,35 @@ class ArchiveBlockedError extends Error {
 }
 
 /**
- * Quotes a change name for a `Fix:` line the reader is meant to paste.
- * Archive resolves a change by stat-ing its directory, so the name is
- * whatever the directory is called - including names with spaces or shell
- * metacharacters, which pasted unquoted would run as a second command.
+ * 为读者要复制粘贴的 `Fix:` 行引用 change 名称。
+ * 归档通过 stat 目录来解析 change，因此名称就是目录的名称 —
+ * 包括带空格或 shell 元字符的名称，不加引号粘贴会被当作
+ * 第二个命令执行。
  *
- * Double quotes are the one form bash, zsh, PowerShell and cmd.exe all read
- * the same way, so a POSIX-only `'...'` would be wrong on Windows. Characters
- * that stay inert inside double quotes in every one of those shells are the
- * limit of what can be quoted portably; a name containing anything else has
- * no portable spelling, so the placeholder is named instead of emitting a
- * command that might expand to something the reader did not intend.
+ * 双引号是 bash、zsh、PowerShell 和 cmd.exe 都以相同方式处理的
+ * 唯一形式，因此仅 POSIX 的 `'...'` 在 Windows 上不正确。
+ * 在所有这些 shell 中双引号内保持惰性的字符是可移植引用的
+ * 极限；包含其他字符的名称没有可移植的拼写方式，
+ * 因此使用占位符代替发出可能会展开成非预期内容的命令。
  *
- * `%` and `!` are unquotable for the same reason even though POSIX shells
- * leave them alone inside double quotes: cmd.exe expands `%NAME%` inside
- * double quotes, and `!NAME!` expands there too under `setlocal
- * enabledelayedexpansion` (as does `!` under bash's interactive history
- * expansion). A change directory really can be named `%USERNAME%`, and a
- * rerun that silently targets a different change is worse than one the reader
- * has to fill in.
+ * `%` 和 `!` 出于相同原因不可加引号，即使 POSIX shell 在双引号内
+ * 不会处理它们：cmd.exe 在双引号内展开 `%NAME%`，`!NAME!` 在
+ * `setlocal enabledelayedexpansion` 下也会展开（bash 的交互式
+ * 历史展开中 `!` 也是如此）。change 目录确实可以命名为
+ * `%USERNAME%`，静默地指向不同 change 的重新运行比需要用户
+ * 手动填写更糟糕。
  */
 function quoteChangeName(name: string): string {
   return quoteForShell(name) ?? '<change-name>';
 }
 
 /**
- * Quotes an argument for a line the reader is meant to paste, or returns
- * undefined when no portable spelling exists.
+ * 为读者要复制粘贴的行引用参数，或在无可移植拼写时返回 undefined。
  *
- * Double quotes are the one form bash, zsh, PowerShell and cmd.exe all read the
- * same way. A value holding a character that stays special INSIDE double quotes
- * in any of them has no portable spelling, so callers say something else rather
- * than emit a command that expands to something the reader did not intend.
+ * 双引号是 bash、zsh、PowerShell 和 cmd.exe 都以相同方式处理的
+ * 唯一形式。在所有这些 shell 中双引号内保持特殊含义的字符
+ * 没有可移植的拼写方式，因此调用者会用其他表述代替，
+ * 而不是发出可能展开成非预期内容的命令。
  */
 function quoteForShell(value: string): string | undefined {
   if (/^[A-Za-z0-9._\/-]+$/.test(value)) return value;
@@ -261,23 +252,22 @@ function quoteForShell(value: string): string | undefined {
 }
 
 /**
- * Renders a change name inside a prose message. The name is a directory name,
- * so it can hold control characters, and human mode prints the message
- * verbatim: a raw CR or LF would let a change directory forge its own `Fix:`
- * line, which is worse here than anywhere else because `quoteChangeName`
- * degrades the real fix to the `<change-name>` placeholder for exactly those
- * names - leaving the forged line as the only pasteable command on screen.
- * An ESC could redraw the terminal. Neither survives.
+ * 在散文消息中渲染 change 名称。名称是目录名，可能包含控制字符，
+ * 人工模式下原封不动打印消息：原始回车符或换行符可能让 change 目录
+ * 伪造自己的 `Fix:` 行，这在这里比其他任何地方都更糟糕，因为
+ * `quoteChangeName` 会将真正的修复降级为 `<change-name>` 占位符，
+ * 恰好是那些名称 — 使得伪造的行成为屏幕上唯一可粘贴的命令。
+ * 转义符可能重绘终端。两者都无法保留。
  */
 function describeChangeName(name: string): string {
   return name.replace(/[\u0000-\u001f\u007f]/g, '?');
 }
 
 /**
- * Builds the flags a blocked archive's suggested rerun has to reproduce. The
- * caller's own flags are carried, because suggesting a bare `--yes` rerun for
- * `archive x --skip-specs` would merge deltas into the main specs - the exact
- * thing `--skip-specs` was passed to prevent.
+ * 构建被阻塞归档建议的重新运行所需的标志。
+ * 保留调用者的标志，因为建议不带参数的 `--yes` 重新运行
+ * `archive x --skip-specs` 会将增量合并到主 spec 中 — 恰恰是
+ * `--skip-specs` 要阻止的操作。
  */
 function rerunFlags(options: ArchiveOptions): string[] {
   return [
@@ -293,9 +283,9 @@ function rerunCommand(
   options: ArchiveOptions
 ): string {
   const flags = rerunFlags(options).join(' ');
-  // A name starting with a dash is read as an option wherever it sits, so it
-  // goes last, behind the `--` that ends option parsing. The store flag has
-  // to stay in front of that `--` to still be read as an option.
+  // 以破折号开头的名称无论在哪个位置都会被当作选项解析，
+  // 因此放在最后，在结束选项解析的 `--` 之后。
+  // store 标志必须保持在该 `--` 之前才能被读取为选项。
   if (changeName.startsWith('-')) {
     return `${withStoreFlag(root, `openspec archive ${flags}`)} -- ${quoteChangeName(changeName)}`;
   }
@@ -303,11 +293,11 @@ function rerunCommand(
 }
 
 /**
- * Asks a yes/no question in human mode. When no answer can be read — the
- * usual case for an AI agent or a script that runs the command with stdin
- * closed — the raw @inquirer failure is replaced with guidance for this
- * decision point, so the caller learns which flag to pass instead of reading
- * `User force closed the prompt` (#1479).
+ * 在人工模式下询问是/否问题。当无法读取答案时 —
+ * 这是 AI agent 或通过关闭 stdin 运行脚本的常见情况 —
+ * 原始 @inquirer 失败会被替换为针对此决策点的指导信息，
+ * 让调用者知道该传递哪个标志，而不是读取
+ * `User force closed the prompt`（#1479）。
  */
 async function confirmOrBlock(
   prompt: { message: string; default: boolean },
@@ -338,7 +328,7 @@ function toArchiveDiagnostic(error: unknown): ArchiveDiagnostic {
 }
 
 /**
- * Recursively copy a directory. Used when fs.rename fails (e.g. EPERM on Windows).
+ * 递归复制目录。当 fs.rename 失败时使用（例如 Windows 上的 EPERM）。
  */
 async function copySymbolicLink(src: string, dest: string): Promise<void> {
   const target = await fs.readlink(src);
@@ -353,8 +343,8 @@ async function copySymbolicLink(src: string, dest: string): Promise<void> {
 
 async function copyDirContents(src: string, dest: string): Promise<void> {
   const sourceStat = await fs.lstat(src);
-  // Keep group/other access no broader than the source while ensuring this
-  // process can populate even a read-only source directory.
+  // 在保持组/其他用户访问权限不超过源目录的同时，确保此进程
+  // 能填充甚至只读的源目录。
   await fs.chmod(dest, (sourceStat.mode & 0o7777) | 0o700);
   const entries = await fs.readdir(src, { withFileTypes: true });
   for (const entry of entries) {
@@ -368,7 +358,7 @@ async function copyDirContents(src: string, dest: string): Promise<void> {
     } else if (entry.isFile()) {
       await fs.copyFile(srcPath, destPath, constants.COPYFILE_EXCL);
     } else {
-      throw new Error(`Cannot archive unsupported filesystem entry: ${srcPath}`);
+      throw new Error(`归档不支持的文件系统条目：${srcPath}`);
     }
   }
   await fs.chmod(dest, sourceStat.mode & 0o7777);
@@ -397,7 +387,7 @@ async function fingerprintDirectoryContents(root: string): Promise<string> {
   const visit = async (dir: string, relativeDir: string): Promise<void> => {
     const before = await fs.lstat(dir, { bigint: true });
     if (!before.isDirectory()) {
-      throw new Error(`Expected a directory while verifying ${dir}.`);
+      throw new Error(`验证时期望一个目录：${dir}。`);
     }
     updateHashField('directory-mode', (before.mode & 0o7777n).toString());
     const entries = (await fs.readdir(dir, { withFileTypes: true })).sort((a, b) =>
@@ -417,7 +407,7 @@ async function fingerprintDirectoryContents(root: string): Promise<string> {
         const target = await fs.readlink(entryPath);
         const after = await fs.lstat(entryPath, { bigint: true });
         if (statIdentity(stat) !== statIdentity(after)) {
-          throw new Error(`Path changed while archive was reading ${entryPath}.`);
+          throw new Error(`归档读取时路径发生变化：${entryPath}。`);
         }
         updateHashField('type', 'symlink');
         updateHashField('target', target);
@@ -425,7 +415,7 @@ async function fingerprintDirectoryContents(root: string): Promise<string> {
         const contentFingerprint = await fingerprintFile(entryPath);
         const after = await fs.lstat(entryPath, { bigint: true });
         if (statIdentity(stat) !== statIdentity(after)) {
-          throw new Error(`Path changed while archive was reading ${entryPath}.`);
+          throw new Error(`归档读取时路径发生变化：${entryPath}。`);
         }
         updateHashField('type', 'file');
         updateHashField('mode', (stat.mode & 0o7777n).toString());
@@ -439,7 +429,7 @@ async function fingerprintDirectoryContents(root: string): Promise<string> {
 
     const after = await fs.lstat(dir, { bigint: true });
     if (statIdentity(before) !== statIdentity(after)) {
-      throw new Error(`Directory changed while archive was reading ${dir}.`);
+      throw new Error(`归档读取时目录发生变化：${dir}。`);
     }
   };
 
@@ -465,11 +455,10 @@ async function assertCopiedDirectoryUnchanged(
 }
 
 /**
- * Move a directory from src to dest. On Windows, fs.rename() can fail with
- * EPERM, and cross-device moves fail with EXDEV. When the source can first be
- * renamed to a private sibling, fall back to a verified copy-then-remove. A
- * source that cannot be staged is left untouched rather than copied and deleted
- * through a path another process may still be editing.
+ * 将目录从 src 移动到 dest。在 Windows 上 fs.rename() 可能因 EPERM 失败，
+ * 跨设备移动会因 EXDEV 失败。当源目录可以先重命名为私有兄弟目录时，
+ * 回退到经验证的复制后删除。无法暂存的源保持不变，而不是通过
+ * 另一个进程可能仍在编辑的路径进行复制和删除。
  */
 class MoveDestinationRetainedError extends Error {}
 class RetirementBackupsRetainedError extends Error {}
@@ -485,12 +474,12 @@ async function moveDirectory(
     await fs.rename(src, dest);
   } catch (err: any) {
     const code = err?.code;
-    // rename onto a non-empty directory: the destination was taken while the
-    // archive was running. Same condition the pre-flight check reports.
+    // 重命名到非空目录：归档运行时目标被占用。
+    // 与预检报告的情况相同。
     if (code === 'ENOTEMPTY' || code === 'EEXIST') {
       throw new ArchiveBlockedError(
         'archive_target_exists',
-        `Archive '${path.basename(dest)}' already exists.`
+        `归档 '${path.basename(dest)}' 已存在。`
       );
     }
     if (code === 'EPERM' || code === 'EXDEV') {
@@ -499,9 +488,9 @@ async function moveDirectory(
         await fs.rename(src, stagedSource);
       } catch (stageError) {
         throw new Error(
-          `Could not safely stage ${src} before the fallback archive copy ` +
-            `(${stageError instanceof Error ? stageError.message : String(stageError)}). ` +
-            'No fallback copy was attempted.'
+          `无法在回退归档复制前安全暂存 ${src} ` +
+            `（${stageError instanceof Error ? stageError.message : String(stageError)}）。` +
+            '未尝试回退复制。'
         );
       }
       let destIsOurs = false;
@@ -522,14 +511,14 @@ async function moveDirectory(
         } catch (restoreError) {
           throw new Error(
             `${copyError instanceof Error ? copyError.message : String(copyError)} ` +
-              `Could not restore the staged source at ${stagedSource} ` +
-              `(${restoreError instanceof Error ? restoreError.message : String(restoreError)}).`
+              `无法恢复暂存的源目录 ${stagedSource} ` +
+              `（${restoreError instanceof Error ? restoreError.message : String(restoreError)}）。`
           );
         }
         if ((copyError as NodeJS.ErrnoException).code === 'EEXIST') {
           throw new ArchiveBlockedError(
             'archive_target_exists',
-            `Archive '${path.basename(dest)}' already exists.`
+            `归档 '${path.basename(dest)}' 已存在。`
           );
         }
         throw copyError;
@@ -544,8 +533,8 @@ async function moveDirectory(
         } catch (restoreError) {
           throw new Error(
             `${verificationError instanceof Error ? verificationError.message : String(verificationError)} ` +
-              `Could not restore the staged source at ${stagedSource} ` +
-              `(${restoreError instanceof Error ? restoreError.message : String(restoreError)}).`
+              `无法恢复暂存的源目录 ${stagedSource} ` +
+              `（${restoreError instanceof Error ? restoreError.message : String(restoreError)}）。`
           );
         }
         throw verificationError;
@@ -553,14 +542,14 @@ async function moveDirectory(
       try {
         await fs.rm(stagedSource, { recursive: true, force: true });
       } catch (cleanupError) {
-        // Recursive removal may already have deleted part of the source. The
-        // destination is now the only complete copy, so never erase it while
-        // trying to make this failed move look atomic.
+        // 递归删除可能已经删除了部分源目录。
+        // 目标现在是唯一完整副本，因此在尝试让失败的移动
+        // 看起来原子化时，切勿将其擦除。
         throw new MoveDestinationRetainedError(
-          `Copied ${src} to ${dest}, but could not remove the staged source at ` +
-            `${stagedSource} completely ` +
-            `(${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}). ` +
-            'The complete destination was retained for recovery.'
+          `已将 ${src} 复制到 ${dest}，但无法完全删除暂存的源目录 ` +
+            `${stagedSource} ` +
+            `（${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}）。` +
+            `完整的目标目录已保留用于恢复。`
         );
       }
     } else {
@@ -577,7 +566,7 @@ async function assertArchiveDestinationAvailable(
     await fs.lstat(archivePath);
     throw new ArchiveBlockedError(
       'archive_target_exists',
-      `Archive '${archiveName}' already exists.`
+      `归档 '${archiveName}' 已存在。`
     );
   } catch (error: any) {
     if (error instanceof ArchiveBlockedError) throw error;
@@ -602,9 +591,9 @@ async function releaseArchiveClaim(
   await claim.handle.close().catch(() => undefined);
   if (owned === undefined) return;
   try {
-    // Read between two lstats by design: the identity + content match below
-    // proves we still own this claim before unlinking it. This is a concurrent-
-    // change detector, not an fd-less race to "fix" (CodeQL js/file-system-race).
+    // 有意设计的两次 lstat 之间读取：下方的身份+内容匹配
+    // 证明我们在取消链接之前仍拥有此声明。这是一个并发变更检测器，
+    // 而非解决 fd-less 竞争的"修复"（CodeQL js/file-system-race）。
     const current = await fs.lstat(claimPath, { bigint: true });
     const contents = await fs.readFile(claimPath, 'utf8');
     const currentAfterRead = await fs.lstat(claimPath, { bigint: true });
@@ -645,8 +634,8 @@ async function claimArchiveDestination(
     if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
       throw new ArchiveBlockedError(
         'archive_target_exists',
-        `Archive '${archiveName}' is already being created. If no archive process is running, ` +
-          `remove the stale claim at ${claimPath} and rerun.`
+        `归档 '${archiveName}' 正在创建中。如果没有归档进程在运行，` +
+          `请删除过期的声明文件 ${claimPath} 后重新运行。`
       );
     }
     throw error;
@@ -709,7 +698,7 @@ async function fingerprintPath(filePath: string): Promise<string> {
           statIdentity(referentBefore) !== statIdentity(referentAfter) ||
           link !== (await fs.readlink(filePath))
         ) {
-          throw new Error(`Path changed while archive was reading ${filePath}.`);
+          throw new Error(`归档读取时路径发生变化：${filePath}。`);
         }
         return `symlink:${statIdentity(stat)}:${link}:${statIdentity(referentAfter)}:${hash}`;
       } catch (error) {
@@ -723,7 +712,7 @@ async function fingerprintPath(filePath: string): Promise<string> {
       const hash = await digest();
       const after = await fs.lstat(filePath, { bigint: true });
       if (statIdentity(stat) !== statIdentity(after)) {
-        throw new Error(`Path changed while archive was reading ${filePath}.`);
+        throw new Error(`归档读取时路径发生变化：${filePath}。`);
       }
       return `file:${statIdentity(after)}:${hash}`;
     }
@@ -737,9 +726,9 @@ async function fingerprintPath(filePath: string): Promise<string> {
 async function fingerprintMovablePath(filePath: string): Promise<string> {
   try {
     const entry = await fs.lstat(filePath, { bigint: true });
-    // Deliberate stat -> read -> re-stat: a concurrent change is DETECTED by the
-    // statIdentity comparison below and throws. Do not collapse to fd I/O, which
-    // would pin one inode and blind the detector (CodeQL js/file-system-race).
+    // 故意的 stat -> read -> re-stat 序列：并发变更通过下方的
+    // statIdentity 比较被检测到并抛出。不要简化为 fd I/O，因为
+    // 那会锁定同一个 inode 使检测器失效（CodeQL js/file-system-race）。
     const hash = createHash('sha256')
       .update(await fs.readFile(filePath))
       .digest('hex');
@@ -754,7 +743,7 @@ async function fingerprintMovablePath(filePath: string): Promise<string> {
         statIdentity(referent) !== statIdentity(referentAfter) ||
         link !== linkAfter
       ) {
-        throw new Error(`Path changed while archive was reading ${filePath}.`);
+        throw new Error(`归档读取时路径发生变化：${filePath}。`);
       }
       return (
         `symlink:${movableStatIdentity(entry)}:${link}:` +
@@ -763,7 +752,7 @@ async function fingerprintMovablePath(filePath: string): Promise<string> {
     }
     const entryAfter = await fs.lstat(filePath, { bigint: true });
     if (statIdentity(entry) !== statIdentity(entryAfter)) {
-      throw new Error(`Path changed while archive was reading ${filePath}.`);
+      throw new Error(`归档读取时路径发生变化：${filePath}。`);
     }
     return `file:${movableStatIdentity(entry)}:${hash}`;
   } catch (error) {
@@ -775,9 +764,9 @@ async function fingerprintMovablePath(filePath: string): Promise<string> {
 async function fingerprintPortableContent(filePath: string): Promise<string> {
   try {
     const entry = await fs.lstat(filePath);
-    // Point-in-time content hash by design (no re-stat): callers compare it
-    // against a prior fingerprint of the same bytes, so any concurrent change
-    // surfaces as a hash mismatch (CodeQL js/file-system-race is a false positive here).
+    // 设计上的时间点内容哈希（不重新 stat）：调用者将其与之前
+    // 同一字节的指纹进行比较，因此任何并发变更都会表现为
+    // 哈希不匹配（CodeQL js/file-system-race 在这里是误报）。
     const hash = createHash('sha256')
       .update(await fs.readFile(filePath))
       .digest('hex');
@@ -790,7 +779,7 @@ async function fingerprintPortableContent(filePath: string): Promise<string> {
   }
 }
 
-/** Fail closed if the metadata authorizing a retirement leaves its snapshot. */
+/** 如果授权退休的元数据丢失其快照，则安全失败。 */
 async function assertRetirementAuthorization(
   changeDir: string,
   expectedFingerprint: string,
@@ -807,7 +796,7 @@ async function assertRetirementAuthorization(
     !markerStillDeclared
   ) {
     throw new Error(
-      `The ${METADATA_FILENAME} retirement authorization changed before archive could complete.`
+      `在归档完成前，${METADATA_FILENAME} 的退休授权已发生变更。`
     );
   }
 }
@@ -837,8 +826,8 @@ async function assertDistinctMutationTargets(mutations: SpecMutation[]): Promise
     const existing = owners.get(identity);
     if (existing !== undefined) {
       throw new Error(
-        `Spec updates for '${existing}' and '${mutation.update.id}' resolve to the same target ` +
-          `${identity}. Replace the capability alias or combine the deltas before archiving.`
+        `'${existing}' 和 '${mutation.update.id}' 的 spec 更新解析到同一个目标 ` +
+          `${identity}。请替换 capability 别名或在归档前合并增量。`
       );
     }
     owners.set(identity, mutation.update.id);
@@ -855,9 +844,9 @@ async function captureSpecSnapshots(mutations: SpecMutation[]): Promise<SpecSnap
           let contentExisted = false;
           if (outcome === 'write') {
             try {
-              // Best-effort rollback snapshot; a concurrent edit is caught later
-              // by restoreSpecSnapshots refusing to overwrite non-matching content,
-              // not here (CodeQL js/file-system-race).
+              // 尽力而为的回滚快照；并发编辑稍后会被
+              // restoreSpecSnapshots 通过拒绝覆盖不匹配内容来捕获，
+              // 而非在此处理（CodeQL js/file-system-race）。
               content = await fs.readFile(update.target);
               contentExisted = true;
             } catch (error) {
@@ -879,9 +868,9 @@ async function captureSpecSnapshots(mutations: SpecMutation[]): Promise<SpecSnap
           existed: true,
           outcome,
           ...(outcome === 'write' ? { expectedContent: Buffer.from(rebuilt) } : {}),
-          // Snapshot read for rollback; restoreSpecSnapshots re-checks this
-          // content before restoring, so a mid-run change aborts instead of
-          // clobbering (CodeQL js/file-system-race).
+          // 为回滚读取快照；restoreSpecSnapshots 会在恢复前重新检查此
+          // 内容，因此运行中途的变更会中止而不是覆盖
+          // （CodeQL js/file-system-race 此处为有意行为）。
           ...(stat.isFile() ? { content: await fs.readFile(update.target) } : {}),
           ...(stat.isFile() ? { mode: stat.mode } : {}),
         };
@@ -909,8 +898,8 @@ async function restoreSpecSnapshots(snapshots: SpecSnapshot[]): Promise<void> {
           try {
             await fs.lstat(snapshot.target);
             throw new Error(
-              `Archive rollback would overwrite a concurrent change at ${snapshot.target}. ` +
-                `The displaced spec was retained at ${snapshot.displacedPath}.`
+              `归档回滚将覆盖 ${snapshot.target} 处的并发变更。` +
+                `已移置的 spec 保留在 ${snapshot.displacedPath}。`
             );
           } catch (error) {
             if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
@@ -925,9 +914,9 @@ async function restoreSpecSnapshots(snapshots: SpecSnapshot[]): Promise<void> {
             snapshot.symlink !== undefined &&
             current.isSymbolicLink() &&
             (await fs.readlink(snapshot.target)) === snapshot.symlink;
-          // Re-read to confirm the target still holds the snapshot content; a
-          // mismatch means a concurrent edit, and rollback throws below rather
-          // than overwrite it (CodeQL js/file-system-race is intentional here).
+          // 重新读取以确认目标仍持有快照内容；
+          // 不匹配意味着并发编辑，回滚会在下方抛出而非覆盖
+          // （CodeQL js/file-system-race 此处为有意行为）。
           const unchangedFile =
             snapshot.symlink === undefined &&
             snapshot.content !== undefined &&
@@ -935,7 +924,7 @@ async function restoreSpecSnapshots(snapshots: SpecSnapshot[]): Promise<void> {
             (await fs.readFile(snapshot.target)).equals(snapshot.content);
           if (unchangedSymlink || unchangedFile) continue;
           throw new Error(
-            `Archive rollback would overwrite a concurrent change at ${snapshot.target}.`
+            `归档回滚将覆盖 ${snapshot.target} 处的并发变更。`
           );
         } catch (error) {
           if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
@@ -962,12 +951,12 @@ async function restoreSpecSnapshots(snapshots: SpecSnapshot[]): Promise<void> {
               (snapshot.mode !== undefined && current.mode !== snapshot.mode)))
         ) {
           throw new Error(
-            `Archive rollback would overwrite a concurrent change at ${snapshot.target}.`
+            `归档回滚将覆盖 ${snapshot.target} 处的并发变更。`
           );
         }
-        // Re-read at rollback: only restore when current content matches what
-        // archive wrote or snapshotted; otherwise abort to preserve a concurrent
-        // change (CodeQL js/file-system-race is intentional here).
+        // 回滚时重新读取：仅当当前内容与归档写入或
+        // 快照内容匹配时才恢复；否则中止以保留并发变更
+        // （CodeQL js/file-system-race 此处为有意行为）。
         const currentContent = await fs.readFile(snapshot.target);
         const originalContent =
           snapshot.symlink !== undefined && !snapshot.contentExisted
@@ -984,7 +973,7 @@ async function restoreSpecSnapshots(snapshots: SpecSnapshot[]): Promise<void> {
           !currentContent.equals(snapshot.expectedContent)
         ) {
           throw new Error(
-            `Archive rollback would overwrite a concurrent change at ${snapshot.target}.`
+            `归档回滚将覆盖 ${snapshot.target} 处的并发变更。`
           );
         }
       }
@@ -1032,20 +1021,20 @@ async function finalizeRetirementBackups(
         snapshot.displacedFingerprint === undefined ||
         (await fingerprintMovablePath(displacedPath)) !== snapshot.displacedFingerprint
       ) {
-        throw new Error('the displaced spec changed after retirement verification');
+        throw new Error('退休验证后移置的 spec 发生了变更');
       }
       await finalizeRetiredSpec(snapshot.target, displacedPath, mainSpecsDir);
       snapshot.displacedPath = undefined;
     } catch (error) {
       errors.push(
-        `Could not remove the committed retirement backup at ${displacedPath} ` +
-          `(${error instanceof Error ? error.message : String(error)}).`
+        `无法删除已提交的退休备份 ${displacedPath} ` +
+          `（${error instanceof Error ? error.message : String(error)}）。`
       );
     }
   }
   if (errors.length > 0) {
     throw new RetirementBackupsRetainedError(
-      `${errors.join(' ')} The change remains archived and each listed backup was retained for recovery.`
+      `${errors.join(' ')} change 保持归档状态，每个列出的备份均已保留用于恢复。`
     );
   }
 }
@@ -1101,9 +1090,9 @@ export class ArchiveCommand {
   }
 
   /**
-   * Shared archive flow. In human mode (json=false) prompts and prose match
-   * the historical behavior and cancellations return null. In JSON mode no
-   * prose reaches stdout and every blocked path throws.
+   * 共享的归档流程。在人工模式下（json=false），提示和散文输出与
+   * 历史行为一致，取消操作返回 null。在 JSON 模式下，无散文输出
+   * 到 stdout，每个被阻塞的路径都会抛出异常。
    */
   private async run(
     changeName: string | undefined,
@@ -1125,23 +1114,23 @@ export class ArchiveCommand {
       } catch {
         throw new ArchiveBlockedError(
           'archive_path_outside_root',
-          `Refusing to archive through a path outside the OpenSpec root: ${managedDir}`
+          `拒绝通过 OpenSpec 根目录之外的路径进行归档：${managedDir}`
         );
       }
     }
 
-    // Get change name interactively if not provided
+    // 如果未提供 change 名称，则以交互方式获取
     if (!changeName) {
       if (json) {
         throw new ArchiveBlockedError(
           'archive_change_name_required',
-          'A change name is required: archive --json is non-interactive.',
+          '需要 change 名称：archive --json 为非交互模式。',
           withStoreFlag(root, 'openspec archive <change-name> --json')
         );
       }
       const selectedChange = await this.selectChange(changesDir, root, options);
       if (!selectedChange) {
-        console.log('No change selected. Aborting.');
+        console.log('未选择 change。正在中止。');
         return null;
       }
       changeName = selectedChange;
@@ -1160,11 +1149,11 @@ export class ArchiveCommand {
       if (stat.isSymbolicLink()) {
         throw new ArchiveBlockedError(
           'archive_change_symlink',
-          `Change '${changeName}' is a symbolic link. Replace it with a real directory before archiving.`
+          `Change '${changeName}' 是一个符号链接。请在归档前替换为真实目录。`
         );
       }
       if (!stat.isDirectory()) {
-        throw new Error(`Change '${changeName}' not found.`);
+        throw new Error(`未找到 change '${changeName}'。`);
       }
     } catch (error) {
       if (error instanceof ArchiveBlockedError) throw error;
@@ -1172,70 +1161,66 @@ export class ArchiveCommand {
       throw new ArchiveBlockedError(
         'archive_change_not_found',
         available.length > 0
-          ? `Change '${changeName}' not found. Available changes: ${available.join(', ')}`
-          : `Change '${changeName}' not found. No active changes exist in this root.`
+          ? `未找到 change '${changeName}'。可用的 change：${available.join(', ')}`
+          : `未找到 change '${changeName}'。此根目录中没有活动的 change。`
       );
     }
 
     const skipValidation = options.validate === false || options.noValidate === true;
 
-    // Validate specs and change before archiving
+    // 归档前验证 spec 和 change
     if (!skipValidation) {
       const validator = new Validator();
       let hasValidationErrors = false;
 
-      // Validate proposal.md (informative only; human mode prints warnings)
+      // 验证 proposal.md（仅提供信息；人工模式打印警告）
       if (!json) {
         const changeFile = path.join(changeDir, 'proposal.md');
         try {
           await fs.access(changeFile);
           const changeReport = await validator.validateChange(changeFile);
-          // Proposal validation is informative only (do not block archive).
-          // `validateChange` parses the change together with its delta specs,
-          // so it also raises requirement-level issues under
-          // `deltas.<n>.requirement(s)`. Those
-          // are not proposal problems, and reporting them here was noisy and
-          // sometimes wrong (#498): the change parser records every requirement
-          // under both `requirement` and `requirements`, so each defect was
-          // printed twice, and REMOVED requirements — names-only by design —
-          // produced a "missing scenario" warning for a correct removal.
-          // Genuine delta defects are still caught below, by the delta spec
-          // validation and by the rebuilt-spec check that runs before any write.
+          // Proposal 验证仅提供信息（不阻塞归档）。
+          // `validateChange` 将 change 与其增量 spec 一起解析，
+          // 因此它也会在 `deltas.<n>.requirement(s)` 下引发需求级别的问题。
+          // 这些不是 proposal 问题，在此报告它们之前很嘈杂，
+          // 有时甚至是错误的（#498）：change 解析器在 `requirement`
+          // 和 `requirements` 两者下记录每个需求，因此每个缺陷被打印两次，
+          // 设计上仅包含名称的 REMOVED 需求会为正确的删除
+          // 产生"缺失场景"警告。
+          // 真正的增量缺陷仍会通过下方的增量 spec 验证
+          // 和重建 spec 检查来捕获。
           const proposalIssues = changeReport.issues.filter(
             (issue) => !/^deltas\.\d+\.requirements?\./.test(issue.path)
           );
           if (!changeReport.valid && proposalIssues.length > 0) {
-            console.log(chalk.yellow(`\nProposal warnings in proposal.md (non-blocking):`));
+            console.log(chalk.yellow(`\nProposal 警告（非阻塞）在 proposal.md 中：`));
             for (const issue of proposalIssues) {
               const symbol = issue.level === 'ERROR' ? '⚠' : (issue.level === 'WARNING' ? '⚠' : 'ℹ');
               console.log(chalk.yellow(`  ${symbol} ${issue.message}`));
             }
           }
         } catch {
-          // Change file doesn't exist, skip validation
+          // Change 文件不存在，跳过验证
         }
       }
 
-      // Validate delta-formatted spec files under the change directory if present
+      // 如果存在，验证 change 目录下的增量格式 spec 文件
       const changeSpecsDir = path.join(changeDir, 'specs');
-      // A spec.md at the specs/ root is never merged, so archiving a change
-      // that has one drops its content whether or not it carries delta headers
-      // (#1385). Its existence alone must run validation, which reports it and
-      // blocks the archive. A directory named spec.md is a normal capability
-      // folder, so only a regular file counts.
+      // specs/ 根目录下的 spec.md 永远不会被合并，因此归档包含它的 change
+      // 时会丢弃其内容，无论它是否带有增量头部（#1385）。
+      // 它的存在本身必须触发验证，验证会报告并阻塞归档。
+      // 名为 spec.md 的目录是正常的 capability 文件夹，因此只有常规文件才会计数。
       const rootSpecStat = await fs.stat(path.join(changeSpecsDir, 'spec.md')).catch(() => null);
       let hasDeltaSpecs = rootSpecStat?.isFile() === true;
-      // A change that declares skip_specs must not carry any file under
-      // specs/ — validate reports that as a conflict, so archive has to run
-      // the same check instead of skipping validation because the files
-      // happen to have no delta headers. A marker that cannot be honored
-      // (skip_specs mentioned but the metadata fails the shared shape, or
-      // names a schema that does not resolve) also
-      // forces validation, so archive and validate always agree about the
-      // marker. Unreadable specs/ fails closed into validation too. (An
-      // UNMARKED zero-delta change still archives with only non-blocking
-      // proposal warnings — a gap that predates the marker and is left
-      // unchanged here.)
+      // 声明了 skip_specs 的 change 不得在 specs/ 下携带任何文件 —
+      // 验证将此报告为冲突，因此归档必须执行相同的检查，
+      // 而不是因为文件恰好没有增量头部就跳过验证。
+      // 无法遵守的标记（提到了 skip_specs 但元数据未能通过共享格式校验，
+      // 或指定了无法解析的 schema）也会强制验证，
+      // 因此归档和验证始终对标记保持一致。
+      // 无法读取的 specs/ 也会安全失败进入验证流程。
+      // （未标记的零增量 change 仍然仅归档非阻塞的 proposal 警告 —
+      // 这是标记之前就存在的空白，此处保持不变。）
       if (!hasDeltaSpecs) {
         const marker = readSkipSpecsMarker(changeDir);
         if (marker.invalidReason) {
@@ -1253,8 +1238,8 @@ export class ArchiveCommand {
       for (const { specFile } of hasDeltaSpecs ? [] : await discoverSpecFiles(changeSpecsDir)) {
         try {
           const content = await fs.readFile(specFile, 'utf-8');
-          // Case-insensitive to match the delta parser, so a lowercase header
-          // routes through the same delta validation that validate runs.
+          // 通过验证器的 delta 解析器进行大小写不敏感匹配，因此小写的头部
+          // 走与 validate 相同的增量验证路径。
           if (/^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements/im.test(content)) {
             hasDeltaSpecs = true;
             break;
@@ -1262,14 +1247,14 @@ export class ArchiveCommand {
         } catch {}
       }
       if (hasDeltaSpecs) {
-        // No mainSpecsDir here on purpose: the scenario-loss check standalone
-        // validate runs (#1477) is the same one buildUpdatedSpec enforces a few
-        // steps later, and reporting it here would relabel that failure.
+        // 此处有意省略 mainSpecsDir：独立的场景丢失检查
+        // validate 执行（#1477），与 buildUpdatedSpec 稍后执行的相同，
+        // 在此报告只会重新标记该失败。
         const deltaReport = await validator.validateChangeDeltaSpecs(changeDir);
         if (!deltaReport.valid) {
           hasValidationErrors = true;
           if (!json) {
-            console.log(chalk.red(`\nValidation errors in change delta specs:`));
+            console.log(chalk.red(`\nChange 增量 spec 中的验证错误：`));
             for (const issue of deltaReport.issues) {
               if (issue.level === 'ERROR') {
                 console.log(chalk.red(`  ✗ ${issue.message}`));
@@ -1285,12 +1270,12 @@ export class ArchiveCommand {
         if (json) {
           throw new ArchiveBlockedError(
             'archive_validation_failed',
-            `Validation failed for change '${changeName}'.`,
-            `Run ${withStoreFlag(root, `openspec validate ${changeName}`)} for details, fix the errors, or rerun with --no-validate.`
+            `Change '${changeName}' 的验证失败。`,
+            `运行 ${withStoreFlag(root, `openspec validate ${changeName}`)} 查看详情，修复错误后重新运行，或使用 --no-validate 重新运行。`
           );
         }
-        console.log(chalk.red('\nValidation failed. Please fix the errors before archiving.'));
-        console.log(chalk.yellow('To skip validation (not recommended), use --no-validate flag.'));
+        console.log(chalk.red('\n验证失败。请在归档前修复错误。'));
+        console.log(chalk.yellow('要跳过验证（不推荐），请使用 --no-validate 标志。'));
         process.exitCode = 1;
         return null;
       }
@@ -1298,12 +1283,12 @@ export class ArchiveCommand {
       if (!options.yes) {
         throw new ArchiveBlockedError(
           'archive_confirmation_required',
-          'Skipping validation requires confirmation: rerun with --yes.',
+          '跳过验证需要确认：请使用 --yes 重新运行。',
           withStoreFlag(root, 'openspec archive <change-name> --json --no-validate --yes')
         );
       }
     } else {
-      // Log warning when validation is skipped
+      // 跳过验证时记录警告
       const timestamp = new Date().toISOString();
 
       if (!options.yes) {
@@ -1315,27 +1300,27 @@ export class ArchiveCommand {
           () =>
             new ArchiveBlockedError(
               'archive_confirmation_required',
-              'Skipping validation requires confirmation, and no answer could be read from stdin.',
+              '跳过验证需要确认，且无法从 stdin 读取答案。',
               rerunCommand(root, changeName!, options)
             )
         );
         if (!proceed) {
-          console.log('Archive cancelled.');
+          console.log('归档已取消。');
           return null;
         }
       } else {
-        console.log(chalk.yellow(`\n⚠️  WARNING: Skipping validation may archive invalid specs.`));
+        console.log(chalk.yellow(`\n⚠️  警告：跳过验证可能会归档无效的 spec。`));
       }
 
-      console.log(chalk.yellow(`[${timestamp}] Validation skipped for change: ${changeName}`));
-      console.log(chalk.yellow(`Affected files: ${changeDir}`));
+      console.log(chalk.yellow(`[${timestamp}] 已跳过 change 的验证：${changeName}`));
+      console.log(chalk.yellow(`受影响的文件：${changeDir}`));
     }
 
-    // Show progress and check for incomplete tasks
+    // 显示进度并检查未完成的任务
     const progress = await getTaskProgressForChange(changesDir, changeName, path.resolve(changesDir, '..', '..'));
     if (!json) {
       const status = formatTaskStatus(progress);
-      console.log(`Task status: ${status}`);
+      console.log(`任务状态：${status}`);
     }
 
     const incompleteTasks = Math.max(progress.total - progress.completed, 0);
@@ -1344,49 +1329,48 @@ export class ArchiveCommand {
         if (!options.yes) {
           throw new ArchiveBlockedError(
             'archive_tasks_incomplete',
-            `${incompleteTasks} incomplete task(s) found for change '${changeName}'.`,
-            'Complete the tasks or rerun with --yes.'
+            `Change '${changeName}' 有 ${incompleteTasks} 个未完成的任务。`,
+            '请完成任务或使用 --yes 重新运行。'
           );
         }
       } else if (!options.yes) {
         const proceed = await confirmOrBlock(
           {
-            message: `Warning: ${incompleteTasks} incomplete task(s) found. Continue?`,
+            message: `警告：发现 ${incompleteTasks} 个未完成的任务。是否继续？`,
             default: false
           },
           () =>
             new ArchiveBlockedError(
               'archive_tasks_incomplete',
-              `${incompleteTasks} incomplete task(s) found for change '${describeChangeName(changeName!)}', and no answer could be read from stdin.`,
-              `Complete the tasks or rerun with ${rerunCommand(root, changeName!, options)}`
+              `Change '${describeChangeName(changeName!)}' 有 ${incompleteTasks} 个未完成的任务，且无法从 stdin 读取答案。`,
+              `请完成任务或使用 ${rerunCommand(root, changeName!, options)} 重新运行。`
             )
         );
         if (!proceed) {
-          console.log('Archive cancelled.');
+          console.log('归档已取消。');
           return null;
         }
       } else {
-        console.log(`Warning: ${incompleteTasks} incomplete task(s) found. Continuing due to --yes flag.`);
+        console.log(`警告：发现 ${incompleteTasks} 个未完成的任务。由于 --yes 标志，继续执行。`);
       }
     }
 
-    // Settle the archive destination BEFORE touching any spec. The name depends
-    // only on the change, and a collision is routine (archiving twice in a day,
-    // a restored change), so discovering it after the merge would leave specs
-    // rewritten - or a capability retired - for an archive that never happened.
+    // 在触碰任何 spec 之前先确定归档目标。名称仅取决于 change，
+    // 冲突是常见的（一天内归档两次，恢复的 change），因此在合并后
+    // 才发现冲突会导致 spec 被重写 — 或 capability 被退休 —
+    // 而归档从未发生。
     //
-    // Names that already carry a date prefix keep it: re-prefixing would stutter
-    // the name, and when the archive runs on a later day the folder would sort
-    // under a day on which the change did not happen (#1309).
+    // 已经带有日期前缀的名称保留其前缀：重新加前缀会导致名称结巴，
+    // 当归档在稍后的日期运行时，文件夹会被排序到 change
+    // 未发生的日期之下（#1309）。
     const archiveName = ARCHIVE_DATE_PREFIX_PATTERN.test(changeName)
       ? changeName
       : `${formatLocalDate()}-${changeName}`;
     const archivePath = path.join(archiveDir, archiveName);
 
-    // Read once, before any spec is touched: whether this change is allowed to
-    // retire a capability at all. An unhonorable marker counts as undeclared,
-    // exactly as skip_specs treats one, so metadata the rest of the CLI rejects
-    // can never authorise a deletion.
+    // 在触碰任何 spec 之前读取：此 change 是否被允许退休 capability。
+    // 无效的标记视为未声明，与 skip_specs 处理方式相同，
+    // 因此 CLI 其余部分拒绝的元数据永远不能授权删除。
     const retirementMarker = readRetireCapabilitiesMarker(changeDir);
     const retirementDeclared = retirementMarker.declared;
     const retirementAuthorizationFingerprint = retirementDeclared
@@ -1399,32 +1383,32 @@ export class ArchiveCommand {
     let archiveClaim: ArchiveClaim | undefined;
 
     try {
-      // Handle spec updates unless skipSpecs flag is set
+      // 除非设置了 skipSpecs 标志，否则处理 spec 更新
       let specsUpdated = false;
       let totals: ArchiveResult['totals'];
       const specWarnings: string[] = [];
       let changeArchived = false;
       if (options.skipSpecs) {
       if (!json) {
-        console.log('Skipping spec updates (--skip-specs flag provided).');
+        console.log('正在跳过 spec 更新（已提供 --skip-specs 标志）。');
       }
     } else {
-      // Find specs to update
+      // 查找需要更新的 spec
       const specUpdates = await findSpecUpdates(changeDir, mainSpecsDir);
 
       if (specUpdates.length > 0) {
         if (!json) {
-          console.log('\nSpecs to update:');
+          console.log('\n待更新的 spec：');
           for (const update of specUpdates) {
-            const status = update.exists ? 'update' : 'create';
+            const status = update.exists ? '更新' : '创建';
             const capability = update.id;
             console.log(`  ${capability}: ${status}`);
           }
         }
 
-        // Build the proposed updates before asking permission to apply them.
-        // buildUpdatedSpec also reports content that the merge would drop, so
-        // the confirmation must come after this preview.
+        // 在请求应用权限之前构建提议的更新。
+        // buildUpdatedSpec 还会报告合并会丢弃的内容，因此确认
+        // 必须在此预览之后进行。
         const prepared: Array<{
           update: SpecUpdate;
           rebuilt: string;
@@ -1450,7 +1434,7 @@ export class ArchiveCommand {
               targetBeforeBuild !== targetAfterBuild
             ) {
               throw new Error(
-                `Spec inputs for '${update.id}' changed while archive was preparing the preview.`
+                `归档准备预览时 '${update.id}' 的 spec 输入发生了变化。`
               );
             }
             prepared.push({
@@ -1473,13 +1457,13 @@ export class ArchiveCommand {
             specWarnings.push(...built.warnings);
           }
         } catch (err: unknown) {
-          // A user may still decline spec updates and archive the change, as
-          // before this preview existed. Defer the error until they accept.
+          // 用户仍可以拒绝 spec 更新并归档 change，
+          // 就像此预览存在之前一样。延迟错误直到他们接受。
           prepareError = err;
         }
         if (prepareError === undefined && !json) {
           for (const warning of specWarnings) {
-            console.log(chalk.yellow(`⚠️  Warning: ${warning}`));
+            console.log(chalk.yellow(`⚠️  警告：${warning}`));
           }
         }
 
@@ -1488,32 +1472,32 @@ export class ArchiveCommand {
           if (json) {
             throw new ArchiveBlockedError(
               'archive_confirmation_required',
-              `Updating ${specUpdates.length} spec(s) requires confirmation: rerun with --yes.`,
+              `更新 ${specUpdates.length} 个 spec 需要确认：请使用 --yes 重新运行。`,
               withStoreFlag(root, 'openspec archive <change-name> --json --yes')
             );
           }
           shouldUpdateSpecs = await confirmOrBlock(
             {
-              message: 'Proceed with spec updates?',
+              message: '是否继续进行 spec 更新？',
               default: true
             },
             () =>
               new ArchiveBlockedError(
                 'archive_confirmation_required',
-                `Updating ${specUpdates.length} spec(s) requires confirmation, and no answer could be read from stdin.`,
+                '更新 ${specUpdates.length} 个 spec 需要确认，且无法从 stdin 读取答案。',
                 rerunCommand(root, changeName!, options)
               )
           );
           if (!shouldUpdateSpecs) {
-            console.log('Skipping spec updates. Proceeding with archive.');
+            console.log('正在跳过 spec 更新。继续归档。');
           }
         }
 
         if (shouldUpdateSpecs) {
-          // The confirmation may stay open while another editor changes a main
-          // spec. Never apply the proposal built before the prompt to a newer
-          // baseline: in particular, a stale retirement decision must not
-          // delete a requirement added while the prompt was waiting.
+          // 确认可能在另一个编辑器更改主 spec 时保持打开。
+          // 切勿将提示之前构建的提议应用到更新的基线：
+          // 特别是，过期的退休决定绝不能删除等待提示时
+          // 添加的需求。
           if (prepareError === undefined) {
             try {
               const currentRetirementMarker = readRetireCapabilitiesMarker(changeDir);
@@ -1522,19 +1506,19 @@ export class ArchiveCommand {
                 currentRetirementMarker.invalidReason !== retirementMarker.invalidReason
               ) {
                 throw new Error(
-                  `The ${METADATA_FILENAME} retirement authorization changed while archive was awaiting confirmation.`
+                  `归档等待确认时 ${METADATA_FILENAME} 的退休授权发生了变更。`
                 );
               }
               const currentUpdates = await findSpecUpdates(changeDir, mainSpecsDir);
               const currentById = new Map(currentUpdates.map((update) => [update.id, update]));
               if (currentUpdates.length !== prepared.length) {
-                throw new Error('The change specs changed while archive was awaiting confirmation.');
+                throw new Error('归档等待确认时 change spec 发生了变更。');
               }
               for (const proposed of prepared) {
                 const current = currentById.get(proposed.update.id);
                 if (!current) {
                   throw new Error(
-                    `The delta for '${proposed.update.id}' changed while archive was awaiting confirmation.`
+                    `归档等待确认时 '${proposed.update.id}' 的增量发生了变更。`
                   );
                 }
                 if (
@@ -1542,8 +1526,8 @@ export class ArchiveCommand {
                   (await fingerprintPath(current.target)) !== proposed.targetFingerprint
                 ) {
                   throw new Error(
-                    `Spec inputs for '${proposed.update.id}' changed while archive was awaiting confirmation. ` +
-                      'No files were changed; review the new content and rerun.'
+                    `归档等待确认时 '${proposed.update.id}' 的 spec 输入发生了变化。` +
+                      '未更改任何文件；请查看新内容后重新运行。'
                   );
                 }
                 const rebuilt = await buildUpdatedSpec(current, changeName!, { silent: true });
@@ -1560,8 +1544,8 @@ export class ArchiveCommand {
                   outcome !== proposed.outcome
                 ) {
                   throw new Error(
-                    `Main spec '${proposed.update.id}' changed while archive was awaiting confirmation. ` +
-                      'No files were changed; review the new content and rerun.'
+                    `归档等待确认时主 spec '${proposed.update.id}' 发生了变更。` +
+                      '未更改任何文件；请查看新内容后重新运行。'
                   );
                 }
               }
@@ -1577,102 +1561,95 @@ export class ArchiveCommand {
               throw new ArchiveBlockedError(
                 'archive_spec_update_failed',
                 message,
-                'Fix the change delta specs and rerun. No files were changed.'
+                '请修复 change 增量 spec 并重新运行。未更改任何文件。'
               );
             }
             console.log(message);
-            console.log('Aborted. No files were changed.');
+            console.log('已中止。未更改任何文件。');
             process.exitCode = 1;
             return null;
           }
 
-          // Validate every rebuilt spec before writing any of them, so a
-          // late validation failure really does leave all targets unchanged.
+          // 在写入任何重建的 spec 之前先验证每个，这样
+          // 晚期验证失败确实会使所有目标保持不变。
           if (!skipValidation) {
             for (const p of prepared) {
-              // A retirement was already put to the validator, and failed on
-              // nothing but "no requirements" - there is no spec left to write,
-              // so re-reporting that one error would just abort the fix (#1302).
+              // 退休已经过验证器检查，仅因"无需求"而失败 —
+              // 没有可写入的 spec，因此重新报告该错误只会中止修复（#1302）。
               if (p.outcome !== 'write') continue;
               const specName = p.update.id;
               const report = await new Validator().validateSpecContent(specName, p.rebuilt);
               if (!report.valid) {
-                // This run is what emptied the capability, and "no
-                // requirements" is the only thing wrong with the spec that
-                // would be written - so retiring it is what archive would do,
-                // and what stands in the way of that is worth saying. Not
-                // always the *only* fix: a live requirement can be hiding in a
-                // second `## Requirements` section the validator never reaches,
-                // and merging the sections fixes that spec without a deletion.
+                // 本次运行清空了 capability，"无需求" 是 spec 唯一的错误
+                // — 因此退休是 archive 应该做的，也是实现这一点
+                // 的唯一方式。并不总是*唯一*的修复：活跃的需求可能
+                // 隐藏在验证器未到达的第二个 `## Requirements` 区块中，
+                // 合并这些区块可以修复该 spec 而无需删除。
                 const emptiedByThisRun =
                   p.update.exists &&
                   p.counts.removed > 0 &&
                   p.noRequirementBlocks &&
                   (await isRetirableSpec(specName, p.rebuilt));
-                // The dead end #1302 describes: the rebuilt spec is unwritable
-                // for exactly one reason, and retiring the capability is the
-                // fix - but only the author can authorise deleting the spec, so
-                // the abort names the marker instead of just rejecting. Says so
-                // only when the marker is the ONLY thing missing, so it never
-                // sends someone after a marker that would not have helped.
+                // 死胡同 #1302 描述：重建的 spec 因唯一一个原因不可写入，
+                // 退休 capability 是修复方法 — 但只有作者才能授权删除 spec，
+                // 因此中止操作会提及标记，而不是直接拒绝。
+                // 仅在标记是唯一缺失项时才这样说，确保不会引导用户添加
+                // 无法帮助的标记。
                 const retirementHint =
                   !retirementDeclared && emptiedByThisRun && p.unaccountedContent.length === 0
-                    ? `This change removes the last requirement '${specName}' has. To retire the` +
-                      ` capability and delete its spec, add \`retire_capabilities: true\` to the` +
-                      ` change's ${METADATA_FILENAME} (alongside its \`schema:\`, which that file` +
-                      ` requires), then rerun.` +
+                    ? `此 change 移除了 '${specName}' 的最后一个需求。要退休此` +
+                      ` capability 并删除其 spec，请在 change 的 ${METADATA_FILENAME} 中` +
+                      ` 添加 \`retire_capabilities: true\`（与其 \`schema:\` 并列，该文件需要此项），` +
+                      `然后重新运行。` +
                       (retirementMarker.invalidReason
-                        ? ` The marker present now cannot be honored (${retirementMarker.invalidReason}).`
+                        ? ` 当前标记无法被遵守（${retirementMarker.invalidReason}）。`
                         : '')
                     : undefined;
-                // #1696: the marker is missing AND the file holds content a
-                // retirement cannot account for, so this abort said nothing at
-                // all - just "must have at least one requirement", with no way
-                // forward. It names the content instead of the marker, on
-                // purpose: the marker is only ever named when adding it would
-                // really let the archive through, and here it would not. Once
-                // the content is resolved the rerun names the marker.
+                // #1696：标记缺失且文件包含退休无法解释的内容，
+                // 因此此中止操作根本没有说明任何内容 — 只是
+                // "必须至少有一个需求"，没有前进的路径。
+                // 它改为命名内容而非标记，这是有意的：仅在添加标记
+                // 确实能通过归档时才会命名标记，此处不会。
+                // 一旦内容解决，重新运行时会命名标记。
                 const blockedRetirementHint =
                   !retirementDeclared && emptiedByThisRun && p.unaccountedContent.length > 0
-                    ? `This change removes the last requirement '${specName}' has, so the rebuilt ` +
-                      `spec has none left and cannot be written. Retiring the capability is what ` +
-                      `archive does instead, and it is refused while the spec holds content the ` +
-                      `merge cannot safely account for and deleting the file would take with it: ` +
-                      `${describeUnaccountedContent(p.unaccountedContent)}. ` +
-                      'Move it into `## Purpose` or a canonical requirement, or delete the spec by hand, then rerun.' +
-                      // Said here too, because an author looking at a marker they
-                      // believe authorises the deletion should not have to clear
-                      // the content first to find out it was never read.
+                    ? `此 change 移除了 '${specName}' 的最后一个需求，因此重建的 ` +
+                      `spec 不再有需求且无法写入。退休 capability 是 archive ` +
+                      `的替代操作，但当 spec 包含合并无法安全解释的内容时会被拒绝，` +
+                      `删除文件会一并带走这些内容：` +
+                      `${describeUnaccountedContent(p.unaccountedContent)}。 ` +
+                      '请将其移入 `## Purpose` 或规范需求中，或手动删除 spec，然后重新运行。' +
+                      // 此处也提及，因为作者查看标记时
+                      // 认为标记授权了删除，不应在发现标记从未被读取之前
+                      // 必须清除内容。
                       (retirementMarker.invalidReason
-                        ? ` The marker present now cannot be honored (${retirementMarker.invalidReason}).`
+                        ? ` 当前标记无法被遵守（${retirementMarker.invalidReason}）。`
                         : '')
                     : undefined;
-                // The marker was set and retirement was still refused. Saying
-                // nothing left the author who did exactly what the docs asked
-                // back in the original dead end with no signal that their
-                // marker had been read at all.
-                // The author asked for a retirement and got the bare
-                // validation abort. Name the lines that stood in the way.
+                // 设置了标记但退休仍被拒绝。什么都不说让完全按照文档要求
+                // 操作的作者回到了没有信号表明他们的标记已被读取的
+                // 原始死胡同。
+                // 作者请求退休却只得到普通的验证中止。说明造成阻碍的行。
                 const refusalReason =
                   retirementDeclared &&
                   p.unaccountedContent.length > 0 &&
                   (await isRetirableSpec(specName, p.rebuilt))
-                    ? `'${specName}' declares retire_capabilities, but the spec holds content the merge ` +
-                      `cannot safely account for and deleting the file would take with it: ` +
-                      `${describeUnaccountedContent(p.unaccountedContent)}. ` +
-                      'Move it into `## Purpose` or a canonical requirement, or delete the spec by hand.'
+                    ? `'${specName}' 声明了 retire_capabilities，但 spec 包含合并 ` +
+                      `无法安全解释的内容，删除文件会一并带走这些内容：` +
+                      `${describeUnaccountedContent(p.unaccountedContent)}。 ` +
+                      '请将其移入 `## Purpose` 或规范需求中，或手动删除 spec。'
                     : undefined;
                 if (json) {
                   throw new ArchiveBlockedError(
                     'archive_spec_validation_failed',
-                    `Rebuilt spec for '${specName}' failed validation. No files were changed.`,
+                    `'${specName}' 的重建 spec 验证失败。未更改任何文件。`,
                     refusalReason ??
                       retirementHint ??
                       blockedRetirementHint ??
-                      `Run ${withStoreFlag(root, `openspec validate ${specName}`)} after fixing the change deltas.`
+                      `修复 change 增量后运行 ${withStoreFlag(root, `openspec validate ${specName}`)}。`
                   );
                 }
-                console.log(chalk.red(`\nValidation errors in rebuilt spec for ${specName} (will not write changes):`));
+                console.log(chalk.red(`\n重建的 spec ${specName} 中的验证错误（不会写入更改）：`));
                 for (const issue of report.issues) {
                   if (issue.level === 'ERROR') console.log(chalk.red(`  ✗ ${issue.message}`));
                   else if (issue.level === 'WARNING') console.log(chalk.yellow(`  ⚠ ${issue.message}`));
@@ -1680,17 +1657,16 @@ export class ArchiveCommand {
                 if (retirementHint) console.log(chalk.yellow(`  → ${retirementHint}`));
                 if (blockedRetirementHint) console.log(chalk.yellow(`  → ${blockedRetirementHint}`));
                 if (refusalReason) console.log(chalk.yellow(`  → ${refusalReason}`));
-                console.log('Aborted. No files were changed.');
+                console.log('已中止。未更改任何文件。');
                 process.exitCode = 1;
                 return null;
               }
             }
           }
 
-          // A legitimate concurrent archive cannot pass the exclusive claim,
-          // while this catches an external process that created the final
-          // destination during a confirmation prompt. Check before the first
-          // spec mutation so a collision never strands a write or retirement.
+          // 合法的并发归档无法通过独占声明，
+          // 同时此操作会捕获外部进程在确认提示期间创建最终目标的情况。
+          // 在首次 spec 变更前检查，确保冲突不会导致写入或退休操作搁浅。
           await assertArchiveDestinationAvailable(archivePath, archiveName);
           archiveClaim = await claimArchiveDestination(archivePath, archiveName);
           await assertArchiveDestinationAvailable(archivePath, archiveName);
@@ -1726,16 +1702,15 @@ export class ArchiveCommand {
 
           const mutationAttempts = new Set<string>();
           try {
-            // All validations passed; write files and display counts
+            // 所有验证已通过；写入文件并显示计数
             const writeTotals = { added: 0, modified: 0, removed: 0, renamed: 0 };
             let wroteAny = false;
           for (const p of prepared) {
-            // Deletions are deferred to the loop below.
+            // 删除操作推迟到下方的循环。
             if (p.outcome !== 'write') continue;
             const { added, modified, removed, renamed } = p.counts;
             if (added + modified + removed + renamed === 0) {
-              // Every operation was already synced: rewriting the file would
-              // only churn normalization differences into it.
+              // 每个操作都已同步：重写文件只会将规范化差异引入其中。
               continue;
             }
             await writeUpdatedSpec(p.update, p.rebuilt, p.counts, {
@@ -1751,7 +1726,7 @@ export class ArchiveCommand {
                 }
                 mutationAttempts.add(p.update.target);
               },
-              // Cross-root paths must be absolute when a store is selected.
+              // 选择了 store 时，跨根路径必须是绝对路径。
               ...(isStoreSelectedRoot(root) ? { displayPath: p.update.target } : {}),
             });
             wroteAny = true;
@@ -1761,8 +1736,8 @@ export class ArchiveCommand {
             writeTotals.renamed += renamed;
           }
 
-          // Retirements run only after every write has succeeded. If any
-          // later mutation fails, the snapshots below restore every target.
+          // 退休仅在每次写入成功后运行。如果后续变更失败，
+          // 下方的快照会恢复所有目标。
           for (const p of prepared) {
             if (p.outcome !== 'retire') continue;
             const { retired, resolvedPath, displacedPath } = await retireSpec(
@@ -1774,8 +1749,8 @@ export class ArchiveCommand {
                 beforeMutate: async () => {
                   if (retirementAuthorizationFingerprint === undefined) {
                     throw new Error(
-                      `The ${METADATA_FILENAME} retirement authorization is unavailable.`
-                    );
+                    `归档退休前无法获得 ${METADATA_FILENAME} 的退休授权。`
+                  );
                   }
                   await assertRetirementAuthorization(
                     changeDir,
@@ -1786,8 +1761,8 @@ export class ArchiveCommand {
                     `${p.sourceFingerprint}\n${p.targetFingerprint}`
                   ) {
                     throw new Error(
-                      `Spec inputs for '${p.update.id}' changed before archive could retire them.`
-                    );
+                    `归档退休前 '${p.update.id}' 的 spec 输入发生了变化。`
+                  );
                   }
                   mutationAttempts.add(p.update.target);
                 },
@@ -1801,7 +1776,7 @@ export class ArchiveCommand {
                     p.targetMovableFingerprint
                   ) {
                     throw new Error(
-                      `Main spec '${p.update.id}' changed while archive was securing it for retirement.`
+                      `归档为退休确保主 spec '${p.update.id}' 时其发生了变更。`
                     );
                   }
                 },
@@ -1812,41 +1787,36 @@ export class ArchiveCommand {
             const retirementSnapshot = specSnapshotsByTarget.get(p.update.target);
             if (retirementSnapshot === undefined || displacedPath === undefined) {
               throw new Error(
-                `Could not track the displaced main spec for '${p.update.id}' during retirement.`
+                `退休期间无法跟踪 '${p.update.id}' 的移置主 spec。`
               );
             }
             retirementSnapshot.displacedPath = displacedPath;
             retirementSnapshot.displacedFingerprint = p.targetMovableFingerprint;
             wroteAny = true;
-            // A rename applied on the way to the retirement still happened;
-            // folding every count in keeps the totals honest about the whole
-            // delta.
+            // 在退休过程中应用的重命名仍然发生了；
+            // 将所有计数合并确保总数反映了整个增量。
             writeTotals.added += p.counts.added;
             writeTotals.modified += p.counts.modified;
             writeTotals.removed += p.counts.removed;
             writeTotals.renamed += p.counts.renamed;
-            // Deleting a file is the one archive outcome a JSON consumer cannot
-            // infer from the totals, so it is recorded the way every other
-            // spec-merge divergence is. Purpose always goes with the file, so it
-            // is named too rather than left to the reader to work out, and the
-            // note carries the command that brings the file back.
+            // 删除文件是归档结果中 JSON 消费者无法从总数推断的操作，
+            // 因此它像每个其他 spec 合并差异一样被记录。
+            // Purpose 总是随文件一起，所以它也被命名而不是留给读者
+            // 推断，备注中带有恢复文件的命令。
             const lost = ['Purpose'];
-            // Derived from the path that was unlinked, never rebuilt from the
-            // capability id: on a case-insensitive filesystem the id and the
-            // real directory can differ in case, and git is case-sensitive, so
-            // an id-derived path is one git rejects.
-            // `update.target` is built from the capability id, so on a
-            // case-insensitive filesystem it can differ in case from the file
-            // that was actually unlinked - and git is case-sensitive, so the
-            // printed command is one git rejects. A capability directory
-            // symlinked to a sibling has the same problem without leaving the
-            // tree. `retiredPath` carries the resolved path, so it wins
-            // whenever it disagrees, not only when it escapes.
+            // 从被取消链接的路径派生，永远不从 capability id 重建：
+            // 在大小写不敏感的文件系统上，id 和真实目录的大小写可能不同，
+            // 而 git 是大小写敏感的，因此从 id 派生的路径是 git 拒绝的路径。
+            // `update.target` 从 capability id 构建，因此在大小写不敏感的
+            // 文件系统上其大小写可能与实际取消链接的文件不同 —
+            // git 是大小写敏感的，因此打印的命令是 git 拒绝的命令。
+            // 符号链接到兄弟目录的 capability 目录也有同样的问题。
+            // `retiredPath` 带有解析后的路径，因此在有分歧时优先使用它。
             const unlinkedPath = resolvedPath ?? p.update.target;
-            // Measured against the REAL root, so the platform's own
-            // `/var` -> `/private/var` link does not read as an escape. A path
-            // that genuinely sits outside stays absolute, which is what routes
-            // it to prose guidance instead of a command git would reject.
+            // 针对真实根目录测量，因此平台自身的
+            // `/var` -> `/private/var` 链接不会被视为越界。真正位于外部
+            // 的路径保持绝对路径，这会将其路由到散文指导而非 git 会
+            // 拒绝的命令。
             const realRoot = await fs.realpath(root.path).catch(() => root.path);
             const relativeToRoot = path.relative(realRoot, unlinkedPath);
             const insideRoot =
@@ -1857,33 +1827,29 @@ export class ArchiveCommand {
               isStoreSelectedRoot(root) || !insideRoot
                 ? unlinkedPath
                 : relativeToRoot.split(path.sep).join('/');
-            // A command is offered only when pasting it where archive was run
-            // would actually work. An absolute path here means the file did not
-            // live under that directory - a selected store, or a symlinked
-            // capability directory - and `git checkout HEAD -- <abs>` is rejected
-            // from a different worktree however it is quoted, so that case gets
-            // guidance instead of a command that cannot run. A path with no
-            // portable shell spelling is handled the same way.
+            // 仅在粘贴到归档运行位置时实际有效时才提供命令。
+            // 此处的绝对路径意味着文件不在该目录下 — 选中的 store
+            // 或符号链接的 capability 目录 — 且 `git checkout HEAD -- <abs>`
+            // 在不同工作树中会被拒绝，因此该情况改为提供指导而非
+            // 无法运行的命令。没有可移植 shell 拼写的路径也同样处理。
             //
-            // Conditional on purpose, too: whether the file is in `HEAD` is not
-            // something archive knows - a spec an earlier archive CREATED and
-            // nobody has committed yet is not - and promising recovery is the one
-            // claim this feature must not get wrong.
+            // 还以 purpose 为条件：文件是否在 `HEAD` 中不是归档能知道的
+            // — 较早归档创建的 spec 还没有人提交 — 而承诺恢复是此功能
+            // 绝不能出错的声明。
             const pasteablePath = path.isAbsolute(deletedPath)
               ? undefined
               : quoteForShell(`:(top)${deletedPath}`);
             const recovery = pasteablePath
-              ? `If it was committed, restore it with: git checkout HEAD -- ${pasteablePath}`
-              : `It was deleted from ${deletedPath}; if it was committed, restore it from that checkout's history.`;
+              ? `如果已提交，请使用以下命令恢复：git checkout HEAD -- ${pasteablePath}`
+              : `文件已从 ${deletedPath} 删除；如果已提交，请从该 checkout 的历史中恢复。`;
             const retirementNote =
-              `${p.update.id} - capability retired; deleted the main spec (all requirements removed` +
-              `, declared by retire_capabilities) at ${deletedPath}` +
-              `. Its section(s) went with it: ${lost.join(', ')}. ` +
+              `${p.update.id} - capability 已退休；删除了主 spec（所有需求已移除` +
+              `，由 retire_capabilities 声明）在 ${deletedPath}` +
+              `。其 section 也一并删除：${lost.join(', ')}。` +
               recovery;
             specWarnings.push(retirementNote);
-            // The "Retiring ..." line already told a human the file is gone; the
-            // sections it took along, and how to get them back, are the parts
-            // they cannot see from the path.
+            // "正在退休..." 行已经告诉用户文件已删除；
+            // 它带走的 section 以及如何恢复，是用户从路径看不到的部分。
             if (!json) {
               console.log(`   ${recovery}`);
             }
@@ -1893,12 +1859,12 @@ export class ArchiveCommand {
             totals = writeTotals;
             if (!json) {
             console.log(
-              `Totals: + ${writeTotals.added}, ~ ${writeTotals.modified}, - ${writeTotals.removed}, → ${writeTotals.renamed}`
+              `总计：+ ${writeTotals.added}, ~ ${writeTotals.modified}, - ${writeTotals.removed}, → ${writeTotals.renamed}`
             );
             console.log(
               wroteAny
-                ? 'Specs updated successfully.'
-                : 'Specs already in sync; no files changed.'
+                ? 'spec 已成功更新。'
+                : 'spec 已保持同步；未更改任何文件。'
             );
             }
 
@@ -1908,7 +1874,7 @@ export class ArchiveCommand {
                 proposed.sourceFingerprint
               ) {
                 throw new Error(
-                  `The delta for '${proposed.update.id}' changed before the change could be archived.`
+                  `归档归档前 '${proposed.update.id}' 的增量发生了变更。`
                 );
               }
             }
@@ -1925,10 +1891,9 @@ export class ArchiveCommand {
                 await assertRetirementAuthorization(
                   archivePath,
                   retirementAuthorizationFingerprint!,
-                  // Archived changes are nested one level deeper than active
-                  // changes, so the marker reader cannot resolve their schema.
-                  // Exact content equality proves this is the authorization
-                  // already validated at the active path.
+                  // 归档的 change 比活动 change 深一层，
+                  // 因此标记读取器无法解析其 schema。
+                  // 精确的内容相等证明这是在活动路径已验证过的授权。
                   { verifyMarker: false }
                 );
                 if (stagedSource) {
@@ -1948,7 +1913,7 @@ export class ArchiveCommand {
                   proposed.sourceContentFingerprint
                 ) {
                   throw new Error(
-                    `The archived delta for '${proposed.update.id}' changed during the final move.`
+                    `最终移动过程中 '${proposed.update.id}' 的归档增量发生了变更。`
                   );
                 }
                 if (stagedSource) {
@@ -1961,7 +1926,7 @@ export class ArchiveCommand {
                     proposed.sourceContentFingerprint
                   ) {
                     throw new Error(
-                      `The active delta for '${proposed.update.id}' changed during the fallback copy.`
+                      `回退复制过程中 '${proposed.update.id}' 的活动增量发生了变更。`
                     );
                   }
                 }
@@ -2041,7 +2006,7 @@ export class ArchiveCommand {
       }
 
       if (!json) {
-        console.log(`Change '${changeName}' archived as '${archiveName}'.`);
+        console.log(`Change '${changeName}' 已归档为 '${archiveName}'。`);
       }
 
       return {
@@ -2066,24 +2031,24 @@ export class ArchiveCommand {
     const changeDirs = await listActiveChangeNames(changesDir);
 
     if (changeDirs.length === 0) {
-      console.log('No active changes found.');
+      console.log('未找到活动的 change。');
       return null;
     }
 
-    // A picker needs a real terminal, and @inquirer's `select` writes ANSI
-    // cursor escapes to stdout even when it is redirected — the same #1526
-    // mechanism the confirm prompts were fixed for. When either stream is not a
-    // TTY, refuse up front with the guidance the caught ExitPromptError would
-    // give, rather than render an escape-spewing menu into a pipe or file.
+    // 选择器需要真实的终端，@inquirer 的 `select` 即使被重定向
+    // 也会向 stdout 写入 ANSI 光标转义序列 — 与 confirm 提示
+    // 修复的 #1526 机制相同。当任一流不是 TTY 时，预先拒绝并给出
+    // 捕获的 ExitPromptError 会提供的指导，而不是将产生转义序列的
+    // 菜单渲染到管道或文件中。
     if (!process.stdin.isTTY || !process.stdout.isTTY) {
       throw new ArchiveBlockedError(
         'archive_change_name_required',
-        'A change name is required: no terminal is available to choose one from a list.',
+        '需要 change 名称：没有可用的终端来从列表中选择。',
         withStoreFlag(root, `openspec archive <change-name> ${rerunFlags(options).join(' ')}`)
       );
     }
 
-    // Build choices with progress inline to avoid duplicate lists
+    // 在列表中内联构建带有进度的选项以避免重复列表
     let choices: Array<{ name: string; value: string }> = changeDirs.map(name => ({ name, value: name }));
     try {
       const progressList: Array<{ id: string; status: string }> = [];
@@ -2098,31 +2063,31 @@ export class ArchiveCommand {
         value: p.id
       }));
     } catch {
-      // If anything fails, fall back to simple names
+      // 如果有任何失败，回退到简单名称
       choices = changeDirs.map(name => ({ name, value: name }));
     }
 
     try {
       const answer = await select({
-        message: 'Select a change to archive',
+        message: '选择要归档的 change',
         choices
       });
       return answer;
     } catch (error) {
-      // Nobody to pick from the list: reporting "No change selected" and
-      // exiting 0 told an agent the archive had succeeded when nothing
-      // happened (#1479). The suggested rerun carries --yes because the same
-      // caller cannot answer the confirmations further down either, and the
-      // caller's own flags because dropping --skip-specs here would suggest a
-      // rerun that merges the specs it was passed to leave alone.
+      // 列表中无人可选：报告"未选择 change"并
+      // 以 0 退出会告诉 agent 归档成功了但实际上什么也没发生
+      // （#1479）。建议的重新运行带有 --yes，因为相同的
+      // 调用者也无法回答下方的确认，调用者自身的标志
+      // 也会被保留，因为丢弃 --skip-specs 会建议合并
+      // 其被要求保留的 spec 的重新运行。
       if (isNonInteractivePromptError(error)) {
         throw new ArchiveBlockedError(
           'archive_change_name_required',
-          'A change name is required: no answer could be read from stdin.',
+          '需要 change 名称：无法从 stdin 读取答案。',
           withStoreFlag(root, `openspec archive <change-name> ${rerunFlags(options).join(' ')}`)
         );
       }
-      // User cancelled (Ctrl+C)
+      // 用户取消（Ctrl+C）
       return null;
     }
   }

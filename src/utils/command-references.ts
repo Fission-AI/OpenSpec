@@ -1,35 +1,32 @@
 /**
- * Command Reference Utilities
+ * 命令引用工具
  *
- * Utilities for transforming command references to tool-specific formats.
+ * 用于将命令引用转换为工具特定格式的工具。
  */
 
-// Type-only imports: a value import would close a module cycle
-// (command-generation imports this file). Callers resolve the concrete
-// capability and invocation style and pass them in.
+// 仅类型导入：值导入会关闭模块循环
+// （command-generation 导入此文件）。调用方解析具体的能力和调用样式并传入。
 import type { CommandSurfaceCapability } from '../core/command-surface.js';
 import type { CommandInvocation } from '../core/command-generation/invocation.js';
-// Value import of a pure, dependency-free helper: invocation.ts imports only
-// `path` and a type, so this does not close the cycle the note above guards.
+// 纯无依赖帮助函数的值导入：invocation.ts 只导入 `path` 和一个类型，
+// 因此这不会关闭上面注释保护的循环。
 import {
   formatCommandInvocation,
   needsInvocationRewrite,
 } from '../core/command-generation/invocation.js';
 
 /**
- * Rewrites the canonical `/opsx:<command>` references that command bodies and
- * skill templates are authored with into the form one tool actually registers
- * — `/opsx-<command>` for tools that name the command by filename,
- * `@opsx-<command>` for Amazon Q's prompt library.
+ * 将命令体和 skill 模板中编写的规范 `/opsx:<command>` 引用
+ * 重写为工具实际注册的形式 —— 按文件名命名命令的工具使用 `/opsx-<command>`，
+ * Amazon Q 的提示库使用 `@opsx-<command>`。
  *
- * Only known command ids are rewritten, matching how
- * `transformToSkillReferences` leaves unrecognized references alone, so a
- * mistyped or invented `/opsx:<something>` is left as written rather than
- * silently reshaped into a command that does not exist either.
+ * 仅重写已知的命令 id，与 `transformToSkillReferences` 保持一致，
+ * 后者单独处理未识别的引用，因此输入错误或虚构的 `/opsx:<something>`
+ * 会按原样保留，而不是被静默地改造为不存在的命令。
  *
- * @param text - The text containing command references
- * @param invocation - The tool's invocation, from resolveCommandInvocation()
- * @returns Text with command references spelled the tool's way
+ * @param text - 包含命令引用的文本
+ * @param invocation - 工具的调用方式，来自 resolveCommandInvocation()
+ * @returns 命令引用按工具方式拼写的文本
  *
  * @example
  * transformCommandInvocations('/opsx:new', { style: 'flat', prefix: '/' }) // '/opsx-new'
@@ -47,9 +44,9 @@ export function transformCommandInvocations(
 }
 
 /**
- * Maps command short names to their skill names.
- * Keep in sync with WORKFLOW_TO_SKILL_DIR, which exists in both
- * src/core/profile-sync-drift.ts (exported) and src/core/init.ts (local copy).
+ * 将命令短名称映射到其 skill 名称。
+ * 与 WORKFLOW_TO_SKILL_DIR 保持同步，该映射同时存在于
+ * src/core/profile-sync-drift.ts（导出）和 src/core/init.ts（本地副本）中。
  */
 const COMMAND_TO_SKILL_NAME: Record<string, string> = {
   'explore': 'openspec-explore',
@@ -67,10 +64,10 @@ const COMMAND_TO_SKILL_NAME: Record<string, string> = {
 };
 
 /**
- * Tools whose skill invocation uses a non-default prefix. The default is `/`
- * (e.g. `/openspec-propose`); Kimi Code invokes skills as `/skill:<name>` and
- * Codex CLI as `$<name>` — a `/<name>` form Codex does not recognize
- * (see docs/supported-tools.md).
+ * 其 skill 调用使用非默认前缀的工具。默认是 `/`
+ * （例如 `/openspec-propose`）；Kimi Code 以 `/skill:<name>` 调用 skill，
+ * Codex CLI 以 `$<name>` 调用 —— Codex 不识别 `/<name>` 形式
+ * （见 docs/supported-tools.md）。
  */
 const SKILL_INVOCATION_PREFIX: Record<string, string> = {
   kimi: '/skill:',
@@ -78,19 +75,18 @@ const SKILL_INVOCATION_PREFIX: Record<string, string> = {
 };
 
 /**
- * Tools that have no slash-command surface at all: skills are matched
- * automatically or invoked by natural-language prompts, never by typing a
- * `/<name>` command. Rovo Dev CLI is such a tool — `/skills` only manages
- * skills, and any `/openspec-*` form would be a dead command (see
- * docs/supported-tools.md). References for these tools are spelled as prose
- * ("the openspec-propose skill") so generated content never tells the user to
- * type a command their CLI does not register.
+ * 完全没有斜杠命令表面的工具：skill 通过自然语言提示自动匹配或调用，
+ * 永远不需要输入 `/<name>` 命令。Rovo Dev CLI 就是这样的工具 ——
+ * `/skills` 只管理 skill，任何 `/openspec-*` 形式都是无效命令
+ * （见 docs/supported-tools.md）。这些工具的引用以散文形式拼写
+ * （"the openspec-propose skill"），因此生成的内容永远不会告诉用户
+ * 去输入他们的 CLI 未注册的命令。
  */
 const NATURAL_LANGUAGE_SKILL_TOOLS = new Set<string>(['rovodev']);
 
 /**
- * Whether a tool references skills by natural language rather than a slash
- * command (see NATURAL_LANGUAGE_SKILL_TOOLS).
+ * 工具是否通过自然语言而不是斜杠命令引用 skill
+ * （见 NATURAL_LANGUAGE_SKILL_TOOLS）。
  */
 export function usesNaturalLanguageSkillReferences(toolId: string): boolean {
   return NATURAL_LANGUAGE_SKILL_TOOLS.has(toolId);
@@ -111,8 +107,8 @@ function replaceCommandsWithSkillReferences(text: string, prefix: string): strin
 }
 
 /**
- * Keeps Codex's `$<name>` spelling first while making its canonical shared
- * `.agents` tree usable by agents that invoke the same skills with `/<name>`.
+ * 保持 Codex 的 `$<name>` 拼写优先，同时使其规范的共享
+ * `.agents` 树可被使用 `/<name>` 调用相同 skill 的 agent 使用。
  */
 export function transformToCodexCompatibleSkillReferences(text: string): string {
   return text.replace(/\/opsx:([a-z-]+)/g, (match, commandId: string) => {
@@ -124,35 +120,33 @@ export function transformToCodexCompatibleSkillReferences(text: string): string 
 }
 
 /**
- * Transforms command references to skill references using the default `/`
- * invocation prefix. Converts `/opsx:<command>` patterns to
- * `/openspec-<skill>` so that generated skills do not reference commands
- * that were never generated. Used for channels that are not tied to one
- * tool (e.g. the skills.sh distribution); tool-targeted generation should
- * go through getSkillReferenceTransformer instead.
+ * 使用默认的 `/` 调用前缀将命令引用转换为 skill 引用。
+ * 将 `/opsx:<command>` 模式转换为 `/openspec-<skill>`，
+ * 以便生成的 skill 不会引用从未生成的命令。
+ * 用于不绑定特定工具的通道（如 skills.sh 分发）；
+ * 面向工具的生成应通过 getSkillReferenceTransformer 进行。
  *
- * Unknown command references are left unchanged.
+ * 未知的命令引用保持不变。
  *
- * @param text - The text containing command references
- * @returns Text with command references transformed to skill references
+ * @param text - 包含命令引用的文本
+ * @returns 命令引用转换为 skill 引用的文本
  *
  * @example
- * transformToSkillReferences('/opsx:apply') // returns '/openspec-apply-change'
- * transformToSkillReferences('Use /opsx:archive next') // returns 'Use /openspec-archive-change next'
+ * transformToSkillReferences('/opsx:apply') // 返回 '/openspec-apply-change'
+ * transformToSkillReferences('Use /opsx:archive next') // 返回 'Use /openspec-archive-change next'
  */
 export function transformToSkillReferences(text: string): string {
   return replaceCommandsWithSkillReferences(text, '/');
 }
 
 /**
- * Returns the skill-reference transformer for a specific tool, honoring the
- * tool's documented skill invocation syntax (e.g. Kimi Code's
- * `/skill:openspec-propose`). Tools with no slash surface (e.g. Rovo Dev) get
- * natural-language references ("the openspec-propose skill"); everything else
- * falls back to the default `/openspec-*` form.
+ * 返回特定工具的 skill 引用转换器，遵守工具文档化的 skill 调用语法
+ * （如 Kimi Code 的 `/skill:openspec-propose`）。
+ * 没有斜杠表面的工具（如 Rovo Dev）获得自然语言引用
+ * （"the openspec-propose skill"）；其他一切回退到默认的 `/openspec-*` 形式。
  *
- * @param toolId - The AI tool identifier (e.g. 'kimi', 'vibe', 'rovodev')
- * @returns A transformer converting `/opsx:*` references to skill invocations
+ * @param toolId - AI 工具标识符（如 'kimi'、'vibe'、'rovodev'）
+ * @returns 将 `/opsx:*` 引用转换为 skill 调用的转换器
  */
 export function getSkillReferenceTransformer(toolId: string): (text: string) => string {
   if (usesNaturalLanguageSkillReferences(toolId)) {
@@ -166,40 +160,36 @@ export function getSkillReferenceTransformer(toolId: string): (text: string) => 
 }
 
 /**
- * Selects the command-reference transformer for a skill generation target.
+ * 为 skill 生成目标选择命令引用转换器。
  *
- * Skill references are used whenever the tool ends up without `/opsx:*`
- * commands — because delivery is skills-only, because the tool has no command
- * surface at all (capability 'none', e.g. Kimi Code or Mistral Vibe), or
- * because the tool invokes skills directly and OpenSpec generates no command
- * files for it (capability 'skills-invocable', i.e. Codex) — so those skills
- * never point at commands that were not generated.
+ * 当工具最终没有 `/opsx:*` 命令时使用 skill 引用 —— 因为分发仅是 skill，
+ * 因为工具完全没有命令表面（capability 'none'，如 Kimi Code 或 Mistral Vibe），
+ * 或者因为工具直接调用 skill 且 OpenSpec 不为其生成命令文件
+ * （capability 'skills-invocable'，即 Codex）—— 因此这些 skill
+ * 永远不会指向未生成的命令。
  *
- * When commands are generated, the spelling follows the tool's invocation: a
- * `flat` adapter names the command by filename (`.cursor/commands/opsx-apply.md`
- * → `/opsx-apply`), a `namespaced` adapter puts it in an `opsx/` directory
- * (`.claude/commands/opsx/apply.md` → `/opsx:apply`), and a non-slash prefix
- * wraps it further (`.amazonq/prompts/opsx-apply.md` → `@opsx-apply`). Passing
- * the invocation in keeps this module free of a hand-maintained tool list —
- * the list drifted and left 16 tools advertising commands their palettes never
- * registered (#727, #1307).
+ * 当生成命令时，拼写遵循工具的调用方式：`flat` 适配器按文件名命名命令
+ * （`.cursor/commands/opsx-apply.md` → `/opsx-apply`），
+ * `namespaced` 适配器将其放入 `opsx/` 目录
+ * （`.claude/commands/opsx/apply.md` → `/opsx:apply`），
+ * 非斜杠前缀进一步包装（`.amazonq/prompts/opsx-apply.md` → `@opsx-apply`）。
+ * 传入调用方式使得此模块不需要手动维护的工具列表 —— 该列表曾经漂移，
+ * 导致 16 个工具在其调色板从未注册的情况下仍宣称有命令 (#727, #1307)。
  *
- * Devin is the one tool that takes skill references even though its commands
- * are generated: only Devin Desktop reads `.devin/workflows/`, so a workflow
- * reference is dead text for anyone on Devin Local, while the `/openspec-*`
- * skills work on both agents. Under commands-only delivery there are no Devin
- * skills to point at, so it falls through to the invocation rewrite below and
- * gets the `/opsx-<id>` form its workflow filenames register.
+ * Devin 是即使生成了命令也采用 skill 引用的工具：只有 Devin Desktop
+ * 读取 `.devin/workflows/`，因此 workflow 引用对 Devin Local 上的人来说
+ * 是无效文本，而 `/openspec-*` skill 在两个 agent 上都可用。
+ * 在仅命令的分发下没有 Devin skill 可指向，因此它回退到下面的调用重写，
+ * 并获得其 workflow 文件名注册的 `/opsx-<id>` 形式。
  *
- * @param toolId - The AI tool identifier (e.g. 'claude', 'opencode', 'pi')
- * @param delivery - The configured delivery mode
- * @param capability - The tool's command surface capability
- * @param invocation - How the tool's generated commands are invoked, from
- *        resolveCommandInvocation(); undefined for tools with no command
- *        adapter. Required rather than optional so a caller that forgets it
- *        fails to compile instead of silently getting the canonical form.
- * @returns The transformer to pass to generateSkillContent, or undefined when
- *          the tool already answers to the canonical `/opsx:<id>`
+ * @param toolId - AI 工具标识符（如 'claude'、'opencode'、'pi'）
+ * @param delivery - 配置的分发模式
+ * @param capability - 工具的命令表面能力
+ * @param invocation - 工具生成命令的调用方式，来自 resolveCommandInvocation()；
+ *        对于没有命令适配器的工具为 undefined。必填而非可选，
+ *        以便忘记它的调用方会编译失败而不是静默地获取规范形式。
+ * @returns 传递给 generateSkillContent 的转换器，
+ *          或当工具已响应规范的 `/opsx:<id>` 时为 undefined
  */
 export function getTransformerForTool(
   toolId: string,

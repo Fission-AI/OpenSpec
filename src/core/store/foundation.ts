@@ -60,7 +60,7 @@ export interface StoreRegistryEntry {
 export interface StoreMetadataState {
   version: 1;
   id: string;
-  /** Canonical clone source, team-authored. Optional (slice 3.3). */
+  /** 规范的克隆源，由团队维护。可选（切片 3.3）。 */
   remote?: string;
 }
 
@@ -151,8 +151,7 @@ const RegistryEntrySchema = z.object({
 const RegistryStateSchema = z.object({
   version: z.literal(1),
   stores: z.record(z.string(), RegistryEntrySchema),
-  // Legacy code-checkout map data is tolerated on read and dropped on
-  // the next write.
+  // 旧版代码签出映射数据在读取时兼容，在下次写入时丢弃。
   repos: z.unknown().optional(),
 }).strict();
 
@@ -171,14 +170,14 @@ function storeStateDiagnostic(label: string): {
     return {
       code: 'invalid_store_metadata',
       target: 'store.metadata',
-      fix: 'Repair .openspec-store/store.yaml.',
+      fix: '修复 .openspec-store/store.yaml。',
     };
   }
 
   return {
     code: 'invalid_store_registry',
     target: 'store.registry',
-    fix: `Repair or remove ${getStoreRegistryPath({})}.`,
+    fix: `修复或移除 ${getStoreRegistryPath({})}。`,
   };
 }
 
@@ -321,8 +320,8 @@ export async function writeStoreRegistryState(
 }
 
 const storeRegistryLockError = makeLockErrorFactory({
-  createSubject: 'the registry lock file',
-  busyMessage: 'Store registry is busy.',
+  createSubject: '注册表锁文件',
+  busyMessage: 'Store 注册表正在使用中。',
   code: 'store_registry_busy',
   target: 'store.registry',
 });
@@ -386,7 +385,7 @@ export async function resolveGitStoreBackendConfig(
   cwd = process.cwd()
 ): Promise<StoreGitBackendConfig> {
   if (input.localPath.length === 0) {
-    throw new Error('Store local path must not be empty.');
+    throw new Error('Store 本地路径不能为空。');
   }
 
   const resolvedPath = path.isAbsolute(input.localPath)
@@ -394,15 +393,15 @@ export async function resolveGitStoreBackendConfig(
     : path.resolve(cwd, input.localPath);
 
   if (!(await pathIsDirectory(resolvedPath))) {
-    throw new Error(`Store local path does not exist: ${input.localPath}`);
+    throw new Error(`Store 本地路径不存在：${input.localPath}`);
   }
 
   if (input.remote !== undefined && input.remote.length === 0) {
-    throw new Error('Store backend remote must not be empty when provided.');
+    throw new Error('Store 后端 remote 提供时不能为空。');
   }
 
   if (input.branch !== undefined && input.branch.length === 0) {
-    throw new Error('Store branch must not be empty when provided.');
+    throw new Error('Store 分支提供时不能为空。');
   }
 
   return {

@@ -1,11 +1,9 @@
 /**
- * Shared fenced-code-block detection for the Markdown parsers.
+ * Markdown 解析器的共享围栏代码块检测。
  *
- * Several parsers need to ignore Markdown structure (headers, requirement
- * blocks, scenarios, delta sections) that appears inside fenced code blocks.
- * Keeping this logic in one place avoids the drift that previously left
- * `requirement-blocks.ts` treating fenced `### Requirement:` lines as real
- * requirements during validation and archiving.
+ * 多个解析器需要忽略出现在围栏代码块内的 Markdown 结构（标题、需求块、
+ * 场景、delta 节）。将此逻辑放在一处避免了之前 `requirement-blocks.ts`
+ * 在验证和归档时将围栏内的 `### Requirement:` 行当作真实需求处理的问题。
  */
 
 interface ActiveFence {
@@ -35,8 +33,8 @@ function isClosingFence(line: string, activeFence: ActiveFence): boolean {
 }
 
 /**
- * Builds a per-line mask where `true` marks a line that is part of a fenced
- * code block (including the opening and closing fence lines themselves).
+ * 构建每行的掩码，其中 `true` 标记属于围栏代码块的行
+ * （包括开头和结尾的围栏行本身）。
  */
 export function buildCodeFenceMask(lines: string[]): boolean[] {
   const mask = new Array<boolean>(lines.length).fill(false);

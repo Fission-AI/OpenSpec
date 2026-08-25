@@ -55,14 +55,14 @@ import { isInteractive } from '../utils/interactive.js';
 
 const STORE_OPTION_DESCRIPTION = COMMON_FLAGS.store.description;
 
-// Deliberate rejection path: --store-path stays registered (hidden) so the
-// resolver can explain that registering the path is the supported route,
-// instead of Commander emitting a generic unknown-option error (or, for
-// `show`, silently ignoring it via allowUnknownOption).
+// 有意为之的拒绝路径：--store-path 保持注册（隐藏），以便
+// 解析器可以解释注册路径是受支持的方式，
+// 而不是让 Commander 发出通用的未知选项错误（或者对于 `show`，
+// 通过 allowUnknownOption 静默忽略它）。
 function hiddenStorePathOption(): Option {
   return new Option(
     '--store-path <path>',
-    'Not supported; register the path with "openspec store register <path>" and use --store <id>'
+    '不支持；请使用 "openspec store register <path>" 注册路径，然后使用 --store <id>'
   ).hideHelp();
 }
 
@@ -70,8 +70,8 @@ function failWithError(
   error: unknown,
   json?: { enabled: boolean | undefined; payload?: Record<string, unknown>; fallbackCode?: string }
 ): void {
-  // The agent contract: every --json failure leaves exactly one JSON
-  // document on stdout (the command's null-shape plus a status array).
+  // Agent 约定：每个 --json 失败在 stdout 上只输出一个 JSON
+  // 文档（命令的 null 结构 + 状态数组）。
   if (json?.enabled) {
     console.log(
       JSON.stringify(
@@ -83,11 +83,11 @@ function failWithError(
     process.exitCode = 1;
     return;
   }
-  ora().fail(`Error: ${(error as Error).message}`);
-  // Resolution and store errors carry a pasteable fix - never drop it.
+  ora().fail(`错误：${(error as Error).message}`);
+  // 解析和存储错误带有可复制的修复建议 - 永不丢弃。
   const fix = (error as { diagnostic?: { fix?: string } }).diagnostic?.fix;
   if (fix) {
-    console.error(`Fix: ${fix}`);
+    console.error(`修复：${fix}`);
   }
   process.exitCode = process.exitCode ?? 1;
 }
@@ -97,8 +97,8 @@ const require = createRequire(import.meta.url);
 const { version } = require('../../package.json');
 
 /**
- * Get the full command path for nested commands.
- * For example: 'change show' -> 'change:show'
+ * 获取嵌套命令的完整命令路径。
+ * 例如：'change show' -> 'change:show'
  */
 export function getCommandPath(command: Command): string {
   const names: string[] = [];
@@ -106,7 +106,7 @@ export function getCommandPath(command: Command): string {
 
   while (current) {
     const name = current.name();
-    // Skip the root 'openspec' command
+    // 跳过根 'openspec' 命令
     if (name && name !== 'openspec') {
       names.unshift(name);
     }
@@ -117,18 +117,18 @@ export function getCommandPath(command: Command): string {
 }
 
 /**
- * True when the executing command asked for JSON output — used to suppress the
- * first-run telemetry notice so stdout stays a single valid JSON document.
+ * 当执行命令请求 JSON 输出时返回 true —— 用于抑制
+ * 首次运行的遥测通知，确保 stdout 保持为单个有效 JSON 文档。
  *
- * `--json` reaches commands three ways, so a single parsed option is not enough:
- * - declared on the leaf (`openspec status --json`) → `opts().json`
- * - declared on a parent group and read via globals (`openspec workset --json list`)
+ * `--json` 通过三种方式到达命令，因此单个解析选项不够：
+ * - 在叶子命令上声明（`openspec status --json`）→ `opts().json`
+ * - 在父组上声明并通过 globals 读取（`openspec workset --json list`）
  *   → `optsWithGlobals().json`
- * - a residual arg on a permissive group that never declares the option
- *   (`openspec store --json`, which detects it from `command.args`) → `args`
+ * - 在从未声明该选项的宽松组上作为残余参数
+ *   （`openspec store --json`，从 `command.args` 检测）→ `args`
  *
- * Suppressing is always safe: the disclosure is only deferred to the next
- * non-JSON run, never lost, whereas printing it on a JSON run corrupts stdout.
+ * 抑制始终是安全的：披露仅被推迟到下一次非 JSON 运行，
+ * 永远不会丢失，而在 JSON 运行时打印它会破坏 stdout。
  */
 export function isJsonRun(command: Command): boolean {
   return (
@@ -138,23 +138,23 @@ export function isJsonRun(command: Command): boolean {
 }
 
 /**
- * True for the commands that exist to serve shell completions: the user-facing
- * `openspec completion ...` group and the hidden `__complete` resolver that
- * generated completion scripts call on every Tab press. Tipping either about
- * completions is noise, and `__complete` would burn the one-shot tip invisibly.
+ * 为服务于 shell 补全的命令返回 true：面向用户的
+ * `openspec completion ...` 组和生成补全脚本时在每次 Tab 按键
+ * 时调用的隐藏 `__complete` 解析器。对补全提示任一方都是噪声，
+ * `__complete` 会使一次性提示不可见地被消耗。
  */
 export function isCompletionRun(commandPath: string): boolean {
   return commandPath.split(':')[0] === 'completion' || commandPath === '__complete';
 }
 
 /**
- * True when the first-run completions tip must be deferred rather than shown.
+ * 当首次运行的补全提示必须被推迟而非显示时返回 true。
  *
- * Deferring keeps the tip unconsumed, so it still reaches the user on a later
- * run that can actually carry it. All three cases are runs nobody would read a
- * hint from: JSON output, the completion machinery itself, and a stderr that is
- * not a terminal — pipes and the agent-driven runs that dominate this CLI's
- * usage would otherwise burn the user's one-shot tip into a log nobody opens.
+ * 推迟使提示保持未消耗状态，以便在后续实际能承载提示的运行中
+ * 仍然传递给用户。所有三种情况都是没有人会读取提示的运行：
+ * JSON 输出、补全机制本身，以及 stderr 不是终端的情况——管道
+ * 和 agent 驱动的运行在这个 CLI 的使用中占主导地位，否则会将
+ * 用户的一次性提示消耗在无人查看的日志中。
  */
 export function shouldDeferCompletionTip(command: Command, stderrIsTty: boolean): boolean {
   return isJsonRun(command) || isCompletionRun(getCommandPath(command)) || !stderrIsTty;
@@ -162,48 +162,48 @@ export function shouldDeferCompletionTip(command: Command, stderrIsTty: boolean)
 
 program
   .name('openspec')
-  .description('AI-native system for spec-driven development')
+  .description('AI 原生的规范驱动开发系统')
   .version(version);
 
-// Global options
-program.option('--no-color', 'Disable color output');
+// 全局选项
+program.option('--no-color', '禁用彩色输出');
 
-// Apply global flags and telemetry before any command runs
-// Note: preAction receives (thisCommand, actionCommand) where:
-// - thisCommand: the command where hook was added (root program)
-// - actionCommand: the command actually being executed (subcommand)
+// 在任何命令运行前应用全局标志和遥测
+// 注意：preAction 接收 (thisCommand, actionCommand)，其中：
+// - thisCommand：添加钩子的命令（根程序）
+// - actionCommand：实际执行的命令（子命令）
 program.hook('preAction', async (thisCommand, actionCommand) => {
   const opts = thisCommand.opts();
   if (opts.color === false) {
     process.env.NO_COLOR = '1';
   }
 
-  // Show first-run telemetry notice (if not seen). It's written to stderr, so it
-  // never pollutes stdout — but --json runs still defer it (see isJsonRun) so the
-  // very first invocation stays free of any incidental output on either stream.
+  // 显示首次运行的遥测通知（如果未查看）。它写入 stderr，因此
+  // 永远不会污染 stdout —— 但 --json 运行仍会推迟它（参见 isJsonRun），
+  // 确保第一次调用时不会在任一输出流中产生任何意外输出。
   await maybeShowTelemetryNotice({ silent: isJsonRun(actionCommand) });
 
-  // Track command execution (use actionCommand to get the actual subcommand)
+  // 跟踪命令执行（使用 actionCommand 获取实际的子命令）
   const commandPath = getCommandPath(actionCommand);
 
   await trackCommand(commandPath, version);
 });
 
-// Shutdown telemetry after command completes
+// 命令完成后关闭遥测
 program.hook('postAction', async (_thisCommand, actionCommand) => {
-  // Show the first-run shell-completions tip (on stderr, so piped stdout stays
-  // clean). postAction, not preAction: the tip trails the command's own output
-  // instead of pushing an error message or `init`'s setup summary down the
-  // screen. Deferred — not consumed — whenever nobody would read it: JSON runs,
-  // `openspec completion ...`, and a stderr that is not a terminal (agents and
-  // pipes would otherwise silently burn the user's one-shot tip).
+  // 显示首次运行的 shell 补全提示（在 stderr 上，因此管道化的 stdout 保持
+  // 干净）。postAction，而非 preAction：提示跟随命令自身的输出，
+  // 而不是将错误消息或 `init` 的设置摘要推到屏幕下方。
+  // 在没有人会读取的情况下推迟（不消耗）：JSON 运行、
+  // `openspec completion ...`，以及 stderr 不是终端的情况
+  // （agent 和管道否则会静默消耗用户的一次性提示）。
   try {
     await maybeShowCompletionTip({
       silent: shouldDeferCompletionTip(actionCommand, Boolean(process.stderr.isTTY)),
     });
   } finally {
-    // The flush runs even if the hint throws: parse() is synchronous, so a
-    // rejection here has no catch anywhere above it.
+    // 即使提示抛出异常，flush 仍然运行：parse() 是同步的，因此
+    // 此处的拒绝在其上没有任何捕获。
     await shutdown();
   }
 });
@@ -214,36 +214,36 @@ const availableToolIds = AI_TOOLS
 const toolAliasNote = Object.entries(TOOL_ID_ALIASES)
   .map(([retired, current]) => `${retired} (now ${current})`)
   .join(', ');
-const toolsOptionDescription = `Configure AI tools non-interactively. Use "all", "none", or a comma-separated list of: ${availableToolIds.join(', ')}. Also accepted: ${toolAliasNote}`;
+const toolsOptionDescription = `非交互式配置 AI 工具。使用 "all"、"none"，或以逗号分隔的列表：${availableToolIds.join(', ')}。也接受：${toolAliasNote}`;
 
 program
   .command('init [path]')
-  .description('Initialize OpenSpec in your project')
+  .description('在项目中初始化 OpenSpec')
   .option('--tools <tools>', toolsOptionDescription)
-  .option('--language <language>', 'Write new OpenSpec artifacts in this language')
-  .option('--force', 'Auto-cleanup legacy files without prompting')
-  .option('--profile <profile>', 'Override global config profile (core or custom)')
-  .option('--no-animation', 'Show a static welcome screen instead of the animated one')
-  .option('--copilot-cloud', 'Set up GitHub Copilot cloud coding-agent files without prompting')
-  .option('--no-copilot-cloud', 'Skip GitHub Copilot cloud coding-agent files without prompting')
+  .option('--language <language>', '以指定语言编写新的 OpenSpec 制品')
+  .option('--force', '自动清理遗留文件而不提示')
+  .option('--profile <profile>', '覆盖全局配置配置文件（core 或自定义）')
+  .option('--no-animation', '显示静态欢迎界面而非动画版本')
+  .option('--copilot-cloud', '设置 GitHub Copilot 云编码代理文件而不提示')
+  .option('--no-copilot-cloud', '跳过 GitHub Copilot 云编码代理文件而不提示')
   .action(async (targetPath = '.', options?: { tools?: string; language?: string; force?: boolean; profile?: string; animation?: boolean; copilotCloud?: boolean }) => {
     try {
-      // Validate that the path is a valid directory
+      // 验证路径是否为有效目录
       const resolvedPath = path.resolve(targetPath);
 
       try {
         const stats = await fs.stat(resolvedPath);
         if (!stats.isDirectory()) {
-          throw new Error(`Path "${targetPath}" is not a directory`);
+          throw new Error(`路径 "${targetPath}" 不是目录`);
         }
       } catch (error: any) {
         if (error.code === 'ENOENT') {
-          // Directory doesn't exist, but we can create it
-          console.log(`Directory "${targetPath}" doesn't exist, it will be created.`);
+          // 目录不存在，但我们可以创建它
+          console.log(`目录 "${targetPath}" 不存在，将会被创建。`);
         } else if (error.message && error.message.includes('not a directory')) {
           throw error;
         } else {
-          throw new Error(`Cannot access path "${targetPath}": ${error.message}`);
+          throw new Error(`无法访问路径 "${targetPath}"：${error.message}`);
         }
       }
 
@@ -263,15 +263,15 @@ program
     }
   });
 
-// Hidden alias: 'experimental' -> 'init' for backwards compatibility
+// 隐藏别名：'experimental' -> 'init' 用于向后兼容
 program
   .command('experimental', { hidden: true })
-  .description('Alias for init (deprecated)')
-  .option('--tool <tool-id>', 'Target AI tool (maps to --tools)')
-  .option('--no-interactive', 'Disable interactive prompts')
+  .description('init 的别名（已弃用）')
+  .option('--tool <tool-id>', '目标 AI 工具（映射到 --tools）')
+  .option('--no-interactive', '禁用交互式提示')
   .action(async (options?: { tool?: string; noInteractive?: boolean }) => {
     try {
-      console.log('Note: "openspec experimental" is deprecated. Use "openspec init" instead.');
+      console.log('注意："openspec experimental" 已弃用。请改用 "openspec init"。');
       const { InitCommand } = await import('../core/init.js');
       const initCommand = new InitCommand({
         tools: options?.tool,
@@ -286,20 +286,18 @@ program
 
 program
   .command('update [path]')
-  .description('Update OpenSpec instruction files')
-  .option('--force', 'Force update even when tools are up to date')
+  .description('更新 OpenSpec 指令文件')
+  .option('--force', '即使工具是最新的也强制更新')
   .action(async (targetPath = '.', options?: { force?: boolean }) => {
     try {
       const installDir = getInstallDir();
-      // Running from a clone: the version is whatever the branch says, so any
-      // upgrade advice would be noise. Decided before the request, so a
-      // contributor never waits on an answer that gets thrown away.
+      // 从克隆运行：版本取决于分支，因此任何升级建议都是噪声。
+      // 在请求之前决定，确保贡献者不会等待被丢弃的答案。
       const latestVersion = isSourceCheckout(installDir) ? null : await getAvailableCliUpdate();
       const announce = latestVersion !== null;
-      // Offer to upgrade first: this process generates files from its own
-      // templates, so upgrading afterwards would leave the old ones on disk.
-      // Both streams must be a terminal — with stdout redirected the question
-      // lands in the file and the user waits at a blank screen forever.
+      // 先提供升级：此进程从自身模板生成文件，因此之后升级会留下旧文件在磁盘上。
+      // 两个流都必须是终端——如果 stdout 被重定向，问题会出现在文件中，
+      // 用户将在空白屏幕前等待。
       const canOffer =
         announce &&
         shouldOfferUpgrade({
@@ -314,11 +312,10 @@ program
         displayCliUpdateNote(latestVersion, targetPath, { withCommand: false });
         const outcome = await offerCliUpgrade(latestVersion);
 
-        // Set the code and return rather than process.exit: exiting here would
-        // skip commander's postAction hook, killing the telemetry flush
-        // mid-request.
+        // 设置代码并返回而不是 process.exit：在此退出会跳过
+        // commander 的 postAction 钩子，在请求中途杀死遥测刷新。
         if (outcome === 'cancelled') {
-          // Ctrl-C means stop the command, not fall through to more prompts.
+          // Ctrl-C 意味着停止命令，而不是继续更多提示。
           process.exitCode = 130;
           return;
         }
@@ -328,8 +325,8 @@ program
           });
           return;
         }
-        // Declined, failed, or upgraded-but-unreachable: fall through to the
-        // update, then leave the command on screen underneath it.
+        // 已拒绝、失败或升级但不可达：继续执行更新，
+        // 然后将命令留在屏幕下方。
         declined = true;
       }
 
@@ -337,8 +334,8 @@ program
       await updateCommand.execute(targetPath);
 
       if (declined) {
-        // The headline was printed before the prompt; only the manual route is
-        // still owed, and it belongs where the user is looking now.
+        // 标题在提示之前已打印；只有手动路径还欠着，
+        // 它属于用户正在查看的地方。
         displayUpgradeCommand(targetPath);
       } else if (latestVersion) {
         displayCliUpdateNote(latestVersion, targetPath);
@@ -351,11 +348,11 @@ program
 
 program
   .command('list')
-  .description('List items (changes by default). Use --specs to list specs.')
-  .option('--specs', 'List specs instead of changes')
-  .option('--changes', 'List changes explicitly (default)')
-  .option('--sort <order>', 'Sort order: "recent" (default) or "name"', 'recent')
-  .option('--json', 'Output as JSON (for programmatic use)')
+  .description('列出项目（默认列出变更）。使用 --specs 列出规范。')
+  .option('--specs', '列出规范而非变更')
+  .option('--changes', '显式列出变更（默认）')
+  .option('--sort <order>', '排序顺序："recent"（默认）或 "name"', 'recent')
+  .option('--json', '以 JSON 格式输出（用于编程使用）')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
   .action(async (options?: { specs?: boolean; changes?: boolean; sort?: string; json?: boolean; store?: string; storePath?: string }) => {
@@ -363,8 +360,8 @@ program
       const root = await resolveRootForCommand(options ?? {}, {
         json: options?.json,
         failurePayload: options?.specs ? { specs: [], root: null } : { changes: [], root: null },
-        // Preserve the cwd fallback for pre-config.yaml projects. The resolver
-        // still lets a registered/default store take precedence over it.
+        // 保留 cwd 回退以支持 pre-config.yaml 项目。解析器仍允许
+        // 已注册/默认存储优先于它。
         allowImplicitRoot: existsSync(path.join(process.cwd(), 'openspec', 'project.md')),
       });
       if (!root) {
@@ -390,14 +387,14 @@ program
 
 program
   .command('view')
-  .description('Display an interactive dashboard of specs and changes')
+  .description('显示规范和变更的交互式仪表板')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
   .action(async (options?: { store?: string; storePath?: string }) => {
     try {
-      // Implicit cwd fallback stays enabled so `view` keeps accepting the same
-      // directories as `list`/`status` — notably pre-config.yaml `openspec/`
-      // dirs. ViewCommand still reports a missing openspec/ directory itself.
+      // 隐式 cwd 回退保持启用，使 `view` 能接受与 `list`/`status` 相同的
+      // 目录——特别是 pre-config.yaml 的 `openspec/` 目录。
+      // ViewCommand 自身仍会报告缺少 openspec/ 目录。
       const root = await resolveRootForCommand(options ?? {});
       if (!root) {
         return;
@@ -410,77 +407,76 @@ program
     }
   });
 
-// Change command with subcommands
+// 带子命令的 change 命令
 const changeCmd = program
   .command('change')
-  .description('Manage OpenSpec change proposals');
+  .description('管理 OpenSpec 变更提案');
 
-// Deprecation notice for noun-based commands
+// 基于名词的命令的弃用通知
 changeCmd.hook('preAction', () => {
-  console.error('Warning: The "openspec change ..." commands are deprecated. Prefer verb-first commands (e.g., "openspec list", "openspec validate --changes").');
+  console.error('警告："openspec change ..." 命令已弃用。请优先使用动词优先的命令（如 "openspec list"、"openspec validate --changes"）。');
 });
 
 changeCmd
   .command('show [change-name]')
-  .description('Show a change proposal in JSON or markdown format')
-  .option('--json', 'Output as JSON')
-  .option('--deltas-only', 'Show only deltas (JSON only)')
-  .option('--requirements-only', 'Alias for --deltas-only (deprecated)')
-  .option('--no-interactive', 'Disable interactive prompts')
+  .description('以 JSON 或 markdown 格式显示变更提案')
+  .option('--json', '以 JSON 格式输出')
+  .option('--deltas-only', '仅显示增量（仅 JSON）')
+  .option('--requirements-only', '--deltas-only 的别名（已弃用）')
+  .option('--no-interactive', '禁用交互式提示')
   .action(async (changeName?: string, options?: { json?: boolean; requirementsOnly?: boolean; deltasOnly?: boolean; noInteractive?: boolean }) => {
     try {
       const changeCommand = new ChangeCommand();
       await changeCommand.show(changeName, options);
     } catch (error) {
-      console.error(`Error: ${(error as Error).message}`);
+      console.error(`错误：${(error as Error).message}`);
       process.exitCode = 1;
     }
   });
 
 changeCmd
   .command('list')
-  .description('List all active changes (DEPRECATED: use "openspec list" instead)')
-  .option('--json', 'Output as JSON')
-  .option('--long', 'Show id and title with counts')
+  .description('列出所有活动变更（已弃用：请改用 "openspec list"）')
+  .option('--json', '以 JSON 格式输出')
+  .option('--long', '显示 id 和标题及计数')
   .action(async (options?: { json?: boolean; long?: boolean }) => {
     try {
-      console.error('Warning: "openspec change list" is deprecated. Use "openspec list".');
+      console.error('警告："openspec change list" 已弃用。请改用 "openspec list"。');
       const changeCommand = new ChangeCommand();
       await changeCommand.list(options);
     } catch (error) {
-      console.error(`Error: ${(error as Error).message}`);
+      console.error(`错误：${(error as Error).message}`);
       process.exitCode = 1;
     }
   });
 
 changeCmd
   .command('validate [change-name]')
-  .description('Validate a change proposal')
-  .option('--strict', 'Enable strict validation mode')
-  .option('--json', 'Output validation report as JSON')
-  .option('--no-interactive', 'Disable interactive prompts')
+  .description('验证变更提案')
+  .option('--strict', '启用严格验证模式')
+  .option('--json', '以 JSON 格式输出验证报告')
+  .option('--no-interactive', '禁用交互式提示')
   .action(async (changeName?: string, options?: { strict?: boolean; json?: boolean; noInteractive?: boolean }) => {
     try {
       const changeCommand = new ChangeCommand();
-      // validate() already sets process.exitCode, and Node honours it at
-      // natural exit. Calling process.exit() here would skip commander's
-      // postAction hook — the same trap called out for `update` below — which
-      // kills the telemetry flush and the first-run completions tip on what is
-      // a routine outcome, not an error: a change that fails validation.
+      // validate() 已设置 process.exitCode，Node 在自然退出时会遵循它。
+      // 在此调用 process.exit() 会跳过 commander 的 postAction 钩子——
+      // 与下面 `update` 中指出的陷阱相同——会在常规结果上杀死
+      // 遥测刷新和首次运行的补全提示，而不是错误：验证失败的变更。
       await changeCommand.validate(changeName, options);
     } catch (error) {
-      console.error(`Error: ${(error as Error).message}`);
+      console.error(`错误：${(error as Error).message}`);
       process.exitCode = 1;
     }
   });
 
 program
   .command('archive [change-name]')
-  .description('Archive a completed change and update main specs')
-  .option('-y, --yes', 'Skip confirmation prompts')
-  .option('--skip-specs', 'Skip spec update operations (useful for infrastructure, tooling, or doc-only changes)')
-  .option('--no-validate', 'Skip validation (not recommended, requires confirmation)')
-  .option('--json', 'Output as JSON (non-interactive)')
+  .description('归档已完成的变更并更新主规范')
+  .option('-y, --yes', '跳过确认提示')
+  .option('--skip-specs', '跳过规范更新操作（适用于基础设施、工具或仅文档变更）')
+  .option('--no-validate', '跳过验证（不推荐，需要确认）')
+  .option('--json', '以 JSON 格式输出（非交互式）')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
   .action(async (changeName?: string, options?: ArchiveOptions) => {
@@ -501,19 +497,19 @@ registerDoctorCommand(program);
 registerContextCommand(program);
 registerWorksetCommand(program);
 
-// Top-level validate command
+// 顶级 validate 命令
 program
   .command('validate [item-name]')
-  .description('Validate changes and specs')
-  .option('--all', 'Validate all changes and specs')
-  .option('--changes', 'Validate all changes')
-  .option('--specs', 'Validate all specs')
-  .option('--archived', 'Validate that archived changes have all tasks completed (for pre-commit linting)')
-  .option('--type <type>', 'Specify item type when ambiguous: change|spec')
-  .option('--strict', 'Enable strict validation mode')
-  .option('--json', 'Output validation results as JSON')
-  .option('--concurrency <n>', 'Max concurrent validations (defaults to env OPENSPEC_CONCURRENCY or 6)')
-  .option('--no-interactive', 'Disable interactive prompts')
+  .description('验证变更和规范')
+  .option('--all', '验证所有变更和规范')
+  .option('--changes', '验证所有变更')
+  .option('--specs', '验证所有规范')
+  .option('--archived', '验证已归档的变更是否完成所有任务（用于预提交检查）')
+  .option('--type <type>', '当类型不明确时指定项目类型：change|spec')
+  .option('--strict', '启用严格验证模式')
+  .option('--json', '以 JSON 格式输出验证结果')
+  .option('--concurrency <n>', '最大并发验证数（默认为环境 OPENSPEC_CONCURRENCY 或 6）')
+  .option('--no-interactive', '禁用交互式提示')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
   .action(async (itemName?: string, options?: { all?: boolean; changes?: boolean; specs?: boolean; archived?: boolean; type?: string; strict?: boolean; json?: boolean; noInteractive?: boolean; concurrency?: string; store?: string; storePath?: string }) => {
@@ -526,25 +522,25 @@ program
     }
   });
 
-// Top-level show command
+// 顶级 show 命令
 program
   .command('show [item-name]')
-  .description('Show a change or spec')
-  .option('--json', 'Output as JSON')
-  .option('--type <type>', 'Specify item type when ambiguous: change|spec')
-  .option('--no-interactive', 'Disable interactive prompts')
-  // change-only flags
-  .option('--deltas-only', 'Show only deltas (JSON only, change)')
-  .option('--requirements-only', 'Alias for --deltas-only (deprecated, change)')
-  // spec-only flags
-  .option('--requirements', 'JSON only: Show only requirements (exclude scenarios)')
-  .option('--no-scenarios', 'JSON only: Exclude scenario content')
-  .option('-r, --requirement <id>', 'JSON only: Show specific requirement by ID (1-based)')
+  .description('显示变更或规范')
+  .option('--json', '以 JSON 格式输出')
+  .option('--type <type>', '当类型不明确时指定项目类型：change|spec')
+  .option('--no-interactive', '禁用交互式提示')
+  // 仅用于 change 的标志
+  .option('--deltas-only', '仅显示增量（仅 JSON，change）')
+  .option('--requirements-only', '--deltas-only 的别名（已弃用，change）')
+  // 仅用于 spec 的标志
+  .option('--requirements', '仅 JSON：仅显示需求（排除场景）')
+  .option('--no-scenarios', '仅 JSON：排除场景内容')
+  .option('-r, --requirement <id>', '仅 JSON：按 ID 显示特定需求（从 1 开始）')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
-  // Explicit registration required: allowUnknownOption would otherwise
-  // silently swallow --store-path instead of rejecting it deliberately.
+  // 需要显式注册：allowUnknownOption 否则会静默
+  // 吞掉 --store-path，而非故意拒绝它。
   .addOption(hiddenStorePathOption())
-  // allow unknown options to pass-through to underlying command implementation
+  // 允许未知选项传递到底层命令实现
   .allowUnknownOption(true)
   .action(async (itemName?: string, options?: { json?: boolean; type?: string; noInteractive?: boolean; [k: string]: any }) => {
     try {
@@ -556,11 +552,11 @@ program
     }
   });
 
-// Feedback command
+// Feedback 命令
 program
   .command('feedback <message>')
-  .description('Submit feedback about OpenSpec')
-  .option('--body <text>', 'Detailed description for the feedback')
+  .description('提交关于 OpenSpec 的反馈')
+  .option('--body <text>', '反馈的详细描述')
   .action(async (message: string, options?: { body?: string }) => {
     try {
       const feedbackCommand = new FeedbackCommand();
@@ -571,14 +567,14 @@ program
     }
   });
 
-// Completion command with subcommands
+// 带子命令的 completion 命令
 const completionCmd = program
   .command('completion')
-  .description('Manage shell completions for OpenSpec CLI');
+  .description('管理 OpenSpec CLI 的 shell 补全');
 
 completionCmd
   .command('generate [shell]')
-  .description('Generate completion script for a shell (outputs to stdout)')
+  .description('为 shell 生成补全脚本（输出到 stdout）')
   .action(async (shell?: string) => {
     try {
       const completionCommand = new CompletionCommand();
@@ -591,8 +587,8 @@ completionCmd
 
 completionCmd
   .command('install [shell]')
-  .description('Install completion script for a shell')
-  .option('--verbose', 'Show detailed installation output')
+  .description('为 shell 安装补全脚本')
+  .option('--verbose', '显示详细安装输出')
   .action(async (shell?: string, options?: { verbose?: boolean }) => {
     try {
       const completionCommand = new CompletionCommand();
@@ -605,8 +601,8 @@ completionCmd
 
 completionCmd
   .command('uninstall [shell]')
-  .description('Uninstall completion script for a shell')
-  .option('-y, --yes', 'Skip confirmation prompts')
+  .description('卸载 shell 的补全脚本')
+  .option('-y, --yes', '跳过确认提示')
   .action(async (shell?: string, options?: { yes?: boolean }) => {
     try {
       const completionCommand = new CompletionCommand();
@@ -617,31 +613,31 @@ completionCmd
     }
   });
 
-// Hidden command for machine-readable completion data
+// 用于机器可读补全数据的隐藏命令
 program
   .command('__complete <type>', { hidden: true })
-  .description('Output completion data in machine-readable format (internal use)')
+  .description('以机器可读格式输出补全数据（内部使用）')
   .action(async (type: string) => {
     try {
       const completionCommand = new CompletionCommand();
       await completionCommand.complete({ type });
     } catch (error) {
-      // Silently fail for graceful shell completion experience
+      // 静默失败以获得流畅的 shell 补全体验
       process.exitCode = 1;
     }
   });
 
 // ═══════════════════════════════════════════════════════════
-// Workflow Commands (formerly experimental)
+// 工作流命令（原 experimental）
 // ═══════════════════════════════════════════════════════════
 
-// Status command
+// Status 命令
 program
   .command('status')
-  .description('Display artifact completion status for a change')
-  .option('--change <id>', 'Change name to show status for')
-  .option('--schema <name>', 'Schema override (auto-detected from config.yaml)')
-  .option('--json', 'Output as JSON')
+  .description('显示变更的制品完成状态')
+  .option('--change <id>', '要显示状态的变更名称')
+  .option('--schema <name>', '配置覆盖（从 config.yaml 自动检测）')
+  .option('--json', '以 JSON 格式输出')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
   .action(async (options: StatusOptions) => {
@@ -653,18 +649,18 @@ program
     }
   });
 
-// Instructions command
+// Instructions 命令
 program
   .command('instructions [artifact]')
-  .description('Output enriched instructions for artifacts, apply, or archive')
-  .option('--change <id>', 'Change name')
-  .option('--schema <name>', 'Schema override (auto-detected from config.yaml)')
-  .option('--json', 'Output as JSON')
+  .description('输出制品、apply 或 archive 的增强指令')
+  .option('--change <id>', '变更名称')
+  .option('--schema <name>', '配置覆盖（从 config.yaml 自动检测）')
+  .option('--json', '以 JSON 格式输出')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
   .action(async (artifactId: string | undefined, options: InstructionsOptions) => {
     try {
-      // Workflow instruction surfaces are reserved command branches, not artifacts.
+      // 工作流指令表面是保留的命令分支，不是制品。
       if (artifactId === 'apply') {
         await applyInstructionsCommand(options);
       } else if (artifactId === 'archive') {
@@ -678,12 +674,12 @@ program
     }
   });
 
-// Templates command
+// Templates 命令
 program
   .command('templates')
-  .description('Show resolved template paths for all artifacts in a schema')
-  .option('--schema <name>', `Schema to use (default: ${DEFAULT_SCHEMA})`)
-  .option('--json', 'Output as JSON mapping artifact IDs to template paths')
+  .description('显示配置中所有制品的解析模板路径')
+  .option('--schema <name>', `使用的配置（默认：${DEFAULT_SCHEMA}）`)
+  .option('--json', '以 JSON 格式输出，映射制品 ID 到模板路径')
   .action(async (options: TemplatesOptions) => {
     try {
       await templatesCommand(options);
@@ -693,11 +689,11 @@ program
     }
   });
 
-// Schemas command
+// Schemas 命令
 program
   .command('schemas')
-  .description('List available workflow schemas with descriptions')
-  .option('--json', 'Output as JSON (for agent use)')
+  .description('列出可用的工作流配置及其描述')
+  .option('--json', '以 JSON 格式输出（供 agent 使用）')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
   .action(async (options: SchemasOptions) => {
@@ -713,22 +709,22 @@ program
     }
   });
 
-// New command group with change subcommand
-const newCmd = program.command('new').description('Create new items');
+// 带有 change 子命令的新命令组
+const newCmd = program.command('new').description('创建新项目');
 
 newCmd
   .command('change <name>')
-  .description('Create a new change directory')
-  .option('--description <text>', 'Description to add to README.md')
-  .option('--goal <text>', 'Optional goal metadata to store with the change')
-  .option('--schema <name>', `Workflow schema to use (default: ${DEFAULT_SCHEMA})`)
-  .option('--json', 'Output as JSON')
+  .description('创建新的变更目录')
+  .option('--description <text>', '要添加到 README.md 的描述')
+  .option('--goal <text>', '要存储的可选目标元数据')
+  .option('--schema <name>', `使用的工作流配置（默认：${DEFAULT_SCHEMA}）`)
+  .option('--json', '以 JSON 格式输出')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
-  // Removed options kept registered (hidden) so users get a deliberate
-  // explanation instead of a generic unknown-option error.
-  .addOption(new Option('--initiative <id>', 'No longer supported').hideHelp())
-  .addOption(new Option('--areas <names>', 'No longer supported').hideHelp())
+  // 移除的选项保持注册（隐藏），以便用户得到明确的
+  // 解释而非通用的未知选项错误。
+  .addOption(new Option('--initiative <id>', '不再支持').hideHelp())
+  .addOption(new Option('--areas <names>', '不再支持').hideHelp())
   .action(async (name: string, options: NewChangeOptions) => {
     try {
       await newChangeCommand(name, options);

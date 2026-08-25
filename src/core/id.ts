@@ -1,6 +1,6 @@
 /**
- * The one kebab id grammar. Store ids, change ids, and legacy initiative ids
- * all share it.
+ * 一种 kebab id 语法。Store id、change id 和旧版 initiative id
+ * 都共用它。
  */
 export const KEBAB_ID_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 
@@ -8,33 +8,32 @@ export function isKebabId(value: string): boolean {
   return KEBAB_ID_REGEX.test(value);
 }
 
-/** Human rendering of the grammar, shared so the wording never forks. */
+/** 语法的人类可读描述，共享以确保措辞永远不会分叉。 */
 export const KEBAB_ID_DESCRIPTION =
-  'must be kebab-case with lowercase letters, numbers, and single hyphen separators';
+  '必须为 kebab-case，使用小写字母、数字和单个连字符分隔符';
 
-/** The fix-line twin of KEBAB_ID_DESCRIPTION, shared for the same reason. */
+/** KEBAB_ID_DESCRIPTION 的修复行双胞胎，出于同样的原因共享。 */
 export const KEBAB_ID_FIX =
-  'Use kebab-case with lowercase letters, numbers, and single hyphen separators.';
+  '使用 kebab-case，使用小写字母、数字和单个连字符分隔符。';
 
 /**
- * The folder-safe-name grammar (store ids layer the kebab grammar on
- * top of it; workset member labels use it alone). Returns a problem
- * description, or null when valid.
+ * 文件夹安全名称语法（store id 在其之上叠加了 kebab 语法；
+ * workset 成员标签单独使用它）。返回问题描述，或在有效时返回 null。
  */
 export function folderStyleNameProblem(
   value: string,
   label: string
 ): string | null {
   if (value.length === 0) {
-    return `${label} must not be empty`;
+    return `${label} 不能为空`;
   }
 
   if (value === '.' || value === '..') {
-    return `${label} must not be '${value}'`;
+    return `${label} 不能为 '${value}'`;
   }
 
   if (/[\\/]/u.test(value)) {
-    return `${label} must not contain path separators`;
+    return `${label} 不能包含路径分隔符`;
   }
 
   return null;

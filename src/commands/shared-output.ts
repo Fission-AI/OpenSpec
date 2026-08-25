@@ -1,8 +1,8 @@
 /**
- * Shared JSON/failure output plumbing for command groups whose errors
- * carry the StoreDiagnostic envelope. One definition of the failure
- * contract: exit code 1, Error:/Fix: lines in human mode, a status
- * array in JSON mode.
+ * 命令组的共享 JSON/失败输出基础结构，其错误
+ * 带有 StoreDiagnostic 信封。失败契约的一个定义：
+ * 退出码 1、Error:/Fix: 行（人类模式）、状态
+ * 数组（JSON 模式）。
  */
 import { StoreError, type StoreDiagnostic } from '../core/store/errors.js';
 
@@ -15,9 +15,8 @@ export function asErrorMessage(error: unknown): string {
 }
 
 /**
- * @inquirer prompts reject with ExitPromptError on Ctrl-C; commands
- * translate that to `Cancelled.` + exit 130 (third caller extracted
- * this here in slice 7.1).
+ * @inquirer 提示在 Ctrl-C 时抛出 ExitPromptError；命令
+ * 将其转换为 `Cancelled.` + 退出码 130（第七切片的第三个调用者）。
  */
 export function isPromptCancellationError(error: unknown): boolean {
   return (
@@ -31,8 +30,8 @@ export function asStatus(error: unknown, fallbackCode: string): StoreDiagnostic 
   if (error instanceof StoreError) {
     return error.diagnostic;
   }
-  // RootSelectionError (and siblings) carry the same envelope without
-  // sharing a class hierarchy; duck-type the diagnostic once, here.
+  // RootSelectionError（及同类）共享相同的信封，但不共享
+  // 类层次结构；在此对诊断进行鸭子类型检查。
   const diagnostic = (error as { diagnostic?: StoreDiagnostic }).diagnostic;
   if (diagnostic && typeof diagnostic.code === 'string') {
     return diagnostic;
@@ -50,10 +49,10 @@ export function emitFailure(
   error: unknown,
   fallbackCode: string
 ): void {
-  // Ctrl-C in a prompt is the user's choice, not an error: every
-  // command group gets the Cancelled./130 convention through here.
+  // 提示中的 Ctrl-C 是用户的选择，不是错误：每个
+  // 命令组都通过此处获取 Cancelled./130 约定。
   if (!json && isPromptCancellationError(error)) {
-    console.error('Cancelled.');
+    console.error('已取消。');
     process.exitCode = 130;
     return;
   }
@@ -65,9 +64,9 @@ export function emitFailure(
     process.exitCode = 1;
     return;
   }
-  console.error(`Error: ${status.message}`);
+  console.error(`错误：${status.message}`);
   if (status.fix) {
-    console.error(`Fix: ${status.fix}`);
+    console.error(`修复：${status.fix}`);
   }
   process.exitCode = 1;
 }
