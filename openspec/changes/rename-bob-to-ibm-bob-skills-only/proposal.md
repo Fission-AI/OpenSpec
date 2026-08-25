@@ -26,6 +26,6 @@ The Bob harness config carries two outdated details:
 
 ## Impact
 
-- Affected code: `src/core/config.ts` (display name), `src/core/command-generation/registry.ts` (adapter deregistration), `src/core/command-generation/adapters/bob.ts` (can be deleted or retained as dead code), migration/cleanup logic for `.bob/commands/opsx-*.md`, plus Bob-specific tests.
+- Affected code: `src/core/config.ts` (display name), `src/core/command-generation/registry.ts` (adapter deregistration), `src/core/command-generation/adapters/bob.ts` (deleted), migration/cleanup logic for `.bob/commands/opsx-*.md`, plus Bob-specific tests.
 - Affected docs: `docs/supported-tools.md`.
 - User impact: existing Bob users who relied on generated command files will need to use the skills-based workflow surface. The command files will be cleaned up automatically on the next `openspec update`.
