@@ -1,24 +1,24 @@
-# Customization
+# 自定义配置 (Customization)
 
-OpenSpec provides three levels of customization:
+OpenSpec 提供三个层级的自定义（customization）配置：
 
-| Level | What it does | Best for |
-|-------|--------------|----------|
-| **Project Config** | Set defaults, inject context/rules | Most teams |
-| **Custom Schemas** | Define your own workflow artifacts | Teams with unique processes |
-| **Global Overrides** | Share schemas across all projects | Power users |
+| 层级 | 作用 | 适用场景 |
+|-------|------|----------|
+| **Project Config** | 设置默认值，注入上下文/规则 | 大多数团队 |
+| **Custom Schemas** | 定义你自己的工作流 artifact | 有独特流程的团队 |
+| **Global Overrides** | 跨所有项目共享 schema | 高级用户 |
 
 ---
 
 ## Project Configuration
 
-The `openspec/config.yaml` file is the easiest way to customize OpenSpec for your team. It lets you:
+`openspec/config.yaml` 文件是为你的团队定制 OpenSpec 最简单的方式。它可以让你：
 
-- **Set a default schema** - Skip `--schema` on every command
-- **Inject project context** - AI sees your tech stack, conventions, etc.
-- **Add per-artifact rules** - Custom rules for specific artifacts
-- **Add per-operation guidance** - Advisory preferences for apply and archive work
-- **Remember integration choices** - e.g. the [GitHub Copilot cloud coding agent](supported-tools.md#github-copilot-cloud-coding-agent) opt-in
+- **设置默认 schema** —— 不必在每条命令都加 `--schema`
+- **注入项目上下文** —— 让 AI 看到你的技术栈、规范等
+- **添加 per-artifact 规则** —— 针对特定 artifact 的自定义规则
+- **添加 per-operation 指导** —— 针对 apply 和 archive 工作的建议性偏好
+- **记住集成选择** —— 例如 [GitHub Copilot cloud coding agent](supported-tools.md#github-copilot-cloud-coding-agent) 的 opt-in
 
 ### Quick Setup
 
@@ -26,7 +26,7 @@ The `openspec/config.yaml` file is the easiest way to customize OpenSpec for you
 openspec init
 ```
 
-This walks you through creating a config interactively. Or create one manually:
+这会引导你以交互方式创建配置。你也可以手动创建：
 
 ```yaml
 # openspec/config.yaml
@@ -74,7 +74,7 @@ openspec new change my-feature
 
 **Context and rules injection:**
 
-When generating any artifact, your context and rules are injected into the AI prompt:
+当生成任意 artifact 时，你的 context 和 rules 会被注入到 AI 的 prompt 中：
 
 ```xml
 <context>
@@ -92,66 +92,37 @@ Tech stack: TypeScript, React, Node.js, PostgreSQL
 </template>
 ```
 
-- **Context** appears in ALL artifacts
-- **Rules** ONLY appear for the matching artifact
+- **Context** 出现在所有 artifact 中
+- **Rules** 仅出现在对应匹配的 artifact 中
 
 **Operation guidance:**
 
-`operations.apply.guidance` and `operations.archive.guidance` are optional arrays
-of advisory instructions for how an agent should conduct those operations. They
-are separate from `rules`: operation guidance does not constrain artifact content,
-and artifact rules are never relabeled as operation guidance.
+`operations.apply.guidance` 和 `operations.archive.guidance` 是可选数组，包含关于 agent 应如何执行这些操作的建议性指令。它们与 `rules` 是分开的：operation guidance 不约束 artifact 的内容，artifact 的 rules 也绝不会被重新标记为 operation guidance。
 
-Apply and archive fetch these inputs at execution time:
+Apply 和 archive 在执行时获取这些输入：
 
 ```bash
 openspec instructions apply --change my-feature --json
 openspec instructions archive --change my-feature --json
 ```
 
-Both surfaces return current project `context` and matching
-`operationGuidance` as separate optional fields. Each invocation reads a fresh
-snapshot from the resolved root. When `--store <id>` is selected, the change,
-context, and guidance all come from that store rather than the current repository.
-The archive instruction command is read-only: it does not inspect or merge delta
-specs, write main specs, move the change, or run the static archive workflow.
+这两条命令都会把当前项目的 `context` 和匹配的 `operationGuidance` 作为独立的可选字段返回。每次调用都会从解析出的根目录读取一份全新快照。当选择了 `--store <id>` 时，change、context 和 guidance 都来自该 store，而不是当前仓库。archive instruction 命令是只读的：它不会检查或合并 delta spec，不会写入主 spec，不会移动 change，也不会运行静态 archive 工作流。
 
-Project context is a required prompt-level input. Generated workflows read it and
-apply relevant project facts, conventions, and constraints. Operation guidance is
-optional additive advice: workflows consider every entry and follow entries that
-are applicable and compatible with the built-in workflow.
+项目 context 是 prompt 级别必需的输入。生成的工作流会读取它并应用相关的项目事实、规范和约束。Operation guidance 是可选的附加建议：工作流会考虑每一条，并遵循其中适用且与内置工作流兼容的条目。
 
-Both fields remain separate from CLI-controlled state, resolved paths, built-in
-steps, explicit user choices, and artifact rules. A workflow reports context
-conflicts while preserving the controlling value. It does not follow inapplicable
-or conflicting guidance and explains why. Neither field is an enforceable check,
-and workflows do not copy their text into implementation files, specs, change
-artifacts, or summaries unless the user separately requests that content.
+这两个字段都与 CLI 控制的状态、已解析路径、内置步骤、用户的明确选择以及 artifact 的 rules 相互分离。工作流会在保留控制值的前提下报告 context 冲突。它不会遵循不适用或相互冲突的 guidance，并会说明原因。这两个字段都不是强制检查项，工作流不会把它们的文本复制到实现文件、spec、change artifact 或摘要中，除非用户另行要求这些内容的写入。
 
 **Archive and spec-sync input safety:**
 
-Archive, bulk archive, and standalone sync use
-`artifactPaths.specs.existingOutputPaths` from `openspec status --json` as the
-only delta-spec source. A schema without a `specs` artifact, or a change whose
-concrete output list is empty, has nothing to sync; other artifacts are not used
-to infer delta specs.
+Archive、bulk archive 和 standalone sync 使用 `artifactPaths.specs.existingOutputPaths`（来自 `openspec status --json`）作为唯一的 delta-spec 来源。一个没有 `specs` artifact 的 schema，或一个具体输出列表为空的 change，就无可同步内容；其他 artifact 不会被用来推断 delta spec。
 
-Before a semantic merge writes a main spec, the workflow consumes current
-`openspec instructions specs --change <name> --json` output. The returned
-`specs` rules constrain only the main specs produced by that merge. Single archive
-passes that snapshot into inline sync, standalone sync fetches it directly, and
-bulk archive obtains every required snapshot before its first spec write. A
-non-zero or invalid JSON archive/specs instruction response is a lookup failure,
-not an empty input: the workflow stops before the affected spec write or change
-move (for bulk archive, before any batch write or move).
+在语义合并写入主 spec 之前，工作流会消费当前 `openspec instructions specs --change <name> --json` 的输出。返回的 `specs` rules 只约束该合并所生成的主 specs。单次 archive 会将该快照传入内联 sync，standalone sync 直接获取它，bulk archive 则会在首次写入 spec 之前获取所有必需的快照。非零或无效的 JSON archive/specs instruction 响应属于查找失败，而非空输入：工作流会在受影响的 spec 写入或 change 移动之前停止（对于 bulk archive，则在任何批量写入或移动之前停止）。
 
-This configuration does not change archive execution phases, user prompts,
-filesystem operations, semantic merge ownership, the direct `openspec archive`
-command, or the structure and output of artifact `rules`.
+此配置不会改变 archive 执行阶段、用户提示、文件系统操作、语义合并的所有权、直接的 `openspec archive` 命令，也不会改变 artifact `rules` 的结构与输出。
 
 ### Schema Resolution Order
 
-When OpenSpec needs a schema, it checks in this order:
+当 OpenSpec 需要一个 schema 时，会按以下顺序查找：
 
 1. CLI flag: `--schema <name>`
 2. Change metadata (`.openspec.yaml` in the change folder)
@@ -162,7 +133,7 @@ When OpenSpec needs a schema, it checks in this order:
 
 ## Custom Schemas
 
-When project config isn't enough, create your own schema with a completely custom workflow. Custom schemas live in your project's `openspec/schemas/` directory and are version-controlled with your code.
+当项目配置无法满足需求时，可以创建带有完全自定义工作流的 schema。Custom schema 存放在你项目的 `openspec/schemas/` 目录下，并随代码一起纳入版本控制。
 
 ```text
 your-project/
@@ -178,13 +149,13 @@ your-project/
 
 ### Fork an Existing Schema
 
-The fastest way to customize is to fork a built-in schema:
+最快的自定义方式是 fork 一个内置 schema：
 
 ```bash
 openspec schema fork spec-driven my-workflow
 ```
 
-This copies the entire `spec-driven` schema to `openspec/schemas/my-workflow/` where you can edit it freely.
+这会把整个 `spec-driven` schema 复制到 `openspec/schemas/my-workflow/`，你可以自由编辑。
 
 **What you get:**
 
@@ -198,7 +169,7 @@ openspec/schemas/my-workflow/
     └── tasks.md          # Template for tasks
 ```
 
-Now edit `schema.yaml` to change the workflow, or edit templates to change what AI generates.
+现在可以编辑 `schema.yaml` 来改变工作流，或编辑模板来改变 AI 生成的内容。
 
 ### Create a Schema from Scratch
 
@@ -217,7 +188,7 @@ openspec schema init rapid \
 
 ### Schema Structure
 
-A schema defines the artifacts in your workflow and how they depend on each other:
+A schema 定义了工作流中的 artifact 以及它们之间的依赖关系：
 
 ```yaml
 # openspec/schemas/my-workflow/schema.yaml
@@ -266,13 +237,11 @@ apply:
 | `instruction` | AI instructions for creating this artifact |
 | `requires` | Dependencies - which artifacts must exist first |
 
-List artifacts in the order you want them written. `requires` decides what is
-possible; the order of the `artifacts:` list decides what comes first when
-several artifacts are ready at once.
+List artifacts in the order you want them written. `requires` decides what is possible; the order of the `artifacts:` list decides what comes first when several artifacts are ready at once.
 
 ### Templates
 
-Templates are markdown files that guide the AI. They're injected into the prompt when creating that artifact.
+Templates 是引导 AI 的 markdown 文件。它们在创建对应 artifact 时被注入到 prompt 中。
 
 ```markdown
 <!-- templates/proposal.md -->
@@ -296,7 +265,7 @@ Templates can include:
 
 ### Validate Your Schema
 
-Before using a custom schema, validate it:
+在使用自定义 schema 之前，先验证它：
 
 ```bash
 openspec schema validate my-workflow

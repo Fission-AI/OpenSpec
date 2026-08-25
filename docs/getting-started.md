@@ -1,17 +1,17 @@
-# Getting Started
+# 快速上手 (Getting Started)
 
-This guide explains how OpenSpec works after you've installed and initialized it. For installation instructions, see the [main README](../README.md#quick-start) or the [Installation guide](installation.md). New to the whole docs set? The [documentation home](README.md) maps everything.
+本指南讲解在安装并初始化 OpenSpec 之后，它是如何工作的。如需安装说明，请参阅[主 README](../README.md#quick-start) 或[安装指南](installation.md)。整套文档还没看全？[文档首页](README.md) 为你梳理了全部内容。
 
-> **Where do I type these commands?** Two places, and mixing them up is the most common early stumble.
+> **这些命令该在哪里输入？** 只有两个地方，而把它们搞混是最常见的早期失误。
 >
-> - `openspec ...` commands (like `openspec init`) run in your **terminal**.
-> - `/opsx:...` commands (like `/opsx:propose`) run in your **AI assistant's chat**, the same box where you'd ask it to write code.
+> - `openspec ...` 命令（如 `openspec init`）在**终端**中运行。
+> - `/opsx:...` 命令（如 `/opsx:propose`）在你的 **AI 助手的聊天框**中运行，也就是你让它写代码的同一个输入框。
 >
-> There's no separate "interactive mode" to start. You just type the slash command in chat and your assistant takes it from there. Full explanation: [How Commands Work](how-commands-work.md).
+> 没有需要单独启动的"交互模式"。你只需在聊天里输入斜杠命令，助手就会接管后续工作。完整说明见[命令工作原理](how-commands-work.md)。
 
-## Your First Five Minutes
+## 最初的五分钟
 
-The whole loop, with each step labeled by where it happens:
+整个循环，每一步都标注了发生的位置：
 
 ```text
 TERMINAL   $ npm install -g @fission-ai/openspec@latest
@@ -22,36 +22,36 @@ AI CHAT      /opsx:apply                      (AI builds it)
 AI CHAT      /opsx:archive                    (specs updated, change filed away)
 ```
 
-Two terminal steps to set up, then you live in chat. The rest of this guide unpacks what each step does and what you'll see.
+只需两步终端操作完成设置，之后你基本都待在聊天里。本指南的其余部分会逐一拆解每个步骤的作用，以及你会看到什么。
 
-**Don't want to do the terminal part yourself?** Paste the [setup prompt](installation.md#install-with-your-ai-assistant) into your assistant and it handles both lines, then reports what it created.
+**不想自己动手敲终端命令？** 把[安装提示词](installation.md#install-with-your-ai-assistant) 粘贴给你的助手，它会处理这两行命令，然后汇报它创建了什么。
 
-> **Not sure what to build yet? Start with `/opsx:explore`.** It's a no-stakes thinking partner that reads your codebase, weighs options, and sharpens a fuzzy idea into a concrete plan, all before any artifact or code exists. When the picture is clear, it hands off to `/opsx:propose`. This is the single best habit for working with an AI that will otherwise confidently build the wrong thing. See the [Explore guide](explore.md).
+> **还不确定要构建什么？从 `/opsx:explore` 开始。** 它是一个零风险的思想伙伴，会阅读你的代码库、权衡各种方案，并在任何 artifact 或代码产生之前，把一个模糊的想法打磨成具体的计划。思路清晰后，它会把工作移交给 `/opsx:propose`。这是与 AI 协作时最好的一个习惯，否则它很可能会自信地把东西做错。参见[探索指南](explore.md)。
 
-## How It Works
+## 工作原理
 
-OpenSpec helps you and your AI coding assistant agree on what to build before any code is written.
+OpenSpec 帮助你和你的 AI 编码助手在写任何代码之前，先就"要构建什么"达成一致。
 
-**Default quick path (core profile):**
+**默认快速路径（core 配置文件）：**
 
 ```text
 /opsx:explore ──► /opsx:propose ──► /opsx:apply ──► /opsx:sync ──► /opsx:archive
    (optional)
 ```
 
-Start with `/opsx:explore` when you're figuring out what to do, or jump straight to `/opsx:propose` when you already know. Explore is in the default profile, so it's always there when you want it.
+当你还在琢磨要做什么时，从 `/opsx:explore` 开始；如果已经心中有数，就直接跳到 `/opsx:propose`。Explore 包含在默认 profile 中，所以你随时都能用到它。
 
-**Expanded path (custom workflow selection):**
+**扩展路径（自定义工作流选择）：**
 
 ```text
 /opsx:new ──► /opsx:ff or /opsx:continue ──► /opsx:apply ──► /opsx:verify ──► /opsx:archive
 ```
 
-The default global profile is `core`, which includes `propose`, `explore`, `apply`, `update`, `sync`, and `archive`. You can enable the expanded workflow commands with `openspec config profile` and then `openspec update`.
+默认的全局 profile 是 `core`，包含 `propose`、`explore`、`apply`、`update`、`sync` 和 `archive`。你可以用 `openspec config profile` 启用扩展工作流命令，然后再运行 `openspec update`。
 
-## What OpenSpec Creates
+## OpenSpec 会创建什么
 
-After running `openspec init`, your project has this structure:
+运行 `openspec init` 之后，你的项目会呈现如下结构：
 
 ```
 openspec/
@@ -69,24 +69,24 @@ openspec/
 └── config.yaml         # Project configuration (optional)
 ```
 
-**Two key directories:**
+**两个关键目录：**
 
-- **`specs/`** - The source of truth. These specs describe how your system currently behaves. Organized by domain (e.g., `specs/auth/`, `specs/payments/`).
+- **`specs/`** —— 事实来源（source of truth）。这些 spec 描述你的系统当前的行为。按 domain 组织（如 `specs/auth/`、`specs/payments/`）。
 
-- **`changes/`** - Proposed modifications. Each change gets its own folder with all related artifacts. When a change is complete, its specs merge into the main `specs/` directory.
+- **`changes/`** —— 拟议的修改。每个 change 都有自己独立的文件夹，包含相关的所有 artifact。当某个 change 完成时，它的 spec 会合并进主 `specs/` 目录。
 
-## Understanding Artifacts
+## 理解 Artifacts
 
-Each change folder contains artifacts that guide the work:
+每个 change 文件夹都包含引导工作的 artifacts：
 
-| Artifact | Purpose |
-|----------|---------|
-| `proposal.md` | The "why" and "what" - captures intent, scope, and approach |
-| `specs/` | Delta specs showing ADDED/MODIFIED/REMOVED requirements |
-| `design.md` | The "how" - technical approach and architecture decisions |
-| `tasks.md` | Implementation checklist with checkboxes |
+| Artifact | 作用 |
+|----------|------|
+| `proposal.md` | "为什么"和"做什么" —— 记录意图、范围与方案 |
+| `specs/` | 展示 ADDED/MODIFIED/REMOVED 需求的 delta spec |
+| `design.md` | "怎么做" —— 技术方案与架构决策 |
+| `tasks.md` | 带勾选框的实现清单 |
 
-**Artifacts build on each other:**
+**Artifacts 相互依赖：**
 
 ```
 proposal ──► specs ──► design ──► tasks ──► implement
@@ -95,15 +95,15 @@ proposal ──► specs ──► design ──► tasks ──► implement
             update as you learn
 ```
 
-You can always go back and refine earlier artifacts as you learn more during implementation.
+在实现过程中你随时可以回过头，根据新学到的信息完善早期的 artifact。
 
-## How Delta Specs Work
+## Delta Spec 如何工作
 
-Delta specs are the key concept in OpenSpec. They show what's changing relative to your current specs.
+Delta spec 是 OpenSpec 的核心概念。它们展示了相对于当前 spec 正在发生的变化。
 
-### The Format
+### 格式
 
-Delta specs use sections to indicate the type of change:
+Delta spec 使用不同的小节来标明变更类型：
 
 ```markdown
 # Delta for Auth
@@ -135,21 +135,21 @@ The system SHALL expire sessions after 30 minutes of inactivity.
 (Deprecated in favor of 2FA)
 ```
 
-### What Happens on Archive
+### Archive 时会发生什么
 
-When you archive a change:
+当你 archive 一个 change 时：
 
-1. **ADDED** requirements are appended to the main spec
-2. **MODIFIED** requirements replace the existing version
-3. **REMOVED** requirements are deleted from the main spec
+1. **ADDED** 需求会被追加到主 spec
+2. **MODIFIED** 需求会替换已有版本
+3. **REMOVED** 需求会从主 spec 中删除
 
-The change folder moves to `openspec/changes/archive/` for audit history.
+该 change 文件夹会移动到 `openspec/changes/archive/` 以保留审计历史。
 
-## Example: Your First Change
+## 示例：你的第一个 Change
 
-Let's walk through adding dark mode to an application.
+我们一步步来看如何给应用添加暗色模式。
 
-### 1. Start the Change (Default)
+### 1. 开始 Change（默认方式）
 
 ```text
 You: /opsx:propose add-dark-mode
@@ -162,11 +162,11 @@ AI:  Created openspec/changes/add-dark-mode/
      Ready for implementation!
 ```
 
-If you've enabled the expanded workflow profile, you can also do this as two steps: `/opsx:new` then `/opsx:ff` (or `/opsx:continue` incrementally).
+如果你启用了扩展工作流 profile，也可以分两步完成：先 `/opsx:new`，再 `/opsx:ff`（或增量式地 `/opsx:continue`）。
 
-### 2. What Gets Created
+### 2. 会创建什么
 
-**proposal.md** - Captures the intent:
+**proposal.md** —— 记录意图：
 
 ```markdown
 # Proposal: Add Dark Mode
@@ -185,7 +185,7 @@ Use CSS custom properties for theming with a React context
 for state management.
 ```
 
-**specs/ui/spec.md** - Delta showing new requirements:
+**specs/ui/spec.md** —— 展示新需求的 delta：
 
 ```markdown
 # Delta for UI
@@ -207,7 +207,7 @@ The system SHALL allow users to choose between light and dark themes.
 - THEN the system's preferred color scheme is used
 ```
 
-**tasks.md** - Implementation checklist:
+**tasks.md** —— 实现清单：
 
 ```markdown
 # Tasks
@@ -227,7 +227,7 @@ The system SHALL allow users to choose between light and dark themes.
 - [ ] 3.2 Update components to use CSS variables
 ```
 
-### 3. Implement
+### 3. 实现
 
 ```
 You: /opsx:apply
@@ -241,7 +241,7 @@ AI:  Working through tasks...
      All tasks complete!
 ```
 
-During implementation, if you discover the design needs adjustment, just update the artifact and continue.
+实现过程中，如果你发现设计需要调整，只需更新对应 artifact 然后继续。
 
 ### 4. Archive
 
@@ -254,11 +254,11 @@ AI:  Archiving add-dark-mode...
      Done! Ready for the next feature.
 ```
 
-Your delta specs are now part of the main specs, documenting how your system works.
+你的 delta spec 现在已成为主 spec 的一部分，记录着系统的工作方式。
 
-## Verifying and Reviewing
+## 验证与审查
 
-Use the CLI to check on your changes:
+使用 CLI 来查看你的 change：
 
 ```bash
 # List active changes
@@ -274,18 +274,18 @@ openspec validate add-dark-mode
 openspec view
 ```
 
-## Next Steps
+## 后续步骤
 
-- [Explore First](explore.md) - Use `/opsx:explore` to think through an idea before you commit
-- [Reviewing a Change](reviewing-changes.md) - What to check in the plan the AI drafts, before any code
-- [Writing Good Specs](writing-specs.md) - What a strong requirement and scenario look like
-- [Using OpenSpec in an Existing Project](existing-projects.md) - Start on a large brownfield codebase
-- [Editing & Iterating on a Change](editing-changes.md) - Update artifacts, go back, reconcile manual edits
-- [Core Concepts at a Glance](overview.md) - The whole mental model on one page
-- [Examples & Recipes](examples.md) - Real changes, start to finish
-- [Workflows](workflows.md) - Common patterns and when to use each command
-- [Commands](commands.md) - Full reference for all slash commands
-- [Concepts](concepts.md) - Deeper understanding of specs, changes, and schemas
-- [Customization](customization.md) - Make OpenSpec work your way
-- [Stores](stores-beta/user-guide.md) - Planning that spans repos or teams? Keep it in its own repo (beta)
-- [FAQ](faq.md) and [Troubleshooting](troubleshooting.md) - When you get stuck
+- [先探索](explore.md) —— 用 `/opsx:explore` 在动手前把想法想清楚
+- [审查 Change](reviewing-changes.md) —— 在写任何代码之前，检查 AI 起草的计划要看什么
+- [编写优秀的 Spec](writing-specs.md) —— 一条有力的 requirement 和 scenario 长什么样
+- [在既有项目中使用 OpenSpec](existing-projects.md) —— 从大型遗留（brownfield）代码库起步
+- [编辑与迭代 Change](editing-changes.md) —— 更新 artifact、回退、协调手动修改
+- [核心概念一览](overview.md) —— 一页纸掌握完整的思维模型
+- [示例与配方](examples.md) —— 真实的 change，从开始到结束
+- [工作流](workflows.md) —— 常见模式以及何时使用各命令
+- [命令](commands.md) —— 所有斜杠命令的完整参考
+- [概念](concepts.md) —— 更深入理解 spec、change 和 schema
+- [自定义配置](customization.md) —— 让 OpenSpec 按你的方式工作
+- [Stores](stores-beta/user-guide.md) —— 需要跨越仓库或团队的规划？把它放在独立的仓库里（beta）
+- [FAQ](faq.md) 与[排障](troubleshooting.md) —— 遇到卡点时查看

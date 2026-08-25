@@ -1,92 +1,92 @@
-# Troubleshooting
+# 排障 (Troubleshooting)
 
-Concrete fixes for concrete problems. Each entry names a symptom, explains the likely cause in a sentence, and gives you the fix. If you don't see your issue here, the [FAQ](faq.md) may help, and the [Discord](https://discord.gg/YctCnvvshC) definitely will.
+针对具体问题给出具体修复。每条都先点出症状，用一句话解释可能的原因，再给出修复办法。如果你在这里没看到自己的问题，[FAQ](faq.md) 也许能帮上忙，[Discord](https://discord.gg/YctCnvvshC) 则一定能。
 
-## Installation and setup
+## 安装与设置
 
 ### `openspec: command not found`
 
-The CLI isn't installed, or your shell can't find it. Install it globally and check:
+CLI 没安装，或者你的 shell 找不到它。先全局安装并检查：
 
 ```bash
 npm install -g @fission-ai/openspec@latest
 openspec --version
 ```
 
-If it installed but still isn't found, your global npm bin directory probably isn't on your `PATH`. Run `npm prefix -g` to see where global packages live: on macOS and Linux the binaries are in that directory's `bin/`, and on Windows they sit directly in it. Make sure that path is on your `PATH`. (`npm bin -g` was removed in npm 9.)
+如果装好了却仍找不到，那多半是你的全局 npm bin 目录不在 `PATH` 上。运行 `npm prefix -g` 看看全局包装在哪里：在 macOS 和 Linux 上，二进制文件在该目录的 `bin/` 子目录里，在 Windows 上则直接位于该目录中。请确保该路径已在你的 `PATH` 上。（`npm bin -g` 已在 npm 9 中被移除。）
 
-If you used the [AI-assisted install](installation.md#install-with-your-ai-assistant), this is the expected hand-off point: that prompt tells your assistant to show you the `PATH` change rather than edit your shell startup files itself.
+如果你用的是 [AI 辅助安装](installation.md#install-with-your-ai-assistant)，这正是预期的交接点：该提示词会让你的助手把 `PATH` 改动展示给你，而不是自己编辑你的 shell 启动文件。
 
 ### "Requires Node.js 20.19.0 or higher"
 
-OpenSpec runs on Node 20.19.0+. Check your version and upgrade if needed:
+OpenSpec 运行在 Node 20.19.0+ 上。检查你的版本，必要时升级：
 
 ```bash
 node --version
 ```
 
-If you use bun to install OpenSpec, note that OpenSpec still *runs* on Node, so you need Node 20.19.0+ available on your `PATH` regardless. See [Installation](installation.md).
+如果你用 bun 安装 OpenSpec，请注意 OpenSpec 仍然*运行*在 Node 上，因此无论怎样你都需要在 `PATH` 上提供 Node 20.19.0+。参见[安装](installation.md)。
 
 ### `openspec init` didn't configure my AI tool
 
-Init asks which tools to set up. If you skipped your tool or want to add another, just run it again, or use the non-interactive form:
+init 会询问要配置哪些工具。如果你跳过了自己的工具，或想再添加一个，直接重新运行即可，也可以使用非交互式形式：
 
 ```bash
 openspec init --tools claude,cursor
 ```
 
-The full list of tool IDs is in [Supported Tools](supported-tools.md). Use `--tools all` for everything, `--tools none` to skip tool setup.
+完整的工具 ID 列表见[支持工具](supported-tools.md)。使用 `--tools all` 配置全部，用 `--tools none` 跳过工具配置。
 
-## Commands don't show up
+## 命令没有出现
 
-If `/opsx:propose` (or your tool's equivalent) doesn't appear or doesn't do anything, work down this list. They're ordered fastest-to-check first.
+如果 `/opsx:propose`（或你工具对应的等价命令）没有出现或毫无反应，请按下面这个清单逐条排查。排序按"最该先查"在前。
 
-1. **You may be in the wrong place.** Slash commands go in your AI assistant's chat, not your terminal. If you typed `/opsx:propose` into your shell, that's the issue. See [How Commands Work](how-commands-work.md).
+1. **你可能用错了地方。** 斜杠命令要输入到 AI 助手的聊天框里，而不是终端。如果你把 `/opsx:propose` 打进了 shell，那就是问题所在。参见[命令工作原理](how-commands-work.md)。
 
-2. **Regenerate the files.** From your project root:
+2. **重新生成文件。** 在你的项目根目录：
 
    ```bash
    openspec update
    ```
 
-   This rewrites the skill and command files for every tool you've configured.
+   这会为你配置的每个工具重写 skill 和命令文件。
 
-   Instruction files come from the *installed* CLI, so an outdated CLI reports everything up to date without ever writing the newer workflows. `openspec update` now checks for that and offers to upgrade — take the offer if you see it.
+   指令文件来自*已安装*的 CLI，因此一个过时的 CLI 会报告一切都是最新的，却从不写入更新的工作流。`openspec update` 现在会检查这一点并提示你升级——如果看到提示，就接受它。
 
-3. **Restart your assistant.** Most tools scan for skills and commands at startup. A fresh window often does it.
+3. **重启你的助手。** 大多数工具在启动时会扫描 skill 和命令。开个新窗口通常就解决了。
 
-4. **Confirm the files exist.** For Claude Code, check that `.claude/skills/` contains `openspec-*` folders. Other tools use their own directories, all listed in [Supported Tools](supported-tools.md).
+4. **确认文件确实存在。** 对 Claude Code 来说，检查 `.claude/skills/` 里是否包含 `openspec-*` 文件夹。其他工具有各自的目录，全部列在[支持工具](supported-tools.md)。
 
-5. **Check you initialized this project.** Skills are written per project. If you cloned a repo or switched folders, run `openspec init` (or `openspec update`) there.
+5. **确认你已初始化过这个项目。** skill 是按项目写入的。如果你克隆了仓库或切换了文件夹，请在那个位置运行 `openspec init`（或 `openspec update`）。
 
-6. **Confirm your tool supports command files.** Codex, CodeArts, ForgeCode, Hermes, Kimi Code, Mistral Vibe, Zed Agent, and the shared `.agents` target don't get generated `opsx-*` command files; they use skill-based invocations instead, so `/opsx` will never autocomplete for them. Type `$openspec-propose` in Codex, `/skill:openspec-propose` in Kimi Code, and `/openspec-propose` in the rest. The shared `.agents` target is vendor-neutral, so `/openspec-propose` is the common form rather than a guaranteed one — if your assistant does not answer to it, check its own docs for how it invokes a skill. Amazon Q does get command files, but loads them into its prompt library rather than its slash menu — type `@opsx-propose` there, not `/opsx`. Every tool's form is listed in [How To Invoke](supported-tools.md#how-to-invoke).
+6. **确认你的工具支持命令文件。** Codex、CodeArts、ForgeCode、Hermes、Kimi Code、Mistral Vibe、Zed Agent，以及共享的 `.agents` 目标，都不会生成 `opsx-*` 命令文件；它们改用基于 skill 的调用方式，因此 `/opsx` 永远不会为它们自动补全。在 Codex 中输入 `$openspec-propose`，在 Kimi Code 中输入 `/skill:openspec-propose`，其余的输入 `/openspec-propose`。共享的 `.agents` 目标是厂商中立的，所以 `/openspec-propose` 是常见形式而非保证形式——如果你的助手不响应它，请查阅它自己的文档了解如何调用一个 skill。Amazon Q 确实会生成命令文件，但会把它们载入自己的 prompt 库而不是斜杠菜单——在那里要输入 `@opsx-propose`，而不是 `/opsx`。每种工具的形式都列在[如何调用](supported-tools.md#how-to-invoke)。
 
-## Working with changes
+## 处理 change
 
 ### "Change not found"
 
-The command couldn't tell which change you meant. Name it explicitly, or check what exists:
+命令无法确定你说的是哪个 change。请显式指明名称，或检查一下现有的内容：
 
 ```bash
 openspec list                    # see active changes
 /opsx:apply add-dark-mode        # name the change in chat
 ```
 
-Also confirm you're in the right project directory.
+同时确认你位于正确的项目目录中。
 
 ### "No artifacts ready"
 
-Every artifact is either already created or blocked waiting on a dependency. See what's blocking:
+每个 artifact 要么已经创建，要么正被依赖卡住等待。看看是什么在阻塞：
 
 ```bash
 openspec status --change <name>
 ```
 
-Then create the missing dependency first. Remember the order: proposal enables specs and design; specs and design together enable tasks.
+然后先创建缺失的依赖。记住顺序：proposal 解锁 specs 和 design；specs 和 design 一起解锁 tasks。
 
 ### `openspec validate` reports warnings or errors
 
-Validation checks your specs and changes for structural problems. Read the message: it names the file and the issue.
+校验会检查你的 specs 和 changes 是否存在结构性问题。读懂那条信息：它会指出文件名和问题所在。
 
 ```bash
 openspec validate <name>           # validate one item
@@ -95,56 +95,56 @@ openspec validate --all --strict   # stricter checks, good for CI
 openspec validate --archived       # fail if archived changes have unchecked tasks
 ```
 
-Common causes are a missing required section (like a spec with no scenarios) or a malformed delta header. Fix the file and re-run. The [CLI reference](cli.md#openspec-validate) documents the output format.
+常见原因包括缺失必需的小节（例如一个没有 scenario 的 spec）或格式错误的 delta 头部。修复文件后重新运行。[CLI 参考](cli.md#openspec-validate) 记载了输出格式。
 
-One message deserves its own note:
+有一条信息值得单独说明：
 
 ```text
 MODIFIED "<requirement>" omits scenario(s) the current spec still has: "<scenario>"
 ```
 
-A `MODIFIED` requirement replaces the whole requirement block, so it has to carry every scenario that survives the change, not only the ones you edited. Copy the named scenarios from `openspec/specs/<capability-path>/spec.md` back into the delta, preserving any domain directories in the path. This often appears on an older change after someone else's change added a scenario to the same requirement — archive refuses that change either way, and validation now says so before you implement it.
+一条 `MODIFIED` requirement 会替换整个 requirement 块，因此它必须带上所有在变更后仍保留下来的 scenario，而不只是你编辑过的那些。把被点名的那些 scenario 从 `openspec/specs/<capability-path>/spec.md` 复制回 delta 中，路径中的 domain 目录要一并保留。这种情况常出现在一个较旧的 change 上——在别人对同一个 requirement 添加了一个 scenario 之后——无论怎样 archive 都会拒绝那个 change，而现在校验会在你实现它之前就指出来。
 
 ### The AI created incomplete or wrong artifacts
 
-The AI didn't have enough context. A few levers help:
+AI 缺少足够的上下文。有几个可用的手段：
 
-- Add project context in `openspec/config.yaml` so your stack and conventions are injected into every request. See [Customization](customization.md#project-configuration).
-- Add per-artifact `rules:` for guidance that only applies to, say, specs.
-- Give a more detailed description when you propose.
-- Use the expanded `/opsx:continue` to create one artifact at a time and review each, instead of `/opsx:ff` doing them all at once.
+- 在 `openspec/config.yaml` 中加入项目上下文，让你的技术栈和规范被注入到每个请求中。参见[自定义配置](customization.md#project-configuration)。
+- 添加 per-artifact 的 `rules:`，用于只针对（例如）specs 的指引。
+- 在 propose 时给出更详细的描述。
+- 用扩展的 `/opsx:continue` 一次创建一个 artifact 并逐个审查，而不是让 `/opsx:ff` 一次性全做完。
 
 ### Archive won't finish, or warns about incomplete tasks
 
-Archive won't *block* on incomplete tasks, but it warns you, because archiving usually means the work is done. If tasks remain on purpose (you're filing a partial change), proceed. Otherwise finish the tasks first. Archive will also offer to sync your delta specs into the main specs if you haven't synced yet; say yes unless you have a reason not to.
+archive 不会在不完整的 task 上*阻塞*，但它会警告你，因为归档通常意味着工作已完成。如果 task 是故意留着的（你在归档一个未完成的部分 change），那就继续。否则请先完成 task。如果你还没同步过，archive 还会主动提出把你的 delta spec 合并进主 specs；除非你有不这样做的理由，否则就同意。
 
 ### "User force closed the prompt with 0 null"
 
-Something ran `openspec archive` where nothing can answer a question — an AI agent calling it from a tool, a CI job, or any shell with stdin closed. Archive asks up to three confirmations, and an unanswerable one used to fail with that raw message.
+有东西在某个无法回答问题的情况下运行了 `openspec archive`——比如某个 AI agent 从一个工具里调用它、一个 CI 任务，或者任何关闭了 stdin 的 shell。archive 最多会询问三次确认，而一个无法回答的确认过去就会以那条原始信息失败。
 
-Pass `--yes` to answer them up front:
+传入 `--yes` 来提前回答它们：
 
 ```bash
 openspec archive <change-name> --yes
 ```
 
-Keep any flags you were already passing — `--skip-specs` and `--no-validate` change what archive does, so a bare `--yes` rerun is not the same command. Current versions name the flag for you and print a `Fix:` line you can paste. If you meant to pick from a list, pass the change name explicitly: the picker needs an answer too.
+保留你原本就在传的任何标志——`--skip-specs` 和 `--no-validate` 会改变 archive 的行为，所以一个赤裸的 `--yes` 重跑并不是同一个命令。当前版本会为你指明标志名，并打印一行可以粘贴的 `Fix:`。如果你本想从列表里选，就显式传入 change 名称：选择器同样需要一个答案。
 
-If you instead ran archive with its output redirected to a file or captured by a tool and *did* pipe an answer (`printf 'y\n' | openspec archive …`), older versions wrote terminal escape codes into that capture while drawing the prompt — in some environments enough to bloat the file badly. Current versions read the confirmation prompts as plain text whenever stdout is not a terminal, and a no-argument `openspec archive` (which would otherwise draw an interactive change picker) asks you to pass a change name up front instead of rendering a menu into the capture. Either way, redirected and agent runs stay clean; passing `--yes` (with a change name) skips the prompts entirely.
+如果你换一种方式，把 archive 的输出重定向到文件、或被某个工具捕获，并且*确实*通过管道传入了答案（`printf 'y\n' | openspec archive …`），旧版本在绘制提示时会把终端转义码写进那个捕获内容——在某些环境里足以让文件严重膨胀。当前版本在 stdout 不是终端时，会把确认提示作为纯文本读取；而一个不带参数的 `openspec archive`（本来会绘制一个交互式 change 选择器）会改为要求你提前传入 change 名称，而不是把一个菜单渲染进捕获内容。无论哪种情况，重定向运行和 agent 运行都会保持干净；传入 `--yes`（带上 change 名称）会完全跳过提示。
 
-## Configuration
+## 配置
 
 ### My `config.yaml` isn't being applied
 
-Three usual suspects:
+三个常见疑点：
 
-1. **Wrong filename.** It must be `openspec/config.yaml`, not `.yml`.
-2. **Invalid YAML.** Run it through any YAML validator; the CLI also reports syntax errors with line numbers.
-3. **You expected a restart.** You don't need one. Config changes take effect immediately.
+1. **文件名错误。** 它必须是 `openspec/config.yaml`，而不是 `.yml`。
+2. **YAML 无效。** 用任意 YAML 校验器校验一遍；CLI 也会带行号地报告语法错误。
+3. **你以为需要重启。** 其实不需要。配置改动会立即生效。
 
 ### "Unknown artifact ID in rules: X"
 
-A key under `rules:` doesn't match any artifact in your schema. For the default `spec-driven` schema the valid IDs are `proposal`, `specs`, `design`, `tasks`. To see the IDs for any schema:
+`rules:` 下的某个键与你的 schema 中任何 artifact 都对不上。对于默认的 `spec-driven` schema，有效的 ID 是 `proposal`、`specs`、`design`、`tasks`。要查看任意 schema 的 ID：
 
 ```bash
 openspec schemas --json
@@ -152,11 +152,11 @@ openspec schemas --json
 
 ### "Context too large"
 
-The `context:` field is capped at 50KB, on purpose, because it's injected into every request. Summarize it, or link out to longer docs instead of pasting them. Lean context also produces better, faster results.
+`context:` 字段被刻意限制在 50KB，因为它会被注入到每个请求中。请对它做摘要，或者链接到更长的文档，而不是把内容整段粘贴进来。精简的上下文还能带来更好、更快的结果。
 
 ### "Schema not found"
 
-The schema name you referenced doesn't exist. List what's available and check spelling:
+你引用的 schema 名称不存在。列出可用的 schema 并检查拼写：
 
 ```bash
 openspec schemas                    # list available schemas
@@ -164,32 +164,32 @@ openspec schema which <name>        # see where a schema resolves from
 openspec schema init <name>         # create a custom one
 ```
 
-See [Customization](customization.md#custom-schemas).
+参见[自定义配置](customization.md#custom-schemas)。
 
-## Migration from the legacy workflow
+## 从遗留工作流迁移
 
 ### "Legacy files detected in non-interactive mode"
 
-You're in CI or a non-interactive shell, and OpenSpec found old files to clean up but can't prompt you. Approve automatically:
+你正处于 CI 或非交互式 shell 中，OpenSpec 发现了需要清理的旧文件，却无法向你确认。请自动批准：
 
 ```bash
 openspec init --force
 ```
 
-For Codex, OpenSpec may detect old managed prompt files in `$CODEX_HOME/prompts` or `~/.codex/prompts`. That cleanup is limited to OpenSpec's allowlisted legacy Codex prompt filenames, and non-interactive `openspec init` removes only the files whose replacement `.agents/skills/openspec-*` skills exist. Non-interactive `openspec update` leaves all legacy cleanup untouched unless you pass `--force`.
+对 Codex 来说，OpenSpec 可能会在 `$CODEX_HOME/prompts` 或 `~/.codex/prompts` 中检测到旧的受管理 prompt 文件。该清理仅限于 OpenSpec 许可名单中的遗留 Codex prompt 文件名，而且非交互式的 `openspec init` 只删除那些"其替代的 `.agents/skills/openspec-*` skills 已存在"的文件。非交互式的 `openspec update` 则完全不动任何遗留清理，除非你传入 `--force`。
 
 ### Commands didn't appear after migrating
 
-Restart your IDE. Skills are detected at startup. If they still don't appear, run `openspec update` and check the file locations in [Supported Tools](supported-tools.md).
+重启你的 IDE。skill 在启动时被检测。如果它们仍然没有出现，运行 `openspec update` 并检查[支持工具](supported-tools.md) 中的文件位置。
 
 ### My old `project.md` wasn't migrated
 
-That's intentional. OpenSpec never deletes `project.md` automatically because it may hold context you wrote. Move the useful parts into `config.yaml`'s `context:` section, then delete it yourself. The [Migration Guide](migration-guide.md#migrating-projectmd-to-configyaml) walks through this, including a prompt you can hand to your AI to do the distilling.
+这是有意为之。OpenSpec 永远不会自动删除 `project.md`，因为它可能保存着你写下的上下文。请把有用的部分移入 `config.yaml` 的 `context:` 小节，然后自己删除它。[迁移指南](migration-guide.md#migrating-projectmd-to-configyaml) 详细说明了这个过程，并包含一段你可以交给 AI 来做提炼的提示词。
 
-## Still stuck?
+## 还是卡住了？
 
-- **Discord:** [discord.gg/YctCnvvshC](https://discord.gg/YctCnvvshC)
-- **GitHub Issues:** [github.com/Fission-AI/OpenSpec/issues](https://github.com/Fission-AI/OpenSpec/issues)
-- **From your terminal:** `openspec feedback "what went wrong"` opens an issue for you.
+- **Discord：** [discord.gg/YctCnvvshC](https://discord.gg/YctCnvvshC)
+- **GitHub Issues：** [github.com/Fission-AI/OpenSpec/issues](https://github.com/Fission-AI/OpenSpec/issues)
+- **从你的终端：** `openspec feedback "what went wrong"` 会为你开一个 issue。
 
-When you report a problem, include your OpenSpec version (`openspec --version`), your Node version (`node --version`), your AI tool, and the exact command and output. It makes help much faster.
+报告问题时，请附上你的 OpenSpec 版本（`openspec --version`）、Node 版本（`node --version`）、你用的 AI 工具，以及确切的命令和输出。这能让求助快得多。

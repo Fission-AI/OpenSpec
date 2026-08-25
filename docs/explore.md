@@ -1,48 +1,50 @@
-# Explore First
+# 先探索 (Explore First)
 
-**`/opsx:explore` is your thinking partner. Reach for it whenever you have a problem but not yet a plan.** It investigates your codebase, weighs options with you, and clarifies what you actually want, all before a single artifact or line of code is created. When the picture is clear, it hands off to `/opsx:propose`.
+**`/opsx:explore` 是你的思想伙伴。只要你遇到问题却还没有方案，就找它。** 它会调查你的代码库、和你一起权衡各种选项，并厘清你真正想要什么——这一切都发生在任何一个 artifact 或一行代码被创建之前。当思路清晰后，它把工作移交给 `/opsx:propose`。
 
-If you take one habit from these docs, take this one: **when you're not sure, explore before you propose.**
+如果你从这些文档里只养成一个习惯，就养成这个：**拿不准时，先探索，再提议。**
 
-Here's why that matters. AI coding assistants are eager. Ask vaguely and they'll confidently build *something*, just maybe not the thing you needed. Explore is the cure. It's a no-stakes conversation where you and the AI figure out the right move together, so that by the time you propose, you're proposing the right thing.
+这就是它重要的原因。AI 编码助手很"热切"。你含糊地一问，它们就会自信地构建出*某个东西*，只是可能并不是你需要的那个。Explore 就是解药。它是一场零风险的对话，你和 AI 一起弄清正确的做法，这样等你提议时，提议的就是正确的东西。
 
-## When to explore
+## 何时该探索
 
-Explore is the right first step more often than people expect. Use it when any of these is true:
+探索作为第一步正确的频率，比人们以为的要高。在以下任一情况成立时使用它：
 
-- You know the *problem* but not the *solution*. ("Pages feel slow." "Auth is a mess." "We keep getting duplicate orders.")
-- You're choosing between approaches and want the tradeoffs laid out against your actual code.
-- You're new to a codebase and need to understand how something works before you change it.
-- The requirements are fuzzy and you want to sharpen them before committing.
-- You suspect the work is bigger or smaller than it looks and want to scope it honestly.
+- 你知道*问题*但不知道*方案*。（"页面很慢。""Auth 一团糟。""我们总是收到重复订单。"）
+- 你在多个方案间做选择，并希望结合你的真实代码看清权衡。
+- 你刚接触一个代码库，需要在改动前理解某样东西如何运作。
+- 需求还很模糊，你想在下手前把它磨尖。
+- 你怀疑这项工作的实际规模比看起来更大或更小，想诚实地划定范围。
 
-Skip explore only when you already know exactly what you want and how. In that case go straight to [`/opsx:propose`](commands.md#opsxpropose).
+只有当你已经确切知道自己想要什么、以及怎么做时，才跳过探索。那种情况直接去 [`/opsx:propose`](commands.md#opsxpropose)。
 
-## What it does (and doesn't)
+## 它做什么（以及不做什么）
 
-Explore is a **conversation**, not a generator.
+Explore 是一场**对话**，而不是一个生成器。
 
-**It does:**
-- Read and search your codebase to answer real questions.
-- Compare options and name the tradeoffs of each.
-- Draw diagrams to make a design legible.
-- Help you narrow a vague idea into a concrete, buildable scope.
-- Transition to `/opsx:propose` when you're ready.
+**它会：**
 
-**It does not:**
-- Create a change folder.
-- Write any artifacts (no proposal, specs, design, or tasks).
-- Write or modify code.
+- 阅读并搜索你的代码库，以回答真实的问题。
+- 比较各种选项，并点出每个选项的权衡。
+- 绘制图，让设计清晰易懂。
+- 帮你把一个模糊的想法收窄成一个具体、可构建的范围。
+- 当你准备好时，过渡到 `/opsx:propose`。
 
-That's the point. Exploring costs you nothing and commits you to nothing. You can explore three dead ends, learn something from each, and only then propose the path that survived.
+**它不会：**
 
-## It's already installed
+- 创建 change 文件夹。
+- 写任何 artifact（没有 proposal、specs、design 或 tasks）。
+- 写或修改代码。
 
-Good news: `/opsx:explore` ships in the default **core** profile, right alongside `propose`, `apply`, `update`, `sync`, and `archive`. You don't need to enable anything. If OpenSpec is set up in your project, explore is ready in your AI chat. (As with all `/opsx:*` commands, you type it in your assistant's chat, not the terminal. See [How Commands Work](how-commands-work.md).)
+这正是关键。探索不花你任何代价，也不让你对任何东西许诺。你可以探索三个死胡同，从每个里学到点东西，然后才提议那个活下来的路径。
 
-## A full example
+## 它已经装好了
 
-Watch how a vague worry becomes a sharp, buildable change.
+好消息：`/opsx:explore` 随默认的 **core** profile 一并交付，就排在 `propose`、`apply`、`update`、`sync` 和 `archive` 旁边。你不需要启用任何东西。只要 OpenSpec 已在你的项目里设置好，explore 在你的 AI 聊天里就已就绪。（和所有 `/opsx:*` 命令一样，你在助手的聊天里输入它，而不是终端。参见[命令工作原理](how-commands-work.md)。）
+
+## 一个完整示例
+
+看看一个模糊的担忧如何变成一个清晰、可构建的 change。
 
 ```text
 You: /opsx:explore
@@ -82,40 +84,40 @@ AI:  Created openspec/changes/add-order-idempotency-key/, with a proposal
      and delta spec grounded in what we just found. Ready for implementation.
 ```
 
-Notice what happened. The starting point was "something is wrong and I'm scared to touch it." Twenty seconds of exploration turned that into a named root cause, three ranked options, a recommendation tied to the existing code, and a precise change. The proposal that follows is sharp because the thinking happened first.
+注意发生了什么。起点是"哪里不对，我不敢动它"。二十秒的探索，把它变成了一个有名字的根因、三个排好序的选项、一条贴合现有代码的建议，以及一个精确的 change。随后的 proposal 之所以锐利，是因为思考先行了。
 
-## Handing off to propose
+## 移交给 propose
 
-Explore doesn't archive into anything. When you're ready, you simply start a change, and the AI carries the context from your conversation into the artifacts.
+Explore 不会归档到任何东西里。当你准备好时，你只需启动一个 change，AI 就会把对话里的上下文带进 artifacts。
 
 ```text
 explore  ──►  propose  ──►  apply  ──►  archive
  (think)     (agree)       (build)     (record)
 ```
 
-You can say it in plain language ("let's turn this into a change") or run `/opsx:propose <name>` directly. Either way, the exploration you just did becomes the foundation of the proposal, not throwaway chat.
+你可以用大白话讲（"把这个变成一个 change"），也可以直接运行 `/opsx:propose <name>`。无论哪种方式，你刚才做的探索都会成为 proposal 的基石，而不是随手丢弃的聊天。
 
-If you use the expanded command set, explore can hand off to `/opsx:new` instead, for step-by-step artifact creation. See [Workflows](workflows.md).
+如果你使用扩展命令集，explore 也可以改为移交给 `/opsx:new`，以便一步步创建 artifact。参见[工作流](workflows.md)。
 
-## Tips for a good exploration
+## 做好探索的提示
 
-- **Bring the problem, not the solution.** "Logins feel slow" gives the AI room to investigate. "Add a Redis cache" pre-commits you to an answer you haven't tested yet.
-- **Ask for the tradeoffs out loud.** "What are the downsides of each option?" gets you a more honest comparison.
-- **Let it read first.** The best explorations start with the AI actually looking at your code, not guessing. Point it at the relevant area if it helps.
-- **It's okay to bail.** If exploration reveals the idea isn't worth it, that's a win. You learned it cheaply.
-- **Explore again mid-change.** Stuck during `/opsx:apply`? You can step back and explore a sub-problem, then return.
+- **带来问题，而不是方案。** "登录感觉很慢"给 AI 留出了调查的空间。"加一个 Redis 缓存"则让你预先承诺了一个尚未验证的答案。
+- **大声要求看权衡。** "每个选项的缺点是什么？"会让你得到更诚实的比较。
+- **先让它读代码。** 最好的探索始于 AI 真正去看你的代码，而不是瞎猜。如果有帮助，就把它指向相关区域。
+- **随时可以放弃。** 如果探索揭示这个想法不值得做，那是一种胜利。你以很低的代价学到了这一点。
+- **在 change 中途再探索。** 在 `/opsx:apply` 时卡住了？你可以退一步，探索一个子问题，然后回来。
 
-## The honest tradeoffs
+## 实在的权衡
 
-**What you gain:** explore catches wrong turns at the cheapest possible moment, before any artifact exists. It's especially powerful in unfamiliar code, where the AI's ability to read and summarize the system saves you an afternoon of spelunking.
+**你得到什么：** explore 在最便宜的时刻——任何 artifact 诞生之前——就拦下了走错的弯路。它在陌生代码里尤其强大，因为 AI 阅读和总结系统的能力，能替你省下一个下午的摸索。
 
-**What it costs:** a little patience. Explore is a conversation, so it's slower than firing off `/opsx:propose` and hoping. For work you genuinely understand already, that extra step is pure overhead, and you should skip it.
+**它要你付出什么：** 一点耐心。explore 是一场对话，所以它比直接发出 `/opsx:propose` 然后碰运气要慢。对于你确实已经理解的工作，那额外的一步纯属开销，你应该跳过它。
 
-The rule of thumb: the fuzzier the task, the more explore pays off. The clearer the task, the more you can skip straight to proposing.
+经验法则：任务越模糊，explore 的回报越大。任务越清晰，你就越可以直接跳到提议。
 
-## Where to go next
+## 下一步去哪里
 
-- [Commands: `/opsx:explore`](commands.md#opsxexplore): the precise reference
-- [Workflows](workflows.md): explore as part of the everyday loop
-- [Examples & Recipes](examples.md#recipe-3-exploring-before-you-commit): explore in a full walkthrough
-- [Getting Started](getting-started.md): the first-change guide, exploration included
+- [命令：`/opsx:explore`](commands.md#opsxexplore)：精确的参考
+- [工作流](workflows.md)：作为日常循环一部分的 explore
+- [示例与配方](examples.md#recipe-3-exploring-before-you-commit)：在完整演练中的 explore
+- [快速上手](getting-started.md)：首个 change 指南，内含探索

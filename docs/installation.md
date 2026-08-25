@@ -1,14 +1,14 @@
-# Installation
+# 安装 (Installation)
 
-## Prerequisites
+## 前置条件
 
-- **Node.js 20.19.0 or higher** — Check your version: `node --version`
+- **Node.js 20.19.0 或更高版本** —— 检查你的版本：`node --version`
 
-## Install with your AI assistant
+## 用你的 AI 助手来安装
 
-Rather not do this by hand? Paste the prompt below into any coding assistant that can run shell commands — Claude Code, Codex, Cursor, Gemini CLI, Copilot, and the rest of the [supported tools](supported-tools.md). It installs the CLI, initializes this project, and reports back what actually happened.
+不想手动操作？把下面的提示词粘贴进任何能运行 shell 命令的编码助手——Claude Code、Codex、Cursor、Gemini CLI、Copilot，以及其余的[支持工具](supported-tools.md)。它会安装 CLI、初始化这个项目，并回报实际发生的情况。
 
-The manual steps below are the source of truth — the prompt just runs them for you. If your assistant stops and hands something back, that's by design: it asks before anything privileged and never edits your shell startup files. Finish those bits yourself with [Package Managers](#package-managers) and [Troubleshooting](troubleshooting.md).
+下面的手动步骤才是事实来源——提示词只是替你运行它们。如果你的助手中途停下并把事情交还给你，那是设计使然：它在做任何需要特权操作之前都会先询问，且永远不会编辑你的 shell 启动文件。这些收尾工作请用[包管理器](#package-managers) 和[排障](troubleshooting.md) 自己完成。
 
 ```text
 Install OpenSpec in this project and set it up for me. Follow these steps in
@@ -39,12 +39,11 @@ order, and stop where a step tells you to stop.
 3. PATH. Run `openspec --version`. If the command isn't found, it may just be
    missing from this shell: tell me where the package manager installed it and
    how to add that directory to PATH for my shell and OS, then stop until I
-   confirm. If it prints an older version than the one the install just
-   reported, an earlier copy is shadowing it on PATH — tell me both versions
-   instead of continuing. If I use a version manager, say so rather than editing
-   PATH around it: with nvm or fnm the CLI is tied to the Node version that was
-   active when you installed it, and with asdf or volta a shim may need
-   regenerating.
+   confirm. If it prints an older version than the install just reported, an
+   earlier copy is shadowing it on PATH — tell me both versions instead of
+   continuing. If I use a version manager, say so rather than editing PATH around
+   it: with nvm or fnm the CLI is tied to the Node version that was active when
+   you installed it, and with asdf or volta a shim may need regenerating.
 
 4. INITIALIZE. Ask me which AI coding tool or tools I use and map each to an id
    from `openspec init --help` (Copilot is `github-copilot`, Zoo Code is
@@ -74,9 +73,9 @@ order, and stop where a step tells you to stop.
    or $openspec-propose in Codex, or /skill:openspec-propose in Kimi Code).
 ```
 
-Nothing in the prompt is vendor-specific: it's plain instructions plus the same commands documented on this page. It works on macOS, Linux, and Windows, and it deliberately stops rather than improvising when a step needs your permission. Your assistant does need to be able to run shell commands — a few IDE integrations can't.
+提示词里没有任何厂商专属内容：它只是普通说明加上本页记载的同样命令。它适用于 macOS、Linux 和 Windows，并且在某一步需要你授权时会刻意停下，而不是自行发挥。你的助手确实需要能运行 shell 命令——少数 IDE 集成做不到这点。
 
-## Package Managers
+## 包管理器
 
 ### npm
 
@@ -96,12 +95,11 @@ pnpm add -g @fission-ai/openspec@latest
 yarn global add @fission-ai/openspec@latest
 ```
 
-Yarn 2 and later (Berry) removed the `global` command. On those versions, install OpenSpec with npm, pnpm, or bun instead — a global CLI doesn't need to share your project's package manager.
+Yarn 2 及之后版本（Berry）移除了 `global` 命令。在这些版本上，请改用 npm、pnpm 或 bun 安装 OpenSpec——一个全局 CLI 没必要和你的项目共用同一个包管理器。
 
 ### deno
 
-Deno sometimes has issues parsing the @latest tag, but we can specify a version while installing initially.
-If that happens, you could try to change the @latest tag with the version, something like `@^1.3.1`
+Deno 有时在解析 @latest 标签时会出问题，但我们可以在首次安装时指定一个版本。如果发生了这种情况，你可以试着把 @latest 标签换成具体版本，例如 `@^1.3.1`
 
 ```bash
 deno install --global \
@@ -113,12 +111,11 @@ deno install --global \
   npm:@fission-ai/openspec@^1.3.1
 ```
 
-Note: If your subcommands launch external tools, like config edit, feedback, or workspace open, you may need a scoped --allow-run=<program>.
+注意：如果你的子命令会启动外部工具，比如 config edit、feedback 或 workspace open，你可能需要一个作用域受限的 --allow-run=<program>。
 
 ### bun
 
-Bun can install OpenSpec globally, but OpenSpec currently runs on Node.js.
-You still need Node.js 20.19.0 or higher available on `PATH`.
+Bun 可以把 OpenSpec 全局安装，但 OpenSpec 目前运行在 Node.js 上。你仍然需要在 `PATH` 上提供 Node.js 20.19.0 或更高版本。
 
 ```bash
 bun add -g @fission-ai/openspec@latest
@@ -126,19 +123,19 @@ bun add -g @fission-ai/openspec@latest
 
 ## Nix
 
-Run OpenSpec directly without installation:
+免安装直接运行 OpenSpec：
 
 ```bash
 nix run github:Fission-AI/OpenSpec -- init
 ```
 
-Or install to your profile:
+或安装到你的 profile：
 
 ```bash
 nix profile install github:Fission-AI/OpenSpec
 ```
 
-Or add to your development environment in `flake.nix`:
+或在 `flake.nix` 中加入你的开发环境：
 
 ```nix
 {
@@ -155,52 +152,52 @@ Or add to your development environment in `flake.nix`:
 }
 ```
 
-## Verify Installation
+## 验证安装
 
 ```bash
 openspec --version
 ```
 
-## Updating
+## 更新
 
-Upgrade the package, then refresh each project's generated files:
+先升级包，再刷新每个项目里生成的文件：
 
 ```bash
 npm install -g @fission-ai/openspec@latest   # or pnpm/yarn/bun equivalent
 openspec update                              # run inside each project
 ```
 
-`openspec update` regenerates the skill and command files for the tools you've configured, so your slash commands stay current with the installed version. It also checks whether a newer CLI has been published and offers to upgrade, since upgrading is what makes new workflows available in the first place — see [CLI Reference](cli.md#openspec-update).
+`openspec update` 会为你配置的工具重新生成 skill 和命令文件，这样你的斜杠命令就能与已安装版本保持同步。它还会检查是否发布了更新的 CLI 并提示你升级，因为升级才是让新工作流得以可用的前提——参见 [CLI 参考](cli.md#openspec-update)。
 
-## Uninstalling
+## 卸载
 
-There's no `openspec uninstall` command, because OpenSpec is just a global package plus some files in your project. Removing it is a few manual steps, and nothing here touches your source code.
+没有 `openspec uninstall` 命令，因为 OpenSpec 只是一个全局包加上你项目里的一些文件。移除它需要几个手动步骤，而且这里没有任何操作会动到你的源代码。
 
-**1. Remove the global package:**
+**1. 移除全局包：**
 
 ```bash
 npm uninstall -g @fission-ai/openspec   # or: pnpm rm -g / yarn global remove / bun rm -g
 ```
 
-**2. Remove OpenSpec from a project (optional).** Delete the `openspec/` directory if you no longer want its specs and changes:
+**2. 从项目中移除 OpenSpec（可选）。** 如果你不再需要它的 specs 和 changes，删除 `openspec/` 目录：
 
 ```bash
 rm -rf openspec/
 ```
 
-Think before you do this: `openspec/specs/` and `openspec/changes/archive/` are your record of how the system behaves and why it changed. If you might want that history, keep the folder (or keep it in git) even after uninstalling.
+动手前请三思：`openspec/specs/` 和 `openspec/changes/archive/` 是你关于"系统如何行为、为何改变"的记录。如果你之后可能还想保留那段历史，即便卸载也要保留该文件夹（或保留在 git 中）。
 
-**3. Remove generated AI tool files (optional).** OpenSpec writes skill and command files into per-tool directories like `.claude/skills/openspec-*/`, `.cursor/commands/opsx-*`, and so on. Delete the `openspec-*` skills and `opsx-*` commands for whichever tools you configured. The exact paths per tool are listed in [Supported Tools](supported-tools.md).
+**3. 移除生成的 AI 工具文件（可选）。** OpenSpec 会把 skill 和命令文件写入到各工具的目录中，例如 `.claude/skills/openspec-*/`、`.cursor/commands/opsx-*` 等。删除你配置过的那些工具对应的 `openspec-*` skills 和 `opsx-*` 命令。各工具的确切路径列在[支持工具](supported-tools.md) 中。
 
-If you also have OpenSpec marker blocks in files like `CLAUDE.md` or `AGENTS.md`, remove those blocks by hand; your own content in those files is yours to keep.
+如果你在 `CLAUDE.md` 或 `AGENTS.md` 这类文件中也有 OpenSpec 标记块，请手动移除那些块；这些文件里你自己的内容由你保留。
 
-## Next Steps
+## 后续步骤
 
-After installing, initialize OpenSpec in your project:
+安装完成后，在你的项目中初始化 OpenSpec：
 
 ```bash
 cd your-project
 openspec init
 ```
 
-See [Getting Started](getting-started.md) for a full walkthrough.
+完整的演练见[快速上手](getting-started.md)。

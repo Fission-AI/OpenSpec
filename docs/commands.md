@@ -1,64 +1,61 @@
-# Commands
+# 命令
 
-This is the reference for OpenSpec's slash commands. These commands are invoked in your AI coding assistant's chat interface (e.g., Claude Code, Cursor, Devin Desktop).
+这是 OpenSpec 斜杠命令的参考。这些命令在你的 AI 编码助手的聊天界面中调用（例如 Claude Code、Cursor、Devin Desktop）。
 
-For workflow patterns and when to use each command, see [Workflows](workflows.md). For CLI commands, see [CLI](cli.md).
+有关工作流模式以及何时使用每个命令，请参见 [Workflows](workflows.md)。有关 CLI 命令，请参见 [CLI](cli.md)。
 
-These pages use `/opsx:<command>` as the canonical name. Some tools spell it
-differently — Cursor and GitHub Copilot register `/opsx-propose`, Codex uses
-`$openspec-propose` — so check [How To Invoke](supported-tools.md#how-to-invoke)
-for your tool. The files OpenSpec generates already use the right form.
+这些页面使用 `/opsx:<command>` 作为规范名称。部分工具的拼写不同——Cursor 和 GitHub Copilot 注册的是 `/opsx-propose`，Codex 使用 `$openspec-propose`——因此请查阅 [How To Invoke](supported-tools.md#how-to-invoke) 以适配你的工具。OpenSpec 生成的文件已经使用了正确的形式。
 
-## Quick Reference
+## 快速参考
 
-### Default Quick Path (`core` profile)
+### 默认快速路径（`core` profile）
 
-| Command | Purpose |
+| 命令 | 用途 |
 |---------|---------|
-| `/opsx:propose` | Create a change and generate planning artifacts in one step |
-| `/opsx:explore` | Think through ideas before committing to a change |
-| `/opsx:apply` | Implement tasks from the change |
-| `/opsx:update` | Revise a change's planning artifacts and keep them coherent |
-| `/opsx:sync` | Merge delta specs into main specs |
-| `/opsx:archive` | Archive a completed change |
+| `/opsx:propose` | 一步创建 change 并生成规划 artifact |
+| `/opsx:explore` | 在提交 change 之前理清思路 |
+| `/opsx:apply` | 实现 change 中的任务 |
+| `/opsx:update` | 修订 change 的规划 artifact 并保持其一致性 |
+| `/opsx:sync` | 将 delta spec 合并进主 spec |
+| `/opsx:archive` | 归档一个已完成的 change |
 
-### Expanded Workflow Commands (custom workflow selection)
+### 扩展工作流命令（自定义工作流选择）
 
-| Command | Purpose |
+| 命令 | 用途 |
 |---------|---------|
-| `/opsx:new` | Start a new change scaffold |
-| `/opsx:continue` | Create the next artifact based on dependencies |
-| `/opsx:ff` | Fast-forward: create all planning artifacts at once |
-| `/opsx:verify` | Validate implementation matches artifacts |
-| `/opsx:bulk-archive` | Archive multiple changes at once |
-| `/opsx:onboard` | Guided tutorial through the complete workflow |
+| `/opsx:new` | 开始一个新的 change 脚手架 |
+| `/opsx:continue` | 基于依赖创建下一个 artifact |
+| `/opsx:ff` | 快进：一次性创建所有规划 artifact |
+| `/opsx:verify` | 校验实现是否与 artifact 匹配 |
+| `/opsx:bulk-archive` | 一次性归档多个 change |
+| `/opsx:onboard` | 通过完整工作流的引导式教程 |
 
-The default global profile is `core`. To enable expanded workflow commands, run `openspec config profile`, select workflows, then run `openspec update` in your project.
+默认全局 profile 是 `core`。要启用扩展工作流命令，请运行 `openspec config profile`，选择工作流，然后在你的项目中运行 `openspec update`。
 
 ---
 
-## Command Reference
+## 命令参考
 
 ### `/opsx:propose`
 
-Create a new change and generate planning artifacts in one step. This is the default start command in the `core` profile.
+一步创建一个新的 change 并生成规划 artifact。这是 `core` profile 中默认的起始命令。
 
-**Syntax:**
+**语法：**
 ```text
 /opsx:propose [change-name-or-description]
 ```
 
-**Arguments:**
-| Argument | Required | Description |
+**参数：**
+| 参数 | 是否必填 | 说明 |
 |----------|----------|-------------|
-| `change-name-or-description` | No | Kebab-case name or plain-language change description |
+| `change-name-or-description` | 否 | kebab-case 名称或自然语言描述的 change |
 
-**What it does:**
-- Creates `openspec/changes/<change-name>/`
-- Generates artifacts needed before implementation (for `spec-driven`: proposal, specs, design, tasks)
-- Stops when the change is ready for `/opsx:apply`
+**它执行的操作：**
+- 创建 `openspec/changes/<change-name>/`
+- 生成实现前所需的 artifact（对于 `spec-driven`：proposal、specs、design、tasks）
+- 在该 change 准备好进行 `/opsx:apply` 时停止
 
-**Example:**
+**示例：**
 ```text
 You: /opsx:propose add-dark-mode
 
@@ -70,36 +67,36 @@ AI:  Created openspec/changes/add-dark-mode/
      Ready for implementation. Run /opsx:apply.
 ```
 
-**Tips:**
-- Use this for the fastest end-to-end path
-- If you want step-by-step artifact control, enable expanded workflows and use `/opsx:new` + `/opsx:continue`
+**提示：**
+- 用于最快的端到端路径
+- 如果你想要逐步的 artifact 控制，请启用扩展工作流并使用 `/opsx:new` + `/opsx:continue`
 
 ---
 
 ### `/opsx:explore`
 
-> **Start here when you're unsure.** Explore is a no-stakes thinking partner: it reads your codebase, compares options, and sharpens a fuzzy idea into a concrete plan before any change exists. It ships in the default profile. For the full case and more examples, see the [Explore First](explore.md) guide.
+> **当你不确定时，从这里开始。** Explore 是一个零负担的思路伙伴：它阅读你的代码库、比较方案，并在任何 change 存在之前把一个模糊的想法锤炼成具体的计划。它随默认 profile 一同发布。完整的案例与更多示例见 [Explore First](explore.md) 指南。
 
-Think through ideas, investigate problems, and clarify requirements before committing to a change.
+在提交 change 之前理清思路、调查问题并澄清 requirement。
 
-**Syntax:**
+**语法：**
 ```
 /opsx:explore [topic]
 ```
 
-**Arguments:**
-| Argument | Required | Description |
+**参数：**
+| 参数 | 是否必填 | 说明 |
 |----------|----------|-------------|
-| `topic` | No | What you want to explore or investigate |
+| `topic` | 否 | 你想探索或调查的主题 |
 
-**What it does:**
-- Opens an exploratory conversation with no structure required
-- Investigates the codebase to answer questions
-- Compares options and approaches
-- Creates visual diagrams to clarify thinking
-- Can transition to `/opsx:propose` (default) or `/opsx:new` (expanded workflow) when insights crystallize
+**它执行的操作：**
+- 开启一场无需任何结构的探索性对话
+- 调查代码库以回答问题
+- 比较方案与思路
+- 创建可视化图表来厘清思路
+- 当洞见成熟时，可过渡到 `/opsx:propose`（默认）或 `/opsx:new`（扩展工作流）
 
-**Example:**
+**示例：**
 ```text
 You: /opsx:explore
 
@@ -124,44 +121,44 @@ You: Let's go with JWT. Can we start a change for that?
 AI:  Ready when you are. Run /opsx:propose add-jwt-auth to begin.
 ```
 
-**Tips:**
-- Use when requirements are unclear or you need to investigate
-- No artifacts are created during exploration
-- Good for comparing multiple approaches before deciding
-- Can read files and search the codebase
+**提示：**
+- 当 requirement 不清晰或你需要调查时使用
+- 探索过程中不会创建任何 artifact
+- 适合在决策前比较多种方案
+- 可以读取文件并搜索代码库
 
 ---
 
 ### `/opsx:new`
 
-Start a new change scaffold. Creates the change folder and waits for you to generate artifacts with `/opsx:continue` or `/opsx:ff`.
+开始一个新的 change 脚手架。创建 change 文件夹，等待你用 `/opsx:continue` 或 `/opsx:ff` 生成 artifact。
 
-This command is part of the expanded workflow set (not included in the default `core` profile).
+该命令属于扩展工作流集（不包含在默认的 `core` profile 中）。
 
-**Syntax:**
+**语法：**
 ```
 /opsx:new [change-name] [--schema <schema-name>]
 ```
 
-**Arguments:**
-| Argument | Required | Description |
+**参数：**
+| 参数 | 是否必填 | 说明 |
 |----------|----------|-------------|
-| `change-name` | No | Name for the change folder (prompted if not provided) |
-| `--schema` | No | Workflow schema to use (default: from config or `spec-driven`) |
+| `change-name` | 否 | change 文件夹的名称（未提供时提示） |
+| `--schema` | 否 | 要使用的工作流 schema（默认：来自配置或 `spec-driven`） |
 
-**What it does:**
-- Creates `openspec/changes/<change-name>/` directory
-- Creates `.openspec.yaml` metadata file in the change folder
-- Shows the first artifact template ready for creation
-- Prompts for change name and schema if not provided
+**它执行的操作：**
+- 创建 `openspec/changes/<change-name>/` 目录
+- 在 change 文件夹中创建 `.openspec.yaml` 元数据文件
+- 显示第一个已就绪、可创建的 artifact 模板
+- 若未提供则提示输入 change 名称与 schema
 
-**What it creates:**
+**它创建的内容：**
 ```
 openspec/changes/<change-name>/
 └── .openspec.yaml    # Change metadata (schema, created date)
 ```
 
-**Example:**
+**示例：**
 ```
 You: /opsx:new add-dark-mode
 
@@ -172,35 +169,35 @@ AI:  Created openspec/changes/add-dark-mode/
      Use /opsx:continue to create it, or /opsx:ff to create all artifacts.
 ```
 
-**Tips:**
-- Use descriptive names: `add-feature`, `fix-bug`, `refactor-module`
-- Avoid generic names like `update`, `changes`, `wip`
-- Schema can also be set in project config (`openspec/config.yaml`)
+**提示：**
+- 使用描述性名称：`add-feature`、`fix-bug`、`refactor-module`
+- 避免使用通用名称如 `update`、`changes`、`wip`
+- schema 也可在项目配置中设置（`openspec/config.yaml`）
 
 ---
 
 ### `/opsx:continue`
 
-Create the next artifact in the dependency chain. Creates one artifact at a time for incremental progress.
+在依赖链中创建下一个 artifact。一次创建一个 artifact，以实现渐进式推进。
 
-**Syntax:**
+**语法：**
 ```
 /opsx:continue [change-name]
 ```
 
-**Arguments:**
-| Argument | Required | Description |
+**参数：**
+| 参数 | 是否必填 | 说明 |
 |----------|----------|-------------|
-| `change-name` | No | Which change to continue (inferred from context if not provided) |
+| `change-name` | 否 | 要继续的 change（未提供时从上下文推断） |
 
-**What it does:**
-- Queries the artifact dependency graph
-- Shows which artifacts are ready vs blocked
-- Creates the first ready artifact
-- Reads dependency files for context
-- Shows what becomes available after creation
+**它执行的操作：**
+- 查询 artifact 依赖图
+- 显示哪些 artifact 已就绪、哪些被阻塞
+- 创建第一个已就绪的 artifact
+- 读取依赖文件以获取上下文
+- 显示创建后哪些内容变得可用
 
-**Example:**
+**示例：**
 ```
 You: /opsx:continue
 
@@ -222,35 +219,35 @@ AI:  Change: add-dark-mode
      Run /opsx:continue to create the next artifact.
 ```
 
-**Tips:**
-- Use when you want to review each artifact before proceeding
-- Good for complex changes where you want control
-- Multiple artifacts may become ready simultaneously
-- You can edit created artifacts before continuing
+**提示：**
+- 当你想在继续之前审查每个 artifact 时使用
+- 适合需要控制的复杂 change
+- 多个 artifact 可能同时变为就绪
+- 你可以在继续之前编辑已创建的 artifact
 
 ---
 
 ### `/opsx:ff`
 
-Fast-forward through artifact creation. Creates all planning artifacts at once.
+快进式地创建 artifact。一次性创建所有规划 artifact。
 
-**Syntax:**
+**语法：**
 ```
 /opsx:ff [change-name]
 ```
 
-**Arguments:**
-| Argument | Required | Description |
+**参数：**
+| 参数 | 是否必填 | 说明 |
 |----------|----------|-------------|
-| `change-name` | No | Which change to fast-forward (inferred from context if not provided) |
+| `change-name` | 否 | 要快进的 change（未提供时从上下文推断） |
 
-**What it does:**
-- Creates all artifacts in dependency order
-- Tracks progress via todo list
-- Stops when all `apply-required` artifacts are complete
-- Reads each dependency before creating the next artifact
+**它执行的操作：**
+- 按依赖顺序创建所有 artifact
+- 通过待办列表跟踪进度
+- 在全部 `apply-required` artifact 完成时停止
+- 在创建下一个 artifact 之前先读取每个依赖
 
-**Example:**
+**示例：**
 ```
 You: /opsx:ff add-dark-mode
 
@@ -265,35 +262,35 @@ AI:  Fast-forwarding add-dark-mode...
      Ready for implementation. Run /opsx:apply to begin.
 ```
 
-**Tips:**
-- Use when you have a clear picture of what you're building
-- Faster than `/opsx:continue` for straightforward changes
-- You can still edit artifacts afterward
-- Good for small to medium features
+**提示：**
+- 当你对要构建的内容有清晰图景时使用
+- 对直白的 change 比 `/opsx:continue` 更快
+- 之后你仍可以编辑 artifact
+- 适合中小型功能
 
 ---
 
 ### `/opsx:apply`
 
-Implement tasks from the change. Works through the task list, writing code and checking off items.
+实现 change 中的任务。逐条处理任务列表，编写代码并勾选条目。
 
-**Syntax:**
+**语法：**
 ```
 /opsx:apply [change-name]
 ```
 
-**Arguments:**
-| Argument | Required | Description |
+**参数：**
+| 参数 | 是否必填 | 说明 |
 |----------|----------|-------------|
-| `change-name` | No | Which change to implement (inferred from context if not provided) |
+| `change-name` | 否 | 要实现的 change（未提供时从上下文推断） |
 
-**What it does:**
-- Reads `tasks.md` and identifies incomplete tasks
-- Works through tasks one by one
-- Writes code, creates files, runs tests as needed
-- Marks tasks complete with checkboxes `[x]`
+**它执行的操作：**
+- 读取 `tasks.md` 并识别未完成的任务
+- 逐条处理任务
+- 编写代码、创建文件、按需运行测试
+- 用复选框 `[x]` 将任务标记为完成
 
-**Example:**
+**示例：**
 ```
 You: /opsx:apply
 
@@ -316,38 +313,38 @@ AI:  Implementing add-dark-mode...
      ...
 ```
 
-**Tips:**
-- Can resume where you left off if interrupted
-- Use for parallel changes by specifying the change name
-- Completion state is tracked in `tasks.md` checkboxes
+**提示：**
+- 若被打断，可以从离开的地方继续
+- 通过指定 change 名称可并行处理多个 change
+- 完成状态由 `tasks.md` 中的复选框跟踪
 
 ---
 
 ### `/opsx:update`
 
-Revise a change's existing planning artifacts and keep them coherent with one another. Planning artifacts only - it never edits code.
+修订一个 change 现有的规划 artifact，并保持彼此一致。仅限规划 artifact——它从不编辑代码。
 
-**Syntax:**
+**语法：**
 
 ```text
 /opsx:update [change-name]
 ```
 
-**Arguments:**
+**参数：**
 
-| Argument | Required | Description |
+| 参数 | 是否必填 | 说明 |
 |----------|----------|-------------|
-| `change-name` | No | Which change to update (inferred from context if not provided) |
+| `change-name` | 否 | 要更新的 change（未提供时从上下文推断） |
 
-**What it does:**
+**它执行的操作：**
 
-- Reads the change's artifacts via `openspec status --change <name> --json`
-- Applies your requested revision, or reviews the artifacts for contradictions if you didn't name one
-- Reconciles the other existing artifacts in any direction (a design edit may ripple back to the proposal)
-- Confirms every edit with you before writing, one artifact at a time
-- Ends by recommending the next step: `/opsx:continue` (artifacts missing), `/opsx:apply` (carry a revised plan into code), or `/opsx:archive` (all done)
+- 通过 `openspec status --change <name> --json` 读取 change 的 artifact
+- 应用你请求的修订；若你未指明具体 artifact，则审查这些 artifact 是否存在矛盾
+- 以任意方向调和其他现有 artifact（对 design 的编辑可能回荡到 proposal）
+- 在写入之前，逐个人工确认每次编辑
+- 结束时建议下一步：`/opsx:continue`（存在缺失的 artifact）、`/opsx:apply`（将修订后的计划带入代码）或 `/opsx:archive`（全部完成）
 
-**Example:**
+**示例：**
 
 ```text
 You: /opsx:update add-dark-mode - we're storing the theme in a cookie now, not localStorage
@@ -364,43 +361,43 @@ AI:  Reading add-dark-mode artifacts...
      Apply revision 1? (design.md)
 ```
 
-**Tips:**
+**提示：**
 
-- It won't create missing artifacts - that's `/opsx:continue`
-- If the change was already implemented, follow up with `/opsx:apply` so the code matches the revised plan
-- If your revision changes the *intent* of the change, start fresh with a new change instead (see [When to Update vs. Start Fresh](opsx.md#when-to-update-vs-start-fresh))
+- 它不会创建缺失的 artifact——那是 `/opsx:continue` 的职责
+- 如果 change 已经实现，请接着执行 `/opsx:apply`，使代码与修订后的计划保持一致
+- 若你的修订改变了 change 的*意图*，请改用一个新的 change 从头开始（见 [何时更新 vs. 从头开始](opsx.md#when-to-update-vs-start-fresh)）
 
 ---
 
 ### `/opsx:verify`
 
-Validate that implementation matches your change artifacts. Checks completeness, correctness, and coherence.
+校验实现是否与你的 change artifact 匹配。检查完整性、正确性与一致性。
 
-**Syntax:**
+**语法：**
 ```
 /opsx:verify [change-name]
 ```
 
-**Arguments:**
-| Argument | Required | Description |
+**参数：**
+| 参数 | 是否必填 | 说明 |
 |----------|----------|-------------|
-| `change-name` | No | Which change to verify (inferred from context if not provided) |
+| `change-name` | 否 | 要校验的 change（未提供时从上下文推断） |
 
-**What it does:**
-- Checks three dimensions of implementation quality
-- Searches codebase for implementation evidence
-- Reports issues categorized as CRITICAL, WARNING, or SUGGESTION
-- Does not block archive, but surfaces issues
+**它执行的操作：**
+- 检查实现质量的三个维度
+- 在代码库中搜索实现证据
+- 将问题归类为 CRITICAL、WARNING 或 SUGGESTION
+- 不会阻止归档，但会暴露问题
 
-**Verification dimensions:**
+**校验维度：**
 
-| Dimension | What it validates |
+| 维度 | 校验内容 |
 |-----------|-------------------|
-| **Completeness** | All tasks done, all requirements implemented, scenarios covered |
-| **Correctness** | Implementation matches spec intent, edge cases handled |
-| **Coherence** | Design decisions reflected in code, patterns consistent |
+| **Completeness** | 所有任务完成、所有 requirement 已实现、scenario 已覆盖 |
+| **Correctness** | 实现符合 spec 意图，边界情况已处理 |
+| **Coherence** | 设计决策在代码中得到体现，模式保持一致 |
 
-**Example:**
+**示例：**
 ```
 You: /opsx:verify
 
@@ -432,36 +429,36 @@ AI:  Verifying add-dark-mode...
      2. Update design.md to reflect Tailwind usage, or refactor to use CSS variables
 ```
 
-**Tips:**
-- Run before archiving to catch mismatches early
-- Warnings don't block archive but indicate potential issues
-- Good for reviewing AI's work before committing
-- Can reveal drift between artifacts and implementation
+**提示：**
+- 在归档之前运行，以尽早发现不一致
+- 警告不会阻止归档，但提示潜在问题
+- 适合在提交前审查 AI 的工作
+- 可以揭示 artifact 与实现之间的偏移
 
 ---
 
 ### `/opsx:sync`
 
-**Optional command.** Merge delta specs from a change into main specs. Archive will prompt to sync if needed, so you typically don't need to run this manually.
+**可选命令。** 将一个 change 的 delta spec 合并进主 spec。若需要，archive 会提示进行 sync，因此你通常无需手动运行它。
 
-**Syntax:**
+**语法：**
 ```
 /opsx:sync [change-name]
 ```
 
-**Arguments:**
-| Argument | Required | Description |
+**参数：**
+| 参数 | 是否必填 | 说明 |
 |----------|----------|-------------|
-| `change-name` | No | Which change to sync (inferred from context if not provided) |
+| `change-name` | 否 | 要 sync 的 change（未提供时从上下文推断） |
 
-**What it does:**
-- Reads delta specs from change folder
-- Parses ADDED/MODIFIED/REMOVED/RENAMED sections
-- Merges changes into main `openspec/specs/` directory
-- Preserves existing content not mentioned in delta
-- Does not archive the change (remains active)
+**它执行的操作：**
+- 从 change 文件夹读取 delta spec
+- 解析 ADDED/MODIFIED/REMOVED/RENAMED 章节
+- 将更改合并进主 `openspec/specs/` 目录
+- 保留 delta 中未提及的现有内容
+- 不会归档 change（保持活动状态）
 
-**Example:**
+**示例：**
 ```text
 You: /opsx:sync
 
@@ -480,45 +477,45 @@ AI:  Syncing add-dark-mode delta specs...
      Change remains active. Run /opsx:archive when ready to complete.
 ```
 
-**When to use manually:**
+**何时手动使用：**
 
-| Scenario | Use sync? |
+| 场景 | 使用 sync？ |
 |----------|-----------|
-| Long-running change, want specs in main before archiving | Yes |
-| Multiple parallel changes need the updated base specs | Yes |
-| Want to preview/review the merge separately | Yes |
-| Quick change, going straight to archive | No (archive handles it) |
+| 长期运行的 change，想在归档前将 spec 合入主分支 | 是 |
+| 多个并行 change 需要更新后的基础 spec | 是 |
+| 想单独预览/审查合并结果 | 是 |
+| 快速 change，直接进入归档 | 否（archive 会处理） |
 
-**Tips:**
-- Sync is intelligent, not copy-paste
-- Can add scenarios to existing requirements without duplicating
-- Change stays active after sync (not archived)
-- Most users will never need to call this directly—archive prompts if needed
+**提示：**
+- sync 是智能的，而非复制粘贴
+- 可在不重复的情况下为现有 requirement 添加 scenario
+- sync 后 change 保持活动状态（未被归档）
+- 大多数用户永远不需要直接调用它——需要时会由 archive 提示
 
 ---
 
 ### `/opsx:archive`
 
-Archive a completed change. Finalizes the change and moves it to the archive folder.
+归档一个已完成的 change。完成该 change 并将其移动到归档文件夹。
 
-**Syntax:**
+**语法：**
 ```
 /opsx:archive [change-name]
 ```
 
-**Arguments:**
-| Argument | Required | Description |
+**参数：**
+| 参数 | 是否必填 | 说明 |
 |----------|----------|-------------|
-| `change-name` | No | Which change to archive (inferred from context if not provided) |
+| `change-name` | 否 | 要归档的 change（未提供时从上下文推断） |
 
-**What it does:**
-- Checks artifact completion status
-- Checks task completion (warns if incomplete)
-- Offers to sync delta specs if not already synced
-- Moves change folder to `openspec/changes/archive/YYYY-MM-DD-<name>/`
-- Preserves all artifacts for audit trail
+**它执行的操作：**
+- 检查 artifact 完成状态
+- 检查任务完成情况（若未完成则警告）
+- 若尚未 sync，则提供 sync delta spec 的选项
+- 将 change 文件夹移动到 `openspec/changes/archive/YYYY-MM-DD-<name>/`
+- 保留所有 artifact 以备审计追溯
 
-**Example:**
+**示例：**
 ```text
 You: /opsx:archive
 
@@ -541,36 +538,36 @@ AI:  ✓ Synced specs to openspec/specs/ui/spec.md
      Change archived successfully.
 ```
 
-**Tips:**
-- Archive won't block on incomplete tasks, but will warn
-- Delta specs can be synced during archive or beforehand
-- Archived changes are preserved for history
-- Use `/opsx:verify` first to catch issues
+**提示：**
+- archive 不会因未完成的任务而阻塞，但会发出警告
+- delta spec 可在归档时或之前 sync
+- 已归档的 change 会被保留以供历史查阅
+- 先用 `/opsx:verify` 以发现潜在问题
 
 ---
 
 ### `/opsx:bulk-archive`
 
-Archive multiple completed changes at once. Handles spec conflicts between changes.
+一次性归档多个已完成的 change。处理 change 之间的 spec 冲突。
 
-**Syntax:**
+**语法：**
 ```
 /opsx:bulk-archive [change-names...]
 ```
 
-**Arguments:**
-| Argument | Required | Description |
+**参数：**
+| 参数 | 是否必填 | 说明 |
 |----------|----------|-------------|
-| `change-names` | No | Specific changes to archive (prompts to select if not provided) |
+| `change-names` | 否 | 要归档的具体 change（未提供时提示选择） |
 
-**What it does:**
-- Lists all completed changes
-- Validates each change before archiving
-- Detects spec conflicts across changes
-- Resolves conflicts by checking what's actually implemented
-- Archives in chronological order
+**它执行的操作：**
+- 列出所有已完成的 change
+- 在归档前校验每个 change
+- 检测 change 之间的 spec 冲突
+- 通过检查实际实现内容来解析冲突
+- 按时间顺序归档
 
-**Example:**
+**示例：**
 ```
 You: /opsx:bulk-archive
 
@@ -597,45 +594,45 @@ AI:  ✓ Archived add-dark-mode
      Specs merged: add-dark-mode → update-footer
 ```
 
-**Tips:**
-- Good for parallel work streams
-- Conflict resolution is agentic (checks codebase)
-- Changes are archived in order of creation
-- Prompts before overwriting spec content
+**提示：**
+- 适合并行工作流
+- 冲突解析是 agentic 的（检查代码库）
+- change 按创建顺序归档
+- 在覆盖 spec 内容之前会提示
 
 ---
 
 ### `/opsx:onboard`
 
-Guided onboarding through the complete OpenSpec workflow. An interactive tutorial using your actual codebase.
+通过完整的 OpenSpec 工作流进行引导式上手。一个使用你真实代码库的交互式教程。
 
-**Syntax:**
+**语法：**
 ```
 /opsx:onboard
 ```
 
-**What it does:**
-- Walks through a complete workflow cycle with narration
-- Scans your codebase for real improvement opportunities
-- Creates an actual change with real artifacts
-- Implements actual work (small, safe changes)
-- Archives the completed change
-- Explains each step as it happens
+**它执行的操作：**
+- 带解说地走完一个完整的工作流周期
+- 扫描你的代码库以寻找真实的改进机会
+- 创建一个带有真实 artifact 的实际 change
+- 实现实际的工作（小而安全的更改）
+- 归档已完成的 change
+- 在每一步发生时解释它
 
-**Phases:**
-1. Welcome and codebase analysis
-2. Finding an improvement opportunity
-3. Creating a change (`/opsx:new`)
-4. Writing the proposal
-5. Creating specs
-6. Writing the design
-7. Creating tasks
-8. Implementing tasks (`/opsx:apply`)
-9. Verifying implementation
-10. Archiving the change
-11. Summary and next steps
+**阶段：**
+1. 欢迎与代码库分析
+2. 寻找改进机会
+3. 创建 change（`/opsx:new`）
+4. 编写 proposal
+5. 创建 specs
+6. 编写 design
+7. 创建 tasks
+8. 实现任务（`/opsx:apply`）
+9. 校验实现
+10. 归档 change
+11. 总结与下一步
 
-**Example:**
+**示例：**
 ```
 You: /opsx:onboard
 
@@ -657,110 +654,107 @@ AI:  Welcome to OpenSpec!
      Which interests you? (or suggest something else)
 ```
 
-**Tips:**
-- Best for new users learning the workflow
-- Uses real code, not toy examples
-- Creates a real change you can keep or discard
-- Takes 15-30 minutes to complete
+**提示：**
+- 最适合学习工作流的新用户
+- 使用真实代码，而非玩具示例
+- 创建的 change 你可以保留或丢弃
+- 需要 15-30 分钟完成
 
 ---
 
-## Command Syntax by AI Tool
+## 按 AI 工具划分的命令语法
 
-Different AI tools use slightly different command syntax. Use the format that matches your tool:
+不同的 AI 工具使用略有差异的命令语法。请使用与你的工具匹配的格式：
 
-| Your tool's command file | Syntax example | Example tools |
+| 你工具的命令文件 | 语法示例 | 示例工具 |
 |--------------------------|----------------|---------------|
 | `.../commands/opsx/<id>.*` | `/opsx:propose`, `/opsx:apply` | Claude Code, Gemini CLI, Crush |
 | `.../opsx-<id>.*` | `/opsx-propose`, `/opsx-apply` | Cursor, Devin Desktop, Copilot (IDE), Trae, Oh My Pi |
-| none — skills only | `/openspec-propose`, `/openspec-apply-change` | CodeArts, ForgeCode, Hermes, MiniMax Code, Mistral Vibe, Zed Agent, shared `.agents` |
-| none — Kimi Code | `/skill:openspec-propose` | Kimi Code |
-| none — Codex CLI | `$openspec-propose` | Codex |
+| 无 —— 仅 skill | `/openspec-propose`, `/openspec-apply-change` | CodeArts, ForgeCode, Hermes, MiniMax Code, Mistral Vibe, Zed Agent, 共享的 `.agents` |
+| 无 —— Kimi Code | `/skill:openspec-propose` | Kimi Code |
+| 无 —— Codex CLI | `$openspec-propose` | Codex |
 
-> **Devin Desktop vs Devin Local:** the `.devin/workflows/opsx-*.md` files give
-> Devin Desktop `/opsx-propose`. Devin Local has no workflows — use the skills
-> OpenSpec writes to `.devin/skills/`, e.g. `/openspec-propose`, which work on
-> both agents.
+> **Devin Desktop 与 Devin Local：** `.devin/workflows/opsx-*.md` 文件为 Devin Desktop 提供 `/opsx-propose`。Devin Local 没有工作流——请使用 OpenSpec 写入 `.devin/skills/` 的 skill，例如 `/openspec-propose`，它在两种 agent 上都可用。
 
-The intent is the same across tools, but how commands are surfaced can differ by integration. [How To Invoke](supported-tools.md#how-to-invoke) lists every supported tool; this table shows only examples of each shape.
+各工具之间的意图相同，但命令如何呈现会因集成而异。[How To Invoke](supported-tools.md#how-to-invoke) 列出了每个受支持的工具；本表仅展示每种形态的部分示例。
 
-> **Note:** GitHub Copilot commands (`.github/prompts/*.prompt.md`) are only available in IDE extensions (VS Code, JetBrains, Visual Studio). GitHub Copilot CLI does not currently support custom prompt files — see [Supported Tools](supported-tools.md) for details and workarounds.
+> **注意：** GitHub Copilot 命令（`.github/prompts/*.prompt.md`）仅在 IDE 扩展（VS Code、JetBrains、Visual Studio）中可用。GitHub Copilot CLI 目前不支持自定义 prompt 文件——详见 [Supported Tools](supported-tools.md) 了解详情与变通方案。
 
 ---
 
-## Legacy Commands
+## 遗留命令
 
-These commands use the older "all-at-once" workflow. They still work but OPSX commands are recommended.
+这些命令使用较旧的“一次性完成”工作流。它们仍然可用，但推荐使用 OPSX 命令。
 
-| Command | What it does |
+| 命令 | 它执行的操作 |
 |---------|--------------|
-| `/openspec:proposal` | Create all artifacts at once (proposal, specs, design, tasks) |
-| `/openspec:apply` | Implement the change |
-| `/openspec:archive` | Archive the change |
+| `/openspec:proposal` | 一次性创建所有 artifact（proposal、specs、design、tasks） |
+| `/openspec:apply` | 实现 change |
+| `/openspec:archive` | 归档 change |
 
-**When to use legacy commands:**
-- Existing projects using the old workflow
-- Simple changes where you don't need incremental artifact creation
-- Preference for the all-or-nothing approach
+**何时使用遗留命令：**
+- 使用旧工作流的现有项目
+- 不需要渐进式 artifact 创建的简单 change
+- 偏好“全有或全无”的方式
 
-**Migrating to OPSX:**
-Legacy changes can be continued with OPSX commands. The artifact structure is compatible.
+**迁移到 OPSX：**
+遗留 change 可以用 OPSX 命令继续推进。artifact 结构是兼容的。
 
 ---
 
-## Troubleshooting
+## 故障排查
 
 ### "Change not found"
 
-The command couldn't identify which change to work on.
+命令无法识别要处理哪个 change。
 
-**Solutions:**
-- Specify the change name explicitly: `/opsx:apply add-dark-mode`
-- Check that the change folder exists: `openspec list`
-- Verify you're in the right project directory
+**解决方案：**
+- 显式指定 change 名称：`/opsx:apply add-dark-mode`
+- 检查 change 文件夹是否存在：`openspec list`
+- 确认你位于正确的项目目录中
 
 ### "No artifacts ready"
 
-All artifacts are either complete or blocked by missing dependencies.
+所有 artifact 要么已完成，要么被缺失的依赖阻塞。
 
-**Solutions:**
-- Run `openspec status --change <name>` to see what's blocking
-- Check if required artifacts exist
-- Create missing dependency artifacts first
+**解决方案：**
+- 运行 `openspec status --change <name>` 查看是什么在阻塞
+- 检查所需的 artifact 是否存在
+- 先创建缺失的依赖 artifact
 
 ### "Schema not found"
 
-The specified schema doesn't exist.
+指定的 schema 不存在。
 
-**Solutions:**
-- List available schemas: `openspec schemas`
-- Check spelling of schema name
-- Create the schema if it's custom: `openspec schema init <name>`
+**解决方案：**
+- 列出可用 schema：`openspec schemas`
+- 检查 schema 名称的拼写
+- 如果是自定义 schema，则创建它：`openspec schema init <name>`
 
 ### Commands not recognized
 
-The AI tool doesn't recognize OpenSpec commands.
+AI 工具无法识别 OpenSpec 命令。
 
-**Solutions:**
-- Ensure OpenSpec is initialized: `openspec init`
-- Regenerate skills: `openspec update`
-- Check that `.claude/skills/` directory exists (for Claude Code)
-- Restart your AI tool to pick up new skills
+**解决方案：**
+- 确保 OpenSpec 已初始化：`openspec init`
+- 重新生成 skill：`openspec update`
+- 检查 `.claude/skills/` 目录是否存在（针对 Claude Code）
+- 重启你的 AI 工具以加载新 skill
 
 ### Artifacts not generating properly
 
-The AI creates incomplete or incorrect artifacts.
+AI 创建了不完整或不正确的 artifact。
 
-**Solutions:**
-- Add project context in `openspec/config.yaml`
-- Add per-artifact rules for specific guidance
-- Provide more detail in your change description
-- Use `/opsx:continue` instead of `/opsx:ff` for more control
+**解决方案：**
+- 在 `openspec/config.yaml` 中添加 project context
+- 添加逐 artifact 规则以获得具体指引
+- 在你的 change 描述中提供更多细节
+- 使用 `/opsx:continue` 而非 `/opsx:ff` 以获得更多控制
 
 ---
 
-## Next Steps
+## 下一步
 
-- [Workflows](workflows.md) - Common patterns and when to use each command
-- [CLI](cli.md) - Terminal commands for management and validation
-- [Customization](customization.md) - Create custom schemas and workflows
+- [Workflows](workflows.md) - 常见模式以及何时使用每个命令
+- [CLI](cli.md) - 用于管理与校验的终端命令
+- [Customization](customization.md) - 创建自定义 schema 与工作流

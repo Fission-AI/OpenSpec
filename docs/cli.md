@@ -1,124 +1,122 @@
-# CLI Reference
+# CLI 参考
 
-The OpenSpec CLI (`openspec`) provides terminal commands for project setup, validation, status inspection, and management. These commands complement the AI slash commands (like `/opsx:propose`) documented in [Commands](commands.md).
+OpenSpec CLI（`openspec`）提供用于项目初始化、校验、状态查看与管理的终端命令。这些命令与 [Commands](commands.md) 中记录的 AI 斜杠命令（如 `/opsx:propose`）互为补充。
 
-## Summary
+## 总览
 
-| Category | Commands | Purpose |
+| 类别 | 命令 | 用途 |
 |----------|----------|---------|
-| **Setup** | `init`, `update` | Initialize and update OpenSpec in your project |
-| **Stores (standalone OpenSpec repos)** | `store setup`, `store register`, `store unregister`, `store remove`, `store list`, `store doctor` | Manage stores — standalone OpenSpec repos you've registered |
-| **Health** | `doctor` | Report relationship health for the resolved root |
-| **Working context** | `context` | Assemble the working set (root + referenced stores) |
-| **Personal worksets** | `workset create`, `workset list`, `workset open`, `workset remove` | Keep and open personal, local working views in your tool |
-| **Browsing** | `list`, `view`, `show` | Explore changes and specs |
-| **Validation** | `validate` | Check changes and specs for issues |
-| **Lifecycle** | `archive` | Finalize completed changes |
-| **Workflow** | `new change`, `status`, `instructions`, `templates`, `schemas` | Artifact-driven workflow support |
-| **Schemas** | `schema init`, `schema fork`, `schema validate`, `schema which` | Create and manage custom workflows |
-| **Config** | `config` | View and modify settings |
-| **Utility** | `feedback`, `completion` | Feedback and shell integration |
+| **初始化（Setup）** | `init`, `update` | 在项目中初始化并更新 OpenSpec |
+| **存储（Stores，独立的 OpenSpec 仓库）** | `store setup`, `store register`, `store unregister`, `store remove`, `store list`, `store doctor` | 管理已注册的 store——你注册的独立 OpenSpec 仓库 |
+| **健康检查（Health）** | `doctor` | 报告当前解析根目录的关系健康度 |
+| **工作上下文（Working context）** | `context` | 组装工作集（根目录 + 引用的 store） |
+| **个人工作集（Personal worksets）** | `workset create`, `workset list`, `workset open`, `workset remove` | 在你的工具中保存并打开个人化的本地工作视图 |
+| **浏览（Browsing）** | `list`, `view`, `show` | 浏览变更（changes）与规约（specs） |
+| **校验（Validation）** | `validate` | 检查变更与规约的问题 |
+| **生命周期（Lifecycle）** | `archive` | 完成已完成的变更 |
+| **工作流（Workflow）** | `new change`, `status`, `instructions`, `templates`, `schemas` | 基于 artifact 的工作流支持 |
+| **模式（Schemas）** | `schema init`, `schema fork`, `schema validate`, `schema which` | 创建并管理自定义工作流 |
+| **配置（Config）** | `config` | 查看与修改设置 |
+| **工具（Utility）** | `feedback`, `completion` | 反馈与 shell 集成 |
 
 ---
 
-## Human vs Agent Commands
+## 人类命令与 Agent 命令
 
-Most CLI commands are designed for **human use** in a terminal. Some commands also support **agent/script use** via JSON output.
+大多数 CLI 命令是为终端中的**人工使用**而设计的。部分命令也通过 JSON 输出支持**agent/脚本使用**。
 
-### Human-Only Commands
+### 仅限人工的命令
 
-These commands are interactive and designed for terminal use:
+这些命令是交互式的，专为终端使用设计：
 
-| Command | Purpose |
+| 命令 | 用途 |
 |---------|---------|
-| `openspec init` | Initialize project (interactive prompts) |
-| `openspec view` | Interactive dashboard |
-| `openspec workset open <name>` | Open a saved workset (editor window or terminal agent session) |
-| `openspec config edit` | Open config in editor |
-| `openspec feedback` | Submit feedback via GitHub |
-| `openspec completion install` | Install shell completions |
+| `openspec init` | 初始化项目（交互式提示） |
+| `openspec view` | 交互式仪表盘 |
+| `openspec workset open <name>` | 打开已保存的工作集（编辑器窗口或终端 agent 会话） |
+| `openspec config edit` | 在编辑器中打开配置 |
+| `openspec feedback` | 通过 GitHub 提交反馈 |
+| `openspec completion install` | 安装 shell 补全 |
 
-### Agent-Compatible Commands
+### 兼容 Agent 的命令
 
-These commands support `--json` output for programmatic use by AI agents and scripts:
+这些命令支持 `--json` 输出，供 AI agent 和脚本以编程方式使用：
 
-| Command | Human Use | Agent Use |
+| 命令 | 人工使用 | Agent 使用 |
 |---------|-----------|-----------|
-| `openspec list` | Browse changes/specs | `--json` for structured data |
-| `openspec show <item>` | Read content | `--json` for parsing |
-| `openspec validate` | Check for issues | `--all --json` for bulk validation |
-| `openspec status` | See artifact progress | `--json` for structured status |
-| `openspec instructions` | Get next steps | `--json` for agent instructions |
-| `openspec templates` | Find template paths | `--json` for path resolution |
-| `openspec schemas` | List available schemas | `--json` for schema discovery; `--store <id>` to select a registered root |
-| `openspec store setup <id>` | Create and register a local store | `--json` with explicit inputs for structured setup output |
-| `openspec store register <path>` | Register an existing store | `--json` for structured registration output |
-| `openspec store unregister <id>` | Forget a local store registration | `--json` for structured cleanup output |
-| `openspec store remove <id>` | Delete a registered local store folder | `--yes --json` for non-interactive deletion |
-| `openspec store list` | Browse registered stores | `--json` for structured registrations |
-| `openspec store doctor` | Check local store setup | `--json` for structured diagnostics |
-| `openspec new change <id>` | Create repo-local change scaffolding | `--json`, plus `--store <id>` to use a registered store as the OpenSpec root |
-| `openspec workset create [name]` | Compose a personal working view | `--member <path> --json` for non-interactive composition |
-| `openspec workset list` | Browse saved worksets | `--json` for structured views |
-| `openspec workset remove <name>` | Delete a saved view | `--yes --json` for non-interactive removal |
+| `openspec list` | 浏览变更/规约 | `--json` 获取结构化数据 |
+| `openspec show <item>` | 读取内容 | `--json` 用于解析 |
+| `openspec validate` | 检查问题 | `--all --json` 用于批量校验 |
+| `openspec status` | 查看 artifact 进度 | `--json` 获取结构化状态 |
+| `openspec instructions` | 获取下一步 | `--json` 获取 agent 指令 |
+| `openspec templates` | 查找模板路径 | `--json` 用于路径解析 |
+| `openspec schemas` | 列出可用 schema | `--json` 用于 schema 发现；`--store <id>` 选择已注册的根目录 |
+| `openspec store setup <id>` | 创建并注册一个本地 store | `--json` 配合显式输入以获得结构化的设置输出 |
+| `openspec store register <path>` | 注册一个已有的 store | `--json` 获得结构化的注册输出 |
+| `openspec store unregister <id>` | 注销一个本地 store 注册 | `--json` 获得结构化的清理输出 |
+| `openspec store remove <id>` | 删除一个已注册的本地 store 文件夹 | `--yes --json` 用于非交互式删除 |
+| `openspec store list` | 浏览已注册的 store | `--json` 获得结构化的注册信息 |
+| `openspec store doctor` | 检查本地 store 设置 | `--json` 获得结构化的诊断结果 |
+| `openspec new change <id>` | 创建仓库本地的 change 脚手架 | `--json`，另加 `--store <id>` 以使用已注册的 store 作为 OpenSpec 根目录 |
+| `openspec workset create [name]` | 组合一个个人工作视图 | `--member <path> --json` 用于非交互式组合 |
+| `openspec workset list` | 浏览已保存的工作集 | `--json` 获得结构化视图 |
+| `openspec workset remove <name>` | 删除一个已保存的视图 | `--yes --json` 用于非交互式移除 |
 
 ---
 
-## Global Options
+## 全局选项
 
-These options work with all commands:
+以下选项适用于所有命令：
 
-| Option | Description |
+| 选项 | 说明 |
 |--------|-------------|
-| `--version`, `-V` | Show version number |
-| `--no-color` | Disable color output |
-| `--help`, `-h` | Display help for command |
+| `--version`, `-V` | 显示版本号 |
+| `--no-color` | 关闭彩色输出 |
+| `--help`, `-h` | 显示命令帮助 |
 
 ---
 
-## Setup Commands
+## 初始化命令
 
 ### `openspec init`
 
-Initialize OpenSpec in your project. Creates the folder structure and configures AI tool integrations.
+在项目中初始化 OpenSpec。创建目录结构并配置 AI 工具集成。
 
-Default behavior uses global config defaults: profile `core`, delivery `both`, workflows `propose, explore, apply, update, sync, archive`.
+默认行为使用全局配置默认值：profile（配置文件）为 `core`，delivery（交付方式）为 `both`，workflows（工作流）为 `propose, explore, apply, update, sync, archive`。
 
 ```
 openspec init [path] [options]
 ```
 
-Use `--language <language>` to add a language instruction to a new project's
-`openspec/config.yaml`. For an existing project, edit the config's `context`
-field so OpenSpec never overwrites project-specific guidance.
+使用 `--language <language>` 可为新项目的 `openspec/config.yaml` 添加语言说明。对于已有项目，请编辑配置中的 `context` 字段，这样 OpenSpec 就不会覆盖项目特定的指引。
 
-**Arguments:**
+**参数：**
 
-| Argument | Required | Description |
+| 参数 | 是否必填 | 说明 |
 |----------|----------|-------------|
-| `path` | No | Target directory (default: current directory) |
+| `path` | 否 | 目标目录（默认：当前目录） |
 
-**Options:**
+**选项：**
 
-| Option | Description |
+| 选项 | 说明 |
 |--------|-------------|
-| `--tools <list>` | Configure AI tools non-interactively. Use `all`, `none`, or comma-separated list |
-| `--language <language>` | Write artifacts in this language when creating a new config |
-| `--force` | Auto-cleanup legacy files without prompting |
-| `--profile <profile>` | Override global profile for this init run (`core` or `custom`) |
-| `--no-animation` | Show a static welcome screen instead of the animated one |
-| `--copilot-cloud` | Set up GitHub Copilot [cloud coding-agent files](supported-tools.md#github-copilot-cloud-coding-agent) without prompting |
-| `--no-copilot-cloud` | Skip GitHub Copilot cloud coding-agent files without prompting |
+| `--tools <list>` | 以非交互方式配置 AI 工具。使用 `all`、`none` 或逗号分隔的列表 |
+| `--language <language>` | 创建新配置时以该语言编写 artifact |
+| `--force` | 自动清理遗留文件而不提示 |
+| `--profile <profile>` | 覆盖本次 init 运行的全局 profile（`core` 或 `custom`） |
+| `--no-animation` | 显示静态欢迎界面，而非动画界面 |
+| `--copilot-cloud` | 在无需提示的情况下设置 GitHub Copilot [cloud coding-agent files](supported-tools.md#github-copilot-cloud-coding-agent) |
+| `--no-copilot-cloud` | 跳过 GitHub Copilot cloud coding-agent 文件，无需提示 |
 
-`--profile custom` uses whatever workflows are currently selected in global config (`openspec config profile`).
+`--profile custom` 使用当前在全局配置中选中的工作流（`openspec config profile`）。
 
-The welcome animation is also skipped when the `OPENSPEC_NO_ANIMATION` environment variable is set (any value, including empty), when `NO_COLOR` is set to a non-empty value, or when the OS reduced-motion preference is enabled (macOS Reduce Motion, GNOME animations disabled).
+当设置了 `OPENSPEC_NO_ANIMATION` 环境变量（任意值，包括空值）、`NO_COLOR` 被设为非空值，或操作系统启用了“减弱动态效果”偏好（macOS 的 Reduce Motion、GNOME 关闭动画）时，欢迎动画也会跳过。
 
-**Supported tool IDs (`--tools`)** — `windsurf` is also accepted, as an alias for `devin`: `amazon-q`, `antigravity`, `auggie`, `bob`, `claude`, `cline`, `command-code`, `codeartsagent`, `codex`, `devin`, `forgecode`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `hermes`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `lingma`, `minimax-code`, `vibe`, `oh-my-pi`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `zed`, `zcode`, `agents`
+**支持的 tool ID（`--tools`）** —— `windsurf` 也可作为 `devin` 的别名被接受：`amazon-q`, `antigravity`, `auggie`, `bob`, `claude`, `cline`, `command-code`, `codeartsagent`, `codex`, `devin`, `forgecode`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `hermes`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `lingma`, `minimax-code`, `vibe`, `oh-my-pi`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `zed`, `zcode`, `agents`
 
-> This list mirrors `AI_TOOLS` in `src/core/config.ts`. See [Supported Tools](supported-tools.md) for each tool's skill and command paths.
+> 该列表与 `src/core/config.ts` 中的 `AI_TOOLS` 一致。各工具的 skill 与命令路径见 [Supported Tools](supported-tools.md)。
 
-**Examples:**
+**示例：**
 
 ```bash
 # Interactive initialization
@@ -143,7 +141,7 @@ openspec init --profile core
 openspec init --force
 ```
 
-**What it creates:**
+**它创建的内容：**
 
 ```
 openspec/
@@ -162,25 +160,25 @@ openspec/
 
 ### `openspec update`
 
-Update OpenSpec instruction files after upgrading the CLI. Re-generates AI tool configuration files using your current global profile, selected workflows, and delivery mode.
+升级 CLI 后更新 OpenSpec 指令文件。使用当前的全局 profile、所选工作流与交付模式重新生成 AI 工具配置文件。
 
 ```
 openspec update [path] [options]
 ```
 
-**Arguments:**
+**参数：**
 
-| Argument | Required | Description |
+| 参数 | 是否必填 | 说明 |
 |----------|----------|-------------|
-| `path` | No | Target directory (default: current directory) |
+| `path` | 否 | 目标目录（默认：当前目录） |
 
-**Options:**
+**选项：**
 
-| Option | Description |
+| 选项 | 说明 |
 |--------|-------------|
-| `--force` | Force update even when files are up to date |
+| `--force` | 即使文件已是最新也强制更新 |
 
-**Example:**
+**示例：**
 
 ```bash
 # Update instruction files after npm upgrade
@@ -188,9 +186,9 @@ npm install -g @fission-ai/openspec@latest
 openspec update
 ```
 
-Upgrade the package first. Instruction files are generated by the installed CLI, so running `openspec update` against a stale install reports everything up to date without adding the workflows newer releases ship.
+请先升级软件包。指令文件由已安装的 CLI 生成，因此针对过时的安装运行 `openspec update` 会报告一切已是最新，而不会加入新版本所带来的工作流。
 
-To make that visible, `openspec update` asks the npm registry whether a newer CLI has been published. When yours is behind, it offers to upgrade:
+为了让这一点可见，`openspec update` 会询问 npm registry 是否已发布更新的 CLI。当你的版本落后时，它会提供升级：
 
 ```text
 A newer OpenSpec CLI is available (v1.6.0 → v1.7.0).
@@ -198,63 +196,53 @@ A newer OpenSpec CLI is available (v1.6.0 → v1.7.0).
 ? Upgrade to v1.7.0 now? (Y/n)
 ```
 
-Answer yes and it runs `npm install -g @fission-ai/openspec@latest`, then re-runs the update with the new CLI so the new workflows land in the same command. It confirms the upgrade by asking the installed binary its version rather than trusting npm's exit code, so if another install earlier on your `PATH` is still answering, it tells you instead of claiming success. Answer no and it prints the command and updates with the CLI you have. Ctrl-C stops the command.
+回答 yes 会运行 `npm install -g @fission-ai/openspec@latest`，然后用新 CLI 重新运行更新，使新工作流在同一条命令中生效。它通过询问已安装二进制的版本来确认升级，而非信任 npm 的退出码；因此，如果 `PATH` 中更早位置的另一个安装仍在响应，它会如实告知你，而不是谎报成功。回答 no 则会打印命令，并用你现有的 CLI 进行更新。Ctrl-C 会停止该命令。
 
-The offer appears only in an interactive terminal, and only when npm owns the install — the one case `npm install -g` actually fixes. Everything else gets the command that matches how it was installed instead:
+该提示仅出现在交互式终端中，且只有当 npm 拥有该安装时——也就是 `npm install -g` 真正能修复的唯一情形。其余情况则给出与安装方式相匹配的命令：
 
-| How OpenSpec is installed | What you get |
+| OpenSpec 的安装方式 | 你会得到 |
 |---------------------------|--------------|
-| Global npm install | The prompt, and the upgrade run for you — in an interactive terminal; piped output gets the printed command instead |
-| Global pnpm, bun, yarn, or volta install | That manager's own command: `pnpm add -g …@latest`, `bun add -g …@latest`, `yarn global add …@latest`, or `volta install …@latest` |
-| A dependency of the project | A note to update the dependency, since its package manager owns the lockfile |
-| An `npx` / `dlx` cache | `npx @fission-ai/openspec@latest update` — that command is the update, so there is no second step |
-| A git clone | Nothing — your version is whatever the branch says |
+| 全局 npm 安装 | 在交互式终端中会出现提示，并为你运行升级；管道输出则改为打印命令 |
+| 全局 pnpm、bun、yarn 或 volta 安装 | 对应包管理器的命令：`pnpm add -g …@latest`、`bun add -g …@latest`、`yarn global add …@latest` 或 `volta install …@latest` |
+| 作为项目的依赖 | 提示更新该依赖，因为其包管理器拥有 lockfile |
+| `npx` / `dlx` 缓存 | `npx @fission-ai/openspec@latest update` —— 该命令本身就是更新，因此没有第二步 |
+| git 克隆 | 无 —— 你的版本就是分支所指向的版本 |
 
-Whenever anything is printed, it names the directory the running CLI was loaded from — the thing to check when you did upgrade but a stale shim still owns your `PATH`.
+无论打印什么，它都会指明运行中的 CLI 是从哪个目录加载的——当你已完成升级但过时的 shim 仍占据你的 `PATH` 时，这正是需要检查的地方。
 
-It asks the registry in `npm_config_registry` when npm exports it, and `https://registry.npmjs.org` otherwise. No `.npmrc` is read: letting file contents choose where an outbound request goes is a flow worth avoiding, and a project's `.npmrc` travels with the repository. On a private mirror, export `npm_config_registry` — or set `OPENSPEC_NO_UPDATE_CHECK` to skip the check entirely. The check is skipped when `CI` is set to anything but an explicit off-value (`false`, `0`, `no`, `off`, or empty), under `NODE_ENV=test`, and whenever `OPENSPEC_NO_UPDATE_CHECK` (any value), `DO_NOT_TRACK=1`, or `OPENSPEC_TELEMETRY=0` is set. It runs before the update and can delay it by at most 1.5 seconds — it gives up after that even when the network drops packets silently, and stays quiet when the registry is unreachable.
+当 npm 导出了 `npm_config_registry` 时，它会向该 registry 询问，否则使用 `https://registry.npmjs.org`。它不会读取任何 `.npmrc`：让文件内容决定出站请求的去向是应当避免的做法，而且项目的 `.npmrc` 会随仓库一起传播。在私有镜像上，请导出 `npm_config_registry`——或设置 `OPENSPEC_NO_UPDATE_CHECK` 以完全跳过检查。当 `CI` 被设为除明确的关闭值（`false`、`0`、`no`、`off` 或空值）以外的任何值、处于 `NODE_ENV=test` 下，或只要设置了 `OPENSPEC_NO_UPDATE_CHECK`（任意值）、`DO_NOT_TRACK=1` 或 `OPENSPEC_TELEMETRY=0` 时，检查都会被跳过。它在更新之前运行，最多会使更新延迟 1.5 秒——即使网络静默丢包，超过该时间后它也会放弃，并在 registry 不可达时保持安静。
 
-**How "up to date" is decided:** skill files record the version that generated
-them, so OpenSpec compares that against the installed CLI. Command files carry no
-version stamp, so for a tool that has commands but no skills (delivery
-`commands`), OpenSpec compares the file contents against what it would generate
-now — edits to those files count as drift and are overwritten. With delivery
-`skills` or `both`, only the recorded version is checked, so a hand-edited file
-whose version still matches is left alone; use `--force` to rewrite it. Either
-way, generated files are OpenSpec's to own — keep your own instructions
-elsewhere.
+**“最新”如何判定：** skill 文件会记录生成它们的版本，因此 OpenSpec 将其与已安装的 CLI 进行比对。command 文件不带版本戳，因此对于既有 commands 又没有 skills 的工具（交付方式 `commands`），OpenSpec 会将文件内容与当前将生成的内容进行比对——对这些文件的手动编辑会被视为偏移并被覆盖。在交付方式 `skills` 或 `both` 下，只检查记录的版本，因此手编辑过但版本仍匹配的文件会被保留；使用 `--force` 可重写它。无论哪种情况，生成的文件由 OpenSpec 所有——把你自己的指令放在别处。
 
 ---
 
-## Stores (standalone OpenSpec repos)
+## 存储（Stores，独立的 OpenSpec 仓库）
 
-> **Beta.** Stores and the features built on them (references, working context, worksets) are new; command names, flags, file formats, and JSON output may change shape between releases. For the problem-first walkthrough, see the [stores guide](stores-beta/user-guide.md).
+> **Beta（测试版）。** 存储（Stores）以及基于它们构建的功能（references 引用、working context 工作上下文、worksets 工作集）都是新功能；命令名、标志、文件格式与 JSON 输出在版本之间可能会变化。如需以问题为导向的导览，请参阅 [stores guide](stores-beta/user-guide.md)。
 
-A store is a standalone OpenSpec repo you've registered on this machine — for example a planning repo or a contracts repo. Registering a store lets normal commands (`list`, `show`, `status`, `validate`, `new change`, `archive`, ...) act in it from anywhere by passing `--store <id>`.
+store 是你在本机注册的一个独立的 OpenSpec 仓库——例如一个规划仓库或契约仓库。注册一个 store 后，普通命令（`list`、`show`、`status`、`validate`、`new change`、`archive` 等）就可以通过传入 `--store <id>` 在任何位置作用于它。
 
 ### `openspec store setup`
 
-Create and register a local store. With no arguments in a terminal,
-OpenSpec guides the user through setup. Agents and scripts should pass explicit
-inputs and use `--json`.
+创建并注册一个本地 store。在终端中不带参数时，OpenSpec 会引导用户完成设置。agent 和脚本应传入明确的输入并使用 `--json`。
 
 ```bash
 openspec store setup [id] [options]
 ```
 
-**Options:**
+**选项：**
 
-| Option | Description |
+| 选项 | 说明 |
 |--------|-------------|
-| `--path <path>` | Folder where the store should live (for example `~/openspec/<id>`) |
-| `--remote <url>` | Record the canonical remote in the new store's `store.yaml` |
-| `--init-git` | Initialize a Git repository with an initial commit (default) |
-| `--no-init-git` | Skip every Git action: no init, no initial commit |
-| `--json` | Output JSON |
+| `--path <path>` | store 所在的文件夹（例如 `~/openspec/<id>`） |
+| `--remote <url>` | 在新的 store 的 `store.yaml` 中记录规范化远程地址 |
+| `--init-git` | 初始化一个带初始提交的 Git 仓库（默认） |
+| `--no-init-git` | 跳过所有 Git 操作：不初始化、不创建初始提交 |
+| `--json` | 输出 JSON |
 
-Non-interactive runs (`--json`, scripts, agents) must pass both the store id and `--path`. In an interactive terminal, setup prompts for the location with an editable suggestion in a visible, user-owned place (for example `~/openspec/<id>`); it never defaults to OpenSpec's managed data directory.
+非交互式运行（`--json`、脚本、agent）必须同时传入 store id 和 `--path`。在交互式终端中，设置会以可编辑的建议位置（例如 `~/openspec/<id>`）提示存放位置，且该位置位于可见的、用户拥有的地方；它绝不会默认使用 OpenSpec 托管的数据目录。
 
-Examples:
+示例：
 
 ```bash
 openspec store setup
@@ -265,52 +253,43 @@ openspec store setup team-context --path ~/openspec/team-context --no-init-git -
 
 ### `openspec store register`
 
-Register an existing local store folder. During the stores beta, a root may be
-registered before any changes exist, specs have been applied, or changes have
-been archived; in that case `openspec/changes/`, `openspec/specs/`, and
-`openspec/changes/archive/` may be absent until normal commands create them.
-A config-only repo that declares `store: <id>` remains a pointer to another
-store and is not registered as a store root unless that pointer is removed.
+注册一个已存在的本地 store 文件夹。在 stores 测试期间，一个根目录可以在不存在任何 change、尚未应用 spec 或尚未归档 change 之前就被注册；这种情况下，`openspec/changes/`、`openspec/specs/` 和 `openspec/changes/archive/` 可能会缺失，直到普通命令创建它们。一个仅含配置、声明了 `store: <id>` 的仓库仍然是指向另一个 store 的指针，除非移除该指针，否则不会被注册为 store 根目录。
 
 ```bash
 openspec store register [path] [options]
 ```
 
-**Options:**
+**选项：**
 
-| Option | Description |
+| 选项 | 说明 |
 |--------|-------------|
-| `--id <id>` | Store id; defaults to store metadata or folder name |
-| `--yes` | Confirm creating store identity metadata for a healthy OpenSpec root |
-| `--json` | Output JSON |
+| `--id <id>` | store id；默认为 store 元数据或文件夹名称 |
+| `--yes` | 确认为一个健康的 OpenSpec 根目录创建 store 身份元数据 |
+| `--json` | 输出 JSON |
 
 ### `openspec store unregister`
 
-Forget a local store registration without deleting files.
+取消本地 store 的注册，但不删除文件。
 
 ```bash
 openspec store unregister <id> [--json]
 ```
 
-Use this when a store was moved, cloned somewhere else, or should no longer be
-shown by OpenSpec on this machine.
+当某个 store 被移动、克隆到其他位置，或不应再在本机的 OpenSpec 中显示时使用。
 
 ### `openspec store remove`
 
-Forget a local store registration and delete its local folder.
+取消本地 store 的注册，并删除其本地文件夹。
 
 ```bash
 openspec store remove <id> [--yes] [--json]
 ```
 
-`remove` shows the exact folder before deleting in an interactive terminal.
-Agents, scripts, and JSON callers must pass `--yes` to confirm deletion.
-OpenSpec refuses to delete a folder that does not contain matching
-store metadata.
+`remove` 在交互式终端中会在删除前显示确切的文件夹。agent、脚本与 JSON 调用方必须传入 `--yes` 以确认删除。OpenSpec 拒绝删除不含匹配 store 元数据的文件夹。
 
 ### `openspec store list`
 
-List locally registered stores.
+列出本地注册的 store。
 
 ```bash
 openspec store list [--json]
@@ -319,17 +298,17 @@ openspec store ls [--json]
 
 ### `openspec store doctor`
 
-Check local store registration, metadata, and Git presence.
+检查本地 store 的注册、元数据与 Git 状态。
 
 ```bash
 openspec store doctor [id] [--json]
 ```
 
-Doctor is diagnostic-only; it reports missing roots, metadata mismatches, and invalid local registry state without modifying the store.
+doctor 仅用于诊断；它报告缺失的根目录、元数据不匹配以及无效的本地 registry 状态，但不会修改 store。
 
-### Referencing stores from a project
+### 从项目引用 store
 
-A project repo can declare which stores its work draws on in `openspec/config.yaml`:
+项目仓库可以在 `openspec/config.yaml` 中声明其工作所依赖的 store：
 
 ```yaml
 schema: spec-driven
@@ -337,70 +316,70 @@ references:
   - team-context
 ```
 
-From then on, `openspec instructions` output in that repo (both the per-artifact and `apply` surfaces, JSON and human modes) carries an index of each referenced store's specs — spec ids, a one-line summary from each spec's Purpose section, and the fetch command (`openspec show <spec-id> --type spec --store <id>`). The index is built live from the registered checkout on every run; spec content is never copied into the output.
+此后，该仓库中 `openspec instructions` 的输出（包括每个 artifact 和 `apply` 两个层面，JSON 与人类可读模式）都会携带每个被引用 store 的 spec 索引——spec id、来自每个 spec 的 Purpose 章节的一行摘要，以及获取命令（`openspec show <spec-id> --type spec --store <id>`）。该索引在每次运行时从已注册的 checkout 实时构建；spec 内容绝不会被复制到输出中。
 
-References are read-only context. They never change where commands act: work stays in the repo's own root, and writing to a referenced store remains an explicit `--store` action. A reference that cannot be resolved (for example, a store not registered on this machine) degrades to a warning in the index with the exact fix, and instructions still generate. `openspec doctor` reports reference health in one place.
+references 是只读上下文。它们永远不会改变命令的作用位置：工作仍停留在仓库自身的根目录中，写入被引用的 store 仍是一项明确的 `--store` 操作。无法解析的引用（例如本机未注册的 store）会降级为索引中的一条警告，并附带确切的修复方法，而 instructions 仍会生成。`openspec doctor` 会在一处报告引用健康度。
 
-### Recording where a store is cloned from
+### 记录 store 的克隆来源
 
-A store can record its canonical clone source in its committed identity file, so onboarding never dead-ends at "register the store":
+store 可以在其已提交的身份文件中记录其规范化的克隆来源，这样新成员接入时就不会卡在“注册 store”这一步：
 
 ```bash
 openspec store setup team-context --path ~/openspec/team-context \
   --remote git@github.com:acme/team-context.git
 ```
 
-The remote lands in `.openspec-store/store.yaml` inside the initial commit, so every clone is born knowing it. For an existing store, edit `store.yaml` by hand and commit. `store doctor` shows the recorded remote (and the checkout's observed Git origin); setup/register sharing guidance names it; and register records the checkout's origin in the machine-local registry.
+该远程地址会写入初始提交内的 `.openspec-store/store.yaml`，因此每次克隆都会自带这一信息。对于已有的 store，请手动编辑 `store.yaml` 并提交。`store doctor` 会显示记录的远程地址（以及 checkout 实际观测到的 Git origin）；setup/register 的共享指引会显示它；而 register 会把 checkout 的 origin 记录到机器本地的 registry 中。
 
-A reference declaration can carry the clone source too, so a teammate who doesn't have the store yet gets a complete, pasteable fix (`git clone <remote> <path> && openspec store register <path> --id <id>`):
+引用声明也可以携带克隆来源，这样尚未拥有该 store 的同事就能得到一条完整、可直接粘贴的修复命令（`git clone <remote> <path> && openspec store register <path> --id <id>`）：
 
 ```yaml
 references:
   - { id: team-context, remote: "git@github.com:acme/team-context.git" }
 ```
 
-Recording a remote is not sync: OpenSpec never clones, pulls, or pushes on its own.
+记录远程地址并不等于同步：OpenSpec 永远不会自行 clone、pull 或 push。
 
-### Declaring a default store
+### 声明默认 store
 
-A repo whose planning is fully externalized — no local `openspec/specs/` or `openspec/changes/` — can declare its store once instead of passing `--store` on every command:
+一个将规划完全外置——即没有本地 `openspec/specs/` 或 `openspec/changes/`——的仓库，可以一次性声明其 store，而无需在每条命令上都传入 `--store`：
 
 ```yaml
 # openspec/config.yaml (the only file under openspec/)
 store: team-context
 ```
 
-Normal commands then resolve to the declared store automatically; the root banner and JSON `root` block report `source: "declared"` with the store id, and printed hints still carry `--store <id>`. The declaration is a fallback, never an override: explicit `--store` always wins, and a directory with real planning folders ignores the pointer (with a warning). To convert a pointer repo into a local OpenSpec root, remove the `store:` line and run `openspec init` — init refuses to scaffold while the declaration is present.
+此后普通命令会自动解析到声明的 store；根目录横幅与 JSON 的 `root` 块会报告 `source: "declared"` 以及 store id，打印的提示仍会带有 `--store <id>`。该声明是一种回退，而非覆盖：显式的 `--store` 始终优先；而带有真实规划文件夹的目录会忽略该指针（并给出警告）。要将一个指针仓库转换为本地 OpenSpec 根目录，请移除 `store:` 行并运行 `openspec init`——只要声明存在，init 就会拒绝搭建脚手架。
 
-A machine-level variant covers every repo at once: `openspec config set defaultStore <id>` (see Configuration). It is consulted only after `--store`, a local root, and a project pointer have all failed to resolve; the root banner and JSON `root` block then report `source: "global_default"`.
+机器级别的变体可一次覆盖所有仓库：`openspec config set defaultStore <id>`（见配置）。它仅在 `--store`、本地根目录与项目指针都无法解析之后才会被查阅；届时根目录横幅与 JSON 的 `root` 块会报告 `source: "global_default"`。
 
-## Doctor (relationship health)
+## Doctor（关系健康度）
 
-One read-only question, one place: is the OpenSpec root healthy, and are the stores it references available on this machine?
+一个只读的问题，一个去处：OpenSpec 根目录是否健康，以及它引用的 store 在本机是否可用？
 
 ```bash
 openspec doctor [--store <id>] [--json]
 ```
 
-The report separates root health, store metadata health (including a note when the recorded remote and the checkout's origin diverge, and a note when the store checkout has drifted behind its last-fetched upstream tracking ref), and reference health (the same diagnostics instructions show, with clone fixes for unresolved references). Health findings of any severity exit 0 — agents read the `status` arrays; only command failures (no root, unknown store) exit 1. Doctor never clones, syncs, or repairs. To get the assembled set itself rather than its health, use `openspec context`.
+报告将根目录健康度、store 元数据健康度（包括当记录的远程地址与 checkout 的 origin 不一致时的提示，以及当 store checkout 落后于其上一次拉取的上游跟踪引用时的提示）与引用健康度（与 instructions 显示相同的诊断信息，并附带针对未解析引用的克隆修复）分开。任何严重程度的健康发现都以退出码 0 结束——agent 读取 `status` 数组；只有命令失败（无根目录、未知 store）才以退出码 1 结束。doctor 永远不会 clone、sync 或修复。若要获取组装后的集合本身而非其健康度，请使用 `openspec context`。
 
-## Working context (the assembled set)
+## 工作上下文（组装后的集合）
 
-Everything this work relates to through OpenSpec declarations, in one working set: the OpenSpec root and the stores it references.
+本工作通过 OpenSpec 声明所关联的一切，都在同一个工作集中：即 OpenSpec 根目录与它引用的 store。
 
 ```bash
 openspec context [--store <id>] [--json] [--code-workspace <path> [--force]]
 ```
 
-The JSON brief is agent-consumable (each available referenced store carries its fetch recipe; unresolved members carry the same fixes instructions and doctor show). `--code-workspace` additionally writes a VS Code workspace file containing the root plus the available referenced stores (`ref:<id>` folders) — the one write this command performs, refused without `--force` if the file exists. Unavailable members are reported, never guessed at.
+JSON 摘要可供 agent 消费（每个可用的被引用 store 都携带其获取配方；未能解析的成员携带与 instructions 和 doctor 相同的修复方法）。`--code-workspace` 会额外写入一个 VS Code 工作区文件，其中包含根目录与可用的被引用 store（`ref:<id>` 文件夹）——这是该命令执行的唯一一次写入，若文件已存在且未加 `--force` 则会被拒绝。不可用的成员会被报告，而绝不会被臆测。
 
-"Working context" is the assembled set; the `context:` field in `openspec/config.yaml` is project background injected into instructions — two different things. `openspec doctor` answers whether the set is healthy; `openspec context` answers what the set is.
+“Working context”是组装后的集合；而 `openspec/config.yaml` 中的 `context:` 字段是注入到 instructions 中的项目背景——这是两件不同的事。`openspec doctor` 回答的是该集合是否健康；`openspec context` 回答的是该集合是什么。
 
-## Personal worksets
+## 个人工作集（Personal worksets）
 
-> **Beta.** Worksets are part of the new beta surface; commands, flags, and file formats may change shape between releases. For the walkthrough, see the [stores guide](stores-beta/user-guide.md#worksets-reopen-the-folders-you-work-on-together).
+> **Beta（测试版）。** 工作集（worksets）是新测试版界面的一部分；命令、标志与文件格式在版本之间可能会变化。如需导览，请参阅 [stores guide](stores-beta/user-guide.md#worksets-reopen-the-folders-you-work-on-together)。
 
-A workset is a personal, named view of the folders you work on together — a planning root plus whatever else you choose — kept on your machine and reopened by name in your tool. It is purely local: never committed, never shared, never derived from declarations, and removing one never touches a member folder.
+工作集（workset）是你一起工作的文件夹的一个个人化的、具名的视图——一个规划根目录加上你选择的任何其他内容——保存在你的机器上，并可在工具中按名称重新打开。它是纯本地的：从不提交、从不共享、从不从声明派生，且删除一个工作集永远不会触及成员文件夹。
 
 ```bash
 openspec workset create [name] [--member <path> | --member <name>=<path>]... [--tool <id>] [--json]
@@ -409,9 +388,9 @@ openspec workset open <name> [--tool <id>]
 openspec workset remove <name> [--yes] [--json]
 ```
 
-`create` runs a short guided flow (or takes `--member` flags non-interactively; the first member is the primary — sessions start there). `open` launches the chosen tool: editors (VS Code, Cursor) open a window with every member and return; CLI agents (Claude Code, codex) take over this terminal as a session with every member attached and no prompt pre-filled, ending when you exit. A member folder missing at open time is skipped with a note; the rest opens. The saved tool preference is overridable per open with `--tool`.
+`create` 会运行一个简短的引导流程（或以非交互方式接受 `--member` 标志；第一个成员是主成员——会话从那里开始）。`open` 会启动所选的工具：编辑器（VS Code、Cursor）会打开一个包含所有成员的窗口并返回；CLI agent（Claude Code、codex）会接管本终端作为一个会话，附加所有成员且不预填提示，在你退出时结束。打开时缺失的成员文件夹会被跳过并附带说明；其余成员正常打开。已保存的工具偏好可在每次打开时通过 `--tool` 覆盖。
 
-Supporting a new tool is configuration, not code. Every tool is one of two launch styles — `workspace-file` (launched with the generated `.code-workspace`) or `attach-dirs` (one attach flag per member) — and the `openers` key in the global `config.json` (open it with `openspec config edit`) adds tools or adjusts built-ins per field:
+支持新工具是配置，而非代码。每个工具都是两种启动风格之一——`workspace-file`（用生成的 `.code-workspace` 启动）或 `attach-dirs`（每个成员一个 attach 标志）——全局 `config.json` 中的 `openers` 键（用 `openspec config edit` 打开它）可以添加工具或按字段调整内置工具：
 
 ```json
 {
@@ -422,30 +401,30 @@ Supporting a new tool is configuration, not code. Every tool is one of two launc
 }
 ```
 
-All workset state lives under the global data dir's `worksets/` folder (the saved views plus the generated `<name>.code-workspace` files, regenerated on every open); deleting that folder removes every trace.
+所有工作集状态都位于全局数据目录下的 `worksets/` 文件夹中（保存的视图以及生成的 `<name>.code-workspace` 文件，每次打开都会重新生成）；删除该文件夹会移除所有痕迹。
 
 ---
 
-## Browsing Commands
+## 浏览命令
 
 ### `openspec list`
 
-List changes or specs in your project.
+列出项目中的变更（changes）或规约（specs）。
 
 ```
 openspec list [options]
 ```
 
-**Options:**
+**选项：**
 
-| Option | Description |
+| 选项 | 说明 |
 |--------|-------------|
-| `--specs` | List specs instead of changes |
-| `--changes` | List changes (default) |
-| `--sort <order>` | Sort by `recent` (default) or `name` |
-| `--json` | Output as JSON |
+| `--specs` | 列出 spec 而非 change |
+| `--changes` | 列出 change（默认） |
+| `--sort <order>` | 按 `recent`（默认）或 `name` 排序 |
+| `--json` | 以 JSON 输出 |
 
-**Examples:**
+**示例：**
 
 ```bash
 # List all active changes
@@ -458,7 +437,7 @@ openspec list --specs
 openspec list --json
 ```
 
-**Output (text):**
+**输出（文本）：**
 
 ```
 Changes:
@@ -469,53 +448,53 @@ Changes:
 
 ### `openspec view`
 
-Display an interactive dashboard for exploring specs and changes.
+显示一个用于浏览 spec 与 change 的交互式仪表盘。
 
 ```
 openspec view
 ```
 
-Opens a terminal-based interface for navigating your project's specifications and changes.
+打开一个基于终端的界面，用于浏览项目的规范（specs）与变更（changes）。
 
 ---
 
 ### `openspec show`
 
-Display details of a change or spec.
+显示某个 change 或 spec 的详细信息。
 
 ```
 openspec show [item-name] [options]
 ```
 
-**Arguments:**
+**参数：**
 
-| Argument | Required | Description |
+| 参数 | 是否必填 | 说明 |
 |----------|----------|-------------|
-| `item-name` | No | Name of change or spec (prompts if omitted) |
+| `item-name` | 否 | change 或 spec 的名称（省略时提示） |
 
-**Options:**
+**选项：**
 
-| Option | Description |
+| 选项 | 说明 |
 |--------|-------------|
-| `--type <type>` | Specify type: `change` or `spec` (auto-detected if unambiguous) |
-| `--json` | Output as JSON |
-| `--no-interactive` | Disable prompts |
+| `--type <type>` | 指定类型：`change` 或 `spec`（明确时自动检测） |
+| `--json` | 以 JSON 输出 |
+| `--no-interactive` | 禁用提示 |
 
-**Change-specific options:**
+**change 专属选项：**
 
-| Option | Description |
+| 选项 | 说明 |
 |--------|-------------|
-| `--deltas-only` | Show only delta specs (JSON mode) |
+| `--deltas-only` | 只显示 delta spec（JSON 模式） |
 
-**Spec-specific options:**
+**spec 专属选项：**
 
-| Option | Description |
+| 选项 | 说明 |
 |--------|-------------|
-| `--requirements` | Show only requirements, exclude scenarios (JSON mode) |
-| `--no-scenarios` | Exclude scenario content (JSON mode) |
-| `-r, --requirement <id>` | Show specific requirement by 1-based index (JSON mode) |
+| `--requirements` | 只显示 requirement，排除 scenario（JSON 模式） |
+| `--no-scenarios` | 排除 scenario 内容（JSON 模式） |
+| `-r, --requirement <id>` | 按 1 起始的索引显示特定 requirement（JSON 模式） |
 
-**Examples:**
+**示例：**
 
 ```bash
 # Interactive selection
@@ -533,41 +512,41 @@ openspec show add-dark-mode --json
 
 ---
 
-## Validation Commands
+## 校验命令
 
 ### `openspec validate`
 
-Validate changes and specs for structural issues, and check a change's MODIFIED requirements against the main specs they would replace.
+校验 change 与 spec 的结构性问题，并将 change 中被 MODIFIED 的 requirement 与它们将替换的主 spec 进行比对。
 
 ```
 openspec validate [item-name] [options]
 ```
 
-A change with zero spec deltas fails validation unless its `.openspec.yaml` declares `skip_specs: true` (for pure refactors, tooling, or docs work — see [Recipe 5](examples.md#recipe-5-a-refactor-with-no-behavior-change)).
+一个没有任何 spec delta 的 change 会导致校验失败，除非其 `.openspec.yaml` 声明了 `skip_specs: true`（适用于纯粹的重构、工具或文档工作——见 [Recipe 5](examples.md#recipe-5-a-refactor-with-no-behavior-change)）。
 
-**Arguments:**
+**参数：**
 
-| Argument | Required | Description |
+| 参数 | 是否必填 | 说明 |
 |----------|----------|-------------|
-| `item-name` | No | Specific item to validate (prompts if omitted) |
+| `item-name` | 否 | 要校验的具体项（省略时提示） |
 
-**Options:**
+**选项：**
 
-| Option | Description |
+| 选项 | 说明 |
 |--------|-------------|
-| `--all` | Validate all changes and specs |
-| `--changes` | Validate all changes |
-| `--specs` | Validate all specs |
-| `--archived` | Validate that archived changes have all tasks completed (for pre-commit linting) |
-| `--type <type>` | Specify type when name is ambiguous: `change` or `spec` |
-| `--strict` | Enable strict validation mode |
-| `--json` | Output as JSON |
-| `--concurrency <n>` | Max parallel validations (default: 6, or `OPENSPEC_CONCURRENCY` env) |
-| `--no-interactive` | Disable prompts |
+| `--all` | 校验所有 change 与 spec |
+| `--changes` | 校验所有 change |
+| `--specs` | 校验所有 spec |
+| `--archived` | 校验已归档的 change 是否已完成全部任务（用于提交前 lint） |
+| `--type <type>` | 名称有歧义时指定类型：`change` 或 `spec` |
+| `--strict` | 启用严格校验模式 |
+| `--json` | 以 JSON 输出 |
+| `--concurrency <n>` | 最大并行校验数（默认：6，或 `OPENSPEC_CONCURRENCY` 环境变量） |
+| `--no-interactive` | 禁用提示 |
 
-`--archived` is its own scope: it does not validate spec deltas (already applied at archive time), it verifies that every change under `changes/archive/` has all of its `tasks.md` checkboxes ticked, exiting non-zero if any are unchecked. This catches changes that were archived with unfinished work — handy in a pre-commit hook.
+`--archived` 是独立的作用域：它不校验 spec delta（在归档时已经应用），而是核实 `changes/archive/` 下的每个 change 是否都已勾选其 `tasks.md` 中的所有复选框，若有未勾选项则以非零状态退出。这能捕获带着未完成工作被归档的 change——在提交前钩子中很实用。
 
-**Examples:**
+**示例：**
 
 ```bash
 # Interactive validation
@@ -589,7 +568,7 @@ openspec validate --all --strict --concurrency 12
 openspec validate --archived
 ```
 
-**Output (text):**
+**输出（文本）：**
 
 ```
 Validating add-dark-mode...
@@ -600,7 +579,7 @@ Validating add-dark-mode...
 1 warning found
 ```
 
-**Output (JSON):**
+**输出（JSON）：**
 
 ```json
 {
@@ -624,31 +603,31 @@ Validating add-dark-mode...
 
 ---
 
-## Lifecycle Commands
+## 生命周期命令
 
 ### `openspec archive`
 
-Archive a completed change and merge delta specs into main specs.
+归档一个已完成的 change，并将 delta spec 合并进主 spec。
 
 ```
 openspec archive [change-name] [options]
 ```
 
-**Arguments:**
+**参数：**
 
-| Argument | Required | Description |
+| 参数 | 是否必填 | 说明 |
 |----------|----------|-------------|
-| `change-name` | No | Change to archive (prompts if omitted; required when nothing can answer the prompt) |
+| `change-name` | 否 | 要归档的 change（省略时提示；当没有可回答提示的输入时必填） |
 
-**Options:**
+**选项：**
 
-| Option | Description |
+| 选项 | 说明 |
 |--------|-------------|
-| `-y, --yes` | Skip confirmation prompts. Required when nothing can answer them — an AI agent, a CI job, or any run with stdin closed |
-| `--skip-specs` | Skip spec updates for one archive run. A change that permanently has no spec deltas should declare `skip_specs: true` in its `.openspec.yaml` instead — it archives with no flag |
-| `--no-validate` | Skip validation (requires confirmation). Also disables capability retirement — with no validator verdict, nothing is retired |
+| `-y, --yes` | 跳过确认提示。当没有可回答提示的输入时必填——例如 AI agent、CI 任务，或任何关闭了 stdin 的运行 |
+| `--skip-specs` | 在某次归档运行中跳过 spec 更新。一个永久没有 spec delta 的 change 应在其 `.openspec.yaml` 中声明 `skip_specs: true`——这样它会不带任何标志地归档 |
+| `--no-validate` | 跳过校验（需确认）。同时禁用 capability 退役——没有校验结论，就不会退役任何 capability |
 
-**Examples:**
+**示例：**
 
 ```bash
 # Interactive archive (asks which change, then confirms)
@@ -664,52 +643,45 @@ openspec archive add-dark-mode --yes
 openspec archive update-ci-config --skip-specs
 ```
 
-**What it does:**
+**它执行的操作：**
 
-1. Validates the change (unless `--no-validate`)
-2. Prompts for confirmation (unless `--yes`)
-3. Claims the archive destination before changing any main spec
-4. Validates and merges the active delta specs into `openspec/specs/` — a capability whose last requirement the change removes is retired, and its spec file deleted, but only when the change's `.openspec.yaml` declares `retire_capabilities: true` next to its `schema:`
-5. Moves the change folder to `openspec/changes/archive/YYYY-MM-DD-<name>/`
-6. If a spec mutation or final move fails before a complete archive is secured, restores the specs and leaves or returns the change at its active path
-7. If a verified fallback copy completes but staged-source cleanup fails, retains the complete archive and committed spec state for recovery
+1. 校验该 change（除非 `--no-validate`）
+2. 提示确认（除非 `--yes`）
+3. 在改动任何主 spec 之前先占住归档目标位置
+4. 校验并将活动 delta spec 合并进 `openspec/specs/`——被该 change 移除最后一个 requirement 的 capability 会被退役，其 spec 文件被删除，但这仅在 change 的 `.openspec.yaml` 在其 `schema:` 旁声明了 `retire_capabilities: true` 时才会发生
+5. 将 change 文件夹移动到 `openspec/changes/archive/YYYY-MM-DD-<name>/`
+6. 若在获得完整归档之前某个 spec 变更或最终移动失败，则恢复 spec，并将 change 留在或退回其活动路径
+7. 若已验证的回退副本已完成，但暂存源清理失败，则保留完整的归档与已提交的 spec 状态以便恢复
 
-**Without a terminal:** an AI agent, a CI job, or any run with stdin closed cannot
-answer step 2, so archive stops before touching anything, exits 1, and names the
-command to rerun — `openspec archive <name> --yes`, carrying whatever other flags
-you passed. Pass `--yes` (and the change name) up front to skip the round trip.
+**无终端时：** AI agent、CI 任务或任何关闭了 stdin 的运行都无法回答第 2 步，因此 archive 会在触碰任何内容之前停止，以退出码 1 结束，并告知需重新运行的命令——`openspec archive <name> --yes`，并带上你传入的其他标志。提前传入 `--yes`（以及 change 名称）可跳过这一往返。
 
 ---
 
-## Workflow Commands
+## 工作流命令
 
-These commands support the artifact-driven OPSX workflow. They're useful for both humans checking progress and agents determining next steps.
+这些命令支持以 artifact 驱动的 OPSX 工作流。它们既便于人工查看进度，也便于 agent 确定下一步。
 
 ### `openspec new change`
 
-Create a change directory and optional checked-in metadata in the resolved OpenSpec root.
+在解析得到的 OpenSpec 根目录中创建一个 change 目录以及可选的、已提交的元数据。
 
 ```bash
 openspec new change <name> [options]
 ```
 
-Change names must use lowercase kebab-case: lowercase letters, numbers, and
-single hyphens. They cannot contain spaces, underscores, uppercase letters,
-consecutive hyphens, or leading/trailing hyphens. A leading number is allowed,
-so you can prefix names to order or tier changes, for example `100-add-feature`
-or `00001-add-auth`.
+change 名称必须使用小写 kebab-case：小写字母、数字以及单个连字符。不能包含空格、下划线、大写字母、连续连字符，或前导/尾随连字符。允许以数字开头，因此你可以为名称添加前缀来排序或分级 change，例如 `100-add-feature` 或 `00001-add-auth`。
 
-**Options:**
+**选项：**
 
-| Option | Description |
+| 选项 | 说明 |
 |--------|-------------|
-| `--description <text>` | Description to add to `README.md` |
-| `--goal <text>` | Optional goal metadata to store with the change |
-| `--schema <name>` | Workflow schema to use |
-| `--store <id>` | Store id to use as the OpenSpec root (a store is a standalone OpenSpec repo you've registered) |
-| `--json` | Output JSON |
+| `--description <text>` | 添加到 `README.md` 的描述 |
+| `--goal <text>` | 随 change 一起存储的可选目标元数据 |
+| `--schema <name>` | 要使用的工作流 schema |
+| `--store <id>` | 用作 OpenSpec 根目录的 store id（store 是你注册的独立 OpenSpec 仓库） |
+| `--json` | 输出 JSON |
 
-Examples:
+示例：
 
 ```bash
 openspec new change add-billing-api
@@ -718,21 +690,21 @@ openspec new change add-billing-api --store team-context --json
 
 ### `openspec status`
 
-Display artifact completion status for a change.
+显示某个 change 的 artifact 完成状态。
 
 ```
 openspec status [options]
 ```
 
-**Options:**
+**选项：**
 
-| Option | Description |
+| 选项 | 说明 |
 |--------|-------------|
-| `--change <id>` | Change name (prompts if omitted) |
-| `--schema <name>` | Schema override (auto-detected from change's config) |
-| `--json` | Output as JSON |
+| `--change <id>` | change 名称（省略时提示） |
+| `--schema <name>` | schema 覆盖（从 change 的配置自动检测） |
+| `--json` | 以 JSON 输出 |
 
-**Examples:**
+**示例：**
 
 ```bash
 # Interactive status check
@@ -745,7 +717,7 @@ openspec status --change add-dark-mode
 openspec status --change add-dark-mode --json
 ```
 
-**Output (text):**
+**输出（文本）：**
 
 ```
 Change: add-dark-mode
@@ -758,9 +730,9 @@ Progress: 2/4 artifacts complete
 [-] tasks (blocked by: design)
 ```
 
-A change that declares `skip_specs: true` shows its specs stage as `[~] specs (skipped: change declares skip_specs)` and excludes it from the progress count.
+声明了 `skip_specs: true` 的 change 会将其 specs 阶段显示为 `[~] specs (skipped: change declares skip_specs)`，并将其排除在进度计数之外。
 
-**Output (JSON):**
+**输出（JSON）：**
 
 ```json
 {
@@ -778,46 +750,37 @@ A change that declares `skip_specs: true` shows its specs stage as `[~] specs (s
 }
 ```
 
-`isPlanningComplete` reports whether every non-skipped planning artifact exists;
-skipped artifacts count as satisfied without being created. It does not report
-whether implementation tasks are complete. `isComplete` is retained as a
-compatibility alias with the same value.
+`isPlanningComplete` 报告是否每个未被跳过的规划 artifact 都已存在；被跳过的 artifact 视为已满足，而无需被创建。它不报告实现任务是否完成。`isComplete` 作为具有相同值的兼容性别名保留。
 
-Artifacts are listed in dependency order - a dependency never appears after
-something that requires it - and artifacts that become ready at the same time
-(spec-driven's `specs` and `design` both need only `proposal`) keep the order the
-schema declares them rather than an alphabetical one. So the first `ready` entry
-is the artifact to write next.
+artifact 按依赖顺序列出——依赖项绝不会出现在需要它的项之后——而同时变为就绪的 artifact（spec-driven 的 `specs` 和 `design` 都只需 `proposal`）会保持 schema 声明它们的顺序，而非字母顺序。因此第一个 `ready` 条目就是接下来要编写的 artifact。
 
 ---
 
 ### `openspec instructions`
 
-Get enriched instructions for creating an artifact or applying tasks. Used by AI agents to understand what to create next.
+获取用于创建 artifact 或应用任务的增强指令。AI agent 用它来理解接下来要创建什么。
 
 ```
 openspec instructions [artifact] [options]
 ```
 
-**Arguments:**
+**参数：**
 
-| Argument | Required | Description |
+| 参数 | 是否必填 | 说明 |
 |----------|----------|-------------|
-| `artifact` | No | Artifact ID, or workflow input surface: `apply` or `archive` |
+| `artifact` | 否 | artifact ID，或工作流输入界面：`apply` 或 `archive` |
 
-**Options:**
+**选项：**
 
-| Option | Description |
+| 选项 | 说明 |
 |--------|-------------|
-| `--change <id>` | Change name (required in non-interactive mode) |
-| `--schema <name>` | Schema override |
-| `--json` | Output as JSON |
+| `--change <id>` | change 名称（非交互模式下必填） |
+| `--schema <name>` | schema 覆盖 |
+| `--json` | 以 JSON 输出 |
 
-**Special cases:** Use `apply` to get task implementation instructions. Use
-`archive` to fetch current, read-only archive inputs (`context` and
-`operationGuidance`) for a valid change; it does not archive or mutate anything.
+**特殊情况：** 使用 `apply` 获取任务实现指令。使用 `archive` 获取一个有效 change 当前的、只读的归档输入（`context` 和 `operationGuidance`）；它不会归档或变更任何内容。
 
-**Examples:**
+**示例：**
 
 ```bash
 # Get instructions for next artifact
@@ -836,46 +799,36 @@ openspec instructions archive --change add-dark-mode --json
 openspec instructions design --change add-dark-mode --json
 ```
 
-**Output includes:**
+**输出包含：**
 
-- Template content for the artifact
-- Project context from config
-- Content from dependency artifacts
-- Per-artifact rules from config
-- Current project context and matching operation guidance for `apply`/`archive`
+- 该 artifact 的模板内容
+- 来自配置的 project context
+- 来自依赖 artifact 的内容
+- 来自配置的逐 artifact 规则
+- 当前的 project context 以及 `apply`/`archive` 匹配的 operation guidance
 
-Operation inputs are read from the resolved repo or selected store on every
-invocation. Project context is a required prompt-level input: agents read it and
-apply relevant project facts, conventions, and constraints. Operation guidance is
-optional additive advice: agents consider every entry and follow only entries that
-are applicable and compatible with the built-in workflow. Both fields remain
-separate from explicit user choices, CLI-controlled state, built-in instructions,
-and artifact rules. Conflicting context is reported; conflicting or inapplicable
-guidance is not followed and the reason is explained. These are behavioral
-contracts for generated agents, not enforceable CLI checks. `instructions archive`
-returns only the selected change, optional inputs, and root metadata; it does not
-include the static archive workflow.
+operation 输入在每次调用时都从解析得到的仓库或所选 store 读取。project context 是必需的 prompt 级输入：agent 读取它并应用相关的项目事实、约定与约束。operation guidance 是可选的附加建议：agent 会考虑每一条，但只遵循适用且与内置工作流兼容的条目。这两个字段都与明确的用户选择、CLI 控制的状态、内置指令以及 artifact 规则保持分离。冲突的 context 会被报告；冲突或不适用的 guidance 不会被遵循，并会说明原因。这些是面向生成 agent 的行为契约，而非可强制执行的 CLI 检查。`instructions archive` 只返回所选 change、可选输入与根目录元数据；它不包含静态的 archive 工作流。
 
-For an artifact skipped via `skip_specs: true`, the output is a warning only (JSON adds `skipped`/`warning` fields) — the artifact must not be created.
+对于通过 `skip_specs: true` 跳过的 artifact，输出仅为一条警告（JSON 会增加 `skipped`/`warning` 字段）——该 artifact 不得被创建。
 
 ---
 
 ### `openspec templates`
 
-Show resolved template paths for all artifacts in a schema.
+显示某个 schema 中所有 artifact 的已解析模板路径。
 
 ```
 openspec templates [options]
 ```
 
-**Options:**
+**选项：**
 
-| Option | Description |
+| 选项 | 说明 |
 |--------|-------------|
-| `--schema <name>` | Schema to inspect (default: `spec-driven`) |
-| `--json` | Output as JSON |
+| `--schema <name>` | 要检查的 schema（默认：`spec-driven`） |
+| `--json` | 以 JSON 输出 |
 
-**Examples:**
+**示例：**
 
 ```bash
 # Show template paths for default schema
@@ -888,7 +841,7 @@ openspec templates --schema my-workflow
 openspec templates --json
 ```
 
-**Output (text):**
+**输出（文本）：**
 
 ```
 Schema: spec-driven
@@ -904,26 +857,26 @@ Templates:
 
 ### `openspec schemas`
 
-List available workflow schemas with their descriptions and artifact flows.
+列出可用的工作流 schema 及其描述与 artifact 流程。
 
 ```
 openspec schemas [options]
 ```
 
-**Options:**
+**选项：**
 
-| Option | Description |
+| 选项 | 说明 |
 |--------|-------------|
-| `--json` | Output as JSON |
-| `--store <id>` | Use a registered store as the OpenSpec root |
+| `--json` | 以 JSON 输出 |
+| `--store <id>` | 使用一个已注册的 store 作为 OpenSpec 根目录 |
 
-**Example:**
+**示例：**
 
 ```bash
 openspec schemas
 ```
 
-**Output:**
+**输出：**
 
 ```
 Available schemas:
@@ -939,36 +892,36 @@ Available schemas:
 
 ---
 
-## Schema Commands
+## 模式（Schema）命令
 
-Commands for creating and managing custom workflow schemas.
+用于创建和管理自定义工作流 schema 的命令。
 
 ### `openspec schema init`
 
-Create a new project-local schema.
+创建一个新的项目级本地 schema。
 
 ```
 openspec schema init <name> [options]
 ```
 
-**Arguments:**
+**参数：**
 
-| Argument | Required | Description |
+| 参数 | 是否必填 | 说明 |
 |----------|----------|-------------|
-| `name` | Yes | Schema name (kebab-case) |
+| `name` | 是 | schema 名称（kebab-case） |
 
-**Options:**
+**选项：**
 
-| Option | Description |
+| 选项 | 说明 |
 |--------|-------------|
-| `--description <text>` | Schema description |
-| `--artifacts <list>` | Comma-separated artifact IDs (default: `proposal,specs,design,tasks`) |
-| `--default` | Set as project default schema |
-| `--no-default` | Don't prompt to set as default |
-| `--force` | Overwrite existing schema |
-| `--json` | Output as JSON |
+| `--description <text>` | schema 描述 |
+| `--artifacts <list>` | 逗号分隔的 artifact ID（默认：`proposal,specs,design,tasks`） |
+| `--default` | 设为项目默认 schema |
+| `--no-default` | 不提示设为默认 |
+| `--force` | 覆盖已有的 schema |
+| `--json` | 输出 JSON |
 
-**Examples:**
+**示例：**
 
 ```bash
 # Interactive schema creation
@@ -981,7 +934,7 @@ openspec schema init rapid \
   --default
 ```
 
-**What it creates:**
+**它创建的内容：**
 
 ```
 openspec/schemas/<name>/
@@ -997,27 +950,27 @@ openspec/schemas/<name>/
 
 ### `openspec schema fork`
 
-Copy an existing schema to your project for customization.
+复制一个已有的 schema 到你的项目以便定制。
 
 ```
 openspec schema fork <source> [name] [options]
 ```
 
-**Arguments:**
+**参数：**
 
-| Argument | Required | Description |
+| 参数 | 是否必填 | 说明 |
 |----------|----------|-------------|
-| `source` | Yes | Schema to copy |
-| `name` | No | New schema name (default: `<source>-custom`) |
+| `source` | 是 | 要复制的 schema |
+| `name` | 否 | 新 schema 名称（默认：`<source>-custom`） |
 
-**Options:**
+**选项：**
 
-| Option | Description |
+| 选项 | 说明 |
 |--------|-------------|
-| `--force` | Overwrite existing destination |
-| `--json` | Output as JSON |
+| `--force` | 覆盖已有的目标 |
+| `--json` | 输出 JSON |
 
-**Example:**
+**示例：**
 
 ```bash
 # Fork the built-in spec-driven schema
@@ -1028,26 +981,26 @@ openspec schema fork spec-driven my-workflow
 
 ### `openspec schema validate`
 
-Validate a schema's structure and templates.
+校验一个 schema 的结构与模板。
 
 ```
 openspec schema validate [name] [options]
 ```
 
-**Arguments:**
+**参数：**
 
-| Argument | Required | Description |
+| 参数 | 是否必填 | 说明 |
 |----------|----------|-------------|
-| `name` | No | Schema to validate (validates all if omitted) |
+| `name` | 否 | 要校验的 schema（省略则校验全部） |
 
-**Options:**
+**选项：**
 
-| Option | Description |
+| 选项 | 说明 |
 |--------|-------------|
-| `--verbose` | Show detailed validation steps |
-| `--json` | Output as JSON |
+| `--verbose` | 显示详细的校验步骤 |
+| `--json` | 输出 JSON |
 
-**Example:**
+**示例：**
 
 ```bash
 # Validate a specific schema
@@ -1061,71 +1014,71 @@ openspec schema validate
 
 ### `openspec schema which`
 
-Show where a schema resolves from (useful for debugging precedence).
+显示某个 schema 从何处解析而来（便于调试优先级）。
 
 ```
 openspec schema which [name] [options]
 ```
 
-**Arguments:**
+**参数：**
 
-| Argument | Required | Description |
+| 参数 | 是否必填 | 说明 |
 |----------|----------|-------------|
-| `name` | No | Schema name |
+| `name` | 否 | schema 名称 |
 
-**Options:**
+**选项：**
 
-| Option | Description |
+| 选项 | 说明 |
 |--------|-------------|
-| `--all` | List all schemas with their sources |
-| `--json` | Output as JSON |
+| `--all` | 列出所有 schema 及其来源 |
+| `--json` | 输出 JSON |
 
-**Example:**
+**示例：**
 
 ```bash
 # Check where a schema comes from
 openspec schema which spec-driven
 ```
 
-**Output:**
+**输出：**
 
 ```
 spec-driven resolves from: package
   Source: /usr/local/lib/node_modules/@fission-ai/openspec/schemas/spec-driven
 ```
 
-**Schema precedence:**
+**schema 优先级：**
 
-1. Project: `openspec/schemas/<name>/`
-2. User: `~/.local/share/openspec/schemas/<name>/`
-3. Package: Built-in schemas
+1. 项目：`openspec/schemas/<name>/`
+2. 用户：`~/.local/share/openspec/schemas/<name>/`
+3. 包：内置 schema
 
 ---
 
-## Configuration Commands
+## 配置命令
 
 ### `openspec config`
 
-View and modify global OpenSpec configuration.
+查看并修改全局 OpenSpec 配置。
 
 ```
 openspec config <subcommand> [options]
 ```
 
-**Subcommands:**
+**子命令：**
 
-| Subcommand | Description |
+| 子命令 | 说明 |
 |------------|-------------|
-| `path` | Show config file location |
-| `list` | Show all current settings |
-| `get <key>` | Get a specific value |
-| `set <key> <value>` | Set a value |
-| `unset <key>` | Remove a key |
-| `reset` | Reset to defaults |
-| `edit` | Open in `$EDITOR` |
-| `profile [preset]` | Configure workflow profile interactively or via preset |
+| `path` | 显示配置文件位置 |
+| `list` | 显示所有当前设置 |
+| `get <key>` | 获取特定值 |
+| `set <key> <value>` | 设置一个值 |
+| `unset <key>` | 移除一个键 |
+| `reset` | 重置为默认值 |
+| `edit` | 在 `$EDITOR` 中打开 |
+| `profile [preset]` | 以交互方式或通过预设配置工作流 profile |
 
-**Examples:**
+**示例：**
 
 ```bash
 # Show config file path
@@ -1163,23 +1116,17 @@ openspec config profile
 openspec config profile core
 ```
 
-**Telemetry opt-out:** `telemetry.enabled` defaults to on when unset (opt-out model).
-Set it to `false` to disable anonymous usage stats and the `openspec update` version check.
-Environment variables take precedence over config: `OPENSPEC_TELEMETRY=0`, `DO_NOT_TRACK=1`,
-and a truthy `CI` value (e.g. `true`/`1`/`yes`) always disable telemetry regardless of the config value.
+**退出遥测（Telemetry opt-out）：** `telemetry.enabled` 在未设置时默认为开启（选择退出模型）。将其设为 `false` 可禁用匿名使用统计与 `openspec update` 的版本检查。环境变量优先于配置：`OPENSPEC_TELEMETRY=0`、`DO_NOT_TRACK=1`，以及一个为真值的 `CI`（例如 `true`/`1`/`yes`）无论配置值如何都会禁用遥测。
 
-`openspec config profile` starts with a current-state summary, then lets you choose:
-- Change delivery + workflows
-- Change delivery only
-- Change workflows only
-- Keep current settings (exit)
+`openspec config profile` 先给出当前状态摘要，然后让你选择：
+- 更改 delivery + workflows
+- 仅更改 delivery
+- 仅更改 workflows
+- 保留当前设置（退出）
 
-If you keep current settings, no changes are written and no update prompt is shown.
-If there are no config changes but the current project files are out of sync with your global profile/delivery, OpenSpec will show a warning and suggest `openspec update`.
-Pressing `Ctrl+C` also cancels the flow cleanly (no stack trace) and exits with code `130`.
-In the workflow checklist, `[x]` means the workflow is selected in global config. To apply those selections to project files, run `openspec update` (or choose `Apply changes to this project now?` when prompted inside a project).
+如果保留当前设置，则不会写入任何更改，也不会显示更新提示。如果没有任何配置更改，但当前项目文件与你的全局 profile/delivery 不同步，OpenSpec 会显示警告并建议 `openspec update`。按下 `Ctrl+C` 也会干净地取消该流程（无堆栈跟踪），并以退出码 `130` 结束。在工作流清单中，`[x]` 表示该工作流已在全局配置中被选中。要将这些选择应用到项目文件，请运行 `openspec update`（或在项目内被提示时选择 `Apply changes to this project now?`）。
 
-**Interactive examples:**
+**交互式示例：**
 
 ```bash
 # Delivery-only update
@@ -1195,31 +1142,31 @@ openspec config profile
 
 ---
 
-## Utility Commands
+## 工具命令
 
 ### `openspec feedback`
 
-Submit feedback about OpenSpec. Creates a GitHub issue.
+提交关于 OpenSpec 的反馈。会创建一个 GitHub issue。
 
 ```
 openspec feedback <message> [options]
 ```
 
-**Arguments:**
+**参数：**
 
-| Argument | Required | Description |
+| 参数 | 是否必填 | 说明 |
 |----------|----------|-------------|
-| `message` | Yes | Feedback summary; long text is shortened in the issue title and preserved in the body |
+| `message` | 是 | 反馈摘要；长文本会在 issue 标题中被缩短，并在正文中保留 |
 
-**Options:**
+**选项：**
 
-| Option | Description |
+| 选项 | 说明 |
 |--------|-------------|
-| `--body <text>` | Additional details included after the summary |
+| `--body <text>` | 摘要之后包含的额外详情 |
 
-**Requirements:** GitHub CLI (`gh`) must be installed and authenticated.
+**要求：** GitHub CLI（`gh`）必须已安装并通过认证。
 
-**Example:**
+**示例：**
 
 ```bash
 openspec feedback "Add support for custom artifact types" \
@@ -1230,23 +1177,23 @@ openspec feedback "Add support for custom artifact types" \
 
 ### `openspec completion`
 
-Manage shell completions for the OpenSpec CLI.
+管理 OpenSpec CLI 的 shell 补全。
 
 ```
 openspec completion <subcommand> [shell]
 ```
 
-**Subcommands:**
+**子命令：**
 
-| Subcommand | Description |
+| 子命令 | 说明 |
 |------------|-------------|
-| `generate [shell]` | Output completion script to stdout |
-| `install [shell]` | Install completion for your shell |
-| `uninstall [shell]` | Remove installed completions |
+| `generate [shell]` | 将补全脚本输出到 stdout |
+| `install [shell]` | 为你的 shell 安装补全 |
+| `uninstall [shell]` | 移除已安装的补全 |
 
-**Supported shells:** `bash`, `zsh`, `fish`, `powershell`
+**支持的 shell：** `bash`, `zsh`, `fish`, `powershell`
 
-**Examples:**
+**示例：**
 
 ```bash
 # Install completions (auto-detects shell)
@@ -1262,41 +1209,38 @@ openspec completion generate bash > ~/.bash_completion.d/openspec
 openspec completion uninstall
 ```
 
-Completions are opt-in. The CLI mentions them once, on stderr, the first time you
-run a command in an interactive terminal, and never again — it also stays quiet
-if you already have completions installed. Set `OPENSPEC_NO_COMPLETIONS=1` to
-suppress that tip entirely.
+补全是选择启用的。CLI 会在你第一次于交互式终端运行命令时，通过 stderr 提及一次，之后不再提及——如果你已安装补全，它也会保持安静。设置 `OPENSPEC_NO_COMPLETIONS=1` 可完全抑制该提示。
 
 ---
 
-## Exit Codes
+## 退出码
 
-| Code | Meaning |
+| 码 | 含义 |
 |------|---------|
-| `0` | Success |
-| `1` | Error (validation failure, missing files, etc.) |
+| `0` | 成功 |
+| `1` | 错误（校验失败、文件缺失等） |
 
 ---
 
-## Environment Variables
+## 环境变量
 
-| Variable | Description |
+| 变量 | 说明 |
 |----------|-------------|
-| `OPENSPEC_TELEMETRY` | Set to `0` to disable telemetry and the `openspec update` version check (overrides `telemetry.enabled` in global config) |
-| `DO_NOT_TRACK` | Set to `1` to disable telemetry and the `openspec update` version check (standard DNT signal; overrides config) |
-| `OPENSPEC_CONCURRENCY` | Default concurrency for bulk validation (default: 6) |
-| `EDITOR` or `VISUAL` | Editor for `openspec config edit` |
-| `NO_COLOR` | Disable color output when set |
-| `OPENSPEC_NO_ANIMATION` | Disable the `openspec init` welcome animation when set |
-| `OPENSPEC_NO_COMPLETIONS` | Set to `1` to suppress the one-time tip about shell completions |
-| `OPENSPEC_NO_UPDATE_CHECK` | Disable the `openspec update` check for a newer published CLI when set (any value, including empty). Also skipped when `CI` is set (unless `false`/`0`/`no`/`off`) or `NODE_ENV=test` |
-| `npm_config_registry` | Registry the `openspec update` version check asks. Must be an `http(s)` URL or it falls back to `https://registry.npmjs.org`. No `.npmrc` file is read |
+| `OPENSPEC_TELEMETRY` | 设为 `0` 可禁用遥测与 `openspec update` 的版本检查（覆盖全局配置中的 `telemetry.enabled`） |
+| `DO_NOT_TRACK` | 设为 `1` 可禁用遥测与 `openspec update` 的版本检查（标准 DNT 信号；覆盖配置） |
+| `OPENSPEC_CONCURRENCY` | 批量校验的默认并发数（默认：6） |
+| `EDITOR` 或 `VISUAL` | `openspec config edit` 使用的编辑器 |
+| `NO_COLOR` | 设置时禁用彩色输出 |
+| `OPENSPEC_NO_ANIMATION` | 设置时禁用 `openspec init` 的欢迎动画 |
+| `OPENSPEC_NO_COMPLETIONS` | 设为 `1` 可抑制关于 shell 补全的一次性提示 |
+| `OPENSPEC_NO_UPDATE_CHECK` | 设置时（任意值，包括空值）禁用 `openspec update` 对更新的已发布 CLI 的检查。当 `CI` 被设置（除非为 `false`/`0`/`no`/`off`）或 `NODE_ENV=test` 时也会跳过 |
+| `npm_config_registry` | `openspec update` 版本检查所询问的 registry。必须是 `http(s)` URL，否则回退到 `https://registry.npmjs.org`。不会读取任何 `.npmrc` 文件 |
 
 ---
 
-## Related Documentation
+## 相关文档
 
-- [Commands](commands.md) - AI slash commands (`/opsx:propose`, `/opsx:apply`, etc.)
-- [Workflows](workflows.md) - Common patterns and when to use each command
-- [Customization](customization.md) - Create custom schemas and templates
-- [Getting Started](getting-started.md) - First-time setup guide
+- [Commands](commands.md) - AI 斜杠命令（`/opsx:propose`、`/opsx:apply` 等）
+- [Workflows](workflows.md) - 常见模式以及何时使用各命令
+- [Customization](customization.md) - 创建自定义 schema 与模板
+- [Getting Started](getting-started.md) - 首次设置指南

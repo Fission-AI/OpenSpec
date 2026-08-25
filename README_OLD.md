@@ -8,7 +8,7 @@
   </a>
   
 </p>
-<p align="center">Spec-driven development for AI coding assistants.</p>
+<p align="center">面向 AI 编码助手的规约驱动开发。</p>
 <p align="center">
   <a href="https://github.com/Fission-AI/OpenSpec/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Fission-AI/OpenSpec/actions/workflows/ci.yml/badge.svg" /></a>
   <a href="https://www.npmjs.com/package/@fission-ai/openspec"><img alt="npm version" src="https://img.shields.io/npm/v/@fission-ai/openspec?style=flat-square" /></a>
@@ -23,37 +23,37 @@
 </p>
 
 <p align="center">
-  Follow <a href="https://x.com/0xTab">@0xTab on X</a> for updates · Join the <a href="https://discord.gg/YctCnvvshC">OpenSpec Discord</a> for help and questions.
+  在 <a href="https://x.com/0xTab">X 上关注 @0xTab</a> 获取更新 · 加入 <a href="https://discord.gg/YctCnvvshC">OpenSpec Discord</a> 获取帮助与答疑。
 </p>
 
 <p align="center">
-  <sub>🧪 <strong>New:</strong> <a href="docs/opsx.md">OPSX Workflow</a> — schema-driven, hackable, fluid. Iterate on workflows without code changes.</sub>
+  <sub>🧪 <strong>新功能：</strong> <a href="docs/opsx.md">OPSX 工作流</a>——以 schema 驱动、可 hack、灵活。无需改代码即可迭代工作流。</sub>
 </p>
 
 # OpenSpec
 
-OpenSpec aligns humans and AI coding assistants with spec-driven development so you agree on what to build before any code is written. **No API keys required.**
+OpenSpec 用规约驱动开发让人类与 AI 编码助手保持一致，让你在任何代码写出之前就先对要构建的内容达成一致。**无需 API 密钥。**
 
-## Why OpenSpec?
+## 为何选择 OpenSpec？
 
-AI coding assistants are powerful but unpredictable when requirements live in chat history. OpenSpec adds a lightweight specification workflow that locks intent before implementation, giving you deterministic, reviewable outputs.
+AI 编码助手功能强大，但当需求存在于聊天记录中时却难以预测。OpenSpec 增加了一套轻量的规约工作流，在实现前锁定意图，为你带来确定性、可审阅的输出。
 
-Key outcomes:
-- Human and AI stakeholders agree on specs before work begins.
-- Structured change folders (proposals, tasks, and spec updates) keep scope explicit and auditable.
-- Shared visibility into what's proposed, active, or archived.
-- Works with the AI tools you already use: custom slash commands where supported, context rules everywhere else.
+主要成果：
+- 人类与 AI 相关方在工作开始前就 specs 达成一致。
+- 结构化的变更文件夹（proposals、tasks 与 spec 更新）让范围明确且可审计。
+- 对"已提案、进行中、已归档"的内容拥有共享可见性。
+- 兼容你已在使用的 AI 工具：在支持处使用自定义斜杠命令，在其他处使用上下文规则。
 
-## How OpenSpec compares (at a glance)
+## OpenSpec 如何对比（一览）
 
-- **Lightweight**: simple workflow, no API keys, minimal setup.
-- **Brownfield-first**: works great beyond 0→1. OpenSpec separates the source of truth from proposals: `openspec/specs/` (current truth) and `openspec/changes/` (proposed updates). This keeps diffs explicit and manageable across features.
-- **Change tracking**: proposals, tasks, and spec deltas live together; archiving merges the approved updates back into specs.
-- **Compared to spec-kit & Kiro**: those shine for brand-new features (0→1). OpenSpec also excels when modifying existing behavior (1→n), especially when updates span multiple specs.
+- **轻量**：简单工作流，无需 API 密钥，配置极少。
+- **遗留优先（Brownfield-first）**：在 0→1 之外同样表现出色。OpenSpec 将事实来源与提案分离：`openspec/specs/`（当前事实）与 `openspec/changes/`（拟议更新）。这让 diff 在各项功能之间清晰且可控。
+- **变更追踪**：proposals、tasks 与 spec deltas 集中在一起；归档会把已批准的更新合并回 specs。
+- **对比 spec-kit 与 Kiro**：它们擅长全新功能（0→1）。OpenSpec 在修改既有行为（1→n）时也表现出色，尤其是当更新横跨多个 specs 时。
 
-See the full comparison in [How OpenSpec Compares](#how-openspec-compares).
+完整对比见 [OpenSpec 如何对比](#how-openspec-compares)。
 
-## How It Works
+## 工作原理
 
 ```
 ┌────────────────────┐
@@ -85,14 +85,14 @@ See the full comparison in [How OpenSpec Compares](#how-openspec-compares).
 4. Archive the change to merge the approved updates back into the source-of-truth specs.
 ```
 
-## Getting Started
+## 快速开始
 
-### Supported AI Tools
+### 支持的 AI 工具
 
 <details>
-<summary><strong>Native Slash Commands</strong> (click to expand)</summary>
+<summary><strong>原生斜杠命令</strong>（点击展开）</summary>
 
-These tools have built-in OpenSpec commands. Select the OpenSpec integration when prompted.
+这些工具内置了 OpenSpec 命令。在提示时选择 OpenSpec 集成。
 
 | Tool | Commands |
 |------|----------|
@@ -118,14 +118,14 @@ These tools have built-in OpenSpec commands. Select the OpenSpec integration whe
 | **RooCode** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.roo/commands/`) |
 | **Windsurf** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.windsurf/workflows/`) |
 
-Kilo Code discovers team workflows automatically. Save the generated files under `.kilocode/workflows/` and trigger them from the command palette with `/openspec-proposal.md`, `/openspec-apply.md`, or `/openspec-archive.md`.
+Kilo Code 会自动发现团队工作流。将生成的文件保存在 `.kilocode/workflows/` 下，并通过命令面板用 `/openspec-proposal.md`、`/openspec-apply.md` 或 `/openspec-archive.md` 触发它们。
 
 </details>
 
 <details>
-<summary><strong>AGENTS.md Compatible</strong> (click to expand)</summary>
+<summary><strong>兼容 AGENTS.md</strong>（点击展开）</summary>
 
-These tools automatically read workflow instructions from `openspec/AGENTS.md`. Ask them to follow the OpenSpec workflow if they need a reminder. Learn more about the [AGENTS.md convention](https://agents.md/).
+这些工具会自动从 `openspec/AGENTS.md` 读取工作流指令。如果它们需要提醒，请要求它们遵循 OpenSpec 工作流。进一步了解 [AGENTS.md 约定](https://agents.md/)。
 
 | Tools |
 |-------|
@@ -133,37 +133,37 @@ These tools automatically read workflow instructions from `openspec/AGENTS.md`. 
 
 </details>
 
-### Install & Initialize
+### 安装与初始化
 
-#### Prerequisites
-- **Node.js >= 20.19.0** - Check your version with `node --version`
+#### 前置条件
+- **Node.js >= 20.19.0** - 用 `node --version` 检查你的版本
 
-#### Step 1: Install the CLI globally
+#### 第 1 步：全局安装 CLI
 
-**Option A: Using npm**
+**方案 A：使用 npm**
 
 ```bash
 npm install -g @fission-ai/openspec@latest
 ```
 
-Verify installation:
+验证安装：
 ```bash
 openspec --version
 ```
 
-**Option B: Using Nix (NixOS and Nix package manager)**
+**方案 B：使用 Nix（NixOS 与 Nix 包管理器）**
 
-Run OpenSpec directly without installation:
+免安装直接运行 OpenSpec：
 ```bash
 nix run github:Fission-AI/OpenSpec -- init
 ```
 
-Or install to your profile:
+或安装到你的 profile：
 ```bash
 nix profile install github:Fission-AI/OpenSpec
 ```
 
-Or add to your development environment in `flake.nix`:
+或在 `flake.nix` 中添加到你的开发环境：
 ```nix
 {
   inputs = {
@@ -179,51 +179,51 @@ Or add to your development environment in `flake.nix`:
 }
 ```
 
-Verify installation:
+验证安装：
 ```bash
 openspec --version
 ```
 
-#### Step 2: Initialize OpenSpec in your project
+#### 第 2 步：在你的项目中初始化 OpenSpec
 
-Navigate to your project directory:
+进入你的项目目录：
 ```bash
 cd my-project
 ```
 
-Run the initialization:
+运行初始化：
 ```bash
 openspec init
 ```
 
-**What happens during initialization:**
-- You'll be prompted to pick any natively supported AI tools (Claude Code, CodeBuddy, Cursor, OpenCode, Qoder,etc.); other assistants always rely on the shared `AGENTS.md` stub
-- OpenSpec automatically configures slash commands for the tools you choose and always writes a managed `AGENTS.md` hand-off at the project root
-- A new `openspec/` directory structure is created in your project
+**初始化过程中会发生什么：**
+- 系统会提示你选择任意原生支持的 AI 工具（Claude Code、CodeBuddy、Cursor、OpenCode、Qoder 等）；其他助手始终依赖共享的 `AGENTS.md` 桩文件
+- OpenSpec 会为你所选的工具自动配置斜杠命令，并始终在项目根目录写入一个受管理的 `AGENTS.md` 交接文件
+- 会在你的项目中创建新的 `openspec/` 目录结构
 
-**After setup:**
-- Primary AI tools can trigger `/openspec` workflows without additional configuration
-- Run `openspec list` to verify the setup and view any active changes
-- If your coding assistant doesn't surface the new slash commands right away, restart it. Slash commands are loaded at startup,
-  so a fresh launch ensures they appear
+**设置完成后：**
+- 主要 AI 工具无需额外配置即可触发 `/openspec` 工作流
+- 运行 `openspec list` 以验证设置并查看进行中的变更
+- 如果你的编码助手没有立即显示新的斜杠命令，请重启它。斜杠命令在启动时被加载，
+  因此全新启动可确保它们出现
 
-### Optional: Populate Project Context
+### 可选：填充项目上下文
 
-After `openspec init` completes, you'll receive a suggested prompt to help populate your project context:
+`openspec init` 完成后，你会收到一条建议的提示词，用于帮助你填充项目上下文：
 
 ```text
 Populate your project context:
 "Please read openspec/project.md and help me fill it out with details about my project, tech stack, and conventions"
 ```
 
-Use `openspec/project.md` to define project-level conventions, standards, architectural patterns, and other guidelines that should be followed across all changes.
+使用 `openspec/project.md` 定义项目级约定、标准、架构模式，以及应在所有变更中遵循的其他指南。
 
-### Create Your First Change
+### 创建你的第一个变更
 
-Here's a real example showing the complete OpenSpec workflow. This works with any AI tool. Those with native slash commands will recognize the shortcuts automatically.
+下面是一个展示完整 OpenSpec 工作流的真实示例。它适用于任何 AI 工具。具备原生斜杠命令的工具会自动识别这些快捷方式。
 
-#### 1. Draft the Proposal
-Start by asking your AI to create a change proposal:
+#### 1. 起草提案
+首先请你的 AI 创建一份变更提案：
 
 ```text
 You: Create an OpenSpec change proposal for adding profile search filters by role and team
@@ -233,8 +233,8 @@ AI:  I'll create an OpenSpec change proposal for profile filters.
      *Scaffolds openspec/changes/add-profile-filters/ with proposal.md, tasks.md, spec deltas.*
 ```
 
-#### 2. Verify & Review
-Check that the change was created correctly and review the proposal:
+#### 2. 验证与审阅
+检查变更是否正确创建，并审阅提案：
 
 ```bash
 $ openspec list                             # Confirm the change folder exists
@@ -242,8 +242,8 @@ $ openspec validate add-profile-filters     # Validate spec formatting
 $ openspec show add-profile-filters         # Review proposal, tasks, and spec delta
 ```
 
-#### 3. Refine the Specs
-Iterate on the specifications until they match your needs:
+#### 3. 细化 Specs
+反复打磨规约，直到符合你的需求：
 
 ```text
 You: Can you add acceptance criteria for the role and team filters?
@@ -252,8 +252,8 @@ AI:  I'll update the spec delta with scenarios for role and team filters.
      *Edits openspec/changes/add-profile-filters/specs/profile/spec.md and tasks.md.*
 ```
 
-#### 4. Implement the Change
-Once specs look good, start implementation:
+#### 4. 实现变更
+一旦 specs 看起来合适，就开始实现：
 
 ```text
 You: The specs look good. Let's implement this change.
@@ -264,8 +264,8 @@ AI:  I'll work through the tasks in the add-profile-filters change.
      *Marks tasks complete: Task 1.1 ✓, Task 1.2 ✓, Task 2.1 ✓...*
 ```
 
-#### 5. Archive the Completed Change
-After implementation is complete, archive the change:
+#### 5. 归档已完成的变更
+实现完成后，归档该变更：
 
 ```text
 AI:  All tasks are complete. The implementation is ready.
@@ -278,14 +278,14 @@ AI:  I'll archive the add-profile-filters change.
      ✓ Change archived successfully. Specs updated. Ready for the next feature!
 ```
 
-Or run the command yourself in terminal:
+或在终端自行运行命令：
 ```bash
 $ openspec archive add-profile-filters --yes  # Archive the completed change without prompts
 ```
 
-**Note:** Tools with native slash commands (Claude Code, CodeBuddy, Cursor, Codex, Qoder, RooCode) can use the shortcuts shown. All other tools work with natural language requests to "create an OpenSpec proposal", "apply the OpenSpec change", or "archive the change".
+**注意：** 具备原生斜杠命令的工具（Claude Code、CodeBuddy、Cursor、Codex、Qoder、RooCode）可使用所示快捷方式。所有其他工具通过自然语言请求来"创建 OpenSpec 提案"、"应用 OpenSpec 变更"或"归档变更"。
 
-## Command Reference
+## 命令参考
 
 ```bash
 openspec list               # View active change folders
@@ -295,9 +295,9 @@ openspec validate <change>  # Check spec formatting and structure
 openspec archive <change> [--yes|-y]   # Move a completed change into archive/ (non-interactive with --yes)
 ```
 
-## Example: How AI Creates OpenSpec Files
+## 示例：AI 如何创建 OpenSpec 文件
 
-When you ask your AI assistant to "add two-factor authentication", it creates:
+当你要求你的 AI 助手"添加双因素认证"时，它会创建：
 
 ```
 openspec/
@@ -314,7 +314,7 @@ openspec/
                 └── spec.md   # Delta showing additions
 ```
 
-### AI-Generated Spec (created in `openspec/specs/auth/spec.md`):
+### AI 生成的 Spec（创建于 `openspec/specs/auth/spec.md`）：
 
 ```markdown
 # Auth Specification
@@ -331,7 +331,7 @@ The system SHALL issue a JWT on successful login.
 - THEN a JWT is returned
 ```
 
-### AI-Generated Change Delta (created in `openspec/changes/add-2fa/specs/auth/spec.md`):
+### AI 生成的变更 Delta（创建于 `openspec/changes/add-2fa/specs/auth/spec.md`）：
 
 ```markdown
 # Delta for Auth
@@ -345,7 +345,7 @@ The system MUST require a second factor during login.
 - THEN an OTP challenge is required
 ```
 
-### AI-Generated Tasks (created in `openspec/changes/add-2fa/tasks.md`):
+### AI 生成的任务（创建于 `openspec/changes/add-2fa/tasks.md`）：
 
 ```markdown
 ## 1. Database Setup
@@ -362,67 +362,67 @@ The system MUST require a second factor during login.
 - [ ] 3.2 Update login flow UI
 ```
 
-**Important:** You don't create these files manually. Your AI assistant generates them based on your requirements and the existing codebase.
+**重要：** 你无需手动创建这些文件。你的 AI 助手会根据你的需求与现有代码库生成它们。
 
-## Understanding OpenSpec Files
+## 理解 OpenSpec 文件
 
-### Delta Format
+### Delta 格式
 
-Deltas are "patches" that show how specs change:
+Deltas 是展示 specs 如何变化的"补丁"：
 
-- **`## ADDED Requirements`** - New capabilities
-- **`## MODIFIED Requirements`** - Changed behavior (include complete updated text)
-- **`## REMOVED Requirements`** - Deprecated features
+- **`## ADDED Requirements`** - 新增能力
+- **`## MODIFIED Requirements`** - 被修改的行为（包含完整的更新文本）
+- **`## REMOVED Requirements`** - 已弃用的功能
 
-**Format requirements:**
-- Use `### Requirement: <name>` for headers
-- Every requirement needs at least one `#### Scenario:` block
-- Use SHALL/MUST in requirement text
+**格式要求：**
+- 使用 `### Requirement: <name>` 作为标题
+- 每个 requirement 至少需要一个 `#### Scenario:` 块
+- 在 requirement 文本中使用 SHALL/MUST
 
-## How OpenSpec Compares
+## OpenSpec 如何对比
 
-### vs. spec-kit
-OpenSpec’s two-folder model (`openspec/specs/` for the current truth, `openspec/changes/` for proposed updates) keeps state and diffs separate. This scales when you modify existing features or touch multiple specs. spec-kit is strong for greenfield/0→1 but provides less structure for cross-spec updates and evolving features.
+### 对比 spec-kit
+OpenSpec 的双文件夹模型（`openspec/specs/` 为当前事实，`openspec/changes/` 为拟议更新）将状态与 diff 分离。当你修改既有功能或触及多个 specs 时，它能良好扩展。spec-kit 在全新开发（greenfield/0→1）方面表现出色，但对跨 spec 更新和演进中的功能提供的结构较少。
 
-### vs. Kiro.dev
-OpenSpec groups every change for a feature in one folder (`openspec/changes/feature-name/`), making it easy to track related specs, tasks, and designs together. Kiro spreads updates across multiple spec folders, which can make feature tracking harder.
+### 对比 Kiro.dev
+OpenSpec 将一项功能的每次变更集中在一个文件夹（`openspec/changes/feature-name/`）中，便于一起追踪相关的 specs、tasks 和 designs。Kiro 将更新分散在多个 spec 文件夹中，可能让功能追踪更困难。
 
-### vs. No Specs
-Without specs, AI coding assistants generate code from vague prompts, often missing requirements or adding unwanted features. OpenSpec brings predictability by agreeing on the desired behavior before any code is written.
+### 对比"无 Specs"
+没有 specs，AI 编码助手会从模糊的提示词生成代码，常常遗漏需求或添加不需要的功能。OpenSpec 通过在任何代码写出之前就所需行为达成一致，带来可预测性。
 
-## Team Adoption
+## 团队采用
 
-1. **Initialize OpenSpec** – Run `openspec init` in your repo.
-2. **Start with new features** – Ask your AI to capture upcoming work as change proposals.
-3. **Grow incrementally** – Each change archives into living specs that document your system.
-4. **Stay flexible** – Different teammates can use Claude Code, CodeBuddy, Cursor, or any AGENTS.md-compatible tool while sharing the same specs.
+1. **初始化 OpenSpec** – 在仓库中运行 `openspec init`。
+2. **从新功能开始** – 请你的 AI 将即将开展的工作记录为变更提案。
+3. **渐进式增长** – 每次变更都会归档进"活"的 specs，记录你的系统。
+4. **保持灵活** – 不同团队成员可以使用 Claude Code、CodeBuddy、Cursor 或任何兼容 AGENTS.md 的工具，同时共享同一份 specs。
 
-Run `openspec update` whenever someone switches tools so your agents pick up the latest instructions and slash-command bindings.
+当有人切换工具时，运行 `openspec update`，以便你的 agents 获取最新指令与斜杠命令绑定。
 
-## Updating OpenSpec
+## 更新 OpenSpec
 
-1. **Upgrade the package**
+1. **升级软件包**
    ```bash
    npm install -g @fission-ai/openspec@latest
    ```
-2. **Refresh agent instructions**
-   - Run `openspec update` inside each project to regenerate AI guidance and ensure the latest slash commands are active.
+2. **刷新 agent 指引**
+   - 在每个项目中运行 `openspec update`，以重新生成 AI 指引并确保最新的斜杠命令生效。
 
-## Experimental Features
+## 实验性特性
 
 <details>
-<summary><strong>🧪 OPSX: Fluid, Iterative Workflow</strong> (Claude Code only)</summary>
+<summary><strong>🧪 OPSX：灵活、迭代式工作流</strong>（仅限 Claude Code）</summary>
 
-**Why this exists:**
-- Standard workflow is locked down — you can't tweak instructions or customize
-- When AI output is bad, you can't improve the prompts yourself
-- Same workflow for everyone, no way to match how your team works
+**为何存在：**
+- 标准工作流被锁定——你无法调整指令或进行自定义
+- 当 AI 输出不佳时，你无法自行改进提示词
+- 对所有人采用相同工作流，无法贴合你团队的运作方式
 
-**What's different:**
-- **Hackable** — edit templates and schemas yourself, test immediately, no rebuild
-- **Granular** — each artifact has its own instructions, test and tweak individually
-- **Customizable** — define your own workflows, artifacts, and dependencies
-- **Fluid** — no phase gates, update any artifact anytime
+**有何不同：**
+- **可 hack**——自行编辑模板与 schemas，立即测试，无需重建
+- **细粒度**——每个 artifact 都有各自的指令，可单独测试与调整
+- **可自定义**——定义你自己的工作流、artifacts 与依赖
+- **灵活**——没有阶段门禁，随时更新任何 artifact
 
 ```
 You can always go back:
@@ -432,44 +432,44 @@ You can always go back:
      └───────────┴──────────┴────────────────────┘
 ```
 
-| Command | What it does |
+| 命令 | 作用 |
 |---------|--------------|
-| `/opsx:new` | Start a new change |
-| `/opsx:continue` | Create the next artifact (based on what's ready) |
-| `/opsx:ff` | Fast-forward (all planning artifacts at once) |
-| `/opsx:apply` | Implement tasks, updating artifacts as needed |
-| `/opsx:archive` | Archive when done |
+| `/opsx:new` | 开始一个新变更 |
+| `/opsx:continue` | 创建下一个 artifact（基于已就绪的内容） |
+| `/opsx:ff` | 快进（一次性生成所有规划 artifact） |
+| `/opsx:apply` | 实现任务，按需更新 artifacts |
+| `/opsx:archive` | 完成后归档 |
 
-**Setup:** `openspec experimental`
+**设置：** `openspec experimental`
 
-[Full documentation →](docs/opsx.md)
+[完整文档 →](docs/opsx.md)
 
 </details>
 
 <details>
-<summary><strong>Telemetry</strong> – OpenSpec collects anonymous usage stats (opt-out: <code>OPENSPEC_TELEMETRY=0</code>)</summary>
+<summary><strong>遥测（Telemetry）</strong> – OpenSpec 收集匿名用量统计（退出：<code>OPENSPEC_TELEMETRY=0</code>）</summary>
 
-We collect only command names and version to understand usage patterns. No arguments, paths, content, or PII. Automatically disabled in CI.
+我们仅收集命令名称和版本，以了解使用模式。不收集参数、路径、内容或个人身份信息（PII）。在 CI 中自动禁用。
 
-**Opt-out:** `export OPENSPEC_TELEMETRY=0` or `export DO_NOT_TRACK=1`
+**退出：** `export OPENSPEC_TELEMETRY=0` 或 `export DO_NOT_TRACK=1`
 
 </details>
 
-## Contributing
+## 贡献
 
-- Install dependencies: `pnpm install`
-- Build: `pnpm run build`
-- Test: `pnpm test`
-- Develop CLI locally: `pnpm run dev` or `pnpm run dev:cli`
-- Conventional commits (one-line): `type(scope): subject`
+- 安装依赖：`pnpm install`
+- 构建：`pnpm run build`
+- 测试：`pnpm test`
+- 本地开发 CLI：`pnpm run dev` 或 `pnpm run dev:cli`
+- 约定式提交（单行）：`type(scope): subject`
 
 <details>
-<summary><strong>Maintainers & Advisors</strong></summary>
+<summary><strong>维护者与顾问</strong></summary>
 
-See [MAINTAINERS.md](MAINTAINERS.md) for the list of core maintainers and advisors who help guide the project.
+有关帮助指导项目的核心维护者与顾问名单，请参见 [MAINTAINERS.md](MAINTAINERS.md)。
 
 </details>
 
-## License
+## 许可证
 
 MIT

@@ -1,13 +1,13 @@
 {
   "name": "@fission-ai/openspec",
   "version": "1.10.0",
-  "description": "AI-native system for spec-driven development",
+  "description": "面向 AI 的原生规约驱动开发系统",
   "keywords": [
     "openspec",
     "specs",
     "cli",
     "ai",
-    "development"
+    "开发"
   ],
   "homepage": "https://github.com/Fission-AI/OpenSpec",
   "repository": {

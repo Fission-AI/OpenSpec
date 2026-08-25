@@ -1,62 +1,62 @@
-# Security Policy
+# 安全策略
 
-## Reporting a vulnerability
+## 报告漏洞
 
-Report privately through [GitHub Security Advisories](https://github.com/Fission-AI/OpenSpec/security/advisories/new). Please don't open a public issue for a suspected vulnerability.
+请通过 [GitHub Security Advisories](https://github.com/Fission-AI/OpenSpec/security/advisories/new) 私下报告。请不要就疑似漏洞公开提交 issue。
 
-Include what you can: affected version, reproduction steps, and the impact you believe it has. We aim to acknowledge within 3 business days and to ship a fix or a decision within 30 days. Valid reports are credited in the advisory unless you'd rather stay anonymous.
+尽可能包含：受影响的版本、复现步骤，以及你认为的影响。我们力争在 3 个工作日内确认，并在 30 天内发布修复或决定。有效的报告会在公告中署名，除非你更希望保持匿名。
 
-## Supported versions
+## 受支持的版本
 
-Fixes ship in the latest published version on npm. Older versions are not patched — upgrade to pick up a fix.
+修复随 npm 上发布的最新版本提供。旧版本不会打补丁——请升级以获取修复。
 
-## Threat model
+## 威胁模型
 
-OpenSpec is a local command-line tool. It has no server, no network listener, and no privileged daemon. It reads and writes markdown under the directory you run it in, using paths you supply, with your own user permissions. It can offer to upgrade itself during `openspec update`, and only with your say-so. It sends anonymous usage telemetry, which you can disable with `OPENSPEC_TELEMETRY=0`.
+OpenSpec 是一个本地命令行工具。它没有服务器、没有网络监听，也没有特权守护进程。它使用你提供的路径，在你运行它的目录下读取和写入 markdown，并以你自己的用户权限执行。它可以在 `openspec update` 期间提议自我升级，且只有在你同意时才进行。它会发送匿名的用量遥测（telemetry），你可以用 `OPENSPEC_TELEMETRY=0` 禁用。
 
-That shapes what is and isn't a vulnerability here:
+这决定了此处哪些是漏洞、哪些不是：
 
-| In scope | Out of scope |
+| 在范围内 | 超出范围 |
 | --- | --- |
-| Code execution triggered by parsing a spec, config, or template file | Reading or writing a file path you passed to the CLI yourself |
-| Escaping the directory OpenSpec was pointed at, via untrusted input | Static-analysis findings on file-path joins with no untrusted input |
-| Leaking credentials or file contents through telemetry or logs | Vulnerabilities in devDependencies that don't ship in the published package |
-| Prototype pollution or injection reachable from a config or spec file | Denial of service against your own machine using your own input |
+| 解析 spec、config 或模板文件触发的代码执行 | 读取或写入你自己传给 CLI 的文件路径 |
+| 通过不可信输入逃逸 OpenSpec 所指向的目录 | 在没有不可信输入情况下、针对文件路径拼接的静态分析发现 |
+| 通过遥测或日志泄露凭据或文件内容 | 未随发布包一同发布的 devDependencies 中的漏洞 |
+| 从 config 或 spec 文件可达的原型污染或注入 | 使用你自己的输入对你自己的机器发起的拒绝服务 |
 
-If you think something sits on the boundary, report it and we'll work it out together.
+如果你认为某件事处于边界上，请报告，我们会一起厘清。
 
-## Published package contents
+## 已发布包的内容
 
-The `openspec` npm package publishes `dist/`, `bin/`, and `schemas/`. Build and test tooling (vite, rollup, vitest, eslint, and their transitive dependencies) is not published. Scanners that read `pnpm-lock.yaml` without separating dependency scope will report advisories for packages that never reach an installed copy of OpenSpec.
+该 `openspec` npm 包发布 `dist/`、`bin/` 和 `schemas/`。构建与测试工具（vite、rollup、vitest、eslint 及其传递依赖）不会发布。未区分依赖范围的扫描器读取 `pnpm-lock.yaml` 时，会针对那些从未进入 OpenSpec 安装副本的包发出告警。
 
-You do not have to take that on trust — install the package and look:
+你不必盲目相信——安装该包并亲自查看：
 
 ```sh
 npm install @fission-ai/openspec
 ls node_modules | grep -E '^(vite|rollup|vitest|eslint|js-yaml|minimatch)$'   # no matches
 ```
 
-`pnpm audit --prod` in this repository reports the same scope, and CI runs it on every pull request.
+`pnpm audit --prod` 在本仓库中报告相同范围，CI 会在每个拉取请求上运行它。
 
-## What the CLI does on your machine
+## CLI 在你的机器上做了什么
 
-| Surface | Behavior |
+| 层面 | 行为 |
 | --- | --- |
-| Install scripts | The package ships no `preinstall`, `install`, or `postinstall` script, so installing it from the npm registry runs no code from OpenSpec. (`prepare` is still declared; npm runs it only for git and local-directory installs, where it builds from source.) Shell completions are opt-in via `openspec completion install`; the CLI prints a one-line tip about them on its first run. |
-| Running other programs | Every call that goes through a shell uses a fixed literal (`which gh`, `gh auth status`). Anything carrying your input — issue text, editor paths, workset commands, the path passed to `openspec update` — uses an argument array, never string interpolation into a shell. On Windows, `.cmd` shims are launched through `cross-spawn`, which escapes arguments rather than concatenating them. |
-| Installing software | `openspec update` can run `npm install -g @fission-ai/openspec@latest` and then re-run `openspec update` with the upgraded CLI. It does this only after you answer yes to a prompt, only for the OpenSpec package itself, only when npm owns the install, and never in CI or a non-interactive shell. A global install lives outside your project, so it runs with your permissions there and executes whatever lifecycle scripts the published package ships. It then reads the installed binary's version back rather than assuming the upgrade took. Decline and it prints the command for you to run yourself. |
-| Telemetry | Command name, OpenSpec version, and a locally generated random UUID. No file paths, no file contents, no environment, no hostname, and IP capture is explicitly disabled. Opt out with `OPENSPEC_TELEMETRY=0` or `DO_NOT_TRACK=1`; it is off in CI automatically. |
-| Network | Telemetry when enabled, and one npm registry request during `openspec update` to check whether a newer CLI has been published. That request sends no data about you beyond what any HTTP request reveals, runs once per `openspec update` with nothing cached, and is skipped when `CI` is set to anything but an explicit off-value, under `NODE_ENV=test`, or when `OPENSPEC_NO_UPDATE_CHECK`, `DO_NOT_TRACK=1`, or `OPENSPEC_TELEMETRY=0` is set. Reading, writing, and validating specs is entirely local. |
+| 安装脚本 | 该包不含 `preinstall`、`install` 或 `postinstall` 脚本，因此从 npm registry 安装时不会运行 OpenSpec 的任何代码。（仍声明了 `prepare`；npm 仅在 git 和本地目录安装时运行它，此时会从源码构建。）Shell 补全通过 `openspec completion install` 选择性启用；CLI 在首次运行时打印一行相关提示。 |
+| 运行其他程序 | 每个经过 shell 的调用都使用固定字面量（`which gh`、`gh auth status`）。任何携带你输入的内容——issue 文本、编辑器路径、workset 命令、传给 `openspec update` 的路径——都使用参数数组，绝不会对 shell 做字符串插值。在 Windows 上，`.cmd` shim 通过 `cross-spawn` 启动，它会转义参数而非拼接它们。 |
+| 安装软件 | `openspec update` 可以运行 `npm install -g @fission-ai/openspec@latest`，然后用升级后的 CLI 重新运行 `openspec update`。它仅在你对提示回答"是"后才会这样做，且只针对 OpenSpec 包本身、仅在 npm 负责该安装时，并绝不会在 CI 或非交互式 shell 中执行。全局安装位于你的项目之外，因此它会以你的权限在那里运行，并执行发布包随附的任何生命周期脚本。随后它会回读已安装二进制的版本，而不是假定升级已完成。若拒绝，它会打印出供你自行运行的命令。 |
+| 遥测 | 命令名称、OpenSpec 版本，以及一个本地生成的随机 UUID。不含文件路径、文件内容、环境、主机名，且 IP 捕获被明确禁用。通过 `OPENSPEC_TELEMETRY=0` 或 `DO_NOT_TRACK=1` 选择退出；在 CI 中自动关闭。 |
+| 网络 | 启用遥测时，以及在 `openspec update` 期间发起一次 npm registry 请求，以检查是否发布了更新的 CLI。该请求除任何 HTTP 请求都会暴露的信息外，不发送关于你的任何数据；每次 `openspec update` 仅运行一次，不缓存任何内容；当 `CI` 被设为非明确关闭值以外的值、处于 `NODE_ENV=test` 下，或设置了 `OPENSPEC_NO_UPDATE_CHECK`、`DO_NOT_TRACK=1` 或 `OPENSPEC_TELEMETRY=0` 时会被跳过。读取、写入和校验 specs 完全是本地的。 |
 
-## Automated checks
+## 自动化检查
 
-| Tool | Covers |
+| 工具 | 覆盖范围 |
 | --- | --- |
-| [CodeQL](https://github.com/Fission-AI/OpenSpec/security/code-scanning) | Static analysis on every push and pull request to `main` |
-| [Dependabot](https://github.com/Fission-AI/OpenSpec/security/dependabot) | Dependency advisories plus weekly update pull requests for the CLI, the docs site, and CI actions |
-| Dependency review | Blocks a pull request that introduces a high-severity dependency |
-| Secret scanning | Enabled on the repository, including push protection |
-| `pnpm audit` | Published dependencies are audited on every pull request, on pushes to `main`, and weekly. Advisory on pull requests so an unrelated change is not blocked; failing elsewhere, so a new advisory surfaces even when no dependency changed. Build tooling is always advisory. |
-| Pinned actions | Every GitHub Action runs from a commit SHA, so a moved tag cannot change what CI executes |
+| [CodeQL](https://github.com/Fission-AI/OpenSpec/security/code-scanning) | 对每次推送到 `main` 及每个拉取请求的静态分析 |
+| [Dependabot](https://github.com/Fission-AI/OpenSpec/security/dependabot) | 依赖告警，外加针对 CLI、文档站点和 CI 动作的每周更新拉取请求 |
+| 依赖审查 | 拦截引入高危依赖的拉取请求 |
+| 密钥扫描 | 在仓库中启用，包含推送保护 |
+| `pnpm audit` | 发布的依赖会在每个拉取请求、推送到 `main` 时以及每周接受审计。在拉取请求上为"建议"级别，以免无关改动被阻塞；在其他地方为"失败"级别，因此即使没有依赖变更，新告警也会浮现。构建工具始终为建议级别。 |
+| 固定动作 | 每个 GitHub Action 都从提交 SHA 运行，因此被移动的标签无法改变 CI 执行的内容 |
 
-Alerts are triaged against the threat model above, so a finding in build-only tooling is fixed on the normal update cadence rather than treated as an incident.
+告警会依据上述威胁模型进行分诊，因此仅出现在构建工具中的发现会按常规更新节奏修复，而不会被视为事件。

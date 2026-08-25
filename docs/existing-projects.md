@@ -1,19 +1,19 @@
-# Using OpenSpec in an Existing Project
+# 在既有项目中使用 OpenSpec (Using OpenSpec in an Existing Project)
 
-**You do not document your whole codebase to start. You write specs only for what you're about to change.** That's the single most important thing to know about adopting OpenSpec on an existing project, and it's why OpenSpec is built brownfield-first.
+**你不需要一开始就为整个代码库写文档。你只为即将要改的部分写 spec。** 这是在一个既有项目上采用 OpenSpec 时最需要知道的一件事，也正是 OpenSpec 以 brownfield-first 构建的原因。
 
-A common worry sounds like this: "My app is 80,000 lines old. Do I have to write specs for all of it before OpenSpec is useful?" No. You'd hate that, and so would we. OpenSpec grows your specs one change at a time. Your first change documents the slice it touches, the next change documents its slice, and over months your specs fill in naturally around the work you actually do.
+一个常见的担忧是这样的："我的应用已经有 8 万行。在 OpenSpec 有用之前，我是不是得为全部代码写 spec？" 不用。你讨厌那样，我们也一样。OpenSpec 让你的 specs 一次一个 change 地生长。你的第一个 change 记录它触及的那一片，下一个 change 记录它的那一片，几个月下来，你的 specs 会自然地填充到你真正在做的工作周围。
 
-This guide shows how to start on day one without boiling the ocean.
+本指南展示如何在第一天就开始，而不必"把海洋煮沸"（boiling the ocean，即一口吃成胖子）。
 
-## The thirty-second version
+## 三十秒版本
 
 ```bash
 $ cd your-existing-project
 $ openspec init          # adds openspec/ and your AI tool's commands
 ```
 
-Then, in your AI chat:
+然后，在你的 AI 聊天里：
 
 ```text
 /opsx:explore            # optional: have the AI read the area you'll touch
@@ -22,23 +22,23 @@ Then, in your AI chat:
 /opsx:archive
 ```
 
-Your specs now describe exactly the part of the system that change touched, and nothing more. That's correct. You're done worrying about the other 80,000 lines.
+你的 specs 现在精确描述了那个 change 触及的系统部分，仅此而已。这就对了。你不必再为另外那 8 万行操心了。
 
-## Why delta-first is the whole trick
+## 为什么 delta-first 是全部诀窍
 
-OpenSpec changes are written as **deltas**: `ADDED`, `MODIFIED`, `REMOVED`. A delta describes what's changing relative to current behavior, not the entire system.
+OpenSpec 的 change 是以 **delta** 形式写就的：`ADDED`、`MODIFIED`、`REMOVED`。delta 描述的是相对于当前行为正在发生的变化，而不是整个系统。
 
-This is exactly what brownfield work needs. You're rarely building from nothing. You're adding a field, fixing a redirect, tightening a timeout. A delta lets you specify that one change precisely without first writing a 40-page spec of everything around it.
+这正是 brownfield 工作所需要的。你很少从零开始构建。你是在加一个字段、修一个重定向、收紧一个超时。delta 让你能精确指定那一个改动，而不必先写一份关于周围一切的长达 40 页的 spec。
 
-So your `openspec/specs/` directory doesn't start full and complete. It starts nearly empty and accumulates. Each archived change merges its delta in. The spec for `auth/` becomes thorough only after you've made several auth changes, which is exactly when you want it thorough.
+因此你的 `openspec/specs/` 目录一开始并非完整无缺。它几乎是空的，然后逐步累积。每个归档的 change 都会把自己的 delta 合并进去。`auth/` 的 spec 只有在你做了好几个 auth 改动之后才会变得详尽——而那正是你希望它详尽的时候。
 
-If you want the deeper mechanics, see [Concepts: Delta Specs](concepts.md#delta-specs).
+如果你想了解更深入的机制，见[概念：Delta Specs](concepts.md#delta-specs)。
 
-## Your first change on a real codebase
+## 在真实代码库上的第一个 change
 
-Pick something small and real. Not a toy, not a rewrite. A change you were going to make this week anyway. Small first changes teach you the workflow with low stakes.
+挑一件小而真实的事。不是玩具，也不是重写。一个你这周本来就要做的 change。小的首个 change 能让你以很低的代价学会工作流。
 
-**Step 1: Let the AI read the relevant area.** This is where `/opsx:explore` earns its keep on an unfamiliar or large codebase. Point it at the part you're about to touch and let it map how things work before proposing anything.
+**步骤 1：让 AI 阅读相关区域。** 这正是 `/opsx:explore` 在一个陌生或庞大的代码库上体现价值的地方。把它指向你即将触及的部分，让它在提出任何建议之前先理清事情是怎么运作的。
 
 ```text
 You: /opsx:explore
@@ -54,42 +54,42 @@ AI:  Let me trace it... [reads the router, middleware stack, and config]
      insertion point is a middleware right after auth. Want me to scope it?
 ```
 
-Notice the AI now understands your actual structure, so the proposal it writes will fit your code, not a generic template. On a big codebase, this single habit saves the most pain. See [Explore First](explore.md).
+注意 AI 现在理解了你真实的结构，因此它写的 proposal 会贴合你的代码，而不是一个通用模板。在一个大代码库上，这一个习惯最能减少痛苦。参见[先探索](explore.md)。
 
-**Step 2: Propose the change.** The proposal and its delta spec capture just this change.
+**步骤 2：发起 change 提议。** proposal 及其 delta spec 只捕捉这一个 change。
 
 ```text
 You: /opsx:propose add-api-rate-limiting
 ```
 
-**Step 3: Build and archive** with `/opsx:apply` and `/opsx:archive`, same as any change. After archiving, you have a real spec for your rate-limiting behavior, born from a change you needed anyway.
+**步骤 3：构建并归档** 用 `/opsx:apply` 和 `/opsx:archive`，与任何 change 一样。归档之后，你就有了一份关于限流行为的真实 spec，它源于一个你本来就要做的 change。
 
-## Prefer a guided tour? Use onboard
+## 想来个带解说的引导之旅？用 onboard
 
-If you'd rather watch the whole loop happen on your own code with narration, the expanded command `/opsx:onboard` does exactly that: it scans your codebase for a small, safe improvement, then walks you through proposing, building, and archiving it, explaining each step.
+如果你更想看着整个循环在你自己的代码上、带着解说地发生，扩展命令 `/opsx:onboard` 正好做这件事：它会扫描你的代码库寻找一个小的、安全的改进，然后带你走完提议、构建和归档的过程，并解释每一步。
 
-Turn on the expanded commands first:
+先开启扩展命令：
 
 ```bash
 $ openspec config profile      # select the expanded workflows
 $ openspec update              # apply them to this project
 ```
 
-Then in chat:
+然后在聊天里：
 
 ```text
 /opsx:onboard
 ```
 
-It's the gentlest possible introduction on a real project, and it leaves you with a genuine (small) change you can keep or discard. See [Commands: `/opsx:onboard`](commands.md#opsxonboard).
+这是在一个真实项目上最温和的入门方式，而且它会留给你一个真实（且小）的 change，你可以保留或丢弃。参见[命令：`/opsx:onboard`](commands.md#opsxonboard)。
 
-## "But I already have requirements docs"
+## "但我已经有需求文档了"
 
-Maybe you have a PRD, an SRS, a formal spec, even TLA+ models. Good. You don't import them wholesale, and you don't throw them away either.
+也许你有一份 PRD、SRS、正式的 spec，甚至 TLA+ 模型。很好。你既不把它们整体导入，也不把它们扔掉。
 
-Treat existing docs as **source material for exploration**, not as specs to convert. When you start a change, paste or point the AI at the relevant section, and let it shape a focused OpenSpec delta from it. The delta captures the behavior you're changing now, in OpenSpec's testable requirement-and-scenario form. Your original documents stay where they are as background.
+把已有的文档当作**探索的素材**，而不是要转换的 spec。当你启动一个 change 时，把相关部分粘贴给 AI 或指给它看，让它据此塑造一个聚焦的 OpenSpec delta。delta 会以 OpenSpec 可测试的"requirement + scenario"形式，捕捉你当前正在改变的行为。你原始的文档留在原处作为背景。
 
-The honest reason: OpenSpec specs are deliberately behavior-first and scoped to changes. A 40-page PRD is a different artifact with a different job. Forcing a one-time bulk conversion tends to produce a large, stale spec nobody trusts. Letting specs grow from real changes keeps them accurate.
+老实说的原因是：OpenSpec 的 specs 是刻意"行为优先"且按 change 划定范围的。一份 40 页的 PRD 是另一种有着不同用途的 artifact。强行做一次性批量转换，往往会产生一份庞大、陈旧、没人信任的 spec。让 specs 从真实的 change 中生长，才能保持它们准确。
 
 ```text
 You: /opsx:explore
@@ -100,35 +100,35 @@ AI:  [reads it, asks clarifying questions, then helps scope a change]
 You: /opsx:propose add-guest-checkout
 ```
 
-## Organizing specs in a big codebase
+## 在大型代码库中组织 specs
 
-Specs live under `openspec/specs/`, grouped by **domain**: a logical area that matches how your team thinks about the system. You don't have to design the whole taxonomy up front. Create a domain folder when your first change in that area needs one.
+specs 位于 `openspec/specs/` 下，按 **domain**（领域）分组：一个符合你团队对系统认知方式的逻辑区域。你不必预先设计整套分类法。当该区域的第一个 change 需要时就创建一个 domain 文件夹。
 
-Common ways to slice domains:
+划分 domain 的常见方式：
 
-- **By feature area:** `auth/`, `payments/`, `search/`
-- **By component:** `api/`, `frontend/`, `workers/`
-- **By bounded context:** `ordering/`, `fulfillment/`, `inventory/`
+- **按功能区域：** `auth/`、`payments/`、`search/`
+- **按组件：** `api/`、`frontend/`、`workers/`
+- **按限界上下文：** `ordering/`、`fulfillment/`、`inventory/`
 
-Pick whatever makes a newcomer nod. You can refine later. See [Concepts: Specs](concepts.md#specs).
+选一个让新人也会点头的方式。你之后可以再细化。参见[概念：Specs](concepts.md#specs)。
 
-## Monorepos and work that spans repos
+## Monorepo 与跨仓库的工作
 
-For a monorepo, the simplest model is one `openspec/` directory at the repo root, with domains that map to your packages or services. That covers most teams.
+对于 monorepo，最简单的模型是在仓库根目录放一个 `openspec/` 目录，domain 对应你的各个包或服务。这覆盖了大多数团队。
 
-If your work genuinely spans **multiple repositories** (or several packages you treat as separate), OpenSpec has a beta **stores** feature: planning lives in its own standalone repo that any of your code repos can reference, so the plan does not have to live inside one repo's `openspec/` folder. It's beta, so treat its commands and state as evolving. Start with the [Stores User Guide](stores-beta/user-guide.md) for the mental model and the smallest useful path.
+如果你的工作确实跨**多个仓库**（或你把几个包当作独立的来对待），OpenSpec 有一个 beta 的 **stores** 特性：规划放在一个独立的仓库里，你的任何代码仓库都可以引用它，因此规划不必生活在某个单一仓库的 `openspec/` 文件夹中。它还是 beta，所以请把它命令和状态视为仍在演进。从[Stores 用户指南](stores-beta/user-guide.md) 开始，建立心智模型并找到最小可行的路径。
 
-## A few honest cautions
+## 几句实在的提醒
 
-- **Resist the urge to back-fill everything.** Writing specs for code you aren't changing feels productive and usually isn't. Those specs go stale, because nothing forces them to track reality. Let real changes drive your specs.
-- **Keep early changes small.** Your first few changes are as much about learning the rhythm as shipping. A tight scope makes the loop fast and the lessons cheap.
-- **Commit `openspec/` to git.** Your specs and archive belong in version control alongside the code they describe.
-- **Give the AI context.** On a large codebase with strong conventions, fill in `openspec/config.yaml`'s `context:` so every proposal respects your stack and patterns. See [Customization](customization.md#project-configuration).
+- **克制住回填一切的冲动。** 为你不打算改的代码写 spec，感觉有产出，但通常并非如此。那些 spec 会过时，因为没有东西强迫它们跟踪现实。让真实的 change 来驱动你的 specs。
+- **让早期 change 保持小。** 你的头几个 change，学习和交付同样重要。紧凑的范围能让循环更快，教训也更便宜。
+- **把 `openspec/` 提交到 git。** 你的 specs 和 archive 应该和它们所描述的代码一起纳入版本控制。
+- **给 AI 提供上下文。** 在一个有强规范的大型代码库上，填好 `openspec/config.yaml` 的 `context:`，让每个 proposal 都尊重你的技术栈和模式。参见[自定义配置](customization.md#project-configuration)。
 
-## Where to go next
+## 下一步去哪里
 
-- [Explore First](explore.md) - the key habit for understanding code before you change it
-- [Getting Started](getting-started.md) - the full first-change walkthrough
-- [Editing & Iterating on a Change](editing-changes.md) - adjusting a change as you learn
-- [Concepts: Delta Specs](concepts.md#delta-specs) - why deltas make brownfield work clean
-- [Customization](customization.md) - teach OpenSpec your project's conventions
+- [先探索](explore.md) —— 在改动代码前理解它的关键习惯
+- [快速上手](getting-started.md) —— 完整的首个 change 演练
+- [编辑与迭代 Change](editing-changes.md) —— 边学边调整 change
+- [概念：Delta Specs](concepts.md#delta-specs) —— 为什么 delta 让 brownfield 工作干净利落
+- [自定义配置](customization.md) —— 教 OpenSpec 你项目的规范
