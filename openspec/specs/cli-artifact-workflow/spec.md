@@ -209,7 +209,7 @@ The system SHALL support an `apply` block in schema definitions that controls wh
 
 - **WHEN** a schema has no `apply` block
 - **THEN** the system requires all artifacts to exist before apply is available
-- **AND** uses default instruction: "All artifacts complete. Proceed with implementation."
+- **AND** uses default instruction: "All required artifacts complete. Proceed with implementation."
 
 ### Requirement: Apply Instructions Command
 
@@ -291,7 +291,7 @@ The setup command SHALL display clear output about what was generated.
 #### Scenario: Show skipped commands message
 
 - **WHEN** command generation is skipped due to missing adapter
-- **THEN** output includes message: "Command generation skipped - no adapter for <tool>"
+- **THEN** output includes message: "Commands skipped for: <tools> (no adapter)"
 
 ### Requirement: Status JSON provides planning context
 The status command SHALL provide machine-readable planning context for changes.

@@ -41,13 +41,13 @@ The system SHALL maintain backward compatibility with the existing `list` comman
 
 #### Scenario: Legacy list command
 
-- **WHEN** executing `openspec list`
+- **WHEN** executing `openspec change list`
 - **THEN** display current list of changes (existing behavior)
-- **AND** show deprecation notice: "Note: 'openspec list' is deprecated. Use 'openspec change list' instead."
+- **AND** show deprecation notice: "Note: 'openspec change list' is deprecated. Use 'openspec list' instead."
 
 #### Scenario: Legacy list with --all flag
 
-- **WHEN** executing `openspec list --all`
+- **WHEN** executing `openspec change list --all`
 - **THEN** display all changes (existing behavior)
 - **AND** show same deprecation notice
 

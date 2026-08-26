@@ -62,7 +62,7 @@ The system SHALL display a one-line telemetry disclosure notice on the first com
 #### Scenario: First command execution
 - **WHEN** a user runs their first openspec command
 - **AND** telemetry is enabled
-- **THEN** the system displays: "Note: OpenSpec collects anonymous usage stats. Opt out: OPENSPEC_TELEMETRY=0 or openspec config set telemetry.enabled false"
+- **THEN** the system displays: "Note: OpenSpec collects anonymous usage stats. Opt out: OPENSPEC_TELEMETRY=0"
 
 #### Scenario: Subsequent command execution
 - **WHEN** a user has already seen the notice (noticeSeen: true in config)

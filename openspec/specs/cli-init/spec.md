@@ -15,7 +15,7 @@ The command SHALL display progress indicators during initialization to provide c
 - **AND** display progress with ora spinners:
   - Show spinner: "⠋ Creating OpenSpec structure..."
   - Then success: "✔ OpenSpec structure created"
-  - Show spinner for each tool: "Setting up <tool.name>..."
+  - Show spinner: "⠋ Configuring AI tools..."
   - Then success: "✔ AI tools configured"
 
 ### Requirement: Directory Creation
@@ -106,7 +106,7 @@ The command SHALL use consistent exit codes to indicate different failure modes.
   - 0: Success
   - 1: General error (including when OpenSpec directory already exists)
   - 2: Insufficient permissions (reserved for future use)
-  - 3: User cancelled operation (reserved for future use)
+  - 130: User cancelled operation (SIGINT convention)
 
 ### Requirement: Additional AI Tool Initialization
 `openspec init` SHALL allow users to add configuration files for new AI coding assistants after the initial setup.
