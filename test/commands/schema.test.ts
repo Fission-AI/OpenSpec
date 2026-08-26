@@ -855,6 +855,53 @@ artifacts:
       expect(schema.artifacts[2].requires).toEqual(['specs']);
       expect(schema.artifacts[3].requires).toEqual(['design']);
     });
+
+    it('excludes init staging/backup temp dirs from schema discovery', async () => {
+      // `schema init` stages into `.init-staging-<rand>` and moves an existing
+      // schema aside to `<name>.init-backup-<pid>-<ts>`. Both live inside the
+      // schemas dir, and the backup deliberately outlives the run when its
+      // cleanup is blocked, so discovery must never surface either as a real
+      // schema. Mirrors the equivalent guard for `schema fork`.
+      const validSchema = [
+        'name: real-schema',
+        'version: 1',
+        'description: a real project schema',
+        'artifacts:',
+        '  - id: proposal',
+        '    generates: proposal.md',
+        '    description: The proposal',
+        '    template: proposal.md',
+        '    requires: []',
+        '',
+      ].join('\n');
+      const schemasDir = path.join(tempDir, 'openspec', 'schemas');
+      const realSchema = path.join(schemasDir, 'real-schema');
+      fs.mkdirSync(realSchema, { recursive: true });
+      fs.writeFileSync(path.join(realSchema, 'schema.yaml'), validSchema);
+
+      for (const tempName of [
+        '.init-staging-abc123',
+        'real-schema.init-backup-999-1700000000000',
+      ]) {
+        const dir = path.join(schemasDir, tempName);
+        fs.mkdirSync(dir, { recursive: true });
+        // Give them a valid-looking schema.yaml so only the name filter can
+        // exclude them (not a missing file).
+        fs.writeFileSync(path.join(dir, 'schema.yaml'), validSchema);
+      }
+
+      const { listSchemas, listSchemasWithInfo } = await import(
+        '../../src/core/artifact-graph/resolver.js'
+      );
+
+      const names = listSchemas(tempDir);
+      expect(names).toContain('real-schema');
+      expect(names.some((n) => n.includes('.init-'))).toBe(false);
+
+      const infoNames = listSchemasWithInfo(tempDir).map((s) => s.name);
+      expect(infoNames).toContain('real-schema');
+      expect(infoNames.some((n) => n.includes('.init-'))).toBe(false);
+    });
   });
 
   describe('JSON output format', () => {
