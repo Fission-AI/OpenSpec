@@ -195,6 +195,10 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         takesValue: true,
       },
       {
+        name: 'all',
+        description: 'Show status for all active changes',
+      },
+      {
         name: 'schema',
         description: 'Schema override',
         takesValue: true,
@@ -291,6 +295,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             name: 'path',
             description: 'Directory to use for the store',
             takesValue: true,
+            completionType: 'path',
           },
           {
             name: 'init-git',
@@ -383,6 +388,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         name: 'code-workspace',
         description: 'Also write a VS Code workspace file for the set',
         takesValue: true,
+        completionType: 'path',
       },
       {
         name: 'force',
@@ -414,6 +420,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             description:
               'Member folder as <path> or <name>=<path>; repeatable, first is the primary',
             takesValue: true,
+            completionType: 'path',
           },
           {
             name: 'tool',
