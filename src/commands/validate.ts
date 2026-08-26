@@ -11,6 +11,7 @@ import {
 } from '../core/root-selection.js';
 import { isInteractive, resolveNoInteractive } from '../utils/interactive.js';
 import { getSpecIds } from '../utils/item-discovery.js';
+import { resolveChangeDir } from '../core/change-discovery.js';
 import { getAvailableChanges } from './workflow/shared.js';
 import { nearestMatches } from '../utils/match.js';
 import { promises as fs } from 'fs';
@@ -215,7 +216,8 @@ export class ValidateCommand {
   private async validateByType(root: ResolvedOpenSpecRoot, type: ItemType, id: string, opts: { strict: boolean; json: boolean }): Promise<void> {
     const validator = new Validator(opts.strict);
     if (type === 'change') {
-      const changeDir = path.join(root.changesDir, id);
+      const changeDir =
+        (await resolveChangeDir(root.changesDir, id)) ?? path.join(root.changesDir, id);
       const start = Date.now();
       const report = await validator.validateChangeDeltaSpecs(changeDir, {
         mainSpecsDir: root.specsDir,
@@ -301,7 +303,8 @@ export class ValidateCommand {
     for (const id of changeIds) {
       queue.push(async () => {
         const start = Date.now();
-        const changeDir = path.join(root.changesDir, id);
+        const changeDir =
+          (await resolveChangeDir(root.changesDir, id)) ?? path.join(root.changesDir, id);
         const report = await validator.validateChangeDeltaSpecs(changeDir, {
           mainSpecsDir: root.specsDir,
           projectRoot: root.path,

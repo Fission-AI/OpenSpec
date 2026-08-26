@@ -2,7 +2,8 @@ import path from 'path';
 import { FileSystemUtils } from './file-system.js';
 import { writeChangeMetadata, validateSchemaName } from './change-metadata.js';
 import { formatLocalDate } from './date.js';
-import { readProjectConfig } from '../core/project-config.js';
+import { readProjectConfig, resolveLifecycle } from '../core/project-config.js';
+import { discoverChanges, isReservedChangeId } from '../core/change-discovery.js';
 import { isKebabId } from '../core/id.js';
 import { resolveSchema } from '../core/artifact-graph/resolver.js';
 import { isSpecsArtifactPath } from '../core/artifact-graph/outputs.js';
@@ -103,6 +104,16 @@ export function validateChangeName(name: string): ValidationResult {
     return { valid: false, error: 'Change name must follow kebab-case convention (e.g., add-auth, refactor-db)' };
   }
 
+  // A name the resolver refuses is a change nothing could later address, so it
+  // must not be creatable either: 'archive' collides with the archive
+  // directory, and a bare year is indistinguishable from a creation-date shard.
+  if (isReservedChangeId(name)) {
+    return {
+      valid: false,
+      error: `Change name '${name}' is reserved: 'archive' and bare four-digit years name directories the change layout owns`,
+    };
+  }
+
   return { valid: true };
 }
 
@@ -159,12 +170,24 @@ export async function createChange(
   // Validate the resolved schema
   validateSchemaName(schemaName, projectRoot);
 
-  // Build the change directory path
-  const changeDir = path.join(options.changesDir ?? path.join(projectRoot, 'openspec', 'changes'), name);
+  // Build the change directory path. Under `lifecycle: status` changes shard
+  // by creation date — changes/YYYY/MM/DD-<name>/ — assigned at birth and
+  // immutable, so location never encodes lifecycle state and nothing moves.
+  const changesRoot = options.changesDir ?? path.join(projectRoot, 'openspec', 'changes');
+  const created = formatLocalDate();
+  const [year, month, day] = created.split('-');
+  const changeDir =
+    resolveLifecycle(projectRoot) === 'status'
+      ? path.join(changesRoot, year, month, `${day}-${name}`)
+      : path.join(changesRoot, name);
 
-  // Check if change already exists
+  // Check if change already exists — under sharding, by id anywhere, since two
+  // shard dates carrying the same name would make the id ambiguous forever.
   if (await FileSystemUtils.directoryExists(changeDir)) {
     throw new Error(`Change '${name}' already exists at ${changeDir}`);
+  }
+  if ((await discoverChanges(changesRoot)).some((c) => c.id === name)) {
+    throw new Error(`Change '${name}' already exists in openspec/changes/`);
   }
 
   const schema = resolveSchema(schemaName, projectRoot);
@@ -177,13 +200,16 @@ export async function createChange(
   // half-root behind that doctor immediately calls unhealthy: ensure
   // specs/ and changes/archive/ exist, and write a config only when
   // none exists. The config records the PROJECT default schema, never
-  // a one-change --schema override.
+  // a one-change --schema override. Under `lifecycle: status` there is
+  // no archive directory to scaffold — state lives in metadata.
   const openspecDir = path.join(projectRoot, 'openspec');
 
   // Create the directory (including parent directories if needed)
   await FileSystemUtils.createDirectory(changeDir);
   await FileSystemUtils.createDirectory(path.join(openspecDir, 'specs'));
-  await FileSystemUtils.createDirectory(path.join(openspecDir, 'changes', 'archive'));
+  if (resolveLifecycle(projectRoot) !== 'status') {
+    await FileSystemUtils.createDirectory(path.join(openspecDir, 'changes', 'archive'));
+  }
   const configPath = path.join(openspecDir, 'config.yaml');
   const configYmlPath = path.join(openspecDir, 'config.yml');
   if (
@@ -193,11 +219,16 @@ export async function createChange(
     await FileSystemUtils.writeFile(configPath, `schema: ${defaultSchema}\n`);
   }
 
-  // Write metadata file with schema and creation date
+  // Write metadata file with schema and creation date. Under
+  // `lifecycle: status` a change is born `proposed` — explicit from the start,
+  // so no change in that mode ever has an ambiguous lifecycle state.
   writeChangeMetadata(changeDir, {
     schema: schemaName,
-    created: formatLocalDate(),
+    // The same reading that chose the shard directory: a second call could
+    // cross local midnight and date the metadata a day off its own path.
+    created,
     ...(skipsSpecs ? { skip_specs: true } : {}),
+    ...(resolveLifecycle(projectRoot) === 'status' ? { status: 'proposed' as const } : {}),
     ...options.metadata,
   }, projectRoot);
 

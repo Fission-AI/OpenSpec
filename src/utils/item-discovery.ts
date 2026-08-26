@@ -1,9 +1,11 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { discoverSpecFiles } from './spec-discovery.js';
+import { discoverChanges } from '../core/change-discovery.js';
 
 /**
- * Returns the ids of active changes: every directory under openspec/changes/
+ * Returns the ids of active changes: every change directory under
+ * openspec/changes/ in either layout — flat or creation-date sharded —
  * except the archive and hidden directories.
  *
  * A change is resolved by its directory alone - the same rule `list`,
@@ -16,11 +18,7 @@ import { discoverSpecFiles } from './spec-discovery.js';
 export async function getActiveChangeIds(root: string = process.cwd()): Promise<string[]> {
   const changesPath = path.join(root, 'openspec', 'changes');
   try {
-    const entries = await fs.readdir(changesPath, { withFileTypes: true });
-    return entries
-      .filter((entry) => entry.isDirectory() && entry.name !== 'archive' && !entry.name.startsWith('.'))
-      .map((entry) => entry.name)
-      .sort();
+    return (await discoverChanges(changesPath)).map((change) => change.id);
   } catch {
     return [];
   }

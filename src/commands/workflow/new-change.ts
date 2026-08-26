@@ -10,11 +10,9 @@
 import ora from 'ora';
 import path from 'path';
 import { createChange, validateChangeName } from '../../utils/change-utils.js';
-import { formatChangeLocation } from '../../core/planning-home.js';
 import {
   resolveRootForCommand,
   RootSelectionError,
-  toPlanningHome,
   toRootOutput,
   withStoreFlag,
   type ResolvedOpenSpecRoot,
@@ -75,10 +73,12 @@ function printCreatedChangeHuman(
   root: ResolvedOpenSpecRoot
 ): void {
   // A relative path is only honest when the root is where the user
-  // stands; a distant ancestor root gets the absolute path.
+  // stands; a distant ancestor root gets the absolute path. Derived from
+  // the dir createChange actually made — sharded under `lifecycle: status` —
+  // not from a flat join of the id.
   const location =
     !isStoreSelectedRoot(root) && root.path === process.cwd()
-      ? formatChangeLocation(toPlanningHome(root), payload.change.id)
+      ? path.relative(process.cwd(), payload.change.path)
       : payload.change.path;
   console.log(`Created change '${payload.change.id}' at ${location}/`);
   console.log(`Schema: ${payload.change.schema}`);

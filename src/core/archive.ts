@@ -28,6 +28,7 @@ import { METADATA_FILENAME, readRetireCapabilitiesMarker, readSkipSpecsMarker } 
 import { confirmPrompt, isNonInteractivePromptError } from '../utils/interactive.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { folderStyleNameProblem } from './id.js';
+import { resolveLifecycle } from './project-config.js';
 
 function isMissingPathError(error: unknown): boolean {
   return (
@@ -1066,6 +1067,24 @@ export class ArchiveCommand {
         return;
       }
       throw error;
+    }
+
+    // Under `lifecycle: status` nothing ever moves: shipping is a metadata
+    // edit and the spec fold belongs to `openspec sync`. Refusing here keeps
+    // one mode from half-running the other's workflow.
+    if (resolveLifecycle(root.path) === 'status') {
+      const diagnostic: ArchiveDiagnostic = {
+        severity: 'error',
+        code: 'lifecycle_status_mode',
+        message:
+          'This project uses `lifecycle: status` — changes are never moved to archive/.',
+        fix: 'Set `status: shipped` in the change\'s .openspec.yaml, then run `openspec sync`.',
+      };
+      if (json) {
+        this.printJsonFailure(root, diagnostic);
+        return;
+      }
+      throw new Error(`${diagnostic.message} ${diagnostic.fix}`);
     }
 
     if (json) {

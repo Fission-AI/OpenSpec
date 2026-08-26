@@ -1088,6 +1088,6 @@ function readableOverview(skeleton: string, specName: string): string | null {
 export function buildSpecSkeleton(specFolderName: string, changeName: string, purpose?: string): string {
   const titleBase = specFolderName;
   const purposeBody =
-    purpose?.trim() || `TBD - created by archiving change ${changeName}. Update Purpose after archive.`;
+    purpose?.trim() || `TBD - created from change ${changeName}. Update Purpose.`;
   return `# ${titleBase} Specification\n\n## Purpose\n${purposeBody}\n\n## Requirements\n`;
 }
