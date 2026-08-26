@@ -1,6 +1,9 @@
 import { defineConfig, defineDocs } from 'fumadocs-mdx/config';
 import { metaSchema, pageSchema } from 'fumadocs-core/source/schema';
-import { remarkMdxMermaid } from 'fumadocs-core/mdx-plugins';
+import { remarkMdxMermaid, remarkNpm } from 'fumadocs-core/mdx-plugins';
+import { remarkGfmAlert } from './lib/remark-gfm-alert';
+import { remarkFileSteps } from './lib/remark-file-steps';
+import { remarkFaq } from './lib/remark-faq';
 import { z } from 'zod';
 
 // You can customize Zod schemas for frontmatter and `meta.json` here
@@ -14,7 +17,7 @@ export const docs = defineDocs({
     schema: pageSchema.extend({ githubSource: z.string().optional() }),
     postprocess: {
       includeProcessedMarkdown: {
-        mdxAsPlaceholder: ['Mermaid'],
+        mdxAsPlaceholder: ['Mermaid', 'Callout', 'FileSteps', 'Accordions', 'Accordion'],
       },
     },
   },
@@ -25,6 +28,9 @@ export const docs = defineDocs({
 
 export default defineConfig({
   mdxOptions: {
-    remarkPlugins: [remarkMdxMermaid],
+    // `npm`-language fences become package-manager tabs (npm/pnpm/yarn/bun) with
+    // per-tab copy buttons; persist remembers the reader's choice across blocks.
+    // `remarkGfmAlert` renders GitHub-style `> [!NOTE]` blockquotes as callouts.
+    remarkPlugins: [remarkMdxMermaid, remarkGfmAlert, remarkFileSteps, remarkFaq, [remarkNpm, { persist: { id: 'package-manager' } }]],
   },
 });
