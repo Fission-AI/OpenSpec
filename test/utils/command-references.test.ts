@@ -272,7 +272,7 @@ describe('getTransformerForTool', () => {
   it('selects hyphen commands for every flat-invocation tool when commands are generated', () => {
     // These tools invoke commands by filename (/opsx-<id>), so skills must
     // reference the hyphen form their command files actually answer to.
-    for (const toolId of ['bob', 'cursor', 'github-copilot', 'oh-my-pi', 'opencode', 'pi', 'qwen'] as const) {
+    for (const toolId of ['cursor', 'github-copilot', 'oh-my-pi', 'opencode', 'pi', 'qwen'] as const) {
       for (const delivery of ['both', 'commands'] as const) {
         const transformer = getTransformerForTool(toolId, delivery, 'adapter-backed', FLAT_SLASH);
         expect(transformer?.('/opsx:apply'), `${toolId} ${delivery}`).toBe('/opsx-apply');

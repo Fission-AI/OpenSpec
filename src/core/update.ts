@@ -57,6 +57,7 @@ import {
   migrateIfNeeded as migrateIfNeededShared,
   findLegacyToolMigrations,
   migrateLegacyToolDirs,
+  cleanupLegacyBobCommandFiles,
   describeLegacyMigration,
   legacyMigrationNotice,
   keptInPlaceNotice,
@@ -240,6 +241,11 @@ export class UpdateCommand {
       if (deferredGlobalCleanup) {
         await this.performDeferredGlobalPromptCleanup(resolvedProjectPath, deferredGlobalCleanup);
       }
+      // All tools are up to date, but still run Bob legacy command cleanup in
+      // case stale .bob/commands/ files were left from a previous version.
+      if (configuredAndNewTools.includes('bob')) {
+        cleanupLegacyBobCommandFiles(resolvedProjectPath);
+      }
       // All tools are up to date
       this.displayUpToDateMessage(toolStatuses);
       await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
@@ -372,6 +378,9 @@ export class UpdateCommand {
             console.log(chalk.dim(`Migrated ${describeLegacyMigration(migration)}: ${migration.from} → ${migration.to}`));
           }
           this.reportKeptInPlace(migration);
+        }
+        if (tool.value === 'bob') {
+          cleanupLegacyBobCommandFiles(resolvedProjectPath);
         }
       } catch (error) {
         spinner.fail(`Failed to update ${tool.name}`);
