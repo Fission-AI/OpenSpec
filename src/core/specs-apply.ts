@@ -21,7 +21,11 @@ import {
 import { findMainSpecStructureIssues } from './parsers/spec-structure.js';
 import { buildCodeFenceMask } from './parsers/code-fence.js';
 import { MarkdownParser } from './parsers/markdown-parser.js';
-import { MIN_PURPOSE_LENGTH } from './validation/constants.js';
+import {
+  MIN_PURPOSE_LENGTH,
+  PURPOSE_PLACEHOLDER_PREFIX,
+  PURPOSE_PLACEHOLDER_SUFFIX,
+} from './validation/constants.js';
 import { discoverSpecFiles } from '../utils/spec-discovery.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 
@@ -1088,6 +1092,7 @@ function readableOverview(skeleton: string, specName: string): string | null {
 export function buildSpecSkeleton(specFolderName: string, changeName: string, purpose?: string): string {
   const titleBase = specFolderName;
   const purposeBody =
-    purpose?.trim() || `TBD - created by archiving change ${changeName}. Update Purpose after archive.`;
+    purpose?.trim() ||
+    `${PURPOSE_PLACEHOLDER_PREFIX}${changeName}${PURPOSE_PLACEHOLDER_SUFFIX}`;
   return `# ${titleBase} Specification\n\n## Purpose\n${purposeBody}\n\n## Requirements\n`;
 }
