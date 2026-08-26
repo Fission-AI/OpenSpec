@@ -460,6 +460,7 @@ Prints a change or spec, as markdown or JSON.
 
 ```bash
 openspec show add-rate-limit              # change: prints proposal.md
+openspec show add-rate-limit --diff       # change: append requirement diffs
 openspec show api                         # spec: prints spec.md
 openspec show api --json --no-scenarios   # spec JSON without scenario text
 ```
@@ -481,6 +482,7 @@ With no name, show asks change or spec, then lists items to pick from. Outside a
 | `--no-interactive` | Never prompt: a missing name becomes an error. |
 | `--deltas-only` | JSON, change: restrict output to deltas. Change JSON is already delta-only, so output matches plain `--json`. |
 | `--requirements-only` | Deprecated alias for `--deltas-only`. Warns on stderr. |
+| `--diff` | Change: append per-requirement delta diffs. Ignored with a warning for specs. |
 | `--requirements` | JSON, spec: keep requirement text, empty the `scenarios` arrays. |
 | `--no-scenarios` | JSON, spec: same output as `--requirements`. |
 | `-r, --requirement <id>` | JSON, spec: output one requirement by 1-based position. Can't combine with `--requirements`. |
@@ -501,6 +503,10 @@ Unauthenticated clients can exhaust the API.
 ## What Changes
 - Add per-client rate limiting to the public API.
 ```
+
+For a change, `--diff` prints the proposal first, then a `Specifications Changed (diffs)` section. ADDED requirements include their full text. REMOVED requirements retain the authored Reason and Migration. RENAMED requirements show FROM and TO. MODIFIED requirements show a unified diff against the matching main requirement.
+
+If a MODIFIED header matches only after folding case or whitespace, the output includes both the diff and a warning that archive matching is exact. If the main spec or requirement is missing, the output warns and prints the full delta block. A MODIFIED block with no textual difference prints `(no textual changes)`.
 
 A change with `--json` is delta-shaped:
 
@@ -531,6 +537,8 @@ A change with `--json` is delta-shaped:
   }
 }
 ```
+
+`--json --diff` keeps this top-level shape. A MODIFIED delta gains a `diff` string, a `warning` string, or both. Other operations are unchanged. An empty `diff` string means the main and delta blocks are textually identical.
 
 A spec with `--json` lists its requirements with scenarios:
 
@@ -566,7 +574,7 @@ An unknown name suggests near matches: `Unknown item 'does-not-exist'. Did you m
 **Exit codes**
 
 - `0`: item printed.
-- `1`: unknown or ambiguous name, no name outside a terminal, an out-of-range `-r` index, or `--requirements` combined with `-r`.
+- `1`: unknown or ambiguous name, no name outside a terminal, an out-of-range `-r` index, `--requirements` combined with `-r`, or a delta or main spec cannot be read for `--diff`.
 
 ## openspec view
 
