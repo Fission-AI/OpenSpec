@@ -1401,8 +1401,8 @@ export class InitCommand {
     console.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
     console.log(`Feedback:   ${chalk.cyan('https://github.com/Fission-AI/OpenSpec/issues')}`);
 
-    // Restart instruction only when at least one IDE/editor-resident tool
-    // actually received a generated surface. The rule and the wording live in
+    // Restart instruction for successfully configured IDE/editor-resident tools
+    // with a supported surface under the active delivery. The rule and wording live in
     // formatIdeRestart so `update` says the same thing for the same event.
     const restartHint = formatIdeRestart(
       successfulTools.map((tool) => tool.value),

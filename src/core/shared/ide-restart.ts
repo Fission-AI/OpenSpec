@@ -1,11 +1,9 @@
 /**
  * IDE restart hint
  *
- * `init` and `update` decide this the same way — an IDE/editor-resident tool
- * actually received a generated surface — but said it differently. `init` names
- * what was generated ("the new commands" / "the new skills"); `update` fell back
- * to a generic "changes", so the same event read as two different outcomes
- * depending on which command produced it. One rule, one sentence, resolved here.
+ * Shared restart guidance for tools successfully configured by init or update.
+ * The wording covers additions, updates, and removals, including an empty
+ * workflow selection that removes every generated file.
  */
 
 import { AI_TOOLS } from '../config.js';
@@ -27,10 +25,10 @@ function isIdeResident(toolId: string): boolean {
 /**
  * Both conditions stay coupled to the SAME tool: its surfaces are loaded by a
  * long-running editor process (a CLI picks them up immediately, so a restart
- * line would be wrong for it — see #1067), and a surface was actually generated
- * for it under the active delivery. An IDE tool that generated nothing has
- * nothing a restart would pick up, even when a co-configured CLI tool did
- * generate. Commands win the wording when both were generated.
+ * line would be wrong for it — see #1067), and it supports a generated surface
+ * under the active delivery. A CLI tool's commands must not determine the hint
+ * for an IDE tool that only supports skills. Commands take precedence when
+ * both surfaces are supported under the active delivery.
  */
 export function resolveIdeRestartSurface(
   toolIds: readonly string[],
@@ -60,6 +58,6 @@ export function formatIdeRestart(
 ): string | null {
   const surface = resolveIdeRestartSurface(toolIds, delivery);
   return surface
-    ? `Restart your IDE for the new ${surface} to take effect.`
+    ? `Restart your IDE to refresh ${surface}.`
     : null;
 }

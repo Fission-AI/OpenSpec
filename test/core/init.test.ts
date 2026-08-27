@@ -1067,7 +1067,7 @@ describe('InitCommand', () => {
 
       await initCommand.execute(testDir);
 
-      expect(getConsoleOutput()).toContain('Restart your IDE for the new commands to take effect.');
+      expect(getConsoleOutput()).toContain('Restart your IDE to refresh commands.');
     });
 
     it('should word the restart hint for skills when an IDE tool gets only a skill surface', async () => {
@@ -1078,7 +1078,7 @@ describe('InitCommand', () => {
 
       await initCommand.execute(testDir);
 
-      expect(getConsoleOutput()).toContain('Restart your IDE for the new skills to take effect.');
+      expect(getConsoleOutput()).toContain('Restart your IDE to refresh skills.');
     });
 
     it('should create skills for multiple tools at once', async () => {
@@ -2099,7 +2099,7 @@ describe('InitCommand - profile and detection features', () => {
 
     // Commands were generated, but they are not slash commands.
     const restartHint = logCalls.find((entry) => entry.includes('Restart your IDE'));
-    expect(restartHint).toContain('Restart your IDE for the new commands to take effect.');
+    expect(restartHint).toContain('Restart your IDE to refresh commands.');
     expect(restartHint).not.toContain('slash commands');
   });
 

@@ -49,10 +49,10 @@ describe('resolveIdeRestartSurface', () => {
 describe('formatIdeRestart', () => {
   it('produces the same sentence init and update both print', () => {
     expect(formatIdeRestart(['cursor'], 'both')).toBe(
-      'Restart your IDE for the new commands to take effect.'
+      'Restart your IDE to refresh commands.'
     );
     expect(formatIdeRestart(['cursor'], 'skills')).toBe(
-      'Restart your IDE for the new skills to take effect.'
+      'Restart your IDE to refresh skills.'
     );
   });
 

@@ -1967,7 +1967,7 @@ metadata:
       await updateCommand.execute(testDir);
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining(`Restart your IDE for the new ${surface} to take effect.`)
+        expect.stringContaining(`Restart your IDE to refresh ${surface}.`)
       );
       expect(await FileSystemUtils.fileExists(
         path.join(testDir, '.cursor', 'commands', 'opsx-explore.md')
@@ -1984,6 +1984,32 @@ metadata:
 
       consoleSpy.mockRestore();
     });
+
+    it.each(['both', 'commands', 'skills'] as const)(
+      'should describe removal-only IDE updates with %s delivery',
+      async (delivery) => {
+        setMockConfig({ featureFlags: {}, profile: 'core', delivery });
+        await new InitCommand({ tools: 'cursor', force: true }).execute(testDir);
+        setMockConfig({ featureFlags: {}, profile: 'custom', workflows: [], delivery });
+        const consoleSpy = vi.spyOn(console, 'log');
+
+        await updateCommand.execute(testDir);
+
+        expect(await FileSystemUtils.fileExists(
+          path.join(testDir, '.cursor', 'commands', 'opsx-explore.md')
+        )).toBe(false);
+        expect(await FileSystemUtils.fileExists(
+          path.join(testDir, '.cursor', 'skills', 'openspec-explore', 'SKILL.md')
+        )).toBe(false);
+        const surface = delivery === 'skills' ? 'skills' : 'commands';
+        expect(consoleSpy).toHaveBeenCalledWith(
+          expect.stringContaining(`Restart your IDE to refresh ${surface}.`)
+        );
+        expect(consoleSpy).not.toHaveBeenCalledWith(
+          expect.stringContaining('Restart your IDE for the new')
+        );
+      }
+    );
 
     it('should not suggest an IDE restart when only a CLI tool needs updating', async () => {
       await new InitCommand({ tools: 'claude,cursor', force: true }).execute(testDir);
@@ -2606,7 +2632,7 @@ ${OPENSPEC_MARKERS.end}
       // than update's older generic "changes".
       expect(
         logCalls.some((entry) =>
-          entry.includes('Restart your IDE for the new commands to take effect.')
+          entry.includes('Restart your IDE to refresh commands.')
         )
       ).toBe(true);
     });
