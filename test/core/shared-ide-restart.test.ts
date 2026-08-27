@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import { CommandAdapterRegistry } from '../../src/core/command-generation/index.js';
 
 import {
   formatIdeRestart,
@@ -6,6 +8,8 @@ import {
 } from '../../src/core/shared/ide-restart.js';
 
 describe('resolveIdeRestartSurface', () => {
+  afterEach(() => vi.restoreAllMocks());
+
   it('names commands when an IDE-resident tool received command files', () => {
     expect(resolveIdeRestartSurface(['cursor'], 'both')).toBe('commands');
     expect(resolveIdeRestartSurface(['cursor'], 'commands')).toBe('commands');
@@ -20,10 +24,18 @@ describe('resolveIdeRestartSurface', () => {
     expect(resolveIdeRestartSurface(['codex'], 'skills')).toBeNull();
   });
 
-  it('does not borrow generation from a co-configured CLI tool', () => {
-    // claude and codex both received a surface here; neither is IDE-resident,
-    // so nothing is waiting on a restart and no hint is due.
-    expect(resolveIdeRestartSurface(['claude', 'codex'], 'both')).toBeNull();
+  it.each([
+    ['commands', null],
+    ['both', 'skills'],
+  ] as const)('does not borrow CLI commands when delivery is %s', (delivery, expected) => {
+    // Model an IDE tool without an adapter: it receives no files with commands
+    // delivery, and only skills with both. Claude still receives commands.
+    const hasAdapter = CommandAdapterRegistry.has.bind(CommandAdapterRegistry);
+    vi.spyOn(CommandAdapterRegistry, 'has').mockImplementation(
+      (toolId) => toolId !== 'cursor' && hasAdapter(toolId)
+    );
+
+    expect(resolveIdeRestartSurface(['claude', 'cursor'], delivery)).toBe(expected);
   });
 
   it('handles duplicates and empty input', () => {

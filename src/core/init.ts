@@ -149,7 +149,6 @@ type ValidatedInitTool = {
   skillsRoot: string;
   isGlobalSkillTarget: boolean;
   wasConfigured: boolean;
-  requiresIdeRestart?: boolean;
   writesSkills: boolean;
 };
 
@@ -844,7 +843,6 @@ export class InitCommand {
         skillsRoot: isGlobalSkillTarget ? skillsPath : projectPath,
         isGlobalSkillTarget,
         wasConfigured: preState?.configured ?? false,
-        requiresIdeRestart: tool.requiresIdeRestart,
         writesSkills: !tool.skillsDir || skillWriters.has(tool.value),
       });
     }

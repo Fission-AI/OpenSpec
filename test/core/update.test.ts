@@ -1947,7 +1947,12 @@ metadata:
       consoleSpy.mockRestore();
     });
 
-    it('should suggest an IDE restart for IDE-resident tools', async () => {
+    it.each([
+      ['both', 'commands'],
+      ['commands', 'commands'],
+      ['skills', 'skills'],
+    ] as const)('should name the generated IDE surface with %s delivery', async (delivery, surface) => {
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery });
       const skillsDir = path.join(testDir, '.cursor', 'skills');
       await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
         recursive: true,
@@ -1962,10 +1967,37 @@ metadata:
       await updateCommand.execute(testDir);
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Restart your IDE')
+        expect.stringContaining(`Restart your IDE for the new ${surface} to take effect.`)
       );
+      expect(await FileSystemUtils.fileExists(
+        path.join(testDir, '.cursor', 'commands', 'opsx-explore.md')
+      )).toBe(delivery !== 'skills');
+      expect(await FileSystemUtils.fileExists(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md')
+      )).toBe(delivery !== 'commands');
+
+      consoleSpy.mockClear();
+      await updateCommand.execute(testDir);
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('up to date'));
+      expect(consoleSpy).not.toHaveBeenCalledWith(expect.stringContaining('Restart your IDE'));
 
       consoleSpy.mockRestore();
+    });
+
+    it('should not suggest an IDE restart when only a CLI tool needs updating', async () => {
+      await new InitCommand({ tools: 'claude,cursor', force: true }).execute(testDir);
+      await fs.writeFile(
+        path.join(testDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md'),
+        'old'
+      );
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Updated: Claude Code'));
+      expect(consoleSpy).not.toHaveBeenCalledWith(expect.stringContaining('Updated: Cursor'));
+      expect(consoleSpy).not.toHaveBeenCalledWith(expect.stringContaining('Restart your IDE'));
     });
   });
 
