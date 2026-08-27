@@ -383,6 +383,7 @@ Content here
     // cline — a directory that is not the tool's skillsDir at all.
     it.each([
       ['gemini', path.join('.gemini', 'commands', 'opsx', 'explore.toml')],
+      ['easycode', path.join('.easycode', 'commands', 'opsx', 'explore.toml')],
       ['cursor', path.join('.cursor', 'commands', 'opsx-explore.md')],
       ['cline', path.join('.clinerules', 'workflows', 'opsx-explore.md')],
     ])('should fingerprint commands-only %s installs', async (toolId, explorePath) => {

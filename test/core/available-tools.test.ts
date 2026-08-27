@@ -24,14 +24,17 @@ describe('available-tools', () => {
       expect(tools).toEqual([]);
     });
 
-    it('should detect a single tool directory', async () => {
-      await fs.mkdir(path.join(testDir, '.claude'), { recursive: true });
+    it.each([
+      ['claude', 'Claude Code'],
+      ['easycode', 'EasyCode'],
+    ])('should detect a single %s tool directory', async (toolId, name) => {
+      await fs.mkdir(path.join(testDir, `.${toolId}`), { recursive: true });
 
       const tools = getAvailableTools(testDir);
       expect(tools).toHaveLength(1);
-      expect(tools[0].value).toBe('claude');
-      expect(tools[0].name).toBe('Claude Code');
-      expect(tools[0].skillsDir).toBe('.claude');
+      expect(tools[0].value).toBe(toolId);
+      expect(tools[0].name).toBe(name);
+      expect(tools[0].skillsDir).toBe(`.${toolId}`);
     });
 
     it('should detect MiniMax Code only from managed skills in the user-home target', async () => {

@@ -9,6 +9,7 @@ import { generateCopilotSetupSteps, persistCopilotCloudOptIn } from '../../src/c
 import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
+import { parse as parseToml } from 'smol-toml';
 
 // Shared mutable mock config state
 const mockState = {
@@ -1382,6 +1383,35 @@ metadata:
       expect(content).not.toMatch(/^---\n/);
       expect(content).toContain('**Provided arguments**: $ARGUMENTS');
     });
+
+    it.each(['both', 'commands'] as const)(
+      'should repair EasyCode commands with delivery=%s and then be up to date',
+      async (delivery) => {
+        setMockConfig({ featureFlags: {}, profile: 'core', delivery });
+        await new InitCommand({ tools: 'easycode', force: true }).execute(testDir);
+
+        const commandsDir = path.join(testDir, '.easycode', 'commands', 'opsx');
+        const exploreFile = path.join(commandsDir, 'explore.toml');
+        const originalExplore = await fs.readFile(exploreFile, 'utf-8');
+        await fs.writeFile(exploreFile, 'stale command');
+        await fs.unlink(path.join(commandsDir, 'apply.toml'));
+
+        await updateCommand.execute(testDir);
+
+        expect(await fs.readFile(exploreFile, 'utf-8')).toBe(originalExplore);
+        const apply = parseToml(await fs.readFile(path.join(commandsDir, 'apply.toml'), 'utf-8'));
+        expect(apply.prompt).toContain('openspec');
+        expect(await FileSystemUtils.fileExists(
+          path.join(testDir, '.easycode', 'skills', 'openspec-explore', 'SKILL.md')
+        )).toBe(delivery === 'both');
+
+        const consoleSpy = vi.spyOn(console, 'log');
+        await updateCommand.execute(testDir);
+        const logCalls = consoleSpy.mock.calls.flat().map(String);
+        expect(logCalls.some((entry) => entry.includes('up to date'))).toBe(true);
+        expect(logCalls.some((entry) => entry.includes('Updating 1 tool(s)'))).toBe(false);
+      }
+    );
 
     it('should repair stale OpenCode commands-only installs once', async () => {
       setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
@@ -3178,6 +3208,37 @@ More user content after markers.
   });
 
   describe('profile-aware updates', () => {
+    it('should prune EasyCode profile and delivery changes while preserving user files', async () => {
+      await new InitCommand({ tools: 'easycode', force: true }).execute(testDir);
+
+      const commandsDir = path.join(testDir, '.easycode', 'commands', 'opsx');
+      const skillsDir = path.join(testDir, '.easycode', 'skills');
+      const userCommand = path.join(commandsDir, 'personal.toml');
+      const userSkill = path.join(skillsDir, 'personal', 'SKILL.md');
+      await fs.writeFile(userCommand, 'prompt = "Keep my command"\n');
+      await fs.mkdir(path.dirname(userSkill), { recursive: true });
+      await fs.writeFile(userSkill, 'Keep my skill');
+
+      setMockConfig({ featureFlags: {}, profile: 'custom', delivery: 'commands', workflows: ['explore', 'new'] });
+      await updateCommand.execute(testDir);
+
+      expect((await fs.readdir(commandsDir)).sort()).toEqual(['explore.toml', 'new.toml', 'personal.toml']);
+      const newCommand = parseToml(await fs.readFile(path.join(commandsDir, 'new.toml'), 'utf-8'));
+      expect(newCommand.prompt).toContain('openspec');
+      expect(await FileSystemUtils.fileExists(path.join(skillsDir, 'openspec-explore', 'SKILL.md'))).toBe(false);
+      expect(await FileSystemUtils.fileExists(path.join(skillsDir, 'openspec-propose', 'SKILL.md'))).toBe(false);
+
+      setMockConfig({ featureFlags: {}, profile: 'custom', delivery: 'skills', workflows: ['explore', 'new'] });
+      await updateCommand.execute(testDir);
+
+      expect(await fs.readdir(commandsDir)).toEqual(['personal.toml']);
+      for (const skillName of ['openspec-explore', 'openspec-new-change']) {
+        expect(await fs.readFile(path.join(skillsDir, skillName, 'SKILL.md'), 'utf-8')).toContain(`name: ${skillName}`);
+      }
+      expect(await fs.readFile(userCommand, 'utf-8')).toBe('prompt = "Keep my command"\n');
+      expect(await fs.readFile(userSkill, 'utf-8')).toBe('Keep my skill');
+    });
+
     it('should generate only profile workflows when custom profile is set', async () => {
       // Set custom profile with only explore and new
       setMockConfig({

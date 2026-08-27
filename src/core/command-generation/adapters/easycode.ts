@@ -1,16 +1,16 @@
 /**
- * Easy Code Command Adapter
+ * EasyCode Command Adapter
  *
- * Formats commands for Easy Code using TOML format.
- * Easy Code stores commands as TOML files at .easycode/commands/opsx/<id>.toml
+ * Formats commands for OrionStarAI/EasyCode using its TOML command format.
+ * https://github.com/OrionStarAI/EasyCode
  */
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
-import { escapeTOMLBasicString, escapeTOMLMultilineString } from '../toml.js';
+import { escapeTomlBasicString, escapeTomlMultilineBasicString } from '../toml.js';
 
 /**
- * Easy Code adapter for command generation.
+ * EasyCode adapter for command generation.
  * File path: .easycode/commands/opsx/<id>.toml
  *
  * Format:
@@ -25,8 +25,8 @@ export const easycodeAdapter: ToolCommandAdapter = {
   },
 
   formatFile(content: CommandContent): string {
-    const safeDesc = escapeTOMLBasicString(content.description);
-    const safeBody = escapeTOMLMultilineString(content.body);
+    const safeDesc = escapeTomlBasicString(content.description);
+    const safeBody = escapeTomlMultilineBasicString(content.body);
     return `description = "${safeDesc}"\n\nprompt = """\n${safeBody}\n"""\n`;
   },
 };
