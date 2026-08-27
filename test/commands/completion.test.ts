@@ -244,6 +244,15 @@ describe('CompletionCommand', () => {
     });
   });
 
+  describe('dynamic completion data', () => {
+    it('should output schema names for shell completion', async () => {
+      await command.complete({ type: 'schemas' });
+
+      expect(consoleLogSpy).toHaveBeenCalledWith('spec-driven\tschema');
+      expect(process.exitCode).toBe(0);
+    });
+  });
+
   describe('shell detection integration', () => {
     it('should show appropriate error when detected shell is unsupported', async () => {
       vi.mocked(shellDetection.detectShell).mockReturnValue({ shell: undefined, detected: 'tcsh' });

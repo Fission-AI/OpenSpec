@@ -7,10 +7,10 @@ This guide explains the core ideas behind OpenSpec and how they fit together. Fo
 OpenSpec is built around four principles:
 
 ```
-fluid not rigid       — no phase gates, work on what makes sense
+fluid not rigid         — no phase gates, work on what makes sense
 iterative not waterfall — learn as you build, refine as you go
-easy not complex      — lightweight setup, minimal ceremony
-brownfield-first      — works with existing codebases, not just greenfield
+easy not complex        — lightweight setup, minimal ceremony
+brownfield-first        — works with existing codebases, not just greenfield
 ```
 
 ### Why These Principles Matter
@@ -28,19 +28,19 @@ brownfield-first      — works with existing codebases, not just greenfield
 OpenSpec organizes your work into two main areas:
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        openspec/                                 │
-│                                                                  │
-│   ┌─────────────────────┐      ┌──────────────────────────────┐ │
-│   │       specs/        │      │         changes/              │ │
-│   │                     │      │                               │ │
-│   │  Source of truth    │◄─────│  Proposed modifications       │ │
-│   │  How your system    │ merge│  Each change = one folder     │ │
-│   │  currently works    │      │  Contains artifacts + deltas  │ │
-│   │                     │      │                               │ │
-│   └─────────────────────┘      └──────────────────────────────┘ │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│                        openspec/                                   │
+│                                                                    │
+│   ┌─────────────────────┐      ┌───────────────────────────────┐   │
+│   │       specs/        │      │         changes/              │   │
+│   │                     │      │                               │   │
+│   │  Source of truth    │◄─────│  Proposed modifications       │   │
+│   │  How your system    │ merge│  Each change = one folder     │   │
+│   │  currently works    │      │  Contains artifacts + deltas  │   │
+│   │                     │      │                               │   │
+│   └─────────────────────┘      └───────────────────────────────┘   │
+│                                                                    │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
 **Specs** are the source of truth — they describe how your system currently behaves.
@@ -190,7 +190,7 @@ openspec/changes/add-dark-mode/
 ├── proposal.md           # Why and what
 ├── design.md             # How (technical approach)
 ├── tasks.md              # Implementation checklist
-├── .openspec.yaml        # Change metadata (optional)
+├── .openspec.yaml        # Change metadata (optional): schema, created, skip_specs, retire_capabilities
 └── specs/                # Delta specs
     └── ui/
         └── spec.md       # What's changing in ui/spec.md
@@ -392,7 +392,8 @@ The system MUST expire sessions after 15 minutes of inactivity.
 |---------|---------|------------------------|
 | `## ADDED Requirements` | New behavior | Appended to main spec |
 | `## MODIFIED Requirements` | Changed behavior | Replaces existing requirement |
-| `## REMOVED Requirements` | Deprecated behavior | Deleted from main spec |
+| `## REMOVED Requirements` | Deprecated behavior | Deleted from main spec; removing the last requirement retires the capability and deletes its spec file, when the change declares `retire_capabilities: true` |
+| `## Purpose` | What a brand-new capability is for | Seeds the Purpose of the main spec being created; ignored when the spec already exists |
 
 ### Why Deltas Instead of Full Specs
 
@@ -558,11 +559,11 @@ openspec/
 ## How It All Fits Together
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
+┌──────────────────────────────────────────────────────────────────────────────┐
 │                              OPENSPEC FLOW                                   │
 │                                                                              │
 │   ┌────────────────┐                                                         │
-│   │  1. START      │  /opsx:propose (core) or /opsx:new (expanded)          │
+│   │  1. START      │  /opsx:propose (core) or /opsx:new (expanded)           │
 │   │     CHANGE     │                                                         │
 │   └───────┬────────┘                                                         │
 │           │                                                                  │
@@ -587,13 +588,13 @@ openspec/
 │   └───────┬────────┘                                                         │
 │           │                                                                  │
 │           ▼                                                                  │
-│   ┌────────────────┐     ┌──────────────────────────────────────────────┐   │
-│   │  5. ARCHIVE    │────►│  Delta specs merge into main specs           │   │
-│   │     CHANGE     │     │  Change folder moves to archive/             │   │
-│   └────────────────┘     │  Specs are now the updated source of truth   │   │
-│                          └──────────────────────────────────────────────┘   │
+│   ┌────────────────┐     ┌──────────────────────────────────────────────┐    │
+│   │  5. ARCHIVE    │────►│  Delta specs merge into main specs           │    │
+│   │     CHANGE     │     │  Change folder moves to archive/             │    │
+│   └────────────────┘     │  Specs are now the updated source of truth   │    │
+│                          └──────────────────────────────────────────────┘    │
 │                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 **The virtuous cycle:**

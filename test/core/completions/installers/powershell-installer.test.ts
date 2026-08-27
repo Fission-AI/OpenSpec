@@ -3,7 +3,6 @@ import { PowerShellInstaller } from '../../../../src/core/completions/installers
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
-import { randomUUID } from 'crypto';
 
 describe('PowerShellInstaller', () => {
   let testHomeDir: string;
@@ -11,9 +10,16 @@ describe('PowerShellInstaller', () => {
   let originalPlatform: NodeJS.Platform;
   let originalEnv: NodeJS.ProcessEnv;
 
+  const restoreEnvValue = (key: string, value: string | undefined): void => {
+    if (value === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
+  };
+
   beforeEach(async () => {
-    testHomeDir = path.join(os.tmpdir(), `openspec-powershell-test-${randomUUID()}`);
-    await fs.mkdir(testHomeDir, { recursive: true });
+    testHomeDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-powershell-test-'));
     installer = new PowerShellInstaller(testHomeDir);
     originalPlatform = process.platform;
     originalEnv = { ...process.env };
@@ -257,6 +263,28 @@ describe('PowerShellInstaller', () => {
 
       expect(result).toBe(false);
     });
+
+    it.skipIf(process.platform === 'win32')('should not create profile directory when parent is not writable', async () => {
+      const originalNoAutoConfig = process.env.OPENSPEC_NO_AUTO_CONFIG;
+      const restrictedHome = path.join(testHomeDir, 'restricted-home');
+      await fs.mkdir(restrictedHome);
+      await fs.chmod(restrictedHome, 0o555);
+      const restrictedInstaller = new PowerShellInstaller(restrictedHome);
+      const profileDir = path.dirname(restrictedInstaller.getProfilePath());
+
+      let result = true;
+      try {
+        delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+        result = await restrictedInstaller.configureProfile(mockScriptPath);
+      } finally {
+        restoreEnvValue('OPENSPEC_NO_AUTO_CONFIG', originalNoAutoConfig);
+        await fs.chmod(restrictedHome, 0o755);
+      }
+
+      const profileDirExists = await fs.access(profileDir).then(() => true).catch(() => false);
+      expect(result).toBe(false);
+      expect(profileDirExists).toBe(false);
+    });
   });
 
   describe('removeProfileConfig', () => {
@@ -489,8 +517,7 @@ Register-ArgumentCompleter -CommandName openspec -ScriptBlock $openspecCompleter
     });
 
     it('should handle installation with paths containing spaces', async () => {
-      const spacedHomeDir = path.join(os.tmpdir(), `openspec powershell test ${randomUUID()}`);
-      await fs.mkdir(spacedHomeDir, { recursive: true });
+      const spacedHomeDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec powershell test '));
 
       const spacedInstaller = new PowerShellInstaller(spacedHomeDir);
       const result = await spacedInstaller.install(mockCompletionScript);
@@ -541,6 +568,173 @@ Register-ArgumentCompleter -CommandName openspec -ScriptBlock $openspecCompleter
       const targetPath = installer.getInstallationPath();
       const content = await fs.readFile(targetPath, 'utf-8');
       expect(content).toBe(specialScript);
+    });
+  });
+
+  describe('encoding preservation', () => {
+    const mockScriptPath = '/path/to/OpenSpecCompletion.ps1';
+    const utf16leBom = Buffer.from([0xff, 0xfe]);
+    const utf8Bom = Buffer.from([0xef, 0xbb, 0xbf]);
+
+    /**
+     * Helper: write a file in UTF-16 LE with BOM, the way Windows PowerShell does.
+     */
+    function writeUtf16LeFile(filePath: string, text: string): Promise<void> {
+      const body = Buffer.from(text, 'utf16le');
+      return fs.writeFile(filePath, Buffer.concat([utf16leBom, body]));
+    }
+
+    /**
+     * Helper: write a file in UTF-8 with BOM.
+     */
+    function writeUtf8BomFile(filePath: string, text: string): Promise<void> {
+      const body = Buffer.from(text, 'utf-8');
+      return fs.writeFile(filePath, Buffer.concat([utf8Bom, body]));
+    }
+
+    it('should preserve UTF-16 LE BOM when configuring profile', async () => {
+      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      const profilePath = installer.getProfilePath();
+      await fs.mkdir(path.dirname(profilePath), { recursive: true });
+
+      const originalText = '. "C:\\Code\\SystemConfig\\Powershell\\profile.ps1"\r\n';
+      await writeUtf16LeFile(profilePath, originalText);
+
+      const result = await installer.configureProfile(mockScriptPath);
+      expect(result).toBe(true);
+
+      // Read back raw bytes and verify BOM is preserved
+      const raw = await fs.readFile(profilePath);
+      expect(raw[0]).toBe(0xff);
+      expect(raw[1]).toBe(0xfe);
+
+      // Decode and verify content is intact
+      const content = raw.subarray(2).toString('utf16le');
+      expect(content).toContain('. "C:\\Code\\SystemConfig\\Powershell\\profile.ps1"');
+      expect(content).toContain('# OPENSPEC:START');
+      expect(content).toContain(`. "${mockScriptPath}"`);
+      expect(content).toContain('# OPENSPEC:END');
+    });
+
+    it('should preserve UTF-16 LE BOM when removing profile config', async () => {
+      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      const profilePath = installer.getProfilePath();
+      await fs.mkdir(path.dirname(profilePath), { recursive: true });
+
+      const textWithBlock = [
+        '. "C:\\Code\\profile.ps1"',
+        '# OPENSPEC:START',
+        '. "/path/to/OpenSpecCompletion.ps1"',
+        '# OPENSPEC:END',
+        '',
+      ].join('\n');
+      await writeUtf16LeFile(profilePath, textWithBlock);
+
+      const result = await installer.removeProfileConfig();
+      expect(result).toBe(true);
+
+      // Verify BOM is preserved
+      const raw = await fs.readFile(profilePath);
+      expect(raw[0]).toBe(0xff);
+      expect(raw[1]).toBe(0xfe);
+
+      // Verify content: original line kept, OpenSpec block removed
+      const content = raw.subarray(2).toString('utf16le');
+      expect(content).toContain('. "C:\\Code\\profile.ps1"');
+      expect(content).not.toContain('# OPENSPEC:START');
+      expect(content).not.toContain('# OPENSPEC:END');
+    });
+
+    it('should preserve UTF-8 BOM when configuring profile', async () => {
+      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      const profilePath = installer.getProfilePath();
+      await fs.mkdir(path.dirname(profilePath), { recursive: true });
+
+      await writeUtf8BomFile(profilePath, '# My profile\n');
+
+      const result = await installer.configureProfile(mockScriptPath);
+      expect(result).toBe(true);
+
+      const raw = await fs.readFile(profilePath);
+      expect(raw[0]).toBe(0xef);
+      expect(raw[1]).toBe(0xbb);
+      expect(raw[2]).toBe(0xbf);
+
+      const content = raw.subarray(3).toString('utf-8');
+      expect(content).toContain('# My profile');
+      expect(content).toContain('# OPENSPEC:START');
+    });
+
+    it('should skip UTF-16 BE profile and leave it unchanged', async () => {
+      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      process.env.PROFILE = path.join(testHomeDir, 'custom-profile.ps1');
+      const profilePath = installer.getProfilePath();
+      await fs.mkdir(path.dirname(profilePath), { recursive: true });
+
+      // Write a fake UTF-16 BE file (FE FF BOM + some bytes)
+      const utf16beBom = Buffer.from([0xfe, 0xff]);
+      const body = Buffer.from([0x00, 0x23]); // '#' in UTF-16 BE
+      const originalBytes = Buffer.concat([utf16beBom, body]);
+      await fs.writeFile(profilePath, originalBytes);
+
+      const result = await installer.configureProfile(mockScriptPath);
+      expect(result).toBe(false);
+
+      // File should be untouched
+      const raw = await fs.readFile(profilePath);
+      expect(Buffer.compare(raw, originalBytes)).toBe(0);
+    });
+
+    it('should handle plain UTF-8 files without BOM (no regression)', async () => {
+      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      const profilePath = installer.getProfilePath();
+      await fs.mkdir(path.dirname(profilePath), { recursive: true });
+
+      await fs.writeFile(profilePath, '# Plain UTF-8\n', 'utf-8');
+
+      const result = await installer.configureProfile(mockScriptPath);
+      expect(result).toBe(true);
+
+      const raw = await fs.readFile(profilePath);
+      // Should NOT have any BOM
+      expect(raw[0]).not.toBe(0xff);
+      expect(raw[0]).not.toBe(0xfe);
+      expect(raw[0]).not.toBe(0xef);
+
+      const content = raw.toString('utf-8');
+      expect(content).toContain('# Plain UTF-8');
+      expect(content).toContain('# OPENSPEC:START');
+    });
+
+    it('should round-trip UTF-16 LE through install → uninstall without corruption', async () => {
+      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      const profilePath = installer.getProfilePath();
+      await fs.mkdir(path.dirname(profilePath), { recursive: true });
+
+      const originalText = '. "C:\\Code\\SystemConfig\\Powershell\\profile.ps1"\r\n';
+      await writeUtf16LeFile(profilePath, originalText);
+
+      // Install adds the OpenSpec block
+      const mockScript = '# completion script';
+      await installer.install(mockScript);
+
+      // Verify the profile was modified but encoding preserved
+      let raw = await fs.readFile(profilePath);
+      expect(raw[0]).toBe(0xff);
+      expect(raw[1]).toBe(0xfe);
+      let content = raw.subarray(2).toString('utf16le');
+      expect(content).toContain('# OPENSPEC:START');
+      expect(content).toContain(originalText.trimEnd());
+
+      // Uninstall removes the OpenSpec block
+      await installer.uninstall();
+
+      raw = await fs.readFile(profilePath);
+      expect(raw[0]).toBe(0xff);
+      expect(raw[1]).toBe(0xfe);
+      content = raw.subarray(2).toString('utf16le');
+      expect(content).not.toContain('# OPENSPEC:START');
+      expect(content).toContain('. "C:\\Code\\SystemConfig\\Powershell\\profile.ps1"');
     });
   });
 
@@ -600,6 +794,26 @@ Register-ArgumentCompleter -CommandName openspec -ScriptBlock $openspecCompleter
       expect(result.message).toBe('Completion script uninstalled successfully');
     });
 
+    it.skipIf(process.platform === 'win32')('should uninstall read-only completion script when parent directory is writable', async () => {
+      const originalNoAutoConfig = process.env.OPENSPEC_NO_AUTO_CONFIG;
+      const targetPath = installer.getInstallationPath();
+      let result: Awaited<ReturnType<PowerShellInstaller['uninstall']>> | undefined;
+
+      try {
+        delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+        await installer.install(mockCompletionScript);
+        await fs.chmod(targetPath, 0o444);
+        result = await installer.uninstall();
+      } finally {
+        restoreEnvValue('OPENSPEC_NO_AUTO_CONFIG', originalNoAutoConfig);
+        await fs.chmod(targetPath, 0o644).catch(() => undefined);
+      }
+
+      const scriptExists = await fs.access(targetPath).then(() => true).catch(() => false);
+      expect(result?.success).toBe(true);
+      expect(scriptExists).toBe(false);
+    });
+
     it('should handle both script and config removal', async () => {
       delete process.env.OPENSPEC_NO_AUTO_CONFIG;
       await installer.install(mockCompletionScript);
@@ -651,6 +865,34 @@ Register-ArgumentCompleter -CommandName openspec -ScriptBlock $openspecCompleter
 
       expect(result.success).toBe(false);
       expect(result.message).toBe('Completion script is not installed');
+    });
+  });
+
+
+  describe('isInstalled', () => {
+    // Drives the first-run completions tip: a false positive silences a hint
+    // the user needs, a false negative nags someone who is already set up.
+    async function installPath(): Promise<string> {
+      return installer.getInstallationPath();
+    }
+
+    it('is false when nothing is installed', async () => {
+      expect(await installer.isInstalled()).toBe(false);
+    });
+
+    it('is true once the completion script exists', async () => {
+      const target = await installPath();
+      await fs.mkdir(path.dirname(target), { recursive: true });
+      await fs.writeFile(target, '# completions');
+
+      expect(await installer.isInstalled()).toBe(true);
+    });
+
+    it('is false when a directory sits at the install path', async () => {
+      const target = await installPath();
+      await fs.mkdir(target, { recursive: true });
+
+      expect(await installer.isInstalled()).toBe(false);
     });
   });
 

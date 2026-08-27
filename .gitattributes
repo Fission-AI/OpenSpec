@@ -1,0 +1,4 @@
+# The skills.sh distribution files are generated LF-only and compared
+# byte-for-byte by test/core/templates/skillssh-parity.test.ts. Force LF on
+# checkout so Windows autocrlf doesn't turn them into CRLF and fail parity.
+skills/** text eol=lf

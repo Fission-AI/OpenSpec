@@ -11,6 +11,7 @@ import {
   getSchemaDir,
   ArtifactGraph,
 } from '../../core/artifact-graph/index.js';
+import { FileSystemUtils } from '../../utils/file-system.js';
 import { validateSchemaExists, DEFAULT_SCHEMA } from './shared.js';
 
 // -----------------------------------------------------------------------------
@@ -33,7 +34,7 @@ export interface TemplateInfo {
 // -----------------------------------------------------------------------------
 
 export async function templatesCommand(options: TemplatesOptions): Promise<void> {
-  const spinner = ora('Loading templates...').start();
+  const spinner = options.json ? undefined : ora('Loading templates...').start();
 
   try {
     const projectRoot = process.cwd();
@@ -66,13 +67,24 @@ export async function templatesCommand(options: TemplatesOptions): Promise<void>
       source = 'package';
     }
 
-    const templates: TemplateInfo[] = graph.getAllArtifacts().map((artifact) => ({
-      artifactId: artifact.id,
-      templatePath: path.join(schemaDir, 'templates', artifact.template),
-      source,
-    }));
+    const templatesDir = path.join(schemaDir, 'templates');
+    const templates: TemplateInfo[] = graph.getAllArtifacts().map((artifact) => {
+      const templatePath = path.join(templatesDir, artifact.template);
+      try {
+        FileSystemUtils.assertPathWithin(templatesDir, templatePath);
+        return {
+          artifactId: artifact.id,
+          templatePath: FileSystemUtils.canonicalizeExistingPath(templatePath),
+          source,
+        };
+      } catch {
+        throw new Error(
+          `Template '${artifact.template}' for artifact '${artifact.id}' points outside the schema templates directory`
+        );
+      }
+    });
 
-    spinner.stop();
+    spinner?.stop();
 
     if (options.json) {
       const output: Record<string, { path: string; source: string }> = {};
@@ -92,7 +104,7 @@ export async function templatesCommand(options: TemplatesOptions): Promise<void>
       console.log(`  ${t.templatePath}`);
     }
   } catch (error) {
-    spinner.stop();
+    spinner?.stop();
     throw error;
   }
 }

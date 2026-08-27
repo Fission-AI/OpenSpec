@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 
 // Note: We cannot truly simulate TTY prompts in this test runner easily.
 // Instead, we verify non-interactive fallback behavior and basic invocation.
@@ -32,7 +32,7 @@ describe('change validate (interactive behavior)', () => {
       process.env.OPEN_SPEC_INTERACTIVE = '0';
       let err: any;
       try {
-        execSync(`node ${bin} change validate`, { encoding: 'utf-8' });
+        execFileSync('node', [bin, 'change', 'validate'], { encoding: 'utf-8' });
       } catch (e) { err = e; }
       expect(err).toBeDefined();
       expect(err.status).not.toBe(0);

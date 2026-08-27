@@ -45,6 +45,29 @@ The dashboard SHALL show active changes with visual progress indicators.
 - **AND** treat missing progress values as 0% for ordering
 - **AND** break ties by change identifier in ascending alphabetical order to keep output deterministic
 
+### Requirement: Active Change Workflow Status
+
+The dashboard SHALL show each active change's schema and artifact states beneath its task progress, using the same workflow resolution as `openspec status`. Workflow status SHALL NOT change task progress, change categories, or sorting.
+
+#### Scenario: Workflow states
+
+- **WHEN** an active change's workflow can be loaded
+- **THEN** show the schema name and artifacts in dependency order
+- **AND** mark existing artifact outputs with `✓`, ready artifacts with `→`, blocked artifacts with no symbol, and skipped artifacts with `(skipped)`
+- **AND** treat an existing tasks artifact as done even when its implementation checklist is unfinished
+
+#### Scenario: Store-local workflow
+
+- **WHEN** the dashboard targets a store through `--store` or a project store pointer
+- **THEN** resolve workflow schemas and artifact files from that store
+- **AND** use the store's default schema for changes without a schema in their metadata
+
+#### Scenario: Invalid workflow
+
+- **WHEN** an active change's metadata or schema cannot be loaded
+- **THEN** print a warning identifying the change and the error
+- **AND** omit only that change's workflow status while retaining its task progress and rendering other changes
+
 ### Requirement: Completed Changes Display
 
 The dashboard SHALL list completed changes in a separate section, only showing changes with ALL tasks completed.
@@ -126,4 +149,3 @@ The dashboard SHALL display changes without tasks in a separate "Draft" section.
 
 - **WHEN** multiple draft changes exist
 - **THEN** system sorts them alphabetically by name
-
