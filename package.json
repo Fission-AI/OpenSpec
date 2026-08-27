@@ -1,6 +1,6 @@
 {
   "name": "@fission-ai/openspec",
-  "version": "1.9.0",
+  "version": "1.11.0",
   "description": "AI-native system for spec-driven development",
   "keywords": [
     "openspec",
@@ -75,6 +75,7 @@
     "@inquirer/prompts": "^8.5.2",
     "chalk": "^5.6.2",
     "commander": "^14.0.0",
+    "diff": "^9.0.0",
     "cross-spawn": "7.0.6",
     "fast-glob": "^3.3.3",
     "ora": "^9.4.1",

@@ -2780,6 +2780,130 @@ content D`;
       expect(updated).not.toContain('### Requirement: B');
     });
 
+    it('should preserve source order and lineage when renaming requirements', async () => {
+      const changeName = 'rename-order';
+      const renamed = (pairs: Array<[string, string]>): string =>
+        `## RENAMED Requirements\n\n${pairs
+          .map(
+            ([from, to]) =>
+              `- FROM: \`### Requirement: ${from}\`\n- TO: \`### Requirement: ${to}\``
+          )
+          .join('\n\n')}`;
+      const cases = [
+        { capability: 'first', names: ['A', 'B', 'C'], delta: renamed([['A', 'A2']]), expected: ['A2', 'B', 'C'] },
+        { capability: 'middle', names: ['A', 'B', 'C'], delta: renamed([['B', 'B2']]), expected: ['A', 'B2', 'C'] },
+        { capability: 'last', names: ['A', 'B', 'C'], delta: renamed([['C', 'C2']]), expected: ['A', 'B', 'C2'] },
+        {
+          capability: 'multiple',
+          names: ['A', 'B', 'C'],
+          delta: renamed([['B', 'B2'], ['A', 'A2']]),
+          expected: ['A2', 'B2', 'C'],
+        },
+        {
+          capability: 'chained',
+          names: ['X', 'A', 'Y'],
+          delta: renamed([['A', 'B'], ['B', 'C']]),
+          expected: ['X', 'C', 'Y'],
+        },
+        {
+          capability: 'modified',
+          names: ['A', 'B', 'C'],
+          delta: `${renamed([['B', 'B2']])}\n\n## MODIFIED Requirements\n\n### Requirement: B2\nModified body.`,
+          expected: ['A', 'B2', 'C'],
+          expectedContent: '### Requirement: B2\nModified body.',
+        },
+        {
+          capability: 'readded',
+          names: ['X', 'A', 'Y'],
+          delta: `${renamed([['A', 'B']])}\n\n## ADDED Requirements\n\n### Requirement: A\nNew body A.`,
+          expected: ['X', 'B', 'Y', 'A'],
+        },
+        {
+          capability: 'foreign-tail',
+          names: ['A', 'B', 'C'],
+          delta: renamed([['B', 'B2']]),
+          expected: ['A', 'B2', 'C'],
+          foreignTail: '### Notes\nAuthored note travels with B.',
+          expectedContent: '### Requirement: B2\nBody B.\n\n### Notes\nAuthored note travels with B.',
+        },
+      ];
+
+      for (const item of cases) {
+        const mainSpecDir = path.join(tempDir, 'openspec', 'specs', item.capability);
+        const changeSpecDir = path.join(
+          tempDir,
+          'openspec',
+          'changes',
+          changeName,
+          'specs',
+          item.capability
+        );
+        await fs.mkdir(mainSpecDir, { recursive: true });
+        await fs.mkdir(changeSpecDir, { recursive: true });
+        const blocks = item.names.map(
+          (name) =>
+            `### Requirement: ${name}\nBody ${name}.` +
+            (name === 'B' && item.foreignTail ? `\n\n${item.foreignTail}` : '')
+        );
+        await fs.writeFile(
+          path.join(mainSpecDir, 'spec.md'),
+          `# ${item.capability} Specification\n\n## Purpose\nOrdering fixture.\n\n## Requirements\n\n${blocks.join('\n\n')}\n`
+        );
+        await fs.writeFile(
+          path.join(changeSpecDir, 'spec.md'),
+          `# ${item.capability} - Changes\n\n${item.delta}\n`
+        );
+      }
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      for (const item of cases) {
+        const updated = await fs.readFile(
+          path.join(tempDir, 'openspec', 'specs', item.capability, 'spec.md'),
+          'utf-8'
+        );
+        const names = [...updated.matchAll(/^### Requirement:\s*(.+?)\s*$/gm)].map(
+          (match) => match[1]
+        );
+        expect(names).toEqual(item.expected);
+        if (item.expectedContent) expect(updated).toContain(item.expectedContent);
+      }
+      const output = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls
+        .flat()
+        .map(String)
+        .join('\n');
+      expect(output).not.toContain('sits inside requirement "B"');
+    });
+
+    it('should keep the target and change untouched when a later rename collides', async () => {
+      const changeName = 'late-rename-collision';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'demo');
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'demo');
+      const mainSpecPath = path.join(mainSpecDir, 'spec.md');
+      const changeSpecPath = path.join(changeSpecDir, 'spec.md');
+      const mainContent = `# demo Specification\n\n## Purpose\nTransaction fixture.\n\n## Requirements\n\n### Requirement: A\nBody A.\n\n### Requirement: B\nBody B.\n\n### Requirement: C\nBody C.\n`;
+      const changeContent = `# demo - Changes\n\n## RENAMED Requirements\n\n- FROM: \`### Requirement: A\`\n- TO: \`### Requirement: A2\`\n\n- FROM: \`### Requirement: A2\`\n- TO: \`### Requirement: C\`\n`;
+      await fs.mkdir(changeSpecDir, { recursive: true });
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(mainSpecPath, mainContent);
+      await fs.writeFile(changeSpecPath, changeContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'RENAMED failed for header "### Requirement: C" - target already exists'
+        )
+      );
+      expect(process.exitCode).toBe(1);
+      await expect(fs.readFile(mainSpecPath, 'utf-8')).resolves.toBe(mainContent);
+      await expect(fs.readFile(changeSpecPath, 'utf-8')).resolves.toBe(changeContent);
+      await expect(fs.access(changeDir)).resolves.not.toThrow();
+      const archives = await fs.readdir(path.join(tempDir, 'openspec', 'changes', 'archive'));
+      expect(archives.some((entry) => entry.includes(changeName))).toBe(false);
+    });
+
     it('should abort with error when MODIFIED references non-existent requirements', async () => {
       const changeName = 'validate-missing';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);

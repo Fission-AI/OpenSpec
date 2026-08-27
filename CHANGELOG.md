@@ -1,5 +1,55 @@
 # @fission-ai/openspec
 
+## 1.11.0
+
+### Minor Changes
+
+- [#1301](https://github.com/Fission-AI/OpenSpec/pull/1301) [`a7353ae`](https://github.com/Fission-AI/OpenSpec/commit/a7353aea9a0b23762602badf5055a157a76f62b1) Thanks [@m-tanner](https://github.com/m-tanner)! - Add `openspec status --all`, which reports every active change in one process instead of one CLI spawn per change. `--all --json` emits a single `{ "changes": [ <status>, ... ], "root" }` envelope sorted by change name; a change that fails to load contributes `{ "changeName", "status": [diagnostic] }` in place rather than aborting the sweep. A partial failure exits 1 in both text and JSON modes while preserving the complete JSON envelope. Mutually exclusive with `--change`.
+
+- [#980](https://github.com/Fission-AI/OpenSpec/pull/980) [`dd7cea3`](https://github.com/Fission-AI/OpenSpec/commit/dd7cea3ffed4a22421dce02f54c37c4f076b44f0) Thanks [@bsmedberg-xometry](https://github.com/bsmedberg-xometry)! - show: add `--diff`, which renders each delta requirement against the requirement it replaces in the main spec instead of reprinting the whole block. A MODIFIED requirement has to carry every scenario it keeps, so reviewers could not see what a change actually altered without diffing files by hand. `openspec show <change> --diff` now prints a colorized unified diff per requirement (additions green, removals red), the full text of ADDED requirements, the authored Reason/Migration text of REMOVED ones, and FROM/TO for RENAMED ones; a requirement that is renamed and modified in the same delta is diffed against its old name. `--json --diff` keeps the existing payload shape and adds each applicable `diff` and `warning` field to MODIFIED deltas only. Main specs resolve against the same root as the change, so `--store <id>` diffs against that store. Without `--diff`, `openspec show <change>` prints exactly what it printed before.
+
+### Patch Changes
+
+- [#830](https://github.com/Fission-AI/OpenSpec/pull/830) [`109f81f`](https://github.com/Fission-AI/OpenSpec/commit/109f81f17d3bb99eb6fb2c9a33ec9e8ab0680bb2) Thanks [@alfred-openspec](https://github.com/alfred-openspec)! - Write Antigravity skills and workflows to `.agents/`, arbitrate its shared skill tree with other tools, and safely migrate an existing `.agent/` install.
+
+- [#1712](https://github.com/Fission-AI/OpenSpec/pull/1712) [`04b37ac`](https://github.com/Fission-AI/OpenSpec/commit/04b37ac1d5c852385d2effbff196ddb4fdd1700c) Thanks [@Marzx13](https://github.com/Marzx13)! - archive: preserve a requirement's original position when renaming it instead of moving the renamed block to the end of the spec.
+
+- [#1716](https://github.com/Fission-AI/OpenSpec/pull/1716) [`7010e26`](https://github.com/Fission-AI/OpenSpec/commit/7010e268907598c385eb6686699928fbd5a3a733) Thanks [@aymanxdev](https://github.com/aymanxdev)! - explore: require explicit, scope-bound confirmation before the skill uses any command or tool that can create, edit, move, or delete a file. The explore skill's guardrails let "if the user asks" cover answers to its own clarifying questions, so an agent could treat a design discussion as a go-ahead and start creating schemas or editing `openspec/config.yaml` uninvited. The skill and the `/opsx:explore` command now instruct the agent to name the proposed artifacts or files, ask a direct yes/no question, and wait for confirmation in a separate message before writing. Read-only commands and tools remain available without confirmation, and expanding the confirmed scope requires another confirmation.
+
+- [#1199](https://github.com/Fission-AI/OpenSpec/pull/1199) [`ab81a4b`](https://github.com/Fission-AI/OpenSpec/commit/ab81a4b43a7bd769b1d2a33457b7b708b8c52516) Thanks [@leo-ar](https://github.com/leo-ar)! - Improve Fish completions so command, subcommand, flag, and indexed positional completions no longer fall back to filesystem suggestions unless the target is a real path.
+
+- [#1010](https://github.com/Fission-AI/OpenSpec/pull/1010) [`e5e350d`](https://github.com/Fission-AI/OpenSpec/commit/e5e350d04b5d635b56846f46a212b097cd00eeb6) Thanks [@Dansyuqri](https://github.com/Dansyuqri)! - Draw explore-mode diagrams with plain ASCII. The worked examples in the explore skill and `/opsx:explore` command used Unicode box-drawing, arrow, and marker glyphs, whose display width varies across terminals, fonts, and locales. Agents copied the style, causing padded boxes and aligned tables to drift.
+
+- [`2fa679f`](https://github.com/Fission-AI/OpenSpec/commit/2fa679f180424d46ce7d8789eb85138397844a89) Thanks [@ryandemelo](https://github.com/ryandemelo)! - Make `schema init --default` validate and stage config changes before installing a schema, and roll back both files if either install fails. The staging and backup directories it creates are excluded from schema discovery, so they are never offered as real schemas.
+
+- [#1671](https://github.com/Fission-AI/OpenSpec/pull/1671) [`126c5d6`](https://github.com/Fission-AI/OpenSpec/commit/126c5d6c59d63b7e70314bcc776104c7cc548819) Thanks [@kitimark](https://github.com/kitimark)! - `openspec validate` now reports a `## Purpose` that is still the placeholder archive writes for a new capability, instead of passing it. The placeholder is longer than the 50-character brevity floor, so until now the one check meant to catch a Purpose nobody wrote was satisfied by the exact text saying nobody wrote one — a spec whose Purpose read `Does stuff.` failed `--strict` while a spec whose Purpose said nothing at all passed. A capability could carry the placeholder indefinitely while every command reported success.
+
+  It is a warning, so a project that already has placeholders on disk keeps validating by default and only `--strict` fails. The message says to edit the main spec directly, since a `## Purpose` in a delta is read only when the capability is created and cannot replace an existing one.
+
+  Detection is narrow. The placeholder archive generates is recognised through the same definition that writes it, wherever it appears in the Purpose. Otherwise only a `TBD` or `TODO` opening the Purpose counts, so `The retry budget is TBD pending benchmarks` is still a valid Purpose and a word like `TBDs` is not a marker. Fenced code inside the Purpose is quoted material rather than the Purpose speaking, so a spec that documents the placeholder keeps passing. An empty Purpose is unchanged, and a Purpose reported as a placeholder is no longer also reported as too brief, so a bare `TBD` yields one finding rather than two.
+
+  `openspec archive` is unaffected: it validates rebuilt specs without `--strict`, so a spec archive writes still passes the validation it would have passed before, and the text archive writes is unchanged.
+
+## 1.10.0
+
+### Minor Changes
+
+- [#1685](https://github.com/Fission-AI/OpenSpec/pull/1685) [`c747ed1`](https://github.com/Fission-AI/OpenSpec/commit/c747ed1f34459ca6bc15d43ad9f68dfdf7750875) Thanks [@clay-good](https://github.com/clay-good)! - Add `openspec init --language <language>` to configure the language used for artifacts in new projects.
+
+### Patch Changes
+
+- [#1704](https://github.com/Fission-AI/OpenSpec/pull/1704) [`7276c6c`](https://github.com/Fission-AI/OpenSpec/commit/7276c6c26832f699a63544302d38b1af8ddb9844) Thanks [@clay-good](https://github.com/clay-good)! - Drop the npm `postinstall` script. Its only job was printing a one-line tip about opt-in shell completions, but shipping any install script made `npm install -g @fission-ai/openspec` emit an `allow-scripts` warning that reads as a packaging fault (and `npm approve-scripts` then fails with `ENOMATCH` on a global install, since it looks in the local project). The tip now prints from the CLI on its first run — to stderr, in an interactive terminal, once, and not at all if you already have completions installed — and the published package declares no `preinstall`/`install`/`postinstall` script, so a registry install runs no OpenSpec code. Suppress the tip with `OPENSPEC_NO_COMPLETIONS=1`.
+
+- [#1656](https://github.com/Fission-AI/OpenSpec/pull/1656) [`a72a74d`](https://github.com/Fission-AI/OpenSpec/commit/a72a74de6571c26fd79a193bb33fa3b8e1a767fb) Thanks [@clay-good](https://github.com/clay-good)! - ### Bug Fixes
+
+  - `openspec update` now suggests restarting an IDE only when it updates an IDE-resident tool. CLI tools such as Claude Code, Codex, and Gemini CLI no longer show an unnecessary restart hint.
+
+- [#1703](https://github.com/Fission-AI/OpenSpec/pull/1703) [`9643888`](https://github.com/Fission-AI/OpenSpec/commit/9643888a7525467c7a076bfec9bb075910e78bb8) Thanks [@clay-good](https://github.com/clay-good)! - Point the spec-driven `specs` instruction's main-spec read and edit at the store-aware root. It named `openspec/specs/<capability-path>/spec.md`, a path relative to the current directory, for both step 1 of the MODIFIED workflow ("locate the existing requirement") and the edit that fixes a leftover `TBD` Purpose. When the change lives in a store — whether selected with `--store`, a project `store:` pointer, or a global default store — the main spec is under the store root, so that read missed it, or silently returned a different capability when a local one happened to share the name, and the MODIFIED block was then copied from the wrong requirement. Both operations now use `<planningHome.root>/openspec/specs/...`, the root already returned by `openspec instructions ... --json` and the same convention the sync and archive workflows use. Fixes [#1702](https://github.com/Fission-AI/OpenSpec/issues/1702).
+
+- [#1699](https://github.com/Fission-AI/OpenSpec/pull/1699) [`18688c8`](https://github.com/Fission-AI/OpenSpec/commit/18688c8b27820da3435a47a7f11e90073724b728) Thanks [@clay-good](https://github.com/clay-good)! - archive: tell the author how to retire a capability when the emptied spec also holds content the merge cannot account for. That combination printed only "Spec must have at least one requirement" and no guidance at all; the abort now names the blocking lines and reports a `retire_capabilities` marker that is present but cannot be honored. Authored content quoted in those messages - the blocking lines, and the marker's own reason, which `openspec validate` prints too - is stripped of control characters and bounded in length before it reaches the terminal.
+
+- [#1660](https://github.com/Fission-AI/OpenSpec/pull/1660) [`7da3f34`](https://github.com/Fission-AI/OpenSpec/commit/7da3f34fb66d602bd987caa7dddcf3d6621e7d44) Thanks [@clay-good](https://github.com/clay-good)! - Require generated tasks to state how their completion can be verified.
+
 ## 1.9.0
 
 ### Minor Changes
