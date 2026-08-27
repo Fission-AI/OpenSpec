@@ -1,0 +1,7 @@
+# Cloudflare Pages redirects (evaluated before static assets).
+# The root of this deploy is documentation-only; the landing page is a
+# separate repo/deploy.
+/ /docs 302
+# TEMPORARY (2026-08-21): no docs index page while the Overview is rewritten
+# (see docs.sync.config.mjs). Remove this line when the Overview is re-listed.
+/docs /docs/installation 302

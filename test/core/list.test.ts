@@ -11,8 +11,7 @@ describe('ListCommand', () => {
 
   beforeEach(async () => {
     // Create temp directory
-    tempDir = path.join(os.tmpdir(), `openspec-list-test-${Date.now()}`);
-    await fs.mkdir(tempDir, { recursive: true });
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-list-test-'));
 
     // Mock console.log to capture output
     originalLog = console.log;
@@ -31,12 +30,12 @@ describe('ListCommand', () => {
   });
 
   describe('execute', () => {
-    it('should handle missing openspec/changes directory', async () => {
+    it('should treat a missing openspec/changes directory as no active changes', async () => {
       const listCommand = new ListCommand();
-      
-      await expect(listCommand.execute(tempDir, 'changes')).rejects.toThrow(
-        "No OpenSpec changes directory found. Run 'openspec init' first."
-      );
+
+      await listCommand.execute(tempDir, 'changes');
+
+      expect(logOutput).toEqual(['No active changes found.']);
     });
 
     it('should handle empty changes directory', async () => {
@@ -47,6 +46,16 @@ describe('ListCommand', () => {
       await listCommand.execute(tempDir, 'changes');
 
       expect(logOutput).toEqual(['No active changes found.']);
+    });
+
+    it('should not report a malformed openspec/changes path as empty', async () => {
+      await fs.mkdir(path.join(tempDir, 'openspec'), { recursive: true });
+      await fs.writeFile(path.join(tempDir, 'openspec', 'changes'), 'not a directory\n');
+
+      const listCommand = new ListCommand();
+
+      await expect(listCommand.execute(tempDir, 'changes')).rejects.toThrow();
+      expect(logOutput).toEqual([]);
     });
 
     it('should exclude archive directory', async () => {
@@ -103,6 +112,22 @@ Regular text that should be ignored
       await listCommand.execute(tempDir, 'changes');
 
       expect(logOutput.some(line => line.includes('✓ Complete'))).toBe(true);
+    });
+
+    it('does not report a change with unfinished sub-tasks as complete (#1485)', async () => {
+      const changesDir = path.join(tempDir, 'openspec', 'changes');
+      await fs.mkdir(path.join(changesDir, 'nested-change'), { recursive: true });
+
+      await fs.writeFile(
+        path.join(changesDir, 'nested-change', 'tasks.md'),
+        '- [x] 1.1 Parent task\n  - [ ] 1.1.1 Unfinished sub-task\n'
+      );
+
+      const listCommand = new ListCommand();
+      await listCommand.execute(tempDir, 'changes');
+
+      expect(logOutput.some(line => line.includes('1/2 tasks'))).toBe(true);
+      expect(logOutput.some(line => line.includes('✓ Complete'))).toBe(false);
     });
 
     it('should handle changes without tasks.md', async () => {
