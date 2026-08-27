@@ -2,12 +2,12 @@
 
 ### Requirement: Bulk validation SHALL provide an opt-in item-findings report
 
-The `validate` command SHALL support `--report full` and `--report findings` for explicit, unambiguous bulk scopes. Omitting `--report` SHALL retain current targeted, interactive, bulk, human, and JSON behavior. Findings mode SHALL return whole issue-bearing item records separately from top-level advisories while preserving full item order, complete requested-scope totals, root selection, issue severities, strict-mode semantics, and exit status.
+The `validate` command SHALL support case-sensitive `--report full` and `--report findings` for explicit, unambiguous bulk scopes. Omitting `--report` SHALL retain current targeted, interactive, bulk, human, and JSON behavior. Findings mode SHALL return whole issue-bearing item records separately from top-level advisories while preserving full item order, complete requested-scope totals, root selection, issue severities, strict-mode semantics, and exit status. The current full-result fields are `items`, `summary`, `version`, and `root`; this implementation SHALL NOT invent advisory fields or copy unknown top-level fields. A future advisory section requires an explicit contract update.
 
 #### Scenario: Default and explicit bulk full output remain compatible
 
-- **WHEN** a user runs bulk validation without `--report` or with `--report full`
-- **THEN** human output SHALL retain the current complete item listing and totals
+- **WHEN** a user runs bulk validation without `--report` or with a valid explicit `--report full` request
+- **THEN** human output SHALL retain the current complete item listing and totals, or the current empty-scope message when no items exist
 - **AND** JSON output SHALL retain the documented full-v1 top-level `version: "1.0"` and complete `items` collection
 - **AND** the two bulk invocations SHALL have equivalent observable output and exit status for the same scope
 
@@ -58,9 +58,24 @@ The `validate` command SHALL support `--report full` and `--report findings` for
 - **AND** no human text SHALL be written to stdout or stderr
 - **AND** validation SHALL exit with code 1 without resolving a root, prompting, rendering a spinner, or validating any item
 
+#### Scenario: Missing report arguments retain parser errors
+
+- **WHEN** the CLI parser rejects a missing required argument such as bare `--report`
+- **THEN** the existing CLI syntax-error behavior SHALL remain unchanged
+- **AND** the command SHALL NOT run or resolve a root
+- **AND** generic parser errors SHALL NOT be covered by the structured `invalid_validation_report_request` contract
+
+#### Scenario: Root and scope-discovery failures remain diagnostics
+
+- **GIVEN** a syntactically valid report request with a supported scope
+- **WHEN** root resolution fails or scope discovery encounters a fatal error
+- **THEN** validation SHALL retain the existing diagnostic and nonzero exit status for that failure
+- **AND** JSON output SHALL contain the existing `status` diagnostic envelope rather than a findings document with empty totals
+- **AND** a per-item validation failure SHALL instead remain an item result in the completed findings report
+
 #### Scenario: Findings JSON uses an exact distinct contract
 
-- **WHEN** validation runs with `--json --report findings`
+- **WHEN** a valid `--json --report findings` request completes root resolution, scope discovery, and validation
 - **THEN** stdout SHALL contain exactly one parseable JSON document and stderr SHALL be empty
 - **AND** `report.kind` SHALL equal `validation-findings`
 - **AND** `report.version` SHALL be the JSON string `"1.0"`
@@ -70,7 +85,7 @@ The `validate` command SHALL support `--report full` and `--report findings` for
 
 #### Scenario: Findings JSON is not the documented full-v1 document
 
-- **WHEN** validation runs with `--json --report findings`
+- **WHEN** a valid `--json --report findings` request produces a completed report
 - **THEN** the document SHALL NOT contain a top-level `items` field
 - **AND** SHALL NOT contain the full-v1 top-level `version` field
 - **AND** contract tests SHALL reject it against the documented full-v1 shape requiring top-level `version: "1.0"` and complete `items`
@@ -163,4 +178,83 @@ The `validate` command SHALL support `--report full` and `--report findings` for
 
 - **WHEN** the same findings validation scenario runs on Windows, macOS, and Linux
 - **THEN** report selection, projection, totals, severities, streams, and exit status SHALL be equivalent
-- **AND** paths in item records or the root envelope SHALL retain the platform-native form used by full validation
+- **AND** paths in item records and the root envelope SHALL remain exactly as emitted by full validation, including native root paths and existing POSIX-normalized issue paths
+
+## MODIFIED Requirements
+
+### Requirement: Bulk and filtered validation
+
+The validate command SHALL support flags for bulk validation (--all) and filtered validation by type (--changes, --specs). These flags SHALL select the same items for full and findings reports. Complete per-item listings SHALL apply when `--report` is omitted or is `full`; findings output SHALL follow the item-findings report contract.
+
+#### Scenario: Validate everything
+
+- **WHEN** executing `openspec validate --all`
+- **THEN** validate all changes in openspec/changes/ (excluding archive)
+- **AND** validate all specs in openspec/specs/
+- **AND** display a summary showing passed/failed items
+- **AND** exit with code 1 if any validation fails
+
+#### Scenario: Scope of bulk validation
+
+- **WHEN** validating with `--all` or `--changes`
+- **THEN** include all change proposals under `openspec/changes/`
+- **AND** exclude the `openspec/changes/archive/` directory
+
+- **WHEN** validating with `--specs`
+- **THEN** include all specs that have a `spec.md` under `openspec/specs/<capability-path>/spec.md`
+
+#### Scenario: Validate all changes
+
+- **WHEN** executing `openspec validate --changes` with `--report` omitted or set to `full`
+- **THEN** validate all changes in openspec/changes/ (excluding archive)
+- **AND** display results for each change
+- **AND** show summary statistics
+
+#### Scenario: Validate all specs
+
+- **WHEN** executing `openspec validate --specs` with `--report` omitted or set to `full`
+- **THEN** validate all specs in openspec/specs/
+- **AND** display results for each spec
+- **AND** show summary statistics
+
+### Requirement: Validation options and progress indication
+
+The validate command SHALL support standard validation options (--strict, --json) and display progress during bulk operations. Explicit bulk reports SHALL use `--report full` or `--report findings`, independently of JSON serialization. The complete JSON schema below SHALL apply when `--report` is omitted or is `full`; findings output SHALL follow the distinct item-findings report contract.
+
+#### Scenario: Strict validation
+
+- **WHEN** executing `openspec validate --all --strict`
+- **THEN** apply strict validation to all items
+- **AND** treat warnings as errors
+- **AND** fail if any item has warnings or errors
+
+#### Scenario: JSON output
+
+- **WHEN** executing `openspec validate --all --json` with `--report` omitted or set to `full`
+- **THEN** output validation results as JSON
+- **AND** include detailed issues for each item
+- **AND** include summary statistics
+
+#### Scenario: JSON output schema for bulk validation
+
+- **WHEN** executing `openspec validate --all --json` (or `--changes` / `--specs`) with `--report` omitted or set to `full`
+- **THEN** output a JSON object with the following shape:
+  - `items`: Array of objects with fields `{ id: string, type: "change"|"spec", valid: boolean, issues: Issue[], durationMs: number }`
+  - `summary`: Object `{ totals: { items: number, passed: number, failed: number }, byType: { change?: { items: number, passed: number, failed: number }, spec?: { items: number, passed: number, failed: number } } }`
+  - `version`: String identifier for the schema (e.g., `"1.0"`)
+- **AND** exit with code 1 if any `items[].valid === false`
+
+Where `Issue` follows the existing per-item validation report shape `{ level: "ERROR"|"WARNING"|"INFO", path: string, message: string }`.
+
+#### Scenario: Show validation progress
+
+- **WHEN** validating multiple items (--all, --changes, or --specs)
+- **THEN** show progress indicator or status updates
+- **AND** indicate which item is currently being validated
+- **AND** display running count of passed/failed items
+
+#### Scenario: Concurrency limits for performance
+
+- **WHEN** validating multiple items
+- **THEN** run validations with a bounded concurrency (e.g., 4–8 in parallel)
+- **AND** ensure progress indicators remain responsive

@@ -4,7 +4,9 @@ See `proposal.md` for motivation and measured output size. Bulk validation curre
 
 The preserved feasibility candidate proves that completed validation results can be projected while retaining totals, severities, scope, and exit status. It is not the proposed contract: the candidate reused `items` under top-level version `1.0`, which could let a consumer interpret a subset as the complete scope.
 
-Live main currently has no top-level validation advisory collection outside the item results. Two open PRs affect the rebase gate rather than this proposal's current schema. #1710 adds `INFO` issues inside item records, which the whole-record projection naturally retains. #1698 proposes a top-level `overlaps` advisory collection; if it lands before implementation, the proposal artifacts must be updated to name `overlaps` explicitly and define its JSON field and human section before code is written.
+Implementation measurement on August 27, 2026 used this repository's 83-change archive, not the original 895-change corpus (which is not available in this checkout). `openspec validate --archived --json` emitted 14,690 bytes; adding `--report findings` emitted 4,047 bytes, a 72.5% reduction. Both retained all 12 failing items, totals of 71 passed and 12 failed, the same root, and exit 1. Explicit `--report full` matched the default document after normalizing `durationMs`. The findings items exactly matched the issue-bearing full records after the same normalization. Byte counts can vary with timings and checkout paths. This measures output size, not runtime.
+
+The implementation baseline was updated from main on August 27, 2026. Its full-result top-level inventory is `items`, `summary`, `version`, and `root`; there is no advisory collection outside item results. Existing `INFO` issues inside item records are retained by whole-record projection. A future top-level advisory such as `overlaps` requires an explicit contract update defining its JSON field and human section before inclusion.
 
 ## Goals / Non-Goals
 
@@ -52,7 +54,7 @@ For an explicit report request, the canonical scope is resolved as follows:
 
 Report mode and scope are normalized before root resolution or validation. Invalid human requests write a targeted error to stderr, write nothing to stdout, render no prompt or spinner, perform no validation, and exit 1.
 
-With `--json`, every invalid report request writes exactly one JSON document to stdout, writes no human text to either stream, performs no root resolution or validation, and exits 1:
+With `--json`, every parsed invalid report request writes exactly one JSON document to stdout, writes no human text to either stream, performs no root resolution or validation, and exits 1:
 
 ```json
 {
@@ -67,11 +69,13 @@ With `--json`, every invalid report request writes exactly one JSON document to 
 }
 ```
 
-The `code` is stable. The message may identify the specific conflict while retaining that code and one-status-entry shape.
+The `code` is stable. The message may identify the specific conflict while retaining that code and one-status-entry shape. Values are case-sensitive: only `full` and `findings` are supported. Missing option arguments, such as bare `--report`, are CLI syntax errors handled by the existing parser before command execution; they are outside this structured report-request contract. This change does not alter generic parser error handling.
+
+A valid report request can still fail during root resolution or scope discovery. Those failures retain the existing command diagnostic, nonzero exit status, and JSON `status` envelope rather than emitting a findings document with misleading empty totals. Per-item validation failures remain item results and do produce a completed report.
 
 ### 4. Use a distinct item-findings JSON document
 
-`--json --report findings` returns:
+After root resolution, scope discovery, and validation complete, `--json --report findings` returns a document like this three-item example:
 
 ```json
 {
@@ -79,8 +83,8 @@ The `code` is stable. The message may identify the specific conflict while retai
     "kind": "validation-findings",
     "version": "1.0",
     "scope": "archived",
-    "returnedItems": 19,
-    "totalItems": 895
+    "returnedItems": 1,
+    "totalItems": 3
   },
   "itemFindings": [
     {
@@ -98,9 +102,9 @@ The `code` is stable. The message may identify the specific conflict while retai
     }
   ],
   "summary": {
-    "totals": { "items": 895, "passed": 876, "failed": 19 },
+    "totals": { "items": 3, "passed": 2, "failed": 1 },
     "byType": {
-      "change": { "items": 895, "passed": 876, "failed": 19 }
+      "change": { "items": 3, "passed": 2, "failed": 1 }
     }
   },
   "root": {
@@ -114,7 +118,7 @@ The typed projection is exactly the full result's item records filtered by `item
 
 The findings document has no top-level `items` or top-level `version`, and it carries the exact `report.kind: "validation-findings"` discriminator and exact JSON-string `report.version: "1.0"`. Contract tests assert the version value and its string type. Tests also assert that the document does not conform to the documented full-v1 contract, which requires top-level `version: "1.0"` and a complete `items` array. No claim is made about how arbitrary permissive parsers behave.
 
-Live main has no additional top-level advisory collection to include. The implementation does not generically spread unknown full-result fields. At the rebase gate, each then-current top-level section must be inventoried and either explicitly named in the findings contract or deliberately excluded with maintainer review. If #1698 has landed, `overlaps` must remain a separate top-level advisory collection; it is not renamed to `itemFindings` and does not affect `returnedItems`.
+The implementation explicitly maps the current full-result inventory: `items` becomes filtered `itemFindings`; `summary` and `root` are retained whole; top-level `version` is replaced by the findings discriminator and version under `report`. It does not generically spread unknown full-result fields. No top-level advisory collection exists in this baseline, so none is emitted. Any future advisory must be explicitly named in the contract, remain separate from `itemFindings`, and not affect `returnedItems`.
 
 JSON findings emit exactly one document on stdout and no stderr text.
 
@@ -132,7 +136,7 @@ Within stdout, sections appear in this order:
 Within stderr, sections appear in this order:
 
 1. Item-finding blocks in full-report item order. Each block prints its item heading once, followed by every issue in issue order with its original `ERROR`, `WARNING`, or `INFO` label, path, and message. All three severities use stderr.
-2. Any advisory section explicitly named at the implementation rebase gate. If #1698 lands, the `overlaps` section follows item-finding blocks on stderr and remains distinct from item findings.
+2. Any future advisory section explicitly added to the contract would follow item-finding blocks on stderr and remain distinct from item findings. There is no such section in this implementation.
 
 Clean item rows are omitted. `No item findings.` says nothing about separately rendered advisories. Tests capture and assert each stream independently rather than asserting a merged stdout/stderr sequence. A valid findings request may retain existing progress behavior, which is outside this final-report per-stream ordering contract; the invalid-request path never renders progress UI.
 
@@ -144,7 +148,7 @@ Active and archived validation currently assemble similar result/summary envelop
 
 For valid requests, findings mode validates the same requested items as full mode. `summary` is the full-scope summary and exit status is identical for the same scope and strictness. Warning- and info-only records remain visible even when they do not fail a non-strict run.
 
-The report uses the same resolved repo or store root and native path values as full validation. No path construction or rewriting is introduced. The `--report` flag is registered on every currently supported completion surface: Bash, Zsh, Fish, and PowerShell. Only Zsh and Fish suggest the fixed `full` and `findings` values because only those existing generators consume registry value metadata. Bash and PowerShell remain unchanged beyond flag registration. This proposal does not add a completion capability or broaden the set of generators; any additional shell or agent completion surface requires separate justification.
+The report uses the same resolved repo or store root and unchanged path values as full validation, including platform-native root paths and existing POSIX-normalized issue paths. No path construction or rewriting is introduced. The `--report` flag is registered on every currently supported completion surface: Bash, Zsh, Fish, and PowerShell. Only Zsh and Fish suggest the fixed `full` and `findings` values because only those existing generators consume registry value metadata. Bash and PowerShell remain unchanged beyond flag registration. This proposal does not add a completion capability or broaden the set of generators; any additional shell or agent completion surface requires separate justification.
 
 ## Alternatives Considered
 
@@ -177,7 +181,7 @@ Rejected. Summary-only output omits actionable item findings. Alternate serializ
 - **A second JSON report contract is durable API surface.** Mitigation: one exact discriminator/version, one item projector, and reuse of full item records, summary, and root.
 - **Output savings depend on corpus shape.** The measured matrix ranged from 4.9% on an issue-dense synthetic human case to 95.7% on the real 895-change archive. The 6,740-byte figure belongs to the feasibility candidate, not this exact envelope. Mitigation: claim output reduction only and remeasure the implemented envelope.
 - **Item findings can be confused with top-level advisories.** Mitigation: `itemFindings`, `No item findings.`, separate advisory sections, and counts that cover item records only.
-- **Unknown top-level fields could be dropped.** Mitigation: a required rebase inventory and explicit named-section decisions; no unbounded generic preservation promise.
+- **Unknown top-level fields could be dropped.** Mitigation: an explicit baseline inventory and contract updates for future named sections; no unbounded generic preservation promise.
 - **Active and archived paths could drift.** Mitigation: one typed projector and shared contract tests.
 
 ## Migration Plan
