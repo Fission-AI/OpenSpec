@@ -76,10 +76,6 @@ the agent to consume it. Running `openspec update` should refresh them.
 
 Product issues found while verifying the schema system (all file refs current as of today):
 
-- `schema init --default` writes a `defaultSchema:` key to openspec/config.yaml that nothing
-  reads (schema.ts:961-978; readProjectConfig parses only schema/context/rules/operations/
-  references/store). The flag should write `schema:` or be removed. The docs now say to set
-  `schema:` by hand.
 - `schema init` next-steps output prints a command that doesn't exist in that form:
   "Use with: openspec new --schema <name>" (schema.ts:999); real syntax is
   `openspec new change <name> --schema <name>`.

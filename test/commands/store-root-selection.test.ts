@@ -10,6 +10,7 @@ import {
 import { writeStoreMetadataState } from '../../src/core/store/foundation.js';
 import { runCLI, type RunCLIResult } from '../helpers/run-cli.js';
 import { cleanupTempPath } from '../helpers/temp-cleanup.js';
+import { writeSpec } from '../helpers/openspec-fixtures.js';
 
 const VALID_DELTA_SPEC = `## ADDED Requirements
 
@@ -123,6 +124,67 @@ describe('store root selection for normal commands', () => {
     expect(fs.existsSync(path.join(appRepo, 'openspec'))).toBe(false);
   }
 
+  it.each(['local', 'store', 'declared', 'global_default'] as const)(
+    'discovers and reads capabilities in the %s root using the generated guidance (#1689)',
+    async (source) => {
+      const selectedRoot = source === 'local' ? appRepo : storeRoot;
+      const storeArgs = source === 'store' ? ['--store', 'team-context'] : [];
+      if (source === 'local' || source === 'store') {
+        createOpenSpecRoot(appRepo);
+      } else if (source === 'declared') {
+        fs.mkdirSync(path.join(appRepo, 'openspec'), { recursive: true });
+        fs.writeFileSync(path.join(appRepo, 'openspec', 'config.yaml'), 'store: team-context\n');
+      } else {
+        const configDir = path.join(tempDir, 'config', 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(path.join(configDir, 'config.json'), JSON.stringify({ defaultStore: 'team-context' }));
+      }
+
+      const spec = '# Billing\n\n## Purpose\nBills from the selected root.\n\n## Requirements\n\n### Requirement: Billing\nThe system SHALL bill.\n\n#### Scenario: Bills\n- **WHEN** due\n- **THEN** billed\n';
+      writeSpec(selectedRoot, 'billing', spec);
+      writeSpec(selectedRoot, 'billing/invoices', spec);
+      createChange(selectedRoot, 'billing');
+      if (source === 'store') {
+        // A missing --store on the read must not silently return local content.
+        writeSpec(appRepo, 'billing', spec.replace('SHALL bill', 'SHALL use local billing'));
+        writeSpec(appRepo, 'local-only', spec);
+      }
+
+      const changes = await runCLI(['list', '--json', ...storeArgs], { cwd: appRepo, env });
+      expect(changes.exitCode).toBe(0);
+      expect(parseJson(changes).changes.map((change: any) => change.name)).toEqual(['billing']);
+
+      const inventory = await runCLI(['list', '--specs', '--json', ...storeArgs], { cwd: appRepo, env });
+      expect(inventory.exitCode).toBe(0);
+      const json = parseJson(inventory);
+      expect(json.specs).toEqual([
+        { id: 'billing', requirementCount: 1 },
+        { id: 'billing/invoices', requirementCount: 1 },
+      ]);
+      expect(json.root).toEqual({
+        path: selectedRoot,
+        source: source === 'local' ? 'nearest' : source,
+        ...(source === 'local' ? {} : { store_id: 'team-context' }),
+      });
+
+      for (const { id } of json.specs) {
+        const shown = await runCLI(
+          ['show', id, '--type', 'spec', '--json', '--no-scenarios', ...storeArgs],
+          { cwd: appRepo, env }
+        );
+        expect(shown.exitCode).toBe(0);
+        expect(parseJson(shown)).toMatchObject({
+          id,
+          overview: 'Bills from the selected root.',
+          requirementCount: 1,
+          requirements: [{ text: 'The system SHALL bill.', scenarios: [] }],
+          root: json.root,
+        });
+      }
+    },
+    30_000
+  );
+
   describe('selecting a registered store by id', () => {
     it('creates a change only in the store and names the root on stderr', async () => {
       const result = await runCLI(['new', 'change', 'add-billing', '--store', 'team-context'], {
@@ -229,6 +291,20 @@ describe('store root selection for normal commands', () => {
         store_id: 'team-context',
       });
 
+      // The batch sweep must select the same root and carry the same store
+      // context per change as the single-change path above.
+      const batch = await runCLI(['status', '--all', '--store', 'team-context', '--json'], {
+        cwd: appRepo,
+        env,
+      });
+      expect(batch.exitCode).toBe(0);
+      const batchJson = parseJson(batch);
+      expect(batchJson.root).toEqual(statusJson.root);
+      expect(batchJson.changes.map((change: { changeName: string }) => change.changeName)).toEqual([
+        'store-change',
+      ]);
+      expect(batchJson.changes[0]).toEqual({ ...statusJson, root: undefined });
+
       const instructions = await runCLI(
         ['instructions', 'design', '--change', 'store-change', '--store', 'team-context', '--json'],
         { cwd: appRepo, env }
@@ -301,24 +377,6 @@ operations:
       expectNoLocalOpenSpec();
     });
 
-    it('lists specs from the store with minimal JSON support', async () => {
-      const specDir = path.join(storeRoot, 'openspec', 'specs', 'billing');
-      fs.mkdirSync(specDir, { recursive: true });
-      fs.writeFileSync(
-        path.join(specDir, 'spec.md'),
-        '# billing\n\n## Purpose\nBills.\n\n## Requirements\n\n### Requirement: Billing SHALL work\nThe system SHALL bill.\n\n#### Scenario: Bills\n- **WHEN** due\n- **THEN** billed\n'
-      );
-
-      const result = await runCLI(['list', '--specs', '--json', '--store', 'team-context'], {
-        cwd: appRepo,
-        env,
-      });
-      expect(result.exitCode).toBe(0);
-      const json = parseJson(result);
-      expect(json.specs).toEqual([{ id: 'billing', requirementCount: 1 }]);
-      expect(json.root.store_id).toBe('team-context');
-    });
-
     it('runs bulk validation against the selected store', async () => {
       createChange(storeRoot, 'store-change');
 
@@ -373,6 +431,35 @@ operations:
       expect(result.exitCode).toBe(0);
       expect(result.stdout.startsWith('## Why')).toBe(true);
       expect(result.stderr).toContain(`Using OpenSpec root: team-context (${storeRoot})`);
+    });
+
+    it('diffs a delta against the selected store\'s main specs', async () => {
+      // A same-named capability sits in the cwd repo with different text. If
+      // --diff resolved main specs against the cwd instead of the store root,
+      // the diff below would be computed from this decoy.
+      fs.mkdirSync(path.join(appRepo, 'openspec', 'specs', 'billing'), { recursive: true });
+      fs.writeFileSync(
+        path.join(appRepo, 'openspec', 'specs', 'billing', 'spec.md'),
+        '# billing Specification\n\n## Purpose\nDecoy.\n\n## Requirements\n### Requirement: Billing SHALL work\nThe system SHALL create decoy bills.\n\n#### Scenario: Creates bills\n- **WHEN** a billing period ends\n- **THEN** a decoy bill is created\n'
+      );
+      fs.mkdirSync(path.join(storeRoot, 'openspec', 'specs', 'billing'), { recursive: true });
+      fs.writeFileSync(
+        path.join(storeRoot, 'openspec', 'specs', 'billing', 'spec.md'),
+        '# billing Specification\n\n## Purpose\nBilling.\n\n## Requirements\n### Requirement: Billing SHALL work\nThe system SHALL create bills.\n\n#### Scenario: Creates bills\n- **WHEN** a billing period ends\n- **THEN** a bill is created\n'
+      );
+      createChange(storeRoot, 'store-change', {
+        deltaSpec: '## MODIFIED Requirements\n\n### Requirement: Billing SHALL work\nThe system SHALL create bills monthly.\n\n#### Scenario: Creates bills\n- **WHEN** a billing period ends\n- **THEN** a bill is created\n',
+      });
+
+      const result = await runCLI(
+        ['show', 'store-change', '--store', 'team-context', '--diff'],
+        { cwd: appRepo, env }
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('MODIFIED: Billing SHALL work');
+      expect(result.stdout).toContain('-The system SHALL create bills.');
+      expect(result.stdout).toContain('+The system SHALL create bills monthly.');
+      expect(result.stdout).not.toContain('decoy');
     });
 
     it('keeps instructions stdout as the artifact payload', async () => {

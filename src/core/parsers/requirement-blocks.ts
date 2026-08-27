@@ -130,6 +130,10 @@ export interface DeltaPlan {
   added: RequirementBlock[];
   modified: RequirementBlock[];
   removed: string[]; // requirement names
+  // Raw `### Requirement:` blocks from the REMOVED section, when the delta used
+  // the header form. Names alone drop the authored Reason/Migration text that a
+  // reader of the removal needs. Empty for the bullet-list form, which has none.
+  removedBlocks: RequirementBlock[];
   renamed: Array<{ from: string; to: string }>;
   skippedHeaders: SkippedHeader[]; // non-canonical ### headers the reader skipped
   sectionPresence: {
@@ -181,12 +185,14 @@ export function parseDeltaSpec(content: string): DeltaPlan {
     sink: skippedHeaders,
   });
   const removedNames = parseRemovedNames(removedLookup.body);
+  const removedBlocks = parseRequirementBlocksFromSection(removedLookup.body);
   const renamedPairs = parseRenamedPairs(renamedLookup.body);
   skippedHeaders.sort((a, b) => a.line - b.line);
   return {
     added,
     modified,
     removed: removedNames,
+    removedBlocks,
     renamed: renamedPairs,
     skippedHeaders,
     sectionPresence: {
