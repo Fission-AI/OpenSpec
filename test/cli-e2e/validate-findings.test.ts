@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { promises as fs } from 'fs';
+import { promises as fs, realpathSync } from 'fs';
 import path from 'path';
 import { tmpdir } from 'os';
 import { getGlobalDataDir, registerStore } from '../../src/core/index.js';
@@ -77,7 +77,7 @@ describe('validation report CLI contract', () => {
     expect(result.stderr).toBe('');
     const output = JSON.parse(result.stdout);
     expect(output, JSON.stringify(output)).toHaveProperty('root');
-    expect(await fs.realpath(output.root.path)).toBe(await fs.realpath(projectDir));
+    expect(realpathSync.native(output.root.path)).toBe(realpathSync.native(projectDir));
     expect(output.root.source).toBe('store');
     expect(output.root.store_id).toBe('report-store');
     expect(output.report).toMatchObject({ scope: 'archived', totalItems: 2, returnedItems: 1 });
