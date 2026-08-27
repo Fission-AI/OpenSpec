@@ -2,21 +2,41 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
-import { randomUUID } from 'crypto';
 import { ZshInstaller } from '../../../../src/core/completions/installers/zsh-installer.js';
 
 describe('ZshInstaller', () => {
   let testHomeDir: string;
   let installer: ZshInstaller;
+  let originalZsh: string | undefined;
+  let originalZshCustom: string | undefined;
 
   beforeEach(async () => {
+    // Clear $ZSH and $ZSH_CUSTOM (set by a real Oh My Zsh install) so the
+    // installer resolves against the isolated test home directory instead of
+    // reading — or writing into — the developer's real OMZ tree
+    originalZsh = process.env.ZSH;
+    delete process.env.ZSH;
+    originalZshCustom = process.env.ZSH_CUSTOM;
+    delete process.env.ZSH_CUSTOM;
+
     // Create a temporary home directory for testing
-    testHomeDir = path.join(os.tmpdir(), `openspec-zsh-test-${randomUUID()}`);
-    await fs.mkdir(testHomeDir, { recursive: true });
+    testHomeDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-zsh-test-'));
     installer = new ZshInstaller(testHomeDir);
   });
 
   afterEach(async () => {
+    // Restore original environment
+    if (originalZsh !== undefined) {
+      process.env.ZSH = originalZsh;
+    } else {
+      delete process.env.ZSH;
+    }
+    if (originalZshCustom !== undefined) {
+      process.env.ZSH_CUSTOM = originalZshCustom;
+    } else {
+      delete process.env.ZSH_CUSTOM;
+    }
+
     // Clean up test directory
     await fs.rm(testHomeDir, { recursive: true, force: true });
   });
@@ -25,6 +45,14 @@ describe('ZshInstaller', () => {
     it('should return false when Oh My Zsh is not installed', async () => {
       const isInstalled = await installer.isOhMyZshInstalled();
       expect(isInstalled).toBe(false);
+    });
+
+    it('should return true when $ZSH environment variable is set', async () => {
+      // No .oh-my-zsh directory in testHomeDir; detection relies on $ZSH alone
+      process.env.ZSH = path.join(testHomeDir, '.oh-my-zsh');
+
+      const isInstalled = await installer.isOhMyZshInstalled();
+      expect(isInstalled).toBe(true);
     });
 
     it('should return true when Oh My Zsh directory exists', async () => {
@@ -63,6 +91,30 @@ describe('ZshInstaller', () => {
 
       expect(result.isOhMyZsh).toBe(false);
       expect(result.path).toBe(path.join(testHomeDir, '.zsh', 'completions', '_openspec'));
+    });
+
+    it('should honor $ZSH for an Oh My Zsh install at a custom location', async () => {
+      // A relocated OMZ exports $ZSH; writing under ~/.oh-my-zsh instead
+      // would create a tree that no shell ever loads.
+      const customRoot = path.join(testHomeDir, 'dotfiles', 'omz');
+      process.env.ZSH = customRoot;
+
+      const result = await installer.getInstallationPath();
+
+      expect(result.isOhMyZsh).toBe(true);
+      expect(result.path).toBe(path.join(customRoot, 'custom', 'completions', '_openspec'));
+    });
+
+    it('should honor $ZSH_CUSTOM over the derived custom dir', async () => {
+      process.env.ZSH = path.join(testHomeDir, 'dotfiles', 'omz');
+      process.env.ZSH_CUSTOM = path.join(testHomeDir, 'dotfiles', 'omz-custom');
+
+      const result = await installer.getInstallationPath();
+
+      expect(result.isOhMyZsh).toBe(true);
+      expect(result.path).toBe(
+        path.join(testHomeDir, 'dotfiles', 'omz-custom', 'completions', '_openspec')
+      );
     });
   });
 
@@ -250,8 +302,7 @@ describe('ZshInstaller', () => {
 
     it('should handle paths with spaces in .zshrc config', async () => {
       // Create a test home directory with spaces
-      const testHomeDirWithSpaces = path.join(os.tmpdir(), `openspec zsh test ${randomUUID()}`);
-      await fs.mkdir(testHomeDirWithSpaces, { recursive: true });
+      const testHomeDirWithSpaces = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec zsh test '));
       const installerWithSpaces = new ZshInstaller(testHomeDirWithSpaces);
 
       try {

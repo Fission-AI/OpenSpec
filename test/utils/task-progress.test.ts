@@ -1,8 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { promises as fs } from 'fs';
+import { promises as fs, realpathSync } from 'fs';
 import path from 'path';
 import os from 'os';
-import { getTaskProgressForChange } from '../../src/utils/task-progress.js';
+import {
+  countTasksFromContent,
+  getTaskProgressForChange,
+  getTaskProgressDetailForChange,
+  parseTaskLines,
+} from '../../src/utils/task-progress.js';
 import { resolveArtifactOutputs } from '../../src/core/artifact-graph/index.js';
 
 /**
@@ -36,7 +41,7 @@ describe('getTaskProgressForChange (#1202 tracked-tasks resolution)', () => {
   ].join('\n');
 
   beforeEach(async () => {
-    projectRoot = path.join(os.tmpdir(), `openspec-taskprogress-${Date.now()}-${Math.round(performance.now())}`);
+    projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-taskprogress-'));
     changesDir = path.join(projectRoot, 'openspec', 'changes');
     await fs.mkdir(changesDir, { recursive: true });
   });
@@ -111,6 +116,25 @@ describe('getTaskProgressForChange (#1202 tracked-tasks resolution)', () => {
     expect(progress).toEqual({ total: 2, completed: 1 });
   });
 
+  it('memoizes schema→glob resolution across changes via the shared cache (#205)', async () => {
+    await writeGlobSchema();
+    await writeChange('c1', { 'backend/tasks.md': '- [x] a\n' });
+    await writeChange('c2', { 'backend/tasks.md': '- [ ] b\n' });
+
+    const cache = new Map<string, string | undefined>();
+    const d1 = await getTaskProgressDetailForChange(changesDir, 'c1', projectRoot, cache);
+    // The schema→glob lookup is now cached under the resolved schema name.
+    expect(cache.get('glob-tasks')).toBe('**/tasks.md');
+    expect(cache.size).toBe(1);
+
+    // A second change on the same schema reuses the entry (no new key added),
+    // and results are still correct.
+    const d2 = await getTaskProgressDetailForChange(changesDir, 'c2', projectRoot, cache);
+    expect(cache.size).toBe(1);
+    expect(d1).toEqual({ total: 1, completed: 1, unreadable: [] });
+    expect(d2).toEqual({ total: 1, completed: 0, unreadable: [] });
+  });
+
   it('identifies the tracked artifact by apply.tracks even when it is not named "tasks"', async () => {
     const schemaDir = path.join(projectRoot, 'openspec', 'schemas', 'custom-track');
     await fs.mkdir(schemaDir, { recursive: true });
@@ -164,5 +188,193 @@ describe('getTaskProgressForChange (#1202 tracked-tasks resolution)', () => {
 
     const progress = await getTaskProgressForChange(changesDir, 'notasks', projectRoot);
     expect(progress).toEqual({ total: 0, completed: 0 });
+  });
+
+  it('counts indented sub-tasks, so a change with unfinished sub-tasks is not "Complete"', async () => {
+    await writeChange(
+      'nested',
+      {
+        'tasks.md': [
+          '## 1. Implementation',
+          '- [x] 1.1 Parent task',
+          '  - [ ] 1.1.1 Unfinished sub-task',
+          '    - [x] 1.1.1.1 Deeper sub-task',
+          '- [x] 1.2 Second parent',
+          '',
+        ].join('\n'),
+      },
+      ''
+    );
+
+    const progress = await getTaskProgressForChange(changesDir, 'nested', projectRoot);
+    expect(progress).toEqual({ total: 4, completed: 3 });
+  });
+});
+
+describe('parseTaskLines', () => {
+  it('reads bullet, checkbox state and description in document order', () => {
+    const tasks = parseTaskLines('- [ ] 1.1 First\n* [x] 1.2 Second\n- [X] 1.3 Third\n');
+
+    expect(tasks).toEqual([
+      { done: false, description: '1.1 First' },
+      { done: true, description: '1.2 Second' },
+      { done: true, description: '1.3 Third' },
+    ]);
+  });
+
+  it('includes sub-tasks at every indent depth, spaces or tabs', () => {
+    const tasks = parseTaskLines(
+      '- [x] 1.1 Parent\n  - [ ] 1.1.1 Child\n    - [ ] 1.1.1.1 Grandchild\n\t- [ ] 1.1.2 Tab child\n'
+    );
+
+    expect(tasks.map((task) => task.description)).toEqual([
+      '1.1 Parent',
+      '1.1.1 Child',
+      '1.1.1.1 Grandchild',
+      '1.1.2 Tab child',
+    ]);
+  });
+
+  it('trims the description, including a trailing carriage return on CRLF files', () => {
+    const tasks = parseTaskLines('- [ ] 1.1 First   \r\n  - [x] 1.1.1 Child\r\n');
+
+    expect(tasks).toEqual([
+      { done: false, description: '1.1 First' },
+      { done: true, description: '1.1.1 Child' },
+    ]);
+  });
+
+  it('keeps a checkbox with no description, which progress has always counted', () => {
+    expect(parseTaskLines('- [ ]\n- [x]   \n')).toEqual([
+      { done: false, description: '' },
+      { done: true, description: '' },
+    ]);
+  });
+
+  it('leaves non-checkbox lines, prose and headings alone', () => {
+    const tasks = parseTaskLines(
+      [
+        '# Tasks',
+        '## 1. Group',
+        '- A plain bullet',
+        '1. A numbered item',
+        'Prose about [x] brackets.',
+        '- [ ] 1.1 Only this one counts',
+        '',
+      ].join('\n')
+    );
+
+    expect(tasks.map((task) => task.description)).toEqual(['1.1 Only this one counts']);
+  });
+
+  describe('code fences (checkboxes inside them still count)', () => {
+    it('counts a checkbox inside a fence, at any indent', () => {
+      // Known limitation, unchanged for column-0 lines and extended to indented
+      // ones by allowing leading whitespace: a fenced example counts as work.
+      // The alternative - deciding which fences are real - loses genuine tasks
+      // on unbalanced input, which silently disables archive's gate.
+      const content = [
+        '## 1. Work',
+        '- [ ] 1.1 Real task',
+        '',
+        'Write tasks like this:',
+        '',
+        '   ```md',
+        '   - [ ] 2.1 Example task',
+        '   ```',
+        '',
+      ].join('\n');
+
+      expect(countTasksFromContent(content)).toEqual({ total: 2, completed: 0 });
+    });
+
+    it('counts real work that follows an unterminated fence', () => {
+      // One stray ``` must never hide the tasks after it.
+      const content = ['- [x] 1.1 Done', '```bash', 'npm test', '- [ ] 2.1 Real work', ''].join(
+        '\n'
+      );
+
+      expect(countTasksFromContent(content)).toEqual({ total: 2, completed: 1 });
+    });
+
+    it('counts a checklist whose file is wrapped in a single fence', () => {
+      const content = ['```md', '- [ ] 1.1 Task one', '- [x] 1.2 Task two', '```', ''].join('\n');
+
+      expect(countTasksFromContent(content)).toEqual({ total: 2, completed: 1 });
+    });
+  });
+});
+
+describe('countTasksFromContent', () => {
+  it('counts every line the two previous patterns counted', () => {
+    // The old patterns were /^[-*]\s+\[[\sx]\]/i (progress counting) and
+    // /^[-*]\s*\[([ xX])\]\s*(.+)\s*$/ (apply list). Everything they matched
+    // must still match, so no tasks.md can report less work than before.
+    // `-[x]` (no space after the bullet) was matched only by the apply
+    // pattern; it now counts toward progress too.
+    const content = [
+      '- [ ] 1.1 Space checkbox',
+      '* [x] 1.2 Star bullet, done',
+      '- [X] 1.3 Uppercase done',
+      '- [\t] 1.4 Tab inside the brackets',
+      '- [\u00A0] 1.5 Non-breaking space inside the brackets',
+      '-[x] 1.6 No space after the bullet',
+      '',
+    ].join('\n');
+
+    expect(countTasksFromContent(content)).toEqual({ total: 6, completed: 3 });
+  });
+});
+
+/**
+ * #205 — `getTaskProgressDetailForChange` mirrors `getTaskProgressForChange`
+ * but also reports task files that exist yet cannot be read, so a lint can fail
+ * loudly instead of silently counting an unreadable file as "no tasks".
+ */
+describe('getTaskProgressDetailForChange (#205 unreadable reporting)', () => {
+  let root: string;
+  let changesDir: string;
+
+  beforeEach(async () => {
+    root = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-taskdetail-'));
+    changesDir = path.join(root, 'openspec', 'changes');
+    await fs.mkdir(changesDir, { recursive: true });
+  });
+
+  afterEach(async () => {
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it('reports no unreadable files for a normal tasks.md and counts as before', async () => {
+    const changeDir = path.join(changesDir, 'ok');
+    await fs.mkdir(changeDir, { recursive: true });
+    await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] a\n- [ ] b\n', 'utf-8');
+
+    const detail = await getTaskProgressDetailForChange(changesDir, 'ok', root);
+    expect(detail).toEqual({ total: 2, completed: 1, unreadable: [] });
+  });
+
+  it('records a task file that exists but cannot be read (EISDIR)', async () => {
+    // A tasks.md that is a directory yields a non-ENOENT read error on every
+    // platform, standing in for a genuinely unreadable file.
+    const badTasks = path.join(changesDir, 'bad', 'tasks.md');
+    await fs.mkdir(badTasks, { recursive: true });
+
+    const detail = await getTaskProgressDetailForChange(changesDir, 'bad', root);
+    expect(detail.total).toBe(0);
+    expect(detail.completed).toBe(0);
+    expect(detail.unreadable).toHaveLength(1);
+    // The reported path is the file that could not be read (both canonicalized
+    // so a /var vs /private/var symlink difference does not fail the identity).
+    expect(realpathSync.native(detail.unreadable[0])).toBe(
+      realpathSync.native(badTasks)
+    );
+  });
+
+  it('treats a missing tasks.md as zero tasks, not unreadable', async () => {
+    await fs.mkdir(path.join(changesDir, 'empty'), { recursive: true });
+
+    const detail = await getTaskProgressDetailForChange(changesDir, 'empty', root);
+    expect(detail).toEqual({ total: 0, completed: 0, unreadable: [] });
   });
 });

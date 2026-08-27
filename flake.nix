@@ -39,6 +39,7 @@
                 ./test
                 ./package.json
                 ./pnpm-lock.yaml
+                ./pnpm-workspace.yaml
                 ./tsconfig.json
                 ./build.js
                 ./vitest.config.ts
@@ -51,12 +52,12 @@
               inherit (finalAttrs) pname version src;
               pnpm = pkgs.pnpm_9;
               fetcherVersion = 3;
-              hash = "sha256-cFY6phUPK4IOthG/aOtMenyQlLYCCilcOIG+G+v/q04=";
+              hash = "sha256-+qGFLSVLJ9faZOmfO6ZVBP525i5LRgwhsJat2vT7Aw8=";
             };
 
             nativeBuildInputs = with pkgs; [
               installShellFiles
-              nodejs_20
+              nodejs_22
               npmHooks.npmInstallHook
               pnpmConfigHook
               pnpm_9
@@ -108,7 +109,7 @@
         {
           default = pkgs.mkShell {
             buildInputs = with pkgs; [
-              nodejs_20
+              nodejs_22
               pnpm_9
             ];
 
