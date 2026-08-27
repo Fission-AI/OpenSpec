@@ -132,12 +132,22 @@ describe('propose project context', () => {
     }
   });
 
-  it('permits only the missing-root fallback and preserves the selected store on failures', () => {
+  it('stops without writing and offers initialization when no root is resolved', () => {
     for (const [label, body] of proposeBodies) {
       const section = contextSection(body);
-      expect(section, label).toContain('context reports only `no_openspec_root`');
-      expect(section, label).toContain('let `openspec new change` resolve the implicit root');
-      expect(section, label).toContain('If the result was `no_openspec_root`, skip this config read');
+      expect(section, label).toContain('context reports `no_openspec_root`');
+      expect(section, label).toContain('stop without creating or changing any files');
+      expect(section, label).toContain('Offer `openspec init`');
+      expect(section, label).toContain('wait for the user to request initialization');
+      expect(section, label).toContain('Do not initialize automatically or run `openspec new change`');
+      expect(section, label).toContain('After initialization, rerun this context check before continuing');
+      expect(body, label).not.toContain('resolve the implicit root');
+    }
+  });
+
+  it('preserves the selected store on resolution failures', () => {
+    for (const [label, body] of proposeBodies) {
+      const section = contextSection(body);
       expect(section, label).toContain('For any other context failure, stop');
       expect(section, label).toContain('do not fall back to the current directory');
       expect(section, label).toContain('run later OpenSpec commands without the selected store');
@@ -220,7 +230,7 @@ describe('propose implementation boundary', () => {
     expect(proposeSkillBody).not.toContain('ask me to implement');
   });
 
-  it('preserves both boundaries through every command adapter', () => {
+  it('preserves planning and initialization boundaries through every command adapter', () => {
     const propose = getCommandContents(['propose'])[0];
     expect(propose?.id).toBe('propose');
 
@@ -247,6 +257,9 @@ describe('propose implementation boundary', () => {
         `When you are ready, run \`${applyInvocation}\`.`
       );
       expect(generated, adapter.toolId).not.toContain('ask me to implement');
+      expect(generated, adapter.toolId).toContain('stop without creating or changing any files');
+      expect(generated, adapter.toolId).toContain('Offer `openspec init`');
+      expect(generated, adapter.toolId).toContain('Do not initialize automatically or run `openspec new change`');
     }
   });
 });
@@ -304,13 +317,9 @@ describe('propose schema selection', () => {
         'append `--store "<store-id>"` to `openspec schemas --json` as well'
       );
       expect(schemaSection, label).not.toContain('`schemas` does not accept `--store`');
-      expect(schemaSection, label).toContain('context reports only `no_openspec_root`');
-      expect(schemaSection, label).toContain(
-        'run `openspec schemas --json` from the current working directory instead'
-      );
-      expect(schemaSection, label).toContain(
-        'Do not use this fallback for invalid or unavailable stores'
-      );
+      expect(schemaSection, label).toContain('If context fails, stop as described in the context-loading step');
+      expect(schemaSection, label).toContain('do not fall back to the current directory');
+      expect(schemaSection, label).not.toContain('from the current working directory instead');
       expect(schemaSection, label).toContain(
         'Otherwise, omit `--schema` to preserve the configured default'
       );
