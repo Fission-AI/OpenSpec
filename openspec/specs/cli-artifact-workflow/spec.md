@@ -2,7 +2,6 @@
 
 ## Purpose
 Define artifact workflow CLI behavior (`status`, `instructions`, `templates`, and setup flows) for scaffolded and active changes.
-
 ## Requirements
 ### Requirement: Status Command
 
@@ -26,14 +25,31 @@ The system SHALL display artifact completion status for a change, including scaf
 #### Scenario: Status JSON output
 
 - **WHEN** user runs `openspec status --change <id> --json`
-- **THEN** the system outputs JSON with changeName, schemaName, isComplete, and artifacts array
+- **THEN** the system outputs JSON with changeName, schemaName, isPlanningComplete, isComplete, and artifacts array
+- **AND** `isPlanningComplete` is true only when every non-skipped planning artifact exists
+- **AND** a skipped artifact counts as satisfied without being created
+- **AND** `isComplete` remains a compatibility alias with the same value
 
 #### Scenario: Status JSON includes apply requirements
 
 - **WHEN** user runs `openspec status --change <id> --json`
 - **THEN** the system outputs JSON with:
-  - `changeName`, `schemaName`, `isComplete`, `artifacts` array
+  - `changeName`, `schemaName`, `isPlanningComplete`, `isComplete`, `artifacts` array
   - `applyRequires`: array of artifact IDs needed for apply phase
+
+#### Scenario: Status JSON exposes each artifact's dependency edges
+
+- **WHEN** user runs `openspec status --change <id> --json`
+- **THEN** every entry in the `artifacts` array includes `requires`: the array of artifact IDs it directly depends on
+- **AND** `requires` is present regardless of the artifact's status, so a `done` artifact still reports its dependencies (letting agents compute the transitive required set from status alone)
+
+#### Scenario: Status lists artifacts in dependency order, declaration order breaking ties
+
+- **WHEN** user runs `openspec status --change <id>` (text or `--json`)
+- **THEN** artifacts appear in dependency order, so a dependency is never listed after something that requires it
+- **AND** artifacts that become ready at the same time keep the order the schema declares them, rather than being reordered alphabetically
+- **AND** the first `ready` entry is therefore the artifact to write next
+- **AND** a blocked artifact's `missingDeps` uses that same order
 
 #### Scenario: Status on scaffolded change
 
@@ -62,6 +78,7 @@ The workflow SHALL use `openspec status` output to determine what can be created
 
 - **WHEN** a user needs to know which artifact to create next
 - **THEN** `openspec status --change <id>` identifies ready artifacts with `[ ]`
+- **AND** the first `[ ]` entry is the schema's recommended next artifact
 - **AND** no dedicated "next command" is required to continue the workflow
 
 ### Requirement: Instructions Command
@@ -275,3 +292,41 @@ The setup command SHALL display clear output about what was generated.
 
 - **WHEN** command generation is skipped due to missing adapter
 - **THEN** output includes message: "Command generation skipped - no adapter for <tool>"
+
+### Requirement: Status JSON provides planning context
+The status command SHALL provide machine-readable planning context for changes.
+
+#### Scenario: Reporting next steps
+- **WHEN** a user runs `openspec status --change <id> --json`
+- **THEN** the output SHALL include next step guidance for agents
+- **AND** the guidance SHALL use plain action language
+
+### Requirement: Status JSON action context
+The status command SHALL expose action context that lets agents act without hardcoded filesystem assumptions.
+
+#### Scenario: Repo-local action context
+- **GIVEN** the change is repo-local
+- **WHEN** a user runs `openspec status --change <id> --json`
+- **THEN** status JSON SHALL preserve existing artifact status behavior
+- **AND** it SHALL report a repo-local planning home for agents that use action context
+
+### Requirement: Instructions use resolved planning paths
+Artifact and apply instructions SHALL use resolved planning paths rather than hardcoded repo-local change paths.
+
+#### Scenario: Repo-local artifact instructions
+- **GIVEN** the change is repo-local
+- **WHEN** a user runs `openspec instructions <artifact> --change <id> --json`
+- **THEN** instruction output SHALL preserve existing repo-local paths
+
+### Requirement: Workflow skills use CLI artifact context
+Generated workflow skills SHALL use OpenSpec CLI output as the source of truth for artifact locations.
+
+#### Scenario: Skills inspect status before artifact work
+- **WHEN** a generated workflow skill needs to inspect or create artifacts for a change
+- **THEN** it SHALL instruct the agent to run `openspec status --change <id> --json`
+- **AND** it SHALL use returned planning context and artifact paths rather than assuming a repo-local change path
+
+#### Scenario: Skills use instructions before writing artifacts
+- **WHEN** a generated workflow skill is about to create or update an artifact
+- **THEN** it SHALL instruct the agent to run `openspec instructions <artifact> --change <id> --json`
+- **AND** it SHALL write to the resolved artifact path returned by the command

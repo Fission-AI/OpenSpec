@@ -1,10 +1,12 @@
+import { buildCodeFenceMask } from './code-fence.js';
+
 const REQUIREMENTS_SECTION_HEADER = /^##\s+Requirements\s*$/i;
 const TOP_LEVEL_SECTION_HEADER = /^##\s+/;
 const DELTA_HEADER = /^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements\s*$/i;
-const REQUIREMENT_HEADER = /^###\s+Requirement:\s*(.+)\s*$/;
+const REQUIREMENT_HEADER = /^###\s+Requirement:\s*(.+)\s*$/i;
 
 export interface MainSpecStructureIssue {
-  kind: 'delta-header' | 'requirement-outside-requirements';
+  kind: 'delta-header' | 'requirement-outside-requirements' | 'duplicate-requirement';
   line: number;
   header: string;
   message: string;
@@ -15,6 +17,7 @@ export function findMainSpecStructureIssues(content: string): MainSpecStructureI
   const stripped = stripFencedCodeBlocksPreservingLines(normalized);
   const lines = stripped.split('\n');
   const issues: MainSpecStructureIssue[] = [];
+  const requirementLines = new Map<string, number>();
 
   const requirementsHeaderIndex = lines.findIndex(line => REQUIREMENTS_SECTION_HEADER.test(line));
   let requirementsEndIndex = lines.length;
@@ -42,7 +45,7 @@ export function findMainSpecStructureIssues(content: string): MainSpecStructureI
         header: trimmed,
         message:
           `Main spec contains delta header "${trimmed}". ` +
-          'Delta headers are only valid inside openspec/changes/<name>/specs/<capability>/spec.md ' +
+          'Delta headers are only valid inside openspec/changes/<name>/specs/<capability-path>/spec.md ' +
           'and truncate the parsed ## Requirements section.',
       });
       continue;
@@ -67,6 +70,22 @@ export function findMainSpecStructureIssues(content: string): MainSpecStructureI
           `Requirement header "${trimmed}" appears outside the main ## Requirements section. ` +
           'Main specs only parse requirements inside that section, so this requirement is currently invisible to validate, list, and archive.',
       });
+      continue;
+    }
+
+    const requirementName = requirementMatch[1].trim();
+    const previousLine = requirementLines.get(requirementName);
+    if (previousLine !== undefined) {
+      issues.push({
+        kind: 'duplicate-requirement',
+        line: i + 1,
+        header: trimmed,
+        message:
+          `Requirement header "${trimmed}" duplicates the requirement declared on line ${previousLine}. ` +
+          'Requirement names must be unique so spec updates cannot discard one block while updating another.',
+      });
+    } else {
+      requirementLines.set(requirementName, i + 1);
     }
   }
 
@@ -75,43 +94,6 @@ export function findMainSpecStructureIssues(content: string): MainSpecStructureI
 
 export function stripFencedCodeBlocksPreservingLines(content: string): string {
   const lines = content.split('\n');
-  const output: string[] = [];
-  let activeFence: { marker: '`' | '~'; length: number } | null = null;
-
-  for (const line of lines) {
-    const fenceMatch = line.match(/^\s*(`{3,}|~{3,})(.*)$/);
-
-    if (!activeFence) {
-      if (fenceMatch) {
-        activeFence = {
-          marker: fenceMatch[1][0] as '`' | '~',
-          length: fenceMatch[1].length,
-        };
-        output.push('');
-      } else {
-        output.push(line);
-      }
-      continue;
-    }
-
-    output.push('');
-
-    if (isClosingFence(line, activeFence)) {
-      activeFence = null;
-    }
-  }
-
-  return output.join('\n');
-}
-
-function isClosingFence(
-  line: string,
-  activeFence: { marker: '`' | '~'; length: number }
-): boolean {
-  const fenceMatch = line.match(/^\s*(`{3,}|~{3,})\s*$/);
-  return Boolean(
-    fenceMatch &&
-    fenceMatch[1][0] === activeFence.marker &&
-    fenceMatch[1].length >= activeFence.length
-  );
+  const mask = buildCodeFenceMask(lines);
+  return lines.map((line, i) => (mask[i] ? '' : line)).join('\n');
 }

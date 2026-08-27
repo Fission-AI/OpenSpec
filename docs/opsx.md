@@ -65,7 +65,7 @@ openspec init
 
 This creates skills in `.claude/skills/` (or equivalent) that AI coding assistants auto-detect.
 
-By default, OpenSpec uses the `core` workflow profile (`propose`, `explore`, `apply`, `archive`). If you want the expanded workflow commands (`new`, `continue`, `ff`, `verify`, `sync`, `bulk-archive`, `onboard`), configure them with `openspec config profile` and apply with `openspec update`.
+By default, OpenSpec uses the `core` workflow profile (`propose`, `explore`, `apply`, `update`, `sync`, `archive`). If you want the expanded workflow commands (`new`, `continue`, `ff`, `verify`, `bulk-archive`, `onboard`), configure them with `openspec config profile` and apply with `openspec update`.
 
 During setup, you'll be prompted to create a **project config** (`openspec/config.yaml`). This is optional but recommended.
 
@@ -163,8 +163,9 @@ rules:
 | `/opsx:continue` | Create the next artifact (expanded workflow) |
 | `/opsx:ff` | Fast-forward planning artifacts (expanded workflow) |
 | `/opsx:apply` | Implement tasks, updating artifacts as needed |
+| `/opsx:update` | Revise a change's planning artifacts and keep them coherent |
 | `/opsx:verify` | Validate implementation against artifacts (expanded workflow) |
-| `/opsx:sync` | Sync delta specs to main (expanded workflow, optional) |
+| `/opsx:sync` | Merge delta specs into main specs (optional) |
 | `/opsx:archive` | Archive when done |
 | `/opsx:bulk-archive` | Archive multiple completed changes (expanded workflow) |
 | `/opsx:onboard` | Guided walkthrough of an end-to-end change (expanded workflow) |
@@ -207,6 +208,18 @@ Creates all planning artifacts at once. Use when you have a clear picture of wha
 /opsx:apply
 ```
 Works through tasks, checking them off as you go. If you're juggling multiple changes, you can run `/opsx:apply <name>`; otherwise it should infer from the conversation and prompt you to choose if it can't tell.
+
+### Updating a change
+```
+/opsx:update add-dark-mode - we're storing the theme in a cookie now
+```
+Revises the change's existing planning artifacts and keeps them coherent - in any direction (a design edit may ripple back to the proposal). Planning artifacts only: it never edits code, and it never creates missing artifacts (that's `/opsx:continue`). Every edit is confirmed with you first. If the change was already implemented, it recommends `/opsx:apply` so the code catches up with the revised plan. If your revision changes the change's *intent*, start fresh instead - see [When to Update vs. Start Fresh](#when-to-update-vs-start-fresh).
+
+### Sync delta specs
+```text
+/opsx:sync
+```
+Merges the current change's delta specs into your main `openspec/specs/` without archiving — the change stays active. It applies the whole delta: a requirement under `## REMOVED` is deleted from the main spec and a renamed one is retitled in place, while content the delta doesn't mention is left untouched. Syncing is optional — archive prompts you to sync first if you haven't. Reach for it when you want main specs updated before archiving, when a parallel change needs to build on specs this one just added, or when you want to review the merged main spec before archiving.
 
 ### Finish up
 ```
@@ -313,7 +326,7 @@ Think of it like git branches:
 ## Architecture Deep Dive
 
 This section explains how OPSX works under the hood and how it compares to the legacy workflow.
-Examples in this section use the expanded command set (`new`, `continue`, etc.); default `core` users can map the same flow to `propose → apply → archive`.
+Examples in this section use the expanded command set (`new`, `continue`, etc.); default `core` users can map the same flow to `propose → apply → sync → archive`.
 
 ### Philosophy: Phases vs Actions
 
@@ -412,7 +425,7 @@ Examples in this section use the expanded command set (`new`, `continue`, etc.);
 │                    ▼                                                        │
 │   Skill Files (.claude/skills/openspec-*/SKILL.md)                          │
 │                                                                             │
-│   • Cross-editor compatible (Claude Code, Cursor, Windsurf)                 │
+│   • Cross-editor compatible (Claude Code, Cursor, Devin)                    │
 │   • Skills query CLI for structured data                                    │
 │   • Fully customizable via schema files                                     │
 │                                                                             │
@@ -471,7 +484,7 @@ Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, no
   │  • Create proposal.md                   │
   │  • Create tasks.md                      │
   │  • Create design.md                     │
-  │  • Create specs/<capability>/spec.md    │
+  │  • Create delta spec files              │
   │                                         │
   │  No awareness of what exists or         │
   │  dependencies between artifacts         │
@@ -497,7 +510,8 @@ Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, no
   │  │      {"id": "proposal", "status": "done"},                         │  │
   │  │      {"id": "specs", "status": "ready"},      ◄── First ready      │  │
   │  │      {"id": "design", "status": "ready"},                          │  │
-  │  │      {"id": "tasks", "status": "blocked", "missingDeps": ["specs"]}│  │
+  │  │      {"id": "tasks", "status": "blocked",                          │  │
+  │  │       "missingDeps": ["specs", "design"]}                          │  │
   │  │    ]                                                               │  │
   │  │  }                                                                 │  │
   │  └────────────────────────────────────────────────────────────────────┘  │

@@ -25,9 +25,42 @@ export interface FlagDefinition {
   takesValue?: boolean;
 
   /**
+   * Completion type for the flag value.
+   */
+  completionType?: PositionalType;
+
+  /**
    * Possible values for the flag (for completion suggestions)
    */
   values?: string[];
+}
+
+export type PositionalType =
+  | 'change-id'
+  | 'spec-id'
+  | 'change-or-spec-id'
+  | 'path'
+  | 'shell'
+  | 'schema-name';
+
+/**
+ * Definition of a positional argument.
+ */
+export interface PositionalDefinition {
+  /**
+   * Positional name used in generated shell metadata.
+   */
+  name: string;
+
+  /**
+   * Type of positional argument for dynamic completion.
+   */
+  type?: PositionalType;
+
+  /**
+   * Whether this positional is optional in the CLI syntax.
+   */
+  optional?: boolean;
 }
 
 /**
@@ -69,7 +102,12 @@ export interface CommandDefinition {
    * - 'schema-name': Complete with available schema names
    * - undefined: No specific completion
    */
-  positionalType?: 'change-id' | 'spec-id' | 'change-or-spec-id' | 'path' | 'shell' | 'schema-name';
+  positionalType?: PositionalType;
+
+  /**
+   * Ordered positional arguments when a command accepts more than one.
+   */
+  positionals?: PositionalDefinition[];
 }
 
 /**

@@ -3,15 +3,13 @@ import { FishInstaller } from '../../../../src/core/completions/installers/fish-
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
-import { randomUUID } from 'crypto';
 
 describe('FishInstaller', () => {
   let testHomeDir: string;
   let installer: FishInstaller;
 
   beforeEach(async () => {
-    testHomeDir = path.join(os.tmpdir(), `openspec-fish-test-${randomUUID()}`);
-    await fs.mkdir(testHomeDir, { recursive: true });
+    testHomeDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-fish-test-'));
     installer = new FishInstaller(testHomeDir);
   });
 
@@ -179,8 +177,7 @@ complete -c openspec -a 'validate' -d 'Validate specs'
     });
 
     it('should handle installation with paths containing spaces', async () => {
-      const spacedHomeDir = path.join(os.tmpdir(), `openspec fish test ${randomUUID()}`);
-      await fs.mkdir(spacedHomeDir, { recursive: true });
+      const spacedHomeDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec fish test '));
 
       const spacedInstaller = new FishInstaller(spacedHomeDir);
       const result = await spacedInstaller.install(mockCompletionScript);
@@ -286,6 +283,23 @@ complete -c openspec -a 'init'
       expect(result.message).toBe('Completion script uninstalled successfully');
     });
 
+    it.skipIf(process.platform === 'win32')('should uninstall read-only file when parent directory is writable', async () => {
+      await installer.install(mockCompletionScript);
+      const targetPath = path.join(testHomeDir, '.config', 'fish', 'completions', 'openspec.fish');
+      await fs.chmod(targetPath, 0o444);
+
+      let result: Awaited<ReturnType<FishInstaller['uninstall']>> | undefined;
+      try {
+        result = await installer.uninstall();
+      } finally {
+        await fs.chmod(targetPath, 0o644).catch(() => undefined);
+      }
+
+      const fileExists = await fs.access(targetPath).then(() => true).catch(() => false);
+      expect(result?.success).toBe(true);
+      expect(fileExists).toBe(false);
+    });
+
     // Skip on Windows: fs.chmod() on directories doesn't restrict write access on Windows
     // Windows uses ACLs which Node.js chmod doesn't control
     it.skipIf(process.platform === 'win32')('should return failure on permission error', async () => {
@@ -315,6 +329,34 @@ complete -c openspec -a 'init'
 
       expect(result.success).toBe(false);
       expect(result.message).toBe('Completion script is not installed');
+    });
+  });
+
+
+  describe('isInstalled', () => {
+    // Drives the first-run completions tip: a false positive silences a hint
+    // the user needs, a false negative nags someone who is already set up.
+    async function installPath(): Promise<string> {
+      return installer.getInstallationPath();
+    }
+
+    it('is false when nothing is installed', async () => {
+      expect(await installer.isInstalled()).toBe(false);
+    });
+
+    it('is true once the completion script exists', async () => {
+      const target = await installPath();
+      await fs.mkdir(path.dirname(target), { recursive: true });
+      await fs.writeFile(target, '# completions');
+
+      expect(await installer.isInstalled()).toBe(true);
+    });
+
+    it('is false when a directory sits at the install path', async () => {
+      const target = await installPath();
+      await fs.mkdir(target, { recursive: true });
+
+      expect(await installer.isInstalled()).toBe(false);
     });
   });
 

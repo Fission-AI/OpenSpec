@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { spawn, execSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
@@ -16,12 +16,15 @@ import {
   coerceValue,
   formatValueYaml,
   validateConfigKeyPath,
+  hasUnsafeKeySegment,
   validateConfig,
   DEFAULT_CONFIG,
 } from '../core/config-schema.js';
 import { CORE_WORKFLOWS, ALL_WORKFLOWS, getProfileWorkflows } from '../core/profiles.js';
 import { OPENSPEC_DIR_NAME } from '../core/config.js';
 import { hasProjectConfigDrift } from '../core/profile-sync-drift.js';
+import { UpdateCommand } from '../core/update.js';
+import { asErrorMessage, isPromptCancellationError } from './shared-output.js';
 
 type ProfileAction = 'both' | 'delivery' | 'workflows' | 'keep';
 
@@ -41,7 +44,7 @@ interface WorkflowPromptMeta {
   description: string;
 }
 
-const WORKFLOW_PROMPT_META: Record<string, WorkflowPromptMeta> = {
+export const WORKFLOW_PROMPT_META: Record<string, WorkflowPromptMeta> = {
   propose: {
     name: 'Propose change',
     description: 'Create proposal, design, and tasks from a request',
@@ -61,6 +64,10 @@ const WORKFLOW_PROMPT_META: Record<string, WorkflowPromptMeta> = {
   apply: {
     name: 'Apply tasks',
     description: 'Implement tasks from the current change',
+  },
+  update: {
+    name: 'Update change',
+    description: 'Revise the planning artifacts of an existing change',
   },
   ff: {
     name: 'Fast-forward',
@@ -88,12 +95,6 @@ const WORKFLOW_PROMPT_META: Record<string, WorkflowPromptMeta> = {
   },
 };
 
-function isPromptCancellationError(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    (error.name === 'ExitPromptError' || error.message.includes('force closed the prompt with SIGINT'))
-  );
-}
 
 /**
  * Resolve the effective current profile state from global config defaults.
@@ -186,7 +187,7 @@ export function diffProfileState(before: ProfileState, after: ProfileState): Pro
   };
 }
 
-function maybeWarnConfigDrift(
+function maybeWarnProjectConfigDrift(
   projectDir: string,
   state: ProfileState,
   colorize: (message: string) => string
@@ -199,6 +200,10 @@ function maybeWarnConfigDrift(
     return;
   }
   console.log(colorize('Warning: Global config is not applied to this project. Run `openspec update` to sync.'));
+}
+
+function printConfigProfileApplyGuidance(): void {
+  console.log('Config updated. Run `openspec update` in your projects to apply.');
 }
 
 /**
@@ -296,11 +301,15 @@ export function registerConfigCommand(program: Command): void {
     .action((key: string, value: string, options: { string?: boolean; allowUnknown?: boolean }) => {
       const allowUnknown = Boolean(options.allowUnknown);
       const keyValidation = validateConfigKeyPath(key);
-      if (!keyValidation.valid && !allowUnknown) {
+      // --allow-unknown relaxes the known-key check, but never the prototype-safety check.
+      const unsafeKey = hasUnsafeKeySegment(key);
+      if (!keyValidation.valid && (!allowUnknown || unsafeKey)) {
         const reason = keyValidation.reason ? ` ${keyValidation.reason}.` : '';
         console.error(`Error: Invalid configuration key "${key}".${reason}`);
         console.error('Use "openspec config list" to see available keys.');
-        console.error('Pass --allow-unknown to bypass this check.');
+        if (!allowUnknown && !unsafeKey) {
+          console.error('Pass --allow-unknown to bypass this check.');
+        }
         process.exitCode = 1;
         return;
       }
@@ -461,7 +470,7 @@ export function registerConfigCommand(program: Command): void {
         config.workflows = [...CORE_WORKFLOWS];
         // Preserve delivery setting
         saveGlobalConfig(config);
-        console.log('Config updated. Run `openspec update` in your projects to apply.');
+        printConfigProfileApplyGuidance();
         return;
       }
 
@@ -521,7 +530,7 @@ export function registerConfigCommand(program: Command): void {
 
         if (action === 'keep') {
           console.log('No config changes.');
-          maybeWarnConfigDrift(process.cwd(), currentState, chalk.yellow);
+          maybeWarnProjectConfigDrift(process.cwd(), currentState, chalk.yellow);
           return;
         }
 
@@ -530,6 +539,7 @@ export function registerConfigCommand(program: Command): void {
           delivery: currentState.delivery,
           workflows: [...currentState.workflows],
         };
+        let workflowSelectionChanged = false;
 
         if (action === 'both' || action === 'delivery') {
           const deliveryChoices: { value: Delivery; name: string; description: string }[] = [
@@ -578,8 +588,11 @@ export function registerConfigCommand(program: Command): void {
           };
 
           const selectedWorkflows = await checkbox<string>({
+            // The `instructions` option was removed in @inquirer/checkbox v5.
+            // Its replacement, the built-in keys help tip, renders
+            // "↑↓ navigate • space select • ⏎ submit" by default — a superset of
+            // the hint this used to pass — so no theme override is needed here.
             message: 'Select workflows to make available:',
-            instructions: 'Space to toggle, Enter to confirm',
             pageSize: ALL_WORKFLOWS.length,
             theme: {
               icon: {
@@ -590,13 +603,18 @@ export function registerConfigCommand(program: Command): void {
             choices: ALL_WORKFLOWS.map(formatWorkflowChoice),
           });
           nextState.workflows = selectedWorkflows;
-          nextState.profile = deriveProfileFromWorkflowSelection(selectedWorkflows);
+          workflowSelectionChanged =
+            selectedWorkflows.length !== currentState.workflows.length ||
+            selectedWorkflows.some((workflow) => !currentState.workflows.includes(workflow));
+          nextState.profile = workflowSelectionChanged
+            ? deriveProfileFromWorkflowSelection(selectedWorkflows)
+            : currentState.profile;
         }
 
         const diff = diffProfileState(currentState, nextState);
         if (!diff.hasChanges) {
           console.log('No config changes.');
-          maybeWarnConfigDrift(process.cwd(), nextState, chalk.yellow);
+          maybeWarnProjectConfigDrift(process.cwd(), nextState, chalk.yellow);
           return;
         }
 
@@ -608,7 +626,9 @@ export function registerConfigCommand(program: Command): void {
 
         config.profile = nextState.profile;
         config.delivery = nextState.delivery;
-        config.workflows = nextState.workflows;
+        if (currentState.profile !== 'custom' || workflowSelectionChanged) {
+          config.workflows = nextState.workflows;
+        }
         saveGlobalConfig(config);
 
         // Check if inside an OpenSpec project
@@ -622,17 +642,18 @@ export function registerConfigCommand(program: Command): void {
 
           if (applyNow) {
             try {
-              execSync('npx openspec update', { stdio: 'inherit', cwd: projectDir });
+              await new UpdateCommand().execute(projectDir);
               console.log('Run `openspec update` in your other projects to apply.');
-            } catch {
-              console.error('`openspec update` failed. Please run it manually to apply the profile changes.');
+            } catch (error) {
+              console.error(`\`openspec update\` failed: ${asErrorMessage(error)}`);
+              console.error('Please run it manually to apply the profile changes.');
               process.exitCode = 1;
             }
             return;
           }
         }
 
-        console.log('Config updated. Run `openspec update` in your projects to apply.');
+        printConfigProfileApplyGuidance();
       } catch (error) {
         if (isPromptCancellationError(error)) {
           console.log('Config profile cancelled.');

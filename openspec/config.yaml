@@ -5,6 +5,12 @@ context: |
   Package manager: pnpm
   CLI framework: Commander.js
 
+  Product language:
+  - Write OpenSpec proposals and specs in user-facing product behavior language
+  - Requirements should describe the experience, observable behavior, and product contract
+  - Avoid implementation-negative SHALL statements when a positive user outcome can express the same rule
+  - Put internal mechanisms in design.md or tasks.md unless the mechanism is itself part of the user-facing contract
+
   Cross-platform requirements:
   - This tool runs on macOS, Linux, AND Windows
   - Always use path.join() or path.resolve() for file paths - never hardcode slashes
@@ -16,7 +22,8 @@ rules:
   specs:
     - Include scenarios for Windows path handling when dealing with file paths
     - Requirements involving paths must specify cross-platform behavior
-    - Be explicit about mechanisms, not just outcomes (say HOW, not just WHAT)
+    - Prefer user-facing product behavior and observable outcomes over internal implementation mechanics
+    - Include HOW details only when the mechanism is part of the product contract
     - If we generate artifacts, specify deletion/modification by explicit list lookup, not pattern matching
   tasks:
     - Add Windows CI verification as a task when changes involve file paths
