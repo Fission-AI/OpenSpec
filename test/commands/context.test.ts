@@ -228,6 +228,28 @@ describe('openspec context (4.1)', () => {
     const payload = parseJson(noRoot);
     expect(payload.root).toBeNull();
     expect(payload.members).toEqual([]);
-    expect(payload.status[0].code).toBeDefined();
+    expect(payload.status[0].code).toBe('no_root_with_registered_stores');
+  });
+
+  it('allows proposal creation after a read-only no-root check in a fresh directory (#1651)', async () => {
+    const bare = path.join(tempDir, 'fresh-project');
+    fs.mkdirSync(bare);
+    const freshEnv = { ...env, XDG_DATA_HOME: path.join(tempDir, 'empty-data') };
+    const before = snapshot(bare);
+
+    const context = await runCLI(['context', '--json'], { cwd: bare, env: freshEnv });
+    expect(context.exitCode).toBe(1);
+    const payload = parseJson(context);
+    expect(payload.root).toBeNull();
+    expect(payload.status).toEqual([expect.objectContaining({ code: 'no_openspec_root' })]);
+    expect(snapshot(bare)).toEqual(before);
+
+    const created = await runCLI(['new', 'change', 'add-auth', '--json'], {
+      cwd: bare,
+      env: freshEnv,
+    });
+    expect(created.exitCode).toBe(0);
+    expect(parseJson(created).root).toMatchObject({ path: bare, source: 'implicit' });
+    expect(fs.existsSync(path.join(bare, 'openspec', 'changes', 'add-auth', '.openspec.yaml'))).toBe(true);
   });
 });

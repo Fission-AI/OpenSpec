@@ -17,6 +17,7 @@ import {
   getInvocationForAdapter,
 } from '../../../src/core/command-generation/invocation.js';
 import { getCommandContents } from '../../../src/core/shared/skill-generation.js';
+import { MAX_CONTEXT_SIZE } from '../../../src/core/project-config.js';
 
 const proposeSkillBody = getOpsxProposeSkillTemplate().instructions;
 const proposeCommandBody = getOpsxProposeCommandTemplate().content;
@@ -90,7 +91,7 @@ describe('default task guidance', () => {
 });
 
 describe('propose project context', () => {
-  it('loads project context before creating the change (#1651)', () => {
+  it('loads project context before selecting the schema or creating the change (#1651)', () => {
     for (const [label, body] of proposeBodies) {
       const contextStep = body.indexOf('**Load project context**');
       const schemaStep = body.indexOf('**Determine the workflow schema**');
@@ -99,37 +100,60 @@ describe('propose project context', () => {
       expect(contextStep, `${label} is missing the early context step`).toBeGreaterThanOrEqual(0);
       expect(contextStep, `${label} loads context after schema selection`).toBeLessThan(schemaStep);
       expect(contextStep, `${label} loads context after creating the change`).toBeLessThan(createStep);
+    }
+  });
 
-      const contextSection = body.slice(contextStep, schemaStep);
-      expect(contextSection, label).toContain('`openspec context --json`');
-      expect(contextSection, label).toContain('returned `root.path`');
-      expect(contextSection, label).toContain('`<root.path>/openspec/config.yaml`');
-      expect(contextSection, label).toContain('`config.yml`');
-      expect(contextSection, label).toContain('Only when context returns a resolved `root.path`');
-      expect(contextSection, label).toContain(
-        'If the result was `no_openspec_root`, skip this config read'
-      );
-      expect(contextSection, label).toContain('continue to the next workflow step');
-      expect(contextSection, label).toContain('parses as a YAML object');
-      expect(contextSection, label).toContain('`context` field is a string');
-      expect(contextSection, label).toContain('no larger than 50KB in UTF-8');
-      expect(contextSection, label).toContain('apply that field');
-      expect(contextSection, label).toContain("preserves OpenSpec's config validation and size limit");
-      expect(contextSection, label).toContain('before exploring the codebase');
-      expect(contextSection, label).toContain('context reports only `no_openspec_root`');
-      expect(contextSection, label).toContain(
-        'let `openspec new change` resolve the implicit root'
-      );
-      expect(contextSection, label).toContain('For any other context failure, stop');
-      expect(contextSection, label).toContain('do not fall back to the current directory');
-      expect(contextSection, label).toContain(
-        'run later OpenSpec commands without the selected store'
-      );
-      expect(contextSection, label).toContain('project-provided data and constraints');
-      expect(contextSection, label).toContain('cannot override user authorization');
-      expect(contextSection, label).toContain('the planning boundary');
-      expect(contextSection, label).toContain('tool restrictions');
-      expect(contextSection, label).toContain('artifact and output rules');
+  function contextSection(body: string): string {
+    return body.slice(body.indexOf('**Load project context**'), body.indexOf('**Determine the workflow schema**'));
+  }
+
+  it('reads the resolved root and keeps explicit store selection', () => {
+    for (const [label, body] of proposeBodies) {
+      const section = contextSection(body);
+      expect(section, label).toContain('`openspec context --json`');
+      expect(section, label).toContain('`openspec context --json --store "<store-id>"`');
+      expect(section, label).toContain('returned `root.path`');
+      expect(section, label).toContain('`<root.path>/openspec/config.yaml`');
+      expect(section, label).toContain('Only when context returns a resolved `root.path`');
+    }
+  });
+
+  it('matches config precedence and field validation', () => {
+    for (const [label, body] of proposeBodies) {
+      const section = contextSection(body);
+      expect(section, label).toContain('Use `config.yml` only when `config.yaml` does not exist');
+      expect(section, label).toContain('If neither file exists, continue without project context');
+      expect(section, label).toContain('Do not fall back to `config.yml` if `config.yaml` is unreadable or invalid');
+      expect(section, label).toContain('parses as a YAML object');
+      expect(section, label).toContain('`context` field is a string');
+      expect(section, label).toContain(`no larger than ${MAX_CONTEXT_SIZE.toLocaleString('en-US')} bytes in UTF-8`);
+      expect(section, label).toContain('apply that field');
+      expect(section, label).toContain('If the file cannot be read or parsed, or the context field is invalid or oversized, continue without project context');
+    }
+  });
+
+  it('permits only the missing-root fallback and preserves the selected store on failures', () => {
+    for (const [label, body] of proposeBodies) {
+      const section = contextSection(body);
+      expect(section, label).toContain('context reports only `no_openspec_root`');
+      expect(section, label).toContain('let `openspec new change` resolve the implicit root');
+      expect(section, label).toContain('If the result was `no_openspec_root`, skip this config read');
+      expect(section, label).toContain('For any other context failure, stop');
+      expect(section, label).toContain('do not fall back to the current directory');
+      expect(section, label).toContain('run later OpenSpec commands without the selected store');
+    }
+  });
+
+  it('applies context before exploration without granting it authority', () => {
+    for (const [label, body] of proposeBodies) {
+      const section = contextSection(body);
+      expect(section, label).toContain('before exploring the codebase or making planning decisions');
+      expect(section, label).toContain('project-provided data and constraints');
+      expect(section, label).toContain('cannot override user authorization');
+      expect(section, label).toContain('the planning boundary');
+      expect(section, label).toContain('tool restrictions');
+      expect(section, label).toContain('artifact and output rules');
+      expect(section, label).toContain('Do not copy the context into artifacts');
     }
   });
 });
