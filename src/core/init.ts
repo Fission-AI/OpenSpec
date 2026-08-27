@@ -11,7 +11,12 @@ import ora from 'ora';
 import * as fs from 'fs';
 import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { classifyOpenSpecDir, storePointerProblem } from './project-config.js';
+import {
+  classifyOpenSpecDir,
+  MAX_CONTEXT_SIZE,
+  readProjectConfig,
+  storePointerProblem,
+} from './project-config.js';
 import { findRepoPlanningRootSync } from './planning-home.js';
 import { getSkillReferenceTransformer, getTransformerForTool, usesNaturalLanguageSkillReferences } from '../utils/command-references.js';
 import {
@@ -54,7 +59,11 @@ import {
 import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
 import { getProfileWorkflows, CORE_WORKFLOWS, ALL_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
-import { writeSharedSkillTarget } from './shared-skill-target.js';
+import {
+  resolveSharedSkillWriters,
+  sharedSkillRootOwner,
+  writeSharedSkillTarget,
+} from './shared-skill-target.js';
 import { migrateIfNeeded, migrateLegacyToolDirs, describeLegacyMigration, keptInPlaceNotice, hasMovableContent, scanInstalledWorkflows as scanInstalledWorkflowsShared } from './migration.js';
 import {
   resolveCommandSurfaceCapability,
@@ -83,6 +92,14 @@ const { version: OPENSPEC_VERSION } = require('../../package.json');
 
 const DEFAULT_SCHEMA = 'spec-driven';
 
+function formatLanguageContext(language: string): string {
+  return [
+    `Language: ${language}`,
+    `All artifacts must be written in ${language}.`,
+    'Keep OpenSpec structural headings and SHALL/MUST keywords in English.',
+  ].join('\n');
+}
+
 const PROGRESS_SPINNER = {
   interval: 80,
   frames: ['░░░', '▒░░', '▒▒░', '▒▒▒', '▓▒▒', '▓▓▒', '▓▓▓', '▒▓▓', '░▒▓'],
@@ -109,6 +126,7 @@ const WORKFLOW_TO_SKILL_DIR: Record<string, string> = {
 
 type InitCommandOptions = {
   tools?: string;
+  language?: string;
   force?: boolean;
   interactive?: boolean;
   profile?: string;
@@ -130,6 +148,8 @@ type ValidatedInitTool = {
   skillsRoot: string;
   isGlobalSkillTarget: boolean;
   wasConfigured: boolean;
+  requiresIdeRestart?: boolean;
+  writesSkills: boolean;
 };
 
 /**
@@ -146,6 +166,7 @@ type DeferredLegacyCleanup = {
 
 export class InitCommand {
   private readonly toolsArg?: string;
+  private readonly language?: string;
   private readonly force: boolean;
   private readonly interactiveOption?: boolean;
   private readonly profileOverride?: string;
@@ -154,6 +175,7 @@ export class InitCommand {
 
   constructor(options: InitCommandOptions = {}) {
     this.toolsArg = options.tools;
+    this.language = this.normalizeLanguage(options.language);
     this.force = options.force ?? false;
     this.interactiveOption = options.interactive;
     this.profileOverride = options.profile;
@@ -195,6 +217,8 @@ export class InitCommand {
         }
       }
     }
+
+    await this.assertLanguageCanBeApplied(projectPath, openspecPath);
 
     // Check for legacy artifacts and handle cleanup
     const deferredLegacyCleanup = await this.handleLegacyCleanup(projectPath, extendMode);
@@ -748,20 +772,8 @@ export class InitCommand {
     toolStates: Map<string, ToolSkillStatus>,
     projectPath: string
   ): ValidatedInitTool[] {
-    const validatedTools: ValidatedInitTool[] = [];
-
-    const reconciledToolIds = toolIds.includes('codex') && toolIds.includes('agents')
-      ? toolIds.filter((toolId) => toolId !== 'agents')
-      : toolIds;
-    if (reconciledToolIds.length !== toolIds.length) {
-      console.log(
-        chalk.dim(
-          'Codex and agents share .agents/skills; writing one tree with Codex and generic skill references.'
-        )
-      );
-    }
-
-    for (const toolId of reconciledToolIds) {
+    const selectedTools: AIToolOption[] = [];
+    for (const toolId of toolIds) {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
       if (!tool) {
         const validToolIds = getToolsWithSkillsDir();
@@ -777,6 +789,49 @@ export class InitCommand {
         );
       }
 
+      selectedTools.push(tool);
+    }
+
+    // A selected tool may share its physical skills root with an already
+    // configured owner. Include that owner in the refresh without dropping the
+    // selected tool: it may still have an independent command surface.
+    const generationTools = [...selectedTools];
+    const delivery: Delivery = getGlobalConfig().delivery ?? 'both';
+    for (const selected of selectedTools) {
+      if (!selected.skillsDir) continue;
+      const selectedOwner = selected.value === 'codex' ||
+        !shouldGenerateSkillsForTool(selected.value, delivery)
+        ? undefined
+        : sharedSkillRootOwner(projectPath, selected.value);
+      for (const candidate of AI_TOOLS) {
+        if (
+          candidate.skillsDir === selected.skillsDir &&
+          toolStates.get(candidate.value)?.configured &&
+          candidate.value === selectedOwner &&
+          !generationTools.includes(candidate)
+        ) {
+          generationTools.push(candidate);
+        }
+      }
+    }
+
+    const skillWriters = resolveSharedSkillWriters(projectPath, generationTools);
+    const sharedRoots = new Map<string, AIToolOption[]>();
+    for (const tool of generationTools) {
+      if (!tool.skillsDir) continue;
+      const group = sharedRoots.get(tool.skillsDir) ?? [];
+      group.push(tool);
+      sharedRoots.set(tool.skillsDir, group);
+    }
+    for (const [root, group] of sharedRoots) {
+      if (group.length < 2) continue;
+      const owner = group.find((tool) => skillWriters.has(tool.value));
+      console.log(chalk.dim(`${group.map((tool) => tool.name).join(', ')} share ${root}/skills; writing one tree for ${owner?.value}.`));
+    }
+
+    const validatedTools: ValidatedInitTool[] = [];
+    for (const tool of generationTools) {
+      if (!toolSupportsSkills(tool)) continue;
       const preState = toolStates.get(tool.value);
       const skillsPath = resolveToolSkillsDir(projectPath, tool);
       const isGlobalSkillTarget = hasGlobalSkillTarget(tool);
@@ -788,6 +843,8 @@ export class InitCommand {
         skillsRoot: isGlobalSkillTarget ? skillsPath : projectPath,
         isGlobalSkillTarget,
         wasConfigured: preState?.configured ?? false,
+        requiresIdeRestart: tool.requiresIdeRestart,
+        writesSkills: !tool.skillsDir || skillWriters.has(tool.value),
       });
     }
 
@@ -888,7 +945,7 @@ export class InitCommand {
         const shouldGenerateCommands = shouldGenerateCommandsForTool(tool.value, delivery);
 
         // Generate skill files if the selected delivery and tool capability allow skills
-        if (shouldGenerateSkills) {
+        if (shouldGenerateSkills && tool.writesSkills) {
           // Create skill directories and SKILL.md files
           for (const { template, dirName } of skillTemplates) {
             const skillDir = path.join(tool.skillsPath, dirName);
@@ -909,7 +966,11 @@ export class InitCommand {
           }
           writeSharedSkillTarget(projectPath, tool.value);
         }
-        if (shouldRemoveSkillsForTool(tool.value, delivery) && !tool.isGlobalSkillTarget) {
+        if (
+          shouldRemoveSkillsForTool(tool.value, delivery) &&
+          tool.writesSkills &&
+          !tool.isGlobalSkillTarget
+        ) {
           removedSkillCount += await this.removeSkillDirs(tool.skillsRoot, tool.skillsPath);
           // Retain an explicit selection even when this delivery mode produces
           // no skills, so a divergent legacy sibling cannot reclaim ownership.
@@ -983,6 +1044,66 @@ export class InitCommand {
   // CONFIG FILE
   // ═══════════════════════════════════════════════════════════
 
+  private normalizeLanguage(language: string | undefined): string | undefined {
+    if (language === undefined) return undefined;
+
+    const normalized = language.trim();
+    if (!normalized) {
+      throw new Error('The --language option requires a non-empty value.');
+    }
+    if (/\p{Cc}|\p{Bidi_Control}|[\u200B\u2028\u2029\uFEFF]/u.test(normalized)) {
+      throw new Error(
+        'The --language option must be a single line without control or invisible formatting characters.'
+      );
+    }
+    const serializedContext = `${formatLanguageContext(normalized)}\n`;
+    if (Buffer.byteLength(serializedContext, 'utf8') > MAX_CONTEXT_SIZE) {
+      throw new Error(
+        `The --language option is too long for OpenSpec's ${MAX_CONTEXT_SIZE / 1024}KB project context limit.`
+      );
+    }
+    return normalized;
+  }
+
+  private languageContext(): string | undefined {
+    if (!this.language) return undefined;
+    return formatLanguageContext(this.language);
+  }
+
+  private async assertLanguageCanBeApplied(
+    projectPath: string,
+    openspecPath: string
+  ): Promise<void> {
+    const languageContext = this.languageContext();
+    if (!languageContext) return;
+
+    const configPath = path.join(openspecPath, 'config.yaml');
+    const hasConfig = fs.existsSync(configPath) ||
+      fs.existsSync(path.join(openspecPath, 'config.yml'));
+    if (!hasConfig) {
+      try {
+        FileSystemUtils.assertProjectArtifactPath(projectPath, configPath);
+      } catch (error) {
+        const reason = error instanceof Error ? `: ${error.message}` : '';
+        throw new Error(`Cannot create openspec/config.yaml for --language${reason}`);
+      }
+      if (!(await FileSystemUtils.canWriteFile(configPath))) {
+        throw new Error(
+          'Cannot create openspec/config.yaml for --language: the destination is not writable.'
+        );
+      }
+      return;
+    }
+
+    const existingContext = readProjectConfig(projectPath)?.context;
+    if (existingContext?.includes(languageContext)) return;
+
+    throw new Error(
+      '--language does not overwrite an existing OpenSpec config. ' +
+      'Add the language instruction to its context field instead.'
+    );
+  }
+
   private async createConfig(openspecPath: string, extendMode: boolean): Promise<'created' | 'exists' | 'skipped'> {
     const configPath = path.join(openspecPath, 'config.yaml');
     const configYmlPath = path.join(openspecPath, 'config.yml');
@@ -995,11 +1116,18 @@ export class InitCommand {
 
 
     try {
-      const yamlContent = serializeConfig({ schema: DEFAULT_SCHEMA });
+      const yamlContent = serializeConfig({
+        schema: DEFAULT_SCHEMA,
+        context: this.languageContext(),
+      });
       FileSystemUtils.assertProjectArtifactPath(path.dirname(openspecPath), configPath);
       await FileSystemUtils.writeFile(configPath, yamlContent);
       return 'created';
-    } catch {
+    } catch (error) {
+      if (this.language) {
+        const reason = error instanceof Error ? `: ${error.message}` : '';
+        throw new Error(`Failed to create openspec/config.yaml for --language${reason}`);
+      }
       return 'skipped';
     }
   }
@@ -1274,16 +1402,33 @@ export class InitCommand {
     console.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
     console.log(`Feedback:   ${chalk.cyan('https://github.com/Fission-AI/OpenSpec/issues')}`);
 
-    // Restart instruction if any tools were configured and got a surface
-    // (when nothing was generated there is nothing a restart would pick up);
-    // only mention commands when commands were actually generated. Not "slash
-    // commands": Amazon Q's generated files are prompt-library entries invoked
-    // with @, so a restart line promising slash commands would be wrong for it.
-    if ((results.createdTools.length > 0 || results.refreshedTools.length > 0) && (commandsGenerated || skillsGenerated)) {
+    // Restart instruction only when at least one IDE/editor-resident tool
+    // actually received a generated surface. Two conditions, coupled to the SAME
+    // tool: (1) its commands/skills are loaded by a long-running editor process
+    // (CLI tools pick the files up immediately, so a restart line would be wrong
+    // for them — see #1067), and (2) a surface was actually generated for it
+    // under the active delivery (an IDE tool that generated nothing has nothing a
+    // restart would pick up, even if a co-configured CLI tool did generate).
+    // Wording follows what the IDE tool itself generated, not the global
+    // aggregate: it must not say "commands" when the IDE tool only got skills
+    // while a co-configured CLI tool got commands. Not "slash commands" either:
+    // Amazon Q's generated files are prompt-library entries invoked with @, so a
+    // restart line promising slash commands would be wrong for it.
+    const restartCommandsGenerated = successfulTools.some(
+      (tool) =>
+        tool.requiresIdeRestart &&
+        shouldGenerateCommandsForTool(tool.value, activeDelivery)
+    );
+    const restartSkillsGenerated = successfulTools.some(
+      (tool) =>
+        tool.requiresIdeRestart &&
+        shouldGenerateSkillsForTool(tool.value, activeDelivery)
+    );
+    if (restartCommandsGenerated || restartSkillsGenerated) {
       console.log();
       console.log(
         chalk.white(
-          commandsGenerated
+          restartCommandsGenerated
             ? 'Restart your IDE for the new commands to take effect.'
             : 'Restart your IDE for the new skills to take effect.'
         )

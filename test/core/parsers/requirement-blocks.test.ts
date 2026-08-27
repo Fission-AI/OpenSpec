@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { extractRequirementsSection, parseDeltaSpec } from '../../../src/core/parsers/requirement-blocks.js';
+import {
+  extractRequirementsSection,
+  parseDeltaSpec,
+  findMissingCurrentScenarios,
+  type RequirementBlock,
+} from '../../../src/core/parsers/requirement-blocks.js';
 
 describe('extractRequirementsSection', () => {
   it('parses canonical ### Requirement: headers', () => {
@@ -106,6 +111,36 @@ describe('parseDeltaSpec', () => {
     const result = parseDeltaSpec(content);
     expect(result.removed).toEqual(['Actually removed']);
     expect(result.renamed).toEqual([{ from: 'Old name', to: 'New name' }]);
+    // Bullet form carries no body, so there is no block to keep.
+    expect(result.removedBlocks).toEqual([]);
+  });
+
+  it('keeps the Reason and Migration body of a header-form REMOVED requirement', () => {
+    const content = [
+      '## REMOVED Requirements',
+      '',
+      '### Requirement: Session management',
+      '',
+      '**Reason**: Sessions moved to the token service.',
+      '',
+      '**Migration**: Callers switch to `POST /tokens`.',
+      '',
+      '### Requirement: Legacy cookie',
+      '',
+      '**Reason**: Unused.',
+      '',
+    ].join('\n');
+
+    const result = parseDeltaSpec(content);
+    expect(result.removed).toEqual(['Session management', 'Legacy cookie']);
+    expect(result.removedBlocks.map((b) => b.name)).toEqual([
+      'Session management',
+      'Legacy cookie',
+    ]);
+    expect(result.removedBlocks[0].raw).toContain('Sessions moved to the token service.');
+    expect(result.removedBlocks[0].raw).toContain('Callers switch to `POST /tokens`.');
+    // Each block stops at the next requirement header.
+    expect(result.removedBlocks[0].raw).not.toContain('Legacy cookie');
   });
 });
 
@@ -129,5 +164,83 @@ describe('extractRequirementsSection (fenced code blocks)', () => {
 
     const result = extractRequirementsSection(content);
     expect(result.bodyBlocks.map((b) => b.name)).toEqual(['Real requirement']);
+  });
+});
+
+describe('findMissingCurrentScenarios: level-4 header parity', () => {
+  // Only .raw is read; a minimal block keeps these focused on scenario parsing.
+  const block = (raw: string): RequirementBlock => ({ headerLine: raw.split('\n')[0], name: '', raw });
+  const req = (...scenarios: string[]) =>
+    block(['### Requirement: Widget state', 'The system SHALL report it.', '', ...scenarios].join('\n'));
+
+  it('does not treat a level-5 (#####) header as a dropped scenario', () => {
+    // `#### ` requires exactly four hashes then whitespace, matching countScenarios;
+    // `##### Deep detail` is body, not a scenario, so dropping it is no loss.
+    const current = req('#### Scenario: Kept', '- **WHEN** a', '- **THEN** b', '', '##### Deep detail', '- a nested note');
+    const incoming = req('#### Scenario: Kept', '- **WHEN** a', '- **THEN** b');
+    expect(findMissingCurrentScenarios(current, incoming)).toEqual([]);
+  });
+
+  it('does not treat an unlabeled #### header inside a fence as a scenario', () => {
+    const current = req(
+      '#### Scenario: Real',
+      '- **WHEN** a',
+      '- **THEN** b',
+      '',
+      '```markdown',
+      '#### Edge case',
+      '- only an example',
+      '```'
+    );
+    const incoming = req('#### Scenario: Real', '- **WHEN** a', '- **THEN** b');
+    expect(findMissingCurrentScenarios(current, incoming)).toEqual([]);
+  });
+
+  it('normalizes an optional Scenario: label, so relabeling is not a loss', () => {
+    const current = req('#### Edge case', '- **WHEN** a', '- **THEN** b');
+    const incoming = req('#### Scenario: Edge case', '- **WHEN** a', '- **THEN** b');
+    expect(findMissingCurrentScenarios(current, incoming)).toEqual([]);
+  });
+
+  it('counts unlabeled scenarios by multiplicity, like labeled ones', () => {
+    const current = req(
+      '#### Edge case',
+      '- **WHEN** a',
+      '- **THEN** b',
+      '',
+      '#### Edge case',
+      '- **WHEN** c',
+      '- **THEN** d'
+    );
+    const incoming = req('#### Edge case', '- **WHEN** a', '- **THEN** b');
+    expect(findMissingCurrentScenarios(current, incoming)).toEqual(['Edge case']);
+  });
+
+  it('does not let a fenced #### in the incoming block satisfy a real scenario', () => {
+    // Symmetry with the current-side fence test: masking must apply to the
+    // incoming block too, or a fenced sample in the MODIFIED delta would count
+    // as coverage and hide a genuine drop (validate passes, archive deletes).
+    const current = req('#### Scenario: Real', '- **WHEN** a', '- **THEN** b');
+    const incoming = req(
+      '```markdown',
+      '#### Scenario: Real',
+      '- only an example',
+      '```'
+    );
+    expect(findMissingCurrentScenarios(current, incoming)).toEqual(['Real']);
+  });
+
+  it('normalizes a lowercase scenario: label the same as Scenario:', () => {
+    const current = req('#### Scenario: Edge case', '- **WHEN** a', '- **THEN** b');
+    const incoming = req('#### scenario: Edge case', '- **WHEN** a', '- **THEN** b');
+    expect(findMissingCurrentScenarios(current, incoming)).toEqual([]);
+  });
+
+  it('treats an ATX-closed header as the same scenario as its open form', () => {
+    // `#### Foo ####` renders as `Foo` in CommonMark; the loss guard must fold
+    // the two so relabeling one side does not read as a dropped scenario.
+    const current = req('#### Scenario: Edge case', '- **WHEN** a', '- **THEN** b');
+    const incoming = req('#### Scenario: Edge case ####', '- **WHEN** a', '- **THEN** b');
+    expect(findMissingCurrentScenarios(current, incoming)).toEqual([]);
   });
 });

@@ -50,7 +50,7 @@ These commands support `--json` output for programmatic use by AI agents and scr
 | `openspec status` | See artifact progress | `--json` for structured status |
 | `openspec instructions` | Get next steps | `--json` for agent instructions |
 | `openspec templates` | Find template paths | `--json` for path resolution |
-| `openspec schemas` | List available schemas | `--json` for schema discovery |
+| `openspec schemas` | List available schemas | `--json` for schema discovery; `--store <id>` to select a registered root |
 | `openspec store setup <id>` | Create and register a local store | `--json` with explicit inputs for structured setup output |
 | `openspec store register <path>` | Register an existing store | `--json` for structured registration output |
 | `openspec store unregister <id>` | Forget a local store registration | `--json` for structured cleanup output |
@@ -88,6 +88,10 @@ Default behavior uses global config defaults: profile `core`, delivery `both`, w
 openspec init [path] [options]
 ```
 
+Use `--language <language>` to add a language instruction to a new project's
+`openspec/config.yaml`. For an existing project, edit the config's `context`
+field so OpenSpec never overwrites project-specific guidance.
+
 **Arguments:**
 
 | Argument | Required | Description |
@@ -99,6 +103,7 @@ openspec init [path] [options]
 | Option | Description |
 |--------|-------------|
 | `--tools <list>` | Configure AI tools non-interactively. Use `all`, `none`, or comma-separated list |
+| `--language <language>` | Write artifacts in this language when creating a new config |
 | `--force` | Auto-cleanup legacy files without prompting |
 | `--profile <profile>` | Override global profile for this init run (`core` or `custom`) |
 | `--no-animation` | Show a static welcome screen instead of the animated one |
@@ -109,7 +114,7 @@ openspec init [path] [options]
 
 The welcome animation is also skipped when the `OPENSPEC_NO_ANIMATION` environment variable is set (any value, including empty), when `NO_COLOR` is set to a non-empty value, or when the OS reduced-motion preference is enabled (macOS Reduce Motion, GNOME animations disabled).
 
-**Supported tool IDs (`--tools`)** — `windsurf` is also accepted, as an alias for `devin`: `amazon-q`, `antigravity`, `auggie`, `bob`, `claude`, `cline`, `codeartsagent`, `codex`, `devin`, `forgecode`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `grok`, `hermes`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `lingma`, `minimax-code`, `vibe`, `oh-my-pi`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `zcode`, `agents`
+**Supported tool IDs (`--tools`)** — `windsurf` is also accepted, as an alias for `devin`: `amazon-q`, `antigravity`, `auggie`, `bob`, `claude`, `cline`, `command-code`, `codeartsagent`, `codex`, `devin`, `forgecode`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `grok`, `hermes`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `lingma`, `minimax-code`, `vibe`, `oh-my-pi`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `zed`, `zcode`, `agents`
 
 > This list mirrors `AI_TOOLS` in `src/core/config.ts`. See [Supported Tools](supported-tools.md) for each tool's skill and command paths.
 
@@ -553,11 +558,14 @@ A change with zero spec deltas fails validation unless its `.openspec.yaml` decl
 | `--all` | Validate all changes and specs |
 | `--changes` | Validate all changes |
 | `--specs` | Validate all specs |
+| `--archived` | Validate that archived changes have all tasks completed (for pre-commit linting) |
 | `--type <type>` | Specify type when name is ambiguous: `change` or `spec` |
 | `--strict` | Enable strict validation mode |
 | `--json` | Output as JSON |
 | `--concurrency <n>` | Max parallel validations (default: 6, or `OPENSPEC_CONCURRENCY` env) |
 | `--no-interactive` | Disable prompts |
+
+`--archived` is its own scope: it does not validate spec deltas (already applied at archive time), it verifies that every change under `changes/archive/` has all of its `tasks.md` checkboxes ticked, exiting non-zero if any are unchecked. This catches changes that were archived with unfinished work — handy in a pre-commit hook.
 
 **Examples:**
 
@@ -576,6 +584,9 @@ openspec validate --all --json
 
 # Strict validation with increased parallelism
 openspec validate --all --strict --concurrency 12
+
+# Fail if any archived change still has unchecked tasks
+openspec validate --archived
 ```
 
 **Output (text):**
@@ -904,6 +915,7 @@ openspec schemas [options]
 | Option | Description |
 |--------|-------------|
 | `--json` | Output as JSON |
+| `--store <id>` | Use a registered store as the OpenSpec root |
 
 **Example:**
 
@@ -1197,13 +1209,13 @@ openspec feedback <message> [options]
 
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `message` | Yes | Feedback message |
+| `message` | Yes | Feedback summary; long text is shortened in the issue title and preserved in the body |
 
 **Options:**
 
 | Option | Description |
 |--------|-------------|
-| `--body <text>` | Detailed description |
+| `--body <text>` | Additional details included after the summary |
 
 **Requirements:** GitHub CLI (`gh`) must be installed and authenticated.
 
@@ -1250,6 +1262,11 @@ openspec completion generate bash > ~/.bash_completion.d/openspec
 openspec completion uninstall
 ```
 
+Completions are opt-in. The CLI mentions them once, on stderr, the first time you
+run a command in an interactive terminal, and never again — it also stays quiet
+if you already have completions installed. Set `OPENSPEC_NO_COMPLETIONS=1` to
+suppress that tip entirely.
+
 ---
 
 ## Exit Codes
@@ -1271,6 +1288,7 @@ openspec completion uninstall
 | `EDITOR` or `VISUAL` | Editor for `openspec config edit` |
 | `NO_COLOR` | Disable color output when set |
 | `OPENSPEC_NO_ANIMATION` | Disable the `openspec init` welcome animation when set |
+| `OPENSPEC_NO_COMPLETIONS` | Set to `1` to suppress the one-time tip about shell completions |
 | `OPENSPEC_NO_UPDATE_CHECK` | Disable the `openspec update` check for a newer published CLI when set (any value, including empty). Also skipped when `CI` is set (unless `false`/`0`/`no`/`off`) or `NODE_ENV=test` |
 | `npm_config_registry` | Registry the `openspec update` version check asks. Must be an `http(s)` URL or it falls back to `https://registry.npmjs.org`. No `.npmrc` file is read |
 

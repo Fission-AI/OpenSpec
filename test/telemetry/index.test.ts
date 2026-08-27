@@ -4,11 +4,12 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 
 import { isTelemetryEnabled, maybeShowTelemetryNotice, shutdown, trackCommand } from '../../src/telemetry/index.js';
+import { getTelemetryConfig } from '../../src/telemetry/config.js';
 
 describe('telemetry/index', () => {
   let tempDir: string;
   let originalEnv: NodeJS.ProcessEnv;
-  let consoleLogSpy: ReturnType<typeof vi.spyOn>;
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
   let fetchSpy: ReturnType<typeof vi.spyOn<typeof globalThis, 'fetch'>>;
 
   beforeEach(() => {
@@ -27,8 +28,8 @@ describe('telemetry/index', () => {
     // Clear all mocks
     vi.clearAllMocks();
 
-    // Spy on console.log for notice tests
-    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    // Notice is written to stderr so it never pollutes stdout (raw/JSON output)
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     // Telemetry must never reach the real network in tests
     fetchSpy = vi
       .spyOn(globalThis, 'fetch')
@@ -166,7 +167,7 @@ describe('telemetry/index', () => {
 
       await maybeShowTelemetryNotice();
 
-      expect(consoleLogSpy).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
     });
 
     it('should not show notice when telemetry.enabled is false', async () => {
@@ -175,7 +176,39 @@ describe('telemetry/index', () => {
 
       await maybeShowTelemetryNotice();
 
-      expect(consoleLogSpy).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+    });
+
+    it('should show notice on the first non-silent run, then never repeat it', async () => {
+      enableTelemetry();
+
+      await maybeShowTelemetryNotice();
+      expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('OpenSpec collects anonymous usage stats')
+      );
+
+      // noticeSeen is now persisted: a second run stays quiet.
+      await maybeShowTelemetryNotice();
+      expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('should suppress the notice in silent (--json) mode and defer the disclosure', async () => {
+      enableTelemetry();
+
+      // A first-ever run in --json mode must not pollute stdout.
+      await maybeShowTelemetryNotice({ silent: true });
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+
+      // The disclosure must be deferred, not consumed: noticeSeen stays unset.
+      expect((await getTelemetryConfig()).noticeSeen).toBeFalsy();
+
+      // Disclosure is only deferred, not skipped: the next non-JSON run shows it.
+      await maybeShowTelemetryNotice();
+      expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('OpenSpec collects anonymous usage stats')
+      );
     });
   });
 

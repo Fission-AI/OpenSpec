@@ -61,6 +61,34 @@ describe('propose preamble', () => {
   });
 });
 
+describe('default task guidance', () => {
+  it('requires a concrete verification method in each task (#345)', () => {
+    const tasks = defaultSchema.artifacts.find(artifact => artifact.id === 'tasks');
+    expect(tasks).toBeDefined();
+    expect(tasks!.instruction).toContain('Each task MUST state how to verify completion');
+    expect(tasks!.instruction).toMatch(
+      /a test, command,\s+observable behavior, or delivered artifact/
+    );
+    expect(tasks!.instruction).toMatch(
+      /Put the verification in\s+that task's checkbox description/
+    );
+    expect(tasks!.instruction).toMatch(
+      /Use a separate verification task only\s+when it checks broader integration or system behavior that spans\s+multiple implementation tasks/
+    );
+
+    const example = tasks!.instruction.match(/```\s*([\s\S]*?)```/)?.[1];
+    expect(example).toBeDefined();
+    const numberedTasks = example!.split('\n').filter(line => /^- \[ \] \d+\.\d+ /.test(line));
+    expect(numberedTasks).toHaveLength(4);
+    expect(numberedTasks.every(line => /\bverify\b/i.test(line))).toBe(true);
+    expect(numberedTasks[0]).toContain('expected files are present');
+    expect(numberedTasks[1]).toContain('package installation succeeds');
+    expect(numberedTasks[2]).toContain('export test passes');
+    expect(numberedTasks[3]).toContain('unit tests cover quoting and delimiters');
+    expect(example).not.toMatch(/^- \[ \] \d+\.\d+ (?:verify|run (?:the )?verification)\b/im);
+  });
+});
+
 describe('propose implementation boundary', () => {
   it('makes the planning-only boundary prominent (#232, #258, #262)', () => {
     for (const [label, body] of proposeBodies) {
@@ -203,7 +231,10 @@ describe('propose schema selection', () => {
       expect(schemaSection, label).toContain('returned `root.path`');
       expect(schemaSection, label).toContain('local `store:` pointer');
       expect(schemaSection, label).toContain('global `defaultStore`');
-      expect(schemaSection, label).toContain('`schemas` does not accept `--store`');
+      expect(schemaSection, label).toContain(
+        'append `--store "<store-id>"` to `openspec schemas --json` as well'
+      );
+      expect(schemaSection, label).not.toContain('`schemas` does not accept `--store`');
       expect(schemaSection, label).toContain('context reports only `no_openspec_root`');
       expect(schemaSection, label).toContain(
         'run `openspec schemas --json` from the current working directory instead'

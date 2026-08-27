@@ -171,6 +171,7 @@ describe('command completion registry', () => {
       'instructions',
       'list',
       'new change',
+      'schemas',
       'show',
       'status',
       'validate',
@@ -219,7 +220,16 @@ describe('command completion registry', () => {
   });
 
   it('advertises --store on the supported root-selection commands', () => {
-    for (const name of ['list', 'show', 'validate', 'archive', 'status', 'instructions', 'view']) {
+    for (const name of [
+      'list',
+      'show',
+      'validate',
+      'archive',
+      'status',
+      'instructions',
+      'schemas',
+      'view',
+    ]) {
       const entry = command(name);
       const store = entry?.flags.find((flag) => flag.name === 'store');
       expect(store, `${name} --store flag`).toBeDefined();

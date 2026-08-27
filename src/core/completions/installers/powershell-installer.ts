@@ -124,6 +124,21 @@ export class PowerShellInstaller {
   }
 
   /**
+   * Check if a completion script is currently installed.
+   * Mirrors ZshInstaller.isInstalled so callers can ask any installer.
+   *
+   * @returns true if the completion script exists
+   */
+  async isInstalled(): Promise<boolean> {
+    try {
+      // stat, not access: a directory at the install path is not a script.
+      return (await fs.stat(this.getInstallationPath())).isFile();
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Backup an existing completion file if it exists
    *
    * @param targetPath - Path to the file to backup
