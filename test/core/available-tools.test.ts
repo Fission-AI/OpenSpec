@@ -62,6 +62,25 @@ describe('available-tools', () => {
       expect(getAvailableTools(testDir).map((tool) => tool.value)).not.toContain('minimax-code');
     });
 
+    it('should detect Grok Build from a project .grok directory', async () => {
+      await fs.mkdir(path.join(testDir, '.grok'));
+
+      expect(getAvailableTools(testDir)).toEqual([
+        expect.objectContaining({
+          name: 'Grok Build',
+          value: 'grok',
+          skillsDir: '.grok',
+          available: true,
+        }),
+      ]);
+    });
+
+    it('should not detect Grok Build from a .grok file', async () => {
+      await fs.writeFile(path.join(testDir, '.grok'), 'not a directory');
+
+      expect(getAvailableTools(testDir)).toEqual([]);
+    });
+
     it('should detect multiple tool directories', async () => {
       await fs.mkdir(path.join(testDir, '.claude'), { recursive: true });
       await fs.mkdir(path.join(testDir, '.cursor'), { recursive: true });

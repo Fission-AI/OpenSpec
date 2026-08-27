@@ -814,28 +814,46 @@ describe('InitCommand', () => {
       ).toBe(true);
     });
 
-    it('should support Grok Build as an adapterless skills-only tool', async () => {
+    it.each(['both', 'skills'] as const)('should install invocable Grok Build skills with delivery=%s', async (delivery) => {
       saveGlobalConfig({
         featureFlags: {},
         profile: 'core',
-        delivery: 'both',
+        delivery,
       });
 
       const initCommand = new InitCommand({ tools: 'grok', force: true });
       await initCommand.execute(testDir);
 
-      const skillFile = path.join(testDir, '.grok', 'skills', 'openspec-explore', 'SKILL.md');
-      expect(await fileExists(skillFile)).toBe(true);
+      const skillsDir = path.join(testDir, '.grok', 'skills');
+      const skillNames = [
+        'openspec-apply-change',
+        'openspec-archive-change',
+        'openspec-explore',
+        'openspec-propose',
+        'openspec-sync-specs',
+        'openspec-update-change',
+      ];
+      expect((await fs.readdir(skillsDir)).sort()).toEqual(skillNames);
+      for (const skillName of skillNames) {
+        const content = await fs.readFile(path.join(skillsDir, skillName, 'SKILL.md'), 'utf-8');
+        expect(content).toContain(`name: ${skillName}`);
+        expect(content).not.toMatch(/\/opsx[:-]/);
+      }
+      const applyContent = await fs.readFile(path.join(skillsDir, 'openspec-apply-change', 'SKILL.md'), 'utf-8');
+      expect(applyContent).toContain('/openspec-archive-change');
 
       const commandsDir = path.join(testDir, '.grok', 'commands');
       expect(await directoryExists(commandsDir)).toBe(false);
 
       const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
-      expect(
-        logCalls.some(
+      if (delivery === 'both') {
+        expect(logCalls.some(
           (entry) => entry.includes('Commands skipped for: grok') && entry.includes('(no adapter)'),
-        ),
-      ).toBe(true);
+        )).toBe(true);
+      }
+      const startHint = logCalls.find((entry) => entry.includes('Start your first change'));
+      expect(startHint).toContain('/openspec-propose');
+      expect(startHint).not.toContain('/opsx:');
     });
 
     it('should migrate OpenSpec skills from legacy .kimi to .kimi-code during init', async () => {
@@ -2017,19 +2035,21 @@ describe('InitCommand - profile and detection features', () => {
     expect(startHint).not.toContain('/opsx:propose');
   });
 
-  it('should print a configuration correction, not a dead hint, when delivery=commands generates nothing (adapterless tool)', async () => {
+  it.each([
+    ['kimi', '.kimi-code'],
+    ['grok', '.grok'],
+  ])('should print a configuration correction, not a dead hint, when delivery=commands generates nothing for %s', async (toolId, skillsDir) => {
     saveGlobalConfig({
       featureFlags: {},
       profile: 'core',
       delivery: 'commands',
     });
 
-    const initCommand = new InitCommand({ tools: 'kimi', force: true });
+    const initCommand = new InitCommand({ tools: toolId, force: true });
     await initCommand.execute(testDir);
 
-    // Kimi has no command adapter and delivery excludes skills: nothing is generated
-    expect(await fileExists(path.join(testDir, '.kimi-code', 'skills', 'openspec-explore', 'SKILL.md'))).toBe(false);
-    expect(await fileExists(path.join(testDir, '.kimi-code', 'commands'))).toBe(false);
+    // No command adapter and delivery excludes skills: nothing is generated
+    expect(await directoryExists(path.join(testDir, skillsDir))).toBe(false);
 
     const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
     // No invocation hint may be shown — neither /opsx:* nor a skill reference exists
