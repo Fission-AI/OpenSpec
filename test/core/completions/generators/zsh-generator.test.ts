@@ -328,7 +328,7 @@ describe('ZshGenerator', () => {
 
       const script = generator.generate(commands);
 
-      expect(script).toContain("\\'quotes\\'");
+      expect(script).toContain("'\\''quotes'\\''");
       expect(script).toContain('\\[brackets\\]');
       expect(script).toContain('\\\\slash');
       expect(script).toContain('\\:');

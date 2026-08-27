@@ -300,7 +300,9 @@ compdef _openspec openspec
   private escapeDescription(desc: string): string {
     return desc
       .replace(/\\/g, '\\\\')
-      .replace(/'/g, "\\'")
+      // Inside zsh single quotes, backslash-quote does NOT escape; the
+      // idiom is close-quote, literal quote, reopen: '\''
+      .replace(/'/g, "'\\''")
       .replace(/\[/g, '\\[')
       .replace(/]/g, '\\]')
       .replace(/:/g, '\\:');

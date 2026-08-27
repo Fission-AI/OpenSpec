@@ -1,23 +1,23 @@
 /**
  * AtomCode Command Adapter
  *
- * Formats commands for AtomCode following its frontmatter specification.
- * AtomCode is an open-source terminal AI coding assistant that uses the same
- * Agent Skills spec as Claude Code.
+ * Formats project commands for AtomCode.
+ * https://github.com/atomgit-atomcode/atomcode#custom-commands
  */
 
 import path from 'path';
+import { stringify } from 'yaml';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
-import { transformToHyphenCommands } from '../../../utils/command-references.js';
 
 /**
  * AtomCode adapter for command generation.
  * File path: .atomcode/commands/opsx-<id>.md
- * Frontmatter: description
+ * Frontmatter: name, description, args
  *
- * AtomCode's frontmatter parser supports name, description, disable-model-invocation,
- * user-invocable, argument-hint, and allowed-tools. We provide description as the
- * primary field; other fields are optional and left to defaults.
+ * AtomCode's custom-command parser reads name and args literally without YAML
+ * unquoting, so these controlled identifiers must stay unquoted.
+ * The command name matches the filename. Optional arguments let users supply
+ * a change name or request, or invoke the workflow without one and be prompted.
  */
 export const atomcodeAdapter: ToolCommandAdapter = {
   toolId: 'atomcode',
@@ -27,14 +27,17 @@ export const atomcodeAdapter: ToolCommandAdapter = {
   },
 
   formatFile(content: CommandContent): string {
-    // Transform command references from colon to hyphen format for AtomCode
-    const transformedBody = transformToHyphenCommands(content.body);
-
+    // Keep ordinary descriptions plain for the literal custom-command parser,
+    // while escaping special values for AtomCode's separate YAML skill loader.
+    const description = stringify({ description: content.description }, { lineWidth: 0, blockQuote: false });
     return `---
-description: ${content.description}
+name: opsx-${content.id}
+${description}args: optional
 ---
 
-${transformedBody}
+**Provided arguments**: $ARGUMENTS
+
+${content.body}
 `;
   },
 };

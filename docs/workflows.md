@@ -28,22 +28,119 @@ OPSX (fluid actions):
 
 > **Customization:** OPSX workflows are driven by schemas that define artifact sequences. See [Customization](customization.md) for details on creating custom schemas.
 
+## Workflow at a Glance
+
+The default workflow stays fluid: exploration and verification are optional, and
+you can update planning artifacts whenever implementation reveals something new.
+
+```mermaid
+flowchart TD
+    Idea["Idea or problem"] --> Explore["/opsx:explore<br/>(optional)"]
+    Idea --> Propose["/opsx:propose"]
+    Explore --> Propose
+    Propose --> Review{"Planning artifacts<br/>ready?"}
+    Review -->|"Refine"| Update["/opsx:update"]
+    Update --> Review
+    Review -->|"Implement"| Apply["/opsx:apply"]
+    Apply -->|"Plan changed"| Update
+    Apply --> Archive["/opsx:archive"]
+    Apply --> Verify["/opsx:verify<br/>(optional, custom selection)"]
+    Apply --> Sync["/opsx:sync<br/>(optional before archive)"]
+    Verify --> Verified{"Ready to archive?"}
+    Verified -->|"Fix implementation"| Apply
+    Verified -->|"Revise plan"| Update
+    Verified -->|"Ready"| Sync
+    Verified -->|"Ready"| Archive
+    Sync --> Archive
+```
+
+The AI assistant drives the workflow, while the CLI provides deterministic
+scaffolding, status, and artifact instructions:
+
+```mermaid
+sequenceDiagram
+    actor Human
+    participant Assistant as AI assistant
+    participant CLI as OpenSpec CLI
+    participant Files as Planning and implementation files
+
+    Human->>Assistant: /opsx:propose "change"
+    Assistant->>CLI: openspec new change
+    CLI->>Files: Scaffold change metadata
+    Assistant->>CLI: Request status and artifact instructions
+    CLI-->>Assistant: Build order, paths, and templates
+    Assistant->>Files: Write schema-defined planning artifacts
+    Assistant-->>Human: Present artifacts for review
+
+    Human->>Assistant: /opsx:apply
+    Assistant->>CLI: Request apply instructions
+    CLI-->>Assistant: Context files and task state
+    Assistant->>Files: Implement tasks and update checkboxes
+    Assistant-->>Human: Report implementation status
+
+    Human->>Assistant: /opsx:archive
+    Assistant->>CLI: Request archive inputs and artifact status
+    CLI-->>Assistant: Planning paths and artifact completion
+    Assistant->>Files: Read task state and compare delta specs
+    opt Delta specs exist
+        Assistant-->>Human: Offer to sync before archiving
+        alt Sync accepted
+            Human->>Assistant: Confirm sync
+            Assistant->>Files: Merge delta specs into main specs
+        else Sync skipped
+            Human->>Assistant: Archive without syncing
+        end
+    end
+    Assistant->>Files: Move the change into the archive
+    Assistant-->>Human: Report archive location and sync result
+
+    Note over Human,CLI: CLI alternative: openspec archive change-name --yes skips confirmation prompts. It still validates, then applies any delta specs and archives
+```
+
 ## Two Modes
 
 ### Default Quick Path (`core` profile)
 
 New installs default to `core`, which provides:
-- `/opsx:propose`
 - `/opsx:explore`
+- `/opsx:propose`
 - `/opsx:apply`
+- `/opsx:update`
 - `/opsx:sync`
 - `/opsx:archive`
 
 Typical flow:
 
 ```text
-/opsx:propose ──► /opsx:apply ──► /opsx:sync ──► /opsx:archive
+/opsx:explore ──► /opsx:propose ──► /opsx:apply ──► /opsx:sync ──► /opsx:archive
+  (optional)
 ```
+
+#### Start by exploring (the habit worth forming)
+
+`/opsx:explore` is part of the default profile, not an advanced add-on. It's the move to make whenever you have a problem but not yet a plan, which, with an AI assistant, is most of the time.
+
+```text
+You: /opsx:explore
+
+AI:  What would you like to explore?
+
+You: Our search results feel stale. I'm not sure if it's caching,
+     indexing, or the query itself.
+
+AI:  Let me look... [reads the search service and cache layer]
+     It's the index: it only rebuilds nightly, so edits don't show
+     up until the next day. Two options: rebuild on write (simple,
+     more load) or a short-TTL cache invalidation (more moving parts,
+     less load). Given your write volume is low, rebuild-on-write is
+     the cleaner fix. Want to scope it?
+
+You: Yes.
+
+You: /opsx:propose rebuild-search-index-on-write
+```
+
+Explore creates no artifacts and writes no code. It's a free, no-stakes conversation that turns a vague worry into a precise change, so the proposal that follows is sharp. Already know exactly what you want? Skip it and go straight to `/opsx:propose`. Full guide: [Explore First](explore.md).
 
 ### Expanded/Full Workflow (custom selection)
 
@@ -435,7 +532,7 @@ For full command details and options, see [Commands](commands.md).
 | Command | Purpose | When to Use |
 |---------|---------|-------------|
 | `/opsx:propose` | Create change + planning artifacts | Fast default path (`core` profile) |
-| `/opsx:explore` | Think through ideas | Unclear requirements, investigation |
+| `/opsx:explore` | Think through ideas with the AI | Start here when unsure: unclear requirements, investigation, comparing options |
 | `/opsx:new` | Start a change scaffold | Expanded mode, explicit artifact control |
 | `/opsx:continue` | Create next artifact | Expanded mode, step-by-step artifact creation |
 | `/opsx:ff` | Create all planning artifacts | Expanded mode, clear scope |
@@ -447,6 +544,9 @@ For full command details and options, see [Commands](commands.md).
 
 ## Next Steps
 
+- [Writing Good Specs](writing-specs.md) - What a strong requirement and scenario look like, and how to right-size a change
+- [Reviewing a Change](reviewing-changes.md) - The two-minute pass on a drafted plan before any code
+- [OpenSpec on a Team](team-workflow.md) - How changes fit branches and pull requests
 - [Commands](commands.md) - Full command reference with options
 - [Concepts](concepts.md) - Deep dive into specs, artifacts, and schemas
 - [Customization](customization.md) - Create custom workflows

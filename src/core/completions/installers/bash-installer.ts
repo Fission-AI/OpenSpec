@@ -65,6 +65,21 @@ export class BashInstaller {
   }
 
   /**
+   * Check if a completion script is currently installed.
+   * Mirrors ZshInstaller.isInstalled so callers can ask any installer.
+   *
+   * @returns true if the completion script exists
+   */
+  async isInstalled(): Promise<boolean> {
+    try {
+      // stat, not access: a directory at the install path is not a script.
+      return (await fs.stat(await this.getInstallationPath())).isFile();
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Backup an existing completion file if it exists
    *
    * @param targetPath - Path to the file to backup
@@ -238,6 +253,10 @@ export class BashInstaller {
       } catch (error: any) {
         // File doesn't exist or can't be read, proceed with installation
         console.debug(`Unable to read existing completion file at ${targetPath}: ${error.message}`);
+      }
+
+      if (!(await FileSystemUtils.canWriteFile(targetPath))) {
+        throw new Error(`Path is not writable: ${targetPath}`);
       }
 
       // Ensure the directory exists

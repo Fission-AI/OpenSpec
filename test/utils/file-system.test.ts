@@ -3,15 +3,13 @@ import * as nodeFs from 'fs';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
-import { randomUUID } from 'crypto';
 import { FileSystemUtils } from '../../src/utils/file-system.js';
 
 describe('FileSystemUtils', () => {
   let testDir: string;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
-    await fs.mkdir(testDir, { recursive: true });
+    testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-test-'));
   });
 
   afterEach(async () => {
@@ -234,6 +232,21 @@ describe('FileSystemUtils', () => {
 
       const canWrite = await FileSystemUtils.canWriteFile(dirPath);
       expect(canWrite).toBe(true);
+    });
+
+    it.skipIf(process.platform === 'win32')('should return false for directory without search permission', async () => {
+      const dirPath = path.join(testDir, 'write-only-dir');
+      await fs.mkdir(dirPath);
+      await fs.chmod(dirPath, 0o222);
+
+      let canWrite = false;
+      try {
+        canWrite = await FileSystemUtils.canWriteFile(dirPath);
+      } finally {
+        await fs.chmod(dirPath, 0o755);
+      }
+
+      expect(canWrite).toBe(false);
     });
 
     it('should traverse multiple non-existent parent directories', async () => {

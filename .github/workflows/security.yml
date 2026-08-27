@@ -1,0 +1,120 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**/package.json'
+      - '**/pnpm-lock.yaml'
+      - '**/pnpm-workspace.yaml'
+      - '.github/workflows/security.yml'
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly, so a newly published advisory surfaces even with no commits.
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Blocks a pull request that introduces a vulnerable or badly licensed dependency.
+  dependency-review:
+    name: Dependency Review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # No PR comment: that needs `pull-requests: write`, which a fork's token
+      # never gets. The failed check plus its log is the signal.
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+
+  audit:
+    name: Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+
+      # No dependency cache: `pnpm audit` reads the lockfile, nothing is installed,
+      # so a cache-save step would fail on the missing store path.
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '20.19.0'
+
+      # Advisory on pull requests: a newly published advisory should not stop an
+      # unrelated change, and the step depends on registry availability.
+      # Blocking everywhere else — on the weekly schedule and on pushes to main
+      # — so a high-severity advisory in a shipped dependency still fails a run
+      # even when no dependency changed.
+      - name: Audit published dependencies
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        run: pnpm audit --prod --audit-level high
+
+      # Build and test tooling never reaches an installed copy of OpenSpec, so an
+      # advisory here is a scheduled-update item.
+      - name: Audit build and test tooling
+        continue-on-error: true
+        run: pnpm audit --audit-level high
+
+      # The docs site keeps its own lockfile and is not a workspace member, so
+      # neither audit above can see it. Without this step a website advisory is
+      # invisible — which is how two of them sat open long enough to need a
+      # manual override.
+      #
+      # Same blocking rule as the published-dependency audit: advisory on pull
+      # requests, blocking on the weekly schedule and on pushes to main. Green
+      # here has to mean the site is clean, or the step just relocates the blind
+      # spot into a passing log. `!cancelled()` because the two audits above can
+      # fail hard, and a root advisory must not silently skip this one.
+      - name: Audit documentation site
+        if: ${{ !cancelled() }}
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        run: pnpm audit --audit-level high --dir website
+
+  # The website keeps its own lockfile and is never installed or built elsewhere
+  # in CI, so a website/package.json change — e.g. a security override — that is
+  # not reflected in website/pnpm-lock.yaml goes unnoticed: the override you think
+  # patches an advisory may not be in the committed graph at all, and `pnpm audit`
+  # would happily audit the stale (possibly still-vulnerable) tree. A frozen-lockfile
+  # install fails fast on that drift. Root drift is already caught by the
+  # `--frozen-lockfile` installs in ci.yml; this closes the same gap for the website.
+  # `--ignore-scripts` skips sharp's native build (irrelevant to lockfile validation
+  # and the usual source of install flake).
+  website-lockfile:
+    name: Website Lockfile Drift
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '20.19.0'
+
+      - name: Verify website lockfile matches package.json
+        run: pnpm install --frozen-lockfile --ignore-scripts --dir website

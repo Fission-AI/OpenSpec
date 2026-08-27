@@ -11,12 +11,33 @@ export const GLOBAL_DATA_DIR_NAME = 'openspec';
 export type Profile = 'core' | 'custom';
 export type Delivery = 'both' | 'skills' | 'commands';
 
+/** Telemetry section of global config (identity + opt-out). */
+export interface TelemetryConfig {
+  /** When false, telemetry is disabled. Unset means enabled (opt-out model). */
+  enabled?: boolean;
+  /** Anonymous random UUID; no relation to the user. */
+  anonymousId?: string;
+  /** Whether the first-run telemetry notice has been shown. */
+  noticeSeen?: boolean;
+}
+
 // TypeScript interfaces
 export interface GlobalConfig {
   featureFlags?: Record<string, boolean>;
   profile?: Profile;
   delivery?: Delivery;
   workflows?: string[];
+  /**
+   * Machine-level fallback store id, consulted during root resolution only
+   * when no --store flag, local root, or project-level store: pointer resolves.
+   */
+  defaultStore?: string;
+  /** Workset opener rows (slice 7.1); hand-edited, validated on use. */
+  openers?: unknown;
+  /** Anonymous usage analytics settings and identity. */
+  telemetry?: TelemetryConfig;
+  /** Whether the first-run shell-completions tip has been shown. */
+  completionTipSeen?: boolean;
 }
 
 const DEFAULT_CONFIG: GlobalConfig = {
