@@ -623,6 +623,57 @@ metadata:
       ).toBe(true);
     });
 
+    it('should refresh Antigravity workflows without rewriting Codex-owned shared skills', async () => {
+      await new InitCommand({ tools: 'antigravity,codex', force: true }).execute(testDir);
+
+      await new UpdateCommand({ force: true }).execute(testDir);
+
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe('codex\n');
+      const proposeSkill = await fs.readFile(
+        path.join(skillsDir, 'openspec-propose', 'SKILL.md'),
+        'utf-8'
+      );
+      expect(proposeSkill).toContain('$openspec-apply-change');
+      expect(proposeSkill).toContain('/openspec-apply-change');
+      await expect(
+        fs.access(path.join(testDir, '.agents', 'workflows', 'opsx-propose.md'))
+      ).resolves.toBeUndefined();
+      expect(getConfiguredToolsForProfileSync(testDir)).toEqual([
+        'antigravity',
+        'codex',
+      ]);
+    });
+
+    it('should upgrade legacy Antigravity workflows beside Codex-owned shared skills', async () => {
+      await new InitCommand({ tools: 'antigravity', force: true }).execute(testDir);
+      const legacyWorkflow = path.join(testDir, '.agent', 'workflows', 'opsx-propose.md');
+      await fs.mkdir(path.dirname(legacyWorkflow), { recursive: true });
+      await fs.copyFile(
+        path.join(testDir, '.agents', 'workflows', 'opsx-propose.md'),
+        legacyWorkflow
+      );
+      await fs.cp(
+        path.join(testDir, '.agents', 'skills'),
+        path.join(testDir, '.agent', 'skills'),
+        { recursive: true }
+      );
+      await fs.rm(path.join(testDir, '.agents', 'workflows'), { recursive: true });
+      await new InitCommand({ tools: 'codex', force: true }).execute(testDir);
+
+      await new UpdateCommand().execute(testDir);
+
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe('codex\n');
+      expect(
+        await fs.readFile(path.join(skillsDir, 'openspec-propose', 'SKILL.md'), 'utf-8')
+      ).toContain('$openspec-apply-change');
+      await expect(
+        fs.access(path.join(testDir, '.agents', 'workflows', 'opsx-propose.md'))
+      ).resolves.toBeUndefined();
+      await expect(fs.access(legacyWorkflow)).rejects.toThrow();
+    });
+
     it('should keep an explicit agents target despite preserved legacy Codex skills', async () => {
       await new InitCommand({ tools: 'codex', force: true }).execute(testDir);
       await fs.rename(path.join(testDir, '.agents'), path.join(testDir, '.codex'));
@@ -2900,6 +2951,34 @@ More user content after markers.
       expect(await FileSystemUtils.fileExists(cursorSkillFile)).toBe(true);
 
       consoleSpy.mockRestore();
+    });
+
+    it('arbitrates legacy Antigravity and Codex before writing the shared tree', async () => {
+      const antigravityLegacy = path.join(
+        testDir,
+        '.agent',
+        'workflows',
+        'openspec-propose.md'
+      );
+      const codexLegacy = path.join(testDir, '.codex', 'prompts', 'openspec-propose.md');
+      await fs.mkdir(path.dirname(antigravityLegacy), { recursive: true });
+      await fs.mkdir(path.dirname(codexLegacy), { recursive: true });
+      await fs.writeFile(antigravityLegacy, 'legacy Antigravity command');
+      await fs.writeFile(codexLegacy, 'legacy Codex prompt');
+
+      await new UpdateCommand({ force: true }).execute(testDir);
+
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe('codex\n');
+      const proposeSkill = await fs.readFile(
+        path.join(skillsDir, 'openspec-propose', 'SKILL.md'),
+        'utf-8'
+      );
+      expect(proposeSkill).toContain('$openspec-apply-change');
+      expect(proposeSkill).toContain('/openspec-apply-change');
+      await expect(
+        fs.access(path.join(testDir, '.agents', 'workflows', 'opsx-propose.md'))
+      ).resolves.toBeUndefined();
     });
 
     it('should not upgrade legacy tools already configured', async () => {
