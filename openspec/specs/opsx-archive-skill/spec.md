@@ -101,10 +101,19 @@ The skill SHALL prompt to sync delta specs before archiving if specs exist.
 - **THEN** report that only ADDED requirements can create a new main spec
 - **AND** stop instead of prompting to sync
 
-#### Scenario: Nothing to put in a missing main spec
+#### Scenario: Explicitly retired capability whose main spec is missing
+
+- **WHEN** a delta contains only `## REMOVED Requirements` and its main spec is missing
+- **AND** the change's `.openspec.yaml` declares `retire_capabilities: true`
+- **THEN** count that capability as already synced and report that it is already retired
+- **AND** warn that there is nothing left to remove and do not recreate the main spec
+- **AND** apply the same rule when verifying a completed sync, so retiring a capability does not block archiving
+
+#### Scenario: Nothing to put in a missing main spec without a declared retirement
 
 - **WHEN** a delta targets a capability whose main spec does not exist yet
 - **AND** the delta has no `## ADDED Requirements`
+- **AND** it is not a REMOVED-only delta with `retire_capabilities: true`
 - **THEN** report that no sync is possible
 - **AND** if the delta has only `## REMOVED Requirements`, warn that there is no main spec to remove them from and leave the main-spec tree unchanged
 - **AND** stop instead of prompting to sync, since the verification pass would re-read the same missing spec

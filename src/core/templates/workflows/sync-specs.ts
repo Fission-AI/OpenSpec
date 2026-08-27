@@ -151,11 +151,14 @@ ${STORE_SELECTION_GUIDANCE}
         (this is what \`openspec archive\` does; it warns and moves on)
 
    d. **Create new main spec** if capability doesn't exist yet:
-      - Only when the delta has ADDED requirements to put in it. With nothing to add -
-        a REMOVED-only delta against a capability that has no main spec - create nothing,
-        leave the specs directory untouched, and report it; \`openspec archive\` aborts the
-        same case with \`Spec must have at least one requirement\`. Never write an empty
-        \`## Requirements\` section.
+      - Only when the delta has ADDED requirements to put in it and no MODIFIED or
+        RENAMED requirements blocked this capability in step b. Otherwise create nothing
+        and leave the specs directory untouched. For a REMOVED-only delta, if the change's
+        \`.openspec.yaml\` declares \`retire_capabilities: true\`, report it as already retired
+        and continue without recreating the spec. Without that marker, report the sync as blocked:
+        \`openspec archive\` rejects it with \`Spec must have at least one requirement\`.
+        An empty delta has no operations to sync; report it as blocked too.
+        Never write an empty \`## Requirements\` section.
       - Create \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\`
       - Add Purpose section: copy the delta's \`## Purpose\` body verbatim when it has one
         (this is what \`openspec archive\` does); only write a brief TBD placeholder when it does not
@@ -425,11 +428,14 @@ ${STORE_SELECTION_GUIDANCE}
         (this is what \`openspec archive\` does; it warns and moves on)
 
    d. **Create new main spec** if capability doesn't exist yet:
-      - Only when the delta has ADDED requirements to put in it. With nothing to add -
-        a REMOVED-only delta against a capability that has no main spec - create nothing,
-        leave the specs directory untouched, and report it; \`openspec archive\` aborts the
-        same case with \`Spec must have at least one requirement\`. Never write an empty
-        \`## Requirements\` section.
+      - Only when the delta has ADDED requirements to put in it and no MODIFIED or
+        RENAMED requirements blocked this capability in step b. Otherwise create nothing
+        and leave the specs directory untouched. For a REMOVED-only delta, if the change's
+        \`.openspec.yaml\` declares \`retire_capabilities: true\`, report it as already retired
+        and continue without recreating the spec. Without that marker, report the sync as blocked:
+        \`openspec archive\` rejects it with \`Spec must have at least one requirement\`.
+        An empty delta has no operations to sync; report it as blocked too.
+        Never write an empty \`## Requirements\` section.
       - Create \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\`
       - Add Purpose section: copy the delta's \`## Purpose\` body verbatim when it has one
         (this is what \`openspec archive\` does); only write a brief TBD placeholder when it does not
